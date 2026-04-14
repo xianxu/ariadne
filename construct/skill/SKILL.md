@@ -124,11 +124,16 @@ Promotes ALL staged skills from a source to the target. Deploys as a cohesive se
 5. Snapshot current live state into `$REPO_ROOT/construct/versions/NNNN/`:
    - Record all skills being deployed, their source, target, scope
    - Write manifest to `versions/NNNN/manifest.md`
-6. Copy ALL staged skills to the target's `.claude/skills/` (overwrite existing)
-7. Update `$REPO_ROOT/construct/current` with the new version number
-8. Clear `$REPO_ROOT/construct/staging/<target-slug>/`
-9. Prune versions beyond the last 10 (by numeric prefix, oldest first)
-10. Update `$REPO_ROOT/construct/manifest.md`
+6. **Delete-then-copy:** First, remove all `<source>-*` skill directories from the target's `.claude/skills/` (e.g., `rm -rf <target>/.claude/skills/superpowers-*/`). Then copy ALL staged skills into the target. This ensures removed or renamed skills don't linger.
+7. **Disable source plugin in target repo:** Set the source plugin to `false` in `<target>/.claude/settings.json` under `enabledPlugins`. This prevents the global plugin's skills from shadowing the adapted local versions. Example for superpowers:
+   ```json
+   { "enabledPlugins": { "superpowers@claude-plugins-official": false } }
+   ```
+   If the file already exists, merge into the existing `enabledPlugins` object. Skip this step for `--to personal`.
+8. Update `$REPO_ROOT/construct/current` with the new version number
+9. Clear `$REPO_ROOT/construct/staging/<target-slug>/`
+10. Prune versions beyond the last 10 (by numeric prefix, oldest first)
+11. Update `$REPO_ROOT/construct/manifest.md`
 
 ### `/construct import <source>`
 
