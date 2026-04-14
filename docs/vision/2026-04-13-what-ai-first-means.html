@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>2026-04-13-what-ai-first-means</title>
+  <style>
+
+html {
+color: #1a1a1a;
+background-color: #fdfdfd;
+}
+body {
+margin: 0 auto;
+max-width: 36em;
+padding-left: 50px;
+padding-right: 50px;
+padding-top: 50px;
+padding-bottom: 50px;
+hyphens: auto;
+overflow-wrap: break-word;
+text-rendering: optimizeLegibility;
+font-kerning: normal;
+}
+@media (max-width: 600px) {
+body {
+font-size: 0.9em;
+padding: 12px;
+}
+h1 {
+font-size: 1.8em;
+}
+}
+@media print {
+html {
+background-color: white;
+}
+body {
+background-color: transparent;
+color: black;
+font-size: 12pt;
+}
+p, h2, h3 {
+orphans: 3;
+widows: 3;
+}
+h2, h3, h4 {
+page-break-after: avoid;
+}
+}
+p {
+margin: 1em 0;
+}
+a {
+color: #1a1a1a;
+}
+a:visited {
+color: #1a1a1a;
+}
+img {
+max-width: 100%;
+}
+svg {
+height: auto;
+max-width: 100%;
+}
+h1, h2, h3, h4, h5, h6 {
+margin-top: 1.4em;
+}
+h5, h6 {
+font-size: 1em;
+font-style: italic;
+}
+h6 {
+font-weight: normal;
+}
+ol, ul {
+padding-left: 1.7em;
+margin-top: 1em;
+}
+li > ol, li > ul {
+margin-top: 0;
+}
+blockquote {
+margin: 1em 0 1em 1.7em;
+padding-left: 1em;
+border-left: 2px solid #e6e6e6;
+color: #606060;
+}
+code {
+font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+font-size: 85%;
+margin: 0;
+hyphens: manual;
+}
+pre {
+margin: 1em 0;
+overflow: auto;
+}
+pre code {
+padding: 0;
+overflow: visible;
+overflow-wrap: normal;
+}
+.sourceCode {
+background-color: transparent;
+overflow: visible;
+}
+hr {
+border: none;
+border-top: 1px solid #1a1a1a;
+height: 1px;
+margin: 1em 0;
+}
+table {
+margin: 1em 0;
+border-collapse: collapse;
+width: 100%;
+overflow-x: auto;
+display: block;
+font-variant-numeric: lining-nums tabular-nums;
+}
+table caption {
+margin-bottom: 0.75em;
+}
+tbody {
+margin-top: 0.5em;
+border-top: 1px solid #1a1a1a;
+border-bottom: 1px solid #1a1a1a;
+}
+th {
+border-top: 1px solid #1a1a1a;
+padding: 0.25em 0.5em 0.25em 0.5em;
+}
+td {
+padding: 0.125em 0.5em 0.25em 0.5em;
+}
+header {
+margin-bottom: 4em;
+text-align: center;
+}
+#TOC li {
+list-style: none;
+}
+#TOC ul {
+padding-left: 1.3em;
+}
+#TOC > ul {
+padding-left: 0;
+}
+#TOC a:not(:hover) {
+text-decoration: none;
+}
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+</head>
+<body>
+<h1 id="what-ai-first-actually-means">What “AI First” Actually
+Means</h1>
+<p><strong>Date:</strong> 2026-04-13 <strong>Companion to:</strong> <a href="2026-04-13-letter-to-founder.md">Letter to Alamin</a></p>
+<hr />
+<p>Over the last year, I’ve been building a Neovim plugin called <a href="https://github.com/xianxu/parley.nvim">Parley</a> — about 29K
+lines of Lua, 60+ modules, 600+ tests, 700+ commits. I didn’t know lua,
+still don’t. I’ve never written a Neovim plugin before. The entire thing
+was built by AI agents, steered by me. I reviewed specs and verified
+behavior, make key architecture steering, just not coding. That sounds
+crazy until you think about it — we already do this with compilers.
+Nobody reviews the assembly output<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>.</p>
+<p>That experience is why I’m writing this. When I say “AI first,” I
+don’t mean “use Copilot more.” The difference is pretty hard to see
+until you’ve lived it, so let me make it concrete.</p>
+<h2 id="three-levels">Three Levels</h2>
+<p>Most companies are at Level 1. I’m proposing we jump to Level 3.</p>
+<p><strong>Level 1: AI-assisted.</strong> Human drives, AI helps. You
+write code, Copilot autocompletes. You write a doc, ChatGPT polishes it.
+The workflow stays the same — you just have a faster horse. This is
+where most of NexHealth is today.</p>
+<p><strong>Level 2: AI-augmented.</strong> Human directs, AI executes
+chunks. You describe a feature, an agent writes the code, you review the
+PR. Think Claude Code or Cursor in agent mode. The workflow is still
+human-shaped, but bigger pieces get delegated. Quickly, human becomes
+the bottleneck in code reviews. Sync Core is experimenting this
+(Jon/Erik).</p>
+<p><strong>Level 3: AI-native.</strong> AI runs the loops. Human steers.
+The workflow itself is restructured around what AI is good at (executing
+multi-step tasks, tireless iteration, pattern matching across large
+codebases) and what humans are good at (judgment, taste, knowing what
+“correct” means in context). <strong>This is where the 3-5x leverage
+lives.</strong> No one’s here.</p>
+<p>The gap between Level 2 and Level 3 isn’t better tools. It’s
+rethinking the entire loop — how work is specified, executed, verified,
+and evolved.</p>
+<h2 id="before-and-after-building-a-cloud-ehr-integration">Before and
+After: Building a Cloud EHR Integration</h2>
+<h3 id="before-how-we-do-it-today">Before (how we do it today)</h3>
+<p>Picture a typical new integration. A team of 2-3 engineers, one
+serving as lead, sprint planning.</p>
+<ol type="1">
+<li>“PM” writes requirements</li>
+<li>Engineering lead breaks it into stories, estimates in story points
+(a sprint planning meeting)</li>
+<li>Engineers pick up stories, write code, submit PRs (2-3 sprints)</li>
+<li>Code review rounds — back and forth, nit-picks, style debates (days
+per PR)</li>
+<li>QA cycles, bug fixes, more PRs (another sprint)</li>
+<li>Deploy, monitor, hotfix (ongoing)</li>
+</ol>
+<p>Timeline: 2-3 months. Team: 2-3 engineers.</p>
+<p>On the other hand — what if the execution layer is AI?</p>
+<h3 id="after-ai-first">After (AI-first)</h3>
+<p>Same integration. Team of 1. The engineers are the PM<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>.</p>
+<ol type="1">
+<li><p><strong>Spec the boundaries, not the details.</strong> Write a
+lightweight spec: what data flows where, what the API contract looks
+like, what “correct” means for each sync direction. Don’t over-specify —
+specifying too much in imprecise human language is actually
+counter-productive. I learned this the hard way on Parley: when I tried
+to build an OAuth flow, I realized the domain was way more complicated
+than I initially understood. There would’ve been no way to specify all
+the nuances upfront. Treat the spec as a sketch that evolves. The model
+will pull in its world knowledge.</p></li>
+<li><p><strong>AI runs the implementation loops.</strong> Point an agent
+at the spec. It reads the existing codebase, flushes out details in the
+spec, plans the implementation, writes the code, writes the tests. When
+it hits ambiguity, it surfaces a checkpoint: “here’s what I’m assuming
+about appointment status mapping — is this right?” The engineer reviews
+the assumption, not the code. Such discussions are synthesized and
+stored for future use.</p></li>
+<li><p><strong>Ground it in reality, fast.</strong> The agent runs tests
+continuously — not just the tests it wrote, but regression tests,
+integration tests against real EHR sandbox APIs. The feedback loop is
+minutes, not days. When something breaks, the agent iterates. The
+engineer only gets involved for judgment calls: “the EHR returns
+inconsistent data for this edge case — which interpretation should we
+use?” Right, this is fundamentally different from human code review as
+the verification mechanism.</p></li>
+<li><p><strong>Verify at the decision layer.</strong> The engineer
+doesn’t review every line of code. They review decisions: Is the data
+model right? Does the sync logic handle the edge cases that actually
+matter? Are we building the right thing? The agent writes hundreds of
+tests to prove correctness. The engineer’s job is to make sure “correct”
+is correctly defined. For reference: when I built Parley this way, I
+went from 0 tests to 600+ — the agent writes them compulsively, which is
+actually what you want.</p></li>
+<li><p><strong>Evolve the spec as you learn.</strong> Every integration
+uncovers surprises — the EHR API does something weird, a data format
+isn’t what the docs say. In the traditional flow, these discoveries get
+lost in Slack threads and PR comments. In the AI-first flow, the spec
+file gets updated, the agent re-plans, the tests adapt. The knowledge
+stays in the repo, not in someone’s head.</p></li>
+</ol>
+<p>Timeline: 2-3 weeks. Team: 2 engineers. That’s 4-6 person-weeks —
+roughly a <strong>5-10x improvement</strong>. And the code comes with
+far better test coverage, because the agent tests everything, not just
+the happy path.</p>
+<h2 id="what-i-actually-do-all-day">What I Actually Do All Day</h2>
+<p>This is pretty different from what most people imagine when they hear
+“AI coding.”</p>
+<ul>
+<li><strong>Architect the structure.</strong> I define how workflow
+files connect: where issues live, where specs live, how the agent
+discovers what to work on, what constitutes a “checkpoint” that needs my
+eyes. This is the meta-work — building the harness that makes AI
+execution sustainable. I’ve iterated on this over 400+ commits in
+Parley, evolving from raw prompts to a structured system of issues,
+specs, lessons, and living workflows.</li>
+<li><strong>Steer at checkpoints.</strong> The agent surfaces decisions.
+I confirm, correct, or redirect. On Parley, that looked like: “No, the
+exchange model should be the single source of truth — don’t duplicate
+state in the UI layer.” At NexHealth, it would be: “No, appointment
+status should map this way because of how downstream consumers use it.”
+This is where domain knowledge matters and where human judgment is
+irreplaceable.</li>
+<li><strong>Ground the agent.</strong> Write test harnesses. Set up
+linting rules. Create guardrails. Pretty much like writing unit tests,
+except the “unit” is the agent’s behavior, not just the code. I even
+built <code>make test-changed</code> that runs tests based on which spec
+files changed — so the agent can verify faster.</li>
+<li><strong>Evolve the spec.</strong> As the agent implements and I
+review, the spec gets sharper. Edge cases get documented. The spec
+becomes the living source of truth — not code comments, not Confluence,
+not someone’s memory.</li>
+</ul>
+<p>The key insight (and this one I borrowed from the AlphaZero analogy):
+<strong>the human is the evaluation function.</strong> AlphaZero needs a
+board evaluation function to distinguish winning from losing positions.
+AI agents need a human to distinguish correct from merely plausible. My
+job is to make that evaluation sustainable, not to do the execution
+myself.</p>
+<h2 id="why-this-isnt-just-use-copilot-more">Why This Isn’t “Just Use
+Copilot More”</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th>AI-Assisted (Level 1-2)</th>
+<th>AI-Native (Level 3)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Who drives?</strong></td>
+<td>Human writes, AI helps</td>
+<td>AI executes, human steers</td>
+</tr>
+<tr>
+<td><strong>Unit of work</strong></td>
+<td>A function, a PR</td>
+<td>A feature, a system</td>
+</tr>
+<tr>
+<td><strong>Verification</strong></td>
+<td>Human code review</td>
+<td>Automated tests + human judgment at decision points</td>
+</tr>
+<tr>
+<td><strong>Knowledge lives in</strong></td>
+<td>People’s heads, Slack, Jira</td>
+<td>Repo: specs, tests, living workflow files</td>
+</tr>
+<tr>
+<td><strong>Speed bottleneck</strong></td>
+<td>Human typing speed, review cycles</td>
+<td>Human judgment speed (much faster)</td>
+</tr>
+<tr>
+<td><strong>Team size for a feature</strong></td>
+<td>5-8</td>
+<td>2-3</td>
+</tr>
+</tbody>
+</table>
+<p>Sprint planning assumes human-speed execution — pretty pointless when
+the agent finishes a “sprint’s worth” of code in a day. And here’s the
+big one: <strong>humans stop reviewing code.</strong> This is the
+hardest shift, and it’s the one that makes everything else work. Code
+review as gatekeeping becomes a bottleneck when the agent generates more
+code in a day than a reviewer can meaningfully read. More importantly,
+it’s the wrong layer to verify at. Humans review <em>decisions</em> — is
+the spec right, is the data model right, does the behavior match what we
+want.</p>
+<p>But — and this is critical — you can’t just stop reviewing code and
+call it a day. You need to <strong>replace code review with something
+better.</strong> The infrastructure to make this safe is real work:</p>
+<ul>
+<li><strong>Test coverage that’s actually comprehensive.</strong> Not
+aspirational. The agent writes tests compulsively, but someone needs to
+make sure the test harness itself is sound — that you’re testing the
+right things, not just a lot of things. I built
+<code>make test-changed</code> on Parley to run tests based on which
+spec files changed, so the agent can verify fast and targeted.</li>
+<li><strong>Linting and static analysis as guardrails.</strong> Rules
+that catch classes of mistakes deterministically. Over time, lessons the
+agent learns (soft knowledge in <code>lessons.md</code>) should migrate
+into hard linting rules. Code that you once caught in review should
+become a rule the agent can’t violate.</li>
+<li><strong>Spec-driven verification.</strong> The spec is the contract.
+If the code matches the spec and the tests pass, you don’t need to read
+the diff. But that means the specs have to be good — maintained, precise
+where it matters, and actually connected to the test suite.</li>
+<li><strong>Staged autonomy.</strong> You don’t go from “review every
+line” to “review nothing” overnight. You start with more human
+checkpoints, and as the test harness and guardrails prove themselves,
+you dial down. On Parley, I started reviewing a lot. Now, 700+ commits
+in, my review surface is specs and test results, not code.</li>
+</ul>
+<p>I built 25K lines of Lua this way without reading most of the code.
+The tests and specs were my review surface, not the diffs. Once you
+build the infrastructure to support this, the entire workflow unlocks.
+If you don’t — if you just remove code review without replacing it —
+you’re vibe coding at scale. And if you keep code review, you’re stuck
+at Level 2. The ceiling on how fast you move is how fast humans can read
+diffs.</p>
+<h2 id="what-it-takes">What It Takes</h2>
+<p>To actually operate at Level 3:</p>
+<ol type="1">
+<li><p><strong>People who can steer.</strong> Not everyone is
+comfortable working this way. You need to know what “right” looks like
+without personally writing every line. The skill is closer to tech lead
+or architect than senior IC.</p></li>
+<li><p><strong>A test-first culture, for real.</strong> Not “we aspire
+to write tests.” Actually test-first, because the tests are how you
+ground the AI. Without tests, you’re just vibe coding<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> —
+the AI produces plausible output and you have no way to verify at scale.
+This is a feature, not a bug — it forces you to finally do what we’ve
+always said we should do.</p></li>
+<li><p><strong>Specs as living documents.</strong> Not the kind that get
+written once and immediately rot. Specs that evolve as the agent
+implements, checked into the repo, serving as source of truth for both
+humans and AI. I keep these in a <code>specs/</code> folder with an
+index file — the agent discovers them progressively, like how you’d
+onboard a new engineer.</p></li>
+<li><p><strong>Tolerance for a different rhythm.</strong> No sprint
+planning. No standup (who would you report status to — the agent knows
+its own status). Spec review, checkpoint review, and continuous
+verification. It looks weird from outside.</p></li>
+<li><p><strong>Willingness to measure differently.</strong> Not story
+points. Not PR count. Did the integration ship? Does it work? How fast?
+How robust? Outcomes, not activity.</p></li>
+</ol>
+<p>That’s a pretty different operating model. And that’s exactly why it
+needs to be a protected skunk works, not a mandate from eng leadership
+to “adopt AI tools.”</p>
+<hr />
+<p>Happy to do a live walkthrough — actually building something with the
+AI-native workflow so you can see it in action. It’s a lot more visceral
+than reading about it.</p>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Of course, with great power comes great
+responsibilities. The grounding mechanism (tests, specs, verification)
+is what makes this work. Without it, you’re just vibe coding at scale.
+Pretty terrifying for production systems.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>Actually, this is one of the underappreciated
+implications. When AI executes at speed, the bottleneck shifts to “does
+the team know what to build?” The PM → engineer handoff becomes
+overhead. The people closest to the problem should be steering the AI.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>Andrej Karpathy coined this term. Fun for side projects.
+Terrifying for production systems.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+</body>
+</html>
