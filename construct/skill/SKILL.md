@@ -5,9 +5,12 @@ description: Use when managing the AI substrate — importing, adapting, upgradi
 
 # The Construct — AI Substrate Management
 
-Manages the AI substrate of this repo: skills, constitution files (AGENTS.md, CLAUDE.md). Imports external skills, adapts them via semantic intent transcripts, versions rendered output, and re-applies intents onto new upstream versions.
+Centralized management of AI skills and constitution files across repos. Imports external skill sources, adapts individual skills via semantic intent transcripts, and deploys to target repos. Ariadne is the control plane.
 
-**Core principle:** Store the intent, not the patch. Re-apply behavioral intent onto each new upstream version.
+**Core principles:**
+- **Store the intent, not the patch.** Re-apply behavioral intent onto each new upstream version.
+- **Vendor at the source level.** Skills in a source (e.g., superpowers) are a cohesive set — vendor all, render all. Unadjusted skills get the source version as-is.
+- **Lazy vendor.** Don't snapshot a source until someone first adjusts a skill from it.
 
 ## Scope: Personal vs Repo
 
@@ -28,13 +31,15 @@ Scope and target are declared in the intent transcript frontmatter and recorded 
 ```
 construct/                                    # top-level, ariadne's AI substrate workspace
   manifest.md                                 # index of managed artifacts
-  sources/<source>/<version>/                 # frozen upstream snapshots
-  intents/<source>/<skill>/                   # per-repo intent transcripts
+  sources/<source>/<version>/                 # frozen upstream snapshot (ALL skills from source)
+    skills/<skill>/SKILL.md                   # individual skill files
+  intents/<source>/<skill>/                   # per-skill, per-repo intent transcripts
     personal.md                               # personal-scoped intent (if any)
     <repo-name>.md                            # repo-scoped intent (one per target repo)
   intents/constitution/                       # evolution tracking for AGENTS.md, CLAUDE.md
   intents/local/<skill>/                      # intents for locally-created skills
-  staging/                                    # render target before promotion (gitignored)
+  staging/<target-slug>/                      # render target before promotion (gitignored)
+    skills/<skill>/SKILL.md                   # all skills from the source, rendered for this target
   versions/NNNN[-slug]/                       # last 10 snapshots of rendered state
   current                                     # marker: active version number
   rollback.sh                                 # non-AI emergency revert
@@ -68,20 +73,27 @@ The primary authoring command. Starts a conversation to capture what the user wa
   - `/construct adjust superpowers:brainstorming --to personal` → `intents/superpowers/brainstorming/personal.md`
   - `/construct adjust superpowers:brainstorming` → `intents/superpowers/brainstorming/ariadne.md`
 
-**For imported skills (skill exists in construct/sources/):**
+**For sourced skills (source exists, e.g., superpowers):**
 1. Resolve intent filename: use `--as` if provided, otherwise the repo name (last path component of `--to`)
-2. Read the current source files from `construct/sources/<source>/<version>/`
-3. Read existing intent transcript from `construct/intents/<source>/<skill>/<repo-name>.md` (if any)
-4. If target is a repo path, read the target repo's AGENTS.md and CLAUDE.md for context on its conventions
-5. Discuss desired changes with the user — understand behavioral intent
-6. Apply the full intent (existing transcript + new conversation) to the source
-7. Write rendered output to `construct/staging/skills/<skill>/`
-8. Show diff vs. current live version in the target location
-9. Extract verify clauses from the conversation
-10. Dispatch verify subagent (fresh context) with rendered output + verify clauses
-11. If verify fails → re-render with failure context (max 3 attempts)
-12. If verify passes → append new conversation to intent transcript, report ready
-13. Tell user: "Staging is ready. Run `/construct promote <skill> --to <relpath>` to go live."
+2. **Lazy vendor:** If `construct/sources/<source>/` doesn't exist yet, find and snapshot the entire source:
+   - Look in target repo: `<target>/.claude/skills/` for skills matching this source
+   - Look in personal: `~/.claude/skills/`
+   - Snapshot ALL skills from the source into `construct/sources/<source>/<version>/`
+3. Read the source skill from `construct/sources/<source>/<version>/skills/<skill>/`
+4. Read existing intent transcript from `construct/intents/<source>/<skill>/<repo-name>.md` (if any)
+5. If target is a repo path, read the target repo's AGENTS.md and CLAUDE.md for context on its conventions
+6. Discuss desired changes with the user — understand behavioral intent
+7. Apply the full intent (existing transcript + new conversation) to the source
+8. **Render ALL skills from this source for the target.** For each skill in the source:
+   - If an intent exists for this skill + target → apply intent to source
+   - If no intent exists → copy source as-is
+   - Write all rendered skills to `construct/staging/<target-slug>/skills/`
+9. Show diff for the adjusted skill vs. current live version in the target location
+10. Extract verify clauses from the conversation
+11. Dispatch verify subagent (fresh context) with rendered output + verify clauses
+12. If verify fails → re-render with failure context (max 3 attempts)
+13. If verify passes → append new conversation to intent transcript, report ready
+14. Tell user: "Staging is ready. Run `/construct promote <source> --to <relpath>` to deploy all skills."
 
 **For new skills (skill does not exist yet):**
 1. Ask user: **personal** or **repo** (with `--to` path)?
@@ -92,53 +104,53 @@ The primary authoring command. Starts a conversation to capture what the user wa
 6. If verify passes → save conversation as intent transcript at `construct/intents/local/<skill>/<repo-name>.md`
 7. Tell user: "Staging is ready. Run `/construct promote <skill> --to <relpath>` to go live."
 
-### `/construct promote <skill> [--to <relpath>]`
+### `/construct promote <source> --to <relpath>`
 
-Promotes the staged version to live. Explicit user action, never automatic.
+Promotes ALL staged skills from a source to the target. Deploys as a cohesive set. Explicit user action, never automatic.
 
-- `--to` must match what was used during adjust. Read from staging metadata if omitted (staging records the target from the adjust step).
+- `--to` must match what was used during adjust. Read from staging metadata if omitted.
 
-1. Check that `construct/staging/skills/<skill>/` exists
+1. Check that `construct/staging/<target-slug>/skills/` exists and has content
 2. Resolve target directory:
-   - `--to personal` → `~/.claude/skills/<skill>/`
-   - `--to <relpath>` → `<relpath>/.claude/skills/<skill>/` (resolved relative to ariadne root)
-   - `--to .` or omitted → `.claude/skills/<skill>/` (ariadne itself)
-3. Verify the target path exists and is a valid directory (for repo targets, check it's a git repo)
+   - `--to personal` → `~/.claude/skills/`
+   - `--to <relpath>` → `<relpath>/.claude/skills/` (resolved relative to ariadne root)
+   - `--to .` or omitted → `.claude/skills/` (ariadne itself)
+3. Verify the target path exists (for repo targets, check it's a git repo)
 4. Determine next version number: scan `construct/versions/` for highest NNNN, increment
-5. Snapshot current live state of the skill being promoted into `construct/versions/NNNN/`:
-   - Record: skill name, source, target, scope, previous content
+5. Snapshot current live state into `construct/versions/NNNN/`:
+   - Record all skills being deployed, their source, target, scope
    - Write manifest to `versions/NNNN/manifest.md`
-6. Copy staged skill to the target directory (overwrite existing)
+6. Copy ALL staged skills to the target's `.claude/skills/` (overwrite existing)
 7. Update `construct/current` with the new version number
-8. Clear `construct/staging/`
+8. Clear `construct/staging/<target-slug>/`
 9. Prune versions beyond the last 10 (by numeric prefix, oldest first)
 10. Update `construct/manifest.md`
 
 ### `/construct import <source>`
 
-Fetches upstream skills and snapshots them.
+Explicitly fetches and snapshots an entire upstream source. Optional — `adjust` triggers lazy import on first use. Useful for pre-staging or inspecting a source before adjusting.
 
 1. Identify source location:
    - For Claude Code plugins: `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/`
    - For git repos: clone to temp, extract skills directory
-2. Create `construct/sources/<source>/<version>/` and copy all skill files
-3. Create skeleton intent files at `construct/intents/<source>/<skill>.md` for each skill found
-4. Report what was imported
+2. Create `construct/sources/<source>/<version>/` and copy ALL skill files from the source
+3. Create skeleton intent directories at `construct/intents/<source>/<skill>/` for each skill found
+4. Report: source name, version, list of all skills found
 
 ### `/construct upgrade <source>`
 
-Fetches a new upstream version and re-renders all skills from that source.
+Fetches a new upstream version and re-renders all skills from that source, for each target that has intents.
 
-1. Fetch new version (same as import, but into a new version directory)
-2. For each skill managed from this source:
-   a. Read new source files
-   b. Read existing intent transcript
-   c. Re-render: AI reads transcript, applies behavioral intent to new source
-   d. Write to `construct/staging/skills/<skill>/`
-   e. Show diff vs. current live version
-   f. Dispatch verify subagent
-3. Report results for all skills — which passed, which failed
-4. User calls `/construct promote <skill>` for each skill they want to promote
+1. Fetch new version (same as import, into a new version directory under `construct/sources/<source>/`)
+2. For each target repo that has intents for skills from this source:
+   a. Render ALL skills from the source for this target:
+      - Skills with intents → re-apply intent transcripts to new source version
+      - Skills without intents → copy new source as-is
+   b. Write to `construct/staging/<target-slug>/skills/`
+   c. Show diff vs. current live version in target
+   d. Dispatch verify subagent for each adjusted skill
+3. Report results per target: which skills passed verification, which failed
+4. User calls `/construct promote <source> --to <relpath>` for each target they want to update
 
 ### `/construct diff <skill> [--to <relpath>] [<version-a>] [<version-b>]`
 
@@ -151,7 +163,7 @@ Shows diffs using `git diff --no-index` for familiar output format.
 Paths resolve based on scope and target:
 - Live (personal): `~/.claude/skills/<skill>/`
 - Live (repo): `<target>/.claude/skills/<skill>/`
-- Staging: `construct/staging/skills/<skill>/`
+- Staging: `construct/staging/<target-slug>/skills/<skill>/`
 
 ### `/construct status`
 
@@ -267,3 +279,4 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 - **Intents are transcripts.** The conversation is the authoritative artifact, not a distilled spec. Transcripts survive upstream restructuring because they describe behavior, not location.
 - **rollback.sh is sacred.** Never modify it through the Construct's own rendering pipeline. It must always work independently.
 - **Last 10 versions.** Prune at promotion time. Slugs are cosmetic, don't protect from pruning.
+- **Source-level coherence.** Always vendor, render, and promote all skills from a source together. Unadjusted skills get the source version as-is — they're still deployed so the target gets the full, consistent set.
