@@ -4,6 +4,7 @@
 
 | Skill | Source | Source Version | Scope | Target | Intent File | Status |
 |-------|--------|---------------|-------|--------|-------------|--------|
+| brainstorming | superpowers | v5.0.2 | repo | ../parley.nvim | intents/superpowers/brainstorming/parley.nvim.md | live |
 
 ## Constitution Files
 
@@ -20,4 +21,4 @@
 
 ## Current Version
 
-None (initial state)
+0001
