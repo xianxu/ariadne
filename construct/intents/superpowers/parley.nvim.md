@@ -55,3 +55,16 @@ AI: Adapting all 14 skills with these changes applied across the board:
 - requesting-code-review example uses `workshop/plans/`
 - All 14 skill frontmatter names use `superpowers-` prefix
 - All cross-references use `superpowers-` format
+
+## Conversation 3 (2026-04-14): Fix spec vs plan location
+
+User: Spec (brainstorming output) should go to the `## Spec` section of the issue file (`issues/<issue-slug>.md`), not `workshop/plans/`. Implementation plan (writing-plans output) stays at `workshop/plans/<issue-slug>-plan.md`.
+
+AI: Updated brainstorming SKILL.md in three places: checklist step 5, "After the Design > Documentation" section, and process flow graph node. Updated spec-document-reviewer-prompt.md "Dispatch after" line. Writing-plans unchanged — it correctly targets `workshop/plans/` for implementation plans.
+
+### Verify
+- Brainstorming SKILL.md checklist step 5 saves spec to the `## Spec` section of the issue file, NOT to `workshop/plans/`
+- Brainstorming SKILL.md "After the Design > Documentation" section saves spec to the `## Spec` section of the issue file, NOT to `workshop/plans/`
+- spec-document-reviewer-prompt.md "Dispatch after" references the issue file, NOT `workshop/plans/`
+- No remaining references to `workshop/plans/` in brainstorming SKILL.md for spec output
+- The process flow graph node for writing spec does NOT say "Write design doc"
