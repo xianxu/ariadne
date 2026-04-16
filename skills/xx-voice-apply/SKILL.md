@@ -1,6 +1,6 @@
 ---
-name: voice-apply
-description: Rewrite a document to match a personal writing voice/style. Usage: /voice-apply <slug> <document-path>
+name: xx-voice-apply
+description: Rewrite a document to match a personal writing voice/style. Usage: /xx-voice-apply <slug> <document-path>
 ---
 
 # Voice Apply
@@ -16,7 +16,7 @@ Rewrites a document to match a specific writing voice, guided by a style guide.
 
 1. **Resolve voice file:** Look for `~/.personal/<slug>-writing-style.md`.
    - If `~/.personal/` doesn't exist: tell the user to create it: `mkdir -p ~/.personal`
-   - If the style file doesn't exist: tell the user to generate one first: `/voice-gen <slug> <folder-of-sample-writing>`
+   - If the style file doesn't exist: tell the user to generate one first: `/xx-voice-gen <slug> <folder-of-sample-writing>`
    - Do NOT proceed without a valid style file.
 
 2. **Read the style guide** — load the full voice file. This contains specific patterns, examples, vocabulary, sentence structure, and anti-patterns.

@@ -1,6 +1,6 @@
 ---
-name: voice-gen
-description: Generate a writing style guide from sample writing. Usage: /voice-gen <slug> <folder-path>
+name: xx-voice-gen
+description: Generate a writing style guide from sample writing. Usage: /xx-voice-gen <slug> <folder-path>
 ---
 
 # Voice Gen
@@ -48,4 +48,4 @@ Analyzes a corpus of writing samples and generates a concrete, example-driven st
 - **Always cite examples** from the actual corpus. Every claim about the voice should have evidence.
 - **Capture range.** Read diverse samples (technical, personal, opinion, etc.) to see how the voice adapts across contexts.
 - **Note what's absent.** What the writer does NOT do is as important as what they do. If they never use "furthermore" or "in conclusion," say so.
-- **The guide is for AI consumption.** It will be used by `/voice-apply` to rewrite documents. Make it precise enough that an AI can operationalize it.
+- **The guide is for AI consumption.** It will be used by `/xx-voice-apply` to rewrite documents. Make it precise enough that an AI can operationalize it.
