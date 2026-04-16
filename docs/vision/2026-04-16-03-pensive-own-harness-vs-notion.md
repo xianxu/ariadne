@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-16
 **Status:** Thinking out loud
-**Related:** [AI Workspace for the Masses](2026-04-16-pensive-ai-workspace-for-the-masses.md), [The Duo Workflow](2026-04-14-pensive-the-duo-workflow.md)
+**Related:** [AI Workspace for the Masses](2026-04-16-02-pensive-ai-workspace-for-the-masses.md), [The Duo Workflow](2026-04-14-03-pensive-the-duo-workflow.md)
 
 ---
 

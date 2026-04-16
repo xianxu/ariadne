@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-16
 **Status:** Thinking out loud
-**Related:** [Own Harness vs Notion](2026-04-16-pensive-own-harness-vs-notion.md), [AI Workspace for the Masses](2026-04-16-pensive-ai-workspace-for-the-masses.md)
+**Related:** [Own Harness vs Notion](2026-04-16-03-pensive-own-harness-vs-notion.md), [AI Workspace for the Masses](2026-04-16-02-pensive-ai-workspace-for-the-masses.md)
 
 ---
 

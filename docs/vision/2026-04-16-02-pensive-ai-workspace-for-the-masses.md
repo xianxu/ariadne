@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-16
 **Status:** Thinking out loud
-**Related:** [Exoskeletons for Knowledge Workers](2026-04-16-pensive-exoskeletons-for-knowledge-workers.md), [The Loop Architecture](2026-04-14-the-loop-architecture.md)
+**Related:** [Exoskeletons for Knowledge Workers](2026-04-16-01-pensive-exoskeletons-for-knowledge-workers.md), [The Loop Architecture](2026-04-14-02-the-loop-architecture.md)
 
 ---
 
