@@ -99,3 +99,4 @@ requirements? Was there evidence of driving alignment vs. just executing?]
 - **No timestamp references** — the raw notes are not submitted with the feedback, so `:NNmin` references are meaningless to readers; describe the context instead
 - **No em dashes** — do not use `—` (em dash) in the output; use commas, periods, parentheses, or colons instead
 - **Use level codes** — use L5 for Senior Engineer, L6 for Staff Engineer, L7 for Senior Staff, etc. Prefer "L5" over "Senior" and "L6" over "Staff" in the feedback
+- **Support ㊷[] inline feedback** — if the existing feedback file contains ㊷[] markers (parley.nvim review format), process them: each marker refers to the text **before** it (the preceding paragraph, bullet, or section). Apply the user's corrections, answer their questions, and remove resolved markers. See `/xx-review` for the full marker protocol
