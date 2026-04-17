@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>2026-04-11-02-pitch-deck</title>
+  <style>
+
+html {
+color: #1a1a1a;
+background-color: #fdfdfd;
+}
+body {
+margin: 0 auto;
+max-width: 36em;
+padding-left: 50px;
+padding-right: 50px;
+padding-top: 50px;
+padding-bottom: 50px;
+hyphens: auto;
+overflow-wrap: break-word;
+text-rendering: optimizeLegibility;
+font-kerning: normal;
+}
+@media (max-width: 600px) {
+body {
+font-size: 0.9em;
+padding: 12px;
+}
+h1 {
+font-size: 1.8em;
+}
+}
+@media print {
+html {
+background-color: white;
+}
+body {
+background-color: transparent;
+color: black;
+font-size: 12pt;
+}
+p, h2, h3 {
+orphans: 3;
+widows: 3;
+}
+h2, h3, h4 {
+page-break-after: avoid;
+}
+}
+p {
+margin: 1em 0;
+}
+a {
+color: #1a1a1a;
+}
+a:visited {
+color: #1a1a1a;
+}
+img {
+max-width: 100%;
+}
+svg {
+height: auto;
+max-width: 100%;
+}
+h1, h2, h3, h4, h5, h6 {
+margin-top: 1.4em;
+}
+h5, h6 {
+font-size: 1em;
+font-style: italic;
+}
+h6 {
+font-weight: normal;
+}
+ol, ul {
+padding-left: 1.7em;
+margin-top: 1em;
+}
+li > ol, li > ul {
+margin-top: 0;
+}
+blockquote {
+margin: 1em 0 1em 1.7em;
+padding-left: 1em;
+border-left: 2px solid #e6e6e6;
+color: #606060;
+}
+code {
+font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+font-size: 85%;
+margin: 0;
+hyphens: manual;
+}
+pre {
+margin: 1em 0;
+overflow: auto;
+}
+pre code {
+padding: 0;
+overflow: visible;
+overflow-wrap: normal;
+}
+.sourceCode {
+background-color: transparent;
+overflow: visible;
+}
+hr {
+border: none;
+border-top: 1px solid #1a1a1a;
+height: 1px;
+margin: 1em 0;
+}
+table {
+margin: 1em 0;
+border-collapse: collapse;
+width: 100%;
+overflow-x: auto;
+display: block;
+font-variant-numeric: lining-nums tabular-nums;
+}
+table caption {
+margin-bottom: 0.75em;
+}
+tbody {
+margin-top: 0.5em;
+border-top: 1px solid #1a1a1a;
+border-bottom: 1px solid #1a1a1a;
+}
+th {
+border-top: 1px solid #1a1a1a;
+padding: 0.25em 0.5em 0.25em 0.5em;
+}
+td {
+padding: 0.125em 0.5em 0.25em 0.5em;
+}
+header {
+margin-bottom: 4em;
+text-align: center;
+}
+#TOC li {
+list-style: none;
+}
+#TOC ul {
+padding-left: 1.3em;
+}
+#TOC > ul {
+padding-left: 0;
+}
+#TOC a:not(:hover) {
+text-decoration: none;
+}
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+</head>
+<body>
+<h1 id="pitch-deck-ariadne-the-collaborative-ai-harness">Pitch Deck:
+Ariadne, the Collaborative AI Harness</h1>
+<p><strong>Status:</strong> Draft v1 <strong>Date:</strong> 2026-04-11
+<strong>Purpose:</strong> Seed-stage funding pitch deck outline</p>
+<hr />
+<h2 id="slide-1-ariadne">Slide 1: Ariadne</h2>
+<p><strong>[Collaborative AI Harness]</strong></p>
+<p><em>“Life takes 42 shots.”</em></p>
+<p>One-liner: “AI runs the loops. Humans steer. AI learns.”</p>
+<hr />
+<h2 id="slide-2-problem">Slide 2: Problem</h2>
+<p><strong>Have you tried using AI for real work — not a demo, but
+actual production problems?</strong></p>
+<p>It doesn’t get solved in one shot. Your language is imprecise, the
+domain understanding is patchy, and requirements shift as you build. You
+discover new potentials and constraints along the way. The workflow of a
+knowledge worker is living and evolving.</p>
+<p>Effective AI use is a search problem. You’re narrowing infinite
+possibilities down to a concrete outcome, through a series of
+interactions, using a stochastic machine, aka LLM. Nobody has built the
+tools to make that search sustainable yet.</p>
+<hr />
+<h2 id="slide-3-insight">Slide 3: Insight</h2>
+<p><strong>LLMs are a new stochastic OS. The native application layer
+hasn’t been built.</strong></p>
+<p>LLMs are the next platform — a stochastic OS that can execute
+cognitive tasks and processes, <strong>plausibly</strong>. The
+application layer race starts now. That’s the race of the harnesses.</p>
+<p>The AI-first workflow looks fundamentally different:</p>
+<ul>
+<li>AI runs the process loops, humans steer</li>
+<li>The human provides both <strong>the structure</strong> (how loops
+work) and <strong>the content</strong> (judgment, context, choices) —
+think managers, not operators</li>
+<li>Workflows evolve through use — living structures, not static
+templates</li>
+<li>And a natural way for humans to define what is
+<strong>correct</strong>, not just what’s <strong>plausible</strong>
+(the “vibe coding” problem)</li>
+</ul>
+<hr />
+<h2 id="slide-4-solution-ariadne">Slide 4: Solution — Ariadne</h2>
+<p><strong>The gap isn’t intelligence. It’s the ability to steer. And
+doing so sustainably.</strong></p>
+<p>Think AlphaZero — it works because it learns a board evaluation
+function through self-play. In knowledge work, there aren’t going to be
+enough training examples. <strong>The human is the evaluation
+function</strong>, and we need to make that sustainable.</p>
+<p>Ariadne unifies what today’s tools keep separate — the AI loop, the
+domain state, and the workflow knowledge — into one environment the
+human can actually shape:</p>
+<ul>
+<li><strong>Repo as world state.</strong> Every “shot” is a state
+change, not a chat reply. Every human edit is an evaluation signal.</li>
+<li><strong>Structured checkpoints.</strong> Surface decisions where
+human judgment matters most — the right moments, the right
+granularity.</li>
+<li><strong>Living workflow.</strong> Patterns the human can inspect,
+edit, and evolve. The system adapts through use; the human architects
+the structure.</li>
+<li><strong>Persistent, editable history.</strong> Transparent and
+replayable. Change a past decision, re-converge from there.</li>
+</ul>
+<hr />
+<h2 id="slide-5-what-ive-built">Slide 5: What I’ve Built</h2>
+<p><strong>I’ve been building and using the harness daily.</strong></p>
+<ul>
+<li>A working Nvim-based environment: AI runs tool loops, human express
+intent, the repo holds all state, I steer through editable transcripts,
+living workflows, branching conversations, and persistent memory.</li>
+<li>The entire workflow — brainstorming, architecture, coding,
+roadmapping, issue tracking, spec writing — runs through the harness.
+This pitch deck was created in it.</li>
+<li>The key insight from using it: the leverage isn’t in any single AI
+response. It’s in the <strong>accumulation</strong> — skills that
+remember how you work, the continuous tweaking of the process itself,
+the state that persists across sessions, the ability to re-converge when
+requirements change.</li>
+</ul>
+<p><em>(Demo: live walkthrough of a multi-shot convergence loop — from
+vague goal to concrete implementation, showing human steering at each
+checkpoint)</em></p>
+<hr />
+<h2 id="slide-6-roadmap-from-nvim-to-universal">Slide 6: Roadmap — From
+Nvim to Universal</h2>
+<p><strong>Phase 1: Developer harness (now)</strong></p>
+<ul>
+<li>An opinionated Neovim-based environment where the repo is the world
+state, markdown manages workflow, and AI loops are steered through
+skills, issues, and specs.</li>
+<li>Prove the thesis by building the company itself with the harness. If
+it can’t do that, it can’t do anything.</li>
+<li>Immediately usable for other technical founders.</li>
+</ul>
+<p><strong>Phase 2: Standalone cockpit</strong></p>
+<ul>
+<li>Same convergence engine, same living workflow — but multiple
+interfaces beyond Neovim. IDEs, web, desktop, collaborative.</li>
+<li>Target: technical founders and small dev teams who want the paradigm
+without living in Nvim.</li>
+</ul>
+<p><strong>Phase 3: Universal harness</strong></p>
+<ul>
+<li>The convergence engine becomes a platform. Skill ecosystems for
+legal, consulting, product, operations. Those professions need different
+UX for them to manage and influence their own workflows.</li>
+</ul>
+<hr />
+<h2 id="slide-7-why-now">Slide 7: Why Now</h2>
+<ul>
+<li><strong>Capability just arrived.</strong> LLMs can now reliably
+execute multi-step cognitive tasks — just look at what coding agents can
+do today. Two years ago they couldn’t.</li>
+<li><strong>Tool use is maturing.</strong> Models call tools, execute
+code, interact with APIs. They’re loop executors now, not just text
+generators.</li>
+<li><strong>The window is open.</strong> The industry is in its “faster
+horse” phase — everyone is bolting AI onto existing workflows. Once
+someone demonstrates the native paradigm, the shift will be obvious in
+hindsight. That’s pretty much always how platform shifts work.</li>
+</ul>
+<hr />
+<h2 id="slide-8-market">Slide 8: Market</h2>
+<ul>
+<li><strong>Wedge:</strong> Programmers and technical founders. They
+feel the pain most acutely, can evaluate the product, and software is
+the most mature domain for AI tool use.</li>
+<li><strong>Expansion:</strong> All knowledge work — consulting, legal,
+product, operations. Any domain where work requires iterative refinement
+and human judgment.</li>
+<li><strong>This is not a tool market — it’s a platform shift.</strong>
+We won’t capture the whole market, but even a slice is pretty
+compelling.</li>
+</ul>
+<hr />
+<h2 id="slide-9-competition">Slide 9: Competition</h2>
+<p><strong>vs. OpenClaw</strong> (open-source AI agent, 247K GitHub
+stars): OpenClaw is a task executor — “do this for me.” It automates
+well-defined tasks. Ariadne solves a different problem: convergence on
+ill-defined outcomes when you <strong>don’t</strong> know exactly what
+you want. OpenClaw is the faster horse. We’re building cars.</p>
+<p><strong>vs. Copilots (GitHub Copilot, Cursor, etc.):</strong>
+Code-level assistants bolted onto existing IDE workflows. They help you
+type faster. We restructure the loop so AI executes and humans
+steer.</p>
+<p><strong>vs. Agent frameworks (LangChain, CrewAI, etc.):</strong>
+Infrastructure for developers building AI apps. We’re building the
+end-user application — the cockpit — not the plumbing.</p>
+<p><strong>vs. Claude Code / Codex CLI:</strong> These operate at the
+code plane. We operate at the decision and convergence plane — a higher
+level. We use coding-plane agents underneath (and we use them
+heavily).</p>
+<p><strong>vs. Claude Co-Work:</strong> The strongest contender. They’re
+bringing AI-native workflows to a broad audience. The difference: we
+start from complex, real-world workflows and give users the ability to
+shape the workflow itself — inspect it, edit it, evolve it. Not just
+pick from templates.</p>
+<hr />
+<h2 id="slide-10-business-model">Slide 10: Business Model</h2>
+<p>TKTK</p>
+<hr />
+<h2 id="slide-11-team">Slide 11: Team</h2>
+<ul>
+<li><strong>[Founders]</strong> — Engineering leadership at Meta.
+Builder and manager at scale.</li>
+<li>Dual perspective: deep understanding of both what AI can technically
+do <em>and</em> the organizational processes it can replace. The
+practical details of <em>how</em> to replace them — what visibility and
+safeguards are needed, how to create loops where human oversight
+improves AI execution, which in turn earns more autonomy.</li>
+<li>Already building and using the harness daily. Not theorizing —
+operating.</li>
+</ul>
+<hr />
+<h2 id="slide-12-the-ask">Slide 12: The Ask</h2>
+<ul>
+<li>Raising $1M seed round.</li>
+<li>Use of funds: keying founding team.</li>
+<li>Goal: paying dev teams using the harness within 1 year.</li>
+</ul>
+<hr />
+<h2 id="key-thesis-summary">Key Thesis Summary</h2>
+<ol type="1">
+<li>LLMs are a new stochastic OS</li>
+<li>Frontier labs build the intelligence — we make it
+<strong>work</strong> for knowledge workers</li>
+<li>The native application layer for this OS hasn’t been built</li>
+<li>We’re building it: a harness with living, evolving workflows where
+humans steer AI to convergence</li>
+<li>Start with dev teams, expand to all knowledge work, become the
+platform</li>
+<li>This changes not just productivity but how organizations are
+structured</li>
+</ol>
+</body>
+</html>
