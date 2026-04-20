@@ -73,16 +73,36 @@ ifeq (fetch,$(firstword $(MAKECMDGOALS)))
 endif
 
 # Create a new git worktree in the parent directory.
-# Usage: make worktree <name>
+# Usage: make worktree <name>    — explicit name
+#        make worktree            — auto-detect from single untracked issue file
 worktree:
-	@if [ -z "$(WT_NAME)" ]; then \
-		echo "Usage: make worktree <name>"; \
-		exit 1; \
-	fi
-	@mkdir -p ../worktree
 	@name="$(WT_NAME)"; \
-	git worktree add -b "$$name" "../worktree/$$name" HEAD
-	@echo "Worktree created at ../worktree/$(WT_NAME) on branch $(WT_NAME)"
+	if [ -z "$$name" ]; then \
+		issues=$$(git ls-files --others --exclude-standard -- '$(WF_ISSUES_DIR)/' 2>/dev/null | grep -E '/[0-9]{6}-.*\.md$$'); \
+		count=$$(echo "$$issues" | grep -c . 2>/dev/null || echo 0); \
+		if [ "$$count" -eq 1 ]; then \
+			name=$$(basename "$$issues" .md); \
+			echo "Auto-detected issue: $$name"; \
+		else \
+			echo "Usage: make worktree <name>"; \
+			if [ "$$count" -gt 1 ]; then \
+				echo "Multiple untracked issue files found:"; \
+				echo "$$issues" | sed 's/^/  /'; \
+			fi; \
+			exit 1; \
+		fi; \
+	fi; \
+	if [ -n "$$issues" ] && [ -f "$$issues" ]; then \
+		echo "==> Committing $$issues before creating worktree..."; \
+		git add "$$issues" && \
+		git commit -m "committing issue file before creating worktree ../worktree/$$name" && \
+		git push || echo "  Warning: push failed, continuing with worktree creation"; \
+	fi; \
+	mkdir -p ../worktree; \
+	git worktree add -b "$$name" "../worktree/$$name" HEAD; \
+	echo "Worktree created at ../worktree/$$name on branch $$name"; \
+	printf '%s' "../worktree/$$name" > .goto; \
+	echo "Run: g (to cd into worktree)"
 
 # Create a new git worktree for a GitHub issue, create issue file in issues/.
 # Usage: make issue <number>
@@ -402,7 +422,8 @@ merge:
 	echo "==> Removing worktree at $$wt_path..."; \
 	git -C "$$main_path" worktree remove "$$wt_path" 2>/dev/null || true; \
 	git -C "$$main_path" branch -D "$$branch" 2>/dev/null || true; \
-	echo "Done. Run: cd $$main_path"
+	printf '%s' "$$main_path" > "$$wt_path/.goto"; \
+	echo "Done. Run: g (to cd back to main)"
 
 # Warn if any touched issue files are not marked as resolved (done/wontfix/punt).
 # Usage: $(call check_undone_issues,<base-ref>,<issues-dir>)
