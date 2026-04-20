@@ -1,6 +1,6 @@
 ---
 name: construct
-description: Use when managing the AI substrate — importing, adapting, upgrading, or rolling back skills and constitution files. Invoke for /construct adapt, /construct promote, /construct import, /construct upgrade, /construct diff, /construct status, /construct rollback, /construct local, /construct new, /construct sync.
+description: Use when managing the AI substrate — importing, adapting, upgrading, or rolling back skills and constitution files. Invoke for /construct adapt, /construct promote, /construct import, /construct upgrade, /construct diff, /construct status, /construct rollback, /construct local, /construct new.
 ---
 
 # The Construct — AI Substrate Management
@@ -109,23 +109,6 @@ Creates a new local skill. Replaces the standalone `xx-skill-gen` skill.
 7. Present the generated skill for review
 8. Skill is immediately live via symlink — no promote step needed
 
-### `/construct sync`
-
-Reconciles symlinks between `construct/local/` and `.claude/skills/`.
-
-1. Read `localPrefix` from `$REPO_ROOT/construct/config.json`
-2. Scan `$REPO_ROOT/construct/local/` for all skill directories
-3. For each skill:
-   - If symlink `.claude/skills/{prefix}<skill>/` is missing → create it
-   - If symlink exists but points to wrong target → fix it
-   - If symlink exists with old prefix (prefix changed in config) → remove old, create new
-4. Scan `.claude/skills/` for symlinks pointing into `construct/local/` with stale names → remove them
-5. Report what was created, fixed, or removed
-
-**Use cases:**
-- After changing `localPrefix` in config.json — re-creates all symlinks with new prefix
-- After manually adding a skill to `construct/local/` — creates the missing symlink
-- Fixing broken symlinks (rare — git preserves them on macOS/Linux)
 
 ### `/construct adapt <source> --to <relpath> [--as <slug>]`
 
@@ -369,4 +352,4 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 - **Self-sync.** The source of truth for the construct skill is `$REPO_ROOT/construct/skill/SKILL.md`. After ANY edit to that file, immediately copy it to `$REPO_ROOT/.claude/skills/construct/SKILL.md` to keep the live version in sync. This is the one skill that bootstraps itself.
 - **Namespace flattening.** Plugin skills use `plugin:skill` namespacing which can't be overridden locally. When deploying, rename skill directories to `<source>-<skill>` and rewrite all internal `/<source>:` references to `/<source>-`. This makes adapted skills invocable as `/<source>-<skill>` without conflicting with the global plugin.
 - **Local skills are symlinked, not copied.** Source of truth is `$REPO_ROOT/construct/local/<skill>/`. Symlinks in `.claude/skills/{prefix}<skill>/` point back to source. Edits to either location affect the same file. The prefix (default `xx-`) is configured in `construct/config.json` and prevents collisions with upstream or community skills.
-- **`/construct sync` for prefix changes.** Symlinks are tracked by git and work after clone on macOS/Linux. Sync is only needed when changing `localPrefix` in config.json or after manually adding a skill to `construct/local/` without creating its symlink.
+- **Auto-healing symlinks.** A `SessionStart` hook runs `construct/scripts/sync-local-skills.sh` to automatically repair or create missing symlinks. No manual intervention needed.
