@@ -1,6 +1,6 @@
 ---
 id: 000006
-status: open
+status: done
 deps: []
 github_issue: 1
 created: 2026-04-20
