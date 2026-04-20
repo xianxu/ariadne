@@ -1,6 +1,6 @@
 ---
 name: construct
-description: Use when managing the AI substrate — importing, adapting, upgrading, or rolling back skills and constitution files. Invoke for /construct adapt, /construct promote, /construct import, /construct upgrade, /construct diff, /construct status, /construct rollback.
+description: Use when managing the AI substrate — importing, adapting, upgrading, or rolling back skills and constitution files. Invoke for /construct adapt, /construct promote, /construct import, /construct upgrade, /construct diff, /construct status, /construct rollback, /construct local, /construct new, /construct sync.
 ---
 
 # The Construct — AI Substrate Management
@@ -32,7 +32,9 @@ Scope and target are declared in the intent transcript frontmatter and recorded 
 
 ```
 $REPO_ROOT/construct/                         # top-level, ariadne's AI substrate workspace
+  config.json                                 # construct configuration (localPrefix, etc.)
   manifest.md                                 # index of managed artifacts
+  local/<skill>/SKILL.md                      # locally-authored skills (source of truth)
   sources/<source>/<version>/                 # frozen upstream snapshot (ALL skills from source)
     skills/<skill>/SKILL.md                   # individual skill files
   intents/<source>/                            # per-source, per-target intent transcripts
@@ -49,7 +51,22 @@ $REPO_ROOT/construct/                         # top-level, ariadne's AI substrat
 # Live skill locations (determined by scope + target):
 ~/.claude/skills/<skill>/                     # personal-scoped
 <target>/.claude/skills/<skill>/              # repo-scoped (target is relative path)
+
+# Local skills are symlinked with configurable prefix:
+<target>/.claude/skills/{prefix}<skill>/  →  ../../construct/local/<skill>/
 ```
+
+### Config File
+
+`$REPO_ROOT/construct/config.json` holds construct-wide settings:
+
+```json
+{
+  "localPrefix": "xx-"
+}
+```
+
+- **`localPrefix`** — prefix applied when symlinking local skills to `.claude/skills/`. Prevents name collisions with upstream or community skills. A skill at `construct/local/pensive/` becomes `.claude/skills/xx-pensive/`.
 
 **Intent file naming:** defaults to the repo name (last path component of `--to`). The frontmatter `target:` field is the source of truth for where it deploys — the filename is just a readable identifier. Override with `--as` if needed (e.g., two repos with the same name at different paths).
 
@@ -61,6 +78,54 @@ Examples:
 - `../../other/project` → `other-project`
 
 ## Commands
+
+### `/construct local`
+
+Lists all local skills and their symlink status.
+
+1. Read `localPrefix` from `$REPO_ROOT/construct/config.json`
+2. Scan `$REPO_ROOT/construct/local/` for skill directories (each must contain `SKILL.md`)
+3. For each skill, check if symlink exists at `.claude/skills/{prefix}<skill>/`
+4. Report status table:
+
+```
+construct/local/voice-apply       →  .claude/skills/xx-voice-apply       ✓
+construct/local/pensive           →  .claude/skills/xx-pensive           ✓
+construct/local/skill-gen         →  .claude/skills/xx-skill-gen         ✗ (missing)
+```
+
+### `/construct new <name>`
+
+Creates a new local skill. Replaces the standalone `xx-skill-gen` skill.
+
+1. Read `localPrefix` from `$REPO_ROOT/construct/config.json`
+2. Validate `<name>` doesn't already exist in `$REPO_ROOT/construct/local/`
+3. Ask user: "What should this skill do? Give me a brief description of its purpose, when it should trigger, and what behavior it should produce."
+4. If the description is ambiguous, invoke `superpowers-brainstorming` to explore intent
+5. Scaffold `$REPO_ROOT/construct/local/<name>/SKILL.md` following `superpowers-writing-skills` conventions:
+   - YAML frontmatter with `name: {prefix}<name>` and `description` (starts with "Use when...")
+   - Process section, rules section
+6. Create symlink: `.claude/skills/{prefix}<name>/` → `../../construct/local/<name>/`
+7. Present the generated skill for review
+8. Skill is immediately live via symlink — no promote step needed
+
+### `/construct sync`
+
+Reconciles symlinks between `construct/local/` and `.claude/skills/`.
+
+1. Read `localPrefix` from `$REPO_ROOT/construct/config.json`
+2. Scan `$REPO_ROOT/construct/local/` for all skill directories
+3. For each skill:
+   - If symlink `.claude/skills/{prefix}<skill>/` is missing → create it
+   - If symlink exists but points to wrong target → fix it
+   - If symlink exists with old prefix (prefix changed in config) → remove old, create new
+4. Scan `.claude/skills/` for symlinks pointing into `construct/local/` with stale names → remove them
+5. Report what was created, fixed, or removed
+
+**Use cases:**
+- After `git clone` — symlinks may not survive across platforms
+- After changing `localPrefix` in config.json — re-creates all symlinks with new prefix
+- After manually adding a skill to `construct/local/` — creates the missing symlink
 
 ### `/construct adapt <source> --to <relpath> [--as <slug>]`
 
@@ -100,13 +165,7 @@ The primary authoring command. Adapts an entire source (all its skills) for a ta
 13. Tell user: "Staging is ready. Run `/construct promote <source> --to <relpath>` to deploy all skills."
 
 **For new local skills (no upstream source):**
-1. Use `/construct adapt local --to <relpath>` or just create skills directly in the target's `.claude/skills/`
-2. Discuss what the skill should do — the conversation is the generative spec
-3. Write rendered SKILL.md to `$REPO_ROOT/construct/staging/<target-slug>/skills/<skill>/`
-4. Show the rendered output
-5. Extract verify clauses, dispatch verify subagent
-6. If verify passes → save conversation as intent transcript at `$REPO_ROOT/construct/intents/local/<repo-name>.md`
-7. Tell user: "Staging is ready. Run `/construct promote local --to <relpath>` to go live."
+Use `/construct new <name>` instead. Local skills live in `construct/local/` and are symlinked to `.claude/skills/` with the configured prefix. They don't go through the staging/promote pipeline — they're live immediately via symlink.
 
 ### `/construct promote <source> --to <relpath>`
 
@@ -289,9 +348,14 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 
 ## Local-Origin Skills
 
-| Skill |
-|-------|
-| construct |
+| Skill | Source Dir | Symlink |
+|-------|-----------|---------|
+| construct | construct/skill/ | .claude/skills/construct/ (copied, not symlinked) |
+| xx-pensive | construct/local/pensive/ | .claude/skills/xx-pensive/ → ../../construct/local/pensive/ |
+| xx-voice-apply | construct/local/voice-apply/ | .claude/skills/xx-voice-apply/ → ../../construct/local/voice-apply/ |
+| xx-voice-gen | construct/local/voice-gen/ | .claude/skills/xx-voice-gen/ → ../../construct/local/voice-gen/ |
+| xx-interview-feedback | construct/local/interview-feedback/ | .claude/skills/xx-interview-feedback/ → ../../construct/local/interview-feedback/ |
+| xx-skill-gen | construct/local/skill-gen/ | .claude/skills/xx-skill-gen/ → ../../construct/local/skill-gen/ |
 ```
 
 ## Key Rules
@@ -304,3 +368,5 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 - **Source-level coherence.** Always vendor, render, and promote all skills from a source together. Unadjusted skills get the source version as-is — they're still deployed so the target gets the full, consistent set.
 - **Self-sync.** The source of truth for the construct skill is `$REPO_ROOT/construct/skill/SKILL.md`. After ANY edit to that file, immediately copy it to `$REPO_ROOT/.claude/skills/construct/SKILL.md` to keep the live version in sync. This is the one skill that bootstraps itself.
 - **Namespace flattening.** Plugin skills use `plugin:skill` namespacing which can't be overridden locally. When deploying, rename skill directories to `<source>-<skill>` and rewrite all internal `/<source>:` references to `/<source>-`. This makes adapted skills invocable as `/<source>-<skill>` without conflicting with the global plugin.
+- **Local skills are symlinked, not copied.** Source of truth is `$REPO_ROOT/construct/local/<skill>/`. Symlinks in `.claude/skills/{prefix}<skill>/` point back to source. Edits to either location affect the same file. The prefix (default `xx-`) is configured in `construct/config.json` and prevents collisions with upstream or community skills.
+- **`/construct sync` after clone.** Git may not preserve symlinks across platforms. Run sync (or wire it into a Makefile) to recreate them after a fresh clone.

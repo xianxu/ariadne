@@ -1,4 +1,21 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(rm:*)",
+      "mcp__claude_ai_Gmail__list_labels"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "filesystem": {
+      "allowWrite": [
+        "../parley.nvim"
+      ]
+    }
+  },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": false
   }
