@@ -18,5 +18,18 @@
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": false
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./construct/scripts/sync-local-skills.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
