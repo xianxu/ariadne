@@ -7,7 +7,7 @@ WF_ISSUES_DIR ?= issues
 WF_HISTORY_DIR ?= history
 export WF_ISSUES_DIR WF_HISTORY_DIR
 
-.PHONY: help-workflow worktree issue fetch push pull-request merge check pre-merge
+.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge
 
 help-workflow:
 	@printf '%s\n' \
@@ -18,7 +18,8 @@ help-workflow:
 	"    make push           Auto-commit, push, close done issues, archive to $(WF_HISTORY_DIR)/" \
 	"" \
 	"  Work on a larger issue:" \
-	"    make issue 42       Fetch issue into $(WF_ISSUES_DIR)/, create worktree in ../worktree/" \
+	"    make worktree       Auto-detect issue file, commit, create worktree" \
+	"    make worktree NAME  Create a worktree with explicit name" \
 	"    make pull-request   Push branch, open PR referencing GitHub issues" \
 	"    make merge          Merge PR, archive done issues, clean up worktree" \
 	"" \
@@ -30,9 +31,6 @@ help-workflow:
 	"    make check-specs    Check atlas/README sync" \
 	"    make check-lessons  Check for lessons to capture" \
 	"    PRE_MERGE_CHECKS=yynnyn make pre-merge   Preset selection" \
-	"" \
-	"  Other:" \
-	"    make worktree NAME  Create a worktree in ../worktree/<name>" \
 	""
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
@@ -53,14 +51,6 @@ ifeq (worktree,$(firstword $(MAKECMDGOALS)))
   WT_NAME := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
   ifneq ($(WT_NAME),)
     $(eval $(WT_NAME):;@:)
-  endif
-endif
-
-# Capture issue number after issue (e.g. make issue 42)
-ifeq (issue,$(firstword $(MAKECMDGOALS)))
-  ISSUE_NUM := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-  ifneq ($(ISSUE_NUM),)
-    $(eval $(ISSUE_NUM):;@:)
   endif
 endif
 
@@ -103,69 +93,6 @@ worktree:
 	echo "Worktree created at ../worktree/$$name on branch $$name"; \
 	printf '%s' "../worktree/$$name" > .goto; \
 	echo "Run: g (to cd into worktree)"
-
-# Create a new git worktree for a GitHub issue, create issue file in issues/.
-# Usage: make issue <number>
-issue:
-	@if [ -z "$(ISSUE_NUM)" ]; then \
-		echo "Usage: make issue <number>"; \
-		exit 1; \
-	fi
-	@mkdir -p ../worktree
-	@set -o pipefail; \
-	branch="$(REPO_NAME)-$(ISSUE_NUM)"; \
-	wt_path="../worktree/$$branch"; \
-	if git show-ref --verify --quiet "refs/heads/$$branch"; then \
-		if [ -d "$$wt_path" ]; then \
-			echo "Worktree already exists at $$wt_path, refreshing issue file..."; \
-		else \
-			echo "Cleaning up stale worktree for branch $$branch..."; \
-			git worktree prune; \
-			git branch -d "$$branch"; \
-			git worktree add -b "$$branch" "$$wt_path" HEAD || exit 1; \
-		fi; \
-	else \
-		git worktree add -b "$$branch" "$$wt_path" HEAD || exit 1; \
-	fi; \
-	repo=$$(git remote get-url origin | sed 's|.*github.com[:/]\(.*\)\.git|\1|;s|.*github.com[:/]\(.*\)$$|\1|'); \
-	gh_title=$$(gh issue view "$(ISSUE_NUM)" --repo "$$repo" --json title --jq '.title') || { git worktree remove "$$wt_path" 2>/dev/null; exit 1; }; \
-	gh_body=$$(gh issue view "$(ISSUE_NUM)" --repo "$$repo" --json body --jq '.body // ""'); \
-	slug=$$(echo "$$gh_title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$$//'); \
-	mkdir -p "$$wt_path/$(WF_ISSUES_DIR)"; \
-	max_id=$$(ls "$$wt_path/$(WF_ISSUES_DIR)/" "$$wt_path/$(WF_HISTORY_DIR)/" 2>/dev/null | grep -oE '^[0-9]{6}-' | sed 's/-//' | sort -n | tail -1); \
-	next_id=$$(printf '%06d' $$(( $${max_id:-0} + 1 )) ); \
-	issue_file="$$wt_path/$(WF_ISSUES_DIR)/$${next_id}-$${slug}.md"; \
-	today=$$(date +%Y-%m-%d); \
-	printf '%s\n' \
-		"---" \
-		"id: $$next_id" \
-		"status: open" \
-		"deps: []" \
-		"github_issue: $(ISSUE_NUM)" \
-		"created: $$today" \
-		"updated: $$today" \
-		"---" \
-		"" \
-		"# $$gh_title" \
-		"" \
-		"$$gh_body" \
-		"" \
-		"## Done when" \
-		"" \
-		"-" \
-		"" \
-		"## Plan" \
-		"" \
-		"- [ ]" \
-		"" \
-		"## Log" \
-		"" \
-		"### $$today" \
-		"" \
-		> "$$issue_file"; \
-	echo "Worktree created at $$wt_path on branch $$branch"; \
-	echo "Issue file: $$issue_file"; \
-	echo "Run: cd $$wt_path"
 
 # Fetch a GitHub issue and create a local issue file in issues/.
 # Usage: make fetch <number>
