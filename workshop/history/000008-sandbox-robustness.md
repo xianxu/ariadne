@@ -1,5 +1,9 @@
 ---
+id: 000008
 status: done
+deps: []
+created: 2026-04-21
+updated: 2026-04-21
 ---
 
 # 000008 — Sandbox Robustness & Troubleshooting
@@ -85,3 +89,10 @@ Document the sandbox lifecycle steps, identify failure modes, and add pre-flight
 
 - 2026-04-21: User reported `make sandbox` failure due to gateway not running. All errors cascade from this single root cause. Created this issue to track robustness improvements.
 - 2026-04-21: Added `preflight()` to `sandbox.sh` — auto-starts Docker Desktop and restarts OpenShell gateway. Added wait-for-Running loop before SSH/mutagen steps. Confirmed working.
+- 2026-04-21: Investigated sandbox disconnect. Key findings from OpenShell source (`../OpenShell`):
+  - `openshell sandbox connect` uses standard SSH with `ProxyCommand=openshell ssh-proxy` tunneled via HTTPS CONNECT to gateway
+  - Already has aggressive keepalives built in: `ServerAliveInterval=15`, `ServerAliveCountMax=3` (`OpenShell/crates/openshell-cli/src/ssh.rs:149-156`)
+  - Our `~/.ssh/config` block only affects auxiliary `/usr/bin/ssh` connections (SCP, setup), not the interactive session
+  - Idle timeout ruled out: `watch ls` survived 1.5hrs with no disconnect
+  - Likely cause: macOS suspending terminal processes during display sleep, killing the SSH process or its TCP connection
+  - Fix: auto-reconnect loop (up to 5 retries) added to `cmd_connect` in `sandbox.sh`
