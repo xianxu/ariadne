@@ -15,7 +15,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-**Save plans to:** `workshop/plans/<slug>-plan.md`
+**Save plans to:** `docs/plans/<slug>-plan.md`
 - (User preferences for plan location override this default)
 
 ## Scope Check
@@ -133,7 +133,7 @@ After completing each chunk of the plan:
 
 After saving the plan:
 
-**"Plan complete and saved to `workshop/plans/<filename>.md`. Ready to execute?"**
+**"Plan complete and saved to `docs/plans/<filename>.md`. Ready to execute?"**
 
 **Execution path:** Defer to AGENTS.md Section 3 (Subagent Strategy) to determine the best approach:
 
