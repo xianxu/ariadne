@@ -39,3 +39,21 @@ AI: Adapting all 14 skills with these changes:
 - brainstorming spec output goes to `## Spec` section of issue file, NOT separate file
 - brainstorming Visual Companion section is PRESENT (not removed)
 - spec-document-reviewer-prompt.md references the issue file for spec location
+
+## Conversation 2 (2026-04-21): Align paths with updated AGENTS.md
+
+User: AGENTS.md now uses `workshop/plans/` instead of `docs/plans/` for detailed designs. The directory structure section was updated — `workshop/` is the active workspace, `docs/` is for durable artifacts. All plan references in skills should use `workshop/plans/` consistently.
+
+AI: Updating all skills that reference `docs/plans/` to use `workshop/plans/` instead:
+- **brainstorming**: `docs/plans/<slug>-plan.md` → `workshop/plans/<slug>-plan.md`
+- **writing-plans**: `docs/plans/<slug>-plan.md` → `workshop/plans/<slug>-plan.md`
+- **subagent-driven-development**: `docs/plans/` → `workshop/plans/`
+- **requesting-code-review**: `docs/plans/` → `workshop/plans/`
+
+Also updating issue file paths to use `workshop/issues/` prefix consistently where referenced.
+
+### Verify
+- No references to `docs/plans/` in any rendered skill
+- All plan paths use `workshop/plans/`
+- Issue file references use `workshop/issues/` where applicable
+- All previous verify clauses from Conversation 1 still hold (except paths updated from `docs/plans/` to `workshop/plans/`)
