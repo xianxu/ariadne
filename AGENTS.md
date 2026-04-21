@@ -57,6 +57,7 @@
 - DO NOT proceed to change code, when user asks a question
 
 ### 9. Complex Workflows around Tool Call
+- Use Web Search tool when you need to
 - When a workflow is complex, or need to process a lot of data, work with users to create scripts fetch and process data, instead of processing them directly through you. 
 - Start with limited data for testing. 
 - Work with user to create scripts and leverage less expensive LLMs, and local models to do the heavy lifting.
