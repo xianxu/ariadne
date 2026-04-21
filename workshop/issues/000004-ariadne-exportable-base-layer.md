@@ -61,20 +61,29 @@ target-repo/
 
 ## Plan
 
-1. Create `base.manifest` listing all portable paths
-2. Restructure scripts into `scripts/ariadne/` namespace
-3. Create `settings.ariadne.json` with merge logic in setup.sh
-4. Rename/restructure Makefile into includable `Makefile.ariadne`
-5. Write `atlas/workflow/` documenting the AGENTS.md system
-6. Write `setup.sh` that reads manifest and scaffolds a target repo
-7. Test by bootstrapping a fresh repo (e.g. brain)
+1. [x] Create `base.manifest` listing all portable paths
+2. [ ] Restructure scripts into `scripts/ariadne/` namespace — DEFERRED: scripts already work via symlink, namespace change is cosmetic
+3. [x] Create `settings.ariadne.json` with merge logic in setup.sh
+4. [ ] Rename/restructure Makefile into includable `Makefile.ariadne` — DEFERRED: `Makefile.workflow` already works as includable, no rename needed
+5. [x] Write `atlas/workflow/` documenting the AGENTS.md system
+6. [x] Write `setup.sh` that reads manifest and scaffolds a target repo
+7. [x] Test by bootstrapping a fresh repo (temp dir — works, idempotent)
+
+## Decisions made during implementation
+
+- Scripts stay as `scripts/` (not `scripts/ariadne/`) — symlinked as-is, namespace would break relative sourcing
+- Makefile stays as `Makefile.workflow` (not `Makefile.ariadne`) — already designed as includable
+- setup.sh IS idempotent — re-running is a no-op
+- Settings merge uses `$merge_keys` in the JSON to declare which keys combine vs replace
+- `AGENTS.md` now references `@AGENTS.local.md` at the bottom for repo extensions
+- Base layer governance section added to AGENTS.md
 
 ## Open Questions
 
-- Versioning: does consuming repo pin an ariadne commit or track HEAD?
+- Versioning: does consuming repo pin an ariadne commit or track HEAD? (for now: track HEAD, git pull in ariadne updates everything)
 - Skill name conflicts: simple override-by-name for now
-- Should setup.sh be idempotent for updates?
 
 ## Log
 
 - 2026-04-20: Created from brainstorming session. See `docs/vision/2026-04-20-02-pensive-ariadne-exportable-fragments.md` for original thinking.
+- 2026-04-20: Implemented base layer — base.manifest, settings.ariadne.json, setup.sh, atlas/workflow/ docs, AGENTS.local.md pattern. Tested successfully against temp repo.

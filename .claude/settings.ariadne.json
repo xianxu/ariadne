@@ -1,13 +1,12 @@
 {
+  "$comment": "Ariadne base-layer settings. Merged UNDER settings.local.json by setup.sh.",
+  "$merge_keys": ["permissions.allow", "hooks.SessionStart", "sandbox.filesystem.allowWrite"],
   "permissions": {
     "allow": [
       "Bash(mkdir:*)",
       "Bash(cp:*)",
       "Bash(rm:*)",
-      "Bash(mv:*)",
-      "Bash(ln:*)",
-      "WebSearch",
-      "mcp__claude_ai_Gmail__search_threads"
+      "WebSearch"
     ]
   },
   "sandbox": {

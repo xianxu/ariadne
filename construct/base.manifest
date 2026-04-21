@@ -1,0 +1,69 @@
+# Ariadne Base Layer Manifest
+# Lists all portable paths that setup.sh will symlink/scaffold into consuming repos.
+# Lines starting with # are comments. Empty lines are ignored.
+#
+# Format:
+#   <action> <source-path> [<target-path>]
+#
+# Actions:
+#   symlink   — create symlink from target repo to ariadne path
+#   scaffold  — create empty directory structure in target repo
+#   copy      — copy file (for files that need local modification)
+#   merge     — JSON merge (settings.ariadne.json layered under settings.local.json)
+
+# ── Constitution ──────────────────────────────────────────────────────────────
+symlink   AGENTS.md
+symlink   CLAUDE.md
+
+# ── Claude Code settings ──────────────────────────────────────────────────────
+merge     .claude/settings.ariadne.json        .claude/settings.json
+
+# ── Skills (symlink entire skill directories) ─────────────────────────────────
+# Superpowers — generic workflow skills
+symlink   .claude/skills/superpowers-brainstorming
+symlink   .claude/skills/superpowers-dispatching-parallel-agents
+symlink   .claude/skills/superpowers-executing-plans
+symlink   .claude/skills/superpowers-finishing-a-development-branch
+symlink   .claude/skills/superpowers-receiving-code-review
+symlink   .claude/skills/superpowers-requesting-code-review
+symlink   .claude/skills/superpowers-subagent-driven-development
+symlink   .claude/skills/superpowers-systematic-debugging
+symlink   .claude/skills/superpowers-test-driven-development
+symlink   .claude/skills/superpowers-using-git-worktrees
+symlink   .claude/skills/superpowers-using-superpowers
+symlink   .claude/skills/superpowers-verification-before-completion
+symlink   .claude/skills/superpowers-writing-plans
+symlink   .claude/skills/superpowers-writing-skills
+
+# Core skills
+symlink   .claude/skills/fix
+symlink   .claude/skills/construct
+
+# Local-origin skills (from construct/local/)
+symlink   .claude/skills/xx-pensive
+symlink   .claude/skills/xx-skill-gen
+symlink   .claude/skills/xx-voice-apply
+symlink   .claude/skills/xx-voice-gen
+symlink   .claude/skills/xx-interview-feedback
+
+# ── Makefile system ───────────────────────────────────────────────────────────
+symlink   Makefile.workflow
+symlink   scripts/lib.sh
+symlink   scripts/parallel-checks.sh
+symlink   scripts/pre-merge-checks.sh
+
+# ── Construct system ──────────────────────────────────────────────────────────
+symlink   construct/setup.sh                     ariadne-refresh.sh
+symlink   construct/scripts/sync-local-skills.sh
+symlink   construct/local
+
+# ── Directory conventions (scaffold empty dirs) ───────────────────────────────
+scaffold  workshop/issues
+scaffold  workshop/history
+scaffold  workshop/plans
+scaffold  workshop/vision
+scaffold  workshop/staging
+scaffold  atlas
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+symlink   atlas/workflow

@@ -7,7 +7,7 @@ WF_ISSUES_DIR ?= issues
 WF_HISTORY_DIR ?= history
 export WF_ISSUES_DIR WF_HISTORY_DIR
 
-.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge
+.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge refresh
 
 help-workflow:
 	@printf '%s\n' \
@@ -31,7 +31,24 @@ help-workflow:
 	"    make check-specs    Check atlas/README sync" \
 	"    make check-lessons  Check for lessons to capture" \
 	"    PRE_MERGE_CHECKS=yynnyn make pre-merge   Preset selection" \
+	"" \
+	"  Setup:" \
+	"    make refresh        Re-run ariadne setup (link + merge settings)" \
 	""
+
+# ── Refresh (setup + merge) ───────────────────────────────────────────────────
+# In ariadne: just merge settings. In target repos: full setup (link + merge).
+refresh:
+	@if [ -f construct/setup.sh ]; then \
+		echo "Ariadne repo detected — merging settings only."; \
+		construct/scripts/merge-settings.sh .claude/settings.ariadne.json .claude; \
+		echo "Done. .claude/settings.json updated."; \
+	elif [ -f ariadne-refresh.sh ]; then \
+		./ariadne-refresh.sh; \
+	else \
+		echo "Error: no ariadne-refresh.sh found. Run setup first."; \
+		exit 1; \
+	fi
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge

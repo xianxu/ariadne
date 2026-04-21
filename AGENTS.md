@@ -68,3 +68,16 @@
 - **Simplicity First**: Make every change as simple as possible. Minimal impact.
 - **Find Root Cause**: Find root causes. No temporary fixes. Senior developer standards.
 - **Minimize Impact**: Changes should only touch what's necessary.
+
+## Base Layer Governance
+
+This file is part of the **ariadne base layer** — shared across repos via `construct/setup.sh`.
+- Files listed in `construct/base.manifest` are portable and affect downstream repos
+- Changes to base-layer files require considering downstream impact
+- Repo-specific extensions go in `AGENTS.local.md`, not here
+- See `atlas/workflow/` for documentation of this system
+- General convention for local only extension
+    - FILE.local.EXT is local version of FILE.EXT
+    - `make refresh` will merge FILE.local.EXT with ariadne's FILE.ariadne.EXT to produce FILE.EXT
+
+@AGENTS.local.md
