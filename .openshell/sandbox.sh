@@ -17,6 +17,71 @@ ACTION="${1:-}"
 SANDBOX_NAME="${2:-}"
 SANDBOX_SSH_HOST="openshell-${SANDBOX_NAME}"
 
+# Pre-flight checks: validate prerequisites before doing real work.
+# Only runs for actions that need the full stack (build, connect, clean).
+preflight() {
+    local failed=0
+
+    # 1. openshell CLI
+    if ! command -v openshell >/dev/null 2>&1; then
+        echo "ERROR: 'openshell' CLI not found in PATH."
+        echo "  Install it per OpenShell docs, then retry."
+        failed=1
+    fi
+
+    # 2. Docker daemon — auto-start on macOS
+    if ! docker info >/dev/null 2>&1; then
+        if [ "$(uname)" = "Darwin" ] && [ -d "/Applications/Docker.app" ]; then
+            echo "  Docker not running — starting Docker Desktop..."
+            open -a Docker
+            local retries=0
+            while ! docker info >/dev/null 2>&1; do
+                retries=$((retries + 1))
+                if [ "$retries" -ge 30 ]; then
+                    echo "ERROR: Docker Desktop did not start within 60s."
+                    failed=1
+                    break
+                fi
+                sleep 2
+            done
+            if [ "$retries" -lt 30 ]; then
+                echo "  Docker Desktop started."
+            fi
+        else
+            echo "ERROR: Docker is not running or not accessible."
+            echo "  Start Docker Desktop, then retry."
+            failed=1
+        fi
+    fi
+
+    # 3. mutagen CLI
+    if ! command -v mutagen >/dev/null 2>&1; then
+        echo "ERROR: 'mutagen' CLI not found in PATH."
+        echo "  Install: brew install mutagen-io/mutagen/mutagen"
+        failed=1
+    fi
+
+    # 4. OpenShell gateway — auto-restart if unreachable
+    if command -v openshell >/dev/null 2>&1; then
+        if ! openshell sandbox list >/dev/null 2>&1; then
+            echo "  OpenShell gateway not reachable — restarting..."
+            openshell gateway destroy --name openshell 2>/dev/null || true
+            if openshell gateway start; then
+                echo "  OpenShell gateway started."
+            else
+                echo "ERROR: Failed to start OpenShell gateway."
+                failed=1
+            fi
+        fi
+    fi
+
+    if [ "$failed" -ne 0 ]; then
+        echo ""
+        echo "Pre-flight checks failed. Fix the above issues and retry."
+        exit 1
+    fi
+}
+
 PLENARY_HOST="${HOME}/.local/share/nvim/lazy/plenary.nvim"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -286,6 +351,7 @@ timer_show() { echo "    (${1}: $(( $(date +%s) - $2 ))s)"; }
 
 # Ensure sandbox exists and is fully set up. Idempotent.
 cmd_build() {
+    preflight
     local phase t0 t_total
     t_total=$(timer_start)
     phase=$(get_phase)
@@ -327,6 +393,24 @@ cmd_build() {
         bash "$SCRIPT_DIR/overlay/bootstrap.sh"
         timer_show "bootstrap" "$t0"
     fi
+
+    # Wait for sandbox to be Running before proceeding to SSH/mutagen
+    echo "==> Waiting for sandbox to be Running..."
+    t0=$(timer_start)
+    local retries=0
+    while true; do
+        phase=$(get_phase)
+        if [ "$phase" = "Running" ] || [ "$phase" = "Ready" ]; then
+            break
+        fi
+        retries=$((retries + 1))
+        if [ "$retries" -ge 30 ]; then
+            echo "ERROR: Sandbox did not reach Running state within 60s (current: ${phase:-unknown})."
+            exit 1
+        fi
+        sleep 2
+    done
+    timer_show "sandbox ready" "$t0"
 
     echo "==> Ensuring SSH config..."
     t0=$(timer_start)
