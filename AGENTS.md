@@ -46,7 +46,7 @@
 
 ### 6. Demand Elegance
 - For non-trivial changes: pause and ask "is there a more general and elegant way?"
-- Skip this for simple, obvious fixes - don't over-engineer
+- Skip this for simple, obviou:question fixes - don't over-engineer
 
 ### 7. Maintenance of Specs and Documentation
 - As you update issue plans and code, continuously update corresponding specs in `specs/` folder
@@ -55,6 +55,12 @@
 ### 8. Pay attention to User Questions
 - When user poses question, answer the question as clearly and directly as possible
 - DO NOT proceed to change code, when user asks a question
+
+### 9. Complex Workflows around Tool Call
+- When a workflow is complex, or need to process a lot of data, work with users to create scripts fetch and process data, instead of processing them directly through you. 
+- Start with limited data for testing. 
+- Work with user to create scripts and leverage less expensive LLMs, and local models to do the heavy lifting.
+- When generating scripts, you should generate a SKILL.md on the same folder, explaining how to use it. Keep SKILL.md updated for all the scripts you create. 
 
 ## Core Design Principles
 - **Keep It DRY**: Don't Repeat Yourself. Refactor to reuse existing code when possible.
