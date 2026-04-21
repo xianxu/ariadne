@@ -7,9 +7,10 @@ WF_HISTORY_DIR = workshop/history
 
 # Assemble sub-Makefiles
 include Makefile.workflow
+-include .openshell/Makefile
 -include Makefile.local
 
 .PHONY: help
 
-help: help-workflow
+help: help-workflow help-sandbox
 	@true

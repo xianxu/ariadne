@@ -197,4 +197,29 @@ EOF
     printf "  ${GREEN}created${RESET} AGENTS.local.md\n"
 fi
 
+# ── Ensure .gitignore entries ─────────────────────────────────────────────────
+GITIGNORE="$TARGET_DIR/.gitignore"
+GITIGNORE_ENTRIES=(
+    ".constitution-check-state"
+    ".goto"
+    ".openshell/.bootstrap/"
+    ".openshell/.base-image-digest"
+    ".openshell/ssh_config"
+)
+
+touch "$GITIGNORE"
+gitignore_changed=false
+for entry in "${GITIGNORE_ENTRIES[@]}"; do
+    if ! grep -qxF "$entry" "$GITIGNORE"; then
+        echo "$entry" >> "$GITIGNORE"
+        gitignore_changed=true
+    fi
+done
+
+if "$gitignore_changed"; then
+    printf "  ${GREEN}updated${RESET} .gitignore\n"
+else
+    printf "  .gitignore already up to date\n"
+fi
+
 printf "\n${GREEN}Done.${RESET} Review changes, then commit.\n"
