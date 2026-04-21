@@ -7,7 +7,7 @@ WF_ISSUES_DIR ?= issues
 WF_HISTORY_DIR ?= history
 export WF_ISSUES_DIR WF_HISTORY_DIR
 
-.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge refresh
+.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge refresh issue-sync
 
 help-workflow:
 	@printf '%s\n' \
@@ -32,9 +32,17 @@ help-workflow:
 	"    make check-lessons  Check for lessons to capture" \
 	"    PRE_MERGE_CHECKS=yynnyn make pre-merge   Preset selection" \
 	"" \
+	"  Sync issues:" \
+	"    make issue-sync     Sync $(WF_ISSUES_DIR)/ changes to main and push" \
+	"" \
 	"  Setup:" \
 	"    make refresh        Re-run ariadne setup (link + merge settings)" \
 	""
+
+# ── Issue sync ────────────────────────────────────────────────────────────────
+# Sync issue file changes to main and push, even when on a feature branch.
+issue-sync:
+	@scripts/issue-sync.sh
 
 # ── Refresh (setup + merge) ───────────────────────────────────────────────────
 # In ariadne: just merge settings. In target repos: full setup (link + merge).

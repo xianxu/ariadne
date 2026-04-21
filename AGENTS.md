@@ -72,7 +72,7 @@
 
 ## Base Layer Governance
 
-This file is part of the **ariadne base layer** — shared across repos via `construct/setup.sh`.
+This file is part of the **ariadne base layer** — shared across repos via `construct/setup.sh`. Make sure you update the related files when user instruct you are working in the base layer.
 - Files listed in `construct/base.manifest` are portable and affect downstream repos
 - Changes to base-layer files require considering downstream impact
 - Repo-specific extensions go in `AGENTS.local.md`, not here

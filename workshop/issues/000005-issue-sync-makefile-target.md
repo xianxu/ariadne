@@ -1,6 +1,12 @@
-# Issue 000005: Add `make issue-sync` target
+---
+id: 000005
+status: done
+deps: []
+created: 2026-04-21
+updated: 2026-04-21
+---
 
-## Status: ready
+# Add `make issue-sync` target
 
 ## Summary
 

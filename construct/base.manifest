@@ -49,6 +49,7 @@ symlink   .claude/skills/xx-interview-feedback
 # ── Makefile system ───────────────────────────────────────────────────────────
 symlink   Makefile.workflow
 symlink   scripts/lib.sh
+symlink   scripts/issue-sync.sh
 symlink   scripts/parallel-checks.sh
 symlink   scripts/pre-merge-checks.sh
 

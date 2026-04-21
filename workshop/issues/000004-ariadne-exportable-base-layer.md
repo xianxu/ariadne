@@ -1,7 +1,12 @@
-# Ariadne Exportable Base Layer
+---
+id: 000004
+status: open
+deps: []
+created: 2026-04-20
+updated: 2026-04-20
+---
 
-**Status:** open
-**Created:** 2026-04-20
+# Ariadne Exportable Base Layer
 
 ## Problem
 

@@ -106,8 +106,8 @@ ensure_ssh_config() {
     new_block=$(cat <<SSHEOF
 ${marker_begin}
 $(openshell sandbox ssh-config "$SANDBOX_NAME")
-    ServerAliveInterval 15
-    ServerAliveCountMax 480
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
 ${marker_end}
 SSHEOF
     )

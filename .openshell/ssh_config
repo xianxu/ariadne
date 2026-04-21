@@ -6,6 +6,6 @@ Host openshell-ariadne-sandbox
     GlobalKnownHostsFile /dev/null
     LogLevel ERROR
     ProxyCommand /Users/xianxu/.local/bin/openshell ssh-proxy --gateway-name openshell --name ariadne-sandbox
-    ServerAliveInterval 15
-    ServerAliveCountMax 480
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
 # END openshell-ariadne-sandbox

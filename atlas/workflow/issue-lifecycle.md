@@ -11,6 +11,7 @@ GitHub Issue → make fetch 42 → workshop/issues/000042-slug.md → work → m
 | Status | Meaning |
 |--------|---------|
 | open | Active work |
+| working | An agent is working on something |
 | done | Completed, awaiting archive |
 | wontfix | Declined |
 | punt | Deferred |
