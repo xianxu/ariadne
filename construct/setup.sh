@@ -204,7 +204,6 @@ GITIGNORE_ENTRIES=(
     ".goto"
     ".openshell/.bootstrap/"
     ".openshell/.base-image-digest"
-    ".openshell/ssh_config"
 )
 
 touch "$GITIGNORE"

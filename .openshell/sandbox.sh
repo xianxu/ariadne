@@ -23,11 +23,11 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Use Apple's system SSH/SCP throughout — Homebrew openssh lacks macOS-specific
 # options (UseKeychain) and causes "Bad configuration option: usekeychain" errors.
-# Use a repo-local SSH config so the sandbox Host entry never touches ~/.ssh/config.
-SSH_CONFIG="$SCRIPT_DIR/ssh_config"
-SSH="/usr/bin/ssh -F $SSH_CONFIG"
-SCP="/usr/bin/scp -F $SSH_CONFIG"
-export MUTAGEN_SSH_PATH="$SCRIPT_DIR/ssh-bin"
+# Write sandbox Host blocks to ~/.ssh/config so the mutagen daemon (a separate
+# long-lived process) can reach all sandboxes without MUTAGEN_SSH_PATH.
+SSH_CONFIG="$HOME/.ssh/config"
+SSH="/usr/bin/ssh"
+SCP="/usr/bin/scp"
 BASE_IMAGE="ghcr.io/nvidia/openshell-community/sandboxes/base"
 DIGEST_FILE="$SCRIPT_DIR/.base-image-digest"
 
@@ -98,16 +98,30 @@ get_phase() {
 }
 
 ensure_ssh_config() {
-    # Write the sandbox Host block to a repo-local file, not ~/.ssh/config.
-    {
-        echo "# BEGIN openshell-${SANDBOX_NAME}"
-        openshell sandbox ssh-config "$SANDBOX_NAME"
-        # Keep connection alive through the proxy (every 15s, tolerate 3 misses)
-        echo "    ServerAliveInterval 15"
-        echo "    ServerAliveCountMax 480"
-        echo "# END openshell-${SANDBOX_NAME}"
-    } > "$SSH_CONFIG"
+    # Upsert this sandbox's Host block into ~/.ssh/config.
+    # Each sandbox gets a BEGIN/END-delimited block; other sandboxes' blocks are preserved.
+    local marker_begin="# BEGIN openshell-${SANDBOX_NAME}"
+    local marker_end="# END openshell-${SANDBOX_NAME}"
+    local new_block
+    new_block=$(cat <<SSHEOF
+${marker_begin}
+$(openshell sandbox ssh-config "$SANDBOX_NAME")
+    ServerAliveInterval 15
+    ServerAliveCountMax 480
+${marker_end}
+SSHEOF
+    )
+
+    mkdir -p "$HOME/.ssh"
+    touch "$SSH_CONFIG"
     chmod 600 "$SSH_CONFIG"
+
+    # Remove old block if present, then append new one
+    if grep -qF "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
+        sed -i.bak "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG"
+        rm -f "${SSH_CONFIG}.bak"
+    fi
+    echo "$new_block" >> "$SSH_CONFIG"
 }
 
 ensure_bootstrap_sync() {
@@ -248,7 +262,13 @@ cleanup() {
     mutagen sync terminate "${SANDBOX_NAME}-bootstrap" 2>/dev/null || true
     terminate_all_syncs
     openshell sandbox delete "$SANDBOX_NAME" 2>/dev/null || true
-    rm -f "$SSH_CONFIG"
+    # Remove this sandbox's block from the shared SSH config
+    local marker_begin="# BEGIN openshell-${SANDBOX_NAME}"
+    local marker_end="# END openshell-${SANDBOX_NAME}"
+    if [ -f "$SSH_CONFIG" ] && grep -qF "$marker_begin" "$SSH_CONFIG" 2>/dev/null; then
+        sed -i.bak "/${marker_begin}/,/${marker_end}/d" "$SSH_CONFIG"
+        rm -f "${SSH_CONFIG}.bak"
+    fi
 }
 
 # Nuclear cleanup: full cleanup + wipe bootstrap cache so deps are re-downloaded.
