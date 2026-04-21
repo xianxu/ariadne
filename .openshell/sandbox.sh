@@ -359,7 +359,15 @@ cmd_connect() {
         cmd_build
     fi
 
+    # Background tunnel keepalive: periodically runs a no-op SSH command to
+    # generate real traffic on the HTTPS CONNECT tunnel, preventing intermediate
+    # gateways/LBs from reaping the connection during idle periods.
+    (while true; do sleep 120; $SSH -o ConnectTimeout=5 "$SANDBOX_SSH_HOST" true 2>/dev/null; done) &
+    local keepalive_pid=$!
+    trap "kill $keepalive_pid 2>/dev/null" EXIT
+
     PATH="/usr/bin:$PATH" openshell sandbox connect "$SANDBOX_NAME" || true
+    kill $keepalive_pid 2>/dev/null || true
     stty sane 2>/dev/null  # restore terminal after abnormal disconnect (e.g. sleep/wake)
 }
 
