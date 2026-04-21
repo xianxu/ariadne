@@ -102,13 +102,14 @@ worktree:
 	if [ -n "$$issues" ] && [ -f "$$issues" ]; then \
 		echo "==> Committing $$issues before creating worktree..."; \
 		git add "$$issues" && \
-		git commit -m "committing issue file before creating worktree ../worktree/$$name" && \
+		git commit -m "committing issue file before creating worktree" && \
 		git push || echo "  Warning: push failed, continuing with worktree creation"; \
 	fi; \
-	mkdir -p ../worktree; \
-	git worktree add -b "$$name" "../worktree/$$name" HEAD; \
-	echo "Worktree created at ../worktree/$$name on branch $$name"; \
-	printf '%s' "../worktree/$$name" > .goto; \
+	repo_dir=$$(basename "$$(pwd)"); \
+	mkdir -p "../worktree/$$repo_dir"; \
+	git worktree add -b "$$name" "../worktree/$$repo_dir/$$name" HEAD; \
+	echo "Worktree created at ../worktree/$$repo_dir/$$name on branch $$name"; \
+	printf '%s' "../worktree/$$repo_dir/$$name" > .goto; \
 	echo "Run: g (to cd into worktree)"
 
 # Fetch a GitHub issue and create a local issue file in issues/.
