@@ -10,6 +10,7 @@
 #   scaffold  — create empty directory structure in target repo
 #   copy      — copy file (for files that need local modification)
 #   merge     — JSON merge (settings.ariadne.json layered under settings.local.json)
+#   touch     — create empty file if missing (no source needed)
 
 # ── Constitution ──────────────────────────────────────────────────────────────
 symlink   AGENTS.md
@@ -62,9 +63,10 @@ symlink   construct/local
 scaffold  workshop/issues
 scaffold  workshop/history
 scaffold  workshop/plans
-scaffold  workshop/vision
+scaffold  workshop/parley
 scaffold  workshop/staging
 scaffold  atlas
+touch     workshop/lessons.md
 
 # ── Documentation ─────────────────────────────────────────────────────────────
 symlink   atlas/workflow

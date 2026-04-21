@@ -11,8 +11,8 @@ Work artifacts live close to the issue, then graduate to permanent locations or 
 | `workshop/issues/` | Active issue files | Archived to history when done |
 | `workshop/plans/` | Detailed designs for complex issues | Archived with issue |
 | `workshop/history/` | Completed issue files | Permanent archive, low-signal |
-| `workshop/vision/` | Pensive docs, brainstorms | Permanent thinking artifacts |
 | `workshop/staging/` | Work-in-progress scratch | Temporary |
+| `docs/vision/` | Pensive docs, brainstorms | Permanent thinking artifacts |
 | `atlas/` | Sketch-level documentation | Permanent, updated with code |
 
 ## Rules

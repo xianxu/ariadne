@@ -139,6 +139,13 @@ while IFS= read -r line; do
         merge)
             merge_settings "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
             ;;
+        touch)
+            ensure_parent "$TARGET_DIR/$source"
+            if [[ ! -f "$TARGET_DIR/$source" ]]; then
+                touch "$TARGET_DIR/$source"
+                printf "  ${GREEN}created${RESET} %s\n" "$source"
+            fi
+            ;;
         *)
             printf "  ${YELLOW}unknown action: %s${RESET}\n" "$action"
             ;;
