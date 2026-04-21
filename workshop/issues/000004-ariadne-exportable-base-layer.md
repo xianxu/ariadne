@@ -1,6 +1,6 @@
 ---
 id: 000004
-status: open
+status: done
 deps: []
 created: 2026-04-20
 updated: 2026-04-20
