@@ -40,6 +40,7 @@ keybinds {
         bind "Alt ]" { NextSwapLayout; }
         bind "Alt i" { MoveTab "Left"; }
         bind "Alt o" { MoveTab "Right"; }
+        bind "Alt /" { SwitchToMode "Scroll"; }
     }
 
     tmux clear-defaults=true {
@@ -55,7 +56,4 @@ keybinds {
         bind "q" { Quit; }
     }
 
-    shared_except "locked" {
-        bind "Alt /" { SwitchToMode "Scroll"; }
-    }
 }
