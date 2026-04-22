@@ -238,8 +238,11 @@ apply_config() {
 
     # Copy dotfiles to sandbox
     echo "  Copying dotfiles..."
-    $SSH "$SANDBOX_SSH_HOST" "mkdir -p ~/.config/zellij"
+    $SSH "$SANDBOX_SSH_HOST" "mkdir -p ~/.config/zellij/layouts"
     $SCP -q "$SCRIPT_DIR/dotfiles/zellij/config.kdl" "$SANDBOX_SSH_HOST:~/.config/zellij/config.kdl"
+    $SCP -q "$SCRIPT_DIR/dotfiles/zellij/layouts/default.kdl" "$SANDBOX_SSH_HOST:~/.config/zellij/layouts/default.kdl"
+    $SCP -q "$SCRIPT_DIR/dotfiles/zellij/clock.sh" "$SANDBOX_SSH_HOST:~/.config/zellij/clock.sh"
+    $SSH "$SANDBOX_SSH_HOST" "chmod +x ~/.config/zellij/clock.sh"
 
     # Forward GitHub CLI auth from host to sandbox (write config directly — fast)
     local gh_token

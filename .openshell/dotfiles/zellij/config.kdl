@@ -1,3 +1,5 @@
+default_layout "default"
+
 keybinds {
     normal clear-defaults=true {
         // tmux
