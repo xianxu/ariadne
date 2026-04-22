@@ -24,8 +24,7 @@ merge     .claude/settings.ariadne.json        .claude/settings.json
 # They are managed per-repo via /construct adapt + /construct promote.
 # Only core and local-origin skills are symlinked by setup.sh.
 
-# Core skills
-symlink   .claude/skills/construct
+# NOTE: construct skill is ariadne-internal, not exported to target repos.
 
 # Local-origin skills (from construct/local/)
 symlink   .claude/skills/xx-fix
