@@ -10,13 +10,16 @@ Central directory for atlas entries — practical pointers for future developers
 - [Pre-merge Checks](workflow/pre-merge-checks.md) — constitution enforcement
 - [Directory Conventions](workflow/directory-conventions.md) — standard repo layout
 
-## 2. Base Layer Infrastructure
+## 2. Sandbox Environments
+- [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
+
+## 3. Base Layer Infrastructure
 - [base.manifest](../construct/base.manifest) — canonical list of portable paths
 - [setup.sh](../construct/setup.sh) — bootstrapper for consuming repos
 
-## 3. Vision & Strategy
+## 4. Vision & Strategy
 - [Founding Context](../docs/vision/founding-context.md) — core thesis, product progression, bootstrapping strategy, 3-month focus
 - [Pitch Deck](../docs/plans/pitch-deck.md) — seed-stage funding pitch deck outline
 
-## 4. Product Specs
+## 5. Product Specs
 *(To be created as the product takes shape)*
