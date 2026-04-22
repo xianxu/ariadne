@@ -19,28 +19,16 @@ symlink   CLAUDE.md
 # ── Claude Code settings ──────────────────────────────────────────────────────
 merge     .claude/settings.ariadne.json        .claude/settings.json
 
-# ── Skills (symlink entire skill directories) ─────────────────────────────────
-# Superpowers — generic workflow skills
-symlink   .claude/skills/superpowers-brainstorming
-symlink   .claude/skills/superpowers-dispatching-parallel-agents
-symlink   .claude/skills/superpowers-executing-plans
-symlink   .claude/skills/superpowers-finishing-a-development-branch
-symlink   .claude/skills/superpowers-receiving-code-review
-symlink   .claude/skills/superpowers-requesting-code-review
-symlink   .claude/skills/superpowers-subagent-driven-development
-symlink   .claude/skills/superpowers-systematic-debugging
-symlink   .claude/skills/superpowers-test-driven-development
-symlink   .claude/skills/superpowers-using-git-worktrees
-symlink   .claude/skills/superpowers-using-superpowers
-symlink   .claude/skills/superpowers-verification-before-completion
-symlink   .claude/skills/superpowers-writing-plans
-symlink   .claude/skills/superpowers-writing-skills
+# ── Skills ──────────────────────────────────────────────────────────────────────
+# NOTE: Superpowers and other adapted skills are NOT in base.manifest.
+# They are managed per-repo via /construct adapt + /construct promote.
+# Only core and local-origin skills are symlinked by setup.sh.
 
 # Core skills
-symlink   .claude/skills/fix
 symlink   .claude/skills/construct
 
 # Local-origin skills (from construct/local/)
+symlink   .claude/skills/xx-fix
 symlink   .claude/skills/xx-pensive
 symlink   .claude/skills/xx-skill-gen
 symlink   .claude/skills/xx-voice-apply
