@@ -83,7 +83,7 @@ _bash_precmd() {
     _hist=$(HISTTIMEFORMAT='' history 1)
     _hist="${_hist##*([[:space:]])+([0-9])*([[:space:]])}"
     case "$_hist" in
-        clast*|clast_append*|ycollect|yy) ;;
+        clast*|clast_append*|ystart|yend) ;;
         *) _bash_last_cmd="$_hist" ;;
     esac
 }
@@ -114,13 +114,13 @@ clast_append() {
     echo "[appended]"
 }
 
-ycollect() {
+ystart() {
     _bash_collecting=true
     : > "$_bash_collect_out"
     echo "[collecting...]"
 }
 
-yy() {
+yend() {
     _bash_collecting=false
     cat "$_bash_collect_out" | _bash_strip_escapes | _bash_clip_copy
     echo "[copied]"
