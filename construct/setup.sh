@@ -3,11 +3,27 @@
 # Bootstraps a target repo with ariadne's portable fragments.
 #
 # Usage:
-#   From target repo:  ./ariadne-refresh.sh  (symlinked)
-#   Or directly:       ../ariadne/construct/setup.sh
+#   cd /path/to/your-repo && ../ariadne/construct/setup.sh [--vendor] [--yes]
 #
+#   --vendor   Copy files instead of symlinking (for public repos that can't
+#              depend on ariadne as a sibling clone). Re-running refreshes.
+#   --yes      Skip confirmation prompt when switching modes.
+#
+# Mode is recorded in .ariadne-mode (content: "symlink" or "vendor").
 # Idempotent — safe to re-run for updates.
 set -euo pipefail
+
+# ── Parse flags ───────────────────────────────────────────────────────────────
+MODE="symlink"
+ASSUME_YES=false
+for arg in "$@"; do
+    case "$arg" in
+        --vendor) MODE="vendor" ;;
+        --symlink) MODE="symlink" ;;
+        --yes|-y) ASSUME_YES=true ;;
+        *) echo "Error: unknown flag: $arg" >&2; exit 2 ;;
+    esac
+done
 
 # ── Resolve paths ───────────────────────────���───────────────────────────────��─
 # Follow symlinks to find real ariadne location (construct/ dir)
@@ -18,7 +34,7 @@ MANIFEST="$SCRIPT_REAL/base.manifest"
 
 if [[ "$ARIADNE_DIR" == "$TARGET_DIR" ]]; then
     echo "Error: run this from the TARGET repo, not from ariadne itself."
-    echo "Usage: cd /path/to/your-repo && ./ariadne-refresh.sh"
+    echo "Usage: cd /path/to/your-repo && ../ariadne/construct/setup.sh"
     exit 1
 fi
 
@@ -64,13 +80,45 @@ create_symlink() {
         rm "$dst"
         printf "  ${YELLOW}updated${RESET} %s\n" "${dst#$TARGET_DIR/}"
     elif [[ -e "$dst" ]]; then
-        printf "  ${YELLOW}skipped${RESET} %s (file exists, not a symlink)\n" "${dst#$TARGET_DIR/}"
-        return 0
+        # Switching from vendor → symlink: replace the vendored copy.
+        rm -rf "$dst"
+        printf "  ${YELLOW}relinked${RESET} %s (was vendored)\n" "${dst#$TARGET_DIR/}"
     else
         printf "  ${GREEN}linked${RESET}  %s\n" "${dst#$TARGET_DIR/}"
     fi
 
     ln -s "$rel" "$dst"
+}
+
+create_vendored() {
+    local src="$1"  # absolute path in ariadne (may itself be a symlink)
+    local dst="$2"  # absolute path in target
+
+    ensure_parent "$dst"
+
+    if [[ ! -e "$src" ]]; then
+        printf "  ${YELLOW}missing${RESET} %s (source %s not found)\n" "${dst#$TARGET_DIR/}" "$src"
+        return 0
+    fi
+
+    if [[ -L "$dst" ]]; then
+        # Switching from symlink → vendor: replace the symlink with a copy.
+        rm "$dst"
+        cp -RL "$src" "$dst"
+        printf "  ${YELLOW}vendored${RESET} %s (was symlinked)\n" "${dst#$TARGET_DIR/}"
+        return 0
+    fi
+
+    if [[ -e "$dst" ]]; then
+        # Already vendored — refresh from source.
+        rm -rf "$dst"
+        cp -RL "$src" "$dst"
+        printf "  ${YELLOW}refreshed${RESET} %s\n" "${dst#$TARGET_DIR/}"
+        return 0
+    fi
+
+    cp -RL "$src" "$dst"
+    printf "  ${GREEN}vendored${RESET} %s\n" "${dst#$TARGET_DIR/}"
 }
 
 create_scaffold() {
@@ -107,8 +155,38 @@ merge_settings() {
     fi
 }
 
+# ── Mode detection & confirmation ─────────────────────────────────────────────
+MODE_MARKER="$TARGET_DIR/.ariadne-mode"
+PREVIOUS_MODE=""
+if [[ -f "$MODE_MARKER" ]]; then
+    PREVIOUS_MODE="$(tr -d '[:space:]' < "$MODE_MARKER")"
+fi
+
+if [[ -n "$PREVIOUS_MODE" && "$PREVIOUS_MODE" != "$MODE" ]]; then
+    printf "${YELLOW}Mode change:${RESET} %s → %s\n" "$PREVIOUS_MODE" "$MODE"
+    if [[ "$MODE" == "vendor" ]]; then
+        echo "  Existing symlinks will be replaced with copies of the source files."
+        echo "  Re-running --vendor in the future will refresh those copies."
+    else
+        echo "  Existing vendored files will be replaced with symlinks into ariadne."
+        echo "  The target repo will require ../ariadne to exist to use those files."
+    fi
+    if ! $ASSUME_YES; then
+        if [[ ! -t 0 ]]; then
+            echo "Error: mode change requires --yes in non-interactive runs." >&2
+            exit 1
+        fi
+        read -r -p "Continue? [y/N] " reply
+        case "$reply" in
+            y|Y|yes|YES) ;;
+            *) echo "Aborted."; exit 1 ;;
+        esac
+    fi
+    printf "\n"
+fi
+
 # ── Process manifest ──────────────────────────────────────────────────────────
-printf "${CYAN}Ariadne setup: %s → %s${RESET}\n" "$ARIADNE_DIR" "$TARGET_DIR"
+printf "${CYAN}Ariadne setup: %s → %s (mode: %s)${RESET}\n" "$ARIADNE_DIR" "$TARGET_DIR" "$MODE"
 printf "\n"
 
 while IFS= read -r line; do
@@ -122,7 +200,11 @@ while IFS= read -r line; do
 
     case "$action" in
         symlink)
-            create_symlink "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
+            if [[ "$MODE" == "vendor" ]]; then
+                create_vendored "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
+            else
+                create_symlink "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
+            fi
             ;;
         scaffold)
             create_scaffold "$TARGET_DIR/$target"
@@ -226,6 +308,12 @@ if "$gitignore_changed"; then
     printf "  ${GREEN}updated${RESET} .gitignore\n"
 else
     printf "  .gitignore already up to date\n"
+fi
+
+# ── Record mode ───────────────────────────────────────────────────────────────
+if [[ ! -f "$MODE_MARKER" ]] || [[ "$(tr -d '[:space:]' < "$MODE_MARKER")" != "$MODE" ]]; then
+    echo "$MODE" > "$MODE_MARKER"
+    printf "  ${GREEN}wrote${RESET}   .ariadne-mode (%s)\n" "$MODE"
 fi
 
 printf "\n${GREEN}Done.${RESET} Review changes, then commit.\n"

@@ -42,7 +42,6 @@ symlink   scripts/parallel-checks.sh
 symlink   scripts/pre-merge-checks.sh
 
 # ── Construct system ──────────────────────────────────────────────────────────
-symlink   construct/setup.sh                     ariadne-refresh.sh
 symlink   construct/scripts/sync-local-skills.sh
 symlink   construct/local
 

@@ -1,5 +1,8 @@
 # AI issue-based workflow — include from your project Makefile:
 #   include Makefile.workflow
+
+# Include openshell targets if available
+-include .openshell/Makefile
 # Override WF_ISSUES_DIR / WF_HISTORY_DIR before the include if your
 # issues and history live somewhere other than issues/ and history/.
 
@@ -51,10 +54,16 @@ refresh:
 		echo "Ariadne repo detected — merging settings only."; \
 		construct/scripts/merge-settings.sh .claude/settings.ariadne.json .claude; \
 		echo "Done. .claude/settings.json updated."; \
-	elif [ -f ariadne-refresh.sh ]; then \
-		./ariadne-refresh.sh; \
+	elif [ -d ../ariadne ]; then \
+		if [ -f ../ariadne/construct/setup.sh ]; then \
+			../ariadne/construct/setup.sh; \
+		else \
+			echo "Error: ../ariadne exists but construct/setup.sh not found."; \
+			exit 1; \
+		fi; \
 	else \
-		echo "Error: no ariadne-refresh.sh found. Run setup first."; \
+		echo "Error: ariadne not found. Clone it as a sibling directory:"; \
+		echo "  cd .. && git clone <ariadne-repo-url>"; \
 		exit 1; \
 	fi
 
