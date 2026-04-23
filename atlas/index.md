@@ -14,6 +14,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
 
 ## 3. Base Layer Infrastructure
+- [Base Layer](workflow/base-layer.md) — how to adopt ariadne's base layer, path conventions, runtime artifacts
 - [base.manifest](../construct/base.manifest) — canonical list of portable paths
 - [setup.sh](../construct/setup.sh) — bootstrapper for consuming repos
 
