@@ -54,5 +54,16 @@ scaffold  workshop/staging
 scaffold  atlas
 touch     workshop/lessons.md
 
+# ── Sandbox (OpenShell) ──────────────────────────────────────────────────────
+# .bootstrap/ and .base-image-digest are runtime artifacts (gitignored).
+symlink   .openshell/Makefile
+symlink   .openshell/sandbox.sh
+symlink   .openshell/overlay
+symlink   .openshell/dotfiles
+symlink   .openshell/policy.yaml
+symlink   .openshell/ssh_config
+symlink   .openshell/ssh_wrapper.sh
+symlink   .openshell/ssh-bin
+
 # ── Documentation ─────────────────────────────────────────────────────────────
 symlink   atlas/workflow
