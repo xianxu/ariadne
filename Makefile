@@ -5,9 +5,8 @@ REPO_NAME := $(shell git remote get-url origin 2>/dev/null | sed 's|.*/||; s|\.g
 WF_ISSUES_DIR = workshop/issues
 WF_HISTORY_DIR = workshop/history
 
-# Assemble sub-Makefiles
+# Assemble sub-Makefiles (Makefile.workflow already includes .openshell/Makefile)
 include Makefile.workflow
--include .openshell/Makefile
 -include Makefile.local
 
 .PHONY: help
