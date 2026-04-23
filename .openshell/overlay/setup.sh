@@ -29,6 +29,8 @@ unset LC_ALL
 set -o vi
 bind '"\C-r": reverse-search-history'
 bind '"\C-s": forward-search-history'
+# Disable bracketed paste — prevents escape sequence leakage through script(1) pty
+bind 'set enable-bracketed-paste off'
 
 # Aliases
 alias v=nvim
@@ -50,12 +52,24 @@ alias codex="codex --full-auto"
 export GEMINI_CLI_AUTO_APPROVE=true
 
 # ── Output capture (Ctrl+Y to copy last cmd+output) ─────────────────────────
-# Strategy: use script(1) to synchronously capture output. No async tee races.
+# Strategy: session runs inside script(1) which provides a real pty.
+# DEBUG trap (preexec) / PROMPT_COMMAND (precmd) record byte offsets in the
+# script log to extract output. No re-running commands, no TUI exclusion list.
 set +o noclobber
+if [[ -z "$_BASH_SCRIPT_LOG" ]]; then
+    export _BASH_SCRIPT_LOG=$(mktemp)
+    exec script -q --flush "$_BASH_SCRIPT_LOG" -c /bin/bash
+fi
+trap 'rm -f "$_BASH_SCRIPT_LOG" "$_bash_last_out" "$_bash_collect_out"' EXIT
+
+shopt -s extglob
 _bash_last_out=$(mktemp)
 _bash_collect_out=$(mktemp)
 _bash_collecting=false
 _bash_last_cmd=""
+_bash_cmd_offset=0
+_bash_cmd_active=false
+_bash_in_precmd=false
 
 _bash_strip_escapes() {
     perl -pe '
@@ -66,11 +80,6 @@ _bash_strip_escapes() {
     '
 }
 
-# Strip script(1) header/footer lines
-_bash_strip_script() {
-    sed '1{/^Script started on /d}; ${/^Script done on /d}'
-}
-
 # Clipboard via OSC 52 (works through SSH, zellij, tmux)
 _bash_clip_copy() {
     local data
@@ -78,24 +87,46 @@ _bash_clip_copy() {
     printf '\033]52;c;%s\a' "$data" > /dev/tty
 }
 
-# Save last user command each prompt (skip our own commands)
-_bash_precmd() {
+# DEBUG trap as preexec — record offset before command output starts
+_bash_preexec_trap() {
+    $_bash_in_precmd && return
+    $_bash_cmd_active && return
+    case "$BASH_COMMAND" in
+        _bash_precmd*|clast*|clast_append*|ystart|yend) return ;;
+    esac
+    _bash_cmd_active=true
     local _hist
     _hist=$(HISTTIMEFORMAT='' history 1)
     _hist="${_hist##*([[:space:]])+([0-9])*([[:space:]])}"
-    case "$_hist" in
-        clast*|clast_append*|ystart|yend) ;;
-        *) _bash_last_cmd="$_hist" ;;
-    esac
+    _bash_last_cmd="$_hist"
+    _bash_cmd_offset=$(stat -c%s "$_BASH_SCRIPT_LOG")
+}
+trap '_bash_preexec_trap' DEBUG
+
+# PROMPT_COMMAND as precmd — extract output between offsets
+_bash_precmd() {
+    _bash_in_precmd=true
+    if $_bash_cmd_active; then
+        _bash_cmd_active=false
+        local end_offset=$(stat -c%s "$_BASH_SCRIPT_LOG")
+        local size=$(( end_offset - _bash_cmd_offset ))
+        if (( size > 0 && _bash_cmd_offset > 0 )); then
+            tail -c +"$((_bash_cmd_offset + 1))" "$_BASH_SCRIPT_LOG" | head -c "$size" > "$_bash_last_out"
+        else
+            : > "$_bash_last_out"
+        fi
+        if $_bash_collecting && [[ -n "$_bash_last_cmd" ]]; then
+            { printf '$ %s\n' "$_bash_last_cmd"; cat "$_bash_last_out"; } >> "$_bash_collect_out"
+        fi
+    fi
+    _bash_in_precmd=false
 }
 PROMPT_COMMAND="_bash_precmd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 
 clast() {
-    # Re-run last command under script(1) to capture output synchronously
     local cmd="$_bash_last_cmd"
     [[ -z "$cmd" ]] && echo "[nothing to copy]" && return
-    script -qc "bash -ic $(printf '%q' "$cmd")" "$_bash_last_out" > /dev/null 2>&1
-    { printf '$ %s\n' "$cmd"; _bash_strip_script < "$_bash_last_out" | _bash_strip_escapes; } \
+    { printf '$ %s\n' "$cmd"; cat "$_bash_last_out" | _bash_strip_escapes; } \
         | _bash_clip_copy
     echo "[copied]"
 }
@@ -103,9 +134,8 @@ clast() {
 clast_append() {
     local cmd="$_bash_last_cmd"
     [[ -z "$cmd" ]] && echo "[nothing to copy]" && return
-    script -qc "bash -ic $(printf '%q' "$cmd")" "$_bash_last_out" > /dev/null 2>&1
     local prev
-    prev=$({ printf '$ %s\n' "$cmd"; _bash_strip_script < "$_bash_last_out" | _bash_strip_escapes; })
+    prev=$({ printf '$ %s\n' "$cmd"; cat "$_bash_last_out" | _bash_strip_escapes; })
     if [[ -f /tmp/_bash_clip_buf ]]; then
         printf '%s\n%s' "$(cat /tmp/_bash_clip_buf)" "$prev" > /tmp/_bash_clip_buf
     else
@@ -127,7 +157,7 @@ yend() {
     echo "[copied]"
 }
 
-# Bind Ctrl+Y / Alt+Y: clear line, run clast silently, redraw prompt
+# Bind Ctrl+Y / Alt+Y
 bind -m vi-insert -x '"\C-y": clast'
 bind -m vi-insert -x '"\ey": clast_append'
 # END openshell-overlay
