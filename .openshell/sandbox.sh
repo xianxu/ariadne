@@ -223,8 +223,10 @@ apply_config() {
     echo "==> Applying config to sandbox..."
     gather_credentials
     mutagen sync flush "${SANDBOX_NAME}-bootstrap" 2>/dev/null || true
+    local host_tz
+    host_tz=$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||' || echo "UTC")
     $SCP -q "$SCRIPT_DIR/overlay/setup.sh" "$SANDBOX_SSH_HOST:/tmp/setup.sh"
-    $SSH "$SANDBOX_SSH_HOST" "bash /tmp/setup.sh"
+    $SSH "$SANDBOX_SSH_HOST" "HOST_TZ='$host_tz' bash /tmp/setup.sh"
 
     local git_name git_email
     git_name=$(git config user.name 2>/dev/null || true)

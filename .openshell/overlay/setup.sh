@@ -22,6 +22,7 @@ cat >> "$HOME/.bashrc" << 'BASHEOF'
 export PATH="$HOME/.luarocks/bin:$HOME/.local/bin:$PATH"
 export EDITOR="nvim"
 export VISUAL="nvim"
+export TZ="__HOST_TZ__"
 unset LC_ALL
 
 # Vi mode
@@ -131,6 +132,8 @@ bind -m vi-insert -x '"\C-y": clast'
 bind -m vi-insert -x '"\ey": clast_append'
 # END openshell-overlay
 BASHEOF
+# Inject host timezone (heredoc is single-quoted so can't expand inside)
+sed -i "s|__HOST_TZ__|${HOST_TZ:-UTC}|" "$HOME/.bashrc"
 
 # ── Workspace dirs ───────────────────────────────────────────────────────────
 echo "==> Creating workspace dirs..."
