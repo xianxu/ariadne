@@ -26,13 +26,8 @@ merge     .claude/settings.ariadne.json        .claude/settings.json
 
 # NOTE: construct skill is ariadne-internal, not exported to target repos.
 
-# Local-origin skills (from construct/local/)
-symlink   .claude/skills/xx-fix
-symlink   .claude/skills/xx-pensive
-symlink   .claude/skills/xx-skill-gen
-symlink   .claude/skills/xx-voice-apply
-symlink   .claude/skills/xx-voice-gen
-symlink   .claude/skills/xx-interview-feedback
+# Local-origin skills are managed by sync-local-skills.sh (SessionStart hook),
+# which reads the prefix from construct/config.json. Not hardcoded here.
 
 # ── Makefile system ───────────────────────────────────────────────────────────
 symlink   Makefile.workflow
@@ -44,6 +39,7 @@ symlink   scripts/pre-merge-checks.sh
 # ── Construct system ──────────────────────────────────────────────────────────
 symlink   construct/scripts/sync-local-skills.sh
 symlink   construct/local
+copy      construct/config.json
 
 # ── Directory conventions (scaffold empty dirs) ───────────────────────────────
 scaffold  workshop/issues

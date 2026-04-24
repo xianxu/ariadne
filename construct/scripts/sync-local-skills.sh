@@ -16,6 +16,20 @@ fi
 PREFIX=$(grep -o '"localPrefix"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG" | sed 's/.*: *"//;s/"//')
 PREFIX="${PREFIX:-xx-}"
 
+# Clean up stale symlinks pointing into construct/local/
+for link in "$SKILLS_DIR"/*/; do
+  [[ -L "${link%/}" ]] || continue
+  actual=$(readlink "${link%/}")
+  if [[ "$actual" == ../../construct/local/* ]]; then
+    skill_name="${actual##*/}"
+    expected_name="${PREFIX}${skill_name}"
+    if [[ "$(basename "${link%/}")" != "$expected_name" ]]; then
+      rm "${link%/}"
+      echo "Removed stale symlink: $(basename "${link%/}")" >&2
+    fi
+  fi
+done
+
 for skill_dir in "$LOCAL_DIR"/*/; do
   [[ -d "$skill_dir" ]] || continue
   skill_name=$(basename "$skill_dir")
