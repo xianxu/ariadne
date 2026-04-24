@@ -61,8 +61,6 @@ if [[ -z "$_BASH_SCRIPT_LOG" ]]; then
     export _BASH_SCRIPT_LOG=$(mktemp)
     exec script -q --flush "$_BASH_SCRIPT_LOG" -c /bin/bash
 fi
-trap 'rm -f "$_BASH_SCRIPT_LOG" "$_bash_last_out" "$_bash_collect_out"' EXIT
-
 shopt -s extglob
 _bash_last_out=$(mktemp)
 _bash_collect_out=$(mktemp)
@@ -100,6 +98,7 @@ _bash_preexec_trap() {
     _hist=$(HISTTIMEFORMAT='' history 1)
     _hist="${_hist##*([[:space:]])+([0-9])*([[:space:]])}"
     _bash_last_cmd="$_hist"
+    [[ -f "$_BASH_SCRIPT_LOG" ]] || { _bash_cmd_offset=0; return; }
     _bash_cmd_offset=$(stat -c%s "$_BASH_SCRIPT_LOG")
 }
 trap '_bash_preexec_trap' DEBUG
@@ -109,6 +108,7 @@ _bash_precmd() {
     _bash_in_precmd=true
     if $_bash_cmd_active; then
         _bash_cmd_active=false
+        [[ -f "$_BASH_SCRIPT_LOG" ]] || { _bash_in_precmd=false; return; }
         local end_offset=$(stat -c%s "$_BASH_SCRIPT_LOG")
         local size=$(( end_offset - _bash_cmd_offset ))
         if (( size > 0 && _bash_cmd_offset > 0 )); then
