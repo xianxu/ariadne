@@ -166,6 +166,17 @@ BASHEOF
 # Inject host timezone (heredoc is single-quoted so can't expand inside)
 sed -i "s|__HOST_TZ__|${HOST_TZ:-UTC}|" "$HOME/.bashrc"
 
+# ── Python/Node proxy config ────────────────────────────────────────────────
+# pip (Python) and npm (Node) don't auto-detect https_proxy env var.
+# Without explicit config, they try direct connections, DNS fails in the
+# sandbox, and each request hangs for 15s before retrying through the proxy.
+if [ -n "${https_proxy:-}" ]; then
+    echo "==> Configuring pip/npm proxy..."
+    pip config set global.proxy "$https_proxy" 2>/dev/null || true
+    npm config set proxy "$http_proxy" 2>/dev/null || true
+    npm config set https-proxy "$https_proxy" 2>/dev/null || true
+fi
+
 # ── Workspace dirs ───────────────────────────────────────────────────────────
 echo "==> Creating workspace dirs..."
 mkdir -p "$HOME/repo" "$HOME/worktree"
