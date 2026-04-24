@@ -325,10 +325,19 @@ ensure_mutagen_sync() {
         ensure_sync plenary "$PLENARY_HOST" /sandbox/.local/share/nvim/lazy/plenary.nvim one-way-replica \
             --ignore-vcs
     fi
+
+    # Claude Code sessions: bi-directional so sessions can be resumed across
+    # host and sandbox (use `claude --resume <session-id>`).
+    local claude_projects="${HOME}/.claude/projects"
+    if [ -d "$claude_projects" ]; then
+        $SSH "$SANDBOX_SSH_HOST" "mkdir -p /sandbox/.claude/projects" 2>/dev/null || true
+        ensure_sync claude-sessions "$claude_projects" /sandbox/.claude/projects two-way-resolved \
+            --ignore-vcs
+    fi
 }
 
 # All mutagen sync names (add new syncs here)
-SYNC_NAMES="repo git workspace worktree plenary nvim-state"
+SYNC_NAMES="repo git workspace worktree plenary nvim-state claude-sessions"
 
 terminate_all_syncs() {
     for name in $SYNC_NAMES; do
