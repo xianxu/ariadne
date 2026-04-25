@@ -28,6 +28,7 @@ merge     .claude/settings.ariadne.json        .claude/settings.json
 
 # Local-origin skills are managed by sync-local-skills.sh (SessionStart hook),
 # which reads the prefix from construct/config.json. Not hardcoded here.
+scaffold  .claude/skills
 
 # ── Makefile system ───────────────────────────────────────────────────────────
 symlink   Makefile.workflow

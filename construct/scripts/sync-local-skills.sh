@@ -13,6 +13,8 @@ if [[ ! -f "$CONFIG" ]] || [[ ! -d "$LOCAL_DIR" ]]; then
   exit 0
 fi
 
+mkdir -p "$SKILLS_DIR"
+
 PREFIX=$(grep -o '"localPrefix"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG" | sed 's/.*: *"//;s/"//')
 PREFIX="${PREFIX:-xx-}"
 
