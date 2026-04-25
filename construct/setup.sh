@@ -316,4 +316,11 @@ if [[ ! -f "$MODE_MARKER" ]] || [[ "$(tr -d '[:space:]' < "$MODE_MARKER")" != "$
     printf "  ${GREEN}wrote${RESET}   .ariadne-mode (%s)\n" "$MODE"
 fi
 
+# ── Sync skill symlinks ──────────────────────────────────────────────────────
+SYNC_SCRIPT="$TARGET_DIR/construct/scripts/sync-local-skills.sh"
+if [[ -f "$SYNC_SCRIPT" ]]; then
+    printf "\n"
+    bash "$SYNC_SCRIPT" 2>&1 | while read -r line; do printf "  %s\n" "$line"; done
+fi
+
 printf "\n${GREEN}Done.${RESET} Review changes, then commit.\n"

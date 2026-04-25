@@ -40,6 +40,7 @@ symlink   scripts/pre-merge-checks.sh
 # ── Construct system ──────────────────────────────────────────────────────────
 symlink   construct/scripts/sync-local-skills.sh
 symlink   construct/local
+symlink   construct/adapted
 copy      construct/config.json
 
 # ── Directory conventions (scaffold empty dirs) ───────────────────────────────
