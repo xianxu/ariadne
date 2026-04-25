@@ -237,6 +237,29 @@ while IFS= read -r line; do
     esac
 done < "$MANIFEST"
 
+# ── Vendor setup infrastructure (makes --vendor replayable) ─────────────────
+# In vendor mode, also copy the setup machinery itself so the target repo
+# can replay the setup for its own downstream consumers.
+if [[ "$MODE" == "vendor" ]]; then
+    REPLAY_FILES=(
+        "construct/setup.sh"
+        "construct/base.manifest"
+        "construct/scripts/merge-settings.sh"
+    )
+    # Also vendor source files referenced by merge actions in the manifest
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// /}" ]] && continue
+        read -r act src _tgt <<< "$line"
+        if [[ "$act" == "merge" && -f "$ARIADNE_DIR/$src" ]]; then
+            REPLAY_FILES+=("$src")
+        fi
+    done < "$MANIFEST"
+    for rf in "${REPLAY_FILES[@]}"; do
+        create_vendored "$ARIADNE_DIR/$rf" "$TARGET_DIR/$rf"
+    done
+fi
+
 # ── Create Makefile if missing ────────────────────────────────────────────────
 if [[ ! -f "$TARGET_DIR/Makefile" ]]; then
     cat > "$TARGET_DIR/Makefile" << 'MAKEFILE'
