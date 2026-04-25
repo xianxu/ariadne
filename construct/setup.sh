@@ -33,9 +33,12 @@ TARGET_DIR="$(pwd)"
 MANIFEST="$SCRIPT_REAL/base.manifest"
 
 if [[ "$ARIADNE_DIR" == "$TARGET_DIR" ]]; then
-    echo "Error: run this from the TARGET repo, not from ariadne itself."
-    echo "Usage: cd /path/to/your-repo && ../ariadne/construct/setup.sh"
-    exit 1
+    # Running inside ariadne itself — just sync skill symlinks
+    SYNC_SCRIPT="$ARIADNE_DIR/construct/scripts/sync-local-skills.sh"
+    if [[ -f "$SYNC_SCRIPT" ]]; then
+        bash "$SYNC_SCRIPT" 2>&1
+    fi
+    exit 0
 fi
 
 if [[ ! -f "$MANIFEST" ]]; then
