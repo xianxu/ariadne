@@ -1,3 +1,9 @@
+---
+type: ideas
+description: Disentangling ariadne-the-workshop from ariadne-the-export. Inventorying what's portable as a base layer (AGENTS.md, .claude, Makefile fragments, setup.sh, generic skills) versus repo-specific content, and the layering mechanism that lets repos extend without forking.
+reference: [AGENTS.md, CLAUDE.md, construct/, construct/setup.sh, construct/base.manifest]
+---
+
 # Pensive: Ariadne Exportable Fragments
 
 **Date:** 2026-04-20

@@ -1,3 +1,9 @@
+---
+type: eureka
+description: Realization that ariadne is the personal skill workbench — the central place to manage, adapt, and distribute AI skills across repos. Parley is the editor; ariadne is the brain.
+reference: [construct/, .claude/skills/, ../parley.nvim]
+---
+
 # Pensive: Ariadne as the Skill Workbench
 
 **Date:** 2026-04-14

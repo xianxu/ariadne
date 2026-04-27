@@ -1,3 +1,9 @@
+---
+type: thoughts
+description: Mapping ariadne's top-level directories and their roles — atlas, brain, construct, docs, skills, vision, workshop — as the repo evolves into a command center reaching outward to sibling repos.
+reference: [atlas/, construct/, docs/vision/, workshop/, .claude/]
+---
+
 # Pensive: Ariadne Directory Anatomy
 
 **Date:** 2026-04-20
