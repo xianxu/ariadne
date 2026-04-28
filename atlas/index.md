@@ -22,5 +22,8 @@ Central directory for atlas entries — practical pointers for future developers
 - [Founding Context](../docs/vision/founding-context.md) — core thesis, product progression, bootstrapping strategy, 3-month focus
 - [Pitch Deck](../docs/plans/pitch-deck.md) — seed-stage funding pitch deck outline
 
-## 5. Product Specs
+## 5. AI Substrate
+- [Data Artifacts](data-artifacts.md) — typed markdown documents (xx-data skill, prototypes, capture flow)
+
+## 6. Product Specs
 *(To be created as the product takes shape)*
