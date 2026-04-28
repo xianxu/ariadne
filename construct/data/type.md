@@ -33,7 +33,8 @@ A prototype's body MUST contain these sections, in order:
 3. **Frontmatter shape** — table of fields the *instances* must carry, with required/optional and notes.
 4. **Body skeleton** — the section structure of an *instance* of this type, with guidance about each section.
 5. **Authoring instructions** — what the dispatcher should do when applying this prototype. Specific to this type's domain.
-6. **Rules** (optional) — type-specific constraints worth calling out.
+6. **Search recipes** (recommended) — `rg` examples for finding instances of this type by common attributes. See "Greppability" rule below.
+7. **Rules** (optional) — type-specific constraints worth calling out.
 
 **Critical:** these sections describe the prototype, *not* the instance. None of them appear in an instance of the type. The instance's body is whatever the **Body skeleton** section *describes*. The dispatcher reads the prototype as a spec and emits the spec's described shape; it never copies the prototype's meta-sections (Frontmatter shape, Body skeleton, Authoring instructions, Rules) into the instance.
 
@@ -59,11 +60,29 @@ When the dispatcher applies `type.md` (i.e., the user wants to add a new type to
 
 4. **Validate:** before declaring done, mentally apply the new prototype to a hypothetical instance. If the result feels thin, the prototype is too sparse; if it feels rigid, it's overspecified. Adjust.
 
+## Search recipes
+
+```sh
+# List every type prototype on disk
+rg -l "^type: type" construct/data/ data/meta/ 2>/dev/null
+
+# Find which prototype declares a specific field (e.g., a "purpose" field)
+rg -l "^type: type" construct/data/ data/meta/ | xargs rg -l "^| \`purpose\`"
+
+# Find prototypes whose lede mentions a domain
+rg -l "^type: type" construct/data/ data/meta/ | xargs rg -l -i "deadline"
+```
+
 ## Rules
 
 - One prototype per file. One type per prototype.
 - Filename and `type:` field must agree.
 - Prototypes are data, not code. Keep them readable end-to-end in under a minute.
-- **Prototype is spec, not template.** Meta-sections (Frontmatter shape, Body skeleton, Authoring instructions, Rules) describe the instance — they never appear *in* the instance.
+- **Prototype is spec, not template.** Meta-sections (Frontmatter shape, Body skeleton, Authoring instructions, Search recipes, Rules) describe the instance — they never appear *in* the instance.
 - A project-local prototype with the same name as a shared prototype shadows it completely (no merging).
 - Edits to a prototype affect only *new* instances. Existing instances are unaffected unless re-edited.
+- **Greppability.** Instances are searched with `rg`, no index. To keep the grep signal on one line:
+  - Frontmatter list values use inline form: `attendees: [alice, bob, carla]`. Avoid YAML multi-line (`- alice` on its own line) — it makes per-item filtering harder across files.
+  - Use ISO dates (`YYYY-MM-DD`) so prefix searches like `^date: 2026-04` work.
+  - Use predictable `## Section` headers for body sections so `rg "^## Decisions"` finds all instances.
+  - Every prototype should include a `Search recipes` section showing concrete `rg` invocations for its common queries.

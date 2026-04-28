@@ -38,3 +38,23 @@ When the dispatcher applies this prototype:
 3. **Gotchas:** lift directly from anything the user said went wrong, was surprising, or required backtracking.
 4. **Default location:** under a `memory/` directory if one exists, grouped by what the procedure operates on (e.g., `memory/work/onboarding/`, `memory/life/finance/`). Run `find memory -type d` to discover existing structure.
 5. Filename: kebab-case slug of the goal (e.g., `set-up-apple-developer-id.md`).
+
+## Search recipes
+
+```sh
+# All procedures
+rg -l "^type: procedure"
+
+# Procedures mentioning a specific tool or system
+rg -l "^type: procedure" | xargs rg -l -i "kubectl"
+rg -l "^type: procedure" | xargs rg -l -i "apple developer"
+
+# Procedures by goal phrase
+rg -l "^type: procedure" | xargs rg -l "^goal:.*deploy"
+
+# Procedures not run in 2026 (stale)
+rg -l "^type: procedure" | xargs rg -L "^last-run: 2026"
+
+# All gotchas across procedures (find what tends to go wrong)
+rg -l "^type: procedure" | xargs rg -A 20 "^## Gotchas"
+```

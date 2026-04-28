@@ -1,6 +1,6 @@
 ---
 name: xx-data
-description: "Use when the user wants to capture, save, or remember something into a structured markdown file in this repo. Triggers on conversational phrases like 'capture this trip', 'save these meeting notes', 'remember this list', 'track this launch', 'let's record this as X', or the explicit slash command `/xx-data <type> [path]`. Also applies when editing an existing markdown file whose frontmatter declares a `type:` known to the system."
+description: "Use only when the user issues an explicit capture instruction — a verb like 'capture', 'save', 'remember', 'record', 'write down', 'log', 'track', 'note', or 'file' — applied to substance worth keeping. Do NOT trigger on descriptive statements about plans or events ('we're visiting X this summer', 'I had a meeting with Y', 'the launch is next Tuesday'); a domain noun alone ('trip', 'meeting', 'launch') is not a trigger. Also fires on the slash command `/xx-data <type> [path]`, and when editing a markdown file whose frontmatter has a known `type:`."
 ---
 
 # Data
@@ -11,14 +11,22 @@ Create and edit *typed data artifacts* — markdown files whose shape is declare
 
 This skill is the primary way the agent captures conversational substance into a durable, structured file. It activates on three triggers, in priority order:
 
-1. **Conversational capture** (the common case). The user says something like:
+1. **Conversational capture** (the common case). The user uses an explicit capture verb — `capture`, `save`, `remember`, `record`, `write down`, `log`, `track`, `note`, `file` — applied to substance worth keeping. Examples that DO trigger:
    - "capture this trip to Rome"
    - "save these meeting notes"
    - "remember these contractors"
    - "let's track this launch"
    - "write that down as a procedure"
 
-   The intent is "make this a durable, structured file." The agent picks the type by the cue word ("trip" → `travel-plan`, "meeting" → `meeting-notes`, "list" / "set of" / "these contractors" → `reference`, "steps" / "procedure" / "how to" → `procedure`, "launch" / "deadline" / "conference" → `event`). When the cue is ambiguous, ask once.
+   Once triggered, pick the type by the domain noun ("trip" → `travel-plan`, "meeting" → `meeting-notes`, "list" / "set of" / "these contractors" → `reference`, "steps" / "procedure" / "how to" → `procedure`, "launch" / "deadline" / "conference" → `event`). When the noun is ambiguous, ask once.
+
+   Examples that do NOT trigger — descriptive statements without a capture verb:
+   - "we're visiting France this summer" — describing plans, not asking to file them
+   - "I had a meeting with Alice today" — recounting, not capturing
+   - "the launch is next Tuesday" — stating a fact
+   - "here's how I usually deploy" — explaining, not recording
+
+   When the user is just sharing context, treat it as conversation. Do not proactively offer to capture unless the user has signaled the intent — a domain noun on its own is **not** sufficient.
 
 2. **Slash invocation:** `/xx-data <type> [path]` — explicit, used when the user already knows the type and wants no inference.
 
@@ -28,6 +36,8 @@ If the trigger is unclear (the user said "remember this" with no domain hint), l
 
 ## Type lookup
 
+**Naming convention:** a prototype's filename (without `.md`) is the type name. `meeting-notes.md` defines `type: meeting-notes`. Filename and the prototype's own `type:` frontmatter field must agree.
+
 Prototypes live in two places. Lookup precedence is local-first:
 
 1. `<repo>/data/meta/<name>.md` — project-local override.
@@ -35,7 +45,7 @@ Prototypes live in two places. Lookup precedence is local-first:
 
 Local fully shadows shared (no merging). If `<name>.md` is not found in either, list the available types from both directories and ask the user, or offer to create a new one (which routes to applying `type.md` — the meta-prototype).
 
-To enumerate available types: list `*.md` files in both directories, dedupe by filename (local wins).
+To enumerate available types: list `*.md` files in both directories, dedupe by filename (local wins). For type *selection* (matching the user's request to a type), read only each prototype's frontmatter block — `name` and `description` are sufficient — not the body. The body is loaded only after a type is chosen, when applying it. This mirrors how skills themselves load: descriptions are eager, bodies are on-demand. A reasonable extractor: `awk '/^---$/{c++; next} c==1' <file>`, or any tool that stops at the second `---`.
 
 ## The dispatcher's universal responsibilities
 
@@ -55,7 +65,7 @@ Don't make the user re-state things they just said.
 
 ### 2. Discover where files live
 
-Run `find <base> -type d` once at the start of a capture to learn the existing folder structure. The base is `memory/` if it exists, otherwise the repo root.
+At the start of a capture, learn the existing folder structure: run `find memory/ -type d` if a `memory/` directory exists at the repo root, otherwise `find . -type d -not -path './.git/*'` against the repo root. (The rest of this skill calls that location the **base** — `memory/` or repo-root, whichever applied.)
 
 Directory names carry **categorical meaning** — `memory/life/family-travel/` says different things from `memory/work/travel/`. Respect existing conventions in the repo. Don't invent a parallel structure.
 
@@ -72,7 +82,7 @@ Filename guidance is per-prototype (each prototype's authoring instructions spec
 
 **The prototype is a specification, not a template.** Read it as a document describing what an instance should contain — do not copy it verbatim and do not carry its meta-sections into the instance.
 
-A prototype's body has four meta-sections — lede, **Frontmatter shape**, **Body skeleton**, **Authoring instructions** — plus optional **Rules**. None of these sections appear in the instance.
+A prototype's body has the following meta-sections: lede, **Frontmatter shape**, **Body skeleton**, **Authoring instructions**, **Search recipes** (recommended), **Rules** (optional). None of these sections appear in the instance.
 
 To produce an instance:
 - **Frontmatter** — read the prototype's *Frontmatter shape* table; emit only the fields it lists (with the values you've gathered or asked for). Don't carry over the prototype's own frontmatter (`type: <protoname>`, etc. — instead, the instance's `type:` is the prototype's name).
@@ -98,7 +108,18 @@ When invoked against an existing typed file (the user pointed at it explicitly, 
 3. Apply the prototype's authoring instructions to the edit — specifically, the parts about what belongs in which section, what shape fields take, what to ask vs. infer.
 4. Make the edit. Update `last-reviewed`, `last-run`, or similar staleness markers if the prototype declares them.
 
-### 6. Update an existing instance from conversational context
+### 6. Search and listing — use `rg`
+
+There is no index. Finding instances is `rg` against the working tree. When the user asks to find, list, or filter typed artifacts, consult the prototype's **Search recipes** section first — it has worked-out queries for the common cases. Build new queries when the user's filter is unusual, but stay within the same conventions:
+
+- `rg -l "^type: <name>"` — find files of a type.
+- Pipe through `xargs rg -l <pattern>` to narrow.
+- Frontmatter fields are anchored with `^` (e.g., `^date: 2026-04`).
+- Frontmatter list values use inline form (`attendees: [alice, bob]`), so a name match relies on word-boundary anchors: `attendees:.*\balice\b`.
+
+When emitting a new instance, follow the same conventions so future searches stay sharp.
+
+### 7. Update an existing instance from conversational context
 
 The user often references an existing artifact obliquely — "let's add Florence to our summer trip", "update the contractors list with this new plumber", "log the action items from today onto the Q2 roadmap notes". This is a capture intent, but the destination is an *existing* file, not a new one.
 
@@ -114,7 +135,17 @@ If no existing file matches what the user referenced, fall through to creating a
 
 ## Adding a new type
 
-If the user wants a kind of artifact no existing prototype covers, route to the meta-prototype: apply `type.md` to design a new prototype via `superpowers-brainstorming`. That brainstorm produces a new file under `construct/data/` (shared) or `<repo>/data/meta/` (project-local), and from then on it's available like any other type.
+**Check before designing.** Type proliferation is the failure mode — five overlapping prototypes that each capture 90% of the same thing. Before routing to the meta-prototype:
+
+1. List existing types (both shared and project-local).
+2. Identify the closest match by purpose, time-shape, and granularity.
+3. State the delta to the user: *"`travel-plan` already covers trips with itinerary and bookings — what does the new type need that `travel-plan` doesn't?"* Be specific about the closest match's coverage so the user can answer concretely.
+4. Resolve to one of three outcomes:
+   - **Use the existing type as-is.** The user's case fits; skip new-type creation.
+   - **Extend the existing prototype.** A small addition (one new field, one new optional section) is better than a fork. Edit the prototype directly and apply.
+   - **Create a new type.** The delta is large enough that overloading the existing one would hurt both. Proceed to the brainstorm.
+
+Only after that triage: route to the meta-prototype — apply `type.md` to design a new prototype via `superpowers-brainstorming`. That brainstorm produces a new file under `construct/data/` (shared) or `<repo>/data/meta/` (project-local), and from then on it's available like any other type.
 
 Do not skip the brainstorm step for new types. The frontmatter / body / instructions trinity is non-obvious to design, and getting it wrong upfront makes the prototype useless.
 
@@ -130,4 +161,5 @@ Do not skip the brainstorm step for new types. The frontmatter / body / instruct
   - *Unintended collision while creating a new file* — ask: append, version (`-v2`), or rename.
   - *Intentional update of an existing file* (Step 6 above) — fine to modify in place after a one-line confirm of the path and the change.
 - **Filenames respect the prototype's convention.** If the prototype specifies `<date>-<slug>.md`, use that. Don't second-guess.
+- **Greppable frontmatter.** Lists go inline (`[alice, bob]`), dates are ISO, scalar values stay on one line. The `rg` toolchain depends on it.
 - **Surface unknowns explicitly.** If a required field can't be determined, write `TBD` or `<unknown>` rather than fabricating, and call it out in the response so the user can fill in.

@@ -37,3 +37,22 @@ When the dispatcher applies this prototype:
 3. **Default location:** under a `memory/` directory if one exists, in a subdirectory whose name reflects the *category*, not the *topic*. E.g., `memory/life/contractors/` for a list of contractors, not `memory/contractors-list/`. Run `find memory -type d` first; if a fitting subdirectory exists, use it; otherwise propose 1–2.
 4. Filename: kebab-case slug of the topic.
 5. Don't add `last-reviewed` unless the data is the kind that goes stale.
+
+## Search recipes
+
+```sh
+# All references
+rg -l "^type: reference"
+
+# References mentioning a specific term (matches topic and body)
+rg -l "^type: reference" | xargs rg -l -i "plumber"
+
+# References by topic prefix
+rg -l "^type: reference" | xargs rg -l "^topic: contractors"
+
+# Stale references (not reviewed since 2025)
+rg -l "^type: reference" | xargs rg -L "^last-reviewed: 2026"
+
+# References that have never been reviewed
+rg -L "^last-reviewed:" $(rg -l "^type: reference")
+```

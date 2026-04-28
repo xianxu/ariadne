@@ -47,6 +47,7 @@ The dispatcher fires on three triggers, in priority order:
 | `reference` | Evergreen, mostly-static info — lists, vendors, contacts. |
 | `procedure` | Steps to follow for a repeatable or in-flight task. |
 | `event` | Time-bound plan with a deadline — launch, conference, prep effort. |
+| `pensive` | Timestamped train of thought, insight, brainstorm. Captures a moment of thinking-out-loud in the user's voice. |
 
 ## Rules of thumb
 

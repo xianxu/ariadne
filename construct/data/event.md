@@ -37,3 +37,23 @@ When the dispatcher applies this prototype:
 4. **Default location:** under a `memory/` directory if one exists, categorized by event type (`memory/work/launches/`, `memory/life/conferences/`). Run `find memory -type d` to discover structure.
 5. Filename: `<date>-<name-slug>.md`.
 6. Don't pad `Before/During/After` sections with empty bullets. Empty sections are fine while planning is light.
+
+## Search recipes
+
+```sh
+# All events
+rg -l "^type: event"
+
+# Upcoming events (still in planning or imminent)
+rg -l "^type: event" | xargs rg -l "^status: planning|^status: imminent"
+
+# Events in a year or month
+rg -l "^type: event" | xargs rg -l "^date: 2026"
+rg -l "^type: event" | xargs rg -l "^date: 2026-06"
+
+# Events by name fragment
+rg -l "^type: event" | xargs rg -l -i "^name:.*launch"
+
+# Open prep tasks across all events
+rg -l "^type: event" | xargs rg "^- \[ \]"
+```
