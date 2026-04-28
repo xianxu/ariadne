@@ -1,9 +1,9 @@
 ---
 id: 000012
-status: open
+status: working
 deps: []
 created: 2026-04-27
-updated: 2026-04-27
+updated: 2026-04-28
 ---
 
 # typed markdown documents via construct
@@ -51,16 +51,31 @@ Avoid description-based fuzzy intent matching as the primary trigger; reserve it
 
 ## Plan
 
-- [ ] Settle directory layout: shared (`construct/markdown/`?) and project-local (`./markdown/`? `./.claude/markdown/`?).
-- [ ] Write the meta-prototype (self-hosting `type.md`).
-- [ ] Author the dispatcher skill (`markdown-types`) — lookup logic, both activation triggers, override precedence.
-- [ ] Wire prototypes into the construct manifest so descendants pick them up on adopt/upgrade.
-- [ ] Ship one seed prototype (candidate: `meeting-notes.md` — universal, simple body skeleton).
-- [ ] Adopt into nous and exercise end-to-end: create a typed file via `/markdown`, edit an existing one and confirm the agent picks up the prototype.
-- [ ] Update `atlas/` to reflect the new typed-document concept.
+- [ ] Author meta-prototype `construct/data/type.md` (self-hosting; delegates new-type design to superpowers-brainstorming).
+- [ ] Author seed prototypes: `meeting-notes.md`, `travel-plan.md`.
+- [ ] Migrate xx-memory's 3 taxonomies to prototypes: `data.md`, `task.md`, `event.md`.
+- [ ] Author dispatcher skill at `construct/local/data/SKILL.md` (slash: `/xx-data`). Conversation trigger is primary; slash and file-edit are secondary. Universal logic (location discovery, conversation distillation, ask-when-ambiguous) lives here, not per-prototype.
+- [ ] Update `construct/base.manifest`: `symlink construct/data`. Project-local overrides at `<repo>/data/` are opt-in (not scaffolded).
+- [ ] Remove `construct/local/memory/` (superseded).
+- [ ] Run `construct/scripts/sync-local-skills.sh` and verify symlinks.
+- [ ] Smoke test: invoke `/xx-data meeting-notes` for a synthetic capture, then delete.
+- [ ] Author `atlas/data-artifacts.md`, link from `atlas/index.md`.
+- [ ] Adopt into nous out-of-band (separate session) for descendant validation.
 
 ## Log
 
 ### 2026-04-27
 
 - Created from chat exploration. Key conclusions captured in Spec: (a) frontmatter-as-mediator generalizes to typed-document templates that prime the agent; (b) prototypes are data, dispatcher is the only skill; (c) ariadne is the right home so descendants inherit via construct, with project-local override for repo-specific types.
+
+### 2026-04-28
+
+- Refined design via chat. Decisions:
+  - **Skill name:** `data` (slash: `/xx-data`). Generalizes the existing `xx-memory` skill, which is being deprecated. "memory" overloaded with agent-internal connotations; "data" is the artifact framing.
+  - **Prototype path:** `construct/data/<name>.md` (shared, symlinked into descendants); `<repo>/data/<name>.md` for project-local override (opt-in, not scaffolded).
+  - **Lookup precedence:** project-local → shared.
+  - **Activation:** conversation trigger is primary ("capture this trip", "save this as X"); slash command and file-edit are secondary. Skill description surfaces conversational phrasing for fuzzy intent matching — overruling the original spec's "fallback only" position because it doesn't match how this gets used.
+  - **Universal vs per-prototype logic:** location discovery (run `find . -type d`), conversation distillation, and ask-when-ambiguous live in the dispatcher. Per-prototype instructions only declare frontmatter shape, body skeleton, and what to ask for.
+  - **Meta-prototype workflow:** creating a new type delegates to `superpowers-brainstorming` to explore the data shape before writing the prototype file.
+  - **Implicit edit-time activation via base-layer `AGENTS.md`:** deferred. Conversation trigger covers the main path; revisit if the file-edit case becomes important.
+  - **Seed types:** `meeting-notes`, `travel-plan`, plus `data`/`task`/`event` migrated from xx-memory.
