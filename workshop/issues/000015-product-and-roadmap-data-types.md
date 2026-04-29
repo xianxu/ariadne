@@ -15,8 +15,8 @@ Add two typed-document prototypes to the data system: `product` (the durable cha
 
 ## Done when
 
-- `construct/data/product.md` exists, conforming to the meta-prototype's contract.
-- `construct/data/roadmap.md` exists, conforming to the meta-prototype's contract.
+- `construct/datatype/product.md` exists, conforming to the meta-prototype's contract.
+- `construct/datatype/roadmap.md` exists, conforming to the meta-prototype's contract.
 - Both prototypes ship with `Search recipes` and authoring instructions sufficient for a fresh agent to author good instances unaided.
 - Ariadne itself is described retrospectively using these prototypes — `data/product/ariadne.md` (or equivalent path, decided during planning) plus a first `data/roadmap/202604/ariadne.md`. This is the dogfood test.
 - Charon is described as the second test, authored from outside ariadne.
@@ -72,10 +72,10 @@ These are the smallest typed pair that can test "model a company as data." Perso
 - [ ] **Brainstorm `product` prototype** via `superpowers-brainstorming`. Settle frontmatter fields (especially `repos`, `status`), the component-section convention (slug IDs, depth rules), and the authoring-instructions content.
 - [ ] **Brainstorm `roadmap` prototype** via `superpowers-brainstorming`. Settle the snapshot-directory path (`data/roadmap/YYYYMM/<product>.md` vs alternatives), how component IDs link back to the product file, and what each component section in a roadmap should contain.
 - [ ] Decide where instances live by default — `data/product/<name>.md` and `data/roadmap/YYYYMM/<name>.md` is the working assumption.
-- [ ] Write `construct/data/product.md`. Self-contained per meta-prototype rules.
-- [ ] Write `construct/data/roadmap.md`. Self-contained.
+- [ ] Write `construct/datatype/product.md`. Self-contained per meta-prototype rules.
+- [ ] Write `construct/datatype/roadmap.md`. Self-contained.
 - [ ] Both prototypes include `Search recipes` for the `rg` queries each type's downstream tooling will need (find all active products, find all components of product X, find all roadmaps for product X across months, find roadmaps targeting a given quarter).
-- [ ] Run `construct/scripts/sync-local-skills.sh` if needed, and verify the dispatcher (`xx-data`) can fuzzy-match conversational triggers like "let's roadmap Charon for May" or "set up a product file for Ariadne."
+- [ ] Run `construct/scripts/sync-local-skills.sh` if needed, and verify the dispatcher (`xx-datatype`) can fuzzy-match conversational triggers like "let's roadmap Charon for May" or "set up a product file for Ariadne."
 - [ ] **Dogfood test 1 — Ariadne, retrospectively.** Author `data/product/ariadne.md` describing what Ariadne is, its durable shape, and its components (Construct, base layer, sandbox, data system, ...). Then author `data/roadmap/202604/ariadne.md` (this month's snapshot) with status against each component.
 - [ ] **Dogfood test 2 — Charon, forward-looking.** From outside ariadne, in Charon's repo or wherever Charon's brain lives, author a Charon product file and an initial roadmap. This validates the prototypes work in a non-self-referential setting.
 - [ ] Update `atlas/data-artifacts.md` to list `product` and `roadmap` with one-line descriptions and pointers.

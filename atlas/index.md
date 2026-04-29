@@ -23,7 +23,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Pitch Deck](../docs/plans/pitch-deck.md) — seed-stage funding pitch deck outline
 
 ## 5. AI Substrate
-- [Data Artifacts](data-artifacts.md) — typed markdown documents (xx-data skill, prototypes, capture flow)
+- [Data Artifacts](data-artifacts.md) — typed markdown documents (xx-datatype skill, prototypes, capture flow)
 
 ## 6. Product Specs
 *(To be created as the product takes shape)*
