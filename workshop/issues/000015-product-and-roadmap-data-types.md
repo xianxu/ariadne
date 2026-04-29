@@ -34,8 +34,7 @@ Product is a *charter*: vision, what it is in one paragraph, the durable shape o
 
 Key design points to nail down during brainstorming (delegated per the meta-prototype's authoring instructions):
 
-- **Frontmatter** likely carries: `type: product`, `name`, `repos: [path...]` (1..N peer repos of the brain), `status` (active | paused | sunset), creation/update dates, and lineage fields. Owner is deferred until persona exists.
-- **Whether a discriminator is needed** for "externally-sold vs internal effort vs infra." The original framing used `kind: product | project | infra`, but with `product` as the umbrella type that's awkward and reintroduces the word we just rejected. Options to weigh in brainstorming: drop the discriminator entirely (everything is a product, internal customers count); use `audience: external | internal`; or keep it semantic. Default lean: drop until a real query needs it.
+- **Frontmatter** likely carries: `type: product`, `name`, `repos: [path...]` (1..N peer repos of the brain), `status` (active | paused | sunset), creation/update dates, and lineage fields. Owner is deferred until persona exists. No `kind` or `audience` discriminator for now — everything is a product (internal efforts and infra are products with internal customers); add a discriminator later if a real query demands it.
 - **Components as sections with slug-like IDs.** Component headings use `## substrate-skill-management` (slug form), not `## Substrate (skill management)`. This is so `rg` across roadmaps stays cheap. Renaming a component is a deliberate act with a cross-repo `rg` sweep.
 - **Recursive decomposition.** Components nest into subcomponents via subsections. No fixed depth.
 - **What goes in body vs frontmatter.** Vision, the one-paragraph definition, and the component tree are body content. Repo paths and status are frontmatter (queryable).
@@ -70,7 +69,7 @@ These are the smallest typed pair that can test "model a company as data." Perso
 
 ## Plan
 
-- [ ] **Brainstorm `product` prototype** via `superpowers-brainstorming`. Settle frontmatter fields (especially `repos`, `status`, whether a kind/audience discriminator earns its keep), the component-section convention (slug IDs, depth rules), and the authoring-instructions content.
+- [ ] **Brainstorm `product` prototype** via `superpowers-brainstorming`. Settle frontmatter fields (especially `repos`, `status`), the component-section convention (slug IDs, depth rules), and the authoring-instructions content.
 - [ ] **Brainstorm `roadmap` prototype** via `superpowers-brainstorming`. Settle the snapshot-directory path (`data/roadmap/YYYYMM/<product>.md` vs alternatives), how component IDs link back to the product file, and what each component section in a roadmap should contain.
 - [ ] Decide where instances live by default — `data/product/<name>.md` and `data/roadmap/YYYYMM/<name>.md` is the working assumption.
 - [ ] Write `construct/data/product.md`. Self-contained per meta-prototype rules.
