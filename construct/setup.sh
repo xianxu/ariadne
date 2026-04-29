@@ -14,7 +14,9 @@
 set -euo pipefail
 
 # ── Parse flags ───────────────────────────────────────────────────────────────
-MODE="symlink"
+# MODE empty here = "use previous mode if .ariadne-mode exists, else symlink".
+# Explicit --vendor / --symlink overrides.
+MODE=""
 ASSUME_YES=false
 for arg in "$@"; do
     case "$arg" in
@@ -165,6 +167,11 @@ if [[ -f "$MODE_MARKER" ]]; then
     PREVIOUS_MODE="$(tr -d '[:space:]' < "$MODE_MARKER")"
 fi
 
+# If no flag passed: preserve previous mode, else default to symlink (first-time).
+if [[ -z "$MODE" ]]; then
+    MODE="${PREVIOUS_MODE:-symlink}"
+fi
+
 if [[ -n "$PREVIOUS_MODE" && "$PREVIOUS_MODE" != "$MODE" ]]; then
     printf "${YELLOW}Mode change:${RESET} %s → %s\n" "$PREVIOUS_MODE" "$MODE"
     if [[ "$MODE" == "vendor" ]]; then
@@ -236,29 +243,6 @@ while IFS= read -r line; do
             ;;
     esac
 done < "$MANIFEST"
-
-# ── Vendor setup infrastructure (makes --vendor replayable) ─────────────────
-# In vendor mode, also copy the setup machinery itself so the target repo
-# can replay the setup for its own downstream consumers.
-if [[ "$MODE" == "vendor" ]]; then
-    REPLAY_FILES=(
-        "construct/setup.sh"
-        "construct/base.manifest"
-        "construct/scripts/merge-settings.sh"
-    )
-    # Also vendor source files referenced by merge actions in the manifest
-    while IFS= read -r line; do
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        [[ -z "${line// /}" ]] && continue
-        read -r act src _tgt <<< "$line"
-        if [[ "$act" == "merge" && -f "$ARIADNE_DIR/$src" ]]; then
-            REPLAY_FILES+=("$src")
-        fi
-    done < "$MANIFEST"
-    for rf in "${REPLAY_FILES[@]}"; do
-        create_vendored "$ARIADNE_DIR/$rf" "$TARGET_DIR/$rf"
-    done
-fi
 
 # ── Create Makefile if missing ────────────────────────────────────────────────
 if [[ ! -f "$TARGET_DIR/Makefile" ]]; then
