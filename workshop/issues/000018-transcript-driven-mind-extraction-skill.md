@@ -139,7 +139,7 @@ Decisions locked:
 - No friction journal in v1: extractor's Stage 3 `friction` signal already covers what a live journal would capture
 
 Milestones:
-- [ ] M1 — Foundation: skill scaffold + normalizer + state file
+- [x] M1 — Foundation: skill scaffold + normalizer (state file deferred to M2)
 - [ ] M2 — Activity classifier (rule-based + LLM fallback)
 - [ ] M3 — Moment detection (six detectors)
 - [ ] M4 — Interactive cluster + draft generation
@@ -156,3 +156,25 @@ Issue created from a long brainstorming conversation in the brain repo.
 Originally filed there as `brain#9` but moved here because the pipeline is
 generic to any ariadne-styled repo and belongs in the base layer as a
 user-invocable skill rather than a brain-specific tool.
+
+### 2026-04-30 — M1 done
+- Scaffolded `construct/local/mind/` (SKILL.md + scripts/normalize.py)
+- Symlink `xx-mind → ../../construct/local/mind` registered via construct sync hook
+- Normalizer reads JSONL line-by-line, groups by sessionId, extracts:
+  cwd, gitBranch, timestamps, user/assistant message counts, tool calls (by
+  name), files written/edited/read, bash command count, slash commands,
+  first user message, permission modes seen, transcript file names
+- Three scope paths verified end-to-end:
+  - `--project charon` → 1 dir, 6 sessions, 7347 events
+  - `--scope current --cwd .../ariadne` → 1 dir, 9 sessions, 917 events
+  - `--scope all` not yet exercised but uses same code path as the others
+- Output: `~/.claude/mind-cache/<run-id>/sessions.json` + `run.json`
+- Notes for downstream stages:
+  - Sessions can be 18+ hours (session-resume preserves sessionId). May want
+    `away_summary` event-based subdivision later.
+  - One charon session has u=2, a=0 (abandoned/never responded). M2 classifier
+    should filter `assistant_message_count == 0`.
+  - Git correlation (commits landed in session window) not yet wired —
+    deferred until M3 detectors actually need it.
+  - State file `~/.claude/mind-state.json` not yet read/written; the skill body
+    is the place to do that since multiple stages mutate it.
