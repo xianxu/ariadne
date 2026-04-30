@@ -1,0 +1,29 @@
+# Repo-local Codex config for this repository.
+# This approximates `.claude/settings.json` using Codex's supported keys.
+#
+# Notes:
+# - Codex supports repo-local `.codex/config.toml`.
+# - Several Claude settings have no direct Codex equivalent yet:
+#   - per-command allow/deny shell rules
+#   - read deny-lists
+#   - plugin parity with Claude's `enabledPlugins`
+#   - session hooks
+# - Network control in Codex is coarse-grained. You can allow or block network
+#   access for `workspace-write`, but not maintain Claude-style domain allowlists.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+
+[sandbox_workspace_write]
+# Claude allowed limited network access inside the sandbox. Codex only exposes
+# an on/off switch here. On macOS, the native sandbox may still block network
+# access in some builds despite this setting.
+network_access = true
+
+# Keep a couple of common scratch/cache locations writable in addition to the
+# repo workspace. Add more absolute paths here if this repo needs them.
+writable_roots = [
+  "/tmp",
+  "..",
+]

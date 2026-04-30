@@ -1,0 +1,42 @@
+{
+  "tools": {
+    "sandbox": "docker",
+    "sandboxAllowedPaths": [
+      ".",
+      "..",
+      "/tmp",
+      "~/.npm",
+      "~/.cache",
+      "~/.local",
+      "~/.config/openshell",
+      "~/.mutagen"
+    ],
+    "sandboxNetworkAccess": true
+  },
+  "hooksConfig": {
+    "enabled": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "name": "sync-local-skills",
+            "type": "command",
+            "command": "./construct/scripts/sync-local-skills.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  },
+  "security": {
+    "folderTrust": {
+      "enabled": true
+    },
+    "environmentVariableRedaction": {
+      "enabled": true
+    }
+  }
+}

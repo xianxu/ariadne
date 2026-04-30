@@ -1,0 +1,6 @@
+[[rule]]
+toolName = "run_shell_command"
+commandPrefix = ["tsh", "tctl", "teleport", "ssh", "kubectl"]
+decision = "deny"
+priority = 100
+denyMessage = "Access to infrastructure and remote shell tools is restricted."
