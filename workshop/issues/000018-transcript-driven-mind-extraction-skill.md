@@ -140,7 +140,7 @@ Decisions locked:
 
 Milestones:
 - [x] M1 — Foundation: skill scaffold + normalizer (state file deferred to M2)
-- [ ] M2 — Activity classifier (rule-based + LLM fallback)
+- [x] M2 — Activity classifier (rule-based + LLM fallback)
 - [ ] M3 — Moment detection (six detectors)
 - [ ] M4 — Interactive cluster + draft generation
 - [ ] M5 — Review + write-back to mind-*, memory, permissions, lessons
@@ -173,6 +173,23 @@ Post-milestone review (BASE 1aa76c8 → HEAD 5cc0c5c) flagged:
 - Nits: imports/cleanup, .gitignore for pycache.
 
 All findings addressed in `12933a4`. M1 verified clean.
+
+### 2026-04-30 — M2 done
+- `scripts/classify.py`: rule-based scorer over six activity buckets.
+- 18 rules across the buckets; first-msg keywords weighted higher than
+  work-volume signals so user *intent* survives long resumed sessions.
+- Confidence threshold: top score ≥5 AND margin over second ≥3.
+- Verification on 45 sessions across 5 project dirs (charon/brain/nous/
+  ariadne/parley-nvim): 16 high-confidence, 27 ambiguous, 2 skip.
+  Spot-check on the 16 confident classifications: 16/16 correct
+  (well above the 80% target).
+- The 27 ambiguous sessions are mostly long resumed sessions whose intent
+  evolves (started as exploration, ended as implementation). Per plan,
+  these are LLM-disambiguated by the skill body in a single in-session
+  call. SKILL.md step 3a documents this handoff.
+- Degenerate sessions (assistant_message_count==0) → `skip`.
+- Note: state file r/w still deferred. Will wire when stages 5-6 actually
+  need cross-run continuity.
 
 ### 2026-04-30 — M1 done
 - Scaffolded `construct/local/mind/` (SKILL.md + scripts/normalize.py)

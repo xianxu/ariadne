@@ -54,18 +54,42 @@ A flat `events.jsonl` stream will be added in M2/M3 once detectors need to walk 
 
 Run-id format: `YYYYMMDDTHHMMSS`.
 
-### 3. Stages 2-7 (M2 onwards)
-
-Not yet implemented. After normalize, present a summary of what was found:
+### 3. Activity classify
 
 ```
-Processed N sessions across M project dirs.
-Date range: YYYY-MM-DD to YYYY-MM-DD.
-Wrote: ~/.claude/mind-cache/<run-id>/sessions.json
-Next stages (classify, detect, cluster, draft, write) not yet implemented.
+python3 $REPO_ROOT/construct/local/mind/scripts/classify.py \
+  --in  ~/.claude/mind-cache/<run-id>/sessions.json \
+  --out ~/.claude/mind-cache/<run-id>/classified.json
 ```
 
-Then update `~/.claude/mind-state.json` with the run record and processed session IDs.
+Output is a list of `{session_id, activity, confidence, scores, evidence, top_two}` records.
+
+`activity` values:
+- one of `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration` — confidently rule-classified
+- `ambiguous` — rules didn't produce a clear winner; the orchestrating skill should disambiguate via a single LLM call (see step 3a below)
+- `skip` — degenerate session (e.g., no assistant messages); excluded from downstream stages
+
+#### 3a. Disambiguate `ambiguous` rows
+
+For each `ambiguous` record, read the corresponding session summary plus the first ~500 chars of the user's first message, present to Claude in a single in-session call:
+
+> "Classify this session into one of: code-review, brainstorming, planning, debugging, implementation, exploration. Consider the first user message, slash commands invoked, file activity, and tool counts. Return one bucket name."
+
+Update `classified.json` in place — replace `activity: ambiguous` with the chosen bucket and add `confidence: llm` to mark the row as model-disambiguated.
+
+### 4. Stages 3-7 (M3 onwards)
+
+Not yet implemented. After classification, present a summary:
+
+```
+Processed N sessions, classified into:
+  code-review:    X
+  brainstorming:  Y
+  ...
+Skipped Z degenerate sessions.
+Wrote: ~/.claude/mind-cache/<run-id>/classified.json
+Next stages (detect, cluster, draft, write) not yet implemented.
+```
 
 ## `/xx-mind load`
 
