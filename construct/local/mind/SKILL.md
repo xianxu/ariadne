@@ -71,11 +71,60 @@ Output is a list of `{session_id, activity, confidence, scores, evidence, top_tw
 
 #### 3a. Disambiguate `ambiguous` rows
 
-For each `ambiguous` record, read the corresponding session summary plus the first ~500 chars of the user's first message, present to Claude in a single in-session call:
+The `ambiguous` rows are the ones rule-scoring couldn't decide. Resolve them in a **single batched in-session call**, not row-by-row, to keep cost low.
 
-> "Classify this session into one of: code-review, brainstorming, planning, debugging, implementation, exploration. Consider the first user message, slash commands invoked, file activity, and tool counts. Return one bucket name."
+**Build the prompt:**
 
-Update `classified.json` in place — replace `activity: ambiguous` with the chosen bucket and add `confidence: llm` to mark the row as model-disambiguated.
+For each ambiguous row, gather a compact record from `sessions.json` (look up by `session_id`):
+
+```
+{
+  "id": "<short-prefix-of-session-id>",
+  "first_user_message": "<first 400 chars>",
+  "slash_commands": [...],
+  "tool_calls_by_name": {...},
+  "files_written": <count>,
+  "files_edited": <count>,
+  "files_read": <count>,
+  "user_message_count": ...,
+  "assistant_message_count": ...,
+  "rule_scores": <classified.scores>,
+  "rule_top_two": <classified.top_two>
+}
+```
+
+Send this prompt:
+
+> Classify each session below into exactly one of these six activity buckets:
+> `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration`.
+>
+> If the session truly doesn't fit any (e.g., personal/non-code content), return `out-of-scope`.
+>
+> Use the first_user_message as the primary intent signal; tool/file counts as
+> secondary. Long sessions often start as one activity and evolve — go with the
+> *originating* intent unless the user explicitly redirected.
+>
+> Output strict JSON: `[{"id": "<id>", "activity": "<bucket>"}, ...]`.
+> One object per session, no prose.
+>
+> Sessions:
+> ```json
+> [<records>]
+> ```
+
+**Parse the response:**
+- JSON array, one object per ambiguous row.
+- Validate `activity` is one of the seven legal values (six buckets + `out-of-scope`).
+- If a value is illegal or the row is missing → fall back to `unknown` and log it.
+
+**Write back:**
+- Update `classified.json` in place: for each disambiguated row, set `activity` to the LLM's choice and `confidence` to `"llm"` (or `"llm-out-of-scope"` / `"llm-unknown"` for the fallback cases).
+- Atomically: write to `classified.json.tmp`, then `mv` into place.
+
+**Batch sizing:**
+- Up to ~25 sessions per call. If more than 25 ambiguous rows, split into batches and merge results before write-back. Never re-classify a row twice.
+
+**Skip out-of-scope rows downstream.** Stage 4+ should treat `out-of-scope` and `unknown` the same as `skip`.
 
 ### 4. Stages 3-7 (M3 onwards)
 

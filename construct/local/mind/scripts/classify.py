@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -75,7 +76,7 @@ def _slash_in(slash_commands: list[str], *names: str) -> bool:
 
 
 def _path_under_plans(paths: list[str]) -> bool:
-    return any("/plans/" in p or "/workshop/plans" in p for p in paths)
+    return any("/plans/" in p for p in paths)
 
 
 def _re_edit_ratio(s: dict[str, Any]) -> float:
@@ -109,11 +110,8 @@ RULES: list[Rule] = [
          lambda s: _slash_in(s.get("slash_commands", []), "brainstorm", "brainstorming", "superpowers-brainstorming")),
     Rule("brainstorming", "first-msg keyword: brainstorm/think/idea", 4,
          lambda s: _kw(s.get("first_user_message"),
-                       "brainstorm", "let's think", "what if we", "i'm thinking",
-                       "a couple of realizations", "couple of realization",
-                       "create a project", "start a project",
-                       "let's create", "create the product", "create the new",
-                       "i was thinking", "thoughts on")),
+                       "brainstorm", "let's think", "what if we",
+                       "i'm thinking", "i was thinking", "thoughts on")),
     Rule("brainstorming", "talk-heavy, no file work", 3,
          lambda s: (
              (len(s.get("files_written", [])) + len(s.get("files_edited", []))) == 0
@@ -146,7 +144,7 @@ RULES: list[Rule] = [
 
     # implementation
     Rule("implementation", "first-msg keyword: implement/build/add", 4,
-         lambda s: _kw(s.get("first_user_message"), "implement", "let's build", "let's work on", "start working on", "write the ", "fix the ", "make it ", "let's go", "let's do ")),
+         lambda s: _kw(s.get("first_user_message"), "implement", "let's build", "let's work on", "start working on", "write the ", "fix the ", "make it ")),
     Rule("implementation", "first-msg work-on-issue pattern", 4,
          lambda s: _kw(s.get("first_user_message"), "work on issue", "issue#", "issue #", "work on workshop")),
     Rule("implementation", "many file writes/edits (≥5)", 2,
@@ -161,6 +159,11 @@ RULES: list[Rule] = [
          lambda s: s.get("tool_call_count", 0) >= 50),
 
     # exploration
+    # NOTE: this keyword set is broad on purpose — many user openers are Q&A-shaped.
+    # The weight (4) is balanced against brainstorming(4) and implementation(4)
+    # so structural rules (no-writes, Q&A shape) decide the tie. If you raise
+    # this weight, retune brainstorming and implementation in lockstep or
+    # exploration will start winning over them on talk-heavy sessions.
     Rule("exploration", "first-msg keyword: explain/walk me through/look at", 4,
          lambda s: _kw(s.get("first_user_message"),
                        "walk me through", "explain", "tell me about", "what is ", "what does",
@@ -193,8 +196,6 @@ def is_degenerate(s: dict[str, Any]) -> str | None:
     """Return a skip reason if the session is too thin to classify, else None."""
     if s.get("assistant_message_count", 0) == 0:
         return "no assistant messages"
-    if s.get("user_message_count", 0) == 0 and s.get("tool_call_count", 0) == 0:
-        return "no user prose and no tool activity"
     return None
 
 
@@ -204,7 +205,7 @@ def classify_one(s: dict[str, Any]) -> dict[str, Any]:
         return {
             "session_id": s["session_id"],
             "activity": "skip",
-            "confidence": "n/a",
+            "confidence": None,
             "scores": {a: 0 for a in ACTIVITIES},
             "evidence": [],
             "skip_reason": skip,
@@ -251,7 +252,6 @@ def main() -> int:
     out_path.write_text(json.dumps(classified, indent=2))
 
     # Summary to stderr
-    from collections import Counter
     dist = Counter(c["activity"] for c in classified)
     conf = Counter(c["confidence"] for c in classified)
     print(f"classified {len(classified)} sessions", file=sys.stderr)
