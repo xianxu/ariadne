@@ -191,6 +191,19 @@ Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
 
+### 2026-04-30 — M4 review
+Post-milestone review (BASE 57b9601 → HEAD d80e9c7) shipped M4 with
+prose findings to fix. Addressed in `44ea2e6`:
+- SKILL.md: clarified iteration order (activity-outer, type-inner),
+  scoped cross-bucket merging within-activity only, locked precondition
+  that ambiguous must be resolved by 3a before 4 starts, moved
+  provenance to sibling .evidence.json (no double-frontmatter).
+- view_moments.py: summary now shows distinct sessions per bucket
+  (skip-threshold visible at a glance), path checks at startup with
+  clean errors, offset-overrun friendly note, fixed next-page hint to
+  be copy-pasteable.
+- detect.py: documented why activity is excluded from stable_id hash.
+
 ### 2026-04-30 — M4 done
 - Added stable moment IDs (`m_<10-hex>` SHA-1 prefix of session+type+ts+
   key evidence). Same inputs → same ID across re-runs, so cluster
