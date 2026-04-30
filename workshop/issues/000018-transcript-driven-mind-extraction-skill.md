@@ -174,6 +174,23 @@ Post-milestone review (BASE 1aa76c8 → HEAD 5cc0c5c) flagged:
 
 All findings addressed in `12933a4`. M1 verified clean.
 
+### 2026-04-30 — M2 review
+Post-milestone review (BASE 1cf22c9 → HEAD 8299506) flagged five Important
+findings + nits. All addressed in `89ef3a0`:
+- SKILL.md §3a (LLM disambiguation) was underspecified — now has full
+  prompt template, JSON response shape, validation, batching, atomic
+  write-back.
+- Pruned overfit brainstorming/implementation keywords ("create the
+  product", "let's go", etc.) tuned to specific test corpus sessions.
+- Added load-bearing comment on exploration weight balance.
+- skip rows: confidence "n/a" → null.
+- Nits: redundant clause in `_path_under_plans`, Counter import at top,
+  unreachable branch in `is_degenerate`.
+
+Re-classify after fixes: same 16 high-confidence count, all 16 still
+correct. One brainstorming row went to ambiguous (correct — relied on
+overfit keyword).
+
 ### 2026-04-30 — M2 done
 - `scripts/classify.py`: rule-based scorer over six activity buckets.
 - 18 rules across the buckets; first-msg keywords weighted higher than
