@@ -85,7 +85,7 @@ The `ambiguous` rows are the ones rule-scoring couldn't decide. You — the orch
 3. Reason about the right bucket for each, picking from `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration`, or `out-of-scope` if the session is genuinely off-taxonomy (personal/non-code work).
 4. Present the full table to the user — one row per ambiguous session — with: short id, first user message excerpt, your proposed activity, and a one-line rationale citing the strongest signal you used. Format compactly so the table fits on a screen.
 5. Ask the user to accept-all, accept-with-edits, or override specific rows. Apply their corrections.
-6. Atomically write back to `classified.json`: write `classified.json.tmp`, then `mv` into place. Set `confidence: "llm"` for unedited rows, `confidence: "user"` for rows the user overrode.
+6. Atomically write back to `classified.json`: write `classified.json.tmp`, then `mv` into place. Set `confidence: "llm"` for unedited rows, `confidence: "user"` for rows the user overrode, and **leave the original `ambiguous`/`low`** unchanged for any row where neither you nor the user feels confident — precision over recall.
 
 **Heuristic for your bucket choice:** the first user message is the primary intent signal; tool/file counts are secondary. Long sessions that started as exploration but did real work should still go to the originating intent — the rule-scoring already biases toward intent for exactly this reason.
 
@@ -115,8 +115,8 @@ Each moment carries `{session_id, project_slug, activity, type, ts, weight, evid
 This stage is a guided conversation. Do not write code that auto-clusters. The point of v1 is to build user-confirmed clusters by hand so we know what *should* group together before automating.
 
 **Preconditions:**
-1. Stage 3a has run — every row in `classified.json` has a definite activity. If any `ambiguous` rows remain, **stop and run Stage 3a first**. Stage 4 should never see `ambiguous`; the only legal activity values at this point are the six taxonomy buckets plus `out-of-scope` / `unknown` / `skip` (which are excluded from clustering).
-2. `out-of-scope`, `unknown`, and `skip` rows are not clustered — they're filtered out before the loop begins.
+1. Stage 3a has run. After 3a, rows have one of: a six-taxonomy activity, `out-of-scope`, `unknown`, `ambiguous`, or `skip`. **`ambiguous` is allowed to persist** — for any row where the user (or you reasoning on their behalf) couldn't confidently pick a bucket, leaving it ambiguous is correct. Precision over recall: clustering operates on signal we trust, not signal we hope.
+2. `out-of-scope`, `unknown`, `ambiguous`, and `skip` rows are all filtered out before the cluster loop begins. Their moments are excluded from any `mind-<activity>` skill draft.
 
 **Iteration order: outer loop is activity, inner loop is type.**
 
