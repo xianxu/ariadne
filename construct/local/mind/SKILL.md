@@ -9,6 +9,12 @@ Two subcommands:
 - `/xx-mind extract` — run the extraction pipeline against accumulated transcripts.
 - `/xx-mind load` — detect the current session's activity and load the matching `mind-<activity>` skill.
 
+## Operating principle
+
+**The orchestrating Claude (you, in the user's session) executes every command on the user's behalf and surfaces every model judgment to the user for approval before writing.** This skill is about extracting the user's taste — not Claude's. Don't run silent disambiguation, silent clustering, or silent file writes. Don't ask the user to copy-paste shell invocations either; you have the Bash tool, run them yourself.
+
+The only steps that don't need user approval are deterministic, no-op-on-failure reads (normalize, classify, detect, view). Everything that involves judgment (3a disambiguation, 5 clustering, 6 drafting) or that writes user-facing artifacts (7 write-back) is a checkpoint where the user decides.
+
 ## Storage layout (all user-global)
 
 ```
@@ -69,60 +75,19 @@ Output is a list of `{session_id, activity, confidence, scores, evidence, top_tw
 - `ambiguous` — rules didn't produce a clear winner; the orchestrating skill should disambiguate via a single LLM call (see step 3a below)
 - `skip` — degenerate session (e.g., no assistant messages); excluded from downstream stages
 
-#### 3a. Disambiguate `ambiguous` rows
+#### 3a. Disambiguate `ambiguous` rows (with user in the loop)
 
-The `ambiguous` rows are the ones rule-scoring couldn't decide. Resolve them in a **single batched in-session call**, not row-by-row, to keep cost low.
+The `ambiguous` rows are the ones rule-scoring couldn't decide. You — the orchestrating Claude in the user's session — resolve them by reasoning over each session's evidence and surfacing your proposed bucket to the user. The user is the final judge; do not write back silently.
 
-**Build the prompt:**
+**Procedure:**
+1. Load `classified.json`, find rows with `activity: "ambiguous"`.
+2. For each ambiguous row, pull the corresponding session record from `sessions.json` for context (first user message, slash commands, tool counts, file activity, top_two rule guesses).
+3. Reason about the right bucket for each, picking from `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration`, or `out-of-scope` if the session is genuinely off-taxonomy (personal/non-code work).
+4. Present the full table to the user — one row per ambiguous session — with: short id, first user message excerpt, your proposed activity, and a one-line rationale citing the strongest signal you used. Format compactly so the table fits on a screen.
+5. Ask the user to accept-all, accept-with-edits, or override specific rows. Apply their corrections.
+6. Atomically write back to `classified.json`: write `classified.json.tmp`, then `mv` into place. Set `confidence: "llm"` for unedited rows, `confidence: "user"` for rows the user overrode.
 
-For each ambiguous row, gather a compact record from `sessions.json` (look up by `session_id`):
-
-```
-{
-  "id": "<short-prefix-of-session-id>",
-  "first_user_message": "<first 400 chars>",
-  "slash_commands": [...],
-  "tool_calls_by_name": {...},
-  "files_written": <count>,
-  "files_edited": <count>,
-  "files_read": <count>,
-  "user_message_count": ...,
-  "assistant_message_count": ...,
-  "rule_scores": <classified.scores>,
-  "rule_top_two": <classified.top_two>
-}
-```
-
-Send this prompt:
-
-> Classify each session below into exactly one of these six activity buckets:
-> `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration`.
->
-> If the session truly doesn't fit any (e.g., personal/non-code content), return `out-of-scope`.
->
-> Use the first_user_message as the primary intent signal; tool/file counts as
-> secondary. Long sessions often start as one activity and evolve — go with the
-> *originating* intent unless the user explicitly redirected.
->
-> Output strict JSON: `[{"id": "<id>", "activity": "<bucket>"}, ...]`.
-> One object per session, no prose.
->
-> Sessions:
-> ```json
-> [<records>]
-> ```
-
-**Parse the response:**
-- JSON array, one object per ambiguous row.
-- Validate `activity` is one of the seven legal values (six buckets + `out-of-scope`).
-- If a value is illegal or the row is missing → fall back to `unknown` and log it.
-
-**Write back:**
-- Update `classified.json` in place: for each disambiguated row, set `activity` to the LLM's choice and `confidence` to `"llm"` (or `"llm-out-of-scope"` / `"llm-unknown"` for the fallback cases).
-- Atomically: write to `classified.json.tmp`, then `mv` into place.
-
-**Batch sizing:**
-- Up to ~25 sessions per call. If more than 25 ambiguous rows, split into batches and merge results before write-back. Never re-classify a row twice.
+**Heuristic for your bucket choice:** the first user message is the primary intent signal; tool/file counts are secondary. Long sessions that started as exploration but did real work should still go to the originating intent — the rule-scoring already biases toward intent for exactly this reason.
 
 **Skip out-of-scope rows downstream.** Stage 4+ should treat `out-of-scope` and `unknown` the same as `skip`.
 
