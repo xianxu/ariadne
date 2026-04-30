@@ -126,18 +126,37 @@ Send this prompt:
 
 **Skip out-of-scope rows downstream.** Stage 4+ should treat `out-of-scope` and `unknown` the same as `skip`.
 
-### 4. Stages 3-7 (M3 onwards)
-
-Not yet implemented. After classification, present a summary:
+### 4. Moment detection
 
 ```
-Processed N sessions, classified into:
-  code-review:    X
-  brainstorming:  Y
-  ...
-Skipped Z degenerate sessions.
-Wrote: ~/.claude/mind-cache/<run-id>/classified.json
-Next stages (detect, cluster, draft, write) not yet implemented.
+python3 $REPO_ROOT/construct/local/mind/scripts/detect.py \
+  --cache-dir ~/.claude/mind-cache/<run-id>/
+```
+
+Walks the raw JSONL for each non-skip session in `classified.json`, runs four detectors, emits `moments.jsonl` (one record per line) plus `moments-summary.json`.
+
+**Detector types:**
+- `redirect` — user negates/redirects after assistant action
+- `endorsement` — user reacts positively to assistant action
+- `edit-after-edit` — assistant re-edits same file ≥3 times within 5-turn window with no user message between (one moment per file with count, not per pair)
+- `friction` — same tool gets ≥3 explicit errors (`is_error: true` or `Exit code N` + friction-keyword)
+
+Two more detectors (`taste-fingerprint` requires git-diff correlation; `process-shape` requires cross-session aggregation) are deferred.
+
+Each moment carries `{session_id, project_slug, activity, type, ts, weight, evidence}`. The `evidence` shape is type-specific.
+
+### 5. Stages 4-7 (M4 onwards)
+
+Not yet implemented. After detection, present a summary:
+
+```
+Detected N moments across M processed sessions:
+  redirect:        X
+  endorsement:     Y
+  edit-after-edit: Z
+  friction:        W
+Wrote: ~/.claude/mind-cache/<run-id>/moments.jsonl
+Next stages (cluster, draft, write) not yet implemented.
 ```
 
 ## `/xx-mind load`

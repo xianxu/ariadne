@@ -141,7 +141,7 @@ Decisions locked:
 Milestones:
 - [x] M1 — Foundation: skill scaffold + normalizer (state file deferred to M2)
 - [x] M2 — Activity classifier (rule-based + LLM fallback)
-- [ ] M3 — Moment detection (six detectors)
+- [x] M3 — Moment detection (4 of 6 detectors; taste-fingerprint + process-shape deferred)
 - [ ] M4 — Interactive cluster + draft generation
 - [ ] M5 — Review + write-back to mind-*, memory, permissions, lessons
 - [ ] M6 — `/xx-mind load` + close-the-loop
@@ -190,6 +190,28 @@ findings + nits. All addressed in `89ef3a0`:
 Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
+
+### 2026-04-30 — M3 done
+- `scripts/detect.py`: four detectors (redirect, endorsement, edit-after-edit,
+  friction). Reads classified.json + sessions.json + raw JSONL transcripts;
+  walks each non-skip session in event order; emits `moments.jsonl` plus a
+  `moments-summary.json`.
+- `taste-fingerprint` (needs git-diff correlation) and `process-shape`
+  (cross-session aggregates) deferred per plan; documented in detect.py
+  docstring and SKILL.md.
+- `scripts/test_detect.py`: 14 self-contained synthetic-fixture tests
+  covering each detector's positive and negative cases. All passing.
+- Verification on 45 sessions (full corpus): 156 moments emitted —
+  redirect:32, endorsement:50, edit-after-edit:72, friction:2.
+- Calibration: first pass emitted 576 moments (476 edit-after-edit,
+  18 friction). Two iterations cut noise ~70%:
+  - edit-after-edit now dedups per (session, file) — emits one moment
+    per file with `rapid_re_edit_count` ≥ 2 instead of one per pair.
+  - friction now requires explicit error gate (is_error flag OR
+    Exit-code-N+friction-hint), suppressing file-content false positives.
+- Spot-check on emitted moments: redirect ~83% precision, endorsement
+  ~100% precision, edit-after-edit recall meaningful only for tight
+  clusters (intentional), friction now only fires on real tool errors.
 
 ### 2026-04-30 — M2 done
 - `scripts/classify.py`: rule-based scorer over six activity buckets.
