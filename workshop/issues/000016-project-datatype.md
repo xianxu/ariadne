@@ -216,14 +216,13 @@ The immediate trigger: tomorrow's work session needs a project to organize the c
 
 ## Plan
 
-- [ ] **Brainstorm `project` prototype** via `superpowers-brainstorming`. Most design points are pre-resolved in the Spec above; remaining open questions are mostly polish (exact frontmatter field names, default values, edge cases like a task that escalates from open → done without a detail block).
-- [ ] Decide where instances live by default — `data/project/<slug>.md` is the working assumption.
-- [ ] Write `construct/datatype/project.md`.
-- [ ] **Dogfood — author `data/project/charon-release-push.md`.** Real project covering charon #13 + #14 + #15 (#16 explicitly out). Use immediately to organize tomorrow's work.
-- [ ] Verify the velocity calibration loop works in practice: as items in `## done` accumulate, `actual_hours` flows to issue frontmatter and `estimate-logic-v1.md`'s validation table.
-- [ ] Update `atlas/data-artifacts.md` to include `project`.
-- [ ] Decide on roadmap rework: does the existing `roadmap` prototype need adjustment to reference projects instead of (or in addition to) components? Record decision in `## Log` either way. If yes, file as a separate issue.
-- [ ] Update `construct/datatype/roadmap.md` if the decision says yes.
+- [x] Design pre-resolved in the Spec above; brainstorming step folded into the conversation that produced this issue. Remaining gaps surfaced during writing, not before.
+- [x] Decided default instance path: `data/project/<slug>.md`.
+- [x] Wrote `construct/datatype/project.md`.
+- [x] Dogfooded by authoring `brain/data/project/charon-release-push.md`. Real project covering charon #13 + #14 + #15 (#16 explicitly out). Ready for tomorrow's work session.
+- [x] Updated `atlas/data-artifacts.md` to include `product`, `roadmap`, and `project` (the latter two were missing from the table previously).
+- [x] Decided on roadmap rework: **defer.** See Log entry 2026-04-29 below for rationale.
+- [ ] **Open** — verify the velocity calibration loop in practice: as charon-release-push tasks complete, confirm `actual_hours` flows to the corresponding issue's frontmatter and to `estimate-logic-v1.md`'s validation table. Requires actual execution; can't verify in this session.
 
 ## Log
 
@@ -241,3 +240,16 @@ The immediate trigger: tomorrow's work session needs a project to organize the c
   - Refs cover product repos and shared brain repos uniformly: `[<repo>#<id>]`, `[<repo>#<id> M<N>]`, or plain text for non-tracked items.
 - **Single-operator field added** (`operator: <persona>` in frontmatter). Discipline: exactly one operator per project, makes AI-centric flow viable, multiple-operator-per-project is a smell to flag.
 - **Jump-link convention added.** Markdown shortcut-reference links + explicit `<a id>` anchors. Task line `[<ref>]` becomes a clickable jump to the corresponding detail block when a reference definition exists at file bottom. Slug rule: lowercase ref, replace `#` and whitespace with `-` (e.g. `charon#13 M2` → `charon-13-m2`). Robust across renderers; falls back to `rg <ref>` if the editor doesn't render anchors.
+
+- **Files landed:**
+  - `construct/datatype/project.md` — prototype, conforming to meta-prototype contract.
+  - `atlas/data-artifacts.md` — added rows for `product`, `roadmap`, `project`. Plus a one-paragraph note framing the trio as a small-team-or-company structural model.
+  - `brain/data/project/charon-release-push.md` — first dogfood instance. Covers charon #13 + #14 + #15 (#16 explicitly out). 27 tasks ordered top-down; 11 detail blocks pre-populated with estimates from the velocity skill's earlier estimates on those issues.
+
+- **Roadmap rework decision: defer.** Rationale:
+  - The current `roadmap` prototype (per-product, per-month, references components) hasn't been authored as a real instance yet. Restructuring without dogfood feels premature.
+  - Roadmap and project operate at different levels: roadmap says "by end of month T, component X should be at state Y"; project says "this push completes when criterion Z is met." These compose without conflict — a project's tasks contribute to a roadmap-month's component targets.
+  - Instead of pre-rewriting roadmap, author one for the upcoming month against `charon-release-push`, see whether referencing the project (rather than components directly) feels right, and decide then.
+  - If a rework lands later, file as a separate issue with the dogfood evidence.
+
+- **Status:** issue stays `working` (not `done`) until the velocity calibration loop is verified end-to-end via at least one closed task in `charon-release-push`. Schema and dogfood are in place; the *behavioral* test happens during execution.

@@ -48,6 +48,15 @@ The dispatcher fires on three triggers, in priority order:
 | `procedure` | Steps to follow for a repeatable or in-flight task. |
 | `event` | Time-bound plan with a deadline — launch, conference, prep effort. |
 | `pensive` | Timestamped train of thought, insight, brainstorm. Captures a moment of thinking-out-loud in the user's voice. |
+| `product` | Durable charter of a thing being built — vision + components + current state. Spans 0..N peer repos. |
+| `roadmap` | Month-level forward-looking plan for one product — capacity, scope decisions, target state per component. Lives at `data/roadmap/YYYYMM/<product>.md`. |
+| `project` | Execution container — focused push toward a defined MVP, cutting across issues and possibly products. Operator-POV. One operator per project. Closes the velocity calibration loop. |
+
+The trio `product` + `roadmap` + `project` together model a small company-or-team's structure:
+
+- **product** = what is being built (durable, static)
+- **roadmap** = what we want true by month T (forward-looking, monthly)
+- **project** = what we're working on right now to advance it (operator-POV, time-bounded by an MVP)
 
 ## Rules of thumb
 
