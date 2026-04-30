@@ -136,18 +136,16 @@ Decisions locked:
 - One `mind-<activity>` skill per activity, prior versions retained for diffing
 - Scope (current repo / all / select) chosen at invocation; output destination derived from scope
 - Clustering v1: interactive in-session with the user, no automated clusterer
-
-Open forks:
-- [ ] Fork C — friction capture surface: ship in this issue vs. split?
+- No friction journal in v1: extractor's Stage 3 `friction` signal already covers what a live journal would capture
 
 Milestones:
-- [ ] M1 — Foundation: scope selection + normalizer + state file
+- [ ] M1 — Foundation: skill scaffold + normalizer + state file
 - [ ] M2 — Activity classifier (rule-based + LLM fallback)
 - [ ] M3 — Moment detection (six detectors)
-- [ ] M4 — Cluster + draft generation
-- [ ] M5 — Review + write-back to mind-*, AGENTS.md, memory, permissions, lessons
-- [ ] M6 — Versioning + `--rerun-version` diff
-- [ ] M7 — Friction capture surfaces (`/friction`, passive log skill)
+- [ ] M4 — Interactive cluster + draft generation
+- [ ] M5 — Review + write-back to mind-*, memory, permissions, lessons
+- [ ] M6 — `/xx-mind load` + close-the-loop
+- [ ] M7 — Versioning + `--rerun-version` diff
 - [ ] M8 — First real run on user's corpus; produce `mind-*-v1`
 - [ ] M9 — Stabilize, add to `construct/base.manifest`, update atlas
 
