@@ -208,6 +208,100 @@ def test_friction_below_threshold_no_fire() -> None:
           not [m for m in moments if m.type == "friction"])
 
 
+def test_friction_exit_code_with_hint() -> None:
+    """No is_error flag, but `Exit code N` head + friction hint should fire."""
+    events = []
+    for i in range(3):
+        events.append(assistant("", tool_uses=[tu_bash(f"t{i}", "go build")]))
+        events.append(user_tool_result(
+            f"t{i}",
+            "Exit code 1\nopen /tmp/x: operation not permitted",
+            is_error=False,
+        ))
+    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    check("friction: Exit-code + hint path fires without is_error",
+          len([m for m in moments if m.type == "friction"]) == 1)
+
+
+def test_friction_cross_tool_buckets_separately() -> None:
+    """Errors split across two tool names should bucket independently;
+    neither should hit the threshold."""
+    events = [
+        assistant("", tool_uses=[tu_bash("t1", "rm /x")]),
+        user_tool_result("t1", "Operation not permitted", is_error=True),
+        assistant("", tool_uses=[tu_bash("t2", "rm /y")]),
+        user_tool_result("t2", "Operation not permitted", is_error=True),
+        assistant("", tool_uses=[{"id": "t3", "name": "Edit",
+                                    "input": {"file_path": "/a", "old_string": "x", "new_string": "y"}}]),
+        user_tool_result("t3", "Operation not permitted", is_error=True),
+        assistant("", tool_uses=[{"id": "t4", "name": "Edit",
+                                    "input": {"file_path": "/b", "old_string": "x", "new_string": "y"}}]),
+        user_tool_result("t4", "Operation not permitted", is_error=True),
+    ]
+    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    check("friction: cross-tool errors don't merge into one bucket",
+          not [m for m in moments if m.type == "friction"])
+
+
+def test_friction_unknown_bucket_suppressed() -> None:
+    """If tool_use_id can't be resolved, the '?' bucket should be skipped."""
+    events = []
+    for i in range(5):
+        # Tool result references an id that was never seen in an assistant turn
+        events.append(user_tool_result(f"unseen-{i}", "Operation not permitted", is_error=True))
+    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    check("friction: '?' tool bucket suppressed even past threshold",
+          not [m for m in moments if m.type == "friction"])
+
+
+def test_edit_after_edit_window_decay_suppresses() -> None:
+    """When 6+ assistant turns intervene between two edits to the same file,
+    the rapid-pair shouldn't count."""
+    events = [assistant("", tool_uses=[tu_edit("t0", "/a.go")])]
+    # Six unrelated assistant turns in between (no user message)
+    for i in range(6):
+        events.append(assistant("", tool_uses=[tu_bash(f"b{i}", "ls")]))
+    events.append(assistant("", tool_uses=[tu_edit("t1", "/a.go")]))
+    # Add another rapid pair to confirm nothing else fires either
+    events.append(assistant("", tool_uses=[tu_edit("t2", "/a.go")]))
+    moments = list(detect_edit_after_edit(events, "s1", "p1", "implementation"))
+    eae = [m for m in moments if m.type == "edit-after-edit"]
+    check("edit-after-edit: 6-turn gap breaks the rapid pair", not eae)
+
+
+def test_redirect_skips_tool_result_text() -> None:
+    """A tool_result wrapper whose content text starts with 'no' must NOT
+    fire the redirect detector — it's not a user redirect, it's tool output."""
+    events = [
+        assistant("", tool_uses=[tu_bash("t1", "ls")]),
+        user_tool_result("t1", "no such file or directory"),
+    ]
+    moments = list(detect_redirects_and_endorsements(events, "s1", "p1", "implementation"))
+    check("redirect: tool_result text starting with 'no' is skipped",
+          not [m for m in moments if m.type == "redirect"])
+
+
+def test_endorsement_weight_tier() -> None:
+    """Endorsements after tool-bearing assistant actions: weight 2.
+    Endorsements after text-only assistant turns: weight 1."""
+    events_tool = [
+        assistant("Implemented", tool_uses=[tu_write("t1", "/x.go")]),
+        user_text("perfect"),
+    ]
+    events_text_only = [
+        assistant("Here's what I think we should do..."),
+        user_text("yes, go ahead"),
+    ]
+    m_tool = [m for m in detect_redirects_and_endorsements(events_tool, "s1", "p1", "i")
+              if m.type == "endorsement"]
+    m_text = [m for m in detect_redirects_and_endorsements(events_text_only, "s2", "p1", "i")
+              if m.type == "endorsement"]
+    check("endorsement: tool-backed weight=2", bool(m_tool) and m_tool[0].weight == 2,
+          f"got {m_tool[0].weight if m_tool else 'none'}")
+    check("endorsement: text-only weight=1", bool(m_text) and m_text[0].weight == 1,
+          f"got {m_text[0].weight if m_text else 'none'}")
+
+
 def main() -> int:
     print("Running detect.py tests...")
     test_redirect_basic()
@@ -221,6 +315,12 @@ def main() -> int:
     test_friction_three_errors()
     test_friction_ignores_content_match_without_error_flag()
     test_friction_below_threshold_no_fire()
+    test_friction_exit_code_with_hint()
+    test_friction_cross_tool_buckets_separately()
+    test_friction_unknown_bucket_suppressed()
+    test_edit_after_edit_window_decay_suppresses()
+    test_redirect_skips_tool_result_text()
+    test_endorsement_weight_tier()
     if failures:
         print(f"\n{len(failures)} failure(s): {failures}")
         return 1

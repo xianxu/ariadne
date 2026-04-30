@@ -36,7 +36,9 @@ from pathlib import Path
 from typing import Any, Iterable
 
 PROJECTS_ROOT = Path.home() / ".claude" / "projects"
-EDIT_AFTER_EDIT_WINDOW = 5  # max assistant turns between edits, no user turn between
+EDIT_AFTER_EDIT_WINDOW = 5    # max assistant turns between edits, no user turn between
+EDIT_AFTER_EDIT_MIN_PAIRS = 2  # ≥2 rapid pairs (i.e. ≥3 rapid touches) per file → moment
+FRICTION_MIN_DENIALS = 3       # ≥3 explicit errors per tool per session → moment
 
 REDIRECT_LEADING = re.compile(
     r"^\s*("
@@ -231,15 +233,19 @@ def detect_redirects_and_endorsements(
                 },
             )
         if is_endorse:
-            # Endorsement of a non-trivial assistant action (had tools or non-empty text)
+            # Endorsement of a non-trivial assistant action (had tools or non-empty text).
+            # Weight tiered: tool-backed endorsements signal "the work was right";
+            # text-only endorsements ("yes, go ahead") signal mere authorization
+            # and are downweighted so clustering doesn't drown in them.
             if a_text.strip() or a_tools:
+                weight = 2 if a_tools else 1
                 yield Moment(
                     session_id=session_id,
                     project_slug=project_slug,
                     activity=activity,
                     type="endorsement",
                     ts=evt.get("timestamp"),
-                    weight=2,
+                    weight=weight,
                     evidence={
                         "user_endorsement": text[:300],
                         "assistant_text": a_text[:600],
@@ -320,8 +326,11 @@ def detect_edit_after_edit(
             assistant_turn_count_since[fp] = 0
 
     for fp, count in pair_count.items():
-        if count < 2:
-            # Single re-edit is too common to be useful as a moment.
+        if count < EDIT_AFTER_EDIT_MIN_PAIRS:
+            # Single re-edit pair (just two consecutive touches) is too common
+            # to be useful taste signal — every edit-then-test-then-edit cycle
+            # would fire. Require ≥2 rapid pairs (i.e. ≥3 rapid touches) before
+            # a file-level cluster looks like flailing or iteration intensity.
             continue
         yield Moment(
             session_id=session_id,
@@ -390,12 +399,18 @@ def detect_friction(
                         tu_id = it["tool_use_id"]
                         break
         tool = tool_name_by_id.get(tu_id, "?") if tu_id else "?"
+        # Skip the unknown bucket: schema drift or partial events can park real
+        # errors here without a useful tool label, and emitting "tool=? error
+        # happened 5 times" is actionably useless. If this fires often it's a
+        # bug, not a moment.
+        if tool == "?":
+            continue
         denials_by_tool[tool] += 1
         if tool not in samples:
             samples[tool] = rt[:300]
 
     for tool, count in denials_by_tool.items():
-        if count < 3:
+        if count < FRICTION_MIN_DENIALS:
             continue
         yield Moment(
             session_id=session_id,
