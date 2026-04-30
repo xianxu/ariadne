@@ -60,36 +60,34 @@ A flat `events.jsonl` stream will be added in M2/M3 once detectors need to walk 
 
 Run-id format: `YYYYMMDDTHHMMSS`.
 
-### 3. Activity classify
+### 3. Activity classify (LLM-direct, with user in the loop)
 
-```
-python3 $REPO_ROOT/construct/local/mind/scripts/classify.py \
-  --in  ~/.claude/mind-cache/<run-id>/sessions.json \
-  --out ~/.claude/mind-cache/<run-id>/classified.json
-```
+Postmortem runs are infrequent (weekly/biweekly), so we classify with model judgment rather than rules. The previous rule-based pass added precision overhead without enough recall to justify the maintenance — the rules under-classified by ~60% on the dogfood corpus and missed systematic categories like "user laying out a product vision is brainstorming" and "first-message-is-an-error-trace is debugging."
 
-Output is a list of `{session_id, activity, confidence, scores, evidence, top_two}` records.
-
-`activity` values:
-- one of `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration` — confidently rule-classified
-- `ambiguous` — rules didn't produce a clear winner; the orchestrating skill should disambiguate via a single LLM call (see step 3a below)
-- `skip` — degenerate session (e.g., no assistant messages); excluded from downstream stages
-
-#### 3a. Disambiguate `ambiguous` rows (with user in the loop)
-
-The `ambiguous` rows are the ones rule-scoring couldn't decide. You — the orchestrating Claude in the user's session — resolve them by reasoning over each session's evidence and surfacing your proposed bucket to the user. The user is the final judge; do not write back silently.
+The orchestrating Claude classifies every session in `sessions.json` directly:
 
 **Procedure:**
-1. Load `classified.json`, find rows with `activity: "ambiguous"`.
-2. For each ambiguous row, pull the corresponding session record from `sessions.json` for context (first user message, slash commands, tool counts, file activity, top_two rule guesses).
-3. Reason about the right bucket for each, picking from `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration`, or `out-of-scope` if the session is genuinely off-taxonomy (personal/non-code work).
-4. Present the full table to the user — one row per ambiguous session — with: short id, first user message excerpt, your proposed activity, and a one-line rationale citing the strongest signal you used. Format compactly so the table fits on a screen.
-5. Ask the user to accept-all, accept-with-edits, or override specific rows. Apply their corrections.
-6. Atomically write back to `classified.json`: write `classified.json.tmp`, then `mv` into place. Set `confidence: "llm"` for unedited rows, `confidence: "user"` for rows the user overrode, and **leave the original `ambiguous`/`low`** unchanged for any row where neither you nor the user feels confident — precision over recall.
+1. Load `sessions.json`. For each session record, gather: `first_user_message`, `slash_commands`, `tool_calls_by_name`, file write/edit/read counts, user/assistant message counts.
+2. Skip rows where `assistant_message_count == 0` — emit `activity: "skip"`, `skip_reason: "no assistant messages"`. These are degenerate sessions.
+3. For every remaining row, reason about the activity bucket. Legal values: `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration`, `out-of-scope` (personal/non-code), `ambiguous` (genuinely uncertain).
+4. **Heuristic priority:**
+   - First user message is the *primary* intent signal. A long session that started as "walk me through X" is exploration, even if 100 file edits happened later.
+   - Slash commands like `/security-review`, `/review`, `/ultrareview` are strong code-review markers when they're the originating intent (not a sub-task within a longer session).
+   - Error trace / failure message as the first user content → debugging.
+   - "Let's create / brainstorm / what if we" + product or feature exposition → brainstorming.
+   - "Work on issue#N" / "implement X" / "fix the bug in Y" → implementation.
+   - "How do I X" / "tell me about X" / "check Y" → exploration.
+   - Travel, personal life, non-code → out-of-scope.
+   - When uncertain: leave as `ambiguous`. Precision over recall — `ambiguous` rows are filtered out of clustering downstream, which is the right outcome when we don't trust the bucket.
+5. Present the proposed table to the user. One row per session: short id, project, first-user-message excerpt, proposed activity, one-line rationale.
+6. Accept user overrides (accept-all, accept-with-edits, or per-row overrides).
+7. Atomically write to `<run-dir>/classified.json`:
+   - `confidence: "llm"` for rows accepted as-proposed
+   - `confidence: "user"` for rows the user overrode
+   - `confidence: null` for `skip` rows
+8. **Skip downstream:** Stage 4+ filters `skip`, `out-of-scope`, and `ambiguous` rows. They don't contribute moments to any `mind-<activity>` skill.
 
-**Heuristic for your bucket choice:** the first user message is the primary intent signal; tool/file counts are secondary. Long sessions that started as exploration but did real work should still go to the originating intent — the rule-scoring already biases toward intent for exactly this reason.
-
-**Skip out-of-scope rows downstream.** Stage 4+ should treat `out-of-scope` and `unknown` the same as `skip`.
+**`scripts/classify.py` (legacy):** the rule-based scorer is retained in the repo as a baseline reference but is no longer part of the canonical flow. It's fine to consult it for a quick sanity check, but don't rely on it for the classified.json that drives downstream stages.
 
 ### 4. Moment detection
 

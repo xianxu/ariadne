@@ -184,9 +184,15 @@ def assistant_text_and_tools(line: dict[str, Any]) -> tuple[str, list[dict[str, 
     return "\n".join(text_parts), tool_uses
 
 
-def load_session_events(session_id: str, project_slug: str) -> list[dict[str, Any]]:
-    """Read all JSONL files in the project dir, collect events for this session_id,
-    sort by timestamp."""
+def load_segment_events(
+    raw_session_id: str,
+    project_slug: str,
+    start_ts: str | None,
+    end_ts: str | None,
+) -> list[dict[str, Any]]:
+    """Read all JSONL files in the project dir, collect events for this raw
+    sessionId whose timestamps fall within [start_ts, end_ts] (inclusive),
+    sort by timestamp. Used to load one segment's worth of events."""
     proj_dir = PROJECTS_ROOT / project_slug
     events: list[dict[str, Any]] = []
     for jf in proj_dir.glob("*.jsonl"):
@@ -200,7 +206,12 @@ def load_session_events(session_id: str, project_slug: str) -> list[dict[str, An
                         line = json.loads(raw)
                     except json.JSONDecodeError:
                         continue
-                    if line.get("sessionId") != session_id:
+                    if line.get("sessionId") != raw_session_id:
+                        continue
+                    ts = line.get("timestamp")
+                    if start_ts and ts and ts < start_ts:
+                        continue
+                    if end_ts and ts and ts > end_ts:
                         continue
                     events.append(line)
         except OSError:
@@ -492,7 +503,13 @@ def main() -> int:
                 skipped += 1
                 continue
             project_slug = sess["project_slug"]
-            events = load_session_events(sid, project_slug)
+            # Segments: load events bounded by the segment's time range and
+            # filtered to its raw sessionId. Older sessions.json (pre-segment)
+            # may not have raw_session_id; fall back to session_id then.
+            raw_sid = sess.get("raw_session_id") or sid
+            events = load_segment_events(
+                raw_sid, project_slug, sess.get("start_ts"), sess.get("end_ts")
+            )
             moments = run_all_detectors(events, sid, project_slug, activity)
             counts: Counter = Counter()
             for m in moments:

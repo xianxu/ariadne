@@ -49,21 +49,35 @@ def index_sessions(cache_dir: Path) -> dict[str, dict[str, Any]]:
 
 
 def render_moment(m: dict[str, Any], session: dict[str, Any] | None) -> str:
-    sid = m["session_id"][:8]
+    # session_id is now a segment id like "<raw>#s<idx>". Show short raw id +
+    # segment index for legibility.
+    full_sid = m["session_id"]
+    if "#s" in full_sid:
+        raw_part, seg_part = full_sid.split("#s", 1)
+        sid_label = f"{raw_part[:8]}#s{seg_part}"
+    else:
+        sid_label = full_sid[:8]
     proj = _short_proj(m["project_slug"])
     activity = m["activity"]
     mtype = m["type"]
     weight = m["weight"]
     ts = m.get("ts") or ""
     mid = m["id"]
-    head = f"[{mid}] {mtype}@{activity} weight={weight} session={sid}|{proj} ts={ts}"
+    head = f"[{mid}] {mtype}@{activity} weight={weight} segment={sid_label}|{proj} ts={ts}"
 
     body_lines: list[str] = []
     if session is not None:
         fum = (session.get("first_user_message") or "")[:200].replace("\n", " / ")
-        body_lines.append(f"  session.first_user: {fum}")
+        body_lines.append(f"  segment.first_user: {fum}")
+        seg_idx = session.get("segment_index")
+        seg_count = session.get("segment_count")
+        if seg_idx and seg_count and seg_count > 1:
+            body_lines.append(f"  segment.position: {seg_idx} of {seg_count}")
+        away = session.get("closing_away_summary")
+        if away:
+            body_lines.append(f"  segment.away_summary: {away[:200]}")
         body_lines.append(
-            f"  session.shape: u={session.get('user_message_count')} "
+            f"  segment.shape: u={session.get('user_message_count')} "
             f"a={session.get('assistant_message_count')} "
             f"tools={session.get('tool_call_count')} "
             f"writes={len(session.get('files_written', []))} "

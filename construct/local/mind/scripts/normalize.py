@@ -28,6 +28,13 @@ from pathlib import Path
 from typing import Any
 
 PROJECTS_ROOT = Path.home() / ".claude" / "projects"
+# Boundary thresholds for segmenting a long resumed session into smaller units
+# of analysis. The user's actual workflow flips between activities within one
+# raw sessionId (because Claude Code preserves it across resume), so a single
+# label per raw session is too coarse for clustering.
+GAP_BOUNDARY_SECONDS = 60 * 60   # ≥1h gap → new segment
+# `away_summary` system events are emitted by the harness when the user steps
+# away; they're an explicit "checkpoint" boundary signal.
 
 
 def cwd_to_slug(cwd: str) -> str:
@@ -81,10 +88,14 @@ SLASH_TAG_RE = re.compile(r"<command-name>\s*(/[A-Za-z0-9][A-Za-z0-9_:.\-]*)\s*<
 
 @dataclass
 class SessionSummary:
+    """One unit of analysis. Equals one *segment* of a raw Claude Code session,
+    where boundaries are `away_summary` events and ≥1h gaps. session_id is
+    `<raw>#s<idx>` (1-indexed). The original raw sessionId is in raw_session_id."""
     session_id: str
+    raw_session_id: str
+    segment_index: int           # 1-indexed
+    segment_count: int           # total segments in the raw session (filled at finalize)
     project_slug: str
-    # cwd is captured from the first user event that has one. Sessions that span
-    # multiple cwds (rare) will record only the first.
     cwd: str | None = None
     git_branch: str | None = None
     start_ts: str | None = None
@@ -102,6 +113,9 @@ class SessionSummary:
     first_user_message: str | None = None
     permission_modes_seen: set[str] = field(default_factory=set)
     transcript_files: set[str] = field(default_factory=set)
+    # The closing away_summary (if any) — Claude Code's recap of what was happening.
+    # Useful both as legible segment metadata and as a hint to the classifier.
+    closing_away_summary: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         d = asdict(self)
@@ -228,51 +242,141 @@ def process_event(line: dict[str, Any], summary: SessionSummary) -> None:
                                 summary.files_read.add(fp)
 
 
-def process_jsonl_file(path: Path, sessions: dict[str, SessionSummary], project_slug: str) -> int:
-    """Process one JSONL file, updating the sessions dict. Returns number of events processed."""
-    count = 0
-    with path.open() as f:
-        for raw in f:
-            raw = raw.strip()
-            if not raw:
-                continue
-            try:
-                line = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            sid = line.get("sessionId")
-            # Some event types carry sessionId at top level; user/assistant events do too
-            if not sid:
-                continue
-            summary = sessions.get(sid)
-            if summary is None:
-                summary = SessionSummary(session_id=sid, project_slug=project_slug)
-                sessions[sid] = summary
-            summary.transcript_files.add(path.name)
-            process_event(line, summary)
-            count += 1
-    return count
+def collect_raw_events(
+    project_slug: str,
+) -> tuple[dict[str, list[tuple[dict[str, Any], str]]], int]:
+    """Pass 1: read every JSONL in the project dir, group events by raw sessionId.
+    Returns (events_by_raw_session, total_events) where each event is paired
+    with its source filename (so transcript_files can be tracked per segment)."""
+    proj_dir = PROJECTS_ROOT / project_slug
+    events_by_session: dict[str, list[tuple[dict[str, Any], str]]] = {}
+    total = 0
+    for jf in sorted(proj_dir.glob("*.jsonl")):
+        try:
+            with jf.open() as f:
+                for raw in f:
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    try:
+                        line = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+                    sid = line.get("sessionId")
+                    if not sid:
+                        continue
+                    events_by_session.setdefault(sid, []).append((line, jf.name))
+                    total += 1
+        except OSError:
+            continue
+    return events_by_session, total
 
 
-def finalize_sessions(sessions: dict[str, SessionSummary]) -> None:
-    for s in sessions.values():
-        if s.start_ts and s.end_ts:
-            t0, t1 = parse_ts(s.start_ts), parse_ts(s.end_ts)
-            if t0 and t1:
-                s.duration_seconds = (t1 - t0).total_seconds()
+def is_away_summary(line: dict[str, Any]) -> bool:
+    return line.get("type") == "system" and line.get("subtype") == "away_summary"
 
 
-def filter_since(sessions: dict[str, SessionSummary], since_iso: str | None) -> dict[str, SessionSummary]:
+def split_into_segments(
+    events: list[tuple[dict[str, Any], str]],
+) -> list[list[tuple[dict[str, Any], str]]]:
+    """Split a raw session's events into segments based on away_summary events
+    and gaps ≥ GAP_BOUNDARY_SECONDS. The away_summary itself stays as the last
+    event of the closing segment (so its content can be captured as metadata).
+    """
+    # Sort by timestamp, with a stable secondary key on event type so ties
+    # produce deterministic order.
+    events_sorted = sorted(
+        events, key=lambda e: (e[0].get("timestamp") or "", e[0].get("type") or "")
+    )
+
+    segments: list[list[tuple[dict[str, Any], str]]] = []
+    current: list[tuple[dict[str, Any], str]] = []
+    last_ts: datetime | None = None
+
+    for evt_pair in events_sorted:
+        line = evt_pair[0]
+        ts = parse_ts(line.get("timestamp"))
+
+        # Time-gap boundary: close current before starting fresh with this evt.
+        if (
+            ts is not None
+            and last_ts is not None
+            and (ts - last_ts).total_seconds() > GAP_BOUNDARY_SECONDS
+            and current
+        ):
+            segments.append(current)
+            current = []
+
+        current.append(evt_pair)
+
+        # away_summary boundary: close current AFTER appending so the recap is
+        # the last event of the closing segment (its content becomes metadata).
+        if is_away_summary(line) and current:
+            segments.append(current)
+            current = []
+
+        if ts is not None:
+            last_ts = ts
+
+    if current:
+        segments.append(current)
+    return segments
+
+
+def build_segment_summary(
+    raw_session_id: str,
+    segment_index: int,
+    segment_count: int,
+    project_slug: str,
+    events: list[tuple[dict[str, Any], str]],
+) -> SessionSummary:
+    """Pass 3: walk one segment's events and produce its SessionSummary."""
+    seg_id = f"{raw_session_id}#s{segment_index}"
+    summary = SessionSummary(
+        session_id=seg_id,
+        raw_session_id=raw_session_id,
+        segment_index=segment_index,
+        segment_count=segment_count,
+        project_slug=project_slug,
+    )
+    for line, src_name in events:
+        summary.transcript_files.add(src_name)
+        if is_away_summary(line):
+            content = line.get("content")
+            if isinstance(content, str):
+                summary.closing_away_summary = content[:400]
+            continue
+        process_event(line, summary)
+    if summary.start_ts and summary.end_ts:
+        t0, t1 = parse_ts(summary.start_ts), parse_ts(summary.end_ts)
+        if t0 and t1:
+            summary.duration_seconds = (t1 - t0).total_seconds()
+    return summary
+
+
+def process_project(project_slug: str) -> tuple[list[SessionSummary], int]:
+    """Pass 1+2+3 for one project dir."""
+    raw_events, total_events = collect_raw_events(project_slug)
+    out: list[SessionSummary] = []
+    for raw_sid, evts in raw_events.items():
+        segments = split_into_segments(evts)
+        n = len(segments)
+        for idx, seg in enumerate(segments, start=1):
+            out.append(build_segment_summary(raw_sid, idx, n, project_slug, seg))
+    return out, total_events
+
+
+def filter_since(segments: list[SessionSummary], since_iso: str | None) -> list[SessionSummary]:
     if not since_iso:
-        return sessions
+        return segments
     threshold = parse_ts(since_iso)
     if threshold is None:
-        return sessions
-    out = {}
-    for sid, s in sessions.items():
+        return segments
+    out = []
+    for s in segments:
         st = parse_ts(s.start_ts)
         if st and st >= threshold:
-            out[sid] = s
+            out.append(s)
     return out
 
 
@@ -302,34 +406,35 @@ def main() -> int:
     out_dir = Path(args.out).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    sessions: dict[str, SessionSummary] = {}
+    segments: list[SessionSummary] = []
     total_events = 0
     total_files = 0
     for slug in project_slugs:
         proj_dir = PROJECTS_ROOT / slug
-        for jf in sorted(proj_dir.glob("*.jsonl")):
-            total_files += 1
-            n = process_jsonl_file(jf, sessions, slug)
-            total_events += n
+        total_files += len(list(proj_dir.glob("*.jsonl")))
+        proj_segments, proj_events = process_project(slug)
+        segments.extend(proj_segments)
+        total_events += proj_events
 
-    finalize_sessions(sessions)
-    sessions = filter_since(sessions, args.since)
+    segments = filter_since(segments, args.since)
 
     sessions_out = out_dir / "sessions.json"
     with sessions_out.open("w") as f:
         json.dump(
-            [s.to_json() for s in sorted(sessions.values(), key=lambda s: s.start_ts or "")],
+            [s.to_json() for s in sorted(segments, key=lambda s: s.start_ts or "")],
             f,
             indent=2,
         )
 
+    raw_session_ids = {s.raw_session_id for s in segments}
     summary = {
         "run_ts": datetime.now(timezone.utc).isoformat(),
         "scope": args.scope,
         "projects": project_slugs,
         "transcript_files_read": total_files,
         "events_processed": total_events,
-        "sessions_emitted": len(sessions),
+        "raw_sessions": len(raw_session_ids),
+        "segments_emitted": len(segments),
         "since_filter": args.since,
     }
     (out_dir / "run.json").write_text(json.dumps(summary, indent=2))

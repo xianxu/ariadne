@@ -191,6 +191,41 @@ Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
 
+### 2026-04-30 — pivot during dogfood
+Two design changes informed by inspecting the M4 dogfood run:
+
+1. **Rule-based classify.py demoted from canonical flow.** Postmortem
+   runs are infrequent (weekly/biweekly) so cost is not a constraint.
+   The rule classifier had ~85% precision on the 16 confident rows it
+   labeled but only emitted high-confidence labels for 35% of segments;
+   maintaining 18 keyword rules to cover edge cases ("user laying out a
+   product vision is brainstorming", "first-message-is-an-error-trace
+   is debugging") wasn't paying off. New canonical Stage 3: orchestrating
+   Claude classifies every session in sessions.json directly, presents
+   the table to the user for approval, writes classified.json with
+   `confidence: "llm"|"user"` and leaves uncertain rows ambiguous
+   (precision over recall). classify.py retained in repo as a baseline
+   reference but no longer part of the documented flow.
+
+2. **Sessions split into segments.** Claude Code preserves sessionId
+   across resume, so a "session" can be 18+ hours spanning multiple
+   activities (start as exploration, end as implementation). One label
+   per raw session is too coarse for clustering. New: normalize.py
+   splits each raw session into segments at `away_summary` events (the
+   harness's "user stepped away" recap markers — 192 of them across
+   the dogfood corpus) plus ≥60min gaps. Each segment becomes a
+   separate row in sessions.json with id `<raw>#s<idx>`,
+   raw_session_id, segment_index, segment_count, closing_away_summary
+   metadata. detect.py loads events bounded by segment time range.
+   Effect on dogfood run: 45 raw sessions → 227 segments. Heavy splits
+   on the long resumed sessions (bc713282: 33, 530f84c7: 22, 75ad5cf9:
+   19, 84afbb05: 15) — each segment now has a coherent intent.
+
+Operating principle added at top of SKILL.md: orchestrating Claude
+executes commands on user's behalf and surfaces every model judgment
+to the user before writing. Don't run silent disambiguation, silent
+clustering, or silent file writes.
+
 ### 2026-04-30 — M4 review
 Post-milestone review (BASE 57b9601 → HEAD d80e9c7) shipped M4 with
 prose findings to fix. Addressed in `44ea2e6`:
