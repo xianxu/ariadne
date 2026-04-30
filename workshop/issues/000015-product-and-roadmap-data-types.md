@@ -88,3 +88,29 @@ These are the smallest typed pair that can test "model a company as data." Perso
 - Issue created from the Ariadne-arc pensive (`brain/memory/life/42shots/ideas/2026-04-28-02-pensive-ariadne-arc.md`). Pensive synthesizes the typed-data-system framing for modeling a company; this issue extracts the immediate next step (product + roadmap types) and defers persona/business.
 - Renamed the umbrella type from `project` → `product`. "Project" carries too many overloaded meanings (engineering effort, IDE workspace, ariadne's `workshop/` notion). "Product" is cleaner; internal efforts and infra are conceptualized as products with internal customers.
 - Open design questions logged in Spec; brainstorming step in Plan will close them before prototype files are written.
+
+- **Product brainstorming converged.** Decisions:
+  - **Body skeleton:** `# title`, lede line, `## vision`, `## components` container with flat `### <slug>` items. Each component: one-line purpose, `**State:**` line (enum + free text), free prose. No `####` nesting; sub-features live in prose.
+  - **Component shape:** lightly structured (option B). `rg -A2 "^### "` reads at a glance.
+  - **Cross-reference convention:** single-backtick `` `product:slug` `` for cross-product, `` `slug` `` for same-product (when context is unambiguous), `` `product` `` for product itself.
+  - **Frontmatter:** `type`, `name`, `repos`, `created`, `updated`, optional `sources`. No `status` field (YAGNI — git history and roadmap recency carry the signal). No `derived_sha` or `derived_by` (model nondeterminism + cross-repo dependencies make rigorous reproducibility tracking too brittle to be worth the cost).
+  - **`repos` format:** repo names only, `0..N` (empty list valid). Resolved as `<workspace-root>/<name>`.
+  - **Vision authoring rule:** never fabricated by the dispatcher; placeholder + flag-to-human if unstated.
+  - **State enum:** `idea | planning | in-progress | shipped | paused | dropped`, followed by `— <free text>`. Lives in product (not roadmap), since "where we are now" is part of the living charter. Updated as work progresses; git history is the trajectory.
+  - **Pensive framing correction:** the "time-invariant in product, time-variant in roadmap" framing is wrong as stated. Better: product = durable shape + current state; roadmap = where we want to be at month T.
+  - **Default instance path:** `data/product/<slug>.md`.
+
+- **Roadmap brainstorming converged.** Decisions:
+  - **Roadmap is a forward-looking *plan*, not a snapshot.** Targets what should be true at end of month T. Not a changelog (git diff between roadmaps is the changelog). Not a current-state report (that's in product).
+  - **Per-product, period.** One roadmap = one (product, month) pair. Proto-company view is the aggregate of `data/roadmap/YYYYMM/*.md`. Cross-product dependencies via `` `other-product:slug` `` references in component prose. No cross-product roadmap datatype yet (deferred — add `month-plan` datatype later if needed).
+  - **Body skeleton:** `# product — month` title, `**Target:**` lede, `## plan`, `## components`, `## postmortem`. Postmortem starts empty and is filled after the month closes.
+  - **`## plan` shape:** `**Capacity:**` (free-form, dev-weeks), `**In scope:**` priority-ordered list, `**Out of scope:**` priority-ordered list (cut between the two = capacity boundary), `**Reasoning:**` paragraph.
+  - **`## components` shape:** only components being touched this month appear (sparse, not full snapshot). Each has `**Target state:**` and `**Effort:**` (free-form), plus prose. Component slugs MUST exist in the corresponding product file.
+  - **Multi-month gaps allowed.** If 202605 then 202607 (no 202606), the 202607 roadmap covers the 2-month horizon; capacity statement says so explicitly.
+  - **Frontmatter:** `type`, `product`, `month`, optional `target_event`, `created`, `updated`, optional `sources`.
+  - **Default path:** `data/roadmap/<YYYYMM>/<product>.md`.
+
+- **Files landed:**
+  - `construct/datatype/product.md` (revised to add `**State:**` element)
+  - `construct/datatype/roadmap.md`
+  - Both conform to meta-prototype contract.
