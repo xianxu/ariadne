@@ -157,6 +157,23 @@ Originally filed there as `brain#9` but moved here because the pipeline is
 generic to any ariadne-styled repo and belongs in the base layer as a
 user-invocable skill rather than a brain-specific tool.
 
+### 2026-04-30 — M1 review
+Post-milestone review (BASE 1aa76c8 → HEAD 5cc0c5c) flagged:
+- Critical: slash detection used regex on bare `/foo` only; real Claude Code
+  format is `<command-name>/foo</command-name>` blocks → 0 hits across 45
+  sessions. Fixed in `12933a4`.
+- Critical: SKILL.md advertised `events.jsonl` output that normalize.py
+  doesn't write. Dropped from SKILL.md; deferred to M2/M3.
+- Important: `--scope current` required `--cwd` but skill didn't pass it.
+  Now defaults to `os.getcwd()`.
+- Important: dead `slug_to_cwd` helper that produced wrong inverses for
+  paths with hyphens (parley-nvim, etc.). Removed.
+- Important: `first_user_message` could be empty when first turn was
+  slash-only. Now falls back to the command name.
+- Nits: imports/cleanup, .gitignore for pycache.
+
+All findings addressed in `12933a4`. M1 verified clean.
+
 ### 2026-04-30 — M1 done
 - Scaffolded `construct/local/mind/` (SKILL.md + scripts/normalize.py)
 - Symlink `xx-mind → ../../construct/local/mind` registered via construct sync hook
