@@ -191,6 +191,17 @@ Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
 
+### 2026-04-30 — UNIX kit for LLM-direct extraction
+After clustering 0 buckets out of 12 from the heuristic detector run, pivoted to LLM-direct extraction. Built composable text-on-stdout kit so the same pipeline runs against any model:
+
+- `construct/local/mind/scripts/segment_text.py` — emit one segment's transcript as human-readable markdown chunk on stdout. Truncates assistant text >4k chars and tool results >600 chars to keep typical segments under ~30k tokens. Light markup: `== role @ ts ==` turn delimiters, `[tool: NAME …]` tool-use lines, `[tool_result @ ts]` results. Header carries activity / cwd / branch / shape / closing-recap. Supports `--list` (id+activity, one per line) and `--activity` filter for shell composition.
+- `construct/local/mind/prompts/extract.md` — system prompt for per-segment pattern extraction. Strict JSON output. "Empty is the correct answer for most segments" (precision over recall baked in).
+- `construct/local/mind/prompts/cluster.md` — system prompt for cross-segment clustering. ≥2-segment threshold; activity-scoped (no cross-activity merging in v1).
+- `construct/local/mind/scripts/README.md` — composition docs with worked examples for claude CLI, Anthropic API curl, codex / OpenAI, Gemini CLI, local ollama-style wrappers.
+- `workshop/plans/000018-...-plan.md` — added v1.1 revision header documenting the pivot.
+
+Ergonomics verified: `segment_text.py | head` exits cleanly via SIGPIPE handler; small segments render to ~8KB / 150 lines; one 64-min segment renders to ~99KB / 2k lines.
+
 ### 2026-04-30 — pivot during dogfood
 Two design changes informed by inspecting the M4 dogfood run:
 

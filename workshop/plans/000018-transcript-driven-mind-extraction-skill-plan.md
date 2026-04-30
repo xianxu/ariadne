@@ -1,8 +1,40 @@
 ---
 issue: 000018
-status: draft
+status: revised-v1.1
 created: 2026-04-30
 updated: 2026-04-30
+---
+
+## Revision (2026-04-30): heuristic detectors → LLM-direct extraction
+
+The original M3 design used four narrow heuristic detectors (redirect, endorsement, edit-after-edit, friction) feeding a clustering stage. After dogfooding on 218 segments across 2 weeks of real work:
+
+- 181 moments emitted, **0 clusters extracted** at the precision-over-recall threshold.
+- Heuristics are *too narrow* for 2-week corpora. They miss most signal — patterns like "prefer commit messages to reference issue numbers" or "always propose a sketch before writing code" don't fit any of the four shapes.
+- Lowering thresholds to force clusters out would violate the precision-over-recall principle the user invoked twice during dogfood.
+
+**v1.1 pivot:** the primary extraction primitive becomes **LLM reading one segment at a time and emitting candidate patterns directly.** The heuristic detectors are retained as optional prompt hints ("look for these shapes too, but don't restrict to them"), not as the primary signal source.
+
+**What survives unchanged:** segmentation (`normalize.py`), LLM-direct activity classification (Stage 3), `~/.claude/skills/mind-<activity>` write destination, user-in-the-loop principle.
+
+**What changes:**
+- `detect.py` becomes optional; its output isn't required for the pipeline.
+- `view_moments.py` is no longer load-bearing.
+- New stage **3.5: per-segment pattern extraction** — for each non-skip segment, an LLM reads the raw transcript and emits 0–N candidate patterns.
+- New stage **4: LLM clustering** — patterns from all segments aggregated and grouped by theme.
+- Threshold relaxes to `≥2 segments` for cluster qualification (the LLM has already done within-segment noise filtering).
+
+**UNIX kit (this revision's deliverable):** rather than baking the LLM call into the skill, the building blocks are emitted as composable text-on-stdout commands so the same pipeline runs against any model — `claude`, `codex`, `gemini`. The skill body documents composition; the user (or any orchestrating agent) chooses the model.
+
+```
+construct/local/mind/scripts/segment_text.py   # one segment → human-readable transcript chunk
+construct/local/mind/prompts/extract.md        # system prompt for per-segment extraction
+construct/local/mind/prompts/cluster.md        # system prompt for cross-segment clustering
+construct/local/mind/scripts/README.md         # composition examples for claude / codex / gemini
+```
+
+The rest of this plan reflects the heuristic pipeline as originally designed and is preserved for context. Treat anything below describing detect.py / cluster as the *baseline reference*, not the canonical flow.
+
 ---
 
 # Plan: `/construct mind-extract`
