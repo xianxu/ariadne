@@ -191,6 +191,20 @@ Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
 
+### 2026-04-30 — M3 review
+Post-milestone review (BASE 9ee758e → HEAD d14e82c) flagged four Important
+findings + nits. Addressed in `1cb1acf`:
+- Endorsement noise: tiered weight (tool-backed=2, text-only=1) so
+  "yes, go ahead" authorizations don't drown taste signal in clustering.
+- Friction "?" bucket: explicitly skipped to avoid emitting moments
+  with meaningless tool labels under schema drift.
+- Hoisted threshold constants (EDIT_AFTER_EDIT_MIN_PAIRS,
+  FRICTION_MIN_DENIALS) to module level; documented rationale inline.
+- Test coverage expanded 14 → 21: Exit-code path, cross-tool buckets,
+  "?" suppression, edit window decay, tool_result text skip, weight tier.
+
+Real-corpus output unchanged (157 moments).
+
 ### 2026-04-30 — M3 done
 - `scripts/detect.py`: four detectors (redirect, endorsement, edit-after-edit,
   friction). Reads classified.json + sessions.json + raw JSONL transcripts;
