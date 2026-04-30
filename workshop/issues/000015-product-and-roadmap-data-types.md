@@ -114,3 +114,10 @@ These are the smallest typed pair that can test "model a company as data." Perso
   - `construct/datatype/product.md` (revised to add `**State:**` element)
   - `construct/datatype/roadmap.md`
   - Both conform to meta-prototype contract.
+
+- **Reframe (later same day):** the original "product is the umbrella covering products + projects + infra" decision was wrong. Sharper framing:
+  - `product` = *durable thing being built* (what this issue defined). Static. Stays as-is.
+  - `project` = *execution container* — what we've decided to do for a purpose, with an MVP scope. Operator-POV, time-bounded, cuts across products/repos. Distinct datatype, tracked in follow-up issue 000016.
+  - `roadmap` = month-level aggregate of projects + KTLO (KTLO modeled as an issue-priority flag, not a separate datatype).
+  - Updated `construct/datatype/product.md` lede paragraph to drop the "umbrella" claim and point at project + roadmap as siblings.
+  - Roadmap prototype currently references product components directly. May need rework once project lands (roadmap → projects → product components vs current roadmap → components). Deferred to `000016`'s dogfood phase to discover.
