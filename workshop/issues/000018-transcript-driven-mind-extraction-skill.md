@@ -142,7 +142,7 @@ Milestones:
 - [x] M1 — Foundation: skill scaffold + normalizer (state file deferred to M2)
 - [x] M2 — Activity classifier (rule-based + LLM fallback)
 - [x] M3 — Moment detection (4 of 6 detectors; taste-fingerprint + process-shape deferred)
-- [ ] M4 — Interactive cluster + draft generation
+- [x] M4 — Interactive cluster + draft generation (skill instructions + viewer; verification deferred to dogfood)
 - [ ] M5 — Review + write-back to mind-*, memory, permissions, lessons
 - [ ] M6 — `/xx-mind load` + close-the-loop
 - [ ] M7 — Versioning + `--rerun-version` diff
@@ -190,6 +190,27 @@ findings + nits. All addressed in `89ef3a0`:
 Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
+
+### 2026-04-30 — M4 done
+- Added stable moment IDs (`m_<10-hex>` SHA-1 prefix of session+type+ts+
+  key evidence). Same inputs → same ID across re-runs, so cluster
+  references survive corpus growth.
+- `scripts/view_moments.py`: paginated, filtered, pretty-printed renderer.
+  Includes session context (first user message, shape) + full evidence
+  inline so a clustering Claude doesn't need to context-switch to JSON.
+  Supports `--activity`, `--type`, `--ids`, `--offset/--limit`,
+  `--summary-only`. Self-prints next-page command.
+- `SKILL.md` Stage 5 (interactive cluster walkthrough) + Stage 6 (draft
+  generation) fully specified:
+  - Bucket order: redirect → friction → endorsement(w=2) → edit-after-edit.
+  - Skip thresholds: ≥3 moments AND ≥2 distinct sessions for cluster.
+  - Cluster persistence at `<run-dir>/clusters/<activity>.json`.
+  - Draft templates for `mind-<activity>/SKILL.md` and permission
+    additions, with provenance trails to moment IDs.
+- Stage 7 (write-back) deferred to M5.
+- Verification target ("walk through clustering on M3 output, manual
+  review of false-positive rate") deferred to M8 dogfood when the user
+  actually runs `/xx-mind extract` end-to-end.
 
 ### 2026-04-30 — M3 review
 Post-milestone review (BASE 9ee758e → HEAD d14e82c) flagged four Important

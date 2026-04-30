@@ -27,6 +27,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -84,8 +85,30 @@ class Moment:
     weight: int
     evidence: dict[str, Any] = field(default_factory=dict)
 
+    def stable_id(self) -> str:
+        """Short stable hash of moment-defining fields. Same inputs → same ID,
+        so clusters can reference moments across re-runs."""
+        # Use a fingerprint of fields that should uniquely identify this moment.
+        # Include type-specific evidence keys for stability.
+        fp_parts = [self.session_id, self.type, self.ts or ""]
+        if self.type == "edit-after-edit":
+            fp_parts.append(self.evidence.get("file_path", ""))
+        elif self.type == "friction":
+            fp_parts.append(self.evidence.get("tool", ""))
+        elif self.type in ("redirect", "endorsement"):
+            # First 80 chars of the user message disambiguate intra-session repeats
+            user_text = (
+                self.evidence.get("user_redirect")
+                or self.evidence.get("user_endorsement")
+                or ""
+            )
+            fp_parts.append(user_text[:80])
+        h = hashlib.sha1("|".join(fp_parts).encode("utf-8")).hexdigest()
+        return f"m_{h[:10]}"
+
     def to_json(self) -> dict[str, Any]:
         return {
+            "id": self.stable_id(),
             "session_id": self.session_id,
             "project_slug": self.project_slug,
             "activity": self.activity,

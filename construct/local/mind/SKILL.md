@@ -145,19 +145,115 @@ Two more detectors (`taste-fingerprint` requires git-diff correlation; `process-
 
 Each moment carries `{session_id, project_slug, activity, type, ts, weight, evidence}`. The `evidence` shape is type-specific.
 
-### 5. Stages 4-7 (M4 onwards)
+### 5. Interactive cluster walkthrough (in-session, with the user)
 
-Not yet implemented. After detection, present a summary:
+This stage is a guided conversation. Do not write code that auto-clusters. The point of v1 is to build user-confirmed clusters by hand so we know what *should* group together before automating.
+
+**Precondition:** Stage 3a has run — every row in `classified.json` has a definite activity (no `ambiguous` left). If any remain, run Stage 3a first.
+
+**Bucket order:** process one `(activity, type)` bucket at a time. Order by signal strength:
+
+1. `redirect` (highest taste signal — explicit user correction)
+2. `friction` (clear friction signal — actionable)
+3. `endorsement` with `weight=2` (tool-backed only — text-only "yes, go ahead" lives at weight=1 and is skipped in v1)
+4. `edit-after-edit` (weakest — only fires on real flailing patterns; cluster only if you spot a recurring file/area)
+
+Within each type, process activity buckets in descending count order — don't waste effort on a bucket with 1 moment.
+
+**Pagination loop:**
+
+For each `(activity, type)` bucket with ≥3 moments:
 
 ```
-Detected N moments across M processed sessions:
-  redirect:        X
-  endorsement:     Y
-  edit-after-edit: Z
-  friction:        W
-Wrote: ~/.claude/mind-cache/<run-id>/moments.jsonl
-Next stages (cluster, draft, write) not yet implemented.
+python3 $REPO_ROOT/construct/local/mind/scripts/view_moments.py \
+  --cache-dir <run-dir> \
+  --activity <activity> \
+  --type <type> \
+  --limit 12
 ```
+
+Read the page. For each page, propose 1-3 candidate cluster names that group similar moments, citing moment IDs. Format:
+
+```
+Cluster proposal 1: "user pushes back when assistant assumes file structure without checking"
+  evidence: [m_4c6e82bd4b, m_1bfd21350a, m_4b20568e3c]
+  rule sketch: Before writing to a path, verify the file exists and the
+    enclosing directory layout matches what the user expects.
+```
+
+Ask the user to: (a) accept, (b) merge with another proposal, (c) split off a moment, (d) discard. After each page, page forward (`--offset`) until the bucket is exhausted.
+
+**Cross-bucket merging:** at the end of an activity, ask the user if any clusters from different types should merge (e.g., a `redirect` cluster about "verify before writing" and a `friction` cluster about Bash permission failures might both signal "check before acting").
+
+**Persist clusters:** at end of each activity, write the accepted cluster set to `<run-dir>/clusters/<activity>.json`:
+
+```json
+{
+  "activity": "implementation",
+  "clusters": [
+    {
+      "id": "c_impl_1",
+      "name": "...",
+      "rule_sketch": "...",
+      "moment_ids": ["m_4c6e82bd4b", "m_1bfd21350a", ...],
+      "moment_count": 3,
+      "session_count": 2
+    }
+  ]
+}
+```
+
+**Skip thresholds:**
+- Skip clusters with fewer than 3 moments OR fewer than 2 distinct sessions. Per plan: three independent corrections of the same shape = a rule candidate. Two from one session = within-session correction, not yet a recurring pattern.
+
+### 6. Draft generation (in-session)
+
+For each activity that has ≥1 accepted cluster, draft:
+
+**`~/.claude/skills/mind-<activity>/SKILL.md`** (only the draft — write-back is Stage 7):
+
+```markdown
+---
+name: mind-<activity>
+description: Use when the current session is doing <activity> work — extracted from past sessions where the user redirected, endorsed, or struggled. Loaded by /xx-mind load when activity is detected.
+version: <N>
+generated_from_run: <run-id>
+generated_at: <iso-ts>
+---
+
+# Notes from past <activity> sessions
+
+## Rule: <rule name from cluster>
+
+<the rule, written as a directive to a future Claude. Include the *why*
+when the cluster's evidence makes it clear.>
+
+**Evidence:** `<moment-id>`, `<moment-id>`, ... (3 moments, 2 sessions)
+
+## Rule: <next>
+...
+```
+
+**Permission additions** (one entry per friction cluster targeting the same tool/command):
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr view:*)",
+      ...
+    ]
+  }
+}
+```
+
+Each permission entry carries an inline comment-style note in the draft showing the friction count and example error, so the user can audit.
+
+**Provenance file:** `<run-dir>/drafts/<activity>.md` mirrors what would be written, plus a YAML frontmatter section with full evidence trail (every moment ID with its evidence excerpt) so the user can audit a rule back to its source moments before accepting.
+
+### 7. Stage 7 (write-back) — M5
+
+Not yet implemented. After drafts are generated, present diff-style and let the user accept/reject per cluster. Accepted drafts get atomic-write to `~/.claude/skills/mind-<activity>/SKILL.md` and `~/.claude/settings.json`.
 
 ## `/xx-mind load`
 
