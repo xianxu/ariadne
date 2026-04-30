@@ -1,6 +1,6 @@
 ---
 id: 000016
-status: open
+status: working
 deps: [000012, 000015]
 created: 2026-04-29
 updated: 2026-04-29
@@ -38,17 +38,142 @@ A project is a *flexible container of execution toward external value*, with a d
 - **What it's accomplishing** — a `goal` and `done_when` criterion (the MVP boundary).
 - **Which issues are in scope** — referenced by `[<repo>#<id>]` syntax.
 - **Which are explicitly out** — the conversation about what *isn't* included is more useful than a vague in-scope list.
-- **Sequence + state** — body sections function as kanban columns (`doing`, `next`, `blocked`, `done`).
+- **Sequence + state** — a single ordered task list, top-down execution, with optional per-task details for state and notes.
 
-Key design points to nail down during brainstorming:
+### Frontmatter
 
-- **Frontmatter likely carries:** `type: project`, `name`, `goal`, `done_when`, `status` (active | paused | done | dropped), `mvp_scope: [refs]`, `explicitly_out: [refs]`, `created`, `updated`, lineage.
-- **Body skeleton (working assumption):** title, lede line, `## scope` (MVP in/out + reasoning), `## doing` (1–3 items), `## next` (priority-ordered queue), `## blocked` (with reason), `## done` (with `actual_hours` and close-date).
-- **Entry format:** `- [ ] <task description> [<repo>#<id>] (est: ~Nh, started YYYY-MM-DD)` for open items; `- [x] ... (actual: Mh, closed YYYY-MM-DD)` for done.
-- **Issue references** use the same `[<repo>#<id>]` shape across the system — composes with cross-product references in roadmap and product files.
-- **Per-issue milestones** can be referenced as `[charon#13 M2]` for finer granularity.
-- **Single-active discipline** — schema doesn't enforce "only one active project at a time," but operator convention should. Multiple `active` projects fragment focus; project authoring instructions should flag this.
-- **Default instance path:** `data/project/<slug>.md`.
+```yaml
+---
+type: project
+name: <slug>                  # matches filename
+goal: "..."                   # one-line, why this project exists
+done_when: "..."              # the MVP boundary as a falsifiable criterion
+status: active | paused | done | dropped
+operator: <persona-name>      # exactly one operator per project — see discipline note below
+mvp_scope: [<repo>#<id>, ...] # in-MVP issue references
+explicitly_out: [<repo>#<id>, ...]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: [...]                # lineage
+---
+```
+
+### Body shape — single ordered task list
+
+Body skeleton:
+
+1. `# <name>` — title.
+2. **Lede paragraph** — one short paragraph; explicitly call out the headline omission (what's NOT in MVP) since that's the discipline.
+3. `## tasks` — a single ordered list, top-down execution.
+4. `## details` — optional. Per-task structured info + prose, with one block per task that has state worth recording.
+5. *(Reference definitions at end of file — see "Jump-link convention" below.)*
+
+#### Task line format
+
+Keep one line per task short. **Title + ref only.** No inline est, no inline status, no inline blocking reason — those live in `## details`.
+
+```markdown
+- [ ] provider interface skeleton [charon#13 M1]
+- [.] OpenAI provider impl [charon#13 M2]
+- [ ] Anthropic mirror [charon#13 M3]
+- [x] initial provider design sketch [charon#13 sketch]
+- [ ] write release notes
+```
+
+#### Checkbox conventions
+
+- `[ ]` — open / not started
+- `[x]` — done
+- `[.]` — blocked (reason in detail block)
+- `[-]` — cancelled / removed from scope mid-project
+
+#### Reference syntax
+
+- `[<repo>#<id>]` — issue in any repo with an issue tracker. Product repos (`charon`, `ariadne`, etc.) and shared brain repos (`brain-team`, `brain-family`, etc.) work uniformly.
+- `[<repo>#<id> M<N>]` — milestone-level granularity within an issue.
+- Plain text — for items that don't fit any issue tracker (e.g., `write release notes`).
+
+### Per-task details (`## details`, optional)
+
+A task earns a detail block when it has state worth recording: estimate, started/closed dates, actual hours, blocking reason, prose notes. Open-not-started tasks with no notes need no detail block.
+
+Detail block format:
+
+```markdown
+<a id="charon-13-m2"></a>
+### charon#13 M2 — OpenAI provider impl
+
+**est:** 10–16h
+**status:** blocked — need OpenAI Admin API access verified before mint testing
+**started:** 2026-04-30
+
+(free prose — design notes, partial progress, decisions made during work)
+```
+
+When closed:
+
+```markdown
+<a id="charon-13-sketch"></a>
+### charon#13 sketch — initial provider design
+
+**est:** ~2h
+**actual:** 1h
+**closed:** 2026-04-29
+
+Reused keychain ACL pattern from M4. Anthropic mirror should be straightforward as a result.
+```
+
+Convention:
+- **Heading** = `<ref> — <title>`. Repeating the ref makes `rg <ref>` find both the task line and the detail.
+- **Bold-labeled fields** for the structured bits: `**est:**`, `**actual:**`, `**status:**`, `**started:**`, `**closed:**`. Free prose follows.
+- **Explicit `<a id>` anchor** above the heading — see jump-link convention.
+
+### Jump-link convention (in-file navigation)
+
+Goal: clicking a `[<ref>]` in the task list jumps to the corresponding detail block. Solution: markdown shortcut-reference links + explicit `<a id>` anchors.
+
+**Slug rule (deterministic, renderer-independent):** lowercase the ref, replace each `#` and whitespace character with `-`. Examples:
+- `charon#13 M2` → `charon-13-m2`
+- `charon#13 sketch` → `charon-13-sketch`
+- `brain-team#40 doc-cleanup` → `brain-team-40-doc-cleanup`
+
+**Three pieces, in order in the file:**
+
+1. Task list line (unchanged literal): `- [ ] OpenAI provider impl [charon#13 M2]`
+2. Detail block:
+   ```
+   <a id="charon-13-m2"></a>
+   ### charon#13 M2 — OpenAI provider impl
+   ...
+   ```
+3. Reference definition at end of file:
+   ```
+   [charon#13 M2]: #charon-13-m2
+   ```
+
+**Behavior at render time:**
+- Task with a matching reference definition → `[charon#13 M2]` becomes a clickable link, jumps to the `<a id>` anchor.
+- Task without a reference definition → `[charon#13 M2]` renders as plain bracketed text. Nothing breaks.
+
+**Why this combo:**
+- Task line never changes syntax — same `[<ref>]` literal as everywhere else in the system.
+- Slug derives from the ref alone, not the heading text — renaming the title doesn't break the link.
+- `<a id>` is universal markdown — works in GitHub, parley.nvim, Obsidian, plain CommonMark, regardless of slugify quirks.
+- `rg <ref>` still works as a plain-text fallback.
+
+**Maintenance discipline (for the dispatcher):** when adding a detail block, also add the reference definition at the bottom; when removing a detail block, remove the matching reference definition. Authoring instructions should make this explicit.
+
+### Single-operator discipline
+
+Schema carries `operator: <persona-name>` in frontmatter. **Exactly one operator per project.** This is the discipline that makes AI-centric flow viable — no synchronization needed, no blocked-on-each-other patterns, throughput is preserved.
+
+Multiple operators on one project = a smell. The dispatcher's authoring instructions should flag if the user describes "we'll split this between A and B." Suggest splitting into two projects with a clear interface.
+
+Today (solo founder): `operator` is optional, defaults to self. Becomes load-bearing when 2+ people share a brain.
+
+### Default instance path
+
+`data/project/<slug>.md`.
 
 ### KTLO handling
 
@@ -60,10 +185,10 @@ The exact frontmatter spelling for the KTLO flag is out-of-scope for this issue 
 
 A project is where the velocity skill's calibration discipline manifests:
 
-- Each `## doing` / `## next` entry carries `(est: ~Nh)` mirroring the issue's `estimate_hours` frontmatter.
-- On completion, the entry moves to `## done` with `(actual: Mh, closed YYYY-MM-DD)`.
-- The `actual_hours` value is also written back to the issue's frontmatter and appended to `brain/data/life/42shots/velocity/estimate-logic-v1.md`'s validation table.
-- This closes the loop: estimate → execute → record actuals → recalibrate.
+- A detail block tracks `**est:** ~Nh` (mirroring the issue's `estimate_hours` frontmatter) when an estimate exists.
+- On task completion, the checkbox flips to `[x]`, and the detail block gains `**actual:** Mh` and `**closed:** YYYY-MM-DD`.
+- The `actual_hours` value is also written back to the corresponding issue file's frontmatter (e.g., `charon/workshop/issues/000013-...md`) and appended to `brain/data/life/42shots/velocity/estimate-logic-v1.md`'s validation table.
+- Closes the loop: estimate → execute → record actuals → recalibrate.
 
 The project datatype's authoring instructions should explicitly call out this discipline so it's not left to memory.
 
@@ -73,9 +198,11 @@ When the dispatcher applies the project prototype:
 
 1. Distill from conversation: name, goal, candidate issues to include.
 2. Force the MVP conversation upfront: "what's NOT in this project? what's the smallest version that delivers external value?"
-3. Resolve `mvp_scope` as `[<repo>#<id>, ...]` — confirm each issue exists.
-4. Set initial `## doing` (1 item, the user's first action) and `## next` (priority-ordered).
-5. Confirm + write.
+3. Resolve `mvp_scope` and `explicitly_out` as lists of `[<repo>#<id>]` refs — confirm each issue exists.
+4. Confirm `operator` (default = self for solo founder).
+5. Build the initial `## tasks` list, top-down by execution order. Detail blocks for tasks already in flight; bare task lines for the rest.
+6. Add reference definitions at the file bottom for any task with a detail block.
+7. Confirm + write.
 
 ### Roadmap implications
 
@@ -89,7 +216,7 @@ The immediate trigger: tomorrow's work session needs a project to organize the c
 
 ## Plan
 
-- [ ] **Brainstorm `project` prototype** via `superpowers-brainstorming`. Settle frontmatter (especially `mvp_scope`, `explicitly_out`, `done_when`), body skeleton (kanban-style sections), entry format ([<repo>#<id>] refs, est/actual hours), and the authoring flow's MVP-discipline question.
+- [ ] **Brainstorm `project` prototype** via `superpowers-brainstorming`. Most design points are pre-resolved in the Spec above; remaining open questions are mostly polish (exact frontmatter field names, default values, edge cases like a task that escalates from open → done without a detail block).
 - [ ] Decide where instances live by default — `data/project/<slug>.md` is the working assumption.
 - [ ] Write `construct/datatype/project.md`.
 - [ ] **Dogfood — author `data/project/charon-release-push.md`.** Real project covering charon #13 + #14 + #15 (#16 explicitly out). Use immediately to organize tomorrow's work.
@@ -105,3 +232,12 @@ The immediate trigger: tomorrow's work session needs a project to organize the c
 - Issue created from a design conversation reframing product vs project. Original issue 000015 collapsed product+project+infra into a single "product" datatype with no discriminator; this reframe restores `project` as a distinct execution-container datatype while keeping `product` as the durable charter.
 - KTLO modeled as an issue-priority flag rather than a separate long-running pseudo-project. Cleaner.
 - Trigger: needing to organize the charon-release-push (issues #13/#14/#15) for tomorrow's work session, with explicit MVP scope (charon #16 deferred).
+
+- **Body shape iterated** during the same conversation:
+  - First sketch had kanban columns (`## doing` / `## next` / `## blocked` / `## done`) with rich inline metadata per task.
+  - User pushed back: simpler is better. Single ordered task list, top-down execution, checkbox states for status (`[ ]` / `[x]` / `[.]` blocked / `[-]` cancelled).
+  - Task line = title + ref only. One line, scan-friendly.
+  - Per-task details (est, status, blocking reason, prose) live in optional `## details` blocks.
+  - Refs cover product repos and shared brain repos uniformly: `[<repo>#<id>]`, `[<repo>#<id> M<N>]`, or plain text for non-tracked items.
+- **Single-operator field added** (`operator: <persona>` in frontmatter). Discipline: exactly one operator per project, makes AI-centric flow viable, multiple-operator-per-project is a smell to flag.
+- **Jump-link convention added.** Markdown shortcut-reference links + explicit `<a id>` anchors. Task line `[<ref>]` becomes a clickable jump to the corresponding detail block when a reference definition exists at file bottom. Slug rule: lowercase ref, replace `#` and whitespace with `-` (e.g. `charon#13 M2` → `charon-13-m2`). Robust across renderers; falls back to `rg <ref>` if the editor doesn't render anchors.
