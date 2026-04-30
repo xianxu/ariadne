@@ -141,7 +141,31 @@ oneshot --system "$(cat .../prompts/extract.md)" --model gemma4:e4b \
 
 ## Aggregating across many segments
 
-Loop the extractor over a list, capture each output as JSON, then send all of them through the clustering prompt:
+There are two ways to aggregate per-segment outputs into a single pattern array.
+
+### Option A — `aggregate_patterns.py` (preferred)
+
+Run the extractor against many segments, save each LLM output to `<run-dir>/patterns/<seg-id>.json`, then:
+
+```bash
+python3 aggregate_patterns.py \
+  --cache-dir "$RUN" \
+  --patterns-dir "$RUN/patterns" \
+  --out "$RUN/patterns.json"
+```
+
+The aggregator:
+- Strips ` ```json … ``` ` markdown fences if the model wrapped its output.
+- Skips files that don't parse, with a stderr warning. (Re-run the model on those.)
+- Skips patterns missing required fields (`summary`, `evidence_excerpt`).
+- Adds a stable `id` to each pattern (`p_<10-hex>` hash of segment + summary + ts).
+- Decorates each pattern with `segment_id` and `activity` from `classified.json`.
+- Emits one combined JSON array, ready to feed to `prompts/cluster.md`.
+- Writes a sidecar `<out>.summary.json` with file/pattern counts.
+
+Filename convention: `<seg-id-with-#-and-/-replaced-by-_>.json`.
+
+### Option B — pure jq one-liner
 
 ```bash
 RUN=~/.claude/mind-cache/<run-id>
@@ -154,19 +178,55 @@ segment_text.py --cache-dir "$RUN" --list --activity implementation \
         segment_text.py --cache-dir "$RUN" --segment "$sid" |
         claude --print --system "$(cat .../prompts/extract.md)"
       )
-      # decorate each pattern with segment_id + activity for downstream clustering
       jq -c --arg sid "$sid" --arg act "implementation" \
         '.patterns[] | . + {segment_id: $sid, activity: $act}' <<< "$out" \
         >> "$PATTERNS"
     done
 
-# Now cluster
-jq -s '.' "$PATTERNS" |
-  claude --print --system "$(cat .../prompts/cluster.md)" \
+jq -s '.' "$PATTERNS" \
+  | claude --print --system "$(cat .../prompts/cluster.md)" \
   > /tmp/clusters.json
 ```
 
-The exact glue is up to you — the building blocks don't prescribe a controller. Same pipeline runs against any model just by swapping `claude` for `codex` / `gemini` / `oneshot`.
+Less robust than Option A (no fence stripping, no field validation, no stable ids) but useful if you want a one-screen recipe.
+
+## Full pipeline: `mind-extract.sh`
+
+For the all-the-way-through happy path, the controller chains it:
+
+```bash
+mind-extract.sh <run-dir> [--activity NAME ...] [--limit N] [--force]
+```
+
+What it does:
+1. Lists target segments (filtered by `--activity` if given; defaults to all six in-taxonomy activities).
+2. For each, renders with `segment_text.py` and pipes to the configured extract LLM. Caches the output to `<run-dir>/patterns/<seg-id>.json` so re-runs skip already-processed segments.
+3. Runs `aggregate_patterns.py` to build `<run-dir>/patterns.json`.
+4. Pipes the aggregated array to the configured cluster LLM. Saves to `<run-dir>/clusters.json`.
+
+Default model: `claude --print --system "$1"`. Override via env vars at invocation time:
+
+```bash
+# OpenAI / codex
+EXTRACT_LLM='codex --json --system "$1"' \
+CLUSTER_LLM='codex --json --system "$1"' \
+  mind-extract.sh ~/.claude/mind-cache/<run-id>
+
+# Gemini
+EXTRACT_LLM='gemini --system-instruction "$1"' \
+CLUSTER_LLM='gemini --system-instruction "$1"' \
+  mind-extract.sh ~/.claude/mind-cache/<run-id>
+
+# Local model via your own wrapper
+EXTRACT_LLM='oneshot.sh gemma4:e4b "$1"' \
+  mind-extract.sh ~/.claude/mind-cache/<run-id> --activity debugging --limit 5
+```
+
+The env-var contract: each is a full shell command that takes the system prompt as `$1` and reads user content from stdin. The controller passes them to `bash -c`.
+
+Cancel-safe: per-segment outputs are written individually. Ctrl-C, then re-run, and it picks up where it left off. Use `--force` to re-extract everything.
+
+Cheap dogfood: `--limit 3` lets you sanity-check end-to-end against a couple segments before paying for the full corpus.
 
 ## Why this shape
 

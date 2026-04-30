@@ -191,6 +191,30 @@ Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
 
+### 2026-04-30 — UNIX kit completed: aggregator + controller
+Added the missing pieces flagged after segment_text.py:
+
+- `scripts/aggregate_patterns.py` — slurps per-segment extraction outputs into
+  one decorated array. Strips `` ```json `` fences, skips malformed files /
+  invalid patterns with stderr warnings, adds stable `p_<10-hex>` IDs hashed
+  from (segment_id + summary[:80] + ts), decorates with segment_id +
+  activity from classified.json. Emits to stdout or `--out`. Writes sidecar
+  `.summary.json` with file/pattern counts.
+- `scripts/mind-extract.sh` — full extract+cluster controller. Lists target
+  segments (with --activity / --limit filters), runs per-segment extraction
+  via configurable `EXTRACT_LLM` env var, aggregates, runs cluster pass via
+  `CLUSTER_LLM`. Cache-aware: per-segment outputs are written individually
+  so Ctrl-C and re-run resumes from where it stopped (`--force` to override).
+- README updated with worked examples of all three composition patterns
+  (aggregate_patterns.py, jq one-liner, controller) plus model overrides
+  for codex / gemini / local-model wrappers.
+
+Bash 3.2 portability: replaced mapfile with read-loop (macOS default).
+
+Wiring smoke-tested with a stub LLM on 3 debugging segments: end-to-end
+extract → aggregate → cluster runs cleanly, second run shows "cached" for
+all 3, mv-into-place pattern protects against partial writes.
+
 ### 2026-04-30 — UNIX kit for LLM-direct extraction
 After clustering 0 buckets out of 12 from the heuristic detector run, pivoted to LLM-direct extraction. Built composable text-on-stdout kit so the same pipeline runs against any model:
 
