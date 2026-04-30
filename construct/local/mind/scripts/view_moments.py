@@ -48,11 +48,6 @@ def index_sessions(cache_dir: Path) -> dict[str, dict[str, Any]]:
     return {s["session_id"]: s for s in sessions}
 
 
-def index_classified(cache_dir: Path) -> dict[str, dict[str, Any]]:
-    classified = json.loads((cache_dir / "classified.json").read_text())
-    return {c["session_id"]: c for c in classified}
-
-
 def render_moment(m: dict[str, Any], session: dict[str, Any] | None) -> str:
     sid = m["session_id"][:8]
     proj = _short_proj(m["project_slug"])
@@ -140,20 +135,36 @@ def main() -> int:
     args = ap.parse_args()
 
     cache = Path(args.cache_dir).expanduser()
+    if not cache.is_dir():
+        print(f"error: cache dir not found: {cache}", file=sys.stderr)
+        return 2
+    if not (cache / "moments.jsonl").exists():
+        print(f"error: moments.jsonl missing in {cache}", file=sys.stderr)
+        return 2
+    if not (cache / "sessions.json").exists():
+        print(f"error: sessions.json missing in {cache}", file=sys.stderr)
+        return 2
+
     moments = load_moments(cache)
     sessions = index_sessions(cache)
 
     ids = [s for s in args.ids.split(",") if s] if args.ids else None
     filtered = filter_moments(moments, args.activity or None, args.types or None, ids)
 
-    # Summary always printed first
-    by_at: dict[tuple[str, str], int] = {}
+    # Summary: count moments AND distinct sessions per (activity, type) so the
+    # caller can apply the ≥3-moments-≥2-sessions skip threshold at a glance.
+    by_at_count: dict[tuple[str, str], int] = {}
+    by_at_sessions: dict[tuple[str, str], set[str]] = {}
     for m in moments:
         key = (m["activity"], m["type"])
-        by_at[key] = by_at.get(key, 0) + 1
+        by_at_count[key] = by_at_count.get(key, 0) + 1
+        by_at_sessions.setdefault(key, set()).add(m["session_id"])
     print(f"# corpus: {len(moments)} moments total")
-    for (a, t), n in sorted(by_at.items()):
-        print(f"#   {a:14} {t:18} {n}")
+    print(f"#   {'activity':14} {'type':18} {'moments':>8} {'sessions':>9}")
+    for key, n in sorted(by_at_count.items()):
+        a, t = key
+        s = len(by_at_sessions[key])
+        print(f"#   {a:14} {t:18} {n:>8} {s:>9}")
     print()
 
     if args.summary_only:
@@ -161,6 +172,9 @@ def main() -> int:
 
     print(f"# filter matched {len(filtered)} moments. showing offset={args.offset} limit={args.limit}.")
     if not filtered:
+        return 0
+    if args.offset >= len(filtered):
+        print(f"# offset {args.offset} exceeds matched count {len(filtered)} — nothing to show.")
         return 0
 
     page = filtered[args.offset : args.offset + args.limit]
@@ -173,14 +187,15 @@ def main() -> int:
     remaining = max(0, len(filtered) - end)
     if remaining:
         next_off = end
-        cmd_parts = [f"--cache-dir {args.cache_dir}"]
+        cmd_parts = [f"--cache-dir '{args.cache_dir}'"]
         for a in (args.activity or []):
             cmd_parts.append(f"--activity {a}")
         for t in (args.types or []):
             cmd_parts.append(f"--type {t}")
         cmd_parts.append(f"--offset {next_off}")
         cmd_parts.append(f"--limit {args.limit}")
-        print(f"# {remaining} more match. next page: view_moments.py {' '.join(cmd_parts)}")
+        script = Path(__file__).resolve()
+        print(f"# {remaining} more match. next page: python3 {script} {' '.join(cmd_parts)}")
     return 0
 
 

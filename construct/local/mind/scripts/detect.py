@@ -87,9 +87,12 @@ class Moment:
 
     def stable_id(self) -> str:
         """Short stable hash of moment-defining fields. Same inputs → same ID,
-        so clusters can reference moments across re-runs."""
-        # Use a fingerprint of fields that should uniquely identify this moment.
-        # Include type-specific evidence keys for stability.
+        so clusters can reference moments across re-runs.
+
+        Activity is intentionally NOT in the hash: a session's activity can flip
+        between runs (e.g., Stage 3a re-disambiguating) and we want existing
+        cluster references to keep pointing at the same moment.
+        """
         fp_parts = [self.session_id, self.type, self.ts or ""]
         if self.type == "edit-after-edit":
             fp_parts.append(self.evidence.get("file_path", ""))

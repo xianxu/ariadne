@@ -149,16 +149,20 @@ Each moment carries `{session_id, project_slug, activity, type, ts, weight, evid
 
 This stage is a guided conversation. Do not write code that auto-clusters. The point of v1 is to build user-confirmed clusters by hand so we know what *should* group together before automating.
 
-**Precondition:** Stage 3a has run — every row in `classified.json` has a definite activity (no `ambiguous` left). If any remain, run Stage 3a first.
+**Preconditions:**
+1. Stage 3a has run — every row in `classified.json` has a definite activity. If any `ambiguous` rows remain, **stop and run Stage 3a first**. Stage 4 should never see `ambiguous`; the only legal activity values at this point are the six taxonomy buckets plus `out-of-scope` / `unknown` / `skip` (which are excluded from clustering).
+2. `out-of-scope`, `unknown`, and `skip` rows are not clustered — they're filtered out before the loop begins.
 
-**Bucket order:** process one `(activity, type)` bucket at a time. Order by signal strength:
+**Iteration order: outer loop is activity, inner loop is type.**
 
-1. `redirect` (highest taste signal — explicit user correction)
-2. `friction` (clear friction signal — actionable)
-3. `endorsement` with `weight=2` (tool-backed only — text-only "yes, go ahead" lives at weight=1 and is skipped in v1)
-4. `edit-after-edit` (weakest — only fires on real flailing patterns; cluster only if you spot a recurring file/area)
+Process each in-taxonomy activity in descending session-count order (most data first). Within each activity, walk type buckets in this order — highest taste signal first:
 
-Within each type, process activity buckets in descending count order — don't waste effort on a bucket with 1 moment.
+1. `redirect` — explicit user correction
+2. `friction` — actionable tool/permission failures
+3. `endorsement` with `weight=2` — tool-backed acceptance (skip `weight=1` text-only rows in v1)
+4. `edit-after-edit` — only cluster if a recurring file/area pattern is visible
+
+Skip `(activity, type)` buckets that have fewer than 3 moments OR fewer than 2 distinct sessions — see "Skip thresholds" below.
 
 **Pagination loop:**
 
@@ -183,7 +187,7 @@ Cluster proposal 1: "user pushes back when assistant assumes file structure with
 
 Ask the user to: (a) accept, (b) merge with another proposal, (c) split off a moment, (d) discard. After each page, page forward (`--offset`) until the bucket is exhausted.
 
-**Cross-bucket merging:** at the end of an activity, ask the user if any clusters from different types should merge (e.g., a `redirect` cluster about "verify before writing" and a `friction` cluster about Bash permission failures might both signal "check before acting").
+**Cross-bucket merging:** at the end of an activity (after walking all four types), ask the user whether any cross-type clusters within this activity should merge (e.g., a `redirect` cluster about "verify before writing" and a `friction` cluster about Bash permission failures might both signal "check before acting"). Merged clusters keep one combined `moment_ids` list and stay assigned to the current activity — there is no cross-activity merging in v1, since each activity will produce its own `mind-<activity>` skill anyway.
 
 **Persist clusters:** at end of each activity, write the accepted cluster set to `<run-dir>/clusters/<activity>.json`:
 
@@ -249,7 +253,24 @@ when the cluster's evidence makes it clear.>
 
 Each permission entry carries an inline comment-style note in the draft showing the friction count and example error, so the user can audit.
 
-**Provenance file:** `<run-dir>/drafts/<activity>.md` mirrors what would be written, plus a YAML frontmatter section with full evidence trail (every moment ID with its evidence excerpt) so the user can audit a rule back to its source moments before accepting.
+**Provenance file:** `<run-dir>/drafts/<activity>.evidence.json` (sibling, NOT inside the SKILL.md draft — two YAML frontmatters in one file is malformed). Schema:
+
+```json
+{
+  "activity": "implementation",
+  "rules": [
+    {
+      "rule_name": "...",
+      "moment_ids": ["m_4c6e82bd4b", "m_1bfd21350a", ...],
+      "moment_excerpts": [
+        {"id": "m_4c6e82bd4b", "type": "redirect", "session": "74cf212a", "excerpt": "..."}
+      ]
+    }
+  ]
+}
+```
+
+The user can audit any rule back to its source moments before accepting in Stage 7.
 
 ### 7. Stage 7 (write-back) — M5
 
