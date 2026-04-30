@@ -2,3 +2,5 @@
 .goto
 .openshell/.bootstrap/
 .openshell/.base-image-digest
+__pycache__/
+*.pyc

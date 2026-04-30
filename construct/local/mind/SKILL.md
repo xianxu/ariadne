@@ -41,13 +41,16 @@ For dogfood/testing, the user may pass an explicit slug: `/xx-mind extract --pro
 python3 $REPO_ROOT/construct/local/mind/scripts/normalize.py \
   --scope <choice> \
   [--project <slug>] \
-  --since <last_run_at-from-state> \
+  [--cwd "$PWD"]                   # only when --scope current; defaults to os.getcwd()
+  [--since <last_run_at-from-state>] \
   --out ~/.claude/mind-cache/<run-id>/
 ```
 
 Outputs:
 - `sessions.json` — one record per session: id, start, end, cwd, gitBranch, message counts, tool counts, slash commands invoked, files touched
-- `events.jsonl` — flat event stream for downstream stages
+- `run.json` — meta-record of the run (scope, projects, file/event counts, since filter)
+
+A flat `events.jsonl` stream will be added in M2/M3 once detectors need to walk events outside of session aggregates. Until then the raw JSONL files remain the source of truth for downstream stages.
 
 Run-id format: `YYYYMMDDTHHMMSS`.
 

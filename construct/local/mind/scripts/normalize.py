@@ -4,9 +4,10 @@ Normalize Claude Code JSONL transcripts into structured per-session records.
 
 Stage 1 of the /xx-mind extract pipeline. Reads ~/.claude/projects/*/*.jsonl,
 groups events by sessionId, summarizes each session, emits sessions.json +
-events.jsonl into a run-scoped cache dir.
+run.json into a run-scoped cache dir.
 
 Usage:
+  normalize.py --scope current --out <dir>            # uses os.getcwd() as cwd
   normalize.py --scope current --cwd <abs-path> --out <dir>
   normalize.py --scope all --out <dir>
   normalize.py --scope select --project <slug> [--project <slug> ...] --out <dir>
@@ -18,6 +19,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -32,24 +35,22 @@ def cwd_to_slug(cwd: str) -> str:
     return cwd.replace("/", "-")
 
 
-def slug_to_cwd(slug: str) -> str:
-    """Inverse of cwd_to_slug. The leading '-' becomes '/'."""
-    if not slug.startswith("-"):
-        return slug
-    return slug.replace("-", "/")
+# Note: there is no general-purpose slug-to-cwd inverse — replacing all '-' with '/'
+# breaks paths whose components contain hyphens (e.g. parley-nvim). Don't write one
+# unless the caller has the original cwd to consult.
 
 
 def resolve_project_slugs(scope: str, cwd: str | None, projects: list[str] | None) -> list[str]:
     """Map scope choice to a list of project-dir slugs under ~/.claude/projects/."""
-    available = sorted(p.name for p in PROJECTS_ROOT.iterdir() if p.is_dir() and (p / ".").exists())
+    available = sorted(p.name for p in PROJECTS_ROOT.iterdir() if p.is_dir())
     # Filter to dirs that actually contain .jsonl files
     available = [s for s in available if any(PROJECTS_ROOT.joinpath(s).glob("*.jsonl"))]
 
     if scope == "all":
         return available
     if scope == "current":
-        if not cwd:
-            raise SystemExit("--scope current requires --cwd")
+        # Default to the script's invocation cwd if the caller didn't pass one.
+        cwd = cwd or os.getcwd()
         slug = cwd_to_slug(cwd)
         if slug not in available:
             raise SystemExit(f"no transcripts for cwd {cwd} (looked for {slug})")
@@ -75,10 +76,15 @@ def resolve_project_slugs(scope: str, cwd: str | None, projects: list[str] | Non
     raise SystemExit(f"unknown scope: {scope}")
 
 
+SLASH_TAG_RE = re.compile(r"<command-name>\s*(/[A-Za-z0-9][A-Za-z0-9_:.\-]*)\s*</command-name>")
+
+
 @dataclass
 class SessionSummary:
     session_id: str
     project_slug: str
+    # cwd is captured from the first user event that has one. Sessions that span
+    # multiple cwds (rare) will record only the first.
     cwd: str | None = None
     git_branch: str | None = None
     start_ts: str | None = None
@@ -131,19 +137,25 @@ def extract_text_from_message_content(content: Any) -> str:
     return ""
 
 
-def detect_slash_command(text: str) -> str | None:
-    """First-line slash-command detection. /xx-mind extract → /xx-mind."""
+def detect_slash_commands(text: str) -> list[str]:
+    """Find all slash-command invocations in a user message text.
+
+    Claude Code wraps user-invoked slash commands in <command-name>/foo</command-name>
+    tags. Bare-leading `/foo` plaintext is also detected as a fallback for cases
+    where the user types the command into a continuation prompt.
+    """
     if not text:
-        return None
+        return []
+    cmds = SLASH_TAG_RE.findall(text)
+    if cmds:
+        return cmds
     stripped = text.strip()
-    if not stripped.startswith("/"):
-        return None
-    first_line = stripped.splitlines()[0]
-    head = first_line.split(None, 1)[0]
-    # Validate it looks like a slash command (alphanumeric+hyphens after slash)
-    if not head[1:] or not all(c.isalnum() or c in "-_:" for c in head[1:]):
-        return None
-    return head
+    if stripped.startswith("/"):
+        first_line = stripped.splitlines()[0]
+        head = first_line.split(None, 1)[0]
+        if head[1:] and all(c.isalnum() or c in "-_:" for c in head[1:]):
+            return [head]
+    return []
 
 
 def process_event(line: dict[str, Any], summary: SessionSummary) -> None:
@@ -171,13 +183,18 @@ def process_event(line: dict[str, Any], summary: SessionSummary) -> None:
         if isinstance(msg, dict):
             text = extract_text_from_message_content(msg.get("content"))
             # tool-result user messages have toolUseResult on the wrapper, not real prose
-            if not line.get("toolUseResult") and text.strip():
-                summary.user_message_count += 1
-                if summary.first_user_message is None:
-                    summary.first_user_message = text[:500]
-                slash = detect_slash_command(text)
-                if slash:
-                    summary.slash_commands.append(slash)
+            if not line.get("toolUseResult"):
+                cmds = detect_slash_commands(text)
+                summary.slash_commands.extend(cmds)
+                # A turn counts as a user message if it has prose OR a slash command.
+                if text.strip() or cmds:
+                    summary.user_message_count += 1
+                    if summary.first_user_message is None:
+                        # Prefer the slash command for legibility, fall back to prose.
+                        if cmds and not text.strip():
+                            summary.first_user_message = cmds[0]
+                        else:
+                            summary.first_user_message = text[:500]
 
     elif et == "assistant":
         summary.assistant_message_count += 1
