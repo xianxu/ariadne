@@ -24,6 +24,7 @@ Central directory for atlas entries — practical pointers for future developers
 
 ## 5. AI Substrate
 - [Data Artifacts](data-artifacts.md) — typed markdown documents (xx-datatype skill, prototypes, capture flow)
+- [Introspection](introspect.md) — postmortem mining of past Claude transcripts into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)
 
 ## 6. Product Specs
 *(To be created as the product takes shape)*
