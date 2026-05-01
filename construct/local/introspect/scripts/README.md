@@ -25,12 +25,13 @@ clusters per activity (JSON)
 
 Stages 3.5 (per-segment extraction) and 4 (clustering) are the *new* primary primitive in v1.1, replacing the heuristic detectors in `detect.py`. `detect.py` and `view_moments.py` are retained as reference baselines.
 
-## The two prompts
+## The three prompts
 
 - **`prompts/extract.md`** — system prompt for per-segment extraction. The LLM reads one segment and emits 0–N candidate patterns as JSON.
 - **`prompts/cluster.md`** — system prompt for cross-segment clustering. The LLM reads many candidate patterns and groups them into rules.
+- **`prompts/retirement_check.md`** — system prompt for the per-hint contradiction probe (issue#19). The LLM gets `{rule, patterns}` and emits `{contradicts, evidence}`.
 
-Both are plain markdown files. Read them, edit them, replace them. They're not load-bearing in any code path — only the skill body and the user reach for them.
+All three are plain markdown files. Read them, edit them, replace them. They're not load-bearing in any code path — only the skill body and the user reach for them.
 
 ## The chunk extractor
 
@@ -203,6 +204,8 @@ What it does:
 2. For each, renders with `segment_text.py` and pipes to the configured extract LLM. Caches the output to `<run-dir>/patterns/<seg-id>.json` so re-runs skip already-processed segments.
 3. Runs `aggregate_patterns.py` to build `<run-dir>/patterns.json`.
 4. Pipes the aggregated array to the configured cluster LLM. Saves to `<run-dir>/clusters.json`.
+5. Unions human hints from `~/.claude/introspect/hints/` via `read_hints.py --merge-into` (issue#19). Each hint becomes its own singleton cluster tagged `source: "hint"`.
+6. Runs `hint_retire_check.py` to probe each hint against same-activity patterns; flagged hints get `retirement_candidate: true` + `contradicting_evidence`.
 
 Default model: `claude --print --system "$1"`. Override via env vars at invocation time:
 
@@ -220,9 +223,16 @@ CLUSTER_LLM='gemini --system-instruction "$1"' \
 # Local model via your own wrapper
 EXTRACT_LLM='oneshot.sh gemma4:e4b "$1"' \
   introspect-extract.sh ~/.claude/introspect/cache/<run-id> --activity debugging --limit 5
+
+# Use a cheap model for the retirement probe (one call per hint, no need for big-model power)
+PROBE_LLM='claude --print --system-prompt "$1" --tools "" --model haiku' \
+  introspect-extract.sh ~/.claude/introspect/cache/<run-id>
 ```
 
-The env-var contract: each is a full shell command that takes the system prompt as `$1` and reads user content from stdin. The controller passes them to `bash -c`.
+The env-var contract: each is a full shell command that takes the system prompt as `$1` and reads user content from stdin. The controller passes them to `bash -c`. Three knobs:
+- `EXTRACT_LLM` — per-segment pattern extraction (high volume, big model OK).
+- `CLUSTER_LLM` — cross-segment clustering (one call per run, big model worth it).
+- `PROBE_LLM` — hint retirement check (one call per hint, **cheap model fine**).
 
 Cancel-safe: per-segment outputs are written individually. Ctrl-C, then re-run, and it picks up where it left off. Use `--force` to re-extract everything.
 

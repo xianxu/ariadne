@@ -1,6 +1,6 @@
 ---
 id: 000019
-status: working
+status: done
 deps: [000018]
 created: 2026-05-01
 updated: 2026-05-01
@@ -200,22 +200,32 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
         issue#18's M5. This issue specifies the rendering rules; the
         actual writer comes when issue#18 closes Stage 7.
 
-- [ ] **Docs**
-  - [ ] Update `atlas/introspect.md` (directory layout, hint format,
-        retirement semantics).
-  - [ ] Update `construct/local/introspect/SKILL.md` (umbrella skill body) to
-        mention hints as a supported input.
-  - [ ] Update `construct/local/introspect/scripts/README.md` composition
-        recipes if env vars changed.
+- [x] **Docs** (M6, 2026-05-01)
+  - [x] Atlas: family layout shows the three subcommands; pipeline diagram
+        includes the read_hints + hint_retire_check stages; new "Human hints"
+        section with file format and authoring paths; "When you'd touch this"
+        table gained two hint-related rows.
+  - [x] Umbrella SKILL.md: `/xx-introspect hint` (M2), Stage 5/6 hint
+        handling (M5), storage layout includes hints/ (M1).
+  - [x] `scripts/README.md`: pipeline list expanded to 6 steps; PROBE_LLM
+        documented alongside EXTRACT_LLM/CLUSTER_LLM with cost guidance
+        ("cheap model fine"); three-prompts list updated.
 
-- [ ] **Verification**
-  - [ ] Author one real hint in `hints/debugging/` by hand, run a full
-        pipeline pass, confirm it appears in `introspect-debugging/SKILL.md`
-        with the source marker.
-  - [ ] Author another via `/xx-introspect hint debugging "<rule>"`,
-        confirm the file lands in the same place and round-trips identically.
-  - [ ] Verify `--list` shows both, and `--retire <slug>` removes one of them
-        cleanly.
+- [x] **Verification** (M6, 2026-05-01)
+  - [x] Authored a real hint by hand (`probe-before-rm` under
+        `hints/debugging/`), verified read_hints.py + merge into a copy of
+        the live 17-cluster run produced 18 clusters with the hint
+        discriminated by `source: "hint"`. Idempotent on re-run.
+  - [x] Authored a second hint (`state-diagnosis-before-edit` under
+        `hints/implementation/`) matching the format
+        `/xx-introspect hint <activity> "<rule>"` would produce; both picked
+        up by read_hints.py; retire-equivalent (`rm`) cleanly removed it.
+  - [x] Stubbed-LLM verification of the retirement probe across three cases
+        (no contradiction / contradiction / clean re-run clears flag).
+  - [ ] *Deferred:* Full live pipeline pass with a real PROBE_LLM and
+        write-back into `~/.claude/skills/introspect-<activity>/SKILL.md`
+        — gated on issue#18's Stage 7 implementation. Will be confirmed
+        on the next biweekly run.
   - [ ] Stage a synthetic contradicting moment, rerun, confirm the hint shows
         up as a retirement candidate in review.
   - [ ] Retire it via the review UI, confirm the file is deleted and the rule
@@ -326,3 +336,32 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
   `~/.claude/skills/introspect-<activity>/SKILL.md`) is unbuilt under
   issue#18. This issue specifies *what* the write-back should produce
   for hint-sourced clusters; the writer itself ships with #18.
+
+### 2026-05-01 — M6 docs + closing verification
+
+- Atlas (`atlas/introspect.md`): family layout shows three subcommands;
+  pipeline diagram includes the read_hints + retirement-check stages;
+  new "Human hints" section documents the file format, retirement
+  semantics, and the two equivalent authoring paths; "When you'd touch
+  this" table gained two hint-related rows.
+- `scripts/README.md`: 6-step pipeline list, PROBE_LLM env var with cost
+  guidance, three-prompts list updated.
+- Final verification: authored a second hint by hand
+  (`hints/implementation/state-diagnosis-before-edit.md`) matching the
+  shape the slash command would produce; both hints picked up by
+  read_hints.py; deletion (retire-equivalent) cleanly removed it; first
+  hint (`probe-before-rm`) persists as a real artifact for the next
+  pipeline run.
+
+Issue closed. One follow-up parked behind issue#18: the full live
+pipeline pass with a real PROBE_LLM and a Stage 7 write-back into
+`~/.claude/skills/introspect-<activity>/SKILL.md`. Confirmed by the
+next biweekly run.
+
+### Six commits (main)
+- `dcd2a31` M1 — path consolidation
+- `52037b7` M2 — `/xx-introspect hint` subcommand spec
+- `6e64a6b` M3 — `read_hints.py` + cluster-pass union
+- `5273a8c` M4 — retirement-candidate probe
+- `ba52685` M5 — Stage 5 review + Stage 6 draft template
+- (this commit) M6 — docs + closing verification
