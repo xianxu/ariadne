@@ -174,7 +174,17 @@ mv "$CACHE_DIR/clusters.json.tmp" "$CACHE_DIR/clusters.json"
 echo "[introspect-extract] merging human hints..." >&2
 python3 "$SCRIPT_DIR/read_hints.py" --merge-into "$CACHE_DIR/clusters.json"
 
+# ── Retirement-candidate probe (issue#19) ────────────────────────────────────
+# For each hint cluster, ask the probe LLM whether this run's same-activity
+# patterns contradict the hint. Flagged hints get `retirement_candidate: true`
+# + `contradicting_evidence`, surfaced first in user review at write-back.
+# Override PROBE_LLM to point at a cheaper model — Haiku/local is fine here.
+PROBE_LLM="${PROBE_LLM:-$DEFAULT_LLM}"
+echo "[introspect-extract] checking hints for retirement candidates..." >&2
+PROBE_LLM="$PROBE_LLM" python3 "$SCRIPT_DIR/hint_retire_check.py" --cache-dir "$CACHE_DIR" || \
+  echo "[introspect-extract] retirement check failed (non-fatal); hints unflagged" >&2
+
 echo "[introspect-extract] done." >&2
 echo "  per-segment: $PATTERNS_DIR/" >&2
 echo "  patterns:    $CACHE_DIR/patterns.json" >&2
-echo "  clusters:    $CACHE_DIR/clusters.json (extracted ∪ hints)" >&2
+echo "  clusters:    $CACHE_DIR/clusters.json (extracted ∪ hints, retirement-checked)" >&2

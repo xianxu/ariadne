@@ -163,11 +163,19 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
         keep no `source` field (absence of marker IS the "extracted" tag,
         avoids retro-mutating existing runs).
 
-- [ ] **Retirement detection**
-  - [ ] During cluster pass, run a contradiction probe per hint against the
-        run's `patterns.json` / `moments.jsonl`. Cheap LLM call:
-        "does any of this evidence contradict the hint?"
-  - [ ] Attach `retirement_candidate` + `contradicting_moments` to flagged hints.
+- [x] **Retirement detection** (M4, 2026-05-01)
+  - [x] New prompt `prompts/retirement_check.md` plus
+        `scripts/hint_retire_check.py` running one probe per hint against
+        same-activity patterns from `patterns.json`.
+  - [x] Flagged hints get `retirement_candidate: true` +
+        `contradicting_evidence: [{segment_id, excerpt, rationale}]` written
+        in-place into `clusters.json`. (Field renamed from
+        `contradicting_moments` → `contradicting_evidence` to match the
+        prompt's `evidence` output and avoid confusion with the
+        `moments.jsonl` baseline-detector path.)
+  - [x] Re-running the probe with no contradictions clears any stale flag.
+  - [x] Probe command pluggable via `$PROBE_LLM` so cheaper models
+        (Haiku, local) can carry the check without driving up cost.
 
 - [ ] **Review UX**
   - [ ] Cluster review surfaces hint clusters first (retirement candidates at top).
@@ -263,3 +271,26 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
 - End-to-end check: copied a live clusters.json (17 extracted clusters),
   ran the merge, got 18 clusters with the hint as #18; ran the merge a
   second time, count stayed at 18. Idempotency confirmed.
+
+### 2026-05-01 — M4 retirement check
+
+- New prompt `construct/local/introspect/prompts/retirement_check.md` and
+  runner `scripts/hint_retire_check.py` (~150 lines).
+- Per hint: filter `patterns.json` to same activity, send `{rule, patterns}`
+  JSON to `$PROBE_LLM`, parse `{contradicts, evidence}` response, mutate
+  the hint cluster in place. One LLM call per hint per run.
+- Probe is pluggable via `$PROBE_LLM` (defaults to the same `claude --print`
+  used by CLUSTER_LLM). For cost, override to Haiku or a local model — this
+  is exactly the shape of work where a small model is enough.
+- Flag-clear behavior on re-run: if a previously-flagged hint comes back
+  clean in a later pipeline run, the `retirement_candidate` field is
+  removed. Hints don't accumulate stale warnings.
+- Field naming delta: spec said `contradicting_moments`; implementation
+  uses `contradicting_evidence` because (a) the prompt produces
+  evidence-shaped objects and (b) `moments` is a different concept in the
+  baseline-detector path (`moments.jsonl`). Updated plan to match.
+- Tested with stubbed `PROBE_LLM` (cat > /dev/null; echo '<known JSON>')
+  against the live 17-cluster + 1-hint run dir: contradicts=false case
+  leaves the hint unflagged; contradicts=true case writes the
+  retirement_candidate + evidence; subsequent contradicts=false run
+  clears the flag.
