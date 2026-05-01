@@ -151,11 +151,17 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
   - [x] Activity validation against the five-bucket taxonomy
         (debugging, exploration, planning, implementation, brainstorming).
 
-- [ ] **Hint ingestion**
-  - [ ] Add `read_hints.py` (or equivalent) that walks `hints/<activity>/`
-        and emits a JSON array matching the `clusters.json` shape.
-  - [ ] Cluster pass: union hints with extracted clusters; tag each
-        with `source: "hint" | "extracted"`.
+- [x] **Hint ingestion** (M3, 2026-05-01)
+  - [x] Added `construct/local/introspect/scripts/read_hints.py` that walks
+        `hints/<activity>/*.md`, parses frontmatter + `## Rule:` heading +
+        optional `**Why:**`, emits cluster-shaped JSON `{"clusters": [...]}`.
+  - [x] `read_hints.py --merge-into clusters.json` unions hints with
+        extracted clusters, atomic-write back. Idempotent — re-runs against
+        the same hints set don't double-append (deduped by `hint_slug`).
+  - [x] `introspect-extract.sh` calls `--merge-into` after the cluster LLM
+        finishes. Hints get tagged with `source: "hint"`; extracted clusters
+        keep no `source` field (absence of marker IS the "extracted" tag,
+        avoids retro-mutating existing runs).
 
 - [ ] **Retirement detection**
   - [ ] During cluster pass, run a contradiction probe per hint against the
@@ -231,3 +237,29 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
   are rejected for now (will become accepted once the deployed skill exists).
 - `created:` field uses local date (YYYY-MM-DD) rather than ISO timestamp;
   hints don't need sub-day resolution.
+
+### 2026-05-01 — M3 hint ingestion
+
+- New script `construct/local/introspect/scripts/read_hints.py` (~190 lines).
+  Two modes: emit hint clusters to stdout/file, or `--merge-into` an existing
+  `clusters.json` (atomic write, deduped by `hint_slug`).
+- Wired into `introspect-extract.sh` after the cluster LLM step. Adds about
+  five lines and one Python invocation; the shape of clusters.json is
+  unchanged from the LLM's perspective — hints are just appended.
+- **Source discriminator decision:** rather than retro-tag extracted clusters
+  with `source: "extracted"` (which would invalidate every existing cached
+  clusters.json across all runs), hint clusters carry `source: "hint"` and
+  extracted clusters carry no `source` field. Renderers and consumers check
+  `c.get("source") == "hint"` to discriminate.
+- Hint regex bug caught and fixed during testing: the original `**Why:**`
+  pattern used `re.MULTILINE` with `$`, which truncated multi-line `Why`
+  blocks at the first newline. Fixed by switching to `\Z` (end-of-string)
+  with `re.DOTALL` only.
+- First real hint authored at
+  `~/.claude/introspect/hints/debugging/probe-before-rm.md`
+  ("Probe non-destructively before any rm-rf"), based on the bundle-deletion
+  incident from issue#18 — gives the next pipeline run real data to verify
+  M5 write-back against.
+- End-to-end check: copied a live clusters.json (17 extracted clusters),
+  ran the merge, got 18 clusters with the hint as #18; ran the merge a
+  second time, count stayed at 18. Idempotency confirmed.

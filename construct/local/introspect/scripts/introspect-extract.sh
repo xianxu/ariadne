@@ -27,7 +27,10 @@
 #   patterns/<seg-id>.json   raw per-segment extraction JSON (cached for re-runs)
 #   patterns.json            aggregated array with stable ids
 #   patterns.summary.json    per-run aggregation stats
-#   clusters.json            final cluster JSON from CLUSTER_LLM
+#   clusters.json            final cluster JSON from CLUSTER_LLM, then unioned
+#                            with human hints loaded from ~/.claude/introspect/hints/
+#                            (issue#19; each hint becomes a singleton cluster
+#                            tagged with `source: "hint"`)
 #
 # Cancel-safe: per-segment files are written individually. On Ctrl-C, partial
 # progress is preserved; re-run resumes from where it left off (unless --force).
@@ -164,7 +167,14 @@ then
 fi
 mv "$CACHE_DIR/clusters.json.tmp" "$CACHE_DIR/clusters.json"
 
+# ── Union human hints (issue#19) ─────────────────────────────────────────────
+# Each hint at ~/.claude/introspect/hints/<activity>/<slug>.md becomes its own
+# singleton cluster appended to clusters.json, tagged with `source: "hint"`.
+# read_hints.py is idempotent — re-running won't double-append.
+echo "[introspect-extract] merging human hints..." >&2
+python3 "$SCRIPT_DIR/read_hints.py" --merge-into "$CACHE_DIR/clusters.json"
+
 echo "[introspect-extract] done." >&2
 echo "  per-segment: $PATTERNS_DIR/" >&2
 echo "  patterns:    $CACHE_DIR/patterns.json" >&2
-echo "  clusters:    $CACHE_DIR/clusters.json" >&2
+echo "  clusters:    $CACHE_DIR/clusters.json (extracted ∪ hints)" >&2
