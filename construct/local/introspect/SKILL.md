@@ -20,8 +20,9 @@ The only steps that don't need user approval are deterministic, no-op-on-failure
 ```
 ~/.claude/skills/introspect-<activity>/SKILL.md  # produced output, loaded on demand
 ~/.claude/introspect-state.json                  # run history + processed-session pointers
-~/.claude/introspect-cache/<run-id>/             # intermediate stages of one run
-~/.claude/introspect-versions/vN/                # post-run snapshots for diffing
+~/.claude/introspect/cache/<run-id>/             # intermediate stages of one run
+~/.claude/introspect/hints/<activity>/<slug>.md  # human-authored hints (issue#19)
+~/.claude/introspect/versions/vN/                # post-run snapshots for diffing
 ~/.claude/settings.json                    # permission entries written here
 ```
 
@@ -49,7 +50,7 @@ python3 $REPO_ROOT/construct/local/introspect/scripts/normalize.py \
   [--project <slug>] \
   [--cwd "$PWD"]                   # only when --scope current; defaults to os.getcwd()
   [--since <last_run_at-from-state>] \
-  --out ~/.claude/introspect-cache/<run-id>/
+  --out ~/.claude/introspect/cache/<run-id>/
 ```
 
 Outputs:
@@ -93,7 +94,7 @@ The orchestrating Claude classifies every session in `sessions.json` directly:
 
 ```
 python3 $REPO_ROOT/construct/local/introspect/scripts/detect.py \
-  --cache-dir ~/.claude/introspect-cache/<run-id>/
+  --cache-dir ~/.claude/introspect/cache/<run-id>/
 ```
 
 Walks the raw JSONL for each non-skip session in `classified.json`, runs four detectors, emits `moments.jsonl` (one record per line) plus `moments-summary.json`.
@@ -270,5 +271,5 @@ Initialize as `{"schema_version": 1, "last_run_at": null, "processed_session_ids
 
 - All outputs land under `~/.claude/`. Never write to repo-local `.claude/skills/` from this skill.
 - Never overwrite an existing `introspect-<activity>` skill without an explicit user accept.
-- The `introspect-cache/<run-id>/` directory is keep-forever for now (small JSON). M7 versioning will introduce pruning.
+- The `introspect/cache/<run-id>/` directory is keep-forever for now (small JSON). M7 versioning will introduce pruning.
 - For the M1 implementation, only stage 1 (normalize) runs. Stages 2-7 should be scaffolded as TODOs in the skill body, not silently no-op.

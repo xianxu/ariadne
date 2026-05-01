@@ -54,8 +54,10 @@ clusters.json              # rules grouped by activity, ≥2-distinct-segments t
 | `construct/local/introspect/prompts/` | system prompts for extract + cluster passes |
 | `construct/local/introspect/scripts/README.md` | composition recipes for claude / codex / gemini / local |
 | `~/.claude/skills/introspect-*/SKILL.md` | deployed sub-skills (auto-load) |
-| `~/.claude/introspect-cache/<run-id>/` | per-run intermediates (sessions, classified, patterns, clusters) |
-| `~/.claude/introspect-versions/v<N>/` | post-run snapshots (versioning deferred — M7 is unbuilt) |
+| `~/.claude/introspect/cache/<run-id>/` | per-run intermediates (sessions, classified, patterns, clusters) |
+| `~/.claude/introspect/hints/<activity>/<slug>.md` | human-authored hints (issue#19, eligible for retirement) |
+| `~/.claude/introspect/versions/v<N>/` | post-run snapshots (versioning deferred — M7 is unbuilt) |
+| `~/.claude/introspect-cache` | backward-compat symlink → `~/.claude/introspect/cache/` |
 
 ## Operating principles
 
@@ -69,11 +71,11 @@ clusters.json              # rules grouped by activity, ≥2-distinct-segments t
 
 | Scenario | What to do |
 |---|---|
-| Recurring postmortem (biweekly) | `EXTRACT_LLM='claude --print --system-prompt "$1" --tools "" --model opus' bash construct/local/introspect/scripts/introspect-extract.sh ~/.claude/introspect-cache/<new-run-id>` then walk through clusters and run the manual write-back script. |
+| Recurring postmortem (biweekly) | `EXTRACT_LLM='claude --print --system-prompt "$1" --tools "" --model opus' bash construct/local/introspect/scripts/introspect-extract.sh ~/.claude/introspect/cache/<new-run-id>` then walk through clusters and run the manual write-back script. |
 | Auto-load fired at the wrong activity | `/xx-introspect load <activity>` (or just `/introspect-<activity>` directly) |
 | Tune a sub-skill's auto-trigger | Edit the `description:` line in `~/.claude/skills/introspect-<activity>/SKILL.md` |
 | Tune the extraction prompt | Edit `construct/local/introspect/prompts/extract.md` and rerun with `--force` |
-| Roll back a bad run | `~/.claude/introspect-versions/` (M7 unbuilt — for now, manually restore from previous cache dir's clusters.json) |
+| Roll back a bad run | `~/.claude/introspect/versions/` (M7 unbuilt — for now, manually restore from previous cache dir's clusters.json) |
 
 ## v1.0 → v1.1 history
 

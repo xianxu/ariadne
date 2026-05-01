@@ -19,7 +19,7 @@
 #   CLUSTER_LLM   default: claude --print --system "$1"
 #
 # Examples (override at invocation):
-#   EXTRACT_LLM='codex --json --system "$1"' introspect-extract.sh ~/.claude/introspect-cache/<run>
+#   EXTRACT_LLM='codex --json --system "$1"' introspect-extract.sh ~/.claude/introspect/cache/<run>
 #   EXTRACT_LLM='gemini --system-instruction "$1"' introspect-extract.sh ...
 #   EXTRACT_LLM='ollama_oneshot.sh gemma4:e4b "$1"' introspect-extract.sh ...
 #

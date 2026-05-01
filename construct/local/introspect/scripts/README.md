@@ -60,7 +60,7 @@ Long assistant text is summarized (first 1500 + last 500 chars). Tool results ar
 ### Claude Code CLI
 
 ```bash
-RUN=~/.claude/introspect-cache/<run-id>
+RUN=~/.claude/introspect/cache/<run-id>
 SEG=84afbb05#4
 
 # pipe both system prompt and chunk in one shot (--print = headless)
@@ -168,7 +168,7 @@ Filename convention: `<seg-id-with-#-and-/-replaced-by-_>.json`.
 ### Option B — pure jq one-liner
 
 ```bash
-RUN=~/.claude/introspect-cache/<run-id>
+RUN=~/.claude/introspect/cache/<run-id>
 PATTERNS=/tmp/patterns.jsonl
 
 > "$PATTERNS"
@@ -210,16 +210,16 @@ Default model: `claude --print --system "$1"`. Override via env vars at invocati
 # OpenAI / codex
 EXTRACT_LLM='codex --json --system "$1"' \
 CLUSTER_LLM='codex --json --system "$1"' \
-  introspect-extract.sh ~/.claude/introspect-cache/<run-id>
+  introspect-extract.sh ~/.claude/introspect/cache/<run-id>
 
 # Gemini
 EXTRACT_LLM='gemini --system-instruction "$1"' \
 CLUSTER_LLM='gemini --system-instruction "$1"' \
-  introspect-extract.sh ~/.claude/introspect-cache/<run-id>
+  introspect-extract.sh ~/.claude/introspect/cache/<run-id>
 
 # Local model via your own wrapper
 EXTRACT_LLM='oneshot.sh gemma4:e4b "$1"' \
-  introspect-extract.sh ~/.claude/introspect-cache/<run-id> --activity debugging --limit 5
+  introspect-extract.sh ~/.claude/introspect/cache/<run-id> --activity debugging --limit 5
 ```
 
 The env-var contract: each is a full shell command that takes the system prompt as `$1` and reads user content from stdin. The controller passes them to `bash -c`.
