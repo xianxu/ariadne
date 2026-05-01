@@ -175,6 +175,18 @@ Ask the user to: (a) accept, (b) merge with another proposal, (c) split off a mo
 **Skip thresholds:**
 - Skip clusters with fewer than 3 moments OR fewer than 2 distinct sessions. Per plan: three independent corrections of the same shape = a rule candidate. Two from one session = within-session correction, not yet a recurring pattern.
 
+**Hint-aware ordering (issue#19).** When reviewing the v1.1 `clusters.json` produced by `introspect-extract.sh`, hint-sourced clusters (`source: "hint"`) bypass the threshold check — each is its own pre-formed cluster the user already endorsed by authoring. Surface them to the user **first**, in this order:
+
+1. **Hints flagged as retirement candidates** (`retirement_candidate: true`). Show the hint's rule alongside the `contradicting_evidence` excerpts. Three actions:
+   - **Keep** — ignore the contradiction, hint stays.
+   - **Edit** — open `~/.claude/introspect/hints/<activity>/<slug>.md`, let user revise, save.
+   - **Retire** — delete the hint file (`rm ~/.claude/introspect/hints/<activity>/<slug>.md`).
+   The retirement decision affects the hints/ directory directly, not just this run's clusters.json.
+2. **Hints not flagged.** Display each, confirm the user still wants it rendered into the deployed SKILL.md (effectively always yes; this is a sanity check, not a real decision).
+3. **Extracted clusters** (no `source` field) — proceed with the normal threshold/walk flow.
+
+Hints are never treated as `ambiguous`. The user authored them explicitly; precision-over-recall doesn't apply.
+
 ### 6. Draft generation (in-session)
 
 For each activity that has ≥1 accepted cluster, draft:
@@ -202,6 +214,19 @@ when the cluster's evidence makes it clear.>
 ## Rule: <next>
 ...
 ```
+
+**Hint-sourced rules (issue#19).** For clusters with `source: "hint"`, render with **`Source:` human hint** in place of `**Evidence:**`. Optionally include the `hint_created` date. The full block:
+
+```markdown
+## Rule: <hint name>
+
+<hint rule body>
+
+**Source:** human hint (authored <hint_created>)
+```
+
+This makes hint-sourced rules distinguishable from extracted ones at a glance, and means a future pipeline run reading the deployed SKILL.md can tell which rules came from hints without consulting the cache. (See "Round-trip safety" below.)
+
 
 **Permission additions** (one entry per friction cluster targeting the same tool/command):
 

@@ -177,18 +177,28 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
   - [x] Probe command pluggable via `$PROBE_LLM` so cheaper models
         (Haiku, local) can carry the check without driving up cost.
 
-- [ ] **Review UX**
-  - [ ] Cluster review surfaces hint clusters first (retirement candidates at top).
-  - [ ] Provide three actions: keep / edit / retire (delete file).
-  - [ ] Existing precision-over-recall behavior (ambiguous → skip) applies
-        only to extracted clusters; hints don't go to ambiguous.
+- [x] **Review UX** (M5, 2026-05-01)
+  - [x] Stage 5 of umbrella SKILL.md updated with "Hint-aware ordering"
+        section: hint clusters surface first, retirement candidates at top
+        with their `contradicting_evidence`.
+  - [x] Three actions documented: keep / edit / retire (delete the hint
+        file at `~/.claude/introspect/hints/<activity>/<slug>.md`).
+  - [x] Hints exempt from `ambiguous` and from the ≥2-segment threshold —
+        spelled out in the SKILL.md.
 
-- [ ] **Write-back**
-  - [ ] Update write-back template so `**Source:** human hint` renders for
-        hint-sourced rules.
-  - [ ] Verify the rendered SKILL.md round-trips cleanly through the next
-        pipeline run (i.e. the source marker doesn't get re-extracted as a
-        moment).
+- [x] **Write-back** (M5, 2026-05-01)
+  - [x] Stage 6 draft template updated: hint-sourced clusters render with
+        `**Source:** human hint (authored <date>)` in place of
+        `**Evidence:** <moment-ids>`.
+  - [x] Round-trip safety: the source-of-truth for hints is the file at
+        `hints/<activity>/<slug>.md`, not the deployed SKILL.md. The next
+        pipeline run reads transcripts and the hints/ dir, never the
+        deployed skill output, so there's no re-extraction risk by
+        construction. Editing a deployed skill is overwritten on the next
+        write-back; edit the hint file to persist.
+  - [ ] *Note:* Stage 7 (atomic write-back script) is still unbuilt under
+        issue#18's M5. This issue specifies the rendering rules; the
+        actual writer comes when issue#18 closes Stage 7.
 
 - [ ] **Docs**
   - [ ] Update `atlas/introspect.md` (directory layout, hint format,
@@ -294,3 +304,25 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
   leaves the hint unflagged; contradicts=true case writes the
   retirement_candidate + evidence; subsequent contradicts=false run
   clears the flag.
+
+### 2026-05-01 — M5 review UX + write-back rendering
+
+- Stage 5 of `construct/local/introspect/SKILL.md` gained a "Hint-aware
+  ordering" subsection: hint clusters surface first, retirement
+  candidates at top of that list, three actions documented
+  (keep / edit / retire). Hints are exempt from `ambiguous` and from the
+  ≥2-segment threshold — explicit because the user authored them
+  intentionally.
+- Stage 6 draft template gained a hint-rendering block:
+  `**Source:** human hint (authored <hint_created>)` replaces
+  `**Evidence:** <moment-ids>` for hint-sourced rules.
+- Round-trip note: the source-of-truth for hints is the file at
+  `hints/<activity>/<slug>.md`. The pipeline reads transcripts and the
+  hints/ dir, never the deployed SKILL.md output, so there's no
+  re-extraction risk. This makes the rendered marker informational —
+  for human readers and for distinguishing rule provenance — not
+  load-bearing for the pipeline's correctness.
+- Scope note: actual Stage 7 (atomic write to
+  `~/.claude/skills/introspect-<activity>/SKILL.md`) is unbuilt under
+  issue#18. This issue specifies *what* the write-back should produce
+  for hint-sourced clusters; the writer itself ships with #18.
