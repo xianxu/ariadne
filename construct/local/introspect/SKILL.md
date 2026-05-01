@@ -1,12 +1,13 @@
 ---
 name: xx-introspect
-description: Use when the user wants to extract reusable taste signals from past Claude Code sessions, or to load a previously-extracted activity-typed introspect skill into the current session. Invoked as `/xx-introspect extract` (run the postmortem extraction pipeline) or `/xx-introspect load` (load introspect-<activity> matching the current session). Operates on `~/.claude/projects/*.jsonl` transcripts; all outputs land in user-global `~/.claude/`. See `workshop/issues/000018-...md` for full design context.
+description: Use when the user wants to extract reusable taste signals from past Claude Code sessions, author a strong human hint to seed a future extraction, or load a previously-extracted activity-typed introspect skill. Invoked as `/xx-introspect extract` (run the postmortem extraction pipeline), `/xx-introspect hint` (author/list/retire human hints), or `/xx-introspect load` (load introspect-<activity> matching the current session). Operates on `~/.claude/projects/*.jsonl` transcripts; all outputs land in user-global `~/.claude/introspect/`. See `workshop/issues/000018-...md` and `000019-...md` for full design context.
 ---
 
 # xx-introspect — postmortem introspect extraction
 
-Two subcommands:
+Three subcommands:
 - `/xx-introspect extract` — run the extraction pipeline against accumulated transcripts.
+- `/xx-introspect hint` — author, list, or retire human-authored hints that act as strong, single-shot seeds in the next cluster pass.
 - `/xx-introspect load` — detect the current session's activity and load the matching `introspect-<activity>` skill.
 
 ## Operating principle
@@ -239,6 +240,79 @@ The user can audit any rule back to its source moments before accepting in Stage
 ### 7. Stage 7 (write-back) — M5
 
 Not yet implemented. After drafts are generated, present diff-style and let the user accept/reject per cluster. Accepted drafts get atomic-write to `~/.claude/skills/introspect-<activity>/SKILL.md` and `~/.claude/settings.json`.
+
+## `/xx-introspect hint`
+
+Author, list, or retire **human hints** — strong, single-shot signals that the next cluster pass treats as their own pre-formed cluster (bypassing the ≥2-segment threshold that gates extracted patterns). Hints are stored as small markdown files under `~/.claude/introspect/hints/<activity>/<slug>.md`. They are *eligible for retirement*, not frozen: if a future run finds transcript evidence contradicting a hint, the user is prompted at review time to keep / edit / retire it. (See issue#19 for full semantics.)
+
+### Modes
+
+```
+/xx-introspect hint <activity> "<rule>"      # authoring mode
+/xx-introspect hint                          # authoring mode, infer activity
+/xx-introspect hint --list [<activity>]      # list existing hints
+/xx-introspect hint --retire <slug>          # delete a hint file
+```
+
+### Authoring mode
+
+When the user invokes `/xx-introspect hint`, with or without args:
+
+1. **Resolve activity.**
+   - If `<activity>` was passed, validate it against the five-bucket taxonomy:
+     `debugging`, `exploration`, `planning`, `implementation`, `brainstorming`.
+     (Note: `code-review` is a classification bucket but does not have a deployed `introspect-code-review` skill yet, so hints there have no destination — reject for now.)
+   - If not passed, infer from recent in-session context: what was the user just doing? When ambiguous, ask the user.
+2. **Resolve the rule body.**
+   - If a rule string was passed inline, use it as the seed.
+   - Otherwise, ask the user for the rule in natural language. Echo back a tightened version for confirmation. The rule should be one or two sentences, written as a directive to a future Claude.
+   - Probe gently for the *why* — past incident, strong preference, or just intuition. Optional but valuable for future-you when reviewing the hint at retirement time.
+3. **Derive a slug.** Lowercase-hyphenated truncation of the rule's imperative title (≤ 6 words). On collision with an existing file in the activity's hints/ dir, append `-2`, `-3`, … until unique.
+4. **Draft the file** in the format below, show it to the user for one-shot confirmation, then atomically write to `~/.claude/introspect/hints/<activity>/<slug>.md`. Don't prompt again after confirmation — one round-trip.
+
+Hint file format:
+
+```markdown
+---
+activity: <one of the five buckets>
+created: <YYYY-MM-DD>
+---
+
+## Rule: <imperative title>
+
+<rule body — one or two short paragraphs, directive voice, same shape as a
+rendered cluster rule.>
+
+**Why:** <optional rationale — past incident, strong preference, etc.>
+```
+
+### List mode
+
+`/xx-introspect hint --list` walks `~/.claude/introspect/hints/` and prints, per activity:
+
+- File slug
+- Imperative title (from the `## Rule:` line)
+- Created date
+
+`--list <activity>` filters to one activity bucket.
+
+This is a deterministic read; no LLM call, no user approval needed. Just tabulate and print.
+
+### Retire mode
+
+`/xx-introspect hint --retire <slug>` deletes the matching hint file. Behaviors:
+
+- If the slug is unique across all activities, delete and confirm.
+- If ambiguous (same slug under two activities), ask which.
+- If unknown, list near-matches and ask.
+
+Retirement is hard delete — no tombstone. Re-authoring with the same slug creates a new hint with a fresh `created` date.
+
+The same retirement effect can be achieved during cluster review (Stage 5+) when a hint surfaces as a `retirement_candidate`; this CLI form is for proactive cleanup outside a pipeline run.
+
+### Operating principle
+
+Hint authoring is the only `xx-introspect` flow where the orchestrating Claude writes user-global state without a multi-step user-in-the-loop — because the user has already supplied the rule explicitly, and a one-round-trip confirm-and-write is the right friction level for "I have a hint to capture, capture it."
 
 ## `/xx-introspect load`
 

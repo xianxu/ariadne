@@ -140,15 +140,15 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
         `construct/local/introspect/SKILL.md`, and `atlas/introspect.md`
         to the new paths.
 
-- [ ] **Hint authoring (slash command)**
-  - [ ] Extend `construct/local/introspect/SKILL.md` umbrella with a `hint`
+- [x] **Hint authoring (slash command)** (M2, 2026-05-01)
+  - [x] Extend `construct/local/introspect/SKILL.md` umbrella with a `hint`
         subcommand: parse args, infer activity if missing, draft body,
         write to `~/.claude/introspect/hints/<activity>/<slug>.md`, confirm.
-  - [ ] Implement `--list` and `--retire <slug>` flags (read/delete only,
+  - [x] Implement `--list` and `--retire <slug>` flags (read/delete only,
         no LLM call needed).
-  - [ ] Slug derivation: lowercase-hyphenated truncation of the rule's
+  - [x] Slug derivation: lowercase-hyphenated truncation of the rule's
         imperative title; collision-resolve by appending `-2`, `-3`, …
-  - [ ] Activity validation against the five-bucket taxonomy
+  - [x] Activity validation against the five-bucket taxonomy
         (debugging, exploration, planning, implementation, brainstorming).
 
 - [ ] **Hint ingestion**
@@ -215,3 +215,19 @@ and the precision-over-recall rule. The pipeline never auto-deletes.
   `atlas/introspect.md` to point at the new layout.
 - Manifest (`construct/base.manifest`) tracks no introspect paths, so no
   base-layer change needed.
+
+### 2026-05-01 — M2 hint authoring slash command
+
+- Added `/xx-introspect hint` subcommand spec to the umbrella
+  `construct/local/introspect/SKILL.md`: authoring (with or without args),
+  `--list`, `--retire <slug>`. Updated the skill's top description and
+  three-subcommand list.
+- The orchestrating Claude can now author/list/retire hints from any
+  session that loads the `xx-introspect` skill. No pipeline-side work
+  is required — hints just become files; M3 is what teaches the cluster
+  pass to ingest them.
+- Decision: `code-review` is part of the classification taxonomy but has
+  no deployed `introspect-code-review` skill yet, so hints in that bucket
+  are rejected for now (will become accepted once the deployed skill exists).
+- `created:` field uses local date (YYYY-MM-DD) rather than ISO timestamp;
+  hints don't need sub-day resolution.
