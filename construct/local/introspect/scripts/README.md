@@ -1,4 +1,4 @@
-# mind-extract: UNIX kit
+# introspect-extract: UNIX kit
 
 Composable building blocks for postmortem taste-extraction over Claude Code transcripts. No build-time LLM coupling — every step emits text on stdout, and you choose which model to send it to.
 
@@ -20,7 +20,7 @@ patterns per segment (JSON)
 clusters per activity (JSON)
         │
         ▼  draft generator (skill body)
-~/.claude/skills/mind-<activity>/SKILL.md
+~/.claude/skills/introspect-<activity>/SKILL.md
 ```
 
 Stages 3.5 (per-segment extraction) and 4 (clustering) are the *new* primary primitive in v1.1, replacing the heuristic detectors in `detect.py`. `detect.py` and `view_moments.py` are retained as reference baselines.
@@ -60,12 +60,12 @@ Long assistant text is summarized (first 1500 + last 500 chars). Tool results ar
 ### Claude Code CLI
 
 ```bash
-RUN=~/.claude/mind-cache/<run-id>
+RUN=~/.claude/introspect-cache/<run-id>
 SEG=84afbb05#4
 
 # pipe both system prompt and chunk in one shot (--print = headless)
 {
-  cat ~/workspace/ariadne/construct/local/mind/prompts/extract.md
+  cat ~/workspace/ariadne/construct/local/introspect/prompts/extract.md
   echo
   echo "---TRANSCRIPT BELOW---"
   echo
@@ -77,13 +77,13 @@ Or with the `--system` flag (Claude Code & Claude API both accept this shape):
 
 ```bash
 segment_text.py --cache-dir "$RUN" --segment "$SEG" \
-  | claude --print --system "$(cat ~/workspace/ariadne/construct/local/mind/prompts/extract.md)"
+  | claude --print --system "$(cat ~/workspace/ariadne/construct/local/introspect/prompts/extract.md)"
 ```
 
 ### Anthropic API directly (curl)
 
 ```bash
-SYSTEM=$(cat ~/workspace/ariadne/construct/local/mind/prompts/extract.md)
+SYSTEM=$(cat ~/workspace/ariadne/construct/local/introspect/prompts/extract.md)
 TRANSCRIPT=$(segment_text.py --cache-dir "$RUN" --segment "$SEG")
 
 curl https://api.anthropic.com/v1/messages \
@@ -101,7 +101,7 @@ curl https://api.anthropic.com/v1/messages \
 ### OpenAI / Codex CLI
 
 ```bash
-SYSTEM=$(cat ~/workspace/ariadne/construct/local/mind/prompts/extract.md)
+SYSTEM=$(cat ~/workspace/ariadne/construct/local/introspect/prompts/extract.md)
 TRANSCRIPT=$(segment_text.py --cache-dir "$RUN" --segment "$SEG")
 
 # codex CLI
@@ -124,7 +124,7 @@ curl https://api.openai.com/v1/chat/completions \
 ### Gemini CLI
 
 ```bash
-SYSTEM=$(cat ~/workspace/ariadne/construct/local/mind/prompts/extract.md)
+SYSTEM=$(cat ~/workspace/ariadne/construct/local/introspect/prompts/extract.md)
 TRANSCRIPT=$(segment_text.py --cache-dir "$RUN" --segment "$SEG")
 
 gemini --system-instruction "$SYSTEM" "$TRANSCRIPT"
@@ -168,7 +168,7 @@ Filename convention: `<seg-id-with-#-and-/-replaced-by-_>.json`.
 ### Option B — pure jq one-liner
 
 ```bash
-RUN=~/.claude/mind-cache/<run-id>
+RUN=~/.claude/introspect-cache/<run-id>
 PATTERNS=/tmp/patterns.jsonl
 
 > "$PATTERNS"
@@ -190,12 +190,12 @@ jq -s '.' "$PATTERNS" \
 
 Less robust than Option A (no fence stripping, no field validation, no stable ids) but useful if you want a one-screen recipe.
 
-## Full pipeline: `mind-extract.sh`
+## Full pipeline: `introspect-extract.sh`
 
 For the all-the-way-through happy path, the controller chains it:
 
 ```bash
-mind-extract.sh <run-dir> [--activity NAME ...] [--limit N] [--force]
+introspect-extract.sh <run-dir> [--activity NAME ...] [--limit N] [--force]
 ```
 
 What it does:
@@ -210,16 +210,16 @@ Default model: `claude --print --system "$1"`. Override via env vars at invocati
 # OpenAI / codex
 EXTRACT_LLM='codex --json --system "$1"' \
 CLUSTER_LLM='codex --json --system "$1"' \
-  mind-extract.sh ~/.claude/mind-cache/<run-id>
+  introspect-extract.sh ~/.claude/introspect-cache/<run-id>
 
 # Gemini
 EXTRACT_LLM='gemini --system-instruction "$1"' \
 CLUSTER_LLM='gemini --system-instruction "$1"' \
-  mind-extract.sh ~/.claude/mind-cache/<run-id>
+  introspect-extract.sh ~/.claude/introspect-cache/<run-id>
 
 # Local model via your own wrapper
 EXTRACT_LLM='oneshot.sh gemma4:e4b "$1"' \
-  mind-extract.sh ~/.claude/mind-cache/<run-id> --activity debugging --limit 5
+  introspect-extract.sh ~/.claude/introspect-cache/<run-id> --activity debugging --limit 5
 ```
 
 The env-var contract: each is a full shell command that takes the system prompt as `$1` and reads user content from stdin. The controller passes them to `bash -c`.

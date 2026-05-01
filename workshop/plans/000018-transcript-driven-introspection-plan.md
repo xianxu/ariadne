@@ -15,7 +15,7 @@ The original M3 design used four narrow heuristic detectors (redirect, endorseme
 
 **v1.1 pivot:** the primary extraction primitive becomes **LLM reading one segment at a time and emitting candidate patterns directly.** The heuristic detectors are retained as optional prompt hints ("look for these shapes too, but don't restrict to them"), not as the primary signal source.
 
-**What survives unchanged:** segmentation (`normalize.py`), LLM-direct activity classification (Stage 3), `~/.claude/skills/mind-<activity>` write destination, user-in-the-loop principle.
+**What survives unchanged:** segmentation (`normalize.py`), LLM-direct activity classification (Stage 3), `~/.claude/skills/introspect-<activity>` write destination, user-in-the-loop principle.
 
 **What changes:**
 - `detect.py` becomes optional; its output isn't required for the pipeline.
@@ -27,27 +27,27 @@ The original M3 design used four narrow heuristic detectors (redirect, endorseme
 **UNIX kit (this revision's deliverable):** rather than baking the LLM call into the skill, the building blocks are emitted as composable text-on-stdout commands so the same pipeline runs against any model — `claude`, `codex`, `gemini`. The skill body documents composition; the user (or any orchestrating agent) chooses the model.
 
 ```
-construct/local/mind/scripts/segment_text.py   # one segment → human-readable transcript chunk
-construct/local/mind/prompts/extract.md        # system prompt for per-segment extraction
-construct/local/mind/prompts/cluster.md        # system prompt for cross-segment clustering
-construct/local/mind/scripts/README.md         # composition examples for claude / codex / gemini
+construct/local/introspect/scripts/segment_text.py   # one segment → human-readable transcript chunk
+construct/local/introspect/prompts/extract.md        # system prompt for per-segment extraction
+construct/local/introspect/prompts/cluster.md        # system prompt for cross-segment clustering
+construct/local/introspect/scripts/README.md         # composition examples for claude / codex / gemini
 ```
 
 The rest of this plan reflects the heuristic pipeline as originally designed and is preserved for context. Treat anything below describing detect.py / cluster as the *baseline reference*, not the canonical flow.
 
 ---
 
-# Plan: `/construct mind-extract`
+# Plan: `/construct introspect-extract`
 
 ## Decisions locked from brainstorming
 
-- **Invocation surface**: umbrella skill `xx-mind` with subcommands. Not a construct subcommand — this is a local-authored skill at `construct/local/mind/SKILL.md`, symlinked to `.claude/skills/xx-mind/`.
-  - `/xx-mind extract` — runs the extraction pipeline
-  - `/xx-mind load` — loads the `mind-<activity>` matching the current session's activity (close-the-loop step from the spec; replaces the "always-on AGENTS.md" path)
-- **No AGENTS.md writes.** Extracted taste lives in `mind-<activity>` files only. They're loaded situationally via `/xx-mind load` rather than always-on. (Rationale: AGENTS.md is high-blast-radius write surface; activity-typed loading scopes the influence to where it applies.)
+- **Invocation surface**: umbrella skill `xx-introspect` with subcommands. Not a construct subcommand — this is a local-authored skill at `construct/local/introspect/SKILL.md`, symlinked to `.claude/skills/xx-introspect/`.
+  - `/xx-introspect extract` — runs the extraction pipeline
+  - `/xx-introspect load` — loads the `introspect-<activity>` matching the current session's activity (close-the-loop step from the spec; replaces the "always-on AGENTS.md" path)
+- **No AGENTS.md writes.** Extracted taste lives in `introspect-<activity>` files only. They're loaded situationally via `/xx-introspect load` rather than always-on. (Rationale: AGENTS.md is high-blast-radius write surface; activity-typed loading scopes the influence to where it applies.)
 - **No friction journal in v1**. The extractor is fundamentally a postmortem analyzer of `~/.claude/projects/*.jsonl`. The `friction` signal in Stage 3 already detects what a journal would capture (permission prompts, redirections, wasted-token ratio). A live-capture surface adds UX rabbit holes for marginal v1 value. Revisit only if first real run shows obvious gaps.
 - **Activity taxonomy v1**: `code-review`, `brainstorming`, `planning`, `debugging`, `implementation`, `exploration`. Six buckets, rule-based classifier first, LLM fallback for ambiguous sessions.
-- **Skill granularity**: one `mind-<activity>.md` per activity, accumulated rules. Re-extraction updates in place. Prior versions retained for diffing.
+- **Skill granularity**: one `introspect-<activity>.md` per activity, accumulated rules. Re-extraction updates in place. Prior versions retained for diffing.
 - **Scope selection at invocation time**: user picks current repo / all projects / select projects. Output destination is derived from scope (see below).
 - **Clustering v1**: interactive, in-session with the user. The skill walks the user through the moment list and clusters via conversation. No automated clusterer code. Goal: build manual quality intuition before automating.
 
@@ -65,15 +65,15 @@ The rest of this plan reflects the heuristic pipeline as originally designed and
 
 | Surface | Path |
 |---|---|
-| `mind-<activity>` skills | `~/.claude/skills/mind-<activity>/SKILL.md` |
+| `introspect-<activity>` skills | `~/.claude/skills/introspect-<activity>/SKILL.md` |
 | Permission entries | `~/.claude/settings.json` |
-| Run state | `~/.claude/mind-state.json` |
-| Intermediate cache | `~/.claude/mind-cache/<run-id>/` |
-| Version snapshots | `~/.claude/mind-versions/vN/` |
+| Run state | `~/.claude/introspect-state.json` |
+| Intermediate cache | `~/.claude/introspect-cache/<run-id>/` |
+| Version snapshots | `~/.claude/introspect-versions/vN/` |
 
-Rationale: it's nondeterministic which repo the user has open when they want to invoke `/xx-mind`. User-global keeps everything reachable from any session and side-steps the "destination derived from scope" complication.
+Rationale: it's nondeterministic which repo the user has open when they want to invoke `/xx-introspect`. User-global keeps everything reachable from any session and side-steps the "destination derived from scope" complication.
 
-**v1 output surfaces are mind-* skills and permission entries only.** Memory entries and lessons.md updates are dropped from v1 — both are inherently per-project and clash with the user-global storage decision. Revisit in v2 if the v1 outputs prove valuable.
+**v1 output surfaces are introspect-* skills and permission entries only.** Memory entries and lessons.md updates are dropped from v1 — both are inherently per-project and clash with the user-global storage decision. Revisit in v2 if the v1 outputs prove valuable.
 
 ## Pipeline architecture
 
@@ -97,7 +97,7 @@ git history (per touched repo)─┴──▶ [1 normalize] ──▶ events.par
                                                           │
                                               ┌───────────┼─────────────┬──────────────┐
                                               ▼           ▼             ▼              ▼
-                                       mind-<a>.md   AGENTS.md     memory/      permissions
+                                       introspect-<a>.md   AGENTS.md     memory/      permissions
                                                           │
                                                           ▼
                                                 [6 review + write]
@@ -105,7 +105,7 @@ git history (per touched repo)─┴──▶ [1 normalize] ──▶ events.par
                                                           │
                                                           ▼
                                               [7 snapshot version]
-                                            ~/.claude/mind-versions/vN/
+                                            ~/.claude/introspect-versions/vN/
 ```
 
 ### Stage 1 — Normalize
@@ -113,13 +113,13 @@ git history (per touched repo)─┴──▶ [1 normalize] ──▶ events.par
 **Input**: `~/.claude/projects/*/*.jsonl` (filtered by scope selection).
 **Output**: structured per-session event stream; each session tagged with repo (cwd), branch, time range, commit-landed?, reverted?, amended?.
 
-Implementation: Python script `construct/scripts/mind-extract/normalize.py` reads JSONL line-by-line, groups by sessionId. For each session:
+Implementation: Python script `construct/scripts/introspect-extract/normalize.py` reads JSONL line-by-line, groups by sessionId. For each session:
 - start time, end time, message count, tool-call count
 - cwd from session metadata or first `Bash` cwd
 - repo slug derived from cwd
 - git correlation: walk cwd's `git reflog`/`git log --since=<start> --until=<end>` to find commits, reverts, amends in that window. Tag session with landed-commit SHAs.
 
-State file `~/.claude/mind-state.json`: tracks `last_run_at`, `processed_session_ids`, `version_history`. Stage 1 only emits events from sessions not in `processed_session_ids` (or after `last_run_at` for the friction journal).
+State file `~/.claude/introspect-state.json`: tracks `last_run_at`, `processed_session_ids`, `version_history`. Stage 1 only emits events from sessions not in `processed_session_ids` (or after `last_run_at` for the friction journal).
 
 ### Stage 2 — Activity classify
 
@@ -147,11 +147,11 @@ Each detector emits `Moment(session_id, type, span, evidence_excerpt, weight)`.
 5. **Taste fingerprint** — diff between assistant's last write of a file and the file's state at next commit. Bucket the deltas: rename patterns, comment density change, length change.
 6. **Process shape** — per-skill ROI: `(skill invoked → outcome quality)` — outcome quality proxied by commit-landed and edit-after-edit-rate. Per-tool ROI similar.
 
-Implementation: each detector is a function in `construct/scripts/mind-extract/detect.py`. First pass deterministic; weight scoring is heuristic.
+Implementation: each detector is a function in `construct/scripts/introspect-extract/detect.py`. First pass deterministic; weight scoring is heuristic.
 
 ### Stage 4 — Cluster (interactive, no code)
 
-**Resolved per Fork B**: no clusterer code in v1. The `/xx-mind extract` skill walks the user through clustering interactively in the session.
+**Resolved per Fork B**: no clusterer code in v1. The `/xx-introspect extract` skill walks the user through clustering interactively in the session.
 
 Flow:
 1. Skill presents moments per activity bucket, one bucket at a time, paginated (~30 moments per page)
@@ -164,7 +164,7 @@ Why this matters for v1: we need to build intuition about what *should* cluster 
 ### Stage 5 — Generate drafts
 
 Per cluster set per activity, the in-session Claude produces:
-- Candidate `mind-<activity>` skill body (rules section, when-to-trigger section)
+- Candidate `introspect-<activity>` skill body (rules section, when-to-trigger section)
 - Candidate permission entries (cross-reference with `fewer-permission-prompts` skill — same data shape)
 
 Each candidate carries `evidence: [moment_id, ...]` provenance so the reviewer can audit.
@@ -176,7 +176,7 @@ Each candidate carries `evidence: [moment_id, ...]` provenance so the reviewer c
 Present diff-style to user:
 
 ```
-~/.claude/skills/mind-code-review/SKILL.md (NEW)
+~/.claude/skills/introspect-code-review/SKILL.md (NEW)
 + Rule: ...
    evidence: 4 moments across 3 sessions in brain, ariadne
 + Rule: ...
@@ -193,16 +193,16 @@ User can accept all / accept selected / reject. Accepted writes go through.
 After successful write:
 
 ```
-~/.claude/mind-versions/v<N>/
+~/.claude/introspect-versions/v<N>/
   manifest.json           # what was written, scope, source corpus session IDs, timestamp
-  extractor-snapshot.md   # the construct skill's mind-extract section at this run
-  mind-<activity>.md ...  # snapshot of each mind-* skill produced
+  extractor-snapshot.md   # the construct skill's introspect-extract section at this run
+  introspect-<activity>.md ...  # snapshot of each introspect-* skill produced
   drafts/                 # rejected candidates, for diagnosis
 ```
 
-`~/.claude/mind-state.json` updated with new version pointer.
+`~/.claude/introspect-state.json` updated with new version pointer.
 
-**Re-run-prior-extractor feature**: `/construct mind-extract --rerun-version <N>` reads `versions/v<N>/extractor-snapshot.md`, applies that algorithm to the current corpus, presents diff against `versions/v<N>` outputs. Lets user separate "more data" from "better algorithm".
+**Re-run-prior-extractor feature**: `/construct introspect-extract --rerun-version <N>` reads `versions/v<N>/extractor-snapshot.md`, applies that algorithm to the current corpus, presents diff against `versions/v<N>` outputs. Lets user separate "more data" from "better algorithm".
 
 ## Friction journal capture
 
@@ -217,15 +217,15 @@ Out of band of the extractor itself, but the extractor is half-blind without it.
 
 Each milestone gates a code review per AGENTS.md §3. `BASE_SHA` = previous milestone close.
 
-Code lives in `construct/local/mind/` (skill body + scripts). Symlinked to `.claude/skills/xx-mind/` via construct's local-skill mechanism.
+Code lives in `construct/local/introspect/` (skill body + scripts). Symlinked to `.claude/skills/xx-introspect/` via construct's local-skill mechanism.
 
 ### M1 — Foundation: skill scaffold + normalizer
-- `construct/local/mind/SKILL.md` scaffold with `/xx-mind extract` and `/xx-mind load` subcommands
+- `construct/local/introspect/SKILL.md` scaffold with `/xx-introspect extract` and `/xx-introspect load` subcommands
 - Symlink registered (auto-handled by construct sync hook)
-- `construct/local/mind/scripts/normalize.py` (JSONL → events, git correlation)
+- `construct/local/introspect/scripts/normalize.py` (JSONL → events, git correlation)
 - Scope picker in skill body (interactive: current / all / select)
-- `~/.claude/mind-state.json` schema + read/write
-- **Verification (charon)**: run `/xx-mind extract` with scope=`charon`, confirm normalize output is sane on real transcripts at `~/.claude/projects/-Users-xianxu-workspace-charon/`. Eyeball events for one session.
+- `~/.claude/introspect-state.json` schema + read/write
+- **Verification (charon)**: run `/xx-introspect extract` with scope=`charon`, confirm normalize output is sane on real transcripts at `~/.claude/projects/-Users-xianxu-workspace-charon/`. Eyeball events for one session.
 
 ### M2 — Activity classifier
 - Rule-based classifier in `scripts/classify.py`
@@ -241,7 +241,7 @@ Code lives in `construct/local/mind/` (skill body + scripts). Symlinked to `.cla
 ### M4 — Interactive cluster + draft (skill body work)
 - Skill instructions for the in-session clustering walkthrough (per Fork B resolution)
 - Pagination logic for moment review
-- Draft generator instructions per output surface (mind-*.md, memory, permissions, lessons)
+- Draft generator instructions per output surface (introspect-*.md, memory, permissions, lessons)
 - Provenance tracking (evidence trail per candidate)
 - **Verification**: walk through clustering on M3 output for one activity bucket. Manual review for false-positive rate.
 
@@ -250,34 +250,34 @@ Code lives in `construct/local/mind/` (skill body + scripts). Symlinked to `.cla
 - Per-surface writers (Edit/Write tool calls described in skill body)
 - Settings.json permission merge logic (cross-reference `fewer-permission-prompts` patterns)
 - Memory dir resolution per repo
-- **Verification**: dry-run mode writes to `/tmp/mind-extract-preview/`. Real-write only after explicit user confirm.
+- **Verification**: dry-run mode writes to `/tmp/introspect-extract-preview/`. Real-write only after explicit user confirm.
 
-### M6 — `/xx-mind load` + close-the-loop
-- `/xx-mind load` subcommand: detects current session activity (reuse classifier from M2 over the live session), loads matching `mind-<activity>` skill via Skill tool
-- Optional: SessionStart hook hint to auto-suggest `/xx-mind load` when activity becomes detectable
-- **Verification**: start a new session, run `/xx-mind load`, confirm right skill loads and content is in context.
+### M6 — `/xx-introspect load` + close-the-loop
+- `/xx-introspect load` subcommand: detects current session activity (reuse classifier from M2 over the live session), loads matching `introspect-<activity>` skill via Skill tool
+- Optional: SessionStart hook hint to auto-suggest `/xx-introspect load` when activity becomes detectable
+- **Verification**: start a new session, run `/xx-introspect load`, confirm right skill loads and content is in context.
 
 ### M7 — Versioning + rerun
-- Snapshot writer at `~/.claude/mind-versions/vN/`
-- `/xx-mind extract --rerun-version <N>` flag
+- Snapshot writer at `~/.claude/introspect-versions/vN/`
+- `/xx-introspect extract --rerun-version <N>` flag
 - Diff between two version outputs
 - **Verification**: run extractor twice on same corpus, snapshot, then synthetically tweak skill instructions and re-run, confirm diff is sane.
 
 ### M8 — First real run + dogfood
-- Run `/xx-mind extract` with scope=`charon` (manual test target) on user's full transcript corpus for that project
-- Review output, accept/reject, commit produced `mind-*-v1`
+- Run `/xx-introspect extract` with scope=`charon` (manual test target) on user's full transcript corpus for that project
+- Review output, accept/reject, commit produced `introspect-*-v1`
 - Document the run in the issue's `## Log`
 - **Verification**: subjective — does the output feel useful? Are evidence trails legible?
 - After dogfood passes on charon, optional second run with scope=all
 
 ### M9 — Stabilize + base.manifest
 - After two more biweekly runs, if outputs hold up:
-  - Add `construct/local/mind/` to `construct/base.manifest` so downstream repos inherit `xx-mind` via `construct/setup.sh`
-  - Update `atlas/` with mind-extract entry
+  - Add `construct/local/introspect/` to `construct/base.manifest` so downstream repos inherit `xx-introspect` via `construct/setup.sh`
+  - Update `atlas/` with introspect-extract entry
 
 ## Open forks summary
 
-- ~~Fork A~~ — Resolved: no AGENTS.md writes; taste lives in `mind-<activity>` files loaded via `/xx-mind load`.
+- ~~Fork A~~ — Resolved: no AGENTS.md writes; taste lives in `introspect-<activity>` files loaded via `/xx-introspect load`.
 - ~~Fork B~~ — Resolved: interactive in-session clustering for v1, no automated clusterer.
 - ~~Fork C~~ — Resolved: no friction journal in v1. Extractor's `friction` signal in Stage 3 covers what a journal would capture. Defer live-capture surface until first real run shows obvious gaps.
 
@@ -287,7 +287,7 @@ Code lives in `construct/local/mind/` (skill body + scripts). Symlinked to `.cla
 |---|---|
 | Extractor surfaces noise as rules | Min-cluster size ≥3 across ≥2 sessions; user is the gate |
 | Output overfits to past work | Per spec §"Failure mode": each version diff'd against new sessions; retire-rules path in the skill |
-| ~~AGENTS.md bloat~~ | N/A — taste lives in activity-loaded `mind-*` skills, not AGENTS.md |
+| ~~AGENTS.md bloat~~ | N/A — taste lives in activity-loaded `introspect-*` skills, not AGENTS.md |
 | State file corruption blocks reruns | State file is small JSON, append-only history; recovery via re-scanning corpus |
 | Permission entry collisions | Reuse `fewer-permission-prompts` merge logic; never remove existing entries |
 | Privacy: transcripts contain secrets | Output is local-only (no upload); evidence excerpts redacted via simple regex pass before user review |
@@ -302,8 +302,8 @@ Code lives in `construct/local/mind/` (skill body + scripts). Symlinked to `.cla
 
 ## Success criteria for v1
 
-- `/construct mind-extract` runs end-to-end on user's corpus without manual intervention
-- Produces `mind-<activity>-v1` for at least 3 of the 6 activity buckets with non-trivial rule sets
+- `/construct introspect-extract` runs end-to-end on user's corpus without manual intervention
+- Produces `introspect-<activity>-v1` for at least 3 of the 6 activity buckets with non-trivial rule sets
 - Evidence trail is legible — user can audit any rule back to source moments
 - Re-run produces deterministic output (same corpus + same extractor version → same result)
 - The first real run surfaces at least one of: a useful rule, a useful permission entry, or a friction-cluster the user wants to fix

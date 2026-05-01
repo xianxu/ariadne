@@ -1,13 +1,13 @@
 ---
-name: xx-mind
-description: Use when the user wants to extract reusable taste signals from past Claude Code sessions, or to load a previously-extracted activity-typed mind skill into the current session. Invoked as `/xx-mind extract` (run the postmortem extraction pipeline) or `/xx-mind load` (load mind-<activity> matching the current session). Operates on `~/.claude/projects/*.jsonl` transcripts; all outputs land in user-global `~/.claude/`. See `workshop/issues/000018-...md` for full design context.
+name: xx-introspect
+description: Use when the user wants to extract reusable taste signals from past Claude Code sessions, or to load a previously-extracted activity-typed introspect skill into the current session. Invoked as `/xx-introspect extract` (run the postmortem extraction pipeline) or `/xx-introspect load` (load introspect-<activity> matching the current session). Operates on `~/.claude/projects/*.jsonl` transcripts; all outputs land in user-global `~/.claude/`. See `workshop/issues/000018-...md` for full design context.
 ---
 
-# xx-mind — postmortem mind extraction
+# xx-introspect — postmortem introspect extraction
 
 Two subcommands:
-- `/xx-mind extract` — run the extraction pipeline against accumulated transcripts.
-- `/xx-mind load` — detect the current session's activity and load the matching `mind-<activity>` skill.
+- `/xx-introspect extract` — run the extraction pipeline against accumulated transcripts.
+- `/xx-introspect load` — detect the current session's activity and load the matching `introspect-<activity>` skill.
 
 ## Operating principle
 
@@ -18,14 +18,14 @@ The only steps that don't need user approval are deterministic, no-op-on-failure
 ## Storage layout (all user-global)
 
 ```
-~/.claude/skills/mind-<activity>/SKILL.md  # produced output, loaded on demand
-~/.claude/mind-state.json                  # run history + processed-session pointers
-~/.claude/mind-cache/<run-id>/             # intermediate stages of one run
-~/.claude/mind-versions/vN/                # post-run snapshots for diffing
+~/.claude/skills/introspect-<activity>/SKILL.md  # produced output, loaded on demand
+~/.claude/introspect-state.json                  # run history + processed-session pointers
+~/.claude/introspect-cache/<run-id>/             # intermediate stages of one run
+~/.claude/introspect-versions/vN/                # post-run snapshots for diffing
 ~/.claude/settings.json                    # permission entries written here
 ```
 
-## `/xx-mind extract`
+## `/xx-introspect extract`
 
 ### 1. Scope picker
 
@@ -39,17 +39,17 @@ Ask the user which transcripts to read. Three options:
 
 If `cwd` doesn't have a corresponding `~/.claude/projects/<slug>/` (slug = cwd path with `/` → `-`), `current repo` is unavailable and the user must pick from `all` or `select`.
 
-For dogfood/testing, the user may pass an explicit slug: `/xx-mind extract --project charon` (resolves to `-Users-xianxu-workspace-charon`).
+For dogfood/testing, the user may pass an explicit slug: `/xx-introspect extract --project charon` (resolves to `-Users-xianxu-workspace-charon`).
 
 ### 2. Run normalize
 
 ```
-python3 $REPO_ROOT/construct/local/mind/scripts/normalize.py \
+python3 $REPO_ROOT/construct/local/introspect/scripts/normalize.py \
   --scope <choice> \
   [--project <slug>] \
   [--cwd "$PWD"]                   # only when --scope current; defaults to os.getcwd()
   [--since <last_run_at-from-state>] \
-  --out ~/.claude/mind-cache/<run-id>/
+  --out ~/.claude/introspect-cache/<run-id>/
 ```
 
 Outputs:
@@ -85,15 +85,15 @@ The orchestrating Claude classifies every session in `sessions.json` directly:
    - `confidence: "llm"` for rows accepted as-proposed
    - `confidence: "user"` for rows the user overrode
    - `confidence: null` for `skip` rows
-8. **Skip downstream:** Stage 4+ filters `skip`, `out-of-scope`, and `ambiguous` rows. They don't contribute moments to any `mind-<activity>` skill.
+8. **Skip downstream:** Stage 4+ filters `skip`, `out-of-scope`, and `ambiguous` rows. They don't contribute moments to any `introspect-<activity>` skill.
 
 **`scripts/classify.py` (legacy):** the rule-based scorer is retained in the repo as a baseline reference but is no longer part of the canonical flow. It's fine to consult it for a quick sanity check, but don't rely on it for the classified.json that drives downstream stages.
 
 ### 4. Moment detection
 
 ```
-python3 $REPO_ROOT/construct/local/mind/scripts/detect.py \
-  --cache-dir ~/.claude/mind-cache/<run-id>/
+python3 $REPO_ROOT/construct/local/introspect/scripts/detect.py \
+  --cache-dir ~/.claude/introspect-cache/<run-id>/
 ```
 
 Walks the raw JSONL for each non-skip session in `classified.json`, runs four detectors, emits `moments.jsonl` (one record per line) plus `moments-summary.json`.
@@ -114,7 +114,7 @@ This stage is a guided conversation. Do not write code that auto-clusters. The p
 
 **Preconditions:**
 1. Stage 3a has run. After 3a, rows have one of: a six-taxonomy activity, `out-of-scope`, `unknown`, `ambiguous`, or `skip`. **`ambiguous` is allowed to persist** — for any row where the user (or you reasoning on their behalf) couldn't confidently pick a bucket, leaving it ambiguous is correct. Precision over recall: clustering operates on signal we trust, not signal we hope.
-2. `out-of-scope`, `unknown`, `ambiguous`, and `skip` rows are all filtered out before the cluster loop begins. Their moments are excluded from any `mind-<activity>` skill draft.
+2. `out-of-scope`, `unknown`, `ambiguous`, and `skip` rows are all filtered out before the cluster loop begins. Their moments are excluded from any `introspect-<activity>` skill draft.
 
 **Iteration order: outer loop is activity, inner loop is type.**
 
@@ -132,7 +132,7 @@ Skip `(activity, type)` buckets that have fewer than 3 moments OR fewer than 2 d
 For each `(activity, type)` bucket with ≥3 moments:
 
 ```
-python3 $REPO_ROOT/construct/local/mind/scripts/view_moments.py \
+python3 $REPO_ROOT/construct/local/introspect/scripts/view_moments.py \
   --cache-dir <run-dir> \
   --activity <activity> \
   --type <type> \
@@ -150,7 +150,7 @@ Cluster proposal 1: "user pushes back when assistant assumes file structure with
 
 Ask the user to: (a) accept, (b) merge with another proposal, (c) split off a moment, (d) discard. After each page, page forward (`--offset`) until the bucket is exhausted.
 
-**Cross-bucket merging:** at the end of an activity (after walking all four types), ask the user whether any cross-type clusters within this activity should merge (e.g., a `redirect` cluster about "verify before writing" and a `friction` cluster about Bash permission failures might both signal "check before acting"). Merged clusters keep one combined `moment_ids` list and stay assigned to the current activity — there is no cross-activity merging in v1, since each activity will produce its own `mind-<activity>` skill anyway.
+**Cross-bucket merging:** at the end of an activity (after walking all four types), ask the user whether any cross-type clusters within this activity should merge (e.g., a `redirect` cluster about "verify before writing" and a `friction` cluster about Bash permission failures might both signal "check before acting"). Merged clusters keep one combined `moment_ids` list and stay assigned to the current activity — there is no cross-activity merging in v1, since each activity will produce its own `introspect-<activity>` skill anyway.
 
 **Persist clusters:** at end of each activity, write the accepted cluster set to `<run-dir>/clusters/<activity>.json`:
 
@@ -177,12 +177,12 @@ Ask the user to: (a) accept, (b) merge with another proposal, (c) split off a mo
 
 For each activity that has ≥1 accepted cluster, draft:
 
-**`~/.claude/skills/mind-<activity>/SKILL.md`** (only the draft — write-back is Stage 7):
+**`~/.claude/skills/introspect-<activity>/SKILL.md`** (only the draft — write-back is Stage 7):
 
 ```markdown
 ---
-name: mind-<activity>
-description: Use when the current session is doing <activity> work — extracted from past sessions where the user redirected, endorsed, or struggled. Loaded by /xx-mind load when activity is detected.
+name: introspect-<activity>
+description: Use when the current session is doing <activity> work — extracted from past sessions where the user redirected, endorsed, or struggled. Loaded by /xx-introspect load when activity is detected.
 version: <N>
 generated_from_run: <run-id>
 generated_at: <iso-ts>
@@ -237,15 +237,15 @@ The user can audit any rule back to its source moments before accepting in Stage
 
 ### 7. Stage 7 (write-back) — M5
 
-Not yet implemented. After drafts are generated, present diff-style and let the user accept/reject per cluster. Accepted drafts get atomic-write to `~/.claude/skills/mind-<activity>/SKILL.md` and `~/.claude/settings.json`.
+Not yet implemented. After drafts are generated, present diff-style and let the user accept/reject per cluster. Accepted drafts get atomic-write to `~/.claude/skills/introspect-<activity>/SKILL.md` and `~/.claude/settings.json`.
 
-## `/xx-mind load`
+## `/xx-introspect load`
 
-Not yet implemented (M6). Placeholder: report "load subcommand pending — once mind-<activity> skills exist at ~/.claude/skills/, this will detect activity and Skill-invoke the right one."
+Not yet implemented (M6). Placeholder: report "load subcommand pending — once introspect-<activity> skills exist at ~/.claude/skills/, this will detect activity and Skill-invoke the right one."
 
 ## State file schema
 
-`~/.claude/mind-state.json`:
+`~/.claude/introspect-state.json`:
 
 ```json
 {
@@ -269,6 +269,6 @@ Initialize as `{"schema_version": 1, "last_run_at": null, "processed_session_ids
 ## Key rules
 
 - All outputs land under `~/.claude/`. Never write to repo-local `.claude/skills/` from this skill.
-- Never overwrite an existing `mind-<activity>` skill without an explicit user accept.
-- The `mind-cache/<run-id>/` directory is keep-forever for now (small JSON). M7 versioning will introduce pruning.
+- Never overwrite an existing `introspect-<activity>` skill without an explicit user accept.
+- The `introspect-cache/<run-id>/` directory is keep-forever for now (small JSON). M7 versioning will introduce pruning.
 - For the M1 implementation, only stage 1 (normalize) runs. Stages 2-7 should be scaffolded as TODOs in the skill body, not silently no-op.

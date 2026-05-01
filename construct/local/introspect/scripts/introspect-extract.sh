@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# mind-extract.sh — full extract+cluster pipeline against a chosen LLM.
+# introspect-extract.sh — full extract+cluster pipeline against a chosen LLM.
 #
 # Usage:
-#   mind-extract.sh <run-dir> [--activity NAME ...] [--limit N] [--force]
+#   introspect-extract.sh <run-dir> [--activity NAME ...] [--limit N] [--force]
 #
 # Flags:
 #   --activity NAME   Filter to segments whose activity matches NAME. Repeat for OR.
@@ -19,9 +19,9 @@
 #   CLUSTER_LLM   default: claude --print --system "$1"
 #
 # Examples (override at invocation):
-#   EXTRACT_LLM='codex --json --system "$1"' mind-extract.sh ~/.claude/mind-cache/<run>
-#   EXTRACT_LLM='gemini --system-instruction "$1"' mind-extract.sh ...
-#   EXTRACT_LLM='ollama_oneshot.sh gemma4:e4b "$1"' mind-extract.sh ...
+#   EXTRACT_LLM='codex --json --system "$1"' introspect-extract.sh ~/.claude/introspect-cache/<run>
+#   EXTRACT_LLM='gemini --system-instruction "$1"' introspect-extract.sh ...
+#   EXTRACT_LLM='ollama_oneshot.sh gemma4:e4b "$1"' introspect-extract.sh ...
 #
 # Outputs (in <run-dir>):
 #   patterns/<seg-id>.json   raw per-segment extraction JSON (cached for re-runs)
@@ -63,9 +63,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ── Default model invocation: claude headless with --system ──────────────────
-EXTRACT_LLM="${EXTRACT_LLM:-claude --print --system "\$1"}"
-CLUSTER_LLM="${CLUSTER_LLM:-claude --print --system "\$1"}"
+# ── Default model invocation: claude headless with --system-prompt ───────────
+# --tools "" disables all tools — this stage is pure text-in / JSON-out, so
+# tool wandering would just waste tokens and risk weird outputs.
+DEFAULT_LLM='claude --print --system-prompt "$1" --tools ""'
+EXTRACT_LLM="${EXTRACT_LLM:-$DEFAULT_LLM}"
+CLUSTER_LLM="${CLUSTER_LLM:-$DEFAULT_LLM}"
 
 # ── Pick target segments ─────────────────────────────────────────────────────
 list_args=(--cache-dir "$CACHE_DIR" --list)
@@ -103,7 +106,7 @@ mkdir -p "$PATTERNS_DIR"
 
 EXTRACT_SYSTEM="$(cat "$EXTRACT_PROMPT")"
 
-echo "[mind-extract] $TOTAL segment(s) to process. cache=$PATTERNS_DIR" >&2
+echo "[introspect-extract] $TOTAL segment(s) to process. cache=$PATTERNS_DIR" >&2
 
 i=0
 for sid in "${SEGMENTS[@]}"; do
@@ -135,7 +138,7 @@ for sid in "${SEGMENTS[@]}"; do
 done
 
 # ── Aggregate ────────────────────────────────────────────────────────────────
-echo "[mind-extract] aggregating patterns..." >&2
+echo "[introspect-extract] aggregating patterns..." >&2
 python3 "$SCRIPT_DIR/aggregate_patterns.py" \
   --cache-dir "$CACHE_DIR" \
   --patterns-dir "$PATTERNS_DIR" \
@@ -143,25 +146,25 @@ python3 "$SCRIPT_DIR/aggregate_patterns.py" \
 
 PCOUNT=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(len(d))" "$CACHE_DIR/patterns.json")
 if [[ "$PCOUNT" -eq 0 ]]; then
-  echo "[mind-extract] 0 patterns aggregated. Stopping before clustering." >&2
+  echo "[introspect-extract] 0 patterns aggregated. Stopping before clustering." >&2
   exit 0
 fi
-echo "[mind-extract] aggregated $PCOUNT pattern(s)" >&2
+echo "[introspect-extract] aggregated $PCOUNT pattern(s)" >&2
 
 # ── Cluster ──────────────────────────────────────────────────────────────────
-echo "[mind-extract] clustering..." >&2
+echo "[introspect-extract] clustering..." >&2
 CLUSTER_SYSTEM="$(cat "$CLUSTER_PROMPT")"
 if ! cat "$CACHE_DIR/patterns.json" \
    | bash -c "$CLUSTER_LLM" _ "$CLUSTER_SYSTEM" \
    > "$CACHE_DIR/clusters.json.tmp"
 then
-  echo "[mind-extract] cluster command failed" >&2
+  echo "[introspect-extract] cluster command failed" >&2
   rm -f "$CACHE_DIR/clusters.json.tmp"
   exit 3
 fi
 mv "$CACHE_DIR/clusters.json.tmp" "$CACHE_DIR/clusters.json"
 
-echo "[mind-extract] done." >&2
+echo "[introspect-extract] done." >&2
 echo "  per-segment: $PATTERNS_DIR/" >&2
 echo "  patterns:    $CACHE_DIR/patterns.json" >&2
 echo "  clusters:    $CACHE_DIR/clusters.json" >&2

@@ -2,7 +2,7 @@
 """
 Normalize Claude Code JSONL transcripts into structured per-session records.
 
-Stage 1 of the /xx-mind extract pipeline. Reads ~/.claude/projects/*/*.jsonl,
+Stage 1 of the /xx-introspect extract pipeline. Reads ~/.claude/projects/*/*.jsonl,
 groups events by sessionId, summarizes each session, emits sessions.json +
 run.json into a run-scoped cache dir.
 

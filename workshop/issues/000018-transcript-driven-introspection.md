@@ -6,7 +6,7 @@ created: 2026-04-30
 updated: 2026-04-30
 ---
 
-# Transcript-Driven Mind Extraction Skill
+# Transcript-Driven Introspection Skill
 
 ## Problem
 
@@ -19,14 +19,14 @@ this role but atrophies in practice because it asks for *synthesis* mid-session,
 which is the expensive step.
 
 This issue proposes an **ariadne base-layer skill** (working name
-`/xx-mind-extract` or similar) that any ariadne-styled repo's user can invoke
+`/xx-introspect-extract` or similar) that any ariadne-styled repo's user can invoke
 to run a post-hoc extraction pass over their accumulated transcripts and
-produce activity-typed `mind-<activity>` skills (mind-code-review,
-mind-brainstorm, mind-planning, mind-debugging, …) plus updates to lessons.md,
+produce activity-typed `introspect-<activity>` skills (introspect-code-review,
+introspect-brainstorming, introspect-planning, introspect-debugging, …) plus updates to lessons.md,
 AGENTS.md, permissions, and the skill inventory of the repo it's invoked from.
 
 Cadence is user-driven: invoke biweekly, or whenever the user feels the agent
-isn't picking up on patterns. Each version of the extracted minds should make
+isn't picking up on patterns. Each version of the extracted introspect skills should make
 future sessions feel a little more like working with someone who knows the
 user's taste, without overfitting to past work.
 
@@ -37,7 +37,7 @@ The pipeline is generic — it operates on `~/.claude/projects/*.jsonl`,
 classifies sessions by activity, clusters corrections, and writes back into
 the repo's `.claude/skills/` and `AGENTS.md`. Nothing about it is brain-
 specific. Living in ariadne means every downstream repo inherits it via
-`construct/setup.sh` and gets per-repo `mind-*` skills tuned to that repo's
+`construct/setup.sh` and gets per-repo `introspect-*` skills tuned to that repo's
 work mix.
 
 ### Capture (live, lightweight — no synthesis)
@@ -78,7 +78,7 @@ Stages:
 4. **Cluster within activity bucket**: similar moments → recurring themes.
    Three independent corrections of the same shape = a rule candidate.
 5. **Write back into the invoking repo**:
-   - New or updated `mind-<activity>.md` skill (situational, invoked only when
+   - New or updated `introspect-<activity>.md` skill (situational, invoked only when
      activity matches).
    - Always-on AGENTS.md additions kept narrow: communication style, terseness,
      vocabulary preferences. Don't dump everything into the always-on slot.
@@ -90,13 +90,13 @@ Stages:
    sits unread.
 
 ### Versioning the extractor (not just the artifact)
-When cutting `mind-<activity>-v(N+1)`, also re-run v(N)'s extractor on the
+When cutting `introspect-<activity>-v(N+1)`, also re-run v(N)'s extractor on the
 *current* corpus and diff. Lets the user separate "algorithm got better" from
 "more data." Without this, two confounded axes get optimized blind.
 
 ### Failure mode to watch
 The extractor will lock in past strong signals. As the user's work moves into
-new domains, old minds can hurt rather than help. Each version should be
+new domains, old introspect skills can hurt rather than help. Each version should be
 checked against *new* work, not just repeat work. The skill should make it
 easy to retire rules that don't generalize.
 
@@ -113,7 +113,7 @@ easy to retire rules that don't generalize.
   (c) build preference pairs for a small DPO adapter (if ever).
 
 ### ROI framing
-The pipeline produces useful by-products even if no `mind-*` skill ever feels
+The pipeline produces useful by-products even if no `introspect-*` skill ever feels
 decisively better in vibe-check:
 - Personal eval set from (context, chosen, rejected) triples.
 - Friction-cluster list = to-do for tooling/permission/skill cleanup.
@@ -121,19 +121,19 @@ decisively better in vibe-check:
   actually spent.
 
 So the win condition is "did running the skill surface useful artifacts", not
-"did the produced minds measurably help" — the latter is unmeasurable given
+"did the produced introspect skills measurably help" — the latter is unmeasurable given
 model churn, harness churn, and changing work mix.
 
 ## Plan
 
-Detailed design: [workshop/plans/000018-transcript-driven-mind-extraction-skill-plan.md](../plans/000018-transcript-driven-mind-extraction-skill-plan.md)
+Detailed design: [workshop/plans/000018-transcript-driven-introspect-extraction-skill-plan.md](../plans/000018-transcript-driven-introspect-extraction-skill-plan.md)
 
 Decisions locked:
-- Invocation: `/xx-mind extract` and `/xx-mind load` (umbrella skill `xx-mind` with subcommands; not a construct subcommand)
-- No AGENTS.md writes — extracted taste lives in `mind-<activity>.md` files loaded on demand via `/xx-mind load`
+- Invocation: `/xx-introspect extract` and `/xx-introspect load` (umbrella skill `xx-introspect` with subcommands; not a construct subcommand)
+- No AGENTS.md writes — extracted taste lives in `introspect-<activity>.md` files loaded on demand via `/xx-introspect load`
 - Friction journal: cross-repo `~/.claude/friction.md`
 - Activity taxonomy v1: code-review, brainstorming, planning, debugging, implementation, exploration
-- One `mind-<activity>` skill per activity, prior versions retained for diffing
+- One `introspect-<activity>` skill per activity, prior versions retained for diffing
 - Scope (current repo / all / select) chosen at invocation; output destination derived from scope
 - Clustering v1: interactive in-session with the user, no automated clusterer
 - No friction journal in v1: extractor's Stage 3 `friction` signal already covers what a live journal would capture
@@ -143,10 +143,10 @@ Milestones:
 - [x] M2 — Activity classifier (rule-based + LLM fallback)
 - [x] M3 — Moment detection (4 of 6 detectors; taste-fingerprint + process-shape deferred)
 - [x] M4 — Interactive cluster + draft generation (skill instructions + viewer; verification deferred to dogfood)
-- [ ] M5 — Review + write-back to mind-*, memory, permissions, lessons
-- [ ] M6 — `/xx-mind load` + close-the-loop
+- [ ] M5 — Review + write-back to introspect-*, memory, permissions, lessons
+- [ ] M6 — `/xx-introspect load` + close-the-loop
 - [ ] M7 — Versioning + `--rerun-version` diff
-- [ ] M8 — First real run on user's corpus; produce `mind-*-v1`
+- [ ] M8 — First real run on user's corpus; produce `introspect-*-v1`
 - [ ] M9 — Stabilize, add to `construct/base.manifest`, update atlas
 
 ## Log
@@ -191,6 +191,38 @@ Re-classify after fixes: same 16 high-confidence count, all 16 still
 correct. One brainstorming row went to ambiguous (correct — relied on
 overfit keyword).
 
+### 2026-04-30 — rename mind → introspect; sub-skills auto-load
+Two changes after the dogfood walkthrough:
+
+1. **Rename**: `mind` was too generic — this skill family asks the agent
+   to *introspect* on past sessions. Renamed throughout:
+   - `xx-mind` → `xx-introspect`
+   - `mind-<activity>` → `introspect-<activity>` (all 5 deployed sub-skills
+     renamed in place under `~/.claude/skills/`)
+   - `~/.claude/mind-cache/` → `~/.claude/introspect-cache/` (preserves
+     dogfood patterns + clusters from today's run)
+   - `mind-extract.sh` → `introspect-extract.sh`
+   - `construct/local/mind/` → `construct/local/introspect/` (git mv)
+   - issue + plan filenames and content
+
+2. **Sub-skills are now auto-loading.** The original draft frontmatter
+   said "Not auto-triggered. Loaded explicitly via /xx-mind load" — that
+   pushed all responsibility for invocation onto the user. Rewrote each
+   `introspect-<activity>/SKILL.md` description to name the activity-shape
+   signals Claude Code's discovery should look for. Examples:
+   - introspect-debugging: "Auto-load on error pastes, 'help me debug',
+     'why does X happen', repeated tool failures pointing at the same
+     root cause."
+   - introspect-implementation: "Auto-load once the assistant has begun
+     touching files (writes/edits) and the session has a concrete code
+     task."
+   The "auto-load once X" / "auto-load when Y" wording is the trigger
+   contract; Claude Code uses these descriptions for skill discovery.
+
+Smoke-tested: segment_text.py + test_detect.py work against the renamed
+paths. Cache directory, patterns.json, clusters.json, and the 5 deployed
+sub-skills all preserved through the rename.
+
 ### 2026-04-30 — UNIX kit completed: aggregator + controller
 Added the missing pieces flagged after segment_text.py:
 
@@ -200,7 +232,7 @@ Added the missing pieces flagged after segment_text.py:
   from (segment_id + summary[:80] + ts), decorates with segment_id +
   activity from classified.json. Emits to stdout or `--out`. Writes sidecar
   `.summary.json` with file/pattern counts.
-- `scripts/mind-extract.sh` — full extract+cluster controller. Lists target
+- `scripts/introspect-extract.sh` — full extract+cluster controller. Lists target
   segments (with --activity / --limit filters), runs per-segment extraction
   via configurable `EXTRACT_LLM` env var, aggregates, runs cluster pass via
   `CLUSTER_LLM`. Cache-aware: per-segment outputs are written individually
@@ -218,10 +250,10 @@ all 3, mv-into-place pattern protects against partial writes.
 ### 2026-04-30 — UNIX kit for LLM-direct extraction
 After clustering 0 buckets out of 12 from the heuristic detector run, pivoted to LLM-direct extraction. Built composable text-on-stdout kit so the same pipeline runs against any model:
 
-- `construct/local/mind/scripts/segment_text.py` — emit one segment's transcript as human-readable markdown chunk on stdout. Truncates assistant text >4k chars and tool results >600 chars to keep typical segments under ~30k tokens. Light markup: `== role @ ts ==` turn delimiters, `[tool: NAME …]` tool-use lines, `[tool_result @ ts]` results. Header carries activity / cwd / branch / shape / closing-recap. Supports `--list` (id+activity, one per line) and `--activity` filter for shell composition.
-- `construct/local/mind/prompts/extract.md` — system prompt for per-segment pattern extraction. Strict JSON output. "Empty is the correct answer for most segments" (precision over recall baked in).
-- `construct/local/mind/prompts/cluster.md` — system prompt for cross-segment clustering. ≥2-segment threshold; activity-scoped (no cross-activity merging in v1).
-- `construct/local/mind/scripts/README.md` — composition docs with worked examples for claude CLI, Anthropic API curl, codex / OpenAI, Gemini CLI, local ollama-style wrappers.
+- `construct/local/introspect/scripts/segment_text.py` — emit one segment's transcript as human-readable markdown chunk on stdout. Truncates assistant text >4k chars and tool results >600 chars to keep typical segments under ~30k tokens. Light markup: `== role @ ts ==` turn delimiters, `[tool: NAME …]` tool-use lines, `[tool_result @ ts]` results. Header carries activity / cwd / branch / shape / closing-recap. Supports `--list` (id+activity, one per line) and `--activity` filter for shell composition.
+- `construct/local/introspect/prompts/extract.md` — system prompt for per-segment pattern extraction. Strict JSON output. "Empty is the correct answer for most segments" (precision over recall baked in).
+- `construct/local/introspect/prompts/cluster.md` — system prompt for cross-segment clustering. ≥2-segment threshold; activity-scoped (no cross-activity merging in v1).
+- `construct/local/introspect/scripts/README.md` — composition docs with worked examples for claude CLI, Anthropic API curl, codex / OpenAI, Gemini CLI, local ollama-style wrappers.
 - `workshop/plans/000018-...-plan.md` — added v1.1 revision header documenting the pivot.
 
 Ergonomics verified: `segment_text.py | head` exits cleanly via SIGPIPE handler; small segments render to ~8KB / 150 lines; one 64-min segment renders to ~99KB / 2k lines.
@@ -288,12 +320,12 @@ prose findings to fix. Addressed in `44ea2e6`:
   - Bucket order: redirect → friction → endorsement(w=2) → edit-after-edit.
   - Skip thresholds: ≥3 moments AND ≥2 distinct sessions for cluster.
   - Cluster persistence at `<run-dir>/clusters/<activity>.json`.
-  - Draft templates for `mind-<activity>/SKILL.md` and permission
+  - Draft templates for `introspect-<activity>/SKILL.md` and permission
     additions, with provenance trails to moment IDs.
 - Stage 7 (write-back) deferred to M5.
 - Verification target ("walk through clustering on M3 output, manual
   review of false-positive rate") deferred to M8 dogfood when the user
-  actually runs `/xx-mind extract` end-to-end.
+  actually runs `/xx-introspect extract` end-to-end.
 
 ### 2026-04-30 — M3 review
 Post-milestone review (BASE 9ee758e → HEAD d14e82c) flagged four Important
@@ -349,8 +381,8 @@ Real-corpus output unchanged (157 moments).
   need cross-run continuity.
 
 ### 2026-04-30 — M1 done
-- Scaffolded `construct/local/mind/` (SKILL.md + scripts/normalize.py)
-- Symlink `xx-mind → ../../construct/local/mind` registered via construct sync hook
+- Scaffolded `construct/local/introspect/` (SKILL.md + scripts/normalize.py)
+- Symlink `xx-introspect → ../../construct/local/mind` registered via construct sync hook
 - Normalizer reads JSONL line-by-line, groups by sessionId, extracts:
   cwd, gitBranch, timestamps, user/assistant message counts, tool calls (by
   name), files written/edited/read, bash command count, slash commands,
@@ -359,7 +391,7 @@ Real-corpus output unchanged (157 moments).
   - `--project charon` → 1 dir, 6 sessions, 7347 events
   - `--scope current --cwd .../ariadne` → 1 dir, 9 sessions, 917 events
   - `--scope all` not yet exercised but uses same code path as the others
-- Output: `~/.claude/mind-cache/<run-id>/sessions.json` + `run.json`
+- Output: `~/.claude/introspect-cache/<run-id>/sessions.json` + `run.json`
 - Notes for downstream stages:
   - Sessions can be 18+ hours (session-resume preserves sessionId). May want
     `away_summary` event-based subdivision later.
@@ -367,5 +399,5 @@ Real-corpus output unchanged (157 moments).
     should filter `assistant_message_count == 0`.
   - Git correlation (commits landed in session window) not yet wired —
     deferred until M3 detectors actually need it.
-  - State file `~/.claude/mind-state.json` not yet read/written; the skill body
+  - State file `~/.claude/introspect-state.json` not yet read/written; the skill body
     is the place to do that since multiple stages mutate it.

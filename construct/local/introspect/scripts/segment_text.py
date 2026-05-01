@@ -3,8 +3,8 @@
 Emit one segment's transcript as a human-readable chunk on stdout.
 
 This is the "extract one chunk to send to an LLM" half of the UNIX kit for
-mind-extraction. It does not call any LLM; it just emits text. Pair with a
-prompt file (e.g. construct/local/mind/prompts/extract.md) and pipe both
+introspect-extraction. It does not call any LLM; it just emits text. Pair with a
+prompt file (e.g. construct/local/introspect/prompts/extract.md) and pipe both
 into whichever model you prefer.
 
 Usage:
@@ -280,7 +280,7 @@ def render_segment(segment: dict[str, Any], events: list[dict[str, Any]]) -> str
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--cache-dir", required=True, help="Run cache dir from /xx-mind extract.")
+    ap.add_argument("--cache-dir", required=True, help="Run cache dir from /xx-introspect extract.")
     ap.add_argument("--segment", help="Full segment id (<uuid>#s<N>) or short form (<uuid8>#<N>).")
     ap.add_argument("--list", action="store_true",
                     help="List all segment ids in the cache instead of rendering one. "

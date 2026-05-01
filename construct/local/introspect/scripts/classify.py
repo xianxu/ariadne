@@ -2,7 +2,7 @@
 """
 Classify each session in sessions.json into one of six activity buckets.
 
-Stage 2 of the /xx-mind extract pipeline. Rule-based scoring on signals
+Stage 2 of the /xx-introspect extract pipeline. Rule-based scoring on signals
 already captured by normalize.py: slash commands, tool counts, file paths
 written, first user message keywords. Confident classifications stand;
 ambiguous ones are flagged for the orchestrating skill to disambiguate
