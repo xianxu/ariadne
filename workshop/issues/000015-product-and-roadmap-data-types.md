@@ -1,9 +1,9 @@
 ---
 id: 000015
-status: working
-deps: [000012]
+status: blocked
+deps: [000012, 000016]
 created: 2026-04-29
-updated: 2026-04-29
+updated: 2026-05-03
 references: [/Users/xianxu/workspace/brain/memory/life/42shots/ideas/2026-04-28-02-pensive-ariadne-arc.md]
 ---
 
@@ -121,3 +121,7 @@ These are the smallest typed pair that can test "model a company as data." Perso
   - `roadmap` = month-level aggregate of projects + KTLO (KTLO modeled as an issue-priority flag, not a separate datatype).
   - Updated `construct/datatype/product.md` lede paragraph to drop the "umbrella" claim and point at project + roadmap as siblings.
   - Roadmap prototype currently references product components directly. May need rework once project lands (roadmap → projects → product components vs current roadmap → components). Deferred to `000016`'s dogfood phase to discover.
+
+### 2026-05-03
+
+- **Blocked on #16.** Dogfood is happening via `brain/data/project/charon-release-push.md` (the project datatype), not via product/roadmap. Roadmap likely needs to reference projects rather than product components directly — that rework should be informed by #16's velocity-calibration evidence rather than pre-committed. Resume #15 once #16 closes and we have a real project + month of data to author a roadmap against.

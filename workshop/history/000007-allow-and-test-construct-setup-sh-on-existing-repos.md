@@ -1,9 +1,9 @@
 ---
 id: 000007
-status: working
+status: done
 deps: []
 created: 2026-04-21
-updated: 2026-04-21
+updated: 2026-05-03
 ---
 
 # Allow and test construct/setup.sh on existing repos
@@ -67,8 +67,8 @@ After `/construct adopt`, `setup.sh` becomes purely mechanical:
 ## Plan
 
 - [x] Write spec (this file)
-- [ ] Add `/construct adopt` command to construct skill SKILL.md
-- [ ] Test on `../parley.nvim`
+- [x] Add `/construct adopt` command to construct skill SKILL.md
+- [x] Test on `../parley.nvim`
 
 ## Log
 
@@ -77,3 +77,7 @@ After `/construct adopt`, `setup.sh` becomes purely mechanical:
 - Analyzed setup.sh behavior with existing files — skips regular files silently
 - Identified extension points: AGENTS.local.md, settings.local.json, Makefile.local
 - Designed `/construct adopt` as the nuanced one-time migration, leaving setup.sh as repair/refresh
+
+### 2026-05-03
+
+- `/construct adopt` shipped in `.claude/skills/construct/SKILL.md`; confirmed tested on `../parley.nvim`. Closing.
