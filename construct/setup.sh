@@ -52,6 +52,7 @@ fi
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[1;36m'
+BOLD_RED='\033[1;31m'
 RESET='\033[0m'
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -170,6 +171,27 @@ fi
 # If no flag passed: preserve previous mode, else default to symlink (first-time).
 if [[ -z "$MODE" ]]; then
     MODE="${PREVIOUS_MODE:-symlink}"
+fi
+
+# Confirm first-time setup in a new repo (no .ariadne-mode marker yet).
+# Guards against accidental runs in the wrong directory.
+if [[ -z "$PREVIOUS_MODE" ]]; then
+    REPO_NAME=$(basename "$TARGET_DIR")
+    printf "${YELLOW}First-time ariadne setup in:${RESET} ${BOLD_RED}%s${RESET}\n" "$REPO_NAME"
+    printf "  Path: %s\n" "$TARGET_DIR"
+    printf "  Mode: %s\n" "$MODE"
+    if ! $ASSUME_YES; then
+        if [[ ! -t 0 ]]; then
+            echo "Error: first-time setup requires --yes in non-interactive runs." >&2
+            exit 1
+        fi
+        read -r -p "Set up ariadne base layer in this repo? [y/N] " reply
+        case "$reply" in
+            y|Y|yes|YES) ;;
+            *) echo "Aborted."; exit 1 ;;
+        esac
+    fi
+    printf "\n"
 fi
 
 if [[ -n "$PREVIOUS_MODE" && "$PREVIOUS_MODE" != "$MODE" ]]; then
