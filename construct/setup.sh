@@ -321,7 +321,6 @@ fi
 # ── Ensure .gitignore entries ─────────────────────────────────────────────────
 GITIGNORE="$TARGET_DIR/.gitignore"
 GITIGNORE_ENTRIES=(
-    ".constitution-check-state"
     ".goto"
     ".openshell/.bootstrap/"
     ".openshell/.base-image-digest"
