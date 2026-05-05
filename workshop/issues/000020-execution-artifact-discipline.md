@@ -1,10 +1,12 @@
 ---
 id: 000020
-status: open
+status: done
 deps: []
 github_issue:
 created: 2026-05-04
 updated: 2026-05-04
+estimate_hours: 2
+actual_hours: 1
 ---
 
 # Execution artifact discipline
@@ -48,11 +50,11 @@ The trio architecture — **charon = outbound capability / nous = task capabilit
 
 Land in 4 sequential commits, all referencing this issue:
 
-- [ ] **Commit 1**: `AGENTS.md` updates — closing checklist (§5b), commit conventions (§12), atlas/project-file/scope-revision rule sharpens (§1, §8), self-improvement-loop generalization (§4).
-- [ ] **Commit 2**: `construct/local/issues/SKILL.md` updates — `actual_hours` required at close, `## Side quests` subsection format, `## Log` "Session summary" sub-format.
-- [ ] **Commit 3**: `construct/datatype/project.md` reinforcement — scope events visible in project file; reference back to AGENTS.md §1 revisions rule.
-- [ ] **Commit 4**: README touch-ups + atlas index entry pointing at the new conventions.
-- [ ] After landing, run `make refresh` in brain / charon / nous so descendants pick up. Verify with one cycle (e.g., next charon issue authored after this lands).
+- [x] **Commit 1** `5ace498`: `AGENTS.md` updates — closing checklist (in §5), commit conventions (new §12), atlas/project-file/scope-revision rule sharpens (§1, §8), self-improvement-loop generalization (§4).
+- [x] **Commit 2** `bb037d3`: `construct/local/issues/SKILL.md` updates — `actual_hours` required at close, `## Side quests` subsection format, `## Log` "Session summary" sub-format.
+- [x] **Commit 3** `2cb066c`: `construct/datatype/project.md` reinforcement — scope events visible in project file; reference back to AGENTS.md §1 revisions rule.
+- [x] **Commit 4** (this): atlas/workflow/issue-lifecycle.md + atlas/index.md touch-ups pointing at the new conventions.
+- [ ] After landing, run `make refresh` in brain / charon / nous so descendants pick up. Verify with one cycle (e.g., next charon issue authored after this lands). **(Operator follow-up)**
 
 ## Estimate
 
@@ -77,4 +79,28 @@ Caveats:
 
 ## Log
 
-(empty — populated as work proceeds)
+### 2026-05-04 — session summary
+
+Filed and implemented in one sitting following the charon-launch-push retrospective. Spec was thorough (worked from a target-file mapping prepared during the retrospective conversation), so all 4 commits landed mechanically — no design pivots, no scope events.
+
+Token cost: AGENTS.md grew **2185 → 3256** (cl100k_base, +1071 tokens, +50%). Operator flagged this as worth shrinking later; content density preserved over brevity for now.
+
+Wording-precision concern noted in the estimate caveats — the 4-commit set is a single review surface for the operator. Self-review pass before close: rules read as "discipline you follow" rather than "fences that block you," and they cross-reference each other consistently (closing checklist in §5 → atlas/project-file rules in §8 → versioned-playbook pattern in §4 → commit conventions in §12 → xx-issues skill enforcement → project datatype scope-event logging). Each rule names the *why* (the charon-launch-push observation that prompted it) so future-you can decide whether the cost is worth keeping.
+
+Velocity calibration: estimated 1.5–4 hr (mid 2.5) under v2.1 Method A; actual ~1 hr. Below the low end. Drivers: spec quality was unusually high (this issue's Spec section IS the design), the work was 100% docs/convention with zero discovery, and no review iteration was needed. v2.1 over-estimated this issue by ~2.5×; logged as a v2.1 validation entry below.
+
+### 2026-05-04 — Commits in flight
+
+- `b17da01` issue filed
+- `5ace498` AGENTS.md (Commit 1)
+- `bb037d3` xx-issues SKILL (Commit 2)
+- `2cb066c` project datatype (Commit 3)
+- `(this commit)` atlas touch-ups + close (Commit 4)
+
+## Validation log entry
+
+For appending to `brain/data/life/42shots/velocity/estimate-logic-v2.1.md`'s validation table — the first post-v2.1 actual.
+
+| Project | Estimated (low–high) | Actual hours | Off by | Notes |
+|---|---|---|---|---|
+| ariadne #20 (execution artifact discipline) | 1.5–4 hr | ~1 hr | 2.5× over (vs mid 2.5 hr) | All docs/convention work; spec quality ×0.2 across all primitives; no review iteration. v2.1 still slightly conservative for pure-docs issues with thorough specs — confirms the "plan-doc-thoroughness rewarding" open question from baseline-v2.1. Single data point; revisit when 2nd post-v2.1 actual lands. |

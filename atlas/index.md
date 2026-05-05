@@ -5,7 +5,7 @@ Central directory for atlas entries — practical pointers for future developers
 
 ## 1. Workflow System (base layer)
 - [Workflow Index](workflow/index.md) — issue-based development loop
-- [Issue Lifecycle](workflow/issue-lifecycle.md) — GitHub → local → archive flow
+- [Issue Lifecycle](workflow/issue-lifecycle.md) — GitHub → local → archive flow; closing checklist (actual_hours, side-quest log, validation-log entry)
 - [Artifact Hierarchy](workflow/artifact-hierarchy.md) — where things live
 - [Pre-merge Checks](workflow/pre-merge-checks.md) — constitution enforcement
 - [Directory Conventions](workflow/directory-conventions.md) — standard repo layout
