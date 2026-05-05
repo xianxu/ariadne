@@ -14,6 +14,7 @@
 - When done, the artifacts in `workshop/issues/` and `workshop/plans/` are moved to `workshop/history/`
 - `workshop/parley` contains parley chats related to this repo, think them as brainstorming
 - `docs/vision` - visionary notes about this repo. In particular -pensive- are less well structured notes, in a similar vein to `workshop/parley` but more focused on a topic
+- **When revising a plan mid-stream** (scope grew, primitives changed, a design decision flipped), append a `## Revisions` section to the plan doc with timestamp + reason + delta. **Don't overwrite the original section in place.** Future readers — and future-you calibrating estimates — need to see what *would* have shipped under the original scope vs. what got pulled in. Same rule for the parent project file's detail blocks: log scope events, don't rewrite history.
 
 ### 2. Overall Workflow
 - Enter brainstorming mode when requirement is unclear
@@ -55,12 +56,25 @@
 - You MUST update `workshop/lessons.md` with the pattern what went wrong when you make mistakes
 - Write rules for yourself that prevent the same mistake
 - You MUST Review lessons at session start for relevant project. You should also simplify what is in lessons to keep it concise
+- **For policy/playbook deliverables likely to drift over time** (estimates, prompt templates, threat models, decision logs), use the **paired-versioned-files + calibration-loop pattern**:
+  - Pair `<thing>-vN.md` (logic / algorithm / rules) with `<thing>-baseline-vN.md` (data / calibration / historical record). Every release pairs both files; if one side has no substantive change for that release, that file is a pure shim pointing to the prior version.
+  - Every produced output carries a *provenance string* naming which version-pair produced it (e.g., `Produced via <logic-path> against <baseline-path>. Method <X>.`). Future agents grep for these to recalibrate against actuals.
+  - Append to a *validation log* on each project close so calibration drift surfaces explicitly.
+  - Document version-bump rules: patch (vN.x) for calibration tweaks, minor (v(N+1)) for algorithm shape change.
+  - Brain's velocity skill at `data/life/42shots/velocity/` is the canonical instantiation; it lives in personal state because calibration data is personal (timestamps, individual coding pace, stack choices). Ariadne descendants build their own when they need one — don't inherit the constants.
 
 ### 5. Verification Before Done
 - NEVER mark a task complete without proving it works
 - Diff behavior between main and your changes
 - Ask yourself: "Would a staff engineer approve this?"
 - Run tests, check logs, demonstrate correctness
+- **Closing checklist** when an issue or milestone flips to done. Do these in one sweep — partial closure causes status drift across artifact layers:
+  1. Verify behavior (the four bullets above).
+  2. Tick the milestone in the issue's `## Plan` and flip `status` frontmatter to `done`.
+  3. Record `actual_hours: <N>` in the issue's frontmatter — feel-time across the issue's commit window, including side-quests it triggered. Mechanical; not optional. Without this the velocity calibration loop cannot close.
+  4. Update the parent project file (if any) — tick the corresponding task in `## tasks`, update its detail block under `## details` with `**actual:** <N>` and `**closed:** <date>`.
+  5. Update `atlas/` for any new architectural surface introduced by the work (see §8).
+  6. Append to the validation log in the relevant `<thing>-vN.md` if this issue was estimated under a versioned playbook (see §4).
 
 ### 6. Demand Elegance
 - For non-trivial changes: pause and ask "is there a more general and elegant way?"
@@ -74,10 +88,16 @@
 - Point at logs, errors, failing tests — then resolve them
 - Zero context switching required from the user
 
-### 8. Maintenance of Atlas
-- As you update issue plans and code, continuously update corresponding atlas entries in `atlas/` folder
+### 8. Maintenance of Cross-Cutting Artifacts
+
+**Atlas:**
+- **At each milestone close**, before moving to the next milestone, update corresponding atlas entries in `atlas/` for any new architectural surface, flow, or terminology introduced by the work. Don't defer to an end-of-project docs sweep — by then, the per-milestone delta is forgotten and atlas drifts stale.
 - Maintain the `atlas/index.md` that links to all atlas files with brief descriptions of their contents.
-- Synthesize what we just built into a reusable atlas document. DO NOT over specify — `atlas/` is a practical map for future developers to know the sketch of functionalities, history and intention behind them. Details should live in the code
+- Synthesize what we just built into a reusable atlas document. DO NOT over specify — `atlas/` is a practical map for future developers to know the sketch of functionalities, history and intention behind them. Details should live in the code.
+
+**Project file** (when an issue is part of a multi-issue project — see `construct/datatype/project.md`):
+- Same per-milestone discipline: tick tasks, update detail blocks (`**actual:**`, `**closed:**`, scope-event notes) at each milestone close, not at end-of-project. The project file is the *portfolio view*; if it lags the issue, the operator can't see real status when they reopen the project days later.
+- Scope events (broadening, demoting, punting) get logged in the project file's affected detail block with timestamp + reason. Same posture as plan-doc revisions in §1: append, don't overwrite.
 
 ### 9. Pay attention to User Questions
 - When user poses question, answer the question as clearly and directly as possible
@@ -93,6 +113,12 @@
 ### 11. SKILL.md
 - Follow standard in https://agentskills.io/home, generally speaking. Agent skill is a way to modularize and harmonize agent prompting and deterministic code
 - Treat any folder with SKILL.md as Agent Skills, regardless where they are
+
+### 12. Commit Conventions
+- Shape: `<area>: <subject>` or `<area>: <verb>: <subject>`. The area is a short scope tag (component, file, subsystem); the subject is a present-tense one-liner.
+- Reference the issue / milestone in the subject when applicable: `#15 M4b: catalog revoke dispatcher + list/manage TUI`. Future agents grep `git log --grep "^#15"` to reconstruct an issue's commit timeline.
+- Use **`side-quest:`** as the verb for unbudgeted work that landed in a session — work that wasn't in any plan but was the right thing to do during e2e (a Makefile fix, a small UX polish, a stack-trace insight that became a defensive comment). Example: `tui: side-quest: bold ctrl+o hint so it doesn't blend into muted text`. `git log --grep "side-quest:"` then surfaces unplanned-but-shipped work for retrospective and estimate calibration. Without the tag, side-quests dissolve into the diff and ~20% of project effort goes uncounted (charon-launch-push observation).
+- Use the commit body for **why**, not what. The diff shows what; the message preserves intent. Multi-paragraph bodies are encouraged for design-bearing commits (posture flips, schema decisions, threat-model amendments).
 
 ## Task Management
 1. **Note starting point**: save current state before making changes (e.g. git commit or branch)
