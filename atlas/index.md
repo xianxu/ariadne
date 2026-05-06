@@ -13,6 +13,9 @@ Central directory for atlas entries — practical pointers for future developers
 ## 2. Sandbox Environments
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
 
+## 2.5 Brain Convention
+- [Brain Manifest](brain-manifest.md) — `.brain/config.md` marker convention; how downstream tools (nous#3, #4, #6, charon#21) converge on it; pointer to the threat-model depth
+
 ## 3. Base Layer Infrastructure
 - [Base Layer](workflow/base-layer.md) — how to adopt ariadne's base layer, path conventions, runtime artifacts
 - [base.manifest](../construct/base.manifest) — canonical list of portable paths
