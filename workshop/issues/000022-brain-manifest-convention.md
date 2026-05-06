@@ -1,10 +1,11 @@
 ---
 id: 000022
-status: open
+status: done
 deps: []
 created: 2026-05-05
 updated: 2026-05-05
 estimate_hours: 1
+actual_hours: 0.4
 ---
 
 # brain manifest convention in the constitution
@@ -61,6 +62,10 @@ Out of scope for this issue:
 
 ## Log
 
+
+
+- 2026-05-05: closed M1 — AGENTS.md §1 extended (commit 472139c); atlas/brain-manifest.md pointer added with index entry
+- 2026-05-05: closed M2 — make refresh ran in nous and charon; AGENTS.md updated in both; brain follows via symlink
 ### 2026-05-05
 
 - Issue spec'd. Carved out from `nous#3` after recognizing that the manifest convention is a constitutional-level change affecting multiple downstream tools, not a `nous#3`-internal convention.
