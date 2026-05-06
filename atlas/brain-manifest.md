@@ -6,11 +6,12 @@ A pointer for agents and humans encountering the brain manifest convention in th
 
 A repo is a **brain** iff it contains `.brain/config.md` at its root. The manifest declares:
 
-- `mode: private | shared`
+- `mode: private | shared` — derivable from `recipients:` length, kept for legibility
 - `name: <slug>` — brain identity for cross-brain references, decoupled from directory and remote name
-- `recipients:` — for shared mode, the GPG fingerprints admitted to the brain
-- `passphrase_source:` — for private mode, where the gcrypt passphrase is fetched from (`keychain`, `op`, `tty`, `env`)
-- `sync_substrate:` — for shared mode, the sync mechanism (`syncthing`, `git-daemon`, `none`)
+- `recipients: [<gpg-fingerprint>, ...]` — always present; the GPG public-key fingerprints admitted to the brain. Private brains have a list of one (the user); shared brains have multiple
+- `sync_substrate: syncthing | git-daemon | none` — for shared mode
+
+All brains use the same encryption mechanism: gcrypt with a GPG recipient list. The daily unlock chain is uniform on every machine — GPG private key in `~/.gnupg/`, passphrase in macOS login Keychain, fed to gpg-agent via pinentry-mac. The manifest does not declare per-machine unlock paths.
 
 A repo without `.brain/config.md` is **not** a brain — agents apply brain-aware behavior (encryption, sync, cross-brain reference resolution) only to repos that declare themselves.
 
@@ -36,3 +37,4 @@ Full schema rationale, security posture, threat boundaries, and per-mode implica
 ## History
 
 - 2026-05-05 — convention added to `AGENTS.md` §1 under `ariadne#22` M1, propagated downstream via `make refresh` in `ariadne#22` M2. Spec'd from `brain/atlas/threat-model-shared-brain.md` (authored under `nous#8` M1).
+- 2026-05-06 — schema simplified after the single-GPG-scheme reshape (see threat-model `## Revisions`). Dropped `passphrase_source:` (no longer needed; daily fetch is uniformly gpg-agent + pinentry-mac → Keychain on every machine). `recipients:` now always-present (private brains have a one-element list).
