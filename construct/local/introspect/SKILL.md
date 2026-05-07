@@ -1,6 +1,6 @@
 ---
 name: xx-introspect
-description: Use when the user wants to extract reusable taste signals from past Claude Code sessions, author a hint that seeds a future extraction, or load the `introspect-<activity>` skill matching the current session. Fires on `/xx-introspect` with subcommands `extract`, `hint`, or `load`.
+description: use to learn from existing coding sessions
 ---
 
 # xx-introspect — postmortem introspect extraction

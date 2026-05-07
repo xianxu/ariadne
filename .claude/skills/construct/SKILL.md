@@ -1,6 +1,6 @@
 ---
 name: construct
-description: Use when managing the AI substrate — importing, adapting, upgrading, or rolling back skills and constitution files. Invoke for /construct adopt, /construct adapt, /construct promote, /construct import, /construct upgrade, /construct diff, /construct status, /construct rollback, /construct local, /construct new.
+description: Construct forms the base of an agentic workflow
 ---
 
 # The Construct — AI Substrate Management

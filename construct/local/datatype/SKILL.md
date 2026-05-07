@@ -1,6 +1,6 @@
 ---
 name: xx-datatype
-description: "Use when the user explicitly asks to capture/save/record substance, or to author/create a typed artifact whose noun is a known datatype — product, roadmap, meeting-notes, travel-plan, pensive, reference, procedure, event, plus project-local types under <repo>/datatype/. Skip descriptive statements without instruction for action. Trigger when editing markdown whose frontmatter has a known `type:`."
+description: "Use when the user explicitly asks to capture/save/record something — product, roadmap, meeting-notes, travel-plan, pensive, reference, procedure, event, plus project-local types under <repo>/datatype/. Skip without instruction for action. Trigger when editing markdown with known frontmatter type:"
 ---
 
 # Datatype
