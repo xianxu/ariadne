@@ -1,0 +1,42 @@
+# ariadne-specific Makefile targets. NOT vendored to consumers
+# (consumers don't need to refresh other repos — only ariadne does).
+
+.PHONY: refresh-recursive
+
+# Iterate every peer repo in the parent directory and run `make refresh`
+# in each one that's ariadne-dependent. A repo qualifies if it has a
+# Makefile.workflow — that's the universal signal of "uses the ariadne
+# base layer" (direct via .ariadne-mode, or indirect via .nous-mode /
+# nous/setup.sh). Self is skipped; non-repo siblings (worktrees,
+# scratch dirs) skip naturally because they lack Makefile.workflow.
+#
+# Errors in any individual repo are collected and reported at the end,
+# but don't halt the loop — better to push as many updates as possible
+# and surface the failures than abort on the first hiccup.
+#
+# Use after editing ariadne's vendored fragments (Makefile.workflow,
+# base.manifest, .tart/, .openshell/, construct/, scripts/, …) to push
+# the new layer to every consumer in one shot.
+refresh-recursive:
+	@me=$$(basename "$(CURDIR)"); \
+	parent=$$(dirname "$(CURDIR)"); \
+	count=0; \
+	failed=""; \
+	for d in "$$parent"/*/; do \
+	    repo=$$(basename "$$d"); \
+	    [ "$$repo" = "$$me" ] && continue; \
+	    [ -f "$$d/Makefile.workflow" ] || continue; \
+	    echo ""; \
+	    echo "==> Refreshing $$repo..."; \
+	    if $(MAKE) --no-print-directory -C "$$d" refresh; then \
+	        count=$$((count + 1)); \
+	    else \
+	        failed="$$failed $$repo"; \
+	    fi; \
+	done; \
+	echo ""; \
+	echo "==> refresh-recursive complete: $$count repo(s) refreshed."; \
+	if [ -n "$$failed" ]; then \
+	    echo "  [warn] failed:$$failed"; \
+	    exit 1; \
+	fi
