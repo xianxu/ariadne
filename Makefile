@@ -11,5 +11,11 @@ include Makefile.workflow
 
 .PHONY: help
 
-help: help-workflow help-sandbox
+# help-sandbox and help-tart are defined by .openshell/Makefile and
+# .tart/Makefile, both included via Makefile.workflow's -include lines.
+# Every consumer that vendors the ariadne base layer ships both
+# fragments (see construct/base.manifest), so these targets always
+# resolve. If a consumer ever drops .openshell or .tart from its
+# manifest, the corresponding help-X line would need to come out.
+help: help-workflow help-sandbox help-tart
 	@true
