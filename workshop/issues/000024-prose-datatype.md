@@ -121,10 +121,10 @@ When the product's `target_repo:` is set, the graduate-to-draft step (step 3 in 
 
 ### M1 — datatype spec lands in ariadne
 
-- [ ] Write `construct/datatype/prose.md` matching this issue's spec.
-- [ ] Add prose to `xx-datatype` skill's recognized-types list.
-- [ ] Add one-paragraph cross-reference in `construct/datatype/product.md` §5 noting prose as a recognized sibling artifact + the file-vs-folder graduation rule for default-location products.
-- [ ] Update atlas (likely `data-artifacts.md` or whichever is the datatype index) with prose row.
+- [x] Write `construct/datatype/prose.md` matching this issue's spec.
+- [x] ~~Add prose to `xx-datatype` skill's recognized-types list.~~ **Moot — dispatcher is data-driven.** Per `construct/datatype/type.md` and the `xx-datatype` skill, new types are pure data: the dispatcher discovers prototypes by scanning `construct/datatype/`. Adding the prototype IS the recognition. No skill change needed.
+- [x] Add one-paragraph cross-reference in `construct/datatype/product.md` §5 noting prose as a recognized sibling artifact + the file-vs-folder graduation rule for default-location products.
+- [x] Update atlas (`data-artifacts.md`) with prose row in built-in types table.
 
 ### M2 — capture-prose skill
 
@@ -147,4 +147,15 @@ When the product's `target_repo:` is set, the graduate-to-draft step (step 3 in 
 
 ## Log
 
-(empty — issue just opened)
+**2026-05-11 — M1 implemented.**
+
+- Wrote `construct/datatype/prose.md` (the prototype). Follows the meta-prototype shape in `type.md`: frontmatter, body skeleton (6 sections — title, intro, format note, lifecycle note, separator, reverse-chrono entries), authoring instructions (parent resolution + disambiguation, sibling location with file→folder graduation rule, entry composition, append-at-top, frontmatter `updated:` bump, don't-commit), search recipes, and rules. Concrete example points readers to `brain/data/life/42shots/book-4/prose.md` which predates this prototype and was the design vehicle.
+- **Discovered the skill-change bullet was moot** — `xx-datatype` is data-driven; it auto-discovers prototypes in `construct/datatype/`. Marked the bullet struck-through rather than removed so the reasoning survives in the issue's commit log. The `capture-prose` skill (M2) is a separate concern — that one *will* be a new skill in `construct/local/`.
+- Cross-reference paragraph added to `construct/datatype/product.md` §5. Calls out prose as a recognized sibling AND specifies the **file→folder graduation rule** for products at the default flat location (`data/product/<slug>.md` becomes `data/product/<slug>/<slug>.md` plus `data/product/<slug>/prose.md` when prose first appears). Graduation is one `git mv` + `rg` sweep — explicit, not silent.
+- Atlas row added to `atlas/data-artifacts.md` in the built-in types table, with the prose-vs-pensive distinction in the cell ("session vs ledger").
+- Files touched, not yet committed:
+  - `construct/datatype/prose.md` (new)
+  - `construct/datatype/product.md` (cross-ref paragraph)
+  - `atlas/data-artifacts.md` (row)
+  - `workshop/issues/000024-prose-datatype.md` (this log + M1 checkboxes)
+- Verification on M1: the dispatcher's data-driven behavior means the prototype is "live" as soon as it lands. To exercise: have `xx-datatype` recognize a "capture this prose for X" trigger. That exercise is M2's job (the `capture-prose` skill formalizes the trigger phrasing and the parent-disambiguation flow); for now the prototype can be applied via `/xx-datatype prose <path>` directly.

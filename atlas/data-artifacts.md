@@ -51,6 +51,7 @@ The dispatcher fires on three triggers, in priority order:
 | `product` | Durable charter of a thing being built — vision + components + current state. Spans 0..N peer repos. |
 | `roadmap` | Month-level forward-looking plan for one product — capacity, scope decisions, target state per component. Lives at `data/roadmap/YYYYMM/<product>.md`. |
 | `project` | Execution container — focused push toward a defined MVP, cutting across issues and possibly products. Operator-POV. One operator per project. Closes the velocity calibration loop. |
+| `prose` | Per-parent ledger of pre-manuscript fragments — sentences and half-thoughts captured before they have a home in the parent's drafts. Sibling to a `product` (or other long-running parent). Reverse-chrono, append-only, voice-preserving. Distinct from `pensive` (session vs ledger). |
 
 The trio `product` + `roadmap` + `project` together model a small company-or-team's structure:
 
