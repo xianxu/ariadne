@@ -38,7 +38,7 @@ Defined in `construct/base.manifest` (in ariadne):
   - `scripts/` — issue-sync, pre-merge-checks, close-issue.py, lib.sh
 - **Construct system**: `construct/scripts/`, `construct/local/`, `construct/datatype/` — skill + datatype management
 - **Sandbox** (`.openshell/`) — Linux container dev environment (see below)
-- **Tart VMs** (`.tart/`) — `make tart` / `tart-gui` / `tart-mount` for macOS VM testing (Apple Silicon only); helpers under `.tart/scripts/`
+- **Tart VMs** (`.tart/`) — `make tart` (headless + bind-mount `$(CURDIR)` at `/Volumes/My Shared Files/$(REPO_NAME)`) and `make tart-gui` (same but display via macOS Screen Sharing.app via `--vnc`; tart's built-in UI is broken on Tahoe as of 2026-05) for macOS VM testing (Apple Silicon only); helpers under `.tart/scripts/`. Override `RUN_FLAGS=` for a no-mount boot. `make help-tart` for the full surface.
 - **Directory scaffolds**: `workshop/`, `atlas/` — standard repo layout
 
 ## Repo-Specific Extensions
