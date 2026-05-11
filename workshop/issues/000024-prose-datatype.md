@@ -1,10 +1,11 @@
 ---
 id: 000024
-status: working
+status: done
 deps: []
 created: 2026-05-11
 updated: 2026-05-11
 estimate_hours: 1.5
+actual_hours: 1.5
 ---
 
 # prose datatype (per-product scratchpad for half-thoughts before they have a home)
@@ -136,18 +137,20 @@ For prose specifically, the prototype is exercisable today via `/xx-datatype pro
 
 ### M3 — propagate to brain
 
-- [ ] Vendor latest ariadne to brain.
-- [ ] Conform existing `brain/data/life/42shots/book-4/prose.md` to the new spec (likely no changes — drafted to anticipate the spec).
-- [ ] Add `parent:` frontmatter field to existing prose.md.
-- [ ] Verify dispatcher + prose.md prototype flow works against book-4 via `/xx-datatype prose <path>` (explicit form). Richer implicit triggers wait for #25.
+- [x] Vendor latest ariadne to brain (via `make refresh` in nous — chain is ariadne → nous → brain).
+- [x] Conform existing `brain/data/life/42shots/book-4/prose.md` to the new spec — body needed no changes.
+- [x] Add `parent:` frontmatter field to existing prose.md (also flipped `type: scratchpad` → `type: prose`).
+- [x] Verify dispatcher + prose.md prototype flow works against book-4: `rg -l "^type: prose" brain/data/` returns the file. Explicit `/xx-datatype prose <path>` form available; richer implicit triggers wait for #25.
 
 ### M4 — atlas + lessons
 
-- [ ] Atlas entry documenting prose convention and prose-vs-pensive distinction.
-- [ ] Brief lesson entry: "when in doubt between pensive and prose, ask 'session or ledger?'" (if it earned a place in lessons.md).
+- [x] Atlas entry documenting prose convention and prose-vs-pensive distinction (`atlas/data-artifacts.md`: pensive + prose paragraph after the trio paragraph).
+- [x] ~~Brief lesson entry in `lessons.md`.~~ **Skipped — heuristic is positive design distinction, not regression-prevention pattern; doesn't fit lessons.md's framing.** See Revisions.
 
 ## Log
 
+
+- 2026-05-11: closed — construct/datatype/prose.md created; product.md cross-ref+graduation rule added; atlas pensive+prose paragraph added; brain prose.md conformed (type: prose, parent: book-4.md), discoverable via rg -l "^type: prose"; M2 dropped; #25 opened
 **2026-05-11 — M1 implemented.**
 
 - Wrote `construct/datatype/prose.md` (the prototype). Follows the meta-prototype shape in `type.md`: frontmatter, body skeleton (6 sections — title, intro, format note, lifecycle note, separator, reverse-chrono entries), authoring instructions (parent resolution + disambiguation, sibling location with file→folder graduation rule, entry composition, append-at-top, frontmatter `updated:` bump, don't-commit), search recipes, and rules. Concrete example points readers to `brain/data/life/42shots/book-4/prose.md` which predates this prototype and was the design vehicle.
@@ -161,6 +164,20 @@ For prose specifically, the prototype is exercisable today via `/xx-datatype pro
   - `workshop/issues/000024-prose-datatype.md` (this log + M1 checkboxes)
 - Verification on M1: the dispatcher's data-driven behavior means the prototype is "live" as soon as it lands. To exercise: have `xx-datatype` recognize a "capture this prose for X" trigger. The explicit-typed-noun path ("capture this **prose** for X") works today via the dispatcher's existing §1(b); richer implicit phrasings ("note this for the blog") are addressed by #25, not by per-type capture skills. For now the prototype can be applied via `/xx-datatype prose <path>` directly.
 
+**2026-05-11 — M3 implemented (brain propagation).**
+
+- Discovered the propagation chain is ariadne → nous → brain (not direct). Brain's `construct/datatype` symlinks to `../../nous/construct/datatype`, and nous's `construct/datatype/` is a real directory vendored from ariadne via `make refresh`. Ran `make refresh` in nous; `construct/datatype/prose.md` now visible in brain through the symlink chain. Verified: `ls brain/construct/datatype/prose.md` and `rg -l "^type: type" brain/construct/datatype/` both report the file.
+- Conformed `brain/data/life/42shots/book-4/prose.md` frontmatter to the new spec: `type: scratchpad` → `type: prose`; `product: book-4` → `parent: book-4.md`. Body required no changes (drafted to anticipate the spec — title, intro paragraph, format note, lifecycle note, separator, two reverse-chrono entries with `**topic:**` / `**tag:**` / `**candidate home:**` lines and an agent-annotation sub-block on each).
+- Verified the brain file is discoverable as a prose instance: `rg -l "^type: prose" brain/data/` returns `data/life/42shots/book-4/prose.md`.
+- Brain changes left **uncommitted** per the dispatcher's "never auto-commit data artifacts" rule and the broader user-reviews-data-on-their-own-schedule posture. The brain working tree also carries unrelated accumulated work from the same conversation (book-4 title locking, two new product stubs at `data/life/42shots/site/` and `data/life/personal/`); bundling those into an M3 commit would scope-creep. User reviews and commits brain on their own schedule.
+
+**2026-05-11 — M4 implemented (atlas).**
+
+- Added a `pensive + prose` paragraph to `atlas/data-artifacts.md`, complementing the existing `product + roadmap + project` trio paragraph. Names the two-granularity split (session vs. ledger) explicitly and includes the "if a prose fragment grows past ~3 paragraphs, graduate to pensive" heuristic.
+- Skipped the `lessons.md` entry per the Revisions note above — heuristic is positive design distinction, not regression prevention; doesn't fit `lessons.md`'s framing. It lives in the atlas and the prose.md Rules section instead.
+
 ## Revisions
 
 **2026-05-11 — M2 dropped (capture-prose skill).** During M1 implementation, discovered the dispatcher already owns conversational capture (§1) and append-to-existing (§7); the prose.md prototype absorbs all per-type behavior in its authoring instructions. The capture-prose skill would replicate the dispatcher rather than add value — the same legacy pattern that left us with `xx-pensive`. The residual gap (implicit triggers like "note this for the blog" without explicit type naming) is a *dispatcher* concern, not a per-type one; opened **#25 (dispatcher: judgment-based triggers, replace enumeration)** to address it. M3 (brain propagation) and M4 (atlas + lessons) stand as written.
+
+**2026-05-11 — M4 lessons.md entry skipped.** The "session or ledger" heuristic doesn't fit `workshop/lessons.md`'s "patterns of what went wrong and rules to prevent repeating them" framing — it's a positive design distinction, not a regression-prevention rule. It now lives in the atlas (prose-vs-pensive paragraph) and in the prose.md prototype's Rules section. M4 reduces to atlas-only.

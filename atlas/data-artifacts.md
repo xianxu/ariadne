@@ -59,6 +59,13 @@ The trio `product` + `roadmap` + `project` together model a small company-or-tea
 - **roadmap** = what we want true by month T (forward-looking, monthly)
 - **project** = what we're working on right now to advance it (operator-POV, time-bounded by an MVP)
 
+The pair `pensive` + `prose` together cover thinking-out-loud at two different granularities:
+
+- **pensive** = a *session* — one focused topic per file, write-then-publish, hundreds-to-thousands of words. Filename encodes the topic (`<date>-NN-pensive-<topic>.md`); the artifact stands alone.
+- **prose** = a *ledger* — many fragments per file, append-as-you-go, sentence-to-paragraph each. Filename is just `prose.md`; the file is bound to a parent artifact (typically a long-running `product` like a book or blog), and fragments graduate into the parent's drafts.
+
+Heuristic: *session or ledger?* A fragment that grows past ~3 paragraphs and develops a thesis has become a session — graduate it from prose to pensive. A pensive dominated by one-line observations rather than connected argument should have been prose entries.
+
 ## Rules of thumb
 
 - **Frontmatter is for queryable, stable, externally-referenced fields.** Free-form prose stays in the body.
