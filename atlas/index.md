@@ -10,8 +10,9 @@ Central directory for atlas entries — practical pointers for future developers
 - [Pre-merge Checks](workflow/pre-merge-checks.md) — constitution enforcement
 - [Directory Conventions](workflow/directory-conventions.md) — standard repo layout
 
-## 2. Sandbox Environments
+## 2. Sandbox & VM Environments
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
+- [Tart VMs](workflow/base-layer.md#what-gets-installed) — `make tart` family for macOS VM testing (Apple Silicon only). Vendored under `.tart/`; details in the base-layer entry.
 
 ## 2.5 Brain Convention
 - [Brain Manifest](brain-manifest.md) — `.brain/config.md` marker convention; how downstream tools (nous#3, #4, #6, charon#21) converge on it; pointer to the threat-model depth
