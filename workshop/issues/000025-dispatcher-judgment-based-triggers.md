@@ -1,10 +1,11 @@
 ---
 id: 000025
-status: working
+status: done
 deps: []
 created: 2026-05-11
 updated: 2026-05-11
 estimate_hours: 2
+actual_hours: 1.5
 ---
 
 # dispatcher: judgment-based triggers (replace enumeration)
@@ -119,35 +120,66 @@ The verify subagent runs each phrasing against the rewritten dispatcher and repo
 
 ### M1 — rewrite dispatcher trigger section
 
-- [ ] Rewrite §1 of `construct/local/datatype/SKILL.md` around the three-step judgment flow (classify → discriminate → match). Remove the noun→type mapping table.
-- [ ] Replace "Examples that DO/DO NOT trigger" lists with prose principles + a small set of illustrative cautions.
-- [ ] Update the §1 trigger section's lede so it reads as judgment-led from the first sentence.
-- [ ] Self-sync the skill: copy edited SKILL.md to `.claude/skills/datatype/SKILL.md` per construct's self-sync rule.
+- [x] Rewrite §1 of `construct/local/datatype/SKILL.md` around the three-step judgment flow (classify → discriminate → match). Removed the noun→type mapping table.
+- [x] Replace "Examples that DO/DO NOT trigger" lists with prose principles + a small set of illustrative cautions (woven into Step 1 / Step 2).
+- [x] Update the §1 trigger section's lede so it reads as judgment-led from the first sentence ("Use judgment in three steps. Don't pattern-match a verb-noun grammar — read the turn as a whole.").
+- [x] ~~Self-sync the skill~~ **N/A — symlink, not copy.** Per `construct/skill/SKILL.md`, local skills are symlinked (`.claude/skills/xx-datatype/` → `construct/local/datatype/`). Edits propagate automatically. Verified via `ls -la .claude/skills/xx-datatype`.
+- [x] Also tightened the skill's own frontmatter `description:` (it carried the same enumeration in its "Use when…" — replaced with judgment-based phrasing).
 
 ### M2 — audit prototype descriptions
 
-- [ ] Read every `description:` field in `construct/datatype/*.md`. List the ones that read weakly as "Use when…" advertisements (vague, missing context, doesn't draw scope vs. siblings).
-- [ ] Tighten each weak description. Where two types could plausibly compete (prose vs. pensive, project vs. roadmap, etc.), each description should name the other and draw the line.
-- [ ] No prototype body changes — descriptions only.
+- [x] Read every `description:` field in `construct/datatype/*.md`. Eight passed audit (event, meeting-notes, procedure, product, project, reference, roadmap, type). Three needed tightening: **pensive** (didn't draw line vs prose), **prose** (didn't draw line vs pensive), **travel-plan** ("plan a trip to X" trigger leaned generative, conflicted with new Step 2).
+- [x] Tighten each weak description. Pensive↔prose now mutually reference each other with the session-vs-ledger heuristic. Travel-plan now requires existing substance and flags "cold 'plan a trip to X'" as generative fall-through.
+- [x] No prototype body changes — descriptions only.
 
 ### M3 — verification with fresh agent
 
-- [ ] Draft the test-phrasing battery (above) in the issue or as a fixture file.
-- [ ] Dispatch a fresh subagent with the rewritten skill and the battery. Report per-phrasing PASS/FAIL.
-- [ ] Iterate (max 3 passes) until all phrasings pass.
+- [x] Test-phrasing battery already in this issue's Spec section.
+- [x] Dispatched a fresh `general-purpose` subagent (no prior context). Agent loaded the rewritten skill + prototype frontmatters, ran the three-step judgment on all 15 phrasings.
+- [x] Result: **15/15 PASS on first iteration.** No rewrite passes needed. Two non-blocking observations from the verifier:
+   - Phrasing 7 ("Stick this in book-4 somewhere.") passes on the parent-naming signal alone — the verb "stick" isn't enumerated. Thinnest margin in the battery, but intended (that's exactly what judgment-over-enumeration unlocks). Future fixes would be in prose's description, not the dispatcher.
+   - The "for X" disambiguator between prose and pensive is doing a lot of work and is consistently stated in both descriptions. Mutually consistent.
 
 ### M4 — xx-pensive legacy decision
 
-- [ ] Read `construct/local/pensive/SKILL.md` end-to-end.
-- [ ] Compare to the dispatcher + pensive.md prototype.
-- [ ] Decision: retire or keep. Document in this issue's log.
-- [ ] If retire: open a follow-up issue (or do it here if scope is small — single skill removal, symlink update, manifest update).
+- [x] ~~Read `construct/local/pensive/SKILL.md` end-to-end.~~ **Source already removed in commit 76b8fb1 (Apr 28, 2026 — "remove pensive").** No SKILL.md exists to read.
+- [x] ~~Compare to the dispatcher + pensive.md prototype.~~ **N/A — retirement was the prior decision; this issue completes the cleanup.**
+- [x] **Decision: retire** (was already partially retired). Removed the dangling symlink `.claude/skills/xx-pensive` → `../../construct/local/pensive` that lingered after the source removal.
+- [x] Cleanup completed in this issue: dangling symlink removed; illustrative example references in `construct/skill/SKILL.md` (and its `.claude/skills/construct/SKILL.md` mirror) updated from `xx-pensive` to live skills (`xx-voice-apply`, `xx-voice-gen`, `xx-datatype`). Self-synced.
 
 ### M5 — atlas + lessons
 
-- [ ] Update `atlas/data-artifacts.md` if its description of the dispatcher's matching behavior needs to align with the new framing.
-- [ ] Lessons entry if the enumeration-vs-judgment lesson is worth preserving for future skill design ("When a skill's behavior is best described as 'use judgment', don't make it enumerate — express the principle and let the LLM apply it").
+- [x] Updated `atlas/data-artifacts.md` Activation section: bullet 1 now names the three-step judgment procedure ("classify turn → discriminate substance from generative → semantic-match against prototype descriptions") and points readers to the skill for the procedure. Bullet 2 (slash invocation) gains "Bypasses judgment."
+- [x] Added a lesson entry to `workshop/lessons.md` titled "Skill design: enumeration vs. judgment." Includes the pattern, the rule, a concrete test ("would the skill's behavior be wrong if this list were missing, or just less ergonomic?"), and the origin pointer to this issue. This one fits lessons.md's framing — the enumeration approach IS what went wrong, the principle IS the rule to prevent repeating.
 
 ## Log
 
-(empty — issue just opened)
+
+- 2026-05-11: closed — SKILL.md §1 rewritten as 3-step judgment, noun-table removed; 3 prototype descriptions tightened (pensive/prose/travel-plan); fresh subagent verified 15/15 phrasings PASS; xx-pensive dangling symlink removed + illustrative refs updated; atlas + lessons.md updated
+**2026-05-11 — all milestones implemented in one session.**
+
+- **M1 (skill rewrite):** Replaced the §1 "Conversational capture or authoring" section of `construct/local/datatype/SKILL.md`. New shape: three-step judgment (classify turn → discriminate substance vs. generative → semantic-match against prototype descriptions). Removed the hardcoded noun→type table, the "Examples that DO trigger" list, and the "Examples that do NOT trigger" list — illustrative cases now embedded in Step 1 and Step 2 prose as priming. Also tightened the SKILL.md frontmatter `description:` which had the same enumeration disease. Local skills are symlinked, not copied, so no manual sync required.
+
+- **M2 (description audit):** 8 of 11 prototype descriptions passed audit. Three updated:
+  - `pensive.md`: added line drawing distinction vs `prose` (no-parent vs has-parent, session vs ledger).
+  - `prose.md`: mutual reference back to pensive; called out the "for X" parent reference as the disambiguator.
+  - `travel-plan.md`: tightened to require existing substance; flagged cold "plan a trip to X" as generative fall-through to align with the new Step 2.
+
+- **M3 (verification):** Dispatched a fresh `general-purpose` subagent with a 15-phrasing battery (8 should-route, 5 should-not-route, 2 should-disambiguate). **15/15 PASS on first iteration.** The vocabulary-tail cases ("jot", "stick", "let me get this down") that would have failed under enumeration all route correctly. Subagent flagged the "stick this in book-4 somewhere" case as the thinnest margin (relies entirely on the parent-naming signal in prose's description), which is the intended behavior — judgment-over-enumeration was the whole point.
+
+- **M4 (xx-pensive retirement):** Discovered the source `construct/local/pensive/` was already removed in commit 76b8fb1 (Apr 28). Only a dangling symlink `.claude/skills/xx-pensive` remained, plus illustrative example references in `construct/skill/SKILL.md`. Removed the dangling symlink. Updated the three example references (in the localPrefix explanation, in the `/construct local` example output, and in the local-origin-skills table) to use currently-live skills (`xx-voice-apply`, `xx-voice-gen`, `xx-datatype`). Self-synced to `.claude/skills/construct/SKILL.md` per the construct self-sync rule. `xx-pensive` is now fully retired.
+
+- **M5 (atlas + lessons):** Atlas `data-artifacts.md` Activation section now names the three-step judgment procedure explicitly and points to the skill for detail. Lessons `workshop/lessons.md` gained a "Skill design: enumeration vs. judgment" entry — the pattern (enumeration broke down at vocabulary tail and forced the skill to grow with every new datatype), the rule (express the principle, let the LLM apply it), and a discriminator test for future skill design ("would the skill's behavior be wrong if the list were missing, or just less ergonomic?").
+
+Files touched:
+- `construct/local/datatype/SKILL.md` (M1)
+- `construct/datatype/pensive.md` (M2)
+- `construct/datatype/prose.md` (M2)
+- `construct/datatype/travel-plan.md` (M2)
+- `.claude/skills/xx-pensive` removed (M4)
+- `construct/skill/SKILL.md` + `.claude/skills/construct/SKILL.md` (M4)
+- `atlas/data-artifacts.md` (M5)
+- `workshop/lessons.md` (M5)
+- `workshop/issues/000025-dispatcher-judgment-based-triggers.md` (this log)
+
+The xx-datatype skill is now truly data-driven: adding a new datatype is a single new file in `construct/datatype/`, no dispatcher edit needed. The atlas's claim is finally honest.

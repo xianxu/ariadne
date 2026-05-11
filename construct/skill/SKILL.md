@@ -66,7 +66,7 @@ $REPO_ROOT/construct/                         # top-level, ariadne's AI substrat
 }
 ```
 
-- **`localPrefix`** — prefix applied when symlinking local skills to `.claude/skills/`. Prevents name collisions with upstream or community skills. A skill at `construct/local/pensive/` becomes `.claude/skills/xx-pensive/`.
+- **`localPrefix`** — prefix applied when symlinking local skills to `.claude/skills/`. Prevents name collisions with upstream or community skills. A skill at `construct/local/voice-apply/` becomes `.claude/skills/xx-voice-apply/`.
 
 **Intent file naming:** defaults to the repo name (last path component of `--to`). The frontmatter `target:` field is the source of truth for where it deploys — the filename is just a readable identifier. Override with `--as` if needed (e.g., two repos with the same name at different paths).
 
@@ -90,7 +90,7 @@ Lists all local skills and their symlink status.
 
 ```
 construct/local/voice-apply       →  .claude/skills/xx-voice-apply       ✓
-construct/local/pensive           →  .claude/skills/xx-pensive           ✓
+construct/local/voice-gen         →  .claude/skills/xx-voice-gen         ✓
 construct/local/skill-gen         →  .claude/skills/xx-skill-gen         ✗ (missing)
 ```
 
@@ -334,7 +334,7 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 | Skill | Source Dir | Symlink |
 |-------|-----------|---------|
 | construct | construct/skill/ | .claude/skills/construct/ (copied, not symlinked) |
-| xx-pensive | construct/local/pensive/ | .claude/skills/xx-pensive/ → ../../construct/local/pensive/ |
+| xx-datatype | construct/local/datatype/ | .claude/skills/xx-datatype/ → ../../construct/local/datatype/ |
 | xx-voice-apply | construct/local/voice-apply/ | .claude/skills/xx-voice-apply/ → ../../construct/local/voice-apply/ |
 | xx-voice-gen | construct/local/voice-gen/ | .claude/skills/xx-voice-gen/ → ../../construct/local/voice-gen/ |
 | xx-interview-feedback | construct/local/interview-feedback/ | .claude/skills/xx-interview-feedback/ → ../../construct/local/interview-feedback/ |

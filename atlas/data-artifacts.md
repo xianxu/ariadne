@@ -25,8 +25,8 @@ Lookup precedence: project-local → shared.
 
 The dispatcher fires on three triggers, in priority order:
 
-1. **Conversational capture** — "capture this trip", "save these meeting notes", "remember this list", "track this launch". This is the common case.
-2. **Slash invocation** — `/xx-datatype <type> [path]`.
+1. **Conversational capture** — "capture this trip", "save these meeting notes", "remember this list", "track this launch". This is the common case. The dispatcher uses three-step judgment (classify turn → discriminate substance from generative → semantic-match against prototype descriptions); no enumerated noun→type table. See `construct/local/datatype/SKILL.md` §1 for the judgment procedure.
+2. **Slash invocation** — `/xx-datatype <type> [path]`. Bypasses judgment.
 3. **Edit-time** — opening a file with `type: <X>` in frontmatter applies `<X>.md`'s authoring instructions to the edit.
 
 ## Adding a new type

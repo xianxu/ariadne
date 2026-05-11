@@ -1,6 +1,6 @@
 ---
 name: construct
-description: Construct forms the base of an agentic workflow
+description: Use when managing the AI substrate — importing, adapting, promoting, upgrading, or rolling back skills and constitution files across repos.
 ---
 
 # The Construct — AI Substrate Management
@@ -66,7 +66,7 @@ $REPO_ROOT/construct/                         # top-level, ariadne's AI substrat
 }
 ```
 
-- **`localPrefix`** — prefix applied when symlinking local skills to `.claude/skills/`. Prevents name collisions with upstream or community skills. A skill at `construct/local/pensive/` becomes `.claude/skills/xx-pensive/`.
+- **`localPrefix`** — prefix applied when symlinking local skills to `.claude/skills/`. Prevents name collisions with upstream or community skills. A skill at `construct/local/voice-apply/` becomes `.claude/skills/xx-voice-apply/`.
 
 **Intent file naming:** defaults to the repo name (last path component of `--to`). The frontmatter `target:` field is the source of truth for where it deploys — the filename is just a readable identifier. Override with `--as` if needed (e.g., two repos with the same name at different paths).
 
@@ -79,53 +79,6 @@ Examples:
 
 ## Commands
 
-### `/construct adopt <path>`
-
-One-time migration of an existing repo to ariadne's base layer. Reads `$REPO_ROOT/construct/base.manifest` as the source of truth for what ariadne manages, then intelligently migrates the target repo's existing files into ariadne's extension points.
-
-- `<path>` — relative path from ariadne root to the target repo (e.g., `../parley.nvim`)
-
-**Flow:**
-
-1. Validate `<path>` exists and is a git repo
-2. Parse `$REPO_ROOT/construct/base.manifest` — get the full list of managed actions and paths
-3. Create backup dir at `<path>/.ariadne-backup/` (add to `.gitignore`)
-4. For each manifest entry, check if the target repo has an existing file at that path:
-
-   **`symlink` entries (AGENTS.md, CLAUDE.md, skills, scripts, etc.):**
-   - If target has a **symlink** already pointing to ariadne → skip (already adopted)
-   - If target has a **regular file** → read both the existing file and ariadne's version:
-     - For `AGENTS.md`: diff and extract repo-specific rules into `<path>/AGENTS.local.md` (create or append). Back up original to `.ariadne-backup/`
-     - For `CLAUDE.md`: back up. Ariadne's version just references `@AGENTS.md` — no local extension needed
-     - For skills: if the repo has a custom version of a skill ariadne provides, back up and note it in the adoption report. User can re-adapt via `/construct adapt` later
-     - For other symlinked files (Makefile.workflow, scripts/): just back up — ariadne's version replaces them
-   - If target has **no file** → nothing to do, setup.sh will create it
-
-   **`merge` entries (.claude/settings.json):**
-   - If target has existing `.claude/settings.json`:
-     - Read it, diff against `$REPO_ROOT/.claude/settings.ariadne.json`
-     - Write differences to `<path>/.claude/settings.local.json` (preserving any existing local settings)
-     - Remove the existing `settings.json` so `setup.sh`'s merge can recreate it cleanly
-
-   **`scaffold`, `copy`, `touch` entries:**
-   - No conflict possible — setup.sh handles these correctly already
-
-5. Handle `Makefile` specially (not in manifest, created by setup.sh):
-   - If target has an existing `Makefile`:
-     - Read it, identify repo-specific targets (anything not from ariadne's template)
-     - Write repo-specific targets to `<path>/Makefile.local`
-     - Back up original `Makefile` to `.ariadne-backup/`
-     - Remove it so setup.sh creates the standard template
-
-6. Run `$REPO_ROOT/construct/setup.sh` from within `<path>` to create all symlinks and scaffolding
-7. Print adoption report:
-   - Files backed up to `.ariadne-backup/`
-   - Content extracted to extension points (AGENTS.local.md, settings.local.json, Makefile.local)
-   - Skills that may need `/construct adapt` for customization
-   - Verification: `git diff` summary of what changed
-
-**Post-adoption:** `./ariadne-refresh.sh` (setup.sh) becomes purely mechanical repair/refresh. All repo-specific content lives in extension points.
-
 ### `/construct local`
 
 Lists all local skills and their symlink status.
@@ -137,7 +90,7 @@ Lists all local skills and their symlink status.
 
 ```
 construct/local/voice-apply       →  .claude/skills/xx-voice-apply       ✓
-construct/local/pensive           →  .claude/skills/xx-pensive           ✓
+construct/local/voice-gen         →  .claude/skills/xx-voice-gen         ✓
 construct/local/skill-gen         →  .claude/skills/xx-skill-gen         ✗ (missing)
 ```
 
@@ -381,7 +334,7 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 | Skill | Source Dir | Symlink |
 |-------|-----------|---------|
 | construct | construct/skill/ | .claude/skills/construct/ (copied, not symlinked) |
-| xx-pensive | construct/local/pensive/ | .claude/skills/xx-pensive/ → ../../construct/local/pensive/ |
+| xx-datatype | construct/local/datatype/ | .claude/skills/xx-datatype/ → ../../construct/local/datatype/ |
 | xx-voice-apply | construct/local/voice-apply/ | .claude/skills/xx-voice-apply/ → ../../construct/local/voice-apply/ |
 | xx-voice-gen | construct/local/voice-gen/ | .claude/skills/xx-voice-gen/ → ../../construct/local/voice-gen/ |
 | xx-interview-feedback | construct/local/interview-feedback/ | .claude/skills/xx-interview-feedback/ → ../../construct/local/interview-feedback/ |

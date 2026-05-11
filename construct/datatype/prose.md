@@ -1,7 +1,7 @@
 ---
 type: type
 name: prose
-description: Use when the user wants to capture a pre-manuscript prose fragment for a specific long-running work (book, blog, essay, spec). Triggers on "capture this prose for X", "note this for X", "save this thought for X", "jot this for X".
+description: Use when the user wants to capture a pre-manuscript prose fragment tied to a specific long-running parent work (book, blog, essay, spec). The trigger always names a parent — "for X" — which distinguishes prose from `pensive` (standalone, no parent). Triggers on "capture this prose for X", "note this for X", "save this thought for X", "jot this for X". Heuristic: prose is a ledger (many fragments per file, sentence-to-paragraph each); pensive is a session (one topic per file, hundreds-to-thousands of words). If a prose entry grows past ~3 paragraphs and develops a thesis, graduate it to a pensive.
 ---
 
 # prose
