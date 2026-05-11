@@ -4,7 +4,7 @@ status: working
 deps: []
 created: 2026-05-11
 updated: 2026-05-11
-estimate_hours: 2
+estimate_hours: 1.5
 ---
 
 # prose datatype (per-product scratchpad for half-thoughts before they have a home)
@@ -126,19 +126,20 @@ When the product's `target_repo:` is set, the graduate-to-draft step (step 3 in 
 - [x] Add one-paragraph cross-reference in `construct/datatype/product.md` §5 noting prose as a recognized sibling artifact + the file-vs-folder graduation rule for default-location products.
 - [x] Update atlas (`data-artifacts.md`) with prose row in built-in types table.
 
-### M2 — capture-prose skill
+### M2 — ~~capture-prose skill~~ DROPPED — superseded by #25
 
-- [ ] Decide: new skill `construct/skill/capture-prose/SKILL.md`, or extend existing capture flow in `xx-datatype`? Lean toward new skill — trigger phrases are distinct and the resolution flow is non-trivial.
-- [ ] Implement resolution flow (product lookup, disambiguation, append, file creation if absent).
-- [ ] Implement entry construction (timestamp, topic inference, tag suggestion).
-- [ ] Test against brain's book-4/prose.md.
+The capture-prose skill is unnecessary. The `xx-datatype` dispatcher already owns conversational capture (§1) and append-to-existing (§7); the prose.md prototype written in M1 already encodes parent resolution, disambiguation, sibling-location, entry composition, and append-at-top in its authoring instructions. Adding a per-type capture skill would replicate the dispatcher's responsibilities — the same legacy pattern that left us with `xx-pensive` as a pre-historical relic.
+
+The remaining gap — implicit-trigger detection ("capture this for book-4" with no domain noun) — is a dispatcher concern, not a per-type one. It's addressed by **#25 (dispatcher: judgment-based triggers, replace enumeration)**, which replaces the hardcoded noun→type table with three-step judgment (classify intent → discriminate substantive-capture → semantic-match prototype descriptions). That refactor is broader than prose and lives in its own issue.
+
+For prose specifically, the prototype is exercisable today via `/xx-datatype prose <path>` or via the dispatcher's existing §1(b) trigger ("capture this **prose** for book-4" matches the typed-noun "prose"). The richer implicit-trigger forms ("note this for the blog", "jot this for book-4") will route correctly once #25 lands.
 
 ### M3 — propagate to brain
 
 - [ ] Vendor latest ariadne to brain.
 - [ ] Conform existing `brain/data/life/42shots/book-4/prose.md` to the new spec (likely no changes — drafted to anticipate the spec).
 - [ ] Add `parent:` frontmatter field to existing prose.md.
-- [ ] Verify capture-prose flow works against book-4.
+- [ ] Verify dispatcher + prose.md prototype flow works against book-4 via `/xx-datatype prose <path>` (explicit form). Richer implicit triggers wait for #25.
 
 ### M4 — atlas + lessons
 
@@ -158,4 +159,8 @@ When the product's `target_repo:` is set, the graduate-to-draft step (step 3 in 
   - `construct/datatype/product.md` (cross-ref paragraph)
   - `atlas/data-artifacts.md` (row)
   - `workshop/issues/000024-prose-datatype.md` (this log + M1 checkboxes)
-- Verification on M1: the dispatcher's data-driven behavior means the prototype is "live" as soon as it lands. To exercise: have `xx-datatype` recognize a "capture this prose for X" trigger. That exercise is M2's job (the `capture-prose` skill formalizes the trigger phrasing and the parent-disambiguation flow); for now the prototype can be applied via `/xx-datatype prose <path>` directly.
+- Verification on M1: the dispatcher's data-driven behavior means the prototype is "live" as soon as it lands. To exercise: have `xx-datatype` recognize a "capture this prose for X" trigger. The explicit-typed-noun path ("capture this **prose** for X") works today via the dispatcher's existing §1(b); richer implicit phrasings ("note this for the blog") are addressed by #25, not by per-type capture skills. For now the prototype can be applied via `/xx-datatype prose <path>` directly.
+
+## Revisions
+
+**2026-05-11 — M2 dropped (capture-prose skill).** During M1 implementation, discovered the dispatcher already owns conversational capture (§1) and append-to-existing (§7); the prose.md prototype absorbs all per-type behavior in its authoring instructions. The capture-prose skill would replicate the dispatcher rather than add value — the same legacy pattern that left us with `xx-pensive`. The residual gap (implicit triggers like "note this for the blog" without explicit type naming) is a *dispatcher* concern, not a per-type one; opened **#25 (dispatcher: judgment-based triggers, replace enumeration)** to address it. M3 (brain propagation) and M4 (atlas + lessons) stand as written.
