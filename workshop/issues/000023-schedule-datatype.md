@@ -9,6 +9,8 @@ estimate_hours: 1.5
 
 # schedule datatype (singleton; tagged scheduled reminders)
 
+There seems to be several levels we can implement this, from just have a schedule that human running the harness can use, to schedule a service running certain things without agentic component during the run, to service calling agent to one-shot the task, to maybe using `pair` style wrapper on top of an agentic harness, so that we can do some rounds or at least interpret result to see if human attention is needed, all the way to building a full harness environment aware of scheduling as a core component. We need to figure out what's the best for investment/learning. 
+
 ## Done when
 
 - A new `schedule` typed-data prototype lives in `construct/datatype/schedule.md`, defining frontmatter + body skeleton + authoring instructions.
