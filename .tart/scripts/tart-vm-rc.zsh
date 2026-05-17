@@ -42,8 +42,9 @@ alias p='git commit -a && git push'
 # Editor shortcut. Single keystroke to open whatever $EDITOR is.
 alias v='${EDITOR}'
 
-# Repo shortcut: ~/repo is the symlink to the mounted host tree
-# (created by the make tart-mount path); cd straight in.
-if [ -L "$HOME/repo" ] || [ -d "$HOME/repo" ]; then
+# Repo shortcut: ~/repo is the VM-local clone of the host tree
+# (created by tart-vm-setup.sh on first boot, fast-forwarded on
+# subsequent boots when the worktree is clean); cd straight in.
+if [ -d "$HOME/repo" ] || [ -L "$HOME/repo" ]; then
     alias repo='cd $HOME/repo'
 fi
