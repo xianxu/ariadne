@@ -48,3 +48,13 @@ alias v='${EDITOR}'
 if [ -d "$HOME/repo" ] || [ -L "$HOME/repo" ]; then
     alias repo='cd $HOME/repo'
 fi
+
+# GPG: keep pinentry-curses self-healing across shells. gpg-agent
+# caches its TTY at first use; if that TTY dies (subshell exit,
+# terminal reattach, ssh reconnect), later sign/decrypt calls fail
+# with ENOTTY ("Inappropriate ioctl for device"). Export GPG_TTY for
+# new agent spawns, and updatestartuptty for the already-running one.
+# Guarded — consumers that don't install gpg get a clean no-op.
+export GPG_TTY=$(tty)
+command -v gpg-connect-agent >/dev/null 2>&1 && \
+    gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
