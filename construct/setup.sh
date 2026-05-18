@@ -324,6 +324,7 @@ GITIGNORE_ENTRIES=(
     ".goto"
     ".openshell/.bootstrap/"
     ".openshell/.base-image-digest"
+    ".DS_Store"
 )
 
 touch "$GITIGNORE"
