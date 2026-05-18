@@ -319,27 +319,17 @@ EOF
 fi
 
 # ── Ensure .gitignore entries ─────────────────────────────────────────────────
-GITIGNORE="$TARGET_DIR/.gitignore"
-GITIGNORE_ENTRIES=(
-    ".goto"
-    ".openshell/.bootstrap/"
-    ".openshell/.base-image-digest"
-    ".DS_Store"
-)
-
-touch "$GITIGNORE"
-gitignore_changed=false
-for entry in "${GITIGNORE_ENTRIES[@]}"; do
-    if ! grep -qxF "$entry" "$GITIGNORE"; then
-        echo "$entry" >> "$GITIGNORE"
-        gitignore_changed=true
-    fi
-done
-
-if "$gitignore_changed"; then
-    printf "  ${GREEN}updated${RESET} .gitignore\n"
-else
-    printf "  .gitignore already up to date\n"
+# Delegated to construct/scripts/apply-gitignore-entries.sh so nous/setup.sh's
+# self-mode (which doesn't run the rest of this script) can invoke the same
+# logic and stay in sync with base-layer additions.
+APPLY_GITIGNORE="$TARGET_DIR/construct/scripts/apply-gitignore-entries.sh"
+if [[ ! -f "$APPLY_GITIGNORE" ]]; then
+    # Pre-vendor case: the target may not yet have the symlinked script.
+    # Fall back to the source's own copy.
+    APPLY_GITIGNORE="$SCRIPT_REAL/scripts/apply-gitignore-entries.sh"
+fi
+if [[ -f "$APPLY_GITIGNORE" ]]; then
+    bash "$APPLY_GITIGNORE" "$TARGET_DIR" || true
 fi
 
 # ── Record mode ───────────────────────────────────────────────────────────────
