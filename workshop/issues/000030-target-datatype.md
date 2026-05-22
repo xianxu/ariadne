@@ -117,3 +117,6 @@ Distinct from project's `active | paused | done | dropped` execution state machi
 ## Log
 
 - 2026-05-22: opened. Comes from a conversation about target file pattern; the durable target pensive was written first, then this issue spawned from it. The pensive captures the *why*; this issue is the execution plan to land it.
+- 2026-05-22: M1-M3 complete in one commit (`fdbb1ce`): `construct/datatype/target.md` written modeling on `project.md` + `pensive.md`; `workshop/targets/` created; `AGENTS.md` §1 updated with target in artifact hierarchy + 🤖{} convention as a §1 rule. M3 (xx-datatype recognition) is a no-op — the skill auto-discovers types by globbing `construct/datatype/*.md` and matching on `description:` field. No skill code change needed.
+- 2026-05-22: M4 dogfood — first real target written at `nous/workshop/targets/shared-brain-infrastructure-and-ui.md`. Three in-flight nous issues (#30 autosave, #31 TUI list async, #32 leave) backfilled with `target: shared-brain-infrastructure-and-ui` frontmatter. Dependency graph verified via `rg "^target: shared-brain-infrastructure-and-ui" workshop/issues/` — all three issues resolve cleanly.
+- 2026-05-22: ready to close. The pattern is dogfooded and the convention is documented.
