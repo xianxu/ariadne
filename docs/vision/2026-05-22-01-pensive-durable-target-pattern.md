@@ -86,13 +86,21 @@ Projects + issues gain `target: <slug>` in their frontmatter. Grep by slug = the
 
 ## Conventions for agent collaboration on target files
 
-**`🤖{...}` for agent contributions.** Inline markers for agent-proposed additions or refinements. Accept/reject gestures are one-edit-class operations:
+**Inline markers for agent ↔ human prose collaboration.** A small grammar that covers the full mutation set, each operator gesture a one-edit-class operation:
 
-- Accept: delete `🤖{` and `}`, leave the text in place.
-- Reject: delete the whole `🤖{...}` block.
-- Edit: change the content inside the braces.
+| Gesture | Meaning | Accept | Reject |
+|---|---|---|---|
+| `🤖{Y}` | agent proposes adding Y | delete `🤖{` and `}`, leaving Y | delete the whole block |
+| `🤖(X)` *or* `🤖~X~` | agent proposes deleting X | delete the whole wrapper + content | remove only the wrapper, keep X |
+| `🤖~X~{Y}` | agent proposes replacing X with Y | delete `🤖~X~`, unwrap `{Y}` | remove the whole construct |
+| `🤖<X>[H]` | human's commentary H referencing text X | (no formal accept — remove when no longer relevant) | (n/a) |
 
-Each is git-natural — the diff IS the contract change, atomically reviewable.
+Two notes on the design:
+
+- `~X~` doubles as markdown's native strikethrough. Renderers display proposed deletions visually as strikeout, which gives the operator a useful preview before they decide.
+- `🤖<X>[H]` is the only gesture for human→agent (the rest are agent→human). It lets the operator pin commentary to a specific passage rather than scattering notes in chat; the agent picks it up on next read of the file.
+
+**Why inline markers even for solicited edits.** A previous draft of this pensive split the convention by who initiated: inline markers for unsolicited agent contributions, direct edits + git-diff review for solicited ones. That split was wrong. `git diff` is excellent for *seeing* changes but mediocre for *iterating* on them — typical editors don't support editing inside the diff hunk; the operator has to switch to the file, edit, switch back, re-diff. Inline markers keep the editing surface as the file itself, which is where the operator already is. Use the convention always; let git-diff review be a redundant safety net rather than the primary surface.
 
 **Chat is provisional; target is commitment.** Provisional thinking ("I'm thinking aloud," "open question," "what if we did X") stays in chat. After back-and-forth converges, the agent updates the relevant section of the target file with the new commitment. The file is the contract; the chat is the working memory. Agents diff the target across sessions to know what's actionable.
 

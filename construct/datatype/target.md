@@ -61,20 +61,22 @@ Targets transition on *intent* boundaries, not execution states:
 
 `split` is the interesting one. A target getting split as understanding evolves is the natural way to honor "scope-shift-friendly." Use it.
 
-## Agent-contribution convention: `🤖{...}`
+## Agent ↔ human inline-marker convention
 
-Targets are human-centric documents. The operator must fully understand and own the content. Agent contributions go in via inline `🤖{...}` markers — never as direct edits to the operator's prose.
+Targets are human-centric documents. The operator must fully understand and own the content. Agent contributions go in via inline markers — never as direct edits to the operator's prose. A small grammar covers the full mutation set; each operator gesture is a one-edit-class operation.
 
-When the agent has a proposed addition or refinement:
+| Gesture | Meaning | Accept | Reject |
+|---|---|---|---|
+| `🤖{Y}` | agent proposes adding Y | delete `🤖{` and `}`, leaving Y | delete the whole block |
+| `🤖(X)` *or* `🤖~X~` | agent proposes deleting X | delete the whole wrapper + content | remove only the wrapper, keep X |
+| `🤖~X~{Y}` | agent proposes replacing X with Y | delete `🤖~X~`, unwrap `{Y}` | remove the whole construct |
+| `🤖<X>[H]` | human's commentary H referencing text X | (remove when resolved) | (n/a) |
 
-- The agent inserts `🤖{proposed text or refinement}` at the relevant location.
-- The operator accepts, rejects, or edits with one-edit-class gestures:
-  - **Accept**: delete `🤖{` and `}`, leave the text in place.
-  - **Reject**: delete the whole `🤖{...}` block.
-  - **Edit**: change the content inside the braces, then accept.
-- The git diff IS the contract change, atomically reviewable.
+`~X~` is markdown's native strikethrough — proposed deletions render visually as strikeout, giving the operator a preview before they decide. `🤖<X>[H]` is the one human→agent gesture, letting the operator pin commentary to a specific passage rather than scattering notes in chat; the agent picks it up on next read of the file.
 
-The convention generalizes to any human-centric document where the agent should contribute proposals rather than overwrite (product files, atlas drafts, pensives). For target files specifically: agent edits without `🤖{}` framing are a smell — the operator's narrative voice should remain unbroken in the canonical document.
+The convention applies even for *solicited* edits ("review and fix this"). git-diff is excellent for seeing changes but mediocre for iterating — typical editors don't support edits inside diff hunks. Inline markers keep the editing surface as the file itself, which is where the operator already is. Use the convention always; let git-diff review be a redundant safety net.
+
+The convention generalizes to any human-centric document where the agent should contribute proposals rather than overwrite — product files, atlas drafts, pensives. For target files specifically, agent edits without these markers are a discipline failure; the operator's narrative voice should remain unbroken in the canonical document.
 
 ## Authoring instructions
 
