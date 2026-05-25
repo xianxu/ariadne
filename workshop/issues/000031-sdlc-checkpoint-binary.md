@@ -104,7 +104,7 @@ Make targets stay in place during the lift — each Make target gets rewritten t
 
 Build order chosen to maximize drift-defense per unit work and front-load the load-bearing patterns (embedded `--help`, fresh-context judge).
 
-- [ ] **M1 — scaffold + close.** `cmd/sdlc/` skeleton, subcommand dispatch with `//go:embed`-backed `--help`, `make sdlc-build` + `make sdlc-bootstrap`. Port `scripts/close-issue.py` to `sdlc close`. Top-level `sdlc --help` + `sdlc close --help` carry the skill narrative + checkpoint contract. Keep `make close-issue` as a thin wrapper invoking `sdlc close`.
+- [x] **M1 — scaffold + close.** `cmd/sdlc/` skeleton, subcommand dispatch with `//go:embed`-backed `--help`, `make sdlc-build` + `make sdlc-bootstrap`. Port `scripts/close-issue.py` to `sdlc close`. Top-level `sdlc --help` + `sdlc close --help` carry the skill narrative + checkpoint contract. Keep `make close-issue` as a thin wrapper invoking `sdlc close`.
 - [ ] **M2 — state.** `sdlc state` + `sdlc state --json`. Reads git + `workshop/issues/` + worktree list. No Make equivalent to migrate.
 - [ ] **M3 — judge.** `sdlc judge <category>` wraps the subagent-dispatch pattern from `scripts/pre-merge-checks.sh` / `scripts/parallel-checks.sh`. Make `check-*` targets become wrappers. Establishes the anti-collusion primitive explicitly. (Auto-dispatch wiring into `push`/`merge`/`milestone-close` lands in M5/M6 when those verbs ship.)
 - [ ] **M4 — issue lifecycle.** `sdlc fetch`, `sdlc start`, `sdlc lock`, `sdlc set-status`. Port shell logic from Makefile.workflow.
