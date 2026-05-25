@@ -50,6 +50,10 @@ func main() {
 	closeCmd.Long = helptext.MustGet("close")
 	root.AddCommand(closeCmd)
 
+	stateCmd := NewStateCmd()
+	stateCmd.Long = helptext.MustGet("state")
+	root.AddCommand(stateCmd)
+
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
