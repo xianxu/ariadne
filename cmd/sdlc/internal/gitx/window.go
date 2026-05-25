@@ -22,13 +22,27 @@ import (
 // it to drive fixture-based scenarios without spawning real git
 // processes. Production path defaults to exec.Command(...).Output().
 //
-// M2 (sdlc state) will adopt this seam as it grows new gitx callers;
-// the existing CommitWindow / DiscoverWindowIssues / DiffNames /
-// LogReverse / RepoTopLevel should migrate to use run(...) at that
-// point for a uniform mocking surface. Declared up-front so M2 doesn't
-// also have to refactor the seam.
+// All new git callers in this package should use run; M3+ will migrate
+// the legacy direct exec.Command calls below when those code paths are
+// touched again.
 var run = func(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
+}
+
+// Capture runs `git <args>` and returns trimmed stdout. Empty string on
+// any error (caller decides whether to refuse or degrade). Uses the
+// package-level `run` shim so tests can override.
+//
+// Suitable for one-shot queries like `git rev-parse --show-toplevel`,
+// `git branch --show-current`, `git worktree list --porcelain`. Not
+// suitable for queries where you must distinguish "ran but empty" from
+// "errored" — use run() directly for those.
+func Capture(args ...string) string {
+	out, err := run("git", args...)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // WindowCapDays is the sanity cap on how far back the commit window can

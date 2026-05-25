@@ -8,37 +8,7 @@ import (
 	"testing"
 )
 
-func TestCountPlanItems(t *testing.T) {
-	body := `## Problem
-something
-
-## Plan
-
-- [ ] M1 — scaffold
-- [x] M2 — done already
-- [.] M3 — in progress
-- [ ] M4 — later
-
-## Log
-- 2026-05-25: ...
-- [ ] this is not a plan item (it's outside the Plan section)
-`
-	total, ticked := countPlanItems(body)
-	if total != 4 {
-		t.Errorf("total = %d want 4", total)
-	}
-	if ticked != 1 {
-		t.Errorf("ticked = %d want 1", ticked)
-	}
-}
-
-func TestCountPlanItems_NoPlanSection(t *testing.T) {
-	body := "## Problem\nnothing else\n"
-	total, ticked := countPlanItems(body)
-	if total != 0 || ticked != 0 {
-		t.Errorf("expected (0,0), got (%d,%d)", total, ticked)
-	}
-}
+// CountPlanItems lives in internal/issue/plan.go and is tested there.
 
 func TestListIssues(t *testing.T) {
 	dir := t.TempDir()
@@ -183,4 +153,30 @@ func TestTruncate(t *testing.T) {
 	if got := truncate("hello world this is long", 10); got != "hello wor…" {
 		t.Errorf("got %q", got)
 	}
+}
+
+// Regression for M2 review I1: byte-slice truncation produced invalid
+// UTF-8 mid-rune. Rune-aware truncation should keep output valid.
+func TestTruncate_MultibyteSafe(t *testing.T) {
+	// Each emoji is 4 bytes; em-dash is 3 bytes.
+	in := "abc🎉def — ghi"
+	got := truncate(in, 7)
+	// Expect 6 runes + ellipsis. Must remain valid UTF-8.
+	if !utf8ValidString(got) {
+		t.Errorf("truncate produced invalid UTF-8: %q", got)
+	}
+	if got != "abc🎉de…" {
+		t.Errorf("got %q want %q", got, "abc🎉de…")
+	}
+}
+
+// utf8ValidString is a tiny helper to keep the test independent of any
+// stdlib import in the test file. (utf8.ValidString does the same.)
+func utf8ValidString(s string) bool {
+	for _, r := range s {
+		if r == 0xFFFD { // utf8.RuneError
+			return false
+		}
+	}
+	return true
 }

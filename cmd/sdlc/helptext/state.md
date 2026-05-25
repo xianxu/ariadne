@@ -28,17 +28,24 @@ DRIFT DETECTION
 State surfaces structural inconsistencies but does not enforce them
 (the binary's enforcement is on the mutating path). Today's checks:
 
-  - Issues with status=working but no commits referencing them in the
-    last 7 days — likely stale state, agent forgot to flip to blocked
-    or done.
   - Issues with status=working but ## Plan has no ticked items — work
     not started or progress not recorded.
-  - Issues with status=done but still in workshop/issues/ (not yet
-    archived to workshop/history/).
+  - Issues with status=done|wontfix|punt but still in workshop/issues/
+    (should be archived to workshop/history/).
+  - Issue files with no frontmatter / missing status field — broken state.
+  - File-read failures (permission denied, broken symlink, etc.) —
+    surfaced as warnings so the inventory remains complete.
 
 Drift checks are warnings, not errors. Use the surfaced output to
 decide whether to flip status, tick a plan box, or move a done issue
 to history.
+
+Deferred to later milestones (not yet implemented):
+  - working-but-no-recent-commits — needs commit-window cross-reference,
+    lands with M4 (set-status).
+  - project-file task-tick vs issue-tick mismatch — needs BRAIN_DIR
+    resolution, lands with M6 (milestone-close).
+  - atlas-touch surfacing — M7.
 
 FLAGS
 

@@ -32,20 +32,10 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )
 
-// Package-level regexes — compiled once. Per-issue-tag patterns (e.g.
-// the milestone-tick regex that interpolates `f.Milestone`) stay
-// per-call because they vary with input.
-var (
-	// planSectionRE captures the body of the `## Plan` section, stopping
-	// at the next top-level `##` heading or end-of-text. Group 1 is the
-	// section body.
-	planSectionRE = regexp.MustCompile(`(?ms)^## Plan\s*\n(.*?)(?:^## |\z)`)
-
-	// planUncheckedRE matches a single `- [ ] ...` or `- [.] ...` line
-	// inside a Plan section body. Used to refuse issue-close when the
-	// plan still has open items.
-	planUncheckedRE = regexp.MustCompile(`(?m)^- \[[ .]\] .*$`)
-)
+// Plan-section regexes moved to internal/issue/plan.go so cmd/sdlc/state
+// can share the source of truth (M2 review I5). Per-issue-tag patterns
+// like the milestone-tick regex stay per-call because they interpolate
+// f.Milestone.
 
 // closeFlags holds the parsed flag values for the close subcommand.
 type closeFlags struct {
@@ -355,9 +345,9 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
 		}
 	} else { // issue close
-		if m := planSectionRE.FindStringSubmatchIndex(newBody); m != nil {
+		if m := issue.PlanSectionRE.FindStringSubmatchIndex(newBody); m != nil {
 			planBody := newBody[m[2]:m[3]]
-			unchecked := planUncheckedRE.FindAllString(planBody, -1)
+			unchecked := issue.PlanUncheckedRE.FindAllString(planBody, -1)
 			if len(unchecked) > 0 && !f.Force {
 				die(stderr, fmt.Sprintf(
 					"%s ## Plan has %d unchecked item(s):\n  %s\n  (set FORCE=1 to close anyway)",

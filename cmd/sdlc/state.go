@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -29,6 +28,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
@@ -108,11 +108,12 @@ func NewStateCmd() *cobra.Command {
 // ── main flow ───────────────────────────────────────────────────────────────
 
 func runState(stdout io.Writer, f *stateFlags) error {
+	recent, baseRef := recentCommits()
 	s := State{
-		Repo:      runGitCapture("rev-parse", "--show-toplevel"),
-		Branch:    runGitCapture("branch", "--show-current"),
+		Repo:      gitx.Capture("rev-parse", "--show-toplevel"),
+		Branch:    gitx.Capture("branch", "--show-current"),
 		Worktrees: listWorktrees(),
-		Recent:    recentCommits(),
+		Recent:    recent,
 	}
 
 	issues, err := listIssues(f.IssuesDir)
@@ -121,6 +122,12 @@ func runState(stdout io.Writer, f *stateFlags) error {
 	}
 	s.Issues = issues
 	s.Drift = detectDrift(issues, f.HistoryDir)
+	if baseRef == "" {
+		s.Drift = append(s.Drift, DriftFinding{
+			Severity: "info",
+			Message:  "no main/origin/main detected — recent-commits unavailable",
+		})
+	}
 
 	if f.JSON {
 		enc := json.NewEncoder(stdout)
@@ -130,23 +137,11 @@ func runState(stdout io.Writer, f *stateFlags) error {
 	return renderProse(stdout, s)
 }
 
-// ── git helpers (kept local to state.go for now; migrate to internal/gitx
-// when M3/M4 want the same primitives — see review I5 note in window.go) ───
-
-func runGitCapture(args ...string) string {
-	out, err := exec.Command("git", args...).Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
 // listWorktrees parses `git worktree list --porcelain`. Each entry is
 // three lines: "worktree <path>", "HEAD <sha>", "branch refs/heads/<name>"
-// or "detached". We surface (path, branch); detached or bare worktrees
-// get an empty branch.
+// or "detached" or "bare". We surface (path, branch).
 func listWorktrees() []WorktreeState {
-	out := runGitCapture("worktree", "list", "--porcelain")
+	out := gitx.Capture("worktree", "list", "--porcelain")
 	if out == "" {
 		return nil
 	}
@@ -163,6 +158,8 @@ func listWorktrees() []WorktreeState {
 			cur.Branch = strings.TrimPrefix(line, "branch refs/heads/")
 		case line == "detached":
 			cur.Branch = "(detached)"
+		case line == "bare":
+			cur.Branch = "(bare)"
 		}
 	}
 	if cur.Path != "" {
@@ -173,15 +170,21 @@ func listWorktrees() []WorktreeState {
 
 // recentCommits returns the subjects of commits on the current branch
 // since it diverged from origin/main (falls back to main if no upstream).
-// Cap at 20 entries to keep prose tight.
-func recentCommits() []CommitState {
+// Returns (commits, baseRef) where baseRef is the ref that was used; empty
+// if neither origin/main nor main exists (fresh repo or master-only).
+// Caller can surface a drift finding when baseRef is empty. Cap at 20
+// entries to keep prose tight.
+func recentCommits() ([]CommitState, string) {
 	base := "origin/main"
-	if runGitCapture("rev-parse", "--verify", base) == "" {
+	if gitx.Capture("rev-parse", "--verify", base) == "" {
 		base = "main"
+		if gitx.Capture("rev-parse", "--verify", base) == "" {
+			return nil, ""
+		}
 	}
-	out := runGitCapture("log", base+"..HEAD", "--pretty=%H%x00%s")
+	out := gitx.Capture("log", base+"..HEAD", "--pretty=%H%x00%s")
 	if out == "" {
-		return nil
+		return nil, base
 	}
 	var cs []CommitState
 	for _, line := range strings.Split(out, "\n") {
@@ -194,14 +197,10 @@ func recentCommits() []CommitState {
 			break
 		}
 	}
-	return cs
+	return cs, base
 }
 
 // ── issue parsing ───────────────────────────────────────────────────────────
-
-// planItemRE matches one `- [ ] ...` or `- [x] ...` (or [.]) item under
-// `## Plan`. Captures the state char so we can count ticked vs total.
-var planItemRE = regexp.MustCompile(`(?m)^- \[([ x.])\] `)
 
 // titleRE matches the first `# Title` heading after the frontmatter.
 var titleRE = regexp.MustCompile(`(?m)^# (.+)$`)
@@ -234,6 +233,16 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 		path := filepath.Join(issuesDir, name)
 		data, err := os.ReadFile(path)
 		if err != nil {
+			// Don't drop silently — surface as an unreadable entry so
+			// detectDrift can warn. The whole point of state is to be
+			// the single source of truth post-compaction; shrinking
+			// inventory on transient permission/symlink errors
+			// undermines that. M2 review C2.
+			out = append(out, IssueState{
+				ID:     m[1],
+				Path:   path,
+				Status: "unreadable",
+			})
 			continue
 		}
 		text := string(data)
@@ -246,7 +255,7 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 		}
 		status, _ := issue.GetField(fm, "status")
 		updated, _ := issue.GetField(fm, "updated")
-		total, ticked := countPlanItems(body)
+		total, ticked := issue.CountPlanItems(body)
 		title := ""
 		if tm := titleRE.FindStringSubmatch(body); tm != nil {
 			title = tm[1]
@@ -263,24 +272,6 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
-}
-
-// countPlanItems counts total and ticked items in the `## Plan` section
-// of an issue body. Uses the same planSectionRE that close.go uses (so
-// the contract on "what counts as a plan item" stays in lockstep).
-func countPlanItems(body string) (total, ticked int) {
-	m := planSectionRE.FindStringSubmatchIndex(body)
-	if m == nil {
-		return 0, 0
-	}
-	section := body[m[2]:m[3]]
-	for _, mm := range planItemRE.FindAllStringSubmatch(section, -1) {
-		total++
-		if mm[1] == "x" {
-			ticked++
-		}
-	}
-	return total, ticked
 }
 
 // ── drift detection ─────────────────────────────────────────────────────────
@@ -307,6 +298,12 @@ func detectDrift(issues []IssueState, historyDir string) []DriftFinding {
 				Severity: "warn",
 				Issue:    i.ID,
 				Message:  "no frontmatter or missing status: field",
+			})
+		case "unreadable":
+			out = append(out, DriftFinding{
+				Severity: "warn",
+				Issue:    i.ID,
+				Message:  fmt.Sprintf("could not read %s — check permissions / symlinks", i.Path),
 			})
 		case "done", "wontfix", "punt":
 			out = append(out, DriftFinding{
@@ -391,9 +388,14 @@ func valueOr(s, fallback string) string {
 	return s
 }
 
+// truncate cuts a string to at most n runes (not bytes), appending an
+// ellipsis if it had to cut. Rune-aware so multibyte titles (emoji,
+// em-dash, accented chars) don't produce invalid UTF-8 mid-rune.
+// M2 review I1.
 func truncate(s string, n int) string {
-	if len(s) <= n {
+	runes := []rune(s)
+	if len(runes) <= n {
 		return s
 	}
-	return s[:n-1] + "…"
+	return string(runes[:n-1]) + "…"
 }
