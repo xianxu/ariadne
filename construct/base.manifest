@@ -45,6 +45,7 @@ symlink   scripts/issue-sync.sh
 symlink   scripts/parallel-checks.sh
 symlink   scripts/pre-merge-checks.sh
 symlink   scripts/close-issue.py
+symlink   scripts/sdlc-bootstrap.sh
 
 # ── Construct system ──────────────────────────────────────────────────────────
 symlink   construct/scripts/sync-local-skills.sh

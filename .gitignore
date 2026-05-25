@@ -3,5 +3,10 @@
 .openshell/.base-image-digest
 __pycache__/
 *.pyc
+<<<<<<< HEAD
 
 construct/staging/
+=======
+cmd/*/bin/
+bin/
+>>>>>>> bad4a4c (First milestone of the SDLC checkpoint binary (see issue spec +)

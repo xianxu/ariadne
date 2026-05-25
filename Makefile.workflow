@@ -535,3 +535,26 @@ build:
 #   	@cd python-utils && pip install --user -e .
 local-build:
 	@:
+
+# ── sdlc binary ──────────────────────────────────────────────────────────────
+# `sdlc` is the SDLC checkpoint binary (see workshop/issues/000031-*.md).
+# Builds from cmd/sdlc/main.go, output at cmd/sdlc/bin/sdlc, symlinked
+# into bin/sdlc. Mirrors ../nous's `nous-build` pattern.
+#
+# `make build` (the cmd/*/main.go scanner above) also picks sdlc up
+# automatically — sdlc-build is the explicit dev-flow target for
+# iterating just on the binary without scanning the whole cmd/ tree.
+.PHONY: sdlc-build sdlc-bootstrap
+sdlc-build:
+	@mkdir -p bin cmd/sdlc/bin
+	@echo "==> building cmd/sdlc/bin/sdlc"
+	@go build -o cmd/sdlc/bin/sdlc ./cmd/sdlc
+	@ln -sf ../cmd/sdlc/bin/sdlc bin/sdlc
+
+# sdlc-bootstrap installs sdlc onto PATH for the developer. Idempotent.
+# Mirrors ../nous's `nous-bootstrap` pattern but stripped down: sdlc
+# has no GPG / openshell / Brewfile dependencies, just a Go toolchain.
+#
+# Default install dir: ~/bin. Override with SDLC_INSTALL_BIN=...
+sdlc-bootstrap:
+	@scripts/sdlc-bootstrap.sh
