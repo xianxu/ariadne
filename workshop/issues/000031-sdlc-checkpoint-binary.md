@@ -117,6 +117,8 @@ Post-milestone code review (per AGENTS.md §3) is **mandatory at each milestone 
 
 ## Log
 
+
+- 2026-05-25: closed M1 — code review of 9e8625e..fa4010c: 1 Critical (C1 ordering) + 1 Critical-deferred (C2 wrapper) + 5 Important addressed in 90342de; 40 tests pass; bin/sdlc smoke-verified
 ### 2026-05-25 — session summary
 
 Issue created from discussion captured in `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`. Two threads converged: (1) progressive-disclosure leak in markdown-index skills, fixed by binary-backed disclosure via `<bin> --help` (gmail/charon precedent, but using standard `--help` flag instead of a custom `instructions` verb — convention beats invention); (2) checkpoint guards over FSM modeling — defend known commit moments, don't formalize the journey. The `sdlc` binary unifies ariadne's existing Make-target checkpoint guards under one verb namespace with embedded `--help`, structured state inspection, and anti-collusion judge subcommands. Go chosen to match ../nous's `cmd/nous` precedent. Awaiting user verification of scope before commencing.
