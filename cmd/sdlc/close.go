@@ -32,6 +32,21 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )
 
+// Package-level regexes — compiled once. Per-issue-tag patterns (e.g.
+// the milestone-tick regex that interpolates `f.Milestone`) stay
+// per-call because they vary with input.
+var (
+	// planSectionRE captures the body of the `## Plan` section, stopping
+	// at the next top-level `##` heading or end-of-text. Group 1 is the
+	// section body.
+	planSectionRE = regexp.MustCompile(`(?ms)^## Plan\s*\n(.*?)(?:^## |\z)`)
+
+	// planUncheckedRE matches a single `- [ ] ...` or `- [.] ...` line
+	// inside a Plan section body. Used to refuse issue-close when the
+	// plan still has open items.
+	planUncheckedRE = regexp.MustCompile(`(?m)^- \[[ .]\] .*$`)
+)
+
 // closeFlags holds the parsed flag values for the close subcommand.
 type closeFlags struct {
 	Issue     int
@@ -75,7 +90,11 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would change; do not write")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", "workshop/issues", "directory holding issue files")
-	_ = cmd.MarkFlagRequired("issue")
+	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
+	// differently-formatted error that conflicts with die()'s red prefix.
+	// Validation lives in runClose so all error formatting flows through
+	// one path. SilenceErrors keeps cobra from printing on top of us.
+	cmd.SilenceErrors = true
 	return cmd
 }
 
@@ -213,7 +232,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	printSemanticWarmup(stderr)
 
 	if f.Issue <= 0 {
-		die(stderr, "ISSUE=<n> required")
+		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
 	}
 	if f.Actual != "" {
 		if _, err := strconv.ParseFloat(f.Actual, 64); err != nil {
@@ -336,11 +355,9 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
 		}
 	} else { // issue close
-		planRE := regexp.MustCompile(`(?ms)^## Plan\s*\n(.*?)(?:^## |\z)`)
-		if m := planRE.FindStringSubmatchIndex(newBody); m != nil {
+		if m := planSectionRE.FindStringSubmatchIndex(newBody); m != nil {
 			planBody := newBody[m[2]:m[3]]
-			uncheckedRE := regexp.MustCompile(`(?m)^- \[[ .]\] .*$`)
-			unchecked := uncheckedRE.FindAllString(planBody, -1)
+			unchecked := planUncheckedRE.FindAllString(planBody, -1)
 			if len(unchecked) > 0 && !f.Force {
 				die(stderr, fmt.Sprintf(
 					"%s ## Plan has %d unchecked item(s):\n  %s\n  (set FORCE=1 to close anyway)",
@@ -399,12 +416,13 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 			}
 
 			anchor := project.AnchorFor(repoName, issueStr, f.Milestone)
-			fields := map[string]string{
-				"closed": today,
-			}
+			// Order matches close-issue.py: fm_set('actual') then fm_set('closed').
+			// Slice (not map) so iteration order is deterministic.
+			var fields []project.Field
 			if f.Actual != "" {
-				fields["actual"] = f.Actual + "h"
+				fields = append(fields, project.Field{Name: "actual", Value: f.Actual + "h"})
 			}
+			fields = append(fields, project.Field{Name: "closed", Value: today})
 			updated, found := project.UpsertDetailBlockFields(newPT, anchor, fields)
 			if !found && !f.Force {
 				title := project.FindTaskTitle(newPT, repoName, issueStr, f.Milestone)

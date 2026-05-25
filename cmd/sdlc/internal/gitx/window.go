@@ -17,6 +17,20 @@ import (
 	"time"
 )
 
+// run is the package-level command runner. Test code in this package
+// (and downstream packages once we propagate the pattern) can override
+// it to drive fixture-based scenarios without spawning real git
+// processes. Production path defaults to exec.Command(...).Output().
+//
+// M2 (sdlc state) will adopt this seam as it grows new gitx callers;
+// the existing CommitWindow / DiscoverWindowIssues / DiffNames /
+// LogReverse / RepoTopLevel should migrate to use run(...) at that
+// point for a uniform mocking surface. Declared up-front so M2 doesn't
+// also have to refactor the seam.
+var run = func(name string, args ...string) ([]byte, error) {
+	return exec.Command(name, args...).Output()
+}
+
 // WindowCapDays is the sanity cap on how far back the commit window can
 // reach. Anything older is almost certainly a fork-upstream collision
 // (the forked repo's history reusing #N for a different historical issue),

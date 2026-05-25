@@ -94,15 +94,29 @@ func TickAllTaskRowsForIssue(text, repoName, issueID string) (string, int) {
 	return out, len(matches)
 }
 
+// Field is a (name, value) pair used by UpsertDetailBlockFields. Callers
+// pass an ordered slice so the resulting on-disk layout is deterministic;
+// close-issue.py applies "actual" then "closed" in that order, and we
+// preserve it.
+type Field struct {
+	Name, Value string
+}
+
 // UpsertDetailBlockFields finds the detail block anchored by `<a
 // id="anchor"></a>` followed by a `### ...` heading, then upserts each
-// field (`**name:** value`) inside the block body.
+// field (`**name:** value`) inside the block body, in the order the
+// caller passed them.
 //
 // Field upsert semantics (matching close-issue.py's upsert_field):
 //   - field present → replace its line in place
 //   - field absent, `**est:**` present → insert immediately after **est:**
 //     (keeps structured fields grouped at top of block)
 //   - field absent, no `**est:**` → prepend a new line at block start
+//
+// Why the slice (vs map[string]string): Go's map iteration is
+// non-deterministic, so passing two absent fields would produce different
+// orderings across runs. The slice pins the order, matching Python's
+// sequential `fm_set('actual', ...)` then `fm_set('closed', ...)` chain.
 //
 // Returns (newText, found). found=false means the anchor isn't in the file;
 // caller should refuse-and-explain (skeleton-emitting path).
@@ -111,7 +125,7 @@ func TickAllTaskRowsForIssue(text, repoName, issueID string) (string, int) {
 // lookahead `(?=\n<a id=|\n\[[a-z][a-z0-9 #-]+\]:|\Z)` to bound the body.
 // Go's RE2 doesn't support lookahead, so we instead locate the header with
 // a regex, then scan forward line-by-line to find the same boundary.
-func UpsertDetailBlockFields(text, anchor string, fields map[string]string) (string, bool) {
+func UpsertDetailBlockFields(text, anchor string, fields []Field) (string, bool) {
 	hdrRE := regexp.MustCompile(
 		`(?m)<a id="` + regexp.QuoteMeta(anchor) + `"></a>\n### [^\n]*\n`,
 	)
@@ -122,8 +136,8 @@ func UpsertDetailBlockFields(text, anchor string, fields map[string]string) (str
 	bodyStart := hdrLoc[1]
 	bodyEnd := findDetailBlockEnd(text, bodyStart)
 	body := text[bodyStart:bodyEnd]
-	for name, value := range fields {
-		body = upsertField(body, name, value)
+	for _, fld := range fields {
+		body = upsertField(body, fld.Name, fld.Value)
 	}
 	return text[:bodyStart] + body + text[bodyEnd:], true
 }
@@ -149,18 +163,24 @@ func findDetailBlockEnd(text string, from int) int {
 	return from + loc[0]
 }
 
+// estLineRE matches the first `**est:**` line. Package-level so we
+// don't recompile it on every upsertField call (callers may invoke per
+// field, and multiple fields per close is the common case).
+var estLineRE = regexp.MustCompile(`(?m)(^\*\*est:\*\*.*$)`)
+
 // upsertField applies close-issue.py's three-tier upsert to one field.
+// The present-line regex remains per-call because the field name is
+// interpolated into the pattern; estLineRE is fixed and reused.
 func upsertField(text, field, value string) string {
 	line := "**" + field + ":** " + value
 	presentRE := regexp.MustCompile(`(?m)^\*\*` + regexp.QuoteMeta(field) + `:\*\*.*$`)
 	if presentRE.MatchString(text) {
 		return presentRE.ReplaceAllString(text, line)
 	}
-	estRE := regexp.MustCompile(`(?m)(^\*\*est:\*\*.*$)`)
-	if estRE.MatchString(text) {
+	if estLineRE.MatchString(text) {
 		// Insert after est line — only the first occurrence.
 		replaced := false
-		return estRE.ReplaceAllStringFunc(text, func(m string) string {
+		return estLineRE.ReplaceAllStringFunc(text, func(m string) string {
 			if replaced {
 				return m
 			}

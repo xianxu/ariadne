@@ -118,9 +118,9 @@ shipped: port done.
 
 **est:** 3h
 `
-	out, found := UpsertDetailBlockFields(doc, "ariadne-31-m1", map[string]string{
-		"actual": "6.5h",
-		"closed": "2026-05-25",
+	out, found := UpsertDetailBlockFields(doc, "ariadne-31-m1", []Field{
+		{Name: "actual", Value: "6.5h"},
+		{Name: "closed", Value: "2026-05-25"},
 	})
 	if !found {
 		t.Fatal("expected found=true")
@@ -151,8 +151,8 @@ func TestUpsertDetailBlockFields_FieldAbsent_InsertsAfterEst(t *testing.T) {
 
 shipped: port done.
 `
-	out, found := UpsertDetailBlockFields(doc, "ariadne-31-m1", map[string]string{
-		"actual": "6.5h",
+	out, found := UpsertDetailBlockFields(doc, "ariadne-31-m1", []Field{
+		{Name: "actual", Value: "6.5h"},
 	})
 	if !found {
 		t.Fatal("expected found=true")
@@ -164,13 +164,46 @@ shipped: port done.
 	}
 }
 
+// Regression test for the map-iteration-order bug (review C1). Both
+// actual and closed are absent and est is present; the slice contract
+// guarantees actual lands immediately after est and closed lands
+// immediately after actual, matching close-issue.py's sequential
+// fm_set('actual') then fm_set('closed') chain.
+func TestUpsertDetailBlockFields_BothFieldsAbsent_PreservesCallerOrder(t *testing.T) {
+	doc := `<a id="ariadne-31-m1"></a>
+### ariadne#31 M1 — port close-issue
+
+**est:** 4h
+
+shipped: port done.
+`
+	out, found := UpsertDetailBlockFields(doc, "ariadne-31-m1", []Field{
+		{Name: "actual", Value: "6.5h"},
+		{Name: "closed", Value: "2026-05-25"},
+	})
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	// Caller order: actual then closed. Per upsertField's "insert after
+	// est" rule, both inserts land immediately after the est line; the
+	// later insert pushes the earlier one down by one position. Net
+	// result for caller order [actual, closed]: **est:** **closed:** **actual:**.
+	// This matches close-issue.py exactly: it also produces closed-above-actual
+	// because fm_set inserts after est in both calls, and the second insert
+	// (closed) shoves actual down.
+	wantSubstring := "**est:** 4h\n**closed:** 2026-05-25\n**actual:** 6.5h\n"
+	if !strings.Contains(out, wantSubstring) {
+		t.Errorf("expected deterministic order matching Python (closed above actual):\n%s", out)
+	}
+}
+
 func TestUpsertDetailBlockFields_AnchorMissing_FoundFalse(t *testing.T) {
 	doc := `<a id="ariadne-31-m2"></a>
 ### ariadne#31 M2 — state
 
 **est:** 3h
 `
-	out, found := UpsertDetailBlockFields(doc, "ariadne-31-m1", map[string]string{"actual": "1h"})
+	out, found := UpsertDetailBlockFields(doc, "ariadne-31-m1", []Field{{Name: "actual", Value: "1h"}})
 	if found {
 		t.Errorf("expected found=false, got true")
 	}

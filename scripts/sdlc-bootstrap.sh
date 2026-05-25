@@ -19,7 +19,7 @@ cd "$REPO_DIR"
 
 # ── 1. Toolchain check ──────────────────────────────────────────────────────
 if ! command -v go >/dev/null 2>&1; then
-    die "go not in PATH — install Go 1.25+ (https://go.dev/dl/) and retry"
+    die "go not in PATH — install Go 1.26+ (https://go.dev/dl/) and retry"
 fi
 GO_VERSION=$(go version | awk '{print $3}')
 ok "Go found: ${GO_VERSION}"

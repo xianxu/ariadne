@@ -95,8 +95,27 @@ close-issue: export VERIFIED    := $(VERIFIED)
 close-issue: export FORCE       := $(FORCE)
 close-issue: export DRY         := $(DRY)
 close-issue: export BRAIN_DIR   := $(BRAIN_DIR)
+# Delegates to bin/sdlc close when the Go binary is built; falls back to
+# the Python script otherwise. Both implementations match byte-for-byte
+# on stderr (Go is a faithful port of close-issue.py). The fallback path
+# keeps downstream repos that haven't run `make sdlc-build` yet working.
+# After M8 deprecates the Python script, the fallback branch goes away.
+#
+# Bash ${VAR:+--flag "$$VAR"} expands to nothing when VAR is unset/empty,
+# else to --flag "value" — preserves spaces in VERIFIED across the call.
 close-issue:
-	@scripts/close-issue.py
+	@if [ -x bin/sdlc ]; then \
+	    bin/sdlc close \
+	      $${ISSUE:+--issue "$$ISSUE"} \
+	      $${MILESTONE:+--milestone "$$MILESTONE"} \
+	      $${ACTUAL:+--actual "$$ACTUAL"} \
+	      $${VERIFIED:+--verified "$$VERIFIED"} \
+	      $${FORCE:+--force} \
+	      $${DRY:+--dry-run} \
+	      $${BRAIN_DIR:+--brain-dir "$$BRAIN_DIR"}; \
+	else \
+	    scripts/close-issue.py; \
+	fi
 
 # ── Refresh (setup + merge) ───────────────────────────────────────────────────
 # Detection (all keyed off UPSTREAM_* vars; defaults target ariadne):
