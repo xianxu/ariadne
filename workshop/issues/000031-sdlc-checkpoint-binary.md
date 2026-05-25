@@ -105,7 +105,7 @@ Make targets stay in place during the lift — each Make target gets rewritten t
 Build order chosen to maximize drift-defense per unit work and front-load the load-bearing patterns (embedded `--help`, fresh-context judge).
 
 - [x] **M1 — scaffold + close.** `cmd/sdlc/` skeleton, subcommand dispatch with `//go:embed`-backed `--help`, `make sdlc-build` + `make sdlc-bootstrap`. Port `scripts/close-issue.py` to `sdlc close`. Top-level `sdlc --help` + `sdlc close --help` carry the skill narrative + checkpoint contract. Keep `make close-issue` as a thin wrapper invoking `sdlc close`.
-- [ ] **M2 — state.** `sdlc state` + `sdlc state --json`. Reads git + `workshop/issues/` + worktree list. No Make equivalent to migrate.
+- [x] **M2 — state.** `sdlc state` + `sdlc state --json`. Reads git + `workshop/issues/` + worktree list. No Make equivalent to migrate.
 - [ ] **M3 — judge.** `sdlc judge <category>` wraps the subagent-dispatch pattern from `scripts/pre-merge-checks.sh` / `scripts/parallel-checks.sh`. Make `check-*` targets become wrappers. Establishes the anti-collusion primitive explicitly. (Auto-dispatch wiring into `push`/`merge`/`milestone-close` lands in M5/M6 when those verbs ship.)
 - [ ] **M4 — issue lifecycle.** `sdlc fetch`, `sdlc start`, `sdlc lock`, `sdlc set-status`. Port shell logic from Makefile.workflow.
 - [ ] **M5 — push/pr/merge verbs.** `sdlc push`, `sdlc pr`, `sdlc merge`. The longest Make scripts; lift mechanically. Wire auto-dispatch of `sdlc judge plan|specs|lessons` as pre-flight in `push` and `merge`.
@@ -118,6 +118,8 @@ Post-milestone code review (per AGENTS.md §3) is **mandatory at each milestone 
 ## Log
 
 
+
+- 2026-05-25: closed M2 — M2 review of fbc55f5..d7789e0: C1+C2 fixed, I1-I5 addressed (gitx.Capture seam, rune-safe truncate, plan regexes in internal/issue); 49 tests pass; live drift surfacing still works
 - 2026-05-25: closed M1 — code review of 9e8625e..fa4010c: 1 Critical (C1 ordering) + 1 Critical-deferred (C2 wrapper) + 5 Important addressed in 90342de; 40 tests pass; bin/sdlc smoke-verified
 ### 2026-05-25 — session summary
 
