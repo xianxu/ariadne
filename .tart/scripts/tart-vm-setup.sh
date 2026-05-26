@@ -31,15 +31,17 @@ EOF
 fi
 
 # ── Wire ~/workspace to the host's workspace mount ───────────────
-# Post-ariadne#32 the host mounts the WORKSPACE (parent of the current
-# repo) into the VM, not just the current repo. This gives the VM
-# access to every peer (ariadne, nous, brain-*, parley.nvim, etc.) so
-# Go's replace directives pointing at sibling paths resolve correctly
-# inside the VM.
+# Post-ariadne#32 the host mounts a workspace-shaped APFS clone holding
+# the current repo + its go.mod-declared peers (recursive replace walk)
+# into the VM. The contents look like a sibling-checkout: each peer is
+# a top-level dir, so Go's replace directives pointing at sibling paths
+# resolve correctly inside the VM.
 #
 # Mount appears at /Volumes/My Shared Files/workspace; symlink
 # ~/workspace there so paths like ~/workspace/parley.nvim feel
-# natural to operators.
+# natural to operators. The set of peers under ~/workspace is
+# determined by the current repo's go.mod — not the host's full
+# sibling directory.
 MOUNT="/Volumes/My Shared Files/workspace"
 if [ -d "$MOUNT" ]; then
     # Symlink ~/workspace → the writable share.

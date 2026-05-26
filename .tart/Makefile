@@ -3,14 +3,17 @@
 #
 # Provides:
 #   make tart        cold-boot $(TART_VM) headless (stops first if
-#                    running), prepare an APFS clone of $(CURDIR) at
-#                    /tmp/$(TART_VM)-clone (cp -cR; O(1) on APFS),
-#                    mount it writable at /Volumes/My Shared
-#                    Files/$(REPO_NAME), ssh in. ~/repo in the VM is
-#                    a symlink to the writable share. Cold-boot is
-#                    the default for mount-cache freshness — see
-#                    ariadne#28 for why. Clone-based share is the
-#                    successor to rsync — see ariadne#29.
+#                    running), APFS-clone the current repo + every peer
+#                    declared via go.mod replace directives (recursive
+#                    walk) into ~/.tart/clones/$(TART_VM)-clone, mount
+#                    it writable at /Volumes/My Shared Files/workspace,
+#                    ssh in. ~/workspace in the VM is a symlink to the
+#                    share; ~/repo symlinks to ~/workspace/$(REPO_NAME).
+#                    Cold-boot is the default for mount-cache freshness
+#                    — see ariadne#28 for why. Clone-based share is the
+#                    successor to rsync — see ariadne#29. Selective
+#                    cloning per go.mod is ariadne#32 phase 2 (without
+#                    it, cloning a multi-GB workspace dominated boot).
 #   make tart-gui    same but display via macOS Screen Sharing.app
 #                    (--vnc; built-in UI is broken on macOS Tahoe)
 #   make tart-stop   stop $(TART_VM); remove its clone
@@ -63,24 +66,26 @@ TART_VM        ?= $(REPO_NAME)-$(or $(TART_SUFFIX),test)
 # can be removed by setting GRAPHICS_FLAG := (empty) for tart-gui.
 GRAPHICS_FLAG  ?= --no-graphics
 
-# What gets mounted into the VM: the WORKSPACE (parent of $(CURDIR)),
-# so the VM has access to every peer repo (ariadne, nous, brain-*,
-# parley.nvim, etc.). Required for the Go-based substrate model
-# (ariadne#32) where setup.sh resolves ancestors via replace directives
-# pointing at sibling paths — without peer access, those resolutions
-# would dangle in the VM.
+# What gets mounted into the VM: a workspace-shaped APFS clone holding
+# the current repo + each transitive peer declared via go.mod replace
+# (ariadne#32 phase 2). Required for the Go-based substrate model —
+# setup.sh resolves ancestors via replace directives pointing at sibling
+# paths; without peer access those resolutions would dangle in the VM.
+#
+# Cloning only the needed peers (vs. the whole sibling directory) is a
+# meaningful boot speedup — `cp -cR` is O(1) per file via clonefile(2)
+# but linear in total file count. Workspaces grow to many GB of
+# unrelated peers; restricting to go.mod peers keeps boot prep fast.
 #
 # Mount appears at /Volumes/My Shared Files/workspace inside the VM;
 # tart-vm-setup.sh symlinks $HOME/workspace there, then cd's into
 # $HOME/workspace/<current-repo>/ on shell start.
 WORKSPACE_DIR  := $(realpath $(CURDIR)/..)
-WORKSPACE_NAME := $(notdir $(WORKSPACE_DIR))
 
-# Host-side APFS clone of the WORKSPACE (parent dir), used as the VM's
-# writable share. cp -cR is metadata-only on APFS — initial cost is
-# O(1) regardless of total size, and VM writes diverge into the clone
-# via COW without touching the source. Even a workspace with multiple
-# multi-GB repos clones instantly.
+# Host-side APFS clone of the per-repo peer set (current repo + go.mod
+# replaces, transitively). Used as the VM's writable share. cp -cR
+# uses clonefile(2) on APFS — metadata-only per file, VM writes diverge
+# via COW without touching the source.
 #
 # Path choice: ~/.tart/clones/ rather than /tmp. macOS's Virtualization
 # framework + tart's app sandbox refuse to expose paths under
