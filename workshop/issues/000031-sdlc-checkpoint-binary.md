@@ -111,7 +111,7 @@ Build order chosen to maximize drift-defense per unit work and front-load the lo
 - [x] **M5 — push/pr/merge verbs.** `sdlc push`, `sdlc pr`, `sdlc merge`. The longest Make scripts; lift mechanically. Wire auto-dispatch of `sdlc judge plan|specs|lessons` as pre-flight in `push` and `merge`.
 - [x] **M6 — milestone-close + milestone-review.** Promote milestone close from a flag on `sdlc close` to its own verb; wire up the post-milestone code review dispatch.
 - [x] **M7 — SKILL.md generation + atlas.** Implement `sdlc --index` to emit the SKILL.md content. Regenerate `construct/local/sdlc/SKILL.md` from it (no hand-edits going forward — binary owns the prose). Atlas update: `atlas/workflow/sdlc-binary.md` covering the binary surface (replacing scattered references to individual Make targets).
-- [ ] **M8 — deprecate Make wrappers.** Once usage has shifted, simplify or remove the wrapper targets.
+- [ ] **M8 — deprecate Make wrappers** *(DEFERRED — needs operational usage first; not blocking close)*. Once usage has shifted to `sdlc` verbs in daily operation, simplify or remove the wrapper targets. Issue closed with this milestone unchecked by design; reopen or split to a new issue when operational usage indicates the wrappers are vestigial.
 
 Post-milestone code review (per AGENTS.md §3) is **mandatory at each milestone close** — the binary is partly building its own review primitive, so we eat our own dog food early.
 
