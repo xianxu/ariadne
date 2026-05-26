@@ -157,7 +157,11 @@ pre-merge:
 	@scripts/parallel-checks.sh
 
 check-%:
-	@scripts/pre-merge-checks.sh $*
+	@if [ -x bin/sdlc ]; then \
+	    bin/sdlc judge $*; \
+	else \
+	    scripts/pre-merge-checks.sh $*; \
+	fi
 
 # Worktree management targets
 # Capture extra argument after worktree (e.g. make worktree feature-x)

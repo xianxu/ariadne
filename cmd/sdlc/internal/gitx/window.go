@@ -9,6 +9,7 @@ package gitx
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -29,6 +30,14 @@ var run = func(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
 }
 
+// RunGit runs `git <args>` via the package-level `run` shim and returns
+// the raw stdout bytes. Use this when you need the full output (newlines
+// preserved) or need to distinguish empty-but-OK from error — Capture
+// flattens both into "".
+func RunGit(args ...string) ([]byte, error) {
+	return run("git", args...)
+}
+
 // Capture runs `git <args>` and returns trimmed stdout. Empty string on
 // any error (caller decides whether to refuse or degrade). Uses the
 // package-level `run` shim so tests can override.
@@ -43,6 +52,39 @@ func Capture(args ...string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// DiffBase returns the git ref to compare against for "what's new on
+// this branch." Mirrors scripts/lib.sh's git_diff_base():
+//
+//   1. If <repo-root>/COMPARE-SHA exists and points to a verified ref,
+//      use that. Lets callers override the default for ad-hoc reviews.
+//   2. If current branch is main, return origin/main (HEAD~10 fallback).
+//   3. Otherwise (feature branch), return the merge-base of main and HEAD.
+//
+// Used by `sdlc judge` to determine the diff window for principle checks.
+func DiffBase() string {
+	root := Capture("rev-parse", "--show-toplevel")
+	if root != "" {
+		path := root + "/COMPARE-SHA"
+		if data, err := os.ReadFile(path); err == nil {
+			sha := strings.TrimSpace(strings.SplitN(string(data), "\n", 2)[0])
+			if sha != "" && Capture("rev-parse", "--verify", sha) != "" {
+				return sha
+			}
+		}
+	}
+	branch := Capture("branch", "--show-current")
+	if branch == "main" {
+		if ref := Capture("rev-parse", "origin/main"); ref != "" {
+			return "origin/main"
+		}
+		return "HEAD~10"
+	}
+	if base := Capture("merge-base", "main", "HEAD"); base != "" {
+		return base
+	}
+	return "HEAD~10"
 }
 
 // WindowCapDays is the sanity cap on how far back the commit window can

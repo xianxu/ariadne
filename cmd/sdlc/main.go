@@ -54,6 +54,10 @@ func main() {
 	stateCmd.Long = helptext.MustGet("state")
 	root.AddCommand(stateCmd)
 
+	judgeCmd := NewJudgeCmd()
+	judgeCmd.Long = helptext.MustGet("judge")
+	root.AddCommand(judgeCmd)
+
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
