@@ -148,7 +148,11 @@ func runFetch(stdout, stderr io.Writer, f *fetchFlags) error {
 // originRE captures owner/repo from either git@github.com:owner/repo.git
 // or https://github.com/owner/repo[.git]. The Makefile target uses sed
 // with two patterns; this single Go regex covers both shapes.
-var originRE = regexp.MustCompile(`github\.com[:/]([^/]+/[^/]+?)(?:\.git)?(?:\n|$)`)
+//
+// Lazy capture so deeper-path hosts (rare) still parse owner/...rest;
+// the shell's sed pipeline does the same via greedy `.*\.git` stripping.
+// Review M4 I1.
+var originRE = regexp.MustCompile(`github\.com[:/]([^/].*?)(?:\.git)?(?:\n|$)`)
 
 // detectRepo returns the "owner/repo" slug for the current repo's
 // `origin` remote. Errors if origin is not configured or doesn't look

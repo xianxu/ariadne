@@ -79,7 +79,7 @@ func runLock(stdout, stderr io.Writer, f *lockFlags) error {
 // ── on-main path ─────────────────────────────────────────────────────────────
 
 func syncOnMain(stdout, stderr io.Writer, f *lockFlags, r gitRunner) error {
-	changed, err := changedIssueFiles(f, r, "")
+	changed, err := changedIssueFiles(f, r)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -123,7 +123,7 @@ func syncOnMain(stdout, stderr io.Writer, f *lockFlags, r gitRunner) error {
 // ── on-branch path ───────────────────────────────────────────────────────────
 
 func syncOnBranch(stdout, stderr io.Writer, f *lockFlags, branch string, r gitRunner) error {
-	changed, err := changedIssueFiles(f, r, "")
+	changed, err := changedIssueFiles(f, r)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -262,7 +262,7 @@ func syncOnBranch(stdout, stderr io.Writer, f *lockFlags, branch string, r gitRu
 // Matches issue-sync.sh's changed_issue_files() — note the union includes
 // "diff HEAD" (which already covers cached) plus "diff --cached" separately
 // (redundant but preserved for parity); de-dup happens at the sort step.
-func changedIssueFiles(f *lockFlags, r gitRunner, _ string) ([]string, error) {
+func changedIssueFiles(f *lockFlags, r gitRunner) ([]string, error) {
 	queries := [][]string{
 		{"diff", "--name-only", "HEAD", "--", f.IssuesDir + "/"},
 		{"diff", "--cached", "--name-only", "--", f.IssuesDir + "/"},

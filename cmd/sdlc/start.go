@@ -191,6 +191,13 @@ func resolveStartName(f *startFlags, r gitRunner) (name, untrackedFile string, e
 		if len(matches) > 1 {
 			return "", "", fmt.Errorf("multiple issue files match %s/%s-*.md: %v", f.IssuesDir, id, matches)
 		}
+		// Verify the match is a readable regular file — glob can return
+		// dangling symlinks or stat-failing entries that would error at
+		// git-add time with a confusing message. Matches the shell's
+		// `[ -f "$$issues" ]` check (review M4 I4).
+		if info, err := os.Stat(matches[0]); err != nil || !info.Mode().IsRegular() {
+			return "", "", fmt.Errorf("issue file %s exists in glob but is not a readable regular file", matches[0])
+		}
 		base := strings.TrimSuffix(filepath.Base(matches[0]), ".md")
 		// Was it in the untracked list? If yes, return for commit.
 		for _, u := range untracked {
