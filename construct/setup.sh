@@ -378,7 +378,18 @@ walk_manifest() {
 
         case "$action" in
             symlink)
-                if [[ "$MODE" == "vendor" ]]; then
+                # Intra-repo symlinks (self-walk) are immune to vendor mode:
+                # the relative link stays valid wherever the repo is cloned,
+                # so there's nothing to harden. Vendoring an intra-repo entry
+                # would just duplicate content and break the live edit-and-
+                # see-it-everywhere ergonomic that motivated declaring it as
+                # a symlink in the first place (e.g., nous exposing
+                # construct/skills/X at .claude/skills/X for Claude Code's
+                # skill loader). Vendor mode exists for cross-repo content,
+                # where the upstream may not be present on the consumer's
+                # machine — that doesn't apply when source and target are
+                # both inside the layer being set up.
+                if [[ "$MODE" == "vendor" && "$upstream" != "$TARGET_DIR" ]]; then
                     create_vendored "$upstream/$source" "$TARGET_DIR/$target"
                 else
                     create_symlink "$upstream/$source" "$TARGET_DIR/$target"
