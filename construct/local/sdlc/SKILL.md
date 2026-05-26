@@ -37,10 +37,11 @@ checkpoints *between* stages; the stages themselves stay prose and human-driven:
 3. **Planning** — `superpowers-writing-plans` → inline in `workshop/issues/` or separate in `workshop/plans/`
 4. **Build** — `superpowers-executing-plans`, milestones in `workshop/issues/`
 5. **Milestone review** — `sdlc judge` (auto-dispatched from `sdlc milestone-close`)
-6. **Test** — currently manual; web work will adopt `playwright` / gstack browser integration
-7. **Close / ship** — `sdlc close` → `sdlc push` (main) or `sdlc pr` → `sdlc merge` (branch)
-8. **Postmortem** — `xx-introspect`, `workshop/lessons.md`
-9. **Crystallization** — `workshop/targets/` — extract stable shapes (conventions, protocols, invariants) into target files committed to defending; recognition-triggered (a pattern has stabilized through use), not scheduled or planned
+6. **Close / ship** — `sdlc close` → `sdlc push` (main) or `sdlc pr` → `sdlc merge` (branch)
+7. **Postmortem** — `xx-introspect`, `workshop/lessons.md`
+8. **Crystallization** — `workshop/targets/` — extract stable shapes (conventions, protocols, invariants) into target files committed to defending; recognition-triggered (a pattern has stabilized through use), not scheduled or planned
+
+**Testing is not a stage** — it threads through Planning (Core concepts table names PURE / INTEGRATION entities, implying test surface), Build (TDD red-green-refactor in-line; tests next to entities; verification-before-completion gates each step), and Milestone review (judge cross-checks "PURE entities test without IO; if tests need mocks, promote to INTEGRATION"). When a feature needs test infrastructure (process-level fake for an external service: GitHub, Gmail, Anthropic API), that infrastructure is itself a feature and runs through stages 1-5 like any other.
 
 ## Conventions
 

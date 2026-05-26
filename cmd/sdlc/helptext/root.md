@@ -19,14 +19,28 @@ checkpoints between stages; the stages themselves stay prose and human-driven:
                       AGENTS.md §1)
   4. Build          — superpowers-executing-plans, milestones in workshop/issues/
   5. Milestone review — sdlc judge (auto-dispatched from milestone-close)
-  6. Test           — currently manual; web work will adopt playwright / gstack
-                      browser integration
-  7. Close / ship   — sdlc close → sdlc push (main) or sdlc pr → sdlc merge (branch)
-  8. Postmortem     — xx-introspect, workshop/lessons.md
-  9. Crystallization — workshop/targets/ — extract stable shapes (conventions,
+  6. Close / ship   — sdlc close → sdlc push (main) or sdlc pr → sdlc merge (branch)
+  7. Postmortem     — xx-introspect, workshop/lessons.md
+  8. Crystallization — workshop/targets/ — extract stable shapes (conventions,
                       protocols, invariants) into target files committed to
                       defending; recognition-triggered (a pattern has
                       stabilized through use), not scheduled or planned
+
+TESTING (not a stage)
+
+Testing isn't a separate stage — it threads through:
+  - Planning (3): Core concepts table names PURE (unit-test-shaped) and
+    INTEGRATION (need fakes / integration-test-shaped). The entity
+    table implies the test surface.
+  - Build (4): TDD red-green-refactor in-line; tests live next to
+    entities. Verification-before-completion gates each step.
+  - Milestone review (5): judge cross-checks "PURE entities test
+    without IO; if tests need mocks, promote to INTEGRATION." Missing
+    coverage = finding.
+
+When a feature needs test infrastructure (process-level fake for an
+external service: GitHub, Gmail, Anthropic API), that infrastructure
+is itself a feature and runs through stages 1-5 like any other.
 
 CONVENTIONS
 
