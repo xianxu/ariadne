@@ -3,9 +3,14 @@ package judge
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"strings"
 	"testing"
 )
+
+// execCommand is exposed as a var so the test can swap to a fake if
+// needed; for now, all tests use the real exec.
+var execCommand = exec.Command
 
 func TestIsValid(t *testing.T) {
 	for _, name := range []string{"dry", "pure", "plan", "specs", "lessons", "milestone-review"} {
@@ -218,4 +223,31 @@ func TestDispatch_LaunchError_Surfaces(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when Run fails to launch")
 	}
+}
+
+// Regression for M3 review I3: non-zero exit from the subprocess (whether
+// with or without output) should NOT be a Dispatch error — it's a finding
+// for Classify to interpret. Real launch failures still error.
+func TestDispatch_ExitErrorWithEmptyOutput_NotAnError(t *testing.T) {
+	orig := Run
+	defer func() { Run = orig }()
+	// Real *exec.ExitError requires a started process. Easiest path:
+	// spawn `false` (always exits 1) via the actual exec package, no
+	// args needed.
+	Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return realExec("false")
+	}
+	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "x", AllowedTools: "Read"})
+	if err != nil {
+		t.Errorf("non-zero exit should not surface as Dispatch error, got %v", err)
+	}
+	if Classify(out) != Failure {
+		t.Errorf("empty output should classify as Failure, got %s", Classify(out))
+	}
+}
+
+// realExec runs `false` (or any always-exit-non-zero binary) so we get a
+// genuine *exec.ExitError. Wrapped here to keep the test's intent clear.
+func realExec(name string) ([]byte, error) {
+	return execCommand(name).CombinedOutput()
 }

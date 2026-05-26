@@ -79,23 +79,31 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 // via Classify(); Dispatch's job is just to run the agent and return
 // what it said.
 //
-// Returns an error only when the subprocess itself fails to launch or
-// the agent name is unknown. A non-zero agent exit code is NOT an
-// error here — agents commonly exit non-zero when they find violations,
-// which is information, not failure of the subprocess.
+// Exit-code policy (review I3):
+//
+//   - subprocess fails to launch (binary missing, permission denied,
+//     ctx cancelled, unknown agent name) → return error.
+//   - subprocess runs and exits non-zero (any output) → swallow the
+//     exit error, return the output for Classify(). Matches shell's
+//     `|| true` and lets agents emit "found X violations, exit 1"
+//     without us treating it as a binary-launch failure.
+//
+// In particular: empty-output + non-zero exit is *not* a launch failure
+// — Classify() will mark it as Failure based on the empty-output rule.
+// This keeps the binary/agent failure modes cleanly separated.
 func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err error) {
 	name, args, err := BuildArgs(opts)
 	if err != nil {
 		return "", err
 	}
 	out, runErr := Run(ctx, name, args...)
-	if exitErr, ok := runErr.(*exec.ExitError); ok && len(out) > 0 {
-		// Non-zero exit but we got output — surface the output, swallow
-		// the exit error. Matches the shell's `|| true` posture.
-		_ = exitErr
+	if _, ok := runErr.(*exec.ExitError); ok {
+		// Subprocess ran but exited non-zero. Surface the output (may
+		// be empty); let Classify() interpret. Matches the shell.
 		return string(out), nil
 	}
 	if runErr != nil {
+		// Real launch failure: binary missing, ctx cancelled, etc.
 		return string(out), fmt.Errorf("dispatch %s: %w", name, runErr)
 	}
 	return string(out), nil

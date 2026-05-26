@@ -37,6 +37,13 @@ FLAGS
   --tools <list>        comma-separated tool allowlist for claude. Default:
                         Read,Grep,Glob,Bash (read-only) or Edit,Read,Write,
                         Grep,Glob,Bash for the `specs` category.
+                        Note: the shell version's default was write-capable
+                        for ALL categories; the Go port tightens to read-only
+                        except `specs`. Pass --tools explicitly to widen.
+  --issues-dir <path>   directory holding issue files. Default: $WF_ISSUES_DIR
+                        or "workshop/issues".
+  --history-dir <path>  directory holding archived issues. Default:
+                        $WF_HISTORY_DIR or "workshop/history".
   --dry-run             print the prompt + would-be command line; do not
                         invoke the agent. Useful for verifying behavior
                         in restricted environments.
