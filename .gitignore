@@ -3,3 +3,5 @@
 .openshell/.base-image-digest
 __pycache__/
 *.pyc
+
+construct/staging/
