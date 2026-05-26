@@ -108,13 +108,13 @@ help-tart:
 	@printf '%s\n' \
 	"Tart (macOS VMs):" \
 	"  make tart           Cold-boot $(TART_VM) headless (stops first if running)," \
-	"                      prepare APFS clone of the WORKSPACE ($(WORKSPACE_DIR))," \
+	"                      APFS-clone the current repo + go.mod-declared peers" \
+	"                      (recursive replace walk) into a workspace-shaped tree," \
 	"                      mount it writable at /Volumes/My Shared Files/workspace," \
 	"                      ssh in. ~/workspace in the VM symlinks the share;" \
 	"                      ~/repo symlinks to ~/workspace/$(REPO_NAME); shell" \
 	"                      cd's into the current-repo on login." \
-	"                      Workspace mount lets sibling-style replace directives" \
-	"                      (Go modules; post-ariadne#32) resolve inside the VM." \
+	"                      No-go.mod consumers clone only the current repo." \
 	"  make tart-gui       Same but display via macOS Screen Sharing.app" \
 	"  make tart-stop      Stop $(TART_VM) + remove its clone" \
 	"  make tart-clean     Stop + delete $(TART_VM) + remove its clone (base stays cached)" \
@@ -137,31 +137,43 @@ define _tart_check_others
 	@bash $(CURDIR)/.tart/scripts/tart-stop-others.sh $(TART_VM) $(TART_BASE)
 endef
 
-# _tart_prepare_clone: APFS-clone the WORKSPACE (parent of $(CURDIR))
-# → $(TART_CLONE_DIR), then strip codesign-cursed dirs (bin/, cmd/*/bin/)
-# and host-local mode markers (.ariadne-mode, .nous-mode, .nous-plugins)
-# across every peer repo inside.
+# _tart_prepare_clone: APFS-clone the current repo + every peer it
+# transitively depends on (via go.mod's replace directives) into
+# $(TART_CLONE_DIR)/, one subdirectory per peer. Then strip codesign-
+# cursed dirs (bin/, cmd/*/bin/) and host-local mode markers
+# (.ariadne-mode, .nous-mode, .nous-plugins) across every peer.
+#
+# Peer list comes from .tart/scripts/tart-list-peers.sh, which does the
+# same recursive go.mod replace walk that construct/setup.sh's ancestor
+# discovery uses. Result: the VM clone contains exactly the peers the
+# current repo's substrate-resolution actually needs, plus the current
+# repo itself. No-go.mod consumers (pre-#32 fallback) just clone the
+# single current repo.
 #
 # cp -cR uses clonefile(2) under the hood on APFS — metadata-only,
-# O(1) regardless of the workspace's total size. Falls back to plain
-# cp -R if clonefile fails for any reason (rare; non-APFS volume, etc.).
-#
-# The strips use find with -maxdepth 4 so we don't accidentally remove
-# bin/ dirs deep inside a repo (e.g., a vendored Python venv's bin/).
-# Top-level bin/ and cmd/*/bin/ per peer is the convention.
+# O(1) per file regardless of file size. Per-file cost still adds up
+# for large repos, so cloning only the needed peers (not the whole
+# workspace) is the latency win.
 define _tart_prepare_clone
-	@echo "==> Preparing APFS clone of workspace ($(WORKSPACE_DIR)) at $(TART_CLONE_DIR)..."
+	@echo "==> Preparing APFS clone at $(TART_CLONE_DIR) (current repo + go.mod peers)..."
 	@mkdir -p "$(dir $(TART_CLONE_DIR))"
 	@rm -rf "$(TART_CLONE_DIR)"
-	@if ! cp -cR "$(WORKSPACE_DIR)" "$(TART_CLONE_DIR)" 2>/dev/null; then \
-	    echo "  [warn] cp -cR (clonefile) failed; falling back to plain cp -R"; \
-	    cp -R "$(WORKSPACE_DIR)" "$(TART_CLONE_DIR)"; \
-	fi
-	@# Strip per-peer codesign-cursed dirs + host-local mode markers.
-	@find "$(TART_CLONE_DIR)" -maxdepth 2 -name 'bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
-	@find "$(TART_CLONE_DIR)" -maxdepth 4 -path '*/cmd/*/bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
-	@find "$(TART_CLONE_DIR)" -maxdepth 2 \( -name '.ariadne-mode' -o -name '.nous-mode' -o -name '.nous-plugins' \) -delete 2>/dev/null || true
-	@echo "  cloned workspace + stripped per-peer build artifacts"
+	@mkdir -p "$(TART_CLONE_DIR)"
+	@$(CURDIR)/.tart/scripts/tart-list-peers.sh "$(CURDIR)" | while IFS= read -r peer; do \
+	    name=$$(basename "$$peer"); \
+	    echo "  cloning $$name ($$peer)"; \
+	    if ! cp -cR "$$peer" "$(TART_CLONE_DIR)/$$name" 2>/dev/null; then \
+	        echo "  [warn] cp -cR (clonefile) failed for $$name; falling back to plain cp -R"; \
+	        cp -R "$$peer" "$(TART_CLONE_DIR)/$$name"; \
+	    fi; \
+	done
+	@# Per-peer strip: bin/ and cmd/*/bin/ at peer-level; mode markers at
+	@# the same depth. -maxdepth values are off-by-one from the workspace
+	@# variant because peers live one level deeper inside the clone now.
+	@find "$(TART_CLONE_DIR)" -maxdepth 3 -name 'bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+	@find "$(TART_CLONE_DIR)" -maxdepth 5 -path '*/cmd/*/bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+	@find "$(TART_CLONE_DIR)" -maxdepth 3 \( -name '.ariadne-mode' -o -name '.nous-mode' -o -name '.nous-plugins' \) -delete 2>/dev/null || true
+	@echo "  cloned $$(ls $(TART_CLONE_DIR) | wc -l | tr -d ' ') peer(s) + stripped build artifacts"
 endef
 
 # _tart_gc_orphan_clones: remove any ~/.tart/clones/*-clone older than
