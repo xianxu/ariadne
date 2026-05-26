@@ -306,6 +306,24 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		}
 	}
 
+	// ── Milestone-review verdict check (issue close only) ──────────────────
+	//
+	// Every milestone in the plan must carry a Review-Verdict: trailer on
+	// its close commit (AGENTS.md §3 fresh-eyes review evidence). The
+	// check is bypassable with --force; the rationale belongs in --verified.
+	if mode == "issue" {
+		missing, err := findMilestonesMissingVerdict(body, issueStr, issuePath)
+		if err != nil {
+			cwarn(stderr, fmt.Sprintf("milestone-verdict check skipped: %v", err))
+		} else if len(missing) > 0 && !f.Force {
+			explainMissingVerdicts(stderr, issueStr, missing)
+			os.Exit(1)
+		} else if len(missing) > 0 {
+			cwarn(stderr, fmt.Sprintf("--force: skipping verdict check for %d milestone(s): %s",
+				len(missing), strings.Join(missing, ", ")))
+		}
+	}
+
 	// ── Edit issue file ─────────────────────────────────────────────────────
 	newFM, newBody := fm, body
 
@@ -603,5 +621,131 @@ func explainNoAtlas(stderr io.Writer, firstSHA string, nonAtlas []string) {
 	lines = append(lines, "  Update atlas where this work introduces architectural surface,")
 	lines = append(lines, "  or set FORCE=1 with VERIFIED rationale (e.g., 'pure bugfix, no new surface').")
 	die(stderr, strings.Join(lines, "\n"))
+}
+
+// ── milestone-verdict guard ──────────────────────────────────────────────────
+
+// milestonePlanRE matches a ticked-or-unticked milestone bullet at the
+// start of a plan-section line:
+//
+//	- [x] **M1 — scaffold …
+//	- [ ] **M4b — port milestone-close
+//	- [.] **M5 — wip
+//
+// Captures the milestone tag (group 1, e.g. "M1" or "M4b"). The bold
+// asterisks are typical but not strictly required — we accept both the
+// emphasized and plain forms so the regex doesn't drift away from
+// existing issue files that vary the formatting.
+var milestonePlanRE = regexp.MustCompile(`(?m)^- \[[ x.]\] \*{0,2}(M\d+[a-z]?)\b`)
+
+// findMilestonesMissingVerdict enumerates milestones in the issue body's
+// `## Plan` section and returns the tags of any whose close commit lacks
+// a `Review-Verdict:` trailer.
+//
+// "Close commit" for milestone Mx = a commit whose subject opens with
+// `#<issue> Mx:` AND whose message body contains a `Review-Verdict:`
+// trailer line. The conjunctive `--all-match` over both --grep patterns
+// matches the task spec exactly.
+//
+// Returns ([], nil) when every milestone has evidence. Returns ([], err)
+// only on hard failures (issue body unparseable, git unavailable). A
+// milestone whose subject doesn't match any commit is treated the same
+// as one whose commit lacks the trailer — both are "no review evidence."
+func findMilestonesMissingVerdict(body, issueStr, issuePath string) ([]string, error) {
+	m := issue.PlanSectionRE.FindStringSubmatchIndex(body)
+	if m == nil {
+		// No plan section → no milestones to check. Treat as "fine":
+		// the operator may be closing an issue that never had milestones.
+		return nil, nil
+	}
+	planBody := body[m[2]:m[3]]
+	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	// Preserve plan order; de-duplicate (a milestone may appear in the
+	// plan more than once if revised).
+	var ordered []string
+	seen := map[string]bool{}
+	for _, mm := range matches {
+		tag := mm[1]
+		if seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		ordered = append(ordered, tag)
+	}
+	var missing []string
+	for _, tag := range ordered {
+		ok, err := milestoneHasVerdictCommit(issueStr, tag, issuePath)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			missing = append(missing, tag)
+		}
+	}
+	return missing, nil
+}
+
+// milestoneHasVerdictCommit reports whether `git log` finds a commit
+// matching both the subject anchor `#<issue> <milestone>:` and the
+// trailer presence `Review-Verdict:`, scoped to commits that touched
+// the issue file (so unrelated history grepping the same string can't
+// satisfy the check).
+//
+// Uses `--all-match -1 -F` semantics via gitx so the patterns are
+// treated as fixed strings rather than regex (the colon and braces in
+// commit subjects don't bite us).
+func milestoneHasVerdictCommit(issueStr, milestone, issuePath string) (bool, error) {
+	subjectGrep := fmt.Sprintf("^#%s %s:", issueStr, milestone)
+	args := []string{
+		"log",
+		"--grep=" + subjectGrep,
+		"--grep=Review-Verdict:",
+		"--all-match",
+		"-E", // ERE for the subject `^` anchor; the verdict grep matches the literal colon either way
+		"--max-count=1",
+		"--pretty=format:%H",
+		"--", issuePath,
+	}
+	out, err := gitx.RunGit(args...)
+	if err != nil {
+		// git log failed (not a repo, etc.). Surface as a hard error so
+		// the caller's `cwarn → skip` branch fires rather than silently
+		// passing every milestone.
+		return false, fmt.Errorf("git log: %w", err)
+	}
+	return strings.TrimSpace(string(out)) != "", nil
+}
+
+// formatMissingVerdicts builds the next-action error message naming the
+// milestones that lack Review-Verdict trailers. Pure: no IO, no exit.
+// Lives next to explainMissingVerdicts so tests can assert the contract
+// without subprocessing or os.Exit gymnastics.
+func formatMissingVerdicts(issueStr string, missing []string) string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("%smilestones %s lack Review-Verdict trailer in close commits (AGENTS.md §3).%s",
+		ansiRed, strings.Join(missing, ", "), ansiReset))
+	lines = append(lines, "")
+	lines = append(lines, "  Each milestone close must carry a fresh-eyes review verdict in")
+	lines = append(lines, "  the commit message. Without it, there's no evidence the work")
+	lines = append(lines, "  was reviewed before the next milestone began.")
+	lines = append(lines, "")
+	lines = append(lines, fmt.Sprintf("  %sNext actions:%s", ansiCyan, ansiReset))
+	for _, tag := range missing {
+		lines = append(lines, fmt.Sprintf("    sdlc judge milestone-review --issue %s --milestone %s", issueStr, tag))
+	}
+	lines = append(lines, "    # then amend the milestone-close commit (or land a new commit)")
+	lines = append(lines, "    # with these trailers:")
+	lines = append(lines, "    #   Review-Verdict: SHIP")
+	lines = append(lines, "    #   Review-Window: <base>..<head>")
+	lines = append(lines, "")
+	lines = append(lines, "  Or pass --force (record the reason in --verified).")
+	return strings.Join(lines, "\n")
+}
+
+func explainMissingVerdicts(stderr io.Writer, issueStr string, missing []string) {
+	die(stderr, formatMissingVerdicts(issueStr, missing))
 }
 

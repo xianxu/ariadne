@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -177,5 +180,234 @@ func TestFrontmatterAppend_FieldAbsent(t *testing.T) {
 	want := "id: 000031\nstatus: working\nestimate_hours: 4\nactual_hours: 6.5"
 	if got != want {
 		t.Errorf("got %q want %q", got, want)
+	}
+}
+
+// TestMilestonePlanRE_Enumerates verifies the plan-section milestone
+// regex picks up the tags whether or not the milestone label is
+// emphasized with `**`. Drives findMilestonesMissingVerdict via the
+// shared milestonePlanRE.
+func TestMilestonePlanRE_Enumerates(t *testing.T) {
+	body := `## Plan
+
+- [x] **M1 — first**
+- [x] **M2 — second**
+- [ ] M3 — unticked, no emphasis
+- [.] **M4b — wip with suffix**
+- [ ] **M10 — multi-digit**
+
+## Log
+
+- 2026-05-26: closed
+`
+	planM := issue.PlanSectionRE.FindStringSubmatchIndex(body)
+	if planM == nil {
+		t.Fatal("plan section not found")
+	}
+	planBody := body[planM[2]:planM[3]]
+	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
+	got := make([]string, 0, len(matches))
+	for _, m := range matches {
+		got = append(got, m[1])
+	}
+	want := []string{"M1", "M2", "M3", "M4b", "M10"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("milestones = %v, want %v", got, want)
+	}
+}
+
+// TestFindMilestonesMissingVerdict_AllPresent confirms the helper
+// returns no missing milestones when every plan entry has a matching
+// close commit carrying the Review-Verdict trailer. Driven via a fake
+// git runner — milestoneHasVerdictCommit's exec.Command is too far
+// inside gitx to stub here, so we cover the plan-parse / iteration
+// shape with a body that has zero milestones (vacuous truth case).
+func TestFindMilestonesMissingVerdict_NoMilestones(t *testing.T) {
+	body := `## Plan
+
+Just prose, no milestone bullets.
+
+- [ ] some non-milestone task
+
+## Log
+`
+	missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 0 {
+		t.Errorf("expected no missing milestones, got %v", missing)
+	}
+}
+
+// TestFindMilestonesMissingVerdict_NoPlanSection — vacuous-truth case
+// for issues that never grew a Plan section.
+func TestFindMilestonesMissingVerdict_NoPlanSection(t *testing.T) {
+	body := "# title\n\nNo plan here.\n"
+	missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 0 {
+		t.Errorf("expected no missing milestones, got %v", missing)
+	}
+}
+
+// TestFindMilestonesMissingVerdict_Integration drives the full check
+// path against a real temp git repo so the `git log --grep ...
+// --all-match` semantics aren't faked. We create three milestone-close
+// commits — M1 with trailer, M2 without trailer, M3 missing entirely —
+// and assert the verifier reports {M2, M3} as the missing set.
+func TestFindMilestonesMissingVerdict_Integration(t *testing.T) {
+	dir := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(cwd) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Minimal repo with a deterministic identity (tests run in any env).
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v — %s", args, err, out)
+		}
+	}
+	runGit("init", "-q", "-b", "main")
+	runGit("config", "user.email", "test@example.com")
+	runGit("config", "user.name", "Test")
+	runGit("config", "commit.gpgsign", "false")
+
+	issuesDir := "workshop/issues"
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issuePath := filepath.Join(issuesDir, "000031-x.md")
+
+	writeAndCommit := func(content, subject, body string) {
+		if err := os.WriteFile(issuePath, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		runGit("add", issuePath)
+		args := []string{"commit", "-q", "-m", subject}
+		if body != "" {
+			args = append(args, "-m", body)
+		}
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v — %s", args, err, out)
+		}
+	}
+
+	// M1: close commit WITH trailer — should be detected as present.
+	writeAndCommit("v1", "#31 M1: close — tick milestone",
+		"Body explaining M1 work.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD")
+
+	// M2: close commit WITHOUT trailer — should be detected as missing.
+	writeAndCommit("v2", "#31 M2: close — tick milestone", "Body explaining M2 work, no trailer here.")
+
+	// M3 has no commit at all — should also be detected as missing.
+
+	planBody := `## Plan
+
+- [x] **M1 — first**
+- [x] **M2 — second**
+- [x] **M3 — third**
+
+## Log
+`
+	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	if err != nil {
+		t.Fatalf("findMilestonesMissingVerdict: %v", err)
+	}
+	want := []string{"M2", "M3"}
+	if strings.Join(missing, ",") != strings.Join(want, ",") {
+		t.Errorf("missing = %v, want %v", missing, want)
+	}
+}
+
+// TestFindMilestonesMissingVerdict_AllPresent — same temp-repo posture,
+// but every milestone gets a close commit with the trailer. Expectation:
+// empty missing slice.
+func TestFindMilestonesMissingVerdict_AllPresent(t *testing.T) {
+	dir := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(cwd) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v — %s", args, err, out)
+		}
+	}
+	runGit("init", "-q", "-b", "main")
+	runGit("config", "user.email", "test@example.com")
+	runGit("config", "user.name", "Test")
+	runGit("config", "commit.gpgsign", "false")
+
+	issuesDir := "workshop/issues"
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issuePath := filepath.Join(issuesDir, "000031-x.md")
+
+	commit := func(content, milestone, verdict string) {
+		if err := os.WriteFile(issuePath, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		runGit("add", issuePath)
+		subject := "#31 " + milestone + ": close — tick milestone"
+		body := "Body.\n\nReview-Verdict: " + verdict + "\nReview-Window: abc1234..HEAD"
+		cmd := exec.Command("git", "commit", "-q", "-m", subject, "-m", body)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git commit: %v — %s", err, out)
+		}
+	}
+	commit("v1", "M1", "SHIP")
+	commit("v2", "M2", "FIX-THEN-SHIP")
+
+	planBody := `## Plan
+
+- [x] **M1 — first**
+- [x] **M2 — second**
+
+## Log
+`
+	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	if err != nil {
+		t.Fatalf("findMilestonesMissingVerdict: %v", err)
+	}
+	if len(missing) != 0 {
+		t.Errorf("expected no missing milestones, got %v", missing)
+	}
+}
+
+// TestFormatMissingVerdicts_ContractElements verifies the next-action
+// error message names the missing milestones, suggests the rerun
+// command for each, shows the trailer shape, and documents --force.
+// This is a CLI contract (operator pastes the suggested commands), so
+// drift here breaks downstream agent workflows.
+func TestFormatMissingVerdicts_ContractElements(t *testing.T) {
+	msg := formatMissingVerdicts("31", []string{"M2", "M4"})
+	want := []string{
+		"milestones M2, M4 lack Review-Verdict trailer",
+		"sdlc judge milestone-review --issue 31 --milestone M2",
+		"sdlc judge milestone-review --issue 31 --milestone M4",
+		"Review-Verdict: SHIP",
+		"Review-Window:",
+		"--force",
+	}
+	for _, w := range want {
+		if !strings.Contains(msg, w) {
+			t.Errorf("formatMissingVerdicts missing %q in:\n%s", w, msg)
+		}
 	}
 }

@@ -21,6 +21,8 @@ WHAT THE GUARD DEFENDS
   Plus structural checks:
     - atlas/ must have changed in the issue's commit window (§5 step 5)
     - issue's `## Plan` has no unchecked items (issue close only)
+    - each milestone listed in ## Plan must carry a `Review-Verdict:`
+      trailer on its close commit (issue close only; AGENTS.md §3)
     - milestone-close ticks the `- [ ] M4 — ...` row; refuses if absent
     - project file (if any, under <brain>/data/project/*.md referencing
       <repo>#<id>) gets its task row ticked + detail block updated
