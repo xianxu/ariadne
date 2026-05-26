@@ -34,7 +34,7 @@ checkpoints *between* stages; the stages themselves stay prose and human-driven:
 
 1. **Ideation** — `workshop/parley/`, `docs/vision/` (pensives)
 2. **Brainstorming** — `superpowers-brainstorming`
-3. **Planning** — `superpowers-writing-plans` → `workshop/plans/`
+3. **Planning** — `superpowers-writing-plans` → inline in `workshop/issues/` or separate in `workshop/plans/`
 4. **Build** — `superpowers-executing-plans`, milestones in `workshop/issues/`
 5. **Milestone review** — `sdlc judge` (auto-dispatched from `sdlc milestone-close`)
 6. **Test** — currently manual; web work will adopt `playwright` / gstack browser integration
