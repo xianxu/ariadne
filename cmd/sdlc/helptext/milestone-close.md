@@ -20,11 +20,25 @@ WHAT IT DOES
      - Builds the milestone-review prompt with issue ref + base/head
      - Invokes the configured agent (claude by default)
      - Surfaces findings + classifies clean / info / failure
+     - Parses the first line for SHIP | FIX-THEN-SHIP | REWORK
+
+  3. Emits a trailer block to stdout — paste verbatim into the close
+     commit message so `sdlc close` (full-issue close) can later verify
+     each milestone was reviewed:
+
+         Review-Verdict: SHIP
+         Review-Window: abc1234..HEAD
+         [Review-Reason: --no-judge]   (only when verdict is not-run)
+
+  4. Appends "; review verdict: <verdict>" to the just-written log line
+     in the issue file so a human grep finds it.
 
 If the close succeeds but the judge dispatch fails (agent CLI missing,
 no commits matched, etc.), the verb does NOT fail the close — it logs
-a warning and exits successfully. The close is the durable mutation;
-the review is a follow-on.
+a warning, records verdict as `not-run` with a reason, and exits
+successfully. The close is the durable mutation; the review is a
+follow-on. The trailer block is still emitted so the audit chain stays
+intact (operator can re-run the judge and amend the trailer later).
 
 FLAGS
 

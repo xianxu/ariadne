@@ -102,6 +102,72 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 	}
 }
 
+func TestParseVerdict(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   Verdict
+	}{
+		{
+			"ship plain",
+			"SHIP (confidence: high)\n\nSummary: …",
+			VerdictShip,
+		},
+		{
+			"fix-then-ship",
+			"FIX-THEN-SHIP (confidence: medium)\nbody …",
+			VerdictFixThenShip,
+		},
+		{
+			"rework low confidence",
+			"REWORK (confidence: low)\n",
+			VerdictRework,
+		},
+		{
+			"leading blank lines",
+			"\n\nSHIP (confidence: high)\n",
+			VerdictShip,
+		},
+		{
+			"indented verdict",
+			"  SHIP (confidence: high)",
+			VerdictShip,
+		},
+		{
+			"no confidence parenthetical still parses",
+			"REWORK\nfurther notes …",
+			VerdictRework,
+		},
+		{
+			"first non-empty line is prose, not a verdict",
+			"Looks fine to me, no major findings.\nSHIP\n",
+			VerdictUnknown,
+		},
+		{
+			"completely empty",
+			"",
+			VerdictUnknown,
+		},
+		{
+			"only whitespace",
+			"   \n\t\n",
+			VerdictUnknown,
+		},
+		{
+			"ship-like prose without anchor",
+			"This will ship after one tweak.\n",
+			VerdictUnknown,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ParseVerdict(tt.output); got != tt.want {
+				t.Errorf("ParseVerdict(%q) = %s, want %s", tt.output, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestClassify(t *testing.T) {
 	tests := []struct {
 		name   string
