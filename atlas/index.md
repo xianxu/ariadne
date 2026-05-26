@@ -10,6 +10,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Ledger Landscape](workflow/ledger-landscape.md) — where state and evidence live across all surfaces (issue file, git history + trailers, transcripts, memory, atlas, project file); design principles for picking the right ledger
 - [Pre-merge Checks](workflow/pre-merge-checks.md) — constitution enforcement
 - [Directory Conventions](workflow/directory-conventions.md) — standard repo layout
+- [sdlc Binary](workflow/sdlc-binary.md) — unified checkpoint-guard binary (`cmd/sdlc/`), 11 verbs replacing the Make-target surface; embedded `--help` per subcommand; fresh-context judges for anti-collusion
 
 ## 2. Sandbox & VM Environments
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage

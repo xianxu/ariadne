@@ -18,6 +18,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -40,8 +41,7 @@ func main() {
 
 	root.RunE = func(cmd *cobra.Command, args []string) error {
 		if indexFlag {
-			_, err := fmt.Fprint(cmd.OutOrStdout(), helptext.MustGet("index"))
-			return err
+			return emitIndex(cmd)
 		}
 		return cmd.Help()
 	}
@@ -94,4 +94,44 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
+}
+
+// emitIndex writes the SKILL.md content to the command's stdout. The
+// hand-written narrative (helptext/index.md) is the source of truth for
+// frontmatter + prose; we append a `## Verb reference` section assembled
+// from the live cobra command tree so the verb list cannot drift out of
+// sync with what's actually registered.
+//
+// Regenerate on disk with:
+//
+//	sdlc --index > construct/local/sdlc/SKILL.md
+func emitIndex(cmd *cobra.Command) error {
+	w := cmd.OutOrStdout()
+	if _, err := fmt.Fprint(w, helptext.MustGet("index")); err != nil {
+		return err
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "## Verb reference (generated)")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Reproduced from cobra at build time. Drift between this table and")
+	fmt.Fprintln(w, "the live binary is impossible — both render from the same registry.")
+	fmt.Fprintln(w)
+	// Column widths from the longest verb name keep the table aligned in
+	// terminal renderers without depending on Markdown table parsing.
+	for _, sub := range cmd.Root().Commands() {
+		if sub.Hidden || sub.Name() == "help" || sub.Name() == "completion" {
+			continue
+		}
+		fmt.Fprintf(w, "- `sdlc %s` — %s\n", sub.Name(), sub.Short)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "For each verb's full contract:")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "    sdlc <verb> --help")
+	fmt.Fprintln(w)
+	// Optional footer to make regeneration auditable.
+	fmt.Fprintln(w, strings.Repeat("─", 60))
+	fmt.Fprintln(w, "Regenerated from `sdlc --index`. Edit helptext/index.md (the")
+	fmt.Fprintln(w, "narrative source) or this binary's subcommand registry, then re-run.")
+	return nil
 }
