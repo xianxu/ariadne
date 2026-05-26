@@ -109,7 +109,7 @@ Build order chosen to maximize drift-defense per unit work and front-load the lo
 - [x] **M3 — judge.** `sdlc judge <category>` wraps the subagent-dispatch pattern from `scripts/pre-merge-checks.sh` / `scripts/parallel-checks.sh`. Make `check-*` targets become wrappers. Establishes the anti-collusion primitive explicitly. (Auto-dispatch wiring into `push`/`merge`/`milestone-close` lands in M5/M6 when those verbs ship.)
 - [x] **M4 — issue lifecycle.** `sdlc fetch`, `sdlc start`, `sdlc lock`, `sdlc set-status`. Port shell logic from Makefile.workflow.
 - [x] **M5 — push/pr/merge verbs.** `sdlc push`, `sdlc pr`, `sdlc merge`. The longest Make scripts; lift mechanically. Wire auto-dispatch of `sdlc judge plan|specs|lessons` as pre-flight in `push` and `merge`.
-- [ ] **M6 — milestone-close + milestone-review.** Promote milestone close from a flag on `sdlc close` to its own verb; wire up the post-milestone code review dispatch.
+- [x] **M6 — milestone-close + milestone-review.** Promote milestone close from a flag on `sdlc close` to its own verb; wire up the post-milestone code review dispatch.
 - [ ] **M7 — SKILL.md generation + atlas.** Implement `sdlc --index` to emit the SKILL.md content. Regenerate `construct/local/sdlc/SKILL.md` from it (no hand-edits going forward — binary owns the prose). Atlas update: `atlas/workflow/sdlc-binary.md` covering the binary surface (replacing scattered references to individual Make targets).
 - [ ] **M8 — deprecate Make wrappers.** Once usage has shifted, simplify or remove the wrapper targets.
 
@@ -122,6 +122,8 @@ Post-milestone code review (per AGENTS.md §3) is **mandatory at each milestone 
 
 
 
+
+- 2026-05-25: closed M6 — M6 implementation: thin wrapper composing runClose + judge milestone-review dispatch; 71 tests pass; --no-judge dogfood close since claude unreachable in sandbox
 - 2026-05-25: closed M5 — M5 review subagent stalled (watchdog 600s); main session self-review verified archive-gating, gh-close differential push vs merge, prompter stdin matches shell — 68 tests pass; full M5 surface smoke-tested
 - 2026-05-25: closed M4 — code review of a6f0ece..dc35d6a: Ship (no Critical), 2 Important (I1 regex, I4 file-exists) + 1 Minor (unused arg) addressed; 111 tests pass; live sdlc state shows M1-M4 verbs registered
 - 2026-05-25: closed M3 — code review of f17f753..4d59d80: no Critical, 4 of 5 Important addressed in 41ce6f5; 67 tests pass; --dry-run smoke verified prompt + argv for all agents
