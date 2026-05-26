@@ -23,6 +23,10 @@ checkpoints between stages; the stages themselves stay prose and human-driven:
                       browser integration
   7. Close / ship   — sdlc close → sdlc push (main) or sdlc pr → sdlc merge (branch)
   8. Postmortem     — xx-introspect, workshop/lessons.md
+  9. Crystallization — workshop/targets/ — extract stable shapes (conventions,
+                      protocols, invariants) into target files committed to
+                      defending; recognition-triggered (a pattern has
+                      stabilized through use), not scheduled or planned
 
 CONVENTIONS
 
