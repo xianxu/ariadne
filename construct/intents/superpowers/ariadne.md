@@ -134,3 +134,18 @@ Example updated to show both tables with the IssueWindow + GitRunner case, with 
 - Prose detail below tables (Relationships, DRY rationale, Future extensions for pure; Injected into, Future extensions for integration)
 - Example shows tables for IssueWindow (pure, new) and GitRunner (integration, new, wraps exec.Command)
 - All previous verify clauses from Conversations 1-4 still hold
+
+## Conversation 6 (2026-05-26): writing-plans — Core concepts implies test surface
+
+User: Testing isn't a separate SDLC stage — it threads through stages 3 (planning), 4 (build), 5 (milestone review). The PURE/INTEGRATION lens from Core concepts already names what tests to write where. Make this explicit in the writing-plans skill so agents understand the implied test surface as they fill out the table.
+
+Concretely: PURE entities default to unit tests colocated with them; INTEGRATION entities default to integration tests using fakes — preferably process-level fakes for external services (GitHub, Gmail, Anthropic API, etc.) rather than function-call mocks. Function-call mocks miss interaction bugs; process-level fakes extend the deterministic shell outward (per the user's feedback_model_external_services memory).
+
+AI: Added a short "Test surface implied by the table" paragraph in each Core concepts sub-section: under Pure entities (after the status legend) noting unit tests colocated, no IO mocks; under Integration points (after the example) noting integration tests with process-level fakes preferred over function-call mocks.
+
+### Verify
+- Pure entities sub-section mentions "Test surface implied" (or equivalent)
+- Names unit tests for PURE entities, colocated, without IO mocks
+- Integration points sub-section mentions process-level fakes
+- Calls out function-call mocks as the anti-pattern for external services
+- All previous verify clauses (Conv 1-5) still hold

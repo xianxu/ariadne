@@ -84,6 +84,7 @@
 - Diff behavior between main and your changes
 - Ask yourself: "Would a staff engineer approve this?"
 - Run tests, check logs, demonstrate correctness
+- Testing isn't a separate phase — it threads through planning (Core concepts entity table implies the test surface: PURE → unit tests colocated; INTEGRATION → integration tests with fakes), building (TDD red-green-refactor), and milestone review (judge cross-checks "PURE entities test without IO; if tests need mocks, promote to INTEGRATION"). External-service features ship with a process-level fake as part of the feature deliverable — function-call mocks miss interaction bugs. See `sdlc --help` for the canonical SDLC stage narrative.
 - **To close** an issue or milestone: `make close-issue ISSUE=N [MILESTONE=Mx] ACTUAL=h VERIFIED='<evidence>'`. Refuses without verification, actuals, and an atlas update in the commit window — its errors are next-action specs; fix and re-run.
 
 ### 6. Demand Elegance

@@ -50,6 +50,8 @@ List entities in a table at the top. The table is the load-bearing surface — t
 - **modified** — existing entity's shape or contract changed (not a bugfix; the public surface or relationships changed)
 - **deleted** — removed, often after promoting its function to a different abstraction
 
+**Test surface implied by the table.** Each PURE entity defaults to a unit test colocated with it (e.g., `path/to/file_test.go` for a Go entity at `path/to/file.go`); tests run without IO mocks per the purity boundary. Testing isn't a separate SDLC stage — it threads through planning (here), building (TDD red-green-refactor in-line), and milestone review (judge cross-checks the table against the diff and flags PURE entities whose tests need mocks). For deleted entities, the corresponding tests should also be removed; modified entities likely need updated tests.
+
 For each entity that needs context (most do):
 
 - **<EntityName>** — one-line description.
@@ -72,6 +74,8 @@ For each:
 - **<IntegrationName>** — one-line description.
   - **Injected into:** Which pure entities receive this as a dependency, so the pure logic stays unit-testable with a fake.
   - **Future extensions:** Where this surface might grow.
+
+**Test surface for integration points.** Integration tests use **fakes**, not function-call mocks. For external services (GitHub, Gmail, Anthropic API, etc.), prefer a **process-level fake** that spawns a real subprocess/server speaking the same protocol — function-call mocks miss interaction bugs and don't extend the deterministic shell outward. The fake is part of the feature's deliverable, not separate test scaffolding; if a feature integrates with an external service, the plan should list a fake as either a new entity (when first being built) or a referenced existing entity (when reusing an established fake).
 
 Example:
 
