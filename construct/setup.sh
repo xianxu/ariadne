@@ -231,28 +231,78 @@ fi
 # Returns one ancestor path per line, in topological order (ancestors of
 # transitive depth N appear before depth N-1, so manifests apply foundation-
 # first). Empty output if no ancestors found.
+#
+# Three sources of ancestor candidates, in order of preference:
+#   1. `go list -m -f '{{.Dir}}' all` — every module in the consumer's
+#      Go-import dep graph. Picks up real code dependencies.
+#   2. `replace <module> => <local-path>` directives parsed from go.mod —
+#      catches "substrate-only" upstreams declared via replace without a
+#      corresponding code import (the require gets stripped by `go mod
+#      tidy` when no code references it, but the replace declaration of
+#      intent survives).
+#   3. Script's own resolved upstream — last-resort fallback for pre-Go
+#      consumers or first-time-bootstrap cases where go.mod is absent.
+#
+# In all cases, candidates are filtered to dirs that actually ship a
+# construct/base.manifest. Duplicates collapse via a seen-set.
 discover_ancestors() {
     local ancestors=()
+    local seen=()
 
-    if command -v go >/dev/null 2>&1 && [[ -f "$TARGET_DIR/go.mod" ]]; then
-        # `go list -m -f '{{.Dir}}' all` returns every module in the
-        # consumer's dep graph, one per line, in resolution order.
-        # Filter to those that ship construct/base.manifest. Skip target
-        # itself (target's own manifest is never applied to target).
-        while IFS= read -r dir; do
-            [[ -z "$dir" ]] && continue
-            [[ "$dir" == "$TARGET_DIR" ]] && continue
-            [[ ! -f "$dir/construct/base.manifest" ]] && continue
-            ancestors+=("$dir")
-        done < <(cd "$TARGET_DIR" && go list -m -f '{{.Dir}}' all 2>/dev/null)
+    _add_if_new() {
+        local dir="$1"
+        [[ -z "$dir" ]] && return
+        [[ "$dir" == "$TARGET_DIR" ]] && return
+        [[ ! -f "$dir/construct/base.manifest" ]] && return
+        local s
+        for s in "${seen[@]+"${seen[@]}"}"; do
+            [[ "$s" == "$dir" ]] && return
+        done
+        seen+=("$dir")
+        ancestors+=("$dir")
+    }
+
+    if [[ -f "$TARGET_DIR/go.mod" ]]; then
+        # Source 1: go list -m all (only works when Go is installed AND
+        # there's at least one transitive import in the dep graph)
+        if command -v go >/dev/null 2>&1; then
+            while IFS= read -r dir; do
+                _add_if_new "$dir"
+            done < <(cd "$TARGET_DIR" && go list -m -f '{{.Dir}}' all 2>/dev/null)
+        fi
+
+        # Source 2: replace <module> => <local-path> directives in go.mod.
+        # Catches declared-substrate upstreams that aren't actively
+        # imported in Go code. Regex matches the standard `replace ... =>`
+        # syntax (single-line form). Block-form replace directives
+        # (replace ( ... )) aren't parsed here — uncommon enough that
+        # we can defer until someone uses them.
+        while IFS= read -r line; do
+            # Strip comments.
+            line="${line%%//*}"
+            # Match: replace <mod> [<ver>] => <path> [<ver>]
+            # We care about <path> which is field 4 (replace, <mod>, =>, <path>).
+            if [[ "$line" =~ ^[[:space:]]*replace[[:space:]]+[^[:space:]]+([[:space:]]+[^[:space:]]+)?[[:space:]]+=\>[[:space:]]+([^[:space:]]+) ]]; then
+                local rhs="${BASH_REMATCH[2]}"
+                # Only treat as local-path replacement if it starts with /
+                # or ./ or ../ (Go module paths don't start with those).
+                if [[ "$rhs" == /* || "$rhs" == ./* || "$rhs" == ../* ]]; then
+                    # Resolve to absolute path
+                    local abs
+                    if [[ "$rhs" == /* ]]; then
+                        abs="$rhs"
+                    else
+                        abs="$(cd "$TARGET_DIR" && cd "$rhs" 2>/dev/null && pwd || true)"
+                    fi
+                    _add_if_new "$abs"
+                fi
+            fi
+        done < "$TARGET_DIR/go.mod"
     fi
 
-    # Fallback: if Go discovery turned up nothing, treat the script's own
-    # upstream as the single ancestor. Preserves backward-compat with
-    # pre-Go consumers (anyone invoking ../ariadne/construct/setup.sh
-    # against a target that doesn't yet have go.mod).
+    # Source 3: script's own upstream (last-resort fallback)
     if [[ ${#ancestors[@]} -eq 0 ]] && [[ "$ARIADNE_DIR" != "$TARGET_DIR" ]]; then
-        ancestors+=("$ARIADNE_DIR")
+        _add_if_new "$ARIADNE_DIR"
     fi
 
     printf '%s\n' "${ancestors[@]+"${ancestors[@]}"}"
@@ -276,6 +326,20 @@ walk_manifest() {
 
         read -r action source target <<< "$line"
         target="${target:-$source}"
+
+        # Self-reference filter: when walking target's own manifest (upstream
+        # == target), entries whose source path equals target path would
+        # destroy the canonical file by trying to symlink/copy it onto
+        # itself. Skip them — the file is already where it belongs. This
+        # lets a layer's manifest contain entries that ARE meaningful when
+        # applied to that layer itself (e.g., `symlink construct/skills/X
+        # .claude/skills/X` exposes a skill via the Claude-Code-expected
+        # path) while protecting entries like `symlink Makefile.nous`
+        # (declared for downstream consumers; tautological in nous itself).
+        if [[ "$upstream/$source" == "$TARGET_DIR/$target" ]]; then
+            printf "  ${YELLOW}skipped${RESET} %s (self-reference at canonical location)\n" "$target"
+            continue
+        fi
 
         case "$action" in
             symlink)
@@ -339,6 +403,15 @@ fi
 for upstream in "${ANCESTORS[@]}"; do
     walk_manifest "$upstream"
 done
+
+# After ancestors: walk target's own manifest if it has one. This lets a
+# layer's manifest contain entries that ARE meaningful when applied to that
+# layer itself (e.g., `symlink construct/skills/X .claude/skills/X` exposes
+# a skill at the path Claude Code expects). The walk_manifest function's
+# self-reference filter protects entries that would be tautological.
+if [[ -f "$TARGET_DIR/construct/base.manifest" ]]; then
+    walk_manifest "$TARGET_DIR"
+fi
 printf "\n"
 
 # ── Create Makefile if missing ────────────────────────────────────────────────
