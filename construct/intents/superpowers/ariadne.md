@@ -104,3 +104,33 @@ AI: Replaced ## File Structure with ## Core concepts. Heuristics from the old se
 - Integration points template additionally includes: Wraps, Injected into
 - File-organization heuristics (clear boundaries, smaller focused files, co-locate-by-responsibility, follow existing patterns) preserved in the lead-in
 - All previous verify clauses from Conversations 1-3 still hold
+
+## Conversation 5 (2026-05-26): writing-plans — entity status + greppable table format
+
+User: Two updates to Core concepts:
+
+(1) Entities should declare a status — new / modified / deleted. Current shape only covers introducing entities; planning should also surface entities being modified (existing shape/contract changes) or deleted (removed in favor of a different abstraction). Coverage gap: today plans implicitly assume net-additive change.
+
+(2) The Core concepts entity listing should be a greppable table, not just prose bullets. The milestone-review judge (sdlc judge milestone-review) cross-checks the table against the diff — for each row, verifies the entity exists at the stated path with the stated status. Prose bullets aren't reliably parseable; a markdown table is.
+
+Both tie back to milestone-review's ability to enforce that the plan and the code agree.
+
+Combined design: table at top (Name / Lives in / Status / [Wraps for integration]), prose detail below for each non-trivial entity (Relationships, DRY rationale, Future extensions, Injected into for integration). Table is the load-bearing surface; prose is supporting context.
+
+AI: Restructured the Core concepts section's two sub-sections:
+
+- Pure entities: added a markdown table (Name / Lives in / Status), status legend explaining new/modified/deleted semantics, callout noting the table is what milestone-review grep-checks against. Prose detail below for Relationships, DRY rationale, Future extensions.
+
+- Integration points: same shape, table adds a "Wraps" column. Prose below covers Injected into + Future extensions.
+
+Example updated to show both tables with the IssueWindow + GitRunner case, with status=new for both.
+
+### Verify
+- "## Core concepts" section still exists, still marked "always required"
+- "### Pure entities" has a markdown table with columns: Name, Lives in, Status
+- "### Integration points" has a markdown table with columns: Name, Lives in, Status, Wraps
+- Status legend present, names all three states (new, modified, deleted) with one-line semantics each
+- Callout noting that the milestone-review judge cross-checks the table against the diff
+- Prose detail below tables (Relationships, DRY rationale, Future extensions for pure; Injected into, Future extensions for integration)
+- Example shows tables for IssueWindow (pure, new) and GitRunner (integration, new, wraps exec.Command)
+- All previous verify clauses from Conversations 1-4 still hold

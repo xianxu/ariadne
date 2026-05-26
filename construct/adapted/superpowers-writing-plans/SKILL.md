@@ -39,10 +39,20 @@ The nouns the system reasons about — data shapes and the pure functions that t
 
 Pure entities ideally live in dedicated files or folders whose tests run without IO mocks — the pure boundary should be visible from outside.
 
-For each:
+List entities in a table at the top. The table is the load-bearing surface — the milestone-review judge (`sdlc judge milestone-review`) grep-checks each row against the diff. Then add prose detail below for any entity that needs more context than the table holds.
+
+| Name | Lives in | Status |
+|------|----------|--------|
+| `<EntityName>` | `path/to/file.ext` | new |
+
+**Status legend:**
+- **new** — created in this milestone
+- **modified** — existing entity's shape or contract changed (not a bugfix; the public surface or relationships changed)
+- **deleted** — removed, often after promoting its function to a different abstraction
+
+For each entity that needs context (most do):
 
 - **<EntityName>** — one-line description.
-  - **Lives in:** `path/to/file.ext`. Tests run without external dependencies.
   - **Relationships:** Cardinality (1:1, 1:N, N:N), ownership direction (who holds the reference).
   - **DRY rationale:** What duplication this eliminates (or "first occurrence of a pattern likely to recur").
   - **Future extensions:** Natural axes of growth. "If we want X later, this is where it widens."
@@ -51,29 +61,34 @@ For each:
 
 A plan with no integration points is a smell — features almost always need side effects to be useful. List the seams where the system touches IO, state, external services, or user input.
 
+Same table-first shape, with an added column for what each integration wraps:
+
+| Name | Lives in | Status | Wraps |
+|------|----------|--------|-------|
+| `<IntegrationName>` | `path/to/file.ext` | new | external system |
+
 For each:
 
 - **<IntegrationName>** — one-line description.
-  - **Lives in:** `path/to/file.ext`. Tests may use fakes or real IO.
-  - **Wraps:** What external system or stateful surface (git CLI, GitHub API, filesystem, HTTP server, etc.).
   - **Injected into:** Which pure entities receive this as a dependency, so the pure logic stays unit-testable with a fake.
   - **Future extensions:** Where this surface might grow.
 
 Example:
 
-**Pure entities:**
+| Name | Lives in | Status |
+|------|----------|--------|
+| `IssueWindow` | `cmd/sdlc/internal/gitx/window.go` | new |
 
-- **IssueWindow** — commit range scoped to an issue's referenced commits.
-  - **Lives in:** `cmd/sdlc/internal/gitx/window.go`. Tests in `window_test.go` run without `exec`.
+- **IssueWindow** — commit range scoped to an issue's referenced commits. Tests in `window_test.go` run without `exec`.
   - **Relationships:** 1:1 with Issue (one window per issue over time); N:1 with Repo.
   - **DRY rationale:** Every checkpoint guard (close, push, merge) needs to scope diffs to "commits referencing this issue." Without this, each guard re-derives the window from `git log --grep` flags.
   - **Future extensions:** Predicate-based scoping (date-bounded, milestone-tagged); signature widens to accept a predicate, not just an issueID.
 
-**Integration points:**
+| Name | Lives in | Status | Wraps |
+|------|----------|--------|-------|
+| `GitRunner` | `cmd/sdlc/internal/gitx/runner.go` | new | `exec.Command` |
 
-- **GitRunner** — interface for invoking git commands.
-  - **Lives in:** `cmd/sdlc/internal/gitx/runner.go`. Tests use a controlled fake or real git.
-  - **Wraps:** `exec.Command` with retries, logging, capture.
+- **GitRunner** — interface for invoking git commands. Tests use a controlled fake or real git.
   - **Injected into:** IssueWindow and every other pure entity that needs git output. Keeps the pure logic unit-testable with a fake Runner.
   - **Future extensions:** Streaming for commands producing large outputs.
 
