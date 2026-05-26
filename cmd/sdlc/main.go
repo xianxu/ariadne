@@ -86,6 +86,10 @@ func main() {
 	mergeCmd.Long = helptext.MustGet("merge")
 	root.AddCommand(mergeCmd)
 
+	milestoneCloseCmd := NewMilestoneCloseCmd()
+	milestoneCloseCmd.Long = helptext.MustGet("milestone-close")
+	root.AddCommand(milestoneCloseCmd)
+
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
