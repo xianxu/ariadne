@@ -609,10 +609,21 @@ local-build:
 # iterating just on the binary without scanning the whole cmd/ tree.
 .PHONY: sdlc-build sdlc-bootstrap
 sdlc-build:
-	@mkdir -p bin cmd/sdlc/bin
-	@echo "==> building cmd/sdlc/bin/sdlc"
-	@go build -o cmd/sdlc/bin/sdlc ./cmd/sdlc
-	@ln -sf ../cmd/sdlc/bin/sdlc bin/sdlc
+	@mkdir -p bin
+	@echo "==> building bin/sdlc"
+	@# Build via Go package path so this target works in both ariadne (the
+	@# source repo — Go's module system finds cmd/sdlc locally via the
+	@# module's own go.mod) and any derivative that vendors ariadne (Go
+	@# resolves the path via the require + replace + vendor/ chain that
+	@# `go mod vendor` populated during `make refresh`).
+	@#
+	@# Derivatives must declare the dependency in their go.mod:
+	@#   require github.com/xianxu/ariadne v0.0.0-00010101000000-000000000000
+	@#   replace github.com/xianxu/ariadne => ../ariadne
+	@#   tool    github.com/xianxu/ariadne/cmd/sdlc        # Go 1.24+
+	@# Otherwise `go mod tidy` strips the require (no code import) and
+	@# vendor/ stays empty.
+	@go build -o bin/sdlc github.com/xianxu/ariadne/cmd/sdlc
 
 # sdlc-bootstrap installs sdlc onto PATH for the developer. Idempotent.
 # Mirrors ../nous's `nous-bootstrap` pattern but stripped down: sdlc
