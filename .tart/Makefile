@@ -168,11 +168,14 @@ define _tart_prepare_clone
 	    fi; \
 	done
 	@# Per-peer strip: bin/ and cmd/*/bin/ at peer-level; mode markers at
-	@# the same depth. -maxdepth values are off-by-one from the workspace
-	@# variant because peers live one level deeper inside the clone now.
-	@find "$(TART_CLONE_DIR)" -maxdepth 3 -name 'bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
-	@find "$(TART_CLONE_DIR)" -maxdepth 5 -path '*/cmd/*/bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
-	@find "$(TART_CLONE_DIR)" -maxdepth 3 \( -name '.ariadne-mode' -o -name '.nous-mode' -o -name '.nous-plugins' \) -delete 2>/dev/null || true
+	@# the same depth. Layout is unchanged from the workspace variant —
+	@# both old (`cp -cR WORKSPACE TART_CLONE_DIR` with TART_CLONE_DIR
+	@# removed first) and new (`cp -cR peer TART_CLONE_DIR/<name>`) put
+	@# peers at depth 1 from $(TART_CLONE_DIR), so the original maxdepth
+	@# values still apply — only the set of peers shrunk.
+	@find "$(TART_CLONE_DIR)" -maxdepth 2 -name 'bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+	@find "$(TART_CLONE_DIR)" -maxdepth 4 -path '*/cmd/*/bin' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+	@find "$(TART_CLONE_DIR)" -maxdepth 2 \( -name '.ariadne-mode' -o -name '.nous-mode' -o -name '.nous-plugins' \) -delete 2>/dev/null || true
 	@echo "  cloned $$(ls $(TART_CLONE_DIR) | wc -l | tr -d ' ') peer(s) + stripped build artifacts"
 endef
 
