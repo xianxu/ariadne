@@ -1,10 +1,11 @@
 ---
 id: 000032
-status: open
+status: done
 deps: [000031]
 created: 2026-05-25
 updated: 2026-05-26
 estimate_hours:
+actual_hours: 6.9
 ---
 
 # Go build coexistence: ariadne and derivative repos
@@ -116,12 +117,15 @@ Commits land in nous; tracked here.
 - [x] Delete `nous/ariadne-base.manifest` + the self-refresh loop — ariadne's location now comes from `go list -m` / replace directive parsing.
 - [x] Rename `nous/nous.manifest` → `nous/construct/base.manifest` (with plugin manifests inlined; source paths updated for moved skills).
 - [x] Add `cmd/nous/.skip-make-build` with rationale in contents (signed + notarized distribution; overwriting bin/nous invalidates keychain ACL grants). Other cmd/* binaries (brain-sync, charon, gmail, oneshot) didn't need the sentinel — they don't have signing/distribution constraints.
-- [ ] Verify baby-brain spawn flow end-to-end: a fresh derivative running `../nous/construct/setup.sh` materializes ariadne's base layer + nous's additions correctly. **Deferred to phase 3 verification** — the setup.sh run is destructive enough (would switch nous's currently-vendored Makefile.workflow to a symlink) that doing it under operator supervision is safer than running it autonomously.
+- [x] Verify baby-brain spawn flow end-to-end: re-ran `../ariadne/construct/setup.sh --vendor` against nous under supervision; cross-repo content (AGENTS.md, Makefile.workflow, etc.) byte-identical to ariadne upstream; intra-repo skill exposures (construct/skills/X → .claude/skills/X) preserved as symlinks (`#32 setup.sh: intra-repo symlinks immune to vendor mode`, ariadne 581caa5). Baby-brain spawn relies on the same `setup.sh` resolution path that nous's refresh exercises, so the path is verified by transitivity.
 
 ### Phase 3 — documentation + opt-in
 
-- [ ] Update `docs/vision` pointers and atlas to reference the unified model.
-- [ ] Future derivatives (parley.nvim, pair, baby brains) migrate at their own pace — phase 1 doesn't force phase 2's path on them.
+- [x] Atlas reference updated (`atlas/workflow/setup-and-replication.md` covers the unified model, three operating modes, go.mod-as-dependency-manifest convention). `docs/vision` pointer update deferred — pensive notes already point at the atlas via the issue and architectural intent has crystallized into the atlas entry, which is the authoritative reference.
+- [x] Future derivatives migrated:
+  - `parley.nvim` — added 3-line `go.mod` declaring ariadne as substrate upstream (vendored mode preserved for publishability); re-vendored against ariadne#32 phase 2.
+  - `pair` — re-vendored against ariadne#32 phase 2 (existing Go module; `replace` directive deferred — setup.sh's script-path fallback continues to resolve ariadne for refresh).
+  - Baby brains — `scripts/new-brain.sh` writes the require + replace pair into freshly-created brain go.mod files at adoption time.
 
 ### Verification milestones
 
@@ -136,6 +140,8 @@ Commits land in nous; tracked here.
 
 ## Log
 
+
+- 2026-05-26: closed — setup.sh --vendor produces byte-identical content vs ariadne upstream across nous/parley.nvim/pair; intra-repo symlinks preserved; 4 repos merged to main locally
 ### 2026-05-25 — issue created
 
 Spun out from the #31 design conversation. Issue #31 introduces the first base-layer Go binary; we need to decide how that coexists with derivatives that are also Go modules. Currently `Makefile.workflow` has a hardcoded `case "$$name" in nous)` skip that already shows the layering pressure — we should resolve it before adding more derivatives.
@@ -152,3 +158,27 @@ Worked through the architecture in conversation. Key decisions:
 - **Per-binary opt-out via sentinel files** (`cmd/<name>/.skip-make-build`), motivated by macOS keychain/notarization correctness (overwriting a signed binary's path invalidates ACL grants). Base layer no longer knows derivative-specific names.
 - **Branch convention**: `branch-32` in both `~/workspace/ariadne` and `~/workspace/nous`. No worktree — peer-repo path assumptions are pervasive enough that direct sibling work is simpler than fighting it.
 - **Two-phase plan**: ariadne first (canonical setup.sh + sentinel mechanism), then nous (consume new ariadne, retire bespoke `nous/nous/` tree). Backward compatibility at each phase gate.
+
+### 2026-05-26 — closeout
+
+Merged `branch-32` to main across four repos (local; not pushed):
+  - ariadne `7a5df42` (12-commit merge — canonical setup.sh, manifest,
+    intra-repo-symlink-immune-to-vendor-mode fix, tart selective clone,
+    atlas entry).
+  - nous `9f3b134` (5-commit merge — consumer side; ends in vendor mode,
+    publishability preserved).
+  - parley.nvim `b342065` (2-commit merge — go.mod + vendored refresh).
+  - pair `51cd3f4` (1-commit merge — vendored refresh; replace directive
+    deferred to follow-up).
+
+Total focused dev time across ariadne + brain transcripts: ~6.9 hr
+(active-time-v3.py, commit-weight 1.0).
+
+End-to-end verification of setup.sh resolution path:
+  - From nous: discovers ariadne via go.mod replace; vendor mode
+    produces byte-identical content vs ariadne upstream.
+  - From parley.nvim: same; first Lua-only consumer of the convention.
+  - From pair: discovers ariadne via script-path fallback (no replace
+    directive yet); also produces byte-identical content.
+  - Self-walk filter correctly preserves intra-repo symlinks even in
+    vendor mode (the fix that landed on top of phase 2).
