@@ -223,36 +223,14 @@ func collectDiff(cat judge.Category, base, head, issuesDir, historyDir string) (
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
+// orStr / envOr / isSandbox moved to term.go in M4 (shared with the
+// fetch / start / lock / set-status verbs).
+
 func categoryNames() []string {
 	out := make([]string, 0, len(judge.AllCategories()))
 	for _, c := range judge.AllCategories() {
 		out = append(out, string(c))
 	}
 	return out
-}
-
-func orStr(s, fallback string) string {
-	if s == "" {
-		return fallback
-	}
-	return s
-}
-
-// envOr returns os.Getenv(name) if set, else fallback. Centralizes the
-// env-default pattern for flag values that may be overridden via env.
-func envOr(name, fallback string) string {
-	if v := os.Getenv(name); v != "" {
-		return v
-	}
-	return fallback
-}
-
-// isSandbox detects whether the binary is running inside a Docker-style
-// sandbox (used by codex/gemini to gate their auto-approve flags).
-func isSandbox() bool {
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return true
-	}
-	return false
 }
 

@@ -88,35 +88,9 @@ func NewCloseCmd() *cobra.Command {
 	return cmd
 }
 
-// ── terminal helpers ─────────────────────────────────────────────────────────
-//
-// close-issue.py emits ANSI color codes unconditionally. We do the same to
-// keep the output indistinguishable from the Python source's; downstream
-// consumers (terminals, Makefile wrappers) already handle the codes. If a
-// future CI wants to strip them, that's a one-flag follow-up, not blocking.
-
-const (
-	ansiRed    = "\033[1;31m"
-	ansiGreen  = "\033[1;32m"
-	ansiYellow = "\033[1;33m"
-	ansiCyan   = "\033[1;36m"
-	ansiReset  = "\033[0m"
-)
-
-func cinfo(w io.Writer, msg string) { fmt.Fprintf(w, "%s==>%s %s\n", ansiCyan, ansiReset, msg) }
-func cok(w io.Writer, msg string)   { fmt.Fprintf(w, "  %s[ok]%s %s\n", ansiGreen, ansiReset, msg) }
-func cwarn(w io.Writer, msg string) { fmt.Fprintf(w, "  %s[!]%s %s\n", ansiYellow, ansiReset, msg) }
-
-// die prints a red "Error: <msg>" to stderr and exits with code 1,
-// mirroring close-issue.py's die(). Used for hard guardrail failures
-// (missing inputs, file not found, atlas-untouched without --force, etc.)
-// where we want to bypass cobra's default "Error: ..." prefix (main.go
-// already adds one, and we want the color codes that match the Python
-// source).
-func die(stderr io.Writer, msg string) {
-	fmt.Fprintf(stderr, "%sError: %s%s\n", ansiRed, msg, ansiReset)
-	os.Exit(1)
-}
+// Terminal helpers (cinfo / cok / cwarn / die) + ANSI constants live in
+// term.go alongside the other package-shared helpers. Moved out of
+// close.go in M4 to deduplicate across the now-7 subcommands.
 
 // ── warmup ───────────────────────────────────────────────────────────────────
 

@@ -58,6 +58,22 @@ func main() {
 	judgeCmd.Long = helptext.MustGet("judge")
 	root.AddCommand(judgeCmd)
 
+	fetchCmd := NewFetchCmd()
+	fetchCmd.Long = helptext.MustGet("fetch")
+	root.AddCommand(fetchCmd)
+
+	startCmd := NewStartCmd()
+	startCmd.Long = helptext.MustGet("start")
+	root.AddCommand(startCmd)
+
+	lockCmd := NewLockCmd()
+	lockCmd.Long = helptext.MustGet("lock")
+	root.AddCommand(lockCmd)
+
+	setStatusCmd := NewSetStatusCmd()
+	setStatusCmd.Long = helptext.MustGet("set-status")
+	root.AddCommand(setStatusCmd)
+
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)

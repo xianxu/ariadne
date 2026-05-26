@@ -381,21 +381,5 @@ func renderProse(w io.Writer, s State) error {
 	return nil
 }
 
-func valueOr(s, fallback string) string {
-	if s == "" {
-		return fallback
-	}
-	return s
-}
-
-// truncate cuts a string to at most n runes (not bytes), appending an
-// ellipsis if it had to cut. Rune-aware so multibyte titles (emoji,
-// em-dash, accented chars) don't produce invalid UTF-8 mid-rune.
-// M2 review I1.
-func truncate(s string, n int) string {
-	runes := []rune(s)
-	if len(runes) <= n {
-		return s
-	}
-	return string(runes[:n-1]) + "…"
-}
+// valueOr and truncate live in term.go (shared across the sdlc verbs).
+// M2 review I1's rune-aware truncate is preserved verbatim there.

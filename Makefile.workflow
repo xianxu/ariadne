@@ -71,8 +71,14 @@ help-workflow:
 
 # ── Issue sync ────────────────────────────────────────────────────────────────
 # Sync issue file changes to main and push, even when on a feature branch.
+# Delegates to bin/sdlc lock when the binary is built; falls back to the
+# shell script otherwise.
 issue-sync:
-	@scripts/issue-sync.sh
+	@if [ -x bin/sdlc ]; then \
+	    bin/sdlc lock; \
+	else \
+	    scripts/issue-sync.sh; \
+	fi
 
 # ── Close (issue or milestone) ────────────────────────────────────────────────
 # Mechanical part of AGENTS.md §5: tick checkboxes, flip status, write
@@ -183,42 +189,58 @@ endif
 # Create a new git worktree in the parent directory.
 # Usage: make worktree <name>    — explicit name
 #        make worktree            — auto-detect from single untracked issue file
+# Delegates to bin/sdlc start when the binary is built; falls back to the
+# inline shell logic otherwise.
 worktree:
-	@name="$(WT_NAME)"; \
-	if [ -z "$$name" ]; then \
-		issues=$$(git ls-files --others --exclude-standard -- '$(WF_ISSUES_DIR)/' 2>/dev/null | grep -E '/[0-9]{6}-.*\.md$$'); \
-		count=$$(echo "$$issues" | grep -c . 2>/dev/null || echo 0); \
-		if [ "$$count" -eq 1 ]; then \
-			name=$$(basename "$$issues" .md); \
-			echo "Auto-detected issue: $$name"; \
-		else \
-			echo "Usage: make worktree <name>"; \
-			if [ "$$count" -gt 1 ]; then \
-				echo "Multiple untracked issue files found:"; \
-				echo "$$issues" | sed 's/^/  /'; \
-			fi; \
-			exit 1; \
-		fi; \
-	fi; \
-	if [ -n "$$issues" ] && [ -f "$$issues" ]; then \
-		echo "==> Committing $$issues before creating worktree..."; \
-		git add "$$issues" && \
-		git commit -m "committing issue file before creating worktree" && \
-		git push || echo "  Warning: push failed, continuing with worktree creation"; \
-	fi; \
-	repo_dir=$$(basename "$$(pwd)"); \
-	mkdir -p "../worktree/$$repo_dir"; \
-	git worktree add -b "$$name" "../worktree/$$repo_dir/$$name" HEAD; \
-	echo "Worktree created at ../worktree/$$repo_dir/$$name on branch $$name"; \
-	printf '%s' "../worktree/$$repo_dir/$$name" > .goto; \
-	echo "Run: g (to cd into worktree)"
+	@if [ -x bin/sdlc ]; then \
+	    if [ -n "$(WT_NAME)" ]; then \
+	        bin/sdlc start --name "$(WT_NAME)"; \
+	    else \
+	        bin/sdlc start; \
+	    fi; \
+	else \
+	    name="$(WT_NAME)"; \
+	    if [ -z "$$name" ]; then \
+	        issues=$$(git ls-files --others --exclude-standard -- '$(WF_ISSUES_DIR)/' 2>/dev/null | grep -E '/[0-9]{6}-.*\.md$$'); \
+	        count=$$(echo "$$issues" | grep -c . 2>/dev/null || echo 0); \
+	        if [ "$$count" -eq 1 ]; then \
+	            name=$$(basename "$$issues" .md); \
+	            echo "Auto-detected issue: $$name"; \
+	        else \
+	            echo "Usage: make worktree <name>"; \
+	            if [ "$$count" -gt 1 ]; then \
+	                echo "Multiple untracked issue files found:"; \
+	                echo "$$issues" | sed 's/^/  /'; \
+	            fi; \
+	            exit 1; \
+	        fi; \
+	    fi; \
+	    if [ -n "$$issues" ] && [ -f "$$issues" ]; then \
+	        echo "==> Committing $$issues before creating worktree..."; \
+	        git add "$$issues" && \
+	        git commit -m "committing issue file before creating worktree" && \
+	        git push || echo "  Warning: push failed, continuing with worktree creation"; \
+	    fi; \
+	    repo_dir=$$(basename "$$(pwd)"); \
+	    mkdir -p "../worktree/$$repo_dir"; \
+	    git worktree add -b "$$name" "../worktree/$$repo_dir/$$name" HEAD; \
+	    echo "Worktree created at ../worktree/$$repo_dir/$$name on branch $$name"; \
+	    printf '%s' "../worktree/$$repo_dir/$$name" > .goto; \
+	    echo "Run: g (to cd into worktree)"; \
+	fi
 
 # Fetch a GitHub issue and create a local issue file in issues/.
 # Usage: make fetch <number>
+# Delegates to bin/sdlc fetch when the binary is built; falls back to
+# the inline shell logic otherwise.
 fetch:
 	@if [ -z "$(FETCH_NUM)" ]; then \
 		echo "Usage: make fetch <number>"; \
 		exit 1; \
+	fi
+	@if [ -x bin/sdlc ]; then \
+	    bin/sdlc fetch --github-issue "$(FETCH_NUM)"; \
+	    exit 0; \
 	fi
 	@set -o pipefail; \
 	repo=$$(git remote get-url origin | sed 's|.*github.com[:/]\(.*\)\.git|\1|;s|.*github.com[:/]\(.*\)$$|\1|'); \
