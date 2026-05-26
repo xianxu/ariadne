@@ -22,16 +22,62 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
 
-## File Structure
+## Core concepts
 
-Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+Before tasks — name the conceptual entities this work operates on and the integration points where the system meets the world. **This section is always required.** It forces PURE/DRY thinking up-front and surfaces the conceptual model for operator review — bad concepts here are cheap to fix; bad concepts ossified in code are expensive.
 
-- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
-- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
-- Files that change together should live together. Split by responsibility, not by technical layer.
-- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+File-organization heuristics that apply throughout:
 
-This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+- Design units with clear boundaries and well-defined interfaces; each file has one clear responsibility.
+- Smaller focused files over large ones. You reason best about code you can hold in context at once, and edits are more reliable when files are focused.
+- Files that change together live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. Restructure only when a file you're modifying has grown unwieldy.
+
+### Pure entities (the conceptual core)
+
+The nouns the system reasons about — data shapes and the pure functions that transform them. **Core entities default to PURE.** If a "core entity" wants state or IO, you've likely got an integration point in disguise — promote it to the next sub-section.
+
+Pure entities ideally live in dedicated files or folders whose tests run without IO mocks — the pure boundary should be visible from outside.
+
+For each:
+
+- **<EntityName>** — one-line description.
+  - **Lives in:** `path/to/file.ext`. Tests run without external dependencies.
+  - **Relationships:** Cardinality (1:1, 1:N, N:N), ownership direction (who holds the reference).
+  - **DRY rationale:** What duplication this eliminates (or "first occurrence of a pattern likely to recur").
+  - **Future extensions:** Natural axes of growth. "If we want X later, this is where it widens."
+
+### Integration points (where pure meets the world)
+
+A plan with no integration points is a smell — features almost always need side effects to be useful. List the seams where the system touches IO, state, external services, or user input.
+
+For each:
+
+- **<IntegrationName>** — one-line description.
+  - **Lives in:** `path/to/file.ext`. Tests may use fakes or real IO.
+  - **Wraps:** What external system or stateful surface (git CLI, GitHub API, filesystem, HTTP server, etc.).
+  - **Injected into:** Which pure entities receive this as a dependency, so the pure logic stays unit-testable with a fake.
+  - **Future extensions:** Where this surface might grow.
+
+Example:
+
+**Pure entities:**
+
+- **IssueWindow** — commit range scoped to an issue's referenced commits.
+  - **Lives in:** `cmd/sdlc/internal/gitx/window.go`. Tests in `window_test.go` run without `exec`.
+  - **Relationships:** 1:1 with Issue (one window per issue over time); N:1 with Repo.
+  - **DRY rationale:** Every checkpoint guard (close, push, merge) needs to scope diffs to "commits referencing this issue." Without this, each guard re-derives the window from `git log --grep` flags.
+  - **Future extensions:** Predicate-based scoping (date-bounded, milestone-tagged); signature widens to accept a predicate, not just an issueID.
+
+**Integration points:**
+
+- **GitRunner** — interface for invoking git commands.
+  - **Lives in:** `cmd/sdlc/internal/gitx/runner.go`. Tests use a controlled fake or real git.
+  - **Wraps:** `exec.Command` with retries, logging, capture.
+  - **Injected into:** IssueWindow and every other pure entity that needs git output. Keeps the pure logic unit-testable with a fake Runner.
+  - **Future extensions:** Streaming for commands producing large outputs.
+
+The Core concepts section informs task decomposition. Each task should produce self-contained changes that make sense independently.
 
 ## Bite-Sized Task Granularity
 

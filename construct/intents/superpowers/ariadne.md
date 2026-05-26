@@ -77,3 +77,30 @@ AI: Added three sections to SKILL.md — modes section between Anti-Pattern and 
 - Starter gist vocabulary listed: scope, alternative, success-criteria, constraint, assumption, prior-art
 - Default-acceptance marker format shown as HTML comment with gist=, chose=, option= fields
 - All previous verify clauses from Conversations 1-2 still hold
+
+## Conversation 4 (2026-05-26): writing-plans — Core concepts section replaces File Structure
+
+User: Planning is where DRY and PURE principles should insert themselves into how code is structured. The agent should surface key load-bearing abstractions/concepts in the code, explain the reasoning behind those choices, what's implied downstream, and what DRY/PURE considerations they embedded when designing.
+
+The existing File Structure section names file boundaries but doesn't force entity-level conceptual thinking. Replace it with a Core concepts section that's:
+- Always required (not optional based on abstraction count — the absence of an abstraction listing is the failure mode we want to catch, not just the presence of a bad one).
+- Split into PURE entities (the conceptual core — almost always pure; if state or IO sneaks in, it's an integration point in disguise) and INTEGRATION points (where pure meets the world). A plan with no integration points is a smell — features almost always need side effects to be useful.
+- Folds the existing file-organization heuristics into a brief block at the top.
+- Each entity declares: where it lives, relationships (1:1, 1:N, ownership direction), DRY rationale (what duplication it eliminates), future extension axes.
+- Integration points additionally declare: what they wrap, what pure entities they're injected into.
+
+The pure-first ordering and the structural split (pure entities listed first, then integration) is the lens that forces the agent to think conceptually before writing code.
+
+AI: Replaced ## File Structure with ## Core concepts. Heuristics from the old section preserved as a brief lead-in. Two sub-sections — Pure entities and Integration points — with an IssueWindow + GitRunner example demonstrating the convention.
+
+### Verify
+- A "## Core concepts" section exists between Plan Document Header / Scope Check and Bite-Sized Task Granularity
+- "## File Structure" section does not exist (replaced)
+- Section is marked "always required" (or equivalent)
+- Has a "Pure entities" sub-section AND an "Integration points" sub-section
+- The integration-absence smell is called out in the Integration points sub-section
+- Pure entities sub-section names "no IO mocks" or equivalent purity-boundary criterion
+- Each entity template includes: Lives in, Relationships, DRY rationale, Future extensions
+- Integration points template additionally includes: Wraps, Injected into
+- File-organization heuristics (clear boundaries, smaller focused files, co-locate-by-responsibility, follow existing patterns) preserved in the lead-in
+- All previous verify clauses from Conversations 1-3 still hold
