@@ -92,6 +92,9 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"PURE: tests run without IO",
 		"Atlas update gate",
 		"Plan revision recommendations",
+		"Verdict (first line, sharp + parseable)",
+		"SHIP | FIX-THEN-SHIP | REWORK",
+		"Strengths:",
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("milestone-review prompt missing %q", want)
