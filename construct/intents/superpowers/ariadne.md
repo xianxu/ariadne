@@ -57,3 +57,23 @@ Also updating issue file paths to use `workshop/issues/` prefix consistently whe
 - All plan paths use `workshop/plans/`
 - Issue file references use `workshop/issues/` where applicable
 - All previous verify clauses from Conversation 1 still hold (except paths updated from `docs/plans/` to `workshop/plans/`)
+
+## Conversation 3 (2026-05-26): Modes prose + gist vocabulary + default-acceptance markers
+
+User: Three additions to the brainstorming skill, all tied to the same intuition — we want the skill to produce data that can compound across sessions, not just resolve the immediate brainstorm.
+
+(1) Brainstorming modes prose. Brainstorming has multiple shapes: crystallization (idea exists, fuzzy, converge), feasibility (hypothesis open, probe with cheap tests), domain-learning (terrain unknown, build vocabulary + prior art + smallest demo). Agent infers which is in play from operator's framing — do NOT ask. Capable models do this naturally; prose makes the behavior visible and overridable.
+
+(2) Gist vocabulary for clarifying questions. Each clarifying question gets tagged inline with a short gist marker — `(gist: scope)`, `(gist: alternative)`, etc. Starter vocabulary: scope, alternative, success-criteria, constraint, assumption, prior-art. Suggestion not enforcement — agents introduce new tags when nothing fits; new tags feed back into the vocabulary later.
+
+(3) Default-acceptance markers. When AskUserQuestion is used with a recommended option, after the user answers, emit an HTML-comment marker capturing gist + chose-default vs. chose-other. Format `<\!-- brainstorm-log: gist=X chose=default|other option=Y -->`. As the first line of the agent's next message. Grep-able; accumulates without separate logging infra.
+
+Issue context: ariadne workshop issue #34 covers (2) and (3); (1) was deferred from an earlier exchange. All three land here.
+
+AI: Added three sections to SKILL.md — modes section between Anti-Pattern and Checklist; gist-tagging instruction under The Process → Understanding the idea; default-acceptance marker convention in the same section.
+
+### Verify
+- A "Brainstorming Modes" section names crystallization / feasibility / domain-learning, and includes "infer from cues — do not ask" (or equivalent)
+- Starter gist vocabulary listed: scope, alternative, success-criteria, constraint, assumption, prior-art
+- Default-acceptance marker format shown as HTML comment with gist=, chose=, option= fields
+- All previous verify clauses from Conversations 1-2 still hold
