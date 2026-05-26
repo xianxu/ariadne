@@ -51,7 +51,14 @@ SCRIPT_REAL="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || r
 # as the fallback ancestor when go.mod-based discovery returns nothing —
 # i.e., for first-time bootstrap and pre-Go consumers.
 ARIADNE_DIR="$(dirname "$SCRIPT_REAL")"
-TARGET_DIR="$(pwd)"
+# pwd -P canonicalizes to the physical path. Without this, on macOS where
+# /tmp → /private/tmp, TARGET_DIR comes back as /tmp/... (logical) while
+# SCRIPT_REAL resolves to /Users/... (physical). Python's relpath then
+# computes a 3-level-up path that resolves wrong when the OS follows the
+# symlink from its physical location (which is 4 levels deep). Forcing
+# physical here makes both paths consistent so relpath math matches OS
+# symlink resolution.
+TARGET_DIR="$(pwd -P)"
 
 # ── Self-refresh short-circuit ────────────────────────────────────────────────
 # When the target IS the script's own upstream, there's nothing to apply
@@ -232,80 +239,108 @@ fi
 # transitive depth N appear before depth N-1, so manifests apply foundation-
 # first). Empty output if no ancestors found.
 #
-# Three sources of ancestor candidates, in order of preference:
-#   1. `go list -m -f '{{.Dir}}' all` — every module in the consumer's
-#      Go-import dep graph. Picks up real code dependencies.
-#   2. `replace <module> => <local-path>` directives parsed from go.mod —
-#      catches "substrate-only" upstreams declared via replace without a
-#      corresponding code import (the require gets stripped by `go mod
-#      tidy` when no code references it, but the replace declaration of
-#      intent survives).
+# Three sources of ancestor candidates, accumulated then ordered:
+#
+#   1. Recursive `replace <module> => <local-path>` walk starting at
+#      target's go.mod. When a replaced path itself has a go.mod with
+#      further replace directives, recurse into it. This lets a baby
+#      brain declare just `replace nous => ../nous` and have ariadne
+#      get picked up transitively via nous's own go.mod. Discovery is
+#      BFS; the resulting list is reversed at the end so deeper layers
+#      (foundation) come first.
+#
+#   2. `go list -m -f '{{.Dir}}' all` for Go-imported transitive deps —
+#      catches modules that are actually imported in Go code (which
+#      require lines survive `go mod tidy`). Adds dirs that the replace
+#      walk didn't already find.
+#
 #   3. Script's own resolved upstream — last-resort fallback for pre-Go
 #      consumers or first-time-bootstrap cases where go.mod is absent.
 #
-# In all cases, candidates are filtered to dirs that actually ship a
-# construct/base.manifest. Duplicates collapse via a seen-set.
+# Candidates are filtered to dirs shipping construct/base.manifest; the
+# target itself is never an ancestor of itself (its own manifest is
+# walked separately AFTER ancestors).
 discover_ancestors() {
     local ancestors=()
     local seen=()
 
-    _add_if_new() {
+    _seen_or_add() {
+        # Adds to seen + ancestors. Returns 0 if added, 1 if already seen
+        # or filtered out. Args: <abs-dir>
         local dir="$1"
-        [[ -z "$dir" ]] && return
-        [[ "$dir" == "$TARGET_DIR" ]] && return
-        [[ ! -f "$dir/construct/base.manifest" ]] && return
+        [[ -z "$dir" ]] && return 1
+        [[ "$dir" == "$TARGET_DIR" ]] && return 1
+        [[ ! -f "$dir/construct/base.manifest" ]] && return 1
         local s
         for s in "${seen[@]+"${seen[@]}"}"; do
-            [[ "$s" == "$dir" ]] && return
+            [[ "$s" == "$dir" ]] && return 1
         done
         seen+=("$dir")
         ancestors+=("$dir")
+        return 0
     }
 
-    if [[ -f "$TARGET_DIR/go.mod" ]]; then
-        # Source 1: go list -m all (only works when Go is installed AND
-        # there's at least one transitive import in the dep graph)
-        if command -v go >/dev/null 2>&1; then
-            while IFS= read -r dir; do
-                _add_if_new "$dir"
-            done < <(cd "$TARGET_DIR" && go list -m -f '{{.Dir}}' all 2>/dev/null)
-        fi
-
-        # Source 2: replace <module> => <local-path> directives in go.mod.
-        # Catches declared-substrate upstreams that aren't actively
-        # imported in Go code. Regex matches the standard `replace ... =>`
-        # syntax (single-line form). Block-form replace directives
-        # (replace ( ... )) aren't parsed here — uncommon enough that
-        # we can defer until someone uses them.
+    _parse_replace_paths() {
+        # Reads a go.mod from $1, prints each replace's local-path target.
+        # Resolves relative paths against $1's dir (canonicalized to
+        # physical via pwd -P so subsequent comparisons are consistent).
+        local gomod_dir="$1"
+        [[ -f "$gomod_dir/go.mod" ]] || return 0
         while IFS= read -r line; do
-            # Strip comments.
             line="${line%%//*}"
-            # Match: replace <mod> [<ver>] => <path> [<ver>]
-            # We care about <path> which is field 4 (replace, <mod>, =>, <path>).
             if [[ "$line" =~ ^[[:space:]]*replace[[:space:]]+[^[:space:]]+([[:space:]]+[^[:space:]]+)?[[:space:]]+=\>[[:space:]]+([^[:space:]]+) ]]; then
                 local rhs="${BASH_REMATCH[2]}"
-                # Only treat as local-path replacement if it starts with /
-                # or ./ or ../ (Go module paths don't start with those).
                 if [[ "$rhs" == /* || "$rhs" == ./* || "$rhs" == ../* ]]; then
-                    # Resolve to absolute path
                     local abs
                     if [[ "$rhs" == /* ]]; then
                         abs="$rhs"
                     else
-                        abs="$(cd "$TARGET_DIR" && cd "$rhs" 2>/dev/null && pwd || true)"
+                        abs="$(cd "$gomod_dir" && cd "$rhs" 2>/dev/null && pwd -P || true)"
                     fi
-                    _add_if_new "$abs"
+                    [[ -n "$abs" ]] && printf '%s\n' "$abs"
                 fi
             fi
-        done < "$TARGET_DIR/go.mod"
+        done < "$gomod_dir/go.mod"
+    }
+
+    # Source 1: recursive replace walk (BFS). Each ancestor's own go.mod is
+    # then probed for further replace directives, building the chain
+    # without requiring the user to redeclare transitive replaces at the
+    # leaf.
+    if [[ -f "$TARGET_DIR/go.mod" ]]; then
+        local queue=("$TARGET_DIR")
+        while [[ ${#queue[@]} -gt 0 ]]; do
+            local current="${queue[0]}"
+            queue=("${queue[@]:1}")
+            while IFS= read -r candidate; do
+                if _seen_or_add "$candidate"; then
+                    queue+=("$candidate")
+                fi
+            done < <(_parse_replace_paths "$current")
+        done
+
+        # Source 2: go list -m all (for code-imported deps that aren't in
+        # the replace chain). Order from go list is Go's MVS resolution,
+        # which doesn't necessarily match topological-by-replace; we add
+        # these after the replace walk so the latter wins for ordering.
+        if command -v go >/dev/null 2>&1; then
+            while IFS= read -r dir; do
+                _seen_or_add "$dir" || true
+            done < <(cd "$TARGET_DIR" && go list -m -f '{{.Dir}}' all 2>/dev/null)
+        fi
     fi
 
     # Source 3: script's own upstream (last-resort fallback)
     if [[ ${#ancestors[@]} -eq 0 ]] && [[ "$ARIADNE_DIR" != "$TARGET_DIR" ]]; then
-        _add_if_new "$ARIADNE_DIR"
+        _seen_or_add "$ARIADNE_DIR" || true
     fi
 
-    printf '%s\n' "${ancestors[@]+"${ancestors[@]}"}"
+    # Topological ordering: BFS discovery visits depth-1 first, depth-2
+    # second, etc. We want foundation-first (deepest first), so reverse.
+    local i
+    for ((i=${#ancestors[@]}-1; i>=0; i--)); do
+        printf '%s\n' "${ancestors[$i]}"
+    done
 }
 
 # ── Walk one upstream's manifest into the target ──────────────────────────────
