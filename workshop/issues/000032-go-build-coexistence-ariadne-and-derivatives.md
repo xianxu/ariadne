@@ -99,24 +99,24 @@ Sibling + vendored-clone modes don't involve Go's public proxy, so they work fin
 
 ### Phase 1 — ariadne side (branch: `branch-32` in `~/workspace/ariadne`)
 
-- [ ] Rewrite `construct/setup.sh`: discover upstreams via `go list -m`, walk N transitive manifests in topological order, drop fixed-depth assumption. Internally idempotent.
-- [ ] Add `construct/setup.sh` itself to `base.manifest` so it can be vendored down through layers.
-- [ ] Rewrite `Makefile.workflow build:` — drop hardcoded `case "$$name" in nous)` skip; introduce `cmd/<name>/.skip-make-build` sentinel mechanism.
-- [ ] Atlas entry: `atlas/workflow/setup-and-replication.md` covering the unified model (3 modes, canonical setup.sh, sentinel convention, generated-artifact policy).
-- [ ] Self-test: re-run `make refresh` in ariadne against itself; verify depth-1 case still produces correct on-disk state.
-- [ ] Verify: with ariadne on `branch-32`, existing `~/workspace/nous` (unchanged main) can still invoke `../ariadne/construct/setup.sh` and get the same result as before. Backward-compat for depth-1 invocation is the gate.
+- [x] Rewrite `construct/setup.sh`: discover upstreams via `go list -m`, walk N transitive manifests in topological order, drop fixed-depth assumption. Internally idempotent.
+- [x] Add `construct/setup.sh` itself to `base.manifest` so it can be vendored down through layers.
+- [x] Rewrite `Makefile.workflow build:` — drop hardcoded `case "$$name" in nous)` skip; introduce `cmd/<name>/.skip-make-build` sentinel mechanism.
+- [x] Atlas entry: `atlas/workflow/setup-and-replication.md` covering the unified model (3 modes, canonical setup.sh, sentinel convention, generated-artifact policy).
+- [x] Self-test: re-run `make refresh` in ariadne against itself; verify depth-1 case still produces correct on-disk state. (Self-refresh exits via the depth-0 early-exit silently — correct.)
+- [x] Verify backward-compat: fresh-derivative tempdir bootstrap produces correct symlink layout via the fallback-to-script-upstream path. Nous's current state (go.mod present but no `require ariadne` yet) also hits the fallback as expected — Go discovery returns no ancestors, single-ancestor mode kicks in. Phase 2 unblocks the multi-ancestor walk by adding `require ariadne` to nous's go.mod.
 
 ### Phase 2 — nous side (branch: `branch-32` in `~/workspace/nous`)
 
 Commits land in nous; tracked here.
 
-- [ ] `nous/go.mod`: add `require github.com/xianxu/ariadne <pinned-version>` + `replace github.com/xianxu/ariadne => ../ariadne` for local dev.
-- [ ] Rename `nous/nous/` → `nous/construct/` (symlink during transition is acceptable).
-- [ ] Delete `nous/nous/setup.sh` — vendored canonical script from ariadne replaces it via `base.manifest`.
-- [ ] Delete `nous/nous/ariadne-base.manifest` + the self-refresh loop — ariadne's location now comes from `go list -m`.
-- [ ] Rename `nous/nous/nous.manifest` → `nous/construct/base.manifest` for path consistency.
-- [ ] Add `cmd/nous/.skip-make-build` (and similar for charon, gmail, any signed binary). Each sentinel documents its signing/notarization rationale in its contents.
-- [ ] Verify baby-brain spawn flow end-to-end: a fresh derivative running `../nous/construct/setup.sh` materializes ariadne's base layer + nous's additions correctly.
+- [x] `nous/go.mod`: add `replace github.com/xianxu/ariadne => ../ariadne` for local dev. (The require line gets stripped by `go mod tidy` without a code import; canonical setup.sh parses replace directives directly as one of three discovery sources.)
+- [x] Move nous's substrate from `nous/` to `construct/` — `nous/skills/` → `construct/skills/` via `git mv`; bespoke `nous/setup.sh` deleted; `nous/` directory removed entirely.
+- [x] Delete `nous/setup.sh` — vendored canonical script from ariadne replaces it via `base.manifest`.
+- [x] Delete `nous/ariadne-base.manifest` + the self-refresh loop — ariadne's location now comes from `go list -m` / replace directive parsing.
+- [x] Rename `nous/nous.manifest` → `nous/construct/base.manifest` (with plugin manifests inlined; source paths updated for moved skills).
+- [x] Add `cmd/nous/.skip-make-build` with rationale in contents (signed + notarized distribution; overwriting bin/nous invalidates keychain ACL grants). Other cmd/* binaries (brain-sync, charon, gmail, oneshot) didn't need the sentinel — they don't have signing/distribution constraints.
+- [ ] Verify baby-brain spawn flow end-to-end: a fresh derivative running `../nous/construct/setup.sh` materializes ariadne's base layer + nous's additions correctly. **Deferred to phase 3 verification** — the setup.sh run is destructive enough (would switch nous's currently-vendored Makefile.workflow to a symlink) that doing it under operator supervision is safer than running it autonomously.
 
 ### Phase 3 — documentation + opt-in
 
