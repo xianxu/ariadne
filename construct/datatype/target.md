@@ -19,6 +19,18 @@ Targets are deliberately under-specified. The discipline: **only get more specif
 
 In short: **target describes what we defend and why; project describes execution flowing from it; issue describes a unit of work that advances or honors it.**
 
+## Where targets come from
+
+Target authoring is a datatype operation, not an SDLC stage — it happens whenever the operator recognizes a stabilized pattern worth defending, not at a fixed moment in the work flow. Three common upstream paths:
+
+1. **Pensive crystallization.** A pensive (`docs/vision/*-pensive-*.md` or `workshop/pensive/`) is the moment-in-time holding area for "I keep noticing this might be worth defending — let me think about it." When the thought stabilizes into a durable commitment, the pensive promotes to a target via `xx-datatype target` (or this skill).
+
+2. **Postmortem candidates.** The per-issue postmortem (`sdlc postmortem --issue N`, ariadne#35) surfaces "crystallization candidates" as one of its LLM-judgment sections. Each candidate is a pattern from the just-shipped work that may be worth defending across future work. Accepted candidates draft a target file.
+
+3. **Direct authoring.** The operator just decides to write a target — recognition fired, no upstream artifact needed. Fine. The pensive / postmortem paths exist so recognition is more likely to land somewhere durable instead of being forgotten; they're not gates.
+
+The trigger across all three is the same: *recognition that a pattern has stabilized*. Not a schedule, not a checklist item, not a workflow stage. See `sdlc --help` (TARGET AUTHORING block) for how this interacts with the SDLC arc.
+
 ## Frontmatter shape
 
 | Field | Required | Notes |
