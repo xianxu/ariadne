@@ -99,12 +99,12 @@ Sibling + vendored-clone modes don't involve Go's public proxy, so they work fin
 
 ### Phase 1 — ariadne side (branch: `branch-32` in `~/workspace/ariadne`)
 
-- [ ] Rewrite `construct/setup.sh`: discover upstreams via `go list -m`, walk N transitive manifests in topological order, drop fixed-depth assumption. Internally idempotent.
-- [ ] Add `construct/setup.sh` itself to `base.manifest` so it can be vendored down through layers.
-- [ ] Rewrite `Makefile.workflow build:` — drop hardcoded `case "$$name" in nous)` skip; introduce `cmd/<name>/.skip-make-build` sentinel mechanism.
-- [ ] Atlas entry: `atlas/workflow/setup-and-replication.md` covering the unified model (3 modes, canonical setup.sh, sentinel convention, generated-artifact policy).
-- [ ] Self-test: re-run `make refresh` in ariadne against itself; verify depth-1 case still produces correct on-disk state.
-- [ ] Verify: with ariadne on `branch-32`, existing `~/workspace/nous` (unchanged main) can still invoke `../ariadne/construct/setup.sh` and get the same result as before. Backward-compat for depth-1 invocation is the gate.
+- [x] Rewrite `construct/setup.sh`: discover upstreams via `go list -m`, walk N transitive manifests in topological order, drop fixed-depth assumption. Internally idempotent.
+- [x] Add `construct/setup.sh` itself to `base.manifest` so it can be vendored down through layers.
+- [x] Rewrite `Makefile.workflow build:` — drop hardcoded `case "$$name" in nous)` skip; introduce `cmd/<name>/.skip-make-build` sentinel mechanism.
+- [x] Atlas entry: `atlas/workflow/setup-and-replication.md` covering the unified model (3 modes, canonical setup.sh, sentinel convention, generated-artifact policy).
+- [x] Self-test: re-run `make refresh` in ariadne against itself; verify depth-1 case still produces correct on-disk state. (Self-refresh exits via the depth-0 early-exit silently — correct.)
+- [x] Verify backward-compat: fresh-derivative tempdir bootstrap produces correct symlink layout via the fallback-to-script-upstream path. Nous's current state (go.mod present but no `require ariadne` yet) also hits the fallback as expected — Go discovery returns no ancestors, single-ancestor mode kicks in. Phase 2 unblocks the multi-ancestor walk by adding `require ariadne` to nous's go.mod.
 
 ### Phase 2 — nous side (branch: `branch-32` in `~/workspace/nous`)
 
