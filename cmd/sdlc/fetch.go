@@ -56,36 +56,9 @@ func NewFetchCmd() *cobra.Command {
 	return cmd
 }
 
-// ghClient indirects the `gh issue view` calls so tests can stub them.
-// Production path defers to the real gh CLI. Two methods: TitleAndBody
-// pulls both atoms in a single call (matches what the Makefile target
-// does, two calls back-to-back).
-var ghClient ghCaller = realGH{}
-
-type ghCaller interface {
-	TitleAndBody(repo, issueNum string) (title, body string, err error)
-}
-
-type realGH struct{}
-
-func (realGH) TitleAndBody(repo, issueNum string) (string, string, error) {
-	if _, err := exec.LookPath("gh"); err != nil {
-		return "", "", fmt.Errorf("gh CLI not on PATH: %w", err)
-	}
-	titleOut, err := exec.Command("gh", "issue", "view", issueNum,
-		"--repo", repo, "--json", "title", "--jq", ".title").Output()
-	if err != nil {
-		return "", "", fmt.Errorf("gh issue view --jq .title: %w", err)
-	}
-	bodyOut, err := exec.Command("gh", "issue", "view", issueNum,
-		"--repo", repo, "--json", "body", "--jq", ".body // \"\"").Output()
-	if err != nil {
-		return "", "", fmt.Errorf("gh issue view --jq .body: %w", err)
-	}
-	title := strings.TrimRight(string(titleOut), "\n")
-	body := strings.TrimRight(string(bodyOut), "\n")
-	return title, body, nil
-}
+// ghClient and the ghCaller interface live in ghclient.go (shared with
+// pr.go and merge.go). M5 promoted them out of fetch.go once they had
+// three+ consumers.
 
 // runFetch is the entry point for the cobra RunE. Returns an error on
 // "soft" failures (so cobra formatting kicks in for unit tests); calls

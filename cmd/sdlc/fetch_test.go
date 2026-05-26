@@ -131,6 +131,8 @@ func TestRenderFetchedIssue_Shape(t *testing.T) {
 }
 
 // stubGH stubs ghClient for tests so we don't shell out to `gh`.
+// Implements the full ghCaller interface; methods other than the one
+// under test are no-ops returning zero values.
 type stubGH struct {
 	title, body string
 	err         error
@@ -139,6 +141,11 @@ type stubGH struct {
 func (s stubGH) TitleAndBody(repo, issueNum string) (string, string, error) {
 	return s.title, s.body, s.err
 }
+
+func (s stubGH) IssueClose(repo, issueNum, comment string) error           { return nil }
+func (s stubGH) PRCreate(repo, base, head, body string) (string, error)    { return "", nil }
+func (s stubGH) PRListForBranch(repo, headRef string) (string, error)      { return "", nil }
+func (s stubGH) PRMerge(repo, branch string) error                         { return nil }
 
 // TestRunFetch_DryRun exercises the dry-run path end-to-end with stubbed
 // gh and a temp workspace. Skips the real gh invocation; verifies the

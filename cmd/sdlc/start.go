@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -59,33 +58,10 @@ func NewStartCmd() *cobra.Command {
 	return cmd
 }
 
-// gitRunner indirects the git invocations + filesystem mutations done by
-// start (and lock). Production path uses execRunner. Tests substitute
-// captureRunner which records calls without executing them.
-//
-// Both verbs share the same runner type because they do similar work
-// (git + file write) and benefit from the same test seam.
+// startRunner is the package-level runner instance for start (test seam).
+// Type lives in runner.go; lockRunner / pushRunner / mergeRunner / prRunner
+// share the same surface so a single capture/stub can drive any of them.
 var startRunner gitRunner = execGitRunner{}
-
-type gitRunner interface {
-	Git(args ...string) ([]byte, error)
-	GitInDir(dir string, args ...string) ([]byte, error)
-	MkdirAll(path string) error
-	WriteFile(path string, data []byte) error
-}
-
-type execGitRunner struct{}
-
-func (execGitRunner) Git(args ...string) ([]byte, error) {
-	return exec.Command("git", args...).CombinedOutput()
-}
-func (execGitRunner) GitInDir(dir string, args ...string) ([]byte, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	return cmd.CombinedOutput()
-}
-func (execGitRunner) MkdirAll(path string) error              { return os.MkdirAll(path, 0o755) }
-func (execGitRunner) WriteFile(path string, data []byte) error { return os.WriteFile(path, data, 0o644) }
 
 // runStart is the entry point for the cobra RunE.
 func runStart(stdout, stderr io.Writer, f *startFlags) error {

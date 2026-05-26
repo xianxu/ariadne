@@ -284,7 +284,13 @@ fetch:
 # Push to remote, close GitHub issues for done issues, move done issues to history/.
 # Works from main — the direct-on-main workflow counterpart to merge.
 # Usage: make push
+# Delegates to bin/sdlc push when the binary is built; falls back to
+# the inline shell logic otherwise (M5 of #31).
 push:
+	@if [ -x bin/sdlc ]; then \
+	    bin/sdlc push $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge); \
+	    exit 0; \
+	fi
 	@branch=$$(git branch --show-current); \
 	if [ "$$branch" != "main" ]; then \
 		echo "Error: make push must be run from main (current branch: $$branch)"; \
@@ -353,7 +359,13 @@ push:
 # Create a GitHub pull request from the current worktree branch to main.
 # Scans issues/ files touched since branch point for github_issue frontmatter.
 # Must be run from inside a worktree (not from main).
+# Delegates to bin/sdlc pr when the binary is built; falls back to
+# the inline shell logic otherwise (M5 of #31).
 pull-request:
+	@if [ -x bin/sdlc ]; then \
+	    bin/sdlc pr; \
+	    exit 0; \
+	fi
 	@branch=$$(git branch --show-current); \
 	if [ -z "$$branch" ] || [ "$$branch" = "main" ]; then \
 		echo "Error: run this from a worktree branch, not main"; \
@@ -393,7 +405,13 @@ pull-request:
 # Merge the current worktree branch into main (if a PR exists),
 # move done issues to history/, clean up the worktree.
 # Must be run from inside a worktree (not from main).
+# Delegates to bin/sdlc merge when the binary is built; falls back to
+# the inline shell logic otherwise (M5 of #31).
 merge:
+	@if [ -x bin/sdlc ]; then \
+	    bin/sdlc merge $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge); \
+	    exit 0; \
+	fi
 	@branch=$$(git branch --show-current); \
 	if [ -z "$$branch" ] || [ "$$branch" = "main" ]; then \
 		echo "Error: run this from a worktree branch, not main"; \

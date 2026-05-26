@@ -74,6 +74,18 @@ func main() {
 	setStatusCmd.Long = helptext.MustGet("set-status")
 	root.AddCommand(setStatusCmd)
 
+	pushCmd := NewPushCmd()
+	pushCmd.Long = helptext.MustGet("push")
+	root.AddCommand(pushCmd)
+
+	prCmd := NewPRCmd()
+	prCmd.Long = helptext.MustGet("pr")
+	root.AddCommand(prCmd)
+
+	mergeCmd := NewMergeCmd()
+	mergeCmd.Long = helptext.MustGet("merge")
+	root.AddCommand(mergeCmd)
+
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
