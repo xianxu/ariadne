@@ -24,7 +24,10 @@ BRAIN_DIR ?= ../brain
 # Defaults assume ariadne is upstream. Descendants of nous (or other re-export
 # hosts) override these in their root Makefile before `include Makefile.workflow`:
 #   UPSTREAM_NAME    := nous
-#   UPSTREAM_REFRESH := ../nous/nous/setup.sh
+#   UPSTREAM_REFRESH := ../nous/construct/setup.sh
+# (Post-#32: every layer's substrate management lives at <repo>/construct/;
+# the canonical setup.sh — vendored from ariadne — handles the transitive
+# walk via go.mod's dep graph.)
 UPSTREAM_NAME      ?= ariadne
 UPSTREAM_DIR       ?= ../$(UPSTREAM_NAME)
 UPSTREAM_MODE_FILE ?= .$(UPSTREAM_NAME)-mode

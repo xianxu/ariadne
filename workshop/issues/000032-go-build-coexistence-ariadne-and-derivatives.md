@@ -110,13 +110,13 @@ Sibling + vendored-clone modes don't involve Go's public proxy, so they work fin
 
 Commits land in nous; tracked here.
 
-- [ ] `nous/go.mod`: add `require github.com/xianxu/ariadne <pinned-version>` + `replace github.com/xianxu/ariadne => ../ariadne` for local dev.
-- [ ] Rename `nous/nous/` → `nous/construct/` (symlink during transition is acceptable).
-- [ ] Delete `nous/nous/setup.sh` — vendored canonical script from ariadne replaces it via `base.manifest`.
-- [ ] Delete `nous/nous/ariadne-base.manifest` + the self-refresh loop — ariadne's location now comes from `go list -m`.
-- [ ] Rename `nous/nous/nous.manifest` → `nous/construct/base.manifest` for path consistency.
-- [ ] Add `cmd/nous/.skip-make-build` (and similar for charon, gmail, any signed binary). Each sentinel documents its signing/notarization rationale in its contents.
-- [ ] Verify baby-brain spawn flow end-to-end: a fresh derivative running `../nous/construct/setup.sh` materializes ariadne's base layer + nous's additions correctly.
+- [x] `nous/go.mod`: add `replace github.com/xianxu/ariadne => ../ariadne` for local dev. (The require line gets stripped by `go mod tidy` without a code import; canonical setup.sh parses replace directives directly as one of three discovery sources.)
+- [x] Move nous's substrate from `nous/` to `construct/` — `nous/skills/` → `construct/skills/` via `git mv`; bespoke `nous/setup.sh` deleted; `nous/` directory removed entirely.
+- [x] Delete `nous/setup.sh` — vendored canonical script from ariadne replaces it via `base.manifest`.
+- [x] Delete `nous/ariadne-base.manifest` + the self-refresh loop — ariadne's location now comes from `go list -m` / replace directive parsing.
+- [x] Rename `nous/nous.manifest` → `nous/construct/base.manifest` (with plugin manifests inlined; source paths updated for moved skills).
+- [x] Add `cmd/nous/.skip-make-build` with rationale in contents (signed + notarized distribution; overwriting bin/nous invalidates keychain ACL grants). Other cmd/* binaries (brain-sync, charon, gmail, oneshot) didn't need the sentinel — they don't have signing/distribution constraints.
+- [ ] Verify baby-brain spawn flow end-to-end: a fresh derivative running `../nous/construct/setup.sh` materializes ariadne's base layer + nous's additions correctly. **Deferred to phase 3 verification** — the setup.sh run is destructive enough (would switch nous's currently-vendored Makefile.workflow to a symlink) that doing it under operator supervision is safer than running it autonomously.
 
 ### Phase 3 — documentation + opt-in
 
