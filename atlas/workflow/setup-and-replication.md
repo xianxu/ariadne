@@ -20,20 +20,64 @@ The "walk N manifests" generalizes today's depth-specific scripts:
 - baby brain at depth 2: walks ariadne's, then nous's, then its own
   contributions (if any).
 
-## Ancestor discovery
+## Ancestor discovery — go.mod is the authoritative manifest
 
-Two modes:
+**Every ariadne-style derivative declares its upstream(s) in its own `go.mod`
+via `replace` directives.** This is the convention regardless of whether the
+derivative is itself a Go project — a pure-Lua plugin like parley.nvim still
+writes a 3-line `go.mod` purely to declare its substrate ancestor:
 
-1. **Go-managed** — target has `go.mod`. `go list -m -f '{{.Dir}}' all`
-   returns the dep graph in resolution order. Script filters to modules that
-   ship `construct/base.manifest` and walks them in order. Pinning a version
-   (or replace-directive-trunk-follow) for each upstream lives entirely in
-   the target's `go.mod`.
+```
+module github.com/xianxu/parley.nvim
 
-2. **Fallback (no go.mod, or no Go installed)** — single ancestor = the
-   script's own resolved upstream (`dirname $(readlink -f $0)/..`). This is
-   today's `../ariadne/construct/setup.sh` invocation pattern, preserved
-   for backward-compat with pre-Go-modules consumers.
+go 1.22
+
+replace github.com/xianxu/ariadne => ../ariadne
+```
+
+The `go.mod` here is functioning as the **dependency-management manifest**,
+not as a "this is a Go project" declaration. It explicitly records what the
+repo consumes and where to find it. Transitive chains (baby brain → nous →
+ariadne) just need the immediate `replace`; setup.sh's recursive walker
+follows each upstream's own `go.mod` to discover the rest.
+
+### Why go.mod (and not a separate `.upstreams` file)
+
+- **It's already the convention** in any repo that has Go code at all.
+  Post-ariadne#31 every ariadne-style repo will gain Go code eventually
+  (sdlc binary, project-specific tooling); deferring the convention until
+  Go arrives means churn later. Better to write the 3-line go.mod up-front
+  and have one consistent dependency mechanism across the whole layer
+  chain.
+- **Transitive resolution is free.** setup.sh's recursive replace-walk uses
+  `go.mod`'s own grammar; no parallel parser to maintain.
+- **Versioning evolves naturally.** When ariadne (or any upstream) goes
+  public, the same `replace` line becomes `require <module> <version>` for
+  pin-mode — no migration of the dependency mechanism itself.
+- **Explicit in-tree record.** Anyone reading the derivative can see in
+  `go.mod` exactly which upstreams it consumes. The pre-#32 model
+  communicated this only by invocation path (`../ariadne/construct/setup.sh`)
+  with no on-disk evidence.
+
+### Three discovery sources, in priority order
+
+When setup.sh runs, ancestor candidates are collected from:
+
+1. **Recursive `replace` walk** starting at target's `go.mod`. Each replaced
+   path's own `go.mod` is then probed for further replaces. BFS through the
+   chain, reversed to topological order (deepest = foundation first).
+2. **`go list -m -f '{{.Dir}}' all`** — picks up modules referenced by real
+   Go-import code (require lines that survive `go mod tidy`). Added to
+   ancestors not already discovered.
+3. **Script's own resolved upstream** — last-resort fallback when no `go.mod`
+   exists at all. Preserved for first-time bootstrap (running
+   `../ariadne/construct/setup.sh` from a brand-new directory) and for
+   genuinely-old consumers that haven't yet written `go.mod`. **Not the
+   recommended steady state** — derivatives should write `go.mod` after
+   first adoption.
+
+Candidates are filtered to dirs that ship `construct/base.manifest` and
+deduped. Target's own manifest is walked separately after ancestors.
 
 ## Three operating modes (orthogonal to depth)
 
@@ -54,10 +98,24 @@ Both can use the same upstream path.
 
 ## Adopting a fresh derivative
 
+The recommended pattern at every layer — Go-using or not — writes a
+`go.mod` upfront so the upstream is explicitly declared:
+
 ```bash
 cd /path/to/new-derivative
 git init
-../ariadne/construct/setup.sh --yes      # depth-1 adoption
+
+# Minimal go.mod — declares the upstream relationship regardless of
+# whether this derivative has its own Go code.
+cat > go.mod <<EOF
+module github.com/<owner>/<derivative>
+
+go 1.22
+
+replace github.com/xianxu/ariadne => ../ariadne
+EOF
+
+../ariadne/construct/setup.sh --yes
 ```
 
 After this:
@@ -65,17 +123,26 @@ After this:
 - `Makefile`, `Makefile.local`, `AGENTS.local.md` are created if absent.
 - `.ariadne-mode` records `symlink` (or `vendor` if `--vendor` was passed).
 - `construct/setup.sh` itself is linked, so the derivative can self-refresh.
+- The derivative's `go.mod` declares ariadne as its upstream — future
+  refreshes use this explicit record instead of falling back to script-
+  upstream inference.
 
-For Go-managed adoption (recommended once the consumer is Go-aware):
+### Skipping go.mod for first-time bootstrap
 
-```bash
-go mod init github.com/<owner>/<derivative>
-go get github.com/xianxu/ariadne@latest        # or: edit go.mod manually with replace ⇒ ../ariadne
-make refresh
-```
+The fallback path (no go.mod → script's resolved upstream) makes it possible
+to run setup without writing `go.mod` first. This is fine for the very first
+invocation when you don't know the module path yet. But the recommended
+workflow is to write `go.mod` either before or immediately after — having
+an explicit on-disk record of what your repo consumes is worth the three
+lines.
 
-Subsequent updates: `make refresh` re-runs setup.sh against the upstream
-location Go resolves. Bumping the pin = editing the `require` line + re-running.
+### Subsequent updates
+
+`make refresh` re-runs setup.sh against the upstream location Go resolves.
+Bumping a pinned version = editing the `require` line. Switching to
+trunk-follow on a sibling = changing the `replace` RHS to `../<upstream>`.
+All upstream-relationship changes happen in `go.mod`; setup.sh just acts on
+what it finds there.
 
 ## Per-binary build opt-out
 
