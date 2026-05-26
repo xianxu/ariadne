@@ -88,6 +88,10 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"Head: d7789e0",
 		"Critical (must fix before next milestone)",
 		"anti-collusion property",
+		"Core concepts cross-check",
+		"PURE: tests run without IO",
+		"Atlas update gate",
+		"Plan revision recommendations",
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("milestone-review prompt missing %q", want)

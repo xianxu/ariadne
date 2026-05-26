@@ -207,6 +207,31 @@ Read the diff against the issue's plan + spec. Focus on:
     - style nits, naming, comment density
     - performance only if hot-path
 
+  Core concepts cross-check (if the plan has a Core concepts table):
+    The plan should list entities in a greppable table — name, kind
+    (PURE/INTEGRATION), file location, status (new/modified/deleted).
+    For each row:
+      - Verify the entity exists at the stated path (grep the diff or
+        filesystem).
+      - PURE: tests run without IO (no exec, net, mutable fs). If tests
+        need mocks to run, it isn't really PURE — flag Critical and
+        recommend promoting it to INTEGRATION.
+      - INTEGRATION: injected into pure callers, not invoked directly
+        from business logic.
+      - "modified" / "deleted" status: the diff shows the expected
+        change/removal at the stated location.
+    Any contradiction between table and code = Critical finding, plus
+    a plan-revision recommendation (a "## Revisions" entry on the plan
+    so it stops claiming what the code doesn't deliver).
+
+  Atlas update gate (per AGENTS.md §8):
+    The milestone should update atlas/ entries for any new architectural
+    surface, flow, or terminology introduced. Scan the diff for evidence
+    of new surface — new entity types, new subcommands, new conventions,
+    new file-tree locations. Any present without corresponding atlas/
+    changes in the same range = Important finding ("atlas update appears
+    missing for <surface>").
+
 Produce a structured report:
   1. Summary (1 paragraph): ship / fix-then-ship / rework + confidence.
   2. Critical findings (file:line + fix sketch); empty if none.
@@ -214,6 +239,8 @@ Produce a structured report:
   4. Minor findings (terse one-liners).
   5. Test coverage notes.
   6. Architectural notes for upcoming work.
+  7. Plan revision recommendations: list specific "## Revisions" entries
+     the plan needs (empty if the plan still matches the code).
 
 You have no prior session context — that is the anti-collusion property.
 Verify behavior against documented contracts directly; do not take the
