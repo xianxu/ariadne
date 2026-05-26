@@ -1,12 +1,12 @@
 ---
 id: 000031
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-05-25
-updated: 2026-05-25
+updated: 2026-05-26
 estimate_hours:
-actual_hours:
+actual_hours: 18.8
 ---
 
 # sdlc checkpoint binary
@@ -123,6 +123,8 @@ Post-milestone code review (per AGENTS.md §3) is **mandatory at each milestone 
 
 
 
+
+- 2026-05-26: closed — sdlc binary builds clean; 6 test packages pass; M1-M7 closed; verdict-tracking guard refuses incomplete closes; SDLC arc consolidated to 7 stages. M8 (deprecate Make wrappers) explicitly deferred per plan — needs operational usage to land first; FORCE=1 acknowledges.
 - 2026-05-25: closed M6 — M6 implementation: thin wrapper composing runClose + judge milestone-review dispatch; 71 tests pass; --no-judge dogfood close since claude unreachable in sandbox
 - 2026-05-25: closed M5 — M5 review subagent stalled (watchdog 600s); main session self-review verified archive-gating, gh-close differential push vs merge, prompter stdin matches shell — 68 tests pass; full M5 surface smoke-tested
 - 2026-05-25: closed M4 — code review of a6f0ece..dc35d6a: Ship (no Critical), 2 Important (I1 regex, I4 file-exists) + 1 Minor (unused arg) addressed; 111 tests pass; live sdlc state shows M1-M4 verbs registered
