@@ -1,21 +1,36 @@
 #!/usr/bin/env bash
-# Ariadne Base Layer Setup
-# Bootstraps a target repo with ariadne's portable fragments.
+# Ariadne / multi-layer Base Layer Setup
+# Bootstraps a target repo by walking each transitive upstream's
+# construct/base.manifest in topological order, then applies post-
+# processing (creates Makefile, AGENTS.local.md, .gitignore entries,
+# mode marker, skill symlink sync).
+#
+# Upstream discovery
+# ------------------
+# Two modes:
+#   1. Go-managed (target has go.mod) — `go list -m all` returns every
+#      transitive module in dependency-resolution order; filter to those
+#      shipping a construct/base.manifest. Each becomes an "ancestor"
+#      whose manifest is walked into the target. Order matches the
+#      layering: depth-1 ancestors first, then descendants.
+#   2. Fallback (no go.mod, or no Go) — single ancestor = the script's
+#      own resolved upstream. Preserves backward compat with today's
+#      `../ariadne/construct/setup.sh` sibling invocation pattern.
 #
 # Usage:
 #   cd /path/to/your-repo && ../ariadne/construct/setup.sh [--vendor] [--yes]
 #
-#   --vendor   Copy files instead of symlinking (for public repos that can't
-#              depend on ariadne as a sibling clone). Re-running refreshes.
-#   --yes      Skip confirmation prompt when switching modes.
+#   --vendor   Copy files instead of symlinking (for public repos that
+#              can't depend on the upstream as a sibling clone).
+#   --symlink  Force symlink mode (default for new adoptions).
+#   --yes      Skip confirmation prompts when first-time-setup or
+#              switching modes.
 #
 # Mode is recorded in .ariadne-mode (content: "symlink" or "vendor").
 # Idempotent — safe to re-run for updates.
 set -euo pipefail
 
 # ── Parse flags ───────────────────────────────────────────────────────────────
-# MODE empty here = "use previous mode if .ariadne-mode exists, else symlink".
-# Explicit --vendor / --symlink overrides.
 MODE=""
 ASSUME_YES=false
 for arg in "$@"; do
@@ -27,25 +42,29 @@ for arg in "$@"; do
     esac
 done
 
-# ── Resolve paths ───────────────────────────���───────────────────────────────��─
-# Follow symlinks to find real ariadne location (construct/ dir)
+# ── Resolve paths ─────────────────────────────────────────────────────────────
+# SCRIPT_REAL = where the script actually lives (followed through symlinks).
+# When invoked via `../nous/construct/setup.sh` and that file is a symlink to
+# ariadne's setup.sh, SCRIPT_REAL resolves to ariadne's path.
 SCRIPT_REAL="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}")")" && pwd)"
+# ARIADNE_DIR (legacy name) = the script's resolved upstream root. Used only
+# as the fallback ancestor when go.mod-based discovery returns nothing —
+# i.e., for first-time bootstrap and pre-Go consumers.
 ARIADNE_DIR="$(dirname "$SCRIPT_REAL")"
 TARGET_DIR="$(pwd)"
-MANIFEST="$SCRIPT_REAL/base.manifest"
 
+# ── Self-refresh short-circuit ────────────────────────────────────────────────
+# When the target IS the script's own upstream, there's nothing to apply
+# from this upstream (target already has its files at canonical locations).
+# Just sync local-skill symlinks and exit. Note: this fires only at depth 0
+# (ariadne self-refresh). For depth-N self-refresh of a non-top-of-chain
+# layer, the script proceeds to ancestor walk normally.
 if [[ "$ARIADNE_DIR" == "$TARGET_DIR" ]]; then
-    # Running inside ariadne itself — just sync skill symlinks
     SYNC_SCRIPT="$ARIADNE_DIR/construct/scripts/sync-local-skills.sh"
     if [[ -f "$SYNC_SCRIPT" ]]; then
         bash "$SYNC_SCRIPT" 2>&1
     fi
     exit 0
-fi
-
-if [[ ! -f "$MANIFEST" ]]; then
-    echo "Error: base.manifest not found at $MANIFEST"
-    exit 1
 fi
 
 # ── Colors ────────────────────────────────────────────────────────────────────
@@ -57,7 +76,6 @@ RESET='\033[0m'
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 rel_path() {
-    # Compute relative path from target to ariadne for symlinks
     python3 -c "import os.path; print(os.path.relpath('$1', '$2'))"
 }
 
@@ -69,7 +87,7 @@ ensure_parent() {
 }
 
 create_symlink() {
-    local src="$1"  # absolute path in ariadne
+    local src="$1"  # absolute path in upstream
     local dst="$2"  # absolute path in target
 
     ensure_parent "$dst"
@@ -86,7 +104,6 @@ create_symlink() {
         rm "$dst"
         printf "  ${YELLOW}updated${RESET} %s\n" "${dst#$TARGET_DIR/}"
     elif [[ -e "$dst" ]]; then
-        # Switching from vendor → symlink: replace the vendored copy.
         rm -rf "$dst"
         printf "  ${YELLOW}relinked${RESET} %s (was vendored)\n" "${dst#$TARGET_DIR/}"
     else
@@ -97,7 +114,7 @@ create_symlink() {
 }
 
 create_vendored() {
-    local src="$1"  # absolute path in ariadne (may itself be a symlink)
+    local src="$1"  # absolute path in upstream
     local dst="$2"  # absolute path in target
 
     ensure_parent "$dst"
@@ -108,7 +125,6 @@ create_vendored() {
     fi
 
     if [[ -L "$dst" ]]; then
-        # Switching from symlink → vendor: replace the symlink with a copy.
         rm "$dst"
         cp -RL "$src" "$dst"
         printf "  ${YELLOW}vendored${RESET} %s (was symlinked)\n" "${dst#$TARGET_DIR/}"
@@ -116,7 +132,6 @@ create_vendored() {
     fi
 
     if [[ -e "$dst" ]]; then
-        # Already vendored — refresh from source.
         rm -rf "$dst"
         cp -RL "$src" "$dst"
         printf "  ${YELLOW}refreshed${RESET} %s\n" "${dst#$TARGET_DIR/}"
@@ -133,18 +148,16 @@ create_scaffold() {
         return 0
     fi
     mkdir -p "$dir"
-    # Add .gitkeep so empty dirs are tracked
     touch "$dir/.gitkeep"
     printf "  ${GREEN}created${RESET} %s/\n" "${dir#$TARGET_DIR/}"
 }
 
 merge_settings() {
-    local base_file="$1"   # ariadne's settings.ariadne.json
+    local base_file="$1"   # upstream's settings.<layer>.json
     local target_file="$2" # target's settings.json (generated, gitignored)
 
     ensure_parent "$target_file"
 
-    # Remove old symlink if present (from previous setup.sh versions)
     [[ -L "$target_file" ]] && rm "$target_file"
 
     local target_dir
@@ -168,16 +181,13 @@ if [[ -f "$MODE_MARKER" ]]; then
     PREVIOUS_MODE="$(tr -d '[:space:]' < "$MODE_MARKER")"
 fi
 
-# If no flag passed: preserve previous mode, else default to symlink (first-time).
 if [[ -z "$MODE" ]]; then
     MODE="${PREVIOUS_MODE:-symlink}"
 fi
 
-# Confirm first-time setup in a new repo (no .ariadne-mode marker yet).
-# Guards against accidental runs in the wrong directory.
 if [[ -z "$PREVIOUS_MODE" ]]; then
     REPO_NAME=$(basename "$TARGET_DIR")
-    printf "${YELLOW}First-time ariadne setup in:${RESET} ${BOLD_RED}%s${RESET}\n" "$REPO_NAME"
+    printf "${YELLOW}First-time setup in:${RESET} ${BOLD_RED}%s${RESET}\n" "$REPO_NAME"
     printf "  Path: %s\n" "$TARGET_DIR"
     printf "  Mode: %s\n" "$MODE"
     if ! $ASSUME_YES; then
@@ -185,7 +195,7 @@ if [[ -z "$PREVIOUS_MODE" ]]; then
             echo "Error: first-time setup requires --yes in non-interactive runs." >&2
             exit 1
         fi
-        read -r -p "Set up ariadne base layer in this repo? [y/N] " reply
+        read -r -p "Set up base layer in this repo? [y/N] " reply
         case "$reply" in
             y|Y|yes|YES) ;;
             *) echo "Aborted."; exit 1 ;;
@@ -200,8 +210,8 @@ if [[ -n "$PREVIOUS_MODE" && "$PREVIOUS_MODE" != "$MODE" ]]; then
         echo "  Existing symlinks will be replaced with copies of the source files."
         echo "  Re-running --vendor in the future will refresh those copies."
     else
-        echo "  Existing vendored files will be replaced with symlinks into ariadne."
-        echo "  The target repo will require ../ariadne to exist to use those files."
+        echo "  Existing vendored files will be replaced with symlinks into the upstream."
+        echo "  The target repo will require the upstream to exist as a sibling to use those files."
     fi
     if ! $ASSUME_YES; then
         if [[ ! -t 0 ]]; then
@@ -217,54 +227,119 @@ if [[ -n "$PREVIOUS_MODE" && "$PREVIOUS_MODE" != "$MODE" ]]; then
     printf "\n"
 fi
 
-# ── Process manifest ──────────────────────────────────────────────────────────
-printf "${CYAN}Ariadne setup: %s → %s (mode: %s)${RESET}\n" "$ARIADNE_DIR" "$TARGET_DIR" "$MODE"
+# ── Ancestor discovery ────────────────────────────────────────────────────────
+# Returns one ancestor path per line, in topological order (ancestors of
+# transitive depth N appear before depth N-1, so manifests apply foundation-
+# first). Empty output if no ancestors found.
+discover_ancestors() {
+    local ancestors=()
+
+    if command -v go >/dev/null 2>&1 && [[ -f "$TARGET_DIR/go.mod" ]]; then
+        # `go list -m -f '{{.Dir}}' all` returns every module in the
+        # consumer's dep graph, one per line, in resolution order.
+        # Filter to those that ship construct/base.manifest. Skip target
+        # itself (target's own manifest is never applied to target).
+        while IFS= read -r dir; do
+            [[ -z "$dir" ]] && continue
+            [[ "$dir" == "$TARGET_DIR" ]] && continue
+            [[ ! -f "$dir/construct/base.manifest" ]] && continue
+            ancestors+=("$dir")
+        done < <(cd "$TARGET_DIR" && go list -m -f '{{.Dir}}' all 2>/dev/null)
+    fi
+
+    # Fallback: if Go discovery turned up nothing, treat the script's own
+    # upstream as the single ancestor. Preserves backward-compat with
+    # pre-Go consumers (anyone invoking ../ariadne/construct/setup.sh
+    # against a target that doesn't yet have go.mod).
+    if [[ ${#ancestors[@]} -eq 0 ]] && [[ "$ARIADNE_DIR" != "$TARGET_DIR" ]]; then
+        ancestors+=("$ARIADNE_DIR")
+    fi
+
+    printf '%s\n' "${ancestors[@]+"${ancestors[@]}"}"
+}
+
+# ── Walk one upstream's manifest into the target ──────────────────────────────
+walk_manifest() {
+    local upstream="$1"
+    local manifest="$upstream/construct/base.manifest"
+
+    if [[ ! -f "$manifest" ]]; then
+        printf "  ${YELLOW}skip${RESET}    no construct/base.manifest at %s\n" "$upstream"
+        return 0
+    fi
+
+    printf "\n  ${CYAN}[%s]${RESET}\n" "$(basename "$upstream")"
+
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// /}" ]] && continue
+
+        read -r action source target <<< "$line"
+        target="${target:-$source}"
+
+        case "$action" in
+            symlink)
+                if [[ "$MODE" == "vendor" ]]; then
+                    create_vendored "$upstream/$source" "$TARGET_DIR/$target"
+                else
+                    create_symlink "$upstream/$source" "$TARGET_DIR/$target"
+                fi
+                ;;
+            scaffold)
+                create_scaffold "$TARGET_DIR/$target"
+                ;;
+            copy)
+                ensure_parent "$TARGET_DIR/$target"
+                if [[ ! -f "$TARGET_DIR/$target" ]]; then
+                    cp "$upstream/$source" "$TARGET_DIR/$target"
+                    printf "  ${GREEN}copied${RESET}  %s\n" "$target"
+                else
+                    printf "  ${YELLOW}skipped${RESET} %s (already exists)\n" "$target"
+                fi
+                ;;
+            merge)
+                merge_settings "$upstream/$source" "$TARGET_DIR/$target"
+                ;;
+            touch)
+                ensure_parent "$TARGET_DIR/$source"
+                if [[ ! -f "$TARGET_DIR/$source" ]]; then
+                    touch "$TARGET_DIR/$source"
+                    printf "  ${GREEN}created${RESET} %s\n" "$source"
+                fi
+                ;;
+            *)
+                printf "  ${YELLOW}unknown action: %s${RESET}\n" "$action"
+                ;;
+        esac
+    done < "$manifest"
+}
+
+# ── Process manifest(s) ───────────────────────────────────────────────────────
+ANCESTORS=()
+while IFS= read -r dir; do
+    [[ -n "$dir" ]] && ANCESTORS+=("$dir")
+done < <(discover_ancestors)
+
+if [[ ${#ANCESTORS[@]} -eq 0 ]]; then
+    printf "${YELLOW}No upstream layers found.${RESET}\n"
+    printf "  Target has no go.mod requiring a module with construct/base.manifest,\n"
+    printf "  and the script's own upstream is the target itself. Nothing to apply.\n"
+    exit 0
+fi
+
+if [[ ${#ANCESTORS[@]} -eq 1 ]]; then
+    printf "${CYAN}Setup:${RESET} %s → %s (mode: %s)\n" "${ANCESTORS[0]}" "$TARGET_DIR" "$MODE"
+else
+    printf "${CYAN}Setup:${RESET} %d upstream layer(s) → %s (mode: %s)\n" "${#ANCESTORS[@]}" "$TARGET_DIR" "$MODE"
+    for upstream in "${ANCESTORS[@]}"; do
+        printf "  • %s\n" "$upstream"
+    done
+fi
+
+for upstream in "${ANCESTORS[@]}"; do
+    walk_manifest "$upstream"
+done
 printf "\n"
-
-while IFS= read -r line; do
-    # Skip comments and empty lines
-    [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    [[ -z "${line// /}" ]] && continue
-
-    # Parse: action source [target]
-    read -r action source target <<< "$line"
-    target="${target:-$source}"
-
-    case "$action" in
-        symlink)
-            if [[ "$MODE" == "vendor" ]]; then
-                create_vendored "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
-            else
-                create_symlink "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
-            fi
-            ;;
-        scaffold)
-            create_scaffold "$TARGET_DIR/$target"
-            ;;
-        copy)
-            ensure_parent "$TARGET_DIR/$target"
-            if [[ ! -f "$TARGET_DIR/$target" ]]; then
-                cp "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
-                printf "  ${GREEN}copied${RESET}  %s\n" "$target"
-            else
-                printf "  ${YELLOW}skipped${RESET} %s (already exists)\n" "$target"
-            fi
-            ;;
-        merge)
-            merge_settings "$ARIADNE_DIR/$source" "$TARGET_DIR/$target"
-            ;;
-        touch)
-            ensure_parent "$TARGET_DIR/$source"
-            if [[ ! -f "$TARGET_DIR/$source" ]]; then
-                touch "$TARGET_DIR/$source"
-                printf "  ${GREEN}created${RESET} %s\n" "$source"
-            fi
-            ;;
-        *)
-            printf "  ${YELLOW}unknown action: %s${RESET}\n" "$action"
-            ;;
-    esac
-done < "$MANIFEST"
 
 # ── Create Makefile if missing ────────────────────────────────────────────────
 if [[ ! -f "$TARGET_DIR/Makefile" ]]; then
@@ -319,13 +394,8 @@ EOF
 fi
 
 # ── Ensure .gitignore entries ─────────────────────────────────────────────────
-# Delegated to construct/scripts/apply-gitignore-entries.sh so nous/setup.sh's
-# self-mode (which doesn't run the rest of this script) can invoke the same
-# logic and stay in sync with base-layer additions.
 APPLY_GITIGNORE="$TARGET_DIR/construct/scripts/apply-gitignore-entries.sh"
 if [[ ! -f "$APPLY_GITIGNORE" ]]; then
-    # Pre-vendor case: the target may not yet have the symlinked script.
-    # Fall back to the source's own copy.
     APPLY_GITIGNORE="$SCRIPT_REAL/scripts/apply-gitignore-entries.sh"
 fi
 if [[ -f "$APPLY_GITIGNORE" ]]; then
@@ -338,7 +408,7 @@ if [[ ! -f "$MODE_MARKER" ]] || [[ "$(tr -d '[:space:]' < "$MODE_MARKER")" != "$
     printf "  ${GREEN}wrote${RESET}   .ariadne-mode (%s)\n" "$MODE"
 fi
 
-# ── Sync skill symlinks ──────────────────────────────────────────────────────
+# ── Sync skill symlinks ───────────────────────────────────────────────────────
 SYNC_SCRIPT="$TARGET_DIR/construct/scripts/sync-local-skills.sh"
 if [[ -f "$SYNC_SCRIPT" ]]; then
     printf "\n"
