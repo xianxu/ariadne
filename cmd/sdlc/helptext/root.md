@@ -20,11 +20,22 @@ checkpoints between stages; the stages themselves stay prose and human-driven:
   4. Build          — superpowers-executing-plans, milestones in workshop/issues/
   5. Milestone review — sdlc judge (auto-dispatched from milestone-close)
   6. Close / ship   — sdlc close → sdlc push (main) or sdlc pr → sdlc merge (branch)
-  7. Postmortem     — xx-introspect, workshop/lessons.md
-  8. Crystallization — workshop/targets/ — extract stable shapes (conventions,
-                      protocols, invariants) into target files committed to
-                      defending; recognition-triggered (a pattern has
-                      stabilized through use), not scheduled or planned
+  7. Postmortem     — sdlc postmortem (ariadne#35; auto-dispatched from close),
+                      xx-introspect (cross-session taste mining),
+                      workshop/lessons.md
+
+TARGET AUTHORING (not a stage)
+
+Promoting a pattern into a target (workshop/targets/) is a datatype
+operation, not an SDLC stage. It can happen anytime recognition fires:
+  - A pensive crystallizes when the moment-in-time thought stabilizes
+    into a commitment worth defending against drift.
+  - Postmortem (stage 7) surfaces "crystallization candidates" as one
+    of its LLM-judgment sections; operator accepts and drafts a target.
+  - Direct authoring is also fine — the trigger is recognition, not
+    procedure. The pensive / postmortem paths just make recognition
+    more likely to land somewhere durable.
+See construct/datatype/target.md for the full authoring contract.
 
 TESTING (not a stage)
 

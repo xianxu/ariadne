@@ -38,8 +38,9 @@ checkpoints *between* stages; the stages themselves stay prose and human-driven:
 4. **Build** — `superpowers-executing-plans`, milestones in `workshop/issues/`
 5. **Milestone review** — `sdlc judge` (auto-dispatched from `sdlc milestone-close`)
 6. **Close / ship** — `sdlc close` → `sdlc push` (main) or `sdlc pr` → `sdlc merge` (branch)
-7. **Postmortem** — `xx-introspect`, `workshop/lessons.md`
-8. **Crystallization** — `workshop/targets/` — extract stable shapes (conventions, protocols, invariants) into target files committed to defending; recognition-triggered (a pattern has stabilized through use), not scheduled or planned
+7. **Postmortem** — `sdlc postmortem` (ariadne#35; auto-dispatched from close), `xx-introspect` (cross-session taste mining), `workshop/lessons.md`
+
+**Target authoring is not a stage** — promoting a pattern into a target (`workshop/targets/`) is a datatype operation, not a workflow phase. It can happen anytime recognition fires: a pensive crystallizes when the thought stabilizes into a commitment worth defending against drift; postmortem (stage 7) surfaces "crystallization candidates" as one of its LLM-judgment sections; direct authoring is also fine. The trigger is recognition, not procedure. See `construct/datatype/target.md` for the full authoring contract.
 
 **Testing is not a stage** — it threads through Planning (Core concepts table names PURE / INTEGRATION entities, implying test surface), Build (TDD red-green-refactor in-line; tests next to entities; verification-before-completion gates each step), and Milestone review (judge cross-checks "PURE entities test without IO; if tests need mocks, promote to INTEGRATION"). When a feature needs test infrastructure (process-level fake for an external service: GitHub, Gmail, Anthropic API), that infrastructure is itself a feature and runs through stages 1-5 like any other.
 
