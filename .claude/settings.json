@@ -6,11 +6,7 @@
       "Bash(mv:*)",
       "Bash(rm:*)",
       "Bash(ln:*)",
-      "WebSearch",
-      "Bash(grep -E \"\\(memory|^xx-data$\\)\")",
-      "Bash(sed -i.bak 's/the produced minds/the produced introspect skills/' workshop/issues/000018-transcript-driven-introspection.md)",
-      "Bash(rm -f workshop/issues/000018-transcript-driven-introspection.md.bak)",
-      "Bash(python3 -c ' *)"
+      "WebSearch"
     ],
     "deny": [
       "Bash(tsh *)",
