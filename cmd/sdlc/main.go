@@ -70,6 +70,10 @@ func main() {
 	claimCmd.Long = helptext.MustGet("claim")
 	root.AddCommand(claimCmd)
 
+	changeCodeCmd := NewChangeCodeCmd()
+	changeCodeCmd.Long = helptext.MustGet("change-code")
+	root.AddCommand(changeCodeCmd)
+
 	setStatusCmd := NewSetStatusCmd()
 	setStatusCmd.Long = helptext.MustGet("set-status")
 	root.AddCommand(setStatusCmd)
