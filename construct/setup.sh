@@ -3,44 +3,27 @@
 # Bootstraps a target repo by walking each transitive upstream's
 # construct/base.manifest in topological order, then applies post-
 # processing (creates Makefile, AGENTS.local.md, .gitignore entries,
-# mode marker, skill symlink sync).
+# skill symlink sync).
+#
+# Symlink-only model (per ariadne#38): all substrate text is symlinked
+# from upstream peers. Operator-divergent customization happens via
+# per-operator branches in upstream source repos, not per-derivative
+# copies. Five actions: symlink, tool, scaffold, touch, merge.
 #
 # Upstream discovery
 # ------------------
-# Two modes:
-#   1. Go-managed (target has go.mod) — `go list -m all` returns every
-#      transitive module in dependency-resolution order; filter to those
-#      shipping a construct/base.manifest. Each becomes an "ancestor"
-#      whose manifest is walked into the target. Order matches the
-#      layering: depth-1 ancestors first, then descendants.
+# Two paths:
+#   1. Go-managed (target has go.mod) — `go list -m all` + replace
+#      directive walk returns every transitive substrate peer.
 #   2. Fallback (no go.mod, or no Go) — single ancestor = the script's
 #      own resolved upstream. Preserves backward compat with today's
 #      `../ariadne/construct/setup.sh` sibling invocation pattern.
 #
 # Usage:
-#   cd /path/to/your-repo && ../ariadne/construct/setup.sh [--vendor] [--yes]
+#   cd /path/to/your-repo && ../ariadne/construct/setup.sh
 #
-#   --vendor   Copy files instead of symlinking (for public repos that
-#              can't depend on the upstream as a sibling clone).
-#   --symlink  Force symlink mode (default for new adoptions).
-#   --yes      Skip confirmation prompts when first-time-setup or
-#              switching modes.
-#
-# Mode is recorded in .ariadne-mode (content: "symlink" or "vendor").
 # Idempotent — safe to re-run for updates.
 set -euo pipefail
-
-# ── Parse flags ───────────────────────────────────────────────────────────────
-MODE=""
-ASSUME_YES=false
-for arg in "$@"; do
-    case "$arg" in
-        --vendor) MODE="vendor" ;;
-        --symlink) MODE="symlink" ;;
-        --yes|-y) ASSUME_YES=true ;;
-        *) echo "Error: unknown flag: $arg" >&2; exit 2 ;;
-    esac
-done
 
 # ── Resolve paths ─────────────────────────────────────────────────────────────
 # SCRIPT_REAL = where the script actually lives (followed through symlinks).
@@ -98,41 +81,12 @@ create_symlink() {
         printf "  ${YELLOW}updated${RESET} %s\n" "${dst#$TARGET_DIR/}"
     elif [[ -e "$dst" ]]; then
         rm -rf "$dst"
-        printf "  ${YELLOW}relinked${RESET} %s (was vendored)\n" "${dst#$TARGET_DIR/}"
+        printf "  ${YELLOW}relinked${RESET} %s (was a regular file/dir)\n" "${dst#$TARGET_DIR/}"
     else
         printf "  ${GREEN}linked${RESET}  %s\n" "${dst#$TARGET_DIR/}"
     fi
 
     ln -s "$rel" "$dst"
-}
-
-create_vendored() {
-    local src="$1"  # absolute path in upstream
-    local dst="$2"  # absolute path in target
-
-    ensure_parent "$dst"
-
-    if [[ ! -e "$src" ]]; then
-        printf "  ${YELLOW}missing${RESET} %s (source %s not found)\n" "${dst#$TARGET_DIR/}" "$src"
-        return 0
-    fi
-
-    if [[ -L "$dst" ]]; then
-        rm "$dst"
-        cp -RL "$src" "$dst"
-        printf "  ${YELLOW}vendored${RESET} %s (was symlinked)\n" "${dst#$TARGET_DIR/}"
-        return 0
-    fi
-
-    if [[ -e "$dst" ]]; then
-        rm -rf "$dst"
-        cp -RL "$src" "$dst"
-        printf "  ${YELLOW}refreshed${RESET} %s\n" "${dst#$TARGET_DIR/}"
-        return 0
-    fi
-
-    cp -RL "$src" "$dst"
-    printf "  ${GREEN}vendored${RESET} %s\n" "${dst#$TARGET_DIR/}"
 }
 
 create_scaffold() {
@@ -166,64 +120,6 @@ merge_settings() {
         printf "  ${GREEN}created${RESET} %s (from base, no local overrides)\n" "${target_file#$TARGET_DIR/}"
     fi
 }
-
-# ── Mode detection & confirmation ─────────────────────────────────────────────
-MODE_MARKER="$TARGET_DIR/.ariadne-mode"
-PREVIOUS_MODE=""
-if [[ -f "$MODE_MARKER" ]]; then
-    PREVIOUS_MODE="$(tr -d '[:space:]' < "$MODE_MARKER")"
-fi
-
-if [[ -z "$MODE" ]]; then
-    MODE="${PREVIOUS_MODE:-symlink}"
-fi
-
-if [[ -z "$PREVIOUS_MODE" && "$ARIADNE_DIR" != "$TARGET_DIR" ]]; then
-    # First-time-setup prompt only applies when ariadne is setting up a
-    # DIFFERENT target. Ariadne itself is the upstream — it has no .ariadne-
-    # mode marker by design (the marker records "this layer was set up from
-    # an upstream"), so absence of the marker for the ariadne-self case is
-    # normal, not first-time. Skip the prompt; the rest of the script runs.
-    REPO_NAME=$(basename "$TARGET_DIR")
-    printf "${YELLOW}First-time setup in:${RESET} ${BOLD_RED}%s${RESET}\n" "$REPO_NAME"
-    printf "  Path: %s\n" "$TARGET_DIR"
-    printf "  Mode: %s\n" "$MODE"
-    if ! $ASSUME_YES; then
-        if [[ ! -t 0 ]]; then
-            echo "Error: first-time setup requires --yes in non-interactive runs." >&2
-            exit 1
-        fi
-        read -r -p "Set up base layer in this repo? [y/N] " reply
-        case "$reply" in
-            y|Y|yes|YES) ;;
-            *) echo "Aborted."; exit 1 ;;
-        esac
-    fi
-    printf "\n"
-fi
-
-if [[ -n "$PREVIOUS_MODE" && "$PREVIOUS_MODE" != "$MODE" ]]; then
-    printf "${YELLOW}Mode change:${RESET} %s → %s\n" "$PREVIOUS_MODE" "$MODE"
-    if [[ "$MODE" == "vendor" ]]; then
-        echo "  Existing symlinks will be replaced with copies of the source files."
-        echo "  Re-running --vendor in the future will refresh those copies."
-    else
-        echo "  Existing vendored files will be replaced with symlinks into the upstream."
-        echo "  The target repo will require the upstream to exist as a sibling to use those files."
-    fi
-    if ! $ASSUME_YES; then
-        if [[ ! -t 0 ]]; then
-            echo "Error: mode change requires --yes in non-interactive runs." >&2
-            exit 1
-        fi
-        read -r -p "Continue? [y/N] " reply
-        case "$reply" in
-            y|Y|yes|YES) ;;
-            *) echo "Aborted."; exit 1 ;;
-        esac
-    fi
-    printf "\n"
-fi
 
 # ── Ancestor discovery ────────────────────────────────────────────────────────
 # Returns one ancestor path per line, in topological order (ancestors of
@@ -378,34 +274,16 @@ walk_manifest() {
 
         case "$action" in
             symlink)
-                # Intra-repo symlinks (self-walk) are immune to vendor mode:
-                # the relative link stays valid wherever the repo is cloned,
-                # so there's nothing to harden. Vendoring an intra-repo entry
-                # would just duplicate content and break the live edit-and-
-                # see-it-everywhere ergonomic that motivated declaring it as
-                # a symlink in the first place (e.g., nous exposing
-                # construct/skills/X at .claude/skills/X for Claude Code's
-                # skill loader). Vendor mode exists for cross-repo content,
-                # where the upstream may not be present on the consumer's
-                # machine — that doesn't apply when source and target are
-                # both inside the layer being set up.
-                if [[ "$MODE" == "vendor" && "$upstream" != "$TARGET_DIR" ]]; then
-                    create_vendored "$upstream/$source" "$TARGET_DIR/$target"
-                else
-                    create_symlink "$upstream/$source" "$TARGET_DIR/$target"
-                fi
+                create_symlink "$upstream/$source" "$TARGET_DIR/$target"
                 ;;
             scaffold)
                 create_scaffold "$TARGET_DIR/$target"
                 ;;
             copy)
-                ensure_parent "$TARGET_DIR/$target"
-                if [[ ! -f "$TARGET_DIR/$target" ]]; then
-                    cp "$upstream/$source" "$TARGET_DIR/$target"
-                    printf "  ${GREEN}copied${RESET}  %s\n" "$target"
-                else
-                    printf "  ${YELLOW}skipped${RESET} %s (already exists)\n" "$target"
-                fi
+                # `copy` action was retired in ariadne#38 — substrate is
+                # symlink-only. Stale manifest entries get a warning so
+                # operators notice; the entry itself is a no-op.
+                printf "  ${YELLOW}warn${RESET}    \`copy %s\` ignored — copy action retired in ariadne#38; switch manifest to \`symlink\`\n" "$source"
                 ;;
             merge)
                 merge_settings "$upstream/$source" "$TARGET_DIR/$target"
@@ -540,12 +418,12 @@ done < <(discover_ancestors)
 if [[ ${#ANCESTORS[@]} -eq 0 ]]; then
     # No upstreams — this is ariadne (the top of the chain). Skip the
     # ancestor walk, but still run self-walk + post-processing below
-    # (settings merge, gitignore, skills sync, mode marker, go mod vendor).
+    # (settings merge, gitignore, skills sync).
     printf "${YELLOW}No upstream layers found${RESET} — running self-walk + post-processing only.\n"
 elif [[ ${#ANCESTORS[@]} -eq 1 ]]; then
-    printf "${CYAN}Setup:${RESET} %s → %s (mode: %s)\n" "${ANCESTORS[0]}" "$TARGET_DIR" "$MODE"
+    printf "${CYAN}Setup:${RESET} %s → %s\n" "${ANCESTORS[0]}" "$TARGET_DIR"
 else
-    printf "${CYAN}Setup:${RESET} %d upstream layer(s) → %s (mode: %s)\n" "${#ANCESTORS[@]}" "$TARGET_DIR" "$MODE"
+    printf "${CYAN}Setup:${RESET} %d upstream layer(s) → %s\n" "${#ANCESTORS[@]}" "$TARGET_DIR"
     for upstream in "${ANCESTORS[@]}"; do
         printf "  • %s\n" "$upstream"
     done
@@ -626,46 +504,6 @@ if [[ ! -f "$APPLY_GITIGNORE" ]]; then
 fi
 if [[ -f "$APPLY_GITIGNORE" ]]; then
     bash "$APPLY_GITIGNORE" "$TARGET_DIR" || true
-fi
-
-# ── Record mode ───────────────────────────────────────────────────────────────
-# Skip mode marker for ariadne-self — the marker records "this target was
-# set up from an ariadne upstream," which is meaningless when target IS
-# ariadne. Writing `symlink` or `vendor` in ariadne/.ariadne-mode would
-# be misleading (ariadne has no upstream to be in symlink/vendor against).
-if [[ "$ARIADNE_DIR" != "$TARGET_DIR" ]] && { [[ ! -f "$MODE_MARKER" ]] || [[ "$(tr -d '[:space:]' < "$MODE_MARKER")" != "$MODE" ]]; }; then
-    echo "$MODE" > "$MODE_MARKER"
-    printf "  ${GREEN}wrote${RESET}   .ariadne-mode (%s)\n" "$MODE"
-fi
-
-# ── Vendor Go source (vendor mode + go.mod present + cross-target) ───────────
-# In vendor mode, the substrate isn't just text — Go binaries that ship
-# from ariadne (like cmd/sdlc) need their source available in the target
-# repo too. `go mod vendor` populates vendor/ with the source for every
-# require / tool declaration in go.mod, so the binary can be built
-# locally without needing the ancestor checked out next door.
-#
-# Symlink mode skips this — sibling-checkout development resolves Go
-# imports via the replace directive's local path, no vendor/ needed.
-#
-# Self-walk (ARIADNE_DIR == TARGET_DIR) also skips — substrate vendoring
-# is for the cross-repo case where the consumer doesn't have ariadne
-# next door. Ariadne IS the source; vendoring its own deps into itself
-# via the substrate path would pollute the source tree with a vendor/
-# directory the substrate doesn't actually need. (If ariadne wants
-# vendor/ for its own Go-side reasons, the operator runs `go mod vendor`
-# directly — independent of substrate refresh.)
-if [[ "$MODE" == "vendor" && -f "$TARGET_DIR/construct/go.mod" && "$ARIADNE_DIR" != "$TARGET_DIR" ]]; then
-    if command -v go >/dev/null 2>&1; then
-        printf "\n  ${CYAN}vendoring Go source into construct/vendor/${RESET}\n"
-        if ( cd "$TARGET_DIR/construct" && go mod tidy && go mod vendor ) 2>&1 | sed 's/^/    /'; then
-            printf "  ${GREEN}vendored${RESET} Go source into construct/vendor/\n"
-        else
-            printf "  ${YELLOW}skipped${RESET} go mod vendor (errors above; non-fatal)\n"
-        fi
-    else
-        printf "  ${YELLOW}skipped${RESET} go mod vendor (go toolchain not on PATH)\n"
-    fi
 fi
 
 # ── Sync skill symlinks ───────────────────────────────────────────────────────
