@@ -520,7 +520,11 @@ if [[ -f "$APPLY_GITIGNORE" ]]; then
 fi
 
 # ── Record mode ───────────────────────────────────────────────────────────────
-if [[ ! -f "$MODE_MARKER" ]] || [[ "$(tr -d '[:space:]' < "$MODE_MARKER")" != "$MODE" ]]; then
+# Skip mode marker for ariadne-self — the marker records "this target was
+# set up from an ariadne upstream," which is meaningless when target IS
+# ariadne. Writing `symlink` or `vendor` in ariadne/.ariadne-mode would
+# be misleading (ariadne has no upstream to be in symlink/vendor against).
+if [[ "$ARIADNE_DIR" != "$TARGET_DIR" ]] && { [[ ! -f "$MODE_MARKER" ]] || [[ "$(tr -d '[:space:]' < "$MODE_MARKER")" != "$MODE" ]]; }; then
     echo "$MODE" > "$MODE_MARKER"
     printf "  ${GREEN}wrote${RESET}   .ariadne-mode (%s)\n" "$MODE"
 fi
