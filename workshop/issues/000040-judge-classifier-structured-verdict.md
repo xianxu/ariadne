@@ -1,11 +1,12 @@
 ---
 id: 000040
-status: working
+status: done
 estimate_hours: 1.5
 deps: []
 created: 2026-05-27
 updated: 2026-05-27
 related: [cmd/sdlc/internal/judge/prompts.go, cmd/sdlc/internal/judge/classify.go, cmd/sdlc/internal/judge/judge_test.go]
+actual_hours: 0.75
 ---
 
 # Judge classifier: structured VERDICT line instead of free-text grep
@@ -115,6 +116,8 @@ Modeled on `ParseVerdict` at `classify.go:91`.
 
 ## Log
 
+
+- 2026-05-27: closed — TestClassify 14/14 pass (8 legacy + 6 new); full ariadne go test ./... green; new path verified to fix the exact pair#23 false-positive shape via "legacy prose approval still falls through" test case.
 - 2026-05-27 — Implementation:
   - `cmd/sdlc/internal/judge/classify.go`: added `verdictLineRE` and
     `parseVerdictLine`; `Classify` prefers the structured verdict
