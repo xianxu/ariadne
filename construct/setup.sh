@@ -429,13 +429,11 @@ while IFS= read -r dir; do
 done < <(discover_ancestors)
 
 if [[ ${#ANCESTORS[@]} -eq 0 ]]; then
-    printf "${YELLOW}No upstream layers found.${RESET}\n"
-    printf "  Target has no go.mod requiring a module with construct/base.manifest,\n"
-    printf "  and the script's own upstream is the target itself. Nothing to apply.\n"
-    exit 0
-fi
-
-if [[ ${#ANCESTORS[@]} -eq 1 ]]; then
+    # No upstreams — this is ariadne (the top of the chain). Skip the
+    # ancestor walk, but still run self-walk + post-processing below
+    # (settings merge, gitignore, skills sync, mode marker, go mod vendor).
+    printf "${YELLOW}No upstream layers found${RESET} — running self-walk + post-processing only.\n"
+elif [[ ${#ANCESTORS[@]} -eq 1 ]]; then
     printf "${CYAN}Setup:${RESET} %s → %s (mode: %s)\n" "${ANCESTORS[0]}" "$TARGET_DIR" "$MODE"
 else
     printf "${CYAN}Setup:${RESET} %d upstream layer(s) → %s (mode: %s)\n" "${#ANCESTORS[@]}" "$TARGET_DIR" "$MODE"
@@ -444,9 +442,11 @@ else
     done
 fi
 
-for upstream in "${ANCESTORS[@]}"; do
-    walk_manifest "$upstream"
-done
+if [[ ${#ANCESTORS[@]} -gt 0 ]]; then
+    for upstream in "${ANCESTORS[@]}"; do
+        walk_manifest "$upstream"
+    done
+fi
 
 # After ancestors: walk target's own manifest if it has one. This lets a
 # layer's manifest contain entries that ARE meaningful when applied to that
