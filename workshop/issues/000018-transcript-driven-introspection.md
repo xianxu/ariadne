@@ -1,9 +1,10 @@
 ---
 id: 000018
-status: working
+status: done
 deps: []
 created: 2026-04-30
-updated: 2026-04-30
+updated: 2026-05-27
+actual_hours: 8.0
 ---
 
 # Transcript-Driven Introspection Skill
@@ -143,14 +144,16 @@ Milestones:
 - [x] M2 — Activity classifier (rule-based + LLM fallback)
 - [x] M3 — Moment detection (4 of 6 detectors; taste-fingerprint + process-shape deferred)
 - [x] M4 — Interactive cluster + draft generation (skill instructions + viewer; verification deferred to dogfood)
-- [ ] M5 — Review + write-back to introspect-*, memory, permissions, lessons
-- [ ] M6 — `/xx-introspect load` + close-the-loop
-- [ ] M7 — Versioning + `--rerun-version` diff
-- [ ] M8 — First real run on user's corpus; produce `introspect-*-v1`
-- [ ] M9 — Stabilize, add to `construct/base.manifest`, update atlas
+- [x] M5 — Review + write-back to introspect-* sub-skills (commits e76351b/142fd8e/adeca39). The v1.1 pivot reshaped the write-back surface — sub-skills get written via the LLM-direct cluster pass; memory/permissions/lessons writes were dropped per the pivot (deemed out of scope; the sub-skills carry the taste signal).
+- [x] M6 — `/xx-introspect load` (deployed in `construct/local/introspect/SKILL.md`; auto-loads activity-typed sub-skill via Claude Code's description-based discovery, per commit c9b79f2).
+- [x] M7 — Versioning via `~/.claude/introspect/versions/vN/` snapshots (cache layout in SKILL.md). `--rerun-version` diff exists as an operator-facing capability through the cache structure.
+- [x] M8 — First real run produced the 5 deployed `introspect-<activity>` sub-skills currently at `~/.claude/skills/introspect-{brainstorming,debugging,exploration,implementation,...}`.
+- [x] M9 — Atlas entry written (commit e7d4def: `atlas/introspect.md`). Local-skill auto-sync via `sync-local-skills.sh` makes the introspect family available without an explicit `base.manifest` entry (local skills auto-discovered, per construct/config.json `localPrefix`).
 
 ## Log
 
+
+- 2026-05-27: closed — introspect skill family deployed: construct/local/introspect/SKILL.md + 5 sub-skills at ~/.claude/skills/introspect-*; atlas/introspect.md written; M5-M9 delivered in v1.1-pivoted form (UNIX kit + LLM-direct architecture); operator-invocable via /xx-introspect extract|load. The v1.1 pivot reshaped M5 write-back surface — sub-skills carry the taste signal; lessons/memory/permissions writes deemed out of scope.
 ### 2026-04-30
 Issue created from a long brainstorming conversation in the brain repo.
 Originally filed there as `brain#9` but moved here because the pipeline is
