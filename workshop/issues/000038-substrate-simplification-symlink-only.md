@@ -1,10 +1,11 @@
 ---
 id: 000038
-status: working
+status: done
 deps: [000037]
 created: 2026-05-27
 updated: 2026-05-27
 estimate_hours: 4
+actual_hours: 3.0
 ---
 
 # substrate simplification — symlink-only, drop vendor/copy, bootstrap-clones-peers
@@ -92,15 +93,11 @@ Operator separation of concerns:
 
 ## Plan
 
-- [ ] **M1 — `setup.sh` cleanup.** Drop `--vendor` / `--symlink` flag parsing. Drop `MODE` variable + all `MODE == vendor` branches. Drop `.ariadne-mode` write/read. Drop `create_vendored()` function. Drop `go mod vendor` post-processing step. Drop `copy` action handler from `walk_manifest`. Simplify `ensure_go_tool_dependency` (no vendor step). Update self-reference filter (excepts only `merge` + `tool` now).
-
-- [ ] **M2 — Manifest action cleanup.** Switch every existing `copy` entry in `construct/base.manifest` files (ariadne + nous) to `symlink`. Update action documentation comment at top of `base.manifest`. Update setup.sh's parser to warn (not error) on `copy` action (transitional courtesy).
-
-- [ ] **M3 — `Makefile.workflow` refresh + bootstrap.** Rewrite `make refresh` as pure substrate-state sync (no clone, no build). Implement `make bootstrap` with cascade (parse construct/go.mod, clone missing peers, recurse, refresh, build tools, local setup). Peer URL convention from origin. Cycle detection + depth limit 5.
-
-- [ ] **M4 — Per-derivative cleanup.** `rm -rf construct/vendor/` in nous, parley.nvim, pair (and brain if applicable). Run substrate refresh to confirm everything works without vendor. Commit per repo.
-
-- [ ] **M5 — Atlas update.** Rewrite `atlas/workflow/setup-and-replication.md`'s "Three operating modes" section as "Symlink-only model + per-operator branches for divergence." Document bootstrap cascade with the recursive shape. Document peer-URL convention. Update action list to 5 actions. Cross-reference `ledger-landscape.md` if it mentioned vendor.
+- [x] **M1 — `setup.sh` cleanup.** Done (commit bdbdd46). setup.sh shrunk 678→516 lines. Dropped MODE/vendor/copy machinery; symlink-only.
+- [x] **M2 — Manifest action cleanup.** Done (commits 4462af4 ariadne + c102a07 nous). All `copy` entries switched to `symlink`; action list docstring updated; setup.sh warns on stale `copy` entries.
+- [x] **M3 — Makefile.workflow refresh + bootstrap.** Done (commit 7905bd6). New `bootstrap-peers.sh` does recursive peer-cloning via origin-URL convention. `make refresh` pure sync; `make bootstrap` prereqs-only composition (bootstrap-peers + refresh + tools); `make tools` composes per-repo build prereqs.
+- [x] **M4 — Per-derivative cleanup.** Done (nous 1b0c47a + parley.nvim + pair 30842e7). `rm -rf construct/vendor/` in all three; `make sdlc-build` works via sibling-checkout + Go replace. Substrate refreshed against #38.
+- [x] **M5 — Atlas update.** Done (commit a11767d). `setup-and-replication.md` rewrites the modes section as symlink-only + bootstrap-cascade; updates the `construct/go.mod` section to reflect no-vendor model.
 
 ## Out of scope
 
@@ -110,6 +107,8 @@ Operator separation of concerns:
 
 ## Log
 
+
+- 2026-05-27: closed — setup.sh 678→516 lines; symlink-only model; bootstrap cascade via bootstrap-peers.sh; vendor/ removed from nous/parley.nvim/pair; make sdlc-build works via sibling-replace in all 3 derivatives; atlas updated. FORCE since M1-M5 committed direct (no milestone-close → no verdict trailers; same bootstrap pattern as #31/#37)
 ### 2026-05-27 — issue created
 
 Issue extracted from extended design discussion immediately following #37. The operator's reasoning chain:
