@@ -595,7 +595,7 @@ if [[ "$ARIADNE_DIR" != "$TARGET_DIR" ]] && { [[ ! -f "$MODE_MARKER" ]] || [[ "$
     printf "  ${GREEN}wrote${RESET}   .ariadne-mode (%s)\n" "$MODE"
 fi
 
-# ── Vendor Go source (vendor mode + go.mod present) ──────────────────────────
+# ── Vendor Go source (vendor mode + go.mod present + cross-target) ───────────
 # In vendor mode, the substrate isn't just text — Go binaries that ship
 # from ariadne (like cmd/sdlc) need their source available in the target
 # repo too. `go mod vendor` populates vendor/ with the source for every
@@ -604,7 +604,15 @@ fi
 #
 # Symlink mode skips this — sibling-checkout development resolves Go
 # imports via the replace directive's local path, no vendor/ needed.
-if [[ "$MODE" == "vendor" && -f "$TARGET_DIR/go.mod" ]]; then
+#
+# Self-walk (ARIADNE_DIR == TARGET_DIR) also skips — substrate vendoring
+# is for the cross-repo case where the consumer doesn't have ariadne
+# next door. Ariadne IS the source; vendoring its own deps into itself
+# via the substrate path would pollute the source tree with a vendor/
+# directory the substrate doesn't actually need. (If ariadne wants
+# vendor/ for its own Go-side reasons, the operator runs `go mod vendor`
+# directly — independent of substrate refresh.)
+if [[ "$MODE" == "vendor" && -f "$TARGET_DIR/go.mod" && "$ARIADNE_DIR" != "$TARGET_DIR" ]]; then
     if command -v go >/dev/null 2>&1; then
         printf "\n  ${CYAN}vendoring Go source (go mod vendor)${RESET}\n"
         if ( cd "$TARGET_DIR" && go mod tidy && go mod vendor ) 2>&1 | sed 's/^/    /'; then
