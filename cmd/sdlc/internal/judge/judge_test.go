@@ -75,6 +75,69 @@ func TestBuildPrompt_Lessons_Empty(t *testing.T) {
 	}
 }
 
+// TestBuildPrompt_PlanQuality_HasContract pins the executability
+// review's key invariants: the issue ref, the failure-modes list,
+// the VERDICT line, and the issue content all reach the agent. Drift
+// in any of these silently weakens the gate.
+func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{
+		IssueRef:     "ariadne#99",
+		IssueContent: "ISSUE_FILE_BODY",
+		PlanContent:  "SEPARATE_PLAN_BODY",
+	})
+	for _, want := range []string{
+		"ariadne#99",
+		"Is this plan executable as-written",
+		"Vague checklist items",
+		"Undeclared cross-issue",
+		"Mismatched estimate vs scope",
+		"VERDICT: CLEAN | INFO | FAILURE",
+		"ISSUE_FILE_BODY",
+		"SEPARATE_PLAN_BODY",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("PlanQuality prompt missing %q:\n%s", want, p)
+		}
+	}
+}
+
+// TestBuildPrompt_PlanQuality_NoSeparatePlan covers the common case
+// where the plan lives inline in the issue file and there's no
+// separate workshop/plans/ file. The prompt should still build, and
+// the "Plan file" section should show a stand-in marker rather than
+// an empty fenced block.
+func TestBuildPrompt_PlanQuality_NoSeparatePlan(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{
+		IssueRef:     "ariadne#100",
+		IssueContent: "INLINE_PLAN_BODY",
+	})
+	if !strings.Contains(p, "(no separate plan file)") {
+		t.Errorf("expected stand-in marker when PlanContent is empty:\n%s", p)
+	}
+	if !strings.Contains(p, "INLINE_PLAN_BODY") {
+		t.Errorf("expected issue content in prompt:\n%s", p)
+	}
+}
+
+// TestPlanQuality_RegisteredInCategories pins that the new category
+// participates in AllCategories + IsValid — bulk-dispatchers iterate
+// the list, and an omission would silently skip the gate.
+func TestPlanQuality_RegisteredInCategories(t *testing.T) {
+	if !IsValid(string(PlanQuality)) {
+		t.Error("PlanQuality should be a valid category")
+	}
+	found := false
+	for _, c := range AllCategories() {
+		if c == PlanQuality {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("PlanQuality missing from AllCategories: %v", AllCategories())
+	}
+}
+
 func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 	p := BuildPrompt(MilestoneReview, PromptInput{
 		IssueRef: "ariadne#31 M3",

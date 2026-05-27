@@ -32,6 +32,7 @@ const (
 	DRY              Category = "dry"
 	PURE             Category = "pure"
 	Plan             Category = "plan"
+	PlanQuality      Category = "plan-quality"
 	Specs            Category = "specs"
 	Lessons          Category = "lessons"
 	MilestoneReview  Category = "milestone-review"
@@ -40,7 +41,7 @@ const (
 // AllCategories returns every supported category in stable order. Used
 // for --help enumeration and bulk-dispatch from push/merge in M5/M6.
 func AllCategories() []Category {
-	return []Category{DRY, PURE, Plan, Specs, Lessons, MilestoneReview}
+	return []Category{DRY, PURE, Plan, PlanQuality, Specs, Lessons, MilestoneReview}
 }
 
 // IsValid reports whether s names a known category.
@@ -63,6 +64,8 @@ func (c Category) Label() string {
 		return "Check PURE principle"
 	case Plan:
 		return "Check issue plan completeness"
+	case PlanQuality:
+		return "Check plan executability (pre-implementation)"
 	case Specs:
 		return "Check atlas/README sync"
 	case Lessons:
@@ -92,10 +95,13 @@ func (c Category) AllowedTools() string {
 // Callers populate the fields relevant to the category they invoke;
 // unused fields are ignored.
 type PromptInput struct {
-	Diff           string   // unified diff of the review window
-	ChangedIssues  []string // paths to changed issue files (for `plan`)
-	Base, Head     string   // refs that bound the window (for milestone-review)
-	IssueRef       string   // e.g. "ariadne#31 M2" (for milestone-review)
+	Diff          string   // unified diff of the review window
+	ChangedIssues []string // paths to changed issue files (for `plan`)
+	Base, Head    string   // refs that bound the window (for milestone-review)
+	IssueRef      string   // e.g. "ariadne#31 M2" (for milestone-review / plan-quality)
+	IssueContent  string   // full issue file text (for plan-quality, where we
+	                       //   assess current state, not a diff)
+	PlanContent   string   // optional separate plan file text (for plan-quality)
 }
 
 // BuildPrompt renders the prompt for one category. Returns "" for
@@ -172,6 +178,62 @@ Changed issue files:
 Diff:
 %s
 `, changedList, in.Diff)
+
+	case PlanQuality:
+		ref := in.IssueRef
+		if ref == "" {
+			ref = "<unknown>"
+		}
+		planSection := in.PlanContent
+		if planSection == "" {
+			planSection = "(no separate plan file)"
+		}
+		return fmt.Sprintf(`You are a senior engineer reviewing an issue's plan BEFORE implementation begins.
+Issue: %s
+
+Read the Spec + Plan (and the separate plan file if present below). Your job is
+to answer one question: **Is this plan executable as-written, or does it need
+refinement before someone starts changing code?**
+
+Common failure modes to flag:
+
+  - Vague checklist items ("do the thing", "implement it", "handle errors")
+    that don't name files, functions, or concrete behaviors.
+  - Missing test surface — the Plan changes code but doesn't say what
+    behavior the tests will pin.
+  - Undefined acceptance criteria — Done-when is empty or just paraphrases
+    the title.
+  - Undeclared cross-issue or cross-repo deps — Plan touches files owned by
+    another in-flight workstream without acknowledging it.
+  - Scope creep risk — Plan mixes the stated change with unrelated cleanup
+    that should be its own issue.
+  - Mismatched estimate vs scope — estimate_hours wildly disagrees with the
+    visible scope (e.g., 0.5h for what looks like 8h of work).
+
+Produce a structured report. First line MUST be:
+
+  VERDICT: CLEAN | INFO | FAILURE   (confidence: high | medium | low)
+
+  CLEAN   = plan is concrete, testable, scoped; safe to start coding.
+  INFO    = plan is workable but has minor non-blocking suggestions
+            (e.g., "consider naming the test cases for X").
+  FAILURE = plan has at least one of the failure modes above; address
+            before starting implementation.
+
+Then on subsequent lines: a 1-paragraph summary of the verdict followed by
+specific findings (quote the vague items, name the missing test surface, etc.).
+Be concrete — vague approval is as harmful as vague plans.
+
+Issue file:
+---
+%s
+---
+
+Plan file (if separate):
+---
+%s
+---
+`, ref, in.IssueContent, planSection)
 
 	case Specs:
 		return fmt.Sprintf(`You are a documentation reviewer. Compare the code changes in the diff below against:
