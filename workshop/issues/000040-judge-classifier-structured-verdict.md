@@ -1,11 +1,12 @@
 ---
 id: 000040
-status: open
+status: done
 estimate_hours: 1.5
 deps: []
 created: 2026-05-27
 updated: 2026-05-27
 related: [cmd/sdlc/internal/judge/prompts.go, cmd/sdlc/internal/judge/classify.go, cmd/sdlc/internal/judge/judge_test.go]
+actual_hours: 0.75
 ---
 
 # Judge classifier: structured VERDICT line instead of free-text grep
@@ -100,19 +101,34 @@ Modeled on `ParseVerdict` at `classify.go:91`.
 
 ## Plan
 
-- [ ] Edit `prompts.go` Plan branch: append the structured-verdict
+- [x] Edit `prompts.go` Plan branch: append the structured-verdict
       instructions to the existing template.
-- [ ] Edit `prompts.go` Specs branch: same instruction block.
-- [ ] Edit `classify.go`: add `verdictLineRE` + `parseVerdictLine`,
+- [x] Edit `prompts.go` Specs branch: same instruction block.
+- [x] Edit `classify.go`: add `verdictLineRE` + `parseVerdictLine`,
       gate `Classify` on it before the legacy grep.
-- [ ] Edit `judge_test.go`: add cases for each verdict value, plus a
+- [x] Edit `judge_test.go`: add cases for each verdict value, plus a
       legacy-fallback case (no verdict line → falls through to
       `cleanRE`/`infoRE`/Failure as today). Confirm existing test
       table still passes.
-- [ ] Atlas: if `atlas/` documents the judge classifier or prompt
+- [x] Atlas: if `atlas/` documents the judge classifier or prompt
       contract, add a one-line note that Plan/Specs subagents must
       emit `VERDICT:` on line 1. Skip if no such atlas page exists.
 
 ## Log
 
-(empty)
+
+- 2026-05-27: closed — TestClassify 14/14 pass (8 legacy + 6 new); full ariadne go test ./... green; new path verified to fix the exact pair#23 false-positive shape via "legacy prose approval still falls through" test case.
+- 2026-05-27 — Implementation:
+  - `cmd/sdlc/internal/judge/classify.go`: added `verdictLineRE` and
+    `parseVerdictLine`; `Classify` prefers the structured verdict
+    line, falls back to legacy `cleanRE`/`infoRE` grep for safety.
+  - `cmd/sdlc/internal/judge/prompts.go`: Plan + Specs prompts now
+    instruct subagents to emit
+    `VERDICT: CLEAN | INFO | FAILURE   (confidence: …)` on line 1
+    with explanations of each value.
+  - `cmd/sdlc/internal/judge/judge_test.go`: TestClassify gains 6 new
+    cases (5 verdict variants + 1 legacy-prose fallthrough that
+    reproduces pair#23's false-positive failure). All 14 cases pass.
+  - `atlas/workflow/sdlc-binary.md`: added "Judge → classifier
+    contract" paragraph documenting the verdict convention.
+- `go test ./...` green across ariadne.

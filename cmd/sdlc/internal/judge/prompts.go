@@ -149,8 +149,22 @@ For each changed issue file, check:
 3. Does the Log section have entries documenting what was done?
 4. Is the status frontmatter correct (should it be "done")?
 
-Report any issues you find. Do NOT modify any files.
+Do NOT modify any files.
 If a checklist item looks completed based on the diff, say so and recommend checking it off.
+
+Produce a structured report. First line MUST be:
+
+  VERDICT: CLEAN | INFO | FAILURE   (confidence: high | medium | low)
+
+  CLEAN   = no issues; ready to ship.
+  INFO    = informational notes only; no action required to ship
+            (e.g. minor non-blocking nits, stylistic suggestions).
+  FAILURE = issues found that must be addressed before shipping
+            (unchecked-but-done items, missing log entries, wrong
+            status frontmatter, etc.).
+
+Then on subsequent lines: a 1-paragraph summary explaining the verdict,
+followed by any findings.
 
 Changed issue files:
 %s
@@ -166,9 +180,21 @@ Diff:
 
 Those files do not meant to be comprehensive. Synthesize what we just built into reusable spec document. DO NOT over specify — atlas/ is a practical pointer for future developers and agents to know the sketch of functionalities, history and intention behind them. Details should live in the code.
 
-Update any stale documentation. Incorrect information is bad. If everything is in sync, say so and make no changes.
+Update any stale documentation. Incorrect information is bad. Only update documentation that is actually out of sync. Do not rewrite documentation that is fine.
 
-Only update documentation that is actually out of sync. Do not rewrite documentation that is fine.
+Produce a structured report. First line MUST be:
+
+  VERDICT: CLEAN | INFO | FAILURE   (confidence: high | medium | low)
+
+  CLEAN   = atlas + README are in sync with the diff; no edits made
+            or needed.
+  INFO    = informational notes only; minor suggestions or already-
+            applied edits that don't block shipping.
+  FAILURE = stale documentation found that must be addressed before
+            shipping.
+
+Then on subsequent lines: a 1-paragraph summary explaining the verdict,
+followed by a list of edits made (if any) and any remaining stale spots.
 
 Diff:
 %s
