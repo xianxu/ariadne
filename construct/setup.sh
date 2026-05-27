@@ -178,7 +178,12 @@ if [[ -z "$MODE" ]]; then
     MODE="${PREVIOUS_MODE:-symlink}"
 fi
 
-if [[ -z "$PREVIOUS_MODE" ]]; then
+if [[ -z "$PREVIOUS_MODE" && "$ARIADNE_DIR" != "$TARGET_DIR" ]]; then
+    # First-time-setup prompt only applies when ariadne is setting up a
+    # DIFFERENT target. Ariadne itself is the upstream — it has no .ariadne-
+    # mode marker by design (the marker records "this layer was set up from
+    # an upstream"), so absence of the marker for the ariadne-self case is
+    # normal, not first-time. Skip the prompt; the rest of the script runs.
     REPO_NAME=$(basename "$TARGET_DIR")
     printf "${YELLOW}First-time setup in:${RESET} ${BOLD_RED}%s${RESET}\n" "$REPO_NAME"
     printf "  Path: %s\n" "$TARGET_DIR"
