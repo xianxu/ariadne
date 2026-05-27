@@ -1,10 +1,11 @@
 ---
 id: 000030
-status: working
+status: done
 deps: []
 created: 2026-05-22
-updated: 2026-05-22
+updated: 2026-05-27
 estimate_hours: 4
+actual_hours: 2.0
 ---
 
 # target datatype (narrative intent above projects + issues)
@@ -99,23 +100,15 @@ Distinct from project's `active | paused | done | dropped` execution state machi
 
 ## Plan
 
-- [ ] **M1 — Datatype spec**
-  - [ ] Write `construct/datatype/target.md` modeled on `project.md` + `pensive.md`.
-  - [ ] Decide where 🤖{} convention is documented (in `target.md`, or separate file under `construct/`).
-  - [ ] Create empty `workshop/targets/` directory with a `.gitkeep` (or initial content).
-- [ ] **M2 — Wire into hierarchy**
-  - [ ] Update `AGENTS.md` §1 to mention targets, the workshop/targets/ folder, and the target ↔ project ↔ issue dependency.
-  - [ ] Add `target` to any datatype-listing prose (atlas, README, etc.).
-- [ ] **M3 — Skill integration**
-  - [ ] Confirm what `xx-datatype` needs to recognize a new type. Update accordingly.
-  - [ ] Test by authoring a target instance with the skill.
-- [ ] **M4 — Dogfood + close**
-  - [ ] Write the first real target: capture the shared-brain work that's been in flight as a proper target file in `nous/workshop/targets/`.
-  - [ ] Backfill `target: <slug>` frontmatter into the in-flight nous issues (#30, #31, #32, etc.) that referenced this work.
-  - [ ] `make close-issue` with verification: target.md exists, hierarchy doc updated, a real target authored, references in place.
+- [x] **M1 — Datatype spec.** Done (fdbb1ce). `construct/datatype/target.md` written modeling on `project.md` + `pensive.md`. 🤖{} convention documented in target.md (decided during M1). `workshop/targets/` created.
+- [x] **M2 — Wire into hierarchy.** Done (fdbb1ce). AGENTS.md §1 updated with target in artifact hierarchy + 🤖{} convention as a §1 rule. Note: §1 framing was further refined to backward-looking ("what we defend and why") during the SDLC walk-through — see commit 11cf885 + ariadne#38.
+- [x] **M3 — Skill integration.** No-op — `xx-datatype` auto-discovers types by globbing `construct/datatype/*.md` and matching on `description:` field. Confirmed during M1 implementation.
+- [x] **M4 — Dogfood + close.** Done (e94a78a). First real target written at `nous/workshop/targets/shared-brain-infrastructure-and-ui.md`. Three in-flight nous issues (#30 autosave, #31 TUI list async, #32 leave) backfilled with `target: shared-brain-infrastructure-and-ui`. Verified via `rg "^target: shared-brain-infrastructure-and-ui"`.
 
 ## Log
 
+
+- 2026-05-27: closed — construct/datatype/target.md written (fdbb1ce); workshop/targets/ created; AGENTS.md §1 updated with target hierarchy + 🤖{} convention; first target dogfooded at nous/workshop/targets/shared-brain-infrastructure-and-ui.md; three in-flight nous issues backfilled with target: frontmatter (e94a78a). Work landed 2026-05-22; formal close delayed.
 - 2026-05-22: opened. Comes from a conversation about target file pattern; the durable target pensive was written first, then this issue spawned from it. The pensive captures the *why*; this issue is the execution plan to land it.
 - 2026-05-22: M1-M3 complete in one commit (`fdbb1ce`): `construct/datatype/target.md` written modeling on `project.md` + `pensive.md`; `workshop/targets/` created; `AGENTS.md` §1 updated with target in artifact hierarchy + 🤖{} convention as a §1 rule. M3 (xx-datatype recognition) is a no-op — the skill auto-discovers types by globbing `construct/datatype/*.md` and matching on `description:` field. No skill code change needed.
 - 2026-05-22: M4 dogfood — first real target written at `nous/workshop/targets/shared-brain-infrastructure-and-ui.md`. Three in-flight nous issues (#30 autosave, #31 TUI list async, #32 leave) backfilled with `target: shared-brain-infrastructure-and-ui` frontmatter. Dependency graph verified via `rg "^target: shared-brain-infrastructure-and-ui" workshop/issues/` — all three issues resolve cleanly.
