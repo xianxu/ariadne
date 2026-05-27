@@ -5,16 +5,19 @@
 # Format:
 #   <action> <source-path> [<target-path>]
 #
-# Actions:
-#   symlink   — create symlink from target repo to ariadne path
+# Actions (symlink-only model, per ariadne#38):
+#   symlink   — create symlink from target repo to upstream path
 #   scaffold  — create empty directory structure in target repo
-#   copy      — copy file (for files that need local modification)
-#   merge     — JSON merge (settings.ariadne.json layered under settings.local.json)
+#   merge     — JSON merge (settings.<layer>.json layered under settings.local.json)
 #   touch     — create empty file if missing (no source needed)
 #   tool      — wire upstream's Go cmd as a tool dep in target's go.mod
 #               (idempotently runs `go mod edit` to add require + replace
 #               + tool directives; source path is relative to upstream
 #               module, e.g. `tool cmd/sdlc`)
+#
+# `copy` was retired in #38 — substrate is symlink-only. For operator-
+# divergent customization, use per-operator branches in the source repo
+# rather than per-derivative copies in the derivative tree.
 
 # ── Constitution ──────────────────────────────────────────────────────────────
 symlink   AGENTS.md
@@ -63,7 +66,7 @@ symlink   construct/scripts/apply-gitignore-entries.sh
 symlink   construct/setup.sh
 symlink   construct/local
 symlink   construct/adapted
-copy      construct/config.json
+symlink   construct/config.json
 
 # ── Datatype prototypes (typed markdown documents, used by xx-datatype skill) ─
 # Shared prototypes propagate via symlink. Project-local overrides at
