@@ -140,7 +140,7 @@ func (s *stringWriter) String() string { return s.b.String() }
 // constructing the stub directly.
 
 func TestMergeUsesFindMainWorktree_ViaStub(t *testing.T) {
-	r := &lockRunnerStub{
+	r := &claimRunnerStub{
 		responses: map[string][]byte{"worktree list": []byte(
 			"worktree /repo/main\nHEAD abc\nbranch refs/heads/main\n\n" +
 				"worktree /repo/feat\nHEAD def\nbranch refs/heads/feature\n",

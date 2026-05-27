@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-// lockRunnerStub extends captureRunner so we can stub responses per
-// invocation. The lock subcommand makes several distinct git calls
+// claimRunnerStub extends captureRunner so we can stub responses per
+// invocation. The claim subcommand makes several distinct git calls
 // (diff HEAD, diff --cached, ls-files, worktree list, branch). We
 // dispatch by the first 1-2 args.
-type lockRunnerStub struct {
+type claimRunnerStub struct {
 	captureRunner
 	// Per-query stub outputs. Key is the first arg (e.g. "diff",
 	// "ls-files", "worktree"). Value is the stdout. Errors are nil.
@@ -18,7 +18,7 @@ type lockRunnerStub struct {
 	gitInDirResponses map[string][]byte
 }
 
-func (s *lockRunnerStub) Git(args ...string) ([]byte, error) {
+func (s *claimRunnerStub) Git(args ...string) ([]byte, error) {
 	s.gitCalls = append(s.gitCalls, append([]string{}, args...))
 	if len(args) == 0 {
 		return nil, nil
@@ -33,7 +33,7 @@ func (s *lockRunnerStub) Git(args ...string) ([]byte, error) {
 	return nil, nil
 }
 
-func (s *lockRunnerStub) GitInDir(dir string, args ...string) ([]byte, error) {
+func (s *claimRunnerStub) GitInDir(dir string, args ...string) ([]byte, error) {
 	s.gitInDirCalls = append(s.gitInDirCalls, gitInDirCall{Dir: dir, Args: append([]string{}, args...)})
 	for n := min(len(args), 3); n > 0; n-- {
 		key := strings.Join(args[:n], " ")
@@ -45,14 +45,14 @@ func (s *lockRunnerStub) GitInDir(dir string, args ...string) ([]byte, error) {
 }
 
 func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
-	r := &lockRunnerStub{
+	r := &claimRunnerStub{
 		responses: map[string][]byte{
 			"diff --name-only HEAD":   []byte("workshop/issues/000002-b.md\nworkshop/issues/000001-a.md\n"),
 			"diff --cached --name-only": []byte("workshop/issues/000001-a.md\n"),
 			"ls-files --others":         []byte("workshop/issues/000003-c.md\n"),
 		},
 	}
-	got, err := changedIssueFiles(&lockFlags{IssuesDir: "workshop/issues"}, r)
+	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues"}, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,12 +72,12 @@ func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 }
 
 func TestChangedIssueFiles_FilterByIssue(t *testing.T) {
-	r := &lockRunnerStub{
+	r := &claimRunnerStub{
 		responses: map[string][]byte{
 			"diff --name-only HEAD": []byte("workshop/issues/000001-a.md\nworkshop/issues/000031-target.md\n"),
 		},
 	}
-	got, err := changedIssueFiles(&lockFlags{IssuesDir: "workshop/issues", Issue: 31}, r)
+	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues", Issue: 31}, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ worktree /repo/feature
 HEAD def456
 branch refs/heads/feature-x
 `
-	r := &lockRunnerStub{
+	r := &claimRunnerStub{
 		responses: map[string][]byte{"worktree list": []byte(out)},
 	}
 	got, err := findMainWorktree(r)
@@ -112,7 +112,7 @@ func TestFindMainWorktree_NoMain(t *testing.T) {
 HEAD def456
 branch refs/heads/feature-x
 `
-	r := &lockRunnerStub{
+	r := &claimRunnerStub{
 		responses: map[string][]byte{"worktree list": []byte(out)},
 	}
 	_, err := findMainWorktree(r)
@@ -125,7 +125,7 @@ branch refs/heads/feature-x
 }
 
 func TestMainHasUncommittedIssueChanges_Union(t *testing.T) {
-	r := &lockRunnerStub{
+	r := &claimRunnerStub{
 		gitInDirResponses: map[string][]byte{
 			"diff --name-only":         []byte("workshop/issues/000001-a.md\n"),
 			"diff --cached --name-only": []byte("workshop/issues/000002-b.md\n"),
@@ -144,7 +144,7 @@ func TestMainHasUncommittedIssueChanges_Union(t *testing.T) {
 }
 
 func TestMainHasUncommittedIssueChanges_None(t *testing.T) {
-	r := &lockRunnerStub{
+	r := &claimRunnerStub{
 		gitInDirResponses: map[string][]byte{}, // empty stdout for both queries
 	}
 	got, err := mainHasUncommittedIssueChanges("/main", "workshop/issues", r)

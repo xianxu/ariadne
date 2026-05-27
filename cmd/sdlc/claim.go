@@ -1,10 +1,10 @@
-// lock.go — `sdlc lock [--issue N]` subcommand.
+// claim.go — `sdlc claim [--issue N]` subcommand.
 //
 // Ports scripts/issue-sync.sh — the issue-file synchronizer that
 // commits + pushes workshop/issues/ changes to origin/main even when
-// the operator is on a feature branch. Used as the workstream locking
+// the operator is on a feature branch. Used as the workstream claim
 // primitive: agents claim work by flipping status to `working` and
-// running `sdlc lock` to broadcast that claim to origin/main.
+// running `sdlc claim` to broadcast that claim to origin/main.
 //
 // Two paths in the source script (preserved verbatim here):
 //
@@ -36,24 +36,24 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
-// lockFlags holds the parsed flag values for the lock subcommand.
-type lockFlags struct {
+// claimFlags holds the parsed flag values for the claim subcommand.
+type claimFlags struct {
 	Issue     int
 	IssuesDir string
 	DryRun    bool
 }
 
-// NewLockCmd returns the cobra command for `sdlc lock`.
-func NewLockCmd() *cobra.Command {
-	f := lockFlags{}
+// NewClaimCmd returns the cobra command for `sdlc claim`.
+func NewClaimCmd() *cobra.Command {
+	f := claimFlags{}
 	cmd := &cobra.Command{
-		Use:           "lock",
+		Use:           "claim",
 		Short:         "Sync workshop/issues/ changes to origin/main (workstream-claim primitive)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"lock\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLock(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runClaim(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	}
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "sync only this issue's file (default: all changed issue files)")
@@ -62,23 +62,23 @@ func NewLockCmd() *cobra.Command {
 	return cmd
 }
 
-// lockRunner is the same gitRunner interface used by start; reused so
+// claimRunner is the same gitRunner interface used by start; reused so
 // tests can inject capture runners across both verbs.
-var lockRunner gitRunner = execGitRunner{}
+var claimRunner gitRunner = execGitRunner{}
 
-// runLock dispatches to sync-on-main or sync-on-branch based on the
+// runClaim dispatches to sync-on-main or sync-on-branch based on the
 // current branch, exactly like the shell source.
-func runLock(stdout, stderr io.Writer, f *lockFlags) error {
+func runClaim(stdout, stderr io.Writer, f *claimFlags) error {
 	branch := gitx.Capture("branch", "--show-current")
 	if branch == "main" {
-		return syncOnMain(stdout, stderr, f, lockRunner)
+		return syncOnMain(stdout, stderr, f, claimRunner)
 	}
-	return syncOnBranch(stdout, stderr, f, branch, lockRunner)
+	return syncOnBranch(stdout, stderr, f, branch, claimRunner)
 }
 
 // ── on-main path ─────────────────────────────────────────────────────────────
 
-func syncOnMain(stdout, stderr io.Writer, f *lockFlags, r gitRunner) error {
+func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
 		die(stderr, err.Error())
@@ -122,7 +122,7 @@ func syncOnMain(stdout, stderr io.Writer, f *lockFlags, r gitRunner) error {
 
 // ── on-branch path ───────────────────────────────────────────────────────────
 
-func syncOnBranch(stdout, stderr io.Writer, f *lockFlags, branch string, r gitRunner) error {
+func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitRunner) error {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
 		die(stderr, err.Error())
@@ -262,7 +262,7 @@ func syncOnBranch(stdout, stderr io.Writer, f *lockFlags, branch string, r gitRu
 // Matches issue-sync.sh's changed_issue_files() — note the union includes
 // "diff HEAD" (which already covers cached) plus "diff --cached" separately
 // (redundant but preserved for parity); de-dup happens at the sort step.
-func changedIssueFiles(f *lockFlags, r gitRunner) ([]string, error) {
+func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
 	queries := [][]string{
 		{"diff", "--name-only", "HEAD", "--", f.IssuesDir + "/"},
 		{"diff", "--cached", "--name-only", "--", f.IssuesDir + "/"},

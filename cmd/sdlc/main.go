@@ -66,9 +66,9 @@ func main() {
 	startCmd.Long = helptext.MustGet("start")
 	root.AddCommand(startCmd)
 
-	lockCmd := NewLockCmd()
-	lockCmd.Long = helptext.MustGet("lock")
-	root.AddCommand(lockCmd)
+	claimCmd := NewClaimCmd()
+	claimCmd.Long = helptext.MustGet("claim")
+	root.AddCommand(claimCmd)
 
 	setStatusCmd := NewSetStatusCmd()
 	setStatusCmd.Long = helptext.MustGet("set-status")

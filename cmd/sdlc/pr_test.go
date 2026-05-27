@@ -96,7 +96,7 @@ func TestPRCmd_Registered(t *testing.T) {
 // ── runPR integration via stubbed ghClient ───────────────────────────────────
 
 // prTestRunner stubs git for runPR. We pre-load responses keyed by the
-// first 1-3 args (same shape as lockRunnerStub).
+// first 1-3 args (same shape as claimRunnerStub).
 type prTestRunner struct {
 	captureRunner
 	responses map[string][]byte

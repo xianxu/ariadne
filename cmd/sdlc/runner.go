@@ -7,7 +7,7 @@
 // worktree) plus the two filesystem mutations checkpoint verbs perform
 // (MkdirAll + WriteFile). Tests substitute a capture/stub runner that
 // records calls without executing them — see start_test.go's
-// captureRunner and lock_test.go's lockRunnerStub for the pattern.
+// captureRunner and claim_test.go's claimRunnerStub for the pattern.
 package main
 
 import (
@@ -17,7 +17,7 @@ import (
 
 // gitRunner indirects the git invocations + filesystem mutations done by
 // checkpoint verbs. Production path uses execGitRunner. Tests substitute
-// captureRunner (or lockRunnerStub) which records calls without executing.
+// captureRunner (or claimRunnerStub) which records calls without executing.
 //
 // All git-touching verbs share the same runner type because they do
 // similar work (git + file write) and benefit from the same test seam.

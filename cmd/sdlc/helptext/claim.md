@@ -1,7 +1,7 @@
 Sync workshop/issues/ changes to origin/main, even from a feature
 branch. The workstream-claim primitive: an agent flips `status:
-working` on an issue, runs `sdlc lock`, and the claim is broadcast to
-origin/main so peer agents see the lock before they start parallel
+working` on an issue, runs `sdlc claim`, and the claim is broadcast to
+origin/main so peer agents see the claim before they start parallel
 work.
 
 TWO PATHS
@@ -31,7 +31,7 @@ waiting for the feature branch to merge. Same shape as the
 CONFLICT BEHAVIOR
 
 If the same issue file was modified on both your branch and main since
-your last merge-base, `sdlc lock` refuses and prints a resolution
+your last merge-base, `sdlc claim` refuses and prints a resolution
 recipe (manual merge in the main worktree, then commit+push there). It
 does NOT attempt to auto-merge — the file is operator-readable and
 auto-merging issue prose has burned us before.
@@ -49,12 +49,12 @@ EXIT CODES
 
 EXAMPLES
 
-  sdlc lock                       # sync all changed issue files
-  sdlc lock --issue 31            # sync only #31's file
-  sdlc lock --dry-run             # see what would happen
-  WF_ISSUES_DIR=issues sdlc lock  # override location
+  sdlc claim                       # sync all changed issue files
+  sdlc claim --issue 31            # sync only #31's file
+  sdlc claim --dry-run             # see what would happen
+  WF_ISSUES_DIR=issues sdlc claim  # override location
 
 RELATED
 
-  sdlc start          create a worktree (often paired with lock right after)
+  sdlc change-code    enter implementation phase (gates + branching ask)
   sdlc set-status     transition an issue's status: with guards
