@@ -372,10 +372,16 @@ def filter_since(segments: list[SessionSummary], since_iso: str | None) -> list[
     threshold = parse_ts(since_iso)
     if threshold is None:
         return segments
+    if threshold.tzinfo is None:
+        threshold = threshold.replace(tzinfo=timezone.utc)
     out = []
     for s in segments:
         st = parse_ts(s.start_ts)
-        if st and st >= threshold:
+        if st is None:
+            continue
+        if st.tzinfo is None:
+            st = st.replace(tzinfo=timezone.utc)
+        if st >= threshold:
             out.append(s)
     return out
 

@@ -22,13 +22,45 @@ introspect-<activity>          ← five auto-loading sub-skills (one per activit
 
 The sub-skills auto-load via Claude Code's standard description-based discovery — each description names the activity-shape signals that should trigger it.
 
+## The unit is a segment, not a raw Claude session
+
+**A "session" in this pipeline means a segment, not a raw `.jsonl` Claude
+session.** A single raw Claude session is typically multi-activity by design
+— the user keeps context warm across topic shifts (single-threaded attention
+maps better to one long session than to many fresh ones). Classifying the
+whole raw session by its *first* message would mislabel everything that
+happens after the first pivot.
+
+Segmentation is what makes per-segment activity classification valid.
+`normalize.py` slices each raw session into segments on two boundaries:
+
+1. **60-minute idle gap** between events (`GAP_BOUNDARY_SECONDS = 3600` in
+   `normalize.py`). Stepping away to think, eat, or sleep produces a fresh
+   segment when work resumes.
+2. **`away_summary` event** — emitted by Claude Code when `/compact` runs.
+   The recap message is appended to the *closing* segment as its last event;
+   the next user message starts a new segment.
+
+Empirically, 415 raw sessions × 27 days produced 1367 segments
+(avg 3.3 segments/raw-session). The longest raw sessions split into 50-130
+segments — those are the multi-day burnt-in conversations the operator keeps
+returning to.
+
+Each segment's `first_user_message`, `files_written`, `tool_calls_by_name`,
+etc. are **segment-local**, not raw-session-global. That's why downstream
+stages (classify, detect, cluster) can treat each segment as an atomic
+activity-unit despite the operator's multi-topic session habit.
+
+If you find yourself worrying that "long sessions are multi-activity so
+classification is broken" — re-read this section. The pipeline handles it.
+
 ## Pipeline shape
 
 ```
 ~/.claude/projects/*.jsonl
         │
         ▼  segment_text + normalize.py
-sessions.json              # one row per "segment" (away_summary / 60-min gap boundaries)
+sessions.json              # one row per segment (see "The unit is a segment" above)
         │
         ▼  LLM-direct activity classify (skill body + user approval)
 classified.json            # segment → activity (six taxonomy buckets + skip/oos/ambiguous)
@@ -42,18 +74,18 @@ patterns.json              # combined array
         ▼  prompts/cluster.md
 clusters.json              # extracted clusters: rules grouped by activity, ≥2-distinct-segments threshold
         │
-        ▼  read_hints.py --merge-into       (issue#19)
+        ▼  Stage 4.5 — load hints (MANDATORY, every run)
         │   reads ~/.claude/introspect/hints/<activity>/*.md, appends each
-        │   as its own singleton cluster tagged source: "hint"
-        ▼
-        ▼  hint_retire_check.py             (issue#19)
-        │   per-hint contradiction probe (one LLM call) against same-activity
-        │   patterns; flags retirement candidates with contradicting_evidence
+        │   as a singleton cluster tagged source: "hint" with retirement
+        │   probe against same-activity moments
         ▼
 clusters.json              # extracted ∪ hints, retirement-checked
         │
-        ▼  manual write-back (Stage 7 not yet a script)
+        ▼  Stage 7 — write-back + hint consumption
+        │   atomic write to ~/.claude/skills/introspect-<activity>/SKILL.md
+        │   then: mv consumed hints → versions/<run-id>/consumed-hints/
 ~/.claude/skills/introspect-<activity>/SKILL.md
+~/.claude/introspect/versions/<run-id>/consumed-hints/<activity>/<slug>.md
 ```
 
 ## Where things live
@@ -117,12 +149,23 @@ created: 2026-05-01
 **Why:** <optional rationale>
 ```
 
-Hints are **eligible for retirement** — every pipeline run probes each hint
-against same-activity patterns (one LLM call per hint, via `$PROBE_LLM`).
-If contradicting evidence is found, the hint is flagged
+Hints are **one-shot inputs, not durable storage.** A hint lives in
+`~/.claude/introspect/hints/` only until the next extract pass renders it
+into a deployed `introspect-<activity>/SKILL.md`. At write-back the
+originating file is moved to
+`~/.claude/introspect/versions/<run-id>/consumed-hints/<activity>/<slug>.md`
+as an audit trail — the deployed SKILL.md is the durable taste model.
+
+Hints are **eligible for retirement** at review time. Every pipeline run
+probes each hint against same-activity patterns (one LLM call per hint, via
+`$PROBE_LLM`). If contradicting evidence is found the hint is flagged
 `retirement_candidate: true` with `contradicting_evidence`, and surfaces
-first in the user-review step. The user keeps / edits / retires; retirement
-is a hard delete on the file.
+first in the user-review step. The user keeps (consume normally), edits
+(revise then consume), or retires (hard delete, no SKILL.md write).
+
+A **rejected** hint (operator says "don't write this to SKILL.md") stays
+in `hints/` for the next run to re-probe. A hint is consumed only on
+positive write-back.
 
 Authoring paths (equivalent — both produce the same file shape):
 1. `/xx-introspect hint <activity> "<rule>"` — slash command via the

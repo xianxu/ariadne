@@ -6,8 +6,8 @@ description: use to learn from existing coding sessions, or record hints
 # xx-introspect — postmortem introspect extraction
 
 Three subcommands:
-- `/xx-introspect extract` — run the extraction pipeline against accumulated transcripts.
-- `/xx-introspect hint` — author, list, or retire human-authored hints that act as strong, single-shot seeds in the next cluster pass.
+- `/xx-introspect extract` — run the extraction pipeline against accumulated transcripts. **Always loads pending hints first** (Stage 4.5) and consumes them at write-back (Stage 7).
+- `/xx-introspect hint` — author, list, or retire human-authored hints. A hint is a one-shot input — the next `extract` run will render it into the deployed `introspect-<activity>/SKILL.md` and remove the file from `hints/` (audit trail under `versions/<run-id>/consumed-hints/`). Hints are not durable storage; the deployed SKILL.md is.
 - `/xx-introspect load` — detect the current session's activity and load the matching `introspect-<activity>` skill.
 
 ## Operating principle
@@ -22,10 +22,24 @@ The only steps that don't need user approval are deterministic, no-op-on-failure
 ~/.claude/skills/introspect-<activity>/SKILL.md  # produced output, loaded on demand
 ~/.claude/introspect-state.json                  # run history + processed-session pointers
 ~/.claude/introspect/cache/<run-id>/             # intermediate stages of one run
-~/.claude/introspect/hints/<activity>/<slug>.md  # human-authored hints (issue#19)
-~/.claude/introspect/versions/vN/                # post-run snapshots for diffing
-~/.claude/settings.json                    # permission entries written here
+~/.claude/introspect/hints/<activity>/<slug>.md  # human-authored hints awaiting incorporation
+~/.claude/introspect/versions/<run-id>/          # post-run snapshots
+~/.claude/introspect/versions/<run-id>/consumed-hints/<activity>/<slug>.md
+                                                 # hints that this run rendered into a SKILL.md;
+                                                 # the original hints/<activity>/<slug>.md is
+                                                 # removed once write-back lands (Stage 7)
+~/.claude/settings.json                          # permission entries written here
 ```
+
+**Hint lifecycle (one-shot inputs, not durable storage).** A hint lives in
+`~/.claude/introspect/hints/` only until the next extract run incorporates it
+into a deployed `introspect-<activity>/SKILL.md`. On write-back (Stage 7),
+the originating hint file is moved to
+`~/.claude/introspect/versions/<run-id>/consumed-hints/<activity>/<slug>.md`
+as an audit-trail entry, and the original is removed from `hints/`. The
+deployed SKILL.md is the durable taste model; the hints directory is a
+queue of pending additions, not a parallel store. If a hint is rejected at
+review time it stays in `hints/` for the next run.
 
 ## `/xx-introspect extract`
 
@@ -110,6 +124,45 @@ Two more detectors (`taste-fingerprint` requires git-diff correlation; `process-
 
 Each moment carries `{session_id, project_slug, activity, type, ts, weight, evidence}`. The `evidence` shape is type-specific.
 
+### 4.5. Load human hints (MANDATORY — do not skip)
+
+**Run this step every extract pass, before clustering.** It is not gated on
+any shell script, version branch, or condition. Hints are user-authored
+inputs the operator wants reflected in the next deployed sub-skill; skipping
+this step silently drops their work.
+
+Walk `~/.claude/introspect/hints/<activity>/*.md` and load every hint file:
+
+```bash
+find ~/.claude/introspect/hints -name '*.md' -type f
+```
+
+For each hint:
+1. Parse the frontmatter (`activity:`, `created:`) and the `## Rule:` body.
+2. Emit a synthetic cluster entry into `<run-dir>/hints-loaded.json`:
+   ```json
+   {
+     "id": "c_hint_<activity>_<slug>",
+     "name": "<imperative title from ## Rule line>",
+     "rule_body": "<rule body — preserve verbatim>",
+     "source": "hint",
+     "hint_path": "/Users/.../hints/<activity>/<slug>.md",
+     "hint_created": "<date from frontmatter>",
+     "activity": "<bucket>",
+     "moment_count": null,
+     "session_count": null
+   }
+   ```
+3. **Retirement-candidate probe** (one LLM call per hint, against same-
+   activity moments from `moments.jsonl`): does any moment contradict the
+   hint? If yes, set `retirement_candidate: true` with
+   `contradicting_evidence` list. If no, leave unset.
+
+Hints bypass the ≥3-moments / ≥2-segments threshold by design — each is its
+own pre-formed cluster, endorsed by the operator at authoring time.
+
+**If you find no hints, log that explicitly and move on. Don't skip silently.**
+
 ### 5. Interactive cluster walkthrough (in-session, with the user)
 
 This stage is a guided conversation. Do not write code that auto-clusters. The point of v1 is to build user-confirmed clusters by hand so we know what *should* group together before automating.
@@ -175,17 +228,18 @@ Ask the user to: (a) accept, (b) merge with another proposal, (c) split off a mo
 **Skip thresholds:**
 - Skip clusters with fewer than 3 moments OR fewer than 2 distinct sessions. Per plan: three independent corrections of the same shape = a rule candidate. Two from one session = within-session correction, not yet a recurring pattern.
 
-**Hint-aware ordering (issue#19).** When reviewing the v1.1 `clusters.json` produced by `introspect-extract.sh`, hint-sourced clusters (`source: "hint"`) bypass the threshold check — each is its own pre-formed cluster the user already endorsed by authoring. Surface them to the user **first**, in this order:
+**Hint-aware ordering (mandatory).** Before walking extracted clusters, surface the hints loaded in Stage 4.5 to the user. Hints bypass the threshold (they're operator-authored singletons, not derived patterns). Order:
 
-1. **Hints flagged as retirement candidates** (`retirement_candidate: true`). Show the hint's rule alongside the `contradicting_evidence` excerpts. Three actions:
-   - **Keep** — ignore the contradiction, hint stays.
-   - **Edit** — open `~/.claude/introspect/hints/<activity>/<slug>.md`, let user revise, save.
-   - **Retire** — delete the hint file (`rm ~/.claude/introspect/hints/<activity>/<slug>.md`).
-   The retirement decision affects the hints/ directory directly, not just this run's clusters.json.
-2. **Hints not flagged.** Display each, confirm the user still wants it rendered into the deployed SKILL.md (effectively always yes; this is a sanity check, not a real decision).
+1. **Hints flagged as retirement candidates** (`retirement_candidate: true`, set during Stage 4.5's probe). Show the hint's rule alongside `contradicting_evidence`. Three actions:
+   - **Keep** — ignore the contradiction; hint proceeds to write-back like any accepted hint.
+   - **Edit** — open `~/.claude/introspect/hints/<activity>/<slug>.md`, let the user revise, save. Edited hint still gets consumed in this run.
+   - **Retire** — delete the hint file outright; do not write into SKILL.md.
+2. **Hints not flagged.** Display each, confirm the operator wants it rendered into the deployed SKILL.md (sanity check, almost always yes — they authored it).
 3. **Extracted clusters** (no `source` field) — proceed with the normal threshold/walk flow.
 
 Hints are never treated as `ambiguous`. The user authored them explicitly; precision-over-recall doesn't apply.
+
+**A rejected hint stays in `hints/`** for the next run to re-probe. An accepted-or-edited hint will be **consumed** at write-back (Stage 7) — see hint lifecycle in Storage layout above.
 
 ### 6. Draft generation (in-session)
 
@@ -262,9 +316,22 @@ Each permission entry carries an inline comment-style note in the draft showing 
 
 The user can audit any rule back to its source moments before accepting in Stage 7.
 
-### 7. Stage 7 (write-back) — M5
+### 7. Write-back
 
-Not yet implemented. After drafts are generated, present diff-style and let the user accept/reject per cluster. Accepted drafts get atomic-write to `~/.claude/skills/introspect-<activity>/SKILL.md` and `~/.claude/settings.json`.
+After drafts are generated, present diff-style (v1 vs v2 per skill) and let the operator accept/reject. On accept for an activity:
+
+1. **Atomic write** the draft SKILL.md to `~/.claude/skills/introspect-<activity>/SKILL.md` (backup the old version to `~/.claude/skills/introspect-<activity>/SKILL.md.<prev-version>.bak` or to `~/.claude/introspect/versions/<run-id>/skills/`).
+2. **Consume incorporated hints** for this activity:
+   - For each cluster in the run that has `source: "hint"` AND was rendered into the deployed SKILL.md AND was not retired:
+     - `mkdir -p ~/.claude/introspect/versions/<run-id>/consumed-hints/<activity>/`
+     - `mv ~/.claude/introspect/hints/<activity>/<slug>.md ~/.claude/introspect/versions/<run-id>/consumed-hints/<activity>/`
+   - The move IS the receipt: presence under `versions/<run-id>/consumed-hints/` means "rendered into deployed SKILL.md in this run."
+3. **Permission additions** from friction clusters get appended to `~/.claude/settings.json` (with backup).
+4. Update `~/.claude/introspect-state.json`: bump `last_run_at`, append the run record, mark which sub-skills were updated.
+
+**If the operator rejects an activity's draft entirely**: no SKILL.md write, no hint consumption. Hints for that activity stay in `hints/` and will re-surface on the next run.
+
+**If the operator accepts some clusters and rejects others within an activity**: the deployed SKILL.md gets the accepted clusters. Hints that were in the accepted set get consumed; hints that were rejected stay in `hints/`.
 
 ## `/xx-introspect hint`
 
