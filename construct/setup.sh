@@ -371,7 +371,14 @@ walk_manifest() {
         # .claude/skills/X` exposes a skill via the Claude-Code-expected
         # path) while protecting entries like `symlink Makefile.nous`
         # (declared for downstream consumers; tautological in nous itself).
-        if [[ "$upstream/$source" == "$TARGET_DIR/$target" ]]; then
+        #
+        # Exception: the `merge` action has implicit source-rename semantics
+        # (reads .claude/settings.<layer>.json, writes .claude/settings.json
+        # — different files). On self-walk for ariadne, this regenerates
+        # the layer's own settings.json from its committed settings.X.json
+        # + local overlay. Skipping it would silently break ariadne's
+        # self-refresh.
+        if [[ "$action" != "merge" && "$upstream/$source" == "$TARGET_DIR/$target" ]]; then
             printf "  ${YELLOW}skipped${RESET} %s (self-reference at canonical location)\n" "$target"
             continue
         fi

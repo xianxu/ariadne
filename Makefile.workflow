@@ -20,19 +20,6 @@ export WF_ISSUES_DIR WF_HISTORY_DIR
 # Python default in scripts/close-issue.py and suppresses project updates.
 BRAIN_DIR ?= ../brain
 
-# ── Upstream config ──────────────────────────────────────────────────────────
-# Defaults assume ariadne is upstream. Descendants of nous (or other re-export
-# hosts) override these in their root Makefile before `include Makefile.workflow`:
-#   UPSTREAM_NAME    := nous
-#   UPSTREAM_REFRESH := ../nous/construct/setup.sh
-# (Post-#32: every layer's substrate management lives at <repo>/construct/;
-# the canonical setup.sh — vendored from ariadne — handles the transitive
-# walk via go.mod's dep graph.)
-UPSTREAM_NAME      ?= ariadne
-UPSTREAM_DIR       ?= ../$(UPSTREAM_NAME)
-UPSTREAM_MODE_FILE ?= .$(UPSTREAM_NAME)-mode
-UPSTREAM_REFRESH   ?= $(UPSTREAM_DIR)/construct/setup.sh
-
 .PHONY: help-workflow worktree fetch push pull-request merge check pre-merge refresh issue-sync
 
 help-workflow:
@@ -123,33 +110,22 @@ close-issue:
 	    scripts/close-issue.py; \
 	fi
 
-# ── Refresh (setup + merge) ───────────────────────────────────────────────────
-# Detection (all keyed off UPSTREAM_* vars; defaults target ariadne):
-#   $(UPSTREAM_MODE_FILE) present → adopted target. Run $(UPSTREAM_REFRESH) so
-#     vendored copies are refreshed from the source of truth. If upstream is
-#     missing, fall back to merging settings with the local vendored merge
-#     script (skips the re-vendor — local construct/ may be stale).
-#   $(UPSTREAM_MODE_FILE) absent + construct/setup.sh present → upstream itself
-#     (e.g. running inside ariadne); just merge.
-#   $(UPSTREAM_MODE_FILE) absent + upstream present → uninitialized target; first-time adopt.
+# ── Refresh ───────────────────────────────────────────────────────────────────
+# Invoke the canonical setup.sh, which handles ancestor discovery via
+# go.mod replace directives (post-ariadne#32). No UPSTREAM_NAME or other
+# name-based variables — single source of truth is go.mod.
+#
+# First-time bootstrap (no construct/setup.sh vendored yet) is an
+# explicit operator action: run `../ariadne/construct/setup.sh`
+# manually from the new target directory, then `make refresh` works
+# going forward.
 refresh:
-	@if [ -f $(UPSTREAM_MODE_FILE) ]; then \
-		if [ -f $(UPSTREAM_REFRESH) ]; then \
-			$(UPSTREAM_REFRESH); \
-		else \
-			echo "$(UPSTREAM_DIR) not found — merging settings only (skipping re-vendor)."; \
-			construct/scripts/merge-settings.sh .claude/settings.ariadne.json .claude; \
-			echo "Done. .claude/settings.json updated."; \
-		fi; \
-	elif [ -f construct/setup.sh ]; then \
-		echo "$(UPSTREAM_NAME) repo detected — merging settings only."; \
-		construct/scripts/merge-settings.sh .claude/settings.ariadne.json .claude; \
-		echo "Done. .claude/settings.json updated."; \
-	elif [ -f $(UPSTREAM_REFRESH) ]; then \
-		$(UPSTREAM_REFRESH); \
+	@if [ -x construct/setup.sh ]; then \
+		construct/setup.sh; \
 	else \
-		echo "Error: $(UPSTREAM_NAME) not found at $(UPSTREAM_DIR)."; \
-		echo "  Clone it as a sibling directory."; \
+		echo "Error: construct/setup.sh not found in this repo."; \
+		echo "  First-time bootstrap: run \`../ariadne/construct/setup.sh\` manually."; \
+		echo "  After that, \`make refresh\` will work — the script vendors itself."; \
 		exit 1; \
 	fi
 
