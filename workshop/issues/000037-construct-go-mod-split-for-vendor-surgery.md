@@ -1,10 +1,10 @@
 ---
 id: 000037
-status: open
+status: working
 deps: [000031]
 created: 2026-05-26
 updated: 2026-05-26
-estimate_hours:
+estimate_hours: 5
 ---
 
 # construct/go.mod split — surgical vendoring for substrate-only Go tool deps
