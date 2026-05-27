@@ -125,34 +125,11 @@ For brain (private brain, ariadne-styled derivative): same flow.
 
 Rough shape — to be detailed when work starts:
 
-- [ ] **M1 — Substrate changes (ariadne main).**
-  - Update `setup.sh`'s `ensure_go_tool_dependency` to target `construct/go.mod` (with auto-create stub).
-  - Update `setup.sh`'s `go mod vendor` step to operate in `construct/`.
-  - Update `Makefile.workflow` `sdlc-build` target to `cd construct && go build`.
-  - Add `make bootstrap` target in `Makefile.workflow`.
-  - Update atlas entry (`setup-and-replication.md`) to document the 2-go.mod convention.
-  - Test: ariadne self-refresh still works (no construct/go.mod created in ariadne).
-  - Commit on ariadne main.
-
-- [ ] **M2 — Migrate nous.**
-  - Create `nous/construct/go.mod`. Move ariadne entries from root.
-  - Re-vendor in construct/.
-  - Verify `make sdlc-build` works from new path.
-  - Commit.
-
-- [ ] **M3 — Migrate parley.nvim.**
-  - Same as M2.
-  - Net: parley.nvim's root go.mod becomes empty-ish (no Go app code; just the substrate-marker module declaration).
-
-- [ ] **M4 — Migrate pair.**
-  - Same as M2.
-  - Delete root `vendor/` (was only there because of substrate refresh's auto-vendoring).
-  - Net diff: -15MB / -800 files in pair.
-
-- [ ] **M5 — Document operator workflow.**
-  - Update atlas / AGENTS.md if needed for the dual go.mod awareness.
-  - Document `make bootstrap` vs `make refresh` distinction.
-  - Verify a fresh clone-without-sibling actually works end-to-end (`make bootstrap` → `bin/sdlc` runs).
+- [x] **M1 — Substrate changes (ariadne main).** Done in commit 239b9c2. setup.sh's `ensure_go_tool_dependency` targets `construct/go.mod` (auto-creates stub); `go mod vendor` runs in `construct/`; `sdlc-build` cd's into `construct/` when present; new `make bootstrap` target. Atlas entry updated with the "Go source vendoring — construct/go.mod split" section.
+- [x] **M2 — Migrate nous.** Done in nous commit (post-M1 refresh + cleanup). `nous/construct/go.mod` auto-created with module `github.com/xianxu/nous-construct`. Root go.mod stripped of ariadne entries via `go mod edit -dropreplace -droprequire -droptool`. Root vendor/ rebuilt without ariadne (~24MB of nous's own app deps; previously mixed with sdlc closure).
+- [x] **M3 — Migrate parley.nvim.** Done in parley.nvim commit. Root go.mod minimal (just `module` + `go` directive — no Go app code). Root vendor/ removed entirely (was substrate-only).
+- [x] **M4 — Migrate pair.** Done in pair commit. Root vendor/ rebuilt to ~14MB (was ~15MB; substrate contribution ~944K moved to construct/vendor/). Substrate-only deps fully separated from app deps.
+- [x] **M5 — Document operator workflow.** Atlas entry covers `make bootstrap` (no-sibling-needed) vs `make refresh` (sibling-required) distinction. Substrate-side docs sufficient; AGENTS.md doesn't need updating (existing prose stays accurate at its abstraction level).
 
 ## Out of scope (followups)
 
