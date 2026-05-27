@@ -9,7 +9,7 @@ import (
 )
 
 // captureRunner records git invocations + filesystem mutations so we can
-// drive runStart / resolveStartName / listUntrackedIssues without
+// drive runStart / resolveBranchName / listUntrackedIssues without
 // shelling out to git or touching the disk in surprising places.
 type captureRunner struct {
 	// untrackedOutput is what `git ls-files --others --exclude-standard`
@@ -37,7 +37,7 @@ type writeOp struct {
 
 func (c *captureRunner) Git(args ...string) ([]byte, error) {
 	c.gitCalls = append(c.gitCalls, append([]string{}, args...))
-	// Stub the only call resolveStartName makes.
+	// Stub the only call resolveBranchName makes.
 	if len(args) >= 1 && args[0] == "ls-files" {
 		return []byte(c.untrackedOutput), nil
 	}
@@ -61,7 +61,7 @@ func (c *captureRunner) WriteFile(path string, data []byte) error {
 
 func TestResolveStartName_ExplicitName(t *testing.T) {
 	r := &captureRunner{}
-	name, untracked, err := resolveStartName(&startFlags{Name: "feature-x"}, r)
+	name, untracked, err := resolveBranchName(&nameFlags{Name: "feature-x"}, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestResolveStartName_ExplicitName(t *testing.T) {
 
 func TestResolveStartName_BothFlagsRejected(t *testing.T) {
 	r := &captureRunner{}
-	_, _, err := resolveStartName(&startFlags{Name: "x", Issue: 42}, r)
+	_, _, err := resolveBranchName(&nameFlags{Name: "x", Issue: 42}, r)
 	if err == nil {
 		t.Fatal("expected error for --name + --issue together")
 	}
@@ -98,7 +98,7 @@ func TestResolveStartName_IssueFlag_ResolvesFromFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := &captureRunner{untrackedOutput: ""} // already tracked
-	name, untracked, err := resolveStartName(&startFlags{Issue: 31, IssuesDir: issuesDir}, r)
+	name, untracked, err := resolveBranchName(&nameFlags{Issue: 31, IssuesDir: issuesDir}, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestResolveStartName_IssueFlag_FlagsUntracked(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := &captureRunner{untrackedOutput: target + "\n"}
-	name, untracked, err := resolveStartName(&startFlags{Issue: 42, IssuesDir: issuesDir}, r)
+	name, untracked, err := resolveBranchName(&nameFlags{Issue: 42, IssuesDir: issuesDir}, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestResolveStartName_IssueFlag_NoFile(t *testing.T) {
 	issuesDir := filepath.Join(tmp, "issues")
 	_ = os.MkdirAll(issuesDir, 0o755)
 	r := &captureRunner{}
-	_, _, err := resolveStartName(&startFlags{Issue: 99, IssuesDir: issuesDir}, r)
+	_, _, err := resolveBranchName(&nameFlags{Issue: 99, IssuesDir: issuesDir}, r)
 	if err == nil {
 		t.Fatal("expected error for missing issue file")
 	}
@@ -150,7 +150,7 @@ func TestResolveStartName_AutoDetect_Single(t *testing.T) {
 	_ = os.MkdirAll(issuesDir, 0o755)
 	target := filepath.Join(issuesDir, "000050-only.md")
 	r := &captureRunner{untrackedOutput: target + "\n"}
-	name, untracked, err := resolveStartName(&startFlags{IssuesDir: issuesDir}, r)
+	name, untracked, err := resolveBranchName(&nameFlags{IssuesDir: issuesDir}, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestResolveStartName_AutoDetect_Single(t *testing.T) {
 
 func TestResolveStartName_AutoDetect_None(t *testing.T) {
 	r := &captureRunner{untrackedOutput: ""}
-	_, _, err := resolveStartName(&startFlags{IssuesDir: "issues"}, r)
+	_, _, err := resolveBranchName(&nameFlags{IssuesDir: "issues"}, r)
 	if err == nil {
 		t.Fatal("expected error for zero untracked")
 	}
@@ -177,7 +177,7 @@ func TestResolveStartName_AutoDetect_Multiple(t *testing.T) {
 	r := &captureRunner{
 		untrackedOutput: "issues/000050-a.md\nissues/000051-b.md\n",
 	}
-	_, _, err := resolveStartName(&startFlags{IssuesDir: "issues"}, r)
+	_, _, err := resolveBranchName(&nameFlags{IssuesDir: "issues"}, r)
 	if err == nil {
 		t.Fatal("expected error for multiple untracked")
 	}
@@ -192,7 +192,7 @@ func TestResolveStartName_AutoDetect_FiltersJunk(t *testing.T) {
 	r := &captureRunner{
 		untrackedOutput: "issues/.DS_Store\nissues/not-an-issue.md\nissues/000077-real.md\n",
 	}
-	name, untracked, err := resolveStartName(&startFlags{IssuesDir: "issues"}, r)
+	name, untracked, err := resolveBranchName(&nameFlags{IssuesDir: "issues"}, r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

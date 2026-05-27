@@ -23,8 +23,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `state`           | (new)                       | Workflow state inspection + drift detection |
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | Issue-file shape on GitHub import |
-| `start`           | `make worktree`             | Branch creation from untracked issue |
-| `lock`            | `make issue-sync`           | Issue-file workstream-claim onto main |
+| `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
+| `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + plan-quality + branching ask (#39) |
 | `set-status`      | (new)                       | Status-transition guards (xx-issues contract) |
 | `push`            | `make push`                 | Direct-on-main ship + pre-flight judges |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
@@ -56,8 +56,13 @@ cmd/sdlc/
   state.go             new (read-only inspection + drift detection)
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             ← Makefile fetch:
-  start.go             ← Makefile worktree:
-  lock.go              ← scripts/issue-sync.sh
+  start.go             migration stub (REMOVED in #39 — errors with
+                       "use claim + change-code")
+  claim.go             ← scripts/issue-sync.sh (renamed from lock.go #39)
+  changecode.go        new (#39): planning → implementation gate
+  branchcreate.go      new (#39): branch-creation helpers shared by
+                       changecode.go (worktree + in-place paths) + the
+                       name-resolution previously in start.go
   setstatus.go         new
   push.go              ← Makefile push:
   pr.go                ← Makefile pull-request:
@@ -112,8 +117,10 @@ the original shell logic when absent:
 
   `make close-issue` → `sdlc close`
   `make fetch <N>`   → `sdlc fetch --github-issue N`
-  `make worktree`    → `sdlc start`
-  `make issue-sync`  → `sdlc lock`
+  `make worktree`    → `sdlc change-code --worktree=yes --no-judge --no-structural`
+                       (post-#39; preserves the make target's pre-existing
+                       quick-and-dirty semantics)
+  `make issue-sync`  → `sdlc claim` (renamed from `sdlc lock` in #39)
   `make push`        → `sdlc push`
   `make pull-request` → `sdlc pr`
   `make merge`       → `sdlc merge`

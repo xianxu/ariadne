@@ -62,8 +62,10 @@ func main() {
 	fetchCmd.Long = helptext.MustGet("fetch")
 	root.AddCommand(fetchCmd)
 
+	// `sdlc start` is a hidden stub that errors with a migration
+	// message (#39). No Long help wired — Short + RunE carry the
+	// message. Helptext file removed.
 	startCmd := NewStartCmd()
-	startCmd.Long = helptext.MustGet("start")
 	root.AddCommand(startCmd)
 
 	claimCmd := NewClaimCmd()

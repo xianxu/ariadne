@@ -58,11 +58,11 @@ help-workflow:
 
 # ── Issue sync ────────────────────────────────────────────────────────────────
 # Sync issue file changes to main and push, even when on a feature branch.
-# Delegates to bin/sdlc lock when the binary is built; falls back to the
-# shell script otherwise.
+# Delegates to bin/sdlc claim (renamed from `sdlc lock` in #39) when the
+# binary is built; falls back to the shell script otherwise.
 issue-sync:
 	@if [ -x bin/sdlc ]; then \
-	    bin/sdlc lock; \
+	    bin/sdlc claim; \
 	else \
 	    scripts/issue-sync.sh; \
 	fi
@@ -193,14 +193,18 @@ endif
 # Create a new git worktree in the parent directory.
 # Usage: make worktree <name>    — explicit name
 #        make worktree            — auto-detect from single untracked issue file
-# Delegates to bin/sdlc start when the binary is built; falls back to the
-# inline shell logic otherwise.
+# Delegates to bin/sdlc change-code (with --worktree=yes + the gate-skipping
+# flags that preserve this target's pre-#39 quick-and-dirty semantics).
+# Falls back to the inline shell logic when the binary isn't built.
+#
+# For the gated path (structural + plan-quality checks), use
+# `sdlc change-code` directly instead of this target.
 worktree:
 	@if [ -x bin/sdlc ]; then \
 	    if [ -n "$(WT_NAME)" ]; then \
-	        bin/sdlc start --name "$(WT_NAME)"; \
+	        bin/sdlc change-code --worktree=yes --no-judge --no-structural --name "$(WT_NAME)"; \
 	    else \
-	        bin/sdlc start; \
+	        bin/sdlc change-code --worktree=yes --no-judge --no-structural; \
 	    fi; \
 	else \
 	    name="$(WT_NAME)"; \

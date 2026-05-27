@@ -179,14 +179,12 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 // read it. The untrackedFile return is non-empty when the issue file
 // is still untracked and needs to be committed before branch creation.
 func resolveChangeCodeName(f *changeCodeFlags, r gitRunner) (name, untrackedFile, issuePath string, err error) {
-	// Compose a startFlags equivalent — leverages the same logic so the
-	// two verbs derive identical names from the same issue.
-	sf := &startFlags{
+	nf := &nameFlags{
 		Issue:     f.Issue,
 		Name:      f.Name,
 		IssuesDir: f.IssuesDir,
 	}
-	name, untrackedFile, err = resolveStartName(sf, r)
+	name, untrackedFile, err = resolveBranchName(nf, r)
 	if err != nil {
 		return "", "", "", err
 	}

@@ -66,5 +66,5 @@ EXAMPLES
 RELATED
 
   sdlc close          close → done with the §5 contract (use this for done)
-  sdlc lock           sync the new status to origin/main
+  sdlc claim          sync the new status to origin/main
   sdlc state          inspect current issue statuses

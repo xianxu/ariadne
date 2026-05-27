@@ -18,9 +18,9 @@ WHAT IT DOES
 
 WHAT IT DOES NOT DO
 
-  - Commit the new file. The caller does that — usually as part of
-    `sdlc start` (which auto-commits the issue file before creating
-    the worktree) or `sdlc lock`.
+  - Commit the new file. The caller does that — usually via
+    `sdlc claim` (claim primitive: commits + pushes the issue file
+    to origin/main) before any branch creation happens.
   - Mutate the GitHub issue. Pure fetch.
 
 FLAGS
@@ -44,5 +44,6 @@ EXAMPLES
 
 RELATED
 
-  sdlc start          create a worktree for the newly-fetched issue
-  sdlc lock           sync the new issue file to origin/main
+  sdlc claim          sync the new issue file to origin/main
+  sdlc change-code    later, after the plan is written — start
+                      implementation (gates + branching ask)

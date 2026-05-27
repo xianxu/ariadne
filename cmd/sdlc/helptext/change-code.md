@@ -20,11 +20,10 @@ WHEN TO USE
   refuses to start if the plan isn't ready — the gates catch the
   most common forms of "code first, plan after" drift.
 
-  Use the previously-existing `sdlc start` to do both claim and
-  change-code in one shot ONLY if you genuinely know the plan
-  already (rare). The two verbs were split (#39) because in
-  practice the planning step takes hours-to-days, and the worktree
-  decision wants to wait until you can size the work.
+  The pre-#39 verb `sdlc start` (which bundled claim + worktree
+  creation) was split into `sdlc claim` + `sdlc change-code` because
+  in practice the planning step takes hours-to-days, and the
+  worktree decision wants to wait until you can size the work.
 
 FLAGS
 

@@ -54,4 +54,5 @@ RELATED
 
   sdlc push       direct-on-main counterpart (no PR, ships from main)
   sdlc merge      after PR opens + reviews land, merge + clean up
-  sdlc start      create the worktree branch this verb operates on
+  sdlc change-code  create the branch this verb operates on
+                    (worktree or in-place per the operator's choice)

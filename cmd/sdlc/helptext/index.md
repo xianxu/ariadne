@@ -85,6 +85,27 @@ reads remain free-form, so drift is detectable by `sdlc state`.
 - Before manual `git push` to main — run `sdlc push` instead (it bundles the checks).
 - When in doubt about a flag — `sdlc <verb> --help`.
 
+## Agent ↔ binary protocol: `ASK_<TOPIC>` sentinel
+
+Some verbs need an operator decision that's not safe to default (e.g. `sdlc change-code`'s branching strategy — worktree vs in-place). When the verb can't reach a tty (stdin isn't a terminal — typical when an agent invokes it via the Bash tool), it emits a structured signal instead of blocking:
+
+  1. The sizing hint / decision context is printed to **stderr**.
+  2. A single sentinel line is printed to **stdout**: `ASK_<TOPIC>` (e.g. `ASK_BRANCHING_STRATEGY`).
+  3. The verb exits with code **2**.
+
+When the agent invoking sdlc sees `exit 2` plus a recognized `ASK_<TOPIC>` line on stdout, it must:
+
+  1. Issue the corresponding `AskUserQuestion` tool call to the operator, including the sizing/context printed to stderr.
+  2. Re-invoke the same sdlc verb with the decision flag set per the operator's answer.
+
+### Current topics
+
+| Topic | Source verb | Decision flag |
+|---|---|---|
+| `ASK_BRANCHING_STRATEGY` | `sdlc change-code` | `--worktree=yes` or `--worktree=no` |
+
+Future asks follow the same pattern — one new `ASK_<TOPIC>` per new operator-input gate, one new mapping in this table.
+
 ## What this skill is not
 
 - **Not a workflow driver.** The agent decides *when* to invoke; the binary decides whether the transition is *valid*.

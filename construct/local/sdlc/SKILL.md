@@ -85,6 +85,27 @@ reads remain free-form, so drift is detectable by `sdlc state`.
 - Before manual `git push` to main — run `sdlc push` instead (it bundles the checks).
 - When in doubt about a flag — `sdlc <verb> --help`.
 
+## Agent ↔ binary protocol: `ASK_<TOPIC>` sentinel
+
+Some verbs need an operator decision that's not safe to default (e.g. `sdlc change-code`'s branching strategy — worktree vs in-place). When the verb can't reach a tty (stdin isn't a terminal — typical when an agent invokes it via the Bash tool), it emits a structured signal instead of blocking:
+
+  1. The sizing hint / decision context is printed to **stderr**.
+  2. A single sentinel line is printed to **stdout**: `ASK_<TOPIC>` (e.g. `ASK_BRANCHING_STRATEGY`).
+  3. The verb exits with code **2**.
+
+When the agent invoking sdlc sees `exit 2` plus a recognized `ASK_<TOPIC>` line on stdout, it must:
+
+  1. Issue the corresponding `AskUserQuestion` tool call to the operator, including the sizing/context printed to stderr.
+  2. Re-invoke the same sdlc verb with the decision flag set per the operator's answer.
+
+### Current topics
+
+| Topic | Source verb | Decision flag |
+|---|---|---|
+| `ASK_BRANCHING_STRATEGY` | `sdlc change-code` | `--worktree=yes` or `--worktree=no` |
+
+Future asks follow the same pattern — one new `ASK_<TOPIC>` per new operator-input gate, one new mapping in this table.
+
 ## What this skill is not
 
 - **Not a workflow driver.** The agent decides *when* to invoke; the binary decides whether the transition is *valid*.
@@ -96,16 +117,16 @@ reads remain free-form, so drift is detectable by `sdlc state`.
 Reproduced from cobra at build time. Drift between this table and
 the live binary is impossible — both render from the same registry.
 
+- `sdlc change-code` — Enter implementation phase (structural + plan-quality gates + branching ask)
+- `sdlc claim` — Sync workshop/issues/ changes to origin/main (workstream-claim primitive)
 - `sdlc close` — Close an issue or milestone (records ACTUAL + VERIFIED, mutates issue + project files)
 - `sdlc fetch` — Fetch a GitHub issue and create a local workshop/issues/ file
 - `sdlc judge` — Run an LLM-as-judge check against the current diff (fresh context, anti-collusion)
-- `sdlc lock` — Sync workshop/issues/ changes to origin/main (workstream-claim primitive)
 - `sdlc merge` — Merge the current worktree branch via GitHub, archive done issues, clean up worktree
 - `sdlc milestone-close` — Close one milestone of an issue + auto-dispatch post-milestone review (AGENTS.md §3)
 - `sdlc pr` — Open a PR for the current worktree branch (scans touched issues for fixes)
 - `sdlc push` — Ship from main: auto-commit, run pre-merge judges, push, archive done issues
 - `sdlc set-status` — Flip an issue's status: with transition guards
-- `sdlc start` — Create a new git worktree on a fresh branch (auto-detects from untracked issue file)
 - `sdlc state` — Inspect SDLC workflow state (read-only, JSON optional)
 
 For each verb's full contract:
