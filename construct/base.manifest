@@ -11,6 +11,10 @@
 #   copy      — copy file (for files that need local modification)
 #   merge     — JSON merge (settings.ariadne.json layered under settings.local.json)
 #   touch     — create empty file if missing (no source needed)
+#   tool      — wire upstream's Go cmd as a tool dep in target's go.mod
+#               (idempotently runs `go mod edit` to add require + replace
+#               + tool directives; source path is relative to upstream
+#               module, e.g. `tool cmd/sdlc`)
 
 # ── Constitution ──────────────────────────────────────────────────────────────
 symlink   AGENTS.md
@@ -91,3 +95,14 @@ symlink   .tart/scripts
 
 # ── Documentation ─────────────────────────────────────────────────────────────
 symlink   atlas/workflow
+
+# ── Go tool dependencies ──────────────────────────────────────────────────────
+# Declares ariadne's cmd/sdlc as a tool the consumer's go.mod should depend on.
+# setup.sh runs `go mod edit` against the target's go.mod to add (idempotently):
+#   require github.com/xianxu/ariadne v0.0.0-00010101000000-000000000000
+#   replace github.com/xianxu/ariadne => <relative-path-to-ariadne>
+#   tool    github.com/xianxu/ariadne/cmd/sdlc
+# Subsequent `go mod vendor` (in vendor mode) populates vendor/ with the
+# tool's source so the consumer can `make sdlc-build` without ariadne
+# checked out next door.
+tool      cmd/sdlc
