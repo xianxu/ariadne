@@ -1,10 +1,11 @@
 ---
 id: 000037
-status: working
+status: done
 deps: [000031]
 created: 2026-05-26
 updated: 2026-05-26
 estimate_hours: 5
+actual_hours: 2.5
 ---
 
 # construct/go.mod split — surgical vendoring for substrate-only Go tool deps
@@ -139,6 +140,8 @@ Rough shape — to be detailed when work starts:
 
 ## Log
 
+
+- 2026-05-26: closed — construct/go.mod split landed; nous/parley.nvim/pair migrated; substrate vendor=944K (sdlc-only) vs 15MB before; make sdlc-build works in all 3 derivatives via new path. M1-M5 committed direct (no milestone-close → no verdict trailers); same bootstrap pattern as #31.
 ### 2026-05-26 — issue created
 
 Issue extracted from in-session discussion about vendoring scope. The operator noticed pair's substrate refresh inflating its vendor/ from minimal to 15MB+, because `go mod vendor` operates module-level and vendors the union of app + tool dep closures. We considered four alternatives:
