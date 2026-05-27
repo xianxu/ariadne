@@ -85,6 +85,16 @@ flight so the checks run consistently rather than as a remembered
 manual step. `milestone-close` auto-dispatches `judge milestone-review`
 as a post-action.
 
+**Judge → classifier contract.** Plan + Specs subagents must emit
+`VERDICT: CLEAN | INFO | FAILURE` as line 1 of their response; the
+classifier keys off that. (MilestoneReview uses the parallel
+`SHIP | FIX-THEN-SHIP | REWORK`; Lessons emits a fixed REMINDER line
+and skips the agent entirely.) A legacy sentinel-grep
+(`no DRY/PURE violations found`, `in sync`, …) remains as a fallback
+for outputs that don't carry the verdict line, but new prompts should
+use the structured form — free-text approval prose otherwise scores
+`FAILURE` and blocks the merge.
+
 ## Build + install
 
 ```

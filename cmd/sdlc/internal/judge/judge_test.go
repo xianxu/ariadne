@@ -174,6 +174,24 @@ func TestClassify(t *testing.T) {
 		output string
 		want   Outcome
 	}{
+		// Structured VERDICT line (preferred path; what Plan + Specs
+		// prompts now ask subagents to emit). Tolerant on whitespace
+		// and the optional confidence parenthetical.
+		{"verdict clean", "VERDICT: CLEAN\n\nAll good.", Clean},
+		{"verdict info", "VERDICT: INFO (confidence: high)\n\nMinor nits only.", Info},
+		{"verdict failure", "VERDICT: FAILURE\n\nUnchecked-but-done items found.", Failure},
+		{"verdict with leading whitespace", "   VERDICT: CLEAN\nbody", Clean},
+		{"verdict after blank line", "\n\nVERDICT: CLEAN\nbody", Clean},
+
+		// Real-world repro from pair#23 close: judge approved in prose
+		// but the prompt didn't yet ask for a VERDICT line, so the
+		// output starts with a markdown header. Falls through to the
+		// legacy grep → no sentinel match → Failure. This case is the
+		// motivation for the verdict-line migration; once a prompt is
+		// migrated, the agent emits VERDICT and this path stops firing.
+		{"legacy prose approval still falls through", "# TPM Review\n## Status: Looks good", Failure},
+
+		// Legacy grep fallback path — unchanged contract.
 		{"clean dry", "No DRY violations found.", Clean},
 		{"clean pure", "No PURE violations found.", Clean},
 		{"clean specs", "Everything is in sync.", Clean},
