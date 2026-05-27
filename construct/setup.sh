@@ -363,13 +363,15 @@ walk_manifest() {
         # path) while protecting entries like `symlink Makefile.nous`
         # (declared for downstream consumers; tautological in nous itself).
         #
-        # Exception: the `merge` action has implicit source-rename semantics
-        # (reads .claude/settings.<layer>.json, writes .claude/settings.json
-        # — different files). On self-walk for ariadne, this regenerates
-        # the layer's own settings.json from its committed settings.X.json
-        # + local overlay. Skipping it would silently break ariadne's
-        # self-refresh.
-        if [[ "$action" != "merge" && "$upstream/$source" == "$TARGET_DIR/$target" ]]; then
+        # Exceptions: these actions are not file-shape operations and the
+        # self-reference filter doesn't apply to them.
+        #   merge — implicit source-rename (reads .X.<layer>.json, writes
+        #           .X.json; different files). On self-walk, regenerates
+        #           the layer's own settings.json from committed + local.
+        #   tool  — modifies the target's go.mod via `go mod edit`. On
+        #           self-walk, adds the tool directive to the upstream's
+        #           own go.mod (so `go tool sdlc` works locally there too).
+        if [[ "$action" != "merge" && "$action" != "tool" && "$upstream/$source" == "$TARGET_DIR/$target" ]]; then
             printf "  ${YELLOW}skipped${RESET} %s (self-reference at canonical location)\n" "$target"
             continue
         fi
