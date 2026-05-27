@@ -60,20 +60,6 @@ ARIADNE_DIR="$(dirname "$SCRIPT_REAL")"
 # symlink resolution.
 TARGET_DIR="$(pwd -P)"
 
-# ── Self-refresh short-circuit ────────────────────────────────────────────────
-# When the target IS the script's own upstream, there's nothing to apply
-# from this upstream (target already has its files at canonical locations).
-# Just sync local-skill symlinks and exit. Note: this fires only at depth 0
-# (ariadne self-refresh). For depth-N self-refresh of a non-top-of-chain
-# layer, the script proceeds to ancestor walk normally.
-if [[ "$ARIADNE_DIR" == "$TARGET_DIR" ]]; then
-    SYNC_SCRIPT="$ARIADNE_DIR/construct/scripts/sync-local-skills.sh"
-    if [[ -f "$SYNC_SCRIPT" ]]; then
-        bash "$SYNC_SCRIPT" 2>&1
-    fi
-    exit 0
-fi
-
 # ── Colors ────────────────────────────────────────────────────────────────────
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
