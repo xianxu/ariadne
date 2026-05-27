@@ -79,22 +79,58 @@ When setup.sh runs, ancestor candidates are collected from:
 Candidates are filtered to dirs that ship `construct/base.manifest` and
 deduped. Target's own manifest is walked separately after ancestors.
 
-## Three operating modes (orthogonal to depth)
+## Single deployment model — symlink + bootstrap-cascade
 
-Recorded in `.ariadne-mode` (legacy filename, kept for backward compat):
+Per ariadne#38: substrate is symlink-only. There's no `--vendor` /
+`--symlink` mode flag, no `.ariadne-mode` marker, no copy action. All
+substrate text symlinks from upstream peers (sibling-checkout); Go tool
+sources resolve via `replace => ../<peer>` directives in
+`construct/go.mod`.
 
-| Mode | Manifest entries become | Use case |
-|---|---|---|
-| `symlink` (default) | symlinks into the upstream | Sibling-checkout development; trunk-follow |
-| `vendor` | copies in target tree | Pinned snapshot; offline / hermetic builds |
+**Five manifest actions:** `symlink`, `tool`, `scaffold`, `touch`, `merge`.
+Earlier versions also had `copy` — retired in #38. For per-derivative
+divergence (operator wants to customize a substrate file), the pattern is
+**per-operator branches in upstream source repos**, not per-derivative
+copies in the derivative tree. One branch per operator's preferences,
+shared across all that operator's derivatives.
 
-Switch with `--symlink` / `--vendor` flags. Mode change requires confirmation
-(`--yes` to skip).
+### Bootstrap cascade (`make bootstrap`)
 
-Note: the `symlink` mode here is orthogonal to Go's `replace` directive.
-Go's replace controls where Go *imports* resolve to; `symlink` here controls
-how non-code text files are vendored from the upstream's resolved location.
-Both can use the same upstream path.
+```
+make bootstrap (in any repo)
+  → construct/scripts/bootstrap-peers.sh: parses construct/go.mod for
+    `replace => ../<name>` directives. For each missing peer:
+       - Derives clone URL from current repo's origin (substitutes
+         this-repo-name → peer-name; operator override via Makefile.local)
+       - git clone to ../<name>
+       - Recursively `make bootstrap` in the peer
+    Carries visited-set + depth-limit (max 5) via env vars.
+  → make refresh (peers exist now → symlinks materialize)
+  → make tools  (builds tools via Go's replace → sibling resolution)
+  → derivative's local-env setup hook (Makefile.nous/Makefile.local extends)
+```
+
+### Refresh vs bootstrap
+
+- **`make refresh`** — pure substrate-state sync. Peers must exist
+  (errors with hint if missing). Runs `construct/setup.sh` to update
+  symlinks. NO clone, NO build.
+- **`make bootstrap`** — first-time setup OR full state recovery. Cascades:
+  clones missing peers, refreshes substrate, builds tools, runs local-env
+  setup. Idempotent — re-runnable.
+
+### How divergence works (no `copy` action)
+
+Operators who want to customize a substrate artifact:
+
+1. `cd ../<peer>` (the source repo)
+2. `git checkout -b <operator>-customizations`
+3. Edit on that branch
+4. All derivatives consuming that peer see the changes via their symlinks
+
+To merge upstream improvements: standard `git merge main` in the source
+branch periodically. Per-operator branches stay small (one per operator);
+all their derivatives share.
 
 ## Adopting a fresh derivative
 
@@ -168,7 +204,7 @@ install/refresh path. The version of the binary determines the version of
 every derived artifact automatically — no text-vs-code lockstep drift
 possible.
 
-## Go source vendoring — `construct/go.mod` split
+## `construct/go.mod` — substrate-tool deps separated from app deps
 
 Derivatives that consume Go tools from ancestors (cmd/sdlc from ariadne,
 future cmd/nous from nous, etc.) get a **second `go.mod`** scoped to
@@ -177,44 +213,46 @@ substrate concerns only:
 ```
 <derivative>/
   go.mod                # app deps (charmbracelet, creack/pty, etc.)
-                        # operator-managed; vendoring is app-side choice
+                        # operator-managed
   construct/
     go.mod              # substrate-tool deps (require + replace + tool
                         # for each ancestor that ships Go tools)
-    vendor/             # vendored substrate-tool sources only (~600KB
-                        # for sdlc-only; not 15MB+ with app closure)
-  bin/sdlc              # built from construct/vendor/
+                        # auto-managed by setup.sh
+  bin/sdlc              # built via `cd construct && go build`
+                        # — Go resolves source via replace => ../../ariadne
 ```
 
 The two go.mods are independent Go modules (one go.mod per directory =
 one Go module — native Go semantics). setup.sh auto-manages
 `construct/go.mod`; the operator never edits it manually.
 
-**Why split:** `go mod vendor` operates module-level, vendoring the entire
-closure of whatever's in go.mod. With substrate-tool deps in the root
-go.mod, refreshing a derivative with its own Go app code (like `pair`
-with charmbracelet/* + creack/pty deps) vendored ~15MB / 800+ files —
-most of it the app closure, not the substrate concern. The split moves
-substrate-tool deps to `construct/go.mod`, so `go mod vendor` in
-construct/ vendors only the ~600KB substrate-tool closure.
+**Why split:** the root go.mod is operator-owned (app deps). The
+substrate's tool deps are substrate-managed (auto-added/updated by
+setup.sh when ancestor manifests declare `tool <path>`). Keeping them
+in separate go.mods means substrate refreshes don't touch the
+operator's app go.mod, and operator's app evolution doesn't disturb
+substrate-tool declarations.
+
+**No `construct/vendor/` needed in the symlink-only model (post-#38).**
+Go's `replace github.com/xianxu/<peer> => ../../<peer>` directives in
+construct/go.mod resolve tool sources to sibling-checkouts at build
+time. Earlier versions vendored into construct/vendor/ for "clone
+without sibling" UX; that's now solved by the bootstrap cascade
+(clones missing peers).
 
 **Multi-layer composition.** When a derivative descends from multiple
 ancestors that each ship Go tools (e.g., baby-brain consuming both
 ariadne's sdlc + nous's cmd/nous), all require + tool entries land in
 one `construct/go.mod`. Go natively supports multiple require + tool
-entries; no custom walker needed.
+entries; no custom walker needed. The bootstrap cascade ensures every
+sibling-required peer is checked out.
 
-**Self-walk exception.** Ariadne itself has no `construct/go.mod` — ariadne
-IS the substrate source; its tool directive lives in the root go.mod.
-Same for any future top-of-chain layer.
+**Self-walk exception.** Ariadne itself has no `construct/go.mod` —
+ariadne IS the substrate source; its tool directive lives in the root
+go.mod. Same for any future top-of-chain layer.
 
-**Bootstrap vs refresh.** `make bootstrap` builds tools from the existing
-vendored sources — does NOT require sibling-checkout of the upstream. Use
-after a fresh `git clone <derivative>`. `make refresh` UPDATES the
-vendored sources from upstream — DOES require sibling-checkout. The split
-of verbs matches the split of when each operation needs the upstream.
-
-Design rationale: `workshop/issues/000037`.
+Design rationale: `workshop/issues/000037` (split) + `000038`
+(symlink-only).
 
 ## Related
 
