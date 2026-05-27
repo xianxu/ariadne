@@ -110,24 +110,52 @@ close-issue:
 	    scripts/close-issue.py; \
 	fi
 
-# ── Refresh ───────────────────────────────────────────────────────────────────
-# Invoke the canonical setup.sh, which handles ancestor discovery via
-# go.mod replace directives (post-ariadne#32). No UPSTREAM_NAME or other
-# name-based variables — single source of truth is go.mod.
+# ── Refresh / bootstrap ───────────────────────────────────────────────────────
+# Two verbs, distinct concerns (per ariadne#38):
 #
-# First-time bootstrap (no construct/setup.sh vendored yet) is an
-# explicit operator action: run `../ariadne/construct/setup.sh`
-# manually from the new target directory, then `make refresh` works
-# going forward.
+#   make refresh         Pure substrate-state sync. Verifies peers are present,
+#                        invokes construct/setup.sh to update symlinks. Does
+#                        NOT clone peers, does NOT build tools. Errors if a
+#                        peer is missing — operator should `make bootstrap`
+#                        for first-time setup.
+#
+#   make bootstrap-peers Cascade peer cloning. Reads construct/go.mod for
+#                        replace ../<name> directives; clones missing peers
+#                        (URL derived from origin convention; operator can
+#                        override). Recursively bootstraps each peer.
+#
+#   make bootstrap       Composition: bootstrap-peers + refresh + tools.
+#                        Defined as prereqs-only (no recipe) so derivatives
+#                        with their own bootstrap target (e.g. nous's GPG
+#                        setup) can extend additively without recipe
+#                        collision.
+#
+# First-time bootstrap of a fresh-clone derivative whose upstreams aren't
+# yet vendored: run `../ariadne/construct/setup.sh` manually once to seed
+# construct/setup.sh, then `make bootstrap` cascades from there. (Once
+# substrate has propagated, `make bootstrap` is the canonical post-clone
+# command.)
+
 refresh:
 	@if [ -x construct/setup.sh ]; then \
 		construct/setup.sh; \
 	else \
 		echo "Error: construct/setup.sh not found in this repo."; \
 		echo "  First-time bootstrap: run \`../ariadne/construct/setup.sh\` manually."; \
-		echo "  After that, \`make refresh\` will work — the script vendors itself."; \
+		echo "  After that, \`make refresh\` (and \`make bootstrap\`) will work — the script vendors itself."; \
 		exit 1; \
 	fi
+
+bootstrap-peers:
+	@if [ -x construct/scripts/bootstrap-peers.sh ]; then \
+		bash construct/scripts/bootstrap-peers.sh; \
+	fi
+
+# Prereq-only definition — no recipe. Derivatives can `bootstrap: <my-prereq>`
+# additively without colliding. Make composes the prereq list; if any
+# derivative defines its own recipe for `bootstrap` (e.g. nous's existing
+# GPG/install setup), that recipe is what runs after all prereqs.
+bootstrap: bootstrap-peers refresh tools
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge
@@ -583,37 +611,23 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: bootstrap sdlc-build sdlc-bootstrap
+.PHONY: tools sdlc-build sdlc-bootstrap
 
-# bootstrap: post-clone setup. Builds substrate tools from local vendored
-# sources. Does NOT require ../<upstream> sibling — vendored content is
-# already in the repo from a prior `make refresh` (which DOES need the
-# sibling). One-shot after `git clone <derivative>`.
-bootstrap:
-	@echo "==> bootstrap: building substrate tools from local vendored sources"
-	@$(MAKE) sdlc-build
-	@echo ""
-	@echo "  bin/sdlc ready. Use it via: ./bin/sdlc --help"
-	@echo "  To update vendored substrate from upstream: make refresh"
-	@echo "  (refresh requires ../<upstream> sibling-checkout)"
+# tools: compose all build targets for binaries this repo ships.
+# Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
+# (generic cmd/*/main.go scanner). Derivatives can extend additively
+# in Makefile.local / Makefile.nous, e.g. `tools: nous-build`.
+tools: sdlc-build build
 
 sdlc-build:
 	@mkdir -p bin
 	@echo "==> building bin/sdlc"
 	@# Build via Go package path. In derivatives with construct/go.mod
-	@# (the post-#37 layout — substrate-tool deps separated from app
-	@# deps), build inside construct/ so Go resolves through the
-	@# construct/vendor/ tree. In ariadne (the source itself) and other
-	@# repos without construct/go.mod, build at the root.
-	@#
-	@# Derivatives' construct/go.mod is auto-managed by setup.sh:
-	@#   module github.com/<owner>/<derivative>-construct
-	@#   require github.com/xianxu/ariadne v0.0.0-00010101000000-000000000000
-	@#   replace github.com/xianxu/ariadne => ../../ariadne
-	@#   tool    github.com/xianxu/ariadne/cmd/sdlc        # Go 1.24+
-	@# `go mod vendor` in construct/ then populates construct/vendor/
-	@# with the sdlc closure only (~600KB, not the derivative's app
-	@# closure). See workshop/issues/000037.
+	@# (per ariadne#37 + #38: substrate-tool deps separated from app
+	@# deps; resolved via replace => ../../ariadne to sibling checkout),
+	@# build inside construct/ so Go resolves through the sibling-
+	@# referenced module. In ariadne (the source itself) and other repos
+	@# without construct/go.mod, build at the root.
 	@if [ -f construct/go.mod ]; then \
 	    cd construct && go build -o ../bin/sdlc github.com/xianxu/ariadne/cmd/sdlc; \
 	else \
