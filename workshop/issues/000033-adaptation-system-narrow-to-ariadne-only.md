@@ -1,10 +1,11 @@
 ---
 id: 000033
-status: working
+status: done
 deps: []
 created: 2026-05-25
-updated: 2026-05-27
+updated: 2026-05-28
 estimate_hours:
+actual_hours: 1
 ---
 
 # adaptation system: narrow to ariadne-self adaptation only
@@ -90,6 +91,8 @@ Other differences (per skill, from `diff -rq`): 1–6 file differences each, mos
 
 ## Log
 
+
+- 2026-05-28: closed — Three repos resolve .claude/skills/superpowers-* to byte-identical content (md5 verified on superpowers-brainstorming/SKILL.md across ariadne, nous, parley.nvim). atlas/workflow/construct-adaptation.md added in the same commit.
 ### 2026-05-25 — issue created
 
 Spun out from a session where user noted the adaptation system feels overly flexible relative to ariadne's opinionated posture. Verified the actual usage: two intents exist (ariadne.md and parley.nvim.md), derivatives inherit ariadne's adapted/ via base.manifest, and nous (the canonical derivative) has no intents/sources/staging directories of its own.
