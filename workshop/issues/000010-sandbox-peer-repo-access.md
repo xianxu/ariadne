@@ -18,6 +18,8 @@ The current sandbox mounts a single repo at `/sandbox/repo`. Peer repos on the h
 - **Shared credentials**: e.g. Google OAuth setup in one repo, needed by another
 - **Ariadne base layer itself**: the symlink target (`../ariadne/`) doesn't exist in sandbox
 
+05/27/2026: this likely is outdated, we overhaul how ariadne decedents' dependencies work.
+
 ## Use Cases
 
 1. AI agent in brain sandbox wants to reference code in parley.nvim

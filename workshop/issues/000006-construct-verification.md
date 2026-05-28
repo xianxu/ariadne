@@ -1,6 +1,6 @@
 ---
 id: 000006
-status: open
+status: wontfix
 deps: []
 created: 2026-04-21
 updated: 2026-04-21
