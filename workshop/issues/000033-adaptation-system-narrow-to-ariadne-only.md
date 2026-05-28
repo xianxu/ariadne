@@ -69,23 +69,24 @@ Other differences (per skill, from `diff -rq`): 1–6 file differences each, mos
 
 ## Spec
 
-TBD — flesh out after answering the two sub-questions above. The shape:
-
-- `construct/skill/SKILL.md` rewritten with `--to` and target removed from all commands.
-- Intent layout flattened from `intents/<source>/<repo>.md` to `intents/<source>.md`.
-- Staging from `staging/<target-slug>/` to `staging/<source>/` (or just `staging/`, since one source-at-a-time would be a natural simplification too — TBD).
-- Version manifests' columns trimmed (drop `Target`, `Scope`).
-- Atlas entry making "derivatives inherit, only ariadne adapts" explicit.
+- `construct/skill/SKILL.md` rewritten with `--to`, `--as`, `Scope`, and `Target` removed from every command. `/construct adapt <source>`, `/construct promote <source>`, `/construct diff <skill>` — single-target throughout. Promote step writes to both `.claude/skills/` (ariadne's live) and `construct/adapted/` (inheritable copy) in one shot.
+- Intent layout: `intents/<source>.md` (one file per source). Frontmatter no longer carries `scope:` / `target:`.
+- Staging: flat `staging/skills/` — only one source is ever staged at a time. Less ceremony than `staging/<source>/`.
+- Version manifests trimmed to `Skill | Source | Source Version | Intent File`. Pre-simplification manifests (v0001, v0002) carry a header note that their original deployment context lives in git history.
+- `rollback.sh` stripped of personal-skills branch *and* its pre-existing dead `$version_dir/skills/repo/*/` glob. Now iterates skill dirs at the version-dir top level and restores into both `.claude/skills/` and `construct/adapted/`.
+- New atlas entry `atlas/workflow/construct-adaptation.md` making "derivatives inherit, only ariadne adapts" explicit. Linked from `atlas/workflow/index.md` and cross-referenced from `base-layer.md`.
+- parley.nvim drift cleaned up: real-dir skills at `parley.nvim/.claude/skills/superpowers-*` replaced with symlinks into `../../construct/adapted/superpowers-*`, matching nous's posture. Visual Companion re-appears verbatim; accepted (Neovim users won't use the browser-based section).
 
 ## Plan
 
-- [ ] Rewrite `construct/skill/SKILL.md`: drop `--to`, scope, target, `--as`, and the `--to personal` path; flatten staging to `staging/<source>/`
-- [ ] Migrate `intents/superpowers/ariadne.md` → `intents/superpowers.md`
-- [ ] Delete `intents/superpowers/parley.nvim.md` (history preserved in git)
-- [ ] Update `construct/manifest.md` and `construct/versions/*/manifest.md` schema (drop Target/Scope columns)
-- [ ] Add atlas entry under `atlas/workflow/` stating derivatives inherit and only ariadne adapts
-- [ ] **parley.nvim cleanup:** delete real directories at `parley.nvim/.claude/skills/superpowers-*` and replace with symlinks to `../../construct/adapted/superpowers-*` (matching nous and ariadne). Accept Visual Companion re-appearance.
-- [ ] Verify nous, parley.nvim, and ariadne all resolve their adapted skills correctly post-change
+- [x] Rewrite `construct/skill/SKILL.md`: drop `--to`, scope, target, `--as`, and the `--to personal` path; flatten staging to `staging/skills/`
+- [x] Migrate `intents/superpowers/ariadne.md` → `intents/superpowers.md`
+- [x] Delete `intents/superpowers/parley.nvim.md` (history preserved in git)
+- [x] Update `construct/manifest.md` and `construct/versions/*/manifest.md` schema (drop Target/Scope columns)
+- [x] Add atlas entry under `atlas/workflow/` stating derivatives inherit and only ariadne adapts
+- [x] **parley.nvim cleanup:** delete real directories at `parley.nvim/.claude/skills/superpowers-*` and replace with symlinks to `../../construct/adapted/superpowers-*` (matching nous and ariadne). Accept Visual Companion re-appearance.
+- [x] Verify nous, parley.nvim, and ariadne all resolve their adapted skills correctly post-change
+- [x] (side-quest) Strip personal-skills branch from `construct/rollback.sh` and fix pre-existing dead `$version_dir/skills/repo/*/` glob (skills sit at top level of a version dir). Rollback now restores into both `.claude/skills/` and `construct/adapted/`.
 
 ## Log
 
@@ -100,3 +101,14 @@ User confirmed: parley.nvim itself became an ariadne descendant (it predates ari
 ### 2026-05-25 — sub-questions resolved + parley.nvim drift discovered
 
 Sub-questions both decided: drop `--to personal`; delete `parley.nvim.md` intent. While verifying, discovered that `parley.nvim/.claude/skills/superpowers-*` are real directories (vendored Apr 25 via the old `--to ../parley.nvim` flow), not symlinks to `construct/adapted/` as in nous/ariadne. They are stale and drifted (every skill has 1–6 file differences from the inherited version). Cleanup steps added to Plan. Visual Companion regression flagged but accepted — Neovim users simply won't invoke the browser-based section.
+
+### 2026-05-27 — implemented
+
+Decisions taken during execution:
+- **Staging layout:** flat `staging/skills/` (not `staging/<source>/`). Only one source is ever staged at a time in this single-target world; the extra dir was ceremony.
+- **Historical version manifests:** rewritten to the new schema (drop `Scope`/`Target` columns). v0001 and v0002 kept a header note that they predate the simplification; v0002's intent-file column now points to the surviving unified intent rather than the deleted `parley.nvim.md`.
+- **rollback.sh:** stripped the personal-scoped branch *and* fixed a pre-existing dead glob (`$version_dir/skills/repo/*/`) that no longer matched actual on-disk layout. Rollback now restores each skill to both `.claude/skills/` and `construct/adapted/`, which means a rollback in ariadne also rolls back every derivative through the symlink chain. Logged as side-quest in plan + commit.
+
+Atlas: added `atlas/workflow/construct-adaptation.md`, linked from `atlas/workflow/index.md`. Updated stale references in `atlas/workflow/base-layer.md` and `construct/base.manifest` comment block. Updated stale intent path in `workshop/issues/000034-...md`.
+
+Verification: all three repos (ariadne, nous, parley.nvim) now resolve `.claude/skills/superpowers-*` to the same `ariadne/construct/adapted/superpowers-*` content (md5-equal on the spot-checked `superpowers-brainstorming/SKILL.md`).

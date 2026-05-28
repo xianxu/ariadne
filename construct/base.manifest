@@ -31,9 +31,9 @@ symlink   .claude/settings.ariadne.json
 merge     .claude/settings.ariadne.json        .claude/settings.json
 
 # ── Skills ──────────────────────────────────────────────────────────────────────
-# NOTE: Superpowers and other adapted skills are NOT in base.manifest.
-# They are managed per-repo via /construct adapt + /construct promote.
-# Only core and local-origin skills are symlinked by setup.sh.
+# NOTE: Adapted skills (superpowers) are deployed only in ariadne via
+# /construct adapt + /construct promote. Derivatives inherit them through
+# the `symlink construct/adapted` line below, not via per-repo adaptation.
 
 # NOTE: construct skill is ariadne-internal, not exported to target repos.
 

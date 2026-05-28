@@ -58,7 +58,7 @@ Land in the agent's next message after the answer, before continuing the brainst
 
 To be detailed when starting. Rough shape:
 
-- [ ] **M1 — Vocabulary prose.** Through `/construct adapt superpowers`, add the starter gist vocabulary to the brainstorming SKILL.md. Intent file at `construct/intents/superpowers/ariadne.md` captures the rationale. Depends on #33 (adaptation-system narrowing) if that lands first; otherwise just adapt under current `/construct adapt` semantics.
+- [ ] **M1 — Vocabulary prose.** Through `/construct adapt superpowers`, add the starter gist vocabulary to the brainstorming SKILL.md. Intent file at `construct/intents/superpowers.md` captures the rationale.
 - [ ] **M2 — Default-acceptance marker convention.** Decide marker shape, add to the same skill via the same adaptation, document in the skill prose. Test by running a brainstorm and checking that markers appear in the agent's responses.
 - [ ] **M3 — Validation pass.** Run 2-3 real brainstorms end-to-end. Verify the agent applies tags consistently and the markers are grep-able.
 

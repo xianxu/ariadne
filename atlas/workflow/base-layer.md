@@ -31,7 +31,7 @@ Defined in `construct/base.manifest` (in ariadne):
 
 - **Constitution**: `AGENTS.md`, `CLAUDE.md` — shared development rules
 - **Settings**: `.claude/settings.json` — merged from `.ariadne` and `.local` layers
-- **Skills**: `.claude/skills/xx-*` — local-origin skills (superpowers are per-repo via `/construct adapt`)
+- **Skills**: `.claude/skills/xx-*` — local-origin skills; `construct/adapted/` is symlinked so derivatives pick up ariadne's adapted superpowers verbatim (see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
 - **Makefile system**:
   - `Makefile` — generic root template (REPO_NAME, workflow + local include, help chain). Identical across consumers; per-repo concerns belong in `Makefile.local`.
   - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile` and `.tart/Makefile`.

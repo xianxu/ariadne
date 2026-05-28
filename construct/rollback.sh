@@ -17,8 +17,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONSTRUCT_DIR="$SCRIPT_DIR"
 REPO_ROOT="$(cd "$CONSTRUCT_DIR/.." && pwd)"
-REPO_SKILLS_DIR="$REPO_ROOT/.claude/skills"
-PERSONAL_SKILLS_DIR="$HOME/.claude/skills"
+LIVE_SKILLS_DIR="$REPO_ROOT/.claude/skills"
+ADAPTED_DIR="$CONSTRUCT_DIR/adapted"
 VERSIONS_DIR="$CONSTRUCT_DIR/versions"
 CURRENT_FILE="$CONSTRUCT_DIR/current"
 
@@ -84,35 +84,33 @@ rollback() {
     echo "Rolling back to version: $version_name"
     echo ""
 
-    # Restore repo-scoped skills
-    if [ -d "$version_dir/skills/repo" ]; then
-        for skill_dir in "$version_dir"/skills/repo/*/; do
-            [ -d "$skill_dir" ] || continue
-            skill_name="$(basename "$skill_dir")"
-            if [ -d "$REPO_SKILLS_DIR/$skill_name" ]; then
-                echo "  Restoring repo skill: $skill_name"
-                rm -rf "$REPO_SKILLS_DIR/$skill_name"
-            else
-                echo "  Adding repo skill: $skill_name"
-            fi
-            cp -r "$skill_dir" "$REPO_SKILLS_DIR/$skill_name"
-        done
-    fi
+    # Restore adapted skills. Version dirs hold one directory per skill at
+    # the top level (e.g. $version_dir/superpowers-brainstorming/), alongside
+    # manifest.md and an optional constitution/ subdir. Restore each skill to
+    # both the live skills directory and construct/adapted/ so derivatives
+    # that symlink through adapted/ also roll back.
+    for skill_dir in "$version_dir"/*/; do
+        [ -d "$skill_dir" ] || continue
+        skill_name="$(basename "$skill_dir")"
+        case "$skill_name" in
+            constitution) continue ;;
+        esac
 
-    # Restore personal-scoped skills
-    if [ -d "$version_dir/skills/personal" ]; then
-        for skill_dir in "$version_dir"/skills/personal/*/; do
-            [ -d "$skill_dir" ] || continue
-            skill_name="$(basename "$skill_dir")"
-            if [ -d "$PERSONAL_SKILLS_DIR/$skill_name" ]; then
-                echo "  Restoring personal skill: $skill_name"
-                rm -rf "$PERSONAL_SKILLS_DIR/$skill_name"
-            else
-                echo "  Adding personal skill: $skill_name"
+        if [ -d "$LIVE_SKILLS_DIR/$skill_name" ]; then
+            echo "  Restoring live skill: $skill_name"
+            rm -rf "$LIVE_SKILLS_DIR/$skill_name"
+        else
+            echo "  Adding live skill: $skill_name"
+        fi
+        cp -r "$skill_dir" "$LIVE_SKILLS_DIR/$skill_name"
+
+        if [ -d "$ADAPTED_DIR" ]; then
+            if [ -d "$ADAPTED_DIR/$skill_name" ]; then
+                rm -rf "$ADAPTED_DIR/$skill_name"
             fi
-            cp -r "$skill_dir" "$PERSONAL_SKILLS_DIR/$skill_name"
-        done
-    fi
+            cp -r "$skill_dir" "$ADAPTED_DIR/$skill_name"
+        fi
+    done
 
     # Restore constitution files
     if [ -f "$version_dir/constitution/AGENTS.md" ]; then

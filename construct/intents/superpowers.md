@@ -1,8 +1,3 @@
----
-scope: repo
-target: .
----
-
 # Intent: superpowers → ariadne
 
 ## Conversation 1 (2026-04-15): Initial adaptation for ariadne conventions
