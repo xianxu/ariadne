@@ -25,6 +25,7 @@ GITIGNORE_ENTRIES=(
     ".openshell/.bootstrap/"
     ".openshell/.base-image-digest"
     ".DS_Store"
+    "bin/"
 )
 
 touch "$GITIGNORE"
