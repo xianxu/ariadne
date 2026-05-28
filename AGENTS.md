@@ -4,7 +4,8 @@
 
 ### 0. Synchronization
 - You should update issue status to working, commit, and push to origin, before
-  commencing work. You can use `make issue-sync` to do it.
+  commencing work. Use `sdlc set-status --issue N working`, then
+  `sdlc claim --issue N` to publish the claim.
 - This is the locking mechanism for parallelized workstreams.
 
 ### 1. Artifact Hierarchy
@@ -41,6 +42,7 @@
 ### 2. Overall Workflow
 - Enter brainstorming mode when requirement is unclear
 - Enter plan mode for ANY non-trivial task (change more than 3 files, 100 lines)
+- **Two issue trackers, different purposes.** `workshop/issues/` is the **primary internal tracker** — all in-flight development work has its Spec/Plan/Log here. GitHub Issues (or the host platform's equivalent) are **for external bug reports + feature requests from non-contributors** — a public-facing inbox, not a planning surface. Triage incoming GH issues into `workshop/issues/<N>-slug.md` (with `deps: <repo>#<gh-issue-number>` cross-reference) when work begins on them. For internal work that needs public visibility (announcing a planned major change), keep a stub GH issue pointing back to the workshop issue; substantive Spec/Plan/Log stays in `workshop/issues/`. Don't reach for `gh issue create` as the default when starting new internal work — that's the workshop/issues/ slot.
 - Work is offered in issues system and tracked in `workshop/issues/` folder as single-file-per-issue markdown file, and each issue file has the following structure:
     - It may refer to file in `workshop/parley`, parley chats, they serve as a starting point of product exploration between user and AI
 	- Brainstorming agent SHOULD use parley chat as a starting point when available
@@ -85,7 +87,7 @@
 - Ask yourself: "Would a staff engineer approve this?"
 - Run tests, check logs, demonstrate correctness
 - Testing isn't a separate phase — it threads through planning (Core concepts entity table implies the test surface: PURE → unit tests colocated; INTEGRATION → integration tests with fakes), building (TDD red-green-refactor), and milestone review (judge cross-checks "PURE entities test without IO; if tests need mocks, promote to INTEGRATION"). External-service features ship with a process-level fake as part of the feature deliverable — function-call mocks miss interaction bugs. See `sdlc --help` for the canonical SDLC stage narrative.
-- **To close** an issue or milestone: `make close-issue ISSUE=N [MILESTONE=Mx] ACTUAL=h VERIFIED='<evidence>'`. Refuses without verification, actuals, and an atlas update in the commit window — its errors are next-action specs; fix and re-run.
+- **To close** an issue or milestone: `sdlc close --issue N [--milestone Mx] --actual h --verified '<evidence>'`. Refuses without verification, actuals, and an atlas update in the commit window — its errors are next-action specs; fix and re-run.
 
 ### 6. Demand Elegance
 - For non-trivial changes: pause and ask "is there a more general and elegant way?"
@@ -160,4 +162,3 @@
   - `workshop/plans/` — detailed designs (high churn, staging area)
 
 @AGENTS.local.md
-
