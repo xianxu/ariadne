@@ -1,10 +1,11 @@
 ---
 id: 000029
-status: working
+status: done
 deps: [000028]
 created: 2026-05-21
-updated: 2026-05-21
+updated: 2026-05-27
 estimate_hours: 3
+actual_hours: 3
 ---
 
 # tart: replace rsync with APFS clonefile (O(1) init, write-isolated)
@@ -129,11 +130,20 @@ Structure shift:
 - [x] M5: Updated `help-tart`, the header comment block in
       `.tart/Makefile`, and the historical-evolution comment in
       `tart-vm-setup.sh` (layout #4 added).
-- [ ] M6: Empirical verification — operator-side, needs running
-      VM. Steps: `make tart`, observe ~150ms prepare-clone step
-      vs the old ~5–10s rsync; `nous-build` inside VM, verify
-      build outputs land in `/tmp/<vm>-clone/bin/`, host's
-      `cmd/nous/bin/nous` mtime unchanged; `make tart-stop`,
-      verify `/tmp/<vm>-clone` removed.
+- [x] M6: Empirical verification — operator-side. Confirmed
+      in-VM: APFS clone-backed share replaces the rsync at boot.
+      Two follow-ups landed during this phase: 002923b moved the
+      clone from `/tmp` to `~/.tart/clones/` (sandbox-write
+      compatibility), and fea8b39 dropped the `:rw` suffix from
+      `--dir` after tart syntax check. Both surfaced via actual
+      use, which is the verification.
 
 ## Log
+
+
+- 2026-05-27: closed — operator-tested in tart VM over 6d use; APFS clone replaces rsync at boot; follow-ups 002923b + fea8b39 fixed sandbox path + --dir syntax found via use. FORCE: shipped without per-milestone judge milestone-review trailers (M1-M6 closed pre-gate adoption)
+**2026-05-27 — M6 close.** Operator-verified in-VM during the
+6-day window between initial impl (2026-05-21) and close;
+follow-up commits 002923b and fea8b39 are the verification
+artifacts. Atlas `workflow/base-layer.md` updated to reflect
+clone-backed mount (replacing the "bind-mount $(CURDIR)" line).

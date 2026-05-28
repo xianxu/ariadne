@@ -38,7 +38,7 @@ Defined in `construct/base.manifest` (in ariadne):
   - `scripts/` — issue-sync, pre-merge-checks, close-issue.py, lib.sh
 - **Construct system**: `construct/scripts/`, `construct/local/`, `construct/datatype/` — skill + datatype management
 - **Sandbox** (`.openshell/`) — Linux container dev environment (see below)
-- **Tart VMs** (`.tart/`) — `make tart` (headless + bind-mount `$(CURDIR)` at `/Volumes/My Shared Files/$(REPO_NAME)`) and `make tart-gui` (same but display via macOS Screen Sharing.app via `--vnc`; tart's built-in UI is broken on Tahoe as of 2026-05) for macOS VM testing (Apple Silicon only); helpers under `.tart/scripts/`. Override `RUN_FLAGS=` for a no-mount boot. `make help-tart` for the full surface.
+- **Tart VMs** (`.tart/`) — `make tart` (headless) and `make tart-gui` (display via macOS Screen Sharing.app via `--vnc`; tart's built-in UI is broken on Tahoe as of 2026-05) for macOS VM testing (Apple Silicon only); helpers under `.tart/scripts/`. The mount is an APFS clone of `$(CURDIR)` at `~/.tart/clones/$(TART_VM)` (writable, O(1) prepare via `clonefile(2)`; replaced the per-boot rsync in #29), exposed inside the VM at `/Volumes/My Shared Files/$(REPO_NAME)` and symlinked from `~/repo`. `tart-stop` / `tart-clean` remove the clone; an orphan-GC step at every boot reaps clones older than 7 days. Override `RUN_FLAGS=` for a no-mount boot. `make help-tart` for the full surface.
 - **Directory scaffolds**: `workshop/`, `atlas/` — standard repo layout
 
 ## Repo-Specific Extensions
