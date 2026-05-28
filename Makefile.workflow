@@ -155,7 +155,7 @@ bootstrap-peers:
 # additively without colliding. Make composes the prereq list; if any
 # derivative defines its own recipe for `bootstrap` (e.g. nous's existing
 # GPG/install setup), that recipe is what runs after all prereqs.
-bootstrap: bootstrap-peers refresh tools
+bootstrap: bootstrap-peers refresh tools sdlc-install
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge
@@ -615,7 +615,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build sdlc-bootstrap
+.PHONY: tools sdlc-build sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -638,10 +638,16 @@ sdlc-build:
 	    go build -o bin/sdlc github.com/xianxu/ariadne/cmd/sdlc; \
 	fi
 
-# sdlc-bootstrap installs sdlc onto PATH for the developer. Idempotent.
-# Mirrors ../nous's `nous-bootstrap` pattern but stripped down: sdlc
-# has no GPG / openshell / Brewfile dependencies, just a Go toolchain.
+# sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
+# appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
+# prints the export line so the user can paste it manually as backup.
 #
-# Default install dir: ~/bin. Override with SDLC_INSTALL_BIN=...
-sdlc-bootstrap:
-	@scripts/sdlc-bootstrap.sh
+# Wired into `make bootstrap` so a single bootstrap gesture builds
+# sdlc + makes it available in new shells. Mirrors nous's PATH-append
+# convention; the old `~/bin` symlink approach was retired so all
+# repo `bin/` dirs (ariadne, nous, …) compose uniformly on PATH.
+#
+# `sdlc-bootstrap` stays as a backward-compat alias for pre-rename
+# muscle memory; will be removed once docs + downstream repos catch up.
+sdlc-install sdlc-bootstrap:
+	@scripts/sdlc-install.sh
