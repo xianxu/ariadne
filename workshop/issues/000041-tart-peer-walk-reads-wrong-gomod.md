@@ -1,11 +1,11 @@
 ---
 id: 000041
-status: working
+status: done
 deps: [000032]
 created: 2026-05-28
 updated: 2026-05-28
 estimate_hours:
-actual_hours:
+actual_hours: 0.5
 ---
 
 # tart peer-walk reads the wrong go.mod (root, not construct/) — skips substrate peers
@@ -132,6 +132,8 @@ remain so deeper chains still resolve.
 
 ## Log
 
+
+- 2026-05-28: closed — tart-list-peers.sh now lists you-decide + ariadne (was you-decide only); verified across 5 cases (derivative, ariadne-root, no-go.mod, root-replace-not-regressed, root+construct union); bash -n clean
 **2026-05-28 — implemented + verified.**
 
 Changed `.tart/scripts/tart-list-peers.sh`: factored the replace-walk into
