@@ -110,6 +110,23 @@ make bootstrap (in any repo)
   → derivative's local-env setup hook (Makefile.nous/Makefile.local extends)
 ```
 
+### Same peer set, three consumers
+
+The `replace => ../<name>` directives in `construct/go.mod` drive three
+independent walkers that must agree on the peer set:
+
+1. **`construct/setup.sh`** (`discover_ancestors`) — substrate symlink resolution.
+2. **`construct/scripts/bootstrap-peers.sh`** — the clone cascade above.
+3. **`.tart/scripts/tart-list-peers.sh`** — which repos to APFS-clone into the
+   tart VM (`make tart`, ariadne#32 phase 2).
+
+All three read the same grammar. A derivative declares its substrate `replace`
+in `construct/go.mod`, **not** the near-empty repo-root `go.mod`, so each walker
+reads **both** the root `go.mod` and `construct/go.mod` per node (root for any
+self-declared sibling replaces, construct for the substrate ancestor). A
+walker that reads only the root would clone the repo alone and miss ariadne —
+this was the ariadne#41 tart bug.
+
 ### Refresh vs bootstrap
 
 - **`make refresh`** — pure substrate-state sync. Peers must exist

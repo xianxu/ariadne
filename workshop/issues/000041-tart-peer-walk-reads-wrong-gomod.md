@@ -117,6 +117,40 @@ remain so deeper chains still resolve.
 
 ## Plan
 
-(TBD — pending approval)
+- [x] Refactor the inline replace-parser in `tart-list-peers.sh` into a
+  `_enqueue_replaces <dir>` helper (rhs resolves relative to `<dir>`, no-op if
+  `<dir>/go.mod` absent).
+- [x] In the BFS, call `_enqueue_replaces "$current"` **and**
+  `_enqueue_replaces "$current/construct"` per node — union of root + construct
+  replaces, deduped by the existing `_is_seen` guard.
+- [x] Update the script header to document the dual-go.mod walk + why construct/
+  is never emitted as a peer.
+- [x] Verify acceptance cases.
+- [x] Confirm propagation: `.tart/scripts` is a wholesale `symlink` in
+  `construct/base.manifest` (line 98), so the fix reaches every consumer via the
+  symlink — no manifest edit, already live in `you-decide`.
 
 ## Log
+
+**2026-05-28 — implemented + verified.**
+
+Changed `.tart/scripts/tart-list-peers.sh`: factored the replace-walk into
+`_enqueue_replaces <dir>`, then walk both `$current/go.mod` and
+`$current/construct/go.mod` for every BFS node. construct/ is never enqueued as a
+peer (only its replace targets), so the construct/ subdir stays nested inside its
+owning repo's clone — the layout `_tart_prepare_clone` (basename clone) expects.
+
+Verification (`bash tart-list-peers.sh <path>`):
+
+| Case | Expected | Result |
+|---|---|---|
+| `you-decide` (derivative) | you-decide + ariadne | ✅ both |
+| `ariadne` (root + construct, no local replaces) | ariadne only | ✅ |
+| dir with no go.mod | single repo (itself) | ✅ |
+| root go.mod carries sibling replace | root walk still honored | ✅ |
+| both root *and* construct replaces | union, deduped | ✅ |
+
+`bash -n` syntax check clean. Root cause was issue #32 phase 2 (selective
+go.mod-driven cloning) not being carried into the tart peer-walk — it read the
+root module only, while the ariadne `replace` lives in `construct/go.mod` (same
+location `bootstrap-peers.sh` and `Makefile.workflow build:` already read).
