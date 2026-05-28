@@ -1,11 +1,11 @@
 ---
 id: 000042
-status: working
+status: done
 deps: [000041]
 created: 2026-05-28
 updated: 2026-05-28
 estimate_hours:
-actual_hours:
+actual_hours: 1.0
 ---
 
 # Fresh-clone first-run bootstrap entrypoint (./bootstrap.sh)
@@ -116,6 +116,8 @@ target path on self-walk).
 
 ## Log
 
+
+- 2026-05-28: closed — offline e2e: peerless clone → make bootstrap fails → ./bootstrap.sh clones upstream sibling + hands off → BOOTSTRAP_OK; idempotent re-run; seed write-once in you-decide (real exec file, not symlink); seed self-walk skipped in ariadne; bash -n clean
 **2026-05-28 — implemented + verified.**
 
 Added `bootstrap.sh` (ariadne root): reads real `construct/go.mod`, derives peer
