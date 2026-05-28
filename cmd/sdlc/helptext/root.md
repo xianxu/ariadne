@@ -77,8 +77,8 @@ SUBCOMMANDS
   state            Inspect workflow state (current branch, working issues, drift)
   judge            Run an LLM-judge check against the diff (fresh-context subagent)
   fetch            Fetch a GitHub issue into workshop/issues/
-  start            Create a worktree branch from an issue
-  lock             Land an issue file on main as parallelization lock
+  claim            Land issue-file workflow state on main as a workstream claim
+  change-code      Enter implementation after structural + plan-quality gates
   set-status       Flip an issue's status with transition guards
   push             Ship from main (clean-tree + checks + archive)
   pr               Open a pull request from a worktree branch

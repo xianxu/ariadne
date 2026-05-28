@@ -122,21 +122,21 @@ otherwise dissolves into the diff.>
 
 ### Closing an issue
 
-Run `make close-issue` and follow the script's prompts:
+Run `sdlc close` and follow the binary's prompts:
 
 ```
-make close-issue ISSUE=<N> [MILESTONE=Mx] ACTUAL=<hours> VERIFIED='<one-line evidence>'
+sdlc close --issue <N> [--milestone Mx] --actual <hours> --verified '<one-line evidence>'
 ```
 
-The script enforces ariadne AGENTS.md §5: `status: done`, `actual_hours: <N>`, atlas/ change in the commit window, log entry. It refuses without ACTUAL or VERIFIED — its missing-arg explainer prints the exact `active-time-v3.py` command tailored to this issue's commit window (with peer issues auto-discovered, so the v3 attribution doesn't fall into mention-fallback). Run that command, read the `# per-issue totals` line for `#<N>`, re-run `make close-issue` with ACTUAL filled in.
+The binary enforces ariadne AGENTS.md §5: `status: done`, `actual_hours: <N>`, atlas/ change in the commit window, log entry. It refuses without `--actual` or `--verified` — its missing-arg explainer prints the exact `active-time-v3.py` command tailored to this issue's commit window (with peer issues auto-discovered, so the v3 attribution doesn't fall into mention-fallback). Run that command, read the `# per-issue totals` line for `#<N>`, re-run `sdlc close` with `--actual` filled in.
 
-What the script doesn't do — judgment steps the agent owns:
+What the binary doesn't do — judgment steps the agent owns:
 - Inspecting the per-segment table to spot misclassified work
 - Deciding whether a discovered peer issue is real work or a stray mention
 - Choosing the rounded ACTUAL value
 - Writing the VERIFIED one-liner (behavior evidence, not "code written")
 
-What the script does do automatically when invoked from a clean close:
+What the binary does do automatically when invoked from a clean close:
 - Tick the milestone in the issue's `## Plan` (milestone close) or `status: done` flip (issue close)
 - Set `actual_hours`, `updated`
 - Append a `## Log` entry with VERIFIED

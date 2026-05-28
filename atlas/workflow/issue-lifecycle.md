@@ -3,7 +3,7 @@
 ## Flow
 
 ```
-GitHub Issue → make fetch 42 → workshop/issues/000042-slug.md → work → make push (or make worktree → make pull-request → make merge)
+GitHub Issue → sdlc fetch --github-issue 42 → workshop/issues/000042-slug.md → sdlc claim → work → sdlc push (main) or sdlc change-code → sdlc pr → sdlc merge (branch)
 ```
 
 ## States
@@ -18,10 +18,11 @@ GitHub Issue → make fetch 42 → workshop/issues/000042-slug.md → work → m
 
 ## Transitions
 
-1. **Fetch**: `make fetch <num>` creates a local issue file from GitHub with frontmatter (id, status, github_issue, dates)
-2. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
-3. **Small work on main**: `make push` auto-commits, runs pre-merge checks, pushes, archives done issues to `history/`, closes GitHub issues
-4. **Large work on branch**: `make worktree` → isolated branch → `make pull-request` → `make merge` → archives and cleans up
+1. **Fetch**: `sdlc fetch --github-issue <num>` creates a local issue file from GitHub with frontmatter (id, status, github_issue, dates)
+2. **Claim**: `sdlc set-status --issue N working` then `sdlc claim --issue N` publishes the issue-state claim to main
+3. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
+4. **Small work on main**: `sdlc push` auto-commits, runs pre-merge checks, pushes, archives done issues to `history/`, closes GitHub issues
+5. **Large work on branch**: `sdlc change-code` chooses the branch/worktree path after planning; `sdlc pr` opens the pull request; `sdlc merge` archives and cleans up
 
 ## Worktree layout
 
@@ -36,13 +37,14 @@ of the current working directory (i.e., the repo folder name).
     └── 000051-fix-bug/        ← branch: 000051-fix-bug
 ```
 
-**Auto-detection**: `make worktree` (no argument) looks for exactly one untracked
-file in `issues/` matching `NNNNNN-*.md`. If found, it uses the basename (minus
-`.md`) as both the branch name and worktree directory name. If zero or multiple
-matches exist, it fails and lists them.
+**Branching decision**: `sdlc change-code --issue N` runs structural checks and
+the plan-quality judge, then asks whether to use a worktree or an in-place
+branch. Agents call it after planning; if stdin is non-interactive, the binary
+emits an `ASK_BRANCHING_STRATEGY` sentinel so the agent can ask the operator and
+rerun with `--worktree=yes` or `--worktree=no`.
 
 **Navigation**: worktree creation writes the path to `.goto`; the shell `g`
-alias reads it to `cd` you there. `make merge` writes the main worktree path
+alias reads it to `cd` you there. `sdlc merge` writes the main worktree path
 back into `.goto` for the return trip.
 
 ## Issue file structure
@@ -88,7 +90,7 @@ log) see **AGENTS.md §5 closing checklist**.
 
 ## Closing
 
-Each `make push` / `make merge` archives done issues into `history/`. Before that, run the **closing checklist** from AGENTS.md §5:
+Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before that, run the **closing checklist** from AGENTS.md §5:
 
 1. Verify behavior.
 2. Tick the milestone in `## Plan` and flip `status` to `done`.

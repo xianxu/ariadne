@@ -2,17 +2,19 @@
 
 Syncs `workshop/issues/` changes to main and pushes to origin, even from a feature branch. This enables using issue files as a coordination/locking mechanism across branches and collaborators.
 
+The canonical command is `sdlc claim`. The old `make issue-sync` target is a compatibility wrapper for repos that still enter workflow through Makefile targets.
+
 ## Usage
 
 ```
-make issue-sync
+sdlc claim --issue <N>
 ```
 
 ## Behavior
 
 ### On main
 
-Stages all changes and untracked files in `workshop/issues/`, commits, and pushes to origin.
+Stages changed and untracked files in `workshop/issues/` (or just the selected issue with `--issue`), commits, and pushes to origin.
 
 ### On a feature branch (worktree)
 
@@ -37,5 +39,6 @@ Issue state changes (status, assignment) need to be visible on main immediately,
 
 ## Implementation
 
-- Script: `scripts/issue-sync.sh`
-- Makefile target: `issue-sync` (in `Makefile.workflow`)
+- Binary: `cmd/sdlc/claim.go`
+- Compatibility wrapper: `make issue-sync` in `Makefile.workflow`
+- Legacy fallback script: `scripts/issue-sync.sh`

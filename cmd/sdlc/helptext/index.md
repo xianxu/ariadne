@@ -70,8 +70,8 @@ reads remain free-form, so drift is detectable by `sdlc state`.
 | `state`           | (recovery)         | (reads only; surfaces drift) |
 | `judge`           | milestone review   | Fresh-context LLM check against the diff |
 | `fetch`           | ideation / planning | Issue file shape, ID assignment, frontmatter |
-| `start`           | build              | One-untracked-issue auto-detect, pre-commit before branch |
-| `lock`            | build              | Issue file on main before parallel work |
+| `claim`           | build              | Issue-file workflow state on main as a workstream claim |
+| `change-code`     | build              | Planning → implementation gate, including branching decision |
 | `set-status`      | build              | Status transitions (`working` needs estimate; `done` delegates to `close`) |
 | `push`            | close / ship       | Clean tree, pre-merge judges, archive done issues |
 | `pr`              | close / ship       | Branch ≠ main, links touched issues into PR body |

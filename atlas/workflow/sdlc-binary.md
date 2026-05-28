@@ -1,8 +1,10 @@
 # sdlc binary
 
 `sdlc` is the SDLC checkpoint binary — one Go binary at `cmd/sdlc/`
-that collects ariadne's Makefile-target checkpoint guards into a
-unified verb namespace with embedded `--help` per subcommand.
+that collects ariadne's workflow checkpoint guards into a unified verb
+namespace with embedded `--help` per subcommand. Agents should invoke
+`sdlc` directly; Makefile targets are compatibility wrappers for
+downstream repos that have not built the binary yet.
 
 Design rationale: `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`.
 Build issue + plan: `workshop/history/000031-sdlc-checkpoint-binary.md`

@@ -1,13 +1,13 @@
 # Workflow System
 
-The ariadne workflow is an issue-based development loop designed for AI-assisted software engineering. It's codified in `AGENTS.md` (the "constitution") and automated via `Makefile.workflow` + `scripts/`.
+The ariadne workflow is an issue-based development loop designed for AI-assisted software engineering. It's codified in `AGENTS.md` (the "constitution") and guarded by the `sdlc` checkpoint binary. `Makefile.workflow` remains a compatibility wrapper for downstream repos that have not built `sdlc` yet.
 
 ## Entries
 
 - [Issue Lifecycle](issue-lifecycle.md) — how work flows from GitHub issue to completion
 - [Artifact Hierarchy](artifact-hierarchy.md) — where things live and when they move
 - [Pre-merge Checks](pre-merge-checks.md) — constitution enforcement via agent-driven review
-- [Issue Sync](issue-sync.md) — syncing issue state to main from any branch
+- [Issue Sync](issue-sync.md) — syncing issue state to main from any branch with `sdlc claim`
 - [Directory Conventions](directory-conventions.md) — the `workshop/` structure and why
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer
 - [OpenShell Sandbox](openshell-sandbox.md) — containerized dev environment setup, daily use, base layer integration

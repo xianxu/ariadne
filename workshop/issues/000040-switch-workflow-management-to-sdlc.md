@@ -1,10 +1,11 @@
 ---
 id: 000040
-status: working
+status: done
 deps: [000031, 000039]
 created: 2026-05-28
 updated: 2026-05-28
 estimate_hours: 1.5
+actual_hours: 1.0
 ---
 
 # Switch workflow management instructions to sdlc
@@ -27,7 +28,7 @@ This creates two forms of drift:
 
 - AGENTS.md should tell agents to invoke `sdlc` directly for workflow
   checkpoints:
-  - claim work with `sdlc set-status --issue N --status working` plus
+  - claim work with `sdlc set-status --issue N working` plus
     `sdlc claim --issue N`
   - close work with `sdlc close`
   - ship with `sdlc push`, `sdlc pr`, and `sdlc merge`
@@ -40,19 +41,37 @@ This creates two forms of drift:
 
 ## Plan
 
-- [ ] Update AGENTS.md workflow instructions from Makefile-era commands to
+- [x] Update AGENTS.md workflow instructions from Makefile-era commands to
       direct `sdlc` commands.
-- [ ] Update `cmd/sdlc/helptext/root.md` and `cmd/sdlc/helptext/index.md`
+- [x] Update `cmd/sdlc/helptext/root.md` and `cmd/sdlc/helptext/index.md`
       so generated help/skill prose lists `claim` and `change-code`.
-- [ ] Regenerate `construct/local/sdlc/SKILL.md` from `sdlc --index`.
-- [ ] Update workflow atlas docs that still describe Makefile as canonical.
-- [ ] Run focused tests for sdlc helptext/embedding and a full Go test pass if
+- [x] Regenerate `construct/local/sdlc/SKILL.md` from `sdlc --index`.
+- [x] Update workflow atlas docs that still describe Makefile as canonical.
+- [x] Run focused tests for sdlc helptext/embedding and a full Go test pass if
       feasible.
 
 ## Log
 
+
+- 2026-05-28: closed — Updated ariadne workflow docs/help to make direct sdlc invocation canonical; regenerated construct/local/sdlc/SKILL.md; verified with go run ./cmd/sdlc --help, go test ./cmd/sdlc/..., and go test ./...
 ### 2026-05-28 — issue created
 
 Created after downstream `pair` inspection showed SDLC migration drift:
 ariadne owns the SDLC binary and generated skill source, so the canonical
 fix belongs here.
+
+### 2026-05-28 — base docs and helptext updated
+
+Updated AGENTS.md, SDLC root/index helptext, workflow atlas pages, and the
+xx-issues local skill so direct `sdlc` invocation is the canonical agent path.
+Makefile workflow targets are now described as compatibility wrappers.
+
+### 2026-05-28 — generated skill refreshed
+
+Ran `go run ./cmd/sdlc --index > construct/local/sdlc/SKILL.md` so the local
+SDLC skill reflects the corrected `claim` / `change-code` command table.
+
+### 2026-05-28 — verification
+
+Verified updated SDLC help from source with `go run ./cmd/sdlc --help`.
+Ran `go test ./cmd/sdlc/...` and `go test ./...`; both passed.
