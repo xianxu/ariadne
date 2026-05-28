@@ -14,10 +14,21 @@
 #               (idempotently runs `go mod edit` to add require + replace
 #               + tool directives; source path is relative to upstream
 #               module, e.g. `tool cmd/sdlc`)
+#   seed      — write-once copy of a real file into the target (NOT a symlink),
+#               mode-preserving. For first-run entrypoints (bootstrap.sh) that
+#               must work before any substrate is present, so they can't be
+#               symlinks. Never overwrites an existing target. See #42.
 #
 # `copy` was retired in #38 — substrate is symlink-only. For operator-
 # divergent customization, use per-operator branches in the source repo
-# rather than per-derivative copies in the derivative tree.
+# rather than per-derivative copies in the derivative tree. (`seed` is not a
+# copy revival: it's a one-time delivery of a generic, not-edited entrypoint
+# that definitionally cannot be a symlink — a different concern from #38's.)
+
+# ── Fresh-clone bootstrap entrypoint ──────────────────────────────────────────
+# Real committed file, NOT a symlink — runs before any substrate exists to
+# clone the upstream peer(s), then hands off to `make bootstrap`. See #42.
+seed      bootstrap.sh
 
 # ── Constitution ──────────────────────────────────────────────────────────────
 symlink   AGENTS.md

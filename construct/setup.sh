@@ -8,7 +8,9 @@
 # Symlink-only model (per ariadne#38): all substrate text is symlinked
 # from upstream peers. Operator-divergent customization happens via
 # per-operator branches in upstream source repos, not per-derivative
-# copies. Five actions: symlink, tool, scaffold, touch, merge.
+# copies. Six actions: symlink, tool, scaffold, touch, merge, seed.
+# (`seed` is the lone copy-shaped action — write-once delivery of a
+# real first-run entrypoint that can't be a symlink; see create_seed.)
 #
 # Upstream discovery
 # ------------------
@@ -97,6 +99,27 @@ create_scaffold() {
     mkdir -p "$dir"
     touch "$dir/.gitkeep"
     printf "  ${GREEN}created${RESET} %s/\n" "${dir#$TARGET_DIR/}"
+}
+
+# create_seed — write-once copy of a real file from upstream into the target.
+# Unlike `symlink`, the result is a standalone file that survives a clone with
+# NO upstream beside it — for first-run entrypoints (bootstrap.sh) that must run
+# before any substrate is present, so they definitionally can't be symlinks.
+# Write-once: never overwrites an existing target (preserves local state; the
+# seeded file is generic + not-meant-to-be-edited, so there's nothing to sync).
+# Mode is preserved via `cp -p` so an executable source lands executable.
+create_seed() {
+    local src="$1" dst="$2"
+    if [[ -f "$dst" ]]; then
+        return 0
+    fi
+    if [[ ! -f "$src" ]]; then
+        printf "  ${YELLOW}warn${RESET}    seed source missing: %s\n" "${src#$upstream/}"
+        return 0
+    fi
+    ensure_parent "$dst"
+    cp -p "$src" "$dst"
+    printf "  ${GREEN}seeded${RESET}  %s\n" "${dst#$TARGET_DIR/}"
 }
 
 merge_settings() {
@@ -278,6 +301,13 @@ walk_manifest() {
                 ;;
             scaffold)
                 create_scaffold "$TARGET_DIR/$target"
+                ;;
+            seed)
+                # Write-once real-file copy (NOT a symlink) for first-run
+                # entrypoints that must work before substrate is present.
+                # Self-walk in the upstream is skipped by the self-reference
+                # filter above (source path == target path).
+                create_seed "$upstream/$source" "$TARGET_DIR/$target"
                 ;;
             copy)
                 # `copy` action was retired in ariadne#38 — substrate is

@@ -87,12 +87,30 @@ substrate text symlinks from upstream peers (sibling-checkout); Go tool
 sources resolve via `replace => ../<peer>` directives in
 `construct/go.mod`.
 
-**Five manifest actions:** `symlink`, `tool`, `scaffold`, `touch`, `merge`.
-Earlier versions also had `copy` — retired in #38. For per-derivative
+**Six manifest actions:** `symlink`, `tool`, `scaffold`, `touch`, `merge`,
+`seed`. Earlier versions also had `copy` — retired in #38. For per-derivative
 divergence (operator wants to customize a substrate file), the pattern is
 **per-operator branches in upstream source repos**, not per-derivative
 copies in the derivative tree. One branch per operator's preferences,
 shared across all that operator's derivatives.
+
+`seed` (added #42) is the one copy-shaped action — a **write-once** copy of a
+real file into the target, mode-preserving, never overwriting. It exists for
+the single case symlinks can't serve: a **fresh-clone entrypoint that must run
+before any substrate is present**. It is not a `copy` revival — `copy` let
+operators diverge substrate (discouraged); `seed` delivers a generic,
+not-meant-to-be-edited file once. Sole user today: `bootstrap.sh`.
+
+### Fresh-clone first-run — `./bootstrap.sh`
+
+A bare `git clone` of a derivative has only dangling symlinks (Makefile,
+construct/setup.sh, AGENTS.md, … all point at a not-yet-cloned upstream), so
+`make` can't read its own Makefile and **no target — including `bootstrap` —
+exists**. `bootstrap.sh` (real committed file, `seed`ed from ariadne) breaks the
+chicken-and-egg: it reads the real `construct/go.mod`, clones the direct upstream
+peer(s) as siblings (URL derived from `origin`, same convention as
+bootstrap-peers.sh), then `exec make bootstrap` once the symlinks resolve.
+Idempotent. See #42.
 
 ### Bootstrap cascade (`make bootstrap`)
 
@@ -110,15 +128,18 @@ make bootstrap (in any repo)
   → derivative's local-env setup hook (Makefile.nous/Makefile.local extends)
 ```
 
-### Same peer set, three consumers
+### Same peer set, four consumers
 
-The `replace => ../<name>` directives in `construct/go.mod` drive three
+The `replace => ../<name>` directives in `construct/go.mod` drive four
 independent walkers that must agree on the peer set:
 
 1. **`construct/setup.sh`** (`discover_ancestors`) — substrate symlink resolution.
 2. **`construct/scripts/bootstrap-peers.sh`** — the clone cascade above.
 3. **`.tart/scripts/tart-list-peers.sh`** — which repos to APFS-clone into the
    tart VM (`make tart`, ariadne#32 phase 2).
+4. **`bootstrap.sh`** — fresh-clone entrypoint (#42); reads `construct/go.mod`
+   *before* any substrate exists (the other three run after, via the symlinked
+   Makefile). The reason `construct/go.mod` must stay a real file, not a symlink.
 
 All three read the same grammar. A derivative declares its substrate `replace`
 in `construct/go.mod`, **not** the near-empty repo-root `go.mod`, so each walker

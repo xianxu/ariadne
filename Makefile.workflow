@@ -131,10 +131,16 @@ close-issue:
 #                        collision.
 #
 # First-time bootstrap of a fresh-clone derivative whose upstreams aren't
-# yet vendored: run `../ariadne/construct/setup.sh` manually once to seed
-# construct/setup.sh, then `make bootstrap` cascades from there. (Once
-# substrate has propagated, `make bootstrap` is the canonical post-clone
-# command.)
+# yet checked out beside it: run `./bootstrap.sh` (a real committed file, not
+# a symlink — see #42). It reads the real construct/go.mod, clones the upstream
+# peer(s) as siblings, then hands off to `make bootstrap`. Without it you hit
+# the chicken-and-egg where every make target is unreachable (Makefile itself
+# is a dangling symlink into the not-yet-cloned upstream).
+#
+# Equivalent manual path if `./bootstrap.sh` is absent: clone the upstream as
+# a sibling yourself (or run `../<upstream>/construct/setup.sh`), then
+# `make bootstrap`. Once substrate has propagated, `make bootstrap` is the
+# canonical post-clone command.
 
 refresh:
 	@if [ -x construct/setup.sh ]; then \

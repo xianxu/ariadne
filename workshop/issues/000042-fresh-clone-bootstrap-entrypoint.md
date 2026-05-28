@@ -105,13 +105,40 @@ target path on self-walk).
 
 ## Plan
 
-- [ ] Add canonical `bootstrap.sh` at ariadne root (real, generic, idempotent).
-- [ ] Add `seed` action: `create_seed` fn + dispatch case in `construct/setup.sh`;
+- [x] Add canonical `bootstrap.sh` at ariadne root (real, generic, idempotent).
+- [x] Add `seed` action: `create_seed` fn + dispatch case in `construct/setup.sh`;
       document in `construct/base.manifest` action list; add `seed bootstrap.sh`.
-- [ ] Update `Makefile.workflow` bootstrap header + atlas
+- [x] Update `Makefile.workflow` bootstrap header + atlas
       (`setup-and-replication.md`) with the fresh-clone first-run command.
-- [ ] Verify: simulate a peerless clone; `bootstrap.sh` clones the upstream and
+- [x] Verify: simulate a peerless clone; `bootstrap.sh` clones the upstream and
       hands off; re-run is a no-op.
-- [ ] Seed + commit `bootstrap.sh` into `you-decide`.
+- [x] Seed + commit `bootstrap.sh` into `you-decide` (+ README install block).
 
 ## Log
+
+**2026-05-28 — implemented + verified.**
+
+Added `bootstrap.sh` (ariadne root): reads real `construct/go.mod`, derives peer
+URLs from `origin` (swap repo-name), clones direct peers as siblings, `exec make
+bootstrap`. Idempotent. Added `seed` manifest action (`create_seed` + dispatch in
+`construct/setup.sh`; documented in `base.manifest`; line `seed bootstrap.sh`) —
+write-once real-file copy, mode-preserving, for entrypoints that can't be
+symlinks. Docs: `Makefile.workflow` bootstrap header + `atlas/workflow/
+setup-and-replication.md` (six actions, fresh-clone section, fourth go.mod
+consumer).
+
+Verification:
+
+- **End-to-end (offline, local bare remotes):** fresh peerless clone of a fake
+  derivative → `make bootstrap` fails (`Makefile: No such file or directory`) →
+  `./bootstrap.sh` derives upstream URL, clones it as sibling, hands off →
+  `BOOTSTRAP_OK`. Re-run: peer present → skip + handoff (idempotent). ✅
+- **`seed` in derivative (`you-decide`):** `construct/setup.sh` printed
+  `seeded bootstrap.sh`; result is a real executable file (not symlink),
+  byte-identical to canonical; re-run is a no-op (write-once). ✅
+- **`seed` self-walk (ariadne):** printed `skipped bootstrap.sh (self-reference
+  at canonical location)`; canonical file md5-unchanged, still a real file. ✅
+- `bash -n` clean on `bootstrap.sh`.
+
+Seeded + committing `bootstrap.sh` into `you-decide` so a fresh clone works
+today; README install block updated `make bootstrap` → `./bootstrap.sh`.
