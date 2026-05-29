@@ -1,6 +1,6 @@
 ---
 id: 000044
-status: open
+status: working
 deps: [000032, 000029, 000041, 000042, 000045]
 created: 2026-05-29
 updated: 2026-05-29
@@ -137,17 +137,19 @@ flag for opting peers into writable two-way sync.
 > Draft — awaiting operator approval before implementation (non-trivial,
 > base-layer, multi-file per AGENTS.md §2).
 
-- [ ] **M1 — Promote the peer walker.** Move `tart-list-peers.sh` →
-  `construct/scripts/list-peers.sh` (add optional extra-repo args for the
-  union); symlink the old tart path to it; point `setup.sh:discover_ancestors`
-  at it (or document why it stays inline). Update `construct/base.manifest`.
-  Verify `make tart` peer set is byte-identical before/after.
-  **The `replace`-line parser extracted here is co-owned with #45** (which
-  rewrites `bootstrap.sh` as a transitive clone-walk over the same parser);
-  sequence M1 with #45 M1 so the primitive is factored once.
-- [ ] **M2 — Drift test for bootstrap.** Fixture `go.mod` + test asserting
-  `bootstrap.sh`'s parser and `list-peers.sh` agree on replace targets.
-  (Owned jointly with #45; whichever lands first writes it.)
+- [x] **M1 — Promote the peer walker.** `git mv .tart/scripts/tart-list-peers.sh
+  construct/scripts/list-peers.sh`; `.tart/scripts/tart-list-peers.sh` is now a
+  back-compat symlink → it (resolves in derivatives via the wholesale
+  `.tart/scripts` symlink chaining to it). Added optional extra-repo args
+  (decision 9: union seeds). Added `symlink construct/scripts/list-peers.sh` to
+  `construct/base.manifest`. `discover_ancestors` stays inline (has extra
+  sources: `go list -m all` + no-go.mod fallback — not a clean swap) — shares
+  grammar, documented in the script header + atlas. Verified `make tart` peer
+  set byte-identical before/after (pair: {pair, ariadne}); extras union works
+  (pair + you-decide → {pair, you-decide, ariadne}).
+- [x] **M2 — Drift test for bootstrap.** Landed in #45
+  (`construct/scripts/test/bootstrap-transitive.test.sh`, t8); reference updated
+  to the canonical `construct/scripts/list-peers.sh` path; green.
 - [ ] **M3 — Sandbox layout + go.mod sync.** Rewrite `ensure_mutagen_sync` to
   drive off `list-peers.sh`; sync into `~/workspace/<basename>`; `~/repo` +
   auto-cd marker; drop the `WORKSPACE_DIR` sync and sibling-symlink loop.

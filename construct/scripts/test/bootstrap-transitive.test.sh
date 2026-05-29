@@ -10,7 +10,7 @@ set -uo pipefail
 
 ARIADNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
 BOOTSTRAP="$ARIADNE_ROOT/bootstrap.sh"
-LIST_PEERS="$ARIADNE_ROOT/.tart/scripts/tart-list-peers.sh"
+LIST_PEERS="$ARIADNE_ROOT/construct/scripts/list-peers.sh"
 
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/bootstrap45.XXXXXX")"
 trap 'rm -rf "$ROOT"' EXIT

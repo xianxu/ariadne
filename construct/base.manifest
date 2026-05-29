@@ -74,6 +74,10 @@ symlink   construct/scripts/sync-local-skills.sh
 symlink   construct/scripts/merge-settings.sh
 symlink   construct/scripts/apply-gitignore-entries.sh
 symlink   construct/scripts/bootstrap-peers.sh
+# Canonical present-peers walker (ariadne#44) — shared by .tart and the
+# openshell sandbox; .tart/scripts/tart-list-peers.sh is a back-compat symlink
+# to it (delivered via the wholesale `.tart/scripts` symlink below).
+symlink   construct/scripts/list-peers.sh
 # Canonical setup.sh — vendored down to every layer so each layer's
 # `<repo>/construct/setup.sh` is the same source-of-truth script.
 # Walks transitive upstream manifests via `go list -m`, with depth-1
