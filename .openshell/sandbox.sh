@@ -369,9 +369,18 @@ ensure_mutagen_sync() {
     local desired=() mode path name remote
 
     echo "==> Sync plan (current repo + construct/go.mod peers):"
-    while IFS=$'\t' read -r mode path name; do
+    # Read on fd 3, not stdin: ssh/mutagen inside the loop would otherwise
+    # consume the process-substitution from stdin and truncate the loop after
+    # the first peer (the classic "ssh eats the while-read pipe" bug).
+    while IFS=$'\t' read -r mode path name <&3; do
         [ -z "$name" ] && continue
         remote="/sandbox/workspace/$name"
+        # mutagen creates the sync-root leaf but NOT missing parents: the beta
+        # root /sandbox/workspace/<name> needs /sandbox/workspace to exist, and
+        # the rw .git sync's parent is /sandbox/workspace/<name>. Pre-create the
+        # peer dir so neither hits a beta "transition problem" (0 files synced).
+        # -n: don't read stdin (belt-and-suspenders with the fd-3 read).
+        $SSH -n "$SANDBOX_SSH_HOST" "mkdir -p '$remote'" 2>/dev/null || true
         if [ "$mode" = rw ]; then
             printf '    %-24s ~/workspace/%-20s writable\n' "$name" "$name"
             ensure_sync "peer-${name}-rw" "$path" "$remote" two-way-resolved \
@@ -393,14 +402,21 @@ ensure_mutagen_sync() {
                 --ignore .test-home --ignore .test-xdg --ignore .test-tmp
             desired+=("${SANDBOX_NAME}-peer-${name}-ro")
         fi
-    done < <(compute_sync_set)
+    done 3< <(compute_sync_set)
 
     # Host-mirroring layout: ~/workspace is the peer tree; ~/repo → current repo;
-    # marker drives the shell's auto-cd on login (see overlay/setup.sh).
+    # marker drives the shell's auto-cd on login (see overlay/setup.sh). In this
+    # base image $HOME *is* /sandbox, so ~/workspace already equals the sync
+    # parent /sandbox/workspace — symlinking it would create ~/workspace → itself
+    # (a name == target loop), so skip on PATH equality (a string test, since the
+    # dir may not be mutagen-populated yet — an -ef inode test would falsely
+    # fall through). Only alias when $HOME differs (e.g. /home/sandbox). ~/repo
+    # always links to the current repo under the workspace tree.
     $SSH "$SANDBOX_SSH_HOST" \
-        "ln -sfn /sandbox/workspace \$HOME/workspace; \
-         ln -sfn /sandbox/workspace/$REPO_NAME_LOCAL \$HOME/repo; \
-         printf '%s\n' '$REPO_NAME_LOCAL' > \$HOME/.sandbox-current-repo" 2>/dev/null || true
+        "[ \"\$HOME/workspace\" = /sandbox/workspace ] || ln -sfn /sandbox/workspace \"\$HOME/workspace\"; \
+         { [ -d \"\$HOME/repo\" ] && [ ! -L \"\$HOME/repo\" ] && rm -rf \"\$HOME/repo\"; }; \
+         ln -sfn /sandbox/workspace/$REPO_NAME_LOCAL \"\$HOME/repo\"; \
+         printf '%s\n' '$REPO_NAME_LOCAL' > \"\$HOME/.sandbox-current-repo\"" 2>/dev/null || true
 
     # ── Orthogonal syncs (not peers; kept as-is) ─────────────────────────────
     mkdir -p "$REPO_DIR/../worktree"
