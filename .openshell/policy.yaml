@@ -8,8 +8,13 @@ filesystem_policy:
     - /home/sandbox              # user home — repo and worktree live under here
     - /tmp
     - /dev/null                  # required by scp, shells, and many Unix tools
-    - /dev/ptmx                  # pty creation (needed by script(1) for ^Y capture)
-    - /dev/pts                   # pty slave devices
+    # NOTE: do NOT list /dev/ptmx here. In the base image it is a symlink
+    # (/dev/ptmx -> pts/ptmx), and hardened OpenShell (>=~0.0.37) refuses to
+    # chown a symlinked read_write path (TOCTOU symlink-race guard), which
+    # aborts sandbox startup. Granting /dev/pts is sufficient: opening
+    # /dev/ptmx resolves through the symlink into /dev/pts/ptmx, which this
+    # grant covers — so pty creation (script(1) ^Y capture) still works.
+    - /dev/pts                   # pty master+slave devices (covers /dev/ptmx via symlink)
   read_only:
     - /usr
     - /etc
