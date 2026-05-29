@@ -1,7 +1,7 @@
 ---
 id: 000044
 status: open
-deps: [000032, 000029, 000041, 000042]
+deps: [000032, 000029, 000041, 000042, 000045]
 created: 2026-05-29
 updated: 2026-05-29
 estimate_hours:
@@ -142,8 +142,12 @@ flag for opting peers into writable two-way sync.
   union); symlink the old tart path to it; point `setup.sh:discover_ancestors`
   at it (or document why it stays inline). Update `construct/base.manifest`.
   Verify `make tart` peer set is byte-identical before/after.
+  **The `replace`-line parser extracted here is co-owned with #45** (which
+  rewrites `bootstrap.sh` as a transitive clone-walk over the same parser);
+  sequence M1 with #45 M1 so the primitive is factored once.
 - [ ] **M2 — Drift test for bootstrap.** Fixture `go.mod` + test asserting
-  `bootstrap.sh`'s inline parser and `list-peers.sh` agree on replace targets.
+  `bootstrap.sh`'s parser and `list-peers.sh` agree on replace targets.
+  (Owned jointly with #45; whichever lands first writes it.)
 - [ ] **M3 — Sandbox layout + go.mod sync.** Rewrite `ensure_mutagen_sync` to
   drive off `list-peers.sh`; sync into `~/workspace/<basename>`; `~/repo` +
   auto-cd marker; drop the `WORKSPACE_DIR` sync and sibling-symlink loop.
@@ -172,3 +176,7 @@ flag for opting peers into writable two-way sync.
   `pair`; design converged with operator in-session (decisions 1–9 above).
   Sibling fixes that unblocked sandbox usage landed first: `/dev/ptmx` policy
   fix (`70e434e`) and Ctrl+C trap / fail-fast (`f05d9d2`).
+- 2026-05-29: added dep on #45 (bootstrap transitivity gap), split out of this
+  design discussion. The shared `replace`-line parser (M1/M2) is co-owned with
+  #45; the "one parser, two walk drivers (clone-absent vs list-present)" split
+  is documented there.
