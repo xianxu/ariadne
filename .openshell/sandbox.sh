@@ -299,50 +299,126 @@ ensure_sync() {
     mutagen sync flush "$sync_name" 2>/dev/null || true
 }
 
-ensure_mutagen_sync() {
-    # Main repo: two-way sync (this is where you work)
-    ensure_sync repo "$REPO_DIR" /sandbox/repo two-way-resolved \
-        --ignore-vcs \
-        --ignore node_modules \
-        --ignore .test-home --ignore .test-xdg --ignore .test-tmp
+# ── go.mod peer sync (ariadne#44) ─────────────────────────────────────────────
+# The sandbox syncs the current repo + its transitive construct/go.mod peers
+# (not the whole parent workspace), into ~/workspace/<name> — mirroring the host
+# layout, same model as `make tart`. Peers are read-only by default; SYNC=
+# opts a peer into two-way writable.
 
-    # Workspace peers: one-way read-only sync of the parent directory,
-    # excluding the main repo (already synced above) and heavy dirs.
-    ensure_sync workspace "$WORKSPACE_DIR" /sandbox/workspace one-way-replica \
-        --ignore-vcs \
-        --ignore "$REPO_NAME_LOCAL" \
-        --ignore node_modules \
-        --ignore .test-home --ignore .test-xdg --ignore .test-tmp
-
-    # Create flat peer symlinks under /sandbox/ so repos are true peers:
-    #   /sandbox/brain → /sandbox/repo (main)
-    #   /sandbox/ariadne → /sandbox/workspace/ariadne (peer)
-    # Also link inside /sandbox/workspace/ for consistency.
-    $SSH "$SANDBOX_SSH_HOST" "ln -sfn /sandbox/repo /sandbox/$REPO_NAME_LOCAL" 2>/dev/null || true
-    $SSH "$SANDBOX_SSH_HOST" "ln -sfn /sandbox/repo /sandbox/workspace/$REPO_NAME_LOCAL" 2>/dev/null || true
-    for dir in "$WORKSPACE_DIR"/*/; do
-        local name
-        name=$(basename "$dir")
-        [ "$name" = "$REPO_NAME_LOCAL" ] && continue
-        $SSH "$SANDBOX_SSH_HOST" "ln -sfn /sandbox/workspace/$name /sandbox/$name" 2>/dev/null || true
+# Resolve SYNC=../a,../b (relative to REPO_DIR) into absolute, physical paths.
+sync_extra_paths() {
+    local IFS=',' raw abs
+    for raw in ${SYNC:-}; do
+        [ -z "$raw" ] && continue
+        abs="$(cd "$REPO_DIR/$raw" 2>/dev/null && pwd -P || true)"
+        [ -z "$abs" ] && abs="$(cd "$raw" 2>/dev/null && pwd -P || true)"
+        [ -n "$abs" ] && printf '%s\n' "$abs"
     done
+}
 
+# Emit the sync set as "mode<TAB>abspath<TAB>name" lines. The current repo and
+# every SYNC= entry are rw (two-way); all other go.mod peers are ro (one-way).
+# list-peers.sh provides membership (current repo + transitive peers + SYNC=
+# extras as union seeds); writability classification is decided here.
+compute_sync_set() {
+    local repo_canon extras list_peers list rwset p name mode
+    repo_canon="$(cd "$REPO_DIR" && pwd -P)"
+    extras="$(sync_extra_paths)"
+    list_peers="$REPO_DIR/construct/scripts/list-peers.sh"
+    if [ -x "$list_peers" ]; then
+        # shellcheck disable=SC2086 -- extras is a newline list; word-split as args
+        list="$("$list_peers" "$repo_canon" $extras 2>/dev/null)" || list="$repo_canon"
+    else
+        # Pre-#44 derivative not yet refreshed (no list-peers symlink): degrade
+        # to current-repo-only, like tart's no-go.mod single-repo fallback.
+        echo "  (list-peers.sh not found — syncing current repo only; run 'make refresh')" >&2
+        list="$repo_canon"
+    fi
+    rwset=" $repo_canon "
+    while IFS= read -r p; do [ -n "$p" ] && rwset="$rwset$p "; done <<<"$extras"
+    while IFS= read -r p; do
+        [ -z "$p" ] && continue
+        name="$(basename "$p")"
+        if [[ "$rwset" == *" $p "* ]]; then mode=rw; else mode=ro; fi
+        printf '%s\t%s\t%s\n' "$mode" "$p" "$name"
+    done <<<"$list"
+}
+
+# All mutagen sync names this sandbox currently owns (prefix-scoped). Excludes
+# the bootstrap sync, which the cleanup paths manage explicitly.
+list_owned_syncs() {
+    mutagen sync list --template '{{range .}}{{.Name}}{{"\n"}}{{end}}' 2>/dev/null \
+        | grep "^${SANDBOX_NAME}-" \
+        | grep -v "^${SANDBOX_NAME}-bootstrap$" || true
+}
+
+# Terminate any owned sync whose name is not in the desired set ($@). Drives
+# RO→RW upgrades, RW→RO downgrades, dropped peers, and migration off the old
+# fixed names (repo/git/workspace) — all as a pure name-set diff.
+reconcile_syncs() {
+    local n
+    for n in $(list_owned_syncs); do
+        case " $* " in
+            *" $n "*) ;;  # still desired — keep
+            *) echo "  reconcile: terminating stale sync $n"; mutagen sync terminate "$n" 2>/dev/null || true ;;
+        esac
+    done
+}
+
+ensure_mutagen_sync() {
+    local desired=() mode path name remote
+
+    echo "==> Sync plan (current repo + construct/go.mod peers):"
+    while IFS=$'\t' read -r mode path name; do
+        [ -z "$name" ] && continue
+        remote="/sandbox/workspace/$name"
+        if [ "$mode" = rw ]; then
+            printf '    %-24s ~/workspace/%-20s writable\n' "$name" "$name"
+            ensure_sync "peer-${name}-rw" "$path" "$remote" two-way-resolved \
+                --ignore-vcs \
+                --ignore node_modules \
+                --ignore .test-home --ignore .test-xdg --ignore .test-tmp
+            desired+=("${SANDBOX_NAME}-peer-${name}-rw")
+            # Writable repos get .git (one-way host→sandbox) so in-sandbox git
+            # ops have history; share commits by pushing, not via mutagen
+            # (two-way .git is conflict-prone — see issue #44 decision 5).
+            ensure_sync "peergit-${name}" "$path/.git" "$remote/.git" one-way-replica \
+                --ignore "index.lock"
+            desired+=("${SANDBOX_NAME}-peergit-${name}")
+        else
+            printf '    %-24s ~/workspace/%-20s read-only\n' "$name" "$name"
+            ensure_sync "peer-${name}-ro" "$path" "$remote" one-way-replica \
+                --ignore-vcs \
+                --ignore node_modules \
+                --ignore .test-home --ignore .test-xdg --ignore .test-tmp
+            desired+=("${SANDBOX_NAME}-peer-${name}-ro")
+        fi
+    done < <(compute_sync_set)
+
+    # Host-mirroring layout: ~/workspace is the peer tree; ~/repo → current repo;
+    # marker drives the shell's auto-cd on login (see overlay/setup.sh).
+    $SSH "$SANDBOX_SSH_HOST" \
+        "ln -sfn /sandbox/workspace \$HOME/workspace; \
+         ln -sfn /sandbox/workspace/$REPO_NAME_LOCAL \$HOME/repo; \
+         printf '%s\n' '$REPO_NAME_LOCAL' > \$HOME/.sandbox-current-repo" 2>/dev/null || true
+
+    # ── Orthogonal syncs (not peers; kept as-is) ─────────────────────────────
     mkdir -p "$REPO_DIR/../worktree"
     ensure_sync worktree "$REPO_DIR/../worktree" /sandbox/worktree two-way-resolved \
         --ignore-vcs
-
-    ensure_sync git "$REPO_DIR/.git" /sandbox/repo/.git one-way-replica \
-        --ignore "index.lock"
+    desired+=("${SANDBOX_NAME}-worktree")
 
     local nvim_state="${HOME}/.local/state/nvim"
     if [ -d "$nvim_state" ]; then
         ensure_sync nvim-state "$nvim_state" /sandbox/.local/state/nvim one-way-replica \
             --ignore-vcs
+        desired+=("${SANDBOX_NAME}-nvim-state")
     fi
 
     if [ -d "$PLENARY_HOST" ]; then
         ensure_sync plenary "$PLENARY_HOST" /sandbox/.local/share/nvim/lazy/plenary.nvim one-way-replica \
             --ignore-vcs
+        desired+=("${SANDBOX_NAME}-plenary")
     fi
 
     # Claude Code sessions: bi-directional so sessions can be resumed across
@@ -352,15 +428,21 @@ ensure_mutagen_sync() {
         $SSH "$SANDBOX_SSH_HOST" "mkdir -p /sandbox/.claude/projects" 2>/dev/null || true
         ensure_sync claude-sessions "$claude_projects" /sandbox/.claude/projects two-way-resolved \
             --ignore-vcs
+        desired+=("${SANDBOX_NAME}-claude-sessions")
     fi
+
+    # Drive the declarative reconcile: drop anything we own that's no longer
+    # desired (stale peers, mode flips, old fixed-name syncs from pre-#44).
+    reconcile_syncs "${desired[@]}"
 }
 
-# All mutagen sync names (add new syncs here)
-SYNC_NAMES="repo git workspace worktree plenary nvim-state claude-sessions"
-
+# Terminate every sync this sandbox owns (prefix-scoped). Replaces the old
+# static SYNC_NAMES list — correct regardless of how many peers / SYNC= extras
+# existed (issue #44 decision 7).
 terminate_all_syncs() {
-    for name in $SYNC_NAMES; do
-        mutagen sync terminate "${SANDBOX_NAME}-${name}" 2>/dev/null || true
+    local n
+    for n in $(list_owned_syncs); do
+        mutagen sync terminate "$n" 2>/dev/null || true
     done
 }
 
@@ -528,11 +610,16 @@ cmd_nuke() {
     echo "Sandbox nuked."
 }
 
-case "$ACTION" in
-    build)   cmd_build ;;
-    connect) cmd_connect ;;
-    clean)   cmd_clean ;;
-    stop)    cmd_stop ;;
-    nuke)    cmd_nuke ;;
-    *)       echo "Usage: $0 {build|connect|stop|clean|nuke} <sandbox-name>"; exit 1 ;;
-esac
+# SANDBOX_LIB_ONLY=1 sources this file for its functions without dispatching
+# (used by construct/scripts/test/ to exercise pure helpers like
+# compute_sync_set in isolation — no docker/mutagen/ssh required).
+if [ "${SANDBOX_LIB_ONLY:-}" != 1 ]; then
+    case "$ACTION" in
+        build)   cmd_build ;;
+        connect) cmd_connect ;;
+        clean)   cmd_clean ;;
+        stop)    cmd_stop ;;
+        nuke)    cmd_nuke ;;
+        *)       echo "Usage: $0 {build|connect|stop|clean|nuke} <sandbox-name>"; exit 1 ;;
+    esac
+fi

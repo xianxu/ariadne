@@ -164,7 +164,11 @@ define _tart_prepare_clone
 	@mkdir -p "$(dir $(TART_CLONE_DIR))"
 	@rm -rf "$(TART_CLONE_DIR)"
 	@mkdir -p "$(TART_CLONE_DIR)"
-	@$(CURDIR)/.tart/scripts/tart-list-peers.sh "$(CURDIR)" | while IFS= read -r peer; do \
+	@# SYNC=../a,../b widens the clone set with extra repos (ariadne#44 decision
+	@# 9) — passed as extra seeds to the shared walker, resolved relative to the
+	@# repo. In tart everything is a COW clone (no rw/ro axis), so SYNC here just
+	@# means "also include these repos in the VM".
+	@$(CURDIR)/.tart/scripts/tart-list-peers.sh "$(CURDIR)" $$(echo "$(SYNC)" | tr ',' ' ') | while IFS= read -r peer; do \
 	    name=$$(basename "$$peer"); \
 	    echo "  cloning $$name ($$peer)"; \
 	    if ! cp -cR "$$peer" "$(TART_CLONE_DIR)/$$name" 2>/dev/null; then \

@@ -121,8 +121,11 @@ flag for opting peers into writable two-way sync.
 - `make sandbox` in `pair` syncs `pair` (rw) + `ariadne` (ro) into
   `~/workspace/{pair,ariadne}`; login lands in `~/workspace/pair`; `~/repo`
   resolves there. Unrelated siblings (e.g. `brain-*`) are NOT synced.
-- `SYNC=../ariadne make sandbox` makes `~/workspace/ariadne` two-way writable
-  and syncs its `.git`; a commit made there appears on the host.
+- `SYNC=../ariadne make sandbox` makes `~/workspace/ariadne` two-way writable —
+  working-tree edits in the sandbox appear on the host — and syncs its `.git`
+  one-way (host→sandbox) so in-sandbox git ops have history. (Revised from
+  "commit appears on host": two-way `.git` over mutagen is conflict-prone, so
+  in-sandbox commits are shared by `git push`, not by mutagen — decision 5.)
 - Start ro → exit → re-run with `SYNC=../ariadne`: ariadne flips ro→rw without a
   full rebuild; the stale `-ro` session is gone, `-rw` + `.git` present.
 - `make sandbox-stop` leaves zero `${SANDBOX_NAME}-*` mutagen sessions.
@@ -150,19 +153,36 @@ flag for opting peers into writable two-way sync.
 - [x] **M2 — Drift test for bootstrap.** Landed in #45
   (`construct/scripts/test/bootstrap-transitive.test.sh`, t8); reference updated
   to the canonical `construct/scripts/list-peers.sh` path; green.
-- [ ] **M3 — Sandbox layout + go.mod sync.** Rewrite `ensure_mutagen_sync` to
-  drive off `list-peers.sh`; sync into `~/workspace/<basename>`; `~/repo` +
-  auto-cd marker; drop the `WORKSPACE_DIR` sync and sibling-symlink loop.
-  Reconcile `overlay/setup.sh` (`~/repo` mkdir, login cwd).
-- [ ] **M4 — Mode reconcile + SYNC= flag.** Mode-encoded sync names; declarative
-  reconcile; `SYNC=` plumbed Makefile→sandbox.sh; `.git` for writable peers;
-  mode-aware `ensure_sync`.
-- [ ] **M5 — Teardown by prefix + startup print.** Prefix-based
-  `terminate_all_syncs`; retire `SYNC_NAMES`; per-repo sync-plan log line.
-- [ ] **M6 — `SYNC=` for tart.** Union semantics in the tart Makefile via the
-  shared walker.
-- [ ] Post-milestone code review per AGENTS.md §3; update `atlas/` (workflow
-  map) for the converged peer-sync model; log outcome.
+- [x] **M3 — Sandbox layout + go.mod sync.** `ensure_mutagen_sync` rewritten to
+  drive off `list-peers.sh` (via `compute_sync_set`); each peer syncs to
+  `/sandbox/workspace/<name>`; in-sandbox `ln -sfn` makes `~/workspace` → the
+  peer tree and `~/repo` → current repo, plus a `~/.sandbox-current-repo` marker.
+  Dropped the `WORKSPACE_DIR` sync + the "symlink every sibling" loop.
+  `overlay/setup.sh`: added the bashrc auto-cd block; **removed `mkdir ~/repo`**
+  (now a symlink — a pre-made real dir would make `ln -sfn` nest inside it).
+- [x] **M4 — Mode reconcile + SYNC= flag.** Mode-encoded sync names
+  (`…-peer-<name>-{ro,rw}`, `…-peergit-<name>`); `compute_sync_set` classifies
+  current-repo + `SYNC=` entries as rw, other go.mod peers ro; `reconcile_syncs`
+  diffs desired-vs-owned and terminates stale (drives ro→rw upgrade, rw→ro
+  downgrade, migration off old fixed names). `SYNC=` read from env. Writable
+  peers get `.git` (one-way host→sandbox; two-way `.git` is conflict-prone —
+  decision 5 amended below). `ensure_sync` keys on the mode-encoded name.
+- [x] **M5 — Teardown by prefix + startup print.** `terminate_all_syncs` +
+  `list_owned_syncs` enumerate `mutagen sync list --template` filtered by
+  `${SANDBOX_NAME}-` (minus bootstrap); static `SYNC_NAMES` retired. Startup
+  prints the per-repo sync plan (name → path, read-only/writable).
+- [x] **M6 — `SYNC=` for tart.** `.tart/Makefile` passes `SYNC` (comma→space) as
+  extra seeds to the shared walker. Verified: pair clone set widens from
+  {pair, ariadne} to {pair, you-decide, ariadne} with `SYNC=../you-decide`.
+- [ ] **M7 — Live E2E verification (integration).** The above are verified by
+  hermetic unit tests for the *pure* logic (`sandbox-sync-set.test.sh` 5/5;
+  list-peers regression + extras; bootstrap drift). The mutagen/ssh/docker
+  integration (peers actually sync into `~/workspace/{repo,peers}`, login lands
+  in `~/workspace/<repo>`, ro→rw re-run upgrade, `make sandbox-stop` leaves zero
+  `${SANDBOX_NAME}-*` sessions) needs a real sandbox build — see Log for the
+  checklist. **Not closed until this passes.**
+- [ ] Post-milestone code review per AGENTS.md §3; atlas update
+  (`workflow/openshell-sandbox.md` + `setup-and-replication.md`); log outcome.
 
 ## Notes
 

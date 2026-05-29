@@ -161,6 +161,17 @@ yend() {
 # Bind Ctrl+Y / Alt+Y
 bind -m vi-insert -x '"\C-y": clast'
 bind -m vi-insert -x '"\ey": clast_append'
+
+# Auto-cd into the current repo on interactive login (ariadne#44). sandbox.sh
+# writes ~/.sandbox-current-repo (the repo name) and symlinks ~/workspace to the
+# synced peer tree; land in ~/workspace/<repo>. Falls back to $HOME if missing.
+if [[ $- == *i* ]] && [ -f "$HOME/.sandbox-current-repo" ]; then
+    _sbx_repo="$(cat "$HOME/.sandbox-current-repo" 2>/dev/null)"
+    if [ -n "$_sbx_repo" ] && [ -d "$HOME/workspace/$_sbx_repo" ]; then
+        cd "$HOME/workspace/$_sbx_repo"
+    fi
+    unset _sbx_repo
+fi
 # END openshell-overlay
 BASHEOF
 # Inject host timezone (heredoc is single-quoted so can't expand inside)
@@ -178,8 +189,11 @@ if [ -n "${https_proxy:-}" ]; then
 fi
 
 # ── Workspace dirs ───────────────────────────────────────────────────────────
+# NB: do NOT pre-create ~/repo — sandbox.sh makes it a symlink to
+# ~/workspace/<current-repo> (ariadne#44). A pre-existing real dir would make
+# `ln -sfn` nest the link *inside* it (~/repo/<repo>) instead of replacing it.
 echo "==> Creating workspace dirs..."
-mkdir -p "$HOME/repo" "$HOME/worktree"
+mkdir -p "$HOME/worktree"
 mkdir -p "$HOME/.local/share/nvim/lazy"
 
 # ── Credentials (from bootstrap cache) ──────────────────────────────────────
