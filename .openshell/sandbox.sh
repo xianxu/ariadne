@@ -3,6 +3,25 @@
 # Called by Makefile targets: sandbox, sandbox-build, sandbox-stop
 set -euo pipefail
 
+# Make Ctrl+C quit on the first press. The build/connect path runs several
+# `while … sleep 2` poll loops plus background `&` jobs; without a trap, SIGINT
+# only kills the in-flight `sleep`/subprocess and the loop resumes on the next
+# iteration (and `|| true` masks signal-kills), so a single Ctrl+C appeared to
+# do nothing. This handler reaps any background jobs and exits immediately.
+on_interrupt() {
+    trap - INT TERM
+    echo ""
+    echo "Interrupted — stopping background jobs and exiting."
+    local pids
+    pids="$(jobs -p 2>/dev/null || true)"
+    if [ -n "$pids" ]; then
+        # shellcheck disable=SC2086 -- word-splitting is intentional (PID list)
+        kill $pids 2>/dev/null || true
+    fi
+    exit 130
+}
+trap on_interrupt INT TERM
+
 # Auto-detect Docker socket for Docker Desktop (macOS uses a non-standard path)
 if [ -z "${DOCKER_HOST:-}" ] && [ ! -S /var/run/docker.sock ]; then
     for sock in "$HOME/.docker/run/docker.sock" "$HOME/.docker/desktop/docker.sock"; do
@@ -439,6 +458,16 @@ cmd_build() {
         if [ "$phase" = "Running" ] || [ "$phase" = "Ready" ]; then
             break
         fi
+        # Bail immediately on a terminal-failure phase instead of polling the
+        # full 60s. A failed create (e.g. a rejected policy) lands in "Error".
+        case "$phase" in
+            Error|Failed|Terminated|Unknown)
+                echo "ERROR: Sandbox entered '$phase' phase — startup failed."
+                echo "  Details: openshell sandbox get $SANDBOX_NAME"
+                echo "  Reset:   make sandbox-stop"
+                exit 1
+                ;;
+        esac
         retries=$((retries + 1))
         if [ "$retries" -ge 30 ]; then
             echo "ERROR: Sandbox did not reach Running state within 60s (current: ${phase:-unknown})."
