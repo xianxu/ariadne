@@ -1,11 +1,11 @@
 ---
 id: 000044
-status: working
+status: done
 deps: [000032, 000029, 000041, 000042, 000045]
 created: 2026-05-29
 updated: 2026-05-29
 estimate_hours:
-actual_hours:
+actual_hours: 4
 ---
 
 # openshell sandbox: sync go.mod peers (not the whole workspace), mirror host layout, SYNC= flag
@@ -199,6 +199,8 @@ flag for opting peers into writable two-way sync.
 
 ## Log
 
+
+- 2026-05-29: closed — sandbox syncs go.mod peers into ~/workspace (rw current+SYNC=, ro peers); live E2E on pair: layout, ro→rw upgrade, teardown-to-zero all verified; hermetic 6/6 + 11/11; review SHIP. FORCE: M1-M7 single cohesive change reviewed in one fresh-eyes pass over the full diff (Review-Verdict SHIP, window 0d7bf3d..HEAD); no per-milestone close commits by design.
 - 2026-05-29: opened. Surfaced while first using the openshell sandbox in
   `pair`; design converged with operator in-session (decisions 1–9 above).
   Sibling fixes that unblocked sandbox usage landed first: `/dev/ptmx` policy
