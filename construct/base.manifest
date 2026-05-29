@@ -34,6 +34,10 @@ seed      bootstrap.sh
 symlink   AGENTS.md
 symlink   CLAUDE.md
 
+# ── Codex settings ────────────────────────────────────────────────────────────
+# Repo-local Codex sandbox approximation of the Claude settings above.
+symlink   .codex/config.toml
+
 # ── Claude Code settings ──────────────────────────────────────────────────────
 # settings.ariadne.json is symlinked (or copied in vendor mode) so the local
 # merge script can read it without ../ariadne, and so updates to the base
@@ -90,6 +94,7 @@ scaffold  workshop/issues
 scaffold  workshop/history
 scaffold  workshop/plans
 scaffold  workshop/parley
+scaffold  workshop/pensive
 scaffold  workshop/staging
 scaffold  atlas
 touch     workshop/lessons.md

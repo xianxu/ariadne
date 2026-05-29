@@ -17,7 +17,8 @@
     - In all cases, `atlas/` is for big picture pointers, terminologies to facilitate future high level understanding of this codebase. It is your first level onboarding material for human and agents
     - When done, the artifacts in `workshop/issues/` and `workshop/plans/` are moved to `workshop/history/`. Targets are durable commitments; they stay in `workshop/targets/` indefinitely, with status transitions (`active` → `achieved` / `split` / `deferred` / `abandoned`) instead of moves to history.
     - `workshop/parley` contains parley chats related to this repo, think them as brainstorming. Parley chats typically promote to issues; a parley may also directly promote to a target if the chat surfaced an existing pattern worth pinning (made something already-there explicit, rather than designing something new).
-    - `docs/vision` - visionary notes about this repo. In particular -pensive- are less well structured notes, in a similar vein to `workshop/parley` but more focused on a topic. Pensives typically promote to issues; a pensive can directly promote to a target when the moment-in-time thought was recognition of a stabilized pattern rather than a new direction.
+    - `workshop/pensive` contains pensives — less well structured notes, in a similar vein to `workshop/parley` but more focused on a topic (one topic per file). A sibling of parley; both are thinking artifacts that live under `workshop/`. Pensives typically promote to issues; a pensive can directly promote to a target when the moment-in-time thought was recognition of a stabilized pattern rather than a new direction. (Pensives originated in `docs/vision`; `workshop/pensive` is the codified home as of ariadne#43.)
+    - `docs/vision` - broader visionary notes about this repo (not the per-topic pensive datatype, which now lives in `workshop/pensive`). Optional; repos use it for free-form vision/brainstorm material.
     - When revising plan artifacts (`issue`, `plan`, `project`, `roadmap`, `target`) mid-stream (scope change), append a `## Revisions` section with timestamp + reason + delta.
     - **Human-centric documents (targets, products, atlas drafts) take agent contributions via inline markers, never direct overwrites.** The grammar: `🤖{Y}` proposes adding Y; `🤖~X~` proposes deleting X (markdown strikethrough renders it as a visual deletion preview); `🤖~X~{Y}` proposes replacement; `🤖<X>[H]` is the operator's commentary referencing X. Each accept/reject is a one-edit-class operation in the operator's editor. Full table in `construct/datatype/target.md`. Applies even for solicited edits — inline markers iterate better than git-diff hunks because the editing surface stays in the file.
 
@@ -160,6 +161,7 @@
   - `workshop/issues/` — active work items
   - `workshop/lessons.md` — patterns of what went wrong, rules to prevent repeating
   - `workshop/parley/` — parley chat, typically product exploration
+  - `workshop/pensive/` — pensives: per-topic thinking notes (sibling of parley)
   - `workshop/plans/` — detailed designs (high churn, staging area)
 
 @AGENTS.local.md
