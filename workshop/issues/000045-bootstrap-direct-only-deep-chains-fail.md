@@ -101,20 +101,26 @@ same replace targets from a fixture `go.mod`.
 
 ## Plan
 
-> Draft — awaiting operator approval before implementation.
-
-- [ ] **M1 — shared parser primitive.** Coordinate with #44 M1: factor the
-  `replace => ../path` regex/extractor so `bootstrap.sh` and `list-peers.sh`
-  share it (or, if sharing a *file* is blocked by bootstrap's zero-substrate
-  constraint, lock them with the drift test and document why bootstrap keeps a
-  copy). Decide and record which.
-- [ ] **M2 — transitive clone-walk.** Rewrite `bootstrap.sh`'s clone phase as an
-  in-process BFS with visited-set + depth cap; keep the single trailing
-  `exec make bootstrap`. Preserve URL derivation + `PEER_URL_<name>` override.
-- [ ] **M3 — fixtures + tests.** 3-deep cold-start fixture; cycle fixture; depth
-  fixture; 2-deep regression; drift test.
-- [ ] Post-milestone review per AGENTS.md §3; update `atlas/` (bootstrap/peer
-  model) noting bootstrap is now depth-independent; log outcome.
+- [x] **M1 — shared parser primitive.** Decided: bootstrap keeps an **inline**
+  parser (zero-substrate constraint blocks sourcing a symlinked script), with
+  its regex *aligned to the canonical walker's form* (`([^[:space:]]+)` + local-
+  path case-filter, matching `tart-list-peers.sh`/`discover_ancestors`) so the
+  drift test holds trivially. No file extraction; no `list-peers.sh` promotion
+  here (that's #44 M1). Recorded the "one grammar, two walk modes (clone-absent
+  vs list-present)" split.
+- [x] **M2 — transitive clone-walk.** `bootstrap.sh` clone phase is now an
+  in-process BFS (`queue` of `depth:abspath`, `seen` visited-set, depth cap via
+  `BOOTSTRAP_MAX_DEPTH`, default 5), walking both `go.mod` and `construct/go.mod`
+  per node; single trailing `exec make bootstrap`. Per-node origin derivation +
+  real `PEER_URL_<name>` override (sanitized name; previously only *mentioned*
+  in bootstrap-peers.sh, now actually honored). Added `BOOTSTRAP_DRY_RUN` /
+  `BOOTSTRAP_CLONE_ONLY` test/debug hooks.
+- [x] **M3 — fixtures + tests.** `construct/scripts/test/bootstrap-transitive.test.sh`
+  — hermetic, real local git repos. 11 assertions: 3-deep cold-start (the bug),
+  2-deep regression, cycle, depth-cap, no-go.mod handoff, origin-less error,
+  PEER_URL override, drift vs `tart-list-peers.sh`. All green.
+- [x] Atlas updated (`workflow/setup-and-replication.md`: transitive walk +
+  two-walk-modes note). Fresh-eyes code review dispatched (see Log).
 
 ## Notes
 
@@ -137,3 +143,15 @@ same replace targets from a fixture `go.mod`.
   confirmed by trace against the real `brain → nous → ariadne` symlink chain
   (brain itself is non-go.mod, so the gap is latent until a 3-deep go.mod
   derivative is fresh-cloned).
+- 2026-05-29: implemented (M1–M3). `bootstrap.sh` rewritten as transitive
+  in-process BFS; hermetic test suite (11/11 green) covering the 3-deep bug,
+  2-deep regression, cycle, depth-cap, no-go.mod, origin-less, PEER_URL
+  override, and parser drift vs `tart-list-peers.sh`. Real-repo DRY_RUN check:
+  new bootstrap in `pair` lists exactly `ariadne` (matches tart-list-peers);
+  ariadne is the clean BFS terminal. Atlas updated.
+- 2026-05-29: **code review** (fresh-eyes subagent, ran the suite under macOS
+  bash 3.2). Verdict: **no Critical, no Important** — verified abort-paths
+  (`exit` in directly-called fns), `set -u` empty-array safety, `${!var}`
+  portability, zero-substrate invariant, and non-vacuous test assertions. One
+  Minor (clarify the parity-consistent global URL substitution) + a `this_name`
+  nit — both applied as comments. Lessons.md updated (§4).

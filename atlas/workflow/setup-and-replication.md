@@ -107,10 +107,22 @@ A bare `git clone` of a derivative has only dangling symlinks (Makefile,
 construct/setup.sh, AGENTS.md, … all point at a not-yet-cloned upstream), so
 `make` can't read its own Makefile and **no target — including `bootstrap` —
 exists**. `bootstrap.sh` (real committed file, `seed`ed from ariadne) breaks the
-chicken-and-egg: it reads the real `construct/go.mod`, clones the direct upstream
-peer(s) as siblings (URL derived from `origin`, same convention as
+chicken-and-egg: it reads the real `go.mod`/`construct/go.mod` and clones the
+upstream peers as siblings (URL derived from `origin`, same convention as
 bootstrap-peers.sh), then `exec make bootstrap` once the symlinks resolve.
 Idempotent. See #42.
+
+The clone walk is **transitive** (in-process BFS), not direct-only (#45). A
+3-deep chain (`foo → mid → ariadne`) symlinks `foo/Makefile → ../mid/Makefile →
+../ariadne/Makefile`, so `make` can't read its Makefile until the *whole* chain
+is present — cloning only the direct peer (`mid`) would dangle at `ariadne` and
+the `make bootstrap` that would clone `ariadne` could never start. So
+bootstrap.sh clones a peer, reads *that peer's* go.mod, and continues until the
+tree is complete, then hands off once. (In-process BFS rather than recursing
+into each peer's `bootstrap.sh`: the latter's `exec make` tail would orphan the
+top repo, and BFS needs only each peer's go.mod, not a committed bootstrap.sh.)
+Test hooks `BOOTSTRAP_DRY_RUN` / `BOOTSTRAP_CLONE_ONLY`; hermetic coverage in
+`construct/scripts/test/bootstrap-transitive.test.sh`.
 
 ### Bootstrap cascade (`make bootstrap`)
 
@@ -137,16 +149,26 @@ independent walkers that must agree on the peer set:
 2. **`construct/scripts/bootstrap-peers.sh`** — the clone cascade above.
 3. **`.tart/scripts/tart-list-peers.sh`** — which repos to APFS-clone into the
    tart VM (`make tart`, ariadne#32 phase 2).
-4. **`bootstrap.sh`** — fresh-clone entrypoint (#42); reads `construct/go.mod`
-   *before* any substrate exists (the other three run after, via the symlinked
-   Makefile). The reason `construct/go.mod` must stay a real file, not a symlink.
+4. **`bootstrap.sh`** — fresh-clone entrypoint (#42); reads
+   `go.mod`/`construct/go.mod` *before* any substrate exists (the other three
+   run after, via the symlinked Makefile). The reason `construct/go.mod` must
+   stay a real file, not a symlink — and the reason bootstrap.sh keeps an
+   **inline copy** of the parser (it can't source a symlinked script).
 
-All three read the same grammar. A derivative declares its substrate `replace`
+All four read the same grammar. A derivative declares its substrate `replace`
 in `construct/go.mod`, **not** the near-empty repo-root `go.mod`, so each walker
 reads **both** the root `go.mod` and `construct/go.mod` per node (root for any
 self-declared sibling replaces, construct for the substrate ancestor). A
 walker that reads only the root would clone the repo alone and miss ariadne —
 this was the ariadne#41 tart bug.
+
+Two walk *modes* over the one grammar (#45): **list-present** (setup.sh, tart)
+*skips* absent dirs; **clone-absent** (bootstrap.sh, bootstrap-peers.sh)
+resolves syntactically and clones them. bootstrap.sh's inline parser is locked
+to `tart-list-peers.sh` by the drift test in
+`construct/scripts/test/bootstrap-transitive.test.sh`. (#44 further consolidates
+the three *substrate-present* walkers onto one shared `list-peers.sh`; bootstrap
+stays separate by the zero-substrate constraint.)
 
 ### Refresh vs bootstrap
 
