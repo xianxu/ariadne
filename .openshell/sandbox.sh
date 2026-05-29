@@ -336,9 +336,21 @@ compute_sync_set() {
     fi
     rwset=" $repo_canon "
     while IFS= read -r p; do [ -n "$p" ] && rwset="$rwset$p "; done <<<"$extras"
+    local seen_names=" "
     while IFS= read -r p; do
         [ -z "$p" ] && continue
         name="$(basename "$p")"
+        # Peers map to ~/workspace/<basename> and to sync names keyed on
+        # <basename>. Two repos with the same basename in different parents
+        # (e.g. workspace/foo + vendor/foo via a replace/SYNC=) would collide on
+        # both — and ensure_sync's idempotency would silently drop the second
+        # (or worse, share a rw remote). Fail loudly instead of merging.
+        case "$seen_names" in
+            *" $name "*)
+                echo "ERROR: peer basename collision '$name' — two repos in the peer set share a basename and would both map to ~/workspace/$name. Rename or exclude one." >&2
+                return 1 ;;
+        esac
+        seen_names="$seen_names$name "
         if [[ "$rwset" == *" $p "* ]]; then mode=rw; else mode=ro; fi
         printf '%s\t%s\t%s\n' "$mode" "$p" "$name"
     done <<<"$list"
@@ -346,6 +358,10 @@ compute_sync_set() {
 
 # All mutagen sync names this sandbox currently owns (prefix-scoped). Excludes
 # the bootstrap sync, which the cleanup paths manage explicitly.
+# NOTE: the prefix is `${SANDBOX_NAME}-`, so sandbox names must not be prefixes
+# of one another (a sandbox `foo` would match `foo-bar-*` and could reconcile-
+# terminate sandbox `foo-bar`'s syncs). SANDBOX_NAME = "<repo>-sandbox", and repo
+# names aren't prefix-nested in practice; documented so it stays that way.
 list_owned_syncs() {
     mutagen sync list --template '{{range .}}{{.Name}}{{"\n"}}{{end}}' 2>/dev/null \
         | grep "^${SANDBOX_NAME}-" \
@@ -368,10 +384,16 @@ reconcile_syncs() {
 ensure_mutagen_sync() {
     local desired=() mode path name remote
 
+    # Capture the set first (not a process substitution) so a collision/error
+    # exit from compute_sync_set aborts the build instead of being swallowed by
+    # a subshell. Then feed the loop on fd 3.
+    local sync_set
+    sync_set="$(compute_sync_set)" || { echo "==> Aborting: peer set error (see above)." >&2; exit 1; }
+
     echo "==> Sync plan (current repo + construct/go.mod peers):"
     # Read on fd 3, not stdin: ssh/mutagen inside the loop would otherwise
-    # consume the process-substitution from stdin and truncate the loop after
-    # the first peer (the classic "ssh eats the while-read pipe" bug).
+    # consume the here-string from stdin and truncate the loop after the first
+    # peer (the classic "ssh eats the while-read pipe" bug).
     while IFS=$'\t' read -r mode path name <&3; do
         [ -z "$name" ] && continue
         remote="/sandbox/workspace/$name"
@@ -402,7 +424,7 @@ ensure_mutagen_sync() {
                 --ignore .test-home --ignore .test-xdg --ignore .test-tmp
             desired+=("${SANDBOX_NAME}-peer-${name}-ro")
         fi
-    done 3< <(compute_sync_set)
+    done 3<<<"$sync_set"
 
     # Host-mirroring layout: ~/workspace is the peer tree; ~/repo → current repo;
     # marker drives the shell's auto-cd on login (see overlay/setup.sh). In this
@@ -449,7 +471,10 @@ ensure_mutagen_sync() {
 
     # Drive the declarative reconcile: drop anything we own that's no longer
     # desired (stale peers, mode flips, old fixed-name syncs from pre-#44).
-    reconcile_syncs "${desired[@]}"
+    # The +-guard keeps `set -u` happy if `desired` is ever empty (it isn't
+    # today — current repo is always rw + worktree unconditional — but don't
+    # let a future refactor turn that into an unbound-variable abort).
+    reconcile_syncs "${desired[@]+"${desired[@]}"}"
 }
 
 # Terminate every sync this sandbox owns (prefix-scoped). Replaces the old
@@ -467,7 +492,10 @@ terminate_all_syncs() {
 soft_cleanup() {
     echo "==> Soft cleanup (keeping sandbox + tools)..."
     terminate_all_syncs
-    $SSH "$SANDBOX_SSH_HOST" "rm -rf /sandbox/repo /sandbox/worktree && mkdir -p /sandbox/repo /sandbox/worktree" 2>/dev/null || true
+    # Wipe the synced working trees. Post-#44 repos live under
+    # /sandbox/workspace/<name> (not the retired /sandbox/repo); ~/repo is just a
+    # symlink into it. mutagen recreates the peer dirs on re-sync below.
+    $SSH "$SANDBOX_SSH_HOST" "rm -rf /sandbox/workspace /sandbox/worktree && mkdir -p /sandbox/workspace /sandbox/worktree" 2>/dev/null || true
     echo "==> Re-syncing files..."
     ensure_mutagen_sync
     echo "==> Re-applying config..."

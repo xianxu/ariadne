@@ -39,6 +39,19 @@ EOF
 wf "$WS/zzbase/go.mod" <<<'module example.com/zzbase'
 wf "$WS/zznew/go.mod" <<<'module example.com/zznew'
 
+# Collision fixture: zzcollide declares two peers with the SAME basename in
+# different parents — both would map to ~/workspace/shared.
+wf "$WS/zzcollide/go.mod" <<<'module example.com/zzcollide'
+wf "$WS/zzcollide/construct/go.mod" <<EOF
+module local.construct/zzcollide
+replace example.com/dup1 => ../../dupa/shared
+replace example.com/dup2 => ../../dupb/shared
+EOF
+mkdir -p "$WS/zzcollide/construct/scripts"
+ln -s "$LIST_PEERS" "$WS/zzcollide/construct/scripts/list-peers.sh"
+wf "$WS/dupa/shared/go.mod" <<<'module example.com/dupa-shared'
+wf "$WS/dupb/shared/go.mod" <<<'module example.com/dupb-shared'
+
 # Source sandbox.sh for its functions only (no dispatch, no IO).
 SANDBOX_LIB_ONLY=1 source "$SANDBOX" >/dev/null 2>&1
 set +e  # sandbox.sh enables `set -e`; we want to run all assertions
@@ -74,6 +87,10 @@ exp="$(printf 'rw zzbase\nrw zzmid\nrw zztop\n' | sort)"
 got="$(run_set "$WS/zzbase" "")"   # zzbase has no construct/go.mod replace
 exp="rw zzbase"
 [[ "$got" == "$exp" ]] && ok "leaf repo (no peers): just itself, rw" || { ko "leaf"; printf '   got:\n%s\n' "$got"; }
+
+# ── Test 6: basename collision fails loudly (not a silent peer drop) ──────────
+REPO_DIR="$WS/zzcollide" SYNC="" compute_sync_set >/dev/null 2>&1
+[[ $? -ne 0 ]] && ok "collision: same-basename peers error (exit ≠ 0)" || ko "collision: did not error"
 
 echo
 echo "== $pass passed, $fail failed =="

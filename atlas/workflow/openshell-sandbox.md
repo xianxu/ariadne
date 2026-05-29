@@ -63,6 +63,35 @@ The `.openshell/` directory is listed in `construct/base.manifest`. In symlink m
 | `.openshell/.bootstrap/` | Cached downloads (created by `make sandbox`) |
 | `.openshell/.base-image-digest` | Tracks base container image version |
 
+## File Sync — go.mod peers (ariadne#44)
+
+The sandbox syncs the **current repo plus its transitive `construct/go.mod`
+peers** (not the whole parent workspace), via the shared
+`construct/scripts/list-peers.sh` — the same walker `make tart` uses (#32/#41).
+Layout mirrors the host: each peer mutagen-syncs to `/sandbox/workspace/<name>`,
+and since `$HOME` is `/sandbox` in the base image, that *is* `~/workspace/<name>`.
+`~/repo` symlinks the current repo; a `~/.sandbox-current-repo` marker drives the
+bashrc auto-cd so a login lands in `~/workspace/<repo>`.
+
+- **Read-only by default.** Peers (e.g. ariadne under pair) sync one-way
+  host→sandbox — you don't accidentally mutate the base layer from a
+  derivative's sandbox. The current repo is two-way.
+- **`SYNC=../a,../b make sandbox`** opts those peers into two-way writable; a
+  writable peer also gets its `.git` (one-way host→sandbox — two-way `.git` over
+  mutagen is conflict-prone, so share in-sandbox commits by pushing).
+- **Mode-encoded sync names + declarative reconcile.** Sessions are named
+  `${SANDBOX_NAME}-peer-<name>-{ro,rw}` (+ `-peergit-<name>`). Each `make
+  sandbox` recomputes the desired set (`compute_sync_set`) and `reconcile_syncs`
+  terminates any owned session not in it — so a re-run with `SYNC=` upgrades a
+  peer ro→rw (and migrates off old session names) without a rebuild.
+- **Teardown by prefix.** `sandbox-stop`/`-nuke` terminate every
+  `${SANDBOX_NAME}-*` session (no static name list to drift). Startup prints the
+  per-repo sync plan with each repo's mode.
+
+`make tart` shares the `SYNC=` flag (decision 9) to widen the VM clone set
+(no rw/ro axis there — everything is a COW clone). Orthogonal syncs (worktree,
+nvim-state, plenary, claude-sessions) are unchanged.
+
 ## Output Capture (^Y)
 
 The sandbox bash shell wraps the session in `script(1)`, providing a real pty. `preexec`/`precmd` hooks record byte offsets in the script log. Ctrl+Y extracts the last command's output and copies to clipboard via OSC 52 (works through SSH, zellij, tmux). No TUI exclusion list needed — programs see a real TTY.
