@@ -132,6 +132,7 @@
 - Reference the issue / milestone in the subject when applicable: `#15 M4b: subject of the milestone`. Future agents grep `git log --grep "^#15"` to reconstruct an issue's commit timeline.
 - Use `side-quest:` as the verb for unplanned work that landed in a session — work that wasn't in the plan but was the right thing to do. This tag brings visibility of those work.
 - Use the commit body for why, not what. The diff shows what; the message preserves intent. For design heavy commit, spend multiple paragraphs on the why.
+- Sign your work: end every commit message with a `Co-Authored-By:` trailer naming the model that authored it, e.g. `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. In multi-stack workflows this is the attribution trail for who produced vs. reviewed each change.
 
 ## Task Management
 1. **Note starting point**: save current state before making changes (e.g. git commit or branch)
