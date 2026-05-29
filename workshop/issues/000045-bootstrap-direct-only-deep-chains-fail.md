@@ -1,11 +1,11 @@
 ---
 id: 000045
-status: working
+status: done
 deps: [000042]
 created: 2026-05-29
 updated: 2026-05-29
 estimate_hours:
-actual_hours:
+actual_hours: 1.5
 ---
 
 # bootstrap.sh is direct-only — 3-deep go.mod chains fail at the `make` handoff
@@ -139,6 +139,8 @@ same replace targets from a fixture `go.mod`.
 
 ## Log
 
+
+- 2026-05-29: closed — bootstrap.sh transitive BFS clones full chain pre-handoff; 11/11 hermetic tests green (3-deep bug, cycle, depth, drift vs tart-list-peers). FORCE: M1-M3 were one cohesive change in a single commit (2fd0173, Review-Verdict: SHIP) reviewed in one fresh-eyes pass — no separate per-milestone close commits by design.
 - 2026-05-29: opened. Split from #44 design discussion per operator. Gap
   confirmed by trace against the real `brain → nous → ariadne` symlink chain
   (brain itself is non-go.mod, so the gap is latent until a 3-deep go.mod
