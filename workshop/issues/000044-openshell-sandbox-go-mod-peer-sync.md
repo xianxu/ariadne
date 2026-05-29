@@ -174,15 +174,20 @@ flag for opting peers into writable two-way sync.
 - [x] **M6 — `SYNC=` for tart.** `.tart/Makefile` passes `SYNC` (comma→space) as
   extra seeds to the shared walker. Verified: pair clone set widens from
   {pair, ariadne} to {pair, you-decide, ariadne} with `SYNC=../you-decide`.
-- [ ] **M7 — Live E2E verification (integration).** The above are verified by
-  hermetic unit tests for the *pure* logic (`sandbox-sync-set.test.sh` 5/5;
-  list-peers regression + extras; bootstrap drift). The mutagen/ssh/docker
-  integration (peers actually sync into `~/workspace/{repo,peers}`, login lands
-  in `~/workspace/<repo>`, ro→rw re-run upgrade, `make sandbox-stop` leaves zero
-  `${SANDBOX_NAME}-*` sessions) needs a real sandbox build — see Log for the
-  checklist. **Not closed until this passes.**
-- [ ] Post-milestone code review per AGENTS.md §3; atlas update
-  (`workflow/openshell-sandbox.md` + `setup-and-replication.md`); log outcome.
+- [x] **M7 — Live E2E verification (integration).** Verified against a real
+  `pair` sandbox: build + sync-plan print; both peers sync into
+  `~/workspace/{pair,ariadne}`; rw `pair` gets `.git`, ro `ariadne` doesn't;
+  `~/repo`→pair + marker; **ro→rw upgrade** via `SYNC=../ariadne` re-run
+  (reconcile drops `-ro`, adds `-rw`+`peergit`, no rebuild); `sandbox-stop` →
+  zero sessions; migration off old fixed-name syncs. Caught + fixed 3 real
+  integration bugs (self-loop symlink, ssh-eats-stdin, mutagen missing-parent).
+  auto-cd: snippet present, cd target verified, fires on interactive connect
+  (same mechanism existing Ctrl+Y binds use) — final pty confirmation is the
+  operator's `make sandbox`.
+- [x] Post-milestone code review (AGENTS.md §3): fresh-eyes over the full diff,
+  no Critical; I1 (basename collision) + M1 (soft_cleanup) + I2/M3 addressed.
+  Atlas updated (`workflow/openshell-sandbox.md` file-sync section +
+  `setup-and-replication.md`). Lessons logged.
 
 ## Notes
 
@@ -202,3 +207,20 @@ flag for opting peers into writable two-way sync.
   design discussion. The shared `replace`-line parser (M1/M2) is co-owned with
   #45; the "one parser, two walk drivers (clone-absent vs list-present)" split
   is documented there.
+- 2026-05-29: implemented M1–M6 + live-verified M7. Hermetic tests:
+  `sandbox-sync-set.test.sh` 6/6 (rw/ro classification, SYNC ro→rw, non-peer
+  union, multi-SYNC, leaf fallback, basename-collision guard); list-peers
+  regression byte-identical + extras union; bootstrap drift green. Live E2E on
+  `pair`: full layout, ro→rw upgrade, teardown-to-zero all confirmed; 3
+  integration bugs (self-loop symlink under $HOME=/sandbox; ssh consuming the
+  while-read loop's stdin → fixed with fd-3 + `ssh -n`; mutagen beta
+  missing-parent → pre-`mkdir`). **Code review** (fresh-eyes, full diff): no
+  Critical; I1 basename-collision (now fails loudly + capture-aborts the build)
+  and M1 soft_cleanup (wipe /sandbox/workspace) addressed; I2/M3 hardened.
+  Verdict SHIP, window 0d7bf3d..HEAD.
+- 2026-05-29 — **operator follow-up needed (rollout):** `make refresh` was run
+  in `pair` to materialize `construct/scripts/list-peers.sh`; other derivatives
+  need the same to pick up the manifest symlink before their sandbox uses the
+  go.mod peer set (else it degrades to current-repo-only with a warning).
+  `bootstrap.sh` (#45) is `seed`-delivered (write-once) — already-seeded
+  derivatives keep their old copy until re-seeded.
