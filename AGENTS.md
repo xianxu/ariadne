@@ -3,9 +3,15 @@
 ## Workflow Orchestration
 
 ### 0. Synchronization
-- You should update issue status to working, commit, and push to origin, before
-  commencing work. Use `sdlc set-status --issue N working`, then
-  `sdlc claim --issue N` to publish the claim.
+- Before commencing work: `sdlc set-status --issue N working`, then
+  `sdlc claim --issue N` to publish the claim. Do NOT hand-edit the issue's
+  `status:` frontmatter — let `sdlc set-status` own that transition (it carries
+  the estimate guard); editing the file directly bypasses the gate.
+- After plan approval, before editing code, run `sdlc change-code` — the
+  planning→implementation gate. It owns the branching decision (worktree vs
+  in-place) and the plan-quality check; don't start editing without it.
+- After a compaction or session resume, run `sdlc state` to recover where you
+  are instead of re-inferring from issue files.
 - This is the locking mechanism for parallelized workstreams.
 
 ### 1. Artifact Hierarchy
@@ -76,6 +82,7 @@
 - **Main session wins when the task relies on tacit accumulated context** — modifying a file I just spent ten turns understanding, wiring work that depends on design decisions still warm in this session, iterative debugging where each attempt informs the next, or the cases where user updated their specification as coding discovered previous unknown constraints. Crystallizing that context into a subagent prompt can cost more than just doing the work.
 - **For complex multi-milestone work with a written plan in `workshop/plans/*`:** case-by-case judgment per task. Use subagents for tasks matching situations 1-3 above, main session for tasks that depend on session-warm context. Do NOT default to skills like `superpowers:subagent-driven-development` for whole milestones. Do dispatch review subagents at milestone boundaries regardless (see next bullet).
 - **Post-milestone code review is MANDATORY** for any multi-milestone plan. Invoke `superpowers:requesting-code-review` → `superpowers:code-reviewer` subagent with `BASE_SHA` = previous milestone close, `HEAD_SHA` = current HEAD. Address Critical and Important findings before starting the next milestone. Log review outcome in the issue's `## Log` section.
+- **Don't over-label atomic work as multiple milestones.** A plan that lists M1/M2/M3 is a *commitment to a review boundary at each one*: `sdlc close` requires a `Review-Verdict` trailer on a close commit per milestone (landed via `sdlc milestone-close`). So either do a real fresh-eyes milestone-close at each boundary, OR — for work you'll implement and review in a single pass — use one milestone (or plain task bullets), not M1/M2/M3. Mismatched labels force a `--force` close, which is precisely the omission the gate exists to catch.
 
 ### 4. Self-Improvement Loop
 - You MUST update `workshop/lessons.md` when you decide to run `code review`.
