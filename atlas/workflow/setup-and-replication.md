@@ -160,7 +160,10 @@ in `construct/go.mod`, **not** the near-empty repo-root `go.mod`, so each walker
 reads **both** the root `go.mod` and `construct/go.mod` per node (root for any
 self-declared sibling replaces, construct for the substrate ancestor). A
 walker that reads only the root would clone the repo alone and miss ariadne —
-this was the ariadne#41 tart bug.
+this was the ariadne#41 tart bug, and again #50 where `discover_ancestors`
+(consumer 1) was the last root-only straggler: it silently starved depth-2
+derivatives (brain → nous → ariadne) of ariadne's manifest until brought into
+line. Regression-guarded by `construct/scripts/test/discover-ancestors.test.sh`.
 
 Two walk *modes* over the one grammar (#45): **list-present** (setup.sh, tart)
 *skips* absent dirs; **clone-absent** (bootstrap.sh, bootstrap-peers.sh)

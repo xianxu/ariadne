@@ -217,7 +217,18 @@ discover_ancestors() {
     # then probed for further replace directives, building the chain
     # without requiring the user to redeclare transitive replaces at the
     # leaf.
-    if [[ -f "$TARGET_DIR/go.mod" ]]; then
+    #
+    # Per node we walk BOTH go.mods: the repo-root go.mod (operator-owned app
+    # deps — may carry self-declared sibling replaces) AND construct/go.mod
+    # (substrate-tool deps — where the ariadne/upstream replace actually lives
+    # in a derivative; see setup-and-replication.md). Walking only the root
+    # misses the substrate ancestor for any depth-≥2 derivative whose upstream
+    # parks its own ancestor in construct/go.mod (e.g. brain → nous → ariadne:
+    # the nous→ariadne hop is in nous/construct/go.mod, so a root-only walk from
+    # brain stops at nous and never applies ariadne's manifest). This matches
+    # the both-go.mods convention already used by list-peers.sh and
+    # bootstrap-peers.sh; discover_ancestors was the lone root-only walker (#50).
+    if [[ -f "$TARGET_DIR/go.mod" || -f "$TARGET_DIR/construct/go.mod" ]]; then
         local queue=("$TARGET_DIR")
         while [[ ${#queue[@]} -gt 0 ]]; do
             local current="${queue[0]}"
@@ -226,7 +237,7 @@ discover_ancestors() {
                 if _seen_or_add "$candidate"; then
                     queue+=("$candidate")
                 fi
-            done < <(_parse_replace_paths "$current")
+            done < <(_parse_replace_paths "$current"; _parse_replace_paths "$current/construct")
         done
 
         # Source 2: go list -m all (for code-imported deps that aren't in
@@ -444,6 +455,16 @@ ANCESTORS=()
 while IFS= read -r dir; do
     [[ -n "$dir" ]] && ANCESTORS+=("$dir")
 done < <(discover_ancestors)
+
+# Test seam (#50): print the discovered ancestor list (foundation-first) and
+# exit, without applying anything. Lets discover-ancestors.test.sh assert the
+# both-go.mods walk hermetically. No-op in normal runs.
+if [[ -n "${SETUP_DISCOVER_ONLY:-}" ]]; then
+    for upstream in "${ANCESTORS[@]+"${ANCESTORS[@]}"}"; do
+        printf '%s\n' "$upstream"
+    done
+    exit 0
+fi
 
 if [[ ${#ANCESTORS[@]} -eq 0 ]]; then
     # No upstreams — this is ariadne (the top of the chain). Skip the
