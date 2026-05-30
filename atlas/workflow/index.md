@@ -12,7 +12,7 @@ The ariadne workflow is an issue-based development loop designed for AI-assisted
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer
 - [OpenShell Sandbox](openshell-sandbox.md) — containerized dev environment setup, daily use, base layer integration
 - [Base Layer](base-layer.md) — how to adopt ariadne's base layer, modes, path conventions, runtime artifacts
-- [Setup & Replication](setup-and-replication.md) — `construct/setup.sh` mechanism, symlink-only model, bootstrap cascade
+- [Setup & Replication](setup-and-replication.md) — `construct/setup.sh` mechanism, symlink-only model, bootstrap cascade, data dependencies (content peers)
 - [Construct: Adaptation is Ariadne-Only](construct-adaptation.md) — why only ariadne runs `/construct adapt`; how derivatives inherit via `construct/adapted/`
 - [Ledger Landscape](ledger-landscape.md) — where state and evidence live across all surfaces; principles for picking the right ledger
 - [sdlc Binary](sdlc-binary.md) — checkpoint-guard binary; 11 verbs; embedded help; fresh-context judges

@@ -74,6 +74,9 @@ symlink   construct/scripts/sync-local-skills.sh
 symlink   construct/scripts/merge-settings.sh
 symlink   construct/scripts/apply-gitignore-entries.sh
 symlink   construct/scripts/bootstrap-peers.sh
+# Data-dependency mounter (#49) — clone content peers as siblings + symlink
+# them in. Language-agnostic; reads each repo's own construct/data-deps.
+symlink   construct/scripts/clone-data-deps.sh
 # Canonical present-peers walker (ariadne#44) — shared by .tart and the
 # openshell sandbox; .tart/scripts/tart-list-peers.sh is a back-compat symlink
 # to it (delivered via the wholesale `.tart/scripts` symlink below).

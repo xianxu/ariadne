@@ -124,6 +124,11 @@ close-issue:
 #                        (URL derived from origin convention; operator can
 #                        override). Recursively bootstraps each peer.
 #
+#   make data-deps       Clone + symlink data dependencies (content peers, not
+#                        substrate). Reads construct/data-deps; clones each repo
+#                        as a sibling and mounts it via a relative symlink.
+#                        Language-agnostic; no-op when the manifest is absent.
+#
 #   make bootstrap       Composition: bootstrap-peers + refresh + tools.
 #                        Defined as prereqs-only (no recipe) so derivatives
 #                        with their own bootstrap target (e.g. nous's GPG
@@ -157,11 +162,19 @@ bootstrap-peers:
 		bash construct/scripts/bootstrap-peers.sh; \
 	fi
 
+# Clone + symlink DATA DEPENDENCIES (content peers, not substrate). Reads
+# construct/data-deps; clones each declared repo as a sibling and mounts it via
+# a relative symlink. Language-agnostic; no-op when the manifest is absent.
+data-deps:
+	@if [ -x construct/scripts/clone-data-deps.sh ]; then \
+		bash construct/scripts/clone-data-deps.sh; \
+	fi
+
 # Prereq-only definition — no recipe. Derivatives can `bootstrap: <my-prereq>`
 # additively without colliding. Make composes the prereq list; if any
 # derivative defines its own recipe for `bootstrap` (e.g. nous's existing
 # GPG/install setup), that recipe is what runs after all prereqs.
-bootstrap: bootstrap-peers refresh tools sdlc-install
+bootstrap: bootstrap-peers refresh tools sdlc-install data-deps
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge

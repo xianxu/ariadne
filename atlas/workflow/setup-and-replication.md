@@ -314,6 +314,19 @@ go.mod. Same for any future top-of-chain layer.
 Design rationale: `workshop/issues/000037` (split) + `000038`
 (symlink-only).
 
+## Data dependencies (content peers, not substrate) — #49
+
+A **data dependency** is content a repo *consumes* from another repo, as opposed to a substrate layer it *inherits*. It's a looser git submodule: a **sibling** clone (not nested), **floating-HEAD** (not pinned — `git pull` to update), independent history, surfaced into the consumer's tree through a **relative symlink**. Motivating case: `brain` (private) consumes `you-decide` (public voter-advisor data + skills) without deriving its base layer from it — you-decide is a *sibling* derivative of ariadne, not an ancestor.
+
+Why not the substrate peer mechanism above? That one couples *clone* with *substrate-apply* (it symlinks the peer's `base.manifest` files into you) and is Go-specific. A content peer wants the clone, not the apply, and may be any kind of repo (markdown, TS, …). So data deps use a **separate, language-agnostic manifest** instead — the substrate walker is never involved.
+
+Mechanism — deliberately just "clone + symlink":
+
+- **Manifest**: `construct/data-deps`, two whitespace columns per line, `#` comments — `<git-url>  <symlink-path-relative-to-repo-root>`.
+- **`construct/scripts/clone-data-deps.sh`** (run via `make data-deps`, an additive prereq of `bootstrap`): clones each repo to a sibling named after the URL basename, then mounts it with a *relative* symlink at the declared path. Idempotent — present clones skipped, symlink re-pointed each run. No-op when the manifest is absent. Per-dep clone-URL override: `DATADEP_URL_<name>`.
+
+The privacy boundary stays at the directory level (consumer private, dep public); the consumer's commit only stores the symlink + manifest, never the dep's content.
+
 ## Related
 
 - `construct/base.manifest` — what ariadne contributes (action + path
