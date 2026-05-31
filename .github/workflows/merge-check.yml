@@ -1,0 +1,29 @@
+# ariadne base-layer CI shim (#52). Thin and stable on purpose: it only
+# computes the PR range and hands off to scripts/run-merge-checks.sh, which
+# runs this repo's own scripts/merge-checks.d/* checks. The logic lives in the
+# (symlinked, propagating) runner + the repo-local checks — not here.
+#
+# Seeded (a real file per repo, not a symlink) because GitHub Actions does not
+# discover symlinked workflow files. Job name `merge-check` is stable so a
+# branch-protection required-status-check can reference it generically.
+name: merge-check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  merge-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history so merge-base + the range resolve
+      - name: Run merge-checks over the PR range
+        run: |
+          set -euo pipefail
+          base_tip="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          # merge-base so a two-dot base..head diff == exactly the PR's changes
+          base="$(git merge-base "$base_tip" "$head")"
+          bash scripts/run-merge-checks.sh "$base" "$head"

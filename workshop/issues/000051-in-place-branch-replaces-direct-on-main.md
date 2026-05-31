@@ -30,9 +30,9 @@ We want to **retire direct-on-main and make in-place branch the default**, with 
 Make **in-place branch** the standard flow:
 
 - `sdlc change-code` default branching → **in-place** (currently it asks; default should lean no-worktree). Worktree stays available via `--worktree=yes`.
-- **In-place merge-back verb.** `sdlc merge` (or a sibling) gains a mode that, when run from a feature branch in the main checkout (not a worktree): merges the branch into `main` in place, switches back to `main`, deletes the merged branch, archives completed issues — *without* any worktree-cleanup machinery. Detect in-place vs. worktree automatically.
+- **In-place merge-back verb.** In-place and worktree branches **share the same publish path** — push the branch, open a PR, merge server-side (`sdlc pr` + `sdlc merge`) — so the PR-only CI merge-check (ariadne #52) actually runs on the publish. They differ *only* in whether a worktree dir exists: the in-place mode skips worktree creation/cleanup and, after the GitHub merge, switches the single checkout back to `main` and `git pull`s the merged result, then deletes the branch + archives completed issues. Detect in-place vs. worktree automatically.
 - **Retire direct-on-main.** `sdlc push` (ship-from-main) and `make push` are demoted/removed; the standard close path becomes branch → merge. (Decide: delete, or keep as a guarded fallback that warns "you're on main; start a branch.")
-- The merge-to-main itself: since branch protection is out of scope, a **local merge + push** is acceptable (no PR required); keep `sdlc pr`/PR-merge as the worktree/collaborative path. Confirm during the audit whether one merge verb can cover both.
+- The merge-to-main itself goes through a **GitHub PR** (server-side merge), so the PR-triggered CI merge-check (ariadne #52) runs on every publish. A **local `git merge` + `git push origin main`** is the *acknowledged escape path* (fast, ungated, used knowingly) — not the default. (Updated 2026-05-31: earlier this said local-merge was acceptable as the default; the PR-only CI decision in you-decide #4 / ariadne #52 overrides that — a local merge is invisible to PR CI, so the standard publish must pass through a PR.)
 
 Branch stays a **transient lane** (deleted post-merge), not a durable tag; durable "published state" markers, if ever wanted, are real `git tag`s.
 

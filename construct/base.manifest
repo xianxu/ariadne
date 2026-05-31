@@ -74,6 +74,15 @@ symlink   scripts/pre-merge-checks.sh
 symlink   scripts/close-issue.py
 symlink   scripts/sdlc-install.sh
 
+# ── CI merge-gate (#52) ───────────────────────────────────────────────────────
+# Generic publish gate. A thin SEEDED workflow (Actions won't follow symlinked
+# workflow files) calls the SYMLINKED runner (so the mechanism propagates),
+# which runs this repo's own SCAFFOLDED scripts/merge-checks.d/* checks over the
+# PR range. Empty checks dir = no-op pass. See workshop/issues/000052.
+seed      .github/workflows/merge-check.yml
+symlink   scripts/run-merge-checks.sh
+scaffold  scripts/merge-checks.d
+
 # ── Construct system ──────────────────────────────────────────────────────────
 symlink   construct/scripts/sync-local-skills.sh
 symlink   construct/scripts/merge-settings.sh
