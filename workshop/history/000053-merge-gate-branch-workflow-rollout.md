@@ -1,10 +1,11 @@
 ---
 id: 000053
-status: working
+status: done
 deps: []
 created: 2026-05-31
 updated: 2026-05-31
 estimate_hours: 1
+actual_hours: 2
 ---
 
 # Rollout conductor — merge-gate + branch-in-place workflow
@@ -58,4 +59,16 @@ Order of kinds: **A → B → D → (C optional) → E.** Operator chose framing
 
 ## Current position
 
-→ **Phases A, B, D, E DONE** (2026-05-31). B dogfooded the in-place flow (#54) + caught a stale-downstream-binary bug. D built the cross-stack gate (you-decide #4 M2: `reviewed-by ≠ generated-by`, the literal "two stacks agree"). E validated CI end-to-end on you-decide PR #4 and caught + fixed a #52 mechanism bug (symlinked runner absent in CI → now `bootstrap.sh` clones peers in CI). you-decide PR #4 is green and mergeable. **Remaining:** (1) **#52 seed backport** — apply the CI bootstrap step to `ariadne/.github/workflows/merge-check.yml` so future derivatives seed correctly (existing seeded derivatives using CI need the patch too — seed is write-once); (2) **Phase C** (#52 M2 `make remote-init` + opt-in required-check) — ⏸ DEFERRED to a future task (operator, 2026-05-31); advisory + merge-on-green is the resting point; (3) the spun-off **ariadne #55** (sdlc single-owner binary + PATH + freshness). All new work is branch→PR (in-place flow proven). Cosmetic `sdlc pr` cross-repo Fixes-line bug (`Fixes #xianxu/you-decide#3`) — **FIXED** 2026-05-31 (ariadne `7899094`, `formatFixes` now uses qualified `owner/repo#N` verbatim; test added). you-decide #4 M4 (COVERAGE.md dashboard) **extracted to you-decide #8** (operator postponed it).
+→ **CLOSED 2026-05-31.** Phases A, B, D, E all done + verified in their sub-tickets; the in-place branch regime + the two-stack gate are live. you-decide PR #4 merged. The #52 seed backport landed (ariadne `14bbe67`); the cosmetic `sdlc pr` Fixes-line bug is fixed (ariadne `7899094`); you-decide #4 M4 was extracted to you-decide #8.
+
+**What lives on (tracked elsewhere, NOT this conductor):**
+- **Phase C** = `make remote-init` + opt-in required-check → **ariadne #52 M2** (deferred; advisory + merge-on-green is the resting point).
+- **ariadne #55** — sdlc single-owner binary + PATH + freshness (spun off from B's stale-binary finding).
+- **you-decide #8** — review-coverage dashboard (COVERAGE.md + stack-equality reconciliation).
+- **you-decide #4** — remaining: operator-only `make install-hooks` activation + a deferred-lint bullet.
+
+All new work is branch→PR (in-place flow proven).
+
+## Log
+
+- 2026-05-31: closed — Conductor sequencing complete: Phase A (bootstrap era closed, both repos pushed+tagged), B (in-place branch #51, dogfooded live via #54), D (cross-stack gate you-decide #4 M2, reviewed+merged), E (CI validated on you-decide PR #4 green, caught+fixed #52 symlinked-runner bug) all landed+verified in their sub-tickets; Phase C deferred to #52 M2. Sub-ticket deliverables verified in their own issues.
