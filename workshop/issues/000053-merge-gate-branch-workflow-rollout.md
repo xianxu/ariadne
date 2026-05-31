@@ -41,8 +41,9 @@ push; the branch regime begins.** #51's own implementation is the last bootstrap
 - [x] A2. Resolved you-decide `bootstrap.sh` (committed `5a781f1` — refresh synced it to the current base layer).
 - [x] A3. **Pushed 2026-05-31** — you-decide `4488ddb..5a781f1` (+ tag `bootstrap-close`), ariadne `9d27d44..6518c58`. Direct-on-main era closed. (Note: Phase B / #51 is the *one* remaining bootstrap-era exception — it can't be built on a branch that lacks the tooling it adds.)
 
-**Phase B — branch-in-place default (#4 of goals / ariadne #51):** ✅ built 2026-05-31 (on main, the last bootstrap-era exception)
-- [x] #51 M1–M3: `change-code` default → in-place (`--worktree=yes`/`=ask` overrides); `merge.go` in-place vs worktree topology split (server-side PR merge, then in-place switches back to main); `sdlc push` kept (operator decision); docs (AGENTS.md, helptext, atlas). Tests + vet green. **Remaining:** one live end-to-end dogfood (change-code→pr→merge on a real PR) — the new merge cleanup plumbing isn't exercised against real git+gh yet; do it as the first post-bootstrap branch task.
+**Phase B — branch-in-place default (#4 of goals / ariadne #51):** ✅ DONE 2026-05-31 (built + dogfooded live)
+- [x] #51 M1–M3: `change-code` default → in-place (`--worktree=yes`/`=ask` overrides); `merge.go` in-place vs worktree topology split (server-side PR merge, then in-place switches back to main); `sdlc push` kept (operator decision); docs (AGENTS.md, helptext, atlas). Tests + vet green.
+- [x] **Live end-to-end dogfood (ariadne #54):** `claim` → `change-code --worktree=no` (in-place branch, working tree carried forward) → push.md edit + `TestPushEmbedded` → `pr` (PR #4) → `merge` (PR #4 merged server-side, switched back to main, archived #54, deleted branch). Merge cleanup plumbing now exercised against real git+gh. **Caught a real bug:** the *deployed* downstream `you-decide/bin/sdlc` was a month stale (pre-#51) and died on the in-place merge with `find main worktree: …`. Root cause = downstream prebuilt binaries don't auto-rebuild on base-layer tool changes. Fixed (`make sdlc-build` in you-decide) + documented in `atlas/workflow/sdlc-binary.md` (downstream staleness gotcha).
 
 **Phase D — make you-decide's gate mean "two stacks agree" (#2):**
 - [ ] Extend the gate: assert `reviewed-by ≠ generated-by` for substrate (not just `review: passed`); reuse audit-review.sh's same-stack detector. Add to `review-gate.sh` or a second `merge-checks.d/` entry.
@@ -57,4 +58,4 @@ Order of kinds: **A → B → D → (C optional) → E.** Operator chose framing
 
 ## Current position
 
-→ **Phase B built** (2026-05-31): #51 M1–M3 landed (in-place default + dual-topology merge; tests green). One live end-to-end dogfood remains (change-code→pr→merge on a real PR). **Next: Phase D** = strengthen you-decide's gate to assert `reviewed-by ≠ generated-by` (the literal "two stacks agree"). Then Phase C (#52 M2, optional) and Phase E (resume on branches — which doubles as #51's live dogfood). After #51 lands, all new work is branch→PR.
+→ **Phase B DONE** (2026-05-31): #51 M1–M3 landed AND dogfooded live via #54 (change-code→pr→merge on a real in-place PR; PR #4 merged + branch cleaned up). The dogfood caught + fixed a stale-downstream-binary bug. **Next: Phase D** = strengthen you-decide's gate to assert `reviewed-by ≠ generated-by` (the literal "two stacks agree"). Then Phase C (#52 M2, optional) and Phase E (resume real work on branches; first PR validates CI end-to-end). All new work is now branch→PR (the in-place flow is proven).
