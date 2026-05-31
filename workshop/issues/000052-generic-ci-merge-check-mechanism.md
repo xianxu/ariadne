@@ -61,6 +61,26 @@ pre-merge (an LLM in CI is flaky/costly). Two complementary tiers.
   advisory-only without it (check runs + reports; doesn't block). Direct push to main
   stays open (the acknowledged escape per #51).
 
+## Review findings (Codex A1, 2026-05-31) — enforcement hardening for M2
+
+A cross-stack review (ariadne #53 Phase A1) confirmed the M1 mechanism is sound for
+**advisory** use, and surfaced what M2 must add to make it a real *boundary* (not just a
+report). These are the difference between "the gate runs" and "the gate can't be evaded":
+
+- **Trusted gate code (the key one).** CI currently runs `run-merge-checks.sh` + the
+  repo's `merge-checks.d/*` **from the PR's own tree** — so a PR can neuter the gate it's
+  subject to (rewrite the check, `chmod -x` the plugin) and still go green. M2 must run the
+  gate from a **trusted, pinned source** — the protected base branch's copy, or a pinned
+  ariadne ref — against the PR's *content*.
+- **Required-checks manifest.** "Empty `merge-checks.d/` = pass" is right for a repo with no
+  gate, but for a *gated* repo, dropping/disabling the plugin silently no-ops. Add an
+  opt-in `scripts/merge-checks.required` (names that MUST be present + executable, else fail).
+- **`--no-verify` is unenforceable locally** — the real teeth are branch protection +
+  required `merge-check` status. (Already the M2 `make remote-init` job.)
+- (minor) `review-gate`-style checks that use `--diff-filter=d` get a rename false-positive
+  (a file renamed *out* of a gated dir reports the old path missing-review). Fails closed
+  (safe); fix with `--name-status` if it bites.
+
 ## Plan
 
 **M1 — the mechanism (this milestone):**

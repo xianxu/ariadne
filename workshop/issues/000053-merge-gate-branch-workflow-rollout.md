@@ -37,7 +37,7 @@ push; the branch regime begins.** #51's own implementation is the last bootstrap
 ## Sequence
 
 **Phase A — close the bootstrap era (#3):**
-- [ ] A1. Cross-stack (Codex) review of the unpushed mechanism + gate (#52, you-decide #4 M3).
+- [x] A1. Cross-stack (Codex) review of the unpushed mechanism + gate (#52, you-decide #4 M3). **Done 2026-05-31.** 3 correctness bugs fixed in you-decide (`e9f7f41`: silent-pass on bad range, loose frontmatter parser, escaped shebang). 3 enforcement findings (PR-mutable gate code; `--no-verify`; empty-dir/required-checks) confirm what we already chose — the gate is *advisory* until server-side trusted enforcement; folded into #52 M2 (Phase C). Conclusion: mechanism is sound for advisory use; the "real teeth" are Phase C.
 - [ ] A2. Housekeeping: resolve you-decide `bootstrap.sh` refresh side-effect (commit or clean-refresh).
 - [ ] A3. Push you-decide + ariadne to origins — the **final direct-on-main batch**. Optional `git tag bootstrap-close` on you-decide main.
 
@@ -57,4 +57,4 @@ Order of kinds: **A → B → D → (C optional) → E.** Operator chose framing
 
 ## Current position
 
-→ Starting **Phase A1** (2026-05-31).
+→ **Phase A1 done** (2026-05-31). Next: **A2** (resolve you-decide `bootstrap.sh` refresh side-effect) → **A3** (final direct-on-main push of both repos; optional `bootstrap-close` tag).
