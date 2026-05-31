@@ -55,8 +55,31 @@ if ORIGIN_URL=$(git -C "$TARGET_DIR" remote get-url origin 2>/dev/null); then
     : # got it
 fi
 
+# update_peer <dir> <name> — bring an already-present peer current without
+# ever clobbering work in progress. Only fast-forwards a CLEAN tree on a branch
+# that tracks an upstream; a dirty tree, detached HEAD, or no upstream is left
+# untouched with a warning. Never creates a merge commit, and a diverged branch
+# or offline remote is non-fatal — an already-cloned tree must still bootstrap
+# without the network. Idempotent: a no-op when the peer is already current.
+update_peer() {
+    local dir="$1" name="$2" dirty upstream
+    dirty="$(git -C "$dir" status --porcelain 2>/dev/null || true)"
+    if [[ -n "$dirty" ]]; then
+        printf "    skip pull %s — working tree not clean\n" "$name"
+        return 0
+    fi
+    upstream="$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+    if [[ -z "$upstream" ]]; then
+        printf "    skip pull %s — no upstream tracking branch (detached or local-only)\n" "$name"
+        return 0
+    fi
+    printf "==> updating peer %s (git pull --ff-only %s)\n" "$name" "$upstream"
+    git -C "$dir" pull --ff-only --quiet \
+        || printf "    warn: pull of %s failed (diverged or offline) — leaving as-is\n" "$name"
+}
+
 # Parse replace directives in construct/go.mod, matching the sibling
-# pattern ../<name>. Each matched peer either exists (recurse) or
+# pattern ../<name>. Each matched peer either exists (update + recurse) or
 # needs cloning (clone then recurse).
 while IFS= read -r line; do
     # Strip line comments.
@@ -90,6 +113,10 @@ while IFS= read -r line; do
                 echo "Error: clone failed; check URL convention or override via PEER_URL_${peer_name}" >&2
                 exit 1
             fi
+        else
+            # Peer already present — bring it current before recursing, so its
+            # bootstrap runs against the latest substrate (ff-only, never WIP).
+            update_peer "$peer_abs" "$(basename "$peer_abs")"
         fi
 
         # Recurse: run `make bootstrap` in the peer. The peer's bootstrap
