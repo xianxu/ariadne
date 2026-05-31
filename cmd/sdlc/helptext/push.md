@@ -1,7 +1,13 @@
-Ship from `main` — the direct-on-main commit + push verb. Counterpart
-to `sdlc merge`, which ships a feature branch via GitHub PR. Both run
-the same pre-merge judges; `push` is the lighter path for changes
-small enough to commit on main without a worktree.
+Ship from `main` — the direct-on-main commit + push verb.
+
+Since #51 the **default close path is the in-place branch flow**:
+`sdlc change-code` (creates a branch in the current checkout) →
+`sdlc pr` → `sdlc merge` (server-side PR merge, then switches back to
+main). `push` is the **direct-on-main shortcut**, kept for quick
+one-liners small enough to commit straight onto main without a PR.
+Both paths run the same pre-merge judges; the difference is whether
+the change goes through a reviewable PR (`merge`) or lands directly
+(`push`).
 
 REFUSES IF
 
@@ -58,6 +64,8 @@ main*; `sdlc push` ships only what passed the gate.
 
 RELATED
 
-  sdlc merge      branch-counterpart: merge PR, archive, clean up worktree
-  sdlc judge      one-category check (run by push/merge as pre-flight)
-  sdlc close      mark an issue done before push picks it up for archive
+  sdlc change-code  start the default in-place branch flow (the PR path)
+  sdlc pr           open the PR for an in-place / worktree branch
+  sdlc merge        branch-counterpart: merge PR, archive, clean up worktree
+  sdlc judge        one-category check (run by push/merge as pre-flight)
+  sdlc close        mark an issue done before push picks it up for archive

@@ -112,6 +112,21 @@ make sdlc-bootstrap    one-shot install: verify Go, build, symlink to
 
 `make build` also picks `sdlc` up via the cmd/*/main.go scanner.
 
+### Downstream staleness gotcha
+
+Downstream repos ship a *prebuilt* `bin/sdlc` (built from ariadne via the
+`construct/go.mod` `replace => ../ariadne` path) — they have no `cmd/sdlc`
+source of their own. That binary does **not** auto-rebuild when the base-layer
+tool changes; it goes stale until the operator reruns `make sdlc-build`
+(or `make sdlc-install`) in the downstream repo. A stale binary silently
+lacks new behavior and can fail in confusing ways — e.g. a pre-#51 binary
+hits the in-place branch flow's `git rev-parse --git-dir` → `.git` path but
+still routes to the worktree topology, dying with `find main worktree: could
+not find a worktree on branch 'main'`. Surfaced live by the #51 dogfood
+(ariadne #53 Phase B): you-decide's binary was a month stale. **Rule:** after
+any base-layer `cmd/sdlc` change reaches downstream, rerun `make sdlc-build`
+there before relying on the new verb behavior.
+
 ## Makefile wrappers (transition state)
 
 Each Make target delegates to `bin/sdlc` when built, falling back to

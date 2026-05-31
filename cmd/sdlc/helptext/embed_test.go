@@ -43,6 +43,19 @@ func TestCloseEmbedded(t *testing.T) {
 	}
 }
 
+func TestPushEmbedded(t *testing.T) {
+	s, ok := Get("push")
+	if !ok {
+		t.Fatal("push.md not found in embed FS")
+	}
+	// Regression guard for #54: push.md must frame the in-place branch
+	// flow (change-code → pr → merge) as the default close path, not
+	// present `sdlc push` as a co-equal "lighter path".
+	if !strings.Contains(s, "change-code") {
+		t.Errorf("push.md missing reference to the default change-code (in-place branch) flow")
+	}
+}
+
 func TestMustGetPanicsOnMissing(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
