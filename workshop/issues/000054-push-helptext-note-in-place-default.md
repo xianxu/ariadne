@@ -31,6 +31,8 @@ serves as the live end-to-end dogfood of the #51 in-place branch→pr→merge fl
 - [ ] `sdlc push --help` (push.md) states that `sdlc change-code` (in-place
   branch) → `sdlc pr` → `sdlc merge` is the default flow since #51, and frames
   `sdlc push` as the direct-on-main shortcut.
-- [ ] `go test ./cmd/sdlc/...` stays green (the helptext embed test covers push.md).
+- [ ] `go test ./cmd/sdlc/...` stays green, including a new `TestPushEmbedded`
+  that pins push.md to reference the default `change-code` flow (the prior
+  embed suite only proved push.md *embeds*, not that the note is present).
 
 ## Log
