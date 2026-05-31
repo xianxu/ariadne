@@ -22,17 +22,31 @@ serves as the live end-to-end dogfood of the #51 in-place branch→pr→merge fl
 
 ## Plan
 
-- [ ] Add a short note near the top of `cmd/sdlc/helptext/push.md` (and/or its
+- [x] Add a short note near the top of `cmd/sdlc/helptext/push.md` (and/or its
   RELATED section) that in-place branch via `sdlc change-code` is the default
   since #51; `sdlc push` is the direct-on-main shortcut.
 
 ## Done when
 
-- [ ] `sdlc push --help` (push.md) states that `sdlc change-code` (in-place
+- [x] `sdlc push --help` (push.md) states that `sdlc change-code` (in-place
   branch) → `sdlc pr` → `sdlc merge` is the default flow since #51, and frames
   `sdlc push` as the direct-on-main shortcut.
-- [ ] `go test ./cmd/sdlc/...` stays green, including a new `TestPushEmbedded`
+- [x] `go test ./cmd/sdlc/...` stays green, including a new `TestPushEmbedded`
   that pins push.md to reference the default `change-code` flow (the prior
   embed suite only proved push.md *embeds*, not that the note is present).
 
 ## Log
+
+- 2026-05-31 — Served as the live end-to-end dogfood of the #51 in-place
+  branch flow (ariadne #53 Phase B). Ran for real: `claim` → `change-code
+  --worktree=no` (in-place branch created, working tree carried forward;
+  plan-quality judge passed INFO) → push.md edit + `TestPushEmbedded` guard
+  → commit `c011d9d` → `pr` (PR #4) → `merge`.
+- **Dogfood finding (the bug this was meant to catch):** the *deployed*
+  `sdlc` binary on PATH (`you-decide/bin/sdlc`) was a month stale (May 28,
+  pre-#51) and failed the in-place merge with `find main worktree: could
+  not find a worktree on branch 'main'`. The current ariadne source/binary
+  handles in-place correctly (switch-back-to-main topology). Root cause:
+  downstream prebuilt binaries don't auto-rebuild on base-layer tool
+  changes. Captured in `atlas/workflow/sdlc-binary.md` (downstream staleness
+  gotcha); you-decide binary refreshed via `make sdlc-build`.
