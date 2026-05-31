@@ -41,8 +41,8 @@ push; the branch regime begins.** #51's own implementation is the last bootstrap
 - [x] A2. Resolved you-decide `bootstrap.sh` (committed `5a781f1` — refresh synced it to the current base layer).
 - [x] A3. **Pushed 2026-05-31** — you-decide `4488ddb..5a781f1` (+ tag `bootstrap-close`), ariadne `9d27d44..6518c58`. Direct-on-main era closed. (Note: Phase B / #51 is the *one* remaining bootstrap-era exception — it can't be built on a branch that lacks the tooling it adds.)
 
-**Phase B — branch-in-place default (#4 of goals / ariadne #51):** still bootstrap-era (on main, pushed direct):
-- [ ] Implement #51 (sdlc change-code default → in-place; in-place merge-back via PR; retire/guard direct-on-main; audit AGENTS.md / Makefile.workflow / atlas).
+**Phase B — branch-in-place default (#4 of goals / ariadne #51):** ✅ built 2026-05-31 (on main, the last bootstrap-era exception)
+- [x] #51 M1–M3: `change-code` default → in-place (`--worktree=yes`/`=ask` overrides); `merge.go` in-place vs worktree topology split (server-side PR merge, then in-place switches back to main); `sdlc push` kept (operator decision); docs (AGENTS.md, helptext, atlas). Tests + vet green. **Remaining:** one live end-to-end dogfood (change-code→pr→merge on a real PR) — the new merge cleanup plumbing isn't exercised against real git+gh yet; do it as the first post-bootstrap branch task.
 
 **Phase D — make you-decide's gate mean "two stacks agree" (#2):**
 - [ ] Extend the gate: assert `reviewed-by ≠ generated-by` for substrate (not just `review: passed`); reuse audit-review.sh's same-stack detector. Add to `review-gate.sh` or a second `merge-checks.d/` entry.
@@ -57,4 +57,4 @@ Order of kinds: **A → B → D → (C optional) → E.** Operator chose framing
 
 ## Current position
 
-→ **Phase A complete** (2026-05-31): bootstrap era closed, both repos pushed, `bootstrap-close` tagged. **Next: Phase B = implement ariadne #51** (branch-in-place default + PR-based merge-back + retire/guard direct-on-main + audit AGENTS.md/Makefile.workflow/atlas). #51 is the last bootstrap-era work (done on main, pushed direct); after it lands, all work — including bookkeeping — is branch→PR.
+→ **Phase B built** (2026-05-31): #51 M1–M3 landed (in-place default + dual-topology merge; tests green). One live end-to-end dogfood remains (change-code→pr→merge on a real PR). **Next: Phase D** = strengthen you-decide's gate to assert `reviewed-by ≠ generated-by` (the literal "two stacks agree"). Then Phase C (#52 M2, optional) and Phase E (resume on branches — which doubles as #51's live dogfood). After #51 lands, all new work is branch→PR.

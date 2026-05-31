@@ -38,23 +38,34 @@ Branch stays a **transient lane** (deleted post-merge), not a durable tag; durab
 
 ## Plan
 
-**Audit (map every direct-on-main / worktree assumption):**
-- [ ] `AGENTS.md` — §0 synchronization ("commit, push to origin before commencing"), §2 workflow, the "Close / ship — `sdlc push` (main) or `sdlc pr` → `sdlc merge` (branch)" narrative, `change-code` branching defaults, Task Management. Rewrite so branch-based is the default and direct-on-main is gone.
-- [ ] `sdlc` — `push`, `merge`, `pr`, `change-code` (the `--worktree` default + the in-place-vs-worktree detection). Identify what assumes a worktree on merge.
-- [ ] `Makefile.workflow` — `push`, `merge`, `worktree`, `pre-merge` targets (base layer; consider downstream impact).
-- [ ] `atlas/workflow/*` — the workflow docs that describe push/merge/worktree.
-- [ ] `construct/base.manifest` — only if make targets are added/removed.
+Grounding (from the 2026-05-31 investigation): the in-place primitive already exists
+(`branchcreate.go:171 createInPlaceBranch()` — `git checkout -b`, carries the tree
+forward); `pr.go` and `claim.go` work for in-place already; `sdlc merge` merges
+**server-side** (`merge.go:211 ghClient.PRMerge`), so the PR/CI gate already applies. The
+gap is the *local post-merge cleanup* (worktree-shaped today) + the `change-code` default
++ retiring direct-on-main + docs.
 
-**Implement:**
-- [ ] `sdlc` in-place merge-back (auto-detect; no worktree cleanup; archive done issues; switch to main + delete branch).
-- [ ] `sdlc change-code` default → in-place branch.
-- [ ] Retire/guard `sdlc push` + `make push`.
-- [ ] Update `AGENTS.md`, `Makefile.workflow`, `atlas/workflow/*` to the new default.
+**M1 — core logic (sdlc Go) + tests:** ✅ 2026-05-31
+- [x] `changecode.go` `resolveBranchingStrategy()` — empty `--worktree` → **in-place** (silent, with an info line). `--worktree=yes` worktree; added `--worktree=ask` to reach the tty prompt / `ASK_BRANCHING_STRATEGY` sentinel (so #39's contract + tested prompt funcs stay reachable, not dead). Verified: empty→mode=no (exit 0, no sentinel); `=yes`→mode=yes; `=ask` piped→sentinel+exit 2.
+- [x] `merge.go` — topology split. New `isInPlaceCheckout(gitDir)` (linked worktree iff git-dir under `.git/worktrees/`). In-place: after `PRMerge`, `git switch main` → `pull` → archive in-dir → `git branch -D`. Worktree path unchanged. `findMainWorktree` is now worktree-only. No-PR + in-place aborts cleanly (run `sdlc pr`).
+- [x] Tests — `TestIsInPlaceCheckout` (table-driven) added; full suite + vet green.
+
+**M2 — keep `sdlc push` (operator decision):** ✅ confirmed, no change
+- [x] `sdlc push` / `make push` stay as-is; `make worktree` correctly keeps `--worktree=yes`. Nothing else hardcodes the default away from in-place.
+
+**M3 — docs:** ✅ 2026-05-31
+- [x] `AGENTS.md` §0 branching-decision line — in-place default, worktree opt-in, push still available.
+- [x] helptext `change-code.md` + `merge.md` — rewritten for in-place default + dual-topology merge.
+- [x] `atlas/workflow/sdlc-binary.md` (verb table) + `issue-lifecycle.md` (flow + branching-decision section).
+- [x] `construct/base.manifest` — no make-target shape change, so untouched (correct).
 
 **Verify:**
-- [ ] End-to-end: `claim` → `change-code` (in-place) → commits → in-place merge → back on main, branch deleted, issue archived — no worktree created at any point.
-- [ ] Worktree path still works via `--worktree=yes`.
-- [ ] Downstream (you-decide etc.) inherits cleanly via base-layer refresh.
+- [x] `go test ./cmd/sdlc/...` + `go vet` green; `bin/sdlc` rebuilt.
+- [x] Worktree path still works via `--worktree=yes` (verified mode=yes).
+- [ ] **End-to-end live dogfood (remaining):** `change-code` (in-place) → `pr` → `merge` on a real issue/PR — exercises the new `switch main`/`pull`/`branch -D` cleanup against real git+gh (only the topology *decision* is unit-tested, not the plumbing). Best done as the first post-bootstrap branch-based task.
+- [ ] Downstream inherits via base-layer refresh (next `make refresh` in a derivative).
+
+**Revised estimate:** ~6–8h across M1–M3 (was 3h; the investigation showed it's mostly merge.go cleanup-path + docs, low risk since in-place creation is proven).
 
 ## Notes / cross-refs
 

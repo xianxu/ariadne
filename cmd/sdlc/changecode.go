@@ -6,20 +6,20 @@
 //                           (Spec ≥ 50 words, non-empty Plan, etc.).
 //  2. Plan-quality judge  — fresh-context LLM review: is this plan
 //                           executable as-written?
-//  3. Branching strategy  — ask the operator (worktree vs in-place)
-//                           with a sizing hint from the plan.
+//  3. Branching strategy  — default in-place (#51); --worktree=yes for a
+//                           worktree, --worktree=ask to be prompted.
 //
 // Any gate can be skipped with the corresponding --no-* flag, or
 // bypassed wholesale with --force <reason>. The --force rationale
 // is recorded on stderr so the audit trail captures *why* the gate
 // was bypassed.
 //
-// Agent protocol for the branching ask: when stdin is not a tty and
-// --worktree= is unset, the verb emits the sizing hint on stderr and
-// the sentinel line ASK_BRANCHING_STRATEGY on stdout, then exits 2.
-// The xx-sdlc skill (per #39) interprets that exit + sentinel as
-// "issue an AskUserQuestion and re-invoke with --worktree=yes|no".
-// Interactive humans get a stdin prompt instead.
+// Branching default (#51): an unset --worktree means in-place — a branch
+// in the current checkout, the common case, chosen without nagging.
+// --worktree=ask reaches the interactive prompt, or for a non-tty agent
+// emits the sizing hint + the ASK_BRANCHING_STRATEGY sentinel on stdout
+// and exits 2 (the xx-sdlc skill, #39, turns that into an AskUserQuestion
+// and re-invokes with --worktree=yes|no).
 package main
 
 import (
@@ -67,7 +67,7 @@ func NewChangeCodeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Name, "name", "", "explicit branch name (overrides --issue derivation)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding optional separate plan files")
-	cmd.Flags().StringVar(&f.Worktree, "worktree", "", "branching: yes (worktree) | no (in-place). Empty = ask the operator.")
+	cmd.Flags().StringVar(&f.Worktree, "worktree", "", "branching: yes (worktree) | no (in-place) | ask (prompt). Empty = in-place (default).")
 	cmd.Flags().StringVar(&f.Force, "force", "", "bypass gate refusals; the value is the rationale (recorded on stderr)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the plan-quality LLM judge")
 	cmd.Flags().BoolVar(&f.NoStructural, "no-structural", false, "skip the structural-sanity checks")
@@ -305,9 +305,16 @@ func resolveBranchingStrategy(stdin io.Reader, stdout, stderr io.Writer, f *chan
 	case "yes", "no":
 		return f.Worktree, nil
 	case "":
-		// fall through to ask
+		// Default (ariadne #51): in-place branch, silently. Worktree is
+		// opt-in via --worktree=yes; --worktree=ask reaches the interactive
+		// prompt / agent sentinel below. A default shouldn't nag, so an unset
+		// flag no longer asks.
+		cinfo(stderr, "branching: in-place (default; --worktree=yes for an isolated worktree)")
+		return "no", nil
+	case "ask":
+		// fall through to the interactive prompt / agent sentinel
 	default:
-		return "", fmt.Errorf("--worktree must be 'yes' or 'no' (got %q)", f.Worktree)
+		return "", fmt.Errorf("--worktree must be 'yes', 'no', or 'ask' (got %q)", f.Worktree)
 	}
 
 	// Build the sizing hint either way; both branches print it.

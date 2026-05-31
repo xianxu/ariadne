@@ -26,11 +26,11 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | Issue-file shape on GitHub import |
 | `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
-| `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + plan-quality + branching ask (#39) |
+| `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards (xx-issues contract) |
-| `push`            | `make push`                 | Direct-on-main ship + pre-flight judges |
+| `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
-| `merge`           | `make merge`                | Worktree merge + cleanup + irreversible-action confirm |
+| `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + cleanup + irreversible-action confirm (#51) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched milestone-review |
 
 ## Progressive disclosure

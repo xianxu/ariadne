@@ -1,12 +1,17 @@
-Merge the current worktree branch into main via GitHub, archive any
-completed issues, and clean up the worktree. The longest + most
-safety-conscious checkpoint guard — every step has a refusal or
-confirmation, because the actions are irreversible.
+Merge the current feature branch into main via a GitHub PR (server-side,
+so CI gates it), archive any completed issues, and clean up. Works for
+both branch topologies (#51), detected automatically:
+  - in-place — the primary checkout sitting on a feature branch: after
+    the merge, switch this checkout back to main, pull, delete the branch.
+  - worktree — a linked worktree: archive in the main worktree, remove
+    the worktree, delete the branch.
+The longest + most safety-conscious checkpoint guard — every step has a
+refusal or confirmation, because the actions are irreversible.
 
 REFUSES IF
 
   - current branch is empty (detached HEAD)
-  - current branch == main (use `sdlc push` instead)
+  - current branch == main (run `sdlc change-code` to branch, or `sdlc push`)
   - uncommitted changes exist (commit or stash first)
   - no upstream is configured for the branch
   - branch is ahead of upstream (unpushed local commits — push first)
@@ -16,7 +21,9 @@ WHAT IT DOES
   1. Verifies the four refusal conditions above.
   2. Runs pre-merge judges: `sdlc judge plan`, `specs`, `lessons`.
      Skip with `--no-judge`.
-  3. Locates the main worktree via `git worktree list --porcelain`.
+  3. Resolves topology from `git rev-parse --git-dir`: in-place (primary
+     checkout) vs worktree (git-dir under `.git/worktrees/`). For worktree,
+     locates the main worktree via `git worktree list --porcelain`.
   4. Shows unmerged commits (`git log main..HEAD --oneline`) for
      situational awareness.
   5. Scans touched issue files vs `main` for not-done statuses;
@@ -25,20 +32,20 @@ WHAT IT DOES
        "Final confirmation: proceed with irreversible merge/cleanup
         actions? [y/N]"
   7. Finds the open PR for the branch via `gh pr list`.
-       - if PR exists: `gh pr merge --merge --delete-branch`, then
-         `git pull` in the main worktree.
-       - if no PR + unmerged commits: prompts to either create a PR
-         (re-run after `sdlc pr`) OR remove the worktree without
-         merging (operator confirms each).
+       - if PR exists: `gh pr merge` (server-side). Then, in-place:
+         `git switch main`; both: `git pull` so main has the result.
+       - if no PR: in-place aborts (run `sdlc pr` first); worktree, with
+         unmerged commits, prompts to create a PR or remove the worktree.
   8. Archives done/wontfix/punt issue files into `workshop/history/`
-     in the MAIN worktree (not the feature worktree); commits + pushes
-     on main if any moved. Unlike `sdlc push`, does NOT call
-     `gh issue close` — the PR merge already closes linked issues
-     via the "Fixes #N" body.
-  9. `git worktree remove <wt-path>` + `git branch -D <branch>`,
-     both run from the main worktree (worktree-remove on self is
-     undefined). Writes the main worktree path to `<wt-path>/.goto`
-     so the `g` shell alias lands the operator back on main.
+     in the main checkout; commits + pushes on main if any moved. Unlike
+     `sdlc push`, does NOT call `gh issue close` — the PR merge already
+     closes linked issues via the "Fixes #N" body.
+  9. Cleanup:
+       - in-place: `git branch -D <branch>` (already on main).
+       - worktree: `git worktree remove <wt-path>` + `git branch -D`,
+         both run from the main worktree (worktree-remove on self is
+         undefined). Writes the main path to `<wt-path>/.goto` so the
+         `g` shell alias lands the operator back on main.
 
 FLAGS
 
@@ -57,7 +64,7 @@ EXAMPLES
 
 EXIT CODES
 
-  0   merged + worktree cleaned (or dry-run completed)
+  0   merged + cleaned (in-place: back on main; worktree: removed) — or dry-run
   1   any refusal condition, judge failure, gh pr merge failure,
       operator-aborted at confirmation
 

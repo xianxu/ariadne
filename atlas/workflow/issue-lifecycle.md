@@ -3,7 +3,7 @@
 ## Flow
 
 ```
-GitHub Issue → sdlc fetch --github-issue 42 → workshop/issues/000042-slug.md → sdlc claim → work → sdlc push (main) or sdlc change-code → sdlc pr → sdlc merge (branch)
+GitHub Issue → sdlc fetch --github-issue 42 → workshop/issues/000042-slug.md → sdlc claim → sdlc change-code (in-place branch by default) → work → sdlc pr → sdlc merge   [direct sdlc push on main still available, but not the default]
 ```
 
 ## States
@@ -21,8 +21,8 @@ GitHub Issue → sdlc fetch --github-issue 42 → workshop/issues/000042-slug.md
 1. **Fetch**: `sdlc fetch --github-issue <num>` creates a local issue file from GitHub with frontmatter (id, status, github_issue, dates)
 2. **Claim**: `sdlc set-status --issue N working` then `sdlc claim --issue N` publishes the issue-state claim to main
 3. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
-4. **Small work on main**: `sdlc push` auto-commits, runs pre-merge checks, pushes, archives done issues to `history/`, closes GitHub issues
-5. **Large work on branch**: `sdlc change-code` chooses the branch/worktree path after planning; `sdlc pr` opens the pull request; `sdlc merge` archives and cleans up
+4. **Default — branch + PR**: `sdlc change-code` creates an **in-place branch** (a branch in the current checkout) after the gates; `sdlc pr` opens the pull request; `sdlc merge` merges it server-side, archives done issues, and switches back to main. `--worktree=yes` gets an isolated worktree instead (parallel work).
+5. **Shortcut — direct on main**: `sdlc push` (auto-commit, pre-merge checks, push, archive, close GH issues) still exists for quick one-liners, but is no longer the default (#51).
 
 ## Worktree layout
 
@@ -37,11 +37,13 @@ of the current working directory (i.e., the repo folder name).
     └── 000051-fix-bug/        ← branch: 000051-fix-bug
 ```
 
-**Branching decision**: `sdlc change-code --issue N` runs structural checks and
-the plan-quality judge, then asks whether to use a worktree or an in-place
-branch. Agents call it after planning; if stdin is non-interactive, the binary
-emits an `ASK_BRANCHING_STRATEGY` sentinel so the agent can ask the operator and
-rerun with `--worktree=yes` or `--worktree=no`.
+**Branching decision** (#51): `sdlc change-code --issue N` runs structural checks
+and the plan-quality judge, then branches. The default (no `--worktree` flag) is
+**in-place** — a branch in the current checkout, no worktree dir; the common
+case, chosen without prompting. `--worktree=yes` gets an isolated worktree (the
+layout above); `--worktree=ask` restores the interactive prompt, or for a
+non-interactive agent emits the `ASK_BRANCHING_STRATEGY` sentinel (exit 2) so the
+agent can ask the operator and rerun with `--worktree=yes|no`.
 
 **Navigation**: worktree creation writes the path to `.goto`; the shell `g`
 alias reads it to `cd` you there. `sdlc merge` writes the main worktree path

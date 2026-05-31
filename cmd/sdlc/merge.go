@@ -1,21 +1,27 @@
 // merge.go — `sdlc merge` subcommand. Ports the `merge:` Make target.
 //
-// The longest + most safety-conscious script in the lift table. Runs from
-// inside a worktree (refuses main), guards every irreversible step, ends
-// with worktree cleanup. Sequence (Makefile.workflow ~lines 390-491):
+// The longest + most safety-conscious script in the lift table. Runs from a
+// feature branch (refuses main), guards every irreversible step, merges via a
+// GitHub PR (server-side, so CI gates it), then cleans up. Two topologies
+// (#51), detected automatically:
+//   - in-place: the primary checkout sitting on a feature branch → switch it
+//     back to main, pull, delete the branch (no worktree).
+//   - worktree: a linked worktree → archive in the main worktree, remove the
+//     worktree, delete the branch.
+// Sequence:
 //
 //   1. branch != main / non-empty
 //   2. no uncommitted changes
 //   3. upstream configured
 //   4. branch not ahead of upstream
 //   5. pre-merge judges (plan + specs + lessons, skippable with --no-judge)
-//   6. find main worktree path
+//   6. resolve topology (in-place vs worktree)
 //   7. show unmerged commits (informational)
 //   8. not-done issue warn (vs main)
 //   9. interactive confirmation (skippable with --yes)
-//  10. gh pr list → either merge existing PR or offer create/remove
-//  11. archive done/wontfix/punt issues into history/ in the MAIN worktree
-//  12. worktree remove + branch delete; write main path to .goto in old worktree
+//  10. gh pr merge (server-side) → in-place: switch main; both: pull main
+//  11. archive done/wontfix/punt issues into history/ (in the main checkout)
+//  12. cleanup — in-place: branch delete; worktree: worktree remove + branch delete + .goto
 package main
 
 import (
@@ -73,7 +79,7 @@ func NewMergeCmd() *cobra.Command {
 	f := mergeFlags{}
 	cmd := &cobra.Command{
 		Use:           "merge",
-		Short:         "Merge the current worktree branch via GitHub, archive done issues, clean up worktree",
+		Short:         "Merge the current branch (in-place or worktree) via GitHub PR, archive done issues, clean up",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"merge\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
@@ -145,14 +151,25 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		cwarn(stderr, "--no-judge: skipping pre-merge judges")
 	}
 
-	// ── 6. Find main worktree ───────────────────────────────────────────────
-	mainPath, err := findMainWorktree(mergeRunner)
-	if err != nil {
-		die(stderr, fmt.Sprintf("find main worktree: %v", err))
-	}
-	cok(stderr, fmt.Sprintf("Main worktree: %s", mainPath))
-
+	// ── 6. Resolve merge topology: in-place vs worktree ─────────────────────
+	// In-place = the primary checkout sitting on a feature branch (main is
+	// reached by switching here). Worktree = a linked worktree (main lives in
+	// a separate dir). A linked worktree's git-dir is under .git/worktrees/.
 	wtPath, _ := gitx.RepoTopLevel()
+	gitDir := gitx.Capture("rev-parse", "--git-dir")
+	inPlace := isInPlaceCheckout(gitDir)
+	var mainPath string
+	if inPlace {
+		mainPath = wtPath // same checkout; we switch it back to main post-merge
+		cok(stderr, "In-place branch (no worktree) — will merge, then switch this checkout back to main")
+	} else {
+		mp, ferr := findMainWorktree(mergeRunner)
+		if ferr != nil {
+			die(stderr, fmt.Sprintf("find main worktree: %v", ferr))
+		}
+		mainPath = mp
+		cok(stderr, fmt.Sprintf("Main worktree: %s", mainPath))
+	}
 
 	repo, err := detectRepo()
 	if err != nil {
@@ -195,11 +212,17 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	if f.DryRun {
-		cinfo(stderr, "dry-run — skipping merge / archive / worktree cleanup")
+		cinfo(stderr, "dry-run — skipping merge / archive / cleanup")
 		fmt.Fprintf(stdout, "Would: gh pr merge ... (or offer to create) for %s\n", branch)
-		fmt.Fprintf(stdout, "Would: archive done issues under %s/%s/\n", mainPath, f.HistoryDir)
-		fmt.Fprintf(stdout, "Would: git worktree remove %s\n", wtPath)
-		fmt.Fprintf(stdout, "Would: git branch -D %s\n", branch)
+		if inPlace {
+			fmt.Fprintf(stdout, "Would: git switch main && git pull (in %s)\n", wtPath)
+			fmt.Fprintf(stdout, "Would: archive done issues under %s/%s/\n", wtPath, f.HistoryDir)
+			fmt.Fprintf(stdout, "Would: git branch -D %s\n", branch)
+		} else {
+			fmt.Fprintf(stdout, "Would: archive done issues under %s/%s/\n", mainPath, f.HistoryDir)
+			fmt.Fprintf(stdout, "Would: git worktree remove %s\n", wtPath)
+			fmt.Fprintf(stdout, "Would: git branch -D %s\n", branch)
+		}
 		return nil
 	}
 
@@ -211,12 +234,23 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		if err := ghClient.PRMerge(repo, branch); err != nil {
 			die(stderr, err.Error())
 		}
+		// In-place: the merge happened server-side, but this checkout is still
+		// on the feature branch — switch it to main before pulling the result.
+		if inPlace {
+			cinfo(stderr, "Switching to main...")
+			if out, gerr := mergeRunner.Git("switch", "main"); gerr != nil {
+				die(stderr, fmt.Sprintf("git switch main: %v\n%s", gerr, out))
+			}
+		}
 		cinfo(stderr, "Pulling main...")
 		if out, gerr := mergeRunner.GitInDir(mainPath, "pull"); gerr != nil {
 			die(stderr, fmt.Sprintf("git -C %s pull: %v\n%s", mainPath, gerr, out))
 		}
 	} else {
 		cwarn(stderr, fmt.Sprintf("No open PR for branch %s", branch))
+		if inPlace {
+			die(stderr, "no open PR for this branch — run `sdlc pr` first, then re-run `sdlc merge` (or `git switch main` to abandon the branch)")
+		}
 		if unmerged != "" {
 			ans := mergePrompter.Ask("Would you like to create a pull request first? [Y/n] ", stderr)
 			if ans != "n" && ans != "N" {
@@ -227,8 +261,8 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 				die(stderr, "aborted by operator")
 			}
 		}
-		// Falls through to archive + worktree removal regardless — the
-		// shell does the same. If no unmerged, we silently proceed.
+		// Worktree path: falls through to archive + worktree removal regardless
+		// — the shell does the same. If no unmerged, we silently proceed.
 	}
 
 	// ── 11. Archive done issues in MAIN worktree ────────────────────────────
@@ -249,7 +283,17 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 	}
 
-	// ── 12. Worktree cleanup ────────────────────────────────────────────────
+	// ── 12. Cleanup ─────────────────────────────────────────────────────────
+	if inPlace {
+		// Already switched to main + pulled above; just delete the merged branch.
+		cinfo(stderr, fmt.Sprintf("Deleting merged branch %s...", branch))
+		if out, gerr := mergeRunner.Git("branch", "-D", branch); gerr != nil {
+			cwarn(stderr, fmt.Sprintf("git branch -D %s: %v\n%s", branch, gerr, out))
+		}
+		cok(stderr, "Done. You are on main.")
+		return nil
+	}
+
 	cinfo(stderr, fmt.Sprintf("Removing worktree at %s...", wtPath))
 	// Run worktree remove + branch delete from the MAIN worktree, since
 	// removing the current worktree from within itself is undefined.
@@ -268,6 +312,14 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 	cok(stderr, "Done. Run: g (to cd back to main)")
 	return nil
+}
+
+// isInPlaceCheckout reports whether `git rev-parse --git-dir` indicates the
+// primary working tree (in-place: a bare ".git") rather than a linked worktree
+// (whose git-dir lives under ".git/worktrees/<name>"). Drives the in-place vs
+// worktree merge topology (#51).
+func isInPlaceCheckout(gitDir string) bool {
+	return !strings.Contains(gitDir, "/worktrees/")
 }
 
 // archiveDoneIssuesInDir is the merge-side equivalent of push.go's

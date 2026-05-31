@@ -19,6 +19,26 @@ func TestMergeCmd_Registered(t *testing.T) {
 	}
 }
 
+// ── in-place vs worktree topology (#51) ──────────────────────────────────────
+
+func TestIsInPlaceCheckout(t *testing.T) {
+	cases := []struct {
+		name   string
+		gitDir string
+		want   bool
+	}{
+		{"primary relative", ".git", true},
+		{"primary absolute", "/Users/x/repo/.git", true},
+		{"linked worktree absolute", "/Users/x/repo/.git/worktrees/000051-foo", false},
+		{"linked worktree relative", ".git/worktrees/feature", false},
+	}
+	for _, c := range cases {
+		if got := isInPlaceCheckout(c.gitDir); got != c.want {
+			t.Errorf("%s: isInPlaceCheckout(%q) = %v, want %v", c.name, c.gitDir, got, c.want)
+		}
+	}
+}
+
 // ── archiveDoneIssuesInDir ───────────────────────────────────────────────────
 
 func TestArchiveDoneIssuesInDir_MovesAndDoesNotCloseGH(t *testing.T) {

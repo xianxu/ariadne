@@ -8,8 +8,11 @@
   `status:` frontmatter — let `sdlc set-status` own that transition (it carries
   the estimate guard); editing the file directly bypasses the gate.
 - After plan approval, before editing code, run `sdlc change-code` — the
-  planning→implementation gate. It owns the branching decision (worktree vs
-  in-place) and the plan-quality check; don't start editing without it.
+  planning→implementation gate. It owns the branching decision — **in-place
+  branch by default** (a branch in the current checkout), `--worktree=yes` for
+  an isolated worktree — and the plan-quality check; don't start editing
+  without it. Publishing goes through a PR (`sdlc pr` → `sdlc merge`); direct
+  `sdlc push` on main still exists but is no longer the default path.
 - After a compaction or session resume, run `sdlc state` to recover where you
   are instead of re-inferring from issue files.
 - This is the locking mechanism for parallelized workstreams.

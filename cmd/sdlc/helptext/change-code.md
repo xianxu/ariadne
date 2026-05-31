@@ -8,9 +8,12 @@ between planning (which happens on `main`) and code-changing work:
                            executable as-written, or does it have
                            vague items / missing test surface /
                            undefined acceptance criteria?
-  3. Branching strategy  — worktree (isolation) or in-place branch
-                           (carry working tree forward)? Decided
-                           with a sizing hint derived from the plan.
+  3. Branching strategy  — defaults to in-place (a branch in the
+                           current checkout, carrying the working tree
+                           forward). `--worktree=yes` for an isolated
+                           worktree; `--worktree=ask` to be prompted
+                           (with a sizing hint) or, headless, get the
+                           agent sentinel.
 
 WHEN TO USE
 
@@ -30,10 +33,11 @@ FLAGS
   --issue <n>         workshop issue ID; derives branch name from
                       issues/NNNNNN-*.md
   --name <X>          explicit branch name (overrides --issue)
-  --worktree=<v>      yes (worktree) | no (in-place). Empty (default)
-                      asks the operator via tty prompt or, when stdin
-                      isn't a tty, emits ASK_BRANCHING_STRATEGY +
-                      exits 2 for the agent harness to handle.
+  --worktree=<v>      yes (worktree) | no (in-place) | ask (prompt).
+                      Empty (default) = in-place, silently. `ask` prompts
+                      via tty or, when stdin isn't a tty, emits
+                      ASK_BRANCHING_STRATEGY + exits 2 for the agent
+                      harness to handle.
   --force <reason>    bypass gate refusals; the rationale is logged
                       to stderr and recorded in the audit trail.
   --no-judge          skip the plan-quality LLM judge.
@@ -50,9 +54,11 @@ EXIT CODES
 
 AGENT PROTOCOL
 
-  When --worktree is unset AND stdin is not a tty, change-code emits
+  When `--worktree=ask` AND stdin is not a tty, change-code emits
   the sizing hint on stderr, prints `ASK_BRANCHING_STRATEGY` on
-  stdout, and exits 2. The xx-sdlc skill recognizes this contract:
+  stdout, and exits 2. (An unset flag now defaults to in-place silently,
+  so this fires only on an explicit `ask`.) The xx-sdlc skill recognizes
+  this contract:
 
     on exit 2 + ASK_<TOPIC> stdout line:
       issue the corresponding AskUserQuestion
@@ -65,11 +71,11 @@ AGENT PROTOCOL
 EXAMPLES
 
   sdlc change-code --issue 39
-    # default: structural checks + plan-quality judge + ask
+    # default: structural checks + plan-quality judge + in-place branch
   sdlc change-code --issue 39 --worktree=yes
-    # skip the ask; create a worktree
-  sdlc change-code --issue 39 --worktree=no
-    # skip the ask; branch in place
+    # create an isolated worktree instead
+  sdlc change-code --issue 39 --worktree=ask
+    # be prompted (tty) / get the agent sentinel (headless)
   sdlc change-code --issue 39 --no-judge
     # structural only; skip LLM judge (faster, for trivial changes)
   sdlc change-code --issue 39 --force "quick docs typo fix"
