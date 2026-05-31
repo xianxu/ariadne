@@ -38,8 +38,8 @@ push; the branch regime begins.** #51's own implementation is the last bootstrap
 
 **Phase A — close the bootstrap era (#3):**
 - [x] A1. Cross-stack (Codex) review of the unpushed mechanism + gate (#52, you-decide #4 M3). **Done 2026-05-31.** 3 correctness bugs fixed in you-decide (`e9f7f41`: silent-pass on bad range, loose frontmatter parser, escaped shebang). 3 enforcement findings (PR-mutable gate code; `--no-verify`; empty-dir/required-checks) confirm what we already chose — the gate is *advisory* until server-side trusted enforcement; folded into #52 M2 (Phase C). Conclusion: mechanism is sound for advisory use; the "real teeth" are Phase C.
-- [ ] A2. Housekeeping: resolve you-decide `bootstrap.sh` refresh side-effect (commit or clean-refresh).
-- [ ] A3. Push you-decide + ariadne to origins — the **final direct-on-main batch**. Optional `git tag bootstrap-close` on you-decide main.
+- [x] A2. Resolved you-decide `bootstrap.sh` (committed `5a781f1` — refresh synced it to the current base layer).
+- [x] A3. **Pushed 2026-05-31** — you-decide `4488ddb..5a781f1` (+ tag `bootstrap-close`), ariadne `9d27d44..6518c58`. Direct-on-main era closed. (Note: Phase B / #51 is the *one* remaining bootstrap-era exception — it can't be built on a branch that lacks the tooling it adds.)
 
 **Phase B — branch-in-place default (#4 of goals / ariadne #51):** still bootstrap-era (on main, pushed direct):
 - [ ] Implement #51 (sdlc change-code default → in-place; in-place merge-back via PR; retire/guard direct-on-main; audit AGENTS.md / Makefile.workflow / atlas).
@@ -57,4 +57,4 @@ Order of kinds: **A → B → D → (C optional) → E.** Operator chose framing
 
 ## Current position
 
-→ **Phase A1 done** (2026-05-31). Next: **A2** (resolve you-decide `bootstrap.sh` refresh side-effect) → **A3** (final direct-on-main push of both repos; optional `bootstrap-close` tag).
+→ **Phase A complete** (2026-05-31): bootstrap era closed, both repos pushed, `bootstrap-close` tagged. **Next: Phase B = implement ariadne #51** (branch-in-place default + PR-based merge-back + retire/guard direct-on-main + audit AGENTS.md/Makefile.workflow/atlas). #51 is the last bootstrap-era work (done on main, pushed direct); after it lands, all work — including bookkeeping — is branch→PR.
