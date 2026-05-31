@@ -101,25 +101,32 @@ create_scaffold() {
     printf "  ${GREEN}created${RESET} %s/\n" "${dir#$TARGET_DIR/}"
 }
 
-# create_seed — write-once copy of a real file from upstream into the target.
-# Unlike `symlink`, the result is a standalone file that survives a clone with
-# NO upstream beside it — for first-run entrypoints (bootstrap.sh) that must run
-# before any substrate is present, so they definitionally can't be symlinks.
-# Write-once: never overwrites an existing target (preserves local state; the
-# seeded file is generic + not-meant-to-be-edited, so there's nothing to sync).
-# Mode is preserved via `cp -p` so an executable source lands executable.
+# create_seed — content-tracking real-file copy of an upstream file into the
+# target. Unlike `symlink`, the result is a standalone file that survives a
+# clone with NO upstream beside it — for first-run entrypoints (bootstrap.sh)
+# that must run before any substrate is present, so they definitionally can't
+# be symlinks. A seed is really a *flattened symlink*: its content is owned by
+# upstream and carries no local edits, so it TRACKS upstream — refreshed on
+# every run when it drifts (created on first run, updated when upstream changed,
+# silent no-op when already identical). This converges a derivative whose seed
+# predates an upstream change (e.g. nous's pre-#45 bootstrap.sh). For files the
+# operator is meant to edit after delivery, use `scaffold`/`touch` (write-once),
+# not `seed`. Mode is preserved via `cp -p` so an executable source lands
+# executable.
 create_seed() {
     local src="$1" dst="$2"
-    if [[ -f "$dst" ]]; then
-        return 0
-    fi
     if [[ ! -f "$src" ]]; then
         printf "  ${YELLOW}warn${RESET}    seed source missing: %s\n" "${src#$upstream/}"
         return 0
     fi
+    if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
+        return 0   # already current — idempotent no-op, no churn on re-runs
+    fi
+    local verb=seeded
+    [[ -f "$dst" ]] && verb=updated   # existed but drifted from upstream
     ensure_parent "$dst"
     cp -p "$src" "$dst"
-    printf "  ${GREEN}seeded${RESET}  %s\n" "${dst#$TARGET_DIR/}"
+    printf "  ${GREEN}%s${RESET}  %s\n" "$verb" "${dst#$TARGET_DIR/}"
 }
 
 merge_settings() {
@@ -314,10 +321,12 @@ walk_manifest() {
                 create_scaffold "$TARGET_DIR/$target"
                 ;;
             seed)
-                # Write-once real-file copy (NOT a symlink) for first-run
-                # entrypoints that must work before substrate is present.
-                # Self-walk in the upstream is skipped by the self-reference
-                # filter above (source path == target path).
+                # Content-tracking real-file copy (NOT a symlink) for first-run
+                # entrypoints that must work before substrate is present. Unlike
+                # a symlink it materializes a standalone file; like a symlink it
+                # tracks upstream — refreshed when it drifts. Self-walk in the
+                # upstream is skipped by the self-reference filter above (source
+                # path == target path), so ariadne's own copy is never touched.
                 create_seed "$upstream/$source" "$TARGET_DIR/$target"
                 ;;
             copy)
