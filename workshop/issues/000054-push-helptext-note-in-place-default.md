@@ -26,9 +26,11 @@ serves as the live end-to-end dogfood of the #51 in-place branch→pr→merge fl
   RELATED section) that in-place branch via `sdlc change-code` is the default
   since #51; `sdlc push` is the direct-on-main shortcut.
 
-## Done-when
+## Done when
 
-- `sdlc push --help` mentions the in-place-default flow and frames `push` as the
-  shortcut; `go test ./cmd/sdlc/...` (incl. the helptext embed test) stays green.
+- [ ] `sdlc push --help` (push.md) states that `sdlc change-code` (in-place
+  branch) → `sdlc pr` → `sdlc merge` is the default flow since #51, and frames
+  `sdlc push` as the direct-on-main shortcut.
+- [ ] `go test ./cmd/sdlc/...` stays green (the helptext embed test covers push.md).
 
 ## Log
