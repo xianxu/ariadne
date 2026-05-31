@@ -19,6 +19,11 @@ func TestFormatFixes(t *testing.T) {
 		{[]string{"42"}, "Fixes #42"},
 		{[]string{"42", "43"}, "Fixes #42, #43"},
 		{[]string{"1", "100", "10"}, "Fixes #1, #100, #10"}, // input order preserved (caller pre-sorts)
+		// Cross-repo / qualified github_issue values are used verbatim (no
+		// leading "#") — GitHub closes "owner/repo#3", not "#owner/repo#3".
+		{[]string{"xianxu/you-decide#3"}, "Fixes xianxu/you-decide#3"},
+		{[]string{"42", "owner/repo#7"}, "Fixes #42, owner/repo#7"},
+		{[]string{"#9"}, "Fixes #9"}, // already-hashed → unchanged
 	}
 	for _, c := range cases {
 		got := formatFixes(c.in)

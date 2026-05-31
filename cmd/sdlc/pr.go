@@ -165,18 +165,35 @@ func collectGitHubIssueNumbers(paths []string) []string {
 	return out
 }
 
-// formatFixes returns the "Fixes #1, #2, #3" line for the given GitHub
-// issue numbers. Returns "" if numbers is empty (matches the shell's
-// empty `$fixes` branch which falls through to `gh pr create --fill`).
+// formatFixes returns the "Fixes ..." line for the given github_issue
+// references. Returns "" if numbers is empty (matches the shell's empty
+// `$fixes` branch which falls through to `gh pr create --fill`).
+//
+// A bare number ("42") is a same-repo reference → "Fixes #42". A
+// fully-qualified value ("owner/repo#3") is a cross-repo reference and must be
+// used verbatim — GitHub's closing syntax is "Fixes owner/repo#3" with NO
+// leading "#". Prepending "#" unconditionally produced the malformed
+// "Fixes #owner/repo#3", which GitHub does not parse as a closing reference.
 func formatFixes(numbers []string) string {
 	if len(numbers) == 0 {
 		return ""
 	}
-	hashed := make([]string, len(numbers))
+	refs := make([]string, len(numbers))
 	for i, n := range numbers {
-		hashed[i] = "#" + n
+		refs[i] = fixesRef(n)
 	}
-	return "Fixes " + strings.Join(hashed, ", ")
+	return "Fixes " + strings.Join(refs, ", ")
+}
+
+// fixesRef renders one github_issue value as a GitHub closing reference. A
+// value already carrying "#" or "/" is a complete reference (cross-repo
+// owner/repo#N, or already-hashed) and is returned unchanged; a bare number
+// gets the leading "#".
+func fixesRef(n string) string {
+	if strings.ContainsAny(n, "#/") {
+		return n
+	}
+	return "#" + n
 }
 
 // gitCommitsSince returns "- <subject>\n- <subject>" lines for every
