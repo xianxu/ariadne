@@ -698,7 +698,11 @@ func findMilestonesMissingVerdict(body, issueStr, issuePath string) ([]string, e
 // treated as fixed strings rather than regex (the colon and braces in
 // commit subjects don't bite us).
 func milestoneHasVerdictCommit(issueStr, milestone, issuePath string) (bool, error) {
-	subjectGrep := fmt.Sprintf("^#%s %s:", issueStr, milestone)
+	// `Mx` may be followed by a colon (`#56 M1: …`) or more subject words
+	// before the colon (`#56 M1 close: …`) — both are natural milestone-close
+	// subjects. Anchor on `Mx` + a colon-or-space boundary so neither form is
+	// missed, while `M1` still can't match `M10` (next char would be a digit).
+	subjectGrep := fmt.Sprintf("^#%s %s[: ]", issueStr, milestone)
 	args := []string{
 		"log",
 		"--grep=" + subjectGrep,

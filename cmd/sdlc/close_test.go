@@ -390,6 +390,54 @@ func TestFindMilestonesMissingVerdict_AllPresent(t *testing.T) {
 	}
 }
 
+// TestFindMilestonesMissingVerdict_SpaceBeforeColonSubject is the regression
+// for the #56 close bug: a milestone-close subject can read
+// `#31 M1 close: …` — the milestone followed by more subject words before the
+// colon — not only `#31 M1: …`. The matcher must detect the trailer in both.
+func TestFindMilestonesMissingVerdict_SpaceBeforeColonSubject(t *testing.T) {
+	dir := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer func() { _ = os.Chdir(cwd) }()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v — %s", args, err, out)
+		}
+	}
+	runGit("init", "-q", "-b", "main")
+	runGit("config", "user.email", "test@example.com")
+	runGit("config", "user.name", "Test")
+	runGit("config", "commit.gpgsign", "false")
+
+	issuesDir := "workshop/issues"
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issuePath := filepath.Join(issuesDir, "000031-x.md")
+	if err := os.WriteFile(issuePath, []byte("v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit("add", issuePath)
+	// Milestone followed by a space + more words before the colon.
+	runGit("commit", "-q",
+		"-m", "#31 M1 close: review SHIP — tidy",
+		"-m", "Body.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD")
+
+	planBody := "## Plan\n\n- [x] **M1 — first**\n\n## Log\n"
+	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	if err != nil {
+		t.Fatalf("findMilestonesMissingVerdict: %v", err)
+	}
+	if len(missing) != 0 {
+		t.Errorf("`#31 M1 close:` subject should satisfy the verdict check; got missing %v", missing)
+	}
+}
+
 // TestFormatMissingVerdicts_ContractElements verifies the next-action
 // error message names the missing milestones, suggests the rerun
 // command for each, shows the trailer shape, and documents --force.
