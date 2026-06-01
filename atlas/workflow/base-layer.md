@@ -59,6 +59,31 @@ right move is almost always to (a) generalize the change and push it
 into ariadne, or (b) override it in the `.local` layer. Direct edits
 get clobbered on the next `make refresh`.
 
+## Dev binaries — ownership = location (`dev-aliases.sh`)
+
+**A Go binary is owned by the repo whose `cmd/X` source physically lives there.**
+Derivatives never copy or symlink the source; they run the built binary or
+compile in the owner (`replace` + `tool` in their `construct/go.mod`). Source
+distributed through the file-symlink *substrate* channel (the old `symlink
+cmd/X` directive) is the deprecated anti-pattern — code flows through Go
+modules, not the symlink channel reserved for docs/config (#56, #57).
+
+For a smooth dev loop, `construct/dev-aliases.sh` walks the active
+ariadne-styled siblings and emits a shell function per owned `cmd/X`:
+
+```
+source <(~/workspace/ariadne/construct/dev-aliases.sh)
+```
+
+Each function builds in the **owner** repo and runs in the **caller's** cwd, so
+it's always fresh and works for both repo-bound tools (`sdlc`, operates on the
+repo you're in) and run-anywhere tools (`nous`). Filters: skips re-export
+symlinks and non-buildable dirs (so a derivative never shadows the owner), and
+`cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
+fails on a duplicate name. Documented by its header comment + the hermetic test
+`construct/scripts/test/dev-aliases.test.sh` (the `construct/scripts/*.sh`
+convention — substrate scripts aren't agent skills, so no `SKILL.md`).
+
 ## Pushing Updates to All Consumers
 
 Ariadne maintainers can propagate base-layer changes in one shot:
