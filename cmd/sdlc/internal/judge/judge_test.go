@@ -231,6 +231,21 @@ func TestParseVerdict(t *testing.T) {
 			VerdictUnknown,
 		},
 		{
+			// The #56 M3 failure: the reviewer narrates investigation prose
+			// before the verdict line. The confidence-qualified fallback
+			// catches it even though the leading scan stops at the prose.
+			"prose preamble then confidence-qualified verdict",
+			"I have enough to render the verdict. Let me confirm one detail first.\n\nThe renderer emits deps from --deps only.\n\nFIX-THEN-SHIP (confidence: high)\n\nM3 is a docs milestone…",
+			VerdictFixThenShip,
+		},
+		{
+			// Precision still holds: prose preamble + a *bare* later token
+			// (no confidence paren) is NOT a verdict.
+			"prose preamble then bare token is not a verdict",
+			"Looks reasonable overall.\n\nSHIP\n",
+			VerdictUnknown,
+		},
+		{
 			"completely empty",
 			"",
 			VerdictUnknown,
