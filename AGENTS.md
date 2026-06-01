@@ -32,32 +32,27 @@
 #### This Repo
     - Simple case, operate in the single file in `workshop/issues/`
     - Complex case, start in `workshop/issues/`, write detailed design in `workshop/plans/`
-    - When a shape, convention, protocol, or invariant has crystallized through iteration and is worth defending against drift, write a `target` in `workshop/targets/`. A target captures a grounding truth the system commits to defending — *what we defend and why* — under-specified by design; projects and issues reference it via `target: <slug>` frontmatter. Sits above projects and issues in the dependency graph: target ← project (or issue) — many-to-one. Trigger: recognition that a pattern has stabilized through use, not upfront planning. See `construct/datatype/target.md`.
-    - In all cases, `atlas/` is for big picture pointers, terminologies to facilitate future high level understanding of this codebase. It is your first level onboarding material for human and agents
-    - When done, the artifacts in `workshop/issues/` and `workshop/plans/` are moved to `workshop/history/`. Targets are durable commitments; they stay in `workshop/targets/` indefinitely, with status transitions (`active` → `achieved` / `split` / `deferred` / `abandoned`) instead of moves to history.
-    - `workshop/parley` contains parley chats related to this repo, think them as brainstorming. Parley chats typically promote to issues; a parley may also directly promote to a target if the chat surfaced an existing pattern worth pinning (made something already-there explicit, rather than designing something new).
-    - `workshop/pensive` contains pensives — less well structured notes, in a similar vein to `workshop/parley` but more focused on a topic (one topic per file). A sibling of parley; both are thinking artifacts that live under `workshop/`. Pensives typically promote to issues; a pensive can directly promote to a target when the moment-in-time thought was recognition of a stabilized pattern rather than a new direction. (Pensives originated in `docs/vision`; `workshop/pensive` is the codified home as of ariadne#43.)
-    - `docs/vision` - broader visionary notes about this repo (not the per-topic pensive datatype, which now lives in `workshop/pensive`). Optional; repos use it for free-form vision/brainstorm material.
-    - When revising plan artifacts (`issue`, `plan`, `project`, `roadmap`, `target`) mid-stream (scope change), append a `## Revisions` section with timestamp + reason + delta.
-    - **Human-centric documents (targets, products, atlas drafts) take agent contributions via inline markers, never direct overwrites.** The grammar: `🤖{Y}` proposes adding Y; `🤖~X~` proposes deleting X (markdown strikethrough renders it as a visual deletion preview); `🤖~X~{Y}` proposes replacement; `🤖<X>[H]` is the operator's commentary referencing X. Each accept/reject is a one-edit-class operation in the operator's editor. Full table in `construct/datatype/target.md`. Applies even for solicited edits — inline markers iterate better than git-diff hunks because the editing surface stays in the file.
+    - When a shape, convention, protocol, or invariant has crystallized through iteration and is worth defending against drift, write a `target` in `workshop/targets/`. A target captures a grounding truth the system commits to defending; projects and issues reference it via `target: <slug>` frontmatter. Sits above projects and issues in the dependency graph
+    - In all cases, `atlas/` is for big picture pointers, terminologies to facilitate future high level understanding of this codebase
+    - When done, the artifacts in `workshop/issues/` and `workshop/plans/` are moved to `workshop/history/`. Targets are durable, stay in `workshop/targets/` indefinitely, with status transitions (`active` → `achieved` / `split` / `deferred` / `abandoned`).
+    - `workshop/parley` contains parley chats related to this repo, think them as brainstorming records, freeform and expansive. Parley chats typically promote to issues
+    - `workshop/pensive` contains pensives — less well structured notes, similar to `workshop/parley` but more focused on a topic (one topic per file). 
+    - `docs/vision` - broader visionary notes about this repo, often of better maturity than parley or pensive.
+    - When revising plan artifacts (`issue`, `plan`, `project`, `roadmap`, `target` etc.) mid-stream (scope change), append a `## Revisions` section with timestamp + reason + delta.
+    - **Human-centric plan documents take agent contributions via inline markers, **The grammar: `🤖{Y}` proposes adding Y; `🤖~X~` proposes deleting X; `🤖~X~{Y}` proposes replacement; Full table in `construct/datatype/target.md`. Applies even for solicited edits
 
 #### Peer Repo
-    - Peer = sibling repo in same parent directory with its own AGENTS.md and memory
-    - Peer repos might be ariadne styled, manifested as having AGENTS.md and workshop directory in repo root.
+    - Peer = sibling repo in same parent directory, often share same structure as this repo through bootstrapping with ./construct/setup.sh
     - When work touches peer X:
-      - for ariadne styled repo, do not read its AGENTS.md, it is near duplicate as this one. Do read AGENTS.local.md, for local convention.
+      - for ariadne styled repo (have construct in root), do not read its AGENTS.md, it is near duplicate as this one. Do read AGENTS.local.md, for local convention.
       - Read peer X's MEMORY.md if present
       - Read peer X's AGENTS.local.md if present
       - Issue files, atlas, tests live in peer X's tree
     - "brain" is a special peer holding cross-cutting state: execution tracking such as datatype `project`, `roadmap`. 
 	- Brain is a mirror of human, contains all private data. 
 	- Shared Brain represents shared mind of a family, team, company.
-	- **Brain identification.** A repo is a brain iff it contains `.brain/config.md` at its root. Tools and agents answer "is this a brain?" by `test -d .brain` — never by directory or repo name (real names will vary: `brain`, `family-brain`, `brain-private`, etc.). The manifest declares:
-		- `name: <slug>` — brain identity for cross-brain references (e.g., `@brain:family/...`), decoupled from directory and remote name.
-		- `recipients: [<gpg-fingerprint>, ...]` — always present; the GPG public-key fingerprints admitted to the brain. Single-recipient = effectively private; multi-recipient = shared. (Earlier schemas carried an explicit `mode: private | shared` field; that's been dropped because it's derivable from `len(recipients)` and was a duplication invariant tools had to keep in sync. Existing manifests with `mode:` parse fine — readers ignore it.)
-		- `sync_substrate: syncthing | git-daemon | none` — `none` for private brains, an external substrate for shared.
-	- All brains use the same encryption mechanism (gcrypt with a GPG recipient list). The daily unlock chain is uniform across machines: GPG private key in `~/.gnupg/`, passphrase in macOS login Keychain, fed to gpg-agent via pinentry-mac. The manifest does not encode per-machine unlock paths — that's a system-level concern, not per-brain.
-	- A repo without `.brain/config.md` is not a brain — agents apply brain-aware behavior (encryption, sync, cross-brain reference resolution) only to repos that declare themselves. Full schema, security rationale, bootstrap procedure, and threat-model context live in `brain/atlas/threat-model-shared-brain.md`.
+	- **Brain identification.** A repo is a brain iff it contains `.brain/config.md` at its root. Tools and agents answer "is this a brain?" by `test -d .brain`. 
+	- All brains use the same encryption mechanism (gcrypt with a GPG recipient list), unless it is local only. The daily unlock chain is uniform across machines: GPG private key in `~/.gnupg/`, passphrase in macOS login Keychain, fed to gpg-agent via pinentry-mac. See `brain/atlas/threat-model-shared-brain.md`.
 
 ### 2. Overall Workflow
 - Enter brainstorming mode when requirement is unclear
@@ -183,5 +178,6 @@
   - `workshop/parley/` — parley chat, typically product exploration
   - `workshop/pensive/` — pensives: per-topic thinking notes (sibling of parley)
   - `workshop/plans/` — detailed designs (high churn, staging area)
+  - `workshop/targets/` — invariant that need to be defended from drift
 
 @AGENTS.local.md
