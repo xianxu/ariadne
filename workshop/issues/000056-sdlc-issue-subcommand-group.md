@@ -100,6 +100,10 @@ untouched.
 
 Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 
+- [x] M1 — `issue` group + `new` + scaffold extraction
+- [ ] M2 — move `set-status` in + fold `fetch` + `list`/`show`
+- [ ] M3 — consolidate docs/skill + reference sweep
+
 ### M1 — `issue` group + `new` + scaffold extraction
 - [x] Extract `NextID`, `Slugify`, and the parameterized `Render` (per the
       canonical template above) from `fetch.go` into `internal/issue/scaffold.go`
@@ -115,7 +119,10 @@ Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 ### M2 — move `set-status` in + fold `fetch` + `list`/`show`
 - [ ] Move `set-status` under `sdlc issue set-status`; keep flat `sdlc
       set-status` as a hidden deprecated alias; **re-point `setstatus_test.go`**
-      at the relocated command; update internal references.
+      at the relocated command; update internal references. (M1 review #2:
+      keep the transition guards as **returned errors** unit-tested at the
+      function level, `die()` only at the cobra `RunE` boundary — the guards are
+      the riskiest logic and must be table-testable.)
 - [ ] Reimplement `sdlc fetch` as `sdlc issue new --from-github N` over the
       shared scaffold; keep `sdlc fetch` (with its existing `--github-issue`
       flag) as a hidden alias; preserve GH-close-on-archive behavior. Note the
@@ -145,6 +152,8 @@ Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 
 ## Log
 
+
+- 2026-05-31: closed M1 — go test ./cmd/sdlc/... green; sdlc issue new smoke-tested (dry-run renders canonical template); GetField empty-field regression added; review verdict: SHIP (high confidence, 0 critical). milestone-close auto-recorded "unknown" because the judge put SHIP under `## 1. Verdict` not line 1 — parser fragility, verdict corrected here by hand. Important findings addressed pre-M2: atlas issue-lifecycle.md updated for blank `issue new` + the one-step claim; `--deps` CLI test added. Deferred-with-note: die()→returned-errors for testable guards (apply to set-status in M2).
 ### 2026-05-31
 Created from a brainstorm. Decided the boundary: option **A** (additive `issue`
 group for CRUD; checkpoint guards stay flat), with `set-status` moved into the

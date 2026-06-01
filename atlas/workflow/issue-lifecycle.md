@@ -3,7 +3,7 @@
 ## Flow
 
 ```
-GitHub Issue → sdlc fetch --github-issue 42 → workshop/issues/000042-slug.md → sdlc claim → sdlc change-code (in-place branch by default) → work → sdlc pr → sdlc merge   [direct sdlc push on main still available, but not the default]
+Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) → workshop/issues/NNNNNN-slug.md → sdlc claim → sdlc change-code (in-place branch by default) → work → sdlc pr → sdlc merge   [direct sdlc push on main still available, but not the default]
 ```
 
 ## States
@@ -18,8 +18,8 @@ GitHub Issue → sdlc fetch --github-issue 42 → workshop/issues/000042-slug.md
 
 ## Transitions
 
-1. **Fetch**: `sdlc fetch --github-issue <num>` creates a local issue file from GitHub with frontmatter (id, status, github_issue, dates)
-2. **Claim**: `sdlc set-status --issue N working` then `sdlc claim --issue N` publishes the issue-state claim to main
+1. **Create**: `sdlc issue new "<title>"` allocates the next ID and writes the canonical template (the no-GitHub entry path); `sdlc issue new --from-github <num>` (or the older `sdlc fetch`) seeds it from a GitHub issue. See `sdlc issue --help` for the canonical issue-file contract.
+2. **Claim**: `sdlc claim --issue N` flips an open issue to `working` and publishes the issue-state claim to main in one step (`--no-start` to skip the flip)
 3. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
 4. **Default — branch + PR**: `sdlc change-code` creates an **in-place branch** (a branch in the current checkout) after the gates; `sdlc pr` opens the pull request; `sdlc merge` merges it server-side, archives done issues, and switches back to main. `--worktree=yes` gets an isolated worktree instead (parallel work).
 5. **Shortcut — direct on main**: `sdlc push` (auto-commit, pre-merge checks, push, archive, close GH issues) still exists for quick one-liners, but is no longer the default (#51).

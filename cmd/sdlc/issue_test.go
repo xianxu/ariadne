@@ -59,11 +59,12 @@ func TestRunIssueNew_BlankCreatesNextID(t *testing.T) {
 	}
 }
 
-// TestRunIssueNew_SlugOverrideAndTarget: --slug and --target are honored.
-func TestRunIssueNew_SlugOverrideAndTarget(t *testing.T) {
+// TestRunIssueNew_SlugTargetDeps: --slug, --target, and --deps flow
+// through to the written file.
+func TestRunIssueNew_SlugTargetDeps(t *testing.T) {
 	issues, history := newTestDirs(t)
 	var stdout, stderr bytes.Buffer
-	f := &issueNewFlags{IssuesDir: issues, HistoryDir: history, Slug: "custom-slug", Target: "my-target"}
+	f := &issueNewFlags{IssuesDir: issues, HistoryDir: history, Slug: "custom-slug", Target: "my-target", Deps: []string{"repo#1", "repo#2"}}
 	if err := runIssueNew(&stdout, &stderr, f, []string{"Ignored Title"}); err != nil {
 		t.Fatalf("runIssueNew err: %v", err)
 	}
@@ -72,8 +73,12 @@ func TestRunIssueNew_SlugOverrideAndTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected file at %s: %v", want, err)
 	}
-	if !strings.Contains(string(data), "target: my-target") {
-		t.Errorf("target not written:\n%s", data)
+	body := string(data)
+	if !strings.Contains(body, "target: my-target") {
+		t.Errorf("target not written:\n%s", body)
+	}
+	if !strings.Contains(body, "deps: [repo#1, repo#2]") {
+		t.Errorf("deps not written:\n%s", body)
 	}
 }
 
