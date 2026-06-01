@@ -86,7 +86,10 @@ emitted form is `X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o
 bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }` (the `rm -f` mirrors the owner
 Makefiles' code-signing-inode safety). The function only **builds + runs** — it
 does **not** manage services (no `launchctl bootout`); use the owner's `make
-<name>-dev` target for the stop-prod-then-serve flow. Filters: skips re-export
+<name>-dev` target for the stop-prod-then-serve flow. It's also a *shell
+function* — not on PATH and not reachable from cron/launchd; a derivative that
+needs one of these binaries non-interactively must add the `replace` + `tool`
+consume-wiring (the module channel), not rely on the alias. Filters: skips re-export
 symlinks and non-buildable dirs (so a derivative never shadows the owner), and
 `cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
 fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
