@@ -10,8 +10,9 @@ Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) →
 
 | Status | Meaning |
 |--------|---------|
-| open | Active work |
-| working | An agent is working on something |
+| open | Not started |
+| working | An agent is working on it |
+| blocked | Waiting on something |
 | done | Completed, awaiting archive |
 | wontfix | Declined |
 | punt | Deferred |
@@ -51,25 +52,33 @@ back into `.goto` for the return trip.
 
 ## Issue file structure
 
+`sdlc issue new` writes this shape (see `sdlc issue --help` for the
+authoritative field/section contract; the on-disk template is rendered by
+`Render` in `cmd/sdlc/internal/issue/scaffold.go`):
+
 ```markdown
 ---
 id: 000042
 status: open
 deps: []
 github_issue: 42
+target:            # optional; a workshop/targets/ slug
 created: 2026-04-20
 updated: 2026-04-20
 estimate_hours:    # optional at create; required when status=working
-actual_hours:      # required when status=done
+                   # actual_hours: added at close; required when status=done
 ---
 
 # Title
 
-## Done when
-- acceptance criteria
+## Problem
+What's wrong / what's needed (seeded from the GitHub body on --from-github).
 
 ## Spec
 - brainstorming results (if needed)
+
+## Done when
+- acceptance criteria
 
 ## Plan
 - [ ] checklist of work
