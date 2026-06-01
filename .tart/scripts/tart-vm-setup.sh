@@ -81,4 +81,32 @@ elif [ -L "$HOME/workspace" ]; then
     rm "$HOME/workspace"
 fi
 
+# ── Per-repo VM hooks (run-parts) ────────────────────────────────
+# After standard setup, run the BOOTED repo's hook directory so a
+# consumer can customize its VM without patching this base-layer
+# script. Convention (ariadne#59):
+#   - Location: ~/workspace/<repo>/.tart/vm-hooks.d/  (the repo whose
+#     `make tart` was invoked, i.e. $CURRENT_REPO).
+#   - Every *.sh, lexical LC_ALL=C order — use zero-padded NN- prefixes
+#     (00-, 10-) to sequence deterministically. Run as `bash <hook> <repo>`.
+#   - Runs on EVERY cold-boot (no run-once marker) → hooks MUST be idempotent.
+#   - Continue-on-error: a failing hook prints a [warn] with its rc and the
+#     loop continues, so a broken hook never strands the operator out of the
+#     VM shell. The `|| echo …` form is also what keeps `set -e` (line 9)
+#     from aborting the whole setup when a hook exits non-zero.
+# Opt-in + additive: no hook dir → no-op, so existing consumers are unaffected.
+HOOKS_DIR="$HOME/workspace/$CURRENT_REPO/.tart/vm-hooks.d"
+if [ -n "$CURRENT_REPO" ] && [ -d "$HOOKS_DIR" ]; then
+    for name in $(cd "$HOOKS_DIR" && LC_ALL=C ls -1 ./*.sh 2>/dev/null); do
+        base="$(basename "$name")"
+        echo "==> vm-hook: $base"
+        # Capture rc explicitly: a command substitution in the warn string
+        # would otherwise reset $? before we read it. `|| rc=$?` also keeps
+        # `set -e` from aborting the whole setup on a non-zero hook.
+        rc=0
+        bash "$HOOKS_DIR/$base" "$CURRENT_REPO" || rc=$?
+        [ "$rc" -eq 0 ] || echo "  [warn] vm-hook $base failed (rc=$rc) — continuing"
+    done
+fi
+
 echo "==> VM setup complete."

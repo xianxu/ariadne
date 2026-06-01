@@ -18,12 +18,18 @@
 # on next make tart.
 
 # PATH:
-#   - ~/repo/bin first — VM-mirrored binaries from the current-repo's
+#   - ~/workspace/pair/bin first — pair's shell tooling + prebuilt
+#     helpers (pair, pair-help, pair-notify, the *.sh pane scripts).
+#     These aren't cmd/X Go binaries, so the dev-aliases functions
+#     below can't cover them. Only present when pair is in the VM's
+#     workspace clone (booted from pair, a go.mod peer, or pulled in
+#     via `make tart SYNC=../pair`); a missing dir is a harmless no-op.
+#   - ~/repo/bin next — VM-mirrored binaries from the current-repo's
 #     `make build`. Post-ariadne#32 ~/repo is a symlink to
 #     ~/workspace/<current-repo>/, so this picks up whichever peer
 #     the operator was working on when they ran `make tart`.
 #   - ~/.local/bin next, for any operator-installed tools.
-export PATH="$HOME/repo/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/workspace/pair/bin:$HOME/repo/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 # Editor preference. Fallback to vi (always present on macOS); the
 # operator can override to nvim once they `brew install neovim` in
@@ -83,3 +89,20 @@ fi
 export GPG_TTY=$(tty)
 command -v gpg-connect-agent >/dev/null 2>&1 && \
     gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
+
+# Dev-binary functions: build-on-demand wrappers for every Go binary
+# owned by an ariadne-styled peer in the workspace clone (sdlc, nous,
+# pair-scribe, …). Each `X` becomes a function that rebuilds X to its
+# owner's bin/ then runs it from the caller's cwd — so binaries are
+# always fresh against the mounted source, with no prior `make build`.
+# Functions outrank PATH in zsh, so they transparently shadow any stale
+# copy. Sourced last so they get the final word. See ariadne#57 /
+# construct/dev-aliases.sh for the ownership + dedup rules.
+#
+# Guarded: the emitter lives in ariadne, so this only fires when ariadne
+# is in the VM's workspace clone (it's a go.mod peer of nearly every
+# repo). Clean no-op otherwise — the per-repo `make build` path still
+# works via ~/repo/bin above.
+_dev_aliases="$HOME/workspace/ariadne/construct/dev-aliases.sh"
+[ -r "$_dev_aliases" ] && source <(bash "$_dev_aliases")
+unset _dev_aliases
