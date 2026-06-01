@@ -129,7 +129,7 @@ same-name conflicts for `--strict`/warn.
 Two milestones, each a fresh-eyes `sdlc milestone-close` review boundary.
 
 - [x] M1 — `construct/dev-aliases.sh` (the generator)
-- [ ] M2 — retire nous source-symlinks + cleanup + docs
+- [x] M2 — retire nous source-symlinks + cleanup + docs
 
 ### M1 — generator
 - [x] `construct/dev-aliases.sh`: sibling walk + `construct/` scope + active
@@ -160,16 +160,19 @@ Two milestones, each a fresh-eyes `sdlc milestone-close` review boundary.
       not available to cron/scripts) BEFORE deleting the 9 symlinks. (M2 mutates
       peer repos incl. the base-layer `nous/construct/base.manifest` — downstream
       caveat per AGENTS.local.md.)
-- [ ] Remove the 3 code-symlink directives (`lib/gmail`, `cmd/gmail`,
-      `cmd/oneshot`) from `nous/construct/base.manifest`; remove the 9 symlinks
-      across brain/brain-family/brain-private; verify those repos still obtain
-      gmail/oneshot (dev-alias / PATH binary), redirect any build step off the
-      symlinked source, and migrate any real `lib/gmail` library import to a
-      module dep.
-- [ ] `rm -rf` pair's stray `cmd/sdlc/` tree (holds a `bin/` subdir).
-- [ ] atlas (base-layer.md / dev-tooling note) + the `.zshrc` `source <(...)`
-      one-liner; verify end-to-end (`source` it, run sdlc + a nous binary from
-      different cwds).
+- [x] Removed the 3 code-symlink directives from `nous/construct/base.manifest`
+      (nous commit `98d652d`, pushed); removed the 9 symlinks across
+      brain/brain-family/brain-private (commits `6f141f8`/`9e1aec9`/`086ae51` —
+      brain + brain-family are gcrypt, pushed-by-operator). Confirmed vestigial:
+      `lib/gmail` imported only by `nous/cmd/gmail` (lib-migration = no-op);
+      brain* `bin/` empty, no live build path. Derivatives now get
+      gmail/oneshot via the dev-alias (build-in-nous) — verified `oneshot --help`
+      builds `nous/bin/oneshot` and runs from any cwd.
+- [x] `rm -rf` pair's stray `cmd/sdlc/` (untracked cruft — held only a `bin/`).
+- [x] atlas base-layer.md note (incl. service-stop caveat + the retirement);
+      `.zshrc` one-liner (`source <(~/workspace/ariadne/construct/dev-aliases.sh)`)
+      in the note + script header. E2e verified: dev-alias builds to owner `bin/`,
+      runs in caller cwd (sdlc from nous → operates on nous; oneshot from /tmp).
 
 ## Log
 

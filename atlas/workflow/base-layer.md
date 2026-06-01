@@ -67,6 +67,9 @@ compile in the owner (`replace` + `tool` in their `construct/go.mod`). Source
 distributed through the file-symlink *substrate* channel (the old `symlink
 cmd/X` directive) is the deprecated anti-pattern — code flows through Go
 modules, not the symlink channel reserved for docs/config (#56, #57).
+nous's `symlink lib/gmail` / `cmd/gmail` / `cmd/oneshot` directives (and the
+9 resulting brain* symlinks) were retired under #57 — derivatives now obtain
+gmail/oneshot via the dev-alias (build-in-owner), not symlinked source.
 
 For a smooth dev loop, `construct/dev-aliases.sh` walks the active
 ariadne-styled siblings and emits a shell function per owned `cmd/X`:
