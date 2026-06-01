@@ -4,27 +4,27 @@ transition, and refuses transitions that lack it. We don't model the SDLC as a
 state machine — stages stay prose; we codify the gates between them where drift
 recurs. `sdlc` manages the development life cycle; prefer it over `git`/`gh`.
 
-━━ BEFORE WORK ━━
+BEFORE WORK
   - `sdlc claim --issue N` — the single start-of-work gesture. Flips an *open*
     issue to `working` (applying the estimate guard) and publishes the claim to
     origin/main so peer agents see it. `--no-start` suppresses the flip.
   - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc issue
     set-status` own that transition (it carries the estimate guard).
 
-━━ ENTER IMPLEMENTATION ━━
+ENTER IMPLEMENTATION
   - After plan approval, before editing code, run `sdlc change-code`. It owns the
     branching decision (in-place branch by default; `--worktree=yes` for an
     isolated worktree) and the plan-quality check. Don't start coding without it.
 
-━━ PUBLISH ━━
+PUBLISH
   - Publishing goes through a PR: `sdlc pr` → `sdlc merge`. Direct `sdlc push`
     if working directly on main.
 
-━━ RECOVER ━━
+RECOVER
   - After a compaction or session resume, run `sdlc state` to recover where you
     are instead of re-inferring from issue files.
 
-━━ WHEN A VERB ERRORS ━━
+WHEN A VERB ERRORS
   Do NOT route around it with hand-rolled `git`/`gh`. Its errors are next-action
   specs. The fix is one of two things:
     (a) satisfy the precondition it names and re-run the same verb (e.g. `sdlc
