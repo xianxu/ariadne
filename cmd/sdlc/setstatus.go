@@ -1,4 +1,6 @@
-// setstatus.go — `sdlc set-status --issue N <status>` subcommand.
+// setstatus.go — `sdlc issue set-status --issue N <status>` subcommand
+// (#56 M2: relocated under `issue`; flat `sdlc set-status` kept as a hidden
+// deprecated alias built from the same NewSetStatusCmd).
 //
 // New verb (no Makefile equivalent today). Flips an issue file's
 // status: frontmatter field with transition guards that match the
@@ -44,8 +46,10 @@ type setStatusFlags struct {
 	IssuesDir string
 }
 
-// NewSetStatusCmd returns the cobra command for `sdlc set-status`.
-// Note Use is "set-status" with a dash; the Go source file uses no dash.
+// NewSetStatusCmd builds the set-status cobra command. Called twice:
+// once under the `issue` group (`sdlc issue set-status`) and once as the
+// hidden deprecated flat alias (`sdlc set-status`) — fresh instances, so
+// no shared-pointer aliasing. Use is "set-status" with a dash.
 func NewSetStatusCmd() *cobra.Command {
 	f := setStatusFlags{}
 	cmd := &cobra.Command{

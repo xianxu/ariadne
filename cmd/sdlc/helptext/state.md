@@ -14,7 +14,7 @@ WHAT IT SHOWS
 WHAT IT DOES NOT DO
 
   - Mutate anything. State is read-only. All mutations funnel through
-    `sdlc close`, `sdlc set-status`, `sdlc milestone-close`.
+    `sdlc close`, `sdlc issue set-status`, `sdlc milestone-close`.
   - Touch network. Local git + filesystem only.
 
 OUTPUT MODES
@@ -61,5 +61,5 @@ EXAMPLES
 
 RELATED
 
-  sdlc close          close an issue or milestone
-  sdlc set-status     transition issue status with guards (M4)
+  sdlc close             close an issue or milestone
+  sdlc issue set-status  transition issue status with guards

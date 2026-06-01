@@ -102,7 +102,7 @@ Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 
 - [x] M1 — `issue` group + `new` + scaffold extraction
 - [x] M2 — move `set-status` in + fold `fetch` + `list`/`show`
-- [ ] M3 — consolidate docs/skill + reference sweep
+- [x] M3 — consolidate docs/skill + reference sweep
 
 ### M1 — `issue` group + `new` + scaffold extraction
 - [x] Extract `NextID`, `Slugify`, and the parameterized `Render` (per the
@@ -138,14 +138,16 @@ Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
       hidden+deprecated and the grouped verbs resolve.
 
 ### M3 — consolidate docs/skill + reference sweep
-- [ ] Shrink `xx-issues` SKILL to trigger + pointer; migrate the
-      frontmatter-field / sections contract into `issue.md` helptext.
-- [ ] Update AGENTS.md §2 issue flow (**base-layer file — write §2 for the
-      general downstream audience, not ariadne-local specifics**),
-      `atlas/workflow/{sdlc-binary,issue-lifecycle}.md`, and code/helptext refs
-      to `sdlc set-status` / `sdlc fetch`.
-- [ ] Verify: full `go test ./cmd/sdlc/...`, rebuild both binaries, smoke-test
-      each verb.
+- [x] Shrank `xx-issues` SKILL 196→76 lines to a pointer + judgment (mirrors
+      `xx-sdlc`): mechanics → `sdlc issue --help`; kept closing-judgment,
+      log/side-quests, cross-repo `<repo>#NNN` convention, rules.
+- [x] Updated AGENTS.md §2 (creation via `sdlc issue new`, kept general for the
+      downstream audience), `atlas/workflow/{sdlc-binary,issue-lifecycle}.md`,
+      and swept `sdlc set-status`/`sdlc fetch` refs across helptext
+      (set-status/claim/state/root/fetch.md) + `.go` comments
+      (issue/setstatus/fetch/ghclient/claim).
+- [x] Verified: `go test ./cmd/sdlc/...` green; vet clean; both binaries
+      rebuilt; `sdlc issue --help` + new/list/show/set-status smoke-tested.
 
 ## Log
 

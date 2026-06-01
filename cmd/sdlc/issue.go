@@ -2,8 +2,9 @@
 // *record*, complementing the flat checkpoint guards that defend workflow
 // *transitions* (ariadne#56).
 //
-// M1 wires the parent group + `issue new`. `set-status` moves in and
-// `list`/`show` arrive in M2; `fetch` folds into `issue new --from-github`.
+// Subcommands: `new` (allocate ID + canonical template; `--from-github N`
+// seeds from GitHub), `set-status`, `list`, `show`. `fetch` is a hidden
+// deprecated alias for `new --from-github`; flat `set-status` likewise.
 package main
 
 import (

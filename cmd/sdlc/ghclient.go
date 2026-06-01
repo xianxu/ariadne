@@ -20,7 +20,8 @@ import (
 // substitute stubGH (in fetch_test.go) or richer fakes per-verb.
 type ghCaller interface {
 	// TitleAndBody returns the title + body of GitHub issue issueNum
-	// in repo (owner/repo slug). Used by `sdlc fetch`.
+	// in repo (owner/repo slug). Used by `sdlc issue new --from-github`
+	// (and its `sdlc fetch` alias).
 	TitleAndBody(repo, issueNum string) (title, body string, err error)
 
 	// IssueClose closes GitHub issue issueNum in repo with the given

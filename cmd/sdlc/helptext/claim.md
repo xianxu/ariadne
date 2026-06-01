@@ -7,9 +7,9 @@ START-OF-WORK FLIP
 
 With `--issue N`, claim is the single start-of-work gesture: if the
 issue is still `open` it is flipped to `working` first — applying the
-same estimate guard `sdlc set-status` enforces — and that flip is part
-of what gets synced. This collapses the old two-step (`sdlc set-status
---issue N working` then `sdlc claim --issue N`) into one call.
+same estimate guard `sdlc issue set-status` enforces — and that flip is
+part of what gets synced. This collapses the old two-step (`sdlc issue
+set-status --issue N working` then `sdlc claim --issue N`) into one call.
 
 Only the open→working transition is automatic. Claim doubles as the
 generic issue-file re-sync primitive, so an issue already in a
@@ -71,5 +71,5 @@ EXAMPLES
 
 RELATED
 
-  sdlc change-code    enter implementation phase (gates + branching ask)
-  sdlc set-status     transition an issue's status: with guards
+  sdlc change-code       enter implementation phase (gates + branching ask)
+  sdlc issue set-status  transition an issue's status: with guards

@@ -1,16 +1,8 @@
-// fetch.go — `sdlc fetch --github-issue N` subcommand.
-//
-// Ports the `fetch:` Make target from Makefile.workflow (~lines 213-257):
-// pulls a GitHub issue via `gh issue view`, writes a local issue file
-// under workshop/issues/NNNNNN-<slug>.md with the standard frontmatter
-// + sections, then exits.
-//
-// The Make target is a 40-line shell pipeline of gh + sed + awk. The Go
-// port preserves the same semantics:
-//   - next 6-digit ID = max(issues/, history/) + 1
-//   - slug = lowercase title with non-alphanumerics → hyphens, collapsed
-//   - frontmatter: id, status: open, deps: [], github_issue, created/updated
-//   - body skeleton: # title, body, ## Done when, ## Plan (- [ ]), ## Log
+// fetch.go — `sdlc fetch --github-issue N`, a hidden deprecated alias for
+// `sdlc issue new --from-github N` (#56 M2). runFetch is now a thin shim
+// over runIssueNew; the ID allocation + canonical renderer live in
+// internal/issue (scaffold.go). detectRepo / originRE stay here as the
+// origin-remote → owner/repo helper that runIssueNew calls for --from-github.
 package main
 
 import (

@@ -147,7 +147,8 @@ Each Make target delegates to `bin/sdlc` when built, falling back to
 the original shell logic when absent:
 
   `make close-issue` → `sdlc close`
-  `make fetch <N>`   → `sdlc fetch --github-issue N`
+  `make fetch <N>`   → `sdlc fetch --github-issue N` (deprecated alias →
+                       `sdlc issue new --from-github N`, #56 M2)
   `make worktree`    → `sdlc change-code --worktree=yes --no-judge --no-structural`
                        (post-#39; preserves the make target's pre-existing
                        quick-and-dirty semantics)

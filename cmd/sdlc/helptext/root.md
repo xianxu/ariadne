@@ -8,8 +8,8 @@ recurs. `sdlc` manages the development life cycle; prefer it over `git`/`gh`.
   - `sdlc claim --issue N` — the single start-of-work gesture. Flips an *open*
     issue to `working` (applying the estimate guard) and publishes the claim to
     origin/main so peer agents see it. `--no-start` suppresses the flip.
-  - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc set-status`
-    own that transition (it carries the estimate guard).
+  - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc issue
+    set-status` own that transition (it carries the estimate guard).
 
 ━━ ENTER IMPLEMENTATION ━━
   - After plan approval, before editing code, run `sdlc change-code`. It owns the
