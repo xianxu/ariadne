@@ -1,16 +1,13 @@
 // Package helptext exposes //go:embed-backed help texts so cobra
-// commands can populate their Long descriptions and the root --index
-// flag can emit SKILL.md content.
+// commands can populate their Long descriptions.
 //
 // Convention: each subcommand gets one Markdown file here, named by the
-// command's stem (close.md, state.md, ...). The root narrative lives in
-// root.md; the SKILL.md template lives in index.md.
+// command's stem (close.md, state.md, ...). The root narrative — the
+// single workflow contract emitted by `sdlc --help` — lives in root.md.
 //
 // Why embed instead of inline strings: the prose grows beyond one
-// paragraph per command, and we regenerate SKILL.md from these files
-// via sdlc --index. Having one Markdown source of truth keeps the CLI
-// help and the on-disk SKILL.md in lockstep — they cannot drift,
-// because they render from the same bytes.
+// paragraph per command; keeping it in Markdown files (rather than Go
+// string literals) keeps it editable and diffable.
 package helptext
 
 import (
@@ -41,23 +38,4 @@ func MustGet(name string) string {
 		panic(fmt.Sprintf("helptext: %s.md not embedded", name))
 	}
 	return s
-}
-
-// Names lists the available help-text stems (without the .md suffix),
-// sorted. Used by --index to enumerate subcommand prose for the
-// generated SKILL.md.
-func Names() []string {
-	entries, err := fs.ReadDir(".")
-	if err != nil {
-		return nil
-	}
-	var out []string
-	for _, e := range entries {
-		name := e.Name()
-		if !strings.HasSuffix(name, ".md") {
-			continue
-		}
-		out = append(out, strings.TrimSuffix(name, ".md"))
-	}
-	return out
 }

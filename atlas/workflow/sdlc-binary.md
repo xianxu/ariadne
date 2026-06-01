@@ -35,21 +35,22 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 
 ## Progressive disclosure
 
-  - `sdlc --help` — top-level skill narrative + cobra-generated verb list
+  - `sdlc --help` — the workflow contract (start-of-work runbook, conventions,
+    cobra-generated verb list)
   - `sdlc <verb> --help` — per-checkpoint contract + flags + examples
-  - `sdlc --index` — emits SKILL.md content (helptext/index.md + auto-
-    generated `## Verb reference` from the live cobra registry)
   - `sdlc state` — runtime "where am I" surface for compaction recovery
 
-`construct/local/sdlc/SKILL.md` is regenerated from the binary via
-`sdlc --index > construct/local/sdlc/SKILL.md`. Do not hand-edit;
-edit `cmd/sdlc/helptext/index.md` (the narrative source) instead.
+`sdlc --help` is the single source of truth for the workflow contract.
+`construct/local/sdlc/SKILL.md` (the `xx-sdlc` skill) is a **static pointer**
+to it — it carries no copy of the contract, so it can't drift. The old
+`sdlc --index` regenerator was retired once the skill stopped duplicating the
+help text.
 
 ## Architecture
 
 ```
 cmd/sdlc/
-  main.go              cobra root, --index handler, verb registration
+  main.go              cobra root + verb registration
   term.go              cinfo / cok / cwarn / die + env helpers (shared)
   runner.go            gitRunner interface + execGitRunner impl (shared)
   ghclient.go          ghCaller interface + realGH impl (shared)
@@ -70,7 +71,7 @@ cmd/sdlc/
   pr.go                ← Makefile pull-request:
   merge.go             ← Makefile merge:
   milestoneclose.go    composition over close + judge milestone-review
-  helptext/            //go:embed *.md — one .md per verb + root + index
+  helptext/            //go:embed *.md — one .md per verb + root
   internal/
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
                        CommitWindow, DiscoverWindowIssues, RunGit)

@@ -61,5 +61,4 @@ SUBCOMMANDS
   judge            Run an LLM-judge check against the diff (fresh-context)
   fetch            Fetch a GitHub issue into workshop/issues/
 
-  sdlc <verb> --help                              depth on any verb
-  sdlc --index > construct/local/sdlc/SKILL.md    regenerate the skill doc
+  sdlc <verb> --help    depth on any one verb

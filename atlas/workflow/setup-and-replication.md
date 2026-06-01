@@ -261,11 +261,17 @@ derivative-specific name lists.
 ## Generated artifacts (not vendored)
 
 Artifacts that are *functions of code shipping through Go modules* (e.g.,
-`construct/local/sdlc/SKILL.md` from `sdlc --index`) are NOT shipped via
-`base.manifest`. They regenerate at the consumer via the binary's
-install/refresh path. The version of the binary determines the version of
-every derived artifact automatically — no text-vs-code lockstep drift
-possible.
+`bin/sdlc`, built from `cmd/sdlc`) are NOT shipped via `base.manifest`. They
+build at the consumer via the install/refresh path (`make sdlc-build`), so the
+version of the source determines the version of the artifact automatically — no
+text-vs-code lockstep drift possible.
+
+The inverse choice — keeping a derived doc *static* rather than generated —
+applies to `construct/local/sdlc/SKILL.md` (the `xx-sdlc` skill): it's a thin
+pointer to `sdlc --help` carrying no copy of the contract, so it can't drift
+either. (It was previously regenerated from a now-retired `sdlc --index`; the
+generator existed only to keep a duplicated copy in sync, which the pointer
+makes unnecessary.)
 
 ## `construct/go.mod` — substrate-tool deps separated from app deps
 
