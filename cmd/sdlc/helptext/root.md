@@ -47,17 +47,4 @@ CONVENTIONS
   defend against *omission* via required-evidence flags; `sdlc judge` defends
   against *theater* via fresh-context review. Form runs first; judge second.
 
-SUBCOMMAND
-
-  claim            Start work: flip open→working + broadcast claim to main
-  change-code      Enter implementation after structural + plan-quality gates
-  issue            Create + manage issues (new / set-status / list / show)
-  close            Close an issue or milestone (evidence + atlas + project sweep)
-  milestone-close  Close one milestone (judges auto-dispatched)
-  pr               Open a pull request from a worktree branch
-  merge            Merge a PR + archive completed issues + clean up
-  push             Ship from main (clean-tree + checks + archive)
-  state            Inspect workflow state (branch, working issues, drift)
-  judge            Run an LLM-judge check against the diff (fresh-context)
-
-  sdlc <verb> --help    depth on any one verb
+The verb list + per-verb help (`sdlc <verb> --help`) follow below.
