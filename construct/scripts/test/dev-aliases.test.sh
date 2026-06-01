@@ -57,8 +57,8 @@ n_gmail="$(printf '%s\n' "$out" | grep -c '^gmail()')"
 [ "$n_gmail" = "1" ] && ok "exactly one gmail() emitted" || ko "expected 1 gmail(), got $n_gmail"
 
 # ── function-body shape (the defining property; fixture can't run go build) ───
-assert_contains 'go build -o "${TMPDIR:-/tmp}/sdlc-dev" ./cmd/sdlc' "$out" "builds to TMPDIR, owner cmd path"
-assert_contains '"${TMPDIR:-/tmp}/sdlc-dev" "$@"'                    "$out" "runs the built binary with caller args/cwd"
+assert_contains "cd $WS/ariadne && mkdir -p bin && rm -f bin/sdlc && go build -o bin/sdlc ./cmd/sdlc" "$out" "builds to owner bin/ (rm -f first), owner cmd path"
+assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                                        "$out" "runs the owner-bin binary with caller args/cwd"
 
 # ── --list ───────────────────────────────────────────────────────────────────
 list_out="$(bash "$GEN" --workspace "$WS" --list 2>/dev/null)"

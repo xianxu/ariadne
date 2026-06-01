@@ -57,13 +57,17 @@ Emits shell function definitions to **stdout** (for `source <(dev-aliases.sh)`),
 warnings to **stderr**. For each owned binary X in owner repo R:
 
 ```
-X() { ( cd R && go build -o "${TMPDIR:-/tmp}/X-dev" ./cmd/X ) || return; "${TMPDIR:-/tmp}/X-dev" "$@"; }
+X() { ( cd R && mkdir -p bin && rm -f bin/X && go build -o bin/X ./cmd/X ) || return; R/bin/X "$@"; }
 ```
 
 The **build-in-owner / run-in-caller's-cwd** form is the only one that works for
 both repo-bound tools (sdlc — operates on whatever repo you're standing in) and
 run-anywhere tools (nous). `go run`/`go tool` can't (cwd is pinned to the module
-dir).
+dir). The binary lands at the **owner's official `bin/X`** (gitignored — not a
+temp dir, so it's safe for a service binary like nous; same artifact `make
+<name>-dev` produces). `rm -f bin/X` mirrors the owner Makefiles' code-signing
+inode safety. The function only builds + runs — it does **not** manage services
+(no `launchctl bootout`); use `make <name>-dev` for stop-prod-then-serve.
 
 Discovery:
 1. Walk same-level siblings of ariadne (incl. ariadne itself); a repo is in

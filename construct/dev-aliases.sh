@@ -2,10 +2,18 @@
 # dev-aliases.sh — emit dev shell functions for Go binaries owned by active
 # ariadne-styled sibling repos (ariadne#57).
 #
-# Each owned cmd/X becomes a function that builds in the OWNER repo and runs in
-# the CALLER's cwd — fresh every call. Works for both repo-bound tools (sdlc,
-# operates on whatever repo you're in) and run-anywhere tools (nous), which
-# `go run`/`go tool` can't (their cwd is pinned to the module dir).
+# Each owned cmd/X becomes a function that builds the binary to its OWNER's
+# bin/ (the official path, gitignored — not a temp dir; safe for service
+# binaries like nous) and runs it in the CALLER's cwd — fresh every call. Works
+# for both repo-bound tools (sdlc, operates on whatever repo you're in) and
+# run-anywhere tools (nous), which `go run`/`go tool` can't (their cwd is
+# pinned to the module dir). Form:
+#
+#   X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }
+#
+# The `rm -f bin/X` mirrors the owner Makefiles' code-signing-inode safety. The
+# function only builds + runs — it does NOT manage services (no `launchctl
+# bootout`); use the owner's `make <name>-dev` target for stop-prod-then-serve.
 #
 # Ownership = location: a binary's source physically in a repo → that repo owns
 # it. Re-export symlinks and non-buildable dirs are skipped, so a derivative
@@ -37,7 +45,7 @@ while [ $# -gt 0 ]; do
 		--strict) strict=1 ;;
 		--workspace) shift; workspace="${1-}"; workspace_set=1 ;;
 		--workspace=*) workspace="${1#*=}"; workspace_set=1 ;;
-		-h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+		-h|--help) sed -n '2,30p' "$0"; exit 0 ;;
 		*) printf 'dev-aliases.sh: unknown arg: %s\n' "$1" >&2; exit 2 ;;
 	esac
 	shift
@@ -104,8 +112,11 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 		printf '%s\t%s\n' "$bin" "$repo"
 	else
 		repo_q="$(printf '%q' "$repo")"
-		printf '%s() { ( cd %s && go build -o "${TMPDIR:-/tmp}/%s-dev" ./cmd/%s ) || return; "${TMPDIR:-/tmp}/%s-dev" "$@"; }\n' \
-			"$bin" "$repo_q" "$bin" "$bin" "$bin"
+		# Build to the owner's bin/ (official path, gitignored — not a temp
+		# dir; safe for service binaries); rm -f first for code-signing-inode
+		# safety; run from the caller's cwd.
+		printf '%s() { ( cd %s && mkdir -p bin && rm -f bin/%s && go build -o bin/%s ./cmd/%s ) || return; %s/bin/%s "$@"; }\n' \
+			"$bin" "$repo_q" "$bin" "$bin" "$bin" "$repo_q" "$bin"
 	fi
 done
 
