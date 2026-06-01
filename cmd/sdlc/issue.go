@@ -165,7 +165,11 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		die(stderr, fmt.Sprintf("write %s: %v", dest, err))
 	}
 
-	cok(stderr, fmt.Sprintf("Created %s", dest))
+	created := fmt.Sprintf("Created %s", dest)
+	if ghNum != "" {
+		created += fmt.Sprintf(" (GitHub #%s)", ghNum)
+	}
+	cok(stderr, created)
 	fmt.Fprintln(stdout, dest)
 	return nil
 }
@@ -211,7 +215,9 @@ func runIssueList(stdout, stderr io.Writer, f *issueListFlags) error {
 		if f.Status != "" && is.Status != f.Status {
 			continue
 		}
-		fmt.Fprintf(stdout, "%s  %-8s  %s\n", is.ID, valueOr(is.Status, "?"), is.Title)
+		// width 10 fits the longest real status + the "unreadable"
+		// sentinel listIssues emits for broken files.
+		fmt.Fprintf(stdout, "%s  %-10s  %s\n", is.ID, valueOr(is.Status, "?"), is.Title)
 		n++
 	}
 	if n == 0 {
@@ -262,6 +268,9 @@ func runIssueShow(stdout, stderr io.Writer, f *issueShowFlags, arg string) error
 		die(stderr, fmt.Sprintf("parse %s: %v", path, err))
 	}
 	fmt.Fprintf(stdout, "%s\n---\n%s---\n", filepath.Base(path), ensureTrailingNewline(fm))
+	// Title + section headers only (`# ` / `## `). Deeper headers like
+	// `### YYYY-MM-DD` Log entries are intentionally omitted — this is a
+	// structure peek, not a content dump.
 	for _, line := range strings.Split(body, "\n") {
 		if strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "## ") {
 			fmt.Fprintln(stdout, line)

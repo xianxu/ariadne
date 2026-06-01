@@ -150,6 +150,8 @@ Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 ## Log
 
 
+
+- 2026-05-31: closed M2 — go test ./cmd/sdlc/... green; vet clean; smoke-tested issue list/show/set-status + deprecated fetch/set-status notices; alias test proves flat+grouped set-status mutate identically; review verdict: SHIP (high confidence, 0 critical, 0 important — the side-quest verdict-parser fix auto-recorded SHIP correctly this time). Post-review: added the fetch-alias e2e test through buildRoot (the M2 coverage gap), restored the `(GitHub #N)` stderr annotation, widened the list status column to fit `unreadable`, commented show's header filter. Architectural decision (reviewer's split-error-philosophy note): keep `die()` for input validation in the cobra handlers — consistent with every other verb, and the riskiest logic (transition guards) already returns errors + is tested; a binary-wide die()→returned-error refactor is its own change, not coupled into #56. set-status.md helptext staleness is M3 ref-sweep scope.
 - 2026-05-31: closed M1 — go test ./cmd/sdlc/... green; sdlc issue new smoke-tested (dry-run renders canonical template); GetField empty-field regression added; review verdict: SHIP (high confidence, 0 critical). milestone-close auto-recorded "unknown" because the judge put SHIP under `## 1. Verdict` not line 1 — parser fragility, verdict corrected here by hand. Important findings addressed pre-M2: atlas issue-lifecycle.md updated for blank `issue new` + the one-step claim; `--deps` CLI test added. Deferred-with-note: die()→returned-errors for testable guards (apply to set-status in M2).
 ### 2026-05-31
 Created from a brainstorm. Decided the boundary: option **A** (additive `issue`

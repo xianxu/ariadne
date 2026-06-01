@@ -131,6 +131,56 @@ func TestRunFetch_CreatesFileWithNextID(t *testing.T) {
 	}
 }
 
+// TestFetchAlias_ThroughTree exercises the folded `fetch` alias end-to-end
+// via the real command tree (buildRoot). `fetch --github-issue N` is the
+// thing that changed in M2 (it now delegates to runIssueNew), so prove the
+// GH body lands under ## Problem in the canonical template — not just that
+// the command is hidden+deprecated.
+func TestFetchAlias_ThroughTree(t *testing.T) {
+	prev := ghClient
+	ghClient = stubGH{title: "Folded Fetch", body: "GH body text."}
+	defer func() { ghClient = prev }()
+
+	tmp := t.TempDir()
+	gitInit(t, tmp, "git@github.com:xianxu/ariadne.git")
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	issuesDir := filepath.Join(tmp, "workshop", "issues")
+	historyDir := filepath.Join(tmp, "workshop", "history")
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(historyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	root := buildRoot()
+	root.SetArgs([]string{"fetch", "--github-issue", "7", "--issues-dir", issuesDir, "--history-dir", historyDir})
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute fetch alias: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(issuesDir, "000001-folded-fetch.md"))
+	if err != nil {
+		t.Fatalf("expected created file: %v", err)
+	}
+	body := string(data)
+	if !strings.Contains(body, "github_issue: 7") {
+		t.Errorf("fold lost github_issue:\n%s", body)
+	}
+	probIdx := strings.Index(body, "## Problem")
+	specIdx := strings.Index(body, "## Spec")
+	ghIdx := strings.Index(body, "GH body text.")
+	if probIdx < 0 || ghIdx < probIdx || ghIdx > specIdx {
+		t.Errorf("GH body should sit under ## Problem in the canonical template:\n%s", body)
+	}
+}
+
 func TestDetectRepo_OriginShapes(t *testing.T) {
 	cases := []struct {
 		url, want string
