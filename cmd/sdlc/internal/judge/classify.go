@@ -112,47 +112,59 @@ const (
 	VerdictFixThenShip   Verdict = "FIX-THEN-SHIP"
 	VerdictRework        Verdict = "REWORK"
 	VerdictNotRun        Verdict = "not-run"   // judge skipped or errored
-	VerdictUnknown       Verdict = "unknown"   // judge ran, first line unparseable
+	VerdictUnknown       Verdict = "unknown"   // judge ran, no leading verdict found
 )
 
-// verdictRE matches the milestone-review prompt's first-line verdict
-// shape:
-//
-//	SHIP | FIX-THEN-SHIP | REWORK   (confidence: high | medium | low)
-//
-// Tolerant on whitespace around the pipes and on the confidence
-// parenthetical (the prompt asks for it but we don't punish drift).
-// Anchored at start-of-line of the first non-empty line; the prompt
-// instructs the agent to emit this as line 1 of the response.
-var verdictRE = regexp.MustCompile(`(?m)^\s*(SHIP|FIX-THEN-SHIP|REWORK)\b`)
+var (
+	// leadingMarkupRE strips leading markdown emphasis / heading / quote /
+	// list markers from a line so an emphasized or headed verdict
+	// (`**SHIP**`, `## SHIP`, `> REWORK`, `- FIX-THEN-SHIP`) still parses.
+	leadingMarkupRE = regexp.MustCompile("^[ \t>#*_`-]+")
+
+	// verdictTokenRE matches a verdict token that *opens* a line's content
+	// and stands alone — followed only by emphasis-close / whitespace then
+	// a confidence paren or end-of-line. The trailing guard rejects prose
+	// like "SHIP-blocking" or "ship it after a tweak".
+	verdictTokenRE = regexp.MustCompile("^(SHIP|FIX-THEN-SHIP|REWORK)[ \t*_`]*(\\(|$)")
+
+	// structuralLineRE matches markdown lines that carry no verdict and no
+	// prose — headings and horizontal rules. A reviewer may emit a title
+	// or a "## Verdict" header before the verdict itself; we skip those.
+	structuralLineRE = regexp.MustCompile("^(#{1,6}\\s|[-=*]{3,}\\s*$)")
+)
 
 // ParseVerdict extracts the verdict label from the agent's milestone-
-// review output. Returns one of VerdictShip / VerdictFixThenShip /
-// VerdictRework if the first non-empty line opens with one of those
-// tokens, else VerdictUnknown.
+// review output. The verdict must *lead* the report — but a reviewer
+// commonly prefixes a markdown title and/or a `## Verdict` header, so we
+// skip blank + structural (heading/rule) lines and tolerate emphasis,
+// then require the first line of real content to be the verdict. The
+// first *prose* line that isn't a verdict ends the search as Unknown —
+// preserving precision (a stray "SHIP" buried later in the report is not
+// mistaken for the verdict).
 //
 // Pure: no IO, deterministic on its input. Lives in the judge package
 // alongside Classify so the prompt + parser sit next to each other.
 func ParseVerdict(output string) Verdict {
-	// Walk to the first non-empty line. The prompt promises line 1,
-	// but reviewers sometimes preface with a blank line or banner —
-	// don't be brittle about it.
 	for _, line := range strings.Split(output, "\n") {
 		t := strings.TrimSpace(line)
 		if t == "" {
 			continue
 		}
-		m := verdictRE.FindStringSubmatch(t)
-		if m == nil {
-			return VerdictUnknown
+		stripped := leadingMarkupRE.ReplaceAllString(t, "")
+		if m := verdictTokenRE.FindStringSubmatch(stripped); m != nil {
+			switch m[1] {
+			case "SHIP":
+				return VerdictShip
+			case "FIX-THEN-SHIP":
+				return VerdictFixThenShip
+			case "REWORK":
+				return VerdictRework
+			}
 		}
-		switch m[1] {
-		case "SHIP":
-			return VerdictShip
-		case "FIX-THEN-SHIP":
-			return VerdictFixThenShip
-		case "REWORK":
-			return VerdictRework
+		// Not a verdict: skip a title / section header / rule and keep
+		// looking; stop at the first real prose line.
+		if structuralLineRE.MatchString(t) {
+			continue
 		}
 		return VerdictUnknown
 	}
