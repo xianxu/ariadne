@@ -3,20 +3,20 @@
 // The direct-on-main ship workflow. Run from main, refuses anything else.
 // Sequence (Makefile.workflow ~lines 281-348):
 //
-//   1. branch == main check
-//   2. untracked-files refusal
-//   3. auto-commit tracked changes (commit subject synthesized from
-//      touched workshop/issues/*.md titles, fallback "auto-commit
-//      before push")
-//   4. pre-merge judges (plan + specs + lessons by default — same
-//      categories the shell `make pre-merge` runs via parallel-checks.sh).
-//      Skippable with --no-judge.
-//   5. not-done issue warn: scan touched issue files vs origin/main, warn
-//      if any are still in working/open/blocked. Skippable with --yes.
-//   6. git push
-//   7. archive done/wontfix/punt issue files into history/. For status=done
-//      with a github_issue: frontmatter, close the GitHub issue first.
-//      Commit + push if any moved.
+//  1. branch == main check
+//  2. untracked-files refusal
+//  3. auto-commit tracked changes (commit subject synthesized from
+//     touched workshop/issues/*.md titles, fallback "auto-commit
+//     before push")
+//  4. pre-merge judges (plan + specs + lessons by default — same
+//     categories the shell `make pre-merge` runs via parallel-checks.sh).
+//     Skippable with --no-judge.
+//  5. not-done issue warn: scan touched issue files vs origin/main, warn
+//     if any are still in working/open/blocked. Skippable with --yes.
+//  6. git push
+//  7. archive done/wontfix/punt issue files into history/. For status=done
+//     with a github_issue: frontmatter, close the GitHub issue first.
+//     Commit + push if any moved.
 package main
 
 import (
@@ -75,6 +75,13 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	branch := gitx.Capture("branch", "--show-current")
 	if branch != "main" {
 		die(stderr, fmt.Sprintf("sdlc push must be run from main (current branch: %s)", valueOr(branch, "(detached)")))
+	}
+
+	if recovered, err := recoverInterruptedArchive(stdout, stderr, f); err != nil {
+		die(stderr, err.Error())
+	} else if recovered {
+		cok(stderr, "Done.")
+		return nil
 	}
 
 	// ── 2. No untracked files ───────────────────────────────────────────────
@@ -182,6 +189,171 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+type preparedArchiveMove struct {
+	IssuePath   string
+	HistoryPath string
+}
+
+// recoverInterruptedArchive handles the state left by an interrupted archive
+// step: issue files have already moved to history/, but the archive commit did
+// not land. That state contains untracked history files, so it must be handled
+// before the general untracked-file guard.
+func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, error) {
+	statusOut, err := pushRunner.Git("status", "--porcelain", "--untracked-files=all")
+	if err != nil {
+		return false, fmt.Errorf("git status: %v\n%s", err, statusOut)
+	}
+	moves, other, err := preparedArchiveMoves(string(statusOut), f.IssuesDir, f.HistoryDir)
+	if err != nil {
+		return false, err
+	}
+	if len(moves) == 0 {
+		return false, nil
+	}
+	if len(other) > 0 {
+		return false, fmt.Errorf("interrupted archive recovery found unrelated worktree changes:\n  %s\n"+
+			"Commit/stash those unrelated changes, then re-run `sdlc push --yes` so it can finish the prepared archive move.",
+			strings.Join(other, "\n  "))
+	}
+	cwarn(stderr, fmt.Sprintf("resuming interrupted archive: %d prepared move(s)", len(moves)))
+	for _, m := range moves {
+		fmt.Fprintf(stderr, "       %s → %s\n", m.IssuePath, m.HistoryPath)
+	}
+	if f.DryRun {
+		fmt.Fprintf(stdout, "Would: git add %s/ %s/\n", f.IssuesDir, f.HistoryDir)
+		fmt.Fprintf(stdout, "Would: git commit -m %q\n", "archive completed issues to history")
+		fmt.Fprintln(stdout, "Would: git push")
+		return true, nil
+	}
+	if out, gerr := pushRunner.Git("add", f.IssuesDir+"/", f.HistoryDir+"/"); gerr != nil {
+		return false, fmt.Errorf("git add archive dirs: %v\n%s", gerr, out)
+	}
+	if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
+		return false, fmt.Errorf("commit archive failed: %v\n%s", gerr, out)
+	}
+	if out, gerr := pushRunner.Git("push"); gerr != nil {
+		return false, fmt.Errorf("push archive failed: %v\n%s", gerr, out)
+	}
+	cok(stderr, fmt.Sprintf("archived %d issue file(s) to %s/", len(moves), f.HistoryDir))
+	return true, nil
+}
+
+func preparedArchiveMoves(statusText, issuesDir, historyDir string) ([]preparedArchiveMove, []string, error) {
+	type half struct {
+		issueDeleted bool
+		historyAdded bool
+		issuePath    string
+		historyPath  string
+	}
+	byBase := map[string]*half{}
+	var other []string
+	for _, line := range strings.Split(statusText, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if line == "" {
+			continue
+		}
+		status, path, dest := parsePorcelainStatus(line)
+		if dest != "" {
+			if isIssuePath(path, issuesDir) && isHistoryPath(dest, historyDir) && filepath.Base(path) == filepath.Base(dest) {
+				if ok, err := historyFileIsTerminal(dest); err != nil {
+					return nil, nil, err
+				} else if !ok {
+					other = append(other, line)
+					continue
+				}
+				h := byBase[filepath.Base(path)]
+				if h == nil {
+					h = &half{}
+					byBase[filepath.Base(path)] = h
+				}
+				h.issueDeleted = true
+				h.historyAdded = true
+				h.issuePath = path
+				h.historyPath = dest
+				continue
+			}
+			other = append(other, line)
+			continue
+		}
+		switch {
+		case isIssuePath(path, issuesDir) && strings.Contains(status, "D"):
+			h := byBase[filepath.Base(path)]
+			if h == nil {
+				h = &half{}
+				byBase[filepath.Base(path)] = h
+			}
+			h.issueDeleted = true
+			h.issuePath = path
+		case isHistoryPath(path, historyDir) && (strings.Contains(status, "A") || status == "??"):
+			if ok, err := historyFileIsTerminal(path); err != nil {
+				return nil, nil, err
+			} else if !ok {
+				other = append(other, line)
+				continue
+			}
+			h := byBase[filepath.Base(path)]
+			if h == nil {
+				h = &half{}
+				byBase[filepath.Base(path)] = h
+			}
+			h.historyAdded = true
+			h.historyPath = path
+		default:
+			other = append(other, line)
+		}
+	}
+	var moves []preparedArchiveMove
+	for _, h := range byBase {
+		if h.issueDeleted && h.historyAdded {
+			moves = append(moves, preparedArchiveMove{IssuePath: h.issuePath, HistoryPath: h.historyPath})
+			continue
+		}
+		other = append(other, valueOr(h.issuePath, h.historyPath))
+	}
+	sort.Slice(moves, func(i, j int) bool { return moves[i].IssuePath < moves[j].IssuePath })
+	sort.Strings(other)
+	return moves, other, nil
+}
+
+func parsePorcelainStatus(line string) (status, path, dest string) {
+	if len(line) < 4 {
+		return strings.TrimSpace(line), "", ""
+	}
+	status = strings.TrimSpace(line[:2])
+	path = strings.TrimSpace(line[3:])
+	if strings.Contains(path, " -> ") {
+		parts := strings.SplitN(path, " -> ", 2)
+		path, dest = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	}
+	return status, path, dest
+}
+
+func isIssuePath(path, issuesDir string) bool {
+	return filepath.Dir(path) == filepath.Clean(issuesDir) && issueFilename(filepath.Base(path))
+}
+
+func isHistoryPath(path, historyDir string) bool {
+	return filepath.Dir(path) == filepath.Clean(historyDir) && issueFilename(filepath.Base(path))
+}
+
+func issueFilename(name string) bool {
+	matched, _ := filepath.Match("[0-9][0-9][0-9][0-9][0-9][0-9]-*.md", name)
+	return matched
+}
+
+func historyFileIsTerminal(path string) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("read archive candidate %s: %v", path, err)
+	}
+	fm, _, perr := issue.Parse(string(data))
+	if perr != nil {
+		return false, nil
+	}
+	st, _ := issue.GetField(fm, "status")
+	return isTerminalStatus(st), nil
+}
 
 // buildPushCommitMessage synthesizes a commit message by extracting the
 // `# Title` of every workshop/issues/NNNNNN-*.md that has unstaged or
