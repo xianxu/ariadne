@@ -17,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
@@ -34,6 +35,17 @@ func NewIssueCmd() *cobra.Command {
 		},
 	}
 	cmd.AddCommand(newIssueNewCmd())
+
+	// set-status moved under `issue` (#56 M2). The transition guards live
+	// in applyStatus / checkTransitionGuards (returned errors, unit-tested)
+	// — only the cobra wiring relocates. main.go keeps a hidden deprecated
+	// flat `sdlc set-status` alias for one cycle.
+	setStatus := NewSetStatusCmd()
+	setStatus.Long = helptext.MustGet("set-status")
+	cmd.AddCommand(setStatus)
+
+	cmd.AddCommand(newIssueListCmd())
+	cmd.AddCommand(newIssueShowCmd())
 	return cmd
 }
 
@@ -156,4 +168,109 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 	cok(stderr, fmt.Sprintf("Created %s", dest))
 	fmt.Fprintln(stdout, dest)
 	return nil
+}
+
+// ── issue list ───────────────────────────────────────────────────────────────
+
+type issueListFlags struct {
+	Status    string
+	IssuesDir string
+}
+
+func newIssueListCmd() *cobra.Command {
+	f := issueListFlags{}
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List workshop issues (ID, status, title)",
+		Long: `List issues in workshop/issues/ as "ID  STATUS  TITLE", sorted by ID.
+Filter with --status. Broader than 'sdlc state', which surfaces only the
+working set + drift.`,
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runIssueList(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+		},
+	}
+	cmd.Flags().StringVar(&f.Status, "status", "", "filter to this status (open|working|blocked|done|wontfix|punt)")
+	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	return cmd
+}
+
+// runIssueList reuses state.go's listIssues (which reads + sorts by ID)
+// rather than re-deriving the scan/sort.
+func runIssueList(stdout, stderr io.Writer, f *issueListFlags) error {
+	if f.Status != "" && !isValidStatus(f.Status) {
+		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(validStatuses, ", ")))
+	}
+	issues, err := listIssues(f.IssuesDir)
+	if err != nil {
+		die(stderr, fmt.Sprintf("list issues: %v", err))
+	}
+	n := 0
+	for _, is := range issues {
+		if f.Status != "" && is.Status != f.Status {
+			continue
+		}
+		fmt.Fprintf(stdout, "%s  %-8s  %s\n", is.ID, valueOr(is.Status, "?"), is.Title)
+		n++
+	}
+	if n == 0 {
+		cinfo(stderr, "no issues match")
+	}
+	return nil
+}
+
+// ── issue show ───────────────────────────────────────────────────────────────
+
+type issueShowFlags struct {
+	IssuesDir string
+}
+
+func newIssueShowCmd() *cobra.Command {
+	f := issueShowFlags{}
+	cmd := &cobra.Command{
+		Use:   "show <N>",
+		Short: "Show an issue's frontmatter + section headers (no bodies)",
+		Long: `Print issue <N>'s frontmatter and its body section headers (# / ## lines)
+without the section contents — a structured peek for orienting on an issue
+without loading the whole file.`,
+		Args:          cobra.ExactArgs(1),
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runIssueShow(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args[0])
+		},
+	}
+	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	return cmd
+}
+
+func runIssueShow(stdout, stderr io.Writer, f *issueShowFlags, arg string) error {
+	id, err := strconv.Atoi(arg)
+	if err != nil || id <= 0 {
+		die(stderr, fmt.Sprintf("invalid issue id %q (want a positive number, e.g. 56)", arg))
+	}
+	path, err := locateIssueFile(f.IssuesDir, id)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		die(stderr, fmt.Sprintf("read %s: %v", path, err))
+	}
+	fm, body, err := issue.Parse(string(data))
+	if err != nil {
+		die(stderr, fmt.Sprintf("parse %s: %v", path, err))
+	}
+	fmt.Fprintf(stdout, "%s\n---\n%s---\n", filepath.Base(path), ensureTrailingNewline(fm))
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "## ") {
+			fmt.Fprintln(stdout, line)
+		}
+	}
+	return nil
+}
+
+// ensureTrailingNewline returns s with exactly one terminating newline.
+func ensureTrailingNewline(s string) string {
+	return strings.TrimRight(s, "\n") + "\n"
 }

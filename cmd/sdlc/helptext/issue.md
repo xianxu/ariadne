@@ -7,6 +7,9 @@ SUBCOMMANDS
 
   new            Create a new issue from the canonical template (allocates the
                  next ID; `--from-github N` seeds it from a GitHub issue)
+  set-status     Flip an issue's status with transition guards
+  list           List issues (ID, status, title), sorted by ID; --status filters
+  show           Print an issue's frontmatter + section headers (no bodies)
 
 CANONICAL ISSUE FILE
 
@@ -38,8 +41,8 @@ STATUS
 
 `open` not started · `working` in progress · `blocked` waiting · `done`
 complete (close via `sdlc close`) · `wontfix` rejected · `punt` deferred.
-Flip status with `sdlc set-status` (or `sdlc claim` to start work), never by
-hand-editing the frontmatter — the verbs carry the transition guards.
+Flip status with `sdlc issue set-status` (or `sdlc claim` to start work), never
+by hand-editing the frontmatter — the verbs carry the transition guards.
 
 For depth:
 

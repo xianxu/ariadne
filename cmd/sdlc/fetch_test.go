@@ -9,34 +9,6 @@ import (
 	"testing"
 )
 
-func TestRenderFetchedIssue_Shape(t *testing.T) {
-	out := renderFetchedIssue("000032", "555", "Add Foo Feature", "Body paragraph.\n\nMore detail.", "2026-05-25")
-	for _, want := range []string{
-		"id: 000032",
-		"status: open",
-		"deps: []",
-		"github_issue: 555",
-		"created: 2026-05-25",
-		"updated: 2026-05-25",
-		"# Add Foo Feature",
-		"Body paragraph.",
-		"## Done when",
-		"\n-\n",
-		"## Plan",
-		"\n- [ ]\n",
-		"## Log",
-		"### 2026-05-25",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("rendered issue missing %q\n--- output ---\n%s", want, out)
-		}
-	}
-	// Frontmatter fence
-	if !strings.HasPrefix(out, "---\n") {
-		t.Errorf("rendered issue should open with frontmatter fence; got prefix %q", out[:20])
-	}
-}
-
 // stubGH stubs ghClient for tests so we don't shell out to `gh`.
 // Implements the full ghCaller interface; methods other than the one
 // under test are no-ops returning zero values.

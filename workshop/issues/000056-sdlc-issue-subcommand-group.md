@@ -101,7 +101,7 @@ untouched.
 Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 
 - [x] M1 — `issue` group + `new` + scaffold extraction
-- [ ] M2 — move `set-status` in + fold `fetch` + `list`/`show`
+- [x] M2 — move `set-status` in + fold `fetch` + `list`/`show`
 - [ ] M3 — consolidate docs/skill + reference sweep
 
 ### M1 — `issue` group + `new` + scaffold extraction
@@ -117,28 +117,25 @@ Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
       Problem/Spec present-but-empty).
 
 ### M2 — move `set-status` in + fold `fetch` + `list`/`show`
-- [ ] Move `set-status` under `sdlc issue set-status`; keep flat `sdlc
-      set-status` as a hidden deprecated alias; **re-point `setstatus_test.go`**
-      at the relocated command; update internal references. (M1 review #2:
-      keep the transition guards as **returned errors** unit-tested at the
-      function level, `die()` only at the cobra `RunE` boundary — the guards are
-      the riskiest logic and must be table-testable.)
-- [ ] Reimplement `sdlc fetch` as `sdlc issue new --from-github N` over the
-      shared scaffold; keep `sdlc fetch` (with its existing `--github-issue`
-      flag) as a hidden alias; preserve GH-close-on-archive behavior. Note the
-      flag rename: new verb uses `--from-github`, the retained alias keeps
-      `--github-issue`.
-- [ ] Update `fetch_test.go` expectations to the canonical template shape
-      (`TestRenderFetchedIssue_Shape` + the integration test): frontmatter gains
-      `estimate_hours:`, body gains `Problem`/`Spec`, GH body routes under
-      `Problem`.
-- [ ] `sdlc issue list [--status]` + `sdlc issue show <N>`; tests: `list
-      --status working` filters; `list` sorts by numeric ID — **reuse/extract
-      `state.go`'s `listIssues`** rather than re-deriving the sort; `show <N>`
-      prints frontmatter + section headers, not body.
-- [ ] Add an alias test per flat path (`sdlc set-status …`, `sdlc fetch …`)
-      asserting it resolves to the grouped handler — the re-pointed tests alone
-      don't cover the flat→group wiring (the back-compat promise).
+- [x] Move `set-status` under `sdlc issue set-status`; hidden deprecated flat
+      `sdlc set-status` alias kept. (M1 review #2 was already satisfied — the
+      guards live in `applyStatus`/`checkTransitionGuards` as returned errors,
+      unit-tested; only the cobra wiring relocated. `setstatus_test.go` targets
+      those functions, not the command tree, so no re-pointing was needed — the
+      flat→group wiring is covered by the new alias test instead.)
+- [x] Reimplement `sdlc fetch` as a thin call to `runIssueNew --from-github`
+      over the shared scaffold; deleted `renderFetchedIssue`; `sdlc fetch`
+      (keeping `--github-issue`) hidden + deprecated. GH-close-on-archive
+      preserved (it reads `github_issue:` frontmatter, still set).
+- [x] Updated `fetch_test.go`: deleted `TestRenderFetchedIssue_Shape` (function
+      gone; canonical render covered by `scaffold_test`); the integration tests
+      pass through `runIssueNew` unchanged (assertions are shape-agnostic).
+- [x] `sdlc issue list [--status]` (reuses `listIssues`, sorted by ID) +
+      `sdlc issue show <N>` (frontmatter + headers, no bodies); tests for both.
+- [x] Alias tests: execution-based `set-status` flat-vs-grouped both mutate
+      identically (via `buildRoot`, extracted from `main` to make the tree
+      testable); structural check that flat `set-status`/`fetch` are
+      hidden+deprecated and the grouped verbs resolve.
 
 ### M3 — consolidate docs/skill + reference sweep
 - [ ] Shrink `xx-issues` SKILL to trigger + pointer; migrate the
@@ -188,3 +185,14 @@ matched newlines, so an empty frontmatter field followed by another line (e.g.
 `[ \t]*` + regression test (the old test only covered an empty field at EOF,
 which hid it). All `go test ./cmd/sdlc/...` green; both binaries rebuilt;
 `sdlc issue new` smoke-tested (dry-run renders canonical template).
+
+**M2 done.** `set-status` relocated under `sdlc issue set-status`; `fetch`
+folded into a thin `runIssueNew --from-github` call (deleted
+`renderFetchedIssue`); both `set-status` + `fetch` kept as hidden+deprecated
+flat aliases (cobra `Deprecated` prints a migration notice). Added `issue list`
+(reuses `listIssues`) + `issue show`. Extracted `buildRoot()` from `main` so the
+command tree is testable; alias test executes both flat + grouped `set-status`
+and asserts identical mutation. Discovered the M1-review "re-point setstatus_test"
+item was moot — those tests target `runSetStatus`/guards (unchanged), so the
+flat→group risk is covered by the new alias test. Smoke-tested list/show/the
+deprecation notice. `go test ./cmd/sdlc/...` green; vet clean; binaries rebuilt.

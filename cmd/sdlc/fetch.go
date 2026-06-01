@@ -16,17 +16,11 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // fetchFlags holds the parsed flag values for the fetch subcommand.
@@ -62,60 +56,21 @@ func NewFetchCmd() *cobra.Command {
 // pr.go and merge.go). M5 promoted them out of fetch.go once they had
 // three+ consumers.
 
-// runFetch is the entry point for the cobra RunE. Returns an error on
-// "soft" failures (so cobra formatting kicks in for unit tests); calls
-// die() directly on hard guardrail failures (gh missing, file exists).
+// runFetch is the entry point for the cobra RunE. Since #56 M2 it is a
+// thin alias for `sdlc issue new --from-github N`: it shares the canonical
+// renderer + ID allocation in runIssueNew, so a fetched issue gets the same
+// template as a blank one (GH body seeded under ## Problem). The retained
+// `--github-issue` flag keeps old callers working.
 func runFetch(stdout, stderr io.Writer, f *fetchFlags) error {
 	if f.GitHubIssue <= 0 {
 		die(stderr, fmt.Sprintf("--github-issue is required and must be positive (got %d)", f.GitHubIssue))
 	}
-	issueNum := strconv.Itoa(f.GitHubIssue)
-
-	repo, err := detectRepo()
-	if err != nil {
-		die(stderr, err.Error())
-	}
-
-	title, body, err := ghClient.TitleAndBody(repo, issueNum)
-	if err != nil {
-		die(stderr, fmt.Sprintf("fetch GitHub issue %s: %v", issueNum, err))
-	}
-	if title == "" {
-		die(stderr, fmt.Sprintf("GitHub issue %s returned empty title", issueNum))
-	}
-
-	slug := issue.Slugify(title)
-	nextID, err := issue.NextID(f.IssuesDir, f.HistoryDir)
-	if err != nil {
-		die(stderr, err.Error())
-	}
-
-	today := time.Now().Format("2006-01-02")
-	dest := filepath.Join(f.IssuesDir, fmt.Sprintf("%s-%s.md", nextID, slug))
-	if _, err := os.Stat(dest); err == nil {
-		die(stderr, fmt.Sprintf("issue file already exists: %s", dest))
-	}
-
-	rendered := renderFetchedIssue(nextID, issueNum, title, body, today)
-
-	if f.DryRun {
-		cinfo(stderr, "dry-run — no files written")
-		fmt.Fprintf(stdout, "Would create: %s\n", dest)
-		fmt.Fprintln(stdout, "─── body ───")
-		fmt.Fprint(stdout, rendered)
-		return nil
-	}
-
-	if err := os.MkdirAll(f.IssuesDir, 0o755); err != nil {
-		die(stderr, fmt.Sprintf("mkdir %s: %v", f.IssuesDir, err))
-	}
-	if err := os.WriteFile(dest, []byte(rendered), 0o644); err != nil {
-		die(stderr, fmt.Sprintf("write %s: %v", dest, err))
-	}
-
-	cok(stderr, fmt.Sprintf("Created %s (GitHub #%s)", dest, issueNum))
-	fmt.Fprintln(stdout, dest)
-	return nil
+	return runIssueNew(stdout, stderr, &issueNewFlags{
+		FromGitHub: f.GitHubIssue,
+		IssuesDir:  f.IssuesDir,
+		HistoryDir: f.HistoryDir,
+		DryRun:     f.DryRun,
+	}, nil)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -145,36 +100,3 @@ func detectRepo() (string, error) {
 	return m[1], nil
 }
 
-// renderFetchedIssue assembles the issue-file content for a freshly-
-// fetched GitHub issue. Mirrors the printf block in Makefile.workflow's
-// `fetch:` target. Trailing newline included.
-func renderFetchedIssue(id, ghNum, title, body, today string) string {
-	var b strings.Builder
-	b.WriteString("---\n")
-	fmt.Fprintf(&b, "id: %s\n", id)
-	b.WriteString("status: open\n")
-	b.WriteString("deps: []\n")
-	fmt.Fprintf(&b, "github_issue: %s\n", ghNum)
-	fmt.Fprintf(&b, "created: %s\n", today)
-	fmt.Fprintf(&b, "updated: %s\n", today)
-	b.WriteString("---\n")
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "# %s\n", title)
-	b.WriteString("\n")
-	b.WriteString(body)
-	b.WriteString("\n")
-	b.WriteString("\n")
-	b.WriteString("## Done when\n")
-	b.WriteString("\n")
-	b.WriteString("-\n")
-	b.WriteString("\n")
-	b.WriteString("## Plan\n")
-	b.WriteString("\n")
-	b.WriteString("- [ ]\n")
-	b.WriteString("\n")
-	b.WriteString("## Log\n")
-	b.WriteString("\n")
-	fmt.Fprintf(&b, "### %s\n", today)
-	b.WriteString("\n")
-	return b.String()
-}
