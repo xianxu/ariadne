@@ -21,7 +21,7 @@
 
 ### 2. Overall Workflow
 - Unclear requirement → brainstorm. Non-trivial task (>3 files or >100 lines) → plan mode, wait for approval.
-- **Two trackers:** `workshop/issues/` is the internal tracker (Spec/Plan/Log per issue); GitHub Issues are an external inbox (bug reports + requests from non-contributors). Create internal issues with `sdlc issue new` (`--from-github N` pulls a GH inbox item in, setting `deps`); don't `gh issue create` for internal work. See `sdlc issue --help` for the issue-file contract.
+- **Two trackers:** `workshop/issues/` is the internal tracker (Spec/Plan/Log per issue); GitHub Issues are an external inbox (bug reports + requests from non-contributors). Create internal issues with `sdlc issue new` (`--from-github N` pulls a GH inbox item in, recording the link as `github_issue:`; use `--deps` for cross-repo blocking deps); don't `gh issue create` for internal work. See `sdlc issue --help` for the issue-file contract.
 - Issue file sections: `## Spec` (brainstorm result), `## Plan` (checkable steps), `## Log` (discoveries, tools). Update often. Status: open/working/blocked/done/wontfix/punt.
 - ALWAYS add tests for problems surfaced during design.
 - Goes sideways → STOP and re-plan; don't push through.

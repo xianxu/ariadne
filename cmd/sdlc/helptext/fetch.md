@@ -16,9 +16,11 @@ WHAT IT DOES
   - Slugifies the title (lowercase, non-alphanumerics → hyphens).
   - Picks the next 6-digit ID by scanning workshop/issues/ AND
     workshop/history/ (so archived issues' IDs are not reused).
-  - Writes `workshop/issues/NNNNNN-<slug>.md` with frontmatter (id,
-    status: open, deps: [], github_issue, created/updated dates) and a
-    body skeleton (`# title`, `## Done when`, `## Plan`, `## Log`).
+  - Writes `workshop/issues/NNNNNN-<slug>.md` with the canonical
+    frontmatter (id, status: open, deps: [], github_issue,
+    created/updated, estimate_hours) and body skeleton (`# title`,
+    `## Problem` [seeded with the GH body], `## Spec`, `## Done when`,
+    `## Plan`, `## Log`). See `sdlc issue --help` for the contract.
 
 WHAT IT DOES NOT DO
 
