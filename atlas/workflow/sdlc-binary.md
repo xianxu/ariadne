@@ -32,6 +32,14 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + cleanup + irreversible-action confirm (#51) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched milestone-review |
+| `issue new`       | (new; xx-issues skill prose)| Issue-record CRUD group: `new` allocates the next ID + writes the canonical template (`--from-github N` seeds from GitHub). #56 — `set-status` moves in + `list`/`show` land in M2 |
+
+**Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
+*transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the
+CRUD/authoring surface for the issue *record* — the noun-grouped home for
+`new` (and, post-#56-M2, `set-status`/`list`/`show`). The canonical issue-file
+template lives in one place: the `Render` function in `internal/issue/scaffold.go`,
+documented in prose by `sdlc issue --help`.
 
 ## Progressive disclosure
 
@@ -58,7 +66,8 @@ cmd/sdlc/
   close.go             ← scripts/close-issue.py
   state.go             new (read-only inspection + drift detection)
   judge.go             ← scripts/pre-merge-checks.sh
-  fetch.go             ← Makefile fetch:
+  fetch.go             ← Makefile fetch: (delegates ID/slug to internal/issue #56)
+  issue.go             new (#56): `sdlc issue` group + `issue new`
   start.go             migration stub (REMOVED in #39 — errors with
                        "use claim + change-code")
   claim.go             ← scripts/issue-sync.sh (renamed from lock.go #39)
@@ -75,7 +84,8 @@ cmd/sdlc/
   internal/
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
                        CommitWindow, DiscoverWindowIssues, RunGit)
-    issue/             frontmatter parse/edit + plan-section regexes
+    issue/             frontmatter parse/edit + plan-section regexes +
+                       scaffold.go (NextID/Slugify/Render — #56)
     judge/             Category enum, prompt builder, classify, dispatch
     project/           brain project-file mutation helpers
 ```

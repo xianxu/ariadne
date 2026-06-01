@@ -68,6 +68,19 @@ func TestGetField(t *testing.T) {
 	}
 }
 
+// TestGetField_EmptyMiddleField is the regression for the `\s*`-spans-newline
+// bug: an empty field followed by another line must return "", not the next
+// line's value. (The case above only had an empty field at EOF, which hid it.)
+func TestGetField_EmptyMiddleField(t *testing.T) {
+	fm := "id: 000056\nstatus: open\ngithub_issue:\ncreated: 2026-05-31\n"
+	if got, ok := GetField(fm, "github_issue"); !ok || got != "" {
+		t.Errorf("GetField(github_issue) = %q, %v; want \"\", true", got, ok)
+	}
+	if got, _ := GetField(fm, "created"); got != "2026-05-31" {
+		t.Errorf("GetField(created) = %q; want 2026-05-31", got)
+	}
+}
+
 func TestSetField_ReplacePreservesOrder(t *testing.T) {
 	fm := "id: 000031\nstatus: working\nestimate_hours: 4\nactual_hours:"
 	got := SetField(fm, "actual_hours", "6.5")

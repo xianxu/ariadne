@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-05-31
 updated: 2026-05-31
-estimate_hours: 5
+estimate_hours: 7
 ---
 
 # Lift the issue subsystem into `sdlc issue`
@@ -42,10 +42,29 @@ the group (it's a field edit, not a key checkpoint).
 - `sdlc issue show <N>` — frontmatter summary + section headers (structured peek
   without loading the whole file). Lowest priority.
 
+**Canonical template (resolves the 3-shapes ambiguity).** Today three issue
+templates disagree (`renderFetchedIssue`, the `xx-issues` skill, this file). The
+canonical one — what `issue new` writes and `issue --help` documents — is pinned
+as (described in prose here to avoid colliding with the structural-check parser;
+the literal bytes land in `helptext/issue.md` in M1):
+
+- Frontmatter, in order: `id`, `status: open`, `deps: []`, `github_issue:`,
+  `created`, `updated`, `estimate_hours:` (optional at create, required at
+  →working). NOT `actual_hours` (added at close).
+- Body sections, in order: a `# <Title>` heading, then `Problem`, `Spec`,
+  `Done when` (seeded with one empty `-` placeholder for the author to fill;
+  `change-code` later requires it non-empty), `Plan` (seeded with one `- [ ]`
+  item), `Log` (seeded with a dated `###` entry). NOT a `Side quests` section
+  (added when needed).
+- **One parameterized renderer**, not two: `--from-github N` writes the same
+  skeleton but sets `github_issue: N` and fills the `Problem` section with the
+  fetched GH body (replacing fetch's loose post-title paragraph). Blank `new`
+  leaves `Problem`/`Spec` empty.
+
 **Consolidations:**
-- Extract `nextIssueID` + the template renderer out of `fetch.go` into
-  `internal/issue` (shared scaffold), used by both `issue new` and the
-  `--from-github` path.
+- Extract `nextIssueID`, `slugify`, and the parameterized renderer out of
+  `fetch.go` into `internal/issue` (shared scaffold), used by both `issue new`
+  and the `--from-github` path.
 - `sdlc fetch` → `sdlc issue new --from-github N`; keep `sdlc fetch` as a hidden
   deprecated alias.
 - `sdlc issue --help` becomes the single source of truth for the issue-file
@@ -67,8 +86,8 @@ untouched.
 
 - `sdlc issue new "x"` creates `workshop/issues/NNNNNN-x.md` with the correct
   next ID + template, prints the path.
-- `sdlc issue new --from-github N` reproduces current `sdlc fetch`; `sdlc fetch`
-  still works (alias).
+- `sdlc issue new --from-github N` reproduces current `sdlc fetch`'s *behavior*
+  over the canonical template; `sdlc fetch` still works (alias).
 - `sdlc issue set-status` works with guards; `sdlc set-status` still works
   (deprecated alias).
 - `sdlc issue list` / `show` work.
@@ -82,28 +101,45 @@ untouched.
 Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 
 ### M1 — `issue` group + `new` + scaffold extraction
-- [ ] Extract `nextIssueID` + template renderer from `fetch.go` into
-      `internal/issue` (e.g. `scaffold.go`) with unit tests (pure: existing IDs
-      → next; fields → rendered text).
-- [ ] Add the `sdlc issue` parent cobra command + `helptext/issue.md` (group
+- [x] Extract `NextID`, `Slugify`, and the parameterized `Render` (per the
+      canonical template above) from `fetch.go` into `internal/issue/scaffold.go`
+      with unit tests (existing IDs → next; title → slug; blank vs
+      `--from-github` body → rendered text).
+- [x] Add the `sdlc issue` parent cobra command + `helptext/issue.md` (group
       overview + issue-file contract).
-- [ ] Implement `sdlc issue new "<title>" [--slug --from-github N --deps
+- [x] Implement `sdlc issue new "<title>" [--slug --from-github N --deps
       --target]`; print path; tests (blank issue, ID allocation, slug
-      derivation).
+      derivation, `--from-github` fills Problem, blank `new` leaves
+      Problem/Spec present-but-empty).
 
 ### M2 — move `set-status` in + fold `fetch` + `list`/`show`
 - [ ] Move `set-status` under `sdlc issue set-status`; keep flat `sdlc
-      set-status` as a hidden deprecated alias; update internal references.
+      set-status` as a hidden deprecated alias; **re-point `setstatus_test.go`**
+      at the relocated command; update internal references.
 - [ ] Reimplement `sdlc fetch` as `sdlc issue new --from-github N` over the
-      shared scaffold; keep `sdlc fetch` as a hidden alias; preserve the
-      GH-close-on-archive behavior.
-- [ ] `sdlc issue list [--status]` + `sdlc issue show <N>`; tests.
+      shared scaffold; keep `sdlc fetch` (with its existing `--github-issue`
+      flag) as a hidden alias; preserve GH-close-on-archive behavior. Note the
+      flag rename: new verb uses `--from-github`, the retained alias keeps
+      `--github-issue`.
+- [ ] Update `fetch_test.go` expectations to the canonical template shape
+      (`TestRenderFetchedIssue_Shape` + the integration test): frontmatter gains
+      `estimate_hours:`, body gains `Problem`/`Spec`, GH body routes under
+      `Problem`.
+- [ ] `sdlc issue list [--status]` + `sdlc issue show <N>`; tests: `list
+      --status working` filters; `list` sorts by numeric ID — **reuse/extract
+      `state.go`'s `listIssues`** rather than re-deriving the sort; `show <N>`
+      prints frontmatter + section headers, not body.
+- [ ] Add an alias test per flat path (`sdlc set-status …`, `sdlc fetch …`)
+      asserting it resolves to the grouped handler — the re-pointed tests alone
+      don't cover the flat→group wiring (the back-compat promise).
 
 ### M3 — consolidate docs/skill + reference sweep
 - [ ] Shrink `xx-issues` SKILL to trigger + pointer; migrate the
       frontmatter-field / sections contract into `issue.md` helptext.
-- [ ] Update AGENTS.md §2 issue flow, `atlas/workflow/{sdlc-binary,issue-lifecycle}.md`,
-      and code/helptext refs to `sdlc set-status` / `sdlc fetch`.
+- [ ] Update AGENTS.md §2 issue flow (**base-layer file — write §2 for the
+      general downstream audience, not ariadne-local specifics**),
+      `atlas/workflow/{sdlc-binary,issue-lifecycle}.md`, and code/helptext refs
+      to `sdlc set-status` / `sdlc fetch`.
 - [ ] Verify: full `go test ./cmd/sdlc/...`, rebuild both binaries, smoke-test
       each verb.
 
@@ -116,3 +152,30 @@ group since it's a field edit, not a key checkpoint. Grounding: `fetch.go`
 already holds the deterministic next-ID + render core, so `issue new` is mostly
 an extraction; the manual ID scan in the `xx-issues` skill is the racy step this
 removes. Skill-shrink mirrors the `xx-sdlc` static-pointer move just landed.
+
+Plan-quality gate (`sdlc change-code`) flagged that "the standard template" was
+underspecified — three template shapes exist today. Resolved by pinning a
+canonical template in the Spec (one parameterized renderer; `--from-github`
+fills `## Problem`). Also folded in the judge's smaller notes: `slugify` joins
+the M1 extraction, `setstatus_test.go` re-points in M2, the `--from-github` vs
+`--github-issue` flag split is called out, `list`/`show` test cases are named,
+and the M3 AGENTS.md edit is marked base-layer (downstream audience).
+
+Second plan-quality pass (re-run) again returned INFO / "safe to start." Folded
+in its material findings: added the `fetch_test.go` update to M2 (the canonical
+template breaks `TestRenderFetchedIssue_Shape`), fixed the backwards Done-when
+wording (structural requires a *non-empty* bullet), reworded "reproduces" →
+"reproduces behavior," and bumped the estimate 5h→7h (dual aliases + doc sweep +
+test re-pointing realistically cost more). Proceeded past the advisory gate with
+`--force` since the judge cleared it as safe twice.
+
+**M1 done.** Extracted `NextID`/`Slugify`/`Render` into
+`internal/issue/scaffold.go`; `fetch.go` now delegates `NextID`/`Slugify` (output
+unchanged — `renderFetchedIssue` stays until M2). Added `sdlc issue` group +
+`issue new` (`issue.go`) + `helptext/issue.md` (the canonical-template contract).
+Side-quest: found + fixed a latent bug in `issue.GetField` — its `\s*` gap
+matched newlines, so an empty frontmatter field followed by another line (e.g.
+`github_issue:` then `created:`) captured the *next* line's value. Changed to
+`[ \t]*` + regression test (the old test only covered an empty field at EOF,
+which hid it). All `go test ./cmd/sdlc/...` green; both binaries rebuilt;
+`sdlc issue new` smoke-tested (dry-run renders canonical template).

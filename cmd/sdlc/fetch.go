@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // fetchFlags holds the parsed flag values for the fetch subcommand.
@@ -82,8 +84,8 @@ func runFetch(stdout, stderr io.Writer, f *fetchFlags) error {
 		die(stderr, fmt.Sprintf("GitHub issue %s returned empty title", issueNum))
 	}
 
-	slug := slugify(title)
-	nextID, err := nextIssueID(f.IssuesDir, f.HistoryDir)
+	slug := issue.Slugify(title)
+	nextID, err := issue.NextID(f.IssuesDir, f.HistoryDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -141,53 +143,6 @@ func detectRepo() (string, error) {
 		return "", fmt.Errorf("origin URL %q does not look like a github.com URL", strings.TrimSpace(url))
 	}
 	return m[1], nil
-}
-
-// slugify lowercases, replaces non-alphanumeric with hyphens, collapses
-// hyphen runs, trims leading/trailing hyphens. Matches the Makefile sed
-// pipeline:
-//
-//	tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//'
-func slugify(title string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(title) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			b.WriteRune(r)
-		} else {
-			b.WriteRune('-')
-		}
-	}
-	// Collapse hyphen runs.
-	out := regexp.MustCompile(`-+`).ReplaceAllString(b.String(), "-")
-	return strings.Trim(out, "-")
-}
-
-// nextIssueID scans issuesDir + historyDir for filenames starting with
-// 6 digits, returns the next ID zero-padded to 6 chars. Missing dirs
-// are treated as empty (matches the Make target's `ls ... 2>/dev/null`).
-func nextIssueID(issuesDir, historyDir string) (string, error) {
-	max := 0
-	idRE := regexp.MustCompile(`^(\d{6})-`)
-	for _, dir := range []string{issuesDir, historyDir} {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return "", fmt.Errorf("read %s: %w", dir, err)
-		}
-		for _, e := range entries {
-			m := idRE.FindStringSubmatch(e.Name())
-			if m == nil {
-				continue
-			}
-			n, _ := strconv.Atoi(m[1])
-			if n > max {
-				max = n
-			}
-		}
-	}
-	return fmt.Sprintf("%06d", max+1), nil
 }
 
 // renderFetchedIssue assembles the issue-file content for a freshly-

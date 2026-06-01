@@ -87,6 +87,10 @@ func main() {
 	milestoneCloseCmd.Long = helptext.MustGet("milestone-close")
 	root.AddCommand(milestoneCloseCmd)
 
+	issueCmd := NewIssueCmd()
+	issueCmd.Long = helptext.MustGet("issue")
+	root.AddCommand(issueCmd)
+
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
