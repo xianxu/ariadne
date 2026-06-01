@@ -1,94 +1,65 @@
 sdlc collects ariadne's SDLC checkpoint guards into one binary. Each subcommand
 owns one checkpoint: it requires evidence at the gate, mutates state, logs the
-transition. The binary refuses transitions that lack the evidence — that is the
-shape of "checkpoint guard."
+transition, and refuses transitions that lack it. We don't model the SDLC as a
+state machine — stages stay prose; we codify the gates between them where drift
+recurs. `sdlc` manages the development life cycle; prefer it over `git`/`gh`.
 
-We do not model the SDLC as a state machine. We name the stages in prose and
-codify the gates between them where drift recurs. Subcommands are added
-incrementally; prose remains the substrate.
+━━ BEFORE WORK ━━
+  - `sdlc claim --issue N` — the single start-of-work gesture. Flips an *open*
+    issue to `working` (applying the estimate guard) and publishes the claim to
+    origin/main so peer agents see it. `--no-start` suppresses the flip.
+  - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc set-status`
+    own that transition (it carries the estimate guard).
 
-WORKFLOW STAGES
+━━ ENTER IMPLEMENTATION ━━
+  - After plan approval, before editing code, run `sdlc change-code`. It owns the
+    branching decision (in-place branch by default; `--worktree=yes` for an
+    isolated worktree) and the plan-quality check. Don't start coding without it.
 
-The ariadne SDLC flows through these stages. The sdlc binary owns the
-checkpoints between stages; the stages themselves stay prose and human-driven:
+━━ PUBLISH ━━
+  - Publishing goes through a PR: `sdlc pr` → `sdlc merge`. Direct `sdlc push`
+    if working directly on main.
 
-  1. Ideation       — workshop/parley/, docs/vision/ (pensives)
-  2. Brainstorming  — superpowers-brainstorming
-  3. Planning       — superpowers-writing-plans → inline in workshop/issues/
-                      or separate in workshop/plans/ (simple vs complex per
-                      AGENTS.md §1)
-  4. Build          — superpowers-executing-plans, milestones in workshop/issues/
-  5. Milestone review — sdlc judge (auto-dispatched from milestone-close)
-  6. Close / ship   — sdlc close → sdlc push (main) or sdlc pr → sdlc merge (branch)
-  7. Postmortem     — sdlc postmortem (ariadne#35; auto-dispatched from close),
-                      xx-introspect (cross-session taste mining),
-                      workshop/lessons.md
+━━ RECOVER ━━
+  - After a compaction or session resume, run `sdlc state` to recover where you
+    are instead of re-inferring from issue files.
 
-TARGET AUTHORING (not a stage)
+━━ WHEN A VERB ERRORS ━━
+  Do NOT route around it with hand-rolled `git`/`gh`. Its errors are next-action
+  specs. The fix is one of two things:
+    (a) satisfy the precondition it names and re-run the same verb (e.g. `sdlc
+        merge` saying "no upstream" → run `sdlc pr` first, then `sdlc merge`); or
+    (b) if the error is a genuine gap in `sdlc` itself, fix that edge case in the
+        source and re-run. We're still ironing out edge cases.
+  Only drop to manual when a verb genuinely cannot express the need — say so.
 
-Promoting a pattern into a target (workshop/targets/) is a datatype
-operation, not an SDLC stage. It can happen anytime recognition fires:
-  - A pensive crystallizes when the moment-in-time thought stabilizes
-    into a commitment worth defending against drift.
-  - Postmortem (stage 7) surfaces "crystallization candidates" as one
-    of its LLM-judgment sections; operator accepts and drafts a target.
-  - Direct authoring is also fine — the trigger is recognition, not
-    procedure. The pensive / postmortem paths just make recognition
-    more likely to land somewhere durable.
-See construct/datatype/target.md for the full authoring contract.
-
-TESTING (not a stage)
-
-Testing isn't a separate stage — it threads through:
-  - Planning (3): Core concepts table names PURE (unit-test-shaped) and
-    INTEGRATION (need fakes / integration-test-shaped). The entity
-    table implies the test surface.
-  - Build (4): TDD red-green-refactor in-line; tests live next to
-    entities. Verification-before-completion gates each step.
-  - Milestone review (5): judge cross-checks "PURE entities test
-    without IO; if tests need mocks, promote to INTEGRATION." Missing
-    coverage = finding.
-
-When a feature needs test infrastructure (process-level fake for an
-external service: GitHub, Gmail, Anthropic API), that infrastructure
-is itself a feature and runs through stages 1-5 like any other.
+These gates sit inside a wider prose arc the binary does NOT own: ideation
+(parley/pensive) → brainstorm → plan → build → milestone review (`sdlc judge`,
+auto-dispatched) → close/ship → postmortem.
 
 CONVENTIONS
 
-Flag convention — `--issue N` always refers to an ariadne workshop issue
-(6-digit ID, in workshop/issues/ or workshop/history/). `--github-issue N`
-refers to a GitHub issue number. The bare `--issue` flag never means a
-GitHub issue.
+  --issue vs --github-issue — `--issue N` always means workshop/issues
+  (6-digit ID). `--github-issue N` means a GitHub issue number. Bare `--issue`
+  never means a GitHub issue.
 
-Form vs essence — Checkpoint guards (close, milestone-close, push, merge)
-defend against *omission* via required-evidence flags. The judge subcommand
-defends against *theater* via fresh-context LLM review (anti-collusion: the
-judge sees no doer state). Form runs first because it's deterministic; judge
-runs second on what survived form.
-
-State recovery — `sdlc state` is the canonical "where am I" surface; after a
-compaction the agent reads it instead of re-inferring from issue files. The
-binary owns the mutating path (`close`, `set-status`, `milestone-close`); reads
-remain free-form, so drift is detectable.
+  Form vs essence — checkpoint guards (close, milestone-close, push, merge)
+  defend against *omission* via required-evidence flags; `sdlc judge` defends
+  against *theater* via fresh-context review. Form runs first; judge second.
 
 SUBCOMMANDS
 
-  close            Close an issue or a milestone (evidence + atlas + project sweep)
-  state            Inspect workflow state (current branch, working issues, drift)
-  judge            Run an LLM-judge check against the diff (fresh-context subagent)
-  fetch            Fetch a GitHub issue into workshop/issues/
-  claim            Land issue-file workflow state on main as a workstream claim
+  claim            Start work: flip open→working + broadcast claim to main
   change-code      Enter implementation after structural + plan-quality gates
   set-status       Flip an issue's status with transition guards
-  push             Ship from main (clean-tree + checks + archive)
+  close            Close an issue or milestone (evidence + atlas + project sweep)
+  milestone-close  Close one milestone (judges auto-dispatched)
   pr               Open a pull request from a worktree branch
-  merge            Merge a PR + archive completed issues + clean worktree
-  milestone-close  Close one milestone of an issue (judges auto-dispatched)
+  merge            Merge a PR + archive completed issues + clean up
+  push             Ship from main (clean-tree + checks + archive)
+  state            Inspect workflow state (branch, working issues, drift)
+  judge            Run an LLM-judge check against the diff (fresh-context)
+  fetch            Fetch a GitHub issue into workshop/issues/
 
-For depth on any subcommand:
-
-  sdlc <verb> --help
-
-To regenerate the on-disk SKILL.md from this binary's embedded prose:
-
-  sdlc --index > construct/local/sdlc/SKILL.md
+  sdlc <verb> --help                              depth on any verb
+  sdlc --index > construct/local/sdlc/SKILL.md    regenerate the skill doc

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -140,6 +143,91 @@ func TestMainHasUncommittedIssueChanges_Union(t *testing.T) {
 	}
 	if got[0] != "workshop/issues/000001-a.md" || got[1] != "workshop/issues/000002-b.md" {
 		t.Errorf("entries unexpected: %v", got)
+	}
+}
+
+// ── startOnClaim: the folded-in open→working start flip ──────────────────────
+
+// writeIssue is a small fixture helper for the start-flip tests.
+func writeIssue(t *testing.T, dir, name, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestStartOnClaim_FlipsOpenToWorking: an open issue with an estimate is
+// flipped to working as part of the claim.
+func TestStartOnClaim_FlipsOpenToWorking(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "000031-foo.md")
+	writeIssue(t, dir, "000031-foo.md", "---\nid: 000031\nstatus: open\nestimate_hours: 2\n---\n# Foo\n")
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 31, IssuesDir: dir}
+	if err := startOnClaim(&stdout, &stderr, f); err != nil {
+		t.Fatalf("startOnClaim err: %v", err)
+	}
+	got, _ := os.ReadFile(path)
+	if !strings.Contains(string(got), "status: working") {
+		t.Errorf("issue not flipped to working:\n%s", got)
+	}
+}
+
+// TestStartOnClaim_OpenWithoutEstimateRefuses: the →working estimate guard
+// still fires through claim (returns an error rather than die()-ing).
+func TestStartOnClaim_OpenWithoutEstimateRefuses(t *testing.T) {
+	dir := t.TempDir()
+	writeIssue(t, dir, "000031-foo.md", "---\nid: 000031\nstatus: open\n---\n# Foo\n")
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 31, IssuesDir: dir}
+	err := startOnClaim(&stdout, &stderr, f)
+	if err == nil {
+		t.Fatal("expected estimate-guard error, got nil")
+	}
+	if !strings.Contains(err.Error(), "estimate_hours") {
+		t.Errorf("error should name the estimate guard, got: %v", err)
+	}
+}
+
+// TestStartOnClaim_LeavesNonOpenUntouched: claim must not clobber a status
+// the operator set on purpose (here, blocked).
+func TestStartOnClaim_LeavesNonOpenUntouched(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "000031-foo.md")
+	original := "---\nid: 000031\nstatus: blocked\nestimate_hours: 2\n---\n# Foo\n"
+	writeIssue(t, dir, "000031-foo.md", original)
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 31, IssuesDir: dir}
+	if err := startOnClaim(&stdout, &stderr, f); err != nil {
+		t.Fatalf("startOnClaim err: %v", err)
+	}
+	got, _ := os.ReadFile(path)
+	if string(got) != original {
+		t.Errorf("non-open issue was mutated:\n--- got ---\n%s\n--- want ---\n%s", got, original)
+	}
+}
+
+// TestStartOnClaim_DryRunDoesNotWrite: --dry-run reports but writes nothing.
+func TestStartOnClaim_DryRunDoesNotWrite(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "000031-foo.md")
+	original := "---\nid: 000031\nstatus: open\nestimate_hours: 2\n---\n# Foo\n"
+	writeIssue(t, dir, "000031-foo.md", original)
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 31, IssuesDir: dir, DryRun: true}
+	if err := startOnClaim(&stdout, &stderr, f); err != nil {
+		t.Fatalf("startOnClaim err: %v", err)
+	}
+	got, _ := os.ReadFile(path)
+	if string(got) != original {
+		t.Errorf("dry-run mutated file:\n%s", got)
+	}
+	if !strings.Contains(stderr.String(), "would flip") {
+		t.Errorf("dry-run stderr missing notice: %q", stderr.String())
 	}
 }
 

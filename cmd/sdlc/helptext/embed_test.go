@@ -10,8 +10,13 @@ func TestRootEmbedded(t *testing.T) {
 	if !ok {
 		t.Fatal("root.md not found in embed FS")
 	}
-	if !strings.Contains(s, "WORKFLOW STAGES") {
-		t.Errorf("root.md missing WORKFLOW STAGES section")
+	// root.md folds in the start-of-work runbook: `sdlc --help` is the
+	// single workflow contract (the old `--agents.md` flag was merged
+	// in), so these load-bearing anchors must survive edits.
+	for _, want := range []string{"BEFORE WORK", "WHEN A VERB ERRORS", "checkpoint guard"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("root.md missing %q", want)
+		}
 	}
 	if !strings.HasSuffix(s, "\n") {
 		t.Errorf("root.md content should end with a newline")

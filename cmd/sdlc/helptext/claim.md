@@ -1,8 +1,21 @@
 Sync workshop/issues/ changes to origin/main, even from a feature
-branch. The workstream-claim primitive: an agent flips `status:
-working` on an issue, runs `sdlc claim`, and the claim is broadcast to
-origin/main so peer agents see the claim before they start parallel
-work.
+branch. The workstream-claim primitive: an agent runs `sdlc claim
+--issue N` and the claim is broadcast to origin/main so peer agents see
+it before they start parallel work.
+
+START-OF-WORK FLIP
+
+With `--issue N`, claim is the single start-of-work gesture: if the
+issue is still `open` it is flipped to `working` first — applying the
+same estimate guard `sdlc set-status` enforces — and that flip is part
+of what gets synced. This collapses the old two-step (`sdlc set-status
+--issue N working` then `sdlc claim --issue N`) into one call.
+
+Only the open→working transition is automatic. Claim doubles as the
+generic issue-file re-sync primitive, so an issue already in a
+deliberate state (working/blocked/punt/wontfix/done) is left untouched —
+claim never clobbers a status the operator set on purpose. Pass
+`--no-start` to suppress the flip and sync the file as-is.
 
 TWO PATHS
 
@@ -39,6 +52,8 @@ auto-merging issue prose has burned us before.
 FLAGS
 
   --issue <n>           sync only this issue's NNNNNN-*.md file
+                        (also auto-flips it open → working)
+  --no-start            do not auto-flip an open --issue to working
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --dry-run             print what would happen; do not commit/push
 

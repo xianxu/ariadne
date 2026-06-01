@@ -68,76 +68,123 @@ func NewSetStatusCmd() *cobra.Command {
 
 // runSetStatus is the entry point for the cobra RunE.
 func runSetStatus(stdout, stderr io.Writer, f *setStatusFlags) error {
-	// ── Input validation ────────────────────────────────────────────────────
-	if f.Issue <= 0 {
-		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
-	}
-	if !isValidStatus(f.Status) {
-		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(validStatuses, ", ")))
-	}
-
-	// ── Locate issue file ───────────────────────────────────────────────────
-	id := fmt.Sprintf("%06d", f.Issue)
-	matches, err := filepath.Glob(filepath.Join(f.IssuesDir, id+"-*.md"))
+	path, prev, changed, err := applyStatus(f.IssuesDir, f.Issue, f.Status, f.Force, f.DryRun)
 	if err != nil {
-		die(stderr, fmt.Sprintf("glob: %v", err))
-	}
-	sort.Strings(matches)
-	if len(matches) == 0 {
-		die(stderr, fmt.Sprintf("no issue file matches %s/%s-*.md", f.IssuesDir, id))
-	}
-	if len(matches) > 1 {
-		die(stderr, fmt.Sprintf("multiple issue files match: %v", matches))
-	}
-	path := matches[0]
-
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		die(stderr, fmt.Sprintf("read %s: %v", path, err))
-	}
-	fm, body, err := issue.Parse(string(raw))
-	if err != nil {
-		die(stderr, fmt.Sprintf("parse frontmatter from %s: %v", path, err))
-	}
-	currentStatus, _ := issue.GetField(fm, "status")
-
-	// ── Transition guards ───────────────────────────────────────────────────
-	if !f.Force {
-		if err := checkTransitionGuards(currentStatus, f.Status, fm, body); err != nil {
-			die(stderr, err.Error())
-		}
+		die(stderr, err.Error())
 	}
 
-	// No-op when already at the target status (after guards). Still
-	// bumps `updated:` so commits show intent. Match `sdlc close`'s
+	// No-op when already at the target status (after guards). applyStatus
+	// still bumps `updated:` so commits show intent — match `sdlc close`'s
 	// posture of always emitting a `updated:` line.
-	if currentStatus == f.Status {
+	if prev == f.Status {
 		cwarn(stderr, fmt.Sprintf("status already '%s'; updating timestamp only", f.Status))
 	}
-
-	today := time.Now().Format("2006-01-02")
-	newFM := issue.SetField(fm, "status", f.Status)
-	newFM = issue.SetField(newFM, "updated", today)
-	newText := issue.Compose(newFM, body)
 
 	if f.DryRun {
 		cinfo(stderr, "dry-run — no files written")
 		fmt.Fprintf(stdout, "Would update %s: status %s → %s, updated %s\n",
-			filepath.Base(path), valueOr(currentStatus, "(unset)"), f.Status, today)
+			filepath.Base(path), valueOr(prev, "(unset)"), f.Status, time.Now().Format("2006-01-02"))
 		return nil
 	}
-
-	if newText == string(raw) {
+	if !changed {
 		cok(stderr, fmt.Sprintf("no changes to %s", filepath.Base(path)))
 		return nil
 	}
-	if err := os.WriteFile(path, []byte(newText), 0o644); err != nil {
-		die(stderr, fmt.Sprintf("write %s: %v", path, err))
-	}
 	cok(stderr, fmt.Sprintf("%s: status %s → %s", filepath.Base(path),
-		valueOr(currentStatus, "(unset)"), f.Status))
+		valueOr(prev, "(unset)"), f.Status))
 	fmt.Fprintln(stdout, path)
 	return nil
+}
+
+// locateIssueFile resolves issue <id> to its single workshop/issues file,
+// erroring on zero or multiple matches. Shared by set-status and claim so
+// the NNNNNN-*.md glob convention lives in one place.
+func locateIssueFile(issuesDir string, issueID int) (string, error) {
+	if issueID <= 0 {
+		return "", fmt.Errorf("--issue is required and must be positive (got %d)", issueID)
+	}
+	id := fmt.Sprintf("%06d", issueID)
+	matches, err := filepath.Glob(filepath.Join(issuesDir, id+"-*.md"))
+	if err != nil {
+		return "", fmt.Errorf("glob: %v", err)
+	}
+	sort.Strings(matches)
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no issue file matches %s/%s-*.md", issuesDir, id)
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("multiple issue files match: %v", matches)
+	}
+	return matches[0], nil
+}
+
+// issueStatus returns the current status: value of issue <id> (empty when
+// unset). The read-only peek `sdlc claim` uses to gate its auto start-flip
+// on the open→working transition only.
+func issueStatus(issuesDir string, issueID int) (string, error) {
+	path, err := locateIssueFile(issuesDir, issueID)
+	if err != nil {
+		return "", err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %v", path, err)
+	}
+	fm, _, err := issue.Parse(string(raw))
+	if err != nil {
+		return "", fmt.Errorf("parse frontmatter from %s: %v", path, err)
+	}
+	s, _ := issue.GetField(fm, "status")
+	return s, nil
+}
+
+// applyStatus locates issue <id>, enforces the transition guards (unless
+// force), and rewrites its status: + updated: frontmatter. On dryRun it
+// computes the change without writing. Returns the file path, the previous
+// status, and whether the content would change.
+//
+// Extracted from runSetStatus so `sdlc claim` can fold the → working flip
+// into its sync (AGENTS.md §0: one command to claim + start work) without
+// duplicating the guard logic or the frontmatter rewrite. Returns errors
+// rather than die()-ing so callers compose it; runSetStatus translates the
+// error back into a top-level die().
+func applyStatus(issuesDir string, issueID int, status string, force, dryRun bool) (path, prev string, changed bool, err error) {
+	if !isValidStatus(status) {
+		return "", "", false, fmt.Errorf("invalid status %q (valid: %s)", status, strings.Join(validStatuses, ", "))
+	}
+	path, err = locateIssueFile(issuesDir, issueID)
+	if err != nil {
+		return "", "", false, err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return path, "", false, fmt.Errorf("read %s: %v", path, err)
+	}
+	fm, body, err := issue.Parse(string(raw))
+	if err != nil {
+		return path, "", false, fmt.Errorf("parse frontmatter from %s: %v", path, err)
+	}
+	prev, _ = issue.GetField(fm, "status")
+
+	if !force {
+		if gErr := checkTransitionGuards(prev, status, fm, body); gErr != nil {
+			return path, prev, false, gErr
+		}
+	}
+
+	today := time.Now().Format("2006-01-02")
+	newFM := issue.SetField(fm, "status", status)
+	newFM = issue.SetField(newFM, "updated", today)
+	newText := issue.Compose(newFM, body)
+	changed = newText != string(raw)
+
+	if dryRun || !changed {
+		return path, prev, changed, nil
+	}
+	if err := os.WriteFile(path, []byte(newText), 0o644); err != nil {
+		return path, prev, changed, fmt.Errorf("write %s: %v", path, err)
+	}
+	return path, prev, changed, nil
 }
 
 // ── transition guards ────────────────────────────────────────────────────────

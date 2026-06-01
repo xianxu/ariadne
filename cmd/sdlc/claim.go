@@ -41,6 +41,7 @@ type claimFlags struct {
 	Issue     int
 	IssuesDir string
 	DryRun    bool
+	NoStart   bool
 }
 
 // NewClaimCmd returns the cobra command for `sdlc claim`.
@@ -59,6 +60,7 @@ func NewClaimCmd() *cobra.Command {
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "sync only this issue's file (default: all changed issue files)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would happen; do not commit/push")
+	cmd.Flags().BoolVar(&f.NoStart, "no-start", false, "do not auto-flip an open --issue to working before syncing")
 	return cmd
 }
 
@@ -67,13 +69,51 @@ func NewClaimCmd() *cobra.Command {
 var claimRunner gitRunner = execGitRunner{}
 
 // runClaim dispatches to sync-on-main or sync-on-branch based on the
-// current branch, exactly like the shell source.
+// current branch, exactly like the shell source. Before syncing it folds
+// in the "start work" status flip (startOnClaim) so claiming an open issue
+// is a single command (AGENTS.md §0).
 func runClaim(stdout, stderr io.Writer, f *claimFlags) error {
+	if f.Issue > 0 && !f.NoStart {
+		if err := startOnClaim(stdout, stderr, f); err != nil {
+			die(stderr, err.Error())
+		}
+	}
 	branch := gitx.Capture("branch", "--show-current")
 	if branch == "main" {
 		return syncOnMain(stdout, stderr, f, claimRunner)
 	}
 	return syncOnBranch(stdout, stderr, f, branch, claimRunner)
+}
+
+// startOnClaim folds the "start work" status flip into `sdlc claim`: an
+// `--issue` claim on an *open* issue is the start-of-work gesture, so flip
+// it to `working` — applying the same estimate guard `sdlc set-status`
+// enforces — before the sync broadcasts it to origin/main. Collapses the
+// old two-step (`set-status … working` then `claim`) into one.
+//
+// Only the open→working transition is automatic. Claim doubles as the
+// generic issue-file re-sync primitive, so an issue already in a
+// deliberate state (working/blocked/punt/wontfix/done) is left untouched —
+// claim never clobbers a status the operator set on purpose. `--no-start`
+// suppresses the flip entirely.
+func startOnClaim(stdout, stderr io.Writer, f *claimFlags) error {
+	prev, err := issueStatus(f.IssuesDir, f.Issue)
+	if err != nil {
+		return err
+	}
+	if prev != "open" {
+		return nil
+	}
+	path, _, _, err := applyStatus(f.IssuesDir, f.Issue, "working", false, f.DryRun)
+	if err != nil {
+		return err
+	}
+	if f.DryRun {
+		cinfo(stderr, fmt.Sprintf("dry-run — would flip %s: status open → working", filepath.Base(path)))
+		return nil
+	}
+	cok(stderr, fmt.Sprintf("%s: status open → working", filepath.Base(path)))
+	return nil
 }
 
 // ── on-main path ─────────────────────────────────────────────────────────────
