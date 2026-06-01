@@ -3,6 +3,7 @@
 ## Workflow Orchestration
 
 ### 0. Synchronization
+- `sdlc` is the tool to manage development life cycle, prefer it over direct `gh`.
 - Before commencing work: `sdlc set-status --issue N working`, then
   `sdlc claim --issue N` to publish the claim. Do NOT hand-edit the issue's
   `status:` frontmatter — let `sdlc set-status` own that transition (it carries
@@ -15,6 +16,15 @@
   `sdlc push` on main still exists but is no longer the default path.
 - After a compaction or session resume, run `sdlc state` to recover where you
   are instead of re-inferring from issue files.
+- **When an `sdlc` verb errors, do NOT route around it with hand-rolled
+  `git`/`gh`.** Its errors are next-action specs. The fix is one of two things:
+  (a) satisfy the precondition it names and re-run the same verb (e.g. `sdlc
+  merge` saying "no upstr🤖[]eam" → run `sdlc pr` first, then `sdlc merge` again);
+  or (b) if the error is a genuine gap in `sdlc` itself, fix that edge case in
+  the `sdlc` source and re-run. `sdlc` exists so deterministic SDLC steps are a
+  single call the agent doesn't re-derive (and get wrong/slow) each time —
+  reaching for raw `git`/`gh` defeats that. Only drop to manual when a verb
+  genuinely cannot express the need, and say so explicitly.
 - This is the locking mechanism for parallelized workstreams.
 
 ### 1. Artifact Hierarchy
