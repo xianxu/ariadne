@@ -1,11 +1,12 @@
 ---
 id: 000057
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-01
 updated: 2026-06-01
 estimate_hours: 4
+actual_hours: 2
 ---
 
 # dev-aliases.sh — expose Go binaries fresh; retire cmd source symlinks
@@ -178,6 +179,8 @@ Two milestones, each a fresh-eyes `sdlc milestone-close` review boundary.
 
 
 
+
+- 2026-06-01: closed — dev-aliases.sh generator (19 hermetic tests) + nous/brain gmail/oneshot symlink retirement; both milestones reviewed SHIP; e2e verified (sdlc/oneshot build-in-owner, run-in-caller-cwd); --list clean
 - 2026-06-01: closed M2 — 3 nous directives + 9 brain* symlinks retired (nous pushed 98d652d; brain* committed locally — brain/brain-family gcrypt, pushed-by-operator); dev-alias delivers gmail/oneshot/nous build-in-nous (verified oneshot builds nous/bin/oneshot, runs from any cwd); --list clean; pair stray cmd/sdlc removed; review verdict: SHIP (high confidence, 0 critical). Post-review: ticked the folded "enumerate consumers" bullet; added the cron/launchd caveat to the atlas note. Committed the operator's unrelated issue.md slug-guidance edit standalone (1a3c2bf), not under #57. **Review-boundary note (sdlc edge):** `c52f482` ("build to owner bin/") referenced `#57` but not a milestone, so it fell between M1's window (≤76a2828) and M2's base (699635d^=c52f482) — escaping both auto-windows. The judge reviewed it here as compensation and found it correct (no rework). Follow-up candidate: milestone-close should base the window on the *previous milestone-close commit*, not the first-milestone-referencing commit's parent, so inter-milestone `#N` commits don't slip the review net.
 - 2026-06-01: closed M1 — 17-assertion hermetic test green; dev-aliases.sh smoke-tested on real workspace (10 binaries, correct owners, 0 dup warnings); --list/--strict/--help verified; review verdict: SHIP (high confidence, 0 critical/important; parser recorded SHIP correctly). Addressed 3 of 4 Minor findings post-review: validate `--workspace` (nonexistent/empty → exit 2, not silent-empty) + 2 new test assertions (now 19); fixed the atlas note's location wording (script at construct/dev-aliases.sh, test under construct/scripts/test/). Skipped #4 (quote the binary name in the build line) — Go cmd dir names can't contain spaces, so it's theoretical. M2 architectural note reaffirmed: enumerate consumers + verify no active derivative ends up a second owner before deleting symlinks.
 ### 2026-06-01
