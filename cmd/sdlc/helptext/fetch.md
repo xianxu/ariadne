@@ -1,8 +1,12 @@
+DEPRECATED (#56 M2): use `sdlc issue new --from-github N`. This alias
+delegates to it and is kept for one cycle; it retains the `--github-issue`
+flag name.
+
 Fetch a GitHub issue and create a local workshop/issues/ file. The
 companion entry point on the inbound side of the workflow — pulls a
 remote issue through `gh issue view`, picks the next 6-digit ID, and
-writes the standard frontmatter + skeleton body so an agent can start
-working from a known shape.
+writes the canonical frontmatter + skeleton body (GH body under
+`## Problem`) so an agent can start working from a known shape.
 
 WHAT IT DOES
 
@@ -12,9 +16,11 @@ WHAT IT DOES
   - Slugifies the title (lowercase, non-alphanumerics → hyphens).
   - Picks the next 6-digit ID by scanning workshop/issues/ AND
     workshop/history/ (so archived issues' IDs are not reused).
-  - Writes `workshop/issues/NNNNNN-<slug>.md` with frontmatter (id,
-    status: open, deps: [], github_issue, created/updated dates) and a
-    body skeleton (`# title`, `## Done when`, `## Plan`, `## Log`).
+  - Writes `workshop/issues/NNNNNN-<slug>.md` with the canonical
+    frontmatter (id, status: open, deps: [], github_issue,
+    created/updated, estimate_hours) and body skeleton (`# title`,
+    `## Problem` [seeded with the GH body], `## Spec`, `## Done when`,
+    `## Plan`, `## Log`). See `sdlc issue --help` for the contract.
 
 WHAT IT DOES NOT DO
 
@@ -38,9 +44,9 @@ EXIT CODES
 
 EXAMPLES
 
-  sdlc fetch --github-issue 42
+  sdlc issue new --from-github 42         # preferred
+  sdlc fetch --github-issue 42            # deprecated alias, same effect
   sdlc fetch --github-issue 42 --dry-run
-  WF_ISSUES_DIR=issues sdlc fetch --github-issue 42
 
 RELATED
 

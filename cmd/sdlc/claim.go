@@ -87,7 +87,7 @@ func runClaim(stdout, stderr io.Writer, f *claimFlags) error {
 
 // startOnClaim folds the "start work" status flip into `sdlc claim`: an
 // `--issue` claim on an *open* issue is the start-of-work gesture, so flip
-// it to `working` — applying the same estimate guard `sdlc set-status`
+// it to `working` — applying the same estimate guard `sdlc issue set-status`
 // enforces — before the sync broadcasts it to origin/main. Collapses the
 // old two-step (`set-status … working` then `claim`) into one.
 //

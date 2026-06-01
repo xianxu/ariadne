@@ -126,6 +126,30 @@ func (p *fakePrompter) Ask(question string, w io.Writer) string {
 	return ans
 }
 
+// TestMergeNeedsTTY pins the non-interactive guard: without --yes and
+// without a tty, merge must refuse (rather than block on stdin) — the
+// stall bug. --yes or --dry-run (no prompts) or a real tty all proceed.
+func TestMergeNeedsTTY(t *testing.T) {
+	cases := []struct {
+		name                    string
+		yes, dryRun, stdinIsTTY bool
+		want                    bool
+	}{
+		{"non-tty, no --yes → refuse", false, false, false, true},
+		{"--yes overrides non-tty", true, false, false, false},
+		{"--dry-run has no prompts", false, true, false, false},
+		{"real terminal answers prompts", false, false, true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := mergeNeedsTTY(c.yes, c.dryRun, c.stdinIsTTY); got != c.want {
+				t.Errorf("mergeNeedsTTY(yes=%v dryRun=%v tty=%v) = %v, want %v",
+					c.yes, c.dryRun, c.stdinIsTTY, got, c.want)
+			}
+		})
+	}
+}
+
 func TestFakePrompter_Order(t *testing.T) {
 	p := &fakePrompter{answers: []string{"y", "n"}}
 	var w stringWriter

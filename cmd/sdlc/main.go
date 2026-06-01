@@ -25,6 +25,24 @@ import (
 )
 
 func main() {
+	if err := buildRoot().Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		os.Exit(1)
+	}
+}
+
+// buildRoot assembles the full cobra command tree. Extracted from main so
+// the tree itself is testable (e.g. the flat→group alias wiring for
+// set-status / fetch — #56 M2).
+//
+// The verb list in `sdlc --help` is cobra's auto-generated "Available
+// Commands" — NOT a hand-maintained block in root.md, which drifts (#56).
+// Sorting is disabled so that list renders in workflow order (the order the
+// AddCommand calls below run); hidden commands are auto-omitted, so the
+// deprecated aliases never appear. The single source is the registry here.
+func buildRoot() *cobra.Command {
+	cobra.EnableCommandSorting = false
+
 	root := &cobra.Command{
 		Use:           "sdlc",
 		Short:         "SDLC checkpoint binary — guards known commit moments against drift",
@@ -32,63 +50,50 @@ func main() {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	root.CompletionOptions.HiddenDefaultCmd = true // keep `completion` out of the verb list
 
 	root.RunE = func(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	}
 
-	closeCmd := NewCloseCmd()
-	closeCmd.Long = helptext.MustGet("close")
-	root.AddCommand(closeCmd)
+	// add registers a command, wiring its Long help from the embedded
+	// helptext and overriding Short with the crisp workflow-facing
+	// one-liner shown in `sdlc --help`.
+	add := func(c *cobra.Command, longKey, short string) {
+		if longKey != "" {
+			c.Long = helptext.MustGet(longKey)
+		}
+		c.Short = short
+		root.AddCommand(c)
+	}
 
-	stateCmd := NewStateCmd()
-	stateCmd.Long = helptext.MustGet("state")
-	root.AddCommand(stateCmd)
+	// Workflow order (claim → ship), which is the order the verb list renders.
+	add(NewClaimCmd(), "claim", "Start work: flip an open issue to working + broadcast the claim")
+	add(NewChangeCodeCmd(), "change-code", "Enter implementation after the structural + plan-quality gates")
+	add(NewIssueCmd(), "issue", "Create + manage issues (new / set-status / list / show)")
+	add(NewCloseCmd(), "close", "Close an issue or milestone (ACTUAL + VERIFIED + atlas/project sweep)")
+	add(NewMilestoneCloseCmd(), "milestone-close", "Close one milestone + auto-dispatch its review")
+	add(NewPRCmd(), "pr", "Open a pull request from a feature branch")
+	add(NewMergeCmd(), "merge", "Merge the PR, archive done issues, clean up")
+	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
+	add(NewStateCmd(), "state", "Inspect workflow state (branch, working issues, drift)")
+	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
 
-	judgeCmd := NewJudgeCmd()
-	judgeCmd.Long = helptext.MustGet("judge")
-	root.AddCommand(judgeCmd)
-
+	// Hidden: deprecated aliases + the start stub. Order is irrelevant —
+	// they're omitted from the verb list.
 	fetchCmd := NewFetchCmd()
 	fetchCmd.Long = helptext.MustGet("fetch")
+	fetchCmd.Hidden = true
+	fetchCmd.Deprecated = "use `sdlc issue new --from-github N`" // #56 M2
 	root.AddCommand(fetchCmd)
 
-	// `sdlc start` is a hidden stub that errors with a migration
-	// message (#39). No Long help wired — Short + RunE carry the
-	// message. Helptext file removed.
-	startCmd := NewStartCmd()
-	root.AddCommand(startCmd)
+	flatSetStatus := NewSetStatusCmd()
+	flatSetStatus.Long = helptext.MustGet("set-status")
+	flatSetStatus.Hidden = true
+	flatSetStatus.Deprecated = "use `sdlc issue set-status`" // #56 M2
+	root.AddCommand(flatSetStatus)
 
-	claimCmd := NewClaimCmd()
-	claimCmd.Long = helptext.MustGet("claim")
-	root.AddCommand(claimCmd)
+	root.AddCommand(NewStartCmd()) // hidden migration stub (#39)
 
-	changeCodeCmd := NewChangeCodeCmd()
-	changeCodeCmd.Long = helptext.MustGet("change-code")
-	root.AddCommand(changeCodeCmd)
-
-	setStatusCmd := NewSetStatusCmd()
-	setStatusCmd.Long = helptext.MustGet("set-status")
-	root.AddCommand(setStatusCmd)
-
-	pushCmd := NewPushCmd()
-	pushCmd.Long = helptext.MustGet("push")
-	root.AddCommand(pushCmd)
-
-	prCmd := NewPRCmd()
-	prCmd.Long = helptext.MustGet("pr")
-	root.AddCommand(prCmd)
-
-	mergeCmd := NewMergeCmd()
-	mergeCmd.Long = helptext.MustGet("merge")
-	root.AddCommand(mergeCmd)
-
-	milestoneCloseCmd := NewMilestoneCloseCmd()
-	milestoneCloseCmd.Long = helptext.MustGet("milestone-close")
-	root.AddCommand(milestoneCloseCmd)
-
-	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		os.Exit(1)
-	}
+	return root
 }

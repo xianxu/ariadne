@@ -155,7 +155,7 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"PURE: tests run without IO",
 		"Atlas update gate",
 		"Plan revision recommendations",
-		"Verdict (first line, sharp + parseable)",
+		"THE VERY FIRST LINE of your response MUST be",
 		"SHIP | FIX-THEN-SHIP | REWORK",
 		"Strengths:",
 	} {
@@ -204,6 +204,45 @@ func TestParseVerdict(t *testing.T) {
 		{
 			"first non-empty line is prose, not a verdict",
 			"Looks fine to me, no major findings.\nSHIP\n",
+			VerdictUnknown,
+		},
+		{
+			// The #56 M1 failure: a markdown title + `## Verdict` header
+			// before the verdict. Structural lines are skipped.
+			"markdown title and header before emphasized verdict",
+			"# Post-Milestone Code Review — ariadne#56 M1\n\n## 1. Verdict\n\n**SHIP** (confidence: high)\n\nSummary…",
+			VerdictShip,
+		},
+		{
+			"emphasized verdict on first line",
+			"**FIX-THEN-SHIP** (confidence: medium)\n",
+			VerdictFixThenShip,
+		},
+		{
+			"verdict written as a heading",
+			"## REWORK (confidence: low)\n",
+			VerdictRework,
+		},
+		{
+			// Precision guard: a token at line-start in prose (followed by
+			// more words, not a paren/EOL) is NOT a verdict.
+			"ship-prefixed prose at line start is not a verdict",
+			"SHIP-blocking issues remain in the parser.\n",
+			VerdictUnknown,
+		},
+		{
+			// The #56 M3 failure: the reviewer narrates investigation prose
+			// before the verdict line. The confidence-qualified fallback
+			// catches it even though the leading scan stops at the prose.
+			"prose preamble then confidence-qualified verdict",
+			"I have enough to render the verdict. Let me confirm one detail first.\n\nThe renderer emits deps from --deps only.\n\nFIX-THEN-SHIP (confidence: high)\n\nM3 is a docs milestone…",
+			VerdictFixThenShip,
+		},
+		{
+			// Precision still holds: prose preamble + a *bare* later token
+			// (no confidence paren) is NOT a verdict.
+			"prose preamble then bare token is not a verdict",
+			"Looks reasonable overall.\n\nSHIP\n",
 			VerdictUnknown,
 		},
 		{

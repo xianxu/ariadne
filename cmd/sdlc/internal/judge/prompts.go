@@ -320,20 +320,23 @@ Read the diff against the issue's plan + spec. Focus on:
     changes in the same range = Important finding ("atlas update appears
     missing for <surface>").
 
-Produce a structured report:
-  1. Verdict (first line, sharp + parseable):
-       SHIP | FIX-THEN-SHIP | REWORK   (confidence: high | medium | low)
-     Followed by a 1-paragraph summary explaining the verdict — what
-     worked, what blocks the verdict from being SHIP if it isn't.
-  2. Strengths: 2-5 specific things done well (file:line where useful).
+Produce a structured report. THE VERY FIRST LINE of your response MUST be
+the verdict alone — no title, no markdown heading, no preamble above it:
+
+    SHIP | FIX-THEN-SHIP | REWORK   (confidence: high | medium | low)
+
+(A heading or title before the verdict breaks the audit-chain parser.)
+Then a 1-paragraph summary explaining the verdict — what worked, what
+blocks the verdict from being SHIP if it isn't — followed by:
+  1. Strengths: 2-5 specific things done well (file:line where useful).
      Affirm the validated approaches so the operator knows what's
      confirmed-good ground. Empty acceptable for trivial milestones.
-  3. Critical findings (file:line + fix sketch); empty if none.
-  4. Important findings (same format).
-  5. Minor findings (terse one-liners).
-  6. Test coverage notes.
-  7. Architectural notes for upcoming work.
-  8. Plan revision recommendations: list specific "## Revisions" entries
+  2. Critical findings (file:line + fix sketch); empty if none.
+  3. Important findings (same format).
+  4. Minor findings (terse one-liners).
+  5. Test coverage notes.
+  6. Architectural notes for upcoming work.
+  7. Plan revision recommendations: list specific "## Revisions" entries
      the plan needs (empty if the plan still matches the code).
 
 You have no prior session context — that is the anti-collusion property.

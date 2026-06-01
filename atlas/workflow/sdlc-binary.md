@@ -24,14 +24,25 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked |
 | `state`           | (new)                       | Workflow state inspection + drift detection |
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
-| `fetch`           | `make fetch N`              | Issue-file shape on GitHub import |
+| `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
 | `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
 | `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
-| `set-status`      | (new)                       | Status-transition guards (xx-issues contract) |
+| `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
 | `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + cleanup + irreversible-action confirm (#51) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched milestone-review |
+| `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
+| `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
+| `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
+| `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
+
+**Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
+*transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the
+CRUD/authoring surface for the issue *record* — the noun-grouped home for
+`new` (and, post-#56-M2, `set-status`/`list`/`show`). The canonical issue-file
+template lives in one place: the `Render` function in `internal/issue/scaffold.go`,
+documented in prose by `sdlc issue --help`.
 
 ## Progressive disclosure
 
@@ -58,7 +69,8 @@ cmd/sdlc/
   close.go             ← scripts/close-issue.py
   state.go             new (read-only inspection + drift detection)
   judge.go             ← scripts/pre-merge-checks.sh
-  fetch.go             ← Makefile fetch:
+  fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
+  issue.go             new (#56): `sdlc issue` group — new / set-status / list / show
   start.go             migration stub (REMOVED in #39 — errors with
                        "use claim + change-code")
   claim.go             ← scripts/issue-sync.sh (renamed from lock.go #39)
@@ -75,7 +87,8 @@ cmd/sdlc/
   internal/
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
                        CommitWindow, DiscoverWindowIssues, RunGit)
-    issue/             frontmatter parse/edit + plan-section regexes
+    issue/             frontmatter parse/edit + plan-section regexes +
+                       scaffold.go (NextID/Slugify/Render — #56)
     judge/             Category enum, prompt builder, classify, dispatch
     project/           brain project-file mutation helpers
 ```
@@ -134,7 +147,8 @@ Each Make target delegates to `bin/sdlc` when built, falling back to
 the original shell logic when absent:
 
   `make close-issue` → `sdlc close`
-  `make fetch <N>`   → `sdlc fetch --github-issue N`
+  `make fetch <N>`   → `sdlc fetch --github-issue N` (deprecated alias →
+                       `sdlc issue new --from-github N`, #56 M2)
   `make worktree`    → `sdlc change-code --worktree=yes --no-judge --no-structural`
                        (post-#39; preserves the make target's pre-existing
                        quick-and-dirty semantics)

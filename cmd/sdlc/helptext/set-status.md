@@ -58,10 +58,10 @@ EXIT CODES
 
 EXAMPLES
 
-  sdlc set-status --issue 42 working
-  sdlc set-status --issue 42 blocked
-  sdlc set-status --issue 42 open --force      # reopen, no log entry yet
-  sdlc set-status --issue 42 punt --dry-run
+  sdlc issue set-status --issue 42 working
+  sdlc issue set-status --issue 42 blocked
+  sdlc issue set-status --issue 42 open --force   # reopen, no log entry yet
+  sdlc issue set-status --issue 42 punt --dry-run
 
 RELATED
 

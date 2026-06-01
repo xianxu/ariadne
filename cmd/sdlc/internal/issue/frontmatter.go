@@ -37,8 +37,13 @@ func Compose(fm, body string) string {
 
 // GetField returns the value of `name:` in the frontmatter, trimmed.
 // ok=false if the field is absent.
+//
+// The inter-token gap is `[ \t]*`, NOT `\s*`: Go's `\s` includes `\n`, so on
+// an empty field (`github_issue:\n`) `\s*` would span the newline and capture
+// the *next* line's value. Empty fields (github_issue, estimate_hours) are
+// routine, so the gap must stay within the line.
 func GetField(fm, name string) (value string, ok bool) {
-	re, err := regexp.Compile(`(?m)^` + regexp.QuoteMeta(name) + `:\s*(.*)$`)
+	re, err := regexp.Compile(`(?m)^` + regexp.QuoteMeta(name) + `:[ \t]*(.*)$`)
 	if err != nil {
 		return "", false
 	}

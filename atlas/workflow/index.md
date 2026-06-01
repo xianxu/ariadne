@@ -17,6 +17,6 @@ The ariadne workflow is an issue-based development loop designed for AI-assisted
 - [Data Dependencies](data-deps.md) — content peers (looser git submodule): sibling clone + relative symlink via `construct/data-deps`; how to add / remove / bootstrap
 - [Construct: Adaptation is Ariadne-Only](construct-adaptation.md) — why only ariadne runs `/construct adapt`; how derivatives inherit via `construct/adapted/`
 - [Ledger Landscape](ledger-landscape.md) — where state and evidence live across all surfaces; principles for picking the right ledger
-- [sdlc Binary](sdlc-binary.md) — checkpoint-guard binary; 11 verbs; embedded help; fresh-context judges
+- [sdlc Binary](sdlc-binary.md) — checkpoint-guard binary; 10 verbs (incl. the `issue` group); embedded help; fresh-context judges
 - [Data Artifacts](data-artifacts.md) — typed markdown documents via the xx-datatype skill
 - [Introspection](introspect.md) — postmortem mining of Claude transcripts into auto-loading taste-rule skills

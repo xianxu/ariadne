@@ -364,7 +364,7 @@ func dispatchMilestoneReview(stdout, stderr io.Writer, f *milestoneCloseFlags, b
 	}
 	verdict := judge.ParseVerdict(output)
 	if verdict == judge.VerdictUnknown {
-		cwarn(stderr, "milestone-review: first line did not parse as 'SHIP | FIX-THEN-SHIP | REWORK' — recording verdict as 'unknown'")
+		cwarn(stderr, "milestone-review: no leading 'SHIP | FIX-THEN-SHIP | REWORK' verdict found — recording verdict as 'unknown'")
 	}
 	return reviewResult{Verdict: verdict, Base: base, Head: head, BaseLong: baseLong}
 }

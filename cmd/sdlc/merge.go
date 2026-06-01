@@ -117,22 +117,37 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 	cok(stderr, "No uncommitted changes")
 
-	// ── 3. Upstream configured ──────────────────────────────────────────────
-	upstream := gitx.Capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
-	if upstream == "" {
-		fmt.Fprintf(stderr, "  %s[x]%s No upstream configured for %s\n", ansiRed, ansiReset, branch)
-		die(stderr, fmt.Sprintf("push the branch first (e.g. sdlc pr, or git push -u origin %s)", branch))
+	// Fail fast — before the slow pre-merge judges — if the confirmation
+	// prompts (steps 8-9) can't be answered. They read os.Stdin, and in a
+	// non-tty agent/background context a bare scan blocks forever; convert
+	// that hang into a clear next-action.
+	if mergeNeedsTTY(f.Yes, f.DryRun, isTTY(os.Stdin)) {
+		die(stderr, "sdlc merge needs interactive confirmation, but stdin is not a terminal.\n"+
+			"  Re-run with --yes to merge non-interactively (skips the confirm + not-done prompts),\n"+
+			"  or run it from a terminal.")
 	}
 
-	// ── 4. Branch not ahead of upstream ─────────────────────────────────────
-	aheadStr := gitx.Capture("rev-list", "--count", upstream+"..HEAD")
+	// ── 3. Branch pushed + HEAD synced ──────────────────────────────────────
+	// Key off the remote-tracking ref (origin/<branch>), NOT @{u}: a push
+	// updates origin/<branch> even when it can't write the local
+	// upstream-tracking config (a sandbox that blocks .git/config, or a plain
+	// `git push` without -u), so requiring @{u} spuriously refuses a branch
+	// that is genuinely pushed (and has an open PR).
+	remoteRef := "origin/" + branch
+	if gitx.Capture("rev-parse", "--verify", "--quiet", remoteRef) == "" {
+		fmt.Fprintf(stderr, "  %s[x]%s %s is not on origin\n", ansiRed, ansiReset, branch)
+		die(stderr, fmt.Sprintf("push the branch first (e.g. sdlc pr, or git push origin %s)", branch))
+	}
+
+	// ── 4. No local commits missing from the remote branch ──────────────────
+	aheadStr := gitx.Capture("rev-list", "--count", remoteRef+"..HEAD")
 	ahead, _ := strconv.Atoi(aheadStr)
 	if ahead > 0 {
-		fmt.Fprintf(stderr, "  %s[x]%s Unpushed local commits detected: %d commit(s) ahead of %s\n",
-			ansiRed, ansiReset, ahead, upstream)
+		fmt.Fprintf(stderr, "  %s[x]%s %d local commit(s) not yet on %s\n",
+			ansiRed, ansiReset, ahead, remoteRef)
 		die(stderr, "push your branch before merging")
 	}
-	cok(stderr, fmt.Sprintf("No unpushed local commits (HEAD synced with %s)", upstream))
+	cok(stderr, fmt.Sprintf("Branch pushed; HEAD synced with %s", remoteRef))
 
 	// ── 5. Pre-merge judges ─────────────────────────────────────────────────
 	if !f.NoJudge {
@@ -312,6 +327,14 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 	cok(stderr, "Done. Run: g (to cd back to main)")
 	return nil
+}
+
+// mergeNeedsTTY reports whether merge's confirmation prompts require an
+// interactive terminal that isn't present — i.e. a bare stdin scan would
+// block. True → refuse fast with a --yes hint instead of hanging. Pure so
+// the decision is unit-testable without a real tty.
+func mergeNeedsTTY(yes, dryRun, stdinIsTTY bool) bool {
+	return !yes && !dryRun && !stdinIsTTY
 }
 
 // isInPlaceCheckout reports whether `git rev-parse --git-dir` indicates the

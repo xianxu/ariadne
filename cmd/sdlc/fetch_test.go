@@ -9,127 +9,6 @@ import (
 	"testing"
 )
 
-func TestSlugify(t *testing.T) {
-	cases := []struct {
-		in, want string
-	}{
-		{"Simple Title", "simple-title"},
-		{"with-Existing-Dashes", "with-existing-dashes"},
-		{"  leading whitespace", "leading-whitespace"},
-		{"Trailing punctuation!", "trailing-punctuation"},
-		{"--multiple--dashes--", "multiple-dashes"},
-		{"Caps  AND   Spaces", "caps-and-spaces"},
-		{"Symbols / & special?", "symbols-special"},
-		{"Numbers 42 keep", "numbers-42-keep"},
-		{"UPPER", "upper"},
-		{"unicode café", "unicode-caf"}, // accent stripped, matches sed [^a-z0-9]
-	}
-	for _, c := range cases {
-		t.Run(c.in, func(t *testing.T) {
-			if got := slugify(c.in); got != c.want {
-				t.Errorf("slugify(%q) = %q, want %q", c.in, got, c.want)
-			}
-		})
-	}
-}
-
-func TestNextIssueID(t *testing.T) {
-	dir := t.TempDir()
-	issues := filepath.Join(dir, "issues")
-	history := filepath.Join(dir, "history")
-	if err := os.MkdirAll(issues, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(history, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Highest is 000031 in issues; history has lower numbers.
-	for _, name := range []string{"000005-old.md", "000010-older.md"} {
-		if err := os.WriteFile(filepath.Join(history, name), []byte("x"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, name := range []string{"000020-a.md", "000031-b.md", "not-an-issue.md"} {
-		if err := os.WriteFile(filepath.Join(issues, name), []byte("x"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	got, err := nextIssueID(issues, history)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "000032" {
-		t.Errorf("nextIssueID = %q, want 000032", got)
-	}
-}
-
-func TestNextIssueID_HighestInHistory(t *testing.T) {
-	dir := t.TempDir()
-	issues := filepath.Join(dir, "issues")
-	history := filepath.Join(dir, "history")
-	if err := os.MkdirAll(issues, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(history, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// Max is in history (closed issue archived).
-	if err := os.WriteFile(filepath.Join(history, "000099-done.md"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(issues, "000050-active.md"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got, err := nextIssueID(issues, history)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "000100" {
-		t.Errorf("nextIssueID = %q, want 000100", got)
-	}
-}
-
-func TestNextIssueID_MissingDirs(t *testing.T) {
-	dir := t.TempDir()
-	got, err := nextIssueID(filepath.Join(dir, "nope"), filepath.Join(dir, "nope2"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "000001" {
-		t.Errorf("nextIssueID = %q, want 000001 for empty dirs", got)
-	}
-}
-
-func TestRenderFetchedIssue_Shape(t *testing.T) {
-	out := renderFetchedIssue("000032", "555", "Add Foo Feature", "Body paragraph.\n\nMore detail.", "2026-05-25")
-	for _, want := range []string{
-		"id: 000032",
-		"status: open",
-		"deps: []",
-		"github_issue: 555",
-		"created: 2026-05-25",
-		"updated: 2026-05-25",
-		"# Add Foo Feature",
-		"Body paragraph.",
-		"## Done when",
-		"\n-\n",
-		"## Plan",
-		"\n- [ ]\n",
-		"## Log",
-		"### 2026-05-25",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("rendered issue missing %q\n--- output ---\n%s", want, out)
-		}
-	}
-	// Frontmatter fence
-	if !strings.HasPrefix(out, "---\n") {
-		t.Errorf("rendered issue should open with frontmatter fence; got prefix %q", out[:20])
-	}
-}
-
 // stubGH stubs ghClient for tests so we don't shell out to `gh`.
 // Implements the full ghCaller interface; methods other than the one
 // under test are no-ops returning zero values.
@@ -249,6 +128,56 @@ func TestRunFetch_CreatesFileWithNextID(t *testing.T) {
 		if !strings.Contains(string(got), want) {
 			t.Errorf("file missing %q", want)
 		}
+	}
+}
+
+// TestFetchAlias_ThroughTree exercises the folded `fetch` alias end-to-end
+// via the real command tree (buildRoot). `fetch --github-issue N` is the
+// thing that changed in M2 (it now delegates to runIssueNew), so prove the
+// GH body lands under ## Problem in the canonical template — not just that
+// the command is hidden+deprecated.
+func TestFetchAlias_ThroughTree(t *testing.T) {
+	prev := ghClient
+	ghClient = stubGH{title: "Folded Fetch", body: "GH body text."}
+	defer func() { ghClient = prev }()
+
+	tmp := t.TempDir()
+	gitInit(t, tmp, "git@github.com:xianxu/ariadne.git")
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	issuesDir := filepath.Join(tmp, "workshop", "issues")
+	historyDir := filepath.Join(tmp, "workshop", "history")
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(historyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	root := buildRoot()
+	root.SetArgs([]string{"fetch", "--github-issue", "7", "--issues-dir", issuesDir, "--history-dir", historyDir})
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute fetch alias: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(issuesDir, "000001-folded-fetch.md"))
+	if err != nil {
+		t.Fatalf("expected created file: %v", err)
+	}
+	body := string(data)
+	if !strings.Contains(body, "github_issue: 7") {
+		t.Errorf("fold lost github_issue:\n%s", body)
+	}
+	probIdx := strings.Index(body, "## Problem")
+	specIdx := strings.Index(body, "## Spec")
+	ghIdx := strings.Index(body, "GH body text.")
+	if probIdx < 0 || ghIdx < probIdx || ghIdx > specIdx {
+		t.Errorf("GH body should sit under ## Problem in the canonical template:\n%s", body)
 	}
 }
 
