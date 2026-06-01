@@ -1,11 +1,12 @@
 ---
 id: 000056
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-05-31
 updated: 2026-05-31
 estimate_hours: 7
+actual_hours: 1.5
 ---
 
 # Lift the issue subsystem into `sdlc issue`
@@ -154,6 +155,8 @@ Three milestones, each a real fresh-eyes `sdlc milestone-close` review boundary.
 
 
 
+
+- 2026-05-31: closed — sdlc issue group shipped (new/set-status/list/show) over shared internal/issue scaffold; fetch+set-status folded to hidden deprecated aliases; xx-issues skill shrunk 196→76 to a pointer; verb list now cobra-generated; all 3 milestones reviewed SHIP; go test ./cmd/sdlc/... green + vet clean
 - 2026-05-31: closed M3 — go test ./cmd/sdlc/... green; vet clean; sdlc issue --help renders full group contract; xx-issues skill shrunk to pointer (196→76 lines); no stale bare `sdlc set-status` refs remain; review verdict: FIX-THEN-SHIP → SHIP (fixed the one blocking finding in the close commit: AGENTS.md §2 wrongly said `--from-github` sets `deps` — it sets `github_issue:`; also fixed the fetch.md WHAT-IT-DOES minor). milestone-close auto-recorded "unknown" again — different cause from M1: this time the judge wrote investigation prose ("let me confirm one detail…") *before* the verdict line, which the parser stops at (precision guard). The M1 parser fix handles markdown-title preambles, not prose preambles — follow-up side-quest to extend it (confidence-paren fallback).
 - 2026-05-31: closed M2 — go test ./cmd/sdlc/... green; vet clean; smoke-tested issue list/show/set-status + deprecated fetch/set-status notices; alias test proves flat+grouped set-status mutate identically; review verdict: SHIP (high confidence, 0 critical, 0 important — the side-quest verdict-parser fix auto-recorded SHIP correctly this time). Post-review: added the fetch-alias e2e test through buildRoot (the M2 coverage gap), restored the `(GitHub #N)` stderr annotation, widened the list status column to fit `unreadable`, commented show's header filter. Architectural decision (reviewer's split-error-philosophy note): keep `die()` for input validation in the cobra handlers — consistent with every other verb, and the riskiest logic (transition guards) already returns errors + is tested; a binary-wide die()→returned-error refactor is its own change, not coupled into #56. set-status.md helptext staleness is M3 ref-sweep scope.
 - 2026-05-31: closed M1 — go test ./cmd/sdlc/... green; sdlc issue new smoke-tested (dry-run renders canonical template); GetField empty-field regression added; review verdict: SHIP (high confidence, 0 critical). milestone-close auto-recorded "unknown" because the judge put SHIP under `## 1. Verdict` not line 1 — parser fragility, verdict corrected here by hand. Important findings addressed pre-M2: atlas issue-lifecycle.md updated for blank `issue new` + the one-step claim; `--deps` CLI test added. Deferred-with-note: die()→returned-errors for testable guards (apply to set-status in M2).
