@@ -30,23 +30,29 @@ SKIP_GLOBS='*legacy* *.original *[0-9]'
 list=0
 strict=0
 workspace=""
+workspace_set=0
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--list) list=1 ;;
 		--strict) strict=1 ;;
-		--workspace) shift; workspace="${1:-}" ;;
-		--workspace=*) workspace="${1#*=}" ;;
+		--workspace) shift; workspace="${1-}"; workspace_set=1 ;;
+		--workspace=*) workspace="${1#*=}"; workspace_set=1 ;;
 		-h|--help) sed -n '2,21p' "$0"; exit 0 ;;
 		*) printf 'dev-aliases.sh: unknown arg: %s\n' "$1" >&2; exit 2 ;;
 	esac
 	shift
 done
 
+warn() { printf 'dev-aliases: %s\n' "$*" >&2; }
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 ariadne_root="$(cd "$script_dir/.." && pwd -P)"
-[ -n "$workspace" ] || workspace="$(dirname "$ariadne_root")"
-
-warn() { printf 'dev-aliases: %s\n' "$*" >&2; }
+[ "$workspace_set" -eq 1 ] || workspace="$(dirname "$ariadne_root")"
+# A typo'd/empty --workspace must fail loudly, not silently emit nothing.
+if [ -z "$workspace" ] || [ ! -d "$workspace" ]; then
+	warn "workspace not found: ${workspace:-<empty>} (--workspace needs an existing dir)"
+	exit 2
+fi
 
 skip_repo() {
 	local name="$1" g

@@ -88,5 +88,17 @@ else
 	ko "--strict should exit zero without duplicates"
 fi
 
+# ── workspace validation (M1 review minors) ─────────────────────────────────
+if bash "$GEN" --workspace "$WS/does-not-exist" >/dev/null 2>&1; then
+	ko "nonexistent --workspace should exit non-zero"
+else
+	ok "nonexistent --workspace exits non-zero"
+fi
+if bash "$GEN" --workspace >/dev/null 2>&1; then
+	ko "--workspace with no value should exit non-zero (not fall back to default)"
+else
+	ok "--workspace with no value exits non-zero"
+fi
+
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

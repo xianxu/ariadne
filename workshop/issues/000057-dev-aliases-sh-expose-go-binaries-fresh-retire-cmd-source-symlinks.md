@@ -124,7 +124,7 @@ same-name conflicts for `--strict`/warn.
 
 Two milestones, each a fresh-eyes `sdlc milestone-close` review boundary.
 
-- [ ] M1 — `construct/dev-aliases.sh` (the generator)
+- [x] M1 — `construct/dev-aliases.sh` (the generator)
 - [ ] M2 — retire nous source-symlinks + cleanup + docs
 
 ### M1 — generator
@@ -169,6 +169,8 @@ Two milestones, each a fresh-eyes `sdlc milestone-close` review boundary.
 
 ## Log
 
+
+- 2026-06-01: closed M1 — 17-assertion hermetic test green; dev-aliases.sh smoke-tested on real workspace (10 binaries, correct owners, 0 dup warnings); --list/--strict/--help verified; review verdict: SHIP (high confidence, 0 critical/important; parser recorded SHIP correctly). Addressed 3 of 4 Minor findings post-review: validate `--workspace` (nonexistent/empty → exit 2, not silent-empty) + 2 new test assertions (now 19); fixed the atlas note's location wording (script at construct/dev-aliases.sh, test under construct/scripts/test/). Skipped #4 (quote the binary name in the build line) — Go cmd dir names can't contain spaces, so it's theoretical. M2 architectural note reaffirmed: enumerate consumers + verify no active derivative ends up a second owner before deleting symlinks.
 ### 2026-06-01
 Created from the dev-mode / ownership discussion that came out of #56's ship.
 Key decisions captured in Spec: ownership=location (not a `tool` manifest

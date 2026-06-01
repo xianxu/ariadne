@@ -80,9 +80,11 @@ it's always fresh and works for both repo-bound tools (`sdlc`, operates on the
 repo you're in) and run-anywhere tools (`nous`). Filters: skips re-export
 symlinks and non-buildable dirs (so a derivative never shadows the owner), and
 `cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
-fails on a duplicate name. Documented by its header comment + the hermetic test
-`construct/scripts/test/dev-aliases.test.sh` (the `construct/scripts/*.sh`
-convention — substrate scripts aren't agent skills, so no `SKILL.md`).
+fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
+(alongside `setup.sh`/`rollback.sh`), with its hermetic test under
+`construct/scripts/test/dev-aliases.test.sh`. Like the other substrate scripts
+it's documented by header comment + test, not a `SKILL.md` (those are for agent
+skills, not dev-env helpers).
 
 ## Pushing Updates to All Consumers
 
