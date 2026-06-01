@@ -1,6 +1,6 @@
 ---
 id: 000057
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-01
