@@ -12,10 +12,18 @@ the change goes through a reviewable PR (`merge`) or lands directly
 REFUSES IF
 
   - current branch != main
-  - untracked files exist (must `git add` or `.gitignore` them first)
+  - untracked files exist (must `git add` or `.gitignore` them first),
+    except for a prepared archive retry that exactly pairs deleted
+    `workshop/issues/NNNNNN-*.md` files with terminal-status files under
+    `workshop/history/`
 
 WHAT IT DOES
 
+  0. If the previous `sdlc push` was interrupted after moving completed
+     issue files to `workshop/history/` but before committing that archive,
+     recognizes the prepared archive move before the untracked-file guard,
+     stages/commits/pushes it, and exits. Mixed unrelated worktree changes
+     still refuse with a concrete next action.
   1. Auto-commits any tracked-but-uncommitted changes. The commit
      subject is synthesized from the `# Title` of every changed
      `workshop/issues/NNNNNN-*.md` (one per line). If none changed,

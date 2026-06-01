@@ -103,6 +103,27 @@ type fakeExitErr struct{}
 
 func (fakeExitErr) Error() string { return "exit status 1" }
 
+type archiveRecoveryRunner struct {
+	captureRunner
+	status []byte
+}
+
+func (r *archiveRecoveryRunner) Git(args ...string) ([]byte, error) {
+	r.gitCalls = append(r.gitCalls, append([]string{}, args...))
+	if len(args) >= 3 && args[0] == "status" && args[1] == "--porcelain" && args[2] == "--untracked-files=all" {
+		return r.status, nil
+	}
+	return nil, nil
+}
+
+func callsJoined(calls [][]string) string {
+	var lines []string
+	for _, c := range calls {
+		lines = append(lines, strings.Join(c, " "))
+	}
+	return strings.Join(lines, "\n")
+}
+
 func TestBuildPushCommitMessage_NoChanges(t *testing.T) {
 	tmp := t.TempDir()
 	r := &pushTestRunner{}
@@ -157,6 +178,103 @@ func TestBuildPushCommitMessage_OnlyDirtyOnesContribute(t *testing.T) {
 	got := buildPushCommitMessage(tmp, r)
 	if got != "Title for 000020-dirty.md" {
 		t.Errorf("got %q, expected only dirty file's title", got)
+	}
+}
+
+// ── interrupted archive recovery ────────────────────────────────────────────
+
+func writeArchiveCandidate(t *testing.T, path, status string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "---\nid: 0\nstatus: " + status + "\n---\n\n# T\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPreparedArchiveMovesDetectsUnstagedMove(t *testing.T) {
+	tmp := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	writeArchiveCandidate(t, "workshop/history/000036-done.md", "done")
+
+	status := " D workshop/issues/000036-done.md\n?? workshop/history/000036-done.md\n"
+	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(other) != 0 {
+		t.Fatalf("other = %v, want none", other)
+	}
+	if len(moves) != 1 || moves[0].IssuePath != "workshop/issues/000036-done.md" || moves[0].HistoryPath != "workshop/history/000036-done.md" {
+		t.Fatalf("moves = %#v", moves)
+	}
+}
+
+func TestPreparedArchiveMovesRejectsNonTerminalHistoryFile(t *testing.T) {
+	tmp := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	writeArchiveCandidate(t, "workshop/history/000036-open.md", "open")
+
+	status := " D workshop/issues/000036-open.md\n?? workshop/history/000036-open.md\n"
+	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moves) != 0 {
+		t.Fatalf("moves = %#v, want none", moves)
+	}
+	if len(other) != 2 {
+		t.Fatalf("other = %v, want both halves refused", other)
+	}
+}
+
+func TestRecoverInterruptedArchiveCommitsAndPushes(t *testing.T) {
+	tmp := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	writeArchiveCandidate(t, "workshop/history/000036-done.md", "done")
+
+	prev := pushRunner
+	r := &archiveRecoveryRunner{
+		status: []byte(" D workshop/issues/000036-done.md\n?? workshop/history/000036-done.md\n"),
+	}
+	pushRunner = r
+	defer func() { pushRunner = prev }()
+
+	var stdout, stderr bytes.Buffer
+	recovered, err := recoverInterruptedArchive(&stdout, &stderr, &pushFlags{
+		IssuesDir:  "workshop/issues",
+		HistoryDir: "workshop/history",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !recovered {
+		t.Fatal("expected recovery")
+	}
+	got := callsJoined(r.gitCalls)
+	for _, want := range []string{
+		"status --porcelain --untracked-files=all",
+		"add workshop/issues/ workshop/history/",
+		"commit -m archive completed issues to history",
+		"push",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("git calls missing %q:\n%s", want, got)
+		}
 	}
 }
 
@@ -243,8 +361,8 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 		}
 	}
 	mk("000001-done.md", "done", "100")
-	mk("000002-wontfix.md", "wontfix", "")  // wontfix has no GH close
-	mk("000003-punt.md", "punt", "200")     // punt has no GH close even with gh number
+	mk("000002-wontfix.md", "wontfix", "")    // wontfix has no GH close
+	mk("000003-punt.md", "punt", "200")       // punt has no GH close even with gh number
 	mk("000004-working.md", "working", "300") // working stays put
 
 	prev := ghClient

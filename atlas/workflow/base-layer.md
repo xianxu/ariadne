@@ -59,6 +59,45 @@ right move is almost always to (a) generalize the change and push it
 into ariadne, or (b) override it in the `.local` layer. Direct edits
 get clobbered on the next `make refresh`.
 
+## Dev binaries — ownership = location (`dev-aliases.sh`)
+
+**A Go binary is owned by the repo whose `cmd/X` source physically lives there.**
+Derivatives never copy or symlink the source; they run the built binary or
+compile in the owner (`replace` + `tool` in their `construct/go.mod`). Source
+distributed through the file-symlink *substrate* channel (the old `symlink
+cmd/X` directive) is the deprecated anti-pattern — code flows through Go
+modules, not the symlink channel reserved for docs/config (#56, #57).
+nous's `symlink lib/gmail` / `cmd/gmail` / `cmd/oneshot` directives (and the
+9 resulting brain* symlinks) were retired under #57 — derivatives now obtain
+gmail/oneshot via the dev-alias (build-in-owner), not symlinked source.
+
+For a smooth dev loop, `construct/dev-aliases.sh` walks the active
+ariadne-styled siblings and emits a shell function per owned `cmd/X`:
+
+```
+source <(~/workspace/ariadne/construct/dev-aliases.sh)
+```
+
+Each function builds to the **owner's** `bin/X` (the official, gitignored path
+— not a temp dir, so it's safe for a service binary like `nous`) and runs it in
+the **caller's** cwd, so it's always fresh and works for both repo-bound tools
+(`sdlc`, operates on the repo you're in) and run-anywhere tools (`nous`). The
+emitted form is `X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o
+bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }` (the `rm -f` mirrors the owner
+Makefiles' code-signing-inode safety). The function only **builds + runs** — it
+does **not** manage services (no `launchctl bootout`); use the owner's `make
+<name>-dev` target for the stop-prod-then-serve flow. It's also a *shell
+function* — not on PATH and not reachable from cron/launchd; a derivative that
+needs one of these binaries non-interactively must add the `replace` + `tool`
+consume-wiring (the module channel), not rely on the alias. Filters: skips re-export
+symlinks and non-buildable dirs (so a derivative never shadows the owner), and
+`cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
+fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
+(alongside `setup.sh`/`rollback.sh`), with its hermetic test under
+`construct/scripts/test/dev-aliases.test.sh`. Like the other substrate scripts
+it's documented by header comment + test, not a `SKILL.md` (those are for agent
+skills, not dev-env helpers).
+
 ## Pushing Updates to All Consumers
 
 Ariadne maintainers can propagate base-layer changes in one shot:

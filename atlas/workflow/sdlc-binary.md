@@ -141,6 +141,20 @@ not find a worktree on branch 'main'`. Surfaced live by the #51 dogfood
 any base-layer `cmd/sdlc` change reaches downstream, rerun `make sdlc-build`
 there before relying on the new verb behavior.
 
+### `sdlc push` archive recovery
+
+`sdlc push` has a recovery preflight before its normal untracked-file guard.
+If a previous push already moved terminal-status issue files from
+`workshop/issues/` to `workshop/history/` but failed before the archive commit,
+the working tree contains deleted issue files plus untracked or staged history
+files. That state is otherwise indistinguishable from forbidden untracked files
+to the generic guard, so `push` recognizes exact prepared archive pairs,
+verifies the history copy still has a terminal status, stages `issues/` and
+`history/`, commits "archive completed issues to history", pushes, and exits
+without rerunning judges against an archive-only retry. Any unrelated dirty file
+keeps the refusal path and tells the operator to clear that unrelated work before
+rerunning `sdlc push --yes`.
+
 ## Makefile wrappers (transition state)
 
 Each Make target delegates to `bin/sdlc` when built, falling back to

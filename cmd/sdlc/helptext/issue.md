@@ -15,7 +15,8 @@ CANONICAL ISSUE FILE
 
 `sdlc issue new` writes — and this is the single source of truth for — the
 template below. Filename: `workshop/issues/NNNNNN-<slug>.md` (zero-padded
-6-digit ID, kebab-case slug).
+6-digit ID, kebab-case slug). Keep the slug to <5 words: it becomes the git
+branch name verbatim, and the branch feeds the orientation slug's left segment.
 
   Frontmatter (in order):
     id             zero-padded 6-digit, matches the filename
