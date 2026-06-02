@@ -24,6 +24,12 @@ type dieSignal struct{ msg string }
 //
 // A panic that is NOT a *dieSignal (a real bug in the code under test) is
 // re-raised so the test fails loudly rather than swallowing it.
+//
+// Semantic note for future adopters: the panic unwinds the stack and runs
+// any deferred funcs between the die() call and here, whereas production's
+// os.Exit(1) does NOT run defers. runMerge holds no relevant defers, so the
+// two are equivalent today — but a run* verb that defers cleanup could see a
+// test-only side effect. Prefer keeping refusal paths defer-free above die().
 func expectDie(t *testing.T, fn func()) (msg string, died bool) {
 	t.Helper()
 	prev := die

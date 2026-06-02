@@ -120,6 +120,11 @@ func (g *e2eGH) PRMerge(repo, branch string) error                    { g.prMerg
 // swapMergeDeps swaps the package-level seams (ghClient, detectRepo,
 // runPreflightJudgesFn) and restores them on cleanup. preflight may be nil to
 // keep the default; pass a stub to inject a "judge".
+//
+// These are process-global vars with no synchronization. Safe because these
+// tests run serially (no t.Parallel(), and tempRepo does a process-global
+// os.Chdir). Do NOT add t.Parallel() to merge e2e tests without first giving
+// each its own isolated state — the swaps (and the chdir) would race.
 func swapMergeDeps(t *testing.T, gh ghCaller, preflight func(preflightOptions) error) {
 	t.Helper()
 	prevGH, prevDetect, prevPre := ghClient, detectRepo, runPreflightJudgesFn
@@ -143,8 +148,9 @@ func swapMergeDeps(t *testing.T, gh ghCaller, preflight func(preflightOptions) e
 func TestRunMerge_DirtyAfterJudge_RefusesPreMerge(t *testing.T) {
 	dir := tempRepo(t)
 	gh := &e2eGH{openPR: "42"} // an open PR exists; merge would proceed if not refused
-	// A "judge" that dirties the worktree (writes an untracked file), then
-	// reports clean. NoJudge stays false so this fires (step 5 is gated on it).
+	// A "judge" that dirties the worktree (writes an untracked file) and then
+	// returns nil (success). NoJudge stays false so this fires (step 5 is gated
+	// on it). A passing judge that left the tree dirty is exactly the #62 hazard.
 	dirtyingJudge := func(preflightOptions) error {
 		return os.WriteFile(filepath.Join(dir, "judge-scratch.txt"), []byte("x\n"), 0o644)
 	}

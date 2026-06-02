@@ -85,6 +85,8 @@ reserve as a single black-box smoke test if ever wanted.
 
 ## Log
 
+
+- 2026-06-02: closed M1 — go test ./cmd/sdlc/... green; both e2e tests pass; mutation-check: disabling 9b reddens the dirty test (proves teeth); fresh-eyes review found no Critical/Important; review verdict: SHIP
 ### 2026-06-02
 
 - Filed (deferral from #62 made trackable).
@@ -118,3 +120,10 @@ reserve as a single black-box smoke test if ever wanted.
   a pre-existing trailing blank in fetch.go). My added lines are gofmt-clean;
   did NOT reformat untouched files (unrelated churn). Tools: `perl -0pi` for
   the throwaway mutation; `$TMPDIR` (not /tmp) for the backup under sandbox.
+- **Milestone-review M1: SHIP** (no Critical/Important). Addressed the minors
+  worth keeping: documented the `expectDie` defer-vs-os.Exit semantic gap, the
+  no-parallel/no-synchronization caution on `swapMergeDeps`, and a comment-
+  accuracy fix on the dirtying judge. Noted **coverage gaps left for a future
+  adopter of the harness** (not #63 scope): worktree topology
+  (`findMainWorktree` / `worktree remove` / `.goto`) and the `actionNoPR` branch
+  are still e2e-untested — natural next targets reusing `tempRepo`/`expectDie`.
