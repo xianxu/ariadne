@@ -104,7 +104,11 @@ log) see **AGENTS.md §5 closing checklist**.
 Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before that, run the **closing checklist** from AGENTS.md §5:
 
 1. Verify behavior.
-2. Tick the milestone in `## Plan` and flip `status` to `done`.
+2. Tick the completed `## Plan` items and flip `status` to `done`. Atomic
+   single-pass work uses plain `- [ ]` checkboxes and closes in one `sdlc
+   close`; only tag `Mx` rows when the work has ≥2 separate review boundaries
+   you'll `milestone-close` individually (AGENTS.md §3 — an `Mx` tag is a
+   review boundary, not a task label).
 3. **Record `actual_hours`** in the frontmatter (required at close).
 4. Update the parent project file (if any).
 5. Update `atlas/` for any new architectural surface.

@@ -1,11 +1,12 @@
 ---
 id: 000065
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 0.5
+actual_hours: 0.5
 ---
 
 # single-pass atomic work should use plain checkboxes not an M1 tag — avoids redundant milestone-close + issue-close double-log
@@ -66,11 +67,37 @@ No code change — the tool behavior is correct; the guidance was steering wrong
 
 ## Plan
 
-- [ ] Rewrite AGENTS.md §3 single-pass/milestone guidance + clarify review
+- [x] Rewrite AGENTS.md §3 single-pass/milestone guidance + clarify review
   boundary for un-tagged work; add the plain-checkbox note to close.md help.
   Verify by re-reading: the guidance, followed literally, yields one close
   gesture for atomic work.
 
 ## Log
 
+
+- 2026-06-02: closed — go build + sdlc close --help renders the new plain-checkbox guard note; go test ./cmd/sdlc/... + helptext green; fresh-eyes review CLEAN (verified milestonePlanRE does not match plain checkboxes → they bypass the Review-Verdict guard); closed via single sdlc close, dogfooding the new guidance
 ### 2026-06-02
+
+- Three doc edits (no code change):
+  - **AGENTS.md §3** — reframed: an `Mx` tag is a *review boundary, not a task
+    label*; atomic single-pass work → plain checkboxes + one `sdlc close`.
+    Also tied the mandatory fresh-eyes review to *every* boundary (prev
+    milestone close, or the branch point for un-tagged work) so plain
+    checkboxes don't read as "skip review."
+  - **cmd/sdlc/helptext/close.md** — noted that a Plan with only plain `- [ ]`
+    rows has no Review-Verdict requirement → one close gesture.
+  - **atlas/workflow/issue-lifecycle.md** — closing checklist step 2 now says
+    plain checkboxes for atomic work; `Mx` only for ≥2 boundaries.
+- **Propagation correction** (Spec said "both propagate via base.manifest"):
+  AGENTS.md is `symlink` in base.manifest (propagates as a file); close.md is
+  `//go:embed`'d into `cmd/sdlc` and reaches derivatives *compiled into* the
+  shared sdlc binary (`tool cmd/sdlc`, build-in-owner #60) — NOT a manifest
+  file. Both reach the fleet, by different mechanisms.
+- **Verification**: `go build ./cmd/sdlc` + `sdlc close --help` renders the new
+  guard note; `go test ./cmd/sdlc/...` + helptext tests green. Fresh-eyes
+  review (subagent): CLEAN — verified against `close.go`'s `milestonePlanRE`
+  (`^- \[[ x.]\] \*{0,2}(M\d+...)`) that plain checkboxes are not matched, so
+  they genuinely bypass the Review-Verdict guard.
+- **Dogfood**: this issue is itself atomic single-pass → plain checkbox, one
+  `sdlc close`, one `closed —` log line (the behavior the guidance now
+  prescribes — and #63's double-log is what it prevents next time).

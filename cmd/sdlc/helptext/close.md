@@ -22,7 +22,11 @@ WHAT THE GUARD DEFENDS
     - atlas/ must have changed in the issue's commit window (§5 step 5)
     - issue's `## Plan` has no unchecked items (issue close only)
     - each milestone listed in ## Plan must carry a `Review-Verdict:`
-      trailer on its close commit (issue close only; AGENTS.md §3)
+      trailer on its close commit (issue close only; AGENTS.md §3).
+      A Plan with only plain `- [ ]` checkboxes (no `Mx` rows) has no
+      such requirement — atomic single-pass work closes in ONE `sdlc
+      close`, no milestone-close, one `closed —` log line. Reserve `Mx`
+      tags for ≥2 genuinely separate review boundaries (AGENTS.md §3).
     - milestone-close ticks the `- [ ] M4 — ...` row; refuses if absent
     - project file (if any, under <brain>/data/project/*.md referencing
       <repo>#<id>) gets its task row ticked + detail block updated
