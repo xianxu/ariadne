@@ -37,11 +37,12 @@ t1() {
     wf "$repo/construct/data-deps" <<EOF
 $ROOT/origins/alpha.git   data/alpha
 EOF
+    # #60 M5 retired the legacy reader: with only construct/data-deps (no
+    # construct/deps), clone-data-deps no-ops and does NOT read data-deps.
     ( cd "$repo" && "$CLONE_DD" ) >/dev/null 2>&1
-    local rc=$?
-    [[ $rc -eq 0 ]] && ok "legacy: exit 0" || ko "legacy: exit $rc"
-    [[ -d "$ROOT/t1/alpha" ]]  && ok "legacy: sibling clone present" || ko "legacy: clone missing"
-    [[ -L "$repo/data/alpha" ]] && ok "legacy: mount symlink present" || ko "legacy: mount missing"
+    [[ $? -eq 0 ]] && ok "legacy data-deps: exit 0 (no-op)" || ko "legacy: nonzero"
+    [[ ! -d "$ROOT/t1/alpha" && ! -e "$repo/data/alpha" ]] \
+        && ok "legacy construct/data-deps IGNORED (M5 retired the reader)" || ko "legacy still read!"
 }
 
 # ── Test 2: construct/deps `data` row clones + mounts (#60) ───────────────────
@@ -58,22 +59,19 @@ EOF
     [[ -L "$repo/data/beta" ]] && ok "deps: mount symlink present" || ko "deps: mount missing"
 }
 
-# ── Test 3: same dep in BOTH carriers mounts once (dedup by clone basename) ────
+# ── Test 3: same origin twice in construct/deps mounts once (dedup by basename) ─
 t3() {
     local repo="$ROOT/t3/myrepo"
     make_origin gamma
-    wf "$repo/construct/data-deps" <<EOF
-$ROOT/origins/gamma.git data/gamma
-EOF
     wf "$repo/construct/deps" <<EOF
+data $ROOT/origins/gamma.git data/gamma
 data $ROOT/origins/gamma.git data/gamma-dup
 EOF
     local out; out=$( cd "$repo" && "$CLONE_DD" 2>&1 )
     [[ $? -eq 0 ]] && ok "dedup: exit 0" || ko "dedup: nonzero ($out)"
-    # Legacy runs first → data/gamma mounted; the construct/deps dup is skipped,
-    # so data/gamma-dup is never created.
+    # Same origin (basename gamma) twice → mounted once; the second row skipped.
     [[ -L "$repo/data/gamma" && ! -e "$repo/data/gamma-dup" ]] \
-        && ok "dedup: dep mounted once, dup skipped" || ko "dedup: dup not skipped ($out)"
+        && ok "dedup: same-origin dep mounted once" || ko "dedup: not deduped ($out)"
 }
 
 # ── Test 4: substrate rows in construct/deps are ignored by the data mounter ───

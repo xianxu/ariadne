@@ -24,17 +24,15 @@ wf() { mkdir -p "$(dirname "$1")"; cat > "$1"; }
 # standalone zznew (not a peer). Every repo is present on disk.
 WS="$ROOT/ws"
 wf "$WS/zztop/go.mod" <<<'module example.com/zztop'
-wf "$WS/zztop/construct/go.mod" <<EOF
-module local.construct/zztop
-replace example.com/zzmid => ../../zzmid
+wf "$WS/zztop/construct/deps" <<EOF
+substrate ../zzmid
 EOF
 # list-peers.sh must resolve from REPO_DIR/construct/scripts/ — symlink the real one.
 mkdir -p "$WS/zztop/construct/scripts"
 ln -s "$LIST_PEERS" "$WS/zztop/construct/scripts/list-peers.sh"
 wf "$WS/zzmid/go.mod" <<<'module example.com/zzmid'
-wf "$WS/zzmid/construct/go.mod" <<EOF
-module local.construct/zzmid
-replace example.com/zzbase => ../../zzbase
+wf "$WS/zzmid/construct/deps" <<EOF
+substrate ../zzbase
 EOF
 wf "$WS/zzbase/go.mod" <<<'module example.com/zzbase'
 wf "$WS/zznew/go.mod" <<<'module example.com/zznew'
@@ -50,10 +48,9 @@ ln -s "$LIST_PEERS" "$WS/zzdep/construct/scripts/list-peers.sh"
 # Collision fixture: zzcollide declares two peers with the SAME basename in
 # different parents — both would map to ~/workspace/shared.
 wf "$WS/zzcollide/go.mod" <<<'module example.com/zzcollide'
-wf "$WS/zzcollide/construct/go.mod" <<EOF
-module local.construct/zzcollide
-replace example.com/dup1 => ../../dupa/shared
-replace example.com/dup2 => ../../dupb/shared
+wf "$WS/zzcollide/construct/deps" <<EOF
+substrate ../dupa/shared
+substrate ../dupb/shared
 EOF
 mkdir -p "$WS/zzcollide/construct/scripts"
 ln -s "$LIST_PEERS" "$WS/zzcollide/construct/scripts/list-peers.sh"

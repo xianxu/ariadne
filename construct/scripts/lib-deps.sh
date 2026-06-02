@@ -18,9 +18,9 @@
 # kind=data — <target> is a git URL, <mount> is the symlink path (repo-root-
 #   relative). Subsumes legacy construct/data-deps verbatim.
 #
-# DUAL-READ (transition): during the #60 rollout the substrate graph lives in
-# BOTH construct/go.mod (legacy) and construct/deps (new). Walkers read both;
-# this file only parses construct/deps.
+# construct/deps is the sole substrate-graph carrier (#60 M4 retired the legacy
+# construct/go.mod read). Walkers also read the root go.mod for real Go app-dep
+# siblings; this file only parses construct/deps.
 #
 # bootstrap.sh CANNOT source this — it runs on a bare clone where the symlinked
 # construct/ dangles — so it keeps an INLINE copy of the substrate parse, locked

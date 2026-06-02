@@ -19,23 +19,25 @@ voter-advisor data + skills) without deriving its base layer from it —
 | substrate | n/a | explicitly **not** applied — the whole point |
 | update | `git submodule update` | `cd ../<dep> && git pull` |
 
-## Why not the substrate peer mechanism?
+## Why distinct from the substrate peer mechanism?
 
-The substrate peer mechanism (go.mod `replace` → `bootstrap-peers` + `setup.sh`)
-couples *clone* with *substrate-apply* — it symlinks the peer's `base.manifest`
-files into you — and is Go-specific. A content peer wants the clone, **not** the
-apply, and may be any kind of repo (markdown, TS, a photo archive). So data deps
-use a **separate, language-agnostic manifest**; the substrate walker is never
-involved. This matters for a brain, which consumes "many repos in various
+The substrate peer mechanism couples *clone* with *substrate-apply* — it symlinks
+the peer's `base.manifest` files into you. A content peer wants the clone,
+**not** the apply, and may be any kind of repo (markdown, TS, a photo archive).
+So data deps and substrate deps share one **language-agnostic manifest**
+(`construct/deps`, #60) but use different `kind`s: a `data` row is clone-only
+(the substrate walker never applies a manifest for it), a `substrate` row is
+clone + apply. This matters for a brain, which consumes "many repos in various
 shapes, not always a language dependency."
 
 ## Mechanism — deliberately just "clone + symlink"
 
-- **Manifest**: `construct/data-deps`, two whitespace-separated columns per
-  line, `#` comments and blank lines ignored:
+- **Manifest**: `construct/deps` `data` rows (#60 — replaced the legacy
+  two-column `construct/data-deps`, retired in M5). `#` comments + blank lines
+  ignored:
   ```
-  # <git-url>                              <symlink-path-relative-to-repo-root>
-  git@github.com:xianxu/you-decide.git     data/life/politics/you-decide
+  # <kind> <git-url>                            <symlink-path-relative-to-repo-root>
+  data     git@github.com:xianxu/you-decide.git  data/life/politics/you-decide
   ```
 - **`construct/scripts/clone-data-deps.sh`** (run via `make data-deps`, an
   additive prereq of `make bootstrap`): for each line, clones the repo to a
@@ -54,9 +56,9 @@ dep's content.
 
 ### Add a data dep
 
-1. Append a line to `construct/data-deps`: `<git-url>  <symlink-path>`.
+1. Append a row to `construct/deps`: `data  <git-url>  <symlink-path>`.
 2. `make data-deps` — clones the sibling (if absent) and creates the symlink.
-3. Commit `construct/data-deps` (and the symlink, if its path is tracked).
+3. Commit `construct/deps` (and the symlink, if its path is tracked).
 
 Private dep, or a host that doesn't match your origin convention? Override the
 clone URL per-dep with `DATADEP_URL_<name>` (non-alphanumerics in `<name>` → `_`):
@@ -70,7 +72,7 @@ DATADEP_URL_you_decide=git@github.com:other/you-decide.git make data-deps
 No `make` verb — the script is **additive-only by design** (it never deletes, so
 it can't nuke a sibling repo holding unpushed work). Two manual steps:
 
-1. Delete the line from `construct/data-deps`.
+1. Delete the `data` row from `construct/deps`.
 2. Remove the symlink: `git rm <symlink-path>` (or `rm` if untracked).
 
 The sibling clone (`../<dep>`) is left on disk on purpose — it's an independent

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # bootstrap-peers.sh — recursively bootstrap substrate peer repos as
-# siblings. Reads construct/go.mod for `replace <module> => ../<name>`
-# patterns; for each missing peer, derives its URL from this repo's
-# origin and clones; then runs `make bootstrap` in the peer to cascade.
+# siblings. Reads construct/deps for `substrate ../<name>` rows (#60); for each
+# missing peer, derives its URL from this repo's origin and clones; then runs
+# `make bootstrap` in the peer to cascade.
 #
 # Called by Makefile.workflow's `bootstrap-peers` target. Designed for
 # one-shot operator use after `git clone <derivative>`.
@@ -42,11 +42,10 @@ esac
 export ARIADNE_BOOTSTRAP_VISITED="${VISITED:+$VISITED,}$TARGET_DIR"
 export ARIADNE_BOOTSTRAP_DEPTH=$((DEPTH + 1))
 
-CONSTRUCT_GOMOD="$TARGET_DIR/construct/go.mod"
 CONSTRUCT_DEPS="$TARGET_DIR/construct/deps"
-if [[ ! -f "$CONSTRUCT_GOMOD" && ! -f "$CONSTRUCT_DEPS" ]]; then
-    # Neither substrate source present = no peers to bootstrap. (#60: this guard
-    # must accept EITHER carrier — a deps-only derivative has no construct/go.mod.)
+if [[ ! -f "$CONSTRUCT_DEPS" ]]; then
+    # No construct/deps = no substrate peers to bootstrap. (#60 M4: the legacy
+    # construct/go.mod carrier is no longer read — all derivatives carry deps.)
     exit 0
 fi
 
@@ -128,24 +127,9 @@ bootstrap_one_peer() {
     }
 }
 
-# Source 1 (legacy): replace directives in construct/go.mod, sibling pattern
-# ../<name>. rhs resolves relative to construct/go.mod's dir = construct/.
-if [[ -f "$CONSTRUCT_GOMOD" ]]; then
-    while IFS= read -r line; do
-        line="${line%%//*}"
-        if [[ "$line" =~ ^[[:space:]]*replace[[:space:]]+[^[:space:]]+([[:space:]]+[^[:space:]]+)?[[:space:]]+=\>[[:space:]]+(\.\.[^[:space:]]+) ]]; then
-            rhs="${BASH_REMATCH[2]}"
-            peer_abs="$(cd "$TARGET_DIR/construct" 2>/dev/null && cd "$rhs" 2>/dev/null && pwd -P || true)"
-            [[ -n "$peer_abs" ]] || peer_abs="$TARGET_DIR/construct/$rhs"   # syntactic if absent
-            bootstrap_one_peer "$peer_abs"
-        fi
-    done < "$CONSTRUCT_GOMOD"
-fi
-
-# Source 2 (#60): substrate rows in construct/deps (repo-root-relative paths,
-# already resolved to absolute — syntactic for absent peers).
-if [[ -f "$CONSTRUCT_DEPS" ]]; then
-    while IFS= read -r peer_abs; do
-        [[ -n "$peer_abs" ]] && bootstrap_one_peer "$peer_abs"
-    done < <(deps_substrate_targets "$TARGET_DIR")
-fi
+# Substrate rows in construct/deps (#60): repo-root-relative paths, already
+# resolved to absolute (syntactic for absent peers). The legacy construct/go.mod
+# source was dropped in #60 M4.
+while IFS= read -r peer_abs; do
+    [[ -n "$peer_abs" ]] && bootstrap_one_peer "$peer_abs"
+done < <(deps_substrate_targets "$TARGET_DIR")

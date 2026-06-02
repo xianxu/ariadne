@@ -32,14 +32,14 @@
 # VM clone. Writability/RO classification is the CALLER's job — this script only
 # decides membership.
 #
-# For each repo in the walk we read BOTH its root go.mod AND its
-# construct/go.mod. In ariadne-derivative repos the substrate dependency (the
-# ariadne replace) is declared in construct/go.mod, not the root module — so a
-# root-only walk would miss it and list the repo alone (the ariadne#41 bug).
-# construct/ is never emitted as a peer itself — only its replace *targets* are.
+# For each repo in the walk we read its construct/deps `substrate` rows (the
+# substrate ancestor, #60) AND its root go.mod `replace` directives (real Go
+# app-dep siblings, e.g. brain's `replace nous`). The legacy construct/go.mod
+# substrate carrier is no longer read (#60 M4). construct/ is never emitted as a
+# peer itself — only its targets are.
 #
-# If no go.mod is reachable, output is just the repo itself — matches the
-# pre-Go-modules single-repo behavior.
+# If neither construct/deps nor a go.mod is reachable, output is just the repo
+# itself — matches the pre-Go-modules single-repo behavior.
 set -euo pipefail
 
 # Shared construct/deps parser (#60). This script is symlinked into derivatives,
@@ -103,14 +103,12 @@ while [[ ${#queue[@]} -gt 0 ]]; do
     seen+=("$current")
     peers+=("$current")
 
-    # Substrate replaces may live in the repo-root go.mod and/or construct/go.mod
-    # (the derivative convention — see header). Walk both; construct/ itself is
-    # never enqueued, only its replace targets.
+    # Substrate is declared in construct/deps (#60); real Go app-dep siblings
+    # (e.g. brain's `replace nous => ../nous`) still live in the repo-root go.mod
+    # and are walked too. The legacy construct/go.mod substrate carrier is no
+    # longer read (#60 M4 dropped the dual-read fallback — all derivatives carry
+    # construct/deps). construct/ itself is never a peer; only its targets are.
     _enqueue_replaces "$current"
-    _enqueue_replaces "$current/construct"
-
-    # Substrate may also be declared in construct/deps (#60, dual-read). Same
-    # present-peers semantics: enqueue only targets that exist on disk.
     while IFS= read -r dep_abs; do
         [[ -n "$dep_abs" && -d "$dep_abs" ]] && queue+=("$dep_abs")
     done < <(deps_substrate_targets "$current")

@@ -10,11 +10,13 @@
 # base-layer files in. Data deps are just "clone + symlink", nothing more, so
 # any repo (Go, TypeScript, or plain markdown like a brain) can declare them.
 #
-# Manifest: construct/data-deps — one dep per line, two whitespace-separated
-# columns; '#' comments and blank lines ignored:
+# Manifest: construct/deps `data` rows (#60) — `data <git-url> <symlink-path>`,
+# '#' comments and blank lines ignored:
 #
-#     # <git-url>                              <symlink-path-relative-to-repo-root>
-#     git@github.com:xianxu/you-decide.git     data/life/politics/you-decide
+#     # <kind> <git-url>                            <symlink-path-relative-to-repo-root>
+#     data     git@github.com:xianxu/you-decide.git  data/life/politics/you-decide
+#
+# (The legacy two-column construct/data-deps file was retired in #60 M5.)
 #
 # The repo is cloned to a SIBLING of this repo root named after the URL
 # basename (you-decide). The symlink at <symlink-path> points at that clone
@@ -37,11 +39,11 @@ _DEPS_LIB_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null ||
 . "$_DEPS_LIB_DIR/lib-deps.sh"
 
 TARGET_DIR="${TARGET_DIR:-$PWD}"
-MANIFEST="$TARGET_DIR/construct/data-deps"   # legacy 2-col carrier
 DEPS="$TARGET_DIR/construct/deps"            # unified manifest (#60)
 
-if [[ ! -f "$MANIFEST" && ! -f "$DEPS" ]]; then
-    # No data deps anywhere. Silent success — most repos have none.
+if [[ ! -f "$DEPS" ]]; then
+    # No data deps. Silent success — most repos have none. (#60 M5 retired the
+    # legacy construct/data-deps carrier; data deps are `data` rows here now.)
     exit 0
 fi
 
@@ -49,8 +51,7 @@ PARENT_DIR="$(cd "$TARGET_DIR/.." && pwd -P)"
 
 # mount_data <git-url> <symlink-path>: clone the dep as a sibling (origin
 # basename), mount it via a computed relative symlink. Idempotent: present
-# clones skipped, symlink re-pointed each run. Deduped by clone-dest basename
-# so a dep declared in BOTH carriers (during the #60 transition) mounts once.
+# clones skipped, symlink re-pointed each run. Deduped by clone-dest basename.
 _dd_seen=()
 mount_data() {
     local url="$1" symlink_rel="$2" name clone_dest symlink_abs symlink_parent rel ovar s
@@ -82,28 +83,10 @@ mount_data() {
     echo "data-deps: mounted $symlink_rel -> $rel"
 }
 
-# Source 1 (legacy): construct/data-deps two-column rows.
-if [[ -f "$MANIFEST" ]]; then
-    echo "data-deps: walking $MANIFEST"
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        line="${line%%#*}"                       # strip comments
-        # shellcheck disable=SC2086
-        set -- $line                             # word-split on whitespace
-        [[ $# -eq 0 ]] && continue               # blank / comment-only line
-        if [[ $# -ne 2 ]]; then
-            echo "data-deps: malformed line (need '<git-url> <symlink-path>'): $line" >&2
-            exit 1
-        fi
-        mount_data "$1" "$2"
-    done < "$MANIFEST"
-fi
-
-# Source 2 (#60): `data` rows in the unified construct/deps manifest.
-if [[ -f "$DEPS" ]]; then
-    echo "data-deps: walking $DEPS (data rows)"
-    while IFS=$'\t' read -r url mount; do
-        [[ -n "$url" && -n "$mount" ]] && mount_data "$url" "$mount"
-    done < <(deps_data_rows "$TARGET_DIR")
-fi
+# `data` rows in the unified construct/deps manifest (#60).
+echo "data-deps: walking $DEPS (data rows)"
+while IFS=$'\t' read -r url mount; do
+    [[ -n "$url" && -n "$mount" ]] && mount_data "$url" "$mount"
+done < <(deps_data_rows "$TARGET_DIR")
 
 echo "data-deps: done"

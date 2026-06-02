@@ -128,8 +128,11 @@ Test hooks `BOOTSTRAP_DRY_RUN` / `BOOTSTRAP_CLONE_ONLY`; hermetic coverage in
 
 ```
 make bootstrap (in any repo)
-  → construct/scripts/bootstrap-peers.sh: parses construct/go.mod for
-    `replace => ../<name>` directives. For each missing peer:
+  → make ensure-go: guarantee the Go toolchain first (#61) — sdlc is a
+    base-layer build dep; no-op if present, brew-installs on macOS, else
+    fails fast before the costly peer-clone cascade. See sdlc-binary.md.
+  → construct/scripts/bootstrap-peers.sh: parses construct/deps for
+    `substrate ../<name>` rows (#60). For each missing peer:
        - Derives clone URL from current repo's origin (substitutes
          this-repo-name → peer-name; operator override via Makefile.local)
        - git clone to ../<name>
@@ -140,58 +143,48 @@ make bootstrap (in any repo)
   → derivative's local-env setup hook (Makefile.nous/Makefile.local extends)
 ```
 
-### Same peer set, four consumers
+### `construct/deps` — the substrate-peer graph carrier (#60)
 
-The `replace => ../<name>` directives in `construct/go.mod` drive four
-independent walkers that must agree on the peer set:
+The substrate peer graph lives in **`construct/deps`** — a flat, positional,
+grep-parseable manifest (`<kind> <target> [<mount>]`, `kind ∈ {substrate,data}`;
+substrate targets are repo-root-relative, e.g. `../ariadne`). It replaced the
+old `construct/go.mod`-as-peer-graph hack (which forced a fake `<name>-construct`
+Go module onto every derivative, even markdown-only brains). The parse lives in
+the shared **`construct/scripts/lib-deps.sh`** (`deps_substrate_targets`,
+`deps_data_rows`), sourced by the symlinked walkers; `bootstrap.sh` keeps an
+inline `walk_deps` mirror (it runs pre-substrate, can't source the symlink),
+locked by the drift test.
+
+**Same peer set, four consumers** — `substrate` rows in `construct/deps` drive
+four independent walkers that must agree:
 
 1. **`construct/setup.sh`** (`discover_ancestors`) — substrate symlink resolution.
 2. **`construct/scripts/bootstrap-peers.sh`** — the clone cascade above.
-3. **`.tart/scripts/tart-list-peers.sh`** — which repos to APFS-clone into the
-   tart VM (`make tart`, ariadne#32 phase 2).
-4. **`bootstrap.sh`** — fresh-clone entrypoint (#42); reads
-   `go.mod`/`construct/go.mod` *before* any substrate exists (the other three
-   run after, via the symlinked Makefile). The reason `construct/go.mod` must
-   stay a real file, not a symlink — and the reason bootstrap.sh keeps an
-   **inline copy** of the parser (it can't source a symlinked script).
+3. **`.tart/scripts/tart-list-peers.sh`** → `list-peers.sh` — which repos to
+   APFS-clone into the tart VM (`make tart`, #32).
+4. **`bootstrap.sh`** — fresh-clone entrypoint (#42); runs *before* any substrate
+   exists (the others run after, via the symlinked Makefile), so it keeps an
+   **inline copy** of the parser.
 
-All four read the same grammar. A derivative declares its substrate `replace`
-in `construct/go.mod`, **not** the near-empty repo-root `go.mod`, so each walker
-reads **both** the root `go.mod` and `construct/go.mod` per node (root for any
-self-declared sibling replaces, construct for the substrate ancestor). A
-walker that reads only the root would clone the repo alone and miss ariadne —
-this was the ariadne#41 tart bug, and again #50 where `discover_ancestors`
-(consumer 1) was the last root-only straggler: it silently starved depth-2
-derivatives (brain → nous → ariadne) of ariadne's manifest until brought into
-line. Regression-guarded by `construct/scripts/test/discover-ancestors.test.sh`.
+Each walker reads `construct/deps` for the substrate ancestor(s) **and** the
+repo-root `go.mod` for real Go app-dep siblings (e.g. brain's `replace nous =>
+../nous`, which also makes nous an ancestor). It resolves depth-≥2 chains
+(brain → nous → ariadne) by walking each node's own `construct/deps`
+recursively. The legacy `construct/go.mod` substrate carrier is **no longer
+read** (#60 M4 retired the dual-read fallback once every derivative carried
+`construct/deps`). Regression-guarded by the test trio, which keeps an explicit
+root-`go.mod` app-dep case so that path can't silently regress.
 
 Two walk *modes* over the one grammar (#45): **list-present** (setup.sh, tart)
-*skips* absent dirs; **clone-absent** (bootstrap.sh, bootstrap-peers.sh)
-resolves syntactically and clones them. bootstrap.sh's inline parser is locked
-to `tart-list-peers.sh` by the drift test in
-`construct/scripts/test/bootstrap-transitive.test.sh`. (#44 further consolidates
-the three *substrate-present* walkers onto one shared `list-peers.sh`; bootstrap
-stays separate by the zero-substrate constraint.)
+*skips* absent dirs; **clone-absent** (bootstrap.sh, bootstrap-peers.sh) resolves
+syntactically and clones them. bootstrap.sh's inline parser is locked to
+`lib-deps.sh` by the drift test in
+`construct/scripts/test/bootstrap-transitive.test.sh`.
 
-#### `construct/deps` — the language-agnostic carrier (#60, in transition)
-
-`construct/go.mod` was a hack: go.mod used as a substrate-peer graph, forcing a
-fake `<name>-construct` Go module onto every derivative (even markdown-only
-brains). #60 introduces **`construct/deps`** — a flat, positional, grep-parseable
-manifest (`<kind> <target> [<mount>]`, `kind ∈ {substrate,data}`; substrate
-targets are repo-root-relative, e.g. `../ariadne`) that subsumes both the
-substrate graph and the legacy `construct/data-deps`. The substrate parse lives
-in the shared **`construct/scripts/lib-deps.sh`** (`deps_substrate_targets`,
-`deps_data_rows`), sourced by the symlinked walkers; `bootstrap.sh` keeps an
-inline `walk_deps` mirror (same zero-substrate constraint), locked by the drift
-test. **Dual-read (foundation, M1):** every walker now reads `construct/go.mod`
-*and* `construct/deps` (and root `go.mod` for real Go app-deps); a peer in more
-than one carrier is deduped. **Writer flip (M3, done):** setup.sh's `tool`
-action now writes a `substrate <rel>` row into a derivative's `construct/deps`
-instead of stubbing `construct/go.mod` (see "Who writes the substrate
-declaration" below); existing stub modules are left untouched and dual-read keeps
-them valid. Deferred: M4 (delete `construct/go.mod` ×13 + drop the dual-read
-fallback), M5 (retire `data-deps`).
+**Data deps** (content this repo consumes, not substrate it inherits) are
+`kind: data` rows in the same `construct/deps`, mounted by `clone-data-deps.sh`
+(clone sibling + relative symlink). The legacy two-column `construct/data-deps`
+file was retired in #60 M5.
 
 ### Refresh vs bootstrap
 
@@ -303,8 +296,8 @@ tool's owner:
 - **Cross-target** (a derivative): appends `substrate ../ariadne` to
   `construct/deps` (#60). Repo-root-relative, idempotent, language-agnostic — no
   Go needed. The walkers read it; `make sdlc-build` resolves + builds the tool in
-  its owner (build-in-owner, #60 M2). An existing `construct/go.mod` is left
-  **untouched** — dual-read keeps it valid until #60 M4 deletes it.
+  its owner (build-in-owner, #60 M2). `construct/go.mod` is no longer written or
+  read (the stubs were deleted from every derivative in #60 M4).
 - **Self-walk** (the owner, e.g. ariadne): adds a `go mod edit -tool` directive
   to the owner's own root go.mod so `go tool <name>` works locally. Ariadne has
   no substrate ancestor of its own, so it writes no `construct/deps` row.
@@ -321,8 +314,9 @@ ancestor, and `make sdlc-build` built `cd construct && go build` through its
 `replace => ../../ariadne`. That used go.mod as a substrate-peer graph — not its
 purpose — and forced a fake Go module onto even non-Go (markdown brain)
 consumers. #60 retired it: M1 moved the peer graph to `construct/deps`, M2 moved
-the build to build-in-owner, M3 flipped this writer, and M4 deletes the stub
-modules. During the transition `construct/go.mod` lingers and is dual-read.
+the build to build-in-owner, M3 flipped this writer, M4 deleted the stub modules
+from every derivative + dropped the walkers' dual-read fallback, and M5 retired
+the legacy `construct/data-deps` reader. `construct/go.mod` is now unused.
 
 Design rationale: `workshop/issues/000037` (the original split), `000038`
 (symlink-only), `000060` (the deps-manifest unification that retired it).
