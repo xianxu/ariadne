@@ -1,11 +1,12 @@
 ---
 id: 000062
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 3
+actual_hours: 0.7
 ---
 
 # sdlc merge: re-check preconditions before irreversible PR merge + recoverable cleanup
@@ -96,15 +97,41 @@ a one-command `sdlc merge --resume`.
 
 ## Plan
 
-- [ ] M1 — #1: re-assert clean tree before `gh pr merge`; actionable refusal.
-- [ ] M2 — #2: make pre-merge judges side-effect-free (or commit their edits).
-- [ ] M3 — #3: idempotent/resumable post-merge cleanup (`--resume` / detect
-  already-merged PR).
+- [x] M1 — re-assert clean tree before `gh pr merge` (step 9b) via the extracted
+  `worktreeDirty`; actionable refusal instead of merge-then-strand.
+- [x] M2 — judges read-only: `Category.AllowedTools()` is `Read,Grep,Glob,Bash`
+  for ALL categories (Specs lost `Edit,Write`); Specs prompt rewritten to REPORT
+  stale docs for the main agent to fix. Chose read-only over auto-commit
+  (operator: fresh/different-model judge has less context than the doer).
+- [x] M3 — resumable cleanup: `ghCaller.PRMergedForBranch` + `decideMergeAction`;
+  a re-run detects an already-merged PR and finishes switch/pull/archive/delete
+  (auto-detect on plain re-run, no flag). #4 (auto-stash) dropped as planned.
 
 ## Log
 
+
+- 2026-06-02: closed — M1+M2+M3 implemented; full sdlc suite green (worktreeDirty, decideMergeAction, all-read-only AllowedTools); fresh-eyes review SHIP — wiring manually verified (PRMergedForBranch matches post --delete-branch; switch-main no-op when on main; idempotent resume). --force: M1-M3 reviewed in one combined pass (not 3 separate verdict commits). e2e harness deferred (fix-forward, operator-approved)
 ### 2026-06-02
 
 Filed from the nous PR #1 merge post-mortem. Base-layer fix (`cmd/sdlc` merge
 verb). #4 (auto-stash) deliberately demoted: redundant once #1 lands; #3 is the
 load-bearing recovery net and is NOT subsumed by #4.
+
+Implemented M1+M2+M3 (commit d3ac25f). Fresh-eyes review verdict **SHIP** — no
+Critical/Important; reviewer *manually verified* the load-bearing behaviors:
+`PRMergedForBranch` (`gh pr list --head --state merged`) still matches after
+`--delete-branch` (GitHub retains headRefName); `git switch main` is a no-op
+when already on main (resume doesn't die); re-run archive/branch-delete are
+idempotent. 3 Minors noted (stale `origin/<branch>` ref can falsely refuse if
+the operator `fetch --prune`d before resuming; `.[0]` PR ordering; error-swallow
+in PRMergedForBranch) — all narrow/consistent-with-existing-posture, not fixed.
+
+**Test-coverage caveat (fix-forward, per operator):** the Done-when asks for
+end-to-end regression tests (dirty→refuse-pre-merge; resume-finishes-cleanup).
+Shipped coverage is decision-level unit tests (`worktreeDirty`,
+`decideMergeAction`, all-read-only `AllowedTools`) + the reviewer-verified
+wiring. A full `runMerge` e2e harness would be the first of its kind (every
+`run*` verb uses `os.Exit` via `die`, which is why none are e2e-tested) —
+deferred as a separate test-infra investment (make `die` injectable + stub
+gitx.run/mergeRunner/ghClient). We'll add it (or fix forward) when a real
+workflow surfaces a wiring bug.
