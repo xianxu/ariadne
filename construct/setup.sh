@@ -45,6 +45,11 @@ ARIADNE_DIR="$(dirname "$SCRIPT_REAL")"
 # symlink resolution.
 TARGET_DIR="$(pwd -P)"
 
+# Shared construct/deps parser (#60). SCRIPT_REAL is this script's real dir
+# (followed through the symlink), so the sibling scripts/lib-deps.sh is ariadne's.
+# shellcheck source=/dev/null
+. "$SCRIPT_REAL/scripts/lib-deps.sh"
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
@@ -235,16 +240,19 @@ discover_ancestors() {
     # brain stops at nous and never applies ariadne's manifest). This matches
     # the both-go.mods convention already used by list-peers.sh and
     # bootstrap-peers.sh; discover_ancestors was the lone root-only walker (#50).
-    if [[ -f "$TARGET_DIR/go.mod" || -f "$TARGET_DIR/construct/go.mod" ]]; then
+    if [[ -f "$TARGET_DIR/go.mod" || -f "$TARGET_DIR/construct/go.mod" || -f "$TARGET_DIR/construct/deps" ]]; then
         local queue=("$TARGET_DIR")
         while [[ ${#queue[@]} -gt 0 ]]; do
             local current="${queue[0]}"
             queue=("${queue[@]:1}")
+            # Both go.mods (legacy) AND construct/deps (#60, dual-read). The
+            # _seen_or_add filter (requires construct/base.manifest) drops any
+            # absent/non-substrate target, so syntactic resolution is safe here.
             while IFS= read -r candidate; do
                 if _seen_or_add "$candidate"; then
                     queue+=("$candidate")
                 fi
-            done < <(_parse_replace_paths "$current"; _parse_replace_paths "$current/construct")
+            done < <(_parse_replace_paths "$current"; _parse_replace_paths "$current/construct"; deps_substrate_targets "$current")
         done
 
         # Source 2: go list -m all (for code-imported deps that aren't in

@@ -95,6 +95,10 @@ symlink   construct/scripts/clone-data-deps.sh
 # openshell sandbox; .tart/scripts/tart-list-peers.sh is a back-compat symlink
 # to it (delivered via the wholesale `.tart/scripts` symlink below).
 symlink   construct/scripts/list-peers.sh
+# Shared construct/deps parser (#60) — sourced by list-peers, bootstrap-peers,
+# clone-data-deps, and setup.sh. bootstrap.sh keeps an inline copy (can't source
+# a symlink on a bare clone), locked by bootstrap-transitive.test.sh.
+symlink   construct/scripts/lib-deps.sh
 # Canonical setup.sh — vendored down to every layer so each layer's
 # `<repo>/construct/setup.sh` is the same source-of-truth script.
 # Walks transitive upstream manifests via `go list -m`, with depth-1
