@@ -59,7 +59,7 @@ No behavior change when there's no matching day header — the three existing
 
 ## Plan
 
-- [ ] Rework `insertLogLine` to prefer the matching `### <date>` day header
+- [x] Rework `insertLogLine` to prefer the matching `### <date>` day header
   (date parsed from the log line; search scoped after `## Log`; `[ \t]*$`
   header match), falling back to the current top-of-section insert. Add a test
   for the day-header case; confirm the existing three stay green.
@@ -67,3 +67,18 @@ No behavior change when there's no matching day header — the three existing
 ## Log
 
 ### 2026-06-02
+
+- Reworked `insertLogLine` (close.go): added `logLineDateRE` to parse the leading
+  date off the log line; if a matching `### <date>` header exists in the Log
+  section (searched after `## Log`, matched strictly with `[ \t]*$`), insert the
+  line right under it; else the original top-of-section path, byte-for-byte.
+- Honored plan-quality INFO: comment notes the `[ \t]*$` match is intentionally
+  strict (don't loosen to `.*$` or the newline-eating bug returns).
+- Tests: added `TestInsertLogLine_UnderMatchingDayHeader` (lands under header)
+  and `TestInsertLogLine_DayHeaderDateMismatch_FallsBack` (06-02 line not
+  misfiled under a 05-25 header). The three pre-existing `insertLogLine` tests
+  pass **unchanged** (fallback path identical). `go test ./cmd/sdlc/...` + `go
+  vet` green.
+- Note: `sdlc` is a shell function that rebuilds `bin/sdlc` from `cmd/sdlc` each
+  call, so closing this issue runs the fixed code — a live dogfood (this close
+  line should land under the `### 2026-06-02` header above).

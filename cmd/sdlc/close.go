@@ -158,25 +158,52 @@ func printSemanticWarmup(w io.Writer) {
 	warmupIncrement()
 }
 
-// insertLogLine inserts logLine at the top of the `## Log` section.
-// Mirrors close-issue.py's one-shot:
+// logLineDateRE pulls the leading ISO date off a log line (`- YYYY-MM-DD: …`)
+// so insertLogLine can file it under a matching `### YYYY-MM-DD` day header.
+var logLineDateRE = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2}):`)
+
+// insertLogLine inserts logLine into the `## Log` section.
 //
-//	re.sub(r"(^## Log\s*\n)(\s*\n)?", rf"\1\n{log_line}\n", body, count=1, MULTILINE)
+// Placement:
+//   - If logLine carries a leading date (`- YYYY-MM-DD: …`) and the Log
+//     section already has a matching `### YYYY-MM-DD` day header, the line is
+//     filed directly *beneath* that header (top of the day's group) — so a
+//     dated close line sits inside its day rather than orphaned above the
+//     header (#66). Top-of-group, not bottom, preserves the newest-first
+//     convention insertLogLine already uses at the section level.
+//   - Otherwise it goes at the top of the `## Log` section, mirroring
+//     close-issue.py's one-shot:
 //
-// Behavior preserved byte-for-byte from Python: `\s*\n` is greedy and
-// includes newlines, so group 1 consumes "## Log\n" plus any trailing
-// blank line(s) up to the next non-blank. The output is `<group1>\n<log>\n`
-// followed by whatever text came after the match — meaning if there was a
-// blank line after `## Log`, the result has one more blank line than the
-// input (Python emits "## Log\n\n\n<log>\n- existing\n", which surprised
-// the implementer too, but it's what the source does).
+//     re.sub(r"(^## Log\s*\n)(\s*\n)?", rf"\1\n{log_line}\n", body, count=1, MULTILINE)
+//
+//     Behavior preserved byte-for-byte from Python: `\s*\n` is greedy and
+//     includes newlines, so group 1 consumes "## Log\n" plus any trailing
+//     blank line(s) up to the next non-blank. The output is `<group1>\n<log>\n`
+//     followed by whatever came after the match — so a blank line after
+//     `## Log` yields one extra blank line (Python emits
+//     "## Log\n\n\n<log>\n- existing\n"; surprising, but it's what the source does).
 //
 // If `## Log` is absent, we append a new section at the bottom of body.
 func insertLogLine(body, logLine string) string {
 	logHeaderRE := regexp.MustCompile(`(?m)^## Log\s*$`)
-	if !logHeaderRE.MatchString(body) {
+	logLoc := logHeaderRE.FindStringIndex(body)
+	if logLoc == nil {
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"
 	}
+	// Prefer the matching `### <date>` day header, searched only *after* the
+	// `## Log` header so a `### <date>` belonging to another section (e.g.
+	// ## Revisions) can't capture the line. The header match is intentionally
+	// strict — `[ \t]*$`, a bare `### YYYY-MM-DD` line (what the issue template
+	// seeds) — so it never eats the trailing newline/blank lines the way `\s*$`
+	// would; don't loosen it to `.*$` or that bug returns.
+	if m := logLineDateRE.FindStringSubmatch(logLine); m != nil {
+		dayRE := regexp.MustCompile(`(?m)^### ` + regexp.QuoteMeta(m[1]) + `[ \t]*$`)
+		if d := dayRE.FindStringIndex(body[logLoc[0]:]); d != nil {
+			pos := logLoc[0] + d[1] // end of the day-header line text (before its newline)
+			return body[:pos] + "\n" + logLine + body[pos:]
+		}
+	}
+	// Fallback: top of the `## Log` section (original behavior, byte-for-byte).
 	insertRE := regexp.MustCompile(`(?m)(^## Log\s*\n)(\s*\n)?`)
 	loc := insertRE.FindStringSubmatchIndex(body)
 	if loc == nil {

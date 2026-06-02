@@ -145,6 +145,33 @@ func TestInsertLogLine_EmptyLogSection(t *testing.T) {
 	}
 }
 
+// #66: a dated log line whose date matches an existing `### <date>` day header
+// is filed directly under that header (top of the day's group), not orphaned
+// above it at the top of the ## Log section.
+func TestInsertLogLine_UnderMatchingDayHeader(t *testing.T) {
+	body := "# title\n\n## Log\n\n### 2026-05-25\n- Implemented the thing\n"
+	got := insertLogLine(body, "- 2026-05-25: closed — tests pass")
+	want := "# title\n\n## Log\n\n### 2026-05-25\n- 2026-05-25: closed — tests pass\n- Implemented the thing\n"
+	if got != want {
+		t.Errorf("insertLogLine day-header mismatch:\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
+// #66: when the day header's date does NOT match the log line's date, fall back
+// to top-of-section (don't misfile a 06-02 line under a 05-25 header).
+func TestInsertLogLine_DayHeaderDateMismatch_FallsBack(t *testing.T) {
+	body := "# title\n\n## Log\n\n### 2026-05-25\n- old work\n"
+	got := insertLogLine(body, "- 2026-06-02: closed — done")
+	// No `### 2026-06-02` header → original top-of-section behavior; the line
+	// must NOT land under the 05-25 header.
+	if strings.Contains(got, "### 2026-05-25\n- 2026-06-02: closed") {
+		t.Errorf("06-02 line misfiled under 05-25 header:\n%s", got)
+	}
+	if !strings.Contains(got, "## Log\n\n\n- 2026-06-02: closed — done\n### 2026-05-25\n") {
+		t.Errorf("expected fallback top-of-section insert:\n%q", got)
+	}
+}
+
 func TestInsertLogLine_NoLogSection(t *testing.T) {
 	body := "# title\n\n## Plan\n\n- [x] M1 done\n"
 	got := insertLogLine(body, "- 2026-05-25: closed — done")
