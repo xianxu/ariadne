@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
-estimate_hours:
+estimate_hours: 3
 ---
 
 # e2e test harness for runMerge — die-injectable seam + the two #62 regression tests
