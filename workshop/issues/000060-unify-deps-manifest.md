@@ -1,11 +1,12 @@
 ---
 id: 000060
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-01
-updated: 2026-06-01
+updated: 2026-06-02
 estimate_hours: 5
+actual_hours: 2.5
 ---
 
 # Unify substrate + data dependencies into one manifest; retire construct/go.mod as the peer graph
@@ -148,6 +149,8 @@ Done: `construct/go.mod` is unused across the fleet; substrate lives in
 
 
 
+
+- 2026-06-02: closed — construct/go.mod unused fleet-wide; all 6 derivatives on construct/deps + born-native brain-family; walkers read construct/deps + root go.mod (70 test assertions green incl. root-go.mod app-dep regression; real brain→nous→ariadne resolves); sdlc-build build-in-owner; brain you-decide data mount folded into construct/deps + verified resolving; M1-M5 each fresh-eyes reviewed
 - 2026-06-01: closed M3 — setup-writer.test.sh 7 green: tool action writes `substrate ../<owner>` to construct/deps, never stubs construct/go.mod, idempotent, leaves a legacy go.mod untouched, distinct owners→distinct rows, and walk_manifest routes the real tool action through; all 8 suites green; review SOUND (no Critical/Important); ariadne self-walk + dual-read dedup verified intact
 - 2026-06-01: closed M2 — dev-aliases test 22 green incl. the production default-workspace+derivative-symlink resolver path; real `make sdlc-build` in ariadne builds a runnable bin/sdlc in-owner. ACTUAL estimated (--force): v3 attributes the full 0.8h foundation to M1 — M1+M2 ran continuous same-session, 0 events in the M2-only window; 0.3h is the marginal estimate
 - 2026-06-01: closed M1 — dual-read additive + inert: 42 assertions green incl. deps-only transitive clone, deps-only ancestor discovery, and retained go.mod regression cases; real pair+ariadne list-peers/discover unchanged via legacy path; no construct/deps exists yet so behavior byte-identical
