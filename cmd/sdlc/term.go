@@ -41,7 +41,13 @@ func cwarn(w io.Writer, msg string) { fmt.Fprintf(w, "  %s[!]%s %s\n", ansiYello
 // die prints a red "Error: <msg>" to the given writer and exits with
 // code 1. Used for hard guardrail failures where we want to bypass
 // cobra's default "Error:" prefix.
-func die(stderr io.Writer, msg string) {
+//
+// It is a package var (not a plain func) so tests can swap it for a
+// panic+recover that preserves die's halt semantics without killing the
+// test process — the seam that makes any `run*` verb's refusal path
+// e2e-testable (#63). See expectDie in die_test.go. Callers invoke it
+// exactly as a function; the var-vs-func distinction is invisible to them.
+var die = func(stderr io.Writer, msg string) {
 	fmt.Fprintf(stderr, "%sError: %s%s\n", ansiRed, msg, ansiReset)
 	os.Exit(1)
 }

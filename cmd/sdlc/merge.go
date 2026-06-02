@@ -62,6 +62,15 @@ var mergeRunner gitRunner = execGitRunner{}
 // confirmation prompts deterministically. Production wraps os.Stdin.
 var mergePrompter prompter = stdinPrompter{}
 
+// runPreflightJudgesFn is the package-level seam for merge's step-5 pre-merge
+// judges. Production points at runPreflightJudges. Tests swap it for a stub
+// "judge" — most usefully one that DIRTIES the worktree, to prove step 9b
+// re-checks cleanliness after the judges ran and refuses before the
+// irreversible merge (#62 M1 / #63). It runs after step 2's clean check and
+// before 9b's re-check, which is exactly the window a real dirtying hook
+// would occupy.
+var runPreflightJudgesFn = runPreflightJudges
+
 // prompter abstracts the "read a line, return trimmed text" surface.
 type prompter interface {
 	Ask(question string, w io.Writer) string
@@ -201,7 +210,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			Stdout:     stdout,
 			Stderr:     stderr,
 		}
-		if err := runPreflightJudges(preOpts); err != nil {
+		if err := runPreflightJudgesFn(preOpts); err != nil {
 			die(stderr, fmt.Sprintf("pre-merge judges failed: %v", err))
 		}
 	} else {
