@@ -63,11 +63,13 @@ The `.openshell/` directory is listed in `construct/base.manifest`. In symlink m
 | `.openshell/.bootstrap/` | Cached downloads (created by `make sandbox`) |
 | `.openshell/.base-image-digest` | Tracks base container image version |
 
-## File Sync — go.mod peers (ariadne#44)
+## File Sync — substrate peers (ariadne#44)
 
-The sandbox syncs the **current repo plus its transitive `construct/go.mod`
-peers** (not the whole parent workspace), via the shared
-`construct/scripts/list-peers.sh` — the same walker `make tart` uses (#32/#41).
+The sandbox syncs the **current repo plus its transitive substrate peers** (not
+the whole parent workspace), via the shared `construct/scripts/list-peers.sh` —
+the same walker `make tart` uses (#32/#41). The walker reads `construct/deps`
+`substrate` rows (#60) plus the root `go.mod` for real Go app-dep siblings (the
+legacy `construct/go.mod` carrier is no longer read since #60 M4).
 Layout mirrors the host: each peer mutagen-syncs to `/sandbox/workspace/<name>`,
 and since `$HOME` is `/sandbox` in the base image, that *is* `~/workspace/<name>`.
 `~/repo` symlinks the current repo; a `~/.sandbox-current-repo` marker drives the

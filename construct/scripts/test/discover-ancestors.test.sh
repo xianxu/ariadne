@@ -49,14 +49,14 @@ EOF
 }
 
 # substrate_replace <abs-dir> <upstream-rel> <upstream-mod>: declare the
-# substrate ancestor in construct/go.mod (the derivative convention) — NOT root.
+# substrate ancestor. #60 M4: this now writes construct/deps (the construct/go.mod
+# carrier is no longer read). The <rel> arg is the old construct-relative path
+# (../../X); construct/deps is repo-root-relative, so strip one leading `../`.
+# <mod> is ignored (a deps row carries no module name).
 substrate_replace() {
-    local dir="$1" rel="$2" mod="$3"
-    write_file "$dir/construct/go.mod" <<EOF
-module example.com/$(basename "$dir")-construct
-go 1.24
-require example.com/$mod v0.0.0
-replace example.com/$mod => $rel
+    local dir="$1" rel="$2"
+    write_file "$dir/construct/deps" <<EOF
+substrate ${rel#../}
 EOF
 }
 

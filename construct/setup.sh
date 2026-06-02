@@ -225,34 +225,30 @@ discover_ancestors() {
         done < "$gomod_dir/go.mod"
     }
 
-    # Source 1: recursive replace walk (BFS). Each ancestor's own go.mod is
-    # then probed for further replace directives, building the chain
-    # without requiring the user to redeclare transitive replaces at the
-    # leaf.
+    # Source 1: recursive substrate walk (BFS). Each ancestor's own
+    # construct/deps is probed for further substrate rows, building the chain
+    # without requiring the leaf to redeclare transitive ancestors.
     #
-    # Per node we walk BOTH go.mods: the repo-root go.mod (operator-owned app
-    # deps — may carry self-declared sibling replaces) AND construct/go.mod
-    # (substrate-tool deps — where the ariadne/upstream replace actually lives
-    # in a derivative; see setup-and-replication.md). Walking only the root
-    # misses the substrate ancestor for any depth-≥2 derivative whose upstream
-    # parks its own ancestor in construct/go.mod (e.g. brain → nous → ariadne:
-    # the nous→ariadne hop is in nous/construct/go.mod, so a root-only walk from
-    # brain stops at nous and never applies ariadne's manifest). This matches
-    # the both-go.mods convention already used by list-peers.sh and
-    # bootstrap-peers.sh; discover_ancestors was the lone root-only walker (#50).
-    if [[ -f "$TARGET_DIR/go.mod" || -f "$TARGET_DIR/construct/go.mod" || -f "$TARGET_DIR/construct/deps" ]]; then
+    # Per node: construct/deps for the substrate ancestor(s) (#60), PLUS the
+    # repo-root go.mod for real Go app-dep siblings (operator-owned — e.g.
+    # brain's `replace nous => ../nous`, which makes nous an ancestor too). The
+    # legacy construct/go.mod substrate carrier is no longer read (#60 M4 dropped
+    # the dual-read fallback — every derivative carries construct/deps). This
+    # still resolves depth-≥2 chains (brain → nous → ariadne): each node's
+    # construct/deps names its own ancestor, walked recursively.
+    if [[ -f "$TARGET_DIR/go.mod" || -f "$TARGET_DIR/construct/deps" ]]; then
         local queue=("$TARGET_DIR")
         while [[ ${#queue[@]} -gt 0 ]]; do
             local current="${queue[0]}"
             queue=("${queue[@]:1}")
-            # Both go.mods (legacy) AND construct/deps (#60, dual-read). The
+            # construct/deps substrate rows + root go.mod app-dep replaces. The
             # _seen_or_add filter (requires construct/base.manifest) drops any
             # absent/non-substrate target, so syntactic resolution is safe here.
             while IFS= read -r candidate; do
                 if _seen_or_add "$candidate"; then
                     queue+=("$candidate")
                 fi
-            done < <(_parse_replace_paths "$current"; _parse_replace_paths "$current/construct"; deps_substrate_targets "$current")
+            done < <(_parse_replace_paths "$current"; deps_substrate_targets "$current")
         done
 
         # Source 2: go list -m all (for code-imported deps that aren't in

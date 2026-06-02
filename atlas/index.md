@@ -19,7 +19,7 @@ Central directory for atlas entries — practical pointers for future developers
 ## 2. Base Layer Infrastructure
 - [Base Layer](workflow/base-layer.md) — how to adopt ariadne's base layer, path conventions, runtime artifacts
 - [Setup & Replication](workflow/setup-and-replication.md) — `construct/setup.sh` mechanism, ancestor discovery, bootstrap cascade
-- [Data Dependencies](workflow/data-deps.md) — content peers (looser git submodule): sibling clone + relative symlink via `construct/data-deps`; add / remove / bootstrap
+- [Data Dependencies](workflow/data-deps.md) — content peers (looser git submodule): sibling clone + relative symlink via `construct/deps` `data` rows (#60); add / remove / bootstrap
 - [base.manifest](../construct/base.manifest) — canonical list of portable paths
 - [setup.sh](../construct/setup.sh) — bootstrapper for consuming repos
 
