@@ -290,55 +290,39 @@ either. (It was previously regenerated from a now-retired `sdlc --index`; the
 generator existed only to keep a duplicated copy in sync, which the pointer
 makes unnecessary.)
 
-## `construct/go.mod` — substrate-tool deps separated from app deps
+## Who writes the substrate declaration (the `tool` action)
 
-Derivatives that consume Go tools from ancestors (cmd/sdlc from ariadne,
-future cmd/nous from nous, etc.) get a **second `go.mod`** scoped to
-substrate concerns only:
+A derivative declares its substrate ancestor via the `tool <path>` manifest
+action (ariadne's base.manifest carries `tool cmd/sdlc`). setup.sh's
+`ensure_go_tool_dependency` is the writer, split by whether the target IS the
+tool's owner:
 
-```
-<derivative>/
-  go.mod                # app deps (charmbracelet, creack/pty, etc.)
-                        # operator-managed
-  construct/
-    go.mod              # substrate-tool deps (require + replace + tool
-                        # for each ancestor that ships Go tools)
-                        # auto-managed by setup.sh
-  bin/sdlc              # built via `cd construct && go build`
-                        # — Go resolves source via replace => ../../ariadne
-```
+- **Cross-target** (a derivative): appends `substrate ../ariadne` to
+  `construct/deps` (#60). Repo-root-relative, idempotent, language-agnostic — no
+  Go needed. The walkers read it; `make sdlc-build` resolves + builds the tool in
+  its owner (build-in-owner, #60 M2). An existing `construct/go.mod` is left
+  **untouched** — dual-read keeps it valid until #60 M4 deletes it.
+- **Self-walk** (the owner, e.g. ariadne): adds a `go mod edit -tool` directive
+  to the owner's own root go.mod so `go tool <name>` works locally. Ariadne has
+  no substrate ancestor of its own, so it writes no `construct/deps` row.
 
-The two go.mods are independent Go modules (one go.mod per directory =
-one Go module — native Go semantics). setup.sh auto-manages
-`construct/go.mod`; the operator never edits it manually.
+**Multi-layer composition.** If a derivative descends from multiple tool-owning
+ancestors, each owner's `tool` action appends its own `substrate` row; rows
+dedupe by resolved path. The bootstrap cascade clones every declared peer.
 
-**Why split:** the root go.mod is operator-owned (app deps). The
-substrate's tool deps are substrate-managed (auto-added/updated by
-setup.sh when ancestor manifests declare `tool <path>`). Keeping them
-in separate go.mods means substrate refreshes don't touch the
-operator's app go.mod, and operator's app evolution doesn't disturb
-substrate-tool declarations.
+### Historical: `construct/go.mod` — the retired writer target (pre-#60)
 
-**No `construct/vendor/` needed in the symlink-only model (post-#38).**
-Go's `replace github.com/xianxu/<peer> => ../../<peer>` directives in
-construct/go.mod resolve tool sources to sibling-checkouts at build
-time. Earlier versions vendored into construct/vendor/ for "clone
-without sibling" UX; that's now solved by the bootstrap cascade
-(clones missing peers).
+Before #60, the cross-target writer stubbed a **second go.mod**
+(`<name>-construct`) per derivative carrying `require + replace + tool` for each
+ancestor, and `make sdlc-build` built `cd construct && go build` through its
+`replace => ../../ariadne`. That used go.mod as a substrate-peer graph — not its
+purpose — and forced a fake Go module onto even non-Go (markdown brain)
+consumers. #60 retired it: M1 moved the peer graph to `construct/deps`, M2 moved
+the build to build-in-owner, M3 flipped this writer, and M4 deletes the stub
+modules. During the transition `construct/go.mod` lingers and is dual-read.
 
-**Multi-layer composition.** When a derivative descends from multiple
-ancestors that each ship Go tools (e.g., baby-brain consuming both
-ariadne's sdlc + nous's cmd/nous), all require + tool entries land in
-one `construct/go.mod`. Go natively supports multiple require + tool
-entries; no custom walker needed. The bootstrap cascade ensures every
-sibling-required peer is checked out.
-
-**Self-walk exception.** Ariadne itself has no `construct/go.mod` —
-ariadne IS the substrate source; its tool directive lives in the root
-go.mod. Same for any future top-of-chain layer.
-
-Design rationale: `workshop/issues/000037` (split) + `000038`
-(symlink-only).
+Design rationale: `workshop/issues/000037` (the original split), `000038`
+(symlink-only), `000060` (the deps-manifest unification that retired it).
 
 ## Data dependencies (content peers, not substrate)
 

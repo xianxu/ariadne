@@ -373,81 +373,53 @@ walk_manifest() {
     done < "$manifest"
 }
 
-# ── ensure_go_tool_dependency — wire an upstream Go tool into target's go.mod
+# ── ensure_go_tool_dependency — wire an upstream's tool ownership into target
+# Despite the legacy name, this is the `tool <path>` manifest action. It has two
+# jobs split by whether the target IS the tool's owner:
+#   • Cross-target (a derivative consuming the owner's tool): declare the
+#     substrate dependency on the owner in construct/deps (#60). No Go needed —
+#     the build role moved to build-in-owner (#60 M2) and the peer graph to
+#     construct/deps (#60 M1). Pre-#60 this stubbed a `<name>-construct` go.mod
+#     with require+replace+tool; that's gone. An existing construct/go.mod is
+#     left UNTOUCHED — dual-read keeps it valid until #60 M4 deletes it.
+#   • Self-walk (the owner, e.g. ariadne): add a `tool` directive to the owner's
+#     own root go.mod so `go tool <name>` works locally. Still Go; still app-level.
 ensure_go_tool_dependency() {
-    local upstream="$1"      # absolute upstream path
-    local tool_path="$2"     # relative path within upstream module (e.g. cmd/sdlc)
+    local upstream="$1"      # absolute owner path
+    local tool_path="$2"     # relative path within owner module (e.g. cmd/sdlc)
 
+    # Cross-target: declare the owner as a substrate dep in construct/deps.
+    if [[ "$upstream" != "$TARGET_DIR" ]]; then
+        local construct_dir="$TARGET_DIR/construct"
+        local deps_file="$construct_dir/deps"
+        local rel_root                       # repo-root-relative (../ariadne)
+        # Pass paths as argv (not interpolated into the literal) so a path with
+        # a quote can't break the expression — matches clone-data-deps.sh.
+        rel_root=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$upstream" "$TARGET_DIR" 2>/dev/null || echo "$upstream")
+        mkdir -p "$construct_dir"
+        if awk -v t="$rel_root" '$1=="substrate" && $2==t {f=1} END{exit !f}' "$deps_file" 2>/dev/null; then
+            printf "  ${CYAN}present${RESET} substrate %s in construct/deps\n" "$rel_root"
+        else
+            printf 'substrate %s\n' "$rel_root" >> "$deps_file"
+            printf "  ${GREEN}declared${RESET} substrate %s in construct/deps\n" "$rel_root"
+        fi
+        return 0
+    fi
+
+    # Self-walk (owner adds its own tool directive to its root go.mod). Needs Go.
     if ! command -v go >/dev/null 2>&1; then
         printf "  ${YELLOW}skipped${RESET} tool %s (go toolchain not on PATH)\n" "$tool_path"
         return 0
     fi
-    if [[ ! -f "$upstream/go.mod" ]]; then
-        printf "  ${YELLOW}skipped${RESET} tool %s (no go.mod in upstream)\n" "$tool_path"
+    if [[ ! -f "$TARGET_DIR/go.mod" ]]; then
+        printf "  ${YELLOW}skipped${RESET} tool %s (self-walk; no go.mod in target)\n" "$tool_path"
         return 0
     fi
-
     local upstream_module
-    upstream_module=$(awk '/^module / {print $2; exit}' "$upstream/go.mod")
-
-    # Self-walk (target IS the upstream — ariadne adding its own tool
-    # directive): operates on target's root go.mod. require + replace
-    # would be circular, so only the tool directive is added.
-    if [[ "$upstream" == "$TARGET_DIR" ]]; then
-        if [[ ! -f "$TARGET_DIR/go.mod" ]]; then
-            printf "  ${YELLOW}skipped${RESET} tool %s (self-walk; no go.mod in target)\n" "$tool_path"
-            return 0
-        fi
-        ensure_go_directive_24 "$TARGET_DIR/go.mod"
-        ( cd "$TARGET_DIR" && go mod edit -tool "${upstream_module}/${tool_path}" ) \
-            && printf "  ${GREEN}declared${RESET} tool %s/%s in go.mod (self; tool only)\n" "$upstream_module" "$tool_path"
-        return 0
-    fi
-
-    # Cross-target: write to $TARGET_DIR/construct/go.mod. Substrate-tool
-    # deps live in a separate Go module from the derivative's app code.
-    # `go mod vendor` in construct/ then produces a vendor/ tree
-    # containing only the substrate-tool closure — not the derivative's
-    # app deps. See workshop/issues/000037 for the rationale.
-    local construct_dir="$TARGET_DIR/construct"
-    local construct_gomod="$construct_dir/go.mod"
-
-    mkdir -p "$construct_dir"
-
-    if [[ ! -f "$construct_gomod" ]]; then
-        # Stub the construct/go.mod. Module path: append "-construct" to
-        # the target's root module path (if any), else fall back to a
-        # local pseudo-path. Either is valid — the module is local-only
-        # (replace directives always resolve to sibling paths; never
-        # published to a registry).
-        local construct_module
-        if [[ -f "$TARGET_DIR/go.mod" ]]; then
-            local root_module
-            root_module=$(awk '/^module / {print $2; exit}' "$TARGET_DIR/go.mod")
-            construct_module="${root_module}-construct"
-        else
-            local repo_base
-            repo_base=$(basename "$TARGET_DIR")
-            construct_module="local.construct/${repo_base}"
-        fi
-        cat > "$construct_gomod" <<EOF
-module ${construct_module}
-
-go 1.24
-EOF
-        printf "  ${GREEN}created${RESET} construct/go.mod (module %s)\n" "$construct_module"
-    fi
-
-    ensure_go_directive_24 "$construct_gomod"
-
-    local rel_path
-    rel_path=$(python3 -c "import os; print(os.path.relpath('$upstream', '$construct_dir'))" 2>/dev/null || echo "$upstream")
-
-    ( cd "$construct_dir" && {
-        go mod edit -require "${upstream_module}@v0.0.0-00010101000000-000000000000"
-        go mod edit -replace "${upstream_module}=${rel_path}"
-        go mod edit -tool "${upstream_module}/${tool_path}"
-    } ) && printf "  ${GREEN}declared${RESET} tool %s/%s in construct/go.mod (require + replace + tool)\n" "$upstream_module" "$tool_path"
+    upstream_module=$(awk '/^module / {print $2; exit}' "$TARGET_DIR/go.mod")
+    ensure_go_directive_24 "$TARGET_DIR/go.mod"
+    ( cd "$TARGET_DIR" && go mod edit -tool "${upstream_module}/${tool_path}" ) \
+        && printf "  ${GREEN}declared${RESET} tool %s/%s in go.mod (self; tool only)\n" "$upstream_module" "$tool_path"
 }
 
 # Bump the go directive in <gomod> to at least 1.24 (needed for the
@@ -466,6 +438,11 @@ ensure_go_directive_24() {
         printf "  ${YELLOW}bumped${RESET}  go directive in %s to 1.24 (required for tool directive)\n" "$(basename "$(dirname "$gomod")")/go.mod"
     fi
 }
+
+# Lib-only seam (#60): a test can `SETUP_LIB_ONLY=1 source setup.sh` to get the
+# functions (e.g. ensure_go_tool_dependency) without running discovery/apply.
+# No-op in normal execution. Mirrors .openshell/sandbox.sh's SANDBOX_LIB_ONLY.
+[[ -n "${SETUP_LIB_ONLY:-}" ]] && return 0 2>/dev/null
 
 # ── Process manifest(s) ───────────────────────────────────────────────────────
 ANCESTORS=()
