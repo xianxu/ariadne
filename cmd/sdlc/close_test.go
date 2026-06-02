@@ -172,6 +172,19 @@ func TestInsertLogLine_DayHeaderDateMismatch_FallsBack(t *testing.T) {
 	}
 }
 
+// #66 (found by dogfooding): a meta-issue can quote `## Log` and `### <date>`
+// inside an earlier section (e.g. a fenced code block in ## Problem). The line
+// must land in the REAL (last) `## Log` section, not the quoted one.
+func TestInsertLogLine_IgnoresEarlierLogHeaderInProse(t *testing.T) {
+	body := "# t\n\n## Problem\n\n```\n## Log\n\n### 2026-05-25\n- example\n```\n\n## Log\n\n### 2026-05-25\n- real work\n"
+	got := insertLogLine(body, "- 2026-05-25: closed — done")
+	// The example block (between the fences) must be untouched.
+	want := "# t\n\n## Problem\n\n```\n## Log\n\n### 2026-05-25\n- example\n```\n\n## Log\n\n### 2026-05-25\n- 2026-05-25: closed — done\n- real work\n"
+	if got != want {
+		t.Errorf("line filed into the quoted Log, not the real one:\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
 func TestInsertLogLine_NoLogSection(t *testing.T) {
 	body := "# title\n\n## Plan\n\n- [x] M1 done\n"
 	got := insertLogLine(body, "- 2026-05-25: closed — done")

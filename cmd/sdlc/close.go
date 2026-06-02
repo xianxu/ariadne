@@ -184,37 +184,50 @@ var logLineDateRE = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2}):`)
 //     "## Log\n\n\n<log>\n- existing\n"; surprising, but it's what the source does).
 //
 // If `## Log` is absent, we append a new section at the bottom of body.
+//
+// Anchor: the **last** `## Log` header, not the first. The real Log section is
+// conventionally the final `##` section, and a meta-issue (like #66 itself) can
+// quote `## Log` / `### <date>` inside a fenced code block in an earlier
+// section — first-match would then file the line into that prose. (Found by
+// dogfooding: closing #66 with the first-match version filed the close line
+// into its own Problem-section example.) All offsets below are taken relative
+// to that last header so both the day-header and fallback inserts target the
+// real section.
 func insertLogLine(body, logLine string) string {
 	logHeaderRE := regexp.MustCompile(`(?m)^## Log\s*$`)
-	logLoc := logHeaderRE.FindStringIndex(body)
-	if logLoc == nil {
+	all := logHeaderRE.FindAllStringIndex(body, -1)
+	if all == nil {
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"
 	}
-	// Prefer the matching `### <date>` day header, searched only *after* the
-	// `## Log` header so a `### <date>` belonging to another section (e.g.
-	// ## Revisions) can't capture the line. The header match is intentionally
-	// strict — `[ \t]*$`, a bare `### YYYY-MM-DD` line (what the issue template
-	// seeds) — so it never eats the trailing newline/blank lines the way `\s*$`
-	// would; don't loosen it to `.*$` or that bug returns.
+	logStart := all[len(all)-1][0] // start of the LAST `## Log` header
+	section := body[logStart:]     // the real Log section + anything after it
+
+	// Prefer the matching `### <date>` day header within the real Log section.
+	// The header match is intentionally strict — `[ \t]*$`, a bare
+	// `### YYYY-MM-DD` line (what the issue template seeds) — so it never eats
+	// the trailing newline/blank lines the way `\s*$` would; don't loosen it to
+	// `.*$` or that bug returns.
 	if m := logLineDateRE.FindStringSubmatch(logLine); m != nil {
 		dayRE := regexp.MustCompile(`(?m)^### ` + regexp.QuoteMeta(m[1]) + `[ \t]*$`)
-		if d := dayRE.FindStringIndex(body[logLoc[0]:]); d != nil {
-			pos := logLoc[0] + d[1] // end of the day-header line text (before its newline)
+		if d := dayRE.FindStringIndex(section); d != nil {
+			pos := logStart + d[1] // end of the day-header line text (before its newline)
 			return body[:pos] + "\n" + logLine + body[pos:]
 		}
 	}
-	// Fallback: top of the `## Log` section (original behavior, byte-for-byte).
+	// Fallback: top of the real `## Log` section. Same shape as close-issue.py's
+	// regex, but run on `section` so it anchors to the last header; for the
+	// common single-`## Log` body this is byte-for-byte identical to the original.
 	insertRE := regexp.MustCompile(`(?m)(^## Log\s*\n)(\s*\n)?`)
-	loc := insertRE.FindStringSubmatchIndex(body)
+	loc := insertRE.FindStringSubmatchIndex(section)
 	if loc == nil {
 		// Header matched logHeaderRE but not insertRE — shouldn't happen
 		// in practice (the patterns are equivalent up to trailing content),
 		// but fall through to append-mode rather than panic.
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"
 	}
-	// loc[0..1] = full match; loc[2..3] = group 1
-	group1 := body[loc[2]:loc[3]]
-	return body[:loc[0]] + group1 + "\n" + logLine + "\n" + body[loc[1]:]
+	// loc[*] are relative to `section`; offset by logStart. group1 = loc[2..3].
+	group1 := section[loc[2]:loc[3]]
+	return body[:logStart+loc[0]] + group1 + "\n" + logLine + "\n" + body[logStart+loc[1]:]
 }
 
 // ── main entry point ─────────────────────────────────────────────────────────

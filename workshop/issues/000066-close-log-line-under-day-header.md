@@ -80,5 +80,18 @@ No behavior change when there's no matching day header — the three existing
   pass **unchanged** (fallback path identical). `go test ./cmd/sdlc/...` + `go
   vet` green.
 - Note: `sdlc` is a shell function that rebuilds `bin/sdlc` from `cmd/sdlc` each
-  call, so closing this issue runs the fixed code — a live dogfood (this close
-  line should land under the `### 2026-06-02` header above).
+  call, so closing this issue runs the fixed code — a live dogfood.
+- **Dogfood caught a deeper pre-existing bug.** The first close attempt filed the
+  verification line into this issue's OWN `## Problem` code-block example, not the
+  real `## Log` section — because `insertLogLine` matched the **first** `## Log` /
+  `### <date>` in the body, and this meta-issue literally quotes both inside a
+  fenced block. Both the old and new code shared this "first-match-wins, even in
+  prose" weakness; #66's self-referential body just exposed it.
+  - **Fix (folded in, same function/concern):** anchor on the **last** `## Log`
+    header (the real Log section is conventionally the final `##` section); take
+    all offsets relative to it so both the day-header and fallback inserts target
+    the real section. Single-`## Log` bodies are unchanged (last == first).
+  - Added `TestInsertLogLine_IgnoresEarlierLogHeaderInProse` (quoted `## Log` in
+    an earlier fenced block left untouched; line lands in the real section).
+  - Restored the misfiled issue file to its pre-close commit and re-closed with
+    the hardened binary (clean dogfood).
