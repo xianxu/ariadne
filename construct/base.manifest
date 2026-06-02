@@ -105,6 +105,10 @@ symlink   construct/scripts/lib-deps.sh
 # fallback preserving today's `../ariadne/construct/setup.sh` invocation.
 # See workshop/issues/000032 spec.
 symlink   construct/setup.sh
+# Dev-binary alias generator (#57) + the owner-resolver `sdlc-build` uses to
+# build-in-owner (#60). Symlinked so derivatives can resolve sdlc's owner by
+# location (`--list`) without a construct/go.mod replace.
+symlink   construct/dev-aliases.sh
 symlink   construct/local
 symlink   construct/adapted
 symlink   construct/config.json

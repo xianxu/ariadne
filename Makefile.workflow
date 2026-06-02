@@ -644,18 +644,23 @@ tools: sdlc-build build
 
 sdlc-build:
 	@mkdir -p bin
-	@echo "==> building bin/sdlc"
-	@# Build via Go package path. In derivatives with construct/go.mod
-	@# (per ariadne#37 + #38: substrate-tool deps separated from app
-	@# deps; resolved via replace => ../../ariadne to sibling checkout),
-	@# build inside construct/ so Go resolves through the sibling-
-	@# referenced module. In ariadne (the source itself) and other repos
-	@# without construct/go.mod, build at the root.
-	@if [ -f construct/go.mod ]; then \
-	    cd construct && go build -o ../bin/sdlc github.com/xianxu/ariadne/cmd/sdlc; \
-	else \
-	    go build -o bin/sdlc github.com/xianxu/ariadne/cmd/sdlc; \
-	fi
+	@echo "==> building bin/sdlc (build-in-owner)"
+	@# Build-in-owner (#60): sdlc's source lives ONLY in its owner (ariadne).
+	@# Resolve the owner by LOCATION via dev-aliases.sh --list — immune to whether
+	@# ariadne is a direct or transitive ancestor, and needs no go.mod replace —
+	@# then build into THIS repo's bin/ using the owner's own module. Replaces the
+	@# old `cd construct && go build … through construct/go.mod`. Under `make
+	@# bootstrap`, `bootstrap-peers` (clones ancestors) and `refresh` (materializes
+	@# the construct/dev-aliases.sh symlink) both precede `tools`, so the resolver
+	@# and the owner are present by the time this runs.
+	@repo_root="$$(pwd)"; \
+	owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="sdlc"{print $$2}')"; \
+	if [ -z "$$owner" ]; then \
+	    echo "Error: sdlc owner not found beside this repo." >&2; \
+	    echo "  Run 'make bootstrap-peers' (clone ancestors) + 'make refresh' first." >&2; \
+	    exit 1; \
+	fi; \
+	( cd "$$owner" && go build -o "$$repo_root/bin/sdlc" ./cmd/sdlc )
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
