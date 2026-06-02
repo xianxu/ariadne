@@ -123,7 +123,7 @@ propagation-gated rollout. Estimate (5h) covers the foundation only.
 - [x] M1 — `construct/deps` positional format + shared `lib-deps.sh` parser +
       dual-read in all 5 walkers (additive; no-op until data exists). Tests:
       construct/deps cases added to the 3 fixtures + drift test, go.mod cases kept.
-- [ ] M2 — build-in-owner `sdlc-build` (resolve owner via `dev-aliases.sh
+- [x] M2 — build-in-owner `sdlc-build` (resolve owner via `dev-aliases.sh
       --list`); add `dev-aliases.sh` to base.manifest. Orthogonal to M1.
 
 Deferred (separate sessions, propagation-gated): **M3** writer flips to
@@ -133,6 +133,8 @@ dual-read fallback; **M5** retire legacy `data-deps`. See plan file for gates.
 ## Log
 
 
+
+- 2026-06-01: closed M2 — dev-aliases test 22 green incl. the production default-workspace+derivative-symlink resolver path; real `make sdlc-build` in ariadne builds a runnable bin/sdlc in-owner. ACTUAL estimated (--force): v3 attributes the full 0.8h foundation to M1 — M1+M2 ran continuous same-session, 0 events in the M2-only window; 0.3h is the marginal estimate
 - 2026-06-01: closed M1 — dual-read additive + inert: 42 assertions green incl. deps-only transitive clone, deps-only ancestor discovery, and retained go.mod regression cases; real pair+ariadne list-peers/discover unchanged via legacy path; no construct/deps exists yet so behavior byte-identical
 ### 2026-06-01
 
