@@ -1,11 +1,12 @@
 ---
 id: 000059
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-01
 updated: 2026-06-01
 estimate_hours: 1
+actual_hours: 0.5
 ---
 
 # tart vm-hooks.d run-parts convention
@@ -69,18 +70,34 @@ by the time hooks run.
 
 ## Plan
 
-- [ ] M1: add the run-parts loop to `.tart/scripts/tart-vm-setup.sh` after the
+- [x] M1: add the run-parts loop to `.tart/scripts/tart-vm-setup.sh` after the
   workspace-symlink step; comment block documenting the convention.
-- [ ] M1: document in `.tart/Makefile` header + `help-tart`, and add an
+- [x] M1: document in `.tart/Makefile` header + `help-tart`, and add an
   `atlas/` pointer (workflow/base-layer or a tart entry).
-- [ ] M1: verify with a throwaway hook on a real `make tart` (boot transcript
+- [x] M1: verify with a throwaway hook on a real `make tart` (boot transcript
   shows `==> vm-hook: 00-…` + its output). Remove the throwaway after.
 
 ## Log
 
+
+- 2026-06-01: closed — e2e: throwaway hook printed "hello world" in make tart boot transcript; loop re-verified under /bin/bash 3.2 (00→05→10→15 order, spaced-name runs as one, fail→warn+continue, empty=no-op) after §3 review fixed ls-in-$() word-split bug (e0f7a47)
 ### 2026-06-01
 
 Created as the base-layer dependency of nous#36 (headless brain testing). The
 hook mechanism is generic; nous#36 supplies the first consumer
 (`00-gpg-setup.sh` making the VM GPG-unattended). Single milestone — this is
 atomic base-layer plumbing, not multi-stage work.
+
+M1 implemented in 5d99f60 (loop + `.tart/Makefile`/`help-tart` docs + atlas
+pointer). **E2e verified** (operator): throwaway `.tart/vm-hooks.d/00-test.sh`
+echoing "hello world" fired in the boot transcript on a real `make tart`;
+throwaway removed after.
+
+**Post-milestone review (§3)** of 5d99f60 (fresh-eyes subagent) found 1
+Important bug: the loop used `ls` inside `$()`, word-splitting any hook filename
+with a space (spaced hook → two bogus rc=127 tokens, real hook silently never
+runs). set -e / continue-on-error / no-op / ordering / quoting all verified
+correct. Fixed in e0f7a47 (NUL-delimited glob via process substitution;
+`nullglob`; LC_ALL=C pinned in-subshell). Re-verified under /bin/bash 3.2.57:
+order 00→05→10→15, spaced hook runs as one unit, failing hook warns+continues,
+empty dir is a clean no-op. No Critical.

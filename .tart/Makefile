@@ -20,6 +20,13 @@
 #   make tart-clean  stop + delete $(TART_VM) + remove its clone
 #                    (base image stays cached)
 #
+# Per-repo VM hooks: after standard setup, `tart-vm-setup.sh` runs the
+# booted repo's `.tart/vm-hooks.d/*.sh` in lexical (LC_ALL=C) order —
+# zero-pad with NN- prefixes (00-, 10-) to sequence. Hooks run on every
+# cold-boot (so must be idempotent); a failing hook warns + continues.
+# No dir → no-op. Lets a consumer customize its VM without patching this
+# base layer (ariadne#59).
+#
 # Mount is on by default in every boot target. The mount serves only as
 # the rsync source — `tart-vm-setup.sh` mirrors it into ~/repo on every
 # boot via rsync --delete, so the VM's ~/repo is a byte-for-byte copy
@@ -130,6 +137,9 @@ help-tart:
 	"" \
 	"  Parallel VMs per repo: 'make tart TART_SUFFIX=emma' → $(REPO_NAME)-emma" \
 	"  (each VM gets its own workspace clone at ~/.tart/clones/$(REPO_NAME)-emma-clone)." \
+	"" \
+	"  Per-repo VM hooks: drop idempotent *.sh in <repo>/.tart/vm-hooks.d/;" \
+	"  they run (lexical NN- order) after setup on every boot. No dir → no-op." \
 	""
 
 # Interactive multi-select to stop OTHER running tart VMs (4-8 GB
