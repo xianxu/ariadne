@@ -35,8 +35,8 @@
   3. **Fresh-eyes review** — code/plan/spec review; always subagent (main session carries confirmation bias).
 - Main session when the task rides on tacit, session-warm context — files/decisions you just built, iterative debugging, specs the user is still refining.
 - Multi-milestone plans: judge per task (1–3 → subagent, warm-context → main). 
-- **Post-milestone review is MANDATORY:** `superpowers-requesting-code-review` with `BASE_SHA` = prev milestone close, `HEAD_SHA` = HEAD. Fix Critical/Important before the next milestone; log the outcome in `## Log`.
-- Don't over-split atomic work as M1/M2/M3 — each milestone commits to a `sdlc milestone-close` review boundary (Review-Verdict trailer). Single-pass work → one milestone, not three.
+- **A fresh-eyes review is MANDATORY at every review boundary:** `superpowers-requesting-code-review` with `BASE_SHA` = the prev boundary (prev milestone close, or the branch point for un-tagged single-pass work), `HEAD_SHA` = HEAD. Fix Critical/Important before crossing the boundary; log the outcome in `## Log`.
+- An `Mx` tag in `## Plan` is a **review boundary, not a task label** — each `- [ ] Mx — …` row commits to its own `sdlc milestone-close` (a `Review-Verdict:` trailer + a `closed Mx` log line). So **single-pass atomic work → plain checkboxes, no `Mx` tag**: it closes in one `sdlc close` (one boundary, one log line; the mandatory review runs at that close). Tag `Mx` only for work with ≥2 boundaries you'll genuinely close separately — tagging a one-shot task `M1` forces a redundant milestone-close + issue-close double-log. Don't over-split atomic work as M1/M2/M3.
 
 ### 4. Self-Improvement Loop
 - Review `workshop/lessons.md` at session start.
