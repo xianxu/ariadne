@@ -206,3 +206,9 @@ commit → push): parley.nvim, pair, you-decide, nous (all pushed); brain
 born-native; charon removed; brain.legacy* skipped. Then dropped the dual-read
 fallback in ariadne's 4 walkers. Review SOUND — all invariants verified
 (root-go.mod app-dep path preserved; depth-≥2 chains; bootstrap-peers scoping).
+
+**M5** — retired the legacy `construct/data-deps` reader; data deps are `data`
+rows in `construct/deps`. Review caught (Critical) that brain had a live
+`you-decide` mount in `construct/data-deps` my fleet check missed (BSD-grep `\s`
+false-negative) — folded it into `brain/construct/deps`, verified the mount
+resolves. Lesson captured.
