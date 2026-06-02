@@ -1,11 +1,12 @@
 ---
 id: 000061
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-01
 updated: 2026-06-01
 estimate_hours: 1
+actual_hours: 0.5
 ---
 
 # ariadne bootstrap must provision its own go toolchain (sdlc build dependency)
@@ -55,9 +56,23 @@ hits the fail-fast-with-instructions path; an apt branch is deferred until neede
 
 ## Plan
 
-- [ ] M1 — add `ensure-go` to Makefile.workflow; wire into `bootstrap` (first)
-      + `sdlc-build`; unit-test the conditional (present/absent±brew); atlas note.
+- [x] M1 — add `ensure-go` to Makefile.workflow; wire into `bootstrap` (first)
+      + `sdlc-build` + `build`; unit-test the conditional (present/absent±brew);
+      atlas note. Soften sdlc-install.sh's early go-die to defer to ensure-go.
 
 ## Log
 
+
+- 2026-06-01: closed — ensure-go.test.sh 3/3 (real recipe, stubbed PATH: no-op when present, brew-install when absent+brew, fail-fast otherwise); `make ensure-go`/`build`/`sdlc-build` work; review SOUND, the -j build-gate race fixed. ACTUAL estimated (--force): v3 has 0 events in the #61 window (recent same-session work not yet in transcript)
 ### 2026-06-01
+
+`ensure-go` added (Makefile.workflow): no-op when go present, `brew install go`
+on macOS when absent, fail-fast with go.dev/dl otherwise. Wired as first
+`bootstrap` prereq + prereq of BOTH go-build targets (`sdlc-build`, `build`) —
+the latter (review finding) closes a `make -j` race where `build`'s go-build
+could run before the toolchain install. sdlc-install.sh's early go-die softened.
+
+ensure-go.test.sh runs the real recipe under stubbed PATH across all 3 branches
+(3/3); full suite green; real `make ensure-go` no-ops, `make build`/`sdlc-build`
+build. **Review SOUND** (1 Important — the -j `build` gate — fixed; rest
+verified incl. nous derivative composition + sdlc-install softening safety).
