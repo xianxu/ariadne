@@ -186,9 +186,12 @@ in the shared **`construct/scripts/lib-deps.sh`** (`deps_substrate_targets`,
 inline `walk_deps` mirror (same zero-substrate constraint), locked by the drift
 test. **Dual-read (foundation, M1):** every walker now reads `construct/go.mod`
 *and* `construct/deps` (and root `go.mod` for real Go app-deps); a peer in more
-than one carrier is deduped. No derivative declares `construct/deps` yet, so this
-is inert until the M3 writer flip. Deferred: M3 (writer → deps), M4 (delete
-`construct/go.mod` ×13 + drop the dual-read fallback), M5 (retire `data-deps`).
+than one carrier is deduped. **Writer flip (M3, done):** setup.sh's `tool`
+action now writes a `substrate <rel>` row into a derivative's `construct/deps`
+instead of stubbing `construct/go.mod` (see "Who writes the substrate
+declaration" below); existing stub modules are left untouched and dual-read keeps
+them valid. Deferred: M4 (delete `construct/go.mod` ×13 + drop the dual-read
+fallback), M5 (retire `data-deps`).
 
 ### Refresh vs bootstrap
 

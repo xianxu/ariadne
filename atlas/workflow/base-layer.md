@@ -64,7 +64,8 @@ get clobbered on the next `make refresh`.
 
 **A Go binary is owned by the repo whose `cmd/X` source physically lives there.**
 Derivatives never copy or symlink the source; they run the built binary or
-compile in the owner (`replace` + `tool` in their `construct/go.mod`). Source
+compile in the owner (build-in-owner since #60 — `make sdlc-build` resolves the
+owner and builds its `cmd/X`, no per-derivative `construct/go.mod`). Source
 distributed through the file-symlink *substrate* channel (the old `symlink
 cmd/X` directive) is the deprecated anti-pattern — code flows through Go
 modules, not the symlink channel reserved for docs/config (#56, #57).
