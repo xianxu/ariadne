@@ -10,10 +10,14 @@
 #   scaffold  — create empty directory structure in target repo
 #   merge     — JSON merge (settings.<layer>.json layered under settings.local.json)
 #   touch     — create empty file if missing (no source needed)
-#   tool      — wire upstream's Go cmd as a tool dep in target's go.mod
-#               (idempotently runs `go mod edit` to add require + replace
-#               + tool directives; source path is relative to upstream
-#               module, e.g. `tool cmd/sdlc`)
+#   tool      — declare the tool's OWNER as a substrate dependency. In a
+#               derivative: idempotently writes a `substrate <rel>` row into
+#               construct/deps (#60). In the owner itself (self-walk): adds a
+#               `go mod edit -tool` directive to its root go.mod so `go tool
+#               <name>` works locally. Source path is relative to the owner
+#               module, e.g. `tool cmd/sdlc`. (Pre-#60 it stubbed a
+#               <name>-construct go.mod with require+replace+tool; build-in-owner
+#               (#60 M2) + construct/deps (#60 M1) retired that.)
 #   seed      — content-tracking real-file copy into the target (NOT a symlink),
 #               mode-preserving. For first-run entrypoints (bootstrap.sh) that
 #               must work before any substrate is present, so they can't be
@@ -145,13 +149,13 @@ symlink   .tart/scripts
 # ── Documentation ─────────────────────────────────────────────────────────────
 symlink   atlas/workflow
 
-# ── Go tool dependencies ──────────────────────────────────────────────────────
-# Declares ariadne's cmd/sdlc as a tool the consumer's go.mod should depend on.
-# setup.sh runs `go mod edit` against the target's go.mod to add (idempotently):
-#   require github.com/xianxu/ariadne v0.0.0-00010101000000-000000000000
-#   replace github.com/xianxu/ariadne => <relative-path-to-ariadne>
-#   tool    github.com/xianxu/ariadne/cmd/sdlc
-# Subsequent `go mod vendor` (in vendor mode) populates vendor/ with the
-# tool's source so the consumer can `make sdlc-build` without ariadne
-# checked out next door.
+# ── Substrate dependency on the tool's owner ──────────────────────────────────
+# Declares ariadne (owner of cmd/sdlc) as this consumer's substrate ancestor.
+# In a derivative, setup.sh idempotently appends to construct/deps (#60):
+#   substrate ../ariadne
+# The peer-graph walkers read that; `make sdlc-build` resolves + builds the tool
+# in its owner (build-in-owner, #60 M2) — no per-derivative go.mod needed. In
+# ariadne itself (self-walk) this instead adds a `go tool` directive to ariadne's
+# root go.mod. (Pre-#60: stubbed a <name>-construct go.mod with require+replace
+# +tool, vendored for offline build — retired by #60 M1+M2.)
 tool      cmd/sdlc
