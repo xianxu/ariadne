@@ -128,16 +128,20 @@ foundation; rollout adds incrementally.
 - [x] M3 — flip setup.sh `tool`-action writer to append `substrate` rows to
       `construct/deps` instead of stubbing `construct/go.mod`; SETUP_LIB_ONLY
       seam + setup-writer.test.sh. construct/go.mod left in place (dual-read).
-- [ ] M4 — propagate (refresh + commit each derivative's `construct/deps` +
-      re-seeded `bootstrap.sh`), then delete `construct/go.mod` ×13, then drop
-      the dual-read fallback from all walkers. **Destructive / cross-repo.**
-- [ ] M5 — fold remaining `construct/data-deps` rows into `construct/deps`;
-      retire the legacy 2-col reader.
+- [x] M4 — migrated every derivative (parley.nvim, pair, you-decide, nous, brain,
+      brain-private; brain-family born-native; charon removed; legacy skipped):
+      `make refresh` → A/B verify → delete `construct/go.mod` → commit/push. Then
+      dropped the dual-read fallback from all 4 walkers (read `construct/deps` +
+      root `go.mod` only). Test fixtures migrated to `construct/deps`; root-go.mod
+      app-dep regression case kept.
+- [x] M5 — retired the legacy `construct/data-deps` reader in clone-data-deps.sh;
+      folded brain's `you-decide` mount into `brain/construct/deps` as a `data`
+      row (the one live consumer — caught by review; my fleet check had a BSD-grep
+      `\s` false-negative, see lessons.md).
 
-Gates (see plan file): M3 is safe to land in ariadne (writer + readers are
-symlinked → propagate together; construct/go.mod stays). M4's deletion + fallback
-drop require every derivative's `construct/deps` + committed dual-read
-`bootstrap.sh` to be in place first.
+Done: `construct/go.mod` is unused across the fleet; substrate lives in
+`construct/deps` (read by the walkers) + real Go app-deps in root `go.mod`;
+`sdlc-build` builds in-owner; data deps are `data` rows in `construct/deps`.
 
 ## Log
 
@@ -192,3 +196,13 @@ Issue opened from a design conversation. Investigation findings:
   substrate-ignored). Existing cases all retained (dual-read regression). Real
   sanity: ariadne + pair discover/list-peers unchanged via legacy path. Atlas
   `setup-and-replication.md` updated with the `construct/deps` carrier section.
+
+### 2026-06-02 (M4 + M5 — #60 close-out)
+
+**M4** — per-repo migration to `construct/deps` (recipe: gate branch/clean →
+`make refresh` → A/B verify go.mod-deletion is behavior-identical → explicit
+commit → push): parley.nvim, pair, you-decide, nous (all pushed); brain
+(gcrypt, autosynced), brain-private (local-only); brain-family constructed
+born-native; charon removed; brain.legacy* skipped. Then dropped the dual-read
+fallback in ariadne's 4 walkers. Review SOUND — all invariants verified
+(root-go.mod app-dep path preserved; depth-≥2 chains; bootstrap-peers scoping).
