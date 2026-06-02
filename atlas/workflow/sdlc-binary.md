@@ -114,6 +114,14 @@ leave the tree dirty and strand the subsequent merge. `merge` now also (a)
 re-asserts a clean tree immediately before the irreversible `gh pr merge`
 (refuse, don't strand), and (b) resumes an interrupted merge — a re-run detects
 an already-merged PR and finishes the local cleanup instead of erroring.
+Both behaviors have e2e regression coverage (#63, `merge_e2e_test.go`): a
+`tempRepo(t)` harness runs `runMerge` against a real throwaway repo + local bare
+origin (in-place topology), so switch/pull/archive/branch-delete execute for
+real. The unlock is a trio of `func`→`var` test seams — `die` (term.go,
+swapped for panic+recover via `expectDie`), `detectRepo` (fetch.go), and
+`runPreflightJudgesFn` (merge.go step 5, used to inject a tree-dirtying
+"judge"). `expectDie` is the reusable pattern for testing any `run*` verb's
+refusal path.
 
 **Judge → classifier contract.** Plan + Specs subagents must emit
 `VERDICT: CLEAN | INFO | FAILURE` as line 1 of their response; the
