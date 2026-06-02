@@ -83,11 +83,14 @@ func (c Category) NeedsAgent() bool {
 }
 
 // AllowedTools returns the tool allowlist for this category's agent
-// invocation. Most are read-only; `specs` may write documentation.
+// invocation. ALL judges are READ-ONLY reviewers (#62 M2): they report
+// findings; the main agent — which has full session context — applies the
+// fixes, commits, and re-runs. A gate that mutates the tree (the old Specs
+// auto-edit) could pass while leaving uncommitted changes, stranding the
+// subsequent merge; read-only removes that failure mode by construction.
+// (Bash stays for read-only inspection — grep, go vet — matching the other
+// review categories' long-standing posture.)
 func (c Category) AllowedTools() string {
-	if c == Specs {
-		return "Edit,Read,Write,Grep,Glob,Bash"
-	}
 	return "Read,Grep,Glob,Bash"
 }
 
@@ -236,27 +239,26 @@ Plan file (if separate):
 `, ref, in.IssueContent, planSection)
 
 	case Specs:
-		return fmt.Sprintf(`You are a documentation reviewer. Compare the code changes in the diff below against:
+		return fmt.Sprintf(`You are a READ-ONLY documentation reviewer. Compare the code changes in the diff below against:
 1. The spec files in atlas/
 2. README.md
 
-Those files do not meant to be comprehensive. Synthesize what we just built into reusable spec document. DO NOT over specify — atlas/ is a practical pointer for future developers and agents to know the sketch of functionalities, history and intention behind them. Details should live in the code.
+Those files are not meant to be comprehensive — atlas/ is a practical pointer for future developers and agents to the sketch of functionalities, history, and intention; details live in the code. Do NOT flag documentation that is fine, and do NOT ask for over-specification.
 
-Update any stale documentation. Incorrect information is bad. Only update documentation that is actually out of sync. Do not rewrite documentation that is fine.
+DO NOT EDIT ANY FILES. You are a gate, not a doer: report stale/incorrect docs precisely (file:line + what's out of sync + the fix needed) and let the main agent — which has full session context — apply them, commit, and re-run. (Editing here would let a passing gate leave the tree dirty and strand the merge — #62.)
 
 Produce a structured report. First line MUST be:
 
   VERDICT: CLEAN | INFO | FAILURE   (confidence: high | medium | low)
 
-  CLEAN   = atlas + README are in sync with the diff; no edits made
-            or needed.
-  INFO    = informational notes only; minor suggestions or already-
-            applied edits that don't block shipping.
-  FAILURE = stale documentation found that must be addressed before
-            shipping.
+  CLEAN   = atlas + README are in sync with the diff; nothing to change.
+  INFO    = only minor / optional suggestions; nothing stale that blocks.
+  FAILURE = stale or incorrect documentation that must be fixed before
+            shipping (the main agent fixes, commits, and re-runs).
 
 Then on subsequent lines: a 1-paragraph summary explaining the verdict,
-followed by a list of edits made (if any) and any remaining stale spots.
+followed by the list of stale spots (file:line + the concrete fix) so the
+main agent can apply them directly.
 
 Diff:
 %s

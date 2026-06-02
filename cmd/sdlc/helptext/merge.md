@@ -20,7 +20,9 @@ WHAT IT DOES
 
   1. Verifies the four refusal conditions above.
   2. Runs pre-merge judges: `sdlc judge plan`, `specs`, `lessons`.
-     Skip with `--no-judge`.
+     Skip with `--no-judge`. Judges are READ-ONLY reviewers (#62) — they
+     report findings (e.g. stale atlas docs); you apply the fix, commit,
+     and re-run. A judge never edits the tree.
   3. Resolves topology from `git rev-parse --git-dir`: in-place (primary
      checkout) vs worktree (git-dir under `.git/worktrees/`). For worktree,
      locates the main worktree via `git worktree list --porcelain`.
@@ -31,11 +33,20 @@ WHAT IT DOES
   6. INTERACTIVE CONFIRMATION (skippable with `--yes`):
        "Final confirmation: proceed with irreversible merge/cleanup
         actions? [y/N]"
+  6b. RE-ASSERTS the working tree is still clean immediately before the
+      irreversible merge (#62 M1). Step 1 checked it, but a pre-merge
+      judge/hook could have dirtied it since; refuses with an actionable
+      message ("review + commit, then re-run") rather than merging and
+      then stranding on the post-merge `git switch`.
   7. Finds the open PR for the branch via `gh pr list`.
        - if PR exists: `gh pr merge` (server-side). Then, in-place:
          `git switch main`; both: `git pull` so main has the result.
-       - if no PR: in-place aborts (run `sdlc pr` first); worktree, with
-         unmerged commits, prompts to create a PR or remove the worktree.
+       - if NO open PR but a MERGED PR exists: a prior run was interrupted
+         after the server-side merge; re-running RESUMES the local cleanup
+         (switch/pull/archive/branch-delete) idempotently (#62 M3) — no
+         hand-recovery needed.
+       - if no PR at all: in-place aborts (run `sdlc pr` first); worktree,
+         with unmerged commits, prompts to create a PR or remove the worktree.
   8. Archives done/wontfix/punt issue files into `workshop/history/`
      in the main checkout; commits + pushes on main if any moved. Unlike
      `sdlc push`, does NOT call `gh issue close` — the PR merge already

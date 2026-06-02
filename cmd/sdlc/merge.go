@@ -14,12 +14,16 @@
 //   2. no uncommitted changes
 //   3. upstream configured
 //   4. branch not ahead of upstream
-//   5. pre-merge judges (plan + specs + lessons, skippable with --no-judge)
+//   5. pre-merge judges (plan + specs + lessons, skippable with --no-judge) —
+//      read-only reviewers; they report, they do not edit the tree (#62 M2)
 //   6. resolve topology (in-place vs worktree)
 //   7. show unmerged commits (informational)
 //   8. not-done issue warn (vs main)
 //   9. interactive confirmation (skippable with --yes)
-//  10. gh pr merge (server-side) → in-place: switch main; both: pull main
+//   9b. re-assert clean tree before the irreversible merge — refuse if a judge/
+//       hook dirtied it since step 2 (#62 M1; never cross the boundary dirty)
+//  10. gh pr merge (server-side), OR resume an already-merged PR if a prior run
+//      was interrupted (#62 M3) → in-place: switch main; both: pull main
 //  11. archive done/wontfix/punt issues into history/ (in the main checkout)
 //  12. cleanup — in-place: branch delete; worktree: worktree remove + branch delete + .goto
 package main
@@ -96,6 +100,45 @@ func NewMergeCmd() *cobra.Command {
 }
 
 // runMerge dispatches the merge workflow.
+// worktreeDirty returns the trimmed `git status --porcelain` output ("" =
+// clean) via the runner, or an error if git status itself fails. Checked at the
+// start of merge AND — per #62 — re-checked immediately before the irreversible
+// `gh pr merge`: a pre-merge judge/hook can dirty the tree after the initial
+// check, and the post-merge `git switch main` then refuses, stranding the merge
+// (remote merged, local stuck). Re-asserting here converts that into a clean
+// pre-merge refusal.
+func worktreeDirty(r gitRunner) (string, error) {
+	out, err := r.Git("status", "--porcelain")
+	if err != nil {
+		return "", fmt.Errorf("git status: %v\n%s", err, out)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// mergeAction is what step 10 should do, given the PR state.
+type mergeAction int
+
+const (
+	actionMergeOpen mergeAction = iota // an open PR exists → merge it (irreversible)
+	actionResume                       // no open PR, but a merged one → resume cleanup (#62 M3)
+	actionNoPR                         // neither → create-PR / abandon path
+)
+
+// decideMergeAction picks the step-10 action from the open-PR number and whether
+// a merged PR already exists for the branch. Pure + testable; the irreversible
+// PRMerge stays in runMerge. Resume (merged-but-not-open) is how a re-run
+// recovers an interrupted merge (#62 M3).
+func decideMergeAction(openPRNumber string, mergedExists bool) mergeAction {
+	switch {
+	case openPRNumber != "":
+		return actionMergeOpen
+	case mergedExists:
+		return actionResume
+	default:
+		return actionNoPR
+	}
+}
+
 func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// ── 1. Refuse if main / empty branch ────────────────────────────────────
 	branch := gitx.Capture("branch", "--show-current")
@@ -105,11 +148,10 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	cinfo(stderr, fmt.Sprintf("Branch: %s", branch))
 
 	// ── 2. No uncommitted changes ───────────────────────────────────────────
-	dirtyOut, err := mergeRunner.Git("status", "--porcelain")
+	dirty, err := worktreeDirty(mergeRunner)
 	if err != nil {
-		die(stderr, fmt.Sprintf("git status: %v\n%s", err, dirtyOut))
+		die(stderr, err.Error())
 	}
-	dirty := strings.TrimSpace(string(dirtyOut))
 	if dirty != "" {
 		fmt.Fprintf(stderr, "  %s[x]%s Uncommitted changes found — cannot merge\n", ansiRed, ansiReset)
 		fmt.Fprintln(stderr, dirty)
@@ -241,16 +283,48 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		return nil
 	}
 
-	// ── 10. Find PR (or offer create / remove) ──────────────────────────────
+	// ── 9b. Re-assert clean tree before the irreversible merge (#62 M1) ──────
+	// The step-2 check ran before the pre-merge judges; a judge/hook may have
+	// dirtied the tree since. Refuse here rather than merge-then-strand: a dirty
+	// tree breaks both `gh pr merge`'s downstream `git switch main` and the
+	// resume cleanup. (With read-only judges (#62 M2) the tree stays clean; this
+	// is the defense-in-depth that makes the irreversible boundary safe.)
+	if redirty, derr := worktreeDirty(mergeRunner); derr != nil {
+		die(stderr, derr.Error())
+	} else if redirty != "" {
+		fmt.Fprintf(stderr, "  %s[x]%s Working tree dirtied after the initial check (likely a pre-merge judge/hook):\n", ansiRed, ansiReset)
+		fmt.Fprintln(stderr, redirty)
+		die(stderr, "review + commit (or discard) these changes, then re-run `sdlc merge` — refusing before the irreversible merge")
+	}
+
+	// ── 10. Find PR → merge, or resume an already-merged one (#62 M3) ────────
 	prNumber, _ := ghClient.PRListForBranch(repo, branch)
-	if prNumber != "" {
+	mergedExists := false
+	if prNumber == "" {
+		mergedExists, _ = ghClient.PRMergedForBranch(repo, branch)
+	}
+	merged := false
+	switch decideMergeAction(prNumber, mergedExists) {
+	case actionMergeOpen:
 		cok(stderr, fmt.Sprintf("Open PR found: #%s", prNumber))
 		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))
 		if err := ghClient.PRMerge(repo, branch); err != nil {
 			die(stderr, err.Error())
 		}
-		// In-place: the merge happened server-side, but this checkout is still
-		// on the feature branch — switch it to main before pulling the result.
+		merged = true
+	case actionResume:
+		// Interrupted prior run: the PR merged server-side (irreversible) but the
+		// local cleanup never finished. Resume it idempotently instead of erroring
+		// on "no open PR" — re-running `sdlc merge` just completes the cleanup (#62 M3).
+		cwarn(stderr, fmt.Sprintf("No open PR, but a MERGED PR exists for %s — resuming post-merge cleanup", branch))
+		merged = true
+	}
+
+	if merged {
+		// Post-merge local steps — run for both a fresh merge and a resume, and
+		// idempotent either way. In-place: the merge is server-side, so switch
+		// this checkout back to main (a no-op if a prior run already did) before
+		// pulling the merged result.
 		if inPlace {
 			cinfo(stderr, "Switching to main...")
 			if out, gerr := mergeRunner.Git("switch", "main"); gerr != nil {
@@ -262,9 +336,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			die(stderr, fmt.Sprintf("git -C %s pull: %v\n%s", mainPath, gerr, out))
 		}
 	} else {
-		cwarn(stderr, fmt.Sprintf("No open PR for branch %s", branch))
+		cwarn(stderr, fmt.Sprintf("No open or merged PR for branch %s", branch))
 		if inPlace {
-			die(stderr, "no open PR for this branch — run `sdlc pr` first, then re-run `sdlc merge` (or `git switch main` to abandon the branch)")
+			die(stderr, "no PR for this branch — run `sdlc pr` first, then re-run `sdlc merge` (or `git switch main` to abandon the branch)")
 		}
 		if unmerged != "" {
 			ans := mergePrompter.Ask("Would you like to create a pull request first? [Y/n] ", stderr)

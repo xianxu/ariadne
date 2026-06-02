@@ -26,11 +26,17 @@ func TestIsValid(t *testing.T) {
 }
 
 func TestCategoryAllowedTools(t *testing.T) {
-	if Specs.AllowedTools() != "Edit,Read,Write,Grep,Glob,Bash" {
-		t.Errorf("Specs.AllowedTools() = %q", Specs.AllowedTools())
-	}
-	if DRY.AllowedTools() != "Read,Grep,Glob,Bash" {
-		t.Errorf("DRY.AllowedTools() = %q", DRY.AllowedTools())
+	// #62 M2: ALL judges are read-only reviewers — none get Edit/Write, incl.
+	// Specs (which used to auto-edit docs and could strand a merge with a dirty
+	// tree). They report; the main agent applies fixes.
+	for _, c := range AllCategories() {
+		got := c.AllowedTools()
+		if got != "Read,Grep,Glob,Bash" {
+			t.Errorf("%s.AllowedTools() = %q, want read-only Read,Grep,Glob,Bash", c, got)
+		}
+		if strings.Contains(got, "Edit") || strings.Contains(got, "Write") {
+			t.Errorf("%s.AllowedTools() contains a write tool: %q", c, got)
+		}
 	}
 }
 

@@ -106,6 +106,15 @@ flight so the checks run consistently rather than as a remembered
 manual step. `milestone-close` auto-dispatches `judge milestone-review`
 as a post-action.
 
+**Judges are read-only (#62).** A judge is a reviewer, not a doer — all
+categories run with a read-only tool allowlist (`Read,Grep,Glob,Bash`); they
+report findings and the main agent (full context) applies fixes. The `specs`
+judge used to auto-edit stale docs (`Edit,Write`), which let a *passing* gate
+leave the tree dirty and strand the subsequent merge. `merge` now also (a)
+re-asserts a clean tree immediately before the irreversible `gh pr merge`
+(refuse, don't strand), and (b) resumes an interrupted merge — a re-run detects
+an already-merged PR and finishes the local cleanup instead of erroring.
+
 **Judge → classifier contract.** Plan + Specs subagents must emit
 `VERDICT: CLEAN | INFO | FAILURE` as line 1 of their response; the
 classifier keys off that. (MilestoneReview uses the parallel
