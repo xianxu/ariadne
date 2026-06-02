@@ -65,6 +65,29 @@ list_out="$(bash "$GEN" --workspace "$WS" --list 2>/dev/null)"
 assert_contains "$(printf 'gmail\t%s/nous' "$WS")" "$list_out" "--list maps gmail → nous"
 assert_not_contains "() {" "$list_out" "--list emits no function defs"
 
+# ── build-in-owner resolver (#60): the exact extraction `sdlc-build` relies on ─
+# sdlc's owner must resolve to ariadne by LOCATION regardless of the caller (a
+# derivative is a transitive consumer; --list scans workspace siblings, so depth
+# is irrelevant). This is the contract Makefile.workflow:sdlc-build builds on.
+assert_contains "$(printf 'sdlc\t%s/ariadne' "$WS")" "$list_out" "--list maps sdlc → ariadne (owner)"
+owner="$(printf '%s\n' "$list_out" | awk -F'\t' '$1=="sdlc"{print $2}')"
+[ "$owner" = "$WS/ariadne" ] && ok "sdlc-build owner-resolution: awk extracts the owner path" || ko "owner-resolution: got [$owner]"
+
+# The PRODUCTION path sdlc-build actually takes: invoked with NO --workspace,
+# as a relative symlink, FROM a derivative. The default workspace must resolve
+# from BASH_SOURCE so sdlc still maps to ariadne (this is the path #60 M4 makes
+# load-bearing once construct/go.mod's build branch is gone).
+cp "$GEN" "$WS/ariadne/construct/dev-aliases.sh"
+mkdir -p "$WS/deriv/construct"
+( cd "$WS/deriv/construct" && ln -s ../../ariadne/construct/dev-aliases.sh dev-aliases.sh )
+def_out="$( cd "$WS/deriv" && bash construct/dev-aliases.sh --list 2>/dev/null )"
+def_owner="$(printf '%s\n' "$def_out" | awk -F'\t' '$1=="sdlc"{print $2}')"
+# Default workspace is derived via `pwd -P` (physical), so compare against the
+# physical $WS (macOS /tmp → /private/tmp); same inode, different spelling.
+WS_P="$(cd "$WS" && pwd -P)"
+[ "$def_owner" = "$WS_P/ariadne" ] && ok "default-workspace via derivative symlink: sdlc → ariadne" || ko "default-workspace symlink: got [$def_owner] want [$WS_P/ariadne]"
+rm -rf "$WS/deriv" "$WS/ariadne/construct/dev-aliases.sh"
+
 # ── duplicate detection + --strict ───────────────────────────────────────────
 # two ACTIVE repos both owning a real cmd/dupe → collision
 mkdir -p "$WS/repoa/construct" "$WS/repob/construct"

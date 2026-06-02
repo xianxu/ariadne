@@ -42,6 +42,12 @@
 # pre-Go-modules single-repo behavior.
 set -euo pipefail
 
+# Shared construct/deps parser (#60). This script is symlinked into derivatives,
+# so resolve through the symlink to source the real sibling lib-deps.sh.
+_DEPS_LIB_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}")")" && pwd)"
+# shellcheck source=/dev/null
+. "$_DEPS_LIB_DIR/lib-deps.sh"
+
 repo="$(cd "${1:-.}" && pwd -P)"
 shift || true   # remaining args ($@) are extra-repo seeds
 
@@ -102,6 +108,12 @@ while [[ ${#queue[@]} -gt 0 ]]; do
     # never enqueued, only its replace targets.
     _enqueue_replaces "$current"
     _enqueue_replaces "$current/construct"
+
+    # Substrate may also be declared in construct/deps (#60, dual-read). Same
+    # present-peers semantics: enqueue only targets that exist on disk.
+    while IFS= read -r dep_abs; do
+        [[ -n "$dep_abs" && -d "$dep_abs" ]] && queue+=("$dep_abs")
+    done < <(deps_substrate_targets "$current")
 done
 
 printf '%s\n' "${peers[@]}"

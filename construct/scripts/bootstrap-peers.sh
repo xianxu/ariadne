@@ -43,10 +43,17 @@ export ARIADNE_BOOTSTRAP_VISITED="${VISITED:+$VISITED,}$TARGET_DIR"
 export ARIADNE_BOOTSTRAP_DEPTH=$((DEPTH + 1))
 
 CONSTRUCT_GOMOD="$TARGET_DIR/construct/go.mod"
-if [[ ! -f "$CONSTRUCT_GOMOD" ]]; then
-    # No construct/go.mod = no substrate peers to bootstrap.
+CONSTRUCT_DEPS="$TARGET_DIR/construct/deps"
+if [[ ! -f "$CONSTRUCT_GOMOD" && ! -f "$CONSTRUCT_DEPS" ]]; then
+    # Neither substrate source present = no peers to bootstrap. (#60: this guard
+    # must accept EITHER carrier — a deps-only derivative has no construct/go.mod.)
     exit 0
 fi
+
+# Shared construct/deps parser (#60). Resolve through the symlink to ariadne's real one.
+_DEPS_LIB_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}")")" && pwd)"
+# shellcheck source=/dev/null
+. "$_DEPS_LIB_DIR/lib-deps.sh"
 
 # Derive URL convention for cloning missing peers.
 THIS_REPO=$(basename "$TARGET_DIR")
@@ -78,55 +85,67 @@ update_peer() {
         || printf "    warn: pull of %s failed (diverged or offline) — leaving as-is\n" "$name"
 }
 
-# Parse replace directives in construct/go.mod, matching the sibling
-# pattern ../<name>. Each matched peer either exists (update + recurse) or
-# needs cloning (clone then recurse).
-while IFS= read -r line; do
-    # Strip line comments.
-    line="${line%%//*}"
-    # Match: replace <module> [<version>] => ../<path>  (sibling-relative)
-    if [[ "$line" =~ ^[[:space:]]*replace[[:space:]]+[^[:space:]]+([[:space:]]+[^[:space:]]+)?[[:space:]]+=\>[[:space:]]+(\.\.[^[:space:]]+) ]]; then
-        rhs="${BASH_REMATCH[2]}"
-        # rhs is relative to construct/go.mod's dir = $TARGET_DIR/construct
-        peer_abs="$(cd "$TARGET_DIR/construct" 2>/dev/null && cd "$rhs" 2>/dev/null && pwd -P || true)"
+# bootstrap_one_peer <peer-abs-path>: clone the peer if absent (origin-derived
+# URL), else fast-forward it, then recurse `make bootstrap` into it. The peer
+# cascades through its own peers, refreshes substrate, builds tools.
+# ARIADNE_BOOTSTRAP_VISITED + _DEPTH (exported) prevent cycles + depth-exceed.
+# Deduped within this run so a peer declared in BOTH go.mod and construct/deps
+# (during the #60 transition) is handled once.
+_bp_seen=()
+bootstrap_one_peer() {
+    local peer_abs="$1" peer_name peer_url s
+    for s in "${_bp_seen[@]+"${_bp_seen[@]}"}"; do [[ "$s" == "$peer_abs" ]] && return 0; done
+    _bp_seen+=("$peer_abs")
 
-        if [[ -z "$peer_abs" || ! -d "$peer_abs" ]]; then
-            # Peer not present — derive expected path + clone.
-            # Resolve path syntactically (without requiring it exists).
-            peer_abs="$TARGET_DIR/construct/$rhs"
-            peer_abs="$(cd "$(dirname "$peer_abs")" 2>/dev/null && pwd -P || true)/$(basename "$peer_abs")"
-            peer_name="$(basename "$peer_abs")"
-
-            if [[ -z "$ORIGIN_URL" ]]; then
-                echo "Error: cannot clone peer '$peer_name'; current repo has no 'origin' remote" >&2
-                echo "  Configure 'origin' or set PEER_URL_${peer_name} in Makefile.local" >&2
-                exit 1
-            fi
-
-            # Convention: substitute this-repo-name with peer-name in origin URL.
-            peer_url="${ORIGIN_URL//$THIS_REPO/$peer_name}"
-
-            printf "==> cloning peer %s → %s\n" "$peer_name" "$peer_abs"
-            printf "    from %s\n" "$peer_url"
-            mkdir -p "$(dirname "$peer_abs")"
-            if ! git clone "$peer_url" "$peer_abs"; then
-                echo "Error: clone failed; check URL convention or override via PEER_URL_${peer_name}" >&2
-                exit 1
-            fi
-        else
-            # Peer already present — bring it current before recursing, so its
-            # bootstrap runs against the latest substrate (ff-only, never WIP).
-            update_peer "$peer_abs" "$(basename "$peer_abs")"
-        fi
-
-        # Recurse: run `make bootstrap` in the peer. The peer's bootstrap
-        # cascades through its own peers (if any), refreshes its substrate,
-        # builds its tools. ARIADNE_BOOTSTRAP_VISITED + _DEPTH are passed
-        # via the exported env to prevent cycles + depth-exceed.
-        printf "==> bootstrapping peer %s\n" "$(basename "$peer_abs")"
-        ( cd "$peer_abs" && make bootstrap ) || {
-            echo "Error: peer bootstrap failed at $peer_abs" >&2
+    if [[ -d "$peer_abs" ]]; then
+        # Present — bring current before recursing (ff-only, never WIP).
+        peer_abs="$(cd "$peer_abs" && pwd -P)"
+        update_peer "$peer_abs" "$(basename "$peer_abs")"
+    else
+        # Absent — normalize the syntactic path, then clone.
+        peer_abs="$(cd "$(dirname "$peer_abs")" 2>/dev/null && pwd -P || true)/$(basename "$peer_abs")"
+        peer_name="$(basename "$peer_abs")"
+        if [[ -z "$ORIGIN_URL" ]]; then
+            echo "Error: cannot clone peer '$peer_name'; current repo has no 'origin' remote" >&2
+            echo "  Configure 'origin' or set PEER_URL_${peer_name} in Makefile.local" >&2
             exit 1
-        }
+        fi
+        # Convention: substitute this-repo-name with peer-name in origin URL.
+        peer_url="${ORIGIN_URL//$THIS_REPO/$peer_name}"
+        printf "==> cloning peer %s → %s\n" "$peer_name" "$peer_abs"
+        printf "    from %s\n" "$peer_url"
+        mkdir -p "$(dirname "$peer_abs")"
+        if ! git clone "$peer_url" "$peer_abs"; then
+            echo "Error: clone failed; check URL convention or override via PEER_URL_${peer_name}" >&2
+            exit 1
+        fi
     fi
-done < "$CONSTRUCT_GOMOD"
+
+    printf "==> bootstrapping peer %s\n" "$(basename "$peer_abs")"
+    ( cd "$peer_abs" && make bootstrap ) || {
+        echo "Error: peer bootstrap failed at $peer_abs" >&2
+        exit 1
+    }
+}
+
+# Source 1 (legacy): replace directives in construct/go.mod, sibling pattern
+# ../<name>. rhs resolves relative to construct/go.mod's dir = construct/.
+if [[ -f "$CONSTRUCT_GOMOD" ]]; then
+    while IFS= read -r line; do
+        line="${line%%//*}"
+        if [[ "$line" =~ ^[[:space:]]*replace[[:space:]]+[^[:space:]]+([[:space:]]+[^[:space:]]+)?[[:space:]]+=\>[[:space:]]+(\.\.[^[:space:]]+) ]]; then
+            rhs="${BASH_REMATCH[2]}"
+            peer_abs="$(cd "$TARGET_DIR/construct" 2>/dev/null && cd "$rhs" 2>/dev/null && pwd -P || true)"
+            [[ -n "$peer_abs" ]] || peer_abs="$TARGET_DIR/construct/$rhs"   # syntactic if absent
+            bootstrap_one_peer "$peer_abs"
+        fi
+    done < "$CONSTRUCT_GOMOD"
+fi
+
+# Source 2 (#60): substrate rows in construct/deps (repo-root-relative paths,
+# already resolved to absolute — syntactic for absent peers).
+if [[ -f "$CONSTRUCT_DEPS" ]]; then
+    while IFS= read -r peer_abs; do
+        [[ -n "$peer_abs" ]] && bootstrap_one_peer "$peer_abs"
+    done < <(deps_substrate_targets "$TARGET_DIR")
+fi

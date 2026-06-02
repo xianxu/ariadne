@@ -39,6 +39,14 @@ EOF
 wf "$WS/zzbase/go.mod" <<<'module example.com/zzbase'
 wf "$WS/zznew/go.mod" <<<'module example.com/zznew'
 
+# zzdep declares its peer (zzbase) via construct/deps (#60), not construct/go.mod.
+wf "$WS/zzdep/go.mod" <<<'module example.com/zzdep'
+wf "$WS/zzdep/construct/deps" <<EOF
+substrate ../zzbase
+EOF
+mkdir -p "$WS/zzdep/construct/scripts"
+ln -s "$LIST_PEERS" "$WS/zzdep/construct/scripts/list-peers.sh"
+
 # Collision fixture: zzcollide declares two peers with the SAME basename in
 # different parents — both would map to ~/workspace/shared.
 wf "$WS/zzcollide/go.mod" <<<'module example.com/zzcollide'
@@ -91,6 +99,11 @@ exp="rw zzbase"
 # ── Test 6: basename collision fails loudly (not a silent peer drop) ──────────
 REPO_DIR="$WS/zzcollide" SYNC="" compute_sync_set >/dev/null 2>&1
 [[ $? -ne 0 ]] && ok "collision: same-basename peers error (exit ≠ 0)" || ko "collision: did not error"
+
+# ── Test 7: peer declared via construct/deps (#60) flows through list-peers ────
+got="$(run_set "$WS/zzdep" "")"
+exp="$(printf 'ro zzbase\nrw zzdep\n' | sort)"
+[[ "$got" == "$exp" ]] && ok "construct/deps peer: zzbase ro via deps row" || { ko "deps peer"; printf '   got:\n%s\n   exp:\n%s\n' "$got" "$exp"; }
 
 echo
 echo "== $pass passed, $fail failed =="

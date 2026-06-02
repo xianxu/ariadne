@@ -128,9 +128,11 @@ make sdlc-bootstrap    one-shot install: verify Go, build, symlink to
 
 ### Downstream staleness gotcha
 
-Downstream repos ship a *prebuilt* `bin/sdlc` (built from ariadne via the
-`construct/go.mod` `replace => ../ariadne` path) — they have no `cmd/sdlc`
-source of their own. That binary does **not** auto-rebuild when the base-layer
+Downstream repos ship a *prebuilt* `bin/sdlc` — they have no `cmd/sdlc` source
+of their own. As of #60 `make sdlc-build` resolves sdlc's **owner** (ariadne) by
+location via `construct/dev-aliases.sh --list`, then builds in the owner's own
+module into `<repo>/bin/sdlc` (build-in-owner) — no `construct/go.mod`
+`replace` needed. That binary does **not** auto-rebuild when the base-layer
 tool changes; it goes stale until the operator reruns `make sdlc-build`
 (or `make sdlc-install`) in the downstream repo. A stale binary silently
 lacks new behavior and can fail in confusing ways — e.g. a pre-#51 binary

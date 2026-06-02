@@ -120,10 +120,10 @@ foundation-first. Full plan: `~/.claude/plans/curried-launching-bubble.md`.
 Scope of THIS execution = M1 + M2 (foundation); M3–M5 deferred to a separate
 propagation-gated rollout. Estimate (5h) covers the foundation only.
 
-- [ ] M1 — `construct/deps` positional format + shared `lib-deps.sh` parser +
+- [x] M1 — `construct/deps` positional format + shared `lib-deps.sh` parser +
       dual-read in all 5 walkers (additive; no-op until data exists). Tests:
       construct/deps cases added to the 3 fixtures + drift test, go.mod cases kept.
-- [ ] M2 — build-in-owner `sdlc-build` (resolve owner via `dev-aliases.sh
+- [x] M2 — build-in-owner `sdlc-build` (resolve owner via `dev-aliases.sh
       --list`); add `dev-aliases.sh` to base.manifest. Orthogonal to M1.
 
 Deferred (separate sessions, propagation-gated): **M3** writer flips to
@@ -132,6 +132,10 @@ dual-read fallback; **M5** retire legacy `data-deps`. See plan file for gates.
 
 ## Log
 
+
+
+- 2026-06-01: closed M2 — dev-aliases test 22 green incl. the production default-workspace+derivative-symlink resolver path; real `make sdlc-build` in ariadne builds a runnable bin/sdlc in-owner. ACTUAL estimated (--force): v3 attributes the full 0.8h foundation to M1 — M1+M2 ran continuous same-session, 0 events in the M2-only window; 0.3h is the marginal estimate
+- 2026-06-01: closed M1 — dual-read additive + inert: 42 assertions green incl. deps-only transitive clone, deps-only ancestor discovery, and retained go.mod regression cases; real pair+ariadne list-peers/discover unchanged via legacy path; no construct/deps exists yet so behavior byte-identical
 ### 2026-06-01
 
 Issue opened from a design conversation. Investigation findings:
@@ -147,3 +151,33 @@ Issue opened from a design conversation. Investigation findings:
   four-walker-agreement requirement and the #37 dep-isolation rationale.
 - Operator confirmed: deploy = build-in-owner; peer graph belongs in any file;
   go.mod was incidental ("grasp of go.mod not good"); skip pin for now.
+
+**M1 implemented** — `construct/deps` positional format + shared parser + dual-read.
+
+- New `construct/scripts/lib-deps.sh` (`deps_substrate_targets`, `deps_data_rows`),
+  symlinked via base.manifest. Sourced by list-peers / bootstrap-peers / setup.sh
+  / clone-data-deps via the `readlink -f || realpath` idiom (reuses setup.sh's),
+  so a derivative resolves ariadne's REAL lib-deps even before it's refreshed —
+  verified: `pair/.../list-peers.sh` (no lib-deps symlink yet) correctly lists
+  pair→ariadne. `bootstrap.sh` keeps an inline `walk_deps` mirror (bare-clone
+  constraint), locked by the extended drift test.
+- Dual-read wired into all walkers; **bootstrap-peers early-exit guard removed**
+  (now proceeds on construct/go.mod OR construct/deps); per-peer body factored to
+  `bootstrap_one_peer` with within-run dedup.
+- **Watch-items resolved:** (1) `.openshell/sandbox.sh` is NOT a 6th walker — it
+  consumes `list-peers.sh` (per its header + sandbox-sync test), so it inherits
+  dual-read for free; added a sandbox test case proving a deps-declared peer flows
+  through. (2) Early `symlink lib-deps.sh` (and M2's `dev-aliases.sh`) in
+  base.manifest is **intentional and inert** during the foundation — the readers
+  exist before any `construct/deps` data, so derivatives gaining the symlink on
+  refresh is a no-op, not a half-done M3.
+- **Plan deviation (none, FYI):** kept the approved sourced-`lib-deps.sh` (not
+  inline-everywhere) — realpath sourcing makes it work through symlinks without
+  fixture changes; the codebase's existing inline-go.mod-regex duplication is
+  matched only where forced (bootstrap.sh), drift-locked.
+- Tests: 42 assertions green — `bootstrap-transitive` (15, +deps transitive +deps
+  drift), `discover-ancestors` (10, +deps depth-2 +deps-only leaf), `sandbox-sync-set`
+  (7, +deps peer), new `clone-data-deps.test.sh` (10: legacy + deps data + dedup +
+  substrate-ignored). Existing cases all retained (dual-read regression). Real
+  sanity: ariadne + pair discover/list-peers unchanged via legacy path. Atlas
+  `setup-and-replication.md` updated with the `construct/deps` carrier section.

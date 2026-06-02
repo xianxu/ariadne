@@ -120,7 +120,40 @@ t4() {
     grep -qx "$c/leaf"  <<<"$out" && ko "leaf listed itself as ancestor: [$out]"    || ok "self never an ancestor"
 }
 
-t1; t2; t3; t4
+# substrate_deps <abs-dir> <root-relative-path>: declare the substrate ancestor
+# in construct/deps (#60) — repo-root-relative (../base), not construct-relative.
+substrate_deps() {
+    write_file "$1/construct/deps" <<EOF
+substrate $2
+EOF
+}
+
+# ── Test 5: depth-2 ancestor discovery via construct/deps (#60 dual-read) ──────
+# leaf → mid → base, but each hop declared in construct/deps, not construct/go.mod.
+t5() {
+    local c="$ROOT/t5"
+    make_layer "$c/base" base5
+    make_layer "$c/mid"  mid5
+    make_layer "$c/leaf" leaf5
+    substrate_deps "$c/leaf" ../mid
+    substrate_deps "$c/mid"  ../base
+    local out; out="$(discover "$c/leaf")"
+    grep -qx "$c/mid"  <<<"$out" && ok "deps: depth-1 ancestor (mid) discovered"        || ko "deps mid missing: [$out]"
+    grep -qx "$c/base" <<<"$out" && ok "deps: depth-2 ancestor (base) discovered (#60)" || ko "deps base missing: [$out]"
+}
+
+# ── Test 6: deps-only leaf (no root go.mod, no construct/go.mod) still walks ───
+t6() {
+    local c="$ROOT/t6"
+    make_layer "$c/base" base6
+    make_layer "$c/leaf" leaf6
+    rm -f "$c/leaf/go.mod"                 # no root go.mod
+    substrate_deps "$c/leaf" ../base       # only construct/deps declares the ancestor
+    local out; out="$(discover "$c/leaf")"
+    grep -qx "$c/base" <<<"$out" && ok "deps-only leaf discovers ancestor" || ko "deps-only: base missing: [$out]"
+}
+
+t1; t2; t3; t4; t5; t6
 
 echo
 echo "== $pass passed, $fail failed =="

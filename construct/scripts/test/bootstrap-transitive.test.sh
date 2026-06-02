@@ -50,6 +50,15 @@ replace example.com/$2 => ../../$2
 EOF
 }
 
+# Helper to write a construct/deps with a single substrate row (#60). Substrate
+# targets are REPO-ROOT-relative (../<peer>), unlike the construct-relative
+# (../../<peer>) the go.mod replace used.
+construct_deps_substrate() { # <build-repo> <peer-name>
+    write_file "$1/construct/deps" <<EOF
+substrate ../$2
+EOF
+}
+
 echo "== bootstrap.sh transitive clone walk =="
 
 # ── Test 1: 3-deep cold-start clones the WHOLE chain ──────────────────────────
@@ -193,7 +202,51 @@ t8() {
     fi
 }
 
-t1; t2; t3; t4; t5; t6; t7; t8
+# ── Test 9: 3-deep cold-start via construct/deps (#60 dual-read) ──────────────
+# Same as t1 but the chain is declared in construct/deps, not construct/go.mod.
+t9() {
+    local c=t9 b="$ROOT/t9/build"
+    mkdir -p "$b/zztop" "$b/zzmid" "$b/zzbase"
+    write_file "$b/zztop/go.mod"  <<<'module example.com/zztop'
+    construct_deps_substrate "$b/zztop" zzmid
+    inject_bootstrap "$b/zztop"
+    write_file "$b/zzmid/go.mod"  <<<'module example.com/zzmid'
+    construct_deps_substrate "$b/zzmid" zzbase
+    write_file "$b/zzbase/go.mod" <<<'module example.com/zzbase'   # terminal
+    commit_and_bare "$c" zztop; commit_and_bare "$c" zzmid; commit_and_bare "$c" zzbase
+    cold_clone "$c" zztop
+    ( cd "$ROOT/$c/ws/zztop" && BOOTSTRAP_CLONE_ONLY=1 ./bootstrap.sh ) >/dev/null 2>&1
+    local rc=$?
+    [[ $rc -eq 0 ]] && ok "deps 3-deep: exit 0" || ko "deps 3-deep: exit $rc"
+    [[ -d "$ROOT/$c/ws/zzmid"  ]] && ok "deps 3-deep: direct peer zzmid cloned"      || ko "deps 3-deep: zzmid missing"
+    [[ -d "$ROOT/$c/ws/zzbase" ]] && ok "deps 3-deep: TRANSITIVE peer zzbase cloned" || ko "deps 3-deep: zzbase missing"
+}
+
+# ── Test 10: DRIFT for construct/deps — DRY_RUN == list-peers.sh (all present) ─
+# Proves bootstrap.sh's inline walk_deps agrees with lib-deps.sh (via list-peers).
+t10() {
+    local c=t10 b="$ROOT/t10/build"
+    mkdir -p "$b/zztop" "$b/zzmid" "$b/zzbase"
+    write_file "$b/zztop/go.mod"  <<<'module example.com/zztop'
+    construct_deps_substrate "$b/zztop" zzmid
+    inject_bootstrap "$b/zztop"
+    write_file "$b/zzmid/go.mod"  <<<'module example.com/zzmid'
+    construct_deps_substrate "$b/zzmid" zzbase
+    write_file "$b/zzbase/go.mod" <<<'module example.com/zzbase'
+    commit_and_bare "$c" zztop; commit_and_bare "$c" zzmid; commit_and_bare "$c" zzbase
+    cold_clone "$c" zztop; cold_clone "$c" zzmid; cold_clone "$c" zzbase
+    local top="$ROOT/$c/ws/zztop" dr lp
+    dr=$( cd "$top" && BOOTSTRAP_DRY_RUN=1 ./bootstrap.sh 2>/dev/null | sort -u )
+    lp=$( "$LIST_PEERS" "$top" 2>/dev/null | grep -v "/zztop$" | sort -u )
+    if [[ "$dr" == "$lp" && -n "$dr" ]]; then
+        ok "deps drift: DRY_RUN peer set matches list-peers.sh (construct/deps)"
+    else
+        ko "deps drift: mismatch"
+        printf '    bootstrap dry-run:\n%s\n    list-peers (no root):\n%s\n' "$dr" "$lp"
+    fi
+}
+
+t1; t2; t3; t4; t5; t6; t7; t8; t9; t10
 
 echo
 echo "== $pass passed, $fail failed =="
