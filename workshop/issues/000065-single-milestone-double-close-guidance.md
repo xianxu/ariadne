@@ -1,11 +1,12 @@
 ---
 id: 000065
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 0.5
+actual_hours: 0.5
 ---
 
 # single-pass atomic work should use plain checkboxes not an M1 tag — avoids redundant milestone-close + issue-close double-log
@@ -73,6 +74,8 @@ No code change — the tool behavior is correct; the guidance was steering wrong
 
 ## Log
 
+
+- 2026-06-02: closed — go build + sdlc close --help renders the new plain-checkbox guard note; go test ./cmd/sdlc/... + helptext green; fresh-eyes review CLEAN (verified milestonePlanRE does not match plain checkboxes → they bypass the Review-Verdict guard); closed via single sdlc close, dogfooding the new guidance
 ### 2026-06-02
 
 - Three doc edits (no code change):
