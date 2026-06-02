@@ -25,12 +25,13 @@ die()  { printf "%serror:%s %s\n" "$RED" "$RESET" "$*" >&2; exit 1; }
 REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO_DIR"
 
-# ── 1. Toolchain check ──────────────────────────────────────────────────────
-if ! command -v go >/dev/null 2>&1; then
-    die "go not in PATH — install Go 1.26+ (https://go.dev/dl/) and retry"
+# ── 1. Toolchain ────────────────────────────────────────────────────────────
+# go is provisioned by sdlc-build's `ensure-go` prereq (#61) — don't die here;
+# just report the version when it's already present. `make sdlc-build` below
+# auto-installs (brew) or fails fast with guidance if it's missing.
+if command -v go >/dev/null 2>&1; then
+    ok "Go found: $(go version | awk '{print $3}')"
 fi
-GO_VERSION=$(go version | awk '{print $3}')
-ok "Go found: ${GO_VERSION}"
 
 # ── 2. Build ────────────────────────────────────────────────────────────────
 # sdlc-build produces $REPO_DIR/bin/sdlc in both ariadne (source) and

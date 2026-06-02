@@ -170,11 +170,36 @@ data-deps:
 		bash construct/scripts/clone-data-deps.sh; \
 	fi
 
+# ensure-go — guarantee the Go toolchain before anything compiles sdlc. ariadne
+# ships cmd/sdlc and builds it in `tools`, so go is a hard build-dependency of
+# the base layer itself (pre-sdlc, ariadne needed only shell + python, so
+# bootstrap never provisioned a toolchain). #61. Idempotent: no-op when go is
+# present (won't fight gvm/asdf/manual installs). Auto-installs via Homebrew on
+# macOS; elsewhere fails fast with guidance, before the costly peer-clone cascade.
+# nous keeps its own richer toolchain (GPG/gh/…) separately; this guarantees only
+# the one dep the base layer's own build needs.
+.PHONY: ensure-go
+ensure-go:
+	@if command -v go >/dev/null 2>&1; then \
+	    :; \
+	elif command -v brew >/dev/null 2>&1; then \
+	    echo "==> go not found — installing via Homebrew (brew install go)"; \
+	    brew install go; \
+	else \
+	    echo "Error: ariadne ships cmd/sdlc and needs the Go toolchain to build it," >&2; \
+	    echo "  but 'go' is not on PATH and Homebrew isn't available to install it." >&2; \
+	    echo "  Install Go 1.26+ from https://go.dev/dl/ and re-run." >&2; \
+	    exit 1; \
+	fi
+
 # Prereq-only definition — no recipe. Derivatives can `bootstrap: <my-prereq>`
 # additively without colliding. Make composes the prereq list; if any
 # derivative defines its own recipe for `bootstrap` (e.g. nous's existing
-# GPG/install setup), that recipe is what runs after all prereqs.
-bootstrap: bootstrap-peers refresh tools sdlc-install data-deps
+# GPG/install setup), that recipe is what runs after all prereqs. ensure-go is
+# listed first so go is provisioned before the cascade in serial make; under
+# `make -j` ordering isn't positional, but both go-build targets (sdlc-build,
+# build) depend on ensure-go, so the actual compiles still wait for it (#61).
+bootstrap: ensure-go bootstrap-peers refresh tools sdlc-install data-deps
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge
@@ -591,7 +616,11 @@ endef
 # repos without authored binaries), so it's safe to define in the
 # shared base layer.
 .PHONY: build local-build
-build:
+# ensure-go prereq (#61): gates the go-build below so it can't race the
+# toolchain install under `make -j` (both go-build targets — sdlc-build + build —
+# share the one ensure-go node, so make runs it once, first). No-op recipe for
+# repos without go.mod regardless.
+build: ensure-go
 	@if [ -f go.mod ]; then \
 	    found=0; \
 	    skipped=0; \
@@ -642,7 +671,7 @@ local-build:
 # in Makefile.local / Makefile.nous, e.g. `tools: nous-build`.
 tools: sdlc-build build
 
-sdlc-build:
+sdlc-build: ensure-go
 	@mkdir -p bin
 	@echo "==> building bin/sdlc (build-in-owner)"
 	@# Build-in-owner (#60): sdlc's source lives ONLY in its owner (ariadne).

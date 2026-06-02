@@ -119,12 +119,22 @@ use the structured form — free-text approval prose otherwise scores
 ## Build + install
 
 ```
-make sdlc-build        builds bin/sdlc (build-in-owner since #60 — see gotcha)
+make ensure-go         guarantee the Go toolchain (#61): no-op if present,
+                       brew-installs on macOS, else fails fast with go.dev/dl
+make sdlc-build        builds bin/sdlc (build-in-owner since #60 — see gotcha);
+                       depends on ensure-go
 make sdlc-install      build + append the repo's bin/ to the shell PATH
                        (`sdlc-bootstrap` is a back-compat alias)
 ```
 
 `make build` also picks `sdlc` up via the cmd/*/main.go scanner.
+
+**Go is a base-layer build dependency (#61).** ariadne ships `cmd/sdlc` and
+compiles it in `tools`, so `bootstrap` provisions Go up front (`ensure-go` is its
+first prerequisite) — before the peer-clone cascade and the recursive ariadne
+bootstrap's tool build. Pre-sdlc, ariadne needed only shell + python (always
+present), so bootstrap never provisioned a toolchain; #61 closed that gap. nous
+owns its richer toolchain (Homebrew/GPG/gh/…) separately.
 
 ### Downstream staleness gotcha
 
