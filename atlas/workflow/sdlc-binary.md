@@ -119,9 +119,9 @@ use the structured form — free-text approval prose otherwise scores
 ## Build + install
 
 ```
-make sdlc-build        builds cmd/sdlc/bin/sdlc, symlinks bin/sdlc
-make sdlc-bootstrap    one-shot install: verify Go, build, symlink to
-                       $SDLC_INSTALL_BIN (default ~/bin)
+make sdlc-build        builds bin/sdlc (build-in-owner since #60 — see gotcha)
+make sdlc-install      build + append the repo's bin/ to the shell PATH
+                       (`sdlc-bootstrap` is a back-compat alias)
 ```
 
 `make build` also picks `sdlc` up via the cmd/*/main.go scanner.
