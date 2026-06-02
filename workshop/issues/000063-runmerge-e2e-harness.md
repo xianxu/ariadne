@@ -1,11 +1,12 @@
 ---
 id: 000063
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 3
+actual_hours: 1.5
 ---
 
 # e2e test harness for runMerge — die-injectable seam + the two #62 regression tests
@@ -86,6 +87,8 @@ reserve as a single black-box smoke test if ever wanted.
 ## Log
 
 
+
+- 2026-06-02: closed — go test ./cmd/sdlc/... green; both e2e tests pass (dirty→refuse-pre-merge w/ PRMerge count==0; resume→real cleanup ends on main, branch deleted, issue archived); mutation-check confirms 9b guard has teeth; milestone-review M1 SHIP
 - 2026-06-02: closed M1 — go test ./cmd/sdlc/... green; both e2e tests pass; mutation-check: disabling 9b reddens the dirty test (proves teeth); fresh-eyes review found no Critical/Important; review verdict: SHIP
 ### 2026-06-02
 
