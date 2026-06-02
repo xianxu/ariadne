@@ -1,11 +1,11 @@
 ---
 id: 000060
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-01
 updated: 2026-06-01
-estimate_hours:
+estimate_hours: 5
 ---
 
 # Unify substrate + data dependencies into one manifest; retire construct/go.mod as the peer graph
@@ -115,8 +115,20 @@ deleted from derivatives entirely.
 
 ## Plan
 
-- [ ] Plan mode: settle manifest schema (extend `data-deps` vs new
-      `construct/deps`; column layout) and the walker migration order.
+Plan settled (plan mode, 2026-06-01): positional-column `construct/deps`,
+foundation-first. Full plan: `~/.claude/plans/curried-launching-bubble.md`.
+Scope of THIS execution = M1 + M2 (foundation); M3–M5 deferred to a separate
+propagation-gated rollout. Estimate (5h) covers the foundation only.
+
+- [ ] M1 — `construct/deps` positional format + shared `lib-deps.sh` parser +
+      dual-read in all 5 walkers (additive; no-op until data exists). Tests:
+      construct/deps cases added to the 3 fixtures + drift test, go.mod cases kept.
+- [ ] M2 — build-in-owner `sdlc-build` (resolve owner via `dev-aliases.sh
+      --list`); add `dev-aliases.sh` to base.manifest. Orthogonal to M1.
+
+Deferred (separate sessions, propagation-gated): **M3** writer flips to
+`construct/deps` + folds data-deps; **M4** delete `construct/go.mod` ×13 + drop
+dual-read fallback; **M5** retire legacy `data-deps`. See plan file for gates.
 
 ## Log
 
