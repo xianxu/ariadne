@@ -115,25 +115,36 @@ deleted from derivatives entirely.
 
 ## Plan
 
-Plan settled (plan mode, 2026-06-01): positional-column `construct/deps`,
-foundation-first. Full plan: `~/.claude/plans/curried-launching-bubble.md`.
-Scope of THIS execution = M1 + M2 (foundation); M3–M5 deferred to a separate
-propagation-gated rollout. Estimate (5h) covers the foundation only.
+Plan settled (plan mode, 2026-06-01): positional-column `construct/deps`.
+Full plan: `~/.claude/plans/curried-launching-bubble.md`. Foundation (M1+M2)
+shipped via PR #8; rollout (M3+) resumed same session. Estimate (5h) covers the
+foundation; rollout adds incrementally.
 
 - [x] M1 — `construct/deps` positional format + shared `lib-deps.sh` parser +
       dual-read in all 5 walkers (additive; no-op until data exists). Tests:
       construct/deps cases added to the 3 fixtures + drift test, go.mod cases kept.
 - [x] M2 — build-in-owner `sdlc-build` (resolve owner via `dev-aliases.sh
       --list`); add `dev-aliases.sh` to base.manifest. Orthogonal to M1.
+- [x] M3 — flip setup.sh `tool`-action writer to append `substrate` rows to
+      `construct/deps` instead of stubbing `construct/go.mod`; SETUP_LIB_ONLY
+      seam + setup-writer.test.sh. construct/go.mod left in place (dual-read).
+- [ ] M4 — propagate (refresh + commit each derivative's `construct/deps` +
+      re-seeded `bootstrap.sh`), then delete `construct/go.mod` ×13, then drop
+      the dual-read fallback from all walkers. **Destructive / cross-repo.**
+- [ ] M5 — fold remaining `construct/data-deps` rows into `construct/deps`;
+      retire the legacy 2-col reader.
 
-Deferred (separate sessions, propagation-gated): **M3** writer flips to
-`construct/deps` + folds data-deps; **M4** delete `construct/go.mod` ×13 + drop
-dual-read fallback; **M5** retire legacy `data-deps`. See plan file for gates.
+Gates (see plan file): M3 is safe to land in ariadne (writer + readers are
+symlinked → propagate together; construct/go.mod stays). M4's deletion + fallback
+drop require every derivative's `construct/deps` + committed dual-read
+`bootstrap.sh` to be in place first.
 
 ## Log
 
 
 
+
+- 2026-06-01: closed M3 — setup-writer.test.sh 7 green: tool action writes `substrate ../<owner>` to construct/deps, never stubs construct/go.mod, idempotent, leaves a legacy go.mod untouched, distinct owners→distinct rows, and walk_manifest routes the real tool action through; all 8 suites green; review SOUND (no Critical/Important); ariadne self-walk + dual-read dedup verified intact
 - 2026-06-01: closed M2 — dev-aliases test 22 green incl. the production default-workspace+derivative-symlink resolver path; real `make sdlc-build` in ariadne builds a runnable bin/sdlc in-owner. ACTUAL estimated (--force): v3 attributes the full 0.8h foundation to M1 — M1+M2 ran continuous same-session, 0 events in the M2-only window; 0.3h is the marginal estimate
 - 2026-06-01: closed M1 — dual-read additive + inert: 42 assertions green incl. deps-only transitive clone, deps-only ancestor discovery, and retained go.mod regression cases; real pair+ariadne list-peers/discover unchanged via legacy path; no construct/deps exists yet so behavior byte-identical
 ### 2026-06-01
