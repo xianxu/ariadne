@@ -79,7 +79,13 @@ var originRE = regexp.MustCompile(`github\.com[:/]([^/].*?)(?:\.git)?(?:\n|$)`)
 // detectRepo returns the "owner/repo" slug for the current repo's
 // `origin` remote. Errors if origin is not configured or doesn't look
 // like a github.com URL.
-func detectRepo() (string, error) {
+//
+// A package var (not a plain func) so e2e tests can swap it (#63): the
+// real implementation demands a github.com origin URL, but a temp-repo
+// harness uses a local bare origin (needed to push/pull for real). The
+// slug detectRepo returns is only handed to the (test-stubbed) ghClient,
+// so the test substitutes a dummy and exercises everything else for real.
+var detectRepo = func() (string, error) {
 	out, err := exec.Command("git", "remote", "get-url", "origin").Output()
 	if err != nil {
 		return "", fmt.Errorf("git remote get-url origin: %w", err)

@@ -68,10 +68,53 @@ reserve as a single black-box smoke test if ever wanted.
 
 ## Plan
 
-- [ ] M1 — `die`-injectable seam + `tempRepo(t)` harness; the two e2e tests
-  (dirty→refuse, resume→cleanup). Consider a follow-up to route detectRepo/
-  RepoTopLevel through `gitx.run` only if a future test needs pure-in-memory.
+- [x] M1 — `die`-injectable seam + `tempRepo(t)` harness; the two e2e tests
+  (dirty→refuse, resume→cleanup). Concretely:
+  - `term.go`: `die` → `var die = func(...)`; shared `expectDie` test helper
+    (swap die → `panic(&dieSignal{msg})`, recover, return the message).
+  - `fetch.go`: `detectRepo` → injectable `var detectRepo` — the real one
+    demands a github.com origin URL we can't push a local bare origin to;
+    the slug it returns is only handed to the (stubbed) `ghClient`, so the
+    test swaps it for a dummy.
+  - `merge.go` step 5: route `runPreflightJudges` through a package var
+    `runPreflightJudgesFn` — this is the dirtying seam (the dirty test injects
+    a "judge" that writes a file into the worktree after step 2's clean check
+    and before 9b's re-check).
+  - Consider a follow-up to route detectRepo/RepoTopLevel through `gitx.run`
+    only if a future test needs pure-in-memory (deferred — not needed here).
 
 ## Log
 
 ### 2026-06-02
+
+- Filed (deferral from #62 made trackable).
+- Implemented M1 (in-place topology):
+  - **Three seams**, all minimal `func`→`var` flips (callers unchanged):
+    `die` (term.go), `detectRepo` (fetch.go), `runPreflightJudgesFn` (merge.go
+    step 5). detectRepo needed the seam because the real one demands a
+    github.com origin URL — the harness uses a *local bare* origin so push/pull/
+    archive run for real; the slug only feeds the stubbed ghClient.
+  - `die_test.go`: `expectDie(t, fn)` → swaps die for `panic(&dieSignal{msg})`,
+    recovers, returns `(msg, died)`. Re-raises non-dieSignal panics so genuine
+    bugs surface. This is the reusable unlock for any `run*` refusal-path test.
+  - `merge_e2e_test.go`: `tempRepo(t)` (git init -b main → seed done issue +
+    history/ → push main w/ upstream → branch feature + push) + `e2eGH`
+    recorder + `swapMergeDeps`. Two tests:
+    - dirty-after-judge → refuses **pre**-merge (asserts 9b message AND
+      `PRMerge` call-count == 0).
+    - resume (open PR "", merged exists) → no PRMerge, ends on main, feature
+      deleted, archive moved 000999-done.md to history/ (real cleanup).
+  - **Honored judge findings**: pushed main with upstream so resume's `git pull`
+    has origin/main; dirty test keeps `NoJudge=false` so the step-5 injection
+    fires; topology is in-place (named in the test header; worktree path left
+    untested by this harness).
+- **Verification**:
+  - `go test ./cmd/sdlc/...` — all green; `go vet` clean.
+  - **Mutation check**: disabling the 9b guard (`redirty != "" && false`) makes
+    the dirty test go red ("expected merge to refuse") — confirms the test has
+    teeth, not just passes by construction. Restored → green.
+- gofmt: `gofmt -l` flags merge.go/fetch.go + several untouched files — a
+  pre-existing repo-wide drift (newer gofmt reflows doc-comment list indent +
+  a pre-existing trailing blank in fetch.go). My added lines are gofmt-clean;
+  did NOT reformat untouched files (unrelated churn). Tools: `perl -0pi` for
+  the throwaway mutation; `$TMPDIR` (not /tmp) for the backup under sandbox.
