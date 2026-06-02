@@ -97,16 +97,22 @@ fi
 # Opt-in + additive: no hook dir → no-op, so existing consumers are unaffected.
 HOOKS_DIR="$HOME/workspace/$CURRENT_REPO/.tart/vm-hooks.d"
 if [ -n "$CURRENT_REPO" ] && [ -d "$HOOKS_DIR" ]; then
-    for name in $(cd "$HOOKS_DIR" && LC_ALL=C ls -1 ./*.sh 2>/dev/null); do
-        base="$(basename "$name")"
+    # Iterate via a glob, not `ls` in $(): a command substitution word-splits
+    # filenames, so a hook named with a space would silently never run (only
+    # warn). The process-sub subshell pins LC_ALL=C for the documented lexical
+    # order without leaking the locale into the hooks; `nullglob` makes an
+    # empty/absent dir a clean no-op (and dodges `set -u` empty-array traps in
+    # macOS bash 3.2); NUL-delimited so any filename survives intact.
+    while IFS= read -r -d '' hook; do
+        base="$(basename "$hook")"
         echo "==> vm-hook: $base"
         # Capture rc explicitly: a command substitution in the warn string
         # would otherwise reset $? before we read it. `|| rc=$?` also keeps
         # `set -e` from aborting the whole setup on a non-zero hook.
         rc=0
-        bash "$HOOKS_DIR/$base" "$CURRENT_REPO" || rc=$?
+        bash "$hook" "$CURRENT_REPO" || rc=$?
         [ "$rc" -eq 0 ] || echo "  [warn] vm-hook $base failed (rc=$rc) — continuing"
-    done
+    done < <(LC_ALL=C; shopt -s nullglob; for f in "$HOOKS_DIR"/*.sh; do printf '%s\0' "$f"; done)
 fi
 
 echo "==> VM setup complete."
