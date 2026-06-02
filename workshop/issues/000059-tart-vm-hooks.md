@@ -1,11 +1,12 @@
 ---
 id: 000059
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-01
 updated: 2026-06-01
 estimate_hours: 1
+actual_hours: 0.5
 ---
 
 # tart vm-hooks.d run-parts convention
@@ -78,6 +79,8 @@ by the time hooks run.
 
 ## Log
 
+
+- 2026-06-01: closed — e2e: throwaway hook printed "hello world" in make tart boot transcript; loop re-verified under /bin/bash 3.2 (00→05→10→15 order, spaced-name runs as one, fail→warn+continue, empty=no-op) after §3 review fixed ls-in-$() word-split bug (e0f7a47)
 ### 2026-06-01
 
 Created as the base-layer dependency of nous#36 (headless brain testing). The
