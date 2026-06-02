@@ -1,11 +1,12 @@
 ---
 id: 000066
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 0.5
+actual_hours: 0.75
 ---
 
 # sdlc close: file the dated log line under its matching ### <date> day header, not orphaned above it
@@ -67,6 +68,7 @@ No behavior change when there's no matching day header — the three existing
 ## Log
 
 ### 2026-06-02
+- 2026-06-02: closed — log-line lands under matching ### <date> in the real (last) ## Log section; 6 insertLogLine tests green (3 orig unchanged + 3 new incl. dogfound prose-false-match); review SOUND; --force = pure bugfix, no atlas surface
 
 - Reworked `insertLogLine` (close.go): added `logLineDateRE` to parse the leading
   date off the log line; if a matching `### <date>` header exists in the Log
