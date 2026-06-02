@@ -43,6 +43,12 @@ type ghCaller interface {
 	// PRMerge merges PR for branch on repo via the GitHub API
 	// (--merge --delete-branch). Used by `sdlc merge`.
 	PRMerge(repo, branch string) error
+
+	// PRMergedForBranch reports whether a MERGED PR exists for headRef in
+	// repo. `sdlc merge` uses it to detect + resume an interrupted run — PR
+	// merged server-side (irreversible) but the local cleanup never finished —
+	// instead of erroring on "no open PR" (#62 M3).
+	PRMergedForBranch(repo, headRef string) (merged bool, err error)
 }
 
 // ghClient is the package-level instance every verb resolves through.
@@ -122,6 +128,22 @@ func (realGH) PRListForBranch(repo, headRef string) (string, error) {
 		return "", nil
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+func (realGH) PRMergedForBranch(repo, headRef string) (bool, error) {
+	if _, err := exec.LookPath("gh"); err != nil {
+		return false, fmt.Errorf("gh CLI not on PATH: %w", err)
+	}
+	out, err := exec.Command("gh", "pr", "list",
+		"--repo", repo, "--head", headRef, "--state", "merged",
+		"--json", "number", "--jq", ".[0].number // \"\"",
+	).Output()
+	if err != nil {
+		// Mirror PRListForBranch: a query failure (not authed, repo missing)
+		// is treated as "no merged PR" rather than a hard error.
+		return false, nil
+	}
+	return strings.TrimSpace(string(out)) != "", nil
 }
 
 func (realGH) PRMerge(repo, branch string) error {

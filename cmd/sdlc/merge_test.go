@@ -8,6 +8,53 @@ import (
 	"testing"
 )
 
+// ── #62 M1: worktree clean re-check before the irreversible merge ────────────
+func TestWorktreeDirty(t *testing.T) {
+	cases := []struct {
+		name      string
+		porcelain string
+		wantDirty bool
+	}{
+		{"clean", "", false},
+		{"clean-whitespace-only", "  \n\n", false},
+		{"dirty-modified", " M atlas/x.md\n", true},
+		{"dirty-untracked", "?? deps\n", true},
+	}
+	for _, tc := range cases {
+		r := &claimRunnerStub{responses: map[string][]byte{
+			"status --porcelain": []byte(tc.porcelain),
+		}}
+		dirty, err := worktreeDirty(r)
+		if err != nil {
+			t.Fatalf("%s: unexpected err: %v", tc.name, err)
+		}
+		if (dirty != "") != tc.wantDirty {
+			t.Errorf("%s: dirty=%v (%q), want dirty=%v", tc.name, dirty != "", dirty, tc.wantDirty)
+		}
+	}
+}
+
+// ── #62 M3: merge-vs-resume decision ─────────────────────────────────────────
+func TestDecideMergeAction(t *testing.T) {
+	cases := []struct {
+		name         string
+		openPR       string
+		mergedExists bool
+		want         mergeAction
+	}{
+		{"open PR → merge it", "42", false, actionMergeOpen},
+		{"open PR present, merged irrelevant", "42", true, actionMergeOpen},
+		{"no open PR but merged exists → resume", "", true, actionResume},
+		{"no PR at all → no-PR path", "", false, actionNoPR},
+	}
+	for _, tc := range cases {
+		if got := decideMergeAction(tc.openPR, tc.mergedExists); got != tc.want {
+			t.Errorf("%s: decideMergeAction(%q,%v) = %d, want %d",
+				tc.name, tc.openPR, tc.mergedExists, got, tc.want)
+		}
+	}
+}
+
 // ── merge command flag wiring ────────────────────────────────────────────────
 
 func TestMergeCmd_Registered(t *testing.T) {

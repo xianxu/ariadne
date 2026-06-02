@@ -35,11 +35,12 @@ FLAGS
   --agent <name>        CLI to invoke: claude | codex | gemini.
                         Default: $AGENT_CMD or "claude".
   --tools <list>        comma-separated tool allowlist for claude. Default:
-                        Read,Grep,Glob,Bash (read-only) or Edit,Read,Write,
-                        Grep,Glob,Bash for the `specs` category.
-                        Note: the shell version's default was write-capable
-                        for ALL categories; the Go port tightens to read-only
-                        except `specs`. Pass --tools explicitly to widen.
+                        Read,Grep,Glob,Bash — read-only for ALL categories
+                        (#62 M2: a judge is a reviewer, not a doer; it reports
+                        findings and the main agent applies fixes). `specs`
+                        used to get Edit,Write to auto-fix docs, which could
+                        leave a passing gate's tree dirty and strand a merge —
+                        that's gone. Pass --tools explicitly to widen.
   --issues-dir <path>   directory holding issue files. Default: $WF_ISSUES_DIR
                         or "workshop/issues".
   --history-dir <path>  directory holding archived issues. Default:
