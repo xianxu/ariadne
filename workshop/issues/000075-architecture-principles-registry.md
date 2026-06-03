@@ -123,6 +123,7 @@ via a runtime `construct/` doc is a deferred refinement.
 ## Log
 
 ### 2026-06-03 — M2
+- 2026-06-03: closed M2 — sdlc start-plan verb delivers at-plan lens (live: start-plan --issue 75); AGENTS.md §2 workflow + Core Design Principles wired to ARCH-* registry; drift guard (architecture.md↔AGENTS.md) + start-plan tests pass; go test+vet+gofmt green; atlas verb table + note updated. actual=judgment; review verdict: SHIP
 
 - New verb **`sdlc start-plan`** (`startplan.go` + `helptext/start-plan.md`,
   registered in main.go after `claim`): delivers `judge.ArchitectureBlock("at-plan")`
