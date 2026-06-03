@@ -88,6 +88,13 @@ func TestArchitectureRegistry_EmbeddedInPrompts(t *testing.T) {
 			t.Errorf("%s prompt does not embed ArchitectureRegistry (#75)", c)
 		}
 	}
+	// Negative: prompts NOT wired for architecture must not carry the block — an
+	// accidental future embed into the wrong prompt is caught.
+	for _, c := range []Category{Plan, Specs} {
+		if strings.Contains(BuildPrompt(c, in), ArchitectureRegistry) {
+			t.Errorf("%s prompt should NOT embed ArchitectureRegistry (only the 4 architecture-aware prompts)", c)
+		}
+	}
 	// Lens labels reach the right consumers.
 	if !strings.Contains(BuildPrompt(PlanQuality, in), "at-plan") {
 		t.Error("plan-quality should render the at-plan lens")

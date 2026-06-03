@@ -123,6 +123,7 @@ via a runtime `construct/` doc is a deferred refinement.
 ## Log
 
 ### 2026-06-03 — M1
+- 2026-06-03: closed M1 — architecture.md registry (ARCH-DRY/ARCH-PURE) //go:embed'd + rendered into plan-quality (at-plan), milestone-review (at-review), dry/pure (from registry); TestArchitectureRegistry_* + embed-routing tests + updated DRY test pass; go test+vet+gofmt green; atlas noted. One file → all consumers. actual=judgment; review verdict: FIX-THEN-SHIP
 
 - **Decisions (from plan-quality INFO):** (a) DRY/PURE stay as `Category`
   constants (no `AllCategories` churn → no enumeration-test churn) but their
