@@ -68,7 +68,7 @@
 - For heavy data, build scripts with the user (offload to cheaper/local LLMs) instead of processing inline. Start with a small sample. Ship a `SKILL.md` alongside scripts for explaining how to use the script.
 
 ### 11. SKILL.md
-- Any folder with a `SKILL.md` is an Agent Skill (per https://agentskills.io) — modularized prompting + deterministic code.
+- Any folder with a `SKILL.md` is an Agent Skill (per https://agentskills.io) — modularized prompting + deterministic code. This repo's skills live in `.claude/skills/` (the `xx-*` local skills + `construct/adapted/` superpowers); `claude` auto-discovers them by that path, and any agent can read a `SKILL.md` directly. Agent-agnosticism, though, doesn't rest on skill discovery: this file (`AGENTS.md`) is the shared constitution every agent reads, and the workflow itself lives in the shell-invokable `sdlc` binary — so following the SDLC never depends on a claude-specific skill path.
 
 ### 12. Commit Conventions
 - Shape: `<area>: <subject>` or `<area>: <verb>: <subject>`. Reference issue/milestone when applicable: `#15 M4b: subject` (agents grep `git log --grep "^#15"`).
