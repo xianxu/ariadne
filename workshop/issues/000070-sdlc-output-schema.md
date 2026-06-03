@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
-estimate_hours:
+estimate_hours: 2.5
 ---
 
 # schematize sdlc judge/verb output: a shared schema file (first-line verdict) both prompts and the parser reference
@@ -62,12 +62,25 @@ judges). This issue is the *result-protocol* half.
 
 ## Plan
 
-- [ ] Define the output contract (first-line `VERDICT:` enum + optional severity tags +
-      blocking count) as a `construct/` schema doc (+ JSON Schema if useful).
-- [ ] Point the judge prompt(s) at it (emit exactly this shape).
-- [ ] Rewrite the sdlc result parser to read the structured first line only; gate on
-      token + blocking severity.
-- [ ] Regression test: CLEAN-with-NOTE passes; REWORK/BLOCK fails.
+Root cause (verified in `classify.go`): `Classify`'s `parseVerdictLine` only inspects
+the **first non-empty line**, so any judge preamble before `VERDICT: CLEAN` drops it to
+a brittle legacy sentinel-grep that defaults to `Failure`. Single source of truth +
+robust scan fixes it.
+
+- [ ] **M1 — contract + robust parser + gating.** New
+  `cmd/sdlc/internal/judge/contract.go` (token set {CLEAN,INFO,SHIP,FIX-THEN-SHIP |
+  FAILURE,REWORK,BLOCK} + `Blocking()` map + `ContractBlock` snippet). Rewrite
+  `classify.go`: `ParseVerdictToken` scans ALL lines for the first `^VERDICT: <TOKEN>`
+  (the prefix is distinctive enough to scan past preamble — kills the false positive);
+  re-express `Classify`/`ParseVerdict` over it. Consumers gate on blocking-ness;
+  "no VERDICT line at all" fails closed with a clear message, not a prose-grep guess.
+  Full regression suite (CLEAN+preamble+NOTE passes; existing cases stay green). *This
+  alone fixes both observed bugs.*
+- [ ] **M2 — one contract both reference.** Migrate `prompts.go` to embed
+  `ContractBlock` (MilestoneReview → `VERDICT:` prefix; DRY/PURE sentinels →
+  `VERDICT:`); add the human schema doc `construct/judge-output-contract.md` + a
+  drift test (doc tokens == `contract.go` tokens); atlas note. Lessons stays the
+  fixed `REMINDER:` exception.
 
 ## Log
 
