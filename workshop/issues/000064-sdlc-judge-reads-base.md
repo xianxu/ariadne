@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
-estimate_hours:
+estimate_hours: 0.75
 ---
 
 # sdlc push plan-completeness judge reads pre-merge base, not HEAD — blocks close-and-archive pushes
@@ -72,15 +72,31 @@ pre-archive version.
 - A regression test pins: base=working/unticked, HEAD=done/ticked →
   judge PASS.
 
+## Root cause (located 2026-06-03)
+
+Not "reads base vs HEAD" exactly — the **diff filter doesn't follow the
+`issues/ → history/` archive rename**. `collectDiff` (cmd/sdlc/judge.go) builds
+the Plan judge's inputs with a path filter of **`issuesDir/*.md` only**
+(lines 193, 210). When the close+archive is *already committed* in the judged
+range, `git diff … -- issues/*.md` shows the issue as **deleted** (moved to
+history/); the agent is handed an `issues/` path that no longer holds the
+content and reads the stale base version → false "incomplete".
+
+Why it's been dormant: the default `sdlc merge` runs the Plan judge at **step 5,
+before archiving at step 11** — so closed issues are still `done`-in-`issues/`
+at judge time and pass. The bug bites only when the archive move is pre-committed
+in the range (the nous `shared-brain` push it was filed from).
+
 ## Plan
 
-- [ ] M1 — locate where the plan-completeness judge loads issue content
-      (the verb behind `sdlc judge plan` / the pre-merge hook in
-      `sdlc push`); confirm it reads base, not HEAD.
-- [ ] M2 — switch it to read HEAD (and follow `issues/ → history/`
-      renames in the push range); add the base→HEAD regression test.
-- [ ] M3 — verify against a synthetic close-and-archive push; confirm a
-      genuinely-incomplete archive still fails.
+- [ ] Fix `collectDiff` (Plan case): include `historyDir/*.md` in the path
+  filter, and use `--diff-filter=d` on the name-only pass so the changed-files
+  list excludes the **deleted** `issues/` side and keeps the **HEAD-existing**
+  path (`history/NNN.md` for an archived issue, `issues/NNN.md` for an in-place
+  close). The agent then reads the live done-content, not a stale deleted path.
+  Add a temp-repo regression test pinning: base=working-in-issues/,
+  HEAD=done+archived-to-history/ → `changedIssues` is the `history/` path (not
+  the deleted `issues/` path) and the diff carries the done content.
 
 ## Log
 
