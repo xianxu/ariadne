@@ -1,7 +1,7 @@
 ---
 id: 000069
 status: open
-deps: []
+deps: [000075]
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
@@ -40,24 +40,56 @@ There's already an adapted superpowers in the stack:
 `construct/adapted/superpowers-writing-plans/` (sibling `superpowers-executing-plans/`) —
 the requesting-code-review one should live alongside, and be what milestone-close calls.
 
+## Refined design (2026-06-03)
+
+Decided with operator (co-design session):
+
+- **(A) Binary owns the review.** A review the agent can *skip* isn't a gate;
+  binary-owned means it always runs, and the binary can also do the **cheap
+  deterministic structural checks an agent forgets** (unticked-but-done boxes,
+  missing `## Log` close entry, status not flipped) *before* spending tokens on
+  the LLM pass. Division of labour: binary = cheap structural gate; one LLM
+  review = judgment. So the agent runs `sdlc milestone-close`/`close`; it does the
+  review; the agent does **not** separately dispatch `superpowers-requesting-code-
+  review`.
+- **One reviewer prompt** = reconcile the adapted superpowers `code-reviewer.md`
+  (the general quality/architecture/testing/readiness checklist) with ariadne's
+  milestone-review tweaks (issue-ref, the #70 `VERDICT:` contract line,
+  `Review-Window` trailer, the **Atlas-update gate** and **Core-concepts
+  cross-check**) **+ #75's `at-review` architectural lens**. Embed it as one
+  source (à la #70/#75), used by the binary's review dispatch.
+- **Close is a review boundary too.** `sdlc close` auto-dispatches the same
+  review (whole-issue window): for a no-milestone issue that's the one review;
+  for a multi-milestone issue it's an **end-of-issue review** (per-milestone
+  reviews each see a slice — integration bugs + "do the milestones add up to the
+  spec?" only show at the whole-issue diff). Plus the binary's structural checks.
+- **Soft dep on #75** — the review consumes #75's `at-review` lens, so #75 lands
+  first.
+
 ## Done when
 
-- One fresh-context review per milestone boundary (not two).
-- `sdlc milestone-close` invokes the adapted `superpowers-requesting-code-review` (with
-  the milestone-close tweaks folded in) and consumes its verdict for the
-  `Review-Verdict:` trailer — no separate `sdlc judge milestone-review` dispatch.
-- AGENTS.md §3 + the `sdlc judge`/`milestone-close` help reflect the single pass so the
-  agent doesn't run both.
+- **One** fresh-context review per boundary (not two): the agent stops running a
+  separate `superpowers-requesting-code-review` subagent; the binary's
+  milestone-close/close review is the single pass.
+- `sdlc close` runs the review (whole-issue window) + the cheap structural checks
+  at the issue boundary; `sdlc milestone-close` does so at each milestone.
+- The one reviewer prompt folds the superpowers checklist + ariadne tweaks + #75
+  `at-review` lens; verdict feeds the `Review-Verdict:` trailer (#70 contract).
+- AGENTS.md §3 + verb help reflect the single binary-owned pass (don't run both).
 
 ## Plan
 
-- [ ] Diff `sdlc judge milestone-review`'s prompt vs the adapted
-      `superpowers-requesting-code-review`; list what milestone-review adds (issue ref,
-      verdict line, window trailer, atlas/lessons hooks).
-- [ ] Fold those tweaks into the adapted superpowers reviewer (under `construct/adapted/`).
-- [ ] Rewire `milestone-close` to invoke it once + parse the verdict; drop the separate
-      judge dispatch.
-- [ ] Update AGENTS.md §3 + verb help so only one review runs.
+*(draft — to refine at change-code; depends on #75)*
+
+- [ ] M1 — reconcile the ONE reviewer prompt (superpowers `code-reviewer.md` +
+  ariadne tweaks + #75 `at-review` lens), embedded as one source; `milestone-
+  close` uses it; AGENTS.md §3 says the agent doesn't run a separate superpowers
+  review. The adapted `construct/adapted/superpowers-requesting-code-review/`
+  becomes the human-authored source the binary mirrors (or a thin pointer).
+- [ ] M2 — `sdlc close` as a review boundary: cheap structural pre-checks
+  (boxes/log/status) + auto-dispatch the one review on the whole-issue window
+  (no-milestone → the review; multi-milestone → end-of-issue review); verb help +
+  AGENTS.md updated.
 
 ## Log
 
