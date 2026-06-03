@@ -116,7 +116,7 @@ func NewCloseCmd() *cobra.Command {
 
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (numeric, required)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag (e.g. M1, M4b); omit for full issue close")
-	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours via v3 procedure")
+	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours (sdlc computes it; see `sdlc actual`)")
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "one-line evidence the work meets done-when")
 	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass ALL gates (≡ every --no-* flag); record the reason in --verified")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would change; do not write")
@@ -191,12 +191,11 @@ func printSemanticWarmup(w io.Writer) {
 		"  Closing an issue records two values that feed into velocity",
 		"  calibration. Both must be earned, not guessed:",
 		"",
-		fmt.Sprintf("  %sACTUAL%s   = focused dev-hours, derived via the v3 procedure.", ansiCyan, ansiReset),
-		"             Run active-time-v3.py over the issue's commit window",
-		"             with --commit-weight 1.0; read the per-issue total.",
-		"             See brain/data/life/42shots/velocity/baseline-v3.md.",
-		"             Pass --no-actual (or --force) only if you genuinely cannot run the script",
-		"             (e.g., wontfix issue with no commits) — record the reason.",
+		fmt.Sprintf("  %sACTUAL%s   = focused dev-hours on this issue (not wall-clock).", ansiCyan, ansiReset),
+		"             sdlc computes it — close suggests a number, or run",
+		"             `sdlc actual --issue N`. (method: 42shots/velocity/baseline-v3.md)",
+		"             Pass --no-actual (or --force) only if there's genuinely nothing",
+		"             to measure (e.g., wontfix with no commits) — record the reason.",
 		"",
 		fmt.Sprintf("  %sVERIFIED%s = one-line evidence of behavior matching done-when.", ansiCyan, ansiReset),
 		"             'tests pass' beats 'code written'. See AGENTS.md §5.",
@@ -602,8 +601,7 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 	var head []string
 	head = append(head, fmt.Sprintf("%sACTUAL=<hours> required for %s close (§5 step 3).%s", ansiRed, mode, ansiReset), "")
 	head = append(head, fmt.Sprintf("  %sSemantic:%s  focused dev-hours on this %s (#%s) — not wall-clock.", ansiCyan, ansiReset, mode, issueStr))
-	head = append(head, "             Method: v3 commit-anchored segment-local attribution.")
-	head = append(head, "             See brain/data/life/42shots/velocity/baseline-v3.md.", "")
+	head = append(head, "             sdlc computes it (below); method: 42shots/velocity/baseline-v3.md.", "")
 	fmt.Fprintln(stderr, strings.Join(head, "\n"))
 
 	// #68 M2: run v3 ourselves (brain + repo transcript dirs, window + peers) and

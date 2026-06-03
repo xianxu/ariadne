@@ -1,11 +1,12 @@
 ---
 id: 000074
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
 estimate_hours: 0.25
+actual_hours: 0.25
 ---
 
 # remove manual actual-computation prose from close — sdlc computes it now
@@ -44,10 +45,26 @@ reference, not as instructions. No behavior change; prose only.
 
 ## Plan
 
-- [ ] Rewrite the ACTUAL block in `printSemanticWarmup` + drop the "Method:"/
+- [x] Rewrite the ACTUAL block in `printSemanticWarmup` + drop the "Method:"/
   manual lines in `explainActual`; point both at `sdlc actual`. Verify the
   warmup + missing-`--actual` paths render cleanly.
 
 ## Log
 
 ### 2026-06-03
+- 2026-06-03: closed — manual active-time-v3 how-to removed from warmup, explainActual, --actual flag help, and close.md; all point at sdlc actual / inline suggestion; build+test+helptext green; grep sweep confirms no manual-compute prose remains. --no-atlas: pure prose/help-string, no new surface. actual=judgment (sdlc actual measures 0.05h, undercounts pre-#74:-commit scoping)
+
+- Removed manual-compute prose from **four** spots (a sweep caught two beyond the
+  original two): `printSemanticWarmup` ACTUAL block + `explainActual` "Method:"
+  lines (both now "sdlc computes it — `sdlc actual --issue N`"; kept the ACTUAL
+  *definition* + a light baseline-v3.md method pointer); the `--actual` flag help
+  ("focused dev-hours (sdlc computes it; see `sdlc actual`)"); and `close.md`
+  helptext (the "derived from active-time-v3" line + the "explainer prints a
+  tailored active-time-v3 command line" paragraph → "close runs active-time-v3
+  itself … prints the measured suggestion inline").
+- Verified: `go build` + `go test ./cmd/sdlc/...` + helptext test green; the
+  warmup + missing-`--actual` paths render the new prose; grep sweep confirms no
+  `active-time-v3 command` / `--commit-weight` / `per-issue total` / `v3
+  procedure` manual instructions remain in close.go or close.md.
+- No separate fresh-eyes subagent — pure prose/help-string change, verified by
+  render + exhaustive grep (plan-quality judge already vetted the plan).
