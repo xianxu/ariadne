@@ -148,15 +148,20 @@ swapped for panic+recover via `expectDie`), `detectRepo` (fetch.go), and
 "judge"). `expectDie` is the reusable pattern for testing any `run*` verb's
 refusal path.
 
-**Judge → classifier contract.** Plan + Specs subagents must emit
-`VERDICT: CLEAN | INFO | FAILURE` as line 1 of their response; the
-classifier keys off that. (MilestoneReview uses the parallel
-`SHIP | FIX-THEN-SHIP | REWORK`; Lessons emits a fixed REMINDER line
-and skips the agent entirely.) A legacy sentinel-grep
-(`no DRY/PURE violations found`, `in sync`, …) remains as a fallback
-for outputs that don't carry the verdict line, but new prompts should
-use the structured form — free-text approval prose otherwise scores
-`FAILURE` and blocks the merge.
+**Judge → classifier contract (#70).** One contract, both sides reference it:
+the human mirror is `construct/judge-output-contract.md`; the Go source of truth
+is `internal/judge/contract.go` (`ContractTokens`, `Blocking()`, and
+`ContractPreamble` — the format snippet every agent prompt embeds). Every
+agent-emitting judge leads its response with `VERDICT: <TOKEN> (confidence: …)`;
+the classifier (`ParseVerdictToken`) scans for that token **anywhere** (tolerating
+a preamble — the `VERDICT:` prefix + a trailing precision guard make prose
+false-positives near-impossible) and gates on the token's **blocking-ness**, never
+on prose presence. Tokens: `CLEAN INFO SHIP FIX-THEN-SHIP` pass; `FAILURE REWORK
+BLOCK` block. Lessons is the exception — a fixed `REMINDER:` line, no agent. This
+killed the bug where a `VERDICT: CLEAN` behind a title scored `FAILURE` and blocked
+the merge (and the milestone `unknown`). A thin legacy sentinel-grep remains for
+un-migrated/foreign outputs; a `judge_test.go` drift test keeps the doc + Go
+tokens in sync.
 
 ## Build + install
 

@@ -1,11 +1,12 @@
 ---
 id: 000070
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-03
 estimate_hours: 2.5
+actual_hours: 2.5
 ---
 
 # schematize sdlc judge/verb output: a shared schema file (first-line verdict) both prompts and the parser reference
@@ -28,7 +29,9 @@ verdict token said pass; the prose presence said fail; the parser believed the p
 There's no single definition either side can point at, so prompt authors and the parser can
 silently disagree about what a "passing" result even looks like.
 
-## Spec (operator framing)
+## Spec
+
+Operator framing:
 
 > Define a **schema file** so that **prose and code both reference it.** Generally:
 > schematize sdlc output — maybe just the **first line** of output.
@@ -67,7 +70,7 @@ the **first non-empty line**, so any judge preamble before `VERDICT: CLEAN` drop
 a brittle legacy sentinel-grep that defaults to `Failure`. Single source of truth +
 robust scan fixes it.
 
-- [ ] **M1 — contract + robust parser + gating.** New
+- [x] **M1 — contract + robust parser + gating.** New
   `cmd/sdlc/internal/judge/contract.go` (token set {CLEAN,INFO,SHIP,FIX-THEN-SHIP |
   FAILURE,REWORK,BLOCK} + `Blocking()` map + `ContractBlock` snippet). Rewrite
   `classify.go`: `ParseVerdictToken` scans ALL lines for the first `^VERDICT: <TOKEN>`
@@ -76,13 +79,57 @@ robust scan fixes it.
   "no VERDICT line at all" fails closed with a clear message, not a prose-grep guess.
   Full regression suite (CLEAN+preamble+NOTE passes; existing cases stay green). *This
   alone fixes both observed bugs.*
-- [ ] **M2 — one contract both reference.** Migrate `prompts.go` to embed
+- [x] **M2 — one contract both reference.** Migrate `prompts.go` to embed
   `ContractBlock` (MilestoneReview → `VERDICT:` prefix; DRY/PURE sentinels →
   `VERDICT:`); add the human schema doc `construct/judge-output-contract.md` + a
   drift test (doc tokens == `contract.go` tokens); atlas note. Lessons stays the
   fixed `REMINDER:` exception.
 
 ## Log
+
+### 2026-06-03 — M2
+- 2026-06-03: closed — judge verdict protocol schematized: one contract (construct/judge-output-contract.md + contract.go) both prompts and parser reference; ParseVerdictToken gates on the token not prose, so CLEAN/SHIP-with-notes passes (the merge-blocking false-positive is gone) and the milestone unknown is fixed. Proved live: M1+M2 milestone-reviews parsed clean verdicts (FIX-THEN-SHIP) through the new path. go test+vet+gofmt green; drift test bidirectional
+- 2026-06-03: closed M2 — ContractPreamble embedded by all 5 agent prompts (TestAgentPromptsEmbedContract); MilestoneReview→VERDICT: prefix, DRY/PURE→VERDICT; construct/judge-output-contract.md + drift test (TestContractDoc_InSyncWithTokens); go test+vet+gofmt green. One contract both sides reference. actual=judgment; review verdict: FIX-THEN-SHIP
+
+- `contract.go`: added `ContractPreamble` — the shared `VERDICT: <TOKEN>` format
+  instruction every agent-emitting prompt embeds verbatim (the machine-read part;
+  category token *meanings* stay per-prompt).
+- `prompts.go`: all five agent prompts now embed `ContractPreamble`.
+  **MilestoneReview migrated** from bare `SHIP | FIX-THEN-SHIP | REWORK` →
+  `VERDICT: SHIP | …` (uniform format — fully fixes the milestone `unknown` at
+  the source). **DRY/PURE** migrated from "say 'No DRY violations found'"
+  sentinels → `VERDICT: CLEAN | FAILURE`.
+- `construct/judge-output-contract.md`: the human schema doc (the operator's ask)
+  — format + token table + gate semantics + the Lessons exception.
+- Tests: `TestAgentPromptsEmbedContract` (every agent category embeds the one
+  contract — pins the unification), `TestContractDoc_InSyncWithTokens` (drift
+  guard: doc tokens == `ContractTokens`), and updated the three prompt-content
+  tests to the new format. `go test ./cmd/sdlc/...` + `go vet` + gofmt green.
+- atlas `sdlc-binary.md`: the "Judge → classifier contract" paragraph now points
+  at the one contract (doc + `contract.go`) + the robust token scan.
+
+### 2026-06-03 — M1
+- 2026-06-03: closed M1 — ParseVerdictToken robust scan: VERDICT behind a preamble now classifies correctly (was Failure→blocked merge); #70 regression + ParseVerdict VERDICT-prefix tests pass; all existing judge tests green; go test+vet clean. contract.go = single token taxonomy. --no-atlas: internal parser rewrite, M2 adds the schema doc + atlas note. actual=judgment; review verdict: FIX-THEN-SHIP
+
+- **Decision (from plan-quality judge):** M1 is **internal-only** — rewrite
+  `Classify`/`ParseVerdict` over a robust scan; the six consumer call sites keep
+  the `Clean/Info/Failure` + `Verdict` API and don't change. The token→outcome
+  table is written explicitly (contract.go doc comment).
+- `cmd/sdlc/internal/judge/contract.go` (new): `ContractTokens`, `blockingTokens`,
+  `Blocking()`, `outcomeForToken()` — the single token taxonomy + the
+  token→(Outcome, Verdict, blocking) table both sides derive from.
+- `classify.go` rewrite: `ParseVerdictToken` scans **all** lines for the first
+  `^VERDICT: <TOKEN>` (strips leading markdown markup) — the `VERDICT:` prefix is
+  distinctive enough to scan past a preamble without prose false-positives, which
+  is exactly the bug. `Classify` → `outcomeForToken`; `ParseVerdict` prefers the
+  `VERDICT:` token then the legacy bare-`SHIP` scan (back-compat). The brittle
+  "first-non-empty-line only → default Failure on any prose" path is gone; legacy
+  `REMINDER:`/DRY-PURE sentinels kept as a thin fallback (M2 folds them in).
+- Tests: #70 regression (verdict behind a markdown title / prose preamble → now
+  classifies correctly; was Failure), `TestParseVerdictToken`,
+  `TestParseVerdict_VerdictPrefix` (incl. the #68 "unknown" repro → now parses).
+  **All existing judge tests stay green** (precision guards for bare-token prose
+  intact). `go test ./cmd/sdlc/...` + `go vet` green.
 
 ### 2026-06-02
 

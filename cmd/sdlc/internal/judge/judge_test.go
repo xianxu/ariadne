@@ -3,7 +3,9 @@ package judge
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -55,12 +57,63 @@ func TestBuildPrompt_DRY(t *testing.T) {
 	p := BuildPrompt(DRY, PromptInput{Diff: "DIFF_CONTENT"})
 	for _, want := range []string{
 		"DRY (Don't Repeat Yourself) violations",
-		`No DRY violations found.`,
 		"Do NOT modify any files",
 		"DIFF_CONTENT",
+		"CLEAN   = no DRY violations.", // VERDICT tokens, not the old sentinel (#70 M2)
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt missing %q\n%s", want, p)
+		}
+	}
+}
+
+// TestAgentPromptsEmbedContract pins the #70 M2 unification: every
+// agent-emitting category embeds the one ContractPreamble verbatim, so the
+// output format is a single source of truth (no per-prompt paraphrase to drift).
+// TestContractDoc_InSyncWithTokens is the #70 M2 drift guard: the human schema
+// doc (construct/judge-output-contract.md) must list exactly the tokens the Go
+// source of truth (ContractTokens) defines. A token added to one and not the
+// other silently diverges the "both reference one contract" promise.
+func TestContractDoc_InSyncWithTokens(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "construct", "judge-output-contract.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read contract doc %s: %v", path, err)
+	}
+	doc := string(data)
+	known := map[string]bool{}
+	for _, tok := range ContractTokens {
+		known[tok] = true
+		if !strings.Contains(doc, "`"+tok+"`") {
+			t.Errorf("contract doc missing token `%s` (drift from contract.go ContractTokens)", tok)
+		}
+	}
+	// Reverse direction: every token the doc's table row leads with (`| `TOKEN` |`)
+	// must be a real ContractToken — so a stray doc token also fails.
+	for _, line := range strings.Split(doc, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "| `") {
+			continue
+		}
+		rest := line[strings.Index(line, "`")+1:]
+		tok := rest[:strings.Index(rest, "`")]
+		if tok != "" && !known[tok] {
+			t.Errorf("contract doc table lists `%s`, not in contract.go ContractTokens (drift)", tok)
+		}
+	}
+	if !strings.Contains(doc, "VERDICT: <TOKEN>") {
+		t.Error("contract doc missing the `VERDICT: <TOKEN>` format line both sides depend on")
+	}
+}
+
+func TestAgentPromptsEmbedContract(t *testing.T) {
+	in := PromptInput{Diff: "D", IssueRef: "r#1", IssueContent: "I", Base: "a", Head: "b",
+		ChangedIssues: []string{"workshop/issues/000001.md"}}
+	for _, c := range AllCategories() {
+		if !c.NeedsAgent() {
+			continue // Lessons is the documented REMINDER: exception
+		}
+		if !strings.Contains(BuildPrompt(c, in), ContractPreamble) {
+			t.Errorf("%s prompt does not embed ContractPreamble (verdict format drift)", c)
 		}
 	}
 }
@@ -97,7 +150,8 @@ func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
 		"Vague checklist items",
 		"Undeclared cross-issue",
 		"Mismatched estimate vs scope",
-		"VERDICT: CLEAN | INFO | FAILURE",
+		"VERDICT: <TOKEN>", // the shared contract format (#70 M2)
+		"CLEAN   = plan is concrete",
 		"ISSUE_FILE_BODY",
 		"SEPARATE_PLAN_BODY",
 	} {
@@ -161,8 +215,8 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"PURE: tests run without IO",
 		"Atlas update gate",
 		"Plan revision recommendations",
-		"THE VERY FIRST LINE of your response MUST be",
-		"SHIP | FIX-THEN-SHIP | REWORK",
+		"VERDICT: <TOKEN>", // unified contract format (#70 M2 — was bare "SHIP | …")
+		"FIX-THEN-SHIP = ship after addressing",
 		"Strengths:",
 	} {
 		if !strings.Contains(p, want) {
@@ -291,6 +345,21 @@ func TestClassify(t *testing.T) {
 		{"verdict with leading whitespace", "   VERDICT: CLEAN\nbody", Clean},
 		{"verdict after blank line", "\n\nVERDICT: CLEAN\nbody", Clean},
 
+		// #70 regression: the verdict behind a PREAMBLE. These all returned
+		// Failure before (the parser only checked the first non-empty line, so a
+		// title / prose line dropped it to the legacy grep → Failure → blocked the
+		// merge). The robust scan now finds the VERDICT: line anywhere.
+		{"#70: clean behind a markdown title + NOTE", "# Code Review\n\nVERDICT: CLEAN\n\n[NOTE] a minor nit, non-blocking.", Clean},
+		{"#70: clean behind prose preamble", "I've reviewed the diff in full.\n\nVERDICT: CLEAN\nfindings: none.", Clean},
+		{"#70: failure behind a title still fails", "# Specs Review\nVERDICT: FAILURE\nstale atlas ref.", Failure},
+		{"#70: info behind preamble passes", "## Plan Review\n\nVERDICT: INFO (confidence: high)\nminor suggestion only.", Info},
+		// Cross-family tokens map through the contract (a SHIP-family token on a
+		// VERDICT: line classifies by blocking-ness).
+		{"ship token → non-blocking (info)", "VERDICT: SHIP (confidence: high)\n…", Info},
+		{"fix-then-ship token → non-blocking", "VERDICT: FIX-THEN-SHIP\naddress then ship.", Info},
+		{"rework token → blocking (failure)", "VERDICT: REWORK\nneeds rework.", Failure},
+		{"block token → failure", "VERDICT: BLOCK\nhard stop.", Failure},
+
 		// Real-world repro from pair#23 close: judge approved in prose
 		// but the prompt didn't yet ask for a VERDICT line, so the
 		// output starts with a markdown header. Falls through to the
@@ -313,6 +382,68 @@ func TestClassify(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Classify(tt.output); got != tt.want {
 				t.Errorf("Classify(%q) = %s, want %s", tt.output, got, tt.want)
+			}
+		})
+	}
+}
+
+// #70: the robust scan finds the VERDICT: token anywhere, tolerating preamble +
+// markdown markup; ok=false only when there's genuinely no VERDICT: line.
+func TestParseVerdictToken(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		tok  string
+		ok   bool
+	}{
+		{"first line", "VERDICT: CLEAN\nbody", "CLEAN", true},
+		{"behind title", "# Review\n\nVERDICT: SHIP (confidence: high)\n…", "SHIP", true},
+		{"behind prose", "I looked at everything.\nVERDICT: FAILURE\n…", "FAILURE", true},
+		{"emphasized", "**VERDICT: REWORK**\n…", "REWORK", true},
+		{"lowercase prefix", "verdict: clean\n", "CLEAN", true},
+		{"fix-then-ship", "VERDICT: FIX-THEN-SHIP\n", "FIX-THEN-SHIP", true},
+		{"no verdict line", "# Review\nLooks good to me.\n", "", false},
+		{"bare token is not a VERDICT line", "SHIP (confidence: high)\n", "", false},
+		// #70 M1 review (I1): a judge reviewing THIS parser quotes the contract;
+		// a line that starts `VERDICT: <token>` then continues as PROSE must NOT
+		// match (the trailing precision guard). The wrong-token-capture case
+		// (`…CLEAN…actually FAILURE`) is the dangerous one — it would have
+		// spuriously passed a gate.
+		{"prose continuation after token rejected", "VERDICT: BLOCK is the generic hard block.\n", "", false},
+		{"wrong-token prose quote rejected", "VERDICT: CLEAN means no issues, but actually FAILURE here.\n", "", false},
+		{"mid-line quote already safe", "the VERDICT: CLEAN line is what the parser reads.\n", "", false},
+		{"emphasized verdict still matches", "**VERDICT: SHIP**\n", "SHIP", true},
+		{"confidence-qualified still matches", "VERDICT: REWORK (confidence: low)\n", "REWORK", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tok, ok := ParseVerdictToken(c.in)
+			if tok != c.tok || ok != c.ok {
+				t.Errorf("ParseVerdictToken(%q) = (%q,%v), want (%q,%v)", c.in, tok, ok, c.tok, c.ok)
+			}
+		})
+	}
+}
+
+// #70: milestone ParseVerdict now accepts the unified `VERDICT:` prefix (M2's
+// migrated prompt) AND the legacy bare token (back-compat), including behind a
+// preamble — which is what fixes the `unknown` verdict seen on #68's M2 review.
+func TestParseVerdict_VerdictPrefix(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want Verdict
+	}{
+		{"verdict prefix ship", "VERDICT: SHIP (confidence: high)\n…", VerdictShip},
+		{"verdict prefix behind title", "# Post-Milestone Review\n\nVERDICT: FIX-THEN-SHIP\n…", VerdictFixThenShip},
+		{"verdict prefix behind prose (the #68 unknown case)", "I have everything I need.\nVERDICT: REWORK\nreasons…", VerdictRework},
+		{"legacy bare token still parses", "SHIP (confidence: high)\nbody", VerdictShip},
+		{"no verdict at all → unknown", "Looks reasonable.\nNo verdict emitted.", VerdictUnknown},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := ParseVerdict(c.in); got != c.want {
+				t.Errorf("ParseVerdict(%q) = %s, want %s", c.in, got, c.want)
 			}
 		})
 	}
