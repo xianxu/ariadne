@@ -1,10 +1,64 @@
 package gitx
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 )
+
+// TestCommitWindow_ExtendedCapIncludes45Days pins the #68 cap bump (31→61): a
+// commit ~45 days old must still anchor the window. Under the old 31-day cap it
+// would be excluded (empty window) and the issue's actuals would come up short.
+// CommitWindow reads the cwd via direct git, so we build a throwaway repo and
+// chdir into it.
+func TestCommitWindow_ExtendedCapIncludes45Days(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("config", "user.email", "t@t")
+	run("config", "user.name", "t")
+	run("config", "commit.gpgsign", "false")
+	if err := os.WriteFile(filepath.Join(dir, "f"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "f")
+	// Author/committer date 45 days ago: inside the 61-day cap, outside the old 31.
+	dated := time.Now().AddDate(0, 0, -45).Format("2006-01-02T15:04:05")
+	cmd := exec.Command("git", "commit", "-q", "-m", "#99 M1: the work")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_AUTHOR_DATE="+dated, "GIT_COMMITTER_DATE="+dated)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prev) })
+
+	sha, _, _, err := CommitWindow("99")
+	if err != nil {
+		t.Fatalf("CommitWindow: %v", err)
+	}
+	if sha == "" {
+		t.Errorf("45-day-old #99 commit should be within the %d-day cap, but the window was empty", WindowCapDays)
+	}
+}
 
 // TestIssueRefRE_DiscoveryParsing exercises the regex used by
 // DiscoverWindowIssues, in isolation from git.

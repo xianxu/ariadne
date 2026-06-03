@@ -592,68 +592,35 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 // ── explainers ───────────────────────────────────────────────────────────────
 
 func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
-	cwd, _ := os.Getwd()
-	repoDir, err := filepath.Abs(cwd)
-	if err != nil {
-		repoDir = cwd
+	repoTop, err := gitx.RepoTopLevel()
+	if err != nil || repoTop == "" {
+		cwd, _ := os.Getwd()
+		repoTop, _ = filepath.Abs(cwd)
 	}
-	repoSlug := filepath.Base(repoDir)
-	transcriptSlugRepo := "-Users-xianxu-workspace-" + repoSlug
-	transcriptSlugBrain := "-Users-xianxu-workspace-brain"
+	brainAbs, _ := filepath.Abs(filepath.Join(repoTop, "..", "brain"))
 
-	firstSHA, firstTS, lastTS, _ := gitx.CommitWindow(issueStr)
-	_ = firstSHA // not used in explainer
+	var head []string
+	head = append(head, fmt.Sprintf("%sACTUAL=<hours> required for %s close (§5 step 3).%s", ansiRed, mode, ansiReset), "")
+	head = append(head, fmt.Sprintf("  %sSemantic:%s  focused dev-hours on this %s (#%s) — not wall-clock.", ansiCyan, ansiReset, mode, issueStr))
+	head = append(head, "             Method: v3 commit-anchored segment-local attribution.")
+	head = append(head, "             See brain/data/life/42shots/velocity/baseline-v3.md.", "")
+	fmt.Fprintln(stderr, strings.Join(head, "\n"))
 
-	var lines []string
-	lines = append(lines, fmt.Sprintf("%sACTUAL=<hours> required for %s close (§5 step 3).%s", ansiRed, mode, ansiReset), "")
-	lines = append(lines, fmt.Sprintf("  %sSemantic:%s  focused dev-hours spent on this %s (#%s).", ansiCyan, ansiReset, mode, issueStr))
-	lines = append(lines, "             Not wall-clock; not 'hours since I created the issue.'")
-	lines = append(lines, "             Method: v3 commit-anchored segment-local attribution.")
-	lines = append(lines, "             See brain/data/life/42shots/velocity/baseline-v3.md.", "")
+	// #68 M2: run v3 ourselves (brain + repo transcript dirs, window + peers) and
+	// print the measured suggestion — the old "run this python command yourself"
+	// prose, lifted into the binary. Same engine as `sdlc actual`.
+	printActual(stderr, computeActual(repoTop, brainAbs, issueStr))
 
-	if firstTS != "" && lastTS != "" {
-		windowIssues, _ := gitx.DiscoverWindowIssues(firstTS, lastTS, issueStr)
-		var issueFlags []string
-		for _, n := range windowIssues {
-			issueFlags = append(issueFlags, "--issue "+n)
-		}
-		lines = append(lines, fmt.Sprintf("  %sCompute via:%s", ansiCyan, ansiReset))
-		lines = append(lines, "    python3 construct/local/issues/active-time-v3.py \\")
-		lines = append(lines, fmt.Sprintf("      --dir ~/.claude/projects/%s \\", transcriptSlugRepo))
-		lines = append(lines, fmt.Sprintf("      --dir ~/.claude/projects/%s \\", transcriptSlugBrain))
-		lines = append(lines, fmt.Sprintf("      --git-repo %s \\", repoDir))
-		lines = append(lines, fmt.Sprintf("      --since %s --until %s \\", firstTS, lastTS))
-		lines = append(lines, fmt.Sprintf("      %s \\", strings.Join(issueFlags, " ")))
-		lines = append(lines, "      --commit-weight 1.0 --threshold-min 15 --include-assistant", "")
-
-		var peers []string
-		for _, n := range windowIssues {
-			if n != issueStr {
-				peers = append(peers, n)
-			}
-		}
-		if len(peers) > 0 {
-			lines = append(lines, fmt.Sprintf("  Issues auto-discovered from #refs in window subjects: #%s + peers #%s.",
-				issueStr, strings.Join(peers, ", #")))
-			lines = append(lines, "  Why all of them: v3 anchors segments by commit-subject issue ref;")
-			lines = append(lines, fmt.Sprintf("  unrecognized refs fall back to mention-fallback, inflating #%s by 3-10x.", issueStr))
-			lines = append(lines, "  If a discovered peer looks unrelated to real work, drop its --issue flag.", "")
-		}
-		lines = append(lines, fmt.Sprintf("  The 'per-issue totals' line for #%s in the output is your ACTUAL.", issueStr))
-		lines = append(lines, "  (Round to nearest 0.5; under 1 hr keep one decimal: 0.45 → 0.5.)")
-	} else {
-		lines = append(lines, fmt.Sprintf("  %sNo commits matching #%s found — compute hours by judgment%s", ansiYellow, issueStr, ansiReset))
-		lines = append(lines, fmt.Sprintf("  %sor wait until commits land. Pass --no-actual (or --force) to bypass.%s", ansiYellow, ansiReset))
-	}
-	lines = append(lines, "")
 	extra := ""
 	if milestone != "" {
 		extra = " --milestone " + milestone
 	}
-	lines = append(lines, fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	lines = append(lines, fmt.Sprintf("    sdlc close --issue %s%s --actual <hours> --verified '<evidence>'", issueStr, extra), "")
-	lines = append(lines, "  Pass --no-actual (or --force) to bypass this requirement (record the reason in --verified).")
-	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
+	var tail []string
+	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
+	tail = append(tail, fmt.Sprintf("    sdlc close --issue %s%s --actual <hours> --verified '<evidence>'", issueStr, extra), "")
+	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
+	tail = append(tail, "  Pass --no-actual (or --force) to bypass this requirement (record the reason in --verified).")
+	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
 }
 
 func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string) {

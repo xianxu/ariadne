@@ -1,11 +1,12 @@
 ---
 id: 000068
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 3
+actual_hours: 2.0
 ---
 
 # fix active-time-v3.py: returns 0 events for these sessions — actuals are fabricated
@@ -64,10 +65,10 @@ mention (mentions only gate the `1−weight` split + commitless segments) — wh
 **31-day `WindowCapDays`** in `internal/gitx/window.go` (`CommitWindow` caps the lookback),
 which truncates the window for month-long work (e.g. #16). Bump it.
 
-## Design (agreed)
+## Spec
 
-Direction: **lift the manual prose into `sdlc`** — stop printing a 6-line command for a
-human to run (nobody does); have `sdlc` run it.
+Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printing a
+6-line command for a human to run (nobody does); have `sdlc` run it.
 
 1. **`WindowCapDays` 31 → 61** (`internal/gitx/window.go`) — cover month-long tasks.
 2. **0-event / no-`--dir` detection** — `active-time-v3.py` must FAIL LOUDLY (non-zero,
@@ -101,14 +102,59 @@ human to run (nobody does); have `sdlc` run it.
 
 ## Plan
 
-- [ ] M1 — `WindowCapDays` 31→61 (`gitx`); `active-time-v3.py` loud-fail on empty `--dir`
+- [x] M1 — `WindowCapDays` 31→61 (`gitx`); `active-time-v3.py` loud-fail on empty `--dir`
       + explicit "telemetry unavailable" on commits-but-0-events. Unit/CLI tests.
-- [ ] M2 — `sdlc` runs v3 in the actual path: dir-selection (brain + issue-repo, enumerate
+- [x] M2 — `sdlc` runs v3 in the actual path: dir-selection (brain + issue-repo, enumerate
       `~/.claude/projects/*`), window + peers, subprocess invoke + parse the per-issue
       total, print suggested actual; graceful fallback when script/python absent. Verify it
       reproduces nous#14 ≈ 7.8h.
 
 ## Log
+
+### 2026-06-02 — M2
+- 2026-06-02: closed — cap 31→61 + active-time-v3 loud-fail (M1) + sdlc actual verb & close-inline measured suggestion (M2); the fabricated-actuals footgun is closed — sdlc now runs v3 with brain+repo dirs. go test+vet green; M1 review FIX-THEN-SHIP→fixed, M2 review SHIP. actual=Σ milestones (sdlc actual measures 1.0h but undercounts pre-commit investigation — a noted CommitWindow refinement)
+- 2026-06-02: closed M2 — sdlc actual verb + close-inline suggestion live (sdlc actual #68 → measured 1.0h; close prints "→ --actual 0.62"); engine selects brain+repo dirs, classifies v3 exit codes; actual_test.go + full suite + vet green. actual=M2-portion judgment (tool measures whole-#68 at 1.0h but undercounts pre-commit investigation); review verdict: unknown
+
+- New `cmd/sdlc/actual.go` — engine `computeActual(repoTop, brainAbs, issue)`:
+  resolves `CommitWindow` + `DiscoverWindowIssues` peers, selects transcript dirs
+  via the validated heuristic (**brain + the issue's repo**, existing folders
+  only — never "all"), runs `active-time-v3.py` (`--commit-weight 1.0
+  --threshold-min 15 --include-assistant`), and classifies by exit code
+  (3→telemetry-gap, 0+`#N: h.hh hr`→measured, else→fallback). Pure helpers
+  `cwdToTranscriptDir` ('/'+'.'→'-'), `selectActualDirs`, `parseV3PrimaryHours`.
+- New verb `sdlc actual --issue N` (`NewActualCmd` + `helptext/actual.md`,
+  registered in main.go) prints the suggested `--actual` or the judgment guidance.
+- `close.go`/`explainActual` rewritten: the missing-`--actual` path now **runs
+  the same engine and prints the measured suggestion inline** (`→ close with:
+  --actual <h>`) instead of a python command nobody ran. Graceful fallback
+  (`actualNoScript`) when the script/`python3` is absent (e.g. a derivative
+  without `construct/local/`) → "use a judgment estimate".
+- Tests: `actual_test.go` (cwd-encoding, per-issue parse incl. no-prefix-match,
+  dir-selection fixture incl. unrelated-excluded + missing-skipped, flag reg).
+- **Live verified**: `sdlc actual --issue 67` → measured; `--issue 68` → 0.62h
+  (peers #16,#68); `--issue 999` → no-window guidance; `sdlc close --issue 68`
+  (no `--actual`) prints "measured actual for #68: 0.62h → --actual 0.62" inline.
+  `go test ./cmd/sdlc/...` + `go vet` green. (Note: numbers carry the existing
+  CommitWindow subject-anchor caveat — work before the first `#N:`-subject commit
+  isn't in the window; a separate v3/window refinement, not M2.)
+
+### 2026-06-02 — M1
+- 2026-06-02: closed M1 — gitx cap 31→61 (test: 45-day commit anchors, has teeth); active-time-v3 exits 2 on empty --dir + exit 3 on commits-but-0-events (test_active_time_v3.py 5 checks pass); go test+vet green. --no-atlas: internal cap/exit-code change, no new surface (M2 adds it). actual=judgment (15-min chunk); review verdict: FIX-THEN-SHIP
+
+- `cmd/sdlc/internal/gitx/window.go`: `WindowCapDays` 31→61 (+ rationale comment).
+  Test `TestCommitWindow_ExtendedCapIncludes45Days` (temp repo, a 45-day-old #99
+  commit must anchor the window — fails under the old 31-day cap).
+- `construct/local/issues/active-time-v3.py`: (a) **empty `--dir` → exit 2** with
+  a message (events come only from transcripts; no `--dir` is always a
+  misinvocation, never a real 0); (b) **commits-but-0-events → exit 3** with a
+  "TELEMETRY UNAVAILABLE" message (the transcripts are in cwds not passed via
+  `--dir`, or aged out — never read 0 as measured). Genuinely-empty window still
+  exits 0. Smoke-confirmed all three; `#67` over today's window measured 2.01h
+  (vs the 2.0h judgment I'd recorded — the algorithm was always fine).
+- Test `construct/local/issues/test_active_time_v3.py` (self-contained, mirrors
+  `test_detect.py`): 5 checks (exit 2 / exit 3 / exit 0 paths + messages). Run
+  with `python3 construct/local/issues/test_active_time_v3.py`.
+- `go test ./cmd/sdlc/...` + `go vet` green.
 
 ### 2026-06-02
 
