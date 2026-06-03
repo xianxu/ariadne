@@ -22,6 +22,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | Verb              | Replaces (Make target)      | Defends |
 |-------------------|-----------------------------|---------|
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked |
+| `actual`          | (new #68)                   | Compute an issue's focused dev-hours (runs active-time-v3 with brain+repo transcript dirs) |
 | `state`           | (new)                       | Workflow state inspection + drift detection |
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
@@ -67,6 +68,7 @@ cmd/sdlc/
   ghclient.go          ghCaller interface + realGH impl (shared)
   preflight.go         runPreflightJudges (push + merge pre-flight)
   close.go             ← scripts/close-issue.py
+  actual.go            new (#68): runs active-time-v3 → suggested --actual
   state.go             new (read-only inspection + drift detection)
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
@@ -111,6 +113,18 @@ pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires
 when the gate would actually have refused. `--force` waives all at once.
 `milestone-close` forwards the same flags into its delegated `runClose`.
 The convention generalizes `merge`'s pre-existing `--no-judge`.
+
+**Measured actuals (#68).** `--actual` is computed, not hand-typed. `sdlc actual
+--issue N` (engine in `actual.go`, shared with close's missing-`--actual`
+explainer) runs `construct/local/issues/active-time-v3.py` over the issue's
+`CommitWindow` + `DiscoverWindowIssues` peers, feeding it **brain + the issue's
+repo** transcript dirs (`~/.claude/projects/<cwd-encoded>`) — the validated
+heuristic (events come only from transcripts; the wrong/missing dirs were why
+actuals read 0 and got faked). v3's exit codes are the contract: **2** = no
+`--dir` (misinvocation), **3** = commits-but-0-events (telemetry gap → labeled
+judgment), **0 + a `#N: h.hh hr` line** = measured. Dir-selection is deliberately
+narrow (NOT all folders) — an unrelated concurrently-edited repo inflates the
+count. `WindowCapDays` is 61 (was 31) so month-long issues keep their window.
 
 `push` and `merge` auto-dispatch `judge plan|specs|lessons` as pre-
 flight so the checks run consistently rather than as a remembered

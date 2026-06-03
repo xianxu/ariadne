@@ -103,12 +103,37 @@ Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printin
 
 - [x] M1 — `WindowCapDays` 31→61 (`gitx`); `active-time-v3.py` loud-fail on empty `--dir`
       + explicit "telemetry unavailable" on commits-but-0-events. Unit/CLI tests.
-- [ ] M2 — `sdlc` runs v3 in the actual path: dir-selection (brain + issue-repo, enumerate
+- [x] M2 — `sdlc` runs v3 in the actual path: dir-selection (brain + issue-repo, enumerate
       `~/.claude/projects/*`), window + peers, subprocess invoke + parse the per-issue
       total, print suggested actual; graceful fallback when script/python absent. Verify it
       reproduces nous#14 ≈ 7.8h.
 
 ## Log
+
+### 2026-06-02 — M2
+
+- New `cmd/sdlc/actual.go` — engine `computeActual(repoTop, brainAbs, issue)`:
+  resolves `CommitWindow` + `DiscoverWindowIssues` peers, selects transcript dirs
+  via the validated heuristic (**brain + the issue's repo**, existing folders
+  only — never "all"), runs `active-time-v3.py` (`--commit-weight 1.0
+  --threshold-min 15 --include-assistant`), and classifies by exit code
+  (3→telemetry-gap, 0+`#N: h.hh hr`→measured, else→fallback). Pure helpers
+  `cwdToTranscriptDir` ('/'+'.'→'-'), `selectActualDirs`, `parseV3PrimaryHours`.
+- New verb `sdlc actual --issue N` (`NewActualCmd` + `helptext/actual.md`,
+  registered in main.go) prints the suggested `--actual` or the judgment guidance.
+- `close.go`/`explainActual` rewritten: the missing-`--actual` path now **runs
+  the same engine and prints the measured suggestion inline** (`→ close with:
+  --actual <h>`) instead of a python command nobody ran. Graceful fallback
+  (`actualNoScript`) when the script/`python3` is absent (e.g. a derivative
+  without `construct/local/`) → "use a judgment estimate".
+- Tests: `actual_test.go` (cwd-encoding, per-issue parse incl. no-prefix-match,
+  dir-selection fixture incl. unrelated-excluded + missing-skipped, flag reg).
+- **Live verified**: `sdlc actual --issue 67` → measured; `--issue 68` → 0.62h
+  (peers #16,#68); `--issue 999` → no-window guidance; `sdlc close --issue 68`
+  (no `--actual`) prints "measured actual for #68: 0.62h → --actual 0.62" inline.
+  `go test ./cmd/sdlc/...` + `go vet` green. (Note: numbers carry the existing
+  CommitWindow subject-anchor caveat — work before the first `#N:`-subject commit
+  isn't in the window; a separate v3/window refinement, not M2.)
 
 ### 2026-06-02 — M1
 - 2026-06-02: closed M1 — gitx cap 31→61 (test: 45-day commit anchors, has teeth); active-time-v3 exits 2 on empty --dir + exit 3 on commits-but-0-events (test_active_time_v3.py 5 checks pass); go test+vet green. --no-atlas: internal cap/exit-code change, no new surface (M2 adds it). actual=judgment (15-min chunk); review verdict: FIX-THEN-SHIP
