@@ -106,6 +106,19 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 			t.Errorf("close stdout missing %q:\n%s", want, out)
 		}
 	}
+	// The verdict is also mirrored into the close log line (#69 M2 review I1).
+	if got := readIssue(t, issuesDir); !strings.Contains(got, "closed — tests pass; review verdict: SHIP") {
+		t.Errorf("issue ## Log line missing the verdict annotation:\n%s", got)
+	}
+}
+
+func readIssue(t *testing.T, issuesDir string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(issuesDir, "000069-x.md"))
+	if err != nil {
+		t.Fatalf("read issue: %v", err)
+	}
+	return string(data)
 }
 
 // #69 guard: a milestone close routed through runClose (as milestone-close does)
@@ -147,5 +160,10 @@ func TestRunCloseWithReview_NoJudge_Skips(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "Review-Verdict: not-run") {
 		t.Errorf("--no-judge close should still emit a not-run trailer:\n%s", stdout.String())
+	}
+	// I1: the not-run verdict is mirrored into the log line too (parity with
+	// milestone-close), not just the trailer.
+	if got := readIssue(t, issuesDir); !strings.Contains(got, "; review verdict: not-run") {
+		t.Errorf("--no-judge close should still annotate the log line:\n%s", got)
 	}
 }

@@ -174,7 +174,25 @@ NOT inline principle bodies (that would re-duplicate the registry — ARCH-DRY).
 
 ## Log
 
+### 2026-06-03 — M2 review (FIX-THEN-SHIP) — findings addressed
+- M2 boundary review (dogfooded through the new code-review.md prompt) returned
+  FIX-THEN-SHIP with two Important + minors; all addressed before crossing:
+  - **I1** `--no-judge` close skipped the log-line verdict annotation that
+    milestone-close does → extracted `finishBoundaryReview` so BOTH the dispatched
+    and the not-run/`--no-judge` paths emit the trailer AND annotate the log line.
+    Test asserts the not-run annotation lands.
+  - **I2 (ARCH-DRY)** `resolveReviewWindow` was a *parallel* reimplementation of
+    close.go's atlas-gate commit scan (different match strings) — my comment had
+    even claimed "same source". Extracted `firstCommitReferencing(refSubject)`,
+    now the ONE scan both consume; atlas window ≡ review window by construction.
+  - **minor** atlas command-table rows (`close`/`milestone-close`) refreshed to
+    the unified review + `--no-judge`; gate count 7 → 8. Added readback assertions
+    that the issue-close log line actually receives `; review verdict: …`.
+  - left as noted (harmless): dry-run trailer asymmetry; `#69`-substring vs `#690`
+    collision (pre-existing in the atlas gate, now commented in the shared helper).
+
 ### 2026-06-03 — M2
+- 2026-06-03: closed M2 — dispatchBoundaryReview shared by close+milestone-close (ARCH-DRY); runCloseWithReview auto-dispatches the whole-issue review on standalone issue close; structural double-dispatch guard (only Milestone=="" dispatches; milestone-close calls runClose directly) verified by closereview_test.go; --no-judge skips; warmup 2->1; go test+vet+gofmt green; close --help shows the boundary review. atlas surface already documented in M1 note.; review verdict: FIX-THEN-SHIP
 - Extracted the review dispatch into one `dispatchBoundaryReview(stdout, stderr,
   boundaryReviewParams)` shared by milestone-close and close (ARCH-DRY);
   generalized `resolveReviewWindow(refSubject)`, `emitTrailerBlock(_, _, kind)`,

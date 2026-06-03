@@ -182,17 +182,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 // something to write.
 func resolveReviewWindow(refSubject string) (base, baseLong, head string) {
 	head = "HEAD"
-	entries, err := gitx.LogReverse()
-	if err != nil {
-		return "?", "", head
-	}
-	var firstSHA string
-	for _, e := range entries {
-		if strings.Contains(e.Subject, refSubject) {
-			firstSHA = e.SHA
-			break
-		}
-	}
+	firstSHA, _ := firstCommitReferencing(refSubject)
 	if firstSHA == "" {
 		return "?", "", head
 	}
@@ -203,6 +193,34 @@ func resolveReviewWindow(refSubject string) (base, baseLong, head string) {
 	}
 	base = shortSHA(baseLong)
 	return base, baseLong, head
+}
+
+// firstCommitReferencing returns the SHA of the FIRST (oldest) commit whose
+// subject contains refSubject (e.g. "#69" or "#69 M1") plus the count of all
+// matching commits. ("", 0) when `git log` fails or nothing matches. This is the
+// ONE commit-window scan (ARCH-DRY) shared by close.go's atlas gate and
+// resolveReviewWindow, so the atlas window and the review window are provably the
+// same scan rather than parallel reimplementations that drift (#69 M2 review).
+//
+// Match is a bare substring on the subject: refSubject always starts with '#',
+// which never appears in a SHA or ISO date, so subject-only matching equals the
+// old SHA+date+subject match. (Caveat: "#69" substring-matches "#690" — a
+// theoretical collision shared with the old atlas gate; commit subjects on a
+// feature branch are the issue's own, so it doesn't bite in practice.)
+func firstCommitReferencing(refSubject string) (firstSHA string, count int) {
+	entries, err := gitx.LogReverse()
+	if err != nil {
+		return "", 0
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Subject, refSubject) {
+			if firstSHA == "" {
+				firstSHA = e.SHA
+			}
+			count++
+		}
+	}
+	return firstSHA, count
 }
 
 // shortSHA returns the abbreviated SHA via `git rev-parse --short`. Falls

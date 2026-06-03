@@ -379,24 +379,9 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	if f.Milestone != "" {
 		refSubject += " " + f.Milestone
 	}
-	entries, err := gitx.LogReverse()
-	if err != nil {
-		// `git log` failure is non-fatal — close-issue.py raises here too,
-		// but we treat it as "no commit window" (warn) to match the
-		// behavior when there's no history yet.
-		cwarn(stderr, fmt.Sprintf("git log failed: %v", err))
-		entries = nil
-	}
-	var firstSHA string
-	matchingCount := 0
-	for _, e := range entries {
-		if strings.Contains(e.SHA+" "+e.Date+" "+e.Subject, refSubject) {
-			if firstSHA == "" {
-				firstSHA = e.SHA
-			}
-			matchingCount++
-		}
-	}
+	// One commit-window scan (ARCH-DRY) shared with resolveReviewWindow (#69
+	// review): the atlas window and the boundary-review window are the same scan.
+	firstSHA, matchingCount := firstCommitReferencing(refSubject)
 	if firstSHA != "" {
 		plural := "s"
 		if matchingCount == 1 {
@@ -629,8 +614,8 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	switch {
 	case f.skip("judge"):
 		cinfo(stderr, "skipping issue boundary review per --no-judge (or --force)")
-		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}, "close")
-		return nil
+		return finishBoundaryReview(stdout, stderr, f,
+			reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong})
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch the issue boundary review")
 		return nil
@@ -645,6 +630,14 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		IssuesDir: f.IssuesDir,
 		Agent:     f.Agent,
 	})
+	return finishBoundaryReview(stdout, stderr, f, result)
+}
+
+// finishBoundaryReview emits the close trailer and mirrors the verdict into the
+// issue's close log line — for BOTH the dispatched and the --no-judge/not-run
+// paths, matching milestone-close's behavior (which annotates even when the judge
+// didn't run). #69 M2 review I1: the no-judge path used to skip the annotation.
+func finishBoundaryReview(stdout, stderr io.Writer, f *closeFlags, result reviewResult) error {
 	emitTrailerBlock(stdout, result, "close")
 	if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, "", result.Verdict); err != nil {
 		cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
