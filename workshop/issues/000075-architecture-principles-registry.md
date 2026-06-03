@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
-estimate_hours:
+estimate_hours: 3
 ---
 
 # architecture.md — a referenced architectural-principles registry delivered to planning + reviews
@@ -101,15 +101,17 @@ architecture). Start embedded; add override later if wanted.
 
 ## Plan
 
-*(draft — to refine at change-code)*
+Decision: **embed** (`//go:embed`, ariadne-owned, simplest); derivative-override
+via a runtime `construct/` doc is a deferred refinement.
 
-- [ ] Author `architecture.md` (ARCH-DRY, ARCH-PURE; the at-plan/at-review
-  template) + `//go:embed` it into the judge package.
-- [ ] Render it into the plan-quality + boundary-review prompts (at-plan /
-  at-review lenses); embed-presence tests.
-- [ ] New `sdlc start-plan` verb that renders the `at-plan` lens; wire into the
-  AGENTS.md §2 workflow (`claim → start-plan → change-code`) + §6 pointer.
-- [ ] Fold `judge dry/pure` into the registry; decide standalone-verb fate.
+- [ ] M1 — registry + judge wiring: author `architecture.md` (ARCH-DRY, ARCH-PURE
+  with principle/at-plan/at-review) + `//go:embed` into the judge package; render
+  the `at-plan` lens into the plan-quality prompt and the `at-review` lens into
+  the boundary/milestone-review prompt; fold `judge dry/pure` in; tests (embed
+  presence in both prompts; markers present; à la #70's pattern).
+- [ ] M2 — `sdlc start-plan` verb + workflow: new verb rendering the `at-plan`
+  lens to the main thread at plan-entry; wire AGENTS.md §2 (`claim → start-plan →
+  change-code`) + §6 pointer; verb-registration + render tests.
 
 ## Relationships
 
