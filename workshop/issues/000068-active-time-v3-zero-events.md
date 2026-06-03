@@ -64,10 +64,10 @@ mention (mentions only gate the `1−weight` split + commitless segments) — wh
 **31-day `WindowCapDays`** in `internal/gitx/window.go` (`CommitWindow` caps the lookback),
 which truncates the window for month-long work (e.g. #16). Bump it.
 
-## Spec — design (agreed)
+## Spec
 
-Direction: **lift the manual prose into `sdlc`** — stop printing a 6-line command for a
-human to run (nobody does); have `sdlc` run it.
+Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printing a
+6-line command for a human to run (nobody does); have `sdlc` run it.
 
 1. **`WindowCapDays` 31 → 61** (`internal/gitx/window.go`) — cover month-long tasks.
 2. **0-event / no-`--dir` detection** — `active-time-v3.py` must FAIL LOUDLY (non-zero,
