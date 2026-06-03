@@ -69,7 +69,7 @@ the **first non-empty line**, so any judge preamble before `VERDICT: CLEAN` drop
 a brittle legacy sentinel-grep that defaults to `Failure`. Single source of truth +
 robust scan fixes it.
 
-- [ ] **M1 — contract + robust parser + gating.** New
+- [x] **M1 — contract + robust parser + gating.** New
   `cmd/sdlc/internal/judge/contract.go` (token set {CLEAN,INFO,SHIP,FIX-THEN-SHIP |
   FAILURE,REWORK,BLOCK} + `Blocking()` map + `ContractBlock` snippet). Rewrite
   `classify.go`: `ParseVerdictToken` scans ALL lines for the first `^VERDICT: <TOKEN>`
@@ -85,6 +85,28 @@ robust scan fixes it.
   fixed `REMINDER:` exception.
 
 ## Log
+
+### 2026-06-03 — M1
+
+- **Decision (from plan-quality judge):** M1 is **internal-only** — rewrite
+  `Classify`/`ParseVerdict` over a robust scan; the six consumer call sites keep
+  the `Clean/Info/Failure` + `Verdict` API and don't change. The token→outcome
+  table is written explicitly (contract.go doc comment).
+- `cmd/sdlc/internal/judge/contract.go` (new): `ContractTokens`, `blockingTokens`,
+  `Blocking()`, `outcomeForToken()` — the single token taxonomy + the
+  token→(Outcome, Verdict, blocking) table both sides derive from.
+- `classify.go` rewrite: `ParseVerdictToken` scans **all** lines for the first
+  `^VERDICT: <TOKEN>` (strips leading markdown markup) — the `VERDICT:` prefix is
+  distinctive enough to scan past a preamble without prose false-positives, which
+  is exactly the bug. `Classify` → `outcomeForToken`; `ParseVerdict` prefers the
+  `VERDICT:` token then the legacy bare-`SHIP` scan (back-compat). The brittle
+  "first-non-empty-line only → default Failure on any prose" path is gone; legacy
+  `REMINDER:`/DRY-PURE sentinels kept as a thin fallback (M2 folds them in).
+- Tests: #70 regression (verdict behind a markdown title / prose preamble → now
+  classifies correctly; was Failure), `TestParseVerdictToken`,
+  `TestParseVerdict_VerdictPrefix` (incl. the #68 "unknown" repro → now parses).
+  **All existing judge tests stay green** (precision guards for bare-token prose
+  intact). `go test ./cmd/sdlc/...` + `go vet` green.
 
 ### 2026-06-02
 

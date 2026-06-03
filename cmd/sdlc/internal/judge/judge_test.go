@@ -291,6 +291,21 @@ func TestClassify(t *testing.T) {
 		{"verdict with leading whitespace", "   VERDICT: CLEAN\nbody", Clean},
 		{"verdict after blank line", "\n\nVERDICT: CLEAN\nbody", Clean},
 
+		// #70 regression: the verdict behind a PREAMBLE. These all returned
+		// Failure before (the parser only checked the first non-empty line, so a
+		// title / prose line dropped it to the legacy grep → Failure → blocked the
+		// merge). The robust scan now finds the VERDICT: line anywhere.
+		{"#70: clean behind a markdown title + NOTE", "# Code Review\n\nVERDICT: CLEAN\n\n[NOTE] a minor nit, non-blocking.", Clean},
+		{"#70: clean behind prose preamble", "I've reviewed the diff in full.\n\nVERDICT: CLEAN\nfindings: none.", Clean},
+		{"#70: failure behind a title still fails", "# Specs Review\nVERDICT: FAILURE\nstale atlas ref.", Failure},
+		{"#70: info behind preamble passes", "## Plan Review\n\nVERDICT: INFO (confidence: high)\nminor suggestion only.", Info},
+		// Cross-family tokens map through the contract (a SHIP-family token on a
+		// VERDICT: line classifies by blocking-ness).
+		{"ship token → non-blocking (info)", "VERDICT: SHIP (confidence: high)\n…", Info},
+		{"fix-then-ship token → non-blocking", "VERDICT: FIX-THEN-SHIP\naddress then ship.", Info},
+		{"rework token → blocking (failure)", "VERDICT: REWORK\nneeds rework.", Failure},
+		{"block token → failure", "VERDICT: BLOCK\nhard stop.", Failure},
+
 		// Real-world repro from pair#23 close: judge approved in prose
 		// but the prompt didn't yet ask for a VERDICT line, so the
 		// output starts with a markdown header. Falls through to the
@@ -313,6 +328,58 @@ func TestClassify(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Classify(tt.output); got != tt.want {
 				t.Errorf("Classify(%q) = %s, want %s", tt.output, got, tt.want)
+			}
+		})
+	}
+}
+
+// #70: the robust scan finds the VERDICT: token anywhere, tolerating preamble +
+// markdown markup; ok=false only when there's genuinely no VERDICT: line.
+func TestParseVerdictToken(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		tok  string
+		ok   bool
+	}{
+		{"first line", "VERDICT: CLEAN\nbody", "CLEAN", true},
+		{"behind title", "# Review\n\nVERDICT: SHIP (confidence: high)\n…", "SHIP", true},
+		{"behind prose", "I looked at everything.\nVERDICT: FAILURE\n…", "FAILURE", true},
+		{"emphasized", "**VERDICT: REWORK**\n…", "REWORK", true},
+		{"lowercase prefix", "verdict: clean\n", "CLEAN", true},
+		{"fix-then-ship", "VERDICT: FIX-THEN-SHIP\n", "FIX-THEN-SHIP", true},
+		{"no verdict line", "# Review\nLooks good to me.\n", "", false},
+		{"bare token is not a VERDICT line", "SHIP (confidence: high)\n", "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tok, ok := ParseVerdictToken(c.in)
+			if tok != c.tok || ok != c.ok {
+				t.Errorf("ParseVerdictToken(%q) = (%q,%v), want (%q,%v)", c.in, tok, ok, c.tok, c.ok)
+			}
+		})
+	}
+}
+
+// #70: milestone ParseVerdict now accepts the unified `VERDICT:` prefix (M2's
+// migrated prompt) AND the legacy bare token (back-compat), including behind a
+// preamble — which is what fixes the `unknown` verdict seen on #68's M2 review.
+func TestParseVerdict_VerdictPrefix(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want Verdict
+	}{
+		{"verdict prefix ship", "VERDICT: SHIP (confidence: high)\n…", VerdictShip},
+		{"verdict prefix behind title", "# Post-Milestone Review\n\nVERDICT: FIX-THEN-SHIP\n…", VerdictFixThenShip},
+		{"verdict prefix behind prose (the #68 unknown case)", "I have everything I need.\nVERDICT: REWORK\nreasons…", VerdictRework},
+		{"legacy bare token still parses", "SHIP (confidence: high)\nbody", VerdictShip},
+		{"no verdict at all → unknown", "Looks reasonable.\nNo verdict emitted.", VerdictUnknown},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := ParseVerdict(c.in); got != c.want {
+				t.Errorf("ParseVerdict(%q) = %s, want %s", c.in, got, c.want)
 			}
 		})
 	}

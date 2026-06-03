@@ -39,62 +39,54 @@ var cleanRE = regexp.MustCompile(`(?i)no (DRY|PURE) violations found|all tests p
 // a failure, but worth surfacing.
 var infoRE = regexp.MustCompile(`(?i)REMINDER:`)
 
-// verdictLineRE matches the structured `VERDICT:` line that Plan +
-// Specs prompts instruct subagents to emit as line 1 (Lessons skips
-// the agent entirely). Same shape as MilestoneReview's first-line
-// verdict (`SHIP | FIX-THEN-SHIP | REWORK`) but with the Outcome
-// trio as labels so the prompt → classifier mapping is 1:1.
-//
-// Tolerant on leading whitespace and the optional `(confidence: …)`
-// parenthetical — the prompt asks for it but we don't punish drift.
-var verdictLineRE = regexp.MustCompile(`^\s*VERDICT:\s*(CLEAN|INFO|FAILURE)\b`)
+// verdictTokenLineRE matches a `VERDICT: <TOKEN>` line carrying any contract
+// token. The `VERDICT:` prefix is distinctive enough that we scan the WHOLE
+// output for it (not just the first non-empty line) without prose false
+// positives — which is exactly what fixes the preamble-before-verdict bug (#70):
+// a judge that writes a title or "I've reviewed…" line before `VERDICT: CLEAN`
+// is no longer mis-read as a failure. Tolerant of leading markdown markup and
+// the optional `(confidence: …)` parenthetical.
+var verdictTokenLineRE = regexp.MustCompile(`(?i)^VERDICT:\s*(CLEAN|INFO|FAILURE|SHIP|FIX-THEN-SHIP|REWORK|BLOCK)\b`)
 
-// parseVerdictLine looks for the structured verdict on the first
-// non-empty line of the output. Returns (outcome, true) on hit, or
-// (Failure, false) when no verdict line is present — letting the
-// caller fall back to the legacy grep path.
-func parseVerdictLine(s string) (Outcome, bool) {
-	for _, line := range strings.Split(s, "\n") {
+// ParseVerdictToken scans output for the first `VERDICT:` line and returns its
+// upper-cased token (e.g. "CLEAN", "SHIP"). ok=false when no VERDICT: line is
+// present anywhere — the caller decides the fallback (legacy sentinels) or
+// fail-closed. Pure; the single robust parse both Classify and ParseVerdict use.
+func ParseVerdictToken(output string) (string, bool) {
+	for _, line := range strings.Split(output, "\n") {
 		t := strings.TrimSpace(line)
 		if t == "" {
 			continue
 		}
-		m := verdictLineRE.FindStringSubmatch(t)
-		if m == nil {
-			return Failure, false
+		stripped := leadingMarkupRE.ReplaceAllString(t, "")
+		if m := verdictTokenLineRE.FindStringSubmatch(stripped); m != nil {
+			return strings.ToUpper(m[1]), true
 		}
-		switch m[1] {
-		case "CLEAN":
-			return Clean, true
-		case "INFO":
-			return Info, true
-		case "FAILURE":
-			return Failure, true
-		}
-		return Failure, false
 	}
-	return Failure, false
+	return "", false
 }
 
-// Classify returns the Outcome for a single agent's output. Empty
-// output is treated as failure (the agent should have said *something*).
+// Classify returns the Outcome for a single agent's output. Empty output is
+// treated as failure (the agent should have said *something*).
 //
-// Two-tier strategy: prefer the structured `VERDICT:` line emitted by
-// the migrated prompts; fall back to the legacy sentinel grep so older
-// prompt outputs and stray agent prose don't break overnight.
+// Primary path: the structured `VERDICT: <TOKEN>` line (robust scan), mapped to
+// an Outcome via the contract (contract.go). Legacy fallback: the Lessons
+// `REMINDER:` line and the old DRY/PURE sentinels, kept so un-migrated outputs
+// don't break before M2 folds them into the contract. No VERDICT line + no
+// legacy match → Failure (fail closed; the agent broke the output contract).
 func Classify(output string) Outcome {
 	s := strings.TrimSpace(output)
 	if s == "" {
 		return Failure
 	}
-	if o, ok := parseVerdictLine(s); ok {
-		return o
+	if tok, ok := ParseVerdictToken(s); ok {
+		return outcomeForToken(tok)
 	}
-	if cleanRE.MatchString(s) {
-		return Clean
-	}
-	if infoRE.MatchString(s) {
+	if infoRE.MatchString(s) { // Lessons REMINDER:
 		return Info
+	}
+	if cleanRE.MatchString(s) { // legacy DRY/PURE "No X violations found"
+		return Clean
 	}
 	return Failure
 }
@@ -108,11 +100,11 @@ func Classify(output string) Outcome {
 type Verdict string
 
 const (
-	VerdictShip          Verdict = "SHIP"
-	VerdictFixThenShip   Verdict = "FIX-THEN-SHIP"
-	VerdictRework        Verdict = "REWORK"
-	VerdictNotRun        Verdict = "not-run"   // judge skipped or errored
-	VerdictUnknown       Verdict = "unknown"   // judge ran, no leading verdict found
+	VerdictShip        Verdict = "SHIP"
+	VerdictFixThenShip Verdict = "FIX-THEN-SHIP"
+	VerdictRework      Verdict = "REWORK"
+	VerdictNotRun      Verdict = "not-run" // judge skipped or errored
+	VerdictUnknown     Verdict = "unknown" // judge ran, no leading verdict found
 )
 
 var (
@@ -169,6 +161,16 @@ func verdictFor(token string) Verdict {
 // Pure: no IO, deterministic on its input. Lives in the judge package
 // alongside Classify so the prompt + parser sit next to each other.
 func ParseVerdict(output string) Verdict {
+	// Primary (#70): the structured `VERDICT: <TOKEN>` line, found robustly even
+	// behind a preamble. Only a SHIP-family token is a milestone verdict; a
+	// CLEAN/INFO/FAILURE on a VERDICT: line falls through to the legacy scan.
+	if tok, ok := ParseVerdictToken(output); ok {
+		if v := verdictFor(tok); v != VerdictUnknown {
+			return v
+		}
+	}
+	// Legacy: bare leading token (`SHIP`) + confidence fallback, for milestone
+	// prompts not yet migrated to the `VERDICT:` prefix (M2 migrates them).
 	for _, line := range strings.Split(output, "\n") {
 		t := strings.TrimSpace(line)
 		if t == "" {
