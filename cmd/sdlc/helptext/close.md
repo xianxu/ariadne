@@ -12,8 +12,8 @@ MODES
 
 WHAT THE GUARD DEFENDS
 
-  --actual <hours>     focused dev-hours, derived from active-time-v3.
-                       Required (refused without it, or --force).
+  --actual <hours>     focused dev-hours (sdlc computes it — close suggests a
+                       number, or run `sdlc actual --issue N`). Required.
   --verified '<line>'  one-line evidence the work meets done-when (behavior,
                        not artifacts: "tests pass" beats "code written").
                        Required.
@@ -90,8 +90,10 @@ DEEP-DIVE REFERENCES
     baseline-v3.md
   construct/datatype/project.md      project-file shape & detail blocks
 
-If --actual or --verified is missing, the explainer prints a tailored
-active-time-v3 command line for this issue's commit window (with peer
-issues auto-discovered from window subject refs), plus a worked example
-of a behavior-grounded VERIFIED string. Read the explainer; the contract
-is load-bearing.
+If --actual is missing, close runs active-time-v3 itself (brain + repo
+transcript dirs, this issue's window + auto-discovered peers) and prints the
+measured suggestion inline — `→ close with: --actual <h>` — or, when the
+telemetry isn't available, points you to a labeled judgment estimate. If
+--verified is missing, the explainer shows a worked example of a
+behavior-grounded VERIFIED string. Read the explainer; the contract is
+load-bearing.
