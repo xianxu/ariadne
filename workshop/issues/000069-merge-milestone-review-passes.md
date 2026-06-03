@@ -174,7 +174,17 @@ NOT inline principle bodies (that would re-duplicate the registry — ARCH-DRY).
 
 ## Log
 
+### 2026-06-03 — M1 review (SHIP) — carry into M2
+- M1 milestone-review verdict **SHIP (high confidence)**, two advisory notes,
+  both M2 work: (1) `milestoneclose.go:387` cwarn still says "address before next
+  milestone" — fold the vocabulary into M2's `dispatchBoundaryReview` extraction
+  (and `close.go` boundary-review helptext) so all boundary prose says "boundary".
+  (2) `archMarkerRE` (`ARCH-([A-Z][A-Z-]*)`) would greedily swallow a trailing
+  hyphen if a marker were ever followed by `-lowercase` prose — harmless today
+  (em-dash separators), glance when #71's ARCH-SHIM lands.
+
 ### 2026-06-03 — M1
+- 2026-06-03: closed M1 — one embedded reviewer procedure (code-review.md) rendered by CodeReviewBody; {{ARCH_STAR}} from shared ArchitectureMarkers; MilestoneReview composes body+at-review block+contract+diff; no-inlined-bodies guardrail + render + markers tests; AGENTS.md §3 + skill reframed so boundaries are binary-owned (no double-run); go test+vet+gofmt green; composed prompt dogfood-rendered; review verdict: SHIP
 
 - The exploration reframed scope: the binary **already** owns a fresh-context
   review (`milestone-close` → `judge.Dispatch` → `claude -p` with the
