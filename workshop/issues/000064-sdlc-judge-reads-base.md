@@ -1,11 +1,12 @@
 ---
 id: 000064
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-03
 estimate_hours: 0.75
+actual_hours: 0.75
 ---
 
 # sdlc push plan-completeness judge reads pre-merge base, not HEAD — blocks close-and-archive pushes
@@ -101,6 +102,7 @@ in the range (the nous `shared-brain` push it was filed from).
 ## Log
 
 ### 2026-06-03
+- 2026-06-03: closed — collectDiff Plan filter now follows issues/→history/ archive rename (both dirs + --diff-filter=d on name-only); agent gets HEAD-existing history/ path not stale deleted issues/ path. Regression test (done + incomplete archive) has teeth; rename-robust; go test+vet+gofmt green; fresh-eyes review SHIP (verified git semantics on a real archive commit). --no-atlas: internal diff-filter bugfix, no new surface
 
 - Fixed `collectDiff` (cmd/sdlc/judge.go) for the Plan category: the path filter
   now includes BOTH `issuesDir/*.md` and `historyDir/*.md` (content diff), and the
