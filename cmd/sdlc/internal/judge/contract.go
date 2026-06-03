@@ -25,6 +25,21 @@ import "strings"
 // Lessons is the one exception — it runs no agent and emits a fixed `REMINDER:`
 // line (→ Info), documented in the schema doc.
 
+// ContractPreamble is the shared output-format instruction every agent-emitting
+// judge embeds verbatim — the machine-read part of the contract. Category token
+// meanings (what CLEAN/SHIP/etc. mean for THAT check) live in each prompt; this
+// is only the FORMAT the parser depends on, so prompt and parser can't drift.
+// The human-readable mirror is construct/judge-output-contract.md (kept in sync
+// by a drift test). #70.
+const ContractPreamble = `OUTPUT CONTRACT (machine-read — do not deviate). Your response's FIRST line
+MUST be exactly:
+
+    VERDICT: <TOKEN> (confidence: high | medium | low)
+
+The parser reads ONLY this <TOKEN>. Findings, notes, and severity tags below it
+are advisory — a non-blocking verdict WITH notes still PASSES the gate. Do not
+put a title, heading, or any preamble above the VERDICT line; it must lead.`
+
 // blockingTokens are the verdict tokens that fail a gate.
 var blockingTokens = map[string]bool{
 	"FAILURE": true,

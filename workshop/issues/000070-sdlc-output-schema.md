@@ -78,13 +78,32 @@ robust scan fixes it.
   "no VERDICT line at all" fails closed with a clear message, not a prose-grep guess.
   Full regression suite (CLEAN+preamble+NOTE passes; existing cases stay green). *This
   alone fixes both observed bugs.*
-- [ ] **M2 — one contract both reference.** Migrate `prompts.go` to embed
+- [x] **M2 — one contract both reference.** Migrate `prompts.go` to embed
   `ContractBlock` (MilestoneReview → `VERDICT:` prefix; DRY/PURE sentinels →
   `VERDICT:`); add the human schema doc `construct/judge-output-contract.md` + a
   drift test (doc tokens == `contract.go` tokens); atlas note. Lessons stays the
   fixed `REMINDER:` exception.
 
 ## Log
+
+### 2026-06-03 — M2
+
+- `contract.go`: added `ContractPreamble` — the shared `VERDICT: <TOKEN>` format
+  instruction every agent-emitting prompt embeds verbatim (the machine-read part;
+  category token *meanings* stay per-prompt).
+- `prompts.go`: all five agent prompts now embed `ContractPreamble`.
+  **MilestoneReview migrated** from bare `SHIP | FIX-THEN-SHIP | REWORK` →
+  `VERDICT: SHIP | …` (uniform format — fully fixes the milestone `unknown` at
+  the source). **DRY/PURE** migrated from "say 'No DRY violations found'"
+  sentinels → `VERDICT: CLEAN | FAILURE`.
+- `construct/judge-output-contract.md`: the human schema doc (the operator's ask)
+  — format + token table + gate semantics + the Lessons exception.
+- Tests: `TestAgentPromptsEmbedContract` (every agent category embeds the one
+  contract — pins the unification), `TestContractDoc_InSyncWithTokens` (drift
+  guard: doc tokens == `ContractTokens`), and updated the three prompt-content
+  tests to the new format. `go test ./cmd/sdlc/...` + `go vet` + gofmt green.
+- atlas `sdlc-binary.md`: the "Judge → classifier contract" paragraph now points
+  at the one contract (doc + `contract.go`) + the robust token scan.
 
 ### 2026-06-03 — M1
 - 2026-06-03: closed M1 — ParseVerdictToken robust scan: VERDICT behind a preamble now classifies correctly (was Failure→blocked merge); #70 regression + ParseVerdict VERDICT-prefix tests pass; all existing judge tests green; go test+vet clean. contract.go = single token taxonomy. --no-atlas: internal parser rewrite, M2 adds the schema doc + atlas note. actual=judgment; review verdict: FIX-THEN-SHIP

@@ -3,7 +3,9 @@ package judge
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -55,12 +57,49 @@ func TestBuildPrompt_DRY(t *testing.T) {
 	p := BuildPrompt(DRY, PromptInput{Diff: "DIFF_CONTENT"})
 	for _, want := range []string{
 		"DRY (Don't Repeat Yourself) violations",
-		`No DRY violations found.`,
 		"Do NOT modify any files",
 		"DIFF_CONTENT",
+		"CLEAN   = no DRY violations.", // VERDICT tokens, not the old sentinel (#70 M2)
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt missing %q\n%s", want, p)
+		}
+	}
+}
+
+// TestAgentPromptsEmbedContract pins the #70 M2 unification: every
+// agent-emitting category embeds the one ContractPreamble verbatim, so the
+// output format is a single source of truth (no per-prompt paraphrase to drift).
+// TestContractDoc_InSyncWithTokens is the #70 M2 drift guard: the human schema
+// doc (construct/judge-output-contract.md) must list exactly the tokens the Go
+// source of truth (ContractTokens) defines. A token added to one and not the
+// other silently diverges the "both reference one contract" promise.
+func TestContractDoc_InSyncWithTokens(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "construct", "judge-output-contract.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read contract doc %s: %v", path, err)
+	}
+	doc := string(data)
+	for _, tok := range ContractTokens {
+		if !strings.Contains(doc, "`"+tok+"`") {
+			t.Errorf("contract doc missing token `%s` (drift from contract.go ContractTokens)", tok)
+		}
+	}
+	if !strings.Contains(doc, "VERDICT: <TOKEN>") {
+		t.Error("contract doc missing the `VERDICT: <TOKEN>` format line both sides depend on")
+	}
+}
+
+func TestAgentPromptsEmbedContract(t *testing.T) {
+	in := PromptInput{Diff: "D", IssueRef: "r#1", IssueContent: "I", Base: "a", Head: "b",
+		ChangedIssues: []string{"workshop/issues/000001.md"}}
+	for _, c := range AllCategories() {
+		if !c.NeedsAgent() {
+			continue // Lessons is the documented REMINDER: exception
+		}
+		if !strings.Contains(BuildPrompt(c, in), ContractPreamble) {
+			t.Errorf("%s prompt does not embed ContractPreamble (verdict format drift)", c)
 		}
 	}
 }
@@ -97,7 +136,8 @@ func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
 		"Vague checklist items",
 		"Undeclared cross-issue",
 		"Mismatched estimate vs scope",
-		"VERDICT: CLEAN | INFO | FAILURE",
+		"VERDICT: <TOKEN>", // the shared contract format (#70 M2)
+		"CLEAN   = plan is concrete",
 		"ISSUE_FILE_BODY",
 		"SEPARATE_PLAN_BODY",
 	} {
@@ -161,8 +201,8 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"PURE: tests run without IO",
 		"Atlas update gate",
 		"Plan revision recommendations",
-		"THE VERY FIRST LINE of your response MUST be",
-		"SHIP | FIX-THEN-SHIP | REWORK",
+		"VERDICT: <TOKEN>", // unified contract format (#70 M2 — was bare "SHIP | …")
+		"FIX-THEN-SHIP = ship after addressing",
 		"Strengths:",
 	} {
 		if !strings.Contains(p, want) {

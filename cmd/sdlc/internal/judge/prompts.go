@@ -29,13 +29,13 @@ import (
 type Category string
 
 const (
-	DRY              Category = "dry"
-	PURE             Category = "pure"
-	Plan             Category = "plan"
-	PlanQuality      Category = "plan-quality"
-	Specs            Category = "specs"
-	Lessons          Category = "lessons"
-	MilestoneReview  Category = "milestone-review"
+	DRY             Category = "dry"
+	PURE            Category = "pure"
+	Plan            Category = "plan"
+	PlanQuality     Category = "plan-quality"
+	Specs           Category = "specs"
+	Lessons         Category = "lessons"
+	MilestoneReview Category = "milestone-review"
 )
 
 // AllCategories returns every supported category in stable order. Used
@@ -103,8 +103,8 @@ type PromptInput struct {
 	Base, Head    string   // refs that bound the window (for milestone-review)
 	IssueRef      string   // e.g. "ariadne#31 M2" (for milestone-review / plan-quality)
 	IssueContent  string   // full issue file text (for plan-quality, where we
-	                       //   assess current state, not a diff)
-	PlanContent   string   // optional separate plan file text (for plan-quality)
+	//   assess current state, not a diff)
+	PlanContent string // optional separate plan file text (for plan-quality)
 }
 
 // BuildPrompt renders the prompt for one category. Returns "" for
@@ -124,11 +124,15 @@ repeated patterns that should be extracted into shared helpers.
 Report any violations you find with file paths and line numbers. Suggest how to fix them.
 Do NOT modify any files. Only report.
 
-If the code is already DRY, say "No DRY violations found."
+%s
+
+Tokens for this check:
+  CLEAN   = no DRY violations.
+  FAILURE = duplicated logic that should be consolidated.
 
 Diff:
 %s
-`, in.Diff)
+`, ContractPreamble, in.Diff)
 
 	case PURE:
 		return fmt.Sprintf(`You are a code reviewer. Review the following diff for PURE principle adherence.
@@ -141,11 +145,15 @@ side effects that could be moved to the boundary.
 Report any violations with file paths and line numbers. Suggest how to refactor.
 Do NOT modify any files. Only report.
 
-If the code is clean, say "No PURE violations found."
+%s
+
+Tokens for this check:
+  CLEAN   = no PURE violations.
+  FAILURE = business logic mixed with IO that should move to the boundary.
 
 Diff:
 %s
-`, in.Diff)
+`, ContractPreamble, in.Diff)
 
 	case Plan:
 		changedList := strings.Join(in.ChangedIssues, "\n")
@@ -161,26 +169,22 @@ For each changed issue file, check:
 Do NOT modify any files.
 If a checklist item looks completed based on the diff, say so and recommend checking it off.
 
-Produce a structured report. First line MUST be:
+%s
 
-  VERDICT: CLEAN | INFO | FAILURE   (confidence: high | medium | low)
-
+Tokens for this check:
   CLEAN   = no issues; ready to ship.
-  INFO    = informational notes only; no action required to ship
-            (e.g. minor non-blocking nits, stylistic suggestions).
-  FAILURE = issues found that must be addressed before shipping
-            (unchecked-but-done items, missing log entries, wrong
-            status frontmatter, etc.).
+  INFO    = informational/non-blocking notes only (minor nits, stylistic).
+  FAILURE = issues that must be addressed before shipping (unchecked-but-done
+            items, missing log entries, wrong status frontmatter, etc.).
 
-Then on subsequent lines: a 1-paragraph summary explaining the verdict,
-followed by any findings.
+After the VERDICT line: a 1-paragraph summary explaining it, then any findings.
 
 Changed issue files:
 %s
 
 Diff:
 %s
-`, changedList, in.Diff)
+`, ContractPreamble, changedList, in.Diff)
 
 	case PlanQuality:
 		ref := in.IssueRef
@@ -213,19 +217,17 @@ Common failure modes to flag:
   - Mismatched estimate vs scope — estimate_hours wildly disagrees with the
     visible scope (e.g., 0.5h for what looks like 8h of work).
 
-Produce a structured report. First line MUST be:
+%s
 
-  VERDICT: CLEAN | INFO | FAILURE   (confidence: high | medium | low)
-
+Tokens for this check:
   CLEAN   = plan is concrete, testable, scoped; safe to start coding.
-  INFO    = plan is workable but has minor non-blocking suggestions
-            (e.g., "consider naming the test cases for X").
-  FAILURE = plan has at least one of the failure modes above; address
-            before starting implementation.
+  INFO    = plan is workable but has minor non-blocking suggestions.
+  FAILURE = plan has at least one of the failure modes above; address before
+            starting implementation.
 
-Then on subsequent lines: a 1-paragraph summary of the verdict followed by
-specific findings (quote the vague items, name the missing test surface, etc.).
-Be concrete — vague approval is as harmful as vague plans.
+After the VERDICT line: a 1-paragraph summary of the verdict followed by specific
+findings (quote the vague items, name the missing test surface, etc.). Be
+concrete — vague approval is as harmful as vague plans.
 
 Issue file:
 ---
@@ -236,7 +238,7 @@ Plan file (if separate):
 ---
 %s
 ---
-`, ref, in.IssueContent, planSection)
+`, ref, ContractPreamble, in.IssueContent, planSection)
 
 	case Specs:
 		return fmt.Sprintf(`You are a READ-ONLY documentation reviewer. Compare the code changes in the diff below against:
@@ -247,22 +249,20 @@ Those files are not meant to be comprehensive — atlas/ is a practical pointer 
 
 DO NOT EDIT ANY FILES. You are a gate, not a doer: report stale/incorrect docs precisely (file:line + what's out of sync + the fix needed) and let the main agent — which has full session context — apply them, commit, and re-run. (Editing here would let a passing gate leave the tree dirty and strand the merge — #62.)
 
-Produce a structured report. First line MUST be:
+%s
 
-  VERDICT: CLEAN | INFO | FAILURE   (confidence: high | medium | low)
-
+Tokens for this check:
   CLEAN   = atlas + README are in sync with the diff; nothing to change.
   INFO    = only minor / optional suggestions; nothing stale that blocks.
-  FAILURE = stale or incorrect documentation that must be fixed before
-            shipping (the main agent fixes, commits, and re-runs).
+  FAILURE = stale or incorrect documentation that must be fixed before shipping
+            (the main agent fixes, commits, and re-runs).
 
-Then on subsequent lines: a 1-paragraph summary explaining the verdict,
-followed by the list of stale spots (file:line + the concrete fix) so the
-main agent can apply them directly.
+After the VERDICT line: a 1-paragraph summary explaining it, followed by the list
+of stale spots (file:line + the concrete fix) so the main agent can apply them.
 
 Diff:
 %s
-`, in.Diff)
+`, ContractPreamble, in.Diff)
 
 	case Lessons:
 		// No agent invocation — just a reminder ping. Caller emits the
@@ -322,14 +322,16 @@ Read the diff against the issue's plan + spec. Focus on:
     changes in the same range = Important finding ("atlas update appears
     missing for <surface>").
 
-Produce a structured report. THE VERY FIRST LINE of your response MUST be
-the verdict alone — no title, no markdown heading, no preamble above it:
+%s
 
-    SHIP | FIX-THEN-SHIP | REWORK   (confidence: high | medium | low)
+Tokens for milestone review:
+  SHIP          = ready; ship it.
+  FIX-THEN-SHIP = ship after addressing the findings (non-blocking at the gate;
+                  fix them before the next milestone).
+  REWORK        = blocking; needs rework before shipping.
 
-(A heading or title before the verdict breaks the audit-chain parser.)
-Then a 1-paragraph summary explaining the verdict — what worked, what
-blocks the verdict from being SHIP if it isn't — followed by:
+After the VERDICT line: a 1-paragraph summary explaining it — what worked, what
+blocks SHIP if it isn't — followed by:
   1. Strengths: 2-5 specific things done well (file:line where useful).
      Affirm the validated approaches so the operator knows what's
      confirmed-good ground. Empty acceptable for trivial milestones.
@@ -349,7 +351,7 @@ Tools: read-only. Do not modify code.
 
 Diff:
 %s
-`, ref, in.Base, in.Head, in.Diff)
+`, ref, in.Base, in.Head, ContractPreamble, in.Diff)
 	}
 	return ""
 }
