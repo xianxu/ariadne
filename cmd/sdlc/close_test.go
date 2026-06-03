@@ -254,6 +254,17 @@ func TestInsertLogLine_DayHeaderDateMismatch_FallsBack(t *testing.T) {
 	}
 }
 
+// #73: day headers routinely carry a suffix (`### <date> — session summary`);
+// the line must still file directly under such a header, not orphan at the top.
+func TestInsertLogLine_UnderSuffixedDayHeader(t *testing.T) {
+	body := "# t\n\n## Log\n\n### 2026-05-25 — closeout\n- Revisited\n"
+	got := insertLogLine(body, "- 2026-05-25: closed — done")
+	want := "# t\n\n## Log\n\n### 2026-05-25 — closeout\n- 2026-05-25: closed — done\n- Revisited\n"
+	if got != want {
+		t.Errorf("line not filed under suffixed day header:\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
 // #66 (found by dogfooding): a meta-issue can quote `## Log` and `### <date>`
 // inside an earlier section (e.g. a fenced code block in ## Problem). The line
 // must land in the REAL (last) `## Log` section, not the quoted one.
