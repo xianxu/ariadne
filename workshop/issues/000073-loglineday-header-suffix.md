@@ -1,11 +1,12 @@
 ---
 id: 000073
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 0.25
+actual_hours: 0.25
 ---
 
 # insertLogLine date-header matcher misses suffixed headers (### DATE — note)
@@ -46,10 +47,20 @@ unchanged. Update the doc comment (which currently says the match is
 
 ## Plan
 
-- [ ] Loosen `dayRE` in `insertLogLine` (close.go) to `([ \t].*)?$`; update the
+- [x] Loosen `dayRE` in `insertLogLine` (close.go) to `([ \t].*)?$`; update the
   doc comment; add `TestInsertLogLine_UnderSuffixedDayHeader`. Confirm the other
   insertLogLine tests stay green.
 
 ## Log
 
 ### 2026-06-02
+- 2026-06-02: closed — dayRE now matches suffixed day headers (([ \t].*)?\$); 7 insertLogLine tests green incl. new exact-position suffixed-header test + 6 unchanged; fresh-eyes review SOUND (traced regex incl. ### <date>x rejection). --no-atlas: pure regex bugfix, no new surface
+
+- Changed `dayRE` in `insertLogLine` (close.go) from `[ \t]*$` to `([ \t].*)?$`
+  (anchors on the date prefix, optional ` — suffix`); rewrote the doc comment to
+  explain the prefix+suffix semantics and why it's still one-line-bounded.
+- Added `TestInsertLogLine_UnderSuffixedDayHeader` (exact-string: line lands
+  directly under `### 2026-05-25 — closeout`, above the existing bullet). The
+  bare-header test (`TestInsertLogLine_UnderMatchingDayHeader`) and the other 5
+  insertLogLine tests stay green — bare-date placement and the prose-false-match
+  guard are unaffected. `go test ./cmd/sdlc/...` + `go vet` clean.

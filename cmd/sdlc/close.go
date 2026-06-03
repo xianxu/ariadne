@@ -253,12 +253,16 @@ func insertLogLine(body, logLine string) string {
 	section := body[logStart:]     // the real Log section + anything after it
 
 	// Prefer the matching `### <date>` day header within the real Log section.
-	// The header match is intentionally strict — `[ \t]*$`, a bare
-	// `### YYYY-MM-DD` line (what the issue template seeds) — so it never eats
-	// the trailing newline/blank lines the way `\s*$` would; don't loosen it to
-	// `.*$` or that bug returns.
+	// The match anchors on the date *prefix* and allows an optional ` — suffix`
+	// (`([ \t].*)?$`), because the log convention routinely suffixes day headers
+	// (`### 2026-05-30 — session summary`); a bare-date-only matcher orphaned the
+	// line at the top of ## Log (#73). Still bounded to one line: `.` doesn't
+	// match newline in RE2 (no `(?s)`) and `$` under `(?m)` sits before `\n`, so
+	// the insert offset stays at the header line's end and no blank lines are
+	// eaten the way `\s*$` would. The required `[ \t]` separator rejects
+	// `### <date>x` (a date can't prefix-match a longer token).
 	if m := logLineDateRE.FindStringSubmatch(logLine); m != nil {
-		dayRE := regexp.MustCompile(`(?m)^### ` + regexp.QuoteMeta(m[1]) + `[ \t]*$`)
+		dayRE := regexp.MustCompile(`(?m)^### ` + regexp.QuoteMeta(m[1]) + `([ \t].*)?$`)
 		if d := dayRE.FindStringIndex(section); d != nil {
 			pos := logStart + d[1] // end of the day-header line text (before its newline)
 			return body[:pos] + "\n" + logLine + body[pos:]
