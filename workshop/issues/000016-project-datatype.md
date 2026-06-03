@@ -1,10 +1,11 @@
 ---
 id: 000016
-status: working
+status: done
 deps: [000012, 000015]
 created: 2026-04-29
-updated: 2026-04-29
+updated: 2026-06-02
 references: [/Users/xianxu/workspace/brain/memory/life/42shots/ideas/2026-04-28-02-pensive-ariadne-arc.md, workshop/issues/000015-product-and-roadmap-data-types.md]
+actual_hours: 4
 ---
 
 # project datatype
@@ -222,10 +223,18 @@ The immediate trigger: tomorrow's work session needs a project to organize the c
 - [x] Dogfooded by authoring `brain/data/project/charon-release-push.md`. Real project covering charon #13 + #14 + #15 (#16 explicitly out). Ready for tomorrow's work session.
 - [x] Updated `atlas/data-artifacts.md` to include `product`, `roadmap`, and `project` (the latter two were missing from the table previously).
 - [x] Decided on roadmap rework: **defer.** See Log entry 2026-04-29 below for rationale.
-- [ ] **Open** — verify the velocity calibration loop in practice: as charon-release-push tasks complete, confirm `actual_hours` flows to the corresponding issue's frontmatter and to `estimate-logic-v1.md`'s validation table. Requires actual execution; can't verify in this session.
+- [x] **Deferred to #68** (2026-06-02) — verify the velocity calibration loop
+      in practice. The original vehicle (`charon-release-push`) is gone (charon
+      folded into nous; the live project is now `charon-launch-push.md`), and the
+      loop's *measurement* (`active-time-v3`) is itself broken — it returns 0
+      events for exactly this kind of long-running task (see #68). Can't verify a
+      calibration loop whose input is 0; the verification rides on #68's fix. The
+      datatype itself shipped and is in active use (2 live brain project files).
 
 ## Log
 
+
+- 2026-06-02: closed — project datatype shipped (construct/datatype/project.md + atlas/data-artifacts.md) and in active use (2 live brain project files); velocity-loop verification deferred to #68. actual=judgment estimate — v3 cannot compute (April work, no #16-subject commits, transcripts aged out; this IS the #68 failure mode)
 ### 2026-04-29
 
 - Issue created from a design conversation reframing product vs project. Original issue 000015 collapsed product+project+infra into a single "product" datatype with no discriminator; this reframe restores `project` as a distinct execution-container datatype while keeping `product` as the durable charter.
