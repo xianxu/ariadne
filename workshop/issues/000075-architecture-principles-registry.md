@@ -1,11 +1,12 @@
 ---
 id: 000075
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
 estimate_hours: 3
+actual_hours: 2.75
 ---
 
 # architecture.md — a referenced architectural-principles registry delivered to planning + reviews
@@ -123,6 +124,7 @@ via a runtime `construct/` doc is a deferred refinement.
 ## Log
 
 ### 2026-06-03 — M2
+- 2026-06-03: closed — architecture.md ARCH-* registry (one //go:embed source) delivered to plan-quality (at-plan), boundary review (at-review), dry/pure (authored once), and the main thread via new sdlc start-plan verb; AGENTS.md workflow+principles wired; drift guard keeps narrative in sync. go test+vet+gofmt green; M1 review FIX-THEN-SHIP→fixed, M2 SHIP; dogfooded (M1 review ran through the new at-review lens)
 - 2026-06-03: closed M2 — sdlc start-plan verb delivers at-plan lens (live: start-plan --issue 75); AGENTS.md §2 workflow + Core Design Principles wired to ARCH-* registry; drift guard (architecture.md↔AGENTS.md) + start-plan tests pass; go test+vet+gofmt green; atlas verb table + note updated. actual=judgment; review verdict: SHIP
 
 - New verb **`sdlc start-plan`** (`startplan.go` + `helptext/start-plan.md`,
