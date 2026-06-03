@@ -111,6 +111,7 @@ Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printin
 ## Log
 
 ### 2026-06-02 — M1
+- 2026-06-02: closed M1 — gitx cap 31→61 (test: 45-day commit anchors, has teeth); active-time-v3 exits 2 on empty --dir + exit 3 on commits-but-0-events (test_active_time_v3.py 5 checks pass); go test+vet green. --no-atlas: internal cap/exit-code change, no new surface (M2 adds it). actual=judgment (15-min chunk); review verdict: FIX-THEN-SHIP
 
 - `cmd/sdlc/internal/gitx/window.go`: `WindowCapDays` 31→61 (+ rationale comment).
   Test `TestCommitWindow_ExtendedCapIncludes45Days` (temp repo, a 45-day-old #99

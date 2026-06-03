@@ -3,7 +3,8 @@
 // #N references), peer-issue discovery, and changed-file listing.
 //
 // Ported from scripts/close-issue.py — semantics preserved including the
-// 31-day cap and the "parent of first match" window-start trick.
+// commit-window cap (see WindowCapDays; raised to 61 in #68) and the "parent of
+// first match" window-start trick.
 package gitx
 
 import (
