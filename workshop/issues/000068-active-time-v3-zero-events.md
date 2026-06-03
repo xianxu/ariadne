@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
-estimate_hours:
+estimate_hours: 3
 ---
 
 # fix active-time-v3.py: returns 0 events for these sessions — actuals are fabricated
@@ -27,37 +27,86 @@ substance — arguably worse than no gate, because it looks calibrated.
 See `brain/data/life/42shots/velocity/{baseline-v3,estimate-logic-v3,SKILL.md}` for the
 v3 procedure the script implements.
 
-## Spec / hypotheses to check
+## Diagnosis (confirmed 2026-06-02)
 
-- **Operator hypothesis (load-bearing):** the `shared-brain` project went **dormant for
-  ~2 weeks** while the operator took detours fixing other things. A look-back / window
-  parameter in the script (how far back it scans `~/.claude/projects/.../*.jsonl`
-  transcripts, or how it bounds the commit window) may not span that dormancy gap, so the
-  per-issue attribution comes up empty. Check the window/look-back params first.
-- Confirm whether the script is finding the right transcript directories
-  (`~/.claude/projects/-Users-...-{nous,brain,ariadne}/`) — multi-repo sessions (this one
-  spanned nous + brain + ariadne) may not all be scanned.
-- Confirm the commit-window → transcript-segment join still matches (commit SHAs,
-  `--commit-weight`, mention-weighting) after whatever changed since it last produced
-  non-zero output.
-- Decide the fallback contract: if telemetry is genuinely unavailable for a window, the
-  close should say so explicitly and record `actual` as `estimate` (or flag it
-  un-calibrated) rather than silently accepting a `--force` guess that pollutes the table.
+The algorithm is **fine**. "0 events" was never a v3 bug — it was **dir-selection**:
+v3 derives events *only* from transcript `.jsonl` files passed via `--dir`. Every
+0-events case traced to feeding it **zero or the wrong `--dir` folders**:
+
+- The agent (this session, repeatedly) ran `active-time-v3.py --git-repo . --issue N`
+  with **no `--dir`** → `events=[]` → "no events in window" → **exit 0**. A
+  misinvocation is silently indistinguishable from a real "no activity" answer. That
+  is the footgun that produced ~7 fabricated actuals.
+- Work spans **many cwds**, each with its own `~/.claude/projects/<slug>/` folder —
+  the issue's repo, `brain`, peer repos, **and every git worktree** (`worktree-…`).
+  Feeding only `--dir <repo>` misses most of it. The `nous` folder even had only the
+  last 3 days of sessions; the early-May work lived under `brain`/`charon`.
+- **Single `--issue` over/under-attributes:** with only `--issue 14`, all the peer-issue
+  segments in the window fall to `##unattributed`. Must pass *all* window issues
+  (`DiscoverWindowIssues` already does this for `close`).
+
+**Empirical proof** (nous#14, window 2026-05-08..05-11):
+
+| dirs fed to v3 | #14 actual |
+|---|---|
+| none / wrong | 0 (silent) |
+| all 24 dirs (incl. unrelated `pair`) | 12.06h (inflated) |
+| **brain + issue-repos {nous,ariadne,charon}** | **7.79h** |
+| recorded in shared-brain.md (Σ M1–M5, judgment) | 8.2h |
+
+So **brain + repos-owning-a-scoped-issue** lands within ~5% of the human number;
+`pair` (concurrent unrelated work) inflated it by +4.3h. Note: at `--commit-weight 1.0`,
+a segment's active-time counts *every* event in its time-slice regardless of issue
+mention (mentions only gate the `1−weight` split + commitless segments) — which is
+*why* an unrelated dir with concurrent activity inflates, and why dir-selection matters.
+
+**The operator's dormancy hypothesis** folds into this: a long gap only hurts via the
+**31-day `WindowCapDays`** in `internal/gitx/window.go` (`CommitWindow` caps the lookback),
+which truncates the window for month-long work (e.g. #16). Bump it.
+
+## Design (agreed)
+
+Direction: **lift the manual prose into `sdlc`** — stop printing a 6-line command for a
+human to run (nobody does); have `sdlc` run it.
+
+1. **`WindowCapDays` 31 → 61** (`internal/gitx/window.go`) — cover month-long tasks.
+2. **0-event / no-`--dir` detection** — `active-time-v3.py` must FAIL LOUDLY (non-zero,
+   clear message) when `--dir` is empty (events can only come from transcripts, so empty
+   `--dir` is always a misinvocation). When `--dir` is non-empty but a window with commits
+   yields 0 events, print an explicit "telemetry unavailable for this window → use a
+   labeled judgment estimate" line — never a silent 0-exit-0.
+3. **`sdlc` runs v3 itself** — in the `close`/`milestone-close` actual path, compute the
+   actual instead of printing instructions:
+   - **dir-selection:** `brain` (always) ∪ the transcript folder for the issue's own repo
+     ∪ (for a project-driven issue, repos owning a scoped issue). Resolve worktree folders
+     too where cheap. Enumerate `~/.claude/projects/*`.
+   - window from `CommitWindow`; peers from `DiscoverWindowIssues`; `--commit-weight 1.0
+     --threshold-min 15 --include-assistant`.
+   - print the computed per-issue hours as a **suggestion** the operator/agent confirms
+     into `--actual` (keep a human in the loop; don't auto-write). If v3 reports 0-events,
+     suggest the labeled-judgment path (ties to `--no-actual` / a labeled estimate).
+   - **Risks to resolve in M2:** `active-time-v3.py` lives in `construct/local/issues/`
+     (verify it's reachable from a derivative's cwd; if not, fall back to printing the
+     command as today). `python3` runtime dep (already used by ariadne).
 
 ## Done when
 
-- `active-time-v3.py` returns non-zero, plausible per-issue hours for a real recent
-  window that spans a dormancy gap (reproduce against `nous#41`'s window: `c65737a..HEAD`).
-- The `--actual` gate gets real data for a normal close, OR a clearly-marked
-  "telemetry-unavailable → not calibrated" path exists so the velocity table isn't fed
-  guesses.
+- `WindowCapDays == 61`; a month-long issue (#16-style) still yields a commit window.
+- `active-time-v3.py` exits **non-zero with a clear message** on empty `--dir`, and prints
+  an explicit "telemetry unavailable" line (not a silent 0) when commits exist but events==0.
+- `sdlc close` (and `milestone-close`) **runs** v3 with brain+repo dir-selection + window +
+  discovered peers and prints a suggested actual; reproduces the shared-brain numbers
+  (nous#14 ≈ 7.8h) when pointed at that window. Falls back gracefully if the script/python
+  is unavailable.
 
 ## Plan
 
-- [ ] Reproduce: run `active-time-v3.py` over `nous#41`'s window + a dormant-project
-      window; confirm 0 events and locate where it drops to empty.
-- [ ] Fix the window/look-back (and multi-repo transcript scan) so real sessions attribute.
-- [ ] Define the telemetry-unavailable fallback contract for `close`.
+- [ ] M1 — `WindowCapDays` 31→61 (`gitx`); `active-time-v3.py` loud-fail on empty `--dir`
+      + explicit "telemetry unavailable" on commits-but-0-events. Unit/CLI tests.
+- [ ] M2 — `sdlc` runs v3 in the actual path: dir-selection (brain + issue-repo, enumerate
+      `~/.claude/projects/*`), window + peers, subprocess invoke + parse the per-issue
+      total, print suggested actual; graceful fallback when script/python absent. Verify it
+      reproduces nous#14 ≈ 7.8h.
 
 ## Log
 
@@ -66,3 +115,10 @@ v3 procedure the script implements.
 Filed from the sdlc tooling retro
 (`workshop/pensive/2026-06-02-01-pensive-sdlc-tooling-retro.md`, finding F2). Operator
 flagged the dormancy-window hypothesis as the likely cause.
+
+- **Investigated + diagnosed** (using #16 + shared-brain as live examples). Root cause is
+  dir-selection, not the algorithm (see Diagnosis above). Validated the operator's
+  dir-selection heuristic empirically: brain + issue-repos gave nous#14 = 7.79h vs 8.2h
+  recorded (~5%), while including unrelated `pair` inflated to 12.06h. Operator approved:
+  bump cap 31→61, add 0-event detection, and lift v3-invocation into `sdlc`. Scoped M1
+  (cap + detection) / M2 (sdlc runs v3).
