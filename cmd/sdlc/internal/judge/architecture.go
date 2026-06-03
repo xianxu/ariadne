@@ -12,10 +12,11 @@ import _ "embed"
 //go:embed architecture.md
 var ArchitectureRegistry string
 
-// architectureBlock renders the registry under a lens-specific header for
-// embedding in a prompt. lens is "at-plan" or "at-review" (advisory — the agent
-// applies the named lens of each ARCH-* entry, all of which are in the block).
-func architectureBlock(lens string) string {
+// ArchitectureBlock renders the registry under a lens-specific header for
+// embedding in a prompt (or delivering to the main thread via `sdlc start-plan`).
+// lens is "at-plan" or "at-review" (advisory — the agent applies the named lens
+// of each ARCH-* entry, all of which are in the block).
+func ArchitectureBlock(lens string) string {
 	return "ARCHITECTURE PRINCIPLES — apply each ARCH-* entry's `" + lens +
 		"` lens; cite the marker (e.g. ARCH-DRY) in any finding.\n\n" +
 		ArchitectureRegistry

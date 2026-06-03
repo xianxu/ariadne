@@ -134,7 +134,7 @@ Tokens for this check:
 
 Diff:
 %s
-`, architectureBlock("at-review"), ContractPreamble, in.Diff)
+`, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 
 	case PURE:
 		return fmt.Sprintf(`You are a code reviewer checking the diff for ARCH-PURE violations.
@@ -154,7 +154,7 @@ Tokens for this check:
 
 Diff:
 %s
-`, architectureBlock("at-review"), ContractPreamble, in.Diff)
+`, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 
 	case Plan:
 		changedList := strings.Join(in.ChangedIssues, "\n")
@@ -244,7 +244,7 @@ Plan file (if separate):
 ---
 %s
 ---
-`, ref, architectureBlock("at-plan"), ContractPreamble, in.IssueContent, planSection)
+`, ref, ArchitectureBlock("at-plan"), ContractPreamble, in.IssueContent, planSection)
 
 	case Specs:
 		return fmt.Sprintf(`You are a READ-ONLY documentation reviewer. Compare the code changes in the diff below against:
@@ -360,7 +360,7 @@ Tools: read-only. Do not modify code.
 
 Diff:
 %s
-`, ref, in.Base, in.Head, architectureBlock("at-review"), ContractPreamble, in.Diff)
+`, ref, in.Base, in.Head, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 	}
 	return ""
 }

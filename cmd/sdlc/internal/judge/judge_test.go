@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -136,6 +137,33 @@ func TestContractDoc_InSyncWithTokens(t *testing.T) {
 	}
 	if !strings.Contains(doc, "VERDICT: <TOKEN>") {
 		t.Error("contract doc missing the `VERDICT: <TOKEN>` format line both sides depend on")
+	}
+}
+
+// #75 M2 drift guard (mirrors #70's doc-sync test): AGENTS.md's human narrative
+// (Core Design Principles) must mention every ARCH-* principle the machine
+// registry enforces, and point at the registry — so the paired human/machine
+// sources can't silently diverge (e.g. add ARCH-SHIM but forget AGENTS.md).
+func TestArchitecture_NarrativeInSyncWithAgentsMd(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	agents := string(data)
+	markerRE := regexp.MustCompile(`ARCH-([A-Z][A-Z-]*)`)
+	seen := map[string]bool{}
+	for _, m := range markerRE.FindAllStringSubmatch(ArchitectureRegistry, -1) {
+		name := m[1]
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		if !strings.Contains(agents, name) {
+			t.Errorf("AGENTS.md Core Design Principles missing %q (drift from architecture.md's ARCH-%s)", name, name)
+		}
+	}
+	if !strings.Contains(agents, "architecture.md") {
+		t.Error("AGENTS.md should point at the architecture.md registry")
 	}
 }
 

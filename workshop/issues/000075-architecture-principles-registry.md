@@ -109,7 +109,7 @@ via a runtime `construct/` doc is a deferred refinement.
   the `at-plan` lens into the plan-quality prompt and the `at-review` lens into
   the boundary/milestone-review prompt; fold `judge dry/pure` in; tests (embed
   presence in both prompts; markers present; à la #70's pattern).
-- [ ] M2 — `sdlc start-plan` verb + workflow: new verb rendering the `at-plan`
+- [x] M2 — `sdlc start-plan` verb + workflow: new verb rendering the `at-plan`
   lens to the main thread at plan-entry; wire AGENTS.md §2 (`claim → start-plan →
   change-code`) + §6 pointer; verb-registration + render tests.
 
@@ -121,6 +121,24 @@ via a runtime `construct/` doc is a deferred refinement.
   the mechanism that makes #71 enforceable at plan + review time.
 
 ## Log
+
+### 2026-06-03 — M2
+
+- New verb **`sdlc start-plan`** (`startplan.go` + `helptext/start-plan.md`,
+  registered in main.go after `claim`): delivers `judge.ArchitectureBlock("at-plan")`
+  + a planning framing to the main thread — the *forward* injection at design
+  time. Exported `architectureBlock` → `ArchitectureBlock` for cross-package use.
+- AGENTS.md: §2 workflow adds the `claim → start-plan → change-code` step; the
+  Core Design Principles section now declares it the human narrative + points at
+  the `ARCH-*` registry, with `(ARCH-DRY)`/`(ARCH-PURE)` markers on the entries.
+- **Drift guard** (deferred from M1, per the fresh-eyes review):
+  `TestArchitecture_NarrativeInSyncWithAgentsMd` parses the `ARCH-<NAME>` markers
+  from the registry and asserts each `<NAME>` appears in AGENTS.md + that AGENTS.md
+  points at `architecture.md` — so adding `ARCH-SHIM` later forces the narrative to
+  keep up (mirrors #70's doc-sync test).
+- Tests: `startplan_test.go` (registration + renders the at-plan lens, labeled +
+  generic). Live: `sdlc start-plan --issue 75` prints the at-plan principles.
+  `go test ./cmd/sdlc/...` + `go vet` + gofmt green.
 
 ### 2026-06-03 — M1
 - 2026-06-03: closed M1 — architecture.md registry (ARCH-DRY/ARCH-PURE) //go:embed'd + rendered into plan-quality (at-plan), milestone-review (at-review), dry/pure (from registry); TestArchitectureRegistry_* + embed-routing tests + updated DRY test pass; go test+vet+gofmt green; atlas noted. One file → all consumers. actual=judgment; review verdict: FIX-THEN-SHIP
