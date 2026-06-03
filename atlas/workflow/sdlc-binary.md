@@ -163,6 +163,19 @@ the merge (and the milestone `unknown`). A thin legacy sentinel-grep remains for
 un-migrated/foreign outputs; a `judge_test.go` drift test keeps the doc + Go
 tokens in sync.
 
+**Architecture principles (#75).** Injected architectural taste the model lacks
+(payoff shows months downstream → no training signal). `internal/judge/
+architecture.md` is the single source — markered `ARCH-*` entries, each with a
+`principle` / `at-plan` / `at-review` lens — `//go:embed`'d as
+`ArchitectureRegistry` and delivered verbatim into the prompts that need it (one
+file, embedded per fresh context). Today: the **plan-quality** judge renders the
+`at-plan` lens (highest leverage — the design is still changeable), the
+**milestone-review** judge renders `at-review` (backstop), and the standalone
+**dry/pure** judges render their principle from the registry (authored once).
+Cite the marker (`ARCH-DRY`) in plans/Logs/findings. Adding an `ARCH-*` entry
+flows into every consumer with no other edit. (#75 M2 adds `sdlc start-plan` as
+the main-thread forward injection; #71 adds `ARCH-SHIM`.)
+
 ## Build + install
 
 ```
