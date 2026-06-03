@@ -1,11 +1,12 @@
 ---
 id: 000069
-status: working
+status: done
 deps: [000075]
 github_issue:
 created: 2026-06-02
 updated: 2026-06-03
 estimate_hours: 3
+actual_hours: 3.25
 ---
 
 # merge the two per-milestone reviews into one boundary pass
@@ -175,6 +176,7 @@ NOT inline principle bodies (that would re-duplicate the registry — ARCH-DRY).
 ## Log
 
 ### 2026-06-03 — M2 review (FIX-THEN-SHIP) — findings addressed
+- 2026-06-03: closed — one binary-owned boundary review (embedded code-review.md, refers ARCH-* via {{ARCH_STAR}} from shared ArchitectureMarkers, principle bodies stay in architecture.md) dispatched by both milestone-close (per-milestone) and close (whole-issue, #69 M2); double-run killed (AGENTS.md §3 — agent does not run separate superpowers pass); structural double-dispatch guard tested; M1 SHIP, M2 FIX-THEN-SHIP→fixed (I1 log-annotation parity, I2 firstCommitReferencing DRY); go test+vet+gofmt green; dogfooded live; review verdict: SHIP
 - M2 boundary review (dogfooded through the new code-review.md prompt) returned
   FIX-THEN-SHIP with two Important + minors; all addressed before crossing:
   - **I1** `--no-judge` close skipped the log-line verdict annotation that
