@@ -59,11 +59,17 @@ in-context selection/emphasis + cross-referencing — NOT bandwidth savings, sin
 each fresh context needs the full definitions or the marker is a dangling pointer):
 
 1. **Main-thread planning** (highest leverage — architecture is decided here).
-   Agents don't reread a file already read in-session, so deliver it
-   **binary-controlled, warmup-style**: reuse the `printSemanticWarmup` /
-   per-session-count pattern (close.go) so a planning-phase verb (e.g. `claim` /
-   `change-code`) re-injects `architecture.md` once per session, self-suppressing.
-   AGENTS.md §6 points at it.
+   The workflow has no "entering planning" transition today (`claim` = start
+   work; `change-code` = the plan-quality *review* gate, which is too late — the
+   design is already made). Add a new verb **`sdlc start-plan`** as the *forward*
+   planning-entry injection: it renders `architecture.md`'s `at-plan` lens to the
+   agent's main thread so the design accounts for the principles from the start.
+   The agent runs it on entering plan mode (AGENTS.md §2 workflow instructs it);
+   it delivers each time a new design begins (no warmup-suppress — re-delivery
+   per planning session is desired, since agents don't reread a static doc).
+   This pairs with `change-code`'s plan-quality judge (the *backward* check
+   against the same `at-plan` lens): forward inject + backward review, one file.
+   The exact verb name (`start-plan` vs `plan`) is a change-code bikeshed.
 2. **plan-quality judge** (fresh subprocess) — embed the registry; render the
    `at-plan` lens. "Does this plan respect our architecture? (cite ARCH-…)"
 3. **boundary review judge** (fresh subprocess) — embed the registry; render the
@@ -85,9 +91,9 @@ architecture). Start embedded; add override later if wanted.
 - The **plan-quality** prompt renders the at-plan lens; the **boundary/milestone
   review** prompt renders the at-review lens — both from the one file (no
   re-authored prose; a test pins each prompt embeds the registry, à la #70).
-- The **main thread** gets `architecture.md` delivered once per session
-  (warmup-style binary delivery) at the planning entry point; AGENTS.md §6 points
-  at it.
+- A new **`sdlc start-plan`** verb delivers the `at-plan` lens to the main thread
+  at planning entry; AGENTS.md §2 (workflow) adds the `claim → start-plan →
+  change-code` step and §6 points at the registry.
 - `sdlc judge dry`/`pure` are re-expressed as registry entries (or clearly
   deprecated in favor of the folded-in review), so a principle is authored once.
 - Adding a new `ARCH-<NAME>` entry flows into all three consumers with no other
@@ -101,8 +107,8 @@ architecture). Start embedded; add override later if wanted.
   template) + `//go:embed` it into the judge package.
 - [ ] Render it into the plan-quality + boundary-review prompts (at-plan /
   at-review lenses); embed-presence tests.
-- [ ] Warmup-style main-thread delivery at the planning entry point (reuse the
-  close.go warmup mechanism); AGENTS.md §6 pointer.
+- [ ] New `sdlc start-plan` verb that renders the `at-plan` lens; wire into the
+  AGENTS.md §2 workflow (`claim → start-plan → change-code`) + §6 pointer.
 - [ ] Fold `judge dry/pure` into the registry; decide standalone-verb fate.
 
 ## Relationships
