@@ -1,10 +1,10 @@
 ---
 id: 000010
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-04-23
-updated: 2026-04-23
+updated: 2026-06-03
 ---
 
 # Sandbox: support accessing peer projects
@@ -43,6 +43,18 @@ The current sandbox mounts a single repo at `/sandbox/repo`. Peer repos on the h
 - [ ]
 
 ## Log
+
+### 2026-06-03 — wontfix (superseded)
+- Superseded by the construct base-layer overhaul (the 2026-05-27 note above):
+  `construct/setup.sh --vendor` **copies** base-layer files into a repo instead of
+  symlinking into a sibling `../ariadne/`, so the load-bearing breakage — "the
+  symlink target `../ariadne/` doesn't exist in the sandbox" — no longer exists.
+  A sandbox/CI repo with no visible peer uses vendor mode (see
+  `atlas/workflow/base-layer.md`).
+- Never implemented as framed (sandbox mounting sibling repos): Spec was empty,
+  plan empty, no commits. The other use cases (arbitrary cross-repo reads,
+  shared sandbox creds) aren't being pursued — the architecture moved away from
+  needing them; if any resurfaces it's a fresh, narrower issue, not this one.
 
 ### 2026-04-23
 - Originated in brain repo (issue 000001), moved to ariadne since this is base layer infrastructure
