@@ -25,7 +25,7 @@ rather than adding new findings — and **slow**: each `sdlc judge milestone-rev
 3–10 min (M3's worst), serializing the workflow with background waits the agent then had
 to coordinate.
 
-## Spec (operator framing)
+## Spec
 
 > The two reviews should be merged. `superpowers-requesting-code-review` is borrowed from
 > external (superpowers); `milestone-close` is home-grown. `sdlc milestone-close` intends
@@ -79,19 +79,125 @@ Decided with operator (co-design session):
 
 ## Plan
 
-*(draft — to refine at change-code; depends on #75)*
+Chosen shape: **Option B** — extract the reviewer prompt to an embedded markdown
+file (`//go:embed`, à la #75's `architecture.md`); `code-review.md` is the single
+source the binary renders. See `## Revisions` for why B over "enrich the Go
+prompt", and why a *pointer* beats a *drift-tested duplicate*.
 
-- [ ] M1 — reconcile the ONE reviewer prompt (superpowers `code-reviewer.md` +
-  ariadne tweaks + #75 `at-review` lens), embedded as one source; `milestone-
-  close` uses it; AGENTS.md §3 says the agent doesn't run a separate superpowers
-  review. The adapted `construct/adapted/superpowers-requesting-code-review/`
-  becomes the human-authored source the binary mirrors (or a thin pointer).
-- [ ] M2 — `sdlc close` as a review boundary: cheap structural pre-checks
-  (boxes/log/status) + auto-dispatch the one review on the whole-issue window
-  (no-milestone → the review; multi-milestone → end-of-issue review); verb help +
-  AGENTS.md updated.
+**Layering (settled in design):** two embedded files, two roles —
+`architecture.md` = the **principles** registry (ARCH-* taste, at-plan/at-review
+lenses, #75); `code-review.md` = the **review procedure** (checklist, severity,
+output format, VERDICT). The procedure *refers* to markers; the registry *defines*
+them; the binary co-locates them at dispatch (`render(code-review.md) +
+ArchitectureBlock("at-review") + ContractPreamble + diff`). `code-review.md` must
+NOT inline principle bodies (that would re-duplicate the registry — ARCH-DRY).
+
+- [x] M1 — **the one embedded reviewer prompt + kill the double-run.**
+  - New `cmd/sdlc/internal/judge/code-review.md` (`//go:embed`): reconcile the
+    superpowers `code-reviewer.md` checklist (Code Quality / Architecture /
+    Testing / Requirements / Production Readiness) with ariadne's milestone-review
+    tweaks (issue-ref, Critical/Important/Minor severity, Core-concepts
+    cross-check, Atlas-update gate, output format, `VERDICT: SHIP|FIX-THEN-SHIP|
+    REWORK`). Placeholders `{{ISSUE_REF}}`/`{{BASE}}`/`{{HEAD}}`/`{{ARCH_STAR}}`.
+    Its Architecture item is a *pointer* — "for each of `{{ARCH_STAR}}`, pass or
+    flag; cite the marker" — never the principle text.
+  - `ArchitectureMarkers() []string` — lift the `ARCH-([A-Z][A-Z-]*)` scan out of
+    #75's drift test into one helper; used by **both** the drift test AND the
+    `{{ARCH_STAR}}` substitution (ARCH-DRY — one extraction site, two consumers).
+    Adding `ARCH-SHIM` (#71) flows into registry block + drift test + review
+    checklist with zero edits to `code-review.md`.
+  - Refactor `prompts.go` `MilestoneReview`: render `code-review.md` (substitute
+    the four placeholders) + `ArchitectureBlock("at-review")` + `ContractPreamble`
+    + diff. Render is pure string templating (ARCH-PURE); the `judge.Run` shim
+    stays the thin IO seam. Strengthen `ArchitectureBlock`'s header → "work through
+    **each** of the N entries below explicitly" (coverage, not just citation).
+  - Reframe `construct/adapted/superpowers-requesting-code-review/`: SKILL.md → a
+    pointer ("SDLC boundary reviews are binary-owned via `sdlc milestone-close`/
+    `close`; don't run a separate pass. Canonical reviewer:
+    `cmd/sdlc/internal/judge/code-review.md`. This skill remains for ad-hoc,
+    non-SDLC reviews."). **NOT dropped** `code-reviewer.md` — at implementation
+    it turned out a live sibling (`superpowers-subagent-driven-development`) still
+    references it, so it's not an orphan duplicate; the root-cause fix is removing
+    the *boundary mandate* (no double-run), not deleting the generic template.
+  - AGENTS.md §3: the mandatory fresh-eyes review at a boundary IS the binary's
+    milestone-close/close pass; the agent does NOT separately run
+    `superpowers-requesting-code-review`. Keep the `BASE_SHA` = prev-boundary
+    window semantics (the binary uses exactly that).
+  - Tests: `code-review.md` embedded + non-empty; renders with `{{ARCH_STAR}}` →
+    `ARCH-DRY, ARCH-PURE` and the four placeholders substituted; `MilestoneReview`
+    composes body+registry+contract+diff; **guardrail** — `code-review.md` cites
+    markers but does NOT contain principle bodies; `ArchitectureMarkers()` shared
+    by the (refactored) #75 drift test.
+- [ ] M2 — **`sdlc close` as a review boundary** (+ shared dispatch helper).
+  - Extract the review-dispatch from `milestoneclose.go` into one
+    `dispatchBoundaryReview(window, issueRef)` helper (ARCH-DRY — close +
+    milestone-close share it; emits the `Review-Verdict:`/`Review-Window:`
+    trailer via the #70 contract).
+  - `close.go`: on a standalone **issue** close, after the structural gates,
+    dispatch the review on the whole-issue window (branch-point..HEAD). No-
+    milestone issue → this is THE review (today it gets none — the biggest gap).
+    Multi-milestone issue → the end-of-issue *integration* review (each milestone
+    already reviewed its slice; integration + "do the milestones add up to the
+    spec?" only show at the whole-issue diff).
+  - **Guard (test it):** milestone-close calls `runClose` internally — that inner
+    call must NOT dispatch (milestone-close dispatches its own milestone-window
+    review). Fire close's dispatch only on the standalone issue-close path.
+  - `--no-judge` on close (per-gate bypass, #67) to skip the review with explicit
+    acknowledgment. Keep the existing milestone-verdict gate (both layers valued).
+  - `side-quest:` fold the pending `warmupThreshold 2 → 1` fix (close.go) — warm
+    up once, not twice (agents don't reread; #75's premise).
+  - close.md helptext + AGENTS.md §3 + `atlas/workflow/sdlc-binary.md` updated to
+    the single binary-owned pass at both boundaries.
+  - Tests (stub `judge.Run`): close in issue mode dispatches on the whole-issue
+    window + emits the trailer; milestone-close's inner `runClose` does NOT
+    double-dispatch; `--no-judge` skips; existing milestone-close tests stay green.
+
+## Revisions
+
+### 2026-06-03 — Option B + design refinements (at design time)
+
+- **Chose Option B** (extract to embedded `code-review.md`) over "enrich the Go
+  prompt in place." Rationale: the operator's roadmap is *lift prompts into
+  editable markdown* (cf. #75 `architecture.md`, #70 contract doc); B makes the
+  reviewer prompt prose-edited data, not Go string-concat (ARCH-PURE), and is the
+  first step of that migration. Cost (a second authoring style vs the six Go-built
+  judge prompts) accepted as the direction, not an accident.
+- **Pointer, not drift-tested duplicate.** The draft assumed two copies kept in
+  sync by a test. B's whole point is ONE copy (`code-review.md`); the superpowers
+  skill becomes a pointer, so there's nothing left to drift — strictly more DRY
+  than a drift-tested duplicate (ARCH-DRY, Simplicity-First).
+- **`{{ARCH_STAR}}` enumeration.** Glob `ARCH-*` resolves fine for *citation*
+  (the registry is co-present in the composed prompt), but explicit enumeration
+  improves *coverage* (per-principle pass/flag). Derive the list from the registry
+  via the shared `ArchitectureMarkers()` (no hardcoding → no drift as the registry
+  grows).
 
 ## Log
+
+### 2026-06-03 — M1
+
+- The exploration reframed scope: the binary **already** owns a fresh-context
+  review (`milestone-close` → `judge.Dispatch` → `claude -p` with the
+  MilestoneReview prompt, already carrying the at-review lens + atlas gate +
+  core-concepts + VERDICT). The genuine redundancy was just AGENTS.md §3 telling
+  the agent to *also* run a separate `superpowers-requesting-code-review` subagent.
+- Shipped: `code-review.md` (embedded `codeReviewTemplate`, rendered by
+  `CodeReviewBody`) as the one reviewer procedure; `ArchitectureMarkers()` (the
+  shared ARCH-* extractor, reused by the #75 drift test → `{{ARCH_STAR}}`);
+  `MilestoneReview` refactored to render body + `ArchitectureBlock("at-review")`
+  + `ContractPreamble` + diff; `ArchitectureBlock` header strengthened to
+  enumerate the N entries (ARCH-DRY coverage). Dogfood-rendered the composed
+  prompt — reads clean.
+- **Deviation from plan:** did NOT drop `construct/adapted/superpowers-requesting-
+  code-review/code-reviewer.md`. A live sibling skill
+  (`superpowers-subagent-driven-development/code-quality-reviewer-prompt.md`)
+  references it, so it's not an orphan. Reframed SKILL.md + AGENTS.md §3 to drop
+  the *boundary mandate* (kills the double-run) while keeping the generic template
+  for ad-hoc/in-session use. Root cause over deletion.
+- Tests: `TestArchitectureMarkers`, `TestCodeReviewBody_Renders`,
+  `TestCodeReviewTemplate_DoesNotInlinePrincipleBodies` (the no-inlined-bodies
+  guardrail); refactored the #75 narrative-drift test onto `ArchitectureMarkers()`.
+  `go test ./cmd/sdlc/...` + vet + gofmt green.
 
 ### 2026-06-02
 

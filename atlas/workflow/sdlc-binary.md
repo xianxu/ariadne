@@ -180,6 +180,22 @@ counterpart to `change-code`'s plan-quality review (`claim → start-plan →
 change-code`); a drift test keeps AGENTS.md's narrative in sync with the markers.
 #71 adds `ARCH-SHIM`.
 
+**One boundary review, binary-owned (#69).** The *procedure* and the *principles*
+are separate embedded sources: `internal/judge/code-review.md` (`//go:embed`'d as
+`codeReviewTemplate`, rendered by `CodeReviewBody`) is the **one reviewer prompt**
+— the superpowers quality/testing/readiness checklist reconciled with ariadne's
+Core-concepts cross-check, Atlas gate, severity buckets, and the
+`SHIP|FIX-THEN-SHIP|REWORK` verdict. It *refers* to the ARCH-* markers (the
+`{{ARCH_STAR}}` token expands to the live marker list via `ArchitectureMarkers()`,
+the single extraction site shared with the AGENTS.md drift test); the principle
+*definitions* arrive co-present from `ArchitectureBlock("at-review")` at dispatch.
+The procedure must not inline principle bodies (a guardrail test pins this). Both
+`milestone-close` (per-milestone window) and `close` (whole-issue / end-of-issue
+window) dispatch this same review — so the agent does **not** run a separate
+`superpowers-requesting-code-review` pass at a boundary (AGENTS.md §3); that skill
+remains for ad-hoc/in-session reviews. The double-review #69 removed was the
+agent's superpowers pass *plus* the binary's auto-dispatch on the same diff.
+
 ## Build + install
 
 ```
