@@ -89,7 +89,7 @@ in the range (the nous `shared-brain` push it was filed from).
 
 ## Plan
 
-- [ ] Fix `collectDiff` (Plan case): include `historyDir/*.md` in the path
+- [x] Fix `collectDiff` (Plan case): include `historyDir/*.md` in the path
   filter, and use `--diff-filter=d` on the name-only pass so the changed-files
   list excludes the **deleted** `issues/` side and keeps the **HEAD-existing**
   path (`history/NNN.md` for an archived issue, `issues/NNN.md` for an in-place
@@ -99,6 +99,29 @@ in the range (the nous `shared-brain` push it was filed from).
   the deleted `issues/` path) and the diff carries the done content.
 
 ## Log
+
+### 2026-06-03
+
+- Fixed `collectDiff` (cmd/sdlc/judge.go) for the Plan category: the path filter
+  now includes BOTH `issuesDir/*.md` and `historyDir/*.md` (content diff), and the
+  name-only pass adds `--diff-filter=d` so the changed-files list excludes the
+  **deleted** issues/ side. Result: for an archived issue the agent is handed the
+  HEAD-existing `history/NNN.md` path (done content), not the stale deleted
+  `issues/NNN.md`. In-place closes (still in issues/) are unaffected.
+- Regression test `cmd/sdlc/collectdiff_test.go` (temp repo, close+archive
+  already committed in the range): asserts `changedIssues` = the `history/` paths,
+  never the deleted `issues/` paths, for both a properly-done #99 AND a
+  still-incomplete archived #98 (so the judge can still **fail** an incomplete
+  archive — done-when #2). Rename-robust: git's default rename detection reports
+  a high-similarity archive (only status changed) as `R`, so the test asserts the
+  HEAD path outcome, not diff line content.
+- Has teeth: under the old `issues/*.md`-only filter the test fails (it would
+  list the deleted issues/ paths and miss the history/ ones). `go test
+  ./cmd/sdlc/...` + `go vet` + gofmt green.
+- Note: the title's "reads base not HEAD" is imprecise — root cause was the diff
+  filter not following the archive rename (see Root cause section). Dormant for
+  the default `sdlc merge` flow (judges before archiving); this fix covers the
+  pre-committed-archive case (`sdlc push`, or a manually-archived branch).
 
 ### 2026-06-02
 
