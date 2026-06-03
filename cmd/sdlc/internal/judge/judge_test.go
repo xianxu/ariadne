@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -56,10 +57,11 @@ func TestCategoryNeedsAgent(t *testing.T) {
 func TestBuildPrompt_DRY(t *testing.T) {
 	p := BuildPrompt(DRY, PromptInput{Diff: "DIFF_CONTENT"})
 	for _, want := range []string{
-		"DRY (Don't Repeat Yourself) violations",
+		"ARCH-DRY",              // renders the principle from the registry (#75)
+		"Don't Repeat Yourself", // from the embedded architecture.md
 		"Do NOT modify any files",
 		"DIFF_CONTENT",
-		"CLEAN   = no DRY violations.", // VERDICT tokens, not the old sentinel (#70 M2)
+		"CLEAN   = no ARCH-DRY violations.",
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("prompt missing %q\n%s", want, p)
@@ -67,9 +69,42 @@ func TestBuildPrompt_DRY(t *testing.T) {
 	}
 }
 
-// TestAgentPromptsEmbedContract pins the #70 M2 unification: every
-// agent-emitting category embeds the one ContractPreamble verbatim, so the
-// output format is a single source of truth (no per-prompt paraphrase to drift).
+// #75: architecture.md is the single source — it carries both markers and both
+// lenses, and is embedded verbatim into every prompt that needs it.
+func TestArchitectureRegistry_Content(t *testing.T) {
+	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "at-plan", "at-review", "principle:"} {
+		if !strings.Contains(ArchitectureRegistry, want) {
+			t.Errorf("ArchitectureRegistry missing %q", want)
+		}
+	}
+}
+
+// #75: the registry is delivered into all four architecture-aware prompts —
+// plan-quality (at-plan) + milestone-review/dry/pure (at-review). Editing the one
+// file updates them all; a missing embed is silent architectural drift.
+func TestArchitectureRegistry_EmbeddedInPrompts(t *testing.T) {
+	in := PromptInput{Diff: "D", IssueRef: "r#1", IssueContent: "I", Base: "a", Head: "b"}
+	for _, c := range []Category{PlanQuality, MilestoneReview, DRY, PURE} {
+		if !strings.Contains(BuildPrompt(c, in), ArchitectureRegistry) {
+			t.Errorf("%s prompt does not embed ArchitectureRegistry (#75)", c)
+		}
+	}
+	// Negative: prompts NOT wired for architecture must not carry the block — an
+	// accidental future embed into the wrong prompt is caught.
+	for _, c := range []Category{Plan, Specs} {
+		if strings.Contains(BuildPrompt(c, in), ArchitectureRegistry) {
+			t.Errorf("%s prompt should NOT embed ArchitectureRegistry (only the 4 architecture-aware prompts)", c)
+		}
+	}
+	// Lens labels reach the right consumers.
+	if !strings.Contains(BuildPrompt(PlanQuality, in), "at-plan") {
+		t.Error("plan-quality should render the at-plan lens")
+	}
+	if !strings.Contains(BuildPrompt(MilestoneReview, in), "at-review") {
+		t.Error("milestone-review should render the at-review lens")
+	}
+}
+
 // TestContractDoc_InSyncWithTokens is the #70 M2 drift guard: the human schema
 // doc (construct/judge-output-contract.md) must list exactly the tokens the Go
 // source of truth (ContractTokens) defines. A token added to one and not the
@@ -105,6 +140,36 @@ func TestContractDoc_InSyncWithTokens(t *testing.T) {
 	}
 }
 
+// #75 M2 drift guard (mirrors #70's doc-sync test): AGENTS.md's human narrative
+// (Core Design Principles) must mention every ARCH-* principle the machine
+// registry enforces, and point at the registry — so the paired human/machine
+// sources can't silently diverge (e.g. add ARCH-SHIM but forget AGENTS.md).
+func TestArchitecture_NarrativeInSyncWithAgentsMd(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	agents := string(data)
+	markerRE := regexp.MustCompile(`ARCH-([A-Z][A-Z-]*)`)
+	seen := map[string]bool{}
+	for _, m := range markerRE.FindAllStringSubmatch(ArchitectureRegistry, -1) {
+		name := m[1]
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		if !strings.Contains(agents, name) {
+			t.Errorf("AGENTS.md Core Design Principles missing %q (drift from architecture.md's ARCH-%s)", name, name)
+		}
+	}
+	if !strings.Contains(agents, "architecture.md") {
+		t.Error("AGENTS.md should point at the architecture.md registry")
+	}
+}
+
+// TestAgentPromptsEmbedContract pins the #70 M2 unification: every
+// agent-emitting category embeds the one ContractPreamble verbatim, so the
+// output format is a single source of truth (no per-prompt paraphrase to drift).
 func TestAgentPromptsEmbedContract(t *testing.T) {
 	in := PromptInput{Diff: "D", IssueRef: "r#1", IssueContent: "I", Base: "a", Head: "b",
 		ChangedIssues: []string{"workshop/issues/000001.md"}}

@@ -27,6 +27,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
 | `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
+| `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens to design against |
 | `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
 | `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
@@ -162,6 +163,22 @@ killed the bug where a `VERDICT: CLEAN` behind a title scored `FAILURE` and bloc
 the merge (and the milestone `unknown`). A thin legacy sentinel-grep remains for
 un-migrated/foreign outputs; a `judge_test.go` drift test keeps the doc + Go
 tokens in sync.
+
+**Architecture principles (#75).** Injected architectural taste the model lacks
+(payoff shows months downstream → no training signal). `internal/judge/
+architecture.md` is the single source — markered `ARCH-*` entries, each with a
+`principle` / `at-plan` / `at-review` lens — `//go:embed`'d as
+`ArchitectureRegistry` and delivered verbatim into the prompts that need it (one
+file, embedded per fresh context). Today: the **plan-quality** judge renders the
+`at-plan` lens (highest leverage — the design is still changeable), the
+**milestone-review** judge renders `at-review` (backstop), and the standalone
+**dry/pure** judges render their principle from the registry (authored once).
+Cite the marker (`ARCH-DRY`) in plans/Logs/findings. Adding an `ARCH-*` entry
+flows into every consumer with no other edit. **`sdlc start-plan`** (#75 M2)
+delivers the `at-plan` lens to the main thread at design time — the forward
+counterpart to `change-code`'s plan-quality review (`claim → start-plan →
+change-code`); a drift test keeps AGENTS.md's narrative in sync with the markers.
+#71 adds `ARCH-SHIM`.
 
 ## Build + install
 

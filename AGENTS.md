@@ -21,6 +21,7 @@
 
 ### 2. Overall Workflow
 - Unclear requirement → brainstorm. Non-trivial task (>3 files or >100 lines) → plan mode, wait for approval.
+- **Entering planning:** run `sdlc start-plan` (after `claim`, before you design). It delivers the `at-plan` architectural principles (`ARCH-*`, see Core Design Principles) so the design accounts for them from the start — the forward counterpart to `change-code`'s plan-quality review. Re-run per design (agents don't reread). Flow: `claim → start-plan → (design) → change-code → implement → close`.
 - **Two trackers:** `workshop/issues/` is the internal tracker (Spec/Plan/Log per issue); GitHub Issues are an external inbox (bug reports + requests from non-contributors). Create internal issues with `sdlc issue new` (`--from-github N` pulls a GH inbox item in, recording the link as `github_issue:`; use `--deps` for cross-repo blocking deps); don't `gh issue create` for internal work. See `sdlc issue --help` for the issue-file contract.
 - Issue file sections: `## Spec` (brainstorm result), `## Plan` (checkable steps), `## Log` (discoveries, tools). Update often. Status: open/working/blocked/done/wontfix/punt.
 - ALWAYS add tests for problems surfaced during design.
@@ -75,8 +76,13 @@
 - Body = why, not what (the diff shows what). End with a `Co-Authored-By:` trailer naming the authoring model.
 
 ## Core Design Principles
-- **DRY** — reuse before adding.
-- **PURE** — majority pure functions; thin IO/UI layer.
+This is the human narrative; the machine-delivered companion is the `ARCH-*`
+registry (`cmd/sdlc/internal/judge/architecture.md`), surfaced by `sdlc start-plan`
+at design time and checked by the plan-quality + boundary-review judges (#75).
+Architecture is where agents are weakest (payoff is months out) — cite the
+`ARCH-*` marker in plans/Logs/findings where a principle shaped a decision.
+- **DRY** (`ARCH-DRY`) — reuse before adding.
+- **PURE** (`ARCH-PURE`) — majority pure functions; thin IO/UI layer.
 - **Simplicity First** — minimal impact; be able to explain in one sentence why a thing must exist.
 - **Root Cause** — no temp fixes or lazy null checks; senior-dev standard.
 

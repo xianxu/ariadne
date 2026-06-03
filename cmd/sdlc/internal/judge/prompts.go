@@ -117,43 +117,44 @@ type PromptInput struct {
 func BuildPrompt(category Category, in PromptInput) string {
 	switch category {
 	case DRY:
-		return fmt.Sprintf(`You are a code reviewer. Review the following diff for DRY (Don't Repeat Yourself) violations.
-Look for: duplicated logic, copy-pasted code blocks, functions that could be consolidated,
-repeated patterns that should be extracted into shared helpers.
+		return fmt.Sprintf(`You are a code reviewer checking the diff for ARCH-DRY violations.
+The principle is authored once in the registry below (#75):
 
-Report any violations you find with file paths and line numbers. Suggest how to fix them.
-Do NOT modify any files. Only report.
+%s
+
+Apply ARCH-DRY's at-review lens to the diff: duplicated logic, copy-pasted blocks,
+near-identical functions that should be one shared helper. Report file:line + the
+consolidation. Do NOT modify any files; only report.
 
 %s
 
 Tokens for this check:
-  CLEAN   = no DRY violations.
+  CLEAN   = no ARCH-DRY violations.
   FAILURE = duplicated logic that should be consolidated.
 
 Diff:
 %s
-`, ContractPreamble, in.Diff)
+`, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 
 	case PURE:
-		return fmt.Sprintf(`You are a code reviewer. Review the following diff for PURE principle adherence.
-The PURE principle means: write the majority of code as pure functions (no side effects, deterministic),
-then use minimal "glue" code to integrate with UI and IO.
+		return fmt.Sprintf(`You are a code reviewer checking the diff for ARCH-PURE violations.
+The principle is authored once in the registry below (#75):
 
-Look for: business logic mixed with IO, functions that could be pure but aren't,
-side effects that could be moved to the boundary.
+%s
 
-Report any violations with file paths and line numbers. Suggest how to refactor.
-Do NOT modify any files. Only report.
+Apply ARCH-PURE's at-review lens to the diff: business logic mixed with IO,
+functions that could be pure but aren't, side effects that should move to the
+boundary. Report file:line + the refactor. Do NOT modify any files; only report.
 
 %s
 
 Tokens for this check:
-  CLEAN   = no PURE violations.
+  CLEAN   = no ARCH-PURE violations.
   FAILURE = business logic mixed with IO that should move to the boundary.
 
 Diff:
 %s
-`, ContractPreamble, in.Diff)
+`, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 
 	case Plan:
 		changedList := strings.Join(in.ChangedIssues, "\n")
@@ -217,13 +218,18 @@ Common failure modes to flag:
   - Mismatched estimate vs scope — estimate_hours wildly disagrees with the
     visible scope (e.g., 0.5h for what looks like 8h of work).
 
+Then check the plan against our architecture (this is the highest-leverage place
+to catch architectural drift — the design is still changeable here):
+
+%s
+
 %s
 
 Tokens for this check:
-  CLEAN   = plan is concrete, testable, scoped; safe to start coding.
+  CLEAN   = plan is concrete, testable, scoped, architecturally sound; safe to start.
   INFO    = plan is workable but has minor non-blocking suggestions.
-  FAILURE = plan has at least one of the failure modes above; address before
-            starting implementation.
+  FAILURE = plan has a failure mode above OR ignores an ARCH-* principle; address
+            before starting implementation.
 
 After the VERDICT line: a 1-paragraph summary of the verdict followed by specific
 findings (quote the vague items, name the missing test surface, etc.). Be
@@ -238,7 +244,7 @@ Plan file (if separate):
 ---
 %s
 ---
-`, ref, ContractPreamble, in.IssueContent, planSection)
+`, ref, ArchitectureBlock("at-plan"), ContractPreamble, in.IssueContent, planSection)
 
 	case Specs:
 		return fmt.Sprintf(`You are a READ-ONLY documentation reviewer. Compare the code changes in the diff below against:
@@ -322,6 +328,9 @@ Read the diff against the issue's plan + spec. Focus on:
     changes in the same range = Important finding ("atlas update appears
     missing for <surface>").
 
+  Architecture (the at-review backstop — these matter most long-term):
+%s
+
 %s
 
 Tokens for milestone review:
@@ -351,7 +360,7 @@ Tools: read-only. Do not modify code.
 
 Diff:
 %s
-`, ref, in.Base, in.Head, ContractPreamble, in.Diff)
+`, ref, in.Base, in.Head, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 	}
 	return ""
 }

@@ -1,11 +1,12 @@
 ---
 id: 000075
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
 estimate_hours: 3
+actual_hours: 2.75
 ---
 
 # architecture.md — a referenced architectural-principles registry delivered to planning + reviews
@@ -104,12 +105,12 @@ architecture). Start embedded; add override later if wanted.
 Decision: **embed** (`//go:embed`, ariadne-owned, simplest); derivative-override
 via a runtime `construct/` doc is a deferred refinement.
 
-- [ ] M1 — registry + judge wiring: author `architecture.md` (ARCH-DRY, ARCH-PURE
+- [x] M1 — registry + judge wiring: author `architecture.md` (ARCH-DRY, ARCH-PURE
   with principle/at-plan/at-review) + `//go:embed` into the judge package; render
   the `at-plan` lens into the plan-quality prompt and the `at-review` lens into
   the boundary/milestone-review prompt; fold `judge dry/pure` in; tests (embed
   presence in both prompts; markers present; à la #70's pattern).
-- [ ] M2 — `sdlc start-plan` verb + workflow: new verb rendering the `at-plan`
+- [x] M2 — `sdlc start-plan` verb + workflow: new verb rendering the `at-plan`
   lens to the main thread at plan-entry; wire AGENTS.md §2 (`claim → start-plan →
   change-code`) + §6 pointer; verb-registration + render tests.
 
@@ -121,5 +122,47 @@ via a runtime `construct/` doc is a deferred refinement.
   the mechanism that makes #71 enforceable at plan + review time.
 
 ## Log
+
+### 2026-06-03 — M2
+- 2026-06-03: closed — architecture.md ARCH-* registry (one //go:embed source) delivered to plan-quality (at-plan), boundary review (at-review), dry/pure (authored once), and the main thread via new sdlc start-plan verb; AGENTS.md workflow+principles wired; drift guard keeps narrative in sync. go test+vet+gofmt green; M1 review FIX-THEN-SHIP→fixed, M2 SHIP; dogfooded (M1 review ran through the new at-review lens)
+- 2026-06-03: closed M2 — sdlc start-plan verb delivers at-plan lens (live: start-plan --issue 75); AGENTS.md §2 workflow + Core Design Principles wired to ARCH-* registry; drift guard (architecture.md↔AGENTS.md) + start-plan tests pass; go test+vet+gofmt green; atlas verb table + note updated. actual=judgment; review verdict: SHIP
+
+- New verb **`sdlc start-plan`** (`startplan.go` + `helptext/start-plan.md`,
+  registered in main.go after `claim`): delivers `judge.ArchitectureBlock("at-plan")`
+  + a planning framing to the main thread — the *forward* injection at design
+  time. Exported `architectureBlock` → `ArchitectureBlock` for cross-package use.
+- AGENTS.md: §2 workflow adds the `claim → start-plan → change-code` step; the
+  Core Design Principles section now declares it the human narrative + points at
+  the `ARCH-*` registry, with `(ARCH-DRY)`/`(ARCH-PURE)` markers on the entries.
+- **Drift guard** (deferred from M1, per the fresh-eyes review):
+  `TestArchitecture_NarrativeInSyncWithAgentsMd` parses the `ARCH-<NAME>` markers
+  from the registry and asserts each `<NAME>` appears in AGENTS.md + that AGENTS.md
+  points at `architecture.md` — so adding `ARCH-SHIM` later forces the narrative to
+  keep up (mirrors #70's doc-sync test).
+- Tests: `startplan_test.go` (registration + renders the at-plan lens, labeled +
+  generic). Live: `sdlc start-plan --issue 75` prints the at-plan principles.
+  `go test ./cmd/sdlc/...` + `go vet` + gofmt green.
+
+### 2026-06-03 — M1
+- 2026-06-03: closed M1 — architecture.md registry (ARCH-DRY/ARCH-PURE) //go:embed'd + rendered into plan-quality (at-plan), milestone-review (at-review), dry/pure (from registry); TestArchitectureRegistry_* + embed-routing tests + updated DRY test pass; go test+vet+gofmt green; atlas noted. One file → all consumers. actual=judgment; review verdict: FIX-THEN-SHIP
+
+- **Decisions (from plan-quality INFO):** (a) DRY/PURE stay as `Category`
+  constants (no `AllCategories` churn → no enumeration-test churn) but their
+  prompts now **render from the registry** (embed `ArchitectureRegistry`, focus
+  the relevant marker) — so the principle is authored once. (b) The at-review
+  lens targets the **existing `MilestoneReview`** prompt now (#69 inherits it
+  later). (c) This is intentional **base-layer churn** (judge package + prompts
+  propagate to derivatives via the shared sdlc binary).
+- `cmd/sdlc/internal/judge/architecture.md` — `ARCH-DRY`, `ARCH-PURE`, each with
+  `principle` / `at-plan` / `at-review`. `architecture.go` `//go:embed`s it as
+  `ArchitectureRegistry` + an `architectureBlock(lens)` renderer.
+- Wired into 4 prompts: **PlanQuality** (at-plan — "highest-leverage, design still
+  changeable"), **MilestoneReview** (at-review backstop), **DRY**/**PURE** (render
+  ARCH-DRY/ARCH-PURE from the registry instead of hand-written prose).
+- Tests: `TestArchitectureRegistry_Content` (markers + both lenses present),
+  `TestArchitectureRegistry_EmbeddedInPrompts` (all 4 prompts embed the one file;
+  lens labels reach the right consumers), updated `TestBuildPrompt_DRY`. Also
+  tidied a pre-existing orphaned doc-comment (#70 M2 leftover). `go test
+  ./cmd/sdlc/...` + `go vet` + gofmt green.
 
 ### 2026-06-03
