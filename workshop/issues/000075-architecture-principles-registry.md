@@ -104,7 +104,7 @@ architecture). Start embedded; add override later if wanted.
 Decision: **embed** (`//go:embed`, ariadne-owned, simplest); derivative-override
 via a runtime `construct/` doc is a deferred refinement.
 
-- [ ] M1 — registry + judge wiring: author `architecture.md` (ARCH-DRY, ARCH-PURE
+- [x] M1 — registry + judge wiring: author `architecture.md` (ARCH-DRY, ARCH-PURE
   with principle/at-plan/at-review) + `//go:embed` into the judge package; render
   the `at-plan` lens into the plan-quality prompt and the `at-review` lens into
   the boundary/milestone-review prompt; fold `judge dry/pure` in; tests (embed
@@ -121,5 +121,26 @@ via a runtime `construct/` doc is a deferred refinement.
   the mechanism that makes #71 enforceable at plan + review time.
 
 ## Log
+
+### 2026-06-03 — M1
+
+- **Decisions (from plan-quality INFO):** (a) DRY/PURE stay as `Category`
+  constants (no `AllCategories` churn → no enumeration-test churn) but their
+  prompts now **render from the registry** (embed `ArchitectureRegistry`, focus
+  the relevant marker) — so the principle is authored once. (b) The at-review
+  lens targets the **existing `MilestoneReview`** prompt now (#69 inherits it
+  later). (c) This is intentional **base-layer churn** (judge package + prompts
+  propagate to derivatives via the shared sdlc binary).
+- `cmd/sdlc/internal/judge/architecture.md` — `ARCH-DRY`, `ARCH-PURE`, each with
+  `principle` / `at-plan` / `at-review`. `architecture.go` `//go:embed`s it as
+  `ArchitectureRegistry` + an `architectureBlock(lens)` renderer.
+- Wired into 4 prompts: **PlanQuality** (at-plan — "highest-leverage, design still
+  changeable"), **MilestoneReview** (at-review backstop), **DRY**/**PURE** (render
+  ARCH-DRY/ARCH-PURE from the registry instead of hand-written prose).
+- Tests: `TestArchitectureRegistry_Content` (markers + both lenses present),
+  `TestArchitectureRegistry_EmbeddedInPrompts` (all 4 prompts embed the one file;
+  lens labels reach the right consumers), updated `TestBuildPrompt_DRY`. Also
+  tidied a pre-existing orphaned doc-comment (#70 M2 leftover). `go test
+  ./cmd/sdlc/...` + `go vet` + gofmt green.
 
 ### 2026-06-03
