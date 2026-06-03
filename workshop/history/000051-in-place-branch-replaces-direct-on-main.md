@@ -1,10 +1,11 @@
 ---
 id: 000051
-status: open
+status: done
 deps: []
 created: 2026-05-30
-updated: 2026-05-30
+updated: 2026-06-03
 estimate_hours: 3
+actual_hours: 4
 ---
 
 # In-place branch workflow replaces direct-on-main
@@ -62,8 +63,8 @@ gap is the *local post-merge cleanup* (worktree-shaped today) + the `change-code
 **Verify:**
 - [x] `go test ./cmd/sdlc/...` + `go vet` green; `bin/sdlc` rebuilt.
 - [x] Worktree path still works via `--worktree=yes` (verified mode=yes).
-- [ ] **End-to-end live dogfood (remaining):** `change-code` (in-place) → `pr` → `merge` on a real issue/PR — exercises the new `switch main`/`pull`/`branch -D` cleanup against real git+gh (only the topology *decision* is unit-tested, not the plumbing). Best done as the first post-bootstrap branch-based task.
-- [ ] Downstream inherits via base-layer refresh (next `make refresh` in a derivative).
+- [x] **End-to-end live dogfood:** satisfied in production — every branch-based close since (incl. `#54` logged explicitly as a "#51 dogfood", and `#75`/`#69` this cycle) ran `change-code` (in-place) → `pr` → `merge` with the new `switch main`/`pull`/`branch -D` cleanup against real git+gh. The `#69` merge output shows it verbatim ("In-place branch … will merge, then switch this checkout back to main / Switching to main… / Pulling… / Deleting merged branch"). The plumbing is proven, not just the unit-tested decision.
+- Downstream inheritance (a derivative's next `make refresh`) trails — a per-derivative propagation event, not an ariadne deliverable; it happens at refresh time and doesn't block closing #51 in ariadne. (Demoted from a checkbox to a note.)
 
 **Revised estimate:** ~6–8h across M1–M3 (was 3h; the investigation showed it's mostly merge.go cleanup-path + docs, low risk since in-place creation is proven).
 
@@ -72,3 +73,20 @@ gap is the *local post-merge cleanup* (worktree-shaped today) + the `change-code
 - Builds on **#39** (`sdlc start` split into `claim` + `change-code`; worktree decision deferred) and **#40** (workflow management → sdlc). Related: **#36** (sdlc-push-followups).
 - Downstream **you-decide#4** (pre-push/PR publish gate): orthogonal — that's the optional *enforcement* layer; this ticket is the *workflow shape*. The publish gate composes with whatever merge path this lands on.
 - Primitive already present: `sdlc change-code --worktree=no` (in-place branch, carries working tree forward) — this ticket promotes it to default and completes its merge-back.
+
+## Log
+
+### 2026-06-03 — retroactive close
+- 2026-06-03: closed — in-place branch is the default workflow (changecode.go resolveBranchingStrategy + merge.go topology split + TestIsInPlaceCheckout); proven in production — #54/#75/#69 all ran change-code(in-place)→pr→merge with switch-main/pull/branch-D cleanup against real git+gh. Retroactive close: code shipped 2026-05-31, actual=judgment ~4h (v3 0.56h rejected — stale multi-issue window, #68 limit); --no-judge (months-wide window meaningless); --no-atlas (atlas shipped with the May work).; review verdict: not-run
+- Code (M1–M3) shipped 2026-05-31 (`ed4b550 #51 M1-M3: in-place branch becomes
+  the default workflow`) and has been the live default ever since; the issue was
+  just never formally closed — exactly the close-off hygiene drift `sdlc` exists
+  to catch. The remaining "live dogfood" checkbox was satisfied in production many
+  times over (see Plan); downstream-refresh demoted to a note (derivative-side).
+- **Actual = judgment (~4h).** `sdlc actual --issue 51` measured 0.56h, but over a
+  months-spanning window attributed across #49/#51/#52/#53 — the stale, multi-issue
+  window v3 can't resolve (the #68 limitation). Rejected the measurement; judgment
+  from "M1–M3 done in one 2026-05-31 session, mostly merge.go cleanup + docs."
+- **`--no-judge`:** the #69 boundary review would run over `firstSHA(#51)^..HEAD`,
+  a months-wide diff of unrelated work — meaningless. The work was reviewed by
+  history (shipped + dogfooded a week). Closed direct-on-main (doc-only state flip).
