@@ -21,7 +21,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 
 | Verb              | Replaces (Make target)      | Defends |
 |-------------------|-----------------------------|---------|
-| `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked |
+| `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
 | `actual`          | (new #68)                   | Compute an issue's focused dev-hours (runs active-time-v3 with brain+repo transcript dirs) |
 | `state`           | (new)                       | Workflow state inspection + drift detection |
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
@@ -33,7 +33,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + cleanup + irreversible-action confirm (#51) |
-| `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched milestone-review |
+| `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69) |
 | `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
@@ -104,10 +104,11 @@ doing) via deterministic checks (`close` refuses without `--actual` +
 without substance) via fresh-context LLM review — every Dispatch call
 spawns a new subprocess; the agent has no doer-session state.
 
-**Per-gate bypass (#67).** `close` has 7 gates (actual, verified, atlas,
-milestone-verdict, plan-unchecked, project, re-close), each with its own
-`--no-<gate>` flag (`--no-actual`, `--no-verified`, `--no-atlas`,
-`--no-verdict`, `--no-plan-check`, `--no-project`, `--no-reclose-guard`);
+**Per-gate bypass (#67).** `close` has 8 gates (actual, verified, atlas,
+milestone-verdict, plan-unchecked, project, re-close, and the #69 boundary
+review), each with its own `--no-<gate>` flag (`--no-actual`, `--no-verified`,
+`--no-atlas`, `--no-verdict`, `--no-plan-check`, `--no-project`,
+`--no-reclose-guard`, `--no-judge`);
 `closeFlags.skip(gate)` is the single arbiter (`Force || the field`). A
 per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
 pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires
@@ -179,6 +180,22 @@ delivers the `at-plan` lens to the main thread at design time — the forward
 counterpart to `change-code`'s plan-quality review (`claim → start-plan →
 change-code`); a drift test keeps AGENTS.md's narrative in sync with the markers.
 #71 adds `ARCH-SHIM`.
+
+**One boundary review, binary-owned (#69).** The *procedure* and the *principles*
+are separate embedded sources: `internal/judge/code-review.md` (`//go:embed`'d as
+`codeReviewTemplate`, rendered by `CodeReviewBody`) is the **one reviewer prompt**
+— the superpowers quality/testing/readiness checklist reconciled with ariadne's
+Core-concepts cross-check, Atlas gate, severity buckets, and the
+`SHIP|FIX-THEN-SHIP|REWORK` verdict. It *refers* to the ARCH-* markers (the
+`{{ARCH_STAR}}` token expands to the live marker list via `ArchitectureMarkers()`,
+the single extraction site shared with the AGENTS.md drift test); the principle
+*definitions* arrive co-present from `ArchitectureBlock("at-review")` at dispatch.
+The procedure must not inline principle bodies (a guardrail test pins this). Both
+`milestone-close` (per-milestone window) and `close` (whole-issue / end-of-issue
+window) dispatch this same review — so the agent does **not** run a separate
+`superpowers-requesting-code-review` pass at a boundary (AGENTS.md §3); that skill
+remains for ad-hoc/in-session reviews. The double-review #69 removed was the
+agent's superpowers pass *plus* the binary's auto-dispatch on the same diff.
 
 ## Build + install
 

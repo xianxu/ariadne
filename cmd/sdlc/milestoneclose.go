@@ -2,8 +2,9 @@
 //
 // Thin wrapper over `sdlc close --milestone Mx` that adds the
 // AGENTS.md §3 mandatory post-milestone code review as an auto-dispatched
-// follow-on: after the milestone close completes, fires a fresh-context
-// `judge milestone-review` against the commit window for the milestone.
+// follow-on: after the milestone close completes, fires the one binary-owned
+// boundary review (dispatchBoundaryReview, shared with `sdlc close` since #69)
+// against the commit window for the milestone.
 //
 // Promotes milestone close from "a flag on close" to its own verb so the
 // auto-dispatch is implicit. `sdlc close --milestone Mx` still works
@@ -54,11 +55,11 @@ type milestoneCloseFlags struct {
 // errored — the operator should still be able to reconstruct what
 // happened from the trailer alone.
 type reviewResult struct {
-	Verdict   judge.Verdict
-	Reason    string // populated for not-run / unknown
-	Base      string // short SHA
-	Head      string // short SHA ("HEAD" fine in dry-run)
-	BaseLong  string // long SHA, used by trailer-verifier lookups in close
+	Verdict  judge.Verdict
+	Reason   string // populated for not-run / unknown
+	Base     string // short SHA
+	Head     string // short SHA ("HEAD" fine in dry-run)
+	BaseLong string // long SHA, used by trailer-verifier lookups in close
 }
 
 func NewMilestoneCloseCmd() *cobra.Command {
@@ -126,7 +127,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 
 	// Step 2: figure out the review window (used regardless of whether
 	// the judge actually runs — the trailer always carries it).
-	base, baseLong, head := resolveReviewWindow(f)
+	base, baseLong, head := resolveReviewWindow(fmt.Sprintf("#%d %s", f.Issue, f.Milestone))
 
 	// Step 3: dispatch the judge (or short-circuit if skipped).
 	var result reviewResult
@@ -138,19 +139,27 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		cinfo(stderr, "dry-run — would dispatch judge milestone-review")
 		result = reviewResult{Verdict: judge.VerdictNotRun, Reason: "--dry-run", Base: base, Head: head, BaseLong: baseLong}
 	default:
-		result = dispatchMilestoneReview(stdout, stderr, f, base, baseLong, head)
+		result = dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
+			IssueRef:  fmt.Sprintf("ariadne#%d %s", f.Issue, f.Milestone),
+			Label:     fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
+			Base:      base,
+			BaseLong:  baseLong,
+			Head:      head,
+			IssuesDir: f.IssuesDir,
+			Agent:     f.Agent,
+		})
 	}
 
 	// Step 4: emit the trailer block to stdout (the agent pastes this
 	// into the close commit message; close.go's verifier later greps
 	// for Review-Verdict: to confirm review evidence per milestone).
-	emitTrailerBlock(stdout, result)
+	emitTrailerBlock(stdout, result, "milestone-close")
 
 	// Step 5: mirror the verdict into the issue file's just-written log
 	// line so a human grep finds it. Skip in --dry-run (file wasn't
 	// written) and on hard failures (the log line may not exist).
 	if !f.DryRun {
-		if err := annotateLogLineWithVerdict(f, result.Verdict); err != nil {
+		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, result.Verdict); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 		}
 	}
@@ -158,30 +167,22 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 	return nil
 }
 
-// resolveReviewWindow computes the (base, baseLong, head) tuple for the
-// milestone-review window. base is short, baseLong is the full 40-char
-// SHA (used by the verifier in close.go to locate the same window in
-// `git log`), head is "HEAD" — the milestone close hasn't been committed
-// yet, so HEAD is the operator's pre-close tip and the diff is what got
-// reviewed.
+// resolveReviewWindow computes the (base, baseLong, head) tuple for a
+// boundary-review window, given the commit-subject substring that the
+// boundary's commits carry (`#69 M1` for a milestone, `#69` for a whole
+// issue). base is short, baseLong is the full 40-char SHA (used by the
+// verifier in close.go to locate the same window in `git log`), head is
+// "HEAD" — the close hasn't been committed yet, so HEAD is the operator's
+// pre-close tip and the diff is what got reviewed. The base is the parent
+// of the FIRST commit referencing the subject — the same window source as
+// close.go's atlas gate (ARCH-DRY), so the review and the atlas check agree.
 //
-// Returns ("?", "", "HEAD") when no commit references the milestone
-// (e.g., docs-only milestone with no code commits) so the trailer still
-// has something to write.
-func resolveReviewWindow(f *milestoneCloseFlags) (base, baseLong, head string) {
+// Returns ("?", "", "HEAD") when no commit references the subject (e.g., a
+// docs-only milestone with no code commits) so the trailer still has
+// something to write.
+func resolveReviewWindow(refSubject string) (base, baseLong, head string) {
 	head = "HEAD"
-	refSubject := fmt.Sprintf("#%d %s", f.Issue, f.Milestone)
-	entries, err := gitx.LogReverse()
-	if err != nil {
-		return "?", "", head
-	}
-	var firstSHA string
-	for _, e := range entries {
-		if strings.Contains(e.Subject, refSubject) {
-			firstSHA = e.SHA
-			break
-		}
-	}
+	firstSHA, _ := firstCommitReferencing(refSubject)
 	if firstSHA == "" {
 		return "?", "", head
 	}
@@ -192,6 +193,34 @@ func resolveReviewWindow(f *milestoneCloseFlags) (base, baseLong, head string) {
 	}
 	base = shortSHA(baseLong)
 	return base, baseLong, head
+}
+
+// firstCommitReferencing returns the SHA of the FIRST (oldest) commit whose
+// subject contains refSubject (e.g. "#69" or "#69 M1") plus the count of all
+// matching commits. ("", 0) when `git log` fails or nothing matches. This is the
+// ONE commit-window scan (ARCH-DRY) shared by close.go's atlas gate and
+// resolveReviewWindow, so the atlas window and the review window are provably the
+// same scan rather than parallel reimplementations that drift (#69 M2 review).
+//
+// Match is a bare substring on the subject: refSubject always starts with '#',
+// which never appears in a SHA or ISO date, so subject-only matching equals the
+// old SHA+date+subject match. (Caveat: "#69" substring-matches "#690" — a
+// theoretical collision shared with the old atlas gate; commit subjects on a
+// feature branch are the issue's own, so it doesn't bite in practice.)
+func firstCommitReferencing(refSubject string) (firstSHA string, count int) {
+	entries, err := gitx.LogReverse()
+	if err != nil {
+		return "", 0
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Subject, refSubject) {
+			if firstSHA == "" {
+				firstSHA = e.SHA
+			}
+			count++
+		}
+	}
+	return firstSHA, count
 }
 
 // shortSHA returns the abbreviated SHA via `git rev-parse --short`. Falls
@@ -227,9 +256,9 @@ func shortSHA(ref string) string {
 // The blank line before the trailers matches git's `interpret-trailers`
 // expectation: trailers form a contiguous block at the message bottom,
 // separated from the body by one blank line.
-func emitTrailerBlock(stdout io.Writer, r reviewResult) {
+func emitTrailerBlock(stdout io.Writer, r reviewResult, kind string) {
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "── milestone-close trailers (paste into commit message) ──")
+	fmt.Fprintf(stdout, "── %s trailers (paste into commit message) ──\n", kind)
 	fmt.Fprintln(stdout)
 	fmt.Fprintf(stdout, "Review-Verdict: %s\n", r.Verdict)
 	fmt.Fprintf(stdout, "Review-Window: %s..%s\n", r.Base, r.Head)
@@ -249,9 +278,9 @@ func emitTrailerBlock(stdout io.Writer, r reviewResult) {
 // extend it afterwards. The cost is one extra file read+write; the
 // benefit is that close.go doesn't grow a verdict-aware code path that
 // only ever fires from this wrapper.
-func annotateLogLineWithVerdict(f *milestoneCloseFlags, verdict judge.Verdict) error {
-	issueID := fmt.Sprintf("%06d", f.Issue)
-	pattern := filepath.Join(f.IssuesDir, issueID+"-*.md")
+func annotateLogLineWithVerdict(issuesDir string, issueNum int, milestone string, verdict judge.Verdict) error {
+	issueID := fmt.Sprintf("%06d", issueNum)
+	pattern := filepath.Join(issuesDir, issueID+"-*.md")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return fmt.Errorf("glob %s: %w", pattern, err)
@@ -268,9 +297,9 @@ func annotateLogLineWithVerdict(f *milestoneCloseFlags, verdict judge.Verdict) e
 	if err != nil {
 		return fmt.Errorf("read %s: %w", issuePath, err)
 	}
-	updated, ok := appendVerdictSuffix(string(data), f.Milestone, verdict)
+	updated, ok := appendVerdictSuffix(string(data), milestone, verdict)
 	if !ok {
-		return fmt.Errorf("no matching '- YYYY-MM-DD: closed %s — ...' line", f.Milestone)
+		return fmt.Errorf("no matching '- YYYY-MM-DD: closed %s — ...' line", milestone)
 	}
 	if updated == string(data) {
 		return nil // already annotated, idempotent no-op
@@ -283,7 +312,7 @@ func annotateLogLineWithVerdict(f *milestoneCloseFlags, verdict judge.Verdict) e
 
 // appendVerdictSuffix finds the first log line matching
 //
-//	- YYYY-MM-DD: closed <milestone> — <verified>
+//   - YYYY-MM-DD: closed <milestone> — <verified>
 //
 // and appends "; review verdict: <verdict>" if it isn't already
 // present. Returns (updated, true) when a target line was located,
@@ -295,12 +324,13 @@ func annotateLogLineWithVerdict(f *milestoneCloseFlags, verdict judge.Verdict) e
 func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string, bool) {
 	lines := strings.Split(text, "\n")
 	verdictSuffix := "; review verdict: " + string(verdict)
-	// Match "- <date>: closed <milestone> — ..." where <date> is any
-	// YYYY-MM-DD and the milestone is followed by " — " or end of
-	// label (we keep the boundary loose: the close writer always
-	// emits "closed Mx — <verified>", but a manual edit could trim
-	// trailing space).
-	prefix := "closed " + milestone + " — "
+	// Match "- <date>: closed <milestone> — ..." (milestone close) or
+	// "- <date>: closed — ..." (whole-issue close, milestone==""). The close
+	// writer emits "closed[ Mx] — <verified>"; mirror that exactly.
+	prefix := "closed — "
+	if milestone != "" {
+		prefix = "closed " + milestone + " — "
+	}
 	for i, line := range lines {
 		if !strings.HasPrefix(line, "- ") {
 			continue
@@ -326,37 +356,45 @@ func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string,
 	return text, false
 }
 
-// dispatchMilestoneReview finds the first commit referencing
-// `#<issue> <milestone>` and invokes the judge with that as the base.
-// Returns a reviewResult capturing the verdict + reason. Never returns
-// an error: the close has already happened; the review is a follow-on,
-// so any failure here is recorded as VerdictNotRun with a Reason and
-// the caller still emits a trailer block.
-func dispatchMilestoneReview(stdout, stderr io.Writer, f *milestoneCloseFlags, base, baseLong, head string) reviewResult {
-	if baseLong == "" {
-		reason := fmt.Sprintf("no commits reference '#%d %s' — cannot determine review window", f.Issue, f.Milestone)
-		cwarn(stderr, "milestone-review dispatch skipped: "+reason)
-		cwarn(stderr, "milestone close succeeded; re-run judge manually if needed")
-		return reviewResult{Verdict: judge.VerdictNotRun, Reason: reason, Base: base, Head: head, BaseLong: baseLong}
+// boundaryReviewParams are the inputs to the one binary-owned boundary review
+// (#69). milestone-close passes a per-milestone window (`#69 M1`); close passes
+// a whole-issue window (`#69`). Both invoke the same MilestoneReview prompt (the
+// embedded code-review.md procedure) on the resolved window.
+type boundaryReviewParams struct {
+	IssueRef             string // prompt label, e.g. "ariadne#69" or "ariadne#69 M1"
+	Label                string // commit-subject substring for messages, e.g. "#69 M1"
+	Base, BaseLong, Head string // review window (short base, long base, "HEAD")
+	IssuesDir            string
+	Agent                string
+}
+
+// dispatchBoundaryReview invokes the one fresh-context review on p's window.
+// Returns a reviewResult capturing the verdict + reason. Never returns an error:
+// the close has already happened; the review is a follow-on, so any failure here
+// is recorded as VerdictNotRun with a Reason and the caller still emits a trailer.
+func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) reviewResult {
+	res := func(v judge.Verdict, reason string) reviewResult {
+		return reviewResult{Verdict: v, Reason: reason, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong}
+	}
+	if p.BaseLong == "" {
+		reason := fmt.Sprintf("no commits reference '%s' — cannot determine review window", p.Label)
+		cwarn(stderr, "boundary review skipped: "+reason)
+		cwarn(stderr, "close succeeded; re-run judge manually if needed")
+		return res(judge.VerdictNotRun, reason)
 	}
 
-	diff, _, err := collectDiff(judge.MilestoneReview, baseLong, "HEAD", f.IssuesDir, "workshop/history")
+	diff, _, err := collectDiff(judge.MilestoneReview, p.BaseLong, "HEAD", p.IssuesDir, "workshop/history")
 	if err != nil {
 		reason := fmt.Sprintf("collect diff: %v", err)
-		cwarn(stderr, "milestone-review dispatch failed: "+reason)
-		cwarn(stderr, "milestone close succeeded; re-run judge manually if needed")
-		return reviewResult{Verdict: judge.VerdictNotRun, Reason: reason, Base: base, Head: head, BaseLong: baseLong}
+		cwarn(stderr, "boundary review failed: "+reason)
+		cwarn(stderr, "close succeeded; re-run judge manually if needed")
+		return res(judge.VerdictNotRun, reason)
 	}
 
-	in := judge.PromptInput{
-		Diff:     diff,
-		Base:     baseLong,
-		Head:     "HEAD",
-		IssueRef: fmt.Sprintf("ariadne#%d %s", f.Issue, f.Milestone),
-	}
+	in := judge.PromptInput{Diff: diff, Base: p.BaseLong, Head: "HEAD", IssueRef: p.IssueRef}
 	prompt := judge.BuildPrompt(judge.MilestoneReview, in)
 
-	agent := judge.AgentCLI(orStr(f.Agent, "claude"))
+	agent := judge.AgentCLI(orStr(p.Agent, "claude"))
 	opts := judge.DispatchOptions{
 		Agent:        agent,
 		Prompt:       prompt,
@@ -366,13 +404,12 @@ func dispatchMilestoneReview(stdout, stderr io.Writer, f *milestoneCloseFlags, b
 		Stderr:       stderr,
 	}
 
-	cinfo(stderr, fmt.Sprintf("dispatching milestone-review (%s..HEAD) via %s …", baseLong, agent))
+	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..HEAD) via %s …", p.BaseLong, agent))
 	output, derr := judge.Dispatch(context.Background(), opts)
 	if derr != nil {
-		reason := derr.Error()
-		cwarn(stderr, fmt.Sprintf("milestone-review dispatch failed: %v", derr))
-		cwarn(stderr, "milestone close succeeded; re-run judge manually if needed")
-		return reviewResult{Verdict: judge.VerdictNotRun, Reason: reason, Base: base, Head: head, BaseLong: baseLong}
+		cwarn(stderr, fmt.Sprintf("boundary review failed: %v", derr))
+		cwarn(stderr, "close succeeded; re-run judge manually if needed")
+		return res(judge.VerdictNotRun, derr.Error())
 	}
 	fmt.Fprint(stdout, output)
 	if !strings.HasSuffix(output, "\n") {
@@ -380,15 +417,15 @@ func dispatchMilestoneReview(stdout, stderr io.Writer, f *milestoneCloseFlags, b
 	}
 	switch judge.Classify(output) {
 	case judge.Clean:
-		cok(stderr, "milestone-review: clean")
+		cok(stderr, "boundary review: clean")
 	case judge.Info:
-		cinfo(stderr, "milestone-review: info")
+		cinfo(stderr, "boundary review: info")
 	case judge.Failure:
-		cwarn(stderr, "milestone-review: findings reported — address before next milestone")
+		cwarn(stderr, "boundary review: findings reported — address before crossing the boundary")
 	}
 	verdict := judge.ParseVerdict(output)
 	if verdict == judge.VerdictUnknown {
-		cwarn(stderr, "milestone-review: no leading 'SHIP | FIX-THEN-SHIP | REWORK' verdict found — recording verdict as 'unknown'")
+		cwarn(stderr, "boundary review: no leading 'SHIP | FIX-THEN-SHIP | REWORK' verdict found — recording verdict as 'unknown'")
 	}
-	return reviewResult{Verdict: verdict, Base: base, Head: head, BaseLong: baseLong}
+	return reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong}
 }

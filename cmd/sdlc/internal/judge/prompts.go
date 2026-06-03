@@ -281,86 +281,18 @@ Diff:
 		if ref == "" {
 			ref = "<unknown>"
 		}
-		return fmt.Sprintf(`You are conducting a post-milestone code review for %s.
-Base: %s   Head: %s
-
-Read the diff against the issue's plan + spec. Focus on:
-
-  Critical (must fix before next milestone)
-    - correctness bugs
-    - behavior drift from stated contracts (look for ports of existing
-      scripts where byte-faithfulness was promised)
-    - crashes / panics on unexpected input
-    - silent error swallowing where the source raised
-
-  Important (fix before next milestone if cheap)
-    - API design of newly-introduced internal packages (downstream
-      milestones will consume them; surface stable?)
-    - missing test coverage that would catch the kind of bug shipped
-    - inconsistent error handling philosophy across the diff
-
-  Minor (note for future)
-    - style nits, naming, comment density
-    - performance only if hot-path
-
-  Core concepts cross-check (if the plan has a Core concepts table):
-    The plan should list entities in a greppable table — name, kind
-    (PURE/INTEGRATION), file location, status (new/modified/deleted).
-    For each row:
-      - Verify the entity exists at the stated path (grep the diff or
-        filesystem).
-      - PURE: tests run without IO (no exec, net, mutable fs). If tests
-        need mocks to run, it isn't really PURE — flag Critical and
-        recommend promoting it to INTEGRATION.
-      - INTEGRATION: injected into pure callers, not invoked directly
-        from business logic.
-      - "modified" / "deleted" status: the diff shows the expected
-        change/removal at the stated location.
-    Any contradiction between table and code = Critical finding, plus
-    a plan-revision recommendation (a "## Revisions" entry on the plan
-    so it stops claiming what the code doesn't deliver).
-
-  Atlas update gate (per AGENTS.md §8):
-    The milestone should update atlas/ entries for any new architectural
-    surface, flow, or terminology introduced. Scan the diff for evidence
-    of new surface — new entity types, new subcommands, new conventions,
-    new file-tree locations. Any present without corresponding atlas/
-    changes in the same range = Important finding ("atlas update appears
-    missing for <surface>").
-
-  Architecture (the at-review backstop — these matter most long-term):
-%s
+		// The procedure (code-review.md, #69) refers to ARCH-* markers; the
+		// principle definitions are co-located by appending the at-review block;
+		// the verdict format by ContractPreamble. One reviewer, both boundaries.
+		return fmt.Sprintf(`%s
 
 %s
 
-Tokens for milestone review:
-  SHIP          = ready; ship it.
-  FIX-THEN-SHIP = ship after addressing the findings (non-blocking at the gate;
-                  fix them before the next milestone).
-  REWORK        = blocking; needs rework before shipping.
-
-After the VERDICT line: a 1-paragraph summary explaining it — what worked, what
-blocks SHIP if it isn't — followed by:
-  1. Strengths: 2-5 specific things done well (file:line where useful).
-     Affirm the validated approaches so the operator knows what's
-     confirmed-good ground. Empty acceptable for trivial milestones.
-  2. Critical findings (file:line + fix sketch); empty if none.
-  3. Important findings (same format).
-  4. Minor findings (terse one-liners).
-  5. Test coverage notes.
-  6. Architectural notes for upcoming work.
-  7. Plan revision recommendations: list specific "## Revisions" entries
-     the plan needs (empty if the plan still matches the code).
-
-You have no prior session context — that is the anti-collusion property.
-Verify behavior against documented contracts directly; do not take the
-implementor's word in commit messages or docs at face value.
-
-Tools: read-only. Do not modify code.
+%s
 
 Diff:
 %s
-`, ref, in.Base, in.Head, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
+`, CodeReviewBody(ref, in.Base, in.Head), ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 	}
 	return ""
 }

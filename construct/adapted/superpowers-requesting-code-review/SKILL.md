@@ -9,6 +9,15 @@ Dispatch superpowers-code-reviewer subagent to catch issues before they cascade.
 
 **Core principle:** Review early, review often.
 
+> **Ariadne note (#69):** SDLC *boundary* reviews — every `sdlc milestone-close`
+> and `sdlc close` — are **binary-owned**: the binary dispatches the one
+> fresh-context review itself (its reviewer is `cmd/sdlc/internal/judge/code-review.md`,
+> which folds this checklist together with ariadne's atlas/core-concepts/VERDICT
+> tweaks). **Do NOT run this skill as a second pass at an SDLC boundary** — that
+> was the redundant double-review #69 removed. This skill remains for *ad-hoc* and
+> *in-session* reviews outside the SDLC gates (e.g. the per-task reviews in
+> superpowers-subagent-driven-development, or a quick fresh-eyes pass when stuck).
+
 ## When to Request Review
 
 **Mandatory:**

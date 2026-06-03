@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -105,6 +104,66 @@ func TestArchitectureRegistry_EmbeddedInPrompts(t *testing.T) {
 	}
 }
 
+// #69: ArchitectureMarkers is the single extraction site for ARCH-* names —
+// shared by the {{ARCH_STAR}} substitution and the AGENTS.md drift guard.
+func TestArchitectureMarkers(t *testing.T) {
+	markers := ArchitectureMarkers()
+	want := []string{"ARCH-DRY", "ARCH-PURE"}
+	if len(markers) != len(want) {
+		t.Fatalf("ArchitectureMarkers() = %v, want %v", markers, want)
+	}
+	for i, w := range want {
+		if markers[i] != w {
+			t.Errorf("marker[%d] = %q, want %q (registry order)", i, markers[i], w)
+		}
+	}
+}
+
+// #69: code-review.md is the one embedded boundary-review procedure; CodeReviewBody
+// substitutes the window fields and expands {{ARCH_STAR}} from the live registry.
+func TestCodeReviewBody_Renders(t *testing.T) {
+	if strings.TrimSpace(codeReviewTemplate) == "" {
+		t.Fatal("code-review.md embed is empty")
+	}
+	body := CodeReviewBody("ariadne#69 M1", "BASE_SHA", "HEAD_SHA")
+	for _, want := range []string{
+		"ariadne#69 M1",       // {{ISSUE_REF}}
+		"Base: BASE_SHA",      // {{BASE}}
+		"Head: HEAD_SHA",      // {{HEAD}}
+		"ARCH-DRY, ARCH-PURE", // {{ARCH_STAR}} enumerated from the registry
+		"Core concepts cross-check",
+		"REWORK        = blocking",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rendered body missing %q", want)
+		}
+	}
+	// No placeholder survives the render.
+	if strings.Contains(body, "{{") {
+		t.Errorf("unsubstituted placeholder remains in rendered body:\n%s", body)
+	}
+}
+
+// #69 guardrail: the procedure must CITE the markers, not re-inline the principle
+// bodies — those live once in architecture.md and arrive co-present via
+// ArchitectureBlock. If a principle's defining phrase leaks into code-review.md,
+// the registry has stopped being the sole definition site (ARCH-DRY).
+func TestCodeReviewTemplate_DoesNotInlinePrincipleBodies(t *testing.T) {
+	for _, body := range []string{
+		"Reuse before adding", // ARCH-DRY principle line
+		"One source of truth", // ARCH-DRY principle line
+		`thin "glue" layer`,   // ARCH-PURE principle line
+	} {
+		if strings.Contains(codeReviewTemplate, body) {
+			t.Errorf("code-review.md inlines registry principle text %q — cite the marker instead", body)
+		}
+	}
+	// It must still reference the markers via the substitution token.
+	if !strings.Contains(codeReviewTemplate, "{{ARCH_STAR}}") {
+		t.Error("code-review.md should reference ARCH-* via the {{ARCH_STAR}} token")
+	}
+}
+
 // TestContractDoc_InSyncWithTokens is the #70 M2 drift guard: the human schema
 // doc (construct/judge-output-contract.md) must list exactly the tokens the Go
 // source of truth (ContractTokens) defines. A token added to one and not the
@@ -150,16 +209,12 @@ func TestArchitecture_NarrativeInSyncWithAgentsMd(t *testing.T) {
 		t.Fatalf("read AGENTS.md: %v", err)
 	}
 	agents := string(data)
-	markerRE := regexp.MustCompile(`ARCH-([A-Z][A-Z-]*)`)
-	seen := map[string]bool{}
-	for _, m := range markerRE.FindAllStringSubmatch(ArchitectureRegistry, -1) {
-		name := m[1]
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		if !strings.Contains(agents, name) {
-			t.Errorf("AGENTS.md Core Design Principles missing %q (drift from architecture.md's ARCH-%s)", name, name)
+	// Reuse the one extraction site (ARCH-DRY) — same helper the {{ARCH_STAR}}
+	// substitution uses, so the narrative guard and the review checklist can't
+	// disagree about what the markers are.
+	for _, marker := range ArchitectureMarkers() {
+		if !strings.Contains(agents, marker) {
+			t.Errorf("AGENTS.md Core Design Principles missing %q (drift from architecture.md)", marker)
 		}
 	}
 	if !strings.Contains(agents, "architecture.md") {
@@ -274,7 +329,7 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"ariadne#31 M3",
 		"Base: 9e8625e",
 		"Head: d7789e0",
-		"Critical (must fix before next milestone)",
+		"Critical (must fix before crossing the boundary)",
 		"anti-collusion property",
 		"Core concepts cross-check",
 		"PURE: tests run without IO",
