@@ -1,10 +1,14 @@
 // close.go — `sdlc close` subcommand. Ports scripts/close-issue.py.
 //
 // Same posture as the Python source:
-//   - Validates inputs (ISSUE required; ACTUAL + VERIFIED required unless --force).
+//   - Validates inputs (ISSUE required; ACTUAL + VERIFIED required unless
+//     --no-actual / --no-verified / --force).
 //   - Emits the semantic warmup on the first 2 invocations per shell session.
 //   - Locates the issue file under workshop/issues/.
-//   - Checks atlas/ was touched in the issue's commit window (refusable with --force).
+//   - Checks atlas/ was touched in the issue's commit window (bypassable with
+//     --no-atlas / --force).
+//   - Each guard has a per-gate --no-<gate> bypass; --force waives all of them
+//     at once (#67). A bypass logs an audit line; the rationale goes in --verified.
 //   - Mutates the issue file (milestone tick OR status flip + log line).
 //   - Mutates the matching brain-side project file (task row tick + detail-block field upsert).
 //   - --dry-run prints what would change and exits 0.
@@ -47,6 +51,44 @@ type closeFlags struct {
 	DryRun    bool
 	BrainDir  string
 	IssuesDir string
+
+	// Per-gate bypass flags (#67). Each waives exactly ONE of runClose's
+	// guards; --force waives them all. The flag is an explicit acknowledgment
+	// that the gate doesn't apply here (the rationale belongs in --verified) —
+	// not a way to forget it. See skip().
+	NoActual    bool
+	NoVerified  bool
+	NoReclose   bool
+	NoAtlas     bool
+	NoVerdict   bool
+	NoPlanCheck bool
+	NoProject   bool
+}
+
+// skip reports whether the named gate should be bypassed — either the blanket
+// --force or that gate's specific --no-<gate> flag (#67). Single source of
+// truth so every gate site reads `!f.skip("<gate>")` uniformly.
+func (f *closeFlags) skip(gate string) bool {
+	if f.Force {
+		return true
+	}
+	switch gate {
+	case "actual":
+		return f.NoActual
+	case "verified":
+		return f.NoVerified
+	case "reclose":
+		return f.NoReclose
+	case "atlas":
+		return f.NoAtlas
+	case "verdict":
+		return f.NoVerdict
+	case "plan":
+		return f.NoPlanCheck
+	case "project":
+		return f.NoProject
+	}
+	return false
 }
 
 // NewCloseCmd returns the cobra command for `sdlc close`. The main session
@@ -76,10 +118,18 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag (e.g. M1, M4b); omit for full issue close")
 	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours via v3 procedure")
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "one-line evidence the work meets done-when")
-	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass guards: ACTUAL/VERIFIED requirement, atlas/ check, plan-unchecked, status:done")
+	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass ALL gates (≡ every --no-* flag); record the reason in --verified")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would change; do not write")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", "workshop/issues", "directory holding issue files")
+	// Per-gate bypasses (#67) — each waives one guard; --force waives all.
+	cmd.Flags().BoolVar(&f.NoActual, "no-actual", false, "bypass the ACTUAL-hours requirement (weakens velocity calibration)")
+	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement (only if there's no behavior to verify)")
+	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal (intentionally re-close)")
+	cmd.Flags().BoolVar(&f.NoAtlas, "no-atlas", false, "bypass the atlas/ change check (acknowledge: no new architectural surface)")
+	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict trailer check")
+	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
+	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
 	// differently-formatted error that conflicts with die()'s red prefix.
 	// Validation lives in runClose so all error formatting flows through
@@ -145,7 +195,7 @@ func printSemanticWarmup(w io.Writer) {
 		"             Run active-time-v3.py over the issue's commit window",
 		"             with --commit-weight 1.0; read the per-issue total.",
 		"             See brain/data/life/42shots/velocity/baseline-v3.md.",
-		"             Pass FORCE=1 only if you genuinely cannot run the script",
+		"             Pass --no-actual (or --force) only if you genuinely cannot run the script",
 		"             (e.g., wontfix issue with no commits) — record the reason.",
 		"",
 		fmt.Sprintf("  %sVERIFIED%s = one-line evidence of behavior matching done-when.", ansiCyan, ansiReset),
@@ -250,13 +300,19 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		mode = "milestone"
 	}
 
-	if f.Actual == "" && !f.Force {
-		explainActual(stderr, issueStr, mode, f.Milestone)
-		os.Exit(1)
+	if f.Actual == "" {
+		if !f.skip("actual") {
+			explainActual(stderr, issueStr, mode, f.Milestone)
+			os.Exit(1)
+		}
+		cwarn(stderr, "--no-actual (or --force): closing with NO actual_hours — this issue won't feed velocity calibration")
 	}
-	if f.Verified == "" && !f.Force {
-		explainVerified(stderr, issueStr, mode, f.Milestone, f.Actual)
-		os.Exit(1)
+	if f.Verified == "" {
+		if !f.skip("verified") {
+			explainVerified(stderr, issueStr, mode, f.Milestone, f.Actual)
+			os.Exit(1)
+		}
+		cwarn(stderr, "--no-verified (or --force): closing with NO verification evidence — no behavior recorded as checked")
 	}
 
 	today := time.Now().Format("2006-01-02")
@@ -292,8 +348,11 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		die(stderr, fmt.Sprintf("no YAML frontmatter in %s", issuePath))
 	}
 
-	if currentStatus, _ := issue.GetField(fm, "status"); mode == "issue" && currentStatus == "done" && !f.Force {
-		die(stderr, fmt.Sprintf("%s#%s is already status: done — set FORCE=1 to re-run", repoName, issueStr))
+	if currentStatus, _ := issue.GetField(fm, "status"); mode == "issue" && currentStatus == "done" {
+		if !f.skip("reclose") {
+			die(stderr, fmt.Sprintf("%s#%s is already status: done — pass --no-reclose-guard (or --force) to re-close intentionally", repoName, issueStr))
+		}
+		cwarn(stderr, fmt.Sprintf("--no-reclose-guard (or --force): re-closing %s#%s (already done)", repoName, issueStr))
 	}
 
 	// ── Commit window + atlas check ─────────────────────────────────────────
@@ -340,9 +399,12 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 				nonAtlas = append(nonAtlas, p)
 			}
 		}
-		if len(atlasChanged) == 0 && !f.Force {
-			explainNoAtlas(stderr, firstSHA, nonAtlas)
-			os.Exit(1)
+		if len(atlasChanged) == 0 {
+			if !f.skip("atlas") {
+				explainNoAtlas(stderr, firstSHA, nonAtlas)
+				os.Exit(1)
+			}
+			cwarn(stderr, "--no-atlas (or --force): skipping atlas/ change check — rationale in --verified")
 		}
 	}
 
@@ -355,11 +417,12 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		missing, err := findMilestonesMissingVerdict(body, issueStr, issuePath)
 		if err != nil {
 			cwarn(stderr, fmt.Sprintf("milestone-verdict check skipped: %v", err))
-		} else if len(missing) > 0 && !f.Force {
-			explainMissingVerdicts(stderr, issueStr, missing)
-			os.Exit(1)
 		} else if len(missing) > 0 {
-			cwarn(stderr, fmt.Sprintf("--force: skipping verdict check for %d milestone(s): %s",
+			if !f.skip("verdict") {
+				explainMissingVerdicts(stderr, issueStr, missing)
+				os.Exit(1)
+			}
+			cwarn(stderr, fmt.Sprintf("--no-verdict (or --force): skipping Review-Verdict check for %d milestone(s): %s",
 				len(missing), strings.Join(missing, ", ")))
 		}
 	}
@@ -380,10 +443,14 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		if m := issue.PlanSectionRE.FindStringSubmatchIndex(newBody); m != nil {
 			planBody := newBody[m[2]:m[3]]
 			unchecked := issue.PlanUncheckedRE.FindAllString(planBody, -1)
-			if len(unchecked) > 0 && !f.Force {
-				die(stderr, fmt.Sprintf(
-					"%s ## Plan has %d unchecked item(s):\n  %s\n  (set FORCE=1 to close anyway)",
-					filepath.Base(issuePath), len(unchecked), strings.Join(unchecked, "\n  ")))
+			if len(unchecked) > 0 {
+				if !f.skip("plan") {
+					die(stderr, fmt.Sprintf(
+						"%s ## Plan has %d unchecked item(s):\n  %s\n  (pass --no-plan-check, or --force, to close anyway)",
+						filepath.Base(issuePath), len(unchecked), strings.Join(unchecked, "\n  ")))
+				}
+				cwarn(stderr, fmt.Sprintf("--no-plan-check (or --force): closing %s with %d unchecked ## Plan item(s)",
+					filepath.Base(issuePath), len(unchecked)))
 			}
 		}
 		newFM = issue.SetField(newFM, "status", "done")
@@ -446,28 +513,31 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 			}
 			fields = append(fields, project.Field{Name: "closed", Value: today})
 			updated, found := project.UpsertDetailBlockFields(newPT, anchor, fields)
-			if !found && !f.Force {
-				title := project.FindTaskTitle(newPT, repoName, issueStr, f.Milestone)
-				est, _ := issue.GetField(fm, "estimate_hours")
-				refLabel := fmt.Sprintf("%s#%s %s", repoName, issueStr, f.Milestone)
-				actualOut := f.Actual + "h"
-				skel, refDef := project.Skeleton{
-					Anchor:    anchor,
-					RefLabel:  refLabel,
-					Title:     title,
-					Est:       est,
-					Actual:    actualOut,
-					ClosedISO: today,
-				}.Render()
-				die(stderr, fmt.Sprintf(
-					"no detail block <a id=\"%s\"> in %s (§5 step 4).\n"+
-						"  Author one before closing — the prose paragraph is load-bearing\n"+
-						"  for future calibration. Insert this skeleton inside ## details:\n\n"+
-						"%s\n"+
-						"  And add this reference definition at the file bottom:\n"+
-						"    %s\n\n"+
-						"  Then re-run. (FORCE=1 if it's a track-only milestone with nothing worth recording.)",
-					anchor, filepath.Base(projPath), skel, refDef))
+			if !found {
+				if !f.skip("project") {
+					title := project.FindTaskTitle(newPT, repoName, issueStr, f.Milestone)
+					est, _ := issue.GetField(fm, "estimate_hours")
+					refLabel := fmt.Sprintf("%s#%s %s", repoName, issueStr, f.Milestone)
+					actualOut := f.Actual + "h"
+					skel, refDef := project.Skeleton{
+						Anchor:    anchor,
+						RefLabel:  refLabel,
+						Title:     title,
+						Est:       est,
+						Actual:    actualOut,
+						ClosedISO: today,
+					}.Render()
+					die(stderr, fmt.Sprintf(
+						"no detail block <a id=\"%s\"> in %s (§5 step 4).\n"+
+							"  Author one before closing — the prose paragraph is load-bearing\n"+
+							"  for future calibration. Insert this skeleton inside ## details:\n\n"+
+							"%s\n"+
+							"  And add this reference definition at the file bottom:\n"+
+							"    %s\n\n"+
+							"  Then re-run. (--no-project, or --force, if it's a track-only milestone with nothing worth recording.)",
+						anchor, filepath.Base(projPath), skel, refDef))
+				}
+				cwarn(stderr, fmt.Sprintf("--no-project (or --force): skipping detail-block update for <a id=\"%s\"> in %s", anchor, filepath.Base(projPath)))
 			}
 			if found {
 				newPT = updated
@@ -569,16 +639,16 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 		lines = append(lines, "  (Round to nearest 0.5; under 1 hr keep one decimal: 0.45 → 0.5.)")
 	} else {
 		lines = append(lines, fmt.Sprintf("  %sNo commits matching #%s found — compute hours by judgment%s", ansiYellow, issueStr, ansiReset))
-		lines = append(lines, fmt.Sprintf("  %sor wait until commits land. Set FORCE=1 to bypass.%s", ansiYellow, ansiReset))
+		lines = append(lines, fmt.Sprintf("  %sor wait until commits land. Pass --no-actual (or --force) to bypass.%s", ansiYellow, ansiReset))
 	}
 	lines = append(lines, "")
 	extra := ""
 	if milestone != "" {
-		extra = " MILESTONE=" + milestone
+		extra = " --milestone " + milestone
 	}
 	lines = append(lines, fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	lines = append(lines, fmt.Sprintf("    make close-issue ISSUE=%s%s ACTUAL=<hours> VERIFIED='<evidence>'", issueStr, extra), "")
-	lines = append(lines, "  Set FORCE=1 to bypass this prerequisite check (record reason in VERIFIED).")
+	lines = append(lines, fmt.Sprintf("    sdlc close --issue %s%s --actual <hours> --verified '<evidence>'", issueStr, extra), "")
+	lines = append(lines, "  Pass --no-actual (or --force) to bypass this requirement (record the reason in --verified).")
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }
 
@@ -594,15 +664,15 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	lines = append(lines, "    VERIFIED='ran make nous-test-bootstrap, ROUND-TRIP-OK in 2:34'", "")
 	extra := ""
 	if milestone != "" {
-		extra = " MILESTONE=" + milestone
+		extra = " --milestone " + milestone
 	}
-	actualArg := " ACTUAL=<hours>"
+	actualArg := " --actual <hours>"
 	if actual != "" {
-		actualArg = " ACTUAL=" + actual
+		actualArg = " --actual " + actual
 	}
 	lines = append(lines, fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	lines = append(lines, fmt.Sprintf("    make close-issue ISSUE=%s%s%s VERIFIED='<evidence>'", issueStr, extra, actualArg), "")
-	lines = append(lines, "  Set FORCE=1 only if there's genuinely no behavior to verify.")
+	lines = append(lines, fmt.Sprintf("    sdlc close --issue %s%s%s --verified '<evidence>'", issueStr, extra, actualArg), "")
+	lines = append(lines, "  Pass --no-verified (or --force) only if there's genuinely no behavior to verify.")
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }
 
@@ -659,7 +729,8 @@ func explainNoAtlas(stderr io.Writer, firstSHA string, nonAtlas []string) {
 		}
 	}
 	lines = append(lines, "  Update atlas where this work introduces architectural surface,")
-	lines = append(lines, "  or set FORCE=1 with VERIFIED rationale (e.g., 'pure bugfix, no new surface').")
+	lines = append(lines, "  or pass --no-atlas (or --force) with the rationale in --verified")
+	lines = append(lines, "  (e.g., 'pure bugfix, no new surface').")
 	die(stderr, strings.Join(lines, "\n"))
 }
 
@@ -785,7 +856,7 @@ func formatMissingVerdicts(issueStr string, missing []string) string {
 	lines = append(lines, "    #   Review-Verdict: SHIP")
 	lines = append(lines, "    #   Review-Window: <base>..<head>")
 	lines = append(lines, "")
-	lines = append(lines, "  Or pass --force (record the reason in --verified).")
+	lines = append(lines, "  Or pass --no-verdict (or --force); record the reason in --verified.")
 	return strings.Join(lines, "\n")
 }
 

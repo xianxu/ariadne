@@ -37,6 +37,15 @@ type milestoneCloseFlags struct {
 	Agent     string // forwarded to the judge dispatch
 	BrainDir  string
 	IssuesDir string
+
+	// Per-gate close bypasses (#67), threaded into the delegated runClose.
+	NoActual    bool
+	NoVerified  bool
+	NoReclose   bool
+	NoAtlas     bool
+	NoVerdict   bool
+	NoPlanCheck bool
+	NoProject   bool
 }
 
 // reviewResult bundles the outputs of the post-milestone judge call that
@@ -68,9 +77,17 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag e.g. M4 (required)")
 	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours for this milestone")
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "one-line evidence the milestone meets done-when")
-	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass guards (ACTUAL/VERIFIED/atlas/plan)")
+	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass ALL close gates (≡ every --no-* flag); reason in --verified")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "plan only; do not write or dispatch judge")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the auto-dispatched milestone-review")
+	// Per-gate close bypasses (#67) — forwarded to runClose; --force waives all.
+	cmd.Flags().BoolVar(&f.NoActual, "no-actual", false, "bypass the ACTUAL-hours requirement")
+	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement")
+	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal")
+	cmd.Flags().BoolVar(&f.NoAtlas, "no-atlas", false, "bypass the atlas/ change check (no new surface)")
+	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict check")
+	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
+	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
 	cmd.Flags().StringVar(&f.Agent, "agent", envOr("AGENT_CMD", ""), "agent CLI for judge dispatch (claude | codex | gemini)")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
@@ -87,14 +104,21 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 
 	// Step 1: delegate the mechanical close to runClose.
 	closeF := &closeFlags{
-		Issue:     f.Issue,
-		Milestone: f.Milestone,
-		Actual:    f.Actual,
-		Verified:  f.Verified,
-		Force:     f.Force,
-		DryRun:    f.DryRun,
-		BrainDir:  f.BrainDir,
-		IssuesDir: f.IssuesDir,
+		Issue:       f.Issue,
+		Milestone:   f.Milestone,
+		Actual:      f.Actual,
+		Verified:    f.Verified,
+		Force:       f.Force,
+		DryRun:      f.DryRun,
+		BrainDir:    f.BrainDir,
+		IssuesDir:   f.IssuesDir,
+		NoActual:    f.NoActual,
+		NoVerified:  f.NoVerified,
+		NoReclose:   f.NoReclose,
+		NoAtlas:     f.NoAtlas,
+		NoVerdict:   f.NoVerdict,
+		NoPlanCheck: f.NoPlanCheck,
+		NoProject:   f.NoProject,
 	}
 	if err := runClose(stderr, closeF); err != nil {
 		return err
