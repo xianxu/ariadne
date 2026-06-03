@@ -64,7 +64,7 @@ mention (mentions only gate the `1−weight` split + commitless segments) — wh
 **31-day `WindowCapDays`** in `internal/gitx/window.go` (`CommitWindow` caps the lookback),
 which truncates the window for month-long work (e.g. #16). Bump it.
 
-## Design (agreed)
+## Spec — design (agreed)
 
 Direction: **lift the manual prose into `sdlc`** — stop printing a 6-line command for a
 human to run (nobody does); have `sdlc` run it.
