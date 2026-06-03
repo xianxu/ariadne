@@ -1,11 +1,12 @@
 ---
 id: 000074
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
 estimate_hours: 0.25
+actual_hours: 0.25
 ---
 
 # remove manual actual-computation prose from close — sdlc computes it now
@@ -51,6 +52,7 @@ reference, not as instructions. No behavior change; prose only.
 ## Log
 
 ### 2026-06-03
+- 2026-06-03: closed — manual active-time-v3 how-to removed from warmup, explainActual, --actual flag help, and close.md; all point at sdlc actual / inline suggestion; build+test+helptext green; grep sweep confirms no manual-compute prose remains. --no-atlas: pure prose/help-string, no new surface. actual=judgment (sdlc actual measures 0.05h, undercounts pre-#74:-commit scoping)
 
 - Removed manual-compute prose from **four** spots (a sweep caught two beyond the
   original two): `printSemanticWarmup` ACTUAL block + `explainActual` "Method:"
