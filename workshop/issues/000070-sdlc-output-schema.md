@@ -28,7 +28,9 @@ verdict token said pass; the prose presence said fail; the parser believed the p
 There's no single definition either side can point at, so prompt authors and the parser can
 silently disagree about what a "passing" result even looks like.
 
-## Spec (operator framing)
+## Spec
+
+Operator framing:
 
 > Define a **schema file** so that **prose and code both reference it.** Generally:
 > schematize sdlc output — maybe just the **first line** of output.
