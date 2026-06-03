@@ -1,11 +1,11 @@
 ---
 id: 000069
-status: open
+status: working
 deps: [000075]
 github_issue:
 created: 2026-06-02
-updated: 2026-06-02
-estimate_hours:
+updated: 2026-06-03
+estimate_hours: 3
 ---
 
 # merge the two per-milestone reviews into one boundary pass
