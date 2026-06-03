@@ -1,10 +1,11 @@
 ---
 id: 000049
-status: working
+status: done
 deps: []
 created: 2026-05-29
-updated: 2026-05-30
+updated: 2026-06-02
 estimate_hours:
+actual_hours: 2.5
 ---
 
 # Data dependencies: a looser git-submodule for content peers
@@ -102,9 +103,12 @@ a Go module at all. The separate manifest is strictly simpler.
 - [x] Apply to brain↔you-decide as first consumer (manifest + go.mod deletion)
 - [x] Document in atlas → `atlas/workflow/setup-and-replication.md` "Data
       dependencies (content peers)" section + workflow index entry
-- [ ] Verify the script symlink propagates into brain on refresh (brain's
-      refresh path looks stale — `UPSTREAM_REFRESH` in brain/Makefile.local
-      points at a nonexistent `../nous/nous/setup.sh`; pre-existing, see Log)
+- [x] Verify the script symlink propagates into brain on refresh — DONE
+      (2026-06-02): `brain/construct/scripts/clone-data-deps.sh` is a live
+      symlink → `../../../ariadne/construct/scripts/clone-data-deps.sh`. The
+      stale `UPSTREAM_REFRESH → ../nous/nous/setup.sh` that blocked it was
+      removed post-ariadne#32 (brain/Makefile.local:27); brain now refreshes
+      from its `substrate ../ariadne` (construct/deps).
 
 ## Log
 
@@ -155,3 +159,21 @@ that file; it never existed. The real home is setup-and-replication.md.)
    the script runs fine invoked directly with `TARGET_DIR=<brain> bash
    ../ariadne/construct/scripts/clone-data-deps.sh`. Pre-existing brain issue,
    separate from this feature.
+
+### 2026-06-02 — closeout
+- 2026-06-02: closed — data-dep primitive shipped + documented; verified live on brain (clone-data-deps.sh symlink propagated, you-decide mounts + resolves); carrier since folded into construct/deps by #60. actual=judgment estimate (v3 N/A, prior session — see #68)
+
+Revisited to close. Two updates since the 2026-05-30 entry:
+- **The "open" brain-refresh blocker is resolved.** `UPSTREAM_REFRESH` was
+  removed from `brain/Makefile.local` post-ariadne#32 (line 27 documents the
+  removal); brain refreshes from its `substrate ../ariadne`. Verified the
+  propagation landed: `brain/construct/scripts/clone-data-deps.sh` is a live
+  symlink into ariadne's copy, and `brain/data/life/politics/you-decide`
+  resolves. The mechanism works end-to-end on a real consumer.
+- **Carrier superseded by #60.** The `construct/data-deps` manifest this issue
+  introduced has been folded into the unified `construct/deps` (a `data` row);
+  the legacy reader was retired in #60 M5. brain now declares you-decide as
+  `data git@github.com:xianxu/you-decide.git data/life/politics/you-decide` in
+  `construct/deps`. The *concept* #49 designed is live; only the file it lived
+  in changed. `clone-data-deps.sh` still reads both forms.
+Closing: the primitive shipped, is documented, and is verified working on brain.
