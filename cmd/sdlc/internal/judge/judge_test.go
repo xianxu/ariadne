@@ -81,9 +81,23 @@ func TestContractDoc_InSyncWithTokens(t *testing.T) {
 		t.Fatalf("read contract doc %s: %v", path, err)
 	}
 	doc := string(data)
+	known := map[string]bool{}
 	for _, tok := range ContractTokens {
+		known[tok] = true
 		if !strings.Contains(doc, "`"+tok+"`") {
 			t.Errorf("contract doc missing token `%s` (drift from contract.go ContractTokens)", tok)
+		}
+	}
+	// Reverse direction: every token the doc's table row leads with (`| `TOKEN` |`)
+	// must be a real ContractToken — so a stray doc token also fails.
+	for _, line := range strings.Split(doc, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "| `") {
+			continue
+		}
+		rest := line[strings.Index(line, "`")+1:]
+		tok := rest[:strings.Index(rest, "`")]
+		if tok != "" && !known[tok] {
+			t.Errorf("contract doc table lists `%s`, not in contract.go ContractTokens (drift)", tok)
 		}
 	}
 	if !strings.Contains(doc, "VERDICT: <TOKEN>") {

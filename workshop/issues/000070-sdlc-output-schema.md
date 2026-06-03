@@ -87,6 +87,7 @@ robust scan fixes it.
 ## Log
 
 ### 2026-06-03 — M2
+- 2026-06-03: closed M2 — ContractPreamble embedded by all 5 agent prompts (TestAgentPromptsEmbedContract); MilestoneReview→VERDICT: prefix, DRY/PURE→VERDICT; construct/judge-output-contract.md + drift test (TestContractDoc_InSyncWithTokens); go test+vet+gofmt green. One contract both sides reference. actual=judgment; review verdict: FIX-THEN-SHIP
 
 - `contract.go`: added `ContractPreamble` — the shared `VERDICT: <TOKEN>` format
   instruction every agent-emitting prompt embeds verbatim (the machine-read part;
