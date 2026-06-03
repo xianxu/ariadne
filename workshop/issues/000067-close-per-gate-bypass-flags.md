@@ -1,11 +1,12 @@
 ---
 id: 000067
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 1.5
+actual_hours: 2
 ---
 
 # sdlc close: per-gate --no-<gate> bypass flags (narrower than --force) + fix stale FORCE=1 messages
@@ -78,6 +79,7 @@ already has `--no-judge`, the precedent).
 ## Log
 
 ### 2026-06-02
+- 2026-06-02: closed — go test ./cmd/sdlc/... + vet green; TestCloseFlags_Skip proves per-gate isolation; e2e via --dry-run: --no-atlas waives atlas but plan-check still fires; (3) both → reaches dry-run; fresh-eyes review SHIP (all 7 gate rewrites preserve semantics, audit only on would-refuse path)
 
 - Implemented in `close.go`: 7 `No*` bool fields on `closeFlags` + 7 `--no-*`
   flags; `skip(gate string) bool` (= `Force || <field>`) as the single arbiter;
