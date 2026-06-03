@@ -101,7 +101,7 @@ Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printin
 
 ## Plan
 
-- [ ] M1 — `WindowCapDays` 31→61 (`gitx`); `active-time-v3.py` loud-fail on empty `--dir`
+- [x] M1 — `WindowCapDays` 31→61 (`gitx`); `active-time-v3.py` loud-fail on empty `--dir`
       + explicit "telemetry unavailable" on commits-but-0-events. Unit/CLI tests.
 - [ ] M2 — `sdlc` runs v3 in the actual path: dir-selection (brain + issue-repo, enumerate
       `~/.claude/projects/*`), window + peers, subprocess invoke + parse the per-issue
@@ -109,6 +109,23 @@ Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printin
       reproduces nous#14 ≈ 7.8h.
 
 ## Log
+
+### 2026-06-02 — M1
+
+- `cmd/sdlc/internal/gitx/window.go`: `WindowCapDays` 31→61 (+ rationale comment).
+  Test `TestCommitWindow_ExtendedCapIncludes45Days` (temp repo, a 45-day-old #99
+  commit must anchor the window — fails under the old 31-day cap).
+- `construct/local/issues/active-time-v3.py`: (a) **empty `--dir` → exit 2** with
+  a message (events come only from transcripts; no `--dir` is always a
+  misinvocation, never a real 0); (b) **commits-but-0-events → exit 3** with a
+  "TELEMETRY UNAVAILABLE" message (the transcripts are in cwds not passed via
+  `--dir`, or aged out — never read 0 as measured). Genuinely-empty window still
+  exits 0. Smoke-confirmed all three; `#67` over today's window measured 2.01h
+  (vs the 2.0h judgment I'd recorded — the algorithm was always fine).
+- Test `construct/local/issues/test_active_time_v3.py` (self-contained, mirrors
+  `test_detect.py`): 5 checks (exit 2 / exit 3 / exit 0 paths + messages). Run
+  with `python3 construct/local/issues/test_active_time_v3.py`.
+- `go test ./cmd/sdlc/...` + `go vet` green.
 
 ### 2026-06-02
 

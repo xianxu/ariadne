@@ -260,6 +260,17 @@ def main():
     if not issues:
         print("--issue required (at least one)", file=sys.stderr)
         sys.exit(2)
+    # Events come ONLY from transcript dirs. With no --dir there are no events,
+    # so the result is always 0 — a misinvocation, NOT a real "no activity"
+    # answer. Fail loudly rather than let a silent 0 become a fabricated actual
+    # (#68). Pass --dir ~/.claude/projects/<slug> for each cwd the work touched
+    # (the issue's repo, brain, peer repos, and any git worktree folders).
+    if not args.dir:
+        print("error: no --dir given — active-time has no transcript source, so it "
+              "would report 0 events.\n"
+              "  Pass --dir ~/.claude/projects/<slug> for each cwd the work happened in "
+              "(issue's repo, brain, peers, worktrees).", file=sys.stderr)
+        sys.exit(2)
     issue_pat = re.compile(r"#(" + "|".join(re.escape(i) for i in issues) + r")\b")
 
     since = parse_iso(args.since) if args.since else None
@@ -280,7 +291,20 @@ def main():
     print()
 
     if not events:
-        print("# no events in window", file=sys.stderr)
+        if commits:
+            # The damning case: the window HAS commits (real work) but no
+            # transcript events matched. The transcripts for this window are
+            # almost certainly in cwds/folders not passed via --dir (peer repos,
+            # worktrees) or have aged out — NOT a genuine "no activity". Exit
+            # non-zero so callers don't mistake 0 for a measured value (#68).
+            print("# TELEMETRY UNAVAILABLE: window has commits but 0 transcript events.",
+                  file=sys.stderr)
+            print("# The work's transcripts are likely in cwds not passed via --dir "
+                  "(peer repos / worktrees), or aged out.", file=sys.stderr)
+            print("# Do NOT record 0 as measured — add the missing --dir folders, or use "
+                  "a labeled judgment estimate.", file=sys.stderr)
+            sys.exit(3)
+        print("# no events and no commits in window — nothing to measure", file=sys.stderr)
         sys.exit(0)
     if not commits:
         print("# no commits in window — falling back to whole-window mention attribution", file=sys.stderr)

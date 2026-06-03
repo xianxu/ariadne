@@ -91,7 +91,12 @@ func DiffBase() string {
 // reach. Anything older is almost certainly a fork-upstream collision
 // (the forked repo's history reusing #N for a different historical issue),
 // not legitimate ancient work.
-const WindowCapDays = 31
+//
+// 61 days (was 31, #68): long-running issues legitimately span more than a
+// month — the project datatype is built around month-scale work (e.g. #16 ran
+// ~34 days), and a 31-day cap truncated their windows, dropping the early work
+// and contributing to empty/under-counted actuals.
+const WindowCapDays = 61
 
 // CommitWindow returns (firstSHA, firstISO, lastISO) for commits whose
 // *subject* opens with `#issueNum` (optionally prefixed with "close "),
