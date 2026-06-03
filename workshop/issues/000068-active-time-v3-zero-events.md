@@ -1,11 +1,12 @@
 ---
 id: 000068
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 3
+actual_hours: 2.0
 ---
 
 # fix active-time-v3.py: returns 0 events for these sessions — actuals are fabricated
@@ -111,6 +112,7 @@ Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printin
 ## Log
 
 ### 2026-06-02 — M2
+- 2026-06-02: closed — cap 31→61 + active-time-v3 loud-fail (M1) + sdlc actual verb & close-inline measured suggestion (M2); the fabricated-actuals footgun is closed — sdlc now runs v3 with brain+repo dirs. go test+vet green; M1 review FIX-THEN-SHIP→fixed, M2 review SHIP. actual=Σ milestones (sdlc actual measures 1.0h but undercounts pre-commit investigation — a noted CommitWindow refinement)
 - 2026-06-02: closed M2 — sdlc actual verb + close-inline suggestion live (sdlc actual #68 → measured 1.0h; close prints "→ --actual 0.62"); engine selects brain+repo dirs, classifies v3 exit codes; actual_test.go + full suite + vet green. actual=M2-portion judgment (tool measures whole-#68 at 1.0h but undercounts pre-commit investigation); review verdict: unknown
 
 - New `cmd/sdlc/actual.go` — engine `computeActual(repoTop, brainAbs, issue)`:
