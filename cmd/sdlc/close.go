@@ -3,7 +3,10 @@
 // Same posture as the Python source:
 //   - Validates inputs (ISSUE required; ACTUAL + VERIFIED required unless
 //     --no-actual / --no-verified / --force).
-//   - Emits the semantic warmup on the first 2 invocations per shell session.
+//   - Emits the semantic warmup once per shell session (#69).
+//   - On a standalone full-issue close, auto-dispatches the one binary-owned
+//     boundary review on the whole-issue window (#69); milestone-close reviews
+//     each milestone slice instead. See runCloseWithReview.
 //   - Locates the issue file under workshop/issues/.
 //   - Checks atlas/ was touched in the issue's commit window (bypassable with
 //     --no-atlas / --force).
@@ -33,6 +36,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )
 
@@ -51,6 +55,7 @@ type closeFlags struct {
 	DryRun    bool
 	BrainDir  string
 	IssuesDir string
+	Agent     string // agent CLI for the issue boundary-review dispatch (#69)
 
 	// Per-gate bypass flags (#67). Each waives exactly ONE of runClose's
 	// guards; --force waives them all. The flag is an explicit acknowledgment
@@ -63,6 +68,7 @@ type closeFlags struct {
 	NoVerdict   bool
 	NoPlanCheck bool
 	NoProject   bool
+	NoJudge     bool // skip the issue boundary review (#69)
 }
 
 // skip reports whether the named gate should be bypassed — either the blanket
@@ -87,6 +93,8 @@ func (f *closeFlags) skip(gate string) bool {
 		return f.NoPlanCheck
 	case "project":
 		return f.NoProject
+	case "judge":
+		return f.NoJudge
 	}
 	return false
 }
@@ -110,7 +118,7 @@ func NewCloseCmd() *cobra.Command {
 			"checkpoint contract once wired up.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runClose(cmd.OutOrStderr(), &f)
+			return runCloseWithReview(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	}
 
@@ -130,6 +138,8 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict trailer check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
+	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
+	cmd.Flags().StringVar(&f.Agent, "agent", envOr("AGENT_CMD", ""), "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
 	// differently-formatted error that conflicts with die()'s red prefix.
 	// Validation lives in runClose so all error formatting flows through
@@ -144,7 +154,11 @@ func NewCloseCmd() *cobra.Command {
 
 // ── warmup ───────────────────────────────────────────────────────────────────
 
-const warmupThreshold = 2
+// warmupThreshold = 1: deliver the close-issue contract explainer ONCE per shell
+// session, not twice. Re-delivering didn't help — an agent that read it the first
+// time doesn't re-read it (the same "agents don't reread a static doc" premise
+// behind #75's per-session re-injection); the second copy was just noise (#69).
+const warmupThreshold = 1
 
 func warmupStatePath() string {
 	// Process group ID is stable across subshells of the same controlling
@@ -214,12 +228,14 @@ var logLineDateRE = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2}):`)
 // insertLogLine inserts logLine into the `## Log` section.
 //
 // Placement:
+//
 //   - If logLine carries a leading date (`- YYYY-MM-DD: …`) and the Log
 //     section already has a matching `### YYYY-MM-DD` day header, the line is
 //     filed directly *beneath* that header (top of the day's group) — so a
 //     dated close line sits inside its day rather than orphaned above the
 //     header (#66). Top-of-group, not bottom, preserves the newest-first
 //     convention insertLogLine already uses at the section level.
+//
 //   - Otherwise it goes at the top of the `## Log` section, mirroring
 //     close-issue.py's one-shot:
 //
@@ -588,6 +604,54 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	return nil
 }
 
+// runCloseWithReview runs the mechanical close, then — for a standalone whole-issue
+// close — auto-dispatches the one binary-owned boundary review (#69) on the
+// whole-issue window (branch-point..HEAD), emits its Review-Verdict trailer, and
+// mirrors the verdict into the close log line.
+//
+// milestone-close does NOT route through here: it calls runClose directly and
+// dispatches its own per-milestone review, so a milestone is never reviewed
+// twice. The guard is structural — only a full-issue close (`f.Milestone == ""`)
+// reaches the dispatch — and is the load-bearing invariant for "exactly one
+// review per boundary". For a no-milestone issue this is the single review the
+// boundary gets (previously it got none from the binary); for a multi-milestone
+// issue it is the end-of-issue integration review (each milestone already
+// reviewed its own slice).
+func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
+	if err := runClose(stderr, f); err != nil {
+		return err
+	}
+	if f.Milestone != "" {
+		return nil // milestone close: the review belongs to milestone-close
+	}
+
+	base, baseLong, head := resolveReviewWindow("#" + strconv.Itoa(f.Issue))
+	switch {
+	case f.skip("judge"):
+		cinfo(stderr, "skipping issue boundary review per --no-judge (or --force)")
+		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}, "close")
+		return nil
+	case f.DryRun:
+		cinfo(stderr, "dry-run — would dispatch the issue boundary review")
+		return nil
+	}
+
+	result := dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
+		IssueRef:  fmt.Sprintf("ariadne#%d", f.Issue),
+		Label:     "#" + strconv.Itoa(f.Issue),
+		Base:      base,
+		BaseLong:  baseLong,
+		Head:      head,
+		IssuesDir: f.IssuesDir,
+		Agent:     f.Agent,
+	})
+	emitTrailerBlock(stdout, result, "close")
+	if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, "", result.Verdict); err != nil {
+		cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
+	}
+	return nil
+}
+
 // ── explainers ───────────────────────────────────────────────────────────────
 
 func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
@@ -708,9 +772,9 @@ func explainNoAtlas(stderr io.Writer, firstSHA string, nonAtlas []string) {
 // milestonePlanRE matches a ticked-or-unticked milestone bullet at the
 // start of a plan-section line:
 //
-//	- [x] **M1 — scaffold …
-//	- [ ] **M4b — port milestone-close
-//	- [.] **M5 — wip
+//   - [x] **M1 — scaffold …
+//   - [ ] **M4b — port milestone-close
+//   - [.] **M5 — wip
 //
 // Captures the milestone tag (group 1, e.g. "M1" or "M4b"). The bold
 // asterisks are typical but not strictly required — we accept both the
@@ -832,4 +896,3 @@ func formatMissingVerdicts(issueStr string, missing []string) string {
 func explainMissingVerdicts(stderr io.Writer, issueStr string, missing []string) {
 	die(stderr, formatMissingVerdicts(issueStr, missing))
 }
-

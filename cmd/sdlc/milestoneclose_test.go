@@ -129,7 +129,7 @@ func TestEmitTrailerBlock_Shape(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			emitTrailerBlock(&buf, tt.result)
+			emitTrailerBlock(&buf, tt.result, "milestone-close")
 			out := buf.String()
 			for _, want := range tt.contains {
 				if !strings.Contains(out, want) {
@@ -200,6 +200,24 @@ func TestAppendVerdictSuffix(t *testing.T) {
 			verdict:   judge.VerdictNotRun,
 			want:      "- 2026-05-26: closed M4 — docs only; review verdict: not-run\n",
 			wantOK:    true,
+		},
+		{
+			// #69: whole-issue close has no milestone → "closed — ..." line.
+			name:      "issue close (empty milestone) matches 'closed — '",
+			body:      "- 2026-06-03: closed — all tests pass\n",
+			milestone: "",
+			verdict:   judge.VerdictShip,
+			want:      "- 2026-06-03: closed — all tests pass; review verdict: SHIP\n",
+			wantOK:    true,
+		},
+		{
+			// Guard: empty-milestone matcher must NOT match a milestone line.
+			name:      "issue-close matcher skips a milestone close line",
+			body:      "- 2026-06-03: closed M2 — slice done\n",
+			milestone: "",
+			verdict:   judge.VerdictShip,
+			want:      "- 2026-06-03: closed M2 — slice done\n",
+			wantOK:    false,
 		},
 	}
 	for _, tt := range tests {

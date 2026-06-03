@@ -128,7 +128,7 @@ NOT inline principle bodies (that would re-duplicate the registry — ARCH-DRY).
     composes body+registry+contract+diff; **guardrail** — `code-review.md` cites
     markers but does NOT contain principle bodies; `ArchitectureMarkers()` shared
     by the (refactored) #75 drift test.
-- [ ] M2 — **`sdlc close` as a review boundary** (+ shared dispatch helper).
+- [x] M2 — **`sdlc close` as a review boundary** (+ shared dispatch helper).
   - Extract the review-dispatch from `milestoneclose.go` into one
     `dispatchBoundaryReview(window, issueRef)` helper (ARCH-DRY — close +
     milestone-close share it; emits the `Review-Verdict:`/`Review-Window:`
@@ -173,6 +173,30 @@ NOT inline principle bodies (that would re-duplicate the registry — ARCH-DRY).
   grows).
 
 ## Log
+
+### 2026-06-03 — M2
+- Extracted the review dispatch into one `dispatchBoundaryReview(stdout, stderr,
+  boundaryReviewParams)` shared by milestone-close and close (ARCH-DRY);
+  generalized `resolveReviewWindow(refSubject)`, `emitTrailerBlock(_, _, kind)`,
+  and `appendVerdictSuffix`/`annotateLogLineWithVerdict` to the no-milestone
+  ("closed — ") case.
+- `runCloseWithReview` wraps `runClose`: a standalone **issue** close
+  auto-dispatches the boundary review on the whole-issue window (firstSHA^..HEAD,
+  same source as the atlas gate) + emits the `close` trailer + mirrors the
+  verdict into the log line. **Double-dispatch guard is structural:** only
+  `f.Milestone == ""` reaches the dispatch, and milestone-close calls `runClose`
+  directly (never `runCloseWithReview`), so a milestone is never reviewed twice.
+  `--no-judge` (per-gate #67) skips with a not-run trailer.
+- Folded the M1-review notes: the cwarn vocabulary now says "before crossing the
+  boundary" (shared helper); `--no-judge` + `--agent` on close; close.md +
+  header comments updated.
+- `side-quest:` warmupThreshold 2 → 1 (warm up once; agents don't reread — #75's
+  premise).
+- Tests (`closereview_test.go`, stub `judge.Run`): issue close dispatches once on
+  the whole-issue window + emits the trailer; **milestone close does NOT dispatch
+  (the load-bearing guard)**; `--no-judge` skips; issue-close `appendVerdictSuffix`
+  case. `go test ./cmd/sdlc/...` + vet + gofmt green; `close --help` shows the
+  boundary review + flags.
 
 ### 2026-06-03 — M1 review (SHIP) — carry into M2
 - M1 milestone-review verdict **SHIP (high confidence)**, two advisory notes,

@@ -7,8 +7,17 @@ MODES
   Issue close:      sdlc close --issue 15 --actual 7 --verified '<evidence>'
   Milestone close:  sdlc close --issue 15 --milestone M4 --actual 2.5 --verified '<evidence>'
 
-  (`milestone-close` is also exposed as its own verb in M6; both forms remain
-  valid — milestone-close adds auto-dispatch of `sdlc judge milestone-review`.)
+  (`milestone-close` is also exposed as its own verb; both forms remain valid.)
+
+  THE BOUNDARY REVIEW (#69). A standalone full-issue close auto-dispatches the
+  one binary-owned fresh-context review on the whole-issue window (the same
+  reviewer `milestone-close` runs per-milestone). For a no-milestone issue this
+  is the single review the boundary gets; for a multi-milestone issue it's the
+  end-of-issue integration review on top of the per-milestone ones. The agent
+  does NOT separately run `superpowers-requesting-code-review` (AGENTS.md §3).
+  Skip with `--no-judge` (records a not-run trailer). A `sdlc close --milestone
+  Mx` does NOT dispatch — that path is the no-auto-judge escape; use
+  `milestone-close` for the reviewed milestone close.
 
 WHAT THE GUARD DEFENDS
 
@@ -43,6 +52,7 @@ WHAT THE GUARD DEFENDS
     milestone Review-Verdict      --no-verdict
     ## Plan has no unchecked       --no-plan-check
     project detail-block updated  --no-project
+    issue boundary review (#69)   --no-judge
 
   Each bypass logs an audit "[!] --no-X: skipping ..." line (it's an
   explicit acknowledgment, not a silent skip) and the rationale belongs in
@@ -79,6 +89,8 @@ FLAGS
   --no-verdict          skip the milestone Review-Verdict trailer check
   --no-plan-check       close despite unchecked ## Plan items
   --no-project          skip the project detail-block update requirement
+  --no-judge            skip the issue boundary review on full-issue close (#69)
+  --agent <cli>         agent CLI for the boundary review (claude | codex | gemini)
   --dry-run             print what would change, write nothing
   --brain-dir <path>    project-file lookup root (default ../brain)
   --issues-dir <path>   issues directory (default workshop/issues)
