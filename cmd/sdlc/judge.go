@@ -181,8 +181,12 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 //
 // Path filters honor WF_ISSUES_DIR / WF_HISTORY_DIR overrides (review I1).
 // For dry/pure/specs/milestone-review: excludes both directories so prose
-// churn doesn't dominate the review. For Plan: includes only issuesDir's
-// markdown files.
+// churn doesn't dominate the review. For Plan: includes BOTH issuesDir AND
+// historyDir markdown — a close-and-archive moves issues/ → history/, and the
+// judge must see the archived (done) content, not the deleted issues/ path
+// (#64). The name-only pass excludes deletions (--diff-filter=d) so the
+// changed-files list it hands the agent only names paths that exist at HEAD
+// (history/NNN.md for an archived issue, issues/NNN.md for an in-place close).
 func collectDiff(cat judge.Category, base, head, issuesDir, historyDir string) (diff string, changedIssues []string, err error) {
 	args := []string{"diff", base}
 	if head != "" {
@@ -190,7 +194,7 @@ func collectDiff(cat judge.Category, base, head, issuesDir, historyDir string) (
 	}
 	switch cat {
 	case judge.Plan:
-		args = append(args, "--", issuesDir+"/*.md")
+		args = append(args, "--", issuesDir+"/*.md", historyDir+"/*.md")
 	default:
 		args = append(args, "--", ":!"+issuesDir+"/", ":!"+historyDir+"/")
 	}
@@ -201,13 +205,14 @@ func collectDiff(cat judge.Category, base, head, issuesDir, historyDir string) (
 	diff = string(out)
 
 	if cat == judge.Plan {
-		// Names-only pass for the list of files. Reuse the same path
-		// filter as the diff so they stay consistent.
-		nameArgs := []string{"diff", "--name-only", base}
+		// Names-only pass for the list of files. Same paths as the content
+		// diff, but exclude deletions so the agent is never handed an
+		// issues/ path that an archive already moved to history/ (#64).
+		nameArgs := []string{"diff", "--name-only", "--diff-filter=d", base}
 		if head != "" {
 			nameArgs = append(nameArgs, head)
 		}
-		nameArgs = append(nameArgs, "--", issuesDir+"/*.md")
+		nameArgs = append(nameArgs, "--", issuesDir+"/*.md", historyDir+"/*.md")
 		nameOut, nameErr := gitx.RunGit(nameArgs...)
 		if nameErr != nil {
 			return diff, nil, nameErr
@@ -233,4 +238,3 @@ func categoryNames() []string {
 	}
 	return out
 }
-
