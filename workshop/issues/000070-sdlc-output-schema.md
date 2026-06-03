@@ -1,11 +1,12 @@
 ---
 id: 000070
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-03
 estimate_hours: 2.5
+actual_hours: 2.5
 ---
 
 # schematize sdlc judge/verb output: a shared schema file (first-line verdict) both prompts and the parser reference
@@ -87,6 +88,7 @@ robust scan fixes it.
 ## Log
 
 ### 2026-06-03 — M2
+- 2026-06-03: closed — judge verdict protocol schematized: one contract (construct/judge-output-contract.md + contract.go) both prompts and parser reference; ParseVerdictToken gates on the token not prose, so CLEAN/SHIP-with-notes passes (the merge-blocking false-positive is gone) and the milestone unknown is fixed. Proved live: M1+M2 milestone-reviews parsed clean verdicts (FIX-THEN-SHIP) through the new path. go test+vet+gofmt green; drift test bidirectional
 - 2026-06-03: closed M2 — ContractPreamble embedded by all 5 agent prompts (TestAgentPromptsEmbedContract); MilestoneReview→VERDICT: prefix, DRY/PURE→VERDICT; construct/judge-output-contract.md + drift test (TestContractDoc_InSyncWithTokens); go test+vet+gofmt green. One contract both sides reference. actual=judgment; review verdict: FIX-THEN-SHIP
 
 - `contract.go`: added `ContractPreamble` — the shared `VERDICT: <TOKEN>` format
