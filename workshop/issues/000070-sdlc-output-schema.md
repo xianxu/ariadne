@@ -87,6 +87,7 @@ robust scan fixes it.
 ## Log
 
 ### 2026-06-03 — M1
+- 2026-06-03: closed M1 — ParseVerdictToken robust scan: VERDICT behind a preamble now classifies correctly (was Failure→blocked merge); #70 regression + ParseVerdict VERDICT-prefix tests pass; all existing judge tests green; go test+vet clean. contract.go = single token taxonomy. --no-atlas: internal parser rewrite, M2 adds the schema doc + atlas note. actual=judgment; review verdict: FIX-THEN-SHIP
 
 - **Decision (from plan-quality judge):** M1 is **internal-only** — rewrite
   `Classify`/`ParseVerdict` over a robust scan; the six consumer call sites keep

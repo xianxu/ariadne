@@ -40,13 +40,18 @@ var cleanRE = regexp.MustCompile(`(?i)no (DRY|PURE) violations found|all tests p
 var infoRE = regexp.MustCompile(`(?i)REMINDER:`)
 
 // verdictTokenLineRE matches a `VERDICT: <TOKEN>` line carrying any contract
-// token. The `VERDICT:` prefix is distinctive enough that we scan the WHOLE
-// output for it (not just the first non-empty line) without prose false
-// positives — which is exactly what fixes the preamble-before-verdict bug (#70):
-// a judge that writes a title or "I've reviewed…" line before `VERDICT: CLEAN`
-// is no longer mis-read as a failure. Tolerant of leading markdown markup and
-// the optional `(confidence: …)` parenthetical.
-var verdictTokenLineRE = regexp.MustCompile(`(?i)^VERDICT:\s*(CLEAN|INFO|FAILURE|SHIP|FIX-THEN-SHIP|REWORK|BLOCK)\b`)
+// token. We scan the WHOLE output for it (not just the first non-empty line) —
+// which is what fixes the preamble-before-verdict bug (#70): a judge that writes
+// a title or "I've reviewed…" line before `VERDICT: CLEAN` is no longer mis-read.
+//
+// Precision guard: the token must be followed by emphasis-close/whitespace then
+// a `(confidence …)` paren OR end-of-line — same trailing guard as the bare-token
+// `verdictTokenRE`. This rejects a line that *quotes* the contract as prose
+// (`VERDICT: BLOCK is the generic hard block`, `VERDICT: CLEAN means no issues`),
+// which matters because judges review THIS parser and write such lines. The
+// only residual (rare, low-risk) accept is a line that is *just* a standalone
+// quoted token. Tolerant of leading markdown markup (stripped by the caller).
+var verdictTokenLineRE = regexp.MustCompile("(?i)^VERDICT:[ \t]*(CLEAN|INFO|FAILURE|SHIP|FIX-THEN-SHIP|REWORK|BLOCK)[ \t*_`]*(\\(|$)")
 
 // ParseVerdictToken scans output for the first `VERDICT:` line and returns its
 // upper-cased token (e.g. "CLEAN", "SHIP"). ok=false when no VERDICT: line is

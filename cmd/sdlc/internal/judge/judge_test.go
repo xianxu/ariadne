@@ -350,6 +350,16 @@ func TestParseVerdictToken(t *testing.T) {
 		{"fix-then-ship", "VERDICT: FIX-THEN-SHIP\n", "FIX-THEN-SHIP", true},
 		{"no verdict line", "# Review\nLooks good to me.\n", "", false},
 		{"bare token is not a VERDICT line", "SHIP (confidence: high)\n", "", false},
+		// #70 M1 review (I1): a judge reviewing THIS parser quotes the contract;
+		// a line that starts `VERDICT: <token>` then continues as PROSE must NOT
+		// match (the trailing precision guard). The wrong-token-capture case
+		// (`…CLEAN…actually FAILURE`) is the dangerous one — it would have
+		// spuriously passed a gate.
+		{"prose continuation after token rejected", "VERDICT: BLOCK is the generic hard block.\n", "", false},
+		{"wrong-token prose quote rejected", "VERDICT: CLEAN means no issues, but actually FAILURE here.\n", "", false},
+		{"mid-line quote already safe", "the VERDICT: CLEAN line is what the parser reads.\n", "", false},
+		{"emphasized verdict still matches", "**VERDICT: SHIP**\n", "SHIP", true},
+		{"confidence-qualified still matches", "VERDICT: REWORK (confidence: low)\n", "REWORK", true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
