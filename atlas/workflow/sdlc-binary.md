@@ -101,6 +101,17 @@ doing) via deterministic checks (`close` refuses without `--actual` +
 without substance) via fresh-context LLM review — every Dispatch call
 spawns a new subprocess; the agent has no doer-session state.
 
+**Per-gate bypass (#67).** `close` has 7 gates (actual, verified, atlas,
+milestone-verdict, plan-unchecked, project, re-close), each with its own
+`--no-<gate>` flag (`--no-actual`, `--no-verified`, `--no-atlas`,
+`--no-verdict`, `--no-plan-check`, `--no-project`, `--no-reclose-guard`);
+`closeFlags.skip(gate)` is the single arbiter (`Force || the field`). A
+per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
+pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires
+when the gate would actually have refused. `--force` waives all at once.
+`milestone-close` forwards the same flags into its delegated `runClose`.
+The convention generalizes `merge`'s pre-existing `--no-judge`.
+
 `push` and `merge` auto-dispatch `judge plan|specs|lessons` as pre-
 flight so the checks run consistently rather than as a remembered
 manual step. `milestone-close` auto-dispatches `judge milestone-review`

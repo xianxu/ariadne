@@ -31,7 +31,24 @@ WHAT THE GUARD DEFENDS
     - project file (if any, under <brain>/data/project/*.md referencing
       <repo>#<id>) gets its task row ticked + detail block updated
 
-  Bypass with --force; the rationale belongs in --verified.
+  BYPASSING A GATE (#67) — each gate has its own --no-<gate> flag, so you
+  can waive exactly the one that doesn't apply (and acknowledge it) instead
+  of reaching for the blanket --force:
+
+    gate                          flag
+    actual-hours required         --no-actual
+    verified-evidence required    --no-verified
+    already-done refusal          --no-reclose-guard
+    atlas/ changed in window      --no-atlas
+    milestone Review-Verdict      --no-verdict
+    ## Plan has no unchecked       --no-plan-check
+    project detail-block updated  --no-project
+
+  Each bypass logs an audit "[!] --no-X: skipping ..." line (it's an
+  explicit acknowledgment, not a silent skip) and the rationale belongs in
+  --verified. --force ≡ all of them at once (emergencies). Prefer the
+  precise flag: e.g. a pure bugfix with no new architectural surface closes
+  with `--no-atlas` (reason in --verified), NOT --force.
 
 WHAT IT DOES
 
@@ -52,9 +69,16 @@ FLAGS
   --issue <n>           ariadne workshop issue ID (numeric, zero-pad
                         applied internally; required)
   --milestone <Mx>      milestone tag; presence selects milestone mode
-  --actual <hours>      focused dev-hours (required unless --force)
-  --verified '<line>'   one-line behavior evidence (required unless --force)
-  --force               bypass guards (record reason in --verified)
+  --actual <hours>      focused dev-hours (required unless --no-actual/--force)
+  --verified '<line>'   one-line behavior evidence (required unless --no-verified/--force)
+  --force               bypass ALL gates (≡ every --no-* flag); reason in --verified
+  --no-actual           bypass the ACTUAL-hours requirement (weakens calibration)
+  --no-verified         bypass the VERIFIED-evidence requirement
+  --no-reclose-guard    re-close an already-done issue (skip the refusal)
+  --no-atlas            skip the atlas/ change check (no new architectural surface)
+  --no-verdict          skip the milestone Review-Verdict trailer check
+  --no-plan-check       close despite unchecked ## Plan items
+  --no-project          skip the project detail-block update requirement
   --dry-run             print what would change, write nothing
   --brain-dir <path>    project-file lookup root (default ../brain)
   --issues-dir <path>   issues directory (default workshop/issues)

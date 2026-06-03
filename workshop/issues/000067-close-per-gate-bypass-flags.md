@@ -1,11 +1,12 @@
 ---
 id: 000067
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-02
 estimate_hours: 1.5
+actual_hours: 2
 ---
 
 # sdlc close: per-gate --no-<gate> bypass flags (narrower than --force) + fix stale FORCE=1 messages
@@ -69,7 +70,7 @@ already has `--no-judge`, the precedent).
 
 ## Plan
 
-- [ ] Implement the `--no-<gate>` family on `close` (+ `milestone-close`
+- [x] Implement the `--no-<gate>` family on `close` (+ `milestone-close`
   pass-through), audit warns, message rewrites, docs (close.md + AGENTS.md §5),
   and tests (`skip()` logic + flag registration). Verify per the plan's manual
   matrix; dogfood by closing this issue (real atlas change → no `--no-atlas`
@@ -78,3 +79,37 @@ already has `--no-judge`, the precedent).
 ## Log
 
 ### 2026-06-02
+- 2026-06-02: closed — go test ./cmd/sdlc/... + vet green; TestCloseFlags_Skip proves per-gate isolation; e2e via --dry-run: --no-atlas waives atlas but plan-check still fires; (3) both → reaches dry-run; fresh-eyes review SHIP (all 7 gate rewrites preserve semantics, audit only on would-refuse path)
+
+- Implemented in `close.go`: 7 `No*` bool fields on `closeFlags` + 7 `--no-*`
+  flags; `skip(gate string) bool` (= `Force || <field>`) as the single arbiter;
+  rewrote each of the 7 gate sites to `if <fail> { if !f.skip("…") {refuse}; cwarn(audit) }`
+  so a bypass only fires + logs when the gate would actually have refused.
+- `--no-actual`/`--no-verified` get a stronger caution line (they weaken velocity
+  calibration); the others log a plain `[!] --no-X (or --force): skipping …`.
+- **Message modernization** (the stale-`FORCE=1` part of the issue): `FORCE=1`
+  was a Makefile/Python-era var that *nothing reads* — rewrote the explainers
+  (`explainActual`/`explainVerified`/`explainNoAtlas`/`explainMissingVerdicts`),
+  the re-close + plan + project dies, and the warmup contract to name the precise
+  `--no-<gate>` flag, and modernized their `make close-issue … ACTUAL=…` re-run
+  hints to current `sdlc close --issue … --actual … --verified …` syntax.
+- `milestone-close` pass-through: mirrored the 7 `--no-*` flags on
+  `milestoneCloseFlags`, threaded into the delegated `closeFlags`.
+- Docs: `close.md` (gate→flag table + FLAGS), AGENTS.md §5 (the convention —
+  flag = explicit acknowledgment, not forgetting; `--force` = all), atlas
+  `sdlc-binary.md` (per-gate bypass + `skip()` arbiter).
+- Tests: `TestCloseFlags_Skip` (force ⇒ all; each `--no-X` gates only its own;
+  clean set skips none; unknown gate not skipped), `TestCloseCmd_Registered`,
+  `TestMilestoneCloseCmd_RegistersBypasses`. `go test ./cmd/sdlc/...` + `go vet`
+  green.
+- **End-to-end behavioral check** (via `--dry-run`, gates run before the
+  write-skip): (1) no bypass → atlas gate fires naming `--no-atlas`; (2)
+  `--no-atlas` → atlas waived but plan-check STILL fires (per-gate isolation
+  proven); (3) `--no-atlas --no-plan-check` → both waived (audit lines), reaches
+  `DRY=1 — no files written`.
+- gofmt: `close.go`/`milestoneclose.go` flagged by `gofmt -l`, but the diff is
+  entirely pre-existing newer-gofmt doc-comment reflow on untouched lines (same
+  drift noted in #63); my added code is clean — didn't reformat unrelated lines.
+- Behavior change for the agent: prefer the precise `--no-atlas` (reason in
+  `--verified`) over `--force` for pure bugfixes going forward.
+- Follow-up (noted, out of scope): extend `--no-<gate>` to `merge`/`push` gates.

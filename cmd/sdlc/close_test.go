@@ -11,6 +11,88 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
+// ── #67: per-gate --no-<gate> bypass flags ───────────────────────────────────
+
+// TestCloseFlags_Skip pins the skip() contract: --force waives EVERY gate, while
+// each --no-<gate> waives ONLY its own. A typo'd field would let one flag leak
+// into another gate (or none), which this catches.
+func TestCloseFlags_Skip(t *testing.T) {
+	gates := []string{"actual", "verified", "reclose", "atlas", "verdict", "plan", "project"}
+
+	// --force ⇒ all gates skipped.
+	force := &closeFlags{Force: true}
+	for _, g := range gates {
+		if !force.skip(g) {
+			t.Errorf("--force should skip gate %q", g)
+		}
+	}
+
+	// Each --no-<gate> ⇒ exactly its own gate, nothing else.
+	cases := []struct {
+		gate string
+		set  func(*closeFlags)
+	}{
+		{"actual", func(f *closeFlags) { f.NoActual = true }},
+		{"verified", func(f *closeFlags) { f.NoVerified = true }},
+		{"reclose", func(f *closeFlags) { f.NoReclose = true }},
+		{"atlas", func(f *closeFlags) { f.NoAtlas = true }},
+		{"verdict", func(f *closeFlags) { f.NoVerdict = true }},
+		{"plan", func(f *closeFlags) { f.NoPlanCheck = true }},
+		{"project", func(f *closeFlags) { f.NoProject = true }},
+	}
+	for _, c := range cases {
+		f := &closeFlags{}
+		c.set(f)
+		for _, g := range gates {
+			got := f.skip(g)
+			want := g == c.gate
+			if got != want {
+				t.Errorf("with --no-%s set: skip(%q) = %v, want %v (per-gate isolation broken)", c.gate, g, got, want)
+			}
+		}
+	}
+
+	// A clean flag set skips nothing.
+	none := &closeFlags{}
+	for _, g := range gates {
+		if none.skip(g) {
+			t.Errorf("no bypass flag set: skip(%q) should be false", g)
+		}
+	}
+	// Unknown gate name is never skipped (default arm).
+	if (&closeFlags{Force: false}).skip("bogus") {
+		t.Error("unknown gate should not be skipped without --force")
+	}
+}
+
+// TestCloseCmd_Registered asserts the per-gate flags (and --force) are wired
+// onto the command, mirroring TestMergeCmd_Registered.
+func TestCloseCmd_Registered(t *testing.T) {
+	cmd := NewCloseCmd()
+	for _, flag := range []string{
+		"force", "no-actual", "no-verified", "no-reclose-guard",
+		"no-atlas", "no-verdict", "no-plan-check", "no-project",
+	} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("close command missing flag: --%s", flag)
+		}
+	}
+}
+
+// TestMilestoneCloseCmd_RegistersBypasses asserts the per-gate flags are also
+// exposed on milestone-close (it forwards them into runClose).
+func TestMilestoneCloseCmd_RegistersBypasses(t *testing.T) {
+	cmd := NewMilestoneCloseCmd()
+	for _, flag := range []string{
+		"no-actual", "no-verified", "no-reclose-guard",
+		"no-atlas", "no-verdict", "no-plan-check", "no-project",
+	} {
+		if cmd.Flags().Lookup(flag) == nil {
+			t.Errorf("milestone-close command missing flag: --%s", flag)
+		}
+	}
+}
+
 // TestMilestoneTickRegex mirrors the regex in runClose's milestone path:
 //
 //	(?m)^(- )\[[ .]\]( <milestone>\b)

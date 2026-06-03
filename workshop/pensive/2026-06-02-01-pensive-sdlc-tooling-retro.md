@@ -58,7 +58,7 @@ Numbered for easy reference in comments.
   ("no action required to ship") — but `sdlc`'s result parser saw the judge's
   *explicitly-non-blocking note* and classified the whole run as `failure`.  🤖[we should schematize the protocol a bit. give me some options]
 - Both forced `--no-judge`, which disables **all** judges (specs, lessons, plan). Routing
-  around one parser bug by switching off three valuable reviewers is the wrong granularity. 🤖[in another session, I asked AI to add --no-xxx, where xxx is a critieria in a gate.]
+  around one parser bug by switching off three valuable reviewers is the wrong granularity. 🤖[in another session, I asked AI to add --no-xxx, where xxx is a critieria in a gate. the ticket is ariadne#67]
 - **The judges are good; the *result interpretation* is the weak link.** Fixes: read HEAD
   (or the merge result), parse the leading `VERDICT:` line as authoritative (a CLEAN with a
   non-blocking note must pass), and add **per-judge** skip flags so I never disable all to
@@ -88,7 +88,7 @@ That's the deliberate "form first, judge second" design, but the milestone-revie
 3–10 min each (M3's worst), serialized the workflow, and mostly *confirmed* my review rather
 than adding new findings. For a 4-milestone issue that's a lot of redundant latency. Worth
 asking: should the boundary review and the judge be the *same* pass? Or should the judge only
-deep-dive when the boundary review flags something / on a sampling basis? 🤖[I think those two review should be merged togehter. the truth is superpower is borrowed from external and milestone-close is more home grown. make a ticket to see how to merge those two. here, the sdlc milestone-close intend to provide a form, essenence I think in ariadne design, should be the adapted superpowers-requesting-code-review]
+deep-dive when the boundary review flags something / on a sampling basis? 🤖[I think those two review should be merged togehter. the truth is superpower is borrowed from external and milestone-close is more home grown. make a ticket to see how to merge those two. here, the sdlc milestone-close intend to provide a form, essenence I think in ariadne design, should be the adapted superpowers-requesting-code-review. we should add tweaks to it based on the diff with judges in milestone-close]
 
 ### F5 — §5 mandates process-level fakes, but `gh` has none — so `nous#41 #11` shipped with zero automated coverage.
 `gh` shells out to the CLI with no injectable seam, so the re-invite hard-error fix is only
@@ -97,7 +97,7 @@ needed `--dangerouslyDisableSandbox`), and `LeaveBrain` refuses on `file://` so 
 can't be e2e'd without GitHub. The test story fractured into three tiers (pure /
 gpg-unsandboxed / GitHub-dogfood) with no tooling support for the layering. A documented `gh`
 fake would directly close a real coverage gap and make the §5 mandate enforceable instead of
-aspirational.
+aspirational. 🤖[this is great observation. check brain for pensive around auto mocking. that's something I want to do and likely gh and github can be a good tarter. basically, the premise is for any external binary/service X, we create a code shim(X), e.g. all X's functionality is accessed through shim(x), then we implement a testable shim'(X) for test purpose. We do this for all binaries/external services we integrate, systematically. the shim'(X) will mimic X's internal state as we can perceive necessary to implement the observed behavior. ]
 
 ### F6 — The plan-mode file is ephemeral and disconnected from `workshop/plans/`.
 `EnterPlanMode` wrote my plan to `~/.claude/plans/…` (not version-controlled). The M2 judge
@@ -105,14 +105,14 @@ even recommended adding a `## Revisions` entry there — to a file that won't su
 durable plan record had to live in the issue's Spec/Log instead. For multi-milestone work the
 constitution wants `workshop/plans/NNNNNN-…`; the harness's plan file isn't that, and nothing
 bridges them. Either teach plan-mode to land in `workshop/plans/`, or have `change-code`
-ingest the plan-mode file into one.
+ingest the plan-mode file into one. 🤖[is EnterPlanMode a claude builtin skill? superpowers has a planning skill as well we can use. Let's figure out if we can convince claude to use where we want the plan to be; or use superpowers version. maybe we need to promote the adapted superpowers version more in our AGENTS.md stack]
 
 ### F7 — `milestone-close` mutates the issue file but doesn't commit, and the judge runs async.
 Result: uncommitted issue-file edits straddling milestone boundaries, and hand-managing which
 checkbox tick belonged to which close commit. The tool-edits-but-doesn't-commit pattern plus
 the background judge created a coordination tax on every milestone. Consider: milestone-close
 stages+commits its own issue-file mutation (with the trailer), or emits the trailer
-synchronously so there's no async gap to manage.
+synchronously so there's no async gap to manage. 🤖[this we fixed I think to make judge read-only and only block and send context for main agent to fix?]
 
 ---
 
@@ -137,3 +137,17 @@ Not tooling, but honest: I burned real time deliberating over the `nous#41` leav
 and I ran milestone-close judges in the background which created idle waits I then had to
 manage. If the tooling fixes above land, several of these self-inflicted detours disappear
 too.
+
+---
+
+## Disposition / tickets filed (2026-06-02, post operator comments)
+
+| Finding | Ticket(s) | Notes |
+|---|---|---|
+| F1 — judge result protocol | **ariadne#70** (output schema: one contract file both prose + parser reference; first-line `VERDICT:`) | Relates: `#64` (judge reads base not HEAD — *which diff*, orthogonal); `#67` (per-gate `--no-<gate>` for close; should extend to push/merge judges). |
+| F2 — active-time-v3 returns 0 events | **ariadne#68** | Operator hypothesis: dormancy-window param. |
+| F3 — milestone-close ↔ project coupling | *project-side cleaned* (shared-brain.md: post-close follow-on rows demoted to prose) | sdlc-side fix (gate detail-block sync on `mvp_scope`/`target`, not bare mentions) still **needs a ticket** — offered, not yet filed. Resolution: follow-ons of a closed project live under the **target**, not as project task rows; don't reopen the project. |
+| F4 — two reviews per milestone | **ariadne#69** | milestone-close = form; essence = adapted `superpowers-requesting-code-review`; fold the judge's tweaks in. |
+| F5 — no process-level fakes | **ariadne#71** | gh/GitHub first, but solved as the **generic shim(X)→shim'(X) pattern** for every external (gmail, Google OAuth, …). Anchored in `brain/docs/vision/2026-05-19-…-auto-mocking…`. |
+| F6 — ephemeral plan file | **ariadne#72** | `EnterPlanMode` is a Claude builtin; promote the adapted `superpowers-writing-plans` (lands in `workshop/plans/`). |
+| F7 — milestone-close mutates uncommitted + async judge | *mostly subsumed by #69* | `#62` made judges read-only (different concern). Residual: milestone-close should commit (or not mutate) its own issue-file edit. |
