@@ -111,6 +111,7 @@ Agreed design. Direction: **lift the manual prose into `sdlc`** — stop printin
 ## Log
 
 ### 2026-06-02 — M2
+- 2026-06-02: closed M2 — sdlc actual verb + close-inline suggestion live (sdlc actual #68 → measured 1.0h; close prints "→ --actual 0.62"); engine selects brain+repo dirs, classifies v3 exit codes; actual_test.go + full suite + vet green. actual=M2-portion judgment (tool measures whole-#68 at 1.0h but undercounts pre-commit investigation); review verdict: unknown
 
 - New `cmd/sdlc/actual.go` — engine `computeActual(repoTop, brainAbs, issue)`:
   resolves `CommitWindow` + `DiscoverWindowIssues` peers, selects transcript dirs

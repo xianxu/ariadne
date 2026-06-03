@@ -85,10 +85,31 @@ func TestSelectActualDirs(t *testing.T) {
 	}
 }
 
-// computeActual classification via a stubbed v3Runner (no real python/git).
-// We can't drive the full path (CommitWindow reads cwd git) in a unit test, so
-// this pins parseV3PrimaryHours + the exit-code → status mapping in isolation by
-// asserting the runner contract the engine relies on.
+// #68 M2: the exit-code → outcome contract (pure; computeActual's full path
+// needs git+python, but its classification logic is this switch).
+func TestClassifyV3(t *testing.T) {
+	measured := "# per-issue totals\n  #68: 1.50 hr  (90.0 min)\n"
+	cases := []struct {
+		name    string
+		code    int
+		stdout  string
+		want    actualStatus
+		wantHrs float64
+	}{
+		{"exit 3 → telemetry gap", 3, "", actualTelemetryGap, 0},
+		{"exit 0 + parseable → measured", 0, measured, actualMeasured, 1.5},
+		{"exit 0 + no line → empty window", 0, "# per-issue totals\n", actualEmptyWindow, 0},
+		{"exit 2 (misinvoke) → fallback", 2, "", actualNoScript, 0},
+		{"unexpected code → fallback", 7, measured, actualNoScript, 0},
+	}
+	for _, c := range cases {
+		st, hrs := classifyV3(c.code, c.stdout, "68")
+		if st != c.want || hrs != c.wantHrs {
+			t.Errorf("%s: classifyV3 = (%d,%v), want (%d,%v)", c.name, st, hrs, c.want, c.wantHrs)
+		}
+	}
+}
+
 func TestActualCmd_Registered(t *testing.T) {
 	cmd := NewActualCmd()
 	for _, flag := range []string{"issue", "brain-dir"} {

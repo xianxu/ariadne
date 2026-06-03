@@ -166,19 +166,30 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		res.Status, res.Detail = actualNoScript, err.Error()
 		return res
 	}
-	switch code {
-	case 3: // TELEMETRY UNAVAILABLE (commits but 0 events)
-		res.Status = actualTelemetryGap
-	case 0:
-		if h, ok := parseV3PrimaryHours(stdout, issueNum); ok {
-			res.Status, res.Hours = actualMeasured, h
-		} else {
-			res.Status = actualEmptyWindow
-		}
-	default: // 2 (misinvoke — shouldn't happen, we pass --dir) or unexpected
-		res.Status, res.Detail = actualNoScript, fmt.Sprintf("active-time-v3 exited %d", code)
+	res.Status, res.Hours = classifyV3(code, stdout, issueNum)
+	if res.Status == actualNoScript {
+		res.Detail = fmt.Sprintf("active-time-v3 exited %d", code)
 	}
 	return res
+}
+
+// classifyV3 maps active-time-v3's (exit code, stdout) to an outcome for
+// issueNum. Pure — split out from computeActual's subprocess machinery so the
+// exit-code contract (the integration surface M2 depends on) is unit-testable
+// without git or python. 3=telemetry-gap, 0+parseable=measured, 0+unparseable=
+// empty window, anything else (incl. 2 misinvoke, unreachable here) → fall back.
+func classifyV3(exitCode int, stdout, issueNum string) (actualStatus, float64) {
+	switch exitCode {
+	case 3: // TELEMETRY UNAVAILABLE (commits but 0 events)
+		return actualTelemetryGap, 0
+	case 0:
+		if h, ok := parseV3PrimaryHours(stdout, issueNum); ok {
+			return actualMeasured, h
+		}
+		return actualEmptyWindow, 0
+	default: // 2 (misinvoke — shouldn't happen, we always pass --dir) or unexpected
+		return actualNoScript, 0
+	}
 }
 
 // printActual renders the engine's result for a human/agent: the suggested
