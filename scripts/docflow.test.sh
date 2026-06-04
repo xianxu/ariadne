@@ -61,6 +61,7 @@ else
     git -c init.defaultBranch=main init -q
     git config user.name "Operator"; git config user.email "op@example.com"
     printf 'seed\n' > README.md; git add README.md; git commit -q -m init
+    printf 'unrelated\n' > other.md; git add other.md; git commit -q -m "seed other.md (tracked, unrelated WIP)"
 
     run() { local d="$1"; shift; [[ "$1" == -- ]] && shift; if "$@" >>"$log" 2>&1; then pass "$d"; else fail "$d (cmd failed; see $log)"; fi; }
     post() { printf -- '---\npublished: false\n---\n\n# Draft\n\n%s\n' "$1" > post.md; }
@@ -69,9 +70,17 @@ else
     run "start tracks untracked draft" -- "$DOCFLOW" start post.md
     eq  "on review branch"   "review/post" "$(git branch --show-current)"
     eq  "base recorded"      "main"        "$(git config branch.review/post.docflowBase)"
+    eq  "start records in-scope file" "post.md" "$(git config --get-all branch.review/post.docflowFile)"
 
+    printf 'unrelated EDIT\n' > other.md   # #81: unrelated tracked WIP — must NOT be swept into a round
     post 'Hello world. 🤖[tighten this]'
     run "round human r1" -- "$DOCFLOW" round --side human -m "incoming markers"
+    case "$(git show --name-only --format= HEAD)" in
+        *other.md*) fail "round swept unrelated other.md into the commit (#81)";;
+        *)          pass "round did not sweep unrelated other.md (#81)";;
+    esac
+    eq  "unrelated file left dirty after round" " M other.md" "$(git status --porcelain -- other.md)"
+    git checkout -- other.md                # clean up so the later finish sees a clean tree
     post 'Hello, world.'
     run "round agent r1" -- "$DOCFLOW" round --side agent -m "tightened" --body "Removed filler; Oxford comma."
 
@@ -109,6 +118,19 @@ else
     eq  "back on base after force-finish" "main" "$(git branch --show-current)"
     eq  "forced merge present on first-parent" "1" \
         "$(git log --first-parent --format='%s' main | grep -c 'review(two): merge')"
+
+    # #81: an in-scope path containing a space survives round staging (array, not word-split).
+    printf 'note\n' > "my note.md"
+    run "start space-named doc"     -- "$DOCFLOW" start "my note.md"
+    run "re-start same doc (dedup)" -- "$DOCFLOW" start "my note.md"
+    eq  "in-scope recorded once (dedup)" "my note.md" "$(git config --get-all branch.review/my-note.docflowFile)"
+    printf 'note 🤖[m]\n' > "my note.md"
+    run "round on space-named doc"  -- "$DOCFLOW" round --side human -m "space path"
+    case "$(git show --name-only --format= HEAD)" in
+        *"my note.md"*) pass "round staged space-named in-scope file (#81)";;
+        *)              fail "round did NOT stage space-named in-scope file (word-split?)";;
+    esac
+    run "finish --force (space doc)" -- "$DOCFLOW" finish --force
     cd /
 fi
 
