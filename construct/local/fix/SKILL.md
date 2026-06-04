@@ -110,6 +110,30 @@ A feedback session is **complete when no marker ending in `[]` remains** in
 the document. Remaining markers ending in `{}` (or bare edit proposals like
 `🤖~D~`, `🤖~D~{N}`) are awaiting the human's next gesture.
 
+## Round journaling (optional — `docflow`)
+
+When the operator wants the full review retained as durable history — not just
+the final clean doc — wrap the session in `scripts/docflow.sh`. It commits each
+round to a `review/<slug>` branch so `git log` keeps the whole back-and-forth
+(and *your* rationale), then `--no-ff` merges back on finish. Git is the only
+state; see the script's header for the history model.
+
+- **At review start** (operator: "review this doc"): `docflow start <file>` —
+  creates/switches to the review branch and tracks an untracked draft as round 0.
+- **Each round, *before* you edit**: `docflow round --side human -m "<what they sent>"`
+  — snapshots the operator's incoming edits/markers, authored as the operator.
+- **Each round, *after* you apply edits**: `docflow round --side agent -m "<terse>" --body "<full rationale>"`
+  — the `--body` is where your verbose reasoning lives permanently, instead of
+  evaporating with the chat transcript.
+- **When the operator says you're done**: `docflow finish` — refuses while any
+  🤖 marker remains (so you never ship review scaffolding); `--force` merges
+  as-is (the "abandon" path).
+- **`docflow status`** anytime — current branch, rounds, in-scope files + 🤖 count.
+
+Opt-in: plain marker-processing (the Process above) works without it. Reach for
+journaling on heavier, multi-round co-authoring where the trail is worth keeping.
+Invoke as `scripts/docflow.sh <verb>` from the repo root (or `docflow` if aliased).
+
 ## Operator-initiated bulk resolution (review-convention §6)
 
 When the operator says something like *"we're aligned, please resolve the
