@@ -1,9 +1,9 @@
 ---
 id: 000055
-status: open
+status: wontfix
 deps: []
 created: 2026-05-31
-updated: 2026-05-31
+updated: 2026-06-03
 estimate_hours: 3
 ---
 
@@ -133,6 +133,27 @@ to how nous/pair/etc. own their binaries (they already conform).
   `command -v sdlc` guard change.
 
 ## Log
+
+### 2026-06-03 — wontfix (superseded by #57)
+- **#57's `construct/dev-aliases.sh`** superseded this whole approach. It exposes
+  each owned Go binary as a build-fresh shell function —
+  `X() { ( cd OWNER && go build -o bin/X ./cmd/X ); OWNER/bin/X "$@"; }` — so
+  `sdlc` builds from **ariadne (owner)** and runs in the caller's cwd, fresh on
+  every call. That IS this issue's locked model (single-owner, derivatives don't
+  carry a copy), via a simpler + stronger mechanism.
+- **M2 (freshness safety net) is moot:** build-fresh-on-call means the binary
+  *cannot* be stale, so the SHA-embed / `--version`-warn / git-hooks apparatus
+  solves a problem that no longer exists. The exact failure that motivated #55
+  (you-decide's stale `bin/sdlc` dying on the #51 in-place merge) is now
+  structurally impossible. None of M2 landed, and none is needed.
+- **M1 (PATH aggregation) is superseded:** `scripts/bin-path.sh` was never built
+  and isn't needed (the shell function resolves the owner's binary from any cwd);
+  `command -v sdlc` wrappers are moot since `sdlc` is now a shell *function*, not
+  a PATH binary. The `make <verb>` wrappers are legacy (the binary/function is the
+  canonical path post-#57). Lingering derivative `bin/sdlc` copies are harmless
+  (rebuilt-from-owner on each call).
+- Single-owner principle is followed — more aggressively than #55 planned. The
+  specific plan here is obsolete. See #57.
 
 - 2026-05-31 — Filed as the follow-on to #51/#53; the #51 in-place-merge dogfood
   (#54) surfaced the stale-duplicate-binary failure that motivates this. Decisions
