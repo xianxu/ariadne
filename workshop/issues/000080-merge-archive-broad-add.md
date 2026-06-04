@@ -1,11 +1,11 @@
 ---
 id: 000080
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-03
-updated: 2026-06-03
-estimate_hours:
+updated: 2026-06-04
+estimate_hours: 1.5
 ---
 
 # sdlc merge archive step blanket-adds issues/ + history/, sweeping unrelated untracked files
