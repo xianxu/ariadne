@@ -290,10 +290,11 @@ fetch:
 		echo "Usage: make fetch <number>"; \
 		exit 1; \
 	fi
-	@if [ -x bin/sdlc ]; then \
-	    bin/sdlc fetch --github-issue "$(FETCH_NUM)"; \
-	    exit 0; \
-	fi
+# Makefile-level conditional, not a shell `exit 0` — excludes the fallback when
+# the binary exists, so make can't fall through to the next recipe line (#36 M2).
+ifneq ($(wildcard bin/sdlc),)
+	@bin/sdlc fetch --github-issue "$(FETCH_NUM)"
+else
 	@set -o pipefail; \
 	repo=$$(git remote get-url origin | sed 's|.*github.com[:/]\(.*\)\.git|\1|;s|.*github.com[:/]\(.*\)$$|\1|'); \
 	gh_title=$$(gh issue view "$(FETCH_NUM)" --repo "$$repo" --json title --jq '.title') || exit 1; \
@@ -332,6 +333,7 @@ fetch:
 		"" \
 		> "$$issue_file"; \
 	echo "Created $$issue_file (GitHub #$(FETCH_NUM))"
+endif
 
 # Push to remote, close GitHub issues for done issues, move done issues to history/.
 # Works from main — the direct-on-main workflow counterpart to merge.
@@ -419,10 +421,11 @@ endif
 # Delegates to bin/sdlc pr when the binary is built; falls back to
 # the inline shell logic otherwise (M5 of #31).
 pull-request:
-	@if [ -x bin/sdlc ]; then \
-	    bin/sdlc pr; \
-	    exit 0; \
-	fi
+# Makefile-level conditional (see push/fetch) — excludes the fallback when the
+# binary exists, so make can't fall through to the next recipe line (#36 M2).
+ifneq ($(wildcard bin/sdlc),)
+	@bin/sdlc pr
+else
 	@branch=$$(git branch --show-current); \
 	if [ -z "$$branch" ] || [ "$$branch" = "main" ]; then \
 		echo "Error: run this from a worktree branch, not main"; \
@@ -458,6 +461,7 @@ pull-request:
 	else \
 		gh pr create --repo "$$repo" --base main --head "$$branch" --fill; \
 	fi
+endif
 
 # Merge the current worktree branch into main (if a PR exists),
 # move done issues to history/, clean up the worktree.
@@ -465,10 +469,11 @@ pull-request:
 # Delegates to bin/sdlc merge when the binary is built; falls back to
 # the inline shell logic otherwise (M5 of #31).
 merge:
-	@if [ -x bin/sdlc ]; then \
-	    bin/sdlc merge $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge); \
-	    exit 0; \
-	fi
+# Makefile-level conditional (see push/fetch) — excludes the fallback when the
+# binary exists, so make can't fall through to the next recipe line (#36 M2).
+ifneq ($(wildcard bin/sdlc),)
+	@bin/sdlc merge $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge)
+else
 	@branch=$$(git branch --show-current); \
 	if [ -z "$$branch" ] || [ "$$branch" = "main" ]; then \
 		echo "Error: run this from a worktree branch, not main"; \
@@ -567,6 +572,7 @@ merge:
 	git -C "$$main_path" branch -D "$$branch" 2>/dev/null || true; \
 	printf '%s' "$$main_path" > "$$wt_path/.goto"; \
 	echo "Done. Run: g (to cd back to main)"
+endif
 
 # Warn if any touched issue files are not marked as resolved (done/wontfix/punt).
 # Usage: $(call check_undone_issues,<base-ref>,<issues-dir>)
