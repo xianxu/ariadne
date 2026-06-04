@@ -1,11 +1,12 @@
 ---
 id: 000072
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-02
 updated: 2026-06-04
 estimate_hours: 2
+actual_hours: 1.5
 ---
 
 # promote adapted superpowers-writing-plans as ariadne's canonical plan path over builtin EnterPlanMode
@@ -74,6 +75,7 @@ is a Claude Code builtin tool (writes ephemeral `~/.claude/plans`); ariadne alre
 adapted superpowers planning skill — promote it.
 
 ### 2026-06-04
+- 2026-06-04: closed — go test ./cmd/sdlc/... green (TestPlanPointer added, both id>0 and id==0 cases); go vet clean; live `sdlc start-plan --issue 72` confirms ordering architecture(L6)→planPointer(L45)→contention(L49); plan-quality judge CLEAN(high). AGENTS.md §1/§2 + atlas read coherently: plan mode = superpowers-writing-plans → workshop/plans/, ephemeral ~/.claude/plans demoted. Atlas updated (issue-lifecycle, sdlc-binary, artifact-hierarchy).; review verdict: FIX-THEN-SHIP
 
 Shipped. **Promotion, not invention** — the skill already wrote to `workshop/plans/`
 (SKILL.md:18), so the work was constitution + atlas prose + one pure helper.
