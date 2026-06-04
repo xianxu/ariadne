@@ -12,7 +12,9 @@ REFUSES IF
 
   - current branch is empty (detached HEAD)
   - current branch == main (run `sdlc change-code` to branch, or `sdlc push`)
-  - uncommitted changes exist (commit or stash first)
+  - uncommitted TRACKED changes exist (commit or stash first). Untracked
+    files don't block — they survive the branch switch, so they're warned
+    about, not refused (#78).
   - no upstream is configured for the branch
   - branch is ahead of upstream (unpushed local commits — push first)
 

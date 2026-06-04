@@ -8,22 +8,23 @@
 //     back to main, pull, delete the branch (no worktree).
 //   - worktree: a linked worktree → archive in the main worktree, remove the
 //     worktree, delete the branch.
+//
 // Sequence:
 //
-//   1. branch != main / non-empty
-//   2. no uncommitted changes
-//   3. upstream configured
-//   4. branch not ahead of upstream
-//   5. pre-merge judges (plan + specs + lessons, skippable with --no-judge) —
-//      read-only reviewers; they report, they do not edit the tree (#62 M2)
-//   6. resolve topology (in-place vs worktree)
-//   7. show unmerged commits (informational)
-//   8. not-done issue warn (vs main)
-//   9. interactive confirmation (skippable with --yes)
-//   9b. re-assert clean tree before the irreversible merge — refuse if a judge/
-//       hook dirtied it since step 2 (#62 M1; never cross the boundary dirty)
+//  1. branch != main / non-empty
+//  2. no uncommitted tracked changes (untracked files warn, don't block — #78)
+//  3. upstream configured
+//  4. branch not ahead of upstream
+//  5. pre-merge judges (plan + specs + lessons, skippable with --no-judge) —
+//     read-only reviewers; they report, they do not edit the tree (#62 M2)
+//  6. resolve topology (in-place vs worktree)
+//  7. show unmerged commits (informational)
+//  8. not-done issue warn (vs main)
+//  9. interactive confirmation (skippable with --yes)
+//     9b. re-assert no tracked dirt before the irreversible merge — refuse if a
+//     judge/hook dirtied a tracked file since step 2 (#62 M1; never cross dirty)
 //  10. gh pr merge (server-side), OR resume an already-merged PR if a prior run
-//      was interrupted (#62 M3) → in-place: switch main; both: pull main
+//     was interrupted (#62 M3) → in-place: switch main; both: pull main
 //  11. archive done/wontfix/punt issues into history/ (in the main checkout)
 //  12. cleanup — in-place: branch delete; worktree: worktree remove + branch delete + .goto
 package main
@@ -124,6 +125,41 @@ func worktreeDirty(r gitRunner) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// dirtyAssessment splits a `git status --porcelain` result into the two classes
+// that matter to the merge guard: Blocking (tracked modifications — staged,
+// modified, renamed, deleted, unmerged) and Untracked (`??` lines).
+type dirtyAssessment struct {
+	Blocking  []string // tracked changes that MUST block the merge
+	Untracked []string // untracked files — surfaced, but not a blocker (#78)
+}
+
+// Refuse reports whether the tree state must block the merge. The single source
+// of the merge-block decision (#78): both the step-2 check and the step-9b
+// re-assert ask Refuse() rather than re-deriving `len(...) > 0` inline, so the
+// two guards can't diverge (the Spec's elevated invariant).
+func (d dirtyAssessment) Refuse() bool { return len(d.Blocking) > 0 }
+
+// assessDirty classifies porcelain output. Pure (mirrors decideMergeAction's
+// extracted-decision pattern). Only tracked modifications block a merge: a dirty
+// tracked file makes the post-merge `git switch main` / `git pull` refuse,
+// stranding the server-side merge. Untracked `??` files carry across the branch
+// switch untouched, so they don't strand it — they're surfaced as a warning,
+// not a refusal (#78).
+func assessDirty(porcelain string) dirtyAssessment {
+	var d dirtyAssessment
+	for _, line := range strings.Split(porcelain, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "??") {
+			d.Untracked = append(d.Untracked, line)
+		} else {
+			d.Blocking = append(d.Blocking, line)
+		}
+	}
+	return d
+}
+
 // mergeAction is what step 10 should do, given the PR state.
 type mergeAction int
 
@@ -156,17 +192,25 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 	cinfo(stderr, fmt.Sprintf("Branch: %s", branch))
 
-	// ── 2. No uncommitted changes ───────────────────────────────────────────
+	// ── 2. No uncommitted TRACKED changes ───────────────────────────────────
+	// Untracked files don't block: they survive `git switch main`, so they can't
+	// strand the post-merge cleanup the way a dirty tracked file does (#78). They
+	// are surfaced as a warning so the operator still sees them.
 	dirty, err := worktreeDirty(mergeRunner)
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	if dirty != "" {
-		fmt.Fprintf(stderr, "  %s[x]%s Uncommitted changes found — cannot merge\n", ansiRed, ansiReset)
-		fmt.Fprintln(stderr, dirty)
-		die(stderr, "commit or stash uncommitted changes before merging")
+	assessment := assessDirty(dirty)
+	if assessment.Refuse() {
+		fmt.Fprintf(stderr, "  %s[x]%s Uncommitted tracked changes found — cannot merge\n", ansiRed, ansiReset)
+		fmt.Fprintln(stderr, strings.Join(assessment.Blocking, "\n"))
+		die(stderr, "commit or stash these tracked changes before merging")
 	}
-	cok(stderr, "No uncommitted changes")
+	if len(assessment.Untracked) > 0 {
+		cwarn(stderr, fmt.Sprintf("%d untracked file(s) present — not blocking the merge (they survive the branch switch):", len(assessment.Untracked)))
+		fmt.Fprintln(stderr, strings.Join(assessment.Untracked, "\n"))
+	}
+	cok(stderr, "No uncommitted tracked changes")
 
 	// Fail fast — before the slow pre-merge judges — if the confirmation
 	// prompts (steps 8-9) can't be answered. They read os.Stdin, and in a
@@ -298,11 +342,15 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// tree breaks both `gh pr merge`'s downstream `git switch main` and the
 	// resume cleanup. (With read-only judges (#62 M2) the tree stays clean; this
 	// is the defense-in-depth that makes the irreversible boundary safe.)
+	// Only tracked changes refuse here, via the same assessDirty.Refuse()
+	// decision as step 2 (#78) — untracked files were already surfaced above and
+	// don't strand the merge. A pre-merge judge/hook that dirties a tracked file
+	// is the real risk this re-assert defends against.
 	if redirty, derr := worktreeDirty(mergeRunner); derr != nil {
 		die(stderr, derr.Error())
-	} else if redirty != "" {
-		fmt.Fprintf(stderr, "  %s[x]%s Working tree dirtied after the initial check (likely a pre-merge judge/hook):\n", ansiRed, ansiReset)
-		fmt.Fprintln(stderr, redirty)
+	} else if reassess := assessDirty(redirty); reassess.Refuse() {
+		fmt.Fprintf(stderr, "  %s[x]%s Tracked files dirtied after the initial check (likely a pre-merge judge/hook):\n", ansiRed, ansiReset)
+		fmt.Fprintln(stderr, strings.Join(reassess.Blocking, "\n"))
 		die(stderr, "review + commit (or discard) these changes, then re-run `sdlc merge` — refusing before the irreversible merge")
 	}
 
