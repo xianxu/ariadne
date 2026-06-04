@@ -1,11 +1,12 @@
 ---
 id: 000078
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
 estimate_hours: 1.0
+actual_hours: 1.0
 ---
 
 # sdlc merge clean-tree guard refuses on unrelated untracked files
@@ -110,6 +111,7 @@ Focused single-pass change (no milestone split).
 ## Log
 
 ### 2026-06-03
+- 2026-06-03: closed — go test ./cmd/sdlc/... green: TestAssessDirty pins proceed-vs-refuse; e2e UntrackedAfterJudge_Proceeds runs full merge+cleanup with untracked file present (PRMerge fires, ends on main); DirtyAfterJudge refuses on tracked dirt. Untracked files now warn-not-block via single-sourced assessDirty.Refuse(); review verdict: SHIP
 Filed from #58's ship. The clean-tree guard refused on two unrelated untracked
 WIP dirs, forcing a `git stash -u` (which itself needed the sandbox disabled to
 unlink under `.claude/skills`). Untracked files survive `git switch main` fine,
