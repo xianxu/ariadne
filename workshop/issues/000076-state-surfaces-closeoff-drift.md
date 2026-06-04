@@ -58,12 +58,21 @@ just implementation — so it must be refined):
 Emit e.g.: `⚠ #51 looks done — merged work on main + plan 13/14 — close it?
 (sdlc close --issue 51)`.
 
-Open questions to resolve at change-code:
-- gh dependency: the merged-PR check needs `gh`/network. Degrade gracefully when
-  absent (fall back to the commit-subject heuristic; never hard-fail `state`).
-- Threshold: all-ticked only, or all-but-one? (#51 was all-but-one — the trailing
-  item was the deferred dogfood.) Lean all-but-one, since the trailing item is
-  often the exact thing that drifts.
+Open questions — RESOLVED at change-code (2026-06-04):
+- **gh dependency → drop it.** The "best signal" (merged PR referencing #N) is
+  already observable gh-free: a merged PR lands the work-convention commits
+  (`#N Mx:` / `#N:`) onto main, and milestone-close/close commits carry the same
+  `#N`-anchored subjects. So a subject-anchored `git log <main>` scan *is* the
+  merged-work signal — no network, degrades by construction (no main ref → no
+  finding, never hard-fails). Avoids `gh` flakiness for marginal gain (Simplicity
+  First). `issue-sync`/`claim` commits never anchor `#N` in their subject
+  (`issue-sync: update issues`), so they're excluded for free; `file issue` /
+  `ticket` / `close` *do* anchor `#N` and are name-denylisted.
+- **Threshold → `PlanTicked >= 1 && PlanTotal - PlanTicked <= 1`** (all, or
+  all-but-one, with at least one tick). The `>= 1` floor keeps this disjoint from
+  the existing "working, none ticked" info finding (no contradictory double-flag)
+  and rejects the degenerate 1-item/0-ticked case. #51 (13/14) qualifies; a
+  fresh 0/1 issue does not.
 
 ## Done when
 
@@ -78,11 +87,28 @@ Open questions to resolve at change-code:
 
 ## Plan
 
-- [ ] Single-pass: extend `detectDrift` with the close-off-candidate check +
-  the work-vs-bookkeeping commit/PR discriminator (a pure helper over
-  `IssueState` + a `git log`/`gh` probe, kept behind the existing thin IO seam so
-  it's testable with a fake); render it in `renderProse`; tests for flagged /
-  not-flagged (filing-only) / never-on-done; atlas note if the surface warrants.
+- [x] Single-pass: surface close-off candidates in `sdlc state`.
+  - **ARCH-PURE — pure classifier:** `gitx.IsShippedWorkSubject(issueNum, subject)
+    bool` — subject-anchored (`^#N($|[^0-9])`, the same anchor `CommitWindow`
+    uses) minus a bookkeeping denylist (`file issue`/`ticket`/`claim`/`close`).
+    Pure, table-tested in `gitx`.
+  - **ARCH-PURE — thin IO probe (injected seam):** `gitx.ShippedWorkOnMain(
+    issueNum) (sha, subject string, shipped bool)` runs `git log <origin/main|main>`
+    via the package `run` shim and applies the classifier; tested in `gitx` by
+    overriding `run`. `detectDrift` takes a `shipProbe` func param (production
+    wires `gitx.ShippedWorkOnMain`; `state_test` passes a fake) so the drift logic
+    is tested without git. Wiring is covered both ends so the pure helper can't be
+    silently un-wired (lessons.md #72).
+  - **ARCH-DRY:** reuse the `CommitWindow` subject-anchor pattern and the
+    `recentCommits` main-ref resolution (origin/main → main → none); extend the
+    existing `detectDrift`/`DriftFinding`/`renderProse` structures, add nothing
+    parallel.
+  - close-off finding in `detectDrift` for status `open`/`working` when
+    `PlanTicked >= 1 && PlanTotal-PlanTicked <= 1 && shipped`; warn-only; message
+    carries the issue ref + `sdlc close --issue N`.
+  - Tests: high-completion open + shipped → flagged; freshly-claimed open +
+    filing-only → NOT flagged; `done` → never flagged; classifier table.
+  - Atlas note if the surface warrants.
 
 ## Relationships
 
@@ -102,3 +128,36 @@ Filed after closing #51 (which had drifted done-but-open for a week). Operator:
 "that's why we started with `sdlc` — there's some lack of hygiene tracking
 closing off issues." `sdlc state` gates entries; this makes it also surface stale
 exits. Grounded in the existing `detectDrift`/`DriftFinding` structure.
+
+### 2026-06-04 — implemented (single-pass)
+
+- **ARCH-PURE seam.** `gitx.IsShippedWorkSubject(num, subject)` is the pure
+  classifier (subject-anchored `^#N($|[^0-9])` minus a `file
+  issue`/`ticket`/`claim`/`close` denylist, whole-token so `close-off` ≠
+  `close`); `gitx.ShippedWorkOnMain(num)` is the thin IO probe (git log over
+  `MainRef` with a `--grep` prefilter). `detectDrift` takes a `shipProbe` func —
+  production wires `gitx.ShippedWorkOnMain` in `runState`, `state_test` fakes it.
+  `closeOffFinding` is pure; flags `open`/`working` with `PlanTicked >= 1 &&
+  PlanTotal-PlanTicked <= 1 && shipped`.
+- **ARCH-DRY.** Resolved the plan-quality DRY flag for real: extracted
+  `gitx.MainRef()` (origin/main → main → "") and routed *both* `recentCommits`
+  and the probe through it; reused `CommitWindow`'s subject-anchor + `--grep`
+  pattern; extended the existing `detectDrift`/`DriftFinding`/`renderProse`
+  rather than adding parallel surface. Did **not** reuse milestoneclose's
+  `shortSHA` (it does a `git rev-parse` round-trip — pointless since the probe
+  hands back a full SHA; used a pure `abbrevSHA` to keep `closeOffFinding` pure).
+- **gh dropped** (resolved open Q): a merged PR lands the `#N Mx:` work commits
+  on main, so the gh-free subject scan *is* the merged-work signal; no main ref →
+  not-shipped (degrades, never hard-fails).
+- **Dogfood caught a real bug** the unit tests missed: the probe was first called
+  with the *padded* ID (`000082`) but commit subjects use `#82` → zero matches.
+  Fixed by unpadding before the probe/close-hint; the test fake now keys on the
+  unpadded number, so dropping `unpadID` fails the test (guards the wiring,
+  lessons.md #72). Verified live: synthetic 2/2 issue for the already-shipped #82
+  → `⚠ #000082 looks done — plan 2/2 + shipped work on main (d468fbc3 "#82 M3…")
+  — close it? (sdlc close --issue 82)`; real-repo scan flags nothing (no false
+  positives on the no-progress #52/#76).
+- **Tests:** `gitx` classifier table (11 cases) + `ShippedWorkOnMain` run-shim
+  wiring (work-wins-over-bookkeeping / filing-only / no-main-ref); `state`
+  close-off table (flagged / unshipped / 0-1 pre-filter / done-never). Full suite
+  green. Atlas: new "Drift checks" section in `sdlc-binary.md`.

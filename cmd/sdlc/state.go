@@ -121,7 +121,8 @@ func runState(stdout io.Writer, f *stateFlags) error {
 		return fmt.Errorf("list issues: %w", err)
 	}
 	s.Issues = issues
-	s.Drift = detectDrift(issues, f.HistoryDir)
+	// gitx.ShippedWorkOnMain is the production ship probe; state_test fakes it.
+	s.Drift = detectDrift(issues, f.HistoryDir, gitx.ShippedWorkOnMain)
 	if baseRef == "" {
 		s.Drift = append(s.Drift, DriftFinding{
 			Severity: "info",
@@ -175,12 +176,9 @@ func listWorktrees() []WorktreeState {
 // Caller can surface a drift finding when baseRef is empty. Cap at 20
 // entries to keep prose tight.
 func recentCommits() ([]CommitState, string) {
-	base := "origin/main"
-	if gitx.Capture("rev-parse", "--verify", base) == "" {
-		base = "main"
-		if gitx.Capture("rev-parse", "--verify", base) == "" {
-			return nil, ""
-		}
+	base := gitx.MainRef()
+	if base == "" {
+		return nil, ""
 	}
 	out := gitx.Capture("log", base+"..HEAD", "--pretty=%H%x00%s")
 	if out == "" {
@@ -276,20 +274,27 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 
 // ── drift detection ─────────────────────────────────────────────────────────
 
+// shipProbe reports whether implementation work for an issue has landed on
+// main — the IO seam detectDrift depends on for its close-off check. Returns
+// (firstWorkSHA, itsSubject, shipped). Production wires gitx.ShippedWorkOnMain;
+// tests pass a fake so the drift logic is exercised without touching git.
+type shipProbe func(issueNum string) (sha, subject string, shipped bool)
+
 // detectDrift surfaces structural inconsistencies. Warn-only — state
 // reports drift but never refuses (refusal lives on mutating verbs).
 //
-// Checks (per workshop/issues/000031):
+// Checks:
 //  1. Issue with status=done is still in workshop/issues/ (should be
 //     archived to workshop/history/).
 //  2. Issue with status=working has zero plan items ticked — likely
-//     stale state.
+//     stale state (the no-progress end of the spectrum).
 //  3. Issue file with no frontmatter — broken state.
-//
-// "Working but no recent commits" is intentionally omitted from M2 to
-// avoid expensive cross-referencing; M4's set-status will be the right
-// place to enforce that.
-func detectDrift(issues []IssueState, historyDir string) []DriftFinding {
+//  4. Close-off candidate (#76): an open/working issue whose plan is all (or
+//     all-but-one) ticked AND whose work has shipped to main — done work that
+//     never got formally closed. The all-progress-no-close end, the inverse of
+//     check 2. Warn-only: surface for a human glance, never auto-close (closing
+//     carries actual/verified judgment a heuristic can't supply).
+func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []DriftFinding {
 	var out []DriftFinding
 	for _, i := range issues {
 		switch i.Status {
@@ -320,8 +325,59 @@ func detectDrift(issues []IssueState, historyDir string) []DriftFinding {
 				})
 			}
 		}
+		if f, ok := closeOffFinding(i, shipped); ok {
+			out = append(out, f)
+		}
 	}
 	return out
+}
+
+// closeOffFinding returns the close-off candidate finding for i, if it
+// qualifies. Pre-filters cheaply on status + plan completion before paying for
+// the ship probe; the `PlanTicked >= 1` floor keeps this disjoint from
+// detectDrift's "working, none ticked" info finding (no contradictory
+// double-flag) and rejects the degenerate 1-item/0-ticked case.
+func closeOffFinding(i IssueState, shipped shipProbe) (DriftFinding, bool) {
+	if i.Status != "open" && i.Status != "working" {
+		return DriftFinding{}, false
+	}
+	if i.PlanTicked < 1 || i.PlanTotal-i.PlanTicked > 1 {
+		return DriftFinding{}, false
+	}
+	// Commit subjects reference the *unpadded* number (`#82`, §12), so the probe
+	// (and the close hint) take unpadID, while the finding keeps the padded ID
+	// for display parity with the other findings.
+	num := unpadID(i.ID)
+	sha, subj, ok := shipped(num)
+	if !ok {
+		return DriftFinding{}, false
+	}
+	return DriftFinding{
+		Severity: "warn",
+		Issue:    i.ID,
+		Message: fmt.Sprintf("looks done — plan %d/%d + shipped work on main (%s %q) — close it? (sdlc close --issue %s)",
+			i.PlanTicked, i.PlanTotal, abbrevSHA(sha), truncate(subj, 50), num),
+	}, true
+}
+
+// abbrevSHA trims an already-resolved commit hash to 8 chars for display —
+// pure, unlike the IO-doing shortSHA in milestoneclose.go (the probe hands us a
+// full SHA, so no `git rev-parse --short` round-trip is needed).
+func abbrevSHA(sha string) string {
+	if len(sha) > 8 {
+		return sha[:8]
+	}
+	return sha
+}
+
+// unpadID strips the 6-digit zero padding for the `sdlc close --issue N` hint
+// (issues are addressed by bare number). Falls back to the padded form if it
+// would otherwise empty out.
+func unpadID(id string) string {
+	if n := strings.TrimLeft(id, "0"); n != "" {
+		return n
+	}
+	return id
 }
 
 // ── prose rendering ─────────────────────────────────────────────────────────
