@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# docflow.test.sh — unit tests for the pure helpers + a real-git e2e of the flow.
+# No mocks: the e2e drives an actual throwaway repo under one guarded temp root
+# and asserts the resulting log shape, author attribution, and the finish guard.
+#
+# Run:  scripts/docflow.test.sh   (exit 0 = all pass; cleanly SKIPs the file/e2e
+# tiers if no temp dir is available, e.g. a restricted sandbox — never falls
+# through to the host repo, the failure mode #79's own bug shipped.)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOCFLOW="$SCRIPT_DIR/docflow.sh"
+
+# Source for unit tests (the BASH_SOURCE guard keeps main() from dispatching),
+# then relax the strict opts docflow.sh set so assertions continue past non-zero.
+# shellcheck source=/dev/null
+source "$DOCFLOW"
+set +e +u +o pipefail
+
+fails=0
+pass() { printf '  \033[1;32mok\033[0m   %s\n' "$1"; }
+fail() { printf '  \033[1;31mFAIL\033[0m %s\n' "$1"; fails=$((fails + 1)); }
+skip() { printf '  \033[1;33m--\033[0m   SKIP %s\n' "$1"; }
+eq()   { if [[ "$2" == "$3" ]]; then pass "$1"; else fail "$1 (expected '$2', got '$3')"; fi; }
+
+# One guarded temp root for every file-touching test. If it can't be made, the
+# file/e2e tiers SKIP (not FAIL) — and crucially nothing ever writes to the host.
+work="$(mktemp -d 2>/dev/null || true)"
+have_tmp=1
+[[ -z "$work" || ! -d "$work" ]] && have_tmp=0
+[[ "$have_tmp" -eq 1 ]] && trap 'cd / 2>/dev/null; rm -rf "$work"' EXIT
+
+echo "── unit: pure helpers ──"
+eq "slugify basename+ext+case+space" "my-post"      "$(slugify 'src/data/My Post.md')"
+eq "slugify underscores+digits"      "the-value-2"  "$(slugify 'The_Value 2.md')"
+eq "slugify trims dashes"            "x"            "$(slugify '__x__.md')"
+eq "review_branch_name"              "review/foo"   "$(review_branch_name foo)"
+eq "round_subject"                   "review(foo): agent r3 — did stuff" \
+                                     "$(round_subject foo agent 3 'did stuff')"
+eq "marker_count missing file"       "0"            "$(marker_count /no/such/file)"
+
+if [[ "$have_tmp" -eq 1 ]]; then
+    mtmp="$work/marker.md"
+    printf '%s\n' 'hello 🤖{a}' 'world' '```' 'code 🤖{ignored}' '```' 'tail 🤖[b]' > "$mtmp"
+    eq "marker_count skips fenced markers" "2" "$(marker_count "$mtmp")"
+    printf '%s\n' 'clean prose' > "$mtmp"
+    eq "marker_count clean file"           "0" "$(marker_count "$mtmp")"
+else
+    skip "marker_count file tests (no temp dir)"
+fi
+
+echo "── e2e: real git flow ──"
+if [[ "$have_tmp" -eq 0 ]]; then
+    skip "e2e (no temp dir; run unsandboxed/CI for full coverage)"
+else
+    repo="$work/repo"; mkdir -p "$repo"; log="$work/repo.log"
+    cd "$repo" || { fail "cd into temp repo"; exit 1; }
+    # Belt-and-suspenders: refuse to run destructive git ops unless cwd is the
+    # temp repo — the exact guard the original fall-through bug lacked.
+    case "$PWD" in "$repo"*) ;; *) fail "e2e refused: cwd '$PWD' not under temp root"; exit 1;; esac
+
+    git -c init.defaultBranch=main init -q
+    git config user.name "Operator"; git config user.email "op@example.com"
+    printf 'seed\n' > README.md; git add README.md; git commit -q -m init
+
+    run() { local d="$1"; shift; [[ "$1" == -- ]] && shift; if "$@" >>"$log" 2>&1; then pass "$d"; else fail "$d (cmd failed; see $log)"; fi; }
+    post() { printf -- '---\npublished: false\n---\n\n# Draft\n\n%s\n' "$1" > post.md; }
+
+    post 'Hello world.'
+    run "start tracks untracked draft" -- "$DOCFLOW" start post.md
+    eq  "on review branch"   "review/post" "$(git branch --show-current)"
+    eq  "base recorded"      "main"        "$(git config branch.review/post.docflowBase)"
+
+    post 'Hello world. 🤖[tighten this]'
+    run "round human r1" -- "$DOCFLOW" round --side human -m "incoming markers"
+    post 'Hello, world.'
+    run "round agent r1" -- "$DOCFLOW" round --side agent -m "tightened" --body "Removed filler; Oxford comma."
+
+    eq  "human round authored by operator" "op@example.com" \
+        "$(git log --format='%ae' --grep='human r1' -1)"
+    eq  "agent round authored by agent"    "noreply@anthropic.com" \
+        "$(git log --format='%ae' --grep='agent r1' -1)"
+    case "$(git log --format='%b' --grep='agent r1' -1)" in
+        *"Oxford comma"*) pass "agent rationale kept in commit body";;
+        *)                fail "agent rationale kept in commit body";;
+    esac
+
+    post 'Hello, world. 🤖[one more pass?]'
+    run "round human r2 (re-open)" -- "$DOCFLOW" round --side human -m "re-open"
+    if "$DOCFLOW" finish >>"$log" 2>&1; then fail "finish blocks on outstanding marker"; else pass "finish blocks on outstanding marker"; fi
+    eq  "still on review branch after blocked finish" "review/post" "$(git branch --show-current)"
+
+    post 'Hello, world.'
+    run "round agent r2 (resolve)" -- "$DOCFLOW" round --side agent -m "resolved"
+    run "finish merges clean"      -- "$DOCFLOW" finish
+    eq  "back on base after finish" "main" "$(git branch --show-current)"
+    if git show-ref --verify --quiet refs/heads/review/post; then fail "review branch deleted"; else pass "review branch deleted"; fi
+    eq  "first-parent shows one merge line" "1" \
+        "$(git log --first-parent --format='%s' main | grep -c 'review(post): merge')"
+    eq  "merge message counts 4 round commits (excl. track)" "1" \
+        "$(git log --first-parent --format='%s' main | grep -c 'review(post): merge — 4 round-commit')"
+    eq  "full log retains all 4 round commits" "4" \
+        "$(git log --format='%s' main | grep -cE 'review\(post\): (human|agent) r')"
+
+    post2() { printf -- '---\npublished: false\n---\n\n# Two\n\n%s\n' "$1" > two.md; }
+    post2 'draft 🤖[unresolved]'
+    run "start second doc"            -- "$DOCFLOW" start two.md
+    run "round human r1 (two)"        -- "$DOCFLOW" round --side human -m "draft with marker"
+    run "finish --force merges as-is" -- "$DOCFLOW" finish --force
+    eq  "back on base after force-finish" "main" "$(git branch --show-current)"
+    eq  "forced merge present on first-parent" "1" \
+        "$(git log --first-parent --format='%s' main | grep -c 'review(two): merge')"
+    cd /
+fi
+
+echo
+if [[ "$fails" -eq 0 ]]; then
+    if [[ "$have_tmp" -eq 1 ]]; then printf '\033[1;32mALL PASS\033[0m\n'
+    else printf '\033[1;33mPASS (pure-helper tier only; file/e2e SKIPPED — no temp dir)\033[0m\n'; fi
+    exit 0
+else
+    printf '\033[1;31m%s FAILED\033[0m\n' "$fails"; exit 1
+fi

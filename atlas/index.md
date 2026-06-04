@@ -14,6 +14,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Sandbox](workflow/sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
 - [Data Artifacts](workflow/data-artifacts.md) — typed markdown documents (xx-datatype skill, prototypes, capture flow)
 - [Introspection](workflow/introspect.md) — postmortem mining of past Claude transcripts into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)
+- [docflow](workflow/docflow.md) — branch-scoped prose review with per-round git journaling (`review/<slug>` branch, `--no-ff` merge); companion to the `xx-fix` skill (#79)
 - [Tart VMs](workflow/base-layer.md#what-gets-installed) — `make tart` family for macOS VM testing (Apple Silicon only). Vendored under `.tart/`; details in the base-layer entry.
 
 ## 2. Base Layer Infrastructure

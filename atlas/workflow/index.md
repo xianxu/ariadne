@@ -20,3 +20,4 @@ The ariadne workflow is an issue-based development loop designed for AI-assisted
 - [sdlc Binary](sdlc-binary.md) — checkpoint-guard binary; 10 verbs (incl. the `issue` group); embedded help; fresh-context judges
 - [Data Artifacts](data-artifacts.md) — typed markdown documents via the xx-datatype skill
 - [Introspection](introspect.md) — postmortem mining of Claude transcripts into auto-loading taste-rule skills
+- [docflow](docflow.md) — branch-scoped prose review with per-round git journaling; companion to the `xx-fix` skill (`--no-ff` merge keeps the back-and-forth + rationale, `--first-parent` stays clean)
