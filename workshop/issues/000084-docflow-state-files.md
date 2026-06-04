@@ -1,11 +1,12 @@
 ---
 id: 000084
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 0.75
+actual_hours: 0.75
 ---
 
 # docflow: store review state in .git/docflow/ files, not .git/config (sandbox-compatible)
@@ -66,21 +67,41 @@ No migration: there are no live review branches using the old config keys (the
 
 Single-pass refinement (one review boundary) → plain checkboxes.
 
-- [ ] `docflow_meta_dir <rb>` helper: `$(git rev-parse --git-dir)/docflow/<slug>`.
-- [ ] `review_base` / `inscope_files`: read `base` / `files` from the meta dir.
-- [ ] `cmd_start`: `mkdir -p` meta dir, write `base`, append deduped `files`
+- [x] `docflow_meta_dir <rb>` helper: `$(git rev-parse --git-dir)/docflow/<slug>`.
+- [x] `review_base` / `inscope_files`: read `base` / `files` from the meta dir.
+- [x] `cmd_start`: `mkdir -p` meta dir, write `base`, append deduped `files`
   (replaces the two `git config` writes, both branch paths).
-- [ ] `cmd_finish`: `rm -rf` the meta dir (replaces the two `git config --unset`).
-- [ ] `docflow.test.sh`: assert file-based storage + no `.git/config` branch keys
+- [x] `cmd_finish`: `rm -rf` the meta dir (replaces the two `git config --unset`).
+- [x] `docflow.test.sh`: assert file-based storage + no `.git/config` branch keys
   + meta-dir cleanup; keep dedup / scope / space-path assertions green.
-- [ ] atlas note: state in `.git/docflow/`, why (sandbox denies `.git/config`).
-- [ ] Verify end-to-end sandboxed in xianxu.dev (no override needed).
+- [x] atlas note: state in `.git/docflow/`, why (sandbox denies `.git/config`).
+- [x] Verify end-to-end sandboxed in xianxu.dev (no override needed).
 
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — docflow.test.sh 35/35 unsandboxed (rewrote 3 stale config-reading assertions to read .git/docflow files; added no-config-leak + meta-dir-cleanup). Zero git config writes remain (grep-clean). End-to-end SANDBOX PROOF in xianxu.dev (the repo whose .git/config the sandbox guards): start→round→finish on a throwaway doc, merged to a throwaway base so main stayed clean, all rc=0 with NO dangerouslyDisableSandbox and clean output. git branch -d config-write warning suppressed (exit 0, branch still deleted).; review verdict: SHIP
 
 Filed from the sandbox investigation in the xianxu.dev session. Root cause: docflow's
 only sandbox collision is its `git config` state writes to the security-denied
 `.git/config`. Fix = plain state files under `.git/docflow/`. Sibling of #81 (both
 refine #79's docflow); related to #82 (cross-repo base-layer workflow ergonomics).
+
+Implemented. New `docflow_meta_dir()` derives `$(git rev-parse --git-dir)/docflow/<slug>`
+(ARCH-DRY: one place, reused by review_base/inscope_files/start/finish). `review_base`/
+`inscope_files` now `cat` `base`/`files`; `start` does `mkdir -p` + write base + append
+deduped files; `finish` `rm -rf`s the meta dir. **Zero `git config` left in the script**
+(grep-clean). Folded in both plan-quality notes: (1) rewrote the 3 stale config-reading
+test assertions to read the meta files (no contradictory pair) + added "no .git/config
+leak" + "meta dir removed after finish"; (2) **--git-dir is worktree-local** (vs the old
+repo-shared config) — a deliberate semantic shift, fine for docflow's start→round→finish-
+in-one-place model (finish already guards against the base being checked out elsewhere).
+
+Also (sandbox UX): `git branch -d` tries to prune the branch's `.git/config` section and
+the sandbox denies that write — harmless (exit 0, branch deleted), but it printed a scary
+`error: could not write config file`. Suppressed that stderr in finish.
+
+Verified end-to-end **sandboxed in xianxu.dev** (the repo whose `.git/config` is guarded):
+`docflow start/round/finish` on a throwaway doc (merged to a throwaway base so main stayed
+clean) all ran `rc=0` with **no `dangerouslyDisableSandbox`** and clean output. Test 35/35
+unsandboxed. This is the Done-when sandbox proof.

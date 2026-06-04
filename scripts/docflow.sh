@@ -75,13 +75,20 @@ marker_count() {
 # ── Git context ───────────────────────────────────────────────────────────────
 current_branch() { git branch --show-current; }
 
+# docflow_meta_dir <review-branch> → per-review state dir under the git dir.
+# State lives here as plain files, NOT in .git/config: the sandbox denies config
+# (and hooks) writes — they can execute code — but plain files under .git/ are
+# writable, so this keeps docflow fully sandbox-compatible (#84). `--git-dir` is
+# worktree-local, which matches docflow's start→round→finish-in-one-place model.
+docflow_meta_dir() { printf '%s/docflow/%s' "$(git rev-parse --git-dir)" "${1#review/}"; }
+
 # review_base <review-branch> → the branch it was forked from (recorded at start).
-review_base() { git config "branch.$1.docflowBase" 2>/dev/null || echo main; }
+review_base() { cat "$(docflow_meta_dir "$1")/base" 2>/dev/null || echo main; }
 
 # inscope_files <review-branch> → the docs recorded at start, one per line. The
 # source of truth for "what's under review": round stages exactly these, never a
 # blanket `git add -u` that would sweep unrelated tracked WIP (lessons.md).
-inscope_files() { git config --get-all "branch.$1.docflowFile" 2>/dev/null || true; }
+inscope_files() { cat "$(docflow_meta_dir "$1")/files" 2>/dev/null || true; }
 
 # round_count <base> <slug> <side> → committed rounds for that side on this branch.
 round_count() {
@@ -106,15 +113,16 @@ cmd_start() {
         git show-ref --verify --quiet "refs/heads/$rb" \
             && die "branch $rb already exists — check it out, or start with a different first file"
         git checkout -q -b "$rb"
-        git config "branch.$rb.docflowBase" "$base"
         ok "created review branch $rb (base $base)"
     fi
+    local md; md="$(docflow_meta_dir "$rb")"
+    mkdir -p "$md"
+    [[ -f "$md/base" ]] || printf '%s\n' "$base" > "$md/base"
     local f
     for f in "$@"; do
         [[ -f "$f" ]] || die "no such file: $f"
         # Record as in-scope (deduped) so `round` stages exactly the review docs.
-        inscope_files "$rb" | grep -qxF "$f" \
-            || git config --add "branch.$rb.docflowFile" "$f"
+        grep -qxF "$f" "$md/files" 2>/dev/null || printf '%s\n' "$f" >> "$md/files"
         if git ls-files --error-unmatch "$f" &>/dev/null; then
             info "$f already tracked — journaled on first round"
         else
@@ -247,9 +255,11 @@ cmd_finish() {
     local rounds; rounds=$(git log --format='%s' "$base..HEAD" | grep -cE "review\($slug\): (human|agent) r" || true)
     git checkout -q "$base" || die "could not check out base '$base' (checked out in another worktree?)"
     git merge --no-ff -q "$cur" -m "review($slug): merge — $rounds round-commit(s)"
-    git branch -d "$cur" >/dev/null
-    git config --unset "branch.$cur.docflowBase" 2>/dev/null || true
-    git config --unset-all "branch.$cur.docflowFile" 2>/dev/null || true
+    # `git branch -d` tries to prune the branch's .git/config section; the sandbox
+    # denies that write (harmless — the branch still deletes, exit 0). Hush the
+    # misleading "could not write config file" warning it prints to stderr.
+    git branch -d "$cur" >/dev/null 2>&1
+    rm -rf "$(docflow_meta_dir "$cur")"
     ok "merged $cur → $base (--no-ff), deleted the review branch"
     info "clean view: git log --first-parent $base    full: git log $base"
 }
