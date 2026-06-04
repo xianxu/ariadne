@@ -37,8 +37,12 @@ When this happens, the script stops and tells the user exactly which files confl
 
 Issue state changes (status, assignment) need to be visible on main immediately, not deferred until a feature branch merges. This avoids two people picking up the same issue, and keeps the `workshop/issues/` folder on main as the single source of truth for coordination.
 
+## `issue new` auto-syncs (#82 M1)
+
+`sdlc issue new` also broadcasts the freshly-scaffolded file to origin/main, through the **same** branch-aware sync as `claim` (the shared `syncIssuesToMain` dispatch in `claim.go`, filtered to the new issue's `--issue`). Filing an issue therefore lands it on main as tracker state — not untracked working-tree residue that every symlinked derivative reads and that dirty-tree gates trip over. The filtered add (per #80) stages only the new file, so unrelated untracked WIP is left alone. On `main` the working tree is left clean; on a feature branch the file routes to the main worktree (any local copy left behind is non-blocking — see [base-layer.md](base-layer.md), #82 M2).
+
 ## Implementation
 
-- Binary: `cmd/sdlc/claim.go`
+- Binary: `cmd/sdlc/claim.go` (`syncIssuesToMain` — shared by `claim` + `issue new`)
 - Compatibility wrapper: `make issue-sync` in `Makefile.workflow`
 - Legacy fallback script: `scripts/issue-sync.sh`

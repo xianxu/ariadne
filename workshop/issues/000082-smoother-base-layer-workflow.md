@@ -125,25 +125,66 @@ Multi-milestone (three independent review boundaries; each closes separately).
 Depends on **#80** (the merge-archive broad-add fix) — land that first so M2's
 guard work and the filtered-add pattern sit on clean guard hygiene.
 
-- [ ] **M1 — `issue new` filtered auto-sync.** Have `sdlc issue new` call the
-      existing `syncOnMain` (claim.go) with the new issue as the `--issue` filter
-      after scaffolding the file. Confirm the on-feature-branch path (sync via the
-      main worktree) works from a derivative cwd. Test: new issue lands on main,
-      working tree clean, unrelated untracked files untouched.
-- [ ] **M2 — guards ignore tracker files.** Teach the dirty-tree assessment
-      (`assessDirty` / merge step-2 + 9b, #78) to classify `workshop/issues/*.md`
-      (and `workshop/history/*.md`?) as non-blocking regardless of tracked/
-      untracked. Decide scope: tracker-file glob vs a dedicated bucket. Test:
-      dirty issue file → merge proceeds; dirty code file → refuses.
-- [ ] **M3 — `start-plan` base-contention read.** Add a pure summarizer over
-      (base git state, origin/main working-base-issue list) → a one-line,
-      non-blocking heads-up emitted by `start-plan`. Reuse claim's broadcast as the
-      data source for in-flight base issues. Test the summarizer over fixtures
-      (clean base, branched base, N concurrent issues).
+- [x] **M1 — `issue new` filtered auto-sync.** Reuse claim's sync, don't fork it.
+      - **ARCH-DRY:** extract `runClaim`'s branch-aware dispatch (the part after the
+        optional `startOnClaim` flip) into `syncIssuesToMain(stdout, stderr,
+        *claimFlags, r gitRunner)` — `branch=="main" ? syncOnMain : syncOnBranch`.
+        Thread the `gitRunner` (don't drop it) so tests inject a capture runner;
+        `runClaim` calls it with `claimRunner`. One source of truth for "broadcast
+        issue files to origin/main".
+      - In `runIssueNew`, after the file is written (skip on `--dry-run`), parse
+        `nextID`→int and call `syncIssuesToMain` with `claimFlags{Issue: id,
+        IssuesDir: f.IssuesDir, NoStart: true}`. The `--issue` filter rides #80's
+        filtered add (`git add <matches>`), so the new file lands on origin/main
+        and unrelated untracked files stay put.
+      - On `main` (dominant path): file committed + pushed → working tree clean.
+        On a feature branch: inherits claim's `syncOnBranch` (sync via the main
+        worktree); a local untracked copy may remain — **M2 makes that
+        non-blocking**, so M1+M2 together deliver "filing never entangles a gate."
+        (Same worktree-topology constraints as `sdlc claim` today; not new here.)
+      - Test: `issue new` on main → file present + committed (clean tree); an
+        unrelated untracked issue file is untouched; `--dry-run` does NOT sync.
+- [ ] **M2 — guards ignore tracker files.** Dedicated non-blocking bucket.
+      - **ARCH-DRY + ARCH-PURE:** give `dirtyAssessment` a third `Tracker []string`
+        bucket; `assessDirty(porcelain, issuesDir, historyDir)` classifies any
+        `workshop/issues|history/NNNNNN-*.md` line (tracked *or* untracked) as
+        Tracker, never Blocking. Reuse push.go's `parsePorcelainStatus` +
+        `isIssuePath`/`isHistoryPath` to pull the path + match — no new glob logic.
+        `Refuse()` stays `len(Blocking) > 0` (the elevated #78 invariant intact).
+      - Update the two call sites (step-2, step-9b) to pass the dirs and surface
+        `Tracker` like `Untracked` (warn, don't refuse). History included for
+        symmetry (both are tracker state synced out-of-band).
+      - Test (pure, both directions): dirty *issue* file → `!Refuse()`; dirty
+        *code* file → `Refuse()`; mixed → refuses (code still blocks).
+- [ ] **M3 — `start-plan` base-contention read.** Pure summarizer + thin IO gather.
+      - **Repo-selection decision (the M3 crux, pinned):** the contention read
+        inspects **cwd**, and the line is emitted **only when cwd is the base
+        repo** — explicit `cwd==base` assumption ("you plan a base change while
+        cd'd into ariadne"). Detect via a small pure-ish predicate `isBaseRepo` =
+        `construct/` exists as a *real directory, not a symlink* (in derivatives
+        `construct/` is symlinked to the base). In a derivative cwd → stay silent
+        (leaf planning needs no base-contention line). Cross-repo base resolution
+        (read the base's state from a derivative cwd) is a noted follow-up, scoped
+        OUT here alongside the worktree-set escape hatch.
+      - **ARCH-PURE:** `baseContentionSummary(in baseContention) string` — one
+        non-blocking line over `{repo, branch, dirtyCode []string, others
+        []issueRef}`. Clean main + no others → a green "clear to plan" line;
+        branched/dirty-code or N others → the heads-up. No IO, table-tested.
+      - `runStartPlan` gathers inputs (thin seam, only if `isBaseRepo`): repo name
+        = basename(cwd); branch via `gitx.Capture`; dirty-code via
+        `worktreeDirty`+`assessDirty` (reusing M2's tracker split so issue-file
+        dirt doesn't read as base contention — only `Blocking` code counts); other
+        in-flight via `listIssues` filtered `status==working && id!=this` (local
+        main view; claim keeps it fresh). Prints the line after the architecture
+        block, never refuses.
+      - Test: pure `baseContentionSummary` fixtures — clean base, branched base,
+        dirty code, N concurrent working issues (excludes self); plus a direct
+        test of the `isBaseRepo` predicate (real dir vs symlink).
 
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed M1 — go test ./cmd/sdlc/... green; new TestRunIssueNew_AutoSyncsToMainCleanTree (file on main, clean tree, unrelated untracked untouched) + TestRunIssueNew_AutoSyncBestEffort (no-origin → file created, warns, no os.Exit); existing claim/fetch tests pass; go vet clean.; review verdict: SHIP
 Spun out of a design conversation on cross-repo base-layer friction (the #79→#80
 incident was the trigger: an untracked issue file swept onto main by a broad
 `git add`). Resolved the framing: three-layer reframe (tracker / shared-base /
@@ -153,3 +194,18 @@ derivative sessions). The layout-preserving worktree-set escape hatch was
 explicitly scoped OUT (Non-goals) as a separate, larger concern. Depends on #80.
 See [[000078]] (untracked-tolerant guard) and [[000080]] (broad-add fix) — M2
 generalizes their form-vs-essence line to the tracker-file class.
+
+### 2026-06-04 (M1)
+Extracted `runClaim`'s branch-aware dispatch into `syncIssuesToMain` (ARCH-DRY);
+`issue new` calls it post-scaffold with the new issue's `--issue` filter, routing
+the sync's stdout to stderr so the path-on-stdout contract stays clean.
+**Root-cause scope expansion:** the plan-quality gate plus a real test failure
+(`TestRunFetch_CreatesFileWithNextID` — `fetch` delegates to `runIssueNew`, and
+its repo has an unreachable github origin) exposed that `syncOnMain`/`syncOnBranch`
+called `die()` (os.Exit) internally — so a failed push would kill `issue new`
+itself, and my best-effort error-handling was dead code. Fixed at the root:
+converted both sync helpers to **return errors** instead of die(); `claim` dies on
+them (UX unchanged), `issue new` warns (best-effort — the file is already
+written; offline/no-origin must not abort creation). Tests: on-main clean-tree +
+filtered-add (unrelated untracked untouched), and best-effort degradation
+(no-origin repo → file created, warns, returns nil). atlas/issue-sync.md updated.

@@ -105,6 +105,134 @@ func TestRunIssueNew_DryRunWritesNothing(t *testing.T) {
 	}
 }
 
+// TestRunIssueNew_AutoSyncsToMainCleanTree (#82 M1): on main, `issue new`
+// scaffolds the file AND broadcasts it to origin/main via the shared sync —
+// leaving the working tree clean for that file and NOT sweeping an unrelated
+// untracked issue file (rides #80's filtered add). Run against a real repo +
+// bare origin so the commit/push happen for real. (Serial — chdirs the process,
+// like the merge e2e harness; no t.Parallel().)
+func TestRunIssueNew_AutoSyncsToMainCleanTree(t *testing.T) {
+	dir := t.TempDir()
+	origin := filepath.Join(t.TempDir(), "origin.git")
+	git(t, "", "init", "--bare", "-b", "main", origin)
+	git(t, "", "init", "-b", "main", dir)
+	git(t, dir, "config", "user.email", "e2e@example.com")
+	git(t, dir, "config", "user.name", "e2e")
+	git(t, dir, "config", "commit.gpgsign", "false")
+
+	issuesDir := filepath.Join(dir, "workshop", "issues")
+	historyDir := filepath.Join(dir, "workshop", "history")
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(historyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(issuesDir, ".gitkeep"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("seed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "seed main")
+	git(t, dir, "remote", "add", "origin", origin)
+	git(t, dir, "push", "-u", "origin", "main")
+
+	prevWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prevWD) })
+
+	// An unrelated, never-claimed untracked issue file — must stay untracked.
+	unrelated := filepath.Join(issuesDir, "000777-unrelated.md")
+	if err := os.WriteFile(unrelated, []byte("---\nid: 000777\nstatus: open\n---\n\n# wip\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	f := &issueNewFlags{IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	if err := runIssueNew(&stdout, &stderr, f, []string{"Auto Synced Issue"}); err != nil {
+		t.Fatalf("runIssueNew err: %v", err)
+	}
+
+	// stdout is JUST the created path — the sync's "synced" marker is routed to
+	// stderr so it can't pollute the path contract callers parse.
+	created := strings.TrimSpace(stdout.String())
+	if !strings.HasSuffix(created, "-auto-synced-issue.md") || strings.Contains(created, "\n") {
+		t.Fatalf("stdout should be only the created path, got %q", created)
+	}
+	base := filepath.Base(created)
+
+	// The new file is committed on HEAD (issue-sync commit) and pushed to origin.
+	head := git(t, dir, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+	if !strings.Contains(head, "workshop/issues/"+base) {
+		t.Errorf("new issue not in HEAD commit; files:\n%s", head)
+	}
+	if originHead := git(t, dir, "log", "origin/main", "--oneline", "-1"); !strings.Contains(originHead, "issue-sync") {
+		t.Errorf("issue-sync commit not on origin/main: %q", originHead)
+	}
+
+	// Working tree clean for the new file (committed), and the UNRELATED file
+	// stays untracked — never swept by the filtered add.
+	status := git(t, dir, "status", "--porcelain", "--untracked-files=all")
+	if strings.Contains(status, base) {
+		t.Errorf("created issue should be committed, not left dirty; status:\n%s", status)
+	}
+	if !strings.Contains(status, "000777-unrelated.md") {
+		t.Errorf("unrelated untracked file should remain untracked; status:\n%s", status)
+	}
+}
+
+// TestRunIssueNew_AutoSyncBestEffort (#82 M1): when the sync can't complete
+// (here: a repo with NO origin remote, so the push fails), `issue new` must
+// still create + report the file and return nil — the sync is best-effort, not
+// a gate. A warning is surfaced. (Regression: an earlier cut had the sync die()
+// internally, which os.Exit'd the whole command on a failed push.)
+func TestRunIssueNew_AutoSyncBestEffort(t *testing.T) {
+	dir := t.TempDir()
+	git(t, "", "init", "-b", "main", dir)
+	git(t, dir, "config", "user.email", "e2e@example.com")
+	git(t, dir, "config", "user.name", "e2e")
+	git(t, dir, "config", "commit.gpgsign", "false")
+	issuesDir := filepath.Join(dir, "workshop", "issues")
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(issuesDir, ".gitkeep"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "seed")
+	// NOTE: no `git remote add origin` — the push step has nowhere to go.
+
+	prevWD, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prevWD) })
+
+	var stdout, stderr bytes.Buffer
+	f := &issueNewFlags{IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	if err := runIssueNew(&stdout, &stderr, f, []string{"No Origin Issue"}); err != nil {
+		t.Fatalf("issue new must not fail when sync can't push, got err: %v", err)
+	}
+	created := strings.TrimSpace(stdout.String())
+	if !strings.HasSuffix(created, "-no-origin-issue.md") {
+		t.Fatalf("stdout should be the created path, got %q", created)
+	}
+	if _, err := os.Stat(created); err != nil {
+		t.Errorf("file should exist despite sync failure: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "auto-sync to main did not complete") {
+		t.Errorf("expected a best-effort sync warning on stderr; got:\n%s", stderr.String())
+	}
+}
+
 // TestRunIssueNew_FromGitHubFillsProblem: --from-github takes the title
 // from GitHub and seeds the body under ## Problem.
 func TestRunIssueNew_FromGitHubFillsProblem(t *testing.T) {

@@ -78,11 +78,27 @@ func runClaim(stdout, stderr io.Writer, f *claimFlags) error {
 			die(stderr, err.Error())
 		}
 	}
+	// claim's whole job is the sync, so a failure is fatal (preserves the prior
+	// die()-on-error UX now that the sync helpers return errors instead).
+	if err := syncIssuesToMain(stdout, stderr, f, claimRunner); err != nil {
+		die(stderr, err.Error())
+	}
+	return nil
+}
+
+// syncIssuesToMain is the branch-aware sync dispatch shared by `sdlc claim` and
+// `sdlc issue new` (#82 M1): on main it commits + pushes the changed issue files
+// directly; on a feature branch it routes them to the main worktree. Extracted
+// from runClaim so issue creation can broadcast a freshly-scaffolded file to
+// origin/main through the exact same machinery (ARCH-DRY) — the `--issue` filter
+// on f narrows the sync to that one file. The runner is threaded (not hard-wired
+// to claimRunner) so callers and tests inject their own.
+func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 	branch := gitx.Capture("branch", "--show-current")
 	if branch == "main" {
-		return syncOnMain(stdout, stderr, f, claimRunner)
+		return syncOnMain(stdout, stderr, f, r)
 	}
-	return syncOnBranch(stdout, stderr, f, branch, claimRunner)
+	return syncOnBranch(stdout, stderr, f, branch, r)
 }
 
 // startOnClaim folds the "start work" status flip into `sdlc claim`: an
@@ -118,10 +134,14 @@ func startOnClaim(stdout, stderr io.Writer, f *claimFlags) error {
 
 // ── on-main path ─────────────────────────────────────────────────────────────
 
+// syncOnMain returns an error rather than calling die() directly, so callers
+// decide the severity: `claim` dies on it (its whole job is the sync), while
+// `issue new` treats it as best-effort (the file is already written — a failed
+// push must not abort creation, e.g. offline or with no reachable origin).
 func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
-		die(stderr, err.Error())
+		return err
 	}
 	if len(changed) == 0 {
 		cok(stderr, "No issue changes to sync.")
@@ -142,18 +162,18 @@ func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 		id := fmt.Sprintf("%06d", f.Issue)
 		matches, _ := filepath.Glob(filepath.Join(f.IssuesDir, id+"-*.md"))
 		if len(matches) == 0 {
-			die(stderr, fmt.Sprintf("--issue %d: no file matches %s/%s-*.md", f.Issue, f.IssuesDir, id))
+			return fmt.Errorf("--issue %d: no file matches %s/%s-*.md", f.Issue, f.IssuesDir, id)
 		}
 		addArgs = append([]string{"add"}, matches...)
 	}
 	if out, err := r.Git(addArgs...); err != nil {
-		die(stderr, fmt.Sprintf("git add: %v\n%s", err, out))
+		return fmt.Errorf("git add: %v\n%s", err, out)
 	}
 	if out, err := r.Git("commit", "-m", "issue-sync: update issues"); err != nil {
-		die(stderr, fmt.Sprintf("commit failed: %v\n%s", err, out))
+		return fmt.Errorf("commit failed: %v\n%s", err, out)
 	}
 	if out, err := r.Git("push", "origin", "main"); err != nil {
-		die(stderr, fmt.Sprintf("push failed: %v\n%s", err, out))
+		return fmt.Errorf("push failed: %v\n%s", err, out)
 	}
 	cok(stderr, "Issues synced and pushed to origin/main.")
 	fmt.Fprintln(stdout, "synced")
@@ -162,10 +182,12 @@ func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 
 // ── on-branch path ───────────────────────────────────────────────────────────
 
+// syncOnBranch mirrors syncOnMain's error contract: it returns errors instead
+// of calling die() so `claim` (fatal) and `issue new` (best-effort) can choose.
 func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitRunner) error {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
-		die(stderr, err.Error())
+		return err
 	}
 	if len(changed) == 0 {
 		cok(stderr, "No issue changes to sync.")
@@ -179,27 +201,27 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 	// 1. Find the main worktree.
 	mainPath, err := findMainWorktree(r)
 	if err != nil {
-		die(stderr, err.Error())
+		return err
 	}
 
 	// 2. Verify main worktree is on main.
 	mainBranchOut, err := r.GitInDir(mainPath, "branch", "--show-current")
 	if err != nil {
-		die(stderr, fmt.Sprintf("git -C %s branch --show-current: %v\n%s", mainPath, err, mainBranchOut))
+		return fmt.Errorf("git -C %s branch --show-current: %v\n%s", mainPath, err, mainBranchOut)
 	}
 	mainBranch := strings.TrimSpace(string(mainBranchOut))
 	if mainBranch != "main" {
-		die(stderr, fmt.Sprintf("expected main worktree to be on 'main', but it's on '%s'", mainBranch))
+		return fmt.Errorf("expected main worktree to be on 'main', but it's on '%s'", mainBranch)
 	}
 
 	// 3. Check main worktree has no uncommitted issue changes.
 	mainDirty, err := mainHasUncommittedIssueChanges(mainPath, f.IssuesDir, r)
 	if err != nil {
-		die(stderr, err.Error())
+		return err
 	}
 	if len(mainDirty) > 0 {
-		die(stderr, fmt.Sprintf("main worktree has uncommitted issue changes. Commit or stash them first:\n  %s",
-			strings.Join(mainDirty, "\n  ")))
+		return fmt.Errorf("main worktree has uncommitted issue changes. Commit or stash them first:\n  %s",
+			strings.Join(mainDirty, "\n  "))
 	}
 
 	cok(stderr, fmt.Sprintf("Main worktree found at: %s", mainPath))
@@ -212,13 +234,13 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 	// 4. Pull --rebase origin main on main worktree.
 	cinfo(stderr, "Pulling latest main from origin...")
 	if out, err := r.GitInDir(mainPath, "pull", "--rebase", "origin", "main"); err != nil {
-		die(stderr, fmt.Sprintf("failed to pull main from origin: %v\n%s", err, out))
+		return fmt.Errorf("failed to pull main from origin: %v\n%s", err, out)
 	}
 
 	// 5. Compute merge base and detect conflicts.
 	mergeBase := strings.TrimSpace(string(mustGitOutput(r, "merge-base", "main", "HEAD")))
 	if mergeBase == "" {
-		die(stderr, "cannot find merge base between main and HEAD")
+		return fmt.Errorf("cannot find merge base between main and HEAD")
 	}
 	mainChangedOut, _ := r.Git("diff", "--name-only", mergeBase, "main", "--", f.IssuesDir+"/")
 	mainChanged := map[string]bool{}
@@ -234,6 +256,8 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 		}
 	}
 	if len(conflicts) > 0 {
+		// Print the multi-line resolution guide here (it's specific to this
+		// state), then return a short sentinel — the caller decides fatal vs warn.
 		fmt.Fprintf(stderr, "%sConflict detected!%s\n", ansiRed, ansiReset)
 		fmt.Fprintln(stderr, "These issue files were changed on both your branch and main:")
 		for _, c := range conflicts {
@@ -247,7 +271,7 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 		fmt.Fprintf(stderr, "  3. git add %s/\n", f.IssuesDir)
 		fmt.Fprintf(stderr, "  4. git commit -m \"issue-sync: resolve conflicts\"\n")
 		fmt.Fprintf(stderr, "  5. git push origin main\n")
-		os.Exit(1)
+		return fmt.Errorf("issue-sync conflict on %d file(s) — resolve as shown above", len(conflicts))
 	}
 
 	cok(stderr, "No conflicts detected.")
@@ -259,14 +283,14 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 		src := filepath.Join(wtRoot, c)
 		dest := filepath.Join(mainPath, c)
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			die(stderr, fmt.Sprintf("mkdir %s: %v", filepath.Dir(dest), err))
+			return fmt.Errorf("mkdir %s: %v", filepath.Dir(dest), err)
 		}
 		data, err := os.ReadFile(src)
 		if err != nil {
-			die(stderr, fmt.Sprintf("read %s: %v", src, err))
+			return fmt.Errorf("read %s: %v", src, err)
 		}
 		if err := os.WriteFile(dest, data, 0o644); err != nil {
-			die(stderr, fmt.Sprintf("write %s: %v", dest, err))
+			return fmt.Errorf("write %s: %v", dest, err)
 		}
 		fmt.Fprintf(stderr, "  %s\n", c)
 	}
@@ -274,14 +298,14 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 	// 7. Commit + push on main worktree.
 	cinfo(stderr, "Committing and pushing on main...")
 	if out, err := r.GitInDir(mainPath, "add", f.IssuesDir+"/"); err != nil {
-		die(stderr, fmt.Sprintf("git -C %s add: %v\n%s", mainPath, err, out))
+		return fmt.Errorf("git -C %s add: %v\n%s", mainPath, err, out)
 	}
 	commitMsg := fmt.Sprintf("issue-sync: update issues from branch '%s'", branch)
 	if out, err := r.GitInDir(mainPath, "commit", "-m", commitMsg); err != nil {
-		die(stderr, fmt.Sprintf("commit failed: %v\n%s", err, out))
+		return fmt.Errorf("commit failed: %v\n%s", err, out)
 	}
 	if out, err := r.GitInDir(mainPath, "push", "origin", "main"); err != nil {
-		die(stderr, fmt.Sprintf("push failed: %v\n%s", err, out))
+		return fmt.Errorf("push failed: %v\n%s", err, out)
 	}
 	cok(stderr, "Issues synced to main and pushed to origin.")
 	fmt.Fprintln(stdout, "synced")
