@@ -149,12 +149,22 @@ func TestArchiveDoneIssuesInDir_MovesAndDoesNotCloseGH(t *testing.T) {
 	defer func() { ghClient = prev }()
 
 	var stderr stringWriter
-	moved, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, issuesDir, historyDir)
+	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, issuesDir, historyDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if moved != 1 {
-		t.Errorf("moved = %d, want 1", moved)
+	if len(moves) != 1 {
+		t.Errorf("moved = %d, want 1", len(moves))
+	}
+	// Returned paths are mainPath-relative (so GitInDir resolves them) — never
+	// absolute, or a precise `git add` from the main worktree would silently miss.
+	if len(moves) == 1 {
+		if got, want := moves[0].IssuePath, filepath.Join(issuesDir, "000001-done.md"); got != want {
+			t.Errorf("IssuePath = %q, want relative %q", got, want)
+		}
+		if got, want := moves[0].HistoryPath, filepath.Join(historyDir, "000001-done.md"); got != want {
+			t.Errorf("HistoryPath = %q, want relative %q", got, want)
+		}
 	}
 	if len(stub.closed) != 0 {
 		t.Errorf("merge must NOT call gh issue close (PR merge does it via Fixes); got closed = %v", stub.closed)
@@ -174,12 +184,12 @@ func TestArchiveDoneIssuesInDir_EmptyTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stderr stringWriter
-	moved, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, "workshop/issues", "workshop/history")
+	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, "workshop/issues", "workshop/history")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if moved != 0 {
-		t.Errorf("moved = %d, want 0", moved)
+	if len(moves) != 0 {
+		t.Errorf("moved = %d, want 0", len(moves))
 	}
 }
 

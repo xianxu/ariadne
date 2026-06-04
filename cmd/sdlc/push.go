@@ -166,14 +166,14 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		cwarn(stderr, fmt.Sprintf("repo detection failed: %v (skipping GitHub issue closes)", repoErr))
 		repo = ""
 	}
-	moved, err := archiveDoneIssues(stderr, repo, f.IssuesDir, f.HistoryDir)
+	moves, err := archiveDoneIssues(stderr, repo, f.IssuesDir, f.HistoryDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	if moved > 0 {
+	if len(moves) > 0 {
 		cinfo(stderr, "Committing archived history...")
-		if out, gerr := pushRunner.Git("add", f.IssuesDir+"/", f.HistoryDir+"/"); gerr != nil {
-			die(stderr, fmt.Sprintf("git add archive dirs: %v\n%s", gerr, out))
+		if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
+			die(stderr, fmt.Sprintf("git add archived paths: %v\n%s", gerr, out))
 		}
 		if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
 			die(stderr, fmt.Sprintf("commit archive failed: %v\n%s", gerr, out))
@@ -181,7 +181,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if out, gerr := pushRunner.Git("push"); gerr != nil {
 			die(stderr, fmt.Sprintf("push archive failed: %v\n%s", gerr, out))
 		}
-		cok(stderr, fmt.Sprintf("archived %d issue file(s) to %s/", moved, f.HistoryDir))
+		cok(stderr, fmt.Sprintf("archived %d issue file(s) to %s/", len(moves), f.HistoryDir))
 	}
 
 	cok(stderr, "Done.")
@@ -193,6 +193,21 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 type preparedArchiveMove struct {
 	IssuePath   string
 	HistoryPath string
+}
+
+// archiveAddArgs builds the precise `git add` argument list that stages exactly
+// the paths an archive touched — each moved issue's deleted source and created
+// history file — and nothing else. It is the exactly-moved-paths counterpart to
+// the broad `git add <issuesDir>/ <historyDir>/`, which also sweeps unrelated
+// untracked tracker files (in-progress WIP for unclaimed issues) onto main (#80).
+// The leading `--` guards against any path being parsed as a flag. Pure: callers
+// (merge in the main worktree, push in cwd) feed the result to their own runner.
+func archiveAddArgs(moves []preparedArchiveMove) []string {
+	args := []string{"add", "--"}
+	for _, m := range moves {
+		args = append(args, m.IssuePath, m.HistoryPath)
+	}
+	return args
 }
 
 // recoverInterruptedArchive handles the state left by an interrupted archive
@@ -221,13 +236,13 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 		fmt.Fprintf(stderr, "       %s → %s\n", m.IssuePath, m.HistoryPath)
 	}
 	if f.DryRun {
-		fmt.Fprintf(stdout, "Would: git add %s/ %s/\n", f.IssuesDir, f.HistoryDir)
+		fmt.Fprintf(stdout, "Would: git %s\n", strings.Join(archiveAddArgs(moves), " "))
 		fmt.Fprintf(stdout, "Would: git commit -m %q\n", "archive completed issues to history")
 		fmt.Fprintln(stdout, "Would: git push")
 		return true, nil
 	}
-	if out, gerr := pushRunner.Git("add", f.IssuesDir+"/", f.HistoryDir+"/"); gerr != nil {
-		return false, fmt.Errorf("git add archive dirs: %v\n%s", gerr, out)
+	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
+		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
 	}
 	if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
 		return false, fmt.Errorf("commit archive failed: %v\n%s", gerr, out)
@@ -433,11 +448,12 @@ func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, err
 // archiveDoneIssues scans issuesDir for NNNNNN-*.md with terminal status
 // and moves them to historyDir. For status=done with a github_issue:
 // frontmatter, calls gh issue close (best-effort — failure warns but does
-// not abort). Returns the number moved.
-func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir string) (int, error) {
+// not abort). Returns the moves it made (deleted issue path + created history
+// path, repo-relative) so the caller can stage exactly those paths (#80).
+func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir string) ([]preparedArchiveMove, error) {
 	matches, _ := filepath.Glob(filepath.Join(issuesDir, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
 	sort.Strings(matches)
-	moved := 0
+	var moves []preparedArchiveMove
 	for _, p := range matches {
 		data, err := os.ReadFile(p)
 		if err != nil {
@@ -461,16 +477,16 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir string) (in
 			}
 		}
 		if err := os.MkdirAll(historyDir, 0o755); err != nil {
-			return moved, fmt.Errorf("mkdir %s: %v", historyDir, err)
+			return moves, fmt.Errorf("mkdir %s: %v", historyDir, err)
 		}
 		dest := filepath.Join(historyDir, filepath.Base(p))
 		cinfo(stderr, fmt.Sprintf("Archiving %s to %s/", p, historyDir))
 		if err := os.Rename(p, dest); err != nil {
-			return moved, fmt.Errorf("mv %s → %s: %v", p, dest, err)
+			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
 		}
-		moved++
+		moves = append(moves, preparedArchiveMove{IssuePath: p, HistoryPath: dest})
 	}
-	return moved, nil
+	return moves, nil
 }
 
 // isTerminalStatus reports whether s is one of {done, wontfix, punt} —
