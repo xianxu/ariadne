@@ -8,7 +8,7 @@
 ### 1. Artifact Hierarchy
 
 #### This Repo
-- Simple work → one file in `workshop/issues/`; complex → add `workshop/plans/NNNNNN-slug-plan.md`.
+- Simple work → one file in `workshop/issues/`; complex → add a durable plan at `workshop/plans/NNNNNN-slug-plan.md`, authored via the **`superpowers-writing-plans`** skill (the canonical plan path — see §2). It's version-controlled and archived with the issue; never the harness builtin's ephemeral `~/.claude/plans/` file.
 - On done, move issues + plans to `workshop/history/`. 
 - A datatype `target` (`workshop/targets/`) captures an invariant worth defending from drift; issues/projects reference it via `target: <slug>` frontmatter. 
 - Revising a plan artifact (`issue`/`plan`/`project`/`roadmap`/`target`) mid-stream: append a `## Revisions` section (timestamp + reason + delta), don't overwrite.
@@ -20,8 +20,8 @@
 - "brain" = special peer holding cross-cutting state (`project`, `roadmap`). A repo is a brain iff `.brain/config.md` exists (`test -d .brain`). Encrypted via gcrypt + GPG recipient list unless local-only; see `brain/atlas/threat-model-shared-brain.md`.
 
 ### 2. Overall Workflow
-- Unclear requirement → brainstorm. Non-trivial task (>3 files or >100 lines) → plan mode, wait for approval.
-- **Entering planning:** run `sdlc start-plan` (after `claim`, before you design). It delivers the `at-plan` architectural principles (`ARCH-*`, see Core Design Principles) so the design accounts for them from the start — the forward counterpart to `change-code`'s plan-quality review. Re-run per design (agents don't reread). Flow: `claim → start-plan → (design) → change-code → implement → close`.
+- Unclear requirement → brainstorm. Non-trivial task (>3 files or >100 lines) → design via the **`superpowers-writing-plans`** skill, landing the durable plan in `workshop/plans/NNNNNN-slug-plan.md`, and wait for approval. The harness builtin plan-mode (`EnterPlanMode`) is fine as a read-only/approval affordance, but its `~/.claude/plans/` file is ephemeral and version-uncontrolled — **NOT the record of truth**; the durable plan lives in `workshop/plans/`.
+- **Entering planning:** run `sdlc start-plan` (after `claim`, before you design). It delivers the `at-plan` architectural principles (`ARCH-*`, see Core Design Principles) so the design accounts for them from the start — the forward counterpart to `change-code`'s plan-quality review — and points at the durable-plan skill + location. Re-run per design (agents don't reread). Flow: `claim → start-plan → (design via `superpowers-writing-plans` → `workshop/plans/`) → change-code → implement → close`.
 - **Two trackers:** `workshop/issues/` is the internal tracker (Spec/Plan/Log per issue); GitHub Issues are an external inbox (bug reports + requests from non-contributors). Create internal issues with `sdlc issue new` (`--from-github N` pulls a GH inbox item in, recording the link as `github_issue:`; use `--deps` for cross-repo blocking deps); don't `gh issue create` for internal work. See `sdlc issue --help` for the issue-file contract.
 - Issue file sections: `## Spec` (brainstorm result), `## Plan` (checkable steps), `## Log` (discoveries, tools). Update often. Status: open/working/blocked/done/wontfix/punt.
 - ALWAYS add tests for problems surfaced during design.

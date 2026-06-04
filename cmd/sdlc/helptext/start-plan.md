@@ -24,7 +24,10 @@ OUTPUT
 
   A framing line + each `ARCH-*` principle's `at-plan` lens (what to check while
   designing). Cite the marker (e.g. `ARCH-DRY`) in your plan where a principle
-  shaped a decision.
+  shaped a decision. Then a durable-plan pointer — author the plan via the
+  `superpowers-writing-plans` skill into `workshop/plans/NNNNNN-slug-plan.md`
+  (version-controlled), not the harness builtin's ephemeral `~/.claude/plans/`
+  file (#72). Closes with the non-blocking dependency-path contention heads-up.
 
 FLAGS
 

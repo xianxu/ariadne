@@ -15,7 +15,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-**Save plans to:** `workshop/plans/<slug>-plan.md`
+**Save plans to:** `workshop/plans/NNNNNN-<slug>-plan.md` (where `NNNNNN` is the issue's zero-padded id — matches AGENTS.md §1's convention)
 - (User preferences for plan location override this default)
 
 ## Scope Check
