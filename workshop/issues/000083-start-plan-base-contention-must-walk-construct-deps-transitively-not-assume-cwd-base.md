@@ -1,11 +1,12 @@
 ---
 id: 000083
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 2.0
+actual_hours: 2.0
 ---
 
 # start-plan base-contention must walk construct/deps transitively, not assume cwd==base
@@ -124,6 +125,7 @@ atlas). No Mx.
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — go test ./cmd/sdlc/... green; go vet clean. New TestParseSubstrateTargets (shell-mirrored edge cases) + TestSubstrateChain (root-relative resolution, transitive 2-hop, absent-peer skip, empty-for-root). Verified LIVE both directions: sdlc start-plan in ariadne → base(ariadne) self; in nous → base(ariadne) upstream (NOT base(nous)) — the exact derivative case #82 M3 mis-handled. isBaseRepo deleted.; review verdict: SHIP
 Filed as a fast-follow on #82 M3, after the operator caught two false premises in
 the shipped detection: (1) `construct/` is a real dir in derivatives too (only
 subpaths are symlinked), so `isBaseRepo` fires everywhere; (2) the right signal is

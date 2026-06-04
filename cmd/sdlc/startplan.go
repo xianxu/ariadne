@@ -171,9 +171,16 @@ func parseSubstrateTargets(depsContent string) []string {
 func substrateChain(root string) []string {
 	var order []string
 	seen := map[string]bool{}
-	if abs, err := filepath.Abs(root); err == nil {
-		seen[abs] = true
+	// Seed the cycle-guard with the root's CANONICAL key (EvalSymlinks, matching
+	// how upstream entries are keyed below) so a cycle resolving back to root via
+	// a symlinked path still matches and can't re-enter walk(root).
+	rootKey := filepath.Clean(root)
+	if real, err := filepath.EvalSymlinks(rootKey); err == nil {
+		rootKey = real
+	} else if abs, err := filepath.Abs(rootKey); err == nil {
+		rootKey = abs
 	}
+	seen[rootKey] = true
 	var walk func(declRoot string)
 	walk = func(declRoot string) {
 		data, err := os.ReadFile(filepath.Join(declRoot, "construct", "deps"))

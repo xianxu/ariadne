@@ -33,7 +33,7 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	}
 }
 
-// ── #82 M3: base-contention summary (pure), isBaseRepo, issueRef ─────────────
+// ── #82 M3 / #83: base-contention summary, deps-chain walk, issueRef ─────────
 
 func TestBaseContentionSummary(t *testing.T) {
 	cases := []struct {
