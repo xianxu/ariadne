@@ -49,10 +49,20 @@ which lands plans wherever we tell it. So this is **promotion, not invention**.
 
 ## Plan
 
-- [ ] Confirm the adapted `superpowers-writing-plans` skill writes to `workshop/plans/` (or
-      make it).
-- [ ] Edit AGENTS.md §2 (and §1's plans bullet) to name the skill + location as canonical.
-- [ ] Decide + wire the EnterPlanMode fallback (discourage, or `change-code` ingests).
+Detailed plan: [`workshop/plans/000072-promote-superpowers-planning-plan.md`](../plans/000072-promote-superpowers-planning-plan.md)
+(authored via `superpowers-writing-plans` — dogfooding the path this issue promotes).
+
+**Decisions (operator-confirmed):** fallback = **discourage (prose-only)**; do NOT
+teach the binary `~/.claude/plans` (agent-agnosticism, §11). Add a non-blocking
+`start-plan` pointer line. Single review boundary (atomic) — no `Mx`.
+
+- Confirmed: the skill already writes to `workshop/plans/` (SKILL.md:18) → promotion, not invention.
+- [x] **Task 1** — `planPointer` pure helper + `TestPlanPointer`; printed by `start-plan`
+      between the architecture block and the contention read (`startplan.go`).
+- [x] **Task 2** — AGENTS.md §2/§1 name the skill + demote `~/.claude/plans`; SKILL.md slug
+      grammar aligned to `NNNNNN-`; start-plan helptext OUTPUT line.
+- [x] **Task 3** — atlas: `issue-lifecycle.md` (flow + producer), `sdlc-binary.md` (pointer),
+      `artifact-hierarchy.md` (producer).
 
 ## Log
 
@@ -62,3 +72,22 @@ Filed from the sdlc tooling retro
 (`workshop/pensive/2026-06-02-01-pensive-sdlc-tooling-retro.md`, finding F6). `EnterPlanMode`
 is a Claude Code builtin tool (writes ephemeral `~/.claude/plans`); ariadne already has the
 adapted superpowers planning skill — promote it.
+
+### 2026-06-04
+
+Shipped. **Promotion, not invention** — the skill already wrote to `workshop/plans/`
+(SKILL.md:18), so the work was constitution + atlas prose + one pure helper.
+**Decisions:** fallback = *discourage (prose-only)*; rejected teaching the binary
+`~/.claude/plans` (agent-agnosticism, §11) and the `sdlc plan import` bridge verb
+(YAGNI). The session itself dogfooded the bug — plan mode stranded my plan at
+`~/.claude/plans/validated-puzzling-map.md` (a slug with zero tie to `000072`,
+confirming why binary-ingest's slug→issue mapping is unrecoverable) — so I authored
+the durable plan via `superpowers-writing-plans` →
+`workshop/plans/000072-…-plan.md`. **Delivered:** `planPointer` pure helper printed
+by `start-plan` between the architecture block and the contention read (ordering
+*what → how/where → environment*); AGENTS.md §1/§2 reframe + `~/.claude/plans`
+demotion; SKILL.md slug grammar aligned to `NNNNNN-`; helptext OUTPUT; 3 atlas
+files. plan-quality judge: CLEAN (high). `go test ./cmd/sdlc/...` green
+(`TestPlanPointer` added); `go vet` clean; live `start-plan --issue 72` ordering
+verified. `ARCH-PURE` (id-only pure helper, table-tested), `ARCH-DRY` (one path
+grammar across constitution/skill/binary, pinned by the literal-asserting test).
