@@ -210,10 +210,20 @@ commits (ARCH-DRY). A milestone window bases on the **previous review boundary**
 `previousReviewBoundary` — not on the first `#N Mx` commit. This closes a gap
 where an inter-milestone `#N`-but-not-`Mx` commit (a `side-quest:`, a fix) landed
 between M(x-1)'s close and Mx's first commit would slip *both* windows and escape
-review. The first milestone (no prior boundary) and the whole-issue close fall
-back to the branch start (parent of the first `#N` commit). If a prior close's
-trailer was never pasted, the lookup finds nothing and falls back to branch start
-— over-covering rather than under-covering, the safe direction.
+review. The first milestone (no prior boundary) falls back to the branch start
+(parent of the first `#N` commit); if a prior close's trailer was never pasted,
+the lookup finds nothing and falls back the same way — over-covering rather than
+under-covering, the safe direction.
+
+The **whole-issue** close (the end-of-issue integration review) bases on the
+**branch point** — `gitx.MergeBaseWithMain()` = `merge-base(main, HEAD)` — so it
+windows exactly this branch's commits, not unrelated history merged onto main
+before the issue's first commit (#77; an issue filed early but implemented late
+otherwise over-captured everything since it was *filed*). On `main` (the direct
+`sdlc push` flow, no divergence) merge-base == HEAD, so it falls back to the
+issue's branch start. `MergeBaseWithMain` is deliberately separate from
+`DiffBase` (the `sdlc judge` window): same merge-base core, but it returns `""`
+on no-divergence so the caller can pick the issue-specific fallback.
 
 ## Build + install
 
