@@ -1,11 +1,12 @@
 ---
 id: 000083
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 2.0
+actual_hours: 2.0
 ---
 
 # start-plan base-contention must walk construct/deps transitively, not assume cwd==base
@@ -96,30 +97,35 @@ so add a minimal one).
 Single-pass atomic correction (one feature, contained to startplan.go + tests +
 atlas). No Mx.
 
-- [ ] Add pure `parseSubstrateTargets(depsContent) []string` (port the parse half
+- [x] Add pure `parseSubstrateTargets(depsContent) []string` (port the parse half
       of `lib-deps.sh deps_substrate_targets`: strip `#`, word-split, keep
-      `substrate` rows' target). Table-test it.
-- [ ] Add `substrateChain(root) []string` — transitive walk: read
+      `substrate` rows' target). Table-test it — mirrors the shell edge cases
+      (mid-line `#`, 1-field malformed skipped, abs vs rel, data rows ignored).
+- [x] Add `substrateChain(root) []string` — transitive walk: read
       `<root>/construct/deps`, resolve each `substrate` target relative to its
-      declaring root (`filepath.Join` + `Clean`; `EvalSymlinks` best-effort),
-      dedupe via a seen-set, skip non-existent dirs, recurse. Test over a temp
-      A→B→C fixture.
-- [ ] Retarget `gatherBaseContention(root, excludeIssue)` to read an arbitrary
+      declaring root (`filepath.Join` + `Clean` + best-effort `EvalSymlinks`),
+      dedupe via a seen-set (also a cycle guard), skip non-existent dirs, recurse.
+      Tested over a temp C→B→A fixture (asserts root-relative resolution + the
+      transitive 2-hop path + absent-peer skip + empty-for-root).
+- [x] Retarget `gatherBaseContention(root, excludeIssue)` to read an arbitrary
       root via `mergeRunner.GitInDir(root, …)` for branch + `status --porcelain`
       (→ `assessDirty(...).Blocking` count) and `listIssues(filepath.Join(root,
-      issuesDir))`. (Pure `assessDirty`/summary reused unchanged.)
-- [ ] Rewrite `runStartPlan`'s tail: `chain := substrateChain(root)`; if empty →
-      `[root]` (root reports self); for each repo print `cok`/`cwarn` of
+      issuesDir))`. **TrimSpace the GitInDir branch output** (gitx.Capture trimmed;
+      GitInDir doesn't — else Clean() never fires). Pure `assessDirty`/summary reused.
+- [x] Rewrite `runStartPlan`'s tail: `chain := substrateChain(root)`; if empty →
+      `[root]` (root reports self); per repo print `cok`/`cwarn` of
       `baseContentionSummary` by `Clean()`.
-- [ ] Delete `isBaseRepo` + `TestIsBaseRepo`.
-- [ ] Update atlas `sdlc-binary.md` + `base-layer.md` (deps-chain walk, not
+- [x] Delete `isBaseRepo` + `TestIsBaseRepo`.
+- [x] Update atlas `sdlc-binary.md` + `base-layer.md` (deps-chain walk, not
       construct-symlink).
-- [ ] `go test ./cmd/sdlc/...` green; verify live: `sdlc start-plan` in ariadne
-      (self) and, if a derivative is handy, in nous (reports ariadne).
+- [x] `go test ./cmd/sdlc/...` green; **verified live**: `sdlc start-plan` in
+      ariadne → `base (ariadne): …` (self); in nous → `base (ariadne): …` (its
+      upstream, NOT `base (nous)`) — the exact case the old heuristic got wrong.
 
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — go test ./cmd/sdlc/... green; go vet clean. New TestParseSubstrateTargets (shell-mirrored edge cases) + TestSubstrateChain (root-relative resolution, transitive 2-hop, absent-peer skip, empty-for-root). Verified LIVE both directions: sdlc start-plan in ariadne → base(ariadne) self; in nous → base(ariadne) upstream (NOT base(nous)) — the exact derivative case #82 M3 mis-handled. isBaseRepo deleted.; review verdict: SHIP
 Filed as a fast-follow on #82 M3, after the operator caught two false premises in
 the shipped detection: (1) `construct/` is a real dir in derivatives too (only
 subpaths are symlinked), so `isBaseRepo` fires everywhere; (2) the right signal is
@@ -131,3 +137,16 @@ now), so no vendor-mode branch. Reuse target: `construct/scripts/lib-deps.sh`
 pure one. The pure `baseContentionSummary` from #82 M3 is correct and stays; only
 the detection + gather (cwd→deps-chain) change. See [[000082]] (M3 shipped the
 cwd==base version).
+
+### 2026-06-04 (implementation)
+Done in one pass. `isBaseRepo` deleted; `parseSubstrateTargets` (pure, ARCH-DRY
+note: third reader of the `substrate` grammar — doc-comment pins lockstep with
+`lib-deps.sh deps_substrate_targets`, edge cases mirrored in tests) +
+`substrateChain` (transitive walk, root-relative resolution, dedupe/cycle-guard,
+present-skip) added; `gatherBaseContention` retargeted to an arbitrary root via
+`GitInDir` (with the **TrimSpace** fix the plan-quality judge flagged — GitInDir
+keeps the trailing newline). `runStartPlan` now loops the chain (empty → root
+reports self). The pure `baseContentionSummary`/`Clean`/`issueRef` unchanged.
+**Verified live both directions:** ariadne → `base (ariadne)`; nous →
+`base (ariadne)` (its upstream), confirming the derivative case the original M3
+mis-handled. `go test ./cmd/sdlc/...` green, `go vet` clean.
