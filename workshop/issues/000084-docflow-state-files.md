@@ -1,11 +1,12 @@
 ---
 id: 000084
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 0.75
+actual_hours: 0.75
 ---
 
 # docflow: store review state in .git/docflow/ files, not .git/config (sandbox-compatible)
@@ -79,6 +80,7 @@ Single-pass refinement (one review boundary) → plain checkboxes.
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — docflow.test.sh 35/35 unsandboxed (rewrote 3 stale config-reading assertions to read .git/docflow files; added no-config-leak + meta-dir-cleanup). Zero git config writes remain (grep-clean). End-to-end SANDBOX PROOF in xianxu.dev (the repo whose .git/config the sandbox guards): start→round→finish on a throwaway doc, merged to a throwaway base so main stayed clean, all rc=0 with NO dangerouslyDisableSandbox and clean output. git branch -d config-write warning suppressed (exit 0, branch still deleted).; review verdict: SHIP
 
 Filed from the sandbox investigation in the xianxu.dev session. Root cause: docflow's
 only sandbox collision is its `git config` state writes to the security-denied
