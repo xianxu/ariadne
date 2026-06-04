@@ -1,11 +1,12 @@
 ---
 id: 000077
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
 estimate_hours: 1.0
+actual_hours: 1.0
 ---
 
 # whole-issue close window: base on merge-base(main) not first #N commit
@@ -93,6 +94,7 @@ Focused single-pass change (no milestone split). Localized to
 ## Log
 
 ### 2026-06-03
+- 2026-06-03: closed — go test ./cmd/sdlc/... green; new TestBoundaryWindowBase_WholeIssueBasesOnBranchPoint asserts whole-issue window = merge-base(main,HEAD) and EXCLUDES filed-early + unrelated merged commits; on-main fallback + milestone paths unchanged. gitx.MergeBaseWithMain added next to DiffBase; review verdict: SHIP
 Filed from #58's boundary review (Important, non-blocking) — the whole-issue
 window over-captures when issue-file and implementation are far apart in history.
 Pre-existing behavior #58 entrenched as the single window source. See [[000058]]
@@ -119,3 +121,18 @@ implement) and asserts the window = merge-base and EXCLUDES the file-issue +
 unrelated commits (the 147-commit over-capture #58 surfaced). On-main fallback
 pinned by the existing whole-issue test. `go build`/`go vet`/`go test
 ./cmd/sdlc/...` green; gofmt clean; atlas `sdlc-binary.md` updated.
+
+### 2026-06-03 — boundary review: SHIP (high)
+Dogfood: the close window resolved to `5b244ee..HEAD` (the branch point) — just
+this branch's commits, NOT the 147-commit over-capture this issue fixed. No
+Critical/Important findings.
+
+Forward-awareness note (review recommendation, NOT fixed here — orthogonal,
+pre-existing, safe to defer): **merge-main-into-feature** is an under-coverage
+gap. If `main` is pulled *into* the feature branch mid-issue, `merge-base(main,
+HEAD)` advances to the merged-in `main` tip, so feature commits made *before*
+that merge fall outside `base..HEAD` and escape the whole-issue review. This is
+under-coverage (the dangerous direction), but: (a) it's not introduced here —
+`DiffBase`/`sdlc judge` already use identical merge-base semantics; (b) the
+repo's flow is feature→main (`sdlc push`/`merge`), not main→feature. If it ever
+bites, the fix lives in the same `boundaryWindowBase` decision point.
