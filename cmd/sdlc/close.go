@@ -375,26 +375,19 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	}
 
 	// ── Commit window + atlas check ─────────────────────────────────────────
-	refSubject := "#" + issueStr
-	if f.Milestone != "" {
-		refSubject += " " + f.Milestone
-	}
-	// One commit-window scan (ARCH-DRY) shared with resolveReviewWindow (#69
-	// review): the atlas window and the boundary-review window are the same scan.
-	firstSHA, matchingCount := firstCommitReferencing(refSubject)
-	if firstSHA != "" {
-		plural := "s"
-		if matchingCount == 1 {
-			plural = ""
-		}
-		cinfo(stderr, fmt.Sprintf("commit window: %s → HEAD (%d commit%s reference '%s')",
-			firstSHA[:8], matchingCount, plural, refSubject))
+	// One window source (ARCH-DRY, #58): boundaryWindowBase gives the same base
+	// the boundary review uses — the prior review boundary for a milestone close,
+	// the branch start otherwise — so the atlas-coverage check and the review
+	// cover exactly the same commits, including inter-milestone side-quests/fixes.
+	windowBase := boundaryWindowBase(issueStr, f.Milestone, issuePath)
+	if windowBase != "" {
+		cinfo(stderr, fmt.Sprintf("commit window: %s → HEAD", shortSHA(windowBase)))
 	} else {
-		cwarn(stderr, fmt.Sprintf("no commits reference '%s' on this branch", refSubject))
+		cwarn(stderr, fmt.Sprintf("no commits reference '#%s' on this branch", issueStr))
 	}
 
-	if firstSHA != "" {
-		diffFiles, _ := gitx.DiffNames(firstSHA+"^", "HEAD")
+	if windowBase != "" {
+		diffFiles, _ := gitx.DiffNames(windowBase, "HEAD")
 		var atlasChanged, nonAtlas []string
 		for _, p := range diffFiles {
 			if strings.HasPrefix(p, "atlas/") {
@@ -405,7 +398,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		}
 		if len(atlasChanged) == 0 {
 			if !f.skip("atlas") {
-				explainNoAtlas(stderr, firstSHA, nonAtlas)
+				explainNoAtlas(stderr, shortSHA(windowBase), nonAtlas)
 				os.Exit(1)
 			}
 			cwarn(stderr, "--no-atlas (or --force): skipping atlas/ change check — rationale in --verified")
@@ -610,7 +603,9 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		return nil // milestone close: the review belongs to milestone-close
 	}
 
-	base, baseLong, head := resolveReviewWindow("#" + strconv.Itoa(f.Issue))
+	// Whole-issue close: window spans the whole branch (milestone "" → branch
+	// start), so issuePath isn't consulted for the base — pass "" (#58).
+	base, baseLong, head := resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
 	switch {
 	case f.skip("judge"):
 		cinfo(stderr, "skipping issue boundary review per --no-judge (or --force)")
@@ -702,7 +697,7 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }
 
-func explainNoAtlas(stderr io.Writer, firstSHA string, nonAtlas []string) {
+func explainNoAtlas(stderr io.Writer, windowBaseShort string, nonAtlas []string) {
 	atlasFiles, _ := filepath.Glob("atlas/*.md")
 	sort.Strings(atlasFiles)
 
@@ -737,7 +732,7 @@ func explainNoAtlas(stderr io.Writer, firstSHA string, nonAtlas []string) {
 	}
 
 	var lines []string
-	lines = append(lines, fmt.Sprintf("no atlas/ changes in %s..HEAD (§5 step 5).", firstSHA[:8]))
+	lines = append(lines, fmt.Sprintf("no atlas/ changes in %s..HEAD (§5 step 5).", windowBaseShort))
 	if len(atlasFiles) > 0 {
 		lines = append(lines, "  Existing atlas files (pick the one matching new surface):")
 		for _, a := range atlasFiles {

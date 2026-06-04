@@ -13,10 +13,14 @@ WHAT IT DOES
      - refuses if atlas/ wasn't touched in the window (unless --force)
 
   2. Auto-dispatches `sdlc judge milestone-review`:
-     - Finds the first commit referencing `#<issue> <milestone>` in the
-       current branch's history
-     - Diff window: that commit's parent..HEAD (matches close's atlas
-       check window exactly)
+     - Diff window: the PREVIOUS review boundary..HEAD — the prior
+       milestone close's commit (the one carrying its Review-Verdict:
+       trailer), or the branch start for the first milestone. Basing on
+       the prior boundary (not the first `#<issue> <milestone>` commit)
+       means inter-milestone `#<issue>`-but-not-`<milestone>` commits
+       (side-quests, fixes) land in exactly one window instead of
+       slipping the gap between two milestones (#58). Matches close's
+       atlas check window exactly.
      - Builds the milestone-review prompt with issue ref + base/head
      - Invokes the configured agent (claude by default)
      - Surfaces findings + classifies clean / info / failure
