@@ -142,9 +142,17 @@ re-asserts no **tracked** dirt immediately before the irreversible `gh pr merge`
 (refuse, don't strand), and (b) resumes an interrupted merge — a re-run detects
 an already-merged PR and finishes the local cleanup instead of erroring.
 The clean-tree guards (step 2 and the 9b re-assert) refuse only on tracked
-changes via one pure `assessDirty(...).Refuse()` decision (#78); **untracked**
-files survive `git switch main`, so they're surfaced as a warning, not a blocker
-— unrelated local WIP no longer forces a stash-around-the-merge detour.
+**code** changes via one pure `assessDirty(...).Refuse()` decision (#78);
+`assessDirty` buckets each porcelain line into Blocking / Untracked / Tracker.
+**Untracked** files survive `git switch main`, so they're surfaced as a warning,
+not a blocker — unrelated local WIP no longer forces a stash-around-the-merge
+detour. **Tracker** files (`workshop/issues|history/NNNNNN-*.md`) are likewise
+never blocking, tracked-modified *or* untracked (#82 M2): they're append-only
+shared state synced to main out-of-band (#82 M1), not code contention, so a dirty
+issue file never gates a merge. (Path matching reuses push.go's
+`isIssuePath`/`isHistoryPath`; the path is pulled by field-split, not column
+slice, since `worktreeDirty` whole-trims and strips the first line's leading
+status space.)
 Both behaviors have e2e regression coverage (#63, `merge_e2e_test.go`): a
 `tempRepo(t)` harness runs `runMerge` against a real throwaway repo + local bare
 origin (in-place topology), so switch/pull/archive/branch-delete execute for

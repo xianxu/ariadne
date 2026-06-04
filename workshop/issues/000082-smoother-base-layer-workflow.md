@@ -144,7 +144,7 @@ guard work and the filtered-add pattern sit on clean guard hygiene.
         (Same worktree-topology constraints as `sdlc claim` today; not new here.)
       - Test: `issue new` on main → file present + committed (clean tree); an
         unrelated untracked issue file is untouched; `--dry-run` does NOT sync.
-- [ ] **M2 — guards ignore tracker files.** Dedicated non-blocking bucket.
+- [x] **M2 — guards ignore tracker files.** Dedicated non-blocking bucket.
       - **ARCH-DRY + ARCH-PURE:** give `dirtyAssessment` a third `Tracker []string`
         bucket; `assessDirty(porcelain, issuesDir, historyDir)` classifies any
         `workshop/issues|history/NNNNNN-*.md` line (tracked *or* untracked) as
@@ -184,6 +184,7 @@ guard work and the filtered-add pattern sit on clean guard hygiene.
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed M2 — go test ./cmd/sdlc/... green; TestAssessDirty (both directions: dirty issue→proceeds, dirty code→refuses, mixed→code blocks, non-tracker .md blocks, trimmed-leading-space regression) + TestPorcelainPaths + e2e TestRunMerge_DirtyTrackerFile_Proceeds (complements existing dirty-code-refuses e2e); go vet clean.; review verdict: SHIP
 - 2026-06-04: closed M1 — go test ./cmd/sdlc/... green; new TestRunIssueNew_AutoSyncsToMainCleanTree (file on main, clean tree, unrelated untracked untouched) + TestRunIssueNew_AutoSyncBestEffort (no-origin → file created, warns, no os.Exit); existing claim/fetch tests pass; go vet clean.; review verdict: SHIP
 Spun out of a design conversation on cross-repo base-layer friction (the #79→#80
 incident was the trigger: an untracked issue file swept onto main by a broad
@@ -209,3 +210,20 @@ them (UX unchanged), `issue new` warns (best-effort — the file is already
 written; offline/no-origin must not abort creation). Tests: on-main clean-tree +
 filtered-add (unrelated untracked untouched), and best-effort degradation
 (no-origin repo → file created, warns, returns nil). atlas/issue-sync.md updated.
+
+### 2026-06-04 (M2)
+Gave `dirtyAssessment` a third `Tracker` bucket; `assessDirty(porcelain,
+issuesDir, historyDir)` classifies `workshop/issues|history/NNNNNN-*.md` lines
+(tracked-modified OR untracked) as Tracker, never Blocking — `Refuse()` unchanged
+(ARCH-PURE: pure classifier, table-tested both directions). Path matching reuses
+push.go's `isIssuePath`/`isHistoryPath` (ARCH-DRY). **Bug found mid-build:**
+`worktreeDirty` does `strings.TrimSpace` on the *whole* porcelain blob, which
+strips the leading status space off the FIRST line (" M f" → "M f"); the
+column-based `parsePorcelainStatus` I first reused then mis-read the path and
+bucketed a dirty issue file as Blocking — the e2e caught it. Root-caused to a
+field-split extractor (`porcelainPaths`) immune to the leading-space trim; pinned
+by a `TestPorcelainPaths` unit test + a trimmed-line case in `TestAssessDirty`.
+Tests: pure `assessDirty` (dirty issue → proceeds; dirty code → refuses; mixed →
+code still blocks; non-tracker .md still blocks) + e2e (dirty tracked issue file →
+merge proceeds), complementing the existing dirty-code-refuses e2e. Step-2 also
+surfaces dirty tracker files as a warning. atlas/sdlc-binary.md updated.

@@ -34,7 +34,7 @@ func TestWorktreeDirty(t *testing.T) {
 	}
 }
 
-// ── #78: untracked files don't block the merge; tracked changes still do ─────
+// ── #78: untracked files don't block; #82 M2: tracker files never block ──────
 func TestAssessDirty(t *testing.T) {
 	cases := []struct {
 		name          string
@@ -42,17 +42,34 @@ func TestAssessDirty(t *testing.T) {
 		wantRefuse    bool
 		wantBlocking  int
 		wantUntracked int
+		wantTracker   int
 	}{
-		{"clean", "", false, 0, 0},
-		{"whitespace-only", "  \n\n", false, 0, 0},
-		{"untracked-only proceeds", "?? deps\n?? construct/local/x\n", false, 0, 2},
-		{"modified refuses", " M atlas/x.md\n", true, 1, 0},
-		{"staged refuses", "A  cmd/sdlc/new.go\n", true, 1, 0},
-		{"deleted refuses", " D old.txt\n", true, 1, 0},
-		{"mixed refuses but still surfaces untracked", " M x.go\n?? y.tmp\n", true, 1, 1},
+		{"clean", "", false, 0, 0, 0},
+		{"whitespace-only", "  \n\n", false, 0, 0, 0},
+		{"untracked-only proceeds", "?? deps\n?? construct/local/x\n", false, 0, 2, 0},
+		{"modified refuses", " M atlas/x.md\n", true, 1, 0, 0},
+		{"staged refuses", "A  cmd/sdlc/new.go\n", true, 1, 0, 0},
+		{"deleted refuses", " D old.txt\n", true, 1, 0, 0},
+		{"mixed refuses but still surfaces untracked", " M x.go\n?? y.tmp\n", true, 1, 1, 0},
+		// #82 M2 — tracker files are never blocking, tracked-modified OR untracked.
+		{"dirty tracked issue file proceeds", " M workshop/issues/000082-x.md\n", false, 0, 0, 1},
+		{"staged issue file proceeds", "A  workshop/issues/000082-x.md\n", false, 0, 0, 1},
+		{"untracked issue file proceeds", "?? workshop/issues/000888-wip.md\n", false, 0, 0, 1},
+		{"dirty history file proceeds", " M workshop/history/000080-done.md\n", false, 0, 0, 1},
+		{"renamed into history proceeds", "R  workshop/issues/000080-x.md -> workshop/history/000080-x.md\n", false, 0, 0, 1},
+		// Regression: worktreeDirty whole-trims its output, so the FIRST porcelain
+		// line loses its leading status space ("M workshop/..." not " M workshop/
+		// ..."). Column-slicing would mis-read the path and bucket it as Blocking;
+		// field-splitting must still see it as Tracker.
+		{"leading-space-trimmed issue line proceeds", "M workshop/issues/000082-x.md\n", false, 0, 0, 1},
+		// The crux both-directions case: a dirty issue file must NOT rescue a
+		// dirty CODE file — code still blocks, issue file is bucketed to Tracker.
+		{"dirty code still blocks despite dirty issue file", " M cmd/sdlc/merge.go\n M workshop/issues/000082-x.md\n", true, 1, 0, 1},
+		// A markdown file OUTSIDE the tracker dirs is still code-class (blocks).
+		{"non-tracker markdown still blocks", " M atlas/workflow/x.md\n", true, 1, 0, 0},
 	}
 	for _, tc := range cases {
-		d := assessDirty(tc.porcelain)
+		d := assessDirty(tc.porcelain, "workshop/issues", "workshop/history")
 		if d.Refuse() != tc.wantRefuse {
 			t.Errorf("%s: Refuse()=%v, want %v (assessment=%+v)", tc.name, d.Refuse(), tc.wantRefuse, d)
 		}
@@ -61,6 +78,31 @@ func TestAssessDirty(t *testing.T) {
 		}
 		if len(d.Untracked) != tc.wantUntracked {
 			t.Errorf("%s: len(Untracked)=%d, want %d (%q)", tc.name, len(d.Untracked), tc.wantUntracked, d.Untracked)
+		}
+		if len(d.Tracker) != tc.wantTracker {
+			t.Errorf("%s: len(Tracker)=%d, want %d (%q)", tc.name, len(d.Tracker), tc.wantTracker, d.Tracker)
+		}
+	}
+}
+
+// TestPorcelainPaths pins the field-based extractor that #82 M2 relies on —
+// robust to whether the leading status space was trimmed (worktreeDirty does).
+func TestPorcelainPaths(t *testing.T) {
+	cases := []struct {
+		line, path, dest string
+	}{
+		{" M workshop/issues/000082-x.md", "workshop/issues/000082-x.md", ""},
+		{"M workshop/issues/000082-x.md", "workshop/issues/000082-x.md", ""}, // leading space trimmed
+		{"?? workshop/issues/000888-wip.md", "workshop/issues/000888-wip.md", ""},
+		{"A  cmd/sdlc/new.go", "cmd/sdlc/new.go", ""},
+		{"R  workshop/issues/000080-x.md -> workshop/history/000080-x.md", "workshop/issues/000080-x.md", "workshop/history/000080-x.md"},
+		{"", "", ""},
+		{"   ", "", ""},
+	}
+	for _, tc := range cases {
+		p, d := porcelainPaths(tc.line)
+		if p != tc.path || d != tc.dest {
+			t.Errorf("porcelainPaths(%q) = (%q,%q), want (%q,%q)", tc.line, p, d, tc.path, tc.dest)
 		}
 	}
 }
