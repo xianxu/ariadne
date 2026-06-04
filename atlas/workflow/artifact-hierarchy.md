@@ -9,7 +9,7 @@ Work artifacts live close to the issue, then graduate to permanent locations or 
 | Path | Purpose | Lifecycle |
 |------|---------|-----------|
 | `workshop/issues/` | Active issue files | Archived to history when done |
-| `workshop/plans/` | Detailed designs for complex issues | Archived with issue |
+| `workshop/plans/` | Detailed designs for complex issues, authored via the `superpowers-writing-plans` skill (the canonical plan path, #72) | Archived with issue |
 | `workshop/history/` | Completed issue files | Permanent archive, low-signal |
 | `workshop/staging/` | Work-in-progress scratch | Temporary |
 | `docs/vision/` | Pensive docs, brainstorms | Permanent thinking artifacts |
@@ -18,7 +18,7 @@ Work artifacts live close to the issue, then graduate to permanent locations or 
 ## Rules
 
 - **Simple case**: everything lives in the single issue file
-- **Complex case**: issue file + detailed plan in `workshop/plans/` (same filename with `-plan` suffix)
+- **Complex case**: issue file + detailed plan in `workshop/plans/` (same `NNNNNN-slug` filename with `-plan` suffix), authored via the `superpowers-writing-plans` skill — version-controlled, never the harness builtin's ephemeral `~/.claude/plans/` (#72)
 - **When done**: issue + plan move to `workshop/history/`
 - **Atlas**: updated during pre-merge checks to reflect what was built; never exhaustive
 - **History**: avoid reading unless explicitly asked — it's archive, not reference

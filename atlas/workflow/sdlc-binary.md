@@ -27,7 +27,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
 | `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
-| `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens to design against |
+| `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72) to design against |
 | `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
 | `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
@@ -205,7 +205,13 @@ plan"). The **root** (ariadne — no upstream) reports its own concurrent work; 
 **derivative** reports its upstream(s) (`base (ariadne): …` from a nous session),
 which is the Spec's primary case. (#83 replaced #82 M3's broken `isBaseRepo`
 heuristic — `construct/` is a real dir in *every* repo, so it fired everywhere.)
-It never refuses.
+It never refuses. **#72** adds a third payload between the architecture block and
+the contention line: the pure `planPointer(issue)` durable-plan reminder — author
+the plan via the `superpowers-writing-plans` skill into
+`workshop/plans/NNNNNN-slug-plan.md`, never the harness builtin's ephemeral
+`~/.claude/plans/`. So start-plan emits, in order, *what to design against*
+(architecture) → *how/where to capture it* (the skill pointer) → *the moving
+ground* (contention).
 
 **One boundary review, binary-owned (#69).** The *procedure* and the *principles*
 are separate embedded sources: `internal/judge/code-review.md` (`//go:embed`'d as

@@ -3,7 +3,7 @@
 ## Flow
 
 ```
-Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) → workshop/issues/NNNNNN-slug.md → sdlc claim → sdlc change-code (in-place branch by default) → work → sdlc pr → sdlc merge   [direct sdlc push on main still available, but not the default]
+Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) → workshop/issues/NNNNNN-slug.md → sdlc claim → sdlc start-plan → design (complex → durable plan via superpowers-writing-plans → workshop/plans/NNNNNN-slug-plan.md) → sdlc change-code (in-place branch by default) → work → sdlc pr → sdlc merge   [direct sdlc push on main still available, but not the default]
 ```
 
 ## States
@@ -21,9 +21,10 @@ Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) →
 
 1. **Create**: `sdlc issue new "<title>"` allocates the next ID and writes the canonical template (the no-GitHub entry path); `sdlc issue new --from-github <num>` (or the older `sdlc fetch`) seeds it from a GitHub issue. See `sdlc issue --help` for the canonical issue-file contract.
 2. **Claim**: `sdlc claim --issue N` flips an open issue to `working` and publishes the issue-state claim to main in one step (`--no-start` to skip the flip)
-3. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
-4. **Default — branch + PR**: `sdlc change-code` creates an **in-place branch** (a branch in the current checkout) after the gates; `sdlc pr` opens the pull request; `sdlc merge` merges it server-side, archives done issues, and switches back to main. `--worktree=yes` gets an isolated worktree instead (parallel work).
-5. **Shortcut — direct on main**: `sdlc push` (auto-commit, pre-merge checks, push, archive, close GH issues) still exists for quick one-liners, but is no longer the default (#51).
+3. **Plan**: `sdlc start-plan` marks the design entry — it delivers the `at-plan` architecture lens and points at the durable-plan path. For complex work, author the plan via the **`superpowers-writing-plans`** skill into `workshop/plans/NNNNNN-slug-plan.md` (version-controlled — never the harness builtin's ephemeral `~/.claude/plans/`, #72).
+4. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
+5. **Default — branch + PR**: `sdlc change-code` creates an **in-place branch** (a branch in the current checkout) after the gates; `sdlc pr` opens the pull request; `sdlc merge` merges it server-side, archives done issues, and switches back to main. `--worktree=yes` gets an isolated worktree instead (parallel work).
+6. **Shortcut — direct on main**: `sdlc push` (auto-commit, pre-merge checks, push, archive, close GH issues) still exists for quick one-liners, but is no longer the default (#51).
 
 ## Worktree layout
 
