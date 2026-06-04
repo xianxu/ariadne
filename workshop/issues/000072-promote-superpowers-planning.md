@@ -1,11 +1,11 @@
 ---
 id: 000072
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-02
-updated: 2026-06-02
-estimate_hours:
+updated: 2026-06-04
+estimate_hours: 2
 ---
 
 # promote adapted superpowers-writing-plans as ariadne's canonical plan path over builtin EnterPlanMode
