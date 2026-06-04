@@ -174,9 +174,11 @@ func TestBoundaryWindowBase_MissingPriorTrailerFallsBackToBranchStart(t *testing
 	}
 }
 
-// #58: a whole-issue close (milestone == "") always spans the branch — it never
-// consults the prior boundary, so its window stays branch-start..HEAD even when
-// a Review-Verdict trailer exists earlier on the branch.
+// #58/#77: a whole-issue close (milestone == "") never consults the prior
+// boundary. On `main` (no feature branch — merge-base == HEAD), it falls back to
+// the issue's branch start, so the window stays branch-start..HEAD even when a
+// Review-Verdict trailer exists earlier. This pins the #77 on-main fallback (the
+// direct-on-main `sdlc push` flow); the feature-branch case is the test below.
 func TestBoundaryWindowBase_WholeIssueIgnoresPriorBoundary(t *testing.T) {
 	runGit, _, issuePath := windowRepo(t, 58)
 
@@ -184,10 +186,48 @@ func TestBoundaryWindowBase_WholeIssueIgnoresPriorBoundary(t *testing.T) {
 	commitTouchingIssue(t, runGit, issuePath, "m1close", "#58 M1: close",
 		"Done.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD")
 
-	base := boundaryWindowBase("58", "", issuePath) // milestone "" → whole-issue
+	base := boundaryWindowBase("58", "", issuePath) // milestone "" → whole-issue, on main
 	wantParent := strings.TrimSpace(captureGit(t, "rev-parse", firstWork+"^"))
 	gotResolved := strings.TrimSpace(captureGit(t, "rev-parse", base))
 	if gotResolved != wantParent {
 		t.Fatalf("boundaryWindowBase(whole-issue) = %q (→ %q), want branch start %q", base, gotResolved, wantParent)
+	}
+}
+
+// #77: on a FEATURE BRANCH, a whole-issue close windows on the branch point
+// (merge-base with main), NOT the first `#N` commit — so an issue filed early
+// (its "#N: file issue" commit) followed by unrelated work merged onto main
+// before the branch does NOT pull that unrelated history into the end-of-issue
+// review window. This is the over-capture #58's own review surfaced (147 commits
+// across ~12 unrelated issues).
+func TestBoundaryWindowBase_WholeIssueBasesOnBranchPoint(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 77)
+
+	// Filed early, on main: the "#77: file issue" commit.
+	fileIssue := commitTouchingIssue(t, runGit, issuePath, "filed", "#77: file issue", "")
+	// Unrelated work from other issues lands on main afterward.
+	other1 := commitMarkerOnly(t, runGit, "other1", "#99: unrelated feature")
+	other2 := commitMarkerOnly(t, runGit, "other2", "#100: another unrelated fix")
+	branchPoint := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD")) // == other2
+
+	// The issue is actually implemented later, on a feature branch off main.
+	runGit("switch", "-c", "feature-77")
+	impl := commitTouchingIssue(t, runGit, issuePath, "impl", "#77: implement the thing", "")
+
+	base := boundaryWindowBase("77", "", issuePath)
+	if gotBase := strings.TrimSpace(captureGit(t, "rev-parse", base)); gotBase != branchPoint {
+		t.Fatalf("whole-issue base = %q (→ %q), want branch point (merge-base) %q", base, gotBase, branchPoint)
+	}
+
+	// The window base..HEAD includes ONLY the branch's own work...
+	revs := captureGit(t, "rev-list", base+"..HEAD")
+	if !strings.Contains(revs, impl) {
+		t.Errorf("implementation commit %s missing from window %s..HEAD:\n%s", impl, base, revs)
+	}
+	// ...and excludes the filed-early commit + the unrelated merged history.
+	for name, sha := range map[string]string{"file-issue": fileIssue, "unrelated #99": other1, "unrelated #100": other2} {
+		if strings.Contains(revs, sha) {
+			t.Errorf("%s commit %s must NOT be in whole-issue window %s..HEAD (over-capture):\n%s", name, sha, base, revs)
+		}
 	}
 }

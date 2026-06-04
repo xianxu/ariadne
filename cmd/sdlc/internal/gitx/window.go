@@ -58,10 +58,10 @@ func Capture(args ...string) string {
 // DiffBase returns the git ref to compare against for "what's new on
 // this branch." Mirrors scripts/lib.sh's git_diff_base():
 //
-//   1. If <repo-root>/COMPARE-SHA exists and points to a verified ref,
-//      use that. Lets callers override the default for ad-hoc reviews.
-//   2. If current branch is main, return origin/main (HEAD~10 fallback).
-//   3. Otherwise (feature branch), return the merge-base of main and HEAD.
+//  1. If <repo-root>/COMPARE-SHA exists and points to a verified ref,
+//     use that. Lets callers override the default for ad-hoc reviews.
+//  2. If current branch is main, return origin/main (HEAD~10 fallback).
+//  3. Otherwise (feature branch), return the merge-base of main and HEAD.
 //
 // Used by `sdlc judge` to determine the diff window for principle checks.
 func DiffBase() string {
@@ -86,6 +86,29 @@ func DiffBase() string {
 		return base
 	}
 	return "HEAD~10"
+}
+
+// MergeBaseWithMain returns the branch point — `git merge-base main HEAD` — or
+// "" when HEAD has not diverged from main (merge-base == HEAD: on main, or a
+// branch with no new commits) or merge-base is unavailable. The empty result is
+// a deliberate signal: it lets the caller fall back to an *issue-specific* anchor
+// rather than a generic one.
+//
+// Distinct from DiffBase above — same `merge-base main HEAD` core, different
+// fallback contract. DiffBase is the `sdlc judge` diff window: it layers in a
+// COMPARE-SHA override and generic on-main fallbacks (origin/main / HEAD~10) and
+// never returns "". MergeBaseWithMain is the close-window branch point: on no
+// divergence it returns "" so boundaryWindowBase picks the issue's own branch
+// start (the first `#N` commit's parent) for the direct-on-main flow (#77).
+func MergeBaseWithMain() string {
+	base := Capture("merge-base", "main", "HEAD")
+	if base == "" {
+		return ""
+	}
+	if base == Capture("rev-parse", "HEAD") {
+		return "" // no divergence (on main / no new commits) — caller falls back
+	}
+	return base
 }
 
 // WindowCapDays is the sanity cap on how far back the commit window can

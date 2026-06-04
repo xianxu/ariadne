@@ -208,21 +208,37 @@ func resolveReviewWindow(issueStr, milestone, issuePath string) (base, baseLong,
 // (#58) — previously such commits could slip between the M(x-1) and Mx windows
 // and escape review entirely.
 //
-// Whole-issue close (milestone == "") and the first-milestone fallback (no prior
-// boundary): the branch start — the parent of the first commit referencing #N.
-// Returns "" when no #N commit exists yet (nothing to anchor a window on).
+// Whole-issue close (milestone == ""): the branch point — `merge-base(main,
+// HEAD)` — so the end-of-issue integration review covers exactly this branch's
+// commits, not unrelated history merged before the issue's first commit (#77).
+// On main (no divergence) merge-base == HEAD, so it falls back to the issue's
+// branch start. The first-milestone fallback (no prior boundary) also uses the
+// branch start. Returns "" when no anchor exists (no #N commit yet).
 func boundaryWindowBase(issueStr, milestone, issuePath string) string {
 	if milestone != "" {
+		// Milestone close: the prior review boundary, else the branch start (#58).
 		if prev := previousReviewBoundary(issuePath); prev != "" {
 			return prev
 		}
+		return branchStartByIssue(issueStr)
 	}
+	// Whole-issue close: the branch point, else (on main) the issue's branch start.
+	if mb := gitx.MergeBaseWithMain(); mb != "" {
+		return mb
+	}
+	return branchStartByIssue(issueStr)
+}
+
+// branchStartByIssue returns the parent of the first commit referencing #N (the
+// issue's branch start), or that commit itself when it has no parent
+// (initial-commit edge). "" when no #N commit exists. Shared by the milestone
+// no-prior-boundary fallback and the whole-issue on-main fallback (ARCH-DRY).
+func branchStartByIssue(issueStr string) string {
 	firstSHA := firstCommitReferencing("#" + issueStr)
 	if firstSHA == "" {
 		return ""
 	}
 	parent := firstSHA + "^"
-	// Initial-commit edge case: no parent → window starts at the commit itself.
 	if gitx.Capture("rev-parse", "--verify", parent) == "" {
 		return firstSHA
 	}
