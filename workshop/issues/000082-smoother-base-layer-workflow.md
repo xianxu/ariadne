@@ -1,6 +1,6 @@
 ---
 id: 000082
-status: open
+status: working
 deps: [000080]
 github_issue:
 created: 2026-06-04
