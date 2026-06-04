@@ -270,11 +270,14 @@ If a previous push already moved terminal-status issue files from
 the working tree contains deleted issue files plus untracked or staged history
 files. That state is otherwise indistinguishable from forbidden untracked files
 to the generic guard, so `push` recognizes exact prepared archive pairs,
-verifies the history copy still has a terminal status, stages `issues/` and
-`history/`, commits "archive completed issues to history", pushes, and exits
-without rerunning judges against an archive-only retry. Any unrelated dirty file
-keeps the refusal path and tells the operator to clear that unrelated work before
-rerunning `sdlc push --yes`.
+verifies the history copy still has a terminal status, stages **only those exact
+moved paths** (`git add -- <src> <dst>` via the shared `archiveAddArgs` helper —
+never a directory-wide `git add issues/ history/`, which would also sweep
+unrelated untracked WIP onto main, #80), commits "archive completed issues to
+history", pushes, and exits without rerunning judges against an archive-only
+retry. The same precise-staging helper backs the non-recovery archive commit in
+both `push` and `merge`. Any unrelated dirty file keeps the refusal path and
+tells the operator to clear that unrelated work before rerunning `sdlc push --yes`.
 
 ## Makefile wrappers (transition state)
 

@@ -412,13 +412,13 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 11. Archive done issues in MAIN worktree ────────────────────────────
-	moved, err := archiveDoneIssuesInDir(stderr, repo, mainPath, f.IssuesDir, f.HistoryDir)
+	moves, err := archiveDoneIssuesInDir(stderr, repo, mainPath, f.IssuesDir, f.HistoryDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	if moved > 0 {
+	if len(moves) > 0 {
 		cinfo(stderr, "Committing archived history in main...")
-		if out, gerr := mergeRunner.GitInDir(mainPath, "add", f.IssuesDir+"/", f.HistoryDir+"/"); gerr != nil {
+		if out, gerr := mergeRunner.GitInDir(mainPath, archiveAddArgs(moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("git -C %s add: %v\n%s", mainPath, gerr, out))
 		}
 		if out, gerr := mergeRunner.GitInDir(mainPath, "commit", "-m", "archive completed issues to history"); gerr != nil {
@@ -480,12 +480,12 @@ func isInPlaceCheckout(gitDir string) bool {
 // archiveDoneIssues, but it scans + mutates inside the main worktree
 // at mainPath (so the archive commit lands on main, not on the feature
 // branch).
-func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, historyDir string) (int, error) {
+func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, historyDir string) ([]preparedArchiveMove, error) {
 	issuesFull := filepath.Join(mainPath, issuesDir)
 	historyFull := filepath.Join(mainPath, historyDir)
 	matches, _ := filepath.Glob(filepath.Join(issuesFull, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
 	sort.Strings(matches)
-	moved := 0
+	var moves []preparedArchiveMove
 	cinfo(stderr, fmt.Sprintf("Archiving completed issues to %s/...", historyDir))
 	for _, p := range matches {
 		data, err := os.ReadFile(p)
@@ -507,14 +507,21 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 		// signature for API symmetry with push's archive helper.
 		_ = repo
 		if err := os.MkdirAll(historyFull, 0o755); err != nil {
-			return moved, fmt.Errorf("mkdir %s: %v", historyFull, err)
+			return moves, fmt.Errorf("mkdir %s: %v", historyFull, err)
 		}
-		dest := filepath.Join(historyFull, filepath.Base(p))
-		fmt.Fprintf(stderr, "  Moving %s to %s/\n", filepath.Base(p), historyDir)
+		base := filepath.Base(p)
+		dest := filepath.Join(historyFull, base)
+		fmt.Fprintf(stderr, "  Moving %s to %s/\n", base, historyDir)
 		if err := os.Rename(p, dest); err != nil {
-			return moved, fmt.Errorf("mv %s → %s: %v", p, dest, err)
+			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
 		}
-		moved++
+		// Record paths relative to mainPath: GitInDir(mainPath, "add", …)
+		// resolves them from the main worktree root, so an absolute path here
+		// would silently miss the staged move.
+		moves = append(moves, preparedArchiveMove{
+			IssuePath:   filepath.Join(issuesDir, base),
+			HistoryPath: filepath.Join(historyDir, base),
+		})
 	}
-	return moved, nil
+	return moves, nil
 }

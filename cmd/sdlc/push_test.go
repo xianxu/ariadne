@@ -268,7 +268,9 @@ func TestRecoverInterruptedArchiveCommitsAndPushes(t *testing.T) {
 	got := callsJoined(r.gitCalls)
 	for _, want := range []string{
 		"status --porcelain --untracked-files=all",
-		"add workshop/issues/ workshop/history/",
+		// Precise add of the exact prepared move — not the broad `add <dir>/`
+		// that swept unrelated untracked WIP onto main (#80).
+		"add -- workshop/issues/000036-done.md workshop/history/000036-done.md",
 		"commit -m archive completed issues to history",
 		"push",
 	} {
@@ -371,12 +373,12 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 	defer func() { ghClient = prev }()
 
 	var stderr bytes.Buffer
-	moved, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir)
+	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if moved != 3 {
-		t.Errorf("moved = %d, want 3", moved)
+	if len(moves) != 3 {
+		t.Errorf("moved = %d, want 3", len(moves))
 	}
 	// Only the done issue with a github_issue should have been closed.
 	if len(stub.closed) != 1 || stub.closed[0] != "100" {
@@ -392,6 +394,57 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 	}
 }
 
+// archiveAddArgs must stage exactly the moved paths (src deletion + history
+// addition), behind a `--` separator, and never a directory — the broad
+// `git add <dir>/` is what swept unrelated untracked WIP onto main (#80).
+func TestArchiveAddArgs(t *testing.T) {
+	cases := []struct {
+		name  string
+		moves []preparedArchiveMove
+		want  []string
+	}{
+		{
+			name:  "empty",
+			moves: nil,
+			want:  []string{"add", "--"},
+		},
+		{
+			name:  "one move",
+			moves: []preparedArchiveMove{{IssuePath: "workshop/issues/000001-done.md", HistoryPath: "workshop/history/000001-done.md"}},
+			want:  []string{"add", "--", "workshop/issues/000001-done.md", "workshop/history/000001-done.md"},
+		},
+		{
+			name: "two moves",
+			moves: []preparedArchiveMove{
+				{IssuePath: "workshop/issues/000001-done.md", HistoryPath: "workshop/history/000001-done.md"},
+				{IssuePath: "workshop/issues/000002-punt.md", HistoryPath: "workshop/history/000002-punt.md"},
+			},
+			want: []string{"add", "--",
+				"workshop/issues/000001-done.md", "workshop/history/000001-done.md",
+				"workshop/issues/000002-punt.md", "workshop/history/000002-punt.md"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := archiveAddArgs(tc.moves)
+			if len(got) != len(tc.want) {
+				t.Fatalf("archiveAddArgs = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("arg[%d] = %q, want %q", i, got[i], tc.want[i])
+				}
+			}
+			// No arg is ever a bare directory path (the #80 hazard).
+			for _, a := range got {
+				if strings.HasSuffix(a, "/") {
+					t.Errorf("arg %q is a directory — broad add reintroduced (#80)", a)
+				}
+			}
+		})
+	}
+}
+
 func TestArchiveDoneIssues_NoneToArchive(t *testing.T) {
 	tmp := t.TempDir()
 	issuesDir := filepath.Join(tmp, "issues")
@@ -403,12 +456,12 @@ func TestArchiveDoneIssues_NoneToArchive(t *testing.T) {
 	_ = os.WriteFile(p, []byte("---\nstatus: working\n---\n\n# x\n"), 0o644)
 
 	var stderr bytes.Buffer
-	moved, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir)
+	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if moved != 0 {
-		t.Errorf("moved = %d, want 0", moved)
+	if len(moves) != 0 {
+		t.Errorf("moved = %d, want 0", len(moves))
 	}
 }
 

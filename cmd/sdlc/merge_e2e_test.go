@@ -207,6 +207,56 @@ func TestRunMerge_UntrackedAfterJudge_Proceeds(t *testing.T) {
 	}
 }
 
+// ── #80: archive stages only the moved issue, not unrelated untracked WIP ─────
+//
+// tempRepo seeds a done issue (000999) the archive moves. Before merge we drop
+// an UNRELATED untracked issue file (000888) into workshop/issues/ — local WIP
+// for an unclaimed issue. The archive commit must contain exactly the moved
+// issue (src deletion + history addition) and must NOT sweep 000888, which stays
+// untracked after the merge. Regression for the broad `git add <dir>/` (#80):
+// before the fix, #78's untracked-tolerant guard let the merge proceed and the
+// directory-wide add then committed the unrelated WIP onto main.
+func TestRunMerge_ArchiveDoesNotSweepUntrackedIssue(t *testing.T) {
+	dir := tempRepo(t)
+	gh := &e2eGH{openPR: "42"}
+	swapMergeDeps(t, gh, nil)
+
+	// Unrelated, never-claimed WIP issue file sitting untracked in issues/.
+	unrelated := filepath.Join(dir, "workshop", "issues", "000888-unrelated.md")
+	if err := os.WriteFile(unrelated, []byte("---\nid: 888\nstatus: open\n---\n\n# unrelated WIP\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if died {
+		t.Fatalf("merge should proceed past an untracked issue file, but died: %s", msg)
+	}
+
+	// The archive commit is HEAD on main. It must record exactly the 000999
+	// move (deletion + history addition) — a wrong (absolute) path would
+	// silently miss this — and must NOT include the unrelated 000888.
+	files := git(t, dir, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+	if !strings.Contains(files, "workshop/issues/000999-done.md") {
+		t.Errorf("archive commit should record the moved issue's deletion; files:\n%s", files)
+	}
+	if !strings.Contains(files, "workshop/history/000999-done.md") {
+		t.Errorf("archive commit should record the history addition; files:\n%s", files)
+	}
+	if strings.Contains(files, "000888-unrelated.md") {
+		t.Errorf("archive commit swept the unrelated untracked file (#80 regression); files:\n%s", files)
+	}
+
+	// And the unrelated file is still there, still untracked after the merge.
+	if _, err := os.Stat(unrelated); err != nil {
+		t.Errorf("unrelated WIP file should survive untouched: %v", err)
+	}
+	status := git(t, dir, "status", "--porcelain", "--untracked-files=all")
+	if !strings.Contains(status, "000888-unrelated.md") {
+		t.Errorf("unrelated file should remain untracked after merge; status:\n%s", status)
+	}
+}
+
 // ── #62 M3 regression: resume an already-merged PR → finish cleanup ──────────
 //
 // No open PR but a merged one exists (a prior run was interrupted after the
