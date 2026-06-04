@@ -1,11 +1,12 @@
 ---
 id: 000058
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-01
 updated: 2026-06-03
 estimate_hours: 1.5
+actual_hours: 1.0
 ---
 
 # milestone-close — base review window on prev milestone close (close inter-milestone gap)
@@ -131,6 +132,7 @@ side-quest that hardened the `#N Mx close:` subject *matcher* (`b083bab`-era) �
 that fixed detection of the close commit; this fixes the window it reviews.
 
 ### 2026-06-03 — implemented
+- 2026-06-03: closed — go test ./cmd/sdlc/... green incl 3 new TestBoundaryWindowBase_* regression tests; milestone window bases on prior Review-Verdict boundary so inter-milestone #N-but-not-Mx commits land in exactly one window; atlas+review share boundaryWindowBase (ARCH-DRY); review verdict: SHIP
 Extracted `boundaryWindowBase(issueStr, milestone, issuePath)` in
 `milestoneclose.go` as the one window source; `resolveReviewWindow` and the
 `close.go` atlas gate both call it (ARCH-DRY, per Revision 1). Milestone path
@@ -141,3 +143,20 @@ start. Also DRY'd the issue-file glob into `issueFilePath` (reused by
 now-dead `count` return. Regression test `milestonewindow_test.go` pins all three
 shapes (prior-boundary covers the side-quest; first-milestone + whole-issue =
 branch start). `go build`/`go vet`/`go test ./cmd/sdlc/...` all green.
+
+### 2026-06-03 — boundary review: SHIP (high)
+Binary-owned boundary review (claude) returned **SHIP**, no Critical/Important
+blocking findings — confirmed the ARCH-DRY unification is real (both call sites
+consume `boundaryWindowBase`) and the regression tests pin the Done-when.
+Folded in two non-blocking polish items the review flagged:
+- Routed `close.go`'s locate-issue step through `issueFilePath` (the inline glob
+  was a parallel copy — the helper's "shared" doc had overclaimed; now true DRY).
+- Added `TestBoundaryWindowBase_MissingPriorTrailerFallsBackToBranchStart` (4th
+  fixture) pinning the over-cover fallback when a prior close lacks the trailer.
+
+Forward-pointer (NOT a #58 defect, pre-existing + safe-direction): the
+*whole-issue* close window bases on the first `#N` commit, so an issue filed
+early but implemented late over-captures unrelated merged history into the
+end-of-issue review. #58 entrenches that as the single source. Filed as a
+follow-up to base whole-issue close on `merge-base(main)` / the most-recent prior
+boundary. See [[whole-issue-window-merge-base]].

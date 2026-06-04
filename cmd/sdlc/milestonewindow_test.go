@@ -149,6 +149,31 @@ func TestBoundaryWindowBase_FirstMilestoneBasesOnBranchStart(t *testing.T) {
 	}
 }
 
+// #58: if a prior milestone close exists but its commit never carried a
+// Review-Verdict: trailer (e.g. the operator forgot to paste it), the boundary
+// lookup finds nothing and the window falls back to the branch start — so the
+// next milestone OVER-covers (re-reviews the prior slice) rather than
+// under-covers. Over-cover is the safe direction; this pins it.
+func TestBoundaryWindowBase_MissingPriorTrailerFallsBackToBranchStart(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 58)
+
+	firstWork := commitTouchingIssue(t, runGit, issuePath, "m1work", "#58 M1: build the thing", "")
+	// M1 close WITHOUT a Review-Verdict: trailer in the body.
+	commitTouchingIssue(t, runGit, issuePath, "m1close", "#58 M1: close", "Milestone done, trailer forgotten.")
+	commitTouchingIssue(t, runGit, issuePath, "m2work", "#58 M2: build the next thing", "")
+
+	if got := previousReviewBoundary(issuePath); got != "" {
+		t.Fatalf("previousReviewBoundary = %q, want empty (no trailer on prior close)", got)
+	}
+
+	base := boundaryWindowBase("58", "M2", issuePath)
+	wantParent := strings.TrimSpace(captureGit(t, "rev-parse", firstWork+"^"))
+	gotResolved := strings.TrimSpace(captureGit(t, "rev-parse", base))
+	if gotResolved != wantParent {
+		t.Fatalf("boundaryWindowBase(M2) = %q (→ %q), want branch start %q (over-cover fallback)", base, gotResolved, wantParent)
+	}
+}
+
 // #58: a whole-issue close (milestone == "") always spans the branch — it never
 // consults the prior boundary, so its window stays branch-start..HEAD even when
 // a Review-Verdict trailer exists earlier on the branch.

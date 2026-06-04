@@ -313,7 +313,6 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		}
 	}
 	issueStr := strconv.Itoa(f.Issue)
-	issueID := fmt.Sprintf("%06d", f.Issue)
 	mode := "issue"
 	if f.Milestone != "" {
 		mode = "milestone"
@@ -337,19 +336,10 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	today := time.Now().Format("2006-01-02")
 
 	// ── Locate issue file ───────────────────────────────────────────────────
-	pattern := filepath.Join(f.IssuesDir, issueID+"-*.md")
-	candidates, err := filepath.Glob(pattern)
+	issuePath, err := issueFilePath(f.IssuesDir, f.Issue)
 	if err != nil {
-		die(stderr, fmt.Sprintf("glob %s: %v", pattern, err))
+		die(stderr, err.Error())
 	}
-	sort.Strings(candidates)
-	if len(candidates) == 0 {
-		die(stderr, fmt.Sprintf("no issue file matches %s", pattern))
-	}
-	if len(candidates) > 1 {
-		die(stderr, fmt.Sprintf("multiple issue files match: %v", candidates))
-	}
-	issuePath := candidates[0]
 	issueBytes, err := os.ReadFile(issuePath)
 	if err != nil {
 		die(stderr, fmt.Sprintf("read %s: %v", issuePath, err))
