@@ -78,6 +78,11 @@ current_branch() { git branch --show-current; }
 # review_base <review-branch> → the branch it was forked from (recorded at start).
 review_base() { git config "branch.$1.docflowBase" 2>/dev/null || echo main; }
 
+# inscope_files <review-branch> → the docs recorded at start, one per line. The
+# source of truth for "what's under review": round stages exactly these, never a
+# blanket `git add -u` that would sweep unrelated tracked WIP (lessons.md).
+inscope_files() { git config --get-all "branch.$1.docflowFile" 2>/dev/null || true; }
+
 # round_count <base> <slug> <side> → committed rounds for that side on this branch.
 round_count() {
     git log --format='%s' "$1..HEAD" | grep -c "review($2): $3 r" || true
@@ -107,6 +112,9 @@ cmd_start() {
     local f
     for f in "$@"; do
         [[ -f "$f" ]] || die "no such file: $f"
+        # Record as in-scope (deduped) so `round` stages exactly the review docs.
+        inscope_files "$rb" | grep -qxF "$f" \
+            || git config --add "branch.$rb.docflowFile" "$f"
         if git ls-files --error-unmatch "$f" &>/dev/null; then
             info "$f already tracked — journaled on first round"
         else
@@ -140,7 +148,17 @@ cmd_round() {
     if [[ ${#files[@]} -gt 0 ]]; then
         git add -- "${files[@]}"
     else
-        git add -u           # tracked files only — never sweep untracked junk
+        # Stage exactly the recorded in-scope docs — never `git add -u`, which
+        # sweeps unrelated tracked WIP into the review. Read into an array so
+        # paths with spaces survive.
+        local f; local -a inscope=()
+        while IFS= read -r f; do [[ -n "$f" ]] && inscope+=("$f"); done < <(inscope_files "$cur")
+        if [[ ${#inscope[@]} -gt 0 ]]; then
+            git add -- "${inscope[@]}"
+        else
+            warn "no in-scope files recorded for $cur — staging all tracked changes (legacy branch?)"
+            git add -u
+        fi
     fi
     if git diff --cached --quiet; then
         info "no changes to journal for $side round — skipping"
@@ -231,6 +249,7 @@ cmd_finish() {
     git merge --no-ff -q "$cur" -m "review($slug): merge — $rounds round-commit(s)"
     git branch -d "$cur" >/dev/null
     git config --unset "branch.$cur.docflowBase" 2>/dev/null || true
+    git config --unset-all "branch.$cur.docflowFile" 2>/dev/null || true
     ok "merged $cur → $base (--no-ff), deleted the review branch"
     info "clean view: git log --first-parent $base    full: git log $base"
 }

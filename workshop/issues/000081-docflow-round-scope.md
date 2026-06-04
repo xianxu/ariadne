@@ -51,15 +51,15 @@ scope naturally contains only in-scope docs.
 
 Single-pass refinement of #79 (one review boundary) → plain checkboxes.
 
-- [ ] `cmd_start`: `git config --add branch.<rb>.docflowFile "$f"` per started file
+- [x] `cmd_start`: `git config --add branch.<rb>.docflowFile "$f"` per started file
   (both the create-branch and add-to-existing-branch paths).
-- [ ] add `inscope_files()` helper: `git config --get-all branch.<cur>.docflowFile`.
-- [ ] `cmd_round`: default (no explicit files) → `git add -- $(inscope_files)`
+- [x] add `inscope_files()` helper: `git config --get-all branch.<cur>.docflowFile`.
+- [x] `cmd_round`: default (no explicit files) → `git add -- $(inscope_files)`
   instead of `git add -u`.
-- [ ] `cmd_finish`: `git config --unset-all branch.<cur>.docflowFile` in cleanup.
-- [ ] `docflow.test.sh`: assert an unrelated tracked-modified file is left unstaged
+- [x] `cmd_finish`: `git config --unset-all branch.<cur>.docflowFile` in cleanup.
+- [x] `docflow.test.sh`: assert an unrelated tracked-modified file is left unstaged
   across a round (the regression test for this fix).
-- [ ] atlas `atlas/workflow/docflow.md`: note the `docflowFile` scope record.
+- [x] atlas `atlas/workflow/docflow.md`: note the `docflowFile` scope record.
 
 ## Log
 
@@ -68,3 +68,14 @@ Single-pass refinement of #79 (one review boundary) → plain checkboxes.
 Filed from #79 dogfooding (blog-post review). The operator hit the gap conceptually
 (round could sweep unrelated WIP in a busy repo) and asked to scope `round` to the
 started docs. Fix = record started files in branch config, stage exactly those.
+
+Implemented. `start` records each in-scope doc in `branch.<rb>.docflowFile`
+(multi-valued, deduped via `--get-all | grep -qxF`); new `inscope_files()` reader
+mirrors `review_base()` (ARCH-DRY). `round` (no explicit files) reads them into an
+array and stages `git add -- "${inscope[@]}"` instead of `git add -u`. `finish`
+unsets the key. Folded in all three plan-quality notes: (Important) array read so
+space-paths survive — tested with a `my note.md` in-scope doc; (Minor) empty
+in-scope set warns + falls back to `git add -u` rather than aborting under set -e;
+(Minor) dedup guard on re-`start`. Test gained 3 assertions: unrelated tracked WIP
+left unstaged across a round, space-named in-scope file staged, dedup — **34/34
+unsandboxed**. Atlas updated (start/round rows note `docflowFile`).
