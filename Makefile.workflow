@@ -339,10 +339,14 @@ fetch:
 # Delegates to bin/sdlc push when the binary is built; falls back to
 # the inline shell logic otherwise (M5 of #31).
 push:
-	@if [ -x bin/sdlc ]; then \
-	    bin/sdlc push $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge); \
-	    exit 0; \
-	fi
+# When bin/sdlc is built, the binary IS the whole target — a Makefile-level
+# conditional (not a shell `exit 0`) so the legacy fallback below is *excluded*,
+# not merely skipped. The old shape ran `bin/sdlc push; exit 0` in the first
+# recipe line, but make then ran the next recipe line (the fallback) anyway,
+# falling through to the interactive pre-merge-checks.sh (#36 M2).
+ifneq ($(wildcard bin/sdlc),)
+	@bin/sdlc push $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge)
+else
 	@branch=$$(git branch --show-current); \
 	if [ "$$branch" != "main" ]; then \
 		echo "Error: make push must be run from main (current branch: $$branch)"; \
@@ -407,6 +411,7 @@ push:
 		git push; \
 	fi; \
 	echo "Done."
+endif
 
 # Create a GitHub pull request from the current worktree branch to main.
 # Scans issues/ files touched since branch point for github_issue frontmatter.

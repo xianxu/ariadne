@@ -1,10 +1,11 @@
 ---
 id: 000036
-status: open
+status: done
 deps: [000031]
 created: 2026-05-26
-updated: 2026-05-26
+updated: 2026-06-03
 estimate_hours:
+actual_hours: 0.4
 ---
 
 # sdlc push / judge followups — bugs surfaced during first dogfood push
@@ -114,13 +115,45 @@ Update the plan judge prompt in `cmd/sdlc/internal/judge/prompts.go` to instruct
 
 ## Plan
 
-To be detailed when starting. Rough shape:
+Resolution (2026-06-03 audit): only M2 was still live; M1 and M3 were fixed
+incidentally by later work. M1/M3 marked done-by-other-work (not milestone-closed
+here → close uses `--no-verdict`).
 
-- [ ] **M1 — Fix gh issue close field lookup.** Locate the bug in push.go / archival path; add tests with fake runner; fix.
-- [ ] **M2 — Fix make push fall-through.** Edit Makefile.workflow; verify locally that `make push` no longer triggers `pre-merge-checks.sh` after sdlc push completes.
-- [ ] **M3 — Fix plan judge classifier false-negative.** Tighten prompt to emit explicit clean-signal; add classifier recognition; add unit tests.
+- [x] **M1 — gh issue close field lookup → already fixed.** `push.go:456-459`
+  reads `github_issue:` via `issue.GetField(fm, "github_issue")`, guards empty,
+  and passes the *number* to `ghClient.IssueClose` — not the `created:` string.
+  The wrong-field bug is gone.
+- [x] **M2 — make push fall-through → fixed (this issue).** Root cause: the
+  delegation ran `bin/sdlc push; exit 0` in the first recipe line, but make runs
+  each recipe line in its own shell, so it proceeded to the next line (the legacy
+  fallback ending in `$(MAKE) pre-merge` → interactive `pre-merge-checks.sh`).
+  Fixed with a **Makefile-level conditional** (`ifneq ($(wildcard bin/sdlc),)`)
+  that *excludes* the fallback when the binary exists, rather than a shell
+  `exit 0` that only skips one line. Verified both branches via `make -n push`
+  (binary present → only `bin/sdlc push`; absent → fallback). Note: `pull-request`
+  / `merge` / `fetch` share the old pattern (same low impact — legacy make
+  targets; binary is canonical) — left as a flagged follow-up, not in scope here.
+- [x] **M3 — plan-judge classifier false-negative → fixed by #70.** #70 rewrote
+  `classify.go` onto the `VERDICT:` contract (`ParseVerdictToken`): a positive
+  review emits `VERDICT: CLEAN|INFO|SHIP` and classifies as pass. The literal-
+  string scraping that mis-classified detailed-but-positive reviews as `Failure`
+  is gone (`cleanRE` survives only as a thin legacy fallback).
 
 ## Log
+
+### 2026-06-03 — closed (M2 fixed; M1/M3 resolved elsewhere)
+- 2026-06-03: closed — M2 fixed: make push fall-through removed via Makefile-level conditional (ifneq wildcard bin/sdlc) excluding the legacy fallback when binary present; verified both branches with make -n push. M1 already fixed (push.go reads github_issue: correctly), M3 fixed by #70 (VERDICT-contract classifier). --no-verdict (Mx not per-milestone-reviewed; M1/M3 fixed by other work), --no-judge (6-line Makefile fix, verified via make -n), --no-atlas (no new surface).; review verdict: not-run
+- Audited all three bugs against current code. **M1** already correct in
+  `push.go`; **M3** fixed by #70's verdict-contract rewrite; **M2** was the only
+  live one — fixed here via a Makefile-level conditional (excludes the fallback
+  when `bin/sdlc` exists), dogfood-verified with `make -n push`.
+- Scope flag: the same `@if [x bin/sdlc]; then …; exit 0; fi` + separate-fallback
+  pattern lives in `pull-request`/`merge`/`fetch`; same fall-through, same low
+  impact (binary is the canonical path post-#51). File a fresh sweep issue if it
+  bites.
+- `--no-verdict`: M1/M2/M3 are Mx rows but none went through a per-milestone
+  review (M1/M3 fixed by other issues; M2 is a 6-line Makefile fix). `--no-judge`:
+  trivial Makefile change, verified by `make -n` rather than an LLM pass.
 
 ### 2026-05-26 — issue created
 
