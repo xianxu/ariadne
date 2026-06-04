@@ -86,6 +86,25 @@ func TestBaseContentionSummary(t *testing.T) {
 	}
 }
 
+// #72: planPointer is the durable-plan reminder the planning gate prints — names
+// the superpowers-writing-plans skill + the version-controlled workshop/plans/
+// location, and demotes the harness builtin's ephemeral ~/.claude/plans file.
+// Pure (id-only input), so the wording is pinned here without IO.
+func TestPlanPointer(t *testing.T) {
+	withIssue := planPointer(72)
+	for _, want := range []string{"superpowers-writing-plans", "workshop/plans/000072-", "~/.claude/plans", "NOT the record"} {
+		if !strings.Contains(withIssue, want) {
+			t.Errorf("planPointer(72) missing %q:\n%s", want, withIssue)
+		}
+	}
+	noIssue := planPointer(0)
+	for _, want := range []string{"superpowers-writing-plans", "workshop/plans/NNNNNN-"} {
+		if !strings.Contains(noIssue, want) {
+			t.Errorf("planPointer(0) missing %q:\n%s", want, noIssue)
+		}
+	}
+}
+
 func TestIssueRef(t *testing.T) {
 	for _, tc := range []struct{ id, want string }{
 		{"000081", "#81"},
