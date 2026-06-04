@@ -138,9 +138,13 @@ categories run with a read-only tool allowlist (`Read,Grep,Glob,Bash`); they
 report findings and the main agent (full context) applies fixes. The `specs`
 judge used to auto-edit stale docs (`Edit,Write`), which let a *passing* gate
 leave the tree dirty and strand the subsequent merge. `merge` now also (a)
-re-asserts a clean tree immediately before the irreversible `gh pr merge`
+re-asserts no **tracked** dirt immediately before the irreversible `gh pr merge`
 (refuse, don't strand), and (b) resumes an interrupted merge — a re-run detects
 an already-merged PR and finishes the local cleanup instead of erroring.
+The clean-tree guards (step 2 and the 9b re-assert) refuse only on tracked
+changes via one pure `assessDirty(...).Refuse()` decision (#78); **untracked**
+files survive `git switch main`, so they're surfaced as a warning, not a blocker
+— unrelated local WIP no longer forces a stash-around-the-merge detour.
 Both behaviors have e2e regression coverage (#63, `merge_e2e_test.go`): a
 `tempRepo(t)` harness runs `runMerge` against a real throwaway repo + local bare
 origin (in-place topology), so switch/pull/archive/branch-delete execute for

@@ -34,6 +34,37 @@ func TestWorktreeDirty(t *testing.T) {
 	}
 }
 
+// ── #78: untracked files don't block the merge; tracked changes still do ─────
+func TestAssessDirty(t *testing.T) {
+	cases := []struct {
+		name          string
+		porcelain     string
+		wantRefuse    bool
+		wantBlocking  int
+		wantUntracked int
+	}{
+		{"clean", "", false, 0, 0},
+		{"whitespace-only", "  \n\n", false, 0, 0},
+		{"untracked-only proceeds", "?? deps\n?? construct/local/x\n", false, 0, 2},
+		{"modified refuses", " M atlas/x.md\n", true, 1, 0},
+		{"staged refuses", "A  cmd/sdlc/new.go\n", true, 1, 0},
+		{"deleted refuses", " D old.txt\n", true, 1, 0},
+		{"mixed refuses but still surfaces untracked", " M x.go\n?? y.tmp\n", true, 1, 1},
+	}
+	for _, tc := range cases {
+		d := assessDirty(tc.porcelain)
+		if d.Refuse() != tc.wantRefuse {
+			t.Errorf("%s: Refuse()=%v, want %v (assessment=%+v)", tc.name, d.Refuse(), tc.wantRefuse, d)
+		}
+		if len(d.Blocking) != tc.wantBlocking {
+			t.Errorf("%s: len(Blocking)=%d, want %d (%q)", tc.name, len(d.Blocking), tc.wantBlocking, d.Blocking)
+		}
+		if len(d.Untracked) != tc.wantUntracked {
+			t.Errorf("%s: len(Untracked)=%d, want %d (%q)", tc.name, len(d.Untracked), tc.wantUntracked, d.Untracked)
+		}
+	}
+}
+
 // ── #62 M3: merge-vs-resume decision ─────────────────────────────────────────
 func TestDecideMergeAction(t *testing.T) {
 	cases := []struct {

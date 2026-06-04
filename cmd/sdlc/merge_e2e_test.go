@@ -140,19 +140,21 @@ func swapMergeDeps(t *testing.T, gh ghCaller, preflight func(preflightOptions) e
 	})
 }
 
-// ── #62 M1 regression: a judge dirties the tree → refuse PRE-merge ───────────
+// ── #62 M1 regression: a judge dirties a TRACKED file → refuse PRE-merge ──────
 //
-// Step 2 checked the tree clean; a pre-merge judge then writes a file. Step 9b
-// must catch it and refuse BEFORE the irreversible gh pr merge — never merge
-// server-side and then strand on the local `git switch`.
+// Step 2 checked the tree clean; a pre-merge judge then modifies a tracked file.
+// Step 9b must catch it and refuse BEFORE the irreversible gh pr merge — never
+// merge server-side and then strand on the local `git switch` (a dirty tracked
+// file makes switch/pull refuse). Per #78 the judge dirties a TRACKED file
+// (README.md), since untracked dirt no longer blocks (see the sibling test).
 func TestRunMerge_DirtyAfterJudge_RefusesPreMerge(t *testing.T) {
 	dir := tempRepo(t)
 	gh := &e2eGH{openPR: "42"} // an open PR exists; merge would proceed if not refused
-	// A "judge" that dirties the worktree (writes an untracked file) and then
-	// returns nil (success). NoJudge stays false so this fires (step 5 is gated
-	// on it). A passing judge that left the tree dirty is exactly the #62 hazard.
+	// A "judge" that dirties a tracked file (README.md is committed by tempRepo)
+	// and returns nil (success). NoJudge stays false so this fires (step 5 is
+	// gated on it). A passing judge that left a tracked file dirty is the #62 hazard.
 	dirtyingJudge := func(preflightOptions) error {
-		return os.WriteFile(filepath.Join(dir, "judge-scratch.txt"), []byte("x\n"), 0o644)
+		return os.WriteFile(filepath.Join(dir, "README.md"), []byte("dirtied by judge\n"), 0o644)
 	}
 	swapMergeDeps(t, gh, dirtyingJudge)
 
@@ -160,13 +162,48 @@ func TestRunMerge_DirtyAfterJudge_RefusesPreMerge(t *testing.T) {
 	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
 
 	if !died {
-		t.Fatal("expected merge to refuse (die) on a tree dirtied by the judge")
+		t.Fatal("expected merge to refuse (die) on a tracked file dirtied by the judge")
 	}
 	if !strings.Contains(msg, "before the irreversible merge") {
 		t.Errorf("refusal message = %q, want the 9b dirty-tree guidance", msg)
 	}
 	if gh.prMergeCalls != 0 {
 		t.Errorf("PRMerge called %d times — must be 0 (refusal is PRE-merge)", gh.prMergeCalls)
+	}
+}
+
+// ── #78: a judge leaves only an UNTRACKED file → merge PROCEEDS ───────────────
+//
+// The mirror of the test above. An untracked file survives `git switch main`,
+// so it can't strand the post-merge cleanup the way a dirty tracked file does.
+// Step 9b must NOT refuse on it: the irreversible merge fires and cleanup
+// completes (this is the live #58-shipping scenario that motivated #78).
+func TestRunMerge_UntrackedAfterJudge_Proceeds(t *testing.T) {
+	dir := tempRepo(t)
+	gh := &e2eGH{openPR: "42"}
+	untrackingJudge := func(preflightOptions) error {
+		return os.WriteFile(filepath.Join(dir, "judge-scratch.txt"), []byte("x\n"), 0o644)
+	}
+	swapMergeDeps(t, gh, untrackingJudge)
+
+	f := &mergeFlags{Yes: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if died {
+		t.Fatalf("merge should proceed past an untracked-only dirty tree, but died: %s", msg)
+	}
+	if gh.prMergeCalls != 1 {
+		t.Errorf("PRMerge called %d times — want 1 (untracked dirt must not block)", gh.prMergeCalls)
+	}
+	if got := git(t, dir, "branch", "--show-current"); got != "main" {
+		t.Errorf("ended on branch %q, want main", got)
+	}
+	if got := git(t, dir, "branch", "--list", "feature"); got != "" {
+		t.Errorf("feature branch not deleted: %q", got)
+	}
+	// The untracked file is still there (we never touch it) — proof it neither
+	// blocked the merge nor was clobbered by the branch switch.
+	if _, err := os.Stat(filepath.Join(dir, "judge-scratch.txt")); err != nil {
+		t.Errorf("untracked file should survive the merge/switch: %v", err)
 	}
 }
 
