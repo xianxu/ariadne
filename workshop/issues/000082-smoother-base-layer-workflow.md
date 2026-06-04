@@ -156,7 +156,7 @@ guard work and the filtered-add pattern sit on clean guard hygiene.
         symmetry (both are tracker state synced out-of-band).
       - Test (pure, both directions): dirty *issue* file → `!Refuse()`; dirty
         *code* file → `Refuse()`; mixed → refuses (code still blocks).
-- [ ] **M3 — `start-plan` base-contention read.** Pure summarizer + thin IO gather.
+- [x] **M3 — `start-plan` base-contention read.** Pure summarizer + thin IO gather.
       - **Repo-selection decision (the M3 crux, pinned):** the contention read
         inspects **cwd**, and the line is emitted **only when cwd is the base
         repo** — explicit `cwd==base` assumption ("you plan a base change while
@@ -184,6 +184,7 @@ guard work and the filtered-add pattern sit on clean guard hygiene.
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed M3 — go test ./cmd/sdlc/... green; pure TestBaseContentionSummary (clean/branched/dirty-code/N-concurrent/detached/compose) + TestIssueRef + TestIsBaseRepo (real dir vs symlink vs none); verified live: sdlc start-plan --issue 82 prints the contention line with the dirty issue file correctly excluded from the code count (M2 reuse); go vet clean.; review verdict: SHIP
 - 2026-06-04: closed M2 — go test ./cmd/sdlc/... green; TestAssessDirty (both directions: dirty issue→proceeds, dirty code→refuses, mixed→code blocks, non-tracker .md blocks, trimmed-leading-space regression) + TestPorcelainPaths + e2e TestRunMerge_DirtyTrackerFile_Proceeds (complements existing dirty-code-refuses e2e); go vet clean.; review verdict: SHIP
 - 2026-06-04: closed M1 — go test ./cmd/sdlc/... green; new TestRunIssueNew_AutoSyncsToMainCleanTree (file on main, clean tree, unrelated untracked untouched) + TestRunIssueNew_AutoSyncBestEffort (no-origin → file created, warns, no os.Exit); existing claim/fetch tests pass; go vet clean.; review verdict: SHIP
 Spun out of a design conversation on cross-repo base-layer friction (the #79→#80
@@ -227,3 +228,20 @@ Tests: pure `assessDirty` (dirty issue → proceeds; dirty code → refuses; mix
 code still blocks; non-tracker .md still blocks) + e2e (dirty tracked issue file →
 merge proceeds), complementing the existing dirty-code-refuses e2e. Step-2 also
 surfaces dirty tracker files as a warning. atlas/sdlc-binary.md updated.
+
+### 2026-06-04 (M3)
+`start-plan` now prints a non-blocking base-contention heads-up. Repo-selection
+decision (the plan-quality crux) resolved as the cwd==base assumption, guarded by
+`isBaseRepo` (real `construct/` dir, not a symlink) — silent in a derivative;
+cross-repo base resolution scoped OUT (a follow-up, with the worktree-set hatch).
+Pure `baseContentionSummary(baseContention)` + `Clean()` + `issueRef`
+(table-tested: clean/branched/dirty-code/N-concurrent/detached); thin
+`gatherBaseContention` seam reads branch (gitx), dirty-CODE count
+(`assessDirty.Blocking` — **reuses M2** so a dirty issue file is NOT counted as
+contention), and other `status: working` issues (excluding self). Verified live:
+`sdlc start-plan --issue 82` →
+*"base (ariadne): on branch `000082-…`; 2 uncommitted code file(s); 1 other
+issue(s) in-flight (#52) — planning against a moving base."* — the dirty #82 issue
+file correctly excluded from the code count (M2 reuse confirmed end-to-end).
+atlas/sdlc-binary.md + base-layer.md updated (the latter gets the base-as-trunk
+three-layer section the Done-when asked for).

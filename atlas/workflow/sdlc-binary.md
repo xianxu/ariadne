@@ -191,7 +191,16 @@ flows into every consumer with no other edit. **`sdlc start-plan`** (#75 M2)
 delivers the `at-plan` lens to the main thread at design time — the forward
 counterpart to `change-code`'s plan-quality review (`claim → start-plan →
 change-code`); a drift test keeps AGENTS.md's narrative in sync with the markers.
-#71 adds `ARCH-SHIM`.
+#71 adds `ARCH-SHIM`. **#82 M3** also has `start-plan` print a one-line,
+non-blocking **base-contention** heads-up — emitted only when cwd is the base
+repo (`isBaseRepo`: `construct/` is a real dir, not a symlink into the base).
+The pure `baseContentionSummary(baseContention)` renders branch state, dirty
+*code* count (tracker files excluded, reusing M2's `assessDirty.Blocking`), and
+other `status: working` base issues (excluding the one being planned); a clean
+base prints a green "clear to plan" line. The symlink model makes every
+derivative read the base's working tree live, so planning against a branched /
+dirty / concurrently-worked base is exactly what this surfaces at the commitment
+point. It never refuses.
 
 **One boundary review, binary-owned (#69).** The *procedure* and the *principles*
 are separate embedded sources: `internal/judge/code-review.md` (`//go:embed`'d as
