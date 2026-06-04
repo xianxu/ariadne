@@ -1,11 +1,12 @@
 ---
 id: 000058
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-01
 updated: 2026-06-03
 estimate_hours: 1.5
+actual_hours: 1.0
 ---
 
 # milestone-close — base review window on prev milestone close (close inter-milestone gap)
@@ -72,16 +73,52 @@ already landed). This is purely the *window base* computation.
 
 Focused single-pass change (one milestone — not split).
 
-- [ ] In `cmd/sdlc/milestoneclose.go`, replace the window base (`first #N Mx
-      commit`^) with the previous review boundary: prior milestone-close
-      `Review-Window` head, else branch start for the first milestone. Keep the
-      `#N Mx[: ]` matcher only for *which milestone* is being closed, not for the
-      window base.
-- [ ] Regression test (real-git fixture per `close_test.go`'s pattern): an
-      inter-milestone `#N` commit between M1 close and M2's first commit must
-      fall inside M2's window.
-- [ ] Update `cmd/sdlc/helptext/milestone-close.md` ("Diff window") + verify
-      `go test ./cmd/sdlc/...` green; rebuild.
+- [x] In `cmd/sdlc/milestoneclose.go`, replace the window base with the previous
+      review boundary via a new `boundaryWindowBase` helper (prior milestone-close
+      commit carrying a `Review-Verdict:` trailer, found by `previousReviewBoundary`;
+      else branch start). Per Revision 1, the atlas gate in `close.go` shares the
+      SAME helper (ARCH-DRY), so inter-milestone commits land under both checks.
+- [x] Regression test (real-git fixture, `milestonewindow_test.go`): an
+      inter-milestone `#N`-but-not-`Mx` commit between M1 close and M2's first
+      commit falls inside M2's window; first milestone + whole-issue base on
+      branch start.
+- [x] Update `cmd/sdlc/helptext/milestone-close.md` ("Diff window") + atlas
+      (`sdlc-binary.md`); `go test ./cmd/sdlc/...` green. (`sdlc` rebuilds from
+      source per-invocation — no separate install step.)
+
+## Revisions
+
+### 2026-06-03 — plan-quality findings resolved (pre-implementation)
+
+`sdlc change-code` plan-quality judge raised three coupling points the original
+Spec/Plan missed. Resolutions (these supersede the conflicting Plan/Non-goal
+lines above):
+
+1. **ARCH-DRY — atlas-gate window shares the same scan.** `resolveReviewWindow`'s
+   base is documented as the same source as close.go's atlas gate
+   (`firstCommitReferencing(refSubject)`, `close.go:384/397`). Moving only the
+   *review* window to the prior boundary would diverge the two and falsify that
+   invariant. **Resolution: move BOTH** — extract one `boundaryWindowBase`
+   helper used by the atlas gate (close.go) AND the review window
+   (milestoneclose.go). This keeps them a single source *and* is desirable:
+   inter-milestone commits now also fall under the atlas-coverage check, not
+   just the review. (Original Spec "Non-goals" did not name this; it's now in
+   scope.)
+2. **Shared helper — `resolveReviewWindow` is also called by whole-issue close**
+   (`close.go:613`, refSubject `#N`), which must keep its branch-start window.
+   The prior-boundary base is **milestone-only** (`milestone != ""`); the
+   whole-issue path stays branch-start. The helper branches on milestone.
+3. **Mechanism — Spec option 1 is unworkable.** The recorded `Review-Window`
+   head is the literal string `"HEAD"` (set by `resolveReviewWindow`), not a
+   SHA. Use **option 2**: grep the most recent prior commit touching the issue
+   file carrying a `Review-Verdict:` trailer and use *its commit SHA* as the
+   base (exclusive in `base..HEAD`, so the prior close commit itself isn't
+   re-reviewed). Reuses the existing `milestoneHasVerdictCommit` grep shape
+   (`close.go:837`).
+
+Timing note: `runClose` does not commit (`close.go:115`), so at both the atlas
+gate and the review-window computation the current close commit does not yet
+exist — `previousReviewBoundary` finds the genuine *prior* boundary at both.
 
 ## Log
 
@@ -93,3 +130,33 @@ no harm landed — but the gap is real: inter-milestone `#N`-but-not-`Mx` commit
 the previous review boundary so coverage is gap-free. Pairs with the #57
 side-quest that hardened the `#N Mx close:` subject *matcher* (`b083bab`-era) —
 that fixed detection of the close commit; this fixes the window it reviews.
+
+### 2026-06-03 — implemented
+- 2026-06-03: closed — go test ./cmd/sdlc/... green incl 3 new TestBoundaryWindowBase_* regression tests; milestone window bases on prior Review-Verdict boundary so inter-milestone #N-but-not-Mx commits land in exactly one window; atlas+review share boundaryWindowBase (ARCH-DRY); review verdict: SHIP
+Extracted `boundaryWindowBase(issueStr, milestone, issuePath)` in
+`milestoneclose.go` as the one window source; `resolveReviewWindow` and the
+`close.go` atlas gate both call it (ARCH-DRY, per Revision 1). Milestone path
+bases on `previousReviewBoundary` (most recent prior `Review-Verdict:` commit
+touching the issue file); milestone=="" and first-milestone fall back to branch
+start. Also DRY'd the issue-file glob into `issueFilePath` (reused by
+`annotateLogLineWithVerdict`) and simplified `firstCommitReferencing` to drop its
+now-dead `count` return. Regression test `milestonewindow_test.go` pins all three
+shapes (prior-boundary covers the side-quest; first-milestone + whole-issue =
+branch start). `go build`/`go vet`/`go test ./cmd/sdlc/...` all green.
+
+### 2026-06-03 — boundary review: SHIP (high)
+Binary-owned boundary review (claude) returned **SHIP**, no Critical/Important
+blocking findings — confirmed the ARCH-DRY unification is real (both call sites
+consume `boundaryWindowBase`) and the regression tests pin the Done-when.
+Folded in two non-blocking polish items the review flagged:
+- Routed `close.go`'s locate-issue step through `issueFilePath` (the inline glob
+  was a parallel copy — the helper's "shared" doc had overclaimed; now true DRY).
+- Added `TestBoundaryWindowBase_MissingPriorTrailerFallsBackToBranchStart` (4th
+  fixture) pinning the over-cover fallback when a prior close lacks the trailer.
+
+Forward-pointer (NOT a #58 defect, pre-existing + safe-direction): the
+*whole-issue* close window bases on the first `#N` commit, so an issue filed
+early but implemented late over-captures unrelated merged history into the
+end-of-issue review. #58 entrenches that as the single source. Filed as a
+follow-up to base whole-issue close on `merge-base(main)` / the most-recent prior
+boundary. See [[whole-issue-window-merge-base]].

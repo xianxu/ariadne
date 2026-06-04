@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -126,8 +127,14 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 	}
 
 	// Step 2: figure out the review window (used regardless of whether
-	// the judge actually runs — the trailer always carries it).
-	base, baseLong, head := resolveReviewWindow(fmt.Sprintf("#%d %s", f.Issue, f.Milestone))
+	// the judge actually runs — the trailer always carries it). The base is
+	// the prior review boundary so inter-milestone #N-but-not-Mx commits are
+	// covered (#58); resolving needs the issue file to find that boundary.
+	issuePath, perr := issueFilePath(f.IssuesDir, f.Issue)
+	if perr != nil {
+		cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
+	}
+	base, baseLong, head := resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
 
 	// Step 3: dispatch the judge (or short-circuit if skipped).
 	var result reviewResult
@@ -168,59 +175,124 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 }
 
 // resolveReviewWindow computes the (base, baseLong, head) tuple for a
-// boundary-review window, given the commit-subject substring that the
-// boundary's commits carry (`#69 M1` for a milestone, `#69` for a whole
-// issue). base is short, baseLong is the full 40-char SHA (used by the
-// verifier in close.go to locate the same window in `git log`), head is
+// boundary-review window. base is short; baseLong is the full base ref (used by
+// the verifier in close.go to locate the same window in `git log`); head is
 // "HEAD" — the close hasn't been committed yet, so HEAD is the operator's
-// pre-close tip and the diff is what got reviewed. The base is the parent
-// of the FIRST commit referencing the subject — the same window source as
-// close.go's atlas gate (ARCH-DRY), so the review and the atlas check agree.
+// pre-close tip and the diff is what got reviewed. The base itself comes from
+// boundaryWindowBase: the prior review boundary for a milestone close, or the
+// branch start for a whole-issue close / first milestone (see that helper). It
+// is the same window source as close.go's atlas gate (ARCH-DRY), so the review
+// and the atlas check provably cover the same commits.
 //
-// Returns ("?", "", "HEAD") when no commit references the subject (e.g., a
-// docs-only milestone with no code commits) so the trailer still has
-// something to write.
-func resolveReviewWindow(refSubject string) (base, baseLong, head string) {
+// Returns ("?", "", "HEAD") when no commit anchors the window (e.g., a docs-only
+// milestone with no #N commits) so the trailer still has something to write.
+func resolveReviewWindow(issueStr, milestone, issuePath string) (base, baseLong, head string) {
 	head = "HEAD"
-	firstSHA, _ := firstCommitReferencing(refSubject)
-	if firstSHA == "" {
+	baseLong = boundaryWindowBase(issueStr, milestone, issuePath)
+	if baseLong == "" {
 		return "?", "", head
-	}
-	baseLong = firstSHA + "^"
-	// Verify the parent exists (initial-commit edge case).
-	if gitx.Capture("rev-parse", "--verify", baseLong) == "" {
-		baseLong = firstSHA
 	}
 	base = shortSHA(baseLong)
 	return base, baseLong, head
 }
 
+// boundaryWindowBase returns the base ref of a close/review window — the commit
+// the diff runs *from* (exclusive in `base..HEAD`) — for both the atlas-coverage
+// gate (close.go) and the boundary review (milestoneclose.go). Keeping the two
+// on one window source means they provably cover the same commits (ARCH-DRY).
+//
+// Milestone close: the PREVIOUS review boundary — the most recent prior commit
+// touching the issue file that carries a Review-Verdict: trailer (the prior
+// milestone close). Everything since that boundary, including inter-milestone
+// #N-but-not-Mx commits (side-quests, fixes), then lands in exactly one window
+// (#58) — previously such commits could slip between the M(x-1) and Mx windows
+// and escape review entirely.
+//
+// Whole-issue close (milestone == "") and the first-milestone fallback (no prior
+// boundary): the branch start — the parent of the first commit referencing #N.
+// Returns "" when no #N commit exists yet (nothing to anchor a window on).
+func boundaryWindowBase(issueStr, milestone, issuePath string) string {
+	if milestone != "" {
+		if prev := previousReviewBoundary(issuePath); prev != "" {
+			return prev
+		}
+	}
+	firstSHA := firstCommitReferencing("#" + issueStr)
+	if firstSHA == "" {
+		return ""
+	}
+	parent := firstSHA + "^"
+	// Initial-commit edge case: no parent → window starts at the commit itself.
+	if gitx.Capture("rev-parse", "--verify", parent) == "" {
+		return firstSHA
+	}
+	return parent
+}
+
+// previousReviewBoundary returns the SHA of the most recent commit touching
+// issuePath whose message carries a Review-Verdict: trailer — the prior
+// milestone-close boundary on this branch — or "" if none. Scoping to the issue
+// file means only this issue's close commits qualify (the same scoping
+// milestoneHasVerdictCommit uses, ARCH-DRY). It is called before the current
+// close is committed, so the most-recent match is genuinely the *previous*
+// boundary, not this one.
+//
+// If a prior close's trailer was never pasted into its commit, this finds
+// nothing and the caller falls back to the branch start — over-covering
+// (re-reviewing prior work) rather than under-covering, the safe direction.
+func previousReviewBoundary(issuePath string) string {
+	if issuePath == "" {
+		return ""
+	}
+	out, err := gitx.RunGit("log", "--grep=Review-Verdict:", "--max-count=1", "--pretty=format:%H", "--", issuePath)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// issueFilePath resolves the single workshop issue file for issueNum under
+// issuesDir (glob NNNNNN-*.md). Errors when zero or multiple files match — the
+// same resolution close.go's locate-issue step and annotateLogLineWithVerdict
+// rely on, kept in one place (ARCH-DRY).
+func issueFilePath(issuesDir string, issueNum int) (string, error) {
+	pattern := filepath.Join(issuesDir, fmt.Sprintf("%06d", issueNum)+"-*.md")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return "", fmt.Errorf("glob %s: %w", pattern, err)
+	}
+	sort.Strings(matches)
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no issue file matches %s", pattern)
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("multiple issue files match: %v", matches)
+	}
+	return matches[0], nil
+}
+
 // firstCommitReferencing returns the SHA of the FIRST (oldest) commit whose
-// subject contains refSubject (e.g. "#69" or "#69 M1") plus the count of all
-// matching commits. ("", 0) when `git log` fails or nothing matches. This is the
-// ONE commit-window scan (ARCH-DRY) shared by close.go's atlas gate and
-// resolveReviewWindow, so the atlas window and the review window are provably the
-// same scan rather than parallel reimplementations that drift (#69 M2 review).
+// subject contains refSubject (e.g. "#69" — the issue ref). "" when `git log`
+// fails or nothing matches. It locates the branch start (that commit's parent)
+// for boundaryWindowBase — the single window source (ARCH-DRY) feeding both the
+// atlas gate and the boundary review.
 //
 // Match is a bare substring on the subject: refSubject always starts with '#',
-// which never appears in a SHA or ISO date, so subject-only matching equals the
-// old SHA+date+subject match. (Caveat: "#69" substring-matches "#690" — a
-// theoretical collision shared with the old atlas gate; commit subjects on a
-// feature branch are the issue's own, so it doesn't bite in practice.)
-func firstCommitReferencing(refSubject string) (firstSHA string, count int) {
+// which never appears in a SHA or ISO date, so subject-only matching is precise.
+// (Caveat: "#69" substring-matches "#690" — a theoretical collision; commit
+// subjects on a feature branch are the issue's own, so it doesn't bite in
+// practice.)
+func firstCommitReferencing(refSubject string) string {
 	entries, err := gitx.LogReverse()
 	if err != nil {
-		return "", 0
+		return ""
 	}
 	for _, e := range entries {
 		if strings.Contains(e.Subject, refSubject) {
-			if firstSHA == "" {
-				firstSHA = e.SHA
-			}
-			count++
+			return e.SHA
 		}
 	}
-	return firstSHA, count
+	return ""
 }
 
 // shortSHA returns the abbreviated SHA via `git rev-parse --short`. Falls
@@ -279,20 +351,10 @@ func emitTrailerBlock(stdout io.Writer, r reviewResult, kind string) {
 // benefit is that close.go doesn't grow a verdict-aware code path that
 // only ever fires from this wrapper.
 func annotateLogLineWithVerdict(issuesDir string, issueNum int, milestone string, verdict judge.Verdict) error {
-	issueID := fmt.Sprintf("%06d", issueNum)
-	pattern := filepath.Join(issuesDir, issueID+"-*.md")
-	matches, err := filepath.Glob(pattern)
+	issuePath, err := issueFilePath(issuesDir, issueNum)
 	if err != nil {
-		return fmt.Errorf("glob %s: %w", pattern, err)
+		return err
 	}
-	sort.Strings(matches)
-	if len(matches) == 0 {
-		return fmt.Errorf("no issue file matches %s", pattern)
-	}
-	if len(matches) > 1 {
-		return fmt.Errorf("multiple issue files match: %v", matches)
-	}
-	issuePath := matches[0]
 	data, err := os.ReadFile(issuePath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", issuePath, err)

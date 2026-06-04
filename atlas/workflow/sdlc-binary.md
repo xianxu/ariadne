@@ -197,6 +197,20 @@ window) dispatch this same review — so the agent does **not** run a separate
 remains for ad-hoc/in-session reviews. The double-review #69 removed was the
 agent's superpowers pass *plus* the binary's auto-dispatch on the same diff.
 
+**Window base — prior review boundary (#58).** `boundaryWindowBase`
+(`milestoneclose.go`) is the single source for *both* the atlas-coverage gate
+(`runClose`) and the boundary review's window, so they provably cover the same
+commits (ARCH-DRY). A milestone window bases on the **previous review boundary**
+— the most recent prior commit touching the issue file that carries a
+`Review-Verdict:` trailer (the prior milestone close), found by
+`previousReviewBoundary` — not on the first `#N Mx` commit. This closes a gap
+where an inter-milestone `#N`-but-not-`Mx` commit (a `side-quest:`, a fix) landed
+between M(x-1)'s close and Mx's first commit would slip *both* windows and escape
+review. The first milestone (no prior boundary) and the whole-issue close fall
+back to the branch start (parent of the first `#N` commit). If a prior close's
+trailer was never pasted, the lookup finds nothing and falls back to branch start
+— over-covering rather than under-covering, the safe direction.
+
 ## Build + install
 
 ```
