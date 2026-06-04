@@ -1,11 +1,12 @@
 ---
 id: 000082
-status: working
+status: done
 deps: [000080]
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 3.5
+actual_hours: 3.5
 ---
 
 # smoother cross-repo base-layer workflow
@@ -184,6 +185,7 @@ guard work and the filtered-add pattern sit on clean guard hygiene.
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — All 3 milestones shipped (M1/M2/M3 Review-Verdict: SHIP). go test ./cmd/sdlc/... green; go vet clean. M1 issue-new auto-sync (+best-effort die→error root fix), M2 tracker-tolerant dirty guard (+porcelain trim parse fix), M3 start-plan base-contention line (verified live). atlas sdlc-binary.md/issue-sync.md/base-layer.md updated.; review verdict: SHIP
 - 2026-06-04: closed M3 — go test ./cmd/sdlc/... green; pure TestBaseContentionSummary (clean/branched/dirty-code/N-concurrent/detached/compose) + TestIssueRef + TestIsBaseRepo (real dir vs symlink vs none); verified live: sdlc start-plan --issue 82 prints the contention line with the dirty issue file correctly excluded from the code count (M2 reuse); go vet clean.; review verdict: SHIP
 - 2026-06-04: closed M2 — go test ./cmd/sdlc/... green; TestAssessDirty (both directions: dirty issue→proceeds, dirty code→refuses, mixed→code blocks, non-tracker .md blocks, trimmed-leading-space regression) + TestPorcelainPaths + e2e TestRunMerge_DirtyTrackerFile_Proceeds (complements existing dirty-code-refuses e2e); go vet clean.; review verdict: SHIP
 - 2026-06-04: closed M1 — go test ./cmd/sdlc/... green; new TestRunIssueNew_AutoSyncsToMainCleanTree (file on main, clean tree, unrelated untracked untouched) + TestRunIssueNew_AutoSyncBestEffort (no-origin → file created, warns, no os.Exit); existing claim/fetch tests pass; go vet clean.; review verdict: SHIP
