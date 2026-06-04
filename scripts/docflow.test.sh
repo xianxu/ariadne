@@ -69,8 +69,9 @@ else
     post 'Hello world.'
     run "start tracks untracked draft" -- "$DOCFLOW" start post.md
     eq  "on review branch"   "review/post" "$(git branch --show-current)"
-    eq  "base recorded"      "main"        "$(git config branch.review/post.docflowBase)"
-    eq  "start records in-scope file" "post.md" "$(git config --get-all branch.review/post.docflowFile)"
+    eq  "base recorded in .git/docflow (#84)" "main" "$(cat .git/docflow/post/base)"
+    eq  "start records in-scope file" "post.md" "$(cat .git/docflow/post/files)"
+    eq  "no state leaked into .git/config (#84)" "" "$(git config --get branch.review/post.docflowBase 2>/dev/null || true)"
 
     printf 'unrelated EDIT\n' > other.md   # #81: unrelated tracked WIP — must NOT be swept into a round
     post 'Hello world. 🤖[tighten this]'
@@ -103,6 +104,7 @@ else
     run "finish merges clean"      -- "$DOCFLOW" finish
     eq  "back on base after finish" "main" "$(git branch --show-current)"
     if git show-ref --verify --quiet refs/heads/review/post; then fail "review branch deleted"; else pass "review branch deleted"; fi
+    if [[ -d .git/docflow/post ]]; then fail "meta dir removed after finish (#84)"; else pass "meta dir removed after finish (#84)"; fi
     eq  "first-parent shows one merge line" "1" \
         "$(git log --first-parent --format='%s' main | grep -c 'review(post): merge')"
     eq  "merge message counts 4 round commits (excl. track)" "1" \
@@ -123,7 +125,7 @@ else
     printf 'note\n' > "my note.md"
     run "start space-named doc"     -- "$DOCFLOW" start "my note.md"
     run "re-start same doc (dedup)" -- "$DOCFLOW" start "my note.md"
-    eq  "in-scope recorded once (dedup)" "my note.md" "$(git config --get-all branch.review/my-note.docflowFile)"
+    eq  "in-scope recorded once (dedup)" "my note.md" "$(cat .git/docflow/my-note/files)"
     printf 'note 🤖[m]\n' > "my note.md"
     run "round on space-named doc"  -- "$DOCFLOW" round --side human -m "space path"
     case "$(git show --name-only --format= HEAD)" in

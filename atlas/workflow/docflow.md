@@ -27,12 +27,19 @@ does this; the script is guards + orchestration over git, not a state machine.
 
 | Verb | What |
 |---|---|
-| `start <file>...` | Create `review/<slug>` from the current branch (or add files to the current review branch — default-add, never silently guess). Records the base branch in `git config branch.<rb>.docflowBase` and each in-scope doc in `branch.<rb>.docflowFile` (multi-valued, deduped) — the source of truth for what `round` stages. Tracks an untracked draft as **round 0**. |
-| `round --side human\|agent [-m sum] [--body …] [files…]` | Journal one side of a round. Two commits/round → attributable log: **human** rounds use the operator's git identity, **agent** rounds use `--author=$DOCFLOW_AGENT_AUTHOR` (default `Claude <noreply@anthropic.com>`) + a `Co-Authored-By` trailer. With no explicit files, stages **only the recorded in-scope docs** (`docflowFile`), never `git add -u` — so unrelated tracked WIP is never swept into the review (#81). Skips a no-op side. |
+| `start <file>...` | Create `review/<slug>` from the current branch (or add files to the current review branch — default-add, never silently guess). Records the base branch + each in-scope doc (deduped) as plain files under `.git/docflow/<slug>/` (`base`, `files`) — the source of truth for what `round` stages. Tracks an untracked draft as **round 0**. |
+| `round --side human\|agent [-m sum] [--body …] [files…]` | Journal one side of a round. Two commits/round → attributable log: **human** rounds use the operator's git identity, **agent** rounds use `--author=$DOCFLOW_AGENT_AUTHOR` (default `Claude <noreply@anthropic.com>`) + a `Co-Authored-By` trailer. With no explicit files, stages **only the recorded in-scope docs** (`.git/docflow/<slug>/files`), never `git add -u` — so unrelated tracked WIP is never swept into the review (#81). Skips a no-op side. |
 | `status` | Current branch, base, round counts, in-scope files + 🤖 count each. |
 | `finish [--force]` | **Guard:** refuses while any 🤖 remains in an in-scope file (so markers never ship). Then `--no-ff` merge to base + delete the review branch. `--force` merges as-is — the "abandon" path. |
 
 Commit subject convention (greppable): `review(<slug>): <side> r<N> — <summary>`.
+
+State lives in plain files under `.git/docflow/<slug>/`, **not** `.git/config`: the
+Claude Code Bash sandbox denies `.git/config` (and `.git/hooks/`) writes — they can
+execute code — while plain files under `.git/` are writable. Storing state there
+keeps docflow fully sandbox-compatible (no `dangerouslyDisableSandbox` per call) and
+leaves the `.git/config` security boundary intact (#84). The dir is resolved via
+`git rev-parse --git-dir` (worktree-local).
 
 ## History model — why no squash, yet no branch sprawl
 
