@@ -1,11 +1,12 @@
 ---
 id: 000081
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 0.5
+actual_hours: 0.5
 ---
 
 # docflow round: stage only in-scope started docs, not git add -u
@@ -64,6 +65,7 @@ Single-pass refinement of #79 (one review boundary) → plain checkboxes.
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — scripts/docflow.test.sh 34/34 unsandboxed. New #81 assertions: round leaves unrelated tracked-modified other.md unstaged (not swept) while committing only post.md; space-named in-scope file "my note.md" staged correctly (array, not word-split); start records docflowFile deduped on re-start. Plan-quality Important (space-paths) + 2 Minors (empty-set fallback, dedup) folded in. atlas start/round rows updated.; review verdict: SHIP
 
 Filed from #79 dogfooding (blog-post review). The operator hit the gap conceptually
 (round could sweep unrelated WIP in a busy repo) and asked to scope `round` to the
