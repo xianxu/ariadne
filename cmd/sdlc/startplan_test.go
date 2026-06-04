@@ -20,7 +20,11 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	var b strings.Builder
 	runStartPlan(&b, 75)
 	out := b.String()
-	for _, want := range []string{"#75", "ARCH-DRY", "at-plan", "change-code"} {
+	// Architecture lens + the #72 durable-plan pointer must both be wired into the
+	// integrated output (TestPlanPointer pins the helper's wording; this pins that
+	// runStartPlan actually prints it, so dropping/reordering the line can't ship
+	// silently).
+	for _, want := range []string{"#75", "ARCH-DRY", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("start-plan output missing %q:\n%s", want, out)
 		}
@@ -82,6 +86,25 @@ func TestBaseContentionSummary(t *testing.T) {
 		// Clean() must agree with the wording.
 		if tc.in.Clean() != strings.Contains(got, "clear to plan") {
 			t.Errorf("%s: Clean()=%v but wording %q disagrees", tc.name, tc.in.Clean(), got)
+		}
+	}
+}
+
+// #72: planPointer is the durable-plan reminder the planning gate prints — names
+// the superpowers-writing-plans skill + the version-controlled workshop/plans/
+// location, and demotes the harness builtin's ephemeral ~/.claude/plans file.
+// Pure (id-only input), so the wording is pinned here without IO.
+func TestPlanPointer(t *testing.T) {
+	withIssue := planPointer(72)
+	for _, want := range []string{"superpowers-writing-plans", "workshop/plans/000072-", "~/.claude/plans", "NOT the record"} {
+		if !strings.Contains(withIssue, want) {
+			t.Errorf("planPointer(72) missing %q:\n%s", want, withIssue)
+		}
+	}
+	noIssue := planPointer(0)
+	for _, want := range []string{"superpowers-writing-plans", "workshop/plans/NNNNNN-"} {
+		if !strings.Contains(noIssue, want) {
+			t.Errorf("planPointer(0) missing %q:\n%s", want, noIssue)
 		}
 	}
 }

@@ -56,6 +56,13 @@ func runStartPlan(stdout io.Writer, issue int) {
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, judge.ArchitectureBlock("at-plan"))
 
+	// #72: HOW/WHERE to capture the design — the durable-plan pointer. Sits
+	// between the architecture block (WHAT to design against) and the contention
+	// read (the environmental epilogue): framing + principles + this line form one
+	// "how to plan" unit. Continuation lines indent 4 to align under cinfo's `==> `.
+	fmt.Fprintln(stdout)
+	cinfo(stdout, planPointer(issue))
+
 	// #82 M3 / #83: a non-blocking heads-up on the DEPENDENCY PATH. The symlink
 	// model means a repo reads ALL its transitive upstreams' working trees live,
 	// so the "moving ground" you plan against is every repo this one depends on
@@ -126,6 +133,23 @@ func baseContentionSummary(c baseContention) string {
 		parts = append(parts, fmt.Sprintf("%d other issue(s) in-flight (%s)", n, strings.Join(refs, ", ")))
 	}
 	return fmt.Sprintf("base (%s): %s — planning against a moving base.", c.Repo, strings.Join(parts, "; "))
+}
+
+// planPointer renders the durable-plan reminder the planning gate prints (#72):
+// the canonical plan lands in workshop/plans/ (version-controlled), authored via
+// the superpowers-writing-plans skill — NOT the harness builtin's ephemeral
+// ~/.claude/plans/ file. Pure: the only input is the issue id (for the slug), so
+// the wording is table-testable without IO. Stays agent-agnostic — it names the
+// skill + repo location, never teaching the binary the Claude-specific path.
+// The two continuation lines indent 4 to align under cinfo's `==> ` prefix.
+func planPointer(issue int) string {
+	slug := "NNNNNN-slug"
+	if issue > 0 {
+		slug = fmt.Sprintf("%06d-slug", issue)
+	}
+	return fmt.Sprintf("Capture the plan via the superpowers-writing-plans skill →\n"+
+		"    workshop/plans/%s-plan.md (version-controlled). The builtin plan-mode\n"+
+		"    file (~/.claude/plans/…) is ephemeral — NOT the record.", slug)
 }
 
 // issueRef renders a zero-padded id as "#83" (strips leading zeros; falls back
