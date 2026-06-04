@@ -56,18 +56,25 @@ func runStartPlan(stdout io.Writer, issue int) {
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, judge.ArchitectureBlock("at-plan"))
 
-	// #82 M3: a non-blocking base-contention heads-up. The symlink model means
-	// every derivative reads the base's working tree live, so planning against a
-	// branched / dirty / concurrently-worked base is the failure mode worth
-	// surfacing at the commitment point. Emitted ONLY when cwd is the base repo
-	// (you plan a base change while cd'd into it); silent in a derivative.
-	if root, err := gitx.RepoTopLevel(); err == nil && isBaseRepo(root) {
-		c := gatherBaseContention(root, issue)
+	// #82 M3 / #83: a non-blocking heads-up on the DEPENDENCY PATH. The symlink
+	// model means a repo reads ALL its transitive upstreams' working trees live,
+	// so the "moving ground" you plan against is every repo this one depends on
+	// (declared in construct/deps), not a single base. Walk that chain and report
+	// each upstream's contention. The root (ariadne — no upstream) has an empty
+	// chain, so it reports its own concurrent work (the one case #82 M3 got right).
+	if root, err := gitx.RepoTopLevel(); err == nil {
+		chain := substrateChain(root)
+		if len(chain) == 0 {
+			chain = []string{root}
+		}
 		fmt.Fprintln(stdout)
-		if c.Clean() {
-			cok(stdout, baseContentionSummary(c))
-		} else {
-			cwarn(stdout, baseContentionSummary(c))
+		for _, up := range chain {
+			c := gatherBaseContention(up, issue)
+			if c.Clean() {
+				cok(stdout, baseContentionSummary(c))
+			} else {
+				cwarn(stdout, baseContentionSummary(c))
+			}
 		}
 	}
 }
@@ -130,36 +137,94 @@ func issueRef(id string) string {
 	return "#" + id
 }
 
-// isBaseRepo reports whether root is the base-layer source repo (ariadne)
-// rather than a derivative. In the base, `construct/` is a real directory; in a
-// derivative it's a symlink into the base (per construct/setup.sh). So a real,
-// non-symlink `construct/` is the signal — the cwd==base assumption for #82 M3.
-func isBaseRepo(root string) bool {
-	info, err := os.Lstat(filepath.Join(root, "construct"))
-	if err != nil {
-		return false
+// parseSubstrateTargets extracts the `substrate <path>` targets from a
+// construct/deps file's content, as written (raw, unresolved). Pure.
+//
+// CANONICAL GRAMMAR: construct/scripts/lib-deps.sh `deps_substrate_targets`
+// (and its bootstrap.sh inline twin) — keep this in lockstep with that parse:
+// strip a `#` comment to end-of-line, whitespace word-split, keep rows whose
+// first field is `substrate` and that have ≥2 fields (blank / comment /
+// malformed / `data` rows are dropped). #60 made construct/deps the sole
+// substrate-graph carrier; this is its third reader (Go can't source the shell),
+// so the edge cases below are mirrored in TestParseSubstrateTargets.
+func parseSubstrateTargets(depsContent string) []string {
+	var out []string
+	for _, line := range strings.Split(depsContent, "\n") {
+		if i := strings.IndexByte(line, '#'); i >= 0 {
+			line = line[:i]
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "substrate" {
+			out = append(out, fields[1])
+		}
 	}
-	return info.IsDir() && info.Mode()&os.ModeSymlink == 0
+	return out
 }
 
-// gatherBaseContention is the thin IO seam that builds baseContention from the
-// live repo: branch (gitx), dirty CODE count (worktreeDirty→assessDirty's
-// Blocking bucket, so a dirty issue file is NOT counted, #82 M2), and other
-// status:working base issues (listIssues, excluding the one being planned).
-func gatherBaseContention(root string, thisIssue int) baseContention {
+// substrateChain walks construct/deps transitively from root and returns the
+// ordered, deduped list of upstream repo roots that exist on disk — the
+// dependency path the caller reads live. root itself is excluded. Targets are
+// resolved relative to their DECLARING repo root (the exact resolution #82 M3
+// got wrong), so a 2-hop chain resolves each hop against the right base. Absent
+// peers are skipped (present-walker semantics, like lib-deps.sh — don't abort on
+// a missing sibling). The seen-set also guards against dependency cycles.
+func substrateChain(root string) []string {
+	var order []string
+	seen := map[string]bool{}
+	if abs, err := filepath.Abs(root); err == nil {
+		seen[abs] = true
+	}
+	var walk func(declRoot string)
+	walk = func(declRoot string) {
+		data, err := os.ReadFile(filepath.Join(declRoot, "construct", "deps"))
+		if err != nil {
+			return
+		}
+		for _, target := range parseSubstrateTargets(string(data)) {
+			resolved := target
+			if !filepath.IsAbs(resolved) {
+				resolved = filepath.Join(declRoot, target)
+			}
+			resolved = filepath.Clean(resolved)
+			if real, err := filepath.EvalSymlinks(resolved); err == nil {
+				resolved = real // canonicalize when the peer exists
+			}
+			if seen[resolved] {
+				continue
+			}
+			if info, err := os.Stat(resolved); err != nil || !info.IsDir() {
+				continue // absent peer → skip, keep walking the rest
+			}
+			seen[resolved] = true
+			order = append(order, resolved)
+			walk(resolved)
+		}
+	}
+	walk(root)
+	return order
+}
+
+// gatherBaseContention is the thin IO seam that builds baseContention for ONE
+// repo root: branch + dirty CODE count (status --porcelain → assessDirty's
+// Blocking bucket, so a dirty tracker file is NOT counted, #82 M2) read via
+// `git -C root`, plus other status:working issues in that root's tracker
+// (excluding the one being planned). Run per repo on the dependency path.
+func gatherBaseContention(root string, excludeIssue int) baseContention {
 	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
 	historyDir := envOr("WF_HISTORY_DIR", "workshop/history")
-	c := baseContention{
-		Repo:   filepath.Base(root),
-		Branch: gitx.Capture("branch", "--show-current"),
+	c := baseContention{Repo: filepath.Base(root)}
+	// GitInDir output carries a trailing newline (unlike gitx.Capture, which
+	// trims) — TrimSpace, or Branch never equals "main" and Clean() never fires.
+	if out, err := mergeRunner.GitInDir(root, "branch", "--show-current"); err == nil {
+		c.Branch = strings.TrimSpace(string(out))
 	}
-	if dirty, err := worktreeDirty(mergeRunner); err == nil {
-		c.DirtyCode = len(assessDirty(dirty, issuesDir, historyDir).Blocking)
+	if out, err := mergeRunner.GitInDir(root, "status", "--porcelain"); err == nil {
+		c.DirtyCode = len(assessDirty(strings.TrimSpace(string(out)), issuesDir, historyDir).Blocking)
 	}
-	thisID := fmt.Sprintf("%06d", thisIssue)
-	if issues, err := listIssues(issuesDir); err == nil {
+	excludeID := fmt.Sprintf("%06d", excludeIssue)
+	if issues, err := listIssues(filepath.Join(root, issuesDir)); err == nil {
 		for _, is := range issues {
-			if is.Status == "working" && is.ID != thisID {
+			if is.Status == "working" && is.ID != excludeID {
 				c.Others = append(c.Others, inFlightIssue{ID: is.ID, Title: is.Title})
 			}
 		}

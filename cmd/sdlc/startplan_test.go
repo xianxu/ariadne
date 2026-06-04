@@ -99,27 +99,81 @@ func TestIssueRef(t *testing.T) {
 	}
 }
 
-// isBaseRepo: a real construct/ dir → base; a symlinked construct/ → derivative.
-func TestIsBaseRepo(t *testing.T) {
-	base := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(base, "construct"), 0o755); err != nil {
-		t.Fatal(err)
+// parseSubstrateTargets mirrors lib-deps.sh deps_substrate_targets' parse: keep
+// substrate rows' target, strip `#` comments, drop blanks/malformed/data rows.
+func TestParseSubstrateTargets(t *testing.T) {
+	cases := []struct {
+		name, content string
+		want          []string
+	}{
+		{"single", "substrate ../ariadne\n", []string{"../ariadne"}},
+		{"data row ignored", "substrate ../ariadne\ndata git@x:y.git data/z\n", []string{"../ariadne"}},
+		{"comment stripped mid-line", "substrate ../ariadne # the base\n", []string{"../ariadne"}},
+		{"full-line comment + blank", "# header\n\nsubstrate ../up\n", []string{"../up"}},
+		{"malformed one-field skipped", "substrate\nsubstrate ../up\n", []string{"../up"}},
+		{"absolute target kept", "substrate /abs/ariadne\n", []string{"/abs/ariadne"}},
+		{"multiple substrate rows", "substrate ../a\nsubstrate ../b\n", []string{"../a", "../b"}},
+		{"empty", "", nil},
 	}
-	if !isBaseRepo(base) {
-		t.Error("real construct/ dir should read as the base repo")
+	for _, tc := range cases {
+		got := parseSubstrateTargets(tc.content)
+		if len(got) != len(tc.want) {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tc.want[i] {
+				t.Errorf("%s: got[%d]=%q, want %q", tc.name, i, got[i], tc.want[i])
+			}
+		}
+	}
+}
+
+// substrateChain walks construct/deps transitively, resolving each target
+// against its DECLARING root (the exact bug #82 M3 had), deduping, present-skip.
+func TestSubstrateChain(t *testing.T) {
+	// Build a 3-repo chain C → B → A as sibling dirs under one parent, each
+	// declaring its upstream by a repo-root-relative path (`substrate ../X`).
+	parent := t.TempDir()
+	mk := func(name, deps string) string {
+		root := filepath.Join(parent, name)
+		if err := os.MkdirAll(filepath.Join(root, "construct"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if deps != "" {
+			if err := os.WriteFile(filepath.Join(root, "construct", "deps"), []byte(deps), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return root
+	}
+	rootA := mk("A", "")                    // root: no upstream
+	mk("B", "substrate ../A\n")             // B → A
+	rootC := mk("C", "substrate ../B\n")    // C → B (→ A transitively)
+
+	// From C: the full transitive path is [B, A], resolved root-relative.
+	got := substrateChain(rootC)
+	want := []string{filepath.Join(parent, "B"), filepath.Join(parent, "A")}
+	if len(got) != len(want) {
+		t.Fatalf("chain(C) = %v, want %v", got, want)
+	}
+	for i := range want {
+		// EvalSymlinks may canonicalize /var → /private/var on macOS; compare resolved.
+		wr, _ := filepath.EvalSymlinks(want[i])
+		gr, _ := filepath.EvalSymlinks(got[i])
+		if gr != wr {
+			t.Errorf("chain(C)[%d] = %q, want %q", i, got[i], want[i])
+		}
 	}
 
-	deriv := t.TempDir()
-	realConstruct := filepath.Join(base, "construct")
-	if err := os.Symlink(realConstruct, filepath.Join(deriv, "construct")); err != nil {
-		t.Fatal(err)
-	}
-	if isBaseRepo(deriv) {
-		t.Error("symlinked construct/ should NOT read as the base repo (it's a derivative)")
+	// From the root A: empty chain (no upstream).
+	if c := substrateChain(rootA); len(c) != 0 {
+		t.Errorf("chain(A) = %v, want empty (root has no upstream)", c)
 	}
 
-	none := t.TempDir()
-	if isBaseRepo(none) {
-		t.Error("no construct/ at all should not read as the base repo")
+	// Absent peer is skipped, not fatal.
+	lonely := mk("Lonely", "substrate ../DoesNotExist\n")
+	if c := substrateChain(lonely); len(c) != 0 {
+		t.Errorf("chain(Lonely) = %v, want empty (absent peer skipped)", c)
 	}
 }

@@ -191,16 +191,21 @@ flows into every consumer with no other edit. **`sdlc start-plan`** (#75 M2)
 delivers the `at-plan` lens to the main thread at design time — the forward
 counterpart to `change-code`'s plan-quality review (`claim → start-plan →
 change-code`); a drift test keeps AGENTS.md's narrative in sync with the markers.
-#71 adds `ARCH-SHIM`. **#82 M3** also has `start-plan` print a one-line,
-non-blocking **base-contention** heads-up — emitted only when cwd is the base
-repo (`isBaseRepo`: `construct/` is a real dir, not a symlink into the base).
-The pure `baseContentionSummary(baseContention)` renders branch state, dirty
-*code* count (tracker files excluded, reusing M2's `assessDirty.Blocking`), and
-other `status: working` base issues (excluding the one being planned); a clean
-base prints a green "clear to plan" line. The symlink model makes every
-derivative read the base's working tree live, so planning against a branched /
-dirty / concurrently-worked base is exactly what this surfaces at the commitment
-point. It never refuses.
+#71 adds `ARCH-SHIM`. **#82 M3 / #83** also have `start-plan` print non-blocking
+**dependency-path contention** — one line per repo this one reads live. The
+symlink model means a repo reads ALL its transitive upstreams' working trees, so
+the "moving ground" is the whole dependency chain, not a single base.
+`substrateChain(root)` walks `construct/deps` transitively (resolving each
+`substrate <path>` against its *declaring* root; `parseSubstrateTargets` is the
+Go port of `lib-deps.sh deps_substrate_targets`, kept in lockstep); per upstream,
+`gatherBaseContention(root, …)` reads branch + dirty *code* count (tracker files
+excluded, reusing M2's `assessDirty.Blocking`) + other `status: working` issues,
+and the pure `baseContentionSummary` renders the line (clean → green "clear to
+plan"). The **root** (ariadne — no upstream) reports its own concurrent work; a
+**derivative** reports its upstream(s) (`base (ariadne): …` from a nous session),
+which is the Spec's primary case. (#83 replaced #82 M3's broken `isBaseRepo`
+heuristic — `construct/` is a real dir in *every* repo, so it fired everywhere.)
+It never refuses.
 
 **One boundary review, binary-owned (#69).** The *procedure* and the *principles*
 are separate embedded sources: `internal/judge/code-review.md` (`//go:embed`'d as

@@ -141,9 +141,13 @@ Three `sdlc` mechanisms keep the common path smooth without adding a gate:
 2. **Dirty-tree guards ignore tracker files (#82 M2)** — `assessDirty` buckets
    `workshop/issues|history/*.md` as non-blocking (tracked-modified or
    untracked); only dirty *code* blocks a merge. See [sdlc-binary.md](sdlc-binary.md).
-3. **`start-plan` reads base contention (#82 M3)** — a one-line, non-blocking
-   heads-up (branch / dirty-code / other in-flight base issues), emitted only in
-   the base repo. Surfaces a "moving base" at the commitment point; never refuses.
+3. **`start-plan` reads dependency-path contention (#82 M3 / #83)** — a
+   non-blocking heads-up, one line per repo on the dependency chain
+   (`construct/deps`, walked transitively): branch / dirty-code / other in-flight
+   issues for each upstream you read live. A derivative surfaces its upstream(s)
+   (`base (ariadne): …`); the root reports its own concurrent work. Never refuses.
+   See [sdlc-binary.md](sdlc-binary.md). (#83 fixed M3's original cwd==base
+   heuristic, which mis-fired in every derivative.)
 
 Scoped OUT (a separate, larger concern): a layout-preserving worktree-set for the
 rare case that needs ariadne *isolated* while other base work continues.
