@@ -1,11 +1,11 @@
 ---
 id: 000078
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-03
-estimate_hours:
+estimate_hours: 1.0
 ---
 
 # sdlc merge clean-tree guard refuses on unrelated untracked files
