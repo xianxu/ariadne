@@ -207,6 +207,39 @@ func TestRunMerge_UntrackedAfterJudge_Proceeds(t *testing.T) {
 	}
 }
 
+// ── #82 M2: a dirty TRACKED tracker file does not block the merge ─────────────
+//
+// The complement of TestRunMerge_DirtyAfterJudge_RefusesPreMerge (dirty tracked
+// CODE → refuse). tempRepo commits 000999-done.md on both main and feature; we
+// dirty it (tracked-modified, status kept `done`) before merging. assessDirty
+// buckets it as Tracker — never Blocking — so the merge proceeds: tracker state
+// is append-only shared state synced to main out-of-band, not code contention.
+func TestRunMerge_DirtyTrackerFile_Proceeds(t *testing.T) {
+	dir := tempRepo(t)
+	gh := &e2eGH{openPR: "42"}
+	swapMergeDeps(t, gh, nil)
+
+	// Dirty the committed issue file in the working tree (still status: done so
+	// the archive still moves it). It's identical on main, so `git switch main`
+	// carries the modification without conflict.
+	issuePath := filepath.Join(dir, "workshop", "issues", "000999-done.md")
+	if err := os.WriteFile(issuePath, []byte("---\nid: 999\nstatus: done\n---\n\n# seeded done issue\n\nedited in the working tree\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if died {
+		t.Fatalf("merge should proceed past a dirty tracked tracker file, but died: %s", msg)
+	}
+	if gh.prMergeCalls != 1 {
+		t.Errorf("PRMerge called %d times — want 1 (dirty tracker file must not block)", gh.prMergeCalls)
+	}
+	if got := git(t, dir, "branch", "--show-current"); got != "main" {
+		t.Errorf("ended on branch %q, want main", got)
+	}
+}
+
 // ── #80: archive stages only the moved issue, not unrelated untracked WIP ─────
 //
 // tempRepo seeds a done issue (000999) the archive moves. Before merge we drop

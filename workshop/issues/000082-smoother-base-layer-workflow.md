@@ -1,11 +1,12 @@
 ---
 id: 000082
-status: working
+status: done
 deps: [000080]
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 3.5
+actual_hours: 3.5
 ---
 
 # smoother cross-repo base-layer workflow
@@ -125,25 +126,69 @@ Multi-milestone (three independent review boundaries; each closes separately).
 Depends on **#80** (the merge-archive broad-add fix) — land that first so M2's
 guard work and the filtered-add pattern sit on clean guard hygiene.
 
-- [ ] **M1 — `issue new` filtered auto-sync.** Have `sdlc issue new` call the
-      existing `syncOnMain` (claim.go) with the new issue as the `--issue` filter
-      after scaffolding the file. Confirm the on-feature-branch path (sync via the
-      main worktree) works from a derivative cwd. Test: new issue lands on main,
-      working tree clean, unrelated untracked files untouched.
-- [ ] **M2 — guards ignore tracker files.** Teach the dirty-tree assessment
-      (`assessDirty` / merge step-2 + 9b, #78) to classify `workshop/issues/*.md`
-      (and `workshop/history/*.md`?) as non-blocking regardless of tracked/
-      untracked. Decide scope: tracker-file glob vs a dedicated bucket. Test:
-      dirty issue file → merge proceeds; dirty code file → refuses.
-- [ ] **M3 — `start-plan` base-contention read.** Add a pure summarizer over
-      (base git state, origin/main working-base-issue list) → a one-line,
-      non-blocking heads-up emitted by `start-plan`. Reuse claim's broadcast as the
-      data source for in-flight base issues. Test the summarizer over fixtures
-      (clean base, branched base, N concurrent issues).
+- [x] **M1 — `issue new` filtered auto-sync.** Reuse claim's sync, don't fork it.
+      - **ARCH-DRY:** extract `runClaim`'s branch-aware dispatch (the part after the
+        optional `startOnClaim` flip) into `syncIssuesToMain(stdout, stderr,
+        *claimFlags, r gitRunner)` — `branch=="main" ? syncOnMain : syncOnBranch`.
+        Thread the `gitRunner` (don't drop it) so tests inject a capture runner;
+        `runClaim` calls it with `claimRunner`. One source of truth for "broadcast
+        issue files to origin/main".
+      - In `runIssueNew`, after the file is written (skip on `--dry-run`), parse
+        `nextID`→int and call `syncIssuesToMain` with `claimFlags{Issue: id,
+        IssuesDir: f.IssuesDir, NoStart: true}`. The `--issue` filter rides #80's
+        filtered add (`git add <matches>`), so the new file lands on origin/main
+        and unrelated untracked files stay put.
+      - On `main` (dominant path): file committed + pushed → working tree clean.
+        On a feature branch: inherits claim's `syncOnBranch` (sync via the main
+        worktree); a local untracked copy may remain — **M2 makes that
+        non-blocking**, so M1+M2 together deliver "filing never entangles a gate."
+        (Same worktree-topology constraints as `sdlc claim` today; not new here.)
+      - Test: `issue new` on main → file present + committed (clean tree); an
+        unrelated untracked issue file is untouched; `--dry-run` does NOT sync.
+- [x] **M2 — guards ignore tracker files.** Dedicated non-blocking bucket.
+      - **ARCH-DRY + ARCH-PURE:** give `dirtyAssessment` a third `Tracker []string`
+        bucket; `assessDirty(porcelain, issuesDir, historyDir)` classifies any
+        `workshop/issues|history/NNNNNN-*.md` line (tracked *or* untracked) as
+        Tracker, never Blocking. Reuse push.go's `parsePorcelainStatus` +
+        `isIssuePath`/`isHistoryPath` to pull the path + match — no new glob logic.
+        `Refuse()` stays `len(Blocking) > 0` (the elevated #78 invariant intact).
+      - Update the two call sites (step-2, step-9b) to pass the dirs and surface
+        `Tracker` like `Untracked` (warn, don't refuse). History included for
+        symmetry (both are tracker state synced out-of-band).
+      - Test (pure, both directions): dirty *issue* file → `!Refuse()`; dirty
+        *code* file → `Refuse()`; mixed → refuses (code still blocks).
+- [x] **M3 — `start-plan` base-contention read.** Pure summarizer + thin IO gather.
+      - **Repo-selection decision (the M3 crux, pinned):** the contention read
+        inspects **cwd**, and the line is emitted **only when cwd is the base
+        repo** — explicit `cwd==base` assumption ("you plan a base change while
+        cd'd into ariadne"). Detect via a small pure-ish predicate `isBaseRepo` =
+        `construct/` exists as a *real directory, not a symlink* (in derivatives
+        `construct/` is symlinked to the base). In a derivative cwd → stay silent
+        (leaf planning needs no base-contention line). Cross-repo base resolution
+        (read the base's state from a derivative cwd) is a noted follow-up, scoped
+        OUT here alongside the worktree-set escape hatch.
+      - **ARCH-PURE:** `baseContentionSummary(in baseContention) string` — one
+        non-blocking line over `{repo, branch, dirtyCode []string, others
+        []issueRef}`. Clean main + no others → a green "clear to plan" line;
+        branched/dirty-code or N others → the heads-up. No IO, table-tested.
+      - `runStartPlan` gathers inputs (thin seam, only if `isBaseRepo`): repo name
+        = basename(cwd); branch via `gitx.Capture`; dirty-code via
+        `worktreeDirty`+`assessDirty` (reusing M2's tracker split so issue-file
+        dirt doesn't read as base contention — only `Blocking` code counts); other
+        in-flight via `listIssues` filtered `status==working && id!=this` (local
+        main view; claim keeps it fresh). Prints the line after the architecture
+        block, never refuses.
+      - Test: pure `baseContentionSummary` fixtures — clean base, branched base,
+        dirty code, N concurrent working issues (excludes self); plus a direct
+        test of the `isBaseRepo` predicate (real dir vs symlink).
 
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — All 3 milestones shipped (M1/M2/M3 Review-Verdict: SHIP). go test ./cmd/sdlc/... green; go vet clean. M1 issue-new auto-sync (+best-effort die→error root fix), M2 tracker-tolerant dirty guard (+porcelain trim parse fix), M3 start-plan base-contention line (verified live). atlas sdlc-binary.md/issue-sync.md/base-layer.md updated.; review verdict: SHIP
+- 2026-06-04: closed M3 — go test ./cmd/sdlc/... green; pure TestBaseContentionSummary (clean/branched/dirty-code/N-concurrent/detached/compose) + TestIssueRef + TestIsBaseRepo (real dir vs symlink vs none); verified live: sdlc start-plan --issue 82 prints the contention line with the dirty issue file correctly excluded from the code count (M2 reuse); go vet clean.; review verdict: SHIP
+- 2026-06-04: closed M2 — go test ./cmd/sdlc/... green; TestAssessDirty (both directions: dirty issue→proceeds, dirty code→refuses, mixed→code blocks, non-tracker .md blocks, trimmed-leading-space regression) + TestPorcelainPaths + e2e TestRunMerge_DirtyTrackerFile_Proceeds (complements existing dirty-code-refuses e2e); go vet clean.; review verdict: SHIP
+- 2026-06-04: closed M1 — go test ./cmd/sdlc/... green; new TestRunIssueNew_AutoSyncsToMainCleanTree (file on main, clean tree, unrelated untracked untouched) + TestRunIssueNew_AutoSyncBestEffort (no-origin → file created, warns, no os.Exit); existing claim/fetch tests pass; go vet clean.; review verdict: SHIP
 Spun out of a design conversation on cross-repo base-layer friction (the #79→#80
 incident was the trigger: an untracked issue file swept onto main by a broad
 `git add`). Resolved the framing: three-layer reframe (tracker / shared-base /
@@ -153,3 +198,52 @@ derivative sessions). The layout-preserving worktree-set escape hatch was
 explicitly scoped OUT (Non-goals) as a separate, larger concern. Depends on #80.
 See [[000078]] (untracked-tolerant guard) and [[000080]] (broad-add fix) — M2
 generalizes their form-vs-essence line to the tracker-file class.
+
+### 2026-06-04 (M1)
+Extracted `runClaim`'s branch-aware dispatch into `syncIssuesToMain` (ARCH-DRY);
+`issue new` calls it post-scaffold with the new issue's `--issue` filter, routing
+the sync's stdout to stderr so the path-on-stdout contract stays clean.
+**Root-cause scope expansion:** the plan-quality gate plus a real test failure
+(`TestRunFetch_CreatesFileWithNextID` — `fetch` delegates to `runIssueNew`, and
+its repo has an unreachable github origin) exposed that `syncOnMain`/`syncOnBranch`
+called `die()` (os.Exit) internally — so a failed push would kill `issue new`
+itself, and my best-effort error-handling was dead code. Fixed at the root:
+converted both sync helpers to **return errors** instead of die(); `claim` dies on
+them (UX unchanged), `issue new` warns (best-effort — the file is already
+written; offline/no-origin must not abort creation). Tests: on-main clean-tree +
+filtered-add (unrelated untracked untouched), and best-effort degradation
+(no-origin repo → file created, warns, returns nil). atlas/issue-sync.md updated.
+
+### 2026-06-04 (M2)
+Gave `dirtyAssessment` a third `Tracker` bucket; `assessDirty(porcelain,
+issuesDir, historyDir)` classifies `workshop/issues|history/NNNNNN-*.md` lines
+(tracked-modified OR untracked) as Tracker, never Blocking — `Refuse()` unchanged
+(ARCH-PURE: pure classifier, table-tested both directions). Path matching reuses
+push.go's `isIssuePath`/`isHistoryPath` (ARCH-DRY). **Bug found mid-build:**
+`worktreeDirty` does `strings.TrimSpace` on the *whole* porcelain blob, which
+strips the leading status space off the FIRST line (" M f" → "M f"); the
+column-based `parsePorcelainStatus` I first reused then mis-read the path and
+bucketed a dirty issue file as Blocking — the e2e caught it. Root-caused to a
+field-split extractor (`porcelainPaths`) immune to the leading-space trim; pinned
+by a `TestPorcelainPaths` unit test + a trimmed-line case in `TestAssessDirty`.
+Tests: pure `assessDirty` (dirty issue → proceeds; dirty code → refuses; mixed →
+code still blocks; non-tracker .md still blocks) + e2e (dirty tracked issue file →
+merge proceeds), complementing the existing dirty-code-refuses e2e. Step-2 also
+surfaces dirty tracker files as a warning. atlas/sdlc-binary.md updated.
+
+### 2026-06-04 (M3)
+`start-plan` now prints a non-blocking base-contention heads-up. Repo-selection
+decision (the plan-quality crux) resolved as the cwd==base assumption, guarded by
+`isBaseRepo` (real `construct/` dir, not a symlink) — silent in a derivative;
+cross-repo base resolution scoped OUT (a follow-up, with the worktree-set hatch).
+Pure `baseContentionSummary(baseContention)` + `Clean()` + `issueRef`
+(table-tested: clean/branched/dirty-code/N-concurrent/detached); thin
+`gatherBaseContention` seam reads branch (gitx), dirty-CODE count
+(`assessDirty.Blocking` — **reuses M2** so a dirty issue file is NOT counted as
+contention), and other `status: working` issues (excluding self). Verified live:
+`sdlc start-plan --issue 82` →
+*"base (ariadne): on branch `000082-…`; 2 uncommitted code file(s); 1 other
+issue(s) in-flight (#52) — planning against a moving base."* — the dirty #82 issue
+file correctly excluded from the code count (M2 reuse confirmed end-to-end).
+atlas/sdlc-binary.md + base-layer.md updated (the latter gets the base-as-trunk
+three-layer section the Done-when asked for).

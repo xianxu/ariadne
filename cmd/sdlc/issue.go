@@ -171,6 +171,25 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		created += fmt.Sprintf(" (GitHub #%s)", ghNum)
 	}
 	cok(stderr, created)
+
+	// #82 M1: broadcast the new issue to origin/main immediately, so a freshly
+	// filed (base) issue is tracker state on main — not untracked working-tree
+	// residue that every symlinked derivative reads and that gates trip over.
+	// Reuses claim's branch-aware sync with this issue as the `--issue` filter
+	// (rides #80's filtered add — unrelated untracked files stay put). nextID is
+	// a zero-padded string ("000083"); claimFlags.Issue is an int.
+	if id, perr := strconv.Atoi(nextID); perr == nil {
+		syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, NoStart: true}
+		// Route the sync's stdout to stderr: its machine "synced" marker must not
+		// pollute `issue new`'s stdout contract (the created path, printed below).
+		if serr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner); serr != nil {
+			// Best-effort: the file is already written + reported above, so a sync
+			// failure (offline, no reachable origin, conflict) must not abort the
+			// create — just surface it. `claim` treats the same error as fatal.
+			cwarn(stderr, fmt.Sprintf("issue created but auto-sync to main did not complete: %v", serr))
+		}
+	}
+
 	fmt.Fprintln(stdout, dest)
 	return nil
 }

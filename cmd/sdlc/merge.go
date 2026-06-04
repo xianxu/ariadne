@@ -125,30 +125,43 @@ func worktreeDirty(r gitRunner) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// dirtyAssessment splits a `git status --porcelain` result into the two classes
-// that matter to the merge guard: Blocking (tracked modifications — staged,
-// modified, renamed, deleted, unmerged) and Untracked (`??` lines).
+// dirtyAssessment splits a `git status --porcelain` result into the classes that
+// matter to the merge guard: Blocking (tracked code modifications — staged,
+// modified, renamed, deleted, unmerged), Untracked (`??` non-tracker lines), and
+// Tracker (workshop issue/history markdown — never blocks, #82 M2).
 type dirtyAssessment struct {
-	Blocking  []string // tracked changes that MUST block the merge
+	Blocking  []string // tracked code changes that MUST block the merge
 	Untracked []string // untracked files — surfaced, but not a blocker (#78)
+	Tracker   []string // workshop/issues|history/*.md — tracker state, never blocks (#82 M2)
 }
 
 // Refuse reports whether the tree state must block the merge. The single source
 // of the merge-block decision (#78): both the step-2 check and the step-9b
 // re-assert ask Refuse() rather than re-deriving `len(...) > 0` inline, so the
-// two guards can't diverge (the Spec's elevated invariant).
+// two guards can't diverge (the Spec's elevated invariant). Tracker files are
+// out of Blocking by construction (#82 M2), so they can't flip this.
 func (d dirtyAssessment) Refuse() bool { return len(d.Blocking) > 0 }
 
 // assessDirty classifies porcelain output. Pure (mirrors decideMergeAction's
-// extracted-decision pattern). Only tracked modifications block a merge: a dirty
-// tracked file makes the post-merge `git switch main` / `git pull` refuse,
-// stranding the server-side merge. Untracked `??` files carry across the branch
-// switch untouched, so they don't strand it — they're surfaced as a warning,
-// not a refusal (#78).
-func assessDirty(porcelain string) dirtyAssessment {
+// extracted-decision pattern). Only tracked CODE modifications block a merge: a
+// dirty tracked file makes the post-merge `git switch main` / `git pull` refuse,
+// stranding the server-side merge. Two classes are non-blocking: untracked `??`
+// files carry across the branch switch untouched (#78), and tracker files
+// (workshop issue/history markdown) are append-only shared state synced to main
+// out-of-band (#82 M1) — a dirty issue file is never code contention, whether
+// tracked-modified or untracked (#82 M2). Both are surfaced as warnings, not
+// refusals.
+func assessDirty(porcelain, issuesDir, historyDir string) dirtyAssessment {
 	var d dirtyAssessment
 	for _, line := range strings.Split(porcelain, "\n") {
 		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		// Tracker classification is by PATH and comes first, so a dirty issue
+		// file lands in Tracker regardless of its tracked/untracked status code.
+		path, dest := porcelainPaths(line)
+		if isTrackerPath(path, issuesDir, historyDir) || isTrackerPath(dest, issuesDir, historyDir) {
+			d.Tracker = append(d.Tracker, line)
 			continue
 		}
 		if strings.HasPrefix(line, "??") {
@@ -158,6 +171,36 @@ func assessDirty(porcelain string) dirtyAssessment {
 		}
 	}
 	return d
+}
+
+// isTrackerPath reports whether p is a tracker file — a workshop issue or its
+// archived history copy. Reuses push.go's issue/history path predicates so the
+// "what counts as tracker state" definition has one source of truth (#82 M2).
+func isTrackerPath(p, issuesDir, historyDir string) bool {
+	if p == "" {
+		return false
+	}
+	return isIssuePath(p, issuesDir) || isHistoryPath(p, historyDir)
+}
+
+// porcelainPaths extracts the path (and rename/copy dest) from a `git status
+// --porcelain` line. It splits on whitespace rather than slicing fixed status
+// columns, because worktreeDirty whole-trims its output — stripping the leading
+// status space off the first line (" M f" → "M f") and shifting any column
+// parse. Field-splitting is immune: fields[0] is the status code, the path is
+// the next field (last field for an `orig -> dest` rename). (Quoted paths with
+// embedded spaces aren't handled — same limitation as parsePorcelainStatus.)
+func porcelainPaths(line string) (path, dest string) {
+	fields := strings.Fields(line)
+	if len(fields) < 2 {
+		return "", ""
+	}
+	for i, f := range fields {
+		if f == "->" && i+1 < len(fields) {
+			return fields[1], fields[len(fields)-1]
+		}
+	}
+	return fields[1], ""
 }
 
 // mergeAction is what step 10 should do, given the PR state.
@@ -200,7 +243,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	assessment := assessDirty(dirty)
+	assessment := assessDirty(dirty, f.IssuesDir, f.HistoryDir)
 	if assessment.Refuse() {
 		fmt.Fprintf(stderr, "  %s[x]%s Uncommitted tracked changes found — cannot merge\n", ansiRed, ansiReset)
 		fmt.Fprintln(stderr, strings.Join(assessment.Blocking, "\n"))
@@ -209,6 +252,10 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	if len(assessment.Untracked) > 0 {
 		cwarn(stderr, fmt.Sprintf("%d untracked file(s) present — not blocking the merge (they survive the branch switch):", len(assessment.Untracked)))
 		fmt.Fprintln(stderr, strings.Join(assessment.Untracked, "\n"))
+	}
+	if len(assessment.Tracker) > 0 {
+		cwarn(stderr, fmt.Sprintf("%d tracker file(s) dirty — not blocking the merge (tracker state syncs to main out-of-band, #82):", len(assessment.Tracker)))
+		fmt.Fprintln(stderr, strings.Join(assessment.Tracker, "\n"))
 	}
 	cok(stderr, "No uncommitted tracked changes")
 
@@ -348,7 +395,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// is the real risk this re-assert defends against.
 	if redirty, derr := worktreeDirty(mergeRunner); derr != nil {
 		die(stderr, derr.Error())
-	} else if reassess := assessDirty(redirty); reassess.Refuse() {
+	} else if reassess := assessDirty(redirty, f.IssuesDir, f.HistoryDir); reassess.Refuse() {
 		fmt.Fprintf(stderr, "  %s[x]%s Tracked files dirtied after the initial check (likely a pre-merge judge/hook):\n", ansiRed, ansiReset)
 		fmt.Fprintln(stderr, strings.Join(reassess.Blocking, "\n"))
 		die(stderr, "review + commit (or discard) these changes, then re-run `sdlc merge` — refusing before the irreversible merge")

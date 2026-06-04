@@ -119,6 +119,35 @@ progress is better than aborting on the first hiccup.
 Defined in `ariadne/Makefile.local` — ariadne-only, not vendored
 (consumers don't push to their own peers).
 
+## Base-as-trunk: three layers, different physics (#82)
+
+Because derivatives symlink ariadne's working tree, a base change is *live* in
+every derivative the moment it's saved — high churn is fine, but *long-lived,
+concurrent, invisible* base branches break reasoning. The fix reframes three
+things that look alike but behave differently:
+
+- **Tracker state** (issues, claims, status) — append-only, instantly shared,
+  committed to main *out-of-band*; should never be working-tree residue.
+- **Base-layer code** (`construct/`, `cmd/`) — shared *live* via symlinks; the
+  real contention surface.
+- **Leaf code** (derivative-specific) — naturally isolated per session.
+
+Three `sdlc` mechanisms keep the common path smooth without adding a gate:
+
+1. **`issue new` auto-syncs to main (#82 M1)** — filing an issue broadcasts it to
+   origin/main via claim's shared `syncIssuesToMain` (best-effort: the file is
+   still created if the push can't land). Tracker state lands on main, not as
+   residue. See [issue-sync.md](issue-sync.md).
+2. **Dirty-tree guards ignore tracker files (#82 M2)** — `assessDirty` buckets
+   `workshop/issues|history/*.md` as non-blocking (tracked-modified or
+   untracked); only dirty *code* blocks a merge. See [sdlc-binary.md](sdlc-binary.md).
+3. **`start-plan` reads base contention (#82 M3)** — a one-line, non-blocking
+   heads-up (branch / dirty-code / other in-flight base issues), emitted only in
+   the base repo. Surfaces a "moving base" at the commitment point; never refuses.
+
+Scoped OUT (a separate, larger concern): a layout-preserving worktree-set for the
+rare case that needs ariadne *isolated* while other base work continues.
+
 ## Sandbox (.openshell/)
 
 The sandbox is an OpenShell containerized dev environment. Base layer provides the full infrastructure.
