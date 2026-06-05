@@ -1,11 +1,12 @@
 ---
 id: 000087
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-05
 updated: 2026-06-05
 estimate_hours: 1
+actual_hours: 0.08
 ---
 
 # sdlc close: sanity-check a passed --actual against the computed active-time-v3 value (warn/refuse on large deviation)
@@ -61,8 +62,16 @@ shared close path so `milestone-close` inherits it (it wraps `close`).
 ## Log
 
 ### 2026-06-05
+- 2026-06-05: closed — pure comparator actualDeviation table-tested (exact/below-floor/3x-warn/10x-refuse/symmetric/nous#42-45x-refuse); checkActualDeviation skip-on-unmeasurable tested; go build + full cmd/sdlc suite green; close --help renders the backstop; this very close passed the new check (0.08 vs measured 0.08).; review verdict: unknown
 
 Filed alongside #86 from the nous#42 retro. #86 removes the doc priming (cause); this is the
 code backstop (defense in depth). Operator: "clever, and a clean way to manage the migration" —
 even while downstream docs/habits catch up, the check stops a fabricated value at the gate.
 Not scheduled for immediate implementation — filed for later.
+
+Boundary review FIX-THEN-SHIP, resolved in-window: extracted `resolveActualRoots()`
+(ARCH-DRY — was duplicated from explainActual); added the backstop note to
+milestone-close.md help (Plan item 4 now covers both helptexts); reworded the
+refuse message's `--force '<why>'` → `--force (reason in --verified)` (it's a
+BoolVar). The close of THIS issue dogfooded the check (passed 0.08 vs measured
+0.08 → no refusal). Verdict: SHIP after fixes.

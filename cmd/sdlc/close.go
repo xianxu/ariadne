@@ -646,12 +646,7 @@ func finishBoundaryReview(stdout, stderr io.Writer, f *closeFlags, result review
 // ── explainers ───────────────────────────────────────────────────────────────
 
 func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
-	repoTop, err := gitx.RepoTopLevel()
-	if err != nil || repoTop == "" {
-		cwd, _ := os.Getwd()
-		repoTop, _ = filepath.Abs(cwd)
-	}
-	brainAbs, _ := filepath.Abs(filepath.Join(repoTop, "..", "brain"))
+	repoTop, brainAbs := resolveActualRoots()
 
 	var head []string
 	head = append(head, fmt.Sprintf("%sACTUAL=<hours> required for %s close (§5 step 3).%s", ansiRed, mode, ansiReset), "")
@@ -674,6 +669,19 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
 	tail = append(tail, "  Pass --no-actual (or --force) to bypass this requirement (record the reason in --verified).")
 	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
+}
+
+// resolveActualRoots returns the repo top (cwd fallback) and the sibling brain
+// dir — the two roots computeActual needs. Shared by explainActual (omit-path)
+// and checkActualDeviation (pass-path) so the resolution lives in one place.
+func resolveActualRoots() (repoTop, brainAbs string) {
+	repoTop, err := gitx.RepoTopLevel()
+	if err != nil || repoTop == "" {
+		cwd, _ := os.Getwd()
+		repoTop, _ = filepath.Abs(cwd)
+	}
+	brainAbs, _ = filepath.Abs(filepath.Join(repoTop, "..", "brain"))
+	return repoTop, brainAbs
 }
 
 // #87: backstop for a hand-passed --actual that doesn't match reality.
@@ -725,12 +733,7 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 // nil — never blocks — when the engine can't measure (no window / telemetry gap
 // / no script): an unavailable measurement must not gate a legitimate close.
 func checkActualDeviation(stderr io.Writer, issueStr string, passed float64) error {
-	repoTop, err := gitx.RepoTopLevel()
-	if err != nil || repoTop == "" {
-		cwd, _ := os.Getwd()
-		repoTop, _ = filepath.Abs(cwd)
-	}
-	brainAbs, _ := filepath.Abs(filepath.Join(repoTop, "..", "brain"))
+	repoTop, brainAbs := resolveActualRoots()
 	res := computeActual(repoTop, brainAbs, issueStr)
 	if res.Status != actualMeasured {
 		return nil // can't measure → don't block (judgment path owns this)
@@ -739,8 +742,8 @@ func checkActualDeviation(stderr io.Writer, issueStr string, passed float64) err
 	switch verdict {
 	case devRefuse:
 		return fmt.Errorf("--actual %.2f is %.0f× the active-time-v3 measurement (%.2fh) — looks fabricated or fat-fingered.\n"+
-			"  Run `sdlc actual --issue %s` and pass the measured value; or --force '<why>' if the measurement is\n"+
-			"  genuinely wrong (a bad actual pollutes velocity calibration — the gate exists to catch exactly this).",
+			"  Run `sdlc actual --issue %s` and pass the measured value; or --force (reason in --verified) if the\n"+
+			"  measurement is genuinely wrong (a bad actual pollutes velocity calibration — the gate exists to catch this).",
 			passed, ratio, res.Hours, issueStr)
 	case devWarn:
 		cwarn(stderr, fmt.Sprintf("--actual %.2f is %.1f× the active-time-v3 measurement (%.2fh) — confirm it's right, or re-run `sdlc actual --issue %s`",
