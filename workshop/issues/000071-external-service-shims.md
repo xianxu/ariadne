@@ -1,10 +1,10 @@
 ---
 id: 000071
 status: open
-deps: []
+deps: [nous#42]
 github_issue:
 created: 2026-06-02
-updated: 2026-06-02
+updated: 2026-06-05
 estimate_hours:
 ---
 
@@ -99,3 +99,32 @@ Filed from the sdlc tooling retro
 gh/github the first instance, but solve it as the **generic pattern** — always construct a
 shim for any external service (gmail, Google OAuth, …), systematically. Anchored in the
 existing auto-mocking vision in brain.
+
+## Revisions
+
+### 2026-06-05 — repurpose #71 as the architecture-promotion step; gh instance → nous#42
+
+Brainstormed the scope with operator. Outcome reshapes this issue:
+
+- **The gh instance is built in nous, not here.** `shim(gh)`/`shim'(gh)` and the hermetic
+  nous#26/#41 regression tests are now **nous#42** (the spec lives there). gh is only used in
+  nous; building it here would split spec-from-code across repos. `deps: [nous#42]` is the
+  stable, machine-checkable cross-repo link (prose links rot) — **#71 cannot close until
+  nous#42 lands.**
+- **#71 is scoped down to the final step:** *promote the proven shim(X)/shim'(X) pattern to an
+  ariadne architecture choice.* That means, only **after** the gh instance (nous#42) and the
+  planned second instance (Google OAuth, also nous) succeed: amend AGENTS.md §5 (replace
+  "process-level fake" with "stateful fake behind a provider-neutral port," distinguishing it
+  from the per-call stubs §5 actually warned against) and add a pattern entry to the `ARCH-*`
+  registry / architecture.md. **No ariadne files change before then** — the convention is not
+  generalized from n=1.
+- **Design decisions fixed for the pattern** (full rationale in nous#42): provider-neutral
+  domain port (Ports & Adapters) with documented extension points for vendor peculiarities;
+  in-process library-call transport with a *stateful* fake (not bridge/RPC/channel);
+  wire-fidelity owned by a periodic **dual-backend contract test** (fake always + real `gh`
+  build-tagged) — the "make the assumptions explicit," two-step grounding model; uniform
+  `New(Conf)`/`NewFake(Conf)` constructor convention with opaque per-service `Conf` and **no**
+  shared cross-service framework.
+- Originally this issue's "Done when" bundled both the convention *and* the gh instance; that
+  is superseded by the split above. The gh-instance bullets now belong to nous#42; this
+  issue's completion = the §5 + architecture.md promotion, gated on two successful instances.
