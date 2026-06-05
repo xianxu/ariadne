@@ -82,12 +82,12 @@ would catch a *fabricated* passed value is the sibling issue **#87**, cross-refe
 
 ## Plan
 
-- [ ] Edit `AGENTS.md:49` (base layer) — measured-not-typed wording.
-- [ ] Edit `construct/local/issues/SKILL.md:17`.
-- [ ] Edit `cmd/sdlc/helptext/milestone-close.md` — add the computed/suggested note.
-- [ ] Edit `cmd/sdlc/helptext/close.md:7-8`, `helptext/set-status.md:24`, `cmd/sdlc/setstatus.go:207` — annotate/point at `sdlc actual`.
-- [ ] `go build ./cmd/sdlc`; eyeball `--help` for close + milestone-close; grep-sweep for remaining bare examples.
-- [ ] Update atlas only if surface/terminology changed (likely `--no-atlas`: pure prose; sdlc-binary.md already states the truth).
+- [x] Edit `AGENTS.md:49` (base layer) — measured-not-typed wording.
+- [x] Edit `construct/local/issues/SKILL.md:17`.
+- [x] Edit `cmd/sdlc/helptext/milestone-close.md` — add the computed/suggested note.
+- [x] Edit `cmd/sdlc/helptext/close.md:7-8`, `helptext/set-status.md:24`, `cmd/sdlc/setstatus.go:207` — annotate/point at `sdlc actual`.
+- [x] `go build ./cmd/sdlc`; eyeball `--help` for close + milestone-close; grep-sweep for remaining bare examples.
+- [x] Update atlas only if surface/terminology changed (likely `--no-atlas`: pure prose; sdlc-binary.md already states the truth).
 
 ## Log
 
