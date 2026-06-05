@@ -1,6 +1,6 @@
 ---
 id: 000014
-status: open
+status: punt
 deps: []
 created: 2026-04-28
 updated: 2026-04-28
@@ -22,6 +22,10 @@ it seems at least the "execution" can be driven by simpler models, e.g. follow a
 - [ ]
 
 ## Log
+
+### 2026-06-04
+
+Punt as I don't think we will get to a good local model for this. It's never the key value proposition anyway. 
 
 ### 2026-04-28
 
