@@ -53,10 +53,10 @@ shared close path so `milestone-close` inherits it (it wraps `close`).
 
 ## Plan
 
-- [ ] (design) settle threshold/floor + warn-vs-refuse policy + override affordance.
-- [ ] implement the compare in the shared close path (`close.go`), reusing `computeActual`.
-- [ ] tests: passed≈measured silent; passed≫measured warn/refuse; engine-unavailable skip.
-- [ ] update `helptext/close.md` + `milestone-close.md` to describe the check.
+- [x] (design) settle threshold/floor + warn-vs-refuse policy + override affordance.
+- [x] implement the compare in the shared close path (`close.go`), reusing `computeActual`.
+- [x] tests: passed≈measured silent; passed≫measured warn/refuse; engine-unavailable skip.
+- [x] update `helptext/close.md` + `milestone-close.md` to describe the check.
 
 ## Log
 
