@@ -1,11 +1,12 @@
 ---
 id: 000086
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-05
 updated: 2026-06-05
 estimate_hours: 0.5
+actual_hours: 0.11
 ---
 
 # fix stale --actual prose that primes hand-typing instead of measuring (AGENTS.md/issues-SKILL/milestone-close help) — #74 follow-up
@@ -82,18 +83,23 @@ would catch a *fabricated* passed value is the sibling issue **#87**, cross-refe
 
 ## Plan
 
-- [ ] Edit `AGENTS.md:49` (base layer) — measured-not-typed wording.
-- [ ] Edit `construct/local/issues/SKILL.md:17`.
-- [ ] Edit `cmd/sdlc/helptext/milestone-close.md` — add the computed/suggested note.
-- [ ] Edit `cmd/sdlc/helptext/close.md:7-8`, `helptext/set-status.md:24`, `cmd/sdlc/setstatus.go:207` — annotate/point at `sdlc actual`.
-- [ ] `go build ./cmd/sdlc`; eyeball `--help` for close + milestone-close; grep-sweep for remaining bare examples.
-- [ ] Update atlas only if surface/terminology changed (likely `--no-atlas`: pure prose; sdlc-binary.md already states the truth).
+- [x] Edit `AGENTS.md:49` (base layer) — measured-not-typed wording.
+- [x] Edit `construct/local/issues/SKILL.md:17`.
+- [x] Edit `cmd/sdlc/helptext/milestone-close.md` — add the computed/suggested note.
+- [x] Edit `cmd/sdlc/helptext/close.md:7-8`, `helptext/set-status.md:24`, `cmd/sdlc/setstatus.go:207` — annotate/point at `sdlc actual`.
+- [x] `go build ./cmd/sdlc`; eyeball `--help` for close + milestone-close; grep-sweep for remaining bare examples.
+- [x] Update atlas only if surface/terminology changed (likely `--no-atlas`: pure prose; sdlc-binary.md already states the truth).
 
 ## Log
 
 ### 2026-06-05
+- 2026-06-05: closed — go build ./cmd/sdlc clean; cmd/sdlc tests pass; sdlc milestone-close/set-status --help render the measured-not-typed wording; grep sweep shows no agent-facing bare --actual <h|hours> example left without a measurement pointer (remaining refs all in "computes/suggests/measured" context). --no-atlas: pure prose/help-string fix, no new surface; atlas/workflow/sdlc-binary.md:139 already states "computed, not hand-typed".; review verdict: SHIP
 
 Filed from the nous#42 retro: agent hand-passed a fabricated `--actual 13.5` (measured 0.30h)
 because AGENTS.md §5 and the issues SKILL show `--actual h` with no pointer to `sdlc actual`.
 Sibling **#87** adds the code-level deviation backstop. Audit of all `--actual` refs captured in
 Problem above.
+
+Base-layer propagation weighed: AGENTS.md is symlinked (base.manifest:43), so this
+correction propagates to all downstream ariadne-styled repos — desirable here (a
+corrected constitution is exactly what should spread). Boundary review: SHIP.
