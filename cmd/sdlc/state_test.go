@@ -82,7 +82,9 @@ func TestDetectDrift(t *testing.T) {
 		{ID: "000005", Status: "", PlanTotal: 0, PlanTicked: 0},                              // drift: no frontmatter
 		{ID: "000006", Status: "wontfix", PlanTotal: 0, PlanTicked: 0},                       // drift: should be archived
 	}
-	out := detectDrift(issues, "workshop/history")
+	// neverShipped: the existing drift cases must hold independent of the
+	// close-off check, so the probe reports nothing shipped.
+	out := detectDrift(issues, "workshop/history", neverShipped)
 
 	if len(out) != 4 {
 		t.Fatalf("expected 4 drift findings, got %d:\n%+v", len(out), out)
@@ -102,6 +104,65 @@ func TestDetectDrift(t *testing.T) {
 	}
 	if d := byIssue["000002"]; d.Severity != "info" {
 		t.Errorf("no-tick drift should be info severity, got %q", d.Severity)
+	}
+}
+
+// neverShipped is the all-false ship probe (no work on main for any issue).
+func neverShipped(string) (string, string, bool) { return "", "", false }
+
+// TestDetectDrift_CloseOff pins the #76 close-off-candidate check: an
+// open/working issue with a near-complete plan AND shipped work on main is
+// flagged warn-only; the same issue without shipped work (e.g. only a filing
+// commit) is NOT flagged; a done issue is never a close-off candidate.
+func TestDetectDrift_CloseOff(t *testing.T) {
+	issues := []IssueState{
+		{ID: "000051", Status: "open", PlanTotal: 14, PlanTicked: 13},     // #51 pattern: all-but-one + shipped → flag
+		{ID: "000060", Status: "working", PlanTotal: 3, PlanTicked: 3},    // all ticked + shipped → flag
+		{ID: "000070", Status: "working", PlanTotal: 2, PlanTicked: 2},    // near-complete but NOT shipped → no flag
+		{ID: "000080", Status: "open", PlanTotal: 1, PlanTicked: 0},       // freshly claimed (0/1) → pre-filter excludes
+		{ID: "000090", Status: "done", PlanTotal: 5, PlanTicked: 5},       // done → never a close-off candidate
+	}
+	// Probe is called with the UNPADDED number (closeOffFinding unpads before
+	// calling, since commit subjects use `#82` not `#000082`). Shipped for the
+	// two genuine candidates only; #70 is near-complete but unmerged, #90 is
+	// done (excluded regardless).
+	shippedNums := map[string]bool{"51": true, "60": true, "90": true}
+	probe := func(num string) (string, string, bool) {
+		if shippedNums[num] {
+			return "abc1234def", "#" + num + ": the work", true
+		}
+		return "", "", false
+	}
+
+	out := detectDrift(issues, "workshop/history", probe)
+
+	closeOff := map[string]DriftFinding{}
+	for _, d := range out {
+		if strings.Contains(d.Message, "looks done") {
+			closeOff[d.Issue] = d
+		}
+	}
+	if len(closeOff) != 2 {
+		t.Fatalf("expected 2 close-off findings, got %d:\n%+v", len(closeOff), out)
+	}
+	for _, want := range []string{"000051", "000060"} {
+		d, ok := closeOff[want]
+		if !ok {
+			t.Errorf("missing close-off finding for #%s", want)
+			continue
+		}
+		if d.Severity != "warn" {
+			t.Errorf("#%s close-off should be warn, got %q", want, d.Severity)
+		}
+	}
+	if d, ok := closeOff["000051"]; ok && !strings.Contains(d.Message, "sdlc close --issue 51") {
+		t.Errorf("#51 message should carry the unpadded close command: %q", d.Message)
+	}
+	// #70 (near-complete, unshipped), #80 (0/1), #90 (done) must NOT be flagged.
+	for _, unwanted := range []string{"000070", "000080", "000090"} {
+		if _, ok := closeOff[unwanted]; ok {
+			t.Errorf("#%s should NOT be a close-off candidate", unwanted)
+		}
 	}
 }
 

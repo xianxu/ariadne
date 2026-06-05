@@ -111,6 +111,115 @@ func MergeBaseWithMain() string {
 	return base
 }
 
+// MainRef returns the ref that stands for "the published main line":
+// origin/main if it verifies, else local main, else "" (fresh repo or a
+// master-only checkout). Single source for the origin/main→main→"" fallback
+// shared by recentCommits (state.go) and ShippedWorkOnMain below, so the
+// resolution lives in one place rather than being copy-pasted.
+func MainRef() string {
+	if Capture("rev-parse", "--verify", "origin/main") != "" {
+		return "origin/main"
+	}
+	if Capture("rev-parse", "--verify", "main") != "" {
+		return "main"
+	}
+	return ""
+}
+
+// bookkeepingVerbs are subject lead-ins that *do* anchor #N but represent
+// workflow bookkeeping — filing, claiming, or closing an issue — not shipped
+// implementation. (issue-sync commits never anchor #N in their subject —
+// they read "issue-sync: update issues" — so they're excluded for free by the
+// subject anchor and need no entry here.)
+var bookkeepingVerbs = []string{"file issue", "ticket", "claim", "close"}
+
+// IsShippedWorkSubject reports whether a commit subject is *implementation*
+// work for issueNum: subject-anchored on #N (the same `^#N($|[^0-9])` anchor
+// CommitWindow uses, so "#510" / a parenthetical "(see #5)" don't match #5)
+// and not a bookkeeping lead-in. Pure — no git, table-tested directly.
+//
+// The discriminator that keeps a bare `--grep #N` count honest: it separates a
+// shipped `#51 M1-M3: …` / `#80: archive stages …` from a `#76: file issue …`
+// or `#51: close …`.
+func IsShippedWorkSubject(issueNum, subject string) bool {
+	if !subjectAnchorRE(issueNum, false).MatchString(subject) {
+		return false
+	}
+	// Peel "#N" and the leading ":"/space to reach the descriptor, then test the
+	// denylist against its head. A milestone tag (e.g. "M1-M3: ") is left in
+	// place on purpose: it never starts with a bookkeeping verb, so a
+	// milestone-tagged subject always reads as work — exactly right.
+	rest := strings.TrimSpace(strings.TrimPrefix(subject, "#"+issueNum))
+	rest = strings.TrimSpace(strings.TrimLeft(rest, ":"))
+	lower := strings.ToLower(rest)
+	for _, v := range bookkeepingVerbs {
+		// Whole-token match: "close" is bookkeeping, "close-off" is not.
+		if strings.HasPrefix(lower, v) {
+			after := lower[len(v):]
+			if after == "" || !isWordByte(after[0]) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// isWordByte reports whether b continues a word (letter or '-'), used to keep
+// bookkeepingVerbs matching on whole tokens ("close" ≠ "close-off").
+func isWordByte(b byte) bool {
+	return b == '-' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+// subjectAnchorRE is the single source for the "commit subject opens with #N"
+// anchor: #N followed by end-of-subject or a non-digit, so #51 never matches
+// #510 and a parenthetical "(see #51)" never anchors. RE2 has no negative
+// lookahead, so "(?!\d)" is rendered "($|[^0-9])". allowClosePrefix permits a
+// leading "close " — CommitWindow counts the close commit, the #76 ship probe
+// does not.
+func subjectAnchorRE(issueNum string, allowClosePrefix bool) *regexp.Regexp {
+	prefix := ""
+	if allowClosePrefix {
+		prefix = `(close\s+)?`
+	}
+	return regexp.MustCompile(`^` + prefix + `#` + regexp.QuoteMeta(issueNum) + `($|[^0-9])`)
+}
+
+// ShippedWorkOnMain reports whether implementation work for issueNum has
+// landed on the published main line — the close-off signal for `sdlc state`.
+// Returns (firstWorkSHA, itsSubject, true) for the first subject-anchored
+// non-bookkeeping commit reachable from MainRef, or ("","",false) when none
+// exists or there is no main ref (degrades by construction — no network, never
+// hard-fails). A merged PR lands the work-convention commits on main, so this
+// gh-free scan *is* the merged-work signal.
+//
+// Mirrors CommitWindow's cheap `--grep #N` prefilter, then re-filters in Go
+// with IsShippedWorkSubject (git's POSIX grep can't express the subject anchor
+// + denylist reliably across platforms).
+func ShippedWorkOnMain(issueNum string) (sha, subject string, shipped bool) {
+	mainRef := MainRef()
+	if mainRef == "" {
+		return "", "", false
+	}
+	out, err := run("git", "log", mainRef, "--grep=#"+issueNum, "--pretty=%H%x00%s")
+	if err != nil {
+		return "", "", false
+	}
+	text := strings.TrimRight(string(out), "\n")
+	if text == "" {
+		return "", "", false
+	}
+	for _, line := range strings.Split(text, "\n") {
+		parts := strings.SplitN(line, "\x00", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if IsShippedWorkSubject(issueNum, parts[1]) {
+			return parts[0], parts[1], true
+		}
+	}
+	return "", "", false
+}
+
 // WindowCapDays is the sanity cap on how far back the commit window can
 // reach. Anything older is almost certainly a fork-upstream collision
 // (the forked repo's history reusing #N for a different historical issue),
@@ -158,7 +267,7 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 	if text == "" {
 		return "", "", "", nil
 	}
-	subjectRE := regexp.MustCompile(`^(close\s+)?#` + regexp.QuoteMeta(issueNum) + `($|[^0-9])`)
+	subjectRE := subjectAnchorRE(issueNum, true)
 	type match struct{ iso, sha string }
 	var matches []match
 	for _, line := range strings.Split(text, "\n") {

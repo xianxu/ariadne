@@ -70,7 +70,7 @@ cmd/sdlc/
   preflight.go         runPreflightJudges (push + merge pre-flight)
   close.go             ← scripts/close-issue.py
   actual.go            new (#68): runs active-time-v3 → suggested --actual
-  state.go             new (read-only inspection + drift detection)
+  state.go             new (read-only inspection + drift detection; see "Drift checks")
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
   issue.go             new (#56): `sdlc issue` group — new / set-status / list / show
@@ -89,12 +89,32 @@ cmd/sdlc/
   helptext/            //go:embed *.md — one .md per verb + root
   internal/
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
-                       CommitWindow, DiscoverWindowIssues, RunGit)
+                       MainRef, CommitWindow, DiscoverWindowIssues, RunGit,
+                       IsShippedWorkSubject/ShippedWorkOnMain — #76 ship probe)
     issue/             frontmatter parse/edit + plan-section regexes +
                        scaffold.go (NextID/Slugify/Render — #56)
     judge/             Category enum, prompt builder, classify, dispatch
     project/           brain project-file mutation helpers
 ```
+
+## Drift checks (`sdlc state`)
+
+`state` gates nothing — it reports. `detectDrift` (state.go) surfaces warn-only
+inconsistencies so an agent recovering after compaction sees what's off:
+missing-frontmatter, `done`/`wontfix`/`punt` still in `workshop/issues/` (should
+be archived), and `working` with **zero** plan items ticked (the no-progress
+end). #76 added the inverse — the **close-off candidate**: an `open`/`working`
+issue whose plan is all (or all-but-one) ticked *and* whose work has shipped to
+main, i.e. done work that never got formally closed. The "shipped" signal is
+gh-free by design: a subject-anchored `git log <MainRef>` scan
+(`gitx.ShippedWorkOnMain` → pure `IsShippedWorkSubject`) distinguishes a real
+`#N Mx:` work commit from bookkeeping (`file issue`/`ticket`/`claim`/`close`),
+so a merged PR's work commits *are* the signal — no network, degrades to
+"not-shipped" when there's no main ref. Warn-only on purpose: it points at `sdlc
+close --issue N` for a human glance, never auto-closes (closing carries
+actual/verified judgment a heuristic can't supply). The probe is injected into
+`detectDrift` as a `shipProbe` func so the drift logic stays testable without
+git.
 
 ## Anti-collusion + form-vs-essence
 

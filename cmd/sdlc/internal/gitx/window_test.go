@@ -89,6 +89,86 @@ func TestIssueRefRE_DiscoveryParsing(t *testing.T) {
 	}
 }
 
+// TestIsShippedWorkSubject exercises the #76 pure classifier: subject-anchored
+// on #N, minus the bookkeeping denylist. This is the discriminator that keeps a
+// bare `--grep #N` count from flagging a filing/claim/close commit as shipped
+// implementation work.
+func TestIsShippedWorkSubject(t *testing.T) {
+	tests := []struct {
+		issue   string
+		subject string
+		want    bool
+	}{
+		{"76", "#76: surface close-off candidates", true},
+		{"76", "#76: file issue — sdlc state surfaces drift", false}, // bookkeeping
+		{"51", "#51: ticket — in-place branch workflow", false},      // bookkeeping
+		{"51", "#51: close (done, actual 4h) + archive", false},      // bookkeeping
+		{"51", "#51 M1-M3: in-place branch becomes default", true},   // milestone work
+		{"80", "#80: archive stages only moved issue paths", true},   // 'archive' is work, not denylisted
+		{"82", "#82 M1: issue new auto-syncs the new file", true},    // 'issue new' ≠ 'issue-sync'
+		{"76", "#76: close-off candidate surfacing", true},           // whole-token: 'close-off' ≠ 'close'
+		{"51", "#54: push.md (dogfood of #51)", false},               // not subject-anchored to 51
+		{"51", "#510: a different issue entirely", false},            // #510 must not match #51
+		{"51", "issue-sync: update issues", false},                   // never anchors #N
+	}
+	for _, tt := range tests {
+		t.Run(tt.subject, func(t *testing.T) {
+			if got := IsShippedWorkSubject(tt.issue, tt.subject); got != tt.want {
+				t.Errorf("IsShippedWorkSubject(%q, %q) = %v, want %v", tt.issue, tt.subject, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestShippedWorkOnMain wires the classifier to the git-log probe via the
+// package `run` shim — pinning that the pure helper is actually invoked on real
+// log output (so it can't be silently un-wired, lessons.md #72), that the first
+// *work* commit wins over a leading bookkeeping commit, and that a missing main
+// ref / filing-only history degrade to not-shipped.
+func TestShippedWorkOnMain(t *testing.T) {
+	orig := run
+	defer func() { run = orig }()
+
+	// fakeRun dispatches on argv: MainRef's rev-parse + the log scan.
+	fakeRun := func(originMainOK bool, logOut string) func(string, ...string) ([]byte, error) {
+		return func(name string, args ...string) ([]byte, error) {
+			if len(args) >= 2 && args[0] == "rev-parse" && args[1] == "--verify" {
+				ref := args[len(args)-1]
+				if (ref == "origin/main" && originMainOK) || ref == "main" {
+					return []byte("deadbeef\n"), nil
+				}
+				return nil, exec.ErrNotFound
+			}
+			if args[0] == "log" {
+				return []byte(logOut), nil
+			}
+			return nil, exec.ErrNotFound
+		}
+	}
+
+	t.Run("first work commit wins over leading bookkeeping", func(t *testing.T) {
+		run = fakeRun(true, "sha1\x00#76: file issue — drift\nsha2\x00#76: surface close-off\n")
+		sha, subj, ok := ShippedWorkOnMain("76")
+		if !ok || sha != "sha2" || subj != "#76: surface close-off" {
+			t.Errorf("got (%q,%q,%v), want (sha2, #76: surface close-off, true)", sha, subj, ok)
+		}
+	})
+
+	t.Run("filing-only history → not shipped", func(t *testing.T) {
+		run = fakeRun(true, "sha1\x00#76: file issue — drift\n")
+		if _, _, ok := ShippedWorkOnMain("76"); ok {
+			t.Error("filing-only history should not count as shipped")
+		}
+	})
+
+	t.Run("no main ref → not shipped (degrades)", func(t *testing.T) {
+		run = func(name string, args ...string) ([]byte, error) { return nil, exec.ErrNotFound }
+		if _, _, ok := ShippedWorkOnMain("76"); ok {
+			t.Error("absent main ref should degrade to not-shipped, never hard-fail")
+		}
+	})
+}
+
 // TestSubjectAnchorRE verifies the regex used inside CommitWindow to
 // filter --grep candidates down to true subject-anchored matches.
 // We rebuild the same pattern here (CommitWindow compiles it inline from
