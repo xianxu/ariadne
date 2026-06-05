@@ -1,11 +1,12 @@
 ---
 id: 000085
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 0.5
+actual_hours: 0.5
 ---
 
 # docflow: rename finish→ship so merge-to-main is an explicit operator act, not a marker-zero side effect
@@ -58,12 +59,15 @@ verb that only asserts what `status` shows would violate Simplicity First.
 
 ## Plan
 
-- [ ] `docflow.sh`: `cmd_finish`→`cmd_ship`; dispatch `ship)` + `finish)` alias (notice → cmd_ship); header VERBS + usage + `--force` hint reference `ship`.
-- [ ] `construct/local/fix/SKILL.md`: rename verb at :118/:128; reword :109 + :128 so marker-zero is the conversation-resolved state, ship is a separate explicit operator act.
-- [ ] `atlas/workflow/docflow.md`: verb-table row finish→ship (+ alias note).
-- [ ] `docflow.test.sh`: switch primary assertions to `ship`; add an alias-still-works case. Run green.
+- [x] `docflow.sh`: `cmd_finish`→`cmd_ship`; dispatch `ship)` + `finish)` alias (warns → cmd_ship); header VERBS + usage + `--force` hint + unknown-verb error + HISTORY-MODEL comment reference `ship`.
+- [x] `construct/local/fix/SKILL.md`: renamed verb at :118/:128; reworded :109 (marker-zero = conversation resolved, *not* a merge cue) + :128 (ship = explicit operator act).
+- [x] `atlas/workflow/docflow.md`: all four `finish` refs (`:5/:33/:46/:59`) → `ship`; verb-table row gains the "not fired by marker-zero" note + alias line.
+- [x] `docflow.test.sh`: primary assertions switched to `ship`; added an alias case (exits 0 / lands on main / warns deprecated). Full e2e green (`ALL PASS`).
 
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — docflow.test.sh ALL PASS unsandboxed (e2e): ship merges/guards/deletes branch; finish alias exits 0, lands on main, warns deprecated. bash -n clean. skill+atlas state marker-zero is not the ship cue.; review verdict: SHIP
 - Audit traced the only merge path to `cmd_finish` (explicit verb; marker-zero is a guard not a trigger). Fix is naming + prose, not control flow. Single-pass atomic — no Mx tags.
+- Implemented: `ship` is the merge verb, `finish` a deprecated alias (warns, then `cmd_ship`). 5 files (docflow.sh, its test, SKILL.md, atlas, issue). e2e verified unsandboxed (sandbox can't `mktemp -d`, so the e2e tier SKIPs in-sandbox — ran with sandbox disabled): `ALL PASS`, incl. new alias coverage. `bash -n` clean.
+- Downstream note: xianxu.dev consumes `docflow.sh`/`SKILL.md` via symlink into ariadne, so the rename is live there immediately — no manifest propagation step.

@@ -18,11 +18,13 @@
 #                          attributable log). Called by xx-fix, before & after
 #                          the agent edits. Flags: -m/--summary, --body, files.
 #   status                 current branch, base, rounds, in-scope files + 🤖 count.
-#   finish [--force]       guard (no 🤖 left) → --no-ff merge to base → delete the
-#                          review branch. --force merges as-is (== "abandon").
+#   ship [--force]         guard (no 🤖 left) → --no-ff merge to base → delete the
+#                          review branch — the explicit "land on main" act, never a
+#                          marker-zero side effect. --force = merge as-is (== "abandon").
+#                          alias: finish (deprecated).
 #
 # HISTORY MODEL
-#   No squash. `finish` does a --no-ff merge so `git log --first-parent <base>`
+#   No squash. `ship` does a --no-ff merge so `git log --first-parent <base>`
 #   shows one clean merge line per reviewed batch, while a plain `git log` keeps
 #   every round (forensics). Deleting the review branch loses nothing — the round
 #   commits stay reachable as the merge commit's second parent.
@@ -79,7 +81,7 @@ current_branch() { git branch --show-current; }
 # State lives here as plain files, NOT in .git/config: the sandbox denies config
 # (and hooks) writes — they can execute code — but plain files under .git/ are
 # writable, so this keeps docflow fully sandbox-compatible (#84). `--git-dir` is
-# worktree-local, which matches docflow's start→round→finish-in-one-place model.
+# worktree-local, which matches docflow's start→round→ship-in-one-place model.
 docflow_meta_dir() { printf '%s/docflow/%s' "$(git rev-parse --git-dir)" "${1#review/}"; }
 
 # review_base <review-branch> → the branch it was forked from (recorded at start).
@@ -216,7 +218,7 @@ cmd_status() {
     printf "${BOLD}outstanding 🤖:${RESET} %s\n" "$total" >&2
 }
 
-cmd_finish() {
+cmd_ship() {
     is_git_repo || die "not a git repository"
     local force=0
     while [[ $# -gt 0 ]]; do
@@ -245,9 +247,9 @@ cmd_finish() {
             printf "${YELLOW}merging with %s outstanding 🤖 (drafts with published:false won't render):${RESET}\n" "$total" >&2
             printf '%b' "$offenders" >&2
         else
-            printf "${RED}refusing to finish: %s outstanding 🤖 marker(s):${RESET}\n" "$total" >&2
+            printf "${RED}refusing to ship: %s outstanding 🤖 marker(s):${RESET}\n" "$total" >&2
             printf '%b' "$offenders" >&2
-            die "resolve them (re-run /xx-fix) or 'docflow finish --force' to merge as-is"
+            die "resolve them (re-run /xx-fix) or 'docflow ship --force' to merge as-is"
         fi
     fi
 
@@ -275,9 +277,10 @@ main() {
         start)            cmd_start "$@";;
         round)            cmd_round "$@";;
         status)           cmd_status "$@";;
-        finish)           cmd_finish "$@";;
+        ship)             cmd_ship "$@";;
+        finish)           warn "'finish' is now 'ship' (deprecated alias — merging via ship)"; cmd_ship "$@";;
         -h|--help|help)   usage;;
-        *)                die "unknown verb: $verb (start|round|status|finish)";;
+        *)                die "unknown verb: $verb (start|round|status|ship)";;
     esac
 }
 
