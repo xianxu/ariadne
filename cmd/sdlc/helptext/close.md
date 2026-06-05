@@ -8,6 +8,8 @@ MODES
   Milestone close:  sdlc close --issue 15 --milestone M4 --actual 2.5 --verified '<evidence>'
 
   (`milestone-close` is also exposed as its own verb; both forms remain valid.)
+  (The --actual values above are MEASURED — from `sdlc actual` or the omit-then-
+   suggest path below — not typed estimates. See the --actual flag note.)
 
   THE BOUNDARY REVIEW (#69). A standalone full-issue close auto-dispatches the
   one binary-owned fresh-context review on the whole-issue window (the same

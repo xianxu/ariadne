@@ -204,8 +204,9 @@ func checkTransitionGuards(current, next, fm, body string) error {
 	if next == "done" {
 		return fmt.Errorf(
 			"refusing to flip → done directly; use:\n" +
-				"  sdlc close --issue <N> --actual <hours> --verified '<evidence>'\n" +
-				"(closes through the AGENTS.md §5 contract instead of bypassing it)")
+				"  sdlc close --issue <N> --verified '<evidence>'\n" +
+				"(omit --actual to let close measure the hours, or run `sdlc actual --issue N` — measured, not typed;\n" +
+				" closes through the AGENTS.md §5 contract instead of bypassing it)")
 	}
 
 	// Guard 2: → working requires estimate_hours: non-empty.

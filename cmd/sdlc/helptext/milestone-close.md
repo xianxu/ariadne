@@ -48,7 +48,9 @@ FLAGS
 
   --issue <n>           ariadne workshop issue ID (required, positive)
   --milestone <Mx>      milestone tag (required)
-  --actual <hours>      focused dev-hours for this milestone
+  --actual <hours>      focused dev-hours — MEASURED, not typed. Omit it and
+                        close computes + suggests the value (active-time-v3),
+                        or run `sdlc actual --issue N` first; don't hand-type.
   --verified '<line>'   one-line behavior evidence
   --force               bypass close's guards (record reason in --verified)
   --dry-run             plan only; skip both close mutation and judge dispatch
@@ -60,6 +62,8 @@ FLAGS
 
 USAGE
 
+  # (--actual 6 below is the MEASURED value from `sdlc actual` / the omit-suggestion,
+  #  not a typed estimate)
   sdlc milestone-close --issue 31 --milestone M4 --actual 6 --verified '...'
 
   # Skip the review (already ran it manually, or this is a no-code milestone):

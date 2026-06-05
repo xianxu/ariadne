@@ -20,8 +20,9 @@ TRANSITION GUARDS (refusable with --force)
     first.
 
   → done
-    Always refused. Use `sdlc close` instead:
-      sdlc close --issue N --actual <hours> --verified '<evidence>'
+    Always refused. Use `sdlc close` instead (omit --actual to let it
+    compute the hours, or run `sdlc actual --issue N` — measured, not typed):
+      sdlc close --issue N --verified '<evidence>'
     The close-issue contract (ACTUAL + VERIFIED + atlas check) is
     the real gate; bypassing it via set-status would skip §5 step 3+5.
 
