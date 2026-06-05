@@ -23,6 +23,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -307,15 +308,27 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	if f.Issue <= 0 {
 		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
 	}
-	if f.Actual != "" {
-		if _, err := strconv.ParseFloat(f.Actual, 64); err != nil {
-			die(stderr, fmt.Sprintf("ACTUAL must be a number, got '%s'", f.Actual))
-		}
-	}
 	issueStr := strconv.Itoa(f.Issue)
 	mode := "issue"
 	if f.Milestone != "" {
 		mode = "milestone"
+	}
+	if f.Actual != "" {
+		v, err := strconv.ParseFloat(f.Actual, 64)
+		if err != nil {
+			die(stderr, fmt.Sprintf("ACTUAL must be a number, got '%s'", f.Actual))
+		}
+		// #87: sanity-check a PASSED --actual against the active-time-v3
+		// measurement. The omit-path (explainActual) already measures+suggests;
+		// the pass-path used to trust the value blindly, which let a fabricated
+		// 13.5 (measured 0.30) pollute velocity calibration. A wildly-off value
+		// is refused; a moderately-off one warns. --force/--no-actual bypasses
+		// (rationale in --verified). Skips silently when the engine can't measure.
+		if !f.skip("actual") {
+			if derr := checkActualDeviation(stderr, issueStr, v); derr != nil {
+				die(stderr, derr.Error())
+			}
+		}
 	}
 
 	if f.Actual == "" {
@@ -661,6 +674,79 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
 	tail = append(tail, "  Pass --no-actual (or --force) to bypass this requirement (record the reason in --verified).")
 	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
+}
+
+// #87: backstop for a hand-passed --actual that doesn't match reality.
+//
+// Thresholds (recorded per the design step): we compare a passed value to the
+// active-time-v3 measurement and gate on the RATIO, with an absolute-difference
+// FLOOR so small legitimate gaps never trip (e.g. 0.05 vs 0.15 is 3× but only
+// 0.10h apart — noise, not fabrication).
+const (
+	actualDevAbsFloor    = 0.5  // hours; deviations smaller than this are ignored
+	actualDevWarnRatio   = 3.0  // ≥ this → warn
+	actualDevRefuseRatio = 10.0 // ≥ this → refuse (looks fabricated/fat-fingered)
+)
+
+type devVerdict int
+
+const (
+	devOK devVerdict = iota // within tolerance — close silently
+	devWarn                 // moderately off — warn but proceed
+	devRefuse               // wildly off — refuse without an explicit override
+)
+
+// actualDeviation is the pure comparator (ARCH-PURE: no IO; unit-tested
+// directly). Returns the verdict and the ratio (max/min, ≥1) for the message.
+func actualDeviation(passed, measured float64) (devVerdict, float64) {
+	if math.Abs(passed-measured) < actualDevAbsFloor {
+		return devOK, 1
+	}
+	hi, lo := passed, measured
+	if measured > passed {
+		hi, lo = measured, passed
+	}
+	if lo <= 0 {
+		lo = 0.01 // avoid div-by-zero / inf when measured is ~0
+	}
+	ratio := hi / lo
+	switch {
+	case ratio >= actualDevRefuseRatio:
+		return devRefuse, ratio
+	case ratio >= actualDevWarnRatio:
+		return devWarn, ratio
+	default:
+		return devOK, ratio
+	}
+}
+
+// checkActualDeviation is the thin IO glue: measure via the shared engine, run
+// the pure comparator, and warn (to stderr) or return a refusal error. Returns
+// nil — never blocks — when the engine can't measure (no window / telemetry gap
+// / no script): an unavailable measurement must not gate a legitimate close.
+func checkActualDeviation(stderr io.Writer, issueStr string, passed float64) error {
+	repoTop, err := gitx.RepoTopLevel()
+	if err != nil || repoTop == "" {
+		cwd, _ := os.Getwd()
+		repoTop, _ = filepath.Abs(cwd)
+	}
+	brainAbs, _ := filepath.Abs(filepath.Join(repoTop, "..", "brain"))
+	res := computeActual(repoTop, brainAbs, issueStr)
+	if res.Status != actualMeasured {
+		return nil // can't measure → don't block (judgment path owns this)
+	}
+	verdict, ratio := actualDeviation(passed, res.Hours)
+	switch verdict {
+	case devRefuse:
+		return fmt.Errorf("--actual %.2f is %.0f× the active-time-v3 measurement (%.2fh) — looks fabricated or fat-fingered.\n"+
+			"  Run `sdlc actual --issue %s` and pass the measured value; or --force '<why>' if the measurement is\n"+
+			"  genuinely wrong (a bad actual pollutes velocity calibration — the gate exists to catch exactly this).",
+			passed, ratio, res.Hours, issueStr)
+	case devWarn:
+		cwarn(stderr, fmt.Sprintf("--actual %.2f is %.1f× the active-time-v3 measurement (%.2fh) — confirm it's right, or re-run `sdlc actual --issue %s`",
+			passed, ratio, res.Hours, issueStr))
+	}
+	return nil
 }
 
 func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string) {
