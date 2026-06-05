@@ -1,11 +1,12 @@
 ---
 id: 000085
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-04
 updated: 2026-06-04
 estimate_hours: 0.5
+actual_hours: 0.5
 ---
 
 # docflow: rename finish→ship so merge-to-main is an explicit operator act, not a marker-zero side effect
@@ -66,6 +67,7 @@ verb that only asserts what `status` shows would violate Simplicity First.
 ## Log
 
 ### 2026-06-04
+- 2026-06-04: closed — docflow.test.sh ALL PASS unsandboxed (e2e): ship merges/guards/deletes branch; finish alias exits 0, lands on main, warns deprecated. bash -n clean. skill+atlas state marker-zero is not the ship cue.; review verdict: SHIP
 - Audit traced the only merge path to `cmd_finish` (explicit verb; marker-zero is a guard not a trigger). Fix is naming + prose, not control flow. Single-pass atomic — no Mx tags.
 - Implemented: `ship` is the merge verb, `finish` a deprecated alias (warns, then `cmd_ship`). 5 files (docflow.sh, its test, SKILL.md, atlas, issue). e2e verified unsandboxed (sandbox can't `mktemp -d`, so the e2e tier SKIPs in-sandbox — ran with sandbox disabled): `ALL PASS`, incl. new alias coverage. `bash -n` clean.
 - Downstream note: xianxu.dev consumes `docflow.sh`/`SKILL.md` via symlink into ariadne, so the rename is live there immediately — no manifest propagation step.
