@@ -142,12 +142,13 @@ var bookkeepingVerbs = []string{"file issue", "ticket", "claim", "close"}
 // shipped `#51 M1-M3: …` / `#80: archive stages …` from a `#76: file issue …`
 // or `#51: close …`.
 func IsShippedWorkSubject(issueNum, subject string) bool {
-	anchor := regexp.MustCompile(`^#` + regexp.QuoteMeta(issueNum) + `($|[^0-9])`)
-	if !anchor.MatchString(subject) {
+	if !subjectAnchorRE(issueNum, false).MatchString(subject) {
 		return false
 	}
-	// Peel "#N", an optional " Mx[...]" milestone tag, and the ":"/space
-	// separator to reach the human descriptor, then test the denylist.
+	// Peel "#N" and the leading ":"/space to reach the descriptor, then test the
+	// denylist against its head. A milestone tag (e.g. "M1-M3: ") is left in
+	// place on purpose: it never starts with a bookkeeping verb, so a
+	// milestone-tagged subject always reads as work — exactly right.
 	rest := strings.TrimSpace(strings.TrimPrefix(subject, "#"+issueNum))
 	rest = strings.TrimSpace(strings.TrimLeft(rest, ":"))
 	lower := strings.ToLower(rest)
@@ -167,6 +168,20 @@ func IsShippedWorkSubject(issueNum, subject string) bool {
 // bookkeepingVerbs matching on whole tokens ("close" ≠ "close-off").
 func isWordByte(b byte) bool {
 	return b == '-' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+// subjectAnchorRE is the single source for the "commit subject opens with #N"
+// anchor: #N followed by end-of-subject or a non-digit, so #51 never matches
+// #510 and a parenthetical "(see #51)" never anchors. RE2 has no negative
+// lookahead, so "(?!\d)" is rendered "($|[^0-9])". allowClosePrefix permits a
+// leading "close " — CommitWindow counts the close commit, the #76 ship probe
+// does not.
+func subjectAnchorRE(issueNum string, allowClosePrefix bool) *regexp.Regexp {
+	prefix := ""
+	if allowClosePrefix {
+		prefix = `(close\s+)?`
+	}
+	return regexp.MustCompile(`^` + prefix + `#` + regexp.QuoteMeta(issueNum) + `($|[^0-9])`)
 }
 
 // ShippedWorkOnMain reports whether implementation work for issueNum has
@@ -252,7 +267,7 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 	if text == "" {
 		return "", "", "", nil
 	}
-	subjectRE := regexp.MustCompile(`^(close\s+)?#` + regexp.QuoteMeta(issueNum) + `($|[^0-9])`)
+	subjectRE := subjectAnchorRE(issueNum, true)
 	type match struct{ iso, sha string }
 	var matches []match
 	for _, line := range strings.Split(text, "\n") {

@@ -1,11 +1,12 @@
 ---
 id: 000076
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-03
 updated: 2026-06-04
 estimate_hours: 2
+actual_hours: 0.24
 ---
 
 # sdlc state surfaces done-but-open close-off drift
@@ -130,6 +131,7 @@ closing off issues." `sdlc state` gates entries; this makes it also surface stal
 exits. Grounded in the existing `detectDrift`/`DriftFinding` structure.
 
 ### 2026-06-04 — implemented (single-pass)
+- 2026-06-04: closed — go test ./... all green; dogfood: synthetic 2/2 issue for shipped #82 → warn close-off finding with real commit d468fbc3 + "sdlc close --issue 82"; real-repo scan flags no false positives (#52/#76 no-progress). gitx classifier table + run-shim wiring tests + state close-off table pin flagged/unshipped/0-1/done-never.; review verdict: SHIP
 
 - **ARCH-PURE seam.** `gitx.IsShippedWorkSubject(num, subject)` is the pure
   classifier (subject-anchored `^#N($|[^0-9])` minus a `file
