@@ -108,14 +108,17 @@ Markers inside fenced code blocks are ignored.
 
 A feedback session is **complete when no marker ending in `[]` remains** in
 the document. Remaining markers ending in `{}` (or bare edit proposals like
-`🤖~D~`, `🤖~D~{N}`) are awaiting the human's next gesture.
+`🤖~D~`, `🤖~D~{N}`) are awaiting the human's next gesture. Marker-zero means the
+*conversation* is resolved — it is **not** a cue to merge. Landing the doc on
+main is a separate, explicit operator decision (`docflow ship`, below); never
+ship just because the markers cleared.
 
 ## Round journaling (optional — `docflow`)
 
 When the operator wants the full review retained as durable history — not just
 the final clean doc — wrap the session in `scripts/docflow.sh`. It commits each
 round to a `review/<slug>` branch so `git log` keeps the whole back-and-forth
-(and *your* rationale), then `--no-ff` merges back on finish. Git is the only
+(and *your* rationale), then `--no-ff` merges back on ship. Git is the only
 state; see the script's header for the history model.
 
 - **At review start** (operator: "review this doc"): `docflow start <file>` —
@@ -125,9 +128,10 @@ state; see the script's header for the history model.
 - **Each round, *after* you apply edits**: `docflow round --side agent -m "<terse>" --body "<full rationale>"`
   — the `--body` is where your verbose reasoning lives permanently, instead of
   evaporating with the chat transcript.
-- **When the operator says you're done**: `docflow finish` — refuses while any
-  🤖 marker remains (so you never ship review scaffolding); `--force` merges
-  as-is (the "abandon" path).
+- **When the operator explicitly says to ship/publish** (a deliberate "land it
+  on main" decision — *not* merely that the markers hit zero): `docflow ship` —
+  refuses while any 🤖 marker remains (so you never ship review scaffolding);
+  `--force` merges as-is (the "abandon" path). `finish` is a deprecated alias.
 - **`docflow status`** anytime — current branch, rounds, in-scope files + 🤖 count.
 
 Opt-in: plain marker-processing (the Process above) works without it. Reach for

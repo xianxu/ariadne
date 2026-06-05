@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docflow.test.sh — unit tests for the pure helpers + a real-git e2e of the flow.
 # No mocks: the e2e drives an actual throwaway repo under one guarded temp root
-# and asserts the resulting log shape, author attribution, and the finish guard.
+# and asserts the resulting log shape, author attribution, and the ship guard.
 #
 # Run:  scripts/docflow.test.sh   (exit 0 = all pass; cleanly SKIPs the file/e2e
 # tiers if no temp dir is available, e.g. a restricted sandbox — never falls
@@ -81,7 +81,7 @@ else
         *)          pass "round did not sweep unrelated other.md (#81)";;
     esac
     eq  "unrelated file left dirty after round" " M other.md" "$(git status --porcelain -- other.md)"
-    git checkout -- other.md                # clean up so the later finish sees a clean tree
+    git checkout -- other.md                # clean up so the later ship sees a clean tree
     post 'Hello, world.'
     run "round agent r1" -- "$DOCFLOW" round --side agent -m "tightened" --body "Removed filler; Oxford comma."
 
@@ -96,15 +96,15 @@ else
 
     post 'Hello, world. 🤖[one more pass?]'
     run "round human r2 (re-open)" -- "$DOCFLOW" round --side human -m "re-open"
-    if "$DOCFLOW" finish >>"$log" 2>&1; then fail "finish blocks on outstanding marker"; else pass "finish blocks on outstanding marker"; fi
-    eq  "still on review branch after blocked finish" "review/post" "$(git branch --show-current)"
+    if "$DOCFLOW" ship >>"$log" 2>&1; then fail "ship blocks on outstanding marker"; else pass "ship blocks on outstanding marker"; fi
+    eq  "still on review branch after blocked ship" "review/post" "$(git branch --show-current)"
 
     post 'Hello, world.'
     run "round agent r2 (resolve)" -- "$DOCFLOW" round --side agent -m "resolved"
-    run "finish merges clean"      -- "$DOCFLOW" finish
-    eq  "back on base after finish" "main" "$(git branch --show-current)"
+    run "ship merges clean"        -- "$DOCFLOW" ship
+    eq  "back on base after ship" "main" "$(git branch --show-current)"
     if git show-ref --verify --quiet refs/heads/review/post; then fail "review branch deleted"; else pass "review branch deleted"; fi
-    if [[ -d .git/docflow/post ]]; then fail "meta dir removed after finish (#84)"; else pass "meta dir removed after finish (#84)"; fi
+    if [[ -d .git/docflow/post ]]; then fail "meta dir removed after ship (#84)"; else pass "meta dir removed after ship (#84)"; fi
     eq  "first-parent shows one merge line" "1" \
         "$(git log --first-parent --format='%s' main | grep -c 'review(post): merge')"
     eq  "merge message counts 4 round commits (excl. track)" "1" \
@@ -116,8 +116,8 @@ else
     post2 'draft 🤖[unresolved]'
     run "start second doc"            -- "$DOCFLOW" start two.md
     run "round human r1 (two)"        -- "$DOCFLOW" round --side human -m "draft with marker"
-    run "finish --force merges as-is" -- "$DOCFLOW" finish --force
-    eq  "back on base after force-finish" "main" "$(git branch --show-current)"
+    run "ship --force merges as-is" -- "$DOCFLOW" ship --force
+    eq  "back on base after ship --force" "main" "$(git branch --show-current)"
     eq  "forced merge present on first-parent" "1" \
         "$(git log --first-parent --format='%s' main | grep -c 'review(two): merge')"
 
@@ -132,7 +132,14 @@ else
         *"my note.md"*) pass "round staged space-named in-scope file (#81)";;
         *)              fail "round did NOT stage space-named in-scope file (word-split?)";;
     esac
-    run "finish --force (space doc)" -- "$DOCFLOW" finish --force
+    # Deprecated alias: `finish` still merges (via ship) and warns it was renamed.
+    alias_out="$("$DOCFLOW" finish --force 2>&1)"; alias_rc=$?
+    eq  "finish alias exits 0 (merges via ship)" "0" "$alias_rc"
+    eq  "back on base after finish alias"        "main" "$(git branch --show-current)"
+    case "$alias_out" in
+        *"'finish' is now 'ship'"*) pass "finish alias warns it is deprecated";;
+        *)                          fail "finish alias warns it is deprecated (got: $alias_out)";;
+    esac
     cd /
 fi
 

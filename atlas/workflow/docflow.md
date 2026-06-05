@@ -2,7 +2,7 @@
 
 A thin git wrapper that turns an `xx-fix` co-authoring session (operator + agent
 trading 🤖 markers in a markdown doc) into durable, attributable history. Each
-review **round** is journaled as commits on a `review/<slug>` branch; on finish
+review **round** is journaled as commits on a `review/<slug>` branch; on ship
 the branch `--no-ff` merges back to its base. Introduced in #79; companion to the
 `xx-fix` skill. Lives at `scripts/docflow.sh` (propagated via `base.manifest`).
 
@@ -30,7 +30,7 @@ does this; the script is guards + orchestration over git, not a state machine.
 | `start <file>...` | Create `review/<slug>` from the current branch (or add files to the current review branch — default-add, never silently guess). Records the base branch + each in-scope doc (deduped) as plain files under `.git/docflow/<slug>/` (`base`, `files`) — the source of truth for what `round` stages. Tracks an untracked draft as **round 0**. |
 | `round --side human\|agent [-m sum] [--body …] [files…]` | Journal one side of a round. Two commits/round → attributable log: **human** rounds use the operator's git identity, **agent** rounds use `--author=$DOCFLOW_AGENT_AUTHOR` (default `Claude <noreply@anthropic.com>`) + a `Co-Authored-By` trailer. With no explicit files, stages **only the recorded in-scope docs** (`.git/docflow/<slug>/files`), never `git add -u` — so unrelated tracked WIP is never swept into the review (#81). Skips a no-op side. |
 | `status` | Current branch, base, round counts, in-scope files + 🤖 count each. |
-| `finish [--force]` | **Guard:** refuses while any 🤖 remains in an in-scope file (so markers never ship). Then `--no-ff` merge to base + delete the review branch. `--force` merges as-is — the "abandon" path. |
+| `ship [--force]` | The explicit "land on main" act — *not* fired by marker-zero alone. **Guard:** refuses while any 🤖 remains in an in-scope file (so markers never ship). Then `--no-ff` merge to base + delete the review branch. `--force` merges as-is — the "abandon" path. Alias: `finish` (deprecated, warns then calls `ship`). |
 
 Commit subject convention (greppable): `review(<slug>): <side> r<N> — <summary>`.
 
@@ -43,7 +43,7 @@ leaves the `.git/config` security boundary intact (#84). The dir is resolved via
 
 ## History model — why no squash, yet no branch sprawl
 
-`finish` does a **`--no-ff`** merge and **deletes** the review branch. That single
+`ship` does a **`--no-ff`** merge and **deletes** the review branch. That single
 choice gives both views with zero cost:
 
 - `git log --first-parent <base>` → **one clean line per reviewed batch** (the
@@ -56,7 +56,7 @@ commit's second parent. No squash (which would destroy per-round revert points a
 the bodies), no hundreds of stale branches.
 
 **One review branch = one ship-batch** = the set of docs merged together (e.g.
-several follow-up posts reviewed in one sitting). `finish` requires all in-scope
+several follow-up posts reviewed in one sitting). `ship` requires all in-scope
 docs marker-clean.
 
 ## Where it fits
