@@ -179,6 +179,27 @@ has not acknowledged; resolution is always operator-initiated. §5 summary:
   - `🤖[no, module_x doesn't call module_y]` → find and correct that factual claim wherever it appears
   - `🤖[the overall tone is too cheeky, we should be more serious]` → adjust tone across the document
 
+### Reading frontier: treat text above the first human marker as settled
+
+The operator reads top to bottom and leaves markers as they go, so the
+**topmost `🤖[…]` human marker is the current reading frontier**. Everything
+*above* that first human marker has already been read and tacitly approved —
+treat it as **settled**. Do not edit or pile suggestions into that region;
+touch it only if something is genuinely off (a real error, a contradiction
+with an edit the operator just made below), and even then prefer a `{}` flag
+over a silent rewrite.
+
+- **Default**: confine your edits and new findings to the frontier and below —
+  the first unresolved human marker and everything after it.
+- **Across rounds the frontier descends**: as the operator resolves the top
+  markers and adds new ones further down, the settled region grows downward.
+  Re-evaluate the frontier each round; don't reopen what's now above it.
+- **Within a round**: sections before the first human edit are the most
+  settled; the closer to the frontier, the more in-play.
+
+This keeps the document converging top-down instead of churning everywhere at
+once, and keeps intent legible — the operator always knows which region is live.
+
 ### General
 
 - When removing a marker, leave the corrected text in place with no trace of the marker.
