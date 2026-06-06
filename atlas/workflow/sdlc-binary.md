@@ -148,6 +148,14 @@ judgment), **0 + a `#N: h.hh hr` line** = measured. Dir-selection is deliberatel
 narrow (NOT all folders) — an unrelated concurrently-edited repo inflates the
 count. `WindowCapDays` is 61 (was 31) so month-long issues keep their window.
 
+**Passed-`--actual` backstop (#87).** When `--actual` *is* given, close still
+runs the engine and compares (`actualDeviation`, the pure comparator in
+`close.go`): ratio ≥3× → warn, ≥10× → **refuse** (bypass with `--force`), with a
+0.5h absolute floor so small gaps don't trip. Skips silently when the engine
+can't measure. Closes the hole where a hand-typed value (the failure #86's docs
+prime against) was trusted blindly — the doc fix removes the priming, this
+removes the blind trust. `milestone-close` inherits it (wraps `runClose`).
+
 `push` and `merge` auto-dispatch `judge plan|specs|lessons` as pre-
 flight so the checks run consistently rather than as a remembered
 manual step. `milestone-close` auto-dispatches `judge milestone-review`

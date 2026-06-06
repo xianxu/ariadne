@@ -51,6 +51,8 @@ FLAGS
   --actual <hours>      focused dev-hours — MEASURED, not typed. Omit it and
                         close computes + suggests the value (active-time-v3),
                         or run `sdlc actual --issue N` first; don't hand-type.
+                        A passed value is sanity-checked against the measurement
+                        (#87, inherited from close): ≥3× warns, ≥10× refuses.
   --verified '<line>'   one-line behavior evidence
   --force               bypass close's guards (record reason in --verified)
   --dry-run             plan only; skip both close mutation and judge dispatch

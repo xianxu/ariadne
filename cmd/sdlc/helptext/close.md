@@ -111,3 +111,11 @@ telemetry isn't available, points you to a labeled judgment estimate. If
 --verified is missing, the explainer shows a worked example of a
 behavior-grounded VERIFIED string. Read the explainer; the contract is
 load-bearing.
+
+If --actual IS passed, close still measures (active-time-v3) and sanity-checks
+the value against it (#87): a moderate deviation (≥3×) warns; a wild one (≥10×,
+e.g. a typed estimate where the measurement is minutes) is REFUSED — re-run
+`sdlc actual` and pass the measured value, or `--force '<why>'` if the
+measurement is genuinely wrong. Small absolute gaps (< 0.5h) never trip it.
+This is the backstop for the "hand-type a plausible number" failure that a
+guessed --actual would otherwise sail through. (milestone-close inherits it.)
