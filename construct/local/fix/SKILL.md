@@ -23,7 +23,9 @@ questions in the chat — none of that means "I'm done, go review." Acting on
 every turn would trample edits still in progress.
 
 So a review round runs **only when the operator explicitly triggers it** —
-"go review", "review the doc", "ok, review", or similar. Until then:
+"go review", "review the doc", "ok, review", **"update the doc"**, or similar.
+(Treat "update the doc" / "update the document" as a full review trigger, not a
+request for a single ad-hoc edit.) Until then:
 
 - **Answer chat questions normally** (facts, math, suggestions) without touching
   the doc's round state — no commits, no marker processing, no review pass.
