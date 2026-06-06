@@ -15,6 +15,36 @@ is the canonical grammar; this skill is the agentic side of it.
 /fix <path-to-file>
 ```
 
+## Review rounds are explicitly triggered
+
+A coding-session turn is **not** a review round. While co-authoring, the
+operator edits the doc and asks the agent factual / knowledge / "help me think"
+questions in the chat — none of that means "I'm done, go review." Acting on
+every turn would trample edits still in progress.
+
+So a review round runs **only when the operator explicitly triggers it** —
+"go review", "review the doc", "ok, review", or similar. Until then:
+
+- **Answer chat questions normally** (facts, math, suggestions) without touching
+  the doc's round state — no commits, no marker processing, no review pass.
+- **Do not commit** the operator's dirty edits, and **do not** run the Process
+  below or any `docflow round`. Dirty edits simply accumulate.
+
+When the trigger *does* arrive, one review round runs as a unit:
+
+1. **Commit the operator's accumulated dirty edits first**, authored as the
+   operator (`docflow round --side human`) — this captures everything they
+   changed since the last round, however many chat turns it spanned.
+2. **Run the Process** (below): walk the markers from the reading frontier down,
+   apply / answer / flag.
+3. **Commit the agent's edits** as the agent (`docflow round --side agent`),
+   rationale in `--body`.
+
+Consecutive same-side rounds are fine (the operator may trigger several reviews
+with no agent edits between, or ask the agent to iterate twice). If the doc
+changes *while the agent is mid-round*, stop, yield the turn, and say so — let
+the operator finish to avoid interleaved, intention-blurring edits.
+
 ## Marker Format
 
 ```
