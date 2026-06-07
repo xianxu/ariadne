@@ -1,10 +1,10 @@
 ---
 id: 000071
 status: open
-deps: [nous#42]
+deps: [nous#42, nous#44, nous#45]
 github_issue:
 created: 2026-06-02
-updated: 2026-06-05
+updated: 2026-06-06
 estimate_hours:
 ---
 
@@ -128,3 +128,20 @@ Brainstormed the scope with operator. Outcome reshapes this issue:
 - Originally this issue's "Done when" bundled both the convention *and* the gh instance; that
   is superseded by the split above. The gh-instance bullets now belong to nous#42; this
   issue's completion = the §5 + architecture.md promotion, gated on two successful instances.
+
+### 2026-06-06 — gate on the second instance + the full-surface demo (deps expanded)
+
+nous#42 (gh) is now done+merged AND certified against real GitHub. But `deps:`
+only listed nous#42, so once it landed #71 was no longer actually blocked — the
+"promote only after ≥2 instances + the surface is proven" rule was prose, not an
+enforced gate. Fixed by expanding `deps:` to the work that must precede promotion:
+- **nous#44** — `shim(google-oauth)` (instance #2; proves the pattern generalizes
+  past gh, incl. the async-callback case).
+- **nous#45** — shim *every* nous external dependency + an integrated end-to-end
+  mock harness (the deterministic-shell demo; the evidence the convention is the
+  default across the whole surface, not just n=2).
+
+`deps: [nous#42, nous#44, nous#45]` now machine-enforces "don't promote to an
+architecture choice until the pattern is proven, generalized, AND demonstrated
+end-to-end." Only then does #71's own work run (AGENTS.md §5 amendment + ARCH
+registry / architecture.md entry).
