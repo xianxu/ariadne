@@ -155,8 +155,14 @@ round to a `review/<slug>` branch so `git log` keeps the whole back-and-forth
 (and *your* rationale), then `--no-ff` merges back on ship. Git is the only
 state; see the script's header for the history model.
 
-- **At review start** (operator: "review this doc"): `docflow start <file>` —
-  creates/switches to the review branch and tracks an untracked draft as round 0.
+- **Open a session** — the operator triggers it by name: **"start a docflow"**,
+  **"flow the doc"**, **"docflow this"** (or "review this doc"). On that, run
+  `docflow start <file>`, which creates/switches to the `review/<slug>` branch and
+  tracks the (possibly untracked) draft as round 0. From that point the doc is
+  **under xx-fix governance** until `docflow ship`: turn-start human commits,
+  review-trigger rounds, the reading frontier, fresh-context reviews — the whole
+  protocol applies. (Opening a docflow session implies the doc-construction mode;
+  you don't need a separate per-edit trigger to *start*, only to run each round.)
 - **Each round, *before* you edit**: `docflow round --side human -m "<what they sent>"`
   — snapshots the operator's incoming edits/markers, authored as the operator.
 - **Each round, *after* you apply edits**: `docflow round --side agent -m "<terse>" --body "<full rationale>"`
