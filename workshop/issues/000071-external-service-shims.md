@@ -145,3 +145,38 @@ enforced gate. Fixed by expanding `deps:` to the work that must precede promotio
 architecture choice until the pattern is proven, generalized, AND demonstrated
 end-to-end." Only then does #71's own work run (AGENTS.md §5 amendment + ARCH
 registry / architecture.md entry).
+
+### 2026-06-08 — n=2-real cross-provider evidence (nous#48: OAuth at Google + Microsoft)
+
+Promotion evidence the convention demands: the OAuth shim now has **two real
+backends** behind one port, not one. nous#48 added Microsoft/Entra as the second
+real OAuth adapter, and the design held under genuine cross-provider stress — a
+single real backend (Google) could have let provider-quirks masquerade as the
+abstraction; two cannot. Concretely, the pattern's stated design decisions all
+survived n=2-real:
+
+- **Provider-neutral port + opaque per-service `Conf`, no shared cross-service
+  framework:** confirmed. One generic `OIDCProvider` drives both; the per-provider
+  variation is an injected in-package `dialect` value (identity extractor, required
+  scopes, auth-URL params, PKCE flag, revoke mechanism) — sibling provider files
+  over a shared core, **not** a second adapter and **not** a transport abstraction
+  spanning services. The ariadne#71 "no shared cross-service framework" rule was
+  the right constraint: the reuse is *within* the oauth shim, not across shims.
+- **Documented extension points for vendor peculiarities:** exactly what absorbed
+  Microsoft's real differences — PKCE/public-client (vs Google's secret), the
+  `preferred_username` identity claim with **no** `email_verified` guard (the guard
+  proved Google-specific and moved into `googleIdentity`), `offline_access` scope
+  (vs `access_type=offline`), and **no token-revoke endpoint at all**
+  (`ErrRevokeUnsupported` — the port method generalizes, the mechanism doesn't).
+- **Stateful fake behind the port + dual-backend contract test:** the dialect-aware
+  fake certifies the **same** `runOAuthContract` body under both Google and
+  Microsoft dialects (always-on, hermetic); real-MS grounding is `conformance`-
+  tagged like Google's. A wire quirk the fake-as-stateful-model surfaced that
+  per-call stubs would miss: Microsoft's **single-use refresh-token rotation**
+  forces the grounding harness to *persist the rotated token back* — opposite
+  persistence discipline from Google under the identical contract body.
+
+Full write-up: `nous/workshop/targets/oauth-credential-lifecycle.md` `## Revisions`
+(2026-06-08, nous#48). This is the n=2-real leg of the promotion gate's evidence
+base (alongside gh n=2 in nous#46); #71's own promotion work still waits on
+`deps: [nous#42, nous#44, nous#45]`.
