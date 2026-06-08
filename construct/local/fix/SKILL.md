@@ -181,27 +181,11 @@ Invoke as `scripts/docflow.sh <verb>` from the repo root (or `docflow` if aliase
 ## Fresh-context review (second agent, read-only)
 
 Triggered by "fresh context review" (or "fresh review" / "second-agent review").
-The co-authoring agent carries confirmation bias (AGENTS.md §3 — a fresh-eyes
-review must be a *separate* agent), so this dispatches a reviewer with **no
-conversation history** to audit the in-scope doc.
-
-Contract:
-- **Cross-model & external when possible.** Run an independent CLI so the reviewer
-  shares neither context nor model — `codex exec -s read-only --search "…"`
-  (or `gemini`). A fresh subagent of the same model is the fallback.
-- **Read-only, report-only.** The reviewer MUST NOT edit the document. Enforce it
-  at the tool layer (`-s read-only`); it returns findings only — issues, gaps, and
-  (when the focus calls for it) web-searched references — never edits.
-- **Parameterizable focus.** The operator may scope it ("find a citation for every
-  factual claim"); default is correctness + unsupported claims. Reference-hunting
-  needs network access (`--search` for codex; gemini has it built in).
-- **The primary agent triages.** After the report returns, the co-authoring agent
-  summarizes it and applies the fixes it agrees with (e.g. footnote citations) as a
-  normal agent round — the external report is advisory; the primary still owns the
-  doc. Under docflow, note the dispatch + what was applied in the round body.
-
-Tooling note: `codex` has crashed on some setups (gpt-image-2 bug); if it fails,
-fall back to `gemini --yolo`.
+This moved to its own skill backed by a binary — **see the `fresh-context-review`
+skill / `doc-review --help`**. In short: it dispatches a read-only second-vendor
+reviewer (codex default) that fact-checks each claim and whether its cited
+reference supports it, writes `<file>-<agent>-check.md`, and leaves the triage to
+you. Under docflow, note the dispatch + what you applied in the round body.
 
 ## Operator-initiated bulk resolution (review-convention §6)
 
