@@ -1,11 +1,12 @@
 ---
 id: 000088
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-08
 updated: 2026-06-08
 estimate_hours: 0.3
+actual_hours: 0.08
 ---
 
 # tart-stop guard uses cached tart ip; errors on GUI-shutdown VM
@@ -67,14 +68,15 @@ Principles). The state guard is the correct fix.
 
 ## Plan
 
-- [ ] Replace the `tart ip` guard at `.tart/Makefile:368` with a
+- [x] Replace the `tart ip` guard at `.tart/Makefile:368` with a
       `tart list` State-column check (reuse the file's existing idiom).
-- [ ] Verify: demonstrate old guard returns "running" for a stopped VM
+- [x] Verify: demonstrate old guard returns "running" for a stopped VM
       (the bug) while the new guard correctly returns not-running.
 
 ## Log
 
 ### 2026-06-08
+- 2026-06-08: closed — Bugfix: tart-stop gated `tart stop` on `tart ip` (exits 0 via cached IP for a stopped VM) → fired tart stop on a stopped VM → "not running" exit 2 → recipe abort + tart-clean prereq failure. Fixed to gate on `tart list` State column. PROOF: (1) HAZARD `tart stop nous-test` (stopped) → exit 2; (2) NEW guard discriminates stopped→skip / running→stop; (3) `make tart-stop` vs stopped ariadne-test → exit 0 (was exit-2-prone when IP cached); (4) `make -n tart-clean` shows prereq chain reaches delete. --no-atlas: base-layer.md:41 already describes tart-stop/clean accurately; guard bugfix adds no surface.; review verdict: SHIP
 - Diagnosed live against `brain-test` (GUI-shutdown, `stopped`):
   `tart stop brain-test` → `VM "brain-test" is not running` (exit 2),
   confirming the guard's false-positive. `brain-test` since deleted +
@@ -85,3 +87,22 @@ Principles). The state guard is the correct fix.
   `tart list | awk '$$2==vm{print $$NF}'` is inlined at 5 sites after
   this fix; could collapse into a `_tart_state` define. Deferred —
   matching the existing inline idiom keeps this fix one line.
+- Fixed `.tart/Makefile:368` → state-gated guard (`tart list` State
+  column), with a comment explaining the cached-IP trap.
+- Verification (no VM boot — heavy guest-shutdown repro was denied, so
+  used deterministic/end-to-end proof instead):
+  - HAZARD confirmed: `tart stop nous-test` (stopped) → `VM "nous-test"
+    is not running`, **exit 2** — the recipe-aborting error the old
+    guard exposed. (Also observed live earlier on `brain-test`.)
+  - NEW guard discriminates: synthetic `state=stopped → skip`,
+    `state=running → tart stop`.
+  - `make -n tart-stop` shows the expanded recipe now gates on
+    `tart list … | grep -qx running`, `tart stop` only if running, then
+    `rm -rf` clone unconditionally.
+  - END-TO-END: `make tart-stop` against stopped `ariadne-test` →
+    **exit 0** (previously would exit 2 when `tart ip` had a cached IP).
+  - `make -n tart-clean` shows its `tart-stop` prereq no longer aborts,
+    so the delete step is reachable.
+- Atlas: `atlas/workflow/base-layer.md:41` already describes
+  tart-stop/tart-clean accurately; guard bugfix changes no documented
+  behavior or surface → `--no-atlas` at close.

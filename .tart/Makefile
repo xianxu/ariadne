@@ -365,7 +365,15 @@ tart-gui:
 	$(call _tart_boot_and_ssh)
 
 tart-stop:
-	@if tart ip $(TART_VM) >/dev/null 2>&1; then tart stop $(TART_VM); fi
+	@# Gate on tart list's State column, NOT `tart ip`: tart caches the
+	@# last-known IP for a stopped VM (see _tart_boot_and_ssh's note), so
+	@# a `tart ip` guard reads "running" for a VM stopped from the guest
+	@# GUI / a prior `tart stop` / a crash, then `tart stop` errors "not
+	@# running" (exit 2) and aborts the recipe — taking `tart-clean` (which
+	@# prereqs tart-stop) down with it. State-gating makes both idempotent.
+	@if tart list 2>/dev/null | awk -v vm=$(TART_VM) '$$2==vm {print $$NF}' | grep -qx running; then \
+	    tart stop $(TART_VM); \
+	fi
 	$(call _tart_cleanup_clone)
 
 tart-clean: tart-stop
