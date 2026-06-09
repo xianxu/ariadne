@@ -67,9 +67,9 @@ Principles). The state guard is the correct fix.
 
 ## Plan
 
-- [ ] Replace the `tart ip` guard at `.tart/Makefile:368` with a
+- [x] Replace the `tart ip` guard at `.tart/Makefile:368` with a
       `tart list` State-column check (reuse the file's existing idiom).
-- [ ] Verify: demonstrate old guard returns "running" for a stopped VM
+- [x] Verify: demonstrate old guard returns "running" for a stopped VM
       (the bug) while the new guard correctly returns not-running.
 
 ## Log
@@ -85,3 +85,22 @@ Principles). The state guard is the correct fix.
   `tart list | awk '$$2==vm{print $$NF}'` is inlined at 5 sites after
   this fix; could collapse into a `_tart_state` define. Deferred —
   matching the existing inline idiom keeps this fix one line.
+- Fixed `.tart/Makefile:368` → state-gated guard (`tart list` State
+  column), with a comment explaining the cached-IP trap.
+- Verification (no VM boot — heavy guest-shutdown repro was denied, so
+  used deterministic/end-to-end proof instead):
+  - HAZARD confirmed: `tart stop nous-test` (stopped) → `VM "nous-test"
+    is not running`, **exit 2** — the recipe-aborting error the old
+    guard exposed. (Also observed live earlier on `brain-test`.)
+  - NEW guard discriminates: synthetic `state=stopped → skip`,
+    `state=running → tart stop`.
+  - `make -n tart-stop` shows the expanded recipe now gates on
+    `tart list … | grep -qx running`, `tart stop` only if running, then
+    `rm -rf` clone unconditionally.
+  - END-TO-END: `make tart-stop` against stopped `ariadne-test` →
+    **exit 0** (previously would exit 2 when `tart ip` had a cached IP).
+  - `make -n tart-clean` shows its `tart-stop` prereq no longer aborts,
+    so the delete step is reachable.
+- Atlas: `atlas/workflow/base-layer.md:41` already describes
+  tart-stop/tart-clean accurately; guard bugfix changes no documented
+  behavior or surface → `--no-atlas` at close.
