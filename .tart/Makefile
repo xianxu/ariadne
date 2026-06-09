@@ -37,8 +37,12 @@
 # This replaces two earlier layouts: ~/repo-as-symlink (broke `make
 # build` with EPERM from host xattrs on bin/) and ~/repo-as-git-clone
 # (only picked up committed host state, missed uncommitted edits).
-# Override RUN_FLAGS empty for a true no-mount, no-mirror boot:
+# Override RUN_FLAGS empty for a true no-mount, no-mirror boot (setup
+# still runs):
 #   make tart RUN_FLAGS=
+# Or VANILLA=1 to additionally skip tart-vm-setup.sh and boot the pristine
+# base image (ssh pubkey only) — see the VANILLA block below:
+#   VANILLA=1 make tart
 #
 # Auto-derived per repo via $(REPO_NAME):
 #   - TART_VM defaults to <repo>-test (one VM per consuming repo).
@@ -114,6 +118,43 @@ TART_CLONE_DIR ?= $(HOME)/.tart/clones/$(TART_VM)-clone
 # Overridable to empty on the command line for a no-mount boot.
 RUN_FLAGS      ?= --dir=workspace:$(TART_CLONE_DIR)
 
+# VANILLA=<non-empty> → boot the pristine base image: NO workspace clone,
+# NO mount, and NO tart-vm-setup.sh (oh-my-zsh / extension rc /
+# ~/workspace+~/repo wiring / per-repo vm-hooks). The ONLY provisioning
+# kept is the passwordless-ssh pubkey install, so you can still ssh /
+# `make tart` in. Applies to both `tart` and `tart-gui`.
+#
+# Reuses $(TART_VM) like a normal boot — so a VM previously customized by
+# a plain `make tart` still carries that on-disk state. For a guaranteed
+# from-scratch base, `make tart-clean` first: it deletes the VM disk, so
+# the next boot re-clones a fresh $(TART_BASE) via _tart_ensure_vm.
+# Presence-based, like make's `V=1` (any non-empty value is "on").
+# (ariadne#89)
+VANILLA ?=
+# Normalize once so the make-time gates here and the shell-time setup gate
+# in _tart_boot_and_ssh agree on every input — incl. whitespace-only like
+# VANILLA=" ", which would otherwise read OFF make-side ($(strip)) but ON
+# shell-side (raw [ -z ]). Single source of truth for "is vanilla on".
+VANILLA_ON := $(strip $(VANILLA))
+ifneq ($(VANILLA_ON),)
+# A --dir would point at the workspace clone we deliberately skip building,
+# which fails the boot ("directory sharing device configuration is
+# invalid"). Force a no-mount boot; an empty RUN_FLAGS also self-skips the
+# share-echo blocks in the recipes below.
+override RUN_FLAGS :=
+endif
+
+# In VANILLA mode the workspace clone is skipped wholesale (nothing is
+# mounted), so the prepare step collapses to a one-line notice. Recursive
+# (=) assignment so the $(call) resolves at use — after _tart_prepare_clone
+# is defined further down. Both `tart` and `tart-gui` use it (ARCH-DRY:
+# one wrapper, not an inline branch in each target).
+ifeq ($(VANILLA_ON),)
+_tart_clone_step = $(call _tart_prepare_clone)
+else
+_tart_clone_step = @echo "==> VANILLA: booting pristine $(TART_BASE) clone — no workspace mount, no setup script (ssh pubkey only)."
+endif
+
 .PHONY: tart tart-gui tart-stop tart-clean help-tart
 
 help-tart:
@@ -130,10 +171,15 @@ help-tart:
 	"  make tart-gui       Same but display via macOS Screen Sharing.app" \
 	"  make tart-stop      Stop $(TART_VM) + remove its clone" \
 	"  make tart-clean     Stop + delete $(TART_VM) + remove its clone (base stays cached)" \
+	"  VANILLA=1 make tart Boot the pristine base image: no clone/mount, no setup" \
+	"                      script (oh-my-zsh/rc/~workspace/vm-hooks) — ssh pubkey only." \
+	"                      Reuses $(TART_VM); 'make tart-clean' first for a true" \
+	"                      from-scratch base. Honored by tart-gui too." \
 	"" \
 	"  Writes in the VM diverge into the APFS clone via COW; host workspace" \
 	"  ($(WORKSPACE_DIR)) stays untouched. Clone wipes on tart-stop / next boot." \
-	"  Skip the mount entirely with 'make tart RUN_FLAGS=' for a vanilla boot." \
+	"  Skip just the mount with 'make tart RUN_FLAGS=' (setup still runs); skip ALL" \
+	"  customization with 'VANILLA=1 make tart' (setup too — base image + ssh only)." \
 	"" \
 	"  Parallel VMs per repo: 'make tart TART_SUFFIX=emma' → $(REPO_NAME)-emma" \
 	"  (each VM gets its own workspace clone at ~/.tart/clones/$(REPO_NAME)-emma-clone)." \
@@ -295,7 +341,7 @@ define _tart_boot_and_ssh
 	                -i "$$pubkey" admin@$$ip; \
 	        fi; \
 	    fi; \
-	    if [ -f "$(CURDIR)/.tart/scripts/tart-vm-rc.zsh" ] && [ -f "$(CURDIR)/.tart/scripts/tart-vm-setup.sh" ]; then \
+	    if [ -z "$(VANILLA_ON)" ] && [ -f "$(CURDIR)/.tart/scripts/tart-vm-rc.zsh" ] && [ -f "$(CURDIR)/.tart/scripts/tart-vm-setup.sh" ]; then \
 	        scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
 	            "$(CURDIR)/.tart/scripts/tart-vm-rc.zsh"    admin@$$ip:.tart-vm-rc.zsh; \
 	        scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -334,7 +380,7 @@ tart:
 	fi
 	$(call _tart_wait_for_stop)
 	$(call _tart_gc_orphan_clones)
-	$(call _tart_prepare_clone)
+	$(_tart_clone_step)
 	@if [ -n "$(RUN_FLAGS)" ]; then \
 	    echo "==> Share: /Volumes/My Shared Files/$(REPO_NAME) (writable; APFS clone)"; \
 	    echo "    VM-side ~/repo symlinks to it. Writes diverge into the clone via APFS"; \
@@ -355,9 +401,11 @@ tart-gui:
 	fi
 	$(call _tart_wait_for_stop)
 	$(call _tart_gc_orphan_clones)
-	$(call _tart_prepare_clone)
-	@echo "==> Booting with VNC display + APFS-cloned share"
-	@echo "    Share: /Volumes/My Shared Files/$(REPO_NAME) (writable; APFS clone at $(TART_CLONE_DIR))"
+	$(_tart_clone_step)
+	@echo "==> Booting with VNC display$(if $(VANILLA_ON),, + APFS-cloned share)"
+	@if [ -n "$(RUN_FLAGS)" ]; then \
+	    echo "    Share: /Volumes/My Shared Files/$(REPO_NAME) (writable; APFS clone at $(TART_CLONE_DIR))"; \
+	fi
 	@echo "    First-time Screen Sharing: choose 'Standard' in the"
 	@echo "    network-type dialog — 'High Performance' is incompatible"
 	@echo "    with tart's VNC stream on Tahoe (Screen Sharing remembers"
