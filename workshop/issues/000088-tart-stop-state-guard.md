@@ -1,11 +1,12 @@
 ---
 id: 000088
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-08
 updated: 2026-06-08
 estimate_hours: 0.3
+actual_hours: 0.08
 ---
 
 # tart-stop guard uses cached tart ip; errors on GUI-shutdown VM
@@ -75,6 +76,7 @@ Principles). The state guard is the correct fix.
 ## Log
 
 ### 2026-06-08
+- 2026-06-08: closed — Bugfix: tart-stop gated `tart stop` on `tart ip` (exits 0 via cached IP for a stopped VM) → fired tart stop on a stopped VM → "not running" exit 2 → recipe abort + tart-clean prereq failure. Fixed to gate on `tart list` State column. PROOF: (1) HAZARD `tart stop nous-test` (stopped) → exit 2; (2) NEW guard discriminates stopped→skip / running→stop; (3) `make tart-stop` vs stopped ariadne-test → exit 0 (was exit-2-prone when IP cached); (4) `make -n tart-clean` shows prereq chain reaches delete. --no-atlas: base-layer.md:41 already describes tart-stop/clean accurately; guard bugfix adds no surface.; review verdict: SHIP
 - Diagnosed live against `brain-test` (GUI-shutdown, `stopped`):
   `tart stop brain-test` → `VM "brain-test" is not running` (exit 2),
   confirming the guard's false-positive. `brain-test` since deleted +

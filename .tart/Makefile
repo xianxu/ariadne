@@ -367,7 +367,7 @@ tart-gui:
 tart-stop:
 	@# Gate on tart list's State column, NOT `tart ip`: tart caches the
 	@# last-known IP for a stopped VM (see _tart_boot_and_ssh's note), so
-	@# an `tart ip` guard reads "running" for a VM stopped from the guest
+	@# a `tart ip` guard reads "running" for a VM stopped from the guest
 	@# GUI / a prior `tart stop` / a crash, then `tart stop` errors "not
 	@# running" (exit 2) and aborts the recipe — taking `tart-clean` (which
 	@# prereqs tart-stop) down with it. State-gating makes both idempotent.
