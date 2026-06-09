@@ -51,6 +51,17 @@ while [ $# -gt 0 ]; do
 	shift
 done
 
+# NOUS_DEV gate: in prod (NOUS_DEV=0) emit nothing, so `source <(dev-aliases.sh)`
+# is a no-op and callers fall back to the prebuilt binaries on PATH (e.g.
+# ~/workspace/nous/bin/nous) instead of rebuilding on every call. Unset / 1 /
+# anything-else => dev mode (emit) — the historical default, so this is
+# backward-compatible. Diagnostic flags (--list / --strict) bypass the gate.
+# NOTE: sourced via process substitution, so NOUS_DEV must be EXPORTED to be
+# seen by this child process.
+if [ "$list" -eq 0 ] && [ "$strict" -eq 0 ] && [ "${NOUS_DEV:-1}" = 0 ]; then
+	exit 0
+fi
+
 warn() { printf 'dev-aliases: %s\n' "$*" >&2; }
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
