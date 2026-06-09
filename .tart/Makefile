@@ -131,7 +131,12 @@ RUN_FLAGS      ?= --dir=workspace:$(TART_CLONE_DIR)
 # Presence-based, like make's `V=1` (any non-empty value is "on").
 # (ariadne#89)
 VANILLA ?=
-ifneq ($(strip $(VANILLA)),)
+# Normalize once so the make-time gates here and the shell-time setup gate
+# in _tart_boot_and_ssh agree on every input — incl. whitespace-only like
+# VANILLA=" ", which would otherwise read OFF make-side ($(strip)) but ON
+# shell-side (raw [ -z ]). Single source of truth for "is vanilla on".
+VANILLA_ON := $(strip $(VANILLA))
+ifneq ($(VANILLA_ON),)
 # A --dir would point at the workspace clone we deliberately skip building,
 # which fails the boot ("directory sharing device configuration is
 # invalid"). Force a no-mount boot; an empty RUN_FLAGS also self-skips the
@@ -144,7 +149,7 @@ endif
 # (=) assignment so the $(call) resolves at use — after _tart_prepare_clone
 # is defined further down. Both `tart` and `tart-gui` use it (ARCH-DRY:
 # one wrapper, not an inline branch in each target).
-ifeq ($(strip $(VANILLA)),)
+ifeq ($(VANILLA_ON),)
 _tart_clone_step = $(call _tart_prepare_clone)
 else
 _tart_clone_step = @echo "==> VANILLA: booting pristine $(TART_BASE) clone — no workspace mount, no setup script (ssh pubkey only)."
@@ -336,7 +341,7 @@ define _tart_boot_and_ssh
 	                -i "$$pubkey" admin@$$ip; \
 	        fi; \
 	    fi; \
-	    if [ -z "$(VANILLA)" ] && [ -f "$(CURDIR)/.tart/scripts/tart-vm-rc.zsh" ] && [ -f "$(CURDIR)/.tart/scripts/tart-vm-setup.sh" ]; then \
+	    if [ -z "$(VANILLA_ON)" ] && [ -f "$(CURDIR)/.tart/scripts/tart-vm-rc.zsh" ] && [ -f "$(CURDIR)/.tart/scripts/tart-vm-setup.sh" ]; then \
 	        scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
 	            "$(CURDIR)/.tart/scripts/tart-vm-rc.zsh"    admin@$$ip:.tart-vm-rc.zsh; \
 	        scp -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -397,7 +402,7 @@ tart-gui:
 	$(call _tart_wait_for_stop)
 	$(call _tart_gc_orphan_clones)
 	$(_tart_clone_step)
-	@echo "==> Booting with VNC display$(if $(strip $(VANILLA)),, + APFS-cloned share)"
+	@echo "==> Booting with VNC display$(if $(VANILLA_ON),, + APFS-cloned share)"
 	@if [ -n "$(RUN_FLAGS)" ]; then \
 	    echo "    Share: /Volumes/My Shared Files/$(REPO_NAME) (writable; APFS clone at $(TART_CLONE_DIR))"; \
 	fi

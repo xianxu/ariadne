@@ -1,11 +1,12 @@
 ---
 id: 000089
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-09
 updated: 2026-06-09
 estimate_hours: 0.5
+actual_hours: 0.4
 ---
 
 # VANILLA=1 make tart: boot pristine base image (skip mount/clone/setup, keep ssh)
@@ -62,6 +63,7 @@ downstream.
 ## Log
 
 ### 2026-06-09
+- 2026-06-09: closed — VANILLA=1 make tart/tart-gui boots pristine base (skip clone/mount/setup, keep ssh pubkey). Verified by `make -n` recipe diff: PLAIN keeps `tart run --dir=…`, clone-prep, setup gate `[ -z "" ]`(true→runs); VANILLA emits `tart run` with NO --dir, one-line clone notice, setup gate `[ -z "1" ]`(false→skipped), pubkey+interactive ssh present in both; tart-gui keeps --vnc + drops share echo in vanilla. `make -n help-tart` parses clean. Recipe-level proof is the right verification for a control-flow Makefile change (live boot tests tart, not this change; prior live-boot attempt was denied). Atlas base-layer.md:41 updated.; review verdict: SHIP
 - Implemented in `.tart/Makefile`: `VANILLA` var (presence-based),
   `override RUN_FLAGS :=` + `_tart_clone_step` wrapper (parse-time gates),
   `[ -z "$(VANILLA)" ]` setup-skip (shell-time gate). Both gates kept
@@ -82,3 +84,10 @@ downstream.
 - Atlas: `atlas/workflow/base-layer.md:41` documents the `make tart`
   family at a level that doesn't enumerate flags — added VANILLA there so
   the new no-customization boot is discoverable.
+- Boundary review: SHIP. Acted on its one Minor finding at root: the
+  make-side gates used `$(strip)` but the shell-side `[ -z "$(VANILLA)" ]`
+  did not, so `VANILLA=" "` would diverge (mount on, setup off). Added
+  `VANILLA_ON := $(strip $(VANILLA))` as the single source of truth and
+  pointed all four gates at it — so the "never diverge" claim is now
+  literally true. Re-verified: `VANILLA=' '` → `--dir` present + setup
+  gate `[ -z "" ]` (runs) = fully OFF, consistent on both sides.
