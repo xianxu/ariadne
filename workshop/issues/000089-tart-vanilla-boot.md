@@ -50,15 +50,35 @@ downstream.
 
 ## Plan
 
-- [ ] Add `VANILLA` var + `override RUN_FLAGS :=` when set; add a
+- [x] Add `VANILLA` var + `override RUN_FLAGS :=` when set; add a
       `_tart_clone_step` wrapper that no-ops the clone prep in vanilla.
-- [ ] Gate the `tart-vm-setup.sh` block in `_tart_boot_and_ssh` on
+- [x] Gate the `tart-vm-setup.sh` block in `_tart_boot_and_ssh` on
       `[ -z "$(VANILLA)" ]`; keep pubkey install.
-- [ ] Swap `$(call _tart_prepare_clone)` → `$(_tart_clone_step)` in
+- [x] Swap `$(call _tart_prepare_clone)` → `$(_tart_clone_step)` in
       `tart` + `tart-gui`; gate tart-gui's "APFS-cloned share" echoes.
-- [ ] Doc: header comment + `help-tart` line.
-- [ ] Verify via `make -n` diff (vanilla vs plain) for both targets.
+- [x] Doc: header comment + `help-tart` line.
+- [x] Verify via `make -n` diff (vanilla vs plain) for both targets.
 
 ## Log
 
 ### 2026-06-09
+- Implemented in `.tart/Makefile`: `VANILLA` var (presence-based),
+  `override RUN_FLAGS :=` + `_tart_clone_step` wrapper (parse-time gates),
+  `[ -z "$(VANILLA)" ]` setup-skip (shell-time gate). Both gates kept
+  presence-based so they never diverge (plan-quality judge's watch-item).
+- Verified deterministically via `make -n` (recipe-level proof — the change
+  is purely which commands the recipe emits; a live boot tests tart, not
+  this change, and a prior live-boot attempt was denied):
+  - PLAIN `make -n tart`: `tart run --no-graphics --dir=workspace:…clone`,
+    "Preparing APFS clone" runs, setup gate `[ -z "" ]` (TRUE → setup
+    runs), pubkey + `ssh -t … exec $SHELL -l` present.
+  - VANILLA `make -n tart`: `tart run --no-graphics  ariadne-test` (NO
+    `--dir`), clone-prep → one-line VANILLA notice, setup gate `[ -z "1" ]`
+    (FALSE → setup skipped), pubkey + interactive ssh STILL present.
+  - `tart-gui` PLAIN: `tart run --vnc --dir=…`, "Booting with VNC display
+    + APFS-cloned share". VANILLA: `tart run --vnc  ariadne-test` (`--vnc`
+    kept, no `--dir`), echo drops the share suffix, setup `[ -z "1" ]`.
+  - `make -n help-tart` parses clean (no Makefile syntax errors).
+- Atlas: `atlas/workflow/base-layer.md:41` documents the `make tart`
+  family at a level that doesn't enumerate flags — added VANILLA there so
+  the new no-customization boot is discoverable.
