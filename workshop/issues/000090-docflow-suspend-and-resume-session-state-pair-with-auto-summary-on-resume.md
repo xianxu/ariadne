@@ -38,8 +38,10 @@ re-orientation tax every time.
 Add a suspend ⇄ resume pair to the docflow lifecycle (`scripts/docflow.sh` +
 the **xx-fix** SKILL.md triggers), composing with existing `start/round/ship/status`.
 
-- **`docflow suspend`** (operator triggers: "park this", "suspend the docflow",
-  "stop for now") — commit any dirty edits (operator side), push the
+- **`docflow suspend`** — operator's canonical phrasing is **"save my work in
+  `review/<slug>` branch"** (also: "park this", "suspend the docflow", "stop for
+  now"). The branch is named explicitly, so suspend targets a given session.
+  Commit any dirty edits (operator side), push the
   `review/<slug>` branch, and persist a **findable resume pointer**. Mechanism
   TBD in Plan: branch alone is the state; the pointer is what makes a parked
   session discoverable from `main`. Options: (a) auto-create/update a pointer
@@ -47,8 +49,9 @@ the **xx-fix** SKILL.md triggers), composing with existing `start/round/ship/sta
   one-line "to resume" note, link to plan), (b) a lighter `docflow ls` that
   scans `review/*` branches so no issue is needed, or (c) both. Decide in Plan.
   Idempotent: suspending twice updates, not duplicates.
-- **`docflow resume <slug|branch>`** (triggers: "resume the docflow",
-  "continue review/<slug>", or auto on `docflow start` detecting an existing
+- **`docflow resume <slug|branch>`** — operator's canonical phrasing is
+  **"recover my work in `review/<slug>`"** (also: "resume the docflow",
+  "continue review/<slug>"; or auto on `docflow start` detecting an existing
   branch) — switch to the branch and **always emit a state summary before any
   edit**: rounds so far (from the journal), open `🤖` markers by file + section
   kind, reading frontier, base..HEAD diffstat, and the explicit "what's left."
@@ -89,3 +92,7 @@ the **xx-fix** SKILL.md triggers), composing with existing `start/round/ship/sta
   hand-made pointer `xianxu.dev#000001` is the prototype for `suspend`'s output;
   the manual "summarize where things are" I did on resume is the prototype for
   `resume`'s mandatory summary.
+- Operator fixed the canonical trigger phrasing: suspend = **"save my work in
+  `review/<slug>` branch"**, resume = **"recover my work in `review/<slug>`"**.
+  Both name the branch explicitly. The skill must recognize these as the primary
+  forms (the "park"/"suspend"/"resume" phrasings are secondary aliases).
