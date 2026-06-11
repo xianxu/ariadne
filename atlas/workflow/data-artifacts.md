@@ -52,6 +52,7 @@ The dispatcher fires on three triggers, in priority order:
 | `roadmap` | Month-level forward-looking plan for one product — capacity, scope decisions, target state per component. Lives at `data/roadmap/YYYYMM/<product>.md`. |
 | `project` | Execution container — focused push toward a defined MVP, cutting across issues and possibly products. Operator-POV. One operator per project. Closes the velocity calibration loop. |
 | `prose` | Per-parent ledger of pre-manuscript fragments — sentences and half-thoughts captured before they have a home in the parent's drafts. Sibling to a `product` (or other long-running parent). Reverse-chrono, append-only, voice-preserving. Distinct from `pensive` (session vs ledger). |
+| `continuation` | Human-meaningful snapshot of a coding session — next action, open deliberations, decisions/dead-ends, cross-issue links — so work resumes later / on another machine / by another person / under another agent. Distilled from the *rendered* session, not the native store. Lives at `workshop/continuation/<timestamp>-slug.md`; the **one type committed+pushed on creation** (disaster-recovery). |
 
 The trio `product` + `roadmap` + `project` together model a small company-or-team's structure:
 
@@ -65,6 +66,8 @@ The pair `pensive` + `prose` together cover thinking-out-loud at two different g
 - **prose** = a *ledger* — many fragments per file, append-as-you-go, sentence-to-paragraph each. Filename is just `prose.md`; the file is bound to a parent artifact (typically a long-running `product` like a book or blog), and fragments graduate into the parent's drafts.
 
 Heuristic: *session or ledger?* A fragment that grows past ~3 paragraphs and develops a thesis has become a session — graduate it from prose to pensive. A pensive dominated by one-line observations rather than connected argument should have been prose entries.
+
+`continuation` is the human-understanding cousin of a native session **`resume`**: `resume` restores *machine state* (the agent's own transcript + session id, byte-faithful); a continuation restores *human understanding* (next action, open threads, decisions + dead ends), distilled from the *rendered* session. Use a continuation to park or hand off work across time, machines, people, or agent stacks; use `resume` to reattach to a still-live session. It's also the one datatype committed + pushed on creation — a deliberate exception to the dispatcher's "never auto-commit" default, because an unpushed recovery doc is useless.
 
 ## Rules of thumb
 
