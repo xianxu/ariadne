@@ -1,11 +1,12 @@
 ---
 id: 000091
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-11
 updated: 2026-06-11
 estimate_hours: 2
+actual_hours: 0.09
 ---
 
 # Session continuation: datatype prototype
@@ -141,6 +142,7 @@ dependency). (Archival to `history/` still happens at periodic cleanup, not here
 ## Log
 
 ### 2026-06-11 — session summary
+- 2026-06-11: closed — continuation.md prototype conforms to type.md skeleton (lede/frontmatter/body/authoring/search/rules); atlas data-artifacts.md updated (table row + resume-vs-continue note). Format resumability validated by fresh-agent round-trip on a hand-authored fixture: given only the doc, the agent stated the correct NEXT ACTION + reading order. change-code plan-quality judge passed (INFO). Writer-enforced invariants (frontmatter/naming/commit+push) deferred to pair#50 per layering.; review verdict: FIX-THEN-SHIP
 
 Designed + landed the continuation datatype core. Key decisions (see Spec): a
 continuation restores *human understanding* (vs `resume`'s machine state),
@@ -161,3 +163,6 @@ findings (dogfood-via-fixture, the auto-commit override, explicit location hint)
 
 Next: `pair#50` — `pair-scrollback-render --plain`, the `cmd/pair-continuation`
 writer (TDD: pure core + thin clock/fs/git seam), `pair continue`, Alt+x park-nudge.
+
+### 2026-06-11 — boundary review
+- Verdict **FIX-THEN-SHIP** (0 Critical, 1 Important, 2 Minor). Fixed Important (graceful dead-end when no writer is available — a standalone `/xx-datatype continuation` tells the user to use pair's park/continue flow instead of hand-writing) + Minor (`created` wording: "corresponds to", not "matches"). Deferred Minor (AGENTS.md Directory-Structure `workshop/continuation/` line) to `pair#50`, when the writer first creates the dir. ARCH-DRY + ARCH-PURE: pass.
