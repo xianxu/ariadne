@@ -127,16 +127,16 @@ dependency). (Archival to `history/` still happens at periodic cleanup, not here
 - `construct/datatype/continuation.md` defines the frontmatter shape, body skeleton, and authoring instructions; conforms to `type.md`'s six-section prototype skeleton; surfaced via the `construct/datatype` base-manifest symlink (automatic) + documented in `atlas/workflow/data-artifacts.md`.
 - The prototype's authoring instructions specify the substrate (current session, or a supplied rendered transcript), the field set, and that finalization goes through the writer (not hand-written).
 - The disaster-recovery invariants — conformant frontmatter, unique `<timestamp>-slug.md` name, commit+push-on-create — are enforced by the writer (built + tested in `pair#50`), not left to the dispatcher.
-- A continuation spanning ≥2 issues round-trips: produced, then a fresh agent reads it and can state the NEXT ACTION without the original session.
+- Format validated by a **hand-authored sample fixture** (≥2 issues; exempt from the never-hand-write rule since the writer is `pair#50`): a fresh agent reads it and states the NEXT ACTION without the original session — confirming the format is resumable. Writer-enforced invariants (frontmatter, naming, commit+push) are validated in `pair#50`.
 - Atlas updated (datatype entry + the `resume`-vs-`continue` principle).
 
 ## Plan
 
 - [ ] Author `construct/datatype/continuation.md` (type.md six-section skeleton): frontmatter shape, body skeleton (NEXT ACTION · State of play · Live deliberations · Decisions & dead ends · Pointers), search recipes, rules
-- [ ] Authoring instructions: substrate (self-mode vs supplied rendered transcript), field gathering, finalize-via-writer, the commit+push invariant
-- [ ] Atlas: `data-artifacts.md` entry + `resume`-vs-`continue` principle
-- [ ] Validate: dogfood a continuation, round-trip it through a fresh agent
-- [ ] (the deterministic writer that enforces the invariants is built in `pair#50`)
+- [ ] Authoring instructions: substrate (self-mode vs supplied rendered transcript); field gathering; **explicit default location** `workshop/continuation/<YYYYMMDDTHHMMSS>-slug.md` (the dispatcher's `memory/`/`data/` tree-scan won't find it — Finding 3); **delegate the entire write to the writer binary** — continuation is the one datatype that does NOT use the dispatcher's Write-and-leave-uncommitted default (`xx-datatype` SKILL.md:178 "Never auto-commit"); state that the dispatcher must not write the file itself and the writer owns the commit+push (Finding 2)
+- [ ] Atlas: `data-artifacts.md` entry (+ built-in-types row) + `resume`-vs-`continue` principle
+- [ ] Validate via a **hand-authored sample fixture** (≥2 issues, exempt from never-hand-write since the writer is `pair#50`): a fresh agent reads it and states the NEXT ACTION → format is resumable (Finding 1)
+- [ ] (the deterministic writer enforcing the invariants — frontmatter, naming, commit+push — is built + tested in `pair#50`)
 
 ## Log
 
