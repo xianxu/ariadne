@@ -1,14 +1,15 @@
 ---
 id: 000091
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-11
 updated: 2026-06-11
 estimate_hours: 2
+actual_hours: 0.09
 ---
 
-# Session continuation: datatype + distill skill
+# Session continuation: datatype prototype
 
 ## Problem
 
@@ -132,12 +133,36 @@ dependency). (Archival to `history/` still happens at periodic cleanup, not here
 
 ## Plan
 
-- [ ] Author `construct/datatype/continuation.md` (type.md six-section skeleton): frontmatter shape, body skeleton (NEXT ACTION · State of play · Live deliberations · Decisions & dead ends · Pointers), search recipes, rules
-- [ ] Authoring instructions: substrate (self-mode vs supplied rendered transcript); field gathering; **explicit default location** `workshop/continuation/<YYYYMMDDTHHMMSS>-slug.md` (the dispatcher's `memory/`/`data/` tree-scan won't find it — Finding 3); **delegate the entire write to the writer binary** — continuation is the one datatype that does NOT use the dispatcher's Write-and-leave-uncommitted default (`xx-datatype` SKILL.md:178 "Never auto-commit"); state that the dispatcher must not write the file itself and the writer owns the commit+push (Finding 2)
-- [ ] Atlas: `data-artifacts.md` entry (+ built-in-types row) + `resume`-vs-`continue` principle
-- [ ] Validate via a **hand-authored sample fixture** (≥2 issues, exempt from never-hand-write since the writer is `pair#50`): a fresh agent reads it and states the NEXT ACTION → format is resumable (Finding 1)
-- [ ] (the deterministic writer enforcing the invariants — frontmatter, naming, commit+push — is built + tested in `pair#50`)
+- [x] Author `construct/datatype/continuation.md` (type.md prototype skeleton: lede · frontmatter shape · body skeleton · authoring instructions · search recipes · rules); body skeleton = NEXT ACTION · State of play · Live deliberations · Decisions & dead ends · Pointers
+- [x] Authoring instructions: substrate (self-mode vs supplied rendered transcript); field gathering; **explicit default location** `workshop/continuation/<YYYYMMDDTHHMMSS>-slug.md` (the dispatcher's `memory/`/`data/` tree-scan won't find it — Finding 3); **delegate the entire write to the writer binary** — continuation is the one datatype that does NOT use the dispatcher's Write-and-leave-uncommitted default (`xx-datatype` SKILL.md:178 "Never auto-commit"); state that the dispatcher must not write the file itself and the writer owns the commit+push (Finding 2)
+- [x] Atlas: `data-artifacts.md` entry (+ built-in-types row) + `resume`-vs-`continue` principle
+- [x] Validate via a **hand-authored sample fixture** (≥2 issues, exempt from never-hand-write since the writer is `pair#50`): a fresh agent reads it and states the NEXT ACTION → format is resumable (Finding 1)
+> **Writer note:** the deterministic writer that enforces the invariants (frontmatter, naming, commit+push) is built + tested in `pair#50` — tracked there, not a `#91` deliverable.
 
 ## Log
 
-### 2026-06-11
+### 2026-06-11 — session summary
+- 2026-06-11: closed — continuation.md prototype conforms to type.md skeleton (lede/frontmatter/body/authoring/search/rules); atlas data-artifacts.md updated (table row + resume-vs-continue note). Format resumability validated by fresh-agent round-trip on a hand-authored fixture: given only the doc, the agent stated the correct NEXT ACTION + reading order. change-code plan-quality judge passed (INFO). Writer-enforced invariants (frontmatter/naming/commit+push) deferred to pair#50 per layering.; review verdict: FIX-THEN-SHIP
+
+Designed + landed the continuation datatype core. Key decisions (see Spec): a
+continuation restores *human understanding* (vs `resume`'s machine state),
+distilled from the **rendered** session; production **reuses the `xx-datatype`
+dispatcher** (ARCH-DRY — no new skill); the deterministic writer enforcing the
+invariants (timestamped filename, frontmatter, commit+push) is deferred to
+`pair#50` (ARCH-PURE, correct layering — base defines the contract, downstream
+producer enforces it). Continuation is the **first auto-committing datatype** —
+an explicit override of the dispatcher's "never auto-commit" default
+(`xx-datatype` SKILL.md:178), spelled out in the prototype.
+
+Shipped: `construct/datatype/continuation.md` + `atlas/workflow/data-artifacts.md`.
+Format resumability validated by a fresh-agent round-trip on a hand-authored
+fixture — given only the doc, the agent named the correct NEXT ACTION + reading
+order; its caveat (pin peer-repo paths for cross-repo work) was folded into the
+prototype Pointers. `change-code` plan-quality judge: INFO/pass after fixing 3
+findings (dogfood-via-fixture, the auto-commit override, explicit location hint).
+
+Next: `pair#50` — `pair-scrollback-render --plain`, the `cmd/pair-continuation`
+writer (TDD: pure core + thin clock/fs/git seam), `pair continue`, Alt+x park-nudge.
+
+### 2026-06-11 — boundary review
+- Verdict **FIX-THEN-SHIP** (0 Critical, 1 Important, 2 Minor). Fixed Important (graceful dead-end when no writer is available — a standalone `/xx-datatype continuation` tells the user to use pair's park/continue flow instead of hand-writing) + Minor (`created` wording: "corresponds to", not "matches"). Deferred Minor (AGENTS.md Directory-Structure `workshop/continuation/` line) to `pair#50`, when the writer first creates the dir. ARCH-DRY + ARCH-PURE: pass.
