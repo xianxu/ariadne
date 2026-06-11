@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-11
 updated: 2026-06-11
-estimate_hours: 5
+estimate_hours: 2
 ---
 
 # Session continuation: datatype + distill skill
@@ -84,55 +84,59 @@ Body sections:
   branch/worktree. (AGENTS.md is auto-loaded via `CLAUDE.md` → no instruction to
   read it needed.)
 
-**2. Distill skill** (`xx-continuation`, base-layer `xx-*` skill) — the **only**
-producer; **no sdlc verb**. (Why dropped: a continuation is a recovery tool, not
-an SDLC stage; it needs no shared counter — the timestamp filename suffices — so
-threading it through the `sdlc` binary would be coupling for coupling's sake.) The
-skill is source-agnostic:
+**2. Production reuses the `xx-datatype` dispatcher — no new skill (ARCH-DRY).**
+`xx-datatype` already owns conversation-distillation, location discovery,
+prototype-as-spec application, and confirm-before-write; a custom `xx-continuation`
+skill would re-implement it. The continuation prototype's *Authoring instructions*
+direct the dispatcher to:
 
-- input: **a rendered session transcript** (plain text) + the repo's `sdlc state` /
-  touched issues;
-- it drafts the structured doc → **surfaces for the user's approval → writes**
-  (operating principle from `xx-introspect`; no silent writes);
-- it allocates the timestamped filename and writes `workshop/continuation/…` directly.
+- distill the body from the **current session** (self-mode — the common, recommended
+  park); or, for the **dead-agent** case, from a **rendered transcript** at a path the
+  producer supplies (`pair#50` drives that trigger explicitly);
+- gather `slug` / `agent` / `session_id` / `issues` / `branch` / `worktree`;
+- **finalize via the deterministic writer (§3)** — never by hand-writing the file.
 
-Two production contexts, same skill, same output:
+The dispatcher (LLM) does the irreducible *judgment*: what the NEXT ACTION is, what's
+still in deliberation, which decisions/dead-ends matter. The rendered transcript being
+a *human projection* (collapsed tool I/O) is a **feature** — it drops the verbatim
+cruft a continuation shouldn't carry; the dispatcher never parses native stores. (No
+`sdlc continuation new` verb — a continuation needs no shared counter, so it stays out
+of the SDLC binary.)
 
-- agent alive: distills from its own warm understanding (a superset of the rendered view);
-- agent unavailable but session not exited: a fresh agent distills from the
-  rendered transcript (pair supplies it — `pair#50`).
+**3. Deterministic writer — the robustness boundary (ARCH-PURE).** The mechanics that
+must not depend on the LLM remembering are enforced in code, implemented by the
+producer (`pair#50`, e.g. `cmd/pair-continuation`):
 
-The rendered transcript being a *human projection* (collapsed tool I/O,
-agent-rendered) is a **feature** — it drops exactly the verbatim cruft a
-continuation shouldn't carry. The skill consumes "a rendered transcript"; it does
-**not** parse native stores (wrong kind of state, and would need per-agent parsers).
+- **pure core (unit-tested, no IO):** render complete, conformant frontmatter from the
+  gathered fields; allocate the `<YYYYMMDDTHHMMSS>-slug.md` name, collision-safe against
+  the existing directory; assemble frontmatter + approved body.
+- **thin IO seam (injected fakes in tests):** clock (timestamp), filesystem (write), git
+  (add / commit / push to `main`).
 
-**3. Commit + push on create.** A continuation is disaster-recovery — the whole
-point is to externalize agent state to the repo and *off the host*. So on write
-the skill **commits the new file to `main` and pushes immediately**. Precedent: a
-record artifact going straight to main is exactly what `sdlc issue new` / `sdlc
-claim` already do for issue files, via the on-main sync helper (`cmd/sdlc/claim.go`)
-— the PR→merge norm governs *feature code*, not tracker records. A continuation is
-the same class: a single, append-only, conflict-light record, and an unpushed
-recovery doc defeats its own purpose. The skill does the `git add/commit/push`
-itself (decoupled from sdlc). (Archival to `history/` still happens at periodic
-cleanup, not here.)
+This guarantees the disaster-recovery invariants — every continuation has well-formed
+frontmatter, a unique timestamped name, and is **committed + pushed the instant it's
+written** (an unpushed recovery doc is useless). Precedent for straight-to-main: `sdlc
+issue new` / `claim` already push issue files directly (`cmd/sdlc/claim.go`); the
+PR→merge norm governs *feature code*, not record artifacts. **Layering:** `#91` defines
+the format + invariants (agent-agnostic, base-layer); `pair#50` implements the writer
+that enforces them (downstream producer implements the base-layer contract — no backward
+dependency). (Archival to `history/` still happens at periodic cleanup, not here.)
 
 ## Done when
 
-- `construct/datatype/continuation.md` defines schema/frontmatter/lifecycle, conforms to `type.md`'s six-section prototype skeleton, and is surfaced via the `construct/datatype` base-manifest symlink (automatic) + documented in `atlas/workflow/data-artifacts.md`.
-- A produced continuation lands at `workshop/continuation/<timestamp>-slug.md` with conformant frontmatter/sections, and is auto-committed + pushed to `main` on create; covered by a test.
-- `xx-continuation` turns a rendered transcript + repo state into a valid continuation doc via draft → approval → write.
+- `construct/datatype/continuation.md` defines the frontmatter shape, body skeleton, and authoring instructions; conforms to `type.md`'s six-section prototype skeleton; surfaced via the `construct/datatype` base-manifest symlink (automatic) + documented in `atlas/workflow/data-artifacts.md`.
+- The prototype's authoring instructions specify the substrate (current session, or a supplied rendered transcript), the field set, and that finalization goes through the writer (not hand-written).
+- The disaster-recovery invariants — conformant frontmatter, unique `<timestamp>-slug.md` name, commit+push-on-create — are enforced by the writer (built + tested in `pair#50`), not left to the dispatcher.
 - A continuation spanning ≥2 issues round-trips: produced, then a fresh agent reads it and can state the NEXT ACTION without the original session.
 - Atlas updated (datatype entry + the `resume`-vs-`continue` principle).
 
 ## Plan
 
-- [ ] Define `continuation` datatype (`construct/datatype/continuation.md`) + index link
-- [ ] `xx-continuation` writes the timestamped file directly + commit/push-on-create (no sdlc verb) + test
-- [ ] `xx-continuation` distill skill (rendered-transcript input → doc; draft → approve → write)
-- [ ] Atlas: datatype entry + `resume`-vs-`continue` principle
-- [ ] Verify: round-trip a multi-issue continuation through a fresh agent
+- [ ] Author `construct/datatype/continuation.md` (type.md six-section skeleton): frontmatter shape, body skeleton (NEXT ACTION · State of play · Live deliberations · Decisions & dead ends · Pointers), search recipes, rules
+- [ ] Authoring instructions: substrate (self-mode vs supplied rendered transcript), field gathering, finalize-via-writer, the commit+push invariant
+- [ ] Atlas: `data-artifacts.md` entry + `resume`-vs-`continue` principle
+- [ ] Validate: dogfood a continuation, round-trip it through a fresh agent
+- [ ] (the deterministic writer that enforces the invariants is built in `pair#50`)
 
 ## Log
 
