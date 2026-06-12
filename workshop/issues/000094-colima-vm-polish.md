@@ -75,13 +75,13 @@ Decided via brainstorm 2026-06-12 (portability analysis + AskUserQuestion):
 Durable design: `workshop/plans/000094-colima-vm-polish-plan.md`. Atomic
 single-boundary (verified in one boot) → one `sdlc close` (no `Mx`).
 
-- [ ] `construct/scripts/vm-log.sh` + test — shared colorized-step / dimmed-passthrough logger
-- [ ] `.colima/vm-rc.sh` — guest bash rc (aliases, vi-mode, dev-aliases, auto-cd)
-- [ ] `.colima/vm-setup.sh` — guest bootstrap (symlinks, nvim, oh-my-bash, hooks)
-- [ ] `colima.sh` — colorized steps, dimmed sub-output, run guest setup (gated on fresh, non-fatal)
-- [ ] `.tart/Makefile` — colorized steps + dimmed boot-log tail during SSH wait
-- [ ] `base.manifest` entries + colima test setup-call assertions
-- [ ] Real colima boot verification (setup + logging); `make -n tart` check; log evidence
+- [x] `construct/scripts/vm-log.sh` + test — shared colorized-step / dimmed-passthrough logger
+- [x] `.colima/vm-rc.sh` — guest bash rc (aliases, vi-mode, dev-aliases, auto-cd)
+- [x] `.colima/vm-setup.sh` — guest bootstrap (symlinks, nvim, oh-my-bash, hooks)
+- [x] `colima.sh` — colorized steps, dimmed sub-output, run guest setup (gated on fresh, non-fatal)
+- [x] `.tart/Makefile` — colorized steps + dimmed boot-log tail during SSH wait
+- [x] `base.manifest` entries + colima test setup-call assertions
+- [x] Real colima boot verification (setup + logging); `make -n tart` check; log evidence
 
 ## Log
 
@@ -91,3 +91,24 @@ single-boundary (verified in one boot) → one `sdlc close` (no `Mx`).
   OpenShell Linux overlay, not Tart's macOS zsh rc). AskUserQuestion settled
   **lean parity** + **skip agent aliases**. Non-portable bits explicitly
   excluded (proxy/creds/macOS-DNS/output-capture).
+- Durable plan written + fresh-eyes review: caught `source <(…)` unreliability
+  (→ `eval "$(…)"`), unconditional setup re-run (→ gated on fresh start), and
+  setup-aborts-before-shell (→ non-fatal). plan-quality judge: INFO/proceed;
+  also flagged the tart dimmed-tail orphan (→ `pkill -P`) and the deliberate
+  copy-not-extract of the portable rc subset (noted in vm-rc.sh).
+- **Verification — deterministic:** `vm-log.test.sh` PASS (color gating +
+  dim filtering, incl. final-newline-less line); `colima.test.sh` PASS (incl.
+  fresh-start runs vm-setup, already-running skips it but still pushes rc).
+- **Verification — Part B logging:** real `colima start` + `vm-setup` output
+  dims correctly (`^[[2m…^[[0m`); `vm-log.sh step` colorizes (bold-cyan);
+  `make -n tart` expands clean; the tart dimmed boot-log tail streams `^[[2m`
+  lines and leaves **no orphan tail** after `pkill -P`+`kill` (R3). (A full
+  `make tart` visual is an operator eyeball — booting a macOS guest is
+  heavy/2-VM-capped; mechanics verified here.)
+- **Verification — Part A setup (real Colima boot, profile `ariadne-test`):**
+  nvim v0.9.5 at `/usr/bin/nvim`; `~/workspace`→`/Users/xianxu/workspace`,
+  `~/repo`→`…/ariadne`; marker `ariadne`; `~/.bashrc:160` sources
+  `~/.colima-vm-rc.sh` **after** oh-my-bash (R1); interactive shell has aliases
+  (`s`,`p`,`repo`); **`sdlc is a function`** (dev-aliases via `eval` works
+  in-guest); auto-cd lands in `~/workspace/ariadne`. Teardown clean, docker
+  context restored to `default`.
