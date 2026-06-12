@@ -1,11 +1,12 @@
 ---
 id: 000094
-status: working
+status: done
 deps: [ariadne#93]
 github_issue:
 created: 2026-06-12
 updated: 2026-06-12
 estimate_hours: 4
+actual_hours: 0.73
 ---
 
 # Colima VM post-login parity + unified colorized/dimmed VM logging
@@ -86,6 +87,7 @@ single-boundary (verified in one boot) → one `sdlc close` (no `Mx`).
 ## Log
 
 ### 2026-06-12
+- 2026-06-12: closed — vm-log.test.sh + colima.test.sh PASS (color gating, dim filtering, fresh-vs-running setup gating). Real Colima boot (ariadne-test): nvim 0.9.5, ~/workspace+~/repo symlinks, marker, ~/.bashrc sources vm-rc after oh-my-bash (R1), interactive aliases live, sdlc dev-alias is a function (eval fix works in-guest), auto-cd into repo. Logging: colima start/vm-setup output dims (ESC[2m), step headers bold-cyan, make -n tart clean, tart dimmed boot-log tail streams + no orphan after pkill -P (R3). Teardown clean, docker context restored.; review verdict: FIX-THEN-SHIP
 
 - Brainstorm: portability analysis (Colima guest = Ubuntu/bash → mirror the
   OpenShell Linux overlay, not Tart's macOS zsh rc). AskUserQuestion settled
