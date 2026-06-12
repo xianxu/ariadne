@@ -552,3 +552,31 @@ sdlc close --issue 93 --verified '<boot→ssh→stop→clean cycle evidence + te
 - `--actual` omitted → close computes it (active-time-v3); do not hand-type.
 - Atlas updated (Task 7) → `--no-atlas` NOT needed.
 - Then publish via `sdlc pr` → `sdlc merge`.
+
+---
+
+## Revisions
+
+### 2026-06-12 — VNC auth: password (VncAuth), not `-SecurityTypes None`
+
+- **Delta:** Task 2's `vnc-setup.sh` listing (and the integration-points note)
+  specify `-SecurityTypes None` with "a password is a future extension." The
+  shipped script instead writes `~/.vnc/passwd` via `vncpasswd -f` and starts
+  `vncserver` with default VncAuth — default password `colima`, override
+  `COLIMA_VNC_PASSWORD` (passed as a 2nd positional: `bash -s -- <geom> <pw>`).
+- **Reason:** TigerVNC refuses an auth-less server on a non-localhost bind
+  (`-localhost no`, needed so Lima forwards the port) without
+  `--I-KNOW-THIS-IS-INSECURE`. A VNC password is cheaper defense-in-depth than
+  shipping that flag in a propagating base-layer artifact, even though the port
+  is only host-reachable via Lima's user-mode NAT. Verified in the real
+  boot→gui cycle (guest `0.0.0.0:5901` → host `localhost:5901` forwarded).
+
+### 2026-06-12 — `colima.sh` usage guard + test hardening (boundary-review minors)
+
+- **Delta:** `up`/`gui`/`stop`/`clean` arms now guard arg count (`[ $# -ge N ]
+  || _usage`) so direct-CLI misuse prints `usage:` instead of an opaque
+  `unbound variable` under `set -u`. Fake test gained a `gui` command-assembly
+  assertion and a missing-args exit-2 assertion. `vnc-setup.sh` notes the
+  8-char VNC password truncation.
+- **Reason:** FIX-THEN-SHIP boundary review (no Critical/Important) recommended
+  these cheap hardening items.

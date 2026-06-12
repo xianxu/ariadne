@@ -1,11 +1,12 @@
 ---
 id: 000093
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-12
 updated: 2026-06-12
 estimate_hours: 4
+actual_hours: 0.48
 ---
 
 # make colima — Lima-VM testing targets mirroring make tart
@@ -75,6 +76,7 @@ single-boundary feature → plain checkboxes, one `sdlc close` (no `Mx` split).
 ## Log
 
 ### 2026-06-12
+- 2026-06-12: closed — Process-level fake test PASS (.colima/test/colima.test.sh): start/ssh/stop/delete command assembly + idempotency gates incl. non-tautology clean-when-absent + amd64 rosetta. Real boot→ssh→stop→clean cycle on this Mac (bash 3.2.57, vz): R1 mount writable (MOUNT_WRITABLE), R2 repo-landing, R3 VNC guest 0.0.0.0:5901→host localhost:5901 FORWARDED (after password-auth fix), R4 non-issue with whole-workspace live mount. make help lists verbs; dry-run assembles correct command lines; clean restores docker context. Atlas doc added + linked.; review verdict: FIX-THEN-SHIP
 
 - Brainstorm settled three forks via AskUserQuestion: unit = **Colima profile
   (VM per repo)**; `colima-gui` = **VNC forwarding**; scope = **base-layer
@@ -111,6 +113,12 @@ single-boundary feature → plain checkboxes, one `sdlc close` (no `Mx` split).
   password (`vncpasswd -f`, default `colima`, override `COLIMA_VNC_PASSWORD`) —
   cheaper defense-in-depth than shipping an auth-less flag in a propagating
   base-layer artifact. Verified working.
+- **Boundary review (auto-dispatched at close): FIX-THEN-SHIP, no
+  Critical/Important.** Must-fix was plan doc-hygiene (plan still showed the old
+  `-SecurityTypes None`) → added a plan `## Revisions` entry. Also took the cheap
+  recommended minors: `up/gui/stop/clean` arg-count usage guard (no more opaque
+  `unbound variable` on direct-CLI misuse), `gui` + missing-args assertions in
+  the fake test, and an 8-char VNC-password-truncation note. Test re-run PASS.
 
 ## Revisions
 

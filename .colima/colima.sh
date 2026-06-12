@@ -86,22 +86,26 @@ _provision_vnc() {
     echo "    Lima forwards guest 5901 → host 5901."
 }
 
+_usage() {
+    echo "usage: colima.sh up|gui <profile> <repo-dir> <mount-dir> | stop|clean <profile>" >&2
+    exit 2
+}
+
 cmd=${1:-}; shift || true
 case "$cmd" in
   up)
-    _need_colima; _start_if_needed "$1" "$3"; _ssh_into "$1" "$2" ;;
+    _need_colima; [ $# -ge 3 ] || _usage; _start_if_needed "$1" "$3"; _ssh_into "$1" "$2" ;;
   gui)
-    _need_colima; _start_if_needed "$1" "$3"; _provision_vnc "$1"; _ssh_into "$1" "$2" ;;
+    _need_colima; [ $# -ge 3 ] || _usage; _start_if_needed "$1" "$3"; _provision_vnc "$1"; _ssh_into "$1" "$2" ;;
   stop)
-    _need_colima
+    _need_colima; [ $# -ge 1 ] || _usage
     if _running "$1"; then echo "==> Stopping '$1'..."; colima stop -p "$1";
     else echo "==> '$1' not running."; fi ;;
   clean)
-    _need_colima
+    _need_colima; [ $# -ge 1 ] || _usage
     if _running "$1"; then echo "==> Stopping '$1'..."; colima stop -p "$1"; fi
     if _exists "$1"; then echo "==> Deleting profile '$1' (base image stays cached)..."; colima delete -p "$1" -f;
     else echo "==> '$1' does not exist."; fi ;;
   *)
-    echo "usage: colima.sh up|gui <profile> <repo-dir> <mount-dir> | stop|clean <profile>" >&2
-    exit 2 ;;
+    _usage ;;
 esac

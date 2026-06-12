@@ -59,4 +59,12 @@ assert_none "delete -p p-test -f"
 FAKE_RUNNING=0 COLIMA_ARCH=x86_64 run up p-test /Users/me/ws/repo /Users/me/ws >/dev/null
 assert_has "--vz-rosetta"
 
+# gui → streams vnc-setup.sh with geometry + password positional args
+FAKE_RUNNING=0 run gui p-test /Users/me/ws/repo /Users/me/ws >/dev/null
+assert_has "bash -s -- 1600x1000 colima"
+
+# up/gui with missing args → usage guard (exit 2), not an unbound-variable crash
+set +e; "$ROOT/.colima/colima.sh" up p-test >/dev/null 2>&1; rc=$?; set -e
+[ "$rc" -eq 2 ] || { echo "FAIL: 'up' with missing args should exit 2 (got $rc)"; exit 1; }
+
 echo "PASS: .colima/colima.sh"

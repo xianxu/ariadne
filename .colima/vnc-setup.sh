@@ -22,7 +22,9 @@ if ! command -v vncserver >/dev/null 2>&1; then
 fi
 
 mkdir -p "$HOME/.vnc"
-echo "$PASSWORD" | vncpasswd -f > "$HOME/.vnc/passwd"   # -f: plaintext stdin → obfuscated file
+# -f: plaintext stdin → obfuscated file. Note: VNC passwords are truncated to
+# 8 chars (protocol limit) — a longer COLIMA_VNC_PASSWORD is silently clipped.
+echo "$PASSWORD" | vncpasswd -f > "$HOME/.vnc/passwd"
 chmod 600 "$HOME/.vnc/passwd"
 cat > "$HOME/.vnc/xstartup" <<'EOF'
 #!/bin/sh
