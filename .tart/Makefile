@@ -152,8 +152,13 @@ endif
 ifeq ($(VANILLA_ON),)
 _tart_clone_step = $(call _tart_prepare_clone)
 else
-_tart_clone_step = @echo "==> VANILLA: booting pristine $(TART_BASE) clone — no workspace mount, no setup script (ssh pubkey only)."
+_tart_clone_step = @$(VM_LOG) step "VANILLA: booting pristine $(TART_BASE) clone — no workspace mount, no setup script (ssh pubkey only)."
 endif
+
+# Shared VM logging (construct/scripts/vm-log.sh): colorized `==>` step headers
+# + a dim filter for underlying-process output. Same helper .colima uses
+# (ARCH-DRY). `step <msg>` bold-cyan, `warn <msg>` bold-yellow, `dim` grays stdin.
+VM_LOG := bash $(CURDIR)/construct/scripts/vm-log.sh
 
 .PHONY: tart tart-gui tart-stop tart-clean help-tart
 
@@ -216,7 +221,7 @@ endef
 # for large repos, so cloning only the needed peers (not the whole
 # workspace) is the latency win.
 define _tart_prepare_clone
-	@echo "==> Preparing APFS clone at $(TART_CLONE_DIR) (current repo + go.mod peers)..."
+	@$(VM_LOG) step "Preparing APFS clone at $(TART_CLONE_DIR) (current repo + go.mod peers)..."
 	@mkdir -p "$(dir $(TART_CLONE_DIR))"
 	@rm -rf "$(TART_CLONE_DIR)"
 	@mkdir -p "$(TART_CLONE_DIR)"
@@ -289,9 +294,9 @@ define _tart_ensure_vm
 	@command -v tart >/dev/null || \
 	    { echo "Install tart: brew install cirruslabs/cli/tart"; exit 1; }
 	@if ! tart list --source local -q 2>/dev/null | grep -qx $(TART_VM); then \
-	    echo "==> Pulling $(TART_BASE) (cached at ~/.tart/cache/, shared with other repos)..."; \
+	    $(VM_LOG) step "Pulling $(TART_BASE) (cached at ~/.tart/cache/, shared with other repos)..."; \
 	    tart pull $(TART_BASE); \
-	    echo "==> Cloning to $(TART_VM)..."; \
+	    $(VM_LOG) step "Cloning to $(TART_VM)..."; \
 	    tart clone $(TART_BASE) $(TART_VM); \
 	fi
 endef
@@ -306,31 +311,38 @@ endef
 # `tart ip` succeeds even when the VM isn't running.
 define _tart_boot_and_ssh
 	@state=$$(tart list 2>/dev/null | awk -v vm=$(TART_VM) '$$2==vm {print $$NF}'); \
+	booted=0; \
 	if [ "$$state" != "running" ]; then \
-	    echo "==> Booting VM..."; \
+	    $(VM_LOG) step "Booting VM..."; \
 	    nohup tart run $(GRAPHICS_FLAG) $(RUN_FLAGS) $(TART_VM) >/tmp/tart-$(TART_VM).log 2>&1 & \
-	fi
-	@echo "==> Waiting for SSH..."
-	@for i in $$(seq 1 60); do \
+	    booted=1; \
+	fi; \
+	$(VM_LOG) step "Waiting for SSH..."; \
+	tail_pid=; \
+	if [ "$$booted" = 1 ] && [ -t 1 ]; then \
+	    ( sleep 0.3; tail -n +1 -f /tmp/tart-$(TART_VM).log 2>/dev/null | $(VM_LOG) dim ) & tail_pid=$$!; \
+	fi; \
+	for i in $$(seq 1 60); do \
 	    ip=$$(tart ip $(TART_VM) 2>/dev/null); \
 	    if [ -n "$$ip" ] && nc -z -G 2 "$$ip" 22 2>/dev/null; then break; fi; \
 	    sleep 2; \
-	done
+	done; \
+	if [ -n "$$tail_pid" ]; then pkill -P "$$tail_pid" 2>/dev/null || true; kill "$$tail_pid" 2>/dev/null || true; printf '\033[0m'; fi
 	@ip=$$(tart ip $(TART_VM)); \
 	    if ! nc -z -G 2 "$$ip" 22 2>/dev/null; then \
 	        if grep -q "exceeds the system limit" /tmp/tart-$(TART_VM).log 2>/dev/null; then \
-	            echo "==> Boot failed: Apple's 2-macOS-VM cap reached."; \
+	            $(VM_LOG) step "Boot failed: Apple's 2-macOS-VM cap reached."; \
 	            echo "    Stop another macOS VM first ('tart list' to see them,"; \
 	            echo "    'tart stop <name>' to stop one), then retry."; \
 	            exit 1; \
 	        fi; \
-	        echo "==> SSH never came up at $$ip (boot log: /tmp/tart-$(TART_VM).log)"; \
+	        $(VM_LOG) step "SSH never came up at $$ip (boot log: /tmp/tart-$(TART_VM).log)"; \
 	        exit 1; \
 	    fi; \
 	    pubkey=$$(ls ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub 2>/dev/null | head -1); \
 	    if [ -n "$$pubkey" ] && ! ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
 	            -o BatchMode=yes -o ConnectTimeout=3 admin@$$ip true 2>/dev/null; then \
-	        echo "==> Installing $$pubkey for passwordless ssh (one-time per VM)..."; \
+	        $(VM_LOG) step "Installing $$pubkey for passwordless ssh (one-time per VM)..."; \
 	        if command -v sshpass >/dev/null; then \
 	            sshpass -p admin ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
 	                -i "$$pubkey" admin@$$ip >/dev/null 2>&1; \
@@ -349,7 +361,7 @@ define _tart_boot_and_ssh
 	        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@$$ip \
 	            "bash ~/.tart-vm-setup.sh '$(REPO_NAME)'"; \
 	    fi; \
-	    echo "==> ssh admin@$$ip"; \
+	    $(VM_LOG) step "ssh admin@$$ip"; \
 	    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
 	        -t admin@$$ip \
 	        'export TERM=xterm-256color; stty erase "^?"; exec $$SHELL -l' \
@@ -375,14 +387,14 @@ tart:
 	@# restart should `ssh admin@$$(tart ip <name>)` directly rather
 	@# than re-running `make tart`.
 	@if tart list 2>/dev/null | awk -v vm=$(TART_VM) '$$2==vm {print $$NF}' | grep -qx running; then \
-	    echo "==> Cold-restarting VM to refresh host mount (VirtIO-FS cache invalidation)..."; \
+	    $(VM_LOG) step "Cold-restarting VM to refresh host mount (VirtIO-FS cache invalidation)..."; \
 	    tart stop $(TART_VM); \
 	fi
 	$(call _tart_wait_for_stop)
 	$(call _tart_gc_orphan_clones)
 	$(_tart_clone_step)
 	@if [ -n "$(RUN_FLAGS)" ]; then \
-	    echo "==> Share: /Volumes/My Shared Files/$(REPO_NAME) (writable; APFS clone)"; \
+	    $(VM_LOG) step "Share: /Volumes/My Shared Files/$(REPO_NAME) (writable; APFS clone)"; \
 	    echo "    VM-side ~/repo symlinks to it. Writes diverge into the clone via APFS"; \
 	    echo "    COW; host source ($(CURDIR)) untouched. Clone wipes on tart-stop / next boot."; \
 	fi
@@ -396,13 +408,13 @@ tart-gui:
 	@# running VM. If the VM is up headless (e.g., from a prior
 	@# `make tart`), stop it so the next boot picks up --vnc.
 	@if tart list 2>/dev/null | awk -v vm=$(TART_VM) '$$2==vm {print $$NF}' | grep -qx running; then \
-	    echo "==> Stopping VM to switch to VNC mode (cold-boot only setting)..."; \
+	    $(VM_LOG) step "Stopping VM to switch to VNC mode (cold-boot only setting)..."; \
 	    tart stop $(TART_VM); \
 	fi
 	$(call _tart_wait_for_stop)
 	$(call _tart_gc_orphan_clones)
 	$(_tart_clone_step)
-	@echo "==> Booting with VNC display$(if $(VANILLA_ON),, + APFS-cloned share)"
+	@$(VM_LOG) step "Booting with VNC display$(if $(VANILLA_ON),, + APFS-cloned share)"
 	@if [ -n "$(RUN_FLAGS)" ]; then \
 	    echo "    Share: /Volumes/My Shared Files/$(REPO_NAME) (writable; APFS clone at $(TART_CLONE_DIR))"; \
 	fi
