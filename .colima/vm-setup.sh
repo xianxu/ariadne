@@ -25,11 +25,18 @@ for pair in "workspace:$MOUNT_DIR" "repo:$REPO_DIR"; do
 done
 printf '%s\n' "$REPO_NAME" > "$HOME/.colima-current-repo"
 
-# ── neovim (apt; idempotent) ─────────────────────────────────────────────────
+# ── neovim (apt; idempotent; NON-FATAL) ──────────────────────────────────────
+# Must not abort under `set -e` on a network hiccup: the network-free
+# rc-append below is the load-bearing step (aliases/auto-cd), and because the
+# profile is per-repo, a fresh boot that died here would be skipped on the next
+# `make colima` (fresh=0) — silently stranding the VM without aliases until a
+# colima-clean. So warn + continue, matching the oh-my-bash block.
 if ! command -v nvim >/dev/null 2>&1; then
     echo "installing neovim..."
-    sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq neovim >/dev/null
+    if ! { sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq \
+        && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq neovim >/dev/null; }; then
+        echo "[warn] neovim install failed — continuing."
+    fi
 fi
 
 # ── oh-my-bash (network; non-fatal; BEFORE the rc-append so it survives) ──────

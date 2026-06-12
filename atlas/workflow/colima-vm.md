@@ -66,14 +66,49 @@ password (default `colima`, override `COLIMA_VNC_PASSWORD`) — TigerVNC refuses
 an auth-less non-localhost bind, and a password is cheap defense-in-depth even
 though the port is only reachable from the host via Lima's user-mode NAT.
 
+## Post-login customization (parity with Tart, #94)
+
+On boot `colima.sh` provisions the guest — the Linux counterpart to Tart's
+`tart-vm-setup.sh`, mirroring the **portable** pieces of the OpenShell *Linux*
+overlay (not Tart's macOS zsh rc):
+
+- `.colima/vm-setup.sh` (guest bootstrap): `~/workspace`/`~/repo` symlinks to the
+  host-abs mount, a `~/.colima-current-repo` marker, `apt install neovim`
+  (non-fatal), oh-my-bash, appends the `vm-rc.sh` source-line to `~/.bashrc`
+  (after oh-my-bash so it survives), and runs `.colima/vm-hooks.d/*.sh`.
+- `.colima/vm-rc.sh` (guest bash rc, pushed to `~/.colima-vm-rc.sh`): git aliases
+  (`s ss a d p`), `v`, vi-mode + Ctrl+R/S, `EDITOR=nvim`, GPG_TTY, the
+  `dev-aliases.sh` Go build-on-demand wrappers, and auto-cd into the repo.
+
+`colima.sh` re-pushes the cheap `vm-rc.sh` every boot (so host edits propagate)
+but runs the heavier `vm-setup.sh` only on a **fresh** start, and makes it
+**non-fatal** — a setup hiccup never strands you out of a running VM.
+**Deliberately NOT ported** (sandbox/macOS-specific): the egress-proxy config,
+`/tmp/bootstrap` credentials, macOS DNS-flush/Homebrew PATH, the `script(1)`
+output-capture machinery, and AI-agent aliases. Per-repo customization goes in
+`.colima/vm-hooks.d/*.sh` (idempotent, run-parts order, continue-on-error — the
+twin of `.tart/vm-hooks.d`).
+
+## Logging (shared with Tart, #94)
+
+Both `make colima` and `make tart` route step headers + underlying-process
+output through one shared helper, `construct/scripts/vm-log.sh` (single source of
+the ANSI codes — ARCH-DRY): `step`/`warn` print bold-cyan/bold-yellow headers;
+`dim` grays a piped stream (tty + `NO_COLOR`/`CLICOLOR_FORCE` gated). Colima dims
+its boot/setup/vnc sub-output; Tart streams its previously-hidden boot log dimmed
+during the SSH-wait. The final interactive shell is never dimmed.
+
 ## Files
 
 | Path | Purpose |
 |---|---|
 | `.colima/colima.sh` | Lifecycle orchestrator (`up`/`gui`/`stop`/`clean`); owns all Colima interaction. |
+| `.colima/vm-setup.sh` | Guest bootstrap on boot (symlinks, marker, nvim, oh-my-bash, rc-append, hooks). |
+| `.colima/vm-rc.sh` | Guest bash rc (aliases, vi-mode, dev-aliases, auto-cd); pushed to `~/.colima-vm-rc.sh`. |
 | `.colima/vnc-setup.sh` | Guest-side TigerVNC + fluxbox provisioner (streamed via `colima ssh`). |
 | `.colima/Makefile` | Thin make wrappers + `help-colima` + profile-name / mount derivation. |
 | `.colima/test/colima.test.sh` | Process-level fake (`colima` stub on `PATH`) asserting command assembly + idempotency gates. |
+| `construct/scripts/vm-log.sh` | Shared colorized-step / dimmed-passthrough logger, used by both `.colima` and `.tart`. |
 
 Wired via `Makefile.workflow` (`-include .colima/Makefile`), the top-level
 `help` aggregation (`help-colima`), and `construct/base.manifest` (symlinks).
