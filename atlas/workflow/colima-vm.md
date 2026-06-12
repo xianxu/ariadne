@@ -78,7 +78,8 @@ overlay (not Tart's macOS zsh rc):
   (after oh-my-bash so it survives), and runs `.colima/vm-hooks.d/*.sh`.
 - `.colima/vm-rc.sh` (guest bash rc, pushed to `~/.colima-vm-rc.sh`): git aliases
   (`s ss a d p`), `v`, vi-mode + Ctrl+R/S, `EDITOR=nvim`, GPG_TTY, the
-  `dev-aliases.sh` Go build-on-demand wrappers, and auto-cd into the repo.
+  `dev-aliases.sh` Go build-on-demand wrappers, auto-cd into the repo, and a
+  readable two-line prompt (overrides oh-my-bash's dim default theme).
 
 `colima.sh` re-pushes the cheap `vm-rc.sh` every boot (so host edits propagate)
 but runs the heavier `vm-setup.sh` only on a **fresh** start, and makes it
