@@ -6,6 +6,9 @@
 
 # Include tart targets if available (macOS VM testing — Apple Silicon)
 -include .tart/Makefile
+
+# Include colima targets if available (clean Linux VM testing — Apple Silicon)
+-include .colima/Makefile
 # Override WF_ISSUES_DIR / WF_HISTORY_DIR before the include if your
 # issues and history live somewhere other than issues/ and history/.
 

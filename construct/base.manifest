@@ -149,6 +149,15 @@ symlink   .openshell/ssh-bin
 symlink   .tart/Makefile
 symlink   .tart/scripts
 
+# ── Colima (Linux VM testing — Apple Silicon) ───────────────────────────────
+# The Linux counterpart to .tart. Individual-file symlinks, mirroring the
+# .openshell entries above. Deliberately does NOT reuse list-peers.sh —
+# Colima/Lima mounts are live virtiofs (no per-file clone cost), so it
+# bind-mounts the whole workspace instead (see .colima/Makefile header).
+symlink   .colima/Makefile
+symlink   .colima/colima.sh
+symlink   .colima/vnc-setup.sh
+
 # ── Documentation ─────────────────────────────────────────────────────────────
 symlink   atlas/workflow
 

@@ -11,11 +11,15 @@ include Makefile.workflow
 
 .PHONY: help
 
-# help-sandbox and help-tart are defined by .openshell/Makefile and
-# .tart/Makefile, both included via Makefile.workflow's -include lines.
-# Every consumer that vendors the ariadne base layer ships both
-# fragments (see construct/base.manifest), so these targets always
-# resolve. If a consumer ever drops .openshell or .tart from its
-# manifest, the corresponding help-X line would need to come out.
-help: help-workflow help-sandbox help-tart
+# help-sandbox, help-tart, and help-colima are defined by .openshell/Makefile,
+# .tart/Makefile, and .colima/Makefile respectively, all included via
+# Makefile.workflow's -include lines. Every consumer that vendors the ariadne
+# base layer ships all three fragments (see construct/base.manifest), so these
+# targets always resolve. If a consumer ever drops .openshell, .tart, or
+# .colima from its manifest, the corresponding help-X line would need to come
+# out. Transient window: a consumer that pulls this updated Makefile before
+# running setup.sh to materialize the new .colima/Makefile symlink will get a
+# "No rule to make target 'help-colima'" until setup runs — same accepted
+# fragility the other two already carry.
+help: help-workflow help-sandbox help-tart help-colima
 	@true
