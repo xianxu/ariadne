@@ -82,6 +82,35 @@ single-boundary feature → plain checkboxes, one `sdlc close` (no `Mx` split).
 - Durable plan written: `workshop/plans/000093-colima-vm-targets-plan.md`.
   Fresh-eyes plan review caught a critical bash-3.2 bug (empty-array under
   `set -u`) + two test/robustness gaps; all folded into the plan before code.
+- `change-code` plan-quality judge: INFO/proceed (high confidence). Branch
+  `000093-colima-vm-targets` in place.
+- Implemented `.colima/{colima.sh,vnc-setup.sh,Makefile,test/colima.test.sh}` +
+  wiring (`Makefile.workflow`, `Makefile`, `construct/base.manifest`).
+- **Verification — process-level fake test:** `bash .colima/test/colima.test.sh`
+  → `PASS` (start/ssh/stop/delete command assembly + idempotency gates incl. the
+  non-tautology clean-when-absent case + amd64 `--vz-rosetta`). Runtime bash is
+  3.2.57 — the positional-params argv (not a bash array) was load-bearing.
+- **Verification — real boot→ssh→stop→clean cycle** on this Mac (profile
+  `ariadne-test`, vz, `--mount ~/workspace:w`):
+  - R1 (mount writable): guest `touch`/`rm` under the repo → `MOUNT_WRITABLE`;
+    no overlap problem with Colima's auto-`$HOME` mount. ✓
+  - R2 (repo landing): `colima ssh` auto-landed in `cwd=/Users/.../ariadne`
+    (Lima preserves cwd under a mount); explicit `cd` is belt-and-suspenders. ✓
+  - `list -j` is compact JSONL `{"name":"ariadne-test",...}` → `_exists` grep
+    matches. Siblings all visible under `~/workspace/*` (replace `../peer`
+    resolves). ✓
+  - R3 (VNC): guest `0.0.0.0:5901` → host `localhost:5901` `FORWARDED`. ✓
+  - R4 (mount reconcile on restart): not exercised — whole-workspace mount means
+    the peer set never changes, and live virtiofs covers content freshness, so
+    a cold-reboot-for-freshness (tart#28) isn't needed. Non-issue.
+  - stop→stopped (idempotent), `colima.sh clean` deleted the profile,
+    `_exists`→false, clean re-run = "does not exist", docker context restored to
+    `default` (no dangling context). ✓
+- **Deviation from plan (VNC auth):** TigerVNC refuses `-SecurityTypes None` on a
+  non-localhost bind without `--I-KNOW-THIS-IS-INSECURE`. Switched to a VNC
+  password (`vncpasswd -f`, default `colima`, override `COLIMA_VNC_PASSWORD`) —
+  cheaper defense-in-depth than shipping an auth-less flag in a propagating
+  base-layer artifact. Verified working.
 
 ## Revisions
 

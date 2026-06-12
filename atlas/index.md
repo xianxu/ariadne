@@ -16,6 +16,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Introspection](workflow/introspect.md) — postmortem mining of past Claude transcripts into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)
 - [docflow](workflow/docflow.md) — branch-scoped prose review with per-round git journaling (`review/<slug>` branch, `--no-ff` merge); companion to the `xx-fix` skill (#79)
 - [Tart VMs](workflow/base-layer.md#what-gets-installed) — `make tart` family for macOS VM testing (Apple Silicon only). Vendored under `.tart/`; details in the base-layer entry.
+- [Colima VMs](workflow/colima-vm.md) — `make colima` family for clean **Linux** VM testing (the tart counterpart). Profile-per-repo, live workspace mount, VNC GUI path. Vendored under `.colima/`.
 
 ## 2. Base Layer Infrastructure
 - [Base Layer](workflow/base-layer.md) — how to adopt ariadne's base layer, path conventions, runtime artifacts

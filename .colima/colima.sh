@@ -27,6 +27,7 @@ COLIMA_DISK=${COLIMA_DISK:-60}
 COLIMA_ARCH=${COLIMA_ARCH:-aarch64}     # x86_64 → amd64 guest (adds --vz-rosetta under vz)
 COLIMA_VMTYPE=${COLIMA_VMTYPE:-vz}      # Apple Virtualization.framework, same as tart
 COLIMA_VNC_GEOMETRY=${COLIMA_VNC_GEOMETRY:-1600x1000}
+COLIMA_VNC_PASSWORD=${COLIMA_VNC_PASSWORD:-colima}   # VNC desktop password
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
@@ -78,10 +79,11 @@ _provision_vnc() {
     # Geometry as a positional arg (bash -s -- ARG), NOT an env var: `colima ssh
     # -- cmd` execve's the command directly, so a `VAR=val cmd` prefix would be
     # parsed as the command name. `bash -s -- 1600x1000` lands in the guest's $1.
-    colima ssh -p "$profile" -- bash -s -- "$COLIMA_VNC_GEOMETRY" < "$SCRIPT_DIR/vnc-setup.sh"
+    colima ssh -p "$profile" -- bash -s -- "$COLIMA_VNC_GEOMETRY" "$COLIMA_VNC_PASSWORD" < "$SCRIPT_DIR/vnc-setup.sh"
     echo "==> VNC ready. Connect from the Mac with:"
     echo "        open vnc://localhost:5901          # macOS Screen Sharing"
-    echo "    (or any VNC viewer at localhost:5901). Lima forwards guest 5901 → host 5901."
+    echo "    password: $COLIMA_VNC_PASSWORD  (override via COLIMA_VNC_PASSWORD)."
+    echo "    Lima forwards guest 5901 → host 5901."
 }
 
 cmd=${1:-}; shift || true
