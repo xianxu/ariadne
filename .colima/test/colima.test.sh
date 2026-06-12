@@ -38,6 +38,16 @@ FAKE_RUNNING=1 run up p-test /Users/me/ws/repo /Users/me/ws >/dev/null
 assert_none "start -p p-test"
 assert_has  "ssh -p p-test"
 
+# up (fresh) also pushes vm-rc.sh + runs vm-setup.sh before the interactive ssh
+FAKE_RUNNING=0 run up p-test /Users/me/ws/repo /Users/me/ws >/dev/null
+assert_has "colima-vm-rc.sh"                              # vm-rc push
+assert_has "bash -s -- /Users/me/ws/repo /Users/me/ws"   # vm-setup invocation
+
+# up on an ALREADY-RUNNING profile skips the heavy vm-setup (still pushes rc)
+FAKE_RUNNING=1 run up p-test /Users/me/ws/repo /Users/me/ws >/dev/null
+assert_has  "colima-vm-rc.sh"
+assert_none "bash -s -- /Users/me/ws/repo /Users/me/ws"
+
 # stop, running → stops
 FAKE_RUNNING=1 run stop p-test >/dev/null
 assert_has "stop -p p-test"

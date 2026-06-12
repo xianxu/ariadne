@@ -31,6 +31,12 @@ COLIMA_VNC_PASSWORD=${COLIMA_VNC_PASSWORD:-colima}   # VNC desktop password
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
+# Shared VM logging (construct/scripts/vm-log.sh): colorized step headers +
+# a dim filter for underlying-process output. Same helper .tart uses (ARCH-DRY).
+VMLOG="$SCRIPT_DIR/../construct/scripts/vm-log.sh"
+step() { bash "$VMLOG" step "$@"; }
+dim()  { bash "$VMLOG" dim; }
+
 _need_colima() {
     command -v colima >/dev/null 2>&1 || {
         echo "Install colima: brew install colima" >&2; exit 1; }
@@ -47,10 +53,10 @@ _exists() { colima list -j 2>/dev/null | grep -q "\"name\"[[:space:]]*:[[:space:
 _start_if_needed() {
     local profile=$1 mountdir=$2
     if _running "$profile"; then
-        echo "==> Profile '$profile' already running."
+        step "Profile '$profile' already running."
         return
     fi
-    echo "==> Starting Colima profile '$profile' (Linux VM; mounts $mountdir writable)..."
+    step "Starting Colima profile '$profile' (Linux VM; mounts $mountdir writable)..."
     # Build argv in the positional params, NOT a bash array: macOS system bash
     # is 3.2, which aborts under `set -u` when expanding an empty array
     # ("${arr[@]}" → unbound variable). "$@" empty-expansion is always safe.
@@ -61,7 +67,21 @@ _start_if_needed() {
     if [ "$COLIMA_ARCH" = "x86_64" ] && [ "$COLIMA_VMTYPE" = "vz" ]; then
         set -- "$@" --vz-rosetta   # fast amd64 emulation under Apple vz
     fi
-    colima start "$@"
+    colima start "$@" 2>&1 | dim
+}
+
+# Push the cheap rc on every boot (so host edits to vm-rc.sh propagate); run the
+# heavier guest bootstrap (symlinks, nvim, oh-my-bash, hooks) only on a FRESH
+# start ($4=fresh) — the per-repo profile's symlinks/marker don't change across
+# re-entries. Caller makes this non-fatal so a setup hiccup never strands the
+# operator out of a running VM.
+_run_setup() {
+    local profile=$1 repodir=$2 mountdir=$3 fresh=${4:-1}
+    colima ssh -p "$profile" -- bash -c 'cat > ~/.colima-vm-rc.sh' < "$SCRIPT_DIR/vm-rc.sh"
+    [ "$fresh" = 1 ] || return 0
+    step "Provisioning guest (symlinks, nvim, oh-my-bash, dev-aliases; first run is slower)..."
+    colima ssh -p "$profile" -- bash -s -- "$repodir" "$mountdir" \
+        < "$SCRIPT_DIR/vm-setup.sh" 2>&1 | dim
 }
 
 # Interactive shell, landing in the repo dir (mounted at its host abs path
@@ -75,12 +95,12 @@ _ssh_into() {
 
 _provision_vnc() {
     local profile=$1
-    echo "==> Provisioning VNC desktop in '$profile' (idempotent; first run apt-installs)..."
+    step "Provisioning VNC desktop in '$profile' (idempotent; first run apt-installs)..."
     # Geometry as a positional arg (bash -s -- ARG), NOT an env var: `colima ssh
     # -- cmd` execve's the command directly, so a `VAR=val cmd` prefix would be
     # parsed as the command name. `bash -s -- 1600x1000` lands in the guest's $1.
-    colima ssh -p "$profile" -- bash -s -- "$COLIMA_VNC_GEOMETRY" "$COLIMA_VNC_PASSWORD" < "$SCRIPT_DIR/vnc-setup.sh"
-    echo "==> VNC ready. Connect from the Mac with:"
+    colima ssh -p "$profile" -- bash -s -- "$COLIMA_VNC_GEOMETRY" "$COLIMA_VNC_PASSWORD" < "$SCRIPT_DIR/vnc-setup.sh" 2>&1 | dim
+    step "VNC ready. Connect from the Mac with:"
     echo "        open vnc://localhost:5901          # macOS Screen Sharing"
     echo "    password: $COLIMA_VNC_PASSWORD  (override via COLIMA_VNC_PASSWORD)."
     echo "    Lima forwards guest 5901 → host 5901."
@@ -94,18 +114,26 @@ _usage() {
 cmd=${1:-}; shift || true
 case "$cmd" in
   up)
-    _need_colima; [ $# -ge 3 ] || _usage; _start_if_needed "$1" "$3"; _ssh_into "$1" "$2" ;;
+    _need_colima; [ $# -ge 3 ] || _usage
+    _running "$1" && fresh=0 || fresh=1
+    _start_if_needed "$1" "$3"
+    _run_setup "$1" "$2" "$3" "$fresh" || step "guest setup incomplete — continuing to shell"
+    _ssh_into "$1" "$2" ;;
   gui)
-    _need_colima; [ $# -ge 3 ] || _usage; _start_if_needed "$1" "$3"; _provision_vnc "$1"; _ssh_into "$1" "$2" ;;
+    _need_colima; [ $# -ge 3 ] || _usage
+    _running "$1" && fresh=0 || fresh=1
+    _start_if_needed "$1" "$3"
+    _run_setup "$1" "$2" "$3" "$fresh" || step "guest setup incomplete — continuing to shell"
+    _provision_vnc "$1"; _ssh_into "$1" "$2" ;;
   stop)
     _need_colima; [ $# -ge 1 ] || _usage
-    if _running "$1"; then echo "==> Stopping '$1'..."; colima stop -p "$1";
-    else echo "==> '$1' not running."; fi ;;
+    if _running "$1"; then step "Stopping '$1'..."; colima stop -p "$1" 2>&1 | dim;
+    else step "'$1' not running."; fi ;;
   clean)
     _need_colima; [ $# -ge 1 ] || _usage
-    if _running "$1"; then echo "==> Stopping '$1'..."; colima stop -p "$1"; fi
-    if _exists "$1"; then echo "==> Deleting profile '$1' (base image stays cached)..."; colima delete -p "$1" -f;
-    else echo "==> '$1' does not exist."; fi ;;
+    if _running "$1"; then step "Stopping '$1'..."; colima stop -p "$1" 2>&1 | dim; fi
+    if _exists "$1"; then step "Deleting profile '$1' (base image stays cached)..."; colima delete -p "$1" -f 2>&1 | dim;
+    else step "'$1' does not exist."; fi ;;
   *)
     _usage ;;
 esac
