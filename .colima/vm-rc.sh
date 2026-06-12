@@ -23,6 +23,29 @@ if [[ $- == *i* ]]; then
     bind '"\C-s": forward-search-history' 2>/dev/null
 fi
 
+# Readable two-line prompt. Overrides oh-my-bash's default theme, whose
+# user@host renders in a dim gray that's near-unreadable on a dark background
+# and keeps the cursor on the same line as the info. We keep the time + git
+# branch, brighten user@host, and drop the input onto its own line. Appended to
+# PROMPT_COMMAND (idempotently) so it runs AFTER oh-my-bash's renderer each
+# prompt and wins, without removing oh-my-bash's other hooks.
+if [[ $- == *i* ]]; then
+    __colima_set_ps1() {
+        local git=""
+        local b; b=$(git symbolic-ref --short HEAD 2>/dev/null)
+        if [ -n "$b" ]; then
+            local dirty=; [ -n "$(git status --porcelain 2>/dev/null)" ] && dirty='*'
+            git=" \[\033[33m\](${b}${dirty})\[\033[0m\]"     # yellow (branch)
+        fi
+        # green time · bright-green user@host · blue cwd · yellow branch \n green →
+        PS1="\[\033[32m\]\t\[\033[0m\] \[\033[1;32m\]\u@\h\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]${git}\n\[\033[1;32m\]→\[\033[0m\] "
+    }
+    case ";${PROMPT_COMMAND:-};" in
+        *";__colima_set_ps1;"*|*";__colima_set_ps1"*) ;;   # already added (re-source safe)
+        *) PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}__colima_set_ps1" ;;
+    esac
+fi
+
 # Git workflow aliases — parity with .openshell/overlay/setup.sh.
 alias s='git status'
 alias ss='git diff --stat'
