@@ -102,6 +102,10 @@ symlink   construct/scripts/clone-data-deps.sh
 # openshell sandbox; .tart/scripts/tart-list-peers.sh is a back-compat symlink
 # to it (delivered via the wholesale `.tart/scripts` symlink below).
 symlink   construct/scripts/list-peers.sh
+# Shared VM logging (#94) — colorized step headers + dimmed underlying-process
+# output; one source of the ANSI codes, used by both .tart/Makefile and
+# .colima/colima.sh.
+symlink   construct/scripts/vm-log.sh
 # Shared construct/deps parser (#60) — sourced by list-peers, bootstrap-peers,
 # clone-data-deps, and setup.sh. bootstrap.sh keeps an inline copy (can't source
 # a symlink on a bare clone), locked by bootstrap-transitive.test.sh.
@@ -157,6 +161,8 @@ symlink   .tart/scripts
 symlink   .colima/Makefile
 symlink   .colima/colima.sh
 symlink   .colima/vnc-setup.sh
+symlink   .colima/vm-setup.sh
+symlink   .colima/vm-rc.sh
 
 # ── Documentation ─────────────────────────────────────────────────────────────
 symlink   atlas/workflow
