@@ -64,13 +64,13 @@ brainstorm 2026-06-12):
 Durable design: `workshop/plans/000093-colima-vm-targets-plan.md`. Atomic
 single-boundary feature → plain checkboxes, one `sdlc close` (no `Mx` split).
 
-- [ ] `.colima/colima.sh` — orchestrator (`up|gui|stop|clean`), bash-3.2-safe
-- [ ] `.colima/vnc-setup.sh` — guest TigerVNC+fluxbox provisioner
-- [ ] `.colima/Makefile` — thin wrappers + `help-colima` + profile-name/mount derivation
-- [ ] Wire into `Makefile.workflow` (`-include`), `Makefile` (`help-colima`), `construct/base.manifest`
-- [ ] `.colima/test/colima.test.sh` — process-level fake test (command assembly + idempotency gates)
-- [ ] Real boot→ssh→stop→clean cycle on this Mac; resolve R1–R4; log evidence
-- [ ] `atlas/workflow/colima-vm.md` + link from `atlas/index.md`
+- [x] `.colima/colima.sh` — orchestrator (`up|gui|stop|clean`), bash-3.2-safe
+- [x] `.colima/vnc-setup.sh` — guest TigerVNC+fluxbox provisioner
+- [x] `.colima/Makefile` — thin wrappers + `help-colima` + profile-name/mount derivation
+- [x] Wire into `Makefile.workflow` (`-include`), `Makefile` (`help-colima`), `construct/base.manifest`
+- [x] `.colima/test/colima.test.sh` — process-level fake test (command assembly + idempotency gates)
+- [x] Real boot→ssh→stop→clean cycle on this Mac; resolve R1–R4; log evidence
+- [x] `atlas/workflow/colima-vm.md` + link from `atlas/index.md`
 
 ## Log
 
