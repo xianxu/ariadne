@@ -29,7 +29,7 @@ Pure entities are unit-tested mock-free.
 - `cmd/weave/internal/{intent,plan,walk,weavefs,golden}` + `main.go` —
   `intent.ParseManifest` (base.manifest → hybrid intents) · `plan.{composeProse,
   Plan,Action,Apply}` (pure lowering + idempotent file-op apply, porting
-  `create_symlink`/`create_scaffold`/`create_touch`) · `walk.Walk` (transitive
+  `create_symlink`/`create_scaffold` + inline `touch`) · `walk.Walk` (transitive
   `construct/deps` walk; ports `deps_substrate_targets` + the `_seen_or_add` +
   self-reference filters) · `weavefs.FS` (injectable IO seam) · `golden` (pure
   divergence classifier) + the `weave` / `weave --dry-run` / `weave golden` CLI.
