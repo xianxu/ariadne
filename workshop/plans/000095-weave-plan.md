@@ -204,3 +204,12 @@ M3 boundary-review verdict **FIX-THEN-SHIP** (no Critical; the same-milestone cl
 
 - **Skill-menu golden coverage deferred to M5.** M3's task line said "extend golden-diff to skills/scaffold/tool"; `tool` is delivered + classified and `scaffold` was forward-pulled to M2, but the **skill menu is intentionally NOT golden-gated** (`weave golden` passes a nil menu) because weave's skill mechanism (menu in `AGENTS.md` + `weave skill`) diverges from setup.sh's `.claude/skills/` symlinks. Skill-serving parity is an M5 concern.
 - **M5 carry-forwards (review §6):** (a) the owner-vs-derivative `tool` classification hinges on byte-identical absolute paths between the resolved layer and the canonicalized root — **M5 must assert path canonicalization stays consistent across ariadne/nous/brain/metis** (else an owner is misclassified as a derivative); (b) the skill-menu golden gate (above).
+
+### 2026-06-14 — M4 close: settingsx package + no formal Backend interface (review FIX-THEN-SHIP)
+
+M4 boundary-review verdict **FIX-THEN-SHIP** (no Critical; the judge differentially ran live `merge-settings.sh` against the Go tests — byte-identical on the `$remove`-before-union case). Fixes are plan-sync (the code is correct):
+
+- **(a) `mergeSettings` lives at `cmd/weave/internal/settingsx/settingsx.go`, NOT `plan/settings.go`** (Core-concepts table). Required: a leaf package below both `plan` and `golden` (which already imports `plan`) to avoid an import cycle. The table row is **superseded**.
+- **(b) The `Backend` interface (`Lower(intent) []Action`) was NOT built** (Spec "backend-interface seam"; the M4 step; the seam done-when). With a single non-floor backend, the `Action` sum type + type-switch dispatch **is** the seam — YAGNI; a one-implementor interface is premature abstraction (the M2 review already endorsed the `Action` fan-out). The "Define the Backend interface" step + the seam done-when are **superseded**.
+- **M5 note (review §6): `settings.json` byte-churn.** weave's output is *semantically* equal to `merge-settings.sh`'s but **byte-different** (Go `json.MarshalIndent` HTML-escapes `<>&`; python escapes non-ASCII). The M5 cutover's `git diff` of `settings.json` will show cosmetic churn that is a semantic no-op — the M5 ledger must say so, not read it as a regression.
+- **Minor carried:** `gather_test.go`'s "regardless of order" comment overclaims — `observeMerge` relies on `base.manifest` ordering (`symlink` before `merge`); soften or make order-independent (low-value).
