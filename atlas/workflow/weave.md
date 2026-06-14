@@ -43,5 +43,12 @@ Pure entities are unit-tested mock-free.
   -tool` via the `weavefs.GoModEditor` exec seam; golden classifier wired) and
   `weave depend-on <path>` (records `substrate <path>` verbatim — directory-
   agnostic). **[M3]**
+- `cmd/weave/internal/settingsx` + the `merge` lowering — the `settings`
+  backend: pure `Merge`/`SemanticEqual` porting `merge-settings.sh`
+  (`$merge_keys` union, `$remove` filter, meta-key strip, local-overrides-base);
+  the `MergeSettings` action reads `.claude/settings.ariadne.json` + optional
+  `settings.local.json` → `.claude/settings.json`; the golden classifier
+  compares **semantically** (not byte-wise). No formal `Backend` interface — the
+  `Action` sum type is the seam (YAGNI with a single backend). **[M4]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
