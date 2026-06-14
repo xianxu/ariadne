@@ -6,26 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/weave/internal/gomodx"
 )
 
-// goDirective / goAtLeast124 / moduleLine-style parsing are pure — table-tested
-// directly. OSGoMod.AddTool shells out to the real `go` toolchain against a
-// hermetic t.TempDir go.mod (ARCH: faithful over mocked — the exec seam is
-// exercised end-to-end, the same `go mod edit -tool` setup.sh runs).
-
-func TestGoDirective(t *testing.T) {
-	cases := map[string]string{
-		"module x\n\ngo 1.26\n":    "1.26",
-		"go 1.23.4\nmodule x\n":    "1.23.4",
-		"module x\nrequire y v1\n": "",
-		"":                         "",
-	}
-	for content, want := range cases {
-		if got := goDirective(content); got != want {
-			t.Errorf("goDirective(%q) = %q, want %q", content, got, want)
-		}
-	}
-}
+// goAtLeast124 is pure — table-tested directly. The go.mod text parsing
+// (module/go-directive/tool) now lives in gomodx and is tested there.
+// OSGoMod.AddTool shells out to the real `go` toolchain against a hermetic
+// t.TempDir go.mod (ARCH: faithful over mocked — the exec seam is exercised
+// end-to-end, the same `go mod edit -tool` setup.sh runs).
 
 func TestGoAtLeast124(t *testing.T) {
 	yes := []string{"1.24", "1.24.0", "1.26", "1.30", "2.0"}
@@ -91,10 +80,10 @@ func TestOSGoModBumpsOldGoDirective(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if goDirective(string(data)) == "1.21" {
+	if gomodx.GoDirective(string(data)) == "1.21" {
 		t.Fatalf("go directive not bumped from 1.21:\n%s", data)
 	}
-	if !goAtLeast124(goDirective(string(data))) {
-		t.Fatalf("go directive %q < 1.24 after bump:\n%s", goDirective(string(data)), data)
+	if !goAtLeast124(gomodx.GoDirective(string(data))) {
+		t.Fatalf("go directive %q < 1.24 after bump:\n%s", gomodx.GoDirective(string(data)), data)
 	}
 }

@@ -9,10 +9,12 @@ package plan
 // op structs below. It is a closed interface (the isAction marker keeps the
 // set in this package), so a type switch in the IO seam handles every case.
 //
-// The set covers the file-ops this unit lowers (Symlink, WriteFile, Mkdir)
-// plus typed PLACEHOLDERS for the deferred kinds (Merge → M4 settings cascade;
-// Tool/Skill → later). The placeholders give those lowerings a landing type
-// without this unit implementing them.
+// The set covers the file-ops this unit lowers (Symlink, WriteFile, Mkdir,
+// Touch) plus ToolDep, which this unit now emits (M3: intent.Tool lowers to a
+// ToolDep, applied via the injected GoModEditor seam). MergeSettings remains a
+// typed PLACEHOLDER for the deferred Merge kind (→ M4 settings cascade), giving
+// that lowering a landing type without this unit implementing it. (Skill has no
+// Action — it feeds the M3 SkillIndex, not a file-op slot.)
 type Action interface{ isAction() }
 
 // Symlink creates a symlink at Dst pointing to Src. Lowered from an
@@ -60,10 +62,11 @@ type MergeSettings struct {
 	Target string // the merged settings.json (relpath)
 }
 
-// ToolDep is the typed PLACEHOLDER for lowering an intent.Tool — declaring the
-// tool owner as a substrate dep / adding a `go mod edit -tool` directive. Its
-// lowering is DEFERRED (the one exec seam, ported from ensure_go_tool_dependency);
-// this unit emits no ToolDep.
+// ToolDep is the lowering of an intent.Tool — declaring the tool owner as a
+// substrate dep (derivative) or adding a `go mod edit -tool` directive (owner
+// self-walk). This unit emits one ToolDep per `tool` intent (see Plan); Apply
+// realizes it via the injected GoModEditor, the one exec seam ported from
+// ensure_go_tool_dependency (ARCH-PURE keeps that exec out of the planner).
 type ToolDep struct {
 	Owner string // absolute owner path
 	Path  string // tool path within the owner module (e.g. cmd/sdlc)

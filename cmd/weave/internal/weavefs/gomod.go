@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/weave/internal/gomodx"
 )
 
 // GoModEditor is weave's ONE exec seam: it mutates a repo's root go.mod for the
@@ -56,7 +58,7 @@ func ensureGoDirective24(dir, gomodPath string) error {
 	if err != nil {
 		return fmt.Errorf("read go.mod %s: %w", gomodPath, err)
 	}
-	cur := goDirective(string(data))
+	cur := gomodx.GoDirective(string(data))
 	if cur == "" || goAtLeast124(cur) {
 		return nil
 	}
@@ -66,20 +68,6 @@ func ensureGoDirective24(dir, gomodPath string) error {
 		return fmt.Errorf("go mod edit -go=1.24 in %s: %w: %s", dir, err, strings.TrimSpace(string(out)))
 	}
 	return nil
-}
-
-// goDirective extracts the version from the first `go ` line of go.mod content
-// (awk '/^go / {print $2; exit}'). Pure. "" when absent.
-func goDirective(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "go ") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				return fields[1]
-			}
-		}
-	}
-	return ""
 }
 
 // goAtLeast124 reports whether the go directive version (e.g. "1.26", "1.23.4")

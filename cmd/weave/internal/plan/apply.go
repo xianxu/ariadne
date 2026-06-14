@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/gomodx"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
@@ -140,25 +141,11 @@ func ownerToolDirective(fs weavefs.FS, repoRoot string, ed weavefs.GoModEditor, 
 	if err != nil {
 		return nil // no go.mod on a self-walk — skip (setup.sh's guarded skip)
 	}
-	module := moduleLine(string(data))
+	module := gomodx.ModuleLine(string(data))
 	if module == "" {
 		return fmt.Errorf("apply tool: no module directive in %s", gomodPath)
 	}
 	return ed.AddTool(gomodPath, module+"/"+toolPath)
-}
-
-// moduleLine extracts the module path from go.mod content (awk '/^module /
-// {print $2; exit}'). Pure. "" when absent.
-func moduleLine(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "module ") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				return fields[1]
-			}
-		}
-	}
-	return ""
 }
 
 // applySymlink ports create_symlink. src is the absolute upstream path; dst the

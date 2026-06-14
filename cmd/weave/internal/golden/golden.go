@@ -28,8 +28,8 @@ package golden
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/gomodx"
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
@@ -229,14 +229,14 @@ func classifyToolDep(root string, act plan.ToolDep, obs map[string]Observed) Div
 	// Owner self-walk: check go.mod for the tool directive.
 	gomodAbs := filepath.Join(root, "go.mod")
 	o := obs[gomodAbs]
-	module := moduleLine(o.Content)
+	module := gomodx.ModuleLine(o.Content)
 	want := module + "/" + act.Path
 	switch {
 	case !o.Exists:
 		return Divergence{Unexpected, "tool", "go.mod", "weave would add a tool directive, but go.mod absent in live"}
 	case module == "":
 		return Divergence{Unexpected, "tool", "go.mod", "weave would add a tool directive, but go.mod has no module line"}
-	case !gomodHasTool(o.Content, want):
+	case !gomodx.HasTool(o.Content, want):
 		return Divergence{Unexpected, "tool", "go.mod",
 			fmt.Sprintf("weave would add `tool %s`, but live go.mod lacks it", want)}
 	default:
@@ -259,50 +259,6 @@ func depsHasSubstrate(content, rel string) bool {
 		}
 	}
 	return false
-}
-
-// gomodHasTool reports whether go.mod content declares `tool <importPath>` —
-// either a single-line directive (`tool <path>`) or a row inside a `tool ( … )`
-// block. A plain substring check on the import path would false-positive on a
-// require line, so match the path as a standalone field on a tool-bearing line.
-func gomodHasTool(content, importPath string) bool {
-	inBlock := false
-	for _, line := range strings.Split(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		switch {
-		case trimmed == "tool (":
-			inBlock = true
-			continue
-		case inBlock && trimmed == ")":
-			inBlock = false
-			continue
-		case inBlock:
-			if trimmed == importPath {
-				return true
-			}
-		case strings.HasPrefix(trimmed, "tool "):
-			fields := strings.Fields(trimmed)
-			if len(fields) == 2 && fields[1] == importPath {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// moduleLine extracts the module path from go.mod content (awk '/^module /
-// {print $2; exit}'). Pure. "" when absent. (Mirrors plan.moduleLine; kept here
-// so the golden classifier has no dependency on plan's unexported helpers.)
-func moduleLine(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "module ") {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				return fields[1]
-			}
-		}
-	}
-	return ""
 }
 
 // classifyDeferred ledgers one deferred-verb Intent (seed/merge) as an EXPECTED
