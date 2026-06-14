@@ -170,3 +170,14 @@ The judge blocked with three findings; all verified against live source, all inc
 - **(C) `prose` grammar undefined.** **Delta:** `composeProse` now defines `prose <relpath>`, foundation-first composition, and the `symlink AGENTS.md` → composed-real-file flip as an expected golden-diff divergence.
 
 Non-blocking: judge flagged `estimate_hours: 28` as tight (clean-sheet compiler + skill server + settings port + golden harness + 4-repo cutover); left as-is — `actual` is measured at close, not re-typed.
+
+### 2026-06-14 — directory-agnostic substrate paths (testing/rollout enabler)
+
+Confirmed against `lib-deps.sh:deps_substrate_targets`: `construct/deps` substrate edges **already** resolve repo-root-relative for *any* path (relative or absolute, `raw="$repo_root/$target"`) — there is no `../<name>` naming assumption in the resolution. And build-in-owner (`make sdlc-build` → `dev-aliases.sh --list`) finds the owner *among those same `construct/deps`-discovered peers*. So pointing a consumer's `construct/deps` at an arbitrary ariadne checkout drives **both** the layering symlinks and the binary build — no shell repointing needed (this obviates the "repoint the binary chain" step). Deltas:
+
+- **Add a `weave depend-on <path>` verb** that records `substrate <path>` **verbatim** (replaces the `tool` action's hardcoded `substrate ../ariadne`), so a test setup captures the real path it was given.
+- **M2's IO-walk must port `deps_substrate_targets` faithfully** — repo-root-relative resolution, absolute-path support, present-skip (an absent peer still resolves syntactically; the caller decides skip-vs-clone). The M1 pure parser already returns relpaths verbatim; the *walk* is the part that must match.
+- **Auto-clone of an *absent* substrate stays in the shell bootstrap** — it needs a git-URL convention `construct/deps` doesn't carry (only `data` rows do); irrelevant when peers are placed manually (the test schemes).
+- **Adopt the side-by-side migration as the integration test** (added to Done-when): clone a real derivative (e.g. parley) + the ariadne worktree anywhere, `weave depend-on <ariadne-path>`, migrate it off `setup.sh`, both on branches — production repos untouched. Stronger than golden-diff alone.
+
+Test/rollout progression (validated as enabled by the above): (1) self-walk in the ariadne worktree, golden-diff vs setup.sh + a live session; (2) spawn a derivative via `weave depend-on`; (3) the side-by-side migration above.
