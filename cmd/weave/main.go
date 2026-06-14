@@ -19,6 +19,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/golden"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
@@ -50,7 +51,127 @@ func buildRoot() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
+	cmd.AddCommand(buildGolden())
 	return cmd
+}
+
+// buildGolden assembles `weave golden [repoPath...]` — the golden-diff harness.
+// It verifies weave's INTENDED file-ops (a dry-run Plan, never applied) match
+// what setup.sh already produced on the live repos (the live on-disk state IS
+// setup.sh's output). For each given repo (or, with none given, each present
+// sibling of the cwd's workspace root), it walks → Plans → observes the live FS
+// → classifies every divergence as MATCH/EXPECTED/UNEXPECTED, prints a ledger,
+// and exits non-zero if ANY divergence is UNEXPECTED. STRICTLY read-only.
+func buildGolden() *cobra.Command {
+	return &cobra.Command{
+		Use:   "golden [repoPath...]",
+		Short: "Verify weave's intended file-ops match setup.sh's live output (read-only)",
+		Long: "Compares weave's planned actions (dry-run, never applied) against the\n" +
+			"live repos' current filesystem — which IS setup.sh's output — and\n" +
+			"classifies divergences. Exits non-zero on any UNEXPECTED divergence.\n" +
+			"With no args, auto-discovers present sibling repos of the cwd's parent.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("resolve cwd: %w", err)
+			}
+			return runGolden(weavefs.OSFS{}, cwd, args, cmd.OutOrStdout())
+		},
+	}
+}
+
+// runGolden is the harness pipeline over a set of repos: resolve the target
+// repos (explicit args, or auto-discovered present siblings), then for each
+// run walk → Plan (NO apply) → Gather (observe live) → Classify → Render. It
+// prints each per-repo ledger and returns an error iff any repo had an
+// UNEXPECTED divergence (the non-zero exit). Skips an absent repo with a note
+// (skip-if-absent). Injecting fs + out keeps it testable.
+func runGolden(fs weavefs.FS, cwd string, args []string, out io.Writer) error {
+	repos := goldenTargets(cwd, args)
+	anyUnexpected := false
+	for _, repo := range repos {
+		if !dirPresent(repo) {
+			fmt.Fprintf(out, "== golden-diff: %s ==\n  SKIP — repo not present\n\n", repo)
+			continue
+		}
+		// Canonicalize to the same physical namespace the walk uses (pwd -P),
+		// so the relative-symlink targets weave computes match the live links.
+		root := repo
+		if resolved, err := filepath.EvalSymlinks(root); err == nil {
+			root = resolved
+		}
+		layers, err := walk.Walk(fs, root)
+		if err != nil {
+			return fmt.Errorf("golden: walk %s: %w", root, err)
+		}
+		actions, err := plan.Plan(layers)
+		if err != nil {
+			return fmt.Errorf("golden: plan %s: %w", root, err)
+		}
+		deferred := golden.DeferredIntents(layers)
+		in := golden.Gather(fs, root, actions, deferred)
+		divs := golden.Classify(in)
+		fmt.Fprint(out, golden.Render(root, divs))
+		fmt.Fprintln(out)
+		if golden.HasUnexpected(divs) {
+			anyUnexpected = true
+		}
+	}
+	if anyUnexpected {
+		return fmt.Errorf("golden-diff: UNEXPECTED divergence(s) found — see ledger above")
+	}
+	return nil
+}
+
+// goldenTargets resolves which repos to check. Explicit args win (each made
+// absolute against cwd). With no args, it auto-discovers the present sibling
+// repos of cwd's parent (the workspace root): the canonical ariadne layers
+// (ariadne, nous, brain, metis). Pure (string in/out — presence is filtered by
+// the IO caller via dirPresent), so it's unit-testable.
+func goldenTargets(cwd string, args []string) []string {
+	if len(args) > 0 {
+		out := make([]string, 0, len(args))
+		for _, a := range args {
+			if !filepath.IsAbs(a) {
+				a = filepath.Join(cwd, a)
+			}
+			out = append(out, a)
+		}
+		return out
+	}
+	// No args: the canonical layer repos as siblings of the workspace root.
+	// The worktree lives at …/workspace/worktree/ariadne/<branch>; the LIVE
+	// repos are at …/workspace/<name>. Walk up to the dir that holds them.
+	ws := workspaceRoot(cwd)
+	var out []string
+	for _, name := range []string{"ariadne", "nous", "brain", "metis"} {
+		out = append(out, filepath.Join(ws, name))
+	}
+	return out
+}
+
+// workspaceRoot finds the dir that holds the live sibling repos, given the cwd.
+// A normal repo's parent is the workspace; a worktree at
+// …/workspace/worktree/<repo>/<branch> must climb past worktree/<repo>. We
+// detect the worktree shape by the literal "worktree" path segment. Pure.
+func workspaceRoot(cwd string) string {
+	parent := filepath.Dir(cwd)
+	if filepath.Base(filepath.Dir(parent)) == "worktree" {
+		// cwd = …/workspace/worktree/<repo>/<branch>
+		//   parent             = …/workspace/worktree/<repo>
+		//   dir(parent)        = …/workspace/worktree   (base == "worktree")
+		//   dir(dir(parent))   = …/workspace            ← the workspace root
+		return filepath.Dir(filepath.Dir(parent))
+	}
+	return parent
+}
+
+// dirPresent reports whether path is an existing directory (skip-if-absent).
+func dirPresent(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
 }
 
 // run is the compile pipeline: walk → Plan → (Apply | print). Injecting fs +
@@ -100,6 +221,8 @@ func formatActions(actions []plan.Action) string {
 			b = append(b, fmt.Sprintf("writefile %s (%d bytes)\n", act.Path, len(act.Content))...)
 		case plan.Mkdir:
 			b = append(b, fmt.Sprintf("mkdir     %s\n", act.Path)...)
+		case plan.Touch:
+			b = append(b, fmt.Sprintf("touch     %s\n", act.Path)...)
 		case plan.MergeSettings:
 			b = append(b, fmt.Sprintf("merge     %s -> %s\n", act.Source, act.Target)...)
 		case plan.ToolDep:

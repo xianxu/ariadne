@@ -38,6 +38,18 @@ type Mkdir struct {
 	Path string
 }
 
+// Touch ensures an EMPTY file exists at Path, create-if-missing — it does NOT
+// overwrite an existing file. Lowered from intent.Touch, the faithful port of
+// walk_manifest's `touch` case (`if [[ ! -f ]] then touch`, setup.sh:347). This
+// is distinct from WriteFile (which writes content unconditionally): a Touch
+// target like workshop/lessons.md accumulates real content over time, and weave
+// must NOT clobber it (the golden-diff harness surfaced that an unconditional
+// WriteFile{content:""} would destroy it). Idempotent: a no-op when the file is
+// already present (with any content).
+type Touch struct {
+	Path string
+}
+
 // MergeSettings is the typed PLACEHOLDER for lowering an intent.Merge — the
 // JSON settings cascade (settings.<layer>.json under settings.local.json).
 // Its lowering is DEFERRED to M4 (the settings backend ports merge-settings.sh
@@ -60,5 +72,6 @@ type ToolDep struct {
 func (Symlink) isAction()       {}
 func (WriteFile) isAction()     {}
 func (Mkdir) isAction()         {}
+func (Touch) isAction()         {}
 func (MergeSettings) isAction() {}
 func (ToolDep) isAction()       {}

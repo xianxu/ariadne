@@ -32,6 +32,8 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 			err = applySymlink(fs, filepath.Join(repoRoot, act.Dst), act.Src)
 		case Mkdir:
 			err = applyMkdir(fs, filepath.Join(repoRoot, act.Path))
+		case Touch:
+			err = applyTouch(fs, filepath.Join(repoRoot, act.Path))
 		case WriteFile:
 			err = applyWriteFile(fs, filepath.Join(repoRoot, act.Path), act.Content)
 		case MergeSettings, ToolDep:
@@ -96,9 +98,26 @@ func applyMkdir(fs weavefs.FS, dir string) error {
 	return nil
 }
 
-// applyWriteFile ensures parents then writes content (the composed AGENTS.md, a
-// touch's empty file, or a seed). Overwrites unconditionally — the planner
-// decides content; convergence-on-drift is implicit (same content → same bytes).
+// applyTouch ports setup.sh's `touch` case (line 347): ensure parents, then
+// create an EMPTY file ONLY if it does not already exist. Crucially does NOT
+// overwrite an existing file — a Touch target (e.g. workshop/lessons.md)
+// accumulates content over time and must survive a re-weave. Idempotent.
+func applyTouch(fs weavefs.FS, path string) error {
+	if err := ensureParent(fs, path); err != nil {
+		return err
+	}
+	if _, err := fs.Lstat(path); err == nil {
+		return nil // already exists (with any content) — no-op, never clobber
+	}
+	if err := fs.WriteFile(path, []byte{}); err != nil {
+		return fmt.Errorf("apply touch: %s: %w", path, err)
+	}
+	return nil
+}
+
+// applyWriteFile ensures parents then writes content (the composed AGENTS.md or
+// a seed). Overwrites unconditionally — the planner decides content;
+// convergence-on-drift is implicit (same content → same bytes).
 func applyWriteFile(fs weavefs.FS, path, content string) error {
 	if err := ensureParent(fs, path); err != nil {
 		return err

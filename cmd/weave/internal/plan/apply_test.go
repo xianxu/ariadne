@@ -42,6 +42,48 @@ func TestApplyWriteFileCreatesParents(t *testing.T) {
 	}
 }
 
+func TestApplyTouchCreatesWhenMissing(t *testing.T) {
+	// Touch creates an empty file (with parents) when none exists.
+	root := t.TempDir()
+	if err := Apply(weavefs.OSFS{}, root, []Action{
+		Touch{Path: "workshop/lessons.md"},
+	}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	fi, err := os.Stat(filepath.Join(root, "workshop", "lessons.md"))
+	if err != nil {
+		t.Fatalf("touched file not created: %v", err)
+	}
+	if fi.Size() != 0 {
+		t.Fatalf("touched file size = %d, want 0", fi.Size())
+	}
+}
+
+func TestApplyTouchDoesNotClobberExisting(t *testing.T) {
+	// The golden-diff finding: Touch must NOT overwrite an existing,
+	// content-bearing file (workshop/lessons.md accumulates lessons over time).
+	root := t.TempDir()
+	path := filepath.Join(root, "workshop", "lessons.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("ACCUMULATED LESSONS"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(weavefs.OSFS{}, root, []Action{
+		Touch{Path: "workshop/lessons.md"},
+	}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(got) != "ACCUMULATED LESSONS" {
+		t.Fatalf("Touch clobbered existing content: got %q, want ACCUMULATED LESSONS", got)
+	}
+}
+
 func TestApplyMkdir(t *testing.T) {
 	root := t.TempDir()
 	if err := Apply(weavefs.OSFS{}, root, []Action{

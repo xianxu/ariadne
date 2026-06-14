@@ -59,8 +59,12 @@ func Plan(layers []layer.Layer) ([]Action, error) {
 				// create_scaffold "$TARGET_DIR/$target"
 				actions = append(actions, Mkdir{Path: in.Target})
 			case intent.Touch:
-				// touch "$TARGET_DIR/$source" (target defaults to source)
-				actions = append(actions, WriteFile{Path: in.Target, Content: ""})
+				// create-if-missing (setup.sh:347 `if [[ ! -f ]] then touch`).
+				// Lowers to Touch (NOT WriteFile{content:""}) so Apply never
+				// clobbers an existing, content-bearing file (e.g. the
+				// accumulated workshop/lessons.md) — the divergence the
+				// golden-diff harness surfaced.
+				actions = append(actions, Touch{Path: in.Target})
 			case intent.Seed:
 				// TODO(part-2): create_seed is a content-tracking real-file copy
 				// — it reads the upstream file's bytes (IO). Lowers to a

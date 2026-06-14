@@ -150,4 +150,121 @@ func TestBuildRootWiring(t *testing.T) {
 	if cmd.Flags().Lookup("dry-run") == nil {
 		t.Fatalf("--dry-run flag not wired")
 	}
+	// The golden subcommand is wired.
+	var hasGolden bool
+	for _, c := range cmd.Commands() {
+		if c.Name() == "golden" {
+			hasGolden = true
+		}
+	}
+	if !hasGolden {
+		t.Fatalf("golden subcommand not wired")
+	}
+}
+
+func TestWorkspaceRoot(t *testing.T) {
+	// A normal repo: workspace is the parent.
+	if got := workspaceRoot("/ws/nous"); got != "/ws" {
+		t.Fatalf("normal repo: workspaceRoot = %q, want /ws", got)
+	}
+	// A worktree …/workspace/worktree/<repo>/<branch>: climb past worktree.
+	if got := workspaceRoot("/ws/worktree/ariadne/000095-weave"); got != "/ws" {
+		t.Fatalf("worktree: workspaceRoot = %q, want /ws", got)
+	}
+}
+
+func TestGoldenTargetsExplicitArgs(t *testing.T) {
+	// Explicit args are made absolute against cwd; no auto-discovery.
+	got := goldenTargets("/ws/cur", []string{"../nous", "/abs/brain"})
+	want := []string{"/ws/nous", "/abs/brain"}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("goldenTargets(args) = %v, want %v", got, want)
+	}
+}
+
+func TestGoldenTargetsAutoDiscover(t *testing.T) {
+	// No args → the canonical layer repos as siblings of the workspace root.
+	got := goldenTargets("/ws/worktree/ariadne/000095-weave", nil)
+	want := []string{"/ws/ariadne", "/ws/nous", "/ws/brain", "/ws/metis"}
+	if len(got) != len(want) {
+		t.Fatalf("goldenTargets(nil) = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("goldenTargets(nil)[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+// TestGoldenCleanRepo runs the golden subcommand pipeline against a synthetic
+// derivative whose live tree exactly realizes weave's plan (a correct symlink +
+// scaffold dir) plus a deferred-verb (seed) output. The ledger must be clean:
+// all MATCH/EXPECTED, zero UNEXPECTED → runGolden returns nil.
+func TestGoldenCleanRepo(t *testing.T) {
+	parent, base, derived := buildFixture(t)
+	_ = parent
+
+	// Realize weave's plan on `derived` exactly as Apply would: a relative
+	// symlink to base/shared.md and the .claude/skills dir. (buildFixture's
+	// derived has prose + a self-ref; the cross-layer symlink is base/shared.md.)
+	rel, _ := filepath.Rel(derived, filepath.Join(base, "shared.md"))
+	if err := os.Symlink(rel, filepath.Join(derived, "shared.md")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(derived, ".claude", "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// AGENTS.md: weave plans a composed WriteFile (base + derived prose); realize
+	// it so the WriteFile classifies MATCH.
+	if err := os.WriteFile(filepath.Join(derived, "AGENTS.md"), []byte("BASE PROSE\n\nDERIVED PROSE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := runGolden(weavefs.OSFS{}, derived, []string{derived}, &out); err != nil {
+		t.Fatalf("runGolden on a clean tree returned error: %v\nledger:\n%s", err, out.String())
+	}
+	got := out.String()
+	if !strings.Contains(got, "UNEXPECTED 0") {
+		t.Fatalf("clean repo ledger missing UNEXPECTED 0:\n%s", got)
+	}
+}
+
+// TestGoldenDetectsDivergence flips the symlink to point somewhere weave would
+// NOT link; the harness must classify it UNEXPECTED and return a non-nil error.
+func TestGoldenDetectsDivergence(t *testing.T) {
+	_, _, derived := buildFixture(t)
+
+	// A WRONG symlink for shared.md (points at a bogus target).
+	if err := os.Symlink("../bogus/shared.md", filepath.Join(derived, "shared.md")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(derived, ".claude", "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(derived, "AGENTS.md"), []byte("BASE PROSE\n\nDERIVED PROSE\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	err := runGolden(weavefs.OSFS{}, derived, []string{derived}, &out)
+	if err == nil {
+		t.Fatalf("runGolden on a divergent tree returned nil, want error\nledger:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "UNEXPECTED") {
+		t.Fatalf("divergent ledger missing UNEXPECTED line:\n%s", out.String())
+	}
+}
+
+// TestGoldenSkipsAbsent verifies skip-if-absent: a non-present repo is noted and
+// skipped (no error from its absence alone).
+func TestGoldenSkipsAbsent(t *testing.T) {
+	absent := filepath.Join(t.TempDir(), "not-there")
+	var out bytes.Buffer
+	if err := runGolden(weavefs.OSFS{}, t.TempDir(), []string{absent}, &out); err != nil {
+		t.Fatalf("absent repo should be skipped, got error: %v", err)
+	}
+	if !strings.Contains(out.String(), "SKIP") {
+		t.Fatalf("absent repo not noted as SKIP:\n%s", out.String())
+	}
 }

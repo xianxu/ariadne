@@ -42,7 +42,8 @@ func TestPlanProseAcrossLayersToOneAGENTS(t *testing.T) {
 func TestPlanSymlinkAndScaffold(t *testing.T) {
 	// File-op intents lower near-identity to their Actions (ported from
 	// walk_manifest's case). symlink → Symlink{upstream/src, target},
-	// scaffold → Mkdir{target}, touch → WriteFile{target, ""}.
+	// scaffold → Mkdir{target}, touch → Touch{target} (create-if-missing, NOT a
+	// content-clobbering WriteFile).
 	layers := []layer.Layer{
 		{Name: "ariadne", Path: "/up", Intents: []intent.Intent{
 			{Kind: intent.Symlink, Source: "AGENTS.md", Target: "AGENTS.md"},
@@ -57,7 +58,7 @@ func TestPlanSymlinkAndScaffold(t *testing.T) {
 	want := []Action{
 		Symlink{Src: "/up/AGENTS.md", Dst: "AGENTS.md"},
 		Mkdir{Path: ".claude/skills"},
-		WriteFile{Path: "workshop/lessons.md", Content: ""},
+		Touch{Path: "workshop/lessons.md"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Plan = %#v, want %#v", got, want)
