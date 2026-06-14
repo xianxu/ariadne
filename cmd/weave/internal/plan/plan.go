@@ -26,11 +26,16 @@ import (
 //   - Symlink/Scaffold/Touch lower near-identity per intent (the dominant
 //     file-op case): Symlink → Symlink{upstream/Source, Target}; Scaffold →
 //     Mkdir{Target}; Touch → empty WriteFile{Target}.
-//   - Merge/Tool/Skill are DEFERRED (Merge=M4 settings cascade, Tool=the exec
-//     seam, Skill=M3 skill serving). They emit no Action here and must not
-//     error — a manifest carrying them still compiles. Their landing types are
-//     MergeSettings / ToolDep (action.go); Skill has no Action yet (it feeds the
-//     M3 SkillIndex, not the filesystem-op list).
+//   - Tool lowers to a ToolDep{Owner, Path} (Owner = the declaring layer's
+//     Path, Path = the tool path within it). The planner records the facts;
+//     Apply decides derivative (append `substrate` to construct/deps) vs owner
+//     (`go mod edit -tool`) by comparing Owner to the repo root. Ported from
+//     ensure_go_tool_dependency.
+//   - Merge/Skill are DEFERRED (Merge=M4 settings cascade, Skill=M3 skill
+//     serving). They emit no Action here and must not error — a manifest
+//     carrying them still compiles. Merge's landing type is MergeSettings
+//     (action.go); Skill has no Action yet (it feeds the M3 SkillIndex, not the
+//     filesystem-op list).
 //
 // DEFERRED to the part-2 IO walk (NOT this pure unit), per the plan's M2
 // carry-forward notes:
@@ -82,8 +87,14 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 				// TODO(M4): the settings cascade — lower to MergeSettings via
 				// the settings backend (ports merge-settings.sh). Not this unit.
 			case intent.Tool:
-				// TODO(later): lower to ToolDep via the exec seam (ports
-				// ensure_go_tool_dependency). Not this unit.
+				// Lower to ToolDep, recording the FACTS the IO seam needs:
+				// Owner is this layer's absolute path (setup.sh's `upstream`),
+				// Path is the tool's path within that owner module (`source`).
+				// The planner stays pure — it does NOT decide derivative-vs-owner
+				// (that compares Owner to the compiling repo root, which lives in
+				// Apply) and does NOT compute the substrate relpath / read go.mod
+				// (both IO). One ToolDep per `tool` intent, in layer order.
+				actions = append(actions, ToolDep{Owner: l.Path, Path: in.Source})
 			case intent.Skill:
 				// TODO(M3): feeds the SkillIndex (agent-agnostic skill serving),
 				// not the filesystem-op list. No Action here.

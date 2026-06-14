@@ -190,3 +190,96 @@ func TestApplySymlinkReplacesExistingRegularFile(t *testing.T) {
 		t.Fatalf("relinked content = %q, want UP", got)
 	}
 }
+
+// fakeGoMod records AddTool calls instead of shelling out to the toolchain — the
+// exec seam's fake (ARCH-PURE: the planner stays pure; Apply's go.mod mutation
+// is the only exec, isolated behind GoModEditor and verifiable without `go`).
+type fakeGoMod struct {
+	calls []string // each "gomodPath -tool toolImportPath"
+	err   error
+}
+
+func (f *fakeGoMod) AddTool(gomodPath, toolImportPath string) error {
+	f.calls = append(f.calls, gomodPath+" -tool "+toolImportPath)
+	return f.err
+}
+
+func TestApplyToolDerivativeAppendsSubstrate(t *testing.T) {
+	// Derivative mode (Owner != repoRoot): ApplyWith appends
+	// `substrate <relpath-to-owner>` to the repo's construct/deps, creating the
+	// file when absent. The relpath is repo-root-relative (../ariadne), matching
+	// ensure_go_tool_dependency's cross-target branch.
+	root := t.TempDir()
+	owner := filepath.Join(filepath.Dir(root), "ariadne")
+	ed := &fakeGoMod{}
+	if err := ApplyWith(weavefs.OSFS{}, root, ed, []Action{
+		ToolDep{Owner: owner, Path: "cmd/sdlc"},
+	}); err != nil {
+		t.Fatalf("ApplyWith: %v", err)
+	}
+	if len(ed.calls) != 0 {
+		t.Fatalf("derivative must not touch go.mod, got calls %v", ed.calls)
+	}
+	deps, err := os.ReadFile(filepath.Join(root, "construct", "deps"))
+	if err != nil {
+		t.Fatalf("read construct/deps: %v", err)
+	}
+	want := "substrate ../ariadne\n"
+	if string(deps) != want {
+		t.Fatalf("construct/deps = %q, want %q", deps, want)
+	}
+}
+
+func TestApplyToolDerivativeIdempotent(t *testing.T) {
+	// A second ApplyWith must NOT re-append the substrate row (ParseDeps detects
+	// it is already present), and must preserve existing content. Matches
+	// ensure_go_tool_dependency's awk present-check.
+	root := t.TempDir()
+	owner := filepath.Join(filepath.Dir(root), "ariadne")
+	depsPath := filepath.Join(root, "construct", "deps")
+	if err := os.MkdirAll(filepath.Dir(depsPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Pre-existing content: a data row + the already-present substrate row.
+	if err := os.WriteFile(depsPath, []byte("data ../some-data git@x\nsubstrate ../ariadne\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ed := &fakeGoMod{}
+	if err := ApplyWith(weavefs.OSFS{}, root, ed, []Action{
+		ToolDep{Owner: owner, Path: "cmd/sdlc"},
+	}); err != nil {
+		t.Fatalf("ApplyWith: %v", err)
+	}
+	deps, err := os.ReadFile(depsPath)
+	if err != nil {
+		t.Fatalf("read construct/deps: %v", err)
+	}
+	want := "data ../some-data git@x\nsubstrate ../ariadne\n"
+	if string(deps) != want {
+		t.Fatalf("construct/deps = %q, want unchanged %q", deps, want)
+	}
+}
+
+func TestApplyToolOwnerEditsGoMod(t *testing.T) {
+	// Owner self-walk (Owner == repoRoot): ApplyWith reads the repo's go.mod
+	// module line and asks the GoModEditor to add a `tool <module>/<path>`
+	// directive. construct/deps is NOT touched. Matches the self-walk branch.
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"),
+		[]byte("module github.com/xianxu/ariadne\n\ngo 1.26\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ed := &fakeGoMod{}
+	if err := ApplyWith(weavefs.OSFS{}, root, ed, []Action{
+		ToolDep{Owner: root, Path: "cmd/sdlc"},
+	}); err != nil {
+		t.Fatalf("ApplyWith: %v", err)
+	}
+	wantCall := filepath.Join(root, "go.mod") + " -tool github.com/xianxu/ariadne/cmd/sdlc"
+	if len(ed.calls) != 1 || ed.calls[0] != wantCall {
+		t.Fatalf("editor calls = %v, want exactly [%q]", ed.calls, wantCall)
+	}
+	if _, err := os.Stat(filepath.Join(root, "construct", "deps")); !os.IsNotExist(err) {
+		t.Fatalf("owner self-walk must not create construct/deps (err=%v)", err)
+	}
+}
