@@ -13,8 +13,16 @@ import "github.com/xianxu/ariadne/cmd/weave/internal/intent"
 // final element is the consuming repo itself; lowering that accounts for
 // root-is-last-and-self (the self-reference filter is an IO-walk concern,
 // deferred to part 2 — see plan.go's TODO).
+//
+// ProseFragments holds the RESOLVED text of this layer's `prose` intents, in
+// intent order. The intents carry only relpaths (intent.Intent.Source);
+// reading each fragment file is an IO-seam concern (part 2), so the seam fills
+// ProseFragments when it builds the Layer. Keeping the content here (not on the
+// Intent) lets the Planner stay pure — it composes fragments across layers
+// without touching disk. Empty when the layer declares no prose.
 type Layer struct {
-	Name    string
-	Path    string
-	Intents []intent.Intent
+	Name           string
+	Path           string
+	Intents        []intent.Intent
+	ProseFragments []string
 }
