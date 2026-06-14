@@ -36,7 +36,7 @@ The compiler is one pipeline: `read deps+manifests → Resolver → []Layer → 
   - **Relationships:** N Intents : 1 Manifest : 1 Layer.
   - **DRY rationale (ARCH-DRY):** one lowering switch, one `case` per kind. File-op kinds lower **near-identity** (a `Symlink` intent → a `Symlink` action — ported directly from `walk_manifest`'s `case`); semantic kinds **compose** (all layers' `Prose` → one composed `AGENTS.md`). One source of truth per kind.
   - **Future extensions:** a `Suppress` intent (v2); new kinds slot into the switch.
-- **`Manifest`** — parsed `construct/base.manifest` for one layer: `deps []string` (the header, sole layer-edge source — kills the `go.mod`-replace channel) + `[]Intent`.
+- **`Manifest`** — parsed `construct/base.manifest` for one layer: `[]Intent` only **(M2)**. Layer *edges do NOT live here* — `base.manifest` has no deps header; edges come from `construct/deps`, parsed by `ParseDeps` (`cmd/weave/internal/layer/deps.go`, shipped M1). `lib-deps.sh` is the grammar source of truth.
   - **Relationships:** 1:1 with Layer.
 - **`Layer`** — a resolved layer: `Path`, `Name`, `Manifest`. Resolved to one on-disk sibling dir (no versioning).
 - **`Resolve`** — pure topo-sort + dedup over the `Path→deps` edge set, foundation-first; a diamond collapses to one application per layer. Behavioral spec = `setup.sh:discover_ancestors` (ARCH-DRY: port its ordering + `_seen_or_add`, don't reinvent).
@@ -181,3 +181,11 @@ Confirmed against `lib-deps.sh:deps_substrate_targets`: `construct/deps` substra
 - **Adopt the side-by-side migration as the integration test** (added to Done-when): clone a real derivative (e.g. parley) + the ariadne worktree anywhere, `weave depend-on <ariadne-path>`, migrate it off `setup.sh`, both on branches — production repos untouched. Stronger than golden-diff alone.
 
 Test/rollout progression (validated as enabled by the above): (1) self-walk in the ariadne worktree, golden-diff vs setup.sh + a live session; (2) spawn a derivative via `weave depend-on`; (3) the side-by-side migration above.
+
+### 2026-06-14 — M1 close: reconcile plan to delivered code (review FIX-THEN-SHIP)
+
+M1 milestone-review verdict **FIX-THEN-SHIP** — code correct/pure/tested, no Critical/Important *code* issues; the fixes are plan/doc reconciliations:
+
+- **P-1 (ordering fidelity).** `Resolve` is DFS post-order — a *valid* foundation-first topo order with dedup — and does **NOT** bit-reproduce `discover_ancestors`' BFS-then-reverse, which mis-orders a foundation that's also a direct dep. Worked example: post-migration brain (`substrate ../ariadne` + `../nous`, `nous→ariadne`) — setup.sh applies **nous before ariadne** (quirk); weave applies **ariadne first** (correct). **Pre-registered M5 golden-diff ledger entry:** brain layer-application order differs — *expected, weave-is-correct*, not a regression. `resolve.go` doc softened; ARCH-DRY anchor is "ports the *intent* (foundation-first + dedup)," not bit-ordering.
+- **P-2 (Core-concepts correction).** Layer edges come from `construct/deps` (parsed by `ParseDeps` in `cmd/weave/internal/layer/deps.go`, shipped M1) — **not** a `base.manifest` "header" (it has none; `lib-deps.sh` is the source of truth). `intent/manifest.go` is **M2-only** and parses base.manifest *intents*. M1 "Files" shipped as `layer/{resolve,deps}{,_test}.go` (`layer.go` deferred to M2).
+- **M2 carry-forward (judge's architectural notes).** The deps *walk* (IO seam) must reproduce `deps_substrate_targets`' repo-root-relative + absolute-path + present-skip resolution **and** the two `_seen_or_add` filters (base.manifest-existence, target-self-exclusion) that pure `Resolve` rightly omits. `Resolve` emits `root` **last (self-included)**; the Planner must account for root-is-last-and-self.
