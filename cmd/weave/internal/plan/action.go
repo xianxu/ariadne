@@ -10,11 +10,11 @@ package plan
 // set in this package), so a type switch in the IO seam handles every case.
 //
 // The set covers the file-ops this unit lowers (Symlink, WriteFile, Mkdir,
-// Touch) plus ToolDep, which this unit now emits (M3: intent.Tool lowers to a
-// ToolDep, applied via the injected GoModEditor seam). MergeSettings remains a
-// typed PLACEHOLDER for the deferred Merge kind (→ M4 settings cascade), giving
-// that lowering a landing type without this unit implementing it. (Skill has no
-// Action — it feeds the M3 SkillIndex, not a file-op slot.)
+// Touch), ToolDep (M3: intent.Tool lowers to a ToolDep, applied via the injected
+// GoModEditor seam), and MergeSettings (M4: intent.Merge lowers to a
+// MergeSettings, applied by reading base + optional local and running the pure
+// mergeSettings — merge-settings.sh's port). (Skill has no Action — it feeds the
+// M3 SkillIndex, not a file-op slot.)
 type Action interface{ isAction() }
 
 // Symlink creates a symlink at Dst pointing to Src. Lowered from an
@@ -52,14 +52,16 @@ type Touch struct {
 	Path string
 }
 
-// MergeSettings is the typed PLACEHOLDER for lowering an intent.Merge — the
-// JSON settings cascade (settings.<layer>.json under settings.local.json).
-// Its lowering is DEFERRED to M4 (the settings backend ports merge-settings.sh
-// semantics); this unit emits no MergeSettings. Fields land when M4 designs the
-// merge inputs/output.
+// MergeSettings is the lowering of an intent.Merge — the JSON settings cascade
+// (the base settings.ariadne.json deep-merged UNDER the sibling
+// settings.local.json). The planner emits one per `merge` row, recording only
+// the path facts (pure); Apply reads Source + the optional sibling
+// settings.local.json off disk, runs the pure mergeSettings (the
+// merge-settings.sh port — deep dict merge, $merge_keys array union, $remove
+// filter, meta-key strip), and writes the result to Target.
 type MergeSettings struct {
-	Source string // the layer's settings.<layer>.json (relpath)
-	Target string // the merged settings.json (relpath)
+	Source string // the layer's base settings (e.g. .claude/settings.ariadne.json), repo-relative
+	Target string // the merged output (e.g. .claude/settings.json), repo-relative
 }
 
 // ToolDep is the lowering of an intent.Tool — declaring the tool owner as a

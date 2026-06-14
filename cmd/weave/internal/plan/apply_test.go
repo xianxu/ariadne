@@ -1,8 +1,10 @@
 package plan
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
@@ -95,6 +97,105 @@ func TestApplyMkdir(t *testing.T) {
 	if err != nil || !info.IsDir() {
 		t.Fatalf("scaffold dir not created: err=%v info=%v", err, info)
 	}
+}
+
+// MergeSettings is the IO half of the settings cascade: Apply reads Source
+// (settings.ariadne.json) + the sibling settings.local.json off disk, runs the
+// pure mergeSettings, and writes Target (settings.json). Ported from
+// merge-settings.sh: LOCAL_FILE is <dir(target)>/settings.local.json, absent ⇒
+// base-with-meta-stripped. We assert on PARSED JSON (semantic equality).
+
+func TestApplyMergeSettingsLocalAbsent(t *testing.T) {
+	root := t.TempDir()
+	base := `{
+		"$comment": "doc",
+		"$merge_keys": ["permissions.allow"],
+		"permissions": {"allow": ["A", "B"]}
+	}`
+	mustWrite(t, filepath.Join(root, ".claude", "settings.ariadne.json"), base)
+
+	if err := Apply(weavefs.OSFS{}, root, []Action{
+		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+	}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	got := readJSON(t, filepath.Join(root, ".claude", "settings.json"))
+	want := map[string]any{
+		"permissions": map[string]any{"allow": []any{"A", "B"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("merged (local-absent):\n got=%#v\nwant=%#v", got, want)
+	}
+}
+
+func TestApplyMergeSettingsWithLocal(t *testing.T) {
+	root := t.TempDir()
+	base := `{
+		"$merge_keys": ["permissions.allow"],
+		"permissions": {"allow": ["A", "B"]},
+		"scalar": 1
+	}`
+	local := `{
+		"$remove": {"permissions.allow": ["A"]},
+		"permissions": {"allow": ["C"]},
+		"scalar": 2
+	}`
+	mustWrite(t, filepath.Join(root, ".claude", "settings.ariadne.json"), base)
+	// LOCAL_FILE = <dir(target)>/settings.local.json (sibling of the target).
+	mustWrite(t, filepath.Join(root, ".claude", "settings.local.json"), local)
+
+	if err := Apply(weavefs.OSFS{}, root, []Action{
+		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+	}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	got := readJSON(t, filepath.Join(root, ".claude", "settings.json"))
+	want := map[string]any{
+		"permissions": map[string]any{
+			// A removed before union; B kept; C appended. scalar overridden.
+			"allow": []any{"B", "C"},
+		},
+		"scalar": float64(2),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("merged (with local):\n got=%#v\nwant=%#v", got, want)
+	}
+}
+
+func TestApplyMergeSettingsMissingBaseErrors(t *testing.T) {
+	// merge-settings.sh errors when the base file is absent; Apply must surface it.
+	root := t.TempDir()
+	err := Apply(weavefs.OSFS{}, root, []Action{
+		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+	})
+	if err == nil {
+		t.Fatal("Apply: expected error for missing base, got nil")
+	}
+}
+
+// mustWrite writes content to path (creating parents) or fails the test.
+func mustWrite(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// readJSON reads + parses the file at path into a map or fails the test.
+func readJSON(t *testing.T, path string) map[string]any {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("parse %s: %v\n%s", path, err, b)
+	}
+	return m
 }
 
 func TestApplySymlinkRelativeToTarget(t *testing.T) {

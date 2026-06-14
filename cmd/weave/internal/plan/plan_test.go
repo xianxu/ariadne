@@ -68,12 +68,11 @@ func TestPlanSymlinkAndScaffold(t *testing.T) {
 }
 
 func TestPlanDeferredKindsAreNoOps(t *testing.T) {
-	// Merge/Skill lowering is still deferred (M4 settings, M3 skill index).
-	// They must not error or emit Actions in this unit — just skip. (Tool now
-	// lowers — see TestPlanToolLowering.)
+	// Skill lowering is still deferred (the M3 skill index feeds the menu, not a
+	// file-op). It must not error or emit an Action here — just skip. (Tool and
+	// Merge now lower — see TestPlanToolLowering / TestPlanMergeLowering.)
 	layers := []layer.Layer{
 		{Name: "ariadne", Path: "/up", Intents: []intent.Intent{
-			{Kind: intent.Merge, Source: "a.json", Target: "b.json"},
 			{Kind: intent.Skill, Source: "construct/skills/x", Target: "construct/skills/x"},
 		}},
 	}
@@ -83,6 +82,30 @@ func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("Plan = %#v, want no Actions (deferred kinds skipped)", got)
+	}
+}
+
+func TestPlanMergeLowering(t *testing.T) {
+	// A `merge` intent lowers to a MergeSettings{Source, Target} — the settings
+	// cascade (ported from setup.sh's `merge` case + merge-settings.sh). Source is
+	// the layer's base settings (settings.ariadne.json), Target the composed
+	// settings.json. The pure planner records the path facts; Apply reads base +
+	// (optional) local off disk, runs mergeSettings, writes Target. The manifest
+	// row is `merge .claude/settings.ariadne.json .claude/settings.json`.
+	layers := []layer.Layer{
+		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
+			{Kind: intent.Merge, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		}},
+	}
+	got, err := Plan(layers, nil)
+	if err != nil {
+		t.Fatalf("Plan: unexpected error: %v", err)
+	}
+	want := []Action{
+		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Plan = %#v, want %#v", got, want)
 	}
 }
 

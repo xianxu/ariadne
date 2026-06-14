@@ -30,6 +30,8 @@ import (
 //   - ToolDep → ensure_go_tool_dependency: derivative (append substrate to
 //     construct/deps) or owner self-walk (go mod edit -tool). The latter is the
 //     one exec, behind the injected GoModEditor — see ApplyWith.
+//   - MergeSettings → merge-settings.sh: read base + optional sibling
+//     settings.local.json, run the pure mergeSettings, write the merged target.
 //
 // Apply uses the production go.mod editor (weavefs.OSGoMod). Callers needing a
 // fake editor (or a test that must not shell out to `go`) use ApplyWith.
@@ -55,8 +57,7 @@ func ApplyWith(fs weavefs.FS, repoRoot string, ed weavefs.GoModEditor, actions [
 		case ToolDep:
 			err = applyToolDep(fs, repoRoot, ed, act)
 		case MergeSettings:
-			// Deferred lowering — emits no concrete file-op yet (M4 settings).
-			// Skip — never reached today, but keeps Apply total.
+			err = applyMergeSettings(fs, repoRoot, act)
 		default:
 			err = fmt.Errorf("apply: unknown action type %T", a)
 		}
@@ -146,6 +147,42 @@ func ownerToolDirective(fs weavefs.FS, repoRoot string, ed weavefs.GoModEditor, 
 		return fmt.Errorf("apply tool: no module directive in %s", gomodPath)
 	}
 	return ed.AddTool(gomodPath, module+"/"+toolPath)
+}
+
+// applyMergeSettings is the IO half of the settings cascade, ported from
+// merge-settings.sh: read the base (act.Source) and the optional sibling local
+// (settings.local.json, alongside act.Target), run the pure mergeSettings, and
+// write the result to act.Target. The local file's path is derived the same way
+// the bash does — LOCAL_FILE="$TARGET_DIR/settings.local.json", i.e. the
+// settings.local.json sibling of the target — so an arbitrary Target dir resolves
+// its local correctly. A missing base is an error (the bash's `[[ ! -f BASE ]]`
+// exit 1); a missing local takes the local-absent path (base with meta stripped).
+// All IO lives here (ARCH-PURE); the merge itself is the pure mergeSettings.
+func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error {
+	basePath := filepath.Join(repoRoot, act.Source)
+	base, err := fs.ReadFile(basePath)
+	if err != nil {
+		return fmt.Errorf("apply merge: read base %s: %w", basePath, err)
+	}
+
+	targetPath := filepath.Join(repoRoot, act.Target)
+	localPath := filepath.Join(filepath.Dir(targetPath), "settings.local.json")
+	var local []byte
+	if data, lerr := fs.ReadFile(localPath); lerr == nil {
+		local = data // present ⇒ deep-merge; absent ⇒ nil ⇒ base-with-meta-stripped
+	}
+
+	merged, err := mergeSettings(base, local)
+	if err != nil {
+		return fmt.Errorf("apply merge: %s: %w", targetPath, err)
+	}
+	if err := ensureParent(fs, targetPath); err != nil {
+		return err
+	}
+	if err := fs.WriteFile(targetPath, merged); err != nil {
+		return fmt.Errorf("apply merge: write %s: %w", targetPath, err)
+	}
+	return nil
 }
 
 // applySymlink ports create_symlink. src is the absolute upstream path; dst the

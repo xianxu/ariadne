@@ -31,11 +31,13 @@ import (
 //     Apply decides derivative (append `substrate` to construct/deps) vs owner
 //     (`go mod edit -tool`) by comparing Owner to the repo root. Ported from
 //     ensure_go_tool_dependency.
-//   - Merge/Skill are DEFERRED (Merge=M4 settings cascade, Skill=M3 skill
-//     serving). They emit no Action here and must not error — a manifest
-//     carrying them still compiles. Merge's landing type is MergeSettings
-//     (action.go); Skill has no Action yet (it feeds the M3 SkillIndex, not the
-//     filesystem-op list).
+//   - Merge lowers to a MergeSettings{Source, Target} — the settings cascade
+//     (ported from setup.sh's `merge` case). The planner records the path facts;
+//     Apply reads Source + the sibling settings.local.json off disk and runs
+//     mergeSettings (the merge-settings.sh port) to write Target.
+//   - Skill is DEFERRED (M3 skill serving): it emits no Action and must not
+//     error — a manifest carrying it still compiles. Skill feeds the SkillIndex
+//     (the menu), not the filesystem-op list.
 //
 // DEFERRED to the part-2 IO walk (NOT this pure unit), per the plan's M2
 // carry-forward notes:
@@ -84,8 +86,13 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 			case intent.Prose:
 				// Handled above (composes across layers); nothing per-intent.
 			case intent.Merge:
-				// TODO(M4): the settings cascade — lower to MergeSettings via
-				// the settings backend (ports merge-settings.sh). Not this unit.
+				// The settings cascade (setup.sh's `merge` case): lower to a
+				// MergeSettings{Source, Target}. Source is the layer's base
+				// settings (settings.ariadne.json), Target the composed
+				// settings.json. The planner records only the path facts (pure);
+				// Apply reads Source + the sibling settings.local.json off disk,
+				// runs mergeSettings (the merge-settings.sh port), writes Target.
+				actions = append(actions, MergeSettings{Source: in.Source, Target: in.Target})
 			case intent.Tool:
 				// Lower to ToolDep, recording the FACTS the IO seam needs:
 				// Owner is this layer's absolute path (setup.sh's `upstream`),
