@@ -26,5 +26,14 @@ Pure entities are unit-tested mock-free.
 - `cmd/weave/internal/layer` — `Resolve` (foundation-first topo-sort + dedup;
   ports `discover_ancestors`) and `ParseDeps` (`construct/deps` substrate-edge
   parser; ports `lib-deps.sh:deps_substrate_targets`). **[M1]**
+- `cmd/weave/internal/{intent,plan,walk,weavefs,golden}` + `main.go` —
+  `intent.ParseManifest` (base.manifest → hybrid intents) · `plan.{composeProse,
+  Plan,Action,Apply}` (pure lowering + idempotent file-op apply, porting
+  `create_symlink`/`create_scaffold`/`create_touch`) · `walk.Walk` (transitive
+  `construct/deps` walk; ports `deps_substrate_targets` + the `_seen_or_add` +
+  self-reference filters) · `weavefs.FS` (injectable IO seam) · `golden` (pure
+  divergence classifier) + the `weave` / `weave --dry-run` / `weave golden` CLI.
+  Prose/skill are exempt from the self-reference filter (a repo composes its own
+  prose into its `AGENTS.md` — the `@AGENTS.local.md` fix). **[M2]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
