@@ -4,11 +4,15 @@
 //
 //	weave              compile the current working directory's repo
 //	weave --dry-run    print the planned []Action; mutate nothing
+//	weave skills       print the skill menu (name — description)
+//	weave skill <name> print a skill's SKILL.md body (served directly)
 //
-// The pure core (intent/, layer/, plan/) never touches disk; weave's only IO is
-// the walk (reading manifests/deps/prose) and plan.Apply (the mutations),
-// behind weavefs.FS (ARCH-PURE). M3 adds the `skills`/`skill` subcommands and
-// `depend-on`; this M2 binary is the compile path only.
+// The pure core (intent/, layer/, plan/, skill/) never touches disk; weave's
+// only IO is the walk (reading manifests/deps/prose/skills) and plan.Apply (the
+// mutations), behind weavefs.FS (ARCH-PURE). M3 part 1 adds the skill server:
+// weave serves skills DIRECTLY (no .claude/skills/ discovery) — the menu is
+// compiled into the composed AGENTS.md (always-on), bodies served on demand via
+// `weave skill <name>`. M3 part 2 adds the `tool` lowering + `depend-on`.
 package main
 
 import (
@@ -20,7 +24,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/golden"
+	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
+	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
@@ -52,7 +58,48 @@ func buildRoot() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
 	cmd.AddCommand(buildGolden())
+	cmd.AddCommand(buildSkills())
+	cmd.AddCommand(buildSkill())
 	return cmd
+}
+
+// buildSkills assembles `weave skills` — print the agent-agnostic skill menu
+// (the same menu compiled into AGENTS.md): one `name — description` line per
+// skill, foundation-first with the downstream cascade. Read-only.
+func buildSkills() *cobra.Command {
+	return &cobra.Command{
+		Use:           "skills",
+		Short:         "Print the skill menu (name — description) served for this repo",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			root, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("resolve cwd: %w", err)
+			}
+			return runSkills(weavefs.OSFS{}, root, cmd.OutOrStdout())
+		},
+	}
+}
+
+// buildSkill assembles `weave skill <name>` — serve the named skill's SKILL.md
+// body on stdout (the agent-agnostic on-demand face). Errors non-zero with a
+// helpful message on an unknown name. Read-only.
+func buildSkill() *cobra.Command {
+	return &cobra.Command{
+		Use:           "skill <name>",
+		Short:         "Print a skill's SKILL.md body (serve it directly, no .claude/skills)",
+		Args:          cobra.ExactArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			root, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("resolve cwd: %w", err)
+			}
+			return runSkill(weavefs.OSFS{}, root, args[0], cmd.OutOrStdout())
+		},
+	}
 }
 
 // buildGolden assembles `weave golden [repoPath...]` — the golden-diff harness.
@@ -106,7 +153,13 @@ func runGolden(fs weavefs.FS, cwd string, args []string, out io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("golden: walk %s: %w", root, err)
 		}
-		actions, err := plan.Plan(layers)
+		// Golden classifies weave's FILE-OPS against setup.sh's live output;
+		// the skill menu is served via AGENTS.md prose, not file-ops, and weave's
+		// skill mechanism intentionally DIVERGES from setup.sh's .claude/skills
+		// symlinks (an expected M5 divergence — the classifier doesn't model it
+		// yet), so pass a nil menu here: the AGENTS.md prose body is already
+		// classified; the skill section isn't a setup.sh-comparable file-op.
+		actions, err := plan.Plan(layers, nil)
 		if err != nil {
 			return fmt.Errorf("golden: plan %s: %w", root, err)
 		}
@@ -191,7 +244,11 @@ func run(fs weavefs.FS, root string, dryRun bool, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("walk %s: %w", root, err)
 	}
-	actions, err := plan.Plan(layers)
+	idx, err := buildSkillIndex(fs, layers)
+	if err != nil {
+		return fmt.Errorf("gather skills: %w", err)
+	}
+	actions, err := plan.Plan(layers, idx.Menu())
 	if err != nil {
 		return fmt.Errorf("plan: %w", err)
 	}
@@ -203,6 +260,75 @@ func run(fs weavefs.FS, root string, dryRun bool, out io.Writer) error {
 		return fmt.Errorf("apply: %w", err)
 	}
 	fmt.Fprintf(out, "weave: applied %d action(s) to %s\n", len(actions), root)
+	return nil
+}
+
+// buildSkillIndex is the skill-server pipeline up to the pure index: walk's
+// discovery seam (walk.GatherSkills, ports sync-local-skills.sh) → skill.Build
+// (the pure menu + body lookup). Shared by the compile path (for the AGENTS.md
+// menu) and the skills/skill subcommands. layers must already be walked.
+func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, error) {
+	entries, err := walk.GatherSkills(fs, layers)
+	if err != nil {
+		return skill.SkillIndex{}, err
+	}
+	return skill.Build(entries), nil
+}
+
+// resolveSkillIndex canonicalizes root, walks the layers, and builds the index
+// — the read-only front half the skills/skill subcommands share. No mutation.
+func resolveSkillIndex(fs weavefs.FS, root string) (skill.SkillIndex, error) {
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	layers, err := walk.Walk(fs, root)
+	if err != nil {
+		return skill.SkillIndex{}, fmt.Errorf("walk %s: %w", root, err)
+	}
+	return buildSkillIndex(fs, layers)
+}
+
+// runSkills prints the skill menu (one `name — description` line per skill) for
+// the repo at root. Read-only; injecting fs + out keeps it testable.
+func runSkills(fs weavefs.FS, root string, out io.Writer) error {
+	idx, err := resolveSkillIndex(fs, root)
+	if err != nil {
+		return err
+	}
+	menu := idx.Menu()
+	if len(menu) == 0 {
+		fmt.Fprintln(out, "weave: no skills")
+		return nil
+	}
+	for _, m := range menu {
+		if m.Description != "" {
+			fmt.Fprintf(out, "%s — %s\n", m.Name, m.Description)
+		} else {
+			fmt.Fprintln(out, m.Name)
+		}
+	}
+	return nil
+}
+
+// runSkill serves the named skill's SKILL.md body on out. Unknown name → a
+// non-nil error (non-zero exit) listing the available names. Read-only.
+func runSkill(fs weavefs.FS, root, name string, out io.Writer) error {
+	idx, err := resolveSkillIndex(fs, root)
+	if err != nil {
+		return err
+	}
+	bodyPath, ok := idx.BodyPath(name)
+	if !ok {
+		return fmt.Errorf("unknown skill %q; run `weave skills` to list available skills", name)
+	}
+	body, err := fs.ReadFile(bodyPath)
+	if err != nil {
+		return fmt.Errorf("read skill %q (%s): %w", name, bodyPath, err)
+	}
+	fmt.Fprint(out, string(body))
+	if len(body) > 0 && body[len(body)-1] != '\n' {
+		fmt.Fprintln(out)
+	}
 	return nil
 }
 

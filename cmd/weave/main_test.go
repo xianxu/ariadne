@@ -150,15 +150,167 @@ func TestBuildRootWiring(t *testing.T) {
 	if cmd.Flags().Lookup("dry-run") == nil {
 		t.Fatalf("--dry-run flag not wired")
 	}
-	// The golden subcommand is wired.
-	var hasGolden bool
+	// The golden + skills + skill subcommands are wired.
+	want := map[string]bool{"golden": false, "skills": false, "skill": false}
 	for _, c := range cmd.Commands() {
-		if c.Name() == "golden" {
-			hasGolden = true
+		if _, ok := want[c.Name()]; ok {
+			want[c.Name()] = true
 		}
 	}
-	if !hasGolden {
-		t.Fatalf("golden subcommand not wired")
+	for name, seen := range want {
+		if !seen {
+			t.Fatalf("%s subcommand not wired", name)
+		}
+	}
+}
+
+// writeSkillFile lays one SKILL.md (frontmatter name/description + body) under
+// dir for the skill-server CLI tests.
+func writeSkillFile(t *testing.T, dir, name, desc, body string) {
+	t.Helper()
+	mkfile(t, filepath.Join(dir, "SKILL.md"),
+		"---\nname: "+name+"\ndescription: "+desc+"\n---\n\n"+body+"\n")
+}
+
+// buildSkillRepoFixture lays a base layer (a local skill `sdlc` + an adapted
+// skill `superpowers-brainstorming`) and a derived repo (its own local skill
+// `issues`) as siblings, each with a construct/config.json (xx- prefix) and a
+// prose fragment, and returns the derived repo root. The derived repo depends
+// on base via construct/deps, so the walk resolves [base, derived].
+func buildSkillRepoFixture(t *testing.T) (derived string) {
+	t.Helper()
+	parent := t.TempDir()
+	base := filepath.Join(parent, "base")
+	derived = filepath.Join(parent, "derived")
+
+	for _, root := range []string{base, derived} {
+		mkfile(t, filepath.Join(root, "construct", "config.json"), `{"localPrefix": "xx-"}`+"\n")
+	}
+	// base: a manifest (prose + a manifest entry so it's a real layer), prose,
+	// and two skills (one local, one adapted).
+	mkfile(t, filepath.Join(base, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	mkfile(t, filepath.Join(base, "AGENTS.local.md"), "BASE PROSE")
+	writeSkillFile(t, filepath.Join(base, "construct", "local", "sdlc"),
+		"sdlc", "SDLC checkpoint gates", "# sdlc\n\nBASE SDLC BODY")
+	writeSkillFile(t, filepath.Join(base, "construct", "adapted", "superpowers-brainstorming"),
+		"superpowers-brainstorming", "Brainstorm before building", "# Brainstorm\n\nBRAINSTORM BODY")
+
+	// derived: depends on base, its own prose + a local skill.
+	mkfile(t, filepath.Join(derived, "construct", "deps"), "substrate ../base\n")
+	mkfile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	mkfile(t, filepath.Join(derived, "AGENTS.local.md"), "DERIVED PROSE")
+	writeSkillFile(t, filepath.Join(derived, "construct", "local", "issues"),
+		"xx-issues", "Issue files in workshop/issues", "# issues\n\nISSUES BODY")
+
+	return derived
+}
+
+func TestCompileEmbedsSkillMenuInAGENTS(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	agents, err := os.ReadFile(filepath.Join(derived, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	body := string(agents)
+
+	// Prose first (foundation-first), then the always-on `## Skills` menu.
+	if !strings.HasPrefix(body, "BASE PROSE\n\nDERIVED PROSE\n") {
+		t.Errorf("AGENTS.md should start with foundation-first prose:\n%s", body)
+	}
+	if !strings.Contains(body, "## Skills") {
+		t.Errorf("AGENTS.md missing the `## Skills` menu section:\n%s", body)
+	}
+	if !strings.Contains(body, "weave skill <name>") {
+		t.Errorf("AGENTS.md missing the on-demand note:\n%s", body)
+	}
+	// All three skills present; namespaced (local prefixed, adapted bare).
+	for _, line := range []string{
+		"xx-sdlc — SDLC checkpoint gates",
+		"superpowers-brainstorming — Brainstorm before building",
+		"xx-issues — Issue files in workshop/issues",
+	} {
+		if !strings.Contains(body, line) {
+			t.Errorf("AGENTS.md missing menu line %q:\n%s", line, body)
+		}
+	}
+}
+
+func TestRunSkillsPrintsMenu(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	var out bytes.Buffer
+	if err := runSkills(weavefs.OSFS{}, derived, &out); err != nil {
+		t.Fatalf("runSkills: %v", err)
+	}
+	got := out.String()
+	// Foundation-first order: base's skills (local then adapted) before derived.
+	wantOrder := []string{
+		"xx-sdlc — SDLC checkpoint gates",
+		"superpowers-brainstorming — Brainstorm before building",
+		"xx-issues — Issue files in workshop/issues",
+	}
+	last := -1
+	for _, line := range wantOrder {
+		i := strings.Index(got, line)
+		if i < 0 {
+			t.Fatalf("`weave skills` output missing %q:\n%s", line, got)
+		}
+		if i < last {
+			t.Errorf("`weave skills` lines out of order around %q:\n%s", line, got)
+		}
+		last = i
+	}
+}
+
+func TestRunSkillServesBody(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	// A base local skill, served by its namespaced name.
+	var out bytes.Buffer
+	if err := runSkill(weavefs.OSFS{}, derived, "xx-sdlc", &out); err != nil {
+		t.Fatalf("runSkill xx-sdlc: %v", err)
+	}
+	if !strings.Contains(out.String(), "BASE SDLC BODY") {
+		t.Errorf("`weave skill xx-sdlc` body = %q, want the sdlc SKILL.md body", out.String())
+	}
+
+	// An adapted skill, served by its bare name.
+	out.Reset()
+	if err := runSkill(weavefs.OSFS{}, derived, "superpowers-brainstorming", &out); err != nil {
+		t.Fatalf("runSkill superpowers-brainstorming: %v", err)
+	}
+	if !strings.Contains(out.String(), "BRAINSTORM BODY") {
+		t.Errorf("adapted body = %q, want the brainstorming SKILL.md body", out.String())
+	}
+
+	// The derived repo's own skill.
+	out.Reset()
+	if err := runSkill(weavefs.OSFS{}, derived, "xx-issues", &out); err != nil {
+		t.Fatalf("runSkill xx-issues: %v", err)
+	}
+	if !strings.Contains(out.String(), "ISSUES BODY") {
+		t.Errorf("derived body = %q, want the issues SKILL.md body", out.String())
+	}
+}
+
+func TestRunSkillUnknownNameErrors(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	var out bytes.Buffer
+	err := runSkill(weavefs.OSFS{}, derived, "no-such-skill", &out)
+	if err == nil {
+		t.Fatal("runSkill on an unknown name should error (non-zero exit)")
+	}
+	if !strings.Contains(err.Error(), "unknown skill") || !strings.Contains(err.Error(), "weave skills") {
+		t.Errorf("unknown-skill error = %q, want a helpful message pointing at `weave skills`", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("unknown skill wrote a body %q, want nothing", out.String())
 	}
 }
 

@@ -3,6 +3,7 @@ package plan
 import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
+	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 )
 
 // Plan lowers a foundation-first []layer.Layer into the ordered []Action that
@@ -15,8 +16,12 @@ import (
 // (ARCH-DRY — construct/setup.sh:320):
 //
 //   - Prose composes ACROSS layers: every layer's ProseFragments are gathered
-//     foundation-first and emitted as ONE WriteFile{AGENTS.md, composeProse}.
-//     This is the @AGENTS.local.md fix. No fragments anywhere ⇒ no AGENTS.md
+//     foundation-first and emitted (with the skill menu, below) as ONE
+//     WriteFile{AGENTS.md, composeAgentsBody}. This is the @AGENTS.local.md fix.
+//   - The skill menu (the agent-agnostic floor's always-on discovery face) is
+//     appended as a `## Skills` section to that same AGENTS.md body. The menu
+//     is computed by the IO seam (walk.GatherSkills → skill.Build) and passed
+//     in; an empty menu adds nothing. Neither prose NOR a menu ⇒ no AGENTS.md
 //     Action (we don't write an empty file).
 //   - Symlink/Scaffold/Touch lower near-identity per intent (the dominant
 //     file-op case): Symlink → Symlink{upstream/Source, Target}; Scaffold →
@@ -36,15 +41,16 @@ import (
 //   - The two _seen_or_add filters (base.manifest-existence, target-self-
 //     exclusion) and substrate path resolution (repo-root-relative + absolute +
 //     present-skip, ported from deps_substrate_targets). All IO concerns.
-func Plan(layers []layer.Layer) ([]Action, error) {
+func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 	var actions []Action
 
-	// Prose composes across all layers, foundation-first → one AGENTS.md.
+	// Prose composes across all layers, foundation-first; the skill menu (the
+	// agent-agnostic floor's always-on face) appends below it — one AGENTS.md.
 	var fragments []string
 	for _, l := range layers {
 		fragments = append(fragments, l.ProseFragments...)
 	}
-	if body := composeProse(fragments); body != "" {
+	if body := composeAgentsBody(fragments, menu); body != "" {
 		actions = append(actions, WriteFile{Path: "AGENTS.md", Content: body})
 	}
 
