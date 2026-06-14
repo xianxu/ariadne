@@ -17,6 +17,11 @@ import "os"
 type FS interface {
 	// ReadFile returns the bytes of the file at path.
 	ReadFile(path string) ([]byte, error)
+	// ReadDir lists the directory entries at path (sorted by name, like
+	// os.ReadDir). Used by the skill-discovery reader to scan a layer's skill
+	// dirs (ported from sync-local-skills.sh's `for skill_dir in .../*/`). A
+	// missing dir surfaces as an error the caller treats as "no skills here".
+	ReadDir(path string) ([]os.DirEntry, error)
 	// Stat reports whether path exists and, if so, its FileInfo. Used for the
 	// present-skip + idempotency checks (ported from setup.sh's [[ -e ]] guards).
 	Stat(path string) (os.FileInfo, error)
@@ -45,15 +50,16 @@ type FS interface {
 // against a real filesystem (ARCH: faithful over mocked).
 type OSFS struct{}
 
-func (OSFS) ReadFile(path string) ([]byte, error)     { return os.ReadFile(path) }
-func (OSFS) Stat(path string) (os.FileInfo, error)    { return os.Stat(path) }
-func (OSFS) Lstat(path string) (os.FileInfo, error)   { return os.Lstat(path) }
-func (OSFS) Readlink(path string) (string, error)     { return os.Readlink(path) }
-func (OSFS) Remove(path string) error                 { return os.Remove(path) }
-func (OSFS) RemoveAll(path string) error              { return os.RemoveAll(path) }
-func (OSFS) MkdirAll(path string) error               { return os.MkdirAll(path, 0o755) }
-func (OSFS) Symlink(oldname, name string) error       { return os.Symlink(oldname, name) }
-func (OSFS) WriteFile(path string, data []byte) error { return os.WriteFile(path, data, 0o644) }
+func (OSFS) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
+func (OSFS) ReadDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
+func (OSFS) Stat(path string) (os.FileInfo, error)      { return os.Stat(path) }
+func (OSFS) Lstat(path string) (os.FileInfo, error)     { return os.Lstat(path) }
+func (OSFS) Readlink(path string) (string, error)       { return os.Readlink(path) }
+func (OSFS) Remove(path string) error                   { return os.Remove(path) }
+func (OSFS) RemoveAll(path string) error                { return os.RemoveAll(path) }
+func (OSFS) MkdirAll(path string) error                 { return os.MkdirAll(path, 0o755) }
+func (OSFS) Symlink(oldname, name string) error         { return os.Symlink(oldname, name) }
+func (OSFS) WriteFile(path string, data []byte) error   { return os.WriteFile(path, data, 0o644) }
 
 // ensure OSFS satisfies FS at compile time.
 var _ FS = OSFS{}
