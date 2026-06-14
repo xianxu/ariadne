@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -60,7 +61,71 @@ func buildRoot() *cobra.Command {
 	cmd.AddCommand(buildGolden())
 	cmd.AddCommand(buildSkills())
 	cmd.AddCommand(buildSkill())
+	cmd.AddCommand(buildDependOn())
 	return cmd
+}
+
+// buildDependOn assembles `weave depend-on <path>` — the directory-agnostic
+// substrate-establishment verb. It records `substrate <path>` VERBATIM (the path
+// exactly as given, relative or absolute) in the cwd repo's construct/deps,
+// idempotently. This is how a fresh derivative declares its dependency on a real
+// ariadne checkout anywhere on disk (the plan's "directory-agnostic substrate
+// paths" Revisions entry) — recording the real path, not a hardcoded ../ariadne.
+func buildDependOn() *cobra.Command {
+	return &cobra.Command{
+		Use:           "depend-on <path>",
+		Short:         "Record `substrate <path>` (verbatim) in this repo's construct/deps",
+		Args:          cobra.ExactArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			root, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("resolve cwd: %w", err)
+			}
+			return runDependOn(weavefs.OSFS{}, root, args[0], cmd.OutOrStdout())
+		},
+	}
+}
+
+// runDependOn appends `substrate <path>` to root/construct/deps, recording path
+// VERBATIM (no resolution/relativization — the establishment verb captures the
+// real path it was handed). Idempotent: it reuses layer.ParseDeps (the same
+// grammar the walk + Apply read deps with, ARCH-DRY) to skip when the row is
+// already present, and creates construct/deps (+ construct/) when absent.
+// Injecting fs + out keeps it testable. Read-only on everything but the one deps
+// file.
+func runDependOn(fs weavefs.FS, root, path string, out io.Writer) error {
+	depsPath := filepath.Join(root, "construct", "deps")
+
+	var existing string
+	if data, rerr := fs.ReadFile(depsPath); rerr == nil {
+		existing = string(data)
+		rows, perr := layer.ParseDeps(existing)
+		if perr != nil {
+			return fmt.Errorf("depend-on: parse %s: %w", depsPath, perr)
+		}
+		for _, r := range rows {
+			if r == path {
+				fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
+				return nil
+			}
+		}
+	}
+
+	if err := fs.MkdirAll(filepath.Dir(depsPath)); err != nil {
+		return fmt.Errorf("depend-on: mkdir %s: %w", filepath.Dir(depsPath), err)
+	}
+	next := existing
+	if next != "" && !strings.HasSuffix(next, "\n") {
+		next += "\n"
+	}
+	next += "substrate " + path + "\n"
+	if err := fs.WriteFile(depsPath, []byte(next)); err != nil {
+		return fmt.Errorf("depend-on: write %s: %w", depsPath, err)
+	}
+	fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
+	return nil
 }
 
 // buildSkills assembles `weave skills` — print the agent-agnostic skill menu

@@ -420,3 +420,77 @@ func TestGoldenSkipsAbsent(t *testing.T) {
 		t.Fatalf("absent repo not noted as SKIP:\n%s", out.String())
 	}
 }
+
+func TestDependOnCreatesDepsVerbatim(t *testing.T) {
+	// `weave depend-on <path>` records `substrate <path>` VERBATIM in the repo's
+	// construct/deps — the path exactly as given (not resolved/relativized), so a
+	// test setup captures the real path it was handed (the directory-agnostic
+	// establishment verb). Creates construct/deps when absent.
+	root := t.TempDir()
+	var out bytes.Buffer
+	path := "/some/where/ariadne-checkout"
+	if err := runDependOn(weavefs.OSFS{}, root, path, &out); err != nil {
+		t.Fatalf("runDependOn: %v", err)
+	}
+	deps, err := os.ReadFile(filepath.Join(root, "construct", "deps"))
+	if err != nil {
+		t.Fatalf("read construct/deps: %v", err)
+	}
+	want := "substrate " + path + "\n"
+	if string(deps) != want {
+		t.Fatalf("construct/deps = %q, want %q", deps, want)
+	}
+}
+
+func TestDependOnIdempotent(t *testing.T) {
+	// A second depend-on with the same path must NOT duplicate the row, and must
+	// preserve existing content.
+	root := t.TempDir()
+	depsPath := filepath.Join(root, "construct", "deps")
+	mkfile(t, depsPath, "data ../d git@x\nsubstrate ../existing\n")
+	var out bytes.Buffer
+	if err := runDependOn(weavefs.OSFS{}, root, "../existing", &out); err != nil {
+		t.Fatalf("runDependOn: %v", err)
+	}
+	deps, err := os.ReadFile(depsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "data ../d git@x\nsubstrate ../existing\n"
+	if string(deps) != want {
+		t.Fatalf("construct/deps = %q, want unchanged %q", deps, want)
+	}
+}
+
+func TestDependOnAppendsToExisting(t *testing.T) {
+	// depend-on a NEW path appends a second substrate row, preserving the first.
+	root := t.TempDir()
+	depsPath := filepath.Join(root, "construct", "deps")
+	mkfile(t, depsPath, "substrate ../ariadne\n")
+	var out bytes.Buffer
+	if err := runDependOn(weavefs.OSFS{}, root, "/abs/other", &out); err != nil {
+		t.Fatalf("runDependOn: %v", err)
+	}
+	deps, err := os.ReadFile(depsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "substrate ../ariadne\nsubstrate /abs/other\n"
+	if string(deps) != want {
+		t.Fatalf("construct/deps = %q, want %q", deps, want)
+	}
+}
+
+func TestDependOnWired(t *testing.T) {
+	// `depend-on` is registered as a subcommand on the root.
+	cmd := buildRoot()
+	found := false
+	for _, c := range cmd.Commands() {
+		if c.Name() == "depend-on" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("depend-on subcommand not wired")
+	}
+}
