@@ -170,16 +170,16 @@ func TestTouchMatchOnExistence(t *testing.T) {
 }
 
 func TestDeferredVerbsExpected(t *testing.T) {
-	// The deferred verbs (seed/merge/tool) produce NO weave action today, but
+	// The still-deferred verbs (seed/merge) produce NO weave action today, but
 	// setup.sh DID produce their output. They are pre-registered EXPECTED-missing:
 	// present in live, weave defers. The classifier ledgers them when the
-	// deferred-verb intent is supplied with its target present in live.
+	// deferred-verb intent is supplied with its target present in live. (tool is
+	// no longer deferred — it lowers to a ToolDep, classified below.)
 	in := Input{
 		RepoRoot: "/ws/nous",
 		Deferred: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
 			{Kind: intent.Merge, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
 		},
 		Observed: map[string]Observed{
 			"/ws/nous/bootstrap.sh":          {Exists: true},
@@ -187,13 +187,99 @@ func TestDeferredVerbsExpected(t *testing.T) {
 		},
 	}
 	divs := Classify(in)
-	if len(divs) != 3 {
-		t.Fatalf("got %d divergences, want 3 (one per deferred intent)", len(divs))
+	if len(divs) != 2 {
+		t.Fatalf("got %d divergences, want 2 (one per deferred intent)", len(divs))
 	}
 	for _, d := range divs {
 		if d.Class != Expected {
 			t.Fatalf("deferred verb %s @ %s: class = %v, want EXPECTED", d.Verb, d.Path, d.Class)
 		}
+	}
+}
+
+func TestToolDerivativeMatch(t *testing.T) {
+	// Derivative (Owner != RepoRoot): weave appends `substrate ../ariadne` to
+	// construct/deps. MATCH when the live construct/deps already carries that
+	// substrate row (setup.sh's cross-target branch already ran).
+	in := Input{
+		RepoRoot: "/ws/nous",
+		Actions:  []plan.Action{plan.ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"}},
+		Observed: map[string]Observed{
+			"/ws/nous/construct/deps": {Exists: true, Content: "substrate ../ariadne\n"},
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 || divs[0].Class != Match {
+		t.Fatalf("got %+v, want one MATCH", divs)
+	}
+	if divs[0].Verb != "tool" {
+		t.Fatalf("verb = %q, want tool", divs[0].Verb)
+	}
+}
+
+func TestToolDerivativeMissingRowUnexpected(t *testing.T) {
+	// construct/deps exists but lacks the substrate row weave would add → UNEXPECTED.
+	in := Input{
+		RepoRoot: "/ws/nous",
+		Actions:  []plan.Action{plan.ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"}},
+		Observed: map[string]Observed{
+			"/ws/nous/construct/deps": {Exists: true, Content: "data ../d git@x\n"},
+		},
+	}
+	if divs := Classify(in); divs[0].Class != Unexpected {
+		t.Fatalf("class = %v, want UNEXPECTED", divs[0].Class)
+	}
+}
+
+func TestToolDerivativeAbsentDepsUnexpected(t *testing.T) {
+	// No construct/deps at all → the substrate row is absent → UNEXPECTED.
+	in := Input{
+		RepoRoot: "/ws/nous",
+		Actions:  []plan.Action{plan.ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"}},
+		Observed: map[string]Observed{
+			"/ws/nous/construct/deps": {Exists: false},
+		},
+	}
+	if divs := Classify(in); divs[0].Class != Unexpected {
+		t.Fatalf("class = %v, want UNEXPECTED", divs[0].Class)
+	}
+}
+
+func TestToolOwnerMatch(t *testing.T) {
+	// Owner self-walk (Owner == RepoRoot): weave runs `go mod edit -tool
+	// <module>/cmd/sdlc`. MATCH when the live go.mod already has that tool
+	// directive (setup.sh's self-walk already ran).
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions:  []plan.Action{plan.ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"}},
+		Observed: map[string]Observed{
+			"/ws/ariadne/go.mod": {Exists: true, Content: "module github.com/xianxu/ariadne\n\ngo 1.26\n\ntool github.com/xianxu/ariadne/cmd/sdlc\n"},
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 || divs[0].Class != Match {
+		t.Fatalf("got %+v, want one MATCH", divs)
+	}
+}
+
+func TestToolOwnerMissingDirectiveUnexpected(t *testing.T) {
+	// go.mod exists but lacks the tool directive weave would add → UNEXPECTED.
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions:  []plan.Action{plan.ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"}},
+		Observed: map[string]Observed{
+			"/ws/ariadne/go.mod": {Exists: true, Content: "module github.com/xianxu/ariadne\n\ngo 1.26\n"},
+		},
+	}
+	if divs := Classify(in); divs[0].Class != Unexpected {
+		t.Fatalf("class = %v, want UNEXPECTED", divs[0].Class)
+	}
+}
+
+func TestToolNotDeferred(t *testing.T) {
+	// Tool is no longer in the deferred ledger (it lowers now).
+	if IsDeferred(intent.Tool) {
+		t.Fatalf("IsDeferred(Tool) = true, want false (tool lowers to ToolDep now)")
 	}
 }
 

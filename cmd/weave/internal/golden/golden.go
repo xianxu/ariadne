@@ -12,11 +12,14 @@
 //
 //   - MATCH — weave's action already realized in live: a Symlink whose live link
 //     points exactly where weave would link; a Mkdir whose dir exists; a
-//     WriteFile whose live content equals weave's. This is the parity proof.
+//     WriteFile whose live content equals weave's; a ToolDep whose substrate row
+//     (derivative) / go.mod tool directive (owner) is already present. This is
+//     the parity proof.
 //   - EXPECTED — the pre-registered/deferred ledger: the verbs setup.sh ran that
-//     weave does NOT yet lower (seed, merge→settings.json [M4], tool→go.mod
-//     [deferred]). Their live output is present; weave defers; the ledger SHRINKS
-//     as each lands. Not a failure.
+//     weave does NOT yet lower (seed, merge→settings.json [M4]). Their live
+//     output is present; weave defers; the ledger SHRINKS as each lands — `tool`
+//     left it in M3 part 2 (it now lowers + classifies, MATCH/UNEXPECTED). Not a
+//     failure.
 //   - UNEXPECTED — anything else: a file-op verb weave mis-emits, a symlink
 //     pointing somewhere different, a target setup.sh produced but weave's plan
 //     diverges on. The harness FAILS on these.
@@ -25,8 +28,10 @@ package golden
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
+	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
 )
 
@@ -174,20 +179,137 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 			return Divergence{Match, "writefile", act.Path, "content matches"}
 		}
 
+	case plan.ToolDep:
+		return classifyToolDep(root, act, obs)
+
 	default:
-		// MergeSettings / ToolDep are typed PLACEHOLDERS the planner does not emit
-		// today; reaching here means a lowering started emitting one without the
-		// harness learning to classify it. Flag loudly rather than silently pass.
+		// MergeSettings is a typed PLACEHOLDER the planner does not emit today;
+		// reaching here means a lowering started emitting one without the harness
+		// learning to classify it. Flag loudly rather than silently pass.
 		return Divergence{Unexpected, fmt.Sprintf("%T", a), "",
 			"weave emitted an action the golden harness does not classify yet"}
 	}
 }
 
-// classifyDeferred ledgers one deferred-verb Intent (seed/merge/tool) as an
-// EXPECTED divergence: setup.sh produced its output, weave does not lower it yet
-// (Seed=content copy [deferred], Merge=settings.json [M4], Tool=go.mod edit
-// [deferred]). The detail notes whether setup.sh's output is present in live, so
-// the ledger reads as a checklist that shrinks as lowerings land.
+// classifyToolDep classifies a ToolDep against the live tree, mirroring
+// applyToolDep's bimodal split (ARCH-DRY — same Owner==root test, same probe):
+//
+//   - Derivative (Owner != root): the probe is the live construct/deps. MATCH
+//     when it carries the `substrate <rel-to-owner>` row weave would append
+//     (detected via layer.ParseDeps, the same parser Apply uses for its
+//     present-check). UNEXPECTED when the file is absent or the row is missing.
+//   - Owner self-walk (Owner == root): the probe is the live go.mod. MATCH when
+//     it already declares the `tool <module>/<Path>` directive weave would add.
+//     UNEXPECTED when go.mod is absent or the directive is missing.
+//
+// The detail names the verb "tool" so the ledger reads consistently with the
+// pre-M3 EXPECTED line it replaces.
+func classifyToolDep(root string, act plan.ToolDep, obs map[string]Observed) Divergence {
+	if act.Owner != root {
+		// Derivative: check construct/deps for the substrate row.
+		rel, err := filepath.Rel(root, act.Owner)
+		if err != nil {
+			return Divergence{Unexpected, "tool", "construct/deps",
+				fmt.Sprintf("cannot compute relpath of %s from %s: %v", act.Owner, root, err)}
+		}
+		depsAbs := filepath.Join(root, "construct", "deps")
+		o := obs[depsAbs]
+		if !o.Exists {
+			return Divergence{Unexpected, "tool", "construct/deps",
+				fmt.Sprintf("weave would add `substrate %s`, but construct/deps absent in live", rel)}
+		}
+		if !depsHasSubstrate(o.Content, rel) {
+			return Divergence{Unexpected, "tool", "construct/deps",
+				fmt.Sprintf("weave would add `substrate %s`, but live construct/deps lacks it", rel)}
+		}
+		return Divergence{Match, "tool", "construct/deps",
+			fmt.Sprintf("substrate %s present (derivative depends on tool owner)", rel)}
+	}
+
+	// Owner self-walk: check go.mod for the tool directive.
+	gomodAbs := filepath.Join(root, "go.mod")
+	o := obs[gomodAbs]
+	module := moduleLine(o.Content)
+	want := module + "/" + act.Path
+	switch {
+	case !o.Exists:
+		return Divergence{Unexpected, "tool", "go.mod", "weave would add a tool directive, but go.mod absent in live"}
+	case module == "":
+		return Divergence{Unexpected, "tool", "go.mod", "weave would add a tool directive, but go.mod has no module line"}
+	case !gomodHasTool(o.Content, want):
+		return Divergence{Unexpected, "tool", "go.mod",
+			fmt.Sprintf("weave would add `tool %s`, but live go.mod lacks it", want)}
+	default:
+		return Divergence{Match, "tool", "go.mod",
+			fmt.Sprintf("tool %s present (owner self-walk)", want)}
+	}
+}
+
+// depsHasSubstrate reports whether the construct/deps content declares a
+// `substrate <rel>` row, reusing layer.ParseDeps so the harness reads the file
+// the same way Apply does (ARCH-DRY).
+func depsHasSubstrate(content, rel string) bool {
+	rows, err := layer.ParseDeps(content)
+	if err != nil {
+		return false
+	}
+	for _, r := range rows {
+		if r == rel {
+			return true
+		}
+	}
+	return false
+}
+
+// gomodHasTool reports whether go.mod content declares `tool <importPath>` —
+// either a single-line directive (`tool <path>`) or a row inside a `tool ( … )`
+// block. A plain substring check on the import path would false-positive on a
+// require line, so match the path as a standalone field on a tool-bearing line.
+func gomodHasTool(content, importPath string) bool {
+	inBlock := false
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case trimmed == "tool (":
+			inBlock = true
+			continue
+		case inBlock && trimmed == ")":
+			inBlock = false
+			continue
+		case inBlock:
+			if trimmed == importPath {
+				return true
+			}
+		case strings.HasPrefix(trimmed, "tool "):
+			fields := strings.Fields(trimmed)
+			if len(fields) == 2 && fields[1] == importPath {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// moduleLine extracts the module path from go.mod content (awk '/^module /
+// {print $2; exit}'). Pure. "" when absent. (Mirrors plan.moduleLine; kept here
+// so the golden classifier has no dependency on plan's unexported helpers.)
+func moduleLine(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "module ") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				return fields[1]
+			}
+		}
+	}
+	return ""
+}
+
+// classifyDeferred ledgers one deferred-verb Intent (seed/merge) as an EXPECTED
+// divergence: setup.sh produced its output, weave does not lower it yet
+// (Seed=content copy [deferred], Merge=settings.json [M4]). The detail notes
+// whether setup.sh's output is present in live, so the ledger reads as a
+// checklist that shrinks as lowerings land. (Tool left this ledger in M3 part 2.)
 func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Divergence {
 	verb, milestone := deferredLabel(in.Kind)
 	abs := filepath.Join(root, in.Target)
@@ -202,15 +324,14 @@ func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Di
 }
 
 // deferredLabel returns the verb name + the milestone/status that will retire
-// the deferral, for the ledger line.
+// the deferral, for the ledger line. (tool is no longer here — it lowers to a
+// ToolDep, classified by classifyAction.)
 func deferredLabel(k intent.Kind) (verb, milestone string) {
 	switch k {
 	case intent.Seed:
 		return "seed", "content-copy deferred"
 	case intent.Merge:
 		return "merge", "M4 settings backend"
-	case intent.Tool:
-		return "tool", "go.mod edit deferred"
 	default:
 		return "deferred", "unknown"
 	}
@@ -220,10 +341,11 @@ func deferredLabel(k intent.Kind) (verb, milestone string) {
 // filesystem Action yet — the verbs the gatherer collects for the EXPECTED
 // ledger. Skill is excluded: it feeds the M3 SkillIndex, not a file-op slot, so
 // it has no live file-op target to ledger. Prose IS lowered (composed AGENTS.md)
-// once a manifest declares it, so it is not deferred.
+// once a manifest declares it, so it is not deferred. Tool is NO LONGER deferred
+// (M3 part 2): it lowers to a ToolDep, classified directly by classifyAction.
 func IsDeferred(k intent.Kind) bool {
 	switch k {
-	case intent.Seed, intent.Merge, intent.Tool:
+	case intent.Seed, intent.Merge:
 		return true
 	default:
 		return false

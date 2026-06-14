@@ -65,6 +65,15 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 			observe(act.Path, false) // existence is enough for create-if-missing
 		case plan.WriteFile:
 			observe(act.Path, true) // content compared for a WriteFile
+		case plan.ToolDep:
+			// The probe is bimodal (matching classifyToolDep): a derivative
+			// checks construct/deps for the substrate row; the owner self-walk
+			// checks go.mod for the tool directive. Both need CONTENT.
+			if act.Owner == root {
+				observe("go.mod", true)
+			} else {
+				observe(filepath.Join("construct", "deps"), true)
+			}
 		}
 	}
 	for _, in := range deferred {

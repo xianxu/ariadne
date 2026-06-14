@@ -17,15 +17,16 @@ import (
 // plan.Apply's test).
 
 func TestDeferredIntents(t *testing.T) {
-	// DeferredIntents collects the seed/merge/tool intents across layers,
+	// DeferredIntents collects the seed/merge intents across layers,
 	// de-duplicated by target (a verb appearing in multiple layers ledgers once),
-	// and drops the non-deferred kinds (symlink/scaffold/prose/skill).
+	// and drops the non-deferred kinds (symlink/scaffold/prose/skill — and now
+	// tool, which lowers to a ToolDep and is classified directly).
 	layers := []layer.Layer{
 		{Name: "base", Intents: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
 			{Kind: intent.Symlink, Source: "Makefile", Target: "Makefile"},
 			{Kind: intent.Merge, Source: "s.json", Target: ".claude/settings.json"},
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
+			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"}, // now lowered, not deferred
 		}},
 		{Name: "self", Intents: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"}, // dup target
@@ -33,8 +34,8 @@ func TestDeferredIntents(t *testing.T) {
 		}},
 	}
 	got := DeferredIntents(layers)
-	if len(got) != 3 {
-		t.Fatalf("got %d deferred intents, want 3 (seed/merge/tool, dedup): %+v", len(got), got)
+	if len(got) != 2 {
+		t.Fatalf("got %d deferred intents, want 2 (seed/merge, dedup; tool no longer deferred): %+v", len(got), got)
 	}
 	seen := map[string]bool{}
 	for _, in := range got {
@@ -42,8 +43,11 @@ func TestDeferredIntents(t *testing.T) {
 		if !IsDeferred(in.Kind) {
 			t.Fatalf("non-deferred intent leaked: %+v", in)
 		}
+		if in.Kind == intent.Tool {
+			t.Fatalf("tool must NOT be ledgered as deferred anymore: %+v", in)
+		}
 	}
-	for _, want := range []string{"bootstrap.sh", ".claude/settings.json", "cmd/sdlc"} {
+	for _, want := range []string{"bootstrap.sh", ".claude/settings.json"} {
 		if !seen[want] {
 			t.Fatalf("missing deferred target %q", want)
 		}
