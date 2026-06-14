@@ -35,5 +35,13 @@ Pure entities are unit-tested mock-free.
   divergence classifier) + the `weave` / `weave --dry-run` / `weave golden` CLI.
   Prose/skill are exempt from the self-reference filter (a repo composes its own
   prose into its `AGENTS.md` — the `@AGENTS.local.md` fix). **[M2]**
+- `cmd/weave/internal/skill` + `walk.GatherSkills` + `weave skills`/`weave skill
+  <name>` — agent-agnostic skill server: `SkillIndex` (foundation-first,
+  namespaced, downstream-overrides), menu compiled into `AGENTS.md` + bodies on
+  demand, ports `sync-local-skills.sh` discovery (no `.claude/skills/` reliance).
+  Plus `tool` lowering (bimodal: derivative→`substrate` row, owner→`go mod edit
+  -tool` via the `weavefs.GoModEditor` exec seam; golden classifier wired) and
+  `weave depend-on <path>` (records `substrate <path>` verbatim — directory-
+  agnostic). **[M3]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
