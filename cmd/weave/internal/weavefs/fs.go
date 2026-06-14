@@ -45,15 +45,15 @@ type FS interface {
 // against a real filesystem (ARCH: faithful over mocked).
 type OSFS struct{}
 
-func (OSFS) ReadFile(path string) ([]byte, error)      { return os.ReadFile(path) }
-func (OSFS) Stat(path string) (os.FileInfo, error)      { return os.Stat(path) }
-func (OSFS) Lstat(path string) (os.FileInfo, error)     { return os.Lstat(path) }
-func (OSFS) Readlink(path string) (string, error)       { return os.Readlink(path) }
-func (OSFS) Remove(path string) error                   { return os.Remove(path) }
-func (OSFS) RemoveAll(path string) error                { return os.RemoveAll(path) }
-func (OSFS) MkdirAll(path string) error                 { return os.MkdirAll(path, 0o755) }
-func (OSFS) Symlink(oldname, name string) error         { return os.Symlink(oldname, name) }
-func (OSFS) WriteFile(path string, data []byte) error   { return os.WriteFile(path, data, 0o644) }
+func (OSFS) ReadFile(path string) ([]byte, error)     { return os.ReadFile(path) }
+func (OSFS) Stat(path string) (os.FileInfo, error)    { return os.Stat(path) }
+func (OSFS) Lstat(path string) (os.FileInfo, error)   { return os.Lstat(path) }
+func (OSFS) Readlink(path string) (string, error)     { return os.Readlink(path) }
+func (OSFS) Remove(path string) error                 { return os.Remove(path) }
+func (OSFS) RemoveAll(path string) error              { return os.RemoveAll(path) }
+func (OSFS) MkdirAll(path string) error               { return os.MkdirAll(path, 0o755) }
+func (OSFS) Symlink(oldname, name string) error       { return os.Symlink(oldname, name) }
+func (OSFS) WriteFile(path string, data []byte) error { return os.WriteFile(path, data, 0o644) }
 
 // ensure OSFS satisfies FS at compile time.
 var _ FS = OSFS{}

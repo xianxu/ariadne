@@ -55,6 +55,11 @@ func ParseManifest(content string) ([]Intent, error) {
 		source := fields[1]
 		target := source // `target="${target:-$source}"`
 		if len(fields) >= 3 {
+			// Take only fields[2] as the target, silently ignoring a 4th+
+			// column. This deliberately diverges from `read -r action source
+			// target`, which folds all trailing words into `target` — benign
+			// because no manifest row has >3 columns (a target is a single
+			// path), so the two semantics coincide on every real input.
 			target = fields[2]
 		}
 		intents = append(intents, Intent{Kind: kind, Source: source, Target: target})

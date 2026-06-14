@@ -102,6 +102,97 @@ func TestWalkFoundationFirstWithProse(t *testing.T) {
 	}
 }
 
+func TestWalkTransitiveChainDepth3(t *testing.T) {
+	// Depth-3 chain derived → mid → base: discoverEdges' BFS must enqueue the
+	// transitive ancestor (mid → base), the chain the motivating
+	// brain→nous→ariadne case realizes. Walk returns them foundation-first.
+	parent := t.TempDir()
+	base := filepath.Join(parent, "base")
+	mid := filepath.Join(parent, "mid")
+	derived := filepath.Join(parent, "derived")
+
+	// base: a real layer (ships construct/base.manifest), no deps.
+	writeFile(t, filepath.Join(base, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(base, "AGENTS.local.md"), "BASE")
+	// mid: depends on base, also a real layer.
+	writeFile(t, filepath.Join(mid, "construct", "deps"), "substrate ../base\n")
+	writeFile(t, filepath.Join(mid, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(mid, "AGENTS.local.md"), "MID")
+	// derived: depends on mid (which transitively depends on base).
+	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../mid\n")
+	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(derived, "AGENTS.local.md"), "DERIVED")
+
+	layers, err := Walk(weavefs.OSFS{}, derived)
+	if err != nil {
+		t.Fatalf("Walk: %v", err)
+	}
+
+	wantPaths := []string{canon(t, base), canon(t, mid), canon(t, derived)}
+	wantNames := []string{"base", "mid", "derived"}
+	if len(layers) != len(wantPaths) {
+		t.Fatalf("Walk returned %d layers, want 3 (base, mid, derived): %+v", len(layers), layers)
+	}
+	for i := range wantPaths {
+		if layers[i].Path != wantPaths[i] {
+			t.Fatalf("layers[%d].Path = %q, want %q", i, layers[i].Path, wantPaths[i])
+		}
+		if layers[i].Name != wantNames[i] {
+			t.Fatalf("layers[%d].Name = %q, want %q", i, layers[i].Name, wantNames[i])
+		}
+	}
+}
+
+func TestWalkDiamondAncestorAppliedOnce(t *testing.T) {
+	// Diamond top → {left, right}; left → base; right → base. base is reached
+	// via two paths but the BFS visited-set + Resolve dedup must apply it
+	// exactly once, before both left and right, with top (the root) last.
+	parent := t.TempDir()
+	base := filepath.Join(parent, "base")
+	left := filepath.Join(parent, "left")
+	right := filepath.Join(parent, "right")
+	top := filepath.Join(parent, "top")
+
+	writeFile(t, filepath.Join(base, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(base, "AGENTS.local.md"), "BASE")
+	writeFile(t, filepath.Join(left, "construct", "deps"), "substrate ../base\n")
+	writeFile(t, filepath.Join(left, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(left, "AGENTS.local.md"), "LEFT")
+	writeFile(t, filepath.Join(right, "construct", "deps"), "substrate ../base\n")
+	writeFile(t, filepath.Join(right, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(right, "AGENTS.local.md"), "RIGHT")
+	writeFile(t, filepath.Join(top, "construct", "deps"), "substrate ../left\nsubstrate ../right\n")
+	writeFile(t, filepath.Join(top, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(top, "AGENTS.local.md"), "TOP")
+
+	layers, err := Walk(weavefs.OSFS{}, top)
+	if err != nil {
+		t.Fatalf("Walk: %v", err)
+	}
+
+	// Four unique layers (base applied once, not twice).
+	if len(layers) != 4 {
+		t.Fatalf("Walk returned %d layers, want 4 unique (base once): %+v", len(layers), layers)
+	}
+	pos := map[string]int{}
+	for i, l := range layers {
+		if _, dup := pos[l.Name]; dup {
+			t.Fatalf("layer %q emitted twice: %+v", l.Name, layers)
+		}
+		pos[l.Name] = i
+		if l.Path != canon(t, filepath.Join(parent, l.Name)) {
+			t.Fatalf("layer %q Path = %q, want %q", l.Name, l.Path, canon(t, filepath.Join(parent, l.Name)))
+		}
+	}
+	// base before both left and right; top (root) last.
+	if pos["base"] > pos["left"] || pos["base"] > pos["right"] {
+		t.Fatalf("base not foundation-first (before left & right): %v", pos)
+	}
+	if pos["top"] != len(layers)-1 {
+		t.Fatalf("top not last (root emitted last): %v", pos)
+	}
+}
+
 func TestWalkSkipsSelfReference(t *testing.T) {
 	// A layer entry whose layerDir/Source == repoRoot/Target is a
 	// self-reference (would symlink a file onto itself); the walk drops it
