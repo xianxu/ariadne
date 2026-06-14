@@ -17,16 +17,16 @@ import (
 // plan.Apply's test).
 
 func TestDeferredIntents(t *testing.T) {
-	// DeferredIntents collects the seed/merge intents across layers,
-	// de-duplicated by target (a verb appearing in multiple layers ledgers once),
-	// and drops the non-deferred kinds (symlink/scaffold/prose/skill — and now
-	// tool, which lowers to a ToolDep and is classified directly).
+	// DeferredIntents collects the seed intents across layers, de-duplicated by
+	// target (a verb appearing in multiple layers ledgers once), and drops the
+	// non-deferred kinds (symlink/scaffold/prose/skill — and now tool AND merge,
+	// which lower to a ToolDep / MergeSettings and are classified directly).
 	layers := []layer.Layer{
 		{Name: "base", Intents: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
 			{Kind: intent.Symlink, Source: "Makefile", Target: "Makefile"},
-			{Kind: intent.Merge, Source: "s.json", Target: ".claude/settings.json"},
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"}, // now lowered, not deferred
+			{Kind: intent.Merge, Source: "s.json", Target: ".claude/settings.json"}, // now lowered, not deferred
+			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},             // now lowered, not deferred
 		}},
 		{Name: "self", Intents: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"}, // dup target
@@ -34,22 +34,54 @@ func TestDeferredIntents(t *testing.T) {
 		}},
 	}
 	got := DeferredIntents(layers)
-	if len(got) != 2 {
-		t.Fatalf("got %d deferred intents, want 2 (seed/merge, dedup; tool no longer deferred): %+v", len(got), got)
+	if len(got) != 1 {
+		t.Fatalf("got %d deferred intents, want 1 (seed, dedup; tool+merge no longer deferred): %+v", len(got), got)
 	}
-	seen := map[string]bool{}
 	for _, in := range got {
-		seen[in.Target] = true
 		if !IsDeferred(in.Kind) {
 			t.Fatalf("non-deferred intent leaked: %+v", in)
 		}
-		if in.Kind == intent.Tool {
-			t.Fatalf("tool must NOT be ledgered as deferred anymore: %+v", in)
+		if in.Kind == intent.Tool || in.Kind == intent.Merge {
+			t.Fatalf("tool/merge must NOT be ledgered as deferred anymore: %+v", in)
 		}
 	}
-	for _, want := range []string{"bootstrap.sh", ".claude/settings.json"} {
-		if !seen[want] {
-			t.Fatalf("missing deferred target %q", want)
+	if got[0].Target != "bootstrap.sh" {
+		t.Fatalf("deferred target = %q, want bootstrap.sh", got[0].Target)
+	}
+}
+
+func TestGatherObservesMergeSettingsTriple(t *testing.T) {
+	// A MergeSettings action makes the gatherer observe THREE files WITH content:
+	// the base (Source), the live target (Target), and the sibling
+	// settings.local.json — exactly the probe classifyMergeSettings reads.
+	root := t.TempDir()
+	claude := filepath.Join(root, ".claude")
+	if err := os.MkdirAll(claude, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claude, "settings.ariadne.json"), []byte(`{"a":1}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claude, "settings.json"), []byte(`{"a":1}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claude, "settings.local.json"), []byte(`{"b":2}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	actions := []plan.Action{
+		plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+	}
+	in := Gather(weavefs.OSFS{}, root, actions, nil)
+
+	for rel, wantContent := range map[string]string{
+		".claude/settings.ariadne.json": `{"a":1}`,
+		".claude/settings.json":         `{"a":1}`,
+		".claude/settings.local.json":   `{"b":2}`,
+	} {
+		o := in.Observed[filepath.Join(root, rel)]
+		if !o.Exists || o.Content != wantContent {
+			t.Fatalf("%s observed = %+v, want content %q", rel, o, wantContent)
 		}
 	}
 }

@@ -90,7 +90,7 @@ func TestPlanMergeLowering(t *testing.T) {
 	// cascade (ported from setup.sh's `merge` case + merge-settings.sh). Source is
 	// the layer's base settings (settings.ariadne.json), Target the composed
 	// settings.json. The pure planner records the path facts; Apply reads base +
-	// (optional) local off disk, runs mergeSettings, writes Target. The manifest
+	// (optional) local off disk, runs settingsx.Merge, writes Target. The manifest
 	// row is `merge .claude/settings.ariadne.json .claude/settings.json`.
 	layers := []layer.Layer{
 		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{

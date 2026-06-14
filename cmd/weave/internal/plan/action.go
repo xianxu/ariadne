@@ -13,8 +13,8 @@ package plan
 // Touch), ToolDep (M3: intent.Tool lowers to a ToolDep, applied via the injected
 // GoModEditor seam), and MergeSettings (M4: intent.Merge lowers to a
 // MergeSettings, applied by reading base + optional local and running the pure
-// mergeSettings — merge-settings.sh's port). (Skill has no Action — it feeds the
-// M3 SkillIndex, not a file-op slot.)
+// settingsx.Merge — merge-settings.sh's port). (Skill has no Action — it feeds
+// the M3 SkillIndex, not a file-op slot.)
 type Action interface{ isAction() }
 
 // Symlink creates a symlink at Dst pointing to Src. Lowered from an
@@ -56,7 +56,7 @@ type Touch struct {
 // (the base settings.ariadne.json deep-merged UNDER the sibling
 // settings.local.json). The planner emits one per `merge` row, recording only
 // the path facts (pure); Apply reads Source + the optional sibling
-// settings.local.json off disk, runs the pure mergeSettings (the
+// settings.local.json off disk, runs the pure settingsx.Merge (the
 // merge-settings.sh port — deep dict merge, $merge_keys array union, $remove
 // filter, meta-key strip), and writes the result to Target.
 type MergeSettings struct {

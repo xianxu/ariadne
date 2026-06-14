@@ -170,30 +170,148 @@ func TestTouchMatchOnExistence(t *testing.T) {
 }
 
 func TestDeferredVerbsExpected(t *testing.T) {
-	// The still-deferred verbs (seed/merge) produce NO weave action today, but
-	// setup.sh DID produce their output. They are pre-registered EXPECTED-missing:
-	// present in live, weave defers. The classifier ledgers them when the
-	// deferred-verb intent is supplied with its target present in live. (tool is
-	// no longer deferred — it lowers to a ToolDep, classified below.)
+	// The still-deferred verb (seed) produces NO weave action today, but setup.sh
+	// DID produce its output. It is pre-registered EXPECTED-missing: present in
+	// live, weave defers. The classifier ledgers it when the deferred-verb intent
+	// is supplied with its target present in live. (tool AND merge are no longer
+	// deferred — tool lowers to a ToolDep, merge to a MergeSettings, both
+	// classified by classifyAction below.)
 	in := Input{
 		RepoRoot: "/ws/nous",
 		Deferred: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
-			{Kind: intent.Merge, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
 		},
 		Observed: map[string]Observed{
-			"/ws/nous/bootstrap.sh":          {Exists: true},
-			"/ws/nous/.claude/settings.json": {Exists: true},
+			"/ws/nous/bootstrap.sh": {Exists: true},
 		},
 	}
 	divs := Classify(in)
-	if len(divs) != 2 {
-		t.Fatalf("got %d divergences, want 2 (one per deferred intent)", len(divs))
+	if len(divs) != 1 {
+		t.Fatalf("got %d divergences, want 1 (one per deferred intent)", len(divs))
 	}
-	for _, d := range divs {
-		if d.Class != Expected {
-			t.Fatalf("deferred verb %s @ %s: class = %v, want EXPECTED", d.Verb, d.Path, d.Class)
-		}
+	if divs[0].Class != Expected {
+		t.Fatalf("deferred verb %s @ %s: class = %v, want EXPECTED", divs[0].Verb, divs[0].Path, divs[0].Class)
+	}
+}
+
+func TestMergeNotDeferred(t *testing.T) {
+	// Merge is no longer in the deferred ledger (it lowers to a MergeSettings now).
+	if IsDeferred(intent.Merge) {
+		t.Fatalf("IsDeferred(Merge) = true, want false (merge lowers to MergeSettings now)")
+	}
+}
+
+func TestMergeSettingsSemanticMatch(t *testing.T) {
+	// A MergeSettings MATCHES iff the live settings.json (Target) SEMANTICALLY
+	// equals weave's merge output (parse both JSON + deep-equal — NOT a byte
+	// compare, since merge-settings.sh's jq/python key ordering need not match
+	// weave's). Here the local is absent ⇒ weave's output is base-with-meta-
+	// stripped; the live target equals that semantically (different key order),
+	// so MATCH.
+	base := `{"$comment":"x","$merge_keys":["permissions.allow"],"permissions":{"allow":["A","B"]}}`
+	// Same content, but keys serialized in a different order than weave emits.
+	liveTarget := `{
+		"permissions": {"allow": ["A", "B"]}
+	}`
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions: []plan.Action{
+			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		},
+		Observed: map[string]Observed{
+			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
+			"/ws/ariadne/.claude/settings.local.json":   {Exists: false},
+			"/ws/ariadne/.claude/settings.json":         {Exists: true, Content: liveTarget},
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 {
+		t.Fatalf("got %d divergences, want 1", len(divs))
+	}
+	if divs[0].Class != Match {
+		t.Fatalf("class = %v, want MATCH (detail=%s)", divs[0].Class, divs[0].Detail)
+	}
+	if divs[0].Verb != "merge" {
+		t.Fatalf("verb = %q, want merge", divs[0].Verb)
+	}
+}
+
+func TestMergeSettingsWithLocalMatch(t *testing.T) {
+	// Local present: weave's output is the deep-merge; MATCH when live equals it.
+	base := `{"$merge_keys":["permissions.allow"],"permissions":{"allow":["A","B"]}}`
+	local := `{"$remove":{"permissions.allow":["A"]},"permissions":{"allow":["C"]}}`
+	liveTarget := `{"permissions":{"allow":["B","C"]}}`
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions: []plan.Action{
+			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		},
+		Observed: map[string]Observed{
+			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
+			"/ws/ariadne/.claude/settings.local.json":   {Exists: true, Content: local},
+			"/ws/ariadne/.claude/settings.json":         {Exists: true, Content: liveTarget},
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 || divs[0].Class != Match {
+		t.Fatalf("got %+v, want one MATCH", divs)
+	}
+}
+
+func TestMergeSettingsContentDriftUnexpected(t *testing.T) {
+	// Live settings.json is NOT semantically equal to weave's merge output → UNEXPECTED.
+	base := `{"$merge_keys":["permissions.allow"],"permissions":{"allow":["A","B"]}}`
+	liveTarget := `{"permissions":{"allow":["A","WRONG"]}}`
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions: []plan.Action{
+			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		},
+		Observed: map[string]Observed{
+			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
+			"/ws/ariadne/.claude/settings.local.json":   {Exists: false},
+			"/ws/ariadne/.claude/settings.json":         {Exists: true, Content: liveTarget},
+		},
+	}
+	if divs := Classify(in); divs[0].Class != Unexpected {
+		t.Fatalf("class = %v, want UNEXPECTED", divs[0].Class)
+	}
+}
+
+func TestMergeSettingsTargetAbsentUnexpected(t *testing.T) {
+	// weave would write settings.json but live has none → UNEXPECTED.
+	base := `{"permissions":{"allow":["A"]}}`
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions: []plan.Action{
+			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		},
+		Observed: map[string]Observed{
+			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
+			"/ws/ariadne/.claude/settings.local.json":   {Exists: false},
+			"/ws/ariadne/.claude/settings.json":         {Exists: false},
+		},
+	}
+	if divs := Classify(in); divs[0].Class != Unexpected {
+		t.Fatalf("class = %v, want UNEXPECTED", divs[0].Class)
+	}
+}
+
+func TestMergeSettingsBaseAbsentUnexpected(t *testing.T) {
+	// The base settings.ariadne.json is absent (a port/setup error) → UNEXPECTED,
+	// surfaced rather than silently passed.
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions: []plan.Action{
+			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		},
+		Observed: map[string]Observed{
+			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: false},
+			"/ws/ariadne/.claude/settings.json":         {Exists: true, Content: `{}`},
+		},
+	}
+	if divs := Classify(in); divs[0].Class != Unexpected {
+		t.Fatalf("class = %v, want UNEXPECTED", divs[0].Class)
 	}
 }
 

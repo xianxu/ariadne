@@ -1,18 +1,27 @@
-package plan
+// Package settingsx is the ONE home for weave's pure settings-merge reasoning
+// (ARCH-DRY, ARCH-PURE), the port of construct/scripts/merge-settings.sh. Two
+// consumers need it: plan.Apply (the IO seam reads base + local, calls Merge,
+// writes the target) and the golden classifier (it recomputes Merge from the
+// observed base + local and asks SemanticEqual whether the live settings.json
+// matches). Like gomodx, it sits below plan and golden with no internal imports,
+// so both import it without a cycle. No IO: it transforms in-memory bytes only.
+//
+// merge-settings.sh is the source of truth; this reproduces its embedded
+// python's deep_merge / get_nested / set_nested / strip_meta semantics
+// line-for-line. SemanticEqual compares PARSED JSON (not bytes) because the bash
+// (jq/python) and weave need not agree on key ordering.
+package settingsx
 
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
-// settings.go is the pure port of construct/scripts/merge-settings.sh (ARCH-DRY:
-// the bash is the source of truth; this reproduces its semantics, not its bytes).
-// mergeSettings deep-merges a base (settings.ariadne.json) and an optional local
-// (settings.local.json) into the composed settings.json content. No IO
-// (ARCH-PURE): Apply reads base + local off disk and writes the result; this
-// function only transforms in-memory bytes.
-//
-// Semantics, ported line-for-line from the bash's embedded python:
+// Merge deep-merges a base (settings.ariadne.json) and an optional local
+// (settings.local.json) into the composed settings.json content. local == nil
+// is the local-absent case (base with meta keys stripped). Semantics, ported
+// from the bash:
 //
 //   - Dicts deep-merge: at a matching key, recurse; local-only keys are added;
 //     base-only keys are kept. ($-prefixed meta keys are skipped on both sides.)
@@ -24,15 +33,13 @@ import (
 //   - Arrays at any other path are REPLACED by local wholesale.
 //   - Scalars: local replaces base.
 //   - The $comment / $merge_keys / $remove meta keys are stripped from output.
-//   - Local absent → base with meta keys stripped.
 //
 // Output is indent-2 JSON with a trailing newline, matching the bash's
-// json.dump(indent=2) + print(). The golden classifier compares on PARSED JSON
-// (semantic equality), so byte-level key ordering need not match the bash.
-func mergeSettings(base, local []byte) ([]byte, error) {
+// json.dump(indent=2) + print().
+func Merge(base, local []byte) ([]byte, error) {
 	var baseObj map[string]any
 	if err := json.Unmarshal(base, &baseObj); err != nil {
-		return nil, fmt.Errorf("mergeSettings: parse base: %w", err)
+		return nil, fmt.Errorf("settingsx.Merge: parse base: %w", err)
 	}
 
 	// merge_keys = set(base.get('$merge_keys', [])) — the dotted paths whose
@@ -53,7 +60,7 @@ func mergeSettings(base, local []byte) ([]byte, error) {
 	} else {
 		var localObj map[string]any
 		if err := json.Unmarshal(local, &localObj); err != nil {
-			return nil, fmt.Errorf("mergeSettings: parse local: %w", err)
+			return nil, fmt.Errorf("settingsx.Merge: parse local: %w", err)
 		}
 
 		// Apply $remove against base BEFORE merging (the bash filters a deep copy
@@ -69,10 +76,26 @@ func mergeSettings(base, local []byte) ([]byte, error) {
 
 	out, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("mergeSettings: marshal result: %w", err)
+		return nil, fmt.Errorf("settingsx.Merge: marshal result: %w", err)
 	}
 	out = append(out, '\n') // match the bash's trailing print().
 	return out, nil
+}
+
+// SemanticEqual reports whether two JSON byte slices decode to deeply-equal
+// values, ignoring key ordering and formatting. Used by the golden classifier to
+// compare weave's Merge output against the live settings.json (which the bash
+// produced with possibly-different key ordering — a semantically-equal file is
+// not a divergence). Returns an error if either side fails to parse.
+func SemanticEqual(a, b []byte) (bool, error) {
+	var av, bv any
+	if err := json.Unmarshal(a, &av); err != nil {
+		return false, fmt.Errorf("settingsx.SemanticEqual: parse a: %w", err)
+	}
+	if err := json.Unmarshal(b, &bv); err != nil {
+		return false, fmt.Errorf("settingsx.SemanticEqual: parse b: %w", err)
+	}
+	return reflect.DeepEqual(av, bv), nil
 }
 
 // stripMeta returns obj with every $-prefixed key removed recursively from
@@ -228,51 +251,16 @@ func hasKey(m map[string]any, k string) bool {
 	return ok
 }
 
-// containsValue reports whether list contains an element value-equal to v. JSON
-// values decode to comparable scalars (string/float64/bool/nil) or composite
-// types; we compare via JSON-canonical equality so list/dict items also work
-// (the bash uses python's `in`, which is deep value equality). Mirrors the
-// `item not in combined` / `x not in drop` checks.
+// containsValue reports whether list contains an element value-equal to v.
+// Mirrors python's `in` (deep value equality), so list/dict items also compare
+// correctly — matching the bash's `item not in combined` / `x not in drop`.
 func containsValue(list []any, v any) bool {
 	for _, x := range list {
-		if valueEqual(x, v) {
+		if reflect.DeepEqual(x, v) {
 			return true
 		}
 	}
 	return false
-}
-
-// valueEqual is deep value equality for decoded-JSON values, matching python's
-// `==`. Scalars compare directly; lists/dicts compare structurally. Comparing
-// the marshaled forms would be order-sensitive for dicts, so we recurse.
-func valueEqual(a, b any) bool {
-	switch av := a.(type) {
-	case map[string]any:
-		bv, ok := b.(map[string]any)
-		if !ok || len(av) != len(bv) {
-			return false
-		}
-		for k, v := range av {
-			w, ok := bv[k]
-			if !ok || !valueEqual(v, w) {
-				return false
-			}
-		}
-		return true
-	case []any:
-		bv, ok := b.([]any)
-		if !ok || len(av) != len(bv) {
-			return false
-		}
-		for i := range av {
-			if !valueEqual(av[i], bv[i]) {
-				return false
-			}
-		}
-		return true
-	default:
-		return a == b
-	}
 }
 
 // deepCopy returns a structural copy of a decoded-JSON value, so applyRemovals

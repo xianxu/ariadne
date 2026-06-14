@@ -13,12 +13,13 @@
 //   - MATCH — weave's action already realized in live: a Symlink whose live link
 //     points exactly where weave would link; a Mkdir whose dir exists; a
 //     WriteFile whose live content equals weave's; a ToolDep whose substrate row
-//     (derivative) / go.mod tool directive (owner) is already present. This is
-//     the parity proof.
+//     (derivative) / go.mod tool directive (owner) is already present; a
+//     MergeSettings whose recomputed merge SEMANTICALLY equals the live
+//     settings.json. This is the parity proof.
 //   - EXPECTED — the pre-registered/deferred ledger: the verbs setup.sh ran that
-//     weave does NOT yet lower (seed, merge→settings.json [M4]). Their live
-//     output is present; weave defers; the ledger SHRINKS as each lands — `tool`
-//     left it in M3 part 2 (it now lowers + classifies, MATCH/UNEXPECTED). Not a
+//     weave does NOT yet lower (now just seed). Their live output is present;
+//     weave defers; the ledger SHRINKS as each lands — `tool` left it in M3 part
+//     2 and `merge` in M4 (both now lower + classify MATCH/UNEXPECTED). Not a
 //     failure.
 //   - UNEXPECTED — anything else: a file-op verb weave mis-emits, a symlink
 //     pointing somewhere different, a target setup.sh produced but weave's plan
@@ -33,6 +34,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
+	"github.com/xianxu/ariadne/cmd/weave/internal/settingsx"
 )
 
 // Class is a divergence classification.
@@ -99,8 +101,8 @@ type Divergence struct {
 // Classify is the pure core: it turns an Input into the per-repo divergence
 // ledger. Each weave Action becomes one Divergence (MATCH or UNEXPECTED against
 // the observed live state); each deferred Intent becomes one EXPECTED Divergence
-// (the pre-registered ledger of verbs weave doesn't lower yet). Pure — reads
-// only its Input.
+// (the pre-registered ledger of verbs weave doesn't lower yet — now just seed).
+// Pure — reads only its Input.
 func Classify(in Input) []Divergence {
 	var divs []Divergence
 
@@ -179,13 +181,15 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 			return Divergence{Match, "writefile", act.Path, "content matches"}
 		}
 
+	case plan.MergeSettings:
+		return classifyMergeSettings(root, act, obs)
+
 	case plan.ToolDep:
 		return classifyToolDep(root, act, obs)
 
 	default:
-		// MergeSettings is a typed PLACEHOLDER the planner does not emit today;
-		// reaching here means a lowering started emitting one without the harness
-		// learning to classify it. Flag loudly rather than silently pass.
+		// Reaching here means a lowering started emitting an Action the harness
+		// does not classify yet. Flag loudly rather than silently pass.
 		return Divergence{Unexpected, fmt.Sprintf("%T", a), "",
 			"weave emitted an action the golden harness does not classify yet"}
 	}
@@ -261,11 +265,67 @@ func depsHasSubstrate(content, rel string) bool {
 	return false
 }
 
-// classifyDeferred ledgers one deferred-verb Intent (seed/merge) as an EXPECTED
+// classifyMergeSettings classifies a MergeSettings against the live tree. The
+// probe is THREE observed files: the base (act.Source), the optional sibling
+// local (<dir(Target)>/settings.local.json), and the live target (act.Target —
+// which IS merge-settings.sh's output). The classifier RECOMPUTES weave's merge
+// from the observed base + local (settingsx.Merge — the same pure port Apply
+// uses, ARCH-DRY) and SEMANTICALLY compares it to the live target:
+//
+//   - MATCH iff the live settings.json parses + deep-equals weave's merge output.
+//     The compare is on PARSED JSON, NOT bytes — merge-settings.sh (jq/python)
+//     key ordering need not match weave's, and a semantically-equal file is not a
+//     divergence.
+//   - UNEXPECTED when the base is absent (a setup/port error), the live target is
+//     absent, weave's merge errors, or the two are not semantically equal.
+//
+// The local file's presence is read from Observed: an absent/empty local takes
+// settingsx.Merge's local-absent path (base with meta keys stripped).
+func classifyMergeSettings(root string, act plan.MergeSettings, obs map[string]Observed) Divergence {
+	baseAbs := filepath.Join(root, act.Source)
+	targetAbs := filepath.Join(root, act.Target)
+	localAbs := filepath.Join(filepath.Dir(targetAbs), "settings.local.json")
+
+	baseO := obs[baseAbs]
+	if !baseO.Exists {
+		return Divergence{Unexpected, "merge", act.Target,
+			fmt.Sprintf("weave would merge %s, but base %s absent in live", act.Target, act.Source)}
+	}
+	targetO := obs[targetAbs]
+	if !targetO.Exists {
+		return Divergence{Unexpected, "merge", act.Target,
+			"weave would write the merged settings, but the target is absent in live"}
+	}
+
+	var local []byte
+	if localO := obs[localAbs]; localO.Exists {
+		local = []byte(localO.Content)
+	}
+	merged, err := settingsx.Merge([]byte(baseO.Content), local)
+	if err != nil {
+		return Divergence{Unexpected, "merge", act.Target,
+			fmt.Sprintf("weave's merge failed: %v", err)}
+	}
+
+	eq, err := settingsx.SemanticEqual([]byte(targetO.Content), merged)
+	if err != nil {
+		return Divergence{Unexpected, "merge", act.Target,
+			fmt.Sprintf("cannot compare live target to weave's merge (parse error): %v", err)}
+	}
+	if !eq {
+		return Divergence{Unexpected, "merge", act.Target,
+			"live settings.json is NOT semantically equal to weave's merge output (a port gap)"}
+	}
+	return Divergence{Match, "merge", act.Target,
+		"merged settings.json semantically equals weave's merge output"}
+}
+
+// classifyDeferred ledgers one deferred-verb Intent (seed) as an EXPECTED
 // divergence: setup.sh produced its output, weave does not lower it yet
-// (Seed=content copy [deferred], Merge=settings.json [M4]). The detail notes
-// whether setup.sh's output is present in live, so the ledger reads as a
-// checklist that shrinks as lowerings land. (Tool left this ledger in M3 part 2.)
+// (Seed=content copy [deferred]). The detail notes whether setup.sh's output is
+// present in live, so the ledger reads as a checklist that shrinks as lowerings
+// land. (Tool left this ledger in M3 part 2; Merge left it in M4 — it now lowers
+// to a MergeSettings, classified by classifyAction.)
 func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Divergence {
 	verb, milestone := deferredLabel(in.Kind)
 	abs := filepath.Join(root, in.Target)
@@ -280,14 +340,13 @@ func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Di
 }
 
 // deferredLabel returns the verb name + the milestone/status that will retire
-// the deferral, for the ledger line. (tool is no longer here — it lowers to a
-// ToolDep, classified by classifyAction.)
+// the deferral, for the ledger line. (tool + merge are no longer here — tool
+// lowers to a ToolDep, merge to a MergeSettings, both classified by
+// classifyAction.)
 func deferredLabel(k intent.Kind) (verb, milestone string) {
 	switch k {
 	case intent.Seed:
 		return "seed", "content-copy deferred"
-	case intent.Merge:
-		return "merge", "M4 settings backend"
 	default:
 		return "deferred", "unknown"
 	}
@@ -298,10 +357,12 @@ func deferredLabel(k intent.Kind) (verb, milestone string) {
 // ledger. Skill is excluded: it feeds the M3 SkillIndex, not a file-op slot, so
 // it has no live file-op target to ledger. Prose IS lowered (composed AGENTS.md)
 // once a manifest declares it, so it is not deferred. Tool is NO LONGER deferred
-// (M3 part 2): it lowers to a ToolDep, classified directly by classifyAction.
+// (M3 part 2): it lowers to a ToolDep. Merge is NO LONGER deferred (M4): it
+// lowers to a MergeSettings, semantically classified by classifyAction. Only
+// seed remains.
 func IsDeferred(k intent.Kind) bool {
 	switch k {
-	case intent.Seed, intent.Merge:
+	case intent.Seed:
 		return true
 	default:
 		return false

@@ -17,8 +17,9 @@ import (
 // (golden.go) does the reasoning; this seam only looks.
 
 // DeferredIntents collects, across all walked layers, the verbs weave does NOT
-// lower to a filesystem Action yet (seed/merge/tool — see IsDeferred), so the
-// classifier can ledger each as EXPECTED rather than silently dropping it.
+// lower to a filesystem Action yet (now just seed — see IsDeferred; tool lowers
+// to a ToolDep, merge to a MergeSettings), so the classifier can ledger each as
+// EXPECTED rather than silently dropping it.
 // De-duplicated by target: a verb declared in multiple layers (or repeated on a
 // self-walk) ledgers once. Order-stable (first occurrence wins) so the ledger
 // is deterministic.
@@ -74,6 +75,17 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 			} else {
 				observe(filepath.Join("construct", "deps"), true)
 			}
+		case plan.MergeSettings:
+			// The probe is THREE files (matching classifyMergeSettings): the base
+			// (Source), the optional sibling settings.local.json, and the live
+			// target (Target = setup.sh's output). All need CONTENT — the
+			// classifier recomputes the merge from base+local and semantically
+			// compares it to the target. The local path mirrors Apply/the bash:
+			// <dir(Target)>/settings.local.json.
+			observe(act.Source, true)
+			observe(act.Target, true)
+			localRel := filepath.Join(filepath.Dir(act.Target), "settings.local.json")
+			observe(localRel, true)
 		}
 	}
 	for _, in := range deferred {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/gomodx"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
+	"github.com/xianxu/ariadne/cmd/weave/internal/settingsx"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
@@ -151,13 +152,13 @@ func ownerToolDirective(fs weavefs.FS, repoRoot string, ed weavefs.GoModEditor, 
 
 // applyMergeSettings is the IO half of the settings cascade, ported from
 // merge-settings.sh: read the base (act.Source) and the optional sibling local
-// (settings.local.json, alongside act.Target), run the pure mergeSettings, and
+// (settings.local.json, alongside act.Target), run the pure settingsx.Merge, and
 // write the result to act.Target. The local file's path is derived the same way
 // the bash does — LOCAL_FILE="$TARGET_DIR/settings.local.json", i.e. the
 // settings.local.json sibling of the target — so an arbitrary Target dir resolves
 // its local correctly. A missing base is an error (the bash's `[[ ! -f BASE ]]`
 // exit 1); a missing local takes the local-absent path (base with meta stripped).
-// All IO lives here (ARCH-PURE); the merge itself is the pure mergeSettings.
+// All IO lives here (ARCH-PURE); the merge itself is the pure settingsx.Merge.
 func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error {
 	basePath := filepath.Join(repoRoot, act.Source)
 	base, err := fs.ReadFile(basePath)
@@ -172,7 +173,7 @@ func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error
 		local = data // present ⇒ deep-merge; absent ⇒ nil ⇒ base-with-meta-stripped
 	}
 
-	merged, err := mergeSettings(base, local)
+	merged, err := settingsx.Merge(base, local)
 	if err != nil {
 		return fmt.Errorf("apply merge: %s: %w", targetPath, err)
 	}

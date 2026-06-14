@@ -34,7 +34,7 @@ import (
 //   - Merge lowers to a MergeSettings{Source, Target} — the settings cascade
 //     (ported from setup.sh's `merge` case). The planner records the path facts;
 //     Apply reads Source + the sibling settings.local.json off disk and runs
-//     mergeSettings (the merge-settings.sh port) to write Target.
+//     settingsx.Merge (the merge-settings.sh port) to write Target.
 //   - Skill is DEFERRED (M3 skill serving): it emits no Action and must not
 //     error — a manifest carrying it still compiles. Skill feeds the SkillIndex
 //     (the menu), not the filesystem-op list.
@@ -91,7 +91,7 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 				// settings (settings.ariadne.json), Target the composed
 				// settings.json. The planner records only the path facts (pure);
 				// Apply reads Source + the sibling settings.local.json off disk,
-				// runs mergeSettings (the merge-settings.sh port), writes Target.
+				// runs settingsx.Merge (the merge-settings.sh port), writes Target.
 				actions = append(actions, MergeSettings{Source: in.Source, Target: in.Target})
 			case intent.Tool:
 				// Lower to ToolDep, recording the FACTS the IO seam needs:

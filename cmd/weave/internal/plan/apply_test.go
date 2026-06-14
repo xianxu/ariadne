@@ -101,7 +101,7 @@ func TestApplyMkdir(t *testing.T) {
 
 // MergeSettings is the IO half of the settings cascade: Apply reads Source
 // (settings.ariadne.json) + the sibling settings.local.json off disk, runs the
-// pure mergeSettings, and writes Target (settings.json). Ported from
+// pure settingsx.Merge, and writes Target (settings.json). Ported from
 // merge-settings.sh: LOCAL_FILE is <dir(target)>/settings.local.json, absent ⇒
 // base-with-meta-stripped. We assert on PARSED JSON (semantic equality).
 
