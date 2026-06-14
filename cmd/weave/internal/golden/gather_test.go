@@ -86,6 +86,57 @@ func TestGatherObservesMergeSettingsTriple(t *testing.T) {
 	}
 }
 
+func TestGatherMergeFollowsSymlinkedBase(t *testing.T) {
+	// The derivative case: .claude/settings.ariadne.json is a SYMLINK to the
+	// upstream base. The merge probe must read its RESOLVED content (follow the
+	// link), like merge-settings.sh — otherwise the base reads empty and the merge
+	// spuriously fails to parse. And a Symlink action probing the SAME path must
+	// still see it as a symlink (the two observations coexist, regardless of the
+	// order they run in — symlink-before-merge here, matching the manifest).
+	root := t.TempDir()
+	claude := filepath.Join(root, ".claude")
+	if err := os.MkdirAll(claude, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Upstream real base, then a symlink to it inside the derivative's .claude.
+	upstream := filepath.Join(t.TempDir(), "settings.ariadne.json")
+	if err := os.WriteFile(upstream, []byte(`{"a":1}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linkRel, _ := filepath.Rel(claude, upstream)
+	if err := os.Symlink(linkRel, filepath.Join(claude, "settings.ariadne.json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claude, "settings.json"), []byte(`{"a":1}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Symlink action FIRST (manifest order), then the MergeSettings action — both
+	// probe .claude/settings.ariadne.json.
+	actions := []plan.Action{
+		plan.Symlink{Src: upstream, Dst: ".claude/settings.ariadne.json"},
+		plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+	}
+	in := Gather(weavefs.OSFS{}, root, actions, nil)
+
+	base := in.Observed[filepath.Join(claude, "settings.ariadne.json")]
+	if !base.Exists {
+		t.Fatalf("base settings.ariadne.json observed absent: %+v", base)
+	}
+	if !base.IsSymlink {
+		t.Errorf("base should still be seen as a symlink (for the Symlink action): %+v", base)
+	}
+	if base.Content != `{"a":1}` {
+		t.Errorf("merge probe should read RESOLVED content through the symlink, got %q", base.Content)
+	}
+
+	// And the whole thing classifies clean (symlink MATCH + merge MATCH).
+	divs := Classify(in)
+	if HasUnexpected(divs) {
+		t.Fatalf("symlinked-base merge classified UNEXPECTED: %+v", divs)
+	}
+}
+
 func TestGatherObservesLiveState(t *testing.T) {
 	root := t.TempDir()
 	// Lay down a live tree: a correct symlink, a scaffold dir, a seed file.

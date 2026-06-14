@@ -56,6 +56,28 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 		obs[abs] = observePath(fs, abs, readContent)
 	}
 
+	// observeMerge records a merge-probe file's RESOLVED content (Stat + ReadFile
+	// FOLLOW symlinks, unlike observePath's Lstat), so a symlinked base/target
+	// (the derivative case) yields real bytes. It merges Content into any existing
+	// Observed (a path may also be a Symlink-action probe, observed as a symlink
+	// with no content) rather than clobbering its symlink fields. Absent ⇒ leave
+	// the existing record (or an Exists:false) so the classifier sees it missing.
+	observeMerge := func(rel string) {
+		abs := filepath.Join(root, rel)
+		cur, had := obs[abs]
+		if _, err := fs.Stat(abs); err != nil {
+			if !had {
+				obs[abs] = Observed{Exists: false}
+			}
+			return // absent (Stat follows the link; a dangling link is also absent)
+		}
+		cur.Exists = true
+		if data, rerr := fs.ReadFile(abs); rerr == nil {
+			cur.Content = string(data)
+		}
+		obs[abs] = cur
+	}
+
 	for _, a := range actions {
 		switch act := a.(type) {
 		case plan.Symlink:
@@ -82,10 +104,18 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 			// classifier recomputes the merge from base+local and semantically
 			// compares it to the target. The local path mirrors Apply/the bash:
 			// <dir(Target)>/settings.local.json.
-			observe(act.Source, true)
-			observe(act.Target, true)
+			//
+			// Crucially the merge probe reads content by FOLLOWING symlinks: in a
+			// derivative repo .claude/settings.ariadne.json is itself a symlink to
+			// the ariadne base, and merge-settings.sh (json.load(open(...))) follows
+			// it. The default observePath uses Lstat + a regular-file content read,
+			// so a symlinked base would carry an empty Content and the merge would
+			// spuriously fail to parse — a harness bug, not a port gap. observeMerge
+			// records the resolved content alongside any existing symlink fields.
+			observeMerge(act.Source)
+			observeMerge(act.Target)
 			localRel := filepath.Join(filepath.Dir(act.Target), "settings.local.json")
-			observe(localRel, true)
+			observeMerge(localRel)
 		}
 	}
 	for _, in := range deferred {
