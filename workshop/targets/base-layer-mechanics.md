@@ -1,21 +1,30 @@
 ---
 type: target
-slug: weave-composition-algebra
+slug: base-layer-mechanics
 status: active
 created: 2026-06-14
 updated: 2026-06-14
 sources:
   - "ariadne#95 — weave cutover; the prose-composition bug surfaced on the parley tart pass (Phase 2)"
+  - "ariadne#104 + skill-system — the one artifact type complex enough to need its own subsystem target"
 ---
 
-# Target: Weave composition algebra — how artifacts merge across a layer DAG
+# Target: Base-layer mechanics — how base.manifest composes a repo's context across the layer DAG
 
-weave compiles a repo's agentic context by **composing artifacts across its layer DAG**. The durable commitment this target defends: that composition is not ad-hoc per artifact type — it is one model, **select-then-fold**, with two axes that must hold for *every* artifact type weave grows.
+The ariadne **base layer** compiles a repo's agentic context by **composing the artifacts each layer declares in its `base.manifest`, across the `construct/deps` layer DAG**. This target is the **spine**: it defends the one declaration surface and the one composition model every artifact type rides on. (`weave` is the compiler that realizes it.)
+
+**The declaration surface — base.manifest.** Every artifact is one row:
+```
+[export|internal] <type> <source> [<target>]
+```
+The leading **visibility** token is the export/internal axis; the **type** word picks the compose operator; the **source/target** are the paths. `weave` reads `construct/deps` for the layer DAG and these rows for the artifacts — **no artifact enters the composition by any other channel** (no ad-hoc `.claude/skills` symlink, no hardcoded dir scan). base.manifest is the single source of truth for what a layer contributes and to whom.
+
+**The composition model** is not ad-hoc per type — it is one model, **select-then-fold**, with two axes that must hold for *every* artifact type:
 
 1. **A visibility axis.** Each artifact a layer declares is either `export` (it flows down to consumers) or `internal` (it stays with the declaring repo). A repo compiles from *every ancestor's exports* plus *its own internal* artifacts — and **never** an ancestor's internal artifacts.
-2. **A per-type compose operator.** Each artifact type (`prose`, `skill`, `settings`, file-ops, `tool`) has its own algebra for folding the selected artifacts across the DAG: prose concatenates, skills union, settings deep-merge. The **type** picks the operator; the **visibility** picks the operands.
+2. **A per-type compose operator.** Each artifact type (`prose`, `skill`, `settings`, file-ops) has its own algebra for folding the selected artifacts across the DAG: prose concatenates, skills union, settings deep-merge. The **type** picks the operator; the **visibility** picks the operands.
 
-Getting this math right *is* the point of weave. If composition is wrong, a derivative silently inherits the wrong context — exactly the bug that motivated the rewrite (see *Why now*). This target is the reference the implementation (ariadne#95 and successors) must honor, and the home where each artifact type's formula lands as it crystallizes.
+Getting this right *is* the point of the base layer. If composition is wrong, a derivative silently inherits the wrong context — exactly the bug that motivated the rewrite (see *Why now*). This target is the reference the implementation (ariadne#95 and successors) must honor, and the home where each *simple* type's formula lands. The one type complex enough to need its own subsystem — **skills** (multi-harness lowering, serving, identity/prefix, the adapted/local/private trichotomy) — is owned by the [[skill-system]] child target, which defers its compose stage back to this spine.
 
 ## Why now
 

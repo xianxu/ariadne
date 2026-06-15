@@ -3,7 +3,7 @@ id: 000100
 status: open
 deps: []
 github_issue:
-target: weave-composition-algebra
+target: base-layer-mechanics
 created: 2026-06-14
 updated: 2026-06-14
 estimate_hours:
@@ -11,7 +11,7 @@ estimate_hours:
 
 # weave settings round-trip: lifting output edits back into sources (inverse-merge / lens)
 
-A research/design ticket — understand the algebra before committing to a mechanism. Relates to [[weave-composition-algebra]] (the `setting` type) and ariadne#97 (the forward DAG fold). **Under active operator reasoning — do not implement until the math is settled.**
+A research/design ticket — understand the algebra before committing to a mechanism. Relates to [[base-layer-mechanics]] (the `setting` type) and ariadne#97 (the forward DAG fold). **Under active operator reasoning — do not implement until the math is settled.**
 
 ## Problem
 
@@ -57,12 +57,12 @@ This preserves B's existing entries (pins survive — they aren't in the delta) 
 **The sidestep avoids the inverse entirely, and is simpler *for weave* when the writer is routable.** The lift only exists because the writer (Claude Code) edits the *output* `C`. If the writer edits the *source* `B` (`settings.local.json`), weave only ever runs forward — no inverse, no baseline, no reconcile. Mechanism: **target-scoped (agent-specific) prose** — a `claude`-targeted fragment telling Claude *"edit `settings.local.json`, not `settings.json`, then re-compile."* This is *guidance* (soft); the *deterministic* enforcement is weave regenerating `C` from sources (source-is-truth, output edits transient), so nothing relies on prose-obedience for correctness.
 
 - **Sidestep tradeoff — it pushes the `$remove` DSL onto the agent (non-trivial).** Editing `B` is natural for *adding* or *overriding* (ordinary JSON edits to B's arrays). But *removing* an item an ancestor provides — the security-tightening case, e.g. drop a base `Bash(rm:*)` — **cannot** be done by editing `B` normally: the item lives in `A`, not `B`, so `B` must carry an explicit `{"$remove": {"<dotted.path>": [item]}}`. So the agent must be **taught** the weave-specific `$remove` semantic, target the right path, and get it right — prose-taught (soft), and re-taught per backend. This is the **mirror image of where the lift's complexity sits**: the lift **auto-synthesizes `$remove` into `B`** from a *natural deletion* in `C` (the agent just deletes the line, never sees the DSL); the sidestep **exposes `$remove` to the agent**. Net: the sidestep is clean for add/override but burdens the agent for remove-inherited; the lift is transparent to the agent across the board. Which to prefer therefore depends on whether *removing inherited settings* is a real need — it isn't today.
-- This surfaced a **third axis** for [[weave-composition-algebra]]: **target/audience** (which backend an artifact is delivered to), alongside **visibility** (export/internal) and **type**. Prose is universal today; target-scoped prose (`AGENTS.claude.md`, or an `internal claude prose …` row) is the same `--target` axis we already use for skill lowering, applied to prose. Deserves its own ticket when the sidestep is built.
+- This surfaced a **third axis** for [[base-layer-mechanics]]: **target/audience** (which backend an artifact is delivered to), alongside **visibility** (export/internal) and **type**. Prose is universal today; target-scoped prose (`AGENTS.claude.md`, or an `internal claude prose …` row) is the same `--target` axis we already use for skill lowering, applied to prose. Deserves its own ticket when the sidestep is built.
 
 ## Done when
 
 - **(Done — research)** The round-trip algebra is decided and recorded: lift = 3-way merge (last-gen baseline, sources-win); sidestep = target-scoped prose + source-is-truth regen; both deferred behind accept-transience for #95.
-- **(Deferred — build)** When a real need appears, pick by its shape: **add/override-dominant** → the **sidestep** (agent edits the source; needs the target/audience prose axis). **Removing inherited settings** → the **3-way lift** is more ergonomic (it hides `$remove` from the agent; the sidestep would force the agent to learn the DSL). Reflect the chosen mechanism's limits in [[weave-composition-algebra]].
+- **(Deferred — build)** When a real need appears, pick by its shape: **add/override-dominant** → the **sidestep** (agent edits the source; needs the target/audience prose axis). **Removing inherited settings** → the **3-way lift** is more ergonomic (it hides `$remove` from the agent; the sidestep would force the agent to learn the DSL). Reflect the chosen mechanism's limits in [[base-layer-mechanics]].
 
 ## Plan
 

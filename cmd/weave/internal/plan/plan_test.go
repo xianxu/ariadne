@@ -42,7 +42,7 @@ func TestPlanProseAcrossLayersToOneAGENTS(t *testing.T) {
 }
 
 func TestPlanProseVisibilitySelection(t *testing.T) {
-	// The 𝒜(R) invariant (workshop/targets/weave-composition-algebra.md): a
+	// The 𝒜(R) invariant (workshop/targets/base-layer-mechanics.md): a
 	// synthetic 3-layer stack — foundation with BOTH export prose AND internal
 	// prose; a middle layer with export prose; a leaf with internal prose. The
 	// leaf composes [foundation-export, middle-export, leaf-internal] and does

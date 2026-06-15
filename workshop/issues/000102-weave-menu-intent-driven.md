@@ -3,7 +3,7 @@ id: 000102
 status: open
 deps: []
 github_issue:
-target: weave-composition-algebra
+target: base-layer-mechanics
 created: 2026-06-15
 updated: 2026-06-15
 estimate_hours:

@@ -48,7 +48,7 @@ seed      bootstrap.sh
 # constitution lives in AGENTS.base.md (a prose fragment); each repo adds its own
 # AGENTS.local.md fragment.
 #
-# Visibility axis (ariadne#99, target weave-composition-algebra): AGENTS.base.md
+# Visibility axis (ariadne#99, target base-layer-mechanics): AGENTS.base.md
 # is `export` — it flows down into every derivative's composed AGENTS.md;
 # AGENTS.local.md is `internal` — it stays with ariadne, selected ONLY on
 # ariadne's own self-walk (when ariadne is the leaf Lₙ), never leaked into a

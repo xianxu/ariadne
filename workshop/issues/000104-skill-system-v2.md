@@ -90,15 +90,29 @@ The gap inventory (surfaced on the #95 nous/brain cutover):
   one-target-per-invocation** (claude symlinks vs codex menu can't coexist in one
   AGENTS.md).
 
-## Open decisions (settle in the plan)
-1. **Per-skill vs per-row visibility granularity** — a row-level `export|internal`
-   token (natural grammar fit) vs per-skill frontmatter.
-2. **Identity: frontmatter `name:` vs dir-name** (C3).
-3. **Kill the `construct/local`→ariadne inheritance symlinks** (D1) — yes/phased?
-4. **Per-layer prefix via own `config.json`** (C2) — un-symlink config.json in
-   derivatives; pick nous's prefix (`nous-`?).
-5. **Migrate nous `construct/skills` → `construct/local`** as `skill` intent;
-   drop the plain symlink rows (A3).
+## Decisions (operator, 2026-06-15)
+
+1. **Visibility = per-dir convention.** Three conventional dirs encode it:
+   `construct/adapted` (external source → export), `construct/local` (locally
+   constructed → export), **`construct/skill` (private to the layer → internal)**.
+   The `construct` skill (already at `construct/skill/`) is the internal exemplar —
+   internal-by-declaration, not internal-by-location. Per-skill frontmatter is the
+   fallback only if mixed visibility within one dir becomes common.
+2. **Identity = dir-name** (keep; frontmatter `name:` deferred). (C3)
+3. **Kill the whole-dir inheritance symlinks** (D1) — drop `<derivative>/construct/
+   {local,adapted} → ../ariadne/...`; the layer-walk reads each ancestor's dirs
+   directly. KEEP the per-skill `.claude/skills/<name>` → source-layer links (the
+   claude lowering — they straighten to point directly at the owning layer).
+4. **Per-layer prefix via own `config.json`** (C2) — un-symlink `config.json` in
+   derivatives; **default prefix = the layer's repo name** (`nous-`, `brain-`,
+   `metis-`); ariadne overrides to `xx-`.
+5. **Migrate nous `construct/skills` → `construct/local`** (export) as a `skill`
+   intent; drop the plain symlink rows (A3). `construct/local/tools` + `nous-` →
+   `nous-tools` (uniform naming).
+
+Still open: **suppression** (can a derivative drop an inherited export?) and the
+**`construct/skill` layout** (one SKILL.md vs `<name>/SKILL.md`, to scan
+uniformly). See target [[skill-system]].
 
 ## Done when
 

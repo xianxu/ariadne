@@ -72,7 +72,7 @@ const (
 // truth for the visibility-axis selection (ARCH-DRY) — both the planner (which
 // composes 𝒜(R)) and the completeness guard (which must not flag an ancestor's
 // internal as under-produced, since it was deliberately excluded, not dropped)
-// call it. See workshop/targets/weave-composition-algebra.md.
+// call it. See workshop/targets/base-layer-mechanics.md.
 func Selected(v Visibility, isLeaf bool) bool {
 	return v == Export || isLeaf
 }

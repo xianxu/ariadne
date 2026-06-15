@@ -116,7 +116,7 @@ symlink AGENTS.md
 func TestParseManifestVisibilityDefaultsExport(t *testing.T) {
 	// A row with no leading visibility token defaults to Export (the zero value),
 	// so every pre-visibility manifest row is unchanged. The visibility axis of
-	// workshop/targets/weave-composition-algebra.md.
+	// workshop/targets/base-layer-mechanics.md.
 	got, err := ParseManifest("prose AGENTS.base.md\n")
 	if err != nil {
 		t.Fatalf("ParseManifest: unexpected error: %v", err)

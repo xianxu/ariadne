@@ -219,7 +219,7 @@
 
 ## A target can lie by aspiration — generalizing a proven mechanism to unbuilt siblings, marked "clarity HIGH", hides the gap instead of defending it
 
-**Pattern (#95 → #104):** the `weave-composition-algebra` target was extracted from
+**Pattern (#95 → #104):** the `base-layer-mechanics` target was extracted from
 the PROSE visibility fix (#99, which was actually built + verified on the parley/nous
 passes). In the same breath, its `skill`, `settings`, and `file-op` slices were
 written "for free" by analogy — "these compose like prose" — and the skill slice was

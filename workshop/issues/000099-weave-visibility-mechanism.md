@@ -3,7 +3,7 @@ id: 000099
 status: working
 deps: []
 github_issue:
-target: weave-composition-algebra
+target: base-layer-mechanics
 created: 2026-06-14
 updated: 2026-06-14
 estimate_hours: 5
@@ -11,7 +11,7 @@ estimate_hours: 5
 
 # weave: export/internal visibility mechanism
 
-Implements the visibility axis of [[weave-composition-algebra]] — `𝒜(R) = all-exports(L₀..Lₙ) ⊎ leaf-internals(Lₙ)`. THE core mechanism: without it, a derivative inherits an ancestor's *internal* artifacts (the parley bug) and never composes its own.
+Implements the visibility axis of [[base-layer-mechanics]] — `𝒜(R) = all-exports(L₀..Lₙ) ⊎ leaf-internals(Lₙ)`. THE core mechanism: without it, a derivative inherits an ancestor's *internal* artifacts (the parley bug) and never composes its own.
 
 ## Problem
 
@@ -34,7 +34,7 @@ weave composes `prose` (and will compose `skill`/`settings`) across the layer DA
 - Compiling any repo yields **ancestors' exports + its own internal, never an ancestor's internal** (multi-layer fixture: foundation `export prose` + foundation `internal prose` + leaf `internal prose` → leaf composes foundation-export + leaf-internal only).
 - parley's composed `AGENTS.md` (temp-copy, with `internal prose AGENTS.local.md` declared) contains `# Parley.nvim Local Extensions` and **NOT** `# Ariadne Workshop Extensions`.
 - ariadne self-walk unchanged (ariadne is the leaf → gets its own internal local).
-- `build`/`test`/`vet`/`gofmt` clean; honors [[weave-composition-algebra]].
+- `build`/`test`/`vet`/`gofmt` clean; honors [[base-layer-mechanics]].
 
 ## Plan
 
@@ -48,7 +48,7 @@ weave composes `prose` (and will compose `skill`/`settings`) across the layer DA
 ## Log
 
 ### 2026-06-14
-- Split from ariadne#95 M5: the prose-composition bug surfaced on the parley tart pass is a symptom of composing without a visibility axis. Operator chose to build the general mechanism now (it is THE core mechanism) rather than a point fix, fully explicit (no AGENTS.local.md convention). Algebra captured in target [[weave-composition-algebra]].
+- Split from ariadne#95 M5: the prose-composition bug surfaced on the parley tart pass is a symptom of composing without a visibility axis. Operator chose to build the general mechanism now (it is THE core mechanism) rather than a point fix, fully explicit (no AGENTS.local.md convention). Algebra captured in target [[base-layer-mechanics]].
 
 ### 2026-06-14 — implemented (TDD, single-pass)
 - **Grammar** (`intent`): `ParseManifest` consumes an OPTIONAL leading `export|internal` token (disjoint from the verb set → unambiguous); default `Export` (the zero value, so every pre-#99 row is unchanged). Added `Visibility` (`Export|Internal`) to `Intent`. Examples: `export prose AGENTS.base.md` / `internal prose AGENTS.local.md`.

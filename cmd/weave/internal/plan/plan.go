@@ -53,7 +53,7 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 	// The leaf Lₙ is the LAST layer (layer.Resolve emits root last + self-
 	// included). 𝒜(R) selects every layer's EXPORTS plus the LEAF's INTERNALS
 	// only — an ancestor's internal artifacts never reach R (the visibility axis,
-	// workshop/targets/weave-composition-algebra.md). leafIdx anchors both the
+	// workshop/targets/base-layer-mechanics.md). leafIdx anchors both the
 	// prose composition and the per-intent export/leaf filter below.
 	leafIdx := len(layers) - 1
 
@@ -140,7 +140,7 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 // order, leafIdx = the leaf Lₙ) is in the selected multiset 𝒜(R). It delegates to
 // intent.Selected (the single source of truth for the visibility-axis rule,
 // ARCH-DRY) — the type picks the compose operator, visibility picks the operands
-// (workshop/targets/weave-composition-algebra.md).
+// (workshop/targets/base-layer-mechanics.md).
 func participates(v intent.Visibility, i, leafIdx int) bool {
 	return intent.Selected(v, i == leafIdx)
 }
