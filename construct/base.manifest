@@ -40,7 +40,15 @@
 seed      bootstrap.sh
 
 # ── Constitution ──────────────────────────────────────────────────────────────
-symlink   AGENTS.md
+# AGENTS.md is now a weave-COMPOSED artifact (not a symlink): weave concatenates
+# every layer's `prose` fragments foundation-first into the consuming repo's own
+# AGENTS.md, then appends the always-on `## Skills` menu. This replaces the old
+# `symlink AGENTS.md` whose body @-imported AGENTS.local.md — which silently
+# resolved to the FOUNDATION's local file in a derivative (the #95 bug). The base
+# constitution lives in AGENTS.base.md (a prose fragment); each repo adds its own
+# AGENTS.local.md fragment.
+prose     AGENTS.base.md
+prose     AGENTS.local.md
 symlink   CLAUDE.md
 
 # ── Codex settings ────────────────────────────────────────────────────────────
@@ -61,9 +69,16 @@ merge     .claude/settings.ariadne.json        .claude/settings.json
 
 # NOTE: construct skill is ariadne-internal, not exported to target repos.
 
-# Local-origin skills are managed by sync-local-skills.sh (SessionStart hook),
-# which reads the prefix from construct/config.json. Not hardcoded here.
+# Skills are rendered by weave from `skill` intents (absorbing the retired
+# sync-local-skills.sh SessionStart hook): weave aggregates each layer's
+# construct/local + construct/adapted skills into the agent-agnostic menu
+# (compiled into AGENTS.md, bodies via `weave skill <name>`) AND lowers them to
+# the .claude/skills/ symlinks every in-use harness reads — local prefixed (from
+# construct/config.json localPrefix, default xx-), adapted bare. The scaffold of
+# .claude/skills/ stays so the dir exists before the symlinks land.
 scaffold  .claude/skills
+skill     construct/local
+skill     construct/adapted
 
 # ── Makefile system ───────────────────────────────────────────────────────────
 # Root Makefile is a thin generic template (workflow + local + help).
@@ -91,8 +106,9 @@ symlink   scripts/run-merge-checks.sh
 scaffold  scripts/merge-checks.d
 
 # ── Construct system ──────────────────────────────────────────────────────────
-symlink   construct/scripts/sync-local-skills.sh
-symlink   construct/scripts/merge-settings.sh
+# Retired by the weave cutover (#95): sync-local-skills.sh (now the `skill`
+# intent + .claude/skills lowering) and merge-settings.sh (now the `merge` intent
+# / settingsx) are no longer symlinked — their logic lives in weave.
 symlink   construct/scripts/apply-gitignore-entries.sh
 symlink   construct/scripts/bootstrap-peers.sh
 # Data-dependency mounter (#49) — clone content peers as siblings + symlink
@@ -110,12 +126,10 @@ symlink   construct/scripts/vm-log.sh
 # clone-data-deps, and setup.sh. bootstrap.sh keeps an inline copy (can't source
 # a symlink on a bare clone), locked by bootstrap-transitive.test.sh.
 symlink   construct/scripts/lib-deps.sh
-# Canonical setup.sh — vendored down to every layer so each layer's
-# `<repo>/construct/setup.sh` is the same source-of-truth script.
-# Walks transitive upstream manifests via `go list -m`, with depth-1
-# fallback preserving today's `../ariadne/construct/setup.sh` invocation.
-# See workshop/issues/000032 spec.
-symlink   construct/setup.sh
+# Canonical setup.sh — RETIRED by the weave cutover (#95). weave (cmd/weave) is
+# now the compiler that materializes the layer composition; the bootstrap/refresh
+# flow builds + invokes it (Makefile.workflow:refresh → weave-build). No longer
+# symlinked.
 # Dev-binary alias generator (#57) + the owner-resolver `sdlc-build` uses to
 # build-in-owner (#60). Symlinked so derivatives can resolve sdlc's owner by
 # location (`--list`) without a construct/go.mod replace.
@@ -168,12 +182,14 @@ symlink   .colima/vm-rc.sh
 symlink   atlas/workflow
 
 # ── Substrate dependency on the tool's owner ──────────────────────────────────
-# Declares ariadne (owner of cmd/sdlc) as this consumer's substrate ancestor.
-# In a derivative, setup.sh idempotently appends to construct/deps (#60):
+# Declares ariadne (owner of cmd/sdlc + cmd/weave) as this consumer's substrate
+# ancestor. In a derivative, weave idempotently appends to construct/deps:
 #   substrate ../ariadne
-# The peer-graph walkers read that; `make sdlc-build` resolves + builds the tool
-# in its owner (build-in-owner, #60 M2) — no per-derivative go.mod needed. In
-# ariadne itself (self-walk) this instead adds a `go tool` directive to ariadne's
-# root go.mod. (Pre-#60: stubbed a <name>-construct go.mod with require+replace
-# +tool, vendored for offline build — retired by #60 M1+M2.)
+# The peer-graph walkers read that; `make sdlc-build` / `make weave-build` resolve
+# + build the tool in its owner (build-in-owner, #60 M2) — no per-derivative
+# go.mod needed. In ariadne itself (self-walk) this instead adds a `go tool`
+# directive to ariadne's root go.mod. Both tools share the one `substrate
+# ../ariadne` edge (deduped). (Pre-#60: stubbed a <name>-construct go.mod with
+# require+replace+tool, vendored for offline build — retired by #60 M1+M2.)
 tool      cmd/sdlc
+tool      cmd/weave

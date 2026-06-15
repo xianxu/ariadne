@@ -150,13 +150,21 @@ close-issue:
 # `make bootstrap`. Once substrate has propagated, `make bootstrap` is the
 # canonical post-clone command.
 
-refresh:
-	@if [ -x construct/setup.sh ]; then \
-		construct/setup.sh; \
+# refresh now builds + invokes weave (cmd/weave), the intent-compiler that
+# replaced construct/setup.sh (#95). weave-build resolves weave's owner by
+# LOCATION (construct/dev-aliases.sh --list) and builds bin/weave in-owner, the
+# same build-in-owner pattern sdlc-build uses — so a derivative needs no go.mod
+# replace. weave then compiles THIS repo's layer composition (symlinks, the
+# AGENTS.md prose+skill compose, the settings.json merge, the .claude/skills
+# lowering). Under `make bootstrap`, bootstrap-peers (clones ancestors) precedes
+# refresh, so weave's owner is present by the time this runs.
+refresh: weave-build
+	@if [ -x bin/weave ]; then \
+		bin/weave; \
 	else \
-		echo "Error: construct/setup.sh not found in this repo."; \
-		echo "  First-time bootstrap: run \`../ariadne/construct/setup.sh\` manually."; \
-		echo "  After that, \`make refresh\` (and \`make bootstrap\`) will work — the script vendors itself."; \
+		echo "Error: bin/weave not built (weave-build did not produce it)."; \
+		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \
+		echo "  or clone the upstream ariadne beside this repo and \`make bootstrap\`."; \
 		exit 1; \
 	fi
 
@@ -677,7 +685,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build sdlc-install sdlc-bootstrap
+.PHONY: tools sdlc-build weave-build sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -704,6 +712,26 @@ sdlc-build: ensure-go
 	    exit 1; \
 	fi; \
 	( cd "$$owner" && go build -o "$$repo_root/bin/sdlc" ./cmd/sdlc )
+
+# weave-build: mirror of sdlc-build for cmd/weave — the intent-compiler that
+# replaced construct/setup.sh (#95). weave's source lives ONLY in its owner
+# (ariadne); resolve the owner by LOCATION via dev-aliases.sh --list (immune to
+# direct-vs-transitive ancestry, needs no go.mod replace), then build bin/weave
+# in-owner. `make refresh` depends on this, then runs bin/weave to compile this
+# repo's layer composition. Under `make bootstrap`, bootstrap-peers + refresh's
+# own weave-build prereq guarantee the owner + the dev-aliases.sh symlink are
+# present by the time this runs.
+weave-build: ensure-go
+	@mkdir -p bin
+	@echo "==> building bin/weave (build-in-owner)"
+	@repo_root="$$(pwd)"; \
+	owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
+	if [ -z "$$owner" ]; then \
+	    echo "Error: weave owner not found beside this repo." >&2; \
+	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
+	    exit 1; \
+	fi; \
+	( cd "$$owner" && go build -o "$$repo_root/bin/weave" ./cmd/weave )
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
