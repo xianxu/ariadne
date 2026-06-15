@@ -1,15 +1,22 @@
 ---
 id: 000104
-status: open
+status: working
 deps: []
 github_issue:
 target: skill-system
 created: 2026-06-15
 updated: 2026-06-15
-estimate_hours:
+estimate_hours: 12
 ---
 
 # skill-system v2 — unified, visibility-aware, target-independent skill composition
+
+> **Not to be confused with parley#128** ("skill system redesign: declarative
+> modules over one engine"). #128 is parley's *runtime* skill execution (the Lua
+> chat-loop engine, `read_skill`, `propose_edits`, per-turn manifest assembly).
+> THIS issue is ariadne/weave's *build-time* skill **composition** across the layer
+> DAG (the `skill <dir>` intents, the `.claude/skills` lowering + the menu,
+> visibility, prefixes). Orthogonal layers, same word — they don't interact.
 
 ## Problem
 
