@@ -62,9 +62,9 @@ deepMerge(b,l): dicts recurse · $merge_keys arrays union (b, then new l) · $re
 Today only a two-input merge (ariadne-base + repo-local) ships; the DAG fold is ariadne#97.
 
 ### file-ops (symlink / seed / scaffold / touch) — clarity: MEDIUM
-Provisioning ops; last-writer-wins per target path (a later layer overrides an earlier one), with the self-reference filter (a layer never provisions a file onto its own canonical source). Mostly `export` from the foundation; collisions rare (namespaced).
+Provisioning ops keyed by target path, with the self-reference filter (a layer never provisions a file onto its own canonical source). Composition is **conflict-accumulating**, NOT silent last-writer-wins: when two layers provision the same target path from *different* sources, weave does not quietly pick a winner — it **accumulates every such collision across the whole compile and surfaces them as warnings** (an error-monad / `Validation` shape: collect, don't fail-fast, report all). A deterministic winner is still chosen (later layer / specific-over-general) so the compile proceeds, but the conflict is reported, never hidden. Collisions are rare (namespaces `xx-`/`nous-`/`metis-`) — which is exactly why they must be loud when they happen.
 ```
-files(R)[p] = the op from the latest Lᵢ in order that provisions path p
+files(R)[p] = accumulate all Lᵢ provisioning p; if ≥2 with differing source → warning(p, {sources}); resolve to the latest in order and continue
 ```
 
 ### tool — clarity: special (not a DAG fold)
