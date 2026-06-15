@@ -1,5 +1,5 @@
 {
-  "$comment": "Ariadne base-layer settings. Cloned to every adopted repo; deep-merged UNDER settings.local.json by construct/scripts/merge-settings.sh.",
+  "$comment": "Ariadne base-layer settings. Symlinked into every adopted repo; deep-merged UNDER settings.local.json by weave (cmd/weave/internal/settingsx) into .claude/settings.json. (Was construct/scripts/merge-settings.sh, retired in #95.)",
   "$merge_keys": [
     "permissions.allow",
     "permissions.deny",
@@ -98,19 +98,6 @@
       "npm",
       "npx",
       "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-    ]
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./construct/scripts/sync-local-skills.sh",
-            "timeout": 5
-          }
-        ]
-      }
     ]
   }
 }

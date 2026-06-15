@@ -59,7 +59,7 @@ that doesn't generalize across consumers:
 If you find yourself wanting to edit a vendored file directly, the
 right move is almost always to (a) generalize the change and push it
 into ariadne, or (b) override it in the `.local` layer. Direct edits
-get clobbered on the next `make refresh`.
+get clobbered on the next `make weave`.
 
 ## Dev binaries — ownership = location (`dev-aliases.sh`)
 
@@ -111,7 +111,7 @@ make refresh-recursive
 ```
 
 This iterates every peer repo in the parent directory and runs
-`make refresh` in each one that has a `Makefile.workflow` (the universal
+`make weave` in each one that has a `Makefile.workflow` (the universal
 "uses the ariadne base layer" signal — catches direct consumers via
 `.ariadne-mode`, indirect ones via `.nous-mode`, and re-export layers
 like nous itself). Failures are collected into a final summary; partial

@@ -64,14 +64,94 @@ fi
 
 warn() { printf 'dev-aliases: %s\n' "$*" >&2; }
 
+# script_dir: the directory of the dev-aliases.sh PATH as invoked — NOT
+# dereferencing the symlinked file (pwd -P resolves only path COMPONENTS). In a
+# derivative this is that derivative's own construct/, so ariadne_root/workspace
+# anchor the sibling scan at the CALLER's location exactly as before — the
+# flat/peer semantics are unchanged.
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 ariadne_root="$(cd "$script_dir/.." && pwd -P)"
 [ "$workspace_set" -eq 1 ] || workspace="$(dirname "$ariadne_root")"
+
+# real_script_dir: the directory of the REAL dev-aliases.sh, following the
+# symlink (this script is symlinked into every derivative's construct/, pointing
+# back at the owning substrate's copy). Needed ONLY to locate the shared
+# lib-deps.sh beside the real source — the substrate scan must reuse the owner's
+# parser, not look for a (non-existent) scripts/lib-deps.sh in the derivative.
+# readlink -f isn't on macOS bash 3.2; hand-roll a single-hop dereference
+# (the link points straight at the source, so one hop suffices).
+real_src="${BASH_SOURCE[0]}"
+if [ -L "$real_src" ]; then
+	link_target="$(readlink "$real_src")"
+	case "$link_target" in
+		/*) real_src="$link_target" ;;                       # absolute link
+		*)  real_src="$(dirname "$real_src")/$link_target" ;; # relative to the link's dir
+	esac
+fi
+real_script_dir="$(cd "$(dirname "$real_src")" && pwd -P)"
 # A typo'd/empty --workspace must fail loudly, not silently emit nothing.
 if [ -z "$workspace" ] || [ ! -d "$workspace" ]; then
 	warn "workspace not found: ${workspace:-<empty>} (--workspace needs an existing dir)"
 	exit 2
 fi
+
+# current_repo: the repo whose construct/deps substrate graph we ALSO follow for
+# owners (directory-agnostic, #95). It's the repo the caller is in — find it by
+# walking up from $PWD to the nearest dir holding construct/ (an ariadne-styled
+# repo root). Empty when the caller isn't inside one (then only the sibling scan
+# applies). This is what makes a NON-PEER layout work: the current repo's
+# substrate ancestor (e.g. ariadne) need not be a workspace sibling.
+find_current_repo() {
+	local d="$PWD"
+	while [ "$d" != "/" ] && [ -n "$d" ]; do
+		[ -d "$d/construct" ] && { printf '%s\n' "$d"; return 0; }
+		d="$(dirname "$d")"
+	done
+	return 0
+}
+current_repo="$(find_current_repo)"
+
+# Transitive substrate repos of the current repo, via the shared construct/deps
+# parser (lib-deps.sh — the bash parser, NOT weave: this runs pre-weave, so
+# reusing weave here would be a chicken-egg). Walk the substrate graph BFS,
+# deduping, so a diamond/chain resolves each substrate once. lib-deps.sh lives
+# beside the REAL script ($real_script_dir/scripts/lib-deps.sh) — resolved
+# through the dev-aliases.sh symlink above, so a derivative reaches the owner's
+# copy (the derivative has no scripts/lib-deps.sh of its own to source).
+substrate_repos() {
+	[ -n "$current_repo" ] || return 0
+	local lib="$real_script_dir/scripts/lib-deps.sh"
+	[ -f "$lib" ] || { warn "lib-deps.sh not found at $lib (substrate scan skipped)"; return 0; }
+	# shellcheck disable=SC1090
+	. "$lib"
+	local seen="" frontier="$current_repo" next repo tgt
+	while [ -n "$frontier" ]; do
+		next=""
+		# Iterate the current frontier (newline-separated).
+		while IFS= read -r repo; do
+			[ -n "$repo" ] || continue
+			while IFS= read -r tgt; do
+				[ -n "$tgt" ] || continue
+				# Dedup: skip if already seen (newline-bounded substring match).
+				case "
+$seen
+" in *"
+$tgt
+"*) continue ;; esac
+				seen="$seen
+$tgt"
+				next="$next
+$tgt"
+				printf '%s\n' "$tgt"
+			done <<EOF
+$(deps_substrate_targets "$repo")
+EOF
+		done <<EOF
+$frontier
+EOF
+		frontier="$next"
+	done
+}
 
 skip_repo() {
 	local name="$1" g
@@ -81,21 +161,33 @@ skip_repo() {
 	return 1
 }
 
-# Emit "bin<TAB>ownerRepo" for every owned binary, in deterministic walk order:
-# sorted ariadne-styled active repos, then sorted cmd dirs that are real dirs
-# (not symlinks), buildable (>=1 .go), and not marked .private.
+# scan_repo emits "bin<TAB>repo" for every owned binary in ONE repo: cmd dirs
+# that are real dirs (not re-export symlinks), buildable (>=1 .go), not .private.
+scan_repo() {
+	local repo="$1" cmddir
+	[ -d "$repo/construct" ] || return 0
+	skip_repo "$(basename "$repo")" && return 0
+	[ -d "$repo/cmd" ] || return 0
+	find "$repo/cmd" -mindepth 1 -maxdepth 1 | LC_ALL=C sort | while IFS= read -r cmddir; do
+		[ -L "$cmddir" ] && continue          # re-export symlink → owner only
+		[ -d "$cmddir" ] || continue
+		ls "$cmddir"/*.go >/dev/null 2>&1 || continue   # buildable
+		[ -e "$cmddir/.private" ] && continue # opt-out marker
+		printf '%s\t%s\n' "$(basename "$cmddir")" "$repo"
+	done
+}
+
+# Emit "bin<TAB>ownerRepo" for every owned binary, scanning the UNION of:
+#   (1) workspace siblings under $workspace (flat/peer layout — unchanged), and
+#   (2) the current repo's transitive substrate repos (non-peer layout — #95).
+# Repos are deduped by absolute path (a substrate that's also a sibling scans
+# once); deterministic last-win downstream handles any residual ordering.
 collect() {
-	find "$workspace" -mindepth 1 -maxdepth 1 -type d | LC_ALL=C sort | while IFS= read -r repo; do
-		[ -d "$repo/construct" ] || continue
-		skip_repo "$(basename "$repo")" && continue
-		[ -d "$repo/cmd" ] || continue
-		find "$repo/cmd" -mindepth 1 -maxdepth 1 | LC_ALL=C sort | while IFS= read -r cmddir; do
-			[ -L "$cmddir" ] && continue          # re-export symlink → owner only
-			[ -d "$cmddir" ] || continue
-			ls "$cmddir"/*.go >/dev/null 2>&1 || continue   # buildable
-			[ -e "$cmddir/.private" ] && continue # opt-out marker
-			printf '%s\t%s\n' "$(basename "$cmddir")" "$repo"
-		done
+	{
+		find "$workspace" -mindepth 1 -maxdepth 1 -type d
+		substrate_repos
+	} | LC_ALL=C sort -u | while IFS= read -r repo; do
+		scan_repo "$repo"
 	done
 }
 

@@ -9,3 +9,14 @@ cmd/*/bin/
 bin/
 /sdlc
 .DS_Store
+
+# AGENTS.md is now a weave-COMPOSED artifact (#95): weave concatenates the
+# `prose` fragments (AGENTS.base.md + AGENTS.local.md) + the skill menu into it.
+# It is generated, so it is gitignored. Its SOURCES — AGENTS.base.md and
+# AGENTS.local.md — are tracked (NOT ignored): they are the constitution + the
+# per-repo extension that weave composes from.
+/AGENTS.md
+/.claude/skills/
+/.claude/settings.json
+/.colima/
+/construct/scripts/vm-log.sh

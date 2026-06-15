@@ -23,7 +23,7 @@ export WF_ISSUES_DIR WF_HISTORY_DIR
 # Python default in scripts/close-issue.py and suppresses project updates.
 BRAIN_DIR ?= ../brain
 
-.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge refresh issue-sync
+.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge weave issue-sync
 
 help-workflow:
 	@printf '%s\n' \
@@ -56,7 +56,7 @@ help-workflow:
 	"                        Tick checkboxes, set status/actual_hours, update project file" \
 	"" \
 	"  Setup:" \
-	"    make refresh        Re-run $(UPSTREAM_NAME) setup (link + merge settings)" \
+	"    make weave          Re-run $(UPSTREAM_NAME) setup (link + merge settings)" \
 	""
 
 # ── Issue sync ────────────────────────────────────────────────────────────────
@@ -113,10 +113,10 @@ close-issue:
 	    scripts/close-issue.py; \
 	fi
 
-# ── Refresh / bootstrap ───────────────────────────────────────────────────────
+# ── Weave / bootstrap ─────────────────────────────────────────────────────────
 # Two verbs, distinct concerns (per ariadne#38):
 #
-#   make refresh         Pure substrate-state sync. Verifies peers are present,
+#   make weave           Pure substrate-state sync. Verifies peers are present,
 #                        invokes construct/setup.sh to update symlinks. Does
 #                        NOT clone peers, does NOT build tools. Errors if a
 #                        peer is missing — operator should `make bootstrap`
@@ -132,7 +132,7 @@ close-issue:
 #                        as a sibling and mounts it via a relative symlink.
 #                        Language-agnostic; no-op when the manifest is absent.
 #
-#   make bootstrap       Composition: bootstrap-peers + refresh + tools.
+#   make bootstrap       Composition: bootstrap-peers + weave + tools.
 #                        Defined as prereqs-only (no recipe) so derivatives
 #                        with their own bootstrap target (e.g. nous's GPG
 #                        setup) can extend additively without recipe
@@ -150,13 +150,30 @@ close-issue:
 # `make bootstrap`. Once substrate has propagated, `make bootstrap` is the
 # canonical post-clone command.
 
-refresh:
-	@if [ -x construct/setup.sh ]; then \
-		construct/setup.sh; \
+# weave now builds + invokes the weave binary (cmd/weave), the intent-compiler
+# that replaced construct/setup.sh (#95). weave-build resolves weave's owner by
+# LOCATION (construct/dev-aliases.sh --list) and builds the binary in-owner at
+# $$owner/bin/weave — the same build-in-owner pattern sdlc-build uses, so a
+# derivative needs no go.mod replace. This target then resolves the SAME owner
+# and runs the OWNER's binary ($$owner/bin/weave) — NOT a local bin/weave, which
+# build-in-owner deliberately never produces in a consumer (#95 M5). When THIS
+# repo is the owner ($$owner is this repo's own dir), it runs its own bin/weave —
+# unchanged. `weave compile --target claude` compiles THIS repo's (the cwd's)
+# layer composition for the Claude backend: the generic symlinks, the prose-only
+# AGENTS.md compose, the settings.json merge, and the .claude/skills skill
+# lowering (the claude target emits the symlinks, not the AGENTS.md menu — see
+# plan.Target). compile operates on the caller's cwd, so the owner's binary
+# composing the consumer's repo is correct. Under `make bootstrap`,
+# bootstrap-peers (clones ancestors) precedes weave, so weave's owner is present
+# by the time this runs.
+weave: weave-build
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
+	if [ -n "$$owner" ] && [ -x "$$owner/bin/weave" ]; then \
+		"$$owner/bin/weave" compile --target claude; \
 	else \
-		echo "Error: construct/setup.sh not found in this repo."; \
-		echo "  First-time bootstrap: run \`../ariadne/construct/setup.sh\` manually."; \
-		echo "  After that, \`make refresh\` (and \`make bootstrap\`) will work — the script vendors itself."; \
+		echo "Error: weave binary not built (weave-build did not produce $$owner/bin/weave)."; \
+		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \
+		echo "  or clone the upstream ariadne beside this repo and \`make bootstrap\`."; \
 		exit 1; \
 	fi
 
@@ -202,7 +219,7 @@ ensure-go:
 # listed first so go is provisioned before the cascade in serial make; under
 # `make -j` ordering isn't positional, but both go-build targets (sdlc-build,
 # build) depend on ensure-go, so the actual compiles still wait for it (#61).
-bootstrap: ensure-go bootstrap-peers refresh tools sdlc-install data-deps
+bootstrap: ensure-go bootstrap-peers weave tools sdlc-install data-deps
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge
@@ -677,7 +694,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build sdlc-install sdlc-bootstrap
+.PHONY: tools sdlc-build weave-build sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -686,24 +703,50 @@ local-build:
 tools: sdlc-build build
 
 sdlc-build: ensure-go
-	@mkdir -p bin
-	@echo "==> building bin/sdlc (build-in-owner)"
-	@# Build-in-owner (#60): sdlc's source lives ONLY in its owner (ariadne).
-	@# Resolve the owner by LOCATION via dev-aliases.sh --list — immune to whether
-	@# ariadne is a direct or transitive ancestor, and needs no go.mod replace —
-	@# then build into THIS repo's bin/ using the owner's own module. Replaces the
-	@# old `cd construct && go build … through construct/go.mod`. Under `make
-	@# bootstrap`, `bootstrap-peers` (clones ancestors) and `refresh` (materializes
-	@# the construct/dev-aliases.sh symlink) both precede `tools`, so the resolver
-	@# and the owner are present by the time this runs.
-	@repo_root="$$(pwd)"; \
-	owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="sdlc"{print $$2}')"; \
+	@echo "==> building sdlc (build-in-owner)"
+	@# Build-in-owner (#60, #95 M5): sdlc's source AND binary live ONLY in its
+	@# owner (ariadne). Resolve the owner by LOCATION via dev-aliases.sh --list —
+	@# immune to whether ariadne is a direct or transitive ancestor, and needs no
+	@# go.mod replace — then build into the OWNER's bin/, NOT this repo's bin/.
+	@# So there is exactly one sdlc on disk: $$owner/bin/sdlc. A consumer's
+	@# `make tools` writes to ../ariadne/bin/ (the same place the dev-alias
+	@# functions build to — the official, gitignored path); it does NOT create a
+	@# duplicate consumer-local bin/sdlc. When THIS repo is the owner
+	@# ($$owner is this repo's own dir), the build target is unchanged — ariadne's
+	@# own bin/sdlc. Under `make bootstrap`, `bootstrap-peers` (clones ancestors) and
+	@# `weave` (materializes the construct/dev-aliases.sh symlink) both precede
+	@# `tools`, so the resolver and the owner are present by the time this runs.
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="sdlc"{print $$2}')"; \
 	if [ -z "$$owner" ]; then \
 	    echo "Error: sdlc owner not found beside this repo." >&2; \
-	    echo "  Run 'make bootstrap-peers' (clone ancestors) + 'make refresh' first." >&2; \
+	    echo "  Run 'make bootstrap-peers' (clone ancestors) + 'make weave' first." >&2; \
 	    exit 1; \
 	fi; \
-	( cd "$$owner" && go build -o "$$repo_root/bin/sdlc" ./cmd/sdlc )
+	mkdir -p "$$owner/bin"; \
+	( cd "$$owner" && go build -o "$$owner/bin/sdlc" ./cmd/sdlc )
+
+# weave-build: mirror of sdlc-build for cmd/weave — the intent-compiler that
+# replaced construct/setup.sh (#95). weave's source AND binary live ONLY in its
+# owner (ariadne); resolve the owner by LOCATION via dev-aliases.sh --list
+# (immune to direct-vs-transitive ancestry, needs no go.mod replace), then build
+# into the OWNER's bin/ (NOT this repo's bin/) — exactly one weave on disk at
+# $$owner/bin/weave. A consumer's `make weave` builds + runs ../ariadne/bin/weave
+# and produces NO consumer-local bin/weave (#95 M5, build-in-owner). When THIS
+# repo is the owner ($$owner is this repo's own dir) the target is unchanged. The `weave`
+# target depends on this, then runs `$$owner/bin/weave compile --target claude`
+# to compile this repo's layer composition. Under `make bootstrap`,
+# bootstrap-peers + weave's own weave-build prereq guarantee the owner + the
+# dev-aliases.sh symlink are present by the time this runs.
+weave-build: ensure-go
+	@echo "==> building weave (build-in-owner)"
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
+	if [ -z "$$owner" ]; then \
+	    echo "Error: weave owner not found beside this repo." >&2; \
+	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
+	    exit 1; \
+	fi; \
+	mkdir -p "$$owner/bin"; \
+	( cd "$$owner" && go build -o "$$owner/bin/weave" ./cmd/weave )
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
