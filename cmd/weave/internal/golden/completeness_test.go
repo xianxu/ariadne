@@ -147,6 +147,52 @@ func TestCheckCompletenessDedupsAcrossLayers(t *testing.T) {
 	}
 }
 
+func TestCheckCompletenessExcludesAncestorInternal(t *testing.T) {
+	// An ANCESTOR's `internal` intent is correctly EXCLUDED from 𝒜(R) by the
+	// planner (it never reaches a derivative), so the completeness guard must NOT
+	// flag it as under-produced — it was deliberately not planned, not dropped
+	// (#99). Foundation declares an internal prose (AGENTS.local.md) the leaf does
+	// not; the plan composes only the foundation's export + the leaf's internal.
+	foundation := layer.Layer{
+		Name: "foundation", Path: "/ws/ariadne",
+		Intents: []intent.Intent{
+			{Kind: intent.Prose, Visibility: intent.Export, Source: "AGENTS.base.md", Target: "AGENTS.base.md"},
+			{Kind: intent.Prose, Visibility: intent.Internal, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
+		},
+	}
+	leaf := layer.Layer{
+		Name: "leaf", Path: "/ws/leaf",
+		Intents: []intent.Intent{
+			{Kind: intent.Prose, Visibility: intent.Internal, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
+		},
+	}
+	// The plan: ONE AGENTS.md (foundation-export + leaf-internal). No Action is
+	// keyed to the foundation's internal AGENTS.local.md — and that's correct.
+	actions := []plan.Action{
+		plan.WriteFile{Path: "AGENTS.md", Content: "FOUNDATION-EXPORT\n\nLEAF-INTERNAL\n"},
+	}
+	got := CheckCompleteness([]layer.Layer{foundation, leaf}, actions)
+	if len(got) != 0 {
+		t.Fatalf("ancestor-internal must NOT be flagged under-produced, got %+v", got)
+	}
+}
+
+func TestCheckCompletenessLeafInternalStillChecked(t *testing.T) {
+	// The LEAF's internal IS in 𝒜(R), so a plan that fails to compose any
+	// AGENTS.md (the prose body) when the leaf declares an internal prose IS an
+	// under-production gap — the filter must not silence the leaf's own internal.
+	leaf := layer.Layer{
+		Name: "leaf", Path: "/ws/leaf",
+		Intents: []intent.Intent{
+			{Kind: intent.Prose, Visibility: intent.Internal, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
+		},
+	}
+	got := CheckCompleteness([]layer.Layer{leaf}, nil /* no AGENTS.md planned */)
+	if len(got) != 1 || got[0].Verb != "prose" {
+		t.Fatalf("leaf internal prose with no AGENTS.md must be under-produced, got %+v", got)
+	}
+}
+
 func TestRenderCompletenessVerdict(t *testing.T) {
 	clean := RenderCompleteness("/ws/ariadne", nil)
 	if !strings.Contains(clean, "0 setup.sh-produced path(s) NOT planned") {

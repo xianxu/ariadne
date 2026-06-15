@@ -19,16 +19,33 @@ var kindByVerb = map[string]Kind{
 	"skill":    Skill,
 }
 
+// visByToken maps the OPTIONAL leading visibility token to its Visibility. A row
+// may begin with `export` or `internal` before the type word; absent, visibility
+// defaults to Export (see ParseManifest). The token set is disjoint from
+// kindByVerb (no type is named `export`/`internal`), so a leading visibility word
+// is unambiguous.
+var visByToken = map[string]Visibility{
+	"export":   Export,
+	"internal": Internal,
+}
+
 // ParseManifest parses a base.manifest's text into typed Intents, in file
-// order. The line grammar is ported from setup.sh:walk_manifest (ARCH-DRY):
+// order. The line grammar is ported from setup.sh:walk_manifest (ARCH-DRY),
+// extended with the OPTIONAL leading visibility token (ariadne#99):
 //
 //   - A whole-line comment (`^[[:space:]]*#`) or a blank/whitespace-only line
 //     is skipped. NOTE: walk_manifest skips only WHOLE-line comments — it does
 //     NOT strip trailing comments (that is lib-deps' grammar, in deps.go, not
 //     this one), so a '#' mid-line is part of a field here.
-//   - The remaining line is whitespace-split into `action source target`
-//     (the shell's `read -r action source target`); a Target column omitted
-//     leaves Target defaulting to Source (`target="${target:-$source}"`).
+//   - The remaining line is whitespace-split. The FIRST field may be a
+//     visibility token (`export`|`internal`); when present it is consumed and
+//     sets the Intent's Visibility, leaving the rest as `action source target`.
+//     Absent ⇒ Visibility defaults to Export (the algebra's default — every
+//     pre-visibility row is unchanged). The token set is disjoint from the verb
+//     set, so a leading `export`/`internal` is unambiguous.
+//   - The remaining fields parse as `action source target` (the shell's
+//     `read -r action source target`); a Target column omitted leaves Target
+//     defaulting to Source (`target="${target:-$source}"`).
 //   - A row with no source (verb only) is skipped — there is nothing to act on.
 //   - An unrecognized verb is skipped (warn-and-ignore), mirroring
 //     walk_manifest's `*)` case and its retired-`copy` handling. A stale row
@@ -44,7 +61,16 @@ func ParseManifest(content string) ([]Intent, error) {
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue // blank or whole-line comment (walk_manifest's two guards)
 		}
-		fields := strings.Fields(trimmed) // `read -r action source target`
+		fields := strings.Fields(trimmed) // [vis] action source target
+
+		// Optional leading visibility token: consume it when present, else
+		// default Export. Unambiguous — `export`/`internal` are not verbs.
+		visibility := Export
+		if v, isVis := visByToken[fields[0]]; isVis {
+			visibility = v
+			fields = fields[1:]
+		}
+
 		if len(fields) < 2 {
 			continue // verb with no source — nothing to act on
 		}
@@ -62,7 +88,7 @@ func ParseManifest(content string) ([]Intent, error) {
 			// path), so the two semantics coincide on every real input.
 			target = fields[2]
 		}
-		intents = append(intents, Intent{Kind: kind, Source: source, Target: target})
+		intents = append(intents, Intent{Kind: kind, Visibility: visibility, Source: source, Target: target})
 	}
 	return intents, nil
 }

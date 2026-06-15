@@ -15,9 +15,11 @@ import (
 // Lowering is one switch over intent.Kind, ported from walk_manifest's dispatch
 // (ARCH-DRY — construct/setup.sh:320):
 //
-//   - Prose composes ACROSS layers: every layer's ProseFragments are gathered
-//     foundation-first and emitted (with the skill menu, below) as ONE
-//     WriteFile{AGENTS.md, composeAgentsBody}. This is the @AGENTS.local.md fix.
+//   - Prose composes ACROSS layers under the visibility algebra (#99): every
+//     layer's EXPORT prose foundation-first, then the LEAF's INTERNAL prose LAST
+//     (an ancestor's internal prose is excluded — that's the @AGENTS.local.md /
+//     parley bug fix). Emitted (with the skill menu, below) as ONE
+//     WriteFile{AGENTS.md, composeAgentsBody}.
 //   - The skill menu (the agent-agnostic floor's always-on discovery face) is
 //     appended as a `## Skills` section to that same AGENTS.md body. The menu
 //     is computed by the IO seam (walk.GatherSkills → skill.Build) and passed
@@ -53,19 +55,49 @@ import (
 func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 	var actions []Action
 
-	// Prose composes across all layers, foundation-first; the skill menu (the
-	// agent-agnostic floor's always-on face) appends below it — one AGENTS.md.
+	// The leaf Lₙ is the LAST layer (layer.Resolve emits root last + self-
+	// included). 𝒜(R) selects every layer's EXPORTS plus the LEAF's INTERNALS
+	// only — an ancestor's internal artifacts never reach R (the visibility axis,
+	// workshop/targets/weave-composition-algebra.md). leafIdx anchors both the
+	// prose composition and the per-intent export/leaf filter below.
+	leafIdx := len(layers) - 1
+
+	// Prose composes across all layers per the algebra:
+	//   prose(R) = ⟦export-prose(L₀)⟧ ∥ … ∥ ⟦export-prose(Lₙ)⟧ ∥ ⟦internal-prose(Lₙ)⟧
+	// i.e. every layer's EXPORT prose foundation-first, then the LEAF's INTERNAL
+	// prose LAST. Ancestor internal prose is excluded; leaf internal is included
+	// last. The skill menu (the agent-agnostic floor's always-on face) appends
+	// below it — one AGENTS.md.
 	var fragments []string
-	for _, l := range layers {
-		fragments = append(fragments, l.ProseFragments...)
+	for _, l := range layers { // export prose, foundation-first (incl. the leaf's export)
+		for _, f := range l.ProseFragments {
+			if f.Visibility == intent.Export {
+				fragments = append(fragments, f.Content)
+			}
+		}
+	}
+	if leafIdx >= 0 { // the leaf's internal prose LAST (excludes every ancestor's)
+		for _, f := range layers[leafIdx].ProseFragments {
+			if f.Visibility == intent.Internal {
+				fragments = append(fragments, f.Content)
+			}
+		}
 	}
 	if body := composeAgentsBody(fragments, menu); body != "" {
 		actions = append(actions, WriteFile{Path: "AGENTS.md", Content: body})
 	}
 
-	// File-op intents lower per intent, in layer (foundation-first) order.
-	for _, l := range layers {
+	// File-op intents lower per intent, in layer (foundation-first) order, under
+	// the SAME 𝒜(R) filter: an intent participates iff it is an EXPORT or it
+	// belongs to the LEAF (so an ancestor's internal is excluded; the leaf's
+	// internal is included). Today every non-prose intent is export, so this is
+	// behavior-preserving — but the filter must be uniform across kinds (the
+	// composition algebra is type-uniform; visibility picks the operands).
+	for i, l := range layers {
 		for _, in := range l.Intents {
+			if !participates(in.Visibility, i, leafIdx) {
+				continue
+			}
 			switch in.Kind {
 			case intent.Symlink:
 				// create_symlink "$upstream/$source" "$TARGET_DIR/$target"
@@ -116,6 +148,15 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 	}
 
 	return actions, nil
+}
+
+// participates reports whether an intent at layer index i (in foundation-first
+// order, leafIdx = the leaf Lₙ) is in the selected multiset 𝒜(R). It delegates to
+// intent.Selected (the single source of truth for the visibility-axis rule,
+// ARCH-DRY) — the type picks the compose operator, visibility picks the operands
+// (workshop/targets/weave-composition-algebra.md).
+func participates(v intent.Visibility, i, leafIdx int) bool {
+	return intent.Selected(v, i == leafIdx)
 }
 
 // joinPath joins an upstream layer path and a source relpath with a single

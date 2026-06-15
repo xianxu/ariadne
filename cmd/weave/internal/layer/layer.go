@@ -14,15 +14,27 @@ import "github.com/xianxu/ariadne/cmd/weave/internal/intent"
 // root-is-last-and-self (the self-reference filter is an IO-walk concern,
 // deferred to part 2 — see plan.go's TODO).
 //
-// ProseFragments holds the RESOLVED text of this layer's `prose` intents, in
-// intent order. The intents carry only relpaths (intent.Intent.Source);
-// reading each fragment file is an IO-seam concern (part 2), so the seam fills
-// ProseFragments when it builds the Layer. Keeping the content here (not on the
-// Intent) lets the Planner stay pure — it composes fragments across layers
-// without touching disk. Empty when the layer declares no prose.
+// ProseFragment is one resolved `prose` intent: its visibility (export|internal,
+// from the manifest token — see intent.Visibility) paired with the resolved file
+// Content. The visibility travels WITH the content so the Planner can select
+// 𝒜(R) — every layer's export prose plus the leaf's internal prose — without
+// re-reading the manifest. (Carrying it here, not on the bare string, is what
+// lets the pure Planner compose visibility-aware prose without touching disk.)
+type ProseFragment struct {
+	Visibility intent.Visibility
+	Content    string
+}
+
+// ProseFragments holds the RESOLVED `prose` intents of this layer, in intent
+// order, each tagged with its visibility (see ProseFragment). The intents carry
+// only relpaths (intent.Intent.Source); reading each fragment file is an IO-seam
+// concern (part 2), so the seam fills ProseFragments when it builds the Layer.
+// Keeping the content here (not on the Intent) lets the Planner stay pure — it
+// composes fragments across layers without touching disk. Empty when the layer
+// declares no prose.
 type Layer struct {
 	Name           string
 	Path           string
 	Intents        []intent.Intent
-	ProseFragments []string
+	ProseFragments []ProseFragment
 }

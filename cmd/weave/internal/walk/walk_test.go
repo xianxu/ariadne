@@ -82,12 +82,13 @@ func TestWalkFoundationFirstWithProse(t *testing.T) {
 		t.Fatalf("layers[1].Path = %q, want derived (root last) %q", layers[1].Path, derived)
 	}
 
-	// Prose fragments loaded from each layer's prose file.
-	if got := layers[0].ProseFragments; len(got) != 1 || got[0] != "BASE PROSE" {
-		t.Fatalf("base ProseFragments = %v, want [BASE PROSE]", got)
+	// Prose fragments loaded from each layer's prose file. The base fixture row
+	// is a bare `prose AGENTS.local.md` ⇒ Export visibility (the algebra default).
+	if got := layers[0].ProseFragments; len(got) != 1 || got[0].Content != "BASE PROSE" || got[0].Visibility != intent.Export {
+		t.Fatalf("base ProseFragments = %v, want [{Export BASE PROSE}]", got)
 	}
-	if got := layers[1].ProseFragments; len(got) != 1 || got[0] != "DERIVED PROSE" {
-		t.Fatalf("derived ProseFragments = %v, want [DERIVED PROSE]", got)
+	if got := layers[1].ProseFragments; len(got) != 1 || got[0].Content != "DERIVED PROSE" || got[0].Visibility != intent.Export {
+		t.Fatalf("derived ProseFragments = %v, want [{Export DERIVED PROSE}]", got)
 	}
 
 	// base's intents loaded (prose + scaffold + symlink).
@@ -99,6 +100,38 @@ func TestWalkFoundationFirstWithProse(t *testing.T) {
 		if layers[0].Intents[i].Kind != k {
 			t.Fatalf("base Intents[%d].Kind = %v, want %v", i, layers[0].Intents[i].Kind, k)
 		}
+	}
+}
+
+func TestWalkCarriesProseVisibility(t *testing.T) {
+	// The visibility token on a `prose` row travels into the resolved
+	// ProseFragment (#99): a layer declaring both an `export prose` and an
+	// `internal prose` row yields fragments tagged Export and Internal
+	// respectively, in intent order. This is the seam that lets the Planner
+	// select 𝒜(R) without re-reading the manifest.
+	parent := t.TempDir()
+	repo := filepath.Join(parent, "repo")
+	writeFile(t, filepath.Join(repo, "construct", "base.manifest"),
+		"export prose AGENTS.base.md\ninternal prose AGENTS.local.md\n")
+	writeFile(t, filepath.Join(repo, "AGENTS.base.md"), "BASE EXPORT")
+	writeFile(t, filepath.Join(repo, "AGENTS.local.md"), "LOCAL INTERNAL")
+
+	layers, err := Walk(weavefs.OSFS{}, repo)
+	if err != nil {
+		t.Fatalf("Walk: %v", err)
+	}
+	if len(layers) != 1 {
+		t.Fatalf("want 1 layer (self only), got %d", len(layers))
+	}
+	frags := layers[0].ProseFragments
+	if len(frags) != 2 {
+		t.Fatalf("want 2 prose fragments, got %+v", frags)
+	}
+	if frags[0].Visibility != intent.Export || frags[0].Content != "BASE EXPORT" {
+		t.Errorf("frags[0] = %+v, want {Export, BASE EXPORT}", frags[0])
+	}
+	if frags[1].Visibility != intent.Internal || frags[1].Content != "LOCAL INTERNAL" {
+		t.Errorf("frags[1] = %+v, want {Internal, LOCAL INTERNAL}", frags[1])
 	}
 }
 

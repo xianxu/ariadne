@@ -100,6 +100,62 @@ symlink AGENTS.md
 	}
 }
 
+func TestParseManifestVisibilityDefaultsExport(t *testing.T) {
+	// A row with no leading visibility token defaults to Export (the zero value),
+	// so every pre-visibility manifest row is unchanged. The visibility axis of
+	// workshop/targets/weave-composition-algebra.md.
+	got, err := ParseManifest("prose AGENTS.base.md\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{{Kind: Prose, Visibility: Export, Source: "AGENTS.base.md", Target: "AGENTS.base.md"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
+func TestParseManifestExplicitExportToken(t *testing.T) {
+	// A leading `export` token parses to Export and is stripped from the fields,
+	// leaving `<type> <source> [<target>]` — identical to the bare row. A leading
+	// export/internal is unambiguous: no type is named that.
+	got, err := ParseManifest("export prose AGENTS.base.md\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{{Kind: Prose, Visibility: Export, Source: "AGENTS.base.md", Target: "AGENTS.base.md"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
+func TestParseManifestInternalToken(t *testing.T) {
+	// A leading `internal` token marks the artifact internal to the declaring
+	// repo — selected only on its own self-walk, never in a derivative. The
+	// target column still defaults to source after the token is consumed.
+	got, err := ParseManifest("internal prose AGENTS.local.md\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{{Kind: Prose, Visibility: Internal, Source: "AGENTS.local.md", Target: "AGENTS.local.md"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
+func TestParseManifestVisibilityWithExplicitTarget(t *testing.T) {
+	// A visibility token + a three-column row: the token is consumed, then
+	// `<type> <source> <target>` parses as before. Visibility composes with the
+	// existing target-override grammar.
+	got, err := ParseManifest("export merge .claude/settings.ariadne.json .claude/settings.json\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{{Kind: Merge, Visibility: Export, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
 func TestParseManifestUnknownActionSkips(t *testing.T) {
 	// Unknown action mirrors walk_manifest's `*)` case: warn-and-skip, no
 	// error (a stale `copy` row must not abort the whole compile).

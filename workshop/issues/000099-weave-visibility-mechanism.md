@@ -38,14 +38,23 @@ weave composes `prose` (and will compose `skill`/`settings`) across the layer DA
 
 ## Plan
 
-- [ ] grammar + `Intent.Visibility` (parse, default export) — TDD
-- [ ] walk carries visibility per intent + prose fragment
-- [ ] planner selection `𝒜(R)`; prose leaf-internal last
-- [ ] ariadne `base.manifest`: `export prose AGENTS.base.md` + `internal prose AGENTS.local.md`
-- [ ] golden + verify-complete visibility-aware
-- [ ] multi-layer prose fixture + parley temp-copy re-verify
+- [x] grammar + `Intent.Visibility` (parse, default export) — TDD
+- [x] walk carries visibility per intent + prose fragment
+- [x] planner selection `𝒜(R)`; prose leaf-internal last
+- [x] ariadne `base.manifest`: `export prose AGENTS.base.md` + `internal prose AGENTS.local.md`
+- [x] golden + verify-complete visibility-aware
+- [x] multi-layer prose fixture + parley temp-copy re-verify
 
 ## Log
 
 ### 2026-06-14
 - Split from ariadne#95 M5: the prose-composition bug surfaced on the parley tart pass is a symptom of composing without a visibility axis. Operator chose to build the general mechanism now (it is THE core mechanism) rather than a point fix, fully explicit (no AGENTS.local.md convention). Algebra captured in target [[weave-composition-algebra]].
+
+### 2026-06-14 — implemented (TDD, single-pass)
+- **Grammar** (`intent`): `ParseManifest` consumes an OPTIONAL leading `export|internal` token (disjoint from the verb set → unambiguous); default `Export` (the zero value, so every pre-#99 row is unchanged). Added `Visibility` (`Export|Internal`) to `Intent`. Examples: `export prose AGENTS.base.md` / `internal prose AGENTS.local.md`.
+- **Visibility through walk→plan**: `Layer.ProseFragments` changed `[]string` → `[]ProseFragment{Visibility, Content}`; `walk.loadLayer` tags each fragment with its intent's visibility. The pure planner selects 𝒜(R) — the leaf Lₙ is the last layer (Resolve emits root last); prose composes `[export-prose of all layers, foundation-first] ++ [internal-prose of leaf]`; the SAME export-or-leaf filter (`participates` → `intent.Selected`, one source of truth, ARCH-DRY) applies uniformly to every kind (file-ops are all export today → behavior-preserving). `verify-complete`'s `CheckCompleteness` reuses `intent.Selected` to SKIP an ancestor's internal (excluded, not under-produced); the leaf's own internal is still checked. golden recomputes AGENTS.md via the same visibility-aware `plan.Plan`, so the self-walk MATCH is preserved structurally (no golden code change for content).
+- **ariadne `base.manifest`**: `prose AGENTS.base.md` → `export prose AGENTS.base.md`; `prose AGENTS.local.md` → `internal prose AGENTS.local.md` (+ a comment block explaining the axis). ariadne's local now lands ONLY on its own self-walk.
+- **Multi-layer fixture (the 𝒜(R) proof)**: `plan.TestPlanProseVisibilitySelection` + the end-to-end `main.TestCompileMultiLayerVisibility` (foundation export+internal, middle export, leaf internal, compiled at the leaf via real Walk→Plan→Apply) assert the leaf composes `FOUNDATION-EXPORT ∥ MIDDLE-EXPORT ∥ LEAF-INTERNAL` and does NOT contain either ancestor's internal. PASS.
+- **ariadne self-walk unchanged (proven byte-identical)**: HEAD binary + original manifest vs. this branch's binary + visibility-annotated manifest both compose AGENTS.md = 11143 bytes, md5 `cf25b47ea6b002cbb696b0ea2804025f`, `diff` clean. (The golden "content drift live 10784 vs 11143" is the pre-existing staleness of the committed/live AGENTS.md vs. the current AGENTS.base.md edit — present with the baseline binary too, NOT a #99 regression. The other two UNEXPECTED — merge settings.json, go.mod tool directive — also pre-date #99.)
+- **parley temp-copy re-verify (the bug fixed)**: `cp -R parley.nvim → $TMPDIR/parley-vis`; wrote `construct/base.manifest` = `internal prose AGENTS.local.md`, `construct/deps` = `substrate /Users/xianxu/workspace/ariadne`, `rm AGENTS.md`, compiled with the #99 binary. Assertions: composed AGENTS.md **CONTAINS** `# Parley.nvim Local Extensions` (PASS) and does **NOT contain** `# Ariadne Workshop Extensions` (PASS); ariadne's EXPORTED base constitution still flows down (PASS). The #95 bug is fixed.
+- **Verify**: `go build ./... && go test ./cmd/weave/... && go vet ./cmd/weave/... && gofmt -l cmd/weave` all clean.

@@ -166,7 +166,11 @@ func loadLayer(fs weavefs.FS, root, dir string) (layer.Layer, error) {
 				// declared prose it doesn't ship); don't abort the compile.
 				continue
 			}
-			l.ProseFragments = append(l.ProseFragments, string(frag))
+			// Tag the fragment with the intent's visibility (export|internal),
+			// so the Planner can select 𝒜(R) — every layer's export prose plus
+			// the leaf's internal prose only (the visibility axis, #99).
+			l.ProseFragments = append(l.ProseFragments,
+				layer.ProseFragment{Visibility: in.Visibility, Content: string(frag)})
 		}
 	}
 	return l, nil

@@ -47,8 +47,16 @@ seed      bootstrap.sh
 # resolved to the FOUNDATION's local file in a derivative (the #95 bug). The base
 # constitution lives in AGENTS.base.md (a prose fragment); each repo adds its own
 # AGENTS.local.md fragment.
-prose     AGENTS.base.md
-prose     AGENTS.local.md
+#
+# Visibility axis (ariadne#99, target weave-composition-algebra): AGENTS.base.md
+# is `export` — it flows down into every derivative's composed AGENTS.md;
+# AGENTS.local.md is `internal` — it stays with ariadne, selected ONLY on
+# ariadne's own self-walk (when ariadne is the leaf Lₙ), never leaked into a
+# derivative. This is the structural fix for the parley bug: each derivative
+# declares its OWN `internal prose AGENTS.local.md` in its own base.manifest (on
+# that repo's #95 cutover branch). A bare `prose` row defaults to export.
+export    prose AGENTS.base.md
+internal  prose AGENTS.local.md
 symlink   CLAUDE.md
 
 # ── Codex settings ────────────────────────────────────────────────────────────

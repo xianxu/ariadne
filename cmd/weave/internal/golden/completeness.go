@@ -75,10 +75,21 @@ type Uncovered struct {
 func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered {
 	idx := indexActions(actions)
 
+	// The leaf Lₙ is the last layer (layer.Resolve emits root last + self). Only
+	// intents in 𝒜(R) — every layer's exports + the leaf's internals — are PLANNED,
+	// so only those must be covered. An ANCESTOR's internal is deliberately
+	// excluded by the planner (not dropped), so flagging it as under-produced
+	// would be a false positive. Filter to participating intents up front, using
+	// the SAME selection rule the planner uses (intent.Selected, ARCH-DRY).
+	leafIdx := len(layers) - 1
+
 	var out []Uncovered
 	seen := map[string]bool{} // dedup by verb+target (a verb repeated across layers)
-	for _, l := range layers {
+	for i, l := range layers {
 		for _, in := range l.Intents {
+			if !intent.Selected(in.Visibility, i == leafIdx) {
+				continue // ancestor's internal — excluded from 𝒜(R), not under-produced
+			}
 			verb := verbName(in.Kind)
 			key := verb + "\x00" + in.Target
 			if seen[key] {

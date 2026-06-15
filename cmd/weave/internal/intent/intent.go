@@ -39,10 +39,47 @@ const (
 	Skill
 )
 
+// Visibility is the composition-algebra axis (workshop/targets/weave-composition-
+// algebra.md): an artifact a layer declares is either Export (it flows down to
+// every consumer) or Internal (it stays with the declaring repo). Compiling a
+// repo R over the layer chain ⟨L₀…Lₙ=R⟩ selects 𝒜(R) = {every Lᵢ's exports} ⊎
+// {Lₙ's internals only} — an ancestor's internal artifacts NEVER reach R. The
+// type picks the compose operator; the visibility picks the operands.
+type Visibility int
+
+const (
+	// Export is the DEFAULT (zero value): an artifact that flows down to every
+	// consumer. A manifest row with no leading visibility token is an export, so
+	// every pre-visibility row is unchanged.
+	Export Visibility = iota
+	// Internal — an artifact that stays with the declaring repo; it is selected
+	// only on that repo's own self-walk (when it is the leaf Lₙ), never in a
+	// derivative. (ariadne's AGENTS.local.md is internal: in a derivative it must
+	// not leak — the #95 bug.)
+	Internal
+)
+
+// Selected reports whether an artifact of visibility v, declared by a layer that
+// is (isLeaf) or is not the leaf Lₙ, participates in the selected multiset 𝒜(R):
+//
+//	𝒜(R) = {every layer's exports} ⊎ {the leaf's internals only}
+//
+// i.e. an EXPORT from any layer, OR ANY visibility from the leaf. Equivalently,
+// the ONLY thing excluded is an ANCESTOR's internal. This is the single source of
+// truth for the visibility-axis selection (ARCH-DRY) — both the planner (which
+// composes 𝒜(R)) and the completeness guard (which must not flag an ancestor's
+// internal as under-produced, since it was deliberately excluded, not dropped)
+// call it. See workshop/targets/weave-composition-algebra.md.
+func Selected(v Visibility, isLeaf bool) bool {
+	return v == Export || isLeaf
+}
+
 // Intent is one parsed manifest entry. Target defaults to Source when the
-// manifest row omits the third column.
+// manifest row omits the third column. Visibility defaults to Export (the zero
+// value) when the row omits a leading export|internal token.
 type Intent struct {
-	Kind   Kind
-	Source string
-	Target string
+	Kind       Kind
+	Visibility Visibility
+	Source     string
+	Target     string
 }

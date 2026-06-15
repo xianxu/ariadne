@@ -107,6 +107,54 @@ func TestCompileEndToEnd(t *testing.T) {
 	}
 }
 
+func TestCompileMultiLayerVisibility(t *testing.T) {
+	// The 𝒜(R) invariant end-to-end (workshop/targets/weave-composition-
+	// algebra.md, #99): a synthetic 3-layer stack — foundation with BOTH an
+	// `export prose` and an `internal prose`; a middle with `export prose`; a leaf
+	// with `internal prose` — compiled at the LEAF. The composed AGENTS.md must be
+	// [foundation-export, middle-export, leaf-internal] and must NOT carry the
+	// foundation's or middle's internal prose. This is the full walk → Plan →
+	// Apply path, not just the pure planner.
+	parent := t.TempDir()
+	foundation := filepath.Join(parent, "foundation")
+	middle := filepath.Join(parent, "middle")
+	leaf := filepath.Join(parent, "leaf")
+
+	// foundation: exports AGENTS.base.md, keeps AGENTS.local.md internal.
+	mkfile(t, filepath.Join(foundation, "construct", "base.manifest"),
+		"export prose AGENTS.base.md\ninternal prose AGENTS.local.md\n")
+	mkfile(t, filepath.Join(foundation, "AGENTS.base.md"), "FOUNDATION-EXPORT")
+	mkfile(t, filepath.Join(foundation, "AGENTS.local.md"), "FOUNDATION-INTERNAL")
+
+	// middle: depends on foundation; exports its own base prose.
+	mkfile(t, filepath.Join(middle, "construct", "deps"), "substrate ../foundation\n")
+	mkfile(t, filepath.Join(middle, "construct", "base.manifest"), "export prose AGENTS.base.md\n")
+	mkfile(t, filepath.Join(middle, "AGENTS.base.md"), "MIDDLE-EXPORT")
+
+	// leaf: depends on middle; declares only its own internal local prose.
+	mkfile(t, filepath.Join(leaf, "construct", "deps"), "substrate ../middle\n")
+	mkfile(t, filepath.Join(leaf, "construct", "base.manifest"), "internal prose AGENTS.local.md\n")
+	mkfile(t, filepath.Join(leaf, "AGENTS.local.md"), "LEAF-INTERNAL")
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, leaf, plan.TargetClaude, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	agents, err := os.ReadFile(filepath.Join(leaf, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	want := "FOUNDATION-EXPORT\n\nMIDDLE-EXPORT\n\nLEAF-INTERNAL\n"
+	if string(agents) != want {
+		t.Fatalf("AGENTS.md = %q, want %q", agents, want)
+	}
+	// The ancestor internals must be excluded — the 𝒜(R) exclusion proof.
+	if strings.Contains(string(agents), "FOUNDATION-INTERNAL") {
+		t.Errorf("leaf AGENTS.md leaked the foundation's INTERNAL prose:\n%s", agents)
+	}
+}
+
 func TestCompileDryRunDoesNotMutate(t *testing.T) {
 	_, _, derived := buildFixture(t)
 
