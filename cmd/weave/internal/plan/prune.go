@@ -50,14 +50,33 @@ type PruneCandidate struct {
 	IsSymlink      bool
 }
 
-// ProducedSymlinkSet returns the set of repo-relative Dst paths of every
-// Symlink action weave produced this run — the "produced THIS run" set the
-// orphan check excludes. Pure (reads only the action slice).
-func ProducedSymlinkSet(actions []Action) map[string]bool {
+// ProducedPathSet returns the repo-relative target path of EVERY action weave
+// produced this run — the full "weave owns this slot this run" set the orphan
+// exclusion (criterion 4) tests against. Broader than ProducedSymlinkSet (which
+// is Symlink-only, for the managed-location derivation): a path weave writes as
+// a REGULAR file (WriteFile AGENTS.md), seeds, touches, scaffolds, or merges is
+// not an orphan and must never be pruned — even while it still occupies the slot
+// as the pre-cutover symlink at dry-run-preview time (before Apply rewrites it).
+// Without this, `weave compile --dry-run` on an un-woven derivative falsely
+// previews `prune AGENTS.md` (the AGENTS.md → ancestor symlink looks orphaned),
+// though a real apply never prunes it (Apply converts it to a regular file
+// first). Pure.
+func ProducedPathSet(actions []Action) map[string]bool {
 	set := map[string]bool{}
 	for _, a := range actions {
-		if s, ok := a.(Symlink); ok {
-			set[filepath.Clean(s.Dst)] = true
+		switch act := a.(type) {
+		case Symlink:
+			set[filepath.Clean(act.Dst)] = true
+		case WriteFile:
+			set[filepath.Clean(act.Path)] = true
+		case Seed:
+			set[filepath.Clean(act.Dst)] = true
+		case Touch:
+			set[filepath.Clean(act.Path)] = true
+		case Mkdir:
+			set[filepath.Clean(act.Path)] = true
+		case MergeSettings:
+			set[filepath.Clean(act.Target)] = true
 		}
 	}
 	return set
@@ -226,7 +245,7 @@ func PruneOrphans(fs weavefs.FS, repoRoot string, actions []Action, sourceRoots 
 	if err != nil {
 		return nil, err
 	}
-	produced := ProducedSymlinkSet(actions)
+	produced := ProducedPathSet(actions)
 	toPrune := PrunePlan(candidates, produced, sourceRoots)
 	for _, rel := range toPrune {
 		if err := fs.Remove(filepath.Join(repoRoot, rel)); err != nil {
@@ -245,5 +264,5 @@ func PrunePreview(fs weavefs.FS, repoRoot string, actions []Action, sourceRoots 
 	if err != nil {
 		return nil, err
 	}
-	return PrunePlan(candidates, ProducedSymlinkSet(actions), sourceRoots), nil
+	return PrunePlan(candidates, ProducedPathSet(actions), sourceRoots), nil
 }

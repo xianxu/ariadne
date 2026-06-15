@@ -45,6 +45,55 @@ func TestApplyWriteFileCreatesParents(t *testing.T) {
 	}
 }
 
+func TestApplyWriteFileDoesNotClobberThroughSymlink(t *testing.T) {
+	// The #95 cutover hazard: until the first weave, a derivative's AGENTS.md is a
+	// SYMLINK into its ancestor (nous/AGENTS.md → ../ariadne/AGENTS.md). The
+	// composed AGENTS.md WriteFile lands at that slot — and os.WriteFile FOLLOWS a
+	// symlink, so a naive write would clobber the ANCESTOR's source through the
+	// link. applyWriteFile must remove the symlink first and write a fresh REGULAR
+	// file, leaving the ancestor untouched.
+	root := t.TempDir()
+	upstream := t.TempDir()
+	victim := filepath.Join(upstream, "AGENTS.md")
+	if err := os.WriteFile(victim, []byte("ANCESTOR SOURCE — DO NOT CLOBBER"), 0o644); err != nil {
+		t.Fatalf("seed victim: %v", err)
+	}
+	// Place a symlink at the slot, pointing at the upstream victim (the pre-cutover
+	// AGENTS.md → ancestor shape).
+	dst := filepath.Join(root, "AGENTS.md")
+	rel, err := filepath.Rel(root, victim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(rel, dst); err != nil {
+		t.Fatalf("seed symlink: %v", err)
+	}
+
+	if err := Apply(weavefs.OSFS{}, root, []Action{
+		WriteFile{Path: "AGENTS.md", Content: "COMPOSED LEAF CONTENT\n"},
+	}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+
+	// The ancestor source must be byte-for-byte untouched.
+	if got, err := os.ReadFile(victim); err != nil {
+		t.Fatalf("read victim: %v", err)
+	} else if string(got) != "ANCESTOR SOURCE — DO NOT CLOBBER" {
+		t.Fatalf("ancestor clobbered through symlink: %q", got)
+	}
+	// The slot is now a REGULAR file holding the composed content (not a symlink).
+	if fi, err := os.Lstat(dst); err != nil {
+		t.Fatalf("lstat dst: %v", err)
+	} else if fi.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("dst is still a symlink after WriteFile, want a regular file")
+	}
+	if got, err := os.ReadFile(dst); err != nil {
+		t.Fatalf("read dst: %v", err)
+	} else if string(got) != "COMPOSED LEAF CONTENT\n" {
+		t.Fatalf("dst content = %q, want composed content", got)
+	}
+}
+
 func TestApplyTouchCreatesWhenMissing(t *testing.T) {
 	// Touch creates an empty file (with parents) when none exists.
 	root := t.TempDir()

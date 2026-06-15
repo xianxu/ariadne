@@ -172,6 +172,50 @@ func TestPrunePreviewMatchesApplyButMutatesNothing(t *testing.T) {
 	}
 }
 
+func TestPruneKeepsWriteFileTargetStillSymlinked(t *testing.T) {
+	// The #95 cutover edge: before Apply rewrites it, a derivative's AGENTS.md is
+	// still a SYMLINK into the ancestor (the source root) — so the prune scan sees
+	// an orphan-shaped symlink at a slot weave actually PRODUCES this run (as a
+	// WriteFile, not a Symlink). The broadened ProducedPathSet must exclude it, so
+	// a dry-run preview does NOT falsely list `prune AGENTS.md`. (A real apply is
+	// safe regardless — Apply converts it to a regular file before the prune — but
+	// the preview must be honest.)
+	parent := t.TempDir()
+	repoRoot := filepath.Join(parent, "repo")
+	substrate := filepath.Join(parent, "substrate")
+	if err := os.MkdirAll(repoRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(substrate, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The ancestor's AGENTS.md (the symlink's target, under the source root).
+	if err := os.WriteFile(filepath.Join(substrate, "AGENTS.md"), []byte("ANCESTOR"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// repo/AGENTS.md → ../substrate/AGENTS.md (the pre-cutover shape).
+	if err := os.Symlink("../substrate/AGENTS.md", filepath.Join(repoRoot, "AGENTS.md")); err != nil {
+		t.Fatal(err)
+	}
+	// weave produces AGENTS.md as a WriteFile this run, plus a sibling symlink at
+	// the repo root so "." is a managed location (the prune scans it).
+	actions := []Action{
+		WriteFile{Path: "AGENTS.md", Content: "COMPOSED"},
+		Symlink{Src: filepath.Join(substrate, "CLAUDE.md"), Dst: "CLAUDE.md"},
+	}
+	sourceRoots := SourceRootsFromPaths([]string{substrate})
+
+	preview, err := PrunePreview(weavefs.OSFS{}, repoRoot, actions, sourceRoots)
+	if err != nil {
+		t.Fatalf("PrunePreview: %v", err)
+	}
+	for _, p := range preview {
+		if p == "AGENTS.md" {
+			t.Fatalf("preview falsely prunes AGENTS.md (a WriteFile target): %v", preview)
+		}
+	}
+}
+
 func TestManagedLocationsOnlyWhereWeaveProducedSymlinks(t *testing.T) {
 	// A dir weave does NOT emit a symlink into is NOT managed (so a self-walk
 	// that owns construct/scripts/ as real files never has it scanned).

@@ -231,9 +231,23 @@ func applySeed(fs weavefs.FS, src, dst string) error {
 // applyWriteFile ensures parents then writes content (the composed AGENTS.md).
 // Overwrites unconditionally — the planner decides content; convergence-on-drift
 // is implicit (same content → same bytes).
+//
+// If a SYMLINK occupies the slot it is removed FIRST, so we write a fresh regular
+// file here and never follow the link to clobber its target. This is the #95
+// cutover hazard: until a derivative's first weave, its AGENTS.md is a symlink
+// into the ancestor (nous/AGENTS.md → ../ariadne/AGENTS.md), and fs.WriteFile
+// (os.WriteFile) follows a symlink — so a naive write would overwrite ariadne's
+// source constitution THROUGH the link. Mirrors applySymlink's [[ -L ]] → rm
+// guard. A regular file in the slot is fine to truncate-overwrite (WriteFile's
+// own O_TRUNC); only a symlink must be unlinked first.
 func applyWriteFile(fs weavefs.FS, path, content string) error {
 	if err := ensureParent(fs, path); err != nil {
 		return err
+	}
+	if fi, lerr := fs.Lstat(path); lerr == nil && fi.Mode()&os.ModeSymlink != 0 {
+		if err := fs.Remove(path); err != nil {
+			return fmt.Errorf("apply writefile: remove stale symlink %s: %w", path, err)
+		}
 	}
 	if err := fs.WriteFile(path, []byte(content)); err != nil {
 		return fmt.Errorf("apply writefile: %s: %w", path, err)
