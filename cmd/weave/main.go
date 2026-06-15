@@ -451,15 +451,52 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 	if err != nil {
 		return err
 	}
+	// The lowering source roots for the orphan-symlink prune (#96): the resolved
+	// layer roots weave lowers FROM (a weave-owned link's target resolves under
+	// one of these). Derived from the walk, never hardcoded.
+	sourceRoots := plan.SourceRootsFromPaths(layerPaths(layers))
 	if dryRun {
 		fmt.Fprint(out, formatActions(actions))
+		// Dry-run also previews the prune (read-only scan + the SAME pure decision
+		// the apply uses), so a dry-run shows exactly what an apply would delete.
+		preview, perr := plan.PrunePreview(fs, root, actions, sourceRoots)
+		if perr != nil {
+			return fmt.Errorf("prune preview: %w", perr)
+		}
+		fmt.Fprint(out, formatPrunes(preview))
 		return nil
 	}
 	if err := plan.Apply(fs, root, actions); err != nil {
 		return fmt.Errorf("apply: %w", err)
 	}
+	// After Apply, prune ORPHANED lowered symlinks weave no longer produces (#96):
+	// renamed/re-prefixed skills + the #95 cutover's dead symlinks. Safety lives in
+	// plan.shouldPrune — only a weave-owned symlink absent from this run's produced
+	// set, in a managed location, is removed; real files/dirs and non-weave links
+	// are never touched.
+	pruned, err := plan.PruneOrphans(fs, root, actions, sourceRoots)
+	if err != nil {
+		return fmt.Errorf("prune: %w", err)
+	}
 	fmt.Fprintf(out, "weave: applied %d action(s) to %s\n", len(actions), root)
+	if len(pruned) > 0 {
+		fmt.Fprintf(out, "weave: pruned %d orphaned lowered symlink(s)\n", len(pruned))
+		for _, p := range pruned {
+			fmt.Fprintf(out, "  pruned %s\n", p)
+		}
+	}
 	return nil
+}
+
+// layerPaths extracts the absolute on-disk root of each resolved layer — the
+// lowering source roots the prune's weave-owned check tests target containment
+// against. Pure.
+func layerPaths(layers []layer.Layer) []string {
+	out := make([]string, 0, len(layers))
+	for _, l := range layers {
+		out = append(out, l.Path)
+	}
+	return out
 }
 
 // planActions is the full compile lowering for a set of resolved layers, for ONE
@@ -639,6 +676,18 @@ func formatActions(actions []plan.Action) string {
 		default:
 			b = append(b, fmt.Sprintf("unknown   %T\n", a)...)
 		}
+	}
+	return string(b)
+}
+
+// formatPrunes renders the dry-run preview of the #96 orphan-symlink prune: one
+// `prune` line per repo-relative path a real apply WOULD delete. Empty (no
+// output) when there is nothing to prune — so a healthy repo's dry-run shows no
+// prune noise. Pure (string in/out).
+func formatPrunes(paths []string) string {
+	var b []byte
+	for _, p := range paths {
+		b = append(b, fmt.Sprintf("prune     %s (orphaned lowered symlink)\n", p)...)
 	}
 	return string(b)
 }
