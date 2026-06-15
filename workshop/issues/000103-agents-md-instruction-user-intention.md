@@ -31,4 +31,7 @@ criteria single-sourced — the continuation section defers here as canonical.
 ## Log
 
 ### 2026-06-15
+- Added an #105 back-pointer: this issue is canonical for the live user-model
+  discipline; ariadne#105's `## Thread arc & user model` continuation section is
+  its persistence counterpart (same two criteria, single-sourced here).
 

@@ -109,7 +109,10 @@ terse.
       only") and Search recipes for the new sections.
 - [x] Cross-links: pair#61, ariadne#103 (single-sourced user-model), ariadne#90.
 - [x] Confirm nothing pins the old skeleton (no Go test does; no datatype lint exists).
-- [ ] pair#61 dogfood verifies it end-to-end (cross-repo; not a blocker).
+- [x] Atlas synced (`atlas/workflow/data-artifacts.md` — connective-narrative framing).
+
+End-to-end dogfood validation is **pair#61**'s deliverable (cross-repo, not a
+blocker for this datatype change); it is intentionally not a checkbox here.
 
 ## Log
 
