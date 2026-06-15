@@ -1,10 +1,13 @@
-# weave — the layer-composition compiler (replacing setup.sh)
+# weave — the layer-composition compiler (replaced setup.sh)
 
 `cmd/weave` is ariadne's intent compiler: it composes each repo's agentic
 context from its layer DAG, replacing the bash `construct/setup.sh` (see
-[Setup & Replication](setup-and-replication.md)). Status: **in progress on
-branch `000095-weave`** — issue [#95](../../workshop/issues/000095-weave.md),
-design [plan](../../workshop/plans/000095-weave-plan.md).
+[Setup & Replication](setup-and-replication.md)). Status: **cutover complete (M5)**
+— all 10 ariadne-styled repos compile via weave (`make weave`); `setup.sh` +
+the `merge-settings.sh`/`sync-local-skills.sh` hooks retired. Issue
+[#95](../../workshop/issues/000095-weave.md), design
+[plan](../../workshop/plans/000095-weave-plan.md). The composition invariant lives
+in the [base-layer-mechanics](../../workshop/targets/base-layer-mechanics.md) target.
 
 ## Shape (ARCH-PURE)
 A pure pipeline — `read deps+manifests → Resolve → Plan → []Action → Apply` —
@@ -53,5 +56,21 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `settings.local.json` → `.claude/settings.json`; the golden classifier
   compares **semantically** (not byte-wise). No formal `Backend` interface — the
   `Action` sum type is the seam (YAGNI with a single backend). **[M4]**
+- **Cutover surface** — `weave compile --target <claude|codex|agy>` (bare `weave`
+  is help-only, mutates nothing) + `weave verify-complete` (completeness companion
+  to `golden` — asserts the plan covers every managed path) · `walk.LowerSkillSymlinks`
+  (the `.claude/skills/<name>` symlink lowering, each pointing at the source layer's
+  skill dir — absorbed the retired `sync-local-skills.sh` SessionStart hook) ·
+  `plan.PruneOrphans` (#96 — GCs orphaned lowered symlinks + the dead
+  `setup.sh`/`merge-settings.sh`/`sync-local-skills.sh` cutover links; four
+  conjunctive KEEP-unless safety criteria) · `plan.EnsureGitignore` (weave owns
+  ignoring its generated-runtime set: `/AGENTS.md`, `/.claude/skills/`,
+  `/.claude/settings.json`, `/.colima/`, `/construct/scripts/vm-log.sh`) · the
+  **export/internal visibility axis** (#99, `intent.Selected` — `𝒜(R)` = ancestors'
+  exports ⊎ leaf's internals) · the `applyWriteFile` clobber-guard (removes a
+  symlink at the slot before writing, so a derivative's pre-cutover
+  `AGENTS.md`→ancestor symlink is never written through). The `tool` intent + the
+  `GoMod`/`GoModEdit` exec seam were **retired** (location-based Go-tool ownership;
+  weave's IO is filesystem-only). **[M5 — cutover complete]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.

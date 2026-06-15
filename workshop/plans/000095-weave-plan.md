@@ -236,3 +236,23 @@ Phase 1 (ariadne self-cutover + completeness harness) is complete on `000095-wea
 - **Invocation:** `make weave` → `weave compile --target claude` (the apply). Retired the `sync-local-skills.sh` SessionStart hook, **not** re-added — `make weave`/`bootstrap` are the render triggers; the auto-refresh-hook question is deferred to before the merge.
 
 Commits on `000095-weave`: `ac7dc2e` (run-wiring + skill backends), `63449bf` (config migration), `b0bb835` (test retirement), `e5c5f19` (seed lowering), `d1b30c1` (completeness harness), `5530a0b` (`weave compile --target`). M5 milestone-close happens after the coordinated merge (Phase 3).
+
+### Revision — 2026-06-15 (M5): `tool` intent / `GoMod` seam / `GoModEdit` action RETIRED
+
+Supersedes the Core-concepts table rows that still describe Go-tool machinery the
+M5 cutover deleted (flagged by the M5 boundary review as a table-vs-code
+contradiction). Go-tool ownership is **location-based** (`construct/dev-aliases.sh`
+scans sibling `cmd/X` dirs + build-in-owner builds each to `OWNER/bin/`); weave
+**does not edit `go.mod`**, and the substrate edge comes from `weave link` /
+`construct/deps`. Therefore:
+
+- `Intent` kinds drop `Tool` → **`Symlink | Seed | Scaffold | Touch | Merge | Prose | Skill`**.
+- `Action` drops `GoModEdit` → **`Symlink | WriteFile | Mkdir | Seed | Touch | MergeSettings | EnsureGitignore`** (weave's IO is filesystem-only).
+- The `GoMod` integration row (`cmd/weave/internal/weavefs/gomod.go`), the `gomodx`
+  package, the `weavefs.GoModEditor` exec seam, and the M3 `tool`-intent task are
+  all **deleted** — no `exec` dependency remains. A stale `tool` manifest row falls
+  through the parser's unknown-verb skip (like the retired `copy`).
+
+The compose-algebra home for the surviving intents is the
+`workshop/targets/base-layer-mechanics.md` target (the `skill` type's subsystem is
+`workshop/targets/skill-system.md`).
