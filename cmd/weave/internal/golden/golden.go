@@ -17,10 +17,10 @@
 //     MergeSettings whose recomputed merge SEMANTICALLY equals the live
 //     settings.json. This is the parity proof.
 //   - EXPECTED — the pre-registered/deferred ledger: the verbs setup.sh ran that
-//     weave does NOT yet lower (now just seed). Their live output is present;
-//     weave defers; the ledger SHRINKS as each lands — `tool` left it in M3 part
-//     2 and `merge` in M4 (both now lower + classify MATCH/UNEXPECTED). Not a
-//     failure.
+//     weave does NOT yet lower. The ledger SHRANK as each landed — `tool` left it
+//     in M3 part 2, `merge` in M4, and `seed` in M5 — so as of M5 it is EMPTY
+//     (every setup.sh file-op verb now lowers + classifies MATCH/UNEXPECTED). The
+//     class is retained for any future deferred verb. Not a failure.
 //   - UNEXPECTED — anything else: a file-op verb weave mis-emits, a symlink
 //     pointing somewhere different, a target setup.sh produced but weave's plan
 //     diverges on. The harness FAILS on these.
@@ -167,6 +167,38 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 			return Divergence{Unexpected, "touch", act.Path, "weave would create-if-missing, but file absent in live"}
 		}
 		return Divergence{Match, "touch", act.Path, "file exists (touch is create-if-missing)"}
+
+	case plan.Seed:
+		// Seed is a content-TRACKING copy (create_seed): MATCH iff the live
+		// target exists AND its content equals the upstream SOURCE's content
+		// (what applySeed would write). The probe is TWO files: the target
+		// (Dst, root-relative) and the source (Src, an ABSOLUTE upstream path,
+		// keyed by its own abs path in Observed — Gather reads both).
+		//   - Absent source → mirrors applySeed's non-fatal skip: weave would do
+		//     nothing, so a present-or-absent target is not a divergence; MATCH
+		//     with a note. (We can't fault a target weave wouldn't touch.)
+		//   - Source present, target absent → UNEXPECTED (weave would seed it,
+		//     but setup.sh's output isn't there — a real gap).
+		//   - Source present, content drift → UNEXPECTED (weave would refresh to
+		//     the source bytes; live differs).
+		//   - Source present, content equal → MATCH.
+		dstAbs := filepath.Join(root, act.Dst)
+		dstO := obs[dstAbs]
+		srcO := obs[act.Src]
+		if !srcO.Exists {
+			return Divergence{Match, "seed", act.Dst,
+				"upstream source absent — weave would skip (non-fatal), nothing to diverge"}
+		}
+		switch {
+		case !dstO.Exists:
+			return Divergence{Unexpected, "seed", act.Dst,
+				"weave would seed (copy upstream content), but the target is absent in live"}
+		case dstO.Content != srcO.Content:
+			return Divergence{Unexpected, "seed", act.Dst,
+				fmt.Sprintf("content drift (live %d bytes, upstream source %d bytes)", len(dstO.Content), len(srcO.Content))}
+		default:
+			return Divergence{Match, "seed", act.Dst, "content matches upstream source"}
+		}
 
 	case plan.WriteFile:
 		abs := filepath.Join(root, act.Path)
@@ -320,12 +352,14 @@ func classifyMergeSettings(root string, act plan.MergeSettings, obs map[string]O
 		"merged settings.json semantically equals weave's merge output"}
 }
 
-// classifyDeferred ledgers one deferred-verb Intent (seed) as an EXPECTED
-// divergence: setup.sh produced its output, weave does not lower it yet
-// (Seed=content copy [deferred]). The detail notes whether setup.sh's output is
-// present in live, so the ledger reads as a checklist that shrinks as lowerings
-// land. (Tool left this ledger in M3 part 2; Merge left it in M4 — it now lowers
-// to a MergeSettings, classified by classifyAction.)
+// classifyDeferred ledgers one deferred-verb Intent as an EXPECTED divergence:
+// setup.sh produced its output, weave does not lower it yet. The detail notes
+// whether setup.sh's output is present in live, so the ledger reads as a
+// checklist that shrinks as lowerings land. As of M5 the ledger is EMPTY —
+// every setup.sh verb now lowers + classifies (tool→ToolDep in M3 part 2,
+// merge→MergeSettings in M4, seed→Seed in M5). The function is retained for the
+// classifier's generic shape (any future deferred verb re-enters here via
+// IsDeferred); deferredLabel falls through to a generic label.
 func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Divergence {
 	verb, milestone := deferredLabel(in.Kind)
 	abs := filepath.Join(root, in.Target)
@@ -340,33 +374,24 @@ func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Di
 }
 
 // deferredLabel returns the verb name + the milestone/status that will retire
-// the deferral, for the ledger line. (tool + merge are no longer here — tool
-// lowers to a ToolDep, merge to a MergeSettings, both classified by
-// classifyAction.)
+// the deferral, for the ledger line. As of M5 NO setup.sh verb is deferred —
+// tool lowers to a ToolDep, merge to a MergeSettings, seed to a Seed, all
+// classified by classifyAction. The switch is left as a generic fallthrough so
+// a future deferred verb can re-register here.
 func deferredLabel(k intent.Kind) (verb, milestone string) {
-	switch k {
-	case intent.Seed:
-		return "seed", "content-copy deferred"
-	default:
-		return "deferred", "unknown"
-	}
+	return "deferred", "unknown"
 }
 
 // IsDeferred reports whether kind is a verb weave does not lower to a
 // filesystem Action yet — the verbs the gatherer collects for the EXPECTED
-// ledger. Skill is excluded: it feeds the M3 SkillIndex, not a file-op slot, so
-// it has no live file-op target to ledger. Prose IS lowered (composed AGENTS.md)
-// once a manifest declares it, so it is not deferred. Tool is NO LONGER deferred
-// (M3 part 2): it lowers to a ToolDep. Merge is NO LONGER deferred (M4): it
-// lowers to a MergeSettings, semantically classified by classifyAction. Only
-// seed remains.
+// ledger. As of M5 NOTHING is deferred: every setup.sh file-op verb lowers to
+// an Action classified by classifyAction (symlink/scaffold/touch since M2,
+// tool→ToolDep in M3 part 2, merge→MergeSettings in M4, seed→Seed in M5). Skill
+// is excluded (it feeds the SkillIndex, not a file-op slot) and Prose IS lowered
+// (the composed AGENTS.md) — neither is "deferred". The function is retained so a
+// future deferred verb can re-enter the EXPECTED ledger by returning true here.
 func IsDeferred(k intent.Kind) bool {
-	switch k {
-	case intent.Seed:
-		return true
-	default:
-		return false
-	}
+	return false
 }
 
 // HasUnexpected reports whether any divergence is UNEXPECTED — the harness's

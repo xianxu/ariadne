@@ -169,28 +169,90 @@ func TestTouchMatchOnExistence(t *testing.T) {
 	}
 }
 
-func TestDeferredVerbsExpected(t *testing.T) {
-	// The still-deferred verb (seed) produces NO weave action today, but setup.sh
-	// DID produce its output. It is pre-registered EXPECTED-missing: present in
-	// live, weave defers. The classifier ledgers it when the deferred-verb intent
-	// is supplied with its target present in live. (tool AND merge are no longer
-	// deferred — tool lowers to a ToolDep, merge to a MergeSettings, both
-	// classified by classifyAction below.)
+func TestSeedNotDeferred(t *testing.T) {
+	// Seed is no longer in the deferred ledger as of M5 — it lowers to a
+	// plan.Seed action, classified by classifyAction (content-tracking copy).
+	// Nothing is deferred now.
+	if IsDeferred(intent.Seed) {
+		t.Fatalf("IsDeferred(Seed) = true, want false (seed lowers to a Seed action now)")
+	}
+}
+
+func TestSeedContentMatch(t *testing.T) {
+	// A Seed MATCHES iff the live target exists AND its content equals the
+	// upstream SOURCE's content (what applySeed would write). The probe is two
+	// observed files: the target (Dst, root-relative) and the source (Src, an
+	// absolute upstream path keyed by its own abs path).
 	in := Input{
 		RepoRoot: "/ws/nous",
-		Deferred: []intent.Intent{
-			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
+		Actions: []plan.Action{
+			plan.Seed{Src: "/ws/ariadne/bootstrap.sh", Dst: "bootstrap.sh"},
 		},
 		Observed: map[string]Observed{
-			"/ws/nous/bootstrap.sh": {Exists: true},
+			"/ws/nous/bootstrap.sh":    {Exists: true, Content: "#!/bin/sh\nboot\n"},
+			"/ws/ariadne/bootstrap.sh": {Exists: true, Content: "#!/bin/sh\nboot\n"},
 		},
 	}
 	divs := Classify(in)
-	if len(divs) != 1 {
-		t.Fatalf("got %d divergences, want 1 (one per deferred intent)", len(divs))
+	if len(divs) != 1 || divs[0].Class != Match || divs[0].Verb != "seed" {
+		t.Fatalf("seed content match: got %+v, want one MATCH seed", divs)
 	}
-	if divs[0].Class != Expected {
-		t.Fatalf("deferred verb %s @ %s: class = %v, want EXPECTED", divs[0].Verb, divs[0].Path, divs[0].Class)
+}
+
+func TestSeedContentDriftUnexpected(t *testing.T) {
+	// Live target present but its content drifted from the upstream source →
+	// UNEXPECTED (weave would refresh it to the source bytes; live differs).
+	in := Input{
+		RepoRoot: "/ws/nous",
+		Actions: []plan.Action{
+			plan.Seed{Src: "/ws/ariadne/bootstrap.sh", Dst: "bootstrap.sh"},
+		},
+		Observed: map[string]Observed{
+			"/ws/nous/bootstrap.sh":    {Exists: true, Content: "STALE v1\n"},
+			"/ws/ariadne/bootstrap.sh": {Exists: true, Content: "FRESH v2\n"},
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 || divs[0].Class != Unexpected {
+		t.Fatalf("seed drift: got %+v, want one UNEXPECTED", divs)
+	}
+}
+
+func TestSeedTargetAbsentUnexpected(t *testing.T) {
+	// Source present, target absent → UNEXPECTED (weave would seed it, setup.sh's
+	// output isn't there).
+	in := Input{
+		RepoRoot: "/ws/nous",
+		Actions: []plan.Action{
+			plan.Seed{Src: "/ws/ariadne/bootstrap.sh", Dst: "bootstrap.sh"},
+		},
+		Observed: map[string]Observed{
+			"/ws/ariadne/bootstrap.sh": {Exists: true, Content: "boot\n"},
+			// target absent
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 || divs[0].Class != Unexpected {
+		t.Fatalf("seed target absent: got %+v, want one UNEXPECTED", divs)
+	}
+}
+
+func TestSeedSourceAbsentSkips(t *testing.T) {
+	// Upstream source absent → weave's applySeed would do nothing (non-fatal
+	// skip), so a present-or-absent target is not a divergence — MATCH (we can't
+	// fault a target weave wouldn't touch).
+	in := Input{
+		RepoRoot: "/ws/nous",
+		Actions: []plan.Action{
+			plan.Seed{Src: "/ws/ariadne/bootstrap.sh", Dst: "bootstrap.sh"},
+		},
+		Observed: map[string]Observed{
+			// neither source nor target present
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 || divs[0].Class != Match {
+		t.Fatalf("seed source absent: got %+v, want one MATCH (skip)", divs)
 	}
 }
 

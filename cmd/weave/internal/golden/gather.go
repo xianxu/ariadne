@@ -78,12 +78,32 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 		obs[abs] = cur
 	}
 
+	// observeAbs observes a path given ALREADY-ABSOLUTE (not root-joined) — for a
+	// Seed's upstream source, which lives at the layer's abs path, potentially
+	// OUTSIDE the consuming repo root. Content is always read (the seed compares
+	// the target to the source bytes).
+	observeAbs := func(abs string) {
+		if _, dup := obs[abs]; dup {
+			return
+		}
+		obs[abs] = observePath(fs, abs, true)
+	}
+
 	for _, a := range actions {
 		switch act := a.(type) {
 		case plan.Symlink:
 			observe(act.Dst, false)
 		case plan.Mkdir:
 			observe(act.Path, false)
+		case plan.Seed:
+			// Two probes (matching classifyAction's Seed case): the target (Dst,
+			// root-relative) and the upstream source (Src, absolute). Both need
+			// CONTENT — the classifier compares the live target to the source
+			// bytes. The source is FOLLOWED to its real content (a layer's
+			// upstream file is a regular file, but observeAbs reads whatever the
+			// path resolves to).
+			observe(act.Dst, true)
+			observeAbs(act.Src)
 		case plan.Touch:
 			observe(act.Path, false) // existence is enough for create-if-missing
 		case plan.WriteFile:

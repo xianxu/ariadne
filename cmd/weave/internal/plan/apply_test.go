@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
@@ -97,6 +98,123 @@ func TestApplyMkdir(t *testing.T) {
 	if err != nil || !info.IsDir() {
 		t.Fatalf("scaffold dir not created: err=%v info=%v", err, info)
 	}
+}
+
+// Seed is the content-tracking real-file copy ported from setup.sh's
+// create_seed: created on first run, refreshed when it drifts from upstream,
+// a silent no-op when identical, non-fatal when the source is missing. These
+// tests restore the coverage the retired construct/scripts/test/seed-refresh.test.sh
+// had (the bash extracted create_seed verbatim; here we exercise plan.applySeed
+// against a real t.TempDir-rooted OSFS — the seam end-to-end, no mocks). The
+// upstream source lives in a separate temp dir, mirroring an out-of-repo layer
+// (Seed.Src is absolute; Seed.Dst is repo-relative, joined to root by Apply).
+//
+// One mapping note vs the bash: create_seed used `cp -p` (mode-preserving) and
+// PRINTED seeded/updated; weavefs.FS.WriteFile writes 0o644 and Apply is silent.
+// So these assert on CONTENT + idempotency (the behaviors the golden harness and
+// the live flow depend on), not on the executable bit or the printed verb —
+// neither is load-bearing (bootstrap.sh runs as `bash bootstrap.sh`), and the
+// mode gap is documented in applySeed.
+func TestApplySeed(t *testing.T) {
+	upstream := t.TempDir()
+	src := filepath.Join(upstream, "bootstrap.sh")
+	v1 := "#!/usr/bin/env bash\necho v1\n"
+	if err := os.WriteFile(src, []byte(v1), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	seed := Seed{Src: src, Dst: "bootstrap.sh"}
+
+	// 1. Absent target → seeded: the target is created with the source's content.
+	//    (create_seed: dst absent ⇒ cp; verb=seeded.)
+	root := t.TempDir()
+	dst := filepath.Join(root, "bootstrap.sh")
+	if err := Apply(weavefs.OSFS{}, root, []Action{seed}); err != nil {
+		t.Fatalf("Apply (create): %v", err)
+	}
+	if got := mustRead(t, dst); got != v1 {
+		t.Fatalf("after create: dst = %q, want %q", got, v1)
+	}
+
+	// 2. Re-run, identical → no-op: the target is untouched (the cmp -s guard).
+	//    We detect "untouched" by stamping a known-old mtime first, then asserting
+	//    it survives — a rewrite would bump it to ~now. Using a fixed sentinel
+	//    mtime (not a before/after diff) sidesteps any filesystem mtime-resolution
+	//    race.
+	oldTime := time.Now().Add(-time.Hour).Truncate(time.Second)
+	if err := os.Chtimes(dst, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(weavefs.OSFS{}, root, []Action{seed}); err != nil {
+		t.Fatalf("Apply (no-op): %v", err)
+	}
+	if after := mustModTime(t, dst); !after.Equal(oldTime) {
+		t.Fatalf("identical re-run rewrote the file (mtime %v != stamped %v); create_seed must no-op", after, oldTime)
+	}
+	if got := mustRead(t, dst); got != v1 {
+		t.Fatalf("after no-op: dst = %q, want unchanged %q", got, v1)
+	}
+
+	// 3. Upstream drifts → updated: the target converges to the new source bytes
+	//    (THE regression create_seed's #45 change fixed — a derivative stranded on
+	//    a stale entrypoint catches up).
+	v2 := "#!/usr/bin/env bash\necho v2-transitive\n"
+	if err := os.WriteFile(src, []byte(v2), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(weavefs.OSFS{}, root, []Action{seed}); err != nil {
+		t.Fatalf("Apply (refresh): %v", err)
+	}
+	if got := mustRead(t, dst); got != v2 {
+		t.Fatalf("after refresh: dst = %q, want converged %q", got, v2)
+	}
+
+	// 4. Re-run after the update, identical again → no-op.
+	if err := os.Chtimes(dst, oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(weavefs.OSFS{}, root, []Action{seed}); err != nil {
+		t.Fatalf("Apply (post-update no-op): %v", err)
+	}
+	if after := mustModTime(t, dst); !after.Equal(oldTime) {
+		t.Fatalf("post-update identical re-run rewrote the file (mtime %v != stamped %v)", after, oldTime)
+	}
+}
+
+func TestApplySeedMissingSourceNonFatal(t *testing.T) {
+	// Missing source → non-fatal skip (create_seed's `[[ ! -f "$src" ]]` warn +
+	// return 0). Apply must NOT error, and must leave any existing target intact.
+	root := t.TempDir()
+	dst := filepath.Join(root, "bootstrap.sh")
+	if err := os.WriteFile(dst, []byte("PRE-EXISTING\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	seed := Seed{Src: filepath.Join(t.TempDir(), "nonexistent.sh"), Dst: "bootstrap.sh"}
+	if err := Apply(weavefs.OSFS{}, root, []Action{seed}); err != nil {
+		t.Fatalf("Apply with missing source must be non-fatal, got: %v", err)
+	}
+	if got := mustRead(t, dst); got != "PRE-EXISTING\n" {
+		t.Fatalf("missing source clobbered the target: got %q, want PRE-EXISTING", got)
+	}
+}
+
+// mustRead reads path or fails the test.
+func mustRead(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(b)
+}
+
+// mustModTime stats path and returns its mtime, or fails the test.
+func mustModTime(t *testing.T, path string) time.Time {
+	t.Helper()
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	return fi.ModTime()
 }
 
 // MergeSettings is the IO half of the settings cascade: Apply reads Source

@@ -23,9 +23,11 @@ import (
 //     is computed by the IO seam (walk.GatherSkills → skill.Build) and passed
 //     in; an empty menu adds nothing. Neither prose NOR a menu ⇒ no AGENTS.md
 //     Action (we don't write an empty file).
-//   - Symlink/Scaffold/Touch lower near-identity per intent (the dominant
+//   - Symlink/Scaffold/Touch/Seed lower near-identity per intent (the dominant
 //     file-op case): Symlink → Symlink{upstream/Source, Target}; Scaffold →
-//     Mkdir{Target}; Touch → empty WriteFile{Target}.
+//     Mkdir{Target}; Touch → empty WriteFile{Target}; Seed →
+//     Seed{upstream/Source, Target} (a content-tracking real-file copy whose
+//     bytes the IO seam reads from the upstream source — see plan.applySeed).
 //   - Tool lowers to a ToolDep{Owner, Path} (Owner = the declaring layer's
 //     Path, Path = the tool path within it). The planner records the facts;
 //     Apply decides derivative (append `substrate` to construct/deps) vs owner
@@ -79,10 +81,14 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 				// golden-diff harness surfaced.
 				actions = append(actions, Touch{Path: in.Target})
 			case intent.Seed:
-				// TODO(part-2): create_seed is a content-tracking real-file copy
-				// — it reads the upstream file's bytes (IO). Lowers to a
-				// WriteFile{Target, <upstream content>} once the IO seam reads
-				// the source; deferred here (the pure planner has no content).
+				// create_seed "$upstream/$source" "$TARGET_DIR/$target": a
+				// content-tracking real-file copy. The planner records only the
+				// path FACTS (Src = absolute upstream path, Dst = target-relative)
+				// — it does NOT read the upstream bytes (ARCH-PURE; the bytes live
+				// on disk and are read by applySeed in the IO seam). This mirrors
+				// Symlink's lowering (same joinPath(l.Path, in.Source) for the
+				// absolute source); applySeed does the content-compare + write.
+				actions = append(actions, Seed{Src: joinPath(l.Path, in.Source), Dst: in.Target})
 			case intent.Prose:
 				// Handled above (composes across layers); nothing per-intent.
 			case intent.Merge:

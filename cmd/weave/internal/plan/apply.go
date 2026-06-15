@@ -27,7 +27,12 @@ import (
 //     (rm + relink) or a regular file/dir (rm -rf) occupying the slot, and a
 //     no-op when the link already points where it should.
 //   - Mkdir → create_scaffold: mkdir -p, no-op when the dir already exists.
-//   - WriteFile → seed/AGENTS.md/touch: ensure parents, then write.
+//   - Seed → create_seed: a content-tracking real-file copy — create the target
+//     (copy the upstream source bytes) when missing, refresh it when its content
+//     drifted from the source, a no-op when already identical, and a non-fatal
+//     skip when the source is absent. Distinct from WriteFile (whose content the
+//     planner holds): a Seed's content is read from Src here in the IO seam.
+//   - WriteFile → AGENTS.md/touch: ensure parents, then write.
 //   - ToolDep → ensure_go_tool_dependency: derivative (append substrate to
 //     construct/deps) or owner self-walk (go mod edit -tool). The latter is the
 //     one exec, behind the injected GoModEditor — see ApplyWith.
@@ -51,6 +56,8 @@ func ApplyWith(fs weavefs.FS, repoRoot string, ed weavefs.GoModEditor, actions [
 			err = applySymlink(fs, filepath.Join(repoRoot, act.Dst), act.Src)
 		case Mkdir:
 			err = applyMkdir(fs, filepath.Join(repoRoot, act.Path))
+		case Seed:
+			err = applySeed(fs, act.Src, filepath.Join(repoRoot, act.Dst))
 		case Touch:
 			err = applyTouch(fs, filepath.Join(repoRoot, act.Path))
 		case WriteFile:
@@ -252,9 +259,47 @@ func applyTouch(fs weavefs.FS, path string) error {
 	return nil
 }
 
-// applyWriteFile ensures parents then writes content (the composed AGENTS.md or
-// a seed). Overwrites unconditionally — the planner decides content;
-// convergence-on-drift is implicit (same content → same bytes).
+// applySeed ports create_seed: a content-tracking real-file copy of the
+// upstream src into dst (dst already absolute). src is the absolute upstream
+// path. Behaviors, verbatim from setup.sh:
+//
+//   - Missing src → non-fatal skip (the bash `[[ ! -f "$src" ]]` warn + return
+//     0). weave can't read the source, so it leaves the target intact and does
+//     NOT error the walk. A read failure (absent or unreadable) takes this path.
+//   - Existing dst with identical content → silent no-op (the `cmp -s` guard),
+//     so a re-weave produces no churn.
+//   - Otherwise (dst absent, or drifted from src) → ensure parents, then write
+//     src's bytes to dst (created on first run, refreshed when it drifted). This
+//     is the convergence #45 added: a derivative stranded on a stale entrypoint
+//     catches up to upstream.
+//
+// NOTE on mode: setup.sh uses `cp -p` to preserve the source's mode (an
+// executable source lands executable). The weavefs.FS seam writes 0o644 (no
+// mode arg), so weave does not yet replicate the executable bit — bootstrap.sh
+// is invoked as `bash bootstrap.sh` (not `./bootstrap.sh`), so the bit is not
+// load-bearing for the live flow, and the golden classifier compares CONTENT,
+// not mode. Tracked as a known minor divergence rather than a port gap.
+func applySeed(fs weavefs.FS, src, dst string) error {
+	data, err := fs.ReadFile(src)
+	if err != nil {
+		return nil // source missing/unreadable → warn-equivalent non-fatal skip
+	}
+	// Already current → idempotent no-op (cmp -s), no churn on re-runs.
+	if existing, rerr := fs.ReadFile(dst); rerr == nil && string(existing) == string(data) {
+		return nil
+	}
+	if err := ensureParent(fs, dst); err != nil {
+		return err
+	}
+	if err := fs.WriteFile(dst, data); err != nil {
+		return fmt.Errorf("apply seed: write %s: %w", dst, err)
+	}
+	return nil
+}
+
+// applyWriteFile ensures parents then writes content (the composed AGENTS.md).
+// Overwrites unconditionally — the planner decides content; convergence-on-drift
+// is implicit (same content → same bytes).
 func applyWriteFile(fs weavefs.FS, path, content string) error {
 	if err := ensureParent(fs, path); err != nil {
 		return err

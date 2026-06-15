@@ -67,6 +67,30 @@ func TestPlanSymlinkAndScaffold(t *testing.T) {
 	}
 }
 
+func TestPlanSeedLowering(t *testing.T) {
+	// A `seed` intent lowers to a Seed{Src: upstream/Source, Dst: Target} — the
+	// SAME joinPath the symlink case uses for the absolute upstream source. The
+	// pure planner records only the path facts (it does NOT read the upstream
+	// bytes — ARCH-PURE); applySeed reads Src + conditionally writes Dst.
+	layers := []layer.Layer{
+		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
+			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
+			{Kind: intent.Seed, Source: ".github/workflows/merge-check.yml", Target: ".github/workflows/merge-check.yml"},
+		}},
+	}
+	got, err := Plan(layers, nil)
+	if err != nil {
+		t.Fatalf("Plan: unexpected error: %v", err)
+	}
+	want := []Action{
+		Seed{Src: "/ws/ariadne/bootstrap.sh", Dst: "bootstrap.sh"},
+		Seed{Src: "/ws/ariadne/.github/workflows/merge-check.yml", Dst: ".github/workflows/merge-check.yml"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Plan = %#v, want %#v", got, want)
+	}
+}
+
 func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 	// Skill lowering is still deferred (the M3 skill index feeds the menu, not a
 	// file-op). It must not error or emit an Action here — just skip. (Tool and

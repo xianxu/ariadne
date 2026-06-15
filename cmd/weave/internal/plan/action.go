@@ -40,6 +40,24 @@ type Mkdir struct {
 	Path string
 }
 
+// Seed is a content-tracking real-file COPY of an upstream Src into Dst —
+// lowered from an intent.Seed (walk_manifest: create_seed "$upstream/$source"
+// "$TARGET_DIR/$target"). Unlike Symlink, the result is a standalone file that
+// survives a clone with no upstream beside it (first-run entrypoints like
+// bootstrap.sh that must run before any substrate is present, so they
+// definitionally can't be symlinks). A seed is a *flattened symlink*: its
+// content is upstream-owned and carries no local edits, so it TRACKS upstream —
+// created on first run, refreshed when it drifts, a silent no-op when already
+// identical (the convergence #45 added). Src is the absolute upstream path; Dst
+// the target-relative path. (Distinct from WriteFile, whose Content the planner
+// already holds; a Seed's content lives in Src on disk and is read by the IO
+// seam — keeping the planner pure.) A missing Src is non-fatal: the seam warns
+// and leaves the target intact, never erroring the walk.
+type Seed struct {
+	Src string
+	Dst string
+}
+
 // Touch ensures an EMPTY file exists at Path, create-if-missing — it does NOT
 // overwrite an existing file. Lowered from intent.Touch, the faithful port of
 // walk_manifest's `touch` case (`if [[ ! -f ]] then touch`, setup.sh:347). This
@@ -77,6 +95,7 @@ type ToolDep struct {
 func (Symlink) isAction()       {}
 func (WriteFile) isAction()     {}
 func (Mkdir) isAction()         {}
+func (Seed) isAction()          {}
 func (Touch) isAction()         {}
 func (MergeSettings) isAction() {}
 func (ToolDep) isAction()       {}

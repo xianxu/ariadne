@@ -17,36 +17,31 @@ import (
 // plan.Apply's test).
 
 func TestDeferredIntents(t *testing.T) {
-	// DeferredIntents collects the seed intents across layers, de-duplicated by
-	// target (a verb appearing in multiple layers ledgers once), and drops the
-	// non-deferred kinds (symlink/scaffold/prose/skill — and now tool AND merge,
-	// which lower to a ToolDep / MergeSettings and are classified directly).
+	// As of M5 NOTHING is deferred — every setup.sh file-op verb lowers to an
+	// Action classified directly (symlink/scaffold/touch in M2, tool→ToolDep in
+	// M3 part 2, merge→MergeSettings in M4, seed→Seed in M5). DeferredIntents must
+	// therefore return EMPTY for a manifest carrying the full verb set, and
+	// IsDeferred must be false for every kind including Seed.
 	layers := []layer.Layer{
 		{Name: "base", Intents: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
 			{Kind: intent.Symlink, Source: "Makefile", Target: "Makefile"},
-			{Kind: intent.Merge, Source: "s.json", Target: ".claude/settings.json"}, // now lowered, not deferred
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},             // now lowered, not deferred
+			{Kind: intent.Merge, Source: "s.json", Target: ".claude/settings.json"},
+			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
 		}},
 		{Name: "self", Intents: []intent.Intent{
-			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"}, // dup target
+			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
 			{Kind: intent.Prose, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
 		}},
 	}
 	got := DeferredIntents(layers)
-	if len(got) != 1 {
-		t.Fatalf("got %d deferred intents, want 1 (seed, dedup; tool+merge no longer deferred): %+v", len(got), got)
+	if len(got) != 0 {
+		t.Fatalf("got %d deferred intents, want 0 (seed now lowers to a Seed action; nothing deferred): %+v", len(got), got)
 	}
-	for _, in := range got {
-		if !IsDeferred(in.Kind) {
-			t.Fatalf("non-deferred intent leaked: %+v", in)
+	for _, k := range []intent.Kind{intent.Seed, intent.Symlink, intent.Merge, intent.Tool, intent.Prose, intent.Skill, intent.Scaffold, intent.Touch} {
+		if IsDeferred(k) {
+			t.Fatalf("kind %v must NOT be deferred as of M5", k)
 		}
-		if in.Kind == intent.Tool || in.Kind == intent.Merge {
-			t.Fatalf("tool/merge must NOT be ledgered as deferred anymore: %+v", in)
-		}
-	}
-	if got[0].Target != "bootstrap.sh" {
-		t.Fatalf("deferred target = %q, want bootstrap.sh", got[0].Target)
 	}
 }
 
@@ -147,6 +142,10 @@ func TestGatherObservesLiveState(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(upstream, "Makefile"), []byte("M"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The upstream seed source — its bytes are what a live seed target must equal.
+	if err := os.WriteFile(filepath.Join(upstream, "bootstrap.sh"), []byte("boot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	// symlink Makefile -> rel(root, upstream/Makefile)
 	rel, _ := filepath.Rel(root, filepath.Join(upstream, "Makefile"))
 	if err := os.Symlink(rel, filepath.Join(root, "Makefile")); err != nil {
@@ -155,6 +154,7 @@ func TestGatherObservesLiveState(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, ".claude", "skills"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// A live seed target whose content equals the upstream source → MATCH.
 	if err := os.WriteFile(filepath.Join(root, "bootstrap.sh"), []byte("boot"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -162,12 +162,10 @@ func TestGatherObservesLiveState(t *testing.T) {
 	actions := []plan.Action{
 		plan.Symlink{Src: filepath.Join(upstream, "Makefile"), Dst: "Makefile"},
 		plan.Mkdir{Path: ".claude/skills"},
-	}
-	deferred := []intent.Intent{
-		{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
+		plan.Seed{Src: filepath.Join(upstream, "bootstrap.sh"), Dst: "bootstrap.sh"},
 	}
 
-	in := Gather(weavefs.OSFS{}, root, actions, deferred)
+	in := Gather(weavefs.OSFS{}, root, actions, nil)
 
 	// The symlink target was observed with its real link.
 	mk := in.Observed[filepath.Join(root, "Makefile")]
@@ -179,13 +177,19 @@ func TestGatherObservesLiveState(t *testing.T) {
 	if !sk.Exists || !sk.IsDir {
 		t.Fatalf(".claude/skills observed = %+v, want dir", sk)
 	}
-	// The seed file (deferred intent target).
+	// The seed TARGET (root-relative) observed with content.
 	bs := in.Observed[filepath.Join(root, "bootstrap.sh")]
-	if !bs.Exists {
-		t.Fatalf("bootstrap.sh observed = %+v, want present", bs)
+	if !bs.Exists || bs.Content != "boot" {
+		t.Fatalf("bootstrap.sh target observed = %+v, want present content=boot", bs)
+	}
+	// The seed SOURCE (absolute upstream) observed with content — keyed by its
+	// own abs path (observeAbs), not root-joined.
+	src := in.Observed[filepath.Join(upstream, "bootstrap.sh")]
+	if !src.Exists || src.Content != "boot" {
+		t.Fatalf("bootstrap.sh source observed = %+v, want present content=boot", src)
 	}
 
-	// And the whole thing classifies clean (all MATCH or EXPECTED).
+	// And the whole thing classifies clean (all MATCH).
 	divs := Classify(in)
 	if HasUnexpected(divs) {
 		t.Fatalf("unexpected divergence in a clean live tree: %+v", divs)
