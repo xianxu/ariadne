@@ -43,6 +43,11 @@ type FS interface {
 	// WriteFile writes data to path, creating it if needed (setup.sh seeds /
 	// the composed AGENTS.md).
 	WriteFile(path string, data []byte) error
+	// Chmod sets path's mode bits. Used by applySeed to replicate create_seed's
+	// `cp -p` mode-preservation (an executable source → an executable seeded
+	// file). The mode is OBSERVED from the source via Stat in the IO seam, so
+	// the pure core stays mode-agnostic (ARCH-PURE).
+	Chmod(path string, mode os.FileMode) error
 }
 
 // OSFS is the production FS backed by the os package. Its zero value is ready
@@ -60,6 +65,7 @@ func (OSFS) RemoveAll(path string) error                { return os.RemoveAll(pa
 func (OSFS) MkdirAll(path string) error                 { return os.MkdirAll(path, 0o755) }
 func (OSFS) Symlink(oldname, name string) error         { return os.Symlink(oldname, name) }
 func (OSFS) WriteFile(path string, data []byte) error   { return os.WriteFile(path, data, 0o644) }
+func (OSFS) Chmod(path string, mode os.FileMode) error  { return os.Chmod(path, mode) }
 
 // ensure OSFS satisfies FS at compile time.
 var _ FS = OSFS{}

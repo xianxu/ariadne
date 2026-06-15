@@ -179,25 +179,44 @@ func applyTouch(fs weavefs.FS, path string) error {
 //     catches up to upstream.
 //
 // NOTE on mode: setup.sh uses `cp -p` to preserve the source's mode (an
-// executable source lands executable). The weavefs.FS seam writes 0o644 (no
-// mode arg), so weave does not yet replicate the executable bit — bootstrap.sh
-// is invoked as `bash bootstrap.sh` (not `./bootstrap.sh`), so the bit is not
-// load-bearing for the live flow, and the golden classifier compares CONTENT,
-// not mode. Tracked as a known minor divergence rather than a port gap.
+// executable source lands executable). weavefs.FS.WriteFile writes a fixed
+// 0o644; applySeed then replicates the load-bearing part of `cp -p` by
+// OBSERVING the source's mode (fs.Stat) and chmod-ing the seeded file to match
+// its executable bits — so a seeded bootstrap.sh stays `./bootstrap.sh`-runnable
+// (a non-peer bootstrap invokes it directly, where the bit IS load-bearing). The
+// mode is read from disk in this IO seam, never carried in the pure Action
+// (ARCH-PURE). Non-exec source → the WriteFile 0o644 default stands.
+//
+// We sync the executable bits even on a content-identical dst (a file seeded by
+// an older mode-blind weave is +x-less; a re-weave should converge its mode too,
+// like create_seed's `cp -p` would). The cmp -s content no-op still skips the
+// rewrite; only the chmod (cheap, idempotent) runs unconditionally below.
 func applySeed(fs weavefs.FS, src, dst string) error {
 	data, err := fs.ReadFile(src)
 	if err != nil {
 		return nil // source missing/unreadable → warn-equivalent non-fatal skip
 	}
-	// Already current → idempotent no-op (cmp -s), no churn on re-runs.
+	// Content already current → idempotent no-op on the bytes (cmp -s), but still
+	// fall through to the mode sync below so a stale-mode dst converges.
+	contentCurrent := false
 	if existing, rerr := fs.ReadFile(dst); rerr == nil && string(existing) == string(data) {
-		return nil
+		contentCurrent = true
 	}
-	if err := ensureParent(fs, dst); err != nil {
-		return err
+	if !contentCurrent {
+		if err := ensureParent(fs, dst); err != nil {
+			return err
+		}
+		if err := fs.WriteFile(dst, data); err != nil {
+			return fmt.Errorf("apply seed: write %s: %w", dst, err)
+		}
 	}
-	if err := fs.WriteFile(dst, data); err != nil {
-		return fmt.Errorf("apply seed: write %s: %w", dst, err)
+	// Preserve the source's executable bit (the `cp -p` mode-preservation).
+	// Observe the source mode in the IO seam; if any exec bit is set, mirror the
+	// source's full perm onto dst, else leave the 0o644 WriteFile default.
+	if fi, serr := fs.Stat(src); serr == nil && fi.Mode().Perm()&0o111 != 0 {
+		if err := fs.Chmod(dst, fi.Mode().Perm()); err != nil {
+			return fmt.Errorf("apply seed: chmod %s: %w", dst, err)
+		}
 	}
 	return nil
 }

@@ -111,10 +111,9 @@ func TestApplyMkdir(t *testing.T) {
 //
 // One mapping note vs the bash: create_seed used `cp -p` (mode-preserving) and
 // PRINTED seeded/updated; weavefs.FS.WriteFile writes 0o644 and Apply is silent.
-// So these assert on CONTENT + idempotency (the behaviors the golden harness and
-// the live flow depend on), not on the executable bit or the printed verb —
-// neither is load-bearing (bootstrap.sh runs as `bash bootstrap.sh`), and the
-// mode gap is documented in applySeed.
+// These assert CONTENT + idempotency; the executable-bit preservation (the
+// load-bearing half of `cp -p` — a non-peer invokes `./bootstrap.sh` directly)
+// has its own test, TestApplySeedPreservesExecutableBit.
 func TestApplySeed(t *testing.T) {
 	upstream := t.TempDir()
 	src := filepath.Join(upstream, "bootstrap.sh")
@@ -195,6 +194,84 @@ func TestApplySeedMissingSourceNonFatal(t *testing.T) {
 	if got := mustRead(t, dst); got != "PRE-EXISTING\n" {
 		t.Fatalf("missing source clobbered the target: got %q, want PRE-EXISTING", got)
 	}
+}
+
+func TestApplySeedPreservesExecutableBit(t *testing.T) {
+	// The non-peer-bootstrap bug: a seeded bootstrap.sh is invoked as
+	// `./bootstrap.sh` (directly), so it MUST be executable. create_seed's `cp -p`
+	// preserved the source mode; applySeed observes the source mode in the IO seam
+	// and chmods the seeded file to match its exec bits.
+
+	// Executable source → seeded file is executable.
+	t.Run("executable source", func(t *testing.T) {
+		upstream := t.TempDir()
+		src := filepath.Join(upstream, "bootstrap.sh")
+		if err := os.WriteFile(src, []byte("#!/usr/bin/env bash\necho hi\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		root := t.TempDir()
+		dst := filepath.Join(root, "bootstrap.sh")
+		if err := Apply(weavefs.OSFS{}, root, []Action{Seed{Src: src, Dst: "bootstrap.sh"}}); err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+		fi, err := os.Stat(dst)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
+		}
+		if fi.Mode().Perm()&0o111 == 0 {
+			t.Fatalf("seeded file mode = %v, want executable (some +x bit set)", fi.Mode().Perm())
+		}
+	})
+
+	// Non-executable source → seeded file is 0o644 (the WriteFile default; no
+	// spurious +x).
+	t.Run("non-executable source", func(t *testing.T) {
+		upstream := t.TempDir()
+		src := filepath.Join(upstream, "data.txt")
+		if err := os.WriteFile(src, []byte("plain content\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		root := t.TempDir()
+		dst := filepath.Join(root, "data.txt")
+		if err := Apply(weavefs.OSFS{}, root, []Action{Seed{Src: src, Dst: "data.txt"}}); err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+		fi, err := os.Stat(dst)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
+		}
+		if got := fi.Mode().Perm(); got != 0o644 {
+			t.Fatalf("seeded file mode = %v, want 0o644", got)
+		}
+	})
+
+	// Convergence: a content-identical dst seeded WITHOUT the exec bit (by an
+	// older mode-blind weave) gains +x on a re-weave when the source is +x — the
+	// chmod runs even on the content no-op path.
+	t.Run("converges stale-mode dst", func(t *testing.T) {
+		upstream := t.TempDir()
+		src := filepath.Join(upstream, "bootstrap.sh")
+		body := []byte("#!/usr/bin/env bash\necho hi\n")
+		if err := os.WriteFile(src, body, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		root := t.TempDir()
+		dst := filepath.Join(root, "bootstrap.sh")
+		// Pre-seed identical content but 0o644 (the stale-mode state).
+		if err := os.WriteFile(dst, body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := Apply(weavefs.OSFS{}, root, []Action{Seed{Src: src, Dst: "bootstrap.sh"}}); err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+		fi, err := os.Stat(dst)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
+		}
+		if fi.Mode().Perm()&0o111 == 0 {
+			t.Fatalf("re-weave did not converge stale-mode dst: mode = %v, want +x", fi.Mode().Perm())
+		}
+	})
 }
 
 // mustRead reads path or fails the test.
