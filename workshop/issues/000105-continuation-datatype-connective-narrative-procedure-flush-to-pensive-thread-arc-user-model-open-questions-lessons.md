@@ -1,11 +1,12 @@
 ---
 id: 000105
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-15
 updated: 2026-06-15
 estimate_hours: 2
+actual_hours: 0.43
 ---
 
 # continuation datatype: connective-narrative procedure (flush-to-pensive, thread-arc/user-model, open-questions, lessons)
@@ -101,15 +102,32 @@ terse.
 
 ## Plan
 
-- [ ] Rewrite `construct/datatype/continuation.md`: Authoring instructions Step 0
-      (flush → pensive); body skeleton (new + reframed sections); Rules (concision +
-      writer-enforcement note); Search recipes; cross-links.
-- [ ] Confirm nothing pins the old skeleton (no Go test does today); run repo lint/`make` if any.
-- [ ] pair#61 dogfood verifies it end-to-end.
+- [x] Rewrite `construct/datatype/continuation.md` — Authoring step 1 (flush →
+      pensive, with target/meeting-notes carve-outs).
+- [x] Body skeleton: Thread arc & user model, Open questions (verbatim resume
+      directive), Artifact-map reframe, Lessons learned; NEXT ACTION tied to arc.
+- [x] Rules (concision / narrative-over-artifacts + "writer enforces NEXT ACTION
+      only") and Search recipes for the new sections.
+- [x] Cross-links: pair#61, ariadne#103 (single-sourced user-model), ariadne#90.
+- [x] Confirm nothing pins the old skeleton (no Go test does; no datatype lint exists).
+- [x] Atlas synced (`atlas/workflow/data-artifacts.md` — connective-narrative framing).
+
+End-to-end dogfood validation is **pair#61**'s deliverable (cross-repo, not a
+blocker for this datatype change); it is intentionally not a checkbox here.
 
 ## Log
 
 ### 2026-06-15
+- 2026-06-15: closed — Datatype rewrite reviewed — all pre-merge judges INFO; pair resolves the updated continuation.md live via the construct/datatype symlink (verified: pair copy shows the 4 new sections); end-to-end dogfood tracked in pair#61.; review verdict: SHIP
 - Created from the pair#61 dogfood. Design + decisions agreed with operator
   (see pair#61 decisions 1–6): sections/order, flush = pensive-only, writer
   enforces NEXT ACTION only, resume directive embedded in the generated file.
+- Rewrote the datatype. **Base-layer propagation:** `construct/datatype` is a
+  `symlink` entry (`construct/base.manifest:152`), so this flows to every
+  downstream ariadne-styled repo by symlink — consistent, no per-repo merge, and
+  no recompose needed for content. Risk is low: the richer skeleton is authoring
+  guidance, not a parsed schema, so continuations already written downstream under
+  the old skeleton don't break.
+- DRY (plan-quality finding): user-model definition single-sourced — ariadne#103
+  is canonical for the discipline; the continuation section defers to it and adds
+  a back-pointer in #103.
