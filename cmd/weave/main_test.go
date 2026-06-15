@@ -107,6 +107,42 @@ func TestCompileEndToEnd(t *testing.T) {
 	}
 }
 
+// TestCompileEnsuresGitignore proves weave OWNS ignoring its own generated-
+// runtime artifacts: a `weave compile` on a fixture repo (which ships no
+// .gitignore) leaves a .gitignore carrying every fixed generated-runtime entry,
+// and a second compile is idempotent (no duplicate lines) — so a fresh compile
+// on ANY derivative leaves a clean `git status` with no per-repo hand-edit.
+func TestCompileEnsuresGitignore(t *testing.T) {
+	_, _, derived := buildFixture(t)
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	gi := filepath.Join(derived, ".gitignore")
+	got, err := os.ReadFile(gi)
+	if err != nil {
+		t.Fatalf("read .gitignore (compile should have created it): %v", err)
+	}
+	for _, entry := range plan.GeneratedRuntimeGitignoreEntries {
+		if !strings.Contains(string(got), entry+"\n") {
+			t.Fatalf(".gitignore missing generated-runtime entry %q:\n%s", entry, got)
+		}
+	}
+
+	// Re-compile: idempotent, byte-identical .gitignore (no duplicated lines).
+	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, false, &out); err != nil {
+		t.Fatalf("run (2nd): %v", err)
+	}
+	again, err := os.ReadFile(gi)
+	if err != nil {
+		t.Fatalf("read .gitignore after 2nd compile: %v", err)
+	}
+	if string(again) != string(got) {
+		t.Fatalf("re-compile changed .gitignore:\n1st: %q\n2nd: %q", got, again)
+	}
+}
+
 func TestCompileMultiLayerVisibility(t *testing.T) {
 	// The 𝒜(R) invariant end-to-end (workshop/targets/weave-composition-
 	// algebra.md, #99): a synthetic 3-layer stack — foundation with BOTH an

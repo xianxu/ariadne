@@ -214,6 +214,16 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 	case plan.MergeSettings:
 		return classifyMergeSettings(root, act, obs)
 
+	case plan.EnsureGitignore:
+		// EnsureGitignore is weave's OWN generated-runtime ignore mechanism — a
+		// behavior setup.sh never had (it never wrote these .gitignore entries).
+		// So it is an EXPECTED divergence from the setup.sh-parity baseline, not a
+		// failure: weave intentionally does MORE than setup.sh here. (The detail
+		// notes the count; we don't fault the live .gitignore for lacking the
+		// entries — that's exactly the drift this action fixes.)
+		return Divergence{Expected, "gitignore", ".gitignore",
+			fmt.Sprintf("weave ensures %d generated-runtime ignore entr(ies) (not a setup.sh behavior)", len(act.Entries))}
+
 	default:
 		// Reaching here means a lowering started emitting an Action the harness
 		// does not classify yet. Flag loudly rather than silently pass.

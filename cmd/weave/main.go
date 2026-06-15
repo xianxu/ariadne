@@ -505,6 +505,15 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 			actions = append(actions, l)
 		}
 	}
+	// weave OWNS ignoring its own generated-runtime artifacts (gitignore.go): the
+	// composed AGENTS.md, the .claude/skills symlinks, the merged
+	// .claude/settings.json, the .colima VM tree, vm-log.sh. Append exactly ONE
+	// EnsureGitignore per compile (target-independent — every backend produces
+	// generated artifacts) so a fresh `weave compile` on ANY derivative leaves a
+	// clean `git status` with no per-repo .gitignore hand-edit. The pure planner
+	// (plan.Plan) stays free of it — like skillSymlinks, it's appended in this
+	// compile lowering and applied through the IO seam (plan.applyEnsureGitignore).
+	actions = append(actions, plan.EnsureGitignore{Entries: plan.GeneratedRuntimeGitignoreEntries})
 	return actions, nil
 }
 
@@ -625,6 +634,8 @@ func formatActions(actions []plan.Action) string {
 			b = append(b, fmt.Sprintf("touch     %s\n", act.Path)...)
 		case plan.MergeSettings:
 			b = append(b, fmt.Sprintf("merge     %s -> %s\n", act.Source, act.Target)...)
+		case plan.EnsureGitignore:
+			b = append(b, fmt.Sprintf("gitignore .gitignore (%d entries)\n", len(act.Entries))...)
 		default:
 			b = append(b, fmt.Sprintf("unknown   %T\n", a)...)
 		}

@@ -32,6 +32,11 @@ import (
 //   - WriteFile → AGENTS.md/touch: ensure parents, then write.
 //   - MergeSettings → merge-settings.sh: read base + optional sibling
 //     settings.local.json, run the pure mergeSettings, write the merged target.
+//   - EnsureGitignore → the generated-runtime ignore mechanism (gitignore.go):
+//     read the repo's .gitignore, append the missing fixed entries (idempotent
+//     whole-line append, never duplicating), write back only on change. weave
+//     OWNS this because weave generates those artifacts; emitted once per compile
+//     so every derivative gets a clean `git status` with no per-repo hand-edit.
 //
 // The retired `tool` verb (#95 M5) has no Action and no IO here: Go-tool
 // ownership is location-based (construct/dev-aliases.sh scans sibling cmd/X dirs)
@@ -52,6 +57,8 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 			err = applyWriteFile(fs, filepath.Join(repoRoot, act.Path), act.Content)
 		case MergeSettings:
 			err = applyMergeSettings(fs, repoRoot, act)
+		case EnsureGitignore:
+			err = applyEnsureGitignore(fs, filepath.Join(repoRoot, ".gitignore"), act.Entries)
 		default:
 			err = fmt.Errorf("apply: unknown action type %T", a)
 		}
