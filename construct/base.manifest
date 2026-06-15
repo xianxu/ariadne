@@ -189,15 +189,11 @@ symlink   .colima/vm-rc.sh
 # ── Documentation ─────────────────────────────────────────────────────────────
 symlink   atlas/workflow
 
-# ── Substrate dependency on the tool's owner ──────────────────────────────────
-# Declares ariadne (owner of cmd/sdlc + cmd/weave) as this consumer's substrate
-# ancestor. In a derivative, weave idempotently appends to construct/deps:
-#   substrate ../ariadne
-# The peer-graph walkers read that; `make sdlc-build` / `make weave-build` resolve
-# + build the tool in its owner (build-in-owner, #60 M2) — no per-derivative
-# go.mod needed. In ariadne itself (self-walk) this instead adds a `go tool`
-# directive to ariadne's root go.mod. Both tools share the one `substrate
-# ../ariadne` edge (deduped). (Pre-#60: stubbed a <name>-construct go.mod with
-# require+replace+tool, vendored for offline build — retired by #60 M1+M2.)
-tool      cmd/sdlc
-tool      cmd/weave
+# ── Go-tool ownership (no longer a weave-managed composition type) ────────────
+# cmd/sdlc + cmd/weave are ariadne-owned Go tools. Ownership is resolved by
+# LOCATION, not a manifest verb: construct/dev-aliases.sh scans sibling cmd/X
+# dirs and build-in-owner (#60 M2) builds each to OWNER/bin/ — no per-derivative
+# go.mod `tool` directive needed (that served only goland, which we don't use).
+# The substrate edge to ariadne comes from `weave link` / construct/deps, not a
+# derived `tool` row. So the `tool` verb was RETIRED in #95 M5 (weave no longer
+# edits go.mod); a stale `tool` row falls through the parser's unknown-verb skip.

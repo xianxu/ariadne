@@ -15,7 +15,7 @@ import (
 // actions, no FS) — the purity proof matching the classifier's posture.
 
 // fullLayer is a layer carrying one Intent of every verb, for the coverage
-// tests. Path is the "owner" for the tool check.
+// tests. (The retired `tool` verb is gone — #95 M5.)
 func fullLayer() layer.Layer {
 	return layer.Layer{
 		Name: "base", Path: "/ws/ariadne",
@@ -25,7 +25,6 @@ func fullLayer() layer.Layer {
 			{Kind: intent.Scaffold, Source: "atlas", Target: "atlas"},
 			{Kind: intent.Touch, Source: "workshop/lessons.md", Target: "workshop/lessons.md"},
 			{Kind: intent.Merge, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
 			{Kind: intent.Prose, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
 			{Kind: intent.Skill, Source: "construct/local", Target: "construct/local"},
 		},
@@ -41,7 +40,6 @@ func fullActions() []plan.Action {
 		plan.Mkdir{Path: "atlas"},
 		plan.Touch{Path: "workshop/lessons.md"},
 		plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
-		plan.ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"},
 		plan.Symlink{Src: "/ws/ariadne/construct/local/fix", Dst: ".claude/skills/xx-fix"}, // claude skill backend
 	}
 }

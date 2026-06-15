@@ -12,15 +12,15 @@
 //
 //   - MATCH — weave's action already realized in live: a Symlink whose live link
 //     points exactly where weave would link; a Mkdir whose dir exists; a
-//     WriteFile whose live content equals weave's; a ToolDep whose substrate row
-//     (derivative) / go.mod tool directive (owner) is already present; a
-//     MergeSettings whose recomputed merge SEMANTICALLY equals the live
-//     settings.json. This is the parity proof.
+//     WriteFile whose live content equals weave's; a MergeSettings whose
+//     recomputed merge SEMANTICALLY equals the live settings.json. This is the
+//     parity proof.
 //   - EXPECTED — the pre-registered/deferred ledger: the verbs setup.sh ran that
-//     weave does NOT yet lower. The ledger SHRANK as each landed — `tool` left it
-//     in M3 part 2, `merge` in M4, and `seed` in M5 — so as of M5 it is EMPTY
-//     (every setup.sh file-op verb now lowers + classifies MATCH/UNEXPECTED). The
-//     class is retained for any future deferred verb. Not a failure.
+//     weave does NOT yet lower. The ledger SHRANK as each landed — `merge` in M4
+//     and `seed` in M5 — so as of M5 it is EMPTY (every setup.sh file-op verb now
+//     lowers + classifies MATCH/UNEXPECTED). The `tool` verb is RETIRED, not
+//     deferred (#95 M5: ownership is location-based, weave never edits go.mod).
+//     The class is retained for any future deferred verb. Not a failure.
 //   - UNEXPECTED — anything else: a file-op verb weave mis-emits, a symlink
 //     pointing somewhere different, a target setup.sh produced but weave's plan
 //     diverges on. The harness FAILS on these.
@@ -30,9 +30,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/xianxu/ariadne/cmd/weave/internal/gomodx"
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
-	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
 	"github.com/xianxu/ariadne/cmd/weave/internal/settingsx"
 )
@@ -216,85 +214,12 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 	case plan.MergeSettings:
 		return classifyMergeSettings(root, act, obs)
 
-	case plan.ToolDep:
-		return classifyToolDep(root, act, obs)
-
 	default:
 		// Reaching here means a lowering started emitting an Action the harness
 		// does not classify yet. Flag loudly rather than silently pass.
 		return Divergence{Unexpected, fmt.Sprintf("%T", a), "",
 			"weave emitted an action the golden harness does not classify yet"}
 	}
-}
-
-// classifyToolDep classifies a ToolDep against the live tree, mirroring
-// applyToolDep's bimodal split (ARCH-DRY — same Owner==root test, same probe):
-//
-//   - Derivative (Owner != root): the probe is the live construct/deps. MATCH
-//     when it carries the `substrate <rel-to-owner>` row weave would append
-//     (detected via layer.ParseDeps, the same parser Apply uses for its
-//     present-check). UNEXPECTED when the file is absent or the row is missing.
-//   - Owner self-walk (Owner == root): the probe is the live go.mod. MATCH when
-//     it already declares the `tool <module>/<Path>` directive weave would add.
-//     UNEXPECTED when go.mod is absent or the directive is missing.
-//
-// The detail names the verb "tool" so the ledger reads consistently with the
-// pre-M3 EXPECTED line it replaces.
-func classifyToolDep(root string, act plan.ToolDep, obs map[string]Observed) Divergence {
-	if act.Owner != root {
-		// Derivative: check construct/deps for the substrate row.
-		rel, err := filepath.Rel(root, act.Owner)
-		if err != nil {
-			return Divergence{Unexpected, "tool", "construct/deps",
-				fmt.Sprintf("cannot compute relpath of %s from %s: %v", act.Owner, root, err)}
-		}
-		depsAbs := filepath.Join(root, "construct", "deps")
-		o := obs[depsAbs]
-		if !o.Exists {
-			return Divergence{Unexpected, "tool", "construct/deps",
-				fmt.Sprintf("weave would add `substrate %s`, but construct/deps absent in live", rel)}
-		}
-		if !depsHasSubstrate(o.Content, rel) {
-			return Divergence{Unexpected, "tool", "construct/deps",
-				fmt.Sprintf("weave would add `substrate %s`, but live construct/deps lacks it", rel)}
-		}
-		return Divergence{Match, "tool", "construct/deps",
-			fmt.Sprintf("substrate %s present (derivative depends on tool owner)", rel)}
-	}
-
-	// Owner self-walk: check go.mod for the tool directive.
-	gomodAbs := filepath.Join(root, "go.mod")
-	o := obs[gomodAbs]
-	module := gomodx.ModuleLine(o.Content)
-	want := module + "/" + act.Path
-	switch {
-	case !o.Exists:
-		return Divergence{Unexpected, "tool", "go.mod", "weave would add a tool directive, but go.mod absent in live"}
-	case module == "":
-		return Divergence{Unexpected, "tool", "go.mod", "weave would add a tool directive, but go.mod has no module line"}
-	case !gomodx.HasTool(o.Content, want):
-		return Divergence{Unexpected, "tool", "go.mod",
-			fmt.Sprintf("weave would add `tool %s`, but live go.mod lacks it", want)}
-	default:
-		return Divergence{Match, "tool", "go.mod",
-			fmt.Sprintf("tool %s present (owner self-walk)", want)}
-	}
-}
-
-// depsHasSubstrate reports whether the construct/deps content declares a
-// `substrate <rel>` row, reusing layer.ParseDeps so the harness reads the file
-// the same way Apply does (ARCH-DRY).
-func depsHasSubstrate(content, rel string) bool {
-	rows, err := layer.ParseDeps(content)
-	if err != nil {
-		return false
-	}
-	for _, r := range rows {
-		if r == rel {
-			return true
-		}
-	}
-	return false
 }
 
 // classifyMergeSettings classifies a MergeSettings against the live tree. The
@@ -356,10 +281,10 @@ func classifyMergeSettings(root string, act plan.MergeSettings, obs map[string]O
 // setup.sh produced its output, weave does not lower it yet. The detail notes
 // whether setup.sh's output is present in live, so the ledger reads as a
 // checklist that shrinks as lowerings land. As of M5 the ledger is EMPTY —
-// every setup.sh verb now lowers + classifies (tool→ToolDep in M3 part 2,
-// merge→MergeSettings in M4, seed→Seed in M5). The function is retained for the
-// classifier's generic shape (any future deferred verb re-enters here via
-// IsDeferred); deferredLabel falls through to a generic label.
+// every setup.sh verb now lowers + classifies (merge→MergeSettings in M4,
+// seed→Seed in M5; the `tool` verb is RETIRED, not deferred). The function is
+// retained for the classifier's generic shape (any future deferred verb
+// re-enters here via IsDeferred); deferredLabel falls through to a generic label.
 func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Divergence {
 	verb, milestone := deferredLabel(in.Kind)
 	abs := filepath.Join(root, in.Target)
@@ -375,9 +300,9 @@ func classifyDeferred(root string, in intent.Intent, obs map[string]Observed) Di
 
 // deferredLabel returns the verb name + the milestone/status that will retire
 // the deferral, for the ledger line. As of M5 NO setup.sh verb is deferred —
-// tool lowers to a ToolDep, merge to a MergeSettings, seed to a Seed, all
-// classified by classifyAction. The switch is left as a generic fallthrough so
-// a future deferred verb can re-register here.
+// merge lowers to a MergeSettings, seed to a Seed, all classified by
+// classifyAction (and the `tool` verb is retired, not deferred). It is left as a
+// generic fallthrough so a future deferred verb can re-register here.
 func deferredLabel(k intent.Kind) (verb, milestone string) {
 	return "deferred", "unknown"
 }
@@ -386,7 +311,7 @@ func deferredLabel(k intent.Kind) (verb, milestone string) {
 // filesystem Action yet — the verbs the gatherer collects for the EXPECTED
 // ledger. As of M5 NOTHING is deferred: every setup.sh file-op verb lowers to
 // an Action classified by classifyAction (symlink/scaffold/touch since M2,
-// tool→ToolDep in M3 part 2, merge→MergeSettings in M4, seed→Seed in M5). Skill
+// merge→MergeSettings in M4, seed→Seed in M5; the `tool` verb is retired). Skill
 // is excluded (it feeds the SkillIndex, not a file-op slot) and Prose IS lowered
 // (the composed AGENTS.md) — neither is "deferred". The function is retained so a
 // future deferred verb can re-enter the EXPECTED ledger by returning true here.

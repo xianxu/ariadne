@@ -5,8 +5,14 @@
 //
 // The Kind set is a hybrid (see workshop/plans/000095-weave-plan.md Core
 // concepts): the file-op verbs ported from setup.sh's walk_manifest
-// (Symlink|Seed|Scaffold|Touch|Merge|Tool — the dominant case in the live
+// (Symlink|Seed|Scaffold|Touch|Merge — the dominant case in the live
 // base.manifest) plus the new semantic verbs Prose|Skill that weave adds.
+//
+// The retired `tool` verb (#95 M5) is deliberately absent: Go-tool ownership is
+// resolved by LOCATION (construct/dev-aliases.sh scans sibling cmd/X dirs;
+// build-in-owner builds to OWNER/bin/) and deps come from `weave link` /
+// construct/deps, so weave never edits go.mod. A stale `tool` row falls through
+// the parser's unknown-verb skip (warn-and-ignore), exactly like `copy`.
 package intent
 
 // Kind is the typed manifest verb. The ported file-op kinds lower
@@ -27,9 +33,6 @@ const (
 	// Merge — JSON settings cascade (settings.<layer>.json under
 	// settings.local.json). Lowering deferred to M4 (the settings backend).
 	Merge
-	// Tool — declare the tool's owner as a substrate dependency / add a
-	// `go mod edit -tool` directive. Lowering deferred (the one exec seam).
-	Tool
 	// Prose — a prose fragment (e.g. AGENTS.local.md) concatenated
 	// foundation-first into the composed AGENTS.md. New in weave; replaces
 	// the @AGENTS.local.md @-import.

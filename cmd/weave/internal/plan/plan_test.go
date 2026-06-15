@@ -187,8 +187,8 @@ func TestPlanSeedLowering(t *testing.T) {
 
 func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 	// Skill lowering is still deferred (the M3 skill index feeds the menu, not a
-	// file-op). It must not error or emit an Action here — just skip. (Tool and
-	// Merge now lower — see TestPlanToolLowering / TestPlanMergeLowering.)
+	// file-op). It must not error or emit an Action here — just skip. (Merge now
+	// lowers — see TestPlanMergeLowering.)
 	layers := []layer.Layer{
 		{Name: "ariadne", Path: "/up", Intents: []intent.Intent{
 			{Kind: intent.Skill, Source: "construct/skills/x", Target: "construct/skills/x"},
@@ -221,40 +221,6 @@ func TestPlanMergeLowering(t *testing.T) {
 	}
 	want := []Action{
 		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("Plan = %#v, want %#v", got, want)
-	}
-}
-
-func TestPlanToolLowering(t *testing.T) {
-	// A `tool` intent lowers to a ToolDep{Owner, Path}: Owner is the absolute
-	// path of the layer that DECLARES the tool (its owner); Path is the tool's
-	// path within that owner module. The pure planner records both facts; the
-	// IO seam (Apply) decides derivative-vs-owner by comparing Owner to the
-	// compiling repo root. Ported from setup.sh:ensure_go_tool_dependency, where
-	// `upstream` = owner path, `source` = tool path.
-	//
-	// Two layers, foundation-first: ariadne (the owner, declares `tool cmd/sdlc`)
-	// then a derivative repo as root (self, last). Both layers may carry the tool
-	// intent (the derivative's own base.manifest also lists `tool cmd/sdlc`), and
-	// each lowers to a ToolDep with its OWN layer Path as Owner — Apply then
-	// classifies each by Owner==root.
-	layers := []layer.Layer{
-		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
-		}},
-		{Name: "derivative", Path: "/ws/derivative", Intents: []intent.Intent{
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
-		}},
-	}
-	got, err := Plan(layers, nil)
-	if err != nil {
-		t.Fatalf("Plan: unexpected error: %v", err)
-	}
-	want := []Action{
-		ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"},
-		ToolDep{Owner: "/ws/derivative", Path: "cmd/sdlc"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Plan = %#v, want %#v", got, want)

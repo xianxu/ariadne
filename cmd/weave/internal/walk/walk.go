@@ -149,7 +149,7 @@ func loadLayer(fs weavefs.FS, root, dir string) (layer.Layer, error) {
 		// whose upstream source == target target (would symlink/copy a file
 		// onto its own canonical location, destroying it). It applies only to
 		// the destructive file-ops; the read-only / rename intents bypass it:
-		//   - merge/tool — not file-shape (rename / go.mod edit), per setup.sh.
+		//   - merge — not file-shape (rename), per setup.sh.
 		//   - prose/skill — weave's read-only semantic intents: the Source file
 		//     is only READ (composed into AGENTS.md / indexed), never written
 		//     to its own slot, so a self-walk MUST keep them — that is exactly
@@ -178,8 +178,8 @@ func loadLayer(fs weavefs.FS, root, dir string) (layer.Layer, error) {
 
 // isFileShape reports whether kind is a destructive file-shape op the
 // self-reference filter guards (symlink/seed/scaffold/touch). The semantic
-// read-only intents (prose/skill) and the rename/edit intents (merge/tool) are
-// NOT file-shape and bypass the filter — see loadLayer.
+// read-only intents (prose/skill) and the rename intent (merge) are NOT
+// file-shape and bypass the filter — see loadLayer.
 func isFileShape(k intent.Kind) bool {
 	switch k {
 	case intent.Symlink, intent.Seed, intent.Scaffold, intent.Touch:

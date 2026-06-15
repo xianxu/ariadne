@@ -60,9 +60,6 @@ type Uncovered struct {
 //   - scaffold→ a plan.Mkdir with the same Path.
 //   - touch   → a plan.Touch with the same Path.
 //   - merge   → a plan.MergeSettings with the same Target.
-//   - tool    → a plan.ToolDep (the go.mod / construct/deps edit; not a
-//     path-keyed slot, so coverage is "≥1 ToolDep planned for this layer's
-//     owner" — see toolCovered).
 //   - prose   → composed into the one AGENTS.md (a plan.WriteFile{Path:"AGENTS.md"}).
 //   - skill   → EITHER skill backend (mutually exclusive per --target): the
 //     .claude/skills/<name> symlink backend (≥1 plan.Symlink under
@@ -96,7 +93,7 @@ func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered 
 				continue
 			}
 			seen[key] = true
-			if u, missing := coverIntent(l, in, idx); missing {
+			if u, missing := coverIntent(in, idx); missing {
 				out = append(out, u)
 			}
 		}
@@ -118,7 +115,6 @@ type actionIndex struct {
 	mkdirPaths  map[string]bool // every plan.Mkdir.Path
 	touchPaths  map[string]bool // every plan.Touch.Path
 	mergeTgts   map[string]bool // every plan.MergeSettings.Target
-	toolOwners  map[string]bool // every plan.ToolDep.Owner
 	skillLinks  int             // count of plan.Symlink under .claude/skills/
 	agentsMD    bool            // a plan.WriteFile for AGENTS.md exists
 	skillMenu   bool            // that AGENTS.md carries a `## Skills` menu section
@@ -131,7 +127,6 @@ func indexActions(actions []plan.Action) actionIndex {
 		mkdirPaths:  map[string]bool{},
 		touchPaths:  map[string]bool{},
 		mergeTgts:   map[string]bool{},
-		toolOwners:  map[string]bool{},
 	}
 	for _, a := range actions {
 		switch act := a.(type) {
@@ -148,8 +143,6 @@ func indexActions(actions []plan.Action) actionIndex {
 			idx.touchPaths[act.Path] = true
 		case plan.MergeSettings:
 			idx.mergeTgts[act.Target] = true
-		case plan.ToolDep:
-			idx.toolOwners[act.Owner] = true
 		case plan.WriteFile:
 			if act.Path == "AGENTS.md" {
 				idx.agentsMD = true
@@ -163,9 +156,8 @@ func indexActions(actions []plan.Action) actionIndex {
 }
 
 // coverIntent reports whether weave's plan covers one manifest Intent, returning
-// the Uncovered gap when it does not. l is the declaring layer (for tool owner /
-// skill backend reasoning).
-func coverIntent(l layer.Layer, in intent.Intent, idx actionIndex) (Uncovered, bool) {
+// the Uncovered gap when it does not.
+func coverIntent(in intent.Intent, idx actionIndex) (Uncovered, bool) {
 	mk := func(reason string) (Uncovered, bool) {
 		return Uncovered{Verb: verbName(in.Kind), Source: in.Source, Target: in.Target, Reason: reason}, true
 	}
@@ -189,10 +181,6 @@ func coverIntent(l layer.Layer, in intent.Intent, idx actionIndex) (Uncovered, b
 	case intent.Merge:
 		if !idx.mergeTgts[in.Target] {
 			return mk("no plan.MergeSettings writes this target")
-		}
-	case intent.Tool:
-		if !idx.toolOwners[l.Path] {
-			return mk("no plan.ToolDep for this layer's owner (the go.mod/construct/deps edit)")
 		}
 	case intent.Prose:
 		if !idx.agentsMD {
@@ -231,8 +219,6 @@ func verbName(k intent.Kind) string {
 		return "touch"
 	case intent.Merge:
 		return "merge"
-	case intent.Tool:
-		return "tool"
 	case intent.Prose:
 		return "prose"
 	case intent.Skill:

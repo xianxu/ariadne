@@ -10,11 +10,12 @@ package plan
 // set in this package), so a type switch in the IO seam handles every case.
 //
 // The set covers the file-ops this unit lowers (Symlink, WriteFile, Mkdir,
-// Touch), ToolDep (M3: intent.Tool lowers to a ToolDep, applied via the injected
-// GoModEditor seam), and MergeSettings (M4: intent.Merge lowers to a
-// MergeSettings, applied by reading base + optional local and running the pure
-// settingsx.Merge — merge-settings.sh's port). (Skill has no Action — it feeds
-// the M3 SkillIndex, not a file-op slot.)
+// Touch, Seed) and MergeSettings (M4: intent.Merge lowers to a MergeSettings,
+// applied by reading base + optional local and running the pure settingsx.Merge
+// — merge-settings.sh's port). (Skill has no Action — it feeds the M3
+// SkillIndex, not a file-op slot.) The retired `tool` verb (#95 M5) lowers to
+// no Action: Go-tool ownership is location-based (construct/dev-aliases.sh) and
+// deps come from `weave link`, so weave never edits go.mod.
 type Action interface{ isAction() }
 
 // Symlink creates a symlink at Dst pointing to Src. Lowered from an
@@ -82,20 +83,9 @@ type MergeSettings struct {
 	Target string // the merged output (e.g. .claude/settings.json), repo-relative
 }
 
-// ToolDep is the lowering of an intent.Tool — declaring the tool owner as a
-// substrate dep (derivative) or adding a `go mod edit -tool` directive (owner
-// self-walk). This unit emits one ToolDep per `tool` intent (see Plan); Apply
-// realizes it via the injected GoModEditor, the one exec seam ported from
-// ensure_go_tool_dependency (ARCH-PURE keeps that exec out of the planner).
-type ToolDep struct {
-	Owner string // absolute owner path
-	Path  string // tool path within the owner module (e.g. cmd/sdlc)
-}
-
 func (Symlink) isAction()       {}
 func (WriteFile) isAction()     {}
 func (Mkdir) isAction()         {}
 func (Seed) isAction()          {}
 func (Touch) isAction()         {}
 func (MergeSettings) isAction() {}
-func (ToolDep) isAction()       {}

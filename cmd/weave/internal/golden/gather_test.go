@@ -18,16 +18,15 @@ import (
 
 func TestDeferredIntents(t *testing.T) {
 	// As of M5 NOTHING is deferred — every setup.sh file-op verb lowers to an
-	// Action classified directly (symlink/scaffold/touch in M2, tool→ToolDep in
-	// M3 part 2, merge→MergeSettings in M4, seed→Seed in M5). DeferredIntents must
-	// therefore return EMPTY for a manifest carrying the full verb set, and
-	// IsDeferred must be false for every kind including Seed.
+	// Action classified directly (symlink/scaffold/touch in M2, merge→MergeSettings
+	// in M4, seed→Seed in M5; the `tool` verb is RETIRED, not deferred).
+	// DeferredIntents must therefore return EMPTY for a manifest carrying the full
+	// verb set, and IsDeferred must be false for every kind including Seed.
 	layers := []layer.Layer{
 		{Name: "base", Intents: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
 			{Kind: intent.Symlink, Source: "Makefile", Target: "Makefile"},
 			{Kind: intent.Merge, Source: "s.json", Target: ".claude/settings.json"},
-			{Kind: intent.Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
 		}},
 		{Name: "self", Intents: []intent.Intent{
 			{Kind: intent.Seed, Source: "bootstrap.sh", Target: "bootstrap.sh"},
@@ -38,7 +37,7 @@ func TestDeferredIntents(t *testing.T) {
 	if len(got) != 0 {
 		t.Fatalf("got %d deferred intents, want 0 (seed now lowers to a Seed action; nothing deferred): %+v", len(got), got)
 	}
-	for _, k := range []intent.Kind{intent.Seed, intent.Symlink, intent.Merge, intent.Tool, intent.Prose, intent.Skill, intent.Scaffold, intent.Touch} {
+	for _, k := range []intent.Kind{intent.Seed, intent.Symlink, intent.Merge, intent.Prose, intent.Skill, intent.Scaffold, intent.Touch} {
 		if IsDeferred(k) {
 			t.Fatalf("kind %v must NOT be deferred as of M5", k)
 		}

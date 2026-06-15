@@ -17,9 +17,9 @@ import (
 // (golden.go) does the reasoning; this seam only looks.
 
 // DeferredIntents collects, across all walked layers, the verbs weave does NOT
-// lower to a filesystem Action yet (now just seed — see IsDeferred; tool lowers
-// to a ToolDep, merge to a MergeSettings), so the classifier can ledger each as
-// EXPECTED rather than silently dropping it.
+// lower to a filesystem Action yet (as of #95 M5 NONE — merge lowers to a
+// MergeSettings, seed to a Seed; the `tool` verb is RETIRED, not deferred), so
+// the classifier can ledger each as EXPECTED rather than silently dropping it.
 // De-duplicated by target: a verb declared in multiple layers (or repeated on a
 // self-walk) ledgers once. Order-stable (first occurrence wins) so the ledger
 // is deterministic.
@@ -108,15 +108,6 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 			observe(act.Path, false) // existence is enough for create-if-missing
 		case plan.WriteFile:
 			observe(act.Path, true) // content compared for a WriteFile
-		case plan.ToolDep:
-			// The probe is bimodal (matching classifyToolDep): a derivative
-			// checks construct/deps for the substrate row; the owner self-walk
-			// checks go.mod for the tool directive. Both need CONTENT.
-			if act.Owner == root {
-				observe("go.mod", true)
-			} else {
-				observe(filepath.Join("construct", "deps"), true)
-			}
 		case plan.MergeSettings:
 			// The probe is THREE files (matching classifyMergeSettings): the base
 			// (Source), the optional sibling settings.local.json, and the live

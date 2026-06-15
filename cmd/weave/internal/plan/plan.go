@@ -30,11 +30,6 @@ import (
 //     Mkdir{Target}; Touch → empty WriteFile{Target}; Seed →
 //     Seed{upstream/Source, Target} (a content-tracking real-file copy whose
 //     bytes the IO seam reads from the upstream source — see plan.applySeed).
-//   - Tool lowers to a ToolDep{Owner, Path} (Owner = the declaring layer's
-//     Path, Path = the tool path within it). The planner records the facts;
-//     Apply decides derivative (append `substrate` to construct/deps) vs owner
-//     (`go mod edit -tool`) by comparing Owner to the repo root. Ported from
-//     ensure_go_tool_dependency.
 //   - Merge lowers to a MergeSettings{Source, Target} — the settings cascade
 //     (ported from setup.sh's `merge` case). The planner records the path facts;
 //     Apply reads Source + the sibling settings.local.json off disk and runs
@@ -131,15 +126,6 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 				// Apply reads Source + the sibling settings.local.json off disk,
 				// runs settingsx.Merge (the merge-settings.sh port), writes Target.
 				actions = append(actions, MergeSettings{Source: in.Source, Target: in.Target})
-			case intent.Tool:
-				// Lower to ToolDep, recording the FACTS the IO seam needs:
-				// Owner is this layer's absolute path (setup.sh's `upstream`),
-				// Path is the tool's path within that owner module (`source`).
-				// The planner stays pure — it does NOT decide derivative-vs-owner
-				// (that compares Owner to the compiling repo root, which lives in
-				// Apply) and does NOT compute the substrate relpath / read go.mod
-				// (both IO). One ToolDep per `tool` intent, in layer order.
-				actions = append(actions, ToolDep{Owner: l.Path, Path: in.Source})
 			case intent.Skill:
 				// TODO(M3): feeds the SkillIndex (agent-agnostic skill serving),
 				// not the filesystem-op list. No Action here.

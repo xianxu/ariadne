@@ -41,7 +41,6 @@ func TestParseManifestAllPortedVerbs(t *testing.T) {
 symlink   AGENTS.md
 scaffold  .claude/skills
 touch     workshop/lessons.md
-tool      cmd/sdlc
 `
 	got, err := ParseManifest(content)
 	if err != nil {
@@ -52,10 +51,24 @@ tool      cmd/sdlc
 		{Kind: Symlink, Source: "AGENTS.md", Target: "AGENTS.md"},
 		{Kind: Scaffold, Source: ".claude/skills", Target: ".claude/skills"},
 		{Kind: Touch, Source: "workshop/lessons.md", Target: "workshop/lessons.md"},
-		{Kind: Tool, Source: "cmd/sdlc", Target: "cmd/sdlc"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
+func TestParseManifestSkipsRetiredToolVerb(t *testing.T) {
+	// `tool` was retired in #95 M5 (Go-tool ownership is location-based via
+	// construct/dev-aliases.sh, not a go.mod edit). A stale `tool` row must fall
+	// through the unknown-verb skip (warn-and-ignore), exactly like `copy` —
+	// never aborting the compile and never producing an Intent.
+	got, err := ParseManifest("tool cmd/sdlc\nsymlink AGENTS.md\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{{Kind: Symlink, Source: "AGENTS.md", Target: "AGENTS.md"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v (tool row must be skipped)", got, want)
 	}
 }
 

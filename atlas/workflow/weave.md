@@ -8,17 +8,19 @@ design [plan](../../workshop/plans/000095-weave-plan.md).
 
 ## Shape (ARCH-PURE)
 A pure pipeline — `read deps+manifests → Resolve → Plan → []Action → Apply` —
-wrapped by a thin injected IO seam (filesystem; one `go mod edit` exec). Cloning
-stays in the `bootstrap.sh` shell stub, so weave's IO is filesystem, not git.
-Pure entities are unit-tested mock-free.
+wrapped by a thin injected IO seam (filesystem only; weave does not edit
+`go.mod`). Cloning stays in the `bootstrap.sh` shell stub, so weave's IO is
+filesystem, not git. Pure entities are unit-tested mock-free.
 
 ## Key decisions
 - **Layer edges from `construct/deps` only** — resolved repo-root-relative for
   any path (directory-agnostic; `go.mod` is *not* a layer-discovery channel).
 - **Hybrid intent vocabulary** — ported file-op verbs (`symlink`/`seed`/
-  `scaffold`/`touch`/`merge`/`tool`) + new semantic `prose` (composes `AGENTS.md`,
+  `scaffold`/`touch`/`merge`) + new semantic `prose` (composes `AGENTS.md`,
   replacing the buggy `@AGENTS.local.md` @-import) and `skill` (served via
-  `weave skill`).
+  `weave skill`). The `tool` verb was **retired** in #95 M5 — Go-tool ownership
+  is location-based (`construct/dev-aliases.sh` + build-in-owner), so weave never
+  edits `go.mod`; the substrate edge comes from `weave link` / `construct/deps`.
 - **Symlink-only** (vendor mode retired); agent-agnostic floor = a system prompt
   + shell, no `.claude/` assumptions in the core.
 
@@ -39,10 +41,11 @@ Pure entities are unit-tested mock-free.
   <name>` — agent-agnostic skill server: `SkillIndex` (foundation-first,
   namespaced, downstream-overrides), menu compiled into `AGENTS.md` + bodies on
   demand, ports `sync-local-skills.sh` discovery (no `.claude/skills/` reliance).
-  Plus `tool` lowering (bimodal: derivative→`substrate` row, owner→`go mod edit
-  -tool` via the `weavefs.GoModEditor` exec seam; golden classifier wired) and
-  `weave link <path>` (records `substrate <path>` verbatim — directory-
+  Plus `weave link <path>` (records `substrate <path>` verbatim — directory-
   agnostic; the module-include verb of weave's repo-composition dialect). **[M3]**
+  (M3 originally also shipped a `tool` lowering — bimodal derivative→`substrate` /
+  owner→`go mod edit -tool` via a `weavefs.GoModEditor` exec seam — **retired in
+  M5**: ownership is location-based, weave does not edit `go.mod`.)
 - `cmd/weave/internal/settingsx` + the `merge` lowering — the `settings`
   backend: pure `Merge`/`SemanticEqual` porting `merge-settings.sh`
   (`$merge_keys` union, `$remove` filter, meta-key strip, local-overrides-base);

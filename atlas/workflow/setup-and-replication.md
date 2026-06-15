@@ -286,24 +286,32 @@ either. (It was previously regenerated from a now-retired `sdlc --index`; the
 generator existed only to keep a duplicated copy in sync, which the pointer
 makes unnecessary.)
 
-## Who writes the substrate declaration (the `tool` action)
+## Who writes the substrate declaration
 
-A derivative declares its substrate ancestor via the `tool <path>` manifest
-action (ariadne's base.manifest carries `tool cmd/sdlc`). setup.sh's
-`ensure_go_tool_dependency` is the writer, split by whether the target IS the
+> **Retired (#95 M5).** The `tool <path>` manifest verb described below was
+> `setup.sh`'s mechanism; weave **retired it**. Go-tool ownership is now resolved
+> by **location** — `construct/dev-aliases.sh` scans sibling `cmd/X` dirs and
+> build-in-owner builds each to `OWNER/bin/`. The substrate edge is declared
+> directly via `weave link` / `construct/deps`, not derived from a `tool` row,
+> and weave **never edits `go.mod`** (the owner-side `go mod edit -tool` served
+> only goland). The section below is historical, describing setup.sh's behavior.
+
+A derivative declared its substrate ancestor via the `tool <path>` manifest
+action (ariadne's base.manifest carried `tool cmd/sdlc`). setup.sh's
+`ensure_go_tool_dependency` was the writer, split by whether the target IS the
 tool's owner:
 
-- **Cross-target** (a derivative): appends `substrate ../ariadne` to
+- **Cross-target** (a derivative): appended `substrate ../ariadne` to
   `construct/deps` (#60). Repo-root-relative, idempotent, language-agnostic — no
   Go needed. The walkers read it; `make sdlc-build` resolves + builds the tool in
   its owner (build-in-owner, #60 M2). `construct/go.mod` is no longer written or
   read (the stubs were deleted from every derivative in #60 M4).
-- **Self-walk** (the owner, e.g. ariadne): adds a `go mod edit -tool` directive
-  to the owner's own root go.mod so `go tool <name>` works locally. Ariadne has
-  no substrate ancestor of its own, so it writes no `construct/deps` row.
+- **Self-walk** (the owner, e.g. ariadne): added a `go mod edit -tool` directive
+  to the owner's own root go.mod so `go tool <name>` worked locally. Ariadne had
+  no substrate ancestor of its own, so it wrote no `construct/deps` row.
 
 **Multi-layer composition.** If a derivative descends from multiple tool-owning
-ancestors, each owner's `tool` action appends its own `substrate` row; rows
+ancestors, each owner's `tool` action appended its own `substrate` row; rows
 dedupe by resolved path. The bootstrap cascade clones every declared peer.
 
 ### Historical: `construct/go.mod` — the retired writer target (pre-#60)

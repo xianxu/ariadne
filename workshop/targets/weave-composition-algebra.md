@@ -67,8 +67,10 @@ Provisioning ops keyed by target path, with the self-reference filter (a layer n
 files(R)[p] = accumulate all Lᵢ provisioning p; if ≥2 with differing source → warning(p, {sources}); resolve to the latest in order and continue
 ```
 
-### tool — clarity: special (not a DAG fold)
-Per-role lowering, not a merge: the *owner* layer (where `cmd/X` lives) gets `go mod edit -tool`; a *derivative* gets a `substrate` row. The export/internal axis doesn't apply in the prose/settings sense.
+### tool — RETIRED (no longer a weave-managed composition type, #95 M5)
+Go-tool ownership is resolved by **location**, not by weave: `construct/dev-aliases.sh` scans sibling `cmd/X` dirs, and build-in-owner (#60 M2) builds each tool to `OWNER/bin/`. The substrate edge to the owner comes from `weave link` / `construct/deps` — the same mechanism every other layer dep uses — so the old `tool` row's derived `substrate` was redundant. The owner-side `go mod edit -tool` directive served only goland (which we don't use), so weave **does not edit go.mod at all**.
+
+Consequently weave no longer lowers a `tool` intent: the verb is dropped from the manifest grammar (a stale `tool` row falls through the parser's unknown-verb skip, like the retired `copy`), there is no `ToolDep` action, and the golden harness carries no `tool`/`go.mod` divergence. There is nothing to fold here — `tool` is not a composition operator, it is a non-concern.
 
 ## What this is NOT
 
@@ -79,7 +81,7 @@ Per-role lowering, not a merge: the *owner* layer (where `cmd/X` lives) gets `go
 
 ## Open questions
 
-- **Per-type formulas not yet crystallized.** settings (the DAG fold — ariadne#97), file-op collision precedence (is last-writer-wins right, or should derivative-over-foundation be explicit?), and tool's role model deserve the rigor prose now has.
+- **Per-type formulas not yet crystallized.** settings (the DAG fold — ariadne#97) and file-op collision precedence (is last-writer-wins right, or should derivative-over-foundation be explicit?) deserve the rigor prose now has. (`tool` is no longer a composition type — retired in #95 M5; ownership is location-based.)
 - **Suppression.** Should a derivative be able to *retract* an inherited export (drop a skill, remove a prose fragment)? Today: no (additive/override-only). If yes, that's a third visibility-adjacent operation.
 - **Intermediate-layer prose ordering.** In a 3-layer stack (ariadne→nous→brain), where does nous's *exported* prose sit relative to brain's own? Current model: foundation-first, so nous before brain's internal — but unexercised (nous exports no prose today).
 - **Transitive vs direct export.** Is an `export` visible to *all* descendants or only direct consumers? Today: transitive.

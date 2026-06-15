@@ -3,8 +3,8 @@
 // consumers need it: plan.Apply (the IO seam reads base + local, calls Merge,
 // writes the target) and the golden classifier (it recomputes Merge from the
 // observed base + local and asks SemanticEqual whether the live settings.json
-// matches). Like gomodx, it sits below plan and golden with no internal imports,
-// so both import it without a cycle. No IO: it transforms in-memory bytes only.
+// matches). It sits below plan and golden with no internal imports, so both
+// import it without a cycle. No IO: it transforms in-memory bytes only.
 //
 // merge-settings.sh is the source of truth; this reproduces its embedded
 // python's deep_merge / get_nested / set_nested / strip_meta semantics

@@ -22,8 +22,10 @@
 // mutations), behind weavefs.FS (ARCH-PURE). M3 part 1 adds the skill server:
 // weave serves skills DIRECTLY (no .claude/skills/ discovery) — the menu is
 // compiled into the composed AGENTS.md (always-on), bodies served on demand via
-// `weave skill <name>`. M3 part 2 adds the `tool` lowering + `link`. M5
-// makes the compile an explicit subcommand with `--target` backend selection.
+// `weave skill <name>`. M3 part 2 adds `link` (substrate deps). M5 makes the
+// compile an explicit subcommand with `--target` backend selection and retires
+// the `tool` verb (Go-tool ownership is location-based via dev-aliases.sh, not a
+// go.mod edit).
 package main
 
 import (
@@ -471,7 +473,7 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 //   - target.IncludeSkillMenu() (codex/agy): NO .claude/skills links; the
 //     `## Skills` menu is composed into AGENTS.md instead.
 //
-// Every other file-op (prose body, settings merge, tool, scaffold, touch,
+// Every other file-op (prose body, settings merge, scaffold, touch,
 // generic symlink, seed) is target-independent. Shared by the compile path (run),
 // the golden harness (runGolden), and verify-complete (runVerifyComplete) so all
 // see the IDENTICAL action set for a given target (ARCH-DRY).
@@ -623,8 +625,6 @@ func formatActions(actions []plan.Action) string {
 			b = append(b, fmt.Sprintf("touch     %s\n", act.Path)...)
 		case plan.MergeSettings:
 			b = append(b, fmt.Sprintf("merge     %s -> %s\n", act.Source, act.Target)...)
-		case plan.ToolDep:
-			b = append(b, fmt.Sprintf("tool      %s (%s)\n", act.Path, act.Owner)...)
 		default:
 			b = append(b, fmt.Sprintf("unknown   %T\n", a)...)
 		}

@@ -5,16 +5,17 @@ import "strings"
 // kindByVerb maps each manifest verb to its Kind. The file-op verbs are
 // ported verbatim from setup.sh's walk_manifest `case` (ARCH-DRY — weave must
 // dispatch the same verbs the shell does); `prose`/`skill` are the new
-// semantic verbs weave adds. The retired `copy` verb is deliberately absent so
-// it falls through to the unknown-action skip, mirroring walk_manifest's
-// `copy)` warn-and-ignore (see construct/setup.sh:336).
+// semantic verbs weave adds. The retired `copy` and `tool` verbs are
+// deliberately absent so they fall through to the unknown-action skip,
+// mirroring walk_manifest's `copy)` warn-and-ignore (see construct/setup.sh:336)
+// — `tool` was dropped in #95 M5 because Go-tool ownership is location-based
+// (construct/dev-aliases.sh), not a go.mod edit.
 var kindByVerb = map[string]Kind{
 	"symlink":  Symlink,
 	"seed":     Seed,
 	"scaffold": Scaffold,
 	"touch":    Touch,
 	"merge":    Merge,
-	"tool":     Tool,
 	"prose":    Prose,
 	"skill":    Skill,
 }
