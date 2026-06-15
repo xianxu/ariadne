@@ -218,13 +218,14 @@ func runGolden(fs weavefs.FS, cwd string, args []string, out io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("golden: walk %s: %w", root, err)
 		}
-		// Golden classifies weave's FILE-OPS against setup.sh's live output;
-		// the skill menu is served via AGENTS.md prose, not file-ops, and weave's
-		// skill mechanism intentionally DIVERGES from setup.sh's .claude/skills
-		// symlinks (an expected M5 divergence — the classifier doesn't model it
-		// yet), so pass a nil menu here: the AGENTS.md prose body is already
-		// classified; the skill section isn't a setup.sh-comparable file-op.
-		actions, err := plan.Plan(layers, nil)
+		// Golden classifies weave's FILE-OPS against setup.sh's live output. Use
+		// the SAME planActions the compile path uses (ARCH-DRY) so the .claude/skills
+		// symlinks the symlink backend now emits are classified against the live
+		// links — they MATCH the ones sync-local-skills.sh wrote, the M5 cutover's
+		// parity check. The AGENTS.md WriteFile (prose + the menu backend's `## Skills`
+		// section) is classified as one body; its content intentionally DIVERGES from
+		// setup.sh's symlinked AGENTS.md (an expected, hand-checked M5 divergence).
+		actions, err := planActions(fs, layers)
 		if err != nil {
 			return fmt.Errorf("golden: plan %s: %w", root, err)
 		}
@@ -309,13 +310,9 @@ func run(fs weavefs.FS, root string, dryRun bool, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("walk %s: %w", root, err)
 	}
-	idx, err := buildSkillIndex(fs, layers)
+	actions, err := planActions(fs, layers)
 	if err != nil {
-		return fmt.Errorf("gather skills: %w", err)
-	}
-	actions, err := plan.Plan(layers, idx.Menu())
-	if err != nil {
-		return fmt.Errorf("plan: %w", err)
+		return err
 	}
 	if dryRun {
 		fmt.Fprint(out, formatActions(actions))
@@ -326,6 +323,63 @@ func run(fs weavefs.FS, root string, dryRun bool, out io.Writer) error {
 	}
 	fmt.Fprintf(out, "weave: applied %d action(s) to %s\n", len(actions), root)
 	return nil
+}
+
+// planActions is the full compile lowering for a set of resolved layers: the
+// pure planner's file-ops PLUS the skill lowering from BOTH skill backends. It
+// is the one place that composes the two renderings of the repo's `skill <dir>`
+// intents (the repo's single artifact set serves multiple harnesses), shared by
+// the compile path (run) and the golden harness (runGolden) so both see the
+// IDENTICAL action set (ARCH-DRY). See skillBackends for the seam.
+func planActions(fs weavefs.FS, layers []layer.Layer) ([]plan.Action, error) {
+	idx, err := buildSkillIndex(fs, layers)
+	if err != nil {
+		return nil, fmt.Errorf("gather skills: %w", err)
+	}
+	// Menu backend: the always-on `## Skills` section, composed into AGENTS.md by
+	// the pure planner (it takes the menu and appends it below the prose).
+	actions, err := plan.Plan(layers, skillMenu(idx))
+	if err != nil {
+		return nil, fmt.Errorf("plan: %w", err)
+	}
+	// Symlink backend: the .claude/skills/<name> links every in-use harness reads
+	// (the rendering that absorbs the retired sync-local-skills.sh hook). Appended
+	// after the planner's file-ops; plan.Apply realizes each as a relative link.
+	links, err := skillSymlinks(fs, layers)
+	if err != nil {
+		return nil, fmt.Errorf("lower skill symlinks: %w", err)
+	}
+	for _, l := range links {
+		actions = append(actions, l)
+	}
+	return actions, nil
+}
+
+// The skill backends: weave lowers each layer's `skill <dir>` intents into TWO
+// renderings of the SAME skill set, because the repo's one artifact set serves
+// multiple harnesses. Both are invoked by planActions today; structuring them as
+// two named seams lets a future `--backend` selector emit one or the other.
+//
+//   - skillSymlinks — the SYMLINK backend: .claude/skills/<name> links (local
+//     prefixed, adapted bare), the on-disk delivery every in-use harness reads.
+//     Lowers via walk.LowerSkillSymlinks (the IO seam that ports
+//     sync-local-skills.sh's naming, ARCH-DRY); the links are plan.Symlinks
+//     applied by the existing plan.Apply (relative-target + idempotency for free).
+//   - skillMenu — the MENU backend: the always-on `## Skills` section the pure
+//     planner composes into AGENTS.md (name — description per line; bodies served
+//     on demand via `weave skill <name>`). It is a thin accessor over the
+//     SkillIndex the menu is computed from.
+
+// skillSymlinks is the symlink skill backend (see the block above): it lowers the
+// layers' `skill <dir>` intents to the .claude/skills/<name> symlinks.
+func skillSymlinks(fs weavefs.FS, layers []layer.Layer) ([]plan.Symlink, error) {
+	return walk.LowerSkillSymlinks(fs, layers)
+}
+
+// skillMenu is the menu skill backend (see the block above): the ordered,
+// collision-free `## Skills` menu the pure planner composes into AGENTS.md.
+func skillMenu(idx skill.SkillIndex) []skill.MenuItem {
+	return idx.Menu()
 }
 
 // buildSkillIndex is the skill-server pipeline up to the pure index: walk's

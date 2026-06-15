@@ -186,18 +186,22 @@ func buildSkillRepoFixture(t *testing.T) (derived string) {
 	for _, root := range []string{base, derived} {
 		mkfile(t, filepath.Join(root, "construct", "config.json"), `{"localPrefix": "xx-"}`+"\n")
 	}
-	// base: a manifest (prose + a manifest entry so it's a real layer), prose,
-	// and two skills (one local, one adapted).
-	mkfile(t, filepath.Join(base, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	// base: a manifest declaring prose + the two `skill` intents (so BOTH skill
+	// backends fire — the menu scan and the .claude/skills symlink lowering),
+	// matching the real base.manifest. Plus prose and two skills (local + adapted).
+	mkfile(t, filepath.Join(base, "construct", "base.manifest"),
+		"prose AGENTS.local.md\nskill construct/local\nskill construct/adapted\n")
 	mkfile(t, filepath.Join(base, "AGENTS.local.md"), "BASE PROSE")
 	writeSkillFile(t, filepath.Join(base, "construct", "local", "sdlc"),
 		"sdlc", "SDLC checkpoint gates", "# sdlc\n\nBASE SDLC BODY")
 	writeSkillFile(t, filepath.Join(base, "construct", "adapted", "superpowers-brainstorming"),
 		"superpowers-brainstorming", "Brainstorm before building", "# Brainstorm\n\nBRAINSTORM BODY")
 
-	// derived: depends on base, its own prose + a local skill.
+	// derived: depends on base, its own prose + a local skill, and the same two
+	// `skill` intents so the derived layer's skill dir is lowered too.
 	mkfile(t, filepath.Join(derived, "construct", "deps"), "substrate ../base\n")
-	mkfile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	mkfile(t, filepath.Join(derived, "construct", "base.manifest"),
+		"prose AGENTS.local.md\nskill construct/local\nskill construct/adapted\n")
 	mkfile(t, filepath.Join(derived, "AGENTS.local.md"), "DERIVED PROSE")
 	writeSkillFile(t, filepath.Join(derived, "construct", "local", "issues"),
 		"xx-issues", "Issue files in workshop/issues", "# issues\n\nISSUES BODY")
@@ -237,6 +241,95 @@ func TestCompileEmbedsSkillMenuInAGENTS(t *testing.T) {
 		if !strings.Contains(body, line) {
 			t.Errorf("AGENTS.md missing menu line %q:\n%s", line, body)
 		}
+	}
+}
+
+// TestCompileEmitsBothSkillBackends is the M5 cutover assertion: a single
+// compile fires BOTH skill-lowering backends from the same `skill <dir>` intents
+// — the symlink backend (.claude/skills/<name> links every harness reads) AND
+// the menu backend (the `## Skills` section composed into AGENTS.md). The repo's
+// one artifact set serves multiple harnesses; this proves run() no longer drops
+// the symlink rendering (the gap M5 closed — run() previously emitted only the
+// menu).
+func TestCompileEmitsBothSkillBackends(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	// Backend 1 — symlinks: .claude/skills/<name> exists for each skill, each a
+	// real symlink resolving to its upstream skill dir (local prefixed, adapted
+	// bare). These are the links sync-local-skills.sh used to write.
+	skillLinks := map[string]string{
+		"xx-sdlc":                   "BASE SDLC BODY",
+		"superpowers-brainstorming": "BRAINSTORM BODY",
+		"xx-issues":                 "ISSUES BODY",
+	}
+	for name, wantBody := range skillLinks {
+		link := filepath.Join(derived, ".claude", "skills", name)
+		fi, err := os.Lstat(link)
+		if err != nil {
+			t.Fatalf("symlink backend: expected .claude/skills/%s: %v", name, err)
+		}
+		if fi.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("symlink backend: .claude/skills/%s is not a symlink", name)
+		}
+		// The link resolves to the skill DIR; its SKILL.md carries the body.
+		body, err := os.ReadFile(filepath.Join(link, "SKILL.md"))
+		if err != nil {
+			t.Fatalf("symlink backend: .claude/skills/%s/SKILL.md unreadable: %v", name, err)
+		}
+		if !strings.Contains(string(body), wantBody) {
+			t.Errorf("symlink backend: .claude/skills/%s resolves to body %q, want it to contain %q", name, body, wantBody)
+		}
+	}
+
+	// Backend 2 — menu: the SAME skills appear in AGENTS.md's `## Skills` section.
+	agents, err := os.ReadFile(filepath.Join(derived, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read AGENTS.md: %v", err)
+	}
+	body := string(agents)
+	if !strings.Contains(body, "## Skills") {
+		t.Fatalf("menu backend: AGENTS.md missing `## Skills` section:\n%s", body)
+	}
+	for _, line := range []string{
+		"xx-sdlc — SDLC checkpoint gates",
+		"superpowers-brainstorming — Brainstorm before building",
+		"xx-issues — Issue files in workshop/issues",
+	} {
+		if !strings.Contains(body, line) {
+			t.Errorf("menu backend: AGENTS.md missing menu line %q:\n%s", line, body)
+		}
+	}
+}
+
+// TestCompileDryRunListsSkillSymlinks asserts the symlink backend shows up in
+// --dry-run too: the planned actions include a `symlink .claude/skills/<name>`
+// line per skill, so the operator sees the links weave WILL write (and the
+// golden harness, which Plans the same actions, can classify them MATCH).
+func TestCompileDryRunListsSkillSymlinks(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, true, &out); err != nil {
+		t.Fatalf("run --dry-run: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"symlink   .claude/skills/xx-sdlc",
+		"symlink   .claude/skills/superpowers-brainstorming",
+		"symlink   .claude/skills/xx-issues",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("dry-run output missing skill symlink %q:\n%s", want, got)
+		}
+	}
+	// And it stays a dry run: nothing landed on disk.
+	if _, err := os.Lstat(filepath.Join(derived, ".claude", "skills", "xx-sdlc")); !os.IsNotExist(err) {
+		t.Fatalf("dry-run created a .claude/skills symlink (err=%v), want no mutation", err)
 	}
 }
 
