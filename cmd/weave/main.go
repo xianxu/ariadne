@@ -2,17 +2,28 @@
 // the layers (construct/deps), composes each layer's intents into an ordered
 // []Action (the pure planner), and applies them to the filesystem.
 //
-//	weave              compile the current working directory's repo
-//	weave --dry-run    print the planned []Action; mutate nothing
-//	weave skills       print the skill menu (name — description)
-//	weave skill <name> print a skill's SKILL.md body (served directly)
+//	weave                          (root) print help — the bare command does NOT compile
+//	weave compile [--target T]     compile the cwd repo for backend T (default claude)
+//	weave compile --dry-run        print the planned []Action; mutate nothing
+//	weave golden [--target T]      verify weave's plan matches setup.sh's live output
+//	weave verify-complete [--target T]  assert the plan covers every managed path
+//	weave skills                   print the skill menu (name — description)
+//	weave skill <name>             print a skill's SKILL.md body (served directly)
+//	weave depend-on <path>         record a `substrate <path>` dep in construct/deps
+//
+// One target per invocation (Approach-1): `--target` picks ONE skill backend —
+// claude lowers .claude/skills symlinks with a prose-only AGENTS.md; codex/agy
+// suppress the symlinks and compose the `## Skills` menu into AGENTS.md instead.
+// The two skill backends are mutually exclusive; every other file-op is
+// target-independent. See plan.Target.
 //
 // The pure core (intent/, layer/, plan/, skill/) never touches disk; weave's
 // only IO is the walk (reading manifests/deps/prose/skills) and plan.Apply (the
 // mutations), behind weavefs.FS (ARCH-PURE). M3 part 1 adds the skill server:
 // weave serves skills DIRECTLY (no .claude/skills/ discovery) — the menu is
 // compiled into the composed AGENTS.md (always-on), bodies served on demand via
-// `weave skill <name>`. M3 part 2 adds the `tool` lowering + `depend-on`.
+// `weave skill <name>`. M3 part 2 adds the `tool` lowering + `depend-on`. M5
+// makes the compile an explicit subcommand with `--target` backend selection.
 package main
 
 import (
@@ -40,29 +51,63 @@ func main() {
 }
 
 // buildRoot assembles the cobra command. Extracted from main so the wiring is
-// testable. The root command IS the compile action (no subcommand needed);
-// --dry-run flips it to print-only.
+// testable. The root command no longer compiles (M5): with RunE nil, a bare
+// `weave` prints help/usage and mutates nothing. Compiling is now the explicit
+// `weave compile` subcommand, which carries --dry-run and --target.
 func buildRoot() *cobra.Command {
-	var dryRun bool
 	cmd := &cobra.Command{
-		Use:           "weave",
-		Short:         "Compile a repo's agentic context from its layer DAG",
+		Use:   "weave",
+		Short: "Compile a repo's agentic context from its layer DAG",
+		Long: "weave compiles a repo's agentic context from its layer DAG.\n\n" +
+			"The bare `weave` command prints this help and mutates nothing; run\n" +
+			"`weave compile` to actually compile. One target per invocation:\n" +
+			"`--target claude` lowers .claude/skills symlinks (prose-only AGENTS.md),\n" +
+			"`--target codex`/`agy` compose the skill menu into AGENTS.md instead.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			root, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("resolve cwd: %w", err)
-			}
-			return run(weavefs.OSFS{}, root, dryRun, cmd.OutOrStdout())
-		},
+		// RunE intentionally nil: the bare command is help-only (no compile).
 	}
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
+	cmd.AddCommand(buildCompile())
 	cmd.AddCommand(buildGolden())
 	cmd.AddCommand(buildVerifyComplete())
 	cmd.AddCommand(buildSkills())
 	cmd.AddCommand(buildSkill())
 	cmd.AddCommand(buildDependOn())
+	return cmd
+}
+
+// buildCompile assembles `weave compile [--target <backend>] [--dry-run]` — the
+// explicit compile verb (M5; was the root's RunE). --target selects ONE skill
+// backend (default claude): claude → .claude/skills symlinks + prose-only
+// AGENTS.md; codex/agy → no symlinks + the `## Skills` menu in AGENTS.md. An
+// unknown target errors clearly (plan.ParseTarget). --dry-run prints the planned
+// actions and mutates nothing.
+func buildCompile() *cobra.Command {
+	var dryRun bool
+	var targetFlag string
+	cmd := &cobra.Command{
+		Use:   "compile",
+		Short: "Compile the cwd repo's agentic context for a backend target",
+		Long: "Compiles the current working directory's repo: walk the layer DAG,\n" +
+			"plan the file-ops, and apply them. `--target` selects the skill backend\n" +
+			"(claude=.claude/skills symlinks + prose-only AGENTS.md; codex/agy=the\n" +
+			"`## Skills` menu in AGENTS.md, no symlinks). `--dry-run` prints the plan.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			target, err := plan.ParseTarget(targetFlag)
+			if err != nil {
+				return err
+			}
+			root, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("resolve cwd: %w", err)
+			}
+			return run(weavefs.OSFS{}, root, target, dryRun, cmd.OutOrStdout())
+		},
+	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
 	return cmd
 }
 
@@ -75,33 +120,44 @@ func buildRoot() *cobra.Command {
 // under-produced. With seed implemented, ariadne self-walk reports ZERO. Strictly
 // read-only.
 func buildVerifyComplete() *cobra.Command {
-	return &cobra.Command{
+	var targetFlag string
+	cmd := &cobra.Command{
 		Use:   "verify-complete [repoPath...]",
 		Short: "Assert weave's plan covers every path setup.sh would produce (read-only)",
 		Long: "Independent completeness check: enumerates every managed path the\n" +
 			"walked manifests declare (the setup.sh-equivalent managed set) and\n" +
 			"asserts weave's plan covers each. Catches UNDER-production a golden-diff\n" +
 			"cannot see (a verb whose lowering drops the entry). Exits non-zero on any\n" +
-			"under-produced path. With no args, auto-discovers present sibling repos.",
+			"under-produced path. With no args, auto-discovers present sibling repos.\n" +
+			"`--target` selects the backend whose plan is checked (a skill intent is\n" +
+			"covered by EITHER backend: claude's symlinks or codex/agy's menu).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			target, err := plan.ParseTarget(targetFlag)
+			if err != nil {
+				return err
+			}
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("resolve cwd: %w", err)
 			}
-			return runVerifyComplete(weavefs.OSFS{}, cwd, args, cmd.OutOrStdout())
+			return runVerifyComplete(weavefs.OSFS{}, cwd, args, target, cmd.OutOrStdout())
 		},
 	}
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	return cmd
 }
 
-// runVerifyComplete is the completeness pipeline over a set of repos: it reuses
-// goldenTargets (the same repo resolution as the golden harness, ARCH-DRY) and,
-// per present repo, walks → Plans (planActions — the IDENTICAL plan the compile
-// path + golden see, so skill symlinks count for skill coverage) →
-// CheckCompleteness → Render. Returns an error iff any repo had an under-produced
-// path. Injecting fs + out keeps it testable.
-func runVerifyComplete(fs weavefs.FS, cwd string, args []string, out io.Writer) error {
+// runVerifyComplete is the completeness pipeline over a set of repos, for ONE
+// backend target: it reuses goldenTargets (the same repo resolution as the golden
+// harness, ARCH-DRY) and, per present repo, walks → Plans (planActions — the
+// IDENTICAL plan the compile path + golden see for this target, so the active
+// skill backend counts for skill coverage) → CheckCompleteness → Render. A skill
+// intent is satisfied by EITHER backend, so both --target claude (symlinks) and
+// --target codex (menu) report zero under-production. Returns an error iff any
+// repo had an under-produced path. Injecting fs + out keeps it testable.
+func runVerifyComplete(fs weavefs.FS, cwd string, args []string, target plan.Target, out io.Writer) error {
 	repos := goldenTargets(cwd, args)
 	anyUnder := false
 	for _, repo := range repos {
@@ -117,7 +173,7 @@ func runVerifyComplete(fs weavefs.FS, cwd string, args []string, out io.Writer) 
 		if err != nil {
 			return fmt.Errorf("verify-complete: walk %s: %w", root, err)
 		}
-		actions, err := planActions(fs, layers)
+		actions, err := planActions(fs, layers, target)
 		if err != nil {
 			return fmt.Errorf("verify-complete: plan %s: %w", root, err)
 		}
@@ -244,23 +300,32 @@ func buildSkill() *cobra.Command {
 // → classifies every divergence as MATCH/EXPECTED/UNEXPECTED, prints a ledger,
 // and exits non-zero if ANY divergence is UNEXPECTED. STRICTLY read-only.
 func buildGolden() *cobra.Command {
-	return &cobra.Command{
+	var targetFlag string
+	cmd := &cobra.Command{
 		Use:   "golden [repoPath...]",
 		Short: "Verify weave's intended file-ops match setup.sh's live output (read-only)",
 		Long: "Compares weave's planned actions (dry-run, never applied) against the\n" +
 			"live repos' current filesystem — which IS setup.sh's output — and\n" +
 			"classifies divergences. Exits non-zero on any UNEXPECTED divergence.\n" +
-			"With no args, auto-discovers present sibling repos of the cwd's parent.",
+			"With no args, auto-discovers present sibling repos of the cwd's parent.\n" +
+			"`--target claude` is the parity check (setup.sh produced claude-shaped\n" +
+			".claude/skills); other targets intentionally diverge from setup.sh.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			target, err := plan.ParseTarget(targetFlag)
+			if err != nil {
+				return err
+			}
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("resolve cwd: %w", err)
 			}
-			return runGolden(weavefs.OSFS{}, cwd, args, cmd.OutOrStdout())
+			return runGolden(weavefs.OSFS{}, cwd, args, target, cmd.OutOrStdout())
 		},
 	}
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	return cmd
 }
 
 // runGolden is the harness pipeline over a set of repos: resolve the target
@@ -269,7 +334,7 @@ func buildGolden() *cobra.Command {
 // prints each per-repo ledger and returns an error iff any repo had an
 // UNEXPECTED divergence (the non-zero exit). Skips an absent repo with a note
 // (skip-if-absent). Injecting fs + out keeps it testable.
-func runGolden(fs weavefs.FS, cwd string, args []string, out io.Writer) error {
+func runGolden(fs weavefs.FS, cwd string, args []string, target plan.Target, out io.Writer) error {
 	repos := goldenTargets(cwd, args)
 	anyUnexpected := false
 	for _, repo := range repos {
@@ -294,7 +359,7 @@ func runGolden(fs weavefs.FS, cwd string, args []string, out io.Writer) error {
 		// parity check. The AGENTS.md WriteFile (prose + the menu backend's `## Skills`
 		// section) is classified as one body; its content intentionally DIVERGES from
 		// setup.sh's symlinked AGENTS.md (an expected, hand-checked M5 divergence).
-		actions, err := planActions(fs, layers)
+		actions, err := planActions(fs, layers, target)
 		if err != nil {
 			return fmt.Errorf("golden: plan %s: %w", root, err)
 		}
@@ -371,7 +436,7 @@ func dirPresent(path string) bool {
 // compute a relative symlink target between a logical dst-dir and a physical
 // upstream src that resolves wrong when the OS follows the link (the exact bug
 // setup.sh's pwd -P guards against, lines 39-45).
-func run(fs weavefs.FS, root string, dryRun bool, out io.Writer) error {
+func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer) error {
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
@@ -379,7 +444,7 @@ func run(fs weavefs.FS, root string, dryRun bool, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("walk %s: %w", root, err)
 	}
-	actions, err := planActions(fs, layers)
+	actions, err := planActions(fs, layers, target)
 	if err != nil {
 		return err
 	}
@@ -394,43 +459,59 @@ func run(fs weavefs.FS, root string, dryRun bool, out io.Writer) error {
 	return nil
 }
 
-// planActions is the full compile lowering for a set of resolved layers: the
-// pure planner's file-ops PLUS the skill lowering from BOTH skill backends. It
-// is the one place that composes the two renderings of the repo's `skill <dir>`
-// intents (the repo's single artifact set serves multiple harnesses), shared by
-// the compile path (run) and the golden harness (runGolden) so both see the
-// IDENTICAL action set (ARCH-DRY). See skillBackends for the seam.
-func planActions(fs weavefs.FS, layers []layer.Layer) ([]plan.Action, error) {
+// planActions is the full compile lowering for a set of resolved layers, for ONE
+// backend target (Approach-1, M5). The skill intents lower through exactly one of
+// the two backends — they are MUTUALLY EXCLUSIVE per target (a harness reads its
+// skills one way):
+//
+//   - target.EmitSkillSymlinks() (claude): emit the .claude/skills/<name> links;
+//     the AGENTS.md menu is suppressed (nil menu ⇒ composeAgentsBody yields
+//     prose-only, no `## Skills` section).
+//   - target.IncludeSkillMenu() (codex/agy): NO .claude/skills links; the
+//     `## Skills` menu is composed into AGENTS.md instead.
+//
+// Every other file-op (prose body, settings merge, tool, scaffold, touch,
+// generic symlink, seed) is target-independent. Shared by the compile path (run),
+// the golden harness (runGolden), and verify-complete (runVerifyComplete) so all
+// see the IDENTICAL action set for a given target (ARCH-DRY).
+func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]plan.Action, error) {
 	idx, err := buildSkillIndex(fs, layers)
 	if err != nil {
 		return nil, fmt.Errorf("gather skills: %w", err)
 	}
-	// Menu backend: the always-on `## Skills` section, composed into AGENTS.md by
-	// the pure planner (it takes the menu and appends it below the prose).
-	actions, err := plan.Plan(layers, skillMenu(idx))
+	// Menu backend (codex/agy only): the `## Skills` section composed into
+	// AGENTS.md by the pure planner. A nil menu (claude) ⇒ prose-only AGENTS.md.
+	var menu []skill.MenuItem
+	if target.IncludeSkillMenu() {
+		menu = skillMenu(idx)
+	}
+	actions, err := plan.Plan(layers, menu)
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
 	}
-	// Symlink backend: the .claude/skills/<name> links every in-use harness reads
-	// (the rendering that absorbs the retired sync-local-skills.sh hook). Appended
-	// after the planner's file-ops; plan.Apply realizes each as a relative link.
-	links, err := skillSymlinks(fs, layers)
-	if err != nil {
-		return nil, fmt.Errorf("lower skill symlinks: %w", err)
-	}
-	for _, l := range links {
-		actions = append(actions, l)
+	// Symlink backend (claude only): the .claude/skills/<name> links the Claude
+	// harness reads (the rendering that absorbs the retired sync-local-skills.sh
+	// hook). Appended after the planner's file-ops; plan.Apply realizes each as a
+	// relative link.
+	if target.EmitSkillSymlinks() {
+		links, err := skillSymlinks(fs, layers)
+		if err != nil {
+			return nil, fmt.Errorf("lower skill symlinks: %w", err)
+		}
+		for _, l := range links {
+			actions = append(actions, l)
+		}
 	}
 	return actions, nil
 }
 
-// The skill backends: weave lowers each layer's `skill <dir>` intents into TWO
-// renderings of the SAME skill set, because the repo's one artifact set serves
-// multiple harnesses. Both are invoked by planActions today; structuring them as
-// two named seams lets a future `--backend` selector emit one or the other.
+// The skill backends: weave lowers each layer's `skill <dir>` intents into one of
+// TWO renderings of the SAME skill set, selected per `--target` (the repo's one
+// artifact set serves multiple harnesses, but each invocation picks one). The
+// two seams are mutually exclusive per target — see planActions.
 //
 //   - skillSymlinks — the SYMLINK backend: .claude/skills/<name> links (local
-//     prefixed, adapted bare), the on-disk delivery every in-use harness reads.
+//     prefixed, adapted bare), the on-disk delivery the Claude harness reads.
 //     Lowers via walk.LowerSkillSymlinks (the IO seam that ports
 //     sync-local-skills.sh's naming, ARCH-DRY); the links are plan.Symlinks
 //     applied by the existing plan.Apply (relative-target + idempotency for free).

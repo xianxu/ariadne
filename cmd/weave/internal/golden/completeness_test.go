@@ -35,14 +35,14 @@ func fullLayer() layer.Layer {
 // fullActions is a plan that covers every Intent in fullLayer.
 func fullActions() []plan.Action {
 	return []plan.Action{
-		plan.WriteFile{Path: "AGENTS.md", Content: "composed"}, // prose + skill menu
+		plan.WriteFile{Path: "AGENTS.md", Content: "composed prose"}, // prose body
 		plan.Symlink{Src: "/ws/ariadne/Makefile", Dst: "Makefile"},
 		plan.Seed{Src: "/ws/ariadne/bootstrap.sh", Dst: "bootstrap.sh"},
 		plan.Mkdir{Path: "atlas"},
 		plan.Touch{Path: "workshop/lessons.md"},
 		plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
 		plan.ToolDep{Owner: "/ws/ariadne", Path: "cmd/sdlc"},
-		plan.Symlink{Src: "/ws/ariadne/construct/local/fix", Dst: ".claude/skills/xx-fix"}, // skill backend
+		plan.Symlink{Src: "/ws/ariadne/construct/local/fix", Dst: ".claude/skills/xx-fix"}, // claude skill backend
 	}
 }
 
@@ -94,6 +94,45 @@ func TestCheckCompletenessCatchesDroppedSymlinkAndMerge(t *testing.T) {
 	// Sorted by verb: merge before symlink.
 	if got[0].Verb != "merge" || got[1].Verb != "symlink" {
 		t.Fatalf("uncovered verbs = [%s %s], want [merge symlink]", got[0].Verb, got[1].Verb)
+	}
+}
+
+func TestCheckCompletenessSkillCoveredByMenuOnly(t *testing.T) {
+	// The codex/agy target emits NO .claude/skills symlinks; the skill intent is
+	// covered by the AGENTS.md `## Skills` menu instead. A plan with the menu in
+	// AGENTS.md but zero skill symlinks must still report zero under-production.
+	actions := fullActions()
+	var codexPlan []plan.Action
+	for _, a := range actions {
+		if s, ok := a.(plan.Symlink); ok && strings.HasPrefix(s.Dst, ".claude/skills/") {
+			continue // codex drops the symlink backend
+		}
+		if w, ok := a.(plan.WriteFile); ok && w.Path == "AGENTS.md" {
+			a = plan.WriteFile{Path: "AGENTS.md", Content: "composed prose\n\n## Skills\n\n- xx-fix — fix"}
+		}
+		codexPlan = append(codexPlan, a)
+	}
+	got := CheckCompleteness([]layer.Layer{fullLayer()}, codexPlan)
+	if len(got) != 0 {
+		t.Fatalf("menu-only (codex) plan reported %d uncovered: %+v", len(got), got)
+	}
+}
+
+func TestCheckCompletenessSkillUncoveredWhenNeitherBackend(t *testing.T) {
+	// Neither backend present: no .claude/skills symlinks AND an AGENTS.md with no
+	// `## Skills` menu → the skill intent is under-produced. (An AGENTS.md write
+	// alone, for prose, must NOT count as skill coverage.)
+	actions := fullActions()
+	var pruned []plan.Action
+	for _, a := range actions {
+		if s, ok := a.(plan.Symlink); ok && strings.HasPrefix(s.Dst, ".claude/skills/") {
+			continue // drop the symlink backend
+		}
+		pruned = append(pruned, a) // AGENTS.md kept, but it has no `## Skills`
+	}
+	got := CheckCompleteness([]layer.Layer{fullLayer()}, pruned)
+	if len(got) != 1 || got[0].Verb != "skill" {
+		t.Fatalf("neither-backend: got %+v, want one uncovered skill", got)
 	}
 }
 

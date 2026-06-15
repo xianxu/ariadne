@@ -154,13 +154,15 @@ close-issue:
 # replaced construct/setup.sh (#95). weave-build resolves weave's owner by
 # LOCATION (construct/dev-aliases.sh --list) and builds bin/weave in-owner, the
 # same build-in-owner pattern sdlc-build uses — so a derivative needs no go.mod
-# replace. weave then compiles THIS repo's layer composition (symlinks, the
-# AGENTS.md prose+skill compose, the settings.json merge, the .claude/skills
-# lowering). Under `make bootstrap`, bootstrap-peers (clones ancestors) precedes
-# refresh, so weave's owner is present by the time this runs.
+# replace. `weave compile --target claude` then compiles THIS repo's layer
+# composition for the Claude backend: the generic symlinks, the prose-only
+# AGENTS.md compose, the settings.json merge, and the .claude/skills skill
+# lowering (the claude target emits the symlinks, not the AGENTS.md menu — see
+# plan.Target). Under `make bootstrap`, bootstrap-peers (clones ancestors)
+# precedes refresh, so weave's owner is present by the time this runs.
 refresh: weave-build
 	@if [ -x bin/weave ]; then \
-		bin/weave; \
+		bin/weave compile --target claude; \
 	else \
 		echo "Error: bin/weave not built (weave-build did not produce it)."; \
 		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \
@@ -717,8 +719,9 @@ sdlc-build: ensure-go
 # replaced construct/setup.sh (#95). weave's source lives ONLY in its owner
 # (ariadne); resolve the owner by LOCATION via dev-aliases.sh --list (immune to
 # direct-vs-transitive ancestry, needs no go.mod replace), then build bin/weave
-# in-owner. `make refresh` depends on this, then runs bin/weave to compile this
-# repo's layer composition. Under `make bootstrap`, bootstrap-peers + refresh's
+# in-owner. `make refresh` depends on this, then runs `bin/weave compile
+# --target claude` to compile this repo's layer composition. Under `make
+# bootstrap`, bootstrap-peers + refresh's
 # own weave-build prereq guarantee the owner + the dev-aliases.sh symlink are
 # present by the time this runs.
 weave-build: ensure-go

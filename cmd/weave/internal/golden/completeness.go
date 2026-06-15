@@ -64,10 +64,14 @@ type Uncovered struct {
 //     path-keyed slot, so coverage is "≥1 ToolDep planned for this layer's
 //     owner" — see toolCovered).
 //   - prose   → composed into the one AGENTS.md (a plan.WriteFile{Path:"AGENTS.md"}).
-//   - skill   → the .claude/skills/<name> symlink backend (≥1 plan.Symlink under
-//     .claude/skills/) AND/OR the AGENTS.md menu. A `skill <dir>` row expands to
-//     N name-keyed links, so coverage is "the skill backend emitted links" (or,
-//     for an empty skill dir, AGENTS.md carries the menu) — see skillCovered.
+//   - skill   → EITHER skill backend (mutually exclusive per --target): the
+//     .claude/skills/<name> symlink backend (≥1 plan.Symlink under
+//     .claude/skills/, the claude target) OR the AGENTS.md `## Skills` menu (the
+//     codex/agy target). A `skill <dir>` row expands to N name-keyed links, so
+//     coverage is "the symlink backend emitted links" OR "AGENTS.md carries the
+//     menu section" — see coverIntent's intent.Skill case. Counting the menu
+//     (not just any AGENTS.md write) is what lets `--target codex` — which emits
+//     no symlinks — still report zero under-production.
 func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered {
 	idx := indexActions(actions)
 
@@ -106,6 +110,7 @@ type actionIndex struct {
 	toolOwners  map[string]bool // every plan.ToolDep.Owner
 	skillLinks  int             // count of plan.Symlink under .claude/skills/
 	agentsMD    bool            // a plan.WriteFile for AGENTS.md exists
+	skillMenu   bool            // that AGENTS.md carries a `## Skills` menu section
 }
 
 func indexActions(actions []plan.Action) actionIndex {
@@ -137,6 +142,9 @@ func indexActions(actions []plan.Action) actionIndex {
 		case plan.WriteFile:
 			if act.Path == "AGENTS.md" {
 				idx.agentsMD = true
+				if strings.Contains(act.Content, "## Skills") {
+					idx.skillMenu = true
+				}
 			}
 		}
 	}
@@ -180,12 +188,14 @@ func coverIntent(l layer.Layer, in intent.Intent, idx actionIndex) (Uncovered, b
 			return mk("no AGENTS.md WriteFile composed (the prose fragment would be dropped)")
 		}
 	case intent.Skill:
-		// A `skill <dir>` row expands to N name-keyed .claude/skills/ links AND
-		// the AGENTS.md menu. Coverage = the skill backend emitted links, OR the
-		// menu landed in AGENTS.md (an empty skill dir legitimately yields no
-		// links but still contributes the always-on discovery face).
-		if idx.skillLinks == 0 && !idx.agentsMD {
-			return mk("no .claude/skills symlinks and no AGENTS.md menu (skill backend produced nothing)")
+		// The two skill backends are MUTUALLY EXCLUSIVE per --target, and a `skill
+		// <dir>` row is covered by EITHER: the .claude/skills/<name> symlinks (the
+		// claude target emits ≥1) OR the AGENTS.md `## Skills` menu section (the
+		// codex/agy target). Counting the menu specifically — not just any AGENTS.md
+		// write — is what lets `--target codex` report zero under-production despite
+		// emitting no symlinks.
+		if idx.skillLinks == 0 && !idx.skillMenu {
+			return mk("neither .claude/skills symlinks nor an AGENTS.md `## Skills` menu (no skill backend produced this intent)")
 		}
 	}
 	return Uncovered{}, false

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
@@ -62,7 +64,7 @@ func TestCompileEndToEnd(t *testing.T) {
 	_, _, derived := buildFixture(t)
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, derived, false, &out); err != nil {
+	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, false, &out); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -109,7 +111,7 @@ func TestCompileDryRunDoesNotMutate(t *testing.T) {
 	_, _, derived := buildFixture(t)
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, derived, true, &out); err != nil {
+	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, true, &out); err != nil {
 		t.Fatalf("run --dry-run: %v", err)
 	}
 
@@ -142,25 +144,44 @@ func TestFormatActions(t *testing.T) {
 }
 
 func TestBuildRootWiring(t *testing.T) {
-	// The root command exists, is named weave, and exposes --dry-run.
+	// The root command exists, is named weave, and no longer compiles itself:
+	// RunE is nil (a bare `weave` prints help and mutates nothing — M5).
 	cmd := buildRoot()
 	if cmd.Use != "weave" {
 		t.Fatalf("root Use = %q, want weave", cmd.Use)
 	}
-	if cmd.Flags().Lookup("dry-run") == nil {
-		t.Fatalf("--dry-run flag not wired")
+	if cmd.RunE != nil {
+		t.Fatalf("root RunE should be nil (help-only); the compile moved to `weave compile`")
 	}
-	// The golden + skills + skill subcommands are wired.
-	want := map[string]bool{"golden": false, "skills": false, "skill": false}
+	// The compile + golden + skills + skill subcommands are wired.
+	want := map[string]bool{"compile": false, "golden": false, "skills": false, "skill": false}
+	var compile *cobra.Command
 	for _, c := range cmd.Commands() {
 		if _, ok := want[c.Name()]; ok {
 			want[c.Name()] = true
+		}
+		if c.Name() == "compile" {
+			compile = c
 		}
 	}
 	for name, seen := range want {
 		if !seen {
 			t.Fatalf("%s subcommand not wired", name)
 		}
+	}
+	// compile carries --dry-run AND --target (default claude).
+	if compile == nil {
+		t.Fatal("compile subcommand missing")
+	}
+	if compile.Flags().Lookup("dry-run") == nil {
+		t.Fatalf("--dry-run flag not wired on compile")
+	}
+	tf := compile.Flags().Lookup("target")
+	if tf == nil {
+		t.Fatalf("--target flag not wired on compile")
+	}
+	if tf.DefValue != "claude" {
+		t.Fatalf("--target default = %q, want claude", tf.DefValue)
 	}
 }
 
@@ -209,11 +230,15 @@ func buildSkillRepoFixture(t *testing.T) (derived string) {
 	return derived
 }
 
-func TestCompileEmbedsSkillMenuInAGENTS(t *testing.T) {
+// TestCompileTargetCodexEmitsMenuOnly asserts the codex backend (Approach-1):
+// the `## Skills` menu composes into AGENTS.md and NO .claude/skills symlinks are
+// emitted — the two skill backends are mutually exclusive per target. (The Claude
+// target's mirror is TestCompileTargetClaudeEmitsSymlinksProseOnly.)
+func TestCompileTargetCodexEmitsMenuOnly(t *testing.T) {
 	derived := buildSkillRepoFixture(t)
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, derived, false, &out); err != nil {
+	if err := run(weavefs.OSFS{}, derived, plan.TargetCodex, false, &out); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	agents, err := os.ReadFile(filepath.Join(derived, "AGENTS.md"))
@@ -227,12 +252,11 @@ func TestCompileEmbedsSkillMenuInAGENTS(t *testing.T) {
 		t.Errorf("AGENTS.md should start with foundation-first prose:\n%s", body)
 	}
 	if !strings.Contains(body, "## Skills") {
-		t.Errorf("AGENTS.md missing the `## Skills` menu section:\n%s", body)
+		t.Errorf("codex AGENTS.md missing the `## Skills` menu section:\n%s", body)
 	}
 	if !strings.Contains(body, "weave skill <name>") {
 		t.Errorf("AGENTS.md missing the on-demand note:\n%s", body)
 	}
-	// All three skills present; namespaced (local prefixed, adapted bare).
 	for _, line := range []string{
 		"xx-sdlc — SDLC checkpoint gates",
 		"superpowers-brainstorming — Brainstorm before building",
@@ -242,26 +266,28 @@ func TestCompileEmbedsSkillMenuInAGENTS(t *testing.T) {
 			t.Errorf("AGENTS.md missing menu line %q:\n%s", line, body)
 		}
 	}
+	// And ZERO .claude/skills symlinks under codex (the symlink backend is off).
+	if entries, err := os.ReadDir(filepath.Join(derived, ".claude", "skills")); err == nil && len(entries) > 0 {
+		t.Errorf("codex target wrote %d .claude/skills entries, want zero", len(entries))
+	}
 }
 
-// TestCompileEmitsBothSkillBackends is the M5 cutover assertion: a single
-// compile fires BOTH skill-lowering backends from the same `skill <dir>` intents
-// — the symlink backend (.claude/skills/<name> links every harness reads) AND
-// the menu backend (the `## Skills` section composed into AGENTS.md). The repo's
-// one artifact set serves multiple harnesses; this proves run() no longer drops
-// the symlink rendering (the gap M5 closed — run() previously emitted only the
-// menu).
-func TestCompileEmitsBothSkillBackends(t *testing.T) {
+// TestCompileTargetClaudeEmitsSymlinksProseOnly is the M5 per-target assertion
+// for the DEFAULT backend: `--target claude` lowers the .claude/skills/<name>
+// symlink backend (the links every Claude harness reads) AND composes a
+// PROSE-ONLY AGENTS.md — NO `## Skills` menu (the harness discovers skills from
+// .claude/skills, so the always-on menu would be redundant). The two skill
+// backends are mutually exclusive: symlinks here, no menu.
+func TestCompileTargetClaudeEmitsSymlinksProseOnly(t *testing.T) {
 	derived := buildSkillRepoFixture(t)
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, derived, false, &out); err != nil {
+	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, false, &out); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
-	// Backend 1 — symlinks: .claude/skills/<name> exists for each skill, each a
-	// real symlink resolving to its upstream skill dir (local prefixed, adapted
-	// bare). These are the links sync-local-skills.sh used to write.
+	// Symlink backend: .claude/skills/<name> exists for each skill, each a real
+	// symlink resolving to its upstream skill dir (local prefixed, adapted bare).
 	skillLinks := map[string]string{
 		"xx-sdlc":                   "BASE SDLC BODY",
 		"superpowers-brainstorming": "BRAINSTORM BODY",
@@ -276,7 +302,6 @@ func TestCompileEmitsBothSkillBackends(t *testing.T) {
 		if fi.Mode()&os.ModeSymlink == 0 {
 			t.Fatalf("symlink backend: .claude/skills/%s is not a symlink", name)
 		}
-		// The link resolves to the skill DIR; its SKILL.md carries the body.
 		body, err := os.ReadFile(filepath.Join(link, "SKILL.md"))
 		if err != nil {
 			t.Fatalf("symlink backend: .claude/skills/%s/SKILL.md unreadable: %v", name, err)
@@ -286,35 +311,30 @@ func TestCompileEmitsBothSkillBackends(t *testing.T) {
 		}
 	}
 
-	// Backend 2 — menu: the SAME skills appear in AGENTS.md's `## Skills` section.
+	// AGENTS.md is PROSE-ONLY under claude — NO `## Skills` menu.
 	agents, err := os.ReadFile(filepath.Join(derived, "AGENTS.md"))
 	if err != nil {
 		t.Fatalf("read AGENTS.md: %v", err)
 	}
 	body := string(agents)
-	if !strings.Contains(body, "## Skills") {
-		t.Fatalf("menu backend: AGENTS.md missing `## Skills` section:\n%s", body)
+	if !strings.HasPrefix(body, "BASE PROSE\n\nDERIVED PROSE\n") {
+		t.Errorf("claude AGENTS.md should be foundation-first prose:\n%s", body)
 	}
-	for _, line := range []string{
-		"xx-sdlc — SDLC checkpoint gates",
-		"superpowers-brainstorming — Brainstorm before building",
-		"xx-issues — Issue files in workshop/issues",
-	} {
-		if !strings.Contains(body, line) {
-			t.Errorf("menu backend: AGENTS.md missing menu line %q:\n%s", line, body)
-		}
+	if strings.Contains(body, "## Skills") {
+		t.Errorf("claude target should NOT compose a `## Skills` menu (prose-only):\n%s", body)
 	}
 }
 
-// TestCompileDryRunListsSkillSymlinks asserts the symlink backend shows up in
-// --dry-run too: the planned actions include a `symlink .claude/skills/<name>`
-// line per skill, so the operator sees the links weave WILL write (and the
-// golden harness, which Plans the same actions, can classify them MATCH).
-func TestCompileDryRunListsSkillSymlinks(t *testing.T) {
+// TestCompileTargetClaudeDryRunListsSkillSymlinks asserts the symlink backend
+// shows up in --dry-run under claude: the planned actions include a `symlink
+// .claude/skills/<name>` line per skill, so the operator sees the links weave
+// WILL write (and the golden harness, which Plans the same actions, classifies
+// them MATCH).
+func TestCompileTargetClaudeDryRunListsSkillSymlinks(t *testing.T) {
 	derived := buildSkillRepoFixture(t)
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, derived, true, &out); err != nil {
+	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, true, &out); err != nil {
 		t.Fatalf("run --dry-run: %v", err)
 	}
 	got := out.String()
@@ -330,6 +350,70 @@ func TestCompileDryRunListsSkillSymlinks(t *testing.T) {
 	// And it stays a dry run: nothing landed on disk.
 	if _, err := os.Lstat(filepath.Join(derived, ".claude", "skills", "xx-sdlc")); !os.IsNotExist(err) {
 		t.Fatalf("dry-run created a .claude/skills symlink (err=%v), want no mutation", err)
+	}
+}
+
+// TestCompileTargetCodexDryRunNoSkillSymlinks is the codex mirror: the dry-run
+// plan carries the AGENTS.md write (with the menu) but ZERO `.claude/skills`
+// symlink lines — proving the symlink backend is suppressed for codex.
+func TestCompileTargetCodexDryRunNoSkillSymlinks(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetCodex, true, &out); err != nil {
+		t.Fatalf("run --dry-run: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "writefile AGENTS.md") {
+		t.Fatalf("codex dry-run missing the AGENTS.md write (with menu):\n%s", got)
+	}
+	if strings.Contains(got, ".claude/skills/") {
+		t.Fatalf("codex dry-run lists a .claude/skills symlink, want zero:\n%s", got)
+	}
+}
+
+// TestRootNoSubcommandDoesNotMutate confirms a bare `weave` (no subcommand) is
+// help-only: it prints usage, returns nil, and mutates NOTHING — the compile is
+// now the explicit `weave compile`.
+func TestRootNoSubcommandDoesNotMutate(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	cmd := buildRoot()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs(nil) // bare `weave`
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("bare `weave` should print help and succeed, got: %v", err)
+	}
+	// Help text mentions the compile subcommand.
+	if !strings.Contains(out.String(), "compile") {
+		t.Errorf("bare `weave` help should mention `compile`:\n%s", out.String())
+	}
+	// No AGENTS.md, no .claude/skills — the bare command mutated nothing. (Run
+	// from the fixture root so a stray compile would have touched these.)
+	if _, err := os.Stat(filepath.Join(derived, "AGENTS.md")); !os.IsNotExist(err) {
+		t.Errorf("bare `weave` wrote AGENTS.md (err=%v), want no mutation", err)
+	}
+	if _, err := os.Lstat(filepath.Join(derived, ".claude", "skills", "xx-sdlc")); !os.IsNotExist(err) {
+		t.Errorf("bare `weave` created a .claude/skills symlink, want no mutation")
+	}
+}
+
+// TestVerifyCompleteCoversSkillsBothTargets asserts a skill intent is satisfied
+// by EITHER backend: --target claude (the .claude/skills symlinks) AND --target
+// codex (the AGENTS.md menu) both report ZERO under-production on the fixture.
+func TestVerifyCompleteCoversSkillsBothTargets(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+
+	for _, target := range []plan.Target{plan.TargetClaude, plan.TargetCodex} {
+		var out bytes.Buffer
+		if err := runVerifyComplete(weavefs.OSFS{}, derived, []string{derived}, target, &out); err != nil {
+			t.Fatalf("verify-complete --target %s reported under-production: %v\n%s", target, err, out.String())
+		}
+		if !strings.Contains(out.String(), "0 setup.sh-produced path(s) NOT planned") {
+			t.Errorf("verify-complete --target %s missing zero-under verdict:\n%s", target, out.String())
+		}
 	}
 }
 
@@ -466,7 +550,7 @@ func TestGoldenCleanRepo(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	if err := runGolden(weavefs.OSFS{}, derived, []string{derived}, &out); err != nil {
+	if err := runGolden(weavefs.OSFS{}, derived, []string{derived}, plan.TargetClaude, &out); err != nil {
 		t.Fatalf("runGolden on a clean tree returned error: %v\nledger:\n%s", err, out.String())
 	}
 	got := out.String()
@@ -492,7 +576,7 @@ func TestGoldenDetectsDivergence(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	err := runGolden(weavefs.OSFS{}, derived, []string{derived}, &out)
+	err := runGolden(weavefs.OSFS{}, derived, []string{derived}, plan.TargetClaude, &out)
 	if err == nil {
 		t.Fatalf("runGolden on a divergent tree returned nil, want error\nledger:\n%s", out.String())
 	}
@@ -506,7 +590,7 @@ func TestGoldenDetectsDivergence(t *testing.T) {
 func TestGoldenSkipsAbsent(t *testing.T) {
 	absent := filepath.Join(t.TempDir(), "not-there")
 	var out bytes.Buffer
-	if err := runGolden(weavefs.OSFS{}, t.TempDir(), []string{absent}, &out); err != nil {
+	if err := runGolden(weavefs.OSFS{}, t.TempDir(), []string{absent}, plan.TargetClaude, &out); err != nil {
 		t.Fatalf("absent repo should be skipped, got error: %v", err)
 	}
 	if !strings.Contains(out.String(), "SKIP") {
