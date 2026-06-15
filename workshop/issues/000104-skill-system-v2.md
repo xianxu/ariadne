@@ -140,9 +140,21 @@ uniformly). See target [[skill-system]].
 
 ## Plan
 
-- [ ] Design via `superpowers-writing-plans` → `workshop/plans/000104-…-plan.md`
-      (after `sdlc start-plan`). Settle the 5 open decisions.
-- [ ] (milestones TBD by the plan)
+Detail in `workshop/plans/000104-skill-system-v2-plan.md` (M1 task-detailed; M2–M3
+sketched, per the #128 convention).
+
+- [ ] M1 — unified intent-driven discovery + visibility: ONE `GatherSkills`
+      (intent-driven, carries `Visibility`+`LayerIndex`) → pure `skill.SelectVisible`
+      (reuses `intent.Selected`, ARCH-DRY) → `skill.Build` (menu) + new pure
+      `plan.SkillSymlinks` (claude); DELETE `walk.LowerSkillSymlinks`. Behavior-
+      preserving for ariadne (closes §A1/A2/A4 + §B1).
+- [ ] M2 — per-layer prefix (repo-name default; each layer owns its `config.json`)
+      + `internal skill construct/skill` declaration + the `construct/skill` layout
+      (closes §C1/C2 + the construct-skill internal exemplar).
+- [ ] M3 — cross-repo migration: kill the whole-dir `construct/{local,adapted}`→ariadne
+      inheritance symlinks; per-layer `config.json`; nous `construct/skills`→`construct/local`;
+      re-weave all 10 repos (closes §D1/§A3/§E1). Retire #101 + #102 (folded in);
+      lift the [[skill-system]] target's "DESIGN-ONLY" banner (invariants now test-bound).
 
 ## Log
 
