@@ -34,3 +34,7 @@ Decide the exact config encoding (`"localPrefix": ""` vs `null` vs a separate `"
 
 ### 2026-06-15
 - Filed from the parley tart-prep discussion: operator wants bare-name lowering as an option. Confirmed the prefix lives in `construct/config.json` `localPrefix` (default `xx-`); today empty collapses to `xx-` (bash fallback parity), so bare names aren't reachable.
+
+- **Subsumed by ariadne#104** (skill-system v2): the no-prefix lowering is one
+  facet of the unified prefix/identity model (C1/C2). Keep as a sub-tracker; close
+  folded-in when #104 lands.

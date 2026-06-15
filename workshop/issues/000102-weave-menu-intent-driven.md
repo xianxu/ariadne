@@ -93,3 +93,7 @@ Open design sub-questions (resolve in the plan):
   menu-composition gap. Deferred so the M5 cutover stays scoped; the critical
   export bug found on the same pass (WriteFile clobber-through-symlink) was fixed
   in ariadne a1d71bf.
+
+- **Subsumed by ariadne#104** (skill-system v2): the intent-blind menu (A2) is one
+  facet of the three-disagreeing-mechanisms root cause. Keep as a sub-tracker; close
+  folded-in when #104 lands.

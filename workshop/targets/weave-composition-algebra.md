@@ -46,12 +46,21 @@ prose(R) = ⟦export-prose(L₀)⟧ ∥ ⟦export-prose(L₁)⟧ ∥ … ∥ ⟦
 ```
 Floor case (2 layers): `prose(parley) = AGENTS.base.md(ariadne, export) ∥ AGENTS.local.md(parley, internal)`. ariadne's own `AGENTS.local.md` is `internal` to ariadne, so it is never in a derivative.
 
-### skill — clarity: HIGH
-Namespaced union; commutative, idempotent, collision-free by prefix (`xx-`/`nous-`/`metis-`).
+### skill — clarity: DESIGN-ONLY (the math; NOT built — see ariadne#104 + [[skill-system]])
+> ⚠️ **This slice is the intended COMPOSE math, not a description of the code.** The
+> formula below was generalized from the prose fix (#99) by analogy and was marked
+> "HIGH" without being built or tested. In reality **no skill path consults
+> visibility at all**, there are three disagreeing discovery mechanisms, and only
+> the claude target (which routes around the gaps) is exercised. The full subsystem
+> — declaration, identity/prefix, the two lowerings, serving, inheritance — and its
+> build live in the [[skill-system]] target + ariadne#104. The math here is what the
+> *compose stage* of that subsystem MUST honor once built.
+
+Intended: namespaced union; commutative, idempotent, collision-free by prefix (`xx-`/`nous-`/`metis-`).
 ```
 skills(R) = ⋃ᵢ export-skills(Lᵢ)  ∪  internal-skills(Lₙ)        (keyed by namespaced name)
 ```
-The *composition* is target-independent; only the *lowering* differs (claude → `.claude/skills` symlinks; codex/agy → the AGENTS.md menu). **Implementation drift (ariadne#102):** today the two lowerings see DIFFERENT operand sets — the symlink lowering is intent-driven (honors each layer's `skill <dir>` rows) but the menu discovery hardcodes `construct/local`+`construct/adapted`, so a layer whose skills live elsewhere (nous's `construct/skills`) lowers to `.claude/skills` yet is missing from the menu. The claude cutover is unaffected; #102 makes menu discovery intent-driven so both renderings honor this formula.
+The *composition* is target-independent; only the *lowering* differs (claude → `.claude/skills` symlinks; codex/agy → the AGENTS.md menu). ariadne#104 makes the implementation actually honor this (one intent-driven discovery feeding both lowerings, gated on visibility), and binds it to a test so this slice can claim a real clarity level.
 
 ### settings — clarity: MEDIUM (formalized in ariadne#97; the DAG fold is not yet shipped)
 Deep-merge with per-key semantics, foundation-first, specific-over-general; `$merge_keys` carried through, meta stripped once at the end.
@@ -61,8 +70,8 @@ deepMerge(b,l): dicts recurse · $merge_keys arrays union (b, then new l) · $re
 ```
 Today only a two-input merge (ariadne-base + repo-local) ships; the DAG fold is ariadne#97.
 
-### file-ops (symlink / seed / scaffold / touch) — clarity: MEDIUM
-Provisioning ops keyed by target path, with the self-reference filter (a layer never provisions a file onto its own canonical source). Composition is **conflict-accumulating**, NOT silent last-writer-wins: when two layers provision the same target path from *different* sources, weave does not quietly pick a winner — it **accumulates every such collision across the whole compile and surfaces them as warnings** (an error-monad / `Validation` shape: collect, don't fail-fast, report all). A deterministic winner is still chosen (later layer / specific-over-general) so the compile proceeds, but the conflict is reported, never hidden. Collisions are rare (namespaces `xx-`/`nous-`/`metis-`) — which is exactly why they must be loud when they happen.
+### file-ops (symlink / seed / scaffold / touch) — clarity: MEDIUM (collision-accumulation DESIGNED, not built — ariadne#104 F1)
+Provisioning ops keyed by target path, with the self-reference filter (a layer never provisions a file onto its own canonical source). **Intended** (NOT yet implemented — `grep` finds no collision/warning logic in `plan/`; today it is silent last-writer-wins): composition should be **conflict-accumulating**, NOT silent last-writer-wins — when two layers provision the same target path from *different* sources, weave should not quietly pick a winner but **accumulate every such collision across the whole compile and surface them as warnings** (an error-monad / `Validation` shape: collect, don't fail-fast, report all), while still choosing a deterministic winner (later layer / specific-over-general) so the compile proceeds. Collisions are rare (namespaces `xx-`/`nous-`/`metis-`) — which is exactly why they must be loud when they happen. (Build tracked as ariadne#104 F1.)
 ```
 files(R)[p] = accumulate all Lᵢ provisioning p; if ≥2 with differing source → warning(p, {sources}); resolve to the latest in order and continue
 ```

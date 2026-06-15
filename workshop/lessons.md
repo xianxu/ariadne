@@ -216,3 +216,38 @@
 **Rule 2 — a heuristic over external data is not verified until it's run against real external data once.** Green unit tests with a hand-built fake are necessary but not sufficient for an IO-boundary feature; a single dogfood pass against the live system (here: does `sdlc state` actually flag a known-shipped issue?) is what exposes representation mismatches the symmetric fake hides. Budget that dogfood step before claiming done.
 
 **Origin:** #76 (close-off drift). Caught by dogfooding, not by the (passing) unit suite or the clean SHIP boundary review. Same family as [[A pure helper unit-tested in isolation can be silently un-wired from its caller]] — both are "the test and the code agree with each other while disagreeing with reality." There the gap was wiring; here it's value-representation at the boundary.
+
+## A target can lie by aspiration — generalizing a proven mechanism to unbuilt siblings, marked "clarity HIGH", hides the gap instead of defending it
+
+**Pattern (#95 → #104):** the `weave-composition-algebra` target was extracted from
+the PROSE visibility fix (#99, which was actually built + verified on the parley/nous
+passes). In the same breath, its `skill`, `settings`, and `file-op` slices were
+written "for free" by analogy — "these compose like prose" — and the skill slice was
+marked **clarity: HIGH** with a precise formula (`skills(R) = ⋃ export-skills(Lᵢ) ∪
+internal-skills(Lₙ)`). None of it was built for skills: `grep` finds **no skill code
+that consults visibility at all**, there are three disagreeing discovery mechanisms,
+and the file-op slice's "conflict-accumulating error-monad" has zero collision logic
+in `plan/`. The gap stayed invisible for two reasons: (1) only the claude target is
+ever exercised, and claude routes *around* every skill gap; (2) **the target itself
+signalled "solved"** — "skill: HIGH" told future-us not to look. A document meant to
+defend an invariant from drift instead documented a wish and gave false confidence.
+The miss was found only by tracing the actual link targets on a live multi-layer
+repo (brain) during the cutover.
+
+**Rule — a target must separate design-clarity from implementation-status, and bind
+every confidence claim to a test or a verified pass.** "We understand the formula" is
+not "the code honors it." When you generalize a proven mechanism to sibling artifact
+types, mark them **conjecture / NOT-built** until exercised — never "HIGH" — because
+a clarity label on unbuilt math is worse than silence: it actively suppresses the
+audit that would catch it. Prefer a per-slice status banner ("DESIGN-ONLY", "built +
+test-bound", "partial") over a single clarity grade that conflates the two. And reach
+for a target only at the level you can defend with a fixture; the cross-cutting math
+(the algebra) and the subsystem that instantiates it (the skill system, #104) are
+different targets — collapsing them is how the subsystem's declaration/identity/
+lowering/serving invariants went unowned and unbuilt.
+
+**Origin:** #95 cutover gap analysis → #104 + the `skill-system` target. Same family
+as [[A test fake keyed on the same value-shape as the code masks format-mismatch bugs]]
+— "the artifact and the team agree with each other while disagreeing with reality" —
+but one level up: there a fake lied about an IO boundary; here a *target* lied about
+whether a subsystem exists.
