@@ -106,9 +106,13 @@ The gap inventory (surfaced on the #95 nous/brain cutover):
 4. **Per-layer prefix via own `config.json`** (C2) — un-symlink `config.json` in
    derivatives; **default prefix = the layer's repo name** (`nous-`, `brain-`,
    `metis-`); ariadne overrides to `xx-`.
-5. **Migrate nous `construct/skills` → `construct/local`** (export) as a `skill`
-   intent; drop the plain symlink rows (A3). `construct/local/tools` + `nous-` →
-   `nous-tools` (uniform naming).
+5. **Migrate nous `construct/skills` → `construct/local`** as a `skill` intent;
+   drop the plain symlink rows (A3). They are EXPORT skills (consumed by descendant
+   brains), so `construct/local` (the export dir) is their correct home — the
+   off-convention `construct/skills` name was the mistake. `construct/local/tools`
+   + `nous-` → `nous-tools` (uniform naming). Note: can't be done cleanly before
+   decisions 3+4 (kill the `construct/local`→ariadne symlink so nous can own the
+   dir; give nous its own `nous-` prefix) — else it mis-prefixes to `xx-nous-tools`.
 
 Still open: **suppression** (can a derivative drop an inherited export?) and the
 **`construct/skill` layout** (one SKILL.md vs `<name>/SKILL.md`, to scan
