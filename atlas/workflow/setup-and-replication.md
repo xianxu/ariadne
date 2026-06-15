@@ -138,7 +138,7 @@ make bootstrap (in any repo)
        - git clone to ../<name>
        - Recursively `make bootstrap` in the peer
     Carries visited-set + depth-limit (max 5) via env vars.
-  → make refresh (peers exist now → symlinks materialize)
+  → make weave (peers exist now → symlinks materialize)
   → make tools  (builds tools via Go's replace → sibling resolution)
   → derivative's local-env setup hook (Makefile.nous/Makefile.local extends)
 ```
@@ -186,9 +186,9 @@ syntactically and clones them. bootstrap.sh's inline parser is locked to
 (clone sibling + relative symlink). The legacy two-column `construct/data-deps`
 file was retired in #60 M5.
 
-### Refresh vs bootstrap
+### Weave vs bootstrap
 
-- **`make refresh`** — pure substrate-state sync. Peers must exist
+- **`make weave`** — pure substrate-state sync. Peers must exist
   (errors with hint if missing). Runs `construct/setup.sh` to update
   symlinks. NO clone, NO build.
 - **`make bootstrap`** — first-time setup OR full state recovery. Cascades:
@@ -250,7 +250,7 @@ lines.
 
 ### Subsequent updates
 
-`make refresh` re-runs setup.sh against the upstream location Go resolves.
+`make weave` re-runs setup.sh against the upstream location Go resolves.
 Bumping a pinned version = editing the `require` line. Switching to
 trunk-follow on a sibling = changing the `replace` RHS to `../<upstream>`.
 All upstream-relationship changes happen in `go.mod`; setup.sh just acts on

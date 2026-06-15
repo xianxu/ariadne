@@ -3,7 +3,7 @@
 
 .PHONY: refresh-recursive
 
-# Iterate every peer repo in the parent directory and run `make refresh`
+# Iterate every peer repo in the parent directory and run `make weave`
 # in each one that's ariadne-dependent. A repo qualifies if it has a
 # Makefile.workflow — that's the universal signal of "uses the ariadne
 # base layer" (direct via .ariadne-mode, or indirect via .nous-mode /
@@ -28,7 +28,7 @@ refresh-recursive:
 	    [ -f "$$d/Makefile.workflow" ] || continue; \
 	    echo ""; \
 	    echo "==> Refreshing $$repo..."; \
-	    if $(MAKE) --no-print-directory -C "$$d" refresh; then \
+	    if $(MAKE) --no-print-directory -C "$$d" weave; then \
 	        count=$$((count + 1)); \
 	    else \
 	        failed="$$failed $$repo"; \

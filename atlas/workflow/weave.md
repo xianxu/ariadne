@@ -41,8 +41,8 @@ Pure entities are unit-tested mock-free.
   demand, ports `sync-local-skills.sh` discovery (no `.claude/skills/` reliance).
   Plus `tool` lowering (bimodal: derivative→`substrate` row, owner→`go mod edit
   -tool` via the `weavefs.GoModEditor` exec seam; golden classifier wired) and
-  `weave depend-on <path>` (records `substrate <path>` verbatim — directory-
-  agnostic). **[M3]**
+  `weave link <path>` (records `substrate <path>` verbatim — directory-
+  agnostic; the module-include verb of weave's repo-composition dialect). **[M3]**
 - `cmd/weave/internal/settingsx` + the `merge` lowering — the `settings`
   backend: pure `Merge`/`SemanticEqual` porting `merge-settings.sh`
   (`$merge_keys` union, `$remove` filter, meta-key strip, local-overrides-base);

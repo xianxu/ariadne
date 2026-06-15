@@ -9,7 +9,7 @@
 //	weave verify-complete [--target T]  assert the plan covers every managed path
 //	weave skills                   print the skill menu (name — description)
 //	weave skill <name>             print a skill's SKILL.md body (served directly)
-//	weave depend-on <path>         record a `substrate <path>` dep in construct/deps
+//	weave link <path>              record a `substrate <path>` dep in construct/deps
 //
 // One target per invocation (Approach-1): `--target` picks ONE skill backend —
 // claude lowers .claude/skills symlinks with a prose-only AGENTS.md; codex/agy
@@ -22,7 +22,7 @@
 // mutations), behind weavefs.FS (ARCH-PURE). M3 part 1 adds the skill server:
 // weave serves skills DIRECTLY (no .claude/skills/ discovery) — the menu is
 // compiled into the composed AGENTS.md (always-on), bodies served on demand via
-// `weave skill <name>`. M3 part 2 adds the `tool` lowering + `depend-on`. M5
+// `weave skill <name>`. M3 part 2 adds the `tool` lowering + `link`. M5
 // makes the compile an explicit subcommand with `--target` backend selection.
 package main
 
@@ -72,7 +72,7 @@ func buildRoot() *cobra.Command {
 	cmd.AddCommand(buildVerifyComplete())
 	cmd.AddCommand(buildSkills())
 	cmd.AddCommand(buildSkill())
-	cmd.AddCommand(buildDependOn())
+	cmd.AddCommand(buildLink())
 	return cmd
 }
 
@@ -190,15 +190,16 @@ func runVerifyComplete(fs weavefs.FS, cwd string, args []string, target plan.Tar
 	return nil
 }
 
-// buildDependOn assembles `weave depend-on <path>` — the directory-agnostic
+// buildLink assembles `weave link <path>` — the directory-agnostic
 // substrate-establishment verb. It records `substrate <path>` VERBATIM (the path
 // exactly as given, relative or absolute) in the cwd repo's construct/deps,
-// idempotently. This is how a fresh derivative declares its dependency on a real
-// ariadne checkout anywhere on disk (the plan's "directory-agnostic substrate
-// paths" Revisions entry) — recording the real path, not a hardcoded ../ariadne.
-func buildDependOn() *cobra.Command {
+// idempotently. This is the module-include verb of weave's repo-composition
+// dialect: how a fresh derivative declares its dependency on a real ariadne
+// checkout anywhere on disk (the plan's "directory-agnostic substrate paths"
+// Revisions entry) — recording the real path, not a hardcoded ../ariadne.
+func buildLink() *cobra.Command {
 	return &cobra.Command{
-		Use:           "depend-on <path>",
+		Use:           "link <path>",
 		Short:         "Record `substrate <path>` (verbatim) in this repo's construct/deps",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
@@ -208,19 +209,19 @@ func buildDependOn() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("resolve cwd: %w", err)
 			}
-			return runDependOn(weavefs.OSFS{}, root, args[0], cmd.OutOrStdout())
+			return runLink(weavefs.OSFS{}, root, args[0], cmd.OutOrStdout())
 		},
 	}
 }
 
-// runDependOn appends `substrate <path>` to root/construct/deps, recording path
+// runLink appends `substrate <path>` to root/construct/deps, recording path
 // VERBATIM (no resolution/relativization — the establishment verb captures the
 // real path it was handed). Idempotent: it reuses layer.ParseDeps (the same
 // grammar the walk + Apply read deps with, ARCH-DRY) to skip when the row is
 // already present, and creates construct/deps (+ construct/) when absent.
 // Injecting fs + out keeps it testable. Read-only on everything but the one deps
 // file.
-func runDependOn(fs weavefs.FS, root, path string, out io.Writer) error {
+func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
 	depsPath := filepath.Join(root, "construct", "deps")
 
 	var existing string
@@ -228,7 +229,7 @@ func runDependOn(fs weavefs.FS, root, path string, out io.Writer) error {
 		existing = string(data)
 		rows, perr := layer.ParseDeps(existing)
 		if perr != nil {
-			return fmt.Errorf("depend-on: parse %s: %w", depsPath, perr)
+			return fmt.Errorf("link: parse %s: %w", depsPath, perr)
 		}
 		for _, r := range rows {
 			if r == path {
@@ -239,7 +240,7 @@ func runDependOn(fs weavefs.FS, root, path string, out io.Writer) error {
 	}
 
 	if err := fs.MkdirAll(filepath.Dir(depsPath)); err != nil {
-		return fmt.Errorf("depend-on: mkdir %s: %w", filepath.Dir(depsPath), err)
+		return fmt.Errorf("link: mkdir %s: %w", filepath.Dir(depsPath), err)
 	}
 	next := existing
 	if next != "" && !strings.HasSuffix(next, "\n") {
@@ -247,7 +248,7 @@ func runDependOn(fs weavefs.FS, root, path string, out io.Writer) error {
 	}
 	next += "substrate " + path + "\n"
 	if err := fs.WriteFile(depsPath, []byte(next)); err != nil {
-		return fmt.Errorf("depend-on: write %s: %w", depsPath, err)
+		return fmt.Errorf("link: write %s: %w", depsPath, err)
 	}
 	fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
 	return nil
