@@ -59,10 +59,79 @@ func buildRoot() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
 	cmd.AddCommand(buildGolden())
+	cmd.AddCommand(buildVerifyComplete())
 	cmd.AddCommand(buildSkills())
 	cmd.AddCommand(buildSkill())
 	cmd.AddCommand(buildDependOn())
 	return cmd
+}
+
+// buildVerifyComplete assembles `weave verify-complete [repoPath...]` — the
+// completeness check (the COMPANION to golden). golden classifies the paths
+// weave PLANS (catching MIS-production); verify-complete asserts weave's plan
+// COVERS every path setup.sh would produce (catching UNDER-production — a
+// manifest entry weave's lowering silently drops). For each repo it walks →
+// Plans → CheckCompleteness, prints the gaps, and exits non-zero if ANY path is
+// under-produced. With seed implemented, ariadne self-walk reports ZERO. Strictly
+// read-only.
+func buildVerifyComplete() *cobra.Command {
+	return &cobra.Command{
+		Use:   "verify-complete [repoPath...]",
+		Short: "Assert weave's plan covers every path setup.sh would produce (read-only)",
+		Long: "Independent completeness check: enumerates every managed path the\n" +
+			"walked manifests declare (the setup.sh-equivalent managed set) and\n" +
+			"asserts weave's plan covers each. Catches UNDER-production a golden-diff\n" +
+			"cannot see (a verb whose lowering drops the entry). Exits non-zero on any\n" +
+			"under-produced path. With no args, auto-discovers present sibling repos.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("resolve cwd: %w", err)
+			}
+			return runVerifyComplete(weavefs.OSFS{}, cwd, args, cmd.OutOrStdout())
+		},
+	}
+}
+
+// runVerifyComplete is the completeness pipeline over a set of repos: it reuses
+// goldenTargets (the same repo resolution as the golden harness, ARCH-DRY) and,
+// per present repo, walks → Plans (planActions — the IDENTICAL plan the compile
+// path + golden see, so skill symlinks count for skill coverage) →
+// CheckCompleteness → Render. Returns an error iff any repo had an under-produced
+// path. Injecting fs + out keeps it testable.
+func runVerifyComplete(fs weavefs.FS, cwd string, args []string, out io.Writer) error {
+	repos := goldenTargets(cwd, args)
+	anyUnder := false
+	for _, repo := range repos {
+		if !dirPresent(repo) {
+			fmt.Fprintf(out, "== completeness: %s ==\n  SKIP — repo not present\n\n", repo)
+			continue
+		}
+		root := repo
+		if resolved, err := filepath.EvalSymlinks(root); err == nil {
+			root = resolved
+		}
+		layers, err := walk.Walk(fs, root)
+		if err != nil {
+			return fmt.Errorf("verify-complete: walk %s: %w", root, err)
+		}
+		actions, err := planActions(fs, layers)
+		if err != nil {
+			return fmt.Errorf("verify-complete: plan %s: %w", root, err)
+		}
+		uncovered := golden.CheckCompleteness(layers, actions)
+		fmt.Fprint(out, golden.RenderCompleteness(root, uncovered))
+		fmt.Fprintln(out)
+		if len(uncovered) > 0 {
+			anyUnder = true
+		}
+	}
+	if anyUnder {
+		return fmt.Errorf("verify-complete: under-produced path(s) found — see report above")
+	}
+	return nil
 }
 
 // buildDependOn assembles `weave depend-on <path>` — the directory-agnostic
