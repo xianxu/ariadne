@@ -213,3 +213,15 @@ M4 boundary-review verdict **FIX-THEN-SHIP** (no Critical; the judge differentia
 - **(b) The `Backend` interface (`Lower(intent) []Action`) was NOT built** (Spec "backend-interface seam"; the M4 step; the seam done-when). With a single non-floor backend, the `Action` sum type + type-switch dispatch **is** the seam — YAGNI; a one-implementor interface is premature abstraction (the M2 review already endorsed the `Action` fan-out). The "Define the Backend interface" step + the seam done-when are **superseded**.
 - **M5 note (review §6): `settings.json` byte-churn.** weave's output is *semantically* equal to `merge-settings.sh`'s but **byte-different** (Go `json.MarshalIndent` HTML-escapes `<>&`; python escapes non-ASCII). The M5 cutover's `git diff` of `settings.json` will show cosmetic churn that is a semantic no-op — the M5 ledger must say so, not read it as a regression.
 - **Minor carried:** `gather_test.go`'s "regardless of order" comment overclaims — `observeMerge` relies on `base.manifest` ordering (`symlink` before `merge`); soften or make order-independent (low-value).
+
+### 2026-06-14 — M5 test runbook (approved)
+
+Cutover tested fully on `#95` branches in tart VMs, **isolated from production `main`**; coordinated pause-the-world merge only after all pass. Order: ariadne → parley.nvim → pair → nous → brain (root → leaf → leaf → layer-stack → encrypted-chain). metis excluded (re-init later); ariadne `#31` + `nous-14` worktrees = the final step.
+
+- **Phase 0 [done]:** all descendants parked clean-on-`main`; ariadne on `000095-weave`.
+- **Phase 1 [implement; review-before-commit]:** (1a) ariadne self-cutover migration; (1b) completeness-check harness — independently enumerate `setup.sh`'s *full* output vs weave (closes the M2-review under-production blind spot, since `weave golden` alone only validates paths weave *plans*).
+- **Phase 2 [per-repo tart, manual sign-off]:** each repo on its `#95` cutover branch → ariadne@#95 → `make tart` → in the VM verify: (1) weave compiles clean + **idempotent**; (2) golden-diff = only *expected* divergences, **zero UNEXPECTED**; (3) **completeness**; (4) **★ a fresh session loads the repo's OWN `AGENTS.local.md` prose, not ariadne's**; (5) skills menu + serve; (6) `settings.json` semantic-correct (byte-churn ok); (7) `sdlc`/`make`/`tart` toolchain intact.
+- **Phase 3 [pause-the-world merge, after all pass]:** merge `#95` branches base-first; re-weave all descendants on `main`; post-merge smoke.
+- **Phase 4 [cleanup]:** re-weave `#31` + `nous-14`; re-init metis.
+
+gcrypt is orthogonal (weave works on brain's *decrypted* working tree). `settings.json` is semantic-equal but byte-different (cosmetic cutover churn, not a regression).
