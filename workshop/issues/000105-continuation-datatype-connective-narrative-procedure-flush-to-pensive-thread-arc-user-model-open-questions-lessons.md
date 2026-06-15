@@ -1,11 +1,12 @@
 ---
 id: 000105
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-15
 updated: 2026-06-15
 estimate_hours: 2
+actual_hours: 0.43
 ---
 
 # continuation datatype: connective-narrative procedure (flush-to-pensive, thread-arc/user-model, open-questions, lessons)
@@ -117,6 +118,7 @@ blocker for this datatype change); it is intentionally not a checkbox here.
 ## Log
 
 ### 2026-06-15
+- 2026-06-15: closed — Datatype rewrite reviewed — all pre-merge judges INFO; pair resolves the updated continuation.md live via the construct/datatype symlink (verified: pair copy shows the 4 new sections); end-to-end dogfood tracked in pair#61.; review verdict: SHIP
 - Created from the pair#61 dogfood. Design + decisions agreed with operator
   (see pair#61 decisions 1–6): sections/order, flush = pensive-only, writer
   enforces NEXT ACTION only, resume directive embedded in the generated file.
