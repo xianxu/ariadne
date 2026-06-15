@@ -88,6 +88,32 @@ WS_P="$(cd "$WS" && pwd -P)"
 [ "$def_owner" = "$WS_P/ariadne" ] && ok "default-workspace via derivative symlink: sdlc → ariadne" || ko "default-workspace symlink: got [$def_owner] want [$WS_P/ariadne]"
 rm -rf "$WS/deriv" "$WS/ariadne/construct/dev-aliases.sh"
 
+# ── non-peer substrate-following (#95) ───────────────────────────────────────
+# A repo created OUTSIDE ariadne's workspace (NOT a sibling) links ariadne via
+# construct/deps `substrate <abs ariadne>`. The sibling scan alone can't see
+# ariadne (it's not under the non-peer repo's parent); dev-aliases must ALSO
+# follow the current repo's substrate graph (via the real lib-deps.sh, reached
+# through the dev-aliases.sh symlink) to resolve sdlc → ariadne. This is the bug
+# the non-peer bootstrap test uncovered.
+NP="$(mktemp -d "${TMPDIR:-/tmp}/devaliases-np.XXXXXX")"
+# Stage a self-contained ariadne owner with the real script + lib-deps parser.
+mkdir -p "$NP/ariadne/construct/scripts"; mkcmd "$NP/ariadne/cmd/sdlc"
+cp "$GEN" "$NP/ariadne/construct/dev-aliases.sh"
+cp "$ARIADNE_ROOT/construct/scripts/lib-deps.sh" "$NP/ariadne/construct/scripts/lib-deps.sh"
+# The non-peer repo lives in a SEPARATE parent (so ariadne is NOT a sibling),
+# with an absolute substrate edge to the staged ariadne + the symlinked script.
+mkdir -p "$NP/elsewhere/another/construct"
+ARI_P="$(cd "$NP/ariadne" && pwd -P)"
+printf 'substrate %s\n' "$ARI_P" > "$NP/elsewhere/another/construct/deps"
+( cd "$NP/elsewhere/another/construct" && ln -s "$ARI_P/construct/dev-aliases.sh" dev-aliases.sh )
+np_out="$( cd "$NP/elsewhere/another" && bash construct/dev-aliases.sh --list 2>/dev/null )"
+np_owner="$(printf '%s\n' "$np_out" | awk -F'\t' '$1=="sdlc"{print $2}')"
+[ "$np_owner" = "$ARI_P" ] && ok "non-peer substrate: sdlc → ariadne (via construct/deps)" || ko "non-peer substrate: got [$np_owner] want [$ARI_P]"
+# The non-peer repo's OWN parent has no ariadne sibling — proves resolution came
+# from the substrate graph, not an accidental sibling match.
+assert_contains "$(printf 'sdlc\t%s' "$ARI_P")" "$np_out" "non-peer --list maps sdlc to the substrate owner"
+rm -rf "$NP"
+
 # ── duplicate detection + --strict ───────────────────────────────────────────
 # two ACTIVE repos both owning a real cmd/dupe → collision
 mkdir -p "$WS/repoa/construct" "$WS/repob/construct"
