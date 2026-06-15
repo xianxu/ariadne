@@ -51,7 +51,7 @@ Namespaced union; commutative, idempotent, collision-free by prefix (`xx-`/`nous
 ```
 skills(R) = ⋃ᵢ export-skills(Lᵢ)  ∪  internal-skills(Lₙ)        (keyed by namespaced name)
 ```
-The *composition* is target-independent; only the *lowering* differs (claude → `.claude/skills` symlinks; codex/agy → the AGENTS.md menu).
+The *composition* is target-independent; only the *lowering* differs (claude → `.claude/skills` symlinks; codex/agy → the AGENTS.md menu). **Implementation drift (ariadne#102):** today the two lowerings see DIFFERENT operand sets — the symlink lowering is intent-driven (honors each layer's `skill <dir>` rows) but the menu discovery hardcodes `construct/local`+`construct/adapted`, so a layer whose skills live elsewhere (nous's `construct/skills`) lowers to `.claude/skills` yet is missing from the menu. The claude cutover is unaffected; #102 makes menu discovery intent-driven so both renderings honor this formula.
 
 ### settings — clarity: MEDIUM (formalized in ariadne#97; the DAG fold is not yet shipped)
 Deep-merge with per-key semantics, foundation-first, specific-over-general; `$merge_keys` carried through, meta stripped once at the end.
