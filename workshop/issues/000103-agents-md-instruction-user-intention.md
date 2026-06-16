@@ -34,4 +34,19 @@ criteria single-sourced — the continuation section defers here as canonical.
 - Added an #105 back-pointer: this issue is canonical for the live user-model
   discipline; ariadne#105's `## Thread arc & user model` continuation section is
   its persistence counterpart (same two criteria, single-sourced here).
+- **Open-question resolutions** (operator sign-off during the pair#61 continuation
+  dogfood — these settle the design before this issue is worked):
+  - **Single source for the two criteria → collapse to #103.** This issue holds
+    the canonical definition of the user-model + its two criteria (self-consistent;
+    fits observation). The continuation datatype section must defer here by
+    *pointer*, not restate the criteria. When landing the AGENTS.md instruction,
+    also thin ariadne#105's continuation section to a reference (remove the
+    duplicated criteria text).
+  - **User-model stays cross-cutting — no dedicated durable artifact.** The model
+    persists as: the `## Thread arc & user model` continuation section (per-park
+    checkpoint) + this AGENTS.md instruction (live maintenance) + the per-session
+    `pensive` flush (durable cross-session view). Rejected: a standalone
+    user-model `target`/profile datatype that the continuation merely updates —
+    too much new surface for the value; the pensive already carries the durable
+    cross-session throughline.
 
