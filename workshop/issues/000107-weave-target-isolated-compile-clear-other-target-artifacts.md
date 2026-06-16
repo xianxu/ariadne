@@ -6,7 +6,7 @@ github_issue:
 target: base-layer-mechanics
 created: 2026-06-16
 updated: 2026-06-16
-estimate_hours: 8
+estimate_hours: 12
 ---
 
 # weave: Option B — per-harness skill-dir lowering (`.claude/skills` + `.agents/skills`), retire the menu, prose entry files
@@ -65,7 +65,15 @@ locations the CURRENT target actively writes into.
 renamed/removed skill leaves a dangling link until you switch back); and a
 menu-session reader that scans `.claude/skills` would see every skill twice.
 
-## Spec — target-isolated lowering
+## Spec
+
+> **Note (post-rescope):** the `Compile(C,T) → A_T` formalism + the Union/lean
+> compositions below still hold under Option B. But the "Today's backends"
+> paragraph + the "single missing action" describe the PRE-Option-B menu world and
+> are SUPERSEDED by the Decision: under Option B the faces are `.claude/skills`
+> (Claude) + `.agents/skills` (Codex/Gemini), there is NO menu, and the cross-target
+> prune is **bidirectional**. The authoritative acceptance criteria are "## Done
+> when" below (rewritten for Option B).
 
 Treat the compile as a pure function over (base-layer source, target):
 
@@ -118,14 +126,22 @@ symlinks, scaffolds, seeds) — which is in NO `A_T` and is always present.
 
 ## Done when
 
-- After `weave compile --target X` on a repo previously woven for backend Y, ONLY
-  `A_X` remains; every `A_Y` (Y ≠ X) is gone. Verified BOTH directions on a real
-  repo (claude→codex prunes `.claude/skills`; codex→claude already clean).
-- A test pins it: a fixture woven claude (has `.claude/skills/*`), re-woven codex,
-  asserts `.claude/skills` pruned AND the menu present in AGENTS.md.
-- The prune's safety invariants are unchanged (no real file/dir or non-weave
-  symlink ever removed); `weave golden` / `verify-complete` stay clean.
-- `make weave` (claude) behavior is unchanged.
+- `weave compile` (Union, default) produces BOTH skill faces — `.claude/skills`
+  (Claude) + `.agents/skills` (Codex/Gemini) — from the SAME selected set, plus the
+  three pure-prose entry files (`CLAUDE.md`/`AGENTS.md`/`GEMINI.md`); NO `## Skills`
+  menu anywhere (Codex auto-composes its own from `.agents/skills`).
+- `weave compile --target X` produces ONLY backend-X's face and PRUNES every other
+  backend's face — **bidirectional** (a claude compile prunes `.agents/skills`; a
+  codex/gemini compile prunes `.claude/skills`). The cross-target prune scans the
+  UNION's managed locations with the lean target's produced-set (no per-target
+  registry — ARCH-DRY); the existing safety criteria gate removal. Verified both
+  directions on a real repo, with a test.
+- The per-harness assumption suite (M1) PASSES on the installed CLIs and FAILS on a
+  broken assumption.
+- The prune's safety invariants are unchanged (no real file/dir or non-weave symlink
+  ever removed); `weave golden` / `verify-complete` stay clean.
+- `make weave` default = Union (serves every harness); the `.claude/skills` face is
+  byte-for-byte unchanged from today.
 
 ## Design discussion — Compile(C,T) primitive · Union default · per-harness entry files (2026-06-16)
 
@@ -215,19 +231,44 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
       not `AGENTS.md`; Codex + Gemini discover `.agents/skills` (real AND SYMLINKED)
       in weave's `name`+`description` SKILL.md format and ignore `.claude/`. Skips an
       absent CLI; fails loudly on a broken assumption (deterministic probes: `gemini
-      skills list --all`, `codex debug prompt-input`). Plus
-      `atlas/workflow/harness-integration.md` documenting the `Compile(C,T)`/Union
+      skills list --all`, `codex debug prompt-input`). **Execution home (Finding 4):**
+      a `make harness-check` target + a documented trigger (run pre-propagate and
+      whenever a harness CLI updates; the atlas page carries the triage runbook) so
+      the guard has teeth despite CI lacking the CLIs (it SKIPs there, by design).
+      Plus `atlas/workflow/harness-integration.md` documenting the `Compile(C,T)`/Union
       model, the per-harness face map, and the assumptions (linking the suite).
-- [ ] M2 — weave Option B lowering. Lower skills to `.claude/skills` (Claude) +
-      `.agents/skills` (Codex/Gemini) symlink farms from the SAME selected set;
-      retire the `## Skills` menu (Codex auto-composes its own); per-harness entry
-      files become pure prose (`CLAUDE.md`/`AGENTS.md`/`GEMINI.md` — retire the
-      `CLAUDE.md=@AGENTS.md` bridge); `weave compile` = Union (all faces),
-      `--target T` = lean subset; the cross-target prune cleans a face when a harness
-      is dropped or a `--target` lean compile is run. Tests + golden.
-- [ ] M3 — propagate: re-weave all ariadne-styled repos onto the new lowering;
-      `verify-complete` + ancestors byte-pristine (ties to [[000106]] — manual loop
-      for now).
+- [ ] M2 — Option B PRODUCE side. Lower skills to BOTH `.claude/skills` (Claude) +
+      `.agents/skills` (Codex/Gemini) symlink farms from the SAME selected set (reuse
+      `plan.SkillSymlinks` parameterized by destination dir — ARCH-DRY); RETIRE the
+      `## Skills` menu + `IncludeSkillMenu`/`idx.Menu()` compile plumbing (Codex
+      auto-composes its own). Per-harness entry files become pure prose: fan the ONE
+      `composeAgentsBody` output to three `Dst` (`CLAUDE.md`/`AGENTS.md`/`GEMINI.md`)
+      — retire the `CLAUDE.md=@AGENTS.md` bridge. `weave compile` = Union (all faces),
+      `--target T` = only T's face. gitignore `/.agents/skills/` + `/GEMINI.md`.
+      Tests + golden.
+- [ ] M3 — Option B REMOVE side (the original #107 cross-target prune). Generalize
+      the prune to scan `ManagedLocations(UNION-actions)` while the produced-set stays
+      the lean compile's — so a `--target X` lean compile prunes every NON-selected
+      face, **bidirectionally**, reusing the Union primitive M2 builds (NO per-target
+      registry; prune.go's derive-not-hardcode invariant intact; NO new delete logic
+      — ARCH-DRY, Finding 2). Tests both directions + the safety criteria (a real dir
+      / non-weave symlink is never removed).
+- [ ] M4 — propagate: re-weave all ariadne-styled repos onto the new lowering; run
+      `make harness-check`; `verify-complete` + ancestors byte-pristine (ties to
+      [[000106]] — manual loop for now).
+
+## Revisions
+
+- **2026-06-16 (plan-quality gate).** The Option B rescope surfaced 5 findings;
+  reconciled: (1) `## Done when` rewritten to Option B (no menu; **bidirectional**
+  prune; both skill faces) — `## Spec`'s "Today's backends" marked the pre-Option-B
+  baseline. (2) The cross-target prune uses `ManagedLocations(union-actions)` with
+  the lean produced-set — NOT a `Target.ExclusiveLoweredLocations()` registry —
+  honoring prune.go's derive-not-hardcode and reusing the Union primitive (ARCH-DRY).
+  (3) Split the overloaded weave milestone into M2 (PRODUCE: faces + menu-retire +
+  prose entry files + union) and M3 (REMOVE: the cross-target prune); propagate → M4.
+  (4) Gave the assumption suite an execution home (`make harness-check` + trigger).
+  (5) Estimate 8h → 12h.
 
 ## Log
 
