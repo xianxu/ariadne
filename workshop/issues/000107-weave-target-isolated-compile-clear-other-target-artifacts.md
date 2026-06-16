@@ -144,12 +144,35 @@ making the faces disjoint:
 Each harness self-selects by the file it reads; the Union coexists in one root with
 no contested path. (Parent-dir `CLAUDE.md` walk-up exists but is fine for this layout.)
 
-**`.claude/skills` cross-read safety.** The Union leaves `.claude/skills` on disk
-for the non-Claude harnesses. Assumption: Codex/Gemini don't read it (no such
-convention) — **[VERIFY: web check in flight]**. Belt-and-suspenders regardless:
-the generated `## Skills` menu carries an explicit line — *"skills are listed below;
-do NOT scan `.claude/` — the menu is already inserted"* — so even a harness that
-WOULD scan it is told not to. Make that line part of the menu render.
+**`.claude/skills` cross-read — VERIFIED SAFE** (web check vs official docs).
+Codex auto-reads `AGENTS.md` + `~/.codex`/`.codex/config.toml`; Gemini auto-reads
+the `GEMINI.md` hierarchy + `.gemini/settings.json`. **Neither scans `.claude/` at
+all.** So leaving `.claude/skills` on disk in the Union is inert to them — no
+double-load. The "do not scan `.claude`" menu line is therefore NOT needed (keep
+only as harmless defense-in-depth, if at all).
+
+**…but the `.agents/skills` finding changes the skill backend (the real news).**
+Codex AND Gemini both recognize a SHARED neutral skill-discovery dir
+**`.agents/skills`** (Codex also `~/.codex`/builtins; Gemini also `.gemini/skills`).
+Consequences:
+  1. **#104's premise is now stale.** #104 built the AGENTS.md `## Skills` menu
+     because "codex/agy have NO skill-discovery dir." They DO — `.agents/skills`.
+     So the menu's original justification no longer holds.
+  2. **A cleaner backend than the menu:** weave lowers skills to per-harness skill
+     DIRS — `.claude/skills` (Claude) + `.agents/skills` (Codex + Gemini) — and
+     every harness discovers NATIVELY. The `## Skills` menu RETIRES; all entry files
+     become pure prose. Disjoint paths (`.claude/skills` vs `.agents/skills`) keep
+     the Union clean, and this MAXIMIZES separability (the only remaining per-harness
+     divergence is harness-specific prose, if any). The skill lowering collapses
+     from "symlinks XOR menu" to "symlinks, into the right per-harness dir."
+  3. **Reverse caveat:** `.agents/skills` is the path that WOULD double-expose — a
+     real `.agents/skills/` read by BOTH Codex and Gemini, IF the same skills are
+     also in a menu. The dir-only backend (no menu) avoids that by construction.
+
+So the Union's skill face has two candidate backends: KEEP the #104 menu, OR
+**lower to `.agents/skills` + retire the menu** (simpler, native for all, updates
+the stale premise). The `.agents/skills` route looks strictly cleaner; decide at
+build (could be its own issue). Either way `.claude/skills` coexistence is safe.
 
 **Still genuinely open (the real next step).** Artifact COEXISTENCE is solved by
 the Union. What remains: concurrent-WRITE coordination — two agents editing the
@@ -182,5 +205,12 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
   CLAUDE.md/AGENTS.md/GEMINI.md) is the load-bearing invariant. Verified Claude
   reads only CLAUDE.md (AGENTS.md invisible unless @-imported) → retire the
   CLAUDE.md=@AGENTS.md bridge. Dropped `--into <dir>` (only helps CWD-swap/overlay;
-  the Union needs none). Codex/Gemini `.claude/skills` cross-read [verify in flight]
-  + a "do not scan .claude" line in the menu render as belt-and-suspenders.
+  the Union needs none).
+- 2026-06-16: VERIFIED (web/docs) Codex + Gemini do NOT read `.claude/` → the Union
+  is safe, no double-load; the "do not scan .claude" belt is unnecessary. Bigger
+  find: both recognize a shared neutral skill dir `.agents/skills`, which (a)
+  invalidates #104's "codex/agy have no skill-discovery dir" premise and (b) opens a
+  cleaner backend — lower skills to `.claude/skills` (Claude) + `.agents/skills`
+  (Codex+Gemini), retire the AGENTS.md menu, all entry files become pure prose. The
+  path to watch for double-exposure is now `.agents/skills` (read by both), not
+  `.claude/skills` (inert to them).
