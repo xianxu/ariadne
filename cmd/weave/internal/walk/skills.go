@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
@@ -27,36 +28,51 @@ import (
 // The result feeds skill.Build (the pure index). Reading SKILL.md/config.json
 // off disk is confined here (the seam); the index reasoning stays pure.
 
-// localSkillDir and adaptedSkillDir are the two skill source dirs each layer
-// ships, relative to the layer root (ported from sync-local-skills.sh's
-// LOCAL_DIR / ADAPTED_DIR).
+// adaptedSkillRel is the one skill dir whose skills stay BARE — external skills
+// (superpowers) keep their published names; every OTHER skill dir gets the layer's
+// prefix. defaultPrefix is the M1 fallback when a layer has no config.json
+// localPrefix (#104 M2 changes it to the layer's repo name).
 const (
-	localSkillRel   = "construct/local"
 	adaptedSkillRel = "construct/adapted"
-	defaultPrefix   = "xx-" // sync-local-skills.sh:19 fallback
+	defaultPrefix   = "xx-"
 )
 
-// GatherSkills walks the resolved layers foundation-first and collects every
-// skill each one ships into []skill.Entry — local skills prefixed, adapted bare
-// — in the cascade order skill.Build expects (foundation layer's skills first,
-// the consuming repo's last, so a downstream re-declaration overrides). Within
-// a layer: local skills before adapted, each alphabetical (ReadDir is sorted).
-// IO confined to this seam (ARCH-PURE).
+// GatherSkills is weave's SINGLE skill discovery (skill-system v2, #104): walking
+// the resolved layers foundation-first, for each layer it reads that layer's
+// `skill <dir>` INTENTS (not a hardcoded dir pair) and scans each declared dir,
+// emitting one skill.Entry per skill. Every entry carries the composition-algebra
+// inputs — the declaring row's Visibility and the layer's index — so the menu
+// (skill.Build) and the claude symlinks (plan.SkillSymlinks) both derive from the
+// SAME selected set (skill.SelectVisible); there is no second scan (ARCH-DRY,
+// closes #104 §A1/§A4). IO confined to this seam (ARCH-PURE).
+//
+// Naming: a skill in `construct/adapted` keeps its bare dir name (external skills
+// preserve their published names); every other dir (`construct/local`,
+// `construct/skill`, …) gets the layer's prefix. Order: layers foundation-first,
+// intents in manifest order, skills within a dir alphabetical (ReadDir sorted),
+// so a downstream re-declaration of a name overrides (skill.Build's cascade).
 func GatherSkills(fs weavefs.FS, layers []layer.Layer) ([]skill.Entry, error) {
 	var entries []skill.Entry
-	for _, l := range layers {
-		prefix := localPrefix(fs, l.Path)
-		// Local skills get the prefix; adapted keep their bare dir name.
-		local, err := scanSkillDir(fs, filepath.Join(l.Path, localSkillRel), prefix)
-		if err != nil {
-			return nil, err
+	for i, l := range layers {
+		prefix := skillPrefix(fs, l.Path)
+		for _, in := range l.Intents {
+			if in.Kind != intent.Skill {
+				continue
+			}
+			rowPrefix := prefix
+			if in.Source == adaptedSkillRel { // external skills keep their bare names
+				rowPrefix = ""
+			}
+			es, err := scanSkillDir(fs, filepath.Join(l.Path, in.Source), rowPrefix)
+			if err != nil {
+				return nil, err
+			}
+			for j := range es {
+				es[j].Visibility = in.Visibility
+				es[j].LayerIndex = i
+			}
+			entries = append(entries, es...)
 		}
-		adapted, err := scanSkillDir(fs, filepath.Join(l.Path, adaptedSkillRel), "")
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, local...)
-		entries = append(entries, adapted...)
 	}
 	return entries, nil
 }
@@ -90,10 +106,12 @@ func scanSkillDir(fs weavefs.FS, sourceDir, prefix string) ([]skill.Entry, error
 	return out, nil
 }
 
-// localPrefix reads a layer's construct/config.json `localPrefix`, falling back
-// to "xx-" when the file is absent/unparseable or the field is empty — ported
-// from sync-local-skills.sh's `PREFIX="${PREFIX:-xx-}"`.
-func localPrefix(fs weavefs.FS, layerRoot string) string {
+// skillPrefix reads a layer's construct/config.json `localPrefix`, falling back
+// to "xx-" when the file is absent/unparseable or the field is empty.
+// (#104 M2 changes the fallback to the layer's REPO NAME — `nous-`, `brain-` —
+// so each layer prefixes its own skills; ariadne keeps `xx-` via its own
+// config.json. The M1 fallback stays `xx-` to be behavior-preserving.)
+func skillPrefix(fs weavefs.FS, layerRoot string) string {
 	data, err := fs.ReadFile(filepath.Join(layerRoot, "construct", "config.json"))
 	if err != nil {
 		return defaultPrefix
