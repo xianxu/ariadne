@@ -22,6 +22,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Base Layer](workflow/base-layer.md) — how to adopt ariadne's base layer, path conventions, runtime artifacts
 - [Setup & Replication](workflow/setup-and-replication.md) — `construct/setup.sh` mechanism, ancestor discovery, bootstrap cascade
 - [weave compiler](workflow/weave.md) — `cmd/weave`, the intent compiler **replacing `setup.sh`** (in progress, #95): layer DAG → composed `AGENTS.md` + served skills; pure core, `construct/deps`-only edges, hybrid intents, symlink-only
+- [Harness integration](workflow/harness-integration.md) — how weave serves many agent harnesses (Claude/Codex/Gemini) from ONE checkout: the `Compile(C,T)`/Union model, the per-harness face map, the assumption ledger + its guard (`make harness-check`), onboard/triage runbooks (#107)
 - [Data Dependencies](workflow/data-deps.md) — content peers (looser git submodule): sibling clone + relative symlink via `construct/deps` `data` rows (#60); add / remove / bootstrap
 - [base.manifest](../construct/base.manifest) — canonical list of portable paths
 - [setup.sh](../construct/setup.sh) — bootstrapper for consuming repos
