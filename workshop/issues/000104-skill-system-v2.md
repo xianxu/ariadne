@@ -6,7 +6,7 @@ github_issue:
 target: skill-system
 created: 2026-06-15
 updated: 2026-06-15
-estimate_hours: 12
+estimate_hours: 15
 ---
 
 # skill-system v2 — unified, visibility-aware, target-independent skill composition

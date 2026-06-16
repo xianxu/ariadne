@@ -260,22 +260,39 @@ func SkillSymlinks(entries []skill.Entry) []Symlink {
 - [ ] **Step 4: Run — expect FAIL elsewhere** (`main.go` + `golden` still call `walk.LowerSkillSymlinks`). That's the next task.
 - [ ] **Step 5: Commit** after Task 6 wires it (or commit the compile-broken state on a WIP branch — prefer wiring first).
 
-### Task 6: rewire `main.planActions` + `buildSkillIndex` to the one discovery
+### Task 6: rewire `main.planActions` + `buildSkillIndex` to the ONE discovery
+
+**Pin the seam exactly (plan-quality finding #1 — this is the spot the whole issue turns on).** `buildSkillIndex` must return BOTH the index AND the selected `[]skill.Entry` it was built from, so the menu (`skill.Build`) and the claude symlinks (`plan.SkillSymlinks`) read the IDENTICAL slice from ONE `GatherSkills`. If an implementer instead leaves `buildSkillIndex → SkillIndex` and adds a SECOND `GatherSkills`+`SelectVisible` before `SkillSymlinks`, the §A4 duplication silently survives and tests still pass — the issue's core claim is unmet. Do not do that.
 
 **Files:**
-- Modify: `cmd/weave/main.go` (`planActions`, `buildSkillIndex`, `skillSymlinks`, `resolveSkillIndex`)
-- Modify: `cmd/weave/internal/golden/*` if it calls the old path
+- Modify: `cmd/weave/main.go` (`buildSkillIndex`, `planActions`, `resolveSkillIndex`; delete the `skillSymlinks` helper)
+- Modify: `cmd/weave/internal/golden/*` if it calls `walk.LowerSkillSymlinks`
 
-- [ ] **Step 1:** Make `buildSkillIndex` gather → `SelectVisible(entries, leafIdx)` → `skill.Build`. `leafIdx = len(layers)-1`.
-- [ ] **Step 2:** In `planActions`, for the claude target append `plan.SkillSymlinks(selected)` (the SAME selected entries the menu used) instead of `skillSymlinks(fs, layers)`; delete the `walk.LowerSkillSymlinks` call.
-- [ ] **Step 3: Run the full suite** `go test ./cmd/weave/...` and `go vet` + `gofmt -l cmd/weave` — all green.
-- [ ] **Step 4: Live verify (behavior-preserving):** in ariadne `weave compile --target claude` then `weave golden --target claude` → MATCH unchanged / 0 UNEXPECTED; `weave skills` lists the same set; re-weave diff empty.
-- [ ] **Step 5: Commit.** `git commit -am "#104 M1: one discovery → SelectVisible → {Build menu, SkillSymlinks claude}; delete LowerSkillSymlinks"`
+- [ ] **Step 1: Change `buildSkillIndex` to return the selected entries too.**
+
+```go
+func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []skill.Entry, error) {
+	entries, err := walk.GatherSkills(fs, layers)
+	if err != nil {
+		return skill.SkillIndex{}, nil, err
+	}
+	selected := skill.SelectVisible(entries, len(layers)-1) // 𝒜(R): leaf = last layer
+	return skill.Build(selected), selected, nil
+}
+```
+
+- [ ] **Step 2: `planActions` consumes ONE gather.** `idx, selected, err := buildSkillIndex(fs, layers)`. Menu from `idx.Menu()` when `target.IncludeSkillMenu()`. For `target.EmitSkillSymlinks()`: `actions = append(actions, asActions(plan.SkillSymlinks(selected))...)` — the SAME `selected`. Delete the `skillSymlinks(fs, layers)` helper and its `walk.LowerSkillSymlinks` call.
+- [ ] **Step 3: `resolveSkillIndex`** (serves `weave skills`/`weave skill <name>`) uses the `SkillIndex` from `buildSkillIndex` (discard the entries) — so a *served* skill is exactly a *composed* one (same select, no third path).
+- [ ] **Step 4: Run the full suite** `go test ./cmd/weave/...` + `go vet ./cmd/weave/...` + `gofmt -l cmd/weave` — all green. Fix any `golden` caller of the deleted `walk.LowerSkillSymlinks`.
+- [ ] **Step 5: Live verify (behavior-preserving):** in ariadne `weave compile --target claude` then `weave golden --target claude` → MATCH unchanged / 0 UNEXPECTED; `weave skills` lists the same set; re-weave diff empty.
+- [ ] **Step 6: Commit.** `git commit -am "#104 M1: one discovery → SelectVisible → {Build menu, SkillSymlinks claude}; delete LowerSkillSymlinks"`
 
 ### Task 7: M1 milestone close
 
-- [ ] Update `atlas/workflow/weave.md` (skill discovery is now intent-driven + visibility-aware — one operand set).
-- [ ] `sdlc milestone-close --issue 104 --milestone M1 --verified '...'` (dispatches the boundary review; fix Critical/Important).
+**Done-when scoping (plan-quality finding #2):** M1 closes the *unification* (one discovery → two lowerings) and the *pure* visibility predicate (`SelectVisible` test). It does NOT close the issue's full Done-when — the multi-layer end-to-end internal-skill assertion ("an ancestor's internal does NOT reach a consumer, the leaf's DOES") is **M2 Task B** (needs a real `internal skill` declared), and the formula-binding golden is **M3**. State this in the M1 close so M1 isn't held to the whole list.
+
+- [ ] Update `atlas/workflow/weave.md` (skill discovery is now intent-driven + visibility-aware — one operand set feeds menu + symlinks).
+- [ ] `sdlc milestone-close --issue 104 --milestone M1 --verified 'one intent-driven GatherSkills → SelectVisible → {Build menu, SkillSymlinks claude}; LowerSkillSymlinks deleted; ariadne golden unchanged (behavior-preserving); SelectVisible pure predicate test green'` (dispatches the boundary review; fix Critical/Important).
 
 ---
 
