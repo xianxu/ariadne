@@ -1,11 +1,11 @@
 ---
 id: 000101
-status: open
+status: done
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-16
 estimate_hours: 1
 ---
 
@@ -32,6 +32,8 @@ Decide the exact config encoding (`"localPrefix": ""` vs `null` vs a separate `"
 
 ## Log
 
+
+- 2026-06-16: closed — Subsumed by #104 — M2 added the repo-name prefix default + the adapted-bare rule (construct/adapted stays bare; absent/empty localPrefix → repo-name basename); M3 activated per-layer prefixes (nous → nous-). Bare/no-prefix lowering is the adapted rule. Delivered under #104 — folded in, no independent window.; review verdict: not-run
 ### 2026-06-15
 - Filed from the parley tart-prep discussion: operator wants bare-name lowering as an option. Confirmed the prefix lives in `construct/config.json` `localPrefix` (default `xx-`); today empty collapses to `xx-` (bash fallback parity), so bare names aren't reachable.
 

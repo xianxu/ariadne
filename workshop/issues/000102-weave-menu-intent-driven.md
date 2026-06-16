@@ -1,11 +1,11 @@
 ---
 id: 000102
-status: open
+status: done
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-16
 estimate_hours:
 ---
 
@@ -85,6 +85,8 @@ Open design sub-questions (resolve in the plan):
 
 ## Log
 
+
+- 2026-06-16: closed — Subsumed by #104 — M1 made GatherSkills intent-driven (the menu reads each layer's `skill <dir>` intents, not hardcoded construct/local|adapted); M3 migrated nous to a `skill construct/local` intent so nous-tools/nous-resolve now appear in `weave skills` + serve via `weave skill`. Its 4 plan items were delivered under #104 (not ticked here) — folded in, no independent window.; review verdict: not-run
 ### 2026-06-15
 
 - Filed during #95 M5 nous cutover. The claude cutover is NOT blocked by this
