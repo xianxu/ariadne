@@ -1,5 +1,5 @@
 ---
-name: construct
+name: xx-construct
 description: Use when managing the AI substrate — importing, adapting, promoting, upgrading, or rolling back skills and constitution files across repos.
 ---
 
