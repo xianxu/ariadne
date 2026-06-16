@@ -19,28 +19,25 @@ Historical context lives in issue [#33](../../workshop/history/000033-adaptation
 Ariadne's promote step writes the rendered skills to two places at once:
 
 - `$REPO_ROOT/.claude/skills/<source>-<skill>/` — ariadne's own live skill set
-- `$REPO_ROOT/construct/adapted/<source>-<skill>/` — the inheritable copy
+- `$REPO_ROOT/construct/adapted/<source>-<skill>/` — the inheritable SOURCE dir
 
-Derivative repos pick `construct/adapted/` up through `construct/base.manifest`:
-
-```
-# in construct/base.manifest
-symlink construct/adapted
-```
-
-`construct/setup.sh` resolves that line into a symlink (default mode) or a
-vendored copy (`--vendor`) in the derivative's tree. Then the derivative's
-`.claude/skills/<source>-<skill>/` directories are themselves symlinks pointing
-at `../../construct/adapted/<source>-<skill>/`. The chain is:
+Derivatives inherit through **weave's layer walk** — NOT a whole-dir symlink
+(#104 M3 dropped `symlink construct/adapted` from `base.manifest`). ariadne
+declares `skill construct/adapted` in its manifest; because ariadne is a layer in
+every derivative's DAG, `weave compile` reads that intent wherever ariadne sits
+and lowers each adapted skill DIRECTLY into the derivative's `.claude/skills/`,
+pointing straight at ariadne's source dir — no intermediate
+`<derivative>/construct/adapted` hop:
 
 ```
 <derivative>/.claude/skills/superpowers-brainstorming/
-    → ../../construct/adapted/superpowers-brainstorming/
-    → (in symlink mode) ariadne/construct/adapted/superpowers-brainstorming/
+    → ../../../ariadne/construct/adapted/superpowers-brainstorming/
 ```
 
-When ariadne promotes a new version, derivatives pick up the change the next
-time they refresh — no per-derivative adaptation step exists.
+When ariadne promotes a new version, derivatives pick up the change the next time
+they `make weave` — no per-derivative adaptation step exists. (Local export skills
+inherit the same way via `skill construct/local`; ariadne's INTERNAL skills —
+`construct/skill`, e.g. the `xx-construct` skill itself — are never inherited.)
 
 ## What this rules out
 
@@ -57,8 +54,9 @@ time they refresh — no per-derivative adaptation step exists.
 
 ## Where to look
 
-- `construct/skill/SKILL.md` — full command reference for `/construct adapt`,
-  `/construct promote`, etc.
+- `construct/skill/construct/SKILL.md` — full command reference for the
+  `xx-construct` skill (`/construct adapt`, `/construct promote`, etc.);
+  declared `internal skill construct/skill`, so it stays ariadne-only.
 - `construct/intents/superpowers.md` — the live ariadne adaptation transcript.
 - `construct/base.manifest` — declares which base-layer files derivatives inherit.
 - [`setup-and-replication.md`](setup-and-replication.md) — how `construct/setup.sh`
