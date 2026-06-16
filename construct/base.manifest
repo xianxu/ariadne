@@ -78,12 +78,13 @@ merge     .claude/settings.ariadne.json        .claude/settings.json
 # NOTE: construct skill is ariadne-internal, not exported to target repos.
 
 # Skills are rendered by weave from `skill` intents (absorbing the retired
-# sync-local-skills.sh SessionStart hook): weave aggregates each layer's
-# construct/local + construct/adapted skills into the agent-agnostic menu
-# (compiled into AGENTS.md, bodies via `weave skill <name>`) AND lowers them to
-# the .claude/skills/ symlinks every in-use harness reads — local prefixed (from
-# construct/config.json localPrefix, default xx-), adapted bare. The scaffold of
-# .claude/skills/ stays so the dir exists before the symlinks land.
+# sync-local-skills.sh SessionStart hook): weave aggregates each layer's declared
+# skill dirs into the agent-agnostic menu (compiled into AGENTS.md, bodies via
+# `weave skill <name>`) AND lowers them to the .claude/skills/ symlinks every
+# in-use harness reads — a layer's own skills prefixed (from construct/config.json
+# localPrefix, ELSE the layer's repo-name basename — ariadne pins xx- below),
+# construct/adapted bare. The scaffold of .claude/skills/ stays so the dir exists
+# before the symlinks land.
 scaffold  .claude/skills
 skill     construct/local
 skill     construct/adapted

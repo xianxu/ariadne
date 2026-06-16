@@ -148,6 +148,25 @@ func TestGatherSkills_RepoNamePrefixWhenNoConfig(t *testing.T) {
 	}
 }
 
+func TestGatherSkills_RepoNamePrefixWhenEmptyLocalPrefix(t *testing.T) {
+	// `{"localPrefix": ""}` is the "field empty" clause → repo-name fallthrough
+	// (distinct from absent config). Locks that branch (M2 review coverage note).
+	parent := t.TempDir()
+	root := filepath.Join(parent, "repo")
+	writeConfig(t, root, "")
+	writeSkill(t, filepath.Join(root, "construct", "local", "fix"),
+		"fix", "fix markers", "FIX BODY")
+
+	entries, err := GatherSkills(weavefs.OSFS{},
+		[]layer.Layer{{Name: "repo", Path: root, Intents: skillRows("construct/local")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name != "repo-fix" {
+		t.Fatalf("got %#v, want repo-fix (empty localPrefix ⇒ repo-name)", entries)
+	}
+}
+
 func TestGatherSkills_LayerWithoutSkillDirs(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "bare")

@@ -148,17 +148,22 @@ sketched, per the #128 convention).
       (reuses `intent.Selected`, ARCH-DRY) → `skill.Build` (menu) + new pure
       `plan.SkillSymlinks` (claude); DELETE `walk.LowerSkillSymlinks`. Behavior-
       preserving for ariadne (closes §A1/A2/A4 + §B1).
-- [ ] M2 — per-layer prefix (repo-name default; each layer owns its `config.json`)
-      + `internal skill construct/skill` declaration + the `construct/skill` layout
-      (closes §C1/C2 + the construct-skill internal exemplar).
+- [x] M2 — per-layer prefix DEFAULT (`config.json localPrefix` else repo-name;
+      ariadne pins `xx-`) + the internal-skill 𝒜(R) CAPABILITY proven end-to-end via
+      `walk→buildSkillIndex` (closes §C1; the §C2 own-`config.json` MIGRATION + the
+      real `internal skill construct/skill` are M3). Behavior-preserving for ariadne.
 - [ ] M3 — cross-repo migration: kill the whole-dir `construct/{local,adapted}`→ariadne
-      inheritance symlinks; per-layer `config.json`; nous `construct/skills`→`construct/local`;
-      re-weave all 10 repos (closes §D1/§A3/§E1). Retire #101 + #102 (folded in);
+      inheritance symlinks; **each derivative owns its `config.json`** (so the repo-name
+      prefix activates); **declare `internal skill construct/skill` + the `construct/skill`
+      layout/name** (Task C2 — applies M2's capability to the real construct skill);
+      nous `construct/skills`→`construct/local`; re-weave all 10 repos (closes §C2/§D1/
+      §A3/§E1 + the construct-skill internal exemplar). Retire #101 + #102 (folded in);
       lift the [[skill-system]] target's "DESIGN-ONLY" banner (invariants now test-bound).
 
 ## Log
 
 ### 2026-06-15
+- 2026-06-15: closed M2 — skillPrefix defaults to the layer repo-name (config.json override wins; ariadne pinned xx- via its config — golden MATCH 25/0 unchanged); internal-skill 𝒜(R) proven end-to-end via walk→buildSkillIndex (ancestor-internal excluded from a consumer, present on its own self-walk); full weave suite + vet + gofmt clean; review verdict: FIX-THEN-SHIP
 - 2026-06-15: closed M1 — one intent-driven GatherSkills (carries Visibility+LayerIndex) → pure SelectVisible (reuses intent.Selected) → {Build menu, plan.SkillSymlinks claude} from the IDENTICAL selected set; walk.LowerSkillSymlinks deleted; ariadne golden MATCH 25/0 UNEXPECTED unchanged (behavior-preserving); full weave suite + vet + gofmt clean; review verdict: SHIP
 
 - Filed from the #95 cutover gap analysis (nous/brain). Subsumes #101 (no-prefix)
