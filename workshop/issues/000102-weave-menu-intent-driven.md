@@ -75,13 +75,17 @@ Open design sub-questions (resolve in the plan):
 
 ## Plan
 
-- [ ] Make `GatherSkills` honor `skill <source-dir>` intents (reuse the
-      `LowerSkillSymlinks` source-dir derivation; one shared helper).
-- [ ] Decide + implement the prefix rule for a non-local/non-adapted source dir
-      (coordinate with #101).
-- [ ] Migrate nous: `skill construct/skills` intent; drop the plain symlink rows.
-- [ ] Test: a layer with a `skill <dir>` outside construct/local|adapted appears
-      in both the menu and the .claude/skills symlinks.
+> Folded into #104 (skill-system v2) — these items were DELIVERED THERE, not worked
+> independently in #102. Ticked as delivered (work + evidence live in #104's close;
+> see this issue's Log for the subsumption note).
+
+- [x] Make `GatherSkills` honor `skill <source-dir>` intents (reuse the
+      `LowerSkillSymlinks` source-dir derivation; one shared helper). *(via #104 M1 — GatherSkills is intent-driven; LowerSkillSymlinks deleted; one shared SelectVisible feeds menu + symlinks)*
+- [x] Decide + implement the prefix rule for a non-local/non-adapted source dir
+      (coordinate with #101). *(via #104 M2 — skillPrefix: config.json localPrefix else repo-name basename; construct/adapted stays bare)*
+- [x] Migrate nous: `skill construct/skills` intent; drop the plain symlink rows. *(via #104 M3 — nous → one `skill construct/local` export intent; plain symlink rows dropped)*
+- [x] Test: a layer with a `skill <dir>` outside construct/local|adapted appears
+      in both the menu and the .claude/skills symlinks. *(via #104 — TestGatherSkills_IntentDrivenVisibilityAndNonStandardDir + live xx-construct lowering)*
 
 ## Log
 

@@ -28,7 +28,14 @@ Decide the exact config encoding (`"localPrefix": ""` vs `null` vs a separate `"
 
 ## Plan
 
-- [ ]
+> Folded into #104 (skill-system v2). #101's specific ask — an explicit empty
+> `localPrefix` → BARE local names — was SUPERSEDED by #104's design decision: the
+> prefix defaults to the layer's REPO NAME (absent/empty `localPrefix` → `<repo>-`),
+> and bare names stay reserved for `construct/adapted` (external skills keep their
+> published names). The unified prefix/identity model (C1/C2) resolved this
+> differently, so there was no standalone item to build. No independent window.
+
+- [x] (superseded by #104's repo-name-default prefix model — see note above)
 
 ## Log
 
