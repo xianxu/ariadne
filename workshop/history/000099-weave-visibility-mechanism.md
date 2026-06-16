@@ -1,12 +1,13 @@
 ---
 id: 000099
-status: working
+status: done
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-14
-updated: 2026-06-14
+updated: 2026-06-16
 estimate_hours: 5
+actual_hours: 0.56
 ---
 
 # weave: export/internal visibility mechanism
@@ -47,6 +48,8 @@ weave composes `prose` (and will compose `skill`/`settings`) across the layer DA
 
 ## Log
 
+
+- 2026-06-16: closed — Retroactive cleanup close — the export/internal visibility mechanism shipped 2026-06-14 (818daff5, on main): Intent.Visibility grammar (default export), walk carries per-intent visibility, planner 𝒜(R) selection (ancestors export ⊎ leaf internal), ariadne base.manifest export/internal prose rows, visibility-aware golden + verify-complete; all 6 plan items done + TDD-covered. Now load-bearing + exercised end-to-end by #104 (SelectVisible reuses the same intent.Selected; the internal construct skill + xx-construct). actual 0.56h is the commit-anchored measure of the 06-14 work (estimate 5h was high).; review verdict: not-run
 ### 2026-06-14
 - Split from ariadne#95 M5: the prose-composition bug surfaced on the parley tart pass is a symptom of composing without a visibility axis. Operator chose to build the general mechanism now (it is THE core mechanism) rather than a point fix, fully explicit (no AGENTS.local.md convention). Algebra captured in target [[base-layer-mechanics]].
 
