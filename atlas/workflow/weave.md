@@ -87,4 +87,20 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   invariant lives in the [skill-system](../../workshop/targets/skill-system.md)
   target. **[#104 M1+M2]**
 
+- **Cross-repo skill migration** — the whole-dir `construct/{local,adapted}` +
+  `construct/config.json` inheritance symlinks are GONE from every derivative
+  (removed from ariadne's `base.manifest`): weave reads each ancestor's REAL skill
+  dirs through the layer walk, so a derivative's `.claude/skills/xx-*` point
+  straight at the owning layer (and weave's prune GCs the orphaned symlinks on
+  re-weave). Each layer now resolves its OWN prefix (repo-name default; ariadne's
+  real `config.json` pins `xx-`). nous owns its skills at `construct/local/{tools,
+  resolve}` via one `skill construct/local` export intent — `nous-tools`/
+  `nous-resolve` are now menu-listed + servable (`weave skill`), and inherited by
+  its dependent brains through the layer. The `construct` skill is declared
+  `internal skill construct/skill` (at `construct/skill/construct/SKILL.md`) →
+  lowered as `xx-construct` on ariadne's self-walk only. `active-time-v3.py` (an
+  ariadne tool that rode the dropped `construct/local` symlink) is now owner-
+  resolved by `sdlc actual` via `substrateChain`. All 10 repos re-wove + verified
+  (ancestors byte-pristine). **[#104 M3]**
+
 Full spec, dep-model rule, and revisions live in the issue + plan above.

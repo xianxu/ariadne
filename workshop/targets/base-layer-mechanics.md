@@ -55,21 +55,23 @@ prose(R) = ⟦export-prose(L₀)⟧ ∥ ⟦export-prose(L₁)⟧ ∥ … ∥ ⟦
 ```
 Floor case (2 layers): `prose(parley) = AGENTS.base.md(ariadne, export) ∥ AGENTS.local.md(parley, internal)`. ariadne's own `AGENTS.local.md` is `internal` to ariadne, so it is never in a derivative.
 
-### skill — clarity: DESIGN-ONLY (the math; NOT built — see ariadne#104 + [[skill-system]])
-> ⚠️ **This slice is the intended COMPOSE math, not a description of the code.** The
-> formula below was generalized from the prose fix (#99) by analogy and was marked
-> "HIGH" without being built or tested. In reality **no skill path consults
-> visibility at all**, there are three disagreeing discovery mechanisms, and only
-> the claude target (which routes around the gaps) is exercised. The full subsystem
-> — declaration, identity/prefix, the two lowerings, serving, inheritance — and its
-> build live in the [[skill-system]] target + ariadne#104. The math here is what the
-> *compose stage* of that subsystem MUST honor once built.
+### skill — clarity: HIGH (built + test-bound; ariadne#104 M1–M3, [[skill-system]])
+> ✅ **Built and bound to tests** (ariadne#104, M3 closed 2026-06-16). The earlier
+> "HIGH" was aspirational — generalized from the prose fix (#99) by analogy, with no
+> skill path consulting visibility and three disagreeing discovery mechanisms. v2
+> collapsed them to ONE intent-driven discovery (`walk.GatherSkills`) feeding both
+> lowerings (claude `.claude/skills` symlinks + codex/agy menu) from the SAME
+> visibility-selected set (`skill.SelectVisible`, reusing `intent.Selected`); the
+> cross-repo migration then put every layer on its own real skill dirs + repo-name
+> prefix and dropped the whole-dir inheritance symlinks. The full subsystem —
+> declaration, identity/prefix, the two lowerings, serving, inheritance — lives in
+> [[skill-system]] (all invariants now test-bound).
 
-Intended: namespaced union; commutative, idempotent, collision-free by prefix (`xx-`/`nous-`/`metis-`).
+Namespaced union; commutative, idempotent, collision-free by prefix (`xx-`/`nous-`/`metis-`).
 ```
 skills(R) = ⋃ᵢ export-skills(Lᵢ)  ∪  internal-skills(Lₙ)        (keyed by namespaced name)
 ```
-The *composition* is target-independent; only the *lowering* differs (claude → `.claude/skills` symlinks; codex/agy → the AGENTS.md menu). ariadne#104 makes the implementation actually honor this (one intent-driven discovery feeding both lowerings, gated on visibility), and binds it to a test so this slice can claim a real clarity level.
+The *composition* is target-independent; only the *lowering* differs (claude → `.claude/skills` symlinks; codex/agy → the AGENTS.md menu). ariadne#104 made the implementation honor this — one intent-driven discovery feeding both lowerings, gated on visibility — and bound it to tests (`TestSelectVisible`, `TestBuildSkillIndexExcludesAncestorInternalSkill`, `TestCompileMultiLayerVisibility`, `TestGatherSkills_*`) + the live 10-repo M3 migration.
 
 ### settings — clarity: MEDIUM (formalized in ariadne#97; the DAG fold is not yet shipped)
 Deep-merge with per-key semantics, foundation-first, specific-over-general; `$merge_keys` carried through, meta stripped once at the end.
