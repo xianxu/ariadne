@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
+	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
@@ -188,6 +189,61 @@ func TestCompileMultiLayerVisibility(t *testing.T) {
 	// The ancestor internals must be excluded — the 𝒜(R) exclusion proof.
 	if strings.Contains(string(agents), "FOUNDATION-INTERNAL") {
 		t.Errorf("leaf AGENTS.md leaked the foundation's INTERNAL prose:\n%s", agents)
+	}
+}
+
+func TestBuildSkillIndexExcludesAncestorInternalSkill(t *testing.T) {
+	// #104 M2 — the SKILL visibility 𝒜(R) end-to-end (the M1 review's deferred
+	// leaf-index assertion, routed through walk → buildSkillIndex, NOT a direct
+	// SelectVisible call — so the len(layers)-1 leaf-index plumbing is verified).
+	// A base layer declares an `internal skill construct/skill` (a private skill);
+	// a derived repo consumes base. Compiling the DERIVED must EXCLUDE base's
+	// internal skill (ancestor-internal) but keep its export; base's OWN self-walk
+	// INCLUDES the internal (leaf-internal).
+	parent := t.TempDir()
+	base := filepath.Join(parent, "base")
+	derived := filepath.Join(parent, "derived")
+	for _, r := range []string{base, derived} {
+		mkfile(t, filepath.Join(r, "construct", "config.json"), `{"localPrefix": "xx-"}`+"\n")
+	}
+	mkfile(t, filepath.Join(base, "construct", "base.manifest"),
+		"skill construct/local\ninternal skill construct/skill\n")
+	writeSkillFile(t, filepath.Join(base, "construct", "local", "shared"), "shared", "exported", "S")
+	writeSkillFile(t, filepath.Join(base, "construct", "skill", "secret"), "secret", "private", "X")
+	mkfile(t, filepath.Join(derived, "construct", "deps"), "substrate ../base\n")
+	mkfile(t, filepath.Join(derived, "construct", "base.manifest"), "skill construct/local\n")
+	writeSkillFile(t, filepath.Join(derived, "construct", "local", "own"), "own", "derived's own", "O")
+
+	// Compile the DERIVED (base is an ancestor): base's internal xx-secret excluded.
+	layers, err := walk.Walk(weavefs.OSFS{}, derived)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx, _, err := buildSkillIndex(weavefs.OSFS{}, layers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := idx.BodyPath("xx-secret"); ok {
+		t.Error("ancestor's INTERNAL skill xx-secret leaked into the consumer's composition")
+	}
+	if _, ok := idx.BodyPath("xx-shared"); !ok {
+		t.Error("ancestor's EXPORT skill xx-shared should reach the consumer")
+	}
+	if _, ok := idx.BodyPath("xx-own"); !ok {
+		t.Error("derived's own skill xx-own missing")
+	}
+
+	// Base's OWN self-walk (base IS the leaf): its internal skill IS present.
+	selfLayers, err := walk.Walk(weavefs.OSFS{}, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selfIdx, _, err := buildSkillIndex(weavefs.OSFS{}, selfLayers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := selfIdx.BodyPath("xx-secret"); !ok {
+		t.Error("base's internal skill xx-secret should be present on its own self-walk")
 	}
 }
 

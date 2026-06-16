@@ -22,6 +22,20 @@ func skillRows(sources ...string) []intent.Intent {
 	return rows
 }
 
+// writeConfig writes a layer's construct/config.json localPrefix — pins a
+// predictable prefix where a test asserts specific names (otherwise skillPrefix
+// defaults to the repo-name basename, #104 M2).
+func writeConfig(t *testing.T, root, prefix string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(root, "construct"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "construct", "config.json"),
+		[]byte(`{"localPrefix": "`+prefix+`"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // GatherSkills is the IO seam that ports sync-local-skills.sh's discovery:
 // per layer, scan construct/local/*/ (prefixed) + construct/adapted/*/ (bare),
 // parse each SKILL.md's frontmatter description. Exercised against a real OSFS
@@ -116,20 +130,21 @@ func TestGatherSkills_AcrossLayers(t *testing.T) {
 	}
 }
 
-func TestGatherSkills_DefaultPrefixWhenNoConfig(t *testing.T) {
+func TestGatherSkills_RepoNamePrefixWhenNoConfig(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "repo")
-	// No construct/config.json ⇒ default prefix xx- (M1 keeps the xx- fallback).
+	// No construct/config.json ⇒ default prefix = the layer's REPO NAME (#104 M2):
+	// basename("repo") + "-" → "repo-".
 	writeSkill(t, filepath.Join(root, "construct", "local", "fix"),
-		"xx-fix", "fix markers", "FIX BODY")
+		"fix", "fix markers", "FIX BODY")
 
 	entries, err := GatherSkills(weavefs.OSFS{},
 		[]layer.Layer{{Name: "repo", Path: root, Intents: skillRows("construct/local")}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 || entries[0].Name != "xx-fix" {
-		t.Fatalf("got %#v, want one xx-fix entry under the default prefix", entries)
+	if len(entries) != 1 || entries[0].Name != "repo-fix" {
+		t.Fatalf("got %#v, want one repo-fix entry under the repo-name default", entries)
 	}
 }
 
@@ -154,6 +169,7 @@ func TestGatherSkills_LayerWithoutSkillDirs(t *testing.T) {
 func TestGatherSkills_DirWithoutSKILLmdSkipped(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "repo")
+	writeConfig(t, root, "xx-")
 	// A dir under construct/local with no SKILL.md is NOT a skill — skip it.
 	if err := os.MkdirAll(filepath.Join(root, "construct", "local", "notaskill"), 0o755); err != nil {
 		t.Fatal(err)
@@ -178,6 +194,7 @@ func TestGatherSkills_IntentDrivenVisibilityAndNonStandardDir(t *testing.T) {
 	// can drop an ancestor's internal skill. construct/adapted stays bare;
 	// other dirs (here construct/priv) get the prefix.
 	root := t.TempDir()
+	writeConfig(t, root, "xx-")
 	writeSkill(t, filepath.Join(root, "construct", "mine", "tool"), "tool", "exported tool", "T")
 	writeSkill(t, filepath.Join(root, "construct", "priv", "secret"), "secret", "private", "S")
 	layers := []layer.Layer{{Name: "repo", Path: root, Intents: []intent.Intent{

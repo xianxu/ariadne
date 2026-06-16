@@ -30,12 +30,8 @@ import (
 
 // adaptedSkillRel is the one skill dir whose skills stay BARE — external skills
 // (superpowers) keep their published names; every OTHER skill dir gets the layer's
-// prefix. defaultPrefix is the M1 fallback when a layer has no config.json
-// localPrefix (#104 M2 changes it to the layer's repo name).
-const (
-	adaptedSkillRel = "construct/adapted"
-	defaultPrefix   = "xx-"
-)
+// prefix (skillPrefix: config.json localPrefix, else the repo name).
+const adaptedSkillRel = "construct/adapted"
 
 // GatherSkills is weave's SINGLE skill discovery (skill-system v2, #104): walking
 // the resolved layers foundation-first, for each layer it reads that layer's
@@ -106,23 +102,23 @@ func scanSkillDir(fs weavefs.FS, sourceDir, prefix string) ([]skill.Entry, error
 	return out, nil
 }
 
-// skillPrefix reads a layer's construct/config.json `localPrefix`, falling back
-// to "xx-" when the file is absent/unparseable or the field is empty.
-// (#104 M2 changes the fallback to the layer's REPO NAME — `nous-`, `brain-` —
-// so each layer prefixes its own skills; ariadne keeps `xx-` via its own
-// config.json. The M1 fallback stays `xx-` to be behavior-preserving.)
+// skillPrefix resolves a layer's skill-name prefix (#104 M2): its
+// construct/config.json `localPrefix` when set, ELSE the layer's REPO NAME +
+// "-" (the layer-root dir basename). So each layer prefixes its OWN skills by
+// its repo name — `nous-`, `brain-`, `pair-` — and ariadne keeps `xx-` by
+// setting it in its own config.json. (This is behavior-preserving while every
+// derivative's config.json is still symlinked to ariadne's `xx-`; the repo-name
+// default activates when #104 M3 un-symlinks those config.json files.)
 func skillPrefix(fs weavefs.FS, layerRoot string) string {
-	data, err := fs.ReadFile(filepath.Join(layerRoot, "construct", "config.json"))
-	if err != nil {
-		return defaultPrefix
+	if data, err := fs.ReadFile(filepath.Join(layerRoot, "construct", "config.json")); err == nil {
+		var cfg struct {
+			LocalPrefix string `json:"localPrefix"`
+		}
+		if json.Unmarshal(data, &cfg) == nil && cfg.LocalPrefix != "" {
+			return cfg.LocalPrefix
+		}
 	}
-	var cfg struct {
-		LocalPrefix string `json:"localPrefix"`
-	}
-	if json.Unmarshal(data, &cfg) != nil || cfg.LocalPrefix == "" {
-		return defaultPrefix
-	}
-	return cfg.LocalPrefix
+	return filepath.Base(layerRoot) + "-"
 }
 
 // frontmatterDescription extracts the `description:` field from a SKILL.md's
