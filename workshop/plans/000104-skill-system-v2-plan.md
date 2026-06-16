@@ -335,12 +335,14 @@ func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []s
 - **Task C2 — the construct skill: internal-by-declaration** (moved from M2). In
   ariadne's `base.manifest` add `internal skill construct/skill`; move the flat
   `construct/skill/SKILL.md` → `construct/skill/construct/SKILL.md` (uniform
-  `<name>/SKILL.md` layout); **decide the name with the operator** (bare `construct`
-  via a special-case vs `xx-construct` from the prefix rule); reconcile the tracked
-  `.claude/skills/construct` real copy (weave now lowers the construct skill, so the
-  self-sync copy is redundant). Verify: ariadne self-walk INCLUDES the construct
-  skill (leaf-internal); NO derivative gets it (ancestor-internal — replacing the
-  old exclude-by-location). The §B1 capability (M2 Task B) applied to the real skill.
+  `<name>/SKILL.md` layout). **Name = `xx-construct`** (operator-decided 2026-06-15:
+  the prefix rule applies, NO special-case — `construct/skill` is ariadne's own dir,
+  so it takes ariadne's `xx-` prefix; the skill is invoked as `/xx-construct`).
+  Reconcile the tracked `.claude/skills/construct` real copy (weave now lowers the
+  construct skill as `xx-construct`, so the old self-synced `construct` copy is
+  retired). Verify: ariadne self-walk INCLUDES `xx-construct` (leaf-internal); NO
+  derivative gets it (ancestor-internal — replacing the old exclude-by-location).
+  The §B1 capability (M2 Task B) applied to the real skill.
 - **Task D — re-weave + verify ALL 10 repos** (ariadne, nous, parley, pair, 42shots, xianxu.dev, you-decide, brain, brain-family, brain-private): clean `git status`, ancestors byte-pristine, `weave golden`/`verify-complete` clean, the brains via the sandbox-safe path (out-of-sandbox `make weave` for brain). Mirror the M5 cutover runbook.
 - **Task E — M3 close** + retire #101 + #102 (folded in) + update the `skill-system` target (the invariants are now test-bound — the "DESIGN-ONLY" banner on the algebra's skill slice can be lifted).
 
