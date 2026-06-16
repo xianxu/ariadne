@@ -100,15 +100,62 @@ symlinks, scaffolds, seeds) — which is in NO `A_T` and is always present.
   symlink ever removed); `weave golden` / `verify-complete` stay clean.
 - `make weave` (claude) behavior is unchanged.
 
-## Out of scope — the next step
+## Design discussion — Compile(C,T) primitive · Union default · per-harness entry files (2026-06-16)
 
-**Multi-repo / multi-agent coexistence.** How a GROUP of repos worked by DIFFERENT
-agents that compile for DIFFERENT targets coexist safely (e.g. one agent on the
-claude target, another on codex, across sibling repos or shared state) — without
-one agent's compile clobbering another's expected artifacts. This issue is the
-prerequisite: **single-repo target isolation**, the foundation that keeps each
-repo's base-layer artifacts clean for ONE target at a time. The concurrency /
-per-agent-target model builds on it.
+Worked out with the operator while reasoning about the multi-agent case. Keep
+`Compile(C, T) → A_T` as the PRIMITIVE; compose it two ways:
+
+```
+weave compile --target T   =  A_T               # LEAN / single-harness (this issue's isolation)
+weave compile  (default)   =  ⋃_T Compile(C,T)  # ALL faces at once (the multi-agent mode)
+```
+
+Both rest on ONE invariant we engineer and defend: **the `A_T` are SEPARABLE
+(pairwise-disjoint paths).** Given separability, the union is a clean superset AND
+the isolation is a clean subset — same primitive, two compositions. Isolation is
+NOT dropped; it's the subset. The union is what multi-agent wants.
+
+**The Union resolves multi-agent coexistence** (the original "next step"). Several
+harnesses sharing ONE repo checkout need every face present at once, in the repo
+ROOT where each harness reads its OWN fixed paths. So:
+- NO overlay filesystem, NO separate checkouts, NO `weave compile --into <dir>`.
+  (`--into` only helps if the agent's CWD *is* `<dir>` — harness read-paths are
+  fixed relative to CWD and can't be reliably redirected — so it's purely the
+  CWD-swap/overlay enabler, which the Union makes unnecessary.)
+- macOS has no per-process mount-namespace + OverlayFS anyway; the Union sidesteps
+  the whole need. (Overlays/clonefile stay relevant for OTHER isolation, not this.)
+
+**What makes the `A_T` separable — per-harness entry files.** The only contested
+path today is `AGENTS.md` (prose vs prose+menu), currently bridged by `CLAUDE.md =
+@AGENTS.md` (so Claude sees whatever AGENTS.md holds, menu included). VERIFIED
+(claude-code-guide vs docs.claude.com/en/memory): **Claude Code reads ONLY
+`CLAUDE.md`; `AGENTS.md` is invisible to it unless `@`-imported** — no merge, no
+precedence, no toggle. Codex reads `AGENTS.md`; Gemini reads `GEMINI.md`. So weave
+RETIRES the `@AGENTS.md` bridge and emits DISTINCT per-harness constitutions,
+making the faces disjoint:
+
+| entry file | content | harness |
+|---|---|---|
+| `CLAUDE.md` | prose-only (skills via `.claude/skills/`) | Claude Code |
+| `AGENTS.md` | prose + `## Skills` menu | Codex |
+| `GEMINI.md` | prose + `## Skills` menu | Gemini CLI |
+| `.claude/skills/<name>` | symlinks | Claude-only |
+
+Each harness self-selects by the file it reads; the Union coexists in one root with
+no contested path. (Parent-dir `CLAUDE.md` walk-up exists but is fine for this layout.)
+
+**`.claude/skills` cross-read safety.** The Union leaves `.claude/skills` on disk
+for the non-Claude harnesses. Assumption: Codex/Gemini don't read it (no such
+convention) — **[VERIFY: web check in flight]**. Belt-and-suspenders regardless:
+the generated `## Skills` menu carries an explicit line — *"skills are listed below;
+do NOT scan `.claude/` — the menu is already inserted"* — so even a harness that
+WOULD scan it is told not to. Make that line part of the menu render.
+
+**Still genuinely open (the real next step).** Artifact COEXISTENCE is solved by
+the Union. What remains: concurrent-WRITE coordination — two agents editing the
+SAME repo's source `C` at once (a git/locking concern, orthogonal to artifact
+materialization) — and, across the DAG, re-propagating a base-layer edit while
+agents are live (ties to [[000106]] propagate-base). Separate from this issue.
 
 ## Plan
 
@@ -128,3 +175,12 @@ per-agent-target model builds on it.
   concrete, verified instance. `.claude/settings.json` is NOT affected (the `merge`
   intent is target-independent — re-merged identically by every target). The
   multi-repo/multi-agent-different-targets coexistence is the explicit next step.
+- 2026-06-16: design discussion (operator) — resolved the multi-agent coexistence
+  via the **Union framing** (see "Design discussion" above). Keep `Compile(C,T)`
+  the primitive; `weave compile` = ⋃ A_T (all faces), `--target T` = lean A_T;
+  separability of the A_T (engineered via per-harness entry files
+  CLAUDE.md/AGENTS.md/GEMINI.md) is the load-bearing invariant. Verified Claude
+  reads only CLAUDE.md (AGENTS.md invisible unless @-imported) → retire the
+  CLAUDE.md=@AGENTS.md bridge. Dropped `--into <dir>` (only helps CWD-swap/overlay;
+  the Union needs none). Codex/Gemini `.claude/skills` cross-read [verify in flight]
+  + a "do not scan .claude" line in the menu render as belt-and-suspenders.
