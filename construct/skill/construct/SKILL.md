@@ -5,17 +5,17 @@ description: Use when managing the AI substrate — importing, adapting, promoti
 
 # The Construct — AI Substrate Management
 
-Centralized management of AI skills and constitution files for ariadne. Imports external skill sources, adapts them via semantic intent transcripts, and deploys to ariadne's own `.claude/skills/`. Derivative repos inherit the adapted skills through `construct/adapted/` (wired by `construct/base.manifest`), so they never run `/construct adapt` themselves.
+Centralized management of AI skills and constitution files for ariadne. Imports external skill sources, adapts them via semantic intent transcripts, and deploys to ariadne's own `.claude/skills/`. Derivative repos inherit the adapted skills through the **weave layer walk** — their `.claude/skills/superpowers-*` point straight at ariadne's `construct/adapted/` (no whole-dir inheritance symlink; #104 M3 dropped those) — so they never run `/construct adapt` themselves.
 
 **Core principles:**
-- **Ariadne adapts; derivatives inherit.** Adaptation is single-target: it always renders for ariadne. Downstream repos pick up ariadne's `construct/adapted/` verbatim via the base layer.
+- **Ariadne adapts; derivatives inherit.** Adaptation is single-target: it always renders for ariadne. Downstream repos pick up ariadne's `construct/adapted/` skills via the weave layer walk — weave lowers each skill's `.claude/skills/` link directly to ariadne's dir, rather than symlinking the whole `construct/adapted/` tree.
 - **Store the intent, not the patch.** Re-apply behavioral intent onto each new upstream version.
 - **Vendor at the source level.** Skills in a source (e.g., superpowers) are a cohesive set — vendor all, render all. Unadjusted skills get the source version as-is.
 - **Lazy vendor.** Don't snapshot a source until someone first adjusts a skill from it.
 
 ## Directory Layout
 
-**CRITICAL PATH RULE:** Define `$REPO_ROOT` as the git repository root (the directory containing `.git/`). All `construct/` paths in this document resolve as `$REPO_ROOT/construct/`. NEVER resolve paths relative to this skill file's location (`.claude/skills/construct/`). Before any file operation, verify you are writing to `$REPO_ROOT/construct/`, not to `.claude/skills/construct/`.
+**CRITICAL PATH RULE:** Define `$REPO_ROOT` as the git repository root (the directory containing `.git/`). All `construct/` paths in this document resolve as `$REPO_ROOT/construct/`. NEVER resolve paths relative to this skill file's location (`.claude/skills/xx-construct/`, a weave-lowered symlink into `construct/skill/construct/`). Before any file operation, verify you are writing to `$REPO_ROOT/construct/`, not to `.claude/skills/xx-construct/`.
 
 ```
 $REPO_ROOT/construct/                         # top-level, ariadne's AI substrate workspace
@@ -28,16 +28,18 @@ $REPO_ROOT/construct/                         # top-level, ariadne's AI substrat
   intents/constitution/                       # evolution tracking for AGENTS.md, CLAUDE.md
   intents/local/<skill>/                      # intents for locally-created skills
   staging/skills/<skill>/                     # render target before promotion (gitignored)
-  adapted/<skill>/                            # promoted output; derivatives symlink to this directory
+  adapted/<skill>/                            # promoted output; derivatives reach it via the weave layer walk
+  skill/<name>/SKILL.md                       # ariadne-INTERNAL skills (this one); lowered as xx-<name>, never inherited
   versions/NNNN[-slug]/                       # last 10 snapshots of rendered state
   current                                     # marker: active version number
   rollback.sh                                 # non-AI emergency revert
 
-# Live skill location:
-$REPO_ROOT/.claude/skills/<skill>/            # deployed adapted skill (ariadne's own)
-
-# Local skills are symlinked with configurable prefix:
-$REPO_ROOT/.claude/skills/{prefix}<skill>/  →  ../../construct/local/<skill>/
+# Live skill location (weave-lowered symlinks, gitignored; prefix from config.json, default xx-):
+$REPO_ROOT/.claude/skills/{prefix}<skill>/  →  ../../construct/local/<skill>/      # local (export)
+$REPO_ROOT/.claude/skills/<skill>/          →  ../../construct/adapted/<skill>/    # adapted (export, bare)
+$REPO_ROOT/.claude/skills/{prefix}<name>/   →  ../../construct/skill/<name>/        # internal (ariadne-only)
+# Derivatives get ariadne's export skills the same way — weave's layer walk points
+# each .claude/skills/<name> straight at ariadne's source dir (no whole-dir symlink).
 ```
 
 ### Config File
@@ -283,7 +285,7 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 
 | Skill | Source Dir | Symlink |
 |-------|-----------|---------|
-| construct | construct/skill/ | .claude/skills/construct/ (copied, not symlinked) |
+| xx-construct | construct/skill/construct/ | .claude/skills/xx-construct/ → ../../construct/skill/construct/ (internal — ariadne-only) |
 | xx-datatype | construct/local/datatype/ | .claude/skills/xx-datatype/ → ../../construct/local/datatype/ |
 | xx-voice-apply | construct/local/voice-apply/ | .claude/skills/xx-voice-apply/ → ../../construct/local/voice-apply/ |
 | xx-voice-gen | construct/local/voice-gen/ | .claude/skills/xx-voice-gen/ → ../../construct/local/voice-gen/ |
@@ -296,11 +298,11 @@ Promoted: YYYY-MM-DDTHH:MM:SSZ
 - **Never auto-promote.** Always render to staging, show diff, let user decide.
 - **Verify with fresh eyes.** Always dispatch a new subagent for verification, never verify in the current session.
 - **Intents are transcripts.** The conversation is the authoritative artifact, not a distilled spec. Transcripts survive upstream restructuring because they describe behavior, not location.
-- **Ariadne adapts; derivatives inherit.** There is exactly one adaptation target: ariadne itself. Downstream repos pick up the rendered output via `construct/adapted/` (wired by `construct/base.manifest`). They never run `/construct adapt`.
+- **Ariadne adapts; derivatives inherit.** There is exactly one adaptation target: ariadne itself. Downstream repos pick up the rendered output from `construct/adapted/` via the weave layer walk (the `skill construct/adapted` intent is read for ariadne wherever it sits in a derivative's DAG; #104 M3 retired the whole-dir inheritance symlink). They never run `/construct adapt`.
 - **rollback.sh is sacred.** Never modify it through the Construct's own rendering pipeline. It must always work independently.
 - **Last 10 versions.** Prune at promotion time. Slugs are cosmetic, don't protect from pruning.
 - **Source-level coherence.** Always vendor, render, and promote all skills from a source together. Unadjusted skills get the source version as-is — they're still deployed so ariadne gets the full, consistent set.
-- **Self-sync.** The source of truth for the construct skill is `$REPO_ROOT/construct/skill/SKILL.md`. After ANY edit to that file, immediately copy it to `$REPO_ROOT/.claude/skills/construct/SKILL.md` to keep the live version in sync. This is the one skill that bootstraps itself.
+- **weave manages the construct skill too.** Source of truth is `$REPO_ROOT/construct/skill/construct/SKILL.md`. It is declared `internal skill construct/skill` in `base.manifest`, so `weave compile` lowers it to `.claude/skills/xx-construct/` (a symlink, like every other local skill) — kept on ariadne's OWN self-walk and never leaked into a derivative (ancestor-internal). No manual copy; the old self-synced `.claude/skills/construct/` real copy was retired in #104 M3.
 - **Namespace flattening.** Plugin skills use `plugin:skill` namespacing which can't be overridden locally. When deploying, rename skill directories to `<source>-<skill>` and rewrite all internal `/<source>:` references to `/<source>-`. This makes adapted skills invocable as `/<source>-<skill>` without conflicting with the global plugin.
 - **Local skills are symlinked, not copied.** Source of truth is `$REPO_ROOT/construct/local/<skill>/`. Symlinks in `.claude/skills/{prefix}<skill>/` point back to source. Edits to either location affect the same file. The prefix (default `xx-`) is configured in `construct/config.json` and prevents collisions with upstream or community skills.
 - **weave renders the symlinks.** A layer's skills are declared by a `skill <dir>` intent in `construct/base.manifest`; `weave compile` (via `make weave`) lowers them to the `.claude/skills/<prefix><name>` symlinks (each pointing at the source layer's skill dir) and prunes orphaned ones. This replaced the old `SessionStart` hook running `construct/scripts/sync-local-skills.sh` (both retired in #95). No manual intervention needed.

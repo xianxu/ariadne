@@ -5,7 +5,7 @@ deps: []
 github_issue:
 target: skill-system
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-16
 estimate_hours: 15
 ---
 
@@ -152,7 +152,7 @@ sketched, per the #128 convention).
       ariadne pins `xx-`) + the internal-skill 𝒜(R) CAPABILITY proven end-to-end via
       `walk→buildSkillIndex` (closes §C1; the §C2 own-`config.json` MIGRATION + the
       real `internal skill construct/skill` are M3). Behavior-preserving for ariadne.
-- [ ] M3 — cross-repo migration: kill the whole-dir `construct/{local,adapted}`→ariadne
+- [x] M3 — cross-repo migration: kill the whole-dir `construct/{local,adapted}`→ariadne
       inheritance symlinks; **each derivative owns its `config.json`** (so the repo-name
       prefix activates); **declare `internal skill construct/skill` + the `construct/skill`
       layout/name** (Task C2 — applies M2's capability to the real construct skill);
@@ -161,6 +161,9 @@ sketched, per the #128 convention).
       lift the [[skill-system]] target's "DESIGN-ONLY" banner (invariants now test-bound).
 
 ## Log
+
+### 2026-06-16
+- 2026-06-16: closed M3 — All 10 ariadne-styled repos re-wove + verify-complete 0-unplanned + ancestors byte-pristine; whole-dir inheritance symlinks dropped (skills flow via the layer walk — pair/nous/brains confirmed .claude/skills/xx-* + nous-* resolve to the owning layer), xx-construct lowered leaf-internal in ariadne + absent in all 9 derivatives, nous-tools/nous-resolve now menu-listed + servable + inherited by the brains via the layer; sdlc actual owner-resolves active-time-v3.py (live: measured 0.30h in pair with no local construct/local); full weave + sdlc suites + go vet + gofmt green; review verdict: FIX-THEN-SHIP — no Critical; the one Important (doc-drift in the construct skill BODY: the Self-sync rule + construct/adapted-inheritance + .claude/skills/construct location) reconciled to the post-M3 layer-walk model before crossing the boundary (auto-dispatch hit a transient socket error → re-ran `sdlc judge milestone-review` for the real verdict)
 
 ### 2026-06-15
 - 2026-06-15: closed M2 — skillPrefix defaults to the layer repo-name (config.json override wins; ariadne pinned xx- via its config — golden MATCH 25/0 unchanged); internal-skill 𝒜(R) proven end-to-end via walk→buildSkillIndex (ancestor-internal excluded from a consumer, present on its own self-walk); full weave suite + vet + gofmt clean; review verdict: FIX-THEN-SHIP

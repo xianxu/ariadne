@@ -353,3 +353,20 @@ func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []s
 - **`construct/skill` layout + the construct skill's name** (M2) — flat→`<name>/SKILL.md`; bare `construct` vs prefixed.
 - **Suppression** (B2) — a derivative dropping an inherited export. Out of scope for v2 (additive/override-only); note where the predicate would extend.
 - **Menu for the claude target** — claude composes a prose-only AGENTS.md (no `## Skills` menu); the menu is exercised only by codex/agy + `weave skills`. v2 makes the menu CORRECT; it doesn't change which target shows it.
+
+## Revisions
+
+- **2026-06-16 (M3 close):** Two deltas surfaced during execution, both folded into M3.
+  1. **Task A0 added (not in the original sketch):** `construct/local` is a MIXED
+     dir — it also carries `issues/active-time-v3.py`, which `sdlc actual` resolved
+     at `<repoTop>/construct/local/issues/...` *through* the dropped inheritance
+     symlink. Dropping the symlink would have silently disabled MEASURED actuals in
+     every derivative. Fix: owner-resolve the script via `substrateChain` (build-in-
+     owner pattern), unit-tested (`TestResolveActualScript`) + live-verified. Operator
+     chose this over a narrow file-symlink (root-cause vs. a kept special-case symlink).
+  2. **Task C2 prose reconciliation (deferred-then-done):** C2 reconciled the construct
+     skill's *disk state* (move + rename + retire the tracked copy) but the original
+     scope did NOT include its *body prose*. The M3 boundary review (FIX-THEN-SHIP)
+     flagged the body still taught the pre-M3 model (the now-contradictory "Self-sync"
+     rule, `construct/adapted`-inheritance-by-symlink, the `.claude/skills/construct`
+     location). Reconciled in-scope before crossing the boundary.
