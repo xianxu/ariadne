@@ -30,12 +30,15 @@ skip() { SKIP=$((SKIP+1)); yellow "  SKIP: $1"; }
 assert_contains() { case "$1" in *"$2"*) pass "$3";; *) fail "$3 (missing: $2)";; esac; }
 assert_absent()   { case "$1" in *"$2"*) fail "$3 (unexpected: $2)";; *) pass "$3";; esac; }
 
-# --self-test: prove the guard has teeth (a wrong assertion FAILs + exits non-zero).
+# --self-test: prove BOTH assertion helpers have teeth. assert_absent backs every
+# isolation guarantee ("harness IGNORES .claude/"), so a silently-flipped polarity
+# must be caught too — else a real .claude leak would pass green.
 if [ "${1:-}" = "--self-test" ]; then
-  echo "== self-test (expect 1 FAIL, exit 1) =="
-  assert_contains "haystack" "NOT-PRESENT" "deliberately-wrong assertion must FAIL"
-  [ "$FAIL" -eq 1 ] && green "self-test OK: a broken assertion FAILs + exits 1" \
-                    || { red "self-test BROKEN: FAIL counter did not fire"; exit 2; }
+  echo "== self-test (expect 2 FAIL, exit 1) =="
+  assert_contains "haystack" "NOT-PRESENT" "deliberately-wrong contains assertion must FAIL"
+  assert_absent   "haystack" "haystack"    "deliberately-wrong absent assertion must FAIL"
+  [ "$FAIL" -eq 2 ] && green "self-test OK: both helpers FAIL on a broken assertion + exit 1" \
+                    || { red "self-test BROKEN: FAIL=$FAIL, want 2"; exit 2; }
   exit 1
 fi
 
@@ -54,29 +57,26 @@ printf -- '# CLAUDE entry\nCLAUDE-MARKER\n' > "$FIX/CLAUDE.md"
 printf -- '# AGENTS entry\nAGENTS-MARKER\n' > "$FIX/AGENTS.md"
 echo "fixture: $FIX"; echo
 
-# ---- Gemini: gemini skills list --all (deterministic, local) ----
-echo "== gemini =="
-if command -v gemini >/dev/null 2>&1; then
-  OUT=$(cd "$FIX" && gemini skills list --all 2>&1 || true)
-  assert_contains "$OUT" probe-real       "gemini discovers a REAL .agents/skills skill (format parity)"
-  assert_contains "$OUT" probe-link       "gemini FOLLOWS a symlinked .agents/skills skill (weave lowering)"
-  assert_absent   "$OUT" probe-claudeonly "gemini IGNORES .claude/skills"
-else
-  skip "gemini not installed"
-fi
-echo
-
-# ---- Codex: codex debug prompt-input (renders the model-visible prompt; no API call) ----
-echo "== codex =="
-if command -v codex >/dev/null 2>&1; then
-  OUT=$(cd "$FIX" && codex debug prompt-input 2>&1 || true)
-  assert_contains "$OUT" probe-real       "codex discovers a REAL .agents/skills skill (format parity)"
-  assert_contains "$OUT" probe-link       "codex FOLLOWS a symlinked .agents/skills skill (weave lowering)"
-  assert_absent   "$OUT" probe-claudeonly "codex IGNORES .claude/skills"
-else
-  skip "codex not installed"
-fi
-echo
+# probe <harness> <list-cmd...> — run the harness's skills-list in the fixture and
+# assert it discovers the real + symlinked .agents/skills skills and IGNORES
+# .claude/. ONE helper for every dir-discovery harness (ARCH-DRY) — onboarding a
+# harness is a single `probe` line (see the atlas onboard runbook). $1 is also the
+# binary the install-check keys on (it's the command's first word).
+probe() {
+  local h="$1"; shift
+  echo "== $h =="
+  if command -v "$h" >/dev/null 2>&1; then
+    local out; out=$(cd "$FIX" && "$@" 2>&1 || true)
+    assert_contains "$out" probe-real       "$h discovers a REAL .agents/skills skill (format parity)"
+    assert_contains "$out" probe-link       "$h FOLLOWS a symlinked .agents/skills skill (weave lowering)"
+    assert_absent   "$out" probe-claudeonly "$h IGNORES .claude/skills"
+  else
+    skip "$h not installed"
+  fi
+  echo
+}
+probe gemini gemini skills list --all   # deterministic, local
+probe codex  codex debug prompt-input   # renders the model-visible prompt; no API call
 
 # ---- Claude: doc-asserted (no non-interactive skills-list / render-prompt hook) ----
 echo "== claude =="

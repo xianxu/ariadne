@@ -225,7 +225,7 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
 
 ## Plan
 
-- [ ] M1 — per-harness integration assumption test suite + atlas page. A runnable
+- [x] M1 — per-harness integration assumption test suite + atlas page. A runnable
       `scripts/harness-assumptions.test.sh` that builds fixtures and asserts, per
       INSTALLED harness, the contract Option B relies on: Claude reads `CLAUDE.md`
       not `AGENTS.md`; Codex + Gemini discover `.agents/skills` (real AND SYMLINKED)
@@ -273,6 +273,7 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed M1 — Per-harness assumption suite (scripts/harness-assumptions.test.sh; make harness-check) runs 6 PASS / 0 FAIL on Codex 0.139.0 + Gemini 0.38.2 — both discover .agents/skills (real + RELATIVE-symlinked, weave SKILL.md format) and ignore .claude/; --self-test proves a broken assumption FAILs + exits 1; Claude assumptions doc-asserted (no deterministic CLI hook). atlas/workflow/harness-integration.md documents the Compile(C,T)/Union model + per-harness face map + assumption ledger + onboard/triage runbooks (linked from atlas/index.md).; review verdict: FIX-THEN-SHIP
 - Filed from an operator question on #104's multi-target lowering: "running
   `--target claude` then `--target codex` — won't the non-conflicting lowered
   artifacts (`.claude/skills`, …) be left on disk, so a codex session reading
