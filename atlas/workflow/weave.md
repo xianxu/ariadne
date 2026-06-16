@@ -58,9 +58,10 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `Action` sum type is the seam (YAGNI with a single backend). **[M4]**
 - **Cutover surface** — `weave compile --target <claude|codex|agy>` (bare `weave`
   is help-only, mutates nothing) + `weave verify-complete` (completeness companion
-  to `golden` — asserts the plan covers every managed path) · `walk.LowerSkillSymlinks`
-  (the `.claude/skills/<name>` symlink lowering, each pointing at the source layer's
-  skill dir — absorbed the retired `sync-local-skills.sh` SessionStart hook) ·
+  to `golden` — asserts the plan covers every managed path) · the `.claude/skills/<name>`
+  symlink lowering (each pointing at the source layer's skill dir — absorbed the
+  retired `sync-local-skills.sh` SessionStart hook; **unified into the pure
+  `plan.SkillSymlinks` in #104 M1**, see below) ·
   `plan.PruneOrphans` (#96 — GCs orphaned lowered symlinks + the dead
   `setup.sh`/`merge-settings.sh`/`sync-local-skills.sh` cutover links; four
   conjunctive KEEP-unless safety criteria) · `plan.EnsureGitignore` (weave owns
@@ -72,5 +73,34 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `AGENTS.md`→ancestor symlink is never written through). The `tool` intent + the
   `GoMod`/`GoModEdit` exec seam were **retired** (location-based Go-tool ownership;
   weave's IO is filesystem-only). **[M5 — cutover complete]**
+
+- **Skill discovery unified (intent-driven + visibility-aware)** — the three
+  disagreeing skill paths collapse to ONE: `walk.GatherSkills` reads each layer's
+  `skill <dir>` INTENTS (not hardcoded `construct/local`+`adapted`) and stamps each
+  entry's `Visibility` + `LayerIndex`; `skill.SelectVisible` applies the SAME
+  `intent.Selected` 𝒜(R) filter prose uses (an ancestor's `internal` skill never
+  reaches a consumer); the menu (`skill.Build`) and the claude links (the pure
+  `plan.SkillSymlinks`) lower from the IDENTICAL selected set. The duplicate IO
+  `walk.LowerSkillSymlinks` scan is deleted. Each layer prefixes its OWN skills via
+  `skillPrefix` (`construct/config.json` `localPrefix`, else the layer's repo-name
+  basename — ariadne pins `xx-`; `construct/adapted` stays bare). The subsystem
+  invariant lives in the [skill-system](../../workshop/targets/skill-system.md)
+  target. **[#104 M1+M2]**
+
+- **Cross-repo skill migration** — the whole-dir `construct/{local,adapted}` +
+  `construct/config.json` inheritance symlinks are GONE from every derivative
+  (removed from ariadne's `base.manifest`): weave reads each ancestor's REAL skill
+  dirs through the layer walk, so a derivative's `.claude/skills/xx-*` point
+  straight at the owning layer (and weave's prune GCs the orphaned symlinks on
+  re-weave). Each layer now resolves its OWN prefix (repo-name default; ariadne's
+  real `config.json` pins `xx-`). nous owns its skills at `construct/local/{tools,
+  resolve}` via one `skill construct/local` export intent — `nous-tools`/
+  `nous-resolve` are now menu-listed + servable (`weave skill`), and inherited by
+  its dependent brains through the layer. The `construct` skill is declared
+  `internal skill construct/skill` (at `construct/skill/construct/SKILL.md`) →
+  lowered as `xx-construct` on ariadne's self-walk only. `active-time-v3.py` (an
+  ariadne tool that rode the dropped `construct/local` symlink) is now owner-
+  resolved by `sdlc actual` via `substrateChain`. All 10 repos re-wove + verified
+  (ancestors byte-pristine). **[#104 M3]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.

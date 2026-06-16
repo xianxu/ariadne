@@ -122,15 +122,44 @@ var v3Runner = func(scriptPath string, args []string) (string, int, error) {
 	return out.String(), -1, err // python3 missing, etc.
 }
 
+// actualScriptRel is active-time-v3.py's repo-relative home — colocated with the
+// xx-issues skill under construct/local. ariadne OWNS it; derivatives resolve it
+// from the owner (resolveActualScript) rather than carrying a copy.
+var actualScriptRel = filepath.Join("construct", "local", "issues", "active-time-v3.py")
+
+// resolveActualScript locates active-time-v3.py for repoTop. It prefers a local
+// copy, then falls back to the substrate ancestors (the ariadne owner) — the
+// build-in-owner pattern applied to a script: an ariadne-owned tool is resolved
+// from the owner, not vendored into every derivative. This is what lets `sdlc
+// actual` keep MEASURING actuals after #104 M3 drops the construct/local
+// whole-dir inheritance symlink (skills now flow via the layer, not a per-repo
+// dir copy — and neither does this script).
+func resolveActualScript(repoTop string) (string, bool) {
+	if local := filepath.Join(repoTop, actualScriptRel); statFile(local) {
+		return local, true
+	}
+	for _, anc := range substrateChain(repoTop) {
+		if cand := filepath.Join(anc, actualScriptRel); statFile(cand) {
+			return cand, true
+		}
+	}
+	return "", false
+}
+
+func statFile(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
+}
+
 // computeActual is the engine: resolve the commit window + peer issues + the
 // brain/repo transcript dirs, run v3, and classify the result. Runs git via the
 // cwd (gitx.CommitWindow), so the caller should be inside repoTop.
 func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	res := actualResult{Issue: issueNum}
 
-	script := filepath.Join(repoTop, "construct", "local", "issues", "active-time-v3.py")
-	if _, err := os.Stat(script); err != nil {
-		res.Status, res.Detail = actualNoScript, "active-time-v3.py not found under construct/local/issues/"
+	script, ok := resolveActualScript(repoTop)
+	if !ok {
+		res.Status, res.Detail = actualNoScript, "active-time-v3.py not found under construct/local/issues/ (locally or in any substrate ancestor)"
 		return res
 	}
 	if _, err := exec.LookPath("python3"); err != nil {

@@ -51,6 +51,59 @@ func TestParseV3PrimaryHours(t *testing.T) {
 	}
 }
 
+// M3 (#104): active-time-v3.py is owner-resolved — a derivative without a local
+// copy (after the construct/local inheritance symlink is dropped) finds the
+// script in its substrate ancestor (ariadne), mirroring build-in-owner. A local
+// copy still wins; absent everywhere → not found.
+func TestResolveActualScript(t *testing.T) {
+	rel := filepath.Join("construct", "local", "issues", "active-time-v3.py")
+	parent := t.TempDir()
+	mk := func(name, deps string, withScript bool) string {
+		root := filepath.Join(parent, name)
+		if err := os.MkdirAll(filepath.Join(root, "construct"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if deps != "" {
+			if err := os.WriteFile(filepath.Join(root, "construct", "deps"), []byte(deps), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if withScript {
+			if err := os.MkdirAll(filepath.Join(root, "construct", "local", "issues"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, rel), []byte("#!/usr/bin/env python3\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return root
+	}
+
+	// Owner A has the script; derivative D depends on A but ships no local copy.
+	mk("A", "", true)
+	rootD := mk("D", "substrate ../A\n", false)
+	got, ok := resolveActualScript(rootD)
+	if !ok {
+		t.Fatalf("resolveActualScript(D) not found; want owner-resolved from A")
+	}
+	gr, _ := filepath.EvalSymlinks(got)
+	wr, _ := filepath.EvalSymlinks(filepath.Join(parent, "A", rel))
+	if gr != wr {
+		t.Errorf("resolveActualScript(D) = %q, want owner A's copy %q", got, filepath.Join(parent, "A", rel))
+	}
+
+	// A local copy wins over the ancestor's (a repo that ships its own).
+	rootLocal := mk("Local", "substrate ../A\n", true)
+	if got, ok := resolveActualScript(rootLocal); !ok || filepath.Dir(got) != filepath.Join(rootLocal, "construct", "local", "issues") {
+		t.Errorf("resolveActualScript(Local) = (%q,%v), want the local copy", got, ok)
+	}
+
+	// Absent locally AND in the (empty) chain → not found, no fabrication.
+	if _, ok := resolveActualScript(mk("Orphan", "", false)); ok {
+		t.Error("resolveActualScript(Orphan) found a script; want not found")
+	}
+}
+
 // #68 M2: dir-selection is brain + repo, existing folders only, never unrelated.
 func TestSelectActualDirs(t *testing.T) {
 	root := t.TempDir()

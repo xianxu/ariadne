@@ -515,7 +515,9 @@ func layerPaths(layers []layer.Layer) []string {
 // the golden harness (runGolden), and verify-complete (runVerifyComplete) so all
 // see the IDENTICAL action set for a given target (ARCH-DRY).
 func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]plan.Action, error) {
-	idx, err := buildSkillIndex(fs, layers)
+	// ONE skill discovery (#104): gather → SelectVisible (𝒜(R)). The menu (idx) AND
+	// the claude symlinks both read the SAME selected entries — no second scan.
+	idx, selected, err := buildSkillIndex(fs, layers)
 	if err != nil {
 		return nil, fmt.Errorf("gather skills: %w", err)
 	}
@@ -523,22 +525,17 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 	// AGENTS.md by the pure planner. A nil menu (claude) ⇒ prose-only AGENTS.md.
 	var menu []skill.MenuItem
 	if target.IncludeSkillMenu() {
-		menu = skillMenu(idx)
+		menu = idx.Menu()
 	}
 	actions, err := plan.Plan(layers, menu)
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
 	}
 	// Symlink backend (claude only): the .claude/skills/<name> links the Claude
-	// harness reads (the rendering that absorbs the retired sync-local-skills.sh
-	// hook). Appended after the planner's file-ops; plan.Apply realizes each as a
-	// relative link.
+	// harness reads. plan.SkillSymlinks is a PURE derivation from the SAME selected
+	// entries the menu used (#104 — no separate walk.LowerSkillSymlinks scan).
 	if target.EmitSkillSymlinks() {
-		links, err := skillSymlinks(fs, layers)
-		if err != nil {
-			return nil, fmt.Errorf("lower skill symlinks: %w", err)
-		}
-		for _, l := range links {
+		for _, l := range plan.SkillSymlinks(selected) {
 			actions = append(actions, l)
 		}
 	}
@@ -554,43 +551,19 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 	return actions, nil
 }
 
-// The skill backends: weave lowers each layer's `skill <dir>` intents into one of
-// TWO renderings of the SAME skill set, selected per `--target` (the repo's one
-// artifact set serves multiple harnesses, but each invocation picks one). The
-// two seams are mutually exclusive per target — see planActions.
-//
-//   - skillSymlinks — the SYMLINK backend: .claude/skills/<name> links (local
-//     prefixed, adapted bare), the on-disk delivery the Claude harness reads.
-//     Lowers via walk.LowerSkillSymlinks (the IO seam that ports
-//     sync-local-skills.sh's naming, ARCH-DRY); the links are plan.Symlinks
-//     applied by the existing plan.Apply (relative-target + idempotency for free).
-//   - skillMenu — the MENU backend: the always-on `## Skills` section the pure
-//     planner composes into AGENTS.md (name — description per line; bodies served
-//     on demand via `weave skill <name>`). It is a thin accessor over the
-//     SkillIndex the menu is computed from.
-
-// skillSymlinks is the symlink skill backend (see the block above): it lowers the
-// layers' `skill <dir>` intents to the .claude/skills/<name> symlinks.
-func skillSymlinks(fs weavefs.FS, layers []layer.Layer) ([]plan.Symlink, error) {
-	return walk.LowerSkillSymlinks(fs, layers)
-}
-
-// skillMenu is the menu skill backend (see the block above): the ordered,
-// collision-free `## Skills` menu the pure planner composes into AGENTS.md.
-func skillMenu(idx skill.SkillIndex) []skill.MenuItem {
-	return idx.Menu()
-}
-
-// buildSkillIndex is the skill-server pipeline up to the pure index: walk's
-// discovery seam (walk.GatherSkills, ports sync-local-skills.sh) → skill.Build
-// (the pure menu + body lookup). Shared by the compile path (for the AGENTS.md
-// menu) and the skills/skill subcommands. layers must already be walked.
-func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, error) {
+// buildSkillIndex is weave's SINGLE skill pipeline (#104): walk.GatherSkills (the
+// one IO discovery, intent-driven, carrying Visibility+LayerIndex) → skill.SelectVisible
+// (the pure 𝒜(R) filter; leaf = the last layer) → skill.Build (the pure menu + body
+// lookup). It returns BOTH the index AND the selected entries, so the menu and the
+// claude symlinks (plan.SkillSymlinks) lower from the IDENTICAL set — the §A4
+// unification (one scan, two renderings, ARCH-DRY). layers must already be walked.
+func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []skill.Entry, error) {
 	entries, err := walk.GatherSkills(fs, layers)
 	if err != nil {
-		return skill.SkillIndex{}, err
+		return skill.SkillIndex{}, nil, err
 	}
-	return skill.Build(entries), nil
+	selected := skill.SelectVisible(entries, len(layers)-1)
+	return skill.Build(selected), selected, nil
 }
 
 // resolveSkillIndex canonicalizes root, walks the layers, and builds the index
@@ -603,7 +576,10 @@ func resolveSkillIndex(fs weavefs.FS, root string) (skill.SkillIndex, error) {
 	if err != nil {
 		return skill.SkillIndex{}, fmt.Errorf("walk %s: %w", root, err)
 	}
-	return buildSkillIndex(fs, layers)
+	// The skills/skill subcommands serve the COMPOSED set (same select as compile),
+	// so a served skill is exactly a lowered one; the entries are discarded here.
+	idx, _, err := buildSkillIndex(fs, layers)
+	return idx, err
 }
 
 // runSkills prints the skill menu (one `name — description` line per skill) for

@@ -3,7 +3,7 @@ type: target
 slug: skill-system
 status: active
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-16
 sources:
   - "ariadne#104 — skill-system v2 (the build); gaps surfaced on the #95 nous/brain cutover"
   - "base-layer-mechanics — the compose stage this target defers to"
@@ -60,8 +60,9 @@ honor (and a test must pin):
      be shared → **export**.
    - **`construct/skill`** — skills PRIVATE to the layer (used while developing it,
      never exported) → **internal**. The `construct` skill itself lives here and is
-     the exemplar — today kept out of derivatives by its *location*; v2 makes that
-     an *internal declaration*.
+     the exemplar — now an *internal declaration* (`internal skill construct/skill`),
+     lowered as `xx-construct` on ariadne's OWN self-walk and never leaked into a
+     derivative (ancestor-internal). v2 M3 replaced the old keep-out-by-location.
 2. **Identify** — a stable **namespaced name** = the declaring layer's prefix +
    base name; this name is the composition key and the harness-facing handle.
    Collision-free by per-layer prefix. **The prefix defaults to the layer's repo
@@ -126,11 +127,20 @@ honor (and a test must pin):
 - **Prefix = repo-name default**, set per-layer in the layer's own `config.json`;
   ariadne overrides to `xx-`.
 
-## Open questions (to settle in ariadne#104's plan)
+## Status
+
+**Built — ariadne#104 M1–M3 (M3 closed 2026-06-16).** Every invariant above is
+implemented and test-bound (`skill.SelectVisible`, `walk.GatherSkills` intent-
+driven + repo-name prefix, `plan.SkillSymlinks`, `weave skill`/`skills`), and the
+cross-repo migration put all 10 ariadne-styled repos onto per-layer real skill
+dirs + repo-name prefixes with the whole-dir inheritance symlinks dropped. The
+`construct` skill is the internal exemplar (`xx-construct`, ariadne-only).
+
+## Open questions
 
 - **Suppression** — should a derivative be able to RETRACT an inherited export
   (drop a skill)? Today no (additive/override-only), shared with the spine's
-  open question.
-- **`construct/skill` shape** — today it holds one SKILL.md directly (the
-  `construct` skill); align it with `local`/`adapted`'s `<name>/SKILL.md` layout
-  so the private dir scans uniformly.
+  open question. The `SelectVisible` predicate is where it would extend.
+- **Resolved (v2 M3): `construct/skill` shape** — now aligned with `local`/
+  `adapted`'s `<name>/SKILL.md` layout (`construct/skill/construct/SKILL.md`), so
+  the private dir scans uniformly and weave names it from the dir.

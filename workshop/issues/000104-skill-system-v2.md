@@ -1,12 +1,13 @@
 ---
 id: 000104
-status: working
+status: done
 deps: []
 github_issue:
 target: skill-system
 created: 2026-06-15
-updated: 2026-06-15
-estimate_hours: 12
+updated: 2026-06-16
+estimate_hours: 15
+actual_hours: 3.69
 ---
 
 # skill-system v2 — unified, visibility-aware, target-independent skill composition
@@ -143,22 +144,32 @@ uniformly). See target [[skill-system]].
 Detail in `workshop/plans/000104-skill-system-v2-plan.md` (M1 task-detailed; M2–M3
 sketched, per the #128 convention).
 
-- [ ] M1 — unified intent-driven discovery + visibility: ONE `GatherSkills`
+- [x] M1 — unified intent-driven discovery + visibility: ONE `GatherSkills`
       (intent-driven, carries `Visibility`+`LayerIndex`) → pure `skill.SelectVisible`
       (reuses `intent.Selected`, ARCH-DRY) → `skill.Build` (menu) + new pure
       `plan.SkillSymlinks` (claude); DELETE `walk.LowerSkillSymlinks`. Behavior-
       preserving for ariadne (closes §A1/A2/A4 + §B1).
-- [ ] M2 — per-layer prefix (repo-name default; each layer owns its `config.json`)
-      + `internal skill construct/skill` declaration + the `construct/skill` layout
-      (closes §C1/C2 + the construct-skill internal exemplar).
-- [ ] M3 — cross-repo migration: kill the whole-dir `construct/{local,adapted}`→ariadne
-      inheritance symlinks; per-layer `config.json`; nous `construct/skills`→`construct/local`;
-      re-weave all 10 repos (closes §D1/§A3/§E1). Retire #101 + #102 (folded in);
+- [x] M2 — per-layer prefix DEFAULT (`config.json localPrefix` else repo-name;
+      ariadne pins `xx-`) + the internal-skill 𝒜(R) CAPABILITY proven end-to-end via
+      `walk→buildSkillIndex` (closes §C1; the §C2 own-`config.json` MIGRATION + the
+      real `internal skill construct/skill` are M3). Behavior-preserving for ariadne.
+- [x] M3 — cross-repo migration: kill the whole-dir `construct/{local,adapted}`→ariadne
+      inheritance symlinks; **each derivative owns its `config.json`** (so the repo-name
+      prefix activates); **declare `internal skill construct/skill` + the `construct/skill`
+      layout/name** (Task C2 — applies M2's capability to the real construct skill);
+      nous `construct/skills`→`construct/local`; re-weave all 10 repos (closes §C2/§D1/
+      §A3/§E1 + the construct-skill internal exemplar). Retire #101 + #102 (folded in);
       lift the [[skill-system]] target's "DESIGN-ONLY" banner (invariants now test-bound).
 
 ## Log
 
+### 2026-06-16
+- 2026-06-16: closed — #104 done-when met across M1-M3: ONE intent-driven discovery (walk.GatherSkills) feeds BOTH lowerings (claude .claude/skills symlinks + codex/agy menu) from the SAME SelectVisible set; skills honor export/internal + leaf-position (TestBuildSkillIndexExcludesAncestorInternalSkill + live: xx-construct present on ariadne self-walk, absent in all 9 derivatives); nous skills appear in `weave skills` + serve via `weave skill nous-tools`, declared as a skill intent not plain symlinks; per-layer prefix works (nous → nous-, no double-prefix); formula test-bound (TestSelectVisible/TestGatherSkills_*) + live-verified across all 10 re-wove repos (verify-complete 0-unplanned, ancestors byte-pristine). All 3 milestones reviewed (M1 SHIP, M2/M3 FIX-THEN-SHIP).; review verdict: SHIP
+- 2026-06-16: closed M3 — All 10 ariadne-styled repos re-wove + verify-complete 0-unplanned + ancestors byte-pristine; whole-dir inheritance symlinks dropped (skills flow via the layer walk — pair/nous/brains confirmed .claude/skills/xx-* + nous-* resolve to the owning layer), xx-construct lowered leaf-internal in ariadne + absent in all 9 derivatives, nous-tools/nous-resolve now menu-listed + servable + inherited by the brains via the layer; sdlc actual owner-resolves active-time-v3.py (live: measured 0.30h in pair with no local construct/local); full weave + sdlc suites + go vet + gofmt green; review verdict: FIX-THEN-SHIP — no Critical; the one Important (doc-drift in the construct skill BODY: the Self-sync rule + construct/adapted-inheritance + .claude/skills/construct location) reconciled to the post-M3 layer-walk model before crossing the boundary (auto-dispatch hit a transient socket error → re-ran `sdlc judge milestone-review` for the real verdict)
+
 ### 2026-06-15
+- 2026-06-15: closed M2 — skillPrefix defaults to the layer repo-name (config.json override wins; ariadne pinned xx- via its config — golden MATCH 25/0 unchanged); internal-skill 𝒜(R) proven end-to-end via walk→buildSkillIndex (ancestor-internal excluded from a consumer, present on its own self-walk); full weave suite + vet + gofmt clean; review verdict: FIX-THEN-SHIP
+- 2026-06-15: closed M1 — one intent-driven GatherSkills (carries Visibility+LayerIndex) → pure SelectVisible (reuses intent.Selected) → {Build menu, plan.SkillSymlinks claude} from the IDENTICAL selected set; walk.LowerSkillSymlinks deleted; ariadne golden MATCH 25/0 UNEXPECTED unchanged (behavior-preserving); full weave suite + vet + gofmt clean; review verdict: SHIP
 
 - Filed from the #95 cutover gap analysis (nous/brain). Subsumes #101 (no-prefix)
   and #102 (menu intent-blind) — close those as folded-in once this lands, or

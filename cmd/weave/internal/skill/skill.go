@@ -12,15 +12,42 @@
 // the seam's job.
 package skill
 
+import "github.com/xianxu/ariadne/cmd/weave/internal/intent"
+
 // Entry is one parsed skill, as gathered by the IO seam: its NAMESPACED name
-// (the discovery-time symlink name — `<prefix><dir>` for a local skill, the
-// bare `<dir>` for an adapted one, ported from sync-local-skills.sh, ARCH-DRY),
-// the description from its SKILL.md frontmatter, and the absolute path to that
-// SKILL.md (the body weave serves). Entries arrive foundation-first.
+// (the discovery-time symlink name — `<prefix><dir>` for a layer's own skill,
+// the bare `<dir>` for an adapted one), the description from its SKILL.md
+// frontmatter, and the absolute path to that SKILL.md (the body weave serves).
+// Entries arrive foundation-first. Visibility + LayerIndex (skill-system v2,
+// #104) carry the composition-algebra inputs ON the entry, so the SAME
+// intent.Selected that filters prose/file-ops can filter skills (ARCH-DRY) —
+// see SelectVisible.
 type Entry struct {
 	Name        string
 	Description string
 	BodyPath    string
+	Visibility  intent.Visibility // from the declaring `skill <dir>` row (Export default)
+	LayerIndex  int               // foundation-first index of the declaring layer
+}
+
+// SelectVisible keeps the entries that participate in the selected multiset 𝒜(R):
+// every layer's exports plus the LEAF's internals only (leafIdx is the leaf's
+// index in the foundation-first walk). An ANCESTOR's internal skill is excluded;
+// the leaf's internal and every layer's export are kept. Foundation-first order
+// is preserved. Pure.
+//
+// This is the skill instantiation of the base-layer-mechanics visibility axis. It
+// REUSES intent.Selected — the single source of truth for the rule that the
+// planner (prose/file-ops) and the completeness guard already call (ARCH-DRY) —
+// so skills are NOT a fourth place that re-implements visibility differently.
+func SelectVisible(entries []Entry, leafIdx int) []Entry {
+	out := make([]Entry, 0, len(entries))
+	for _, e := range entries {
+		if intent.Selected(e.Visibility, e.LayerIndex == leafIdx) {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // MenuItem is one line of the always-on skill menu compiled into AGENTS.md:

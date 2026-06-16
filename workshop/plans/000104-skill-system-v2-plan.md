@@ -260,22 +260,39 @@ func SkillSymlinks(entries []skill.Entry) []Symlink {
 - [ ] **Step 4: Run — expect FAIL elsewhere** (`main.go` + `golden` still call `walk.LowerSkillSymlinks`). That's the next task.
 - [ ] **Step 5: Commit** after Task 6 wires it (or commit the compile-broken state on a WIP branch — prefer wiring first).
 
-### Task 6: rewire `main.planActions` + `buildSkillIndex` to the one discovery
+### Task 6: rewire `main.planActions` + `buildSkillIndex` to the ONE discovery
+
+**Pin the seam exactly (plan-quality finding #1 — this is the spot the whole issue turns on).** `buildSkillIndex` must return BOTH the index AND the selected `[]skill.Entry` it was built from, so the menu (`skill.Build`) and the claude symlinks (`plan.SkillSymlinks`) read the IDENTICAL slice from ONE `GatherSkills`. If an implementer instead leaves `buildSkillIndex → SkillIndex` and adds a SECOND `GatherSkills`+`SelectVisible` before `SkillSymlinks`, the §A4 duplication silently survives and tests still pass — the issue's core claim is unmet. Do not do that.
 
 **Files:**
-- Modify: `cmd/weave/main.go` (`planActions`, `buildSkillIndex`, `skillSymlinks`, `resolveSkillIndex`)
-- Modify: `cmd/weave/internal/golden/*` if it calls the old path
+- Modify: `cmd/weave/main.go` (`buildSkillIndex`, `planActions`, `resolveSkillIndex`; delete the `skillSymlinks` helper)
+- Modify: `cmd/weave/internal/golden/*` if it calls `walk.LowerSkillSymlinks`
 
-- [ ] **Step 1:** Make `buildSkillIndex` gather → `SelectVisible(entries, leafIdx)` → `skill.Build`. `leafIdx = len(layers)-1`.
-- [ ] **Step 2:** In `planActions`, for the claude target append `plan.SkillSymlinks(selected)` (the SAME selected entries the menu used) instead of `skillSymlinks(fs, layers)`; delete the `walk.LowerSkillSymlinks` call.
-- [ ] **Step 3: Run the full suite** `go test ./cmd/weave/...` and `go vet` + `gofmt -l cmd/weave` — all green.
-- [ ] **Step 4: Live verify (behavior-preserving):** in ariadne `weave compile --target claude` then `weave golden --target claude` → MATCH unchanged / 0 UNEXPECTED; `weave skills` lists the same set; re-weave diff empty.
-- [ ] **Step 5: Commit.** `git commit -am "#104 M1: one discovery → SelectVisible → {Build menu, SkillSymlinks claude}; delete LowerSkillSymlinks"`
+- [ ] **Step 1: Change `buildSkillIndex` to return the selected entries too.**
+
+```go
+func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []skill.Entry, error) {
+	entries, err := walk.GatherSkills(fs, layers)
+	if err != nil {
+		return skill.SkillIndex{}, nil, err
+	}
+	selected := skill.SelectVisible(entries, len(layers)-1) // 𝒜(R): leaf = last layer
+	return skill.Build(selected), selected, nil
+}
+```
+
+- [ ] **Step 2: `planActions` consumes ONE gather.** `idx, selected, err := buildSkillIndex(fs, layers)`. Menu from `idx.Menu()` when `target.IncludeSkillMenu()`. For `target.EmitSkillSymlinks()`: `actions = append(actions, asActions(plan.SkillSymlinks(selected))...)` — the SAME `selected`. Delete the `skillSymlinks(fs, layers)` helper and its `walk.LowerSkillSymlinks` call.
+- [ ] **Step 3: `resolveSkillIndex`** (serves `weave skills`/`weave skill <name>`) uses the `SkillIndex` from `buildSkillIndex` (discard the entries) — so a *served* skill is exactly a *composed* one (same select, no third path).
+- [ ] **Step 4: Run the full suite** `go test ./cmd/weave/...` + `go vet ./cmd/weave/...` + `gofmt -l cmd/weave` — all green. Fix any `golden` caller of the deleted `walk.LowerSkillSymlinks`.
+- [ ] **Step 5: Live verify (behavior-preserving):** in ariadne `weave compile --target claude` then `weave golden --target claude` → MATCH unchanged / 0 UNEXPECTED; `weave skills` lists the same set; re-weave diff empty.
+- [ ] **Step 6: Commit.** `git commit -am "#104 M1: one discovery → SelectVisible → {Build menu, SkillSymlinks claude}; delete LowerSkillSymlinks"`
 
 ### Task 7: M1 milestone close
 
-- [ ] Update `atlas/workflow/weave.md` (skill discovery is now intent-driven + visibility-aware — one operand set).
-- [ ] `sdlc milestone-close --issue 104 --milestone M1 --verified '...'` (dispatches the boundary review; fix Critical/Important).
+**Done-when scoping (plan-quality finding #2):** M1 closes the *unification* (one discovery → two lowerings) and the *pure* visibility predicate (`SelectVisible` test). It does NOT close the issue's full Done-when — the multi-layer end-to-end internal-skill assertion ("an ancestor's internal does NOT reach a consumer, the leaf's DOES") is **M2 Task B** (needs a real `internal skill` declared), and the formula-binding golden is **M3**. State this in the M1 close so M1 isn't held to the whole list.
+
+- [ ] Update `atlas/workflow/weave.md` (skill discovery is now intent-driven + visibility-aware — one operand set feeds menu + symlinks).
+- [ ] `sdlc milestone-close --issue 104 --milestone M1 --verified 'one intent-driven GatherSkills → SelectVisible → {Build menu, SkillSymlinks claude}; LowerSkillSymlinks deleted; ariadne golden unchanged (behavior-preserving); SelectVisible pure predicate test green'` (dispatches the boundary review; fix Critical/Important).
 
 ---
 
@@ -283,10 +300,26 @@ func SkillSymlinks(entries []skill.Entry) []Symlink {
 
 **Outcome:** A layer's prefix defaults to its repo name; the `construct` skill becomes internal-by-declaration; the three-dir convention is real in ariadne's manifest. Still no derivative migration (those land in M3). Detail at M2's `change-code`.
 
-- **Task A — repo-name prefix default.** `skillPrefix`: when `config.json` is absent or `localPrefix` empty, default to `<repo-dir-basename> + "-"` (not `xx-`). ariadne keeps `xx-` via its own `config.json`. Test: a layer with no config → repo-name prefix; with config → its prefix. (Issue decision 4; §C2.)
-- **Task B — declare `internal skill construct/skill` in ariadne.** Add the row to `construct/base.manifest`; settle the `construct/skill` layout (issue open question): make it `construct/skill/<name>/SKILL.md` (uniform with local/adapted) by moving the current flat `construct/skill/SKILL.md` → `construct/skill/construct/SKILL.md`, so the `construct` skill scans as the name `<prefix>construct`. Decide: keep it bare `construct` (special-case the construct skill name) or accept `xx-construct`. Test: on ariadne self-walk the construct skill is present (leaf-internal); on a derivative compile it is ABSENT (ancestor-internal) — the first real internal-skill assertion end-to-end.
-- **Task C — prefix applies to `construct/skill` too** (own dir), `adapted` still bare. Confirm via the Task-B test.
-- **Task D — M2 close** (atlas + milestone-close).
+- **Task A — repo-name prefix default. DONE** (`3655a0e`). `skillPrefix` returns
+  `config.json localPrefix` when set, else `<layer-dir-basename> + "-"`. ariadne
+  keeps `xx-` via its own `config.json`; behavior-preserving while derivatives'
+  `config.json` is still symlinked to ariadne's (M3 un-symlinks it). Tests:
+  `RepoNamePrefixWhenNoConfig` (repo-name) + the existing config-override cases;
+  ariadne golden MATCH 25/0 unchanged. (Issue decision 4; §C2.)
+- **Task B — internal-skill 𝒜(R) end-to-end. DONE** (`3655a0e`). The M1 review's
+  deferred finding: `TestBuildSkillIndexExcludesAncestorInternalSkill` — a 2-layer
+  fixture (base declares `internal skill construct/skill`) routed through
+  `walk → buildSkillIndex` (NOT a direct `SelectVisible` call), proving the
+  `len(layers)-1` leaf-index plumbing: an ancestor's internal skill is excluded
+  from the consumer but present on the base's own self-walk. (§B1 closed.)
+- **Task C — M2 close** (atlas + milestone-close).
+
+> **Moved to M3:** declaring `internal skill construct/skill` in ariadne's *real*
+> manifest + the `construct/skill` layout move + the construct-skill name
+> (`construct` vs `xx-construct`) + the tracked `.claude/skills/construct` copy —
+> these are ariadne-manifest/disk changes that belong with M3's migration (and the
+> name is operator-facing, so it gets decided there). M2's `internal skill`
+> CAPABILITY is built + proven (Task B); M3 applies it to the real construct skill.
 
 **Open at M2:** the `construct/skill` name (bare `construct` vs `xx-construct`) and whether `.claude/skills/construct` (a tracked real copy per the self-sync rule) stays tracked. Resolve in the M2 plan.
 
@@ -299,6 +332,17 @@ func SkillSymlinks(entries []skill.Entry) []Symlink {
 - **Task A — drop the whole-dir inheritance symlinks.** Remove `symlink construct/local` + `symlink construct/adapted` from ariadne's `base.manifest` (so derivatives stop receiving the dir symlinks); the layer-walk reads each ancestor's real dirs directly. Per derivative: `git rm` the now-orphaned `construct/{local,adapted}` symlinks (weave's prune handles them on re-weave). Verify `weave skills` still lists ariadne's skills in every derivative (sourced from the ariadne LAYER, not a local symlink) — and `.claude/skills/xx-*` now point DIRECTLY at `../../../ariadne/construct/local/<name>` (already weave's output, issue D1).
 - **Task B — per-layer config.json.** Un-symlink each derivative's `construct/config.json` (currently → ariadne's `xx-`). nous gets its own with no `localPrefix` (→ `nous-` default) or explicit `localPrefix: nous-`. Re-weave: nous's local skills become `nous-*`.
 - **Task C — migrate nous `construct/skills` → `construct/local`.** `git mv construct/skills/nous-tools construct/local/tools` + `nous-resolve`→`resolve`; replace the two plain `symlink construct/skills/X .claude/skills/X` manifest rows with one `skill construct/local` (export) intent; re-weave → `.claude/skills/nous-tools` + `nous-resolve` now intent-lowered AND in the menu AND servable via `weave skill nous-tools` (issue §A3/§E1 closed; #102 folded in).
+- **Task C2 — the construct skill: internal-by-declaration** (moved from M2). In
+  ariadne's `base.manifest` add `internal skill construct/skill`; move the flat
+  `construct/skill/SKILL.md` → `construct/skill/construct/SKILL.md` (uniform
+  `<name>/SKILL.md` layout). **Name = `xx-construct`** (operator-decided 2026-06-15:
+  the prefix rule applies, NO special-case — `construct/skill` is ariadne's own dir,
+  so it takes ariadne's `xx-` prefix; the skill is invoked as `/xx-construct`).
+  Reconcile the tracked `.claude/skills/construct` real copy (weave now lowers the
+  construct skill as `xx-construct`, so the old self-synced `construct` copy is
+  retired). Verify: ariadne self-walk INCLUDES `xx-construct` (leaf-internal); NO
+  derivative gets it (ancestor-internal — replacing the old exclude-by-location).
+  The §B1 capability (M2 Task B) applied to the real skill.
 - **Task D — re-weave + verify ALL 10 repos** (ariadne, nous, parley, pair, 42shots, xianxu.dev, you-decide, brain, brain-family, brain-private): clean `git status`, ancestors byte-pristine, `weave golden`/`verify-complete` clean, the brains via the sandbox-safe path (out-of-sandbox `make weave` for brain). Mirror the M5 cutover runbook.
 - **Task E — M3 close** + retire #101 + #102 (folded in) + update the `skill-system` target (the invariants are now test-bound — the "DESIGN-ONLY" banner on the algebra's skill slice can be lifted).
 
@@ -309,3 +353,20 @@ func SkillSymlinks(entries []skill.Entry) []Symlink {
 - **`construct/skill` layout + the construct skill's name** (M2) — flat→`<name>/SKILL.md`; bare `construct` vs prefixed.
 - **Suppression** (B2) — a derivative dropping an inherited export. Out of scope for v2 (additive/override-only); note where the predicate would extend.
 - **Menu for the claude target** — claude composes a prose-only AGENTS.md (no `## Skills` menu); the menu is exercised only by codex/agy + `weave skills`. v2 makes the menu CORRECT; it doesn't change which target shows it.
+
+## Revisions
+
+- **2026-06-16 (M3 close):** Two deltas surfaced during execution, both folded into M3.
+  1. **Task A0 added (not in the original sketch):** `construct/local` is a MIXED
+     dir — it also carries `issues/active-time-v3.py`, which `sdlc actual` resolved
+     at `<repoTop>/construct/local/issues/...` *through* the dropped inheritance
+     symlink. Dropping the symlink would have silently disabled MEASURED actuals in
+     every derivative. Fix: owner-resolve the script via `substrateChain` (build-in-
+     owner pattern), unit-tested (`TestResolveActualScript`) + live-verified. Operator
+     chose this over a narrow file-symlink (root-cause vs. a kept special-case symlink).
+  2. **Task C2 prose reconciliation (deferred-then-done):** C2 reconciled the construct
+     skill's *disk state* (move + rename + retire the tracked copy) but the original
+     scope did NOT include its *body prose*. The M3 boundary review (FIX-THEN-SHIP)
+     flagged the body still taught the pre-M3 model (the now-contradictory "Self-sync"
+     rule, `construct/adapted`-inheritance-by-symlink, the `.claude/skills/construct`
+     location). Reconciled in-scope before crossing the boundary.

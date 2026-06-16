@@ -71,22 +71,30 @@ symlink   .claude/settings.ariadne.json
 merge     .claude/settings.ariadne.json        .claude/settings.json
 
 # ── Skills ──────────────────────────────────────────────────────────────────────
-# NOTE: Adapted skills (superpowers) are deployed only in ariadne via
-# /construct adapt + /construct promote. Derivatives inherit them through
-# the `symlink construct/adapted` line below, not via per-repo adaptation.
-
-# NOTE: construct skill is ariadne-internal, not exported to target repos.
-
 # Skills are rendered by weave from `skill` intents (absorbing the retired
-# sync-local-skills.sh SessionStart hook): weave aggregates each layer's
-# construct/local + construct/adapted skills into the agent-agnostic menu
-# (compiled into AGENTS.md, bodies via `weave skill <name>`) AND lowers them to
-# the .claude/skills/ symlinks every in-use harness reads — local prefixed (from
-# construct/config.json localPrefix, default xx-), adapted bare. The scaffold of
-# .claude/skills/ stays so the dir exists before the symlinks land.
+# sync-local-skills.sh SessionStart hook): weave aggregates each LAYER's declared
+# skill dirs into the agent-agnostic menu (compiled into AGENTS.md, bodies via
+# `weave skill <name>`) AND lowers them to the .claude/skills/ symlinks every
+# in-use harness reads — a layer's own skills prefixed (from construct/config.json
+# localPrefix, ELSE the layer's repo-name basename — ariadne pins xx- below),
+# construct/adapted bare. The scaffold of .claude/skills/ stays so the dir exists
+# before the symlinks land.
+#
+# Derivatives inherit ariadne's skills through the LAYER walk: these `skill`
+# intents are read for ariadne wherever it sits in a derivative's DAG, so a
+# derivative's .claude/skills/xx-* point straight at ariadne's construct/local —
+# NO whole-dir inheritance symlink (#104 M3 dropped construct/{local,adapted}).
+# Adapted skills (superpowers, deployed only in ariadne via /construct adapt +
+# promote) propagate bare through the same walk.
+#
+# The construct skill itself is `internal` (ariadne-only): kept on ariadne's own
+# self-walk as xx-construct, NEVER leaked into a derivative (ancestor-internal,
+# #99/#104). It lives one dir deep (construct/skill/<name>/SKILL.md) so the
+# uniform <name>/SKILL.md scan names it from the dir.
 scaffold  .claude/skills
 skill     construct/local
 skill     construct/adapted
+internal  skill construct/skill
 
 # ── Makefile system ───────────────────────────────────────────────────────────
 # Root Makefile is a thin generic template (workflow + local + help).
@@ -142,9 +150,12 @@ symlink   construct/scripts/lib-deps.sh
 # build-in-owner (#60). Symlinked so derivatives can resolve sdlc's owner by
 # location (`--list`) without a construct/go.mod replace.
 symlink   construct/dev-aliases.sh
-symlink   construct/local
-symlink   construct/adapted
-symlink   construct/config.json
+# construct/{local,adapted} + config.json are NO LONGER inherited by whole-dir
+# symlink (#104 M3). weave reads ariadne's skill dirs through the LAYER walk (the
+# `skill` intents above), so a derivative's .claude/skills/ point straight at
+# ariadne's real dirs. Each layer resolves its OWN prefix (config.json localPrefix,
+# else repo-name basename — ariadne keeps xx- via its own real config.json);
+# derivatives with no own skills need no config.json, nous ships its own.
 
 # ── Datatype prototypes (typed markdown documents, used by xx-datatype skill) ─
 # Shared prototypes propagate via symlink. Project-local overrides at

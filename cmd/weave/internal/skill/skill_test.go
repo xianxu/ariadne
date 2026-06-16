@@ -3,7 +3,42 @@ package skill
 import (
 	"reflect"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 )
+
+func names(es []Entry) []string {
+	out := make([]string, 0, len(es))
+	for _, e := range es {
+		out = append(out, e.Name)
+	}
+	return out
+}
+
+func TestEntryCarriesVisibilityAndLayer(t *testing.T) {
+	e := Entry{Name: "xx-fix", Description: "d", BodyPath: "/a/fix/SKILL.md",
+		Visibility: intent.Internal, LayerIndex: 2}
+	if e.Visibility != intent.Internal || e.LayerIndex != 2 {
+		t.Fatalf("entry did not carry visibility/layer: %+v", e)
+	}
+}
+
+func TestSelectVisible(t *testing.T) {
+	// 𝒜(R): every layer's exports + the leaf's internals. The ONLY exclusion is an
+	// ancestor's internal. Foundation-first order preserved.
+	leaf := 2
+	in := []Entry{
+		{Name: "base-export", Visibility: intent.Export, LayerIndex: 0},
+		{Name: "ancestor-internal", Visibility: intent.Internal, LayerIndex: 0}, // DROP
+		{Name: "leaf-internal", Visibility: intent.Internal, LayerIndex: 2},     // KEEP
+		{Name: "leaf-export", Visibility: intent.Export, LayerIndex: 2},
+	}
+	got := names(SelectVisible(in, leaf))
+	want := []string{"base-export", "leaf-internal", "leaf-export"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("SelectVisible = %v, want %v", got, want)
+	}
+}
 
 // SkillIndex is PURE: it takes already-parsed entries (gathered foundation-first
 // by the IO seam) and produces an ordered, collision-free menu + a name→body
