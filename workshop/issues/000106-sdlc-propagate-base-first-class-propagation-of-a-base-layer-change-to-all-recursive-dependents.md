@@ -62,19 +62,20 @@ owner's `main`):
      standard message, references the owner issue);
    - publish policy is a flag: `--pr` (open a PR per repo), `--merge` (branch →
      merge), or default leave-the-branch-for-review.
-3. **Special-repo routing (must be built in, not bolted on):**
-   - **gcrypt brains** (`brain`, `brain-family`, `brain-private`): their
-     `.claude/skills` + `.git` are sandbox-write-denied in a brain-cwd agent, and
-     gcrypt push needs the gpg-agent (and is gated by the charon/disarm threat
-     model — see `brain/atlas/threat-model-shared-brain.md`). propagate-base must
-     detect a gcrypt/sandbox-protected dependent and either route it through the
-     sandbox-safe path or **emit a clean manual runbook** for it (re-weave +
-     push commands the operator runs out-of-sandbox), rather than failing the run.
-   - **no-remote / local-only dependents** (e.g. today `brain-private` has no
-     `origin`): never invent a remote; report them as "committed locally, no push
-     target" and move on.
-   - **skill-less dependents** (most leaves): re-weave just prunes orphans — still
-     a valid consumption commit.
+3. **The propagation substance is UNIFORM across every dependent.** branch →
+   re-weave → verify → commit is identical for a leaf or a gcrypt brain — the
+   re-weave is the work and it's the same everywhere. The only differentiators are
+   minor and SEPARABLE, all at the OPTIONAL publish step (not the core):
+   - **no-remote / local-only dependents** (e.g. `brain-private` has no `origin`):
+     never invent a remote — commit locally, report "no push target", done.
+   - **gcrypt brains**: push needs the gpg-agent (out-of-sandbox, charon/disarm-
+     gated) — but that's a property of the trivial push step, not propagation, so
+     propagate-base just emits the push command (or skips push, leaving it to the
+     operator). (Orthogonal: the RUNNER's sandbox — an in-brain agent can't write
+     the brain's `.claude`/`.git` — is an execution-context artifact of WHERE
+     propagate-base runs, not a propagate-base concern; from a normal terminal it's
+     uniform.)
+   - **skill-less leaves**: re-weave just prunes orphans — still a valid consumption.
 4. **Idempotent + resumable.** Re-weave is idempotent, so a re-run is a no-op for
    already-propagated repos; a partial failure (repo 5 of 9) is resumable and the
    run reports which repos are done / pending / failed.
@@ -93,8 +94,11 @@ owner's `main`):
   per-repo LLM review — confirm.
 - **Branch vs worktree default** — in-place branch (light) vs worktree (isolated
   but ~200–500ms + disk each). Mirror `change-code`'s default.
-- **Push policy** — auto-push the plain GitHub repos; NEVER auto-push gcrypt brains
-  (threat-model-gated) — emit their runbook instead.
+- **Push is an OPTIONAL, separable last step** — the verb's value is the
+  branch/re-weave/verify/commit core; publishing is trivial and can be off by
+  default (`--push` opt-in). Plain repos push directly; gcrypt brains just get the
+  push command emitted (gpg-agent/charon-gated, out-of-sandbox) — don't let the
+  push step shape the core design.
 - **Relationship to `make weave`** — propagate-base ORCHESTRATES per-repo
   `weave compile` + the git/branch/verify wrapping; it does not replace weave.
 
@@ -106,9 +110,9 @@ owner's `main`):
   manual `cd`+`weave`+commit loop.
 - Reverse-dependent discovery is correct: a transitively-dependent repo (brain →
   nous → ariadne) is included when ariadne changes, in foundation-first order.
-- gcrypt/sandbox-protected brains are handled via the sandbox-safe path OR a clean
-  manual-runbook handoff (the run never strands on them); no-remote dependents are
-  reported, not failed.
+- the core (branch/re-weave/verify/commit) is uniform across all dependents;
+  publishing is an optional `--push` step — plain repos push directly, gcrypt
+  brains get the push command emitted, no-remote dependents are reported not failed.
 - The run is idempotent + resumable and emits ONE status table.
 - Verified on a real base-layer bump (re-run the #104-style propagation through the
   verb instead of by hand) with all dependents converging + ancestors pristine.
@@ -125,5 +129,7 @@ owner's `main`):
   the 9 dependents got direct-on-main commits while the owner went through
   branch+PR. This verb is the missing downstream counterpart to `substrateChain`
   (owner→ancestor walk); propagate-base needs the reverse (owner→recursive
-  dependents) walk + the per-repo branch/re-weave/verify/commit orchestration,
-  with built-in routing for the gcrypt/sandbox-protected brains.
+  dependents) walk + the per-repo branch/re-weave/verify/commit orchestration —
+  uniform across every dependent. (Operator correction: the brains are NOT special
+  to propagation; the only wrinkle is the optional gcrypt push + the runner's
+  sandbox, neither of which shapes the core. Push is a trivial separable last step.)
