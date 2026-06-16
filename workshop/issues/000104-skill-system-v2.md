@@ -1,12 +1,13 @@
 ---
 id: 000104
-status: working
+status: done
 deps: []
 github_issue:
 target: skill-system
 created: 2026-06-15
 updated: 2026-06-16
 estimate_hours: 15
+actual_hours: 3.69
 ---
 
 # skill-system v2 — unified, visibility-aware, target-independent skill composition
@@ -163,6 +164,7 @@ sketched, per the #128 convention).
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed — #104 done-when met across M1-M3: ONE intent-driven discovery (walk.GatherSkills) feeds BOTH lowerings (claude .claude/skills symlinks + codex/agy menu) from the SAME SelectVisible set; skills honor export/internal + leaf-position (TestBuildSkillIndexExcludesAncestorInternalSkill + live: xx-construct present on ariadne self-walk, absent in all 9 derivatives); nous skills appear in `weave skills` + serve via `weave skill nous-tools`, declared as a skill intent not plain symlinks; per-layer prefix works (nous → nous-, no double-prefix); formula test-bound (TestSelectVisible/TestGatherSkills_*) + live-verified across all 10 re-wove repos (verify-complete 0-unplanned, ancestors byte-pristine). All 3 milestones reviewed (M1 SHIP, M2/M3 FIX-THEN-SHIP).; review verdict: SHIP
 - 2026-06-16: closed M3 — All 10 ariadne-styled repos re-wove + verify-complete 0-unplanned + ancestors byte-pristine; whole-dir inheritance symlinks dropped (skills flow via the layer walk — pair/nous/brains confirmed .claude/skills/xx-* + nous-* resolve to the owning layer), xx-construct lowered leaf-internal in ariadne + absent in all 9 derivatives, nous-tools/nous-resolve now menu-listed + servable + inherited by the brains via the layer; sdlc actual owner-resolves active-time-v3.py (live: measured 0.30h in pair with no local construct/local); full weave + sdlc suites + go vet + gofmt green; review verdict: FIX-THEN-SHIP — no Critical; the one Important (doc-drift in the construct skill BODY: the Self-sync rule + construct/adapted-inheritance + .claude/skills/construct location) reconciled to the post-M3 layer-walk model before crossing the boundary (auto-dispatch hit a transient socket error → re-ran `sdlc judge milestone-review` for the real verdict)
 
 ### 2026-06-15
