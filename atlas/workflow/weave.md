@@ -58,9 +58,10 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `Action` sum type is the seam (YAGNI with a single backend). **[M4]**
 - **Cutover surface** — `weave compile --target <claude|codex|agy>` (bare `weave`
   is help-only, mutates nothing) + `weave verify-complete` (completeness companion
-  to `golden` — asserts the plan covers every managed path) · `walk.LowerSkillSymlinks`
-  (the `.claude/skills/<name>` symlink lowering, each pointing at the source layer's
-  skill dir — absorbed the retired `sync-local-skills.sh` SessionStart hook) ·
+  to `golden` — asserts the plan covers every managed path) · the `.claude/skills/<name>`
+  symlink lowering (each pointing at the source layer's skill dir — absorbed the
+  retired `sync-local-skills.sh` SessionStart hook; **unified into the pure
+  `plan.SkillSymlinks` in #104 M1**, see below) ·
   `plan.PruneOrphans` (#96 — GCs orphaned lowered symlinks + the dead
   `setup.sh`/`merge-settings.sh`/`sync-local-skills.sh` cutover links; four
   conjunctive KEEP-unless safety criteria) · `plan.EnsureGitignore` (weave owns
@@ -72,5 +73,15 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `AGENTS.md`→ancestor symlink is never written through). The `tool` intent + the
   `GoMod`/`GoModEdit` exec seam were **retired** (location-based Go-tool ownership;
   weave's IO is filesystem-only). **[M5 — cutover complete]**
+
+- **Skill discovery unified (intent-driven + visibility-aware)** — the three
+  disagreeing skill paths collapse to ONE: `walk.GatherSkills` reads each layer's
+  `skill <dir>` INTENTS (not hardcoded `construct/local`+`adapted`) and stamps each
+  entry's `Visibility` + `LayerIndex`; `skill.SelectVisible` applies the SAME
+  `intent.Selected` 𝒜(R) filter prose uses (an ancestor's `internal` skill never
+  reaches a consumer); the menu (`skill.Build`) and the claude links (the pure
+  `plan.SkillSymlinks`) lower from the IDENTICAL selected set. The duplicate IO
+  `walk.LowerSkillSymlinks` scan is deleted. The subsystem invariant lives in the
+  [skill-system](../../workshop/targets/skill-system.md) target. **[#104 M1]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
