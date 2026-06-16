@@ -6,10 +6,37 @@ github_issue:
 target: base-layer-mechanics
 created: 2026-06-16
 updated: 2026-06-16
-estimate_hours:
+estimate_hours: 8
 ---
 
-# weave: target-isolated compile — `compile --target T` clears every other target's artifacts before producing T's
+# weave: Option B — per-harness skill-dir lowering (`.claude/skills` + `.agents/skills`), retire the menu, prose entry files
+
+## Decision + scope (2026-06-16) — Option B, decided
+
+After doc + live-test investigation (see Log + "Design discussion" below),
+**Option B is chosen:** lower skills to per-harness skill DIRS — `.claude/skills`
+(Claude) + `.agents/skills` (Codex + Gemini, the cross-vendor Agent Skills neutral
+path) — **retire the `AGENTS.md` `## Skills` menu**, and make the per-harness entry
+files pure prose. Formally: `weave compile` = `⋃_T Compile(C,T)` (Union) is the
+default, `--target T` = the lean subset. The `A_T` are SEPARABLE (disjoint paths),
+so one shared checkout serves every harness — no contested file, no overlay FS, no
+separate checkouts.
+
+**Verified (docs + live test, installed CLIs):**
+- Claude reads ONLY `CLAUDE.md` (AGENTS.md invisible unless `@`-imported).
+- Codex 0.139.0 + Gemini 0.38.2 both discover project `.agents/skills`, PARSE
+  weave's exact `name`+`description` SKILL.md, and FOLLOW SYMLINKS (the weave
+  lowering form) — tested with a real + a relative-symlinked fixture skill. Codex
+  auto-composes its OWN in-prompt menu from `.agents/skills`, so weave must NOT also
+  emit a menu (that's the double-exposure path — reinforces "retire the menu").
+
+**The space is NOT stable.** `.agents/skills` is the Agent Skills open standard
+(agentskills.io, Anthropic-originated Dec 2025) but the SCAN-PATH is a per-tool
+convention: Gemini ships it "Experimental Preview" (v0.23.0, Jan 2026); Codex had a
+real `~/.agents/skills` discovery regression. So we COMMIT the assumptions to a
+**per-harness integration assumption test suite** (M1) that fails loudly when a
+harness changes behavior, plus an atlas page documenting the integration model for
+future harness onboarding / behavior-change triage.
 
 ## Problem
 
@@ -182,7 +209,25 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
 
 ## Plan
 
-- [ ]
+- [ ] M1 — per-harness integration assumption test suite + atlas page. A runnable
+      `scripts/harness-assumptions.test.sh` that builds fixtures and asserts, per
+      INSTALLED harness, the contract Option B relies on: Claude reads `CLAUDE.md`
+      not `AGENTS.md`; Codex + Gemini discover `.agents/skills` (real AND SYMLINKED)
+      in weave's `name`+`description` SKILL.md format and ignore `.claude/`. Skips an
+      absent CLI; fails loudly on a broken assumption (deterministic probes: `gemini
+      skills list --all`, `codex debug prompt-input`). Plus
+      `atlas/workflow/harness-integration.md` documenting the `Compile(C,T)`/Union
+      model, the per-harness face map, and the assumptions (linking the suite).
+- [ ] M2 — weave Option B lowering. Lower skills to `.claude/skills` (Claude) +
+      `.agents/skills` (Codex/Gemini) symlink farms from the SAME selected set;
+      retire the `## Skills` menu (Codex auto-composes its own); per-harness entry
+      files become pure prose (`CLAUDE.md`/`AGENTS.md`/`GEMINI.md` — retire the
+      `CLAUDE.md=@AGENTS.md` bridge); `weave compile` = Union (all faces),
+      `--target T` = lean subset; the cross-target prune cleans a face when a harness
+      is dropped or a `--target` lean compile is run. Tests + golden.
+- [ ] M3 — propagate: re-weave all ariadne-styled repos onto the new lowering;
+      `verify-complete` + ancestors byte-pristine (ties to [[000106]] — manual loop
+      for now).
 
 ## Log
 
@@ -214,3 +259,20 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
   (Codex+Gemini), retire the AGENTS.md menu, all entry files become pure prose. The
   path to watch for double-exposure is now `.agents/skills` (read by both), not
   `.claude/skills` (inert to them).
+- 2026-06-16: investigated `.agents/skills` from BOTH docs and a live fixture test
+  (operator-directed). DOCS: it's the Agent Skills open standard (agentskills.io,
+  Anthropic Dec 2025); `name`(≤64, dir-matched)+`description`(≤1024) required,
+  optional `license`/`compatibility`/`metadata`/`allowed-tools`; the scan-PATH is a
+  per-tool convention — Gemini "Experimental Preview" v0.23.0 (Jan 2026), Codex GA'd
+  Dec 2025 but with a reported `~/.agents/skills` discovery regression. TEST (fixture
+  = a real + a relative-symlinked skill in weave's SKILL.md format): **Gemini 0.38.2**
+  `gemini skills list --all` discovered BOTH (symlink followed); **Codex 0.139.0**
+  `codex debug prompt-input` injected BOTH into its auto-built `<skills_instructions>`
+  menu (symlink resolved). Format parity + symlink-following + native discovery all
+  PASS on installed versions. Codex builds its OWN menu from the dir ⇒ weave must not
+  also emit one.
+- 2026-06-16: **DECISION — Option B** (operator). Rescoped this issue: M1 the
+  per-harness assumption test suite (codify the above + guard against the unstable
+  space) + the atlas integration page; M2 the weave Option B lowering (per-harness
+  skill dirs, retire the menu, prose entry files, Union default / `--target` lean,
+  cross-target prune); M3 propagate. estimate 8h.
