@@ -300,10 +300,26 @@ func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []s
 
 **Outcome:** A layer's prefix defaults to its repo name; the `construct` skill becomes internal-by-declaration; the three-dir convention is real in ariadne's manifest. Still no derivative migration (those land in M3). Detail at M2's `change-code`.
 
-- **Task A — repo-name prefix default.** `skillPrefix`: when `config.json` is absent or `localPrefix` empty, default to `<repo-dir-basename> + "-"` (not `xx-`). ariadne keeps `xx-` via its own `config.json`. Test: a layer with no config → repo-name prefix; with config → its prefix. (Issue decision 4; §C2.)
-- **Task B — declare `internal skill construct/skill` in ariadne.** Add the row to `construct/base.manifest`; settle the `construct/skill` layout (issue open question): make it `construct/skill/<name>/SKILL.md` (uniform with local/adapted) by moving the current flat `construct/skill/SKILL.md` → `construct/skill/construct/SKILL.md`, so the `construct` skill scans as the name `<prefix>construct`. Decide: keep it bare `construct` (special-case the construct skill name) or accept `xx-construct`. Test: on ariadne self-walk the construct skill is present (leaf-internal); on a derivative compile it is ABSENT (ancestor-internal) — the first real internal-skill assertion end-to-end. **Route this test through `planActions`/`buildSkillIndex` (a 2-layer fixture), NOT a direct `SelectVisible` call** — that verifies the `len(layers)-1` leaf-index plumbing, which M1's single-layer golden can't distinguish from a wrong index (M1 review's one Important finding).
-- **Task C — prefix applies to `construct/skill` too** (own dir), `adapted` still bare. Confirm via the Task-B test.
-- **Task D — M2 close** (atlas + milestone-close).
+- **Task A — repo-name prefix default. DONE** (`3655a0e`). `skillPrefix` returns
+  `config.json localPrefix` when set, else `<layer-dir-basename> + "-"`. ariadne
+  keeps `xx-` via its own `config.json`; behavior-preserving while derivatives'
+  `config.json` is still symlinked to ariadne's (M3 un-symlinks it). Tests:
+  `RepoNamePrefixWhenNoConfig` (repo-name) + the existing config-override cases;
+  ariadne golden MATCH 25/0 unchanged. (Issue decision 4; §C2.)
+- **Task B — internal-skill 𝒜(R) end-to-end. DONE** (`3655a0e`). The M1 review's
+  deferred finding: `TestBuildSkillIndexExcludesAncestorInternalSkill` — a 2-layer
+  fixture (base declares `internal skill construct/skill`) routed through
+  `walk → buildSkillIndex` (NOT a direct `SelectVisible` call), proving the
+  `len(layers)-1` leaf-index plumbing: an ancestor's internal skill is excluded
+  from the consumer but present on the base's own self-walk. (§B1 closed.)
+- **Task C — M2 close** (atlas + milestone-close).
+
+> **Moved to M3:** declaring `internal skill construct/skill` in ariadne's *real*
+> manifest + the `construct/skill` layout move + the construct-skill name
+> (`construct` vs `xx-construct`) + the tracked `.claude/skills/construct` copy —
+> these are ariadne-manifest/disk changes that belong with M3's migration (and the
+> name is operator-facing, so it gets decided there). M2's `internal skill`
+> CAPABILITY is built + proven (Task B); M3 applies it to the real construct skill.
 
 **Open at M2:** the `construct/skill` name (bare `construct` vs `xx-construct`) and whether `.claude/skills/construct` (a tracked real copy per the self-sync rule) stays tracked. Resolve in the M2 plan.
 
@@ -316,6 +332,15 @@ func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []s
 - **Task A — drop the whole-dir inheritance symlinks.** Remove `symlink construct/local` + `symlink construct/adapted` from ariadne's `base.manifest` (so derivatives stop receiving the dir symlinks); the layer-walk reads each ancestor's real dirs directly. Per derivative: `git rm` the now-orphaned `construct/{local,adapted}` symlinks (weave's prune handles them on re-weave). Verify `weave skills` still lists ariadne's skills in every derivative (sourced from the ariadne LAYER, not a local symlink) — and `.claude/skills/xx-*` now point DIRECTLY at `../../../ariadne/construct/local/<name>` (already weave's output, issue D1).
 - **Task B — per-layer config.json.** Un-symlink each derivative's `construct/config.json` (currently → ariadne's `xx-`). nous gets its own with no `localPrefix` (→ `nous-` default) or explicit `localPrefix: nous-`. Re-weave: nous's local skills become `nous-*`.
 - **Task C — migrate nous `construct/skills` → `construct/local`.** `git mv construct/skills/nous-tools construct/local/tools` + `nous-resolve`→`resolve`; replace the two plain `symlink construct/skills/X .claude/skills/X` manifest rows with one `skill construct/local` (export) intent; re-weave → `.claude/skills/nous-tools` + `nous-resolve` now intent-lowered AND in the menu AND servable via `weave skill nous-tools` (issue §A3/§E1 closed; #102 folded in).
+- **Task C2 — the construct skill: internal-by-declaration** (moved from M2). In
+  ariadne's `base.manifest` add `internal skill construct/skill`; move the flat
+  `construct/skill/SKILL.md` → `construct/skill/construct/SKILL.md` (uniform
+  `<name>/SKILL.md` layout); **decide the name with the operator** (bare `construct`
+  via a special-case vs `xx-construct` from the prefix rule); reconcile the tracked
+  `.claude/skills/construct` real copy (weave now lowers the construct skill, so the
+  self-sync copy is redundant). Verify: ariadne self-walk INCLUDES the construct
+  skill (leaf-internal); NO derivative gets it (ancestor-internal — replacing the
+  old exclude-by-location). The §B1 capability (M2 Task B) applied to the real skill.
 - **Task D — re-weave + verify ALL 10 repos** (ariadne, nous, parley, pair, 42shots, xianxu.dev, you-decide, brain, brain-family, brain-private): clean `git status`, ancestors byte-pristine, `weave golden`/`verify-complete` clean, the brains via the sandbox-safe path (out-of-sandbox `make weave` for brain). Mirror the M5 cutover runbook.
 - **Task E — M3 close** + retire #101 + #102 (folded in) + update the `skill-system` target (the invariants are now test-bound — the "DESIGN-ONLY" banner on the algebra's skill slice can be lifted).
 

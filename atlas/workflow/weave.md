@@ -81,7 +81,10 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `intent.Selected` 𝒜(R) filter prose uses (an ancestor's `internal` skill never
   reaches a consumer); the menu (`skill.Build`) and the claude links (the pure
   `plan.SkillSymlinks`) lower from the IDENTICAL selected set. The duplicate IO
-  `walk.LowerSkillSymlinks` scan is deleted. The subsystem invariant lives in the
-  [skill-system](../../workshop/targets/skill-system.md) target. **[#104 M1]**
+  `walk.LowerSkillSymlinks` scan is deleted. Each layer prefixes its OWN skills via
+  `skillPrefix` (`construct/config.json` `localPrefix`, else the layer's repo-name
+  basename — ariadne pins `xx-`; `construct/adapted` stays bare). The subsystem
+  invariant lives in the [skill-system](../../workshop/targets/skill-system.md)
+  target. **[#104 M1+M2]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
