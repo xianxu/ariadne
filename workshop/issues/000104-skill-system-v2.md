@@ -143,7 +143,7 @@ uniformly). See target [[skill-system]].
 Detail in `workshop/plans/000104-skill-system-v2-plan.md` (M1 task-detailed; M2–M3
 sketched, per the #128 convention).
 
-- [ ] M1 — unified intent-driven discovery + visibility: ONE `GatherSkills`
+- [x] M1 — unified intent-driven discovery + visibility: ONE `GatherSkills`
       (intent-driven, carries `Visibility`+`LayerIndex`) → pure `skill.SelectVisible`
       (reuses `intent.Selected`, ARCH-DRY) → `skill.Build` (menu) + new pure
       `plan.SkillSymlinks` (claude); DELETE `walk.LowerSkillSymlinks`. Behavior-
@@ -159,6 +159,7 @@ sketched, per the #128 convention).
 ## Log
 
 ### 2026-06-15
+- 2026-06-15: closed M1 — one intent-driven GatherSkills (carries Visibility+LayerIndex) → pure SelectVisible (reuses intent.Selected) → {Build menu, plan.SkillSymlinks claude} from the IDENTICAL selected set; walk.LowerSkillSymlinks deleted; ariadne golden MATCH 25/0 UNEXPECTED unchanged (behavior-preserving); full weave suite + vet + gofmt clean; review verdict: SHIP
 
 - Filed from the #95 cutover gap analysis (nous/brain). Subsumes #101 (no-prefix)
   and #102 (menu intent-blind) — close those as folded-in once this lands, or
