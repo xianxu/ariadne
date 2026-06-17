@@ -23,7 +23,7 @@ export WF_ISSUES_DIR WF_HISTORY_DIR
 # Python default in scripts/close-issue.py and suppresses project updates.
 BRAIN_DIR ?= ../brain
 
-.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge weave issue-sync
+.PHONY: help-workflow worktree fetch push pull-request merge check pre-merge weave weave-drift-check issue-sync
 
 help-workflow:
 	@printf '%s\n' \
@@ -176,6 +176,23 @@ weave: weave-build
 		echo "  or clone the upstream ariadne beside this repo and \`make bootstrap\`."; \
 		exit 1; \
 	fi
+
+# weave-drift-check — the dynamic-skill CI drift guard (#111). A dynamic skill's
+# SKILL.md is committed codegen (cmd/datatype writes the live datatype-noun list
+# into construct/local/datatype/SKILL.md at `weave compile` time). This regenerates
+# (the `weave` prereq runs the compile, exec'ing each .dynamic-skill) then asserts
+# `git diff --exit-code` on the generated skill files — a non-zero exit means a
+# committed SKILL.md is STALE vs regeneration (e.g. a datatype was added but not
+# re-wove). NOT an in-memory golden compare: weave can't redirect a marker's
+# --output, so the guard is regenerate-then-diff. Run in CI after `make weave`.
+weave-drift-check: weave
+	@echo "==> weave drift check (generated skill files must match regeneration)"
+	@if ! git diff --exit-code -- construct/local/datatype/SKILL.md; then \
+		echo "Error: a generated SKILL.md is stale vs weave compile." >&2; \
+		echo "  Run 'make weave' and commit the regenerated skill file(s)." >&2; \
+		exit 1; \
+	fi
+	@echo "    OK — generated skill files are current."
 
 bootstrap-peers:
 	@if [ -x construct/scripts/bootstrap-peers.sh ]; then \
