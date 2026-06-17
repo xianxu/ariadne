@@ -78,17 +78,20 @@ merge     .claude/settings.ariadne.json        .claude/settings.json
 # ── Skills ──────────────────────────────────────────────────────────────────────
 # Skills are rendered by weave from `skill` intents (absorbing the retired
 # sync-local-skills.sh SessionStart hook): weave aggregates each LAYER's declared
-# skill dirs into the agent-agnostic menu (compiled into AGENTS.md, bodies via
-# `weave skill <name>`) AND lowers them to the .claude/skills/ symlinks every
-# in-use harness reads — a layer's own skills prefixed (from construct/config.json
-# localPrefix, ELSE the layer's repo-name basename — ariadne pins xx- below),
-# construct/adapted bare. The scaffold of .claude/skills/ stays so the dir exists
-# before the symlinks land.
+# skill dirs and lowers them to PER-HARNESS skill-dir symlinks (#107 Option B) —
+# .claude/skills for Claude, .agents/skills for Codex/Gemini — which each harness
+# discovers natively (NO `## Skills` menu; bodies still servable via
+# `weave skill <name>`). A layer's own skills are prefixed (from
+# construct/config.json localPrefix, ELSE the layer's repo-name basename — ariadne
+# pins xx- below), construct/adapted bare. The scaffold of .claude/skills/ stays so
+# the dir exists before the symlinks land (.agents/skills is created as its
+# symlinks land).
 #
 # Derivatives inherit ariadne's skills through the LAYER walk: these `skill`
 # intents are read for ariadne wherever it sits in a derivative's DAG, so a
-# derivative's .claude/skills/xx-* point straight at ariadne's construct/local —
-# NO whole-dir inheritance symlink (#104 M3 dropped construct/{local,adapted}).
+# derivative's per-harness skill dirs (.claude/skills + .agents/skills) /xx-* point
+# straight at ariadne's construct/local — NO whole-dir inheritance symlink (#104 M3
+# dropped construct/{local,adapted}).
 # Adapted skills (superpowers, deployed only in ariadne via /construct adapt +
 # promote) propagate bare through the same walk.
 #
