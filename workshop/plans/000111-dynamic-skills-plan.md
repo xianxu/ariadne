@@ -19,8 +19,13 @@ Full design + rationale: the `## Spec` of `workshop/issues/000111-make-datatype-
 | Name | Lives in | Status |
 |------|----------|--------|
 | `isExecutable(mode)` | `cmd/weave/internal/walk/dynamic.go` | new |
-| `renderSkill(tmpl, []typeName) (string, error)` | `cmd/datatype` | new |
-| `typeNames(dirListing) []string` | `cmd/datatype` | new |
+| `renderSkill(names []string) string` | `cmd/datatype` | new |
+
+(As-built: `typeNames(datatypeDir string) ([]string, error)` reads the dir, so it
+is an IO seam reader — see Integration points — not a pure entity. `renderSkill`
+takes the resolved names and is pure; its signature simplified from the planned
+`(tmpl, []typeName) (string, error)` to use the package-level `go:embed` template
+and a collision-proof placeholder string-replace.)
 
 - **isExecutable** — the pure kernel: `mode&0o111 != 0`, table-tested without IO.
 - **renderSkill / typeNames** — `typeNames` maps a `construct/datatype/` listing to sorted type names (filename without `.md`, the authoritative convention; ignores `type:`/`name:` frontmatter). `renderSkill` executes the embedded `text/template` with those names → the `SKILL.md` string. Both pure → byte-identical output across runs (the drift guard depends on determinism).
@@ -30,6 +35,7 @@ Full design + rationale: the `## Spec` of `workshop/issues/000111-make-datatype-
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
 | `DynamicSkillDirs(fs, layers)` | `cmd/weave/internal/walk/dynamic.go` | new | filesystem (`fs.ReadDir`/`fs.Stat`) |
+| `typeNames(datatypeDir)` | `cmd/datatype/datatype.go` | new | filesystem (`os.ReadDir`) |
 | `Runner` | `cmd/weave/internal/weavefs` (new file) or `cmd/weave` | new | `os/exec` |
 | generate stage | `cmd/weave/main.go` (`run`) | modified | Runner + weavefs |
 | `cmd/datatype` main | `cmd/datatype/main.go` | new | filesystem (read `construct/datatype/`, write `SKILL.md`) |
@@ -120,3 +126,8 @@ Full design + rationale: the `## Spec` of `workshop/issues/000111-make-datatype-
 ### 2026-06-17 — M1 boundary review (FIX-THEN-SHIP, no Critical)
 - **Pure/IO table corrected:** `DynamicSkillDirs` is an FS-injected seam reader (does `fs.ReadDir`/`fs.Stat`, matching `GatherSkills`), not pure — moved to Integration points. The only pure entity in `dynamic.go` is `isExecutable`. (Code structure was already right — the table label was wrong.)
 - **Reinforced:** Task 2.4 (atlas + `base-layer-mechanics` + `skill-system` reconciliation) MUST land in M2 before merge — a live exec seam must not propagate downstream while the docs still claim "weave is filesystem-only." Treated as an M2 hard gate.
+
+### 2026-06-17 — M2 integration review (FIX-THEN-SHIP, no Critical) — fixes folded
+- **Drift guard wired into CI** (was an Important gap): the `make weave-drift-check` target was human-only — `scripts/merge-checks.d/` had no entry, so neither CI nor the pre-push hook ran it. Added `scripts/merge-checks.d/30-weave-drift.sh` (reuses the make target; no-op pass where the target is absent). Verified: clean→pass, injected fake datatype→fail.
+- **Production exec path now e2e-tested** (was an Important gap): `TestCompileRunsDynamicSkills` drives `run(..., dryRun=false)` over a fixture with a real executable `.dynamic-skill` → asserts the sentinel appears (proves the real `ExecRunner` runs the *relative* `./.dynamic-skill` with cwd = package dir; the fake-runner + absolute-`/bin/sh` units didn't cover it).
+- **Pure/IO table corrected again:** `typeNames` is an IO seam reader (`os.ReadDir`), moved to Integration points; only `isExecutable`/`renderSkill` are pure. `renderSkill` signature reconciled to as-built.

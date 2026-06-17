@@ -102,6 +102,32 @@ func TestCompileDryRunSkipsDynamicSkills(t *testing.T) {
 	}
 }
 
+// TestCompileRunsDynamicSkills drives run(..., dryRun=false) over a leaf carrying
+// an EXECUTABLE .dynamic-skill that touches a sentinel in its dir — the positive
+// counterpart to the dry-run test. It exercises the PRODUCTION path end-to-end:
+// the real ExecRunner running the RELATIVE "./.dynamic-skill" argv with cwd = the
+// package dir (the one path the fake-runner + absolute-/bin/sh unit tests don't
+// cover, so a runner/argv refactor can't silently break it with units still green).
+func TestCompileRunsDynamicSkills(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+	pkg := filepath.Join(derived, "construct", "local", "datatype")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\ntouch sentinel\n"
+	if err := os.WriteFile(filepath.Join(pkg, ".dynamic-skill"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(pkg, "sentinel")); err != nil {
+		t.Fatalf("non-dry-run did NOT exec the .dynamic-skill (sentinel missing, err=%v); the production relative-marker exec path is broken", err)
+	}
+}
+
 // skillIntents builds `skill <dir>` intents for the leaf's manifest in these
 // tests (mirrors walk.skillRows, which is test-only in another package).
 func skillIntents(sources ...string) []intent.Intent {
