@@ -722,4 +722,28 @@ func statusFromResult(out activetime.Result, issueNum string) (actualStatus, flo
 - **Non-goal:** changing the brain+repo dir heuristic, the commit window cap, or the `--commit-weight 1.0` choice — all preserved.
 - **Non-goal:** the v1 `construct/local/issues/active-time.py` (the older per-session estimator predecessor) is a separate standalone tool, **intentionally untouched**. It is not wired into the binary; the only reference to it is inside `active-time-v3.py`'s own docstring (which gets deleted with the script). Note for Task 8/9: the whole-tree grep's `python3 .*active-time` pattern *will* match v1 invocations — those are expected, leave them.
 - **Base-layer transition (this is the ariadne owner repo).** #104 made `active-time-v3.py` owner-resolvable so derivatives without a local copy found it in their substrate ancestor at runtime. After deletion, that resolution vanishes — but the steady state is the in-process engine. Transition behavior is **graceful degradation, not a break**: a derivative still running an *old* `sdlc` binary after the script is gone walks its substrate chain, fails to find the script, and falls back to the `actualNoScript`/judgment-estimate path until it rebuilds. On the next `sdlc` rebuild (build-in-owner) it picks up the in-process `activetime` engine and the fallback disappears. No derivative action required beyond the normal rebuild.
+
+## Revisions
+
+### 2026-06-16 — M1 implementation reality + M1-review fixes
+
+- **`util.go` added (not in the Core-concepts table).** The shared pure helpers
+  ended up in a new `cmd/sdlc/internal/activetime/util.go`: `parseISO`,
+  `expandUser`, `issuePattern`, and `parseEventMentions`. The Pure-entities table
+  lists `parseEventMentions` under `event.go`; its real home is `util.go`. (Entity
+  unchanged, still PURE, still unit-tested — pure location drift only.) `event.go`
+  holds the event loaders; `commit.go` the commit loader + `gitRun`; `segment.go`
+  the math + `buildSegments`; `compute.go` `Compute`/`Options`/`Result`/`Status`.
+- **M1 boundary review = FIX-THEN-SHIP (no Critical).** Folded the findings:
+  - `Status` zero value shifted off `Measured` via an unexported `statusInvalid
+    Status = iota` sentinel — a forgotten `Result{}` no longer reads as "measured
+    0 hours" (the #68 footgun the package exists to prevent).
+  - DRY: extracted `eventTimesAndMentions(events)` (event.go), consolidating the
+    duplicated times+mentions accumulation in `buildSegments` and `Compute`'s
+    no-commits fallback.
+  - Faithfulness nits: guard `content: null` blocks (Python's `isinstance(None,
+    str)` skips them); documented the intentional `loadEvents` skip-on-unreadable
+    divergence from the Python's unguarded `open()`.
+  - Parity re-confirmed green after the refactor (committed differential test +
+    full suite).
 ```

@@ -1,7 +1,5 @@
 package activetime
 
-import "time"
-
 // Status mirrors active-time-v3.py's exit-code contract minus the CLI-layer
 // misinvoke (exit 2, validated before Compute runs):
 //
@@ -13,7 +11,14 @@ import "time"
 type Status int
 
 const (
-	Measured Status = iota
+	// statusInvalid is the zero value: an unset / never-computed Result. It
+	// exists so a forgotten Result{} does NOT read as "measured 0 hours" — the
+	// exact silent-zero footgun this package exists to prevent (#68). Compute
+	// always sets a real Status and pairs Result{} with a non-nil error; a caller
+	// that checks err first never observes statusInvalid, but shifting Measured
+	// off zero removes the trap entirely.
+	statusInvalid Status = iota
+	Measured
 	TelemetryGap
 	EmptyWindow
 )
@@ -83,14 +88,7 @@ func Compute(opts Options) (Result, error) {
 	if len(commits) == 0 {
 		// No commit signal in the window → whole-window mention attribution
 		// (active-time-v3.py lines 309–319).
-		times := make([]time.Time, len(events))
-		mentions := map[string]int{}
-		for i, e := range events {
-			times[i] = e.Time
-			for iss, n := range e.Mentions {
-				mentions[iss] += n
-			}
-		}
+		times, mentions := eventTimesAndMentions(events)
 		active := activeMinutes(times, opts.ThresholdMin)
 		res.TotalActive = active
 		res.PerIssue = attributeSegment(active, nil, mentions, opts.CommitWeight)

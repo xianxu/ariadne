@@ -138,14 +138,7 @@ func buildSegments(events []Event, commits []Commit, commitWeight, prefixWeight 
 		if len(segEvents) == 0 {
 			continue
 		}
-		times := make([]time.Time, len(segEvents))
-		mentions := map[string]int{}
-		for k, e := range segEvents {
-			times[k] = e.Time
-			for iss, n := range e.Mentions {
-				mentions[iss] += n
-			}
-		}
+		times, mentions := eventTimesAndMentions(segEvents)
 		active := activeMinutes(times, thresholdMin)
 
 		// Anchor: the commit at seg_end, if any (works because every commit

@@ -118,8 +118,13 @@ func userText(content json.RawMessage) (text string, skip bool) {
 			case blk.Type == "text":
 				parts = append(parts, blk.Text)
 			default:
+				// A block carrying a string under "content" contributes it
+				// (Python's `"content" in blk and isinstance(blk["content"], str)`).
+				// Guard against explicit JSON null — unmarshaling "null" into a
+				// string is a no-op (no error) and would append "", whereas
+				// Python's isinstance(None, str) skips it.
 				var cs string
-				if len(blk.Content) > 0 && json.Unmarshal(blk.Content, &cs) == nil {
+				if len(blk.Content) > 0 && string(blk.Content) != "null" && json.Unmarshal(blk.Content, &cs) == nil {
 					parts = append(parts, cs)
 				}
 			}
@@ -170,6 +175,21 @@ func decodeBlocks(content json.RawMessage) ([]contentBlock, bool) {
 	return blocks, true
 }
 
+// eventTimesAndMentions returns the timestamps of events (in order) and the
+// summed tracked-issue mention counts across them. Shared by buildSegments (per
+// segment) and Compute's no-commits whole-window fallback.
+func eventTimesAndMentions(events []Event) ([]time.Time, map[string]int) {
+	times := make([]time.Time, len(events))
+	mentions := map[string]int{}
+	for i, e := range events {
+		times[i] = e.Time
+		for iss, n := range e.Mentions {
+			mentions[iss] += n
+		}
+	}
+	return times, mentions
+}
+
 // loadEvents loads all attributed events across every session file under each
 // dir, filtered to [sinceISO, untilISO] (inclusive bounds, mirroring the
 // Python: ts < since skip, ts > until skip), sorted by time. Mirrors load_events.
@@ -201,6 +221,9 @@ func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceI
 		for _, f := range files {
 			evs, err := walkSessionEvents(f, pat, includeAssistant)
 			if err != nil {
+				// Skip a session file that became unreadable after globbing —
+				// more robust than Python's unguarded open() (which would crash),
+				// an intentional divergence from the otherwise 1:1 port.
 				continue
 			}
 			for _, e := range evs {
