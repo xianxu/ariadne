@@ -62,7 +62,7 @@ precondition.
 
 ## Plan
 
-- [ ] Add `workingTreeDirty(repoRoot) (bool, error)` (`git status --porcelain`
+- [x] Add `workingTreeDirty(repoRoot) (bool, error)` (`git status --porcelain`
       non-empty ⇒ dirty; gitignored output excluded by default). Call it FIRST in
       the per-dependent loop: dirty ⇒ `SKIPPED: dirty working tree …`, skip make
       weave/verify/commit. Track a `skipped` counter; exit non-zero on skipped
@@ -79,3 +79,13 @@ precondition.
 - Filed from the live #107-propagation incident (operator-flagged): propagate-base
   swept a concurrent session's uncommitted work in parley.nvim via `git add -A`.
   Root cause = no clean-tree precheck. The #106 MVP Revisions had deferred this.
+- Implemented: `workingTreeDirty` (shared `gitStatusPorcelain` read, ARCH-DRY with
+  `commitConsumption`) gates each dependent before re-weave; dirty ⇒ `SKIPPED: dirty
+  working tree`, untouched, and the run exits non-zero (distinct from FAILED).
+  `commitConsumption`'s `git add -A` is now a caller-guaranteed clean-before
+  precondition. Tests: `TestWorkingTreeDirty` (clean / gitignored-output-still-clean
+  / untracked-WIP / modified-tracked) + `TestPropagateBaseSkipsDirtyDependent`
+  (hermetic end-to-end: a dirty dependent is SKIPPED, never committed, non-zero exit
+  — the skip path is reached before `make weave`, so no real weave binary needed).
+  gofmt + `go vet` + full `cmd/sdlc` suite green; bin/sdlc rebuilt + help verified.
+  Atlas (sdlc-binary.md propagate-base row) updated. Plan-quality verdict: INFO.
