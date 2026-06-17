@@ -1,10 +1,11 @@
 ---
 id: 000111
-status: working
+status: done
 deps: []
 created: 2026-06-16
 updated: 2026-06-17
 estimate_hours: 7
+actual_hours: 0.35
 ---
 
 # make datatype discovery better
@@ -175,7 +176,7 @@ Detailed build sequence: `workshop/plans/000111-dynamic-skills-plan.md`.
       derives its scan set from the `skill <dir>` intents, execs each owned
       package's executable `.dynamic-skill` with cwd = package dir; adapted
       excluded; read-only paths skip it). Unit-tested with a fake Runner.
-- [ ] M2 — datatype consumer + retire-the-truncation: `cmd/datatype` (`go:embed`
+- [x] M2 — datatype consumer + retire-the-truncation: `cmd/datatype` (`go:embed`
       template + sorted filename enumeration of `construct/datatype/*.md`); the
       datatype `.dynamic-skill`; the committed regenerated `SKILL.md` with the
       live noun list; CI drift guard; atlas + `base-layer-mechanics` +
@@ -199,6 +200,8 @@ Detailed build sequence: `workshop/plans/000111-dynamic-skills-plan.md`.
 ## Log
 
 
+
+- 2026-06-17: closed — go build/test/vet ./... green; make harness-check 6/0/0; weave compile idempotent (clean tree on recompile). Fix is LIVE: construct/local/datatype/SKILL.md regenerates via the dynamic-skill (cmd/datatype, committed codegen) with the 13 datatype nouns in the description — git diff vs main shows ONLY the description line changed (byte-faithful prose migration, proven by cmd/datatype faithfulness test). CI drift guard (make weave-drift-check) verified fail-on-stale + pass-when-current. M1 (Runner exec seam + leaf-only generate stage) milestone-closed FIX-THEN-SHIP. atlas/weave.md + base-layer-mechanics + skill-system reconciled to the bounded exec seam (the M1-review hard gate). --no-verdict: M2 is the final milestone — this full-issue close auto-dispatches the end-of-issue integration review over the whole M1+M2 diff, which IS M2 boundary review (no separate milestone-close M2). actual 0.35h is the v3 in-window measure and undercounts heavily: design+brainstorm+4 reviews predate the first commit and both M1+M2 were implemented by delegated subagents, so most effort is outside the operator transcript window.; review verdict: FIX-THEN-SHIP
 - 2026-06-17: closed M1 — M1 weave dynamic-skill mechanism: go build ./... + go test ./cmd/weave/... + go vet green (independently re-run). Runner exec seam (fake-tested + real /bin/sh exit-code integration test); leaf-only DynamicSkillDirs selection (ancestor marker NOT exec'd, construct/adapted excluded, non-exec marker ignored — all tested); generate stage wired after walk.Walk, before planActions, gated if \!dryRun (golden/verify-complete excluded by construction — verified at main.go:459). No M2 surface touched. --no-atlas: M1 is mechanism-only, no user-facing surface (atlas reconciliation + the datatype consumer land in M2). actual 0.23h is the v3 in-window measure and undercounts — design+plan+3 reviews predate the first M1 commit and M1 was implemented by a delegated subagent, both outside the transcript window.; review verdict: FIX-THEN-SHIP
 ### 2026-06-16
 
