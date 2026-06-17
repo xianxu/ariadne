@@ -1,12 +1,13 @@
 ---
 id: 000106
-status: working
+status: done
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-16
 updated: 2026-06-16
 estimate_hours: 4
+actual_hours: 1.5
 ---
 
 # sdlc propagate-base — first-class propagation of a base-layer change to all recursive dependents
@@ -148,6 +149,7 @@ owner's `main`):
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed — sdlc propagate-base MVP shipped + used live. Discovers recursive dependents (Makefile.workflow + substrate chain reaching the owner), orders foundation-first (TestRecursiveDependents/TestOrderDependentsFoundationFirst), then per dependent make weave + verify-complete + commit (untracking now-generated files — the cutover-correctness the manual loop lacked). Verified end-to-end: propagated #107 Option B to all 10 dependents (found robotics, which a hardcoded loop misses, + cut it over from setup.sh); all clean, ancestors pristine. DEFERRED to follow-on (Revisions): branch-first per dependent + --push + explicit resume; commitConsumption IO seam test. Pure discovery/order unit-tested; sdlc suite + vet + gofmt green.; review verdict: FIX-THEN-SHIP
 - Filed from the #104 M3 retrospective (operator-flagged): the 10-repo skill
   migration exposed that base-layer-change CONSUMPTION has no first-class flow, so
   the 9 dependents got direct-on-main commits while the owner went through
