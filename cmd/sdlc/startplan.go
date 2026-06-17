@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
@@ -62,6 +63,18 @@ func runStartPlan(stdout io.Writer, issue int) {
 	// "how to plan" unit. Continuation lines indent 4 to align under cinfo's `==> `.
 	fmt.Fprintln(stdout)
 	cinfo(stdout, planPointer(issue))
+
+	// #113: a non-blocking estimate nudge. The estimate gate moved
+	// claim → change-code, and start-plan is where it's naturally set (post-
+	// design, scope knowable). Remind the operator to set estimate_hours now so
+	// change-code's gate passes; acknowledge it when already present. Best-effort
+	// — a missing/unreadable issue file just skips the line.
+	if issue > 0 {
+		if est, err := issueEstimate(issue); err == nil {
+			fmt.Fprintln(stdout)
+			cinfo(stdout, estimateNudge(est))
+		}
+	}
 
 	// #82 M3 / #83: a non-blocking heads-up on the DEPENDENCY PATH. The symlink
 	// model means a repo reads ALL its transitive upstreams' working trees live,
@@ -150,6 +163,43 @@ func planPointer(issue int) string {
 	return fmt.Sprintf("Capture the plan via the superpowers-writing-plans skill →\n"+
 		"    workshop/plans/%s-plan.md (version-controlled). The builtin plan-mode\n"+
 		"    file (~/.claude/plans/…) is ephemeral — NOT the record.", slug)
+}
+
+// estimateNudge renders the start-plan reminder about estimate_hours (#113):
+// a prompt to set it (required at change-code now that claim no longer asks)
+// when absent, or a one-line acknowledgment when present. Pure: the only input
+// is the current estimate value (empty when unset), so the wording is
+// table-testable without IO. Continuation lines indent 4 to align under
+// cinfo's `==> ` prefix.
+func estimateNudge(estimate string) string {
+	est := strings.TrimSpace(estimate)
+	if est == "" {
+		return "Set `estimate_hours:` in the issue frontmatter before `sdlc change-code` —\n" +
+			"    it's required there now (#113; claim no longer asks). Estimate post-design,\n" +
+			"    when the scope is knowable."
+	}
+	return fmt.Sprintf("estimate_hours: %s already set — change-code's estimate gate will pass.", est)
+}
+
+// issueEstimate reads the current estimate_hours value of issue <id> (empty when
+// unset). The thin IO seam behind start-plan's estimate nudge; mirrors
+// issueStatus's read-parse-getfield shape.
+func issueEstimate(issueID int) (string, error) {
+	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+	path, err := locateIssueFile(issuesDir, issueID)
+	if err != nil {
+		return "", err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	fm, _, err := issue.Parse(string(raw))
+	if err != nil {
+		return "", err
+	}
+	v, _ := issue.GetField(fm, "estimate_hours")
+	return v, nil
 }
 
 // issueRef renders a zero-padded id as "#83" (strips leading zeros; falls back

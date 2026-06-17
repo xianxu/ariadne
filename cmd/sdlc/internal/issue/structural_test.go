@@ -5,9 +5,11 @@ import (
 	"testing"
 )
 
-// TestCheckStructural walks the four deterministic gates that
+// TestCheckStructural walks the deterministic gates that
 // `sdlc change-code` enforces before letting implementation begin:
-// Spec present, Plan present, Done-when present, Estimate present.
+// Spec present, Plan present, Done-when present. (The estimate gate
+// is split out into CheckEstimate — see TestCheckEstimate — so it can
+// be bypassed independently, #113.)
 // Each is refusable with --force; the test pins the failure shape
 // (name + message) so callers can render and act on them.
 func TestCheckStructural(t *testing.T) {
@@ -76,19 +78,11 @@ related: [cmd/sdlc/changecode.go]
 			nil,
 		},
 		{
-			"missing estimate_hours",
+			// estimate is no longer a structural gate (#113): a missing
+			// estimate_hours must NOT show up in CheckStructural's failures.
+			"missing estimate_hours — not a structural failure anymore",
 			strings.Replace(good, "estimate_hours: 1.5\n", "", 1),
-			[]string{"estimate-present"},
-		},
-		{
-			"zero estimate_hours fails",
-			strings.Replace(good, "estimate_hours: 1.5", "estimate_hours: 0", 1),
-			[]string{"estimate-present"},
-		},
-		{
-			"non-numeric estimate_hours fails",
-			strings.Replace(good, "estimate_hours: 1.5", "estimate_hours: TBD", 1),
-			[]string{"estimate-present"},
+			nil,
 		},
 	}
 
@@ -98,6 +92,50 @@ related: [cmd/sdlc/changecode.go]
 			names := failureNames(got)
 			if !sameStrings(names, tt.wantFailure) {
 				t.Errorf("CheckStructural failures = %v, want %v", names, tt.wantFailure)
+			}
+		})
+	}
+}
+
+// TestCheckEstimate pins the standalone estimate gate split out of
+// CheckStructural (#113). estimate_hours: must be a positive number; the
+// failure carries the stable `estimate-present` name so change-code's
+// --no-estimate gate and the operator can act on it.
+func TestCheckEstimate(t *testing.T) {
+	good := joinDoc(
+		`---
+id: 000099
+status: working
+estimate_hours: 1.5
+---`,
+		"# Title",
+		"",
+	)
+	tests := []struct {
+		name string
+		text string
+		want bool // true = expect an estimate-present failure
+	}{
+		{"positive estimate passes", good, false},
+		{"integer estimate passes", strings.Replace(good, "estimate_hours: 1.5", "estimate_hours: 4", 1), false},
+		{"missing estimate fails", strings.Replace(good, "estimate_hours: 1.5\n", "", 1), true},
+		{"empty estimate value fails", strings.Replace(good, "estimate_hours: 1.5", "estimate_hours:", 1), true},
+		{"zero estimate fails", strings.Replace(good, "estimate_hours: 1.5", "estimate_hours: 0", 1), true},
+		{"negative estimate fails", strings.Replace(good, "estimate_hours: 1.5", "estimate_hours: -2", 1), true},
+		{"non-numeric estimate fails", strings.Replace(good, "estimate_hours: 1.5", "estimate_hours: TBD", 1), true},
+		{"no frontmatter fails", "# Just a title\nno frontmatter\n", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := CheckEstimate(tt.text)
+			if tt.want && got == nil {
+				t.Errorf("CheckEstimate(%q) = nil, want estimate-present failure", tt.name)
+			}
+			if !tt.want && got != nil {
+				t.Errorf("CheckEstimate(%q) = %+v, want nil", tt.name, *got)
+			}
+			if got != nil && got.Name != "estimate-present" {
+				t.Errorf("failure name = %q, want estimate-present", got.Name)
 			}
 		})
 	}

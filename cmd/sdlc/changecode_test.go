@@ -6,6 +6,28 @@ import (
 	"testing"
 )
 
+// TestEstimateRefusal pins change-code's estimate gate (#113): the universal
+// estimate requirement relocated from claim. A missing/empty/invalid
+// estimate_hours refuses (estimate-present failure); a positive one passes;
+// --no-estimate skips the gate entirely.
+func TestEstimateRefusal(t *testing.T) {
+	withEst := "---\nid: 000001\nstatus: working\nestimate_hours: 4\n---\n# T\n"
+	noEst := "---\nid: 000001\nstatus: working\n---\n# T\n"
+
+	if got := estimateRefusal(withEst, false); got != nil {
+		t.Errorf("positive estimate should pass the gate, got %+v", *got)
+	}
+	if got := estimateRefusal(noEst, false); got == nil {
+		t.Error("missing estimate should refuse, got nil")
+	} else if got.Name != "estimate-present" {
+		t.Errorf("failure name = %q, want estimate-present", got.Name)
+	}
+	// --no-estimate bypasses even a missing estimate.
+	if got := estimateRefusal(noEst, true); got != nil {
+		t.Errorf("--no-estimate should skip the gate, got %+v", *got)
+	}
+}
+
 // TestPromptBranchingTTY pins the tty-prompt's character-mapping
 // contract: a single-letter answer (case-insensitive) maps to the
 // internal "yes" / "no" / cancel verbs. Drift here would silently

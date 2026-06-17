@@ -109,6 +109,26 @@ func TestPlanPointer(t *testing.T) {
 	}
 }
 
+// TestEstimateNudge pins the #113 start-plan estimate reminder: absent → a
+// "set estimate_hours before change-code" prompt; present → an acknowledgment
+// echoing the value. Pure, no IO.
+func TestEstimateNudge(t *testing.T) {
+	for _, empty := range []string{"", "   "} {
+		got := estimateNudge(empty)
+		for _, want := range []string{"estimate_hours", "change-code", "required"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("estimateNudge(%q) missing %q:\n%s", empty, want, got)
+			}
+		}
+	}
+	got := estimateNudge(" 4 ")
+	for _, want := range []string{"4", "already set", "gate will pass"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("estimateNudge(present) missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestIssueRef(t *testing.T) {
 	for _, tc := range []struct{ id, want string }{
 		{"000081", "#81"},

@@ -27,7 +27,10 @@ OUTPUT
   shaped a decision. Then a durable-plan pointer — author the plan via the
   `superpowers-writing-plans` skill into `workshop/plans/NNNNNN-slug-plan.md`
   (version-controlled), not the harness builtin's ephemeral `~/.claude/plans/`
-  file (#72). Closes with the non-blocking dependency-path contention heads-up.
+  file (#72). Then a non-blocking `estimate_hours` nudge (#113): this is where
+  you set the estimate — post-design, when scope is knowable — because
+  `change-code` requires it (claim no longer does). Closes with the non-blocking
+  dependency-path contention heads-up.
 
 FLAGS
 

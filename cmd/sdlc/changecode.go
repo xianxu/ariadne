@@ -1,12 +1,14 @@
 // changecode.go — `sdlc change-code --issue N` subcommand.
 //
-// The planning → implementation transition. Composes three gates:
+// The planning → implementation transition. Composes four gates:
 //
 //  1. Structural sanity   — deterministic checks against the issue file
 //                           (Spec ≥ 50 words, non-empty Plan, etc.).
-//  2. Plan-quality judge  — fresh-context LLM review: is this plan
+//  2. Estimate gate       — a positive estimate_hours: (#113), relocated
+//                           from claim; --no-estimate bypasses.
+//  3. Plan-quality judge  — fresh-context LLM review: is this plan
 //                           executable as-written?
-//  3. Branching strategy  — default in-place (#51); --worktree=yes for a
+//  4. Branching strategy  — default in-place (#51); --worktree=yes for a
 //                           worktree, --worktree=ask to be prompted.
 //
 // Any gate can be skipped with the corresponding --no-* flag, or
@@ -46,6 +48,7 @@ type changeCodeFlags struct {
 	Force        string // rationale; non-empty bypasses gate refusal
 	NoJudge      bool
 	NoStructural bool
+	NoEstimate   bool
 	DryRun       bool
 	Agent        string
 	Sandbox      bool
@@ -71,6 +74,7 @@ func NewChangeCodeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Force, "force", "", "bypass gate refusals; the value is the rationale (recorded on stderr)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the plan-quality LLM judge")
 	cmd.Flags().BoolVar(&f.NoStructural, "no-structural", false, "skip the structural-sanity checks")
+	cmd.Flags().BoolVar(&f.NoEstimate, "no-estimate", false, "skip the estimate_hours gate (#113)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do nothing")
 	cmd.Flags().StringVar(&f.Agent, "agent", os.Getenv("AGENT_CMD"), "agent CLI for plan-quality judge: claude | codex | gemini (default $AGENT_CMD or claude)")
 	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
@@ -124,6 +128,21 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		}
 	}
 
+	// 3b. Estimate gate (#113). The universal estimate requirement, relocated
+	//     here from `sdlc claim` so claiming stays a cheap early lock. Its own
+	//     --no-estimate bypass (per the per-gate --no-<gate> convention),
+	//     reusing the pure issue.CheckEstimate split out of CheckStructural.
+	if fail := estimateRefusal(issueContent, f.NoEstimate); fail != nil {
+		if f.Force == "" {
+			fmt.Fprintln(stderr, "estimate gate failed:")
+			fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
+			cwarn(stderr, "add `estimate_hours: <n>` to the issue frontmatter (set it at start-plan), OR re-run with --no-estimate / --force <reason>")
+			os.Exit(1)
+		}
+		cwarn(stderr, fmt.Sprintf("estimate gate bypassed (--force: %s)", f.Force))
+		fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
+	}
+
 	// 4. Plan-quality judge.
 	if !f.NoJudge {
 		if err := runPlanQualityJudge(stdout, stderr, f, name, issueContent, planContent); err != nil {
@@ -173,6 +192,18 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
+
+// estimateRefusal is the pure decision for change-code's estimate gate (#113):
+// nil when the gate is skipped (--no-estimate) or estimate_hours is a positive
+// number; the estimate-present failure otherwise. The os.Exit / --force
+// handling stays in runChangeCode (the IO shell); this keeps the gate decision
+// unit-testable without spawning the command (ARCH-PURE).
+func estimateRefusal(issueContent string, noEstimate bool) *issue.StructuralFailure {
+	if noEstimate {
+		return nil
+	}
+	return issue.CheckEstimate(issueContent)
+}
 
 // resolveChangeCodeName reuses start.go's name-resolution shape but
 // also returns the path to the resolved issue file so the gates can

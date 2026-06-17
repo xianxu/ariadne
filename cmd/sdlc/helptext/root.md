@@ -5,16 +5,18 @@ state machine — stages stay prose; we codify the gates between them where drif
 recurs. `sdlc` manages the development life cycle; prefer it over `git`/`gh`.
 
 BEFORE WORK
-  - `sdlc claim --issue N` — the single start-of-work gesture. Flips an *open*
-    issue to `working` (applying the estimate guard) and publishes the claim to
-    origin/main so peer agents see it. `--no-start` suppresses the flip.
+  - `sdlc claim --issue N` — the single start-of-work gesture, a CHEAP LOCK.
+    Flips an *open* issue to `working` and publishes the claim to origin/main so
+    peer agents see it. No estimate demanded (#113) — claim early, the moment an
+    idea crystallizes. `--no-start` suppresses the flip.
   - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc issue
-    set-status` own that transition (it carries the estimate guard).
+    set-status` own that transition (it carries the reopen/`→ done` guards).
 
 ENTER IMPLEMENTATION
   - After plan approval, before editing code, run `sdlc change-code`. It owns the
     branching decision (in-place branch by default; `--worktree=yes` for an
-    isolated worktree) and the plan-quality check. Don't start coding without it.
+    isolated worktree), the plan-quality check, and the `estimate_hours` gate
+    (relocated here from claim, #113). Don't start coding without it.
 
 PUBLISH
   - Publishing goes through a PR: `sdlc pr` → `sdlc merge`. Direct `sdlc push`

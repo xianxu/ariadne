@@ -6,11 +6,13 @@
 // status: frontmatter field with transition guards that match the
 // xx-issues skill's contract:
 //
-//   - status → working requires estimate_hours: present + non-empty
 //   - status → done routes to `sdlc close` (refused here so the
 //     close-issue contract — ACTUAL + VERIFIED + atlas check — runs)
 //   - done → anything-not-done (reopen) requires a fresh Log entry
 //     dated today
+//
+// (#113) → working no longer requires estimate_hours — the estimate gate
+// moved to `sdlc change-code`, so claiming early stays cheap.
 //
 // Each guard is bypassable with --force; the rationale belongs in
 // the operator's commit message / log entry.
@@ -209,20 +211,14 @@ func checkTransitionGuards(current, next, fm, body string) error {
 				" closes through the AGENTS.md §5 contract instead of bypassing it)")
 	}
 
-	// Guard 2: → working requires estimate_hours: non-empty.
-	if next == "working" {
-		est, _ := issue.GetField(fm, "estimate_hours")
-		if est == "" {
-			return fmt.Errorf(
-				"refusing to flip → working without estimate_hours.\n" +
-					"  Add an estimate to the frontmatter first, e.g.:\n" +
-					"    estimate_hours: 2.5\n" +
-					"  Per the xx-issues skill: starting work without an estimate\n" +
-					"  breaks velocity calibration.")
-		}
-	}
+	// (#113) No estimate guard here. `→ working` used to require
+	// estimate_hours, but that made `sdlc claim` — whose real job is a cheap
+	// open→working lock broadcast early, before the estimate is knowable —
+	// demand a premature number. The estimate gate moved to `sdlc change-code`
+	// (issue.CheckEstimate), the universal implementation gate. `claim` and
+	// `set-status working` are now estimate-free.
 
-	// Guard 3: reopen (done → not-done) requires a fresh Log entry
+	// Guard 2: reopen (done → not-done) requires a fresh Log entry
 	// dated today. The xx-issues skill puts the reason for reopening
 	// in that entry.
 	if current == "done" && next != "done" {

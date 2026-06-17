@@ -34,25 +34,26 @@ func TestCheckTransitionGuards_RefusesDone(t *testing.T) {
 	}
 }
 
-func TestCheckTransitionGuards_WorkingNeedsEstimate(t *testing.T) {
-	fmNoEst := "id: 000001\nstatus: open\n"
+// TestCheckTransitionGuards_WorkingNoLongerNeedsEstimate pins the #113
+// decoupling: → working is now estimate-free (claim is a cheap lock; the
+// estimate gate moved to `sdlc change-code`). All three shapes — missing,
+// empty, and present estimate_hours — must flip cleanly.
+func TestCheckTransitionGuards_WorkingNoLongerNeedsEstimate(t *testing.T) {
 	body := "# Title\n"
-	err := checkTransitionGuards("open", "working", fmNoEst, body)
-	if err == nil {
-		t.Fatal("expected refusal for missing estimate_hours")
+	cases := []struct {
+		name string
+		fm   string
+	}{
+		{"missing estimate", "id: 000001\nstatus: open\n"},
+		{"empty estimate", "id: 000001\nstatus: open\nestimate_hours:\n"},
+		{"present estimate", "id: 000001\nstatus: open\nestimate_hours: 3.5\n"},
 	}
-	if !strings.Contains(err.Error(), "estimate_hours") {
-		t.Errorf("error message should mention estimate_hours: %q", err.Error())
-	}
-
-	fmEmpty := "id: 000001\nstatus: open\nestimate_hours:\n"
-	if err := checkTransitionGuards("open", "working", fmEmpty, body); err == nil {
-		t.Error("expected refusal for empty estimate_hours value")
-	}
-
-	fmOK := "id: 000001\nstatus: open\nestimate_hours: 3.5\n"
-	if err := checkTransitionGuards("open", "working", fmOK, body); err != nil {
-		t.Errorf("expected nil error for estimate_hours = 3.5, got: %v", err)
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := checkTransitionGuards("open", "working", tt.fm, body); err != nil {
+				t.Errorf("open → working should be estimate-free now, got: %v", err)
+			}
+		})
 	}
 }
 

@@ -101,6 +101,23 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		return res
 	}
 	res.Window = firstSHA[:8] + " → HEAD"
+
+	// #113: pull the window-start back to the claim (working-transition) commit
+	// when it's earlier than the parent-of-first-#N anchor, so DESIGN attention
+	// after the claim (brainstorm / spec / plan / reviews) lands in-window.
+	// Best-effort — a locate/parse miss just keeps the commit-based start.
+	// Widening the start also widens DiscoverWindowIssues' peer membership (a
+	// deliberate attribution change, not just this issue's minutes), so Peers is
+	// derived AFTER the override.
+	if id, err := strconv.Atoi(issueNum); err == nil {
+		issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+		if path, err := locateIssueFile(filepath.Join(repoTop, issuesDir), id); err == nil {
+			if wtISO, ok := gitx.WorkingTransitionISO(path); ok {
+				firstISO = windowStart(firstISO, wtISO)
+			}
+		}
+	}
+
 	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum)
 	res.Dirs = selectActualDirs(repoTop, brainAbs)
 	if len(res.Dirs) == 0 {
@@ -124,6 +141,26 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	}
 	res.Status, res.Hours = statusFromResult(out, issueNum)
 	return res
+}
+
+// windowStart picks the active-time window's left edge from the two candidate
+// anchors: parentISO (parent-of-first-#N-commit, CommitWindow's default) and
+// wtISO (the claim's working-transition commit, #113). Returns the EARLIER of
+// the two non-empty ISOs — claim-early ⇒ wt is earlier ⇒ design attention is
+// captured; a late claim ⇒ parent is earlier ⇒ no regression; either empty ⇒
+// the other. Pure (ISO-8601 strings sort chronologically given a stable offset,
+// matching CommitWindow's own WindowCapDays compare).
+func windowStart(parentISO, wtISO string) string {
+	switch {
+	case wtISO == "":
+		return parentISO
+	case parentISO == "":
+		return wtISO
+	case wtISO < parentISO:
+		return wtISO
+	default:
+		return parentISO
+	}
 }
 
 // statusFromResult maps an activetime.Result to the actual outcome for issueNum.

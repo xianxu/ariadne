@@ -283,9 +283,7 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 	if len(matches) == 0 {
 		return "", "", "", nil
 	}
-	capISO := time.Now().UTC().
-		Add(-time.Duration(WindowCapDays) * 24 * time.Hour).
-		Format("2006-01-02T15:04:05-07:00")
+	capISO := windowCapISO()
 	var recent []match
 	for _, m := range matches {
 		if m.iso >= capISO {
@@ -310,6 +308,51 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 		}
 	}
 	return firstSHA, firstISO, lastISO, nil
+}
+
+// WorkingTransitionISO returns the author-date ISO timestamp of the EARLIEST
+// commit that flipped issueFile to `status: working` — i.e. the claim /
+// start-work commit. It anchors the active-time window at engagement start
+// (#113), so DESIGN attention between the claim and the first `#N` code commit
+// (brainstorm / spec / plan / reviews) lands in-window instead of being cut off
+// at the parent-of-first-commit. Returns ("", false) when no such commit exists
+// or the earliest one is older than WindowCapDays (a stale or fork-collision
+// claim must not anchor an ancient window).
+//
+// Mechanism: `git log -G'^status: *working' --reverse -- <issueFile>` lists
+// commits whose diff added/removed a `status: working` line; --reverse yields
+// the oldest first — the open→working flip (a later working→X removal, or a
+// reopen, can only come after it). `%aI` mirrors CommitWindow's author-date
+// choice and format, so the WindowCapDays string compare is apples-to-apples.
+//
+// The -G (diff-grep) form is deliberate, not -S (pickaxe count): the flip
+// changes `status: open` → `status: working`, so the added line matches; a
+// later body edit that leaves status untouched carries no such line in its diff
+// and is skipped. Uses the package `run` shim so tests can drive it.
+func WorkingTransitionISO(issueFile string) (string, bool) {
+	out, err := run("git", "log", "-G^status: *working", "--reverse",
+		"--format=%aI", "--", issueFile)
+	if err != nil {
+		return "", false
+	}
+	text := strings.TrimSpace(string(out))
+	if text == "" {
+		return "", false
+	}
+	iso := strings.SplitN(text, "\n", 2)[0]
+	if iso < windowCapISO() {
+		return "", false
+	}
+	return iso, true
+}
+
+// windowCapISO is the oldest ISO timestamp a window edge may take — now minus
+// WindowCapDays. The single source for the cap shared by CommitWindow and
+// WorkingTransitionISO (ARCH-DRY); both compare `%aI` author dates against it.
+func windowCapISO() string {
+	return time.Now().UTC().
+		Add(-time.Duration(WindowCapDays) * 24 * time.Hour).
+		Format("2006-01-02T15:04:05-07:00")
 }
 
 // issueRefRE matches "#<digits>" with a word boundary on the trailing side.

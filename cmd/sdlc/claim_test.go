@@ -174,20 +174,22 @@ func TestStartOnClaim_FlipsOpenToWorking(t *testing.T) {
 	}
 }
 
-// TestStartOnClaim_OpenWithoutEstimateRefuses: the →working estimate guard
-// still fires through claim (returns an error rather than die()-ing).
-func TestStartOnClaim_OpenWithoutEstimateRefuses(t *testing.T) {
+// TestStartOnClaim_OpenWithoutEstimateStillFlips: #113 made claim a cheap
+// lock — an open issue with NO estimate_hours must still flip to working
+// (the estimate gate moved to `sdlc change-code`).
+func TestStartOnClaim_OpenWithoutEstimateStillFlips(t *testing.T) {
 	dir := t.TempDir()
+	path := filepath.Join(dir, "000031-foo.md")
 	writeIssue(t, dir, "000031-foo.md", "---\nid: 000031\nstatus: open\n---\n# Foo\n")
 
 	var stdout, stderr bytes.Buffer
 	f := &claimFlags{Issue: 31, IssuesDir: dir}
-	err := startOnClaim(&stdout, &stderr, f)
-	if err == nil {
-		t.Fatal("expected estimate-guard error, got nil")
+	if err := startOnClaim(&stdout, &stderr, f); err != nil {
+		t.Fatalf("claim with no estimate should flip cleanly now, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "estimate_hours") {
-		t.Errorf("error should name the estimate guard, got: %v", err)
+	got, _ := os.ReadFile(path)
+	if !strings.Contains(string(got), "status: working") {
+		t.Errorf("issue not flipped to working without an estimate:\n%s", got)
 	}
 }
 

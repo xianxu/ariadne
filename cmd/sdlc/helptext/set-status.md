@@ -5,7 +5,7 @@ in place; bumps `updated:` to today.
 STATUSES
 
   open       not started
-  working    actively in progress (requires estimate_hours)
+  working    actively in progress
   blocked    waiting on something
   done       completed (closes through `sdlc close`, NOT here)
   wontfix    rejected by intent
@@ -14,10 +14,9 @@ STATUSES
 TRANSITION GUARDS (refusable with --force)
 
   → working
-    Requires `estimate_hours:` present + non-empty in the frontmatter.
-    Per xx-issues: starting work without an estimate breaks velocity
-    calibration. Add `estimate_hours: <number>` to the frontmatter
-    first.
+    No guard (#113). The estimate gate moved to `sdlc change-code`, so
+    flipping to working — like `sdlc claim` — no longer demands an
+    estimate. Claim/start work early; estimate at start-plan.
 
   → done
     Always refused. Use `sdlc close` instead (omit --actual to let it
