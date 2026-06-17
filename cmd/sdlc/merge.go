@@ -287,7 +287,8 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	if ahead > 0 {
 		fmt.Fprintf(stderr, "  %s[x]%s %d local commit(s) not yet on %s\n",
 			ansiRed, ansiReset, ahead, remoteRef)
-		die(stderr, "push your branch before merging")
+		die(stderr, "push your branch before merging — run `git push`, then re-run `sdlc merge`. "+
+			"(merge is server-side: a fix you committed for a failed pre-merge gate must reach origin first.)")
 	}
 	cok(stderr, fmt.Sprintf("Branch pushed; HEAD synced with %s", remoteRef))
 
@@ -302,7 +303,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			Stderr:     stderr,
 		}
 		if err := runPreflightJudgesFn(preOpts); err != nil {
-			die(stderr, fmt.Sprintf("pre-merge judges failed: %v", err))
+			die(stderr, fmt.Sprintf("pre-merge judges failed: %v\n"+
+				"  → fix the finding, commit, `git push`, then re-run `sdlc merge` "+
+				"(the fix must reach origin — merge is server-side).", err))
 		}
 	} else {
 		cwarn(stderr, "--no-judge: skipping pre-merge judges")

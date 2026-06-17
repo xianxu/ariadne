@@ -24,7 +24,13 @@ WHAT IT DOES
   2. Runs pre-merge judges: `sdlc judge plan`, `specs`, `lessons`.
      Skip with `--no-judge`. Judges are READ-ONLY reviewers (#62) — they
      report findings (e.g. stale atlas docs); you apply the fix, commit,
-     and re-run. A judge never edits the tree.
+     `git push`, then re-run. A judge never edits the tree.
+     PUSH IS NOT OPTIONAL: merge is server-side — it merges *origin's*
+     branch tip via `gh pr merge`, not your local HEAD. So a fix you commit
+     for ANY failed pre-merge gate (a judge finding, the dirty-tree refusal)
+     must reach origin first, or the re-run stops at the ahead-of-upstream
+     refusal (above) before it ever re-runs the gate you just fixed. The
+     recovery loop is: fix → commit → push → re-run `sdlc merge`.
   3. Resolves topology from `git rev-parse --git-dir`: in-place (primary
      checkout) vs worktree (git-dir under `.git/worktrees/`). For worktree,
      locates the main worktree via `git worktree list --porcelain`.
