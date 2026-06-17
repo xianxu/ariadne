@@ -11,9 +11,12 @@ in the [base-layer-mechanics](../../workshop/targets/base-layer-mechanics.md) ta
 
 ## Shape (ARCH-PURE)
 A pure pipeline — `read deps+manifests → Resolve → Plan → []Action → Apply` —
-wrapped by a thin injected IO seam (filesystem only; weave does not edit
-`go.mod`). Cloning stays in the `bootstrap.sh` shell stub, so weave's IO is
-filesystem, not git. Pure entities are unit-tested mock-free.
+wrapped by a thin injected IO seam: filesystem (`weavefs.FS`) **plus a narrow,
+injected `.dynamic-skill` exec seam** (`weavefs.Runner`, #111 — see *Dynamic
+skills* below). weave does not edit `go.mod` (the #95 M5 `go.mod` editor was
+retired) and does not clone (that stays in the `bootstrap.sh` shell stub), so
+weave's IO is filesystem + the one bounded exec; it is NOT git. Pure entities are
+unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
 
 ## Key decisions
 - **Layer edges from `construct/deps` only** — resolved repo-root-relative for
@@ -77,7 +80,10 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   symlink at the slot before writing, so a derivative's pre-cutover
   `AGENTS.md`→ancestor symlink is never written through). The `tool` intent + the
   `GoMod`/`GoModEdit` exec seam were **retired** (location-based Go-tool ownership;
-  weave's IO is filesystem-only). **[M5 — cutover complete]**
+  weave does not edit `go.mod`). After M5 weave's IO was filesystem-only; #111
+  re-adds exactly ONE bounded exec — the `.dynamic-skill` generate stage (below) —
+  so weave's IO is now filesystem + a narrow exec seam, NOT the open-ended exec the
+  retired `go.mod` editor was. **[M5 — cutover complete]**
 
 - **Skill discovery unified (intent-driven + visibility-aware)** — the three
   disagreeing skill paths collapse to ONE: `walk.GatherSkills` reads each layer's
@@ -136,5 +142,32 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `.claude/skills` + `.agents/skills`, with the tracked `CLAUDE.md` bridge untracked
   (it's generated now). All 11 repos clean, ancestors byte-pristine,
   `make harness-check` green. **[#107 M2 produce + M3 prune + M4 propagate; tool #106]**
+
+- **Dynamic skills — the `.dynamic-skill` exec seam (#111)** — a skill package may
+  regenerate its own `SKILL.md` at compile time. The convention: a tracked,
+  **executable `.dynamic-skill`** script in the package dir (language-neutral —
+  weave never parses it). A new **generate stage** runs in `weave compile`
+  **after `walk.Walk`** (so the parsed `skill <dir>` intents exist to reuse, DRY)
+  and **before `GatherSkills`/`planActions`** (so the regenerated `SKILL.md` is what
+  discovery reads). It is **leaf-layer-only** — it scans ONLY `layers[len-1]`'s
+  `skill` intents (`walk.DynamicSkillDirs`), never an ancestor's, so a derivative's
+  compile can never exec ariadne's marker and mutate an ancestor's tree (the
+  byte-pristine guarantee; no-inheritance-symlinks is necessary but not sufficient
+  since weave iterates ancestors at real paths). `construct/adapted` is excluded
+  (foreign-origin). The exec goes through the injected `weavefs.Runner` (production
+  `ExecRunner` wraps `os/exec`, cwd = the package dir, non-zero exit FAILS the
+  compile loudly) — deliberately SEPARATE from `weavefs.FS`. The **read-only paths
+  (`--dry-run`, `golden`, `verify-complete`) skip the stage** (they must not mutate;
+  they operate on the committed output). Generated `SKILL.md` is **committed
+  codegen** — NOT gitignored — because derivatives consume it via symlink and never
+  regenerate it, so it must physically exist for fresh clones + read-only weave
+  paths; `PruneOrphans` never touches it (it GCs only lowered symlinks). A **CI
+  drift guard** (`make weave-drift-check` = `weave compile` then `git diff
+  --exit-code` on the generated skill files) keeps the committed file honest —
+  regenerate-then-diff, NOT an in-memory golden compare (weave can't redirect a
+  marker's `--output`). First consumer: `cmd/datatype` (`go:embed` prose template +
+  sorted filename enumeration of `construct/datatype/*.md`) injects the live
+  datatype-noun list into `construct/local/datatype/SKILL.md`'s description.
+  **[#111 M1 mechanism + M2 datatype consumer]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
