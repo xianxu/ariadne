@@ -1,0 +1,7 @@
+#!/bin/sh
+# Dynamic-skill marker (#111): weave compile execs this with cwd = this package
+# dir (construct/local/datatype). cmd/datatype regenerates SKILL.md with the live
+# datatype-noun list in the description. --output . writes back into this dir;
+# --datatype-dir is given relative to this cwd (three levels up to the repo root,
+# then construct/datatype) — cmd/datatype's own default assumes a repo-root cwd.
+go run ../../../cmd/datatype --output . --datatype-dir ../../../construct/datatype
