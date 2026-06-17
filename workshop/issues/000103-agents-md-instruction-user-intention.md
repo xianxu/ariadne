@@ -1,9 +1,10 @@
 ---
 id: 000103
-status: open
+status: working
 deps: []
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-17
+estimate_hours: 1
 ---
 
 # AGENTS.md instruction: user intention
@@ -17,16 +18,45 @@ exists: `ariadne#105` added a `## Thread arc & user model` section to the
 the same two criteria. When this issue lands its AGENTS.md instruction, keep the
 criteria single-sourced — the continuation section defers here as canonical.
 
-## Done when
-
--
-
 ## Spec
 
+Add a constitution instruction (in ariadne's `AGENTS.base.md`, the composed
+source) establishing the **live user-model discipline**: across a chat/coding
+session the agent holds a running hypothesis of the user's intent/mental-model,
+and updates it every turn — each turn moves the model positively or negatively —
+keeping it **(1) self-consistent** and **(2) fitting the observed user
+interactions**. This is the canonical home of the user-model + its two criteria
+(design settled in the Log resolutions above: single-source here; no dedicated
+durable artifact).
+
+Single-source: thin ariadne#105's `continuation` datatype section (`## Thread arc
+& user model` in `construct/datatype/continuation.md`) so it **defers to AGENTS.md
+by pointer** — remove the duplicated criteria text, keep the per-park checkpoint
+purpose. (The persistence counterparts — the continuation checkpoint + the
+per-session pensive flush — are unchanged in role; only the *criteria definition*
+collapses to here.)
+
+Voice/placement: match the existing constitution prose; site it where session-
+conduct guidance lives (near the workflow/answering-questions principles), terse —
+one short instruction, not an essay.
+
+## Done when
+
+- `AGENTS.base.md` carries the user-model live-maintenance instruction (the running
+  hypothesis + the two criteria), in the constitution's voice and a sensible slot.
+- `construct/datatype/continuation.md`'s `## Thread arc & user model` defers to the
+  AGENTS.md instruction for the two criteria (duplicated criteria text removed),
+  per the #105 single-source resolution; its checkpoint purpose stays.
+- `weave compile` regenerates the composed `AGENTS.md`/`CLAUDE.md` cleanly (the
+  instruction appears in the woven output); tree clean; `make harness-check` green.
 
 ## Plan
 
-- [ ]
+- [ ] Add the user-model live-maintenance instruction to `AGENTS.base.md`
+      (canonical: running hypothesis + the two criteria).
+- [ ] Thin `construct/datatype/continuation.md` `## Thread arc & user model` to a
+      pointer to the AGENTS.md instruction (drop duplicated criteria text).
+- [ ] `make weave` (regenerate) + verify clean tree + `make harness-check`.
 
 ## Log
 
