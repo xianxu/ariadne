@@ -1,11 +1,12 @@
 ---
 id: 000110
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-16
 updated: 2026-06-16
 estimate_hours: 5
+actual_hours: 0.89
 ---
 
 # Port active-time-v3.py to a native Go package in sdlc
@@ -95,7 +96,7 @@ change; this port preserves current behavior verbatim).
       `attributeSegment`, segment build) + IO loaders (events, commits) +
       `Compute()` structured entrypoint. Go unit tests for the math and the #68
       guards. Parity-check `Compute` output vs. the Python over a real window.
-- [ ] M2 — Integrate + retire: `actual.go` calls `activetime.Compute` (drop the
+- [x] M2 — Integrate + retire: `actual.go` calls `activetime.Compute` (drop the
       subprocess/script-resolution/stdout-parse machinery); wire `sdlc
       active-time` subcommand + `helptext/active-time.md`; migrate close.go /
       SKILL.md / helptext explainers; delete the two `.py` files; update atlas.
@@ -103,6 +104,7 @@ change; this port preserves current behavior verbatim).
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed — go build/test/vet green across the module; sdlc actual --issue 110 measures via the in-process Go engine with NO python3 spawned — golden test + real-window (#109) parity proven IDENTICAL to the deleted Python (#109=0.25h/#45=0.03h); sdlc active-time reproduces the per-segment table + 2/3/0 exit-code contract (unit + live verified); active-time-v3.py + test_active_time_v3.py deleted with zero live refs remaining; atlas reconciled. --no-verdict: M2 is the final milestone — this full-issue close auto-dispatches the end-of-issue integration review covering the whole port (M1+M2), which IS M2 boundary review; no separate milestone-close M2. NOTE: 0.89h is the v3-measured in-window focused time; pre-first-commit planning/plan-review + background review-waits are outside the commit window, so true effort was higher.; review verdict: SHIP
 - 2026-06-16: closed M1 — M1 activetime pkg green: go test ./cmd/sdlc/internal/activetime (pure-core math; IO loaders via injectable gitRun; #68 guards on real git). Differential parity test (Go Compute vs real active-time-v3.py over crafted fixtures) identical. One-shot real-window parity over #109 transcripts (295 events/6 commits, brain+ariadne) EXACT: Go & Python both #109=0.25h #45=0.03h. go vet + go build ./... clean. --no-atlas: M1 is internal pkg only; user-facing surface (sdlc active-time verb + actual integration) lands in M2.; review verdict: FIX-THEN-SHIP
 - Plan written: `workshop/plans/000110-port-active-time-v3-to-go-plan.md` (2 milestones,
   Core-concepts table; ARCH-DRY + ARCH-PURE cited). Engine = new
