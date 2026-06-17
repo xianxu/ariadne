@@ -1,10 +1,11 @@
 ---
 id: 000111
-status: working
+status: done
 deps: []
 created: 2026-06-16
 updated: 2026-06-17
 estimate_hours: 7
+actual_hours: 0.35
 ---
 
 # make datatype discovery better
@@ -44,23 +45,28 @@ unchanged here).
   go run ../../../cmd/datatype --output .
   ```
 
-- **Generate stage** (new — the **first** stage of `weave compile`, before
-  `walk.Walk`): the produced `SKILL.md` is read by `walk.GatherSkills` (discovery)
-  and lowered downstream, so generation must precede the walk, not merely
-  "lowering." weave derives the scan set from the **same `skill <dir>` intents**
-  `GatherSkills` already uses (`base.manifest`: `skill construct/local` /
-  `internal skill construct/skill`) — NOT a hardcoded path list — keeping the
-  skill-system "one discovery" invariant. For each package under those dirs
-  containing an executable `.dynamic-skill`, weave execs it with **cwd = the
-  package dir**. `construct/adapted` (foreign-origin superpowers) is excluded for
-  now (its `skill construct/adapted` intent is skipped by the generate stage).
-  Read-only paths (`--dry-run`, `golden`, `verify-complete`) do **not** run the
-  generate stage (they must not mutate the tree); they operate on the committed
-  output, and the drift guard below catches staleness.
-  - **Owned-only by construction:** post-#104 those dirs hold only the repo's OWN
-    real skill packages (no inheritance symlinks), so generation can never touch
-    an ancestor — weave's "ancestors byte-pristine" invariant holds with no
-    owner/inherited bookkeeping. (Verified: `base.manifest:102-105`.)
+- **Generate stage** (new — runs **after `walk.Walk`** so the parsed `skill <dir>`
+  intents exist to reuse, and **before `GatherSkills`/`planActions`** so the
+  regenerated `SKILL.md` is what discovery reads). `walk.Walk` itself reads only
+  `construct/deps`/`base.manifest`/`prose` (NOT `SKILL.md`), and the `skill <dir>`
+  intents are a product of the walk — so the scan set reuses those already-parsed
+  intents (DRY, the skill-system "one discovery"; no second manifest parse, no
+  hardcoded dir list). For each package under those dirs containing an executable
+  `.dynamic-skill`, weave execs it with **cwd = the package dir**.
+  `construct/adapted` (foreign-origin superpowers) is excluded. Read-only paths
+  (`--dry-run`, `golden`, `verify-complete`) do **not** run the generate stage
+  (they must not mutate the tree); they operate on the committed output, and the
+  CI drift guard below catches staleness.
+  - **Leaf-layer-only (this is what preserves "ancestors byte-pristine"):**
+    generation scans ONLY the **leaf** layer's `skill` intents
+    (`layers[len(layers)-1]` — the repo being compiled), never an ancestor's.
+    weave iterates ALL resolved layers (ancestors at their real on-disk paths),
+    so "no inheritance symlinks post-#104" is necessary but NOT sufficient —
+    without leaf-scoping a *derivative's* compile would find
+    `ariadne/construct/local/datatype/.dynamic-skill` and exec it with cwd =
+    ariadne's dir, mutating an ancestor's tree. Leaf-only scoping is the actual
+    guarantee. (A derivative with no dynamic skills of its own generates nothing
+    and just symlinks ariadne's committed `SKILL.md`.)
 - **Exec seam:** weave gains a narrow, injected exec interface — **separate from
   `weavefs.FS`** (which is filesystem-only by documented stance), e.g.
   `Runner.Run(dir string, argv []string) error` — so the generate stage is
@@ -81,8 +87,11 @@ unchanged here).
   skills`/`golden`/`verify-complete`) or the skill silently vanishes from
   discovery. Therefore it is committed codegen: `weave compile` regenerates it
   in place (deterministic/idempotent), and a real change surfaces as a reviewable
-  `git diff`. A **drift guard** — re-generation produces no diff — runs in
-  `golden`/CI so a stale list (datatype added, not regenerated) fails loudly.
+  `git diff`. A **drift guard** keeps it honest as a **CI step** (not a golden
+  in-memory compare — impossible for an opaque marker whose `--output` weave
+  can't redirect): CI runs `weave compile` (tree mutation is fine there) then
+  asserts `git diff --exit-code` on the generated skill files, so a stale list
+  (datatype added, not regenerated) fails loudly.
   Only `.dynamic-skill` is hand-authored; `SKILL.md` (+ any sub-files) is
   generated-and-committed, source-of-truth being the generator's embedded
   template. `PruneOrphans` never touches it (it GCs only lowered *symlinks*, not
@@ -131,12 +140,15 @@ detour that motivated this issue.
   fuller skill-binary unification) — this issue is scoped to static-prose
   generation; further consolidation can follow.
 
+## Done when
+
 - A skill package with an executable `.dynamic-skill` is exec'd by `weave compile`
-  (generate stage, first — before `walk.Walk`, cwd = package dir) — covered by a
-  weave unit test driving the injected `Runner` fake (no real binary spawned); a
-  non-zero exit fails the compile (tested).
-- The generate stage's scan set is derived from the `skill <dir>` intents (DRY
-  with `GatherSkills`), with `construct/adapted` excluded; read-only paths
+  (generate stage runs after `walk.Walk`, before `GatherSkills`; cwd = package
+  dir) — covered by a weave unit test driving the injected `Runner` fake (no real
+  binary spawned); a non-zero exit fails the compile (tested).
+- The scan set is derived from the **leaf** layer's `skill <dir>` intents (DRY with
+  `GatherSkills`; leaf-only so an ancestor's marker is never exec'd — tested),
+  with `construct/adapted` excluded; read-only paths
   (`--dry-run`/`golden`/`verify-complete`) do not run it.
 - `cmd/datatype --output <dir>` writes a `SKILL.md` whose description noun-list is
   enumerated from `construct/datatype/*.md` (filenames, sorted → byte-identical
@@ -144,8 +156,9 @@ detour that motivated this issue.
 - After `make weave` in ariadne, `construct/local/datatype/SKILL.md` is the
   committed generated file, its description ends with the live datatype nouns, the
   tree is clean (idempotent re-gen), and the skill lowers to the agents unchanged.
-- A **drift guard** fails (in `golden`/CI) when the committed `SKILL.md` differs
-  from a fresh regeneration (datatype added but not regenerated).
+- A **drift guard** (CI: `weave compile` then `git diff --exit-code` on generated
+  skill files) fails when the committed `SKILL.md` is stale vs regeneration
+  (datatype added but not regenerated).
 - A fresh `git clone` of ariadne already contains `construct/local/datatype/
   SKILL.md` (it is committed) — `weave skills`/`golden`/`verify-complete` discover
   the datatype skill without first running the generate stage.
@@ -156,9 +169,39 @@ detour that motivated this issue.
 
 ## Plan
 
-- [ ]
+Detailed build sequence: `workshop/plans/000111-dynamic-skills-plan.md`.
+
+- [x] M1 — weave dynamic-skill mechanism: `Runner` exec seam (injected, non-zero
+      → compile fails) + the generate stage (runs first in `weave compile`,
+      derives its scan set from the `skill <dir>` intents, execs each owned
+      package's executable `.dynamic-skill` with cwd = package dir; adapted
+      excluded; read-only paths skip it). Unit-tested with a fake Runner.
+- [x] M2 — datatype consumer + retire-the-truncation: `cmd/datatype` (`go:embed`
+      template + sorted filename enumeration of `construct/datatype/*.md`); the
+      datatype `.dynamic-skill`; the committed regenerated `SKILL.md` with the
+      live noun list; CI drift guard; atlas + `base-layer-mechanics` +
+      `skill-system` reconciled.
+
+## Revisions
+
+### 2026-06-17 — plan-quality findings folded in (3, all blocking, all paper-fixes)
+- **Ordering:** `walk.Walk` reads `construct/deps`/`base.manifest`/`prose`, NOT
+  `SKILL.md` (that's `GatherSkills`, later). The `skill` intents are a *product*
+  of the walk, so "before walk.Walk" + "reuse the walk's intents" contradicted.
+  Corrected: generate runs **after `walk.Walk`, before `GatherSkills`**.
+- **Leaf-only:** "owned-only by construction (no inheritance symlinks)" was
+  necessary-not-sufficient — weave iterates ancestor *layers* at real paths, so a
+  derivative compile could exec ariadne's marker. Corrected: scan **only the leaf
+  layer's** intents; test asserts an ancestor marker is NOT invoked.
+- **Drift guard:** an in-memory/buffer compare in `golden` is impossible for an
+  opaque marker (weave can't redirect its `--output`). Corrected to a CI step:
+  `weave compile` then `git diff --exit-code` on generated skill files.
 
 ## Log
 
+
+
+- 2026-06-17: closed — go build/test/vet ./... green; make harness-check 6/0/0; weave compile idempotent (clean tree on recompile). Fix is LIVE: construct/local/datatype/SKILL.md regenerates via the dynamic-skill (cmd/datatype, committed codegen) with the 13 datatype nouns in the description — git diff vs main shows ONLY the description line changed (byte-faithful prose migration, proven by cmd/datatype faithfulness test). CI drift guard (make weave-drift-check) verified fail-on-stale + pass-when-current. M1 (Runner exec seam + leaf-only generate stage) milestone-closed FIX-THEN-SHIP. atlas/weave.md + base-layer-mechanics + skill-system reconciled to the bounded exec seam (the M1-review hard gate). --no-verdict: M2 is the final milestone — this full-issue close auto-dispatches the end-of-issue integration review over the whole M1+M2 diff, which IS M2 boundary review (no separate milestone-close M2). actual 0.35h is the v3 in-window measure and undercounts heavily: design+brainstorm+4 reviews predate the first commit and both M1+M2 were implemented by delegated subagents, so most effort is outside the operator transcript window.; review verdict: FIX-THEN-SHIP
+- 2026-06-17: closed M1 — M1 weave dynamic-skill mechanism: go build ./... + go test ./cmd/weave/... + go vet green (independently re-run). Runner exec seam (fake-tested + real /bin/sh exit-code integration test); leaf-only DynamicSkillDirs selection (ancestor marker NOT exec'd, construct/adapted excluded, non-exec marker ignored — all tested); generate stage wired after walk.Walk, before planActions, gated if \!dryRun (golden/verify-complete excluded by construction — verified at main.go:459). No M2 surface touched. --no-atlas: M1 is mechanism-only, no user-facing surface (atlas reconciliation + the datatype consumer land in M2). actual 0.23h is the v3 in-window measure and undercounts — design+plan+3 reviews predate the first M1 commit and M1 was implemented by a delegated subagent, both outside the transcript window.; review verdict: FIX-THEN-SHIP
 ### 2026-06-16
 

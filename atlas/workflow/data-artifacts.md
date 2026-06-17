@@ -17,7 +17,8 @@ New types are pure data. Adding one means writing a new `<name>.md`, not modifyi
 |---|---|
 | `construct/datatype/<name>.md` | Shared prototypes, propagate to descendants via `base.manifest`. |
 | `<repo>/datatype/<name>.md` | Project-local prototype override (opt-in, not scaffolded). Shadows shared completely. Top-level `datatype/` keeps prototype definitions cleanly separated from instances (which live under `<repo>/data/` or wherever the user puts them). |
-| `construct/local/datatype/SKILL.md` | The dispatcher skill, symlinked to `.claude/skills/xx-datatype/`. |
+| `construct/local/datatype/SKILL.md` | The dispatcher skill, symlinked to `.claude/skills/xx-datatype/`. **Generated codegen (#111)** — `weave compile` runs the package's `.dynamic-skill` marker (→ `cmd/datatype`) to regenerate it with the live datatype-noun list in the `description`. **Edit `cmd/datatype/SKILL.md.tmpl`, not this file** (a hand edit here is overwritten by `weave compile` and fails `make weave-drift-check`). |
+| `construct/local/datatype/.dynamic-skill` | Executable marker (hand-authored) that makes the package a dynamic skill — `weave compile` execs it to regenerate `SKILL.md`. See [weave atlas → Dynamic skills](weave.md). |
 
 Lookup precedence: project-local → shared.
 
@@ -78,7 +79,12 @@ Heuristic: *session or ledger?* A fragment that grows past ~3 paragraphs and dev
 
 ## Pointers
 
-- Skill: `construct/local/datatype/SKILL.md`
+- Skill (generated): `construct/local/datatype/SKILL.md` — **codegen; do not hand-edit**
+- Skill prose source: `cmd/datatype/SKILL.md.tmpl` (the generator's `go:embed` template — **edit here**)
+- Generator: `cmd/datatype/` (writes `SKILL.md` with the live datatype-noun list)
+- Dynamic-skill marker: `construct/local/datatype/.dynamic-skill` (weave execs it at compile)
+- Drift guard: `make weave-drift-check` (CI: `scripts/merge-checks.d/30-weave-drift.sh`)
+- Mechanism: [weave atlas → Dynamic skills](weave.md) (#111)
 - Prototypes: `construct/datatype/`
 - Manifest entry: `symlink construct/datatype` in `construct/base.manifest`
 - Issue: `workshop/issues/000012-typed-markdown-documents-via-construct.md`

@@ -3,9 +3,10 @@ type: target
 slug: skill-system
 status: active
 created: 2026-06-15
-updated: 2026-06-16
+updated: 2026-06-17
 sources:
   - "ariadne#104 — skill-system v2 (the build); gaps surfaced on the #95 nous/brain cutover"
+  - "ariadne#111 — dynamic skills (the .dynamic-skill maintenance stage; cmd/datatype)"
   - "base-layer-mechanics — the compose stage this target defers to"
 ---
 
@@ -47,7 +48,27 @@ Two structural consequences this target encodes:
 ## The pipeline — the invariant, stage by stage
 
 A skill flows through six stages; each has an invariant the implementation must
-honor (and a test must pin):
+honor (and a test must pin). A skill's `SKILL.md` source may optionally be
+**maintained** (regenerated) at compile time — stage 0 below — upstream of
+Declare:
+
+0. **Maintain (optional) — dynamic skills (#111).** A skill package may own an
+   executable, tracked **`.dynamic-skill`** script that `weave compile` execs to
+   rewrite its committed `SKILL.md` before discovery. This keeps the canonical
+   SOURCE current (e.g. `cmd/datatype` injects the live datatype-noun list into the
+   description) — it is **maintenance**, kept distinct from **composition** (the
+   union) and **lowering** (the per-harness symlinks). The generate stage runs
+   after `walk.Walk`, before `GatherSkills`, **leaf-layer-only** (an ancestor's
+   marker is never exec'd, so ancestors stay byte-pristine), `construct/adapted`
+   excluded, through an injected `weavefs.Runner` (a non-zero exit fails the
+   compile). The generated `SKILL.md` is **committed codegen** (NOT gitignored —
+   derivatives consume it via symlink and don't regenerate it), kept honest by a
+   **CI drift guard** (`make weave-drift-check` = `weave compile` + `git diff
+   --exit-code`). Only `.dynamic-skill` is hand-authored; `SKILL.md` is
+   generated-and-committed. Most skills are static (no marker) and skip this stage
+   entirely. The mechanism lives in the [weave atlas](../../atlas/workflow/weave.md);
+   weave's IO is therefore filesystem + this one bounded exec seam, not
+   filesystem-only.
 
 1. **Declare** — ONE mechanism: a `[export|internal] skill <dir>` row in a layer's
    `base.manifest`. No ad-hoc `symlink … .claude/skills/X` skills (that mechanism
@@ -110,6 +131,13 @@ honor (and a test must pin):
 - **Every skill servable** — `weave skill <name>` resolves any composed skill.
 - **Per-layer identity** — each layer sets its own prefix (its own `config.json`),
   no double-prefix, no mis-prefix from a borrowed config.
+- **Dynamic-skill maintenance is leaf-only + bounded (#111)** — the `.dynamic-skill`
+  generate stage execs only the leaf layer's markers (never an ancestor's, never
+  `construct/adapted`), through an injected `Runner` whose non-zero exit fails the
+  compile; read-only paths skip it; the generated `SKILL.md` is committed codegen a
+  CI drift guard keeps current. (`walk.DynamicSkillDirs` leaf-only/adapted-excluded
+  tests, the generate-stage fake-Runner + dry-run-skip tests, and `cmd/datatype`'s
+  faithfulness + determinism tests.)
 
 ## What this is NOT
 
@@ -139,6 +167,13 @@ driven + repo-name prefix, `plan.SkillSymlinks`, `weave skill`/`skills`), and th
 cross-repo migration put all 10 ariadne-styled repos onto per-layer real skill
 dirs + repo-name prefixes with the whole-dir inheritance symlinks dropped. The
 `construct` skill is the internal exemplar (`xx-construct`, ariadne-only).
+
+**Dynamic-skill maintenance (stage 0) — ariadne#111 (M1 mechanism + M2 datatype
+consumer).** The `.dynamic-skill` generate stage + the injected `weavefs.Runner`
+exec seam ship test-bound (leaf-only, adapted-excluded, dry-run-skip,
+non-zero-fails-compile); `cmd/datatype` is the first consumer, regenerating
+`construct/local/datatype/SKILL.md` with the live datatype-noun list, kept honest
+by `make weave-drift-check`.
 
 ## Open questions
 

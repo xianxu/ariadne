@@ -75,6 +75,8 @@ skills(R) = ⋃ᵢ export-skills(Lᵢ)  ∪  internal-skills(Lₙ)        (keyed
 ```
 The *composition* is target-independent; only the *destination dir* differs (claude → `.claude/skills`; codex/gemini → `.agents/skills`; no menu — #107 Option B). ariadne#104 made the implementation honor this — one intent-driven discovery feeding the per-harness lowerings, gated on visibility — and bound it to tests (`TestSelectVisible`, `TestBuildSkillIndexExcludesAncestorInternalSkill`, `TestCompileMultiLayerVisibility`, `TestGatherSkills_*`, `TestTargetFaces`, `TestPruneCrossTargetBidirectional`) + the live 10-repo migrations.
 
+A skill's CANONICAL SOURCE may itself be regenerated at compile time — the *dynamic-skill* maintenance stage (ariadne#111): a leaf package carrying an executable `.dynamic-skill` is exec'd by `weave compile` (before this compose stage) to rewrite its committed `SKILL.md`. This is **maintenance** (keeping the source current), upstream of and distinct from **composition** (the union math here) and **lowering** (the per-harness symlinks) — it changes WHAT a skill's source says, never HOW it composes. weave's IO is therefore filesystem + this one bounded `.dynamic-skill` exec seam (NOT filesystem-only); the exec is leaf-only, adapted-excluded, injected + fake-tested. The owning subsystem invariant lives in [[skill-system]]; details in [weave atlas](../../atlas/workflow/weave.md).
+
 ### settings — clarity: MEDIUM (formalized in ariadne#97; the DAG fold is not yet shipped)
 Deep-merge with per-key semantics, foundation-first, specific-over-general; `$merge_keys` carried through, meta stripped once at the end.
 ```
