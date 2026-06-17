@@ -1,12 +1,12 @@
 ---
 id: 000106
-status: open
+status: working
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-16
 updated: 2026-06-16
-estimate_hours:
+estimate_hours: 4
 ---
 
 # sdlc propagate-base — first-class propagation of a base-layer change to all recursive dependents
@@ -119,7 +119,18 @@ owner's `main`):
 
 ## Plan
 
-- [ ]
+- [ ] MVP — `sdlc propagate-base` in the OWNER repo: (1) discover the recursive
+      dependents — present sibling dirs (the `Makefile.workflow` ariadne-dependent
+      signal) whose `substrateChain` transitively includes the owner; (2) topologically
+      ORDER foundation-first (reuse `substrateChain`: a dependent that is itself in
+      another dependent's chain comes first — so `nous` before the brains); (3) per
+      dependent, in order: `make weave` (re-weave; build-in-owner) + `weave
+      verify-complete` (gate) + commit the consumption; (4) emit ONE status table
+      (repo → re-wove / verified / committed / failed). PURE order/discovery tested
+      against a temp sibling DAG (mirror `TestSubstrateChain`); the re-weave loop is
+      the thin IO seam. Push is a separable opt-in (deferred); gcrypt brains are
+      handled by the RUNNER's sandbox (run out-of-sandbox), no special routing in the
+      verb (operator correction — see Revisions). Use it to propagate #107's cutover.
 
 ## Log
 
