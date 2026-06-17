@@ -480,10 +480,11 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 		return fmt.Errorf("apply: %w", err)
 	}
 	// After Apply, prune ORPHANED lowered symlinks weave no longer produces (#96):
-	// renamed/re-prefixed skills + the #95 cutover's dead symlinks. Safety lives in
-	// plan.shouldPrune — only a weave-owned symlink absent from this run's produced
-	// set, in a managed location, is removed; real files/dirs and non-weave links
-	// are never touched.
+	// renamed/re-prefixed skills + the #95 cutover's dead symlinks + (Option B #107)
+	// the OTHER harness faces a lean `--target X` compile no longer produces (scanned
+	// via the union scanActions). Safety lives in plan.shouldPrune — only a weave-owned
+	// symlink absent from this run's produced set, in a managed location, is removed;
+	// real files/dirs and non-weave links are never touched.
 	pruned, err := plan.PruneOrphans(fs, root, scanActions, actions, sourceRoots)
 	if err != nil {
 		return fmt.Errorf("prune: %w", err)

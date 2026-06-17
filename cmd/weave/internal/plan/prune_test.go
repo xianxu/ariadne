@@ -325,15 +325,26 @@ func TestPruneCrossTargetBidirectional(t *testing.T) {
 
 	// Lean claude: the mirror — produces .claude/skills only → prunes .agents/skills.
 	mkFace(".claude/skills") // restore the just-pruned link
+	// SAFETY in the cross-target scan context: a hand-authored REAL dir + a non-weave
+	// symlink sitting in the OTHER face's now-scanned location must SURVIVE the prune.
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".agents/skills/hand-authored"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(parent, "elsewhere"), filepath.Join(repoRoot, ".agents/skills/vendor")); err != nil {
+		t.Fatal(err)
+	}
 	pruned, err = PruneOrphans(weavefs.OSFS{}, repoRoot, union, []Action{claudeLink}, sourceRoots)
 	if err != nil {
 		t.Fatalf("claude prune: %v", err)
 	}
 	if !reflect.DeepEqual(pruned, []string{".agents/skills/xx-fix"}) {
-		t.Errorf("claude pruned %v, want [.agents/skills/xx-fix]", pruned)
+		t.Errorf("claude pruned %v, want only [.agents/skills/xx-fix]", pruned)
 	}
 	if !exists(".claude/skills/xx-fix") || exists(".agents/skills/xx-fix") {
-		t.Errorf("claude: want .agents/skills pruned + .claude/skills kept")
+		t.Errorf("claude: want .agents/skills/xx-fix pruned + .claude/skills/xx-fix kept")
+	}
+	if !exists(".agents/skills/hand-authored") || !exists(".agents/skills/vendor") {
+		t.Errorf("cross-target prune destroyed a hand-authored dir / non-weave symlink in the scanned .agents/skills")
 	}
 
 	// Union compile (scan == produced) prunes neither face.

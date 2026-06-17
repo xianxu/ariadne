@@ -246,7 +246,7 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
       — retire the `CLAUDE.md=@AGENTS.md` bridge. `weave compile` = Union (all faces),
       `--target T` = only T's face. gitignore `/.agents/skills/` + `/GEMINI.md`.
       Tests + golden.
-- [ ] M3 — Option B REMOVE side (the original #107 cross-target prune). Generalize
+- [x] M3 — Option B REMOVE side (the original #107 cross-target prune). Generalize
       the prune to scan `ManagedLocations(UNION-actions)` while the produced-set stays
       the lean compile's — so a `--target X` lean compile prunes every NON-selected
       face, **bidirectionally**, reusing the Union primitive M2 builds (NO per-target
@@ -280,10 +280,18 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
   don't re-weave derivatives — their bridge + the new prose CLAUDE.md would collide).
   (b) The `skill-system` + `base-layer-mechanics` TARGET updates promised in M2 move
   to M3/M4 (M2 delivered only `weave.md`).
+- **2026-06-16 (M3 close).** Pinning the deferral (M3 review): **M4 OWNS** updating
+  `workshop/targets/base-layer-mechanics.md` + `skill-system.md` — both still describe
+  the retired "codex/agy → AGENTS.md menu" backend and must be rewritten to the
+  per-harness face model (no menu; `.agents/skills` for codex/gemini; bidirectional
+  prune) BEFORE issue-close. M3 documented its own new surface (the cross-target
+  prune) in `weave.md`; the target invariants are M4's to reconcile with the
+  coordinated cutover.
 
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed M3 — Cross-target prune (remove side): PruneOrphans/PrunePreview take scanActions (the UNION managed locations) + producedActions (the lean compile output) separately, so a lean --target X compile scans every face dir but prunes the ones it did not produce — bidirectional (codex GCs .claude/skills; claude GCs .agents/skills); the Union prunes neither. NO per-target registry, NO new delete logic (reuses the Union primitive + existing shouldPrune criteria, ARCH-DRY; prune.go derive-not-hardcode intact). Live on ariadne: --target codex previews pruning 24 .claude/skills, --target all prunes 0. TestPruneCrossTargetBidirectional + existing safety tests green; full weave suite + vet + gofmt clean. This closes the original #107 bug.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M2 — Option B produce side: per-harness FACES — prose composed ONCE, fanned to CLAUDE.md/AGENTS.md/GEMINI.md; skills to .claude/skills + .agents/skills via SkillSymlinks(entries,dir) (ARCH-DRY); AGENTS.md ## Skills menu RETIRED. weave compile = Union (default), --target {claude|codex|gemini} = lean. Live dry-run on ariadne: Union = 3 entry files (11143B each) + 24 .claude/skills + 24 .agents/skills, NO menu; --target claude → CLAUDE.md+.claude/skills only; --target codex → AGENTS.md+.agents/skills only. Full weave suite + vet + gofmt green. The base-layer manifest cutover (retire symlink CLAUDE.md bridge + Makefile union default + git rm CLAUDE.md) deferred to M4 with the coordinated re-weave to avoid a mixed state.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M1 — Per-harness assumption suite (scripts/harness-assumptions.test.sh; make harness-check) runs 6 PASS / 0 FAIL on Codex 0.139.0 + Gemini 0.38.2 — both discover .agents/skills (real + RELATIVE-symlinked, weave SKILL.md format) and ignore .claude/; --self-test proves a broken assumption FAILs + exits 1; Claude assumptions doc-asserted (no deterministic CLI hook). atlas/workflow/harness-integration.md documents the Compile(C,T)/Union model + per-harness face map + assumption ledger + onboard/triage runbooks (linked from atlas/index.md).; review verdict: FIX-THEN-SHIP
 - Filed from an operator question on #104's multi-target lowering: "running
