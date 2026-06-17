@@ -28,7 +28,7 @@ func TestPlanProseAcrossLayersToOneAGENTS(t *testing.T) {
 			{Kind: intent.Prose, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
 		}, ProseFragments: []layer.ProseFragment{{Visibility: intent.Export, Content: "LOCAL"}}},
 	}
-	got, err := Plan(layers, []string{"AGENTS.md"}) // no skills ⇒ no `## Skills` section appended
+	got, err := Plan(layers, []string{"AGENTS.md"}) // prose fanned to AGENTS.md (one entry file here)
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}

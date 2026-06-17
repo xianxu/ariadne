@@ -3,8 +3,9 @@ package plan
 import "strings"
 
 // composeProse concatenates prose fragments foundation-first (in the slice
-// order given) into the AGENTS.md body. Pure. Fragments arrive already ordered
-// by the planner (foundation layer first, the consuming repo's own fragment
+// order given) into the composed prose body — fanned by the planner to each
+// per-harness entry file (CLAUDE.md/AGENTS.md/GEMINI.md). Pure. Fragments arrive
+// already ordered (foundation layer first, the consuming repo's own fragment
 // last), so this just joins them.
 //
 // This is the structural fix for the @AGENTS.local.md bug: setup.sh symlinks a

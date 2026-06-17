@@ -551,10 +551,11 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 
 // buildSkillIndex is weave's SINGLE skill pipeline (#104): walk.GatherSkills (the
 // one IO discovery, intent-driven, carrying Visibility+LayerIndex) → skill.SelectVisible
-// (the pure 𝒜(R) filter; leaf = the last layer) → skill.Build (the pure menu + body
-// lookup). It returns BOTH the index AND the selected entries, so the menu and the
-// claude symlinks (plan.SkillSymlinks) lower from the IDENTICAL set — the §A4
-// unification (one scan, two renderings, ARCH-DRY). layers must already be walked.
+// (the pure 𝒜(R) filter; leaf = the last layer) → skill.Build (the pure body
+// lookup). It returns BOTH the index AND the selected entries: the index serves
+// `weave skills`/`weave skill <name>`, while the compile path lowers the SAME
+// selected entries into each per-harness skill dir (plan.SkillSymlinks) — one scan,
+// reused everywhere (ARCH-DRY). No menu (Option B). layers must already be walked.
 func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []skill.Entry, error) {
 	entries, err := walk.GatherSkills(fs, layers)
 	if err != nil {

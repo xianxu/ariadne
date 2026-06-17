@@ -79,6 +79,16 @@ func TestCompileEndToEnd(t *testing.T) {
 	if string(agents) != want {
 		t.Fatalf("AGENTS.md = %q, want %q", agents, want)
 	}
+	// Union: the SAME composed prose is fanned to CLAUDE.md + GEMINI.md, byte-identical.
+	for _, ef := range []string{"CLAUDE.md", "GEMINI.md"} {
+		b, err := os.ReadFile(filepath.Join(derived, ef))
+		if err != nil {
+			t.Fatalf("Union did not write %s: %v", ef, err)
+		}
+		if string(b) != want {
+			t.Errorf("%s = %q, want %q (same prose as AGENTS.md)", ef, b, want)
+		}
+	}
 
 	// The generic symlink from base exists and resolves to base content.
 	shared := filepath.Join(derived, "shared.md")

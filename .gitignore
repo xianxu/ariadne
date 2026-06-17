@@ -16,7 +16,10 @@ bin/
 # AGENTS.local.md — are tracked (NOT ignored): they are the constitution + the
 # per-repo extension that weave composes from.
 /AGENTS.md
+/CLAUDE.md
+/GEMINI.md
 /.claude/skills/
+/.agents/skills/
 /.claude/settings.json
 /.colima/
 /construct/scripts/vm-log.sh

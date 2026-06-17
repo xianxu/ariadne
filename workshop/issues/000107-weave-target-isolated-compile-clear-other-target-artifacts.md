@@ -237,7 +237,7 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
       the guard has teeth despite CI lacking the CLIs (it SKIPs there, by design).
       Plus `atlas/workflow/harness-integration.md` documenting the `Compile(C,T)`/Union
       model, the per-harness face map, and the assumptions (linking the suite).
-- [ ] M2 — Option B PRODUCE side. Lower skills to BOTH `.claude/skills` (Claude) +
+- [x] M2 — Option B PRODUCE side. Lower skills to BOTH `.claude/skills` (Claude) +
       `.agents/skills` (Codex/Gemini) symlink farms from the SAME selected set (reuse
       `plan.SkillSymlinks` parameterized by destination dir — ARCH-DRY); RETIRE the
       `## Skills` menu + `IncludeSkillMenu`/`idx.Menu()` compile plumbing (Codex
@@ -269,10 +269,22 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
   prose entry files + union) and M3 (REMOVE: the cross-target prune); propagate → M4.
   (4) Gave the assumption suite an execution home (`make harness-check` + trigger).
   (5) Estimate 8h → 12h.
+- **2026-06-16 (M2 close).** Scope clarifications from the M2 review (FIX-THEN-SHIP):
+  (a) the **base-layer manifest cutover moves to M4** (with the coordinated re-weave):
+  removing the `symlink CLAUDE.md` bridge from `construct/base.manifest`, the
+  `Makefile.workflow` union default-flip, and the derivative re-weave — doing them in
+  M2 would create a mixed cutover state. To keep M2's new `/CLAUDE.md` gitignore entry
+  from being silently inert, ariadne's tracked `CLAUDE.md` (the 11-byte `@AGENTS.md`
+  bridge) was `git rm --cached`'d in M2 so a `weave compile` on ariadne stays clean.
+  **M4 MUST** remove `symlink CLAUDE.md` from `base.manifest` + re-weave (until then,
+  don't re-weave derivatives — their bridge + the new prose CLAUDE.md would collide).
+  (b) The `skill-system` + `base-layer-mechanics` TARGET updates promised in M2 move
+  to M3/M4 (M2 delivered only `weave.md`).
 
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed M2 — Option B produce side: per-harness FACES — prose composed ONCE, fanned to CLAUDE.md/AGENTS.md/GEMINI.md; skills to .claude/skills + .agents/skills via SkillSymlinks(entries,dir) (ARCH-DRY); AGENTS.md ## Skills menu RETIRED. weave compile = Union (default), --target {claude|codex|gemini} = lean. Live dry-run on ariadne: Union = 3 entry files (11143B each) + 24 .claude/skills + 24 .agents/skills, NO menu; --target claude → CLAUDE.md+.claude/skills only; --target codex → AGENTS.md+.agents/skills only. Full weave suite + vet + gofmt green. The base-layer manifest cutover (retire symlink CLAUDE.md bridge + Makefile union default + git rm CLAUDE.md) deferred to M4 with the coordinated re-weave to avoid a mixed state.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M1 — Per-harness assumption suite (scripts/harness-assumptions.test.sh; make harness-check) runs 6 PASS / 0 FAIL on Codex 0.139.0 + Gemini 0.38.2 — both discover .agents/skills (real + RELATIVE-symlinked, weave SKILL.md format) and ignore .claude/; --self-test proves a broken assumption FAILs + exits 1; Claude assumptions doc-asserted (no deterministic CLI hook). atlas/workflow/harness-integration.md documents the Compile(C,T)/Union model + per-harness face map + assumption ledger + onboard/triage runbooks (linked from atlas/index.md).; review verdict: FIX-THEN-SHIP
 - Filed from an operator question on #104's multi-target lowering: "running
   `--target claude` then `--target codex` — won't the non-conflicting lowered
