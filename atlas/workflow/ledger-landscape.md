@@ -40,7 +40,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 - *NOT* in the project file — that tracks portfolio status, not per-milestone evidence.
 
 **"How many hours did this issue actually take?"**
-- *Authoritative:* `actual_hours:` in the issue frontmatter, derived from `active-time-v3.py` over the commit window.
+- *Authoritative:* `actual_hours:` in the issue frontmatter, derived from the in-binary active-time-v3 engine (`sdlc actual` / `sdlc active-time`, `cmd/sdlc/internal/activetime`) over the commit window.
 - No mirror needed — frontmatter is already terse.
 
 **"What's the current convention for human-machine markdown markers?"**

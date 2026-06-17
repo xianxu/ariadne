@@ -1,9 +1,9 @@
-// actual.go — `sdlc actual`: compute an issue's focused dev-hours by running
-// active-time-v3 with the RIGHT transcript dirs, so the number is measured, not
-// hand-typed (#68 M2). Lifts the manual "run this 6-line python command"
-// explainer prose into the binary — nobody ran the command, so every actual was
-// a guess. The engine (computeActual) is shared: `sdlc actual` exposes it, and
-// close's missing-`--actual` explainer calls it to print a suggestion inline.
+// actual.go — `sdlc actual`: compute an issue's focused dev-hours so the number
+// is MEASURED, not hand-typed (#68 M2). The engine is the native Go
+// `internal/activetime` package (#110): computeActual calls activetime.Compute
+// in-process — no python3 subprocess, no stdout-regex, no script resolution. The
+// engine is shared: `sdlc actual` exposes it, and close's missing-`--actual`
+// explainer calls it to print a suggestion inline.
 //
 // Dir-selection is the crux (#68 diagnosis): events come only from transcript
 // `.jsonl` folders, and the work spans multiple cwds. The validated heuristic is
@@ -13,18 +13,16 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
@@ -46,10 +44,10 @@ var pathEncoder = strings.NewReplacer("/", "-", ".", "-")
 
 func cwdToTranscriptDir(absPath string) string { return pathEncoder.Replace(absPath) }
 
-// selectActualDirs returns the transcript dirs to feed v3: brain (always) + the
-// repo itself, keeping only folders that actually exist under transcriptsRoot.
-// Deliberately NOT every folder — unrelated repos with concurrent activity
-// inflate the count (#68).
+// selectActualDirs returns the transcript dirs to feed the engine: brain (always)
+// + the repo itself, keeping only folders that actually exist under
+// transcriptsRoot. Deliberately NOT every folder — unrelated repos with
+// concurrent activity inflate the count (#68).
 func selectActualDirs(repoTop, brainAbs string) []string {
 	var out []string
 	seen := map[string]bool{}
@@ -69,30 +67,15 @@ func selectActualDirs(repoTop, brainAbs string) []string {
 	return out
 }
 
-// v3PrimaryHoursRE-style parse: pull issueNum's hours from v3's
-// "  #<N>: <h> hr  (<m> min)" per-issue total line on stdout.
-func parseV3PrimaryHours(stdout, issueNum string) (float64, bool) {
-	re := regexp.MustCompile(`(?m)^\s*#` + regexp.QuoteMeta(issueNum) + `:\s+([0-9]+(?:\.[0-9]+)?)\s+hr\b`)
-	m := re.FindStringSubmatch(stdout)
-	if m == nil {
-		return 0, false
-	}
-	h, err := strconv.ParseFloat(m[1], 64)
-	if err != nil {
-		return 0, false
-	}
-	return h, true
-}
-
 // actualStatus is the outcome of an actual computation.
 type actualStatus int
 
 const (
-	actualMeasured     actualStatus = iota // v3 produced a number
-	actualTelemetryGap                     // commits exist but 0 events (v3 exit 3) — judgment
+	actualMeasured     actualStatus = iota // engine produced a number
+	actualTelemetryGap                     // commits exist but 0 events — judgment
 	actualEmptyWindow                      // no commits/events to measure
 	actualNoWindow                         // no commits reference the issue yet
-	actualNoScript                         // active-time-v3.py / python3 unavailable — fall back
+	actualError                            // engine/IO error — fall back to judgment
 )
 
 type actualResult struct {
@@ -102,70 +85,15 @@ type actualResult struct {
 	Peers  []string
 	Dirs   []string
 	Window string // "<shortSHA> → HEAD"
-	Detail string // diagnostic for the fall-back/error paths
+	Detail string // diagnostic for the error path
 }
 
-// v3Runner runs active-time-v3.py and returns (stdout, exitCode). Package var
-// so tests can stub it. exitCode is -1 when the process couldn't be started.
-var v3Runner = func(scriptPath string, args []string) (string, int, error) {
-	cmd := exec.Command("python3", append([]string{scriptPath}, args...)...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = io.Discard // v3's diagnostics go to stderr; we key off exit code
-	err := cmd.Run()
-	if err == nil {
-		return out.String(), 0, nil
-	}
-	if ee, ok := err.(*exec.ExitError); ok {
-		return out.String(), ee.ExitCode(), nil
-	}
-	return out.String(), -1, err // python3 missing, etc.
-}
-
-// actualScriptRel is active-time-v3.py's repo-relative home — colocated with the
-// xx-issues skill under construct/local. ariadne OWNS it; derivatives resolve it
-// from the owner (resolveActualScript) rather than carrying a copy.
-var actualScriptRel = filepath.Join("construct", "local", "issues", "active-time-v3.py")
-
-// resolveActualScript locates active-time-v3.py for repoTop. It prefers a local
-// copy, then falls back to the substrate ancestors (the ariadne owner) — the
-// build-in-owner pattern applied to a script: an ariadne-owned tool is resolved
-// from the owner, not vendored into every derivative. This is what lets `sdlc
-// actual` keep MEASURING actuals after #104 M3 drops the construct/local
-// whole-dir inheritance symlink (skills now flow via the layer, not a per-repo
-// dir copy — and neither does this script).
-func resolveActualScript(repoTop string) (string, bool) {
-	if local := filepath.Join(repoTop, actualScriptRel); statFile(local) {
-		return local, true
-	}
-	for _, anc := range substrateChain(repoTop) {
-		if cand := filepath.Join(anc, actualScriptRel); statFile(cand) {
-			return cand, true
-		}
-	}
-	return "", false
-}
-
-func statFile(p string) bool {
-	fi, err := os.Stat(p)
-	return err == nil && !fi.IsDir()
-}
-
-// computeActual is the engine: resolve the commit window + peer issues + the
-// brain/repo transcript dirs, run v3, and classify the result. Runs git via the
-// cwd (gitx.CommitWindow), so the caller should be inside repoTop.
+// computeActual is the engine glue: resolve the commit window + peer issues + the
+// brain/repo transcript dirs, run activetime.Compute, and classify the result.
+// Runs git via the cwd (gitx.CommitWindow), so the caller should be inside
+// repoTop.
 func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	res := actualResult{Issue: issueNum}
-
-	script, ok := resolveActualScript(repoTop)
-	if !ok {
-		res.Status, res.Detail = actualNoScript, "active-time-v3.py not found under construct/local/issues/ (locally or in any substrate ancestor)"
-		return res
-	}
-	if _, err := exec.LookPath("python3"); err != nil {
-		res.Status, res.Detail = actualNoScript, "python3 not on PATH"
-		return res
-	}
 
 	firstSHA, firstISO, lastISO, _ := gitx.CommitWindow(issueNum)
 	if firstSHA == "" {
@@ -180,44 +108,39 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		return res
 	}
 
-	args := make([]string, 0, len(res.Dirs)*2+len(res.Peers)*2+10)
-	for _, d := range res.Dirs {
-		args = append(args, "--dir", d)
-	}
-	args = append(args, "--git-repo", repoTop, "--since", firstISO, "--until", lastISO)
-	for _, p := range res.Peers {
-		args = append(args, "--issue", p)
-	}
-	args = append(args, "--commit-weight", "1.0", "--threshold-min", "15", "--include-assistant")
-
-	stdout, code, err := v3Runner(script, args)
+	out, err := activetime.Compute(activetime.Options{
+		Dirs:             res.Dirs,
+		GitRepo:          repoTop,
+		SinceISO:         firstISO,
+		UntilISO:         lastISO,
+		Issues:           res.Peers,
+		CommitWeight:     1.0,
+		ThresholdMin:     15,
+		IncludeAssistant: true,
+	})
 	if err != nil {
-		res.Status, res.Detail = actualNoScript, err.Error()
+		res.Status, res.Detail = actualError, err.Error()
 		return res
 	}
-	res.Status, res.Hours = classifyV3(code, stdout, issueNum)
-	if res.Status == actualNoScript {
-		res.Detail = fmt.Sprintf("active-time-v3 exited %d", code)
-	}
+	res.Status, res.Hours = statusFromResult(out, issueNum)
 	return res
 }
 
-// classifyV3 maps active-time-v3's (exit code, stdout) to an outcome for
-// issueNum. Pure — split out from computeActual's subprocess machinery so the
-// exit-code contract (the integration surface M2 depends on) is unit-testable
-// without git or python. 3=telemetry-gap, 0+parseable=measured, 0+unparseable=
-// empty window, anything else (incl. 2 misinvoke, unreachable here) → fall back.
-func classifyV3(exitCode int, stdout, issueNum string) (actualStatus, float64) {
-	switch exitCode {
-	case 3: // TELEMETRY UNAVAILABLE (commits but 0 events)
+// statusFromResult maps an activetime.Result to the actual outcome for issueNum.
+// Pure — the integration contract, unit-testable without git/files. Mirrors the
+// old classifyV3 exit-code mapping: telemetry-gap stays a judgment signal;
+// measured-with-the-issue yields hours; everything else is an empty window.
+func statusFromResult(out activetime.Result, issueNum string) (actualStatus, float64) {
+	switch out.Status {
+	case activetime.TelemetryGap:
 		return actualTelemetryGap, 0
-	case 0:
-		if h, ok := parseV3PrimaryHours(stdout, issueNum); ok {
-			return actualMeasured, h
+	case activetime.Measured:
+		if mins, ok := out.PerIssue[issueNum]; ok {
+			return actualMeasured, mins / 60
 		}
 		return actualEmptyWindow, 0
-	default: // 2 (misinvoke — shouldn't happen, we always pass --dir) or unexpected
-		return actualNoScript, 0
+	default: // EmptyWindow (or, defensively, an unset status)
+		return actualEmptyWindow, 0
 	}
 }
 
@@ -239,10 +162,10 @@ func printActual(w io.Writer, res actualResult) {
 			fmt.Fprintf(w, "  (%s)\n", res.Detail)
 		}
 	case actualEmptyWindow:
-		cwarn(w, fmt.Sprintf("v3 found no measurable activity for #%s — use a labeled judgment estimate.", res.Issue))
+		cwarn(w, fmt.Sprintf("found no measurable activity for #%s — use a labeled judgment estimate.", res.Issue))
 	case actualNoWindow:
 		cwarn(w, fmt.Sprintf("no commits reference #%s yet — commit first, or use a judgment estimate.", res.Issue))
-	case actualNoScript:
+	case actualError:
 		cwarn(w, fmt.Sprintf("can't auto-compute (%s) — fall back to a judgment estimate.", res.Detail))
 	}
 }
@@ -261,7 +184,7 @@ func NewActualCmd() *cobra.Command {
 	var brainDir string
 	cmd := &cobra.Command{
 		Use:           "actual",
-		Short:         "Compute an issue's focused dev-hours (runs active-time-v3 with the right transcript dirs)",
+		Short:         "Compute an issue's focused dev-hours (runs the activetime engine with the right transcript dirs)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"actual\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
