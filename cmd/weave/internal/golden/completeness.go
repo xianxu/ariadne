@@ -60,15 +60,15 @@ type Uncovered struct {
 //   - scaffold→ a plan.Mkdir with the same Path.
 //   - touch   → a plan.Touch with the same Path.
 //   - merge   → a plan.MergeSettings with the same Target.
-//   - prose   → composed into the one AGENTS.md (a plan.WriteFile{Path:"AGENTS.md"}).
-//   - skill   → EITHER skill backend (mutually exclusive per --target): the
-//     .claude/skills/<name> symlink backend (≥1 plan.Symlink under
-//     .claude/skills/, the claude target) OR the AGENTS.md `## Skills` menu (the
-//     codex/agy target). A `skill <dir>` row expands to N name-keyed links, so
-//     coverage is "the symlink backend emitted links" OR "AGENTS.md carries the
-//     menu section" — see coverIntent's intent.Skill case. Counting the menu
-//     (not just any AGENTS.md write) is what lets `--target codex` — which emits
-//     no symlinks — still report zero under-production.
+//   - prose   → composed into SOME per-harness entry file (a plan.WriteFile for
+//     CLAUDE.md/AGENTS.md/GEMINI.md — idx.entryFile).
+//   - skill   → the per-harness skill-DIR symlinks (Option B, #107): ≥1
+//     plan.Symlink under .claude/skills (claude) and/or .agents/skills
+//     (codex/gemini). No menu backend. A `skill <dir>` row expands to N name-keyed
+//     links; every target emits links into its own skill dir, so a covered intent
+//     yields skillLinks ≥ 1 regardless of which target ran — see coverIntent's
+//     intent.Skill case. This is what lets BOTH the Union and a lean `--target`
+//     report zero under-production.
 func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered {
 	idx := indexActions(actions)
 

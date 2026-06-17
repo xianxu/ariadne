@@ -58,8 +58,8 @@ func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 	//   prose(R) = ⟦export-prose(L₀)⟧ ∥ … ∥ ⟦export-prose(Lₙ)⟧ ∥ ⟦internal-prose(Lₙ)⟧
 	// i.e. every layer's EXPORT prose foundation-first, then the LEAF's INTERNAL
 	// prose LAST. Ancestor internal prose is excluded; leaf internal is included
-	// last. The skill menu (the agent-agnostic floor's always-on face) appends
-	// below it — one AGENTS.md.
+	// last. The one composition is fanned to each per-harness entry file (#107);
+	// there is no skill menu (each harness discovers its skill dir natively).
 	var fragments []string
 	for _, l := range layers { // export prose, foundation-first (incl. the leaf's export)
 		for _, f := range l.ProseFragments {
