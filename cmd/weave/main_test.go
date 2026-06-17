@@ -65,7 +65,8 @@ func TestCompileEndToEnd(t *testing.T) {
 	_, _, derived := buildFixture(t)
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, false, &out); err != nil {
+	// The Union (default) writes the composed prose to every entry file (incl. AGENTS.md).
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -77,6 +78,16 @@ func TestCompileEndToEnd(t *testing.T) {
 	want := "BASE PROSE\n\nDERIVED PROSE\n"
 	if string(agents) != want {
 		t.Fatalf("AGENTS.md = %q, want %q", agents, want)
+	}
+	// Union: the SAME composed prose is fanned to CLAUDE.md + GEMINI.md, byte-identical.
+	for _, ef := range []string{"CLAUDE.md", "GEMINI.md"} {
+		b, err := os.ReadFile(filepath.Join(derived, ef))
+		if err != nil {
+			t.Fatalf("Union did not write %s: %v", ef, err)
+		}
+		if string(b) != want {
+			t.Errorf("%s = %q, want %q (same prose as AGENTS.md)", ef, b, want)
+		}
 	}
 
 	// The generic symlink from base exists and resolves to base content.
@@ -174,7 +185,7 @@ func TestCompileMultiLayerVisibility(t *testing.T) {
 	mkfile(t, filepath.Join(leaf, "AGENTS.local.md"), "LEAF-INTERNAL")
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, leaf, plan.TargetClaude, false, &out); err != nil {
+	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil { // Union writes AGENTS.md
 		t.Fatalf("run: %v", err)
 	}
 
@@ -251,7 +262,7 @@ func TestCompileDryRunDoesNotMutate(t *testing.T) {
 	_, _, derived := buildFixture(t)
 
 	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, true, &out); err != nil {
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, true, &out); err != nil { // Union plans AGENTS.md
 		t.Fatalf("run --dry-run: %v", err)
 	}
 
@@ -320,8 +331,8 @@ func TestBuildRootWiring(t *testing.T) {
 	if tf == nil {
 		t.Fatalf("--target flag not wired on compile")
 	}
-	if tf.DefValue != "claude" {
-		t.Fatalf("--target default = %q, want claude", tf.DefValue)
+	if tf.DefValue != "all" {
+		t.Fatalf("--target default = %q, want all (the Union)", tf.DefValue)
 	}
 }
 
@@ -370,11 +381,11 @@ func buildSkillRepoFixture(t *testing.T) (derived string) {
 	return derived
 }
 
-// TestCompileTargetCodexEmitsMenuOnly asserts the codex backend (Approach-1):
-// the `## Skills` menu composes into AGENTS.md and NO .claude/skills symlinks are
-// emitted — the two skill backends are mutually exclusive per target. (The Claude
-// target's mirror is TestCompileTargetClaudeEmitsSymlinksProseOnly.)
-func TestCompileTargetCodexEmitsMenuOnly(t *testing.T) {
+// TestCompileTargetCodexEmitsAgentsSkills asserts the codex face (Option B #107):
+// a PROSE-ONLY AGENTS.md (NO `## Skills` menu — Codex auto-composes its own from
+// .agents/skills) + .agents/skills/<name> symlinks, and ZERO .claude/skills (that's
+// Claude's dir). Mirror: TestCompileTargetClaudeEmitsSymlinksProseOnly.
+func TestCompileTargetCodexEmitsAgentsSkills(t *testing.T) {
 	derived := buildSkillRepoFixture(t)
 
 	var out bytes.Buffer
@@ -386,29 +397,56 @@ func TestCompileTargetCodexEmitsMenuOnly(t *testing.T) {
 		t.Fatalf("read AGENTS.md: %v", err)
 	}
 	body := string(agents)
-
-	// Prose first (foundation-first), then the always-on `## Skills` menu.
 	if !strings.HasPrefix(body, "BASE PROSE\n\nDERIVED PROSE\n") {
-		t.Errorf("AGENTS.md should start with foundation-first prose:\n%s", body)
+		t.Errorf("codex AGENTS.md should be foundation-first prose:\n%s", body)
 	}
-	if !strings.Contains(body, "## Skills") {
-		t.Errorf("codex AGENTS.md missing the `## Skills` menu section:\n%s", body)
+	if strings.Contains(body, "## Skills") {
+		t.Errorf("codex AGENTS.md must NOT carry a `## Skills` menu (Option B):\n%s", body)
 	}
-	if !strings.Contains(body, "weave skill <name>") {
-		t.Errorf("AGENTS.md missing the on-demand note:\n%s", body)
-	}
-	for _, line := range []string{
-		"xx-sdlc — SDLC checkpoint gates",
-		"superpowers-brainstorming — Brainstorm before building",
-		"xx-issues — Issue files in workshop/issues",
+	// Skills lower to .agents/skills/<name>, each resolving to its upstream body.
+	for name, wantBody := range map[string]string{
+		"xx-sdlc":                   "BASE SDLC BODY",
+		"superpowers-brainstorming": "BRAINSTORM BODY",
+		"xx-issues":                 "ISSUES BODY",
 	} {
-		if !strings.Contains(body, line) {
-			t.Errorf("AGENTS.md missing menu line %q:\n%s", line, body)
+		link := filepath.Join(derived, ".agents", "skills", name)
+		fi, err := os.Lstat(link)
+		if err != nil || fi.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("codex: expected .agents/skills/%s symlink: err=%v", name, err)
+		}
+		b, err := os.ReadFile(filepath.Join(link, "SKILL.md"))
+		if err != nil || !strings.Contains(string(b), wantBody) {
+			t.Errorf(".agents/skills/%s resolves to %q (err=%v), want %q", name, b, err, wantBody)
 		}
 	}
-	// And ZERO .claude/skills symlinks under codex (the symlink backend is off).
+	// ZERO .claude/skills under codex (the Claude dir is not this harness's face).
 	if entries, err := os.ReadDir(filepath.Join(derived, ".claude", "skills")); err == nil && len(entries) > 0 {
 		t.Errorf("codex target wrote %d .claude/skills entries, want zero", len(entries))
+	}
+}
+
+// TestCompileUnionMaterializesBothSkillDirs closes the "Done when: Union produces
+// BOTH skill faces" loop e2e (#107): a single Union run() over a skill-bearing repo
+// writes all three prose entry files AND lowers the same skills into BOTH
+// .claude/skills and .agents/skills.
+func TestCompileUnionMaterializesBothSkillDirs(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	for _, ef := range []string{"CLAUDE.md", "AGENTS.md", "GEMINI.md"} {
+		if _, err := os.Stat(filepath.Join(derived, ef)); err != nil {
+			t.Errorf("Union missing entry file %s: %v", ef, err)
+		}
+	}
+	for _, dir := range []string{".claude/skills", ".agents/skills"} {
+		for _, name := range []string{"xx-sdlc", "superpowers-brainstorming", "xx-issues"} {
+			link := filepath.Join(derived, dir, name)
+			if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+				t.Errorf("Union: %s/%s missing or not a symlink: %v", dir, name, err)
+			}
+		}
 	}
 }
 
@@ -451,17 +489,24 @@ func TestCompileTargetClaudeEmitsSymlinksProseOnly(t *testing.T) {
 		}
 	}
 
-	// AGENTS.md is PROSE-ONLY under claude — NO `## Skills` menu.
-	agents, err := os.ReadFile(filepath.Join(derived, "AGENTS.md"))
+	// CLAUDE.md is the claude entry file — foundation-first prose, no menu. The
+	// claude target writes NO AGENTS.md and NO .agents/skills (other harnesses' faces).
+	claudeMD, err := os.ReadFile(filepath.Join(derived, "CLAUDE.md"))
 	if err != nil {
-		t.Fatalf("read AGENTS.md: %v", err)
+		t.Fatalf("read CLAUDE.md: %v", err)
 	}
-	body := string(agents)
+	body := string(claudeMD)
 	if !strings.HasPrefix(body, "BASE PROSE\n\nDERIVED PROSE\n") {
-		t.Errorf("claude AGENTS.md should be foundation-first prose:\n%s", body)
+		t.Errorf("claude CLAUDE.md should be foundation-first prose:\n%s", body)
 	}
 	if strings.Contains(body, "## Skills") {
-		t.Errorf("claude target should NOT compose a `## Skills` menu (prose-only):\n%s", body)
+		t.Errorf("claude CLAUDE.md should NOT carry a `## Skills` menu:\n%s", body)
+	}
+	if _, err := os.Stat(filepath.Join(derived, "AGENTS.md")); !os.IsNotExist(err) {
+		t.Errorf("claude target wrote AGENTS.md (err=%v), want only CLAUDE.md", err)
+	}
+	if entries, err := os.ReadDir(filepath.Join(derived, ".agents", "skills")); err == nil && len(entries) > 0 {
+		t.Errorf("claude target wrote %d .agents/skills entries, want zero", len(entries))
 	}
 }
 
@@ -683,9 +728,9 @@ func TestGoldenCleanRepo(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(derived, ".claude", "skills"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// AGENTS.md: weave plans a composed WriteFile (base + derived prose); realize
-	// it so the WriteFile classifies MATCH.
-	if err := os.WriteFile(filepath.Join(derived, "AGENTS.md"), []byte("BASE PROSE\n\nDERIVED PROSE\n"), 0o644); err != nil {
+	// CLAUDE.md: the claude target plans a composed WriteFile (base + derived prose);
+	// realize it so the WriteFile classifies MATCH.
+	if err := os.WriteFile(filepath.Join(derived, "CLAUDE.md"), []byte("BASE PROSE\n\nDERIVED PROSE\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

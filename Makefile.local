@@ -1,7 +1,18 @@
 # ariadne-specific Makefile targets. NOT vendored to consumers
 # (consumers don't need to refresh other repos — only ariadne does).
 
-.PHONY: refresh-recursive
+.PHONY: refresh-recursive harness-check
+
+# Guard ariadne's per-harness skill-discovery integration assumptions (#107).
+# weave's Option B lowering trusts each harness to discover its own skill dir
+# (.claude/skills for Claude; .agents/skills for Codex/Gemini) in weave's
+# SKILL.md format, following weave's symlinks. The .agents/skills scan-path is a
+# per-tool convention (unstable), so this asserts it against the INSTALLED CLIs
+# and FAILs loudly if a harness changed behavior. SKIPs an absent CLI.
+# Run before a propagate/re-weave, and whenever a harness CLI updates.
+# Triage a break: atlas/workflow/harness-integration.md.
+harness-check:
+	@bash scripts/harness-assumptions.test.sh
 
 # Iterate every peer repo in the parent directory and run `make weave`
 # in each one that's ariadne-dependent. A repo qualifies if it has a

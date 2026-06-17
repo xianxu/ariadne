@@ -2,53 +2,98 @@ package plan
 
 import "fmt"
 
-// Target is the backend a single `weave compile` invocation lowers for — one
-// target per invocation (the Approach-1 design). It is pure data (a string
-// enum) and lives here, beside Plan, because the one decision a Target drives is
-// how the skill intents lower: the .claude/skills symlink backend versus the
-// AGENTS.md `## Skills` menu backend. The two are MUTUALLY EXCLUSIVE per target
-// (a harness reads its skills ONE way), so the Target picks exactly one:
+// Target selects which per-harness FACES a single `weave compile` lowers
+// (Option B, #107). A harness FACE is its pure-prose ENTRY FILE + its skill
+// DISCOVERY DIR — disjoint paths per harness, so one checkout serves every
+// harness with no contested file:
 //
-//   - claude → .claude/skills/<name> symlinks; AGENTS.md prose-only (NO menu).
-//     The Claude harness discovers skills from .claude/skills, so the always-on
-//     menu would be redundant noise in its system prompt.
-//   - codex / agy → NO .claude/skills symlinks; AGENTS.md carries the `## Skills`
-//     menu. These harnesses have no skill-discovery dir, so the menu IS the
-//     discovery face (bodies still served on demand via `weave skill <name>`).
+//	claude → CLAUDE.md  + .claude/skills/   (Claude Code reads CLAUDE.md only)
+//	codex  → AGENTS.md  + .agents/skills/   (OpenAI Codex reads AGENTS.md)
+//	gemini → GEMINI.md  + .agents/skills/   (Gemini CLI reads GEMINI.md)
 //
-// All non-skill file-ops (prose body, settings merge, tool, scaffold, touch,
-// generic symlink, seed) are target-INDEPENDENT.
+// codex + gemini SHARE the .agents/skills dir (the Agent Skills neutral path).
+// There is NO `## Skills` menu: every harness discovers its skill dir NATIVELY
+// (Codex/Gemini auto-compose their own menu from .agents/skills; weave emitting
+// one would double-expose). The entry files are the SAME composed prose under
+// three names.
+//
+//	weave compile  (default, TargetAll) = the UNION: every face at once.
+//	weave compile --target T            = the LEAN subset: only T's face.
+//
+// All non-skill, non-prose file-ops (settings merge, generic symlinks, scaffolds,
+// seeds) are target-INDEPENDENT — always present regardless of target.
 type Target string
 
 const (
-	// TargetClaude lowers skills as .claude/skills symlinks (menu suppressed).
-	TargetClaude Target = "claude"
-	// TargetCodex lowers skills as the AGENTS.md menu (no symlinks).
-	TargetCodex Target = "codex"
-	// TargetAgy lowers skills as the AGENTS.md menu (no symlinks), like codex.
-	TargetAgy Target = "agy"
+	TargetAll    Target = "all"    // the Union — every harness's face (the default)
+	TargetClaude Target = "claude" // CLAUDE.md + .claude/skills
+	TargetCodex  Target = "codex"  // AGENTS.md + .agents/skills
+	TargetGemini Target = "gemini" // GEMINI.md + .agents/skills
 )
 
-// ParseTarget validates a backend name against the known set, returning a clear
-// error on an unknown name. Pure.
+// Face is one harness's Option B artifact set: its prose ENTRY FILE + its skill
+// DISCOVERY DIR. Pure data.
+type Face struct {
+	Target    Target
+	EntryFile string
+	SkillDir  string
+}
+
+// faces is the per-harness face registry — the single source of truth for "what
+// does harness T put where". Order is the Union's lowering order (claude first).
+var faces = []Face{
+	{TargetClaude, "CLAUDE.md", ".claude/skills"},
+	{TargetCodex, "AGENTS.md", ".agents/skills"},
+	{TargetGemini, "GEMINI.md", ".agents/skills"},
+}
+
+// ParseTarget validates a target name. The empty string (no --target) is the
+// Union default. Pure.
 func ParseTarget(s string) (Target, error) {
 	switch Target(s) {
-	case TargetClaude, TargetCodex, TargetAgy:
+	case "", TargetAll:
+		return TargetAll, nil
+	case TargetClaude, TargetCodex, TargetGemini:
 		return Target(s), nil
 	default:
-		return "", fmt.Errorf("unknown target %q; expected one of: claude, codex, agy", s)
+		return "", fmt.Errorf("unknown target %q; expected one of: all, claude, codex, gemini", s)
 	}
 }
 
-// EmitSkillSymlinks reports whether this target lowers the .claude/skills
-// symlink backend. True for claude; false for the menu-driven harnesses.
-func (t Target) EmitSkillSymlinks() bool {
-	return t == TargetClaude
+// Faces returns the faces this target lowers: every harness for the Union
+// (TargetAll), or the single selected harness for a lean compile. Pure.
+func (t Target) Faces() []Face {
+	if t == TargetAll {
+		return append([]Face(nil), faces...)
+	}
+	for _, f := range faces {
+		if f.Target == t {
+			return []Face{f}
+		}
+	}
+	return nil
 }
 
-// IncludeSkillMenu reports whether this target composes the `## Skills` menu
-// into AGENTS.md. The complement of EmitSkillSymlinks — the two skill backends
-// are mutually exclusive per target.
-func (t Target) IncludeSkillMenu() bool {
-	return !t.EmitSkillSymlinks()
+// EntryFiles + SkillDirs are the deduped paths the target's faces write to (codex
+// + gemini share .agents/skills, so the Union has ONE .agents/skills dir). The
+// EntryFiles all receive the SAME composed prose; the SkillDirs each receive the
+// full selected skill set. Pure.
+func (t Target) EntryFiles() []string {
+	return dedupe(t.Faces(), func(f Face) string { return f.EntryFile })
+}
+func (t Target) SkillDirs() []string {
+	return dedupe(t.Faces(), func(f Face) string { return f.SkillDir })
+}
+
+func dedupe(fs []Face, key func(Face) string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, f := range fs {
+		k := key(f)
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	return out
 }

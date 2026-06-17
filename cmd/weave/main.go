@@ -7,25 +7,25 @@
 //	weave compile --dry-run        print the planned []Action; mutate nothing
 //	weave golden [--target T]      verify weave's plan matches setup.sh's live output
 //	weave verify-complete [--target T]  assert the plan covers every managed path
-//	weave skills                   print the skill menu (name — description)
+//	weave skills                   print the skill listing (name — description)
 //	weave skill <name>             print a skill's SKILL.md body (served directly)
 //	weave link <path>              record a `substrate <path>` dep in construct/deps
 //
-// One target per invocation (Approach-1): `--target` picks ONE skill backend —
-// claude lowers .claude/skills symlinks with a prose-only AGENTS.md; codex/agy
-// suppress the symlinks and compose the `## Skills` menu into AGENTS.md instead.
-// The two skill backends are mutually exclusive; every other file-op is
-// target-independent. See plan.Target.
+// Per-harness faces (Option B, #107): the Union (default) lowers every harness's
+// FACE — a prose entry file (CLAUDE.md/AGENTS.md/GEMINI.md) + a skill dir
+// (.claude/skills for Claude, .agents/skills for Codex/Gemini); `--target T`
+// lowers only T's face and prunes the others. There is no `## Skills` menu — each
+// harness discovers its own skill dir. Every non-skill, non-prose file-op is
+// target-independent. See plan.Target / plan.Faces.
 //
 // The pure core (intent/, layer/, plan/, skill/) never touches disk; weave's
 // only IO is the walk (reading manifests/deps/prose/skills) and plan.Apply (the
 // mutations), behind weavefs.FS (ARCH-PURE). M3 part 1 adds the skill server:
-// weave serves skills DIRECTLY (no .claude/skills/ discovery) — the menu is
-// compiled into the composed AGENTS.md (always-on), bodies served on demand via
-// `weave skill <name>`. M3 part 2 adds `link` (substrate deps). M5 makes the
-// compile an explicit subcommand with `--target` backend selection and retires
-// the `tool` verb (Go-tool ownership is location-based via dev-aliases.sh, not a
-// go.mod edit).
+// weave serves skill bodies on demand via `weave skill <name>`; harnesses
+// discover the lowered skill dirs directly (no menu). M3 part 2 adds `link`
+// (substrate deps). M5 makes the compile an explicit subcommand with `--target`
+// face selection and retires the `tool` verb (Go-tool ownership is location-based
+// via dev-aliases.sh, not a go.mod edit).
 package main
 
 import (
@@ -62,9 +62,9 @@ func buildRoot() *cobra.Command {
 		Short: "Compile a repo's agentic context from its layer DAG",
 		Long: "weave compiles a repo's agentic context from its layer DAG.\n\n" +
 			"The bare `weave` command prints this help and mutates nothing; run\n" +
-			"`weave compile` to actually compile. One target per invocation:\n" +
-			"`--target claude` lowers .claude/skills symlinks (prose-only AGENTS.md),\n" +
-			"`--target codex`/`agy` compose the skill menu into AGENTS.md instead.",
+			"`weave compile` to actually compile. By default (the Union) it lowers\n" +
+			"every harness FACE — CLAUDE.md/AGENTS.md/GEMINI.md (prose) + .claude/skills\n" +
+			"(Claude) + .agents/skills (Codex/Gemini); `--target T` lowers only T's face.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		// RunE intentionally nil: the bare command is help-only (no compile).
@@ -78,12 +78,13 @@ func buildRoot() *cobra.Command {
 	return cmd
 }
 
-// buildCompile assembles `weave compile [--target <backend>] [--dry-run]` — the
-// explicit compile verb (M5; was the root's RunE). --target selects ONE skill
-// backend (default claude): claude → .claude/skills symlinks + prose-only
-// AGENTS.md; codex/agy → no symlinks + the `## Skills` menu in AGENTS.md. An
-// unknown target errors clearly (plan.ParseTarget). --dry-run prints the planned
-// actions and mutates nothing.
+// buildCompile assembles `weave compile [--target <face>] [--dry-run]` — the
+// explicit compile verb (M5; was the root's RunE). Default = the Union (every
+// harness face); --target T lowers only T's face (entry file + skill dir) and
+// prunes the others. No `## Skills` menu — each harness discovers its own skill
+// dir (.claude/skills for claude, .agents/skills for codex/gemini). An unknown
+// target errors clearly (plan.ParseTarget). --dry-run prints the planned actions
+// and mutates nothing.
 func buildCompile() *cobra.Command {
 	var dryRun bool
 	var targetFlag string
@@ -91,9 +92,9 @@ func buildCompile() *cobra.Command {
 		Use:   "compile",
 		Short: "Compile the cwd repo's agentic context for a backend target",
 		Long: "Compiles the current working directory's repo: walk the layer DAG,\n" +
-			"plan the file-ops, and apply them. `--target` selects the skill backend\n" +
-			"(claude=.claude/skills symlinks + prose-only AGENTS.md; codex/agy=the\n" +
-			"`## Skills` menu in AGENTS.md, no symlinks). `--dry-run` prints the plan.",
+			"plan the file-ops, and apply them. Default = the Union (every harness\n" +
+			"face); `--target {claude|codex|gemini}` lowers only that harness's face\n" +
+			"(entry file + skill dir), pruning the others. `--dry-run` prints the plan.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -109,7 +110,7 @@ func buildCompile() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
-	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetAll), "harness target: all | claude | codex | gemini (default all = the Union of every harness's face)")
 	return cmd
 }
 
@@ -131,8 +132,8 @@ func buildVerifyComplete() *cobra.Command {
 			"asserts weave's plan covers each. Catches UNDER-production a golden-diff\n" +
 			"cannot see (a verb whose lowering drops the entry). Exits non-zero on any\n" +
 			"under-produced path. With no args, auto-discovers present sibling repos.\n" +
-			"`--target` selects the backend whose plan is checked (a skill intent is\n" +
-			"covered by EITHER backend: claude's symlinks or codex/agy's menu).",
+			"`--target` selects whose plan is checked (default the Union; a skill\n" +
+			"intent is covered by its per-harness skill-dir symlinks).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -147,18 +148,18 @@ func buildVerifyComplete() *cobra.Command {
 			return runVerifyComplete(weavefs.OSFS{}, cwd, args, target, cmd.OutOrStdout())
 		},
 	}
-	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetAll), "harness target: all | claude | codex | gemini (default all = the Union of every harness's face)")
 	return cmd
 }
 
-// runVerifyComplete is the completeness pipeline over a set of repos, for ONE
-// backend target: it reuses goldenTargets (the same repo resolution as the golden
-// harness, ARCH-DRY) and, per present repo, walks → Plans (planActions — the
-// IDENTICAL plan the compile path + golden see for this target, so the active
-// skill backend counts for skill coverage) → CheckCompleteness → Render. A skill
-// intent is satisfied by EITHER backend, so both --target claude (symlinks) and
-// --target codex (menu) report zero under-production. Returns an error iff any
-// repo had an under-produced path. Injecting fs + out keeps it testable.
+// runVerifyComplete is the completeness pipeline over a set of repos, for a given
+// target: it reuses goldenTargets (the same repo resolution as the golden harness,
+// ARCH-DRY) and, per present repo, walks → Plans (planActions — the IDENTICAL plan
+// the compile path + golden see for this target, so the lowered skill dirs count
+// for skill coverage) → CheckCompleteness → Render. A skill intent is satisfied by
+// its per-harness skill-dir symlinks, so both the Union and a lean --target report
+// zero under-production. Returns an error iff any repo had an under-produced path.
+// Injecting fs + out keeps it testable.
 func runVerifyComplete(fs weavefs.FS, cwd string, args []string, target plan.Target, out io.Writer) error {
 	repos := goldenTargets(cwd, args)
 	anyUnder := false
@@ -256,13 +257,15 @@ func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
 	return nil
 }
 
-// buildSkills assembles `weave skills` — print the agent-agnostic skill menu
-// (the same menu compiled into AGENTS.md): one `name — description` line per
-// skill, foundation-first with the downstream cascade. Read-only.
+// buildSkills assembles `weave skills` — print the agent-agnostic skill listing
+// served for this repo: one `name — description` line per skill, foundation-first
+// with the downstream cascade. A diagnostic CLI view of the served set (NOT a menu
+// compiled into any entry file — harnesses discover the lowered skill dirs
+// natively, #107). Read-only.
 func buildSkills() *cobra.Command {
 	return &cobra.Command{
 		Use:           "skills",
-		Short:         "Print the skill menu (name — description) served for this repo",
+		Short:         "Print the skill listing (name — description) served for this repo",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -327,7 +330,7 @@ func buildGolden() *cobra.Command {
 			return runGolden(weavefs.OSFS{}, cwd, args, target, cmd.OutOrStdout())
 		},
 	}
-	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetAll), "harness target: all | claude | codex | gemini (default all = the Union of every harness's face)")
 	return cmd
 }
 
@@ -356,12 +359,12 @@ func runGolden(fs weavefs.FS, cwd string, args []string, target plan.Target, out
 			return fmt.Errorf("golden: walk %s: %w", root, err)
 		}
 		// Golden classifies weave's FILE-OPS against setup.sh's live output. Use
-		// the SAME planActions the compile path uses (ARCH-DRY) so the .claude/skills
-		// symlinks the symlink backend now emits are classified against the live
-		// links — they MATCH the ones sync-local-skills.sh wrote, the M5 cutover's
-		// parity check. The AGENTS.md WriteFile (prose + the menu backend's `## Skills`
-		// section) is classified as one body; its content intentionally DIVERGES from
-		// setup.sh's symlinked AGENTS.md (an expected, hand-checked M5 divergence).
+		// the SAME planActions the compile path uses (ARCH-DRY) so the per-harness
+		// skill-dir symlinks weave now emits are classified against the live links —
+		// they MATCH the ones sync-local-skills.sh wrote, the M5 cutover's parity
+		// check. The entry-file WriteFiles (CLAUDE.md/AGENTS.md/GEMINI.md prose) are
+		// classified as bodies; their content intentionally DIVERGES from setup.sh's
+		// symlinked AGENTS.md (an expected, hand-checked M5/#107 divergence).
 		actions, err := planActions(fs, layers, target)
 		if err != nil {
 			return fmt.Errorf("golden: plan %s: %w", root, err)
@@ -455,11 +458,21 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 	// layer roots weave lowers FROM (a weave-owned link's target resolves under
 	// one of these). Derived from the walk, never hardcoded.
 	sourceRoots := plan.SourceRootsFromPaths(layerPaths(layers))
+	// Cross-target prune scan (#107): scan the UNION's managed locations so a lean
+	// `--target X` compile prunes the OTHER faces' stale artifacts (e.g. a codex
+	// compile prunes the claude face's .claude/skills). The Union compile already
+	// covers every face, so scanActions == actions there (it prunes nothing extra).
+	scanActions := actions
+	if target != plan.TargetAll {
+		if scanActions, err = planActions(fs, layers, plan.TargetAll); err != nil {
+			return err
+		}
+	}
 	if dryRun {
 		fmt.Fprint(out, formatActions(actions))
 		// Dry-run also previews the prune (read-only scan + the SAME pure decision
 		// the apply uses), so a dry-run shows exactly what an apply would delete.
-		preview, perr := plan.PrunePreview(fs, root, actions, sourceRoots)
+		preview, perr := plan.PrunePreview(fs, root, scanActions, actions, sourceRoots)
 		if perr != nil {
 			return fmt.Errorf("prune preview: %w", perr)
 		}
@@ -470,11 +483,12 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 		return fmt.Errorf("apply: %w", err)
 	}
 	// After Apply, prune ORPHANED lowered symlinks weave no longer produces (#96):
-	// renamed/re-prefixed skills + the #95 cutover's dead symlinks. Safety lives in
-	// plan.shouldPrune — only a weave-owned symlink absent from this run's produced
-	// set, in a managed location, is removed; real files/dirs and non-weave links
-	// are never touched.
-	pruned, err := plan.PruneOrphans(fs, root, actions, sourceRoots)
+	// renamed/re-prefixed skills + the #95 cutover's dead symlinks + (Option B #107)
+	// the OTHER harness faces a lean `--target X` compile no longer produces (scanned
+	// via the union scanActions). Safety lives in plan.shouldPrune — only a weave-owned
+	// symlink absent from this run's produced set, in a managed location, is removed;
+	// real files/dirs and non-weave links are never touched.
+	pruned, err := plan.PruneOrphans(fs, root, scanActions, actions, sourceRoots)
 	if err != nil {
 		return fmt.Errorf("prune: %w", err)
 	}
@@ -499,43 +513,38 @@ func layerPaths(layers []layer.Layer) []string {
 	return out
 }
 
-// planActions is the full compile lowering for a set of resolved layers, for ONE
-// backend target (Approach-1, M5). The skill intents lower through exactly one of
-// the two backends — they are MUTUALLY EXCLUSIVE per target (a harness reads its
-// skills one way):
+// planActions is the full compile lowering for a set of resolved layers, for a
+// given target (Option B, #107). Skills lower as per-harness skill-dir symlinks —
+// .claude/skills for claude, .agents/skills for codex/gemini (Target.SkillDirs);
+// prose lowers as per-harness entry files — CLAUDE.md/AGENTS.md/GEMINI.md
+// (Target.EntryFiles). The Union (default) emits every face; a lean --target T
+// emits only T's. There is NO `## Skills` menu — each harness discovers its own
+// skill dir natively.
 //
-//   - target.EmitSkillSymlinks() (claude): emit the .claude/skills/<name> links;
-//     the AGENTS.md menu is suppressed (nil menu ⇒ composeAgentsBody yields
-//     prose-only, no `## Skills` section).
-//   - target.IncludeSkillMenu() (codex/agy): NO .claude/skills links; the
-//     `## Skills` menu is composed into AGENTS.md instead.
-//
-// Every other file-op (prose body, settings merge, scaffold, touch,
-// generic symlink, seed) is target-independent. Shared by the compile path (run),
-// the golden harness (runGolden), and verify-complete (runVerifyComplete) so all
-// see the IDENTICAL action set for a given target (ARCH-DRY).
+// Every other file-op (settings merge, scaffold, touch, generic symlink, seed) is
+// target-independent. Shared by the compile path (run), the golden harness
+// (runGolden), and verify-complete (runVerifyComplete) so all see the IDENTICAL
+// action set for a given target (ARCH-DRY).
 func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]plan.Action, error) {
-	// ONE skill discovery (#104): gather → SelectVisible (𝒜(R)). The menu (idx) AND
-	// the claude symlinks both read the SAME selected entries — no second scan.
-	idx, selected, err := buildSkillIndex(fs, layers)
+	// ONE skill discovery (#104): gather → SelectVisible (𝒜(R)). The compile path
+	// uses only the selected entries — NO menu (Option B, #107: every harness
+	// discovers its own skill dir natively). buildSkillIndex's index serves
+	// `weave skills`/`weave skill <name>` elsewhere; here we discard it.
+	_, selected, err := buildSkillIndex(fs, layers)
 	if err != nil {
 		return nil, fmt.Errorf("gather skills: %w", err)
 	}
-	// Menu backend (codex/agy only): the `## Skills` section composed into
-	// AGENTS.md by the pure planner. A nil menu (claude) ⇒ prose-only AGENTS.md.
-	var menu []skill.MenuItem
-	if target.IncludeSkillMenu() {
-		menu = idx.Menu()
-	}
-	actions, err := plan.Plan(layers, menu)
+	// Prose → each per-harness ENTRY FILE; the selected skills → each per-harness
+	// SKILL DIR. Faces() decides which: the Union (default) writes CLAUDE.md +
+	// AGENTS.md + GEMINI.md + .claude/skills + .agents/skills; a lean --target T
+	// writes only T's face. codex+gemini share .agents/skills (Target.SkillDirs
+	// dedupes).
+	actions, err := plan.Plan(layers, target.EntryFiles())
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
 	}
-	// Symlink backend (claude only): the .claude/skills/<name> links the Claude
-	// harness reads. plan.SkillSymlinks is a PURE derivation from the SAME selected
-	// entries the menu used (#104 — no separate walk.LowerSkillSymlinks scan).
-	if target.EmitSkillSymlinks() {
-		for _, l := range plan.SkillSymlinks(selected) {
+	for _, dir := range target.SkillDirs() {
+		for _, l := range plan.SkillSymlinks(selected, dir) {
 			actions = append(actions, l)
 		}
 	}
@@ -553,10 +562,11 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 
 // buildSkillIndex is weave's SINGLE skill pipeline (#104): walk.GatherSkills (the
 // one IO discovery, intent-driven, carrying Visibility+LayerIndex) → skill.SelectVisible
-// (the pure 𝒜(R) filter; leaf = the last layer) → skill.Build (the pure menu + body
-// lookup). It returns BOTH the index AND the selected entries, so the menu and the
-// claude symlinks (plan.SkillSymlinks) lower from the IDENTICAL set — the §A4
-// unification (one scan, two renderings, ARCH-DRY). layers must already be walked.
+// (the pure 𝒜(R) filter; leaf = the last layer) → skill.Build (the pure body
+// lookup). It returns BOTH the index AND the selected entries: the index serves
+// `weave skills`/`weave skill <name>`, while the compile path lowers the SAME
+// selected entries into each per-harness skill dir (plan.SkillSymlinks) — one scan,
+// reused everywhere (ARCH-DRY). No menu (Option B). layers must already be walked.
 func buildSkillIndex(fs weavefs.FS, layers []layer.Layer) (skill.SkillIndex, []skill.Entry, error) {
 	entries, err := walk.GatherSkills(fs, layers)
 	if err != nil {
@@ -582,7 +592,7 @@ func resolveSkillIndex(fs weavefs.FS, root string) (skill.SkillIndex, error) {
 	return idx, err
 }
 
-// runSkills prints the skill menu (one `name — description` line per skill) for
+// runSkills prints the skill listing (one `name — description` line per skill) for
 // the repo at root. Read-only; injecting fs + out keeps it testable.
 func runSkills(fs weavefs.FS, root string, out io.Writer) error {
 	idx, err := resolveSkillIndex(fs, root)

@@ -45,7 +45,7 @@ func TestEnsureGitignoreTextPreservesExistingAndAppendsAbsent(t *testing.T) {
 func TestEnsureGitignoreTextIdempotentWhenAllPresent(t *testing.T) {
 	// Every entry already present ⇒ no change, byte-identical (running weave twice
 	// never duplicates lines).
-	current := "/AGENTS.md\n/.claude/skills/\n/.claude/settings.json\n/.colima/\n/construct/scripts/vm-log.sh\n"
+	current := "/AGENTS.md\n/CLAUDE.md\n/GEMINI.md\n/.claude/skills/\n/.agents/skills/\n/.claude/settings.json\n/.colima/\n/construct/scripts/vm-log.sh\n"
 	got, changed := ensureGitignoreText(current, GeneratedRuntimeGitignoreEntries)
 	if changed {
 		t.Fatalf("changed = true when all entries present, want false; got:\n%s", got)

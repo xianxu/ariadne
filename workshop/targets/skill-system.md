@@ -74,10 +74,13 @@ honor (and a test must pin):
    name, the leaf's internal included, ancestors' internal excluded. (The math is
    [[base-layer-mechanics]]; this target only requires the subsystem *use* it
    — one discovery feeding the composed set.)
-4. **Lower** — the composed set renders per harness target: claude → a
-   `.claude/skills/<name>` symlink into the SOURCE LAYER's skill dir; codex/agy →
-   the `## Skills` menu compiled into AGENTS.md. **The set is target-independent;
-   only the rendering differs.**
+4. **Lower** — the composed set renders to each harness's own skill DIR (Option B,
+   #107): claude → `.claude/skills/<name>` symlinks; codex + gemini → `.agents/skills/<name>`
+   symlinks (the Agent Skills neutral path). Each link points into the SOURCE LAYER's
+   skill dir. There is NO `## Skills` menu — every harness discovers its dir natively
+   (Codex/Gemini auto-compose their own). The per-harness ENTRY FILES (CLAUDE.md /
+   AGENTS.md / GEMINI.md) are pure prose. **The set is target-independent; only the
+   destination dir differs.**
 5. **Serve** — every composed skill is servable via `weave skill <name>` (and
    listed by `weave skills`) regardless of target — the agent-agnostic body access.
 6. **Inherit** — a layer owns its OWN skills in a REAL per-layer dir; weave's
@@ -96,8 +99,9 @@ honor (and a test must pin):
 
 - **One declaration mechanism** — no plain-symlink skills; a skill is a `skill`
   intent.
-- **One discovery** — the menu/serve path and the `.claude/skills` path see the
-  IDENTICAL composed set (no `GatherSkills`-vs-`LowerSkillSymlinks` divergence).
+- **One discovery** — every per-harness skill dir (`.claude/skills` + `.agents/skills`)
+  and the `weave skill` serve path see the IDENTICAL composed set (one
+  `walk.GatherSkills`, rendered into each dir by `plan.SkillSymlinks`).
 - **Visibility honored** — an ancestor's `internal` skill never reaches a
   consumer; the leaf's `internal` always does; all `export` do. (Same selection
   prose uses.)

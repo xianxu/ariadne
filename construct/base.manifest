@@ -57,7 +57,12 @@ seed      bootstrap.sh
 # that repo's #95 cutover branch). A bare `prose` row defaults to export.
 export    prose AGENTS.base.md
 internal  prose AGENTS.local.md
-symlink   CLAUDE.md
+# CLAUDE.md is NO LONGER a symlinked @AGENTS.md bridge (#107 Option B): weave
+# composes the prose ONCE and writes it to EACH per-harness ENTRY FILE — CLAUDE.md
+# (Claude Code), AGENTS.md (Codex), GEMINI.md (Gemini CLI) — so each harness reads
+# its own pure-prose constitution + discovers skills from its own dir (.claude/skills
+# for Claude, .agents/skills for Codex/Gemini). The entry files are weave-generated
+# (gitignored); there is no `## Skills` menu (the dirs are the discovery face).
 
 # ── Codex settings ────────────────────────────────────────────────────────────
 # Repo-local Codex sandbox approximation of the Claude settings above.

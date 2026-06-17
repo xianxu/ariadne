@@ -7,7 +7,6 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
-	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 )
 
 // Plan lowers a foundation-first []Layer into []Action. Pure: tested by
@@ -29,7 +28,7 @@ func TestPlanProseAcrossLayersToOneAGENTS(t *testing.T) {
 			{Kind: intent.Prose, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
 		}, ProseFragments: []layer.ProseFragment{{Visibility: intent.Export, Content: "LOCAL"}}},
 	}
-	got, err := Plan(layers, nil) // no skills ⇒ no `## Skills` section appended
+	got, err := Plan(layers, []string{"AGENTS.md"}) // prose fanned to AGENTS.md (one entry file here)
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -67,7 +66,7 @@ func TestPlanProseVisibilitySelection(t *testing.T) {
 			{Visibility: intent.Internal, Content: "LEAF-INTERNAL"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -95,7 +94,7 @@ func TestPlanLeafExportProseBeforeLeafInternal(t *testing.T) {
 			{Visibility: intent.Export, Content: "LEAF-EXPORT"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -122,7 +121,7 @@ func TestPlanAncestorInternalFileOpExcluded(t *testing.T) {
 			{Kind: intent.Symlink, Visibility: intent.Internal, Source: "leaf-only.md", Target: "leaf-only.md"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -147,7 +146,7 @@ func TestPlanSymlinkAndScaffold(t *testing.T) {
 			{Kind: intent.Touch, Source: "workshop/lessons.md", Target: "workshop/lessons.md"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -172,7 +171,7 @@ func TestPlanSeedLowering(t *testing.T) {
 			{Kind: intent.Seed, Source: ".github/workflows/merge-check.yml", Target: ".github/workflows/merge-check.yml"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -194,7 +193,7 @@ func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 			{Kind: intent.Skill, Source: "construct/skills/x", Target: "construct/skills/x"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -215,7 +214,7 @@ func TestPlanMergeLowering(t *testing.T) {
 			{Kind: intent.Merge, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -234,7 +233,7 @@ func TestPlanProseOmittedWhenNoFragments(t *testing.T) {
 			{Kind: intent.Symlink, Source: "CLAUDE.md", Target: "CLAUDE.md"},
 		}},
 	}
-	got, err := Plan(layers, nil)
+	got, err := Plan(layers, []string{"AGENTS.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
@@ -244,66 +243,49 @@ func TestPlanProseOmittedWhenNoFragments(t *testing.T) {
 	}
 }
 
-func TestPlanAppendsSkillMenuToAGENTS(t *testing.T) {
-	// With prose AND skills, the composed AGENTS.md ends with a `## Skills`
-	// section: a note pointing at `weave skill <name>` for the body, then one
-	// `name — description` line per skill, in menu order. The menu is always-on
-	// discovery; the bodies are served on demand.
+func TestPlanProseFannedToEntryFiles(t *testing.T) {
+	// Option B (#107): the ONE composed prose is written to EACH per-harness ENTRY
+	// FILE (the Union: CLAUDE.md + AGENTS.md + GEMINI.md), byte-identical. There is
+	// NO `## Skills` menu — skills lower to per-harness skill DIRS (in planActions),
+	// never into the prose.
 	layers := []layer.Layer{
-		{Name: "ariadne", Path: "/a", Intents: []intent.Intent{
-			{Kind: intent.Prose, Source: "AGENTS.local.md", Target: "AGENTS.local.md"},
-		}, ProseFragments: []layer.ProseFragment{{Visibility: intent.Export, Content: "BASE PROSE"}}},
+		{Name: "ariadne", Path: "/a", ProseFragments: []layer.ProseFragment{
+			{Visibility: intent.Export, Content: "BASE PROSE"},
+		}},
 	}
-	menu := []skill.MenuItem{
-		{Name: "xx-sdlc", Description: "SDLC checkpoint gates"},
-		{Name: "superpowers-brainstorming", Description: "Brainstorm before building"},
-	}
-	got, err := Plan(layers, menu)
+	got, err := Plan(layers, []string{"CLAUDE.md", "AGENTS.md", "GEMINI.md"})
 	if err != nil {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("Plan = %#v, want one AGENTS.md WriteFile", got)
+	want := []Action{
+		WriteFile{Path: "CLAUDE.md", Content: "BASE PROSE\n"},
+		WriteFile{Path: "AGENTS.md", Content: "BASE PROSE\n"},
+		WriteFile{Path: "GEMINI.md", Content: "BASE PROSE\n"},
 	}
-	wf, ok := got[0].(WriteFile)
-	if !ok || wf.Path != "AGENTS.md" {
-		t.Fatalf("Plan[0] = %#v, want WriteFile{AGENTS.md}", got[0])
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Plan = %#v, want %#v (one prose fanned to each entry file, no menu)", got, want)
 	}
-	body := wf.Content
-	if !strings.HasPrefix(body, "BASE PROSE\n") {
-		t.Errorf("body should start with the prose, got:\n%s", body)
-	}
-	if !strings.Contains(body, "## Skills") {
-		t.Errorf("body missing `## Skills` section:\n%s", body)
-	}
-	if !strings.Contains(body, "weave skill <name>") {
-		t.Errorf("body missing the `weave skill <name>` note:\n%s", body)
-	}
-	if !strings.Contains(body, "xx-sdlc — SDLC checkpoint gates") {
-		t.Errorf("body missing the xx-sdlc menu line:\n%s", body)
-	}
-	if !strings.Contains(body, "superpowers-brainstorming — Brainstorm before building") {
-		t.Errorf("body missing the brainstorming menu line:\n%s", body)
-	}
-	// Menu order preserved: sdlc line before brainstorming line.
-	if strings.Index(body, "xx-sdlc —") > strings.Index(body, "superpowers-brainstorming —") {
-		t.Errorf("menu lines out of order:\n%s", body)
+	// No menu leaked into any entry file.
+	for _, a := range got {
+		if strings.Contains(a.(WriteFile).Content, "## Skills") {
+			t.Errorf("entry file leaked a `## Skills` menu:\n%s", a.(WriteFile).Content)
+		}
 	}
 }
 
-func TestPlanSkillMenuWithoutProseStillWritesAGENTS(t *testing.T) {
-	// Skills are always-on discovery: even with NO prose, a non-empty menu must
-	// land in AGENTS.md (it's the floor's home), so the section still appears.
-	menu := []skill.MenuItem{{Name: "xx-fix", Description: "fix markers"}}
-	got, err := Plan(nil, menu)
+func TestPlanNoEntryFilesNoProseAction(t *testing.T) {
+	// A lean target writes prose to ONLY its own entry file; passing no entry files
+	// (or none selected) writes none — even with prose present.
+	layers := []layer.Layer{
+		{Name: "ariadne", Path: "/a", ProseFragments: []layer.ProseFragment{
+			{Visibility: intent.Export, Content: "PROSE"},
+		}},
+	}
+	got, err := Plan(layers, nil)
 	if err != nil {
-		t.Fatalf("Plan: unexpected error: %v", err)
+		t.Fatalf("Plan: %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("Plan = %#v, want one AGENTS.md WriteFile", got)
-	}
-	wf := got[0].(WriteFile)
-	if wf.Path != "AGENTS.md" || !strings.Contains(wf.Content, "xx-fix — fix markers") {
-		t.Errorf("AGENTS.md missing the skill menu:\n%#v", wf)
+	if len(got) != 0 {
+		t.Fatalf("Plan with no entry files = %#v, want no Actions", got)
 	}
 }

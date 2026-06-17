@@ -169,7 +169,7 @@ close-issue:
 weave: weave-build
 	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
 	if [ -n "$$owner" ] && [ -x "$$owner/bin/weave" ]; then \
-		"$$owner/bin/weave" compile --target claude; \
+		"$$owner/bin/weave" compile; \
 	else \
 		echo "Error: weave binary not built (weave-build did not produce $$owner/bin/weave)."; \
 		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \

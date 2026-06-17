@@ -96,6 +96,7 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(flatSetStatus)
 
 	root.AddCommand(NewStartCmd()) // hidden migration stub (#39)
+	root.AddCommand(newPropagateBaseCmd())
 
 	return root
 }

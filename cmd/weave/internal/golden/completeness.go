@@ -60,15 +60,15 @@ type Uncovered struct {
 //   - scaffold→ a plan.Mkdir with the same Path.
 //   - touch   → a plan.Touch with the same Path.
 //   - merge   → a plan.MergeSettings with the same Target.
-//   - prose   → composed into the one AGENTS.md (a plan.WriteFile{Path:"AGENTS.md"}).
-//   - skill   → EITHER skill backend (mutually exclusive per --target): the
-//     .claude/skills/<name> symlink backend (≥1 plan.Symlink under
-//     .claude/skills/, the claude target) OR the AGENTS.md `## Skills` menu (the
-//     codex/agy target). A `skill <dir>` row expands to N name-keyed links, so
-//     coverage is "the symlink backend emitted links" OR "AGENTS.md carries the
-//     menu section" — see coverIntent's intent.Skill case. Counting the menu
-//     (not just any AGENTS.md write) is what lets `--target codex` — which emits
-//     no symlinks — still report zero under-production.
+//   - prose   → composed into SOME per-harness entry file (a plan.WriteFile for
+//     CLAUDE.md/AGENTS.md/GEMINI.md — idx.entryFile).
+//   - skill   → the per-harness skill-DIR symlinks (Option B, #107): ≥1
+//     plan.Symlink under .claude/skills (claude) and/or .agents/skills
+//     (codex/gemini). No menu backend. A `skill <dir>` row expands to N name-keyed
+//     links; every target emits links into its own skill dir, so a covered intent
+//     yields skillLinks ≥ 1 regardless of which target ran — see coverIntent's
+//     intent.Skill case. This is what lets BOTH the Union and a lean `--target`
+//     report zero under-production.
 func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered {
 	idx := indexActions(actions)
 
@@ -115,9 +115,8 @@ type actionIndex struct {
 	mkdirPaths  map[string]bool // every plan.Mkdir.Path
 	touchPaths  map[string]bool // every plan.Touch.Path
 	mergeTgts   map[string]bool // every plan.MergeSettings.Target
-	skillLinks  int             // count of plan.Symlink under .claude/skills/
-	agentsMD    bool            // a plan.WriteFile for AGENTS.md exists
-	skillMenu   bool            // that AGENTS.md carries a `## Skills` menu section
+	skillLinks  int             // count of plan.Symlink under a per-harness skill dir
+	entryFile   bool            // a plan.WriteFile for SOME per-harness entry file exists
 }
 
 func indexActions(actions []plan.Action) actionIndex {
@@ -127,6 +126,13 @@ func indexActions(actions []plan.Action) actionIndex {
 		mkdirPaths:  map[string]bool{},
 		touchPaths:  map[string]bool{},
 		mergeTgts:   map[string]bool{},
+	}
+	// The per-harness entry files (Option B): prose is covered if it lands in ANY of
+	// them (CLAUDE.md / AGENTS.md / GEMINI.md). Reuse the face registry as the single
+	// source of truth (ARCH-DRY).
+	entryFiles := map[string]bool{}
+	for _, ef := range plan.TargetAll.EntryFiles() {
+		entryFiles[ef] = true
 	}
 	for _, a := range actions {
 		switch act := a.(type) {
@@ -144,11 +150,8 @@ func indexActions(actions []plan.Action) actionIndex {
 		case plan.MergeSettings:
 			idx.mergeTgts[act.Target] = true
 		case plan.WriteFile:
-			if act.Path == "AGENTS.md" {
-				idx.agentsMD = true
-				if strings.Contains(act.Content, "## Skills") {
-					idx.skillMenu = true
-				}
+			if entryFiles[act.Path] {
+				idx.entryFile = true
 			}
 		}
 	}
@@ -183,27 +186,32 @@ func coverIntent(in intent.Intent, idx actionIndex) (Uncovered, bool) {
 			return mk("no plan.MergeSettings writes this target")
 		}
 	case intent.Prose:
-		if !idx.agentsMD {
-			return mk("no AGENTS.md WriteFile composed (the prose fragment would be dropped)")
+		if !idx.entryFile {
+			return mk("no per-harness entry-file WriteFile composed (the prose fragment would be dropped)")
 		}
 	case intent.Skill:
-		// The two skill backends are MUTUALLY EXCLUSIVE per --target, and a `skill
-		// <dir>` row is covered by EITHER: the .claude/skills/<name> symlinks (the
-		// claude target emits ≥1) OR the AGENTS.md `## Skills` menu section (the
-		// codex/agy target). Counting the menu specifically — not just any AGENTS.md
-		// write — is what lets `--target codex` report zero under-production despite
-		// emitting no symlinks.
-		if idx.skillLinks == 0 && !idx.skillMenu {
-			return mk("neither .claude/skills symlinks nor an AGENTS.md `## Skills` menu (no skill backend produced this intent)")
+		// Option B (#107): a `skill <dir>` row is covered by the per-harness skill DIR
+		// symlinks — .claude/skills (claude) and/or .agents/skills (codex/gemini). No
+		// menu backend. Every target emits ≥1 skill symlink (into its own dir), so a
+		// covered intent yields skillLinks ≥ 1 regardless of which target ran.
+		if idx.skillLinks == 0 {
+			return mk("no per-harness skill-dir symlinks produced this intent")
 		}
 	}
 	return Uncovered{}, false
 }
 
-// underSkills reports whether a repo-relative path is under .claude/skills/ (a
-// skill-backend symlink), so the index can count those for skill coverage.
+// underSkills reports whether a repo-relative path is under ANY per-harness skill
+// dir (.claude/skills or .agents/skills), so the index can count those symlinks for
+// skill coverage. Reuses the face registry (ARCH-DRY).
 func underSkills(rel string) bool {
-	return strings.HasPrefix(filepath.ToSlash(rel), ".claude/skills/")
+	s := filepath.ToSlash(rel)
+	for _, dir := range plan.TargetAll.SkillDirs() {
+		if strings.HasPrefix(s, dir+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // verbName maps a Kind to its manifest verb word, for the report.

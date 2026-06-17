@@ -103,4 +103,30 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   resolved by `sdlc actual` via `substrateChain`. All 10 repos re-wove + verified
   (ancestors byte-pristine). **[#104 M3]**
 
+- **Per-harness skill-dir lowering (Option B)** — the skill backend stops being
+  "`.claude/skills` symlinks XOR an AGENTS.md `## Skills` menu". Each harness gets a
+  FACE = a pure-prose ENTRY FILE + a skill DIR (`plan.Target.Faces`): claude →
+  `CLAUDE.md` + `.claude/skills`; codex → `AGENTS.md` + `.agents/skills`; gemini →
+  `GEMINI.md` + `.agents/skills` (codex+gemini share the Agent Skills neutral
+  `.agents/skills`). `weave compile` = the **Union** (every face, the default);
+  `--target T` = the lean subset. The `## Skills` MENU is RETIRED — Codex/Gemini
+  auto-compose their own from `.agents/skills`; `plan.SkillSymlinks(entries, dir)`
+  is ONE renderer lowering the same selected set into each dir (ARCH-DRY), and
+  `plan.Plan(layers, entryFiles)` fans the ONE composed prose to each entry file.
+  Verified against the live CLIs by `scripts/harness-assumptions.test.sh`
+  (`make harness-check`). The integration model + per-harness assumption ledger
+  live in [harness-integration.md](harness-integration.md). A lean `--target X`
+  compile PRUNES every OTHER face's stale artifacts (the original #107 bug): the
+  prune scans `ManagedLocations(union-actions)` while the produced-set stays the
+  lean compile's, so a codex compile GCs `.claude/skills` and a claude compile GCs
+  `.agents/skills` — bidirectional, NO per-target registry (reuses the Union
+  primitive + the existing `shouldPrune` safety criteria, ARCH-DRY); the Union
+  prunes neither. **Cutover + propagation (M4):** ariadne dropped the `symlink
+  CLAUDE.md` bridge + flipped the `Makefile.workflow` weave target to the Union
+  default; then `sdlc propagate-base` (#106) re-wove all 10 recursive dependents
+  foundation-first — each now carries `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` (prose) +
+  `.claude/skills` + `.agents/skills`, with the tracked `CLAUDE.md` bridge untracked
+  (it's generated now). All 11 repos clean, ancestors byte-pristine,
+  `make harness-check` green. **[#107 M2 produce + M3 prune + M4 propagate; tool #106]**
+
 Full spec, dep-model rule, and revisions live in the issue + plan above.

@@ -1,12 +1,13 @@
 ---
 id: 000106
-status: open
+status: done
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-16
 updated: 2026-06-16
-estimate_hours:
+estimate_hours: 4
+actual_hours: 1.5
 ---
 
 # sdlc propagate-base — first-class propagation of a base-layer change to all recursive dependents
@@ -117,13 +118,38 @@ owner's `main`):
 - Verified on a real base-layer bump (re-run the #104-style propagation through the
   verb instead of by hand) with all dependents converging + ancestors pristine.
 
+## Revisions
+
+- **2026-06-16 (MVP shipped).** The MVP commits the consumption on each dependent's
+  CURRENT branch (= `main` for the fleet today), NOT a per-dependent feature branch —
+  so the Spec/Done-when's "branch the dependent; NEVER commit to main directly"
+  OVERCLAIMS what shipped. Deliberate: it matches the operator's "simple cd + make
+  weave + commit" framing and got the #107 cutover propagated. **Deferred to a
+  follow-on:** branch-first per dependent + `--push` + idempotent-resume + the
+  status-table's branched/pushed columns. The shipped verb DOES add untrack-of-
+  now-ignored-files (the cutover-correctness the manual loop lacked) and the
+  reverse-dep topological discovery (which found `robotics`, a dependent a hardcoded
+  loop misses). Used live to propagate #107 across all 10 dependents.
+
 ## Plan
 
-- [ ]
+- [x] MVP — `sdlc propagate-base` in the OWNER repo: (1) discover the recursive
+      dependents — present sibling dirs (the `Makefile.workflow` ariadne-dependent
+      signal) whose `substrateChain` transitively includes the owner; (2) topologically
+      ORDER foundation-first (reuse `substrateChain`: a dependent that is itself in
+      another dependent's chain comes first — so `nous` before the brains); (3) per
+      dependent, in order: `make weave` (re-weave; build-in-owner) + `weave
+      verify-complete` (gate) + commit the consumption; (4) emit ONE status table
+      (repo → re-wove / verified / committed / failed). PURE order/discovery tested
+      against a temp sibling DAG (mirror `TestSubstrateChain`); the re-weave loop is
+      the thin IO seam. Push is a separable opt-in (deferred); gcrypt brains are
+      handled by the RUNNER's sandbox (run out-of-sandbox), no special routing in the
+      verb (operator correction — see Revisions). Use it to propagate #107's cutover.
 
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed — sdlc propagate-base MVP shipped + used live. Discovers recursive dependents (Makefile.workflow + substrate chain reaching the owner), orders foundation-first (TestRecursiveDependents/TestOrderDependentsFoundationFirst), then per dependent make weave + verify-complete + commit (untracking now-generated files — the cutover-correctness the manual loop lacked). Verified end-to-end: propagated #107 Option B to all 10 dependents (found robotics, which a hardcoded loop misses, + cut it over from setup.sh); all clean, ancestors pristine. DEFERRED to follow-on (Revisions): branch-first per dependent + --push + explicit resume; commitConsumption IO seam test. Pure discovery/order unit-tested; sdlc suite + vet + gofmt green.; review verdict: FIX-THEN-SHIP
 - Filed from the #104 M3 retrospective (operator-flagged): the 10-repo skill
   migration exposed that base-layer-change CONSUMPTION has no first-class flow, so
   the 9 dependents got direct-on-main commits while the owner went through

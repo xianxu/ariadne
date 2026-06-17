@@ -36,8 +36,11 @@ import (
 // directories — matching git's own .gitignore grammar and the existing
 // hand-added `/AGENTS.md` entry.
 var GeneratedRuntimeGitignoreEntries = []string{
-	"/AGENTS.md",
+	"/AGENTS.md", // codex entry file (composed prose)
+	"/CLAUDE.md", // claude entry file (composed prose) — Option B #107
+	"/GEMINI.md", // gemini entry file (composed prose) — Option B #107
 	"/.claude/skills/",
+	"/.agents/skills/", // codex + gemini skill dir — Option B #107
 	"/.claude/settings.json",
 	"/.colima/",
 	"/construct/scripts/vm-log.sh",

@@ -59,11 +59,13 @@ Floor case (2 layers): `prose(parley) = AGENTS.base.md(ariadne, export) ∥ AGEN
 > ✅ **Built and bound to tests** (ariadne#104, M3 closed 2026-06-16). The earlier
 > "HIGH" was aspirational — generalized from the prose fix (#99) by analogy, with no
 > skill path consulting visibility and three disagreeing discovery mechanisms. v2
-> collapsed them to ONE intent-driven discovery (`walk.GatherSkills`) feeding both
-> lowerings (claude `.claude/skills` symlinks + codex/agy menu) from the SAME
-> visibility-selected set (`skill.SelectVisible`, reusing `intent.Selected`); the
-> cross-repo migration then put every layer on its own real skill dirs + repo-name
-> prefix and dropped the whole-dir inheritance symlinks. The full subsystem —
+> collapsed them to ONE intent-driven discovery (`walk.GatherSkills`) feeding the
+> per-harness skill-dir lowerings from the SAME visibility-selected set
+> (`skill.SelectVisible`, reusing `intent.Selected`); #104's cross-repo migration put
+> every layer on its own real skill dirs + repo-name prefix; #107 (Option B) then
+> lowered to per-harness DIRS — `.claude/skills` (Claude) + `.agents/skills`
+> (Codex/Gemini) — and RETIRED the AGENTS.md `## Skills` menu (each harness discovers
+> its dir natively; entry files are pure prose). The full subsystem —
 > declaration, identity/prefix, the two lowerings, serving, inheritance — lives in
 > [[skill-system]] (all invariants now test-bound).
 
@@ -71,7 +73,7 @@ Namespaced union; commutative, idempotent, collision-free by prefix (`xx-`/`nous
 ```
 skills(R) = ⋃ᵢ export-skills(Lᵢ)  ∪  internal-skills(Lₙ)        (keyed by namespaced name)
 ```
-The *composition* is target-independent; only the *lowering* differs (claude → `.claude/skills` symlinks; codex/agy → the AGENTS.md menu). ariadne#104 made the implementation honor this — one intent-driven discovery feeding both lowerings, gated on visibility — and bound it to tests (`TestSelectVisible`, `TestBuildSkillIndexExcludesAncestorInternalSkill`, `TestCompileMultiLayerVisibility`, `TestGatherSkills_*`) + the live 10-repo M3 migration.
+The *composition* is target-independent; only the *destination dir* differs (claude → `.claude/skills`; codex/gemini → `.agents/skills`; no menu — #107 Option B). ariadne#104 made the implementation honor this — one intent-driven discovery feeding the per-harness lowerings, gated on visibility — and bound it to tests (`TestSelectVisible`, `TestBuildSkillIndexExcludesAncestorInternalSkill`, `TestCompileMultiLayerVisibility`, `TestGatherSkills_*`, `TestTargetFaces`, `TestPruneCrossTargetBidirectional`) + the live 10-repo migrations.
 
 ### settings — clarity: MEDIUM (formalized in ariadne#97; the DAG fold is not yet shipped)
 Deep-merge with per-key semantics, foundation-first, specific-over-general; `$merge_keys` carried through, meta stripped once at the end.

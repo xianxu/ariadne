@@ -1,13 +1,14 @@
 // Package skill is weave's agent-agnostic skill server core: a PURE index over
-// the skills gathered across a repo's resolved layers. It backs the two faces of
-// the skill server — the always-on menu compiled into the composed AGENTS.md,
-// and `weave skill <name>` serving a body on demand — WITHOUT relying on the
-// harness's .claude/skills/ discovery (that symlink delivery is setup.sh's
-// mechanism; weave serves skills directly).
+// the skills gathered across a repo's resolved layers. It backs two consumers —
+// the `weave skills` CLI listing (a diagnostic name/description view) and
+// `weave skill <name>` serving a body on demand. Under Option B (#107) skills are
+// delivered to harnesses as per-harness skill-DIR symlinks (.claude/skills for
+// Claude, .agents/skills for Codex/Gemini), which each harness discovers natively
+// — there is NO skill menu composed into any entry file.
 //
 // Build takes already-parsed Entries (name, description, body-path) gathered
 // foundation-first by the IO seam (the walk reads each layer's SKILL.md files;
-// see walk.GatherSkills) and produces an ordered, collision-free menu plus a
+// see walk.GatherSkills) and produces an ordered, collision-free listing plus a
 // name→body-path lookup. Pure — no IO (ARCH-PURE); reading SKILL.md off disk is
 // the seam's job.
 package skill
@@ -50,8 +51,10 @@ func SelectVisible(entries []Entry, leafIdx int) []Entry {
 	return out
 }
 
-// MenuItem is one line of the always-on skill menu compiled into AGENTS.md:
-// just the name + description (the body is served on demand via the lookup).
+// MenuItem is one line of the `weave skills` CLI listing: just the name +
+// description (the body is served on demand via the lookup). It is NOT composed
+// into any entry file — harnesses discover their lowered skill dirs natively
+// (Option B, #107); this listing is a diagnostic CLI view of the served set.
 type MenuItem struct {
 	Name        string
 	Description string
@@ -86,8 +89,9 @@ func Build(entries []Entry) SkillIndex {
 	return idx
 }
 
-// Menu returns the ordered, collision-free menu (foundation-first by first
-// appearance). Safe to render straight into the AGENTS.md `## Skills` section.
+// Menu returns the ordered, collision-free skill listing (foundation-first by
+// first appearance) — the data behind the `weave skills` CLI view. Not composed
+// into any entry file (#107).
 func (s SkillIndex) Menu() []MenuItem { return s.menu }
 
 // BodyPath returns the absolute SKILL.md path for a skill name, and whether the
