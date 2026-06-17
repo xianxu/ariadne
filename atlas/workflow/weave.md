@@ -121,7 +121,12 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   lean compile's, so a codex compile GCs `.claude/skills` and a claude compile GCs
   `.agents/skills` — bidirectional, NO per-target registry (reuses the Union
   primitive + the existing `shouldPrune` safety criteria, ARCH-DRY); the Union
-  prunes neither. The base-layer cutover (retire the `symlink CLAUDE.md` bridge +
-  Makefile union default) lands with the M4 propagation. **[#107 M2 produce + M3 prune]**
+  prunes neither. **Cutover + propagation (M4):** ariadne dropped the `symlink
+  CLAUDE.md` bridge + flipped the `Makefile.workflow` weave target to the Union
+  default; then [`sdlc propagate-base`](#) (#106) re-wove all 10 recursive dependents
+  foundation-first — each now carries `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` (prose) +
+  `.claude/skills` + `.agents/skills`, with the tracked `CLAUDE.md` bridge untracked
+  (it's generated now). All 11 repos clean, ancestors byte-pristine,
+  `make harness-check` green. **[#107 M2 produce + M3 prune + M4 propagate; tool #106]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
