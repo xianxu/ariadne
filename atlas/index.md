@@ -10,7 +10,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Ledger Landscape](workflow/ledger-landscape.md) — where state and evidence live across all surfaces (issue file, git history + trailers, transcripts, memory, atlas, project file); design principles for picking the right ledger
 - [Pre-merge Checks](workflow/pre-merge-checks.md) — constitution enforcement
 - [Directory Conventions](workflow/directory-conventions.md) — standard repo layout
-- [sdlc Binary](workflow/sdlc-binary.md) — unified checkpoint-guard binary (`cmd/sdlc/`), 11 verbs (incl. the `issue` group) replacing the Make-target surface; embedded `--help` per subcommand; fresh-context judges for anti-collusion
+- [sdlc Binary](workflow/sdlc-binary.md) — unified checkpoint-guard binary (`cmd/sdlc/`), 12 verbs (incl. the `issue` group + `active-time`, the in-binary v3 attribution engine #110) replacing the Make-target surface; embedded `--help` per subcommand; fresh-context judges for anti-collusion
 - [Sandbox](workflow/sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
 - [Data Artifacts](workflow/data-artifacts.md) — typed markdown documents (xx-datatype skill, prototypes, capture flow)
 - [Introspection](workflow/introspect.md) — postmortem mining of past Claude transcripts into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)

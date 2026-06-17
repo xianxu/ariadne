@@ -105,9 +105,11 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   its dependent brains through the layer. The `construct` skill is declared
   `internal skill construct/skill` (at `construct/skill/construct/SKILL.md`) →
   lowered as `xx-construct` on ariadne's self-walk only. `active-time-v3.py` (an
-  ariadne tool that rode the dropped `construct/local` symlink) is now owner-
-  resolved by `sdlc actual` via `substrateChain`. All 10 repos re-wove + verified
-  (ancestors byte-pristine). **[#104 M3]**
+  ariadne tool that rode the dropped `construct/local` symlink) was owner-resolved
+  by `sdlc actual` via `substrateChain` — until #110 ported it into the binary
+  (`cmd/sdlc/internal/activetime`), retiring both the script and its
+  owner-resolution. All 10 repos re-wove + verified (ancestors byte-pristine).
+  **[#104 M3; superseded by #110]**
 
 - **Per-harness skill-dir lowering (Option B)** — the skill backend stops being
   "`.claude/skills` symlinks XOR an AGENTS.md `## Skills` menu". Each harness gets a
