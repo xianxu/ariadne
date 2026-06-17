@@ -103,6 +103,7 @@ change; this port preserves current behavior verbatim).
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed M1 — M1 activetime pkg green: go test ./cmd/sdlc/internal/activetime (pure-core math; IO loaders via injectable gitRun; #68 guards on real git). Differential parity test (Go Compute vs real active-time-v3.py over crafted fixtures) identical. One-shot real-window parity over #109 transcripts (295 events/6 commits, brain+ariadne) EXACT: Go & Python both #109=0.25h #45=0.03h. go vet + go build ./... clean. --no-atlas: M1 is internal pkg only; user-facing surface (sdlc active-time verb + actual integration) lands in M2.; review verdict: FIX-THEN-SHIP
 - Plan written: `workshop/plans/000110-port-active-time-v3-to-go-plan.md` (2 milestones,
   Core-concepts table; ARCH-DRY + ARCH-PURE cited). Engine = new
   `cmd/sdlc/internal/activetime` pkg; `computeActual` calls it in-process; full CLI
