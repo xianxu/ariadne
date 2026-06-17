@@ -91,7 +91,7 @@ change; this port preserves current behavior verbatim).
 
 ## Plan
 
-- [ ] M1 — `internal/activetime` package: pure core (`activeMinutes`,
+- [x] M1 — `internal/activetime` package: pure core (`activeMinutes`,
       `attributeSegment`, segment build) + IO loaders (events, commits) +
       `Compute()` structured entrypoint. Go unit tests for the math and the #68
       guards. Parity-check `Compute` output vs. the Python over a real window.
@@ -103,3 +103,41 @@ change; this port preserves current behavior verbatim).
 ## Log
 
 ### 2026-06-16
+- Plan written: `workshop/plans/000110-port-active-time-v3-to-go-plan.md` (2 milestones,
+  Core-concepts table; ARCH-DRY + ARCH-PURE cited). Engine = new
+  `cmd/sdlc/internal/activetime` pkg; `computeActual` calls it in-process; full CLI
+  re-exposed as `sdlc active-time`; both `.py` files deleted.
+- Fresh-eyes plan review (subagent, fresh context) → folded in 5 fixes before approval:
+  1. **Parity trap:** Python's empty-text *skip* is in the `user` branch ONLY — assistant
+     turns are always emitted (their timestamps feed active-time). A symmetric skip would
+     lower every measured actual. Pinned in the plan + a test.
+  2. `--prefix-commit-weight 0` honored → `PrefixWeight *float64` (nil=unset), not a `!=0`
+     float sentinel.
+  3. Exit-code mechanism: `die`=exit 1 and main maps all RunE errors→1; only precedent for
+     a custom code is a direct `os.Exit` (changecode.go:333). Factored into a testable
+     `runActiveTime(opts,out,err) int` core; RunE does `os.Exit(...)`.
+  4. Whole-tree `git grep` (not cmd-scoped) — caught live refs the scoped grep missed:
+     `scripts/close-issue.py:96,234` (Makefile fallback prints a path to the deleted
+     script), `atlas/workflow/weave.md:107`, open issue #092's source pointer. Historical
+     files (history/, plans/, pensive/, docs/vision/, lessons.md) explicitly scoped out.
+  5. Test bookkeeping: delete the #104 owner-resolution test (`actual_test.go:54-59`);
+     keep `close_actualdev_test.go:44` (actualNoWindow) green; add `TestActiveTimeEmbedded`.
+- Verified all review claims against source before accepting (die/main exit paths,
+  `git grep` ref inventory, assistant-branch asymmetry in active-time-v3.py:113-132).
+- `sdlc change-code --issue 110 --worktree=no` → plan-quality judge **INFO** (high conf,
+  "unusually thorough … safe to start"; ARCH-DRY/ARCH-PURE both "exemplary"). Folded its 3
+  cheap refinements: precise obsolete-test spans (TestParseV3PrimaryHours/ResolveActualScript/
+  ClassifyV3), v1 `active-time.py` declared a non-goal, base-layer transition (graceful
+  degrade → in-process engine on next rebuild) stated. Branch `000110-…` created in place.
+- **M1 built** — `internal/activetime` pkg (event/commit/segment/util/compute.go) + tests.
+  Pure core (activeMinutes/attributeSegment/buildSegments), IO loaders behind injectable
+  `gitRun`, `Compute()` → {Measured,TelemetryGap,EmptyWindow}. `go test`+`vet`+`build` green.
+- **PARITY GATE — both forms hold (the M1 done-gate):**
+  - *Differential* (committed `parity_test.go`, repeatable): real `active-time-v3.py` vs Go
+    `Compute` over crafted fixtures (prefix + multi-issue commit segment + mention-only
+    suffix) → identical hours (#8=0.46h, #10=0.21h).
+  - *Real-window* (one-shot over the operator's actual #109 transcripts, 295 events/6
+    commits across brain+ariadne): **exact match** — Go and Python both give #109=0.25h
+    (14.7min) and #45=0.03h (1.8min). Confirms parity on real content-block shapes.
+  - #68 guards ported to real-git Go tests (commits-but-0-events→TelemetryGap, out-of-window
+    →EmptyWindow); the no-`--dir` exit-2 misinvoke moves to the M2 subcommand (CLI-layer).
