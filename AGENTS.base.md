@@ -87,7 +87,7 @@ Architecture is where agents are weakest (payoff is months out) — cite the
 - **Root Cause** — no temp fixes or lazy null checks; senior-dev standard.
 
 ## Directory Structure
-- `atlas/` — codebase map: feature sketches, terminology, pointers (always current)
+- `atlas/` — codebase map: feature sketches, terminology, pointers (always current), current state of codebase
 - `workshop/`
   - `issues/` — active work (one file each)
   - `plans/` — detailed designs (high churn)
