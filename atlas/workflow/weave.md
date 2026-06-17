@@ -123,7 +123,7 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   primitive + the existing `shouldPrune` safety criteria, ARCH-DRY); the Union
   prunes neither. **Cutover + propagation (M4):** ariadne dropped the `symlink
   CLAUDE.md` bridge + flipped the `Makefile.workflow` weave target to the Union
-  default; then [`sdlc propagate-base`](#) (#106) re-wove all 10 recursive dependents
+  default; then `sdlc propagate-base` (#106) re-wove all 10 recursive dependents
   foundation-first — each now carries `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` (prose) +
   `.claude/skills` + `.agents/skills`, with the tracked `CLAUDE.md` bridge untracked
   (it's generated now). All 11 repos clean, ancestors byte-pristine,

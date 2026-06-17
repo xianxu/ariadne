@@ -190,8 +190,13 @@ func commitConsumption(repoRoot, ref string) (bool, error) {
 	// prose). Without this, `git add -A` would RE-TRACK the generated content (the
 	// inert-gitignore trap). `ls-files -i -c` lists tracked-but-ignored files.
 	if ignored, err := exec.Command("git", "-C", repoRoot, "ls-files", "-i", "-c", "--exclude-standard").Output(); err == nil {
-		for _, f := range strings.Fields(strings.TrimSpace(string(ignored))) {
-			_ = exec.Command("git", "-C", repoRoot, "rm", "--cached", "-q", f).Run()
+		for _, f := range strings.Split(strings.TrimSpace(string(ignored)), "\n") { // one path per line (filenames may contain spaces)
+			if f == "" {
+				continue
+			}
+			if err := exec.Command("git", "-C", repoRoot, "rm", "--cached", "-q", f).Run(); err != nil {
+				return false, fmt.Errorf("untrack now-ignored %s: %w", f, err) // surface, don't silently re-track
+			}
 		}
 	}
 	st, err := exec.Command("git", "-C", repoRoot, "status", "--porcelain").Output()

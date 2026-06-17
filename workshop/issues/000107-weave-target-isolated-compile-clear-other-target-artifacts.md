@@ -121,8 +121,9 @@ symlinks, scaffolds, seeds) — which is in NO `A_T` and is always present.
   non-weave symlink must never be removed — the criteria already protect them
   (real dir ⇒ not a candidate; symlink not pointing into a source root ⇒ KEPT).
   Pin with a test.
-- **`make weave` stays `--target claude`** — this is correctness when targets ARE
-  switched, not a change to the default flow.
+- ~~**`make weave` stays `--target claude`**~~ — SUPERSEDED (M4): `Makefile.workflow`
+  now runs `weave compile` (the Union default), so `make weave` produces every
+  harness face.
 
 ## Done when
 
@@ -253,7 +254,7 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
       registry; prune.go's derive-not-hardcode invariant intact; NO new delete logic
       — ARCH-DRY, Finding 2). Tests both directions + the safety criteria (a real dir
       / non-weave symlink is never removed).
-- [ ] M4 — propagate: re-weave all ariadne-styled repos onto the new lowering; run
+- [x] M4 — propagate: re-weave all ariadne-styled repos onto the new lowering; run
       `make harness-check`; `verify-complete` + ancestors byte-pristine (ties to
       [[000106]] — manual loop for now).
 
@@ -291,6 +292,7 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed M4 — M4 cutover + propagation done via sdlc propagate-base (#106). ariadne: dropped the symlink CLAUDE.md bridge from base.manifest + flipped Makefile.workflow to the Union default + reconciled the base-layer-mechanics/skill-system targets. propagate-base re-wove all 10 recursive dependents foundation-first (incl. robotics, which a hardcoded loop would miss + which it also cut over from setup.sh): each now has CLAUDE.md/AGENTS.md/GEMINI.md (prose) + .claude/skills + .agents/skills, CLAUDE.md untracked (now generated), verify-complete clean. All 11 repos dirty=0, ancestors (ariadne+nous construct/local) byte-pristine, make harness-check 6 PASS. The original #107 bug is fully resolved end-to-end across the fleet.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M3 — Cross-target prune (remove side): PruneOrphans/PrunePreview take scanActions (the UNION managed locations) + producedActions (the lean compile output) separately, so a lean --target X compile scans every face dir but prunes the ones it did not produce — bidirectional (codex GCs .claude/skills; claude GCs .agents/skills); the Union prunes neither. NO per-target registry, NO new delete logic (reuses the Union primitive + existing shouldPrune criteria, ARCH-DRY; prune.go derive-not-hardcode intact). Live on ariadne: --target codex previews pruning 24 .claude/skills, --target all prunes 0. TestPruneCrossTargetBidirectional + existing safety tests green; full weave suite + vet + gofmt clean. This closes the original #107 bug.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M2 — Option B produce side: per-harness FACES — prose composed ONCE, fanned to CLAUDE.md/AGENTS.md/GEMINI.md; skills to .claude/skills + .agents/skills via SkillSymlinks(entries,dir) (ARCH-DRY); AGENTS.md ## Skills menu RETIRED. weave compile = Union (default), --target {claude|codex|gemini} = lean. Live dry-run on ariadne: Union = 3 entry files (11143B each) + 24 .claude/skills + 24 .agents/skills, NO menu; --target claude → CLAUDE.md+.claude/skills only; --target codex → AGENTS.md+.agents/skills only. Full weave suite + vet + gofmt green. The base-layer manifest cutover (retire symlink CLAUDE.md bridge + Makefile union default + git rm CLAUDE.md) deferred to M4 with the coordinated re-weave to avoid a mixed state.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M1 — Per-harness assumption suite (scripts/harness-assumptions.test.sh; make harness-check) runs 6 PASS / 0 FAIL on Codex 0.139.0 + Gemini 0.38.2 — both discover .agents/skills (real + RELATIVE-symlinked, weave SKILL.md format) and ignore .claude/; --self-test proves a broken assumption FAILs + exits 1; Claude assumptions doc-asserted (no deterministic CLI hook). atlas/workflow/harness-integration.md documents the Compile(C,T)/Union model + per-harness face map + assumption ledger + onboard/triage runbooks (linked from atlas/index.md).; review verdict: FIX-THEN-SHIP

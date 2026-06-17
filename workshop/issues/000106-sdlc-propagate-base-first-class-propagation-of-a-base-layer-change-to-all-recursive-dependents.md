@@ -117,6 +117,19 @@ owner's `main`):
 - Verified on a real base-layer bump (re-run the #104-style propagation through the
   verb instead of by hand) with all dependents converging + ancestors pristine.
 
+## Revisions
+
+- **2026-06-16 (MVP shipped).** The MVP commits the consumption on each dependent's
+  CURRENT branch (= `main` for the fleet today), NOT a per-dependent feature branch —
+  so the Spec/Done-when's "branch the dependent; NEVER commit to main directly"
+  OVERCLAIMS what shipped. Deliberate: it matches the operator's "simple cd + make
+  weave + commit" framing and got the #107 cutover propagated. **Deferred to a
+  follow-on:** branch-first per dependent + `--push` + idempotent-resume + the
+  status-table's branched/pushed columns. The shipped verb DOES add untrack-of-
+  now-ignored-files (the cutover-correctness the manual loop lacked) and the
+  reverse-dep topological discovery (which found `robotics`, a dependent a hardcoded
+  loop misses). Used live to propagate #107 across all 10 dependents.
+
 ## Plan
 
 - [ ] MVP — `sdlc propagate-base` in the OWNER repo: (1) discover the recursive

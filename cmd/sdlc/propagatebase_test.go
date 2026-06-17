@@ -59,6 +59,18 @@ func TestRecursiveDependents(t *testing.T) {
 	mk("pair", "substrate ../ariadne\n", true)            // direct dependent
 	mk("stranger", "substrate ../somewhere-else\n", true) // chain has no ariadne → excluded
 	mk("noweave", "substrate ../ariadne\n", false)        // depends but no Makefile.workflow → excluded
+	// A sibling that depends on ariadne + has Makefile.workflow but is NOT a git repo
+	// (a setup.sh-era scratch dir) → EXCLUDED (can't commit a consumption there).
+	scratch := filepath.Join(parent, "scratch")
+	if err := os.MkdirAll(filepath.Join(scratch, "construct"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scratch, "construct", "deps"), []byte("substrate ../ariadne\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scratch, "Makefile.workflow"), []byte("# weave\n"), 0o644); err != nil {
+		t.Fatal(err)
+	} // deliberately no .git
 
 	var names []string
 	for _, d := range recursiveDependents(owner) {
