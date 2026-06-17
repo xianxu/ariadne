@@ -232,21 +232,24 @@ func ScanManagedSymlinks(fs weavefs.FS, repoRoot string, managed []string) ([]Pr
 	return out, nil
 }
 
-// PruneOrphans is the prune's IO seam: it scans the managed locations (derived
-// from the produced actions), decides via the pure PrunePlan, and unlinks each
-// orphan. Returns the SORTED repo-relative paths it removed (for the apply
-// summary / the dry-run preview computes the same list WITHOUT this unlink).
-// sourceRoots are the absolute layer roots weave lowers from (the weave-owned
-// graph). Idempotent: a second run finds no orphans (the produced links remain;
-// the orphans are gone) and prunes nothing.
-func PruneOrphans(fs weavefs.FS, repoRoot string, actions []Action, sourceRoots []string) ([]string, error) {
-	managed := ManagedLocations(actions)
-	candidates, err := ScanManagedSymlinks(fs, repoRoot, managed)
+// PruneOrphans is the prune's IO seam. It takes TWO action sets (Option B #107
+// cross-target prune): scanActions decides WHICH locations to scan (the UNION of
+// every harness face — so a lean `--target X` compile still SCANS the dirs the
+// OTHER faces own), while producedActions is what the CURRENT compile actually
+// emitted (the orphan condition tests against this). So a lean codex compile scans
+// .claude/skills (claude's face, in the union) but produced nothing there → those
+// links are orphans → pruned (BIDIRECTIONAL: a claude compile likewise prunes
+// .agents/skills). The Union compile passes scanActions == producedActions, so it
+// prunes nothing extra. sourceRoots are the absolute layer roots weave lowers from
+// (the weave-owned graph). Idempotent. Returns the SORTED repo-relative paths
+// removed; the safety criteria (shouldPrune) gate every removal — no new delete
+// logic, no per-target registry (ARCH-DRY).
+func PruneOrphans(fs weavefs.FS, repoRoot string, scanActions, producedActions []Action, sourceRoots []string) ([]string, error) {
+	candidates, err := ScanManagedSymlinks(fs, repoRoot, ManagedLocations(scanActions))
 	if err != nil {
 		return nil, err
 	}
-	produced := ProducedPathSet(actions)
-	toPrune := PrunePlan(candidates, produced, sourceRoots)
+	toPrune := PrunePlan(candidates, ProducedPathSet(producedActions), sourceRoots)
 	for _, rel := range toPrune {
 		if err := fs.Remove(filepath.Join(repoRoot, rel)); err != nil {
 			return nil, fmt.Errorf("prune orphan symlink %s: %w", rel, err)
@@ -255,14 +258,12 @@ func PruneOrphans(fs weavefs.FS, repoRoot string, actions []Action, sourceRoots 
 	return toPrune, nil
 }
 
-// PrunePreview is the read-only twin of PruneOrphans for --dry-run: same scan +
-// same pure decision, NO unlink. Returns the SORTED repo-relative paths that a
-// real apply WOULD prune. Strictly read-only.
-func PrunePreview(fs weavefs.FS, repoRoot string, actions []Action, sourceRoots []string) ([]string, error) {
-	managed := ManagedLocations(actions)
-	candidates, err := ScanManagedSymlinks(fs, repoRoot, managed)
+// PrunePreview is the read-only twin of PruneOrphans for --dry-run: same
+// two-action-set scan + the SAME pure decision, NO unlink. Strictly read-only.
+func PrunePreview(fs weavefs.FS, repoRoot string, scanActions, producedActions []Action, sourceRoots []string) ([]string, error) {
+	candidates, err := ScanManagedSymlinks(fs, repoRoot, ManagedLocations(scanActions))
 	if err != nil {
 		return nil, err
 	}
-	return PrunePlan(candidates, ProducedPathSet(actions), sourceRoots), nil
+	return PrunePlan(candidates, ProducedPathSet(producedActions), sourceRoots), nil
 }

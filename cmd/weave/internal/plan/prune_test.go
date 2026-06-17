@@ -93,7 +93,7 @@ func TestPruneOrphansRemovesExactlyOrphanAndDangling(t *testing.T) {
 	repoRoot, substrate, actions := pruneFixture(t)
 	sourceRoots := SourceRootsFromPaths([]string{substrate})
 
-	pruned, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, sourceRoots)
+	pruned, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, actions, sourceRoots)
 	if err != nil {
 		t.Fatalf("PruneOrphans: %v", err)
 	}
@@ -133,12 +133,12 @@ func TestPruneOrphansIdempotent(t *testing.T) {
 	repoRoot, substrate, actions := pruneFixture(t)
 	sourceRoots := SourceRootsFromPaths([]string{substrate})
 
-	if _, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, sourceRoots); err != nil {
+	if _, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, actions, sourceRoots); err != nil {
 		t.Fatalf("first PruneOrphans: %v", err)
 	}
 	// Second run: the orphans are gone, the produced + real + non-weave entries
 	// remain — nothing left to prune.
-	pruned, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, sourceRoots)
+	pruned, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, actions, sourceRoots)
 	if err != nil {
 		t.Fatalf("second PruneOrphans: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestPrunePreviewMatchesApplyButMutatesNothing(t *testing.T) {
 	repoRoot, substrate, actions := pruneFixture(t)
 	sourceRoots := SourceRootsFromPaths([]string{substrate})
 
-	preview, err := PrunePreview(weavefs.OSFS{}, repoRoot, actions, sourceRoots)
+	preview, err := PrunePreview(weavefs.OSFS{}, repoRoot, actions, actions, sourceRoots)
 	if err != nil {
 		t.Fatalf("PrunePreview: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestPrunePreviewMatchesApplyButMutatesNothing(t *testing.T) {
 		}
 	}
 	// And the preview list must equal what an apply would prune.
-	pruned, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, sourceRoots)
+	pruned, err := PruneOrphans(weavefs.OSFS{}, repoRoot, actions, actions, sourceRoots)
 	if err != nil {
 		t.Fatalf("PruneOrphans: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestPruneKeepsWriteFileTargetStillSymlinked(t *testing.T) {
 	}
 	sourceRoots := SourceRootsFromPaths([]string{substrate})
 
-	preview, err := PrunePreview(weavefs.OSFS{}, repoRoot, actions, sourceRoots)
+	preview, err := PrunePreview(weavefs.OSFS{}, repoRoot, actions, actions, sourceRoots)
 	if err != nil {
 		t.Fatalf("PrunePreview: %v", err)
 	}
@@ -278,5 +278,71 @@ func TestShouldPruneKeepsNonWeaveAndProduced(t *testing.T) {
 				t.Fatalf("shouldPrune = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+// TestPruneCrossTargetBidirectional pins the Option B (#107) cross-target prune: a
+// lean compile SCANS the Union's managed locations (both skill dirs) but PRODUCES
+// only its own face, so the OTHER face's stale symlinks are pruned — both ways. The
+// Union compile (scan == produced) prunes neither.
+func TestPruneCrossTargetBidirectional(t *testing.T) {
+	parent := t.TempDir()
+	repoRoot := filepath.Join(parent, "repo")
+	substrate := filepath.Join(parent, "substrate")
+	if err := os.MkdirAll(filepath.Join(substrate, "construct/local/fix"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mkFace := func(dir string) { // a prior Union compile left BOTH faces on disk
+		d := filepath.Join(repoRoot, dir)
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("../../../substrate/construct/local/fix", filepath.Join(d, "xx-fix")); err != nil && !os.IsExist(err) {
+			t.Fatal(err)
+		}
+	}
+	mkFace(".claude/skills")
+	mkFace(".agents/skills")
+
+	sourceRoots := SourceRootsFromPaths([]string{substrate})
+	src := filepath.Join(substrate, "construct/local/fix")
+	claudeLink := Symlink{Src: src, Dst: ".claude/skills/xx-fix"}
+	agentsLink := Symlink{Src: src, Dst: ".agents/skills/xx-fix"}
+	union := []Action{claudeLink, agentsLink} // the scan set: both faces' dirs
+	exists := func(rel string) bool { _, err := os.Lstat(filepath.Join(repoRoot, rel)); return err == nil }
+
+	// Lean codex: produces .agents/skills only → prunes the .claude/skills face.
+	pruned, err := PruneOrphans(weavefs.OSFS{}, repoRoot, union, []Action{agentsLink}, sourceRoots)
+	if err != nil {
+		t.Fatalf("codex prune: %v", err)
+	}
+	if !reflect.DeepEqual(pruned, []string{".claude/skills/xx-fix"}) {
+		t.Errorf("codex pruned %v, want [.claude/skills/xx-fix]", pruned)
+	}
+	if exists(".claude/skills/xx-fix") || !exists(".agents/skills/xx-fix") {
+		t.Errorf("codex: want .claude/skills pruned + .agents/skills kept")
+	}
+
+	// Lean claude: the mirror — produces .claude/skills only → prunes .agents/skills.
+	mkFace(".claude/skills") // restore the just-pruned link
+	pruned, err = PruneOrphans(weavefs.OSFS{}, repoRoot, union, []Action{claudeLink}, sourceRoots)
+	if err != nil {
+		t.Fatalf("claude prune: %v", err)
+	}
+	if !reflect.DeepEqual(pruned, []string{".agents/skills/xx-fix"}) {
+		t.Errorf("claude pruned %v, want [.agents/skills/xx-fix]", pruned)
+	}
+	if !exists(".claude/skills/xx-fix") || exists(".agents/skills/xx-fix") {
+		t.Errorf("claude: want .agents/skills pruned + .claude/skills kept")
+	}
+
+	// Union compile (scan == produced) prunes neither face.
+	mkFace(".agents/skills")
+	pruned, err = PruneOrphans(weavefs.OSFS{}, repoRoot, union, union, sourceRoots)
+	if err != nil {
+		t.Fatalf("union prune: %v", err)
+	}
+	if len(pruned) != 0 {
+		t.Errorf("union pruned %v, want none", pruned)
 	}
 }

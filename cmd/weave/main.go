@@ -455,11 +455,21 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 	// layer roots weave lowers FROM (a weave-owned link's target resolves under
 	// one of these). Derived from the walk, never hardcoded.
 	sourceRoots := plan.SourceRootsFromPaths(layerPaths(layers))
+	// Cross-target prune scan (#107): scan the UNION's managed locations so a lean
+	// `--target X` compile prunes the OTHER faces' stale artifacts (e.g. a codex
+	// compile prunes the claude face's .claude/skills). The Union compile already
+	// covers every face, so scanActions == actions there (it prunes nothing extra).
+	scanActions := actions
+	if target != plan.TargetAll {
+		if scanActions, err = planActions(fs, layers, plan.TargetAll); err != nil {
+			return err
+		}
+	}
 	if dryRun {
 		fmt.Fprint(out, formatActions(actions))
 		// Dry-run also previews the prune (read-only scan + the SAME pure decision
 		// the apply uses), so a dry-run shows exactly what an apply would delete.
-		preview, perr := plan.PrunePreview(fs, root, actions, sourceRoots)
+		preview, perr := plan.PrunePreview(fs, root, scanActions, actions, sourceRoots)
 		if perr != nil {
 			return fmt.Errorf("prune preview: %w", perr)
 		}
@@ -474,7 +484,7 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 	// plan.shouldPrune — only a weave-owned symlink absent from this run's produced
 	// set, in a managed location, is removed; real files/dirs and non-weave links
 	// are never touched.
-	pruned, err := plan.PruneOrphans(fs, root, actions, sourceRoots)
+	pruned, err := plan.PruneOrphans(fs, root, scanActions, actions, sourceRoots)
 	if err != nil {
 		return fmt.Errorf("prune: %w", err)
 	}

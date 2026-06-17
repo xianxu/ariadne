@@ -115,8 +115,13 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `plan.Plan(layers, entryFiles)` fans the ONE composed prose to each entry file.
   Verified against the live CLIs by `scripts/harness-assumptions.test.sh`
   (`make harness-check`). The integration model + per-harness assumption ledger
-  live in [harness-integration.md](harness-integration.md). The base-layer cutover
-  (retire the `symlink CLAUDE.md` bridge + Makefile union default) lands with the
-  M4 propagation. **[#107 M2; prune-side M3]**
+  live in [harness-integration.md](harness-integration.md). A lean `--target X`
+  compile PRUNES every OTHER face's stale artifacts (the original #107 bug): the
+  prune scans `ManagedLocations(union-actions)` while the produced-set stays the
+  lean compile's, so a codex compile GCs `.claude/skills` and a claude compile GCs
+  `.agents/skills` — bidirectional, NO per-target registry (reuses the Union
+  primitive + the existing `shouldPrune` safety criteria, ARCH-DRY); the Union
+  prunes neither. The base-layer cutover (retire the `symlink CLAUDE.md` bridge +
+  Makefile union default) lands with the M4 propagation. **[#107 M2 produce + M3 prune]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
