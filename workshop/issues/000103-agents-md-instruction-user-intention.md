@@ -1,10 +1,11 @@
 ---
 id: 000103
-status: working
+status: done
 deps: []
 created: 2026-06-15
 updated: 2026-06-17
 estimate_hours: 1
+actual_hours: 0.32
 ---
 
 # AGENTS.md instruction: user intention
@@ -52,14 +53,16 @@ one short instruction, not an essay.
 
 ## Plan
 
-- [ ] Add the user-model live-maintenance instruction to `AGENTS.base.md`
+- [x] Add the user-model live-maintenance instruction to `AGENTS.base.md`
       (canonical: running hypothesis + the two criteria).
-- [ ] Thin `construct/datatype/continuation.md` `## Thread arc & user model` to a
+- [x] Thin `construct/datatype/continuation.md` `## Thread arc & user model` to a
       pointer to the AGENTS.md instruction (drop duplicated criteria text).
-- [ ] `make weave` (regenerate) + verify clean tree + `make harness-check`.
+- [x] `make weave` (regenerate) + verify clean tree + `make harness-check`.
 
 ## Log
 
+
+- 2026-06-17: closed — AGENTS.md §13 "Model User Intention" woven into composed AGENTS.md + CLAUDE.md (grep-verified post-make-weave); continuation.md `## Thread arc & user model` thinned to defer to §13 by name (duplicated criteria + manual sync-note removed — DRY single-source #105 deferred here). make weave idempotent + tree clean (only the 2 source files); make harness-check 6/0/0. --no-atlas: constitution-prose + datatype single-source consolidation, no new code/flow/terminology surface — AGENTS.md §13 IS the canonical doc; persistence counterparts (continuation checkpoint, pensive flush) unchanged in role. NOTE: 0.32h is the v3 #103-share of a wide window — the over-breadth #113 addresses.; review verdict: SHIP
 ### 2026-06-15
 - Added an #105 back-pointer: this issue is canonical for the live user-model
   discipline; ariadne#105's `## Thread arc & user model` continuation section is
