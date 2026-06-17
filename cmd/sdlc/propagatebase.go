@@ -2,12 +2,15 @@
 // the owner repo (the cwd), foundation-first. The downstream counterpart to
 // substrateChain (owner→ancestors): this is owner→recursive-dependents. #106.
 //
-// Per dependent, in topological order: `make weave` (re-weave via build-in-owner) →
-// `weave verify-complete` (the gate) → commit the consumption. Push is a separate,
-// optional concern (not here). The propagation substance is uniform across every
-// dependent (a leaf or a gcrypt brain re-weave the same way); the only wrinkle is
-// the RUNNER's sandbox — run out-of-sandbox so a brain's protected .claude/.git are
-// writable. Emits ONE status table (operator-attention-shaped).
+// Per dependent, in topological order: a clean-working-tree precheck
+// (workingTreeDirty) → `make weave` (re-weave via build-in-owner) → `weave
+// verify-complete` (the gate) → commit the consumption. A dependent with
+// pre-existing uncommitted work (e.g. a concurrent agent session in a sibling repo)
+// is SKIPPED untouched — never `git add -A`'d — and the run exits non-zero (#109).
+// Push is a separate, optional concern (not here). The propagation substance is
+// uniform across every dependent (a leaf or a gcrypt brain re-weave the same way);
+// the only wrinkle is the RUNNER's sandbox — run out-of-sandbox so a brain's
+// protected .claude/.git are writable. Emits ONE status table (operator-attention-shaped).
 package main
 
 import (
@@ -112,7 +115,7 @@ func orderDependentsFoundationFirst(deps []propDep) []propDep {
 // propResult is one dependent's outcome (for the status table).
 type propResult struct {
 	repo   string
-	status string // re-wove+verified+committed | clean (no change) | FAILED: <why>
+	status string // re-wove+verified+committed | re-wove+verified (no change) | SKIPPED: dirty working tree | FAILED: <why>
 }
 
 // runPropagateBase orchestrates the propagation. ownerRoot is the owner repo (cwd).
@@ -136,10 +139,19 @@ func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
 
 	var results []propResult
 	failed := false
+	skipped := 0
 	for _, d := range deps {
 		name := filepath.Base(d.root)
 		res := propResult{repo: name}
+		dirty, derr := workingTreeDirty(d.root)
 		switch {
+		case derr != nil:
+			res.status = "FAILED: " + derr.Error()
+		// A dirty dependent has pre-existing in-flight work (e.g. a concurrent
+		// session). NEVER `git add -A` it — skip untouched + report. The operator
+		// commits/stashes that work and re-runs (the re-weave is idempotent).
+		case dirty:
+			res.status = "SKIPPED: dirty working tree (pre-existing uncommitted work — commit/stash + re-run)"
 		case run(out, d.root, "make", "weave") != nil:
 			res.status = "FAILED: make weave"
 		case run(io.Discard, d.root, weaveBin, "verify-complete") != nil:
@@ -155,8 +167,11 @@ func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
 				res.status = "re-wove + verified (no change)"
 			}
 		}
-		if strings.HasPrefix(res.status, "FAILED") {
+		switch {
+		case strings.HasPrefix(res.status, "FAILED"):
 			failed = true
+		case strings.HasPrefix(res.status, "SKIPPED"):
+			skipped++
 		}
 		results = append(results, res)
 	}
@@ -167,6 +182,11 @@ func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
 	}
 	if failed {
 		return fmt.Errorf("propagate-base: one or more dependents FAILED — see summary")
+	}
+	// A skipped dependent is left STALE (didn't get the new base), so an incomplete
+	// propagation must not read as success — exit non-zero, distinct from FAILED.
+	if skipped > 0 {
+		return fmt.Errorf("propagate-base: %d dependent(s) SKIPPED (dirty working tree) — commit/stash their work and re-run", skipped)
 	}
 	return nil
 }
@@ -180,9 +200,47 @@ func run(w io.Writer, dir, name string, args ...string) error {
 	return cmd.Run()
 }
 
+// gitStatusPorcelain returns `git status --porcelain` (trimmed) for repoRoot — the
+// shared porcelain read behind BOTH the clean-tree precheck (workingTreeDirty) and
+// commitConsumption's nothing-to-commit check (ARCH-DRY). Gitignored paths are
+// excluded by default, so weave's generated output (CLAUDE.md, .claude/skills, …)
+// never reads as a change.
+//
+// --untracked-files=all is PINNED (not left to config): a `status.showUntrackedFiles=no`
+// gitconfig would otherwise hide untracked files, blinding the precheck to exactly the
+// untracked concurrent-session file it exists to catch (#109 review). Matches the
+// sibling untracked-detection-critical path in push.go.
+func gitStatusPorcelain(repoRoot string) (string, error) {
+	out, err := exec.Command("git", "-C", repoRoot, "status", "--porcelain", "--untracked-files=all").Output()
+	if err != nil {
+		return "", fmt.Errorf("git status: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// workingTreeDirty reports whether repoRoot has pre-existing uncommitted/untracked
+// work (tracked modifications, staged changes, or untracked non-ignored files).
+// propagate-base checks this BEFORE re-weaving so it never sweeps a dependent's
+// unrelated in-flight work into a consumption commit via `git add -A` — the
+// concurrent-session hazard: a sibling repo being edited by ANOTHER agent. Because
+// the woven output is gitignored, a previously-propagated CLEAN dependent reads as
+// not-dirty, so a clean-before gate is exact (any post-re-weave delta is then the
+// re-weave's OWN output).
+func workingTreeDirty(repoRoot string) (bool, error) {
+	st, err := gitStatusPorcelain(repoRoot)
+	if err != nil {
+		return false, err
+	}
+	return st != "", nil
+}
+
 // commitConsumption stages all changes in repoRoot and commits them with the
 // standard consumption message. Returns (changed, err): changed=false when the
 // re-weave produced no tracked diff (idempotent re-run).
+//
+// PRECONDITION: the caller (runPropagateBase) verified the tree was CLEAN before
+// re-weaving (workingTreeDirty), so every change `git add -A` stages here is the
+// re-weave's OWN output — never a concurrent session's unrelated in-flight work.
 func commitConsumption(repoRoot, ref string) (bool, error) {
 	// Untrack any file the re-weave just made gitignored — i.e. a file that USED to
 	// be tracked but is now a weave-generated artifact the EnsureGitignore covered
@@ -199,11 +257,11 @@ func commitConsumption(repoRoot, ref string) (bool, error) {
 			}
 		}
 	}
-	st, err := exec.Command("git", "-C", repoRoot, "status", "--porcelain").Output()
+	st, err := gitStatusPorcelain(repoRoot)
 	if err != nil {
-		return false, fmt.Errorf("git status: %w", err)
+		return false, err
 	}
-	if len(strings.TrimSpace(string(st))) == 0 {
+	if st == "" {
 		return false, nil // nothing to commit
 	}
 	if err := exec.Command("git", "-C", repoRoot, "add", "-A").Run(); err != nil {
@@ -225,8 +283,11 @@ func newPropagateBaseCmd() *cobra.Command {
 		Long: "Propagate THIS repo's base-layer change to all recursive dependents:\n" +
 			"discover the dependents (siblings whose substrate chain includes this\n" +
 			"repo), order them foundation-first, then per dependent `make weave` +\n" +
-			"verify-complete + commit. Run from the OWNER repo, out-of-sandbox so a\n" +
-			"gcrypt brain's protected paths are writable. Push is a separate step.",
+			"verify-complete + commit. A dependent with a DIRTY working tree (pre-existing\n" +
+			"uncommitted work — e.g. a concurrent session) is SKIPPED untouched and the\n" +
+			"run exits non-zero; commit/stash there and re-run. Run from the OWNER repo,\n" +
+			"out-of-sandbox so a gcrypt brain's protected paths are writable. Push is a\n" +
+			"separate step.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, err := os.Getwd()
 			if err != nil {
