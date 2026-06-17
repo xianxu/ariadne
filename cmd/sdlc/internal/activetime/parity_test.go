@@ -4,8 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"testing"
 )
 
@@ -81,26 +79,24 @@ func TestComputeGuardEmptyWindow(t *testing.T) {
 	}
 }
 
-// --- differential parity: Go Compute vs the actual Python script ---
+// --- golden attribution regression (frozen from the Python parity gate) ---
 
-var pyHoursRE = regexp.MustCompile(`(?m)^\s*#(\d+):\s+([0-9]+(?:\.[0-9]+)?)\s+hr\b`)
-
-// TestParityAgainstPython runs the real active-time-v3.py and Go Compute over
-// IDENTICAL crafted fixtures (a temp git repo + temp transcript dir spanning a
-// prefix segment, a multi-issue commit segment, and a mention-only suffix) and
-// asserts the per-issue HOURS match to 2 decimals — the precision sdlc actual
-// reports. This is the M1 parity gate in committed, repeatable form. Skips when
-// python3 or the script is unavailable.
-func TestParityAgainstPython(t *testing.T) {
-	if _, err := exec.LookPath("python3"); err != nil {
-		t.Skip("python3 not on PATH")
-	}
-	// Locate the script relative to this package: ../../../../construct/local/issues
-	script, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "construct", "local", "issues", "active-time-v3.py"))
-	if err != nil || !fileExists(script) {
-		t.Skipf("active-time-v3.py not found at %s", script)
-	}
-
+// TestAttributionGolden runs Go Compute over a crafted fixture spanning a prefix
+// segment, a multi-issue commit segment, and a mention-only suffix, and asserts
+// the per-issue minutes against GOLDEN values.
+//
+// Those golden values were established by the M1 parity gate: a differential
+// test that ran the real active-time-v3.py over THESE EXACT fixtures and
+// confirmed Go == Python (#8=0.46h, #10=0.21h; see issue #110 Log). The Python
+// oracle is deleted with the script in M2, so this freezes its verdict as a
+// permanent regression guard — any future drift in the attribution math fails
+// here. Derivation (commit-weight 1.0, threshold 15, prefix-weight = commit-weight):
+//
+//	prefix  [10:00,10:30) active 15  → #8 +15           (anchored #8)
+//	commit  [10:30,11:30) active 15  → #8 +7.5, #10 +7.5 (anchored #10,#8 split)
+//	suffix  [11:30,11:46) active 10  → #8 +5,   #10 +5   (no anchor, mention 1:1)
+//	totals: #8 = 27.5min, #10 = 12.5min
+func TestAttributionGolden(t *testing.T) {
 	repo := gitInit(t)
 	gitCommit(t, repo, "2026-03-01T10:30:00+00:00", "#8 first bit")
 	gitCommit(t, repo, "2026-03-01T11:30:00+00:00", "#10 second (#8)")
@@ -115,59 +111,24 @@ func TestParityAgainstPython(t *testing.T) {
 		`{"timestamp":"2026-03-01T11:45:00Z","type":"user","message":{"content":"#8 done"}}`,
 	})
 
-	since, until := "2026-03-01T00:00:00Z", "2026-03-02T00:00:00Z"
-	opts := Options{
-		Dirs: []string{tdir}, GitRepo: repo, SinceISO: since, UntilISO: until,
+	res, err := Compute(Options{
+		Dirs: []string{tdir}, GitRepo: repo,
+		SinceISO: "2026-03-01T00:00:00Z", UntilISO: "2026-03-02T00:00:00Z",
 		Issues: []string{"8", "10"}, CommitWeight: 1.0, ThresholdMin: 15, IncludeAssistant: true,
-	}
-
-	// Go.
-	res, err := Compute(opts)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if res.Status != Measured {
 		t.Fatalf("want Measured, got %v", res.Status)
 	}
-
-	// Python — identical args.
-	cmd := exec.Command("python3", script,
-		"--dir", tdir, "--git-repo", repo, "--since", since, "--until", until,
-		"--issue", "8", "--issue", "10",
-		"--commit-weight", "1.0", "--threshold-min", "15", "--include-assistant")
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("python3 active-time-v3.py failed: %v", err)
-	}
-	pyHours := map[string]float64{}
-	for _, m := range pyHoursRE.FindAllStringSubmatch(string(out), -1) {
-		h, _ := strconv.ParseFloat(m[2], 64)
-		pyHours[m[1]] = h
-	}
-	if len(pyHours) == 0 {
-		t.Fatalf("parsed no per-issue hours from python output:\n%s", out)
-	}
-
-	// Compare numeric-issue hours to 2 decimals.
-	round2 := func(x float64) float64 { return float64(int64(x*100+0.5)) / 100 }
-	for _, iss := range []string{"8", "10"} {
-		goH := round2(res.PerIssue[iss] / 60)
-		pyH := round2(pyHours[iss])
-		if goH != pyH {
-			t.Fatalf("parity mismatch #%s: go=%.2fh python=%.2fh\npython output:\n%s",
-				iss, goH, pyH, out)
-		}
-		t.Logf("parity #%s: go=%.2fh python=%.2fh ✓", iss, goH, pyH)
-	}
-	// No issue printed by python should be missing from Go.
-	for iss, pyH := range pyHours {
-		if round2(res.PerIssue[iss]/60) != round2(pyH) {
-			t.Fatalf("parity mismatch #%s: go=%.2fh python=%.2fh", iss, res.PerIssue[iss]/60, pyH)
+	golden := map[string]float64{"8": 27.5, "10": 12.5}
+	for iss, want := range golden {
+		if !approx(res.PerIssue[iss], want) {
+			t.Errorf("#%s = %.4f min, want golden %.1f (Python-verified)", iss, res.PerIssue[iss], want)
 		}
 	}
-}
-
-func fileExists(p string) bool {
-	fi, err := os.Stat(p)
-	return err == nil && !fi.IsDir()
+	if !approx(res.TotalActive, 40) {
+		t.Errorf("total active = %.4f, want 40 min", res.TotalActive)
+	}
 }

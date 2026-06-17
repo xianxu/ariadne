@@ -1,9 +1,13 @@
-// Package activetime is the native Go port of active-time-v3.py — the
+// Package activetime is the native Go port of the former active-time-v3.py
+// (removed in #110; see git history for the Python original) — the
 // segment-anchored per-issue dev-hour attribution behind `sdlc actual` (#68,
 // #110). It collapses what was a python3 subprocess + stdout-regex + script-
 // resolution into an in-process engine: a pure core (gap-truncated active
 // minutes, segment construction, the commit-weight/mention split) behind a thin
 // IO seam (transcript .jsonl event loading + a git-log window loader).
+//
+// Provenance comments below name the Python functions each Go function ports;
+// the source lives in git history, not the tree.
 //
 // Semantics are preserved 1:1 with the Python so measured actuals don't shift;
 // the only intentional divergences are cosmetic (the unattributed bucket renders

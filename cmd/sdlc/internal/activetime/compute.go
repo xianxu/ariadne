@@ -25,7 +25,8 @@ const (
 
 // Options configures a Compute run. PrefixWeight is a *float64 (nil = unset, fall
 // back to CommitWeight) — NOT a float sentinel — so an explicit
-// --prefix-commit-weight 0 is honored, matching active-time-v3.py:282.
+// --prefix-commit-weight 0 is honored, matching the Python original's
+// --prefix-commit-weight defaulting (None → commit-weight).
 type Options struct {
 	Dirs             []string
 	GitRepo          string
@@ -87,7 +88,7 @@ func Compute(opts Options) (Result, error) {
 
 	if len(commits) == 0 {
 		// No commit signal in the window → whole-window mention attribution
-		// (active-time-v3.py lines 309–319).
+		// (the Python original's no-commits fallback).
 		times, mentions := eventTimesAndMentions(events)
 		active := activeMinutes(times, opts.ThresholdMin)
 		res.TotalActive = active

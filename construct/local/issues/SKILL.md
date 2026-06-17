@@ -21,9 +21,10 @@ This skill keeps only the judgment the binary can't encode.
 ## Closing: what the binary leaves to you
 
 `sdlc close` enforces the mechanics (status: done, `actual_hours`, atlas touch,
-log entry) and prints the exact `active-time-v3.py` command for the issue's
-commit window. The judgment is yours:
-- inspect the per-segment table for misclassified work;
+log entry) and measures the actual itself (the in-binary active-time-v3 engine
+over the issue's commit window), printing the suggested `--actual`. For the full
+per-segment breakdown, run `sdlc active-time`. The judgment is yours:
+- inspect the per-segment table (`sdlc active-time`) for misclassified work;
 - decide whether a discovered peer issue is real work or a stray mention;
 - choose the rounded ACTUAL;
 - write VERIFIED as behavior evidence ("tests pass"), not "code written".

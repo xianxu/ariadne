@@ -100,7 +100,7 @@ func attributeSegment(active float64, commitIssues []string, mentions map[string
 // already-loaded slices; prefix-weight defaulting is resolved by the caller
 // (Compute) so this takes concrete scalar weights.
 //
-// Mirrors active-time-v3.py main() lines 324–372: boundaries are the first
+// Mirrors the Python original's main() segment loop: boundaries are the first
 // event, every commit time, and one second past the last event, deduped by
 // instant; each [start,end) span with ≥1 event becomes a segment anchored by the
 // commit whose time equals its end (suffix has none); the very first segment

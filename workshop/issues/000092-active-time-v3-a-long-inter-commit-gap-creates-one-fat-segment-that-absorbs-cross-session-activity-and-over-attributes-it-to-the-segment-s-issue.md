@@ -12,10 +12,11 @@ estimate_hours:
 
 ## Problem
 
-`construct/local/issues/active-time-v3.py` is segment-anchored: it cuts the
-timeline at every commit in the window and attributes each segment's active-
-minutes to that segment-ending commit's issue refs (at `--commit-weight 1.0`,
-**100%** by commit). The per-event 15-min gap cap (`active_minutes`) correctly
+The active-time-v3 engine (`cmd/sdlc/internal/activetime`, #110) is
+segment-anchored: it cuts the timeline at every commit in the window and
+attributes each segment's active-minutes to that segment-ending commit's issue
+refs (at `--commit-weight 1.0`, **100%** by commit). The per-event 15-min gap cap
+(`activeMinutes`) correctly
 stops a single idle gap from counting as hours — but it does **not** bound a
 *segment's* width. When an issue goes a long calendar time between two of its
 commits, that one segment spans the whole gap and **vacuums up every transcript
@@ -116,6 +117,6 @@ Filed from nous#48 (shim(oauth) Microsoft n=2-real). That issue's close measured
 14.47h; the operator questioned it; investigation traced ~90% of the figure to one
 2.7-day-spanning segment (table above) and corrected nous#48's `actual_hours` to a
 labeled judgment of 4.0h. This issue is the upstream fix so the artifact doesn't
-silently recur. Source: `construct/local/issues/active-time-v3.py`
-(`attribute_segment` / the boundary-walk in `main`); the docstring already names
+silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
+(`attributeSegment` / `buildSegments`); the package doc notes
 "parallel-session dedup not yet implemented" as a known gap.

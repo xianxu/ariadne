@@ -1,5 +1,5 @@
-Compute an issue's focused dev-hours by running `active-time-v3` with the
-correct transcript directories — so `--actual` for a close is *measured*, not
+Compute an issue's focused dev-hours via the in-binary active-time-v3 engine over
+the correct transcript directories — so `--actual` for a close is *measured*, not
 hand-typed (#68).
 
 WHY THIS EXISTS
@@ -17,8 +17,9 @@ WHAT IT DOES
   2. Selects transcript dirs: **brain + the issue's own repo** — the validated
      heuristic (matches human-recorded numbers within ~5%). It does NOT scan
      every folder: an unrelated, concurrently-edited repo inflates the count.
-  3. Runs `active-time-v3.py` (`--commit-weight 1.0 --threshold-min 15
-     --include-assistant`) and prints the suggested `--actual` value.
+  3. Runs the native `activetime` engine (`--commit-weight 1.0 --threshold-min 15
+     --include-assistant`, in-process — no python3) and prints the suggested
+     `--actual` value.
 
 OUTPUT
 
@@ -26,8 +27,10 @@ OUTPUT
   - telemetry unavailable → window has commits but no transcript events (work
                             lived in cwds/worktrees not under brain/repo, or aged
                             out). Record a LABELED judgment estimate (or --no-actual).
-  - no window / no script → commit first, or python3/active-time-v3.py absent →
+  - no window           → no commits reference the issue yet; commit first, or
                             fall back to a judgment estimate.
+
+For the full per-segment breakdown, run `sdlc active-time` (the standalone engine).
 
 FLAGS
 
