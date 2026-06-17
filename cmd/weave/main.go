@@ -450,6 +450,17 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 	if err != nil {
 		return fmt.Errorf("walk %s: %w", root, err)
 	}
+	// Dynamic-skill generate stage (#111): after walk.Walk (so the parsed `skill
+	// <dir>` intents exist to reuse, DRY) and BEFORE planActions/GatherSkills (so a
+	// regenerated SKILL.md is what skill discovery reads). Skipped in the read-only
+	// paths — only the compile-and-apply path mutates the tree; --dry-run/golden/
+	// verify-complete operate on the committed output (the CI drift guard catches
+	// staleness). A non-zero marker exit aborts the compile (returns the error).
+	if !dryRun {
+		if err := generateDynamicSkills(layers, fs, weavefs.ExecRunner{}); err != nil {
+			return err
+		}
+	}
 	actions, err := planActions(fs, layers, target)
 	if err != nil {
 		return err
@@ -497,6 +508,27 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 		fmt.Fprintf(out, "weave: pruned %d orphaned lowered symlink(s)\n", len(pruned))
 		for _, p := range pruned {
 			fmt.Fprintf(out, "  pruned %s\n", p)
+		}
+	}
+	return nil
+}
+
+// generateDynamicSkills is the #111 generate stage: for each LEAF-layer skill
+// package carrying an executable `.dynamic-skill` (walk.DynamicSkillDirs — leaf-
+// only, adapted-excluded, DRY with GatherSkills), it execs the marker with cwd =
+// the package dir through the injected Runner. The marker regenerates that
+// package's committed SKILL.md (e.g. cmd/datatype writes the live datatype-noun
+// list) before planActions/GatherSkills reads it. A non-zero exit aborts the
+// compile (the returned error). The Runner is injected so the stage is unit-
+// testable with a fake (no real binary); the selection goes through the FS seam.
+func generateDynamicSkills(layers []layer.Layer, fs weavefs.FS, runner weavefs.Runner) error {
+	dirs, err := walk.DynamicSkillDirs(fs, layers)
+	if err != nil {
+		return fmt.Errorf("select dynamic skills: %w", err)
+	}
+	for _, dir := range dirs {
+		if err := runner.Run(dir, []string{"./.dynamic-skill"}); err != nil {
+			return fmt.Errorf("dynamic skill %s: %w", dir, err)
 		}
 	}
 	return nil
