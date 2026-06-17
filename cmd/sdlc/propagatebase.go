@@ -184,6 +184,16 @@ func run(w io.Writer, dir, name string, args ...string) error {
 // standard consumption message. Returns (changed, err): changed=false when the
 // re-weave produced no tracked diff (idempotent re-run).
 func commitConsumption(repoRoot, ref string) (bool, error) {
+	// Untrack any file the re-weave just made gitignored — i.e. a file that USED to
+	// be tracked but is now a weave-generated artifact the EnsureGitignore covered
+	// (e.g. a CLAUDE.md that was a tracked @AGENTS.md bridge and is now generated
+	// prose). Without this, `git add -A` would RE-TRACK the generated content (the
+	// inert-gitignore trap). `ls-files -i -c` lists tracked-but-ignored files.
+	if ignored, err := exec.Command("git", "-C", repoRoot, "ls-files", "-i", "-c", "--exclude-standard").Output(); err == nil {
+		for _, f := range strings.Fields(strings.TrimSpace(string(ignored))) {
+			_ = exec.Command("git", "-C", repoRoot, "rm", "--cached", "-q", f).Run()
+		}
+	}
 	st, err := exec.Command("git", "-C", repoRoot, "status", "--porcelain").Output()
 	if err != nil {
 		return false, fmt.Errorf("git status: %w", err)
