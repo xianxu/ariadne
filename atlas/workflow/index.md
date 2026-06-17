@@ -12,8 +12,11 @@ The ariadne workflow is an issue-based development loop designed for AI-assisted
 - [Directory Conventions](directory-conventions.md) — the `workshop/` structure and why
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer
 - [OpenShell Sandbox](openshell-sandbox.md) — containerized dev environment setup, daily use, base layer integration
+- [Colima VM](colima-vm.md) — `make colima` Linux VM testing (the tart counterpart); shared `vm-log.sh` step/log helper
 - [Base Layer](base-layer.md) — how to adopt ariadne's base layer, modes, path conventions, runtime artifacts
 - [Setup & Replication](setup-and-replication.md) — `construct/setup.sh` mechanism, symlink-only model, bootstrap cascade
+- [weave](weave.md) — the layer-composition compiler that replaced `setup.sh`: pure intent pipeline, per-harness face lowering, prune / golden / verify-complete
+- [Harness Integration](harness-integration.md) — the Compile(C,T)/Union model, per-harness faces (claude→`CLAUDE.md`+`.claude/skills`; codex/gemini→`AGENTS.md`/`GEMINI.md`+`.agents/skills`), and the per-harness assumption ledger
 - [Data Dependencies](data-deps.md) — content peers (looser git submodule): sibling clone + relative symlink via `construct/deps` `data` rows (#60); how to add / remove / bootstrap
 - [Construct: Adaptation is Ariadne-Only](construct-adaptation.md) — why only ariadne runs `/construct adapt`; how derivatives inherit via `construct/adapted/`
 - [Ledger Landscape](ledger-landscape.md) — where state and evidence live across all surfaces; principles for picking the right ledger

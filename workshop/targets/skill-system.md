@@ -13,7 +13,7 @@ sources:
 
 The ariadne-styled skill system turns a layer's authored skills into
 agent-discoverable capability across an arbitrary layer DAG and across every
-harness (claude, codex, agy, …). The durable commitment this target defends: a
+harness (claude, codex, gemini, …). The durable commitment this target defends: a
 skill is **declared once, semantically** — as a skill, with a visibility — and the
 system guarantees it is discovered once, composed by the algebra, lowered
 identically *in meaning* to every harness, and servable. Behavior must NOT depend

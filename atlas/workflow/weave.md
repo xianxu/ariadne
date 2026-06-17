@@ -42,8 +42,11 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   prose into its `AGENTS.md` — the `@AGENTS.local.md` fix). **[M2]**
 - `cmd/weave/internal/skill` + `walk.GatherSkills` + `weave skills`/`weave skill
   <name>` — agent-agnostic skill server: `SkillIndex` (foundation-first,
-  namespaced, downstream-overrides), menu compiled into `AGENTS.md` + bodies on
-  demand, ports `sync-local-skills.sh` discovery (no `.claude/skills/` reliance).
+  namespaced, downstream-overrides). Skills lower as per-harness skill-dir
+  symlinks (`.claude/skills` for claude, `.agents/skills` for codex/gemini — #107),
+  each harness discovering its own dir natively (NO `## Skills` menu); `weave skills`
+  is a diagnostic listing, `weave skill <name>` serves a body on demand. Ports
+  `sync-local-skills.sh` discovery (no `.claude/skills/` reliance).
   Plus `weave link <path>` (records `substrate <path>` verbatim — directory-
   agnostic; the module-include verb of weave's repo-composition dialect). **[M3]**
   (M3 originally also shipped a `tool` lowering — bimodal derivative→`substrate` /
@@ -56,8 +59,9 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `settings.local.json` → `.claude/settings.json`; the golden classifier
   compares **semantically** (not byte-wise). No formal `Backend` interface — the
   `Action` sum type is the seam (YAGNI with a single backend). **[M4]**
-- **Cutover surface** — `weave compile --target <claude|codex|agy>` (bare `weave`
-  is help-only, mutates nothing) + `weave verify-complete` (completeness companion
+- **Cutover surface** — `weave compile` (the **Union** over every harness face by
+  default; `--target {claude|codex|gemini}` for a lean subset; bare `weave` is
+  help-only, mutates nothing) + `weave verify-complete` (completeness companion
   to `golden` — asserts the plan covers every managed path) · the `.claude/skills/<name>`
   symlink lowering (each pointing at the source layer's skill dir — absorbed the
   retired `sync-local-skills.sh` SessionStart hook; **unified into the pure
@@ -65,8 +69,9 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `plan.PruneOrphans` (#96 — GCs orphaned lowered symlinks + the dead
   `setup.sh`/`merge-settings.sh`/`sync-local-skills.sh` cutover links; four
   conjunctive KEEP-unless safety criteria) · `plan.EnsureGitignore` (weave owns
-  ignoring its generated-runtime set: `/AGENTS.md`, `/.claude/skills/`,
-  `/.claude/settings.json`, `/.colima/`, `/construct/scripts/vm-log.sh`) · the
+  ignoring its generated-runtime set: `/CLAUDE.md`, `/AGENTS.md`, `/GEMINI.md`,
+  `/.claude/skills/`, `/.agents/skills/`, `/.claude/settings.json`, `/.colima/`,
+  `/construct/scripts/vm-log.sh`) · the
   **export/internal visibility axis** (#99, `intent.Selected` — `𝒜(R)` = ancestors'
   exports ⊎ leaf's internals) · the `applyWriteFile` clobber-guard (removes a
   symlink at the slot before writing, so a derivative's pre-cutover
@@ -79,8 +84,9 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   `skill <dir>` INTENTS (not hardcoded `construct/local`+`adapted`) and stamps each
   entry's `Visibility` + `LayerIndex`; `skill.SelectVisible` applies the SAME
   `intent.Selected` 𝒜(R) filter prose uses (an ancestor's `internal` skill never
-  reaches a consumer); the menu (`skill.Build`) and the claude links (the pure
-  `plan.SkillSymlinks`) lower from the IDENTICAL selected set. The duplicate IO
+  reaches a consumer); the per-harness skill dirs (the pure `plan.SkillSymlinks`,
+  ONE renderer per dir) lower from the IDENTICAL selected set — no `## Skills` menu
+  (#107). The duplicate IO
   `walk.LowerSkillSymlinks` scan is deleted. Each layer prefixes its OWN skills via
   `skillPrefix` (`construct/config.json` `localPrefix`, else the layer's repo-name
   basename — ariadne pins `xx-`; `construct/adapted` stays bare). The subsystem

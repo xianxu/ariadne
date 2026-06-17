@@ -29,9 +29,9 @@ Re-run to refresh after ariadne updates. Mode is recorded in `.ariadne-mode`.
 
 Defined in `construct/base.manifest` (in ariadne):
 
-- **Constitution**: `AGENTS.md`, `CLAUDE.md` — shared development rules
+- **Constitution**: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` — shared development rules (per-harness prose entry files, composed once + fanned; see [harness-integration.md](harness-integration.md))
 - **Settings**: `.claude/settings.json` — merged from `.ariadne` and `.local` layers
-- **Skills**: `.claude/skills/xx-*` (local) + `.claude/skills/superpowers-*` (adapted) — weave lowers these per layer; derivatives pick up ariadne's local + adapted skills through the weave LAYER WALK, each `.claude/skills/<name>` pointing straight at ariadne's source dir (NO whole-dir `construct/adapted` symlink — #104 M3 dropped those; see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
+- **Skills**: per-harness skill dirs — `.claude/skills/xx-*` (claude) + `.agents/skills/xx-*` (codex/gemini), each carrying the local (`xx-*`) + adapted (`superpowers-*`) skills — weave lowers these per layer (#107 Option B; see [harness-integration.md](harness-integration.md)); derivatives pick up ariadne's local + adapted skills through the weave LAYER WALK, each `<skill-dir>/<name>` pointing straight at ariadne's source dir (NO whole-dir `construct/adapted` symlink — #104 M3 dropped those; see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
 - **Makefile system**:
   - `Makefile` — generic root template (REPO_NAME, workflow + local include, help chain). Identical across consumers; per-repo concerns belong in `Makefile.local`.
   - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`.
