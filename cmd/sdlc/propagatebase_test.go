@@ -77,6 +77,15 @@ func TestWorkingTreeDirty(t *testing.T) {
 	}
 	write("f.txt", "changed\n")
 	mustDirty("modified tracked file", true)
+
+	// Revert to clean, then prove an untracked file STILL reads dirty under a
+	// status.showUntrackedFiles=no gitconfig — the precheck pins --untracked-files
+	// so a hostile/odd config can't blind it to a concurrent session's file (#109 review).
+	git(t, dir, "checkout", "--", "f.txt")
+	mustDirty("clean again", false)
+	git(t, dir, "config", "status.showUntrackedFiles", "no")
+	write("wip2.md", "WIP under showUntrackedFiles=no\n")
+	mustDirty("untracked WIP with showUntrackedFiles=no", true)
 }
 
 // runPropagateBase SKIPS a dependent whose working tree is dirty (#109) — never

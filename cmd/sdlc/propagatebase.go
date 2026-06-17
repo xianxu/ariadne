@@ -205,8 +205,13 @@ func run(w io.Writer, dir, name string, args ...string) error {
 // commitConsumption's nothing-to-commit check (ARCH-DRY). Gitignored paths are
 // excluded by default, so weave's generated output (CLAUDE.md, .claude/skills, …)
 // never reads as a change.
+//
+// --untracked-files=all is PINNED (not left to config): a `status.showUntrackedFiles=no`
+// gitconfig would otherwise hide untracked files, blinding the precheck to exactly the
+// untracked concurrent-session file it exists to catch (#109 review). Matches the
+// sibling untracked-detection-critical path in push.go.
 func gitStatusPorcelain(repoRoot string) (string, error) {
-	out, err := exec.Command("git", "-C", repoRoot, "status", "--porcelain").Output()
+	out, err := exec.Command("git", "-C", repoRoot, "status", "--porcelain", "--untracked-files=all").Output()
 	if err != nil {
 		return "", fmt.Errorf("git status: %w", err)
 	}

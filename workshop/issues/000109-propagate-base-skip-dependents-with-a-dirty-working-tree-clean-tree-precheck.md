@@ -1,12 +1,13 @@
 ---
 id: 000109
-status: working
+status: done
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-16
 updated: 2026-06-16
 estimate_hours: 1
+actual_hours: 0.11
 ---
 
 # propagate-base — skip dependents with a dirty working tree (clean-tree precheck)
@@ -76,6 +77,7 @@ precondition.
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed — workingTreeDirty precheck skips dirty dependents before re-weave (never git add -A); run exits non-zero on skip. TestWorkingTreeDirty (clean/gitignored-output-still-clean/untracked-WIP/modified-tracked) + hermetic TestPropagateBaseSkipsDirtyDependent (SKIPPED + non-zero exit + dependent untouched, commit-count=1) green; full cmd/sdlc suite + go vet + gofmt clean; bin/sdlc rebuilt, --help shows skip behavior; atlas sdlc-binary.md updated.; review verdict: FIX-THEN-SHIP
 - Filed from the live #107-propagation incident (operator-flagged): propagate-base
   swept a concurrent session's uncommitted work in parley.nvim via `git add -A`.
   Root cause = no clean-tree precheck. The #106 MVP Revisions had deferred this.
@@ -89,3 +91,10 @@ precondition.
   — the skip path is reached before `make weave`, so no real weave binary needed).
   gofmt + `go vet` + full `cmd/sdlc` suite green; bin/sdlc rebuilt + help verified.
   Atlas (sdlc-binary.md propagate-base row) updated. Plan-quality verdict: INFO.
+- Boundary review FIX-THEN-SHIP (1 Important): `gitStatusPorcelain` didn't pin
+  `--untracked-files`, so a `status.showUntrackedFiles=no` gitconfig could blind the
+  precheck to the very untracked file it guards against. FIXED before merge: pinned
+  `--untracked-files=all` (aligns with the sibling `push.go` untracked-detection path,
+  closing the review's minor #3 divergence too) + added a `showUntrackedFiles=no`
+  regression case to `TestWorkingTreeDirty`. Deferred (review §6, out of scope): the
+  narrow TOCTOU between precheck and `git add -A` (the #106 branch-first remainder).
