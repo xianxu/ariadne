@@ -3,7 +3,6 @@ package plan
 import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
-	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 )
 
 // Plan lowers a foundation-first []layer.Layer into the ordered []Action that
@@ -18,13 +17,11 @@ import (
 //   - Prose composes ACROSS layers under the visibility algebra (#99): every
 //     layer's EXPORT prose foundation-first, then the LEAF's INTERNAL prose LAST
 //     (an ancestor's internal prose is excluded — that's the @AGENTS.local.md /
-//     parley bug fix). Emitted (with the skill menu, below) as ONE
-//     WriteFile{AGENTS.md, composeAgentsBody}.
-//   - The skill menu (the agent-agnostic floor's always-on discovery face) is
-//     appended as a `## Skills` section to that same AGENTS.md body. The menu
-//     is computed by the IO seam (walk.GatherSkills → skill.Build) and passed
-//     in; an empty menu adds nothing. Neither prose NOR a menu ⇒ no AGENTS.md
-//     Action (we don't write an empty file).
+//     parley bug fix). The composed prose is written to EACH per-harness ENTRY
+//     FILE (Option B, #107): the caller passes entryFiles (CLAUDE.md / AGENTS.md /
+//     GEMINI.md for the Union; one for a lean --target). There is NO `## Skills`
+//     menu — every harness discovers its skill DIR natively (skills are lowered
+//     separately as <dir>/<name> symlinks). Empty prose ⇒ no entry-file Action.
 //   - Symlink/Scaffold/Touch/Seed lower near-identity per intent (the dominant
 //     file-op case): Symlink → Symlink{upstream/Source, Target}; Scaffold →
 //     Mkdir{Target}; Touch → empty WriteFile{Target}; Seed →
@@ -47,7 +44,7 @@ import (
 //   - The two _seen_or_add filters (base.manifest-existence, target-self-
 //     exclusion) and substrate path resolution (repo-root-relative + absolute +
 //     present-skip, ported from deps_substrate_targets). All IO concerns.
-func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
+func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 	var actions []Action
 
 	// The leaf Lₙ is the LAST layer (layer.Resolve emits root last + self-
@@ -78,8 +75,10 @@ func Plan(layers []layer.Layer, menu []skill.MenuItem) ([]Action, error) {
 			}
 		}
 	}
-	if body := composeAgentsBody(fragments, menu); body != "" {
-		actions = append(actions, WriteFile{Path: "AGENTS.md", Content: body})
+	if body := composeProse(fragments); body != "" {
+		for _, ef := range entryFiles { // one composition, fanned to each per-harness entry file
+			actions = append(actions, WriteFile{Path: ef, Content: body})
+		}
 	}
 
 	// File-op intents lower per intent, in layer (foundation-first) order, under

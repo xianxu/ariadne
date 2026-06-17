@@ -109,7 +109,7 @@ func buildCompile() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
-	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetAll), "harness target: all | claude | codex | gemini (default all = the Union of every harness's face)")
 	return cmd
 }
 
@@ -147,7 +147,7 @@ func buildVerifyComplete() *cobra.Command {
 			return runVerifyComplete(weavefs.OSFS{}, cwd, args, target, cmd.OutOrStdout())
 		},
 	}
-	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetAll), "harness target: all | claude | codex | gemini (default all = the Union of every harness's face)")
 	return cmd
 }
 
@@ -327,7 +327,7 @@ func buildGolden() *cobra.Command {
 			return runGolden(weavefs.OSFS{}, cwd, args, target, cmd.OutOrStdout())
 		},
 	}
-	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetClaude), "skill backend target: claude | codex | agy")
+	cmd.Flags().StringVar(&targetFlag, "target", string(plan.TargetAll), "harness target: all | claude | codex | gemini (default all = the Union of every harness's face)")
 	return cmd
 }
 
@@ -515,27 +515,25 @@ func layerPaths(layers []layer.Layer) []string {
 // the golden harness (runGolden), and verify-complete (runVerifyComplete) so all
 // see the IDENTICAL action set for a given target (ARCH-DRY).
 func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]plan.Action, error) {
-	// ONE skill discovery (#104): gather → SelectVisible (𝒜(R)). The menu (idx) AND
-	// the claude symlinks both read the SAME selected entries — no second scan.
-	idx, selected, err := buildSkillIndex(fs, layers)
+	// ONE skill discovery (#104): gather → SelectVisible (𝒜(R)). The compile path
+	// uses only the selected entries — NO menu (Option B, #107: every harness
+	// discovers its own skill dir natively). buildSkillIndex's index serves
+	// `weave skills`/`weave skill <name>` elsewhere; here we discard it.
+	_, selected, err := buildSkillIndex(fs, layers)
 	if err != nil {
 		return nil, fmt.Errorf("gather skills: %w", err)
 	}
-	// Menu backend (codex/agy only): the `## Skills` section composed into
-	// AGENTS.md by the pure planner. A nil menu (claude) ⇒ prose-only AGENTS.md.
-	var menu []skill.MenuItem
-	if target.IncludeSkillMenu() {
-		menu = idx.Menu()
-	}
-	actions, err := plan.Plan(layers, menu)
+	// Prose → each per-harness ENTRY FILE; the selected skills → each per-harness
+	// SKILL DIR. Faces() decides which: the Union (default) writes CLAUDE.md +
+	// AGENTS.md + GEMINI.md + .claude/skills + .agents/skills; a lean --target T
+	// writes only T's face. codex+gemini share .agents/skills (Target.SkillDirs
+	// dedupes).
+	actions, err := plan.Plan(layers, target.EntryFiles())
 	if err != nil {
 		return nil, fmt.Errorf("plan: %w", err)
 	}
-	// Symlink backend (claude only): the .claude/skills/<name> links the Claude
-	// harness reads. plan.SkillSymlinks is a PURE derivation from the SAME selected
-	// entries the menu used (#104 — no separate walk.LowerSkillSymlinks scan).
-	if target.EmitSkillSymlinks() {
-		for _, l := range plan.SkillSymlinks(selected) {
+	for _, dir := range target.SkillDirs() {
+		for _, l := range plan.SkillSymlinks(selected, dir) {
 			actions = append(actions, l)
 		}
 	}
