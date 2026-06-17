@@ -103,4 +103,20 @@ filesystem, not git. Pure entities are unit-tested mock-free.
   resolved by `sdlc actual` via `substrateChain`. All 10 repos re-wove + verified
   (ancestors byte-pristine). **[#104 M3]**
 
+- **Per-harness skill-dir lowering (Option B)** — the skill backend stops being
+  "`.claude/skills` symlinks XOR an AGENTS.md `## Skills` menu". Each harness gets a
+  FACE = a pure-prose ENTRY FILE + a skill DIR (`plan.Target.Faces`): claude →
+  `CLAUDE.md` + `.claude/skills`; codex → `AGENTS.md` + `.agents/skills`; gemini →
+  `GEMINI.md` + `.agents/skills` (codex+gemini share the Agent Skills neutral
+  `.agents/skills`). `weave compile` = the **Union** (every face, the default);
+  `--target T` = the lean subset. The `## Skills` MENU is RETIRED — Codex/Gemini
+  auto-compose their own from `.agents/skills`; `plan.SkillSymlinks(entries, dir)`
+  is ONE renderer lowering the same selected set into each dir (ARCH-DRY), and
+  `plan.Plan(layers, entryFiles)` fans the ONE composed prose to each entry file.
+  Verified against the live CLIs by `scripts/harness-assumptions.test.sh`
+  (`make harness-check`). The integration model + per-harness assumption ledger
+  live in [harness-integration.md](harness-integration.md). The base-layer cutover
+  (retire the `symlink CLAUDE.md` bridge + Makefile union default) lands with the
+  M4 propagation. **[#107 M2; prune-side M3]**
+
 Full spec, dep-model rule, and revisions live in the issue + plan above.
