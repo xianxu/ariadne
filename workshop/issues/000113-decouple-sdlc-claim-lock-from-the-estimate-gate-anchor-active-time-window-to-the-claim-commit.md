@@ -1,11 +1,12 @@
 ---
 id: 000113
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-17
 estimate_hours: 4
+actual_hours: 0.52
 ---
 
 # Decouple sdlc claim (lock) from the estimate gate; anchor active-time window to the claim commit
@@ -103,8 +104,49 @@ subsidized, immaterial now); this makes `sdlc actual` measure it honestly.
 
 ## Plan
 
-- [ ]
+Detail in `workshop/plans/000113-decouple-claim-from-estimate-anchor-window-plan.md`.
+
+- [x] A1 — drop the `→ working` estimate guard from `claim`/`set-status` (`setstatus.go`); invert the two estimate tests
+- [x] A2 — extract `issue.CheckEstimate` (pure) out of `CheckStructural`; move estimate test cases (ARCH-DRY)
+- [x] A3 — `change-code` dedicated estimate gate + `--no-estimate` flag, reusing `CheckEstimate` (pure `estimateRefusal`, ARCH-PURE)
+- [x] A4 — `start-plan` non-blocking estimate nudge (`estimateNudge` pure + `issueEstimate` IO seam)
+- [x] A5 — reconcile help text (`claim`/`root`/`set-status`/`change-code`/`start-plan`/`issue`)
+- [x] B1 — `gitx.WorkingTransitionISO` (working-transition commit time, cap-bounded)
+- [x] B2 — `computeActual` window-start = `windowStart(parentISO, wtISO)` (pure helper, ARCH-PURE)
+- [x] B3 — tests: `TestWorkingTransitionISO` (throwaway repo) + `TestWindowStart` (table)
+- [x] C1 — AGENTS.md §2 claim-early prose
+- [x] C2 — brainstorming SKILL.md claim-early offer
+- [x] V — `go build/test/vet` green + manual claim/change-code/actual spot-checks + atlas reconciled
 
 ## Log
 
 ### 2026-06-17
+- 2026-06-17: closed — go build/vet/test ./cmd/sdlc/... green — new tests CheckEstimate, EstimateRefusal, EstimateNudge, WorkingTransitionISO (throwaway repo), WindowStart; inverted the 2 estimate-guard tests. Binary smoke (throwaway repo): claim w/o estimate flips (no refusal); change-code w/o estimate exits 1; --no-estimate + valid estimate both pass; actual override path runs cleanly. Atlas issue-lifecycle + sdlc-binary reconciled; AGENTS.base.md (source) + brainstorming SKILL carry claim-early prose.; review verdict: SHIP
+
+- Claimed; set `estimate_hours: 4`. `start-plan` delivered ARCH-DRY + ARCH-PURE.
+- Read claim/setstatus/changecode/startplan/gitx/activetime/actual. **Finding:**
+  `change-code` already enforces `estimate_hours` via `CheckStructural`→`checkEstimate`
+  (only caller). So Part A = remove the premature `claim` guard + give the existing
+  check its own `--no-estimate` bypass. Validated `git log -G'^status: *working'`
+  finds the working-transition commit (tested on #52). Durable plan written.
+- `change-code` plan-quality judge: **VERDICT INFO** (passing), 3 non-blocking
+  findings. Decisions: (1) defer the close-side estimate backstop for the rare
+  pure-doc `claim→close` path (noted in plan Non-goals); (2) pin B2 seam —
+  `issuesDir` from env, `strconv.Atoi(issueNum)` for `locateIssueFile`; (3)
+  widening `firstISO` to claim-time also widens `DiscoverWindowIssues` peer
+  membership (attribution change, not just minutes) — intended, re-derive Peers.
+  Branch `000113-…` created in-place.
+- **Implemented A+B+C.** A: removed `checkTransitionGuards` Guard 2; extracted
+  pure `issue.CheckEstimate`; `change-code` gained a dedicated estimate gate via
+  pure `estimateRefusal` + `--no-estimate`; `start-plan` prints `estimateNudge`;
+  6 help files + scaffold reconciled. B: `gitx.WorkingTransitionISO`
+  (`git log -G'^status: *working' --reverse`, cap-bounded) + pure `windowStart`
+  (earlier-of-two) wired into `computeActual`. C: AGENTS.md §2 claim-early bullet
+  + brainstorming SKILL.md step 2.
+- **Verified.** `go build/vet/test ./cmd/sdlc/...` green (new tests:
+  `TestCheckEstimate`, `TestEstimateRefusal`, `TestEstimateNudge`,
+  `TestWorkingTransitionISO`, `TestWindowStart`; inverted:
+  `…WorkingNoLongerNeedsEstimate`, `…OpenWithoutEstimateStillFlips`). Binary
+  smoke (throwaway repo): claim w/o estimate flips (no refusal); change-code w/o
+  estimate refuses (exit 1); `--no-estimate` + valid estimate both pass; `actual`
+  override path runs cleanly. Atlas (issue-lifecycle, sdlc-binary) reconciled.

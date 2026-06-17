@@ -29,7 +29,11 @@ type StructuralFailure struct {
 //	plan-present        — ## Plan has ≥ 1 non-empty checklist item
 //	done-when-present   — ## Done when has ≥ 1 non-empty bullet,
 //	                      OR `related:` frontmatter is populated
-//	estimate-present    — estimate_hours: is a positive number
+//
+// The estimate gate (`estimate-present`) is NOT part of this bundle: #113
+// split it into the standalone CheckEstimate so `sdlc change-code` can run
+// and bypass it independently (--no-estimate), honoring the per-gate
+// --no-<gate> convention.
 //
 // Pure — no IO, deterministic on its input. Mirrors close.go's
 // guard posture: small set of cheap checks, each clearly labelled
@@ -56,10 +60,24 @@ func CheckStructural(text string) []StructuralFailure {
 	if f := checkDoneWhen(fm, body); f != nil {
 		out = append(out, *f)
 	}
-	if f := checkEstimate(fm); f != nil {
-		out = append(out, *f)
-	}
 	return out
+}
+
+// CheckEstimate is the standalone estimate gate, split out of CheckStructural
+// (#113) so `sdlc change-code` enforces + bypasses it as its own gate
+// (--no-estimate). Returns the `estimate-present` failure when `estimate_hours:`
+// is missing, empty, or not a positive number; nil when it's a positive number.
+// Pure — parses the frontmatter itself so callers pass the full issue text,
+// mirroring CheckStructural's signature.
+func CheckEstimate(text string) *StructuralFailure {
+	fm, _, err := Parse(text)
+	if err != nil {
+		return &StructuralFailure{
+			Name:    "estimate-present",
+			Message: "issue file has no YAML frontmatter to read `estimate_hours:` from",
+		}
+	}
+	return checkEstimate(fm)
 }
 
 // specSectionRE captures the body of the `## Spec` section, stopping

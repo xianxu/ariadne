@@ -32,14 +32,15 @@ Mode shapes the question budget. Crystallization: more questions converge value.
 You MUST create a task for each of these items and complete them in order:
 
 1. **Explore project context** — check files, docs, recent commits
-2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
-3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
-4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to the `## Spec` section of the issue file (`workshop/issues/<slug>.md`) and commit
-7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
-8. **User reviews written spec** — ask user to review the spec before proceeding
-9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+2. **Offer to claim early (#113)** — if you're brainstorming an *existing* ariadne-styled issue, offer to `sdlc claim --issue N` it now, before designing. Claim is a cheap lock (no estimate); claiming at the start of engagement anchors the active-time window at the claim commit, so this brainstorm/design attention is measured by `sdlc actual` instead of being lost before the first code commit. (For a pure pre-issue idea, claim once `sdlc issue new` has created the issue file.)
+3. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+4. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+5. **Propose 2-3 approaches** — with trade-offs and your recommendation
+6. **Present design** — in sections scaled to their complexity, get user approval after each section
+7. **Write design doc** — save to the `## Spec` section of the issue file (`workshop/issues/<slug>.md`) and commit
+8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
+9. **User reviews written spec** — ask user to review the spec before proceeding
+10. **Transition to implementation** — invoke writing-plans skill to create implementation plan
 
 ## Process Flow
 

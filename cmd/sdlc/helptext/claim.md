@@ -6,10 +6,15 @@ it before they start parallel work.
 START-OF-WORK FLIP
 
 With `--issue N`, claim is the single start-of-work gesture: if the
-issue is still `open` it is flipped to `working` first — applying the
-same estimate guard `sdlc issue set-status` enforces — and that flip is
+issue is still `open` it is flipped to `working` first, and that flip is
 part of what gets synced. This collapses the old two-step (`sdlc issue
 set-status --issue N working` then `sdlc claim --issue N`) into one call.
+
+Claim is a CHEAP LOCK: it demands NO estimate (#113). Claim the moment an
+idea crystallizes into an issue — the early lock reserves it against peer
+collision, and the claim commit's timestamp anchors the active-time window
+at engagement start (so `sdlc actual` captures design attention). The
+estimate gate lives at `sdlc change-code`, not here.
 
 Only the open→working transition is automatic. Claim doubles as the
 generic issue-file re-sync primitive, so an issue already in a

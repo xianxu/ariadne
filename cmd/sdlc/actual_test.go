@@ -96,6 +96,34 @@ func TestStatusFromResult(t *testing.T) {
 	}
 }
 
+// TestWindowStart pins the #113 window-start picker: the EARLIER of the
+// parent-of-first-#N anchor and the claim's working-transition, with either
+// empty falling back to the other.
+func TestWindowStart(t *testing.T) {
+	const (
+		early = "2026-06-10T09:00:00-07:00"
+		late  = "2026-06-14T17:00:00-07:00"
+	)
+	cases := []struct {
+		name             string
+		parent, wt, want string
+	}{
+		{"claim-early: wt earlier wins", late, early, early},
+		{"late claim: parent earlier wins", early, late, early},
+		{"no working-transition: parent", late, "", late},
+		{"no commit anchor: wt", "", early, early},
+		{"both empty", "", "", ""},
+		{"equal: either (parent)", early, early, early},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := windowStart(c.parent, c.wt); got != c.want {
+				t.Errorf("windowStart(%q, %q) = %q, want %q", c.parent, c.wt, got, c.want)
+			}
+		})
+	}
+}
+
 func TestActualCmd_Registered(t *testing.T) {
 	cmd := NewActualCmd()
 	for _, flag := range []string{"issue", "brain-dir"} {

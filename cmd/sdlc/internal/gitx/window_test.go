@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -86,6 +87,105 @@ func TestIssueRefRE_DiscoveryParsing(t *testing.T) {
 				t.Errorf("got %v want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestWorkingTransitionISO pins the #113 anchor: WorkingTransitionISO returns
+// the EARLIEST `status: working` flip (the claim) and ignores the status:open
+// creation, so a DESIGN commit made between the claim and the first `#N` code
+// commit falls inside the window [claim, firstWork] — the attention the old
+// parent-of-first-#N anchor cut off. Builds a real throwaway repo (the
+// established gitx pattern) since the risk lives in the `git log -G` behavior.
+func TestWorkingTransitionISO(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.email", "t@t")
+	git("config", "user.name", "t")
+	git("config", "commit.gpgsign", "false")
+
+	issueFile := "000113-foo.md"
+	writeStatus := func(status string) {
+		if err := os.WriteFile(filepath.Join(dir, issueFile),
+			[]byte("---\nid: 000113\nstatus: "+status+"\n---\n# Foo\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(daysAgo int, addPath, msg string) {
+		git("add", addPath)
+		d := time.Now().AddDate(0, 0, -daysAgo).Format("2006-01-02T15:04:05")
+		cmd := exec.Command("git", "commit", "-q", "-m", msg)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_DATE="+d, "GIT_COMMITTER_DATE="+d)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git commit %q: %v\n%s", msg, err, out)
+		}
+	}
+	lastISO := func(pathspec ...string) string {
+		return git(append([]string{"log", "-1", "--format=%aI", "--"}, pathspec...)...)
+	}
+
+	// open (create) → working (claim) → design (non-#N) → #N work. The two
+	// bookkeeping commits carry non-#N "issue-sync" subjects, exactly like a
+	// real `sdlc claim`.
+	writeStatus("open")
+	commit(4, issueFile, "issue-sync: create #113")
+	writeStatus("working")
+	commit(3, issueFile, "issue-sync: update issues")
+	claimISO := lastISO(issueFile) // the working-flip commit
+
+	if err := os.WriteFile(filepath.Join(dir, "plan.md"), []byte("design\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commit(2, "plan.md", "design: spec + plan (no #N yet)")
+	designISO := lastISO()
+
+	if err := os.WriteFile(filepath.Join(dir, "code.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commit(1, "code.go", "#113: implement")
+	workISO := lastISO()
+
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prev) })
+
+	got, ok := WorkingTransitionISO(issueFile)
+	if !ok {
+		t.Fatal("expected a working-transition commit, got ok=false")
+	}
+	if got != claimISO {
+		t.Errorf("WorkingTransitionISO = %q, want the claim (working-flip) commit %q", got, claimISO)
+	}
+	// The design commit sits strictly between the claim and the first #N commit,
+	// so it lands in the window [claim, firstWork] — the #113 win.
+	if !(got <= designISO && designISO <= workISO) {
+		t.Errorf("design commit %q should fall in window [%q, %q]", designISO, got, workISO)
+	}
+
+	// An issue file that never flipped to working has no anchor.
+	writeStatus("open")
+	if err := os.WriteFile(filepath.Join(dir, "999-never.md"),
+		[]byte("---\nid: 999\nstatus: open\n---\n# N\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commit(1, "999-never.md", "issue-sync: create #999 (stays open)")
+	if iso, ok := WorkingTransitionISO("999-never.md"); ok {
+		t.Errorf("never-working file should have no anchor, got %q", iso)
 	}
 }
 

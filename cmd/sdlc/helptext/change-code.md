@@ -1,14 +1,20 @@
-Enter the implementation phase for an issue. Composes three gates
+Enter the implementation phase for an issue. Composes the gates
 between planning (which happens on `main`) and code-changing work:
 
   1. Structural sanity   — does the issue have a filled-in Spec, a
-                           non-empty Plan, Done-when criteria, and a
-                           positive `estimate_hours:`?
-  2. Plan-quality judge  — fresh-context LLM review: is this plan
+                           non-empty Plan, and Done-when criteria?
+  2. Estimate gate       — a positive `estimate_hours:` in the
+                           frontmatter (#113). Relocated here from
+                           `sdlc claim` (which is now a cheap, estimate-
+                           free lock); this is the universal gate every
+                           implementation passes, so no worked issue
+                           escapes without an estimate. Set it at
+                           start-plan, where the scope is knowable.
+  3. Plan-quality judge  — fresh-context LLM review: is this plan
                            executable as-written, or does it have
                            vague items / missing test surface /
                            undefined acceptance criteria?
-  3. Branching strategy  — defaults to in-place (a branch in the
+  4. Branching strategy  — defaults to in-place (a branch in the
                            current checkout, carrying the working tree
                            forward). `--worktree=yes` for an isolated
                            worktree; `--worktree=ask` to be prompted
@@ -42,6 +48,7 @@ FLAGS
                       to stderr and recorded in the audit trail.
   --no-judge          skip the plan-quality LLM judge.
   --no-structural     skip the deterministic structural checks.
+  --no-estimate       skip the estimate_hours gate (#113).
   --dry-run           print would-be operations; do nothing.
   --agent <cli>       agent for the plan-quality judge.
                       Default $AGENT_CMD or claude.
@@ -49,7 +56,7 @@ FLAGS
 EXIT CODES
 
   0   branch created successfully
-  1   gate refused (structural / plan-quality) without --force
+  1   gate refused (structural / estimate / plan-quality) without --force
   2   branching decision deferred — see AGENT PROTOCOL below
 
 AGENT PROTOCOL

@@ -103,9 +103,14 @@ func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) erro
 
 // startOnClaim folds the "start work" status flip into `sdlc claim`: an
 // `--issue` claim on an *open* issue is the start-of-work gesture, so flip
-// it to `working` — applying the same estimate guard `sdlc issue set-status`
-// enforces — before the sync broadcasts it to origin/main. Collapses the
+// it to `working` before the sync broadcasts it to origin/main. Collapses the
 // old two-step (`set-status … working` then `claim`) into one.
+//
+// (#113) Claim is a *cheap lock*: it demands no estimate. The estimate gate
+// lives at `sdlc change-code`, so you claim early (the moment an idea
+// crystallizes) and the claim commit's timestamp anchors the active-time
+// window at engagement start — capturing design attention `sdlc actual` used
+// to miss.
 //
 // Only the open→working transition is automatic. Claim doubles as the
 // generic issue-file re-sync primitive, so an issue already in a

@@ -30,7 +30,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
 | `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
 | `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72) to design against |
-| `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
+| `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + estimate (#113) + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
 | `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
@@ -94,7 +94,8 @@ cmd/sdlc/
   helptext/            //go:embed *.md — one .md per verb + root
   internal/
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
-                       MainRef, CommitWindow, DiscoverWindowIssues, RunGit,
+                       MainRef, CommitWindow, WorkingTransitionISO (#113 claim
+                       anchor), DiscoverWindowIssues, RunGit,
                        IsShippedWorkSubject/ShippedWorkOnMain — #76 ship probe)
     issue/             frontmatter parse/edit + plan-section regexes +
                        scaffold.go (NextID/Slugify/Render — #56)
@@ -152,7 +153,12 @@ faked). The engine returns a structured `Result.Status`: `TelemetryGap`
 (commits-but-0-events → labeled judgment), `EmptyWindow` (nothing to measure), or
 `Measured` (`PerIssue[N]` → hours). Dir-selection is deliberately narrow (NOT all
 folders) — an unrelated concurrently-edited repo inflates the count.
-`WindowCapDays` is 61 (was 31) so month-long issues keep their window.
+`WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
+window-**start** is the *earlier* of `CommitWindow`'s parent-of-first-`#N`-commit
+and the issue's `status: working` transition commit (`gitx.WorkingTransitionISO`,
+#113) — anchoring at the cheap early `claim` so DESIGN attention (brainstorm /
+spec / plan / reviews) before the first code commit is in-window instead of cut
+off; gap-truncation keeps a dormant claim→work gap from inflating the actual.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full per-segment table. It preserves
@@ -357,9 +363,9 @@ the original shell logic when absent:
   `make close-issue` → `sdlc close`
   `make fetch <N>`   → `sdlc fetch --github-issue N` (deprecated alias →
                        `sdlc issue new --from-github N`, #56 M2)
-  `make worktree`    → `sdlc change-code --worktree=yes --no-judge --no-structural`
-                       (post-#39; preserves the make target's pre-existing
-                       quick-and-dirty semantics)
+  `make worktree`    → `sdlc change-code --worktree=yes --no-judge --no-structural
+                       --no-estimate` (post-#39, #113; preserves the make target's
+                       pre-existing quick-and-dirty gate-free semantics)
   `make issue-sync`  → `sdlc claim` (renamed from `sdlc lock` in #39)
   `make push`        → `sdlc push`
   `make pull-request` → `sdlc pr`
