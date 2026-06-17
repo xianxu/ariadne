@@ -1,11 +1,11 @@
 ---
 id: 000113
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-17
-estimate_hours:
+estimate_hours: 4
 ---
 
 # Decouple sdlc claim (lock) from the estimate gate; anchor active-time window to the claim commit
