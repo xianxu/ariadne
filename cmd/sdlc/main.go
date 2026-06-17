@@ -73,6 +73,7 @@ func buildRoot() *cobra.Command {
 	add(NewChangeCodeCmd(), "change-code", "Enter implementation after the structural + plan-quality gates")
 	add(NewIssueCmd(), "issue", "Create + manage issues (new / set-status / list / show)")
 	add(NewActualCmd(), "actual", "Compute an issue's focused dev-hours via active-time-v3 (#68)")
+	add(NewActiveTimeCmd(), "active-time", "Per-issue active-time attribution table (the v3 engine, standalone)")
 	add(NewCloseCmd(), "close", "Close an issue or milestone (ACTUAL + VERIFIED + atlas/project sweep)")
 	add(NewMilestoneCloseCmd(), "milestone-close", "Close one milestone + auto-dispatch its review")
 	add(NewPRCmd(), "pr", "Open a pull request from a feature branch")

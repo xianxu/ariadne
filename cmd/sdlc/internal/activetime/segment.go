@@ -18,11 +18,12 @@ type Segment struct {
 	IsPrefix   bool
 }
 
-// unattributedKey buckets transcript share that has no mention signal. Stored
+// UnattributedKey buckets transcript share that has no mention signal. Stored
 // with a leading '#' as a sentinel so it never collides with a numeric issue
-// key; rendered as "unattributed" (the Python's f"#{iss}" doubled it to
-// "##unattributed" — a cosmetic bug we don't reproduce).
-const unattributedKey = "#unattributed"
+// key; renderers display it as "unattributed" (the Python's f"#{iss}" doubled it
+// to "##unattributed" — a cosmetic bug we don't reproduce). Exported so the CLI
+// renderer can recognize the bucket.
+const UnattributedKey = "#unattributed"
 
 // sortTimes sorts a slice of times ascending, in place.
 func sortTimes(ts []time.Time) {
@@ -89,7 +90,7 @@ func attributeSegment(active float64, commitIssues []string, mentions map[string
 		}
 	} else {
 		// No mentions either; leave the transcript share unattributed.
-		out[unattributedKey] += transcriptShare
+		out[UnattributedKey] += transcriptShare
 	}
 	return out
 }

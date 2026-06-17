@@ -23,6 +23,19 @@ func TestRootEmbedded(t *testing.T) {
 	}
 }
 
+func TestActiveTimeEmbedded(t *testing.T) {
+	s, ok := Get("active-time")
+	if !ok {
+		t.Fatal("active-time.md not found in embed FS")
+	}
+	// Load-bearing anchors: the exit-code contract + the actual cross-link.
+	for _, want := range []string{"EXIT CODES", "TELEMETRY UNAVAILABLE", "sdlc actual"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("active-time.md missing %q", want)
+		}
+	}
+}
+
 func TestCloseEmbedded(t *testing.T) {
 	s, ok := Get("close")
 	if !ok {

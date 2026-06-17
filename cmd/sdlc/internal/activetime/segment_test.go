@@ -49,7 +49,7 @@ func TestAttributeSegmentCommitOnly(t *testing.T) {
 	if !approx(out["8"], 30) || !approx(out["10"], 30) {
 		t.Fatalf("want 30/30, got %v", out)
 	}
-	if _, ok := out[unattributedKey]; ok {
+	if _, ok := out[UnattributedKey]; ok {
 		t.Fatalf("weight 1.0 must not produce unattributed: %v", out)
 	}
 }
@@ -71,7 +71,7 @@ func TestAttributeSegmentNoCommitMentionOnly(t *testing.T) {
 
 func TestAttributeSegmentNoMentionUnattributed(t *testing.T) {
 	out := attributeSegment(40, nil, nil, 1.0)
-	if !approx(out[unattributedKey], 40) {
+	if !approx(out[UnattributedKey], 40) {
 		t.Fatalf("want 40 unattributed, got %v", out)
 	}
 }
