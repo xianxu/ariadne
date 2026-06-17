@@ -75,6 +75,9 @@
 - `side-quest:` verb for unplanned-but-right work.
 - Body = why, not what (the diff shows what). End with a `Co-Authored-By:` trailer naming the authoring model.
 
+### 13. Model User Intention
+- Hold a running hypothesis of the user's intent and update it **every turn** — each exchange moves the model positively or negatively. Keep it **self-consistent** and **fitting the observed interactions**; when a turn contradicts the model, revise the model — don't rationalize the observation away (a "that's not what I meant" is a model failure to fix, not noise). These two criteria are **canonical here**; the `continuation` datatype's `## Thread arc & user model` checkpoint and the per-session `pensive` flush persist the model but defer to this definition.
+
 ## Core Design Principles
 This is the human narrative; the machine-delivered companion is the `ARCH-*`
 registry (`cmd/sdlc/internal/judge/architecture.md`), surfaced by `sdlc start-plan`
