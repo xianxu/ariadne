@@ -1,12 +1,13 @@
 ---
 id: 000107
-status: working
+status: done
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-06-16
 updated: 2026-06-16
 estimate_hours: 12
+actual_hours: 2.9
 ---
 
 # weave: Option B — per-harness skill-dir lowering (`.claude/skills` + `.agents/skills`), retire the menu, prose entry files
@@ -292,6 +293,7 @@ agents are live (ties to [[000106]] propagate-base). Separate from this issue.
 ## Log
 
 ### 2026-06-16
+- 2026-06-16: closed — Option B fully delivered + propagated. M1: per-harness assumption suite + atlas (make harness-check, 6 PASS). M2: weave lowers per-harness faces (prose → CLAUDE.md/AGENTS.md/GEMINI.md; skills → .claude/skills + .agents/skills; menu retired; Union default / --target lean). M3: bidirectional cross-target prune via union-managed-locations. M4: ariadne cutover (bridge retired, Makefile Union default, targets reconciled) + sdlc propagate-base (#106) re-wove all 10 dependents. END STATE: all 11 repos clean (dirty=0), CLAUDE.md untracked everywhere, GEMINI.md + .agents/skills materialized (counts correct: 24 ariadne / 23 leaves / 25 nous+brains), ancestors byte-pristine, make harness-check green. Full weave + sdlc suites + vet + gofmt green. All 4 milestones reviewed FIX-THEN-SHIP, findings fixed. The original #107 bug (target switch strands artifacts) is resolved end-to-end across the fleet.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M4 — M4 cutover + propagation done via sdlc propagate-base (#106). ariadne: dropped the symlink CLAUDE.md bridge from base.manifest + flipped Makefile.workflow to the Union default + reconciled the base-layer-mechanics/skill-system targets. propagate-base re-wove all 10 recursive dependents foundation-first (incl. robotics, which a hardcoded loop would miss + which it also cut over from setup.sh): each now has CLAUDE.md/AGENTS.md/GEMINI.md (prose) + .claude/skills + .agents/skills, CLAUDE.md untracked (now generated), verify-complete clean. All 11 repos dirty=0, ancestors (ariadne+nous construct/local) byte-pristine, make harness-check 6 PASS. The original #107 bug is fully resolved end-to-end across the fleet.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M3 — Cross-target prune (remove side): PruneOrphans/PrunePreview take scanActions (the UNION managed locations) + producedActions (the lean compile output) separately, so a lean --target X compile scans every face dir but prunes the ones it did not produce — bidirectional (codex GCs .claude/skills; claude GCs .agents/skills); the Union prunes neither. NO per-target registry, NO new delete logic (reuses the Union primitive + existing shouldPrune criteria, ARCH-DRY; prune.go derive-not-hardcode intact). Live on ariadne: --target codex previews pruning 24 .claude/skills, --target all prunes 0. TestPruneCrossTargetBidirectional + existing safety tests green; full weave suite + vet + gofmt clean. This closes the original #107 bug.; review verdict: FIX-THEN-SHIP
 - 2026-06-16: closed M2 — Option B produce side: per-harness FACES — prose composed ONCE, fanned to CLAUDE.md/AGENTS.md/GEMINI.md; skills to .claude/skills + .agents/skills via SkillSymlinks(entries,dir) (ARCH-DRY); AGENTS.md ## Skills menu RETIRED. weave compile = Union (default), --target {claude|codex|gemini} = lean. Live dry-run on ariadne: Union = 3 entry files (11143B each) + 24 .claude/skills + 24 .agents/skills, NO menu; --target claude → CLAUDE.md+.claude/skills only; --target codex → AGENTS.md+.agents/skills only. Full weave suite + vet + gofmt green. The base-layer manifest cutover (retire symlink CLAUDE.md bridge + Makefile union default + git rm CLAUDE.md) deferred to M4 with the coordinated re-weave to avoid a mixed state.; review verdict: FIX-THEN-SHIP

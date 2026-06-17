@@ -425,6 +425,31 @@ func TestCompileTargetCodexEmitsAgentsSkills(t *testing.T) {
 	}
 }
 
+// TestCompileUnionMaterializesBothSkillDirs closes the "Done when: Union produces
+// BOTH skill faces" loop e2e (#107): a single Union run() over a skill-bearing repo
+// writes all three prose entry files AND lowers the same skills into BOTH
+// .claude/skills and .agents/skills.
+func TestCompileUnionMaterializesBothSkillDirs(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	for _, ef := range []string{"CLAUDE.md", "AGENTS.md", "GEMINI.md"} {
+		if _, err := os.Stat(filepath.Join(derived, ef)); err != nil {
+			t.Errorf("Union missing entry file %s: %v", ef, err)
+		}
+	}
+	for _, dir := range []string{".claude/skills", ".agents/skills"} {
+		for _, name := range []string{"xx-sdlc", "superpowers-brainstorming", "xx-issues"} {
+			link := filepath.Join(derived, dir, name)
+			if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+				t.Errorf("Union: %s/%s missing or not a symlink: %v", dir, name, err)
+			}
+		}
+	}
+}
+
 // TestCompileTargetClaudeEmitsSymlinksProseOnly is the M5 per-target assertion
 // for the DEFAULT backend: `--target claude` lowers the .claude/skills/<name>
 // symlink backend (the links every Claude harness reads) AND composes a
