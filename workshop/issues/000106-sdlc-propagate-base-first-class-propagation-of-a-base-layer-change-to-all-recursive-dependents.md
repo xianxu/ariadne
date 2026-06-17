@@ -132,7 +132,7 @@ owner's `main`):
 
 ## Plan
 
-- [ ] MVP — `sdlc propagate-base` in the OWNER repo: (1) discover the recursive
+- [x] MVP — `sdlc propagate-base` in the OWNER repo: (1) discover the recursive
       dependents — present sibling dirs (the `Makefile.workflow` ariadne-dependent
       signal) whose `substrateChain` transitively includes the owner; (2) topologically
       ORDER foundation-first (reuse `substrateChain`: a dependent that is itself in
