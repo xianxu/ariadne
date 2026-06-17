@@ -10,7 +10,15 @@
 // as "unattributed", not the Python's "##unattributed").
 package activetime
 
-import "time"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+)
 
 // Event is one transcript line we attribute: a human user turn, or — when
 // IncludeAssistant is set — an assistant text turn. Mentions holds the count of
@@ -23,4 +31,189 @@ import "time"
 type Event struct {
 	Time     time.Time
 	Mentions map[string]int
+}
+
+// rawLine is one decoded transcript JSONL record. Content is left raw because it
+// is polymorphic (string for a plain user turn, array of blocks otherwise).
+type rawLine struct {
+	Timestamp string `json:"timestamp"`
+	Type      string `json:"type"`
+	Message   struct {
+		Content json.RawMessage `json:"content"`
+	} `json:"message"`
+}
+
+// contentBlock is one element of a content array. Content (the nested key) is
+// raw because some block shapes carry a string under "content".
+type contentBlock struct {
+	Type    string          `json:"type"`
+	Text    string          `json:"text"`
+	Content json.RawMessage `json:"content"`
+}
+
+// walkSessionEvents parses one session .jsonl file into the events we attribute.
+// Mirrors active-time-v3.py walk_session_events exactly, including the load-
+// bearing user/assistant asymmetry: a user turn is dropped on empty text (and a
+// pure tool_result is dropped), but an assistant turn (when includeAssistant) is
+// ALWAYS emitted — its timestamp counts toward active time even with no text.
+func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) ([]Event, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var events []Event
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var d rawLine
+		if json.Unmarshal([]byte(line), &d) != nil {
+			continue // malformed line — skip (Python's except: continue)
+		}
+		if d.Timestamp == "" {
+			continue
+		}
+		var text string
+		switch {
+		case d.Type == "user":
+			t, skip := userText(d.Message.Content)
+			if skip {
+				continue // pure tool_result, non-string/list content, or empty text
+			}
+			text = t
+		case d.Type == "assistant" && includeAssistant:
+			text = assistantText(d.Message.Content)
+			// No empty-text skip here — assistant events always emit.
+		default:
+			continue
+		}
+		ts, err := parseISO(d.Timestamp)
+		if err != nil {
+			continue
+		}
+		events = append(events, Event{Time: ts, Mentions: parseEventMentions(text, pat)})
+	}
+	return events, nil
+}
+
+// userText extracts the human-typed text from a user message's content and
+// reports whether the event should be skipped (pure tool_result with no text,
+// content that is neither string nor list, or empty/whitespace text). Mirrors
+// the `t == "user"` branch of walk_session_events.
+func userText(content json.RawMessage) (text string, skip bool) {
+	var s string
+	if json.Unmarshal(content, &s) == nil {
+		// string content used directly.
+	} else {
+		blocks, ok := decodeBlocks(content)
+		if !ok {
+			return "", true // neither string nor list → skip
+		}
+		sawToolResult := false
+		var parts []string
+		for _, blk := range blocks {
+			switch {
+			case blk.Type == "tool_result":
+				sawToolResult = true
+			case blk.Type == "text":
+				parts = append(parts, blk.Text)
+			default:
+				var cs string
+				if len(blk.Content) > 0 && json.Unmarshal(blk.Content, &cs) == nil {
+					parts = append(parts, cs)
+				}
+			}
+		}
+		if sawToolResult && len(parts) == 0 {
+			return "", true // pure tool result, not human typing
+		}
+		s = strings.Join(parts, "\n")
+	}
+	if strings.TrimSpace(s) == "" {
+		return "", true
+	}
+	return s, false
+}
+
+// assistantText joins the text blocks of an assistant message (empty string when
+// content is not a block array). Mirrors the `t == "assistant"` branch.
+func assistantText(content json.RawMessage) string {
+	blocks, ok := decodeBlocks(content)
+	if !ok {
+		return ""
+	}
+	var parts []string
+	for _, blk := range blocks {
+		if blk.Type == "text" {
+			parts = append(parts, blk.Text)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+// decodeBlocks parses content as an array of blocks, skipping non-object
+// elements (Python's `if isinstance(blk, dict)` guard). Reports false when
+// content is not a JSON array at all.
+func decodeBlocks(content json.RawMessage) ([]contentBlock, bool) {
+	var raw []json.RawMessage
+	if json.Unmarshal(content, &raw) != nil {
+		return nil, false
+	}
+	blocks := make([]contentBlock, 0, len(raw))
+	for _, rb := range raw {
+		var blk contentBlock
+		if json.Unmarshal(rb, &blk) != nil {
+			continue // non-object element — skip
+		}
+		blocks = append(blocks, blk)
+	}
+	return blocks, true
+}
+
+// loadEvents loads all attributed events across every session file under each
+// dir, filtered to [sinceISO, untilISO] (inclusive bounds, mirroring the
+// Python: ts < since skip, ts > until skip), sorted by time. Mirrors load_events.
+func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceISO, untilISO string) ([]Event, error) {
+	var since, until time.Time
+	haveSince, haveUntil := sinceISO != "", untilISO != ""
+	if haveSince {
+		t, err := parseISO(sinceISO)
+		if err != nil {
+			return nil, err
+		}
+		since = t
+	}
+	if haveUntil {
+		t, err := parseISO(untilISO)
+		if err != nil {
+			return nil, err
+		}
+		until = t
+	}
+	var events []Event
+	for _, d := range dirs {
+		dir := expandUser(d)
+		fi, err := os.Stat(dir)
+		if err != nil || !fi.IsDir() {
+			continue
+		}
+		files, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+		for _, f := range files {
+			evs, err := walkSessionEvents(f, pat, includeAssistant)
+			if err != nil {
+				continue
+			}
+			for _, e := range evs {
+				if haveSince && e.Time.Before(since) {
+					continue
+				}
+				if haveUntil && e.Time.After(until) {
+					continue
+				}
+				events = append(events, e)
+			}
+		}
+	}
+	sort.Slice(events, func(i, j int) bool { return events[i].Time.Before(events[j].Time) })
+	return events, nil
 }
