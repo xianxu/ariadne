@@ -1,11 +1,12 @@
 ---
 id: 000116
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-18
 estimate_hours: 1.4
+actual_hours: 0.41
 ---
 
 # Stamp started: at claim and window active-time from engagement start
@@ -118,6 +119,8 @@ design 0.3 ×1.30 = 0.39 · impl 1.0 ×1.0 · total ≈ 1.4 (v2 build-effort; si
 
 ## Log
 
+
+- 2026-06-18: closed — applyStatus stamps an idempotent started: on open→working — live-verified via set-status in a temp dir (started: 2026-06-18T08:48:16-07:00, local-offset RFC3339 matching git %aI). resolveWindowStart (pure) picks started: → WorkingTransitionISO (#113 fallback) → commit-parent (TestResolveWindowStart 4 cases; TestApplyStatus_StampsStarted stamp + idempotency Case B). go build/test/vet ./cmd/sdlc/... green. Atlas (sdlc-binary windowing + issue-lifecycle claim) reconciled; premise reframed in Revisions (the #113 heuristic already pulled the window back best-effort; #116 hardens it to an explicit rebase-proof anchor). #116 own window uses the legacy fallback (claimed pre-feature, no started:), exercising that path.; review verdict: FIX-THEN-SHIP
 ### 2026-06-17
 Carved out of #112's "Companion (actual-side)" section during the #112 brainstorm
 (the estimate↔actual-coherence discussion). Upgrades #117's calibration rows from
