@@ -155,8 +155,6 @@ func TestRunSetStatus_DryRunHonored(t *testing.T) {
 	}
 }
 
-// TestRunSetStatus_WritesNewStatus tests the happy path: valid
-// transition writes the file with the new status + today's updated.
 // TestApplyStatus_StampsStarted pins #116: the open→working flip stamps an
 // idempotent `started:` engagement anchor (injected clock for determinism); an
 // existing stamp is never overwritten.
@@ -196,6 +194,8 @@ func TestApplyStatus_StampsStarted(t *testing.T) {
 	}
 }
 
+// TestRunSetStatus_WritesNewStatus tests the happy path: valid
+// transition writes the file with the new status + today's updated.
 func TestRunSetStatus_WritesNewStatus(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "000007-foo.md")

@@ -167,6 +167,12 @@ func startedAnchor(path string) string {
 // to windowStart against the commit-parent default. Pure — the IO (file read +
 // git) stays in computeActual's glue, so both anchor paths are unit-testable
 // without fakes (ARCH-PURE, per the #116 plan-quality review).
+//
+// Caveat (inherited from windowStart): the ISO strings are compared lexically, so
+// they must share a UTC offset to sort chronologically. started: (local RFC3339)
+// and the git %aI anchors are same-machine/same-offset in the realistic case; a
+// DST boundary inside a long issue could skew the compare by the offset delta, but
+// gap-truncation bounds the blast radius to minutes.
 func resolveWindowStart(parentISO, startedISO, wtISO string) string {
 	anchor := startedISO
 	if anchor == "" {

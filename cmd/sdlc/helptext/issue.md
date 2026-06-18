@@ -26,6 +26,9 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
     target         (optional) a workshop/targets/ slug
     created        ISO date
     updated        ISO date (bumped on status changes)
+    started        ISO-8601 stamp at the open→working flip (#116); the
+                   active-time window anchor — set by the verb, never
+                   hand-edited
     estimate_hours set at start-plan; required by change-code — not at
                    claim (#113). Optional at create.
     actual_hours   (added at close) required when status → done
