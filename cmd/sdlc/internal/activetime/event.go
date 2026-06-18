@@ -37,6 +37,16 @@ type Event struct {
 	Mentions map[string]int
 }
 
+// TaskSpan is one synchronous subagent execution: the interval between an
+// assistant `tool_use` dispatch (name "Agent") and its matching `tool_result`
+// return, both timestamped in the operator's main transcript. The subagent runs
+// in its own transcript (outside the dirs we read), so this gap shows as one big
+// inter-event gap; it is active project work, not idle, and must count in full
+// rather than truncate at the 15-min cap (#118 — measure ship wall-clock).
+type TaskSpan struct {
+	Start, End time.Time
+}
+
 // rawLine is one decoded transcript JSONL record. Content is left raw because it
 // is polymorphic (string for a plain user turn, array of blocks otherwise).
 type rawLine struct {

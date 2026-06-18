@@ -43,6 +43,52 @@ func TestActiveMinutes(t *testing.T) {
 	}
 }
 
+func TestActiveMinutesUnionFillsSpan(t *testing.T) {
+	// Two events 30 min apart: bare gap caps at 15. With a Task span covering the
+	// full 30 min, the span fills it → 30 (subagent work, not idle).
+	times := []time.Time{tm("2026-01-01T00:00:00Z"), tm("2026-01-01T00:30:00Z")}
+	if got := activeMinutesUnion(times, nil, 15); !approx(got, 15) {
+		t.Fatalf("bare 30-min gap should cap at 15, got %v", got)
+	}
+	spans := []TaskSpan{{Start: tm("2026-01-01T00:00:00Z"), End: tm("2026-01-01T00:30:00Z")}}
+	if got := activeMinutesUnion(times, spans, 15); !approx(got, 30) {
+		t.Fatalf("span-covered 30-min gap should fill to 30, got %v", got)
+	}
+}
+
+func TestActiveMinutesUnionParityNoSpans(t *testing.T) {
+	// Identical to TestActiveMinutes: 5-min kept + 30-min capped = 20.
+	times := []time.Time{
+		tm("2026-01-01T00:00:00Z"), tm("2026-01-01T00:05:00Z"), tm("2026-01-01T00:35:00Z"),
+	}
+	if got := activeMinutesUnion(times, nil, 15); !approx(got, 20) {
+		t.Fatalf("want 20, got %v", got)
+	}
+}
+
+func TestActiveMinutesUnionOverlapIsWallClock(t *testing.T) {
+	// Two overlapping (parallel) spans union to wall-clock, not summed effort.
+	spans := []TaskSpan{
+		{Start: tm("2026-01-01T00:00:00Z"), End: tm("2026-01-01T00:20:00Z")},
+		{Start: tm("2026-01-01T00:10:00Z"), End: tm("2026-01-01T00:30:00Z")},
+	}
+	if got := activeMinutesUnion(nil, spans, 15); !approx(got, 30) {
+		t.Fatalf("overlapping spans should union to 30, got %v (not 40)", got)
+	}
+}
+
+func TestClampSpans(t *testing.T) {
+	spans := []TaskSpan{{Start: tm("2026-01-01T00:00:00Z"), End: tm("2026-01-01T01:00:00Z")}}
+	got := clampSpans(spans, tm("2026-01-01T00:20:00Z"), tm("2026-01-01T00:40:00Z"))
+	if len(got) != 1 || !got[0].Start.Equal(tm("2026-01-01T00:20:00Z")) || !got[0].End.Equal(tm("2026-01-01T00:40:00Z")) {
+		t.Fatalf("clamp to [00:20,00:40), got %+v", got)
+	}
+	// Non-overlapping span → dropped.
+	if out := clampSpans(spans, tm("2026-01-01T02:00:00Z"), tm("2026-01-01T03:00:00Z")); len(out) != 0 {
+		t.Fatalf("non-overlapping span should drop, got %+v", out)
+	}
+}
+
 func TestAttributeSegmentCommitOnly(t *testing.T) {
 	// weight 1.0, two commit issues, no transcript share → 30 each, no unattributed.
 	out := attributeSegment(60, []string{"8", "10"}, map[string]int{"8": 3}, 1.0)

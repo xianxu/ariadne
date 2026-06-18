@@ -30,28 +30,88 @@ func sortTimes(ts []time.Time) {
 	sort.Slice(ts, func(i, j int) bool { return ts[i].Before(ts[j]) })
 }
 
-// activeMinutes sums inter-event gaps, each capped at thresholdMin, and returns
-// minutes. Mirrors active-time-v3.py active_minutes — the v2.1 active-time
-// procedure. The caller may pass an unsorted slice; we sort a copy defensively
-// (Python sorts internally and does not mutate its input).
-func activeMinutes(times []time.Time, thresholdMin int) float64 {
-	if len(times) < 2 {
+// interval is a half-open [s,e) time span. Active minutes are computed as a
+// UNION of intervals (capped inter-event gaps ∪ full-length task spans) so that
+// overlapping/parallel subagent spans collapse to wall-clock, not summed effort.
+type interval struct{ s, e time.Time }
+
+// unionMinutes merges overlapping intervals and returns the total covered
+// duration in minutes. Pure. Touching intervals (iv.s == cur.e) merge, which is
+// load-bearing for parity: consecutive uncapped gaps are contiguous, so their
+// merged length equals the sum.
+func unionMinutes(ivals []interval) float64 {
+	if len(ivals) == 0 {
 		return 0
 	}
+	sort.Slice(ivals, func(i, j int) bool { return ivals[i].s.Before(ivals[j].s) })
+	var total time.Duration
+	cur := ivals[0]
+	for _, iv := range ivals[1:] {
+		if iv.s.After(cur.e) {
+			total += cur.e.Sub(cur.s)
+			cur = iv
+		} else if iv.e.After(cur.e) {
+			cur.e = iv.e
+		}
+	}
+	total += cur.e.Sub(cur.s)
+	return total.Minutes()
+}
+
+// activeMinutesUnion is the single gap-math core: each inter-event gap counts up
+// to thresholdMin (idle truncation), each task span counts in full, and the
+// result is the UNION of those intervals (#118). With spans == nil the gap
+// intervals are adjacent and non-overlapping, so the union equals the old
+// sum-of-capped-gaps — parity is exact (activeMinutes delegates here).
+func activeMinutesUnion(times []time.Time, spans []TaskSpan, thresholdMin int) float64 {
 	sorted := make([]time.Time, len(times))
 	copy(sorted, times)
 	sortTimes(sorted)
 	capGap := time.Duration(thresholdMin) * time.Minute
-	var total time.Duration
+	var ivals []interval
 	for i := 1; i < len(sorted); i++ {
-		gap := sorted[i].Sub(sorted[i-1])
-		if gap <= capGap {
-			total += gap
-		} else {
-			total += capGap
+		end := sorted[i]
+		if sorted[i].Sub(sorted[i-1]) > capGap {
+			end = sorted[i-1].Add(capGap)
+		}
+		ivals = append(ivals, interval{sorted[i-1], end})
+	}
+	for _, sp := range spans {
+		if sp.End.After(sp.Start) {
+			ivals = append(ivals, interval{sp.Start, sp.End})
 		}
 	}
-	return total.Minutes()
+	return unionMinutes(ivals)
+}
+
+// clampSpans intersects each span with [start,end), dropping empties, so a span
+// that straddles a commit boundary is split across segments (each counts only
+// its portion — no double-count when the per-segment actives are summed). The
+// per-segment-sum-equals-whole-window-union invariant requires that a segment
+// carrying a clamped span is never skipped — see buildSegments.
+func clampSpans(spans []TaskSpan, start, end time.Time) []TaskSpan {
+	var out []TaskSpan
+	for _, sp := range spans {
+		s, e := sp.Start, sp.End
+		if s.Before(start) {
+			s = start
+		}
+		if e.After(end) {
+			e = end
+		}
+		if e.After(s) {
+			out = append(out, TaskSpan{Start: s, End: e})
+		}
+	}
+	return out
+}
+
+// activeMinutes sums inter-event gaps, each capped at thresholdMin, and returns
+// minutes. Mirrors active-time-v3.py active_minutes — the v2.1 active-time
+// procedure. Now a thin wrapper over activeMinutesUnion (no task spans), so the
+// gap-math has a single implementation (ARCH-DRY); behavior is unchanged.
+func activeMinutes(times []time.Time, thresholdMin int) float64 {
+	return activeMinutesUnion(times, nil, thresholdMin)
 }
 
 // attributeSegment allocates active minutes of one segment per the v3 rule,
