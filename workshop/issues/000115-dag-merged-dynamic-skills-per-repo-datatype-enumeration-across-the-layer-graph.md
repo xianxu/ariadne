@@ -182,7 +182,7 @@ whole-dir `symlink construct/datatype` row is retired).
 - [x] M1 — Extract the transitive `construct/deps` walk into module-level
       `pkg/layergraph` (both weave + datatype import; behavior-preserving; weave
       suite green).
-- [ ] M2 — `datatype` becomes DAG-aware (`mergeTypes` union local-wins) + gains
+- [x] M2 — `datatype` becomes DAG-aware (`mergeTypes` union local-wins) + gains
       `list`/`show` subcommands + build-in-owner PATH binary.
 - [ ] M3 — weave generate-stage redesign (all-layers visible set, marker run with
       cwd=R root → leaf-rooted output), lowering switch (dynamic → this-repo),
@@ -195,5 +195,7 @@ whole-dir `symlink construct/datatype` row is retired).
 ## Log
 
 
+
+- 2026-06-18: closed M2 — M2: datatype DAG-aware (mergeTypes union local-wins-by-filename, pure over layergraph.FS; product.md filename-trap + shadow + leaf-local tested) + list/show subcommands + datatype-build PATH binary. go build/vet/test ./... green; datatype list → 13 nouns; show unknown → exit 1; make weave byte-identical construct/local/datatype/SKILL.md (gap-bridge: old marker + deprecated --datatype-dir still work); harness-check 6/0.; review verdict: FIX-THEN-SHIP
 - 2026-06-18: closed M1 — M1: pkg/layergraph (FS+ParseDeps+Resolve+Walk) + pkg/frontmatter extracted module-level; go build/vet/test ./... green incl. full weave suite (behavior-preserving regression proof) + new pkgs; make weave idempotent + clean tree; no discoverEdges/substrateTargets/ParseDeps/Resolve/frontmatterDescription survives in cmd/weave (grep empty, ARCH-DRY, one walk). 5 TDD commits 6adb3bf..aca8d81.; review verdict: FIX-THEN-SHIP
 ### 2026-06-17

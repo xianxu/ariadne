@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -66,12 +67,18 @@ func mergeTypes(fs layergraph.FS, roots []string, leafLocal string) ([]TypeProto
 
 // overlayDir reads dir's *.md prototypes and writes each into byName keyed by
 // filename-without-`.md`, overwriting any existing entry (the same-filename
-// shadow). A missing/unreadable dir is silently skipped (a layer need not
-// define prototypes). Subdirectories and non-`.md` files are ignored.
+// shadow). A *missing* dir is silently skipped (a layer need not define
+// prototypes); any OTHER ReadDir error (permissions, ENOTDIR — dir exists as a
+// file) is propagated, since silently dropping a layer's whole prototype set
+// would corrupt both the eager description and the apply-time list/show
+// (M2-review Important). Subdirectories and non-`.md` files are ignored.
 func overlayDir(fs layergraph.FS, dir string, byName map[string]TypeProto) error {
 	ents, err := fs.ReadDir(dir)
 	if err != nil {
-		return nil // no such dir ⇒ nothing here (a layer need not have prototypes)
+		if os.IsNotExist(err) {
+			return nil // no such dir ⇒ nothing here (a layer need not have prototypes)
+		}
+		return fmt.Errorf("read datatype dir %s: %w", dir, err)
 	}
 	for _, e := range ents {
 		if e.IsDir() {

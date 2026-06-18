@@ -136,3 +136,22 @@ func TestMergeTypes_MissingDirsTolerated(t *testing.T) {
 		t.Fatalf("want only continuation, got %+v", got)
 	}
 }
+
+// TestMergeTypes_RealReadDirErrorPropagates pins the not-exist-vs-real-error
+// distinction (M2-review Important): a *missing* construct/datatype is tolerated,
+// but one that exists as a FILE (ENOTDIR on ReadDir) must propagate as an error
+// rather than silently dropping that layer's whole prototype set.
+func TestMergeTypes_RealReadDirErrorPropagates(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "broken")
+	// construct/datatype exists as a FILE, not a dir → ReadDir returns ENOTDIR.
+	if err := os.MkdirAll(filepath.Join(root, "construct"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "construct", "datatype"), []byte("not a dir"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mergeTypes(layergraph.OSFS{}, []string{root}, filepath.Join(root, "datatype")); err == nil {
+		t.Fatal("mergeTypes must propagate a non-not-exist ReadDir error, got nil")
+	}
+}
