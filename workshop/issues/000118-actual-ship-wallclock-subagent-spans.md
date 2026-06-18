@@ -1,11 +1,12 @@
 ---
 id: 000118
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-18
 updated: 2026-06-18
 estimate_hours:
+started: 2026-06-18T10:30:48-07:00
 ---
 
 # Measure ship wall-clock: fill subagent spans in active-time so actual matches the estimate's unit
