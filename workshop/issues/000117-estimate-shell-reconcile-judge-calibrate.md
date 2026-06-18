@@ -1,7 +1,7 @@
 ---
 id: 000117
-status: open
-deps: [ariadne#112, ariadne#116]
+status: working
+deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-17
@@ -12,8 +12,8 @@ estimate_hours:
 
 ## Problem
 
-The root cause of the estimate↔actual incoherence is not the *unit* (that's
-#112) — it's that **estimation has no deterministic shell.** The ACTUAL side has
+The root cause of the estimate↔actual incoherence is not the *unit* (#112,
+parked) — it's that **estimation has no deterministic shell.** The ACTUAL side has
 one: `internal/activetime` measures from ground truth with the #68 guards so a
 missing measurement can't read as "0 hours." The ESTIMATE side has a prose doc
 and a single presence check (`change-code` requires `estimate_hours > 0`). The
@@ -24,7 +24,14 @@ Observed live: #110 (`estimate 5 / actual 0.89`) and #111 (`estimate 7 / actual
 0.35`) had **no `## Estimate` section and no estimate-logic provenance** — the
 numbers were gut guesses; the model was never run. By-the-book v2 would have
 landed near the actuals (#110 ~0.4–1.2h, #111 ~1.4–4.4h). So the headline gap is
-largely a *compliance* failure the shell must close, on top of #112's unit fix.
+overwhelmingly a *compliance* failure: the documented model isn't being applied.
+
+**Goal: measure before rebuild.** This shell forces the *existing* estimate-logic
+-v2 model to actually be applied (reconcile), checks the application is faithful
+(judge), and scores it against an accurate actual (close-the-loop). That produces
+the first real estimate↔actual dataset on v2 — which tells us whether v2 is fine
+once followed, or genuinely needs the #112 rebuild. We don't speculate; we
+instrument.
 
 The estimate is the one forecast in the system with a **deterministic ground-truth
 measurement waiting for it** (active-time-v3). The "estimate-side counterpart to
@@ -36,62 +43,77 @@ validation log in `estimate-logic-v2.md` literally says *"none yet."*
 
 You can't make the forecast *value* deterministic (irreducible judgment; truth
 only known at close). So don't harden the value — harden the **accounting around
-it**, at three bite points that map onto machinery sdlc already has. (Operator
-chose all three: 1 + 2 + 3.)
+it**, at three bite points that map onto machinery sdlc already has. The shell is
+**model-agnostic**: it enforces that whatever model the provenance line names is
+actually applied — today that's estimate-logic-v2; if #112 ever lands, the same
+shell carries it. (Operator chose all three: 1 + 2 + 3.)
 
 **(1) Itemized reconciliation — "no unitemized estimate." [form: hard, fast]**
 Replace the bare `estimate_hours` field with a machine-parseable `## Estimate`
-block: line items (touchpoint/primitive → expected operator-attention minutes,
-per #112's model), a familiarity/spec-quality tier, and a provenance line naming
-the model version. `sdlc change-code` parses it and deterministically enforces:
-`estimate_hours == Σ(items)` (P50, within rounding), provenance present + model
-version recognized, item types drawn from a closed vocabulary (the #112
-touchpoint set). Per-item numbers stay judgment, but a free-floating guess is
-structurally impossible and the breakdown is diffable + reviewable + scoreable.
-Mirrors `close`'s required-evidence flags. Pure parser + checker (ARCH-PURE),
-new guard composed into the existing `change-code` gate (ARCH-DRY — reuse the
-gate, don't add a verb).
+block: line items (the **current estimate-logic-v2 primitives** → hours, split
+design/impl per v2's two columns), the spec-quality / familiarity factors v2
+already defines, and a provenance line naming the model version (`estimate-logic
+-v2`). `sdlc change-code` parses it and deterministically enforces:
+`estimate_hours == Σ(items)` (within rounding), provenance present + model version
+recognized, item types drawn from the closed v2-primitive vocabulary. Per-item
+numbers stay judgment, but a free-floating guess is structurally impossible and
+the breakdown is diffable + reviewable + scoreable. Mirrors `close`'s
+required-evidence flags. Pure parser + checker (ARCH-PURE); a new guard composed
+into the existing `change-code` gate, not a new verb (ARCH-DRY).
 
 **(2) Estimate-quality judge. [essence: soft, fast]** A fresh-context judge at
 `change-code` (sibling of the plan-quality judge; reuse `internal/judge` +
-`architecture.md` harness) reads spec + `## Estimate` breakdown + the #112 model
-doc and returns a verdict: was the model actually applied? are the touchpoint
-counts/modes plausible for this spec? does it ignore obvious
-delegation/fragmentation? Catches "itemized but fabricated." Lands as a verdict
-trailer like the other judges. Gated behind `--no-judge` (the existing
-change-code flag) for the escape hatch.
+`architecture.md` harness) reads spec + `## Estimate` breakdown + the model doc
+and returns a verdict: was the model actually applied? are the per-primitive
+hours plausible for this spec? Catches "itemized but fabricated." Lands as a
+verdict trailer; gated behind the existing `--no-judge` escape hatch.
 
 **(3) Auto-calibration at close — close the loop. [feedback: hard, slow]**
-`sdlc close` already computes the actual. Have it automatically append
-`(issue, estimate-P50, estimate-range, actual, ratio, model-version,
-supervised|delegated)` to a calibration ledger (home: alongside the model under
+`sdlc close` already computes the actual. Have it automatically append a row to a
+calibration ledger (home: alongside the model under
 `brain/data/life/42shots/velocity/`, machine-readable — supersedes the hand-kept
-validation table) and flag systematic drift (>2× same-direction miss over the
-last N closes → warn / require a `Model-Revision:` note). Makes every estimate
-falsifiable and feeds #112's model the calibration data it's starving for.
-**Integrity depends on #116** — a truncated actual would log garbage ratios.
+validation table): `(issue, estimate, est-design, est-impl, actual, ratio,
+model-version, supervised|delegated, window-trusted?)` and flag systematic drift
+(>2× same-direction miss over the last N trusted rows → warn / require a
+`Model-Revision:` note). Makes every estimate falsifiable and produces the v2
+dataset.
+
+  **Window-trust flag (the #116 coupling, made safe).** Each row records whether
+  its actual came from a `started:`-windowed measurement (#116) or the legacy
+  first-commit-parent window. Pre-#116 rows are stamped `window-trusted: no` and
+  excluded from drift stats; trusted rows accrue after #116. This is the #68
+  posture applied to calibration — a known-truncated actual must not masquerade as
+  a clean data point. It lets this issue land *before* #116 without logging
+  garbage. **Backfill** the handful of past points we have both sides for (#110,
+  #111, charon #13) as `window-trusted: no` historical rows.
 
 ## Done when
 
-- `## Estimate` block format defined (closed vocab from #112) + `change-code`
+- `## Estimate` block format defined (closed v2-primitive vocab) + `change-code`
   reconciles `estimate_hours == Σ(items)`, provenance, vocab — deterministically,
   unit-tested, with a precise error message (next-action spec) when it fails.
 - Estimate-quality judge wired into `change-code` behind `--no-judge`; fresh
   context; verdict trailer; tested against a faithful and a fabricated breakdown.
-- `sdlc close` appends to the calibration ledger + drift-flags; tested. Ledger
-  format documented next to the #112 model.
+- `sdlc close` appends a window-trust-flagged row to the calibration ledger +
+  drift-flags on trusted rows; tested. Ledger format documented next to the model.
+- Past points (#110/#111/charon#13) backfilled as untrusted-window rows.
 - The `change-code` / `issue` / `close` help text (helptext/*.md) documents the
   `## Estimate` contract and the close-the-loop behavior.
 - Atlas reconciled (estimate-shell surface + the form/essence/feedback split).
 
 ## Scope / non-goals
 
-- The `## Estimate` *content* model (touchpoints, escalation, fragmentation) is
-  #112's; this issue is the **shell** (parse, gate, judge, score) around it.
+- Validates the **existing estimate-logic-v2** model; does not author a new model
+  (#112 is parked pending this issue's data).
+- The `## Estimate` *content* model is whatever the provenance line names; this
+  issue is the **shell** (parse, gate, judge, score) around it.
 - The `sdlc estimate` arithmetic *engine* (prose→tool, mirroring active-time's
-  evolution) is deferred — build it only after the auto-calibration ledger (3)
-  shows the #112 model has stabilized. Mechanism (1) provides the structured
-  inputs an engine would later compute from.
+  evolution) is deferred — build it only after the ledger shows the model has
+  stabilized. Mechanism (1) provides the structured inputs an engine would compute
+  from.
+- #116 is **not a start-blocker** (trust-flagging handles its absence); it is the
+  upgrade that flips new rows to `window-trusted: yes`. Sequence: ship #117, then
+  #116, then trusted data accrues.
 
 ## Plan
 
@@ -101,8 +123,9 @@ falsifiable and feeds #112's model the calibration data it's starving for.
 
 ### 2026-06-17
 Created during the #112 brainstorm once the operator relocated the root cause
-from "wrong unit" to "no deterministic shell." Operator chose shell depth 1+2+3
-and to keep #112 as the prose model + spin this shell issue separately. Deps:
-#112 (the `## Estimate` content vocabulary) + #116 (trustworthy actual for the
-loop). Connects to the deterministic-shell / form-vs-essence / minimum-mechanism
-principles.
+from "wrong unit" to "no deterministic shell," then chose to **park #112 and
+validate v2 first** (measure before rebuild). Repointed from #112's model onto the
+existing estimate-logic-v2; dropped the #112/#116 hard deps (model-agnostic shell;
+#116 handled via the window-trust flag). Operator chose shell depth 1+2+3.
+Connects to the deterministic-shell / form-vs-essence / minimum-mechanism
+principles. Work order this session: #117 → #116.
