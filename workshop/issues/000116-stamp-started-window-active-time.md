@@ -26,9 +26,12 @@ Live evidence (the same data that motivated #112):
   review-waits are outside the commit window, so true effort was higher."*
 
 This is a systematic *under*-measurement of operator-attention. On its own it's a
-fidelity bug; combined with #117 it is load-bearing — the auto-calibration loop
-(#117 mechanism 3) scores estimate against `sdlc actual`, so a truncated actual
-would poison the calibration ledger with garbage ratios. **#117 depends on this.**
+fidelity bug; for #117 it is the upgrade that makes the calibration loop
+trustworthy — #117's auto-calibration (mechanism 3) scores estimate against `sdlc
+actual`, and a truncated actual is garbage data. #117 ships first and stamps such
+rows `window-trusted: no`; **this issue is what flips new rows to trusted.** Not a
+hard blocker for #117 (the trust flag handles its absence), but the reason #117's
+data is worthless until this lands.
 
 ## Spec
 
@@ -77,5 +80,6 @@ different problem; not addressed here.
 
 ### 2026-06-17
 Carved out of #112's "Companion (actual-side)" section during the #112 brainstorm
-(the estimate↔actual-coherence discussion). Blocks #117 (auto-calibration needs a
-trustworthy actual). Independent Go change; no dep on #112's prose model.
+(the estimate↔actual-coherence discussion). Upgrades #117's calibration rows from
+`window-trusted: no` → `yes` (not a hard blocker — #117 trust-flags around it).
+Independent Go change. Work order this session: #117 → #116.

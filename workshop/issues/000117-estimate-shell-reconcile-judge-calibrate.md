@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-17
-estimate_hours:
+estimate_hours: 3.4
 ---
 
 # Deterministic shell for estimate_hours: reconcile, judge, and close the loop against active-time
@@ -115,9 +115,35 @@ dataset.
   upgrade that flips new rows to `window-trusted: yes`. Sequence: ship #117, then
   #116, then trusted data accrues.
 
+## Estimate
+
+The first dogfood of the contract this issue builds. Estimated via the *current*
+convention (estimate-logic-v2 build-effort) — deliberately, so #117 becomes
+calibration data point #1: a v2 build-effort estimate (3.4h) that the ledger will
+later score against the measured operator-attention actual (expected lower —
+that's the v2 gap we're instrumenting).
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: greenfield-go-module   design=0.3 impl=0.6
+item: smaller-go-module      design=0.2 impl=0.6
+item: smaller-go-module      design=0.2 impl=0.5
+item: atlas-docs             design=0.0 impl=0.2
+item: milestone-review       design=0.0 impl=0.6
+design-buffer: 0.30
+total: 3.4
+```
+
+design 0.7 ×1.30 buffer = 0.91 · impl 2.5 ×1.0 familiarity · total ≈ 3.4
+
 ## Plan
 
-- [ ]
+- [ ] M1 — pure `internal/estimate` package (grammar, parse, check, vocab, ledger-row, drift)
+- [ ] M2 — change-code enforcement: reconciliation guard + estimate-quality judge + helptext
+- [ ] M3 — close-the-loop: ledger append + drift at close, backfill past points, helptext/close + atlas
+
+Detailed plan: `workshop/plans/000117-estimate-shell-reconcile-judge-calibrate-plan.md`
 
 ## Log
 
@@ -129,3 +155,16 @@ existing estimate-logic-v2; dropped the #112/#116 hard deps (model-agnostic shel
 #116 handled via the window-trust flag). Operator chose shell depth 1+2+3.
 Connects to the deterministic-shell / form-vs-essence / minimum-mechanism
 principles. Work order this session: #117 → #116.
+
+**Decisions (this session):**
+- `## Estimate` format = **fenced ```estimate block** (key:value + `item:` lines).
+  Deterministic recompute `total = Σdesign×(1+design-buffer) + Σimpl×familiarity`,
+  reconciled against `total:` and frontmatter `estimate_hours`. Per-primitive
+  `item:` slugs from a closed v2 vocabulary; `model:` from a recognized set. The
+  concrete grammar + reconciliation rules live in the durable plan.
+- Integration seams (mapped, for ARCH-DRY reuse — anchors in the plan): new pure
+  pkg `internal/estimate`; guard slots at `changecode.go` after the estimate gate
+  (~:144) and the judge at the `!NoJudge` block (~:147) mirroring
+  `runPlanQualityJudge`/`internal/judge`; ledger append in `close.go` near the
+  actual (~:519/574); reuse `issue.Parse/GetField/SetField` + the `plan.go`
+  `## Section` regex; helptext via `helptext.MustGet`.

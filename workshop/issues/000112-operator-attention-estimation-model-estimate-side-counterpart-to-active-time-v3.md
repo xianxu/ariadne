@@ -1,6 +1,6 @@
 ---
 id: 000112
-status: working
+status: punt
 deps: []
 github_issue:
 created: 2026-06-17
@@ -104,4 +104,18 @@ be split into its own actual-side issue.
 
 ## Log
 
-### 2026-06-17
+### 2026-06-17 — PARKED (punt) pending calibration data
+Brainstormed (see git history of this session). Operator relocated the root cause
+from "the model is the wrong unit" to "**the model isn't consistently applied, and
+the actual isn't accurately measured**" — so a new model is premature. Decision:
+**park #112; build the apparatus first** — #117 (deterministic shell: force *any*
+model to be applied + judged + scored) and #116 (accurate `started:`-windowed
+actuals). Those produce real estimate↔actual data on the *existing* estimate-logic
+-v2 model. **Revisit #112 only if that data shows v2 is structurally inadequate**
+(e.g. systematic misses that track supervision-mode / delegation-depth — the
+variables v2 is blind to). The brainstormed attention model (touchpoint
+accounting; supervision-mode as the headline variable; escalation tail;
+fragmentation = reload-tax; DRY-reuse of v2's columns) is preserved in this
+session's transcript and summarized above as the candidate if a rebuild is needed.
+Carved out: #116 (window fix) + #117 (shell). The original "## Spec" stands as the
+candidate model sketch, not an approved design.
