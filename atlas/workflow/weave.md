@@ -80,7 +80,8 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   conjunctive KEEP-unless safety criteria) · `plan.EnsureGitignore` (weave owns
   ignoring its generated-runtime set: `/CLAUDE.md`, `/AGENTS.md`, `/GEMINI.md`,
   `/.claude/skills/`, `/.agents/skills/`, `/.claude/settings.json`, `/.colima/`,
-  `/construct/scripts/vm-log.sh`) · the
+  `/construct/scripts/vm-log.sh`, `/construct/generated/` (#115 per-repo
+  dynamic-skill materialization)) · the
   **export/internal visibility axis** (#99, `intent.Selected` — `𝒜(R)` = ancestors'
   exports ⊎ leaf's internals) · the `applyWriteFile` clobber-guard (removes a
   symlink at the slot before writing, so a derivative's pre-cutover
