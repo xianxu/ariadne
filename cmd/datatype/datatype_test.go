@@ -65,6 +65,20 @@ func TestRenderSkill_FaithfulToTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read template SKILL.md.tmpl: %v", err)
 	}
+	// Close the vacuous-pass hole (M3-review #3): the byte-faithful check below
+	// computes `expected` with the SAME Replace over the SAME template, so if the
+	// placeholder were ever removed from SKILL.md.tmpl, both sides would be the
+	// unchanged template and this test would stay GREEN while shipping a skill with
+	// NO datatype nouns in its trigger description. Assert the substitution is real.
+	if !strings.Contains(string(tmplBytes), datatypeNamesPlaceholder) {
+		t.Fatalf("SKILL.md.tmpl no longer contains the %q placeholder — the noun list would never be injected into the eager trigger description", datatypeNamesPlaceholder)
+	}
+	if strings.Contains(rendered, datatypeNamesPlaceholder) {
+		t.Fatalf("rendered output still contains the unsubstituted %q placeholder", datatypeNamesPlaceholder)
+	}
+	if joined := strings.Join(names, ", "); !strings.Contains(rendered, joined) {
+		t.Fatalf("rendered output is missing the injected noun list %q", joined)
+	}
 	// The ONLY allowed change vs the template is the placeholder→noun-list swap.
 	expected := strings.Replace(string(tmplBytes), datatypeNamesPlaceholder, strings.Join(names, ", "), 1)
 

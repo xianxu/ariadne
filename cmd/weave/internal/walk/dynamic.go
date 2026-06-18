@@ -36,6 +36,41 @@ import (
 // skill weave regenerates at compile time.
 const dynamicSkillRel = ".dynamic-skill"
 
+// GeneratedRel is the repo-relative root of the per-repo dynamic-skill
+// materialization tree: a dynamic skill <dir>'s body renders to
+// <repo>/construct/generated/<dir>/SKILL.md (gitignored, regenerated every
+// compile). This is the SINGLE SOURCE for that convention — the write-path
+// (DynamicSkills.OutputRel), the read-path (scanSkillDir's BodyPath), the
+// gitignore entry (plan.GeneratedRuntimeGitignoreEntries), and the prune scope
+// (plan.PruneGenerated) all derive from it. They MUST agree or the materialized
+// body and the discovered body diverge (generation writes one place, discovery
+// reads another → silent empty description + dangling symlink — M3-review #1).
+const GeneratedRel = "construct/generated"
+
+// GeneratedSkillDir is the repo-relative materialization dir for a dynamic-skill
+// package <dir>: construct/generated/<dir>.
+func GeneratedSkillDir(dir string) string { return filepath.Join(GeneratedRel, dir) }
+
+// GeneratedSkillBody is the absolute materialized SKILL.md path for a dynamic-skill
+// package <dir> in the repo rooted at root.
+func GeneratedSkillBody(root, dir string) string {
+	return filepath.Join(root, GeneratedRel, dir, "SKILL.md")
+}
+
+// dynamicMarker reports whether pkgDir carries an EXECUTABLE `.dynamic-skill`
+// marker (returning its absolute path). This is the SINGLE predicate the
+// generate-stage selection (DynamicSkills) and discovery (scanSkillDir) must agree
+// on (M3-review #2); a missing marker, a dir by that name, or a non-executable
+// marker is not one. The Stat is the IO edge; the keep decision is pure.
+func dynamicMarker(fs weavefs.FS, pkgDir string) (markerPath string, ok bool) {
+	markerPath = filepath.Join(pkgDir, dynamicSkillRel)
+	fi, err := fs.Stat(markerPath)
+	if err != nil || fi.IsDir() || !isExecutable(fi.Mode()) {
+		return "", false
+	}
+	return markerPath, true
+}
+
 // DynamicSkill is one selected dynamic skill across the layer graph: its prefixed
 // skill Name, its bare package Dir, the absolute path to the (possibly
 // ancestor-owned) marker the generate stage execs, and the repo-relative output
@@ -93,13 +128,9 @@ func DynamicSkills(fs weavefs.FS, layers []layer.Layer) ([]DynamicSkill, error) 
 					continue
 				}
 				pkgDir := filepath.Join(sourceDir, de.Name())
-				markerPath := filepath.Join(pkgDir, dynamicSkillRel)
-				fi, serr := fs.Stat(markerPath)
-				if serr != nil || fi.IsDir() {
-					continue // no marker (or a dir by that name) ⇒ not a dynamic skill
-				}
-				if !isExecutable(fi.Mode()) {
-					continue // a non-executable marker is ignored (it must be runnable)
+				markerPath, ok := dynamicMarker(fs, pkgDir)
+				if !ok {
+					continue // no executable .dynamic-skill ⇒ not a dynamic skill
 				}
 				dir := de.Name()
 				// Dedup by Dir, most-leafward wins: layers iterate foundation-first, so
@@ -109,7 +140,7 @@ func DynamicSkills(fs weavefs.FS, layers []layer.Layer) ([]DynamicSkill, error) 
 					Name:       rowPrefix + dir,
 					Dir:        dir,
 					MarkerPath: markerPath,
-					OutputRel:  filepath.Join("construct", "generated", dir),
+					OutputRel:  GeneratedSkillDir(dir),
 				}
 			}
 		}

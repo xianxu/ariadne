@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
@@ -268,11 +269,11 @@ func PrunePreview(fs weavefs.FS, repoRoot string, scanActions, producedActions [
 	return PrunePlan(candidates, ProducedPathSet(producedActions), sourceRoots), nil
 }
 
-// generatedRel is the repo-relative root of the per-repo dynamic-skill
-// materialization tree (#115 M3). Every materialized body lives at
-// construct/generated/<dir>/SKILL.md; the prune below GCs an entire
+// The per-repo dynamic-skill materialization tree root is walk.GeneratedRel
+// (construct/generated) — the SINGLE source shared with the generate stage,
+// discovery, and the gitignore entry (#115 M3-review #1). Every materialized body
+// lives at construct/generated/<dir>/SKILL.md; the prune below GCs an entire
 // construct/generated/<dir> the current compile no longer produces.
-const generatedRel = "construct/generated"
 
 // shouldPruneGenerated is the PURE decision for the generated-class GC: a
 // construct/generated/<dir> entry is an orphan IFF <dir> is NOT in this run's
@@ -305,7 +306,7 @@ func ProducedGeneratedDirs(dirs []string) map[string]bool {
 // subtree (the materialized SKILL.md + its dir). Mirrors PruneOrphans' scan→decide→
 // remove split; the decision (shouldPruneGenerated) is pure.
 func PruneGenerated(fs weavefs.FS, repoRoot string, producedDirs map[string]bool) ([]string, error) {
-	genRoot := filepath.Join(repoRoot, generatedRel)
+	genRoot := filepath.Join(repoRoot, walk.GeneratedRel)
 	entries, err := fs.ReadDir(genRoot)
 	if err != nil {
 		return nil, nil // absent / unreadable ⇒ nothing to GC
@@ -316,7 +317,7 @@ func PruneGenerated(fs weavefs.FS, repoRoot string, producedDirs map[string]bool
 			continue // only <dir>/ children are managed here
 		}
 		if shouldPruneGenerated(e.Name(), producedDirs) {
-			rel := filepath.Join(generatedRel, e.Name())
+			rel := filepath.Join(walk.GeneratedRel, e.Name())
 			if err := fs.RemoveAll(filepath.Join(repoRoot, rel)); err != nil {
 				return nil, fmt.Errorf("prune generated %s: %w", rel, err)
 			}

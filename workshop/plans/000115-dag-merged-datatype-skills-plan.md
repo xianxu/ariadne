@@ -37,7 +37,8 @@ The work splits along the pensive's three-way invariant (`workshop/pensive/2026-
 | `DynamicSkillDirs` (leaf-only) | `cmd/weave/internal/walk/dynamic.go` | deleted |
 | `skill.Entry.Dynamic` flag | `cmd/weave/internal/skill/skill.go` | modified |
 | `scanSkillDir` (marker-aware) | `cmd/weave/internal/walk/skills.go` | modified |
-| `SkillSymlinks` (lowering switch) | `cmd/weave/internal/plan/skill_symlinks.go` | modified |
+| `SkillSymlinks` (UNCHANGED — switch realized in `BodyPath`) | `cmd/weave/internal/plan/skill_symlinks.go` | unchanged |
+| `walk.GeneratedRel` + `dynamicMarker` (single-source) | `cmd/weave/internal/walk/dynamic.go` | new |
 | `generatedGitignore` (`/construct/generated/`) | `cmd/weave/internal/plan/gitignore.go` | modified |
 | `shouldPruneGenerated` | `cmd/weave/internal/plan/prune.go` | new |
 
@@ -326,3 +327,9 @@ Four boundaries, each its own `sdlc milestone-close`. M1 is a behavior-preservin
 - Important (atlas): added a 2-line `atlas/index.md` pointer for `pkg/layergraph` + `pkg/frontmatter` now (full docs still batched to M4 per Task 4.3); M1 closed `--no-atlas` consciously (relocation-only).
 - Minors: `pkg/layergraph/walk_test.go` now uses production `OSFS{}` (deleted the duplicate `testFS`, gives OSFS coverage); stale `discoverEdges' BFS` comment in weave's `walk_test.go` reworded.
 - **M3 consideration (review §6):** `cmd/weave/walk.go` derives `canonRoot = order[len-1]`, an invariant coupling to `layergraph.Resolve`'s "root emitted last" post-order. When M3 touches this seam, weigh having `layergraph.Walk` return the canonical root explicitly (`(roots, canonRoot, err)`) instead of re-deriving it positionally, so a future emission-order change can't silently mis-target weave's self-reference filter.
+
+### 2026-06-18 — M3 boundary review folded in (FIX-THEN-SHIP, no Critical)
+- **Core-concepts table corrected (review #4):** `SkillSymlinks` is **unchanged**, not "modified." The lowering switch is realized in `scanSkillDir`'s `BodyPath` — a dynamic entry's `BodyPath = <root>/construct/generated/<dir>/SKILL.md`, so `SkillSymlinks`' existing `Src = filepath.Dir(BodyPath)` lowers to the per-repo materialized copy with **no branch** (more DRY than the plan's "SkillSymlinks branch" sketch; the reviewer called it "genuinely more DRY than the plan envisioned").
+- **ARCH-DRY consolidated AT the M3 boundary (reviews #1/#2 — not deferred):** single-sourced the `construct/generated` convention via `walk.GeneratedRel` + `GeneratedSkillDir`/`GeneratedSkillBody`, used by the write-path (`dynamic.go`), read-path (`skills.go`), prune (`prune.go`), and gitignore (`gitignore.go`) — they can no longer diverge. Extracted the dynamic-marker predicate into `walk.dynamicMarker`, shared by `DynamicSkills` + `scanSkillDir`.
+- **Faithfulness test hardened (review #3):** `TestRenderSkill_FaithfulToTemplate` now asserts the placeholder is present in the template, absent in the render, and the noun list appears — closing the vacuous-pass hole (a removed placeholder would otherwise ship a noun-less skill green).
+- **Minor:** `runner.go` doc comment corrected (cwd = repo root, not package dir). **Deferred to M4 cleanup:** `DynamicSkills` is computed twice per compile (generate + prune) — compute once; remove the now-dead `--datatype-dir` flag; dry-run doesn't preview the generated-class prune (comment overstates).

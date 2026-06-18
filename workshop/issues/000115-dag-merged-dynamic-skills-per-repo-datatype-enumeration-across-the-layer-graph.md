@@ -184,7 +184,7 @@ whole-dir `symlink construct/datatype` row is retired).
       suite green).
 - [x] M2 — `datatype` becomes DAG-aware (`mergeTypes` union local-wins) + gains
       `list`/`show` subcommands + build-in-owner PATH binary.
-- [ ] M3 — weave generate-stage redesign (all-layers visible set, marker run with
+- [x] M3 — weave generate-stage redesign (all-layers visible set, marker run with
       cwd=R root → leaf-rooted output), lowering switch (dynamic → this-repo),
       materialized SKILL.md gitignored everywhere, prune the orphan materialized
       class, repo-agnostic marker.
@@ -196,6 +196,8 @@ whole-dir `symlink construct/datatype` row is retired).
 
 
 
+
+- 2026-06-18: closed M3 — M3: weave generate-stage surgery. construct/generated/<dir> materialization (gitignored everywhere); marker-aware discovery (entry from tracked marker, BodyPath→leafRoot/construct/generated, fresh-clone safe); DynamicSkills all-layers visible-set (intent.Selected, adapted excl, dedup); generate cwd=leafRoot (ancestor tree never mutated); prune generated class; repo-agnostic marker + datatype-build PATH wiring. VERIFIED: go build/vet/test ./... green; make weave ariadne+nous+pair clean+idempotent, each materializes OWN construct/generated/datatype; C1 GATE — weave skills shows exactly 1 xx-datatype in nous+pair (no <repo>-datatype); committed construct/local/datatype/SKILL.md removed (marker kept); harness-check 6/0.; review verdict: FIX-THEN-SHIP
 - 2026-06-18: closed M2 — M2: datatype DAG-aware (mergeTypes union local-wins-by-filename, pure over layergraph.FS; product.md filename-trap + shadow + leaf-local tested) + list/show subcommands + datatype-build PATH binary. go build/vet/test ./... green; datatype list → 13 nouns; show unknown → exit 1; make weave byte-identical construct/local/datatype/SKILL.md (gap-bridge: old marker + deprecated --datatype-dir still work); harness-check 6/0.; review verdict: FIX-THEN-SHIP
 - 2026-06-18: closed M1 — M1: pkg/layergraph (FS+ParseDeps+Resolve+Walk) + pkg/frontmatter extracted module-level; go build/vet/test ./... green incl. full weave suite (behavior-preserving regression proof) + new pkgs; make weave idempotent + clean tree; no discoverEdges/substrateTargets/ParseDeps/Resolve/frontmatterDescription survives in cmd/weave (grep empty, ARCH-DRY, one walk). 5 TDD commits 6adb3bf..aca8d81.; review verdict: FIX-THEN-SHIP
 ### 2026-06-17

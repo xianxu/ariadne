@@ -107,11 +107,12 @@ func scanSkillDir(fs weavefs.FS, sourceDir, prefix, leafRoot string) ([]skill.En
 			continue
 		}
 		// Marker FIRST: an executable .dynamic-skill makes this a dynamic skill whose
-		// body is the COMPILING repo's materialized copy (reuses dynamicSkillRel +
-		// isExecutable from dynamic.go, same package — DRY).
-		markerPath := filepath.Join(sourceDir, de.Name(), dynamicSkillRel)
-		if fi, serr := fs.Stat(markerPath); serr == nil && !fi.IsDir() && isExecutable(fi.Mode()) {
-			bodyPath := filepath.Join(leafRoot, "construct", "generated", de.Name(), "SKILL.md")
+		// body is the COMPILING repo's materialized copy. dynamicMarker +
+		// GeneratedSkillBody are the SHARED predicate + path the generate stage
+		// (DynamicSkills) also uses — one source of truth, so write-path and read-path
+		// cannot diverge (M3-review #1/#2, same package — DRY).
+		if _, ok := dynamicMarker(fs, filepath.Join(sourceDir, de.Name())); ok {
+			bodyPath := GeneratedSkillBody(leafRoot, de.Name())
 			desc := ""
 			if data, rerr := fs.ReadFile(bodyPath); rerr == nil {
 				desc = frontmatter.Description(string(data)) // absent until first compile ⇒ ""

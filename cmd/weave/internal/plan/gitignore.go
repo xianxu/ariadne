@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
@@ -44,7 +45,7 @@ var GeneratedRuntimeGitignoreEntries = []string{
 	"/.claude/settings.json",
 	"/.colima/",
 	"/construct/scripts/vm-log.sh",
-	"/construct/generated/", // per-repo dynamic-skill materialization (#115 M3) — regenerated every compile
+	"/" + walk.GeneratedRel + "/", // per-repo dynamic-skill materialization (#115 M3, single-sourced) — regenerated every compile
 }
 
 // EnsureGitignore ensures the repo's .gitignore contains every entry in Entries,
