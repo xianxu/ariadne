@@ -49,3 +49,16 @@ func TestDrift_TooFew(t *testing.T) {
 		t.Error("fewer than n trusted rows should not warn")
 	}
 }
+
+func TestDrift_TrustedZeroActualExcluded(t *testing.T) {
+	// A trusted row with actual==0 must NOT count (ratio 0 would read as <0.5
+	// "under"); it drops the trusted count below n → no verdict.
+	rows := []LedgerRow{
+		{Estimate: 5, Actual: 0, WindowTrusted: true},
+		trustedRow(5, 0.9),
+		trustedRow(7, 0.35),
+	}
+	if warn, _ := DriftVerdict(rows, 3); warn {
+		t.Error("trusted row with actual==0 must be excluded from the trusted count")
+	}
+}

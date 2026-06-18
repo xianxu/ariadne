@@ -60,3 +60,11 @@ func TestParseRows_SkipsHeaderAndComments(t *testing.T) {
 		t.Fatalf("expected 1 data row, got %d", len(got))
 	}
 }
+
+func TestParseRows_SkipsRaggedRows(t *testing.T) {
+	text := Header() + "\nonly\ttwo\tcols\n" +
+		FormatRow(LedgerRow{Issue: "x", Estimate: 1, Actual: 1, Model: "estimate-logic-v2", Date: "2026-06-17"}) + "\n"
+	if got := ParseRows(text); len(got) != 1 {
+		t.Fatalf("ragged (<10 col) row should be skipped; want 1 data row, got %d", len(got))
+	}
+}

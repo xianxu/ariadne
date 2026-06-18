@@ -67,8 +67,10 @@ func TestParseBlock_Errors(t *testing.T) {
 	cases := map[string]string{
 		"no fence":         "## Estimate\n\njust prose, no block\n",
 		"non-numeric impl": fence + "estimate\nmodel: estimate-logic-v2\nitem: atlas-docs design=0.1 impl=lots\ntotal: 0.2\n" + fence + "\n",
-		"missing total":    fence + "estimate\nmodel: estimate-logic-v2\nitem: atlas-docs design=0.1 impl=0.2\n" + fence + "\n",
-		"unknown field":    fence + "estimate\nmodel: estimate-logic-v2\nbogus: 1\ntotal: 0.2\n" + fence + "\n",
+		"missing total":          fence + "estimate\nmodel: estimate-logic-v2\nitem: atlas-docs design=0.1 impl=0.2\n" + fence + "\n",
+		"unknown field":          fence + "estimate\nmodel: estimate-logic-v2\nbogus: 1\ntotal: 0.2\n" + fence + "\n",
+		"non-numeric familiarity": fence + "estimate\nmodel: estimate-logic-v2\nfamiliarity: lots\nitem: atlas-docs design=0.1 impl=0.2\ntotal: 0.2\n" + fence + "\n",
+		"non-numeric total":       fence + "estimate\nmodel: estimate-logic-v2\nitem: atlas-docs design=0.1 impl=0.2\ntotal: soon\n" + fence + "\n",
 	}
 	for name, section := range cases {
 		if _, err := ParseBlock(section); err == nil {

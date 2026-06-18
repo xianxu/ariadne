@@ -237,3 +237,7 @@ Pass iff `|recomputed − total| ≤ tol` **and** `|total − frontmatter.estima
 - **#116** stamps `started:`; Task 9 reads its presence to set `window-trusted`, so rows auto-upgrade once #116 lands — no rework here.
 - **#112** parked: if its attention model is ever adopted, it adds vocab slugs + a `model:` value; the grammar/guard/judge/ledger are unchanged (model-agnostic by design).
 - Vocabulary lives canonically in `vocab.go` (DRY); `helptext/estimate.md` documents it; the brain `estimate-logic-v2.md` table is the human narrative it mirrors — keep them reconciled if the primitive set changes.
+
+## Revisions
+
+- **2026-06-17 (M1 review, SHIP):** The Core-concepts table row `Vocabulary … vocab.go` is delivered not as a named `Vocabulary` type but as two package-level maps (`primitives`, `models`) plus accessors (`KnownPrimitive`/`KnownModel`/`Primitives`/`Models`). Behavior matches intent; recording the shape so the table reads literally for the next fresh-context reader. M1 review also folded in three test-coverage cases (trusted-zero-actual drift exclusion, non-numeric `familiarity`/`total` parse errors, ragged ledger-row skip) — all green.
