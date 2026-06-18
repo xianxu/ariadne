@@ -5,30 +5,65 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
-// main runs the DAG-aware datatype subsystem. With no subcommand it renders the
-// per-repo SKILL.md (the #115 dynamic-skill render):
+// main runs the DAG-aware datatype subsystem. It dispatches on the first
+// positional argument:
 //
-//	datatype --output <dir> [--datatype-dir <ignored>]
+//	datatype list                 — print each DAG-resolved type's name + description
+//	datatype show <name>          — print the leaf-winning prototype body
+//	datatype --output <dir> [...] — render the per-repo SKILL.md (the render command)
 //
-// finds the repo root from cwd, walks its construct/deps layer graph, DAG-merges
-// the prototypes (local/leaf shadows shared, keyed by filename), and writes
-// <dir>/SKILL.md. Invoked by the datatype package's `.dynamic-skill` at `weave
-// compile` time (cwd = the package dir; `--output .` writes the package dir).
+// The render command (no subcommand, --output given) finds the repo root from
+// cwd, walks its construct/deps layer graph, DAG-merges the prototypes
+// (local/leaf shadows shared, keyed by filename), and writes <dir>/SKILL.md. It
+// is invoked by the datatype package's `.dynamic-skill` at `weave compile` time
+// (cwd = the package dir; `--output .` writes the package dir).
 //
 // --datatype-dir is ACCEPTED-BUT-IGNORED (deprecated): the DAG merge across
 // construct/deps supersedes the single-dir enumeration, but the flag is still
 // parsed so the legacy marker's `--datatype-dir …` arg doesn't error.
 func main() {
+	// Subcommand dispatch keys on the first positional arg BEFORE flag parsing,
+	// so `datatype list` / `datatype show <name>` need no flags while the render
+	// command keeps its `--output` flag.
+	args := os.Args[1:]
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		switch args[0] {
+		case "list":
+			if err := runList(os.Stdout); err != nil {
+				fmt.Fprintln(os.Stderr, "datatype:", err)
+				os.Exit(1)
+			}
+			return
+		case "show":
+			if len(args) < 2 {
+				fmt.Fprintln(os.Stderr, "datatype: show <name> requires a type name")
+				os.Exit(2)
+			}
+			if err := runShow(args[1], os.Stdout, os.Stderr); err != nil {
+				if err != errUnknownType {
+					// errUnknownType already printed the available-names guidance.
+					fmt.Fprintln(os.Stderr, "datatype:", err)
+				}
+				os.Exit(1)
+			}
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "datatype: unknown subcommand %q (want list, show, or --output)\n", args[0])
+			os.Exit(2)
+		}
+	}
+
 	output := flag.String("output", "", "directory to write SKILL.md into (required for the render command)")
 	_ = flag.String("datatype-dir", "construct/datatype", "DEPRECATED + IGNORED: the DAG merge across construct/deps supersedes this; accepted only so the legacy .dynamic-skill marker's arg doesn't error")
 	flag.Parse()
 
 	if *output == "" {
-		fmt.Fprintln(os.Stderr, "datatype: --output <dir> is required")
+		fmt.Fprintln(os.Stderr, "datatype: --output <dir> is required (or use the `list` / `show <name>` subcommand)")
 		os.Exit(2)
 	}
 	if err := renderToOutput(*output); err != nil {
