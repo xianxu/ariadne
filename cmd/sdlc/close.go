@@ -699,9 +699,9 @@ const (
 type devVerdict int
 
 const (
-	devOK devVerdict = iota // within tolerance — close silently
-	devWarn                 // moderately off — warn but proceed
-	devRefuse               // wildly off — refuse without an explicit override
+	devOK     devVerdict = iota // within tolerance — close silently
+	devWarn                     // moderately off — warn but proceed
+	devRefuse                   // wildly off — refuse without an explicit override
 )
 
 // actualDeviation is the pure comparator (ARCH-PURE: no IO; unit-tested

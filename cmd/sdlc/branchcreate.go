@@ -31,12 +31,12 @@ type nameFlags struct {
 //
 //  1. --name explicit          → use as-is, no untracked detection
 //  2. --issue N                → look up workshop/issues/NNNNNN-*.md,
-//                                derive name from basename. Returns it
-//                                as untrackedFile *only if* git
-//                                reports it as untracked.
+//     derive name from basename. Returns it
+//     as untrackedFile *only if* git
+//     reports it as untracked.
 //  3. neither                  → scan untracked files in issues-dir;
-//                                if exactly one NNNNNN-*.md, use that.
-//                                Multiple / zero → error.
+//     if exactly one NNNNNN-*.md, use that.
+//     Multiple / zero → error.
 //
 // Returns (name, untrackedFile, err). untrackedFile is the path that
 // should be committed before branch creation; empty if no commit is

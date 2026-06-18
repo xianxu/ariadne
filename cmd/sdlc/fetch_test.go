@@ -21,11 +21,11 @@ func (s stubGH) TitleAndBody(repo, issueNum string) (string, string, error) {
 	return s.title, s.body, s.err
 }
 
-func (s stubGH) IssueClose(repo, issueNum, comment string) error            { return nil }
-func (s stubGH) PRCreate(repo, base, head, body string) (string, error)     { return "", nil }
-func (s stubGH) PRListForBranch(repo, headRef string) (string, error)       { return "", nil }
-func (s stubGH) PRMerge(repo, branch string) error                          { return nil }
-func (s stubGH) PRMergedForBranch(repo, headRef string) (bool, error)       { return false, nil }
+func (s stubGH) IssueClose(repo, issueNum, comment string) error        { return nil }
+func (s stubGH) PRCreate(repo, base, head, body string) (string, error) { return "", nil }
+func (s stubGH) PRListForBranch(repo, headRef string) (string, error)   { return "", nil }
+func (s stubGH) PRMerge(repo, branch string) error                      { return nil }
+func (s stubGH) PRMergedForBranch(repo, headRef string) (bool, error)   { return false, nil }
 
 // TestRunFetch_DryRun exercises the dry-run path end-to-end with stubbed
 // gh and a temp workspace. Skips the real gh invocation; verifies the

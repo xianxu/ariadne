@@ -30,7 +30,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
 | `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
 | `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72) to design against |
-| `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + estimate (#113) + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
+| `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + estimate (#113) + **estimate-reconciliation + estimate-quality (#117)** + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
 | `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
@@ -129,6 +129,19 @@ doing) via deterministic checks (`close` refuses without `--actual` +
 `--verified`). The judge subcommand defends against **theater** (form
 without substance) via fresh-context LLM review — every Dispatch call
 spawns a new subprocess; the agent has no doer-session state.
+
+**The estimate shell (#117)** applies this same form/essence split to
+`estimate_hours`, plus a feedback arm — the one forecast in the system with a
+deterministic ground-truth measurement (`sdlc actual`). *Form:* the change-code
+**estimate-reconciliation** gate parses the issue's `## Estimate` fenced block
+(`internal/estimate`, pure) and refuses unless `estimate_hours` reconciles with
+an itemized v2-primitive derivation (`Σdesign×(1+buffer)+Σimpl×familiarity`). No
+unitemized estimate — a fabricated number can't pass. *Essence:* the
+**estimate-quality** judge checks the derivation was applied, not back-fit.
+*Feedback:* `sdlc close` will append every estimate↔actual pair to a calibration
+ledger and flag drift (M3) — closing the loop the hand-kept validation log never
+did. Grammar + closed vocabulary: `helptext/estimate.md` (canonical slugs in
+`internal/estimate/vocab.go`, a drift test guards the mirror).
 
 **Per-gate bypass (#67).** `close` has 8 gates (actual, verified, atlas,
 milestone-verdict, plan-unchecked, project, re-close, and the #69 boundary
@@ -234,6 +247,9 @@ file, embedded per fresh context). Today: the **plan-quality** judge renders the
 `at-plan` lens (highest leverage — the design is still changeable), the
 **milestone-review** judge renders `at-review` (backstop), and the standalone
 **dry/pure** judges render their principle from the registry (authored once).
+The **estimate-quality** judge (#117) is a change-code-time-only sibling of
+plan-quality — deliberately NOT in `AllCategories()` so it never enters push/merge
+bulk dispatch; it checks the `## Estimate` derivation was *applied*, not back-fit.
 Cite the marker (`ARCH-DRY`) in plans/Logs/findings. Adding an `ARCH-*` entry
 flows into every consumer with no other edit. **`sdlc start-plan`** (#75 M2)
 delivers the `at-plan` lens to the main thread at design time — the forward

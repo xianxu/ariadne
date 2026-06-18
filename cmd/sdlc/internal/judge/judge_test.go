@@ -27,6 +27,30 @@ func TestIsValid(t *testing.T) {
 	}
 }
 
+// TestEstimateQuality_NotInBulkDispatch pins the #117 decision: the estimate-
+// quality judge is a change-code-time-only gate. It must stay out of
+// AllCategories() (which drives push/merge bulk dispatch) and IsValid (standalone
+// `sdlc judge` invocation), so it can never silently run at the wrong boundary.
+func TestEstimateQuality_NotInBulkDispatch(t *testing.T) {
+	for _, c := range AllCategories() {
+		if c == EstimateQuality {
+			t.Fatal("EstimateQuality must NOT be in AllCategories() — it would enroll in push/merge bulk dispatch (#117)")
+		}
+	}
+	if IsValid(string(EstimateQuality)) {
+		t.Error("EstimateQuality should not be standalone-valid (change-code-time only)")
+	}
+}
+
+func TestBuildPrompt_EstimateQuality(t *testing.T) {
+	p := BuildPrompt(EstimateQuality, PromptInput{IssueRef: "ariadne#117", IssueContent: "## Estimate\nblock"})
+	for _, want := range []string{"ariadne#117", "estimate-logic-v2", "fabricated", ContractPreamble} {
+		if !strings.Contains(p, want) {
+			t.Errorf("EstimateQuality prompt missing %q", want)
+		}
+	}
+}
+
 func TestCategoryAllowedTools(t *testing.T) {
 	// #62 M2: ALL judges are read-only reviewers — none get Edit/Write, incl.
 	// Specs (which used to auto-edit docs and could strand a merge with a dirty

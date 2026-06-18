@@ -33,6 +33,7 @@ const (
 	PURE            Category = "pure"
 	Plan            Category = "plan"
 	PlanQuality     Category = "plan-quality"
+	EstimateQuality Category = "estimate-quality"
 	Specs           Category = "specs"
 	Lessons         Category = "lessons"
 	MilestoneReview Category = "milestone-review"
@@ -40,6 +41,10 @@ const (
 
 // AllCategories returns every supported category in stable order. Used
 // for --help enumeration and bulk-dispatch from push/merge in M5/M6.
+//
+// EstimateQuality is deliberately ABSENT: it is a change-code-time-only gate
+// (invoked directly by runEstimateQualityJudge, not via IsValid), and enrolling
+// it here would also run it at push/merge bulk-dispatch — wrong boundary (#117).
 func AllCategories() []Category {
 	return []Category{DRY, PURE, Plan, PlanQuality, Specs, Lessons, MilestoneReview}
 }
@@ -66,6 +71,8 @@ func (c Category) Label() string {
 		return "Check issue plan completeness"
 	case PlanQuality:
 		return "Check plan executability (pre-implementation)"
+	case EstimateQuality:
+		return "Check the ## Estimate derivation was applied (pre-implementation)"
 	case Specs:
 		return "Check atlas/README sync"
 	case Lessons:
@@ -245,6 +252,53 @@ Plan file (if separate):
 %s
 ---
 `, ref, ArchitectureBlock("at-plan"), ContractPreamble, in.IssueContent, planSection)
+
+	case EstimateQuality:
+		ref := in.IssueRef
+		if ref == "" {
+			ref = "<unknown>"
+		}
+		return fmt.Sprintf(`You are a senior engineer reviewing an issue's ## Estimate block BEFORE implementation.
+Issue: %s
+
+estimate_hours is meant to be DERIVED, not guessed. The ## Estimate block itemizes
+the derivation by estimate-logic-v2 primitives (each with design + impl hours);
+change-code has ALREADY checked the block reconciles arithmetically. Your job is the
+part arithmetic can't check: **was the model actually applied, and are the numbers
+plausible for THIS issue's scope?**
+
+Flag (FAILURE only for a clearly fabricated or absent derivation; otherwise INFO):
+
+  - Itemized-but-fabricated: items/hours that don't correspond to the work the
+    Spec/Plan actually describes (e.g. a 'greenfield-service' slug for a one-file
+    change, or per-item hours that look back-fitted to hit a predetermined total).
+  - Missing obvious work: the Plan has milestones / reviews / integration the
+    ## Estimate omits entirely.
+  - Implausible per-primitive hours for the scope: design hours should be near-zero
+    when a thorough plan already pre-resolves decisions; impl hours wildly off for
+    the named primitive.
+  - Wrong-ruler blind spots: estimate-logic-v2 is BUILD-EFFORT. If the scope is
+    heavily delegated / long-autonomous, note that operator-attention (what the
+    actual measures) will diverge — the block carries no escalation/fragmentation
+    awareness. (Advisory: this is the gap #117 instruments, not a block failure.)
+
+Do NOT modify any files. You are a read-only gate.
+
+%s
+
+Tokens for this check:
+  CLEAN   = the ## Estimate plausibly applies the model to this scope.
+  INFO    = workable; specific items worth a second look (this is the common case).
+  FAILURE = the derivation is fabricated, absent, or grossly implausible for the scope.
+
+After the VERDICT line: a 1-paragraph summary, then specific findings (quote the
+items you doubt). Be concrete.
+
+Issue file:
+---
+%s
+---
+`, ref, ContractPreamble, in.IssueContent)
 
 	case Specs:
 		return fmt.Sprintf(`You are a READ-ONLY documentation reviewer. Compare the code changes in the diff below against:

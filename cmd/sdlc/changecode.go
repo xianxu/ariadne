@@ -3,13 +3,13 @@
 // The planning → implementation transition. Composes four gates:
 //
 //  1. Structural sanity   — deterministic checks against the issue file
-//                           (Spec ≥ 50 words, non-empty Plan, etc.).
+//     (Spec ≥ 50 words, non-empty Plan, etc.).
 //  2. Estimate gate       — a positive estimate_hours: (#113), relocated
-//                           from claim; --no-estimate bypasses.
+//     from claim; --no-estimate bypasses.
 //  3. Plan-quality judge  — fresh-context LLM review: is this plan
-//                           executable as-written?
+//     executable as-written?
 //  4. Branching strategy  — default in-place (#51); --worktree=yes for a
-//                           worktree, --worktree=ask to be prompted.
+//     worktree, --worktree=ask to be prompted.
 //
 // Any gate can be skipped with the corresponding --no-* flag, or
 // bypassed wholesale with --force <reason>. The --force rationale
@@ -31,27 +31,30 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 type changeCodeFlags struct {
-	Issue        int
-	Name         string
-	IssuesDir    string
-	PlansDir     string
-	Worktree     string // "yes" | "no" | "" (ask)
-	Force        string // rationale; non-empty bypasses gate refusal
-	NoJudge      bool
-	NoStructural bool
-	NoEstimate   bool
-	DryRun       bool
-	Agent        string
-	Sandbox      bool
+	Issue           int
+	Name            string
+	IssuesDir       string
+	PlansDir        string
+	Worktree        string // "yes" | "no" | "" (ask)
+	Force           string // rationale; non-empty bypasses gate refusal
+	NoJudge         bool
+	NoStructural    bool
+	NoEstimate      bool
+	NoEstimateRecon bool
+	DryRun          bool
+	Agent           string
+	Sandbox         bool
 }
 
 func NewChangeCodeCmd() *cobra.Command {
@@ -75,6 +78,7 @@ func NewChangeCodeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the plan-quality LLM judge")
 	cmd.Flags().BoolVar(&f.NoStructural, "no-structural", false, "skip the structural-sanity checks")
 	cmd.Flags().BoolVar(&f.NoEstimate, "no-estimate", false, "skip the estimate_hours gate (#113)")
+	cmd.Flags().BoolVar(&f.NoEstimateRecon, "no-estimate-recon", false, "skip the ## Estimate reconciliation gate (#117)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do nothing")
 	cmd.Flags().StringVar(&f.Agent, "agent", os.Getenv("AGENT_CMD"), "agent CLI for plan-quality judge: claude | codex | gemini (default $AGENT_CMD or claude)")
 	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
@@ -143,7 +147,22 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
 	}
 
-	// 4. Plan-quality judge.
+	// 3c. Estimate-reconciliation gate (#117). Forces the documented model to be
+	//     applied: estimate_hours must reconcile with an itemized ## Estimate
+	//     block (no unitemized estimate). Pure decision (estimateReconRefusal);
+	//     own --no-estimate-recon bypass per the per-gate convention.
+	if fail := estimateReconRefusal(issueContent, f.NoEstimateRecon); fail != nil {
+		if f.Force == "" {
+			fmt.Fprintln(stderr, "estimate-reconciliation gate failed:")
+			fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
+			cwarn(stderr, "fix the ## Estimate block so it reconciles, OR re-run with --no-estimate-recon / --force <reason>")
+			os.Exit(1)
+		}
+		cwarn(stderr, fmt.Sprintf("estimate-reconciliation gate bypassed (--force: %s)", f.Force))
+		fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
+	}
+
+	// 4. Plan-quality + estimate-quality judges (fresh-context LLM).
 	if !f.NoJudge {
 		if err := runPlanQualityJudge(stdout, stderr, f, name, issueContent, planContent); err != nil {
 			// runPlanQualityJudge already printed; honor --force.
@@ -151,6 +170,12 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 				os.Exit(1)
 			}
 			cwarn(stderr, fmt.Sprintf("plan-quality gate bypassed (--force: %s)", f.Force))
+		}
+		if err := runEstimateQualityJudge(stdout, stderr, f, name, issueContent); err != nil {
+			if f.Force == "" {
+				os.Exit(1)
+			}
+			cwarn(stderr, fmt.Sprintf("estimate-quality gate bypassed (--force: %s)", f.Force))
 		}
 	}
 
@@ -203,6 +228,41 @@ func estimateRefusal(issueContent string, noEstimate bool) *issue.StructuralFail
 		return nil
 	}
 	return issue.CheckEstimate(issueContent)
+}
+
+// estimateReconRefusal is the pure decision for change-code's estimate-
+// reconciliation gate (#117): nil when skipped (--no-estimate-recon) or when the
+// issue's `## Estimate` block parses and reconciles with frontmatter
+// estimate_hours; otherwise a single aggregated failure. All logic is pure
+// (issue + estimate parsing); the os.Exit / --force handling stays in
+// runChangeCode (ARCH-PURE), so the gate is unit-testable without the command.
+func estimateReconRefusal(issueContent string, noRecon bool) *issue.StructuralFailure {
+	if noRecon {
+		return nil
+	}
+	fm, body, err := issue.Parse(issueContent)
+	if err != nil {
+		return &issue.StructuralFailure{Name: "estimate-recon", Message: "issue file has no YAML frontmatter to reconcile estimate_hours against"}
+	}
+	section, ok := issue.EstimateSection(body)
+	if !ok {
+		return &issue.StructuralFailure{Name: "estimate-recon", Message: "no `## Estimate` block — derive estimate_hours via the model and add a fenced ```estimate block (see `sdlc change-code --help`)"}
+	}
+	block, err := estimate.ParseBlock(section)
+	if err != nil {
+		return &issue.StructuralFailure{Name: "estimate-recon", Message: "## Estimate block does not parse: " + err.Error()}
+	}
+	estHoursStr, _ := issue.GetField(fm, "estimate_hours")
+	estHours, _ := strconv.ParseFloat(strings.TrimSpace(estHoursStr), 64)
+	failures := estimate.Check(block, estHours)
+	if len(failures) == 0 {
+		return nil
+	}
+	msgs := make([]string, len(failures))
+	for i, ff := range failures {
+		msgs[i] = ff.Message
+	}
+	return &issue.StructuralFailure{Name: "estimate-recon", Message: strings.Join(msgs, "; ")}
 }
 
 // resolveChangeCodeName reuses start.go's name-resolution shape but
@@ -324,6 +384,75 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	case judge.Failure:
 		cwarn(stderr, "plan-quality: findings reported — fix the plan, OR re-run with --force <reason>")
 		return fmt.Errorf("plan-quality failure")
+	}
+	return nil
+}
+
+// runEstimateQualityJudge dispatches the estimate-quality judge against the issue
+// content and returns nil on Clean/Info, error on Failure. Mirrors
+// runPlanQualityJudge. Skips silently when there is no `## Estimate` block — the
+// reconciliation gate (3c) owns the "block required" enforcement, so with that
+// gate skipped (--no-estimate-recon) there is simply nothing to judge.
+func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, issueContent string) error {
+	if _, body, err := issue.Parse(issueContent); err != nil {
+		return nil
+	} else if _, ok := issue.EstimateSection(body); !ok {
+		return nil
+	}
+
+	issueRef := name
+	if f.Issue > 0 {
+		issueRef = fmt.Sprintf("ariadne#%d", f.Issue)
+	}
+
+	prompt := judge.BuildPrompt(judge.EstimateQuality, judge.PromptInput{
+		IssueRef:     issueRef,
+		IssueContent: issueContent,
+	})
+
+	agent := judge.AgentCLI(orStr(f.Agent, "claude"))
+	opts := judge.DispatchOptions{
+		Agent:        agent,
+		Prompt:       prompt,
+		AllowedTools: judge.EstimateQuality.AllowedTools(),
+		IsSandbox:    f.Sandbox,
+		Stdout:       stdout,
+		Stderr:       stderr,
+	}
+
+	if f.DryRun {
+		cmdLine, err := judge.FormatCommandLine(opts)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, "── estimate-quality prompt ──")
+		fmt.Fprintln(stdout, prompt)
+		fmt.Fprintln(stdout, "── command (would invoke) ──")
+		fmt.Fprintln(stdout, cmdLine)
+		return nil
+	}
+
+	cinfo(stderr, fmt.Sprintf("invoking %s for estimate-quality check …", agent))
+	output, dispatchErr := judge.Dispatch(context.Background(), opts)
+	if dispatchErr != nil {
+		return fmt.Errorf("estimate-quality dispatch failed: %v", dispatchErr)
+	}
+
+	fmt.Fprint(stdout, output)
+	if !strings.HasSuffix(output, "\n") {
+		fmt.Fprintln(stdout)
+	}
+
+	switch judge.Classify(output) {
+	case judge.Clean:
+		cok(stderr, "estimate-quality: clean")
+		return nil
+	case judge.Info:
+		cinfo(stderr, "estimate-quality: info")
+		return nil
+	case judge.Failure:
+		cwarn(stderr, "estimate-quality: findings reported — fix the ## Estimate, OR re-run with --no-judge / --force <reason>")
+		return fmt.Errorf("estimate-quality failure")
 	}
 	return nil
 }

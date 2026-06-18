@@ -67,7 +67,7 @@ func TestCollectGitHubIssueNumbers(t *testing.T) {
 	}
 	a := mk("a.md", "42")
 	b := mk("b.md", "10")
-	c := mk("c.md", "") // no github_issue → skipped
+	c := mk("c.md", "")   // no github_issue → skipped
 	d := mk("d.md", "42") // duplicate of a → deduped
 
 	got := collectGitHubIssueNumbers([]string{a, b, c, d})
