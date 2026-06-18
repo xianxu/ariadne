@@ -43,6 +43,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 func main() {
@@ -219,7 +220,7 @@ func buildLink() *cobra.Command {
 
 // runLink appends `substrate <path>` to root/construct/deps, recording path
 // VERBATIM (no resolution/relativization — the establishment verb captures the
-// real path it was handed). Idempotent: it reuses layer.ParseDeps (the same
+// real path it was handed). Idempotent: it reuses layergraph.ParseDeps (the same
 // grammar the walk + Apply read deps with, ARCH-DRY) to skip when the row is
 // already present, and creates construct/deps (+ construct/) when absent.
 // Injecting fs + out keeps it testable. Read-only on everything but the one deps
@@ -230,7 +231,7 @@ func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
 	var existing string
 	if data, rerr := fs.ReadFile(depsPath); rerr == nil {
 		existing = string(data)
-		rows, perr := layer.ParseDeps(existing)
+		rows, perr := layergraph.ParseDeps(existing)
 		if perr != nil {
 			return fmt.Errorf("link: parse %s: %w", depsPath, perr)
 		}

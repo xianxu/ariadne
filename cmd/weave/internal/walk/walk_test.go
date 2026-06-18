@@ -13,7 +13,7 @@ import (
 // []layer.Layer: it follows each layer's construct/deps (porting
 // deps_substrate_targets' repo-root-relative + absolute + present-skip
 // resolution and the two _seen_or_add filters), resolves the DAG
-// (layer.Resolve → root last/self-included), then loads each layer's
+// (layergraph.Resolve → root last/self-included), then loads each layer's
 // base.manifest into Intents and its prose files into ProseFragments, applying
 // the self-reference filter. Tested against a real on-disk fixture under
 // t.TempDir() (the seam exercised end-to-end, no mocks).
