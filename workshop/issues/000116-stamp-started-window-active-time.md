@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-18
-estimate_hours:
+estimate_hours: 1.4
 ---
 
 # Stamp started: at claim and window active-time from engagement start
@@ -72,9 +72,49 @@ different problem; not addressed here.
   the window.
 - Atlas note on the windowing change (`atlas/` active-time/actual surface).
 
+## Revisions
+
+### 2026-06-18 — premise reconciled to the #113 mechanism
+**Reason:** code reading found the Problem's premise is partly stale. `sdlc actual`
+(`computeActual`, `actual.go`) ALREADY pulls the window-start back to the claim:
+the #113 block calls `gitx.WorkingTransitionISO` (the open→working transition
+commit's `%aI` date) and `windowStart` takes the *earlier* of (commit-parent,
+claim). So claim-anchored windowing exists — but via a **git-log heuristic** that
+is explicitly "best-effort — a locate/parse miss just keeps the commit-based
+start" (a silent fallback that drops design time).
+
+**Delta (operator chose "harden it"):** #116 is reframed from *fix the excluded
+window* to *make the anchor explicit + robust*:
+- **Write side:** stamp `started:` (local-offset RFC3339, to stay lexically
+  comparable with git's `%aI` that `windowStart` compares) at the open→working
+  flip — in the shared `applyStatus` so both `claim` and `set-status working`
+  stamp it. Idempotent (never overwrite). New code injects a clock seam rather
+  than calling `time.Now()` directly (controllable-time).
+- **Read side:** the anchor preference becomes `started:` (explicit) →
+  `WorkingTransitionISO` (#113 legacy heuristic, fallback) → commit-parent. So
+  `started:` supersedes the heuristic when present; nothing regresses for legacy
+  issues without it.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: smaller-go-module   design=0.1 impl=0.3
+item: smaller-go-module   design=0.1 impl=0.3
+item: atlas-docs          design=0.1 impl=0.2
+item: milestone-review    design=0.0 impl=0.2
+design-buffer: 0.30
+total: 1.4
+```
+
+design 0.3 ×1.30 = 0.39 · impl 1.0 ×1.0 · total ≈ 1.4 (v2 build-effort; single-pass).
+
 ## Plan
 
-- [ ]
+- [x] Stamp `started:` in `applyStatus` on open→working (clock seam, idempotent) + test
+- [x] `computeActual` prefers `started:` over `WorkingTransitionISO`, then commit-parent + test
+- [x] Reconcile atlas (active-time/actual windowing) + verify on a real claimed issue
 
 ## Log
 

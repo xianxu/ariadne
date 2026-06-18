@@ -157,6 +157,45 @@ func TestRunSetStatus_DryRunHonored(t *testing.T) {
 
 // TestRunSetStatus_WritesNewStatus tests the happy path: valid
 // transition writes the file with the new status + today's updated.
+// TestApplyStatus_StampsStarted pins #116: the open→working flip stamps an
+// idempotent `started:` engagement anchor (injected clock for determinism); an
+// existing stamp is never overwritten.
+func TestApplyStatus_StampsStarted(t *testing.T) {
+	orig := startedClock
+	t.Cleanup(func() { startedClock = orig })
+	dir := t.TempDir()
+
+	// Case A: open without started → stamped.
+	pathA := filepath.Join(dir, "000008-a.md")
+	if err := os.WriteFile(pathA, []byte("---\nid: 000008\nstatus: open\nestimate_hours: 1\n---\n# A\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	startedClock = func() string { return "2026-06-18T10:00:00-07:00" }
+	if _, _, _, err := applyStatus(dir, 8, "working", false, false); err != nil {
+		t.Fatalf("applyStatus A: %v", err)
+	}
+	if a, _ := os.ReadFile(pathA); !strings.Contains(string(a), "started: 2026-06-18T10:00:00-07:00") {
+		t.Errorf("open→working should stamp started:\n%s", a)
+	}
+
+	// Case B: open WITH an existing started → not overwritten (idempotent).
+	pathB := filepath.Join(dir, "000009-b.md")
+	if err := os.WriteFile(pathB, []byte("---\nid: 000009\nstatus: open\nestimate_hours: 1\nstarted: 2025-01-01T00:00:00-07:00\n---\n# B\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	startedClock = func() string { return "2099-12-31T23:59:59-07:00" }
+	if _, _, _, err := applyStatus(dir, 9, "working", false, false); err != nil {
+		t.Fatalf("applyStatus B: %v", err)
+	}
+	b, _ := os.ReadFile(pathB)
+	if strings.Contains(string(b), "2099") {
+		t.Errorf("existing started: must not be overwritten:\n%s", b)
+	}
+	if !strings.Contains(string(b), "started: 2025-01-01T00:00:00-07:00") {
+		t.Errorf("original started: lost:\n%s", b)
+	}
+}
+
 func TestRunSetStatus_WritesNewStatus(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "000007-foo.md")

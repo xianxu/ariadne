@@ -172,10 +172,15 @@ faked). The engine returns a structured `Result.Status`: `TelemetryGap`
 folders) — an unrelated concurrently-edited repo inflates the count.
 `WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
 window-**start** is the *earlier* of `CommitWindow`'s parent-of-first-`#N`-commit
-and the issue's `status: working` transition commit (`gitx.WorkingTransitionISO`,
-#113) — anchoring at the cheap early `claim` so DESIGN attention (brainstorm /
-spec / plan / reviews) before the first code commit is in-window instead of cut
-off; gap-truncation keeps a dormant claim→work gap from inflating the actual.
+and the **engagement anchor** (`resolveWindowStart`), anchoring at the cheap early
+`claim` so DESIGN attention (brainstorm / spec / plan / reviews) before the first
+code commit is in-window instead of cut off; gap-truncation keeps a dormant
+claim→work gap from inflating the actual. The anchor is resolved in robustness
+order (#116): the explicit `started:` frontmatter stamp (written once at the
+open→working flip in `applyStatus`, local-offset RFC3339 to match `%aI`) →
+`gitx.WorkingTransitionISO` (the #113 git-log heuristic, now the legacy fallback)
+→ commit-parent. The explicit stamp survives rebases/moves where the heuristic's
+"best-effort" history scan could silently miss and drop design time.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full per-segment table. It preserves

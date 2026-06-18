@@ -124,6 +124,34 @@ func TestWindowStart(t *testing.T) {
 	}
 }
 
+// TestResolveWindowStart pins the #116 three-anchor preference: explicit
+// `started:` → WorkingTransitionISO heuristic → commit-parent, all delegated to
+// windowStart's earlier-of pick (so a `started:` later than the commit window
+// never regresses the start).
+func TestResolveWindowStart(t *testing.T) {
+	const (
+		t0 = "2026-06-10T08:00:00-07:00" // earliest
+		t1 = "2026-06-11T09:00:00-07:00"
+		t2 = "2026-06-12T12:00:00-07:00" // latest
+	)
+	cases := []struct {
+		name                      string
+		parent, started, wt, want string
+	}{
+		{"started supersedes wt (earliest wins)", t2, t0, t1, t0},
+		{"no started: falls back to wt heuristic", t2, "", t1, t1},
+		{"neither: commit-parent default", t2, "", "", t2},
+		{"started later than parent: no regression", t0, t2, t1, t0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := resolveWindowStart(c.parent, c.started, c.wt); got != c.want {
+				t.Errorf("resolveWindowStart(%q, %q, %q) = %q, want %q", c.parent, c.started, c.wt, got, c.want)
+			}
+		})
+	}
+}
+
 func TestActualCmd_Registered(t *testing.T) {
 	cmd := NewActualCmd()
 	for _, flag := range []string{"issue", "brain-dir"} {

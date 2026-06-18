@@ -24,6 +24,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // transcriptsRoot is ~/.claude/projects (Claude Code's per-cwd transcript store).
@@ -112,9 +113,8 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	if id, err := strconv.Atoi(issueNum); err == nil {
 		issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
 		if path, err := locateIssueFile(filepath.Join(repoTop, issuesDir), id); err == nil {
-			if wtISO, ok := gitx.WorkingTransitionISO(path); ok {
-				firstISO = windowStart(firstISO, wtISO)
-			}
+			wtISO, _ := gitx.WorkingTransitionISO(path)
+			firstISO = resolveWindowStart(firstISO, startedAnchor(path), wtISO)
 		}
 	}
 
@@ -141,6 +141,38 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	}
 	res.Status, res.Hours = statusFromResult(out, issueNum)
 	return res
+}
+
+// startedAnchor reads the explicit `started:` engagement stamp (#116) from an
+// issue file's frontmatter — the robust window anchor that supersedes the
+// WorkingTransitionISO git-log heuristic. Returns "" if absent/unreadable (the
+// legacy fallback path then takes over). The one IO boundary; the picking logic
+// is the pure resolveWindowStart.
+func startedAnchor(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	fm, _, err := issue.Parse(string(raw))
+	if err != nil {
+		return ""
+	}
+	v, _ := issue.GetField(fm, "started")
+	return strings.TrimSpace(v)
+}
+
+// resolveWindowStart picks the active-time window's left edge from three anchor
+// candidates in robustness order: the explicit `started:` stamp (#116) when
+// present, else the WorkingTransitionISO claim heuristic (#113), both delegated
+// to windowStart against the commit-parent default. Pure — the IO (file read +
+// git) stays in computeActual's glue, so both anchor paths are unit-testable
+// without fakes (ARCH-PURE, per the #116 plan-quality review).
+func resolveWindowStart(parentISO, startedISO, wtISO string) string {
+	anchor := startedISO
+	if anchor == "" {
+		anchor = wtISO
+	}
+	return windowStart(parentISO, anchor)
 }
 
 // windowStart picks the active-time window's left edge from the two candidate

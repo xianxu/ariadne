@@ -154,6 +154,12 @@ func issueStatus(issuesDir string, issueID int) (string, error) {
 // duplicating the guard logic or the frontmatter rewrite. Returns errors
 // rather than die()-ing so callers compose it; runSetStatus translates the
 // error back into a top-level die().
+// startedClock is the injectable clock for the #116 `started:` stamp. New code
+// injects the clock instead of calling time.Now() directly (controllable-time).
+// Local-offset RFC3339 matches git's %aI author-date format that windowStart
+// compares against lexically; tests override it for determinism.
+var startedClock = func() string { return time.Now().Format(time.RFC3339) }
+
 func applyStatus(issuesDir string, issueID int, status string, force, dryRun bool) (path, prev string, changed bool, err error) {
 	if !isValidStatus(status) {
 		return "", "", false, fmt.Errorf("invalid status %q (valid: %s)", status, strings.Join(validStatuses, ", "))
@@ -181,6 +187,16 @@ func applyStatus(issuesDir string, issueID int, status string, force, dryRun boo
 	today := time.Now().Format("2006-01-02")
 	newFM := issue.SetField(fm, "status", status)
 	newFM = issue.SetField(newFM, "updated", today)
+	// #116: stamp `started:` on the open→working transition — the explicit, robust
+	// active-time window anchor that supersedes the WorkingTransitionISO git-log
+	// heuristic. Local-offset RFC3339 (startedClock) to stay lexically comparable
+	// with git's %aI author dates that windowStart compares. Idempotent: never
+	// overwrite an existing stamp (re-claim / re-flip must not move the anchor).
+	if prev == "open" && status == "working" {
+		if cur, _ := issue.GetField(newFM, "started"); strings.TrimSpace(cur) == "" {
+			newFM = issue.SetField(newFM, "started", startedClock())
+		}
+	}
 	newText := issue.Compose(newFM, body)
 	changed = newText != string(raw)
 
