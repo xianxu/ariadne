@@ -253,3 +253,27 @@ as [[A test fake keyed on the same value-shape as the code masks format-mismatch
 — "the artifact and the team agree with each other while disagreeing with reality" —
 but one level up: there a fake lied about an IO boundary; here a *target* lied about
 whether a subsystem exists.
+
+## 2026-06-18 — Verify `change-code` actually created the branch before committing
+
+`sdlc change-code --issue N` is supposed to create the feature branch (in-place by
+default) after its gates. In #116 it committed the issue-file changes to `main`
+("issue-sync: update issues") but did **not** leave me on a new branch — so every
+subsequent `#116` code commit + a raw `git push` landed directly on `main`,
+bypassing the `pr → merge` pre-merge judges, archive, and propagate.
+
+Two compounding causes: (a) the branch creation silently didn't happen (error or
+no-op after the judges), and (b) I filtered change-code's output with
+`grep -vE "^#|^- |^\s"`, which hides the indented `[ok] Branch … created in place`
+confirmation **and** any indented error — so I never saw that the branch step
+failed.
+
+**Rule:** after `sdlc change-code`, confirm the branch before touching code —
+`git rev-parse --abbrev-ref HEAD` should show the issue branch, not `main`. Don't
+over-filter sdlc's stdout/stderr to the point of dropping its branch/gate
+confirmations; the indented `[ok]`/`Error:` lines are the load-bearing signal.
+Recovery when work lands on main anyway: `sdlc push` (runs the pre-merge judges +
+archives the done issue) then `sdlc propagate-base` — but note push judges only
+see the *unpushed* window, so if the code was already `git push`ed they review an
+empty diff; lean on the end-of-issue boundary review (which did see the code) for
+that case.
