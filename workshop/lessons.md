@@ -277,3 +277,26 @@ archives the done issue) then `sdlc propagate-base` — but note push judges onl
 see the *unpushed* window, so if the code was already `git push`ed they review an
 empty diff; lean on the end-of-issue boundary review (which did see the code) for
 that case.
+
+## 2026-06-18 — Verify an issue's factual premises against ground truth before building (#118)
+
+#118's Spec rested on two confident assertions that real-transcript inspection
+disproved: (1) the subagent-dispatch tool is named `Task` — it is actually `Agent`
+(`Task*` are the todo tools); building against `Task` would have produced a
+silent no-op detector. (2) capped subagent spans were "the bulk of the ~3.5×
+supervised overshoot" — a census of all 33 historical `Agent` spans found every
+one **under** the 15-min cap, so the fix is a *demonstrated no-op* on every current
+ledger row (old-engine vs new-engine returned identical actuals over identical
+windows). The fix was still worth building (unit-correctness + forward-looking),
+but the *rationale* in the issue + the calibration banner was wrong and would have
+shipped a false "wrong-ruler explains the overshoot" story into durable docs.
+
+**Rule:** when an issue asserts a concrete fact about the system (a tool/field
+name, a JSON shape, a magnitude/causation claim like "X explains Y"), **check it
+against ground truth before designing** — grep the real transcripts/data, count
+the actual distribution, diff old-vs-new over the *same* window to isolate your
+change from confounds (here the window-extends-to-HEAD artifact masqueraded as an
+engine effect). Surface a disproven premise to the operator as a decision, not a
+silent correction (#118: "build it, correct the rationale"). A plan that builds a
+correct mechanism on a wrong *why* still poisons the calibration loop the mechanism
+feeds. Connects to brain's `measure-before-rebuild` + `artifacts-lie-by-aspiration`.
