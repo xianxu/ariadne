@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-18
-estimate_hours:
+estimate_hours: 12
 started: 2026-06-18T13:22:13-07:00
 ---
 
@@ -113,9 +113,84 @@ surface." Build only if that's a real, recurring need — otherwise #111's
 - Related: #111 (the repo-agnostic version this fixes), #110 (the owner-resolution
   distinction), #092 (segment/window concern), #112–#113 (estimate/actual).
 
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: smaller-go-module        design=0.4 impl=1.1
+item: smaller-go-module        design=0.4 impl=1.3
+item: cross-cutting-refactor   design=0.7 impl=2.2
+item: cross-repo-refactor-small design=0.4 impl=1.1
+item: skill-or-dispatcher      design=0.2 impl=0.5
+item: atlas-docs               design=0.1 impl=0.5
+item: milestone-review         design=0.0 impl=0.6
+item: milestone-review         design=0.0 impl=0.6
+item: milestone-review         design=0.0 impl=0.6
+item: milestone-review         design=0.0 impl=0.6
+design-buffer: 0.30
+total: 12.0
+```
+
+- `smaller-go-module` ×2 — M1 (extract `pkg/layergraph` shared walk) + M2 (DAG-aware
+  `datatype` binary: `mergeTypes` + `list`/`show` + build-in-owner).
+- `cross-cutting-refactor` — M3 weave surgery (generate stage, marker-aware discovery,
+  lowering switch, gitignore + prune; the interlocking core).
+- `cross-repo-refactor-small` — M4 migration (event/travel-plan/reference ariadne→nous,
+  retire the whole-dir symlink, re-weave consumers).
+- `skill-or-dispatcher` — rewrite the datatype SKILL.md body for binary-based apply-time
+  access. `atlas-docs` — reconcile atlas + skill-system + base-layer-mechanics targets.
+- `milestone-review` ×4 — M1/M2/M3 milestone-closes + the end-of-issue integration review.
+
+recomputed = 2.2×1.30 + 9.1 = 11.96 ≈ total 12.0 (frontmatter `estimate_hours: 12`).
+
+## Revisions
+
+### 2026-06-18 — scope-check cleared by operator premise + first concrete consumer
+
+The scope-check gate ("do derivatives actually define local datatypes worth
+eager-triggering on?") was run against ground truth: **zero** live derivatives
+(brain, nous, pair, 42shots, you-decide, xianxu.dev) define any local
+`datatype/*.md` — every one consumes ariadne's shared 13 verbatim. The only
+non-canonical hits in the whole workspace are two **stale pre-#104 worktrees**
+(`nous-14-m1`, ariadne `000031`) carrying inherited copies, not local types.
+
+So the *current* need is empirically nil — but the operator supplied the missing
+premise: **repo-specific nouns are coming, deliberately, to keep ariadne from
+bloating.** ariadne is the base layer; it is already over-broad — `event`,
+`travel-plan`, `reference` are personal-assistant concerns that fit **nous** (the
+personal-assistant layer), not a generic base. Decision: **build the mechanism,
+then migrate `event` + `travel-plan` + `reference` from ariadne → nous** as the
+first concrete consumer. That migration (a) validates the DAG-merge against a real
+case, retiring the "speculative generality / single consumer" risk the pensive
+flagged, and (b) is a genuine layering cleanup — those nouns drop out of
+pair/42shots/you-decide/xianxu.dev (ariadne-direct, no personal-assistant need)
+while staying live for nous and brain (brain → nous → ariadne).
+
+**Scope delta:** #115 now also covers the cross-repo prototype migration +
+re-weave of every consumer, so the "Done when" gains a migration-correctness check
+(post-migration: nous/brain eager-trigger on `event`; pair does not).
+
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000115-dag-merged-datatype-skills-plan.md` (authored
+via `superpowers-writing-plans`). Design fork resolved with operator: **Model A** —
+the `datatype` binary is the single DAG-aware access point (apply-time becomes
+`datatype list` / `datatype show <name>`; weave never lowers prototypes; the
+whole-dir `symlink construct/datatype` row is retired).
+
+- [ ] M1 — Extract the transitive `construct/deps` walk into module-level
+      `pkg/layergraph` (both weave + datatype import; behavior-preserving; weave
+      suite green).
+- [ ] M2 — `datatype` becomes DAG-aware (`mergeTypes` union local-wins) + gains
+      `list`/`show` subcommands + build-in-owner PATH binary.
+- [ ] M3 — weave generate-stage redesign (all-layers visible set, marker run with
+      cwd=R root → leaf-rooted output), lowering switch (dynamic → this-repo),
+      materialized SKILL.md gitignored everywhere, prune the orphan materialized
+      class, repo-agnostic marker.
+- [ ] M4 — Migrate `event`/`travel-plan`/`reference` ariadne→nous, retire the
+      whole-dir datatype symlink, SKILL.md body → binary-based apply-time access,
+      reconcile atlas + skill-system + base-layer-mechanics, E2E migration proof.
 
 ## Log
 
