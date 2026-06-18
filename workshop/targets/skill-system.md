@@ -52,23 +52,34 @@ honor (and a test must pin). A skill's `SKILL.md` source may optionally be
 **maintained** (regenerated) at compile time — stage 0 below — upstream of
 Declare:
 
-0. **Maintain (optional) — dynamic skills (#111).** A skill package may own an
-   executable, tracked **`.dynamic-skill`** script that `weave compile` execs to
-   rewrite its committed `SKILL.md` before discovery. This keeps the canonical
-   SOURCE current (e.g. `cmd/datatype` injects the live datatype-noun list into the
-   description) — it is **maintenance**, kept distinct from **composition** (the
-   union) and **lowering** (the per-harness symlinks). The generate stage runs
-   after `walk.Walk`, before `GatherSkills`, **leaf-layer-only** (an ancestor's
-   marker is never exec'd, so ancestors stay byte-pristine), `construct/adapted`
-   excluded, through an injected `weavefs.Runner` (a non-zero exit fails the
-   compile). The generated `SKILL.md` is **committed codegen** (NOT gitignored —
-   derivatives consume it via symlink and don't regenerate it), kept honest by a
-   **CI drift guard** (`make weave-drift-check` = `weave compile` + `git diff
-   --exit-code`). Only `.dynamic-skill` is hand-authored; `SKILL.md` is
-   generated-and-committed. Most skills are static (no marker) and skip this stage
-   entirely. The mechanism lives in the [weave atlas](../../atlas/workflow/weave.md);
-   weave's IO is therefore filesystem + this one bounded exec seam, not
-   filesystem-only.
+0. **Maintain (optional) — dynamic skills (#111, reshaped by #115).** A skill package
+   may own an executable, tracked **`.dynamic-skill`** script that `weave compile`
+   execs to **materialize its `SKILL.md` per-repo at `construct/generated/<dir>/SKILL.md`,
+   GITIGNORED in every repo (ariadne included), regenerated on every compile** — never
+   committed (#115 retired the old committed `construct/local/datatype/SKILL.md`). This
+   keeps the SKILL body current (e.g. `cmd/datatype` injects the live datatype-noun
+   list into the description) — it is **maintenance**, kept distinct from
+   **composition** (the union) and **lowering** (the per-harness symlinks). The skill
+   ENTRY is emitted from the TRACKED `.dynamic-skill` marker, so the skill is
+   **discovered even in a fresh, never-compiled clone** (only the description body is
+   absent until first compile — the #111 "skill vanishes in a fresh clone" fix). The
+   generate stage runs after `walk.Walk`, before `GatherSkills`, over the
+   **all-layers visible-set** (NOT leaf-only): each marker — even an ancestor-owned
+   one — is exec'd with **cwd = the COMPILING repo's root** + repo-relative
+   `--output construct/generated/<dir>`, so materialization lands in THAT repo's tree.
+   The byte-pristine guarantee now rests on **leaf-rooted OUTPUT** (an ancestor's tree
+   is never mutated by a derivative's compile), not leaf-only selection.
+   `construct/adapted` is excluded, the exec runs through an injected `weavefs.Runner`
+   (a non-zero exit fails the compile), and read-only paths skip the stage. Lowering
+   points the dynamic skill's symlink at THIS repo's `construct/generated/<dir>` (via
+   the entry's BodyPath); `PruneOrphans` GCs an orphaned `construct/generated/<dir>`
+   when the owner drops the marker. The #111 committed-file drift guard is **retired**
+   (a gitignored, every-compile-regenerated output can't go stale); `make
+   weave-drift-check` now asserts the render is **byte-deterministic across runs**.
+   Only `.dynamic-skill` is hand-authored + tracked; `SKILL.md` is generated +
+   gitignored. Most skills are static (no marker) and skip this stage entirely. The
+   mechanism lives in the [weave atlas](../../atlas/workflow/weave.md); weave's IO is
+   therefore filesystem + this one bounded exec seam, not filesystem-only.
 
 1. **Declare** — ONE mechanism: a `[export|internal] skill <dir>` row in a layer's
    `base.manifest`. No ad-hoc `symlink … .claude/skills/X` skills (that mechanism
@@ -131,13 +142,18 @@ Declare:
 - **Every skill servable** — `weave skill <name>` resolves any composed skill.
 - **Per-layer identity** — each layer sets its own prefix (its own `config.json`),
   no double-prefix, no mis-prefix from a borrowed config.
-- **Dynamic-skill maintenance is leaf-only + bounded (#111)** — the `.dynamic-skill`
-  generate stage execs only the leaf layer's markers (never an ancestor's, never
-  `construct/adapted`), through an injected `Runner` whose non-zero exit fails the
-  compile; read-only paths skip it; the generated `SKILL.md` is committed codegen a
-  CI drift guard keeps current. (`walk.DynamicSkillDirs` leaf-only/adapted-excluded
-  tests, the generate-stage fake-Runner + dry-run-skip tests, and `cmd/datatype`'s
-  faithfulness + determinism tests.)
+- **Dynamic-skill maintenance is per-repo materialized + bounded (#111, #115)** —
+  the `.dynamic-skill` generate stage execs the all-layers visible-set markers (never
+  `construct/adapted`) through an injected `Runner` whose non-zero exit fails the
+  compile, each with cwd = the COMPILING repo's root + repo-relative
+  `--output construct/generated/<dir>`, so output is leaf-rooted (an ancestor's tree
+  is never mutated). The body is materialized at `construct/generated/<dir>/SKILL.md`,
+  **gitignored + regenerated every compile**; the skill entry is emitted from the
+  tracked marker (discovered in a fresh clone); read-only paths skip the stage;
+  `PruneOrphans` GCs an orphaned `construct/generated/<dir>`. The committed-file drift
+  guard is retired — `make weave-drift-check` now asserts byte-determinism across
+  runs. (The generate-stage fake-Runner + dry-run-skip tests, the marker-aware
+  discovery test, and `cmd/datatype`'s faithfulness + determinism tests.)
 
 ## What this is NOT
 
@@ -169,11 +185,31 @@ dirs + repo-name prefixes with the whole-dir inheritance symlinks dropped. The
 `construct` skill is the internal exemplar (`xx-construct`, ariadne-only).
 
 **Dynamic-skill maintenance (stage 0) — ariadne#111 (M1 mechanism + M2 datatype
-consumer).** The `.dynamic-skill` generate stage + the injected `weavefs.Runner`
-exec seam ship test-bound (leaf-only, adapted-excluded, dry-run-skip,
-non-zero-fails-compile); `cmd/datatype` is the first consumer, regenerating
-`construct/local/datatype/SKILL.md` with the live datatype-noun list, kept honest
-by `make weave-drift-check`.
+consumer), reshaped by ariadne#115.** The `.dynamic-skill` generate stage + the
+injected `weavefs.Runner` exec seam ship test-bound (adapted-excluded, dry-run-skip,
+non-zero-fails-compile); `cmd/datatype` is the first consumer.
+
+**#115 (DAG-merged dynamic skills, per-repo datatype enumeration across the layer
+graph).** The committed codegen at `construct/local/datatype/SKILL.md` is RETIRED;
+the body is now materialized **per-repo at `construct/generated/<dir>/SKILL.md`,
+gitignored everywhere + regenerated every compile**. Discovery is marker-aware (the
+skill entry comes from the tracked `.dynamic-skill`, so it survives a fresh clone —
+#111's "skill vanishes" fix). The generate stage runs the **all-layers visible-set**
+(not leaf-only) with cwd = the compiling repo's root + repo-relative `--output`, so
+output is leaf-rooted and ancestors stay byte-pristine; lowering points the symlink
+at this repo's `construct/generated/<dir>` via BodyPath; prune GCs an orphaned dir.
+The committed-file drift guard is retired — `make weave-drift-check` now asserts
+byte-determinism. Datatype prototypes are now **per-layer-owned** (the
+`symlink construct/datatype` manifest row is retired) and read as a **DAG-merged
+union** by the `datatype` binary (every layer's `construct/datatype/` + the leaf's
+project-local `datatype/`, local/leaf shadowing shared by filename); apply-time
+access is `datatype list` + `datatype show <name>`. Two shared module-level libraries
+back this: `pkg/layergraph` (the transitive `construct/deps` walk — the single source
+of "repo R's layer graph," imported by BOTH weave and the `datatype` binary) +
+`pkg/frontmatter` (the flat-YAML `description:` parser shared by weave + datatype).
+Migration outcome: nous owns `event`/`travel-plan`/`reference`; ariadne owns the
+generic remaining set; a repo depending on ariadne directly (pair, 42shots, …) sees
+only ariadne's set.
 
 ## Open questions
 

@@ -158,11 +158,12 @@ close-issue:
 # and runs the OWNER's binary ($$owner/bin/weave) — NOT a local bin/weave, which
 # build-in-owner deliberately never produces in a consumer (#95 M5). When THIS
 # repo is the owner ($$owner is this repo's own dir), it runs its own bin/weave —
-# unchanged. `weave compile --target claude` compiles THIS repo's (the cwd's)
-# layer composition for the Claude backend: the generic symlinks, the prose-only
-# AGENTS.md compose, the settings.json merge, and the .claude/skills skill
-# lowering (the claude target emits the symlinks, not the AGENTS.md menu — see
-# plan.Target). compile operates on the caller's cwd, so the owner's binary
+# unchanged. The recipe runs the bare Union `weave compile`, which compiles THIS
+# repo's (the cwd's) layer composition for EVERY harness face (claude + codex +
+# gemini): the generic symlinks, the prose-only entry-file compose, the
+# settings.json merge, and the per-harness skill-dir lowerings (`.claude/skills`
+# + `.agents/skills` — each harness discovers its dir natively, no AGENTS.md menu;
+# see plan.Target). compile operates on the caller's cwd, so the owner's binary
 # composing the consumer's repo is correct. Under `make bootstrap`,
 # bootstrap-peers (clones ancestors) precedes weave, so weave's owner is present
 # by the time this runs.
@@ -768,8 +769,8 @@ sdlc-build: ensure-go
 # $$owner/bin/weave. A consumer's `make weave` builds + runs ../ariadne/bin/weave
 # and produces NO consumer-local bin/weave (#95 M5, build-in-owner). When THIS
 # repo is the owner ($$owner is this repo's own dir) the target is unchanged. The `weave`
-# target depends on this, then runs `$$owner/bin/weave compile --target claude`
-# to compile this repo's layer composition. Under `make bootstrap`,
+# target depends on this, then runs the bare Union `$$owner/bin/weave compile`
+# to compile this repo's layer composition (every harness face). Under `make bootstrap`,
 # bootstrap-peers + weave's own weave-build prereq guarantee the owner + the
 # dev-aliases.sh symlink are present by the time this runs.
 weave-build: ensure-go

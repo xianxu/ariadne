@@ -15,18 +15,18 @@ New types are pure data. Adding one means writing a new `<name>.md`, not modifyi
 
 | Path | Role |
 |---|---|
-| `construct/datatype/<name>.md` | Shared prototypes, propagate to descendants via `base.manifest`. |
+| `construct/datatype/<name>.md` | Prototypes OWNED by this layer. Each layer owns its own `construct/datatype/`; the `datatype` binary reads the **DAG-merged union** across the layer graph (every layer's `construct/datatype/` + the leaf's project-local `datatype/`). NOT propagated by symlink (#115 retired the `symlink construct/datatype` manifest row). |
 | `<repo>/datatype/<name>.md` | Project-local prototype override (opt-in, not scaffolded). Shadows shared completely. Top-level `datatype/` keeps prototype definitions cleanly separated from instances (which live under `<repo>/data/` or wherever the user puts them). |
-| `construct/local/datatype/SKILL.md` | The dispatcher skill, symlinked to `.claude/skills/xx-datatype/`. **Generated codegen (#111)** — `weave compile` runs the package's `.dynamic-skill` marker (→ `cmd/datatype`) to regenerate it with the live datatype-noun list in the `description`. **Edit `cmd/datatype/SKILL.md.tmpl`, not this file** (a hand edit here is overwritten by `weave compile` and fails `make weave-drift-check`). |
-| `construct/local/datatype/.dynamic-skill` | Executable marker (hand-authored) that makes the package a dynamic skill — `weave compile` execs it to regenerate `SKILL.md`. See [weave atlas → Dynamic skills](weave.md). |
+| `construct/generated/datatype/SKILL.md` | The dispatcher skill body, lowered to `.claude/skills/xx-datatype/`. **Generated per-repo + GITIGNORED (#115)** — `weave compile` runs the package's `.dynamic-skill` marker (→ the `datatype` binary) to materialize it in THIS repo's tree with the live datatype-noun list in the `description`; never committed. **Edit `cmd/datatype/SKILL.md.tmpl`, not this file** (a hand edit here is overwritten by the next `weave compile`). |
+| `construct/local/datatype/.dynamic-skill` | Executable marker (hand-authored, the only TRACKED file in the package dir) that makes the package a dynamic skill — `weave compile` execs it to materialize `construct/generated/datatype/SKILL.md`. The skill entry is discovered from THIS marker even before first compile. See [weave atlas → Dynamic skills](weave.md). |
 
-Lookup precedence: project-local → shared.
+Lookup precedence: project-local → shared. Migration outcome (#115): nous owns `event`/`travel-plan`/`reference`; ariadne owns the generic remaining set; a repo depending on ariadne directly (pair, 42shots, …) sees only ariadne's set.
 
 ## Activation
 
 The dispatcher fires on three triggers, in priority order:
 
-1. **Conversational capture** — "capture this trip", "save these meeting notes", "remember this list", "track this launch". This is the common case. The dispatcher uses three-step judgment (classify turn → discriminate substance from generative → semantic-match against prototype descriptions); no enumerated noun→type table. See `construct/local/datatype/SKILL.md` §1 for the judgment procedure.
+1. **Conversational capture** — "capture this trip", "save these meeting notes", "remember this list", "track this launch". This is the common case. The dispatcher uses three-step judgment (classify turn → discriminate substance from generative → semantic-match against prototype descriptions); no enumerated noun→type table. See `construct/generated/datatype/SKILL.md` §1 (the per-repo materialized body) for the judgment procedure; at apply time the dispatcher enumerates the DAG-merged set with `datatype list` and reads a resolved prototype with `datatype show <name>`.
 2. **Slash invocation** — `/xx-datatype <type> [path]`. Bypasses judgment.
 3. **Edit-time** — opening a file with `type: <X>` in frontmatter applies `<X>.md`'s authoring instructions to the edit.
 
@@ -79,12 +79,12 @@ Heuristic: *session or ledger?* A fragment that grows past ~3 paragraphs and dev
 
 ## Pointers
 
-- Skill (generated): `construct/local/datatype/SKILL.md` — **codegen; do not hand-edit**
+- Skill (generated, per-repo + gitignored): `construct/generated/datatype/SKILL.md` — **codegen; do not hand-edit**
 - Skill prose source: `cmd/datatype/SKILL.md.tmpl` (the generator's `go:embed` template — **edit here**)
-- Generator: `cmd/datatype/` (writes `SKILL.md` with the live datatype-noun list)
-- Dynamic-skill marker: `construct/local/datatype/.dynamic-skill` (weave execs it at compile)
-- Drift guard: `make weave-drift-check` (CI: `scripts/merge-checks.d/30-weave-drift.sh`)
-- Mechanism: [weave atlas → Dynamic skills](weave.md) (#111)
-- Prototypes: `construct/datatype/`
-- Manifest entry: `symlink construct/datatype` in `construct/base.manifest`
+- Generator: `cmd/datatype/` (the `datatype` binary; `weave compile` execs the marker to materialize `SKILL.md` with the live datatype-noun list; also serves `datatype list`/`datatype show <name>` at apply time)
+- Dynamic-skill marker (tracked): `construct/local/datatype/.dynamic-skill` (weave execs it at compile)
+- Determinism guard: `make weave-drift-check` (asserts the render is byte-deterministic across runs; the #111 committed-file drift guard is retired)
+- Mechanism: [weave atlas → Dynamic skills](weave.md) (#111, reshaped by #115)
+- Shared libraries: `pkg/layergraph` (the `construct/deps` layer-graph walk, shared by weave + datatype) + `pkg/frontmatter` (flat-YAML `description:` parser)
+- Prototypes: per-layer-owned `construct/datatype/`, DAG-merged by the `datatype` binary across the layer graph + the leaf's project-local `datatype/` (no `symlink construct/datatype` manifest row — retired in #115)
 - Issue: `workshop/issues/000012-typed-markdown-documents-via-construct.md`

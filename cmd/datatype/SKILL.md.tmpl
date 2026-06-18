@@ -30,7 +30,7 @@ This skill is the primary way the agent captures conversational substance into a
 
    If the user is asking the agent to *produce* the substance, it's coding / research / brainstorming territory. The dispatcher takes over only when there is existing substance worth preserving.
 
-   **Step 3 — which datatype fits?** Semantically match the user's artifact against the available prototypes' descriptions. Each prototype's `description:` field starts with "Use when…" and IS the matching surface. See [Type lookup](#type-lookup) for enumeration; matching uses `name` + `description` only. Three sub-cases:
+   **Step 3 — which datatype fits?** Semantically match the user's artifact against the available prototypes' descriptions. Run `datatype list` to enumerate them (name + description per line — see [Type lookup](#type-lookup)); each `description:` starts with "Use when…" and IS the matching surface. Three sub-cases:
 
    - **Single clear fit** → apply that prototype. State the destination in your response so the user can redirect if you guessed wrong.
    - **Multiple comparable fits** → present 2–3 candidates with a one-line context each (drawn from their descriptions), ask which.
@@ -50,14 +50,12 @@ If the conversational trigger is unclear (the user said "remember this" with no 
 
 **Naming convention:** a prototype's filename (without `.md`) is the type name. `meeting-notes.md` defines `type: meeting-notes`. Filename and the prototype's own `type:` frontmatter field must agree.
 
-Prototypes live in two places. Lookup precedence is local-first:
+Prototypes are **DAG-merged across this repo's layer graph** — the union of every layer's `construct/datatype/*.md` plus this repo's project-local `datatype/*.md`, with a downstream layer's same-named prototype shadowing an ancestor's (local/leaf wins). You do NOT enumerate the filesystem yourself — the `datatype` binary resolves the merged set across the layer graph, so the right set shows up per repo (e.g. nous and its dependents see `event`/`travel-plan`/`reference`, a repo that depends on ariadne directly does not):
 
-1. `<repo>/datatype/<name>.md` — project-local override.
-2. `<repo>/construct/datatype/<name>.md` — shared, symlinked from ariadne.
+- **Enumerate (selection surface):** `datatype list` — prints every available type's `name` and `description`, one per line. Type *selection* (matching the user's request) uses `name` + `description` only; each description starts with "Use when…" and IS the matching surface. That's the eager surface — exactly what `list` emits, no body reads.
+- **Read a prototype (apply surface):** `datatype show <name>` — prints the resolved (leaf-winning) prototype body, loaded only once a type is chosen. An unknown name prints the available names and exits non-zero.
 
-Local fully shadows shared (no merging). If `<name>.md` is not found in either, list the available types from both directories and ask the user, or offer to create a new one (which routes to applying `type.md` — the meta-prototype).
-
-To enumerate available types: list `*.md` files in both directories, dedupe by filename (local wins). For type *selection* (matching the user's request to a type), read only each prototype's frontmatter block — `name` and `description` are sufficient — not the body. The body is loaded only after a type is chosen, when applying it. This mirrors how skills themselves load: descriptions are eager, bodies are on-demand. A reasonable extractor: `awk '/^---$/{c++; next} c==1' <file>`, or any tool that stops at the second `---`.
+Descriptions are eager (`datatype list`), bodies are on-demand (`datatype show <name>`) — the same eager/lazy split skills themselves use. If `datatype list` shows no fitting type but the request is capture-shaped, offer to create one (routes to applying `type.md`, the meta-prototype).
 
 ## The dispatcher's universal responsibilities
 
@@ -149,7 +147,7 @@ If no existing file matches what the user referenced, fall through to creating a
 
 **Check before designing.** Type proliferation is the failure mode — five overlapping prototypes that each capture 90% of the same thing. Before routing to the meta-prototype:
 
-1. List existing types (both shared and project-local).
+1. List existing types: `datatype list` (the DAG-merged set for this repo).
 2. Identify the closest match by purpose, time-shape, and granularity.
 3. State the delta to the user: *"`travel-plan` already covers trips with itinerary and bookings — what does the new type need that `travel-plan` doesn't?"* Be specific about the closest match's coverage so the user can answer concretely.
 4. Resolve to one of three outcomes:
@@ -157,7 +155,7 @@ If no existing file matches what the user referenced, fall through to creating a
    - **Extend the existing prototype.** A small addition (one new field, one new optional section) is better than a fork. Edit the prototype directly and apply.
    - **Create a new type.** The delta is large enough that overloading the existing one would hurt both. Proceed to the brainstorm.
 
-Only after that triage: route to the meta-prototype — apply `type.md` to design a new prototype via `superpowers-brainstorming`. That brainstorm produces a new file under `construct/datatype/` (shared) or `<repo>/datatype/` (project-local), and from then on it's available like any other type.
+Only after that triage: route to the meta-prototype — apply `type.md` to design a new prototype via `superpowers-brainstorming`. That brainstorm produces a new prototype file — in this layer's `construct/datatype/` to share it *downward* to dependent layers, or in `<repo>/datatype/` to keep it project-local — and from then on `datatype list` surfaces it like any other type.
 
 Do not skip the brainstorm step for new types. The frontmatter / body / instructions trinity is non-obvious to design, and getting it wrong upfront makes the prototype useless.
 
