@@ -26,7 +26,8 @@ import (
 // skillTemplate is the authored datatype SKILL.md prose, verbatim, with the
 // description tail carrying the placeholder token (see datatypeNamesPlaceholder).
 // It is the single source of truth for the generated SKILL.md body — only this
-// file is hand-edited; the lowered construct/local/datatype/SKILL.md is committed
+// file is hand-edited; the per-repo materialized SKILL.md (the gitignored
+// construct/generated/<dir>/SKILL.md weave writes at compile time, #115 M3) is
 // codegen produced from it.
 //
 //go:embed SKILL.md.tmpl

@@ -85,6 +85,14 @@ func renderToOutput(output string) error {
 		names[i] = p.Name
 	}
 	out := renderSkill(names)
+	// The binary OWNS creating its output dir (#115 M3): the marker passes a
+	// repo-relative --output construct/generated/<dir> that does not yet exist on a
+	// fresh compile, so mkdir -p it here (cwd = the compiling repo's root) before
+	// writing. Keeps the marker a one-liner and the dir-creation responsibility with
+	// the writer, not split into the shell script.
+	if err := os.MkdirAll(output, 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", output, err)
+	}
 	dst := filepath.Join(output, "SKILL.md")
 	if err := os.WriteFile(dst, []byte(out), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", dst, err)
