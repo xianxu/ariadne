@@ -711,7 +711,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build weave-build sdlc-install sdlc-bootstrap
+.PHONY: tools sdlc-build weave-build datatype-build sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -764,6 +764,26 @@ weave-build: ensure-go
 	fi; \
 	mkdir -p "$$owner/bin"; \
 	( cd "$$owner" && go build -o "$$owner/bin/weave" ./cmd/weave )
+
+# datatype-build: mirror of weave-build for cmd/datatype — the DAG-aware
+# datatype subsystem (#115). datatype is a PATH binary invoked by name (the
+# .dynamic-skill marker runs it at weave compile time; agents run `datatype
+# list` / `datatype show <name>` for apply-time access). Build-in-owner like
+# weave/sdlc: resolve the owner by LOCATION (dev-aliases.sh --list, which scans
+# cmd/ dirs and already reports datatype → ariadne), then build into the OWNER's
+# bin/ — exactly one datatype on disk at $$owner/bin/datatype, no go.mod replace,
+# no consumer-local copy. When THIS repo is the owner, it builds ariadne's own
+# bin/datatype, unchanged.
+datatype-build: ensure-go
+	@echo "==> building datatype (build-in-owner)"
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	if [ -z "$$owner" ]; then \
+	    echo "Error: datatype owner not found beside this repo." >&2; \
+	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
+	    exit 1; \
+	fi; \
+	mkdir -p "$$owner/bin"; \
+	( cd "$$owner" && go build -o "$$owner/bin/datatype" ./cmd/datatype )
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
