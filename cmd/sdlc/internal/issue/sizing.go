@@ -66,8 +66,8 @@ func ComputeSizingFromContent(text string) Sizing {
 		s.Milestones = len(milestoneLabelRE.FindAllStringIndex(section, -1))
 	}
 
-	if m := specSectionRE.FindStringSubmatch(body); m != nil {
-		s.SpecWords = len(strings.Fields(stripCodeFences(m[1])))
+	if sec, ok := SectionBody(body, "Spec"); ok {
+		s.SpecWords = len(strings.Fields(stripCodeFences(sec)))
 	}
 
 	s.Bucket = bucketFor(s)

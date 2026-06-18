@@ -3,17 +3,22 @@ between planning (which happens on `main`) and code-changing work:
 
   1. Structural sanity   — does the issue have a filled-in Spec, a
                            non-empty Plan, and Done-when criteria?
-  2. Estimate gate       — a positive `estimate_hours:` in the
-                           frontmatter (#113). Relocated here from
-                           `sdlc claim` (which is now a cheap, estimate-
-                           free lock); this is the universal gate every
-                           implementation passes, so no worked issue
-                           escapes without an estimate. Set it at
-                           start-plan, where the scope is knowable.
-  3. Plan-quality judge  — fresh-context LLM review: is this plan
-                           executable as-written, or does it have
-                           vague items / missing test surface /
-                           undefined acceptance criteria?
+  2. Estimate gate       — a positive `estimate_hours:` (#113) that
+                           RECONCILES with an itemized `## Estimate`
+                           block (#117): a fenced ```estimate block of
+                           v2 primitives whose design/impl hours sum to
+                           estimate_hours (no unitemized estimate). Set
+                           it at start-plan. --no-estimate /
+                           --no-estimate-recon bypass the two halves; the
+                           block grammar + vocabulary live in
+                           helptext/estimate.md.
+  3. Quality judges      — fresh-context LLM review (skip with
+                           --no-judge): plan-quality (is the plan
+                           executable as-written — vague items, missing
+                           test surface, undefined acceptance criteria?)
+                           and estimate-quality (#117: was the
+                           ## Estimate derivation actually applied, or
+                           back-fitted to a predetermined total?).
   4. Branching strategy  — defaults to in-place (a branch in the
                            current checkout, carrying the working tree
                            forward). `--worktree=yes` for an isolated

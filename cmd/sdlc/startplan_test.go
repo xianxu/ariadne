@@ -190,9 +190,9 @@ func TestSubstrateChain(t *testing.T) {
 		}
 		return root
 	}
-	rootA := mk("A", "")                    // root: no upstream
-	mk("B", "substrate ../A\n")             // B → A
-	rootC := mk("C", "substrate ../B\n")    // C → B (→ A transitively)
+	rootA := mk("A", "")                 // root: no upstream
+	mk("B", "substrate ../A\n")          // B → A
+	rootC := mk("C", "substrate ../B\n") // C → B (→ A transitively)
 
 	// From C: the full transitive path is [B, A], resolved root-relative.
 	got := substrateChain(rootC)

@@ -14,9 +14,9 @@ func TestActualDeviation(t *testing.T) {
 		want             devVerdict
 	}{
 		{"exact match", 0.30, 0.30, devOK},
-		{"small abs gap below floor", 0.11, 0.30, devOK},      // 0.19h apart
+		{"small abs gap below floor", 0.11, 0.30, devOK},              // 0.19h apart
 		{"tiny values, high ratio but below floor", 0.5, 0.05, devOK}, // 0.45h apart
-		{"the nous#42 fabrication", 13.5, 0.30, devRefuse},    // 45×
+		{"the nous#42 fabrication", 13.5, 0.30, devRefuse},            // 45×
 		{"warn boundary 3x", 3.0, 1.0, devWarn},
 		{"just under warn", 2.99, 1.0, devOK},
 		{"refuse boundary 10x", 10.0, 1.0, devRefuse},

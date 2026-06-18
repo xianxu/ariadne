@@ -97,4 +97,3 @@ var detectRepo = func() (string, error) {
 	}
 	return m[1], nil
 }
-

@@ -75,12 +75,12 @@ func TestListIssues_MissingDir(t *testing.T) {
 
 func TestDetectDrift(t *testing.T) {
 	issues := []IssueState{
-		{ID: "000001", Status: "done", PlanTotal: 1, PlanTicked: 1},                          // drift: done but still here
-		{ID: "000002", Status: "working", PlanTotal: 3, PlanTicked: 0},                       // drift: no ticks
-		{ID: "000003", Status: "working", PlanTotal: 3, PlanTicked: 1},                       // ok
-		{ID: "000004", Status: "open", PlanTotal: 0, PlanTicked: 0},                          // ok
-		{ID: "000005", Status: "", PlanTotal: 0, PlanTicked: 0},                              // drift: no frontmatter
-		{ID: "000006", Status: "wontfix", PlanTotal: 0, PlanTicked: 0},                       // drift: should be archived
+		{ID: "000001", Status: "done", PlanTotal: 1, PlanTicked: 1},    // drift: done but still here
+		{ID: "000002", Status: "working", PlanTotal: 3, PlanTicked: 0}, // drift: no ticks
+		{ID: "000003", Status: "working", PlanTotal: 3, PlanTicked: 1}, // ok
+		{ID: "000004", Status: "open", PlanTotal: 0, PlanTicked: 0},    // ok
+		{ID: "000005", Status: "", PlanTotal: 0, PlanTicked: 0},        // drift: no frontmatter
+		{ID: "000006", Status: "wontfix", PlanTotal: 0, PlanTicked: 0}, // drift: should be archived
 	}
 	// neverShipped: the existing drift cases must hold independent of the
 	// close-off check, so the probe reports nothing shipped.
@@ -116,11 +116,11 @@ func neverShipped(string) (string, string, bool) { return "", "", false }
 // commit) is NOT flagged; a done issue is never a close-off candidate.
 func TestDetectDrift_CloseOff(t *testing.T) {
 	issues := []IssueState{
-		{ID: "000051", Status: "open", PlanTotal: 14, PlanTicked: 13},     // #51 pattern: all-but-one + shipped → flag
-		{ID: "000060", Status: "working", PlanTotal: 3, PlanTicked: 3},    // all ticked + shipped → flag
-		{ID: "000070", Status: "working", PlanTotal: 2, PlanTicked: 2},    // near-complete but NOT shipped → no flag
-		{ID: "000080", Status: "open", PlanTotal: 1, PlanTicked: 0},       // freshly claimed (0/1) → pre-filter excludes
-		{ID: "000090", Status: "done", PlanTotal: 5, PlanTicked: 5},       // done → never a close-off candidate
+		{ID: "000051", Status: "open", PlanTotal: 14, PlanTicked: 13},  // #51 pattern: all-but-one + shipped → flag
+		{ID: "000060", Status: "working", PlanTotal: 3, PlanTicked: 3}, // all ticked + shipped → flag
+		{ID: "000070", Status: "working", PlanTotal: 2, PlanTicked: 2}, // near-complete but NOT shipped → no flag
+		{ID: "000080", Status: "open", PlanTotal: 1, PlanTicked: 0},    // freshly claimed (0/1) → pre-filter excludes
+		{ID: "000090", Status: "done", PlanTotal: 5, PlanTicked: 5},    // done → never a close-off candidate
 	}
 	// Probe is called with the UNPADDED number (closeOffFinding unpads before
 	// calling, since commit subjects use `#82` not `#000082`). Shipped for the

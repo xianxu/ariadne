@@ -35,6 +35,9 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
     ## Problem      what's wrong / what's needed
     ## Spec         desired behavior, constraints, design decisions
     ## Done when    acceptance criteria (≥1 non-empty bullet)
+    ## Estimate     fenced ```estimate block deriving estimate_hours by
+                    v2 primitive; change-code reconciles it (#117 —
+                    see `sdlc change-code --help` / helptext/estimate.md)
     ## Plan         checkable steps; `## Plan` milestones gate reviews
     ## Log          dated session notes (### YYYY-MM-DD)
     ## Side quests  (optional) unplanned work that landed
