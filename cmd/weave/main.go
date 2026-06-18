@@ -514,22 +514,32 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 	return nil
 }
 
-// generateDynamicSkills is the #111 generate stage: for each LEAF-layer skill
-// package carrying an executable `.dynamic-skill` (walk.DynamicSkillDirs — leaf-
-// only, adapted-excluded, DRY with GatherSkills), it execs the marker with cwd =
-// the package dir through the injected Runner. The marker regenerates that
-// package's committed SKILL.md (e.g. cmd/datatype writes the live datatype-noun
+// generateDynamicSkills is the #111/#115 generate stage: for each dynamic skill
+// VISIBLE to the compiling repo R (walk.DynamicSkills — all-layers, visible-set,
+// adapted-excluded, DRY with GatherSkills), it execs the (possibly ancestor-owned)
+// marker with cwd = R's ROOT (leafRoot) through the injected Runner. The marker's
+// repo-relative `--output construct/generated/<dir>` + the binary's own mkdir then
+// land the materialized SKILL.md under R's tree — an ancestor's tree is NEVER
+// mutated by a derivative's compile (the byte-pristine guarantee now rests on
+// leaf-rooted OUTPUT, not leaf-only selection). The marker regenerates that
+// package's per-repo SKILL.md (e.g. cmd/datatype writes the live datatype-noun
 // list) before planActions/GatherSkills reads it. A non-zero exit aborts the
 // compile (the returned error). The Runner is injected so the stage is unit-
 // testable with a fake (no real binary); the selection goes through the FS seam.
 func generateDynamicSkills(layers []layer.Layer, fs weavefs.FS, runner weavefs.Runner) error {
-	dirs, err := walk.DynamicSkillDirs(fs, layers)
+	if len(layers) == 0 {
+		return nil
+	}
+	leafRoot := layers[len(layers)-1].Path // R's root — the cwd every marker runs in
+	dyns, err := walk.DynamicSkills(fs, layers)
 	if err != nil {
 		return fmt.Errorf("select dynamic skills: %w", err)
 	}
-	for _, dir := range dirs {
-		if err := runner.Run(dir, []string{"./.dynamic-skill"}); err != nil {
-			return fmt.Errorf("dynamic skill %s: %w", dir, err)
+	for _, ds := range dyns {
+		// cwd = R's root: the marker's repo-relative --output + the binary's own
+		// mkdir materialize under leafRoot, regardless of which layer owns the marker.
+		if err := runner.Run(leafRoot, []string{"sh", ds.MarkerPath}); err != nil {
+			return fmt.Errorf("dynamic skill %s: %w", ds.Name, err)
 		}
 	}
 	return nil
