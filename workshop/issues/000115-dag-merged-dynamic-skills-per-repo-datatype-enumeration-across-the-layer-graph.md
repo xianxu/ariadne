@@ -1,11 +1,12 @@
 ---
 id: 000115
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-17
-updated: 2026-06-17
+updated: 2026-06-18
 estimate_hours:
+started: 2026-06-18T13:22:13-07:00
 ---
 
 # DAG-merged dynamic skills: per-repo datatype enumeration across the layer graph
