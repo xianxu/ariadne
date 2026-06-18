@@ -588,12 +588,21 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	// On a full-issue close with a measured actual, append the estimate↔actual
 	// data point to the calibration ledger. Milestone closes carry a partial
 	// actual, so only the whole-issue close yields a clean row.
-	if f.Milestone == "" && f.Actual != "" {
+	if shouldLogCalibration(f) {
 		appendCalibrationRow(stderr, f, fm, body, repoName, issueStr, today)
 	}
 
 	cok(stderr, "done — review with `git diff`, then commit")
 	return nil
+}
+
+// shouldLogCalibration reports whether this close should append a calibration
+// row. Only a FULL-issue close (not a milestone, which carries a partial actual)
+// with a measured actual yields a clean estimate↔actual data point. This is the
+// ledger's core integrity contract (#117): milestone closes must NOT pollute the
+// calibration ledger with partial-actual rows.
+func shouldLogCalibration(f *closeFlags) bool {
+	return f.Milestone == "" && f.Actual != ""
 }
 
 // appendCalibrationRow writes one estimate↔actual data point to the calibration
@@ -656,7 +665,12 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		Date:          today,
 	}
 
-	existing, _ := os.ReadFile(ledgerPath)
+	existing, rerr := os.ReadFile(ledgerPath)
+	if rerr != nil && !os.IsNotExist(rerr) {
+		// Exists but transiently unreadable — do NOT clobber prior rows.
+		cwarn(stderr, fmt.Sprintf("calibration ledger unreadable (%v) — not overwriting", rerr))
+		return
+	}
 	var buf strings.Builder
 	if len(existing) == 0 {
 		buf.WriteString(estimate.Header() + "\n")

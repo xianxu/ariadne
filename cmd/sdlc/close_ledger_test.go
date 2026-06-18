@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -81,6 +83,63 @@ func TestAppendCalibrationRow_BrainAbsentSkips(t *testing.T) {
 	if !strings.Contains(errb.String(), "skipped") {
 		t.Errorf("expected a skip warning, got %q", errb.String())
 	}
+}
+
+// TestShouldLogCalibration pins the ledger's core integrity contract (#117 M3
+// review): only a full-issue close with a measured actual logs a row; a milestone
+// close (partial actual) must not.
+func TestShouldLogCalibration(t *testing.T) {
+	cases := []struct {
+		milestone, actual string
+		want              bool
+	}{
+		{"", "0.9", true},   // full-issue close with actual → log
+		{"M1", "0.9", false}, // milestone close → never log (partial actual)
+		{"", "", false},      // full-issue close, no actual → nothing to log
+		{"M2", "", false},
+	}
+	for _, c := range cases {
+		got := shouldLogCalibration(&closeFlags{Milestone: c.milestone, Actual: c.actual})
+		if got != c.want {
+			t.Errorf("shouldLogCalibration{milestone:%q actual:%q} = %v, want %v", c.milestone, c.actual, got, c.want)
+		}
+	}
+}
+
+// TestRunClose_IssueClose_WritesLedgerRow is the integration proof (#117 M3
+// review): a full-issue close routed through runClose appends exactly one
+// calibration row; a milestone close on a fresh repo appends none.
+func TestRunClose_LedgerGuardWiring(t *testing.T) {
+	// Milestone close → no ledger row.
+	t.Run("milestone writes nothing", func(t *testing.T) {
+		issuesDir := closeRepo(t, 71)
+		ledger := filepath.Join(t.TempDir(), "l.tsv")
+		t.Setenv("WF_CALIB_LEDGER", ledger)
+		f := &closeFlags{Issue: 71, Milestone: "M1", Actual: "1", Verified: "slice", NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
+		if err := runClose(io.Discard, f); err != nil {
+			t.Fatalf("runClose (milestone): %v", err)
+		}
+		if _, err := os.Stat(ledger); !os.IsNotExist(err) {
+			t.Errorf("milestone close must NOT write the calibration ledger (stat err: %v)", err)
+		}
+	})
+	// Full-issue close → exactly one ledger row.
+	t.Run("issue close writes one row", func(t *testing.T) {
+		issuesDir := closeRepo(t, 72)
+		ledger := filepath.Join(t.TempDir(), "l.tsv")
+		t.Setenv("WF_CALIB_LEDGER", ledger)
+		f := &closeFlags{Issue: 72, Actual: "1", Verified: "done", NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
+		if err := runClose(io.Discard, f); err != nil {
+			t.Fatalf("runClose (issue): %v", err)
+		}
+		data, err := os.ReadFile(ledger)
+		if err != nil {
+			t.Fatalf("ledger not written on issue close: %v", err)
+		}
+		if rows := estimate.ParseRows(string(data)); len(rows) != 1 {
+			t.Fatalf("want exactly 1 data row, got %d: %q", len(rows), string(data))
+		}
+	})
 }
 
 func TestAppendCalibrationRow_DriftWarns(t *testing.T) {
