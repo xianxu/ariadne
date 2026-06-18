@@ -300,3 +300,45 @@ engine effect). Surface a disproven premise to the operator as a decision, not a
 silent correction (#118: "build it, correct the rationale"). A plan that builds a
 correct mechanism on a wrong *why* still poisons the calibration loop the mechanism
 feeds. Connects to brain's `measure-before-rebuild` + `artifacts-lie-by-aspiration`.
+
+## 2026-06-18 — Don't truncate `sdlc` judge/review output with `tail`/`grep` (#115)
+
+`sdlc milestone-close`/`close`/`merge` print the LLM review (verdict + findings) to
+stdout. Piping that through `| tail -N` (to "just see the verdict") DROPPED the
+Important findings three times this session — and once the close had already mutated
+state, so the findings were gone and I had to re-run `sdlc judge milestone-review
+--base … --head …` (a full LLM review cycle) just to recover them.
+
+**Rule:** capture `sdlc` judge/milestone-close/merge output in FULL — never `| tail`
+or `| grep` away the findings block on the command that RUNS the judge. Filter on a
+second read of the saved output file instead. Re-running an LLM judge to recover
+lost findings burns a whole review cycle.
+
+## 2026-06-18 — A plan's "remove X" step is checked against the close evidence — "inert at runtime" ≠ done (#115)
+
+#115 M4.1 Step 2 said `rm` the retired whole-dir `construct/datatype` symlink in
+every consumer. I judged the symlinks vestigial-harmless (the `datatype` binary
+DAG-walks each layer's real dir, ignoring them) and RESTORED two I'd removed — but
+the close `--verified` claimed "no dangling symlinks / git status clean in every
+repo," which the symlinks made FALSE. The end-of-issue integration review caught it
+(I1). Two ground-truth corrections also surfaced: weave's `PruneOrphans` DOES GC the
+symlink once the manifest row is gone (`propagate-base` pruned them) — so both the
+review's "won't be GC'd" and my "construct/ isn't a managed location" were wrong.
+
+**Rule:** a plan step that says "remove/clean up X" is a commitment your close
+`--verified` is judged against — execute it, don't rationalize skipping it because
+it's inert. If you genuinely skip a planned step, change the evidence claim to match,
+or the boundary review will (rightly) flag the divergence.
+
+## 2026-06-18 — Reconcile atlas after a symbol MOVE by grepping the OLD location, not just feature prose (#115)
+
+M1 moved `Resolve`/`ParseDeps` from `cmd/weave/internal/layer` → `pkg/layergraph`.
+The atlas reconciliation updated `weave.md`'s *dynamic-skills* prose but left the
+"Surface" code-MAP bullet still attributing those symbols to the old package. The
+pre-merge `specs` judge caught it — atlas is the "always-current codebase map," and a
+navigation pointer to a symbol's old home is exactly the drift that gate exists for.
+
+**Rule:** when a refactor RELOCATES a symbol/package, grep `atlas/` for the OLD
+path/package name (e.g. `cmd/weave/internal/layer`), not just the feature name —
+code-map / "Surface" / file-pointer sections drift silently because they key on
+location, not behavior. Feature-prose reconciliation alone misses them.
