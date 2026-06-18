@@ -43,6 +43,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 **"How many hours did this issue actually take?"**
 - *Authoritative:* `actual_hours:` in the issue frontmatter, derived from the in-binary active-time-v3 engine (`sdlc actual` / `sdlc active-time`, `cmd/sdlc/internal/activetime`) over the commit window.
 - No mirror needed — frontmatter is already terse.
+- *Unit (#118):* the engine measures **ship wall-clock**, not operator-attention — idle gaps still truncate at 15 min, but a subagent-execution span (an `Agent` `tool_use` dispatch → its `tool_result` return, both in the operator's transcript) counts **in full** even when it exceeds the cap. Parallel/overlapping spans collapse to their union (= wall-clock, not summed effort). This matches the estimate's unit (build-effort ≈ ship-time for one engineer + AI), so the calibration ledger compares like-for-like.
 
 **"What's the current convention for human-machine markdown markers?"**
 - *Authoritative:* the target file (`workshop/targets/review-convention.md`). Targets are commitments.
