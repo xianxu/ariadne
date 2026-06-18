@@ -3,12 +3,12 @@ package walk
 import (
 	"encoding/json"
 	"path/filepath"
-	"strings"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+	"github.com/xianxu/ariadne/pkg/frontmatter"
 )
 
 // skills.go is the skill-discovery IO seam — the read side of weave's
@@ -95,7 +95,7 @@ func scanSkillDir(fs weavefs.FS, sourceDir, prefix string) ([]skill.Entry, error
 		}
 		out = append(out, skill.Entry{
 			Name:        prefix + de.Name(),
-			Description: frontmatterDescription(string(data)),
+			Description: frontmatter.Description(string(data)),
 			BodyPath:    bodyPath,
 		})
 	}
@@ -119,37 +119,4 @@ func skillPrefix(fs weavefs.FS, layerRoot string) string {
 		}
 	}
 	return filepath.Base(layerRoot) + "-"
-}
-
-// frontmatterDescription extracts the `description:` field from a SKILL.md's
-// leading YAML frontmatter block (the `---` … `---` fence). It reads the one
-// field weave's menu needs; a full YAML parse is overkill (frontmatter here is
-// flat key: value). A surrounding pair of quotes on the value is stripped
-// (some skills quote the description). Returns "" if no description is present.
-func frontmatterDescription(content string) string {
-	lines := strings.Split(content, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return "" // no frontmatter fence
-	}
-	for _, line := range lines[1:] {
-		if strings.TrimSpace(line) == "---" {
-			break // end of frontmatter
-		}
-		key, val, ok := strings.Cut(line, ":")
-		if !ok || strings.TrimSpace(key) != "description" {
-			continue
-		}
-		return unquote(strings.TrimSpace(val))
-	}
-	return ""
-}
-
-// unquote strips one symmetric pair of surrounding single or double quotes.
-func unquote(s string) string {
-	if len(s) >= 2 {
-		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
 }
