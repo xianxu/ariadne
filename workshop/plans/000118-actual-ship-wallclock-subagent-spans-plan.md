@@ -644,3 +644,27 @@ Expected: clean build.
 - **ARCH-PURE:** span detection lives in the IO seam (`walkSessionEvents`); union/clamp math is pure and unit-tested with no mocks (real temp files for the parser).
 - **Tool name:** key off `"Agent"`. If a future harness reintroduces `"Task"`, widen the `blk.Name == "Agent"` check to a small set — but do NOT match `TaskCreate`/`TaskUpdate` (todo tools, not subagents).
 - **Single-pass close (no Mx):** this is one coherent deliverable; the mandatory fresh-eyes review runs at `sdlc close` over the branch-point→HEAD window (AGENTS.md §3).
+
+## Revisions
+
+### 2026-06-18 — close-review (FIX-THEN-SHIP) fixes
+The mandatory boundary review (window 59366da..HEAD) returned FIX-THEN-SHIP — no
+Critical, two Important, both now resolved:
+
+1. **Framing scope was incomplete.** The reconciliation (Task 4) covered `helptext/`
+   + brain but missed the contract-bearing **estimate-quality judge prompt**
+   (`cmd/sdlc/internal/judge/prompts.go`), which still asserted "operator-attention
+   (what the actual measures) will diverge." Reframed to: actual now measures ship
+   wall-clock (same unit as build-effort → should converge); the residual heavy-
+   fan-out gap is the parallelism/overlap discount (#118 non-goal), not operator-
+   attention. (`propagatebase.go` + `vocab.go` mentions are genuinely out of scope —
+   they don't describe the actual's unit.) Caution: that prompt is a backtick raw
+   string — no backticks in inserted text.
+2. **The committed end-to-end test was missing.** `TestComputeFillsAgentSpanEndToEnd`
+   (Task 3 Step 1 + Done-when) had not been delivered, leaving the Compute↔span
+   wiring uncovered. Now added in `parity_test.go`: real git commit + a 30-min Agent
+   span → asserts `TotalActive`≈35 and `PerIssue["8"]`≈35 (un-filled would be ~5).
+
+Minor (not blocking, noted): span matching is **per-transcript-file** — a dispatch/
+return straddling a session-compaction boundary isn't paired. Forward-looking
+(all historical spans within-file + sub-cap); caveat added to atlas/ledger-landscape.

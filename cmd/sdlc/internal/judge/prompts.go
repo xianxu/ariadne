@@ -277,10 +277,13 @@ Flag (FAILURE only for a clearly fabricated or absent derivation; otherwise INFO
   - Implausible per-primitive hours for the scope: design hours should be near-zero
     when a thorough plan already pre-resolves decisions; impl hours wildly off for
     the named primitive.
-  - Wrong-ruler blind spots: estimate-logic-v2 is BUILD-EFFORT. If the scope is
-    heavily delegated / long-autonomous, note that operator-attention (what the
-    actual measures) will diverge — the block carries no escalation/fragmentation
-    awareness. (Advisory: this is the gap #117 instruments, not a block failure.)
+  - Unit blind spots: estimate-logic-v2 is BUILD-EFFORT and sdlc actual now
+    measures SHIP WALL-CLOCK (idle removed, subagent-execution spans kept — #118),
+    so they are the SAME unit and should converge. The residual gap on heavy
+    fan-out is the within-session parallelism/overlap discount (a #118 non-goal:
+    parallel subagents compress wall-clock below v2's sequential sum), NOT
+    operator-attention. (Advisory: this is what #117's ledger instruments, not a
+    block failure.)
 
 Do NOT modify any files. You are a read-only gate.
 

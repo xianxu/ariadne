@@ -1,12 +1,13 @@
 ---
 id: 000118
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-18
 updated: 2026-06-18
 estimate_hours: 0.96
 started: 2026-06-18T10:30:48-07:00
+actual_hours: 0.72
 ---
 
 # Measure ship wall-clock: fill subagent spans in active-time so actual matches the estimate's unit
@@ -123,6 +124,7 @@ review runs at `sdlc close` (branch-point→HEAD).
 ## Log
 
 ### 2026-06-18
+- 2026-06-18: closed — go test ./... green; go vet clean; go build OK. New tests: union fill/parity/overlap, clampSpans, Agent-span parse, dangling-dispatch, window-clamp, fills-span, commit-inside-span (plan-review blocker), tail-past-last-event. 4 pre-fix ledger rows = DEMONSTRATED no-op: pre/post-#118 binaries identical over identical windows (#116 0.54==0.54, #117 1.31==1.31, #118 0.58==0.58). Docs reconciled: estimate.md UNIT NOTE + atlas/ledger-landscape + brain calibration-findings banner/Revisions + ledger header.; review verdict: FIX-THEN-SHIP
 Created from the launch-predictability reframe: the estimate targets ship
 wall-clock, but `actual` measured operator-interaction time — so the ~3.5× was
 largely a wrong-ruler artifact. Supersedes #112's direction (operator-attention
@@ -168,3 +170,14 @@ correct the rationale"):**
   because closed-issue windows now extend to HEAD — a window artifact, not #118.)
 - Docs reconciled: estimate.md UNIT NOTE, atlas/ledger-landscape, brain
   calibration-findings banner + `## Revisions`, ledger header.
+
+### 2026-06-18 — close-review fixes (FIX-THEN-SHIP → resolved)
+Boundary review (window 59366da..HEAD) = FIX-THEN-SHIP, no Critical, 2 Important — both fixed:
+1. Framing reconciliation missed the contract-bearing estimate-quality **judge prompt**
+   (`cmd/sdlc/internal/judge/prompts.go`) — reframed operator-attention → ship wall-clock
+   (same unit as build-effort; residual heavy-fan-out gap = parallelism/overlap discount,
+   #118 non-goal). (`propagatebase.go`/`vocab.go` mentions are out of scope.)
+2. Delivered the committed end-to-end test `TestComputeFillsAgentSpanEndToEnd` (real git +
+   30-min Agent span through Compute → TotalActive≈35, PerIssue[#8]≈35; un-filled ≈5).
+Minor: per-file `pending` (dispatch/return across a compaction boundary unpaired) — caveat
+added to atlas/ledger-landscape. Re-verified: `go test ./...` green, vet clean, build OK.

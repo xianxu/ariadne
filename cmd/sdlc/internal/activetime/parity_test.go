@@ -132,3 +132,48 @@ func TestAttributionGolden(t *testing.T) {
 		t.Errorf("total active = %.4f, want 40 min", res.TotalActive)
 	}
 }
+
+// TestComputeFillsAgentSpanEndToEnd drives a >15-min Agent dispatch→return span
+// through the full Compute path (real git + transcript) and asserts the result
+// reflects the full span — the headline #118 behavior ("measures ship wall-clock,
+// not ~15 min"). This is the integration-seam coverage the pure unit tests can't
+// give: it proves the event.go→compute.go→buildSegments span wiring, not just the
+// math. Without span-fill the 30-min subagent run between the dispatch event and
+// the (dropped) tool_result return contributes nothing to its segment — the old
+// engine would report ~5 min here, not 35.
+func TestComputeFillsAgentSpanEndToEnd(t *testing.T) {
+	repo := gitInit(t)
+	gitCommit(t, repo, "2026-03-01T10:40:00+00:00", "#8 done")
+
+	tdir := t.TempDir()
+	writeJSONL(t, filepath.Join(tdir, "s.jsonl"), []string{
+		`{"timestamp":"2026-03-01T10:00:00Z","type":"user","message":{"content":"#8 start"}}`,
+		// Agent dispatch (assistant tool_use) — an event AND the span start.
+		`{"timestamp":"2026-03-01T10:05:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"A1","name":"Agent","input":{}}]}}`,
+		// return 30 min later — dropped as an event, but closes the span (a >15-min
+		// subagent run the old engine truncates/misses).
+		`{"timestamp":"2026-03-01T10:35:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"A1","content":"done"}]}}`,
+		`{"timestamp":"2026-03-01T10:45:00Z","type":"user","message":{"content":"#8 done"}}`,
+	})
+
+	res, err := Compute(Options{
+		Dirs: []string{tdir}, GitRepo: repo,
+		SinceISO: "2026-03-01T00:00:00Z", UntilISO: "2026-03-02T00:00:00Z",
+		Issues: []string{"8"}, CommitWeight: 1.0, ThresholdMin: 15, IncludeAssistant: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != Measured {
+		t.Fatalf("want Measured, got %v", res.Status)
+	}
+	// [10:00,10:40) segment: 5-min gap (10:00→10:05) ∪ the 30-min span [10:05,10:35]
+	// = 35 min, anchored by the #8 commit at segEnd. The bare-gap engine would give
+	// ~5 (no second event in-segment), so 35 proves the span is filled in full.
+	if !approx(res.TotalActive, 35) {
+		t.Fatalf("want TotalActive 35 (span filled), got %.4f (un-filled ⇒ ~5)", res.TotalActive)
+	}
+	if !approx(res.PerIssue["8"], 35) {
+		t.Fatalf("want 35 min → #8 (commit-anchored), got %.4f", res.PerIssue["8"])
+	}
+}
