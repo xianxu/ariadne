@@ -41,7 +41,10 @@ of the current working directory (i.e., the repo folder name).
 
 **Branching decision** (#51): `sdlc change-code --issue N` runs structural checks,
 the `estimate_hours` gate (#113 — relocated here from `claim`; `--no-estimate`
-bypasses), and the plan-quality judge, then branches. The default (no `--worktree` flag) is
+bypasses), the **estimate-reconciliation** gate + **estimate-quality** judge
+(#117 — estimate_hours must reconcile with an itemized `## Estimate` block;
+`--no-estimate-recon` / `--no-judge` bypass), and the plan-quality judge, then
+branches. The default (no `--worktree` flag) is
 **in-place** — a branch in the current checkout, no worktree dir; the common
 case, chosen without prompting. `--worktree=yes` gets an isolated worktree (the
 layout above); `--worktree=ask` restores the interactive prompt, or for a
@@ -114,4 +117,6 @@ Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before tha
 3. **Record `actual_hours`** in the frontmatter (required at close).
 4. Update the parent project file (if any).
 5. Update `atlas/` for any new architectural surface.
-6. Append validation-log entry if estimated under a versioned playbook (AGENTS.md §4).
+6. ~~Append validation-log entry~~ — now automatic: on a full-issue close `sdlc
+   close` appends the estimate↔actual pair to the calibration ledger (#117),
+   superseding the manual validation-log step.
