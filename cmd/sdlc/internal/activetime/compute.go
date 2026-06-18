@@ -57,7 +57,7 @@ type Result struct {
 // (minus printing). The only IO is the two loaders; everything below is pure.
 func Compute(opts Options) (Result, error) {
 	pat := issuePattern(opts.Issues)
-	events, err := loadEvents(opts.Dirs, pat, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
+	events, spans, err := loadEvents(opts.Dirs, pat, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
 	if err != nil {
 		return Result{}, err
 	}
@@ -90,14 +90,14 @@ func Compute(opts Options) (Result, error) {
 		// No commit signal in the window → whole-window mention attribution
 		// (the Python original's no-commits fallback).
 		times, mentions := eventTimesAndMentions(events)
-		active := activeMinutes(times, opts.ThresholdMin)
+		active := activeMinutesUnion(times, spans, opts.ThresholdMin)
 		res.TotalActive = active
 		res.PerIssue = attributeSegment(active, nil, mentions, opts.CommitWeight)
 		res.Status = Measured
 		return res, nil
 	}
 
-	res.Segments = buildSegments(events, commits, opts.CommitWeight, prefixWeight, opts.ThresholdMin)
+	res.Segments = buildSegments(events, commits, spans, opts.CommitWeight, prefixWeight, opts.ThresholdMin)
 	for _, s := range res.Segments {
 		res.TotalActive += s.Active
 		for iss, m := range s.Alloc {

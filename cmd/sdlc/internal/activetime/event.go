@@ -60,9 +60,12 @@ type rawLine struct {
 // contentBlock is one element of a content array. Content (the nested key) is
 // raw because some block shapes carry a string under "content".
 type contentBlock struct {
-	Type    string          `json:"type"`
-	Text    string          `json:"text"`
-	Content json.RawMessage `json:"content"`
+	Type      string          `json:"type"`
+	Text      string          `json:"text"`
+	Content   json.RawMessage `json:"content"`
+	Name      string          `json:"name"`        // tool_use: tool name (e.g. "Agent")
+	ID        string          `json:"id"`          // tool_use: id matched by a later tool_result
+	ToolUseID string          `json:"tool_use_id"` // tool_result: id of the dispatch it answers
 }
 
 // walkSessionEvents parses one session .jsonl file into the events we attribute.
@@ -70,12 +73,14 @@ type contentBlock struct {
 // bearing user/assistant asymmetry: a user turn is dropped on empty text (and a
 // pure tool_result is dropped), but an assistant turn (when includeAssistant) is
 // ALWAYS emitted — its timestamp counts toward active time even with no text.
-func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) ([]Event, error) {
+func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) ([]Event, []TaskSpan, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var events []Event
+	var spans []TaskSpan
+	pending := map[string]time.Time{} // Agent dispatch id → dispatch time
 	for _, line := range strings.Split(string(data), "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -87,6 +92,31 @@ func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) (
 		if d.Timestamp == "" {
 			continue
 		}
+		// ts is parsed once, up front: a line with an unparseable timestamp is
+		// dropped (same outcome as before, where the parse failed after text
+		// extraction) and contributes to neither events nor spans.
+		ts, err := parseISO(d.Timestamp)
+		if err != nil {
+			continue
+		}
+		// Structural span tracking — independent of includeAssistant and of the
+		// text-skip below: a pure tool_result is dropped as an Event but still
+		// closes a span. decodeBlocks reports false for non-array content (which
+		// carries no tool blocks).
+		if blocks, ok := decodeBlocks(d.Message.Content); ok {
+			for _, blk := range blocks {
+				switch {
+				case d.Type == "assistant" && blk.Type == "tool_use" && blk.Name == "Agent" && blk.ID != "":
+					pending[blk.ID] = ts
+				case d.Type == "user" && blk.Type == "tool_result" && blk.ToolUseID != "":
+					if start, ok := pending[blk.ToolUseID]; ok {
+						spans = append(spans, TaskSpan{Start: start, End: ts})
+						delete(pending, blk.ToolUseID)
+					}
+				}
+			}
+		}
+		// Event emission — unchanged logic (the user/assistant asymmetry is intact).
 		var text string
 		switch {
 		case d.Type == "user":
@@ -101,13 +131,9 @@ func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) (
 		default:
 			continue
 		}
-		ts, err := parseISO(d.Timestamp)
-		if err != nil {
-			continue
-		}
 		events = append(events, Event{Time: ts, Mentions: parseEventMentions(text, pat)})
 	}
-	return events, nil
+	return events, spans, nil
 }
 
 // userText extracts the human-typed text from a user message's content and
@@ -206,25 +232,28 @@ func eventTimesAndMentions(events []Event) ([]time.Time, map[string]int) {
 
 // loadEvents loads all attributed events across every session file under each
 // dir, filtered to [sinceISO, untilISO] (inclusive bounds, mirroring the
-// Python: ts < since skip, ts > until skip), sorted by time. Mirrors load_events.
-func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceISO, untilISO string) ([]Event, error) {
+// Python: ts < since skip, ts > until skip), sorted by time. It also collects
+// the subagent TaskSpans (#118), clamped to the same window so all measured
+// active time lies within it. Mirrors load_events (events) + adds the span pass.
+func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
 	var since, until time.Time
 	haveSince, haveUntil := sinceISO != "", untilISO != ""
 	if haveSince {
 		t, err := parseISO(sinceISO)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		since = t
 	}
 	if haveUntil {
 		t, err := parseISO(untilISO)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		until = t
 	}
 	var events []Event
+	var spans []TaskSpan
 	for _, d := range dirs {
 		dir := expandUser(d)
 		fi, err := os.Stat(dir)
@@ -233,7 +262,7 @@ func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceI
 		}
 		files, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
 		for _, f := range files {
-			evs, err := walkSessionEvents(f, pat, includeAssistant)
+			evs, sps, err := walkSessionEvents(f, pat, includeAssistant)
 			if err != nil {
 				// Skip a session file that became unreadable after globbing —
 				// more robust than Python's unguarded open() (which would crash),
@@ -249,8 +278,22 @@ func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceI
 				}
 				events = append(events, e)
 			}
+			for _, s := range sps {
+				// Clamp to the window (not just filter by Start) so a span still
+				// returning at the close instant is counted only up to `until`.
+				if haveSince && s.Start.Before(since) {
+					s.Start = since
+				}
+				if haveUntil && s.End.After(until) {
+					s.End = until
+				}
+				if s.End.After(s.Start) {
+					spans = append(spans, s)
+				}
+			}
 		}
 	}
 	sort.Slice(events, func(i, j int) bool { return events[i].Time.Before(events[j].Time) })
-	return events, nil
+	sort.Slice(spans, func(i, j int) bool { return spans[i].Start.Before(spans[j].Start) })
+	return events, spans, nil
 }

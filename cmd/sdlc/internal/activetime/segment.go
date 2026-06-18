@@ -162,10 +162,13 @@ func attributeSegment(active float64, commitIssues []string, mentions map[string
 //
 // Mirrors the Python original's main() segment loop: boundaries are the first
 // event, every commit time, and one second past the last event, deduped by
-// instant; each [start,end) span with ≥1 event becomes a segment anchored by the
-// commit whose time equals its end (suffix has none); the very first segment
-// uses prefixWeight iff there is a real pre-first-commit prefix.
-func buildSegments(events []Event, commits []Commit, commitWeight, prefixWeight float64, thresholdMin int) []Segment {
+// instant; each [start,end) span with ≥1 event (or a clamped task span) becomes
+// a segment anchored by the commit whose time equals its end (suffix has none);
+// the very first segment uses prefixWeight iff there is a real pre-first-commit
+// prefix. Task spans (#118) are NOT added as boundaries — segments keep ending
+// at commits so commit-anchored attribution is preserved; each span is clamped
+// into the segments it overlaps and counted in full there.
+func buildSegments(events []Event, commits []Commit, spans []TaskSpan, commitWeight, prefixWeight float64, thresholdMin int) []Segment {
 	// Boundaries, deduped by instant (Python's sorted(set(aware datetimes))
 	// dedupes by UTC instant; we key on UTC UnixNano).
 	bset := map[int64]time.Time{}
@@ -174,7 +177,15 @@ func buildSegments(events []Event, commits []Commit, commitWeight, prefixWeight 
 	for _, c := range commits {
 		add(c.Time)
 	}
-	add(events[len(events)-1].Time.Add(time.Second))
+	// Final boundary extends past the last event to cover any span whose return
+	// lands after it (a trailing subagent run), so its tail is not cut.
+	last := events[len(events)-1].Time.Add(time.Second)
+	for _, sp := range spans {
+		if sp.End.After(last) {
+			last = sp.End
+		}
+	}
+	add(last)
 	boundaries := make([]time.Time, 0, len(bset))
 	for _, t := range bset {
 		boundaries = append(boundaries, t)
@@ -196,11 +207,15 @@ func buildSegments(events []Event, commits []Commit, commitWeight, prefixWeight 
 			}
 			eIdx++
 		}
-		if len(segEvents) == 0 {
+		// Clamp task spans into this segment. A segment with a span but no events
+		// is still emitted (else the post-commit tail of a span — whose return is
+		// a dropped tool_result, hence no event — would be silently lost).
+		clampedSpans := clampSpans(spans, segStart, segEnd)
+		if len(segEvents) == 0 && len(clampedSpans) == 0 {
 			continue
 		}
 		times, mentions := eventTimesAndMentions(segEvents)
-		active := activeMinutes(times, thresholdMin)
+		active := activeMinutesUnion(times, clampedSpans, thresholdMin)
 
 		// Anchor: the commit at seg_end, if any (works because every commit
 		// time is in the boundary set, so equality holds by instant).

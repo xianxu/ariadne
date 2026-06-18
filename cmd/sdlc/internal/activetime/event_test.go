@@ -51,7 +51,7 @@ func TestLoadEventsShapes(t *testing.T) {
 	pat := issuePattern([]string{"8", "10"})
 
 	// With include-assistant.
-	evs, err := loadEvents([]string{dir}, pat, true,
+	evs, _, err := loadEvents([]string{dir}, pat, true,
 		"2026-01-01T00:00:00Z", "2026-01-01T23:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestLoadEventsShapes(t *testing.T) {
 	}
 
 	// Without include-assistant: only the two user events remain.
-	evs2, err := loadEvents([]string{dir}, pat, false,
+	evs2, _, err := loadEvents([]string{dir}, pat, false,
 		"2026-01-01T00:00:00Z", "2026-01-01T23:00:00Z")
 	if err != nil {
 		t.Fatal(err)
@@ -97,12 +97,68 @@ func TestLoadEventsShapes(t *testing.T) {
 }
 
 func TestLoadEventsMissingDirSkipped(t *testing.T) {
-	evs, err := loadEvents([]string{"/no/such/dir"}, issuePattern([]string{"8"}), true, "", "")
+	evs, _, err := loadEvents([]string{"/no/such/dir"}, issuePattern([]string{"8"}), true, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(evs) != 0 {
 		t.Fatalf("missing dir should yield no events, got %+v", evs)
+	}
+}
+
+// A synchronous Agent dispatch (assistant tool_use) followed by its tool_result
+// return produces exactly one TaskSpan; a non-Agent tool call (Bash) produces
+// none. The return is a pure tool_result (dropped as an Event) but still closes
+// the span.
+func TestLoadEventsTaskSpans(t *testing.T) {
+	dir := t.TempDir()
+	writeJSONL(t, filepath.Join(dir, "s.jsonl"), []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"A1","name":"Agent","input":{}}]}}`,
+		`{"timestamp":"2026-01-01T00:30:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"A1","content":"done"}]}}`,
+		`{"timestamp":"2026-01-01T00:31:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"B1","name":"Bash","input":{}}]}}`,
+		`{"timestamp":"2026-01-01T00:32:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"B1","content":"ok"}]}}`,
+	})
+	_, spans, err := loadEvents([]string{dir}, nil, true, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spans) != 1 {
+		t.Fatalf("want exactly 1 Agent span, got %d: %+v", len(spans), spans)
+	}
+	if !spans[0].Start.Equal(tm("2026-01-01T00:00:00Z")) || !spans[0].End.Equal(tm("2026-01-01T00:30:00Z")) {
+		t.Fatalf("span should be [00:00,00:30], got %+v", spans[0])
+	}
+}
+
+func TestLoadEventsDanglingDispatchNoSpan(t *testing.T) {
+	dir := t.TempDir()
+	writeJSONL(t, filepath.Join(dir, "s.jsonl"), []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"A1","name":"Agent","input":{}}]}}`,
+		// no matching tool_result → no span.
+	})
+	_, spans, err := loadEvents([]string{dir}, nil, true, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spans) != 0 {
+		t.Fatalf("dangling dispatch should yield no span, got %+v", spans)
+	}
+}
+
+// A span whose return lands after `until` is clamped to the window, not counted
+// past it.
+func TestLoadEventsSpanClampedToWindow(t *testing.T) {
+	dir := t.TempDir()
+	writeJSONL(t, filepath.Join(dir, "s.jsonl"), []string{
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"A1","name":"Agent","input":{}}]}}`,
+		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"A1","content":"done"}]}}`,
+	})
+	_, spans, err := loadEvents([]string{dir}, nil, true, "", "2026-01-01T00:20:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spans) != 1 || !spans[0].End.Equal(tm("2026-01-01T00:20:00Z")) {
+		t.Fatalf("span End should clamp to until 00:20, got %+v", spans)
 	}
 }
 
