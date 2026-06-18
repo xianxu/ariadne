@@ -1,7 +1,15 @@
 #!/bin/sh
-# Dynamic-skill marker (#111): weave compile execs this with cwd = this package
-# dir (construct/local/datatype). cmd/datatype regenerates SKILL.md with the live
-# datatype-noun list in the description. --output . writes back into this dir;
-# --datatype-dir is given relative to this cwd (three levels up to the repo root,
-# then construct/datatype) — cmd/datatype's own default assumes a repo-root cwd.
-go run ../../../cmd/datatype --output . --datatype-dir ../../../construct/datatype
+# Dynamic-skill marker (#111, #115): weave compile execs this with cwd = the
+# COMPILING repo's root (the repo being woven), via the injected Runner. The
+# `datatype` PATH binary (build-in-owner; on PATH during `weave compile`) walks
+# this repo's construct/deps layer graph, DAG-merges the datatype prototypes
+# (local/leaf shadows shared), and writes the per-repo SKILL.md.
+#
+# --output is REPO-RELATIVE (construct/generated/datatype) and the binary itself
+# mkdir -p's that dir, so materialization always lands under the COMPILING repo's
+# tree — never an ancestor's (a derivative's weave runs ariadne's marker, but
+# cwd=the derivative + a repo-relative output ⇒ the derivative's tree is written).
+# construct/generated/ is gitignored everywhere (the body is regenerated every
+# compile; the tracked marker is what makes the skill discoverable in a fresh
+# clone — #111's "skill vanishes" is dissolved).
+datatype --output construct/generated/datatype

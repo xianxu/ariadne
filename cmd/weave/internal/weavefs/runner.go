@@ -21,10 +21,11 @@ type Runner interface {
 	Run(dir string, argv []string) error
 }
 
-// ExecRunner is the production Runner: it wraps os/exec, sets cmd.Dir = dir (so a
-// `.dynamic-skill` resolves its relative paths from the package dir), and inherits
-// the parent's stdout/stderr (so the marker's diagnostics stream through). Its
-// zero value is ready to use.
+// ExecRunner is the production Runner: it wraps os/exec, sets cmd.Dir = dir (the
+// generate stage passes the COMPILING repo's root, so a `.dynamic-skill` resolves
+// its repo-relative paths — `--output construct/generated/<dir>`, `construct/deps`
+// — from there, #115 M3), and inherits the parent's stdout/stderr (so the marker's
+// diagnostics stream through). Its zero value is ready to use.
 type ExecRunner struct{}
 
 // Run spawns argv[0] with argv[1:] as arguments, cwd = dir. An empty argv is a

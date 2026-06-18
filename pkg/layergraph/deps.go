@@ -1,4 +1,4 @@
-package layer
+package layergraph
 
 import "strings"
 
@@ -20,7 +20,7 @@ import "strings"
 //     rows are ignored.
 //
 // The returned slice is the per-layer relpath edge list; resolving each
-// relpath to an on-disk sibling is the later transitive-walk milestone.
+// relpath to an on-disk sibling is the transitive-walk concern (Walk).
 // ParseDeps returns no error today — lib-deps.sh rejects nothing — but keeps
 // the error in its signature so a future strict mode is a non-breaking change.
 func ParseDeps(content string) ([]string, error) {

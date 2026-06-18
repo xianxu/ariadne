@@ -158,18 +158,28 @@ close-issue:
 # and runs the OWNER's binary ($$owner/bin/weave) — NOT a local bin/weave, which
 # build-in-owner deliberately never produces in a consumer (#95 M5). When THIS
 # repo is the owner ($$owner is this repo's own dir), it runs its own bin/weave —
-# unchanged. `weave compile --target claude` compiles THIS repo's (the cwd's)
-# layer composition for the Claude backend: the generic symlinks, the prose-only
-# AGENTS.md compose, the settings.json merge, and the .claude/skills skill
-# lowering (the claude target emits the symlinks, not the AGENTS.md menu — see
-# plan.Target). compile operates on the caller's cwd, so the owner's binary
+# unchanged. The recipe runs the bare Union `weave compile`, which compiles THIS
+# repo's (the cwd's) layer composition for EVERY harness face (claude + codex +
+# gemini): the generic symlinks, the prose-only entry-file compose, the
+# settings.json merge, and the per-harness skill-dir lowerings (`.claude/skills`
+# + `.agents/skills` — each harness discovers its dir natively, no AGENTS.md menu;
+# see plan.Target). compile operates on the caller's cwd, so the owner's binary
 # composing the consumer's repo is correct. Under `make bootstrap`,
 # bootstrap-peers (clones ancestors) precedes weave, so weave's owner is present
 # by the time this runs.
-weave: weave-build
+# PATH WIRING (#115 M3): the dynamic-skill marker now calls the `datatype` binary
+# by NAME (not `go run`), so datatype must be (a) BUILT and (b) on PATH when weave
+# execs the marker. So this target also depends on datatype-build, and exports the
+# datatype owner's bin/ onto PATH before running weave compile — weave execs the
+# marker via exec.Command, which inherits this PATH. This is shared Makefile.workflow:
+# in a derivative, `make weave` resolves datatype's owner = ariadne, builds + PATH-
+# exposes ariadne's bin/datatype, then weave (cwd=derivative) execs ariadne's marker
+# which writes the DERIVATIVE's construct/generated (leaf-rooted output).
+weave: weave-build datatype-build
 	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
+	dtowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
 	if [ -n "$$owner" ] && [ -x "$$owner/bin/weave" ]; then \
-		"$$owner/bin/weave" compile; \
+		PATH="$$dtowner/bin:$$PATH" "$$owner/bin/weave" compile; \
 	else \
 		echo "Error: weave binary not built (weave-build did not produce $$owner/bin/weave)."; \
 		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \
@@ -177,22 +187,31 @@ weave: weave-build
 		exit 1; \
 	fi
 
-# weave-drift-check — the dynamic-skill CI drift guard (#111). A dynamic skill's
-# SKILL.md is committed codegen (cmd/datatype writes the live datatype-noun list
-# into construct/local/datatype/SKILL.md at `weave compile` time). This regenerates
-# (the `weave` prereq runs the compile, exec'ing each .dynamic-skill) then asserts
-# `git diff --exit-code` on the generated skill files — a non-zero exit means a
-# committed SKILL.md is STALE vs regeneration (e.g. a datatype was added but not
-# re-wove). NOT an in-memory golden compare: weave can't redirect a marker's
-# --output, so the guard is regenerate-then-diff. Run in CI after `make weave`.
-weave-drift-check: weave
-	@echo "==> weave drift check (generated skill files must match regeneration)"
-	@if ! git diff --exit-code -- construct/local/datatype/SKILL.md; then \
-		echo "Error: a generated SKILL.md is stale vs weave compile." >&2; \
-		echo "  Run 'make weave' and commit the regenerated skill file(s)." >&2; \
+# weave-drift-check — the dynamic-skill GENERATE-IDEMPOTENCY guard (#115 M3, plan
+# decision D2). The old #111 guard `git diff --exit-code`'d the COMMITTED
+# construct/local/datatype/SKILL.md — but that body is now the GITIGNORED, per-repo
+# construct/generated/<dir>/SKILL.md, regenerated EVERY compile. A gitignored,
+# every-compile-regenerated output cannot go stale (git can't even see it), so the
+# staleness guard's job evaporated. What still bites is DETERMINISM: the render must
+# be byte-stable so two compiles produce identical bytes (else `git status` churns
+# nondeterministically). This runs the datatype binary twice into two temp dirs and
+# diffs the bytes — failing if the render is non-deterministic. (The renderer's
+# byte-stable unit test in cmd/datatype is the in-process counterpart.) Run in CI
+# after `make weave`; depends on datatype-build so the binary is on disk.
+weave-drift-check: datatype-build
+	@echo "==> weave drift check (dynamic-skill render must be deterministic)"
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	bin="$$owner/bin/datatype"; \
+	if [ ! -x "$$bin" ]; then echo "Error: datatype binary not built at $$bin" >&2; exit 1; fi; \
+	d1="$$(mktemp -d)"; d2="$$(mktemp -d)"; \
+	trap 'rm -rf "$$d1" "$$d2"' EXIT; \
+	"$$bin" --output "$$d1" && "$$bin" --output "$$d2"; \
+	if ! diff -q "$$d1/SKILL.md" "$$d2/SKILL.md" >/dev/null; then \
+		echo "Error: dynamic-skill render is NON-DETERMINISTIC (two runs differ)." >&2; \
+		echo "  The materialized construct/generated/<dir>/SKILL.md would churn git status." >&2; \
 		exit 1; \
 	fi
-	@echo "    OK — generated skill files are current."
+	@echo "    OK — dynamic-skill render is byte-stable across runs."
 
 bootstrap-peers:
 	@if [ -x construct/scripts/bootstrap-peers.sh ]; then \
@@ -711,7 +730,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build weave-build sdlc-install sdlc-bootstrap
+.PHONY: tools sdlc-build weave-build datatype-build sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -750,8 +769,8 @@ sdlc-build: ensure-go
 # $$owner/bin/weave. A consumer's `make weave` builds + runs ../ariadne/bin/weave
 # and produces NO consumer-local bin/weave (#95 M5, build-in-owner). When THIS
 # repo is the owner ($$owner is this repo's own dir) the target is unchanged. The `weave`
-# target depends on this, then runs `$$owner/bin/weave compile --target claude`
-# to compile this repo's layer composition. Under `make bootstrap`,
+# target depends on this, then runs the bare Union `$$owner/bin/weave compile`
+# to compile this repo's layer composition (every harness face). Under `make bootstrap`,
 # bootstrap-peers + weave's own weave-build prereq guarantee the owner + the
 # dev-aliases.sh symlink are present by the time this runs.
 weave-build: ensure-go
@@ -764,6 +783,26 @@ weave-build: ensure-go
 	fi; \
 	mkdir -p "$$owner/bin"; \
 	( cd "$$owner" && go build -o "$$owner/bin/weave" ./cmd/weave )
+
+# datatype-build: mirror of weave-build for cmd/datatype — the DAG-aware
+# datatype subsystem (#115). datatype is a PATH binary invoked by name (the
+# .dynamic-skill marker runs it at weave compile time; agents run `datatype
+# list` / `datatype show <name>` for apply-time access). Build-in-owner like
+# weave/sdlc: resolve the owner by LOCATION (dev-aliases.sh --list, which scans
+# cmd/ dirs and already reports datatype → ariadne), then build into the OWNER's
+# bin/ — exactly one datatype on disk at $$owner/bin/datatype, no go.mod replace,
+# no consumer-local copy. When THIS repo is the owner, it builds ariadne's own
+# bin/datatype, unchanged.
+datatype-build: ensure-go
+	@echo "==> building datatype (build-in-owner)"
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	if [ -z "$$owner" ]; then \
+	    echo "Error: datatype owner not found beside this repo." >&2; \
+	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
+	    exit 1; \
+	fi; \
+	mkdir -p "$$owner/bin"; \
+	( cd "$$owner" && go build -o "$$owner/bin/datatype" ./cmd/datatype )
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also

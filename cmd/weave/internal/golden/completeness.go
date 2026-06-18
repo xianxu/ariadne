@@ -72,7 +72,7 @@ type Uncovered struct {
 func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered {
 	idx := indexActions(actions)
 
-	// The leaf Lₙ is the last layer (layer.Resolve emits root last + self). Only
+	// The leaf Lₙ is the last layer (layergraph.Resolve emits root last + self). Only
 	// intents in 𝒜(R) — every layer's exports + the leaf's internals — are PLANNED,
 	// so only those must be covered. An ANCESTOR's internal is deliberately
 	// excluded by the planner (not dropped), so flagging it as under-produced

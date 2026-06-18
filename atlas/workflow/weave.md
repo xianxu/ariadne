@@ -31,15 +31,21 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   + shell, no `.claude/` assumptions in the core.
 
 ## Surface (grows per milestone)
-- `cmd/weave/internal/layer` — `Resolve` (foundation-first topo-sort + dedup;
-  ports `discover_ancestors`) and `ParseDeps` (`construct/deps` substrate-edge
-  parser; ports `lib-deps.sh:deps_substrate_targets`). **[M1]**
+- `pkg/layergraph` (module-level — imported by BOTH weave AND the `datatype`
+  binary, #115) — the SINGLE source of "what is repo R's layer graph": `Walk`
+  (transitive `construct/deps` topology → foundation-first ordered layer roots;
+  ports `deps_substrate_targets` + the `_seen_or_add` filters), `Resolve`
+  (foundation-first topo-sort + dedup; ports `discover_ancestors`), `ParseDeps`
+  (`construct/deps` substrate-edge parser; ports `lib-deps.sh:deps_substrate_targets`),
+  `FS` (the walk's IO seam). `cmd/weave/internal/layer` now carries only the
+  resolved-layer value types (`Layer`, `ProseFragment`). `pkg/frontmatter` —
+  flat-YAML `description:` parser, shared with weave's skill discovery. **[M1]**
 - `cmd/weave/internal/{intent,plan,walk,weavefs,golden}` + `main.go` —
   `intent.ParseManifest` (base.manifest → hybrid intents) · `plan.{composeProse,
   Plan,Action,Apply}` (pure lowering + idempotent file-op apply, porting
-  `create_symlink`/`create_scaffold` + inline `touch`) · `walk.Walk` (transitive
-  `construct/deps` walk; ports `deps_substrate_targets` + the `_seen_or_add` +
-  self-reference filters) · `weavefs.FS` (injectable IO seam) · `golden` (pure
+  `create_symlink`/`create_scaffold` + inline `touch`) · `walk.Walk` (the per-layer
+  LOADER on top of `pkg/layergraph.Walk`'s topology — loads each resolved root's
+  manifest + prose fragments; the self-reference filter) · `weavefs.FS` (injectable IO seam) · `golden` (pure
   divergence classifier) + the `weave` / `weave --dry-run` / `weave golden` CLI.
   Prose/skill are exempt from the self-reference filter (a repo composes its own
   prose into its `AGENTS.md` — the `@AGENTS.local.md` fix). **[M2]**
@@ -74,7 +80,8 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   conjunctive KEEP-unless safety criteria) · `plan.EnsureGitignore` (weave owns
   ignoring its generated-runtime set: `/CLAUDE.md`, `/AGENTS.md`, `/GEMINI.md`,
   `/.claude/skills/`, `/.agents/skills/`, `/.claude/settings.json`, `/.colima/`,
-  `/construct/scripts/vm-log.sh`) · the
+  `/construct/scripts/vm-log.sh`, `/construct/generated/` (#115 per-repo
+  dynamic-skill materialization)) · the
   **export/internal visibility axis** (#99, `intent.Selected` — `𝒜(R)` = ancestors'
   exports ⊎ leaf's internals) · the `applyWriteFile` clobber-guard (removes a
   symlink at the slot before writing, so a derivative's pre-cutover
@@ -143,31 +150,56 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   (it's generated now). All 11 repos clean, ancestors byte-pristine,
   `make harness-check` green. **[#107 M2 produce + M3 prune + M4 propagate; tool #106]**
 
-- **Dynamic skills — the `.dynamic-skill` exec seam (#111)** — a skill package may
-  regenerate its own `SKILL.md` at compile time. The convention: a tracked,
-  **executable `.dynamic-skill`** script in the package dir (language-neutral —
-  weave never parses it). A new **generate stage** runs in `weave compile`
+- **Dynamic skills — the `.dynamic-skill` exec seam (#111, reshaped by #115)** — a
+  skill package may regenerate its own `SKILL.md` at compile time. The convention: a
+  tracked, **executable `.dynamic-skill`** script in the package dir (language-neutral
+  — weave never parses it). A **generate stage** runs in `weave compile`
   **after `walk.Walk`** (so the parsed `skill <dir>` intents exist to reuse, DRY)
-  and **before `GatherSkills`/`planActions`** (so the regenerated `SKILL.md` is what
-  discovery reads). It is **leaf-layer-only** — it scans ONLY `layers[len-1]`'s
-  `skill` intents (`walk.DynamicSkillDirs`), never an ancestor's, so a derivative's
-  compile can never exec ariadne's marker and mutate an ancestor's tree (the
-  byte-pristine guarantee; no-inheritance-symlinks is necessary but not sufficient
-  since weave iterates ancestors at real paths). `construct/adapted` is excluded
-  (foreign-origin). The exec goes through the injected `weavefs.Runner` (production
-  `ExecRunner` wraps `os/exec`, cwd = the package dir, non-zero exit FAILS the
-  compile loudly) — deliberately SEPARATE from `weavefs.FS`. The **read-only paths
-  (`--dry-run`, `golden`, `verify-complete`) skip the stage** (they must not mutate;
-  they operate on the committed output). Generated `SKILL.md` is **committed
-  codegen** — NOT gitignored — because derivatives consume it via symlink and never
-  regenerate it, so it must physically exist for fresh clones + read-only weave
-  paths; `PruneOrphans` never touches it (it GCs only lowered symlinks). A **CI
-  drift guard** (`make weave-drift-check` = `weave compile` then `git diff
-  --exit-code` on the generated skill files) keeps the committed file honest —
-  regenerate-then-diff, NOT an in-memory golden compare (weave can't redirect a
-  marker's `--output`). First consumer: `cmd/datatype` (`go:embed` prose template +
-  sorted filename enumeration of `construct/datatype/*.md`) injects the live
-  datatype-noun list into `construct/local/datatype/SKILL.md`'s description.
-  **[#111 M1 mechanism + M2 datatype consumer]**
+  and **before `GatherSkills`/`planActions`** (so discovery reads the regenerated
+  body). The output is **materialized per-repo at `construct/generated/<dir>/SKILL.md`,
+  GITIGNORED in every repo (ariadne included)** — regenerated on every compile, never
+  committed (#115 retired the old `construct/local/datatype/SKILL.md` committed
+  codegen). Only the tracked `.dynamic-skill` marker stays in the package dir;
+  `cmd/datatype/SKILL.md.tmpl` is the authored prose source.
+  - **Marker-aware discovery.** The skill ENTRY is emitted from the TRACKED marker,
+    not the generated body — so a dynamic skill is discovered even in a fresh,
+    never-compiled clone (only the `description:` body is absent until first compile).
+    This fixes #111's "skill vanishes in a fresh clone" failure mode.
+  - **All-layers visible-set exec, leaf-rooted output.** The stage runs the
+    visible-set markers across ALL layers (not leaf-only). For each marker — even one
+    owned by an ANCESTOR — weave execs it with **cwd = the COMPILING repo's root** and
+    a repo-relative `--output construct/generated/<dir>`, so materialization always
+    lands in THE COMPILING repo's tree. The byte-pristine guarantee now rests on
+    **leaf-rooted OUTPUT** (an ancestor's tree is never mutated by a derivative's
+    compile), not on leaf-only SELECTION. `construct/adapted` is excluded
+    (foreign-origin). The exec goes through the injected `weavefs.Runner` (production
+    `ExecRunner` wraps `os/exec`, non-zero exit FAILS the compile loudly) —
+    deliberately SEPARATE from `weavefs.FS`. The **read-only paths (`--dry-run`,
+    `golden`, `verify-complete`) skip the stage** (they must not mutate).
+  - **Lowering via BodyPath.** A dynamic skill's lowered `.claude/skills/xx-<name>`
+    symlink points at **THIS repo's** `construct/generated/<dir>` (the skill entry's
+    `BodyPath`); a static skill's link points at the owner layer's dir. So a
+    derivative serves the dynamic body it materialized in its own tree.
+  - **Prune class.** When an owner drops the `.dynamic-skill` marker, `PruneOrphans`
+    GCs the now-orphaned `construct/generated/<dir>` (alongside the orphaned lowered
+    symlinks).
+  - **Drift guard retired; determinism guard in its place.** The #111 committed-file
+    drift guard is GONE — a gitignored, regenerated-every-compile output can't go
+    stale (git can't even see it). `make weave-drift-check` now asserts the render is
+    **byte-deterministic across runs** (two compiles into temp dirs, diff the bytes),
+    not that a committed file matches.
+  - **Shared module-level libraries (#115 M1).** Two `pkg/` libraries underpin this:
+    `pkg/layergraph` — the transitive `construct/deps` walk, the SINGLE source of
+    "repo R's layer graph," imported by BOTH weave and the `datatype` binary so the
+    two DAG-aware tools never diverge on topology; and `pkg/frontmatter` — a flat-YAML
+    `description:` parser shared by weave + datatype.
+  - First consumer: `cmd/datatype` (`go:embed` prose template + the DAG-merged union
+    of every layer's `construct/datatype/*.md` + the leaf's project-local
+    `datatype/*.md`, local/leaf shadowing shared by filename) injects the live
+    datatype-noun list into the generated `SKILL.md` description. Its apply-time
+    prototype access is `datatype list` (enumerate the merged set) + `datatype show
+    <name>` (read a resolved prototype body).
+  **[#111 M1 mechanism + M2 datatype consumer; #115 per-repo gitignored materialization
+  + DAG-merged datatype + marker-aware discovery]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.

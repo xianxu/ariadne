@@ -1,19 +1,17 @@
 // Package walk is weave's IO seam in front of the pure compiler core: given a
-// repo root, it discovers the layer DAG by following each layer's
-// construct/deps, resolves it foundation-first (layer.Resolve), then loads each
-// layer's base.manifest into typed Intents and its `prose` files into
+// repo root, it discovers the layer DAG topology via the shared pkg/layergraph
+// walk (the SINGLE source of truth for "what is repo R's layer graph" — ARCH-DRY;
+// weave and any other DAG-aware subsystem consume the same ordered roots), then
+// loads each layer's base.manifest into typed Intents and its `prose` files into
 // ProseFragments. Everything mutating/reading lives behind weavefs.FS (ARCH-PURE
 // — intent/, layer/, and plan/ stay pure; the walk + plan.Apply are the only IO).
 //
-// It ports two shell behaviors verbatim (ARCH-DRY; the part-3 golden-diff checks
-// parity):
-//   - deps_substrate_targets (lib-deps.sh): per `substrate` row, repo-root-
-//     relative OR absolute-path resolution, then physical-path canonicalization
-//     (pwd -P) with present-skip — an unresolvable parent is dropped silently.
-//   - discover_ancestors' two _seen_or_add filters (setup.sh): a candidate
-//     counts as a layer ONLY if it ships construct/base.manifest, and the target
-//     repo is never its own ancestor. weave does NOT consult go.mod / go list
-//     for edges (M1 step 9 — construct/deps is the sole edge source).
+// The transitive construct/deps walk itself — deps_substrate_targets'
+// repo-root-relative + absolute + present-skip resolution and discover_ancestors'
+// two _seen_or_add filters (a candidate is a layer ONLY if it ships
+// construct/base.manifest; the root is never its own ancestor) — now lives in
+// pkg/layergraph (moved here in #115 M1). This file keeps only the rich
+// per-layer load weave needs on top of that topology.
 package walk
 
 import (
@@ -22,108 +20,41 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 // Walk builds the foundation-first []layer.Layer for the repo at root (which
-// must be absolute). It discovers the edge set via construct/deps, resolves the
-// DAG (root emitted last + self-included), then loads each layer's manifest and
-// prose. Returns the layers in application order.
+// must be absolute). It delegates the DAG topology to layergraph.Walk (which
+// canonicalizes root + the layer roots to their physical form, emits the root
+// last + self-included, and dedups diamonds), then loads each layer's manifest
+// and prose. Returns the layers in application order.
+//
+// weavefs.FS satisfies layergraph.FS structurally (a superset interface), so it
+// is passed through directly — no adapter needed.
 func Walk(fs weavefs.FS, root string) ([]layer.Layer, error) {
-	root = physical(root) // canonicalize so self-comparisons match (pwd -P)
-
-	edges, err := discoverEdges(fs, root)
+	order, err := layergraph.Walk(fs, root)
 	if err != nil {
 		return nil, err
 	}
 
-	order, err := layer.Resolve(root, edges)
-	if err != nil {
-		return nil, err
+	// layergraph.Walk canonicalized root; loadLayer's self-reference filter
+	// compares a layer's Source against root/Target, so use the same physical
+	// root the walk resolved its layer paths against (order[len-1] is root,
+	// canonicalized + emitted last).
+	canonRoot := root
+	if len(order) > 0 {
+		canonRoot = order[len(order)-1]
 	}
 
 	layers := make([]layer.Layer, 0, len(order))
 	for _, dir := range order {
-		l, err := loadLayer(fs, root, dir)
+		l, err := loadLayer(fs, canonRoot, dir)
 		if err != nil {
 			return nil, err
 		}
 		layers = append(layers, l)
 	}
 	return layers, nil
-}
-
-// discoverEdges follows construct/deps transitively from root, returning the
-// edge map layer.Resolve consumes: each discovered layer dir → the layer dirs
-// it depends on (substrate targets that pass the _seen_or_add layer filter).
-// A BFS mirroring discover_ancestors' substrate walk, but construct/deps-only.
-func discoverEdges(fs weavefs.FS, root string) (map[string][]string, error) {
-	edges := map[string][]string{}
-	visited := map[string]bool{}
-	queue := []string{root}
-
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		if visited[cur] {
-			continue
-		}
-		visited[cur] = true
-
-		targets, err := substrateTargets(fs, cur)
-		if err != nil {
-			return nil, err
-		}
-		for _, dep := range targets {
-			// _seen_or_add filters: a dep counts as a layer only if it ships a
-			// base.manifest, and the root is never its own ancestor.
-			if dep == root {
-				continue // target-self-exclusion
-			}
-			if !hasManifest(fs, dep) {
-				continue // base.manifest-existence filter
-			}
-			edges[cur] = append(edges[cur], dep)
-			if !visited[dep] {
-				queue = append(queue, dep)
-			}
-		}
-	}
-	return edges, nil
-}
-
-// substrateTargets ports lib-deps.sh:deps_substrate_targets — parses
-// repoRoot/construct/deps and resolves each `substrate` row to an absolute,
-// physical-path peer dir. Relative targets resolve against repoRoot; absolute
-// targets are taken verbatim; the result is canonicalized via the parent dir
-// (pwd -P semantics) so an absent peer still resolves syntactically, while an
-// unresolvable parent is dropped (present-skip). The ParseDeps grammar (which
-// rows are substrate) is reused — only the resolution is added here.
-func substrateTargets(fs weavefs.FS, repoRoot string) ([]string, error) {
-	depsPath := filepath.Join(repoRoot, "construct", "deps")
-	content, err := fs.ReadFile(depsPath)
-	if err != nil {
-		return nil, nil // no construct/deps ⇒ no edges (lib-deps: [[ -f ]] || return 0)
-	}
-	rels, err := layer.ParseDeps(string(content))
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, target := range rels {
-		var raw string
-		if filepath.IsAbs(target) {
-			raw = target // raw="$target"
-		} else {
-			raw = filepath.Join(repoRoot, target) // raw="$repo_root/$target"
-		}
-		// parent="$(cd "$(dirname "$raw")" && pwd -P)"; present-skip if empty.
-		parent := physicalOrEmpty(filepath.Dir(raw))
-		if parent == "" {
-			continue // unresolvable parent — skipped silently (present-peers)
-		}
-		out = append(out, filepath.Join(parent, filepath.Base(raw)))
-	}
-	return out, nil
 }
 
 // loadLayer reads dir's base.manifest into Intents (dropping self-reference
@@ -136,7 +67,8 @@ func loadLayer(fs weavefs.FS, root, dir string) (layer.Layer, error) {
 	manifest, err := fs.ReadFile(filepath.Join(dir, "construct", "base.manifest"))
 	if err != nil {
 		// No manifest: a layer with no intents (the Resolve order already
-		// guaranteed it via hasManifest for ancestors; root may lack one).
+		// guaranteed it via the base.manifest filter for ancestors; root may
+		// lack one).
 		return l, nil
 	}
 	intents, err := intent.ParseManifest(string(manifest))
@@ -187,29 +119,4 @@ func isFileShape(k intent.Kind) bool {
 	default:
 		return false
 	}
-}
-
-// hasManifest reports whether dir ships construct/base.manifest (the
-// _seen_or_add layer filter).
-func hasManifest(fs weavefs.FS, dir string) bool {
-	_, err := fs.Stat(filepath.Join(dir, "construct", "base.manifest"))
-	return err == nil
-}
-
-// physical canonicalizes path to its physical form (EvalSymlinks ≈ pwd -P),
-// falling back to the input when it can't be resolved (e.g. doesn't exist yet).
-func physical(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		return resolved
-	}
-	return path
-}
-
-// physicalOrEmpty is physical that returns "" when the path can't be resolved —
-// the present-skip signal for an absent parent dir (cd … && pwd -P || true).
-func physicalOrEmpty(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		return resolved
-	}
-	return ""
 }

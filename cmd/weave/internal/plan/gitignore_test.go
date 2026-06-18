@@ -44,14 +44,31 @@ func TestEnsureGitignoreTextPreservesExistingAndAppendsAbsent(t *testing.T) {
 
 func TestEnsureGitignoreTextIdempotentWhenAllPresent(t *testing.T) {
 	// Every entry already present ⇒ no change, byte-identical (running weave twice
-	// never duplicates lines).
-	current := "/AGENTS.md\n/CLAUDE.md\n/GEMINI.md\n/.claude/skills/\n/.agents/skills/\n/.claude/settings.json\n/.colima/\n/construct/scripts/vm-log.sh\n"
+	// never duplicates lines). Built from the canonical list so adding an entry can
+	// never silently desync this fixture.
+	current := strings.Join(GeneratedRuntimeGitignoreEntries, "\n") + "\n"
 	got, changed := ensureGitignoreText(current, GeneratedRuntimeGitignoreEntries)
 	if changed {
 		t.Fatalf("changed = true when all entries present, want false; got:\n%s", got)
 	}
 	if got != current {
 		t.Fatalf("content mutated when all present:\n got %q\nwant %q", got, current)
+	}
+}
+
+// TestGeneratedRuntimeGitignoreCoversConstructGenerated locks the #115 M3
+// addition: the per-repo dynamic-skill materialization tree construct/generated/ is
+// in the owned ignore set (gitignored EVERYWHERE — it's regenerated every compile
+// and must never be tracked; the body lived committed under construct/local before).
+func TestGeneratedRuntimeGitignoreCoversConstructGenerated(t *testing.T) {
+	found := false
+	for _, e := range GeneratedRuntimeGitignoreEntries {
+		if e == "/construct/generated/" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("GeneratedRuntimeGitignoreEntries missing /construct/generated/: %v", GeneratedRuntimeGitignoreEntries)
 	}
 }
 

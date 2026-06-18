@@ -166,9 +166,13 @@ symlink   construct/dev-aliases.sh
 # derivatives with no own skills need no config.json, nous ships its own.
 
 # ── Datatype prototypes (typed markdown documents, used by xx-datatype skill) ─
-# Shared prototypes propagate via symlink. Project-local overrides at
-# <repo>/datatype/<name>.md are opt-in and not scaffolded.
-symlink   construct/datatype
+# NOT a weave-lowered artifact (#115): each layer OWNS its own construct/datatype/
+# *.md, and the `datatype` binary reads the DAG-merged union across the layer graph
+# (local/leaf shadows shared by filename) for both the eager SKILL.md render and
+# apply-time `datatype list`/`show`. The pre-#115 whole-dir `symlink
+# construct/datatype` propagation is retired — it couldn't express per-layer
+# ownership (a derivative can't own its own prototypes inside a symlink to ariadne;
+# e.g. nous owns event/travel-plan/reference, pair sees only ariadne's set).
 
 # ── Directory conventions (scaffold empty dirs) ───────────────────────────────
 scaffold  workshop/issues

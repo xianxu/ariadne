@@ -13,7 +13,7 @@ import (
 // []layer.Layer: it follows each layer's construct/deps (porting
 // deps_substrate_targets' repo-root-relative + absolute + present-skip
 // resolution and the two _seen_or_add filters), resolves the DAG
-// (layer.Resolve → root last/self-included), then loads each layer's
+// (layergraph.Resolve → root last/self-included), then loads each layer's
 // base.manifest into Intents and its prose files into ProseFragments, applying
 // the self-reference filter. Tested against a real on-disk fixture under
 // t.TempDir() (the seam exercised end-to-end, no mocks).
@@ -136,7 +136,7 @@ func TestWalkCarriesProseVisibility(t *testing.T) {
 }
 
 func TestWalkTransitiveChainDepth3(t *testing.T) {
-	// Depth-3 chain derived → mid → base: discoverEdges' BFS must enqueue the
+	// Depth-3 chain derived → mid → base: layergraph.Walk's BFS must enqueue the
 	// transitive ancestor (mid → base), the chain the motivating
 	// brain→nous→ariadne case realizes. Walk returns them foundation-first.
 	parent := t.TempDir()

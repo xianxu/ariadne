@@ -9,7 +9,7 @@ import (
 // realizes the composed agentic context. Pure: it computes Actions from
 // in-memory Layers and never touches disk (ARCH-PURE); a later IO seam (part 2)
 // applies them. Layers arrive in resolved order (foundation first, the
-// consuming repo last and self-included — see layer.Resolve / layer.Layer).
+// consuming repo last and self-included — see layergraph.Resolve / layer.Layer).
 //
 // Lowering is one switch over intent.Kind, ported from walk_manifest's dispatch
 // (ARCH-DRY — construct/setup.sh:320):
@@ -47,7 +47,7 @@ import (
 func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 	var actions []Action
 
-	// The leaf Lₙ is the LAST layer (layer.Resolve emits root last + self-
+	// The leaf Lₙ is the LAST layer (layergraph.Resolve emits root last + self-
 	// included). 𝒜(R) selects every layer's EXPORTS plus the LEAF's INTERNALS
 	// only — an ancestor's internal artifacts never reach R (the visibility axis,
 	// workshop/targets/base-layer-mechanics.md). leafIdx anchors both the

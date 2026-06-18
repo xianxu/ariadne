@@ -1,14 +1,14 @@
-// Package layer resolves the layer dependency graph: it turns a set of
-// per-layer dependency edges into a foundation-first, deduped application
-// order. Pure — no IO (ARCH-PURE); edges are read at the boundary and passed
-// in. Produces a VALID foundation-first topological order (DFS post-order) —
-// NOT bit-identical to setup.sh's discover_ancestors (BFS-then-reverse, which
-// mis-orders a foundation that is also a direct dependency); weave's is the
-// more correct order. ARCH-DRY here is "ports the intent (foundation-first +
-// dedup)," not the bit-ordering — M5's golden-diff pre-registers the divergence.
-package layer
+package layergraph
 
 import "fmt"
+
+// Resolve turns a set of per-layer dependency edges into a foundation-first,
+// deduped application order. Pure — no IO (ARCH-PURE); edges are read at the
+// boundary and passed in. Produces a VALID foundation-first topological order
+// (DFS post-order) — NOT bit-identical to setup.sh's discover_ancestors
+// (BFS-then-reverse, which mis-orders a foundation that is also a direct
+// dependency); this is the more correct order. ARCH-DRY here is "ports the
+// intent (foundation-first + dedup)," not the bit-ordering.
 
 // node visit states for cycle detection.
 const (
