@@ -114,11 +114,11 @@ Durable plan: `workshop/plans/000118-actual-ship-wallclock-subagent-spans-plan.m
 (authored via superpowers-writing-plans). Single-pass; the mandatory fresh-eyes
 review runs at `sdlc close` (branch-point→HEAD).
 
-- [ ] Task 1 — `TaskSpan` + union gap-math core (`activeMinutesUnion`/`unionMinutes`/`clampSpans`); `activeMinutes` → wrapper (parity-preserving)
-- [ ] Task 2 — parse `Agent` dispatch→return spans in `walkSessionEvents`/`loadEvents`
-- [ ] Task 3 — thread spans through `Compute` + `buildSegments` (fill, don't cap; clamp per segment; extend final boundary)
-- [ ] Task 4 — reconcile framing: helptext UNIT NOTE + calibration-findings banner + ledger header + atlas note; document 4-pre-fix-rows decision
-- [ ] Task 5 — verify: full suite + vet + build + real-data smoke
+- [x] Task 1 — `TaskSpan` + union gap-math core (`activeMinutesUnion`/`unionMinutes`/`clampSpans`); `activeMinutes` → wrapper (parity-preserving)
+- [x] Task 2 — parse `Agent` dispatch→return spans in `walkSessionEvents`/`loadEvents`
+- [x] Task 3 — thread spans through `Compute` + `buildSegments` (fill, don't cap; clamp per segment; extend final boundary)
+- [x] Task 4 — reconcile framing: helptext UNIT NOTE + calibration-findings banner + ledger header + atlas note; document 4-pre-fix-rows decision
+- [x] Task 5 — verify: full suite + vet + build + real-data smoke
 
 ## Log
 
@@ -128,3 +128,43 @@ wall-clock, but `actual` measured operator-interaction time — so the ~3.5× wa
 largely a wrong-ruler artifact. Supersedes #112's direction (operator-attention
 model; #112 stays parked in history). Sequence: fix the ruler (this) → observe 1–2
 weeks → recalibrate v2 → v2.1.
+
+### 2026-06-18 — built + verified
+
+**Premise correction (surfaced during exploration, operator-confirmed "build it,
+correct the rationale"):**
+- The subagent-dispatch tool is named **`Agent`**, not `Task`, in real transcripts
+  (the `Task*` tools are the todo list). Detection keys off `tool_use.name=="Agent"`.
+- **Magnitude claim was wrong.** Census of all 33 historical `Agent` spans → every
+  one is **under** the 15-min cap. So span-fill changes no current row; the ~3.5×
+  supervised overshoot is most consistent with **stale v2 numbers**, not a
+  wrong-ruler artifact. #118 is unit-correctness + forward-looking (bites once a
+  delegated run exceeds the cap). Calibration banner corrected accordingly.
+
+**Implementation (ARCH-DRY + ARCH-PURE):**
+- `activeMinutes` → thin wrapper over a single union-of-intervals core
+  `activeMinutesUnion` (capped gaps ∪ full task spans). Parity exact: with no spans
+  union == old sum-of-capped-gaps (`TestActiveMinutes` + `TestAttributionGolden`
+  unchanged). `ARCH-DRY` — one gap-math implementation.
+- Span detection in the IO seam (`walkSessionEvents`), structural (tool_use/
+  tool_result), independent of `includeAssistant`; union/clamp math pure,
+  unit-tested with real temp files (`ARCH-PURE`).
+- `buildSegments`: clamp spans per segment, fill in full, extend final boundary for
+  a trailing span, and **don't skip a span-bearing zero-event segment** — fixes the
+  **commit-inside-span** blocker a fresh-eyes plan review caught (a subagent that
+  commits mid-run leaves the post-commit tail in an event-less segment; the return
+  is a dropped `tool_result`). Span boundaries deliberately NOT added → commit-
+  anchored attribution preserved. `TestBuildSegmentsCommitInsideSpan` guards it.
+- `loadEvents` clamps spans to `[since,until]` (all measured time ∈ window).
+
+**Verification (evidence):**
+- `go test ./...` green, `go vet ./cmd/sdlc/...` clean, `go build ./cmd/sdlc` OK.
+- New tests: union fill/parity/overlap, clampSpans, Agent-span parse, dangling
+  dispatch, window-clamp, fills-span, commit-inside-span, tail-past-last-event.
+- **4-pre-fix-rows decision = KEEP AS-IS (demonstrated, not asserted):** built the
+  pre-#118 binary from the base commit and compared old vs new over identical
+  windows — #116 0.54h==0.54h, #117 1.31h==1.31h, #118 0.58h==0.58h. The engine
+  change is a provable no-op on sub-cap windows. (Ledger's 0.41/0.93 differ only
+  because closed-issue windows now extend to HEAD — a window artifact, not #118.)
+- Docs reconciled: estimate.md UNIT NOTE, atlas/ledger-landscape, brain
+  calibration-findings banner + `## Revisions`, ledger header.
