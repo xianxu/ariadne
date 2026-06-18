@@ -177,22 +177,31 @@ weave: weave-build
 		exit 1; \
 	fi
 
-# weave-drift-check — the dynamic-skill CI drift guard (#111). A dynamic skill's
-# SKILL.md is committed codegen (cmd/datatype writes the live datatype-noun list
-# into construct/local/datatype/SKILL.md at `weave compile` time). This regenerates
-# (the `weave` prereq runs the compile, exec'ing each .dynamic-skill) then asserts
-# `git diff --exit-code` on the generated skill files — a non-zero exit means a
-# committed SKILL.md is STALE vs regeneration (e.g. a datatype was added but not
-# re-wove). NOT an in-memory golden compare: weave can't redirect a marker's
-# --output, so the guard is regenerate-then-diff. Run in CI after `make weave`.
-weave-drift-check: weave
-	@echo "==> weave drift check (generated skill files must match regeneration)"
-	@if ! git diff --exit-code -- construct/local/datatype/SKILL.md; then \
-		echo "Error: a generated SKILL.md is stale vs weave compile." >&2; \
-		echo "  Run 'make weave' and commit the regenerated skill file(s)." >&2; \
+# weave-drift-check — the dynamic-skill GENERATE-IDEMPOTENCY guard (#115 M3, plan
+# decision D2). The old #111 guard `git diff --exit-code`'d the COMMITTED
+# construct/local/datatype/SKILL.md — but that body is now the GITIGNORED, per-repo
+# construct/generated/<dir>/SKILL.md, regenerated EVERY compile. A gitignored,
+# every-compile-regenerated output cannot go stale (git can't even see it), so the
+# staleness guard's job evaporated. What still bites is DETERMINISM: the render must
+# be byte-stable so two compiles produce identical bytes (else `git status` churns
+# nondeterministically). This runs the datatype binary twice into two temp dirs and
+# diffs the bytes — failing if the render is non-deterministic. (The renderer's
+# byte-stable unit test in cmd/datatype is the in-process counterpart.) Run in CI
+# after `make weave`; depends on datatype-build so the binary is on disk.
+weave-drift-check: datatype-build
+	@echo "==> weave drift check (dynamic-skill render must be deterministic)"
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	bin="$$owner/bin/datatype"; \
+	if [ ! -x "$$bin" ]; then echo "Error: datatype binary not built at $$bin" >&2; exit 1; fi; \
+	d1="$$(mktemp -d)"; d2="$$(mktemp -d)"; \
+	trap 'rm -rf "$$d1" "$$d2"' EXIT; \
+	"$$bin" --output "$$d1" && "$$bin" --output "$$d2"; \
+	if ! diff -q "$$d1/SKILL.md" "$$d2/SKILL.md" >/dev/null; then \
+		echo "Error: dynamic-skill render is NON-DETERMINISTIC (two runs differ)." >&2; \
+		echo "  The materialized construct/generated/<dir>/SKILL.md would churn git status." >&2; \
 		exit 1; \
 	fi
-	@echo "    OK — generated skill files are current."
+	@echo "    OK — dynamic-skill render is byte-stable across runs."
 
 bootstrap-peers:
 	@if [ -x construct/scripts/bootstrap-peers.sh ]; then \

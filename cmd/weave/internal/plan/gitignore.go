@@ -44,6 +44,7 @@ var GeneratedRuntimeGitignoreEntries = []string{
 	"/.claude/settings.json",
 	"/.colima/",
 	"/construct/scripts/vm-log.sh",
+	"/construct/generated/", // per-repo dynamic-skill materialization (#115 M3) — regenerated every compile
 }
 
 // EnsureGitignore ensures the repo's .gitignore contains every entry in Entries,

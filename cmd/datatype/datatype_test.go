@@ -44,41 +44,36 @@ func mergedNames(t *testing.T, root string) []string {
 	return names
 }
 
-// TestRenderSkill_FaithfulToCommittedSKILL is the FAITHFULNESS GATE, now over
-// the merged-render path: rendering with the REAL ariadne repo root (single-layer
-// DAG — ariadne is the base layer) must reproduce the current committed
-// construct/local/datatype/SKILL.md EXACTLY except the one description line. The
-// single-layer merge == #111's exact 13-noun byte output. We read the committed
-// file, swap ITS description tail to the live noun list, and assert byte-equality
-// with renderSkill's output — proving the template is a verbatim copy of the prose
-// and only the description differs.
-func TestRenderSkill_FaithfulToCommittedSKILL(t *testing.T) {
+// TestRenderSkill_FaithfulToTemplate is the FAITHFULNESS GATE (#115 M3 re-anchored):
+// the committed construct/local/datatype/SKILL.md was retired — its body now lives,
+// gitignored, under construct/generated/ (regenerated every compile). So the
+// faithfulness reference is the AUTHORED template SKILL.md.tmpl itself (the embedded
+// skillTemplate, the single source of truth). Rendering with the REAL ariadne repo
+// root (single-layer DAG — ariadne is the base layer) must reproduce the template
+// EXACTLY except the one placeholder line: the ONLY allowed change is swapping
+// __DATATYPE_NAMES__ for the live noun list. This proves renderSkill is a verbatim
+// copy of the prose and only the description differs (the #111 13-noun byte output).
+func TestRenderSkill_FaithfulToTemplate(t *testing.T) {
 	// Repo root relative to cmd/datatype (the test's cwd).
 	const repoRoot = "../.."
-	const committedSkill = "../../construct/local/datatype/SKILL.md"
+	const templatePath = "SKILL.md.tmpl"
 
 	names := mergedNames(t, repoRoot)
 	rendered := renderSkill(names)
 
-	committedBytes, err := os.ReadFile(committedSkill)
+	tmplBytes, err := os.ReadFile(templatePath)
 	if err != nil {
-		t.Fatalf("read committed SKILL.md: %v", err)
+		t.Fatalf("read template SKILL.md.tmpl: %v", err)
 	}
-	committed := string(committedBytes)
-
-	// Independently compute what the committed file's description SHOULD become:
-	// the committed file currently ends `…known frontmatter type:"`; appending the
-	// live nouns before the closing quote is the ONLY allowed change.
-	const tail = "known frontmatter type:"
-	expected := strings.Replace(committed, tail+"\"", tail+" "+strings.Join(names, ", ")+"\"", 1)
+	// The ONLY allowed change vs the template is the placeholder→noun-list swap.
+	expected := strings.Replace(string(tmplBytes), datatypeNamesPlaceholder, strings.Join(names, ", "), 1)
 
 	if rendered != expected {
-		// Surface the first differing line for a useful failure.
 		rl := strings.Split(rendered, "\n")
 		el := strings.Split(expected, "\n")
 		for i := 0; i < len(rl) && i < len(el); i++ {
 			if rl[i] != el[i] {
-				t.Fatalf("rendered diverges from committed SKILL.md beyond the description line:\n  line %d rendered: %q\n  line %d expected: %q", i+1, rl[i], i+1, el[i])
+				t.Fatalf("rendered diverges from SKILL.md.tmpl beyond the placeholder line:\n  line %d rendered: %q\n  line %d expected: %q", i+1, rl[i], i+1, el[i])
 			}
 		}
 		t.Fatalf("rendered length %d != expected length %d (trailing divergence)", len(rendered), len(expected))
