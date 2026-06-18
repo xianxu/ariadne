@@ -1,12 +1,13 @@
 ---
 id: 000115
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-17
 updated: 2026-06-18
 estimate_hours: 12
 started: 2026-06-18T13:22:13-07:00
+actual_hours: 1.79
 ---
 
 # DAG-merged dynamic skills: per-repo datatype enumeration across the layer graph
@@ -171,6 +172,21 @@ while staying live for nous and brain (brain → nous → ariadne).
 re-weave of every consumer, so the "Done when" gains a migration-correctness check
 (post-migration: nous/brain eager-trigger on `event`; pair does not).
 
+### 2026-06-18 — materialization sink moved `construct/local/` → `construct/generated/` (Spec supersession)
+
+The `## Spec` above (written pre-build) says the per-repo SKILL.md materializes
+into `<repo>/construct/local/datatype/SKILL.md` and lowers via an owner-vs-local
+`SkillSymlinks` branch. **The shipped design differs** (plan-review C1, plan
+decision D1): `construct/local/` is re-scanned by a consumer's own `skill
+construct/local` manifest row, which would emit a DUPLICATE `<repo>-datatype`
+skill. So materialization moved to a NEW **`construct/generated/<dir>/SKILL.md`**
+tree (gitignored everywhere, never skill-scanned), and discovery became
+**marker-aware** — a `.dynamic-skill` marker declares a dynamic skill whose body is
+the per-repo `construct/generated/<dir>/SKILL.md`. The "lowering switch" is realized
+in `GatherSkills` setting that `BodyPath` (so `SkillSymlinks` is unchanged), not a
+`SkillSymlinks` branch. The Spec's `construct/local` references are superseded by
+this; the durable plan + atlas document the shipped `construct/generated` model.
+
 ## Plan
 
 Durable plan: `workshop/plans/000115-dag-merged-datatype-skills-plan.md` (authored
@@ -188,7 +204,7 @@ whole-dir `symlink construct/datatype` row is retired).
       cwd=R root → leaf-rooted output), lowering switch (dynamic → this-repo),
       materialized SKILL.md gitignored everywhere, prune the orphan materialized
       class, repo-agnostic marker.
-- [ ] M4 — Migrate `event`/`travel-plan`/`reference` ariadne→nous, retire the
+- [x] M4 — Migrate `event`/`travel-plan`/`reference` ariadne→nous, retire the
       whole-dir datatype symlink, SKILL.md body → binary-based apply-time access,
       reconcile atlas + skill-system + base-layer-mechanics, E2E migration proof.
 
@@ -197,6 +213,8 @@ whole-dir `symlink construct/datatype` row is retired).
 
 
 
+
+- 2026-06-18: closed — #115 DAG-merged per-repo datatype skills. E2E: ariadne 10 types(no event), nous 13(event), brain 13(brain→nous→ariadne), pair 10(pair→ariadne,no event); datatype show event resolves in nous, exit 1 in pair. go build/vet/test green; harness-check 6/0/0; weave idempotent+clean across ariadne/nous/pair; drift-check byte-stable. Mechanism: pkg/layergraph shared DAG-walk(weave+datatype) + datatype PATH binary(mergeTypes local-wins + list/show) + construct/generated per-repo gitignored materialization + marker-aware discovery + lowering-to-this-repo. Migration: 3 nouns ariadne→nous(committed nous d665f1f), whole-dir symlink retired, body→datatype list/show, atlas+targets reconciled. actual 1.79h is v3 in-window measure — undercounts (M1-M4 mostly subagent-delegated + design/reviews outside transcript).; review verdict: FIX-THEN-SHIP
 - 2026-06-18: closed M3 — M3: weave generate-stage surgery. construct/generated/<dir> materialization (gitignored everywhere); marker-aware discovery (entry from tracked marker, BodyPath→leafRoot/construct/generated, fresh-clone safe); DynamicSkills all-layers visible-set (intent.Selected, adapted excl, dedup); generate cwd=leafRoot (ancestor tree never mutated); prune generated class; repo-agnostic marker + datatype-build PATH wiring. VERIFIED: go build/vet/test ./... green; make weave ariadne+nous+pair clean+idempotent, each materializes OWN construct/generated/datatype; C1 GATE — weave skills shows exactly 1 xx-datatype in nous+pair (no <repo>-datatype); committed construct/local/datatype/SKILL.md removed (marker kept); harness-check 6/0.; review verdict: FIX-THEN-SHIP
 - 2026-06-18: closed M2 — M2: datatype DAG-aware (mergeTypes union local-wins-by-filename, pure over layergraph.FS; product.md filename-trap + shadow + leaf-local tested) + list/show subcommands + datatype-build PATH binary. go build/vet/test ./... green; datatype list → 13 nouns; show unknown → exit 1; make weave byte-identical construct/local/datatype/SKILL.md (gap-bridge: old marker + deprecated --datatype-dir still work); harness-check 6/0.; review verdict: FIX-THEN-SHIP
 - 2026-06-18: closed M1 — M1: pkg/layergraph (FS+ParseDeps+Resolve+Walk) + pkg/frontmatter extracted module-level; go build/vet/test ./... green incl. full weave suite (behavior-preserving regression proof) + new pkgs; make weave idempotent + clean tree; no discoverEdges/substrateTargets/ParseDeps/Resolve/frontmatterDescription survives in cmd/weave (grep empty, ARCH-DRY, one walk). 5 TDD commits 6adb3bf..aca8d81.; review verdict: FIX-THEN-SHIP

@@ -19,13 +19,11 @@ import (
 //
 // The render command (no subcommand, --output given) finds the repo root from
 // cwd, walks its construct/deps layer graph, DAG-merges the prototypes
-// (local/leaf shadows shared, keyed by filename), and writes <dir>/SKILL.md. It
-// is invoked by the datatype package's `.dynamic-skill` at `weave compile` time
-// (cwd = the package dir; `--output .` writes the package dir).
-//
-// --datatype-dir is ACCEPTED-BUT-IGNORED (deprecated): the DAG merge across
-// construct/deps supersedes the single-dir enumeration, but the flag is still
-// parsed so the legacy marker's `--datatype-dir …` arg doesn't error.
+// (local/leaf shadows shared, keyed by filename), and writes <output>/SKILL.md
+// (creating the dir). It is invoked by the datatype skill's `.dynamic-skill` at
+// `weave compile` time, run with cwd = the COMPILING repo's root and `--output
+// construct/generated/datatype` (#115), so the merged render lands in that repo's
+// gitignored materialization tree.
 func main() {
 	// Subcommand dispatch keys on the first positional arg BEFORE flag parsing,
 	// so `datatype list` / `datatype show <name>` need no flags while the render
@@ -59,7 +57,6 @@ func main() {
 	}
 
 	output := flag.String("output", "", "directory to write SKILL.md into (required for the render command)")
-	_ = flag.String("datatype-dir", "construct/datatype", "DEPRECATED + IGNORED: the DAG merge across construct/deps supersedes this; accepted only so the legacy .dynamic-skill marker's arg doesn't error")
 	flag.Parse()
 
 	if *output == "" {

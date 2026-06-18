@@ -11,6 +11,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
+	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
@@ -77,7 +78,11 @@ func TestGenerateDynamicSkills_AncestorMarkerInvokedWithLeafCwd(t *testing.T) {
 		{Name: "leaf", Path: leaf, Intents: skillIntents("construct/local", "construct/adapted")},
 	}
 	fr := &fakeRunner{}
-	if err := generateDynamicSkills(layers, weavefs.OSFS{}, fr); err != nil {
+	dyns, derr := walk.DynamicSkills(weavefs.OSFS{}, layers)
+	if derr != nil {
+		t.Fatalf("select: %v", derr)
+	}
+	if err := generateDynamicSkills(dyns, layers[len(layers)-1].Path, fr); err != nil {
 		t.Fatalf("generate: %v", err)
 	}
 	if len(fr.calls) != 1 {
@@ -106,7 +111,11 @@ func TestGenerateDynamicSkills_RunnerErrorAborts(t *testing.T) {
 	}
 	sentinel := errors.New("exit 3")
 	fr := &fakeRunner{err: sentinel}
-	if err := generateDynamicSkills(layers, weavefs.OSFS{}, fr); !errors.Is(err, sentinel) {
+	dyns, derr := walk.DynamicSkills(weavefs.OSFS{}, layers)
+	if derr != nil {
+		t.Fatalf("select: %v", derr)
+	}
+	if err := generateDynamicSkills(dyns, layers[len(layers)-1].Path, fr); !errors.Is(err, sentinel) {
 		t.Fatalf("generate err = %v, want it to wrap the Runner error (compile aborts)", err)
 	}
 }
