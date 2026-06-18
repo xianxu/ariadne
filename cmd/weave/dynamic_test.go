@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
@@ -173,4 +174,94 @@ func skillIntents(sources ...string) []intent.Intent {
 		rows[i] = intent.Intent{Kind: intent.Skill, Source: s}
 	}
 	return rows
+}
+
+// realDatatypeMarker writes an executable .dynamic-skill that, like the production
+// marker, writes a SKILL.md into construct/generated/<dir> RELATIVE to cwd (=the
+// compiling repo's root) — a self-contained stand-in for the datatype binary so the
+// e2e tests don't depend on it being on PATH.
+func realDatatypeMarker(t *testing.T, pkgDir, outDir string) {
+	t.Helper()
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\nmkdir -p " + outDir + "\n" +
+		"printf '%s\\n' '---' 'name: xx-datatype' 'description: generated' '---' '' 'BODY' > " + outDir + "/SKILL.md\n"
+	if err := os.WriteFile(filepath.Join(pkgDir, ".dynamic-skill"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestCompileDerivativeMaterializesAndVerifyCompleteGreen (#115 M3, plan-review I6):
+// compiling a DERIVATIVE whose datatype marker is owned by the BASE layer
+// materializes the body under the DERIVATIVE's construct/generated (leaf-rooted
+// output), lowers exactly ONE xx-datatype skill (NO derived-datatype duplicate, the
+// C1 gate), and the read-only `verify-complete` stays GREEN post-compile.
+func TestCompileDerivativeMaterializesAndVerifyCompleteGreen(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+	// buildSkillRepoFixture's base lives at ../base relative to derived. Add the
+	// datatype marker to the BASE's construct/local (the owner), writing to
+	// construct/generated/datatype relative to cwd (the derivative root at compile).
+	base := filepath.Join(filepath.Dir(derived), "base")
+	realDatatypeMarker(t, filepath.Join(base, "construct", "local", "datatype"), "construct/generated/datatype")
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("compile derivative: %v\n%s", err, out.String())
+	}
+
+	// The body materialized under the DERIVATIVE (not the base).
+	if _, err := os.Stat(filepath.Join(derived, "construct", "generated", "datatype", "SKILL.md")); err != nil {
+		t.Fatalf("derivative did not materialize its own construct/generated/datatype/SKILL.md: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(base, "construct", "generated", "datatype", "SKILL.md")); !os.IsNotExist(err) {
+		t.Fatalf("the BASE (ancestor) tree was mutated by the derivative compile (err=%v); leaf-rooted output violated", err)
+	}
+
+	// Exactly one xx-datatype lowered, no derived-datatype duplicate (C1 gate).
+	skillsDir := filepath.Join(derived, ".claude", "skills")
+	var datatypeLinks []string
+	entries, _ := os.ReadDir(skillsDir)
+	for _, e := range entries {
+		if strings.Contains(e.Name(), "datatype") {
+			datatypeLinks = append(datatypeLinks, e.Name())
+		}
+	}
+	if len(datatypeLinks) != 1 || datatypeLinks[0] != "xx-datatype" {
+		t.Fatalf(".claude/skills datatype links = %v, want exactly [xx-datatype] (no derived-datatype — C1)", datatypeLinks)
+	}
+
+	// verify-complete (read-only) stays green post-compile.
+	var vout bytes.Buffer
+	if err := runVerifyComplete(weavefs.OSFS{}, derived, []string{derived}, plan.TargetAll, &vout); err != nil {
+		t.Fatalf("verify-complete reported under-production post-compile: %v\n%s", err, vout.String())
+	}
+}
+
+// TestCompilePrunesOrphanedGeneratedDir (#115 M3): a stale construct/generated/gone
+// (no longer produced by any marker) is GC'd by the compile, while the in-use
+// construct/generated/datatype survives.
+func TestCompilePrunesOrphanedGeneratedDir(t *testing.T) {
+	derived := buildSkillRepoFixture(t)
+	base := filepath.Join(filepath.Dir(derived), "base")
+	realDatatypeMarker(t, filepath.Join(base, "construct", "local", "datatype"), "construct/generated/datatype")
+	// Pre-seed an ORPHAN generated dir (no marker produces "gone").
+	goneDir := filepath.Join(derived, "construct", "generated", "gone")
+	if err := os.MkdirAll(goneDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(goneDir, "SKILL.md"), []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("compile: %v\n%s", err, out.String())
+	}
+	if _, err := os.Stat(goneDir); !os.IsNotExist(err) {
+		t.Errorf("orphan construct/generated/gone survived the compile (err=%v); generated-class GC failed", err)
+	}
+	if _, err := os.Stat(filepath.Join(derived, "construct", "generated", "datatype", "SKILL.md")); err != nil {
+		t.Errorf("in-use construct/generated/datatype was destroyed: %v", err)
+	}
 }

@@ -166,10 +166,19 @@ close-issue:
 # composing the consumer's repo is correct. Under `make bootstrap`,
 # bootstrap-peers (clones ancestors) precedes weave, so weave's owner is present
 # by the time this runs.
-weave: weave-build
+# PATH WIRING (#115 M3): the dynamic-skill marker now calls the `datatype` binary
+# by NAME (not `go run`), so datatype must be (a) BUILT and (b) on PATH when weave
+# execs the marker. So this target also depends on datatype-build, and exports the
+# datatype owner's bin/ onto PATH before running weave compile — weave execs the
+# marker via exec.Command, which inherits this PATH. This is shared Makefile.workflow:
+# in a derivative, `make weave` resolves datatype's owner = ariadne, builds + PATH-
+# exposes ariadne's bin/datatype, then weave (cwd=derivative) execs ariadne's marker
+# which writes the DERIVATIVE's construct/generated (leaf-rooted output).
+weave: weave-build datatype-build
 	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
+	dtowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
 	if [ -n "$$owner" ] && [ -x "$$owner/bin/weave" ]; then \
-		"$$owner/bin/weave" compile; \
+		PATH="$$dtowner/bin:$$PATH" "$$owner/bin/weave" compile; \
 	else \
 		echo "Error: weave binary not built (weave-build did not produce $$owner/bin/weave)."; \
 		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \

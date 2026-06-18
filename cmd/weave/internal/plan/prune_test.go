@@ -357,3 +357,74 @@ func TestPruneCrossTargetBidirectional(t *testing.T) {
 		t.Errorf("union pruned %v, want none", pruned)
 	}
 }
+
+// TestShouldPruneGenerated locks the pure decision: a generated dir is an orphan
+// IFF it's not in the produced set.
+func TestShouldPruneGenerated(t *testing.T) {
+	produced := ProducedGeneratedDirs([]string{"datatype"})
+	if shouldPruneGenerated("datatype", produced) {
+		t.Error("datatype is produced ⇒ must NOT prune")
+	}
+	if !shouldPruneGenerated("gone", produced) {
+		t.Error("gone is not produced ⇒ must prune")
+	}
+}
+
+// TestPruneGenerated_RemovesOrphanKeepsInUse (#115 M3): construct/generated/<gone>
+// (a dir for a dynamic skill the compile no longer produces) is removed; an in-use
+// construct/generated/datatype is preserved. Nothing outside construct/generated is
+// touched. Exercised through the real OSFS scan+remove seam.
+func TestPruneGenerated_RemovesOrphanKeepsInUse(t *testing.T) {
+	repoRoot := t.TempDir()
+	// Two materialized generated dirs: datatype (in use) + gone (orphan).
+	for _, d := range []string{"datatype", "gone"} {
+		dir := filepath.Join(repoRoot, "construct", "generated", d)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("body"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A SACRED path OUTSIDE construct/generated that must never be touched.
+	sacred := filepath.Join(repoRoot, "construct", "local", "datatype")
+	if err := os.MkdirAll(sacred, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sacred, ".dynamic-skill"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	removed, err := PruneGenerated(weavefs.OSFS{}, repoRoot, ProducedGeneratedDirs([]string{"datatype"}))
+	if err != nil {
+		t.Fatalf("PruneGenerated: %v", err)
+	}
+	want := []string{filepath.Join("construct", "generated", "gone")}
+	if !reflect.DeepEqual(removed, want) {
+		t.Fatalf("removed %v, want %v", removed, want)
+	}
+	exists := func(p string) bool { _, err := os.Stat(p); return err == nil }
+	if exists(filepath.Join(repoRoot, "construct", "generated", "gone")) {
+		t.Error("orphan construct/generated/gone NOT removed")
+	}
+	if !exists(filepath.Join(repoRoot, "construct", "generated", "datatype", "SKILL.md")) {
+		t.Error("in-use construct/generated/datatype was destroyed")
+	}
+	// Nothing outside construct/generated touched.
+	if !exists(filepath.Join(sacred, ".dynamic-skill")) {
+		t.Error("PruneGenerated touched a path OUTSIDE construct/generated (the marker)")
+	}
+}
+
+// TestPruneGenerated_AbsentTreeIsNoOp: a repo with no construct/generated (no
+// dynamic skills, or a fresh clone) prunes nothing and never errors.
+func TestPruneGenerated_AbsentTreeIsNoOp(t *testing.T) {
+	repoRoot := t.TempDir()
+	removed, err := PruneGenerated(weavefs.OSFS{}, repoRoot, ProducedGeneratedDirs(nil))
+	if err != nil {
+		t.Fatalf("PruneGenerated on absent tree: %v", err)
+	}
+	if len(removed) != 0 {
+		t.Errorf("removed %v, want none (absent construct/generated)", removed)
+	}
+}
