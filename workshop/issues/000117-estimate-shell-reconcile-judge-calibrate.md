@@ -156,6 +156,15 @@ existing estimate-logic-v2; dropped the #112/#116 hard deps (model-agnostic shel
 Connects to the deterministic-shell / form-vs-essence / minimum-mechanism
 principles. Work order this session: #117 → #116.
 
+`sdlc change-code` plan-quality judge: **INFO** (high confidence, plan approved to
+start). 4 advisory findings folded into the plan before implementing: (1) Important
+— close-time ledger append must degrade gracefully (skip+warn) when no sibling
+`brain/` exists, since sdlc is base-layer and propagates downstream; (2) fixed the
+Core-concepts example block to reconcile (canonical 3.4 green fixture); (3) keep
+`EstimateQuality` out of `AllCategories()`/bulk-dispatch (change-code-time only);
+(4) added a vocab↔helptext drift-guard test. Branch `000117-estimate-shell-
+reconcile-judge-calibrate` created in-place.
+
 **Decisions (this session):**
 - `## Estimate` format = **fenced ```estimate block** (key:value + `item:` lines).
   Deterministic recompute `total = Σdesign×(1+design-buffer) + Σimpl×familiarity`,
