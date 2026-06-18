@@ -49,6 +49,14 @@ const adaptedSkillRel = "construct/adapted"
 // so a downstream re-declaration of a name overrides (skill.Build's cascade).
 func GatherSkills(fs weavefs.FS, layers []layer.Layer) ([]skill.Entry, error) {
 	var entries []skill.Entry
+	if len(layers) == 0 {
+		return entries, nil
+	}
+	// leafRoot = the COMPILING repo's canonical root (the leaf layer's Path). A
+	// dynamic skill's body is materialized under leafRoot/construct/generated/<dir>
+	// (#115 M3), so even an ancestor-owned dynamic skill resolves to THIS repo's
+	// generated copy — never the ancestor's.
+	leafRoot := layers[len(layers)-1].Path
 	for i, l := range layers {
 		prefix := skillPrefix(fs, l.Path)
 		for _, in := range l.Intents {
@@ -59,7 +67,7 @@ func GatherSkills(fs weavefs.FS, layers []layer.Layer) ([]skill.Entry, error) {
 			if in.Source == adaptedSkillRel { // external skills keep their bare names
 				rowPrefix = ""
 			}
-			es, err := scanSkillDir(fs, filepath.Join(l.Path, in.Source), rowPrefix)
+			es, err := scanSkillDir(fs, filepath.Join(l.Path, in.Source), rowPrefix, leafRoot)
 			if err != nil {
 				return nil, err
 			}
@@ -73,12 +81,22 @@ func GatherSkills(fs weavefs.FS, layers []layer.Layer) ([]skill.Entry, error) {
 	return entries, nil
 }
 
-// scanSkillDir lists sourceDir and, for each child directory that ships a
-// SKILL.md, parses its frontmatter description and emits an Entry named
-// "<prefix><dir>". An absent sourceDir is no skills (not an error — a layer
-// need not ship every category, like the hook's `[[ -d ]] || return 0`). A dir
-// lacking a SKILL.md is skipped (it isn't a skill).
-func scanSkillDir(fs weavefs.FS, sourceDir, prefix string) ([]skill.Entry, error) {
+// scanSkillDir lists sourceDir and, for each child package dir, emits one Entry.
+// It is MARKER-AWARE (#115 M3): a dir is FIRST checked for an executable
+// `.dynamic-skill` marker — if present, it's a DYNAMIC skill whose body is the
+// per-repo materialized leafRoot/construct/generated/<dir>/SKILL.md (NOT a tracked
+// SKILL.md in the source dir), and its description is read from that materialized
+// body (empty if it hasn't been compiled yet — see below). ELSE, a dir shipping a
+// SKILL.md is a STATIC skill (today's path). A dir with neither is not a skill and
+// is skipped. An absent sourceDir is no skills (not an error — a layer need not
+// ship every category, like the hook's `[[ -d ]] || return 0`).
+//
+// Fresh-clone behavior (#115 D3, fixes #111's "skill vanishes"): because a dynamic
+// entry is emitted from the TRACKED marker — not from a SKILL.md that lives,
+// gitignored, under construct/generated/ — the skill is DISCOVERED even in an
+// un-compiled clone (read-only `weave skills`/`golden`/`verify-complete`). Only its
+// description body is absent until the first `weave compile` materializes it.
+func scanSkillDir(fs weavefs.FS, sourceDir, prefix, leafRoot string) ([]skill.Entry, error) {
 	dirents, err := fs.ReadDir(sourceDir)
 	if err != nil {
 		return nil, nil // absent / unreadable source dir ⇒ no skills here
@@ -88,10 +106,28 @@ func scanSkillDir(fs weavefs.FS, sourceDir, prefix string) ([]skill.Entry, error
 		if !de.IsDir() {
 			continue
 		}
+		// Marker FIRST: an executable .dynamic-skill makes this a dynamic skill whose
+		// body is the COMPILING repo's materialized copy (reuses dynamicSkillRel +
+		// isExecutable from dynamic.go, same package — DRY).
+		markerPath := filepath.Join(sourceDir, de.Name(), dynamicSkillRel)
+		if fi, serr := fs.Stat(markerPath); serr == nil && !fi.IsDir() && isExecutable(fi.Mode()) {
+			bodyPath := filepath.Join(leafRoot, "construct", "generated", de.Name(), "SKILL.md")
+			desc := ""
+			if data, rerr := fs.ReadFile(bodyPath); rerr == nil {
+				desc = frontmatter.Description(string(data)) // absent until first compile ⇒ ""
+			}
+			out = append(out, skill.Entry{
+				Name:        prefix + de.Name(),
+				Description: desc,
+				BodyPath:    bodyPath,
+				Dynamic:     true,
+			})
+			continue
+		}
 		bodyPath := filepath.Join(sourceDir, de.Name(), "SKILL.md")
 		data, rerr := fs.ReadFile(bodyPath)
 		if rerr != nil {
-			continue // a dir with no SKILL.md is not a skill (hook scans `*/`)
+			continue // a dir with no SKILL.md and no marker is not a skill (hook scans `*/`)
 		}
 		out = append(out, skill.Entry{
 			Name:        prefix + de.Name(),

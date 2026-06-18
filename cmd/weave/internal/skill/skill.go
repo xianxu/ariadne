@@ -27,8 +27,16 @@ type Entry struct {
 	Name        string
 	Description string
 	BodyPath    string
-	Visibility  intent.Visibility // from the declaring `skill <dir>` row (Export default)
-	LayerIndex  int               // foundation-first index of the declaring layer
+	// Dynamic marks an entry whose body is the per-repo materialized
+	// construct/generated/<dir>/SKILL.md (a `.dynamic-skill` marker declared it),
+	// NOT a tracked SKILL.md in the source dir (#115 M3). It changes nothing in the
+	// pure index — BodyPath already points at the right body (the gitignored
+	// generated copy under the COMPILING repo) and SkillSymlinks lowers Dir(BodyPath)
+	// uniformly — but the flag is carried so callers can reason about a body that is
+	// regenerated every compile (absent until the first compile in a fresh clone).
+	Dynamic    bool
+	Visibility intent.Visibility // from the declaring `skill <dir>` row (Export default)
+	LayerIndex int               // foundation-first index of the declaring layer
 }
 
 // SelectVisible keeps the entries that participate in the selected multiset 𝒜(R):

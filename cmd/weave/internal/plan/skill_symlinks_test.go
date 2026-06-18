@@ -36,3 +36,23 @@ func TestSkillSymlinks_Empty(t *testing.T) {
 		t.Fatalf("SkillSymlinks(nil) = %v, want empty", got)
 	}
 }
+
+// TestSkillSymlinks_DynamicLowersToGenerated (#115 M3): a Dynamic entry's BodyPath
+// is the compiling repo's construct/generated/<dir>/SKILL.md, so SkillSymlinks —
+// UNCHANGED, still Src = Dir(BodyPath) — lowers its link straight at this-repo's
+// materialized copy, NOT the owner. The lowering switch collapsed into the entry's
+// BodyPath (set by GatherSkills), so no branch is needed here.
+func TestSkillSymlinks_DynamicLowersToGenerated(t *testing.T) {
+	entries := []skill.Entry{
+		{Name: "xx-datatype", Dynamic: true, BodyPath: "/ws/derived/construct/generated/datatype/SKILL.md"},
+		{Name: "xx-sdlc", BodyPath: "/ws/ariadne/construct/local/sdlc/SKILL.md"},
+	}
+	got := SkillSymlinks(entries, ".claude/skills")
+	want := []Symlink{
+		{Src: "/ws/derived/construct/generated/datatype", Dst: ".claude/skills/xx-datatype"},
+		{Src: "/ws/ariadne/construct/local/sdlc", Dst: ".claude/skills/xx-sdlc"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("SkillSymlinks(dynamic) =\n %#v\nwant\n %#v", got, want)
+	}
+}
