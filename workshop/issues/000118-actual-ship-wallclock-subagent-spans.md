@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-18
 updated: 2026-06-18
-estimate_hours:
+estimate_hours: 0.96
 started: 2026-06-18T10:30:48-07:00
 ---
 
@@ -90,9 +90,35 @@ Make active-time measure **active ship wall-clock**: idle removed, but
   fairly. Plan after this lands: observe estimate↔actual for 1–2 weeks, then
   recalibrate v2 → v2.1 from the corrected ledger.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: smaller-go-module   design=0.1 impl=0.5
+item: atlas-docs          design=0.1 impl=0.2
+design-buffer: 0.30
+total: 0.96
+```
+
+- `smaller-go-module` — extend `internal/activetime` (TaskSpan + union gap-math +
+  Agent-span parsing + threading through Compute/buildSegments). Design low: the
+  durable plan pre-resolves the decisions; impl upper-range (3 files, ~10 new
+  tests, parity-sensitive).
+- `atlas-docs` — helptext UNIT-NOTE reconcile + calibration-findings banner +
+  ledger header + atlas note, across ariadne + brain.
+
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000118-actual-ship-wallclock-subagent-spans-plan.md`
+(authored via superpowers-writing-plans). Single-pass; the mandatory fresh-eyes
+review runs at `sdlc close` (branch-point→HEAD).
+
+- [ ] Task 1 — `TaskSpan` + union gap-math core (`activeMinutesUnion`/`unionMinutes`/`clampSpans`); `activeMinutes` → wrapper (parity-preserving)
+- [ ] Task 2 — parse `Agent` dispatch→return spans in `walkSessionEvents`/`loadEvents`
+- [ ] Task 3 — thread spans through `Compute` + `buildSegments` (fill, don't cap; clamp per segment; extend final boundary)
+- [ ] Task 4 — reconcile framing: helptext UNIT NOTE + calibration-findings banner + ledger header + atlas note; document 4-pre-fix-rows decision
+- [ ] Task 5 — verify: full suite + vet + build + real-data smoke
 
 ## Log
 
