@@ -35,6 +35,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -57,6 +58,7 @@ type closeFlags struct {
 	BrainDir  string
 	IssuesDir string
 	Agent     string // agent CLI for the issue boundary-review dispatch (#69)
+	Mode      string // optional supervision mode (supervised|delegated) for the calibration ledger (#117)
 
 	// Per-gate bypass flags (#67). Each waives exactly ONE of runClose's
 	// guards; --force waives them all. The flag is an explicit acknowledgment
@@ -126,6 +128,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (numeric, required)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag (e.g. M1, M4b); omit for full issue close")
 	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours (sdlc computes it; see `sdlc actual`)")
+	cmd.Flags().StringVar(&f.Mode, "mode", "", "optional supervision mode for the calibration ledger: supervised | delegated (#117)")
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "one-line evidence the work meets done-when")
 	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass ALL gates (≡ every --no-* flag); record the reason in --verified")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would change; do not write")
@@ -581,8 +584,104 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		}
 	}
 
+	// ── Close the loop (#117 mechanism 3) ────────────────────────────────────
+	// On a full-issue close with a measured actual, append the estimate↔actual
+	// data point to the calibration ledger. Milestone closes carry a partial
+	// actual, so only the whole-issue close yields a clean row.
+	if f.Milestone == "" && f.Actual != "" {
+		appendCalibrationRow(stderr, f, fm, body, repoName, issueStr, today)
+	}
+
 	cok(stderr, "done — review with `git diff`, then commit")
 	return nil
+}
+
+// appendCalibrationRow writes one estimate↔actual data point to the calibration
+// ledger at full-issue close (#117 mechanism 3). It is the IO seam — the row math
+// (FormatRow / DriftVerdict / ParseRows) stays pure in internal/estimate.
+//
+// Graceful degradation (M2 plan-quality finding #1): `sdlc` is base-layer and
+// propagates to downstream repos that may have no sibling brain/. When
+// WF_CALIB_LEDGER is unset AND the resolved ledger dir is absent, it skips with a
+// warning and returns — a missing ledger must NEVER break `sdlc close`.
+func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string) {
+	ledgerPath := os.Getenv("WF_CALIB_LEDGER")
+	usingOverride := ledgerPath != ""
+	if !usingOverride {
+		if f.BrainDir == "" {
+			cwarn(stderr, "calibration ledger skipped (no brain dir resolved)")
+			return
+		}
+		ledgerPath = filepath.Join(f.BrainDir, "data", "life", "42shots", "velocity", "calibration-ledger.tsv")
+	}
+	ledgerDir := filepath.Dir(ledgerPath)
+	if _, err := os.Stat(ledgerDir); err != nil {
+		if !usingOverride {
+			cwarn(stderr, fmt.Sprintf("calibration ledger skipped (no ledger dir %s)", ledgerDir))
+			return
+		}
+		if mkErr := os.MkdirAll(ledgerDir, 0o755); mkErr != nil {
+			cwarn(stderr, fmt.Sprintf("calibration ledger skipped (mkdir %s: %v)", ledgerDir, mkErr))
+			return
+		}
+	}
+
+	estStr, _ := issue.GetField(fm, "estimate_hours")
+	est, _ := strconv.ParseFloat(strings.TrimSpace(estStr), 64)
+	actual, _ := strconv.ParseFloat(strings.TrimSpace(f.Actual), 64)
+
+	var design, impl float64
+	model := ""
+	if section, ok := issue.EstimateSection(body); ok {
+		if block, err := estimate.ParseBlock(section); err == nil {
+			model = block.Model
+			for _, it := range block.Items {
+				design += it.Design
+				impl += it.Impl
+			}
+		}
+	}
+	started, _ := issue.GetField(fm, "started")
+	row := estimate.LedgerRow{
+		Issue:     repoName + "#" + issueStr,
+		Estimate:  est,
+		EstDesign: design,
+		EstImpl:   impl,
+		Actual:    actual,
+		Model:     model,
+		Mode:      f.Mode,
+		// #116 stamps `started:` at claim; until then every row is untrusted-window
+		// and excluded from drift stats. Auto-upgrades once started: is present.
+		WindowTrusted: strings.TrimSpace(started) != "",
+		Date:          today,
+	}
+
+	existing, _ := os.ReadFile(ledgerPath)
+	var buf strings.Builder
+	if len(existing) == 0 {
+		buf.WriteString(estimate.Header() + "\n")
+	} else {
+		buf.Write(existing)
+		if !strings.HasSuffix(string(existing), "\n") {
+			buf.WriteString("\n")
+		}
+	}
+	buf.WriteString(estimate.FormatRow(row) + "\n")
+	if err := os.WriteFile(ledgerPath, []byte(buf.String()), 0o644); err != nil {
+		cwarn(stderr, fmt.Sprintf("calibration ledger append failed: %v", err))
+		return
+	}
+
+	trust := "untrusted-window"
+	if row.WindowTrusted {
+		trust = "trusted-window"
+	}
+	cok(stderr, fmt.Sprintf("calibration ledger: %s est %.2f / actual %.2f (ratio %.1f×, %s)",
+		row.Issue, row.Estimate, row.Actual, row.Ratio(), trust))
+
+	if warn, msg := estimate.DriftVerdict(estimate.ParseRows(buf.String()), 5); warn {
+		cwarn(stderr, msg)
+	}
 }
 
 // runCloseWithReview runs the mechanical close, then — for a standalone whole-issue

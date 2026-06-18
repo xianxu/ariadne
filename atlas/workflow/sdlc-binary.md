@@ -138,10 +138,14 @@ deterministic ground-truth measurement (`sdlc actual`). *Form:* the change-code
 an itemized v2-primitive derivation (`Σdesign×(1+buffer)+Σimpl×familiarity`). No
 unitemized estimate — a fabricated number can't pass. *Essence:* the
 **estimate-quality** judge checks the derivation was applied, not back-fit.
-*Feedback:* `sdlc close` will append every estimate↔actual pair to a calibration
-ledger and flag drift (M3) — closing the loop the hand-kept validation log never
-did. Grammar + closed vocabulary: `helptext/estimate.md` (canonical slugs in
-`internal/estimate/vocab.go`, a drift test guards the mirror).
+*Feedback:* on a full-issue close `sdlc close` appends every estimate↔actual pair
+to `brain/.../velocity/calibration-ledger.tsv` (`$WF_CALIB_LEDGER` override) and
+flags >2× same-direction drift over the last N **window-trusted** rows —
+pre-#116 rows are `window-trusted=no` and excluded (a truncated actual isn't a
+clean point; skip-with-warning when no brain/ ledger dir exists downstream). This
+closes the loop the hand-kept validation log never did. Grammar + closed
+vocabulary: `helptext/estimate.md` (canonical slugs in
+`internal/estimate/vocab.go`, a bidirectional drift test guards the mirror).
 
 **Per-gate bypass (#67).** `close` has 8 gates (actual, verified, atlas,
 milestone-verdict, plan-unchecked, project, re-close, and the #69 boundary

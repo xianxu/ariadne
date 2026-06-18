@@ -119,3 +119,16 @@ e.g. a typed estimate where the measurement is minutes) is REFUSED — re-run
 measurement is genuinely wrong. Small absolute gaps (< 0.5h) never trip it.
 This is the backstop for the "hand-type a plausible number" failure that a
 guessed --actual would otherwise sail through. (milestone-close inherits it.)
+
+CALIBRATION LEDGER (#117 — closing the estimate↔actual loop)
+
+  On a full-issue close (no --milestone) with a measured --actual, close appends
+  one estimate↔actual row to the calibration ledger (default
+  brain/data/life/42shots/velocity/calibration-ledger.tsv; override with
+  $WF_CALIB_LEDGER) and flags >2× same-direction drift over the last N
+  window-trusted rows. Each row records whether the actual came from a
+  `started:`-windowed measurement (#116) — pre-#116 rows are window-trusted=no and
+  excluded from drift stats (a truncated actual isn't a clean data point). Pass
+  --mode supervised|delegated to tag the supervision style. If no ledger dir
+  exists (a downstream repo with no sibling brain/), close skips it with a warning
+  — a missing ledger never breaks the close.
