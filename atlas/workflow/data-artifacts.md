@@ -40,6 +40,12 @@ The dispatcher fires on three triggers, in priority order:
 
 ## Built-in types
 
+This is the cross-stack catalog. Post-#115 it is **per-layer-owned**: `event`,
+`travel-plan`, `reference` are **nous-owned** (`nous/construct/datatype/`, a
+personal-assistant concern), the rest are ariadne's generic base set; the
+`datatype` binary DAG-merges per repo, so a given repo sees the union over its own
+layer graph (ariadne sees the base set without the three nous nouns).
+
 | Type | Use for |
 |---|---|
 | `type` | Meta-prototype. Apply to add new types. |

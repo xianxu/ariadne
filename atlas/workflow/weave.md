@@ -31,15 +31,21 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   + shell, no `.claude/` assumptions in the core.
 
 ## Surface (grows per milestone)
-- `cmd/weave/internal/layer` — `Resolve` (foundation-first topo-sort + dedup;
-  ports `discover_ancestors`) and `ParseDeps` (`construct/deps` substrate-edge
-  parser; ports `lib-deps.sh:deps_substrate_targets`). **[M1]**
+- `pkg/layergraph` (module-level — imported by BOTH weave AND the `datatype`
+  binary, #115) — the SINGLE source of "what is repo R's layer graph": `Walk`
+  (transitive `construct/deps` topology → foundation-first ordered layer roots;
+  ports `deps_substrate_targets` + the `_seen_or_add` filters), `Resolve`
+  (foundation-first topo-sort + dedup; ports `discover_ancestors`), `ParseDeps`
+  (`construct/deps` substrate-edge parser; ports `lib-deps.sh:deps_substrate_targets`),
+  `FS` (the walk's IO seam). `cmd/weave/internal/layer` now carries only the
+  resolved-layer value types (`Layer`, `ProseFragment`). `pkg/frontmatter` —
+  flat-YAML `description:` parser, shared with weave's skill discovery. **[M1]**
 - `cmd/weave/internal/{intent,plan,walk,weavefs,golden}` + `main.go` —
   `intent.ParseManifest` (base.manifest → hybrid intents) · `plan.{composeProse,
   Plan,Action,Apply}` (pure lowering + idempotent file-op apply, porting
-  `create_symlink`/`create_scaffold` + inline `touch`) · `walk.Walk` (transitive
-  `construct/deps` walk; ports `deps_substrate_targets` + the `_seen_or_add` +
-  self-reference filters) · `weavefs.FS` (injectable IO seam) · `golden` (pure
+  `create_symlink`/`create_scaffold` + inline `touch`) · `walk.Walk` (the per-layer
+  LOADER on top of `pkg/layergraph.Walk`'s topology — loads each resolved root's
+  manifest + prose fragments; the self-reference filter) · `weavefs.FS` (injectable IO seam) · `golden` (pure
   divergence classifier) + the `weave` / `weave --dry-run` / `weave golden` CLI.
   Prose/skill are exempt from the self-reference filter (a repo composes its own
   prose into its `AGENTS.md` — the `@AGENTS.local.md` fix). **[M2]**
