@@ -43,6 +43,52 @@ func TestActiveMinutes(t *testing.T) {
 	}
 }
 
+func TestActiveMinutesUnionFillsSpan(t *testing.T) {
+	// Two events 30 min apart: bare gap caps at 15. With a Task span covering the
+	// full 30 min, the span fills it → 30 (subagent work, not idle).
+	times := []time.Time{tm("2026-01-01T00:00:00Z"), tm("2026-01-01T00:30:00Z")}
+	if got := activeMinutesUnion(times, nil, 15); !approx(got, 15) {
+		t.Fatalf("bare 30-min gap should cap at 15, got %v", got)
+	}
+	spans := []TaskSpan{{Start: tm("2026-01-01T00:00:00Z"), End: tm("2026-01-01T00:30:00Z")}}
+	if got := activeMinutesUnion(times, spans, 15); !approx(got, 30) {
+		t.Fatalf("span-covered 30-min gap should fill to 30, got %v", got)
+	}
+}
+
+func TestActiveMinutesUnionParityNoSpans(t *testing.T) {
+	// Identical to TestActiveMinutes: 5-min kept + 30-min capped = 20.
+	times := []time.Time{
+		tm("2026-01-01T00:00:00Z"), tm("2026-01-01T00:05:00Z"), tm("2026-01-01T00:35:00Z"),
+	}
+	if got := activeMinutesUnion(times, nil, 15); !approx(got, 20) {
+		t.Fatalf("want 20, got %v", got)
+	}
+}
+
+func TestActiveMinutesUnionOverlapIsWallClock(t *testing.T) {
+	// Two overlapping (parallel) spans union to wall-clock, not summed effort.
+	spans := []TaskSpan{
+		{Start: tm("2026-01-01T00:00:00Z"), End: tm("2026-01-01T00:20:00Z")},
+		{Start: tm("2026-01-01T00:10:00Z"), End: tm("2026-01-01T00:30:00Z")},
+	}
+	if got := activeMinutesUnion(nil, spans, 15); !approx(got, 30) {
+		t.Fatalf("overlapping spans should union to 30, got %v (not 40)", got)
+	}
+}
+
+func TestClampSpans(t *testing.T) {
+	spans := []TaskSpan{{Start: tm("2026-01-01T00:00:00Z"), End: tm("2026-01-01T01:00:00Z")}}
+	got := clampSpans(spans, tm("2026-01-01T00:20:00Z"), tm("2026-01-01T00:40:00Z"))
+	if len(got) != 1 || !got[0].Start.Equal(tm("2026-01-01T00:20:00Z")) || !got[0].End.Equal(tm("2026-01-01T00:40:00Z")) {
+		t.Fatalf("clamp to [00:20,00:40), got %+v", got)
+	}
+	// Non-overlapping span → dropped.
+	if out := clampSpans(spans, tm("2026-01-01T02:00:00Z"), tm("2026-01-01T03:00:00Z")); len(out) != 0 {
+		t.Fatalf("non-overlapping span should drop, got %+v", out)
+	}
+}
+
 func TestAttributeSegmentCommitOnly(t *testing.T) {
 	// weight 1.0, two commit issues, no transcript share → 30 each, no unattributed.
 	out := attributeSegment(60, []string{"8", "10"}, map[string]int{"8": 3}, 1.0)
@@ -97,7 +143,7 @@ func TestBuildSegmentsPrefixAndAnchor(t *testing.T) {
 		{Time: tm("2026-01-01T00:50:00Z"), SHA: "aaa1111", Subject: "#8 m1", Issues: []string{"8"}},
 		{Time: tm("2026-01-01T01:20:00Z"), SHA: "bbb2222", Subject: "#8 m2", Issues: []string{"8"}},
 	}
-	segs := buildSegments(events, commits, 1.0 /*commitWeight*/, 0.5 /*prefixWeight*/, 15 /*thresholdMin*/)
+	segs := buildSegments(events, commits, nil, 1.0 /*commitWeight*/, 0.5 /*prefixWeight*/, 15 /*thresholdMin*/)
 	if len(segs) == 0 {
 		t.Fatal("expected segments")
 	}
@@ -132,10 +178,85 @@ func TestBuildSegmentsNoPrefix(t *testing.T) {
 		{Time: tm("2026-01-01T00:55:00Z")},
 	}
 	commits := []Commit{{Time: at, SHA: "abc1234", Subject: "#8 work", Issues: []string{"8"}}}
-	segs := buildSegments(events, commits, 1.0, 0.5, 15)
+	segs := buildSegments(events, commits, nil, 1.0, 0.5, 15)
 	for _, s := range segs {
 		if s.IsPrefix {
 			t.Fatalf("did not expect a prefix segment: %+v", s)
 		}
+	}
+}
+
+func TestBuildSegmentsFillsSpan(t *testing.T) {
+	// One commit; a 40-min Agent span sits in the suffix between two events that
+	// are 40 min apart (bare gap would cap at 15). The span fills it.
+	events := []Event{
+		{Time: tm("2026-01-01T00:50:00Z"), Mentions: map[string]int{"8": 1}},
+		{Time: tm("2026-01-01T01:00:00Z")},                                   // dispatch event
+		{Time: tm("2026-01-01T01:40:00Z"), Mentions: map[string]int{"8": 1}}, // next turn after return
+	}
+	commits := []Commit{{Time: tm("2026-01-01T00:50:00Z"), SHA: "aaa", Subject: "#8", Issues: []string{"8"}}}
+	spans := []TaskSpan{{Start: tm("2026-01-01T01:00:00Z"), End: tm("2026-01-01T01:40:00Z")}}
+	withSpan := buildSegments(events, commits, spans, 1.0, 0.5, 15)
+	noSpan := buildSegments(events, commits, nil, 1.0, 0.5, 15)
+	var aw, an float64
+	for _, s := range withSpan {
+		aw += s.Active
+	}
+	for _, s := range noSpan {
+		an += s.Active
+	}
+	// noSpan: 10 (kept) + 15 (capped) = 25. withSpan: 10 + 40 (filled) = 50.
+	if !approx(an, 25) || !approx(aw, 50) {
+		t.Fatalf("want noSpan=25 withSpan=50, got %v / %v", an, aw)
+	}
+}
+
+func TestBuildSegmentsCommitInsideSpan(t *testing.T) {
+	// The blocker case: a commit lands STRICTLY INSIDE a span (a subagent that
+	// commits mid-run). The post-commit tail segment has NO events (the return is
+	// a dropped tool_result), so it must not be skipped — the full span counts and
+	// attributes to the commits anchoring each piece.
+	events := []Event{
+		{Time: tm("2026-01-01T00:00:00Z"), Mentions: map[string]int{"8": 1}}, // dispatch event
+		{Time: tm("2026-01-01T00:50:00Z"), Mentions: map[string]int{"8": 1}}, // next turn (after return)
+	}
+	commits := []Commit{
+		{Time: tm("2026-01-01T00:10:00Z"), SHA: "aaa", Subject: "#8 mid", Issues: []string{"8"}}, // INSIDE span
+		{Time: tm("2026-01-01T00:50:00Z"), SHA: "bbb", Subject: "#8 end", Issues: []string{"8"}},
+	}
+	spans := []TaskSpan{{Start: tm("2026-01-01T00:00:00Z"), End: tm("2026-01-01T00:40:00Z")}}
+	segs := buildSegments(events, commits, spans, 1.0 /*commitWeight*/, 1.0 /*prefixWeight*/, 15)
+	var tot, toIssue8 float64
+	for _, s := range segs {
+		tot += s.Active
+		toIssue8 += s.Alloc["8"]
+	}
+	// Span is 40 min; the [00:00,00:10) piece (10) + [00:10,00:40) tail (30) must
+	// both count → 40 total, all attributed to #8 (weight 1.0, both anchors #8).
+	if !approx(tot, 40) {
+		t.Fatalf("commit-inside-span: want 40 total active, got %v (tail dropped?)", tot)
+	}
+	if !approx(toIssue8, 40) {
+		t.Fatalf("commit-inside-span: want 40 min → #8, got %v", toIssue8)
+	}
+}
+
+func TestBuildSegmentsSpanTailPastLastEvent(t *testing.T) {
+	// Dispatch is the LAST event; the return lands 30 min later (no further
+	// event). The final boundary must extend so the tail is not cut.
+	events := []Event{
+		{Time: tm("2026-01-01T00:00:00Z"), Mentions: map[string]int{"8": 1}},
+		{Time: tm("2026-01-01T00:05:00Z")}, // dispatch, last event
+	}
+	commits := []Commit{{Time: tm("2026-01-01T00:00:00Z"), SHA: "aaa", Subject: "#8", Issues: []string{"8"}}}
+	spans := []TaskSpan{{Start: tm("2026-01-01T00:05:00Z"), End: tm("2026-01-01T00:35:00Z")}}
+	segs := buildSegments(events, commits, spans, 1.0, 0.5, 15)
+	var tot float64
+	for _, s := range segs {
+		tot += s.Active
+	}
+	// 5-min gap kept + 30-min span filled = 35.
+	if !approx(tot, 35) {
+		t.Fatalf("want 35 (tail not cut), got %v", tot)
 	}
 }

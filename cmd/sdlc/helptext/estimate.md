@@ -62,8 +62,11 @@ CLOSED PRIMITIVE VOCABULARY (mirrors estimate-logic-v2.md's primitive table)
 
 UNIT NOTE
 
-  estimate-logic-v2 estimates BUILD-EFFORT (design + AI-impl hours). `sdlc actual`
-  measures OPERATOR-ATTENTION. The two diverge as work is delegated / runs long
-  autonomously — exactly what the close-time calibration ledger instruments
-  (#117). The model vocabulary is the canonical source in
-  `cmd/sdlc/internal/estimate/vocab.go`; this doc mirrors it (a test guards drift).
+  estimate-logic-v2 estimates BUILD-EFFORT (design + AI-impl hours); `sdlc actual`
+  measures SHIP WALL-CLOCK — active-time with idle removed but subagent-execution
+  spans kept in full (#118). Both are the same unit: focused ship-time for one
+  engineer + AI, so the close-time calibration ledger compares them like-for-like
+  (#117). (Operator-attention — the throughput/parallelism limit of ~2 concurrent
+  sessions — lives one level up, not in the per-issue actual.) The model
+  vocabulary is the canonical source in `cmd/sdlc/internal/estimate/vocab.go`;
+  this doc mirrors it (a test guards drift).
