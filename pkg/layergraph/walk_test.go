@@ -21,13 +21,10 @@ import (
 // t.TempDir() hands back a /tmp/... logical path while /tmp → /private/tmp; Walk
 // returns the physical /private/tmp/... form, so expectations are canon()-ed.
 
-// testFS is the minimal FS the walk needs, backed by the real os package — the
-// canonicalization seam genuinely depends on the live filesystem.
-type testFS struct{}
-
-func (testFS) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
-func (testFS) ReadDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
-func (testFS) Stat(path string) (os.FileInfo, error)      { return os.Stat(path) }
+// The walk is tested through the production OSFS (the real-OS FS) rather than a
+// duplicate test double — the canonicalization seam genuinely depends on the live
+// filesystem, so an in-memory fake can't exercise it anyway, and using OSFS gives
+// it direct coverage (ARCH-DRY: one FS impl).
 
 // canon canonicalizes a path to its physical form so expectations match the
 // physical paths Walk returns.
@@ -59,7 +56,7 @@ func TestWalkFoundationFirst(t *testing.T) {
 	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../base\n")
 	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 
-	roots, err := Walk(testFS{}, derived)
+	roots, err := Walk(OSFS{}, derived)
 	if err != nil {
 		t.Fatalf("Walk: %v", err)
 	}
@@ -88,7 +85,7 @@ func TestWalkTransitiveChainDepth3(t *testing.T) {
 	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../mid\n")
 	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 
-	roots, err := Walk(testFS{}, derived)
+	roots, err := Walk(OSFS{}, derived)
 	if err != nil {
 		t.Fatalf("Walk: %v", err)
 	}
@@ -121,7 +118,7 @@ func TestWalkDiamondAncestorAppliedOnce(t *testing.T) {
 	writeFile(t, filepath.Join(top, "construct", "deps"), "substrate ../left\nsubstrate ../right\n")
 	writeFile(t, filepath.Join(top, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 
-	roots, err := Walk(testFS{}, top)
+	roots, err := Walk(OSFS{}, top)
 	if err != nil {
 		t.Fatalf("Walk: %v", err)
 	}
@@ -156,7 +153,7 @@ func TestWalkAbsoluteSubstratePath(t *testing.T) {
 	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate "+base+"\n")
 	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 
-	roots, err := Walk(testFS{}, derived)
+	roots, err := Walk(OSFS{}, derived)
 	if err != nil {
 		t.Fatalf("Walk: %v", err)
 	}
@@ -175,7 +172,7 @@ func TestWalkPresentSkipNonLayerDep(t *testing.T) {
 	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../notalayer\n")
 	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 
-	roots, err := Walk(testFS{}, derived)
+	roots, err := Walk(OSFS{}, derived)
 	if err != nil {
 		t.Fatalf("Walk: %v", err)
 	}
@@ -192,7 +189,7 @@ func TestWalkSelfExclusion(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "construct", "deps"), "substrate .\n")
 	writeFile(t, filepath.Join(repo, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 
-	roots, err := Walk(testFS{}, repo)
+	roots, err := Walk(OSFS{}, repo)
 	if err != nil {
 		t.Fatalf("Walk: %v", err)
 	}

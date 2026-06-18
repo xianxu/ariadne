@@ -24,7 +24,7 @@ The work splits along the pensive's three-way invariant (`workshop/pensive/2026-
 |------|----------|--------|
 | `Walk` (ordered layer roots) | `pkg/layergraph/walk.go` | new |
 | `ParseDeps` | `pkg/layergraph/deps.go` | new (moved) |
-| `resolveOrder` (DFS post-order; takes root + deps map) | `pkg/layergraph/resolve.go` | new (moved) |
+| `Resolve` (DFS post-order; takes root + deps map) | `pkg/layergraph/resolve.go` | new (moved) |
 | `frontmatter.Description` + `unquote` | `pkg/frontmatter/frontmatter.go` | new (moved) |
 | `frontmatterDescription` (weave) | `cmd/weave/internal/walk/skills.go` | deleted (delegates to `pkg/frontmatter`) |
 | `findRepoRoot` (walk up to nearest `construct/`) | `cmd/datatype/main.go` | new |
@@ -320,3 +320,9 @@ Four boundaries, each its own `sdlc milestone-close`. M1 is a behavior-preservin
 - **Finding 1 (ARCH-DRY):** the `frontmatterDescription`+`unquote` parser has the *same* import-boundary problem as the walk (lives in `cmd/weave/internal/walk/skills.go`, unreachable from `cmd/datatype`). Added **Task 1.5** — extract to a shared `pkg/frontmatter`; weave delegates; M2's merge/list use it. One parser, not two.
 - **Finding 2 (robustness):** `datatype list`/`show` may run from a subdir → added `findRepoRoot` (walk up to nearest `construct/`) so apply-time access anchors the repo root, not the agent's cwd (M2.2).
 - Estimate-quality (INFO): design hours slightly high vs the pre-resolved plan, offset by M4 being light; total 12.0 stands.
+
+### 2026-06-18 — M1 boundary review folded in (FIX-THEN-SHIP, no Critical)
+- Entity-table name corrected `resolveOrder` → **`Resolve`** (matches the shipped symbol; the table's greppability is the point).
+- Important (atlas): added a 2-line `atlas/index.md` pointer for `pkg/layergraph` + `pkg/frontmatter` now (full docs still batched to M4 per Task 4.3); M1 closed `--no-atlas` consciously (relocation-only).
+- Minors: `pkg/layergraph/walk_test.go` now uses production `OSFS{}` (deleted the duplicate `testFS`, gives OSFS coverage); stale `discoverEdges' BFS` comment in weave's `walk_test.go` reworded.
+- **M3 consideration (review §6):** `cmd/weave/walk.go` derives `canonRoot = order[len-1]`, an invariant coupling to `layergraph.Resolve`'s "root emitted last" post-order. When M3 touches this seam, weigh having `layergraph.Walk` return the canonical root explicitly (`(roots, canonRoot, err)`) instead of re-deriving it positionally, so a future emission-order change can't silently mis-target weave's self-reference filter.

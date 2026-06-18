@@ -136,7 +136,7 @@ func TestWalkCarriesProseVisibility(t *testing.T) {
 }
 
 func TestWalkTransitiveChainDepth3(t *testing.T) {
-	// Depth-3 chain derived → mid → base: discoverEdges' BFS must enqueue the
+	// Depth-3 chain derived → mid → base: layergraph.Walk's BFS must enqueue the
 	// transitive ancestor (mid → base), the chain the motivating
 	// brain→nous→ariadne case realizes. Walk returns them foundation-first.
 	parent := t.TempDir()

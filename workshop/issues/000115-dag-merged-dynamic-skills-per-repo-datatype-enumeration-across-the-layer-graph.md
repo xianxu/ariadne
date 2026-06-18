@@ -179,7 +179,7 @@ the `datatype` binary is the single DAG-aware access point (apply-time becomes
 `datatype list` / `datatype show <name>`; weave never lowers prototypes; the
 whole-dir `symlink construct/datatype` row is retired).
 
-- [ ] M1 — Extract the transitive `construct/deps` walk into module-level
+- [x] M1 — Extract the transitive `construct/deps` walk into module-level
       `pkg/layergraph` (both weave + datatype import; behavior-preserving; weave
       suite green).
 - [ ] M2 — `datatype` becomes DAG-aware (`mergeTypes` union local-wins) + gains
@@ -194,4 +194,6 @@ whole-dir `symlink construct/datatype` row is retired).
 
 ## Log
 
+
+- 2026-06-18: closed M1 — M1: pkg/layergraph (FS+ParseDeps+Resolve+Walk) + pkg/frontmatter extracted module-level; go build/vet/test ./... green incl. full weave suite (behavior-preserving regression proof) + new pkgs; make weave idempotent + clean tree; no discoverEdges/substrateTargets/ParseDeps/Resolve/frontmatterDescription survives in cmd/weave (grep empty, ARCH-DRY, one walk). 5 TDD commits 6adb3bf..aca8d81.; review verdict: FIX-THEN-SHIP
 ### 2026-06-17
