@@ -80,19 +80,15 @@ func CheckEstimate(text string) *StructuralFailure {
 	return checkEstimate(fm)
 }
 
-// specSectionRE captures the body of the `## Spec` section, stopping
-// at the next top-level heading or end-of-text.
-var specSectionRE = regexp.MustCompile(`(?ms)^## Spec\s*\n(.*?)(?:^## |\z)`)
-
 func checkSpec(body string) *StructuralFailure {
-	m := specSectionRE.FindStringSubmatch(body)
-	if m == nil {
+	sec, ok := SectionBody(body, "Spec")
+	if !ok {
 		return &StructuralFailure{
 			Name:    "spec-present",
 			Message: "no `## Spec` section found",
 		}
 	}
-	words := strings.Fields(stripCodeFences(m[1]))
+	words := strings.Fields(stripCodeFences(sec))
 	if len(words) < 50 {
 		return &StructuralFailure{
 			Name:    "spec-present",
@@ -123,13 +119,12 @@ func checkPlan(body string) *StructuralFailure {
 	return nil
 }
 
-var doneWhenSectionRE = regexp.MustCompile(`(?ms)^## Done when\s*\n(.*?)(?:^## |\z)`)
 var bulletRE = regexp.MustCompile(`(?m)^[-*]\s+\S`)
 
 func checkDoneWhen(fm, body string) *StructuralFailure {
 	// First try: ## Done when section with at least one non-empty bullet.
-	if m := doneWhenSectionRE.FindStringSubmatch(body); m != nil {
-		if bulletRE.MatchString(m[1]) {
+	if sec, ok := SectionBody(body, "Done when"); ok {
+		if bulletRE.MatchString(sec) {
 			return nil
 		}
 	}

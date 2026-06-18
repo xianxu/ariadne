@@ -140,7 +140,7 @@ design 0.7 ×1.30 buffer = 0.91 · impl 2.5 ×1.0 familiarity · total ≈ 3.4
 ## Plan
 
 - [x] M1 — pure `internal/estimate` package (grammar, parse, check, vocab, ledger-row, drift)
-- [ ] M2 — change-code enforcement: reconciliation guard + estimate-quality judge + helptext
+- [x] M2 — change-code enforcement: reconciliation guard + estimate-quality judge + helptext
 - [ ] M3 — close-the-loop: ledger append + drift at close, backfill past points, helptext/close + atlas
 
 Detailed plan: `workshop/plans/000117-estimate-shell-reconcile-judge-calibrate-plan.md`
@@ -148,6 +148,7 @@ Detailed plan: `workshop/plans/000117-estimate-shell-reconcile-judge-calibrate-p
 ## Log
 
 ### 2026-06-17
+- 2026-06-17: closed M2 — go build/test/vet ./cmd/sdlc/... green — full suite incl. new estimate-section/judge/changecode/helptext-drift tests. Live `change-code --issue 117 --dry-run`: reconciliation gate passes on the reconciling block, both plan-quality + estimate-quality judges dry-run, flow reaches branching. TestEstimateReconRefusal pins pass/mismatch/no-block/--no-estimate-recon; estimate-quality kept out of AllCategories (TestEstimateQuality_NotInBulkDispatch → no merge-time bulk dispatch); helptext↔vocab drift guard green. ARCH-PURE (estimateReconRefusal pure), ARCH-DRY (reused change-code gate + judge harness + section regex). actual 0.75h is the cumulative issue-window measure (M1 0.43h + M2 increment).; review verdict: FIX-THEN-SHIP
 - 2026-06-17: closed M1 — go test ./cmd/sdlc/internal/estimate/... + go vet green; go build ./... OK. Pure parse/check/vocab/ledger/drift table-tested: canonical 3.4 green fixture reconciles; total≠recomputed + estimate_hours≠total + unknown primitive/model all fail with next-action messages; ledger round-trips (10 stable cols); DriftVerdict excludes untrusted rows + flags >2x same-direction. Pure core, zero IO (ARCH-PURE). --no-atlas: M1 is the internal estimate pkg only, no user-facing surface yet; atlas reconciliation lands in M3 (Task 11) when the change-code gate + close ledger make it user-facing.; review verdict: SHIP
 Created during the #112 brainstorm once the operator relocated the root cause
 from "wrong unit" to "no deterministic shell," then chose to **park #112 and

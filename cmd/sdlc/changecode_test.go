@@ -59,6 +59,22 @@ func TestEstimateReconRefusal(t *testing.T) {
 	}
 }
 
+// TestRunEstimateQualityJudge_SkipsWhenNoBlock pins the #117 M2-review fix: the
+// estimate-quality judge must skip silently (no dispatch, no output) when the
+// issue carries no ## Estimate block — otherwise inverting that guard would
+// dispatch an LLM on every block-less issue.
+func TestRunEstimateQualityJudge_SkipsWhenNoBlock(t *testing.T) {
+	var out, errb bytes.Buffer
+	f := &changeCodeFlags{DryRun: true}
+	noBlock := "---\nid: 1\nstatus: working\nestimate_hours: 1\n---\n# T\n\n## Spec\n\nx\n"
+	if err := runEstimateQualityJudge(&out, &errb, f, "t", noBlock); err != nil {
+		t.Fatalf("expected nil (skip) for a block-less issue, got %v", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("expected no output when skipping, got %q", out.String())
+	}
+}
+
 // TestPromptBranchingTTY pins the tty-prompt's character-mapping
 // contract: a single-letter answer (case-insensitive) maps to the
 // internal "yes" / "no" / cancel verbs. Drift here would silently
