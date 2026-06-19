@@ -65,6 +65,7 @@ func newBenchFreezeCmd() *cobra.Command {
 }
 
 var benchH2RE = regexp.MustCompile(`(?m)^## (.+?)\s*$`)
+var benchSpecHeadingRE = regexp.MustCompile(`(?m)^## Spec[ \t]*$`)
 
 var canonicalIssueSections = map[string]bool{
 	"problem": true, "spec": true, "done when": true, "estimate": true,
@@ -76,11 +77,11 @@ var canonicalIssueSections = map[string]bool{
 // the Spec, which issue.SectionBody (and thus freeze) silently truncates. The
 // fix is the author's (use ### inside a spec); freeze just warns.
 func specHasEmbeddedHeading(body string) bool {
-	idx := strings.Index(body, "## Spec")
-	if idx < 0 {
+	loc := benchSpecHeadingRE.FindStringIndex(body) // anchored — not "## Specification"
+	if loc == nil {
 		return false
 	}
-	m := benchH2RE.FindStringSubmatch(body[idx+len("## Spec"):])
+	m := benchH2RE.FindStringSubmatch(body[loc[1]:])
 	if m == nil {
 		return false
 	}
@@ -142,18 +143,15 @@ func runBenchFreeze(stdout, stderr io.Writer, f benchFreezeFlags) error {
 }
 
 // findIssueFile locates workshop/issues/NNNNNN-<slug>.md under root and returns
-// its path + the <slug> (the segment after the zero-padded id).
+// its path + the <slug> (the segment after the zero-padded id). The NNNNNN-*.md
+// glob convention lives in one place — locateIssueFile (ARCH-DRY); this only adds
+// the slug derivation.
 func findIssueFile(root string, issueNum int) (path, slug string, err error) {
-	id := fmt.Sprintf("%06d", issueNum)
-	glob := filepath.Join(root, "workshop", "issues", id+"-*.md")
-	matches, _ := filepath.Glob(glob)
-	switch len(matches) {
-	case 0:
-		return "", "", fmt.Errorf("no issue file matches %s", glob)
-	case 1:
-		base := strings.TrimSuffix(filepath.Base(matches[0]), ".md")
-		return matches[0], strings.TrimPrefix(base, id+"-"), nil
-	default:
-		return "", "", fmt.Errorf("multiple issue files match %s: %v", glob, matches)
+	path, err = locateIssueFile(filepath.Join(root, "workshop", "issues"), issueNum)
+	if err != nil {
+		return "", "", err
 	}
+	id := fmt.Sprintf("%06d", issueNum)
+	base := strings.TrimSuffix(filepath.Base(path), ".md")
+	return path, strings.TrimPrefix(base, id+"-"), nil
 }
