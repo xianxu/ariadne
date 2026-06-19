@@ -4,8 +4,8 @@ status: working
 deps: []
 github_issue:
 created: 2026-06-18
-updated: 2026-06-18
-estimate_hours:
+updated: 2026-06-19
+estimate_hours: 7.4
 started: 2026-06-18T23:32:37-07:00
 ---
 
@@ -219,10 +219,41 @@ recorded, live flagged non-leaderboard · turn/time budget.
 - The `interactive`/`live` responder seam exists in the runner (interface +
   autonomous impl), even though only autonomous is wired.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: greenfield-go-module    design=0.3 impl=0.7
+item: greenfield-go-module    design=0.3 impl=0.8
+item: smaller-go-module       design=0.2 impl=0.7
+item: greenfield-go-module    design=0.3 impl=0.9
+item: smaller-go-module       design=0.2 impl=0.6
+item: atlas-docs              design=0.1 impl=0.4
+item: milestone-review        design=0.0 impl=0.3
+item: milestone-review        design=0.0 impl=0.3
+item: milestone-review        design=0.0 impl=0.3
+item: milestone-review        design=0.0 impl=0.3
+item: milestone-review        design=0.0 impl=0.3
+design-buffer: 0.30
+total: 7.4
+```
+
+Derivation: one greenfield Go package (`cmd/sdlc/internal/bench/`) built across
+five milestones. The three `greenfield-go-module` items are the heavier
+single-concern cores — M1 data model + `freeze`, M2 runner/worktree/responder
+seam + `run`, M4 grader Stage B (anonymizer + blind judge + leak gate, the
+trickiest). The two `smaller-go-module` items extend that core — M3 Stage A
+scorecard/measurer + `grade`, M5 leaderboard/report. `atlas-docs` covers the
+`benchmark-task` datatype + atlas. Five `milestone-review` items are the
+SDLC boundary-review overhead (auto-dispatched, so 0.3 each, not a full manual
+pass). recomputed = 1.4×1.30 + 5.6 = 7.42 ≈ total 7.4.
+
 ## Plan
 
-_To be detailed via `superpowers-writing-plans` after `start-plan`. Milestone
-skeleton (review boundaries):_
+Detailed in **`workshop/plans/000119-multi-agent-benchmark-harness-plan.md`**
+(Core Concepts → 5 milestone chunks, bite-sized TDD). Milestone skeleton (review
+boundaries):
 
 - [ ] M1 — Data model + `benchmark-task` datatype + `workshop/benchmarks/` layout + `freeze`
 - [ ] M2 — Runner (autonomous mode) + responder seam interface + no-merge isolation
@@ -247,3 +278,22 @@ skeleton (review boundaries):_
   leaks in the diff, not just transcript); nested-dispatch risk (contestant runs
   `sdlc` which dispatches its own review agent); autonomous dispatch is the first
   `judge.Dispatch` caller needing write allowlist + real timeout plumbing.
+
+### 2026-06-19
+
+- `start-plan` → durable plan written via `superpowers-writing-plans` to
+  `workshop/plans/000119-multi-agent-benchmark-harness-plan.md` (Core Concepts:
+  ~10 pure entities + ~8 IO seams per ARCH-PURE; 5 milestone chunks, TDD).
+- Fresh-eyes plan review (general-purpose subagent, verified every reuse API
+  against source): **❌→✅**. Fixed one real bug — `ParseTask` extracted the
+  *first* ```json fence over the whole body, so a spec containing its own json
+  fence would corrupt the config round-trip; now scoped to the `## Config`
+  section (+ regression test with a fenced spec). Folded advisories: leak-gate
+  threshold (K=20, ≤60%), no-merge test push-target assertion, `Submission`
+  struct fields, `ParseRunRecord` section-scoping, token-cost deferral decision.
+- `change-code` gates: plan-quality **INFO**, estimate-quality **INFO** (both
+  non-blocking); branch `000119-multi-agent-benchmark-harness` created in-place.
+  Judges' actionable INFO folded into plan: extract a single `gitx.WorktreeRoot`
+  helper (ARCH-DRY — don't re-derive the worktree-path convention); `freeze`
+  warns on `## ` subheadings in a spec (SectionBody truncation guard). Estimate
+  7.4h derived (`## Estimate`, reconciles 7.42). Implementing M1 next.

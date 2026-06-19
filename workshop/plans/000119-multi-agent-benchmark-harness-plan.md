@@ -411,7 +411,14 @@ Lives in: `workshop/benchmarks/tasks/<id>.md` (repo-local; the harness is base-l
 
 - Immutable after `sdlc bench freeze`. To change grading, freeze a new task.
 - `base_sha` must remain reachable; the harness branches from it and never merges.
+- The verbatim spec must not contain a top-level `## ` heading — `freeze`
+  extracts/round-trips sections by `^## ` boundaries, so a `## ` inside the spec
+  would truncate it. `freeze` warns if the source spec contains `## ` (use `###`
+  subheadings in issues meant to be frozen).
 ```
+
+(Implementation note for Task 1.4 `freeze`: emit a stderr warning when the
+extracted `## Spec` body contains a `^## ` line, per the invariant above.)
 
 - [ ] **Step 6: Write `workshop/benchmarks/README.md`** documenting the layout (`tasks/`, `runs/`, `leaderboard.md`) and pointing at `sdlc bench --help` and the datatype doc.
 
@@ -601,7 +608,7 @@ func TestWorktreeAddBaseUsesBaseRef(t *testing.T) {
 ```
 
 - [ ] **Step 2: Run, verify fail.**
-- [ ] **Step 3: Implement** `gitx/bench.go` — `WorktreeAddBase`, `WorktreeRemove`, `DiffStat(base,head)`, `CommitsOnRange(base,head)`, `ShowAtSHA(sha,path)`, all via `run`/`RunGit`. `DiffStat` parses `git diff --numstat base head`.
+- [ ] **Step 3: Implement** `gitx/bench.go` — `WorktreeAddBase`, `WorktreeRemove`, `DiffStat(base,head)`, `CommitsOnRange(base,head)`, `ShowAtSHA(sha,path)`, all via `run`/`RunGit`. `DiffStat` parses `git diff --numstat base head`. **Also add `WorktreeRoot(repoTop) string`** = `filepath.Join(filepath.Dir(repoTop), "worktree", filepath.Base(repoTop))` — the **single source** of the "where worktrees live" convention (ARCH-DRY: `branchcreate.go:150` computes this inline today; the bench `Worktreer` must call `WorktreeRoot`, NOT re-derive it, so the two paths can't drift). Reconciles the spec's "extend `createWorktreeBranch`" wording: bench keeps a *separate* `WorktreeAddBase` (no `.goto`/UI affordances, takes a base ref) but **shares the path-root fact**.
 - [ ] **Step 4: Run → PASS. Step 5: Commit** — `git commit -m "#119 M2: gitx worktree-with-base + diffstat/range/show helpers"`
 
 ### Task 2.2: `Responder` seam + `RunRecord`/`AgentResult` + render/parse
