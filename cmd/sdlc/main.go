@@ -81,6 +81,7 @@ func buildRoot() *cobra.Command {
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewStateCmd(), "state", "Inspect workflow state (branch, working issues, drift)")
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
+	add(NewBenchCmd(), "bench", "Benchmark coding agents on the same frozen task (#119)")
 
 	// Hidden: deprecated aliases + the start stub. Order is irrelevant —
 	// they're omitted from the verb list.
