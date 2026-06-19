@@ -280,6 +280,7 @@ boundaries):
   `judge.Dispatch` caller needing write allowlist + real timeout plumbing.
 
 ### 2026-06-19
+- 2026-06-19: closed M1 — M1 data model + freeze: bench package (Task/Rubric config-scoped json round-trip + Store), benchmark-task datatype, sdlc bench freeze registered in main.go + smoke-froze #119 end-to-end; all bench + cmd/sdlc tests green, go build ./... clean; atlas/workflow/bench.md added; review verdict: FIX-THEN-SHIP
 
 - `start-plan` → durable plan written via `superpowers-writing-plans` to
   `workshop/plans/000119-multi-agent-benchmark-harness-plan.md` (Core Concepts:
