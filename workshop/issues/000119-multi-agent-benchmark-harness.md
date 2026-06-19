@@ -43,20 +43,24 @@ comparison.
 4. **Grading — hybrid (measure + compare).** Objective dimensions are MEASURED
    automatically and agent-neutrally; subjective dimensions are judged
    HEAD-TO-HEAD blind by an LLM judge + the operator.
-5. **Run mode — a first-class dimension, all three supported.** `autonomous`
-   (headless, day-one build, leaderboard feeder), `interactive` (pinned
-   responder — seam designed now, built later), `live` (operator pairing —
-   exhibition only, kept out of the leaderboard).
+5. **Run mode — a first-class dimension; all three accommodated by the responder
+   seam, only `autonomous` wired day-one.** `autonomous` (headless, day-one
+   build, leaderboard feeder), `interactive` (pinned responder — seam designed
+   now, built later), `live` (operator pairing — exhibition only, kept out of
+   the leaderboard).
 
 ### Framing principle
 
 **The harness is base-layer (`cmd/sdlc`); the task suite + results are
 repo-local (`workshop/benchmarks/`).** So `sdlc bench` propagates to every
 ariadne-styled repo, letting any repo benchmark agents on *its own* real work,
-while each repo curates its own task library. Reuse over rebuild: the runner and
-grader lean on infra that already exists — `judge.Dispatch` (already runs
-`claude -p` / `codex exec` / `gemini -p` symmetrically, fresh-subprocess,
-anti-collusion), `createWorktreeBranch`, `gitx`, the `VERDICT` output contract.
+while each repo curates its own task library. Reuse over rebuild — strongest
+pillars: `judge.Dispatch` (the subprocess shim already runs `claude -p` /
+`codex exec` / `gemini -p` symmetrically, fresh-subprocess, anti-collusion) and
+`gitx`. Two reuses are **partial** and need small changes, flagged at point of
+use: `createWorktreeBranch` hardcodes `HEAD` (needs a `base` ref param), and the
+`VERDICT` *classifier* is a binary gate that cannot carry Stage-B per-dimension
+rankings (only the dispatch shim is reused there, not the contract).
 
 ### Pipeline
 
@@ -88,11 +92,16 @@ Three version-controlled artifacts under `workshop/benchmarks/`:
 - **`freeze`** copies the issue's `## Spec` verbatim, pins `base_sha = main
   HEAD`, scaffolds the rubric. Task is immutable thereafter.
 - **`run`**, per agent: `git worktree add` from `base_sha` on branch
-  `bench/<task>/<agent>/<runid>` (reuses `createWorktreeBranch`); run `setup` to
-  start green; dispatch with a **constant prompt** — *"Solve issue N following
-  this repo's conventions. Commit your work. Do NOT merge or open a PR — this
-  branch is the deliverable."* Capture branch/commits/diffstat/transcript/
-  wall-clock/CLI-version/exit.
+  `bench/<task>/<agent>/<runid>` (**extends `createWorktreeBranch`**, which today
+  hardcodes `HEAD`, to take a `base` ref — required for the immutability
+  guarantee); run `setup` to start green; dispatch with a **constant prompt** —
+  *"Solve issue N following this repo's conventions. Commit your work. Do NOT
+  merge or open a PR — this branch is the deliverable."* Capture branch/commits/
+  diffstat/transcript/wall-clock/CLI-version/exit. **Note:** autonomous dispatch
+  is the *first* `judge.Dispatch` caller that needs a write/edit/commit
+  `AllowedTools` allowlist **and** a real `context.WithTimeout` turn/time budget —
+  every current caller is read-only with no timeout, so this is new plumbing, not
+  free reuse.
 - **What this tests:** we do **not** spoon-feed the SDLC — the agent must
   discover `AGENTS.md`/skills as it would in real life. Same prompt for everyone;
   only the weave'd AGENTS.md *face* differs per agent (the intended confound).
@@ -125,18 +134,26 @@ Three version-controlled artifacts under `workshop/benchmarks/`:
     summary), all identity scrubbed (`Co-Authored-By` trailers, `bench/<agent>/…`
     branch names, self-references), relabeled Submission A/B/C in randomized
     order.
-  - **LLM judge:** reuses `judge.Dispatch` + a new benchmark prompt on the
-    existing `VERDICT` contract, extended to emit a structured per-dimension
-    ranking + rationale + confidence. The judge is a **fixed, pinned model that
-    is NOT one of the contestants** (anti-collusion); optionally an ensemble.
+  - **LLM judge:** reuses the `judge.Dispatch` subprocess shim + a new benchmark
+    prompt. Stage B output is **net-new structured parsing** (per-dimension
+    ranking + rationale + confidence) — *not* the `VERDICT` binary-gate
+    classifier, which can't carry it; do not try to extend that contract. The
+    judge is a **fixed, pinned model that is NOT one of the contestants**
+    (anti-collusion); optionally an ensemble.
   - **Operator judge:** same anonymized packet as a side-by-side review doc;
     records per-dimension rankings/notes via the `🤖` review-convention markers.
     LLM verdict withheld until the operator submits (anti-anchoring), then
     de-anonymize and fold both into the run record.
 - **Anonymization is load-bearing** — if a judge can spot Claude, the comparison
-  is biased. Diff+artifacts scrub cleanly; transcripts leak style, so the
-  **primary judging surface is diff + artifacts**, transcript only as a
-  summarized supplement.
+  is biased. The transcript leaks style most, so the **primary judging surface is
+  diff + artifacts**, transcript only as a summarized supplement. But coding
+  *style* (commit-message phrasing, comment density, `🤖` markers, plan shape)
+  leaks identity **in the diff itself** — "diff scrubs cleanly" is the single
+  assumption most worth proving, not asserting. So the plan must include an
+  explicit **anonymization-leak test** (can the pinned judge name the contestant
+  from a scrubbed packet above chance?) as a Stage-B acceptance gate. Note too
+  that Stage A reads the same git-history surface (commit conventions, trailers)
+  that leaks identity — the scrub and the artifact-detection overlap.
 - **The rubric** (per-task, with defaults) maps every dimension into the two
   groups — *output quality* and *workflow-fit* — yielding objective scorecard
   (absolute) + head-to-head rankings (comparative).
@@ -154,8 +171,12 @@ Three version-controlled artifacts under `workshop/benchmarks/`:
 | `sdlc bench report --run <id>` / `sdlc bench leaderboard` | Aggregate → `leaderboard.md` |
 
 Net-new code is one package, `cmd/sdlc/internal/bench/` (task model, runner,
-grader, anonymizer, aggregation) + prompts. Everything else is reuse: `judge`,
-`gitx`, `branchcreate`, `issue`.
+grader, **Stage-B structured-output parser**, anonymizer, aggregation) +
+prompts + per-run **agent CLI-version capture** (`claude --version` etc. —
+nothing captures this today). Reuse: `judge.Dispatch` + `gitx` as-is;
+`branchcreate` with a new `base`-ref param; `freeze`'s `## Spec` extraction can
+lean on the section-anchoring regex already in `close.go`. The `VERDICT`
+classifier is *not* reused.
 
 ### Rigor controls (recorded per run)
 
@@ -169,6 +190,11 @@ recorded, live flagged non-leaderboard · turn/time budget.
 - Interactive-mode `ask_user` interception mechanism (built when interactive is).
 - Transcript-scrub imperfection — mitigated by diff+artifacts as primary surface.
 - Headless completion of large tasks — task-sizing + partial grading.
+- **Nested dispatch.** A contestant running the full SDLC will invoke
+  `sdlc milestone-close`/`close`, which *themselves* dispatch a fresh-context
+  *review* agent via `judge.Dispatch` (`$AGENT_CMD`). For a non-Claude
+  contestant this can mis-attribute the review or hang headless. Decide whether
+  sub-dispatched reviews are disabled or pinned during a bench run.
 - Cross-agent effort metric is **wall-clock/turns, not `sdlc actual`**
   (active-time is Claude-transcript-only — asymmetric across agents).
 - Whether the *leaderboard* migrates to brain when it goes cross-repo (the
@@ -185,6 +211,9 @@ recorded, live flagged non-leaderboard · turn/time budget.
   an operator review doc; `review` de-anonymizes and records both.
 - `base_sha` immutability + no-merge isolation verified (a frozen task replays
   identically after main has advanced).
+- **Anonymization-leak gate passes:** the pinned judge cannot name the contestant
+  agent from a scrubbed Stage-B packet above chance — verified as a test, not
+  assumed (coding style leaks identity in the diff, not just the transcript).
 - `benchmark-task` datatype documented; `workshop/benchmarks/` layout +
   `sdlc bench --help` documented; atlas updated.
 - The `interactive`/`live` responder seam exists in the runner (interface +
@@ -209,4 +238,12 @@ skeleton (review boundaries):_
   run-mode decision captured in `## Spec`. Mapped reusable infra first
   (`judge.Dispatch` already multi-agent; `createWorktreeBranch`; `VERDICT`
   contract; `sdlc actual` is Claude-transcript-only → use wall-clock cross-agent).
-  Spec written; fresh-eyes spec review next.
+- Fresh-eyes spec review (general-purpose subagent, verified reuse claims against
+  code): **✅ Approved**. Folded in corrections — two overstated reuse claims
+  fixed: `createWorktreeBranch` hardcodes `HEAD` (needs `base` param);
+  `VERDICT` classifier is binary-gate-only so Stage-B ranking parsing is net-new
+  (not a contract extension). Softened decision #5 wording to match autonomous-
+  only day-one scope. Added: anonymization-leak gate to Done-when (coding style
+  leaks in the diff, not just transcript); nested-dispatch risk (contestant runs
+  `sdlc` which dispatches its own review agent); autonomous dispatch is the first
+  `judge.Dispatch` caller needing write allowlist + real timeout plumbing.
