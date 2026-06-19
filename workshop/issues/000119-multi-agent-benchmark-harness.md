@@ -255,7 +255,7 @@ Detailed in **`workshop/plans/000119-multi-agent-benchmark-harness-plan.md`**
 (Core Concepts → 5 milestone chunks, bite-sized TDD). Milestone skeleton (review
 boundaries):
 
-- [ ] M1 — Data model + `benchmark-task` datatype + `workshop/benchmarks/` layout + `freeze`
+- [x] M1 — Data model + `benchmark-task` datatype + `workshop/benchmarks/` layout + `freeze`
 - [ ] M2 — Runner (autonomous mode) + responder seam interface + no-merge isolation
 - [ ] M3 — Grader Stage A (objective scorecard) + metrics capture
 - [ ] M4 — Grader Stage B (anonymizer + LLM judge + operator review doc) + `review`
@@ -297,3 +297,13 @@ boundaries):
   helper (ARCH-DRY — don't re-derive the worktree-path convention); `freeze`
   warns on `## ` subheadings in a spec (SectionBody truncation guard). Estimate
   7.4h derived (`## Estimate`, reconciles 7.42). Implementing M1 next.
+- **M1 done** — `cmd/sdlc/internal/bench/` package: `Task`/`Rubric` structs with
+  config-scoped json round-trip (the reviewer's first-block bug fixed + guarded);
+  `Store`; `benchmark-task` datatype (`construct/datatype/`, per-layer owned, no
+  manifest edit); `workshop/benchmarks/README.md`; `sdlc bench freeze` (registered
+  in main.go, helptext wired). Discoveries: issue files are located by `%06d`
+  zero-padded glob (matched `branchcreate.go`); `issue.SectionBody` already stops
+  at the first `## `, so the truncation risk is at *freeze* (source spec with an
+  embedded `## `), not round-trip — warning rewritten to detect a non-canonical
+  terminating heading. Smoke-froze #119 itself end-to-end. All bench + cmd/sdlc
+  tests green; `go build ./...` clean.
