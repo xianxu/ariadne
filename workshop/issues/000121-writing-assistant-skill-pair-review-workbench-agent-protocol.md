@@ -1,11 +1,12 @@
 ---
 id: 000121
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-19
-updated: 2026-06-19
+updated: 2026-06-20
 estimate_hours:
+started: 2026-06-20T10:43:05-07:00
 ---
 
 # Writing-assistant skill — pair review workbench agent protocol
