@@ -1,6 +1,6 @@
 ---
 name: xx-fix
-description: Use when 🤖{} or 🤖[] or 🤖~~ markers appear in markdown documents
+description: Use when 🤖{} or 🤖[] or 🤖~~ markers appear in markdown documents, OR when hosted in a pair session with a review pane open (the review-workbench pokes "…please review" / "applied N edits…" — propose records, own the git; see "Pair review workbench")
 ---
 
 # Inline Review
@@ -8,6 +8,12 @@ description: Use when 🤖{} or 🤖[] or 🤖~~ markers appear in markdown docu
 Process 🤖 inline markers in a file, following the review convention
 documented in the ariadne workshop target `review-convention.md`. That target
 is the canonical grammar; this skill is the agentic side of it.
+
+**Two modes.** *Standalone* (`/fix <path>`, below) edits the file in place. *Hosted
+in a pair session* with a review pane open, you are the producer half of the agentic
+review workbench (pair #000066): you propose **records**, the embedded nvim applies
+them undo-ably, and **you own all the git** — see **Pair review workbench** below. The
+review pane's pokes (`"…please review"` / `"applied N edits…"`) tell you you're hosted.
 
 ## Usage
 
@@ -177,6 +183,44 @@ state; see the script's header for the history model.
 Opt-in: plain marker-processing (the Process above) works without it. Reach for
 journaling on heavier, multi-round co-authoring where the trail is worth keeping.
 Invoke as `scripts/docflow.sh <verb>` from the repo root (or `docflow` if aliased).
+
+## Pair review workbench (agentic, hosted in pair)
+
+When you are the persistent agent in a **pair** session and a review pane is open, you
+are the *producer* half of the agentic review workbench (pair **#000066**). The full
+contract — the seam files + invariants — is `pair/workshop/targets/review-protocol.md`;
+**read it**, this is the agent's side of it, not a copy. The reference implementation of
+the whole protocol is `pair/tests/lib/fake-review-agent.sh` — **when in doubt, do what it
+does**. The protocol differs from the standalone `/fix` flow above in two ways:
+
+**1. Propose edits as records — never edit the file in place.** Write
+`{old, occurrence, new, explain}` records to the handoff file (seam #2; path per the
+target, currently `$XDG_DATA_HOME/pair/review-handoff-<tag>.json`). The pane applies each
+**undo-ably**, drops a riding marker, renders `explain` as a gutter diagnosis, and saves.
+Editing the file directly breaks the pane's undo tree and the record protocol.
+
+**2. You own all the git** — the nvim writes none (invariant #1):
+
+- **On review-start** (the first "please review"): do **memory discovery** first
+  (brain / pensives / the repos — the whole point over a one-shot review), then create the
+  `review/<slug>` branch *in the doc's repo* (`docflow start <abs-path>`).
+- **After the pane's `"applied N edit(s)… commit the agent round"` poke**: read the
+  landed-artifact (seam #2b, currently `$XDG_DATA_HOME/pair/review-landed-<tag>.json` =
+  `{summary, body, applied, dropped}`) and commit the agent round **verbatim**:
+  `docflow round --side agent -m <summary> --body <body>`. The body is *what actually
+  landed* — the pane is the apply authority (drops filtered, occurrences resolved); do
+  **not** regenerate it from your proposal (invariant #3).
+- **On the `"committed my edits… please review"` poke**: commit the human's incoming
+  edits — `docflow round --side human`.
+
+**Commit only after the pane signals.** Never commit the agent round from your own
+proposal — the pane may have dropped unanchorable records; the landed-artifact is the
+truth. (M4d adds "ship it" → `docflow ship`.)
+
+Modes (Generate / Copy Edit / Proofread), voice (`voice:` frontmatter →
+`~/.personal/<slug>-writing-style.md`), and the fact-check pass (folding `doc-review` in)
+extend this section in **M4b–c**. Until then: default to copy-edit-style targeted edits,
+and don't reach for standalone `doc-review` inside the workbench.
 
 ## Fresh-context review (second agent, read-only)
 
