@@ -197,7 +197,11 @@ does**. The protocol differs from the standalone `/fix` flow above in two ways:
 `{old, occurrence, new, explain}` records to the handoff file (seam #2; path per the
 target, currently `$XDG_DATA_HOME/pair/review-handoff-<tag>.json`). The pane applies each
 **undo-ably**, drops a riding marker, renders `explain` as a gutter diagnosis, and saves.
-Editing the file directly breaks the pane's undo tree and the record protocol.
+Editing the file directly — **or summarizing the edits in chat and asking "apply
+directly?"** (the standalone flow) — breaks the pane's undo tree and the record protocol.
+**In the workbench the handoff IS how you apply**: don't ask, write the records. (You'll
+know you're in the workbench from the "Review workbench open on …" announce poke the pane
+sends when it opens, or the "…please review" / "applied N edits…" round pokes.)
 
 **2. You own all the git** — the nvim writes none (invariant #1):
 
