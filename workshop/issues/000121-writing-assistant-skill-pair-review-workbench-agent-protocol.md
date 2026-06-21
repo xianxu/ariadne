@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-19
 updated: 2026-06-20
-estimate_hours:
+estimate_hours: 3.51
 started: 2026-06-20T10:43:05-07:00
 ---
 
@@ -59,6 +59,24 @@ Per `review-protocol.md` (the seam + invariants) and pair #66's M4 design:
   seam; fact-check dispatches doc-review and integrates via records.
 - `voice: <slug>` is honored by the voice-relevant modes.
 - (rename) `xx-fix` → `writing-assistant`, with pair's `REVIEW_TRIGGER` swapped in lockstep.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: skill-or-dispatcher    design=0.4 impl=1.0
+item: skill-or-dispatcher    design=0.3 impl=1.0
+item: milestone-review       design=0.0 impl=0.6
+design-buffer: 0.30
+total: 3.51
+```
+
+`skill-or-dispatcher` ×2 — the core review-workbench protocol (M4a) + the rest of the
+SKILL (M4b–d: modes / voice / fact-check / ship / rename); `milestone-review` for the
+boundary reviews. Mostly prose (SKILL.md), so impl-weighted; the live smoke (not a
+headless suite) is the real verification, with `fake-agent-v2` as the deterministic
+reference. familiarity 1.0 (the protocol is already specced in `review-protocol.md`).
 
 ## Plan
 
