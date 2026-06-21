@@ -238,9 +238,11 @@ the pair binary's; you act on it:
     continue. (The pane reconstructs the decorations on open.)
   - **`interact`** (dirty tree, off a review branch): **don't clobber** — work with the
     operator (stash / commit / proceed-here), then re-probe.
-- On success (`new`/`resume`), **mark the target `ready`** so Alt+r opens the pane: write
-  `$PAIR_DATA_DIR/review-target-<tag>.json` = `{file, status: "ready"}` (single file per
-  review branch).
+- On success (`new`/`resume`), **mark the target `ready`** so Alt+r opens the pane: run
+  **`pair-review-target <abs> ready`** (do NOT hand-write the JSON — the CLI stamps the
+  current `PAIR_SESSION_ID`, making the target conversation-scoped: a *fresh* pair session
+  won't silently reopen this review, while an Alt+n resume of the same conversation keeps
+  it). Single file per review branch.
 
 **The human's 🤖[] markers are requests (M4b) — fulfill or punt, as records.** While
 reviewing, treat each `🤖[…]` the human left in the doc as a task: if you can do it
