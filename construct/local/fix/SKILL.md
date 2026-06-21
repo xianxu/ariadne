@@ -205,21 +205,42 @@ sends when it opens, or the "…please review" / "applied N edits…" round poke
 
 **2. You own all the git** — the nvim writes none (invariant #1):
 
-- **On review-start** (the first "please review"): do **memory discovery** first
-  (brain / pensives / the repos — the whole point over a one-shot review), then create the
-  `review/<slug>` branch *in the doc's repo* (`docflow start <abs-path>`).
+- **On review-start**: the branch is created during *prep* (see **Preparing & resuming**
+  below — the readiness probe; `new` → memory discovery + `docflow start`).
 - **After the pane's `"applied N edit(s)… commit the agent round"` poke**: read the
   landed-artifact (seam #2b, currently `$XDG_DATA_HOME/pair/review-landed-<tag>.json` =
   `{summary, body, applied, dropped}`) and commit the agent round **verbatim**:
   `docflow round --side agent -m <summary> --body <body>`. The body is *what actually
   landed* — the pane is the apply authority (drops filtered, occurrences resolved); do
   **not** regenerate it from your proposal (invariant #3).
-- **On the `"committed my edits… please review"` poke**: commit the human's incoming
+- **On the `"finished my edits… please review"` poke**: commit the human's incoming
   edits — `docflow round --side human`.
 
 **Commit only after the pane signals.** Never commit the agent round from your own
 proposal — the pane may have dropped unanchorable records; the landed-artifact is the
-truth. (M4d adds "ship it" → `docflow ship`.)
+truth. ("ship it" → `docflow ship` is **M4b**.)
+
+**Preparing & resuming a review (M4a' — the propose poke, before the pane opens).**
+`:PairReview <file>` (or the operator naming a doc) **proposes** a target and pokes you to
+prepare it — the pane does **not** open until you mark it `ready`. The pure case-decision is
+the pair binary's; you act on it:
+
+- Run `pair-review-readiness <abs>` → `{case, …git facts}`, then act per `case`:
+  - **`stop`** (not a git repo): tell the operator the doc needs a git repo to track the
+    review; **don't proceed** and don't `git init` for them.
+  - **`track`** (git-managed but untracked): track it (the `docflow start` below does), then
+    continue as `new`.
+  - **`new`** (clean, off a review branch): do **memory discovery** (brain / pensives / the
+    repos — the whole point over a one-shot), then `docflow start <abs>` (creates `review/<slug>`).
+  - **`resume`** (already on `review/<slug>` with the matching file): **reestablish context** —
+    read the branch's round commits (`review(<slug>): <side> r<N>`, the latest agent-round
+    body = the records so far) + the current doc state, summarize where the review stands, and
+    continue. (The pane reconstructs the decorations on open.)
+  - **`interact`** (dirty tree, off a review branch): **don't clobber** — work with the
+    operator (stash / commit / proceed-here), then re-probe.
+- On success (`new`/`resume`), **mark the target `ready`** so Alt+r opens the pane: write
+  `$PAIR_DATA_DIR/review-target-<tag>.json` = `{file, status: "ready"}` (single file per
+  review branch).
 
 Modes (Generate / Copy Edit / Proofread), voice (`voice:` frontmatter →
 `~/.personal/<slug>-writing-style.md`), and the fact-check pass (folding `doc-review` in)
