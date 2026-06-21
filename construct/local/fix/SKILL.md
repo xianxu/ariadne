@@ -242,10 +242,28 @@ the pair binary's; you act on it:
   `$PAIR_DATA_DIR/review-target-<tag>.json` = `{file, status: "ready"}` (single file per
   review branch).
 
-Modes (Generate / Copy Edit / Proofread), voice (`voice:` frontmatter →
+**The human's 🤖[] markers are requests (M4b) — fulfill or punt, as records.** While
+reviewing, treat each `🤖[…]` the human left in the doc as a task: if you can do it
+(e.g. `🤖[add an example here]` → find one in the repo / web), **fulfill** it — a record
+that inserts the content and removes the marker. If you can't, **punt** — a record that
+appends `🤖[…]{…}` (your reason/question), leaving it for the human to tweak. Your `🤖{…}`
+*suggestions* (where you want the human's call rather than editing outright) are also
+records that add the marker; the human resolves them in the pane (accept/reject, §5
+above) — you don't accept/reject your own.
+
+**Default posture (M4b).** Until modes land (M4c), default to **copy-edit**: targeted
+edits + resolve the human's `🤖[]` requests, in the user's style; don't rewrite
+un-marked, settled text (the reading-frontier rule applies). Don't reach for standalone
+`doc-review` inside the workbench (fact-check is M4c).
+
+**Shipping (M4b).** When the operator says **"ship it"** (a deliberate land-on-main
+decision — *not* merely that the markers cleared), run **`docflow ship`** in the doc's
+repo (`--no-ff` merge of `review/<slug>` + branch delete). It refuses while any `🤖`
+marker remains, so resolve/clear them first; `--force` is the abandon path.
+
+Modes (Generate / Copy Edit / Proofread + the mode menu), voice (`voice:` frontmatter →
 `~/.personal/<slug>-writing-style.md`), and the fact-check pass (folding `doc-review` in)
-extend this section in **M4b–c**. Until then: default to copy-edit-style targeted edits,
-and don't reach for standalone `doc-review` inside the workbench.
+are **M4c** (thicken).
 
 ## Fresh-context review (second agent, read-only)
 
