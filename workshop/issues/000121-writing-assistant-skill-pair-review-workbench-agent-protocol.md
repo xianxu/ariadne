@@ -80,16 +80,20 @@ reference. familiarity 1.0 (the protocol is already specced in `review-protocol.
 
 ## Plan
 
-Mirrors pair #66 M4's sub-milestones (the agent-side rows):
+Mirrors pair #66 M4's **structure-first re-slice** (2026-06-21) — the agent-side rows:
 
 - [ ] M4a — review-mode recognition + record-handoff flow + agent-owns-git (branch/rounds);
-  memory discovery. (The spine; pairs with pair #66 M4a.)
-- [ ] M4b — modes: `modes/{generate,copy-edit,proofread}.md` + `mode.directives` wired;
-  write the active mode to the `review-<tag>.mode` seam.
-- [ ] M4c — voice (`voice:` frontmatter loading) + fact-check pass (doc-review dispatch +
-  integrate).
-- [ ] M4d — ship ("ship it" → `docflow ship`) + the faithful e2e demo; rename to
-  `writing-assistant`.
+  memory discovery. *(Done; the spine. Pairs with pair #66 M4a. Close pends the live smoke.)*
+- [ ] M4a' — the prep: on the propose poke, run `pair-review-readiness <file>`, act per the
+  case (stop/track/resume/new/interact), mark the target `ready`; on resume → reestablish
+  context from the round commits. *(Pairs with pair #66 M4a'.)*
+- [ ] M4b — **skeleton** (agent side of the structure slice): the 🤖[] fulfill/punt +
+  accept/reject (parley §5) handling + a **default posture** + **ship** ("ship it" →
+  `docflow ship`).
+- [ ] M4c — **thicken** (tuning): `modes/{generate,copy-edit,proofread}.md` +
+  `mode.directives` + the `review-<tag>.mode` seam; voice (`voice:` frontmatter →
+  `~/.personal/<slug>-writing-style.md`); fact-check pass (`doc-review` → records); the
+  `writing-assistant` rename (lockstep with pair's `REVIEW_TRIGGER`).
 
 ## Log
 
