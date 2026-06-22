@@ -259,28 +259,44 @@ above) — you don't accept/reject your own.
 **Modes + one-round instructions (M4c/M4d).** The pane tells you the active posture in
 each `"finished my edits…"` poke. If the poke includes an `instruction: …` suffix, apply
 that instruction only to this one review round, in the named posture; do not treat it as a
-sticky mode change or durable preference.
+sticky mode change or durable preference. Pair's nvim only carries the mode name; the
+meaning of each mode is defined here.
 
-**Copy Edit posture (default).** Make targeted edits + resolve the human's `🤖[]`
-requests, in the user's style; don't rewrite un-marked, settled text (the
-reading-frontier rule applies). In the hosted workbench, Copy Edit proposals must be
-minimal inline markers, not whole-paragraph replacements: anchor the smallest stable word,
-phrase, or sentence that needs to change and make the handoff record replace that anchor
-with marker markup. Use `new = "🤖<old text>{new text}"` for replacements,
-`new = "🤖{new text}"` for insertions, and deletion-marker forms for removals. Do not use an
-entire paragraph as `old` just because the desired change is inside it. Don't reach for
-standalone `doc-review` inside the workbench unless the operator asks for a fact-check
-pass.
+- **Generate** — the operator supplies simple instructions, ideas, notes, or structure,
+  and wants you to fill out the manuscript. Draw on world knowledge, session context,
+  repository memory, and relevant project material. Direct replacements are acceptable
+  here; in the hosted workbench the pane highlights the new text. Keep each
+  `{old, occurrence, new, explain}` record as small as the structural edit allows. For a
+  deletion-only change, use `🤖~deleted text~` instead of making text vanish, and state the
+  reason in `explain`.
+- **Edit (default)** — the operator has rough text and wants help improving clarity,
+  wording, framing, flow, and emphasis while preserving intended meaning and voice. Make
+  targeted edits + resolve the human's `🤖[]` requests; don't invent a new argument unless
+  asked. In the hosted workbench, Edit proposals must be minimal inline markers, not
+  whole-paragraph replacements: anchor the smallest stable word, phrase, or sentence that
+  needs to change and make the handoff record replace that anchor with marker markup. Use
+  `new = "🤖<old text>{new text}"` for replacements, `new = "🤖{new text}"` for insertions,
+  and deletion-marker forms for removals. Make each record's `old` the smallest stable
+  locator; do not use an entire paragraph as `old` just because the desired change is
+  inside it.
+- **Proofread** — the manuscript is near final quality and only small, high-confidence
+  corrections are needed: typos, misspellings, punctuation slips, capitalization, doubled
+  words, and obvious formatting glitches. Apply these mechanical corrections directly and
+  silently. Do not rewrite, rephrase, reframe, restructure, or alter meaning; if a change
+  would affect style or argument, leave it for Edit or Generate.
+
+Fact-check is not a mode. If the operator asks for fact-checking, dispatch the read-only
+`doc-review`/fresh-context review flow, read the generated check file, and decide what to
+incorporate through the active Generate/Edit/Proofread posture. Under docflow, note the
+dispatch and what you applied in the round body.
 
 **Shipping (M4b).** When the operator says **"ship it"** (a deliberate land-on-main
 decision — *not* merely that the markers cleared), run **`docflow ship`** in the doc's
 repo (`--no-ff` merge of `review/<slug>` + branch delete). It refuses while any `🤖`
 marker remains, so resolve/clear them first; `--force` is the abandon path.
 
-Generate, Proofread, voice (`voice:` frontmatter →
-`~/.personal/<slug>-writing-style.md`), and the fact-check pass (folding `doc-review` in)
-are being thickened after the Copy Edit path; keep Copy Edit conservative unless the
-selected posture says otherwise.
+Voice (`voice:` frontmatter → `~/.personal/<slug>-writing-style.md`) applies to Generate
+and Edit; Proofread and fact-check are voice-neutral.
 
 ## Fresh-context review (second agent, read-only)
 
