@@ -4,7 +4,7 @@ status: working
 deps: []
 github_issue:
 created: 2026-06-19
-updated: 2026-06-20
+updated: 2026-06-22
 estimate_hours: 3.51
 started: 2026-06-20T10:43:05-07:00
 ---
@@ -96,6 +96,14 @@ Mirrors pair #66 M4's **structure-first re-slice** (2026-06-21) — the agent-si
   `writing-assistant` rename (lockstep with pair's `REVIEW_TRIGGER`).
 
 ## Log
+
+### 2026-06-22
+
+- Tightened the hosted Copy Edit contract after pair #66 M4d smoke feedback: one-round
+  menu instructions are not sticky, and copy-edit proposals should use minimal inline
+  marker records (`new = "🤖<old>{new}"` / `new = "🤖{new}"`) rather than paragraph-sized
+  direct replacements. Updated `review-convention` so `🤖<X>{Y}` is documented alongside
+  the already-implemented pair accept/reject behavior.
 
 ### 2026-06-19
 

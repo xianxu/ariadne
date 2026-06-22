@@ -65,7 +65,8 @@ section    ::= "[" TEXT "]" | "{" TEXT "}"
 
 Two **reference** enclosures (anchor to prior text):
 
-- `<X>` — text quoted from the prior edition; preserved on resolve.
+- `<X>` — text quoted from the prior edition; preserved on reject, or replaced
+  by a single agent `{}` suggestion on accept.
 - `~X~` — text marked for deletion; markdown strikethrough renders the preview.
 
 Two **commentary** enclosures (alternate freely):
@@ -79,6 +80,7 @@ After the optional reference, any chain of `[]`/`{}` sections in any order:
 🤖{agent finding}[human response]{agent follow-up}[human reply]...
 🤖[human comment]{agent response}[human reply]{agent response}...
 🤖<quoted text>[human instruction about that text]
+🤖<old phrase>{new phrase}          -- robot proposes replacement (preferred for copy edits)
 🤖~old text~                       -- robot proposes deletion
 🤖~old text~{new text}             -- robot proposes replacement
 🤖~old text~[new text]             -- human-authored replacement
@@ -93,6 +95,7 @@ After the optional reference, any chain of `[]`/`{}` sections in any order:
 | `🤖{needs citation}[]` | Human says "go ahead" — **actionable** |
 | `🤖[fix this typo]` | Human comment — **actionable** |
 | `🤖<foo_bar>[rename to foo_baz]` | Human scopes instruction to the quoted text — **actionable** |
+| `🤖<old phrase>{new phrase}` | Robot proposed a replacement, awaiting human |
 | `🤖~old phrase~[new phrase]` | Human-authored replacement — **actionable** (apply per §5) |
 | `🤖~old phrase~` | Robot proposed a deletion, awaiting human — skip |
 | `🤖~old phrase~{better phrase}` | Robot proposed a replacement, awaiting human — skip |
@@ -105,7 +108,7 @@ After the optional reference, any chain of `[]`/`{}` sections in any order:
 One rule: **if the last section is `[]`, act. Otherwise, skip.**
 
 References (`<X>`, `~X~`) are not sections — `🤖<Q>` alone or `🤖<Q>{A}` is not
-actionable; a bare `🤖~D~` (or `🤖~D~{N}`) is a robot-authored edit proposal
+actionable; `🤖<Q>{A}`, a bare `🤖~D~`, or `🤖~D~{N}` is a robot-authored edit proposal
 awaiting the operator's Alt+a / Alt+r in parley.nvim, so /xx-fix skips it.
 
 An empty `[]` means "go ahead" — the human approves the agent's prior
@@ -253,19 +256,31 @@ appends `🤖[…]{…}` (your reason/question), leaving it for the human to twe
 records that add the marker; the human resolves them in the pane (accept/reject, §5
 above) — you don't accept/reject your own.
 
-**Default posture (M4b).** Until modes land (M4c), default to **copy-edit**: targeted
-edits + resolve the human's `🤖[]` requests, in the user's style; don't rewrite
-un-marked, settled text (the reading-frontier rule applies). Don't reach for standalone
-`doc-review` inside the workbench (fact-check is M4c).
+**Modes + one-round instructions (M4c/M4d).** The pane tells you the active posture in
+each `"finished my edits…"` poke. If the poke includes an `instruction: …` suffix, apply
+that instruction only to this one review round, in the named posture; do not treat it as a
+sticky mode change or durable preference.
+
+**Copy Edit posture (default).** Make targeted edits + resolve the human's `🤖[]`
+requests, in the user's style; don't rewrite un-marked, settled text (the
+reading-frontier rule applies). In the hosted workbench, Copy Edit proposals must be
+minimal inline markers, not whole-paragraph replacements: anchor the smallest stable word,
+phrase, or sentence that needs to change and make the handoff record replace that anchor
+with marker markup. Use `new = "🤖<old text>{new text}"` for replacements,
+`new = "🤖{new text}"` for insertions, and deletion-marker forms for removals. Do not use an
+entire paragraph as `old` just because the desired change is inside it. Don't reach for
+standalone `doc-review` inside the workbench unless the operator asks for a fact-check
+pass.
 
 **Shipping (M4b).** When the operator says **"ship it"** (a deliberate land-on-main
 decision — *not* merely that the markers cleared), run **`docflow ship`** in the doc's
 repo (`--no-ff` merge of `review/<slug>` + branch delete). It refuses while any `🤖`
 marker remains, so resolve/clear them first; `--force` is the abandon path.
 
-Modes (Generate / Copy Edit / Proofread + the mode menu), voice (`voice:` frontmatter →
+Generate, Proofread, voice (`voice:` frontmatter →
 `~/.personal/<slug>-writing-style.md`), and the fact-check pass (folding `doc-review` in)
-are **M4c** (thicken).
+are being thickened after the Copy Edit path; keep Copy Edit conservative unless the
+selected posture says otherwise.
 
 ## Fresh-context review (second agent, read-only)
 
@@ -289,6 +304,7 @@ has not acknowledged; resolution is always operator-initiated. §5 summary:
 |---|---|---|
 | `🤖[H]` | empty | same |
 | `🤖<X>[H]` | `X` | same |
+| `🤖<X>{Y}` | `Y` | `X` |
 | `🤖{R}` | `R` | empty |
 | `🤖[H]{R}` / `🤖{R}[H]` | empty | same |
 | `🤖~D~` | empty (deletion applied) | `D` |

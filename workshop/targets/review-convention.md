@@ -3,7 +3,7 @@ type: target
 slug: review-convention
 status: active
 created: 2026-05-23
-updated: 2026-05-23
+updated: 2026-06-22
 ---
 
 # Target: Review convention for human-robot collaboration in markdown
@@ -46,6 +46,7 @@ A marker is `🤖` followed by an optional reference (`<X>` or `~X~`), then a ch
 
 - `🤖[H]` — human commentary, unanchored.
 - `🤖<X>[H]` — human commentary anchored to referenced text X.
+- `🤖<X>{R}` — robot proposes replacing quoted text X with R.
 - `🤖{R}` — robot suggestion, typically an insertion of new text.
 - `🤖[H]{R}` — human asks, robot replies.
 - `🤖{R}[H]` — robot suggests, human replies.
@@ -54,7 +55,15 @@ A marker is `🤖` followed by an optional reference (`<X>` or `~X~`), then a ch
 - `🤖~D~[N]` — human-authored replacement of D with N. Asymmetric: humans normally just edit directly and skip this form; included for completeness.
 - `🤖[H₁]{R₁}[H₂]{R₂}…` — chains of dialogue can extend indefinitely. In practice they stay short.
 
-A marker proposes an edit only when its first content block carries the change: `🤖{N}` (insert), `🤖~D~` (delete), `🤖~D~{N}` (replace). Once a `[]` opens the chain — e.g., `🤖[H]{R}`, `🤖<X>[H]{R}` — the marker is commentary; accept and reject both discard the chain without touching surrounding prose. The bare `🤖{N}` form is mildly ambiguous between "I'm commenting" and "please insert N"; the operator's accept/reject gesture is what disambiguates, and context tells the agent how to read it.
+A marker proposes an edit only when its first content block carries the change:
+`🤖{N}` (insert), `🤖<X>{N}` or `🤖~D~{N}` (replace), `🤖~D~` (delete). Prefer
+`🤖<X>{N}` for ordinary copy-edit replacements where rejecting should leave the
+quoted text in place; use `🤖~D~{N}` when the deletion preview matters. Once a
+`[]` opens the chain — e.g., `🤖[H]{R}`, `🤖<X>[H]{R}` — the marker is
+commentary; accept and reject both discard the chain without touching
+surrounding prose. The bare `🤖{N}` form is mildly ambiguous between "I'm
+commenting" and "please insert N"; the operator's accept/reject gesture is what
+disambiguates, and context tells the agent how to read it.
 
 ### 4. `Alt+q` — insert human commentary (parley.nvim, pair's scrollback viewer)
 
@@ -71,6 +80,7 @@ Resolution collapses a marker into its final text:
 |---|---|---|
 | `🤖[H]` | *(empty — comment removed)* | *same* |
 | `🤖<X>[H]` | `X` | *same* |
+| `🤖<X>{R}` | `R` *(robot's replacement accepted)* | `X` |
 | `🤖<X>[H]{R}` | `X` *(commentary chain discarded, anchor preserved)* | *same* |
 | `🤖{R}` | `R` | *(empty)* |
 | `🤖[H]{R}` | *(empty)* | *same* |
