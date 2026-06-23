@@ -1,12 +1,13 @@
 ---
 id: 000121
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-19
 updated: 2026-06-22
 estimate_hours: 3.51
 started: 2026-06-20T10:43:05-07:00
+actual_hours: 2.80
 ---
 
 # Writing-assistant skill — pair review workbench agent protocol
@@ -101,6 +102,7 @@ Mirrors pair #66 M4's **structure-first re-slice** (2026-06-21) — the agent-si
 ## Log
 
 ### 2026-06-22
+- 2026-06-22: closed — go test ./...; go test ./cmd/doc-review ./cmd/sdlc ./cmd/sdlc/internal/issue; git diff --check; live pair review workbench used to revise and publish the binary-skill blog post; hosted xx-fix protocol covered review prep, record handoff, agent-owned git/ship, Generate/Edit/Proofread, doc-review fact-check guidance, and minimal Edit markers; rename intentionally deferred; --no-verdict because M4a/M4b/M4c were historical sub-boundaries folded into final live-acceptance close; --no-judge because the retrospective and final Claude judge dispatches hung without returning; review verdict: not-run
 
 - Final acceptance: operator used the pair review workbench and this hosted `xx-fix`
   protocol for a real revision of the binary-skill blog post, then posted the article.
