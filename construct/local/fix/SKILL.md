@@ -192,9 +192,10 @@ Invoke as `scripts/docflow.sh <verb>` from the repo root (or `docflow` if aliase
 When you are the persistent agent in a **pair** session and a review pane is open, you
 are the *producer* half of the agentic review workbench (pair **#000066**). The full
 contract — the seam files + invariants — is `pair/workshop/targets/review-protocol.md`;
-**read it**, this is the agent's side of it, not a copy. The reference implementation of
-the whole protocol is `pair/tests/lib/fake-review-agent.sh` — **when in doubt, do what it
-does**. The protocol differs from the standalone `/fix` flow above in two ways:
+**read it**, this is the agent's side of it, not a copy. Treat pair-side test fakes
+such as `pair/tests/lib/fake-review-agent.sh` as harness fixtures only; do not read
+them for runtime behavior. The protocol differs from the standalone `/fix` flow
+above in two ways:
 
 **1. Propose edits as records — never edit the file in place.** Write
 `{old, occurrence, new, explain}` records to the handoff file (seam #2; path per the
