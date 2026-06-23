@@ -25,8 +25,9 @@ is `pair/workshop/targets/review-protocol.md` (the agent↔nvim state machine). 
 M4 (the nvim consumer / seam / bar / menu) **depends on** this issue.
 
 Note: `xx-fix` has outlived its name (it's no longer "fix small things from `🤖[]`" —
-it's a collaborative editor). Rename to `writing-assistant` is in scope but can be the
-last step; keep the `xx-fix` name working until pair's `REVIEW_TRIGGER` poke is swapped.
+it's a collaborative editor). Rename is deferred to a follow-up; the likely
+user-facing name is `review`. Keep the `xx-fix` name working until the rename lands
+in lockstep with any downstream trigger changes.
 
 ## Spec
 
@@ -39,10 +40,10 @@ Per `review-protocol.md` (the seam + invariants) and pair #66's M4 design:
   human + agent rounds via `docflow` — *after* the nvim's "applied" poke (apply can drop
   records). Unwinds the M1 scaffolding where the nvim shelled docflow. `ship` on "ship it".
 - **Modes** (3 editing postures, mutually exclusive) + **fact-check** (orthogonal pass):
-  **Generate** / **Copy Edit** / **Proofread** as `modes/<name>.md` (the `mode.lua` form),
-  described up front; the active mode tracked as session state (the `review-<tag>.mode`
-  seam, agent-written). **Fact-check** = free-text-triggered; dispatch read-only
-  `doc-review` → integrate the note as edits via the record flow (fold doc-review in here).
+  **Generate** / **Edit** / **Proofread**, described directly in `SKILL.md` so pair
+  only needs UI metadata; the active mode is tracked in pair's `review-<tag>.mode`
+  seam. **Fact-check** = free-text-triggered; dispatch read-only `doc-review` →
+  integrate the note as edits via the record flow.
 - **Voice.** A doc's `voice: <slug>` frontmatter → load `~/.personal/<slug>-writing-style.md`
   for Generate + Copy Edit (Proofread + Fact-check are voice-neutral).
 - **Memory discovery.** Reach into brain/pensives/repos for the review (the original win
@@ -55,10 +56,11 @@ Per `review-protocol.md` (the seam + invariants) and pair #66's M4 design:
 - Poked from the workbench, the agent runs the record-handoff review flow (not doc-review),
   and the pane applies/commits rounds — a faithful process-level round-trip with pair #66.
 - All git (branch / human+agent rounds / ship) is agent-side; the pair nvim writes none.
-- Generate / Copy Edit / Proofread drive the agent; mode is switchable + reflected in the
+- Generate / Edit / Proofread drive the agent; mode is switchable + reflected in the
   seam; fact-check dispatches doc-review and integrates via records.
 - `voice: <slug>` is honored by the voice-relevant modes.
-- (rename) `xx-fix` → `writing-assistant`, with pair's `REVIEW_TRIGGER` swapped in lockstep.
+- Rename is deliberately deferred; `xx-fix` remains the deployed skill name for this
+  shipment, with `review` the likely follow-up name.
 
 ## Estimate
 
@@ -82,23 +84,33 @@ reference. familiarity 1.0 (the protocol is already specced in `review-protocol.
 
 Mirrors pair #66 M4's **structure-first re-slice** (2026-06-21) — the agent-side rows:
 
-- [ ] M4a — review-mode recognition + record-handoff flow + agent-owns-git (branch/rounds);
+- [x] M4a — review-mode recognition + record-handoff flow + agent-owns-git (branch/rounds);
   memory discovery. *(Done; the spine. Pairs with pair #66 M4a. Close pends the live smoke.)*
-- [ ] M4a' — the prep: on the propose poke, run `pair-review-readiness <file>`, act per the
+- [x] M4a' — the prep: on the propose poke, run `pair-review-readiness <file>`, act per the
   case (stop/track/resume/new/interact), mark the target `ready`; on resume → reestablish
   context from the round commits. *(Pairs with pair #66 M4a'.)*
-- [ ] M4b — **skeleton** (agent side of the structure slice): the 🤖[] fulfill/punt +
+- [x] M4b — **skeleton** (agent side of the structure slice): the 🤖[] fulfill/punt +
   accept/reject (parley §5) handling + a **default posture** + **ship** ("ship it" →
   `docflow ship`).
-- [ ] M4c — **thicken** (tuning): `modes/{generate,copy-edit,proofread}.md` +
-  `mode.directives` + the `review-<tag>.mode` seam; voice (`voice:` frontmatter →
-  `~/.personal/<slug>-writing-style.md`); fact-check pass (`doc-review` → records); the
-  `writing-assistant` rename (lockstep with pair's `REVIEW_TRIGGER`).
+- [x] M4c/M4d — **thicken** (tuning): Generate/Edit/Proofread mode prose in
+  `construct/local/fix/SKILL.md`; `review-<tag>.mode` seam owned by pair; voice
+  (`voice:` frontmatter → `~/.personal/<slug>-writing-style.md`); fact-check pass
+  (`doc-review` → records); copy-edit minimal marker contract; direct agents away from
+  stale fake harness guidance. Rename deferred to follow-up naming work.
 
 ## Log
 
 ### 2026-06-22
 
+- Final acceptance: operator used the pair review workbench and this hosted `xx-fix`
+  protocol for a real revision of the binary-skill blog post, then posted the article.
+  The skill now covers the hosted pair protocol, local review prep guidance, agent-owned
+  git/ship, Generate/Edit/Proofread mode semantics, fact-check via `doc-review`, voice
+  guidance, and minimal marker proposals for Edit. Rename is intentionally not part of
+  this shipment; `review` is the likely successor name to evaluate separately.
+- Folded fact-check review into `xx-fix` and removed standalone fresh-context-review
+  guidance from the hosted path; agents should treat fake review-agent scripts as
+  harness fixtures, not runtime behavior.
 - Tightened the hosted Copy Edit contract after pair #66 M4d smoke feedback: one-round
   menu instructions are not sticky, and copy-edit proposals should use minimal inline
   marker records (`new = "🤖<old>{new}"` / `new = "🤖{new}"`) rather than paragraph-sized
