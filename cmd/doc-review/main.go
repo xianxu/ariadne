@@ -2,14 +2,14 @@
 // of a Markdown document using a SECOND agent from a DIFFERENT vendor (codex by
 // default), then writes the reviewer's findings to a sidecar report.
 //
-// It is the binary behind the `fresh-context-review` skill. Per AGENTS.md §3,
+// It is the fact-check path embedded in the `xx-fix` skill. Per AGENTS.md §3,
 // the co-authoring agent carries confirmation bias, so a fresh-eyes review must
 // be a *separate* agent with no conversation history. This binary dispatches one
 // (read-only — it cannot edit the doc), captures its report, and hands the main
 // agent a triage instruction. The main agent still owns the document; the report
 // is advisory.
 //
-// Help is the single contract (the skill is a static pointer to it):
+// Help is the operational contract referenced by xx-fix:
 //
 //	doc-review --help        what it does, usage, agents, output, the triage step
 //	doc-review <agent> <file>   run the review (agent optional; defaults to codex)

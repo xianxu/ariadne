@@ -301,11 +301,35 @@ and Edit; Proofread and fact-check are voice-neutral.
 ## Fresh-context review (second agent, read-only)
 
 Triggered by "fresh context review" (or "fresh review" / "second-agent review").
-This moved to its own skill backed by a binary — **see the `fresh-context-review`
-skill / `doc-review --help`**. In short: it dispatches a read-only second-vendor
-reviewer (codex default) that fact-checks each claim and whether its cited
-reference supports it, writes `<file>-<agent>-check.md`, and leaves the triage to
-you. Under docflow, note the dispatch + what you applied in the round body.
+The co-authoring agent carries confirmation bias, so the audit must be performed
+by a separate fresh-context agent with no conversation history and no write access
+to the document.
+
+Use the `doc-review` binary:
+
+- `doc-review <file.md>` — review with the default second-vendor agent (`codex`).
+- `doc-review <agent> <file.md>` — review with `codex`, `gemini`, or `claude`
+  (Claude is fallback only when no cross-vendor CLI is available).
+- `doc-review --dry-run <file.md>` — print the would-be reviewer command and
+  report path without running it.
+
+The binary prompt and help are the operational source of truth; run
+`doc-review --help` when you need the current flags or reviewer details. In
+short, it dispatches a read-only reviewer that checks every factual claim for:
+
+- whether the claim is accurate; and
+- whether its cited reference actually supports it.
+
+The reviewer may web-search or fetch cited URLs, then writes a sidecar report
+next to the document: `<file>-<agent>-check.md` (override with `--out`). The
+reviewer cannot modify the document; the report is advisory.
+
+After `doc-review` finishes, the main agent owns triage: read the report, verify
+claimed corrections before applying them, update the document where you agree,
+and leave a note for findings you reject. In the hosted pair workbench, apply
+accepted fact-check corrections through the normal record handoff; do not edit
+the file in place. Under docflow, note the dispatch and what you applied in the
+round body.
 
 ## Operator-initiated bulk resolution (review-convention §6)
 

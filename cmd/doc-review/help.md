@@ -6,7 +6,8 @@ Why it exists: the agent co-authoring a document carries confirmation bias
 (AGENTS.md §3 — a fresh-eyes review must be a *separate* agent). This binary
 dispatches one with no conversation history and no ability to edit the doc, so the
 review is genuinely independent. The review prompt is BAKED INTO this binary; the
-`fresh-context-review` skill is a static pointer to this help.
+`xx-fix` skill embeds the fact-check workflow and points here for current CLI
+details.
 
 USAGE
   doc-review <file.md>            review with the default agent (codex)
