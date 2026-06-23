@@ -64,3 +64,13 @@ docs marker-clean.
 Opt-in. Plain `xx-fix` marker-processing needs none of this; reach for `docflow`
 on heavier, multi-round co-authoring where the trail is worth keeping. The `xx-fix`
 SKILL.md "Round journaling" section tells the agent when to call each verb.
+
+## Pair Review Workbench
+
+In a hosted pair review pane, `xx-fix` is the agent half of pair's document
+workbench. The agent still owns docflow branch/round/ship operations, but it does
+not edit the file directly: it writes `{old, occurrence, new, explain}` records
+to pair's handoff seam, waits for the pane to apply the records undo-ably, then
+commits the landed artifact with `docflow round`. The mode vocabulary for that
+hosted flow is Generate / Edit / Proofread; fact-check remains an instruction
+that dispatches `doc-review` and folds accepted findings back through records.
