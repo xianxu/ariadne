@@ -147,13 +147,14 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
 ## Plan
 
 - [x] Design the durable plan via `superpowers-writing-plans` → `workshop/plans/000122-cue-schema-layer-issue-plan.md` (fresh-eyes reviewed; revised)
-- [ ] M1 — CUE model single-sourced via `categories` (`or()`-derived `#`-defs) + lifecycle + laws (documented-value, reachable/escapable); `cue vet` + export-shape gate; `issue-lifecycle` target; **human design-interface review** before consumers are wired
-- [ ] M2 — `cmd/schema` (reuse `pkg/layergraph`) vet/export/render; `.dynamic-skill` weave wiring; `ensure-cue` bootstrap + honest build-order; freshness stamp + `weave check`; touch-time skill instruction; atlas
+- [x] M1 — CUE model single-sourced via `categories` (`or()`-derived `#`-defs) + lifecycle + laws (documented-value, reachable/escapable); `cue vet` + export-shape gate; `issue-lifecycle` target; **human design-interface review** before consumers are wired
+- [ ] M2 — `cmd/vocabulary` (reuse `pkg/layergraph`) vet/export; `.dynamic-skill` weave wiring → `construct/generated/vocabulary/issue.json`; `ensure-cue` bootstrap + honest build-order; freshness stamp + `weave check`; touch-time skill instruction; atlas
 - [ ] M3 — `IssueModel` embed/parse; rewire all consumers to categories (carve out legit literals, honest grep); conformance check; `parked` acceptance scenario; dedup AGENTS.md prose; close
 
 ## Log
 
 ### 2026-06-24
+- 2026-06-24: closed M1 — M1: cue vet gate green (valid vets, issue_invalid fails, export carries categories+lifecycle); design interface (issue.cue + issue-lifecycle target) reviewed + signed off by operator; no-code milestone (CUE data + target); review verdict: not-run
 
 - Created from a brainstorm on formalizing nouns + verbs as a single compiled source
   (`ARCH-DRY`: one definition, many consumers; `ARCH-PURE`: schema is pure data,
