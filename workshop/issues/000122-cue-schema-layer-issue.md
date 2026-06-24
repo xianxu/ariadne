@@ -3,6 +3,7 @@ id: 000122
 status: working
 deps: []
 github_issue:
+target: issue-lifecycle
 created: 2026-06-24
 updated: 2026-06-24
 estimate_hours: 10
