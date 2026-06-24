@@ -1,0 +1,14 @@
+#!/bin/sh
+# Dynamic-skill marker (#122): weave compile execs this with cwd = the COMPILING
+# repo's root, via the injected Runner, with the `vocabulary` PATH binary
+# (build-in-owner; on PATH during `weave compile`) available. The binary
+# DAG-merges this repo's construct/vocabulary/*.cue across the layer graph,
+# cue-exports each noun to construct/generated/vocabulary/<noun>.json, writes a
+# freshness stamp (.source-sha), and renders the served SKILL.md (the touch-time
+# breadcrumb).
+#
+# --output is REPO-RELATIVE (construct/generated/vocabulary) and the binary
+# mkdir -p's it, so materialization lands under the COMPILING repo's tree.
+# construct/generated/ is gitignored everywhere (regenerated every compile; the
+# tracked marker is what keeps the skill discoverable in a fresh clone).
+vocabulary export --output construct/generated/vocabulary

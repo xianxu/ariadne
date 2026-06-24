@@ -74,6 +74,10 @@ func runExport(args []string) error {
 			return fmt.Errorf("write %s: %w", dst, err)
 		}
 	}
+	// Render the served skill body (the always-loaded touch-time breadcrumb).
+	if err := os.WriteFile(filepath.Join(*output, "SKILL.md"), []byte(renderSkill(sortedKeys(paths))), 0o644); err != nil {
+		return fmt.Errorf("write SKILL.md: %w", err)
+	}
 	// Freshness: stamp the materialization with the merged-source digest, so
 	// `vocabulary check --output <dir>` can later detect drift vs the source.
 	srcs, err := readSources(paths)
