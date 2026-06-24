@@ -342,3 +342,75 @@ navigation pointer to a symbol's old home is exactly the drift that gate exists 
 path/package name (e.g. `cmd/weave/internal/layer`), not just the feature name —
 code-map / "Surface" / file-pointer sections drift silently because they key on
 location, not behavior. Feature-prose reconciliation alone misses them.
+
+## 2026-06-24 — Subagent context is throwaway: instruct it to surface lessons, and persist them here (#122)
+
+**Pattern:** Dispatched three subagents this session (a plan reviewer, an M2
+implementation fork, an M2 code reviewer) and asked each for *findings + decisions +
+deferrals* — but never explicitly for *reusable lessons*. Even the lessons that did
+surface incidentally (the stray-binary footgun, an estimate-block gotcha) would have
+evaporated: the subagent's context is discarded when it returns, AND the main session's
+context is discarded at session end — the only thing that survives either boundary is
+what's written to `workshop/lessons.md` or memory. The operator caught this by asking
+"do you instruct subagents to report lessons back?" — I did not, and I had not been
+routing the session's own lessons here either.
+
+**Rule:** (a) Subagent prompts must explicitly request *"reusable lessons / gotchas,
+separate from findings"* — findings are about the work product (task-scoped); lessons
+are for future work (cross-task). The throwaway context only surrenders them if asked.
+(b) The main session routes the worthy ones into this file — and running a code review
+that finds mistakes (the subagent's *or* the work's) **obligates** a lessons entry per
+AGENTS §4. The cross-boundary persistence is the whole point; a lesson that lives only
+in a discarded context is a lesson un-learned (the consistency-prosthesis idea).
+
+**Origin:** #122, prompted by the operator's question mid-implementation. Same family as
+the brain `consistency-prosthesis` memory — coherence across time is grafted from
+outside (the durable ledger), never inherent to a single context.
+
+## 2026-06-24 — CUE authoring gotchas + the stray-`./cmd/X`-binary breaks leaf-dir tools (#122)
+
+**Pattern:** Three CUE/build tripwires building the vocabulary layer. (1) `cue vet`
+rejects list `+` concatenation in v0.11+ ("Addition of lists is superseded by
+list.Concat") — the M1 vet gate failed first try on `categories.open + categories.active`.
+(2) CUE **`#`-definitions don't `cue export`** — only concrete fields reach the JSON, so
+the category data sdlc consumes had to be a concrete `categories:` field, with `#Status`
+*derived* from it via `or()` (a definition built from the concrete, not the reverse).
+(3) The stray-root-binary footgun has a sharper consequence than the [[A hand-maintained
+copy of generated data drifts]] tripwire (line ~78) noted: `go build ./cmd/vocabulary`
+(no `-o`) drops `./vocabulary` at the repo root, and because `vocabulary`/`datatype`
+resolve `<root>/<name>/` as the leaf-local *directory*, the stray *file* makes
+`MergeByName` hit ENOTDIR — so it doesn't just get swept into a commit, it **breaks the
+tool** (`vet/export/check` fail with "not a directory").
+
+**Rule:** Build CUE list unions with `list.Concat([a,b,…])`, never `+`. When a consumer
+needs a value out of a CUE model, it must be a **concrete field** (definitions are
+validation-only and never export) — derive the `#`-def from the concrete via `or()` so
+membership is stated once. Build Go binaries into `bin/` (or `-o /dev/null` for a
+compile-check), and gitignore the stray root binary at **every** `cmd/<X>` name
+(`/vocabulary`, `/datatype`, not just `/sdlc`) — especially for tools that read a
+same-named leaf dir, where the stray file is a functional break, not just commit noise.
+
+**Origin:** #122 M1 (the `list.Concat` + `#`-export gaps, hit inline) and M2 (the
+ENOTDIR consequence, flagged by both the implementation fork and the code review).
+
+## 2026-06-24 — In-sandbox, SDLC judges can't reach network: --no-judge + substitute a fresh-context review; and change-code needs a ## Estimate block (#122)
+
+**Pattern:** `sdlc change-code`/`milestone-close` auto-dispatch their LLM judges via the
+`claude` CLI, which needs the network the Claude-Code sandbox blocks — so the judge
+hangs or degrades, and closing `--no-judge` records `Review-Verdict: not-run`, leaving
+the **mandatory §3 boundary review unrun**. Letting `not-run` stand would skip the one
+review the boundary exists to guarantee. Separately, `change-code`'s estimate gate
+requires a `## Estimate` fenced block (v2 primitives reconciling with `estimate_hours`),
+which `sdlc issue new` does **not** scaffold — so it refuses until you add one.
+
+**Rule:** (a) In-sandbox, close `--no-judge` to avoid the network hang, but **substitute
+the mandatory review** with a fresh-context reviewer subagent against the boundary diff
+window (prev-boundary..HEAD), then fix Critical/Important and **record the real verdict
+in the issue Log** — don't let `not-run` be the final word on a reviewed boundary. (b)
+Add the `## Estimate` block *before* `change-code`, and **derive** the total from the
+itemized v2 primitives (sum design×(1+buffer) + impl×familiarity) rather than back-fitting
+items to a guessed total — the estimate-quality judge exists to catch back-fitting.
+
+**Origin:** #122 (change-code + both milestone closes ran `--no-judge`; M1/M2 reviews ran
+as substitute subagents). Sibling to [[Don't truncate sdlc judge/review output]] — both
+are about not losing the boundary review's signal.

@@ -196,3 +196,12 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
   fixed via a make chain (`ensure-cue → schema-install → schema-gen → sdlc-build`) with a
   committed `issue.json`. Added the `ensure-cue` bootstrap, `issue-lifecycle` target, and
   an explicit **M1 human design-interface review** (CUE as the human/LLM design surface).
+- M2 fresh-eyes review (subagent — the milestone-close judge CLI needs sandbox-blocked
+  network, so closed `--no-judge`; this is the substitute review per §3): **no Critical**;
+  the `datatype`→`layergraph.MergeByName` refactor verified behavior-preserving (shadow
+  ordering tested). Fixed in `c66d4c3`: Important — `osCue.Export` used `.Output()` and
+  dropped CUE's stderr (export failures undiagnosable) → route stderr to a buffer; Nice —
+  error on the ambiguous `--noun`+`--output` combo, `.gitignore` the stray `/vocabulary`
+  + `/datatype` root binaries. Accepted as-is: `readSources` bypassing the FS seam.
+  **Effective verdict: SHIP** — M2 sealed. (Remaining integration: wire `make
+  issue-json-check` into ariadne CI — one line.)
