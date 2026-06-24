@@ -39,6 +39,10 @@ func runExport(args []string) error {
 	noun := fs.String("noun", "", "print only this noun's JSON to stdout")
 	_ = fs.Parse(args)
 
+	if *noun != "" && *output != "" {
+		return fmt.Errorf("--noun and --output are mutually exclusive (--noun prints one noun to stdout; --output materializes all)")
+	}
+
 	paths, err := resolveVocab()
 	if err != nil {
 		return err

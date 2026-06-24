@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 )
@@ -25,9 +26,12 @@ func (osCue) Vet(path string) error {
 }
 
 func (osCue) Export(path string) ([]byte, error) {
-	out, err := exec.Command("cue", "export", path, "--out", "json").Output()
+	cmd := exec.Command("cue", "export", path, "--out", "json")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr // stdout stays clean for the JSON; CUE's diagnostic lands here
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("cue export %s failed: %w", path, err)
+		return nil, fmt.Errorf("cue export %s failed: %v\n%s", path, err, stderr.Bytes())
 	}
 	return out, nil
 }
