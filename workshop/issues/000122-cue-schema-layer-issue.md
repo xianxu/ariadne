@@ -155,6 +155,18 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
 
 ### 2026-06-24
 - 2026-06-24: closed M1 — M1: cue vet gate green (valid vets, issue_invalid fails, export carries categories+lifecycle); design interface (issue.cue + issue-lifecycle target) reviewed + signed off by operator; no-code milestone (CUE data + target); review verdict: not-run
+- Design chat (typing-markdown frame; captured in the pensive): refined the schema
+  boundary — `issue.cue` stays **well-formedness only** (enum, required fields, types;
+  the `age 0-100` class). The existing `CheckStructural` word-count/heuristic gates are
+  *semantic* (soul-checks in disguise) → do NOT migrate them into the schema. **Scopes
+  M3:** rewire only the enum/category/transition literals to the model; leave (or
+  separately LLM-relocate) the semantic structural gates. Write-back stays an LLM job
+  (validator emits diagnostics → LLM edits → re-vet), not a deterministic engine.
+- Follow-up beyond #122 (motivated by the hand-edited-bad-status scenario): a general
+  **instance-conformance validator** — `artifact → (locator) → typed instances →
+  cue vet` against the type — wired at edit/pre-merge surfaces across *all* typed
+  markdown. datatype = prose skill + schema; the *extractor/locator* is the new piece
+  (cue vet is the easy half). To be filed as its own issue.
 
 - Created from a brainstorm on formalizing nouns + verbs as a single compiled source
   (`ARCH-DRY`: one definition, many consumers; `ARCH-PURE`: schema is pure data,
