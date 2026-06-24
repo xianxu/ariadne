@@ -750,7 +750,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build weave-build datatype-build vocabulary-build issue-json-gen sdlc-install sdlc-bootstrap
+.PHONY: tools sdlc-build weave-build datatype-build vocabulary-build issue-json-gen issue-json-check sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -852,6 +852,18 @@ issue-json-gen: vocabulary-build ensure-cue
 	@echo "==> regenerating cmd/sdlc/internal/issue/issue.json from the issue vocabulary"
 	@vcowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
 	PATH="$$vcowner/bin:$$PATH" vocabulary export --noun issue > cmd/sdlc/internal/issue/issue.json
+
+# issue-json-check (#122): the committed embed input must reflect the current
+# issue vocabulary. Regenerate + fail if it changed (stale). OWNER-ONLY (writes
+# cmd/sdlc/, which lives only in ariadne); run from ariadne CI — deliberately NOT
+# composed into the consumer-facing `check`/`pre-merge` (would brew-install cue +
+# write a non-existent path in a consumer). The DIFFERENT, cross-repo gate — has
+# this repo's gitignored materialization gone stale vs the merged source — is
+# `vocabulary check --output construct/generated/vocabulary` (no weave-check
+# integration: `weave check` is a path-completeness check, a separate concern).
+issue-json-check: issue-json-gen
+	@git diff --exit-code -- cmd/sdlc/internal/issue/issue.json \
+	  || { echo "Error: cmd/sdlc/internal/issue/issue.json is STALE vs construct/vocabulary/issue.cue — run 'make issue-json-gen' and commit it (#122)." >&2; exit 1; }
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
