@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-24
 updated: 2026-06-24
-estimate_hours:
+estimate_hours: 10
 started: 2026-06-24T13:13:10-07:00
 ---
 
@@ -119,14 +119,36 @@ Detailed design (folder placement, CUE shape, weave wiring) to be authored at
   decisions; categories propagate to Go/Lua with no hand-edits; any consumer that
   branched on a raw value is caught by a failing conformance test.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+design-buffer: 0.30
+item: typed-data-prototype   design=0.4 impl=0.8
+item: atlas-docs             design=0.2 impl=0.4
+item: milestone-review       design=0.0 impl=0.6
+item: greenfield-go-module   design=0.5 impl=1.2
+item: skill-or-dispatcher    design=0.1 impl=0.5
+item: smaller-go-module      design=0.2 impl=0.7
+item: milestone-review       design=0.0 impl=0.6
+item: smaller-go-module      design=0.3 impl=0.8
+item: cross-cutting-refactor design=0.3 impl=1.2
+item: milestone-review       design=0.0 impl=0.6
+total: 10.0
+```
+
+Derivation: M1 (vocabulary model + lifecycle target + review) ≈ 2.6h · M2
+(`cmd/vocabulary` + weave wiring + `ensure-cue`/build-order + freshness) ≈ 4.0h ·
+M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesign 2.0
+×1.30 + Σimpl 7.4 ×1.0 = 10.0.
+
 ## Plan
 
-- [ ] Design via `superpowers-writing-plans` at `start-plan` (folder convention `schema/` + `vocabulary/`, CUE model shape, weave wiring, build organization across languages)
-- [ ] `schema/issue.cue` — `#Issue` noun + `#Status` as union of categories + lifecycle transition table + laws; `cue vet` gate (orphan-state, documented-value)
-- [ ] Compile pipeline: `cue export → generated/issue.json`; renderer for the human markdown face + the eager vocabulary breadcrumb; wire into weave
-- [ ] Rewire sdlc + code consumers to branch on categories read from the model; delete `isTerminalStatus` + scattered literals; tests
-- [ ] Generated conformance test per consumer; freshness gate (build-time regen + `weave check` stamp over merged source)
-- [ ] Verify the seam with the `parked` acceptance scenario end-to-end; record the verdict for "worth generalizing"
+- [x] Design the durable plan via `superpowers-writing-plans` → `workshop/plans/000122-cue-schema-layer-issue-plan.md` (fresh-eyes reviewed; revised)
+- [ ] M1 — CUE model single-sourced via `categories` (`or()`-derived `#`-defs) + lifecycle + laws (documented-value, reachable/escapable); `cue vet` + export-shape gate; `issue-lifecycle` target; **human design-interface review** before consumers are wired
+- [ ] M2 — `cmd/schema` (reuse `pkg/layergraph`) vet/export/render; `.dynamic-skill` weave wiring; `ensure-cue` bootstrap + honest build-order; freshness stamp + `weave check`; touch-time skill instruction; atlas
+- [ ] M3 — `IssueModel` embed/parse; rewire all consumers to categories (carve out legit literals, honest grep); conformance check; `parked` acceptance scenario; dedup AGENTS.md prose; close
 
 ## Log
 
@@ -148,3 +170,14 @@ Detailed design (folder placement, CUE shape, weave wiring) to be authored at
   CUE source directly** rather than a generated artifact (re-reads live → never stale),
   with only a minimal eager breadcrumb generated. The `parked`-status add is the
   acceptance scenario.
+- Durable plan authored (`workshop/plans/000122-…-plan.md`), estimate set to 12h.
+  Fresh-eyes plan review caught a showstopper: CUE `#`-definitions don't `cue export`,
+  so the category membership the consumer needs wasn't in the JSON. Fixed *better* than
+  the suggested concrete-list-plus-law by making `categories` the concrete single source
+  and deriving the `#`-defs via `or()` — DRY by construction, no drift. Review also
+  found ≥7 unlisted status-literal sites (close.go/state.go drift-switch/setstatus stamp
+  trigger/push GitHub branch) → M3 now enumerates every site + carves out legitimate
+  state-writes with an honest grep; and an overstated `go:generate` freshness claim →
+  fixed via a make chain (`ensure-cue → schema-install → schema-gen → sdlc-build`) with a
+  committed `issue.json`. Added the `ensure-cue` bootstrap, `issue-lifecycle` target, and
+  an explicit **M1 human design-interface review** (CUE as the human/LLM design surface).
