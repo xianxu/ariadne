@@ -308,3 +308,26 @@ boundaries):
   embedded `## `), not round-trip — warning rewritten to detect a non-canonical
   terminating heading. Smoke-froze #119 itself end-to-end. All bench + cmd/sdlc
   tests green; `go build ./...` clean.
+
+### Restart anchor (2026-06-24)
+
+**Branch:** `000119-multi-agent-benchmark-harness` — pushed to `origin` @ `1b9c45e`
+(forked from main @ `202a7c1`; main has since advanced with #121/#122, so the
+branch is intentionally self-contained — don't rebase casually).
+
+**Done:** M1 — data model (`Task`/`Rubric` + config-scoped json round-trip),
+`Store`, `benchmark-task` datatype, `workshop/benchmarks/` layout, and
+`sdlc bench freeze`. Boundary-reviewed **FIX-THEN-SHIP**; the one Important
+finding (findIssueFile ARCH-DRY dup) is fixed. Build + all tests green.
+
+**Next:** M2 — runner (autonomous `judge.Dispatch` with write-allowlist +
+timeout ctx; worktree-from-`base_sha`; `Responder` seam) + the
+no-merge/base-immutability integration test. Then M3 (grader Stage A objective
+scorecard), M4 (grader Stage B: anonymizer + blind judge + the K=20/≤60%
+anonymization-leak gate), M5 (leaderboard + end-to-end claude-vs-codex demo).
+
+**Resume:** `git checkout 000119-multi-agent-benchmark-harness`, then execute
+`workshop/plans/000119-multi-agent-benchmark-harness-plan.md` from **Chunk 2 (M2)**.
+Two decisions deferred to M5: the nested-dispatch resolution (disable or pin the
+sub-dispatched SDLC review a contestant triggers when it runs `sdlc`) and
+confirming the live-agent demo cost with the operator.
