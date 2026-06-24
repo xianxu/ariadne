@@ -1,0 +1,104 @@
+{
+    "categories": {
+        "open": [
+            "open"
+        ],
+        "active": [
+            "working",
+            "blocked"
+        ],
+        "terminal": [
+            "done",
+            "wontfix",
+            "punt"
+        ]
+    },
+    "when": {
+        "open": "created, not yet started",
+        "working": "actively in progress",
+        "blocked": "waiting on another tracked issue",
+        "done": "complete and closed",
+        "wontfix": "rejected; will not be done",
+        "punt": "deferred"
+    },
+    "lifecycle": [
+        {
+            "from": "open",
+            "to": "working",
+            "event": "claim",
+            "guards": []
+        },
+        {
+            "from": "working",
+            "to": "blocked",
+            "event": "block",
+            "guards": []
+        },
+        {
+            "from": "blocked",
+            "to": "working",
+            "event": "unblock",
+            "guards": []
+        },
+        {
+            "from": "working",
+            "to": "done",
+            "event": "close",
+            "guards": [
+                "actual-measured",
+                "verified",
+                "atlas-updated"
+            ]
+        },
+        {
+            "from": "blocked",
+            "to": "done",
+            "event": "close",
+            "guards": [
+                "actual-measured",
+                "verified",
+                "atlas-updated"
+            ]
+        },
+        {
+            "from": "working",
+            "to": "wontfix",
+            "event": "abandon",
+            "guards": []
+        },
+        {
+            "from": "working",
+            "to": "punt",
+            "event": "defer",
+            "guards": []
+        },
+        {
+            "from": "done",
+            "to": "working",
+            "event": "reopen",
+            "guards": []
+        }
+    ],
+    "laws": {
+        "documented-value": {
+            "open": "created, not yet started",
+            "working": "actively in progress",
+            "blocked": "waiting on another tracked issue",
+            "done": "complete and closed",
+            "wontfix": "rejected; will not be done",
+            "punt": "deferred"
+        },
+        "reachable": {
+            "working": true,
+            "blocked": true,
+            "done": true,
+            "wontfix": true,
+            "punt": true
+        },
+        "escapable": {
+            "open": true,
+            "working": true,
+            "blocked": true
+        }
+    }
+}
