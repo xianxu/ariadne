@@ -8,7 +8,7 @@ dir="$(dirname "$0")"
 
 cue vet "$dir/issue.cue" || { echo "FAIL: valid model did not vet"; exit 1; }
 
-if cue vet "$dir/issue_invalid.cue" 2>/dev/null; then
+if cue vet "$dir/testdata/issue_invalid.cue" 2>/dev/null; then
   echo "FAIL: invalid model passed vet"; exit 1
 fi
 
