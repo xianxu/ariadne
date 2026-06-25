@@ -1,11 +1,12 @@
 ---
 id: 000125
-status: open
+status: working
 deps: [ariadne#122]
 github_issue:
 created: 2026-06-25
 updated: 2026-06-25
 estimate_hours:
+started: 2026-06-25T14:33:20-07:00
 ---
 
 # sdlc embeds a help-text fragment GENERATED from the issue vocabulary (stop hand-maintaining lifecycle prose)
