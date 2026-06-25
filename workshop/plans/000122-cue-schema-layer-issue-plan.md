@@ -144,19 +144,24 @@
 
 > Milestone **M3** review boundary. Closes with `sdlc close --issue 122 --milestone M3 --verified '<evidence>'`. The `parked` scenario is the verification.
 
-### Task 3.1: `IssueModel` — embed + parse (ARCH-PURE)
+**Binding model (design refinement — see ## Revisions).** Placement of a generated artifact is a property of the consumer's *language*, not the consumer *instance* — and the language's own module system distributes one canonical copy to every consumer of that language. So M3 does NOT copy `issue.json` per consumer package (the per-entity `issue-json-gen` smell). The **Go binding** is one shared importable package `pkg/vocab` that `go:embed`s the noun JSONs and exports accessors; every Go consumer (sdlc now, anything later) `import`s it — the import graph *is* the distribution. The co-located `//go:generate` directive is the Go binding declaration; one generic `go generate ./...` (`make vocab-embed`) regenerates it (no per-noun/per-consumer Make target). A general repo-local *bindings config* `(language, dir, form)` is deferred until a second language needs placement (the Lua/parley follow-up); for Go, `go:generate` is the native declaration. Keep the binding OUT of the noun — `issue.cue` stays pure (avoid protobuf's `option go_package` wart).
 
-**Files:** Create `cmd/sdlc/internal/issue/{model.go,model_test.go}`; generate+commit `cmd/sdlc/internal/issue/issue.json`.
+### Task 3.1: `pkg/vocab` — the Go binding (shared, importable; ARCH-PURE/DRY)
 
-- [ ] **Failing test:** `IsTerminal("done")==true`, `IsTerminal("working")==false`, `IsActive("blocked")==true`, `CanTransition("open","working")==true`, `CanTransition("open","done")==false`.
-- [ ] Implement: `//go:embed issue.json`; unmarshal `{categories, when, lifecycle, laws}` once into `IssueModel`; pure predicates over `categories`/`lifecycle`. No `#`-definition parsing. Run → PASS. Commit.
+**Files:** Create `pkg/vocab/{vocab.go,vocab_test.go,issue.json}` + the `//go:generate` directive. **Delete** M2's per-consumer copy `cmd/sdlc/internal/issue/issue.json` and the per-entity `issue-json-gen`/`issue-json-check` Make targets (superseded by the binding).
 
-### Task 3.2: Rewire the consumers — complete site list + honest grep
+- [ ] **Failing test:** in `pkg/vocab`, `Issue().IsTerminal("done")==true`, `IsTerminal("working")==false`, `IsActive("blocked")==true`, `CanTransition("open","working")==true`, `CanTransition("open","done")==false`.
+- [ ] Implement: `pkg/vocab/issue.json` `//go:embed`'d once; `//go:generate vocabulary export --noun issue -o issue.json` co-located; unmarshal `{categories, when, lifecycle, laws}` into an `IssueModel`; pure predicates over `categories`/`lifecycle` (no `#`-def parsing). Run → PASS. Commit.
+- [ ] Makefile: replace `issue-json-gen`/`issue-json-check` with one generic `vocab-embed` (= `go generate ./...`) + a generic `git diff --exit-code` over the generated files. No per-noun/per-consumer target.
+
+### Task 3.2: Rewire the consumers — read from `pkg/vocab`; complete site list + honest grep
+
+sdlc consumers `import .../pkg/vocab` and branch on `vocab.Issue()` predicates (NOT a sdlc-internal copy).
 
 **Rewire (category/transition branching → model):**
-- [ ] `cmd/sdlc/push.go` — delete `isTerminalStatus` (494–495); `Model().IsTerminal` at 370, 441, 467.
-- [ ] `cmd/sdlc/merge.go:550` — `isTerminalStatus` → `Model().IsTerminal`.
-- [ ] `cmd/sdlc/setstatus.go` — `validStatuses` (40) → `Model().AllStatuses()`; transition guards at 195 (`prev=="open"&&status=="working"`), 222 (`next=="done"`), 240 → `Model().CanTransition` + named events.
+- [ ] `cmd/sdlc/push.go` — delete `isTerminalStatus` (494–495); `vocab.Issue().IsTerminal` at 370, 441, 467.
+- [ ] `cmd/sdlc/merge.go:550` — `isTerminalStatus` → `vocab.Issue().IsTerminal`.
+- [ ] `cmd/sdlc/setstatus.go` — `validStatuses` (40) → `vocab.Issue().AllStatuses()`; transition guards at 195 (`prev=="open"&&status=="working"`), 222 (`next=="done"`), 240 → `CanTransition` + named events.
 - [ ] `cmd/sdlc/state.go:300–319` (detectDrift `switch i.Status`) **and** `:341` → category predicates.
 - [ ] `cmd/sdlc/claim.go:125` (`prev!="open"`) → model.
 - [ ] `cmd/sdlc/startplan.go:308` (`=="working"`) → `IsActive`/explicit.
@@ -165,21 +170,21 @@
 - [ ] `cmd/sdlc/close.go:459` `SetField(...,"done")` — writes a target state; source from the transition `to` or annotate `// literal: terminal write, not a category branch`.
 - [ ] `cmd/sdlc/close.go:376`, `cmd/sdlc/push.go:471` (`=="done"`) — assess: rewire to `IsTerminal` if a category test, annotate if genuinely value-specific.
 
-- [ ] **Honest acceptance:** `grep -n '"open"\|"working"\|"blocked"\|"done"\|"wontfix"\|"punt"' cmd/sdlc/*.go | grep -v _test` returns **only** the embed/parse plumbing **and the annotated carve-outs**; the milestone log records the carve-out list. `go test ./cmd/sdlc/...` after each file; commit per file.
+- [ ] **Honest acceptance:** `grep -n '"open"\|"working"\|"blocked"\|"done"\|"wontfix"\|"punt"' cmd/sdlc/*.go | grep -v _test` returns **only** the annotated carve-outs (the parse plumbing now lives in `pkg/vocab`, outside `cmd/sdlc`); the milestone log records the carve-out list. `go test ./cmd/sdlc/... ./pkg/vocab/...` after each file; commit per file.
 
 ### Task 3.3: Conformance test — a *check*, not a maintained list
 
-- [ ] `model_conformance_test.go` reads the **embedded `IssueModel` at runtime** and asserts: every declared transition is accepted by `CanTransition`, every forbidden one rejected, every status has a category and a `when`. Cases derived from the model (no hand-maintained list) — adding a value it can't place fails the test.
+- [ ] `pkg/vocab/conformance_test.go` reads the embedded model at runtime and asserts: every declared transition is accepted by `CanTransition`, every forbidden one rejected, every status has a category and a `when`. Cases derived from the model (no hand-maintained list) — adding a value it can't place fails the test.
 
 ### Task 3.4: Acceptance scenario — `parked` proves clean evolvability
 
-- [ ] Add `parked`: append to `categories.active`, add `working↔parked` transitions, add its `when` (≈4 lines). Regenerate (`make issue-json-gen`); rebuild.
+- [ ] Add `parked`: append to `categories.active`, add `working↔parked` transitions, add its `when` (≈4 lines). Regenerate (`make vocab-embed` / `go generate ./...`); rebuild.
 - [ ] **Verify with no Go edits:** `IsActive("parked")==true`, `IsTerminal("parked")==false`, `setstatus working→parked` accepted; `state`/`list` treat it active. Any raw-value branch that slipped through is caught by Task 3.3.
 - [ ] Revert `parked` (or keep); record outcome in `## Log` as verification evidence.
 
 ### Task 3.5: Close
 
-- [ ] Atlas: reconcile the vocabulary-layer page + `issue-lifecycle` target to final shape; dedup the AGENTS.md status-enumeration prose to point at `construct/vocabulary/issue.cue` (ARCH-DRY).
+- [ ] Atlas: update the vocabulary-layer page — the Go binding is the shared imported `pkg/vocab`, the per-language binding model, and the `go generate` regen (supersedes the M2 `cmd/sdlc/internal/issue` embed + `issue-json-*` targets). Reconcile the `issue-lifecycle` target; dedup the AGENTS.md status-enumeration prose to point at `construct/vocabulary/issue.cue` (ARCH-DRY).
 - [ ] `sdlc actual --issue 122` (measured), then `sdlc close --issue 122 --milestone M3 --verified '<evidence>'`.
 
 ---
@@ -187,7 +192,15 @@
 ## Verification (end-to-end)
 
 - `sh construct/vocabulary/vet_test.sh` — valid passes, broken fails, **export contains categories + lifecycle**.
-- `make bootstrap` on a clean machine provisions `cue`; `make weave` materializes `construct/generated/vocabulary/issue.json`; `make sdlc` regenerates + embeds the committed `issue.json`.
-- `go test ./cmd/sdlc/... ./cmd/vocabulary/...` — green, incl. the conformance test.
+- `make bootstrap` provisions `cue`; `make weave` materializes `construct/generated/vocabulary/issue.json`; `make vocab-embed` (`go generate ./...`) regenerates `pkg/vocab` and sdlc imports it (no per-consumer copy).
+- `go test ./cmd/sdlc/... ./cmd/vocabulary/... ./pkg/vocab/...` — green, incl. the conformance test.
 - `grep` shows no un-annotated status literals in non-test sdlc code.
 - `parked` propagates to every category-based consumer with zero Go edits.
+
+## Revisions
+
+### 2026-06-24 — Per-language binding for the Go consumer (M3)
+
+**Reason:** M2 shipped a committed `cmd/sdlc/internal/issue/issue.json` regenerated by a per-entity Make target (`issue-json-gen`/`issue-json-check`). Operator flagged the smell: a target per (noun × consumer) doesn't scale and violates single-mechanism (`feedback_minimum_mechanism`). The design chat resolved that **placement is per consumer-*language*, not per instance** — the language's own module system distributes one canonical copy to all consumers of that language. (The IDL multi-backend model — protobuf/Thrift — with protobuf's `option go_package` as the wart to avoid.)
+
+**Delta:** M3 puts the **Go binding** in a shared importable `pkg/vocab` (embeds the noun JSONs once; sdlc and any future Go consumer `import` it — the import graph distributes). The co-located `//go:generate` is the Go binding declaration; one generic `go generate ./...` (`make vocab-embed`) + a generic git-diff replaces the per-entity targets, which are deleted along with `cmd/sdlc/internal/issue/issue.json` (superseded). A general per-language bindings config `(language, dir, form)` is deferred to the second language (Lua/parley follow-up). The binding stays repo-local and out of `issue.cue` (the noun stays pure). Affects Tasks 3.1–3.5 above.
