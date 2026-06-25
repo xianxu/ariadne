@@ -52,9 +52,12 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   `state`/`claim` branch on the model. *Value-specific* behaviors (done's close gate, the
   open→working started-stamp, working-specific drift) keep literal status names by design
   (annotated `#122` carve-outs) — they encode one state's policy, not category membership.
-- **Not** enforced: `sdlc` does not gate set-status on `CanTransition` — it has no
-  transition-legality gate today, and adding one would tighten behavior. The model exposes
-  + conformance-tests `CanTransition`; enforcing it is a deferred operator decision.
+- **Enforced (#122 M4):** `sdlc issue set-status` gates on `CanTransition` — a transition
+  the model doesn't declare is refused, with the legal targets named and a `--force` escape
+  (logged). `claim`/`close` perform fixed legal transitions and stay ungated. The lifecycle
+  was widened to the legitimate legal set first (+6 edges: `open→wontfix/punt` triage,
+  `punt`/`wontfix`→`working` reopen, `blocked→wontfix/punt`) so enforcement doesn't reject
+  real flows; the rest is reachable via `--force`.
 
 ## Relationship to existing entries
 

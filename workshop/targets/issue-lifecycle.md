@@ -30,10 +30,12 @@ or fail closed (conformance checks) — never silently disagree.
 
 Two properties are load-bearing and must not erode:
 - **Transitions are gated, not free.** A status change is a *move along a declared
-  edge*, and an edge may carry named guards (e.g. closing to `done` demands
-  measured actuals, verification, an atlas update). The guard *names* live in the
-  model; their effectful *implementations* live in sdlc. Removing a guard is a
-  lifecycle change, made in the open, not an inline `if` somewhere.
+  edge* — and as of #122 M4 this is literally enforced: `sdlc issue set-status`
+  refuses an edge the model doesn't declare (with a `--force` escape). An edge may
+  also carry named guards (e.g. closing to `done` demands measured actuals,
+  verification, an atlas update); the guard *names* live in the model, their
+  effectful *implementations* in sdlc. Adding/removing an edge or a guard is a
+  lifecycle change, made in the open in `issue.cue`, not an inline `if` somewhere.
 - **Consumers branch on categories, not raw values.** `terminal`/`active`/`open`
   are the stable interface; individual status names are details under them. This
   is what lets the lifecycle grow (a new `active` status) without touching every
