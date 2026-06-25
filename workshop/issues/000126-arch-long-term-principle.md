@@ -44,8 +44,8 @@ Lenses (the multi-stage value):
 
 **Wording constraint:** must NOT read as "build for the future / gold-plate" — that
 collides with Simplicity-First/YAGNI. This is the opposite axis: *don't **under**-deliver
-the stated purpose.* The marker + statement must disambiguate (this is why `ARCH-PURPOSE`
-may be the clearer name).
+the stated purpose.* The marker + statement must disambiguate — hence the chosen `ARCH-PURPOSE` (purpose, not
+future-proofing).
 
 Companion: the human-narrative half in AGENTS.md "Core Design Principles" + the
 registry↔narrative **drift test** (the #75 / [[one-referenced-contract]] pattern).
@@ -62,7 +62,7 @@ registry↔narrative **drift test** (the #75 / [[one-referenced-contract]] patte
 
 ## Plan
 
-- [ ] Design at `start-plan`: final marker (`ARCH-LONG-TERM` vs `ARCH-PURPOSE`); the principle statement (disambiguated from YAGNI); the at-plan vs at-review lens text
+- [ ] Design at `start-plan`: the principle statement (disambiguated from YAGNI) + the at-plan vs at-review lens text (marker `ARCH-PURPOSE` already decided — don't re-litigate)
 - [ ] Add the entry to `architecture.md`; confirm injection at start-plan / change-code / boundary-review
 - [ ] AGENTS.md companion narrative + the registry↔narrative drift test
 - [ ] Dogfood against a purpose-deferring plan
