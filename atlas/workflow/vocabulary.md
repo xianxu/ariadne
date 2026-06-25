@@ -59,7 +59,7 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   `punt`/`wontfix`→`working` reopen, `blocked→wontfix/punt`) so enforcement doesn't reject
   real flows; the rest is reachable via `--force`.
 
-## Instance conformance (#124 — M1 landed; M2/M3 pending)
+## Instance conformance (#124 — M1+M2 landed; M3 pending)
 
 Where #122 vets the *model* and wires the *verbs*, #124 vets real artifact **files**
 against the model: `artifact → extract frontmatter → cue vet against #<Type>`.
@@ -83,11 +83,23 @@ against the model: `artifact → extract frontmatter → cue vet against #<Type>
   `(number & >0) | null` on estimate/actual (empty values parse as null). The done-guard
   still requires a *positive* `actual_hours`.
 
-**Pending.** M2 — wire the fail-closed pre-merge gate (frontmatter on every changed issue;
-section presence, single-sourced from `structural.go` via an exported `CheckSectionsPresence`,
-on newly-**added** files only — grandfather legacy tickets) + `sdlc issue validate` + a loud
-`--no-validate`/`--force`. M3 — `construct/vocabulary/pensive.cue` proves the frontmatter path
-generalizes past `issue`.
+**The gate (M2, landed).** `cmd/sdlc/validategate.go` — `validateChangedIssues(base, head, …)`
+runs in `sdlc push` + `sdlc merge` BEFORE the irreversible action and INDEPENDENTLY of the LLM
+judges (so `--no-judge` keeps it, `--no-validate` keeps the judges). It reuses the judges'
+`gitx.DiffBase()` window and `gitx.DiffNameStatus` (A/M/R/D):
+- **Frontmatter** (shell `vocabulary validate-instance`) on **every** changed issue (added or
+  modified) — the universal invariant; catches a hand-edited bad `status:` on an *existing*
+  ticket. A binary-can't-run is a loud setup error, never a silent pass (fail-closed).
+- **Section presence** (`issue.CheckSectionsPresence` — the SAME policy the change-code
+  structural gate uses, now single-sourced: `CheckStructural` calls it and composes its ≥50-word
+  Spec check on top) on **newly-ADDED** files only. Legacy/in-flight tickets are grandfathered
+  ("validate forward"); a rename (`R`) is not "added".
+- **Loud escape:** `--no-validate` on push/merge prints a prominent WARN naming what's skipped
+  (the [escape-hatch principle](../../workshop/lessons.md): bypassable, never silent).
+- `sdlc issue validate [<file> | --issue N | --all]` is the on-demand surface (full check).
+
+**Pending.** M3 — `construct/vocabulary/pensive.cue` proves the frontmatter path generalizes
+past `issue` (the only per-datatype addition is the `.cue`).
 
 ## Relationship to existing entries
 
