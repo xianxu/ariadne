@@ -1,12 +1,13 @@
 ---
 id: 000128
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-25
 updated: 2026-06-25
 estimate_hours: 1.66
 started: 2026-06-25T11:25:20-07:00
+actual_hours: 0.13
 ---
 
 # sdlc arch-principles command — single-source the ARCH-* narrative; replace AGENTS.base.md abstract with a command, keep the start-plan push
@@ -108,6 +109,7 @@ for #127.
 ## Log
 
 ### 2026-06-25
+- 2026-06-25: closed — `go vet` + full `go test ./cmd/sdlc/...` green. New `sdlc arch-principles` verified by hand: prints the at-plan registry block, `--lens at-review` switches the header, `--lens bogus` errors; wired in the real command tree. AGENTS.md regenerated → routes to the command; drift test repurposed to TestArchitecture_NarrativeRoutesToArchPrinciples (green). start-plan push + judge inline-embed unchanged (existing tests pass). Atlas updated. NOTE: 0.13h window is degenerate (single-commit) — design+impl time uncaptured.; review verdict: SHIP
 
 - Filed from the #126 follow-up design conversation (operator). Supersedes the earlier
   "derive the narrative via weave" framing: a command is the better mechanism — it serves the

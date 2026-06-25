@@ -23,7 +23,7 @@ func NewArchPrinciplesCmd() *cobra.Command {
 	var lens string
 	cmd := &cobra.Command{
 		Use:           "arch-principles",
-		Short:         "Print the ARCH-* architecture principles (single source for non-gate work)",
+		Short:         "Print the ARCH-* architecture principles (single source; pull for non-gate work)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"arch-principles\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
