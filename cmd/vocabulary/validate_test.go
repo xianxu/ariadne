@@ -175,15 +175,17 @@ func repoRootT(t *testing.T) string {
 	return root
 }
 
-func issueSchemaT(t *testing.T) string {
+// schemaT resolves the winning .cue path for a noun (shared by the issue + pensive
+// integration tests — one helper, not one per datatype).
+func schemaT(t *testing.T, noun string) string {
 	t.Helper()
 	paths, err := resolveVocab()
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, ok := paths["issue"]
+	s, ok := paths[noun]
 	if !ok {
-		t.Fatalf("no issue noun resolved (have %v)", sortedKeys(paths))
+		t.Fatalf("no %s noun resolved (have %v)", noun, sortedKeys(paths))
 	}
 	return s
 }
@@ -198,7 +200,7 @@ func TestValidateInstance_ActiveCorpusPasses(t *testing.T) {
 		t.Skip("cue not on PATH")
 	}
 	root := repoRootT(t)
-	schema := issueSchemaT(t)
+	schema := schemaT(t, "issue")
 	files, _ := filepath.Glob(filepath.Join(root, "workshop", "issues", "*.md"))
 	if len(files) == 0 {
 		t.Fatal("no active issue files found")
@@ -220,7 +222,7 @@ func TestValidateInstance_RejectsMalformations(t *testing.T) {
 	if _, err := exec.LookPath("cue"); err != nil {
 		t.Skip("cue not on PATH")
 	}
-	schema := issueSchemaT(t)
+	schema := schemaT(t, "issue")
 	cases := []struct {
 		name      string
 		fm        string
@@ -260,7 +262,7 @@ func TestValidateInstance_ValidPasses(t *testing.T) {
 	if _, err := exec.LookPath("cue"); err != nil {
 		t.Skip("cue not on PATH")
 	}
-	schema := issueSchemaT(t)
+	schema := schemaT(t, "issue")
 	md := filepath.Join(t.TempDir(), "x.md")
 	os.WriteFile(md, []byte("---\nid: \"000001\"\nstatus: working\nestimate_hours: 2.0\ntarget: foo\n---\n# T\n"), 0o644)
 	diags, err := validateInstanceFile(osCue{}, md, schema, "issue")
@@ -272,19 +274,6 @@ func TestValidateInstance_ValidPasses(t *testing.T) {
 	}
 }
 
-func pensiveSchemaT(t *testing.T) string {
-	t.Helper()
-	paths, err := resolveVocab()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, ok := paths["pensive"]
-	if !ok {
-		t.Fatalf("no pensive noun resolved (have %v)", sortedKeys(paths))
-	}
-	return s
-}
-
 // TestValidateInstance_PensiveGeneralizes is #124 M3's genericity proof: the SAME
 // validateInstanceFile engine validates a second datatype against #Pensive — the
 // only per-datatype addition is construct/vocabulary/pensive.cue. Every real
@@ -294,7 +283,7 @@ func TestValidateInstance_PensiveGeneralizes(t *testing.T) {
 		t.Skip("cue not on PATH")
 	}
 	root := repoRootT(t)
-	schema := pensiveSchemaT(t)
+	schema := schemaT(t, "pensive")
 
 	files, _ := filepath.Glob(filepath.Join(root, "workshop", "pensive", "*.md"))
 	if len(files) == 0 {

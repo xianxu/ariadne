@@ -102,7 +102,9 @@ judges (so `--no-judge` keeps it, `--no-validate` keeps the judges). It reuses t
 `topic`/`mode` enum/`description` + optional `references`) is the **second datatype** — the same
 `validate-instance` engine validates it (`--type pensive` → `#Pensive`), proving the path isn't
 issue-specific. The ONLY per-datatype addition is the `.cue`: `make weave` materializes
-`construct/generated/vocabulary/pensive.json` with no pipeline change. Scope note: the **engine**
+`construct/generated/vocabulary/pensive.json` (empty `{}` — `#Pensive`/`#Mode` are CUE
+`#`-definitions, which don't export; the validator reads the `.cue` directly) with no pipeline
+change. Scope note: the **engine**
 is datatype-generic; the **gate** is still issue-scoped (`shellValidateFrontmatter` hardcodes
 `--type issue`, targets `workshop/issues/*.md`) — wiring other datatypes into a fail-closed gate
 is a separable future step.
