@@ -299,3 +299,44 @@ func TestSubjectAnchorRE(t *testing.T) {
 		}
 	}
 }
+
+// TestDiffNameStatus pins the A/M/R/D parsing the #124 grandfather design rests on:
+// the status truncation (`R100`→`R`, via fields[0][:1]) and the rename-destination
+// (last tab field) path. Previously these were only ever reached through the gate's
+// stubbed seam — the real git-output parser had zero direct coverage (#124 M2 review).
+func TestDiffNameStatus(t *testing.T) {
+	orig := run
+	defer func() { run = orig }()
+	run = func(name string, args ...string) ([]byte, error) {
+		return []byte("A\tx.md\nM\ty.md\nD\tz.md\nR100\told.md\tnew.md\n"), nil
+	}
+	got, err := DiffNameStatus("base", "head")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []FileChange{
+		{Status: "A", Path: "x.md"},
+		{Status: "M", Path: "y.md"},
+		{Status: "D", Path: "z.md"},
+		{Status: "R", Path: "new.md"}, // R100 → "R"; rename destination is the last field
+	}
+	if len(got) != len(want) {
+		t.Fatalf("DiffNameStatus = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("change[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+// TestDiffNameStatus_Empty: no changes → empty slice + nil (not an error).
+func TestDiffNameStatus_Empty(t *testing.T) {
+	orig := run
+	defer func() { run = orig }()
+	run = func(name string, args ...string) ([]byte, error) { return []byte("\n"), nil }
+	got, err := DiffNameStatus("base", "")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("DiffNameStatus(empty) = (%+v, %v), want (nil, nil)", got, err)
+	}
+}

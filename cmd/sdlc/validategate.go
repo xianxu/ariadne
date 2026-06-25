@@ -28,9 +28,9 @@ import (
 // Seams — swapped in tests so the gate runs hermetically (no git, no vocabulary
 // binary). Production points them at the real implementations.
 var (
-	diffNameStatusFn       = gitx.DiffNameStatus
-	validateFrontmatterFn  = shellValidateFrontmatter
-	readIssueFileFn        = os.ReadFile
+	diffNameStatusFn        = gitx.DiffNameStatus
+	validateFrontmatterFn   = shellValidateFrontmatter
+	readIssueFileFn         = os.ReadFile
 	validateChangedIssuesFn = validateChangedIssues
 )
 
@@ -58,7 +58,9 @@ func validateChangedIssues(base, head, issuesDir string, stdout, stderr io.Write
 		out, ok, runErr := validateFrontmatterFn(ch.Path)
 		if runErr != nil {
 			// Could not RUN the validator (binary missing) — a setup failure, not a
-			// conformance verdict. Fail loud with the fix, don't silently pass.
+			// conformance verdict. The GATE fails closed (hard return); the on-demand
+			// `sdlc issue validate` (validateIssueFull) deliberately differs — it treats
+			// can't-run as a per-file problem and continues, since it's informative.
 			return fmt.Errorf("instance-conformance gate could not run on %s: %w", ch.Path, runErr)
 		}
 		if !ok {
@@ -103,7 +105,8 @@ func shellValidateFrontmatter(file string) (output string, ok bool, err error) {
 	return string(out), false, fmt.Errorf("`vocabulary validate-instance` did not run (build the vocabulary binary onto PATH, or pass --no-validate): %w", runErr)
 }
 
-// isIssueFile reports whether path is a `.md` directly under issuesDir.
+// isIssueFile reports whether path is a `.md` under issuesDir (prefix match at any
+// depth — issue files are flat today, but a nested one would still be validated).
 func isIssueFile(path, issuesDir string) bool {
 	dir := strings.TrimSuffix(filepath.ToSlash(issuesDir), "/") + "/"
 	p := filepath.ToSlash(path)

@@ -133,6 +133,14 @@ high-value cases — bad `status` *value* (enum) + a typo'd *required* field (`s
 policy is an exported `issue.CheckSectionsPresence` in `cmd/sdlc/internal/issue`, NOT a new
 `pkg/` (both section callers are in cmd/sdlc).
 
+### 2026-06-25 — the deterministic gate lives in its own `cmd/sdlc/validategate.go`
+**Reason:** the M2 plan said the gate lands "in `cmd/sdlc/preflight.go`", but `preflight.go`
+owns the LLM-judge loop and the gate must run *independently* of it (`--no-judge` keeps the
+gate; `--no-validate` keeps the judges). **Delta:** the gate is its own file
+`cmd/sdlc/validategate.go` (with `diffNameStatusFn`/`validateFrontmatterFn`/`readIssueFileFn`
+test seams); push/merge call `validateChangedIssuesFn` directly before their judge block,
+reusing the judges' `gitx.DiffBase()` window. `preflight.go` is untouched.
+
 ## Log
 
 ### 2026-06-24
@@ -143,6 +151,7 @@ policy is an exported `issue.CheckSectionsPresence` in `cmd/sdlc/internal/issue`
   loop so a typed artifact actually defends its own shape.
 
 ### 2026-06-25
+- 2026-06-25: closed M2 — M2 gate verified: deterministic instance-conformance gate in push+merge before the irreversible action, independent of judges. Grandfather behavior unit-tested — MODIFIED bad-status REJECTED (frontmatter universal), ADDED missing-## Plan REJECTED (section), MODIFIED legacy lacking ## Done when PASSES (grandfathered), RENAME (R) not section-validated, binary-cant-run fails loud. Section policy single-sourced: issue.CheckSectionsPresence; CheckStructural composes >=50-word on top (TestCheckStructural unchanged). sdlc issue validate hand-verified end-to-end (conforms exit 0; status: in-progress → clear named diagnostic exit 1). Loud --no-validate escape on push/merge. go test ./... + go vet green.; review verdict: FIX-THEN-SHIP
 - 2026-06-25: closed M1 — M1 engine verified: `vocabulary validate-instance --type issue` — whole active corpus (22/22 workshop/issues) passes frontmatter; `status: in-progress` rejected with `status: "in-progress" is not valid (want: open|working|…)`; `statuss:` typo (status absent) + `done`-missing-actuals rejected; valid file passes. go test ./cmd/vocabulary/... ./cmd/sdlc/... ./pkg/... + go vet + cue vet construct/vocabulary/issue.cue all green; hand-verified end-to-end. #Issue opened (`...`) + corpus-forced corrections (id int|string octal, estimate/actual |null).; review verdict: SHIP
 
 - **Design (start-plan + Explore digest of the vocabulary/validation infra).** Durable plan:

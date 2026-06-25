@@ -15,8 +15,8 @@ type fakeCue struct {
 	err error
 }
 
-func (f fakeCue) Vet(string) error                          { return nil }
-func (f fakeCue) Export(string) ([]byte, error)             { return nil, nil }
+func (f fakeCue) Vet(string) error                           { return nil }
+func (f fakeCue) Export(string) ([]byte, error)              { return nil, nil }
 func (f fakeCue) VetInstance(_, _, _ string) (string, error) { return f.out, f.err }
 
 // ── Captured cue v0.16.1 `cue vet -d` stderr fixtures. FIXTURE-COUPLED: a cue

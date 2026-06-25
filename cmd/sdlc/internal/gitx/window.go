@@ -432,8 +432,7 @@ func DiffNameStatus(sinceRef, untilRef string) ([]FileChange, error) {
 	if untilRef != "" {
 		args = append(args, untilRef)
 	}
-	cmd := exec.Command("git", args...)
-	out, err := cmd.Output()
+	out, err := run("git", args...) // via the shim so the A/M/R/D parser is unit-testable
 	if err != nil {
 		return nil, fmt.Errorf("git diff --name-status %s %s: %w", sinceRef, untilRef, err)
 	}
@@ -448,8 +447,8 @@ func DiffNameStatus(sinceRef, untilRef string) ([]FileChange, error) {
 			continue
 		}
 		changes = append(changes, FileChange{
-			Status: fields[0][:1],            // "R100" → "R", "A" → "A"
-			Path:   fields[len(fields)-1],    // rename: destination path is last
+			Status: fields[0][:1],         // "R100" → "R", "A" → "A"
+			Path:   fields[len(fields)-1], // rename: destination path is last
 		})
 	}
 	return changes, nil
