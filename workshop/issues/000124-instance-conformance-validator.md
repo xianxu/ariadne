@@ -84,9 +84,9 @@ total: 4.55
 ```
 
 Build is 3 milestones, each a review boundary. M1 (smaller-go-module, impl 1.0) is the
-meatiest: the `validate-instance` engine + the `cue vet -d` spike + completing `#Issue` to a
-closed all-fields type (null-handling fiddly) + the generic section check + a real-corpus
-test harness. M2 (smaller-go-module, impl 0.7) wires the fail-closed pre-merge gate across
+meatiest: the `validate-instance` engine + the `cue vet -d` spike + opening `#Issue` (with the
+corpus-forced id/null corrections) + the pure diagnostic transform + a real-corpus test
+harness. M2 (smaller-go-module, impl 0.7) wires the fail-closed pre-merge gate across
 push+merge+preflight + `sdlc issue validate` + a process-level vocabulary fake. M3
 (typed-data-prototype, impl 0.4) is `pensive.cue` + the genericity-proof test.
 milestone-review = 3 × 0.6 (one fresh review per boundary). estimate-logic-v2 runs ~2.3× high
@@ -143,6 +143,7 @@ policy is an exported `issue.CheckSectionsPresence` in `cmd/sdlc/internal/issue`
   loop so a typed artifact actually defends its own shape.
 
 ### 2026-06-25
+- 2026-06-25: closed M1 — M1 engine verified: `vocabulary validate-instance --type issue` — whole active corpus (22/22 workshop/issues) passes frontmatter; `status: in-progress` rejected with `status: "in-progress" is not valid (want: open|working|…)`; `statuss:` typo (status absent) + `done`-missing-actuals rejected; valid file passes. go test ./cmd/vocabulary/... ./cmd/sdlc/... ./pkg/... + go vet + cue vet construct/vocabulary/issue.cue all green; hand-verified end-to-end. #Issue opened (`...`) + corpus-forced corrections (id int|string octal, estimate/actual |null).; review verdict: SHIP
 
 - **Design (start-plan + Explore digest of the vocabulary/validation infra).** Durable plan:
   `workshop/plans/000124-instance-conformance-validator-plan.md`. Resolved the Spec's open

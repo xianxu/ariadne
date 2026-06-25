@@ -24,7 +24,7 @@ import (
 func main() {
 	args := os.Args[1:]
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "vocabulary: want a subcommand (vet, export, check)")
+		fmt.Fprintln(os.Stderr, "vocabulary: want a subcommand (vet, export, check, validate-instance)")
 		os.Exit(2)
 	}
 	var err error
