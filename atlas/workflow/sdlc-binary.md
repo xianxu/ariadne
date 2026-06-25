@@ -263,10 +263,17 @@ Cite the marker (`ARCH-DRY`) in plans/Logs/findings. Adding an `ARCH-*` entry
 flows into every consumer with no other edit. **`sdlc start-plan`** (#75 M2)
 delivers the `at-plan` lens to the main thread at design time — the forward
 counterpart to `change-code`'s plan-quality review (`claim → start-plan →
-change-code`); a drift test keeps AGENTS.md's narrative in sync with the markers.
-#71 adds `ARCH-SHIM`. #126 landed `ARCH-PURPOSE` (serve the issue's actual
-purpose; single-source ⇒ every consumer *derives* — the registry's 3rd marker,
-disambiguated from Simplicity-First/YAGNI). **#82 M3 / #83** also have `start-plan` print non-blocking
+change-code`). #71 adds `ARCH-SHIM`. #126 landed `ARCH-PURPOSE` (serve the issue's
+actual purpose; single-source ⇒ every consumer *derives* — the registry's 3rd
+marker, disambiguated from Simplicity-First/YAGNI). **#128** added
+**`sdlc arch-principles`** — a standalone command that prints the registry (the
+same `ArchitectureBlock` primitive start-plan calls), the *pull* path for non-gate
+work (autonomous fixes, quick edits, Q&A) that never hits start-plan. AGENTS.md's
+narrative collapsed from a per-marker restatement to a *route* to that command
+(definitions single-sourced; the drift test — `TestArchitecture_NarrativeRoutesToArchPrinciples`
+— now guards the route + marker awareness, not an enumeration). The start-plan
+*push* stays: a gate-time push beats a model-dependent pull (the same asymmetry
+that keeps the judges' inline embed). **#82 M3 / #83** also have `start-plan` print non-blocking
 **dependency-path contention** — one line per repo this one reads live. The
 symlink model means a repo reads ALL its transitive upstreams' working trees, so
 the "moving ground" is the whole dependency chain, not a single base.

@@ -81,6 +81,7 @@ func buildRoot() *cobra.Command {
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewStateCmd(), "state", "Inspect workflow state (branch, working issues, drift)")
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
+	add(NewArchPrinciplesCmd(), "arch-principles", "Print the ARCH-* architecture principles (single source; pull for non-gate work)")
 
 	// Hidden: deprecated aliases + the start stub. Order is irrelevant —
 	// they're omitted from the verb list.
