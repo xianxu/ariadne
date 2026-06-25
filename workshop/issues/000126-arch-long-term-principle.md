@@ -8,7 +8,7 @@ updated: 2026-06-25
 estimate_hours:
 ---
 
-# ARCH-LONG-TERM/PURPOSE: inject 'serve the purpose, don't settle for the easy win, single-source ⇒ consumers derive' into the ARCH-* registry (checked at-plan + at-review)
+# ARCH-PURPOSE: serve the issue's actual purpose — don't settle for the easy win; single-source ⇒ consumers derive (ARCH-* registry, checked at-plan + at-review)
 
 ## Problem
 
@@ -24,7 +24,8 @@ rely on remembering it at the close.
 
 ## Spec
 
-Add an `ARCH-*` principle — marker TBD, **`ARCH-LONG-TERM`** or **`ARCH-PURPOSE`** — to the
+Add an `ARCH-*` principle — marker **`ARCH-PURPOSE`** (decided: purpose, not
+future-proofing — dodges the gold-plate misread `ARCH-LONG-TERM` risked) — to the
 registry (`cmd/sdlc/internal/judge/architecture.md`), riding #75's existing injection into
 `start-plan` (planning) + `change-code` (plan-quality judge) + `milestone-close`/`close`
 (boundary review). The principle, roughly: *serve the issue's actual purpose / the
