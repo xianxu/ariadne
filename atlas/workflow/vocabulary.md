@@ -59,7 +59,7 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   `punt`/`wontfix`→`working` reopen, `blocked→wontfix/punt`) so enforcement doesn't reject
   real flows; the rest is reachable via `--force`.
 
-## Instance conformance (#124 — M1+M2 landed; M3 pending)
+## Instance conformance (#124 — M1–M3 landed)
 
 Where #122 vets the *model* and wires the *verbs*, #124 vets real artifact **files**
 against the model: `artifact → extract frontmatter → cue vet against #<Type>`.
@@ -98,8 +98,14 @@ judges (so `--no-judge` keeps it, `--no-validate` keeps the judges). It reuses t
   (the [escape-hatch principle](../../workshop/lessons.md): bypassable, never silent).
 - `sdlc issue validate [<file> | --issue N | --all]` is the on-demand surface (full check).
 
-**Pending.** M3 — `construct/vocabulary/pensive.cue` proves the frontmatter path generalizes
-past `issue` (the only per-datatype addition is the `.cue`).
+**Generalized (M3, landed).** `construct/vocabulary/pensive.cue` (`#Pensive`: `type`/`date`/
+`topic`/`mode` enum/`description` + optional `references`) is the **second datatype** — the same
+`validate-instance` engine validates it (`--type pensive` → `#Pensive`), proving the path isn't
+issue-specific. The ONLY per-datatype addition is the `.cue`: `make weave` materializes
+`construct/generated/vocabulary/pensive.json` with no pipeline change. Scope note: the **engine**
+is datatype-generic; the **gate** is still issue-scoped (`shellValidateFrontmatter` hardcodes
+`--type issue`, targets `workshop/issues/*.md`) — wiring other datatypes into a fail-closed gate
+is a separable future step.
 
 ## Relationship to existing entries
 

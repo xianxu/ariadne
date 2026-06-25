@@ -271,3 +271,60 @@ func TestValidateInstance_ValidPasses(t *testing.T) {
 		t.Errorf("valid issue should pass, got %v", diags)
 	}
 }
+
+func pensiveSchemaT(t *testing.T) string {
+	t.Helper()
+	paths, err := resolveVocab()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, ok := paths["pensive"]
+	if !ok {
+		t.Fatalf("no pensive noun resolved (have %v)", sortedKeys(paths))
+	}
+	return s
+}
+
+// TestValidateInstance_PensiveGeneralizes is #124 M3's genericity proof: the SAME
+// validateInstanceFile engine validates a second datatype against #Pensive — the
+// only per-datatype addition is construct/vocabulary/pensive.cue. Every real
+// workshop/pensive/*.md passes; a bad `mode` enum is rejected with a named diagnostic.
+func TestValidateInstance_PensiveGeneralizes(t *testing.T) {
+	if _, err := exec.LookPath("cue"); err != nil {
+		t.Skip("cue not on PATH")
+	}
+	root := repoRootT(t)
+	schema := pensiveSchemaT(t)
+
+	files, _ := filepath.Glob(filepath.Join(root, "workshop", "pensive", "*.md"))
+	if len(files) == 0 {
+		t.Fatal("no pensive files found")
+	}
+	for _, f := range files {
+		diags, err := validateInstanceFile(osCue{}, f, schema, "pensive")
+		if err != nil {
+			t.Errorf("%s: run error: %v", filepath.Base(f), err)
+			continue
+		}
+		if len(diags) > 0 {
+			t.Errorf("%s: NOT pensive-conformant: %v", filepath.Base(f), diags)
+		}
+	}
+
+	// A bad `mode` enum is rejected, naming the field — same engine, same diagnostic quality.
+	md := filepath.Join(t.TempDir(), "p.md")
+	os.WriteFile(md, []byte("---\ntype: pensive\ndate: 2026-06-25\ntopic: x\nmode: musing\ndescription: y\n---\nbody\n"), 0o644)
+	diags, err := validateInstanceFile(osCue{}, md, schema, "pensive")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejectedMode := false
+	for _, d := range diags {
+		if d.Field == "mode" && strings.Contains(d.Message, "not valid") {
+			rejectedMode = true
+		}
+	}
+	if !rejectedMode {
+		t.Errorf("expected a `mode` rejection for mode: musing, got %v", diags)
+	}
+}

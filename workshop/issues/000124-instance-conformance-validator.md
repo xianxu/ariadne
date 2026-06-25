@@ -101,7 +101,7 @@ changed issue, sections on newly-ADDED issues only** reusing `structural.go`'s p
 
 - [x] **M1 — validator engine: generic frontmatter conformance.** Spike DONE (`cue vet -d '#Issue'`); **open** `#Issue` (add `...`; keep `id`/`status`/`estimate_hours?`/`actual_hours?`+done-guard; NO `requiredSections`); `CueRunner.VetInstance`; pure cue-stderr→diagnostic transform (fixture-tested); `vocabulary validate-instance --type <noun> <file>`. Tests: whole real issue corpus passes FRONTMATTER; `status: in-progress` (bad enum) / `statuss:` typo (→ `status` absent → required-field fail) / `done`-missing-actuals each rejected with a clear diagnostic.
 - [x] **M2 — wire the fail-closed gate + section overlay + on-demand surface.** Export `issue.CheckSectionsPresence` from `cmd/sdlc/internal/issue` (Spec / Plan-has-items / Done-when-bullet-or-`related:`) — `structural.go` composes its ≥50-word check on top; NO new pkg (both callers are in cmd/sdlc). `sdlc issue validate [--issue N|<file>|--all]` (full check). `validateChangedIssues` in `preflight.go` BEFORE the judge loop (push + merge): frontmatter on ALL changed issues, sections on newly-ADDED only (git `A`); **loud** `--no-validate`/`--force`; process-level vocabulary fake. Tests: rejects a modified-file bad-`status`; rejects an added file missing `## Plan`; PASSES a window modifying a legacy ticket lacking `## Done when` (grandfathered); `--no-validate` warns loudly.
-- [ ] **M3 — generalize to a second datatype.** `construct/vocabulary/pensive.cue` (`#Pensive`, closed; `mode` enum; no required sections); validate a real `workshop/pensive/*.md` through the same frontmatter path. Tests: real pensive passes; `mode: musing` fails — proving the only per-datatype addition is the `.cue`.
+- [x] **M3 — generalize to a second datatype.** `construct/vocabulary/pensive.cue` (`#Pensive`, closed; `mode` enum; no required sections); validate a real `workshop/pensive/*.md` through the same frontmatter path. Tests: real pensive passes; `mode: musing` fails — proving the only per-datatype addition is the `.cue`.
 
 ## Revisions
 
@@ -192,3 +192,22 @@ reusing the judges' `gitx.DiffBase()` window. `preflight.go` is untouched.
   newly-ADDED issues only, policy single-sourced from `structural.go` (lifted to shared `pkg/`);
   loud `--no-validate` escape. A measure-before-rebuild win — the design was wrong by intuition,
   right by measurement.
+- **M1 DONE (impl fork) + boundary review SHIP.** Engine (`vocabulary validate-instance`) +
+  open `#Issue` + pure diagnostic transform + `pkg/frontmatter.Split` lift. The fork's
+  reality-contact win: cue's YAML loader octal-parses zero-padded `id: 000124`→84, so the #122
+  schema (only ever self-vetted) rejected all 129 real instances — fixed (`id: int|string`,
+  null-tolerant estimate/actual). 22/22 active issues pass. Lesson captured.
+- **M2 DONE (impl fork) + boundary review FIX-THEN-SHIP (addressed).** The fail-closed gate in
+  push/merge (`validategate.go`, independent of judges); section policy single-sourced from
+  `structural.go`; `sdlc issue validate`; loud `--no-validate`. Fixed the review's Important
+  finding: added `TestDiffNameStatus` (the A/M/R/D parser the grandfather rests on) by routing
+  it through the `gitx.run` shim. Grandfather verified (modified-bad-status rejected; added-
+  missing-Plan rejected; modified-legacy-no-Done-when passes; rename not section-validated).
+- **M3 DONE (inline).** `construct/vocabulary/pensive.cue` (`#Pensive`, closed — verified all 6
+  real pensive files pass before committing, per the M1 lesson; `mode` enum). The genericity
+  proof: the SAME `validateInstanceFile` engine validates pensive (`TestValidateInstance_PensiveGeneralizes`)
+  — the only per-datatype addition is the `.cue`; `make weave` materializes `pensive.json` with
+  no pipeline change. Note (per M2 review): M3 proves the **engine** generalizes; the **gate**
+  stays issue-scoped by design (`shellValidateFrontmatter` is `--type issue`, the gate targets
+  `workshop/issues/*.md`) — generalizing the gate to other datatypes is a separable future step,
+  not #124's deferred point.
