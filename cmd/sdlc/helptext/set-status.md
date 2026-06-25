@@ -31,7 +31,13 @@ TRANSITION GUARDS (refusable with --force)
       - YYYY-MM-DD: reopened — <reason>
     or a `### YYYY-MM-DD` subheading under ## Log before re-running.
 
-  All other transitions are allowed without guards.
+  lifecycle graph  (#122 M4)
+    A status change must follow a declared edge in the issue lifecycle
+    (`construct/vocabulary/issue.cue`, read via `pkg/vocab`). A non-modeled
+    flip (e.g. `open → blocked`, `open → done`) is refused, naming the legal
+    targets from the current status; `--force` overrides (logged). The model
+    is the single source of which transitions are legal — there is no longer
+    a blanket "all other transitions allowed".
 
 WHAT IT DOES
 

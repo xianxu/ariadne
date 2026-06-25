@@ -32,6 +32,8 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // pushFlags holds the parsed flag values for the push subcommand.
@@ -367,7 +369,7 @@ func historyFileIsTerminal(path string) (bool, error) {
 		return false, nil
 	}
 	st, _ := issue.GetField(fm, "status")
-	return isTerminalStatus(st), nil
+	return vocab.Issue().IsTerminal(st), nil
 }
 
 // buildPushCommitMessage synthesizes a commit message by extracting the
@@ -438,7 +440,7 @@ func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, err
 			continue
 		}
 		st, _ := issue.GetField(fm, "status")
-		if !isTerminalStatus(st) {
+		if !vocab.Issue().IsTerminal(st) {
 			notDone = append(notDone, fmt.Sprintf("%s (status: %s)", p, valueOr(st, "unset")))
 		}
 	}
@@ -464,10 +466,12 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir string) ([]
 			continue
 		}
 		st, _ := issue.GetField(fm, "status")
-		if !isTerminalStatus(st) {
+		if !vocab.Issue().IsTerminal(st) {
 			continue
 		}
-		// status=done + github_issue: → close GitHub issue first.
+		// status=done + github_issue: → close GitHub issue first. (#122 carve-out:
+		// literal "done" is value-specific — only done has a GitHub issue to close —
+		// not a category test, so it stays a literal, not vocab.Issue().IsTerminal.)
 		if st == "done" && repo != "" {
 			if ghNum, ok := issue.GetField(fm, "github_issue"); ok && ghNum != "" {
 				cinfo(stderr, fmt.Sprintf("Closing GitHub issue #%s...", ghNum))
@@ -487,12 +491,6 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir string) ([]
 		moves = append(moves, preparedArchiveMove{IssuePath: p, HistoryPath: dest})
 	}
 	return moves, nil
-}
-
-// isTerminalStatus reports whether s is one of {done, wontfix, punt} —
-// the three statuses that justify archive to history/.
-func isTerminalStatus(s string) bool {
-	return s == "done" || s == "wontfix" || s == "punt"
 }
 
 // splitNonEmptyLines splits text on newlines and drops empties. Used to

@@ -355,15 +355,18 @@ func TestSetStatusAlias_BothPathsMutate(t *testing.T) {
 	}
 
 	writeOpen()
-	run("issue", "set-status", "blocked", "--issue", "1", "--issues-dir", issues)
-	if got := statusOf(); got != "blocked" {
-		t.Errorf("grouped `issue set-status` left status %q, want blocked", got)
+	// #122 M4: use a model-legal flip (open→working) — set-status now gates on the
+	// lifecycle graph and open→blocked is illegal (claim first). The test's point is
+	// alias-vs-grouped parity, not the specific transition.
+	run("issue", "set-status", "working", "--issue", "1", "--issues-dir", issues)
+	if got := statusOf(); got != "working" {
+		t.Errorf("grouped `issue set-status` left status %q, want working", got)
 	}
 
 	writeOpen()
-	run("set-status", "blocked", "--issue", "1", "--issues-dir", issues)
-	if got := statusOf(); got != "blocked" {
-		t.Errorf("flat `set-status` alias left status %q, want blocked", got)
+	run("set-status", "working", "--issue", "1", "--issues-dir", issues)
+	if got := statusOf(); got != "working" {
+		t.Errorf("flat `set-status` alias left status %q, want working", got)
 	}
 }
 

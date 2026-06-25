@@ -31,13 +31,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-// validStatuses is the closed set of statuses the binary understands.
-// Open: not started. Working: actively in progress. Blocked: waiting on
-// something. Done: completed (canonical close path goes through `sdlc
-// close`). Wontfix: rejected by intent. Punt: deferred.
-var validStatuses = []string{"open", "working", "blocked", "done", "wontfix", "punt"}
+// The status SET and CATEGORIES now live in the vocabulary model
+// (construct/vocabulary/issue.cue) — read them via vocab.Issue() (#122). The
+// specific-state guards below keep literal status names on purpose: they encode
+// ONE state's policy (done's close gate, the reopen edge), not category membership.
 
 // setStatusFlags holds the parsed flag values for the set-status subcommand.
 type setStatusFlags struct {
@@ -77,6 +77,12 @@ func runSetStatus(stdout, stderr io.Writer, f *setStatusFlags) error {
 	path, prev, changed, err := applyStatus(f.IssuesDir, f.Issue, f.Status, f.Force, f.DryRun)
 	if err != nil {
 		die(stderr, err.Error())
+	}
+
+	// #122 M4: when --force masked the lifecycle gate on an illegal transition,
+	// log the override — the escape hatch is explicit and recorded, not silent.
+	if f.Force && prev != "" && prev != f.Status && !vocab.Issue().CanTransition(prev, f.Status) {
+		cwarn(stderr, fmt.Sprintf("--force: overriding illegal transition %s → %s (not in the lifecycle)", prev, f.Status))
 	}
 
 	// No-op when already at the target status (after guards). applyStatus
@@ -162,7 +168,7 @@ var startedClock = func() string { return time.Now().Format(time.RFC3339) }
 
 func applyStatus(issuesDir string, issueID int, status string, force, dryRun bool) (path, prev string, changed bool, err error) {
 	if !isValidStatus(status) {
-		return "", "", false, fmt.Errorf("invalid status %q (valid: %s)", status, strings.Join(validStatuses, ", "))
+		return "", "", false, fmt.Errorf("invalid status %q (valid: %s)", status, strings.Join(vocab.Issue().AllStatuses(), ", "))
 	}
 	path, err = locateIssueFile(issuesDir, issueID)
 	if err != nil {
@@ -192,7 +198,9 @@ func applyStatus(issuesDir string, issueID int, status string, force, dryRun boo
 	// heuristic. Local-offset RFC3339 (startedClock) to stay lexically comparable
 	// with git's %aI author dates that windowStart compares. Idempotent: never
 	// overwrite an existing stamp (re-claim / re-flip must not move the anchor).
-	if prev == "open" && status == "working" {
+	// #122: "open" membership reads from the model; "working" stays literal — it's
+	// the specific claim target (the open→working edge stamps started), not a category.
+	if vocab.Issue().IsOpen(prev) && status == "working" {
 		if cur, _ := issue.GetField(newFM, "started"); strings.TrimSpace(cur) == "" {
 			newFM = issue.SetField(newFM, "started", startedClock())
 		}
@@ -216,9 +224,25 @@ func applyStatus(issuesDir string, issueID int, status string, force, dryRun boo
 // caller's responsibility). Returns an error describing the refusal
 // otherwise — message is the exact text presented to the operator.
 func checkTransitionGuards(current, next, fm, body string) error {
+	// Guard 0 (#122 M4): the lifecycle graph. Refuse a transition the model
+	// (construct/vocabulary/issue.cue) doesn't declare — operator chose to enforce
+	// (decision b). Skip the no-op (current==next) and an unset/initial status
+	// (current=="") — neither is a real transition. --force bypasses, since this
+	// whole function runs only when !force. Runs first so open→done reads as
+	// "illegal" (it is) rather than the →done close-routing below.
+	if current != "" && current != next && !vocab.Issue().CanTransition(current, next) {
+		legal := vocab.Issue().LegalTransitions(current)
+		if len(legal) == 0 {
+			return fmt.Errorf("illegal transition %s → %s: %q is a dead-end in the lifecycle. Pass --force to override (logged).", current, next, current)
+		}
+		return fmt.Errorf("illegal transition %s → %s; legal from %q: %s. Pass --force to override (logged).",
+			current, next, current, strings.Join(legal, ", "))
+	}
+
 	// Guard 1: → done routes to `sdlc close`. Always refused (mutating
 	// done close requires ACTUAL + VERIFIED + atlas check; those live
-	// in `sdlc close`, not here).
+	// in `sdlc close`, not here). #122 carve-out: literal "done" is value-specific
+	// (only done has the close gate; wontfix/punt flip freely) — not IsTerminal.
 	if next == "done" {
 		return fmt.Errorf(
 			"refusing to flip → done directly; use:\n" +
@@ -236,7 +260,7 @@ func checkTransitionGuards(current, next, fm, body string) error {
 
 	// Guard 2: reopen (done → not-done) requires a fresh Log entry
 	// dated today. The xx-issues skill puts the reason for reopening
-	// in that entry.
+	// in that entry. (#122 carve-out: "done" value-specific — the reopen-from-done edge.)
 	if current == "done" && next != "done" {
 		today := time.Now().Format("2006-01-02")
 		if !logHasEntryToday(body, today) {
@@ -274,9 +298,10 @@ func logHasEntryToday(body, today string) bool {
 
 var logHeaderRE = regexp.MustCompile(`(?m)^## Log\s*$`)
 
-// isValidStatus returns whether s is one of the six recognized status values.
+// isValidStatus returns whether s is a recognized status value (the set is the
+// vocabulary model's, not a local list — #122).
 func isValidStatus(s string) bool {
-	for _, v := range validStatuses {
+	for _, v := range vocab.Issue().AllStatuses() {
 		if s == v {
 			return true
 		}

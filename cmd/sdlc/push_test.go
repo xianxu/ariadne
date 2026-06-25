@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // ── Pure-helper tests ────────────────────────────────────────────────────────
@@ -46,8 +48,8 @@ func TestIsTerminalStatus(t *testing.T) {
 		{"DONE", false}, // case-sensitive — matches shell
 	}
 	for _, c := range cases {
-		if got := isTerminalStatus(c.s); got != c.want {
-			t.Errorf("isTerminalStatus(%q) = %v, want %v", c.s, got, c.want)
+		if got := vocab.Issue().IsTerminal(c.s); got != c.want {
+			t.Errorf("vocab.Issue().IsTerminal(%q) = %v, want %v", c.s, got, c.want)
 		}
 	}
 }

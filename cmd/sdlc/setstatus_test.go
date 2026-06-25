@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 func TestIsValidStatus(t *testing.T) {
-	for _, s := range validStatuses {
+	for _, s := range vocab.Issue().AllStatuses() {
 		if !isValidStatus(s) {
 			t.Errorf("isValidStatus(%q) = false, want true", s)
 		}
@@ -62,43 +64,96 @@ func TestCheckTransitionGuards_ReopenNeedsLogEntry(t *testing.T) {
 	today := todayIso()
 
 	// No Log section at all → refused.
-	if err := checkTransitionGuards("done", "open", fm, "# T\n"); err == nil {
+	if err := checkTransitionGuards("done", "working", fm, "# T\n"); err == nil {
 		t.Error("expected refusal: no Log section at all")
 	}
 
 	// Log section exists but no today entry → refused.
 	bodyOld := "# T\n\n## Log\n\n- 2025-01-01: started\n"
-	if err := checkTransitionGuards("done", "open", fm, bodyOld); err == nil {
+	if err := checkTransitionGuards("done", "working", fm, bodyOld); err == nil {
 		t.Error("expected refusal: Log lacks today's entry")
 	}
 
 	// Log section with today's entry → OK.
 	bodyOK := "# T\n\n## Log\n\n- " + today + ": reopened — found regression\n"
-	if err := checkTransitionGuards("done", "open", fm, bodyOK); err != nil {
+	if err := checkTransitionGuards("done", "working", fm, bodyOK); err != nil {
 		t.Errorf("expected ok for today-entry, got: %v", err)
 	}
 
 	// Log entry as ### Header instead of bullet — still recognized.
 	bodyHeader := "# T\n\n## Log\n\n### " + today + "\nreopened — context\n"
-	if err := checkTransitionGuards("done", "open", fm, bodyHeader); err != nil {
+	if err := checkTransitionGuards("done", "working", fm, bodyHeader); err != nil {
 		t.Errorf("expected ok for today-header, got: %v", err)
 	}
 }
 
 func TestCheckTransitionGuards_NormalTransitions(t *testing.T) {
-	// open → blocked: allowed.
-	fm := "id: 000001\nstatus: open\n"
-	if err := checkTransitionGuards("open", "blocked", fm, "# T\n"); err != nil {
-		t.Errorf("open → blocked should be ok, got: %v", err)
+	// Every model-legal transition that isn't →done (routes to close) or a
+	// done-reopen (needs a log entry) must pass the guards cleanly — including
+	// the #122 M4 additions.
+	fm := "id: 000001\nstatus: x\n"
+	legal := [][2]string{
+		{"open", "working"},    // claim
+		{"working", "blocked"}, // block
+		{"blocked", "working"}, // unblock
+		{"working", "wontfix"}, // abandon mid-flight
+		{"working", "punt"},    // defer mid-flight
+		// #122 M4 additions:
+		{"open", "wontfix"},    // triage-reject unstarted
+		{"open", "punt"},       // triage-defer unstarted
+		{"punt", "working"},    // resume a deferred
+		{"wontfix", "working"}, // reconsider a rejected
+		{"blocked", "wontfix"}, // abandon while blocked
+		{"blocked", "punt"},    // defer while blocked
 	}
-	// working → blocked: allowed.
-	fm = "id: 000001\nstatus: working\nestimate_hours: 1\n"
-	if err := checkTransitionGuards("working", "blocked", fm, "# T\n"); err != nil {
-		t.Errorf("working → blocked should be ok, got: %v", err)
+	for _, tr := range legal {
+		if err := checkTransitionGuards(tr[0], tr[1], fm, "# T\n"); err != nil {
+			t.Errorf("%s → %s should be legal, got: %v", tr[0], tr[1], err)
+		}
 	}
-	// working → punt: allowed.
-	if err := checkTransitionGuards("working", "punt", fm, "# T\n"); err != nil {
-		t.Errorf("working → punt should be ok, got: %v", err)
+}
+
+// TestCheckTransitionGuards_IllegalRejected pins the #122 M4 lifecycle gate:
+// a transition the model doesn't declare is refused with a message naming the
+// illegal edge + the --force escape.
+func TestCheckTransitionGuards_IllegalRejected(t *testing.T) {
+	fm := "id: 000001\nstatus: x\n"
+	illegal := [][2]string{
+		{"open", "blocked"}, // claim first
+		{"open", "done"},    // can't close an unstarted issue (no actuals)
+		{"done", "wontfix"}, // done only reopens to working
+		{"punt", "wontfix"}, // terminal→terminal not modeled
+	}
+	for _, tr := range illegal {
+		err := checkTransitionGuards(tr[0], tr[1], fm, "# T\n")
+		if err == nil {
+			t.Errorf("%s → %s should be rejected by the lifecycle gate", tr[0], tr[1])
+			continue
+		}
+		if !strings.Contains(err.Error(), "illegal transition") || !strings.Contains(err.Error(), "--force") {
+			t.Errorf("%s → %s: want an 'illegal transition … --force' message, got: %v", tr[0], tr[1], err)
+		}
+	}
+}
+
+// TestApplyStatus_ForceBypassesLifecycleGate: --force lets an illegal transition
+// through (the operator's logged escape hatch).
+func TestApplyStatus_ForceBypassesLifecycleGate(t *testing.T) {
+	issues, _ := newTestDirs(t)
+	p := filepath.Join(issues, "000001-x.md")
+	if err := os.WriteFile(p, []byte("---\nid: 000001\nstatus: open\n---\n\n# X\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// open→blocked is illegal; refused without --force.
+	if _, _, _, err := applyStatus(issues, 1, "blocked", false, false); err == nil {
+		t.Fatal("open→blocked should be refused without --force")
+	}
+	// With --force it applies.
+	if _, _, _, err := applyStatus(issues, 1, "blocked", true, false); err != nil {
+		t.Fatalf("--force should bypass the lifecycle gate, got: %v", err)
+	}
+	if data, _ := os.ReadFile(p); !strings.Contains(string(data), "status: blocked") {
+		t.Errorf("forced flip did not write status: blocked; file:\n%s", data)
 	}
 }
 

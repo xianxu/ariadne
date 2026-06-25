@@ -305,6 +305,8 @@ func gatherBaseContention(root string, excludeIssue int) baseContention {
 	excludeID := fmt.Sprintf("%06d", excludeIssue)
 	if issues, err := listIssues(filepath.Join(root, issuesDir)); err == nil {
 		for _, is := range issues {
+			// #122 carve-out: in-flight = "working" specifically (the contention warning
+			// is about actively-worked peers; blocked is waiting) — not a category test.
 			if is.Status == "working" && is.ID != excludeID {
 				c.Others = append(c.Others, inFlightIssue{ID: is.ID, Title: is.Title})
 			}

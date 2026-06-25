@@ -175,11 +175,12 @@ close-issue:
 # in a derivative, `make weave` resolves datatype's owner = ariadne, builds + PATH-
 # exposes ariadne's bin/datatype, then weave (cwd=derivative) execs ariadne's marker
 # which writes the DERIVATIVE's construct/generated (leaf-rooted output).
-weave: weave-build datatype-build
+weave: weave-build datatype-build vocabulary-build ensure-cue
 	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
 	dtowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	vcowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
 	if [ -n "$$owner" ] && [ -x "$$owner/bin/weave" ]; then \
-		PATH="$$dtowner/bin:$$PATH" "$$owner/bin/weave" compile; \
+		PATH="$$dtowner/bin:$$vcowner/bin:$$PATH" "$$owner/bin/weave" compile; \
 	else \
 		echo "Error: weave binary not built (weave-build did not produce $$owner/bin/weave)."; \
 		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \
@@ -248,6 +249,25 @@ ensure-go:
 	    exit 1; \
 	fi
 
+# ensure-cue — guarantee the CUE CLI before weave compiles the vocabulary layer
+# (#122). cmd/vocabulary shells out to `cue` (vet/export); the formal vocabulary
+# models in construct/vocabulary/*.cue are validated + exported at weave-compile
+# time. Idempotent: no-op when cue is present. Auto-installs via Homebrew on
+# macOS; elsewhere fails fast with guidance. Mirrors ensure-go.
+.PHONY: ensure-cue
+ensure-cue:
+	@if command -v cue >/dev/null 2>&1; then \
+	    :; \
+	elif command -v brew >/dev/null 2>&1; then \
+	    echo "==> cue not found — installing via Homebrew (brew install cue)"; \
+	    brew install cue; \
+	else \
+	    echo "Error: the vocabulary layer (construct/vocabulary/*.cue) needs the CUE CLI," >&2; \
+	    echo "  but 'cue' is not on PATH and Homebrew isn't available to install it." >&2; \
+	    echo "  Install CUE from https://cuelang.org/docs/install/ and re-run." >&2; \
+	    exit 1; \
+	fi
+
 # Prereq-only definition — no recipe. Derivatives can `bootstrap: <my-prereq>`
 # additively without colliding. Make composes the prereq list; if any
 # derivative defines its own recipe for `bootstrap` (e.g. nous's existing
@@ -255,7 +275,7 @@ ensure-go:
 # listed first so go is provisioned before the cascade in serial make; under
 # `make -j` ordering isn't positional, but both go-build targets (sdlc-build,
 # build) depend on ensure-go, so the actual compiles still wait for it (#61).
-bootstrap: ensure-go bootstrap-peers weave tools sdlc-install data-deps
+bootstrap: ensure-go ensure-cue bootstrap-peers weave tools sdlc-install data-deps
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge
@@ -730,7 +750,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build weave-build datatype-build sdlc-install sdlc-bootstrap
+.PHONY: tools sdlc-build weave-build datatype-build vocabulary-build vocab-embed sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -803,6 +823,42 @@ datatype-build: ensure-go
 	fi; \
 	mkdir -p "$$owner/bin"; \
 	( cd "$$owner" && go build -o "$$owner/bin/datatype" ./cmd/datatype )
+
+# vocabulary-build: mirror of datatype-build for cmd/vocabulary — the DAG-aware
+# compiler for the formal vocabulary layer (#122). A PATH binary invoked by name
+# by the vocabulary .dynamic-skill at weave compile (and by vocab-embed).
+# Build-in-owner: resolve the owner by LOCATION (dev-aliases.sh --list) and build
+# into the OWNER's bin/. When THIS repo is the owner, builds ariadne's own
+# bin/vocabulary, unchanged.
+vocabulary-build: ensure-go
+	@echo "==> building vocabulary (build-in-owner)"
+	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
+	if [ -z "$$owner" ]; then \
+	    echo "Error: vocabulary owner not found beside this repo." >&2; \
+	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
+	    exit 1; \
+	fi; \
+	mkdir -p "$$owner/bin"; \
+	( cd "$$owner" && go build -o "$$owner/bin/vocabulary" ./cmd/vocabulary )
+
+# vocab-embed (#122 M3): regenerate the COMMITTED Go-binding embed inputs from the
+# vocabulary via `go generate`, then assert nothing drifted. The Go binding lives in
+# pkg/vocab — ONE shared package every Go consumer imports (the import graph is the
+# distribution; no per-consumer copy). The co-located //go:generate is the binding
+# declaration, so this target is GENERIC over nouns/consumers: adding a noun is a
+# go:generate line in pkg/vocab, never a new Make target (supersedes the per-entity
+# issue-json-gen/check). OWNER-ONLY (pkg/vocab + cmd/vocabulary live in ariadne) —
+# run from ariadne CI; deliberately NOT wired into `bootstrap`/`sdlc-build`/the
+# consumer `check` (a consumer needs neither cue nor regeneration; the json is
+# committed so a standalone `go build` works). The DIFFERENT cross-repo gate — has
+# this repo's gitignored materialization gone stale vs the merged source — remains
+# `vocabulary check --output construct/generated/vocabulary`.
+vocab-embed: vocabulary-build ensure-cue
+	@echo "==> regenerating pkg/vocab embed inputs (go generate)"
+	@vcowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
+	PATH="$$vcowner/bin:$$PATH" go generate ./pkg/vocab/...
+	@git diff --exit-code -- pkg/vocab \
+	  || { echo "Error: pkg/vocab embed inputs are STALE vs construct/vocabulary/*.cue — run 'make vocab-embed' and commit (#122)." >&2; exit 1; }
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also

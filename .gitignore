@@ -8,6 +8,10 @@ construct/staging/
 cmd/*/bin/
 bin/
 /sdlc
+# stray `go build ./cmd/<X>` (no -o) drops a binary at the repo root that collides
+# with the leaf-local <X>/ dir MergeByName reads — never commit it (always build to bin/)
+/datatype
+/vocabulary
 .DS_Store
 
 # AGENTS.md is now a weave-COMPOSED artifact (#95): weave concatenates the

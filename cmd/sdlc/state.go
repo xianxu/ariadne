@@ -30,6 +30,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // ── flag struct ──────────────────────────────────────────────────────────────
@@ -297,26 +298,28 @@ type shipProbe func(issueNum string) (sha, subject string, shipped bool)
 func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []DriftFinding {
 	var out []DriftFinding
 	for _, i := range issues {
-		switch i.Status {
-		case "":
+		// Tagless switch so the terminal arm can read the model's category (#122);
+		// "" / "unreadable" are sentinel non-statuses (reader markers), not model values.
+		switch {
+		case i.Status == "":
 			out = append(out, DriftFinding{
 				Severity: "warn",
 				Issue:    i.ID,
 				Message:  "no frontmatter or missing status: field",
 			})
-		case "unreadable":
+		case i.Status == "unreadable":
 			out = append(out, DriftFinding{
 				Severity: "warn",
 				Issue:    i.ID,
 				Message:  fmt.Sprintf("could not read %s — check permissions / symlinks", i.Path),
 			})
-		case "done", "wontfix", "punt":
+		case vocab.Issue().IsTerminal(i.Status):
 			out = append(out, DriftFinding{
 				Severity: "warn",
 				Issue:    i.ID,
 				Message:  fmt.Sprintf("status=%s but still in workshop/issues/ — move to %s/", i.Status, historyDir),
 			})
-		case "working":
+		case i.Status == "working": // #122 carve-out: working-specific (blocked is waiting; IsActive too broad)
 			if i.PlanTotal > 0 && i.PlanTicked == 0 {
 				out = append(out, DriftFinding{
 					Severity: "info",
@@ -338,7 +341,9 @@ func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []Dr
 // detectDrift's "working, none ticked" info finding (no contradictory
 // double-flag) and rejects the degenerate 1-item/0-ticked case.
 func closeOffFinding(i IssueState, shipped shipProbe) (DriftFinding, bool) {
-	if i.Status != "open" && i.Status != "working" {
+	// #122: close-off candidates are open or actively-working (not blocked/terminal);
+	// "open" reads from the model, "working" stays literal (blocked is waiting, not done).
+	if !vocab.Issue().IsOpen(i.Status) && i.Status != "working" {
 		return DriftFinding{}, false
 	}
 	if i.PlanTicked < 1 || i.PlanTotal-i.PlanTicked > 1 {
