@@ -7,7 +7,7 @@ re-encoding. Propagates across the layer graph like `datatype` (shared in
 ariadne#122; the invariant is defended by the `issue-lifecycle` target
 (`workshop/targets/issue-lifecycle.md`).
 
-## Current state (#122 M1–M2 — landed)
+## Current state (#122 M1–M3 — landed)
 
 **The model (M1).**
 - `construct/vocabulary/issue.cue` — the `issue` noun. `categories` is the **single
@@ -35,17 +35,26 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   editing a lifecycle.
 - `Makefile.workflow` — `ensure-cue` (mirrors `ensure-go`; in `bootstrap`),
   `vocabulary-build` (build-in-owner) + the `weave` target puts the vocabulary owner's
-  `bin/` on the compile PATH, `issue-json-gen` regenerates the **committed**
-  `cmd/sdlc/internal/issue/issue.json` (the M3 `go:embed` input), and `issue-json-check`
-  (owner-only, ariadne CI) fails on a stale committed json.
+  `bin/` on the compile PATH, and `vocab-embed` (= `go generate ./pkg/vocab/...` + a
+  git-diff freshness gate) regenerates the **committed** Go-binding inputs. Generic over
+  nouns/consumers — adding a noun is a `//go:generate` line, not a Make target
+  (owner-only, ariadne CI).
 
-## Planned (#122 M3 — NOT yet wired)
-
-- **M3:** `sdlc` consumes `cmd/sdlc/internal/issue/issue.json` (a pure `IssueModel` +
-  category/transition predicates via `go:embed`) in place of the scattered status
-  literals (`isTerminalStatus`, the `setstatus`/`state`/`claim` enum/transition checks);
-  a conformance test guards the domain. The committed json + `issue-json-check` are in
-  place; the Go consumption is M3.
+**The Go binding + consumers (M3).**
+- `pkg/vocab` — the **Go binding**: `//go:embed`s the cue-exported `issue.json` once and
+  exposes read-only predicates (`IsTerminal`/`IsActive`/`IsOpen`/`AllStatuses`/
+  `CanTransition`). Every Go consumer imports it — the import graph is the distribution, so
+  the model is never re-encoded per consumer (placement is per-*language*, not per-instance).
+  The committed `pkg/vocab/issue.json` is the embed input; a conformance test derives its
+  cases from the model (fail-closed).
+- `sdlc` consumers read `vocab.Issue()` predicates in place of the scattered category/enum
+  literals — `isTerminalStatus` + `validStatuses` are gone; `push`/`merge`/`setstatus`/
+  `state`/`claim` branch on the model. *Value-specific* behaviors (done's close gate, the
+  open→working started-stamp, working-specific drift) keep literal status names by design
+  (annotated `#122` carve-outs) — they encode one state's policy, not category membership.
+- **Not** enforced: `sdlc` does not gate set-status on `CanTransition` — it has no
+  transition-legality gate today, and adding one would tighten behavior. The model exposes
+  + conformance-tests `CanTransition`; enforcing it is a deferred operator decision.
 
 ## Relationship to existing entries
 
