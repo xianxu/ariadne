@@ -264,7 +264,9 @@ flows into every consumer with no other edit. **`sdlc start-plan`** (#75 M2)
 delivers the `at-plan` lens to the main thread at design time — the forward
 counterpart to `change-code`'s plan-quality review (`claim → start-plan →
 change-code`); a drift test keeps AGENTS.md's narrative in sync with the markers.
-#71 adds `ARCH-SHIM`. **#82 M3 / #83** also have `start-plan` print non-blocking
+#71 adds `ARCH-SHIM`. #126 landed `ARCH-PURPOSE` (serve the issue's actual
+purpose; single-source ⇒ every consumer *derives* — the registry's 3rd marker,
+disambiguated from Simplicity-First/YAGNI). **#82 M3 / #83** also have `start-plan` print non-blocking
 **dependency-path contention** — one line per repo this one reads live. The
 symlink model means a repo reads ALL its transitive upstreams' working trees, so
 the "moving ground" is the whole dependency chain, not a single base.
