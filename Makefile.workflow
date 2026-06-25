@@ -826,7 +826,7 @@ datatype-build: ensure-go
 
 # vocabulary-build: mirror of datatype-build for cmd/vocabulary — the DAG-aware
 # compiler for the formal vocabulary layer (#122). A PATH binary invoked by name
-# by the vocabulary .dynamic-skill at weave compile (and by issue-json-gen).
+# by the vocabulary .dynamic-skill at weave compile (and by vocab-embed).
 # Build-in-owner: resolve the owner by LOCATION (dev-aliases.sh --list) and build
 # into the OWNER's bin/. When THIS repo is the owner, builds ariadne's own
 # bin/vocabulary, unchanged.

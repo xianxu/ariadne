@@ -32,7 +32,7 @@ func runVet(args []string) error {
 //     freshness stamp (.source-sha) over the merged source. The materialization
 //     mode the `.dynamic-skill` invokes.
 //   - --noun <name>: print just that noun's JSON to stdout. The make/embed path
-//     (`vocabulary export --noun issue > cmd/sdlc/internal/issue/issue.json`).
+//     (`vocabulary export --noun issue > pkg/vocab/issue.json`).
 func runExport(args []string) error {
 	fs := flag.NewFlagSet("export", flag.ExitOnError)
 	output := fs.String("output", "", "dir to write every <noun>.json into (+ a freshness stamp)")

@@ -216,3 +216,12 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
   item above is replaced by a generic go-generate diff check. General per-language bindings
   config `(language, dir, form)` deferred to the 2nd language (Lua/parley). Binding stays
   out of `issue.cue` (no protobuf `go_package` wart).
+- M3 fresh-eyes review (subagent; close ran `--no-judge`, sandbox): **clean bill — no
+  Critical/Important**. Mutation-verified the conformance test has teeth (drop a
+  transition / blank a `when` → it fails); carve-out judgment correct at all 11 sites;
+  transition-gating deferral honestly documented (vocab.go, atlas, Log). Fixed 2 stale
+  comments naming the deleted `issue-json-gen` (Makefile.workflow:829,
+  cmd/vocabulary/export.go:35). **M3 verdict: SHIP — M3 sealed.** Remaining before the
+  whole-issue close: operator ratifies the transition-gating deferral (amend the
+  "model-forbidden transition rejected" Done-when + file a follow-up), then `sdlc close
+  --issue 122`.
