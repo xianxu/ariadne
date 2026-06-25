@@ -234,3 +234,12 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
   `CanTransition` with a `--force` escape (`claim`/`close` stay ungated). This **meets**
   the previously-deferred "model-forbidden transition rejected" Done-when. Forked the M4
   implementation.
+- M4 fresh-eyes review (subagent; close `--no-judge`, sandbox): **clean bill — no
+  Critical/Important, SHIP**. Verified the gate covers every mutation entry path
+  (`applyStatus`'s two callers — `set-status` gated, `claim`'s is the legal open→working;
+  `close`/`milestone-close` write `done` directly by design; `state.go` read-only), the
+  gate has teeth (mutation-checked: removing Guard 0 reddens the illegal-transition
+  tests), the 3 test repoints are legitimate (none a missing edge), laws hold fail-closed,
+  Done-when genuinely met. 2 non-blocking Nice-to-haves (no action). **M4 verdict: SHIP.**
+  All four milestones SHIP (substitute fresh-context reviews, recorded here per gate);
+  every Done-when criterion met.
