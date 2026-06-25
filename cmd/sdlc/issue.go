@@ -20,6 +20,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // NewIssueCmd returns the `sdlc issue` parent command. Long is a
@@ -224,7 +225,7 @@ working set + drift.`,
 // rather than re-deriving the scan/sort.
 func runIssueList(stdout, stderr io.Writer, f *issueListFlags) error {
 	if f.Status != "" && !isValidStatus(f.Status) {
-		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(validStatuses, ", ")))
+		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(vocab.Issue().AllStatuses(), ", ")))
 	}
 	issues, err := listIssues(f.IssuesDir)
 	if err != nil {

@@ -34,6 +34,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // claimFlags holds the parsed flag values for the claim subcommand.
@@ -122,9 +123,11 @@ func startOnClaim(stdout, stderr io.Writer, f *claimFlags) error {
 	if err != nil {
 		return err
 	}
-	if prev != "open" {
+	if !vocab.Issue().IsOpen(prev) {
 		return nil
 	}
+	// "working" is the claim target written here (a value-specific write, like
+	// close's "done" write — not a category test), so it stays a literal (#122).
 	path, _, _, err := applyStatus(f.IssuesDir, f.Issue, "working", false, f.DryRun)
 	if err != nil {
 		return err

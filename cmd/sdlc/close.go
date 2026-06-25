@@ -373,6 +373,8 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		die(stderr, fmt.Sprintf("no YAML frontmatter in %s", issuePath))
 	}
 
+	// #122 carve-out: re-close guard keys on "done" specifically (the verified-complete
+	// state), not IsTerminal — re-closing a done issue is the case to guard.
 	if currentStatus, _ := issue.GetField(fm, "status"); mode == "issue" && currentStatus == "done" {
 		if !f.skip("reclose") {
 			die(stderr, fmt.Sprintf("%s#%s is already status: done — pass --no-reclose-guard (or --force) to re-close intentionally", repoName, issueStr))
@@ -456,6 +458,8 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 					filepath.Base(issuePath), len(unchecked)))
 			}
 		}
+		// #122 carve-out: close WRITES the "done" target state (a value, like claim's
+		// "working" write) — not a category test, so it stays a literal.
 		newFM = issue.SetField(newFM, "status", "done")
 		if f.Actual != "" {
 			newFM = issue.SetField(newFM, "actual_hours", f.Actual)

@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 func TestIsValidStatus(t *testing.T) {
-	for _, s := range validStatuses {
+	for _, s := range vocab.Issue().AllStatuses() {
 		if !isValidStatus(s) {
 			t.Errorf("isValidStatus(%q) = false, want true", s)
 		}

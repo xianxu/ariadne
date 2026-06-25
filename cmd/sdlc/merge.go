@@ -44,6 +44,8 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // mergeFlags holds the parsed flag values for the merge subcommand.
@@ -547,7 +549,7 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 			continue
 		}
 		st, _ := issue.GetField(fm, "status")
-		if !isTerminalStatus(st) {
+		if !vocab.Issue().IsTerminal(st) {
 			continue
 		}
 		// Merge target's shell DOES NOT call gh issue close — only push:
