@@ -21,6 +21,11 @@ func TestRenderLong_SetStatusDerivesLifecycle(t *testing.T) {
 	if strings.Contains(long, "all other transitions allowed") {
 		t.Error("set-status still carries the hand-maintained 'all other transitions allowed' claim (#125 Done-when)")
 	}
+	// No hand-maintained status enumeration survives outside the derived block (the
+	// FLAGS positional line must REFERENCE STATUSES, not list them — #125 close review).
+	if strings.Contains(long, "open|working|blocked") {
+		t.Error("set-status hardcodes a status pipe-enumeration (FLAGS line should reference STATUSES above)")
+	}
 	if !strings.Contains(long, "LEGAL TRANSITIONS") {
 		t.Error("set-status should render the derived LEGAL TRANSITIONS section")
 	}

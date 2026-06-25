@@ -1,12 +1,13 @@
 ---
 id: 000125
-status: working
+status: done
 deps: [ariadne#122]
 github_issue:
 created: 2026-06-25
 updated: 2026-06-25
 estimate_hours: 1.56
 started: 2026-06-25T14:33:20-07:00
+actual_hours: 0.79
 ---
 
 # sdlc embeds a help-text fragment GENERATED from the issue vocabulary (stop hand-maintaining lifecycle prose)
@@ -77,9 +78,24 @@ freshness gate, can't drift. Freshness of the underlying `issue.json` is already
 - [x] **Full shadow-sweep** (ARCH-PURPOSE — every prose restatement, not a subset): `set-status.md` → `{{LIFECYCLE}}` (replace the STATUSES block + the lifecycle-graph enumeration; keep `→working`/`→done`/`reopen` policy + the `--force` framing). `issue.md` → derive `:23` (status names) + `:50-51` (the `when` gloss — currently a hand-paraphrase). `claim.md:21` → **reword** the `(working/blocked/punt/wontfix/done)` list to "anything other than open" (*reference* the source, don't enumerate — drift-proof without a placeholder).
 - [x] Tests: render content (every status + its `when`; the legal edges) + byte-stability; the built `set-status` **and `issue`** Longs have NO surviving `{{` and render every model status; the hand-maintained "all other transitions allowed" claim is gone (Done-when). A guard mirroring `estimate_helptext_test.go` (the existing drift-test for this class).
 
+## Revisions
+
+### 2026-06-25 — close-review FIX-THEN-SHIP: set-status FLAGS line + terminal-set deferral
+**Reason:** the close boundary review (FIX-THEN-SHIP) found the shadow-sweep wasn't 100% — a
+status enumeration survived in the *targeted* file (`set-status.md`'s FLAGS positional line:
+`one of open|working|blocked|wontfix|punt`), and terminal-set enumerations (`done/wontfix/punt`)
+exist in non-targeted files (`merge.md`/`push.md`/`state.md`).
+**Delta:** (1) **Fixed** (in-scope): reworded the FLAGS line to *reference* — "any status from
+STATUSES above except `done`" (no enumeration; a regression-guard assertion added). (2)
+**Consciously deferred** (out of #125's named scope): the `{done, wontfix, punt}` terminal-set
+prose in merge/push/state — a *different* status subset (archiving behavior, not lifecycle), in
+non-lifecycle files, format-fragmented (slash/pipe/comma). A clean follow-up ("derive every
+status-subset enumeration in help, incl. the terminal set"), not #125's deferred point.
+
 ## Log
 
 ### 2026-06-25
+- 2026-06-25: closed — Help text derives lifecycle facts from pkg/vocab at runtime (renderLong seam substituting {{LIFECYCLE}}/{{STATUS_NAMES}}/{{STATUS_GLOSS}} at every command-Long site — incl. the issue.go:46 site add() missed, the plan-quality Critical fix). Full shadow-sweep: set-status.md + issue.md derive; claim.md references ("anything other than open"). TestNoCommandLongHasSurvivingPlaceholder walks the real buildRoot() tree (regression guard). go test ./... + go vet green. DOGFOODED the core Done-when: a temp open→blocked edge in issue.cue + `vocabulary export` regen flowed into `set-status --help` (open → working, blocked, …) with NO hand edit, then reverted. Freshness: no separate fragment — derives from issue.json, gated by make vocab-embed. The hand-maintained "all other transitions allowed" claim is gone (asserted by test). Atlas updated.; review verdict: FIX-THEN-SHIP
 
 - Filed as a #122 follow-up (the prose-consumer half of "compiled to consumers"). Motivated
   by the M4 help-text drift the close review caught — `issue.cue` was, for the help surface,

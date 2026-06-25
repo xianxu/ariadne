@@ -46,7 +46,7 @@ WHAT IT DOES
 FLAGS
 
   --issue <n>           workshop issue ID (required)
-  <status>              positional: one of open|working|blocked|wontfix|punt
+  <status>              positional: any status from STATUSES above except `done`
                         (done is refused — use `sdlc close`)
   --force               bypass transition guards
   --dry-run             print the would-be edit; do not write
