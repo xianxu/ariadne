@@ -20,7 +20,7 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
 
   Frontmatter (in order):
     id             zero-padded 6-digit, matches the filename
-    status         open | working | blocked | done | wontfix | punt
+    status         {{STATUS_NAMES}}
     deps           list of dependency refs, e.g. [repo#1, repo#2]
     github_issue   GitHub issue number when mirrored, else empty
     target         (optional) a workshop/targets/ slug
@@ -47,10 +47,10 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
 
 STATUS
 
-`open` not started · `working` in progress · `blocked` waiting · `done`
-complete (close via `sdlc close`) · `wontfix` rejected · `punt` deferred.
+{{STATUS_GLOSS}}
 Flip status with `sdlc issue set-status` (or `sdlc claim` to start work), never
 by hand-editing the frontmatter — the verbs carry the transition guards.
+(`done` closes via `sdlc close`.) The status set above is derived from the model.
 
 For depth:
 

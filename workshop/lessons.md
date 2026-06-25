@@ -494,3 +494,25 @@ root (both `vocabulary` and `sdlc` are gitignored at root precisely because a st
 collides with the project-local overlay/source dirs).
 
 **Origin:** #124 M2 — wiring the conformance gate into push/merge.
+
+## 2026-06-25 - A "must-apply-everywhere" transform needs a guard that walks the assembled tree, not per-site tests (#125)
+
+**Pattern:** #125 substitutes a `{{LIFECYCLE}}` placeholder in help text at *every* command-Long
+load site. The plan-quality judge caught (pre-code) that the planned seam (`main.go`'s `add()`)
+missed 3 of the load sites — `sdlc issue set-status`'s Long is set in `issue.go`, not via `add()` —
+so it would have shipped a literal `{{LIFECYCLE}}` in the exact command the issue targets. The
+durable fix isn't just "wire it correctly" — it's a test that **walks the real assembled command
+tree** (`buildRoot()`) and asserts no `{{` placeholder survives in *any* command's Long. That
+guard fails the instant a new command (or a new load site) forgets the seam.
+
+**Rule:** when a transform must apply at N call sites (a substitution, a wrapper, a registration),
+don't rely on per-site tests + remembering to wire each one — add ONE guard that enumerates the
+*assembled* surface (the real command tree / the real route table / the real registry) and asserts
+the invariant holds for every member. It catches both today's miss and tomorrow's new-site
+regression. (Same family as the `{{ARCH_STAR}}` drift guard + `estimate_helptext_test.go`.)
+
+**Also:** Bash heredocs (`cat << 'EOF'`) mangle Go's `\!` — `\!=`→`\\!=`, `\!x`→`\\!x` — even with a
+quoted delimiter, yielding `illegal character U+005C`. Write Go source via the Write/Edit tools,
+never a shell heredoc.
+
+**Origin:** #125 — sdlc help text deriving lifecycle facts from the vocabulary model.

@@ -58,6 +58,15 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   was widened to the legitimate legal set first (+6 edges: `open→wontfix/punt` triage,
   `punt`/`wontfix`→`working` reopen, `blocked→wontfix/punt`) so enforcement doesn't reject
   real flows; the rest is reachable via `--force`.
+- **Help text derives too (#125):** `sdlc`'s embedded help (`set-status.md`/`issue.md`) no
+  longer hand-restates the status set / `when` gloss / legal transitions — those were a
+  drift-prone shadow (#122 M4 made set-status's "all other transitions allowed" false). They're
+  now rendered LIVE from `pkg/vocab` at help-build time via a `renderLong` seam that substitutes
+  `{{LIFECYCLE}}`/`{{STATUS_NAMES}}`/`{{STATUS_GLOSS}}` (the `{{ARCH_STAR}}` idiom) at every
+  command-Long load site. No cached fragment, no new freshness gate — the help can't drift from
+  the model (it reads the same `issue.json` `make vocab-embed` already gates). `claim.md` just
+  *references* ("anything other than open") rather than enumerating. `TestNoCommandLongHasSurvivingPlaceholder`
+  walks the assembled command tree so no Long can forget the seam.
 
 ## Instance conformance (#124 — M1–M3 landed)
 

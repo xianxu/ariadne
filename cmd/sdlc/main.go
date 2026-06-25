@@ -18,11 +18,29 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+// renderLong loads a command's embedded help text and substitutes the model-derived
+// placeholders from the issue vocabulary at runtime (#125): the lifecycle FACTS
+// derive live from pkg/vocab (← construct/vocabulary/issue.cue) so the help prose
+// can't drift. The {{ARCH_STAR}} idiom (cmd/sdlc/internal/judge/review.go). No-op
+// when the text carries no placeholder — so EVERY command-Long load can route through
+// it uniformly (none can forget the substitution). The editorial framing around each
+// placeholder stays hand-written in the helptext `.md`.
+func renderLong(name string) string {
+	m := vocab.Issue()
+	return strings.NewReplacer(
+		"{{LIFECYCLE}}", m.RenderLifecycleHelp(),
+		"{{STATUS_NAMES}}", m.StatusNames(" | "),
+		"{{STATUS_GLOSS}}", m.StatusGloss(),
+	).Replace(helptext.MustGet(name))
+}
 
 func main() {
 	if err := buildRoot().Execute(); err != nil {
@@ -46,7 +64,7 @@ func buildRoot() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "sdlc",
 		Short:         "SDLC checkpoint binary — guards known commit moments against drift",
-		Long:          helptext.MustGet("root"),
+		Long:          renderLong("root"),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -61,7 +79,7 @@ func buildRoot() *cobra.Command {
 	// one-liner shown in `sdlc --help`.
 	add := func(c *cobra.Command, longKey, short string) {
 		if longKey != "" {
-			c.Long = helptext.MustGet(longKey)
+			c.Long = renderLong(longKey)
 		}
 		c.Short = short
 		root.AddCommand(c)
@@ -86,13 +104,13 @@ func buildRoot() *cobra.Command {
 	// Hidden: deprecated aliases + the start stub. Order is irrelevant —
 	// they're omitted from the verb list.
 	fetchCmd := NewFetchCmd()
-	fetchCmd.Long = helptext.MustGet("fetch")
+	fetchCmd.Long = renderLong("fetch")
 	fetchCmd.Hidden = true
 	fetchCmd.Deprecated = "use `sdlc issue new --from-github N`" // #56 M2
 	root.AddCommand(fetchCmd)
 
 	flatSetStatus := NewSetStatusCmd()
-	flatSetStatus.Long = helptext.MustGet("set-status")
+	flatSetStatus.Long = renderLong("set-status")
 	flatSetStatus.Hidden = true
 	flatSetStatus.Deprecated = "use `sdlc issue set-status`" // #56 M2
 	root.AddCommand(flatSetStatus)

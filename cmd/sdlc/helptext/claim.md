@@ -17,9 +17,9 @@ at engagement start (so `sdlc actual` captures design attention). The
 estimate gate lives at `sdlc change-code`, not here.
 
 Only the open→working transition is automatic. Claim doubles as the
-generic issue-file re-sync primitive, so an issue already in a
-deliberate state (working/blocked/punt/wontfix/done) is left untouched —
-claim never clobbers a status the operator set on purpose. Pass
+generic issue-file re-sync primitive, so an issue already in any state
+other than `open` is left untouched — claim never clobbers a status the
+operator set on purpose. Pass
 `--no-start` to suppress the flip and sync the file as-is.
 
 TWO PATHS
