@@ -750,7 +750,7 @@ local-build:
 # `make build` (the cmd/*/main.go scanner above) also picks sdlc up
 # automatically — sdlc-build is the explicit dev-flow target for
 # iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build weave-build datatype-build vocabulary-build issue-json-gen issue-json-check sdlc-install sdlc-bootstrap
+.PHONY: tools sdlc-build weave-build datatype-build vocabulary-build vocab-embed sdlc-install sdlc-bootstrap
 
 # tools: compose all build targets for binaries this repo ships.
 # Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
@@ -841,29 +841,24 @@ vocabulary-build: ensure-go
 	mkdir -p "$$owner/bin"; \
 	( cd "$$owner" && go build -o "$$owner/bin/vocabulary" ./cmd/vocabulary )
 
-# issue-json-gen: regenerate the COMMITTED embed input
-# cmd/sdlc/internal/issue/issue.json from the issue vocabulary, so sdlc's M3
-# go:embed reads the current model (#122). OWNER-ONLY (cmd/sdlc lives only in
-# ariadne) — deliberately NOT wired into `bootstrap` (a consumer has no cmd/sdlc
-# to write into) nor into the hot `sdlc-build` path. The json is committed so a
-# standalone `go build ./cmd/sdlc` works; CI asserts freshness with
-# `make issue-json-gen && git diff --exit-code cmd/sdlc/internal/issue/issue.json`.
-issue-json-gen: vocabulary-build ensure-cue
-	@echo "==> regenerating cmd/sdlc/internal/issue/issue.json from the issue vocabulary"
+# vocab-embed (#122 M3): regenerate the COMMITTED Go-binding embed inputs from the
+# vocabulary via `go generate`, then assert nothing drifted. The Go binding lives in
+# pkg/vocab — ONE shared package every Go consumer imports (the import graph is the
+# distribution; no per-consumer copy). The co-located //go:generate is the binding
+# declaration, so this target is GENERIC over nouns/consumers: adding a noun is a
+# go:generate line in pkg/vocab, never a new Make target (supersedes the per-entity
+# issue-json-gen/check). OWNER-ONLY (pkg/vocab + cmd/vocabulary live in ariadne) —
+# run from ariadne CI; deliberately NOT wired into `bootstrap`/`sdlc-build`/the
+# consumer `check` (a consumer needs neither cue nor regeneration; the json is
+# committed so a standalone `go build` works). The DIFFERENT cross-repo gate — has
+# this repo's gitignored materialization gone stale vs the merged source — remains
+# `vocabulary check --output construct/generated/vocabulary`.
+vocab-embed: vocabulary-build ensure-cue
+	@echo "==> regenerating pkg/vocab embed inputs (go generate)"
 	@vcowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
-	PATH="$$vcowner/bin:$$PATH" vocabulary export --noun issue > cmd/sdlc/internal/issue/issue.json
-
-# issue-json-check (#122): the committed embed input must reflect the current
-# issue vocabulary. Regenerate + fail if it changed (stale). OWNER-ONLY (writes
-# cmd/sdlc/, which lives only in ariadne); run from ariadne CI — deliberately NOT
-# composed into the consumer-facing `check`/`pre-merge` (would brew-install cue +
-# write a non-existent path in a consumer). The DIFFERENT, cross-repo gate — has
-# this repo's gitignored materialization gone stale vs the merged source — is
-# `vocabulary check --output construct/generated/vocabulary` (no weave-check
-# integration: `weave check` is a path-completeness check, a separate concern).
-issue-json-check: issue-json-gen
-	@git diff --exit-code -- cmd/sdlc/internal/issue/issue.json \
-	  || { echo "Error: cmd/sdlc/internal/issue/issue.json is STALE vs construct/vocabulary/issue.cue — run 'make issue-json-gen' and commit it (#122)." >&2; exit 1; }
+	PATH="$$vcowner/bin:$$PATH" go generate ./pkg/vocab/...
+	@git diff --exit-code -- pkg/vocab \
+	  || { echo "Error: pkg/vocab embed inputs are STALE vs construct/vocabulary/*.cue — run 'make vocab-embed' and commit (#122)." >&2; exit 1; }
 
 # sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
 # appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
