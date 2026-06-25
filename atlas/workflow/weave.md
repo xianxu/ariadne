@@ -190,8 +190,8 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
     not that a committed file matches.
   - **Shared module-level libraries (#115 M1).** Two `pkg/` libraries underpin this:
     `pkg/layergraph` — the transitive `construct/deps` walk, the SINGLE source of
-    "repo R's layer graph," imported by BOTH weave and the `datatype` binary so the
-    two DAG-aware tools never diverge on topology; and `pkg/frontmatter` — a flat-YAML
+    "repo R's layer graph," imported by weave, the `datatype` binary, and (via `MergeByName`, #122) `cmd/vocabulary`
+    so the DAG-aware tools never diverge on topology; and `pkg/frontmatter` — a flat-YAML
     `description:` parser shared by weave + datatype.
   - First consumer: `cmd/datatype` (`go:embed` prose template + the DAG-merged union
     of every layer's `construct/datatype/*.md` + the leaf's project-local
