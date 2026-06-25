@@ -35,7 +35,7 @@ type Transition struct {
 // construct/vocabulary/issue.cue at generate time; never hand-edited.
 type IssueModel struct {
 	Categories map[string][]string `json:"categories"` // "open"/"active"/"terminal" → status names
-	When       map[string]string   `json:"when"`        // status → one-line semantics
+	When       map[string]string   `json:"when"`       // status → one-line semantics
 	Lifecycle  []Transition        `json:"lifecycle"`
 }
 
