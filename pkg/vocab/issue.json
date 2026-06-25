@@ -77,6 +77,42 @@
             "to": "working",
             "event": "reopen",
             "guards": []
+        },
+        {
+            "from": "open",
+            "to": "wontfix",
+            "event": "abandon",
+            "guards": []
+        },
+        {
+            "from": "open",
+            "to": "punt",
+            "event": "defer",
+            "guards": []
+        },
+        {
+            "from": "punt",
+            "to": "working",
+            "event": "reopen",
+            "guards": []
+        },
+        {
+            "from": "wontfix",
+            "to": "working",
+            "event": "reopen",
+            "guards": []
+        },
+        {
+            "from": "blocked",
+            "to": "wontfix",
+            "event": "abandon",
+            "guards": []
+        },
+        {
+            "from": "blocked",
+            "to": "punt",
+            "event": "defer",
+            "guards": []
         }
     ],
     "laws": {

@@ -60,6 +60,16 @@ lifecycle: [...#Transition] & [
 	{from: "working", to: "wontfix", event: "abandon"}, // rejected mid-flight
 	{from: "working", to: "punt", event: "defer"},      // deferred mid-flight
 	{from: "done", to: "working", event: "reopen"},     // re-open a closed issue
+
+	// #122 M4: triage an unstarted issue without ever working it
+	{from: "open", to: "wontfix", event: "abandon"}, // reject at triage
+	{from: "open", to: "punt", event: "defer"},      // defer at triage
+	// #122 M4: reopen from any terminal (resume a deferred / reconsider a rejected)
+	{from: "punt", to: "working", event: "reopen"},
+	{from: "wontfix", to: "working", event: "reopen"},
+	// #122 M4: abandon/defer while blocked (don't force an unblock-first detour)
+	{from: "blocked", to: "wontfix", event: "abandon"},
+	{from: "blocked", to: "punt", event: "defer"},
 ]
 
 // ── laws: named assertions the graph shape doesn't already guarantee.

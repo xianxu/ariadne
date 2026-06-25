@@ -79,9 +79,10 @@ func (m *IssueModel) AllStatuses() []string {
 	return out
 }
 
-// CanTransition reports whether the lifecycle declares a from→to edge. NOTE:
-// this is the model's view of legal transitions; sdlc does not (yet) gate
-// set-status on it — see ariadne#122 M3 (the tightening decision).
+// CanTransition reports whether the lifecycle declares a from→to edge. As of
+// ariadne#122 M4 this is ENFORCED: `sdlc issue set-status` refuses a transition
+// the model doesn't declare, with a `--force` escape (claim/close perform fixed
+// legal transitions and stay ungated).
 func (m *IssueModel) CanTransition(from, to string) bool {
 	for _, t := range m.Lifecycle {
 		if t.From == from && t.To == to {
@@ -89,4 +90,19 @@ func (m *IssueModel) CanTransition(from, to string) bool {
 		}
 	}
 	return false
+}
+
+// LegalTransitions returns the statuses `from` may legally transition to, in
+// lifecycle order, de-duplicated. Empty when `from` is unknown or a true
+// dead-end. Used to render the legal targets in set-status's refusal message.
+func (m *IssueModel) LegalTransitions(from string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, t := range m.Lifecycle {
+		if t.From == from && !seen[t.To] {
+			out = append(out, t.To)
+			seen[t.To] = true
+		}
+	}
+	return out
 }

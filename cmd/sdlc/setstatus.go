@@ -79,6 +79,12 @@ func runSetStatus(stdout, stderr io.Writer, f *setStatusFlags) error {
 		die(stderr, err.Error())
 	}
 
+	// #122 M4: when --force masked the lifecycle gate on an illegal transition,
+	// log the override — the escape hatch is explicit and recorded, not silent.
+	if f.Force && prev != "" && prev != f.Status && !vocab.Issue().CanTransition(prev, f.Status) {
+		cwarn(stderr, fmt.Sprintf("--force: overriding illegal transition %s → %s (not in the lifecycle)", prev, f.Status))
+	}
+
 	// No-op when already at the target status (after guards). applyStatus
 	// still bumps `updated:` so commits show intent — match `sdlc close`'s
 	// posture of always emitting a `updated:` line.
@@ -218,6 +224,21 @@ func applyStatus(issuesDir string, issueID int, status string, force, dryRun boo
 // caller's responsibility). Returns an error describing the refusal
 // otherwise — message is the exact text presented to the operator.
 func checkTransitionGuards(current, next, fm, body string) error {
+	// Guard 0 (#122 M4): the lifecycle graph. Refuse a transition the model
+	// (construct/vocabulary/issue.cue) doesn't declare — operator chose to enforce
+	// (decision b). Skip the no-op (current==next) and an unset/initial status
+	// (current=="") — neither is a real transition. --force bypasses, since this
+	// whole function runs only when !force. Runs first so open→done reads as
+	// "illegal" (it is) rather than the →done close-routing below.
+	if current != "" && current != next && !vocab.Issue().CanTransition(current, next) {
+		legal := vocab.Issue().LegalTransitions(current)
+		if len(legal) == 0 {
+			return fmt.Errorf("illegal transition %s → %s: %q is a dead-end in the lifecycle. Pass --force to override (logged).", current, next, current)
+		}
+		return fmt.Errorf("illegal transition %s → %s; legal from %q: %s. Pass --force to override (logged).",
+			current, next, current, strings.Join(legal, ", "))
+	}
+
 	// Guard 1: → done routes to `sdlc close`. Always refused (mutating
 	// done close requires ACTUAL + VERIFIED + atlas check; those live
 	// in `sdlc close`, not here). #122 carve-out: literal "done" is value-specific
