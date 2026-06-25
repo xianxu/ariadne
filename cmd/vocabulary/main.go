@@ -6,6 +6,9 @@
 //	vocabulary export --output <dir>    — cue export each noun → <dir>/<noun>.json (+ a freshness stamp)
 //	vocabulary export --noun <name>     — print one noun's JSON to stdout (the make/embed path)
 //	vocabulary check  --output <dir>    — fail if <dir> is stale vs the current merged source
+//	vocabulary validate-instance --type <noun> <file>
+//	                                    — cue-vet a typed-markdown FILE's frontmatter against
+//	                                      #<Noun> (instance-conformance, #124)
 //
 // The export --output form is invoked by the vocabulary skill's `.dynamic-skill`
 // at `weave compile` (cwd = the compiling repo, --output construct/generated/
@@ -32,8 +35,10 @@ func main() {
 		err = runExport(args[1:])
 	case "check":
 		err = runCheck(args[1:])
+	case "validate-instance":
+		err = runValidateInstance(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "vocabulary: unknown subcommand %q (want vet, export, check)\n", args[0])
+		fmt.Fprintf(os.Stderr, "vocabulary: unknown subcommand %q (want vet, export, check, validate-instance)\n", args[0])
 		os.Exit(2)
 	}
 	if err != nil {

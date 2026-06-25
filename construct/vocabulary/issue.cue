@@ -32,14 +32,27 @@ when: {
 
 // ── #Issue: the data shape of an issue record ──
 #Issue: {
-	id:              string // zero-padded 6-digit, matches the filename
-	status:          #Status
-	estimate_hours?: number & >0
-	actual_hours?:   number & >0
-	// compiled guard: a done issue must carry measured actuals
+	// id: a 6-digit zero-padded number. UNQUOTED in real frontmatter (`id: 000124`),
+	// which cue's YAML loader reads as an (octal) int — so accept int|string rather
+	// than reject every real file (#124: the #122 schema was only ever self-vetted).
+	id:     int | string
+	status: #Status
+	// estimate/actual: present-but-empty (`estimate_hours:`) parses as YAML null, so
+	// allow null alongside a positive number (#124 — real files leave these blank).
+	estimate_hours?: (number & >0) | null
+	actual_hours?:   (number & >0) | null
+	// compiled guard: a done issue must carry MEASURED actuals (a positive number,
+	// not null/absent).
 	if status == "done" {
 		actual_hours!: number & >0
 	}
+	// OPEN (#124): allow organically-growing frontmatter (target/references/
+	// related/created/… and future fields) so instance-conformance vetting at the
+	// fail-closed merge gate doesn't false-positive on a valid-but-unmodeled field.
+	// A bad `status` value (the #Status enum) and a typo'd *required* field
+	// (statuss: → status absent) are still caught; only optional-field typos slip,
+	// which is the right trade for a gate (don't train --no-validate).
+	...
 }
 
 // ── lifecycle: the transition table (the verbs). Guards are NAMED here; their
