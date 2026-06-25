@@ -59,6 +59,36 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   `punt`/`wontfix`→`working` reopen, `blocked→wontfix/punt`) so enforcement doesn't reject
   real flows; the rest is reachable via `--force`.
 
+## Instance conformance (#124 — M1 landed; M2/M3 pending)
+
+Where #122 vets the *model* and wires the *verbs*, #124 vets real artifact **files**
+against the model: `artifact → extract frontmatter → cue vet against #<Type>`.
+
+**The engine (M1, landed).**
+- `cmd/vocabulary validate-instance --type <noun> <file>` — resolveVocab → the noun's
+  winning `.cue`; split frontmatter → a `.yaml` temp → `CueRunner.VetInstance` (`cue vet
+  -d '#<Type>'`) → the **pure** `parseCueDiagnostics` collapses cue's verbose stderr into
+  one clear per-field message (e.g. `status: "in-progress" is not valid (want:
+  open|working|…)`). Exit non-zero on any conformance error. Generic over any noun with a
+  `.cue`; the only fragile piece (the stderr→diagnostic transform) is pure + fixture-tested
+  (fixtures are **cue-version-coupled** — a cue bump re-captures).
+- `pkg/frontmatter.Split` — the frontmatter splitter lifted here (one source);
+  `cmd/sdlc/internal/issue.Parse` delegates (cmd/vocabulary can't import cmd/sdlc/internal).
+- **`#Issue` is OPEN** (`...`): a *closed* schema is a field allowlist that must track
+  organically-growing frontmatter (`target`/`references`/`related`/…), and a false positive
+  at a fail-closed gate trains `--no-validate`. Open still catches the high-value cases — a
+  bad `status` *value* (the enum) and a typo'd *required* field (`statuss:` → `status`
+  absent). Two corpus-forced corrections to the #122 schema (it had only ever self-vetted):
+  `id: int | string` (cue's YAML loader octal-parses unquoted `000124`→84) and
+  `(number & >0) | null` on estimate/actual (empty values parse as null). The done-guard
+  still requires a *positive* `actual_hours`.
+
+**Pending.** M2 — wire the fail-closed pre-merge gate (frontmatter on every changed issue;
+section presence, single-sourced from `structural.go` via an exported `CheckSectionsPresence`,
+on newly-**added** files only — grandfather legacy tickets) + `sdlc issue validate` + a loud
+`--no-validate`/`--force`. M3 — `construct/vocabulary/pensive.cue` proves the frontmatter path
+generalizes past `issue`.
+
 ## Relationship to existing entries
 
 - The *operational* status flow (GitHub → local → archive) is
