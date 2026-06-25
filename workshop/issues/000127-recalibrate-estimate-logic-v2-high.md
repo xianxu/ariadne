@@ -83,3 +83,15 @@ produced them (the ledger already carries the model column for exactly this).
   separable extension belongs in its own issue, the principle itself does not). Evidence: the ledger
   table above + `cmd/sdlc/internal/estimate/drift.go`. Related: #117 (calibration ledger), #118 (the
   ship-wall-clock actual redefinition that is the leading suspected cause).
+- **Data-quality caveat surfaced at the #128 close (2026-06-25):** ariadne#128 closed with est 1.66 /
+  actual **0.13** → ratio **12.8×**, and the ledger marked it **trusted-window**. That 0.13h is a
+  *degenerate-window artifact*, NOT real over-estimation: active-time-v3 infers active spans from
+  commit-to-commit author-date gaps, and #128 landed design+impl in a *single* commit, so almost all
+  the real work-time is uncaptured. The diagnosis here MUST separate two distinct failures before
+  rescaling primitives: (1) the genuine ~2.3× model-high bias (the unit drift from #118), vs.
+  (2) **measurement** artifacts where a low-commit-count issue understates actual and inflates the
+  ratio. Rescaling the estimate model to "fix" inflated ratios that are really actual-side
+  measurement noise would mis-calibrate. Action for the backtest: filter or down-weight degenerate
+  windows (e.g. single-commit, or actual below an active-time floor), and consider whether
+  `WindowTrusted` should exclude single-commit windows at all (an active-time-v3 engine fix, possibly
+  its own issue). The 12.8× row is a known outlier — don't treat it as a 12.8× model miss.
