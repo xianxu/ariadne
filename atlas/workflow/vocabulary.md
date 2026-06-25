@@ -7,7 +7,7 @@ re-encoding. Propagates across the layer graph like `datatype` (shared in
 ariadne#122; the invariant is defended by the `issue-lifecycle` target
 (`workshop/targets/issue-lifecycle.md`).
 
-## Current state (#122 M1–M3 — landed)
+## Current state (#122 M1–M4 — landed)
 
 **The model (M1).**
 - `construct/vocabulary/issue.cue` — the `issue` noun. `categories` is the **single

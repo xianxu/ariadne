@@ -1,13 +1,14 @@
 ---
 id: 000122
-status: working
+status: done
 deps: []
 github_issue:
 target: issue-lifecycle
 created: 2026-06-24
-updated: 2026-06-24
+updated: 2026-06-25
 estimate_hours: 10
 started: 2026-06-24T13:13:10-07:00
+actual_hours: 4.67
 ---
 
 # Formal schema layer: nouns + lifecycle as a contract-bearing model, compiled to consumers
@@ -155,6 +156,8 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
 ## Log
 
 
+
+- 2026-06-25: closed — All 4 milestones SHIP (M1 design-interface sign-off; M2/M3/M4 fresh-context substitute reviews — clean bills, recorded in Log). cue vet gate green; sdlc reads the issue model via pkg/vocab (scattered status literals gone, only annotated value carve-outs); set-status enforces the lifecycle graph with a --force escape; parked-status acceptance passed with zero Go edits; go test ./cmd/sdlc/... ./cmd/vocabulary/... ./pkg/vocab/... green.; review verdict: FIX-THEN-SHIP
 - 2026-06-25: closed M4 — M4: set-status gates on the lifecycle graph (illegal transition refused w/ legal-targets msg + --force escape, dogfooded); model widened +6 legitimate edges; cue vet + full suite green; guard tests repointed off now-illegal edges + illegal/force tests added. Actual 0.73 = M4 increment (cumulative 4.55 − M1-3 3.82); review verdict: not-run
 ### 2026-06-24
 - 2026-06-24: closed M3 — M3: pkg/vocab Go binding (embed once, consumers import); sdlc rewired to vocab.Issue() — isTerminalStatus+validStatuses deleted, honest grep shows only annotated #122 carve-outs; conformance test fail-closed; parked acceptance proved category propagation with zero production Go edits; cue vet + full suite green. (actual=M3 increment; M1 1.86+M2 1.07+M3 0.89=3.82 cumulative)
@@ -243,3 +246,9 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
   Done-when genuinely met. 2 non-blocking Nice-to-haves (no action). **M4 verdict: SHIP.**
   All four milestones SHIP (substitute fresh-context reviews, recorded here per gate);
   every Done-when criterion met.
+- 2026-06-25: **#122 closed** — `sdlc close --issue 122 --actual 4.67` (est 10h, ratio
+  2.1×, logged to the calibration ledger). The whole-issue boundary review *did* run (the
+  judge CLI was reachable this time) → **FIX-THEN-SHIP**, no Critical: fixed the one
+  Important (`set-status` help still said "all other transitions allowed" — now documents
+  the M4 lifecycle gate) + the Minor (atlas heading M1–M3 → M1–M4). **#122 DONE** — all 4
+  milestones SHIP, every Done-when met.
