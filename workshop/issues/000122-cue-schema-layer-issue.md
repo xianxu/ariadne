@@ -150,6 +150,7 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
 - [x] M1 — CUE model single-sourced via `categories` (`or()`-derived `#`-defs) + lifecycle + laws (documented-value, reachable/escapable); `cue vet` + export-shape gate; `issue-lifecycle` target; **human design-interface review** before consumers are wired
 - [x] M2 — `cmd/vocabulary` (reuse `pkg/layergraph`) vet/export; `.dynamic-skill` weave wiring → `construct/generated/vocabulary/issue.json`; `ensure-cue` bootstrap + honest build-order; freshness stamp + `weave check`; touch-time skill instruction; atlas
 - [x] M3 — Go binding in a shared importable `pkg/vocab` (embed once, consumers `import` it — supersedes M2's per-consumer copy + `issue-json-*` targets); rewire sdlc consumers to `vocab.Issue()` categories (carve out legit literals, honest grep); conformance check; `parked` acceptance; dedup AGENTS.md prose; close
+- [ ] M4 — widen the lifecycle to the legal set (+6 edges) + gate `set-status` on `CanTransition` with `--force` (operator chose (b) at the M3 boundary); meets the deferred "model-forbidden transition rejected" Done-when
 
 ## Log
 
@@ -225,3 +226,9 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
   whole-issue close: operator ratifies the transition-gating deferral (amend the
   "model-forbidden transition rejected" Done-when + file a follow-up), then `sdlc close
   --issue 122`.
+- 2026-06-25: operator chose **(b) enforce** (not defer). M4 widens the lifecycle (+6
+  legitimate edges — `open→wontfix/punt`, `punt→working`, `wontfix→working`,
+  `blocked→wontfix/punt`; edge set approved, iterate later) and gates `set-status` on
+  `CanTransition` with a `--force` escape (`claim`/`close` stay ungated). This **meets**
+  the previously-deferred "model-forbidden transition rejected" Done-when. Forked the M4
+  implementation.
