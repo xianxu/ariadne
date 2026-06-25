@@ -7,24 +7,19 @@
 package issue
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
-)
 
-// frontmatterRE matches "---\n<fm>\n---\n<body>" where <fm> is captured.
-// Multiline DOTALL via (?s).
-var frontmatterRE = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n(.*)$`)
+	"github.com/xianxu/ariadne/pkg/frontmatter"
+)
 
 // Parse splits a markdown document into its YAML frontmatter and body.
 // Returns an error if the document doesn't start with a "---\n...---\n"
-// fence.
+// fence. Delegates to pkg/frontmatter.Split — the one source for the split
+// (#124 ARCH-DRY; cmd/vocabulary needs the same parse but can't import this
+// internal package), preserving the missing-fence error contract.
 func Parse(text string) (fm, body string, err error) {
-	m := frontmatterRE.FindStringSubmatch(text)
-	if m == nil {
-		return "", "", fmt.Errorf("no YAML frontmatter")
-	}
-	return m[1], m[2], nil
+	return frontmatter.Split(text)
 }
 
 // Compose reassembles a frontmatter + body back into the full document.

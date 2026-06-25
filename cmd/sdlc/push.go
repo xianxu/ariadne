@@ -40,6 +40,7 @@ import (
 type pushFlags struct {
 	Yes        bool
 	NoJudge    bool
+	NoValidate bool
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
@@ -64,6 +65,7 @@ func NewPushCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the not-done-issue warn prompt")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip pre-merge judges (emergency-only)")
+	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not commit/push/archive")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory for archived issues")
@@ -112,6 +114,17 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 				die(stderr, fmt.Sprintf("git commit failed: %v\n%s", gerr, out))
 			}
 		}
+	}
+
+	// ── 3.5 Instance-conformance gate (#124) ────────────────────────────────
+	// Deterministic, separate from the judges (so --no-judge keeps it, and
+	// --no-validate keeps the judges). Same window the judges use.
+	if !f.NoValidate {
+		if err := validateChangedIssuesFn(gitx.DiffBase(), "", f.IssuesDir, stdout, stderr); err != nil {
+			die(stderr, err.Error())
+		}
+	} else {
+		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — issue frontmatter/sections NOT verified before main. Escape hatch: say why in your commit/log.")
 	}
 
 	// ── 4. Pre-merge judges ─────────────────────────────────────────────────

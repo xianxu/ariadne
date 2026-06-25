@@ -59,6 +59,56 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   `punt`/`wontfix`→`working` reopen, `blocked→wontfix/punt`) so enforcement doesn't reject
   real flows; the rest is reachable via `--force`.
 
+## Instance conformance (#124 — M1–M3 landed)
+
+Where #122 vets the *model* and wires the *verbs*, #124 vets real artifact **files**
+against the model: `artifact → extract frontmatter → cue vet against #<Type>`.
+
+**The engine (M1, landed).**
+- `cmd/vocabulary validate-instance --type <noun> <file>` — resolveVocab → the noun's
+  winning `.cue`; split frontmatter → a `.yaml` temp → `CueRunner.VetInstance` (`cue vet
+  -d '#<Type>'`) → the **pure** `parseCueDiagnostics` collapses cue's verbose stderr into
+  one clear per-field message (e.g. `status: "in-progress" is not valid (want:
+  open|working|…)`). Exit non-zero on any conformance error. Generic over any noun with a
+  `.cue`; the only fragile piece (the stderr→diagnostic transform) is pure + fixture-tested
+  (fixtures are **cue-version-coupled** — a cue bump re-captures).
+- `pkg/frontmatter.Split` — the frontmatter splitter lifted here (one source);
+  `cmd/sdlc/internal/issue.Parse` delegates (cmd/vocabulary can't import cmd/sdlc/internal).
+- **`#Issue` is OPEN** (`...`): a *closed* schema is a field allowlist that must track
+  organically-growing frontmatter (`target`/`references`/`related`/…), and a false positive
+  at a fail-closed gate trains `--no-validate`. Open still catches the high-value cases — a
+  bad `status` *value* (the enum) and a typo'd *required* field (`statuss:` → `status`
+  absent). Two corpus-forced corrections to the #122 schema (it had only ever self-vetted):
+  `id: int | string` (cue's YAML loader octal-parses unquoted `000124`→84) and
+  `(number & >0) | null` on estimate/actual (empty values parse as null). The done-guard
+  still requires a *positive* `actual_hours`.
+
+**The gate (M2, landed).** `cmd/sdlc/validategate.go` — `validateChangedIssues(base, head, …)`
+runs in `sdlc push` + `sdlc merge` BEFORE the irreversible action and INDEPENDENTLY of the LLM
+judges (so `--no-judge` keeps it, `--no-validate` keeps the judges). It reuses the judges'
+`gitx.DiffBase()` window and `gitx.DiffNameStatus` (A/M/R/D):
+- **Frontmatter** (shell `vocabulary validate-instance`) on **every** changed issue (added or
+  modified) — the universal invariant; catches a hand-edited bad `status:` on an *existing*
+  ticket. A binary-can't-run is a loud setup error, never a silent pass (fail-closed).
+- **Section presence** (`issue.CheckSectionsPresence` — the SAME policy the change-code
+  structural gate uses, now single-sourced: `CheckStructural` calls it and composes its ≥50-word
+  Spec check on top) on **newly-ADDED** files only. Legacy/in-flight tickets are grandfathered
+  ("validate forward"); a rename (`R`) is not "added".
+- **Loud escape:** `--no-validate` on push/merge prints a prominent WARN naming what's skipped
+  (the [escape-hatch principle](../../workshop/lessons.md): bypassable, never silent).
+- `sdlc issue validate [<file> | --issue N | --all]` is the on-demand surface (full check).
+
+**Generalized (M3, landed).** `construct/vocabulary/pensive.cue` (`#Pensive`: `type`/`date`/
+`topic`/`mode` enum/`description` + optional `references`) is the **second datatype** — the same
+`validate-instance` engine validates it (`--type pensive` → `#Pensive`), proving the path isn't
+issue-specific. The ONLY per-datatype addition is the `.cue`: `make weave` materializes
+`construct/generated/vocabulary/pensive.json` (empty `{}` — `#Pensive`/`#Mode` are CUE
+`#`-definitions, which don't export; the validator reads the `.cue` directly) with no pipeline
+change. Scope note: the **engine**
+is datatype-generic; the **gate** is still issue-scoped (`shellValidateFrontmatter` hardcodes
+`--type issue`, targets `workshop/issues/*.md`) — wiring other datatypes into a fail-closed gate
+is a separable future step.
+
 ## Relationship to existing entries
 
 - The *operational* status flow (GitHub → local → archive) is

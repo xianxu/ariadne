@@ -8,7 +8,28 @@
 // description:"). Pure string → string; no IO.
 package frontmatter
 
-import "strings"
+import (
+	"errors"
+	"regexp"
+	"strings"
+)
+
+// frontmatterRE matches "---\n<fm>\n---\n<body>" with <fm> + <body> captured.
+// Multiline DOTALL via (?s). One source for the split (ARCH-DRY) —
+// cmd/sdlc/internal/issue.Parse delegates here.
+var frontmatterRE = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n(.*)$`)
+
+// Split separates a markdown document into its leading YAML frontmatter and its
+// body. Returns an error when the document doesn't open with a "---\n…\n---\n"
+// fence — the contract cmd/sdlc/internal/issue.Parse relies on (it now delegates
+// here, so the parse lives once). Pure string → (string, string, error); no IO.
+func Split(content string) (fm, body string, err error) {
+	m := frontmatterRE.FindStringSubmatch(content)
+	if m == nil {
+		return "", "", errors.New("no YAML frontmatter")
+	}
+	return m[1], m[2], nil
+}
 
 // Description extracts the `description:` field from content's leading YAML
 // frontmatter block (the `---` … `---` fence). It reads the one field the

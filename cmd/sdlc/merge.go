@@ -52,6 +52,7 @@ import (
 type mergeFlags struct {
 	Yes        bool
 	NoJudge    bool
+	NoValidate bool
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
@@ -105,6 +106,7 @@ func NewMergeCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the final irreversible-merge confirmation AND not-done warn")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip pre-merge judges (emergency-only)")
+	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not merge or clean up")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory for archived issues")
@@ -293,6 +295,17 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			"(merge is server-side: a fix you committed for a failed pre-merge gate must reach origin first.)")
 	}
 	cok(stderr, fmt.Sprintf("Branch pushed; HEAD synced with %s", remoteRef))
+
+	// ── 4.5 Instance-conformance gate (#124) ────────────────────────────────
+	// Deterministic, separate from the judges. Runs after the branch is synced to
+	// origin (merge is server-side) so it checks the same tree that will merge.
+	if !f.NoValidate {
+		if err := validateChangedIssuesFn(gitx.DiffBase(), "", f.IssuesDir, stdout, stderr); err != nil {
+			die(stderr, err.Error()+"\n  → fix and `git push` (merge is server-side), or --no-validate to bypass.")
+		}
+	} else {
+		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — issue frontmatter/sections NOT verified before main. Escape hatch: say why in your commit/log.")
+	}
 
 	// ── 5. Pre-merge judges ─────────────────────────────────────────────────
 	if !f.NoJudge {

@@ -450,3 +450,47 @@ are about not losing the boundary review's signal.
 **Rule:** For a single-source / DRY / "compiled to consumers" issue, **closing requires every consumer named in the goal to actually DERIVE from the source — or be explicitly de-scoped with operator sign-off.** "Follow-up" is legitimate for separable extensions, *never* for the thing that **is** the point (test: *"is the deferred work the reason this issue exists?"*). At the close gate, concretely: (a) **Done-when is the purpose-contract** — don't soften it to get the close; if it says "Go/Lua," Lua is wired or the operator agreed to split it. (b) **Shadow-sweep** — enumerate every consumer + `grep` for remaining restatements of the model; each derives or is provably gone. *"Is this just-documentation now?"* is a close gate, not a design slogan. (c) **A boundary-review finding usually indicts a class, not a line** — a drifted doc means "this consumer class isn't wired," not "fix this string." (d) Keep the *project's long-term goal* in view across the whole arc, not just the current milestone's tasks. Because (a)-(c) are exactly what I *knew and still skipped*, the durable fix is to **encode** them (this entry + a memory; ideally a `sdlc close` gate that, for a single-source issue, lists consumers and asks "does each derive?") — the consistency-prosthesis applied to the *closer's* judgment, not just the designer's.
 
 **Origin:** #122 close — operator correction ("you should have handled those as part of closing #122; you repeatedly warned of this risk and were eager to make it"). The unwired consumers were filed as parley#135 (Lua) + ariadne#125 (help-text-from-vocab), and #122's record reconciled to state what it actually delivered. Same family as [[A target can lie by aspiration]] (there a *target* over-claimed; here a *close* did) and [[A plan's "remove X" step is checked against the close evidence]] (claimed-done ≠ done).
+
+## 2026-06-25 - A schema that only self-vets is untested against reality — run it over the whole corpus on day one
+
+**Pattern:** #124 built an instance-conformance validator (cue-vet real issue files against
+`#122`'s `#Issue`). `#Issue` had always passed `cue vet` *on itself* — but it had **never seen
+a real instance**. On first contact it rejected **all 129** real issue files, for two reasons no
+amount of schema-staring would surface: (1) cue's YAML loader **octal-parses leading-zero
+scalars**, so unquoted `id: 000124` reads as the int `84` and `id: string` rejected every file
+(fix: `id: int | string`, or quote ids); (2) a present-but-empty `estimate_hours:` parses as YAML
+**null**, which `number & >0` rejected (fix: `(number & >0) | null`). Both were latent the entire
+time #Issue existed as "documentation that self-vets."
+
+**Rule:** A schema/validator is **untested until it has met real data at scale.** When you build
+one against an existing corpus, the *first* test is "run it over the entire corpus" — and expect
+the **schema** (not the data) to be what's wrong, in ways only real instances reveal (encoding
+quirks, empty/null values, organically-grown fields). Corollary: model an existing artifact's
+type **closed/strict only after** the corpus passes; default to **open** (`...`) at a fail-closed
+gate so a valid-but-unmodeled field can't false-positive (and train `--no-validate`). This is
+[[Measure before rebuild]] / "artifacts lie by aspiration" applied to schemas: a type that only
+describes the data it was hand-written against is aspiration, not a tested contract.
+
+**Origin:** #124 M1 — the validator engine. Surfaced by the implementation fork running the
+engine over the corpus immediately (22/22 active pass; 15 legacy *done* history files correctly
+flagged for missing `actual_hours` — genuine non-conformance, not a schema bug).
+
+## 2026-06-25 - Two gotchas wiring a deterministic gate into an existing verb (#124 M2)
+
+**Pattern A — a new side-effecting step in a shared flow fires on that flow's e2e tests.** #124
+M2 added the instance-conformance gate to `sdlc merge`; that broke
+`TestRunMerge_DirtyTrackerFile_Proceeds` — the e2e helper stubbed the *judge* seam but not the
+*new gate* seam, so the gate ran for real inside a flow test. **Rule:** when you add a
+side-effecting step to a verb that already has e2e/flow tests, audit every such test and
+neutralize the new seam in their shared setup (`swapMergeDeps`), exactly as the existing
+side-effecting seams (judges) are neutralized. A flow test should exercise the flow, not your
+new gate — the gate has its own unit tests.
+
+**Pattern B — building a tool binary at the repo ROOT shadows a layer-graph overlay dir.**
+`go build ./cmd/vocabulary` from the repo root drops a `./vocabulary` executable, which
+`resolveVocab`'s leaf-local `vocabulary/` overlay then tries to `ReadDir` → "not a directory",
+breaking unrelated tests. **Rule:** build tool binaries to `bin/` or a temp dir, never the repo
+root (both `vocabulary` and `sdlc` are gitignored at root precisely because a stray root binary
+collides with the project-local overlay/source dirs).
+
+**Origin:** #124 M2 — wiring the conformance gate into push/merge.
