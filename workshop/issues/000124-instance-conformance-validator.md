@@ -1,12 +1,13 @@
 ---
 id: 000124
-status: working
+status: done
 deps: [ariadne#122]
 github_issue:
 created: 2026-06-24
 updated: 2026-06-25
 estimate_hours: 4.55
 started: 2026-06-25T12:14:37-07:00
+actual_hours: 2.02
 ---
 
 # Instance-conformance: validate typed-markdown artifacts against their datatype schema (extract then cue vet)
@@ -151,6 +152,7 @@ reusing the judges' `gitx.DiffBase()` window. `preflight.go` is untouched.
   loop so a typed artifact actually defends its own shape.
 
 ### 2026-06-25
+- 2026-06-25: closed — #124 complete (M1–M3), each milestone fresh-eyes reviewed: M1 SHIP, M2 FIX-THEN-SHIP (addressed — DiffNameStatus tested), M3 SHIP. The full-close window after M3 milestone-close is empty (no commits), so --no-verdict — no un-reviewed code. Validator delivered: bad-status rejected with clear diagnostics, fail-closed push/merge gate (frontmatter universal + sections added-only/grandfathered), sdlc issue validate, loud --no-validate, generalizes to pensive. Full go test ./... + vet + cue vet + make weave green; hand-verified end-to-end. Atlas updated.; review verdict: SHIP
 - 2026-06-25: closed M3 — M3 generalization verified: construct/vocabulary/pensive.cue — the SAME validate-instance engine validates a second datatype (--type pensive → #Pensive). All 6 real workshop/pensive/*.md PASS (verified pre-commit per the M1 lesson); mode: musing rejected with `mode: "musing" is not valid (want: eureka|ideas|thoughts)`. TestValidateInstance_PensiveGeneralizes green; make weave materializes pensive.json with no pipeline change; vocabulary vet clean. (--actual 2.02 is the cumulative whole-issue active-time the gate measures; M3 increment was ~0.16h.); review verdict: SHIP
 - 2026-06-25: closed M2 — M2 gate verified: deterministic instance-conformance gate in push+merge before the irreversible action, independent of judges. Grandfather behavior unit-tested — MODIFIED bad-status REJECTED (frontmatter universal), ADDED missing-## Plan REJECTED (section), MODIFIED legacy lacking ## Done when PASSES (grandfathered), RENAME (R) not section-validated, binary-cant-run fails loud. Section policy single-sourced: issue.CheckSectionsPresence; CheckStructural composes >=50-word on top (TestCheckStructural unchanged). sdlc issue validate hand-verified end-to-end (conforms exit 0; status: in-progress → clear named diagnostic exit 1). Loud --no-validate escape on push/merge. go test ./... + go vet green.; review verdict: FIX-THEN-SHIP
 - 2026-06-25: closed M1 — M1 engine verified: `vocabulary validate-instance --type issue` — whole active corpus (22/22 workshop/issues) passes frontmatter; `status: in-progress` rejected with `status: "in-progress" is not valid (want: open|working|…)`; `statuss:` typo (status absent) + `done`-missing-actuals rejected; valid file passes. go test ./cmd/vocabulary/... ./cmd/sdlc/... ./pkg/... + go vet + cue vet construct/vocabulary/issue.cue all green; hand-verified end-to-end. #Issue opened (`...`) + corpus-forced corrections (id int|string octal, estimate/actual |null).; review verdict: SHIP
