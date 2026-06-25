@@ -1,12 +1,13 @@
 ---
 id: 000126
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-25
 updated: 2026-06-25
 estimate_hours: 1.36
 started: 2026-06-25T10:36:32-07:00
+actual_hours: 0.54
 ---
 
 # ARCH-PURPOSE: serve the issue's actual purpose — don't settle for the easy win; single-source ⇒ consumers derive (ARCH-* registry, checked at-plan + at-review)
@@ -91,6 +92,7 @@ ARCH-DRY/ARCH-PURE house style. milestone-review covers the one close-time fresh
 ## Log
 
 ### 2026-06-25
+- 2026-06-25: closed — Full `go test ./cmd/sdlc/...` green incl. the auto-deriving drift test (now requires AGENTS.md mention of ARCH-PURPOSE) + the 3 strengthened marker fixtures. `sdlc start-plan` empirically delivers "3 entries" incl. ## ARCH-PURPOSE (injection verified). Live dogfood: plan-quality judge returns VERDICT: FAILURE citing ARCH-PURPOSE on a purpose-deferring fixture plan (the #122 failure caught at plan time). Atlas updated (sdlc-binary.md).; review verdict: SHIP
 
 - Filed as the durable encoding of the #122 closing-discipline lesson (operator: "how do we
   avoid this?" → make it an `ARCH-*` principle, multi-stage, not a narrow shadow-sweep-at-close
