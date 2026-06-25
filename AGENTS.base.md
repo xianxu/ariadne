@@ -87,6 +87,7 @@ Architecture is where agents are weakest (payoff is months out) — cite the
 `ARCH-*` marker in plans/Logs/findings where a principle shaped a decision.
 - **DRY** (`ARCH-DRY`) — reuse before adding.
 - **PURE** (`ARCH-PURE`) — majority pure functions; thin IO/UI layer.
+- **PURPOSE** (`ARCH-PURPOSE`) — serve the issue's actual purpose; don't settle for the easy subset. Single-source ⇒ every consumer *derives* (enforced, not documentation); "follow-up" is for separable extensions, never the point. Opposite axis from Simplicity-First — don't *under*-deliver the stated purpose, not gold-plate for the future.
 - **Simplicity First** — minimal impact; be able to explain in one sentence why a thing must exist.
 - **Root Cause** — no temp fixes or lazy null checks; senior-dev standard.
 
