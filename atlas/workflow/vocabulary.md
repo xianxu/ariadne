@@ -63,6 +63,7 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
 
 - The *operational* status flow (GitHub → local → archive) is
   [Issue Lifecycle](issue-lifecycle.md); **this** entry is the *formal model* those
-  statuses will derive from once #122 M3 lands.
+  statuses derive from — sdlc reads it via `pkg/vocab`, and `set-status` enforces the
+  lifecycle graph (#122 M3–M4 landed).
 - Propagation reuses the layer-graph mechanism — see [weave](weave.md) and the
   datatype DAG-merge in [Data Artifacts](data-artifacts.md).
