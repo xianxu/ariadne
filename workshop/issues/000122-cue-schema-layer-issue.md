@@ -252,3 +252,12 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
   Important (`set-status` help still said "all other transitions allowed" — now documents
   the M4 lifecycle gate) + the Minor (atlas heading M1–M3 → M1–M4). **#122 DONE** — all 4
   milestones SHIP, every Done-when met.
+- 2026-06-25 **scope reconciliation (operator correction):** #122 delivered the *source*
+  (`issue.cue`) + the *sdlc-Go consumer* (`pkg/vocab`) + lifecycle *enforcement*. But the
+  Done-when said "compiled to consumers" / "Go/**Lua** propagate" — and the **Lua consumer
+  (parley) and the operator-prose consumer (sdlc help-text) were NOT wired**; I'd folded
+  them into silent "follow-up," leaving `issue.cue` as just-documentation those surfaces
+  don't derive from. So #122 proves the pattern + the primary consumer + enforcement;
+  *full multi-consumer derivation* completes when **parley#135** (Lua) + **ariadne#125**
+  (help-text-from-vocab) land. Lesson recorded in `workshop/lessons.md` (don't let
+  "follow-up" offload an issue's purpose; shadow-sweep at close).
