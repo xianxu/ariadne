@@ -39,6 +39,32 @@ type StructuralFailure struct {
 // guard posture: small set of cheap checks, each clearly labelled
 // so the operator can decide whether to fix or --force.
 func CheckStructural(text string) []StructuralFailure {
+	// Section PRESENCE is the shared policy (CheckSectionsPresence, also the
+	// #124 instance-conformance validator's section overlay — single source, so
+	// the change-code gate and the merge gate can't diverge). CheckStructural
+	// adds the change-code-only ≥50-word Spec check on top.
+	out := CheckSectionsPresence(text)
+	if _, body, err := Parse(text); err == nil {
+		if f := checkSpecWordCount(body); f != nil {
+			out = append(out, *f)
+		}
+	}
+	return out
+}
+
+// CheckSectionsPresence runs the PRESENCE-only section gates (well-formedness,
+// no semantic quality). Shared by CheckStructural (change-code) and the #124
+// validator's section overlay (`sdlc issue validate` + the pre-merge gate) so the
+// required-section policy lives in ONE place. Empty return = all present.
+//
+//	frontmatter-present — issue has YAML frontmatter at all
+//	spec-present        — ## Spec section exists
+//	plan-present        — ## Plan has ≥ 1 non-empty checklist item
+//	done-when-present   — ## Done when has ≥ 1 non-empty bullet OR `related:` populated
+//
+// Pure — no IO. Note `## Done when` is optional-with-`related:`-fallback (NOT a hard
+// required section): #124's flat-required design was disproved against the corpus.
+func CheckSectionsPresence(text string) []StructuralFailure {
 	var out []StructuralFailure
 
 	fm, body, err := Parse(text)
@@ -51,7 +77,7 @@ func CheckStructural(text string) []StructuralFailure {
 		}}
 	}
 
-	if f := checkSpec(body); f != nil {
+	if f := checkSpecPresent(body); f != nil {
 		out = append(out, *f)
 	}
 	if f := checkPlan(body); f != nil {
@@ -80,13 +106,24 @@ func CheckEstimate(text string) *StructuralFailure {
 	return checkEstimate(fm)
 }
 
-func checkSpec(body string) *StructuralFailure {
-	sec, ok := SectionBody(body, "Spec")
-	if !ok {
+// checkSpecPresent — presence only (shared, well-formedness).
+func checkSpecPresent(body string) *StructuralFailure {
+	if _, ok := SectionBody(body, "Spec"); !ok {
 		return &StructuralFailure{
 			Name:    "spec-present",
 			Message: "no `## Spec` section found",
 		}
+	}
+	return nil
+}
+
+// checkSpecWordCount — the ≥50-word SEMANTIC check, change-code-only (NOT part of
+// CheckSectionsPresence). No-ops when ## Spec is absent (presence is reported by
+// checkSpecPresent) so a missing Spec yields exactly one failure, not two.
+func checkSpecWordCount(body string) *StructuralFailure {
+	sec, ok := SectionBody(body, "Spec")
+	if !ok {
+		return nil
 	}
 	words := strings.Fields(stripCodeFences(sec))
 	if len(words) < 50 {

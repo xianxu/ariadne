@@ -86,6 +86,26 @@ func TestParseCueDiagnostics_StatusAbsentDisjunction(t *testing.T) {
 	}
 }
 
+// #124 M1-review steer: when cue NAMES the field on an `incomplete value` line
+// (some schema shapes do), the diagnostic must preserve the field name rather than
+// genericize it. (The real #Issue's missing-status case emits the field-less
+// `unresolved disjunction` shape above; this covers the named variant.)
+func TestParseCueDiagnostics_IncompleteValueNamesField(t *testing.T) {
+	const fx = `status: incomplete value "open" | "working" | "blocked" | "done" | "wontfix" | "punt":
+    ./x.cue:6:11
+`
+	diags := parseCueDiagnostics(fx)
+	if len(diags) != 1 {
+		t.Fatalf("want one diagnostic, got %v", diags)
+	}
+	if diags[0].Field != "status" {
+		t.Errorf("field = %q, want status (name preserved)", diags[0].Field)
+	}
+	if !strings.Contains(diags[0].Message, "open|working|blocked|done|wontfix|punt") {
+		t.Errorf("message should list the valid values: %q", diags[0].Message)
+	}
+}
+
 func TestParseCueDiagnostics_FieldNotAllowed(t *testing.T) {
 	diags := parseCueDiagnostics(fxFieldNotAllowed)
 	if len(diags) != 1 || diags[0].Field != "target" {

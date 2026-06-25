@@ -127,16 +127,21 @@ func (g *e2eGH) PRMerge(repo, branch string) error                    { g.prMerg
 // each its own isolated state — the swaps (and the chdir) would race.
 func swapMergeDeps(t *testing.T, gh ghCaller, preflight func(preflightOptions) error) {
 	t.Helper()
-	prevGH, prevDetect, prevPre := ghClient, detectRepo, runPreflightJudgesFn
+	prevGH, prevDetect, prevPre, prevVal := ghClient, detectRepo, runPreflightJudgesFn, validateChangedIssuesFn
 	ghClient = gh
 	detectRepo = func() (string, error) { return "test/repo", nil }
 	if preflight != nil {
 		runPreflightJudgesFn = preflight
 	}
+	// Neutralize the #124 instance-conformance gate — these e2e tests exercise the
+	// merge FLOW, not the gate (which has its own unit tests in validategate_test.go)
+	// and would otherwise shell the `vocabulary` binary, absent in the test env.
+	validateChangedIssuesFn = func(_, _, _ string, _, _ io.Writer) error { return nil }
 	t.Cleanup(func() {
 		ghClient = prevGH
 		detectRepo = prevDetect
 		runPreflightJudgesFn = prevPre
+		validateChangedIssuesFn = prevVal
 	})
 }
 

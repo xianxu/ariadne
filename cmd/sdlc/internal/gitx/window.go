@@ -414,6 +414,47 @@ func DiffNames(sinceRef, untilRef string) ([]string, error) {
 	return strings.Split(text, "\n"), nil
 }
 
+// FileChange is one entry of `git diff --name-status`: a single-letter status
+// (A added, M modified, D deleted, R renamed, C copied) and the file's CURRENT
+// path (for a rename, the destination path).
+type FileChange struct {
+	Status string
+	Path   string
+}
+
+// DiffNameStatus returns the changed files between sinceRef and untilRef with their
+// status code (`git diff --name-status`). untilRef "" compares against the working
+// tree (mirrors collectDiff's omit-when-empty). Empty slice + nil on no changes;
+// error only on hard git failures. Used by the #124 instance-conformance gate to tell
+// newly-ADDED issue files (section-checked) from MODIFIED/renamed ones (grandfathered).
+func DiffNameStatus(sinceRef, untilRef string) ([]FileChange, error) {
+	args := []string{"diff", "--name-status", sinceRef}
+	if untilRef != "" {
+		args = append(args, untilRef)
+	}
+	cmd := exec.Command("git", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git diff --name-status %s %s: %w", sinceRef, untilRef, err)
+	}
+	text := strings.TrimSpace(string(out))
+	if text == "" {
+		return nil, nil
+	}
+	var changes []FileChange
+	for _, line := range strings.Split(text, "\n") {
+		fields := strings.Split(line, "\t")
+		if len(fields) < 2 || fields[0] == "" {
+			continue
+		}
+		changes = append(changes, FileChange{
+			Status: fields[0][:1],            // "R100" → "R", "A" → "A"
+			Path:   fields[len(fields)-1],    // rename: destination path is last
+		})
+	}
+	return changes, nil
+}
+
 // LogEntry is one line of `git log --reverse --format=%H %ci %s`.
 type LogEntry struct {
 	SHA, Date, Subject string

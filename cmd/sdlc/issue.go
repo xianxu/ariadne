@@ -48,7 +48,114 @@ func NewIssueCmd() *cobra.Command {
 
 	cmd.AddCommand(newIssueListCmd())
 	cmd.AddCommand(newIssueShowCmd())
+	cmd.AddCommand(newIssueValidateCmd())
 	return cmd
+}
+
+// issueValidateFlags holds the parsed flags for `sdlc issue validate`.
+type issueValidateFlags struct {
+	Issue     int
+	All       bool
+	IssuesDir string
+}
+
+func newIssueValidateCmd() *cobra.Command {
+	f := issueValidateFlags{}
+	cmd := &cobra.Command{
+		Use:   "validate [<file>]",
+		Short: "Validate issue file(s) against the #Issue schema (frontmatter + sections)",
+		Long: `Check that issue markdown conforms to the issue datatype: frontmatter against
+#Issue (cue, via the vocabulary validator) + required-section presence (the SAME
+policy the change-code gate uses — issue.CheckSectionsPresence). Well-formedness
+only; semantic quality (Spec depth, etc.) is the LLM's job, not this.
+
+  sdlc issue validate --issue 124      # one issue by ID
+  sdlc issue validate path/to/x.md     # one file
+  sdlc issue validate --all            # every workshop/issues/*.md
+
+Exits non-zero if any file is nonconforming, printing clear per-field/section
+diagnostics — actionable enough to fix and re-validate. On-demand + informative;
+the fail-closed boundary is the push/merge gate.`,
+		Args:          cobra.MaximumNArgs(1),
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runIssueValidate(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
+		},
+	}
+	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID to validate")
+	cmd.Flags().BoolVar(&f.All, "all", false, "validate every issue under issues-dir")
+	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	return cmd
+}
+
+// runIssueValidate resolves the target file(s), runs full validation on each
+// (frontmatter + sections), and returns a non-nil error iff any file is
+// nonconforming (so the command exits non-zero).
+func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []string) error {
+	files, err := resolveValidateTargets(f, args)
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("no issue files to validate (pass <file>, --issue N, or --all)")
+	}
+	nonconforming := 0
+	for _, file := range files {
+		probs := validateIssueFull(file)
+		if len(probs) == 0 {
+			cok(stderr, fmt.Sprintf("%s: conforms", file))
+			continue
+		}
+		nonconforming++
+		cwarn(stderr, fmt.Sprintf("%s: %d problem(s)", file, len(probs)))
+		for _, p := range probs {
+			fmt.Fprintln(stdout, "  - "+p)
+		}
+	}
+	if nonconforming > 0 {
+		return fmt.Errorf("%d of %d issue file(s) nonconforming", nonconforming, len(files))
+	}
+	return nil
+}
+
+// resolveValidateTargets picks the files to validate from a positional <file>,
+// --issue N, or --all (in that precedence).
+func resolveValidateTargets(f *issueValidateFlags, args []string) ([]string, error) {
+	switch {
+	case len(args) == 1:
+		return []string{args[0]}, nil
+	case f.Issue > 0:
+		p, err := locateIssueFile(f.IssuesDir, f.Issue)
+		if err != nil {
+			return nil, err
+		}
+		return []string{p}, nil
+	case f.All:
+		return filepath.Glob(filepath.Join(f.IssuesDir, "*.md")) // Glob returns sorted matches
+	default:
+		return nil, fmt.Errorf("specify <file>, --issue N, or --all")
+	}
+}
+
+// validateIssueFull runs both halves of conformance on one file: frontmatter (via
+// the shared vocabulary-validator seam) + section presence (the shared change-code
+// policy). On-demand validation is FULL (not added-only — that grandfather rule is
+// the pre-merge gate's concern, not the agent's authoring check).
+func validateIssueFull(file string) []string {
+	var probs []string
+	out, ok, runErr := validateFrontmatterFn(file)
+	switch {
+	case runErr != nil:
+		probs = append(probs, "could not run the frontmatter validator: "+runErr.Error())
+	case !ok:
+		probs = append(probs, "frontmatter:\n"+indentLines(strings.TrimSpace(out), "      "))
+	}
+	if data, err := os.ReadFile(file); err == nil {
+		for _, sf := range issue.CheckSectionsPresence(string(data)) {
+			probs = append(probs, "section: "+sf.Message)
+		}
+	}
+	return probs
 }
 
 // issueNewFlags holds the parsed flags for `sdlc issue new`.

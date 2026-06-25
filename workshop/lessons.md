@@ -474,3 +474,23 @@ describes the data it was hand-written against is aspiration, not a tested contr
 **Origin:** #124 M1 — the validator engine. Surfaced by the implementation fork running the
 engine over the corpus immediately (22/22 active pass; 15 legacy *done* history files correctly
 flagged for missing `actual_hours` — genuine non-conformance, not a schema bug).
+
+## 2026-06-25 - Two gotchas wiring a deterministic gate into an existing verb (#124 M2)
+
+**Pattern A — a new side-effecting step in a shared flow fires on that flow's e2e tests.** #124
+M2 added the instance-conformance gate to `sdlc merge`; that broke
+`TestRunMerge_DirtyTrackerFile_Proceeds` — the e2e helper stubbed the *judge* seam but not the
+*new gate* seam, so the gate ran for real inside a flow test. **Rule:** when you add a
+side-effecting step to a verb that already has e2e/flow tests, audit every such test and
+neutralize the new seam in their shared setup (`swapMergeDeps`), exactly as the existing
+side-effecting seams (judges) are neutralized. A flow test should exercise the flow, not your
+new gate — the gate has its own unit tests.
+
+**Pattern B — building a tool binary at the repo ROOT shadows a layer-graph overlay dir.**
+`go build ./cmd/vocabulary` from the repo root drops a `./vocabulary` executable, which
+`resolveVocab`'s leaf-local `vocabulary/` overlay then tries to `ReadDir` → "not a directory",
+breaking unrelated tests. **Rule:** build tool binaries to `bin/` or a temp dir, never the repo
+root (both `vocabulary` and `sdlc` are gitignored at root precisely because a stray root binary
+collides with the project-local overlay/source dirs).
+
+**Origin:** #124 M2 — wiring the conformance gate into push/merge.

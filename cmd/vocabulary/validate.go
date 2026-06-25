@@ -114,8 +114,13 @@ var (
 	cueRequiredRE = regexp.MustCompile(`^(\S+): field is required but not present`)
 	// `target: field not allowed:` — only a closed schema emits this (#Issue is open).
 	cueNotAllowedRE = regexp.MustCompile(`^(\S+): field not allowed:`)
-	// `unresolved disjunction "open" | "working" | … (type string):` — an OPEN struct's
-	// way of reporting a missing required enum field (cue names no field here).
+	// `status: incomplete value "open" | "working" | …:` — cue NAMES the field for some
+	// schema shapes (#124 M1-review steer: preserve the name when cue provides it).
+	cueIncompleteValueRE = regexp.MustCompile(`^(\S+): incomplete value (.+):`)
+	// `unresolved disjunction "open" | "working" | … (type string):` — the real #Issue's
+	// missing-status case emits THIS field-less shape (a cue open-struct limitation: it can't
+	// attribute the disjunction to the absent field). The value list still implies the field,
+	// so the diagnostic stays actionable; naming it would need a schema-aware Go check.
 	cueUnresolvedDisjRE = regexp.MustCompile(`^unresolved disjunction (.+) \(type [^)]+\):`)
 )
 
@@ -167,6 +172,10 @@ func parseCueDiagnostics(out string) []Diagnostic {
 		}
 		if m := cueNotAllowedRE.FindStringSubmatch(line); m != nil {
 			add(Diagnostic{Field: m[1], Message: "unknown field (not allowed by the schema)"})
+			continue
+		}
+		if m := cueIncompleteValueRE.FindStringSubmatch(line); m != nil {
+			add(Diagnostic{Field: m[1], Message: "missing or invalid (want one of: " + normalizeDisjunction(m[2]) + ")"})
 			continue
 		}
 		if m := cueUnresolvedDisjRE.FindStringSubmatch(line); m != nil {
