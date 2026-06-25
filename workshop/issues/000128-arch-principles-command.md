@@ -99,11 +99,11 @@ for #127.
 
 ## Plan
 
-- [ ] `cmd/sdlc/archprinciples.go` + `helptext/arch-principles.md`; register in `main.go`. Test: command output renders the registry (markers + at-plan lens) and `--lens at-review` switches framing.
-- [ ] Rewrite `AGENTS.base.md` Core Design Principles: drop the abstracts + path, add the `sdlc arch-principles` instruction, keep Simplicity-First/Root-Cause. `make weave` → regenerate `AGENTS.md`.
-- [ ] Repurpose `TestArchitecture_NarrativeInSyncWithAgentsMd` to the route-to-command invariant; confirm `start-plan` + judge-embed tests still pass unchanged.
-- [ ] Atlas note in `atlas/workflow/sdlc-binary.md` (new command + push/pull rationale).
-- [ ] Full `go test ./cmd/sdlc/...` green; spot-check `sdlc arch-principles` output by hand.
+- [x] `cmd/sdlc/archprinciples.go` + `helptext/arch-principles.md`; register in `main.go`. Test: command output renders the registry (markers + at-plan lens) and `--lens at-review` switches framing.
+- [x] Rewrite `AGENTS.base.md` Core Design Principles: drop the abstracts + path, add the `sdlc arch-principles` instruction, keep Simplicity-First/Root-Cause. `make weave` → regenerate `AGENTS.md`.
+- [x] Repurpose `TestArchitecture_NarrativeInSyncWithAgentsMd` to the route-to-command invariant; confirm `start-plan` + judge-embed tests still pass unchanged.
+- [x] Atlas note in `atlas/workflow/sdlc-binary.md` (new command + push/pull rationale).
+- [x] Full `go test ./cmd/sdlc/...` green; spot-check `sdlc arch-principles` output by hand.
 
 ## Log
 
@@ -116,3 +116,18 @@ for #127.
   and only ADD the command (pull + standalone); do NOT move ARCH-* out of start-plan, and the
   fresh-context judge prompts keep their inline embed. Builds on #75 (the ARCH-* mechanism) +
   #126 (ARCH-PURPOSE, which this dogfoods on its own narrative).
+- **change-code judges (2026-06-25):** plan-quality = CLEAN, estimate-quality = CLEAN. Heeded
+  plan-quality's two advisory notes during impl: (1) the old drift test had TWO assertions
+  (per-marker + the literal `architecture.md` path) — both broke by design, so rewrote the whole
+  body to the route-to-command invariant; (2) kept `ARCH-*` awareness + "cite the marker" in the
+  constitution so only the drift-prone *definitions* moved to the command, not the awareness.
+- **Implemented (2026-06-25):** `cmd/sdlc/archprinciples.go` (`NewArchPrinciplesCmd` → the pure
+  `runArchPrinciples(stdout, lens)` over the shared `judge.ArchitectureBlock` — ARCH-DRY/ARCH-PURE)
+  + `helptext/arch-principles.md` + registered in `main.go` after `judge`. Tests: command renders
+  all 3 markers + lens, `--lens at-review` switches framing, bad lens errors, and it's wired in
+  the real command tree. Rewrote AGENTS.base.md Core Design Principles → route to `sdlc
+  arch-principles` (kept Simplicity-First/Root-Cause full); `make weave` regenerated AGENTS.md.
+  Repurposed the drift test → `TestArchitecture_NarrativeRoutesToArchPrinciples`. Atlas updated.
+  Verified by hand: `sdlc arch-principles` prints the at-plan block, `--lens at-review` switches
+  the header, `--lens bogus` errors. `go vet` + full `go test ./cmd/sdlc/...` green. start-plan +
+  judge-embed tests unchanged and still pass (the push is untouched, as specced).

@@ -80,14 +80,13 @@
 - Hold a running hypothesis of the user's intent and update it **every turn** — each exchange moves the model positively or negatively. Keep it **self-consistent** and **fitting the observed interactions**; when a turn contradicts the model, revise the model — don't rationalize the observation away (a "that's not what I meant" is a model failure to fix, not noise). These two criteria are **canonical here**; the `continuation` datatype's `## Thread arc & user model` checkpoint and the per-session `pensive` flush persist the model but defer to this definition.
 
 ## Core Design Principles
-This is the human narrative; the machine-delivered companion is the `ARCH-*`
-registry (`cmd/sdlc/internal/judge/architecture.md`), surfaced by `sdlc start-plan`
-at design time and checked by the plan-quality + boundary-review judges (#75).
-Architecture is where agents are weakest (payoff is months out) — cite the
-`ARCH-*` marker in plans/Logs/findings where a principle shaped a decision.
-- **DRY** (`ARCH-DRY`) — reuse before adding.
-- **PURE** (`ARCH-PURE`) — majority pure functions; thin IO/UI layer.
-- **PURPOSE** (`ARCH-PURPOSE`) — serve the issue's actual purpose; don't settle for the easy subset. Single-source ⇒ every consumer *derives* (enforced, not documentation); "follow-up" is for separable extensions, never the point. Opposite axis from Simplicity-First — don't *under*-deliver the stated purpose, not gold-plate for the future.
+The architectural taste — the `ARCH-*` principles — is single-sourced in a registry and
+delivered by **`sdlc arch-principles`**. It's also PUSHED at the gates: `sdlc start-plan`
+prints it at design time, and the plan-quality + boundary-review judges embed it (#75).
+Architecture is where agents are weakest (payoff is months out): run `sdlc arch-principles`
+when designing, reviewing, or doing any non-gate work (a quick fix, autonomous bug-fixing, a
+question), and cite the marker (e.g. `ARCH-DRY`) in plans/Logs/findings where a principle
+shaped a decision. Two tactics have no registry entry and live here in full:
 - **Simplicity First** — minimal impact; be able to explain in one sentence why a thing must exist.
 - **Root Cause** — no temp fixes or lazy null checks; senior-dev standard.
 

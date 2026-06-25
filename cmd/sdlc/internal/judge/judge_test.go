@@ -223,26 +223,27 @@ func TestContractDoc_InSyncWithTokens(t *testing.T) {
 	}
 }
 
-// #75 M2 drift guard (mirrors #70's doc-sync test): AGENTS.md's human narrative
-// (Core Design Principles) must mention every ARCH-* principle the machine
-// registry enforces, and point at the registry — so the paired human/machine
-// sources can't silently diverge (e.g. add ARCH-SHIM but forget AGENTS.md).
-func TestArchitecture_NarrativeInSyncWithAgentsMd(t *testing.T) {
+// #128 drift guard (was #75's per-marker enumeration check): the ARCH-* definitions
+// no longer live in AGENTS.md's narrative — #128 single-sourced them behind
+// `sdlc arch-principles` so the constitution stops RESTATING (and silently drifting
+// from) the registry. The narrative's remaining contract is to ROUTE there + keep
+// marker awareness, so this guards both survive edits. The marker SET stays guarded
+// by TestArchitectureMarkers + the command's own test (cmd/sdlc
+// TestRunArchPrinciples_RendersRegistry asserts the command derives every marker from
+// architecture.md) — that's where "every consumer derives" is now enforced.
+func TestArchitecture_NarrativeRoutesToArchPrinciples(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "AGENTS.md"))
 	if err != nil {
 		t.Fatalf("read AGENTS.md: %v", err)
 	}
 	agents := string(data)
-	// Reuse the one extraction site (ARCH-DRY) — same helper the {{ARCH_STAR}}
-	// substitution uses, so the narrative guard and the review checklist can't
-	// disagree about what the markers are.
-	for _, marker := range ArchitectureMarkers() {
-		if !strings.Contains(agents, marker) {
-			t.Errorf("AGENTS.md Core Design Principles missing %q (drift from architecture.md)", marker)
-		}
+	if !strings.Contains(agents, "sdlc arch-principles") {
+		t.Error("AGENTS.md Core Design Principles should route to `sdlc arch-principles` (the single source for ARCH-*)")
 	}
-	if !strings.Contains(agents, "architecture.md") {
-		t.Error("AGENTS.md should point at the architecture.md registry")
+	// Marker awareness stays in the constitution (so non-gate work knows ARCH-*
+	// exist and to cite them) even though the definitions moved to the command.
+	if !strings.Contains(agents, "ARCH-") {
+		t.Error("AGENTS.md should retain ARCH-* marker awareness + the cite-the-marker instruction")
 	}
 }
 
