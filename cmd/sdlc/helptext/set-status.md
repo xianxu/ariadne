@@ -2,14 +2,10 @@ Flip an issue's `status:` frontmatter field with transition guards
 that match the xx-issues skill's contract. Mutates one issue file
 in place; bumps `updated:` to today.
 
-STATUSES
+{{LIFECYCLE}}
 
-  open       not started
-  working    actively in progress
-  blocked    waiting on something
-  done       completed (closes through `sdlc close`, NOT here)
-  wontfix    rejected by intent
-  punt       deferred
+(STATUSES + LEGAL TRANSITIONS above are derived from the issue lifecycle model —
+`construct/vocabulary/issue.cue`, read via `pkg/vocab` — so this help can't drift, #125.)
 
 TRANSITION GUARDS (refusable with --force)
 
@@ -32,12 +28,11 @@ TRANSITION GUARDS (refusable with --force)
     or a `### YYYY-MM-DD` subheading under ## Log before re-running.
 
   lifecycle graph  (#122 M4)
-    A status change must follow a declared edge in the issue lifecycle
-    (`construct/vocabulary/issue.cue`, read via `pkg/vocab`). A non-modeled
-    flip (e.g. `open → blocked`, `open → done`) is refused, naming the legal
+    A status change must follow a declared edge — see LEGAL TRANSITIONS above.
+    A non-modeled flip (e.g. `open → blocked`) is refused, naming the legal
     targets from the current status; `--force` overrides (logged). The model
-    is the single source of which transitions are legal — there is no longer
-    a blanket "all other transitions allowed".
+    (`construct/vocabulary/issue.cue`) is the single source of which transitions
+    are legal.
 
 WHAT IT DOES
 

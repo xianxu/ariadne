@@ -18,7 +18,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -43,7 +42,7 @@ func NewIssueCmd() *cobra.Command {
 	// — only the cobra wiring relocates. main.go keeps a hidden deprecated
 	// flat `sdlc set-status` alias for one cycle.
 	setStatus := NewSetStatusCmd()
-	setStatus.Long = helptext.MustGet("set-status")
+	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
 	cmd.AddCommand(setStatus)
 
 	cmd.AddCommand(newIssueListCmd())

@@ -13,6 +13,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 //go:generate sh -c "vocabulary export --noun issue > issue.json"
@@ -105,4 +106,54 @@ func (m *IssueModel) LegalTransitions(from string) []string {
 		}
 	}
 	return out
+}
+
+// ── Help-text renders (#125) ──
+// These produce the model-derived portions of `sdlc`'s help text, so the prose
+// can't drift from the model. They render the FACTS only (status set + semantics +
+// legal edges) in a NEUTRAL form — the editorial framing (e.g. "--force overrides",
+// "use sdlc close") stays hand-written in the helptext `.md` around the placeholder.
+// All reuse AllStatuses() ordering (open → active → terminal) and are pure.
+
+// RenderLifecycleHelp renders the full lifecycle reference: a STATUSES section
+// (each status + its one-line `When` semantics) and a LEGAL TRANSITIONS section
+// (each status → its legal targets). 2-space indented to match the help style.
+func (m *IssueModel) RenderLifecycleHelp() string {
+	statuses := m.AllStatuses()
+	width := 0
+	for _, s := range statuses {
+		if len(s) > width {
+			width = len(s)
+		}
+	}
+	var b strings.Builder
+	b.WriteString("STATUSES\n\n")
+	for _, s := range statuses {
+		b.WriteString(fmt.Sprintf("  %-*s  %s\n", width, s, m.When[s]))
+	}
+	b.WriteString("\nLEGAL TRANSITIONS\n\n")
+	for _, s := range statuses {
+		targets := m.LegalTransitions(s)
+		if len(targets) == 0 {
+			continue
+		}
+		b.WriteString(fmt.Sprintf("  %-*s  → %s\n", width, s, strings.Join(targets, ", ")))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// StatusNames joins the status set with sep, in AllStatuses order — for an inline
+// help restatement like `open | working | blocked | done | wontfix | punt`.
+func (m *IssueModel) StatusNames(sep string) string {
+	return strings.Join(m.AllStatuses(), sep)
+}
+
+// StatusGloss renders the status set as a compact dot-separated gloss:
+// “ `open` <when> · `working` <when> · … “ — for a one-line inline reference.
+func (m *IssueModel) StatusGloss() string {
+	parts := make([]string, 0, len(m.When))
+	for _, s := range m.AllStatuses() {
+		parts = append(parts, fmt.Sprintf("`%s` %s", s, m.When[s]))
+	}
+	return strings.Join(parts, " · ")
 }
