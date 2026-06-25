@@ -1,11 +1,12 @@
 ---
 id: 000126
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-25
 updated: 2026-06-25
 estimate_hours:
+started: 2026-06-25T10:36:32-07:00
 ---
 
 # ARCH-PURPOSE: serve the issue's actual purpose — don't settle for the easy win; single-source ⇒ consumers derive (ARCH-* registry, checked at-plan + at-review)
