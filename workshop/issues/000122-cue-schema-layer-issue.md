@@ -149,11 +149,12 @@ M3 (`IssueModel` + rewire + conformance + `parked` acceptance) ≈ 3.4h. Σdesig
 - [x] Design the durable plan via `superpowers-writing-plans` → `workshop/plans/000122-cue-schema-layer-issue-plan.md` (fresh-eyes reviewed; revised)
 - [x] M1 — CUE model single-sourced via `categories` (`or()`-derived `#`-defs) + lifecycle + laws (documented-value, reachable/escapable); `cue vet` + export-shape gate; `issue-lifecycle` target; **human design-interface review** before consumers are wired
 - [x] M2 — `cmd/vocabulary` (reuse `pkg/layergraph`) vet/export; `.dynamic-skill` weave wiring → `construct/generated/vocabulary/issue.json`; `ensure-cue` bootstrap + honest build-order; freshness stamp + `weave check`; touch-time skill instruction; atlas
-- [ ] M3 — Go binding in a shared importable `pkg/vocab` (embed once, consumers `import` it — supersedes M2's per-consumer copy + `issue-json-*` targets); rewire sdlc consumers to `vocab.Issue()` categories (carve out legit literals, honest grep); conformance check; `parked` acceptance; dedup AGENTS.md prose; close
+- [x] M3 — Go binding in a shared importable `pkg/vocab` (embed once, consumers `import` it — supersedes M2's per-consumer copy + `issue-json-*` targets); rewire sdlc consumers to `vocab.Issue()` categories (carve out legit literals, honest grep); conformance check; `parked` acceptance; dedup AGENTS.md prose; close
 
 ## Log
 
 ### 2026-06-24
+- 2026-06-24: closed M3 — M3: pkg/vocab Go binding (embed once, consumers import); sdlc rewired to vocab.Issue() — isTerminalStatus+validStatuses deleted, honest grep shows only annotated #122 carve-outs; conformance test fail-closed; parked acceptance proved category propagation with zero production Go edits; cue vet + full suite green. (actual=M3 increment; M1 1.86+M2 1.07+M3 0.89=3.82 cumulative)
 - 2026-06-24: closed M2 — M2: cmd/vocabulary vet/export/check (cue behind injected runner) + shared layergraph.MergeByName; .dynamic-skill → construct/generated/vocabulary + served SKILL.md breadcrumb; ensure-cue + vocabulary-build + weave PATH + committed issue.json + issue-json-check; go test ./cmd/vocabulary/... ./cmd/datatype/... ./pkg/layergraph/... ./cmd/sdlc/... green. (actual 1.07h = 2.93 cumulative − 1.86 M1; overlapping window); review verdict: not-run
 - 2026-06-24: closed M1 — M1: cue vet gate green (valid vets, issue_invalid fails, export carries categories+lifecycle); design interface (issue.cue + issue-lifecycle target) reviewed + signed off by operator; no-code milestone (CUE data + target); review verdict: not-run
 - Design chat (typing-markdown frame; captured in the pensive): refined the schema
