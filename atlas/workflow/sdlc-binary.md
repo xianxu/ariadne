@@ -32,14 +32,15 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72) to design against |
 | `change-code`     | `make worktree` (partial)   | Planning → implementation gate: structural + estimate (#113) + **estimate-reconciliation + estimate-quality (#117)** + plan-quality + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
-| `push`            | `make push`                 | Direct-on-main ship + pre-flight judges (still available; not the default close path since #51) |
+| `push`            | `make push`                 | Direct-on-main ship + the #124 instance-conformance gate (`--no-validate`) + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
-| `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + cleanup + irreversible-action confirm (#51) |
+| `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + the #124 instance-conformance gate (`--no-validate`) + cleanup + irreversible-action confirm (#51) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69) |
 | `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
+| `issue validate`  | (new #124)                  | Validate issue file(s) against `#Issue` — frontmatter cue-vet (via `vocabulary validate-instance`) + section presence; `<file>` / `--issue N` / `--all`. The on-demand surface of the instance-conformance loop |
 
 **Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
 *transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the
@@ -78,7 +79,11 @@ cmd/sdlc/
   state.go             new (read-only inspection + drift detection; see "Drift checks")
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
-  issue.go             new (#56): `sdlc issue` group — new / set-status / list / show
+  issue.go             new (#56): `sdlc issue` group — new / set-status / list / show / validate (#124)
+  validategate.go      new (#124): the deterministic instance-conformance gate run
+                       by push+merge before the irreversible action, independent of
+                       the LLM judges (frontmatter on every changed issue; sections
+                       added-only); shells `vocabulary validate-instance`. `--no-validate`
   start.go             migration stub (REMOVED in #39 — errors with
                        "use claim + change-code")
   claim.go             ← scripts/issue-sync.sh (renamed from lock.go #39)
