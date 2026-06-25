@@ -1,11 +1,12 @@
 ---
 id: 000124
-status: open
+status: working
 deps: [ariadne#122]
 github_issue:
 created: 2026-06-24
-updated: 2026-06-24
+updated: 2026-06-25
 estimate_hours:
+started: 2026-06-25T12:14:37-07:00
 ---
 
 # Instance-conformance: validate typed-markdown artifacts against their datatype schema (extract then cue vet)
