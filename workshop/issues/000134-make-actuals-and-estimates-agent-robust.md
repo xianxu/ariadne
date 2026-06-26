@@ -87,7 +87,7 @@ total: 3.9
 Full detail (TDD steps, exact paths, code) in
 `workshop/plans/000134-make-actuals-and-estimates-agent-robust-plan.md`.
 
-- [ ] **M1 — Measurement robustness** — extract `internal/transcripts` (Harness
+- [x] **M1 — Measurement robustness** — extract `internal/transcripts` (Harness
       registry + pure `Select`), move Claude/Codex selection behind it, add Codex
       robustness fixtures (malformed / no-`session_meta` / empty), pin the
       commit-window matcher (`#N` + `<area>: #N` accept, `docs: mention #N`
