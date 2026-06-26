@@ -625,7 +625,7 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 			cwarn(stderr, "calibration ledger skipped (no brain dir resolved)")
 			return
 		}
-		ledgerPath = filepath.Join(f.BrainDir, "data", "life", "42shots", "velocity", "calibration-ledger.tsv")
+		ledgerPath = estimate.VelocityPath(f.BrainDir, "calibration-ledger.tsv")
 	}
 	ledgerDir := filepath.Dir(ledgerPath)
 	if _, err := os.Stat(ledgerDir); err != nil {
