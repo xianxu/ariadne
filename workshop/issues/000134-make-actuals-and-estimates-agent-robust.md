@@ -1,11 +1,12 @@
 ---
 id: 000134
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-26
 estimate_hours:
+started: 2026-06-26T15:57:18-07:00
 ---
 
 # Make actuals and estimates agent-robust
