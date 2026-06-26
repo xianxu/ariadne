@@ -29,7 +29,8 @@ on tricky thing though is an agent may have many different models with different
 - The title **refreshes while the session is active** (≈60s cadence, gated on recent
   draft-or-transcript activity) and does **not** churn titles on idle/background sessions.
 - Unit tests cover the per-agent token read against captured transcript fixtures
-  (claude = sum of three input fields of the last **non-sidechain** `assistant`; codex =
+  (claude = sum of three input fields of the last **real** `assistant` — skipping
+  `isSidechain:true` and `model:"<synthetic>"` records; codex =
   `payload.info.last_token_usage.input_tokens` of the last `token_count` event; agy = none).
 - Falls back gracefully to `<agent> [cwd]` whenever no count is available (agy, no
   transcript yet, parse failure) — never a broken/blank title.
@@ -60,7 +61,7 @@ Read the **last** relevant record and compute current-context occupancy:
 
 | Agent | Transcript path | Read |
 |---|---|---|
-| **claude** | `~/.claude/projects/<enc-cwd>/` → **newest `*.jsonl`** (see `/clear` note — do NOT trust a recorded sid) | last `type=="assistant"` **with `isSidechain != true`** (skip Task sub-agent records, whose usage reflects the sub-agent's smaller context) → `message.usage` → `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` |
+| **claude** | `~/.claude/projects/<enc-cwd>/<sid>.jsonl` — `sid` = the **pinned `--session-id`** from `config` (unique per pane → disambiguates same-cwd sessions; survives compaction *and* `/clear` in-place, see Edge cases) | last `type=="assistant"` that is **real** — `isSidechain != true` (skip Task sub-agent records, whose usage reflects the sub-agent's smaller context) **AND `message.model != "<synthetic>"`** (skip injected/interrupt records, whose usage is 0 → would flicker the count to 0) → `message.usage` → `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` |
 | **codex** | `~/.codex/sessions/…/rollout-*<sid>.jsonl` (single-file; sid stable) | last record with `type=="event_msg"` & `payload.type=="token_count"` → `payload.info.last_token_usage.input_tokens` (already the full prompt; **NOT** `payload.info.total_token_usage.input_tokens`, which is cumulative-across-session ~38M) |
 | **agy** | `~/.gemini/antigravity-cli/brain/<sid>/…/transcript.jsonl` | **none** — records are semantic actions; usage only lives in opaque SQLite blobs → omit the number |
 
@@ -82,15 +83,13 @@ guard) — avoids per-tick IPC churn during active-but-stable stretches.
 
 ### Architecture — Approach B (one per-session poller + recorded pane id)
 1. **Shared pure reader (Go, DRY/PURE).** Factor `ContextTokens(agent, transcriptPath)
-   (int, bool)` — pure, table-tested per agent (claude sum-of-three of the last
-   non-sidechain `assistant`; codex `last_token_usage.input_tokens` of the last
-   `token_count` event; agy → `false`). **Path resolution differs by agent:** codex/agy
-   reuse `pair-slug`'s `resolveTranscript()` (sid→path); **claude does NOT** —
-   `resolveTranscript`'s claude branch builds the path *from a sid* (`main.go:192`), but we
-   need newest `*.jsonl` under `enc(cwd)` (the recorded sid never rotates on `/clear` — see
-   Edge cases), so the claude path is computed separately from the pane file's `cwd`. Exposed
-   via a one-shot `pair-context <tag> <agent>` printing the humanized count (empty when none);
-   tolerant — unparseable/empty → no count.
+   (int, bool)` — pure, table-tested per agent (claude sum-of-three of the last real
+   assistant; codex `last_token_usage.input_tokens` of the last `token_count` event; agy →
+   `false`). **Path resolution reuses `pair-slug`'s `resolveTranscript(agent, sid, cwd)`**
+   for all three agents (sid→path): claude → `<enc-cwd>/<sid>.jsonl`, codex → rollout glob,
+   agy → gemini path. `sid` comes from `config` (`session_id`); `cwd` from the pane file.
+   Exposed via a one-shot `pair-context <tag> <agent>` printing the humanized count (empty
+   when none); tolerant — unparseable/empty → no count.
 2. **Record the pane id at startup — in a DEDICATED file, not the shared config.**
    `config-<tag>-<agent>.json` already has **three concurrent writers** (`bin/pair` writes
    the claude config synchronously at launch; `pair-session-watch.sh` writes codex/agy
@@ -108,9 +107,8 @@ guard) — avoids per-tick IPC churn during active-but-stable stretches.
    and drop its cmux gate: the poller becomes always-on (the zellij frame exists with or
    without cmux) and owns **two title surfaces** — the cmux workspace title *(only when
    `$CMUX_WORKSPACE_ID` is set, as today)* and the zellij **frame** title for every pane.
-   Each active tick it loops the tag's panes (`pane-<tag>-*.json` → pane id + cwd; codex/agy
-   also read `config-…` → sid; claude uses cwd → newest jsonl), gets `pair-context`'s count,
-   and renames each pane:
+   Each active tick it loops the tag's panes (`pane-<tag>-*.json` → pane id + cwd; `config-…`
+   → `session_id` for all agents), gets `pair-context`'s count, and renames each pane:
    `zellij --session pair-<tag> action rename-pane --pane-id <id> "<agent> (<count>) [<cwd>]"`
    (`zellij --session <name>` lets the external poller target the pane; the startup
    counterpart `main.kdl` uses the in-pane `--pane-id "$ZELLIJ_PANE_ID"` form).
@@ -145,28 +143,30 @@ guard) — avoids per-tick IPC churn during active-but-stable stretches.
   is acceptable; v1 is just the number).
 
 ### Edge cases & risks
-- **`/clear` rotates claude's jsonl** to a new sid. Resolved by code inspection: claude's
-  sid is **pre-injected once** by `bin/pair` (`--session-id`) and `pair-session-watch.sh` is
-  a **no-op for claude**, so the recorded sid never rotates — a "re-read sid from config"
-  mitigation would just re-read the same stale sid (`pair-cmux-title.sh:124–126` documents
-  the frozen-cache symptom). **Correct fix: resolve claude's transcript by newest `*.jsonl`
-  in the project dir (by mtime), not the recorded sid** (already in Signal/Architecture).
-  codex/agy are single-file per session, so their sid is stable.
-  - *New trade-off this introduces (narrow):* `~/.claude/projects/<enc-cwd>/` is keyed by
-    **cwd only**, so two concurrent claude pair sessions in the same cwd share one project
-    dir, and newest-by-mtime would make both panes track whichever transcript was written
-    last. Same class as the "one agent per tag" assumption below. **Plan disambiguates:**
-    record claude's launch sid in `pane-<tag>-<agent>.json` as a lineage seed and prefer the
-    newest jsonl *modified since pane start* / matching that lineage, falling back to
-    global-newest only when unambiguous.
+- **Same-cwd disambiguation (the load-bearing case — operator runs multiple sessions per
+  cwd routinely).** Solved by the **pinned `--session-id`**: `bin/pair` (#000020) generates a
+  fresh uuid per new-session, passes `--session-id <sid>`, and writes `config` synchronously,
+  so each pane has a unique, known sid and reads exactly `<enc-cwd>/<sid>.jsonl` — no
+  aliasing among co-located sessions. (An earlier draft used newest-`*.jsonl`-by-mtime; that
+  was a regression — the project dir is keyed by cwd only, so it would alias this exact case.
+  Reverted to the pinned sid.)
+- **`/clear` / compaction — resolved by data, NOT a problem.** Empirically (analyzing
+  `~/.claude/projects/.../13256418*.jsonl`): context-reduction events keep writing to the
+  **same pinned file** — `isCompactSummary:true` compaction (998k→47k) continues in-file, and
+  after a reset-to-0 the context climbed back to ~989k *within the same jsonl* (~500 turns).
+  So the pinned sid file is always the live file; its last record reflects current (post
+  compact/clear) context. The `pair-cmux-title.sh:124–126` comment claiming `/clear` "rotates
+  the file" is contradicted by the data (predates sid-pinning, or describes unpinned claude).
+  *Plan should still smoke-test one real `/clear` in a pinned session to confirm.*
+- **`<synthetic>` / sidechain records mislead the read** — interrupt/injected records carry
+  `model:"<synthetic>"` with `usage`≈0 (would flicker the count to 0), and `Task` sub-agent
+  records carry `isSidechain:true` with the sub-agent's smaller context (would undercount).
+  Take the last assistant record that is **neither** (in Signal). Fixture pins both.
 - **Config write race (3 writers)** — addressed by the dedicated single-writer
   `pane-<tag>-<agent>.json` (Architecture step 2); the plan must not touch `config-…`.
   The plan also adds `pane-<tag>-*.json` to `bin/pair`'s per-tag cleanup sweep, and the
   poller must tolerate a not-yet-written pane file on the create-path race (skip that pane's
   frame rename for the tick, retry next — mirrors `latest_activity()==0` handling).
-- **claude sub-agent records** — a `Task` sub-agent emits `assistant` records with
-  `isSidechain:true` whose `usage` is the *sub-agent's* smaller context; taking the raw last
-  `assistant` would undercount mid-Task. Filter to `isSidechain != true` (in Signal).
 - **Transcript envelope is undocumented/versioned** — the `usage`/`token_count` *payloads*
   are stable public API shapes, but the record wrapper can drift across CC/codex versions.
   Keep the reader tolerant (skip unparseable records, fall back to no-count).
@@ -239,4 +239,19 @@ deltas it surfaced:
   sweeps) + make the `command -v cmux` gate block-local; add `pane-<tag>-*.json` to cleanup;
   poller tolerates a not-yet-written pane file (create-race); + `1_490_000→1.4M` test vector.
 Review loop converged in 2 rounds (cap 5); no remaining blockers.
+
+Round 3 — operator input ("I start multiple from same cwd all the time") + empirical
+transcript investigation **reverted the newest-jsonl change**:
+- **Pinned sid is the right key, not newest-by-mtime.** `bin/pair` #000020 pins a unique
+  `--session-id` per pane (written to `config` synchronously), so each same-cwd pane has its
+  own `<sid>.jsonl` — exact disambiguation, zero aliasing. newest-by-mtime was the regression
+  (project dir keyed by cwd only). So `resolveTranscript()` is reused for **all** agents again.
+- **`/clear` does NOT rotate the file (data-proven).** In `13256418*.jsonl`:
+  `isCompactSummary:true` compaction (998k→47k) continues in-file, and after a reset-to-0 the
+  context rebuilt to ~989k within the *same* jsonl. So the pinned file is always live; the
+  round-1 "rotation" premise (from a stale `pair-cmux-title.sh` comment) is refuted. Dropped
+  the lineage-seed complexity. (Plan still smoke-tests one real `/clear`.)
+- **New filter:** the "reset-to-0" turns were `model:"<synthetic>"` (interrupt/injected,
+  usage 0) — must skip these too, else the count flickers to 0. Read = last assistant that is
+  `isSidechain != true` AND `model != "<synthetic>"`.
 
