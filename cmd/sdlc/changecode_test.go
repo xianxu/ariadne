@@ -51,8 +51,13 @@ func TestEstimateReconRefusal(t *testing.T) {
 		t.Error("estimate_hours 7 vs total 3.4 should fail")
 	}
 	noBlock := "---\nid: 1\nstatus: working\nestimate_hours: 3.4\n---\n# T\n\n## Spec\n\nx\n"
-	if estimateReconRefusal(noBlock, false) == nil {
+	missing := estimateReconRefusal(noBlock, false)
+	if missing == nil {
 		t.Error("missing ## Estimate block should fail")
+	} else if !strings.Contains(missing.Message, "estimate-source") {
+		// #134: the missing-block error must point at the calibration source, not
+		// just say "via the model".
+		t.Errorf("missing-block message should point at `sdlc estimate-source`, got: %s", missing.Message)
 	}
 	if estimateReconRefusal(noBlock, true) != nil {
 		t.Error("--no-estimate-recon should skip the gate")

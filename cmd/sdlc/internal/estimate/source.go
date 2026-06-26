@@ -66,6 +66,15 @@ func SourceGuidance(s SourceStatus) string {
 	return b.String()
 }
 
+// SourceLine is the one-line PUSH variant for the planning gates (start-plan):
+// the resolved calibration path + status tag + a pointer to the full pull. Pure.
+// Renders for every status (including MISSING) so the gate can warn-and-continue
+// without breaking a brain-less downstream repo.
+func SourceLine(s SourceStatus) string {
+	return fmt.Sprintf("Estimate against the calibrated source: %s [%s]\n"+
+		"    (run `sdlc estimate-source` for the shared method + full status)", s.Path, statusTag(s))
+}
+
 func statusTag(s SourceStatus) string {
 	switch {
 	case !s.Exists:

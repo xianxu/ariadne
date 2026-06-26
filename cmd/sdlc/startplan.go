@@ -21,6 +21,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -75,6 +76,17 @@ func runStartPlan(stdout io.Writer, issue int) {
 			cinfo(stdout, estimateNudge(est))
 		}
 	}
+
+	// #134: point at the estimator SOURCE, not just the field. The nudge says SET
+	// estimate_hours; this says DERIVE it against the calibrated source (named +
+	// status-tagged) so the agent doesn't satisfy the block grammar from memory.
+	// Best-effort + warn-and-continue: resolves the default brain layout (or the
+	// $WF_ESTIMATOR_SRC override) and renders for every status, MISSING included —
+	// a brain-less downstream repo gets the pointer, never a break.
+	fmt.Fprintln(stdout)
+	brainAbs, _ := filepath.Abs("../brain")
+	src := estimateSourceStatus(brainAbs, "estimate-logic-v2", os.Getenv("WF_ESTIMATOR_SRC"))
+	cinfo(stdout, estimate.SourceLine(src))
 
 	// #82 M3 / #83: a non-blocking heads-up on the DEPENDENCY PATH. The symlink
 	// model means a repo reads ALL its transitive upstreams' working trees live,

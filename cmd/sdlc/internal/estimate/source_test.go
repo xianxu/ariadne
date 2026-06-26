@@ -54,6 +54,25 @@ func TestSourceGuidanceAlwaysNamesBothSources(t *testing.T) {
 	}
 }
 
+func TestSourceLineNamesPathTagAndPull(t *testing.T) {
+	for _, tc := range []struct {
+		st  SourceStatus
+		tag string
+	}{
+		{SourceStatus{Path: "/p", Exists: true}, "ok"},
+		{SourceStatus{Path: "/p", Exists: true, Stale: true}, "stale"},
+		{SourceStatus{Path: "/p", Exists: false}, "MISSING"},
+	} {
+		line := SourceLine(tc.st)
+		if !strings.Contains(line, "/p") || !strings.Contains(line, "["+tc.tag+"]") {
+			t.Errorf("SourceLine should name path + [%s]:\n%s", tc.tag, line)
+		}
+		if !strings.Contains(line, "estimate-source") {
+			t.Errorf("SourceLine should point at the pull command:\n%s", line)
+		}
+	}
+}
+
 func TestSourceGuidanceStatusVerbs(t *testing.T) {
 	ok := SourceGuidance(SourceStatus{Path: "/p", Model: "estimate-logic-v2", Exists: true})
 	if !strings.Contains(strings.ToLower(ok), "ok") {

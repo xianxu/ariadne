@@ -246,7 +246,7 @@ func estimateReconRefusal(issueContent string, noRecon bool) *issue.StructuralFa
 	}
 	section, ok := issue.EstimateSection(body)
 	if !ok {
-		return &issue.StructuralFailure{Name: "estimate-recon", Message: "no `## Estimate` block — derive estimate_hours via the model and add a fenced ```estimate block (see `sdlc change-code --help`)"}
+		return &issue.StructuralFailure{Name: "estimate-recon", Message: "no `## Estimate` block — derive estimate_hours against the calibrated source (run `sdlc estimate-source` to see the shared method + your repo's calibration doc) and add a fenced ```estimate block (grammar in `sdlc change-code --help`)"}
 	}
 	block, err := estimate.ParseBlock(section)
 	if err != nil {
