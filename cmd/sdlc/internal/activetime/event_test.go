@@ -130,6 +130,41 @@ func TestLoadEventsTaskSpans(t *testing.T) {
 	}
 }
 
+func TestLoadEventsCodexTranscriptShape(t *testing.T) {
+	dir := t.TempDir()
+	writeJSONL(t, filepath.Join(dir, "codex.jsonl"), []string{
+		`{"timestamp":"2026-06-26T16:55:08.631Z","type":"session_meta","payload":{"cwd":"/w/repo"}}`,
+		`{"timestamp":"2026-06-26T16:55:08.635Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"work on #144"}]}}`,
+		`{"timestamp":"2026-06-26T16:55:14.321Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"working on #144"}]}}`,
+		`{"timestamp":"2026-06-26T16:55:14.322Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"git status\"}"}}`,
+	})
+
+	evs, _, err := loadEvents([]string{dir}, issuePattern([]string{"144"}), true, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(evs) != 3 {
+		t.Fatalf("want 3 Codex events, got %d: %+v", len(evs), evs)
+	}
+	total := map[string]int{}
+	for _, e := range evs {
+		for k, v := range e.Mentions {
+			total[k] += v
+		}
+	}
+	if total["144"] != 2 {
+		t.Fatalf("want two #144 mentions from user+assistant messages, got %v", total)
+	}
+
+	evs, _, err = loadEvents([]string{dir}, issuePattern([]string{"144"}), false, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(evs) != 1 || evs[0].Mentions["144"] != 1 {
+		t.Fatalf("without assistant want only the Codex user message, got %+v", evs)
+	}
+}
+
 func TestLoadEventsDanglingDispatchNoSpan(t *testing.T) {
 	dir := t.TempDir()
 	writeJSONL(t, filepath.Join(dir, "s.jsonl"), []string{

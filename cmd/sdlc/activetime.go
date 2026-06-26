@@ -28,7 +28,7 @@ func runActiveTime(opts activetime.Options, out, errOut io.Writer) int {
 	// result is a meaningless 0 — fail loudly with exit 2, never a silent 0.
 	if len(opts.Dirs) == 0 {
 		fmt.Fprintln(errOut, "error: no --dir given — active-time has no transcript source, so it would report 0 events.")
-		fmt.Fprintln(errOut, "  Pass --dir ~/.claude/projects/<slug> for each cwd the work happened in (issue's repo, brain, peers, worktrees).")
+		fmt.Fprintln(errOut, "  Pass --dir ~/.claude/projects/<slug> or ~/.codex/sessions/YYYY/MM/DD for each source to inspect.")
 		return 2
 	}
 	if len(opts.Issues) == 0 {
@@ -198,7 +198,7 @@ func NewActiveTimeCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringArrayVar(&dirs, "dir", nil, "transcript directory (~/.claude/projects/...); repeatable")
+	cmd.Flags().StringArrayVar(&dirs, "dir", nil, "transcript directory (Claude cwd dir or Codex date dir); repeatable")
 	cmd.Flags().StringVar(&gitRepo, "git-repo", "", "repo to read commits from (required)")
 	cmd.Flags().StringVar(&since, "since", "", "ISO timestamp; events/commits before are skipped")
 	cmd.Flags().StringVar(&until, "until", "", "ISO timestamp; events/commits after are skipped")

@@ -200,7 +200,9 @@ func TestIsShippedWorkSubject(t *testing.T) {
 		want    bool
 	}{
 		{"76", "#76: surface close-off candidates", true},
+		{"76", "tools: #76 surface close-off candidates", true},
 		{"76", "#76: file issue — sdlc state surfaces drift", false}, // bookkeeping
+		{"76", "sdlc: #76 close issue", false},                       // bookkeeping with area prefix
 		{"51", "#51: ticket — in-place branch workflow", false},      // bookkeeping
 		{"51", "#51: close (done, actual 4h) + archive", false},      // bookkeeping
 		{"51", "#51 M1-M3: in-place branch becomes default", true},   // milestone work
@@ -208,6 +210,7 @@ func TestIsShippedWorkSubject(t *testing.T) {
 		{"82", "#82 M1: issue new auto-syncs the new file", true},    // 'issue new' ≠ 'issue-sync'
 		{"76", "#76: close-off candidate surfacing", true},           // whole-token: 'close-off' ≠ 'close'
 		{"51", "#54: push.md (dogfood of #51)", false},               // not subject-anchored to 51
+		{"51", "docs: mention #51 in a note", false},                 // loose mention, not the subject's issue
 		{"51", "#510: a different issue entirely", false},            // #510 must not match #51
 		{"51", "issue-sync: update issues", false},                   // never anchors #N
 	}

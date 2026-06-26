@@ -22,7 +22,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | Verb              | Replaces (Make target)      | Defends |
 |-------------------|-----------------------------|---------|
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
-| `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript dirs) |
+| `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources) |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
 | `state`           | (new)                       | Workflow state inspection + drift detection |
 | `propagate-base`  | (new #106; precheck #109)   | Re-weave every recursive DEPENDENT of this repo (downstream counterpart to `substrateChain`): discover dependents (Makefile.workflow + substrate chain), order foundation-first, then per repo a clean-tree precheck → `make weave` + verify-complete + commit (untracking now-generated files). A dependent with a DIRTY working tree (pre-existing uncommitted work — e.g. a concurrent session) is SKIPPED untouched (never `git add -A`'d) and the run exits non-zero. `--dry-run`/`--ref`. |
@@ -169,12 +169,14 @@ actual --issue N` (`actual.go`'s `computeActual`, shared with close's
 missing-`--actual` explainer) runs the native **`internal/activetime`** engine
 (`activetime.Compute`, in-process — no python3) over the issue's `CommitWindow` +
 `DiscoverWindowIssues` peers, feeding it **brain + the issue's repo** transcript
-dirs (`~/.claude/projects/<cwd-encoded>`) — the validated heuristic (events come
-only from transcripts; the wrong/missing dirs were why actuals read 0 and got
-faked). The engine returns a structured `Result.Status`: `TelemetryGap`
+sources: Claude cwd dirs (`~/.claude/projects/<cwd-encoded>`) and Codex session
+files (`~/.codex/sessions/.../*.jsonl`) whose `session_meta.cwd` matches one of
+those repos. This is the validated heuristic (events come only from transcripts;
+the wrong/missing sources were why actuals read 0 and got faked). The engine
+returns a structured `Result.Status`: `TelemetryGap`
 (commits-but-0-events → labeled judgment), `EmptyWindow` (nothing to measure), or
 `Measured` (`PerIssue[N]` → hours). Dir-selection is deliberately narrow (NOT all
-folders) — an unrelated concurrently-edited repo inflates the count.
+folders/sessions) — an unrelated concurrently-edited repo inflates the count.
 `WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
 window-**start** is the *earlier* of `CommitWindow`'s parent-of-first-`#N`-commit
 and the **engagement anchor** (`resolveWindowStart`), anchoring at the cheap early

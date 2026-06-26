@@ -58,6 +58,46 @@ func TestSelectActualDirs(t *testing.T) {
 	}
 }
 
+func TestSelectActualSourcesIncludesMatchingCodexSessions(t *testing.T) {
+	claudeRoot := t.TempDir()
+	codexRoot := t.TempDir()
+	prevClaude, prevCodex := transcriptsRoot, codexSessionsRoot
+	transcriptsRoot, codexSessionsRoot = claudeRoot, codexRoot
+	t.Cleanup(func() {
+		transcriptsRoot, codexSessionsRoot = prevClaude, prevCodex
+	})
+
+	repo := "/w/repo"
+	brain := "/w/brain"
+	claudeRepo := filepath.Join(claudeRoot, cwdToTranscriptDir(repo))
+	if err := os.Mkdir(claudeRepo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	day := filepath.Join(codexRoot, "2026", "06", "26")
+	if err := os.MkdirAll(day, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeJSONLmain(t, filepath.Join(day, "repo.jsonl"),
+		`{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/repo"}}`)
+	writeJSONLmain(t, filepath.Join(day, "brain.jsonl"),
+		`{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/brain"}}`)
+	writeJSONLmain(t, filepath.Join(day, "other.jsonl"),
+		`{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/other"}}`)
+
+	got := selectActualSources(repo, brain)
+	wantDirs := []string{claudeRepo}
+	if !reflect.DeepEqual(got.Dirs, wantDirs) {
+		t.Fatalf("Dirs = %v, want %v", got.Dirs, wantDirs)
+	}
+	wantFiles := []string{
+		filepath.Join(day, "brain.jsonl"),
+		filepath.Join(day, "repo.jsonl"),
+	}
+	if !reflect.DeepEqual(got.Files, wantFiles) {
+		t.Fatalf("Files = %v, want %v", got.Files, wantFiles)
+	}
+}
+
 // #110: the engine-result → outcome contract (pure; replaces the old classifyV3
 // exit-code mapping now that the engine is in-process).
 func TestStatusFromResult(t *testing.T) {

@@ -13,10 +13,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -31,12 +33,24 @@ import (
 // A package var so tests can point it at a fixture layout.
 var transcriptsRoot = defaultTranscriptsRoot()
 
+// codexSessionsRoot is ~/.codex/sessions (Codex's date-sharded transcript store).
+// Codex stores cwd inside each session_meta record, so selection is file-based.
+var codexSessionsRoot = defaultCodexSessionsRoot()
+
 func defaultTranscriptsRoot() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
 	return filepath.Join(home, ".claude", "projects")
+}
+
+func defaultCodexSessionsRoot() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".codex", "sessions")
 }
 
 // pathEncoder mirrors Claude Code's cwd→folder encoding: every '/' and '.'
@@ -50,6 +64,15 @@ func cwdToTranscriptDir(absPath string) string { return pathEncoder.Replace(absP
 // transcriptsRoot. Deliberately NOT every folder — unrelated repos with
 // concurrent activity inflate the count (#68).
 func selectActualDirs(repoTop, brainAbs string) []string {
+	return selectActualSources(repoTop, brainAbs).Dirs
+}
+
+type actualSources struct {
+	Dirs  []string
+	Files []string
+}
+
+func selectActualSources(repoTop, brainAbs string) actualSources {
 	var out []string
 	seen := map[string]bool{}
 	for _, p := range []string{brainAbs, repoTop} {
@@ -65,7 +88,62 @@ func selectActualDirs(repoTop, brainAbs string) []string {
 			seen[dir] = true
 		}
 	}
-	return out
+	return actualSources{
+		Dirs:  out,
+		Files: selectCodexSessionFiles(codexSessionsRoot, []string{brainAbs, repoTop}),
+	}
+}
+
+func selectCodexSessionFiles(root string, cwdAllowlist []string) []string {
+	if root == "" {
+		return nil
+	}
+	allowed := map[string]bool{}
+	for _, cwd := range cwdAllowlist {
+		if cwd != "" {
+			allowed[cwd] = true
+		}
+	}
+	if len(allowed) == 0 {
+		return nil
+	}
+	var files []string
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || filepath.Ext(path) != ".jsonl" {
+			return nil
+		}
+		if allowed[codexSessionCWD(path)] {
+			files = append(files, path)
+		}
+		return nil
+	})
+	sort.Strings(files)
+	return files
+}
+
+func codexSessionCWD(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var rec struct {
+			Type    string `json:"type"`
+			Payload struct {
+				CWD string `json:"cwd"`
+			} `json:"payload"`
+		}
+		if json.Unmarshal([]byte(line), &rec) != nil {
+			continue
+		}
+		if rec.Type == "session_meta" {
+			return rec.Payload.CWD
+		}
+	}
+	return ""
 }
 
 // actualStatus is the outcome of an actual computation.
@@ -119,14 +197,16 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	}
 
 	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum)
-	res.Dirs = selectActualDirs(repoTop, brainAbs)
-	if len(res.Dirs) == 0 {
-		res.Status, res.Detail = actualTelemetryGap, "no brain/repo transcript dirs found under "+transcriptsRoot
+	src := selectActualSources(repoTop, brainAbs)
+	res.Dirs = src.Dirs
+	if len(src.Dirs) == 0 && len(src.Files) == 0 {
+		res.Status, res.Detail = actualTelemetryGap, "no brain/repo transcript dirs/files found under "+transcriptsRoot+" or "+codexSessionsRoot
 		return res
 	}
 
 	out, err := activetime.Compute(activetime.Options{
-		Dirs:             res.Dirs,
+		Dirs:             src.Dirs,
+		Files:            src.Files,
 		GitRepo:          repoTop,
 		SinceISO:         firstISO,
 		UntilISO:         lastISO,

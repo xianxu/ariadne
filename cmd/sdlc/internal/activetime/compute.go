@@ -29,6 +29,7 @@ const (
 // --prefix-commit-weight defaulting (None → commit-weight).
 type Options struct {
 	Dirs             []string
+	Files            []string
 	GitRepo          string
 	SinceISO         string
 	UntilISO         string
@@ -57,7 +58,7 @@ type Result struct {
 // (minus printing). The only IO is the two loaders; everything below is pure.
 func Compute(opts Options) (Result, error) {
 	pat := issuePattern(opts.Issues)
-	events, spans, err := loadEvents(opts.Dirs, pat, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
+	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, pat, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
 	if err != nil {
 		return Result{}, err
 	}

@@ -42,7 +42,8 @@ EXIT CODES (the #68 loud-fail contract)
 
 FLAGS
 
-  --dir <path>               transcript dir (~/.claude/projects/<slug>); repeatable, required
+  --dir <path>               transcript dir (Claude: ~/.claude/projects/<slug>;
+                             Codex: a ~/.codex/sessions/YYYY/MM/DD dir); repeatable, required
   --git-repo <path>          repo to read commits from (required)
   --since / --until <iso>    window bounds (ISO-8601); events/commits outside are skipped
   --issue <n>                issue number to track (without #); repeatable, required
@@ -54,4 +55,4 @@ FLAGS
 RELATED
 
   sdlc actual    the everyday wrapper: resolves the window (gitx.CommitWindow) +
-                 brain/repo transcript dirs and prints one suggested --actual.
+                 brain/repo transcript sources and prints one suggested --actual.

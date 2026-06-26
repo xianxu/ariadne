@@ -50,8 +50,9 @@ type TaskSpan struct {
 // rawLine is one decoded transcript JSONL record. Content is left raw because it
 // is polymorphic (string for a plain user turn, array of blocks otherwise).
 type rawLine struct {
-	Timestamp string `json:"timestamp"`
-	Type      string `json:"type"`
+	Timestamp string          `json:"timestamp"`
+	Type      string          `json:"type"`
+	Payload   json.RawMessage `json:"payload"`
 	Message   struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
@@ -66,6 +67,15 @@ type contentBlock struct {
 	Name      string          `json:"name"`        // tool_use: tool name (e.g. "Agent")
 	ID        string          `json:"id"`          // tool_use: id matched by a later tool_result
 	ToolUseID string          `json:"tool_use_id"` // tool_result: id of the dispatch it answers
+}
+
+type codexPayload struct {
+	Type      string          `json:"type"`
+	Role      string          `json:"role"`
+	Content   json.RawMessage `json:"content"`
+	Name      string          `json:"name"`
+	Arguments string          `json:"arguments"`
+	Input     json.RawMessage `json:"input"`
 }
 
 // walkSessionEvents parses one session .jsonl file into the events we attribute.
@@ -97,6 +107,13 @@ func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) (
 		// extraction) and contributes to neither events nor spans.
 		ts, err := parseISO(d.Timestamp)
 		if err != nil {
+			continue
+		}
+		if d.Type == "response_item" {
+			ev, ok := codexEvent(d.Payload, ts, pat, includeAssistant)
+			if ok {
+				events = append(events, ev)
+			}
 			continue
 		}
 		// Structural span tracking — independent of includeAssistant and of the
@@ -134,6 +151,66 @@ func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) (
 		events = append(events, Event{Time: ts, Mentions: parseEventMentions(text, pat)})
 	}
 	return events, spans, nil
+}
+
+func codexEvent(payload json.RawMessage, ts time.Time, pat *regexp.Regexp, includeAssistant bool) (Event, bool) {
+	var p codexPayload
+	if json.Unmarshal(payload, &p) != nil {
+		return Event{}, false
+	}
+	switch p.Type {
+	case "message":
+		text := codexMessageText(p.Content)
+		switch p.Role {
+		case "user":
+			if strings.TrimSpace(text) == "" {
+				return Event{}, false
+			}
+			return Event{Time: ts, Mentions: parseEventMentions(text, pat)}, true
+		case "assistant":
+			if !includeAssistant {
+				return Event{}, false
+			}
+			return Event{Time: ts, Mentions: parseEventMentions(text, pat)}, true
+		default:
+			return Event{}, false
+		}
+	case "function_call", "custom_tool_call":
+		if !includeAssistant {
+			return Event{}, false
+		}
+		text := p.Arguments
+		if text == "" && len(p.Input) > 0 {
+			text = string(p.Input)
+		}
+		return Event{Time: ts, Mentions: parseEventMentions(text, pat)}, true
+	default:
+		return Event{}, false
+	}
+}
+
+func codexMessageText(content json.RawMessage) string {
+	var s string
+	if json.Unmarshal(content, &s) == nil {
+		return s
+	}
+	blocks, ok := decodeBlocks(content)
+	if !ok {
+		return ""
+	}
+	var parts []string
+	for _, blk := range blocks {
+		switch blk.Type {
+		case "input_text", "output_text", "text":
+			parts = append(parts, blk.Text)
+		default:
+			var cs string
+			if len(blk.Content) > 0 && string(blk.Content) != "null" && json.Unmarshal(blk.Content, &cs) == nil {
+				parts = append(parts, cs)
+			}
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 // userText extracts the human-typed text from a user message's content and
@@ -236,6 +313,10 @@ func eventTimesAndMentions(events []Event) ([]time.Time, map[string]int) {
 // the subagent TaskSpans (#118), clamped to the same window so all measured
 // active time lies within it. Mirrors load_events (events) + adds the span pass.
 func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
+	return loadEventsWithFiles(dirs, nil, pat, includeAssistant, sinceISO, untilISO)
+}
+
+func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
 	var since, until time.Time
 	haveSince, haveUntil := sinceISO != "", untilISO != ""
 	if haveSince {
@@ -290,6 +371,38 @@ func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceI
 				if s.End.After(s.Start) {
 					spans = append(spans, s)
 				}
+			}
+		}
+	}
+	for _, f := range files {
+		evs, sps, err := walkSessionEvents(expandUser(f), pat, includeAssistant)
+		if err != nil {
+			continue
+		}
+		for _, e := range evs {
+			if haveSince && e.Time.Before(since) {
+				continue
+			}
+			if haveUntil && e.Time.After(until) {
+				continue
+			}
+			events = append(events, e)
+		}
+		for _, sp := range sps {
+			if haveSince && sp.End.Before(since) {
+				continue
+			}
+			if haveUntil && sp.Start.After(until) {
+				continue
+			}
+			if haveSince && sp.Start.Before(since) {
+				sp.Start = since
+			}
+			if haveUntil && sp.End.After(until) {
+				sp.End = until
+			}
+			if sp.End.After(sp.Start) {
+				spans = append(spans, sp)
 			}
 		}
 	}

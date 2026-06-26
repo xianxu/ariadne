@@ -14,9 +14,11 @@ WHAT IT DOES
 
   1. Resolves the issue's commit window (`gitx.CommitWindow`) + the peer issues
      referenced in that window (so attribution is shared, not dumped to one).
-  2. Selects transcript dirs: **brain + the issue's own repo** — the validated
-     heuristic (matches human-recorded numbers within ~5%). It does NOT scan
-     every folder: an unrelated, concurrently-edited repo inflates the count.
+  2. Selects transcript sources for **brain + the issue's own repo** — Claude
+     Code cwd dirs (`~/.claude/projects/<encoded-cwd>`) plus Codex session files
+     (`~/.codex/sessions/.../*.jsonl`) whose `session_meta.cwd` matches one of
+     those repos. It does NOT scan unrelated cwd sessions: concurrent repo work
+     inflates the count.
   3. Runs the native `activetime` engine (`--commit-weight 1.0 --threshold-min 15
      --include-assistant`, in-process — no python3) and prints the suggested
      `--actual` value.
@@ -26,7 +28,8 @@ OUTPUT
   - measured            → "measured actual for #N: <h>h" + the `--actual <h>` to use.
   - telemetry unavailable → window has commits but no transcript events (work
                             lived in cwds/worktrees not under brain/repo, or aged
-                            out). Record a LABELED judgment estimate (or --no-actual).
+                            out / in an unsupported harness transcript shape).
+                            Record a LABELED judgment estimate (or --no-actual).
   - no window           → no commits reference the issue yet; commit first, or
                             fall back to a judgment estimate.
 

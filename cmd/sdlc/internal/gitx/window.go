@@ -134,23 +134,19 @@ func MainRef() string {
 var bookkeepingVerbs = []string{"file issue", "ticket", "claim", "close"}
 
 // IsShippedWorkSubject reports whether a commit subject is *implementation*
-// work for issueNum: subject-anchored on #N (the same `^#N($|[^0-9])` anchor
-// CommitWindow uses, so "#510" / a parenthetical "(see #5)" don't match #5)
-// and not a bookkeeping lead-in. Pure — no git, table-tested directly.
+// work for issueNum: either `#N ...` or the documented `<area>: #N ...`
+// convention, and not a bookkeeping lead-in. Loose refs later in the subject
+// (for example `docs: mention #N`) do not anchor ownership. Pure — no git,
+// table-tested directly.
 //
 // The discriminator that keeps a bare `--grep #N` count honest: it separates a
 // shipped `#51 M1-M3: …` / `#80: archive stages …` from a `#76: file issue …`
 // or `#51: close …`.
 func IsShippedWorkSubject(issueNum, subject string) bool {
-	if !subjectAnchorRE(issueNum, false).MatchString(subject) {
+	rest, ok := issueSubjectDescriptor(issueNum, subject, false)
+	if !ok {
 		return false
 	}
-	// Peel "#N" and the leading ":"/space to reach the descriptor, then test the
-	// denylist against its head. A milestone tag (e.g. "M1-M3: ") is left in
-	// place on purpose: it never starts with a bookkeeping verb, so a
-	// milestone-tagged subject always reads as work — exactly right.
-	rest := strings.TrimSpace(strings.TrimPrefix(subject, "#"+issueNum))
-	rest = strings.TrimSpace(strings.TrimLeft(rest, ":"))
 	lower := strings.ToLower(rest)
 	for _, v := range bookkeepingVerbs {
 		// Whole-token match: "close" is bookkeeping, "close-off" is not.
@@ -162,6 +158,36 @@ func IsShippedWorkSubject(issueNum, subject string) bool {
 		}
 	}
 	return true
+}
+
+func issueSubjectDescriptor(issueNum, subject string, allowClosePrefix bool) (string, bool) {
+	s := strings.TrimSpace(subject)
+	if allowClosePrefix {
+		s = strings.TrimSpace(strings.TrimPrefix(s, "close "))
+	}
+	if rest, ok := descriptorAfterIssuePrefix(issueNum, s); ok {
+		return rest, true
+	}
+	if i := strings.Index(s, ":"); i >= 0 {
+		return descriptorAfterIssuePrefix(issueNum, strings.TrimSpace(s[i+1:]))
+	}
+	return "", false
+}
+
+func descriptorAfterIssuePrefix(issueNum, s string) (string, bool) {
+	prefix := "#" + issueNum
+	if !strings.HasPrefix(s, prefix) {
+		return "", false
+	}
+	if len(s) > len(prefix) {
+		next := s[len(prefix)]
+		if next >= '0' && next <= '9' {
+			return "", false
+		}
+	}
+	rest := strings.TrimSpace(strings.TrimPrefix(s, prefix))
+	rest = strings.TrimSpace(strings.TrimLeft(rest, ":"))
+	return rest, true
 }
 
 // isWordByte reports whether b continues a word (letter or '-'), used to keep
@@ -232,7 +258,7 @@ func ShippedWorkOnMain(issueNum string) (sha, subject string, shipped bool) {
 const WindowCapDays = 61
 
 // CommitWindow returns (firstSHA, firstISO, lastISO) for commits whose
-// *subject* opens with `#issueNum` (optionally prefixed with "close "),
+// *subject* is owned by issueNum (`#N ...` or `<area>: #N ...`),
 // capped at WindowCapDays in the past.
 //
 // firstISO is the *parent* of the first matching commit (the v3 segment-
@@ -267,7 +293,6 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 	if text == "" {
 		return "", "", "", nil
 	}
-	subjectRE := subjectAnchorRE(issueNum, true)
 	type match struct{ iso, sha string }
 	var matches []match
 	for _, line := range strings.Split(text, "\n") {
@@ -276,7 +301,7 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 			continue
 		}
 		iso, sha, subject := parts[0], parts[1], parts[2]
-		if subjectRE.MatchString(subject) {
+		if _, ok := issueSubjectDescriptor(issueNum, subject, true); ok {
 			matches = append(matches, match{iso, sha})
 		}
 	}
