@@ -1,102 +1,15 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 )
 
-// #68 M2: cwd → Claude Code transcript-folder encoding ('/' and '.' → '-').
-func TestCwdToTranscriptDir(t *testing.T) {
-	cases := map[string]string{
-		"/Users/x/workspace/nous":    "-Users-x-workspace-nous",
-		"/Users/x/workspace/brain":   "-Users-x-workspace-brain",
-		"/Users/x/.claude/projects":  "-Users-x--claude-projects", // leading '/.' → '--'
-		"/w/worktree/ariadne-000040": "-w-worktree-ariadne-000040",
-	}
-	for in, want := range cases {
-		if got := cwdToTranscriptDir(in); got != want {
-			t.Errorf("cwdToTranscriptDir(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
-// #68 M2: dir-selection is brain + repo, existing folders only, never unrelated.
-func TestSelectActualDirs(t *testing.T) {
-	root := t.TempDir()
-	prev := transcriptsRoot
-	transcriptsRoot = root
-	t.Cleanup(func() { transcriptsRoot = prev })
-
-	repo := "/w/nous"
-	brain := "/w/brain"
-	mk := func(p string) {
-		if err := os.Mkdir(filepath.Join(root, cwdToTranscriptDir(p)), 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	mk(repo)
-	mk(brain)
-	mk("/w/pair") // unrelated — present on disk but NOT passed in → must be excluded
-
-	got := selectActualDirs(repo, brain)
-	want := []string{
-		filepath.Join(root, cwdToTranscriptDir(brain)), // brain first
-		filepath.Join(root, cwdToTranscriptDir(repo)),
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("selectActualDirs = %v, want %v (brain+repo only, no unrelated)", got, want)
-	}
-
-	// A repo whose folder doesn't exist is silently skipped (not invented).
-	got2 := selectActualDirs("/w/does-not-exist", brain)
-	if len(got2) != 1 || got2[0] != filepath.Join(root, cwdToTranscriptDir(brain)) {
-		t.Errorf("missing repo folder should be skipped; got %v", got2)
-	}
-}
-
-func TestSelectActualSourcesIncludesMatchingCodexSessions(t *testing.T) {
-	claudeRoot := t.TempDir()
-	codexRoot := t.TempDir()
-	prevClaude, prevCodex := transcriptsRoot, codexSessionsRoot
-	transcriptsRoot, codexSessionsRoot = claudeRoot, codexRoot
-	t.Cleanup(func() {
-		transcriptsRoot, codexSessionsRoot = prevClaude, prevCodex
-	})
-
-	repo := "/w/repo"
-	brain := "/w/brain"
-	claudeRepo := filepath.Join(claudeRoot, cwdToTranscriptDir(repo))
-	if err := os.Mkdir(claudeRepo, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	day := filepath.Join(codexRoot, "2026", "06", "26")
-	if err := os.MkdirAll(day, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeJSONLmain(t, filepath.Join(day, "repo.jsonl"),
-		`{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/repo"}}`)
-	writeJSONLmain(t, filepath.Join(day, "brain.jsonl"),
-		`{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/brain"}}`)
-	writeJSONLmain(t, filepath.Join(day, "other.jsonl"),
-		`{"timestamp":"2026-06-26T16:00:00Z","type":"session_meta","payload":{"cwd":"/w/other"}}`)
-
-	got := selectActualSources(repo, brain)
-	wantDirs := []string{claudeRepo}
-	if !reflect.DeepEqual(got.Dirs, wantDirs) {
-		t.Fatalf("Dirs = %v, want %v", got.Dirs, wantDirs)
-	}
-	wantFiles := []string{
-		filepath.Join(day, "brain.jsonl"),
-		filepath.Join(day, "repo.jsonl"),
-	}
-	if !reflect.DeepEqual(got.Files, wantFiles) {
-		t.Fatalf("Files = %v, want %v", got.Files, wantFiles)
-	}
-}
+// Transcript-source selection (cwd encoding, brain+repo dir selection, Codex
+// cwd matching) moved to internal/transcripts in #134 and is tested there
+// (claude_test.go / codex_test.go / transcripts_test.go). actual_test.go keeps
+// the engine-glue contract tests below.
 
 // #110: the engine-result → outcome contract (pure; replaces the old classifyV3
 // exit-code mapping now that the engine is in-process).
