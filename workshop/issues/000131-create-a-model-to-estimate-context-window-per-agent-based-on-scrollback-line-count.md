@@ -82,13 +82,15 @@ guard) — avoids per-tick IPC churn during active-but-stable stretches.
 
 ### Architecture — Approach B (one per-session poller + recorded pane id)
 1. **Shared pure reader (Go, DRY/PURE).** Factor `ContextTokens(agent, transcriptPath)
-   (int, bool)` reusing `pair-slug`'s `resolveTranscript()`. Pure, table-tested per agent
-   (claude sum-of-three of the last non-sidechain `assistant`; codex
-   `last_token_usage.input_tokens` of the last `token_count` event; agy → `false`). For
-   **claude** the caller resolves the transcript by **newest `*.jsonl` in the project dir**,
-   not a recorded sid (the recorded sid never rotates on `/clear` — see Edge cases). Exposed
-   via a one-shot `pair-context <tag> <agent>` that resolves the transcript and prints the
-   humanized count (empty when none). The reader is tolerant: unparseable/empty → no count.
+   (int, bool)` — pure, table-tested per agent (claude sum-of-three of the last
+   non-sidechain `assistant`; codex `last_token_usage.input_tokens` of the last
+   `token_count` event; agy → `false`). **Path resolution differs by agent:** codex/agy
+   reuse `pair-slug`'s `resolveTranscript()` (sid→path); **claude does NOT** —
+   `resolveTranscript`'s claude branch builds the path *from a sid* (`main.go:192`), but we
+   need newest `*.jsonl` under `enc(cwd)` (the recorded sid never rotates on `/clear` — see
+   Edge cases), so the claude path is computed separately from the pane file's `cwd`. Exposed
+   via a one-shot `pair-context <tag> <agent>` printing the humanized count (empty when none);
+   tolerant — unparseable/empty → no count.
 2. **Record the pane id at startup — in a DEDICATED file, not the shared config.**
    `config-<tag>-<agent>.json` already has **three concurrent writers** (`bin/pair` writes
    the claude config synchronously at launch; `pair-session-watch.sh` writes codex/agy
@@ -106,11 +108,18 @@ guard) — avoids per-tick IPC churn during active-but-stable stretches.
    and drop its cmux gate: the poller becomes always-on (the zellij frame exists with or
    without cmux) and owns **two title surfaces** — the cmux workspace title *(only when
    `$CMUX_WORKSPACE_ID` is set, as today)* and the zellij **frame** title for every pane.
-   Each active tick it loops the tag's panes (`pane-<tag>-*.json` + `config-…` for sid),
-   gets `pair-context`'s count, and renames each pane:
+   Each active tick it loops the tag's panes (`pane-<tag>-*.json` → pane id + cwd; codex/agy
+   also read `config-…` → sid; claude uses cwd → newest jsonl), gets `pair-context`'s count,
+   and renames each pane:
    `zellij --session pair-<tag> action rename-pane --pane-id <id> "<agent> (<count>) [<cwd>]"`
    (`zellij --session <name>` lets the external poller target the pane; the startup
    counterpart `main.kdl` uses the in-pane `--pane-id "$ZELLIJ_PANE_ID"` form).
+   *Plan obligation for the rename:* the cmux-internal gate (`command -v cmux` whole-script
+   `exit 0` at `pair-cmux-title.sh:73`) must become **block-local** alongside the
+   `$CMUX_WORKSPACE_ID` gate, and every old-name reference must move in lockstep — pidfile
+   `cmux-title-pid-$TAG`, the `poller_alive()` argv match, the spawn (`bin/pair:1659`), the
+   existence check (`bin/pair:1588`), and both cleanup sweeps (`bin/pair:398,446`) — miss one
+   → double-spawn or orphan.
 4. **Refresh policy.** Tick ≈60s. Do work only when `draft-<tag>.md` **or** the agent
    transcript was touched within the last interval (user typed **or** agent produced a
    turn) — honoring "only when active" while still advancing the count after a long agent
@@ -143,8 +152,18 @@ guard) — avoids per-tick IPC churn during active-but-stable stretches.
   the frozen-cache symptom). **Correct fix: resolve claude's transcript by newest `*.jsonl`
   in the project dir (by mtime), not the recorded sid** (already in Signal/Architecture).
   codex/agy are single-file per session, so their sid is stable.
+  - *New trade-off this introduces (narrow):* `~/.claude/projects/<enc-cwd>/` is keyed by
+    **cwd only**, so two concurrent claude pair sessions in the same cwd share one project
+    dir, and newest-by-mtime would make both panes track whichever transcript was written
+    last. Same class as the "one agent per tag" assumption below. **Plan disambiguates:**
+    record claude's launch sid in `pane-<tag>-<agent>.json` as a lineage seed and prefer the
+    newest jsonl *modified since pane start* / matching that lineage, falling back to
+    global-newest only when unambiguous.
 - **Config write race (3 writers)** — addressed by the dedicated single-writer
   `pane-<tag>-<agent>.json` (Architecture step 2); the plan must not touch `config-…`.
+  The plan also adds `pane-<tag>-*.json` to `bin/pair`'s per-tag cleanup sweep, and the
+  poller must tolerate a not-yet-written pane file on the create-path race (skip that pane's
+  frame rename for the tick, retry next — mirrors `latest_activity()==0` handling).
 - **claude sub-agent records** — a `Task` sub-agent emits `assistant` records with
   `isSidechain:true` whose `usage` is the *sub-agent's* smaller context; taking the raw last
   `assistant` would undercount mid-Task. Filter to `isSidechain != true` (in Signal).
@@ -160,7 +179,7 @@ guard) — avoids per-tick IPC churn during active-but-stable stretches.
   `isSidechain:true` record before a real one, to pin the filter), a codex rollout tail
   (a real `token_count` `event_msg` with both `last_token_usage` and `total_token_usage`,
   to pin last-not-total), and an agy transcript → empty. Plus humanization table
-  (`397556→398k`, `999999→1000k`, `1_000_000→1.0M`).
+  (`397556→398k`, `999999→1000k`, `1_000_000→1.0M`, `1_490_000→1.4M` to pin the M-branch floor).
 - Process-level: drive the poller against a temp `pane-<tag>-*.json` + `config-…` + fixture
   transcripts + a fake `zellij` shim capturing `rename-pane` args; assert the title string,
   the activity-gate (idle → no rename; touched → rename), and the unchanged-title skip.
@@ -206,4 +225,18 @@ Spec review round 1 (fresh-context reviewer, verified claims against live code/d
 - **ARCH-DRY** — don't ship a second ~80%-identical poller; generalize `pair-cmux-title.sh`
   into one always-on `pair-title` owning both the cmux workspace title (when in cmux) and
   the zellij frame meter. Plus pinned humanization rounding + skip-rename-when-unchanged.
+
+Spec review round 2 → all six round-1 items confirmed genuinely resolved; folded in the
+deltas it surfaced:
+- **New narrow risk from the newest-jsonl fix:** claude project dir is keyed by cwd only, so
+  2 claude sessions in one cwd would alias. Documented as a known limitation; plan
+  disambiguates via a launch-sid lineage seed in the pane file.
+- **Accuracy:** `resolveTranscript()` is reused for codex/agy only (it builds claude's path
+  from a sid); claude's path computed from the pane file's `cwd` → newest jsonl. Step-3
+  pane-loop wording corrected.
+- **Plan obligations captured:** the `pair-cmux-title.sh → pair-title` rename must move all
+  reference sites in lockstep (pidfile, argv match, spawn, existence check, 2 cleanup
+  sweeps) + make the `command -v cmux` gate block-local; add `pane-<tag>-*.json` to cleanup;
+  poller tolerates a not-yet-written pane file (create-race); + `1_490_000→1.4M` test vector.
+Review loop converged in 2 rounds (cap 5); no remaining blockers.
 
