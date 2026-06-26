@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
@@ -10,6 +11,26 @@ import (
 // cwd matching) moved to internal/transcripts in #134 and is tested there
 // (claude_test.go / codex_test.go / transcripts_test.go). actual_test.go keeps
 // the engine-glue contract tests below.
+
+// nonEmpty drops "" cwds (an unresolved brain/repo path) while preserving order
+// — the brain+repo list computeActual hands the harness registry.
+func TestNonEmpty(t *testing.T) {
+	cases := []struct {
+		in   []string
+		want []string
+	}{
+		{[]string{"/brain", "/repo"}, []string{"/brain", "/repo"}},
+		{[]string{"", "/repo"}, []string{"/repo"}},
+		{[]string{"/brain", ""}, []string{"/brain"}},
+		{[]string{"", ""}, nil},
+		{nil, nil},
+	}
+	for _, c := range cases {
+		if got := nonEmpty(c.in...); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("nonEmpty(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
 
 // #110: the engine-result → outcome contract (pure; replaces the old classifyV3
 // exit-code mapping now that the engine is in-process).

@@ -288,3 +288,18 @@ callers share one source — no package-main helper, no "assert tails match" tes
 - **ARCH-PURE** drove the `transcripts` split (pure `Select` + pure encoders/parsers behind thin per-harness `Sources` seams) and `estimate.SourcePath`/`SourceGuidance` (pure; IO in `estimatesource.go`).
 - **ARCH-PURPOSE** is the spine of M1: the issue's stated purpose is the *abstraction*, not just "Codex happens to parse now" — so the deliverable is a registry a new harness plugs into, and the docs that name that contract.
 - **Graceful degradation:** every brain-dependent surface (start-plan/change-code push) warns-and-continues when brain is absent (base-layer propagates downstream); only the explicit `sdlc estimate-source` pull "fails loudly" — reconciling Spec area 5 with the must-not-break-downstream constraint.
+
+## Revisions
+
+- **2026-06-26 (M1 boundary review):** Task M1.5 / the entity-table row named
+  `gitx.IsShippedWorkSubject` as the matcher to test, but the test was
+  intentionally implemented against **`issueSubjectDescriptor(issue, subject,
+  allowClosePrefix=true)`** — the function `CommitWindow` actually calls for
+  active-time-window ownership. `IsShippedWorkSubject` is the *#76 ship-probe*,
+  which layers a bookkeeping denylist the window deliberately does not apply (the
+  window counts claim/close commits, since they carry real minutes). Testing the
+  ship-probe would have pinned the wrong contract. A correctness improvement over
+  the plan's wording, not a gap (M1 review: SHIP).
+- **2026-06-26 (post-M1):** added a `nonEmpty` glue table test (M1 review advisory
+  #5) so `computeActual`'s brain+repo cwd assembly is unit-covered, not only
+  exercised by the dogfood run.
