@@ -99,6 +99,9 @@ cmd/sdlc/
   pr.go                ← Makefile pull-request:
   merge.go             ← Makefile merge:
   milestoneclose.go    composition over close + judge milestone-review
+  estimatesource.go    new (#134): `sdlc estimate-source` pull — names the shared
+                       method + repo-local calibration doc (estimateSourceStatus
+                       seam over estimate.SourceGuidance); start-plan/change-code push it
   helptext/            //go:embed *.md — one .md per verb + root
   internal/
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
@@ -154,6 +157,23 @@ clean point; skip-with-warning when no brain/ ledger dir exists downstream). Thi
 closes the loop the hand-kept validation log never did. Grammar + closed
 vocabulary: `helptext/estimate.md` (canonical slugs in
 `internal/estimate/vocab.go`, a bidirectional drift test guards the mirror).
+
+**Estimator-source discovery (#134).** The shared method is single-sourced in
+`sdlc` (the grammar + `Models()`/`Primitives()`), but the *repo-local
+calibration* — the actual per-primitive hour ranges, which drift as closes accrue
+(#127) — lives in a brain artifact. So an agent could satisfy the block grammar
+while picking hours from memory. `sdlc estimate-source` (`estimatesource.go`, the
+pull; mirrors `arch-principles`) names BOTH in one output: the shared-method
+pointer + the resolved calibration doc (`estimate.SourcePath` →
+`$WF_ESTIMATOR_SRC` override, else `estimate.VelocityPath(brainDir,
+<model>.md)` — the same `data/life/42shots/velocity/` builder `close.go`'s ledger
+path now derives from, ARCH-DRY), tagged `ok | stale | MISSING` (stale = sibling
+ledger newer than the doc). The pure renderers (`SourceGuidance` full / `SourceLine`
+one-line) live in `internal/estimate/source.go`; `estimateSourceStatus` is the
+thin stat/mtime seam. Fail-loud is asymmetric on purpose: the PULL exits non-zero
+when the source is missing, while the PUSHes (`start-plan` emits `SourceLine` after
+the estimate nudge; `change-code`'s missing-block error points at the command)
+warn-and-continue so a brain-less downstream repo never breaks the gates.
 
 **Per-gate bypass (#67).** `close` has 8 gates (actual, verified, atlas,
 milestone-verdict, plan-unchecked, project, re-close, and the #69 boundary

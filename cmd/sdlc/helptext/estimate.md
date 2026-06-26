@@ -60,6 +60,16 @@ CLOSED PRIMITIVE VOCABULARY (mirrors estimate-logic-v2.md's primitive table)
   ux-rename-iteration        user-driven UX rename / iteration round
   method-b-decisions         Method B: novel work, design = decisions × 0.15
 
+WHERE THE CALIBRATION LIVES (#134)
+
+  This doc + `internal/estimate/vocab.go` are the SHARED METHOD (single-sourced in
+  sdlc). The per-primitive HOUR RANGES you pick from are the REPO-LOCAL
+  CALIBRATION, which drifts as closes accrue (#127) — they live in a brain
+  artifact, not here. Run **`sdlc estimate-source`** to see both named in one
+  output: the resolved calibration doc (`$WF_ESTIMATOR_SRC` override, else
+  `<brain>/data/life/42shots/velocity/<model>.md`), tagged ok / stale / MISSING.
+  Don't pick per-primitive hours from memory — derive against that source.
+
 UNIT NOTE
 
   estimate-logic-v2 estimates BUILD-EFFORT (design + AI-impl hours); `sdlc actual`
