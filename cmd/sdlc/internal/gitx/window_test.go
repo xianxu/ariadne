@@ -223,6 +223,41 @@ func TestIsShippedWorkSubject(t *testing.T) {
 	}
 }
 
+// TestIssueSubjectDescriptor_WindowOwnership pins the matcher CommitWindow uses
+// to decide which commits belong to an issue's active-time window (#134). It is
+// the allowClosePrefix=true entry point — distinct from IsShippedWorkSubject's
+// probe: the window COUNTS bookkeeping/close commits (they carry real
+// design/close minutes), so there is no denylist here. The contract under test:
+// accept the canonical `#N …` and the documented `<area>: #N …`; reject a loose
+// reference anywhere but the anchor (`docs: mention #N`, `see #N`) and a longer
+// number (`#1340` ≠ `#134`).
+func TestIssueSubjectDescriptor_WindowOwnership(t *testing.T) {
+	tests := []struct {
+		issue   string
+		subject string
+		owned   bool
+	}{
+		{"134", "#134: make actuals robust", true},          // canonical
+		{"134", "#134 M2: estimator source", true},          // canonical + milestone
+		{"134", "sdlc: #134 measure codex transcripts", true}, // <area>: #N
+		{"134", "side-quest: #134 robustness pass", true},   // hyphenated area
+		{"134", "close #134: archive", true},                // window counts close (allowClosePrefix)
+		{"134", "#134: close (done, actual 3.9h)", true},    // close commit IS in-window (no denylist)
+		{"134", "docs: mention #134 in a note", false},      // loose ref after colon, not anchored
+		{"134", "see #134 for context", false},              // not subject-anchored
+		{"134", "#1340: a different issue entirely", false}, // #1340 must not match #134
+		{"134", "issue-sync: update issues", false},         // never anchors #N
+	}
+	for _, tt := range tests {
+		t.Run(tt.subject, func(t *testing.T) {
+			_, ok := issueSubjectDescriptor(tt.issue, tt.subject, true)
+			if ok != tt.owned {
+				t.Errorf("issueSubjectDescriptor(%q, %q, true) owned = %v, want %v", tt.issue, tt.subject, ok, tt.owned)
+			}
+		})
+	}
+}
+
 // TestShippedWorkOnMain wires the classifier to the git-log probe via the
 // package `run` shim — pinning that the pure helper is actually invoked on real
 // log output (so it can't be silently un-wired, lessons.md #72), that the first
