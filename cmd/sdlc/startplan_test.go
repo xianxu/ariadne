@@ -24,7 +24,9 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	// integrated output (TestPlanPointer pins the helper's wording; this pins that
 	// runStartPlan actually prints it, so dropping/reordering the line can't ship
 	// silently).
-	for _, want := range []string{"#75", "ARCH-DRY", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-"} {
+	// "estimate-source" pins the #134 estimator-SOURCE push (estimate.SourceLine)
+	// is wired below the nudge — so it can't be silently dropped in a refactor.
+	for _, want := range []string{"#75", "ARCH-DRY", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-", "estimate-source"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("start-plan output missing %q:\n%s", want, out)
 		}

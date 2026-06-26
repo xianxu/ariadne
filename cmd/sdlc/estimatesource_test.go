@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,15 +66,24 @@ func TestEstimateSourceStatus(t *testing.T) {
 	}
 }
 
-// reportEstimateSource returns a non-nil error (→ non-zero exit) only when the
-// source is missing, so the pull fails loud.
+// reportEstimateSource prints the guidance to stdout AND returns a non-nil error
+// (→ non-zero exit) only when the source is missing, so the pull fails loud.
 func TestReportEstimateSourceFailsLoudWhenMissing(t *testing.T) {
-	var out, errw discard
+	var out strings.Builder
+	var errw discard
 	if err := reportEstimateSource(&out, &errw, estimate.SourceStatus{Path: "/p", Exists: false}); err == nil {
 		t.Error("missing source should return an error (non-zero exit)")
 	}
+	if !strings.Contains(out.String(), "/p") {
+		t.Errorf("should print the guidance (with the path) even on the missing path:\n%s", out.String())
+	}
+
+	out.Reset()
 	if err := reportEstimateSource(&out, &errw, estimate.SourceStatus{Path: "/p", Exists: true}); err != nil {
 		t.Errorf("present source should not error, got %v", err)
+	}
+	if !strings.Contains(out.String(), "ESTIMATE DERIVATION") {
+		t.Errorf("should print the full guidance block:\n%s", out.String())
 	}
 }
 

@@ -1,12 +1,13 @@
 ---
 id: 000134
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-26
 estimate_hours: 3.9
 started: 2026-06-26T15:57:18-07:00
+actual_hours: 0.76
 ---
 
 # Make actuals and estimates agent-robust
@@ -103,6 +104,7 @@ Full detail (TDD steps, exact paths, code) in
 ## Log
 
 ### 2026-06-26
+- 2026-06-26: closed — M2 boundary review is the one THIS close auto-dispatches over [M1-close..HEAD] (= exactly M2 work); no separate M2 milestone-close commit by design (plan: "M2 closes via the full-issue sdlc close"), hence --no-verdict. Done-when all met: (1) internal/transcripts fixtures cover Claude + Codex selection incl malformed/empty/no-session_meta survival + irrelevant-cwd exclusion. (2) sdlc actual --issue 134 = 0.76h measured via the registry from THIS Claude session without hand-passing paths; real-Codex path demonstrated on parley.nvim #144 -> 1.17h at f62d099. (3) gitx TestIssueSubjectDescriptor_WindowOwnership pins canonical #N + <area>: #N accept, docs:mention/#1340 reject. (4) sdlc estimate-source names shared method + repo-local calibration in one output (live: flags the real brain doc [stale]). (5) atlas/sdlc-binary.md + helptext (actual/estimate/estimate-source) document both contracts. go test ./cmd/sdlc/... green; build clean. 0.76h vs 3.9h estimate is real ~5x overestimate feeding #127, not a measurement error.; review verdict: FIX-THEN-SHIP
 - 2026-06-26: closed M1 — M1 measurement-robustness: internal/transcripts harness registry (Harness+pure Select, Claude+Codex harnesses), Codex robustness fixtures (malformed/empty/no-session_meta survive), commit-window ownership matcher pinned (canonical #N + <area>: #N accept, loose refs reject), actual.go rewired onto registry (inline selection deleted), atlas+helptext document the contract. go test ./cmd/sdlc/... green; go build ./cmd/sdlc clean. Dogfood: sdlc actual --issue 134 = 0.51h measured through the refactored registry (this session transcript picked up automatically).; review verdict: SHIP
 
 - Filed after Codex dogfooding found that `sdlc actual` did not measure Codex

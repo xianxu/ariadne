@@ -303,3 +303,14 @@ callers share one source — no package-main helper, no "assert tails match" tes
 - **2026-06-26 (post-M1):** added a `nonEmpty` glue table test (M1 review advisory
   #5) so `computeActual`'s brain+repo cwd assembly is unit-covered, not only
   exercised by the dogfood run.
+- **2026-06-26 (M2 close review, FIX-THEN-SHIP):** (a) the Important finding — the
+  start-plan `SourceLine` push was wired but unasserted — fixed by adding
+  `"estimate-source"` to `TestRunStartPlan_RendersAtPlanLens`'s `want` set (the
+  lessons.md #72 un-wiring guard). (b) `reportEstimateSource`'s stdout print is now
+  asserted, not just its error. (c) File-home reconciliation vs the Core-concepts
+  tables: `DefaultHarnesses` ships in `internal/transcripts/defaults.go` (table said
+  `transcripts.go`); the start-plan push is the lower-layer pure
+  `estimate.SourceLine` in `internal/estimate/source.go` (table named a
+  package-main `estimateSourceLine` — `startplan.go` only *wires* it). Both are
+  improvements (DefaultHarnesses isolation; the pure renderer is reused + tested);
+  only the file homes drifted from the table.
