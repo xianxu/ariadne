@@ -1,6 +1,6 @@
 ---
 id: 000131
-status: working
+status: wontfix
 deps: []
 created: 2026-06-25
 updated: 2026-06-25
@@ -254,4 +254,11 @@ transcript investigation **reverted the newest-jsonl change**:
 - **New filter:** the "reset-to-0" turns were `model:"<synthetic>"` (interrupt/injected,
   usage 0) — must skip these too, else the count flickers to 0. Read = last assistant that is
   `isSidechain != true` AND `model != "<synthetic>"`.
+
+**MOVED → pair#000071.** This feature is 100% `pair` code (transcript reader, `pair-context`,
+the `pair-title` poller, `bin/pair`, `main.kdl`); per-repo SDLC bookkeeping (change-code /
+atlas / actual / close) belongs in pair, not ariadne. The full spec is ported to
+`pair/workshop/issues/000071-context-meter-pane-frame.md`; implementation continues there.
+Resolving this as `wontfix` *in ariadne* (not abandoned — relocated). This file is retained
+as the brainstorm + 3-round-spec-review record.
 
