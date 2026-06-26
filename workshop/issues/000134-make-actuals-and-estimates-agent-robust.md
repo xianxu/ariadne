@@ -93,7 +93,7 @@ Full detail (TDD steps, exact paths, code) in
       commit-window matcher (`#N` + `<area>: #N` accept, `docs: mention #N`
       reject), rewire `actual.go`, document the harness contract in atlas/helptext.
       Closes via `sdlc milestone-close --issue 134 --milestone M1`.
-- [ ] **M2 — Estimator-source pointer** — `sdlc estimate-source` pull command +
+- [x] **M2 — Estimator-source pointer** — `sdlc estimate-source` pull command +
       `start-plan`/`change-code` pushes naming the shared method (sdlc grammar +
       `vocab.Models()`) and the repo-local calibration (`<brain>/…/velocity/<model>.md`,
       `$WF_ESTIMATOR_SRC` override); DRY the brain path out of `close.go`; loud-fail
