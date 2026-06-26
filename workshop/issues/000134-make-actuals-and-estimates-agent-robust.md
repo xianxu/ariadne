@@ -103,6 +103,7 @@ Full detail (TDD steps, exact paths, code) in
 ## Log
 
 ### 2026-06-26
+- 2026-06-26: closed M1 — M1 measurement-robustness: internal/transcripts harness registry (Harness+pure Select, Claude+Codex harnesses), Codex robustness fixtures (malformed/empty/no-session_meta survive), commit-window ownership matcher pinned (canonical #N + <area>: #N accept, loose refs reject), actual.go rewired onto registry (inline selection deleted), atlas+helptext document the contract. go test ./cmd/sdlc/... green; go build ./cmd/sdlc clean. Dogfood: sdlc actual --issue 134 = 0.51h measured through the refactored registry (this session transcript picked up automatically).; review verdict: SHIP
 
 - Filed after Codex dogfooding found that `sdlc actual` did not measure Codex
   sessions until `f62d099`, and that estimate-logic discovery depends on
