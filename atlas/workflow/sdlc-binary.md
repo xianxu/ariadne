@@ -76,6 +76,9 @@ cmd/sdlc/
   activetime.go        new (#110): `sdlc active-time` CLI (runActiveTime + table renderer)
   internal/activetime/ new (#110): native v3 engine ported from active-time-v3.py
                        (event/commit/segment loaders + Compute; pure core + thin IO seam)
+  internal/transcripts/ new (#134): transcript-source harness registry — a Harness
+                       per agent CLI (claude.go / codex.go), pure Select aggregator
+                       feeding actual.go; adding a harness = one entry
   state.go             new (read-only inspection + drift detection; see "Drift checks")
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
@@ -169,9 +172,18 @@ actual --issue N` (`actual.go`'s `computeActual`, shared with close's
 missing-`--actual` explainer) runs the native **`internal/activetime`** engine
 (`activetime.Compute`, in-process — no python3) over the issue's `CommitWindow` +
 `DiscoverWindowIssues` peers, feeding it **brain + the issue's repo** transcript
-sources: Claude cwd dirs (`~/.claude/projects/<cwd-encoded>`) and Codex session
-files (`~/.codex/sessions/.../*.jsonl`) whose `session_meta.cwd` matches one of
-those repos. This is the validated heuristic (events come only from transcripts;
+sources. Source selection is a **harness abstraction** (`internal/transcripts`,
+#134), not a Claude-only path convention: each agent CLI implements a `Harness`
+(`Name()` + `Sources(cwds) → Sources{Dirs,Files}`); `DefaultHarnesses()` is the
+registry; a pure `Select` merges their contributions for the brain+repo cwds.
+Two harnesses ship — **Claude** (one `~/.claude/projects/<cwd-encoded>` dir per
+cwd → `Dirs`, engine globs them) and **Codex** (date-sharded
+`~/.codex/sessions/YYYY/MM/DD/*.jsonl` filtered by `session_meta.cwd` → `Files`,
+since Codex stores cwd inside the file, not the path). A third agent CLI is one
+new `<harness>.go` + one registry entry — `actual.go` and the engine never change
+(ARCH-PURPOSE). Pure encoders/parsers (`cwdToClaudeDir`, `codexCWDFromBytes`) are
+unit-tested directly; each `Sources` method is the thin IO seam, tolerant of
+malformed / empty / no-`session_meta` Codex files. This is the validated heuristic (events come only from transcripts;
 the wrong/missing sources were why actuals read 0 and got faked). The engine
 returns a structured `Result.Status`: `TelemetryGap`
 (commits-but-0-events → labeled judgment), `EmptyWindow` (nothing to measure), or

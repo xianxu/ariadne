@@ -14,10 +14,13 @@ WHAT IT DOES
 
   1. Resolves the issue's commit window (`gitx.CommitWindow`) + the peer issues
      referenced in that window (so attribution is shared, not dumped to one).
-  2. Selects transcript sources for **brain + the issue's own repo** — Claude
-     Code cwd dirs (`~/.claude/projects/<encoded-cwd>`) plus Codex session files
-     (`~/.codex/sessions/.../*.jsonl`) whose `session_meta.cwd` matches one of
-     those repos. It does NOT scan unrelated cwd sessions: concurrent repo work
+  2. Selects transcript sources for **brain + the issue's own repo** via the
+     harness registry (`internal/transcripts`) — one `Harness` per agent CLI,
+     merged by a pure `Select`. Today: Claude Code cwd dirs
+     (`~/.claude/projects/<encoded-cwd>`) + Codex session files
+     (`~/.codex/sessions/YYYY/MM/DD/*.jsonl`) whose `session_meta.cwd` matches one
+     of those repos. Harness-agnostic by design (a new agent CLI is one registry
+     entry). It does NOT scan unrelated cwd sessions: concurrent repo work
      inflates the count.
   3. Runs the native `activetime` engine (`--commit-weight 1.0 --threshold-min 15
      --include-assistant`, in-process — no python3) and prints the suggested
