@@ -516,3 +516,28 @@ quoted delimiter, yielding `illegal character U+005C`. Write Go source via the W
 never a shell heredoc.
 
 **Origin:** #125 — sdlc help text deriving lifecycle facts from the vocabulary model.
+
+## 2026-06-25 - Verify behavioral claims against real runtime data before redesigning around them — comments go stale (#131)
+
+**Pattern:** While spec'ing #131 (per-agent context meter from transcripts), a fresh-context spec
+reviewer flagged that claude's recorded sid "never rotates on `/clear`" — citing a code comment in
+`pair-cmux-title.sh` ("`/clear` rotates the file, leaving the cache pointed at the old jsonl"). I
+took the comment as ground truth and redesigned the read from "use the pinned sid" to "newest
+`*.jsonl` by mtime." That fix was a **regression**: the operator routinely runs multiple sessions
+per cwd, and `~/.claude/projects/<enc-cwd>/` is keyed by cwd only, so newest-by-mtime aliases
+co-located panes. Grepping real transcripts settled it the other way: compaction (`isCompactSummary`,
+998k→47k) and even reset-to-0 events **continue writing the same pinned `--session-id` file** (context
+rebuilt to 989k within one jsonl) — `/clear` does NOT rotate the file for pinned sessions. The comment
+was stale (pre-`--session-id`-pinning). The pinned sid was the correct, simpler key all along.
+
+**Rule:** A behavioral premise sourced from a **code comment** (or a reviewer quoting one) is a
+hypothesis, not a fact — verify it against real runtime artifacts (logs, transcripts, on-disk state)
+**before** you redesign around it, especially when the redesign trades away a property you already
+have (here: exact per-pane attribution). Comments describe the code *as it was when written*; they
+rot across refactors (the `--session-id` pinning post-dated this one). The check is cheap — one grep
+of the actual `.jsonl` — and it caught a regression that both the author and a fresh reviewer would
+otherwise have shipped. Same family as the §5 "verify before claiming" gate, applied to *inherited
+assumptions* rather than your own claims.
+
+**Origin:** #131 spec review round 3 — operator domain knowledge ("I run multiple from same cwd")
+triggered the empirical check that refuted the comment-sourced premise.
