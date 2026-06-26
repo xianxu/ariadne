@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-26
-estimate_hours:
+estimate_hours: 3.9
 started: 2026-06-26T15:57:18-07:00
 ---
 
@@ -61,17 +61,44 @@ one-agent patch.
   method source in one discoverable command output.
 - Atlas/helptext documents the harness abstraction and estimator-source contract.
 
+## Estimate
+
+Derived against `estimate-logic-v2` (brain `…/velocity/estimate-logic-v2.md`),
+low-end design per the Step-3 spec-quality discount (the durable plan is fully
+specced). Detail: `workshop/plans/000134-make-actuals-and-estimates-agent-robust-plan.md`.
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: smaller-go-module     design=0.2 impl=0.5
+item: smaller-go-module     design=0.0 impl=0.3
+item: atlas-docs            design=0.0 impl=0.2
+item: milestone-review      design=0.0 impl=0.4
+item: greenfield-go-module  design=0.4 impl=0.7
+item: smaller-go-module     design=0.1 impl=0.3
+item: atlas-docs            design=0.0 impl=0.2
+item: milestone-review      design=0.0 impl=0.4
+design-buffer: 0.30
+total: 3.9
+```
+
 ## Plan
 
-- [ ] Audit transcript-source selection for Claude, Codex, and future harness
-      extension points.
-- [ ] Add regression fixtures for Codex transcript variants and malformed input.
-- [ ] Harden commit-window ownership matching around documented subject forms.
-- [ ] Design and implement an estimator-source pointer/config surfaced during
-      planning and estimate validation.
-- [ ] Update `atlas/` and helptext with the resulting contracts.
-- [ ] Verify with `go test ./cmd/sdlc/...` and at least one real Codex `sdlc
-      actual --issue <N>` run.
+Full detail (TDD steps, exact paths, code) in
+`workshop/plans/000134-make-actuals-and-estimates-agent-robust-plan.md`.
+
+- [ ] **M1 — Measurement robustness** — extract `internal/transcripts` (Harness
+      registry + pure `Select`), move Claude/Codex selection behind it, add Codex
+      robustness fixtures (malformed / no-`session_meta` / empty), pin the
+      commit-window matcher (`#N` + `<area>: #N` accept, `docs: mention #N`
+      reject), rewire `actual.go`, document the harness contract in atlas/helptext.
+      Closes via `sdlc milestone-close --issue 134 --milestone M1`.
+- [ ] **M2 — Estimator-source pointer** — `sdlc estimate-source` pull command +
+      `start-plan`/`change-code` pushes naming the shared method (sdlc grammar +
+      `vocab.Models()`) and the repo-local calibration (`<brain>/…/velocity/<model>.md`,
+      `$WF_ESTIMATOR_SRC` override); DRY the brain path out of `close.go`; loud-fail
+      on missing source in the pull, warn-and-continue in the gates; document the
+      estimator-source contract. Closes via the full-issue `sdlc close`.
 
 ## Log
 
@@ -80,3 +107,22 @@ one-agent patch.
 - Filed after Codex dogfooding found that `sdlc actual` did not measure Codex
   sessions until `f62d099`, and that estimate-logic discovery depends on
   operator memory of the brain-local calibration path.
+- Planned (durable plan + `start-plan` arch lens). Scope split into two review
+  boundaries: M1 measurement-robustness (transcript-harness abstraction), M2
+  estimator-source pointer. Confirmed `f62d099` already made Codex *work*; this
+  issue makes it robust + discoverable (ARCH-PURPOSE). `sdlc claim` flipped status
+  locally but the origin push failed (SSH remote outside the sandbox network
+  allowlist) — claim committed locally, not yet broadcast.
+- `sdlc change-code`: estimate reconciled (Σdesign 0.7×1.30 + Σimpl 3.0 = 3.91 ≈
+  3.9); plan-quality judge **INFO**, estimate-quality judge **INFO** (both
+  non-blocking). Branch `000134-…` created in-place. Folded the judge's two
+  structural refinements into the plan: (1) ARCH-DRY — `estimate.VelocityPath` is
+  the single-source brain-path builder in the lower layer (both `close.go` and the
+  new `estimate-source` call it; no package-main mirror); (2) ARCH-PURE — split a
+  pure `codexCWDFromBytes([]byte)` tested directly on bytes from the `os.ReadFile`
+  seam. Done-when #2 (Codex-real) will cite `f62d099`'s parley.nvim #144 → 1.17h
+  evidence at close.
+- Concurrency note: #129 (default judges to current agent) and #130 (model
+  lifecycle in cue) are in-flight on neighbor surfaces; this issue only *reads*
+  `judge.ArchitectureBlock`/`estimate.Models()` and makes a one-line `close.go`
+  edit, so collision risk is low.
