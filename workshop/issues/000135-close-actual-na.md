@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-26
-estimate_hours:
+estimate_hours: 2.65
 started: 2026-06-26T18:16:39-07:00
 ---
 
@@ -56,8 +56,25 @@ Prefer a small closed set of valid sentinel spellings. `N/A` is the requested sp
 - [ ] Update calibration ledger handling.
 - [ ] Update help text.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+item: smaller-go-module design=0.2 impl=0.5
+item: smaller-go-module design=0.1 impl=0.5
+item: smaller-go-module design=0.1 impl=0.4
+item: atlas-docs design=0.1 impl=0.2
+item: milestone-review design=0.0 impl=0.4
+design-buffer: 0.30
+total: 2.65
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v2.md` against `baseline-v2.md`. Method A only; the calibration source is currently marked stale by `sdlc estimate-source`, so the estimate is provisional.
+
 ## Log
 
 ### 2026-06-26
+
+- Planning: claimed the issue, ran `sdlc start-plan --issue 135`, read `construct/vocabulary/issue.cue`, and wrote durable plan `workshop/plans/000135-close-actual-na-plan.md`. Architecture notes: use one N/A sentinel contract (`ARCH-DRY`), keep sentinel parsing/checking pure with close/validation as IO seams (`ARCH-PURE`), and cover schema, close, ledger, validation, and help/docs rather than only the writer (`ARCH-PURPOSE`).
 
 Created from pair#81 retro point 4. The observed bug was `sdlc close --no-actual` marking pair#72 done without `actual_hours`, leaving the issue schema-invalid. Desired direction from the user: allow `actual_hours` to be a number or an explicit string representing N/A.
