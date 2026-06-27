@@ -4,7 +4,7 @@
 
 **Goal:** Serialize local mutating `sdlc` transactions in one checkout with an SDLC-owned lock under `.git`.
 
-**Architecture:** Add one shared transaction-lock integration and wrap mutating Cobra commands at the command boundary. Keep lock-state parsing and stale/holder decisions pure, with filesystem/process details isolated in a thin adapter (`ARCH-PURE`), and drive all covered verbs through one command metadata hook instead of per-command ad hoc lock calls (`ARCH-DRY`). The scope covers every mutating verb named in the issue, with read-only verbs explicitly left lock-free (`ARCH-PURPOSE`). Review-bearing commands (`close`, `milestone-close`, `merge`, `push`) deliberately hold the coarse repo transaction lock across their synchronous judges because those judges can dirty tracked files; the default wait timeout is sized for that long-held case and status messages tell quick commands that a review/ship transaction is in progress.
+**Architecture:** Add one shared transaction-lock integration and wrap mutating Cobra commands at the command boundary. Keep lock-state parsing and stale/holder decisions pure, with filesystem/process details isolated in a thin adapter (`ARCH-PURE`), and drive all covered verbs through one command metadata hook instead of per-command ad hoc lock calls (`ARCH-DRY`). The scope covers every mutating verb named in the issue, with read-only verbs explicitly left lock-free (`ARCH-PURPOSE`). Review-bearing commands (`change-code`, `close`, `milestone-close`, `merge`, `push`) deliberately hold the coarse repo transaction lock across their synchronous judges because those judges can dirty tracked files or precede branch/git mutation; the default wait timeout is sized for that long-held case and status messages tell quick commands that a review/ship transaction is in progress. The lock uses the Git common dir, so linked worktrees of the same repo serialize with each other; that is intentional because they share the issue namespace, object store, and remote refs that the motivating races touched.
 
 **Tech Stack:** Go, Cobra, stdlib filesystem/process APIs, existing `cmd/sdlc` test harnesses.
 
@@ -34,7 +34,7 @@
   - **Relationships:** 1:1 with each mutating leaf command.
   - **DRY rationale:** The root persistent wrapper can enforce the lock from command metadata; command bodies stay focused on workflow logic.
   - **Future extensions:** Add command groups or lock modes if a later verb needs a different resource.
-  - **Invariant:** Locking belongs at the Cobra command boundary. Internal calls to `run*` helpers must not acquire a second process lock; `withRepoTransactionLock` is also in-process re-entrant so a future nested Cobra dispatch in the same process is a no-op instead of a self-deadlock.
+  - **Invariant:** Locking belongs at the Cobra command boundary. Internal calls to `run*` helpers must not acquire a second process lock; `withRepoTransactionLock` is also command-context re-entrant so a future nested Cobra dispatch inheriting the parent `cmd.Context()` is a no-op instead of a self-deadlock. Independent Cobra executions in the same process must use independent contexts and therefore still serialize on the filesystem lock.
 
 ### Integration Points
 
@@ -46,7 +46,7 @@
 - **RepoLock** - acquires `.git/sdlc.lock` with `mkdir`, writes metadata, waits with timeout/status messages, removes on release, and installs best-effort signal cleanup.
   - **Injected into:** Tests inject root dir, clock, sleeper, PID/hostname/process checks; production uses stdlib adapters.
   - **Future extensions:** More precise stale cleanup or lock breaking can live here without touching command code.
-  - **Timeout policy:** Default wait timeout is 30 minutes, not a short Git-index timeout, because `close`/`milestone-close`/`merge`/`push` can hold the transaction while synchronous LLM judges run and while their outputs are committed/amended. Timeout errors must say the lock may be a long-running review/ship transaction and include the recovery path.
+  - **Timeout policy:** Default wait timeout is 30 minutes, not a short Git-index timeout, because `change-code`/`close`/`milestone-close`/`merge`/`push` can hold the transaction while synchronous LLM judges run and while their outputs are committed/amended. Timeout errors must say the lock may be a long-running review/ship transaction and include the recovery path.
 
 - **withRepoTransactionLock** - root-level wrapper that inspects the leaf command metadata and runs the command under `RepoLock` only when needed.
   - **Injected into:** Cobra `RunE` wrapping during root construction.
@@ -160,6 +160,7 @@ Assert these commands are not lock-marked:
 - `issue show`
 - `issue validate`
 - `state`
+- `start-plan`
 - `actual`
 - `active-time`
 - `judge`
@@ -184,7 +185,7 @@ Use Cobra annotations or command context instead of string-matching command name
 
 In `buildRoot`, wrap each command tree after construction so a mutating leaf acquires the lock before its existing `RunE` runs. Resolve the git common dir through the existing `gitx.Capture("rev-parse", "--git-common-dir")` plumbing and fall back to `.git` only when appropriate. Do not lock read-only commands.
 
-The wrapper must be in-process re-entrant: if the current process already holds a repo transaction lock, nested acquisition returns a no-op release function. Document this in `withRepoTransactionLock` so future maintainers do not push locking into `run*` helpers and self-deadlock.
+The wrapper must be command-context re-entrant: if the current `cmd.Context()` carries the held-lock marker from a parent command dispatch, nested acquisition returns a no-op release function. A separate Cobra execution in another goroutine must use a fresh context and still serialize on the filesystem lock. Document this in `withRepoTransactionLock` so future maintainers do not push locking into `run*` helpers and self-deadlock.
 
 - [ ] **Step 4: Verify metadata and wrapper behavior**
 
@@ -194,7 +195,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Verify re-entrant command wrapping**
 
-Add a focused test that simulates a mutating command invoking another marked command through Cobra in the same process and asserts the second acquisition is a no-op rather than a timeout. Also assert existing helper-level re-entry paths (`fetch` calling `runIssueNew`, `milestone-close` calling `runClose`) do not acquire twice.
+Add a focused test that simulates a mutating command invoking another marked command through Cobra with the inherited parent `cmd.Context()` and asserts the second acquisition is a no-op rather than a timeout. Also assert existing helper-level re-entry paths (`fetch` calling `runIssueNew`, `milestone-close` calling `runClose`) do not acquire twice.
 
 Run: `go test ./cmd/sdlc -run 'RepoLock|Reentrant|Fetch|Milestone'`
 
@@ -208,10 +209,12 @@ Expected: PASS.
 
 - [ ] **Step 1: Write a failing same-checkout concurrency test**
 
-Create a temp git repo with a local bare origin and run two `sdlc issue new` command executions concurrently through the Cobra command path, not by calling `runIssueNew` directly. Assert:
+Create a temp git repo with a local bare origin and run two `sdlc issue new` command executions concurrently through the Cobra command path with independent command contexts, not by calling `runIssueNew` directly. Assert:
 - both commands complete without `.git/index.lock` failures.
 - allocated issue IDs are distinct.
 - stderr contains at least one lock wait/status line.
+
+Run this in one checkout. Add a separate, smaller test for two linked worktrees only if the common-dir resolution path is not otherwise pinned: both worktrees should resolve the same `.git/sdlc.lock` under the Git common dir and therefore serialize.
 
 Run: `go test ./cmd/sdlc -run TestRepoLockConcurrentIssueNew -count=1`
 
@@ -247,9 +250,12 @@ Expected: PASS.
 Document:
 - mutating commands take a local repo transaction lock in `.git/sdlc.lock`.
 - wait messages show pid/command when metadata is available.
-- close/milestone-close/merge/push may hold the lock for a long-running review/ship transaction; quick commands should wait or retry instead of removing the lock.
+- change-code/close/milestone-close/merge/push may hold the lock for a long-running review/ship transaction; quick commands should wait or retry instead of removing the lock.
+- linked worktrees for the same repo share the lock through `git rev-parse --git-common-dir`.
 - stale/timeout errors tell the operator how to inspect/remove the lock.
 - remote push/ref races remain separate and still need retry guidance.
+
+For Done-when #6, add one focused non-regression assertion around existing push/merge retry guidance if an existing unit test can cover it without a heavy e2e; otherwise log why the existing push/merge tests already exercise that path.
 
 - [ ] **Step 2: Add helptext drift tests if existing tests do not cover the new text**
 
