@@ -16,6 +16,7 @@ import (
 const LockRelPath = ".git/sdlc.lock"
 const metadataFile = "meta.json"
 const defaultPollInterval = 250 * time.Millisecond
+const metadataInitGrace = 2 * time.Second
 
 type Metadata struct {
 	PID       int       `json:"pid"`
@@ -86,7 +87,6 @@ const (
 	ObservationActive ObservationKind = iota
 	ObservationStaleMissingProcess
 	ObservationStaleAge
-	ObservationUnreadable
 )
 
 type Observation struct {
@@ -136,10 +136,12 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 	opts = opts.withDefaults()
 	lockDir := filepath.Join(opts.GitCommonDir, "sdlc.lock")
 	deadline := opts.Now().Add(opts.WaitTimeout)
+	initDeadline := time.Time{}
 	reported := false
 	for {
 		err := os.Mkdir(lockDir, 0o700)
 		if err == nil {
+			initDeadline = time.Time{}
 			meta := Metadata{
 				PID:       opts.PID,
 				Hostname:  opts.Hostname,
@@ -162,9 +164,26 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 
 		holder, readErr := readMetadata(lockDir)
 		if readErr != nil {
-			return nil, fmt.Errorf("sdlc repo lock at %s is unreadable: %v; inspect %s and remove it only if no transaction is running", LockRelPath, readErr, lockDir)
+			if initDeadline.IsZero() {
+				initDeadline = opts.Now().Add(metadataInitGrace)
+			}
+			if opts.Now().Before(initDeadline) {
+				if err := opts.Sleep(ctx, opts.PollInterval); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			return nil, fmt.Errorf("sdlc repo lock at %s is unreadable after initialization grace: %v; inspect %s and remove it only if no transaction is running", LockRelPath, readErr, lockDir)
 		}
+		initDeadline = time.Time{}
 		obs := Observe(holder, opts.Now(), opts.Hostname, opts.ProcessAlive, opts.StaleDuration)
+		if obs.Kind == ObservationStaleMissingProcess {
+			if err := os.RemoveAll(lockDir); err != nil {
+				return nil, fmt.Errorf("%s; additionally failed to remove stale lock %s: %w", obs.Message, lockDir, err)
+			}
+			reported = false
+			continue
+		}
 		if obs.Kind != ObservationActive {
 			return nil, fmt.Errorf("%s", obs.Message)
 		}

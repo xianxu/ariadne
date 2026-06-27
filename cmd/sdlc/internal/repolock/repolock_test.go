@@ -214,7 +214,7 @@ func TestAcquireWaitsAndReportsHolder(t *testing.T) {
 	}
 }
 
-func TestAcquireReportsStaleLockWithoutRemovingIt(t *testing.T) {
+func TestAcquireReclaimsDeadSameHostHolder(t *testing.T) {
 	gitDir := filepath.Join(t.TempDir(), ".git")
 	lockDir := filepath.Join(gitDir, "sdlc.lock")
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
@@ -225,7 +225,7 @@ func TestAcquireReportsStaleLockWithoutRemovingIt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := Acquire(context.Background(), Options{
+	lock, err := Acquire(context.Background(), Options{
 		GitCommonDir:  gitDir,
 		Command:       "sdlc claim",
 		Hostname:      "host-a",
@@ -237,13 +237,128 @@ func TestAcquireReportsStaleLockWithoutRemovingIt(t *testing.T) {
 		WaitTimeout:   time.Second,
 		StaleDuration: time.Hour,
 	})
-	if err == nil {
-		t.Fatal("Acquire should report stale lock")
+	if err != nil {
+		t.Fatalf("Acquire should reclaim dead same-host holder: %v", err)
 	}
-	if !strings.Contains(err.Error(), "stale sdlc repo lock") || !strings.Contains(err.Error(), ".git/sdlc.lock") {
-		t.Fatalf("stale error missing recovery details: %v", err)
+	defer func() { _ = lock.Release() }()
+	data, err := os.ReadFile(filepath.Join(lockDir, "meta.json"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, statErr := os.Stat(lockDir); statErr != nil {
-		t.Fatalf("stale lock should not be removed automatically: %v", statErr)
+	meta, err := Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Command != "sdlc claim" || meta.PID != 999 {
+		t.Fatalf("metadata was not replaced after reclaim: %+v", meta)
+	}
+}
+
+func TestAcquireWaitsForInitializingMetadata(t *testing.T) {
+	gitDir := filepath.Join(t.TempDir(), ".git")
+	lockDir := filepath.Join(gitDir, "sdlc.lock")
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	var sleeps int
+	lock, err := Acquire(context.Background(), Options{
+		GitCommonDir: gitDir,
+		Command:      "sdlc claim",
+		Hostname:     "host-a",
+		PID:          999,
+		Now:          func() time.Time { return now },
+		ProcessAlive: func(int) bool { return true },
+		Sleep: func(context.Context, time.Duration) error {
+			sleeps++
+			now = now.Add(100 * time.Millisecond)
+			if sleeps == 1 {
+				if err := os.RemoveAll(lockDir); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		Stderr:        &bytes.Buffer{},
+		WaitTimeout:   time.Second,
+		StaleDuration: time.Hour,
+		PollInterval:  100 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("Acquire should wait through missing metadata: %v", err)
+	}
+	defer func() { _ = lock.Release() }()
+	if sleeps == 0 {
+		t.Fatal("Acquire did not wait for initializing metadata")
+	}
+}
+
+func TestConcurrentAcquireSerializesRealMkdirLock(t *testing.T) {
+	gitDir := filepath.Join(t.TempDir(), ".git")
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	first, err := Acquire(context.Background(), Options{
+		GitCommonDir:  gitDir,
+		Command:       "sdlc issue new",
+		Hostname:      "host-a",
+		PID:           111,
+		Now:           time.Now,
+		ProcessAlive:  func(int) bool { return true },
+		Stderr:        &bytes.Buffer{},
+		WaitTimeout:   time.Second,
+		StaleDuration: time.Hour,
+		PollInterval:  10 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("first Acquire err: %v", err)
+	}
+
+	waiting := make(chan struct{}, 1)
+	done := make(chan error, 1)
+	go func() {
+		second, err := Acquire(context.Background(), Options{
+			GitCommonDir: gitDir,
+			Command:      "sdlc claim",
+			Hostname:     "host-a",
+			PID:          222,
+			Now:          time.Now,
+			ProcessAlive: func(int) bool { return true },
+			Sleep: func(ctx context.Context, d time.Duration) error {
+				select {
+				case waiting <- struct{}{}:
+				default:
+				}
+				timer := time.NewTimer(d)
+				defer timer.Stop()
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-timer.C:
+					return nil
+				}
+			},
+			Stderr:        &bytes.Buffer{},
+			WaitTimeout:   time.Second,
+			StaleDuration: time.Hour,
+			PollInterval:  10 * time.Millisecond,
+		})
+		if err != nil {
+			done <- err
+			return
+		}
+		done <- second.Release()
+	}()
+
+	select {
+	case <-waiting:
+	case <-time.After(time.Second):
+		t.Fatal("second Acquire did not wait on first holder")
+	}
+	if err := first.Release(); err != nil {
+		t.Fatalf("first Release err: %v", err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("second Acquire/Release err: %v", err)
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 // ── ANSI colors ──────────────────────────────────────────────────────────────
@@ -49,7 +50,40 @@ func cwarn(w io.Writer, msg string) { fmt.Fprintf(w, "  %s[!]%s %s\n", ansiYello
 // exactly as a function; the var-vs-func distinction is invisible to them.
 var die = func(stderr io.Writer, msg string) {
 	fmt.Fprintf(stderr, "%sError: %s%s\n", ansiRed, msg, ansiReset)
+	runDieCleanups()
 	os.Exit(1)
+}
+
+var dieCleanupRegistry = struct {
+	sync.Mutex
+	next int
+	fns  map[int]func()
+}{fns: map[int]func(){}}
+
+func registerDieCleanup(fn func()) func() {
+	dieCleanupRegistry.Lock()
+	defer dieCleanupRegistry.Unlock()
+	dieCleanupRegistry.next++
+	id := dieCleanupRegistry.next
+	dieCleanupRegistry.fns[id] = fn
+	return func() {
+		dieCleanupRegistry.Lock()
+		defer dieCleanupRegistry.Unlock()
+		delete(dieCleanupRegistry.fns, id)
+	}
+}
+
+func runDieCleanups() {
+	dieCleanupRegistry.Lock()
+	fns := make([]func(), 0, len(dieCleanupRegistry.fns))
+	for id, fn := range dieCleanupRegistry.fns {
+		fns = append(fns, fn)
+		delete(dieCleanupRegistry.fns, id)
+	}
+	dieCleanupRegistry.Unlock()
+	for _, fn := range fns {
+		fn()
+	}
 }
 
 // ── small-string helpers ─────────────────────────────────────────────────────

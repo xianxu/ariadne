@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -74,12 +75,18 @@ func withRepoTransactionLock(cmd *cobra.Command, run func() error) error {
 	if err != nil {
 		return err
 	}
+	var releaseOnce sync.Once
+	releaseFn := func() {
+		releaseOnce.Do(func() {
+			_ = release()
+		})
+	}
+	unregisterDieCleanup := registerDieCleanup(releaseFn)
 	lockedCtx := context.WithValue(ctx, repoLockContextKey{}, true)
 	cmd.SetContext(lockedCtx)
 	defer cmd.SetContext(ctx)
-	defer func() {
-		_ = release()
-	}()
+	defer unregisterDieCleanup()
+	defer releaseFn()
 	return run()
 }
 

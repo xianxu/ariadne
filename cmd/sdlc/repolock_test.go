@@ -152,6 +152,28 @@ func TestWithRepoTransactionLockIsContextReentrantOnly(t *testing.T) {
 	}
 }
 
+func TestWithRepoTransactionLockRegistersDieCleanup(t *testing.T) {
+	cmd := markMutatingCommand(&cobra.Command{Use: "claim"})
+	var released int
+	restore := stubRepoLockAcquire(t, func(*cobra.Command) (func() error, error) {
+		return func() error {
+			released++
+			return nil
+		}, nil
+	})
+	defer restore()
+
+	if err := withRepoTransactionLock(cmd, func() error {
+		runDieCleanups()
+		return nil
+	}); err != nil {
+		t.Fatalf("withRepoTransactionLock err: %v", err)
+	}
+	if released != 1 {
+		t.Fatalf("die cleanup + normal defer released %d times, want exactly 1", released)
+	}
+}
+
 func TestWrapRepoLockCommandsWrapsRunE(t *testing.T) {
 	var acquired int
 	restore := stubRepoLockAcquire(t, func(*cobra.Command) (func() error, error) {

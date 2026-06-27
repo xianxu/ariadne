@@ -1,12 +1,13 @@
 ---
 id: 000132
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-27
 estimate_hours: 6.24
 started: 2026-06-27T11:24:51-07:00
+actual_hours: 0.53
 ---
 
 # sdlc repo transaction lock
@@ -83,6 +84,7 @@ total: 6.24
 Created from pair#81 / pair#72 retro. The triggering incident was agent-caused parallel `sdlc issue new`, but the robust fix belongs in `sdlc`: serialize local mutating transactions with an SDLC-owned lock in `.git`.
 
 ### 2026-06-27
+- 2026-06-27: closed — sdlc issue validate --issue 132; go test ./cmd/sdlc/internal/repolock; go test ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|Helptext' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: REWORK
 
 Claimed and entered planning. Durable plan saved at `workshop/plans/000132-sdlc-repo-lock-plan.md`. Design shape: one shared repo-lock helper plus root-level Cobra wrapping so mutating leaves share a transaction boundary (`ARCH-DRY`), pure lock metadata/stale decisions stay separated from filesystem/process IO (`ARCH-PURE`), and every mutating verb named in the issue is covered while read-only verbs stay lock-free (`ARCH-PURPOSE`).
 
@@ -91,3 +93,5 @@ Plan-quality gate returned FAILURE before implementation. Updated the plan to ma
 Second plan-quality gate returned FAILURE on the re-entrancy wording: process-global re-entrancy would incorrectly let independent same-process concurrent commands skip serialization. Updated the plan to require command-context scoped re-entrancy (nested dispatch inherits context; independent executions use fresh contexts and serialize), added `change-code` to the long-running holder set, and made Git-common-dir cross-worktree serialization explicit.
 
 Implemented the repo transaction lock. Added `cmd/sdlc/internal/repolock` for pure metadata/stale observation plus the thin `mkdir`/`meta.json` acquire-release shell (`ARCH-PURE`), and `cmd/sdlc/repolock.go` for one root-level Cobra wrapper driven by command annotations (`ARCH-DRY`). Mutating leaves are marked in their constructors; read-only leaves are asserted lock-free. The lock resolves through Git common dir, so linked worktrees serialize intentionally (`ARCH-PURPOSE`). Verification passed: `go test ./cmd/sdlc/internal/repolock`; `go test ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|Helptext' -count=1`; `go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...`.
+
+Boundary review returned REWORK. Fixed the reviewed lock-liveness bugs: `die()` now drains a cleanup registry before `os.Exit`, the wrapper registers an idempotent release while holding a lock, confirmed-dead same-host holders are reclaimed automatically, and waiters poll through the mkdir-before-`meta.json` initialization window. Added real concurrent `Acquire` coverage in addition to the Cobra-level serialization tests.

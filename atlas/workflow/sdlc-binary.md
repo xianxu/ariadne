@@ -68,9 +68,12 @@ push/ref races still surface through the existing push/merge retry guidance.
 `change-code`, `close`, `milestone-close`, `merge`, and `push` may hold the lock
 while synchronous judges run. Their wait/timeout messages call this out as a
 long-running review/ship transaction; quick commands should wait or retry
-instead of deleting a live lock. Stale detection is conservative: a same-host
-missing pid or an over-age holder produces recovery guidance, but the command
-does not silently remove the lock.
+instead of deleting a live lock. Recovery is conservative but not wedging:
+`die()` drains the active lock cleanup registry before `os.Exit`, missing
+`meta.json` during the tiny mkdir-before-write window is treated as holder
+initialization and polled through, and a confirmed-dead same-host holder is
+reclaimed automatically. Cross-host or over-age uncertainty still produces
+operator-facing recovery guidance rather than silent deletion.
 
 ## Progressive disclosure
 

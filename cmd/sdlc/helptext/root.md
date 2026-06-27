@@ -35,9 +35,10 @@ LOCAL REPO TRANSACTION LOCK
     available. `change-code`, `close`, `milestone-close`, `merge`, and `push`
     can hold the lock during long-running review/ship transactions; wait or
     retry rather than removing the lock while that process is alive.
-  - Stale/timeout errors tell you how to inspect `.git/sdlc.lock`. Remote
-    push/ref races are separate: the local lock serializes this checkout, not
-    another machine or clone.
+  - A dead same-host holder is reclaimed automatically; initializing metadata
+    is waited through. Other stale/timeout errors tell you how to inspect
+    `.git/sdlc.lock`. Remote push/ref races are separate: the local lock
+    serializes this checkout, not another machine or clone.
 
 WHEN A VERB ERRORS
   Do NOT route around it with hand-rolled `git`/`gh`. Its errors are next-action

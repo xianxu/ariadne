@@ -286,3 +286,19 @@ Expected: PASS.
 Run two local `sdlc issue new --dry-run` or temp-repo command invocations concurrently if the test path does not already execute the real binary path. Confirm the lock wait/status line appears and no Git lock error appears.
 
 Expected: serialized execution with holder metadata.
+
+## Revisions
+
+### 2026-06-27 — Boundary review REWORK recovery fixes
+
+Reason: the boundary review found that `die()` calls `os.Exit`, which skips the
+wrapper's deferred release, and that waiters could observe the lock directory
+before `meta.json` was written.
+
+Delta: add an active-lock cleanup registry drained by `die()` before `os.Exit`;
+make release idempotent in the wrapper; add real concurrent `Acquire` coverage;
+auto-reclaim confirmed-dead same-host holders; treat missing/partial metadata as
+holder initialization during a short grace window instead of an immediate
+unreadable-lock failure. This revises the original "never auto-remove" stance:
+cross-host and age uncertainty still fail with recovery guidance, but a dead
+same-host pid is safe to reclaim.
