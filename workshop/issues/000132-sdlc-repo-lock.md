@@ -7,7 +7,7 @@ created: 2026-06-26
 updated: 2026-06-27
 estimate_hours: 6.24
 started: 2026-06-27T11:24:51-07:00
-actual_hours: 0.85
+actual_hours: 1.02
 ---
 
 # sdlc repo transaction lock
@@ -84,6 +84,7 @@ total: 6.24
 Created from pair#81 / pair#72 retro. The triggering incident was agent-caused parallel `sdlc issue new`, but the robust fix belongs in `sdlc`: serialize local mutating transactions with an SDLC-owned lock in `.git`.
 
 ### 2026-06-27
+- 2026-06-27: closed — Re-close after raw-exit cleanup fix: sdlc issue validate --issue 132; go test -race ./cmd/sdlc/internal/repolock; go test -race ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|LockedCommandFilesAvoidRawOSExit' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: FIX-THEN-SHIP
 - 2026-06-27: closed — Re-close after race/reclaim fixes: sdlc issue validate --issue 132; go test -race ./cmd/sdlc/internal/repolock; go test -race ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: REWORK
 - 2026-06-27: closed — Re-close after REWORK fixes: sdlc issue validate --issue 132; go test ./cmd/sdlc/internal/repolock; go test ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|Helptext' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: REWORK
 - 2026-06-27: closed — sdlc issue validate --issue 132; go test ./cmd/sdlc/internal/repolock; go test ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|Helptext' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: REWORK

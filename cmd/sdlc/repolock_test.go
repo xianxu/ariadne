@@ -57,10 +57,23 @@ func TestRepoLockCommandMetadata(t *testing.T) {
 	if commandNeedsRepoLock(root) {
 		t.Fatal("root command should not require repo lock")
 	}
+	// propagate-base mutates downstream repos through git -C <peer>; it is
+	// intentionally outside this checkout's git-common-dir lock.
 }
 
 func TestLockedCommandFilesAvoidRawOSExit(t *testing.T) {
-	for _, path := range []string{"close.go", "changecode.go", "push.go"} {
+	for _, path := range []string{
+		"claim.go",
+		"changecode.go",
+		"close.go",
+		"fetch.go",
+		"issue.go",
+		"merge.go",
+		"milestoneclose.go",
+		"pr.go",
+		"push.go",
+		"setstatus.go",
+	} {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)

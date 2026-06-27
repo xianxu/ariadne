@@ -16,6 +16,9 @@ import (
 
 const LockRelPath = ".git/sdlc.lock"
 const metadataFile = "meta.json"
+const DefaultWaitTimeout = 30 * time.Minute
+const DefaultStaleDuration = 2 * time.Hour
+
 const defaultPollInterval = 250 * time.Millisecond
 const metadataInitGrace = 2 * time.Second
 
@@ -272,10 +275,10 @@ func (o Options) withDefaults() Options {
 		}
 	}
 	if o.WaitTimeout <= 0 {
-		o.WaitTimeout = 30 * time.Minute
+		o.WaitTimeout = DefaultWaitTimeout
 	}
 	if o.StaleDuration <= 0 {
-		o.StaleDuration = 2 * time.Hour
+		o.StaleDuration = DefaultStaleDuration
 	}
 	if o.PollInterval <= 0 {
 		o.PollInterval = defaultPollInterval

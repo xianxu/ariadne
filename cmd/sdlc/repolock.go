@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -98,16 +97,14 @@ func acquireRepoLockForCommand(cmd *cobra.Command) (func() error, error) {
 	host, _ := os.Hostname()
 	cwd, _ := os.Getwd()
 	lock, err := repolock.Acquire(cmd.Context(), repolock.Options{
-		GitCommonDir:  gitDir,
-		Command:       cmd.CommandPath(),
-		Args:          os.Args,
-		Hostname:      host,
-		PID:           os.Getpid(),
-		CWD:           cwd,
-		ProcessAlive:  processAlive,
-		Stderr:        cmd.ErrOrStderr(),
-		WaitTimeout:   30 * time.Minute,
-		StaleDuration: 2 * time.Hour,
+		GitCommonDir: gitDir,
+		Command:      cmd.CommandPath(),
+		Args:         os.Args,
+		Hostname:     host,
+		PID:          os.Getpid(),
+		CWD:          cwd,
+		ProcessAlive: processAlive,
+		Stderr:       cmd.ErrOrStderr(),
 	})
 	if err != nil {
 		return nil, err
