@@ -22,6 +22,14 @@ judges can dispatch the wrong stack unless the operator remembers to pass
 The fresh-context review property should mean "new context for the same agent
 stack by default", not "always Claude unless manually overridden".
 
+Alternatively, we may have a configuration to drive such selection strategy, maybe:
+
+- "same": use same coding agent as main
+- "different": use different one, so codex main agent would use claude; claude main would use codex subagent. we do need to think generic case if we have N how to configure, maybe the next:
+- "explicit": which is a string of: codex:claude,claude:codex etc. basically codex:claude means if codex is main, use claude as subagent.
+
+The prose should be driven by the above configuration.
+
 ## Spec
 
 Centralize judge-agent default resolution so every `sdlc` subagent review uses
