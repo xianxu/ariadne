@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-27
-estimate_hours:
+estimate_hours: 6.24
 started: 2026-06-27T11:24:51-07:00
 ---
 
@@ -55,6 +55,19 @@ The lock should prevent invalid interleavings like two `issue new` calls allocat
 - [ ] Read-only verbs such as `sdlc issue list/show`, `sdlc state`, `sdlc actual`, and `sdlc judge --dry-run` do not take the lock.
 - [ ] Remote push/ref races still produce precise retry guidance.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v2
+familiarity: 1.0
+item: greenfield-go-module design=0.6 impl=1.2
+item: smaller-go-module design=0.4 impl=1.4
+item: cross-cutting-refactor design=0.7 impl=1.1
+item: atlas-docs design=0.1 impl=0.2
+design-buffer: 0.30
+total: 6.24
+```
+
 ## Plan
 
 - [ ] Identify every `sdlc` verb that mutates repo state.
@@ -68,3 +81,7 @@ The lock should prevent invalid interleavings like two `issue new` calls allocat
 ### 2026-06-26
 
 Created from pair#81 / pair#72 retro. The triggering incident was agent-caused parallel `sdlc issue new`, but the robust fix belongs in `sdlc`: serialize local mutating transactions with an SDLC-owned lock in `.git`.
+
+### 2026-06-27
+
+Claimed and entered planning. Durable plan saved at `workshop/plans/000132-sdlc-repo-lock-plan.md`. Design shape: one shared repo-lock helper plus root-level Cobra wrapping so mutating leaves share a transaction boundary (`ARCH-DRY`), pure lock metadata/stale decisions stay separated from filesystem/process IO (`ARCH-PURE`), and every mutating verb named in the issue is covered while read-only verbs stay lock-free (`ARCH-PURPOSE`).
