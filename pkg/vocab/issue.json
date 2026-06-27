@@ -45,7 +45,7 @@
             "to": "done",
             "event": "close",
             "guards": [
-                "actual-measured",
+                "actual-recorded",
                 "verified",
                 "atlas-updated"
             ]
@@ -55,7 +55,7 @@
             "to": "done",
             "event": "close",
             "guards": [
-                "actual-measured",
+                "actual-recorded",
                 "verified",
                 "atlas-updated"
             ]

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
@@ -318,6 +319,10 @@ func TestFrontmatterAppend_FieldAbsent(t *testing.T) {
 }
 
 func TestRunClose_NoActualWritesNotApplicableSentinel(t *testing.T) {
+	repoRoot, err := gitx.RepoTopLevel()
+	if err != nil {
+		t.Fatal(err)
+	}
 	issuesDir := closeRepo(t, 135)
 	f := &closeFlags{
 		Issue:     135,
@@ -340,6 +345,22 @@ func TestRunClose_NoActualWritesNotApplicableSentinel(t *testing.T) {
 	}
 	if strings.Contains(text, "actual_hours:\n") {
 		t.Fatalf("actual_hours remained blank:\n%s", text)
+	}
+	if _, err := exec.LookPath("cue"); err != nil {
+		t.Skip("cue not on PATH")
+	}
+	fm, _, err := issue.Parse(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dataPath := filepath.Join(t.TempDir(), "issue.yaml")
+	if err := os.WriteFile(dataPath, []byte(fm+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	schemaPath := filepath.Join(repoRoot, "construct", "vocabulary", "issue.cue")
+	cmd := exec.Command("cue", "vet", "-d", "#Issue", dataPath, schemaPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("closed issue frontmatter does not conform to #Issue: %v\n%s", err, out)
 	}
 }
 

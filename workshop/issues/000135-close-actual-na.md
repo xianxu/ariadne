@@ -1,12 +1,13 @@
 ---
 id: 000135
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-26
 estimate_hours: 2.65
 started: 2026-06-26T18:16:39-07:00
+actual_hours: 0.76
 ---
 
 # sdlc close actual not applicable
@@ -74,6 +75,9 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v2.md` against `ba
 ## Log
 
 ### 2026-06-26
+- 2026-06-26: closed — go test ./... passes; synthetic N/A issue validates and unknown actual is rejected; sdlc issue validate --issue 135 passes; review verdict: FIX-THEN-SHIP
+
+- Boundary review follow-up: renamed the formal close guard to `actual-recorded`, regenerated vocabulary outputs, and extended the close test so generated `actual_hours: N/A` frontmatter vets against `#Issue`.
 
 - Implemented `actual_hours: N/A`: updated the CUE issue schema, close write path, calibration ledger parser/guard, CLI help, and atlas docs. Verification: targeted vocabulary/sdlc/estimate tests pass; synthetic `actual_hours: N/A` issue validates through both `vocabulary validate-instance` and `sdlc issue validate`, while `actual_hours: unknown` is rejected; `go test ./...` passes. `sdlc issue validate --all` still fails on unrelated pre-existing issue-structure gaps, but #135 conforms.
 

@@ -74,8 +74,8 @@ lifecycle: [...#Transition] & [
 	{from: "open", to: "working", event: "claim"},      // start work
 	{from: "working", to: "blocked", event: "block"},   // hit a dependency
 	{from: "blocked", to: "working", event: "unblock"}, // dependency cleared
-	{from: "working", to: "done", event: "close", guards: ["actual-measured", "verified", "atlas-updated"]},
-	{from: "blocked", to: "done", event: "close", guards: ["actual-measured", "verified", "atlas-updated"]},
+	{from: "working", to: "done", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
+	{from: "blocked", to: "done", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
 	{from: "working", to: "wontfix", event: "abandon"}, // rejected mid-flight
 	{from: "working", to: "punt", event: "defer"},      // deferred mid-flight
 	{from: "done", to: "working", event: "reopen"},     // re-open a closed issue
