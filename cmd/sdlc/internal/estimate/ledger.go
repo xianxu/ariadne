@@ -57,12 +57,28 @@ func ParseRows(text string) []LedgerRow {
 		if len(c) < 10 {
 			continue
 		}
+		est, ok := parseLedgerFloat(c[1])
+		if !ok {
+			continue
+		}
+		estDesign, ok := parseLedgerFloat(c[2])
+		if !ok {
+			continue
+		}
+		estImpl, ok := parseLedgerFloat(c[3])
+		if !ok {
+			continue
+		}
+		actual, ok := parseLedgerFloat(c[4])
+		if !ok {
+			continue
+		}
 		rows = append(rows, LedgerRow{
 			Issue:         c[0],
-			Estimate:      atof(c[1]),
-			EstDesign:     atof(c[2]),
-			EstImpl:       atof(c[3]),
-			Actual:        atof(c[4]),
+			Estimate:      est,
+			EstDesign:     estDesign,
+			EstImpl:       estImpl,
+			Actual:        actual,
 			Model:         c[6],
 			Mode:          undash(c[7]),
 			WindowTrusted: c[8] == "yes",
@@ -73,7 +89,10 @@ func ParseRows(text string) []LedgerRow {
 }
 
 func ftoa(v float64) string { return strconv.FormatFloat(v, 'f', 2, 64) }
-func atof(s string) float64 { v, _ := strconv.ParseFloat(s, 64); return v }
+func parseLedgerFloat(s string) (float64, bool) {
+	v, err := strconv.ParseFloat(s, 64)
+	return v, err == nil
+}
 
 func dash(s string) string {
 	if s == "" {

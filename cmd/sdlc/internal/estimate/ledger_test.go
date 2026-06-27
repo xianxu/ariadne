@@ -68,3 +68,12 @@ func TestParseRows_SkipsRaggedRows(t *testing.T) {
 		t.Fatalf("ragged (<10 col) row should be skipped; want 1 data row, got %d", len(got))
 	}
 }
+
+func TestParseRows_SkipsNotApplicableActualRows(t *testing.T) {
+	text := Header() + "\n" +
+		"ariadne#135\t2.00\t0.20\t1.80\tN/A\t-\testimate-logic-v2\t-\tyes\t2026-06-26\n" +
+		FormatRow(LedgerRow{Issue: "x", Estimate: 1, Actual: 1, Model: "estimate-logic-v2", Date: "2026-06-26"}) + "\n"
+	if got := ParseRows(text); len(got) != 1 {
+		t.Fatalf("N/A actual row should be skipped; got %d rows", len(got))
+	}
+}

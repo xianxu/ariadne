@@ -40,21 +40,21 @@ Prefer a small closed set of valid sentinel spellings. `N/A` is the requested sp
 
 ## Done when
 
-- [ ] Issue schema/vocabulary accepts `actual_hours` as either a number or the approved N/A sentinel.
-- [ ] `sdlc close --no-actual` writes a schema-valid closed issue with `actual_hours: N/A`.
-- [ ] `sdlc issue validate` passes on an issue closed with `--no-actual`.
-- [ ] Calibration ledger and drift logic skip N/A rows.
-- [ ] Invalid arbitrary strings in `actual_hours` still fail validation.
-- [ ] Help text documents the N/A close path and its velocity-calibration implication.
+- [x] Issue schema/vocabulary accepts `actual_hours` as either a number or the approved N/A sentinel.
+- [x] `sdlc close --no-actual` writes a schema-valid closed issue with `actual_hours: N/A`.
+- [x] `sdlc issue validate` passes on an issue closed with `--no-actual`.
+- [x] Calibration ledger and drift logic skip N/A rows.
+- [x] Invalid arbitrary strings in `actual_hours` still fail validation.
+- [x] Help text documents the N/A close path and its velocity-calibration implication.
 
 ## Plan
 
-- [ ] Locate the issue vocabulary/schema definition for `actual_hours`.
-- [ ] Update schema/model to permit numeric actuals or the approved N/A sentinel.
-- [ ] Update `sdlc close --no-actual` write path.
-- [ ] Update validation and close tests for numeric, N/A, missing, and invalid-string actuals.
-- [ ] Update calibration ledger handling.
-- [ ] Update help text.
+- [x] Locate the issue vocabulary/schema definition for `actual_hours`.
+- [x] Update schema/model to permit numeric actuals or the approved N/A sentinel.
+- [x] Update `sdlc close --no-actual` write path.
+- [x] Update validation and close tests for numeric, N/A, missing, and invalid-string actuals.
+- [x] Update calibration ledger handling.
+- [x] Update help text.
 
 ## Estimate
 
@@ -74,6 +74,8 @@ Produced via `brain/data/life/42shots/velocity/estimate-logic-v2.md` against `ba
 ## Log
 
 ### 2026-06-26
+
+- Implemented `actual_hours: N/A`: updated the CUE issue schema, close write path, calibration ledger parser/guard, CLI help, and atlas docs. Verification: targeted vocabulary/sdlc/estimate tests pass; synthetic `actual_hours: N/A` issue validates through both `vocabulary validate-instance` and `sdlc issue validate`, while `actual_hours: unknown` is rejected; `go test ./...` passes. `sdlc issue validate --all` still fails on unrelated pre-existing issue-structure gaps, but #135 conforms.
 
 - Planning: claimed the issue, ran `sdlc start-plan --issue 135`, read `construct/vocabulary/issue.cue`, and wrote durable plan `workshop/plans/000135-close-actual-na-plan.md`. Architecture notes: use one N/A sentinel contract (`ARCH-DRY`), keep sentinel parsing/checking pure with close/validation as IO seams (`ARCH-PURE`), and cover schema, close, ledger, validation, and help/docs rather than only the writer (`ARCH-PURPOSE`).
 

@@ -232,6 +232,7 @@ func TestValidateInstance_RejectsMalformations(t *testing.T) {
 		{"bad status value", "id: \"000001\"\nstatus: in-progress\n", "status", "not valid"},
 		{"statuss typo (status absent)", "id: \"000001\"\nstatuss: working\n", "", "required field is missing"},
 		{"done missing actual_hours", "id: \"000001\"\nstatus: done\n", "actual_hours", "required field is missing"},
+		{"done invalid actual string", "id: \"000001\"\nstatus: done\nactual_hours: unknown\n", "actual_hours", "not valid"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -257,20 +258,32 @@ func TestValidateInstance_RejectsMalformations(t *testing.T) {
 	}
 }
 
-// A fully valid issue passes end-to-end.
+// Valid issue frontmatter shapes pass end-to-end.
 func TestValidateInstance_ValidPasses(t *testing.T) {
 	if _, err := exec.LookPath("cue"); err != nil {
 		t.Skip("cue not on PATH")
 	}
 	schema := schemaT(t, "issue")
-	md := filepath.Join(t.TempDir(), "x.md")
-	os.WriteFile(md, []byte("---\nid: \"000001\"\nstatus: working\nestimate_hours: 2.0\ntarget: foo\n---\n# T\n"), 0o644)
-	diags, err := validateInstanceFile(osCue{}, md, schema, "issue")
-	if err != nil {
-		t.Fatal(err)
+	cases := []struct {
+		name string
+		fm   string
+	}{
+		{"working issue", "id: \"000001\"\nstatus: working\nestimate_hours: 2.0\ntarget: foo\n"},
+		{"done numeric actual", "id: \"000001\"\nstatus: done\nactual_hours: 1.25\n"},
+		{"done not applicable actual", "id: \"000001\"\nstatus: done\nactual_hours: N/A\n"},
 	}
-	if len(diags) != 0 {
-		t.Errorf("valid issue should pass, got %v", diags)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			md := filepath.Join(t.TempDir(), "x.md")
+			os.WriteFile(md, []byte("---\n"+c.fm+"---\n# T\n"), 0o644)
+			diags, err := validateInstanceFile(osCue{}, md, schema, "issue")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(diags) != 0 {
+				t.Errorf("valid issue should pass, got %v", diags)
+			}
+		})
 	}
 }
 
