@@ -4,7 +4,7 @@
 
 **Goal:** Serialize local mutating `sdlc` transactions in one checkout with an SDLC-owned lock under `.git`.
 
-**Architecture:** Add one shared transaction-lock integration and wrap mutating Cobra commands at the command boundary. Keep lock-state parsing and stale/holder decisions pure, with filesystem/process details isolated in a thin adapter (`ARCH-PURE`), and drive all covered verbs through one command metadata hook instead of per-command ad hoc lock calls (`ARCH-DRY`). The scope covers every mutating verb named in the issue, with read-only verbs explicitly left lock-free (`ARCH-PURPOSE`).
+**Architecture:** Add one shared transaction-lock integration and wrap mutating Cobra commands at the command boundary. Keep lock-state parsing and stale/holder decisions pure, with filesystem/process details isolated in a thin adapter (`ARCH-PURE`), and drive all covered verbs through one command metadata hook instead of per-command ad hoc lock calls (`ARCH-DRY`). The scope covers every mutating verb named in the issue, with read-only verbs explicitly left lock-free (`ARCH-PURPOSE`). Review-bearing commands (`close`, `milestone-close`, `merge`, `push`) deliberately hold the coarse repo transaction lock across their synchronous judges because those judges can dirty tracked files; the default wait timeout is sized for that long-held case and status messages tell quick commands that a review/ship transaction is in progress.
 
 **Tech Stack:** Go, Cobra, stdlib filesystem/process APIs, existing `cmd/sdlc` test harnesses.
 
@@ -34,6 +34,7 @@
   - **Relationships:** 1:1 with each mutating leaf command.
   - **DRY rationale:** The root persistent wrapper can enforce the lock from command metadata; command bodies stay focused on workflow logic.
   - **Future extensions:** Add command groups or lock modes if a later verb needs a different resource.
+  - **Invariant:** Locking belongs at the Cobra command boundary. Internal calls to `run*` helpers must not acquire a second process lock; `withRepoTransactionLock` is also in-process re-entrant so a future nested Cobra dispatch in the same process is a no-op instead of a self-deadlock.
 
 ### Integration Points
 
@@ -45,6 +46,7 @@
 - **RepoLock** - acquires `.git/sdlc.lock` with `mkdir`, writes metadata, waits with timeout/status messages, removes on release, and installs best-effort signal cleanup.
   - **Injected into:** Tests inject root dir, clock, sleeper, PID/hostname/process checks; production uses stdlib adapters.
   - **Future extensions:** More precise stale cleanup or lock breaking can live here without touching command code.
+  - **Timeout policy:** Default wait timeout is 30 minutes, not a short Git-index timeout, because `close`/`milestone-close`/`merge`/`push` can hold the transaction while synchronous LLM judges run and while their outputs are committed/amended. Timeout errors must say the lock may be a long-running review/ship transaction and include the recovery path.
 
 - **withRepoTransactionLock** - root-level wrapper that inspects the leaf command metadata and runs the command under `RepoLock` only when needed.
   - **Injected into:** Cobra `RunE` wrapping during root construction.
@@ -63,6 +65,7 @@
 Add table tests for:
 - metadata round-trips through the on-disk file format.
 - holder messages include pid and command.
+- holder messages identify known long-running review/ship commands as review/ship transactions.
 - same-host missing pid classifies as stale.
 - different-host missing pid does not auto-stale.
 - old lock age classifies as stale with a recovery message.
@@ -78,6 +81,7 @@ Implement:
 - `func Encode(Metadata) []byte`
 - `func Decode([]byte) (Metadata, error)`
 - `func HolderLine(Metadata) string`
+- `func IsLongRunningCommand(Metadata) bool`
 - `func Observe(meta Metadata, now time.Time, host string, processAlive func(int) bool, maxAge time.Duration) Observation`
 
 Keep filesystem calls out of these functions (`ARCH-PURE`).
@@ -99,6 +103,7 @@ Expected: PASS.
 Add tests for:
 - first acquire creates `.git/sdlc.lock` and writes metadata.
 - second acquire waits and emits a holder status line.
+- long-held review/ship locks emit wording that tells quick commands a review/ship transaction is in progress.
 - release removes the lock directory.
 - stale lock returns a clear recovery error and does not silently delete a live-looking lock.
 
@@ -110,7 +115,7 @@ Expected: FAIL because acquire/release are missing.
 
 - [ ] **Step 2: Implement `Acquire` and `Release`**
 
-Implement `Acquire(ctx, opts)` using `os.Mkdir(lockDir, 0700)` as the atomic operation. On success, write metadata. On `EEXIST`, read metadata, emit `waiting for sdlc repo lock held by ...`, wait with a bounded timeout, and return a recovery-oriented error for stale/unreadable/timeout states. `Release` removes the lock directory best-effort.
+Implement `Acquire(ctx, opts)` using `os.Mkdir(lockDir, 0700)` as the atomic operation. On success, write metadata. On `EEXIST`, read metadata, emit `waiting for sdlc repo lock held by ...`, wait with a 30-minute default timeout, and return a recovery-oriented error for stale/unreadable/timeout states. If the holder is a known review/ship command, the status/timeout wording must say a long-running review/ship transaction is in progress. `Release` removes the lock directory best-effort.
 
 - [ ] **Step 3: Verify the integration helper**
 
@@ -171,16 +176,27 @@ Expected: FAIL because no metadata exists.
 Add:
 - `func markMutatingCommand(*cobra.Command) *cobra.Command`
 - `func commandNeedsRepoLock(*cobra.Command) bool`
+- `func withRepoTransactionLock(*cobra.Command) error`
 
 Use Cobra annotations or command context instead of string-matching command names. Mark the leaf constructors directly so the mutation contract lives next to each command (`ARCH-DRY`).
 
 - [ ] **Step 3: Wrap `RunE` at registration time**
 
-In `buildRoot`, wrap each command tree after construction so a mutating leaf acquires the lock before its existing `RunE` runs. Resolve the git common dir with `git rev-parse --git-common-dir` and fall back to `.git` only when appropriate. Do not lock read-only commands.
+In `buildRoot`, wrap each command tree after construction so a mutating leaf acquires the lock before its existing `RunE` runs. Resolve the git common dir through the existing `gitx.Capture("rev-parse", "--git-common-dir")` plumbing and fall back to `.git` only when appropriate. Do not lock read-only commands.
+
+The wrapper must be in-process re-entrant: if the current process already holds a repo transaction lock, nested acquisition returns a no-op release function. Document this in `withRepoTransactionLock` so future maintainers do not push locking into `run*` helpers and self-deadlock.
 
 - [ ] **Step 4: Verify metadata and wrapper behavior**
 
 Run: `go test ./cmd/sdlc -run 'RepoLock|Command'`
+
+Expected: PASS.
+
+- [ ] **Step 5: Verify re-entrant command wrapping**
+
+Add a focused test that simulates a mutating command invoking another marked command through Cobra in the same process and asserts the second acquisition is a no-op rather than a timeout. Also assert existing helper-level re-entry paths (`fetch` calling `runIssueNew`, `milestone-close` calling `runClose`) do not acquire twice.
+
+Run: `go test ./cmd/sdlc -run 'RepoLock|Reentrant|Fetch|Milestone'`
 
 Expected: PASS.
 
@@ -231,6 +247,7 @@ Expected: PASS.
 Document:
 - mutating commands take a local repo transaction lock in `.git/sdlc.lock`.
 - wait messages show pid/command when metadata is available.
+- close/milestone-close/merge/push may hold the lock for a long-running review/ship transaction; quick commands should wait or retry instead of removing the lock.
 - stale/timeout errors tell the operator how to inspect/remove the lock.
 - remote push/ref races remain separate and still need retry guidance.
 
@@ -263,4 +280,3 @@ Expected: PASS.
 Run two local `sdlc issue new --dry-run` or temp-repo command invocations concurrently if the test path does not already execute the real binary path. Confirm the lock wait/status line appears and no Git lock error appears.
 
 Expected: serialized execution with holder metadata.
-
