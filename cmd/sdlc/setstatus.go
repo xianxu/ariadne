@@ -54,7 +54,7 @@ type setStatusFlags struct {
 // no shared-pointer aliasing. Use is "set-status" with a dash.
 func NewSetStatusCmd() *cobra.Command {
 	f := setStatusFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "set-status <status>",
 		Short:         "Flip an issue's status: with transition guards",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"set-status\") in main.go.",
@@ -64,7 +64,7 @@ func NewSetStatusCmd() *cobra.Command {
 			f.Status = args[0]
 			return runSetStatus(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (required)")
 	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass transition guards")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would change; do not write")

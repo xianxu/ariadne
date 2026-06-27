@@ -48,12 +48,12 @@ The lock should prevent invalid interleavings like two `issue new` calls allocat
 
 ## Done when
 
-- [ ] Mutating `sdlc` verbs acquire a repo-scoped SDLC transaction lock before reading/writing issue state or invoking git mutations.
-- [ ] Concurrent `sdlc issue new` invocations in the same checkout serialize instead of failing on `.git/index.lock` or allocating conflicting state.
-- [ ] Lock wait/status messages identify the holder command and pid when available.
-- [ ] Stale-lock behavior is tested or documented with a safe recovery path.
-- [ ] Read-only verbs such as `sdlc issue list/show`, `sdlc state`, `sdlc actual`, and `sdlc judge --dry-run` do not take the lock.
-- [ ] Remote push/ref races still produce precise retry guidance.
+- [x] Mutating `sdlc` verbs acquire a repo-scoped SDLC transaction lock before reading/writing issue state or invoking git mutations.
+- [x] Concurrent `sdlc issue new` invocations in the same checkout serialize instead of failing on `.git/index.lock` or allocating conflicting state.
+- [x] Lock wait/status messages identify the holder command and pid when available.
+- [x] Stale-lock behavior is tested or documented with a safe recovery path.
+- [x] Read-only verbs such as `sdlc issue list/show`, `sdlc state`, `sdlc actual`, and `sdlc judge --dry-run` do not take the lock.
+- [x] Remote push/ref races still produce precise retry guidance.
 
 ## Estimate
 
@@ -70,11 +70,11 @@ total: 6.24
 
 ## Plan
 
-- [ ] Identify every `sdlc` verb that mutates repo state.
-- [ ] Implement a small internal repo-lock helper with metadata, wait timeout, and stale detection.
-- [ ] Wrap mutating verbs at the transaction boundary, not just individual git commands.
-- [ ] Add concurrency tests for at least `issue new` and one close/status mutation path.
-- [ ] Update help text to explain the lock and the retry behavior.
+- [x] Identify every `sdlc` verb that mutates repo state.
+- [x] Implement a small internal repo-lock helper with metadata, wait timeout, and stale detection.
+- [x] Wrap mutating verbs at the transaction boundary, not just individual git commands.
+- [x] Add concurrency tests for at least `issue new` and one close/status mutation path.
+- [x] Update help text to explain the lock and the retry behavior.
 
 ## Log
 
@@ -89,3 +89,5 @@ Claimed and entered planning. Durable plan saved at `workshop/plans/000132-sdlc-
 Plan-quality gate returned FAILURE before implementation. Updated the plan to make the lock granularity explicit: review-bearing verbs hold the coarse transaction lock through synchronous judges because judges can dirty tracked files; the default wait timeout is sized for long review/ship transactions, and messages must tell quick commands what is happening. Also added the in-process re-entrancy invariant/test so nested Cobra dispatch cannot self-deadlock.
 
 Second plan-quality gate returned FAILURE on the re-entrancy wording: process-global re-entrancy would incorrectly let independent same-process concurrent commands skip serialization. Updated the plan to require command-context scoped re-entrancy (nested dispatch inherits context; independent executions use fresh contexts and serialize), added `change-code` to the long-running holder set, and made Git-common-dir cross-worktree serialization explicit.
+
+Implemented the repo transaction lock. Added `cmd/sdlc/internal/repolock` for pure metadata/stale observation plus the thin `mkdir`/`meta.json` acquire-release shell (`ARCH-PURE`), and `cmd/sdlc/repolock.go` for one root-level Cobra wrapper driven by command annotations (`ARCH-DRY`). Mutating leaves are marked in their constructors; read-only leaves are asserted lock-free. The lock resolves through Git common dir, so linked worktrees serialize intentionally (`ARCH-PURPOSE`). Verification passed: `go test ./cmd/sdlc/internal/repolock`; `go test ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|Helptext' -count=1`; `go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...`.

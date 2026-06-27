@@ -108,7 +108,7 @@ func (f *closeFlags) skip(gate string) bool {
 func NewCloseCmd() *cobra.Command {
 	var f closeFlags
 
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:   "close",
 		Short: "Close an issue or milestone (records ACTUAL + VERIFIED, mutates issue + project files)",
 		Long: "Performs AGENTS.md §5's mechanical closing steps for an issue or " +
@@ -123,7 +123,7 @@ func NewCloseCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCloseWithReview(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (numeric, required)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag (e.g. M1, M4b); omit for full issue close")

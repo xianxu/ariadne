@@ -48,7 +48,7 @@ type claimFlags struct {
 // NewClaimCmd returns the cobra command for `sdlc claim`.
 func NewClaimCmd() *cobra.Command {
 	f := claimFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "claim",
 		Short:         "Sync workshop/issues/ changes to origin/main (workstream-claim primitive)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"lock\") in main.go.",
@@ -57,7 +57,7 @@ func NewClaimCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runClaim(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "sync only this issue's file (default: all changed issue files)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would happen; do not commit/push")

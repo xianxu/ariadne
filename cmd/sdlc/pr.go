@@ -33,7 +33,7 @@ var prRunner gitRunner = execGitRunner{}
 // NewPRCmd returns the cobra command for `sdlc pr`.
 func NewPRCmd() *cobra.Command {
 	f := prFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "pr",
 		Short:         "Open a PR for the current worktree branch (scans touched issues for fixes)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"pr\") in main.go.",
@@ -42,7 +42,7 @@ func NewPRCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPR(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be PR body + gh command; do not push or create PR")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	return cmd

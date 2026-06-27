@@ -119,5 +119,7 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(NewStartCmd()) // hidden migration stub (#39)
 	root.AddCommand(newPropagateBaseCmd())
 
+	wrapRepoLockCommands(root)
+
 	return root
 }

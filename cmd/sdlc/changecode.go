@@ -59,7 +59,7 @@ type changeCodeFlags struct {
 
 func NewChangeCodeCmd() *cobra.Command {
 	f := changeCodeFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "change-code",
 		Short:         "Enter implementation phase (structural + plan-quality gates + branching ask)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"change-code\") in main.go.",
@@ -68,7 +68,7 @@ func NewChangeCodeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runChangeCode(cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (derives name from issues/NNNNNN-*.md)")
 	cmd.Flags().StringVar(&f.Name, "name", "", "explicit branch name (overrides --issue derivation)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
