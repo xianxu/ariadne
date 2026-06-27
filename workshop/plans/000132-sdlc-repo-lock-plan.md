@@ -315,3 +315,14 @@ before removal, so only one reclaimer wins; add a two-reclaimer test; make
 `Observe` treat a live same-host pid as active even past the age ceiling; set
 stale duration to 2h while the wait timeout remains 30m; add `go test -race` to
 the verification set for this lock primitive.
+
+### 2026-06-27 — Boundary review REWORK raw-exit fixes
+
+Reason: the third boundary review found that the `die()` cleanup registry only
+covered `die()` callers, while locked command bodies still had direct
+`os.Exit(...)` paths in `close`, `change-code`, and `push`.
+
+Delta: add `exitWithCode`, which drains the same cleanup registry before
+exiting; route locked command-body exits through it, including the `change-code`
+exit-2 handoff; add a scan test that locked command files do not contain raw
+`os.Exit(...)` calls.

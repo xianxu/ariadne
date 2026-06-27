@@ -99,7 +99,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		for _, u := range untracked {
 			fmt.Fprintf(stderr, "       %s\n", u)
 		}
-		os.Exit(1)
+		exitWithCode(1)
 	}
 
 	// ── 3. Auto-commit tracked changes ──────────────────────────────────────

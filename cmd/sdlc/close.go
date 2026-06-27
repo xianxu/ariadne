@@ -337,14 +337,14 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 	if f.Actual == "" {
 		if !f.skip("actual") {
 			explainActual(stderr, issueStr, mode, f.Milestone)
-			os.Exit(1)
+			exitWithCode(1)
 		}
 		cwarn(stderr, fmt.Sprintf("--no-actual (or --force): closing with actual_hours: %s — velocity calibration skipped", issue.ActualNotApplicableSentinel))
 	}
 	if f.Verified == "" {
 		if !f.skip("verified") {
 			explainVerified(stderr, issueStr, mode, f.Milestone, f.Actual)
-			os.Exit(1)
+			exitWithCode(1)
 		}
 		cwarn(stderr, "--no-verified (or --force): closing with NO verification evidence — no behavior recorded as checked")
 	}
@@ -407,7 +407,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		if len(atlasChanged) == 0 {
 			if !f.skip("atlas") {
 				explainNoAtlas(stderr, shortSHA(windowBase), nonAtlas)
-				os.Exit(1)
+				exitWithCode(1)
 			}
 			cwarn(stderr, "--no-atlas (or --force): skipping atlas/ change check — rationale in --verified")
 		}
@@ -425,7 +425,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		} else if len(missing) > 0 {
 			if !f.skip("verdict") {
 				explainMissingVerdicts(stderr, issueStr, missing)
-				os.Exit(1)
+				exitWithCode(1)
 			}
 			cwarn(stderr, fmt.Sprintf("--no-verdict (or --force): skipping Review-Verdict check for %d milestone(s): %s",
 				len(missing), strings.Join(missing, ", ")))

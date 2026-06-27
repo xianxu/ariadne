@@ -7,7 +7,7 @@ created: 2026-06-26
 updated: 2026-06-27
 estimate_hours: 6.24
 started: 2026-06-27T11:24:51-07:00
-actual_hours: 0.69
+actual_hours: 0.85
 ---
 
 # sdlc repo transaction lock
@@ -84,6 +84,7 @@ total: 6.24
 Created from pair#81 / pair#72 retro. The triggering incident was agent-caused parallel `sdlc issue new`, but the robust fix belongs in `sdlc`: serialize local mutating transactions with an SDLC-owned lock in `.git`.
 
 ### 2026-06-27
+- 2026-06-27: closed — Re-close after race/reclaim fixes: sdlc issue validate --issue 132; go test -race ./cmd/sdlc/internal/repolock; go test -race ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: REWORK
 - 2026-06-27: closed — Re-close after REWORK fixes: sdlc issue validate --issue 132; go test ./cmd/sdlc/internal/repolock; go test ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|Helptext' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: REWORK
 - 2026-06-27: closed — sdlc issue validate --issue 132; go test ./cmd/sdlc/internal/repolock; go test ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock|Helptext' -count=1; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/...; review verdict: REWORK
 
@@ -98,3 +99,5 @@ Implemented the repo transaction lock. Added `cmd/sdlc/internal/repolock` for pu
 Boundary review returned REWORK. Fixed the reviewed lock-liveness bugs: `die()` now drains a cleanup registry before `os.Exit`, the wrapper registers an idempotent release while holding a lock, confirmed-dead same-host holders are reclaimed automatically, and waiters poll through the mkdir-before-`meta.json` initialization window. Added real concurrent `Acquire` coverage in addition to the Cobra-level serialization tests.
 
 Second boundary review returned REWORK after running `go test -race`. Fixed the signal-cleanup data race, moved Cobra command sorting behind `sync.Once`, changed dead-holder reclaim to atomic rename-before-remove so concurrent reclaimers cannot both acquire, and decoupled stale age from the 30-minute wait by treating live same-host pids as active and using a 2h stale duration. Added race verification: `go test -race ./cmd/sdlc/internal/repolock` and `go test -race ./cmd/sdlc -run 'RepoLock|WithRepoTransactionLock|WrapRepoLock' -count=1`.
+
+Third boundary review returned REWORK on raw `os.Exit(...)` paths in locked command bodies. Added `exitWithCode` to drain cleanup before exit, routed `close`, `change-code` (including exit 2), and `push` through it, and added a scan test preventing raw `os.Exit(...)` in those locked command files.

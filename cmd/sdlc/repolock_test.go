@@ -59,6 +59,18 @@ func TestRepoLockCommandMetadata(t *testing.T) {
 	}
 }
 
+func TestLockedCommandFilesAvoidRawOSExit(t *testing.T) {
+	for _, path := range []string{"close.go", "changecode.go", "push.go"} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(data), "os.Exit(") {
+			t.Fatalf("%s uses raw os.Exit inside a locked command body; use exitWithCode so lock cleanup runs", path)
+		}
+	}
+}
+
 func mustFindCommand(t *testing.T, root *cobra.Command, path ...string) *cobra.Command {
 	t.Helper()
 	cur := root

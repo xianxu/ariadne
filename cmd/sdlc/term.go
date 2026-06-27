@@ -50,8 +50,12 @@ func cwarn(w io.Writer, msg string) { fmt.Fprintf(w, "  %s[!]%s %s\n", ansiYello
 // exactly as a function; the var-vs-func distinction is invisible to them.
 var die = func(stderr io.Writer, msg string) {
 	fmt.Fprintf(stderr, "%sError: %s%s\n", ansiRed, msg, ansiReset)
+	exitWithCode(1)
+}
+
+func exitWithCode(code int) {
 	runDieCleanups()
-	os.Exit(1)
+	os.Exit(code)
 }
 
 var dieCleanupRegistry = struct {
