@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 func ledgerTestBody() string {
@@ -93,10 +94,11 @@ func TestShouldLogCalibration(t *testing.T) {
 		milestone, actual string
 		want              bool
 	}{
-		{"", "0.9", true},   // full-issue close with actual → log
+		{"", "0.9", true},    // full-issue close with actual → log
 		{"M1", "0.9", false}, // milestone close → never log (partial actual)
 		{"", "", false},      // full-issue close, no actual → nothing to log
 		{"M2", "", false},
+		{"", issue.ActualNotApplicableSentinel, false}, // N/A actual → calibration skipped
 	}
 	for _, c := range cases {
 		got := shouldLogCalibration(&closeFlags{Milestone: c.milestone, Actual: c.actual})

@@ -20,6 +20,10 @@ categories: {
 #Terminal: or(categories.terminal)
 #Status:   or(list.Concat([categories.open, categories.active, categories.terminal]))
 
+// actual_hours can be explicitly marked not applicable when a close has no
+// measured time to feed velocity calibration. Keep the accepted spelling closed.
+#ActualNotApplicable: "N/A"
+
 // ── when: one-line semantics per status (the documented-value source) ──
 when: {
 	open:    "created, not yet started"
@@ -39,12 +43,14 @@ when: {
 	status: #Status
 	// estimate/actual: present-but-empty (`estimate_hours:`) parses as YAML null, so
 	// allow null alongside a positive number (#124 — real files leave these blank).
+	// Closed issues may use the exact N/A sentinel when measured actuals do not
+	// apply; arbitrary strings still fail instance validation (#135).
 	estimate_hours?: (number & >0) | null
-	actual_hours?:   (number & >0) | null
-	// compiled guard: a done issue must carry MEASURED actuals (a positive number,
-	// not null/absent).
+	actual_hours?:   (number & >0) | #ActualNotApplicable | null
+	// compiled guard: a done issue must carry measured actuals (a positive number)
+	// or the explicit not-applicable sentinel, not null/absent.
 	if status == "done" {
-		actual_hours!: number & >0
+		actual_hours!: (number & >0) | #ActualNotApplicable
 	}
 	// OPEN (#124): allow organically-growing frontmatter (target/references/
 	// related/created/… and future fields) so instance-conformance vetting at the
@@ -68,8 +74,8 @@ lifecycle: [...#Transition] & [
 	{from: "open", to: "working", event: "claim"},      // start work
 	{from: "working", to: "blocked", event: "block"},   // hit a dependency
 	{from: "blocked", to: "working", event: "unblock"}, // dependency cleared
-	{from: "working", to: "done", event: "close", guards: ["actual-measured", "verified", "atlas-updated"]},
-	{from: "blocked", to: "done", event: "close", guards: ["actual-measured", "verified", "atlas-updated"]},
+	{from: "working", to: "done", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
+	{from: "blocked", to: "done", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
 	{from: "working", to: "wontfix", event: "abandon"}, // rejected mid-flight
 	{from: "working", to: "punt", event: "defer"},      // deferred mid-flight
 	{from: "done", to: "working", event: "reopen"},     // re-open a closed issue

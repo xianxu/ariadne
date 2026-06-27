@@ -13,6 +13,17 @@ import (
 	"github.com/xianxu/ariadne/pkg/frontmatter"
 )
 
+// ActualNotApplicableSentinel is the single accepted issue-frontmatter spelling
+// for a close whose measured actual hours do not apply and must not enter
+// velocity calibration.
+const ActualNotApplicableSentinel = "N/A"
+
+// IsActualNotApplicable reports whether an actual_hours value is the exact
+// not-applicable sentinel, ignoring surrounding frontmatter whitespace.
+func IsActualNotApplicable(s string) bool {
+	return strings.TrimSpace(s) == ActualNotApplicableSentinel
+}
+
 // Parse splits a markdown document into its YAML frontmatter and body.
 // Returns an error if the document doesn't start with a "---\n...---\n"
 // fence. Delegates to pkg/frontmatter.Split — the one source for the split

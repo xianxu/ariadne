@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
@@ -313,6 +315,52 @@ func TestFrontmatterAppend_FieldAbsent(t *testing.T) {
 	want := "id: 000031\nstatus: working\nestimate_hours: 4\nactual_hours: 6.5"
 	if got != want {
 		t.Errorf("got %q want %q", got, want)
+	}
+}
+
+func TestRunClose_NoActualWritesNotApplicableSentinel(t *testing.T) {
+	repoRoot, err := gitx.RepoTopLevel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	issuesDir := closeRepo(t, 135)
+	f := &closeFlags{
+		Issue:     135,
+		NoActual:  true,
+		Verified:  "administrative close; no measured actual applies",
+		NoAtlas:   true,
+		IssuesDir: issuesDir,
+		BrainDir:  "../nonexistent-brain",
+	}
+	if err := runClose(io.Discard, f); err != nil {
+		t.Fatalf("runClose: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(issuesDir, "000135-x.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "actual_hours: "+issue.ActualNotApplicableSentinel) {
+		t.Fatalf("missing actual sentinel:\n%s", text)
+	}
+	if strings.Contains(text, "actual_hours:\n") {
+		t.Fatalf("actual_hours remained blank:\n%s", text)
+	}
+	if _, err := exec.LookPath("cue"); err != nil {
+		t.Skip("cue not on PATH")
+	}
+	fm, _, err := issue.Parse(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dataPath := filepath.Join(t.TempDir(), "issue.yaml")
+	if err := os.WriteFile(dataPath, []byte(fm+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	schemaPath := filepath.Join(repoRoot, "construct", "vocabulary", "issue.cue")
+	cmd := exec.Command("cue", "vet", "-d", "#Issue", dataPath, schemaPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("closed issue frontmatter does not conform to #Issue: %v\n%s", err, out)
 	}
 }
 

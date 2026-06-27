@@ -89,8 +89,9 @@ against the model: `artifact → extract frontmatter → cue vet against #<Type>
   bad `status` *value* (the enum) and a typo'd *required* field (`statuss:` → `status`
   absent). Two corpus-forced corrections to the #122 schema (it had only ever self-vetted):
   `id: int | string` (cue's YAML loader octal-parses unquoted `000124`→84) and
-  `(number & >0) | null` on estimate/actual (empty values parse as null). The done-guard
-  still requires a *positive* `actual_hours`.
+  `(number & >0) | null` on estimates and number-or-`N/A` on actuals (empty values parse
+  as null). The done-guard requires either a positive numeric `actual_hours` or the exact
+  not-applicable sentinel `N/A`.
 
 **The gate (M2, landed).** `cmd/sdlc/validategate.go` — `validateChangedIssues(base, head, …)`
 runs in `sdlc push` + `sdlc merge` BEFORE the irreversible action and INDEPENDENTLY of the LLM

@@ -71,7 +71,7 @@ target:            # optional; a workshop/targets/ slug
 created: 2026-04-20
 updated: 2026-04-20
 estimate_hours:    # set at start-plan; required by change-code, not claim (#113)
-                   # actual_hours: added at close; required when status=done
+                   # actual_hours: added at close; number or N/A when status=done
 ---
 
 # Title
@@ -114,9 +114,11 @@ Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before tha
    close`; only tag `Mx` rows when the work has ≥2 separate review boundaries
    you'll `milestone-close` individually (AGENTS.md §3 — an `Mx` tag is a
    review boundary, not a task label).
-3. **Record `actual_hours`** in the frontmatter (required at close).
+3. **Record `actual_hours`** in the frontmatter: a measured positive number, or
+   explicit `N/A` only when measurement is not applicable.
 4. Update the parent project file (if any).
 5. Update `atlas/` for any new architectural surface.
 6. ~~Append validation-log entry~~ — now automatic: on a full-issue close `sdlc
-   close` appends the estimate↔actual pair to the calibration ledger (#117),
-   superseding the manual validation-log step.
+   close` appends numeric estimate↔actual pairs to the calibration ledger
+   (#117), superseding the manual validation-log step. `actual_hours: N/A`
+   closes are schema-valid but excluded from calibration.

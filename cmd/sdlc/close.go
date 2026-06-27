@@ -135,7 +135,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", "workshop/issues", "directory holding issue files")
 	// Per-gate bypasses (#67) — each waives one guard; --force waives all.
-	cmd.Flags().BoolVar(&f.NoActual, "no-actual", false, "bypass the ACTUAL-hours requirement (weakens velocity calibration)")
+	cmd.Flags().BoolVar(&f.NoActual, "no-actual", false, "record actual_hours: N/A and skip velocity calibration")
 	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement (only if there's no behavior to verify)")
 	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal (intentionally re-close)")
 	cmd.Flags().BoolVar(&f.NoAtlas, "no-atlas", false, "bypass the atlas/ change check (acknowledge: no new architectural surface)")
@@ -213,7 +213,7 @@ func printSemanticWarmup(w io.Writer) {
 		"             sdlc computes it — close suggests a number, or run",
 		"             `sdlc actual --issue N`. (method: 42shots/velocity/baseline-v3.md)",
 		"             Pass --no-actual (or --force) only if there's genuinely nothing",
-		"             to measure (e.g., wontfix with no commits) — record the reason.",
+		"             to measure; close records actual_hours: N/A and skips calibration.",
 		"",
 		fmt.Sprintf("  %sVERIFIED%s = one-line evidence of behavior matching done-when.", ansiCyan, ansiReset),
 		"             'tests pass' beats 'code written'. See AGENTS.md §5.",
@@ -339,7 +339,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 			explainActual(stderr, issueStr, mode, f.Milestone)
 			os.Exit(1)
 		}
-		cwarn(stderr, "--no-actual (or --force): closing with NO actual_hours — this issue won't feed velocity calibration")
+		cwarn(stderr, fmt.Sprintf("--no-actual (or --force): closing with actual_hours: %s — velocity calibration skipped", issue.ActualNotApplicableSentinel))
 	}
 	if f.Verified == "" {
 		if !f.skip("verified") {
@@ -463,11 +463,15 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		newFM = issue.SetField(newFM, "status", "done")
 		if f.Actual != "" {
 			newFM = issue.SetField(newFM, "actual_hours", f.Actual)
+		} else if f.skip("actual") {
+			newFM = issue.SetField(newFM, "actual_hours", issue.ActualNotApplicableSentinel)
 		}
 		newFM = issue.SetField(newFM, "updated", today)
 		msg := fmt.Sprintf("flipped %s → status: done", filepath.Base(issuePath))
 		if f.Actual != "" {
 			msg += fmt.Sprintf(", actual_hours: %s", f.Actual)
+		} else if f.skip("actual") {
+			msg += fmt.Sprintf(", actual_hours: %s", issue.ActualNotApplicableSentinel)
 		}
 		cok(stderr, msg)
 	}
@@ -606,7 +610,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 // ledger's core integrity contract (#117): milestone closes must NOT pollute the
 // calibration ledger with partial-actual rows.
 func shouldLogCalibration(f *closeFlags) bool {
-	return f.Milestone == "" && f.Actual != ""
+	return f.Milestone == "" && f.Actual != "" && !issue.IsActualNotApplicable(f.Actual)
 }
 
 // appendCalibrationRow writes one estimate↔actual data point to the calibration
@@ -784,7 +788,7 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
 	tail = append(tail, fmt.Sprintf("    sdlc close --issue %s%s --actual <hours> --verified '<evidence>'", issueStr, extra), "")
 	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
-	tail = append(tail, "  Pass --no-actual (or --force) to bypass this requirement (record the reason in --verified).")
+	tail = append(tail, "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A and skips calibration.")
 	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
 }
 

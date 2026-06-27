@@ -24,7 +24,8 @@ MODES
 WHAT THE GUARD DEFENDS
 
   --actual <hours>     focused dev-hours (sdlc computes it — close suggests a
-                       number, or run `sdlc actual --issue N`). Required.
+                       number, or run `sdlc actual --issue N`). Required unless
+                       measurement is explicitly not applicable.
   --verified '<line>'  one-line evidence the work meets done-when (behavior,
                        not artifacts: "tests pass" beats "code written").
                        Required.
@@ -65,7 +66,7 @@ WHAT THE GUARD DEFENDS
 WHAT IT DOES
 
   - Ticks the milestone box in the issue's ## Plan (milestone mode)
-  - Flips status: done, sets actual_hours and updated (issue mode)
+  - Flips status: done, sets actual_hours (number or N/A) and updated (issue mode)
   - Appends a log line to ## Log: "YYYY-MM-DD: closed — <verified>"
   - Ticks the project task row + upserts **actual:** and **closed:** in the
     detail block
@@ -84,7 +85,7 @@ FLAGS
   --actual <hours>      focused dev-hours (required unless --no-actual/--force)
   --verified '<line>'   one-line behavior evidence (required unless --no-verified/--force)
   --force               bypass ALL gates (≡ every --no-* flag); reason in --verified
-  --no-actual           bypass the ACTUAL-hours requirement (weakens calibration)
+  --no-actual           record actual_hours: N/A; skip velocity calibration
   --no-verified         bypass the VERIFIED-evidence requirement
   --no-reclose-guard    re-close an already-done issue (skip the refusal)
   --no-atlas            skip the atlas/ change check (no new architectural surface)
@@ -112,6 +113,11 @@ telemetry isn't available, points you to a labeled judgment estimate. If
 behavior-grounded VERIFIED string. Read the explainer; the contract is
 load-bearing.
 
+Use --no-actual only when focused dev-hours are genuinely not applicable or
+cannot be measured without fabricating a number. On a full issue close, this
+writes `actual_hours: N/A` to keep the issue schema-valid and records that the
+close is excluded from velocity calibration.
+
 If --actual IS passed, close still measures (active-time-v3) and sanity-checks
 the value against it (#87): a moderate deviation (≥3×) warns; a wild one (≥10×,
 e.g. a typed estimate where the measurement is minutes) is REFUSED — re-run
@@ -122,8 +128,8 @@ guessed --actual would otherwise sail through. (milestone-close inherits it.)
 
 CALIBRATION LEDGER (#117 — closing the estimate↔actual loop)
 
-  On a full-issue close (no --milestone) with a measured --actual, close appends
-  one estimate↔actual row to the calibration ledger (default
+  On a full-issue close (no --milestone) with a measured numeric --actual, close
+  appends one estimate↔actual row to the calibration ledger (default
   brain/data/life/42shots/velocity/calibration-ledger.tsv; override with
   $WF_CALIB_LEDGER) and flags >2× same-direction drift over the last N
   window-trusted rows. Each row records whether the actual came from a
@@ -131,4 +137,5 @@ CALIBRATION LEDGER (#117 — closing the estimate↔actual loop)
   excluded from drift stats (a truncated actual isn't a clean data point). Pass
   --mode supervised|delegated to tag the supervision style. If no ledger dir
   exists (a downstream repo with no sibling brain/), close skips it with a warning
-  — a missing ledger never breaks the close.
+  — a missing ledger never breaks the close. `actual_hours: N/A` closes are also
+  excluded from the ledger and drift stats.

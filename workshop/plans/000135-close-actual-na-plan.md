@@ -339,3 +339,23 @@ git diff -- workshop/issues/000135-close-actual-na.md workshop/plans/000135-clos
 
 Expected: only #135 files plus pre-existing unrelated dirty files remain.
 
+## Revisions
+
+### 2026-06-26 — execution evidence and boundary-review fixes
+
+Reason: execution found that the planned full-corpus `sdlc issue validate --all`
+check is currently blocked by unrelated pre-existing issue-structure gaps, while
+#135 itself conforms. The boundary review also found two completion-record gaps:
+the lifecycle guard name still said `actual-measured`, and the generated
+`sdlc close --no-actual` output was not schema-validated by an automated test.
+
+Delta:
+- Treat `sdlc issue validate --issue 135`, the synthetic generated-close schema
+  test, `vocabulary validate-instance` N/A/unknown fixtures, and `go test ./...`
+  as the accepted validation evidence for this issue.
+- Rename the close lifecycle guard from `actual-measured` to `actual-recorded`
+  in `construct/vocabulary/issue.cue` and regenerated vocabulary outputs.
+- Extend `TestRunClose_NoActualWritesNotApplicableSentinel` so the file produced
+  by `runClose --no-actual` vets against `#Issue`.
+- The issue file's Done/Plan checkboxes are the completion record; this durable
+  plan remains the execution script plus revision log.

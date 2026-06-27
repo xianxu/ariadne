@@ -31,7 +31,7 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
                    hand-edited
     estimate_hours set at start-plan; required by change-code — not at
                    claim (#113). Optional at create.
-    actual_hours   (added at close) required when status → done
+    actual_hours   (added at close) required when status → done: number or N/A
 
   Body sections (in order):
     # <Title>
