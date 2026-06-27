@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -95,16 +96,19 @@ type Observation struct {
 }
 
 func Observe(m Metadata, now time.Time, host string, processAlive func(int) bool, maxAge time.Duration) Observation {
+	if m.Hostname == host && m.PID > 0 && processAlive != nil {
+		if processAlive(m.PID) {
+			return Observation{Kind: ObservationActive}
+		}
+		return Observation{
+			Kind:    ObservationStaleMissingProcess,
+			Message: fmt.Sprintf("stale sdlc repo lock at %s: holder %s is not running on this host; inspect and remove the lock if no transaction is running", LockRelPath, HolderLine(m)),
+		}
+	}
 	if maxAge > 0 && !m.StartedAt.IsZero() && now.Sub(m.StartedAt) > maxAge {
 		return Observation{
 			Kind:    ObservationStaleAge,
 			Message: fmt.Sprintf("stale sdlc repo lock at %s: holder %s exceeded %s; inspect and remove the lock only if no transaction is running", LockRelPath, HolderLine(m), maxAge),
-		}
-	}
-	if m.Hostname == host && m.PID > 0 && processAlive != nil && !processAlive(m.PID) {
-		return Observation{
-			Kind:    ObservationStaleMissingProcess,
-			Message: fmt.Sprintf("stale sdlc repo lock at %s: holder %s is not running on this host; inspect and remove the lock if no transaction is running", LockRelPath, HolderLine(m)),
 		}
 	}
 	return Observation{Kind: ObservationActive}
@@ -127,9 +131,10 @@ type Options struct {
 }
 
 type Lock struct {
-	dir    string
-	sigCh  chan os.Signal
-	stopCh chan struct{}
+	dir      string
+	sigCh    chan os.Signal
+	stopCh   chan struct{}
+	stopOnce sync.Once
 }
 
 func Acquire(ctx context.Context, opts Options) (*Lock, error) {
@@ -178,9 +183,14 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 		initDeadline = time.Time{}
 		obs := Observe(holder, opts.Now(), opts.Hostname, opts.ProcessAlive, opts.StaleDuration)
 		if obs.Kind == ObservationStaleMissingProcess {
-			if err := os.RemoveAll(lockDir); err != nil {
-				return nil, fmt.Errorf("%s; additionally failed to remove stale lock %s: %w", obs.Message, lockDir, err)
+			graveyard := fmt.Sprintf("%s.dead.%d", lockDir, opts.PID)
+			if err := os.Rename(lockDir, graveyard); err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, fmt.Errorf("%s; additionally failed to claim stale lock %s: %w", obs.Message, lockDir, err)
 			}
+			_ = os.RemoveAll(graveyard)
 			reported = false
 			continue
 		}
@@ -212,28 +222,29 @@ func (l *Lock) installSignalCleanup() {
 	l.sigCh = make(chan os.Signal, 1)
 	l.stopCh = make(chan struct{})
 	signal.Notify(l.sigCh, os.Interrupt, syscall.SIGTERM)
+	dir, sigCh, stopCh := l.dir, l.sigCh, l.stopCh
 	go func() {
 		select {
-		case sig := <-l.sigCh:
-			_ = os.RemoveAll(l.dir)
+		case sig := <-sigCh:
+			_ = os.RemoveAll(dir)
 			if sig == syscall.SIGTERM {
 				os.Exit(143)
 			}
 			os.Exit(130)
-		case <-l.stopCh:
+		case <-stopCh:
 			return
 		}
 	}()
 }
 
 func (l *Lock) stopSignalCleanup() {
-	if l.sigCh == nil {
-		return
-	}
-	signal.Stop(l.sigCh)
-	close(l.stopCh)
-	l.sigCh = nil
-	l.stopCh = nil
+	l.stopOnce.Do(func() {
+		if l.sigCh == nil {
+			return
+		}
+		signal.Stop(l.sigCh)
+		close(l.stopCh)
+	})
 }
 
 func readMetadata(lockDir string) (Metadata, error) {
@@ -264,7 +275,7 @@ func (o Options) withDefaults() Options {
 		o.WaitTimeout = 30 * time.Minute
 	}
 	if o.StaleDuration <= 0 {
-		o.StaleDuration = 30 * time.Minute
+		o.StaleDuration = 2 * time.Hour
 	}
 	if o.PollInterval <= 0 {
 		o.PollInterval = defaultPollInterval

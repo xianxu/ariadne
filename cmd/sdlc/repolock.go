@@ -107,7 +107,7 @@ func acquireRepoLockForCommand(cmd *cobra.Command) (func() error, error) {
 		ProcessAlive:  processAlive,
 		Stderr:        cmd.ErrOrStderr(),
 		WaitTimeout:   30 * time.Minute,
-		StaleDuration: 30 * time.Minute,
+		StaleDuration: 2 * time.Hour,
 	})
 	if err != nil {
 		return nil, err

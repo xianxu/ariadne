@@ -302,3 +302,16 @@ holder initialization during a short grace window instead of an immediate
 unreadable-lock failure. This revises the original "never auto-remove" stance:
 cross-host and age uncertainty still fail with recovery guidance, but a dead
 same-host pid is safe to reclaim.
+
+### 2026-06-27 — Boundary review REWORK race fixes
+
+Reason: the second boundary review ran `go test -race` and found a signal
+cleanup data race, plus a filesystem TOCTOU where two concurrent reclaimers
+could both acquire after a dead holder.
+
+Delta: make signal cleanup use local channel/path captures plus `sync.Once`;
+claim a dead same-host stale lock with atomic `os.Rename` to a per-pid graveyard
+before removal, so only one reclaimer wins; add a two-reclaimer test; make
+`Observe` treat a live same-host pid as active even past the age ceiling; set
+stale duration to 2h while the wait timeout remains 30m; add `go test -race` to
+the verification set for this lock primitive.

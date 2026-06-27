@@ -72,8 +72,10 @@ instead of deleting a live lock. Recovery is conservative but not wedging:
 `die()` drains the active lock cleanup registry before `os.Exit`, missing
 `meta.json` during the tiny mkdir-before-write window is treated as holder
 initialization and polled through, and a confirmed-dead same-host holder is
-reclaimed automatically. Cross-host or over-age uncertainty still produces
-operator-facing recovery guidance rather than silent deletion.
+reclaimed by atomically renaming the stale lock directory before removal.
+Cross-host or over-age uncertainty still produces operator-facing recovery
+guidance rather than silent deletion; a live same-host pid overrides the age
+ceiling.
 
 ## Progressive disclosure
 

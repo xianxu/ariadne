@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -105,8 +106,13 @@ func TestObserveClassifiesStaleLocks(t *testing.T) {
 			want: ObservationActive,
 		},
 		{
-			name: "stale by age",
+			name: "live same-host process overrides age",
 			meta: Metadata{PID: 100, Hostname: "host-a", StartedAt: now.Add(-maxAge - time.Second)},
+			want: ObservationActive,
+		},
+		{
+			name: "stale by age when liveness is not provable",
+			meta: Metadata{PID: 100, Hostname: "host-b", StartedAt: now.Add(-maxAge - time.Second)},
 			want: ObservationStaleAge,
 		},
 	}
@@ -360,5 +366,51 @@ func TestConcurrentAcquireSerializesRealMkdirLock(t *testing.T) {
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("second Acquire/Release err: %v", err)
+	}
+}
+
+func TestConcurrentAcquireReclaimsDeadHolderOnce(t *testing.T) {
+	gitDir := filepath.Join(t.TempDir(), ".git")
+	lockDir := filepath.Join(gitDir, "sdlc.lock")
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	holder := Metadata{PID: 555, Hostname: "host-a", Command: "sdlc issue new", StartedAt: time.Now()}
+	if err := os.WriteFile(filepath.Join(lockDir, "meta.json"), Encode(holder), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+	for _, pid := range []int{111, 222} {
+		wg.Add(1)
+		go func(pid int) {
+			defer wg.Done()
+			lock, err := Acquire(context.Background(), Options{
+				GitCommonDir:  gitDir,
+				Command:       "sdlc claim",
+				Hostname:      "host-a",
+				PID:           pid,
+				Now:           time.Now,
+				ProcessAlive:  func(int) bool { return false },
+				Stderr:        &bytes.Buffer{},
+				WaitTimeout:   time.Second,
+				StaleDuration: time.Hour,
+				PollInterval:  10 * time.Millisecond,
+			})
+			if err != nil {
+				errs <- err
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+			errs <- lock.Release()
+		}(pid)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
