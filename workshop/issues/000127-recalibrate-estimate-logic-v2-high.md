@@ -1,12 +1,13 @@
 ---
 id: 000127
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-25
 updated: 2026-06-29
 estimate_hours: 2.55
 started: 2026-06-29T11:15:03-07:00
+actual_hours: 0.77
 ---
 
 # recalibrate estimate-logic-v2 — last 5 trusted closes all ran >2x OVER (model running high)
@@ -102,6 +103,7 @@ Delta: chose path (a), a uniform implementation-hours scale-down, realized as `e
 ## Log
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... -count=1 passed; git diff --check passed; go run ./cmd/sdlc estimate-source --brain-dir ../brain reports estimate-logic-v3.1 [ok]; brain commit 5df9efc adds estimate-logic-v3.1/baseline-v3.1 docs; review verdict: FIX-THEN-SHIP
 
 - `sdlc start-plan --issue 127` delivered the ARCH-* plan lens. `sdlc change-code --issue 127`
   first returned `VERDICT: FAILURE` because the initial plan only adopted v3 provenance and drift
