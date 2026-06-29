@@ -92,7 +92,7 @@ text includes the issue key, segment start/end, minutes, share, and reason.
 | Name | Lives in | Status |
 |------|----------|--------|
 | `ActivityRun` | `cmd/sdlc/internal/activetime/segment.go` | new |
-| `CommitBoundary` | `cmd/sdlc/internal/activetime/segment.go` | new |
+| `Commit` boundary role | `cmd/sdlc/internal/activetime/commit.go` | modified |
 | `AttributionWarning` | `cmd/sdlc/internal/activetime/compute.go` | new |
 | `Segment` | `cmd/sdlc/internal/activetime/segment.go` | modified |
 
@@ -101,7 +101,7 @@ text includes the issue key, segment start/end, minutes, share, and reason.
 - **DRY rationale:** Reuses `activeMinutesUnion` for minutes; avoids per-command reimplementation of time math.
 - **Future extensions:** Can carry source/session identity if later attribution needs per-harness confidence.
 
-**CommitBoundary** — a commit timestamp that cuts the activity timeline; issue refs on the commit make it a claimant for nearby activity.
+**Commit boundary role** — a commit timestamp that cuts the activity timeline; issue refs on the commit make it a claimant for nearby activity.
 - **Relationships:** 1:N from a commit to zero or more issue refs; N:1 from activity runs to the selected boundary when the boundary has claimant refs.
 - **DRY rationale:** Existing `Commit` already carries `Time`, `SHA`, `Subject`, and `Issues`; use that shape and share the all-issue-ref regexp with `gitx.DiscoverWindowIssues` or a small activetime-local equivalent rather than inventing a second subject parser.
 - **Future extensions:** Add confidence/distance metadata for warnings.
@@ -417,3 +417,29 @@ git diff --check
 ```
 
 Expected: both pass.
+
+## Revisions
+
+### 2026-06-29 — implementation alignment after boundary review
+
+Reason: the boundary review caught one plan/code mismatch and one validation
+recording gap. The implementation did not introduce a distinct `CommitBoundary`
+type; it extended the existing `Commit` entity's role. The historical transcript
+validation commands were attempted, but the local transcript stores no longer
+contain events for those old windows.
+
+Delta: replace the Core Concepts row for `CommitBoundary` with `Commit`
+boundary role. Record exact validation outcomes:
+
+- Baseline-v3 command used
+  `~/.claude/projects/-Users-xianxu-workspace-nous`,
+  `~/.claude/projects/-Users-xianxu-workspace-brain`, and
+  `~/workspace/nous` for `2026-05-07T16:54:00Z` to
+  `2026-05-08T05:13:00Z`; result was telemetry unavailable: 0 events, 23
+  commits.
+- nous#48 live check used `/Users/xianxu/workspace/nous` with
+  `/Users/xianxu/workspace/ariadne/bin/sdlc actual --issue 48`; result was no
+  measurable activity for #48.
+
+Automated regression evidence is therefore the synthetic all-claimant #92 tests,
+the neutral-boundary tests, warning tests, and the updated attribution golden.

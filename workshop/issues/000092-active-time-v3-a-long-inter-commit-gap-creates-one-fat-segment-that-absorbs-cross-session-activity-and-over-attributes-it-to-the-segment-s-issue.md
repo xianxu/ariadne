@@ -1,12 +1,13 @@
 ---
 id: 000092
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-11
 updated: 2026-06-29
 estimate_hours: 5.95
 started: 2026-06-29T13:23:59-07:00
+actual_hours: 2.86
 ---
 
 # active-time-v3: a long inter-commit gap creates one fat segment that absorbs cross-session activity and over-attributes it to the segment's issue
@@ -192,6 +193,7 @@ silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
 "parallel-session dedup not yet implemented" as a known gap.
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... -count=1 passed; git diff --check passed; baseline-v3 and nous#48 live commands were attempted but local historical transcript windows returned 0 events, so synthetic #92 claimant tests plus the updated attribution golden carry the regression evidence; review verdict: REWORK
 
 - Claimed #92 and reframed the spec after operator review. The agreed design:
   collapse issue commits into one boundary timeline and attribute activity runs
@@ -216,3 +218,13 @@ silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
   despite the transcript dirs existing. Automated coverage therefore carries the
   regression evidence: synthetic #92 claimant tests plus the updated attribution
   golden.
+- Addressed boundary-review REWORK findings: neutral no-ref commits now cut off
+  previous/next issue claimants without claiming the run; no-commit mention
+  fallback now produces attribution warnings; the unused commit-loader pattern
+  parameter was removed; the `Segment` comment and durable plan were reconciled
+  with the implemented `Commit` boundary role. Exact historical validation
+  results: baseline-v3 command used `~/.claude/projects/-Users-xianxu-workspace-nous`,
+  `~/.claude/projects/-Users-xianxu-workspace-brain`, `~/workspace/nous`,
+  `2026-05-07T16:54:00Z..2026-05-08T05:13:00Z` and returned 0 events / 23
+  commits; nous#48 check used `/Users/xianxu/workspace/nous` and returned no
+  measurable activity for #48.

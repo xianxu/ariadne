@@ -31,7 +31,7 @@ var gitRun = func(repo string, args ...string) ([]byte, error) {
 // Mirrors active-time-v3.py load_commits. The `%x00%n` record terminator the
 // Python used is unnecessary here: %s (subject) never contains a newline, so one
 // tab-delimited line per commit is unambiguous.
-func loadWindowCommits(repo, sinceISO, untilISO string, pat *regexp.Regexp) ([]Commit, error) {
+func loadWindowCommits(repo, sinceISO, untilISO string) ([]Commit, error) {
 	args := []string{"log", "--pretty=format:%H%x09%aI%x09%s", "--reverse"}
 	if sinceISO != "" {
 		args = append(args, "--since="+sinceISO)

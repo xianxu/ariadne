@@ -321,6 +321,26 @@ func TestClaimActivityRuns_PreviousCommitFallback(t *testing.T) {
 	}
 }
 
+func TestClaimActivityRuns_NeutralCommitCutsButDoesNotClaim(t *testing.T) {
+	runs := []ActivityRun{{
+		Start:    tm("2026-01-01T10:10:00Z"),
+		End:      tm("2026-01-01T10:20:00Z"),
+		Active:   10,
+		Mentions: map[string]int{"9": 1},
+	}}
+	commits := []Commit{
+		{Time: tm("2026-01-01T10:00:00Z"), SHA: "prev", Subject: "#1 prev", Issues: []string{"1"}},
+		{Time: tm("2026-01-01T10:05:00Z"), SHA: "neutral", Subject: "chore: no refs"},
+	}
+	segs := claimActivityRuns(runs, commits, 1.0, 1.0)
+	if got := sumAlloc(segs, "1"); got != 0 {
+		t.Fatalf("neutral commit should cut off previous #1 claimant, got #1=%v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "9"); !approx(got, 10) {
+		t.Fatalf("neutral commit should not claim; run should fall back to mentions, got #9=%v segs=%+v", got, segs)
+	}
+}
+
 func TestClaimActivityRuns_BoundarySuppressesMentionAllocation(t *testing.T) {
 	runs := []ActivityRun{{
 		Start:    tm("2026-01-01T10:00:00Z"),

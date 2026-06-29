@@ -75,7 +75,7 @@ func Compute(opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO, pat)
+	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO)
 	if err != nil {
 		return Result{}, err
 	}
@@ -107,6 +107,12 @@ func Compute(opts Options) (Result, error) {
 		active := activeMinutesUnion(times, spans, opts.ThresholdMin)
 		res.TotalActive = active
 		res.PerIssue = attributeSegment(active, nil, mentions, opts.CommitWeight)
+		if len(times) > 0 {
+			res.Warnings = attributionWarnings([]Segment{{
+				Start: times[0], End: times[len(times)-1], Active: active,
+				Mentions: mentions, Alloc: res.PerIssue,
+			}}, res.PerIssue)
+		}
 		res.Status = Measured
 		return res, nil
 	}

@@ -5,10 +5,9 @@ import (
 	"time"
 )
 
-// Segment is the unit of attribution: an [Start,End) event span, its gap-
-// truncated active minutes, and the resulting per-issue allocation. There is one
-// optional prefix segment (events before the first commit), one segment per
-// commit, and one optional suffix (events after the last commit).
+// Segment is the rendered unit of attribution: one source-scoped activity run,
+// the commit boundary that claimed it (if any), and the resulting per-issue
+// allocation.
 type Segment struct {
 	Start, End time.Time
 	Active     float64
@@ -292,22 +291,48 @@ func issuesOf(c *Commit) []string {
 }
 
 func selectClaimant(run ActivityRun, commits []Commit) *Commit {
-	var prev, next, inside *Commit
+	var prevNeutral, nextNeutral *Commit
 	for i := range commits {
-		if len(commits[i].Issues) == 0 {
+		c := &commits[i]
+		if len(c.Issues) > 0 {
 			continue
 		}
+		switch {
+		case c.Time.After(run.Start) && c.Time.Before(run.End):
+			return nil
+		case c.Time.Before(run.Start) || c.Time.Equal(run.Start):
+			if prevNeutral == nil || c.Time.After(prevNeutral.Time) {
+				prevNeutral = c
+			}
+		case c.Time.After(run.End) || c.Time.Equal(run.End):
+			if nextNeutral == nil || c.Time.Before(nextNeutral.Time) {
+				nextNeutral = c
+			}
+		}
+	}
+
+	var prev, next, inside *Commit
+	for i := range commits {
 		c := &commits[i]
+		if len(c.Issues) == 0 {
+			continue
+		}
 		switch {
 		case c.Time.After(run.Start) && c.Time.Before(run.End):
 			if inside == nil || c.Time.After(inside.Time) {
 				inside = c
 			}
 		case c.Time.Before(run.Start) || c.Time.Equal(run.Start):
+			if prevNeutral != nil && !c.Time.After(prevNeutral.Time) {
+				continue
+			}
 			if prev == nil || c.Time.After(prev.Time) {
 				prev = c
 			}
 		case c.Time.After(run.End) || c.Time.Equal(run.End):
+			if nextNeutral != nil && !c.Time.Before(nextNeutral.Time) {
+				continue
+			}
 			if next == nil || c.Time.Before(next.Time) {
 				next = c
 			}

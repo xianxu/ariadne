@@ -28,7 +28,7 @@ func TestLoadWindowCommits(t *testing.T) {
 		return []byte(out), nil
 	})
 
-	commits, err := loadWindowCommits("/repo", "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", issuePattern([]string{"8", "10"}))
+	commits, err := loadWindowCommits("/repo", "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestLoadWindowCommitsParsesAllIssueRefsForClaimants(t *testing.T) {
 		return []byte(out), nil
 	})
 
-	commits, err := loadWindowCommits("/repo", wideSince, wideUntil, issuePattern([]string{"1"}))
+	commits, err := loadWindowCommits("/repo", wideSince, wideUntil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestLoadWindowCommitsParsesAllIssueRefsForClaimants(t *testing.T) {
 
 func TestLoadWindowCommitsEmpty(t *testing.T) {
 	withGitRun(t, func(repo string, args ...string) ([]byte, error) { return []byte(""), nil })
-	commits, err := loadWindowCommits("/repo", "", "", issuePattern([]string{"8"}))
+	commits, err := loadWindowCommits("/repo", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

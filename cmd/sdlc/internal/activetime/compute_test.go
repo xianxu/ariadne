@@ -188,7 +188,7 @@ func TestComputeDiscoversInterveningIssueClaimants(t *testing.T) {
 	}
 }
 
-func TestAttributionWarningsDominantLongSegment(t *testing.T) {
+func TestComputeDominantBoundaryWarning(t *testing.T) {
 	segs := []Segment{{
 		Start:  tm("2026-01-01T10:00:00Z"),
 		End:    tm("2026-01-01T13:00:00Z"),
@@ -205,7 +205,7 @@ func TestAttributionWarningsDominantLongSegment(t *testing.T) {
 	}
 }
 
-func TestAttributionWarningsMentionFallback(t *testing.T) {
+func TestComputeMentionFallbackWarning(t *testing.T) {
 	segs := []Segment{{
 		Start:    tm("2026-01-01T10:00:00Z"),
 		End:      tm("2026-01-01T10:10:00Z"),
@@ -219,5 +219,24 @@ func TestAttributionWarningsMentionFallback(t *testing.T) {
 	}
 	if warnings[0].Issue != "9" || !strings.Contains(warnings[0].Reason, "fallback") {
 		t.Fatalf("warning should describe mention fallback for #9, got %+v", warnings[0])
+	}
+}
+
+func TestComputeNoCommitsMentionFallbackWarning(t *testing.T) {
+	dir := eventsDir(t,
+		`{"timestamp":"2026-01-01T00:00:00Z","type":"user","message":{"content":"#8 start"}}`,
+		`{"timestamp":"2026-01-01T00:10:00Z","type":"user","message":{"content":"#8 done"}}`,
+	)
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) { return []byte(""), nil })
+	res, err := Compute(Options{
+		Dirs: []string{dir}, GitRepo: "/repo",
+		SinceISO: wideSince, UntilISO: wideUntil,
+		Issues: []string{"8"}, CommitWeight: 1.0, ThresholdMin: 15, IncludeAssistant: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0].Reason, "fallback") {
+		t.Fatalf("no-commit mention fallback should warn, got %+v", res.Warnings)
 	}
 }
