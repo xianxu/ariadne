@@ -143,7 +143,7 @@ text includes the issue key, segment start/end, minutes, share, and reason.
 **Files:**
 - Modify: `cmd/sdlc/internal/activetime/segment_test.go`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add `TestBuildSegments_GlobalBoundariesPreventLongIssueAbsorption` with commits:
 
@@ -166,12 +166,12 @@ Specific assertions:
 - `#3` receives runs nearest to `c31` and `c32`.
 - total allocated minutes equals total run active minutes.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run TestBuildSegments_GlobalBoundariesPreventLongIssueAbsorption -count=1`
 Expected: FAIL under current target-enclosing segment behavior if the fixture is expressed in the existing segment model.
 
-- [ ] **Step 3: Add pure attribution helper**
+- [x] **Step 3: Add pure attribution helper**
 
 Introduce focused helpers in `segment.go`:
 - `activityRuns(events []Event, spans []TaskSpan, thresholdMin int) []ActivityRun`
@@ -186,7 +186,7 @@ mention share to other issues when a plausible issue commit exists. Keep one
 shared allocation helper for `claimActivityRuns` and the no-commit fallback
 (ARCH-DRY); do not leave old and new weighting rules in parallel.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run 'TestBuildSegments_GlobalBoundariesPreventLongIssueAbsorption|TestBuildSegments' -count=1`
 Expected: PASS.
@@ -196,7 +196,7 @@ Expected: PASS.
 **Files:**
 - Modify: `cmd/sdlc/internal/activetime/segment_test.go`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add a fixture with two overlapping task spans or session runs that are nearest to different issue commits. Assert each issue receives its own 15 minutes, not one globally unioned 15-minute bucket.
 
@@ -208,19 +208,19 @@ Assert `#8 == 15`, `#9 == 15`, and `TotalActive == 30`. This deliberately
 differs from `activeMinutesUnion`'s intra-source behavior, where overlapping
 intervals inside one source still union to wall-clock.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run TestBuildSegments_ParallelRunsCanAttributeToDifferentIssues -count=1`
 Expected: FAIL if global union collapses overlapping sessions.
 
-- [ ] **Step 3: Implement without global union**
+- [x] **Step 3: Implement without global union**
 
 Ensure activity runs retain source/run identity until after attribution. Union only inside a single run where needed to avoid double-counting that run's own spans.
 
 Add `TestActivityRunsUnionWithinSourceOnly`, proving two overlapping intervals
 in the same source union, while equal intervals in two sources remain two runs.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run TestBuildSegments_ParallelRunsCanAttributeToDifferentIssues -count=1`
 Expected: PASS.
@@ -230,7 +230,7 @@ Expected: PASS.
 **Files:**
 - Modify: `cmd/sdlc/internal/activetime/segment_test.go`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Add tests for the selector behavior before implementation:
 - `TestClaimActivityRuns_PrefersNextCommitOnTie`: equidistant previous/next
@@ -248,17 +248,17 @@ Add tests for the selector behavior before implementation:
   commit allocates the commit-weighted share to `#8`, zero to `#9`, and the
   remainder to `UnattributedKey`.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run 'TestClaimActivityRuns|TestActivityRuns' -count=1`
 Expected: FAIL until the selector and source-aware run construction exist.
 
-- [ ] **Step 3: Implement selector**
+- [x] **Step 3: Implement selector**
 
 Keep the selector pure and local to `segment.go`. It should accept a run and the
 already-loaded commit slice; it must not call git, read files, or parse subjects.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run 'TestClaimActivityRuns|TestActivityRuns|TestBuildSegments' -count=1`
 Expected: PASS.
@@ -270,7 +270,7 @@ Expected: PASS.
 - Modify: `cmd/sdlc/internal/activetime/commit_test.go`
 - Modify: `cmd/sdlc/internal/activetime/compute_test.go`
 
-- [ ] **Step 1: Write failing loader tests**
+- [x] **Step 1: Write failing loader tests**
 
 Add `TestLoadWindowCommitsParsesAllIssueRefsForClaimants`: fake git log output
 contains `#1`, `#2`, `#3`, and a no-ref commit; call the same loader path that
@@ -282,12 +282,12 @@ Add `TestComputeDiscoversInterveningIssueClaimants`: seed only issue `#1` in
 assert `Result.PerIssue` includes `#2` and `#3` allocations while `#1` does not
 claim their runs.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run 'TestLoadWindowCommitsParsesAllIssueRefsForClaimants|TestComputeDiscoversInterveningIssueClaimants' -count=1`
 Expected: FAIL while commit issue parsing is limited to `opts.Issues`.
 
-- [ ] **Step 3: Implement all-ref commit parsing**
+- [x] **Step 3: Implement all-ref commit parsing**
 
 Introduce one all-issue-ref pattern for commit subjects. Prefer sharing the
 regexp shape with `gitx.DiscoverWindowIssues` if a clean package boundary exists;
@@ -295,7 +295,7 @@ otherwise keep an activetime-local helper and add the loader test above as the
 drift guard. Event mention parsing may still use `issuePattern(opts.Issues)` for
 fallback mentions; commit claimants must not.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run 'TestLoadWindowCommitsParsesAllIssueRefsForClaimants|TestComputeDiscoversInterveningIssueClaimants' -count=1`
 Expected: PASS.
@@ -312,22 +312,22 @@ Expected: PASS.
 - Modify: `cmd/sdlc/activetime_test.go`
 - Modify: `cmd/sdlc/actual_test.go`
 
-- [ ] **Step 1: Write failing pure test**
+- [x] **Step 1: Write failing pure test**
 
 Add `TestComputeDominantBoundaryWarning` with one issue receiving >50% of its total from a run/boundary spanning more than the configured suspicious gap threshold. Assert `Result.Warnings` contains the issue, segment, and reason.
 
 Also add `TestComputeMentionFallbackWarning` for the no-boundary fallback path.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `go test ./cmd/sdlc/internal/activetime -run TestComputeDominantBoundaryWarning -count=1`
 Expected: FAIL because `Result.Warnings` does not exist.
 
-- [ ] **Step 3: Implement warning computation**
+- [x] **Step 3: Implement warning computation**
 
 Add `Warnings []AttributionWarning` to `Result`. Compute warnings after segments are built and per-issue totals are known. Start with conservative thresholds: one segment/run contributes >50% of an issue total and spans >2h, or a run has no plausible boundary and falls back to mentions.
 
-- [ ] **Step 4: Render warnings**
+- [x] **Step 4: Render warnings**
 
 Print warnings in `sdlc active-time` after the segment table. In `sdlc actual`, include warning text in `actualResult.Detail` or a new field rendered before the close suggestion.
 
@@ -336,7 +336,7 @@ Expected output contract:
 - actual stderr includes `attribution warning:` lines before `→ close with:`.
 - warning presence does not change exit code.
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run: `go test ./cmd/sdlc/internal/activetime ./cmd/sdlc -run 'TestComputeDominantBoundaryWarning|TestRunActiveTime' -count=1`
 Expected: PASS.
@@ -349,12 +349,12 @@ Expected: PASS.
 - Modify: `cmd/sdlc/internal/activetime/parity_test.go` if fixture-level E2E coverage is needed.
 - Modify: `workshop/issues/000092-*.md`
 
-- [ ] **Step 1: Run focused and package tests**
+- [x] **Step 1: Run focused and package tests**
 
 Run: `go test ./cmd/sdlc/internal/activetime ./cmd/sdlc -count=1`
 Expected: PASS.
 
-- [ ] **Step 2: Run live/baseline checks**
+- [x] **Step 2: Run live/baseline checks**
 
 Run `sdlc active-time` or `go test` fixtures against:
 - the synthetic #92 contamination case;
@@ -403,11 +403,11 @@ case log that fact and the exact missing paths.
 - Modify: `atlas/workflow/ledger-landscape.md`
 - Modify: `workshop/issues/000092-*.md`
 
-- [ ] **Step 1: Document attribution model**
+- [x] **Step 1: Document attribution model**
 
 Describe global commit-boundary attribution, overlapping issue work, and suspicious attribution warnings. Include the mitigation: commit more often to provide boundaries.
 
-- [ ] **Step 2: Final verification**
+- [x] **Step 2: Final verification**
 
 Run:
 

@@ -289,6 +289,50 @@ func TestActivityRunsUnionWithinSourceOnly(t *testing.T) {
 	}
 }
 
+func TestBuildSegments_GlobalBoundariesPreventLongIssueAbsorption(t *testing.T) {
+	commits := []Commit{
+		{Time: tm("2026-01-01T00:00:00Z"), SHA: "c11", Subject: "#1 c11", Issues: []string{"1"}},
+		{Time: tm("2026-01-01T00:20:00Z"), SHA: "c21", Subject: "#2 c21", Issues: []string{"2"}},
+		{Time: tm("2026-01-01T00:40:00Z"), SHA: "c22", Subject: "#2 c22", Issues: []string{"2"}},
+		{Time: tm("2026-01-01T01:00:00Z"), SHA: "c31", Subject: "#3 c31", Issues: []string{"3"}},
+		{Time: tm("2026-01-01T01:20:00Z"), SHA: "c23", Subject: "#2 c23", Issues: []string{"2"}},
+		{Time: tm("2026-01-01T01:40:00Z"), SHA: "c32", Subject: "#3 c32", Issues: []string{"3"}},
+		{Time: tm("2026-01-01T03:00:00Z"), SHA: "c12", Subject: "#1 c12", Issues: []string{"1"}},
+	}
+	events := []Event{
+		{Time: tm("2026-01-01T00:05:00Z"), Source: "issue1a"},
+		{Time: tm("2026-01-01T00:10:00Z"), Source: "issue1a"},
+		{Time: tm("2026-01-01T00:25:00Z"), Source: "issue2a"},
+		{Time: tm("2026-01-01T00:35:00Z"), Source: "issue2a"},
+		{Time: tm("2026-01-01T01:10:00Z"), Source: "issue2b"},
+		{Time: tm("2026-01-01T01:15:00Z"), Source: "issue2b"},
+		{Time: tm("2026-01-01T01:30:00Z"), Source: "issue3"},
+		{Time: tm("2026-01-01T01:35:00Z"), Source: "issue3"},
+		{Time: tm("2026-01-01T02:45:00Z"), Source: "issue1b"},
+		{Time: tm("2026-01-01T03:00:00Z"), Source: "issue1b"},
+	}
+	segs := buildSegments(events, commits, nil, 1.0, 1.0, 15)
+	if got := sumAlloc(segs, "1"); !approx(got, 20) {
+		t.Fatalf("#1 should receive only adjacent issue1 runs, got %v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "2"); !approx(got, 15) {
+		t.Fatalf("#2 should receive c22/c23-nearest runs, got %v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "3"); !approx(got, 5) {
+		t.Fatalf("#3 should receive c32-nearest run, got %v segs=%+v", got, segs)
+	}
+	var totalActive, totalAllocated float64
+	for _, s := range segs {
+		totalActive += s.Active
+		for _, mins := range s.Alloc {
+			totalAllocated += mins
+		}
+	}
+	if !approx(totalActive, 40) || !approx(totalAllocated, totalActive) {
+		t.Fatalf("allocation should conserve active minutes: active=%v allocated=%v segs=%+v", totalActive, totalAllocated, segs)
+	}
+}
+
 func TestClaimActivityRuns_PrefersNextCommitOnTie(t *testing.T) {
 	runs := []ActivityRun{{
 		Start:  tm("2026-01-01T10:10:00Z"),

@@ -193,6 +193,7 @@ silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
 "parallel-session dedup not yet implemented" as a known gap.
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... -count=1 passed; git diff --check passed; second boundary-review REWORK fixes route no-commit fallback through source-scoped activity runs, preserve overlapping fallback sessions, render fallback segments, and warn on unattributed fallback allocations; review verdict: FIX-THEN-SHIP
 - 2026-06-29: closed — go test ./cmd/sdlc/... -count=1 passed; git diff --check passed; boundary-review REWORK fixes added neutral no-ref delimiter behavior and no-commit fallback warnings; historical baseline-v3 and nous#48 transcript windows were attempted but unavailable locally as documented in the issue log; review verdict: REWORK
 - 2026-06-29: closed — go test ./cmd/sdlc/... -count=1 passed; git diff --check passed; baseline-v3 and nous#48 live commands were attempted but local historical transcript windows returned 0 events, so synthetic #92 claimant tests plus the updated attribution golden carry the regression evidence; review verdict: REWORK
 
@@ -235,3 +236,8 @@ silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
   rendered as segments; unattributed fallback allocations now emit explicit
   warnings. Verification passed: `go test ./cmd/sdlc/... -count=1` and
   `git diff --check`.
+- Addressed boundary-review FIX-THEN-SHIP notes before merge: the durable plan
+  checklist is now ticked, `AttributionWarning` carries `time.Time` boundaries
+  and formats at the CLI boundary, and the exact
+  `TestBuildSegments_GlobalBoundariesPreventLongIssueAbsorption` fixture exists.
+  Verification passed: `go test ./cmd/sdlc/... -count=1` and `git diff --check`.

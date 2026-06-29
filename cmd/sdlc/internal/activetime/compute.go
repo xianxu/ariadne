@@ -1,5 +1,7 @@
 package activetime
 
+import "time"
+
 // Status mirrors active-time-v3.py's exit-code contract minus the CLI-layer
 // misinvoke (exit 2, validated before Compute runs):
 //
@@ -59,8 +61,8 @@ const suspiciousShare = 0.50
 
 type AttributionWarning struct {
 	Issue  string
-	Start  string
-	End    string
+	Start  time.Time
+	End    time.Time
 	Active float64
 	Share  float64
 	Reason string
@@ -124,7 +126,9 @@ func attributionWarnings(segs []Segment, perIssue map[string]float64) []Attribut
 			share := mins / total
 			if spanMin > suspiciousSpanMin && share > suspiciousShare {
 				warnings = append(warnings, AttributionWarning{
-					Issue: iss, Start: s.Start.Format("2006-01-02 15:04"), End: s.End.Format("2006-01-02 15:04"),
+					Issue:  iss,
+					Start:  s.Start,
+					End:    s.End,
 					Active: mins, Share: share,
 					Reason: "dominant long attribution segment",
 				})
@@ -135,7 +139,9 @@ func attributionWarnings(segs []Segment, perIssue map[string]float64) []Attribut
 					reason = "unattributed fallback without issue commit boundary"
 				}
 				warnings = append(warnings, AttributionWarning{
-					Issue: iss, Start: s.Start.Format("2006-01-02 15:04"), End: s.End.Format("2006-01-02 15:04"),
+					Issue:  iss,
+					Start:  s.Start,
+					End:    s.End,
 					Active: mins, Share: share,
 					Reason: reason,
 				})

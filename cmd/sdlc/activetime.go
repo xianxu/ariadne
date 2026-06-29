@@ -99,7 +99,9 @@ func renderAttributionWarnings(out io.Writer, warnings []activetime.AttributionW
 
 func formatAttributionWarning(w activetime.AttributionWarning) string {
 	return fmt.Sprintf("%s %.1fm/%.0f%% %s (%s → %s)",
-		displayIssue(w.Issue), w.Active, w.Share*100, w.Reason, w.Start, w.End)
+		displayIssue(w.Issue), w.Active, w.Share*100, w.Reason,
+		w.Start.Local().Format("2006-01-02 15:04"),
+		w.End.Local().Format("2006-01-02 15:04"))
 }
 
 // renderSegmentTable prints the per-segment breakdown (one row per segment).
