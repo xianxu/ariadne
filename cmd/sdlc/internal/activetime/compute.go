@@ -49,13 +49,26 @@ type Result struct {
 	PerIssue    map[string]float64
 	TotalActive float64
 	Segments    []Segment
+	Warnings    []AttributionWarning
 	NumEvents   int
 	NumCommits  int
 }
 
+const suspiciousSpanMin = 120.0
+const suspiciousShare = 0.50
+
+type AttributionWarning struct {
+	Issue  string
+	Start  string
+	End    string
+	Active float64
+	Share  float64
+	Reason string
+}
+
 // Compute is the engine: load transcript events + window commits, then attribute
-// active time per the v3 rule. Mirrors active-time-v3.py main()'s branching
-// (minus printing). The only IO is the two loaders; everything below is pure.
+// active time per the v3 rule. The only IO is the two loaders; everything below
+// is pure.
 func Compute(opts Options) (Result, error) {
 	pat := issuePattern(opts.Issues)
 	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, pat, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
@@ -105,6 +118,36 @@ func Compute(opts Options) (Result, error) {
 			res.PerIssue[iss] += m
 		}
 	}
+	res.Warnings = attributionWarnings(res.Segments, res.PerIssue)
 	res.Status = Measured
 	return res, nil
+}
+
+func attributionWarnings(segs []Segment, perIssue map[string]float64) []AttributionWarning {
+	var warnings []AttributionWarning
+	for _, s := range segs {
+		spanMin := s.End.Sub(s.Start).Minutes()
+		for iss, mins := range s.Alloc {
+			total := perIssue[iss]
+			if total <= 0 || mins <= 0 {
+				continue
+			}
+			share := mins / total
+			if spanMin > suspiciousSpanMin && share > suspiciousShare {
+				warnings = append(warnings, AttributionWarning{
+					Issue: iss, Start: s.Start.Format("2006-01-02 15:04"), End: s.End.Format("2006-01-02 15:04"),
+					Active: mins, Share: share,
+					Reason: "dominant long attribution segment",
+				})
+			}
+			if s.Commit == nil && len(s.Mentions) > 0 {
+				warnings = append(warnings, AttributionWarning{
+					Issue: iss, Start: s.Start.Format("2006-01-02 15:04"), End: s.End.Format("2006-01-02 15:04"),
+					Active: mins, Share: share,
+					Reason: "mention fallback without issue commit boundary",
+				})
+			}
+		}
+	}
+	return warnings
 }

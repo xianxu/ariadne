@@ -57,13 +57,14 @@ const (
 )
 
 type actualResult struct {
-	Status actualStatus
-	Hours  float64
-	Issue  string
-	Peers  []string
-	Dirs   []string
-	Window string // "<shortSHA> → HEAD"
-	Detail string // diagnostic for the error path
+	Status   actualStatus
+	Hours    float64
+	Issue    string
+	Peers    []string
+	Dirs     []string
+	Window   string // "<shortSHA> → HEAD"
+	Detail   string // diagnostic for the error path
+	Warnings []string
 }
 
 // computeActual is the engine glue: resolve the commit window + peer issues + the
@@ -119,6 +120,9 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		return res
 	}
 	res.Status, res.Hours = statusFromResult(out, issueNum)
+	for _, w := range out.Warnings {
+		res.Warnings = append(res.Warnings, formatAttributionWarning(w))
+	}
 	return res
 }
 
@@ -204,6 +208,9 @@ func printActual(w io.Writer, res actualResult) {
 	switch res.Status {
 	case actualMeasured:
 		cok(w, fmt.Sprintf("measured actual for #%s: %.2fh   (window %s)", res.Issue, res.Hours, res.Window))
+		for _, warning := range res.Warnings {
+			fmt.Fprintf(w, "  attribution warning: %s\n", warning)
+		}
 		fmt.Fprintf(w, "  → close with:  --actual %.2f\n", res.Hours)
 		if len(res.Peers) > 1 {
 			fmt.Fprintf(w, "  (attributed across window issues: %s)\n", strings.Join(prefixHash(res.Peers), ", "))

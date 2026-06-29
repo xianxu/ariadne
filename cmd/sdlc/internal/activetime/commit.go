@@ -7,9 +7,10 @@ import (
 	"time"
 )
 
-// Commit is a window commit with its tracked-issue subject refs (deduped,
-// order-preserving). Time is the author date (%aI). Commits define segment
-// boundaries; each non-suffix segment is anchored by the commit at its end.
+// Commit is a window commit with its subject issue refs (deduped,
+// order-preserving). Time is the author date (%aI). Commits define global time
+// boundaries; commits with issue refs can claim nearby activity runs, while
+// no-ref commits remain neutral boundaries.
 type Commit struct {
 	Time    time.Time
 	SHA     string // short (7)
@@ -63,7 +64,7 @@ func loadWindowCommits(repo, sinceISO, untilISO string, pat *regexp.Regexp) ([]C
 			Time:    ts,
 			SHA:     short7(parts[0]),
 			Subject: parts[2],
-			Issues:  uniqueRefs(pat, parts[2]),
+			Issues:  uniqueRefs(allIssuePattern(), parts[2]),
 		})
 	}
 	return commits, nil

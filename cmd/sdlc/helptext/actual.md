@@ -24,7 +24,10 @@ WHAT IT DOES
      inflates the count.
   3. Runs the native `activetime` engine (`--commit-weight 1.0 --threshold-min 15
      --include-assistant`, in-process — no python3) and prints the suggested
-     `--actual` value.
+     `--actual` value. If attribution is suspect (for example one long run
+     dominates the issue total, or the engine had to use mention fallback because
+     no issue commit boundary existed), warning lines are printed before the
+     close suggestion.
 
 OUTPUT
 

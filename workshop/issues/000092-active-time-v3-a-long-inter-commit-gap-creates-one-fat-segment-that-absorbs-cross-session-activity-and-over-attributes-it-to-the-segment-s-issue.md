@@ -158,12 +158,12 @@ total: 5.95
 
 ## Plan
 
-- [ ] Reproduce the contamination with a synthetic fixture matching the `c11/c21/c22/c31/c23/c32/c12` shape; assert the old target-issue segment lets issue 1 claim intervening issue 2/3 activity.
-- [ ] Introduce a pure global-boundary attribution model: activity runs are claimable work units; commit refs are boundaries/claimants; nearest plausible boundary wins with next-commit bias.
-- [ ] Preserve overlapping sessions as separate issue work when they attribute to different issues; do not globally union them into one operator-capacity ledger.
-- [ ] Validate the nous#48 window and the `baseline-v3.md` human-baselined sessions; confirm the fix removes the 14.47h artifact without regressing normal sessions.
-- [ ] Add suspicious-attribution warnings to `sdlc active-time` / `sdlc actual` output.
-- [ ] Document the commit-frequency mitigation in the SDLC guidance.
+- [x] Reproduce the contamination with a synthetic fixture matching the `c11/c21/c22/c31/c23/c32/c12` shape; assert the old target-issue segment lets issue 1 claim intervening issue 2/3 activity.
+- [x] Introduce a pure global-boundary attribution model: activity runs are claimable work units; commit refs are boundaries/claimants; nearest plausible boundary wins with next-commit bias.
+- [x] Preserve overlapping sessions as separate issue work when they attribute to different issues; do not globally union them into one operator-capacity ledger.
+- [x] Validate the nous#48 window and the `baseline-v3.md` human-baselined sessions; confirm the fix removes the 14.47h artifact without regressing normal sessions.
+- [x] Add suspicious-attribution warnings to `sdlc active-time` / `sdlc actual` output.
+- [x] Document the commit-frequency mitigation in the SDLC guidance.
 
 ## Revisions
 
@@ -205,3 +205,14 @@ silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
   one primary issue, and mention fallback must not allocate share when a commit
   boundary exists. The plan now includes the recorded baseline-v3 command and
   expected values instead of treating the in-repo golden as a substitute.
+- Implemented the global-boundary attribution model in `cmd/sdlc/internal/activetime`:
+  source-aware activity runs, all-issue commit claimants, nearest boundary
+  selection, mention fallback only without a boundary, and attribution warnings
+  rendered by `sdlc active-time` / `sdlc actual`. Focused verification passed:
+  `go test ./cmd/sdlc/internal/activetime ./cmd/sdlc -count=1`.
+- Baseline/live validation caveat: the recorded baseline-v3 command and
+  `sdlc actual --issue 48` in `/Users/xianxu/workspace/nous` are both telemetry
+  unavailable locally now (0 transcript events in those historical windows),
+  despite the transcript dirs existing. Automated coverage therefore carries the
+  regression evidence: synthetic #92 claimant tests plus the updated attribution
+  golden.

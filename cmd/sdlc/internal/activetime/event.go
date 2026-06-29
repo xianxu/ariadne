@@ -1,17 +1,15 @@
-// Package activetime is the native Go port of the former active-time-v3.py
-// (removed in #110; see git history for the Python original) — the
-// segment-anchored per-issue dev-hour attribution behind `sdlc actual` (#68,
-// #110). It collapses what was a python3 subprocess + stdout-regex + script-
-// resolution into an in-process engine: a pure core (gap-truncated active
-// minutes, segment construction, the commit-weight/mention split) behind a thin
+// Package activetime is the native Go active-time-v3 engine behind `sdlc actual`
+// (#68, #110, #92). It collapses what was a python3 subprocess + stdout-regex +
+// script-resolution into an in-process engine: a pure core (gap-truncated active
+// runs, global commit-boundary attribution, warning computation) behind a thin
 // IO seam (transcript .jsonl event loading + a git-log window loader).
 //
 // Provenance comments below name the Python functions each Go function ports;
 // the source lives in git history, not the tree.
 //
-// Semantics are preserved 1:1 with the Python so measured actuals don't shift;
-// the only intentional divergences are cosmetic (the unattributed bucket renders
-// as "unattributed", not the Python's "##unattributed").
+// Event decoding still follows the Python script closely. Attribution no longer
+// preserves the Python segment loop: #92 moved it to source-aware activity runs
+// claimed by nearby issue commit boundaries.
 package activetime
 
 import (
@@ -35,6 +33,7 @@ import (
 type Event struct {
 	Time     time.Time
 	Mentions map[string]int
+	Source   string
 }
 
 // TaskSpan is one synchronous subagent execution: the interval between an
@@ -45,6 +44,7 @@ type Event struct {
 // rather than truncate at the 15-min cap (#118 — measure ship wall-clock).
 type TaskSpan struct {
 	Start, End time.Time
+	Source     string
 }
 
 // rawLine is one decoded transcript JSONL record. Content is left raw because it
@@ -357,6 +357,7 @@ func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssist
 				if haveUntil && e.Time.After(until) {
 					continue
 				}
+				e.Source = f
 				events = append(events, e)
 			}
 			for _, s := range sps {
@@ -369,6 +370,7 @@ func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssist
 					s.End = until
 				}
 				if s.End.After(s.Start) {
+					s.Source = f
 					spans = append(spans, s)
 				}
 			}
@@ -386,6 +388,7 @@ func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssist
 			if haveUntil && e.Time.After(until) {
 				continue
 			}
+			e.Source = f
 			events = append(events, e)
 		}
 		for _, sp := range sps {
@@ -402,6 +405,7 @@ func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssist
 				sp.End = until
 			}
 			if sp.End.After(sp.Start) {
+				sp.Source = f
 				spans = append(spans, sp)
 			}
 		}
