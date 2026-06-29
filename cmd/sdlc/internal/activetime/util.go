@@ -42,6 +42,10 @@ func issuePattern(issues []string) *regexp.Regexp {
 	return regexp.MustCompile(`#(` + strings.Join(alts, "|") + `)\b`)
 }
 
+func allIssuePattern() *regexp.Regexp {
+	return regexp.MustCompile(`#(\d+)\b`)
+}
+
 // parseEventMentions counts tracked-issue #N refs in text. Pure — split out so
 // the mention logic is unit-testable without files. nil pattern or empty text →
 // no mentions.

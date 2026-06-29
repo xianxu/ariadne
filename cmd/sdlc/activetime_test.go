@@ -99,7 +99,7 @@ func TestRunActiveTimeMeasuredTable(t *testing.T) {
 	}
 	s := out.String()
 	for _, want := range []string{
-		"# v3 segment-anchored attribution",
+		"# v3 global-boundary attribution",
 		"# per-issue totals",
 		"#8:",    // per-issue total line
 		"commit", // table header
@@ -107,6 +107,27 @@ func TestRunActiveTimeMeasuredTable(t *testing.T) {
 		if !strings.Contains(s, want) {
 			t.Errorf("stdout missing %q:\n%s", want, s)
 		}
+	}
+}
+
+func TestRunActiveTimeRendersWarnings(t *testing.T) {
+	repo := atGitRepo(t, map[string]string{"2026-03-01T10:20:00+00:00": "chore: no refs"})
+	dir := t.TempDir()
+	writeJSONLmain(t, filepath.Join(dir, "s.jsonl"),
+		`{"timestamp":"2026-03-01T10:00:00Z","type":"user","message":{"content":"#8 a"}}`,
+		`{"timestamp":"2026-03-01T10:10:00Z","type":"user","message":{"content":"#8 b"}}`,
+	)
+	var out, errOut bytes.Buffer
+	code := runActiveTime(activetime.Options{
+		Dirs: []string{dir}, GitRepo: repo,
+		SinceISO: "2026-03-01T00:00:00Z", UntilISO: "2026-03-02T00:00:00Z",
+		Issues: []string{"8"}, CommitWeight: 1.0, ThresholdMin: 15, IncludeAssistant: true,
+	}, &out, &errOut)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0\nstderr: %s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), "# attribution warnings") || !strings.Contains(out.String(), "fallback") {
+		t.Fatalf("stdout missing attribution warning:\n%s", out.String())
 	}
 }
 

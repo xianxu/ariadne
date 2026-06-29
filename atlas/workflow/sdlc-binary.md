@@ -257,7 +257,12 @@ malformed / empty / no-`session_meta` Codex files. This is the validated heurist
 the wrong/missing sources were why actuals read 0 and got faked). The engine
 returns a structured `Result.Status`: `TelemetryGap`
 (commits-but-0-events → labeled judgment), `EmptyWindow` (nothing to measure), or
-`Measured` (`PerIssue[N]` → hours). Dir-selection is deliberately narrow (NOT all
+`Measured` (`PerIssue[N]` → hours). Attribution is global-boundary based (#92):
+source-scoped activity runs are claimed by nearby issue-referenced commits;
+overlaps collapse within one transcript source but not across parallel sources;
+all commit-subject issue refs become claimants, while no-ref commits are neutral
+time boundaries. Suspicious attribution is surfaced as `Result.Warnings` and
+rendered by `actual` / `active-time`. Dir-selection is deliberately narrow (NOT all
 folders/sessions) — an unrelated concurrently-edited repo inflates the count.
 `WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
 window-**start** is the *earlier* of `CommitWindow`'s parent-of-first-`#N`-commit
@@ -272,7 +277,7 @@ open→working flip in `applyStatus`, local-offset RFC3339 to match `%aI`) →
 "best-effort" history scan could silently miss and drop design time.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
-manual-inspection sibling that prints the full per-segment table. It preserves
+manual-inspection sibling that prints the full attribution table and warnings. It preserves
 the #68 loud-fail exit-code contract: **2** = misinvoke (no `--dir`/`--issue`/
 `--git-repo`), **3** = telemetry gap (commits but 0 events), **0** =
 measured-or-empty. (Before #110 the engine was `active-time-v3.py`, a python3

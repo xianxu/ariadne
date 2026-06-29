@@ -47,7 +47,7 @@ func runActiveTime(opts activetime.Options, out, errOut io.Writer) int {
 	}
 
 	// Header (to stdout) — mirrors active-time-v3.py's preamble.
-	fmt.Fprintln(out, "# v3 segment-anchored attribution")
+	fmt.Fprintln(out, "# v3 global-boundary attribution")
 	if opts.PrefixWeight != nil && *opts.PrefixWeight != opts.CommitWeight {
 		fmt.Fprintf(out, "# commit-weight: %g (prefix: %g)  •  threshold: %d min\n", opts.CommitWeight, *opts.PrefixWeight, opts.ThresholdMin)
 	} else {
@@ -82,7 +82,26 @@ func runActiveTime(opts activetime.Options, out, errOut io.Writer) int {
 		mins := res.PerIssue[iss]
 		fmt.Fprintf(out, "  %s: %.2f hr  (%.1f min)\n", displayIssue(iss), mins/60, mins)
 	}
+	renderAttributionWarnings(out, res.Warnings)
 	return 0
+}
+
+func renderAttributionWarnings(out io.Writer, warnings []activetime.AttributionWarning) {
+	if len(warnings) == 0 {
+		return
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "# attribution warnings")
+	for _, w := range warnings {
+		fmt.Fprintf(out, "  attribution warning: %s\n", formatAttributionWarning(w))
+	}
+}
+
+func formatAttributionWarning(w activetime.AttributionWarning) string {
+	return fmt.Sprintf("%s %.1fm/%.0f%% %s (%s → %s)",
+		displayIssue(w.Issue), w.Active, w.Share*100, w.Reason,
+		w.Start.Local().Format("2006-01-02 15:04"),
+		w.End.Local().Format("2006-01-02 15:04"))
 }
 
 // renderSegmentTable prints the per-segment breakdown (one row per segment).

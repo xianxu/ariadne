@@ -82,20 +82,20 @@ func TestComputeGuardEmptyWindow(t *testing.T) {
 // --- golden attribution regression (frozen from the Python parity gate) ---
 
 // TestAttributionGolden runs Go Compute over a crafted fixture spanning a prefix
-// segment, a multi-issue commit segment, and a mention-only suffix, and asserts
-// the per-issue minutes against GOLDEN values.
+// run, multi-issue commit-boundary runs, and suffix work, and asserts the
+// per-issue minutes against the current global-boundary attribution model.
 //
-// Those golden values were established by the M1 parity gate: a differential
-// test that ran the real active-time-v3.py over THESE EXACT fixtures and
-// confirmed Go == Python (#8=0.46h, #10=0.21h; see issue #110 Log). The Python
-// oracle is deleted with the script in M2, so this freezes its verdict as a
-// permanent regression guard — any future drift in the attribution math fails
-// here. Derivation (commit-weight 1.0, threshold 15, prefix-weight = commit-weight):
+// This test used to freeze the Python segment-anchored oracle from #110. #92
+// intentionally replaces that model with source-scoped activity runs claimed by
+// nearby issue commits. Derivation (commit-weight 1.0, threshold 15,
+// prefix-weight = commit-weight):
 //
-//	prefix  [10:00,10:30) active 15  → #8 +15           (anchored #8)
-//	commit  [10:30,11:30) active 15  → #8 +7.5, #10 +7.5 (anchored #10,#8 split)
-//	suffix  [11:30,11:46) active 10  → #8 +5,   #10 +5   (no anchor, mention 1:1)
-//	totals: #8 = 27.5min, #10 = 12.5min
+//	10:00→10:15 active 15 → #8
+//	10:15→10:30 active 15 → #8
+//	10:45→11:00 active 15 → #8/#10 split
+//	11:00→11:15 active 15 → #8/#10 split
+//	11:35→11:45 active 10 → #8/#10 split via previous commit fallback
+//	totals: #8 = 50min, #10 = 20min
 func TestAttributionGolden(t *testing.T) {
 	repo := gitInit(t)
 	gitCommit(t, repo, "2026-03-01T10:30:00+00:00", "#8 first bit")
@@ -122,14 +122,14 @@ func TestAttributionGolden(t *testing.T) {
 	if res.Status != Measured {
 		t.Fatalf("want Measured, got %v", res.Status)
 	}
-	golden := map[string]float64{"8": 27.5, "10": 12.5}
+	golden := map[string]float64{"8": 50, "10": 20}
 	for iss, want := range golden {
 		if !approx(res.PerIssue[iss], want) {
-			t.Errorf("#%s = %.4f min, want golden %.1f (Python-verified)", iss, res.PerIssue[iss], want)
+			t.Errorf("#%s = %.4f min, want golden %.1f", iss, res.PerIssue[iss], want)
 		}
 	}
-	if !approx(res.TotalActive, 40) {
-		t.Errorf("total active = %.4f, want 40 min", res.TotalActive)
+	if !approx(res.TotalActive, 70) {
+		t.Errorf("total active = %.4f, want 70 min", res.TotalActive)
 	}
 }
 

@@ -11,26 +11,33 @@ WHEN TO USE
   work, see which commit anchored which minutes, or run a non-default
   commit-weight. You supply the window and dirs yourself.
 
-THE V3 METHOD (segment-anchored)
+THE V3 METHOD (global commit-boundary attribution)
 
-  Single-threaded session by definition. Commits in the window cut it into
-  segments: events from one commit's time to the next form a segment, intrinsically
-  scoped to the focused-work block that produced the commit. For each segment:
+  Transcript activity becomes source-scoped activity runs: inter-event gaps are
+  capped at --threshold-min, task spans count in full, and overlaps collapse only
+  within the same transcript source. Overlapping sessions can each count as
+  issue work.
 
-    1. active time = sum of inter-event gaps, each capped at --threshold-min.
-    2. commit-weight × active is split equally across the issues named in the
-       segment-ending commit's subject.
-    3. (1 − commit-weight) × active is split across issues *mentioned* in the
-       segment's transcript events, by mention count.
-    4. a commit with no issue refs → the whole segment goes by mention.
+  Commits are global temporal boundaries. Every issue ref in commit subjects is
+  parsed as a claimant, even when --issue names only the primary issue. Commits
+  with no issue refs cut time but do not claim it. Each run is attributed to the
+  nearest plausible issue commit, with next-commit ties winning because commits
+  usually close the work that preceded them.
 
-  Edge segments: the pre-first-commit prefix and post-last-commit suffix are
-  attributed by the same rule (the prefix can use --prefix-commit-weight).
+  Mention fallback is used only when no plausible issue commit boundary exists.
+  With a commit claimant present, mentions cannot steal share for another issue;
+  if --commit-weight is below 1.0, the non-commit share is left unattributed.
+
+  More frequent commits improve the estimate: they give the attribution model
+  more boundaries, so a long-running issue is less likely to absorb unrelated
+  intervening work.
 
 OUTPUT
 
   A per-segment table (start, end, active min, anchoring commit, its issues,
-  mention counts, allocation) then per-issue totals in hours + minutes.
+  mention counts, allocation), per-issue totals in hours + minutes, and an
+  attribution-warning section when one run dominates an issue total or the engine
+  had to fall back to mentions without an issue commit boundary.
 
 EXIT CODES (the #68 loud-fail contract)
 

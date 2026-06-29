@@ -1,5 +1,7 @@
 package activetime
 
+import "time"
+
 // Status mirrors active-time-v3.py's exit-code contract minus the CLI-layer
 // misinvoke (exit 2, validated before Compute runs):
 //
@@ -49,20 +51,33 @@ type Result struct {
 	PerIssue    map[string]float64
 	TotalActive float64
 	Segments    []Segment
+	Warnings    []AttributionWarning
 	NumEvents   int
 	NumCommits  int
 }
 
+const suspiciousSpanMin = 120.0
+const suspiciousShare = 0.50
+
+type AttributionWarning struct {
+	Issue  string
+	Start  time.Time
+	End    time.Time
+	Active float64
+	Share  float64
+	Reason string
+}
+
 // Compute is the engine: load transcript events + window commits, then attribute
-// active time per the v3 rule. Mirrors active-time-v3.py main()'s branching
-// (minus printing). The only IO is the two loaders; everything below is pure.
+// active time per the v3 rule. The only IO is the two loaders; everything below
+// is pure.
 func Compute(opts Options) (Result, error) {
 	pat := issuePattern(opts.Issues)
 	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, pat, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
 	if err != nil {
 		return Result{}, err
 	}
-	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO, pat)
+	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO)
 	if err != nil {
 		return Result{}, err
 	}
@@ -87,17 +102,6 @@ func Compute(opts Options) (Result, error) {
 		prefixWeight = *opts.PrefixWeight
 	}
 
-	if len(commits) == 0 {
-		// No commit signal in the window → whole-window mention attribution
-		// (the Python original's no-commits fallback).
-		times, mentions := eventTimesAndMentions(events)
-		active := activeMinutesUnion(times, spans, opts.ThresholdMin)
-		res.TotalActive = active
-		res.PerIssue = attributeSegment(active, nil, mentions, opts.CommitWeight)
-		res.Status = Measured
-		return res, nil
-	}
-
 	res.Segments = buildSegments(events, commits, spans, opts.CommitWeight, prefixWeight, opts.ThresholdMin)
 	for _, s := range res.Segments {
 		res.TotalActive += s.Active
@@ -105,6 +109,44 @@ func Compute(opts Options) (Result, error) {
 			res.PerIssue[iss] += m
 		}
 	}
+	res.Warnings = attributionWarnings(res.Segments, res.PerIssue)
 	res.Status = Measured
 	return res, nil
+}
+
+func attributionWarnings(segs []Segment, perIssue map[string]float64) []AttributionWarning {
+	var warnings []AttributionWarning
+	for _, s := range segs {
+		spanMin := s.End.Sub(s.Start).Minutes()
+		for iss, mins := range s.Alloc {
+			total := perIssue[iss]
+			if total <= 0 || mins <= 0 {
+				continue
+			}
+			share := mins / total
+			if spanMin > suspiciousSpanMin && share > suspiciousShare {
+				warnings = append(warnings, AttributionWarning{
+					Issue:  iss,
+					Start:  s.Start,
+					End:    s.End,
+					Active: mins, Share: share,
+					Reason: "dominant long attribution segment",
+				})
+			}
+			if s.Commit == nil {
+				reason := "mention fallback without issue commit boundary"
+				if iss == UnattributedKey {
+					reason = "unattributed fallback without issue commit boundary"
+				}
+				warnings = append(warnings, AttributionWarning{
+					Issue:  iss,
+					Start:  s.Start,
+					End:    s.End,
+					Active: mins, Share: share,
+					Reason: reason,
+				})
+			}
+		}
+	}
+	return warnings
 }

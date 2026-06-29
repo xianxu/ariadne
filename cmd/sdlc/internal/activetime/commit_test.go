@@ -28,7 +28,7 @@ func TestLoadWindowCommits(t *testing.T) {
 		return []byte(out), nil
 	})
 
-	commits, err := loadWindowCommits("/repo", "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", issuePattern([]string{"8", "10"}))
+	commits, err := loadWindowCommits("/repo", "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,9 +52,36 @@ func TestLoadWindowCommits(t *testing.T) {
 	}
 }
 
+func TestLoadWindowCommitsParsesAllIssueRefsForClaimants(t *testing.T) {
+	out := strings.Join([]string{
+		"aaaaaaaaaaaaaaaa\t2026-01-01T00:00:00Z\t#1 c11",
+		"bbbbbbbbbbbbbbbb\t2026-01-01T00:20:00Z\t#2 c21",
+		"cccccccccccccccc\t2026-01-01T00:40:00Z\t#2 c22",
+		"dddddddddddddddd\t2026-01-01T01:00:00Z\t#3 c31",
+		"eeeeeeeeeeeeeeee\t2026-01-01T02:00:00Z\tchore: no refs",
+	}, "\n")
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) {
+		return []byte(out), nil
+	})
+
+	commits, err := loadWindowCommits("/repo", wideSince, wideUntil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := commits[1].Issues; len(got) != 1 || got[0] != "2" {
+		t.Fatalf("intervening #2 commit should be parsed as a claimant even when only #1 was seeded, got %v", got)
+	}
+	if got := commits[3].Issues; len(got) != 1 || got[0] != "3" {
+		t.Fatalf("intervening #3 commit should be parsed as a claimant even when only #1 was seeded, got %v", got)
+	}
+	if got := commits[4].Issues; len(got) != 0 {
+		t.Fatalf("no-ref commit should remain a neutral boundary, got %v", got)
+	}
+}
+
 func TestLoadWindowCommitsEmpty(t *testing.T) {
 	withGitRun(t, func(repo string, args ...string) ([]byte, error) { return []byte(""), nil })
-	commits, err := loadWindowCommits("/repo", "", "", issuePattern([]string{"8"}))
+	commits, err := loadWindowCommits("/repo", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

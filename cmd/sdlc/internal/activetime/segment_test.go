@@ -163,10 +163,11 @@ func TestBuildSegmentsPrefixAndAnchor(t *testing.T) {
 	if anchored.IsPrefix {
 		t.Fatalf("the bbb2222-anchored segment should not be the prefix: %+v", anchored)
 	}
-	// Last segment is the suffix: events after the final commit, no anchor.
+	// Last segment is after the final commit; the global-boundary model uses the
+	// previous commit fallback rather than leaving suffix work unanchored.
 	last := segs[len(segs)-1]
-	if last.Commit != nil {
-		t.Fatalf("suffix segment should have no anchor, got %+v", last.Commit)
+	if last.Commit == nil || last.Commit.SHA != "bbb2222" {
+		t.Fatalf("suffix segment should fall back to previous commit bbb2222, got %+v", last.Commit)
 	}
 }
 
@@ -259,4 +260,196 @@ func TestBuildSegmentsSpanTailPastLastEvent(t *testing.T) {
 	if !approx(tot, 35) {
 		t.Fatalf("want 35 (tail not cut), got %v", tot)
 	}
+}
+
+func TestActivityRunsUnionWithinSourceOnly(t *testing.T) {
+	events := []Event{
+		{Time: tm("2026-01-01T10:00:00Z"), Source: "a"},
+		{Time: tm("2026-01-01T10:15:00Z"), Source: "a"},
+		{Time: tm("2026-01-01T10:00:00Z"), Source: "b"},
+		{Time: tm("2026-01-01T10:15:00Z"), Source: "b"},
+	}
+	runs := activityRuns(events, nil, 15)
+	if len(runs) != 2 {
+		t.Fatalf("same-time intervals from two sources should remain two runs, got %+v", runs)
+	}
+	for _, r := range runs {
+		if !approx(r.Active, 15) {
+			t.Fatalf("each run should carry 15 active minutes, got %+v", runs)
+		}
+	}
+
+	sameSource := []TaskSpan{
+		{Start: tm("2026-01-01T11:00:00Z"), End: tm("2026-01-01T11:20:00Z"), Source: "a"},
+		{Start: tm("2026-01-01T11:10:00Z"), End: tm("2026-01-01T11:30:00Z"), Source: "a"},
+	}
+	runs = activityRuns(nil, sameSource, 15)
+	if len(runs) != 1 || !approx(runs[0].Active, 30) {
+		t.Fatalf("overlaps within one source should union to one 30-min run, got %+v", runs)
+	}
+}
+
+func TestBuildSegments_GlobalBoundariesPreventLongIssueAbsorption(t *testing.T) {
+	commits := []Commit{
+		{Time: tm("2026-01-01T00:00:00Z"), SHA: "c11", Subject: "#1 c11", Issues: []string{"1"}},
+		{Time: tm("2026-01-01T00:20:00Z"), SHA: "c21", Subject: "#2 c21", Issues: []string{"2"}},
+		{Time: tm("2026-01-01T00:40:00Z"), SHA: "c22", Subject: "#2 c22", Issues: []string{"2"}},
+		{Time: tm("2026-01-01T01:00:00Z"), SHA: "c31", Subject: "#3 c31", Issues: []string{"3"}},
+		{Time: tm("2026-01-01T01:20:00Z"), SHA: "c23", Subject: "#2 c23", Issues: []string{"2"}},
+		{Time: tm("2026-01-01T01:40:00Z"), SHA: "c32", Subject: "#3 c32", Issues: []string{"3"}},
+		{Time: tm("2026-01-01T03:00:00Z"), SHA: "c12", Subject: "#1 c12", Issues: []string{"1"}},
+	}
+	events := []Event{
+		{Time: tm("2026-01-01T00:05:00Z"), Source: "issue1a"},
+		{Time: tm("2026-01-01T00:10:00Z"), Source: "issue1a"},
+		{Time: tm("2026-01-01T00:25:00Z"), Source: "issue2a"},
+		{Time: tm("2026-01-01T00:35:00Z"), Source: "issue2a"},
+		{Time: tm("2026-01-01T01:10:00Z"), Source: "issue2b"},
+		{Time: tm("2026-01-01T01:15:00Z"), Source: "issue2b"},
+		{Time: tm("2026-01-01T01:30:00Z"), Source: "issue3"},
+		{Time: tm("2026-01-01T01:35:00Z"), Source: "issue3"},
+		{Time: tm("2026-01-01T02:45:00Z"), Source: "issue1b"},
+		{Time: tm("2026-01-01T03:00:00Z"), Source: "issue1b"},
+	}
+	segs := buildSegments(events, commits, nil, 1.0, 1.0, 15)
+	if got := sumAlloc(segs, "1"); !approx(got, 20) {
+		t.Fatalf("#1 should receive only adjacent issue1 runs, got %v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "2"); !approx(got, 15) {
+		t.Fatalf("#2 should receive c22/c23-nearest runs, got %v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "3"); !approx(got, 5) {
+		t.Fatalf("#3 should receive c32-nearest run, got %v segs=%+v", got, segs)
+	}
+	var totalActive, totalAllocated float64
+	for _, s := range segs {
+		totalActive += s.Active
+		for _, mins := range s.Alloc {
+			totalAllocated += mins
+		}
+	}
+	if !approx(totalActive, 40) || !approx(totalAllocated, totalActive) {
+		t.Fatalf("allocation should conserve active minutes: active=%v allocated=%v segs=%+v", totalActive, totalAllocated, segs)
+	}
+}
+
+func TestClaimActivityRuns_PrefersNextCommitOnTie(t *testing.T) {
+	runs := []ActivityRun{{
+		Start:  tm("2026-01-01T10:10:00Z"),
+		End:    tm("2026-01-01T10:20:00Z"),
+		Active: 10,
+	}}
+	commits := []Commit{
+		{Time: tm("2026-01-01T10:00:00Z"), SHA: "prev", Subject: "#1 prev", Issues: []string{"1"}},
+		{Time: tm("2026-01-01T10:30:00Z"), SHA: "next", Subject: "#2 next", Issues: []string{"2"}},
+	}
+	segs := claimActivityRuns(runs, commits, 1.0, 1.0)
+	if got := sumAlloc(segs, "2"); !approx(got, 10) {
+		t.Fatalf("tie should prefer next commit #2, got #2=%v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "1"); got != 0 {
+		t.Fatalf("tie should not allocate to previous commit #1, got %v", got)
+	}
+}
+
+func TestClaimActivityRuns_PreviousCommitFallback(t *testing.T) {
+	runs := []ActivityRun{{
+		Start:  tm("2026-01-01T10:10:00Z"),
+		End:    tm("2026-01-01T10:20:00Z"),
+		Active: 10,
+	}}
+	commits := []Commit{{Time: tm("2026-01-01T10:00:00Z"), SHA: "prev", Subject: "#1 prev", Issues: []string{"1"}}}
+	segs := claimActivityRuns(runs, commits, 1.0, 1.0)
+	if got := sumAlloc(segs, "1"); !approx(got, 10) {
+		t.Fatalf("previous issue commit should claim when no next issue commit exists, got %v segs=%+v", got, segs)
+	}
+}
+
+func TestClaimActivityRuns_NeutralCommitCutsButDoesNotClaim(t *testing.T) {
+	runs := []ActivityRun{{
+		Start:    tm("2026-01-01T10:10:00Z"),
+		End:      tm("2026-01-01T10:20:00Z"),
+		Active:   10,
+		Mentions: map[string]int{"9": 1},
+	}}
+	commits := []Commit{
+		{Time: tm("2026-01-01T10:00:00Z"), SHA: "prev", Subject: "#1 prev", Issues: []string{"1"}},
+		{Time: tm("2026-01-01T10:05:00Z"), SHA: "neutral", Subject: "chore: no refs"},
+	}
+	segs := claimActivityRuns(runs, commits, 1.0, 1.0)
+	if got := sumAlloc(segs, "1"); got != 0 {
+		t.Fatalf("neutral commit should cut off previous #1 claimant, got #1=%v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "9"); !approx(got, 10) {
+		t.Fatalf("neutral commit should not claim; run should fall back to mentions, got #9=%v segs=%+v", got, segs)
+	}
+}
+
+func TestClaimActivityRuns_BoundarySuppressesMentionAllocation(t *testing.T) {
+	runs := []ActivityRun{{
+		Start:    tm("2026-01-01T10:00:00Z"),
+		End:      tm("2026-01-01T10:10:00Z"),
+		Active:   10,
+		Mentions: map[string]int{"9": 1},
+	}}
+	commits := []Commit{{Time: tm("2026-01-01T10:12:00Z"), SHA: "next", Subject: "#8 work", Issues: []string{"8"}}}
+	segs := claimActivityRuns(runs, commits, 0.5, 0.5)
+	if got := sumAlloc(segs, "8"); !approx(got, 5) {
+		t.Fatalf("commit-weighted share should go to #8, got %v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "9"); got != 0 {
+		t.Fatalf("mentions must not claim when a boundary exists, got #9=%v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, UnattributedKey); !approx(got, 5) {
+		t.Fatalf("non-commit share should be unattributed, got %v segs=%+v", got, segs)
+	}
+}
+
+func TestClaimActivityRuns_MentionFallbackOnlyWithoutIssueBoundary(t *testing.T) {
+	runs := []ActivityRun{{
+		Start:    tm("2026-01-01T10:00:00Z"),
+		End:      tm("2026-01-01T10:10:00Z"),
+		Active:   10,
+		Mentions: map[string]int{"9": 1},
+	}}
+	commits := []Commit{{Time: tm("2026-01-01T10:05:00Z"), SHA: "neutral", Subject: "chore"}}
+	segs := claimActivityRuns(runs, commits, 1.0, 1.0)
+	if got := sumAlloc(segs, "9"); !approx(got, 10) {
+		t.Fatalf("mentions should claim only without issue commit boundaries, got %v segs=%+v", got, segs)
+	}
+}
+
+func TestBuildSegments_ParallelRunsCanAttributeToDifferentIssues(t *testing.T) {
+	events := []Event{
+		{Time: tm("2026-01-01T10:00:00Z"), Source: "a"},
+		{Time: tm("2026-01-01T10:15:00Z"), Source: "a"},
+		{Time: tm("2026-01-01T10:10:00Z"), Source: "b"},
+		{Time: tm("2026-01-01T10:25:00Z"), Source: "b"},
+	}
+	commits := []Commit{
+		{Time: tm("2026-01-01T10:16:00Z"), SHA: "aaa", Subject: "#8 work", Issues: []string{"8"}},
+		{Time: tm("2026-01-01T10:26:00Z"), SHA: "bbb", Subject: "#9 work", Issues: []string{"9"}},
+	}
+	segs := buildSegments(events, commits, nil, 1.0, 1.0, 15)
+	if got := sumAlloc(segs, "8"); !approx(got, 15) {
+		t.Fatalf("#8 should receive its own overlapping run, got %v segs=%+v", got, segs)
+	}
+	if got := sumAlloc(segs, "9"); !approx(got, 15) {
+		t.Fatalf("#9 should receive its own overlapping run, got %v segs=%+v", got, segs)
+	}
+	var total float64
+	for _, s := range segs {
+		total += s.Active
+	}
+	if !approx(total, 30) {
+		t.Fatalf("parallel runs should sum per-issue work to 30 min, got %v segs=%+v", total, segs)
+	}
+}
+
+func sumAlloc(segs []Segment, issue string) float64 {
+	var total float64
+	for _, s := range segs {
+		total += s.Alloc[issue]
+	}
+	return total
 }

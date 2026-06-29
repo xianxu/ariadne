@@ -110,7 +110,10 @@ DEEP-DIVE REFERENCES
 If --actual is missing, close runs active-time-v3 itself (brain + repo
 transcript dirs, this issue's window + auto-discovered peers) and prints the
 measured suggestion inline — `→ close with: --actual <h>` — or, when the
-telemetry isn't available, points you to a labeled judgment estimate. If
+telemetry isn't available, points you to a labeled judgment estimate. The
+suggestion may include attribution warnings; inspect those before recording the
+actual, because they identify dominant long runs or mention fallback where commit
+boundary evidence was weak. If
 --verified is missing, the explainer shows a worked example of a
 behavior-grounded VERIFIED string. Read the explainer; the contract is
 load-bearing.

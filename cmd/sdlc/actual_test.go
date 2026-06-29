@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
@@ -67,6 +69,26 @@ func TestStatusFromResult(t *testing.T) {
 		if st != c.want || hrs != c.wantHrs {
 			t.Errorf("%s: statusFromResult = (%d,%v), want (%d,%v)", c.name, st, hrs, c.want, c.wantHrs)
 		}
+	}
+}
+
+func TestPrintActualWarnings(t *testing.T) {
+	var out bytes.Buffer
+	printActual(&out, actualResult{
+		Status: actualMeasured,
+		Issue:  "8",
+		Hours:  1.25,
+		Window: "abc12345 → HEAD",
+		Warnings: []string{
+			"#8 10.0m/100% mention fallback without issue commit boundary",
+		},
+	})
+	s := out.String()
+	if !strings.Contains(s, "attribution warning:") || !strings.Contains(s, "fallback") {
+		t.Fatalf("actual output missing warning:\n%s", s)
+	}
+	if !strings.Contains(s, "close with") {
+		t.Fatalf("actual output should still include close suggestion:\n%s", s)
 	}
 }
 
