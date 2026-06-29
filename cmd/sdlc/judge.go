@@ -23,14 +23,15 @@ import (
 )
 
 type judgeFlags struct {
-	Base       string
-	Head       string
-	Agent      string
-	Tools      string
-	IssuesDir  string
-	HistoryDir string
-	DryRun     bool
-	Sandbox    bool
+	Base          string
+	Head          string
+	Agent         string
+	Tools         string
+	IssuesDir     string
+	HistoryDir    string
+	DryRun        bool
+	Sandbox       bool
+	AgentExplicit bool
 
 	// Milestone-review-only flags. --issue is the ariadne workshop ID
 	// (per the convention codified in the lift table), used to label
@@ -48,12 +49,13 @@ func NewJudgeCmd() *cobra.Command {
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.AgentExplicit = cmd.Flags().Changed("agent")
 			return runJudge(cmd.OutOrStdout(), cmd.ErrOrStderr(), args[0], &f)
 		},
 	}
 	cmd.Flags().StringVar(&f.Base, "base", "", "diff base ref (default: gitx.DiffBase auto-detect)")
 	cmd.Flags().StringVar(&f.Head, "head", "", "diff head ref (default: working tree)")
-	cmd.Flags().StringVar(&f.Agent, "agent", os.Getenv("AGENT_CMD"), "agent CLI: claude | codex | gemini (default $AGENT_CMD or claude)")
+	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI: claude | codex | gemini (default AGENT_CMD, PAIR_AGENT/current agent, or claude)")
 	cmd.Flags().StringVar(&f.Tools, "tools", "", "tool allowlist for claude (default: per-category, see --help)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
@@ -120,7 +122,7 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 	prompt := judge.BuildPrompt(cat, in)
 
 	// Resolve agent + tools.
-	agent := judge.AgentCLI(orStr(f.Agent, "claude"))
+	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
 	tools := f.Tools
 	if tools == "" {
 		tools = cat.AllowedTools()

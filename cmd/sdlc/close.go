@@ -49,16 +49,17 @@ import (
 
 // closeFlags holds the parsed flag values for the close subcommand.
 type closeFlags struct {
-	Issue     int
-	Milestone string
-	Actual    string
-	Verified  string
-	Force     bool
-	DryRun    bool
-	BrainDir  string
-	IssuesDir string
-	Agent     string // agent CLI for the issue boundary-review dispatch (#69)
-	Mode      string // optional supervision mode (supervised|delegated) for the calibration ledger (#117)
+	Issue         int
+	Milestone     string
+	Actual        string
+	Verified      string
+	Force         bool
+	DryRun        bool
+	BrainDir      string
+	IssuesDir     string
+	Agent         string // agent CLI for the issue boundary-review dispatch (#69)
+	AgentExplicit bool
+	Mode          string // optional supervision mode (supervised|delegated) for the calibration ledger (#117)
 
 	// Per-gate bypass flags (#67). Each waives exactly ONE of runClose's
 	// guards; --force waives them all. The flag is an explicit acknowledgment
@@ -121,6 +122,7 @@ func NewCloseCmd() *cobra.Command {
 			"checkpoint contract once wired up.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.AgentExplicit = cmd.Flags().Changed("agent")
 			return runCloseWithReview(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -143,7 +145,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
-	cmd.Flags().StringVar(&f.Agent, "agent", envOr("AGENT_CMD", ""), "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
+	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
 	// differently-formatted error that conflicts with die()'s red prefix.
 	// Validation lives in runClose so all error formatting flows through
@@ -737,17 +739,27 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 			reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong})
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch the issue boundary review")
-		return nil
+		return printBoundaryReviewDryRun(stdout, stderr, boundaryReviewParams{
+			IssueRef:      fmt.Sprintf("ariadne#%d", f.Issue),
+			Label:         "#" + strconv.Itoa(f.Issue),
+			Base:          base,
+			BaseLong:      baseLong,
+			Head:          head,
+			IssuesDir:     f.IssuesDir,
+			Agent:         f.Agent,
+			AgentExplicit: f.AgentExplicit,
+		})
 	}
 
 	result := dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
-		IssueRef:  fmt.Sprintf("ariadne#%d", f.Issue),
-		Label:     "#" + strconv.Itoa(f.Issue),
-		Base:      base,
-		BaseLong:  baseLong,
-		Head:      head,
-		IssuesDir: f.IssuesDir,
-		Agent:     f.Agent,
+		IssueRef:      fmt.Sprintf("ariadne#%d", f.Issue),
+		Label:         "#" + strconv.Itoa(f.Issue),
+		Base:          base,
+		BaseLong:      baseLong,
+		Head:          head,
+		IssuesDir:     f.IssuesDir,
+		Agent:         f.Agent,
+		AgentExplicit: f.AgentExplicit,
 	})
 	return finishBoundaryReview(stdout, stderr, f, result)
 }

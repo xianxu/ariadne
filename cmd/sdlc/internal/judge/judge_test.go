@@ -151,9 +151,9 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 	}
 	body := CodeReviewBody("ariadne#69 M1", "BASE_SHA", "HEAD_SHA")
 	for _, want := range []string{
-		"ariadne#69 M1",       // {{ISSUE_REF}}
-		"Base: BASE_SHA",      // {{BASE}}
-		"Head: HEAD_SHA",      // {{HEAD}}
+		"ariadne#69 M1",                     // {{ISSUE_REF}}
+		"Base: BASE_SHA",                    // {{BASE}}
+		"Head: HEAD_SHA",                    // {{HEAD}}
 		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
 		"REWORK        = blocking",
@@ -642,6 +642,99 @@ func TestBuildArgs_DefaultIsClaude(t *testing.T) {
 	}
 	if name != "claude" {
 		t.Errorf("empty Agent should default to claude, got %q", name)
+	}
+}
+
+func TestResolveAgentCLI_Precedence(t *testing.T) {
+	tests := []struct {
+		name        string
+		explicit    string
+		explicitSet bool
+		env         AgentDefaultEnv
+		want        AgentCLI
+	}{
+		{
+			name:        "explicit claude beats pair codex",
+			explicit:    "claude",
+			explicitSet: true,
+			env:         AgentDefaultEnv{PairAgent: "codex"},
+			want:        AgentClaude,
+		},
+		{
+			name:        "explicit bogus remains bogus for dispatch validation",
+			explicit:    "bogus",
+			explicitSet: true,
+			env:         AgentDefaultEnv{PairAgent: "codex"},
+			want:        AgentCLI("bogus"),
+		},
+		{
+			name: "agent cmd gemini beats pair codex",
+			env:  AgentDefaultEnv{AgentCmd: "gemini", PairAgent: "codex"},
+			want: AgentGemini,
+		},
+		{
+			name: "agent cmd bogus remains bogus for dispatch validation",
+			env:  AgentDefaultEnv{AgentCmd: "bogus", PairAgent: "codex"},
+			want: AgentCLI("bogus"),
+		},
+		{
+			name: "pair codex selects codex",
+			env:  AgentDefaultEnv{PairAgent: "codex"},
+			want: AgentCodex,
+		},
+		{
+			name: "codex ci signal selects codex",
+			env:  AgentDefaultEnv{CodexCI: "1"},
+			want: AgentCodex,
+		},
+		{
+			name: "codex thread signal selects codex",
+			env:  AgentDefaultEnv{CodexThreadID: "019f"},
+			want: AgentCodex,
+		},
+		{
+			name: "unknown pair falls through to codex signal",
+			env:  AgentDefaultEnv{PairAgent: "unknown", CodexCI: "1"},
+			want: AgentCodex,
+		},
+		{
+			name: "empty env falls back to claude",
+			env:  AgentDefaultEnv{},
+			want: AgentClaude,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveAgentCLI(tt.explicit, tt.explicitSet, tt.env)
+			if got != tt.want {
+				t.Errorf("ResolveAgentCLI() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCurrentAgentDefaultEnv_ReadsProcessSignals(t *testing.T) {
+	t.Setenv("AGENT_CMD", "gemini")
+	t.Setenv("PAIR_AGENT", "codex")
+	t.Setenv("CODEX_CI", "1")
+	t.Setenv("CODEX_THREAD_ID", "thread")
+	t.Setenv("CLAUDECODE", "1")
+
+	got := CurrentAgentDefaultEnv()
+	if got.AgentCmd != "gemini" {
+		t.Errorf("AgentCmd = %q", got.AgentCmd)
+	}
+	if got.PairAgent != "codex" {
+		t.Errorf("PairAgent = %q", got.PairAgent)
+	}
+	if got.CodexCI != "1" {
+		t.Errorf("CodexCI = %q", got.CodexCI)
+	}
+	if got.CodexThreadID != "thread" {
+		t.Errorf("CodexThreadID = %q", got.CodexThreadID)
+	}
+	if got.ClaudeCode != "1" {
+		t.Errorf("ClaudeCode = %q", got.ClaudeCode)
 	}
 }
 

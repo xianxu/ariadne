@@ -94,6 +94,8 @@ FLAGS
   --no-project          skip the project detail-block update requirement
   --no-judge            skip the issue boundary review on full-issue close (#69)
   --agent <cli>         agent CLI for the boundary review (claude | codex | gemini)
+                        Default: explicit --agent, then AGENT_CMD, then
+                        PAIR_AGENT/current known agent signals, then claude.
   --dry-run             print what would change, write nothing
   --brain-dir <path>    project-file lookup root (default ../brain)
   --issues-dir <path>   issues directory (default workshop/issues)

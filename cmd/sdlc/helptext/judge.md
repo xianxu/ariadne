@@ -33,7 +33,8 @@ FLAGS
                         or merge-base main HEAD)
   --head <ref>          override diff head (default: working tree)
   --agent <name>        CLI to invoke: claude | codex | gemini.
-                        Default: $AGENT_CMD or "claude".
+                        Default: explicit --agent, then AGENT_CMD, then
+                        PAIR_AGENT/current known agent signals, then claude.
   --tools <list>        comma-separated tool allowlist for claude. Default:
                         Read,Grep,Glob,Bash — read-only for ALL categories
                         (#62 M2: a judge is a reviewer, not a doer; it reports

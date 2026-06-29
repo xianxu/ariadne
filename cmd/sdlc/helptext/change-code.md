@@ -56,7 +56,8 @@ FLAGS
   --no-estimate       skip the estimate_hours gate (#113).
   --dry-run           print would-be operations; do nothing.
   --agent <cli>       agent for the plan-quality judge.
-                      Default $AGENT_CMD or claude.
+                      Default: explicit --agent, then AGENT_CMD, then
+                      PAIR_AGENT/current known agent signals, then claude.
 
 EXIT CODES
 

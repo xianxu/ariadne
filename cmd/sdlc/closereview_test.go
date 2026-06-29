@@ -80,6 +80,20 @@ func stubJudge(t *testing.T, output string) (*int, *string) {
 	return &calls, &lastPrompt
 }
 
+func stubJudgeCommand(t *testing.T, output string) (*int, *string) {
+	t.Helper()
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	calls := 0
+	var lastName string
+	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		calls++
+		lastName = name
+		return []byte(output), nil
+	}
+	return &calls, &lastName
+}
+
 // #69 (load-bearing invariant): a standalone full-issue close auto-dispatches
 // exactly one boundary review on the whole-issue window and emits its trailer.
 func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
@@ -109,6 +123,49 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 	// The verdict is also mirrored into the close log line (#69 M2 review I1).
 	if got := readIssue(t, issuesDir); !strings.Contains(got, "closed — tests pass; review verdict: SHIP") {
 		t.Errorf("issue ## Log line missing the verdict annotation:\n%s", got)
+	}
+}
+
+func TestRunCloseWithReview_AgentDefaultUsesPairAgent(t *testing.T) {
+	t.Setenv("AGENT_CMD", "")
+	t.Setenv("PAIR_AGENT", "codex")
+	issuesDir := closeRepo(t, 69)
+	calls, lastName := stubJudgeCommand(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	if err := runCloseWithReview(io.Discard, io.Discard, f); err != nil {
+		t.Fatalf("runCloseWithReview: %v", err)
+	}
+	if *calls != 1 {
+		t.Fatalf("expected exactly 1 review dispatch, got %d", *calls)
+	}
+	if *lastName != "codex" {
+		t.Fatalf("close boundary review agent = %q, want codex", *lastName)
+	}
+}
+
+func TestRunCloseWithReview_DryRunPrintsPairAgentCommand(t *testing.T) {
+	t.Setenv("AGENT_CMD", "")
+	t.Setenv("PAIR_AGENT", "codex")
+	issuesDir := closeRepo(t, 69)
+	calls, _ := stubJudgeCommand(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+
+	var stdout strings.Builder
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true, DryRun: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	if err := runCloseWithReview(&stdout, io.Discard, f); err != nil {
+		t.Fatalf("runCloseWithReview: %v", err)
+	}
+	if *calls != 0 {
+		t.Fatalf("dry-run must not dispatch, got %d dispatch(es)", *calls)
+	}
+	if got := stdout.String(); !strings.Contains(got, "codex exec") {
+		t.Fatalf("close dry-run command missing codex exec:\n%s", got)
 	}
 }
 

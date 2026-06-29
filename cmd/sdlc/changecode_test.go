@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 // TestEstimateRefusal pins change-code's estimate gate (#113): the universal
@@ -78,6 +81,79 @@ func TestRunEstimateQualityJudge_SkipsWhenNoBlock(t *testing.T) {
 	if out.Len() != 0 {
 		t.Errorf("expected no output when skipping, got %q", out.String())
 	}
+}
+
+func TestChangeCodeAgentDefault_PlanQualityUsesPairAgent(t *testing.T) {
+	t.Setenv("AGENT_CMD", "")
+	t.Setenv("PAIR_AGENT", "codex")
+	seenName := stubJudgeName(t)
+
+	f := &changeCodeFlags{AgentExplicit: false}
+	if err := runPlanQualityJudge(ioDiscard(), ioDiscard(), f, "issue", "## Spec\n\nx", ""); err != nil {
+		t.Fatalf("runPlanQualityJudge: %v", err)
+	}
+	if *seenName != "codex" {
+		t.Fatalf("plan-quality agent = %q, want codex", *seenName)
+	}
+}
+
+func TestChangeCodeAgentDefault_EstimateQualityUsesPairAgent(t *testing.T) {
+	t.Setenv("AGENT_CMD", "")
+	t.Setenv("PAIR_AGENT", "codex")
+	seenName := stubJudgeName(t)
+
+	f := &changeCodeFlags{AgentExplicit: false}
+	content := "---\nid: 1\nstatus: working\nestimate_hours: 0.2\n---\n# T\n\n## Estimate\n\n```estimate\nmodel: estimate-logic-v2\nitem: smaller-go-module design=0.0 impl=0.2\ntotal: 0.2\n```\n"
+	if err := runEstimateQualityJudge(ioDiscard(), ioDiscard(), f, "issue", content); err != nil {
+		t.Fatalf("runEstimateQualityJudge: %v", err)
+	}
+	if *seenName != "codex" {
+		t.Fatalf("estimate-quality agent = %q, want codex", *seenName)
+	}
+}
+
+func TestChangeCodeAgentDefault_ExplicitAgentWins(t *testing.T) {
+	t.Setenv("AGENT_CMD", "")
+	t.Setenv("PAIR_AGENT", "codex")
+	seenName := stubJudgeName(t)
+
+	f := &changeCodeFlags{Agent: "claude", AgentExplicit: true}
+	if err := runPlanQualityJudge(ioDiscard(), ioDiscard(), f, "issue", "## Spec\n\nx", ""); err != nil {
+		t.Fatalf("runPlanQualityJudge: %v", err)
+	}
+	if *seenName != "claude" {
+		t.Fatalf("plan-quality agent = %q, want claude", *seenName)
+	}
+}
+
+func TestChangeCodeAgentDefault_AgentCmdWins(t *testing.T) {
+	t.Setenv("AGENT_CMD", "gemini")
+	t.Setenv("PAIR_AGENT", "codex")
+	seenName := stubJudgeName(t)
+
+	f := &changeCodeFlags{AgentExplicit: false}
+	if err := runPlanQualityJudge(ioDiscard(), ioDiscard(), f, "issue", "## Spec\n\nx", ""); err != nil {
+		t.Fatalf("runPlanQualityJudge: %v", err)
+	}
+	if *seenName != "gemini" {
+		t.Fatalf("plan-quality agent = %q, want gemini", *seenName)
+	}
+}
+
+func stubJudgeName(t *testing.T) *string {
+	t.Helper()
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	seenName := ""
+	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		seenName = name
+		return []byte("VERDICT: CLEAN (confidence: high)\n"), nil
+	}
+	return &seenName
+}
+
+func ioDiscard() *bytes.Buffer {
+	return &bytes.Buffer{}
 }
 
 // TestPromptBranchingTTY pins the tty-prompt's character-mapping

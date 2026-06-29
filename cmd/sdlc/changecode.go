@@ -54,6 +54,7 @@ type changeCodeFlags struct {
 	NoEstimateRecon bool
 	DryRun          bool
 	Agent           string
+	AgentExplicit   bool
 	Sandbox         bool
 }
 
@@ -66,6 +67,7 @@ func NewChangeCodeCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.AgentExplicit = cmd.Flags().Changed("agent")
 			return runChangeCode(cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -80,7 +82,7 @@ func NewChangeCodeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoEstimate, "no-estimate", false, "skip the estimate_hours gate (#113)")
 	cmd.Flags().BoolVar(&f.NoEstimateRecon, "no-estimate-recon", false, "skip the ## Estimate reconciliation gate (#117)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do nothing")
-	cmd.Flags().StringVar(&f.Agent, "agent", os.Getenv("AGENT_CMD"), "agent CLI for plan-quality judge: claude | codex | gemini (default $AGENT_CMD or claude)")
+	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for plan-quality judge: claude | codex | gemini (default AGENT_CMD, PAIR_AGENT/current agent, or claude)")
 	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
 	return cmd
 }
@@ -339,7 +341,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		PlanContent:  planContent,
 	})
 
-	agent := judge.AgentCLI(orStr(f.Agent, "claude"))
+	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
 	tools := judge.PlanQuality.AllowedTools()
 	opts := judge.DispatchOptions{
 		Agent:        agent,
@@ -410,7 +412,7 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 		IssueContent: issueContent,
 	})
 
-	agent := judge.AgentCLI(orStr(f.Agent, "claude"))
+	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
 	opts := judge.DispatchOptions{
 		Agent:        agent,
 		Prompt:       prompt,
