@@ -29,7 +29,7 @@ func VelocityPath(brainDir, filename string) string {
 
 // SourcePath resolves the repo-local calibration doc for model: the
 // $WF_ESTIMATOR_SRC override (passed as `override`) wins; else the brain velocity
-// doc named after the model (e.g. estimate-logic-v2 → estimate-logic-v2.md).
+// doc named after the model (e.g. estimate-logic-v3.1 → estimate-logic-v3.1.md).
 func SourcePath(brainDir, model, override string) string {
 	if override != "" {
 		return override

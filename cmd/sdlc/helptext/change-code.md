@@ -6,7 +6,7 @@ between planning (which happens on `main`) and code-changing work:
   2. Estimate gate       — a positive `estimate_hours:` (#113) that
                            RECONCILES with an itemized `## Estimate`
                            block (#117): a fenced ```estimate block of
-                           v2 primitives whose design/impl hours sum to
+                           v2-lineage primitives whose design/impl hours sum to
                            estimate_hours (no unitemized estimate). Set
                            it at start-plan. --no-estimate /
                            --no-estimate-recon bypass the two halves; the

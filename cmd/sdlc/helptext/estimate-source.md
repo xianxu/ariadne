@@ -21,7 +21,7 @@ WHAT IT PRINTS
 SOURCE RESOLUTION
 
   $WF_ESTIMATOR_SRC (if set) wins; else <brain-dir>/data/life/42shots/velocity/
-  <model>.md (e.g. estimate-logic-v2.md). `stale` means the sibling
+  <model>.md (e.g. estimate-logic-v3.1.md). `stale` means the sibling
   calibration-ledger.tsv is newer than the doc — closes have accrued since the
   last recalibration (tracked in #127), so treat the numbers as provisional.
 
@@ -35,7 +35,7 @@ FAIL-LOUD CONTRACT
 FLAGS
 
   --model <m>         estimate model whose calibration doc to resolve
-                      (default estimate-logic-v2)
+                      (default estimate-logic-v3.1)
   --brain-dir <path>  brain repo path (holds the calibration doc + ledger;
                       default ../brain)
 

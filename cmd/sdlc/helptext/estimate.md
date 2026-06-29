@@ -11,18 +11,18 @@ GRAMMAR
   ## Estimate
 
   ```estimate
-  model: estimate-logic-v2
+  model: estimate-logic-v3.1
   familiarity: 1.0
-  item: greenfield-go-module   design=0.3 impl=0.6
-  item: smaller-go-module      design=0.2 impl=0.6
-  item: milestone-review       design=0.0 impl=0.6
-  design-buffer: 0.30
-  total: 1.5
+  item: greenfield-go-module   design=0.3 impl=0.25
+  item: smaller-go-module      design=0.2 impl=0.2
+  item: milestone-review       design=0.0 impl=0.2
+  design-buffer: 0.15
+  total: 1.23
   ```
 
   - model          provenance — the model version applied (required).
-  - familiarity    multiplies impl (estimate-logic-v2 Step 5); default 1.0.
-  - design-buffer  lifts design (v2 Step 6); default 0.30.
+  - familiarity    multiplies impl (estimate-logic-v2 lineage Step 5); default 1.0.
+  - design-buffer  lifts design (v2 lineage Step 6); default 0.30.
   - item           one v2 primitive: `item: <slug> design=<h> impl=<h>` (≥1).
   - total          the asserted total (required).
 
@@ -38,7 +38,7 @@ RECONCILIATION (what change-code enforces, deterministically)
 
   Bypass with `--no-estimate-recon` (skips this gate only) or `--force <reason>`.
 
-CLOSED PRIMITIVE VOCABULARY (mirrors estimate-logic-v2.md's primitive table)
+CLOSED PRIMITIVE VOCABULARY (slug set from estimate-logic-v2.md's primitive table)
 
   pensive                    long-form thinking doc
   issue-spec                 issue authoring + spec (with brainstorm)
@@ -65,18 +65,22 @@ WHERE THE CALIBRATION LIVES (#134)
   This doc + `internal/estimate/vocab.go` are the SHARED METHOD (single-sourced in
   sdlc). The per-primitive HOUR RANGES you pick from are the REPO-LOCAL
   CALIBRATION, which drifts as closes accrue (#127) — they live in a brain
-  artifact, not here. Run **`sdlc estimate-source`** to see both named in one
+  artifact, not here. The current model is `estimate-logic-v3.1`: it keeps the v2
+  primitive slug vocabulary, keeps design hours, and writes AI-paired `impl=`
+  values at 40% of the v2/v2.1 implementation ranges for post-#118 `sdlc actual`
+  ship-wall-clock. Run **`sdlc estimate-source`** to see both named in one
   output: the resolved calibration doc (`$WF_ESTIMATOR_SRC` override, else
   `<brain>/data/life/42shots/velocity/<model>.md`), tagged ok / stale / MISSING.
   Don't pick per-primitive hours from memory — derive against that source.
 
 UNIT NOTE
 
-  estimate-logic-v2 estimates BUILD-EFFORT (design + AI-impl hours); `sdlc actual`
-  measures SHIP WALL-CLOCK — active-time with idle removed but subagent-execution
-  spans kept in full (#118). Both are the same unit: focused ship-time for one
-  engineer + AI, so the close-time calibration ledger compares them like-for-like
-  (#117). (Operator-attention — the throughput/parallelism limit of ~2 concurrent
-  sessions — lives one level up, not in the per-issue actual.) The model
-  vocabulary is the canonical source in `cmd/sdlc/internal/estimate/vocab.go`;
-  this doc mirrors it (a test guards drift).
+  estimate-logic-v3.1 estimates SHIP WALL-CLOCK (design + AI-paired impl hours);
+  `sdlc actual` measures SHIP WALL-CLOCK — active-time with idle removed but
+  subagent-execution spans kept in full (#118). Both are the same unit: focused
+  ship-time for one engineer + AI, so the close-time calibration ledger compares
+  them like-for-like (#117). (Operator-attention — the throughput/parallelism
+  limit of ~2 concurrent sessions — lives one level up, not in the per-issue
+  actual.) The model vocabulary is the canonical source in
+  `cmd/sdlc/internal/estimate/vocab.go`; this doc mirrors it (a test guards
+  drift).

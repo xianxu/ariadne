@@ -193,14 +193,16 @@ runs.
 deterministic ground-truth measurement (`sdlc actual`). *Form:* the change-code
 **estimate-reconciliation** gate parses the issue's `## Estimate` fenced block
 (`internal/estimate`, pure) and refuses unless `estimate_hours` reconciles with
-an itemized v2-primitive derivation (`Σdesign×(1+buffer)+Σimpl×familiarity`). No
+an itemized v2-lineage primitive derivation (`Σdesign×(1+buffer)+Σimpl×familiarity`). No
 unitemized estimate — a fabricated number can't pass. *Essence:* the
 **estimate-quality** judge checks the derivation was applied, not back-fit.
 *Feedback:* on a full-issue close `sdlc close` appends every numeric estimate↔actual pair
 to `brain/.../velocity/calibration-ledger.tsv` (`$WF_CALIB_LEDGER` override) and
-flags >2× same-direction drift over the last N **window-trusted** rows —
-pre-#116 rows are `window-trusted=no` and excluded (a truncated actual isn't a
-clean point; `actual_hours: N/A` rows are excluded; skip-with-warning when no brain/ ledger dir exists downstream). This
+flags >2× same-direction drift over the last N unique **window-trusted** rows for
+the latest recognized model revision — pre-#116 rows are `window-trusted=no` and
+excluded (a truncated actual isn't a clean point; `actual_hours: N/A` rows are
+excluded; duplicate append rows for the same issue/model count once;
+skip-with-warning when no brain/ ledger dir exists downstream). This
 closes the loop the hand-kept validation log never did. Grammar + closed
 vocabulary: `helptext/estimate.md` (canonical slugs in
 `internal/estimate/vocab.go`, a bidirectional drift test guards the mirror).
@@ -211,7 +213,8 @@ calibration* — the actual per-primitive hour ranges, which drift as closes acc
 (#127) — lives in a brain artifact. So an agent could satisfy the block grammar
 while picking hours from memory. `sdlc estimate-source` (`estimatesource.go`, the
 pull; mirrors `arch-principles`) names BOTH in one output: the shared-method
-pointer + the resolved calibration doc (`estimate.SourcePath` →
+pointer + the resolved calibration doc for `estimate.CurrentModel()` by default
+(`estimate.SourcePath` →
 `$WF_ESTIMATOR_SRC` override, else `estimate.VelocityPath(brainDir,
 <model>.md)` — the same `data/life/42shots/velocity/` builder `close.go`'s ledger
 path now derives from, ARCH-DRY), tagged `ok | stale | MISSING` (stale = sibling

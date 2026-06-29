@@ -85,7 +85,7 @@ func runStartPlan(stdout io.Writer, issue int) {
 	// a brain-less downstream repo gets the pointer, never a break.
 	fmt.Fprintln(stdout)
 	brainAbs, _ := filepath.Abs("../brain")
-	src := estimateSourceStatus(brainAbs, "estimate-logic-v2", os.Getenv("WF_ESTIMATOR_SRC"))
+	src := estimateSourceStatus(brainAbs, estimate.CurrentModel(), os.Getenv("WF_ESTIMATOR_SRC"))
 	cinfo(stdout, estimate.SourceLine(src))
 
 	// #82 M3 / #83: a non-blocking heads-up on the DEPENDENCY PATH. The symlink

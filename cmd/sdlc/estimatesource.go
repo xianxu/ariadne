@@ -68,7 +68,7 @@ func NewEstimateSourceCmd() *cobra.Command {
 			return reportEstimateSource(cmd.OutOrStdout(), cmd.ErrOrStderr(), st)
 		},
 	}
-	cmd.Flags().StringVar(&model, "model", "estimate-logic-v2", "estimate model whose calibration doc to resolve")
+	cmd.Flags().StringVar(&model, "model", estimate.CurrentModel(), "estimate model whose calibration doc to resolve")
 	cmd.Flags().StringVar(&brainDir, "brain-dir", "../brain", "path to the brain repo (holds the calibration doc + ledger)")
 	return cmd
 }

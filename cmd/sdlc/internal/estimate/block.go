@@ -4,12 +4,13 @@
 // IO — the three thin seams (the change-code reconciliation guard, the
 // estimate-quality judge, and the close-time ledger append) inject these pure
 // functions. The shell is model-agnostic: it enforces that whatever model the
-// `model:` provenance line names was actually applied (today estimate-logic-v2).
+// `model:` provenance line names was actually applied (today estimate-logic-v3.1).
 package estimate
 
-// Item is one line of an estimate breakdown: a v2 primitive slug and its design +
-// impl hours. The hours are the agent's judgment (post spec-quality discount per
-// the model doc); this package only sums and reconciles them.
+// Item is one line of an estimate breakdown: a v2-lineage primitive slug and its
+// design + impl hours. The hours are the agent's judgment (post spec-quality
+// discount and model-version calibration per the model doc); this package only
+// sums and reconciles them.
 type Item struct {
 	Slug   string
 	Design float64
@@ -26,7 +27,7 @@ type Block struct {
 }
 
 // Recomputed is the deterministic reconciliation total:
-// Σdesign × (1+design-buffer) + Σimpl × familiarity (estimate-logic-v2 Steps 5–6).
+// Σdesign × (1+design-buffer) + Σimpl × familiarity (the v2-lineage shell).
 func (b Block) Recomputed() float64 {
 	var d, i float64
 	for _, it := range b.Items {

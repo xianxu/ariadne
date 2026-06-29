@@ -21,6 +21,8 @@ package judge
 import (
 	"fmt"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 )
 
 // Category enumerates the supported judge checks. Names match the
@@ -262,7 +264,7 @@ Plan file (if separate):
 Issue: %s
 
 estimate_hours is meant to be DERIVED, not guessed. The ## Estimate block itemizes
-the derivation by estimate-logic-v2 primitives (each with design + impl hours);
+the derivation by estimate-logic-v2-lineage primitives (each with design + impl hours);
 change-code has ALREADY checked the block reconciles arithmetically. Your job is the
 part arithmetic can't check: **was the model actually applied, and are the numbers
 plausible for THIS issue's scope?**
@@ -277,13 +279,13 @@ Flag (FAILURE only for a clearly fabricated or absent derivation; otherwise INFO
   - Implausible per-primitive hours for the scope: design hours should be near-zero
     when a thorough plan already pre-resolves decisions; impl hours wildly off for
     the named primitive.
-  - Unit blind spots: estimate-logic-v2 is BUILD-EFFORT and sdlc actual now
-    measures SHIP WALL-CLOCK (idle removed, subagent-execution spans kept — #118),
-    so they are the SAME unit and should converge. The residual gap on heavy
-    fan-out is the within-session parallelism/overlap discount (a #118 non-goal:
-    parallel subagents compress wall-clock below v2's sequential sum), NOT
-    operator-attention. (Advisory: this is what #117's ledger instruments, not a
-    block failure.)
+  - Unit blind spots: the current model (%s) estimates SHIP
+    WALL-CLOCK and sdlc actual measures SHIP WALL-CLOCK (idle removed,
+    subagent-execution spans kept — #118), so they are the SAME unit and should
+    converge. The residual gap on heavy fan-out is the within-session
+    parallelism/overlap discount (a #118 non-goal: parallel subagents compress
+    wall-clock below a sequential sum), NOT operator-attention. (Advisory: this
+    is what #117's ledger instruments, not a block failure.)
 
 Do NOT modify any files. You are a read-only gate.
 
@@ -301,7 +303,7 @@ Issue file:
 ---
 %s
 ---
-`, ref, ContractPreamble, in.IssueContent)
+`, ref, estimate.CurrentModel(), ContractPreamble, in.IssueContent)
 
 	case Specs:
 		return fmt.Sprintf(`You are a READ-ONLY documentation reviewer. Compare the code changes in the diff below against:

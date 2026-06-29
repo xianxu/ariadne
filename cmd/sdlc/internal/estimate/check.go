@@ -21,13 +21,13 @@ func Check(b Block, estimateHours float64) []Failure {
 
 	switch {
 	case b.Model == "":
-		add("## Estimate: missing `model:` provenance line (name the model, e.g. estimate-logic-v2)")
+		add(fmt.Sprintf("## Estimate: missing `model:` provenance line (name the model, e.g. %s)", CurrentModel()))
 	case !KnownModel(b.Model):
 		add(fmt.Sprintf("## Estimate: unknown model %q — recognized: %v", b.Model, Models()))
 	}
 
 	if len(b.Items) == 0 {
-		add("## Estimate: no `item:` lines — itemize the estimate by v2 primitive")
+		add("## Estimate: no `item:` lines — itemize the estimate by v2-lineage primitive")
 	}
 	for _, it := range b.Items {
 		if !KnownPrimitive(it.Slug) {
