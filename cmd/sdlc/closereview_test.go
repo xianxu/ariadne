@@ -124,6 +124,55 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 	if got := readIssue(t, issuesDir); !strings.Contains(got, "closed — tests pass; review verdict: SHIP") {
 		t.Errorf("issue ## Log line missing the verdict annotation:\n%s", got)
 	}
+
+	// #136: the full review transcript is persisted to a durable sidecar under
+	// workshop/plans/, so an agent can reopen it after scrollback loss.
+	scData, err := os.ReadFile(filepath.Join("workshop/plans", "000069-x-close-review.md"))
+	if err != nil {
+		t.Fatalf("#136 review sidecar not written: %v", err)
+	}
+	for _, want := range []string{
+		"# Boundary Review — ariadne#69", "Looks good.",
+		"sdlc close --issue 69", "| verdict | SHIP |",
+	} {
+		if !strings.Contains(string(scData), want) {
+			t.Errorf("#136 close sidecar missing %q:\n%s", want, scData)
+		}
+	}
+}
+
+// #136: the milestone-close boundary persists its review to a per-milestone
+// sidecar (NNNNNN-slug-m<x>-review.md) via the same shared dispatch.
+func TestDispatchBoundaryReview_WritesMilestoneSidecar(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nMilestone looks good.\n")
+
+	res := dispatchBoundaryReview(io.Discard, io.Discard, boundaryReviewParams{
+		IssueRef:  "ariadne#69 M1",
+		Label:     "#69 M1",
+		Base:      "HEAD",
+		BaseLong:  "HEAD",
+		Head:      "HEAD",
+		IssuesDir: issuesDir,
+		IssueNum:  69,
+		Milestone: "M1",
+		PlansDir:  "workshop/plans",
+	})
+	if filepath.Base(res.SidecarPath) != "000069-x-m1-review.md" {
+		t.Fatalf("milestone sidecar path = %q, want …/000069-x-m1-review.md", res.SidecarPath)
+	}
+	data, err := os.ReadFile(res.SidecarPath)
+	if err != nil {
+		t.Fatalf("milestone sidecar not written: %v", err)
+	}
+	for _, want := range []string{
+		"milestone M1", "Milestone looks good.",
+		"sdlc milestone-close --issue 69 --milestone M1",
+	} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("milestone sidecar missing %q:\n%s", want, data)
+		}
+	}
 }
 
 func TestRunCloseWithReview_AgentDefaultUsesPairAgent(t *testing.T) {
