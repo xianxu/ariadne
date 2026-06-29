@@ -1,12 +1,13 @@
 ---
 id: 000129
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-25
 updated: 2026-06-29
 estimate_hours: 2.0
 started: 2026-06-29T10:16:30-07:00
+actual_hours: 0.30
 ---
 
 # Default sdlc judges to current agent
@@ -90,6 +91,7 @@ total: 2.0
   coerce empty agent values to Claude.
 
 ### 2026-06-29
+- 2026-06-29: closed — sdlc issue validate --issue 129; go test ./cmd/sdlc ./cmd/sdlc/internal/... ./pkg/... -count=1; env -u AGENT_CMD PAIR_AGENT=codex go run ./cmd/sdlc judge dry --dry-run --base HEAD --head HEAD; review verdict: SHIP
 
 - Claimed via `sdlc claim --issue 129`; `sdlc start-plan --issue 129` delivered
   `ARCH-DRY`, `ARCH-PURE`, and `ARCH-PURPOSE`. Plan recorded in
