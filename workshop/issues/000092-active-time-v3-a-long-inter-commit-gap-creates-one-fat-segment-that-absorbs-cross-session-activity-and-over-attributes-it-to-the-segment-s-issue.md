@@ -193,6 +193,7 @@ silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
 "parallel-session dedup not yet implemented" as a known gap.
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... -count=1 passed; git diff --check passed; boundary-review REWORK fixes added neutral no-ref delimiter behavior and no-commit fallback warnings; historical baseline-v3 and nous#48 transcript windows were attempted but unavailable locally as documented in the issue log; review verdict: REWORK
 - 2026-06-29: closed — go test ./cmd/sdlc/... -count=1 passed; git diff --check passed; baseline-v3 and nous#48 live commands were attempted but local historical transcript windows returned 0 events, so synthetic #92 claimant tests plus the updated attribution golden carry the regression evidence; review verdict: REWORK
 
 - Claimed #92 and reframed the spec after operator review. The agreed design:
@@ -228,3 +229,9 @@ silently recur. Source: `cmd/sdlc/internal/activetime/segment.go`
   `2026-05-07T16:54:00Z..2026-05-08T05:13:00Z` and returned 0 events / 23
   commits; nous#48 check used `/Users/xianxu/workspace/nous` and returned no
   measurable activity for #48.
+- Addressed the second boundary-review REWORK findings: no-commit measured
+  windows now use the same source-scoped activity-run attribution path as
+  commit-backed windows, so overlapping fallback sessions are preserved and
+  rendered as segments; unattributed fallback allocations now emit explicit
+  warnings. Verification passed: `go test ./cmd/sdlc/... -count=1` and
+  `git diff --check`.

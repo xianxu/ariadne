@@ -100,23 +100,6 @@ func Compute(opts Options) (Result, error) {
 		prefixWeight = *opts.PrefixWeight
 	}
 
-	if len(commits) == 0 {
-		// No commit signal in the window → whole-window mention attribution
-		// (the Python original's no-commits fallback).
-		times, mentions := eventTimesAndMentions(events)
-		active := activeMinutesUnion(times, spans, opts.ThresholdMin)
-		res.TotalActive = active
-		res.PerIssue = attributeSegment(active, nil, mentions, opts.CommitWeight)
-		if len(times) > 0 {
-			res.Warnings = attributionWarnings([]Segment{{
-				Start: times[0], End: times[len(times)-1], Active: active,
-				Mentions: mentions, Alloc: res.PerIssue,
-			}}, res.PerIssue)
-		}
-		res.Status = Measured
-		return res, nil
-	}
-
 	res.Segments = buildSegments(events, commits, spans, opts.CommitWeight, prefixWeight, opts.ThresholdMin)
 	for _, s := range res.Segments {
 		res.TotalActive += s.Active
@@ -146,11 +129,15 @@ func attributionWarnings(segs []Segment, perIssue map[string]float64) []Attribut
 					Reason: "dominant long attribution segment",
 				})
 			}
-			if s.Commit == nil && len(s.Mentions) > 0 {
+			if s.Commit == nil {
+				reason := "mention fallback without issue commit boundary"
+				if iss == UnattributedKey {
+					reason = "unattributed fallback without issue commit boundary"
+				}
 				warnings = append(warnings, AttributionWarning{
 					Issue: iss, Start: s.Start.Format("2006-01-02 15:04"), End: s.End.Format("2006-01-02 15:04"),
 					Active: mins, Share: share,
-					Reason: "mention fallback without issue commit boundary",
+					Reason: reason,
 				})
 			}
 		}

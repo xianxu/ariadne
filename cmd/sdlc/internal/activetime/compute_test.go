@@ -86,7 +86,7 @@ func TestComputeMeasuredSegments(t *testing.T) {
 }
 
 func TestComputeNoCommitsMentionFallback(t *testing.T) {
-	// Events present, no commits → whole-window mention attribution.
+	// Events present, no commits → source-run mention attribution.
 	// 00:00(#8) + 00:10(#10) → active = 10min split by mentions 1:1 → 5 each.
 	dir := eventsDir(t,
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"user","message":{"content":"on #8"}}`,
@@ -106,6 +106,41 @@ func TestComputeNoCommitsMentionFallback(t *testing.T) {
 	}
 	if !approx(res.PerIssue["8"], 5) || !approx(res.PerIssue["10"], 5) {
 		t.Fatalf("want #8=5,#10=5, got %v", res.PerIssue)
+	}
+	if len(res.Segments) != 1 {
+		t.Fatalf("no-commit fallback should still render attribution segments, got %+v", res.Segments)
+	}
+}
+
+func TestComputeNoCommitsFallbackPreservesOverlappingSources(t *testing.T) {
+	dir := t.TempDir()
+	writeJSONL(t, filepath.Join(dir, "issue8.jsonl"),
+		[]string{
+			`{"timestamp":"2026-01-01T00:00:00Z","type":"user","message":{"content":"#8 start"}}`,
+			`{"timestamp":"2026-01-01T00:15:00Z","type":"user","message":{"content":"#8 done"}}`,
+		})
+	writeJSONL(t, filepath.Join(dir, "issue9.jsonl"),
+		[]string{
+			`{"timestamp":"2026-01-01T00:00:00Z","type":"user","message":{"content":"#9 start"}}`,
+			`{"timestamp":"2026-01-01T00:15:00Z","type":"user","message":{"content":"#9 done"}}`,
+		})
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) { return []byte(""), nil })
+	res, err := Compute(Options{
+		Dirs: []string{dir}, GitRepo: "/repo",
+		SinceISO: wideSince, UntilISO: wideUntil,
+		Issues: []string{"8", "9"}, CommitWeight: 1.0, ThresholdMin: 15, IncludeAssistant: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !approx(res.TotalActive, 30) {
+		t.Fatalf("overlapping no-commit sources should remain separate, got total=%v", res.TotalActive)
+	}
+	if !approx(res.PerIssue["8"], 15) || !approx(res.PerIssue["9"], 15) {
+		t.Fatalf("want #8=15,#9=15, got %v", res.PerIssue)
+	}
+	if len(res.Segments) != 2 {
+		t.Fatalf("want one fallback segment per source, got %+v", res.Segments)
 	}
 }
 
@@ -219,6 +254,22 @@ func TestComputeMentionFallbackWarning(t *testing.T) {
 	}
 	if warnings[0].Issue != "9" || !strings.Contains(warnings[0].Reason, "fallback") {
 		t.Fatalf("warning should describe mention fallback for #9, got %+v", warnings[0])
+	}
+}
+
+func TestComputeUnattributedFallbackWarning(t *testing.T) {
+	segs := []Segment{{
+		Start:  tm("2026-01-01T10:00:00Z"),
+		End:    tm("2026-01-01T10:10:00Z"),
+		Active: 10,
+		Alloc:  map[string]float64{UnattributedKey: 10},
+	}}
+	warnings := attributionWarnings(segs, map[string]float64{UnattributedKey: 10})
+	if len(warnings) != 1 {
+		t.Fatalf("want unattributed fallback warning, got %+v", warnings)
+	}
+	if warnings[0].Issue != UnattributedKey || !strings.Contains(warnings[0].Reason, "unattributed") {
+		t.Fatalf("warning should describe unattributed fallback, got %+v", warnings[0])
 	}
 }
 
