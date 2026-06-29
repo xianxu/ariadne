@@ -8,6 +8,7 @@ estimate_hours:
 ---
 
 # Brainstorming skill: gist vocabulary + default-acceptance signal capture
+aka get inspiration from gstack
 
 ## Problem
 

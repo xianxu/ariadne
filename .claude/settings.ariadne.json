@@ -94,6 +94,7 @@
     "excludedCommands": [
       "git",
       "gh",
+      "sdlc",
       "docker",
       "npm",
       "npx",
