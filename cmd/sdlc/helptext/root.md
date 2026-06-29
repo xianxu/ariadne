@@ -26,6 +26,20 @@ RECOVER
   - After a compaction or session resume, run `sdlc state` to recover where you
     are instead of re-inferring from issue files.
 
+LOCAL REPO TRANSACTION LOCK
+  - Mutating verbs take an SDLC-owned repo transaction lock at
+    `.git/sdlc.lock` before reading/writing issue state, committing, changing
+    branches, or pushing. The lock is local to the Git common dir, so linked
+    worktrees of the same repo serialize with each other.
+  - Wait messages identify the holder pid and command when metadata is
+    available. `change-code`, `close`, `milestone-close`, `merge`, and `push`
+    can hold the lock during long-running review/ship transactions; wait or
+    retry rather than removing the lock while that process is alive.
+  - A dead same-host holder is reclaimed automatically; initializing metadata
+    is waited through. Other stale/timeout errors tell you how to inspect
+    `.git/sdlc.lock`. Remote push/ref races are separate: the local lock
+    serializes this checkout, not another machine or clone.
+
 WHEN A VERB ERRORS
   Do NOT route around it with hand-rolled `git`/`gh`. Its errors are next-action
   specs. The fix is one of two things:

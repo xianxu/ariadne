@@ -27,7 +27,7 @@ type fetchFlags struct {
 // placeholder; main.go overrides with helptext.MustGet("fetch").
 func NewFetchCmd() *cobra.Command {
 	f := fetchFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "fetch",
 		Short:         "Fetch a GitHub issue and create a local workshop/issues/ file",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"fetch\") in main.go.",
@@ -36,7 +36,7 @@ func NewFetchCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runFetch(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().IntVar(&f.GitHubIssue, "github-issue", 0, "GitHub issue number to fetch (required)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")

@@ -59,7 +59,7 @@ type changeCodeFlags struct {
 
 func NewChangeCodeCmd() *cobra.Command {
 	f := changeCodeFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "change-code",
 		Short:         "Enter implementation phase (structural + plan-quality gates + branching ask)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"change-code\") in main.go.",
@@ -68,7 +68,7 @@ func NewChangeCodeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runChangeCode(cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (derives name from issues/NNNNNN-*.md)")
 	cmd.Flags().StringVar(&f.Name, "name", "", "explicit branch name (overrides --issue derivation)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
@@ -123,7 +123,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 					fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
 				}
 				cwarn(stderr, "fix the failures above, OR re-run with --force <reason>")
-				os.Exit(1)
+				exitWithCode(1)
 			}
 			cwarn(stderr, fmt.Sprintf("structural gates bypassed (--force: %s)", f.Force))
 			for _, fail := range failures {
@@ -141,7 +141,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 			fmt.Fprintln(stderr, "estimate gate failed:")
 			fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
 			cwarn(stderr, "add `estimate_hours: <n>` to the issue frontmatter (set it at start-plan), OR re-run with --no-estimate / --force <reason>")
-			os.Exit(1)
+			exitWithCode(1)
 		}
 		cwarn(stderr, fmt.Sprintf("estimate gate bypassed (--force: %s)", f.Force))
 		fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
@@ -156,7 +156,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 			fmt.Fprintln(stderr, "estimate-reconciliation gate failed:")
 			fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
 			cwarn(stderr, "fix the ## Estimate block so it reconciles, OR re-run with --no-estimate-recon / --force <reason>")
-			os.Exit(1)
+			exitWithCode(1)
 		}
 		cwarn(stderr, fmt.Sprintf("estimate-reconciliation gate bypassed (--force: %s)", f.Force))
 		fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
@@ -167,13 +167,13 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		if err := runPlanQualityJudge(stdout, stderr, f, name, issueContent, planContent); err != nil {
 			// runPlanQualityJudge already printed; honor --force.
 			if f.Force == "" {
-				os.Exit(1)
+				exitWithCode(1)
 			}
 			cwarn(stderr, fmt.Sprintf("plan-quality gate bypassed (--force: %s)", f.Force))
 		}
 		if err := runEstimateQualityJudge(stdout, stderr, f, name, issueContent); err != nil {
 			if f.Force == "" {
-				os.Exit(1)
+				exitWithCode(1)
 			}
 			cwarn(stderr, fmt.Sprintf("estimate-quality gate bypassed (--force: %s)", f.Force))
 		}
@@ -490,7 +490,7 @@ func resolveBranchingStrategy(stdin io.Reader, stdout, stderr io.Writer, f *chan
 	// Non-tty: emit sentinel and exit 2. xx-sdlc skill handles the rest.
 	fmt.Fprintln(stdout, sentinelBranchingStrategy)
 	cinfo(stderr, "deferring branching decision to operator via agent (exit 2)")
-	os.Exit(askExitCode)
+	exitWithCode(askExitCode)
 	return "", nil // unreachable
 }
 

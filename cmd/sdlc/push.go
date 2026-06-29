@@ -53,7 +53,7 @@ var pushRunner gitRunner = execGitRunner{}
 // NewPushCmd returns the cobra command for `sdlc push`.
 func NewPushCmd() *cobra.Command {
 	f := pushFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "push",
 		Short:         "Ship from main: auto-commit, run pre-merge judges, push, archive done issues",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"push\") in main.go.",
@@ -62,7 +62,7 @@ func NewPushCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPush(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the not-done-issue warn prompt")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip pre-merge judges (emergency-only)")
 	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
@@ -99,7 +99,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		for _, u := range untracked {
 			fmt.Fprintf(stderr, "       %s\n", u)
 		}
-		os.Exit(1)
+		exitWithCode(1)
 	}
 
 	// ── 3. Auto-commit tracked changes ──────────────────────────────────────

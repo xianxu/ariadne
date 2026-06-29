@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -59,7 +60,7 @@ func main() {
 // AddCommand calls below run); hidden commands are auto-omitted, so the
 // deprecated aliases never appear. The single source is the registry here.
 func buildRoot() *cobra.Command {
-	cobra.EnableCommandSorting = false
+	disableCobraCommandSorting()
 
 	root := &cobra.Command{
 		Use:           "sdlc",
@@ -119,5 +120,15 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(NewStartCmd()) // hidden migration stub (#39)
 	root.AddCommand(newPropagateBaseCmd())
 
+	wrapRepoLockCommands(root)
+
 	return root
+}
+
+var cobraSortingOnce sync.Once
+
+func disableCobraCommandSorting() {
+	cobraSortingOnce.Do(func() {
+		cobra.EnableCommandSorting = false
+	})
 }

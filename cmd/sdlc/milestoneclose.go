@@ -65,7 +65,7 @@ type reviewResult struct {
 
 func NewMilestoneCloseCmd() *cobra.Command {
 	f := milestoneCloseFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "milestone-close",
 		Short:         "Close one milestone of an issue + auto-dispatch post-milestone review (AGENTS.md §3)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"milestone-close\") in main.go.",
@@ -74,7 +74,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMilestoneClose(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
-	}
+	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (required, positive)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag e.g. M4 (required)")
 	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours for this milestone")

@@ -49,6 +49,34 @@ CRUD/authoring surface for the issue *record* — the noun-grouped home for
 template lives in one place: the `Render` function in `internal/issue/scaffold.go`,
 documented in prose by `sdlc issue --help`.
 
+## Repo transaction lock (#132)
+
+Mutating `sdlc` verbs are serialized by an SDLC-owned local transaction lock at
+`.git/sdlc.lock`. The lock covers the whole command transaction, not just
+individual Git calls: issue ID allocation, issue/status file writes, commits,
+branch changes, local archive moves, and pushes all run under the same holder.
+The lock directory is created atomically with `mkdir`; holder metadata lives in
+`meta.json` inside the directory and records pid, hostname, cwd, command, argv,
+and start time.
+
+The lock path is resolved from `git rev-parse --git-common-dir`, so linked
+worktrees for one repo share the same lock. That is intentional: worktrees share
+the issue namespace, object store, and remote refs that the motivating races
+touched. The lock does not serialize another clone or machine, so remote
+push/ref races still surface through the existing push/merge retry guidance.
+
+`change-code`, `close`, `milestone-close`, `merge`, and `push` may hold the lock
+while synchronous judges run. Their wait/timeout messages call this out as a
+long-running review/ship transaction; quick commands should wait or retry
+instead of deleting a live lock. Recovery is conservative but not wedging:
+`die()` drains the active lock cleanup registry before `os.Exit`, missing
+`meta.json` during the tiny mkdir-before-write window is treated as holder
+initialization and polled through, and a confirmed-dead same-host holder is
+reclaimed by atomically renaming the stale lock directory before removal.
+Cross-host or over-age uncertainty still produces operator-facing recovery
+guidance rather than silent deletion; a live same-host pid overrides the age
+ceiling.
+
 ## Progressive disclosure
 
   - `sdlc --help` — the workflow contract (start-of-work runbook, conventions,
@@ -69,6 +97,9 @@ cmd/sdlc/
   main.go              cobra root + verb registration
   term.go              cinfo / cok / cwarn / die + env helpers (shared)
   runner.go            gitRunner interface + execGitRunner impl (shared)
+  repolock.go          root-level Cobra wrapper for mutating commands:
+                       metadata annotation, command-context re-entrancy, and
+                       Git-common-dir lock acquisition
   ghclient.go          ghCaller interface + realGH impl (shared)
   preflight.go         runPreflightJudges (push + merge pre-flight)
   close.go             ← scripts/close-issue.py
@@ -104,6 +135,9 @@ cmd/sdlc/
                        seam over estimate.SourceGuidance); start-plan/change-code push it
   helptext/            //go:embed *.md — one .md per verb + root
   internal/
+    repolock/          local repo transaction lock: pure holder metadata /
+                       stale-observation decisions + thin mkdir/meta.json
+                       acquire/release IO shell
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
                        MainRef, CommitWindow, WorkingTransitionISO (#113 claim
                        anchor), DiscoverWindowIssues, RunGit,

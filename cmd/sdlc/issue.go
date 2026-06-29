@@ -170,7 +170,7 @@ type issueNewFlags struct {
 
 func newIssueNewCmd() *cobra.Command {
 	f := issueNewFlags{}
-	cmd := &cobra.Command{
+	cmd := markMutatingCommand(&cobra.Command{
 		Use:   "new <title>",
 		Short: "Create a new workshop issue from the canonical template",
 		Long: `Create workshop/issues/NNNNNN-<slug>.md from the canonical template
@@ -189,7 +189,7 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runIssueNew(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
 		},
-	}
+	})
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "override the auto-derived slug")
 	cmd.Flags().IntVar(&f.FromGitHub, "from-github", 0, "derive title + body from this GitHub issue number")
 	cmd.Flags().StringSliceVar(&f.Deps, "deps", nil, "dependency refs, e.g. --deps repo#1,repo#2")
