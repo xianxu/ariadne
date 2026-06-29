@@ -1,11 +1,12 @@
 ---
 id: 000092
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-06-29
 estimate_hours:
+started: 2026-06-29T13:23:59-07:00
 ---
 
 # active-time-v3: a long inter-commit gap creates one fat segment that absorbs cross-session activity and over-attributes it to the segment's issue
