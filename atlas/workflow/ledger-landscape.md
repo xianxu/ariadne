@@ -37,7 +37,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 **"Was the post-milestone code review conducted, and what was the verdict?"**
 - *Authoritative:* git commit trailer on the milestone-close commit (`Review-Verdict: SHIP`). Parseable, immutable, ships in git.
 - *Human mirror:* Log line in the issue file (`review verdict: SHIP`).
-- *Audit:* transcript captures the full judge output if detail is needed.
+- *Durable detail (#136):* the full review transcript is persisted to a git-tracked sidecar in `workshop/plans/` (`NNNNNN-slug-close-review.md` / `-m<x>-review.md`; re-runs append a `## Re-review` section). Per principle #4 this is the reliable full-detail surface; the local agent transcript is the fallback when no sidecar was written (`--no-judge`/dry-run/not-run).
 - *NOT* in the project file — that tracks portfolio status, not per-milestone evidence.
 
 **"How many hours did this issue actually take?"**
