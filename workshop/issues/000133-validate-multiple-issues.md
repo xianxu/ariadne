@@ -1,12 +1,13 @@
 ---
 id: 000133
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-29
 estimate_hours: 0.27
 started: 2026-06-29T14:52:25-07:00
+actual_hours: 0.26
 ---
 
 # sdlc validate multiple issues
@@ -114,6 +115,7 @@ range (flag-type change + resolver rewrite + ~6 table-driven tests + help).
 Created from pair#81 retro point 3. The motivating failure was an agent trying to validate #72-#79 in one command and hitting the current one-positional-file limit.
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... all pass (new TestResolveValidateTargets + TestIssueValidateCmdCommaIDs + multi-file subtests). Rebuilt-binary smoke test confirmed exit codes: validate --issue 133,137 →0; multi-file with one missing →1; --issue N + file →1 (mix rejected); --all --issue N →1 (exclusion); --all globs dir; --issue 133 single-ID unchanged; --help shows both multi-target examples.; review verdict: SHIP
 
 Implemented in `cmd/sdlc/issue.go`. `--issue` is now a cobra `IntSliceVar` (native
 comma parsing, no hand-rolled split — ARCH-DRY), `Args` relaxed to `ArbitraryArgs`,

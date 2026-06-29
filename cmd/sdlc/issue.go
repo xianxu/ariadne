@@ -61,7 +61,7 @@ type issueValidateFlags struct {
 func newIssueValidateCmd() *cobra.Command {
 	f := issueValidateFlags{}
 	cmd := &cobra.Command{
-		Use:   "validate [<file>]",
+		Use:   "validate [<file>...]",
 		Short: "Validate issue file(s) against the #Issue schema (frontmatter + sections)",
 		Long: `Check that issue markdown conforms to the issue datatype: frontmatter against
 #Issue (cue, via the vocabulary validator) + required-section presence (the SAME
