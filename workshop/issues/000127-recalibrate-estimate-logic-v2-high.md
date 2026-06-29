@@ -1,11 +1,12 @@
 ---
 id: 000127
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-25
-updated: 2026-06-25
+updated: 2026-06-29
 estimate_hours:
+started: 2026-06-29T11:15:03-07:00
 ---
 
 # recalibrate estimate-logic-v2 — last 5 trusted closes all ran >2x OVER (model running high)
