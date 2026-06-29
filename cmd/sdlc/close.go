@@ -760,6 +760,9 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		IssuesDir:     f.IssuesDir,
 		Agent:         f.Agent,
 		AgentExplicit: f.AgentExplicit,
+		IssueNum:      f.Issue,
+		Milestone:     "",
+		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
 	})
 	return finishBoundaryReview(stdout, stderr, f, result)
 }

@@ -1,11 +1,13 @@
 ---
 id: 000136
-status: open
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
-updated: 2026-06-26
-estimate_hours:
+updated: 2026-06-29
+estimate_hours: 0.59
+started: 2026-06-29T15:42:51-07:00
+actual_hours: 0.48
 ---
 
 # sdlc boundary review sidecar
@@ -59,14 +61,32 @@ planning artifact convention.
   existing verdict/trailer behavior.
 - Help or atlas documentation tells agents where to find the sidecar.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.25 impl=0.3
+design-buffer: 0.15
+total: 0.59
+```
+
+A new single-concern module (`reviewsidecar.go`: pure render + path + atomic IO
+writer) plus additive wiring into the shared boundary-review dispatch and 2 call
+sites, ~150 lines of tests, and an atlas note. Design is largely pre-resolved by
+the durable plan (decisions D1–D5), so reduced design + +15% buffer; impl is the
+v3.1 40%-scaled greenfield range.
+
 ## Plan
 
-- [ ] Locate the close/milestone-close boundary review dispatch and output path.
-- [ ] Define sidecar naming, re-run semantics, and metadata fields.
-- [ ] Persist the full review body atomically under `workshop/plans/`.
-- [ ] Adjust CLI output to show compact verdict plus sidecar path.
-- [ ] Add regression tests for milestone close, issue close, and trailer/gate preservation.
-- [ ] Update help or atlas docs with the sidecar convention.
+Detailed design + TDD task breakdown: `workshop/plans/000136-review-sidecar-plan.md`.
+
+- [x] Locate the close/milestone-close boundary review dispatch and output path.
+- [x] Define sidecar naming, re-run semantics, and metadata fields.
+- [x] Persist the full review body atomically under `workshop/plans/`.
+- [x] Adjust CLI output to show compact verdict plus sidecar path.
+- [x] Add regression tests for milestone close, issue close, and trailer/gate preservation.
+- [x] Update help or atlas docs with the sidecar convention.
 
 ## Log
 
@@ -75,3 +95,49 @@ planning artifact convention.
 - Created from pair#81 retro point 6: boundary reviews need a durable sidecar
   file, e.g. `workshop/plans/NNNNNN-slug-m2-review.md`, so agents can read the
   full review after the gate runs.
+
+### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... all pass. New reviewsidecar_test.go: pure path-naming (close+milestone) + render metadata/revision + create-then-append (prior evidence preserved, no overwrite) + atomic no-temp-leak + missing-issue error. Integration: TestRunCloseWithReview_IssueClose_Dispatches asserts the close sidecar file+body+metadata; TestDispatchBoundaryReview_WritesMilestoneSidecar pins -m1-review.md via shared dispatch. Existing close/milestone tests stay green (additive, non-fatal write). This close itself dogfoods the feature → writes workshop/plans/000136-review-sidecar-close-review.md.; review verdict: FIX-THEN-SHIP
+
+Implemented per `workshop/plans/000136-review-sidecar-plan.md`. New
+`cmd/sdlc/reviewsidecar.go` — pure `sidecarMeta` + `sidecarPath` +
+`renderReviewEntry` (zero-IO unit tests) behind a thin `writeReviewSidecar`
+(atomic temp+rename). Wired into the **single shared** `dispatchBoundaryReview`
+(milestoneclose.go), so both `sdlc close` and `sdlc milestone-close` persist the
+full transcript to `workshop/plans/NNNNNN-slug-{close|m<x>}-review.md` with a
+metadata header (issue/repo/issue-file/boundary/milestone/window/command/reviewer/
+timestamp/verdict) + body. Re-runs append a `## Re-review` section (never
+overwrite). Strictly additive: trailers/log-annotation/verdict/gates unchanged,
+write is non-fatal; full body still prints to stdout + a compact `review sidecar:
+<path>` line (D3 — keeps the in-session gate intact).
+
+Discoveries:
+- `judge.Verdict` is `type Verdict string` with values = the labels (`"SHIP"` …),
+  so `string(verdict)` yields the label directly — no `.String()` method (the one
+  edge the plan-quality judge flagged to verify).
+- Reused `issueTitleFromContent` (changecode.go) for the title — ARCH-DRY.
+- `atomicWriteFile` is the first temp+rename writer in `cmd/sdlc` (only prior
+  `os.Rename` uses are archive-moves / lock graveyard) — duplicates nothing.
+
+Verification: `go test ./cmd/sdlc/...` all pass. New `reviewsidecar_test.go`
+(path naming close+milestone, render metadata completeness + revision heading,
+create-then-append preserving prior evidence, no temp-file leak, missing-issue
+error). Integration: `TestRunCloseWithReview_IssueClose_Dispatches` now asserts
+the close sidecar file + body + metadata; new
+`TestDispatchBoundaryReview_WritesMilestoneSidecar` pins the `-m1-review.md` path
+through the shared dispatch. Existing close/milestone tests stay green
+(existing-behavior-intact).
+
+Boundary review (the close dogfooded the feature → wrote
+`workshop/plans/000136-review-sidecar-close-review.md`): verdict **FIX-THEN-SHIP**,
+two Important findings, both fixed before the boundary:
+- **Reviewer cell empty in the default invocation** — `writeReviewSidecar` recorded
+  the raw `--agent` flag (`""` by default) instead of the resolved dispatch agent.
+  Fixed: `dispatchBoundaryReview` now threads `string(opts.Agent)` into the write;
+  pinned by a non-empty-reviewer assertion in the close integration test. (The
+  already-written sidecar's cell was hand-corrected to `claude`, the real reviewer.)
+- **D4 no-write untested** — added a no-sidecar `os.Stat` assertion to the
+  `--no-judge` skip test.
+Minor `repoIdentity` triplication finding deliberately not taken (the other two
+sites don't share the basename-only shape — Simplicity-First); see plan
+`## Revisions`. Re-review happens at the pre-merge judges.

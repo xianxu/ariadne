@@ -9,7 +9,7 @@ Work artifacts live close to the issue, then graduate to permanent locations or 
 | Path | Purpose | Lifecycle |
 |------|---------|-----------|
 | `workshop/issues/` | Active issue files | Archived to history when done |
-| `workshop/plans/` | Detailed designs for complex issues, authored via the `superpowers-writing-plans` skill (the canonical plan path, #72) | Archived with issue |
+| `workshop/plans/` | Detailed designs for complex issues, authored via the `superpowers-writing-plans` skill (the canonical plan path, #72); also boundary-review sidecars (`-close-review.md` / `-m<x>-review.md`, #136) | Archived with issue |
 | `workshop/history/` | Completed issue files | Permanent archive, low-signal |
 | `workshop/staging/` | Work-in-progress scratch | Temporary |
 | `docs/vision/` | Pensive docs, brainstorms | Permanent thinking artifacts |
