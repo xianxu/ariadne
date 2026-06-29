@@ -43,7 +43,8 @@ type preflightOptions struct {
 	IssueRef string
 
 	// Agent / Tools / Sandbox mirror judge.DispatchOptions's fields.
-	// Empty Agent → claude. Empty Tools → category.AllowedTools().
+	// Empty Agent → resolved current-agent default. Empty Tools →
+	// category.AllowedTools().
 	Agent   judge.AgentCLI
 	Tools   string
 	Sandbox bool
@@ -127,7 +128,7 @@ func runOnePreflight(opts preflightOptions, cat judge.Category, base, head strin
 	}
 	prompt := judge.BuildPrompt(cat, in)
 
-	agent := judge.AgentCLI(orStr(string(opts.Agent), string(judge.AgentClaude)))
+	agent := judge.ResolveAgentCLI(string(opts.Agent), opts.Agent != "", judge.CurrentAgentDefaultEnv())
 	tools := opts.Tools
 	if tools == "" {
 		tools = cat.AllowedTools()

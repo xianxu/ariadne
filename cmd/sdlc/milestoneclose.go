@@ -14,6 +14,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -29,16 +30,17 @@ import (
 )
 
 type milestoneCloseFlags struct {
-	Issue     int
-	Milestone string
-	Actual    string
-	Verified  string
-	Force     bool
-	DryRun    bool
-	NoJudge   bool   // skip the auto-dispatched milestone-review
-	Agent     string // forwarded to the judge dispatch
-	BrainDir  string
-	IssuesDir string
+	Issue         int
+	Milestone     string
+	Actual        string
+	Verified      string
+	Force         bool
+	DryRun        bool
+	NoJudge       bool   // skip the auto-dispatched milestone-review
+	Agent         string // forwarded to the judge dispatch
+	AgentExplicit bool
+	BrainDir      string
+	IssuesDir     string
 
 	// Per-gate close bypasses (#67), threaded into the delegated runClose.
 	NoActual    bool
@@ -72,6 +74,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.AgentExplicit = cmd.Flags().Changed("agent")
 			return runMilestoneClose(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -90,7 +93,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
-	cmd.Flags().StringVar(&f.Agent, "agent", envOr("AGENT_CMD", ""), "agent CLI for judge dispatch (claude | codex | gemini)")
+	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for judge dispatch (claude | codex | gemini)")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	return cmd
@@ -106,21 +109,23 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 
 	// Step 1: delegate the mechanical close to runClose.
 	closeF := &closeFlags{
-		Issue:       f.Issue,
-		Milestone:   f.Milestone,
-		Actual:      f.Actual,
-		Verified:    f.Verified,
-		Force:       f.Force,
-		DryRun:      f.DryRun,
-		BrainDir:    f.BrainDir,
-		IssuesDir:   f.IssuesDir,
-		NoActual:    f.NoActual,
-		NoVerified:  f.NoVerified,
-		NoReclose:   f.NoReclose,
-		NoAtlas:     f.NoAtlas,
-		NoVerdict:   f.NoVerdict,
-		NoPlanCheck: f.NoPlanCheck,
-		NoProject:   f.NoProject,
+		Issue:         f.Issue,
+		Milestone:     f.Milestone,
+		Actual:        f.Actual,
+		Verified:      f.Verified,
+		Force:         f.Force,
+		DryRun:        f.DryRun,
+		BrainDir:      f.BrainDir,
+		IssuesDir:     f.IssuesDir,
+		Agent:         f.Agent,
+		AgentExplicit: f.AgentExplicit,
+		NoActual:      f.NoActual,
+		NoVerified:    f.NoVerified,
+		NoReclose:     f.NoReclose,
+		NoAtlas:       f.NoAtlas,
+		NoVerdict:     f.NoVerdict,
+		NoPlanCheck:   f.NoPlanCheck,
+		NoProject:     f.NoProject,
 	}
 	if err := runClose(stderr, closeF); err != nil {
 		return err
@@ -147,13 +152,14 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		result = reviewResult{Verdict: judge.VerdictNotRun, Reason: "--dry-run", Base: base, Head: head, BaseLong: baseLong}
 	default:
 		result = dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
-			IssueRef:  fmt.Sprintf("ariadne#%d %s", f.Issue, f.Milestone),
-			Label:     fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
-			Base:      base,
-			BaseLong:  baseLong,
-			Head:      head,
-			IssuesDir: f.IssuesDir,
-			Agent:     f.Agent,
+			IssueRef:      fmt.Sprintf("ariadne#%d %s", f.Issue, f.Milestone),
+			Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
+			Base:          base,
+			BaseLong:      baseLong,
+			Head:          head,
+			IssuesDir:     f.IssuesDir,
+			Agent:         f.Agent,
+			AgentExplicit: f.AgentExplicit,
 		})
 	}
 
@@ -444,6 +450,21 @@ type boundaryReviewParams struct {
 	Base, BaseLong, Head string // review window (short base, long base, "HEAD")
 	IssuesDir            string
 	Agent                string
+	AgentExplicit        bool
+}
+
+func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams) error {
+	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
+	if !ok {
+		return errors.New(reason)
+	}
+	cmdLine, err := judge.FormatCommandLine(opts)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, "── command (would invoke) ──")
+	fmt.Fprintln(stdout, cmdLine)
+	return nil
 }
 
 // dispatchBoundaryReview invokes the one fresh-context review on p's window.
@@ -454,34 +475,14 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	res := func(v judge.Verdict, reason string) reviewResult {
 		return reviewResult{Verdict: v, Reason: reason, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong}
 	}
-	if p.BaseLong == "" {
-		reason := fmt.Sprintf("no commits reference '%s' — cannot determine review window", p.Label)
+	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
+	if !ok {
 		cwarn(stderr, "boundary review skipped: "+reason)
 		cwarn(stderr, "close succeeded; re-run judge manually if needed")
 		return res(judge.VerdictNotRun, reason)
 	}
 
-	diff, _, err := collectDiff(judge.MilestoneReview, p.BaseLong, "HEAD", p.IssuesDir, "workshop/history")
-	if err != nil {
-		reason := fmt.Sprintf("collect diff: %v", err)
-		cwarn(stderr, "boundary review failed: "+reason)
-		cwarn(stderr, "close succeeded; re-run judge manually if needed")
-		return res(judge.VerdictNotRun, reason)
-	}
-
-	in := judge.PromptInput{Diff: diff, Base: p.BaseLong, Head: "HEAD", IssueRef: p.IssueRef}
-	prompt := judge.BuildPrompt(judge.MilestoneReview, in)
-
-	agent := judge.AgentCLI(orStr(p.Agent, "claude"))
-	opts := judge.DispatchOptions{
-		Agent:        agent,
-		Prompt:       prompt,
-		AllowedTools: judge.MilestoneReview.AllowedTools(),
-		IsSandbox:    isSandbox(),
-		Stdout:       stdout,
-		Stderr:       stderr,
-	}
-
+	agent := opts.Agent
 	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..HEAD) via %s …", p.BaseLong, agent))
 	output, derr := judge.Dispatch(context.Background(), opts)
 	if derr != nil {
@@ -506,4 +507,27 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, "boundary review: no leading 'SHIP | FIX-THEN-SHIP | REWORK' verdict found — recording verdict as 'unknown'")
 	}
 	return reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong}
+}
+
+func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewParams) (judge.DispatchOptions, bool, string) {
+	if p.BaseLong == "" {
+		return judge.DispatchOptions{}, false, fmt.Sprintf("no commits reference '%s' — cannot determine review window", p.Label)
+	}
+
+	diff, _, err := collectDiff(judge.MilestoneReview, p.BaseLong, "HEAD", p.IssuesDir, "workshop/history")
+	if err != nil {
+		return judge.DispatchOptions{}, false, fmt.Sprintf("collect diff: %v", err)
+	}
+
+	in := judge.PromptInput{Diff: diff, Base: p.BaseLong, Head: "HEAD", IssueRef: p.IssueRef}
+	prompt := judge.BuildPrompt(judge.MilestoneReview, in)
+
+	return judge.DispatchOptions{
+		Agent:        judge.ResolveAgentCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv()),
+		Prompt:       prompt,
+		AllowedTools: judge.MilestoneReview.AllowedTools(),
+		IsSandbox:    isSandbox(),
+		Stdout:       stdout,
+		Stderr:       stderr,
+	}, true, ""
 }

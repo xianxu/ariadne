@@ -58,7 +58,8 @@ FLAGS
   --dry-run             plan only; skip both close mutation and judge dispatch
   --no-judge            run the close but skip the auto-dispatched judge
   --agent <name>        agent CLI for the judge: claude | codex | gemini.
-                        Default: $AGENT_CMD or claude.
+                        Default: explicit --agent, then AGENT_CMD, then
+                        PAIR_AGENT/current known agent signals, then claude.
   --brain-dir <path>    project-file lookup root (default ../brain)
   --issues-dir <path>   directory holding issue files
 

@@ -175,6 +175,19 @@ doing) via deterministic checks (`close` refuses without `--actual` +
 without substance) via fresh-context LLM review — every Dispatch call
 spawns a new subprocess; the agent has no doer-session state.
 
+**Judge agent defaults (#129).** Every judge dispatch (`sdlc judge`,
+`change-code` plan/estimate quality, close and milestone boundary reviews, plus
+push/merge preflight) resolves through `internal/judge.ResolveAgentCLI`. The
+precedence is: explicit `--agent`, then `AGENT_CMD` (operator/script override,
+including invalid values so dispatch validation still fails loudly), then
+`PAIR_AGENT`, then conservative process/session signals such as `CODEX_CI` /
+`CODEX_THREAD_ID`, then `claude`. Command flags stay empty by default so
+environment defaults live in one place; call sites pass an explicit-source bit
+from Cobra's `Flags().Changed("agent")`. Close dry-run uses the same boundary
+review prompt/options builder as real dispatch and prints the would-be command
+line, so `PAIR_AGENT=codex` is inspectable as `codex exec` before any subprocess
+runs.
+
 **The estimate shell (#117)** applies this same form/essence split to
 `estimate_hours`, plus a feedback arm — the one forecast in the system with a
 deterministic ground-truth measurement (`sdlc actual`). *Form:* the change-code

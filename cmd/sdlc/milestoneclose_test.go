@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"strings"
 	"testing"
 
@@ -65,6 +66,34 @@ func TestDispatchMilestoneReview_PromptBuildAndDispatch(t *testing.T) {
 	}
 	if seenArgs[len(seenArgs)-1] != prompt {
 		t.Errorf("dispatch prompt not last arg")
+	}
+}
+
+func TestDispatchBoundaryReview_AgentDefaultUsesPairAgent(t *testing.T) {
+	t.Setenv("AGENT_CMD", "")
+	t.Setenv("PAIR_AGENT", "codex")
+	orig := judge.Run
+	defer func() { judge.Run = orig }()
+
+	var seenName string
+	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		seenName = name
+		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+	}
+
+	res := dispatchBoundaryReview(io.Discard, io.Discard, boundaryReviewParams{
+		IssueRef:  "ariadne#31 M1",
+		Label:     "#31 M1",
+		Base:      "HEAD",
+		BaseLong:  "HEAD",
+		Head:      "HEAD",
+		IssuesDir: "workshop/issues",
+	})
+	if res.Verdict != judge.VerdictShip {
+		t.Fatalf("verdict = %s, want SHIP", res.Verdict)
+	}
+	if seenName != "codex" {
+		t.Fatalf("milestone boundary review agent = %q, want codex", seenName)
 	}
 }
 
