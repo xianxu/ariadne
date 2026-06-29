@@ -1,11 +1,12 @@
 ---
 id: 000136
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-26
-updated: 2026-06-26
+updated: 2026-06-29
 estimate_hours:
+started: 2026-06-29T15:42:51-07:00
 ---
 
 # sdlc boundary review sidecar
