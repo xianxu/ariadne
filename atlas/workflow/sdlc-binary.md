@@ -405,6 +405,21 @@ window) dispatch this same review — so the agent does **not** run a separate
 remains for ad-hoc/in-session reviews. The double-review #69 removed was the
 agent's superpowers pass *plus* the binary's auto-dispatch on the same diff.
 
+**Review sidecar (#136).** The boundary review is no longer a transient terminal
+artifact: every actually-dispatched review writes its full transcript to a durable
+sidecar under `workshop/plans/` — `NNNNNN-slug-close-review.md` for a whole-issue
+close, `NNNNNN-slug-m<x>-review.md` for milestone `Mx`. The write lives in the
+single shared `dispatchBoundaryReview` (`reviewsidecar.go`: pure `sidecarMeta` +
+`renderReviewEntry` + `sidecarPath` behind a thin atomic-write seam — ARCH-PURE),
+so both close paths inherit it for free (ARCH-DRY). Each file carries a metadata
+header (issue id/title, repo, issue file, boundary kind, milestone, base..head
+window, command, reviewer, timestamp, verdict) plus the body. A re-run of the same
+boundary **appends** a timestamped `## Re-review` section rather than overwriting
+(the §1 revision convention). The terminal still prints the full body + the
+`Review-Verdict:` trailer; the sidecar adds a durable surface an agent can reopen
+after scrollback loss or compaction (the path is echoed as `review sidecar: …`).
+`--no-judge`/`--dry-run`/not-run boundaries write nothing — no body to persist.
+
 **Window base — prior review boundary (#58).** `boundaryWindowBase`
 (`milestoneclose.go`) is the single source for *both* the atlas-coverage gate
 (`runClose`) and the boundary review's window, so they provably cover the same
