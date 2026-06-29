@@ -53,7 +53,7 @@ func NewIssueCmd() *cobra.Command {
 
 // issueValidateFlags holds the parsed flags for `sdlc issue validate`.
 type issueValidateFlags struct {
-	Issue     int
+	Issues    []int
 	All       bool
 	IssuesDir string
 }
@@ -68,20 +68,26 @@ func newIssueValidateCmd() *cobra.Command {
 policy the change-code gate uses — issue.CheckSectionsPresence). Well-formedness
 only; semantic quality (Spec depth, etc.) is the LLM's job, not this.
 
-  sdlc issue validate --issue 124      # one issue by ID
-  sdlc issue validate path/to/x.md     # one file
-  sdlc issue validate --all            # every workshop/issues/*.md
+  sdlc issue validate --issue 124       # one issue by ID
+  sdlc issue validate --issue 1,2,3,4    # several issues by ID
+  sdlc issue validate path/to/x.md       # one file
+  sdlc issue validate a.md b.md c.md     # several files
+  sdlc issue validate --all              # every workshop/issues/*.md
+
+--issue takes a comma-separated list; positional <file> takes one or more paths.
+Mixing --issue with positional files is rejected, and --all is mutually exclusive
+with explicit targets.
 
 Exits non-zero if any file is nonconforming, printing clear per-field/section
 diagnostics — actionable enough to fix and re-validate. On-demand + informative;
 the fail-closed boundary is the push/merge gate.`,
-		Args:          cobra.MaximumNArgs(1),
+		Args:          cobra.ArbitraryArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runIssueValidate(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
 		},
 	}
-	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID to validate")
+	cmd.Flags().IntSliceVar(&f.Issues, "issue", nil, "issue ID(s) to validate (comma-separated: --issue 1,2,3)")
 	cmd.Flags().BoolVar(&f.All, "all", false, "validate every issue under issues-dir")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	return cmd
@@ -117,20 +123,33 @@ func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []st
 	return nil
 }
 
-// resolveValidateTargets picks the files to validate from a positional <file>,
-// --issue N, or --all (in that precedence).
+// resolveValidateTargets picks the files to validate from positional <file>
+// paths, --issue ID(s), or --all. Multiple files and a comma-separated --issue
+// list are both supported; the three sources are mutually exclusive — --all may
+// not combine with explicit targets, and --issue may not mix with positional
+// files (one batch form per invocation keeps the contract unambiguous).
 func resolveValidateTargets(f *issueValidateFlags, args []string) ([]string, error) {
+	hasFiles, hasIssues := len(args) > 0, len(f.Issues) > 0
 	switch {
-	case len(args) == 1:
-		return []string{args[0]}, nil
-	case f.Issue > 0:
-		p, err := locateIssueFile(f.IssuesDir, f.Issue)
-		if err != nil {
-			return nil, err
-		}
-		return []string{p}, nil
 	case f.All:
+		if hasFiles || hasIssues {
+			return nil, fmt.Errorf("--all is mutually exclusive with explicit <file>/--issue targets")
+		}
 		return filepath.Glob(filepath.Join(f.IssuesDir, "*.md")) // Glob returns sorted matches
+	case hasFiles && hasIssues:
+		return nil, fmt.Errorf("specify either <file> path(s) or --issue ID(s), not both")
+	case hasIssues:
+		files := make([]string, 0, len(f.Issues))
+		for _, id := range f.Issues {
+			p, err := locateIssueFile(f.IssuesDir, id)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, p)
+		}
+		return files, nil
+	case hasFiles:
+		return args, nil
 	default:
 		return nil, fmt.Errorf("specify <file>, --issue N, or --all")
 	}
