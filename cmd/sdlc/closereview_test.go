@@ -139,6 +139,11 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 			t.Errorf("#136 close sidecar missing %q:\n%s", want, scData)
 		}
 	}
+	// The RESOLVED reviewer must reach the sidecar — the raw --agent flag is "" by
+	// default, so an empty reviewer cell means the resolved agent wasn't threaded.
+	if strings.Contains(string(scData), "| reviewer |  |") {
+		t.Errorf("#136 sidecar reviewer cell is empty — resolved agent not threaded:\n%s", scData)
+	}
 }
 
 // #136: the milestone-close boundary persists its review to a per-milestone
@@ -271,5 +276,10 @@ func TestRunCloseWithReview_NoJudge_Skips(t *testing.T) {
 	// milestone-close), not just the trailer.
 	if got := readIssue(t, issuesDir); !strings.Contains(got, "; review verdict: not-run") {
 		t.Errorf("--no-judge close should still annotate the log line:\n%s", got)
+	}
+	// #136 D4: a skipped boundary writes NO sidecar (there is no review body to
+	// persist; the trailer already records not-run).
+	if _, err := os.Stat(filepath.Join("workshop/plans", "000069-x-close-review.md")); !os.IsNotExist(err) {
+		t.Errorf("--no-judge must not write a review sidecar (stat err=%v)", err)
 	}
 }

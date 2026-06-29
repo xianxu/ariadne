@@ -1,12 +1,13 @@
 ---
 id: 000136
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-29
 estimate_hours: 0.59
 started: 2026-06-29T15:42:51-07:00
+actual_hours: 0.48
 ---
 
 # sdlc boundary review sidecar
@@ -96,6 +97,7 @@ Detailed design + TDD task breakdown: `workshop/plans/000136-review-sidecar-plan
   full review after the gate runs.
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... all pass. New reviewsidecar_test.go: pure path-naming (close+milestone) + render metadata/revision + create-then-append (prior evidence preserved, no overwrite) + atomic no-temp-leak + missing-issue error. Integration: TestRunCloseWithReview_IssueClose_Dispatches asserts the close sidecar file+body+metadata; TestDispatchBoundaryReview_WritesMilestoneSidecar pins -m1-review.md via shared dispatch. Existing close/milestone tests stay green (additive, non-fatal write). This close itself dogfoods the feature → writes workshop/plans/000136-review-sidecar-close-review.md.; review verdict: FIX-THEN-SHIP
 
 Implemented per `workshop/plans/000136-review-sidecar-plan.md`. New
 `cmd/sdlc/reviewsidecar.go` — pure `sidecarMeta` + `sidecarPath` +
@@ -125,3 +127,17 @@ the close sidecar file + body + metadata; new
 `TestDispatchBoundaryReview_WritesMilestoneSidecar` pins the `-m1-review.md` path
 through the shared dispatch. Existing close/milestone tests stay green
 (existing-behavior-intact).
+
+Boundary review (the close dogfooded the feature → wrote
+`workshop/plans/000136-review-sidecar-close-review.md`): verdict **FIX-THEN-SHIP**,
+two Important findings, both fixed before the boundary:
+- **Reviewer cell empty in the default invocation** — `writeReviewSidecar` recorded
+  the raw `--agent` flag (`""` by default) instead of the resolved dispatch agent.
+  Fixed: `dispatchBoundaryReview` now threads `string(opts.Agent)` into the write;
+  pinned by a non-empty-reviewer assertion in the close integration test. (The
+  already-written sidecar's cell was hand-corrected to `claude`, the real reviewer.)
+- **D4 no-write untested** — added a no-sidecar `os.Stat` assertion to the
+  `--no-judge` skip test.
+Minor `repoIdentity` triplication finding deliberately not taken (the other two
+sites don't share the basename-only shape — Simplicity-First); see plan
+`## Revisions`. Re-review happens at the pre-merge judges.

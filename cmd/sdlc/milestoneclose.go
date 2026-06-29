@@ -519,6 +519,9 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	// Persist the full transcript to a durable sidecar (#136) so an agent can
 	// reopen it after scrollback loss / compaction. Non-fatal: the review already
 	// ran, so a write failure is warned, not propagated (matches the philosophy above).
+	// Record the RESOLVED reviewer (opts.Agent), not the raw --agent flag — the
+	// latter defaults to "" so the sidecar's reviewer cell would otherwise be empty.
+	p.Agent = string(agent)
 	if path, werr := writeReviewSidecar(p, string(verdict), output, nowRFC3339()); werr != nil {
 		cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
 	} else {

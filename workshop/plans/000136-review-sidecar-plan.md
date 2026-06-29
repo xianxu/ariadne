@@ -312,3 +312,19 @@ return res
 - Not persisting `--no-judge`/`--dry-run`/not-run boundaries (D4) — no body exists.
 - Not suppressing the stdout review body (D3).
 - Archival: sidecars live in `workshop/plans/` and match the `NNNNNN-` id prefix, so whatever sweeps plans/issues to `workshop/history/` at merge carries them along — no archive-logic change in scope; verify during close.
+
+## Revisions
+
+- **2026-06-29 — reviewer = resolved agent (close-review FIX-THEN-SHIP follow-up).**
+  The boundary review flagged that `sidecarMeta.Agent` was populated from the raw
+  `--agent` flag (`p.Agent`), which defaults to `""`, so the `| reviewer |` cell
+  rendered empty in the common default invocation even though the spec requires
+  "reviewer … if known." Fix: `dispatchBoundaryReview` now sets
+  `p.Agent = string(opts.Agent)` (the **resolved** dispatch agent) before
+  `writeReviewSidecar`. Pinned by a new assertion in
+  `TestRunCloseWithReview_IssueClose_Dispatches` (reviewer cell non-empty) and a
+  D4 no-write assertion in `TestRunCloseWithReview_NoJudge_Skips`. The Minor
+  `repoIdentity` triplication finding was deliberately **not** taken: `close.go:814`
+  uses `RepoTopLevel` for a brain path (not basename) and `branchcreate.go` needs
+  both basename and `filepath.Dir(repoTop)`, so a single `gitx.RepoName()` wouldn't
+  cleanly unify them (Simplicity-First).
