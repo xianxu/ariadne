@@ -1,11 +1,12 @@
 ---
 id: 000129
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-25
-updated: 2026-06-25
+updated: 2026-06-29
 estimate_hours:
+started: 2026-06-29T10:16:30-07:00
 ---
 
 # Default sdlc judges to current agent
@@ -25,7 +26,7 @@ stack by default", not "always Claude unless manually overridden".
 Alternatively, we may have a configuration to drive such selection strategy, maybe:
 
 - "same": use same coding agent as main
-- "different": use different one, so codex main agent would use claude; claude main would use codex subagent. we do need to think generic case if we have N how to configure, maybe the next:
+- "other": use different one, so codex main agent would use claude; claude main would use codex subagent. we do need to think generic case if we have N how to configure, maybe the next:
 - "explicit": which is a string of: codex:claude,claude:codex etc. basically codex:claude means if codex is main, use claude as subagent.
 
 The prose should be driven by the above configuration.
