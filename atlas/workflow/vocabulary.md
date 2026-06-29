@@ -106,7 +106,9 @@ judges (so `--no-judge` keeps it, `--no-validate` keeps the judges). It reuses t
   ("validate forward"); a rename (`R`) is not "added".
 - **Loud escape:** `--no-validate` on push/merge prints a prominent WARN naming what's skipped
   (the [escape-hatch principle](../../workshop/lessons.md): bypassable, never silent).
-- `sdlc issue validate [<file> | --issue N | --all]` is the on-demand surface (full check).
+- `sdlc issue validate [<file>... | --issue N[,N...] | --all]` is the on-demand surface (full
+  check). Multi-target since #133: several files or a comma-separated `--issue` list in one
+  call; the three sources are mutually exclusive.
 
 **Generalized (M3, landed).** `construct/vocabulary/pensive.cue` (`#Pensive`: `type`/`date`/
 `topic`/`mode` enum/`description` + optional `references`) is the **second datatype** — the same
