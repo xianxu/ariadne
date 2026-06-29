@@ -17,6 +17,9 @@ func TestEstimateSourceCmd_Registered(t *testing.T) {
 			t.Errorf("estimate-source missing flag: --%s", flag)
 		}
 	}
+	if got := cmd.Flags().Lookup("model").DefValue; got != estimate.CurrentModel() {
+		t.Errorf("estimate-source default model = %q, want %q", got, estimate.CurrentModel())
+	}
 }
 
 // estimateSourceStatus over a temp brain: present doc → Exists; a ledger newer

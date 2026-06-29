@@ -6,6 +6,10 @@ func trustedRow(est, act float64) LedgerRow {
 	return LedgerRow{Estimate: est, Actual: act, WindowTrusted: true, Model: "estimate-logic-v2"}
 }
 
+func trustedModelRow(issue, model string, est, act float64) LedgerRow {
+	return LedgerRow{Issue: issue, Estimate: est, Actual: act, WindowTrusted: true, Model: model}
+}
+
 func TestDrift_AllOver(t *testing.T) {
 	rows := []LedgerRow{trustedRow(5, 0.9), trustedRow(7, 0.35), trustedRow(3, 0.5)} // all >2× over
 	warn, msg := DriftVerdict(rows, 3)
@@ -60,5 +64,44 @@ func TestDrift_TrustedZeroActualExcluded(t *testing.T) {
 	}
 	if warn, _ := DriftVerdict(rows, 3); warn {
 		t.Error("trusted row with actual==0 must be excluded from the trusted count")
+	}
+}
+
+func TestDrift_LatestModelDoesNotInheritPriorModelRows(t *testing.T) {
+	rows := []LedgerRow{
+		trustedModelRow("ariadne#1", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#2", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#3", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#4", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#5", "estimate-logic-v3.1", 5, 1),
+	}
+	if warn, _ := DriftVerdict(rows, 5); warn {
+		t.Error("a new model revision should not inherit prior-model drift rows")
+	}
+}
+
+func TestDrift_DedupesRepeatedIssueRows(t *testing.T) {
+	rows := []LedgerRow{
+		trustedModelRow("ariadne#1", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#2", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#3", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#4", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#1", "estimate-logic-v2", 1, 1),
+	}
+	if warn, _ := DriftVerdict(rows, 5); warn {
+		t.Error("repeated rows for one issue should count only the latest row")
+	}
+}
+
+func TestDrift_LatestUnknownModelDoesNotTrigger(t *testing.T) {
+	rows := []LedgerRow{
+		trustedModelRow("ariadne#1", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#2", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#3", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#4", "estimate-logic-v2", 5, 1),
+		trustedModelRow("ariadne#5", "", 5, 1),
+	}
+	if warn, _ := DriftVerdict(rows, 5); warn {
+		t.Error("latest row with no recognized model should not trigger a model drift warning")
 	}
 }

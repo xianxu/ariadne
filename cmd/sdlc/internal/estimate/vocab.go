@@ -2,6 +2,8 @@ package estimate
 
 import "sort"
 
+const currentModel = "estimate-logic-v3.1"
+
 // primitives is the closed vocabulary of estimate-logic-v2 primitive slugs — the
 // canonical source of truth. helptext/estimate.md documents it and a drift-guard
 // test asserts the two match; the brain estimate-logic-v2.md primitive table is
@@ -35,6 +37,7 @@ var models = map[string]bool{
 	"estimate-logic-v2":   true,
 	"estimate-logic-v2.1": true,
 	"estimate-logic-v3":   true,
+	"estimate-logic-v3.1": true,
 }
 
 // KnownPrimitive reports whether slug is in the closed v2 vocabulary.
@@ -42,6 +45,9 @@ func KnownPrimitive(slug string) bool { return primitives[slug] }
 
 // KnownModel reports whether m is a recognized estimate model version.
 func KnownModel(m string) bool { return models[m] }
+
+// CurrentModel is the model new estimates should use by default.
+func CurrentModel() string { return currentModel }
 
 // Primitives returns the canonical slug set, sorted (for helptext + drift tests).
 func Primitives() []string { return sortedKeys(primitives) }

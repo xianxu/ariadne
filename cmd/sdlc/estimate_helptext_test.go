@@ -26,7 +26,7 @@ func TestEstimateHelptextMatchesVocab(t *testing.T) {
 		t.Fatal("vocabulary section header not found in helptext/estimate.md")
 	}
 	block := doc[start:]
-	if end := strings.Index(block, "UNIT NOTE"); end >= 0 {
+	if end := strings.Index(block, "WHERE THE CALIBRATION LIVES"); end >= 0 {
 		block = block[:end]
 	}
 
@@ -50,5 +50,31 @@ func TestEstimateHelptextMatchesVocab(t *testing.T) {
 		if !want[s] {
 			t.Errorf("helptext/estimate.md documents %q which is NOT in vocab.go (stray slug — gate would reject it)", s)
 		}
+	}
+}
+
+func TestEstimateHelptextExampleReconciles(t *testing.T) {
+	doc, ok := helptext.Get("estimate")
+	if !ok {
+		t.Fatal("helptext/estimate.md is not embedded")
+	}
+	start := strings.Index(doc, "\n  ```estimate")
+	if start < 0 {
+		t.Fatal("estimate example fence not found")
+	}
+	start += len("\n  ")
+	rest := doc[start+len("```estimate"):]
+	end := strings.Index(rest, "```")
+	if end < 0 {
+		t.Fatal("estimate example closing fence not found")
+	}
+	section := "```estimate" + strings.TrimRight(rest[:end], " \t") + "\n```"
+	section = strings.ReplaceAll(section, "\n  ", "\n")
+	block, err := estimate.ParseBlock(section)
+	if err != nil {
+		t.Fatalf("ParseBlock(example) error = %v", err)
+	}
+	if failures := estimate.Check(block, block.Total); len(failures) > 0 {
+		t.Fatalf("helptext estimate example does not reconcile: %+v", failures)
 	}
 }

@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-25
 updated: 2026-06-29
-estimate_hours:
+estimate_hours: 2.55
 started: 2026-06-29T11:15:03-07:00
 ---
 
@@ -64,15 +64,59 @@ produced them (the ledger already carries the model column for exactly this).
   centered near 1.0 (not a fresh systematic miss in either direction).
 - The drift guard no longer fires on a freshly-closed issue estimated with the new model.
 
+## Estimate
+
+P50 2.55h. Revised after creating `estimate-logic-v3.1`: this is a narrow `sdlc` calibration/code-path change plus analytical brain-doc authoring and a close-boundary review.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec          design=0.4 impl=0.1
+item: pensive             design=0.8 impl=0.1
+item: smaller-go-module   design=0.3 impl=0.2
+item: atlas-docs          design=0.1 impl=0.1
+item: milestone-review    design=0.0 impl=0.2
+design-buffer: 0.15
+total: 2.55
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+
 ## Plan
 
-- [ ] Diagnose: pull the post-#118 trusted ledger rows; confirm the 2.3× is a unit/scale offset vs. structurally-high primitives. Reconcile what `estimate-logic-v2.1` (parley.nvim#134) already changed.
-- [ ] Choose path (a/b/c) and apply to `cmd/sdlc/internal/estimate/vocab.go`; bump `model:` version.
-- [ ] Update the grammar doc (`helptext/estimate.md`) + any `estimate-logic-v2.md` narrative to derive from the new vocab; the drift test in estimate package stays the guard.
-- [ ] Backtest against the last ~8 ledger issues; show ratios re-center near 1.0.
-- [ ] Atlas: update the ledger-landscape page if the model version/derivation changes.
+- [x] Diagnose: pull the post-#118 trusted ledger rows; separate clean calibration rows from actual-side artifacts. Reconcile `estimate-logic-v2.1` and `estimate-logic-v3`.
+- [x] Apply the numerical recalibration in the brain velocity docs as `estimate-logic-v3.1` / `baseline-v3.1`: keep design hours, keep v2.1/v3's 15% thorough-plan buffer, and scale AI-paired impl hours to 40% for `sdlc actual` ship-wall-clock.
+- [x] Apply the shared-method changes in `cmd/sdlc/internal/estimate/`: recognize `estimate-logic-v3.1`, make it the current model, and keep drift windows per-model + unique issue.
+- [x] Update the grammar/source docs and any atlas surfaces that currently nudge agents toward stale `estimate-logic-v2`.
+- [x] Backtest against the recent ledger sample; show clean rows re-center near 1.0 and artifact rows stay called out as measurement problems.
+- [x] Atlas: update the ledger-landscape page if the model version/derivation changes.
+
+## Revisions
+
+### 2026-06-29 — plan-quality rescope to real recalibration
+
+Reason: `sdlc change-code` plan-quality found that a provenance-only v3 adoption would not change any estimate numbers and would only reset the drift guard.
+
+Delta: chose path (a), a uniform implementation-hours scale-down, realized as `estimate-logic-v3.1` / `baseline-v3.1` in the brain velocity docs. The ariadne code scope now recognizes v3.1, makes it the current model, and makes drift windows per-model and unique per issue. The estimate block was restamped from v3 to v3.1 after the new calibration source existed.
 
 ## Log
+
+### 2026-06-29
+
+- `sdlc start-plan --issue 127` delivered the ARCH-* plan lens. `sdlc change-code --issue 127`
+  first returned `VERDICT: FAILURE` because the initial plan only adopted v3 provenance and drift
+  hygiene; v3 is a pure shim over v2.1 and does not numerically recalibrate. Revised the plan to
+  include brain-side calibration docs, then reran `sdlc change-code`; plan-quality returned
+  `VERDICT: INFO`, estimate-quality returned `VERDICT: INFO`, and the branch
+  `000127-recalibrate-estimate-logic-v2-high` was created.
+- Diagnosis/backtest: latest unique trusted v2 rows with actual >= 0.5h show the clean model-bias
+  rows moving from roughly 2.0-2.5x old ratios to roughly 0.6-1.35x under
+  `design*1.15 + impl*0.40`. Residual 3-6x rows remain classified as actual-quality/scope-compression
+  outliers rather than evidence for further global shrinking. This is an in-sample fit, not held-out
+  validation; the next v3.1 closes are the real validation set.
+- Created the brain calibration pair `estimate-logic-v3.1.md` / `baseline-v3.1.md` and updated the
+  brain velocity skill to make v3.1 current. Existing unrelated brain WIP was present before this
+  issue and was left untouched.
 
 ### 2026-06-25
 

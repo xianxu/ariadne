@@ -15,7 +15,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 | Plan file (complex case) | `workshop/plans/<N>-*-plan.md` (git) | Detailed implementation breakdown — Core concepts, file structure, bite-sized tasks | execution sessions, milestone reviewers |
 | Target file | `workshop/targets/<slug>.md` (git) | What shape do we defend against drift? | humans + agents reading the system |
 | Project file | `brain/data/project/<slug>.md` (git) | Portfolio status — actuals, scope events, multi-issue progress | the operator's portfolio view |
-| Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | How well do estimates match measured actuals? (per-issue estimate↔actual + drift, #117) | velocity calibration; the estimate shell |
+| Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | How well do estimates match measured actuals? (per-issue estimate↔actual + per-model drift, #117/#127) | velocity calibration; the estimate shell |
 | Atlas entries | `atlas/**.md` (git) | How is the system built — architectural map | first-level onboarding |
 | Git commits (messages + trailers) | git history (immutable) | What changed, why, and what checkpoint state was crossed? | tooling, history readers, audit |
 | Claude transcripts | `~/.claude/projects/<repo-id>/*.jsonl` (local) | What was the AI actually saying that day? | audit, active-time-v3, memory writers |

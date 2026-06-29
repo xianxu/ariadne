@@ -20,6 +20,15 @@ func TestKnownModel(t *testing.T) {
 	}
 }
 
+func TestCurrentModel(t *testing.T) {
+	if CurrentModel() != "estimate-logic-v3.1" {
+		t.Fatalf("CurrentModel() = %q, want estimate-logic-v3.1", CurrentModel())
+	}
+	if !KnownModel(CurrentModel()) {
+		t.Fatalf("CurrentModel() = %q is not recognized", CurrentModel())
+	}
+}
+
 func TestPrimitivesSorted(t *testing.T) {
 	got := Primitives()
 	if len(got) != len(primitives) {
