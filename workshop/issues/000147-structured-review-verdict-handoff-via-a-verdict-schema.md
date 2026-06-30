@@ -1,11 +1,12 @@
 ---
 id: 000147
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-30
 updated: 2026-06-30
 estimate_hours:
+started: 2026-06-30T15:04:53-07:00
 ---
 
 # Structured review verdict handoff via a verdict schema
