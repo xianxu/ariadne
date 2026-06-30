@@ -416,6 +416,16 @@ header), keeping git IO at the cmd boundary (ARCH-PURE). Computed once in the
 shared `boundaryReviewDispatchOptions` (ARCH-DRY); the same derivation feeds the
 sidecar H1.
 
+**Subprocess PATH (#138).** The agent subprocess `sdlc` spawns for a review (and
+for `sdlc judge`) gets the owner `bin/` prepended to its `PATH`, so a fresh
+reviewer can resolve `sdlc` (and sibling tools) even when the spawning shell's
+startup files never put `ariadne/bin` on `PATH`. The dir is `dir(os.Executable())`
+(single-sourced via `ownerBinDir`, in `internal/judge/dispatch.go`), injected at
+the one launch seam (`Run`) via the pure `binAugmentedEnv` — so it works from
+downstream repos (the binary is `…/ariadne/bin/sdlc` regardless of cwd) with no
+dependence on the user's `~/.zshenv`/`~/.bash_profile`. Launch-failure errors name
+the attempted agent + that bin dir.
+
 **Review sidecar (#136).** The boundary review is no longer a transient terminal
 artifact: every actually-dispatched review writes its full transcript to a durable
 sidecar under `workshop/plans/` — `NNNNNN-slug-close-review.md` for a whole-issue
