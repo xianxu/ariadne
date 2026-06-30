@@ -1,12 +1,13 @@
 ---
 id: 000138
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-29
 estimate_hours: 0.27
 started: 2026-06-29T22:09:01-07:00
+actual_hours: 0.49
 ---
 
 # sdlc subprocess path resolution
@@ -84,6 +85,7 @@ Detailed design + TDD breakdown: `workshop/plans/000138-subprocess-path-plan.md`
   configuration to find the workflow binary.
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... all pass. New dispatch_test.go: TestBinAugmentedEnv (prepend owner bin/ to PATH / synthesize when absent / no-op on empty dir) + TestMinimalPathResolvesSdlc — a real sh -c "command -v sdlc" under a deliberately narrow base PATH resolves the injected owner-bin sdlc (the Done-when minimal-PATH coverage, no agent). ownerBinDir() single-sources dir(os.Executable()) for Run (build env) + Dispatch (diagnosable launch error). No dependence on user shell startup files; works from downstream repos.; review verdict: FIX-THEN-SHIP
 
 Implemented per `workshop/plans/000138-subprocess-path-plan.md` in
 `cmd/sdlc/internal/judge/dispatch.go`:

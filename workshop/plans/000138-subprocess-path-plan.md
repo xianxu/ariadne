@@ -118,3 +118,21 @@ func TestBinAugmentedEnv(t *testing.T) {
 - No change to the user's shell config; no dependence on `~/.zshenv`/`~/.bash_profile` (issue spec).
 - Not rewriting prompt text to embed an absolute `sdlc` path (D1 — PATH injection covers all `sdlc` calls, not just scripted ones).
 - Not changing agent selection, verdict format, trailers, or gates.
+
+## Revisions
+
+- **2026-06-29 — owner-bin single-source (change-code plan-quality gate, ARCH-DRY).**
+  Per the gate's Finding 1, the owner-bin resolution was single-sourced into a new
+  `ownerBinDir() (string, error)` = `filepath.Dir(os.Executable())`, consumed by both
+  `Run` (build the subprocess env) and `Dispatch` (format the launch-failure
+  diagnostic). Consequently `binAugmentedEnv`'s signature changed from
+  `(execPath string, env []string)` (deriving `filepath.Dir` internally) to
+  `(binDir string, env []string)` — it now takes the already-resolved dir. Add to
+  the Core-concepts *Integration points* table: `ownerBinDir` (`dispatch.go`, new,
+  wraps `os.Executable`). Line refs drifted: `Run` `:36`→`:77`, `Dispatch` error
+  `:105`→`:149`.
+- **2026-06-29 — close-review FIX-THEN-SHIP follow-up.** The boundary review flagged
+  (Important #2) that the new launch-failure diagnostic had no test pinning its
+  content; added assertions to `TestDispatch_LaunchError_Surfaces` (error contains
+  the agent name + `owner bin` + `PATH=`). Also widened the diagnostic to include the
+  effective `PATH` (literal Done-when parity) with a `"?"` dir fallback (Minor).

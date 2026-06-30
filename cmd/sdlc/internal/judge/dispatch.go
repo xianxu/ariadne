@@ -148,10 +148,13 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	}
 	if runErr != nil {
 		// Real launch failure: binary missing, ctx cancelled, etc. Name the
-		// attempted agent + the owner bin/ we put on PATH so a "command not
-		// found" is diagnosable from the error alone (#138).
-		dir, _ := ownerBinDir()
-		return string(out), fmt.Errorf("dispatch %s (PATH includes owner bin %q): %w", name, dir, runErr)
+		// attempted agent + the owner bin/ we prepended and the effective PATH,
+		// so a "command not found" is diagnosable from the error alone (#138).
+		dir, derr := ownerBinDir()
+		if derr != nil || dir == "" {
+			dir = "?"
+		}
+		return string(out), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
 	}
 	return string(out), nil
 }

@@ -799,7 +799,14 @@ func TestDispatch_LaunchError_Surfaces(t *testing.T) {
 	}
 	_, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "x", AllowedTools: "Read"})
 	if err == nil {
-		t.Error("expected error when Run fails to launch")
+		t.Fatal("expected error when Run fails to launch")
+	}
+	// #138: the diagnostic names the attempted agent + the owner bin/ on PATH, so
+	// a launch failure is debuggable from the error string alone.
+	for _, want := range []string{"claude", "owner bin", "PATH="} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("launch error missing %q: %v", want, err)
+		}
 	}
 }
 
