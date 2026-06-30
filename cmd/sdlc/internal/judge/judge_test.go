@@ -166,7 +166,8 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		"downstream repo",                   // {{REPO_NOTE}}
 		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
-		"REWORK        = blocking",
+		"```verdict",                        // {{VERDICT_BLOCK}} — the structured handoff (#147)
+		"verdict: <SHIP | FIX-THEN-SHIP | REWORK>", // tokens rendered from vocab.Verdict().Emitted()
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("rendered body missing %q", want)
@@ -267,8 +268,12 @@ func TestAgentPromptsEmbedContract(t *testing.T) {
 		if !c.NeedsAgent() {
 			continue // Lessons is the documented REMINDER: exception
 		}
-		if !strings.Contains(BuildPrompt(c, in), ContractPreamble) {
-			t.Errorf("%s prompt does not embed ContractPreamble (verdict format drift)", c)
+		want := ContractPreamble
+		if c == MilestoneReview {
+			want = BoundaryReviewContract // #147: block-first contract for the boundary review
+		}
+		if !strings.Contains(BuildPrompt(c, in), want) {
+			t.Errorf("%s prompt does not embed its output contract (verdict format drift)", c)
 		}
 	}
 }
@@ -371,7 +376,8 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"Atlas update gate",
 		"Plan revision recommendations",
 		"VERDICT: <TOKEN>", // unified contract format (#70 M2 — was bare "SHIP | …")
-		"FIX-THEN-SHIP = ship after addressing",
+		"```verdict",       // the authoritative structured handoff block (#147)
+		"FIX-THEN-SHIP  ship after addressing", // token gloss rendered from the model's `when`
 		"Strengths:",
 	} {
 		if !strings.Contains(p, want) {

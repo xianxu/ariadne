@@ -16,4 +16,10 @@ json="$(cue export "$dir/issue.cue" --out json)"
 echo "$json" | grep -q '"categories"' || { echo "FAIL: categories not in export"; exit 1; }
 echo "$json" | grep -q '"lifecycle"'  || { echo "FAIL: lifecycle not in export";  exit 1; }
 
+# verdict (ariadne#147): atomic noun — no lifecycle; guard the concrete `categories`
+# the binding consumes reaches the export (the `#Emitted`/`#Token` defs don't).
+cue vet "$dir/verdict.cue" || { echo "FAIL: valid verdict model did not vet"; exit 1; }
+vjson="$(cue export "$dir/verdict.cue" --out json)"
+echo "$vjson" | grep -q '"categories"' || { echo "FAIL: verdict categories not in export"; exit 1; }
+
 echo ok
