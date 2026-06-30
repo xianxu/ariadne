@@ -2,6 +2,7 @@
 id: 000139
 status: blocked
 deps: [ariadne#147]
+target: agent-binary-handoff-schema
 github_issue:
 created: 2026-06-29
 updated: 2026-06-30

@@ -2,6 +2,7 @@
 id: 000147
 status: working
 deps: []
+target: agent-binary-handoff-schema
 github_issue:
 created: 2026-06-30
 updated: 2026-06-30
