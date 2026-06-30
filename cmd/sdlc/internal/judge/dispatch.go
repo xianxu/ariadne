@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -30,11 +32,53 @@ type DispatchOptions struct {
 	Stderr       io.Writer
 }
 
+// ownerBinDir is the directory of the running sdlc binary — i.e. the owner
+// `bin/` (e.g. .../ariadne/bin), resolved from os.Executable(). The single
+// source for "where do sibling tools (sdlc, weave, …) live", consumed by both
+// Run (to build the subprocess PATH) and Dispatch (to diagnose launch failures).
+// Works unchanged from a downstream repo: the binary is .../ariadne/bin/sdlc
+// regardless of cwd (#138).
+func ownerBinDir() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(exe), nil
+}
+
+// binAugmentedEnv returns env with binDir prepended to its PATH entry (or a
+// synthesized PATH= entry when none exists), so a spawned agent can resolve
+// `sdlc` and its sibling owner-bin tools even when the spawning shell's startup
+// files never put that dir on PATH (#138). No-op when binDir is empty/".". Pure.
+func binAugmentedEnv(binDir string, env []string) []string {
+	if binDir == "" || binDir == "." {
+		return env
+	}
+	out := make([]string, 0, len(env)+1)
+	found := false
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, "PATH="); ok {
+			found = true
+			out = append(out, "PATH="+binDir+string(os.PathListSeparator)+v)
+		} else {
+			out = append(out, e)
+		}
+	}
+	if !found {
+		out = append(out, "PATH="+binDir)
+	}
+	return out
+}
+
 // Run is the package-level subprocess shim. Tests replace it with a
 // fake to assert the right command line / capture without spawning a
-// real agent process. Production execs the binary.
+// real agent process. Production execs the binary — with the owner bin/
+// prepended to PATH so the agent can resolve `sdlc` (#138).
 var Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	if dir, err := ownerBinDir(); err == nil {
+		cmd.Env = binAugmentedEnv(dir, os.Environ())
+	}
 	return cmd.CombinedOutput()
 }
 
@@ -103,8 +147,14 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 		return string(out), nil
 	}
 	if runErr != nil {
-		// Real launch failure: binary missing, ctx cancelled, etc.
-		return string(out), fmt.Errorf("dispatch %s: %w", name, runErr)
+		// Real launch failure: binary missing, ctx cancelled, etc. Name the
+		// attempted agent + the owner bin/ we prepended and the effective PATH,
+		// so a "command not found" is diagnosable from the error alone (#138).
+		dir, derr := ownerBinDir()
+		if derr != nil || dir == "" {
+			dir = "?"
+		}
+		return string(out), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
 	}
 	return string(out), nil
 }
