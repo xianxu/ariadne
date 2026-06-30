@@ -1,11 +1,33 @@
 package judge
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+// TestDispatch_ResolvesVerdictBlock is the #147 process-level fixture: a stubbed
+// agent emits a fenced verdict block in stdout, Dispatch captures it, and the
+// binary resolves the verdict deterministically from the block (the structured
+// agent→binary handoff, end to end).
+func TestDispatch_ResolvesVerdictBlock(t *testing.T) {
+	orig := Run
+	defer func() { Run = orig }()
+	Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return []byte("Here is my review of the diff.\n\n" +
+			"```verdict\nverdict: FIX-THEN-SHIP\nconfidence: high\n```\n\n" +
+			"Findings: a couple of minors.\n"), nil
+	}
+	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "p", AllowedTools: "Read"})
+	if err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if v := ParseVerdict(out); v != VerdictFixThenShip {
+		t.Errorf("structured handoff through Dispatch: got %v, want FIX-THEN-SHIP", v)
+	}
+}
 
 func TestParseVerdictBlock(t *testing.T) {
 	cases := []struct {

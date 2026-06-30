@@ -16,6 +16,16 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   once and the `#`-defs can't drift). Also: `when` (per-status semantics),
   `lifecycle` (the transition table, with *named* guards whose implementations live
   in sdlc), and `laws` (documented-value + reachable/escapable, enforced by `cue vet`).
+- `construct/vocabulary/verdict.cue` — the `verdict` noun (#147): boundary-review
+  verdict tokens by category (`finalizing` = SHIP/FIX-THEN-SHIP, `blocking` = REWORK,
+  `internal` = system-set not-run/unknown), with `#Emitted`/`#Token` *derived*; the
+  closed `#Verdict` shape `{verdict, confidence?}`. The **single source** for the
+  review handoff: the prompt renders its emitted set (`vocab.Verdict().RenderBlockInstruction`),
+  `ParseVerdictBlock` validates a fenced ```` ```verdict ```` block against it, and
+  #139's close-policy reads its categories — a `TestVerdictDriftGuard` pins each
+  consumer (enum equality, `verdictFor` derive, regex/contract subset). The reviewer
+  (read-only) emits the block in stdout; the binary parses + validates it — the first
+  realization of the [[agent-binary-handoff-schema]] target (never parse an agent's prose).
 - `construct/vocabulary/vet_test.sh` — the M1 gate: the valid model vets, the
   `testdata/issue_invalid.cue` fixture fails, and the **export carries `categories` +
   `lifecycle`** (CUE `#`-definitions don't `cue export`). Test fixtures live under
