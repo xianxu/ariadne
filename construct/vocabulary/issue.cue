@@ -34,6 +34,15 @@ when: {
 	punt:    "deferred"
 }
 
+// ── discovery: where instances of this noun live. Concrete data (so it reaches
+// the exported JSON — definitions don't export), consumed by downstream tools:
+// parley.nvim#116 sources the issue home from here instead of hardcoding
+// workshop/issues. Repo-relative (the consumer joins to its repo root). ──
+discovery: {
+	home: "workshop/issues" // repo-relative home folder for issue instances
+	glob: "*.md"            // filename glob within home
+}
+
 // ── #Issue: the data shape of an issue record ──
 #Issue: {
 	// id: a 6-digit zero-padded number. UNQUOTED in real frontmatter (`id: 000124`),

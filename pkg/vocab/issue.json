@@ -21,6 +21,10 @@
         "wontfix": "rejected; will not be done",
         "punt": "deferred"
     },
+    "discovery": {
+        "home": "workshop/issues",
+        "glob": "*.md"
+    },
     "lifecycle": [
         {
             "from": "open",
