@@ -1,7 +1,7 @@
 ---
 id: 000139
-status: working
-deps: []
+status: blocked
+deps: [ariadne#147]
 github_issue:
 created: 2026-06-29
 updated: 2026-06-30
@@ -83,3 +83,14 @@ action, and avoid appending a misleading "closed" log entry.
 - Created from pair#84 dogfooding: `sdlc close` flipped pair#84 to `done`
   before the boundary review returned `REWORK`, forcing re-close guard bypasses
   and manual cleanup of stale close log lines.
+
+### 2026-06-30
+
+- **Parked, blocked on #147.** Design + durable plan complete
+  (`workshop/plans/000139-close-finalize-after-verdict-plan.md`: two-phase
+  compute→review→apply for close + milestone-close, three verdict outcomes
+  finalize/rework/halt). During design review the operator flagged that the
+  policy's halt-on-`unknown` is unsound while `unknown` is *frequent* — the root
+  cause is the unstructured verdict handoff (free-text stdout regex-parsed), which
+  #147 fixes with a CUE-modeled, schema-validated structured handoff. Do #147
+  first so this issue's close reads a robust verdict; then resume here.
