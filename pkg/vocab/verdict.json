@@ -1,0 +1,26 @@
+{
+    "categories": {
+        "finalizing": [
+            "SHIP",
+            "FIX-THEN-SHIP"
+        ],
+        "blocking": [
+            "REWORK"
+        ],
+        "internal": [
+            "not-run",
+            "unknown"
+        ]
+    },
+    "when": {
+        "SHIP": "ready; ship it",
+        "FIX-THEN-SHIP": "ship after addressing the findings (non-blocking at the gate)",
+        "REWORK": "blocking; needs rework before shipping — fix + re-run",
+        "not-run": "review skipped or errored (system-set; no judgment available)",
+        "unknown": "review ran but emitted no schema-valid verdict (system-set; investigate)"
+    },
+    "discovery": {
+        "home": "workshop/plans",
+        "glob": "*-review.md"
+    }
+}

@@ -40,6 +40,51 @@ func TestIssueConformance(t *testing.T) {
 	}
 }
 
+// TestVerdictConformance: every verdict token is in exactly one category with
+// non-empty `when`, the Is*/Emitted predicates agree with the categories, and the
+// system-internal tokens are never emittable. Fail-closed, derived from the model (#147).
+func TestVerdictConformance(t *testing.T) {
+	m := Verdict()
+	cats := []string{"finalizing", "blocking", "internal"}
+
+	var all []string
+	for _, cat := range cats {
+		all = append(all, m.Categories[cat]...)
+	}
+	for _, tok := range all {
+		n := 0
+		for _, cat := range cats {
+			if m.inCategory(cat, tok) {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Errorf("token %q is in %d categories, want exactly 1", tok, n)
+		}
+		if m.When[tok] == "" {
+			t.Errorf("token %q has no `when` semantics", tok)
+		}
+		wantEmitted := m.inCategory("finalizing", tok) || m.inCategory("blocking", tok)
+		if m.IsEmitted(tok) != wantEmitted {
+			t.Errorf("IsEmitted(%q)=%v, want %v", tok, m.IsEmitted(tok), wantEmitted)
+		}
+		if m.IsFinalizing(tok) != m.inCategory("finalizing", tok) {
+			t.Errorf("IsFinalizing(%q) disagrees with its category", tok)
+		}
+		if m.IsBlocking(tok) != m.inCategory("blocking", tok) {
+			t.Errorf("IsBlocking(%q) disagrees with its category", tok)
+		}
+		if contains(m.Emitted(), tok) != wantEmitted {
+			t.Errorf("Emitted() membership of %q=%v, want %v", tok, contains(m.Emitted(), tok), wantEmitted)
+		}
+	}
+	for _, tok := range m.Categories["internal"] {
+		if m.IsEmitted(tok) {
+			t.Errorf("system-internal token %q must not be reviewer-emittable", tok)
+		}
+	}
+}
+
 func contains(xs []string, s string) bool {
 	for _, x := range xs {
 		if x == s {
