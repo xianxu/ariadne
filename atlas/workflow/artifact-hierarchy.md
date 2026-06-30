@@ -19,6 +19,6 @@ Work artifacts live close to the issue, then graduate to permanent locations or 
 
 - **Simple case**: everything lives in the single issue file
 - **Complex case**: issue file + detailed plan in `workshop/plans/` (same `NNNNNN-slug` filename with `-plan` suffix), authored via the `superpowers-writing-plans` skill — version-controlled, never the harness builtin's ephemeral `~/.claude/plans/` (#72)
-- **When done**: issue + plan move to `workshop/history/`
+- **When done**: the issue + every `workshop/plans/NNNNNN-*` artifact sharing its id prefix (durable plan + boundary-review sidecars) move to `workshop/history/` — swept together at `sdlc merge`/`push` (#143)
 - **Atlas**: updated during pre-merge checks to reflect what was built; never exhaustive
 - **History**: avoid reading unless explicitly asked — it's archive, not reference

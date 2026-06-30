@@ -56,6 +56,7 @@ type mergeFlags struct {
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
+	PlansDir   string
 }
 
 // mergeRunner is the package-level runner for merge (test seam). Type
@@ -110,6 +111,7 @@ func NewMergeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not merge or clean up")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory for archived issues")
+	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding durable plans + review sidecars (archived with the issue, #143)")
 	return cmd
 }
 
@@ -477,7 +479,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 11. Archive done issues in MAIN worktree ────────────────────────────
-	moves, err := archiveDoneIssuesInDir(stderr, repo, mainPath, f.IssuesDir, f.HistoryDir)
+	moves, err := archiveDoneIssuesInDir(stderr, repo, mainPath, f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -545,9 +547,10 @@ func isInPlaceCheckout(gitDir string) bool {
 // archiveDoneIssues, but it scans + mutates inside the main worktree
 // at mainPath (so the archive commit lands on main, not on the feature
 // branch).
-func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, historyDir string) ([]preparedArchiveMove, error) {
+func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
 	issuesFull := filepath.Join(mainPath, issuesDir)
 	historyFull := filepath.Join(mainPath, historyDir)
+	plansFull := filepath.Join(mainPath, plansDir)
 	matches, _ := filepath.Glob(filepath.Join(issuesFull, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
 	sort.Strings(matches)
 	var moves []preparedArchiveMove
@@ -587,6 +590,13 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 			IssuePath:   filepath.Join(issuesDir, base),
 			HistoryPath: filepath.Join(historyDir, base),
 		})
+		// Sweep the issue's durable plan + review sidecars to history too (#143).
+		// Rename under mainPath; record mainPath-relative paths for the git add.
+		planMoves, perr := archivePlanArtifacts(base, plansFull, historyFull, plansDir, historyDir)
+		if perr != nil {
+			return moves, perr
+		}
+		moves = append(moves, planMoves...)
 	}
 	return moves, nil
 }

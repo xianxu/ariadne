@@ -1,11 +1,13 @@
 ---
 id: 000143
-status: open
+status: done
 deps: []
 github_issue:
 created: 2026-06-29
 updated: 2026-06-29
-estimate_hours:
+estimate_hours: 0.59
+started: 2026-06-29T17:31:30-07:00
+actual_hours: 0.65
 ---
 
 # Archive all issue artifacts to history on completion
@@ -62,21 +64,42 @@ issue file.
   with no plan → only the issue file moves; (c) mixed batch (one done, one open) →
   only the done issue's plan is moved.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module   design=0.1 impl=0.15
+item: smaller-go-module   design=0.15 impl=0.15
+design-buffer: 0.15
+total: 0.59
+```
+
+Two extends of existing Go modules: (1) the forward archive path — a shared
+`archivePlanArtifacts` mover wired into push + merge + flags; (2) the push
+interrupted-archive recovery parser (`preparedArchiveMoves`) — a fiddlier refactor
+(source-tagged halves, deferred terminal gate). Design pre-resolved by the durable
+plan → reduced design + +15% buffer; impl at the v3.1 40%-scaled smaller-go-module
+top.
+
+Detailed design + TDD breakdown: `workshop/plans/000143-archive-issue-artifacts-plan.md`.
+
 ## Plan
 
-- [ ] Read `archiveDoneIssues` (push.go:468) + `archiveDoneIssuesInDir`
+- [x] Read `archiveDoneIssues` (push.go:468) + `archiveDoneIssuesInDir`
       (merge.go:548) + `preparedArchiveMove`/`archiveAddArgs` to find the single seam.
-- [ ] Add a helper that, given an archived issue's id, globs `workshop/plans/NNNNNN-*`
+- [x] Add a helper that, given an archived issue's id, globs `workshop/plans/NNNNNN-*`
       and returns those as additional `preparedArchiveMove`s.
-- [ ] Wire it into both the push and merge archive paths (one helper, two callers).
-- [ ] Ensure moved plan/sidecar paths are included in the archive commit.
-- [ ] Tests: plan+sidecar moved+committed; no-plan no-op; mixed-batch isolation.
-- [ ] Verify the atlas "archived with issue" lines are now accurate (adjust wording
+- [x] Wire it into both the push and merge archive paths (one helper, two callers).
+- [x] Ensure moved plan/sidecar paths are included in the archive commit.
+- [x] Tests: plan+sidecar moved+committed; no-plan no-op; mixed-batch isolation.
+- [x] Verify the atlas "archived with issue" lines are now accurate (adjust wording
       if needed).
 
 ## Log
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... all pass. New archiveartifacts_test.go: archivePlanArtifacts moves id-prefixed plan+sidecar / leaves unrelated / asserts both halves stage via archiveAddArgs (committed contract); no-plan no-op; archiveDoneIssues sweeps a done issue plan+sidecar while leaving an open issue untouched; preparedArchiveMoves recovers an issue move + a plan move with other empty. Existing archive/recovery tests stay green (deferred-terminal refactor preserves issue behavior incl. both-halves-refused on non-terminal). Merging this issue dogfoods it: 000143-*-plan.md + close-review sidecar should land in workshop/history.; review verdict: unknown
 
 - Created from the #136 close observation: the durable plan + the dogfooded
   close-review sidecar stayed in `workshop/plans/` after #136 archived to
@@ -84,3 +107,36 @@ issue file.
   `archiveDoneIssuesInDir`) moves only the issue file. Generalize to every
   `NNNNNN-`-prefixed workshop artifact so behavior matches the atlas's documented
   "archived with issue" lifecycle.
+
+- Implemented per `workshop/plans/000143-archive-issue-artifacts-plan.md`. New
+  `archivePlanArtifacts` (push.go) globs `plansDir/NNNNNN-*` by the archived
+  issue's id prefix and `os.Rename`s each to history, recording moves with the
+  caller's path convention (push: cwd-relative; merge: rename under mainPath,
+  record mainPath-relative). Wired into `archiveDoneIssues` + `archiveDoneIssuesInDir`
+  after the issue move, so plan moves ride the existing `archiveAddArgs` → commit
+  (ARCH-DRY). Added `--plans-dir` to both commands.
+- Recovery: `preparedArchiveMoves` refactored to source-tag each `half`
+  (`srcIsPlan`), defer the terminal-frontmatter check to finalization, and apply
+  it only to issue halves — plan artifacts have no frontmatter, so their
+  id-prefixed plans-dir source is the membership proof. Prevents a mid-archive
+  `sdlc push` crash from flagging moved plans as "unrelated" and stranding
+  recovery (Root Cause). A non-terminal issue pair still refuses BOTH halves
+  (preserved behavior, pinned by the existing reject test).
+- Verification: `go test ./cmd/sdlc/...` all pass. New `archiveartifacts_test.go`:
+  `archivePlanArtifacts` moves id-prefixed artifacts + leaves unrelated + asserts
+  both halves stage via `archiveAddArgs` (the committed contract); no-plan no-op;
+  `archiveDoneIssues` sweeps a done issue's plan+sidecar while leaving an open
+  issue's plan; recovery reconstructs an issue move + a plan move with `other`
+  empty. Existing archive/recovery tests stay green (the deferred-terminal refactor
+  preserves issue behavior). The **merge of this issue dogfoods the feature** —
+  `000143-*-plan.md` + `000143-*-close-review.md` should land in history.
+
+- Boundary review: the parsed verdict came back `unknown` because the reviewer
+  emitted its verdict in prose ("the verdict stands: **FIX-THEN-SHIP**") rather
+  than the `VERDICT:` line, and the run was partly contaminated with prior-run
+  context (repo-lock chatter). The terminal truncated to the trailer only — but
+  **#136's durable sidecar captured the full body** (`…-close-review.md`), which
+  is exactly the failure mode #136 was built for. Real finding addressed before
+  the boundary: added `TestArchiveDoneIssuesInDir_SweepsPlanArtifacts` (the
+  merge-side sweep was untested) + hoisted the redundant `MkdirAll` out of the
+  `archivePlanArtifacts` loop. Fresh re-review runs at the pre-merge judges.

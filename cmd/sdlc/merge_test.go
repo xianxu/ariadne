@@ -191,7 +191,7 @@ func TestArchiveDoneIssuesInDir_MovesAndDoesNotCloseGH(t *testing.T) {
 	defer func() { ghClient = prev }()
 
 	var stderr stringWriter
-	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, issuesDir, historyDir)
+	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, issuesDir, historyDir, "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestArchiveDoneIssuesInDir_EmptyTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stderr stringWriter
-	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, "workshop/issues", "workshop/history")
+	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
