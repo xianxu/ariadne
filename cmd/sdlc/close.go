@@ -740,7 +740,6 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch the issue boundary review")
 		return printBoundaryReviewDryRun(stdout, stderr, boundaryReviewParams{
-			IssueRef:      fmt.Sprintf("ariadne#%d", f.Issue),
 			Label:         "#" + strconv.Itoa(f.Issue),
 			Base:          base,
 			BaseLong:      baseLong,
@@ -752,7 +751,6 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	}
 
 	result := dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
-		IssueRef:      fmt.Sprintf("ariadne#%d", f.Issue),
 		Label:         "#" + strconv.Itoa(f.Issue),
 		Base:          base,
 		BaseLong:      baseLong,

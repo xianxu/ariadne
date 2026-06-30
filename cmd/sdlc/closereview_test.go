@@ -111,8 +111,14 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 	if *calls != 1 {
 		t.Fatalf("expected exactly 1 review dispatch, got %d", *calls)
 	}
-	if !strings.Contains(*lastPrompt, "ariadne#69") {
-		t.Errorf("dispatched prompt missing issue ref ariadne#69")
+	// #137: the prompt's issue ref is derived from the live repo (the temp repo
+	// here), NOT a hardcoded ariadne#69.
+	wantRef := repoIdentity() + "#69"
+	if !strings.Contains(*lastPrompt, wantRef) {
+		t.Errorf("dispatched prompt missing derived issue ref %q", wantRef)
+	}
+	if strings.Contains(*lastPrompt, "ariadne#69") {
+		t.Errorf("prompt must not hardcode ariadne#69 for a non-ariadne repo (#137)")
 	}
 	out := stdout.String()
 	for _, want := range []string{"── close trailers", "Review-Verdict: SHIP", "..HEAD"} {
@@ -132,7 +138,7 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 		t.Fatalf("#136 review sidecar not written: %v", err)
 	}
 	for _, want := range []string{
-		"# Boundary Review — ariadne#69", "Looks good.",
+		"# Boundary Review — " + repoIdentity() + "#69", "Looks good.", // #137: repo-derived H1
 		"sdlc close --issue 69", "| verdict | SHIP |",
 	} {
 		if !strings.Contains(string(scData), want) {
@@ -153,7 +159,6 @@ func TestDispatchBoundaryReview_WritesMilestoneSidecar(t *testing.T) {
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nMilestone looks good.\n")
 
 	res := dispatchBoundaryReview(io.Discard, io.Discard, boundaryReviewParams{
-		IssueRef:  "ariadne#69 M1",
 		Label:     "#69 M1",
 		Base:      "HEAD",
 		BaseLong:  "HEAD",
