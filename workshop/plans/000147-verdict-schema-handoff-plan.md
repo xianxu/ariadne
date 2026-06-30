@@ -39,7 +39,17 @@
 - **review prompt** *(modified)* — `ContractPreamble` / `code-review.md` instruct the agent to emit, as a self-contained fenced block, `\n```verdict\nverdict: <TOKEN>\nconfidence: <high|medium|low>\n````\n`, with `<TOKEN>` from `vocab.Verdict().Emitted()` (rendered into the prompt, not hardcoded). Keep the existing prose `VERDICT:` line as a documented fallback during transition.
 - **ParseVerdict** *(modified)* — resolve order: `ParseVerdictBlock` (validated against `vocab.Verdict()`) first; if absent, the legacy prose scan (logged as a fallback); if neither, `VerdictUnknown`. So a prose-buried verdict still has the block as the authoritative path.
 - **sidecar verdict frontmatter** *(modified)* — `writeReviewSidecar` carries the validated `verdict:` (+ `confidence:`) into the sidecar so the durable artifact is itself a `#Verdict` instance (validatable via `vocabulary validate-instance --type verdict`). Convergence with #136/#143.
-- **drift guard** *(new)* — a `pkg/vocab` conformance test (every token in exactly one category; `Emitted()` matches the prompt-rendered set) + a judge test asserting the parser/prompt accept exactly `vocab.Verdict().Emitted()`. Fails if the model and consumers diverge.
+- **drift guard** *(new)* — pins **every** SHIP-family consumer to `vocab.Verdict()` so `verdict.cue` *collapses* the 4-place hand-sync rather than becoming a 5th source. Because `contract.go` + the prose regex also carry the out-of-scope tri-state tokens (`CLEAN/INFO/FAILURE/BLOCK`, deferred — D4), the verdict-family sources get **subset/equality** assertions, not replacement:
+  | consumer (symbol) | disposition |
+  |---|---|
+  | `Verdict` enum `VerdictShip/FixThenShip/Rework` (classify.go:108-113) | **equality**: `{strings of the three} == set(Emitted())` (test) |
+  | `verdictFor` switch (classify.go:142-152) | **derive**: replace the hardcoded switch with `if vocab.Verdict().IsEmitted(tok) { return Verdict(tok) }` — eliminates the hand-map |
+  | prose regexes `verdictTokenLineRE`/`verdictTokenRE`/`verdictConfidenceRE` (classify.go:54,125,139) | **subset (fallback-only)**: assert every `Emitted()` token is matched by the prose regex; the regexes stay (they also serve the deferred tri-state) |
+  | `ContractTokens` (contract.go) | **subset**: `Emitted() ⊆ ContractTokens` (test) |
+  | `blockingTokens` (contract.go) | **subset**: for each `t∈Emitted()`, `blockingTokens[t] == vocab.Verdict().IsBlocking(t)` (test) |
+  | prompt token list (code-review.md) | **derive + equality**: rendered from `Emitted()`; test asserts the prompt contains exactly `Emitted()` |
+  | close policy / trailer / log | **deferred to #139** (`closeVerdictOutcome` reads `vocab.Verdict().IsFinalizing/IsBlocking`) — named here, not guarded in this issue |
+  Plus the `pkg/vocab` conformance test (every token in exactly one category; categories partition `#Token`).
 
 **Test surface.** CUE: `cue vet verdict.cue` + export (mirror `vet_test.sh`). `pkg/vocab`: `TestVerdictConformance` (mirror `TestIssueConformance`). `cmd/vocabulary`: `TestValidateInstance_VerdictGeneralizes` (a real `workshop/…-close-review.md`-style frontmatter validates against `#Verdict`; an invalid token fails) — proves the generic validator works for the new noun. `judge`: `ParseVerdictBlock` table (valid / missing / invalid token / multiple blocks → last wins) + the resolve-order test (block beats prose; prose fallback still works; the session's `"the verdict stands: FIX-THEN-SHIP"` + a `verdict` block → parses FIX-THEN-SHIP, not unknown). Process-level: stub `judge.Run` to return a body with a `verdict` block; assert dispatch resolves it.
 
@@ -76,13 +86,13 @@
 
 **Files:** `cmd/sdlc/internal/judge/classify.go`; `cmd/sdlc/internal/judge/judge_test.go`
 
-- [ ] **TDD:** table test for `ParseVerdictBlock` (valid/missing/invalid/last-wins) + the resolve-order test (block beats prose; prose `"the verdict stands: FIX-THEN-SHIP"` alone still parses via fallback; block + prose → block wins). Implement `ParseVerdictBlock` (extract fenced ```` ```verdict ```` block, parse flat keys, validate token via `vocab.Verdict().IsEmitted`); rewire `ParseVerdict` to block-first → prose-fallback → unknown. Full judge suite green. **Commit** — `#147: parse the structured verdict block (authoritative), prose as fallback`
+- [ ] **TDD:** table test for `ParseVerdictBlock` (valid/missing/invalid/last-wins) + the resolve-order test (block beats prose; prose `"the verdict stands: FIX-THEN-SHIP"` alone still parses via fallback; block + prose → block wins). Implement `ParseVerdictBlock` (extract fenced ```` ```verdict ```` block, parse flat keys, validate token via `vocab.Verdict().IsEmitted`); rewire `ParseVerdict` to block-first → prose-fallback → unknown. **Derive** `verdictFor` from the model (`if vocab.Verdict().IsEmitted(tok) { return Verdict(tok) }`, no hardcoded switch). Add the parser-side drift guards from the disposition table: enum-equality (`{VerdictShip,FixThenShip,Rework} == Emitted()`) + prose-regex subset (every `Emitted()` token matches the fallback regex). Full judge suite green. **Commit** — `#147: parse the structured verdict block (authoritative) + derive verdictFor from verdict.cue`
 
 ### Task 4: prompt emits the block (derived from the model)
 
 **Files:** `cmd/sdlc/internal/judge/contract.go` (`ContractPreamble`), `code-review.md`; the drift test
 
-- [ ] Render the ```` ```verdict ```` block instruction with the token set from `vocab.Verdict().Emitted()` (not hardcoded). Add the drift guard (prompt-accepted set == `Emitted()`). Update the `CodeReviewBody`/contract tests. **Commit** — `#147: instruct the reviewer to emit a fenced verdict block; add the drift guard`
+- [ ] Render the ```` ```verdict ```` block instruction with the token set from `vocab.Verdict().Emitted()` (not hardcoded). Add the remaining drift guards from the disposition table: prompt-accepted set == `Emitted()`; `Emitted() ⊆ ContractTokens`; and `blockingTokens[t] == IsBlocking(t)` for each `t∈Emitted()`. Update the `CodeReviewBody`/contract tests. **Commit** — `#147: emit a fenced verdict block + drift-guard the contract against verdict.cue`
 
 ## Chunk 3: Sidecar + docs
 
@@ -104,7 +114,7 @@
 
 | Issue Done-when | Delivered by |
 |---|---|
-| `verdict.cue` single-sources tokens + lifecycle; prompt/parser derived w/ drift guard | Tasks 1, 2, 4 |
+| `verdict.cue` single-sources tokens + lifecycle; prompt/parser derived w/ drift guard (the disposition table pins `Verdict` enum [equality], `verdictFor` [derive], regexes + `ContractTokens` + `blockingTokens` [subset], prompt [equality]) | Tasks 1–4 |
 | agent emits a structured block; code reads it deterministically (no prose regex) | Tasks 3, 4 |
 | prose-buried verdict no longer degrades to `unknown` | Task 3 (block authoritative) |
 | tests: structured parse + drift guard + process fixture | Tasks 2–5 |
@@ -116,3 +126,14 @@
 - The pre-merge tri-state tokens (CLEAN/INFO/FAILURE) are a separate surface — a future `judge-outcome.cue`.
 - Dropping the prose fallback entirely — a follow-up once block adoption is confirmed in the wild.
 - The push/merge instance-conformance gate (`validategate.go`) hardcodes `issue`; parameterizing it for verdict sidecars is optional future work.
+
+## Revisions
+
+- **2026-06-30 — change-code plan-quality gate (FAILURE → addressed).** Finding 1
+  (ARCH-PURPOSE/ARCH-DRY): the original plan derived only 2 of the 4 hand-synced
+  places from `verdict.cue`, risking a 5th enumeration. Added the **disposition
+  table** (integration points) pinning every SHIP-family consumer — `Verdict` enum
+  (equality), `verdictFor` (derive, no switch), the prose regexes + `ContractTokens`
+  + `blockingTokens` (**subset** assertions, since they also carry the deferred
+  tri-state tokens), the prompt (equality), and close/trailer/log (deferred to #139).
+  Tasks 3–4 + the Done-when now name exactly which symbols the drift test pins.
