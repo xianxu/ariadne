@@ -206,7 +206,7 @@ func TestPreparedArchiveMovesDetectsUnstagedMove(t *testing.T) {
 	writeArchiveCandidate(t, "workshop/history/000036-done.md", "done")
 
 	status := " D workshop/issues/000036-done.md\n?? workshop/history/000036-done.md\n"
-	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history")
+	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestPreparedArchiveMovesRejectsNonTerminalHistoryFile(t *testing.T) {
 	writeArchiveCandidate(t, "workshop/history/000036-open.md", "open")
 
 	status := " D workshop/issues/000036-open.md\n?? workshop/history/000036-open.md\n"
-	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history")
+	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 	defer func() { ghClient = prev }()
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir)
+	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +458,7 @@ func TestArchiveDoneIssues_NoneToArchive(t *testing.T) {
 	_ = os.WriteFile(p, []byte("---\nstatus: working\n---\n\n# x\n"), 0o644)
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir)
+	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
 	if err != nil {
 		t.Fatal(err)
 	}

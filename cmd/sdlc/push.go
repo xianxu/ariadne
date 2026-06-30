@@ -44,6 +44,7 @@ type pushFlags struct {
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
+	PlansDir   string
 }
 
 // pushRunner is the package-level runner for push (test seam). Type lives
@@ -69,6 +70,7 @@ func NewPushCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not commit/push/archive")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory for archived issues")
+	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding durable plans + review sidecars (archived with the issue, #143)")
 	return cmd
 }
 
@@ -181,7 +183,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		cwarn(stderr, fmt.Sprintf("repo detection failed: %v (skipping GitHub issue closes)", repoErr))
 		repo = ""
 	}
-	moves, err := archiveDoneIssues(stderr, repo, f.IssuesDir, f.HistoryDir)
+	moves, err := archiveDoneIssues(stderr, repo, f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -225,6 +227,62 @@ func archiveAddArgs(moves []preparedArchiveMove) []string {
 	return args
 }
 
+// issueIDPrefix returns the leading 6-digit id of an issue/plan filename
+// (e.g. "000143" from "000143-x.md"), or "" when the name doesn't match the
+// NNNNNN- convention. The single source for "which plan artifacts belong to
+// this issue" — the glob key is id+"-*" (#143).
+func issueIDPrefix(name string) string {
+	base := filepath.Base(name)
+	if len(base) < 7 || base[6] != '-' {
+		return ""
+	}
+	for i := 0; i < 6; i++ {
+		if base[i] < '0' || base[i] > '9' {
+			return ""
+		}
+	}
+	return base[:6]
+}
+
+// archivePlanArtifacts moves every workshop/plans/NNNNNN-* artifact (the durable
+// plan + every boundary-review sidecar, #136) that shares the archived issue's id
+// prefix into history, and returns the moves. plansFull/historyFull are the
+// source/dest dirs used for the rename; recPlansDir/recHistoryDir are the dirs
+// recorded in the returned preparedArchiveMove for the git-add/commit step (they
+// differ from *Full only on the merge path, which renames under mainPath but
+// records mainPath-relative paths). An issue with no plan → zero moves, no error
+// (the glob simply matches nothing). One mover, both archive callers (ARCH-DRY).
+func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHistoryDir string) ([]preparedArchiveMove, error) {
+	id := issueIDPrefix(issueBase)
+	if id == "" {
+		return nil, nil
+	}
+	matches, _ := filepath.Glob(filepath.Join(plansFull, id+"-*"))
+	sort.Strings(matches)
+	var moves []preparedArchiveMove
+	for _, p := range matches {
+		base := filepath.Base(p)
+		if err := os.MkdirAll(historyFull, 0o755); err != nil {
+			return moves, fmt.Errorf("mkdir %s: %v", historyFull, err)
+		}
+		dest := filepath.Join(historyFull, base)
+		if err := os.Rename(p, dest); err != nil {
+			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
+		}
+		moves = append(moves, preparedArchiveMove{
+			IssuePath:   filepath.Join(recPlansDir, base),
+			HistoryPath: filepath.Join(recHistoryDir, base),
+		})
+	}
+	return moves, nil
+}
+
+// isPlanPath reports whether path is a plan artifact directly under plansDir
+// (the plans-dir counterpart to isIssuePath/isHistoryPath; reuses issueFilename).
+func isPlanPath(path, plansDir string) bool {
+	return filepath.Dir(path) == filepath.Clean(plansDir) && issueFilename(filepath.Base(path))
+}
+
 // recoverInterruptedArchive handles the state left by an interrupted archive
 // step: issue files have already moved to history/, but the archive commit did
 // not land. That state contains untracked history files, so it must be handled
@@ -234,7 +292,7 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 	if err != nil {
 		return false, fmt.Errorf("git status: %v\n%s", err, statusOut)
 	}
-	moves, other, err := preparedArchiveMoves(string(statusOut), f.IssuesDir, f.HistoryDir)
+	moves, other, err := preparedArchiveMoves(string(statusOut), f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		return false, err
 	}
@@ -269,14 +327,27 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 	return true, nil
 }
 
-func preparedArchiveMoves(statusText, issuesDir, historyDir string) ([]preparedArchiveMove, []string, error) {
+func preparedArchiveMoves(statusText, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, []string, error) {
+	// A half is one side of a src→history archive move. srcIsPlan marks a plan
+	// artifact (workshop/plans/NNNNNN-*, #143), which — unlike an issue — carries
+	// no terminal frontmatter, so its id-prefixed plans-dir source is the
+	// membership proof instead of the terminal gate.
 	type half struct {
-		issueDeleted bool
+		srcDeleted   bool
+		srcIsPlan    bool
 		historyAdded bool
-		issuePath    string
+		srcPath      string
 		historyPath  string
 	}
 	byBase := map[string]*half{}
+	get := func(base string) *half {
+		if h := byBase[base]; h != nil {
+			return h
+		}
+		h := &half{}
+		byBase[base] = h
+		return h
+	}
 	var other []string
 	for _, line := range strings.Split(statusText, "\n") {
 		line = strings.TrimRight(line, "\r")
@@ -285,22 +356,13 @@ func preparedArchiveMoves(statusText, issuesDir, historyDir string) ([]preparedA
 		}
 		status, path, dest := parsePorcelainStatus(line)
 		if dest != "" {
-			if isIssuePath(path, issuesDir) && isHistoryPath(dest, historyDir) && filepath.Base(path) == filepath.Base(dest) {
-				if ok, err := historyFileIsTerminal(dest); err != nil {
-					return nil, nil, err
-				} else if !ok {
-					other = append(other, line)
-					continue
-				}
-				h := byBase[filepath.Base(path)]
-				if h == nil {
-					h = &half{}
-					byBase[filepath.Base(path)] = h
-				}
-				h.issueDeleted = true
-				h.historyAdded = true
-				h.issuePath = path
-				h.historyPath = dest
+			// A staged rename of an issue OR plan artifact, src → history, same base.
+			if isHistoryPath(dest, historyDir) && filepath.Base(path) == filepath.Base(dest) &&
+				(isIssuePath(path, issuesDir) || isPlanPath(path, plansDir)) {
+				h := get(filepath.Base(path))
+				h.srcDeleted, h.historyAdded = true, true
+				h.srcIsPlan = isPlanPath(path, plansDir)
+				h.srcPath, h.historyPath = path, dest
 				continue
 			}
 			other = append(other, line)
@@ -308,38 +370,42 @@ func preparedArchiveMoves(statusText, issuesDir, historyDir string) ([]preparedA
 		}
 		switch {
 		case isIssuePath(path, issuesDir) && strings.Contains(status, "D"):
-			h := byBase[filepath.Base(path)]
-			if h == nil {
-				h = &half{}
-				byBase[filepath.Base(path)] = h
-			}
-			h.issueDeleted = true
-			h.issuePath = path
+			h := get(filepath.Base(path))
+			h.srcDeleted, h.srcPath = true, path
+		case isPlanPath(path, plansDir) && strings.Contains(status, "D"):
+			h := get(filepath.Base(path))
+			h.srcDeleted, h.srcIsPlan, h.srcPath = true, true, path
 		case isHistoryPath(path, historyDir) && (strings.Contains(status, "A") || status == "??"):
-			if ok, err := historyFileIsTerminal(path); err != nil {
-				return nil, nil, err
-			} else if !ok {
-				other = append(other, line)
-				continue
-			}
-			h := byBase[filepath.Base(path)]
-			if h == nil {
-				h = &half{}
-				byBase[filepath.Base(path)] = h
-			}
-			h.historyAdded = true
-			h.historyPath = path
+			// Defer the terminal-frontmatter decision to finalization: a history
+			// addition's issue-vs-plan nature is only known once its paired deletion
+			// is seen. Plan artifacts (no frontmatter) would otherwise be rejected.
+			h := get(filepath.Base(path))
+			h.historyAdded, h.historyPath = true, path
 		default:
 			other = append(other, line)
 		}
 	}
 	var moves []preparedArchiveMove
 	for _, h := range byBase {
-		if h.issueDeleted && h.historyAdded {
-			moves = append(moves, preparedArchiveMove{IssuePath: h.issuePath, HistoryPath: h.historyPath})
+		if h.srcDeleted && h.historyAdded {
+			// Issue moves keep the terminal-frontmatter gate; plan moves rely on the
+			// id-prefixed plans-dir source as the membership proof instead.
+			if !h.srcIsPlan {
+				ok, err := historyFileIsTerminal(h.historyPath)
+				if err != nil {
+					return nil, nil, err
+				}
+				if !ok {
+					// Looks like an archive but the issue isn't terminal — refuse
+					// both halves (a half-moved non-done issue is suspicious).
+					other = append(other, h.srcPath, h.historyPath)
+					continue
+				}
+			}
+			moves = append(moves, preparedArchiveMove{IssuePath: h.srcPath, HistoryPath: h.historyPath})
 			continue
 		}
-		other = append(other, valueOr(h.issuePath, h.historyPath))
+		other = append(other, valueOr(h.srcPath, h.historyPath))
 	}
 	sort.Slice(moves, func(i, j int) bool { return moves[i].IssuePath < moves[j].IssuePath })
 	sort.Strings(other)
@@ -465,7 +531,7 @@ func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, err
 // frontmatter, calls gh issue close (best-effort — failure warns but does
 // not abort). Returns the moves it made (deleted issue path + created history
 // path, repo-relative) so the caller can stage exactly those paths (#80).
-func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir string) ([]preparedArchiveMove, error) {
+func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
 	matches, _ := filepath.Glob(filepath.Join(issuesDir, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
 	sort.Strings(matches)
 	var moves []preparedArchiveMove
@@ -502,6 +568,12 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir string) ([]
 			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
 		}
 		moves = append(moves, preparedArchiveMove{IssuePath: p, HistoryPath: dest})
+		// Sweep the issue's durable plan + review sidecars to history too (#143).
+		planMoves, perr := archivePlanArtifacts(filepath.Base(p), plansDir, historyDir, plansDir, historyDir)
+		if perr != nil {
+			return moves, perr
+		}
+		moves = append(moves, planMoves...)
 	}
 	return moves, nil
 }
