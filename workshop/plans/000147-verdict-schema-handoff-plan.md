@@ -33,7 +33,7 @@
 |------|----------|--------|-------|
 | review prompt (verdict block) | `cmd/sdlc/internal/judge/code-review.md` + `contract.go` | modified | agent instruction |
 | `ParseVerdict` (block-first) | `cmd/sdlc/internal/judge/classify.go` | modified | verdict resolution |
-| sidecar verdict frontmatter | `cmd/sdlc/reviewsidecar.go` | modified | durable record |
+| sidecar verdict frontmatter | `cmd/sdlc/reviewsidecar.go` | **deferred** (#136/#139) | durable record |
 | drift guard | `pkg/vocab/conformance_test.go` + a judge test | new | model↔consumers |
 
 - **review prompt** *(modified)* — `ContractPreamble` / `code-review.md` instruct the agent to emit, as a self-contained fenced block, `\n```verdict\nverdict: <TOKEN>\nconfidence: <high|medium|low>\n````\n`, with `<TOKEN>` from `vocab.Verdict().Emitted()` (rendered into the prompt, not hardcoded). Keep the existing prose `VERDICT:` line as a documented fallback during transition.
@@ -137,3 +137,19 @@
   + `blockingTokens` (**subset** assertions, since they also carry the deferred
   tri-state tokens), the prompt (equality), and close/trailer/log (deferred to #139).
   Tasks 3–4 + the Done-when now name exactly which symbols the drift test pins.
+
+- **2026-06-30 — boundary-review (FIX-THEN-SHIP, dogfooded on #147's own close).**
+  The review parsed cleanly from a fenced ```verdict block (FIX-THEN-SHIP, not
+  `unknown`) — the regression target proven fixed. Important findings addressed
+  before the boundary:
+  - **I1:** the shared `ContractPreamble` ("VERDICT: line MUST lead") contradicted
+    code-review.md's "emit the block first" — added a boundary-review-specific
+    `BoundaryReviewContract` (block leads, prose VERDICT: line = fallback) used by
+    the MilestoneReview prompt; the pre-merge judges keep `ContractPreamble`.
+  - **I2:** `atlas/workflow/sdlc-binary.md` still described the handoff as prose-only
+    — added the block-first note.
+  - **I3:** this table row (sidecar frontmatter) marked **deferred**, not modified.
+  - Minors: the drift guard now pins all THREE prose regexes (was only
+    `verdictTokenRE`); the milestoneclose "no verdict" warning derives its token list
+    from `vocab.Verdict().Emitted()`.
+  Still deferred (separable): Task 5 sidecar frontmatter + `TestValidateInstance_VerdictGeneralizes`.

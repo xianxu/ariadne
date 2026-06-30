@@ -1,6 +1,6 @@
 ---
 id: 000147
-status: working
+status: done
 deps: []
 target: agent-binary-handoff-schema
 github_issue:
@@ -8,6 +8,7 @@ created: 2026-06-30
 updated: 2026-06-30
 estimate_hours: 0.9
 started: 2026-06-30T15:04:53-07:00
+actual_hours: 0.81
 ---
 
 # Structured review verdict handoff via a verdict schema
@@ -116,6 +117,7 @@ Detailed TDD breakdown in `workshop/plans/000147-verdict-schema-handoff-plan.md`
 ## Log
 
 ### 2026-06-30
+- 2026-06-30: closed — go test ./cmd/sdlc/... ./pkg/vocab/ all pass. verdict.cue single-sources the verdict vocabulary (cue vet + validate-instance --type verdict green; invalid token rejected with "want: FIX-THEN-SHIP|REWORK|SHIP"). pkg/vocab.Verdict() binding + TestVerdictConformance. ParseVerdictBlock validates a fenced ```verdict block against the model; ParseVerdict is block-first → prose-fallback → unknown (TestParseVerdict_BlockBeatsProse: the session prose "the verdict stands: FIX-THEN-SHIP" + a block resolves to FIX-THEN-SHIP, not unknown). TestVerdictDriftGuard pins enum/verdictFor/regex/ContractTokens/blockingTokens/prompt to the model. TestDispatch_ResolvesVerdictBlock = the process-level handoff. Prompt renders {{VERDICT_BLOCK}} from the model. This close dogfoods the new structured handoff. Sidecar-frontmatter convergence (Task 5) deferred (non-Done-when); unblocks #139.; review verdict: FIX-THEN-SHIP
 
 Designed with the operator (B1/B2 fork → **B2**, read-only preserved; forced
 structured output rejected for agent-neutrality). Crystallized the principle into

@@ -40,6 +40,18 @@ The parser reads ONLY this <TOKEN>. Findings, notes, and severity tags below it
 are advisory — a non-blocking verdict WITH notes still PASSES the gate. Do not
 put a title, heading, or any preamble above the VERDICT line; it must lead.`
 
+// BoundaryReviewContract is the output contract for the boundary review (#147).
+// Unlike the shared ContractPreamble (used by the pre-merge tri-state judges, which
+// requires the VERDICT: line to lead), this yields first-line precedence to the
+// fenced ```verdict block — the authoritative structured handoff the binary reads
+// via ParseVerdictBlock. The bare VERDICT: line is accepted only as a fallback, so
+// the two "lead" instructions no longer conflict in the milestone-review prompt.
+const BoundaryReviewContract = "OUTPUT CONTRACT (machine-read — do not deviate). LEAD your response with the\n" +
+	"fenced ```verdict block shown above — that is the authoritative handoff the binary\n" +
+	"reads (its `verdict:` value is one of the listed tokens). Everything after the block\n" +
+	"is advisory: a non-blocking verdict WITH findings still PASSES the gate. A bare\n" +
+	"`VERDICT: <TOKEN>` line is accepted only as a FALLBACK when the block is absent."
+
 // blockingTokens are the verdict tokens that fail a gate.
 var blockingTokens = map[string]bool{
 	"FAILURE": true,

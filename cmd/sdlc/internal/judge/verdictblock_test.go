@@ -94,11 +94,17 @@ func TestVerdictDriftGuard(t *testing.T) {
 		t.Error("a non-emitted token must map to VerdictUnknown")
 	}
 
-	// Subset: every emitted token is matched by the prose-fallback regex, so the
-	// transitional path covers the whole model.
+	// Subset: every emitted token is matched by ALL THREE prose-fallback regexes
+	// (each in its own shape), so the transitional path covers the whole model.
 	for _, tok := range emitted {
 		if !verdictTokenRE.MatchString(tok) {
-			t.Errorf("prose fallback verdictTokenRE does not match emitted token %q (drift)", tok)
+			t.Errorf("verdictTokenRE does not match emitted token %q (drift)", tok)
+		}
+		if !verdictTokenLineRE.MatchString("VERDICT: " + tok) {
+			t.Errorf("verdictTokenLineRE does not match emitted token %q (drift)", tok)
+		}
+		if !verdictConfidenceRE.MatchString(tok + " (confidence: high)") {
+			t.Errorf("verdictConfidenceRE does not match emitted token %q (drift)", tok)
 		}
 	}
 

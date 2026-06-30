@@ -268,8 +268,12 @@ func TestAgentPromptsEmbedContract(t *testing.T) {
 		if !c.NeedsAgent() {
 			continue // Lessons is the documented REMINDER: exception
 		}
-		if !strings.Contains(BuildPrompt(c, in), ContractPreamble) {
-			t.Errorf("%s prompt does not embed ContractPreamble (verdict format drift)", c)
+		want := ContractPreamble
+		if c == MilestoneReview {
+			want = BoundaryReviewContract // #147: block-first contract for the boundary review
+		}
+		if !strings.Contains(BuildPrompt(c, in), want) {
+			t.Errorf("%s prompt does not embed its output contract (verdict format drift)", c)
 		}
 	}
 }

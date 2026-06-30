@@ -27,6 +27,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 type milestoneCloseFlags struct {
@@ -514,7 +515,8 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	}
 	verdict := judge.ParseVerdict(output)
 	if verdict == judge.VerdictUnknown {
-		cwarn(stderr, "boundary review: no leading 'SHIP | FIX-THEN-SHIP | REWORK' verdict found — recording verdict as 'unknown'")
+		cwarn(stderr, fmt.Sprintf("boundary review: no '%s' verdict found (block or line) — recording verdict as 'unknown'",
+			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
 	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong}
 	// Persist the full transcript to a durable sidecar (#136) so an agent can

@@ -335,7 +335,11 @@ the classifier (`ParseVerdictToken`) scans for that token **anywhere** (tolerati
 a preamble — the `VERDICT:` prefix + a trailing precision guard make prose
 false-positives near-impossible) and gates on the token's **blocking-ness**, never
 on prose presence. Tokens: `CLEAN INFO SHIP FIX-THEN-SHIP` pass; `FAILURE REWORK
-BLOCK` block. Lessons is the exception — a fixed `REMINDER:` line, no agent. This
+BLOCK` block. **Boundary review (#147): the handoff is now block-first.** The
+reviewer emits a fenced ```` ```verdict ```` block validated against `verdict.cue`
+(`ParseVerdictBlock`, the authoritative structured handoff — see [Vocabulary](vocabulary.md)
++ the `agent-binary-handoff-schema` target); the prose `VERDICT:` line is the
+logged fallback. So a prose-narrated verdict no longer degrades to `unknown`. Lessons is the exception — a fixed `REMINDER:` line, no agent. This
 killed the bug where a `VERDICT: CLEAN` behind a title scored `FAILURE` and blocked
 the merge (and the milestone `unknown`). A thin legacy sentinel-grep remains for
 un-migrated/foreign outputs; a `judge_test.go` drift test keeps the doc + Go

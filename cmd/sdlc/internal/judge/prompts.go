@@ -346,8 +346,9 @@ Diff:
 	case MilestoneReview:
 		// The procedure (code-review.md, #69) refers to ARCH-* markers; the
 		// principle definitions are co-located by appending the at-review block;
-		// the verdict format by ContractPreamble. One reviewer, both boundaries.
-		// CodeReviewBody renders the repo-orientation header from in (#137).
+		// the verdict format by BoundaryReviewContract (#147 — block-first, so it
+		// doesn't contradict code-review.md's "emit the block first"). One reviewer,
+		// both boundaries. CodeReviewBody renders the repo-orientation header (#137).
 		return fmt.Sprintf(`%s
 
 %s
@@ -356,7 +357,7 @@ Diff:
 
 Diff:
 %s
-`, CodeReviewBody(in), ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
+`, CodeReviewBody(in), ArchitectureBlock("at-review"), BoundaryReviewContract, in.Diff)
 	}
 	return ""
 }
