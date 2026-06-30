@@ -1,12 +1,13 @@
 ---
 id: 000143
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-29
 updated: 2026-06-29
 estimate_hours: 0.59
 started: 2026-06-29T17:31:30-07:00
+actual_hours: 0.65
 ---
 
 # Archive all issue artifacts to history on completion
@@ -98,6 +99,7 @@ Detailed design + TDD breakdown: `workshop/plans/000143-archive-issue-artifacts-
 ## Log
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... all pass. New archiveartifacts_test.go: archivePlanArtifacts moves id-prefixed plan+sidecar / leaves unrelated / asserts both halves stage via archiveAddArgs (committed contract); no-plan no-op; archiveDoneIssues sweeps a done issue plan+sidecar while leaving an open issue untouched; preparedArchiveMoves recovers an issue move + a plan move with other empty. Existing archive/recovery tests stay green (deferred-terminal refactor preserves issue behavior incl. both-halves-refused on non-terminal). Merging this issue dogfoods it: 000143-*-plan.md + close-review sidecar should land in workshop/history.; review verdict: unknown
 
 - Created from the #136 close observation: the durable plan + the dogfooded
   close-review sidecar stayed in `workshop/plans/` after #136 archived to
@@ -128,3 +130,13 @@ Detailed design + TDD breakdown: `workshop/plans/000143-archive-issue-artifacts-
   empty. Existing archive/recovery tests stay green (the deferred-terminal refactor
   preserves issue behavior). The **merge of this issue dogfoods the feature** —
   `000143-*-plan.md` + `000143-*-close-review.md` should land in history.
+
+- Boundary review: the parsed verdict came back `unknown` because the reviewer
+  emitted its verdict in prose ("the verdict stands: **FIX-THEN-SHIP**") rather
+  than the `VERDICT:` line, and the run was partly contaminated with prior-run
+  context (repo-lock chatter). The terminal truncated to the trailer only — but
+  **#136's durable sidecar captured the full body** (`…-close-review.md`), which
+  is exactly the failure mode #136 was built for. Real finding addressed before
+  the boundary: added `TestArchiveDoneIssuesInDir_SweepsPlanArtifacts` (the
+  merge-side sweep was untested) + hoisted the redundant `MkdirAll` out of the
+  `archivePlanArtifacts` loop. Fresh re-review runs at the pre-merge judges.

@@ -113,6 +113,41 @@ func TestArchiveDoneIssues_SweepsPlanArtifacts(t *testing.T) {
 	}
 }
 
+// #143: the merge archive loop (mainPath-relative) sweeps a done issue's plan +
+// review sidecar to history, records mainPath-relative move paths, and leaves an
+// open issue's plan untouched.
+func TestArchiveDoneIssuesInDir_SweepsPlanArtifacts(t *testing.T) {
+	tmp := t.TempDir() // acts as the main worktree root
+	issues, history, plans := "workshop/issues", "workshop/history", "workshop/plans"
+	mkArtifact(t, filepath.Join(tmp, issues, "000143-x.md"), "---\nid: 143\nstatus: done\n---\n\n# x\n")
+	mkArtifact(t, filepath.Join(tmp, plans, "000143-x-plan.md"), "plan")
+	mkArtifact(t, filepath.Join(tmp, plans, "000143-x-m1-review.md"), "milestone review")
+	mkArtifact(t, filepath.Join(tmp, issues, "000144-y.md"), "---\nid: 144\nstatus: working\n---\n\n# y\n")
+	mkArtifact(t, filepath.Join(tmp, plans, "000144-y-plan.md"), "open plan")
+
+	var stderr bytes.Buffer
+	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, issues, history, plans)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moves) != 3 {
+		t.Fatalf("want 3 moves (issue + plan + sidecar), got %d: %#v", len(moves), moves)
+	}
+	for _, m := range moves {
+		if filepath.IsAbs(m.IssuePath) || filepath.IsAbs(m.HistoryPath) {
+			t.Errorf("merge archive paths must be mainPath-relative (GitInDir resolves them): %#v", m)
+		}
+	}
+	for _, name := range []string{"000143-x.md", "000143-x-plan.md", "000143-x-m1-review.md"} {
+		if _, err := os.Stat(filepath.Join(tmp, history, name)); err != nil {
+			t.Errorf("%s should be archived to history: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(tmp, plans, "000144-y-plan.md")); err != nil {
+		t.Errorf("open issue's plan must remain: %v", err)
+	}
+}
+
 // #143: an interrupted-archive recovery (push) reconstructs BOTH the issue move
 // and the plan move from git status — the plan move with no terminal-frontmatter
 // gate (its plans-dir source is the membership proof).

@@ -258,13 +258,16 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 		return nil, nil
 	}
 	matches, _ := filepath.Glob(filepath.Join(plansFull, id+"-*"))
+	if len(matches) == 0 {
+		return nil, nil
+	}
 	sort.Strings(matches)
+	if err := os.MkdirAll(historyFull, 0o755); err != nil {
+		return nil, fmt.Errorf("mkdir %s: %v", historyFull, err)
+	}
 	var moves []preparedArchiveMove
 	for _, p := range matches {
 		base := filepath.Base(p)
-		if err := os.MkdirAll(historyFull, 0o755); err != nil {
-			return moves, fmt.Errorf("mkdir %s: %v", historyFull, err)
-		}
 		dest := filepath.Join(historyFull, base)
 		if err := os.Rename(p, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
