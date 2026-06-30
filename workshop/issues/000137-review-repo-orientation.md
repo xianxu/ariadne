@@ -1,12 +1,13 @@
 ---
 id: 000137
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-26
 updated: 2026-06-29
 estimate_hours: 0.53
 started: 2026-06-29T20:56:16-07:00
+actual_hours: 0.27
 ---
 
 # sdlc boundary review repo orientation
@@ -90,6 +91,7 @@ Detailed design + TDD breakdown: `workshop/plans/000137-review-repo-orientation-
   repos like `pair`.
 
 ### 2026-06-29
+- 2026-06-29: closed — go test ./cmd/sdlc/... all pass. New TestBoundaryOrientation: temp repo named pair → IssueRef pair#72, base-vs-downstream via construct/base.manifest, asserts it NEVER falls back to ariadne# for a non-ariadne root. CodeReviewBody test asserts every orientation anchor (repo/root/issue-file/boundary/note) renders + no {{ placeholder left. close+milestone dispatch integration tests now assert the derived <repo>#69 ref end-to-end (and reject a hardcoded ariadne#69). Also fixed the #136 sidecar-H1 ariadne hardcode (plan-quality gate shadow-sweep). internal/judge stays pure (orientation derived in cmd/sdlc, passed as strings).; review verdict: unknown
 
 Implemented per `workshop/plans/000137-review-repo-orientation-plan.md`.
 - **Pure (internal/judge):** `PromptInput` gains `Repo/RepoRoot/IssueFile/Boundary/
@@ -116,3 +118,14 @@ left; the close/milestone dispatch integration tests now assert the derived
 `<repo>#69` ref (and that it never hardcodes `ariadne#69`). The close of this
 issue dispatches a real review in ariadne → the prompt + sidecar should read
 `ariadne#137` (the base repo, correctly).
+
+- Boundary review **dogfooded #137 on itself**: the close-review sidecar H1 reads
+  `# Boundary Review — ariadne#137` (derived from the live repo, no longer
+  hardcoded). Verdict was FIX-THEN-SHIP (parsed `unknown` — prose verdict format,
+  as with #143; the full body was captured durably by the #136 sidecar). Real
+  finding fixed before the boundary: the **dry-run path** (`close.go:742`) omitted
+  `IssueNum`, so `sdlc close --dry-run` would render `<repo>#0 (file: )` — the same
+  misorientation, on the preview surface (the dispatch path already had `IssueNum`
+  from #136). Added `IssueNum: f.Issue` to the dry-run literal + tightened
+  `TestRunCloseWithReview_DryRunPrintsPairAgentCommand` to assert the derived ref
+  and reject `#0`.

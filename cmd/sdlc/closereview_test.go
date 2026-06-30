@@ -223,8 +223,17 @@ func TestRunCloseWithReview_DryRunPrintsPairAgentCommand(t *testing.T) {
 	if *calls != 0 {
 		t.Fatalf("dry-run must not dispatch, got %d dispatch(es)", *calls)
 	}
-	if got := stdout.String(); !strings.Contains(got, "codex exec") {
+	got := stdout.String()
+	if !strings.Contains(got, "codex exec") {
 		t.Fatalf("close dry-run command missing codex exec:\n%s", got)
+	}
+	// #137: the dry-run prompt must carry the repo-derived issue ref — not "#0"
+	// (the bug where the dry-run literal omitted IssueNum).
+	if wantRef := repoIdentity() + "#69"; !strings.Contains(got, wantRef) {
+		t.Errorf("dry-run command missing derived issue ref %q:\n%s", wantRef, got)
+	}
+	if strings.Contains(got, repoIdentity()+"#0") {
+		t.Error("dry-run shows <repo>#0 — IssueNum not threaded into the dry-run orientation (#137)")
 	}
 }
 

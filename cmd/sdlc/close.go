@@ -747,6 +747,8 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 			IssuesDir:     f.IssuesDir,
 			Agent:         f.Agent,
 			AgentExplicit: f.AgentExplicit,
+			IssueNum:      f.Issue, // #137: the dry-run prompt orientation needs this too
+			Milestone:     "",
 		})
 	}
 
