@@ -3,6 +3,8 @@ package judge
 import (
 	"regexp"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // Outcome classifies an agent's output for a check. Mirrors
@@ -139,16 +141,50 @@ var (
 	verdictConfidenceRE = regexp.MustCompile("(?m)^[ \t>#*_`-]*(SHIP|FIX-THEN-SHIP|REWORK)[ \t*_`]*\\([Cc]onfidence")
 )
 
+// verdictFor maps a parsed token to its Verdict, DERIVED from the model (#147):
+// a reviewer-emittable token (vocab.Verdict().IsEmitted) is its own Verdict value
+// (the enum strings ARE the tokens); anything else is unknown. No hardcoded switch
+// to drift from verdict.cue.
 func verdictFor(token string) Verdict {
-	switch token {
-	case "SHIP":
-		return VerdictShip
-	case "FIX-THEN-SHIP":
-		return VerdictFixThenShip
-	case "REWORK":
-		return VerdictRework
+	if t := strings.ToUpper(strings.TrimSpace(token)); vocab.Verdict().IsEmitted(t) {
+		return Verdict(t)
 	}
 	return VerdictUnknown
+}
+
+// verdictBlockRE extracts the body of a fenced ```verdict … ``` block — the
+// structured handoff the reviewer emits (#147). (?s) so `.` spans newlines.
+var verdictBlockRE = regexp.MustCompile("(?s)```+[ \t]*verdict[ \t]*\r?\n(.*?)\r?\n```+")
+
+// blockField reads a flat `key: value` from a verdict block body (a tiny YAML
+// subset — the block carries only verdict + confidence). Trims surrounding
+// emphasis/quote markup; returns "" when absent.
+func blockField(body, key string) string {
+	re := regexp.MustCompile(`(?im)^[ \t>*_` + "`" + `-]*` + regexp.QuoteMeta(key) + `:[ \t]*([^\s#]+)`)
+	m := re.FindStringSubmatch(body)
+	if m == nil {
+		return ""
+	}
+	return strings.Trim(m[1], "\"'`*")
+}
+
+// ParseVerdictBlock extracts the verdict (+ confidence) from the LAST fenced
+// ```verdict block in output and validates the token against the model
+// (vocab.Verdict().IsEmitted). This is the AUTHORITATIVE structured handoff
+// (#147, the agent-binary-handoff-schema target): it does NOT parse prose, so a
+// missing or model-invalid block is a genuine protocol miss (ok=false), not a
+// formatting near-miss. Pure.
+func ParseVerdictBlock(output string) (token, confidence string, ok bool) {
+	ms := verdictBlockRE.FindAllStringSubmatch(output, -1)
+	if len(ms) == 0 {
+		return "", "", false
+	}
+	body := ms[len(ms)-1][1] // last block wins
+	token = strings.ToUpper(blockField(body, "verdict"))
+	if !vocab.Verdict().IsEmitted(token) {
+		return "", "", false
+	}
+	return token, strings.ToLower(blockField(body, "confidence")), true
 }
 
 // ParseVerdict extracts the verdict label from the agent's milestone-
@@ -166,8 +202,14 @@ func verdictFor(token string) Verdict {
 // Pure: no IO, deterministic on its input. Lives in the judge package
 // alongside Classify so the prompt + parser sit next to each other.
 func ParseVerdict(output string) Verdict {
-	// Primary (#70): the structured `VERDICT: <TOKEN>` line, found robustly even
-	// behind a preamble. Only a SHIP-family token is a milestone verdict; a
+	// Authoritative (#147): the structured ```verdict block, validated against the
+	// model. A model-valid block wins over any prose — so a reviewer that ALSO
+	// narrates ("the verdict stands: FIX-THEN-SHIP") resolves correctly from the block.
+	if tok, _, ok := ParseVerdictBlock(output); ok {
+		return verdictFor(tok)
+	}
+	// Fallback (transitional, to be dropped once block adoption is confirmed): the
+	// prose paths below. A `VERDICT: <TOKEN>` line (#70) found behind a preamble; a
 	// CLEAN/INFO/FAILURE on a VERDICT: line falls through to the legacy scan.
 	if tok, ok := ParseVerdictToken(output); ok {
 		if v := verdictFor(tok); v != VerdictUnknown {
