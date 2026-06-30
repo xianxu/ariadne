@@ -3,7 +3,7 @@
 ## Workflow Orchestration
 
 ### 0. SDLC
-- `sdlc` manages the development life cycle. **Run `sdlc --help` for the workflow contract**. Read it NOW.
+- `sdlc` manages the development life cycle. **Run `sdlc --help` for the workflow contract**. READ IT NOW.
 
 ### 1. Artifact Hierarchy
 
