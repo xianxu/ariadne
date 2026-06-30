@@ -1,11 +1,12 @@
 ---
 id: 000139
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-29
-updated: 2026-06-29
+updated: 2026-06-30
 estimate_hours:
+started: 2026-06-30T12:11:03-07:00
 ---
 
 # sdlc close should finalize metadata after review verdict
