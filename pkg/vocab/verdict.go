@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 //go:generate sh -c "vocabulary export --noun verdict > verdict.json"
@@ -63,4 +64,24 @@ func (m *VerdictModel) Emitted() []string {
 	out = append(out, m.Categories["finalizing"]...)
 	out = append(out, m.Categories["blocking"]...)
 	return out
+}
+
+// RenderBlockInstruction renders the structured-handoff instruction for the review
+// prompt — the fenced ```verdict block template + the per-token gloss — entirely
+// from the model, so the prompt's accepted set never drifts from verdict.cue (#147).
+func (m *VerdictModel) RenderBlockInstruction() string {
+	emitted := m.Emitted()
+	var b strings.Builder
+	b.WriteString("Begin your response with this fenced verdict block — the machine-read handoff:\n\n")
+	b.WriteString("```verdict\nverdict: <" + strings.Join(emitted, " | ") + ">\nconfidence: <high | medium | low>\n```\n\n")
+	width := 0
+	for _, t := range emitted {
+		if len(t) > width {
+			width = len(t)
+		}
+	}
+	for _, t := range emitted {
+		b.WriteString(fmt.Sprintf("  %-*s  %s\n", width, t, m.When[t]))
+	}
+	return strings.TrimRight(b.String(), "\n")
 }

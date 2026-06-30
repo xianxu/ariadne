@@ -3,6 +3,8 @@ package judge
 import (
 	_ "embed"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // codeReviewTemplate is the embedded code-review.md — the single source of the
@@ -38,6 +40,7 @@ func CodeReviewBody(in PromptInput) string {
 		"{{ISSUE_FILE}}", in.IssueFile,
 		"{{BOUNDARY}}", orDefault(in.Boundary, "a development boundary"),
 		"{{REPO_NOTE}}", in.RepoNote,
+		"{{VERDICT_BLOCK}}", vocab.Verdict().RenderBlockInstruction(),
 		"{{ARCH_STAR}}", strings.Join(ArchitectureMarkers(), ", "),
 	)
 	return r.Replace(codeReviewTemplate)

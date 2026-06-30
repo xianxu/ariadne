@@ -89,13 +89,14 @@ holistic.
 
 ## Verdict + output
 
-Your FIRST line is the VERDICT (format in the output contract below). Tokens:
-  SHIP          = ready; ship it.
-  FIX-THEN-SHIP = ship after addressing the findings (non-blocking at the gate;
-                  fix them before the next boundary).
-  REWORK        = blocking; needs rework before shipping.
+{{VERDICT_BLOCK}}
 
-After the VERDICT line: a 1-paragraph summary — what worked, what blocks SHIP if
+The fenced ```` ```verdict ```` block above is the **authoritative machine-read
+handoff** — emit it as the first thing in your response. (A prose
+`VERDICT: <TOKEN>` first line still satisfies the legacy contract as a fallback,
+but the block is what the binary trusts.)
+
+After the verdict block: a 1-paragraph summary — what worked, what blocks SHIP if
 it isn't — followed by:
   1. Strengths: 2-5 specific things done well (file:line where useful). Affirm
      validated approaches so the operator knows what's confirmed-good ground.

@@ -1,6 +1,7 @@
 package judge
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -76,6 +77,26 @@ func TestVerdictDriftGuard(t *testing.T) {
 	for _, tok := range emitted {
 		if !verdictTokenRE.MatchString(tok) {
 			t.Errorf("prose fallback verdictTokenRE does not match emitted token %q (drift)", tok)
+		}
+	}
+
+	// Contract subset (the contract.go vars also carry the deferred tri-state
+	// tokens, so subset/agreement — not equality): every emitted token is listed,
+	// and its blocking semantics match the model.
+	for _, tok := range emitted {
+		if !strings.Contains(" "+strings.Join(ContractTokens, " ")+" ", " "+tok+" ") {
+			t.Errorf("ContractTokens missing emitted token %q (drift)", tok)
+		}
+		if blockingTokens[tok] != vocab.Verdict().IsBlocking(tok) {
+			t.Errorf("blockingTokens[%q]=%v disagrees with model IsBlocking=%v", tok, blockingTokens[tok], vocab.Verdict().IsBlocking(tok))
+		}
+	}
+
+	// The rendered prompt block instruction carries exactly the emitted set.
+	instr := vocab.Verdict().RenderBlockInstruction()
+	for _, tok := range emitted {
+		if !strings.Contains(instr, tok) {
+			t.Errorf("RenderBlockInstruction missing emitted token %q (prompt↔model drift)", tok)
 		}
 	}
 }
