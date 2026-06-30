@@ -149,11 +149,21 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 	if strings.TrimSpace(codeReviewTemplate) == "" {
 		t.Fatal("code-review.md embed is empty")
 	}
-	body := CodeReviewBody("ariadne#69 M1", "BASE_SHA", "HEAD_SHA")
+	body := CodeReviewBody(PromptInput{
+		IssueRef: "pair#72 M1", Base: "BASE_SHA", Head: "HEAD_SHA",
+		Repo: "pair", RepoRoot: "/w/pair", IssueFile: "workshop/issues/000072-x.md",
+		Boundary: "milestone M1 close",
+		RepoNote: "a downstream repo built on the ariadne base layer",
+	})
 	for _, want := range []string{
-		"ariadne#69 M1",                     // {{ISSUE_REF}}
+		"pair#72 M1",                        // {{ISSUE_REF}} — repo-prefixed, not hardcoded ariadne (#137)
 		"Base: BASE_SHA",                    // {{BASE}}
 		"Head: HEAD_SHA",                    // {{HEAD}}
+		"pair",                              // {{REPO}}
+		"/w/pair",                           // {{REPO_ROOT}}
+		"workshop/issues/000072-x.md",       // {{ISSUE_FILE}}
+		"milestone M1 close",                // {{BOUNDARY}}
+		"downstream repo",                   // {{REPO_NOTE}}
 		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
 		"REWORK        = blocking",
