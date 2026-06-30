@@ -495,7 +495,12 @@ never a directory-wide `git add issues/ history/`, which would also sweep
 unrelated untracked WIP onto main, #80), commits "archive completed issues to
 history", pushes, and exits without rerunning judges against an archive-only
 retry. The same precise-staging helper backs the non-recovery archive commit in
-both `push` and `merge`. Any unrelated dirty file keeps the refusal path and
+both `push` and `merge`. The archive sweep also moves the issue's
+`workshop/plans/NNNNNN-*` artifacts (durable plan + review sidecars) into history
+alongside it (`archivePlanArtifacts`, #143); recovery reconstructs those plan
+moves too, but — since plan artifacts carry no terminal frontmatter — gates them
+on their id-prefixed plans-dir source rather than the terminal-status check used
+for issue files. Any unrelated dirty file keeps the refusal path and
 tells the operator to clear that unrelated work before rerunning `sdlc push --yes`.
 
 ## Makefile wrappers (transition state)
