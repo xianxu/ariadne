@@ -1,9 +1,14 @@
 # Code review — the one SDLC boundary review
 
-You are conducting a fresh-context code review at a development boundary — a
-milestone close, or a whole-issue close — for {{ISSUE_REF}}.
+You are conducting a fresh-context code review at a development boundary —
+{{BOUNDARY}} — in the **{{REPO}}** repository.
 
-Base: {{BASE}}   Head: {{HEAD}}
+- repository: {{REPO}}   (root: {{REPO_ROOT}})
+- issue:      {{ISSUE_REF}}   (file: {{ISSUE_FILE}})
+- window:     Base: {{BASE}}   Head: {{HEAD}}
+
+Review the **{{REPO}}** repo and its tracker — {{REPO_NOTE}}. Do not assume any
+other repository or apply another repo's conventions.
 
 You have no prior session context — that is the anti-collusion property. Verify
 behavior against the issue's documented Spec/Plan and the code itself; do NOT

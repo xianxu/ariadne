@@ -153,7 +153,6 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		result = reviewResult{Verdict: judge.VerdictNotRun, Reason: "--dry-run", Base: base, Head: head, BaseLong: baseLong}
 	default:
 		result = dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
-			IssueRef:      fmt.Sprintf("ariadne#%d %s", f.Issue, f.Milestone),
 			Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
 			Base:          base,
 			BaseLong:      baseLong,
@@ -449,7 +448,9 @@ func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string,
 // a whole-issue window (`#69`). Both invoke the same MilestoneReview prompt (the
 // embedded code-review.md procedure) on the resolved window.
 type boundaryReviewParams struct {
-	IssueRef             string // prompt label, e.g. "ariadne#69" or "ariadne#69 M1"
+	// The prompt's issue ref is no longer carried here — it's derived from the
+	// live git context in boundaryReviewDispatchOptions (#137, via IssueNum +
+	// Milestone + the repo root), so it names the actual repo (e.g. pair#69).
 	Label                string // commit-subject substring for messages, e.g. "#69 M1"
 	Base, BaseLong, Head string // review window (short base, long base, "HEAD")
 	IssuesDir            string
@@ -541,7 +542,15 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		return judge.DispatchOptions{}, false, fmt.Sprintf("collect diff: %v", err)
 	}
 
-	in := judge.PromptInput{Diff: diff, Base: p.BaseLong, Head: "HEAD", IssueRef: p.IssueRef}
+	// Orient the fresh reviewer to the ACTUAL repo (#137) — derived from the live
+	// git context, not a hardcoded "ariadne". Computed once here, the single site
+	// both close and milestone-close funnel through (ARCH-DRY).
+	o := boundaryOrientation(p.IssuesDir, p.IssueNum, p.Milestone)
+	in := judge.PromptInput{
+		Diff: diff, Base: p.BaseLong, Head: "HEAD",
+		IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
+		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
+	}
 	prompt := judge.BuildPrompt(judge.MilestoneReview, in)
 
 	return judge.DispatchOptions{

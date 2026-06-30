@@ -82,7 +82,6 @@ func TestDispatchBoundaryReview_AgentDefaultUsesPairAgent(t *testing.T) {
 	}
 
 	res := dispatchBoundaryReview(io.Discard, io.Discard, boundaryReviewParams{
-		IssueRef:  "ariadne#31 M1",
 		Label:     "#31 M1",
 		Base:      "HEAD",
 		BaseLong:  "HEAD",

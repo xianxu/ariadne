@@ -68,7 +68,13 @@ func renderReviewEntry(m sidecarMeta, isRevision bool) string {
 	if isRevision {
 		fmt.Fprintf(&b, "## Re-review — %s (%s)\n\n", m.Timestamp, m.Verdict)
 	} else {
-		fmt.Fprintf(&b, "# Boundary Review — ariadne#%d (%s)\n\n", m.IssueNum, boundaryKind(m.Milestone))
+		// Repo-derived, not hardcoded "ariadne" (#137) — a downstream review's
+		// durable artifact must name its own repo, matching the | repo | cell.
+		repo := m.Repo
+		if repo == "" {
+			repo = "<unknown-repo>"
+		}
+		fmt.Fprintf(&b, "# Boundary Review — %s#%d (%s)\n\n", repo, m.IssueNum, boundaryKind(m.Milestone))
 	}
 	milestoneCell := m.Milestone
 	if milestoneCell == "" {
@@ -93,14 +99,23 @@ func renderReviewEntry(m sidecarMeta, isRevision bool) string {
 	return b.String()
 }
 
+// repoNameAndRoot resolves the current repo's name (git-root basename) and its
+// root path from the live git context, or ("", "") if the root can't be resolved.
+// The single derivation site for "which repo are we in" (consolidates the
+// duplicated filepath.Base(gitx.RepoTopLevel()) the #136 review flagged).
+func repoNameAndRoot() (name, root string) {
+	root, err := gitx.RepoTopLevel()
+	if err != nil || root == "" {
+		return "", ""
+	}
+	return filepath.Base(root), root
+}
+
 // repoIdentity returns the repo's top-level basename (e.g. "ariadne"), or "" if
 // it can't be resolved — non-fatal metadata.
 func repoIdentity() string {
-	top, err := gitx.RepoTopLevel()
-	if err != nil {
-		return ""
-	}
-	return filepath.Base(top)
+	name, _ := repoNameAndRoot()
+	return name
 }
 
 // nowRFC3339 is the single clock touch for the sidecar, isolated here so the

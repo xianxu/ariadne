@@ -110,10 +110,18 @@ type PromptInput struct {
 	Diff          string   // unified diff of the review window
 	ChangedIssues []string // paths to changed issue files (for `plan`)
 	Base, Head    string   // refs that bound the window (for milestone-review)
-	IssueRef      string   // e.g. "ariadne#31 M2" (for milestone-review / plan-quality)
+	IssueRef      string   // e.g. "pair#31 M2" — repo-prefixed (for milestone-review / plan-quality)
 	IssueContent  string   // full issue file text (for plan-quality, where we
 	//   assess current state, not a diff)
 	PlanContent string // optional separate plan file text (for plan-quality)
+	// Boundary-review repo orientation (#137) — derived in cmd/sdlc from the live
+	// git context and rendered into code-review.md so a fresh reviewer is anchored
+	// to the ACTUAL repo, not a hardcoded "ariadne". Empty for non-review categories.
+	Repo      string // repo name (git-root basename), e.g. "pair"
+	RepoRoot  string // absolute git-root path
+	IssueFile string // path to the issue file under review
+	Boundary  string // "whole-issue close" | "milestone Mx close"
+	RepoNote  string // base-vs-downstream orientation note
 }
 
 // BuildPrompt renders the prompt for one category. Returns "" for
@@ -336,13 +344,10 @@ Diff:
 		return ""
 
 	case MilestoneReview:
-		ref := in.IssueRef
-		if ref == "" {
-			ref = "<unknown>"
-		}
 		// The procedure (code-review.md, #69) refers to ARCH-* markers; the
 		// principle definitions are co-located by appending the at-review block;
 		// the verdict format by ContractPreamble. One reviewer, both boundaries.
+		// CodeReviewBody renders the repo-orientation header from in (#137).
 		return fmt.Sprintf(`%s
 
 %s
@@ -351,7 +356,7 @@ Diff:
 
 Diff:
 %s
-`, CodeReviewBody(ref, in.Base, in.Head), ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
+`, CodeReviewBody(in), ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
 	}
 	return ""
 }
