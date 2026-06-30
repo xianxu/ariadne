@@ -405,6 +405,17 @@ window) dispatch this same review — so the agent does **not** run a separate
 remains for ad-hoc/in-session reviews. The double-review #69 removed was the
 agent's superpowers pass *plus* the binary's auto-dispatch on the same diff.
 
+**Repo orientation (#137).** The review prompt orients the fresh reviewer to the
+**actual repo under review**, derived from the live git context — not a hardcoded
+`ariadne`. `boundaryOrientation` (`cmd/sdlc/orientation.go`) computes the repo name
+(git-root basename), root path, the `<repo>#N` issue ref (so a `pair` review reads
+`pair#72`, never `ariadne#72`), issue file, boundary kind, and a base-vs-downstream
+note (base detected via `construct/base.manifest`); these are passed as plain
+strings into the pure `internal/judge` layer (`PromptInput` → `code-review.md`
+header), keeping git IO at the cmd boundary (ARCH-PURE). Computed once in the
+shared `boundaryReviewDispatchOptions` (ARCH-DRY); the same derivation feeds the
+sidecar H1.
+
 **Review sidecar (#136).** The boundary review is no longer a transient terminal
 artifact: every actually-dispatched review writes its full transcript to a durable
 sidecar under `workshop/plans/` — `NNNNNN-slug-close-review.md` for a whole-issue
