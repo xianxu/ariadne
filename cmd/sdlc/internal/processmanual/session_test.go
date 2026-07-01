@@ -10,6 +10,43 @@ func fixtureJSONL(lines ...string) []byte {
 	return []byte(strings.Join(lines, "\n") + "\n")
 }
 
+// Task 2: classifyToolUse is the pure match table — the three injection-bearing
+// tool calls, with the sdlc matcher anchored so `sdlcx` doesn't false-positive.
+func TestClassifyToolUse_table(t *testing.T) {
+	cases := []struct {
+		name       string
+		input      string
+		wantKind   Kind
+		wantDetail string
+		wantOK     bool
+	}{
+		{"skill", `{"skill":"xx-fix"}`, KindSkill, "xx-fix", true},
+		{"sdlc verb", `{"command":"sdlc close --issue 9"}`, KindSDLCPrompt, "close", true},
+		{"sdlc milestone-close", `{"command":"sdlc milestone-close --issue 9 --milestone M2"}`, KindSDLCPrompt, "milestone-close", true},
+		{"sdlc help", `{"command":"sdlc state --help"}`, KindHelpText, "state", true},
+		{"lessons read", `{"file_path":"/repo/workshop/lessons.md"}`, KindLessons, "lessons.md", true},
+		{"plain bash", `{"command":"ls -la"}`, "", "", false},
+		{"sdlcx not anchored", `{"command":"echo sdlcx"}`, "", "", false},
+		{"non-injection read", `{"file_path":"/repo/cmd/main.go"}`, "", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			name := "Bash"
+			switch {
+			case tc.name == "skill":
+				name = "Skill"
+			case tc.name == "lessons read" || tc.name == "non-injection read":
+				name = "Read"
+			}
+			kind, detail, ok := classifyToolUse(name, []byte(tc.input))
+			if kind != tc.wantKind || detail != tc.wantDetail || ok != tc.wantOK {
+				t.Errorf("classifyToolUse(%s, %s) = (%q, %q, %v); want (%q, %q, %v)",
+					name, tc.input, kind, detail, ok, tc.wantKind, tc.wantDetail, tc.wantOK)
+			}
+		})
+	}
+}
+
 // Task 1: parseEvents is pure over bytes. It must recover the fired injections in
 // order, link a close's review verdict from the following tool_result's stdout,
 // collect away_summary boundaries, and skip unknown record types without erroring.
