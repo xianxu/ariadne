@@ -1,12 +1,13 @@
 ---
 id: 000141
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-29
 updated: 2026-07-01
-estimate_hours:
+estimate_hours: 0.42
 started: 2026-07-01T09:49:03-07:00
+actual_hours: 0.19
 ---
 
 # sdlc merge confirmation should support agent-safe defaults
@@ -50,22 +51,63 @@ abort at the end.
 
 ## Done when
 
-- [ ] `sdlc merge` detects non-interactive stdin/stdout before running
-      pre-merge judges.
-- [ ] Non-interactive merge without `--yes` fails fast with an actionable error.
-- [ ] Interactive merge still prompts before irreversible actions.
-- [ ] `sdlc merge --yes` keeps the current scripted flow.
-- [ ] Tests cover interactive, non-interactive, `--yes`, and `--dry-run`
-      combinations.
+- [x] `sdlc merge` detects non-interactive stdin/stdout before running
+      pre-merge judges. (Fail-fast at `merge.go:272` was already there; the fix
+      is `isTTY` now correctly reporting false for a non-terminal stdin.)
+- [x] Non-interactive merge without `--yes` fails fast with an actionable error.
+      (Live-verified: `sdlc merge </dev/null` → "needs interactive confirmation
+      … Re-run with --yes", before the push/judge steps.)
+- [x] Interactive merge still prompts before irreversible actions. (Real tty →
+      `isTerminal` true → `mergeNeedsTTY` false → prompt; unit-pinned.)
+- [x] `sdlc merge --yes` keeps the current scripted flow. (Live-verified `--yes`
+      + `--dry-run` bypass the gate.)
+- [x] Tests cover interactive, non-interactive, `--yes`, and `--dry-run`
+      combinations. (`TestMergeNeedsTTY` 4 cases + `TestIsTTY_*` incl. /dev/null.)
 
 ## Plan
 
-- [ ] Inspect `cmd/sdlc/merge.go` prompt and prompter abstraction.
-- [ ] Define the TTY/non-interactive detection rule.
-- [ ] Move or add a preflight confirmation-capability check before slow judges.
-- [ ] Preserve the final confirmation in interactive runs.
-- [ ] Update help text to explain when agents should use `--yes`.
-- [ ] Add tests for early refusal before judge invocation.
+Design detail + root-cause: `workshop/plans/000141-merge-agent-safe-tty-detection-plan.md`.
+
+**Root cause differs from the issue's framing.** The fail-fast-before-judges
+guard *already exists* (`merge.go:272`, from #56/`fcd6b1e`, a month before this
+issue). The real bug is the shared `isTTY` helper (`changecode.go:522`): it uses
+`os.ModeCharDevice` as a proxy for "is a terminal", but `/dev/null` (an agent's
+usual stdin) is a char device, so `isTTY` returns true, the guard is skipped, and
+merge aborts *after* the judges. Fix = make `isTTY` a real `isatty` (stdlib
+ioctl). This also fixes `change-code --worktree=ask` (same shared helper).
+
+- [x] Add `tty_{unix,darwin,linux,other}.go`: `isTerminal(fd)` via the
+      `TIOCGETA`/`TCGETS` ioctl (stdlib-only, per-OS constant; ARCH-DRY).
+- [x] Rewrite `isTTY` to delegate to `isTerminal`; drop the `ModeCharDevice` proxy.
+- [x] Test `isTTY`: `/dev/null` → false (the #141 regression), regular file /
+      pipe / non-`*os.File` → false.
+- [x] Round out `TestMergeNeedsTTY` with the interactive (tty → proceed) case.
+      (Already present — `merge_test.go:271` — so no change needed.)
+- [x] Update `sdlc merge --help` flag text: agents should pass `--yes`.
+      (Flag text + a NON-INTERACTIVE section in `helptext/merge.md`.)
+- [x] Live-verify `sdlc merge </dev/null` fail-fasts before judges; cross-compile
+      `GOOS=linux`.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.* Small, well-scoped bug fix in a shared helper
++ cross-platform build files + tests; design pre-resolved by the plan doc (+15%
+buffer), impl at v3.1's 40%-of-v2 unit.
+
+- smaller-go-module: fix `isTTY` → real `isatty`, add the four `tty_*.go`
+  platform files, `isTTY`/`mergeNeedsTTY` tests — design 0.1 + impl 0.15.
+- milestone-review: the one boundary review auto-dispatched at `sdlc close` —
+  impl 0.15.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module   design=0.1 impl=0.15
+item: milestone-review    design=0.0 impl=0.15
+total: 0.42
+```
 
 ## Log
 
@@ -74,3 +116,34 @@ abort at the end.
 - Created from pair#84 dogfooding: the merge judges passed, then `sdlc merge`
   aborted at the final confirmation prompt in a non-interactive agent run. A
   rerun with `--yes` succeeded.
+
+### 2026-07-01
+- 2026-07-01: closed — go test ./cmd/sdlc/... green; new TestIsTTY_RealNonTerminalFilesAreNotTTY pins isTTY(/dev/null)=false (the #141 regression) + regular-file/pipe; TestMergeNeedsTTY covers all 4 combos. gofmt+vet clean; darwin build + GOOS=linux cross-compile OK (build tags). Live E2E on rebuilt bin/sdlc: `sdlc merge </dev/null` now fail-fasts at the TTY gate ("needs interactive confirmation … Re-run with --yes") BEFORE the push/judge steps, where pre-fix it sailed through; `--yes` and `--dry-run` bypass the gate.; review verdict: SHIP
+
+- **Root cause re-diagnosed.** The fail-fast-before-judges guard the issue asked
+  for *already existed* (`merge.go:272`, from #56/`fcd6b1e`, 2026-05-31 — a month
+  before this issue). pair#84 was a stale downstream `sdlc`. The live bug in
+  ariadne was the shared `isTTY` helper: it used `os.ModeCharDevice` as a proxy
+  for "is a terminal", but `/dev/null` (an agent's usual stdin) is a char device
+  → `isTTY` returned true → the guard was skipped → judges ran → the EOF prompt
+  aborted. Reproduced: pre-fix `sdlc merge </dev/null` sailed past the TTY gate to
+  the push check.
+- **Fix (root cause, shared helper).** Replaced the char-device proxy with a real
+  `isatty` — the `TIOCGETA` (darwin) / `TCGETS` (linux) ioctl, the technique
+  `golang.org/x/term` uses internally — kept **stdlib-only** (the module is
+  stdlib+cobra; `isTTY`'s own comment recorded the deliberate no-`x/term` choice).
+  `tty_unix.go` (one `isTerminal` body) + `tty_darwin.go`/`tty_linux.go` (per-OS
+  constant) + `tty_other.go` (non-unix stub → false, forces `--yes`). Because
+  `isTTY` is shared, this also fixes `change-code --worktree=ask` for
+  `/dev/null`-stdin agents (ARCH-DRY / ARCH-PURPOSE — one fix, both callers).
+- **Scope note:** the issue's "stdin/stdout" — prompts read **stdin**, so stdin
+  is the channel that decides answerability; kept stdin-only (documented).
+- **Tests:** `TestIsTTY_RealNonTerminalFilesAreNotTTY` (/dev/null → false [the
+  regression], regular file, `os.Pipe` → false); `TestMergeNeedsTTY` already had
+  all four combos. gofmt/vet clean; `GOOS=linux` cross-compiles (build tags OK).
+- **Live E2E** (post-fix, `bin/sdlc` rebuilt from this branch):
+  - `sdlc merge </dev/null` → dies at the TTY gate: *"needs interactive
+    confirmation, but stdin is not a terminal. Re-run with --yes…"* — before the
+    push/judge steps.
+  - `sdlc merge --yes </dev/null` and `--dry-run </dev/null` → bypass the gate
+    (reach the expected push check).

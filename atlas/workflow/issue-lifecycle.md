@@ -51,6 +51,15 @@ layout above); `--worktree=ask` restores the interactive prompt, or for a
 non-interactive agent emits the `ASK_BRANCHING_STRATEGY` sentinel (exit 2) so the
 agent can ask the operator and rerun with `--worktree=yes|no`.
 
+**Terminal detection (`isTTY`, shared).** The "is this interactive?" decision
+behind both `change-code --worktree=ask` and `sdlc merge`'s final-confirm
+fail-fast is the one `isTTY` helper. It must be a **real `isatty`** (the
+`TIOCGETA`/`TCGETS` ioctl, stdlib-only in `tty_*.go`), NOT an `os.ModeCharDevice`
+check: `/dev/null` — an agent's usual redirected stdin — is a char device but not
+a terminal, so the char-device proxy misclassified agents as interactive and
+merge ran all its judges before aborting at the unanswerable prompt (#141). One
+helper, one fix, both callers.
+
 **Navigation**: worktree creation writes the path to `.goto`; the shell `g`
 alias reads it to `cd` you there. `sdlc merge` writes the main worktree path
 back into `.goto` for the return trip.

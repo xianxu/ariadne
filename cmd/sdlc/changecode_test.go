@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -224,6 +226,45 @@ func TestIsTTY_PipeIsNotTTY(t *testing.T) {
 	// strings.Reader is not an *os.File → not a tty by construction.
 	if isTTY(strings.NewReader("hi")) {
 		t.Error("strings.Reader should not be a tty")
+	}
+}
+
+// TestIsTTY_RealNonTerminalFilesAreNotTTY is the #141 regression: isTTY must use
+// a real terminal probe, not an os.ModeCharDevice check. /dev/null is a CHARACTER
+// DEVICE but not a terminal — the old check returned true for it, so an agent
+// whose stdin is /dev/null was mistaken for interactive and merge's fail-fast
+// confirm gate was silently skipped (judges ran, then the prompt aborted). All of
+// these real *os.File readers must report false.
+func TestIsTTY_RealNonTerminalFilesAreNotTTY(t *testing.T) {
+	devnull, err := os.Open(os.DevNull) // "/dev/null" — a char device, NOT a tty
+	if err != nil {
+		t.Fatalf("open %s: %v", os.DevNull, err)
+	}
+	t.Cleanup(func() { devnull.Close() })
+	if isTTY(devnull) {
+		t.Errorf("%s is a char device but not a terminal — isTTY must be false (#141)", os.DevNull)
+	}
+
+	regular := filepath.Join(t.TempDir(), "f")
+	if err := os.WriteFile(regular, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rf, err := os.Open(regular)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { rf.Close() })
+	if isTTY(rf) {
+		t.Error("a regular file is not a terminal — isTTY must be false")
+	}
+
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { pr.Close(); pw.Close() })
+	if isTTY(pr) {
+		t.Error("an os.Pipe read end is not a terminal — isTTY must be false")
 	}
 }
 
