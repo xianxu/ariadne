@@ -2,9 +2,12 @@ package retro
 
 import (
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/pkg/frontmatter"
 )
 
 // catalogCategories is the COMPLETE injected set — judge.AllCategories() omits
@@ -104,4 +107,37 @@ func firstParagraph(s string) string {
 		return strings.TrimSpace(s[:i])
 	}
 	return s
+}
+
+// skillSources enumerates <skillsDir>/*/SKILL.md — the on-demand agent skills.
+// The trigger (`When`) is the frontmatter `description:` (parsed via the shared
+// pkg/frontmatter, ARCH-DRY). Entries under .claude/skills are symlinks into
+// construct/…; os.ReadFile follows them, and Link is resolved through the
+// symlink + made repo-root-relative so the manual points at the real SKILL.md.
+func skillSources(skillsDir, repoRoot string) []InjectionSource {
+	entries, _ := os.ReadDir(skillsDir)
+	var out []InjectionSource
+	for _, e := range entries {
+		skillPath := filepath.Join(skillsDir, e.Name(), "SKILL.md")
+		content, err := os.ReadFile(skillPath)
+		if err != nil {
+			continue // not a skill dir (or no SKILL.md)
+		}
+		link := skillPath
+		if resolved, rerr := filepath.EvalSymlinks(skillPath); rerr == nil {
+			link = resolved
+		}
+		if rel, rerr := filepath.Rel(repoRoot, link); rerr == nil {
+			link = rel
+		}
+		_, body, _ := frontmatter.Split(string(content))
+		out = append(out, InjectionSource{
+			Kind:  KindSkill,
+			Title: e.Name(),
+			When:  frontmatter.Description(string(content)),
+			Link:  link,
+			Body:  firstParagraph(body),
+		})
+	}
+	return out
 }
