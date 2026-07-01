@@ -32,9 +32,26 @@ func TestJudgeSources_CoversEveryCategoryIncludingEstimate(t *testing.T) {
 		if strings.TrimSpace(s.Body) == "" {
 			t.Errorf("category %q has empty rendered body", c)
 		}
-		if !strings.Contains(s.Link, "prompts.go") {
-			t.Errorf("category %q link should point at the builder, got %q", c, s.Link)
+		wantLink := "prompts/" + string(c) + ".md" // each prompt links to its readable template
+		if c == judge.Lessons {
+			wantLink = "prompts.go" // no template; LessonsReminder lives in prompts.go
 		}
+		if !strings.Contains(s.Link, wantLink) {
+			t.Errorf("category %q link should contain %q, got %q", c, wantLink, s.Link)
+		}
+	}
+}
+
+func TestJudgeSources_LinkToMarkdown(t *testing.T) {
+	byTitle := map[string]InjectionSource{}
+	for _, s := range judgeSources(false) {
+		byTitle[s.Title] = s
+	}
+	if l := byTitle["dry"].Link; l != "cmd/sdlc/internal/judge/prompts/dry.md" {
+		t.Errorf("dry should link to its .md, got %q", l)
+	}
+	if l := byTitle["lessons"].Link; !strings.HasSuffix(l, "prompts.go") {
+		t.Errorf("lessons has no template → link prompts.go, got %q", l)
 	}
 }
 

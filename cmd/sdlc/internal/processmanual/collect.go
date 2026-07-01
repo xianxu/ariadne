@@ -100,11 +100,21 @@ func judgeSources(full bool) []InjectionSource {
 			Kind:  KindSDLCPrompt,
 			Title: string(c),
 			When:  whenForCategory(c),
-			Link:  "cmd/sdlc/internal/judge/prompts.go",
+			Link:  judgeLink(c),
 			Body:  categoryBody(c, full),
 		})
 	}
 	return out
+}
+
+// judgeLink points at the readable source of each prompt: its embedded markdown
+// template (#153 M2), or prompts.go for `lessons` (a reminder ping with no
+// template — LessonsReminder lives in prompts.go).
+func judgeLink(c judge.Category) string {
+	if c == judge.Lessons {
+		return "cmd/sdlc/internal/judge/prompts.go"
+	}
+	return "cmd/sdlc/internal/judge/prompts/" + string(c) + ".md"
 }
 
 // helptextSources enumerates the embedded sdlc help-text files (the process
