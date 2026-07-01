@@ -420,6 +420,22 @@ header), keeping git IO at the cmd boundary (ARCH-PURE). Computed once in the
 shared `boundaryReviewDispatchOptions` (ARCH-DRY); the same derivation feeds the
 sidecar H1.
 
+**Two-phase close, finalize-after-verdict (#139).** `sdlc close` and
+`sdlc milestone-close` no longer write before the review. `runClose` splits into a
+read-only `computeClose` (all gates + composes the new issue/project text → a
+`closeResult`, writing nothing) and `applyClose` (the writes + calibration ledger).
+Full-issue close and milestone-close both **compute → review → finalize**: the
+boundary review runs against the *un-mutated* working tree (the reviewer reads the
+honest `status: working` issue), and `applyClose` fires only on a **finalizing**
+verdict via the shared `reviewThenFinalize`. `closeVerdictOutcome` derives from
+`vocab.Verdict()` (#147): finalizing (SHIP/FIX-THEN-SHIP) → finalize; blocking
+(REWORK) → **not finalized**, issue left `working`, non-zero exit, "fix + re-run"
+(no `--no-reclose-guard` needed on the rerun since it never went `done`);
+unknown / dispatch-error → **halt**: don't finalize an ambiguous gate — stop and
+consult a human. `--no-judge` finalizes (explicit operator skip, handled before
+dispatch). The success messages ("flipped → done") print only from `applyClose`, so
+a REWORK never claims a write that didn't happen.
+
 **Subprocess PATH (#138).** The agent subprocess `sdlc` spawns for a review (and
 for `sdlc judge`) gets the owner `bin/` prepended to its `PATH`, so a fresh
 reviewer can resolve `sdlc` (and sibling tools) even when the spawning shell's
