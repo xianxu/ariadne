@@ -35,7 +35,42 @@ Inside the sandbox, zellij is the terminal multiplexer (leader: `Ctrl+q`, new ta
 - **Multiplexer**: zellij (gruvbox-dark theme)
 - **Languages**: lua 5.4 + luacheck (for neovim plugin development)
 - **AI agents**: claude (bypass permissions), codex (full-auto), gemini (auto-approve)
-- **Git**: configured from host (name, email, gh auth forwarded)
+- **Git**: configured from host (name, email, gh auth forwarded); transport is
+  HTTPS, not SSH — see below.
+
+## Git transport: HTTPS, not SSH (#152)
+
+Both sandboxes proxy **HTTP(S) only** — raw SSH can't traverse the proxy (it
+fails the handshake: `nc: authentication method negotiation failed`). So every
+sandboxed `git push`/`pull` — and thus every `sdlc` verb (`claim`, `pr`, `merge`,
+`push`, `issue new`) — must use HTTPS transport, not the `git@github.com:` SSH
+remotes the repos are cloned with. Auth is already wired: `gh`'s `git_protocol` is
+`https` and gh is the HTTPS credential helper, so no tokens-in-URLs.
+
+The switch is a runtime **`insteadOf` rewrite** (keeps the SSH URL in each repo's
+config, rewrites it to HTTPS per-operation), applied in two places:
+
+- **OpenShell container** — `.openshell/overlay/setup.sh` sets it in the
+  container's `~/.gitconfig` (plus `http.sslVerify=false`, because the OpenShell
+  proxy terminates TLS without a CA cert in the container).
+- **Host `~/.gitconfig`** — used by the **Claude Code** sandbox (sandbox-exec on
+  the host) and the host itself. A one-time operator step (NOT `sslVerify=false`
+  — host TLS to github.com is real):
+  ```bash
+  git config --global --add url."https://github.com/".insteadOf "git@github.com:"
+  git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
+  ```
+  `insteadOf` is **multi-valued** — use `--add`, or the second line replaces the
+  first and only `ssh://` survives (so `git@github.com:`, the form real origins
+  use, silently stays SSH). This is a one-time step because there's no pre-clone
+  host-setup hook to bake it into (`bootstrap.sh` clones peers before any config
+  step could run).
+
+**Caveat — encrypted brain remotes.** `brain` / `brain-family` use
+`gcrypt::ssh://git@github.com/…`; the `git@github.com:` prefix doesn't match, so
+the rewrite leaves them on SSH (they still won't push from a sandbox). Switching
+an encrypted gcrypt remote's transport is a separate, sensitive change (needs a
+tested `gcrypt::https://` + GPG-in-sandbox) — not covered here.
 
 ## How It's Provided by the Base Layer
 
