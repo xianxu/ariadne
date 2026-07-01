@@ -129,59 +129,54 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		NoPlanCheck:   f.NoPlanCheck,
 		NoProject:     f.NoProject,
 	}
-	if err := runClose(stderr, closeF); err != nil {
-		return err
-	}
+	// Step 1: COMPUTE the mechanical close — write NOTHING yet (#139). The review
+	// runs against the un-mutated tree; applyClose fires only after a finalizing
+	// verdict, so a REWORK/unexpected milestone review leaves nothing written.
+	r := computeClose(stderr, closeF)
 
-	// Step 2: figure out the review window (used regardless of whether
-	// the judge actually runs — the trailer always carries it). The base is
-	// the prior review boundary so inter-milestone #N-but-not-Mx commits are
-	// covered (#58); resolving needs the issue file to find that boundary.
+	// Step 2: figure out the review window (used regardless of whether the judge
+	// actually runs — the trailer always carries it). The base is the prior review
+	// boundary so inter-milestone #N-but-not-Mx commits are covered (#58); resolving
+	// needs the issue file to find that boundary.
 	issuePath, perr := issueFilePath(f.IssuesDir, f.Issue)
 	if perr != nil {
 		cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
 	}
 	base, baseLong, head := resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
 
-	// Step 3: dispatch the judge (or short-circuit if skipped).
-	var result reviewResult
+	// Step 3: dispatch → finalize-on-verdict, or short-circuit the explicit skips.
 	switch {
-	case f.NoJudge:
-		cinfo(stderr, "skipping milestone-review per --no-judge")
-		result = reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}
-	case f.DryRun:
-		cinfo(stderr, "dry-run — would dispatch judge milestone-review")
-		result = reviewResult{Verdict: judge.VerdictNotRun, Reason: "--dry-run", Base: base, Head: head, BaseLong: baseLong}
-	default:
-		result = dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
-			Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
-			Base:          base,
-			BaseLong:      baseLong,
-			Head:          head,
-			IssuesDir:     f.IssuesDir,
-			Agent:         f.Agent,
-			AgentExplicit: f.AgentExplicit,
-			IssueNum:      f.Issue,
-			Milestone:     f.Milestone,
-			PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
-		})
-	}
-
-	// Step 4: emit the trailer block to stdout (the agent pastes this
-	// into the close commit message; close.go's verifier later greps
-	// for Review-Verdict: to confirm review evidence per milestone).
-	emitTrailerBlock(stdout, result, "milestone-close")
-
-	// Step 5: mirror the verdict into the issue file's just-written log
-	// line so a human grep finds it. Skip in --dry-run (file wasn't
-	// written) and on hard failures (the log line may not exist).
-	if !f.DryRun {
-		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, result.Verdict); err != nil {
+	case f.NoJudge || f.Force:
+		// Explicit operator skip → finalize (annotate + trailer as before). --force
+		// implies --no-judge per its "bypass ALL gates" contract (#139 I2), matching
+		// full-issue close's f.skip("judge"); otherwise a --force milestone-close would
+		// still dispatch and could halt/rework, defeating the emergency bypass.
+		cinfo(stderr, "skipping milestone-review per --no-judge (or --force)")
+		applyClose(stderr, closeF, r)
+		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}, "milestone-close")
+		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, judge.VerdictNotRun); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 		}
+		return nil
+	case f.DryRun:
+		cinfo(stderr, "dry-run — would dispatch judge milestone-review")
+		printCloseDryRun(stderr, r)
+		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--dry-run", Base: base, Head: head, BaseLong: baseLong}, "milestone-close")
+		return nil
 	}
 
-	return nil
+	return reviewThenFinalize(stdout, stderr, closeF, r, boundaryReviewParams{
+		Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
+		Base:          base,
+		BaseLong:      baseLong,
+		Head:          head,
+		IssuesDir:     f.IssuesDir,
+		Agent:         f.Agent,
+		AgentExplicit: f.AgentExplicit,
+		IssueNum:      f.Issue,
+		Milestone:     f.Milestone,
+		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
+	})
 }
 
 // resolveReviewWindow computes the (base, baseLong, head) tuple for a
@@ -488,8 +483,9 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	}
 	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
 	if !ok {
-		cwarn(stderr, "boundary review skipped: "+reason)
-		cwarn(stderr, "close succeeded; re-run judge manually if needed")
+		// The caller (reviewThenFinalize) maps this VerdictNotRun → closeHalt and
+		// prints the outcome ("close NOT finalized") — so don't claim success here (#139 I1).
+		cwarn(stderr, "boundary review could not run: "+reason)
 		return res(judge.VerdictNotRun, reason)
 	}
 
@@ -497,8 +493,9 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..HEAD) via %s …", p.BaseLong, agent))
 	output, derr := judge.Dispatch(context.Background(), opts)
 	if derr != nil {
+		// Dispatch error → VerdictNotRun → the caller halts (does NOT finalize); the
+		// outcome message is the caller's, not a false "close succeeded" here (#139 I1).
 		cwarn(stderr, fmt.Sprintf("boundary review failed: %v", derr))
-		cwarn(stderr, "close succeeded; re-run judge manually if needed")
 		return res(judge.VerdictNotRun, derr.Error())
 	}
 	fmt.Fprint(stdout, output)
