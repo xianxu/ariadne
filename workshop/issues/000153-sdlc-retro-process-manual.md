@@ -107,11 +107,11 @@ write-only; the payload is the exceptions). Output is a markdown report with liv
 
 - `sdlc process-manual` emits a deterministic markdown **process manual**: every
   sdlc-injected prompt + skill trigger + `lessons.md` + `AGENTS.md` chain + memories,
-  each with a live link to its source. (M1)
-- A dynamic **per-session report** reconstructs which catalogued injection points fired,
-  in order, anomalies first, with `🤖[]` annotation slots. (M2)
-- Blind spots (AGENTS.md/memory step-0; Task-tool forks) are documented as stated
-  assumptions in the skill.
+  each with a live link to its source; memory redacted by default. (M1) ✓
+- The sdlc-injected **judge prompts are single-sourced as embedded, readable
+  `judge/prompts/*.md`** (byte-fidelity golden), and `process-manual` links to them. (M2) ✓
+- The dynamic **per-session report** (which injection points fired, in order) is split
+  to **ariadne#157** — not part of #153's acceptance.
 
 ## Estimate
 
@@ -164,12 +164,20 @@ Coarse decomposition; the durable detailed plan lands at `start-plan` via
       `prompts.go` `fmt.Sprintf` literals into `judge/prompts/*.md` with placeholder
       substitution; byte-fidelity golden tests; relink `process-manual`'s `judgeSources`
       to the readable `.md` files). Reviewed together with M1 at M2's `milestone-close`.
-- [ ] M3 — dynamic session reconstruction (JSONL per-agent parser + sidecar join →
-      anomaly-first report with annotation surface) [was M2]
+- **M3 split out → ariadne#157** (dynamic session reconstruction). #153 = the static
+  catalog (M1) + judge-prompts-as-markdown (M2); the dynamic pass is its own issue so
+  M1+M2 can ship now.
 
 ## Log
 
-### 2026-07-01
+### 2026-07-01 — M3 split to ariadne#157; #153 = M1+M2, ready to close+merge
+
+User: split M3 to its own ticket, then close+merge #153. M3 (dynamic session
+reconstruction) is now **ariadne#157** (`deps: [ariadne#153]`), carrying the full
+feasibility digest. #153's scope is now M1 (static catalog) + M2 (judge prompts →
+markdown) — both done + reviewed (FIX-THEN-SHIP). The Spec above still describes the
+original two-output plan; its "Output 2 — dynamic session reconstruction" is #157.
+
 - 2026-07-01: closed M2 — M2: judge/golden_test.go proves BuildPrompt byte-identical pre/post prompt-extraction (TestBuildPrompt_Golden PASS); go build/vet/test ./cmd/sdlc/... green; existing TestArchitectureRegistry_EmbeddedInPrompts + TestAgentPromptsEmbedContract still pass. M1: sdlc process-manual renders 6-section manual (8 prompts/20 helptext/24 skills) with live links, memory redacted (0 leak scan), shadow-sweep confirmed all injection sources present.; review verdict: FIX-THEN-SHIP
 - 2026-07-01: M1+M2 boundary review (FIX-THEN-SHIP, no Critical) addressed before crossing —
   **Important:** added `TestRunProcessManual_IncludeMemoryWithOutRefused` pinning the
