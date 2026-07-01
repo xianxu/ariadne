@@ -1,11 +1,12 @@
 ---
 id: 000140
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-29
-updated: 2026-06-29
+updated: 2026-07-01
 estimate_hours:
+started: 2026-07-01T00:27:31-07:00
 ---
 
 # sdlc boundary review should show progress while waiting
