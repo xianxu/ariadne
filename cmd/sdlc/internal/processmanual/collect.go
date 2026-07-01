@@ -42,14 +42,6 @@ func Manual(opts CollectOptions, linkPrefix string) string {
 	return renderManual(Collect(opts), linkPrefix)
 }
 
-// catalogCategories is the COMPLETE injected set — judge.AllCategories() omits
-// EstimateQuality (scoped to standalone `sdlc judge` validity), but that prompt
-// IS injected at change-code (changecode.go), so the manual must list it
-// (ARCH-PURPOSE: deliver every injection point, not the easy subset).
-func catalogCategories() []judge.Category {
-	return append(append([]judge.Category{}, judge.AllCategories()...), judge.EstimateQuality)
-}
-
 // categoryBody is what the manual shows for a judge category. BuildPrompt is a
 // pure function, so an empty PromptInput yields the deterministic prompt
 // skeleton — EXCEPT `lessons`, which BuildPrompt renders as "" because it is a
@@ -95,7 +87,7 @@ func whenForCategory(c judge.Category) string {
 // the complete prompt bodies instead of first-paragraph gists.
 func judgeSources(full bool) []InjectionSource {
 	var out []InjectionSource
-	for _, c := range catalogCategories() {
+	for _, c := range judge.AllInjectedCategories() { // the complete injected set (incl. estimate-quality)
 		out = append(out, InjectionSource{
 			Kind:  KindSDLCPrompt,
 			Title: string(c),

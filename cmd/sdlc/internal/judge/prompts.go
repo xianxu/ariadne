@@ -95,6 +95,16 @@ func AllCategories() []Category {
 	return []Category{DRY, PURE, Plan, PlanQuality, Specs, Lessons, MilestoneReview}
 }
 
+// AllInjectedCategories returns every category whose prompt is actually injected
+// into an agent context — AllCategories() PLUS EstimateQuality (the change-code-
+// time gate AllCategories omits for push/merge bulk-dispatch, #117). This is the
+// complete set `sdlc process-manual` catalogs and golden_test.go pins; single-
+// source it here so a future change-code-only category can't silently drop from
+// the manual (#153 M2 boundary-review Minor).
+func AllInjectedCategories() []Category {
+	return append(append([]Category{}, AllCategories()...), EstimateQuality)
+}
+
 // IsValid reports whether s names a known category.
 func IsValid(s string) bool {
 	for _, c := range AllCategories() {

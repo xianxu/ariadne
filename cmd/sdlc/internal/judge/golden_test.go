@@ -27,7 +27,7 @@ var goldenInput = PromptInput{
 }
 
 func goldenCategories() []Category {
-	return append(append([]Category{}, AllCategories()...), EstimateQuality)
+	return AllInjectedCategories()
 }
 
 // TestBuildPrompt_Golden is the byte-fidelity net for the prompts→markdown

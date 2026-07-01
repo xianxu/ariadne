@@ -19,7 +19,9 @@ func TestJudgeSources_CoversEveryCategoryIncludingEstimate(t *testing.T) {
 		}
 		titles[s.Title] = s
 	}
-	// All 8 categories — AllCategories() omits estimate-quality, the catalog must not.
+	// The complete injected set, spelled out DELIBERATELY (not derived from
+	// judge.AllInjectedCategories) — this is the pin that catches a category being
+	// dropped from that source. Includes estimate-quality, which AllCategories omits.
 	want := []judge.Category{
 		judge.DRY, judge.PURE, judge.Plan, judge.PlanQuality,
 		judge.EstimateQuality, judge.Specs, judge.Lessons, judge.MilestoneReview,

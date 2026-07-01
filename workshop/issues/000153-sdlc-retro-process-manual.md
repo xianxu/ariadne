@@ -170,6 +170,16 @@ Coarse decomposition; the durable detailed plan lands at `start-plan` via
 ## Log
 
 ### 2026-07-01
+- 2026-07-01: closed M2 — M2: judge/golden_test.go proves BuildPrompt byte-identical pre/post prompt-extraction (TestBuildPrompt_Golden PASS); go build/vet/test ./cmd/sdlc/... green; existing TestArchitectureRegistry_EmbeddedInPrompts + TestAgentPromptsEmbedContract still pass. M1: sdlc process-manual renders 6-section manual (8 prompts/20 helptext/24 skills) with live links, memory redacted (0 leak scan), shadow-sweep confirmed all injection sources present.; review verdict: FIX-THEN-SHIP
+- 2026-07-01: M1+M2 boundary review (FIX-THEN-SHIP, no Critical) addressed before crossing —
+  **Important:** added `TestRunProcessManual_IncludeMemoryWithOutRefused` pinning the
+  `--include-memory`+`--out` privacy refusal (guard worked but was untested; the leak was
+  once hit manually). **Minor #1 (ARCH-DRY):** consolidated the complete injected-category
+  set into `judge.AllInjectedCategories()` — `process-manual` + golden now derive from it
+  (was restated in `catalogCategories`/`goldenCategories`); the coverage test keeps an
+  explicit list as the deliberate drop-catching pin. **Minor #2** (`~~~` fence vs a body
+  containing `~~~`) deferred — no trigger today (YAGNI). Golden still byte-identical;
+  build/vet/test green. Sidecar: `workshop/plans/000153-…-m2-review.md`.
 
 Issue captured from the design parley. Grounding verified against source this session:
 `judge.BuildPrompt(category, PromptInput)` is the single interpolating chokepoint for
