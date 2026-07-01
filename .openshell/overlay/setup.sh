@@ -7,9 +7,16 @@ set -euo pipefail
 mkdir -p "$HOME/.local/bin"
 
 # ── Git config ───────────────────────────────────────────────────────────────
+# Rewrite SSH → HTTPS so git works through the HTTP(S)-only sandbox proxy (raw
+# SSH can't traverse it). `insteadOf` is a MULTI-valued key: use --add so the
+# second form doesn't clobber the first (a plain `git config` replaces, so
+# without --add only `ssh://` would survive and `git@github.com:` — the form
+# real origins use — would silently stay SSH). Idempotent: clear then re-add.
+# Mirrored on the HOST ~/.gitconfig for the Claude Code sandbox (ariadne#152).
 echo "==> Configuring git..."
-git config --global url."https://github.com/".insteadOf "git@github.com:"
-git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+git config --global --unset-all url."https://github.com/".insteadOf 2>/dev/null || true
+git config --global --add url."https://github.com/".insteadOf "git@github.com:"
+git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
 # OpenShell proxy terminates TLS — sandbox doesn't have its CA cert
 git config --global http.sslVerify false
 

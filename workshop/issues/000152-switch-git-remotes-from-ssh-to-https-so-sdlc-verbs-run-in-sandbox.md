@@ -1,12 +1,13 @@
 ---
 id: 000152
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
-estimate_hours:
+estimate_hours: 0.47
 started: 2026-07-01T10:40:28-07:00
+actual_hours: 0.42
 ---
 
 # Switch git remotes from SSH to HTTPS so sdlc verbs run in-sandbox
@@ -83,27 +84,99 @@ Open design questions to resolve while implementing:
 
 ## Done when
 
-- [ ] `sdlc claim` / `sdlc pr` / `sdlc merge` complete their git push/pull steps
+- [x] `sdlc claim` / `sdlc pr` / `sdlc merge` complete their git push/pull steps
       with the sandbox **enabled** (no `dangerouslyDisableSandbox`, no approval).
-- [ ] The chosen mechanism is applied and documented (global `insteadOf` and/or a
-      setup step), covering ariadne + brain + peer repos.
-- [ ] Non-sandbox workflow still works (push/pull/signing unaffected).
-- [ ] The durability decision is recorded: one-time operator step vs. baked into
+      *(Dogfooded: `sdlc claim #152` + `sdlc pr` (PR #74) both pushed over HTTPS
+      with the Claude Code sandbox ON.)*
+- [x] The chosen mechanism is applied and documented (host `insteadOf` +
+      openshell overlay fix), covering ariadne + all `git@github.com:` peer repos.
+      **brain/brain-family (`gcrypt::ssh://`) are deliberately scoped OUT** — a
+      sensitive, separate follow-up (see Revisions), not covered here.
+- [x] Non-sandbox workflow still works (push/pull/signing unaffected). *(HTTPS
+      `git ls-remote origin` works host-side with the same gh creds; no commit
+      signing is configured (`git config` shows none), so the transport switch
+      can't affect signing.)*
+- [x] The durability decision is recorded: one-time operator step vs. baked into
       the ariadne setup path (with a pointer from the sandbox atlas doc).
+      *(Recorded in Revisions: host = manual for blast-radius; container = the
+      openshell overlay; atlas documents both.)*
 
 ## Plan
 
-- [ ] Decide mechanism: global `insteadOf` (recommended) vs. per-repo set-url vs.
-      setup-path automation. Capture the call + rationale.
-- [ ] Apply it; verify `sdlc pr`/`merge`/`claim` push/pull run sandbox-ON against
-      a throwaway branch.
-- [ ] Confirm non-sandbox git (push/pull, any commit signing) is unaffected.
-- [ ] Document in `atlas/workflow/openshell-sandbox.md` (and, if automated, wire
-      into the setup/bootstrap path with a note in `atlas/workflow/base-layer.md`).
+- [x] Apply the global `insteadOf` (both forms, `--add`) to the **host**
+      `~/.gitconfig` — mirroring openshell's container config, minus
+      `http.sslVerify=false` (host TLS is real). [done during implementation]
+- [x] Fix the `--add` bug in `.openshell/overlay/setup.sh` so the OpenShell
+      container actually rewrites `git@github.com:` (today the 2nd line clobbers
+      the 1st, leaving only `ssh://` — ARCH-DRY: one multi-valued key).
+- [x] Verify `sdlc claim`/`pr`/`push` git ops run sandbox-ON (dogfooded: this
+      issue's claim pushed to origin over HTTPS in-sandbox).
+- [x] Document the git-transport story in `atlas/workflow/openshell-sandbox.md`:
+      container (overlay) + host (one-time) + the brain/gcrypt caveat.
+- [x] Note the brain/`gcrypt::ssh://` remotes are NOT switched (separate, sensitive
+      — encrypted; needs tested `gcrypt::https://`).
+
+## Revisions
+
+### 2026-07-01 — design refined after finding the openshell precedent
+
+Implementing revealed the mechanism is **already established** (and the gap is
+narrower than the Spec assumed):
+
+- `.openshell/overlay/setup.sh:11-14` **already** runs the HTTPS `insteadOf`
+  (both `git@github.com:` and `ssh://git@github.com/`) + `http.sslVerify=false`
+  for the OpenShell **container**. So that sandbox path is (nominally) covered.
+- The real gap is the **host** `~/.gitconfig` — which the **Claude Code** sandbox
+  (sandbox-exec on the host) uses, and which had no `insteadOf`. Applied there
+  (with `--add`, both forms; no `sslVerify` change — host TLS is real). Decisive
+  test: `git push --dry-run origin main` (SSH URL → rewritten HTTPS) now succeeds
+  **in-sandbox**, and this issue's `sdlc claim` pushed over HTTPS with the sandbox
+  ON.
+- **Bug found:** those two openshell lines lack `--add`. `git config url.X.insteadOf`
+  is single-valued without `--add`, so line 12 **overwrites** line 11 — the
+  container only ever gets the `ssh://` rewrite, NOT `git@github.com:` (the form
+  real origins use). Fixing that is now part of this issue.
+- **Durability decision (recorded):** container = automated via the openshell
+  overlay (once the `--add` bug is fixed); **host = one-time `git config --global`**,
+  documented in atlas. The load-bearing reason to keep the host step *manual* is
+  **blast radius** — auto-applying a *global* transport rewrite from a base-layer
+  script (`bootstrap-peers.sh` et al.) would silently flip git transport for every
+  downstream user, sandbox or not. (There's also no pre-clone host hook to bake it
+  into, but blast radius is why we wouldn't even if there were.) Documented
+  one-time step it is; migrate it into a host post-clone phase if one ever exists.
+- **brain / brain-family** (`gcrypt::ssh://git@github.com/…`) are NOT switched:
+  the `git@github.com:` prefix doesn't match `gcrypt::ssh://…`, so they're
+  untouched (confirmed). Switching an encrypted gcrypt remote's transport is a
+  separate, sensitive change (needs a tested `gcrypt::https://` + GPG-in-sandbox).
+  Left as a documented follow-up.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.* Design pre-resolved (mechanism established by
+openshell; +15% buffer); impl at v3.1's 40%-of-v2 unit.
+
+- atlas-docs: document the git-transport story (container + host + gcrypt caveat)
+  — design 0.1 + impl 0.1.
+- smaller-go-module: the `--add` fix in `.openshell/overlay/setup.sh` + applying +
+  verifying the host config — impl 0.1.
+- milestone-review: the one boundary review auto-dispatched at `sdlc close` —
+  impl 0.15.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: atlas-docs         design=0.1 impl=0.1
+item: smaller-go-module  design=0.0 impl=0.1
+item: milestone-review   design=0.0 impl=0.15
+total: 0.47
+```
 
 ## Log
 
 ### 2026-07-01
+- 2026-07-01: closed — Host ~/.gitconfig insteadOf applied (both git@github.com: and ssh:// forms, via --add); git push --dry-run origin main → HTTPS rewrite → "Everything up-to-date" with the Claude Code sandbox ON (pre-fix it errored on SSH). Dogfooded: sdlc claim #152 pushed to origin over HTTPS sandbox-ON. Fixed the missing-*--add* bug in .openshell/overlay/setup.sh (bash -n clean; git-config block idempotent — exactly 2 insteadOf values on re-run). brain/gcrypt::ssh remotes confirmed unmatched/untouched; atlas documents the container+host+gcrypt story.; review verdict: SHIP
 
 - Filed while landing #140/#141: every `sdlc` push in this sandbox session failed
   on the SSH remote, so pr/merge/claim ran with the sandbox disabled. Verified
