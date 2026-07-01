@@ -3,7 +3,49 @@ package processmanual
 import (
 	"strings"
 	"testing"
+	"time"
 )
+
+// Task 3: segmentEvents splits the fired stream on a >60min lull in ALL activity
+// (gap over allTimes) OR an away_summary boundary.
+func TestSegmentEvents_gapAndAwaySummary(t *testing.T) {
+	base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+	at := func(min int) time.Time { return base.Add(time.Duration(min) * time.Minute) }
+	ev := func(min int) FiredEvent { return FiredEvent{Time: at(min), Kind: KindSkill} }
+	shape := func(segs [][]FiredEvent) []int {
+		out := make([]int, len(segs))
+		for i, s := range segs {
+			out[i] = len(s)
+		}
+		return out
+	}
+
+	// Gap: events at t, t+10, t+90 — the 80min lull before t+90 opens a new segment.
+	segs := segmentEvents(
+		[]FiredEvent{ev(0), ev(10), ev(90)},
+		[]time.Time{at(0), at(10), at(90)},
+		nil,
+	)
+	if got := shape(segs); len(got) != 2 || got[0] != 2 || got[1] != 1 {
+		t.Fatalf("gap split: want [2 1], got %v", got)
+	}
+
+	// away_summary at t+2 (no 60min gap) still splits the two events around it.
+	segs2 := segmentEvents(
+		[]FiredEvent{ev(0), ev(5)},
+		[]time.Time{at(0), at(2), at(5)},
+		[]time.Time{at(2)},
+	)
+	if got := shape(segs2); len(got) != 2 || got[0] != 1 || got[1] != 1 {
+		t.Fatalf("away split: want [1 1], got %v", got)
+	}
+
+	// No boundary → one segment.
+	segs3 := segmentEvents([]FiredEvent{ev(0), ev(5)}, []time.Time{at(0), at(5)}, nil)
+	if got := shape(segs3); len(got) != 1 || got[0] != 2 {
+		t.Fatalf("no split: want [2], got %v", got)
+	}
+}
 
 // fixtureJSONL assembles one JSON object per line — the tolerant parser's input.
 func fixtureJSONL(lines ...string) []byte {

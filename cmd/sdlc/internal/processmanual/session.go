@@ -143,6 +143,56 @@ func parseEvents(data []byte) (events []FiredEvent, allTimes []time.Time, awaySu
 	return events, allTimes, awaySummaryTimes, nil
 }
 
+// gapBoundary is the inactivity threshold that opens a new segment — ported from
+// introspect's normalize.py (GAP_BOUNDARY_SECONDS = 60*60), so the dynamic manual
+// segments a session the same way introspect does (ARCH-DRY on the algorithm).
+const gapBoundary = 60 * time.Minute
+
+// segmentEvents buckets the fired stream into segments. A boundary is EITHER an
+// away_summary instant OR a >gapBoundary lull between consecutive allTimes (all
+// activity, not just fired events — so quiet non-injection work resuming after a
+// long break splits, but a burst of unclassified tools between two fired events
+// does not). Pure over its inputs.
+func segmentEvents(events []FiredEvent, allTimes []time.Time, awaySummaryTimes []time.Time) [][]FiredEvent {
+	if len(events) == 0 {
+		return nil
+	}
+	// The resumed timestamp after each long lull — a new segment opens there.
+	var gapResumes []time.Time
+	for i := 1; i < len(allTimes); i++ {
+		if allTimes[i].Sub(allTimes[i-1]) > gapBoundary {
+			gapResumes = append(gapResumes, allTimes[i])
+		}
+	}
+	// A boundary falls between the previous and current fired event when a gap
+	// resumed (prev < g ≤ cur) or an away_summary was emitted (prev ≤ s < cur; the
+	// recap closes the prior segment, so events strictly after it start the next).
+	boundaryBetween := func(prev, cur time.Time) bool {
+		for _, g := range gapResumes {
+			if g.After(prev) && !g.After(cur) {
+				return true
+			}
+		}
+		for _, s := range awaySummaryTimes {
+			if !s.Before(prev) && s.Before(cur) {
+				return true
+			}
+		}
+		return false
+	}
+
+	var segments [][]FiredEvent
+	cur := []FiredEvent{events[0]}
+	for i := 1; i < len(events); i++ {
+		if boundaryBetween(events[i-1].Time, events[i].Time) {
+			segments = append(segments, cur)
+			cur = nil
+		}
+		cur = append(cur, events[i])
+	}
+	return append(segments, cur)
+}
+
 // extractStdout pulls .stdout from the polymorphic toolUseResult. It is a dict
 // {stdout,…} for Bash; a string or null for other tools — both of which fail the
 // struct unmarshal, which we swallow to stay tolerant.
