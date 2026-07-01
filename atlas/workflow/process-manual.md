@@ -50,9 +50,10 @@ Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/processmanual`:
   paths + personal content into a (committable) file. `--include-memory` shows them
   for local inspection only and is refused together with `--out`. When shown, they are
   located by convention (`claudeProjectSlug`); an absent dir yields a "none found" note.
-- **This is the static catalog (M1).** The dynamic pass — which of these actually
-  *fired* in a given session, in what order, and whether the agent followed them —
-  is a separate milestone (M2), which consumes this catalog as its baseline.
+- **This is the static catalog (#153 M1+M2: catalog + judge-prompts-as-markdown).** The
+  dynamic pass — which of these actually *fired* in a given session, in what order, and
+  whether the agent followed them — is a separate issue (**ariadne#157**), which consumes
+  this catalog as its baseline.
 
 ## Base-layer note
 
