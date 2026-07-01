@@ -1,8 +1,8 @@
-# sdlc retro — the process manual
+# sdlc process-manual — the process manual
 
 ## What it is
 
-`sdlc retro` regenerates a single markdown **process manual**: every always-on
+`sdlc process-manual` regenerates a single markdown **process manual**: every always-on
 injection source that shapes an agent's behavior, unrolled into one document with
 a live link back to each source. It answers "what *is* the process, and where does
 each piece live?" — the counterpart to `atlas/` (advisory prose) grounded instead
@@ -25,7 +25,7 @@ that part never drifts from what actually fires.
 
 ## Design
 
-Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/retro`:
+Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/processmanual`:
 
 - `InjectionSource` + `renderManual(sources, linkPrefix)` are pure — grouping,
   ordering, link-prefixing, and heading-safe **fencing** of bodies (an inlined
@@ -36,7 +36,7 @@ Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/retro`:
 - Judge prompts are shown as a **first-paragraph gist** + link, not inlined in full
   (each rendered prompt runs to hundreds of lines and re-embeds the ARCH registry —
   inlining all 8 would bloat the manual ~4×). The `When` says where each fires.
-- `cmd/sdlc/retro.go` is the cobra glue: `--out <path>` writes to a file (links
+- `cmd/sdlc/processmanual.go` is the cobra glue: `--out <path>` writes to a file (links
   re-based to that file), else stdout. Reuses `gitx.RepoTopLevel()` for the root.
 
 ## Stated blind spots (M1)
@@ -50,5 +50,5 @@ Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/retro`:
 
 ## Base-layer note
 
-`cmd/sdlc/{main.go, helptext/embed.go, retro.go}` are base-layer surface, so
-`sdlc retro` ships to every downstream ariadne repo (additive + read-only).
+`cmd/sdlc/{main.go, helptext/embed.go, processmanual.go}` are base-layer surface, so
+`sdlc process-manual` ships to every downstream ariadne repo (additive + read-only).

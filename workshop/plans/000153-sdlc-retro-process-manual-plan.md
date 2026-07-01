@@ -489,3 +489,18 @@ Not detailed here (would be speculative before the catalog exists). Shape only:
 - **Sidecar join** — for `sdlc close`/`milestone-close` review forks, read the correlated `workshop/history/…-review.md` sidecar rather than the orphan reviewer JSONL.
 - **Match events against the M1 catalog** (the baseline) → an **anomaly-first** report: injected-but-never-referenced instructions, deviations from the modal sequence, with `🤖[]` annotation slots.
 - Documented v2 blind spots carried forward: AGENTS.md/memory "step-0" by convention; generic Task-tool subagent forks need cwd+timestamp correlation.
+
+---
+
+## Revisions
+
+- **2026-07-01 — verb + package renamed `retro` → `process-manual`.** User asked to
+  make the verb explicit. All `retro` names in this plan (`cmd/sdlc/internal/retro/*`,
+  `cmd/sdlc/retro.go`, `RetroCmd`/`runRetro`, `package retro`, `sdlc retro`) map to the
+  new names: package `cmd/sdlc/internal/processmanual`, command `cmd/sdlc/processmanual.go`,
+  `NewProcessManualCmd`/`runProcessManual`, `package processmanual`, `sdlc process-manual`.
+  Also folded in during M1 (delta from the tasks above): dropped the dead
+  `helptext.Names()` (kept only `FS()`); `categoryBody` shows a first-paragraph **gist**
+  of each judge prompt (not the full body — full inline ran ~1100 lines with the ARCH
+  registry ×4); `renderManual` fences heading-bearing bodies and leaves absolute /
+  empty links unprefixed. Behaviour is otherwise as planned.

@@ -1,4 +1,4 @@
-`sdlc retro` unrolls every always-on injection source into one linked markdown
+`sdlc process-manual` unrolls every always-on injection source into one linked markdown
 "process manual" — the single document a human can read to see what the agentic
 process actually is, then navigate to each source to tune it (#153).
 

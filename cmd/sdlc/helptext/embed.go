@@ -20,7 +20,7 @@ import (
 var fs embed.FS
 
 // FS exposes the embedded help-text filesystem for enumeration (issue #153,
-// `sdlc retro`). Returns the concrete embed.FS, which satisfies io/fs.FS where
+// `sdlc process-manual`). Returns the concrete embed.FS, which satisfies io/fs.FS where
 // callers need it — so we avoid importing io/fs here (it would shadow `fs`).
 func FS() embed.FS { return fs }
 

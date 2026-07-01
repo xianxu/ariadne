@@ -59,7 +59,7 @@ func TestPushEmbedded(t *testing.T) {
 	}
 }
 
-// FS() must expose the embedded set so `sdlc retro` can enumerate it (#153).
+// FS() must expose the embedded set so `sdlc process-manual` can enumerate it (#153).
 func TestFS_OpensEmbeddedFile(t *testing.T) {
 	f, err := FS().Open("root.md")
 	if err != nil {

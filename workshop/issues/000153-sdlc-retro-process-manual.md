@@ -105,9 +105,9 @@ write-only; the payload is the exceptions). Output is a markdown report with liv
 
 ## Done when
 
-- `sdlc retro` emits a deterministic markdown **process manual**: every sdlc-injected
-  prompt + skill trigger + `lessons.md` + `AGENTS.md` chain + memories, each with a live
-  link to its source. (M1)
+- `sdlc process-manual` emits a deterministic markdown **process manual**: every
+  sdlc-injected prompt + skill trigger + `lessons.md` + `AGENTS.md` chain + memories,
+  each with a live link to its source. (M1)
 - A dynamic **per-session report** reconstructs which catalogued injection points fired,
   in order, anomalies first, with `🤖[]` annotation slots. (M2)
 - Blind spots (AGENTS.md/memory step-0; Task-tool forks) are documented as stated
@@ -200,3 +200,14 @@ estimate-quality that `AllCategories()` omits), help-text=20/20 files,
 skills=24/24 dirs, lessons+AGENTS+memory sections all present; exactly the 6
 intended `##` sections, no leaked prompt headers. Held at M1 for user testing
 before `sdlc milestone-close` (the mandatory fresh-context review boundary).
+
+### 2026-07-01 — verb renamed retro → process-manual
+
+User asked to make the verb explicit: `sdlc retro` → `sdlc process-manual`. Renamed
+end-to-end (verb + `helptext/process-manual.md` + internal package
+`internal/retro` → `internal/processmanual` + command file `processmanual.go` +
+`NewProcessManualCmd`/`runProcessManual` + tests + atlas), via `git mv` to preserve
+history. "retro" (retrospective) is thereby freed for the M2 dynamic session-
+reconstruction verb if that's where it lands. Historical references to "retro" in
+this issue's Spec/Estimate/earlier Log are left as the record; the branch/slug
+(`000153-sdlc-retro-process-manual`) is unchanged. Build/vet/tests green post-rename.
