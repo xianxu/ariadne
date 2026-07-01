@@ -6,9 +6,38 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/pkg/frontmatter"
 )
+
+// CollectOptions injects the IO seams so Collect is exercisable over a fixture:
+// the repo root (for repo-relative links + fixed files), the skills dir, and the
+// home dir (for the Claude-specific memory location).
+type CollectOptions struct {
+	RepoRoot  string
+	SkillsDir string
+	HomeDir   string
+}
+
+// Collect is the one IO aggregator: judge prompts (pure) + embedded help text +
+// skills + fixed repo files + persisted memories. Order fixes nothing —
+// renderManual groups + sorts.
+func Collect(opts CollectOptions) []InjectionSource {
+	var out []InjectionSource
+	out = append(out, judgeSources()...)
+	out = append(out, helptextSources(helptext.FS())...)
+	out = append(out, skillSources(opts.SkillsDir, opts.RepoRoot)...)
+	out = append(out, fileSources(opts.RepoRoot)...)
+	out = append(out, memorySources(opts.HomeDir, opts.RepoRoot)...)
+	return out
+}
+
+// Manual is the public composition: Collect → the pure renderManual. linkPrefix
+// is prepended to repo-relative links so the doc resolves from where it's written.
+func Manual(opts CollectOptions, linkPrefix string) string {
+	return renderManual(Collect(opts), linkPrefix)
+}
 
 // catalogCategories is the COMPLETE injected set — judge.AllCategories() omits
 // EstimateQuality (scoped to standalone `sdlc judge` validity), but that prompt
@@ -27,7 +56,11 @@ func catalogCategories() []judge.Category {
 // `lessons`.)
 func categoryBody(c judge.Category) string {
 	if body := judge.BuildPrompt(c, judge.PromptInput{}); strings.TrimSpace(body) != "" {
-		return body
+		// Gist, not the full prompt: the rendered judge prompts run to hundreds
+		// of lines and each re-embeds the ARCH registry, which would bloat the
+		// manual 4× over. The first paragraph orients the reader; the `When` says
+		// where it fires; the link points at the builder for the full text.
+		return firstParagraph(body)
 	}
 	if c == judge.Lessons {
 		return judge.LessonsReminder

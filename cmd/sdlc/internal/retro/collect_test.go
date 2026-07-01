@@ -120,3 +120,51 @@ func TestFileSources_LessonsAndAgentsChain(t *testing.T) {
 		t.Errorf("want 1 agents-chain record (only AGENTS.md present), got %d", kinds[KindAgentsChain])
 	}
 }
+
+// TestCollect_SpansEveryKind is the ARCH-PURPOSE shadow-sweep: over a fixture
+// wiring up every source, Collect must surface all six kinds — no injection
+// source silently dropped.
+func TestCollect_SpansEveryKind(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	skillDir := filepath.Join(root, ".claude", "skills", "xx-demo")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), "---\ndescription: demo.\n---\n\nbody.\n")
+
+	if err := os.MkdirAll(filepath.Join(root, "workshop"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(root, "workshop", "lessons.md"), "# Lessons\n\nx.\n")
+	mustWrite(t, filepath.Join(root, "AGENTS.md"), "# Constitution\n\ny.\n")
+
+	memDir := filepath.Join(home, ".claude", "projects", claudeProjectSlug(root), "memory")
+	if err := os.MkdirAll(memDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(memDir, "MEMORY.md"), "# Index\n")
+
+	got := Collect(CollectOptions{
+		RepoRoot:  root,
+		SkillsDir: filepath.Join(root, ".claude", "skills"),
+		HomeDir:   home,
+	})
+	seen := map[Kind]bool{}
+	for _, s := range got {
+		seen[s.Kind] = true
+	}
+	for _, k := range []Kind{KindSDLCPrompt, KindHelpText, KindSkill, KindLessons, KindAgentsChain, KindMemory} {
+		if !seen[k] {
+			t.Errorf("Collect missing kind %q (shadow-sweep)", k)
+		}
+	}
+}
+
+func mustWrite(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

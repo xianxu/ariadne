@@ -102,6 +102,7 @@ func buildRoot() *cobra.Command {
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
 	add(NewArchPrinciplesCmd(), "arch-principles", "Print the ARCH-* architecture principles (single source; pull for non-gate work)")
 	add(NewEstimateSourceCmd(), "estimate-source", "Name the shared estimate method + the repo-local calibration source (pull)")
+	add(NewRetroCmd(), "retro", "Unroll every injection source into a linked process manual (#153)")
 
 	// Hidden: deprecated aliases + the start stub. Order is irrelevant —
 	// they're omitted from the verb list.

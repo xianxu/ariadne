@@ -51,3 +51,27 @@ func TestRenderManual_AbsoluteAndEmptyLinks(t *testing.T) {
 		t.Errorf("empty link should render as a plain heading:\n%s", out)
 	}
 }
+
+func TestRenderManual_FencesHeadingBearingBodies(t *testing.T) {
+	sources := []InjectionSource{
+		{Kind: KindSDLCPrompt, Title: "dry", Link: "prompts.go", Body: "You are a reviewer.\n\n# ARCH-DRY\n\nprinciple text"},
+		{Kind: KindLessons, Title: "lessons.md", Link: "workshop/lessons.md", Body: "Prefer X over Y."},
+	}
+	out := renderManual(sources, "")
+	// A body containing `# ARCH-DRY` must be fenced so the heading renders as
+	// literal text (inside the fence) rather than hijacking the manual structure.
+	if !strings.Contains(out, "~~~\nYou are a reviewer.") {
+		t.Errorf("heading-bearing body should open with a ~~~ fence:\n%s", out)
+	}
+	// The embedded `# ARCH-DRY` line must sit AFTER a fence open (i.e. inside a
+	// fenced block), not stand alone as a live header.
+	fenceOpen := strings.Index(out, "~~~")
+	heading := strings.Index(out, "\n# ARCH-DRY\n")
+	if fenceOpen < 0 || heading < fenceOpen {
+		t.Errorf("`# ARCH-DRY` should be inside the fence:\n%s", out)
+	}
+	// A prose-only body is left unfenced.
+	if strings.Contains(out, "~~~\nPrefer X over Y") {
+		t.Errorf("prose-only body should not be fenced:\n%s", out)
+	}
+}

@@ -78,13 +78,42 @@ func renderManual(sources []InjectionSource, linkPrefix string) string {
 				fmt.Fprintf(&b, "**When:** %s\n\n", s.When)
 			}
 			if s.Body != "" {
+				// A Body carrying its own markdown headings (the inlined judge
+				// prompts embed `#`/`##` — the ARCH registry, checklists) would
+				// otherwise hijack the manual's section structure. Fence it (a
+				// `~~~` block, which won't collide with backtick fences inside the
+				// prompt) so headings render as literal text.
+				fenced := hasHeadingLine(s.Body)
+				if fenced {
+					b.WriteString("~~~\n")
+				}
 				b.WriteString(s.Body)
 				if !strings.HasSuffix(s.Body, "\n") {
 					b.WriteString("\n")
+				}
+				if fenced {
+					b.WriteString("~~~\n")
 				}
 				b.WriteString("\n")
 			}
 		}
 	}
 	return b.String()
+}
+
+// hasHeadingLine reports whether any line is an ATX markdown heading (`# ` …
+// `###### `). Such a body must be fenced before inlining so it can't corrupt the
+// manual's own heading structure.
+func hasHeadingLine(s string) bool {
+	for _, ln := range strings.Split(s, "\n") {
+		t := strings.TrimSpace(ln)
+		n := 0
+		for n < len(t) && t[n] == '#' {
+			n++
+		}
+		if n >= 1 && n <= 6 && n < len(t) && t[n] == ' ' {
+			return true
+		}
+	}
+	return false
 }
