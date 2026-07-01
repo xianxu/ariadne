@@ -24,6 +24,7 @@ import (
 // NewProcessManualCmd returns the cobra command for `sdlc process-manual`.
 func NewProcessManualCmd() *cobra.Command {
 	var out string
+	var full bool
 	cmd := &cobra.Command{
 		Use:           "process-manual",
 		Short:         "Unroll every injection source into a linked process manual",
@@ -31,17 +32,18 @@ func NewProcessManualCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProcessManual(cmd.OutOrStdout(), cmd.ErrOrStderr(), out)
+			return runProcessManual(cmd.OutOrStdout(), cmd.ErrOrStderr(), out, full)
 		},
 	}
 	cmd.Flags().StringVar(&out, "out", "", "write the manual to a file (default: stdout)")
+	cmd.Flags().BoolVar(&full, "full", false, "inline the complete judge prompts instead of a first-paragraph gist (outline unchanged)")
 	return cmd
 }
 
 // runProcessManual resolves the repo root + home, builds the manual, and writes
 // it to stdout or --out. For --out, links are prefixed with the out file's path
 // back to the repo root so they stay clickable (assumes --out is within the repo).
-func runProcessManual(stdout, stderr io.Writer, outPath string) error {
+func runProcessManual(stdout, stderr io.Writer, outPath string, full bool) error {
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err
@@ -51,6 +53,7 @@ func runProcessManual(stdout, stderr io.Writer, outPath string) error {
 		RepoRoot:  root,
 		SkillsDir: filepath.Join(root, ".claude", "skills"),
 		HomeDir:   home,
+		Full:      full,
 	}
 
 	linkPrefix := ""

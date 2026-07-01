@@ -11,7 +11,7 @@ import (
 )
 
 func TestJudgeSources_CoversEveryCategoryIncludingEstimate(t *testing.T) {
-	got := judgeSources()
+	got := judgeSources(false)
 	titles := map[string]InjectionSource{}
 	for _, s := range got {
 		if s.Kind != KindSDLCPrompt {
@@ -35,6 +35,32 @@ func TestJudgeSources_CoversEveryCategoryIncludingEstimate(t *testing.T) {
 		if !strings.Contains(s.Link, "prompts.go") {
 			t.Errorf("category %q link should point at the builder, got %q", c, s.Link)
 		}
+	}
+}
+
+func TestJudgeSources_FullVsGist(t *testing.T) {
+	find := func(ss []InjectionSource, title string) string {
+		for _, s := range ss {
+			if s.Title == title {
+				return s.Body
+			}
+		}
+		return ""
+	}
+	gist := find(judgeSources(false), "dry")
+	full := find(judgeSources(true), "dry")
+
+	// The dry prompt embeds the whole ARCH registry (ARCH-DRY/PURE/PURPOSE). The
+	// gist is just the first paragraph — it names ARCH-DRY but not the later
+	// ARCH-PURPOSE; --full inlines the registry, so it must.
+	if strings.Contains(gist, "ARCH-PURPOSE") {
+		t.Errorf("gist should be first paragraph only, but includes the full registry:\n%s", gist)
+	}
+	if !strings.Contains(full, "ARCH-PURPOSE") {
+		t.Errorf("--full should inline the embedded ARCH registry:\n%s", full)
+	}
+	if len(full) <= len(gist) {
+		t.Errorf("full body should be longer than gist (full=%d gist=%d)", len(full), len(gist))
 	}
 }
 

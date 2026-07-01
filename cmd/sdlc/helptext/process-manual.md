@@ -22,6 +22,12 @@ OUTPUT
   Prints to stdout by default; `--out <path>` writes to a file (links are
   rewritten relative to that file, assuming it sits within the repo).
 
+  `--full` inlines the COMPLETE judge prompts instead of a first-paragraph gist.
+  The full prompts are fenced, so the document's heading outline (your navigation
+  layer) is identical either way — `--full` only changes how much body text sits
+  under each entry. Only the judge prompts expand: help text / skills / lessons /
+  AGENTS / memories stay excerpt-plus-link (their full text is one click away).
+
 This is a DETERMINISTIC REGENERATION, not a hand-maintained doc — re-run it
 rather than editing the output. The sdlc-prompt slice comes straight from the
 binary, so it never drifts from what actually fires.

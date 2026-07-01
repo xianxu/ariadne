@@ -13,11 +13,13 @@ import (
 
 // CollectOptions injects the IO seams so Collect is exercisable over a fixture:
 // the repo root (for repo-relative links + fixed files), the skills dir, and the
-// home dir (for the Claude-specific memory location).
+// home dir (for the Claude-specific memory location). Full inlines the complete
+// judge prompts instead of a first-paragraph gist.
 type CollectOptions struct {
 	RepoRoot  string
 	SkillsDir string
 	HomeDir   string
+	Full      bool
 }
 
 // Collect is the one IO aggregator: judge prompts (pure) + embedded help text +
@@ -25,7 +27,7 @@ type CollectOptions struct {
 // renderManual groups + sorts.
 func Collect(opts CollectOptions) []InjectionSource {
 	var out []InjectionSource
-	out = append(out, judgeSources()...)
+	out = append(out, judgeSources(opts.Full)...)
 	out = append(out, helptextSources(helptext.FS())...)
 	out = append(out, skillSources(opts.SkillsDir, opts.RepoRoot)...)
 	out = append(out, fileSources(opts.RepoRoot)...)
@@ -54,18 +56,24 @@ func catalogCategories() []judge.Category {
 // judge.LessonsReminder. (This judge `lessons` category is a DIFFERENT injection
 // point from the workshop/lessons.md file, which fileSources emits under Kind
 // `lessons`.)
-func categoryBody(c judge.Category) string {
-	if body := judge.BuildPrompt(c, judge.PromptInput{}); strings.TrimSpace(body) != "" {
-		// Gist, not the full prompt: the rendered judge prompts run to hundreds
-		// of lines and each re-embeds the ARCH registry, which would bloat the
-		// manual 4× over. The first paragraph orients the reader; the `When` says
-		// where it fires; the link points at the builder for the full text.
-		return firstParagraph(body)
+func categoryBody(c judge.Category, full bool) string {
+	body := judge.BuildPrompt(c, judge.PromptInput{})
+	if strings.TrimSpace(body) == "" && c == judge.Lessons {
+		body = judge.LessonsReminder // lessons is a reminder ping, not a full prompt
 	}
-	if c == judge.Lessons {
-		return judge.LessonsReminder
+	if strings.TrimSpace(body) == "" {
+		return ""
 	}
-	return ""
+	if full {
+		// --full: the complete injected prompt. renderManual fences it (it carries
+		// its own headings), so the manual's outline is unaffected.
+		return body
+	}
+	// Default gist: the rendered judge prompts run to hundreds of lines and each
+	// re-embeds the ARCH registry, which would bloat the manual ~4×. The first
+	// paragraph orients the reader; the `When` says where it fires; the link points
+	// at the builder for the full text.
+	return firstParagraph(body)
 }
 
 // whenForCategory maps each category to its injection-trigger prose (pure).
@@ -82,8 +90,9 @@ func whenForCategory(c judge.Category) string {
 	}
 }
 
-// judgeSources is pure (judge.BuildPrompt + a constant do no IO).
-func judgeSources() []InjectionSource {
+// judgeSources is pure (judge.BuildPrompt + a constant do no IO). full inlines
+// the complete prompt bodies instead of first-paragraph gists.
+func judgeSources(full bool) []InjectionSource {
 	var out []InjectionSource
 	for _, c := range catalogCategories() {
 		out = append(out, InjectionSource{
@@ -91,7 +100,7 @@ func judgeSources() []InjectionSource {
 			Title: string(c),
 			When:  whenForCategory(c),
 			Link:  "cmd/sdlc/internal/judge/prompts.go",
-			Body:  categoryBody(c),
+			Body:  categoryBody(c, full),
 		})
 	}
 	return out
