@@ -307,8 +307,28 @@ func insertLogLine(body, logLine string) string {
 
 // ── main entry point ─────────────────────────────────────────────────────────
 
-func runClose(stderr io.Writer, f *closeFlags) error {
+// closeResult bundles everything applyClose needs, computed by computeClose
+// WITHOUT any writes — so the boundary review can run against the un-mutated
+// working tree and the writes fire only after a finalizing verdict (#139).
+type closeResult struct {
+	issuePath       string
+	issueText       string // original, for the "changed?" guard
+	newIssueText    string
+	projectEditPath string
+	projectEditText string
+	// calibration-ledger inputs (read from the ORIGINAL issue):
+	fm, body, repoName, issueStr, today string
+	// success messages that describe WRITES — emitted by applyClose (post-finalize),
+	// so a REWORK never prints "flipped → done" for a write that didn't happen.
+	appliedMsgs []string
+}
+
+// computeClose runs every close gate and composes the new issue/project text in
+// memory, returning a closeResult — it writes NOTHING. Gate failures still die() /
+// exitWithCode(1) fast, before any review (#139: extracted from runClose).
+func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	printSemanticWarmup(stderr)
+	var applied []string
 
 	if f.Issue <= 0 {
 		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
@@ -442,7 +462,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		n := len(pat.FindAllStringIndex(newBody, -1))
 		if n > 0 {
 			newBody = pat.ReplaceAllString(newBody, "${1}[x]${2}")
-			cok(stderr, fmt.Sprintf("ticked %s in %s ## Plan", f.Milestone, filepath.Base(issuePath)))
+			applied = append(applied, fmt.Sprintf("ticked %s in %s ## Plan", f.Milestone, filepath.Base(issuePath)))
 		} else {
 			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
 		}
@@ -475,7 +495,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		} else if f.skip("actual") {
 			msg += fmt.Sprintf(", actual_hours: %s", issue.ActualNotApplicableSentinel)
 		}
-		cok(stderr, msg)
+		applied = append(applied, msg)
 	}
 
 	if f.Verified != "" {
@@ -485,7 +505,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		}
 		logLine += " — " + f.Verified
 		newBody = insertLogLine(newBody, logLine)
-		cok(stderr, "appended verification line to ## Log")
+		applied = append(applied, "appended verification line to ## Log")
 	}
 
 	newIssueText := issue.Compose(newFM, newBody)
@@ -512,7 +532,7 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 			tickedPT, n := project.TickMilestoneTaskRow(newPT, repoName, issueStr, f.Milestone)
 			newPT = tickedPT
 			if n > 0 {
-				cok(stderr, fmt.Sprintf("ticked [%s#%s %s] in %s", repoName, issueStr, f.Milestone, filepath.Base(projPath)))
+				applied = append(applied, fmt.Sprintf("ticked [%s#%s %s] in %s", repoName, issueStr, f.Milestone, filepath.Base(projPath)))
 			} else {
 				cwarn(stderr, fmt.Sprintf("no task line for [%s#%s %s] in %s", repoName, issueStr, f.Milestone, filepath.Base(projPath)))
 			}
@@ -554,13 +574,13 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 			}
 			if found {
 				newPT = updated
-				cok(stderr, fmt.Sprintf("updated detail block <a id=\"%s\"> in %s", anchor, filepath.Base(projPath)))
+				applied = append(applied, fmt.Sprintf("updated detail block <a id=\"%s\"> in %s", anchor, filepath.Base(projPath)))
 			}
 		} else { // issue close
 			tickedPT, n := project.TickAllTaskRowsForIssue(newPT, repoName, issueStr)
 			newPT = tickedPT
 			if n > 0 {
-				cok(stderr, fmt.Sprintf("ticked %d remaining task line(s) for %s#%s in %s", n, repoName, issueStr, filepath.Base(projPath)))
+				applied = append(applied, fmt.Sprintf("ticked %d remaining task line(s) for %s#%s in %s", n, repoName, issueStr, filepath.Base(projPath)))
 			}
 			if n > 1 {
 				cwarn(stderr, fmt.Sprintf("multiple %s#%s task rows ticked at once — confirm individual milestones were genuinely closed (§5 step 1)", repoName, issueStr))
@@ -573,36 +593,68 @@ func runClose(stderr io.Writer, f *closeFlags) error {
 		}
 	}
 
-	// ── Write ───────────────────────────────────────────────────────────────
-	if f.DryRun {
-		cinfo(stderr, "DRY=1 — no files written")
-		fmt.Fprintf(os.Stdout, "Would update: %s\n", issuePath)
-		if projectEditPath != "" {
-			fmt.Fprintf(os.Stdout, "Would update: %s\n", projectEditPath)
-		}
-		return nil
+	return closeResult{
+		issuePath:       issuePath,
+		issueText:       issueText,
+		newIssueText:    newIssueText,
+		projectEditPath: projectEditPath,
+		projectEditText: projectEditText,
+		fm:              fm,
+		body:            body,
+		repoName:        repoName,
+		issueStr:        issueStr,
+		today:           today,
+		appliedMsgs:     applied,
 	}
+}
 
-	if newIssueText != issueText {
-		if err := os.WriteFile(issuePath, []byte(newIssueText), 0o644); err != nil {
-			die(stderr, fmt.Sprintf("write %s: %v", issuePath, err))
-		}
+// printCloseDryRun prints what a close WOULD change, writing nothing (#139).
+func printCloseDryRun(stderr io.Writer, r closeResult) {
+	cinfo(stderr, "DRY=1 — no files written")
+	fmt.Fprintf(os.Stdout, "Would update: %s\n", r.issuePath)
+	if r.projectEditPath != "" {
+		fmt.Fprintf(os.Stdout, "Would update: %s\n", r.projectEditPath)
 	}
-	if projectEditPath != "" {
-		if err := os.WriteFile(projectEditPath, []byte(projectEditText), 0o644); err != nil {
-			die(stderr, fmt.Sprintf("write %s: %v", projectEditPath, err))
-		}
-	}
+}
 
+// applyClose performs the close's writes — issue + project files + the #117
+// calibration ledger — then emits the success messages computeClose deferred
+// (so "flipped → done" prints only when the flip actually happened). Called only
+// after a finalizing verdict, or on the eager non-review path (#139).
+func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
+	if r.newIssueText != r.issueText {
+		if err := os.WriteFile(r.issuePath, []byte(r.newIssueText), 0o644); err != nil {
+			die(stderr, fmt.Sprintf("write %s: %v", r.issuePath, err))
+		}
+	}
+	if r.projectEditPath != "" {
+		if err := os.WriteFile(r.projectEditPath, []byte(r.projectEditText), 0o644); err != nil {
+			die(stderr, fmt.Sprintf("write %s: %v", r.projectEditPath, err))
+		}
+	}
+	for _, m := range r.appliedMsgs {
+		cok(stderr, m)
+	}
 	// ── Close the loop (#117 mechanism 3) ────────────────────────────────────
 	// On a full-issue close with a measured actual, append the estimate↔actual
 	// data point to the calibration ledger. Milestone closes carry a partial
 	// actual, so only the whole-issue close yields a clean row.
 	if shouldLogCalibration(f) {
-		appendCalibrationRow(stderr, f, fm, body, repoName, issueStr, today)
+		appendCalibrationRow(stderr, f, r.fm, r.body, r.repoName, r.issueStr, r.today)
 	}
-
 	cok(stderr, "done — review with `git diff`, then commit")
+}
+
+// runClose is the eager wrapper (compute → dry-run-or-apply) — the exact behavior
+// its non-review callers depend on: milestone-close's mechanical step, the
+// `sdlc close --milestone` short-circuit, and direct callers.
+func runClose(stderr io.Writer, f *closeFlags) error {
+	r := computeClose(stderr, f)
+	if f.DryRun {
+		printCloseDryRun(stderr, r)
+		return nil
+	}
+	applyClose(stderr, f, r)
 	return nil
 }
 
