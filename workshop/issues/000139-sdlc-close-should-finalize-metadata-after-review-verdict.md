@@ -1,12 +1,12 @@
 ---
 id: 000139
-status: blocked
+status: working
 deps: [ariadne#147]
 target: agent-binary-handoff-schema
 github_issue:
 created: 2026-06-29
 updated: 2026-06-30
-estimate_hours:
+estimate_hours: 0.63
 started: 2026-06-30T12:11:03-07:00
 ---
 
@@ -57,25 +57,47 @@ action, and avoid appending a misleading "closed" log entry.
 
 ## Done when
 
-- [ ] A failed/REWORK boundary review does not leave the issue at `status: done`.
-- [ ] Rerunning close after fixing review findings does not require
+- [x] A failed/REWORK boundary review does not leave the issue at `status: done`.
+- [x] Rerunning close after fixing review findings does not require
       `--no-reclose-guard`.
-- [ ] Close appends exactly one final "closed" log line for the successful close.
-- [ ] The final close bookkeeping commit can carry `Review-Verdict:` trailers
+- [x] Close appends exactly one final "closed" log line for the successful close.
+- [x] The final close bookkeeping commit can carry `Review-Verdict:` trailers
       without causing a recursive review requirement.
-- [ ] Tests cover `SHIP`, `FIX-THEN-SHIP`, `REWORK`, judge failure, and
+- [x] Tests cover `SHIP`, `FIX-THEN-SHIP`, `REWORK`, judge failure, and
       `--no-judge` close flows.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module   design=0.1 impl=0.2
+item: smaller-go-module   design=0.1 impl=0.2
+design-buffer: 0.15
+total: 0.63
+```
+
+Two extends of `cmd/sdlc/close.go` (+ `milestoneclose.go`): (1) split `runClose`
+at its existing compute/write boundary into `computeClose`/`applyClose` (behavior-
+preserving); (2) `closeVerdictOutcome` (derived from `vocab.Verdict()`, #147) +
+`reviewThenFinalize` (three outcomes) + rewire full-issue close AND fold in
+milestone-close. Design pre-resolved by the durable plan → reduced design + +15%
+buffer; impl at the v3.1 40%-scaled smaller-go-module top.
+
+Detailed design + TDD breakdown: `workshop/plans/000139-close-finalize-after-verdict-plan.md`.
 
 ## Plan
 
-- [ ] Inspect the current close mutation order in `cmd/sdlc/close.go`.
-- [ ] Define the acceptable verdict policy for finalizing close metadata.
-- [ ] Introduce a close plan/result object that can be computed before writes.
-- [ ] Move issue-file mutation until after boundary review success.
-- [ ] Preserve or improve the judge prompt's access to issue plan/done-when
-      context without requiring a pre-review status flip.
-- [ ] Add regression tests for REWORK leaving the issue open/working and for a
-      later successful rerun producing one clean close line.
+- [x] Inspect the current close mutation order in `cmd/sdlc/close.go`.
+- [x] Define the acceptable verdict policy for finalizing close metadata
+      (3 outcomes, derived from `vocab.Verdict()`; only REWORK reworks, unknown halts).
+- [x] Introduce a close plan/result object (`closeResult`) computed before writes.
+- [x] Move issue-file mutation until after boundary review success (`applyClose`
+      fires only on a finalizing verdict; success messages emitted post-write).
+- [x] Reviewer reads the un-mutated `working` tree (real Plan/Done-when) — no
+      pre-review status flip.
+- [x] Regression tests: REWORK/unknown leave `working`; rerun produces one clean
+      close line, no `--no-reclose-guard`; milestone-close mirrored.
 
 ## Log
 
@@ -95,3 +117,30 @@ action, and avoid appending a misleading "closed" log entry.
   cause is the unstructured verdict handoff (free-text stdout regex-parsed), which
   #147 fixes with a CUE-modeled, schema-validated structured handoff. Do #147
   first so this issue's close reads a robust verdict; then resume here.
+
+- **Resumed + implemented (#147 merged).** `runClose` split at its existing
+  compute/write boundary into read-only `computeClose` (all gates, composes new
+  issue/project text into a `closeResult`, writes nothing) + `applyClose` (writes +
+  calibration ledger). The success messages ("flipped → done", etc.) are collected
+  in `closeResult.appliedMsgs` and emitted **only** by `applyClose` post-write — so
+  a REWORK never prints a write that didn't happen (a plan-quality gate finding).
+  Both full-issue close (`runCloseWithReview`) and milestone-close
+  (`runMilestoneClose`) reorder to **computeClose → review-against-the-un-mutated-tree
+  → finalize** via the shared `reviewThenFinalize`. `closeVerdictOutcome` derives
+  from `vocab.Verdict().IsFinalizing/IsBlocking` (#147 single-source): finalizing →
+  apply; REWORK → not finalized (stays `working`, non-zero, "fix + re-run", no
+  `--no-reclose-guard` on rerun); unknown / dispatch-error → **halt** ("UNEXPECTED —
+  stop, consult a human"). `--no-judge` finalizes, handled before dispatch so only a
+  genuine dispatch error reaches the halt path. Done-when 4 is structural (close
+  never commits; the review fires only inside the verb).
+
+  Implementation delegated to a context-carrying fork (the plan + gate feedback);
+  fresh-eyes reviewed the diff (the compute/apply seam, the 3-outcome dispatch, the
+  `--no-judge`-before-dispatch ordering, and the REWORK/unknown/rerun + milestone
+  tests). Verification: `go test ./cmd/sdlc/... ./pkg/vocab/` all pass. New
+  `close_finalize_test.go`: `TestCloseVerdictOutcome` (pure);
+  `TestRunCloseWithReview_{REWORK_DoesNotFinalize,Unknown_Halts,RerunAfterREWORK}`
+  (REWORK asserts no `status: done`, no `closed` line, no `actual_hours`, no
+  "flipped" printed; rerun finalizes with exactly one close line, no
+  `--no-reclose-guard`) + the milestone REWORK/SHIP mirror. Existing close tests
+  stay green (extract was behavior-preserving). This close dogfoods #139 + #147.

@@ -23,18 +23,23 @@
 - **closeResult** — value bundling everything `applyClose` needs, computed without writes: `issuePath`, `issueText` (orig), `newIssueText`, `projectEditPath`, `projectEditText`, and the calibration-ledger inputs (`fm`, `body`, `repoName`, `issueStr`, `today`). The seam that lets compute and apply straddle the review.
   - **DRY rationale:** one struct carries the computed close; the eager wrapper, full-issue close, and milestone-close all consume it — none recompute.
 - **computeClose** — `computeClose(stderr io.Writer, f *closeFlags) closeResult`: current `runClose` body lines 311–574 (all validation gates + in-memory compose). Keeps `die()` on gate failure (validation fails fast, *before* any review). Writes nothing.
-- **closeOutcome + closeVerdictOutcome** — the finalize policy, named once:
+- **closeOutcome + closeVerdictOutcome** — the finalize policy, named once and
+  **derived from `vocab.Verdict()`** (the #147 single-source — NOT a hardcoded
+  switch, which would reintroduce the verdict enumeration #147 killed):
   ```go
   type closeOutcome int
   const ( closeFinalize closeOutcome = iota; closeRework; closeHalt )
   func closeVerdictOutcome(v judge.Verdict) closeOutcome {
-      switch v {
-      case judge.VerdictShip, judge.VerdictFixThenShip: return closeFinalize
-      case judge.VerdictRework:                          return closeRework
-      default:                                           return closeHalt // VerdictUnknown, VerdictNotRun(dispatch error)
+      switch t := string(v); {
+      case vocab.Verdict().IsFinalizing(t): return closeFinalize // SHIP, FIX-THEN-SHIP
+      case vocab.Verdict().IsBlocking(t):   return closeRework   // REWORK
+      default:                              return closeHalt     // unknown, not-run(dispatch error)
       }
   }
   ```
+  A pure `TestCloseVerdictOutcome` still enumerates the expected mapping, but the
+  policy itself reads the model — so a new verdict token in `verdict.cue` flows here
+  automatically (finalizing/blocking) rather than silently falling to `closeHalt`.
   - **`unknown` → `closeHalt`, never finalize.** An `unknown`/`not-run`-from-error verdict means the review ran but produced no clear SHIP/FIX-THEN-SHIP/REWORK — an *unexpected* state (usually a gate/prompt bug). The close must NOT paper over it by finalizing; it halts so a human investigates the root cause. (An explicit `--no-judge` skip is handled *before* dispatch and finalizes — that's an operator decision, not an ambiguous review.)
 
 ### Integration points (where pure meets the world)
@@ -138,3 +143,12 @@
 
 - **Verdict-parser robustness is NOT in scope here, but is the root cause of the frequent `unknown` this session** (reviewers wrote prose like "the verdict stands: FIX-THEN-SHIP" instead of a `VERDICT:` line). With D2's halt-on-unknown, those closes will halt until that's fixed — a **separate issue** to harden `ParseVerdict`/the prompt so `unknown` becomes genuinely rare. Flagged for the operator to file; #139 deliberately surfaces the bug rather than hiding it.
 - No change to the gate set, the trailer format, or the sidecar.
+
+## Revisions
+
+- **2026-06-30 — resumed after #147 (dep satisfied).** `closeVerdictOutcome` now
+  **derives from `vocab.Verdict().IsFinalizing/IsBlocking`** (the #147 single-source)
+  instead of a hardcoded SHIP/FIX-THEN-SHIP/REWORK switch — so #139 doesn't
+  reintroduce the verdict enumeration #147 collapsed (agent-binary-handoff-schema
+  target). With #147's structured handoff, `unknown` is now rare/genuine, so
+  halt-on-`unknown` (closeHalt) is sound. The rest of the design is unchanged.
