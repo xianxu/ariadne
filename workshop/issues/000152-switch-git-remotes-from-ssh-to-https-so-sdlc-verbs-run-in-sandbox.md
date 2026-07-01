@@ -1,12 +1,13 @@
 ---
 id: 000152
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
 estimate_hours: 0.47
 started: 2026-07-01T10:40:28-07:00
+actual_hours: 0.42
 ---
 
 # Switch git remotes from SSH to HTTPS so sdlc verbs run in-sandbox
@@ -128,9 +129,12 @@ narrower than the Spec assumed):
   real origins use). Fixing that is now part of this issue.
 - **Durability decision (recorded):** container = automated via the openshell
   overlay (once the `--add` bug is fixed); **host = one-time `git config --global`**,
-  documented in atlas. There is no pre-clone host-setup hook to bake it into —
-  `bootstrap.sh` git-clones peers *before* any config step could run, so the host
-  config can't be self-applied there. Documented one-time step it is.
+  documented in atlas. The load-bearing reason to keep the host step *manual* is
+  **blast radius** — auto-applying a *global* transport rewrite from a base-layer
+  script (`bootstrap-peers.sh` et al.) would silently flip git transport for every
+  downstream user, sandbox or not. (There's also no pre-clone host hook to bake it
+  into, but blast radius is why we wouldn't even if there were.) Documented
+  one-time step it is; migrate it into a host post-clone phase if one ever exists.
 - **brain / brain-family** (`gcrypt::ssh://git@github.com/…`) are NOT switched:
   the `git@github.com:` prefix doesn't match `gcrypt::ssh://…`, so they're
   untouched (confirmed). Switching an encrypted gcrypt remote's transport is a
@@ -163,6 +167,7 @@ total: 0.47
 ## Log
 
 ### 2026-07-01
+- 2026-07-01: closed — Host ~/.gitconfig insteadOf applied (both git@github.com: and ssh:// forms, via --add); git push --dry-run origin main → HTTPS rewrite → "Everything up-to-date" with the Claude Code sandbox ON (pre-fix it errored on SSH). Dogfooded: sdlc claim #152 pushed to origin over HTTPS sandbox-ON. Fixed the missing-*--add* bug in .openshell/overlay/setup.sh (bash -n clean; git-config block idempotent — exactly 2 insteadOf values on re-run). brain/gcrypt::ssh remotes confirmed unmatched/untouched; atlas documents the container+host+gcrypt story.; review verdict: SHIP
 
 - Filed while landing #140/#141: every `sdlc` push in this sandbox session failed
   on the SSH remote, so pr/merge/claim ran with the sandbox disabled. Verified

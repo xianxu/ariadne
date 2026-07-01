@@ -12,6 +12,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Directory Conventions](workflow/directory-conventions.md) — standard repo layout
 - [sdlc Binary](workflow/sdlc-binary.md) — unified checkpoint-guard binary (`cmd/sdlc/`), 12 verbs (incl. the `issue` group + `active-time`, the in-binary v3 attribution engine #110) replacing the Make-target surface; embedded `--help` per subcommand; fresh-context judges for anti-collusion
 - [Sandbox](workflow/sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
+- [OpenShell Sandbox](workflow/openshell-sandbox.md) — the containerized dev sandbox in the workflow: setup, what's inside, git transport (HTTPS-not-SSH, #152), base-layer provisioning
 - [Data Artifacts](workflow/data-artifacts.md) — typed markdown documents (xx-datatype skill, prototypes, capture flow)
 - [Introspection](workflow/introspect.md) — postmortem mining of past Claude transcripts into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)
 - [docflow](workflow/docflow.md) — branch-scoped prose review with per-round git journaling (`review/<slug>` branch, `--no-ff` merge); companion to the `xx-fix` skill (#79)

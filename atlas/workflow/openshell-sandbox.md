@@ -57,14 +57,18 @@ config, rewrites it to HTTPS per-operation), applied in two places:
   the host) and the host itself. A one-time operator step (NOT `sslVerify=false`
   — host TLS to github.com is real):
   ```bash
+  git config --global --unset-all url."https://github.com/".insteadOf 2>/dev/null || true
   git config --global --add url."https://github.com/".insteadOf "git@github.com:"
   git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
   ```
   `insteadOf` is **multi-valued** — use `--add`, or the second line replaces the
   first and only `ssh://` survives (so `git@github.com:`, the form real origins
-  use, silently stays SSH). This is a one-time step because there's no pre-clone
-  host-setup hook to bake it into (`bootstrap.sh` clones peers before any config
-  step could run).
+  use, silently stays SSH); the leading `--unset-all` keeps it idempotent on
+  re-run. It's kept a **manual** step rather than baked into a base-layer script
+  for **blast radius**: auto-applying a *global* transport rewrite from e.g.
+  `bootstrap-peers.sh` would silently flip git transport for every downstream
+  user, sandbox or not. If a host post-clone setup phase ever materializes, this
+  is the line to migrate into it.
 
 **Caveat — encrypted brain remotes.** `brain` / `brain-family` use
 `gcrypt::ssh://git@github.com/…`; the `git@github.com:` prefix doesn't match, so
