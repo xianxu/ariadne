@@ -16,10 +16,11 @@ import (
 // home dir (for the Claude-specific memory location). Full inlines the complete
 // judge prompts instead of a first-paragraph gist.
 type CollectOptions struct {
-	RepoRoot  string
-	SkillsDir string
-	HomeDir   string
-	Full      bool
+	RepoRoot      string
+	SkillsDir     string
+	HomeDir       string
+	Full          bool
+	IncludeMemory bool // inline private, machine-local memories (default: redacted)
 }
 
 // Collect is the one IO aggregator: judge prompts (pure) + embedded help text +
@@ -31,7 +32,7 @@ func Collect(opts CollectOptions) []InjectionSource {
 	out = append(out, helptextSources(helptext.FS())...)
 	out = append(out, skillSources(opts.SkillsDir, opts.RepoRoot)...)
 	out = append(out, fileSources(opts.RepoRoot)...)
-	out = append(out, memorySources(opts.HomeDir, opts.RepoRoot)...)
+	out = append(out, memorySources(opts.HomeDir, opts.RepoRoot, opts.IncludeMemory)...)
 	return out
 }
 

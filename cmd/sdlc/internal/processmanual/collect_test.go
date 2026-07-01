@@ -173,9 +173,10 @@ func TestCollect_SpansEveryKind(t *testing.T) {
 	mustWrite(t, filepath.Join(memDir, "MEMORY.md"), "# Index\n")
 
 	got := Collect(CollectOptions{
-		RepoRoot:  root,
-		SkillsDir: filepath.Join(root, ".claude", "skills"),
-		HomeDir:   home,
+		RepoRoot:      root,
+		SkillsDir:     filepath.Join(root, ".claude", "skills"),
+		HomeDir:       home,
+		IncludeMemory: true,
 	})
 	seen := map[Kind]bool{}
 	for _, s := range got {

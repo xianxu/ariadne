@@ -12,7 +12,9 @@ WHAT IT CATALOGS
   - Lessons — `workshop/lessons.md`.
   - AGENTS chain — `AGENTS.md` + `.base` / `.local`, and the per-agent
     `CLAUDE.md` / `GEMINI.md` variants.
-  - Persisted memories — best-effort, from the Claude harness project dir.
+  - Persisted memories — **redacted by default** (they carry absolute home paths
+    + personal content). `--include-memory` inlines them for local inspection
+    only; it is refused with `--out` and you must not commit that output.
 
 Each entry links back to its origin, so the manual is a navigation surface:
 click through to the source, or drop a `🤖[]` marker to co-edit it with an agent.

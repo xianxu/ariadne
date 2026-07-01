@@ -41,9 +41,11 @@ Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/processmanual`:
 
 ## Stated blind spots (M1)
 
-- **Persisted memories are agent-specific (Claude) and live outside the repo**, so
-  they are located by convention (`claudeProjectSlug`), not parsed from the tree —
-  the links are absolute, and an absent dir yields a "none found" note.
+- **Persisted memories are agent-specific (Claude), private, and live outside the
+  repo.** They are **redacted by default** — inlining them would write absolute home
+  paths + personal content into a (committable) file. `--include-memory` shows them
+  for local inspection only and is refused together with `--out`. When shown, they are
+  located by convention (`claudeProjectSlug`); an absent dir yields a "none found" note.
 - **This is the static catalog (M1).** The dynamic pass — which of these actually
   *fired* in a given session, in what order, and whether the agent followed them —
   is a separate milestone (M2), which consumes this catalog as its baseline.

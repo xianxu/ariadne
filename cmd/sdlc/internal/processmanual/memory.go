@@ -14,11 +14,21 @@ func claudeProjectSlug(absRepoRoot string) string {
 }
 
 // memorySources is best-effort: persisted agent memories are Claude-specific and
-// live OUTSIDE the repo, at ~/.claude/projects/<slug>/memory. When present, each
-// memory file becomes a record with an absolute (outside-repo) Link; when absent,
-// a single note surfaces the documented blind spot rather than silently dropping
-// it (#153).
-func memorySources(homeDir, absRepoRoot string) []InjectionSource {
+// live OUTSIDE the repo, at ~/.claude/projects/<slug>/memory. They are also
+// PRIVATE + machine-specific (absolute home paths, personal content), so they are
+// REDACTED by default — a written/committed manual must never carry them. `include`
+// (the `--include-memory` flag, local-only) inlines them for the operator's own view.
+func memorySources(homeDir, absRepoRoot string, include bool) []InjectionSource {
+	if !include {
+		return []InjectionSource{{
+			Kind:  KindMemory,
+			Title: "(persisted memories — not inlined)",
+			When:  "persisted agent memories (Claude) — private, machine-local, outside the repo",
+			Body: "Redacted by default: memories carry absolute home paths + personal content, " +
+				"so they are never written into a shareable/committed manual. Run " +
+				"`sdlc process-manual --include-memory` locally to inspect them — do not commit that output.",
+		}}
+	}
 	memDir := filepath.Join(homeDir, ".claude", "projects", claudeProjectSlug(absRepoRoot), "memory")
 	entries, err := os.ReadDir(memDir)
 	if err == nil {

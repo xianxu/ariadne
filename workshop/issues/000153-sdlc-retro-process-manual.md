@@ -211,3 +211,21 @@ history. "retro" (retrospective) is thereby freed for the M2 dynamic session-
 reconstruction verb if that's where it lands. Historical references to "retro" in
 this issue's Spec/Estimate/earlier Log are left as the record; the branch/slug
 (`000153-sdlc-retro-process-manual`) is unchanged. Build/vet/tests green post-rename.
+
+### 2026-07-01 — --full flag + memory privacy fix
+
+Added `--full` (inline complete judge prompts; default stays gist). Verified the
+markdown outline is byte-identical between gist and --full (both 70 headings) —
+because heading-bearing bodies are fenced, so --full only changes body depth, never
+the navigation layer. Scoped to judge prompts (help text/skills stay excerpt+link).
+
+**Privacy fix (caught before push):** tracking the generated manual initially baked
+the operator's **private memories** (absolute `~/.claude/projects/…` home paths +
+personal memory contents) into a base-layer, downstream-propagating repo. Dropped
+that commit from history via `git reset` (unpushed, so it never leaves the machine —
+`git gc` to purge the dangling blob if desired). Memory is now **redacted by
+default**: the section shows a note, not paths/content. `--include-memory` inlines
+them for LOCAL inspection only and is **refused with `--out`** (the file→commit
+footgun). Regenerated `atlas/process-manual.md` and scanned it — 0 hits for home
+path / `.claude/projects` / personal-memory markers. Test `TestMemorySources_
+RedactedByDefault` pins the no-leak invariant.
