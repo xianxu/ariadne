@@ -1,11 +1,12 @@
 ---
 id: 000152
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
 estimate_hours:
+started: 2026-07-01T10:40:28-07:00
 ---
 
 # Switch git remotes from SSH to HTTPS so sdlc verbs run in-sandbox
