@@ -31,7 +31,7 @@ func TestDispatchMilestoneReview_PromptBuildAndDispatch(t *testing.T) {
 
 	var seenName string
 	var seenArgs []string
-	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		seenName = name
 		seenArgs = args
 		return []byte("No DRY violations found.\n"), nil
@@ -76,7 +76,7 @@ func TestDispatchBoundaryReview_AgentDefaultUsesPairAgent(t *testing.T) {
 	defer func() { judge.Run = orig }()
 
 	var seenName string
-	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		seenName = name
 		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
 	}
@@ -281,7 +281,7 @@ func TestDispatchMilestoneReview_VerdictCapture(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 				return []byte(tc.agentOutput), nil
 			}
 			out, err := judge.Dispatch(context.Background(), judge.DispatchOptions{

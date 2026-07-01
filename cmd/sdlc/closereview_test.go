@@ -70,7 +70,7 @@ func stubJudge(t *testing.T, output string) (*int, *string) {
 	t.Cleanup(func() { judge.Run = orig })
 	calls := 0
 	var lastPrompt string
-	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		calls++
 		if len(args) > 0 {
 			lastPrompt = args[len(args)-1] // BuildArgs puts the prompt last
@@ -86,7 +86,7 @@ func stubJudgeCommand(t *testing.T, output string) (*int, *string) {
 	t.Cleanup(func() { judge.Run = orig })
 	calls := 0
 	var lastName string
-	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		calls++
 		lastName = name
 		return []byte(output), nil

@@ -147,7 +147,7 @@ func stubJudgeName(t *testing.T) *string {
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
 	seenName := ""
-	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		seenName = name
 		return []byte("VERDICT: CLEAN (confidence: high)\n"), nil
 	}
