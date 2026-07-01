@@ -5,7 +5,7 @@ deps: [ariadne#153]
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
-estimate_hours:
+estimate_hours: 2.6
 started: 2026-07-01T16:06:44-07:00
 ---
 
@@ -88,6 +88,33 @@ Same as M1: markdown report with live links + `🤖[]` slots (composes with `xx-
       Go JSONL parser (tolerate unknown record `type`s) → ordered event stream →
       segmentation → match to M1 catalog Kinds → linked markdown report. Reuse M1's
       `InjectionSource` + `renderManual`.
+
+## Estimate
+
+Single-pass atomic work (no `Mx` tags → one `sdlc close`, one review boundary),
+shaped like #153's M1 (a pure Go core + wiring + atlas + review — the closest
+calibrated sibling, same author). Design is largely spent (grounding digest +
+reviewed plan), reflected in the design hours. *Produced via
+`brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.5 impl=1.1
+item: smaller-go-module      design=0.2 impl=0.4
+item: atlas-docs             design=0.0 impl=0.1
+item: milestone-review       design=0.0 impl=0.2
+design-buffer: 0.15
+total: 2.6
+```
+
+Derivation: `session.go` (pure core — tolerant `parseEvents` + `classifyToolUse`
++ `segmentEvents` + `renderSessionReport`, all fixture-tested) = greenfield
+module, tracking #153 M1's greenfield row (design=0.8 impl=1.2) but smaller
+(single file, design mostly done); `locateSessionJSONL` + `--session` cobra
+wiring = smaller-go-module; atlas relink = atlas-docs; the single close-review =
+milestone-review. Design-buffer 0.15 (thorough reviewed plan).
 
 ## Log
 

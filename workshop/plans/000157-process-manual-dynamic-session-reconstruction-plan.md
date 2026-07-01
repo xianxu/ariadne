@@ -109,11 +109,13 @@
 
 ## Estimate
 
-Set in the issue `## Estimate` block before `change-code` (v3.1). Rough shape: one
-`greenfield-go-module` (`session.go`: parser + classifier + segmenter + renderer, all
-pure + fixture-tested) + a `smaller-go-module` (`--session` wiring + `locateSessionJSONL`)
-+ `atlas-docs` + the `milestone-review`. Deterministic, fixture-driven, reuses M1 —
-~3–4h.
+The canonical reconciled derivation is the issue's `## Estimate` block (v3.1,
+Method A) — **2.6h**: one `greenfield-go-module` (`session.go`: parser +
+classifier + segmenter + renderer, all pure + fixture-tested) + a
+`smaller-go-module` (`--session` wiring + `locateSessionJSONL`) + `atlas-docs` +
+the single close-review (`milestone-review`). Deterministic, fixture-driven,
+reuses M1. The estimate-quality gate reads the issue block, so this plan does not
+carry a second (divergent) number.
 
 ## Explicitly deferred (a later issue, not #157)
 
