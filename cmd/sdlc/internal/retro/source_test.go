@@ -35,3 +35,19 @@ func TestRenderManual_LinkPrefixApplied(t *testing.T) {
 		t.Errorf("linkPrefix not applied:\n%s", out)
 	}
 }
+
+func TestRenderManual_AbsoluteAndEmptyLinks(t *testing.T) {
+	sources := []InjectionSource{
+		{Kind: KindMemory, Title: "MEMORY.md", Link: "/home/u/.claude/projects/x/memory/MEMORY.md"},
+		{Kind: KindMemory, Title: "(none)", Link: ""},
+	}
+	out := renderManual(sources, "../")
+	// Absolute (outside-repo) links must NOT get the relative linkPrefix.
+	if !strings.Contains(out, "(/home/u/.claude/projects/x/memory/MEMORY.md)") || strings.Contains(out, "../home/u") {
+		t.Errorf("absolute link should be untouched by linkPrefix:\n%s", out)
+	}
+	// An empty link renders as a plain heading, not `[(none)]()`.
+	if strings.Contains(out, "[(none)]()") || !strings.Contains(out, "### (none)") {
+		t.Errorf("empty link should render as a plain heading:\n%s", out)
+	}
+}

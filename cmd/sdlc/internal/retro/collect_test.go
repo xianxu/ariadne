@@ -92,3 +92,31 @@ func TestSkillSources_ParsesFrontmatter(t *testing.T) {
 		t.Errorf("Body should be first paragraph only, got %q", s.Body)
 	}
 }
+
+func TestFileSources_LessonsAndAgentsChain(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "workshop"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "workshop", "lessons.md"), []byte("# Lessons\n\nrule.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("# Constitution\n\nbody.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// GEMINI.md / CLAUDE.md intentionally absent → must not error or appear.
+	got := fileSources(root)
+	kinds := map[Kind]int{}
+	for _, s := range got {
+		kinds[s.Kind]++
+		if s.Link == "" {
+			t.Errorf("fileSources record missing Link: %+v", s)
+		}
+	}
+	if kinds[KindLessons] != 1 {
+		t.Errorf("want 1 lessons record, got %d", kinds[KindLessons])
+	}
+	if kinds[KindAgentsChain] != 1 {
+		t.Errorf("want 1 agents-chain record (only AGENTS.md present), got %d", kinds[KindAgentsChain])
+	}
+}

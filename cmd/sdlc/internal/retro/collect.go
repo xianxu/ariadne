@@ -109,6 +109,39 @@ func firstParagraph(s string) string {
 	return s
 }
 
+// fileSources emits the fixed repo files that carry standing process context:
+// workshop/lessons.md and the AGENTS chain. Absent files are skipped (not every
+// repo/agent has every file), so a missing GEMINI.md is silent, not an error.
+func fileSources(root string) []InjectionSource {
+	specs := []struct {
+		rel  string
+		kind Kind
+		when string
+	}{
+		{"workshop/lessons.md", KindLessons, "read at session start / review boundary — accumulated mistake-prevention rules"},
+		{"AGENTS.md", KindAgentsChain, "agent-neutral constitution (the agnostic session bootstrap)"},
+		{"AGENTS.base.md", KindAgentsChain, "base-layer input merged into AGENTS.md"},
+		{"AGENTS.local.md", KindAgentsChain, "repo-local overrides merged into AGENTS.md"},
+		{"CLAUDE.md", KindAgentsChain, "injected at session start for Claude"},
+		{"GEMINI.md", KindAgentsChain, "injected at session start for Gemini"},
+	}
+	var out []InjectionSource
+	for _, sp := range specs {
+		content, err := os.ReadFile(filepath.Join(root, sp.rel))
+		if err != nil {
+			continue // absent → skip, not an error
+		}
+		out = append(out, InjectionSource{
+			Kind:  sp.kind,
+			Title: sp.rel,
+			When:  sp.when,
+			Link:  sp.rel,
+			Body:  firstParagraph(string(content)),
+		})
+	}
+	return out
+}
+
 // skillSources enumerates <skillsDir>/*/SKILL.md — the on-demand agent skills.
 // The trigger (`When`) is the frontmatter `description:` (parsed via the shared
 // pkg/frontmatter, ARCH-DRY). Entries under .claude/skills are symlinks into

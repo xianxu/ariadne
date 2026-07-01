@@ -63,7 +63,17 @@ func renderManual(sources []InjectionSource, linkPrefix string) string {
 		sort.SliceStable(items, func(i, j int) bool { return items[i].Title < items[j].Title })
 		b.WriteString(sec.heading + "\n\n")
 		for _, s := range items {
-			fmt.Fprintf(&b, "### [%s](%s%s)\n\n", s.Title, linkPrefix, s.Link)
+			switch {
+			case s.Link == "":
+				// No source to link (e.g. the "no memories found" note).
+				fmt.Fprintf(&b, "### %s\n\n", s.Title)
+			case strings.HasPrefix(s.Link, "/"):
+				// Absolute path (outside-repo, e.g. persisted memories) — the
+				// relative linkPrefix does not apply.
+				fmt.Fprintf(&b, "### [%s](%s)\n\n", s.Title, s.Link)
+			default:
+				fmt.Fprintf(&b, "### [%s](%s%s)\n\n", s.Title, linkPrefix, s.Link)
+			}
 			if s.When != "" {
 				fmt.Fprintf(&b, "**When:** %s\n\n", s.When)
 			}
