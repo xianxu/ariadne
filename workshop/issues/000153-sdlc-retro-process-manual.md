@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
-estimate_hours: 3.07
+estimate_hours: 5.03
 started: 2026-07-01T11:43:57-07:00
 ---
 
@@ -126,15 +126,19 @@ item: greenfield-go-module   design=0.8 impl=1.2
 item: smaller-go-module      design=0.3 impl=0.3
 item: atlas-docs             design=0.0 impl=0.1
 item: milestone-review       design=0.0 impl=0.2
+item: cross-cutting-refactor design=0.2 impl=0.9
+item: smaller-go-module      design=0.2 impl=0.5
+item: atlas-docs             design=0.0 impl=0.1
 design-buffer: 0.15
-total: 3.07
+total: 5.03
 ```
 
 Derivation: `internal/retro` (pure core + 6 collectors + tests) = greenfield module;
 `retro.go` cobra glue + `helptext.FS` accessor = smaller module extending the existing
 verb idiom; atlas entry = atlas-docs; M1 is a tagged milestone so it owns a
-`milestone-close` review. recomputed = (0.8+0.3+0.0+0.0)×1.15 + (1.2+0.3+0.1+0.2) =
-1.265 + 1.8 = 3.065 ≈ 3.07.
+`milestone-close` review. M1 alone recomputed to 3.07 (design 0.8+0.3 × 1.15 + impl
+1.2+0.3+0.1+0.2). With M2 added: Σdesign = 1.5, Σimpl = 3.3, recomputed =
+1.5×1.15 + 3.3 = 1.725 + 3.3 = 5.025 ≈ **5.03**.
 
 **Revision (post-change-code judges):** initial block was 5.45h with v2-scale impl
 hours (2.0/1.0/0.5) and no milestone-review line. The estimate-quality gate flagged it
@@ -142,15 +146,26 @@ as ~1.5–2× hot vs the v3.1 corpus (greenfield impl clusters 0.3–1.2, smalle
 atlas ~0.1) and missing the milestone-review cost. Recalibrated to v3.1 ranges +
 design-buffer 0.15 (corpus modal) → 3.07h.
 
+**M2 addition (judge prompts → markdown):** +3 items — `cross-cutting-refactor`
+(7 prompt extractions + BuildPrompt collapse, byte-fidelity-careful), a
+`smaller-go-module` (embed loader + `promptSubstitutions` + golden harness), and
+`atlas-docs` (regen + relink). No second `milestone-review`: M1+M2 share ONE combined
+boundary review (window = branch point → HEAD), already in M1's milestone-review line.
+Total 3.07 → 5.03h (M2 ≈ 2.0h).
+
 ## Plan
 
 Coarse decomposition; the durable detailed plan lands at `start-plan` via
 `superpowers-writing-plans` in `workshop/plans/`.
 
-- [x] M1 — static injection catalog (`sdlc retro` unrolls `BuildPrompt` + help text +
-      skill triggers + lessons + AGENTS chain + memories → linked markdown manual)
-- [ ] M2 — dynamic session reconstruction (JSONL per-agent parser + sidecar join →
-      anomaly-first report with annotation surface)
+- [x] M1 — static injection catalog (`sdlc process-manual` unrolls `BuildPrompt` + help
+      text + skill triggers + lessons + AGENTS chain + memories → linked markdown manual)
+- [ ] M2 — judge prompts → embedded markdown (extract the per-category prompts from
+      `prompts.go` `fmt.Sprintf` literals into `judge/prompts/*.md` with placeholder
+      substitution; byte-fidelity golden tests; relink `process-manual`'s `judgeSources`
+      to the readable `.md` files). Reviewed together with M1 at M2's `milestone-close`.
+- [ ] M3 — dynamic session reconstruction (JSONL per-agent parser + sidecar join →
+      anomaly-first report with annotation surface) [was M2]
 
 ## Log
 
@@ -229,3 +244,19 @@ them for LOCAL inspection only and is **refused with `--out`** (the file→commi
 footgun). Regenerated `atlas/process-manual.md` and scanned it — 0 hits for home
 path / `.claude/projects` / personal-memory markers. Test `TestMemorySources_
 RedactedByDefault` pins the no-leak invariant.
+
+### 2026-07-01 — scope: M2 redefined (judge prompts → markdown), session-recon → M3
+
+User: "move the sdlc-injected prompts to helptext — easier to find and read." The 8
+per-category judge prompts are still trapped in `prompts.go` `fmt.Sprintf` literals,
+while `code-review.md` + `architecture.md` are already embedded `.md` in the same
+package — so this finishes that pattern. Extract each prompt's static prose to
+`judge/prompts/*.md` (placeholder substitution à la `renderLong`); the hard constraint
+is **byte-fidelity** (these drive the fresh-context reviews, documented "byte-faithful")
+locked by a golden test. Then `process-manual`'s `judgeSources` links to the readable
+`.md` (like help text/skills), collapsing the judge special-casing into the uniform
+file-backed path. Chose **new milestone on #153** (not a separate issue): M2 = this
+refactor, M3 = the dynamic session-reconstruction (was M2). M1's catalog is not
+separately closed — M2's `milestone-close` reviews M1+M2 together (window = branch
+point → HEAD). Location: `judge/prompts/` (co-located), NOT `helptext/` — the latter's
+`//go:embed *.md` would mis-file them under the manual's Help-text section.

@@ -481,7 +481,11 @@ estimated separately at its own `start-plan`.
 
 ---
 
-## Milestone 2 (coarse — re-planned at its own `start-plan`)
+## Milestone 3 (coarse — re-planned at its own `start-plan`)
+
+> **Renumbered M2 → M3** (2026-07-01): the "judge prompts → embedded markdown" refactor
+> took the M2 slot (see `000153-sdlc-retro-process-manual-m2-plan.md`); dynamic session
+> reconstruction is now M3.
 
 Not detailed here (would be speculative before the catalog exists). Shape only:
 
