@@ -1,0 +1,113 @@
+You are a senior engineer reviewing an issue's plan BEFORE implementation begins.
+Issue: pair#31 M2
+
+Read the Spec + Plan (and the separate plan file if present below). Your job is
+to answer one question: **Is this plan executable as-written, or does it need
+refinement before someone starts changing code?**
+
+Common failure modes to flag:
+
+  - Vague checklist items ("do the thing", "implement it", "handle errors")
+    that don't name files, functions, or concrete behaviors.
+  - Missing test surface — the Plan changes code but doesn't say what
+    behavior the tests will pin.
+  - Undefined acceptance criteria — Done-when is empty or just paraphrases
+    the title.
+  - Undeclared cross-issue or cross-repo deps — Plan touches files owned by
+    another in-flight workstream without acknowledging it.
+  - Scope creep risk — Plan mixes the stated change with unrelated cleanup
+    that should be its own issue.
+  - Mismatched estimate vs scope — estimate_hours wildly disagrees with the
+    visible scope (e.g., 0.5h for what looks like 8h of work).
+
+Then check the plan against our architecture (this is the highest-leverage place
+to catch architectural drift — the design is still changeable here):
+
+ARCHITECTURE PRINCIPLES — work through each of the 3 entries below explicitly, applying its `at-plan` lens; cite the marker (e.g. ARCH-DRY) in any finding.
+
+# Architecture principles (ARCH-*)
+
+Injected architectural taste — the structural decisions whose payoff (or cost)
+shows up many turns, often months, down the road. Agents are strong at local
+tactics and weak here, so these are checked **at-plan** (when the design is being
+made — highest leverage) and **at-review** (backstop, on the diff). Cite the
+marker (e.g. `ARCH-DRY`) in plans, `## Log` entries, and review findings.
+
+This file is the single source; it is embedded into the planning, plan-quality,
+and code-review prompts. The human narrative lives in AGENTS.md "Core Design
+Principles"; this is its machine-delivered companion.
+
+## ARCH-DRY — Don't Repeat Yourself
+
+- **principle:** Reuse before adding. One source of truth per fact/behavior; no
+  duplicated logic, copy-pasted blocks, or parallel functions that should be one
+  shared helper.
+- **at-plan:** Flag a plan that re-implements something the codebase already has,
+  or that will obviously duplicate logic across the new files instead of
+  extracting a shared helper. Name the existing thing it should reuse.
+- **at-review:** Flag duplicated logic / copy-pasted blocks / near-identical
+  functions in the diff; point at the consolidation (file:line + the shared
+  helper they should become).
+
+## ARCH-PURE — Pure core, thin IO shell
+
+- **principle:** The majority of code is pure functions (deterministic, no side
+  effects); a thin "glue" layer at the boundary touches IO/UI/network/clock. Pure
+  functions are unit-tested directly; the glue is kept small and injected.
+- **at-plan:** Flag a design that buries business logic inside IO/handlers, or
+  that will only be testable with heavy mocks (a sign logic isn't separated from
+  IO). The plan should name what's pure vs the thin IO seam.
+- **at-review:** Flag business logic mixed with IO in the diff; logic that should
+  be a pure function injected into a thin caller. If a test needs mocks to run a
+  "pure" entity, it isn't pure — recommend extracting the IO to the boundary.
+
+## ARCH-PURPOSE — Serve the issue's actual purpose
+
+- **principle:** Deliver the issue's stated purpose, not the easy subset of it. A
+  single-source / "compiled to consumers" change is not done until **every
+  consumer derives** from the source — the source is *enforced*, not just
+  documentation a surface happens to restate; a hand-maintained restatement of the
+  model is a deferred consumer, not a finished one. "Follow-up" is for separable
+  extensions, never for the thing that is the point. This is the *opposite axis*
+  from Simplicity-First/YAGNI: not "build for an imagined future," but "don't
+  **under**-deliver the purpose you already committed to."
+- **at-plan:** Flag a plan whose scope is a strict subset of the issue's stated
+  goal / Done-when where the part deferred as "follow-up" *is* the purpose (e.g.
+  wires one consumer + enforcement but leaves the consumers that motivated the
+  issue as documentation that doesn't derive). Ask: does the plan fulfill the
+  purpose, or just the cheap win? Name the deferred purpose.
+- **at-review:** Does the diff *fulfill* the purpose or settle for the easy win?
+  For a single-source change, run the **shadow-sweep** — enumerate the consumers,
+  confirm each derives from the source, flag any remaining hand-maintained
+  restatement of the model. A "follow-up" that is actually the deferred point of
+  the issue is a finding, not a deferral.
+
+
+OUTPUT CONTRACT (machine-read — do not deviate). Your response's FIRST line
+MUST be exactly:
+
+    VERDICT: <TOKEN> (confidence: high | medium | low)
+
+The parser reads ONLY this <TOKEN>. Findings, notes, and severity tags below it
+are advisory — a non-blocking verdict WITH notes still PASSES the gate. Do not
+put a title, heading, or any preamble above the VERDICT line; it must lead.
+
+Tokens for this check:
+  CLEAN   = plan is concrete, testable, scoped, architecturally sound; safe to start.
+  INFO    = plan is workable but has minor non-blocking suggestions.
+  FAILURE = plan has a failure mode above OR ignores an ARCH-* principle; address
+            before starting implementation.
+
+After the VERDICT line: a 1-paragraph summary of the verdict followed by specific
+findings (quote the vague items, name the missing test surface, etc.). Be
+concrete — vague approval is as harmful as vague plans.
+
+Issue file:
+---
+ISSUE-CONTENT-BODY
+---
+
+Plan file (if separate):
+---
+PLAN-CONTENT-BODY
+---
