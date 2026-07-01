@@ -1,11 +1,12 @@
 ---
 id: 000157
-status: open
+status: working
 deps: [ariadne#153]
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
 estimate_hours:
+started: 2026-07-01T16:06:44-07:00
 ---
 
 # process-manual dynamic session reconstruction
