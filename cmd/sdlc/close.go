@@ -40,6 +40,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // Plan-section regexes moved to internal/issue/plan.go so cmd/sdlc/state
@@ -774,23 +775,32 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 // issue it is the end-of-issue integration review (each milestone already
 // reviewed its own slice).
 func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
-	if err := runClose(stderr, f); err != nil {
-		return err
-	}
+	// `sdlc close --milestone` keeps the eager path — its review belongs to
+	// milestone-close (the #69 one-review-per-boundary invariant), so it never
+	// double-reviews here.
 	if f.Milestone != "" {
-		return nil // milestone close: the review belongs to milestone-close
+		return runClose(stderr, f)
 	}
 
-	// Whole-issue close: window spans the whole branch (milestone "" → branch
-	// start), so issuePath isn't consulted for the base — pass "" (#58).
+	// Whole-issue close (#139): COMPUTE the close but write nothing yet — the
+	// boundary review runs against the un-mutated working tree, and applyClose
+	// fires only after a finalizing verdict.
+	r := computeClose(stderr, f)
+
+	// Window spans the whole branch (milestone "" → branch start), so issuePath
+	// isn't consulted for the base — pass "" (#58).
 	base, baseLong, head := resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
 	switch {
 	case f.skip("judge"):
+		// Explicit operator skip → finalize (this runs BEFORE dispatch, so only a
+		// dispatch-ERROR VerdictNotRun ever reaches closeVerdictOutcome's halt).
 		cinfo(stderr, "skipping issue boundary review per --no-judge (or --force)")
+		applyClose(stderr, f, r)
 		return finishBoundaryReview(stdout, stderr, f,
 			reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong})
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch the issue boundary review")
+		printCloseDryRun(stderr, r)
 		return printBoundaryReviewDryRun(stdout, stderr, boundaryReviewParams{
 			Label:         "#" + strconv.Itoa(f.Issue),
 			Base:          base,
@@ -804,7 +814,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		})
 	}
 
-	result := dispatchBoundaryReview(stdout, stderr, boundaryReviewParams{
+	return reviewThenFinalize(stdout, stderr, f, r, boundaryReviewParams{
 		Label:         "#" + strconv.Itoa(f.Issue),
 		Base:          base,
 		BaseLong:      baseLong,
@@ -816,7 +826,66 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		Milestone:     "",
 		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
 	})
-	return finishBoundaryReview(stdout, stderr, f, result)
+}
+
+// closeOutcome is what the boundary verdict tells close to do (#139).
+type closeOutcome int
+
+const (
+	closeFinalize closeOutcome = iota // apply the close
+	closeRework                       // leave working; fix + re-run
+	closeHalt                         // unexpected verdict; stop, consult a human
+)
+
+// closeVerdictOutcome maps a boundary verdict to a close outcome — DERIVED from
+// the #147 verdict single-source (vocab.Verdict()), not a hardcoded switch, so a
+// new token in verdict.cue flows here automatically. Only a finalizing verdict
+// finalizes; REWORK reworks; everything else (unknown, a dispatch-error not-run)
+// halts rather than papering over an ambiguous gate (#139).
+func closeVerdictOutcome(v judge.Verdict) closeOutcome {
+	switch t := string(v); {
+	case vocab.Verdict().IsFinalizing(t):
+		return closeFinalize
+	case vocab.Verdict().IsBlocking(t):
+		return closeRework
+	default:
+		return closeHalt
+	}
+}
+
+// reviewThenFinalize dispatches the boundary review for an already-computed close
+// and finalizes ONLY on a finalizing verdict (#139). Shared by full-issue close
+// and milestone-close (annotateLogLineWithVerdict keys on f.Milestone). On REWORK
+// or an unexpected verdict it writes NOTHING (issue stays `working`), emits the
+// trailer for the record, and returns a non-nil error.
+func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams) error {
+	review := dispatchBoundaryReview(stdout, stderr, p)
+	kind := "close"
+	verb := "sdlc close"
+	if f.Milestone != "" {
+		kind = "milestone-close"
+		verb = "sdlc milestone-close"
+	}
+	switch closeVerdictOutcome(review.Verdict) {
+	case closeFinalize:
+		applyClose(stderr, f, r)
+		emitTrailerBlock(stdout, review, kind)
+		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
+			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
+		}
+		return nil
+	case closeRework:
+		emitTrailerBlock(stdout, review, kind)
+		cwarn(stderr, "boundary review: REWORK — close NOT finalized; issue left at status: working")
+		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)", verb))
+		return fmt.Errorf("boundary review verdict REWORK — close not finalized")
+	default: // closeHalt
+		emitTrailerBlock(stdout, review, kind)
+		cwarn(stderr, fmt.Sprintf("boundary review verdict %q is UNEXPECTED — close NOT finalized; issue left at status: working", review.Verdict))
+		cwarn(stderr, "the review produced no clear SHIP/FIX-THEN-SHIP/REWORK verdict (a gate/prompt bug?).")
+		cwarn(stderr, "STOP: investigate the review output (sidecar) and consult a human before re-running.")
+		return fmt.Errorf("boundary review verdict %q — unexpected; close not finalized, consult a human", review.Verdict)
+	}
 }
 
 // finishBoundaryReview emits the close trailer and mirrors the verdict into the
