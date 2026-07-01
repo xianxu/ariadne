@@ -1,12 +1,13 @@
 ---
 id: 000141
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-29
 updated: 2026-07-01
 estimate_hours: 0.42
 started: 2026-07-01T09:49:03-07:00
+actual_hours: 0.19
 ---
 
 # sdlc merge confirmation should support agent-safe defaults
@@ -117,6 +118,7 @@ total: 0.42
   rerun with `--yes` succeeded.
 
 ### 2026-07-01
+- 2026-07-01: closed — go test ./cmd/sdlc/... green; new TestIsTTY_RealNonTerminalFilesAreNotTTY pins isTTY(/dev/null)=false (the #141 regression) + regular-file/pipe; TestMergeNeedsTTY covers all 4 combos. gofmt+vet clean; darwin build + GOOS=linux cross-compile OK (build tags). Live E2E on rebuilt bin/sdlc: `sdlc merge </dev/null` now fail-fasts at the TTY gate ("needs interactive confirmation … Re-run with --yes") BEFORE the push/judge steps, where pre-fix it sailed through; `--yes` and `--dry-run` bypass the gate.; review verdict: SHIP
 
 - **Root cause re-diagnosed.** The fail-fast-before-judges guard the issue asked
   for *already existed* (`merge.go:272`, from #56/`fcd6b1e`, 2026-05-31 — a month

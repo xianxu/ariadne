@@ -72,19 +72,20 @@ still interactive. Documented, not an omission.
 
 ## Plan
 
-- [ ] Add `tty_unix.go` / `tty_darwin.go` / `tty_linux.go` / `tty_other.go` with
+- [x] Add `tty_unix.go` / `tty_darwin.go` / `tty_linux.go` / `tty_other.go` with
       `isTerminal(fd uintptr) bool` (real ioctl) + per-OS `ioctlReadTermios`.
-- [ ] Rewrite `isTTY` to delegate to `isTerminal`; drop the `os.ModeCharDevice`
+- [x] Rewrite `isTTY` to delegate to `isTerminal`; drop the `os.ModeCharDevice`
       proxy + its stale comment.
-- [ ] Test `isTTY`: `/dev/null` → **false** (the #141 regression), regular file →
+- [x] Test `isTTY`: `/dev/null` → **false** (the #141 regression), regular file →
       false, `os.Pipe` reader → false, non-`*os.File` → false (keep existing).
-- [ ] Round out `TestMergeNeedsTTY` with the interactive case (tty, no `--yes` →
-      proceeds) so all four Done-when combinations are pinned.
-- [ ] Update `sdlc merge --help` / the flag text to say agents should pass
+- [x] Round out `TestMergeNeedsTTY` with the interactive case (tty, no `--yes` →
+      proceeds) so all four Done-when combinations are pinned. (Already present at
+      `merge_test.go:271` — no change needed.)
+- [x] Update `sdlc merge --help` / the flag text to say agents should pass
       `--yes` (state when the fail-fast fires).
-- [ ] Live-verify: `sdlc merge </dev/null` now fail-fasts at the TTY check
+- [x] Live-verify: `sdlc merge </dev/null` now fail-fasts at the TTY check
       *before* the push/judge steps with the actionable `--yes` message.
-- [ ] `GOOS=linux go build ./cmd/sdlc` cross-compiles (build tags correct).
+- [x] `GOOS=linux go build ./cmd/sdlc` cross-compiles (build tags correct).
 
 ## Done when (maps to issue)
 
