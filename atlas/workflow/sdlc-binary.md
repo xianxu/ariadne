@@ -188,6 +188,21 @@ review prompt/options builder as real dispatch and prints the would-be command
 line, so `PAIR_AGENT=codex` is inspectable as `codex exec` before any subprocess
 runs.
 
+**Dispatch progress heartbeat (#140).** A boundary review can run silently for
+minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
+`heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +
+child PID (`… still working — 1m0s elapsed via claude (pid N; inspect: ps -p N)`).
+It is harness-agnostic by construction: all three fields come from `sdlc` wrapping
+the child (`Run` now Start→`onStart(pid)`→Wait into one combined buffer, exposing
+the PID), not from child output, so it reads identically for claude/codex/gemini.
+Gated on `opts.Stderr != nil`, so the fast path (unit tests, quick dispatches)
+stays synchronous and silent; the captured output + exit-code policy
+(`classifyRunResult`) are unchanged, so `Classify`/`ParseVerdict`/the sidecar are
+untouched. Deliberately no byte-count/log-tail signal — `claude -p` buffers to the
+end (a live counter would read "0 B" and look stalled) and no agent exposes a
+reliably-locatable per-invocation log; the PID is the automated form of the
+operator's manual `ps` inspection.
+
 **The estimate shell (#117)** applies this same form/essence split to
 `estimate_hours`, plus a feedback arm — the one forecast in the system with a
 deterministic ground-truth measurement (`sdlc actual`). *Form:* the change-code

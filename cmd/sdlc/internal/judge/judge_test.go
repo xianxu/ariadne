@@ -773,7 +773,7 @@ func TestDispatch_FakeRun_CapturesOutput(t *testing.T) {
 	defer func() { Run = orig }()
 	var gotName string
 	var gotArgs []string
-	Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		gotName = name
 		gotArgs = args
 		return []byte("No DRY violations found.\n"), nil
@@ -800,7 +800,7 @@ func TestDispatch_FakeRun_CapturesOutput(t *testing.T) {
 func TestDispatch_LaunchError_Surfaces(t *testing.T) {
 	orig := Run
 	defer func() { Run = orig }()
-	Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		return nil, errors.New("exec: command not found")
 	}
 	_, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "x", AllowedTools: "Read"})
@@ -825,7 +825,7 @@ func TestDispatch_ExitErrorWithEmptyOutput_NotAnError(t *testing.T) {
 	// Real *exec.ExitError requires a started process. Easiest path:
 	// spawn `false` (always exits 1) via the actual exec package, no
 	// args needed.
-	Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		return realExec("false")
 	}
 	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "x", AllowedTools: "Read"})
