@@ -1,12 +1,13 @@
 ---
 id: 000153
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
 estimate_hours: 5.03
 started: 2026-07-01T11:43:57-07:00
+actual_hours: 5.85
 ---
 
 # sdlc retro process manual
@@ -171,6 +172,7 @@ Coarse decomposition; the durable detailed plan lands at `start-plan` via
 ## Log
 
 ### 2026-07-01 — M3 split to ariadne#157; #153 = M1+M2, ready to close+merge
+- 2026-07-01: closed — #153 M1+M2 complete + reviewed. M1: sdlc process-manual renders 6-section catalog (8 prompts/20 helptext/24 skills, live links, memory redacted, 0 leaks; shadow-sweep all sources). M2: 7 judge prompts single-sourced as embedded judge/prompts/*.md, byte-fidelity golden TestBuildPrompt_Golden PASS, BuildPrompt 7-arm switch collapsed to 5 lines. go build/vet/test ./cmd/sdlc/... green. [--no-verdict: M1 was reviewed together with M2 at M2 milestone-close (combined window b554b5f1^..HEAD = all of M1+M2, verdict FIX-THEN-SHIP, fixes applied); M1 has no separate close commit by design (user chose review-together). This whole-issue close runs the integration review over the full window incl. the post-M2 fix commit.]; review verdict: SHIP
 
 User: split M3 to its own ticket, then close+merge #153. M3 (dynamic session
 reconstruction) is now **ariadne#157** (`deps: [ariadne#153]`), carrying the full
