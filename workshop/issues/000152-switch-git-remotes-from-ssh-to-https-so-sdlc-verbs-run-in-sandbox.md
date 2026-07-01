@@ -84,13 +84,22 @@ Open design questions to resolve while implementing:
 
 ## Done when
 
-- [ ] `sdlc claim` / `sdlc pr` / `sdlc merge` complete their git push/pull steps
+- [x] `sdlc claim` / `sdlc pr` / `sdlc merge` complete their git push/pull steps
       with the sandbox **enabled** (no `dangerouslyDisableSandbox`, no approval).
-- [ ] The chosen mechanism is applied and documented (global `insteadOf` and/or a
-      setup step), covering ariadne + brain + peer repos.
-- [ ] Non-sandbox workflow still works (push/pull/signing unaffected).
-- [ ] The durability decision is recorded: one-time operator step vs. baked into
+      *(Dogfooded: `sdlc claim #152` + `sdlc pr` (PR #74) both pushed over HTTPS
+      with the Claude Code sandbox ON.)*
+- [x] The chosen mechanism is applied and documented (host `insteadOf` +
+      openshell overlay fix), covering ariadne + all `git@github.com:` peer repos.
+      **brain/brain-family (`gcrypt::ssh://`) are deliberately scoped OUT** — a
+      sensitive, separate follow-up (see Revisions), not covered here.
+- [x] Non-sandbox workflow still works (push/pull/signing unaffected). *(HTTPS
+      `git ls-remote origin` works host-side with the same gh creds; no commit
+      signing is configured (`git config` shows none), so the transport switch
+      can't affect signing.)*
+- [x] The durability decision is recorded: one-time operator step vs. baked into
       the ariadne setup path (with a pointer from the sandbox atlas doc).
+      *(Recorded in Revisions: host = manual for blast-radius; container = the
+      openshell overlay; atlas documents both.)*
 
 ## Plan
 
