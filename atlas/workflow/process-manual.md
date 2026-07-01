@@ -16,7 +16,7 @@ that part never drifts from what actually fires.
 
 | Kind | Source | Collector |
 |------|--------|-----------|
-| `sdlc-injected prompts` | `judge.BuildPrompt` (all 8 categories, incl. change-code-time `estimate-quality` that `AllCategories()` omits) | `judgeSources` (pure) |
+| `sdlc-injected prompts` | `cmd/sdlc/internal/judge/prompts/*.md` (embedded templates, rendered by `judge.BuildPrompt`; all 8 categories, incl. change-code-time `estimate-quality` that `AllCategories()` omits) | `judgeSources` (pure) |
 | `help text` | `cmd/sdlc/helptext/*.md` (embedded) | `helptextSources(helptext.FS())` |
 | `skills` | `.claude/skills/*/SKILL.md` triggers | `skillSources` |
 | `lessons` | `workshop/lessons.md` | `fileSources` |
@@ -33,9 +33,13 @@ Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/processmanual`:
 - Each collector is injected with its IO seam (`fs.FS`, a dir, or `$HOME`) so it
   tests against `fstest.MapFS` / a temp dir with no mocks. `judgeSources` is pure
   because `judge.BuildPrompt` is pure.
-- Judge prompts are shown as a **first-paragraph gist** + link, not inlined in full
-  (each rendered prompt runs to hundreds of lines and re-embeds the ARCH registry —
-  inlining all 8 would bloat the manual ~4×). The `When` says where each fires.
+- Judge prompts (#153 M2) are single-sourced as embedded `judge/prompts/*.md`
+  templates (placeholder substitution in `BuildPrompt`, byte-fidelity pinned by
+  `judge/golden_test.go`) — so `judgeSources` links straight to the **readable `.md`**
+  (like help text/skills), not to Go code. The body is a **first-paragraph gist** +
+  link by default; `--full` inlines the complete rendered prompt (fenced, so the
+  outline is unchanged — each prompt otherwise runs hundreds of lines, re-embedding
+  the ARCH registry ~4×). The `When` says where each fires.
 - `cmd/sdlc/processmanual.go` is the cobra glue: `--out <path>` writes to a file (links
   re-based to that file), else stdout. Reuses `gitx.RepoTopLevel()` for the root.
 
