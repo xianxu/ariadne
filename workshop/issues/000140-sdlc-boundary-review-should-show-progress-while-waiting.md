@@ -1,12 +1,13 @@
 ---
 id: 000140
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-06-29
 updated: 2026-07-01
 estimate_hours: 0.67
 started: 2026-07-01T00:27:31-07:00
+actual_hours: 0.75
 ---
 
 # sdlc boundary review should show progress while waiting
@@ -129,6 +130,7 @@ total: 0.67
   still alive.
 
 ### 2026-07-01
+- 2026-07-01: closed — go test ./cmd/sdlc/... green incl new heartbeat tests: TestHeartbeatLine (pure wording), TestDispatch_HeartbeatWhileWaiting (fake long-running Run + hand-driven ticker, N beats with elapsed/agent/pid, -race x5), TestRun_RealSubprocess (real sh child: real pid, combined streams, ExitError), TestDispatch_NoStderrNoHeartbeat (fast path). gofmt+vet clean. Live E2E: sdlc judge dry against a 33s native fake agent printed a 30s heartbeat with real pid 33045 then the unchanged verdict on stdout.; review verdict: SHIP
 
 - **Implemented.** Heartbeat lives in `internal/judge.Dispatch` (not a
   boundary-only wrapper): gated on the already-present-but-previously-unused
