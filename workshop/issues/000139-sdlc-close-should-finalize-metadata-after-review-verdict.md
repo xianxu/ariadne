@@ -1,6 +1,6 @@
 ---
 id: 000139
-status: working
+status: done
 deps: [ariadne#147]
 target: agent-binary-handoff-schema
 github_issue:
@@ -8,6 +8,7 @@ created: 2026-06-29
 updated: 2026-06-30
 estimate_hours: 0.63
 started: 2026-06-30T12:11:03-07:00
+actual_hours: 1.70
 ---
 
 # sdlc close should finalize metadata after review verdict
@@ -108,6 +109,7 @@ Detailed design + TDD breakdown: `workshop/plans/000139-close-finalize-after-ver
   and manual cleanup of stale close log lines.
 
 ### 2026-06-30
+- 2026-06-30: closed — go test ./cmd/sdlc/... ./pkg/vocab/ all pass. runClose split into read-only computeClose (no writes) + applyClose (writes + ledger + post-write success msgs). Both close + milestone-close reorder to compute → review-against-un-mutated-tree → finalize via shared reviewThenFinalize. closeVerdictOutcome DERIVES from vocab.Verdict() (#147): finalizing→apply, REWORK→not finalized (stays working, non-zero, no --no-reclose-guard on rerun), unknown/dispatch-error→halt (consult human). --no-judge finalizes before dispatch. New close_finalize_test.go: TestCloseVerdictOutcome + REWORK-does-not-finalize (asserts no status:done, no closed line, no actual_hours, no "flipped" printed) + Unknown-halts + RerunAfterREWORK (one clean line, no reclose-guard) + milestone REWORK/SHIP mirror. This close dogfoods the #139 two-phase flow (finalize only after the verdict) reading the #147 structured handoff. NOTE actual likely inflated by parked-mention attribution during the #147 detour (est 0.63; judge predicted 1-1.5h).; review verdict: FIX-THEN-SHIP
 
 - **Parked, blocked on #147.** Design + durable plan complete
   (`workshop/plans/000139-close-finalize-after-verdict-plan.md`: two-phase

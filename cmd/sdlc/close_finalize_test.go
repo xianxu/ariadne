@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -59,6 +61,34 @@ func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "REWORK") {
 		t.Error("REWORK should tell the operator to fix + re-run")
+	}
+}
+
+// #139 I3: a judge DISPATCH ERROR (Run returns err, not just unparseable output)
+// halts — close is not finalized, issue stays working, and there is no false
+// "close succeeded" message (the pre-#139 line, now removed).
+func TestRunCloseWithReview_DispatchError_Halts(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return nil, errors.New("boom: agent not found")
+	}
+
+	var stderr strings.Builder
+	err := runCloseWithReview(io.Discard, &stderr, closeFlagsFor(issuesDir))
+	if err == nil {
+		t.Fatal("a judge dispatch error must halt (non-nil error)")
+	}
+	got := readIssue(t, issuesDir)
+	if strings.Contains(got, "status: done") {
+		t.Error("dispatch error must NOT finalize the close")
+	}
+	if strings.Contains(got, "closed —") {
+		t.Error("dispatch error must NOT append a closed log line")
+	}
+	if strings.Contains(stderr.String(), "close succeeded") {
+		t.Errorf("dispatch error must not claim 'close succeeded':\n%s", stderr.String())
 	}
 }
 

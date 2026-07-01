@@ -146,9 +146,12 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 
 	// Step 3: dispatch → finalize-on-verdict, or short-circuit the explicit skips.
 	switch {
-	case f.NoJudge:
-		// Explicit operator skip → finalize (annotate + trailer as before).
-		cinfo(stderr, "skipping milestone-review per --no-judge")
+	case f.NoJudge || f.Force:
+		// Explicit operator skip → finalize (annotate + trailer as before). --force
+		// implies --no-judge per its "bypass ALL gates" contract (#139 I2), matching
+		// full-issue close's f.skip("judge"); otherwise a --force milestone-close would
+		// still dispatch and could halt/rework, defeating the emergency bypass.
+		cinfo(stderr, "skipping milestone-review per --no-judge (or --force)")
 		applyClose(stderr, closeF, r)
 		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}, "milestone-close")
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, judge.VerdictNotRun); err != nil {
@@ -480,8 +483,9 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	}
 	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
 	if !ok {
-		cwarn(stderr, "boundary review skipped: "+reason)
-		cwarn(stderr, "close succeeded; re-run judge manually if needed")
+		// The caller (reviewThenFinalize) maps this VerdictNotRun → closeHalt and
+		// prints the outcome ("close NOT finalized") — so don't claim success here (#139 I1).
+		cwarn(stderr, "boundary review could not run: "+reason)
 		return res(judge.VerdictNotRun, reason)
 	}
 
@@ -489,8 +493,9 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..HEAD) via %s …", p.BaseLong, agent))
 	output, derr := judge.Dispatch(context.Background(), opts)
 	if derr != nil {
+		// Dispatch error → VerdictNotRun → the caller halts (does NOT finalize); the
+		// outcome message is the caller's, not a false "close succeeded" here (#139 I1).
 		cwarn(stderr, fmt.Sprintf("boundary review failed: %v", derr))
-		cwarn(stderr, "close succeeded; re-run judge manually if needed")
 		return res(judge.VerdictNotRun, derr.Error())
 	}
 	fmt.Fprint(stdout, output)
