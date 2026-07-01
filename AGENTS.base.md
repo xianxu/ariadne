@@ -12,7 +12,7 @@
 - On done, move issues + plans to `workshop/history/`. 
 - A datatype `target` (`workshop/targets/`) captures an invariant worth defending from drift; issues/projects reference it via `target: <slug>` frontmatter. 
 - Revising a plan artifact (`issue`/`plan`/`project`/`roadmap`/`target`) mid-stream: append a `## Revisions` section (timestamp + reason + delta), don't overwrite.
-- Human-centric docs take agent edits via inline markers: `🤖{Y}` add, `🤖~X~` delete, `🤖~X~{Y}` replace, `🤖<X>[H]` operator comment. Full table in `workshop/targets/review-convention.md`
+- Human-centric docs take agent edits via inline markers: `🤖{Y}` add, `🤖~X~` delete, `🤖~X~{Y}` replace, `🤖<X>[H]` operator comment. A `🤖[H]` in **any** artifact is a human question/instruction to you — notice it, answer it, and resolve it in place (fold the answer into the prose, drop the marker) that same turn; don't leave an answered comment for the operator to clear. Full grammar: `.agents/skills/xx-fix/review-convention.md`.
 
 #### Peer Repo
 - Peer = sibling repo in the same parent dir, usually ariadne-styled (has `construct/`).

@@ -6,7 +6,7 @@ description: Use when 🤖{} or 🤖[] or 🤖~~ markers appear in markdown docu
 # Inline Review
 
 Process 🤖 inline markers in a file, following the review convention
-documented in the ariadne workshop target `review-convention.md`. That target
+documented in `review-convention.md` in this skill dir. That doc
 is the canonical grammar; this skill is the agentic side of it.
 
 **Two modes.** *Standalone* (`/fix <path>`, below) edits the file in place. *Hosted
