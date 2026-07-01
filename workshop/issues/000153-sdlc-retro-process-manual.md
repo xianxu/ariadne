@@ -160,7 +160,7 @@ Coarse decomposition; the durable detailed plan lands at `start-plan` via
 
 - [x] M1 — static injection catalog (`sdlc process-manual` unrolls `BuildPrompt` + help
       text + skill triggers + lessons + AGENTS chain + memories → linked markdown manual)
-- [ ] M2 — judge prompts → embedded markdown (extract the per-category prompts from
+- [x] M2 — judge prompts → embedded markdown (extract the per-category prompts from
       `prompts.go` `fmt.Sprintf` literals into `judge/prompts/*.md` with placeholder
       substitution; byte-fidelity golden tests; relink `process-manual`'s `judgeSources`
       to the readable `.md` files). Reviewed together with M1 at M2's `milestone-close`.
@@ -260,3 +260,25 @@ refactor, M3 = the dynamic session-reconstruction (was M2). M1's catalog is not
 separately closed — M2's `milestone-close` reviews M1+M2 together (window = branch
 point → HEAD). Location: `judge/prompts/` (co-located), NOT `helptext/` — the latter's
 `//go:embed *.md` would mis-file them under the manual's Help-text section.
+
+### 2026-07-01 — M2 implemented (judge prompts → embedded markdown)
+
+Extracted all 7 agent-emitting prompts from `prompts.go`'s `fmt.Sprintf` literals into
+`cmd/sdlc/internal/judge/prompts/*.md` (dry, pure, plan, plan-quality, estimate-quality,
+specs, milestone-review). `BuildPrompt` collapsed from a 7-arm switch to 5 lines:
+`if Lessons return ""; promptSubstitutions(c,in).Replace(promptTemplate(c))`. One
+`strings.Replacer` token table (`{{ARCH_BLOCK}}` lens-routed at-plan/at-review,
+`{{CONTRACT}}`, `{{DIFF}}`, `{{ISSUE_CONTENT}}`, …), reusing `orDefault` (ARCH-DRY).
+`process-manual`'s `judgeSources` now links each prompt to its readable `.md`
+(lessons → `prompts.go`, no template).
+
+**Byte-fidelity proven:** `judge/golden_test.go` captured all 7 rendered prompts from
+the *pre-refactor* `BuildPrompt` (Task 1, committed first); every extraction kept them
+byte-identical — final `TestBuildPrompt_Golden` PASS. Zero behavior change to the
+fresh-context review prompts. Verified: `go build ./…` + `go vet ./cmd/sdlc/…` +
+`go test ./cmd/sdlc/…` all green; existing `TestArchitectureRegistry_EmbeddedInPrompts`
+/ `TestAgentPromptsEmbedContract` still pass; regenerated `atlas/process-manual.md`
+(judge links → `prompts/*.md`, memory still redacted, 0 leaks). 8 TDD commits.
+
+Ready for `sdlc milestone-close --milestone M2` — the combined M1+M2 boundary review
+(window = branch point → HEAD).
