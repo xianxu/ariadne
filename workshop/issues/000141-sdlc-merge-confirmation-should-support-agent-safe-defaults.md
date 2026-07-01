@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-29
 updated: 2026-07-01
-estimate_hours:
+estimate_hours: 0.42
 started: 2026-07-01T09:49:03-07:00
 ---
 
@@ -60,12 +60,46 @@ abort at the end.
 
 ## Plan
 
-- [ ] Inspect `cmd/sdlc/merge.go` prompt and prompter abstraction.
-- [ ] Define the TTY/non-interactive detection rule.
-- [ ] Move or add a preflight confirmation-capability check before slow judges.
-- [ ] Preserve the final confirmation in interactive runs.
-- [ ] Update help text to explain when agents should use `--yes`.
-- [ ] Add tests for early refusal before judge invocation.
+Design detail + root-cause: `workshop/plans/000141-merge-agent-safe-tty-detection-plan.md`.
+
+**Root cause differs from the issue's framing.** The fail-fast-before-judges
+guard *already exists* (`merge.go:272`, from #56/`fcd6b1e`, a month before this
+issue). The real bug is the shared `isTTY` helper (`changecode.go:522`): it uses
+`os.ModeCharDevice` as a proxy for "is a terminal", but `/dev/null` (an agent's
+usual stdin) is a char device, so `isTTY` returns true, the guard is skipped, and
+merge aborts *after* the judges. Fix = make `isTTY` a real `isatty` (stdlib
+ioctl). This also fixes `change-code --worktree=ask` (same shared helper).
+
+- [ ] Add `tty_{unix,darwin,linux,other}.go`: `isTerminal(fd)` via the
+      `TIOCGETA`/`TCGETS` ioctl (stdlib-only, per-OS constant; ARCH-DRY).
+- [ ] Rewrite `isTTY` to delegate to `isTerminal`; drop the `ModeCharDevice` proxy.
+- [ ] Test `isTTY`: `/dev/null` → false (the #141 regression), regular file /
+      pipe / non-`*os.File` → false.
+- [ ] Round out `TestMergeNeedsTTY` with the interactive (tty → proceed) case.
+- [ ] Update `sdlc merge --help` flag text: agents should pass `--yes`.
+- [ ] Live-verify `sdlc merge </dev/null` fail-fasts before judges; cross-compile
+      `GOOS=linux`.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.* Small, well-scoped bug fix in a shared helper
++ cross-platform build files + tests; design pre-resolved by the plan doc (+15%
+buffer), impl at v3.1's 40%-of-v2 unit.
+
+- smaller-go-module: fix `isTTY` → real `isatty`, add the four `tty_*.go`
+  platform files, `isTTY`/`mergeNeedsTTY` tests — design 0.1 + impl 0.15.
+- milestone-review: the one boundary review auto-dispatched at `sdlc close` —
+  impl 0.15.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module   design=0.1 impl=0.15
+item: milestone-review    design=0.0 impl=0.15
+total: 0.42
+```
 
 ## Log
 

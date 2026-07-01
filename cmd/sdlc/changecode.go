@@ -515,20 +515,18 @@ func promptBranchingTTY(stdin io.Reader, stderr io.Writer) (string, error) {
 	}
 }
 
-// isTTY reports whether the given reader is a terminal. Returns false
-// for non-os.File readers (test pipes) so tests deterministically
-// hit the agent-protocol path. Stdlib-only — checks the file mode for
-// os.ModeCharDevice rather than pulling in golang.org/x/term.
+// isTTY reports whether the given reader is a terminal. Returns false for
+// non-os.File readers (test pipes) so tests deterministically hit the
+// agent-protocol path. The real terminal test is isTerminal (an ioctl probe,
+// stdlib-only, per-OS in tty_*.go): it must NOT be a char-device check, because
+// /dev/null — an agent's usual redirected stdin — is a char device but not a
+// terminal, and mistaking it for one defeats merge's fail-fast confirm gate (#141).
 func isTTY(r io.Reader) bool {
 	f, ok := r.(*os.File)
 	if !ok {
 		return false
 	}
-	info, err := f.Stat()
-	if err != nil {
-		return false
-	}
-	return info.Mode()&os.ModeCharDevice != 0
+	return isTerminal(f.Fd())
 }
 
 // issueTitleFromContent extracts the first H1 heading from the issue

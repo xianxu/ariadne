@@ -68,11 +68,23 @@ WHAT IT DOES
 
 FLAGS
 
-  --yes                 skip both the not-done warn AND the final confirm
+  --yes                 skip both the not-done warn AND the final confirm.
+                        REQUIRED for non-interactive/agent runs — see below.
   --no-judge            skip pre-merge judges (emergency only)
   --dry-run             print would-be operations; do nothing
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
+
+NON-INTERACTIVE / AGENT RUNS
+
+  The final confirmation reads stdin. When stdin is NOT a terminal (an
+  agent, a pipe, a `</dev/null` redirect), there is no one to answer it, so
+  merge FAILS FAST — before the slow pre-merge judges — with a message
+  telling you to re-run with `--yes`. This early refusal is deliberate: it
+  turns "ran all the judges, then aborted at the prompt" into an immediate,
+  actionable error. `--yes` is the explicit opt-in for scripted/agent flows
+  where the operator has already accepted the irreversible actions.
+  `--dry-run` never prompts (it mutates nothing), so it needs no `--yes`.
 
 EXAMPLES
 
