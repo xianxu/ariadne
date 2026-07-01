@@ -35,7 +35,11 @@ Fix the footgun. Options (combine 1 + 2 preferred):
 
 ## Plan
 
-- [ ]
+- [ ] Make the layergraph walk (`cmd/weave/internal/walk`, `pkg/layergraph`) LOUD when a
+      declared substrate lacks `construct/base.manifest`: warn or error instead of
+      silently skipping it (which under-compiles the whole transitive chain). Consider
+      `weave link` scaffolding a `base.manifest`. Add a test for a manifest-less
+      intermediate breaking the walk.
 
 ## Log
 

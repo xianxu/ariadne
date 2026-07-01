@@ -94,7 +94,10 @@ stay path-scoped, just not add a vanished untracked source path.
 
 ## Plan
 
-- [ ]
+- [ ] In the archive step of `sdlc merge`/`push`, stage the review sidecar even when it
+      is untracked (e.g. `git add -A <sidecar path>` / stage the moved path after the
+      rename) so the archive-to-history commit doesn't die with "pathspec did not match".
+      Add a regression test that archives with an untracked sidecar present.
 
 ## Log
 
