@@ -15,6 +15,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [OpenShell Sandbox](workflow/openshell-sandbox.md) — the containerized dev sandbox in the workflow: setup, what's inside, git transport (HTTPS-not-SSH, #152), base-layer provisioning
 - [Data Artifacts](workflow/data-artifacts.md) — typed markdown documents (xx-datatype skill, prototypes, capture flow)
 - [Introspection](workflow/introspect.md) — postmortem mining of past Claude transcripts into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)
+- [sdlc retro](workflow/retro.md) — the process manual: `sdlc retro` regenerates one linked markdown doc unrolling every always-on injection source (sdlc prompts, help text, skills, lessons, AGENTS chain, memories); deterministic, navigate-to-source, `🤖[]`-editable (#153, M1 — static catalog; M2 adds session reconstruction)
 - [docflow](workflow/docflow.md) — branch-scoped prose review with per-round git journaling (`review/<slug>` branch, `--no-ff` merge); companion to the `xx-fix` skill (#79)
 - [Tart VMs](workflow/base-layer.md#what-gets-installed) — `make tart` family for macOS VM testing (Apple Silicon only). Vendored under `.tart/`; details in the base-layer entry.
 - [Colima VMs](workflow/colima-vm.md) — `make colima` family for clean **Linux** VM testing (the tart counterpart). Profile-per-repo, live workspace mount, VNC GUI path. Vendored under `.colima/`.
