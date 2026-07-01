@@ -20,7 +20,6 @@ package judge
 
 import (
 	"embed"
-	"fmt"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
@@ -207,20 +206,10 @@ func BuildPrompt(category Category, in PromptInput) string {
 		return ""
 
 	case MilestoneReview:
-		// The procedure (code-review.md, #69) refers to ARCH-* markers; the
-		// principle definitions are co-located by appending the at-review block;
-		// the verdict format by BoundaryReviewContract (#147 — block-first, so it
-		// doesn't contradict code-review.md's "emit the block first"). One reviewer,
-		// both boundaries. CodeReviewBody renders the repo-orientation header (#137).
-		return fmt.Sprintf(`%s
-
-%s
-
-%s
-
-Diff:
-%s
-`, CodeReviewBody(in), ArchitectureBlock("at-review"), BoundaryReviewContract, in.Diff)
+		// Composition (milestone-review.md): the code-review procedure header
+		// (CodeReviewBody, #137) + the at-review ARCH block + the block-first
+		// BoundaryReviewContract (#147). One reviewer, both boundaries.
+		return renderTemplate(category, in)
 	}
 	return ""
 }
