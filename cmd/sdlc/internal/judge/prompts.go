@@ -19,11 +19,60 @@
 package judge
 
 import (
+	"embed"
 	"fmt"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 )
+
+// promptFS holds the per-category prompt templates as embedded markdown — the
+// readable, single source of each prompt's prose (#153 M2). Extends the pattern
+// architecture.md / code-review.md already use in this package. BuildPrompt loads
+// a template and substitutes {{TOKEN}}s; the rendered output is golden-tested for
+// byte-fidelity (golden_test.go).
+//
+//go:embed prompts/*.md
+var promptFS embed.FS
+
+// promptTemplate reads prompts/<category>.md. Panics on a missing template — a
+// build-time bug, like helptext.MustGet.
+func promptTemplate(c Category) string {
+	b, err := promptFS.ReadFile("prompts/" + string(c) + ".md")
+	if err != nil {
+		panic("judge: prompt template missing: " + string(c) + ".md")
+	}
+	return string(b)
+}
+
+// promptSubstitutions builds the single Replacer mapping every {{TOKEN}} to its
+// value. {{ARCH_BLOCK}} resolves to the at-plan lens for plan-quality, at-review
+// otherwise. A .md uses only the tokens it needs; unused ones are simply absent.
+// strings.Replacer is single-pass, so a value containing "{{…}}" (e.g. a diff) is
+// inserted literally — no accidental re-substitution.
+func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
+	archLens := "at-review"
+	if c == PlanQuality {
+		archLens = "at-plan"
+	}
+	return strings.NewReplacer(
+		"{{ARCH_BLOCK}}", ArchitectureBlock(archLens),
+		"{{CONTRACT}}", ContractPreamble,
+		"{{BOUNDARY_CONTRACT}}", BoundaryReviewContract,
+		"{{CODE_REVIEW_BODY}}", CodeReviewBody(in),
+		"{{DIFF}}", in.Diff,
+		"{{CHANGED_ISSUES}}", strings.Join(in.ChangedIssues, "\n"),
+		"{{ISSUE_CONTENT}}", in.IssueContent,
+		"{{PLAN_CONTENT}}", orDefault(in.PlanContent, "(no separate plan file)"),
+		"{{REF}}", orDefault(in.IssueRef, "<unknown>"),
+		"{{MODEL}}", estimate.CurrentModel(),
+	)
+}
+
+// renderTemplate is the uniform path: load the category's .md and substitute.
+func renderTemplate(c Category, in PromptInput) string {
+	return promptSubstitutions(c, in).Replace(promptTemplate(c))
+}
 
 // Category enumerates the supported judge checks. Names match the
 // shell's CHECK_NAMES array verbatim so `make check-dry` and
@@ -134,44 +183,10 @@ type PromptInput struct {
 func BuildPrompt(category Category, in PromptInput) string {
 	switch category {
 	case DRY:
-		return fmt.Sprintf(`You are a code reviewer checking the diff for ARCH-DRY violations.
-The principle is authored once in the registry below (#75):
-
-%s
-
-Apply ARCH-DRY's at-review lens to the diff: duplicated logic, copy-pasted blocks,
-near-identical functions that should be one shared helper. Report file:line + the
-consolidation. Do NOT modify any files; only report.
-
-%s
-
-Tokens for this check:
-  CLEAN   = no ARCH-DRY violations.
-  FAILURE = duplicated logic that should be consolidated.
-
-Diff:
-%s
-`, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
+		return renderTemplate(category, in)
 
 	case PURE:
-		return fmt.Sprintf(`You are a code reviewer checking the diff for ARCH-PURE violations.
-The principle is authored once in the registry below (#75):
-
-%s
-
-Apply ARCH-PURE's at-review lens to the diff: business logic mixed with IO,
-functions that could be pure but aren't, side effects that should move to the
-boundary. Report file:line + the refactor. Do NOT modify any files; only report.
-
-%s
-
-Tokens for this check:
-  CLEAN   = no ARCH-PURE violations.
-  FAILURE = business logic mixed with IO that should move to the boundary.
-
-Diff:
-%s
-`, ArchitectureBlock("at-review"), ContractPreamble, in.Diff)
+		return renderTemplate(category, in)
 
 	case Plan:
 		changedList := strings.Join(in.ChangedIssues, "\n")
