@@ -125,6 +125,13 @@ Run: `go test ./cmd/sdlc/internal/judge -run TestBuildPrompt_Golden -update-gold
 Then: `go test ./cmd/sdlc/internal/judge -run TestBuildPrompt_Golden` → PASS (goldens match current code).
 Expected: 7 files under `testdata/golden/`. **These are the frozen truth for the whole refactor.**
 
+> ⛔ **CRITICAL — never re-run `-update-golden` after this step.** The entire point of
+> M2 is zero-byte drift in the review prompts. From Task 2 on, a golden **failure means
+> a `.md` drifted — fix the `.md`, NOT the golden.** Re-capturing (`-update-golden`) to
+> "make the test pass" silently bakes the drift into the frozen truth and corrupts the
+> fresh-context review prompts with no test left to catch it. If a subagent executes
+> this plan, this instruction is load-bearing.
+
 - [ ] **Step 2b: Cover the empty-`IssueRef` fallback.** `goldenInput` sets a non-empty `IssueRef`, so the `ref == "" → "<unknown>"` branch (used by `plan-quality` + `estimate-quality`) is exercised by no test. Add a tiny unit assertion (not a golden) alongside the golden test:
 
 ```go
@@ -177,14 +184,6 @@ func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
 	if c == PlanQuality {
 		archLens = "at-plan"
 	}
-	ref := in.IssueRef
-	if ref == "" {
-		ref = "<unknown>"
-	}
-	planSection := in.PlanContent
-	if planSection == "" {
-		planSection = "(no separate plan file)"
-	}
 	return strings.NewReplacer(
 		"{{ARCH_BLOCK}}", ArchitectureBlock(archLens),
 		"{{CONTRACT}}", ContractPreamble,
@@ -193,12 +192,16 @@ func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
 		"{{DIFF}}", in.Diff,
 		"{{CHANGED_ISSUES}}", strings.Join(in.ChangedIssues, "\n"),
 		"{{ISSUE_CONTENT}}", in.IssueContent,
-		"{{PLAN_CONTENT}}", planSection,
-		"{{REF}}", ref,
+		"{{PLAN_CONTENT}}", orDefault(in.PlanContent, "(no separate plan file)"),
+		"{{REF}}", orDefault(in.IssueRef, "<unknown>"),
 		"{{MODEL}}", estimate.CurrentModel(),
 	)
 }
 ```
+
+> **ARCH-DRY:** reuse the existing `orDefault(s, def)` helper (`review.go:50`, already
+> used by `CodeReviewBody`) for the empty-`IssueRef`/`PlanContent` fallbacks — don't
+> re-inline the `if s == "" {…}` logic.
 
 - [ ] **Step 2: Create `dry.md`** — the exact current prose, `%s` → tokens. The current `dry` template (`prompts.go:137-153`) maps: first `%s` = `{{ARCH_BLOCK}}`, second `%s` = `{{CONTRACT}}`, third `%s` = `{{DIFF}}`:
 
@@ -337,11 +340,9 @@ v3.1). Rough shape: one `cross-cutting-refactor`-flavored change confined to one
 atlas regen + the M2 milestone-review. No new external surface, deterministic, guarded
 by goldens → low risk, ~2–3h.
 
-## Open question for the operator
+## Location (decided)
 
-Prompt file **location**: this plan uses `cmd/sdlc/internal/judge/prompts/*.md`
-(co-located with the code that renders them). The literal request was "move to helptext"
-— but `cmd/sdlc/helptext/`'s `//go:embed *.md` would then pull these into the manual's
-**Help-text** section and mis-categorize them. If you specifically want them physically
-under `helptext/`, they'd need a dedicated sub-embed (e.g. `helptext/prompts/`) kept out
-of the help-text enumeration. Flag if you prefer that; otherwise `judge/prompts/` stands.
+Prompt files live at **`cmd/sdlc/internal/judge/prompts/*.md`** (co-located with the
+code that renders them) — confirmed by the operator (issue `## Log`, 2026-07-01 scope
+entry). Not `cmd/sdlc/helptext/`: its `//go:embed *.md` would pull them into the manual's
+Help-text section and mis-categorize them.
