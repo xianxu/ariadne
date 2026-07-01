@@ -15,7 +15,7 @@ import (
 func TestDispatch_ResolvesVerdictBlock(t *testing.T) {
 	orig := Run
 	defer func() { Run = orig }()
-	Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		return []byte("Here is my review of the diff.\n\n" +
 			"```verdict\nverdict: FIX-THEN-SHIP\nconfidence: high\n```\n\n" +
 			"Findings: a couple of minors.\n"), nil

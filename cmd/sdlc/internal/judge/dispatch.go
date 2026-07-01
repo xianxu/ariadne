@@ -1,6 +1,7 @@
 package judge
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -8,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"time"
 )
 
 // AgentCLI names a coding-agent CLI. The default is "claude"; the
@@ -74,12 +77,29 @@ func binAugmentedEnv(binDir string, env []string) []string {
 // fake to assert the right command line / capture without spawning a
 // real agent process. Production execs the binary — with the owner bin/
 // prepended to PATH so the agent can resolve `sdlc` (#138).
-var Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+//
+// onStart (nil ok) is invoked once with the child PID immediately after a
+// successful launch — before the (potentially minutes-long) Wait — so a caller
+// can report liveness while the agent runs (#140). We hand-roll Start→Wait
+// instead of CombinedOutput to get that hook; combining stdout+stderr into one
+// shared *bytes.Buffer reproduces CombinedOutput's bytes exactly (os/exec reuses
+// a single fd + copy goroutine when Stdout == Stderr, so no locking is needed).
+var Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir, err := ownerBinDir(); err == nil {
 		cmd.Env = binAugmentedEnv(dir, os.Environ())
 	}
-	return cmd.CombinedOutput()
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	if err := cmd.Start(); err != nil {
+		return buf.Bytes(), err
+	}
+	if onStart != nil {
+		onStart(cmd.Process.Pid)
+	}
+	err := cmd.Wait()
+	return buf.Bytes(), err
 }
 
 // BuildArgs returns the argv (binary name + flags + final prompt) for
@@ -140,16 +160,58 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	if err != nil {
 		return "", err
 	}
-	out, runErr := Run(ctx, name, args...)
+
+	// pid is written once by Run's onStart (at child launch) and read by the
+	// heartbeat loop; atomic because the two live on different goroutines.
+	var pid atomic.Int64
+	onStart := func(p int) { pid.Store(int64(p)) }
+
+	// No progress sink → run synchronously, exactly as before. This is the fast
+	// path (unit tests, quick dispatches) and stays free of goroutines/tickers.
+	if opts.Stderr == nil {
+		out, runErr := Run(ctx, onStart, name, args...)
+		return classifyRunResult(out, runErr, name)
+	}
+
+	// Progress path (#140): the agent can run for minutes. Run it on a background
+	// goroutine and, until it returns, emit a heartbeat to opts.Stderr every
+	// heartbeatInterval showing elapsed + agent + child PID — the automated form
+	// of the operator's manual `ps` inspection. The captured output and the
+	// exit-code policy are identical to the fast path, so verdict parsing and
+	// classification downstream are untouched.
+	type runResult struct {
+		out    []byte
+		runErr error
+	}
+	done := make(chan runResult, 1)
+	go func() {
+		out, runErr := Run(ctx, onStart, name, args...)
+		done <- runResult{out, runErr}
+	}()
+
+	start := time.Now()
+	ticks, stop := newHeartbeatTicker(heartbeatInterval)
+	defer stop()
+	for {
+		select {
+		case r := <-done:
+			return classifyRunResult(r.out, r.runErr, name)
+		case <-ticks:
+			fmt.Fprintln(opts.Stderr, heartbeatLine(sinceStart(start), string(opts.Agent), int(pid.Load())))
+		}
+	}
+}
+
+// classifyRunResult applies Dispatch's exit-code policy to a completed Run,
+// shared by the synchronous and heartbeat paths (ARCH-DRY): a non-zero exit is
+// swallowed (surface the output for Classify, matching the shell's `|| true`); a
+// real launch failure returns a diagnosable error naming the owner bin/ + PATH
+// (#138). name is the attempted agent binary.
+func classifyRunResult(out []byte, runErr error, name string) (string, error) {
 	if _, ok := runErr.(*exec.ExitError); ok {
-		// Subprocess ran but exited non-zero. Surface the output (may
-		// be empty); let Classify() interpret. Matches the shell.
 		return string(out), nil
 	}
 	if runErr != nil {
-		// Real launch failure: binary missing, ctx cancelled, etc. Name the
-		// attempted agent + the owner bin/ we prepended and the effective PATH,
-		// so a "command not found" is diagnosable from the error alone (#138).
 		dir, derr := ownerBinDir()
 		if derr != nil || dir == "" {
 			dir = "?"

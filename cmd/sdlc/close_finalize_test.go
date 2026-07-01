@@ -71,7 +71,7 @@ func TestRunCloseWithReview_DispatchError_Halts(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
 		return nil, errors.New("boom: agent not found")
 	}
 
