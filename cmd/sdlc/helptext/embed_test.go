@@ -59,6 +59,15 @@ func TestPushEmbedded(t *testing.T) {
 	}
 }
 
+// FS() must expose the embedded set so `sdlc retro` can enumerate it (#153).
+func TestFS_OpensEmbeddedFile(t *testing.T) {
+	f, err := FS().Open("root.md")
+	if err != nil {
+		t.Fatalf("FS().Open(root.md): %v", err)
+	}
+	_ = f.Close()
+}
+
 func TestMustGetPanicsOnMissing(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {

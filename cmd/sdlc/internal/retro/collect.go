@@ -1,6 +1,7 @@
 package retro
 
 import (
+	"io/fs"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -58,4 +59,49 @@ func judgeSources() []InjectionSource {
 		})
 	}
 	return out
+}
+
+// helptextSources enumerates the embedded sdlc help-text files (the process
+// manual baked into the binary). Injected with an fs.FS (production passes
+// helptext.FS()) so it tests against a fake FS. Single enumeration path — the
+// helptext package exposes only FS(), no separate Names() (ARCH-DRY).
+func helptextSources(fsys fs.FS) []InjectionSource {
+	ents, _ := fs.ReadDir(fsys, ".")
+	var out []InjectionSource
+	for _, e := range ents {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".md") {
+			continue
+		}
+		stem := strings.TrimSuffix(name, ".md")
+		content, _ := fs.ReadFile(fsys, name)
+		out = append(out, InjectionSource{
+			Kind:  KindHelpText,
+			Title: stem,
+			When:  helptextWhen(stem),
+			Link:  "cmd/sdlc/helptext/" + name,
+			Body:  firstParagraph(string(content)),
+		})
+	}
+	return out
+}
+
+// helptextWhen keeps the trigger prose truthful. `root.md` is emitted by bare
+// `sdlc --help`, not `sdlc root --help`; other stems map to a verb or sub-verb,
+// so we stay generic-but-accurate rather than assert a `sdlc <stem>` that may
+// not exist (e.g. set-status/fetch are sub-verbs).
+func helptextWhen(stem string) string {
+	if stem == "root" {
+		return "printed by bare `sdlc --help` (the workflow contract)"
+	}
+	return "embedded help; printed by the matching `sdlc … --help` / on verb error"
+}
+
+// firstParagraph returns the first blank-line-delimited paragraph, trimmed.
+func firstParagraph(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.Index(s, "\n\n"); i >= 0 {
+		return strings.TrimSpace(s[:i])
+	}
+	return s
 }
