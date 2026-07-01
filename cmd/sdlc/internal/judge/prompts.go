@@ -6,8 +6,9 @@
 //   - Categories — the named principle/sanity checks (dry, pure, plan,
 //     specs, lessons) plus milestone-review for the post-milestone
 //     fresh-eyes pass per AGENTS.md §3.
-//   - Prompt construction per category, ported byte-faithfully from the
-//     shell's build_prompt heredocs.
+//   - Prompt construction per category from embedded prompts/*.md templates
+//     (#153 M2) — readable + linkable by `sdlc process-manual` — byte-faithful
+//     to the original shell build_prompt heredocs (golden_test.go pins it).
 //   - Output classification (clean / info / failure) ported from
 //     scripts/lib.sh's is_clean_check_output / is_info_check_output.
 //   - Subprocess dispatch via an agent CLI (claude, codex, gemini).
@@ -66,11 +67,6 @@ func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
 		"{{REF}}", orDefault(in.IssueRef, "<unknown>"),
 		"{{MODEL}}", estimate.CurrentModel(),
 	)
-}
-
-// renderTemplate is the uniform path: load the category's .md and substitute.
-func renderTemplate(c Category, in PromptInput) string {
-	return promptSubstitutions(c, in).Replace(promptTemplate(c))
 }
 
 // Category enumerates the supported judge checks. Names match the
@@ -172,46 +168,24 @@ type PromptInput struct {
 	RepoNote  string // base-vs-downstream orientation note
 }
 
-// BuildPrompt renders the prompt for one category. Returns "" for
-// categories that don't invoke an agent (lessons).
+// BuildPrompt renders the prompt for one category by loading its embedded
+// template (prompts/<category>.md) and substituting {{TOKEN}}s. Returns "" for
+// the one category that doesn't invoke an agent (lessons — a reminder ping;
+// callers emit LessonsReminder directly).
 //
-// Wording is preserved byte-faithfully from pre-merge-checks.sh's
-// build_prompt heredocs so the agent behavior matches the shell version.
-// Drift between this prompt and the shell version is a bug — they
-// describe one contract.
+// The prose is single-sourced in prompts/*.md (#153 M2) — readable + linkable by
+// `sdlc process-manual`. Wording is preserved byte-faithfully (golden_test.go
+// pins BuildPrompt output byte-for-byte); drift is a bug.
+//
+// milestone-review.md composes the code-review procedure header (CodeReviewBody,
+// #137) + the at-review ARCH block + the block-first BoundaryReviewContract
+// (#147); plan-quality.md uses the at-plan ARCH lens. That lens routing lives in
+// promptSubstitutions.
 func BuildPrompt(category Category, in PromptInput) string {
-	switch category {
-	case DRY:
-		return renderTemplate(category, in)
-
-	case PURE:
-		return renderTemplate(category, in)
-
-	case Plan:
-		return renderTemplate(category, in)
-
-	case PlanQuality:
-		return renderTemplate(category, in)
-
-	case EstimateQuality:
-		return renderTemplate(category, in)
-
-	case Specs:
-		return renderTemplate(category, in)
-
-	case Lessons:
-		// No agent invocation — just a reminder ping. Caller emits the
-		// REMINDER: line directly so output classification recognizes it
-		// as info, not failure.
-		return ""
-
-	case MilestoneReview:
-		// Composition (milestone-review.md): the code-review procedure header
-		// (CodeReviewBody, #137) + the at-review ARCH block + the block-first
-		// BoundaryReviewContract (#147). One reviewer, both boundaries.
-		return renderTemplate(category, in)
+	if category == Lessons {
+		return "" // reminder ping, not an agent prompt (see LessonsReminder)
 	}
-	return ""
+	return promptSubstitutions(category, in).Replace(promptTemplate(category))
 }
 
 // LessonsReminder is the line `sdlc judge lessons` emits in place of an
