@@ -1,11 +1,12 @@
 ---
 id: 000161
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
 estimate_hours:
+started: 2026-07-01T22:28:46-07:00
 ---
 
 # bootstrap: ensure-uv — install uv (Python package manager) in the bootstrap chain
