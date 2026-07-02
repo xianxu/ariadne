@@ -23,7 +23,7 @@ import (
 
 // NewProcessManualCmd returns the cobra command for `sdlc process-manual`.
 func NewProcessManualCmd() *cobra.Command {
-	var out string
+	var out, session string
 	var full, includeMemory bool
 	cmd := &cobra.Command{
 		Use:           "process-manual",
@@ -32,19 +32,22 @@ func NewProcessManualCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProcessManual(cmd.OutOrStdout(), cmd.ErrOrStderr(), out, full, includeMemory)
+			return runProcessManual(cmd.OutOrStdout(), cmd.ErrOrStderr(), out, session, full, includeMemory)
 		},
 	}
 	cmd.Flags().StringVar(&out, "out", "", "write the manual to a file (default: stdout)")
+	cmd.Flags().StringVar(&session, "session", "", "reconstruct which injection points FIRED in a session transcript (a .jsonl path, or \"current\" for this repo's active session) instead of the static catalog (#157)")
 	cmd.Flags().BoolVar(&full, "full", false, "inline the complete judge prompts instead of a first-paragraph gist (outline unchanged)")
 	cmd.Flags().BoolVar(&includeMemory, "include-memory", false, "inline private, machine-local persisted memories (redacted by default; do NOT commit the output)")
 	return cmd
 }
 
-// runProcessManual resolves the repo root + home, builds the manual, and writes
-// it to stdout or --out. For --out, links are prefixed with the out file's path
+// runProcessManual resolves the repo root + home, builds the content, and writes
+// it to stdout or --out. Without --session it renders the STATIC catalog (Manual);
+// with --session it reconstructs which injection points FIRED in a transcript
+// (SessionReport, #157). For --out, links are prefixed with the out file's path
 // back to the repo root so they stay clickable (assumes --out is within the repo).
-func runProcessManual(stdout, stderr io.Writer, outPath string, full, includeMemory bool) error {
+func runProcessManual(stdout, stderr io.Writer, outPath, session string, full, includeMemory bool) error {
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err
@@ -73,14 +76,25 @@ func runProcessManual(stdout, stderr io.Writer, outPath string, full, includeMem
 		}
 	}
 
-	manual := processmanual.Manual(opts, linkPrefix)
+	content := ""
+	label := "process manual"
+	if session != "" {
+		content, err = processmanual.SessionReport(opts, session, linkPrefix)
+		if err != nil {
+			return err
+		}
+		label = "session reconstruction"
+	} else {
+		content = processmanual.Manual(opts, linkPrefix)
+	}
+
 	if outPath == "" {
-		fmt.Fprint(stdout, manual)
+		fmt.Fprint(stdout, content)
 		return nil
 	}
-	if werr := os.WriteFile(outPath, []byte(manual), 0o644); werr != nil {
+	if werr := os.WriteFile(outPath, []byte(content), 0o644); werr != nil {
 		return werr
 	}
-	fmt.Fprintf(stderr, "wrote process manual: %s\n", outPath)
+	fmt.Fprintf(stderr, "wrote %s: %s\n", label, outPath)
 	return nil
 }

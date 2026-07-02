@@ -1,6 +1,6 @@
 # process-manual — dynamic session reconstruction (#157) Implementation Plan
 
-> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) for the execution approach (superpowers-subagent-driven-development or superpowers-executing-plans). Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) for the execution approach (superpowers-subagent-driven-development or superpowers-executing-plans). Steps use checkbox (`- [x]`) syntax.
 
 **Goal:** `sdlc process-manual --session <jsonl|current>` parses a Claude session transcript and emits, in timestamp order (segmented on the 60-min-gap / `away_summary` boundary), each **fired** injection event matched to its M1 catalog `Kind` — as a linked markdown report.
 
@@ -76,44 +76,46 @@
 
 ### Task 1: `FiredEvent` + tolerant `parseEvents` (+ verdict recovery)
 **Files:** Create `session.go`, `session_test.go`.
-- [ ] **Step 1: failing test** — a fixture JSONL string with: an `assistant` record whose `tool_use` is a Bash `sdlc close --issue 9` (id `toolu_X`); a following `user` record whose `.message.content[]` has a `tool_result` with `tool_use_id: toolu_X` and a `.toolUseResult` (dict) whose `stdout` contains a **reviewer-output** verdict line — `VERDICT: SHIP` (NOT just the `Review-Verdict: SHIP` trailer, which `ParseVerdict` returns `"unknown"` for — verified); a `Skill` tool_use; a `Read` of `…/workshop/lessons.md`; a `type:"system", subtype:"away_summary"` record; and an unknown `type` line. Assert `parseEvents` returns 3 `FiredEvent`s (close/skill/lessons), the close one has `Verdict=="SHIP"` (linked via `tool_use_id`), `awaySummaryTimes` has 1 entry, and the unknown line is skipped without error.
-- [ ] **Step 2:** run → FAIL (undefined).
-- [ ] **Step 3:** implement `FiredEvent`, the tolerant unmarshal structs, the tool_use walk, the `tool_use_id→stdout` map, and verdict recovery via `judge.ParseVerdict`.
-- [ ] **Step 4:** run → PASS.
-- [ ] **Step 5:** commit — `#157: FiredEvent + tolerant parseEvents (verdict via judge.ParseVerdict)`
+- [x] **Step 1: failing test** — a fixture JSONL string with: an `assistant` record whose `tool_use` is a Bash `sdlc close --issue 9` (id `toolu_X`); a following `user` record whose `.message.content[]` has a `tool_result` with `tool_use_id: toolu_X` and a `.toolUseResult` (dict) whose `stdout` contains a **reviewer-output** verdict line — `VERDICT: SHIP` (NOT just the `Review-Verdict: SHIP` trailer, which `ParseVerdict` returns `"unknown"` for — verified); a `Skill` tool_use; a `Read` of `…/workshop/lessons.md`; a `type:"system", subtype:"away_summary"` record; and an unknown `type` line. Assert `parseEvents` returns 3 `FiredEvent`s (close/skill/lessons), the close one has `Verdict=="SHIP"` (linked via `tool_use_id`), `awaySummaryTimes` has 1 entry, and the unknown line is skipped without error.
+- [x] **Step 2:** run → FAIL (undefined).
+- [x] **Step 3:** implement `FiredEvent`, the tolerant unmarshal structs, the tool_use walk, the `tool_use_id→stdout` map, and verdict recovery via `judge.ParseVerdict`.
+- [x] **Step 4:** run → PASS.
+- [x] **Step 5:** commit — `#157: FiredEvent + tolerant parseEvents (verdict via judge.ParseVerdict)`
 
 ### Task 2: `classifyToolUse` match table
 **Files:** modify `session.go`, `session_test.go`.
-- [ ] Table test: `Skill{skill:x}`→KindSkill; `Bash{command:"sdlc close …"}`→KindSDLCPrompt(detail "close"); `Bash{command:"sdlc state --help"}`→KindHelpText; `Read{file_path:".../lessons.md"}`→KindLessons; `Bash{command:"ls"}`→ok=false; `Bash{command:"echo sdlcx"}`→ok=false (anchored). Red → implement → green → commit.
+- [x] Table test: `Skill{skill:x}`→KindSkill; `Bash{command:"sdlc close …"}`→KindSDLCPrompt(detail "close"); `Bash{command:"sdlc state --help"}`→KindHelpText; `Read{file_path:".../lessons.md"}`→KindLessons; `Bash{command:"ls"}`→ok=false; `Bash{command:"echo sdlcx"}`→ok=false (anchored). Red → implement → green → commit.
 
 ### Task 3: `segmentEvents` (60-min gap + away_summary)
 **Files:** modify `session.go`, `session_test.go`.
-- [ ] Test: events at t, t+10min, t+90min (gap) → 2 segments; an `away_summary` timestamp between two events → split there too. Red → implement (`const gapBoundary = 60*time.Minute`) → green → commit.
+- [x] Test: events at t, t+10min, t+90min (gap) → 2 segments; an `away_summary` timestamp between two events → split there too. Red → implement (`const gapBoundary = 60*time.Minute`) → green → commit.
 
 ### Task 4: `renderSessionReport`
 **Files:** modify `session.go`, `session_test.go`.
-- [ ] Test: 2 segments of fired events + the M1 catalog → markdown with `## Segment 1/2`, chronological `HH:MM:SS · Kind · detail` lines, a matched link for a known Kind, the close event's `SHIP` verdict inline, and the header naming the two hard limits (agents-chain/memory invisible; forked prompts). Red → implement (resolve links against catalog; reuse link-prefix) → green → commit.
+- [x] Test: 2 segments of fired events + the M1 catalog → markdown with `## Segment 1/2`, chronological `HH:MM:SS · Kind · detail` lines, a matched link for a known Kind, the close event's `SHIP` verdict inline, and the header naming the two hard limits (agents-chain/memory invisible; forked prompts). Red → implement (resolve links against catalog; reuse link-prefix) → green → commit.
 
 ### Task 5: `locateSessionJSONL` + `--session` wiring
 **Files:** modify `session.go`, `processmanual.go`, `processmanual_test.go`, `session_test.go`.
-- [ ] Test A (`locateSessionJSONL`): temp `home/.claude/projects/<slug>/` with two `*.jsonl` (different mtimes) → `"current"` returns the newest; an explicit path returns it as-is.
-- [ ] Test B (cobra): write a fixture JSONL to a temp file; `buildRoot()` with `["process-manual","--session",<path>]` → output contains `## Segment` and a fired event. Red → implement the `--session` flag + `runProcessManual` branch → green → commit.
+- [x] Test A (`locateSessionJSONL`): temp `home/.claude/projects/<slug>/` with two `*.jsonl` (different mtimes) → `"current"` returns the newest; an explicit path returns it as-is.
+- [x] Test B (cobra): write a fixture JSONL to a temp file; `buildRoot()` with `["process-manual","--session",<path>]` → output contains `## Segment` and a fired event. Red → implement the `--session` flag + `runProcessManual` branch → green → commit.
 
 ### Task 6: atlas + real smoke run
 **Files:** `atlas/workflow/process-manual.md` (note the dynamic pass now exists, #157), regenerate nothing (session report is not tracked).
-- [ ] Update the atlas doc: the dynamic pass is delivered (`--session`); keep the two hard limits documented.
-- [ ] Real smoke: `go run ./cmd/sdlc process-manual --session current | head -40` on a real recent session; sanity-check the ordered stream. Record in the issue `## Log`.
-- [ ] Commit.
+- [x] Update the atlas doc: the dynamic pass is delivered (`--session`); keep the two hard limits documented.
+- [x] Real smoke: `go run ./cmd/sdlc process-manual --session current | head -40` on a real recent session; sanity-check the ordered stream. Record in the issue `## Log`.
+- [x] Commit.
 
 ---
 
 ## Estimate
 
-Set in the issue `## Estimate` block before `change-code` (v3.1). Rough shape: one
-`greenfield-go-module` (`session.go`: parser + classifier + segmenter + renderer, all
-pure + fixture-tested) + a `smaller-go-module` (`--session` wiring + `locateSessionJSONL`)
-+ `atlas-docs` + the `milestone-review`. Deterministic, fixture-driven, reuses M1 —
-~3–4h.
+The canonical reconciled derivation is the issue's `## Estimate` block (v3.1,
+Method A) — **2.6h**: one `greenfield-go-module` (`session.go`: parser +
+classifier + segmenter + renderer, all pure + fixture-tested) + a
+`smaller-go-module` (`--session` wiring + `locateSessionJSONL`) + `atlas-docs` +
+the single close-review (`milestone-review`). Deterministic, fixture-driven,
+reuses M1. The estimate-quality gate reads the issue block, so this plan does not
+carry a second (divergent) number.
 
 ## Explicitly deferred (a later issue, not #157)
 
@@ -121,3 +123,20 @@ Anomaly / "injected-but-ignored" detection: `agents-chain`/`memory` firing is
 undetectable (no transcript event); "offered-but-never-fired" (skill_listing − Skill
 tool_use) is a weak signal; "did the agent follow the guidance?" is an LLM-judge problem.
 Out of scope by design.
+
+## Revisions
+
+- **2026-07-01 — `FiredEvent.Link` removed (implementation).** The Core-concepts
+  sketch listed `FiredEvent{… Link string (resolved from the M1 catalog)}`, but links
+  resolve at *render* time in `renderSessionReport` (which takes the catalog), so a
+  `Link` field on the parse output would be dead. Delta: `FiredEvent` carries only the
+  fired data (`Time`/`Kind`/`Detail`/`Verdict`); presentation resolves links. (The
+  `Tool` field was likewise dropped at the boundary review — redundant with `Kind`,
+  never rendered.) Cleaner pure-core / render split; done-when unaffected.
+- **2026-07-01 — verdict recovery: trailer fallback (boundary-review I1).** Task 1's
+  `parseEvents` note assumed a close stdout "streams the full reviewer body *then* the
+  trailer, so it resolves correctly." Empirically incomplete: a *re-close* streams
+  trailer-only stdout (no fresh body), and `judge.ParseVerdict` returns `unknown` for a
+  bare `Review-Verdict:` trailer (~20% of verdict-bearing closes). Delta: `parseEvents`
+  now falls back to `judge.ParseVerdictTrailer` when `ParseVerdict` is unknown; a
+  trailer-only fixture + a direct unit test cover it.

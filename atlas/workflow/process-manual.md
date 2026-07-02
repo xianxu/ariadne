@@ -12,6 +12,10 @@ It is a **deterministic regeneration**, not a hand-maintained doc: re-run it rat
 than editing its output. The sdlc-prompt slice comes straight from the binary, so
 that part never drifts from what actually fires.
 
+It has two modes: the default **static catalog** (what *can* inject) and, with
+`--session`, a **dynamic reconstruction** (what *did* fire in one session, in order
+— #157, below).
+
 ## The six source kinds
 
 | Kind | Source | Collector |
@@ -43,6 +47,40 @@ Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/processmanual`:
 - `cmd/sdlc/processmanual.go` is the cobra glue: `--out <path>` writes to a file (links
   re-based to that file), else stdout. Reuses `gitx.RepoTopLevel()` for the root.
 
+## Dynamic reconstruction (`--session`, #157)
+
+`sdlc process-manual --session <jsonl|current>` reads a Claude session transcript
+and reconstructs which catalogued injection points actually **fired**, in timestamp
+order, matched back to the catalog above. It is **Go-native** (not a shell-out to
+introspect's Python) precisely so it matches against the in-process `InjectionSource`
+catalog rather than serializing across a boundary (ARCH-DRY). All in
+`cmd/sdlc/internal/processmanual/session.go`:
+
+- **Pure core** (fixture-tested, no IO): `parseEvents(data, validVerbs)` tolerantly
+  scans the JSONL (unknown record types skipped), keeps the fired injections via
+  `classifyToolUse`, and recovers `close`/`milestone-close` **verdicts** from the
+  following `tool_result`'s stdout — linked by `tool_use_id`, parsed with the exact
+  `judge.ParseVerdict` that `close` itself uses. `segmentEvents` splits on a >60-min
+  lull (constant ported from introspect's `normalize.py`) or an `away_summary`
+  boundary. `renderSessionReport` emits linked, segmented markdown.
+- **Injection detection is precision-first.** A Bash `sdlc <verb>` only counts when
+  `sdlc` sits at a **command boundary** AND the verb is a **real, linkable verb**
+  (validated against the catalog's help-text titles — so "classified" ⟺ "in the
+  catalog"). This drops prose mentions (`git commit -m "…sdlc close…"`), flags
+  (`cmd/sdlc --include=…`), and dev-time `go run ./cmd/sdlc <verb>` smoke calls —
+  none of which are real workflow events.
+- **IO shell**: `locateSessionJSONL` (prefers `$CLAUDE_CODE_SESSION_ID`, else newest
+  `*.jsonl` by mtime under `claudeProjectSlug`) + `SessionReport` (the composer
+  mirroring `Manual`). `runProcessManual` branches on `--session`.
+
+**Two hard limits, rendered into the output** (not silently omitted — ARCH-PURPOSE):
+(1) agents-chain (AGENTS/CLAUDE.md) + memory are session-start *system-prompt*
+injections that never appear in a transcript — availability is knowable, firing is
+not; (2) forked review *prompts* aren't in the transcript, only their *output* (the
+recovered verdict). **Deferred by design**: anomaly / "injected-but-ignored"
+detection — undetectable for agents-chain/memory, and an LLM-judge problem for "was
+the guidance followed?".
+
 ## Stated blind spots (M1)
 
 - **Persisted memories are agent-specific (Claude), private, and live outside the
@@ -50,12 +88,13 @@ Pure core + thin IO shell (ARCH-PURE), all in `cmd/sdlc/internal/processmanual`:
   paths + personal content into a (committable) file. `--include-memory` shows them
   for local inspection only and is refused together with `--out`. When shown, they are
   located by convention (`claudeProjectSlug`); an absent dir yields a "none found" note.
-- **This is the static catalog (#153 M1+M2: catalog + judge-prompts-as-markdown).** The
-  dynamic pass — which of these actually *fired* in a given session, in what order, and
-  whether the agent followed them — is a separate issue (**ariadne#157**), which consumes
-  this catalog as its baseline.
+- **The default (no `--session`) is the static catalog (#153 M1+M2: catalog +
+  judge-prompts-as-markdown).** The dynamic *fired-in-a-session* pass is delivered
+  (**#157**, `--session`, above); the further *whether the agent followed the guidance*
+  pass (an LLM-judge / anomaly problem) remains deferred.
 
 ## Base-layer note
 
-`cmd/sdlc/{main.go, helptext/embed.go, processmanual.go}` are base-layer surface, so
-`sdlc process-manual` ships to every downstream ariadne repo (additive + read-only).
+`cmd/sdlc/{main.go, helptext/embed.go, processmanual.go}` + `internal/processmanual/`
+(incl. `session.go`) are base-layer surface, so `sdlc process-manual` (both the static
+manual and `--session`) ships to every downstream ariadne repo (additive + read-only).

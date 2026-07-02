@@ -239,3 +239,22 @@ func ParseVerdict(output string) Verdict {
 	}
 	return VerdictUnknown
 }
+
+// reviewVerdictTrailerRE matches the `Review-Verdict: <TOKEN>` git-trailer that
+// close/milestone-close append to their stdout (and commit message). (?mi) so it
+// matches the trailer line anywhere, case-insensitively.
+var reviewVerdictTrailerRE = regexp.MustCompile(`(?mi)^Review-Verdict:[ \t]*(\S+)`)
+
+// ParseVerdictTrailer recovers a verdict from the `Review-Verdict:` git-trailer.
+// It is the fallback for TRAILER-ONLY stdout — a re-close (or verdict-reuse close)
+// streams only the trailer, no fresh reviewer body, so ParseVerdict (which reads
+// the body `VERDICT:` line) returns unknown for it. Kept SEPARATE from ParseVerdict
+// so close.go's reviewer-output semantics are unchanged; callers that also see the
+// trailer (e.g. `process-manual --session` reconstructing fired closes) opt into it.
+// Returns VerdictUnknown when the trailer is absent or not a model-emitted token.
+func ParseVerdictTrailer(output string) Verdict {
+	if m := reviewVerdictTrailerRE.FindStringSubmatch(output); m != nil {
+		return verdictFor(m[1])
+	}
+	return VerdictUnknown
+}

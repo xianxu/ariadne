@@ -1,12 +1,13 @@
 ---
 id: 000157
-status: working
+status: done
 deps: [ariadne#153]
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
-estimate_hours:
+estimate_hours: 2.6
 started: 2026-07-01T16:06:44-07:00
+actual_hours: 1.02
 ---
 
 # process-manual dynamic session reconstruction
@@ -84,12 +85,76 @@ Same as M1: markdown report with live links + `🤖[]` slots (composes with `xx-
 
 ## Plan
 
-- [ ] Coarse — detailed plan at `start-plan` via `superpowers-writing-plans`. Shape:
+- [x] Coarse — detailed plan at `start-plan` via `superpowers-writing-plans`. Shape:
       Go JSONL parser (tolerate unknown record `type`s) → ordered event stream →
       segmentation → match to M1 catalog Kinds → linked markdown report. Reuse M1's
       `InjectionSource` + `renderManual`.
 
+## Estimate
+
+Single-pass atomic work (no `Mx` tags → one `sdlc close`, one review boundary),
+shaped like #153's M1 (a pure Go core + wiring + atlas + review — the closest
+calibrated sibling, same author). Design is largely spent (grounding digest +
+reviewed plan), reflected in the design hours. *Produced via
+`brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.5 impl=1.1
+item: smaller-go-module      design=0.2 impl=0.4
+item: atlas-docs             design=0.0 impl=0.1
+item: milestone-review       design=0.0 impl=0.2
+design-buffer: 0.15
+total: 2.6
+```
+
+Derivation: `session.go` (pure core — tolerant `parseEvents` + `classifyToolUse`
++ `segmentEvents` + `renderSessionReport`, all fixture-tested) = greenfield
+module, tracking #153 M1's greenfield row (design=0.8 impl=1.2) but smaller
+(single file, design mostly done); `locateSessionJSONL` + `--session` cobra
+wiring = smaller-go-module; atlas relink = atlas-docs; the single close-review =
+milestone-review. Design-buffer 0.15 (thorough reviewed plan).
+
 ## Log
+
+### 2026-07-01 — implementation (session.go, all 6 tasks) + real smoke run
+- 2026-07-01: closed — 6 TDD tasks green (parseEvents tolerant JSONL + verdict via judge.ParseVerdict; classifyToolUse; segmentEvents 60min/away_summary; renderSessionReport; locateSessionJSONL + --session wiring). go test ./cmd/sdlc/... + go vet + repo-wide go test ./... all pass. Real smoke `go run ./cmd/sdlc process-manual --session current` reconstructs the ordered fired-injection stream (5 linked events) — it caught+fixed a verb-precision bug (false-positive --include/matcher/verb/tests), now regression-tested. Two hard limits rendered into output + helptext + atlas. Go-native, matches the M1 InjectionSource catalog.; review verdict: FIX-THEN-SHIP
+
+**Boundary-review follow-up (FIX-THEN-SHIP → addressed):** the review's one Important
+finding **I1** — verdict recovery dropped the verdict on *trailer-only* (re-close)
+stdout, since `judge.ParseVerdict` reads the reviewer *body* and returns `unknown` for
+a bare `Review-Verdict:` git-trailer (~20% of verdict-bearing closes) — is fixed:
+added `judge.ParseVerdictTrailer` (sibling to `ParseVerdict`, leaves close.go's
+semantics unchanged) as a fallback in `parseEvents`, with a trailer-only fixture +
+a direct unit test. Minors also handled: dropped the dead `FiredEvent.Tool` field;
+noted the accepted `VAR=1 sdlc` env-prefix miss. (Oversized-line + timestamp-monotonic
+minors judged low-risk, left as documented.) Plan `## Revisions` updated (Link removal,
+verdict trailer fallback). Full sdlc suite + vet green post-fix.
+
+TDD'd `session.go` in `cmd/sdlc/internal/processmanual/`: `parseEvents` (tolerant
+JSONL, verdict via `judge.ParseVerdict` on `tool_use_id`→stdout) → `classifyToolUse`
+→ `segmentEvents` (60-min gap + away_summary) → `renderSessionReport` →
+`locateSessionJSONL` + `--session` wiring (`SessionReport` composer). Full sdlc
+suite + vet green.
+
+**Real smoke run caught a real bug.** `go run ./cmd/sdlc process-manual --session
+current` on this very session surfaced false-positive "verbs": `--include` (a grep
+`--include=*.go` flag), `matcher`/`verb`/`tests` (from my own commit messages +
+echo text). The naive `sdlc <word>` substring match counted any mention. Root-cause
+fix (precision over recall): (1) `sdlc` must sit at a **command boundary** (start or
+after `;|&(){}`·newline·backtick), and (2) the verb must be a **real, linkable
+verb**, validated against the catalog's help-text titles (so "classified" ⟺
+"in-catalog" — ARCH-DRY). Regression cases pinned in the classify table. Post-fix
+smoke output is clean: 5 events (state, change-code --help, estimate --help,
+estimate-source, change-code), each linked; dev-time `go run ./cmd/sdlc <verb>`
+smoke calls correctly drop out (not workflow events).
+
+**Design note:** the plan's `FiredEvent` sketch listed a `Link` field, but links are
+resolved at render time against the catalog (`renderSessionReport` takes it), so
+carrying `Link` on parse output would be a dead field — dropped it; the parse output
+is just the fired data, presentation resolves links. Cleaner pure/render split.
 
 ### 2026-07-01 — grounding digest (M3 feasibility exploration)
 
