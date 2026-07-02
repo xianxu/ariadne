@@ -227,55 +227,69 @@ data-deps:
 		bash construct/scripts/clone-data-deps.sh; \
 	fi
 
-# ensure-go — guarantee the Go toolchain before anything compiles sdlc. ariadne
-# ships cmd/sdlc and builds it in `tools`, so go is a hard build-dependency of
-# the base layer itself (pre-sdlc, ariadne needed only shell + python, so
-# bootstrap never provisioned a toolchain). #61. Idempotent: no-op when go is
-# present (won't fight gvm/asdf/manual installs). Auto-installs via Homebrew on
-# macOS; elsewhere fails fast with guidance, before the costly peer-clone cascade.
-# nous keeps its own richer toolchain (GPG/gh/…) separately; this guarantees only
-# the one dep the base layer's own build needs.
+# ensure-tool — canned recipe (#161): guarantee one dependency is on PATH before
+# the step that needs it runs. Idempotent: no-op when the tool is present (won't
+# fight asdf/gvm/pipx/manual installs). Auto-installs via Homebrew on macOS;
+# elsewhere fails fast with guidance, before any costly downstream cascade. The
+# three near-identical ensure-* targets (go/cue/uv) collapsed to one parametrized
+# recipe once the rule-of-three tripped (ARCH-DRY).
+# Usage: $(call ensure-tool,<tool>,<brew-formula>,<why-needed>,<install-noun>,<url>)
+#   tool          command probed with `command -v` (e.g. go, cue, uv)
+#   brew-formula  Homebrew formula name (usually == tool)
+#   why-needed    reason clause for the fail-fast error (NO literal comma — commas
+#                 delimit $(call) args; the trailing comma is appended for you)
+#   install-noun  what the manual-install hint says to install (e.g. Go 1.26+, CUE)
+#   url           canonical install URL for the manual-install hint
+define ensure-tool
+	@if command -v $(1) >/dev/null 2>&1; then \
+	    :; \
+	elif command -v brew >/dev/null 2>&1; then \
+	    echo "==> $(1) not found — installing via Homebrew (brew install $(2))"; \
+	    brew install $(2); \
+	else \
+	    echo "Error: $(3)," >&2; \
+	    echo "  but '$(1)' is not on PATH and Homebrew isn't available to install it." >&2; \
+	    echo "  Install $(4) from $(5) and re-run." >&2; \
+	    exit 1; \
+	fi
+endef
+
+# ensure-go / ensure-cue guard hard build-deps of the base layer's OWN build:
+# ariadne ships cmd/sdlc and builds it in `tools` (go, #61), and weave compiles
+# construct/vocabulary/*.cue via the cue CLI at weave-compile time (#122).
+# Pre-sdlc, ariadne assumed only shell + python at the base and provisioned no
+# toolchain. nous keeps its own richer toolchain (GPG/gh/…) separately. ensure-uv
+# is the one that reaches PAST the base layer's own build — see its note.
 .PHONY: ensure-go
 ensure-go:
-	@if command -v go >/dev/null 2>&1; then \
-	    :; \
-	elif command -v brew >/dev/null 2>&1; then \
-	    echo "==> go not found — installing via Homebrew (brew install go)"; \
-	    brew install go; \
-	else \
-	    echo "Error: ariadne ships cmd/sdlc and needs the Go toolchain to build it," >&2; \
-	    echo "  but 'go' is not on PATH and Homebrew isn't available to install it." >&2; \
-	    echo "  Install Go 1.26+ from https://go.dev/dl/ and re-run." >&2; \
-	    exit 1; \
-	fi
+	$(call ensure-tool,go,go,ariadne ships cmd/sdlc and needs the Go toolchain to build it,Go 1.26+,https://go.dev/dl/)
 
-# ensure-cue — guarantee the CUE CLI before weave compiles the vocabulary layer
-# (#122). cmd/vocabulary shells out to `cue` (vet/export); the formal vocabulary
-# models in construct/vocabulary/*.cue are validated + exported at weave-compile
-# time. Idempotent: no-op when cue is present. Auto-installs via Homebrew on
-# macOS; elsewhere fails fast with guidance. Mirrors ensure-go.
 .PHONY: ensure-cue
 ensure-cue:
-	@if command -v cue >/dev/null 2>&1; then \
-	    :; \
-	elif command -v brew >/dev/null 2>&1; then \
-	    echo "==> cue not found — installing via Homebrew (brew install cue)"; \
-	    brew install cue; \
-	else \
-	    echo "Error: the vocabulary layer (construct/vocabulary/*.cue) needs the CUE CLI," >&2; \
-	    echo "  but 'cue' is not on PATH and Homebrew isn't available to install it." >&2; \
-	    echo "  Install CUE from https://cuelang.org/docs/install/ and re-run." >&2; \
-	    exit 1; \
-	fi
+	$(call ensure-tool,cue,cue,the vocabulary layer (construct/vocabulary/*.cue) needs the CUE CLI,CUE,https://cuelang.org/docs/install/)
+
+# ensure-uv — uv backs the Python data plane, and unlike go/cue it is NOT an
+# ariadne build-dep: it's a downstream-CONSUMER runtime dep. metis#1 M3 ships
+# pure-Python step-types run hermetically via `uv run --project <root> python -m
+# metis.steps.<type>`; kbench + future competition workspaces inherit that
+# contract. It's provisioned here at the base anyway (operator's call, #161)
+# because uv is fast becoming the universal Python toolchain every derivative
+# with a Python surface will want — so like go/cue, provision once and every
+# consumer inherits it. uv installs its own managed Python, so it needs no system
+# python3. (The base-vs-push-down layer-placement rationale lives in #161's Log.)
+.PHONY: ensure-uv
+ensure-uv:
+	$(call ensure-tool,uv,uv,the Python data plane (metis/kbench step-types) runs via uv,uv,https://docs.astral.sh/uv/getting-started/installation/)
 
 # Prereq-only definition — no recipe. Derivatives can `bootstrap: <my-prereq>`
 # additively without colliding. Make composes the prereq list; if any
 # derivative defines its own recipe for `bootstrap` (e.g. nous's existing
-# GPG/install setup), that recipe is what runs after all prereqs. ensure-go is
-# listed first so go is provisioned before the cascade in serial make; under
-# `make -j` ordering isn't positional, but both go-build targets (sdlc-build,
-# build) depend on ensure-go, so the actual compiles still wait for it (#61).
-bootstrap: ensure-go ensure-cue bootstrap-peers weave tools sdlc-install data-deps
+# GPG/install setup), that recipe is what runs after all prereqs. The ensure-*
+# targets are listed first so toolchains are provisioned before the cascade in
+# serial make; under `make -j` ordering isn't positional, but the go-build
+# targets (sdlc-build, build) depend on ensure-go, so the actual compiles still
+# wait for it (#61).
+bootstrap: ensure-go ensure-cue ensure-uv bootstrap-peers weave tools sdlc-install data-deps
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge

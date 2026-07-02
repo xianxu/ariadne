@@ -1,12 +1,13 @@
 ---
 id: 000161
-status: working
+status: done
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
-estimate_hours:
+estimate_hours: 0.27
 started: 2026-07-01T22:28:46-07:00
+actual_hours: 1.59
 ---
 
 # bootstrap: ensure-uv — install uv (Python package manager) in the bootstrap chain
@@ -69,21 +70,75 @@ require a system `python3`.
   faithful dry-run: temporarily shadow `uv` off PATH → target installs → no-op
   on re-run).
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module   design=0.1 impl=0.15
+total: 0.27
+```
+
+Single well-specced target that mirrors an existing one (`ensure-cue`): the only
+design content is the base-vs-consumer placement call (pre-resolved in `## Spec`);
+implementation is the mirrored recipe + one prereq wire + one comment reconcile.
+Single-pass atomic — no milestone-review item.
+
 ## Plan
 
-- [ ] Confirm placement (base `bootstrap:` vs metis-local vs nous Brewfile);
+- [x] Confirm placement (base `bootstrap:` vs metis-local vs nous Brewfile);
       record the decision in `## Log`
-- [ ] Add `ensure-uv` target mirroring `ensure-cue` (idempotent / brew / fail-fast)
-- [ ] Wire it into the chosen `bootstrap:` prereq list
-- [ ] If base-placed, reconcile the `ensure-go` header comment
-- [ ] Verify: shadow `uv` off PATH → target installs → re-run is a no-op
+- [x] Add `ensure-uv` target mirroring `ensure-cue` (idempotent / brew / fail-fast)
+- [x] Wire it into the chosen `bootstrap:` prereq list
+- [x] If base-placed, reconcile the `ensure-go` header comment
+- [x] Verify: shadow `uv` off PATH → target installs → re-run is a no-op
 
 ## Log
 
 ### 2026-07-01
+- 2026-07-01: closed — ensure-uv added via shared define ensure-tool macro (Makefile.workflow), wired into bootstrap prereq chain. All 3 legs verified: no-op when uv present (exit 0); uv-absent+fake-brew invokes `brew install uv` (exit 0); uv+brew absent fails fast with real install URL (exit 1). ensure-go/ensure-cue expansions behaviorally identical via make -n (behavior-preserving refactor); both still no-op (present).; review verdict: SHIP
 - Filed from the metis#1 M3 work (kaggle-ml-base-layer project): M3's Python
   step-types run via `uv`, and the operator already installed `uv` locally, so
   the bootstrap should provision it for the next fresh env. Operator asked for
   it in the ariadne base-layer bootstrap; captured the base-vs-consumer
   placement tension in `## Spec` rather than deciding silently — `ensure-cue`
   (#122) is the target to mirror.
+- **Placement decision → ariadne base `bootstrap:`** (ARCH-DRY / layer-placement).
+  The strict layer-placement read says push `uv` down to metis (it's a
+  downstream-*consumer* runtime dep, not an ariadne *build*-dep). Chose base
+  anyway, honoring the operator's ask: `uv` is becoming the universal Python
+  toolchain every derivative with a Python surface will want, so — like `go`/`cue`
+  — provision it once at the base and every consumer inherits it via the symlinked
+  `Makefile.workflow`. Asked the operator to confirm the base-vs-push-down fork
+  before writing; no reply within the window, so proceeded on the twice-stated
+  preference (Spec + Log). The recorded rationale lives in the `ensure-uv` header
+  comment for the next reader.
+- **ARCH-DRY: extracted `define ensure-tool` instead of adding a third copy.**
+  The plan-quality judge flagged that `ensure-uv` would be the *third* near-
+  identical block (after `ensure-go`/`ensure-cue`), differing only in tool /
+  formula / reason / install-noun / url — a rule-of-three trigger. The Makefile
+  already uses `define`/`$(call)` canned recipes (`check_undone_issues`), so the
+  macro is idiomatic here, not a new arcane pattern. Collapsed all three targets
+  through one parametrized `$(call ensure-tool,...)`; `make -n` confirms the
+  `ensure-go`/`ensure-cue` expansions are behaviorally identical to the prior
+  inline recipes (the multi-line `\`-continued recipe collapses to a single
+  line under `$(call)`, but the shell receives an equivalent command — no
+  behavioral change). Behavior-preserving refactor of shared base-layer infra;
+  the pre-existing `ensure-go.test.sh` passes green against it (all 3 branches).
+- **`ensure-go` comment reconciled.** It previously claimed the family provisions
+  "only the one dep the base layer's own build needs" — now false with `uv` (a
+  consumer dep) in the chain. Rewrote so `ensure-go`/`ensure-cue` are described as
+  guarding the base layer's *own* build, and `ensure-uv` is explicitly called out
+  as the one reaching past it.
+- **Verified** (`Makefile.workflow`, three legs of `ensure-uv`):
+  - *no-op*: `make ensure-uv` with `uv` present → silent, exit 0 (idempotent).
+  - *install*: `PATH=<fakebin-with-echoing-brew>:/usr/bin:/bin make ensure-uv`
+    (uv absent) → prints "==> uv not found — installing via Homebrew" and invokes
+    `brew install uv`, exit 0.
+  - *fail-fast*: `PATH=/usr/bin:/bin make ensure-uv` (uv + brew absent) → prints
+    the reason + real install URL, exit 1.
+  Used a fake `brew` for the install leg (per the Done-when note) so the "installs
+  when absent" path is exercised deterministically without a real install or
+  hitting "already installed" on this brew-provisioned machine. `ensure-go` /
+  `ensure-cue` still no-op (present), confirming the refactor is non-breaking.
