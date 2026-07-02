@@ -29,6 +29,15 @@ func TestRenderLong_SetStatusDerivesLifecycle(t *testing.T) {
 	if !strings.Contains(long, "LEGAL TRANSITIONS") {
 		t.Error("set-status should render the derived LEGAL TRANSITIONS section")
 	}
+	// #160: `codecomplete` and `done` are BOTH set-status-refused (written only by
+	// close/merge). The derived LEGAL TRANSITIONS block renders them as legal edges,
+	// so the hand-written refusal sections MUST document both — else --help
+	// contradicts the tool (the M1 boundary-review Important finding).
+	for _, refused := range []string{"→ codecomplete", "→ done"} {
+		if !strings.Contains(long, refused) {
+			t.Errorf("set-status help missing the %q refusal section (#160)", refused)
+		}
+	}
 	m := vocab.Issue()
 	for _, s := range m.AllStatuses() {
 		if !strings.Contains(long, s) {
