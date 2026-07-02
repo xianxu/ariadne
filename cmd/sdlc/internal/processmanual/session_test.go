@@ -89,6 +89,62 @@ func TestClassifyToolUse_table(t *testing.T) {
 	}
 }
 
+// Task 4: renderSessionReport is pure markdown — segment headers, chronological
+// lines, links resolved against the M1 catalog (with the help-text verb fallback),
+// verdicts inline, and a header stating the two hard limits.
+func TestRenderSessionReport(t *testing.T) {
+	base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+	at := func(min int) time.Time { return base.Add(time.Duration(min) * time.Minute) }
+	catalog := []InjectionSource{
+		{Kind: KindSkill, Title: "xx-fix", Link: "construct/adapted/xx-fix/SKILL.md"},
+		{Kind: KindLessons, Title: "workshop/lessons.md", Link: "workshop/lessons.md"},
+		{Kind: KindHelpText, Title: "close", Link: "cmd/sdlc/helptext/close.md"},
+		{Kind: KindSDLCPrompt, Title: "milestone-review", Link: "cmd/sdlc/internal/judge/prompts/milestone-review.md"},
+	}
+	segments := [][]FiredEvent{
+		{
+			{Time: at(0), Kind: KindSDLCPrompt, Tool: "Bash", Detail: "close", Verdict: "SHIP"},
+			{Time: at(6), Kind: KindSkill, Tool: "Skill", Detail: "xx-fix"},
+		},
+		{
+			// a verb with no help-text file → must render unlinked, not silently.
+			{Time: at(90), Kind: KindSDLCPrompt, Tool: "Bash", Detail: "bogus-verb"},
+		},
+	}
+	out := renderSessionReport(segments, catalog, "")
+
+	for _, want := range []string{"## Segment 1", "## Segment 2", "10:00:00", "10:06:00", "close", "xx-fix"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in report:\n%s", want, out)
+		}
+	}
+	// close → help-text fallback link; skill → catalog SKILL.md link.
+	if !strings.Contains(out, "cmd/sdlc/helptext/close.md") {
+		t.Errorf("close should link to its help-text fallback:\n%s", out)
+	}
+	if !strings.Contains(out, "construct/adapted/xx-fix/SKILL.md") {
+		t.Errorf("skill should link to its catalog SKILL.md:\n%s", out)
+	}
+	// verdict inline for the close event.
+	if !strings.Contains(out, "SHIP") {
+		t.Errorf("close verdict SHIP should render inline:\n%s", out)
+	}
+	// header must state BOTH hard limits.
+	if !strings.Contains(out, "agents-chain") || !strings.Contains(out, "memory") {
+		t.Errorf("header must state the agents-chain/memory limit:\n%s", out)
+	}
+	if !strings.Contains(strings.ToLower(out), "forked") {
+		t.Errorf("header must state the forked-prompt limit:\n%s", out)
+	}
+	// unresolved verb: its detail renders, but NOT as a markdown link.
+	if !strings.Contains(out, "bogus-verb") {
+		t.Errorf("unresolved verb should still render its detail:\n%s", out)
+	}
+	if strings.Contains(out, "[bogus-verb]") {
+		t.Errorf("unresolved verb must render UNLINKED (no [..](..)):\n%s", out)
+	}
+}
+
 // Task 1: parseEvents is pure over bytes. It must recover the fired injections in
 // order, link a close's review verdict from the following tool_result's stdout,
 // collect away_summary boundaries, and skip unknown record types without erroring.
