@@ -23,13 +23,79 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
+
+// SessionReport is the public composition for the dynamic pass (mirrors Manual for
+// the static one): locate + read the transcript (the IO shell), then the pure core
+// (parse → segment → render) matched against the M1 catalog via Collect (ARCH-DRY).
+func SessionReport(opts CollectOptions, sessionArg, linkPrefix string) (string, error) {
+	jsonlPath, err := locateSessionJSONL(opts.HomeDir, opts.RepoRoot, sessionArg)
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(jsonlPath)
+	if err != nil {
+		return "", err
+	}
+	events, allTimes, awaySummaryTimes, err := parseEvents(data)
+	if err != nil {
+		return "", err
+	}
+	segments := segmentEvents(events, allTimes, awaySummaryTimes)
+	return renderSessionReport(segments, Collect(opts), linkPrefix), nil
+}
+
+// locateSessionJSONL resolves the transcript path. An explicit sessionArg (any
+// value other than "current") is returned as-is. "current" resolves to
+// <projDir>/<$CLAUDE_CODE_SESSION_ID>.jsonl when that env var is set AND the file
+// exists (the authoritative signal — the harness sets it to the running session),
+// else the newest *.jsonl by mtime in the repo's Claude project dir (a Bash call
+// appends to the current session, so newest ≈ current; guessy only under concurrent
+// same-repo sessions). Reuses claudeProjectSlug (ARCH-DRY).
+func locateSessionJSONL(homeDir, absRepoRoot, sessionArg string) (string, error) {
+	if sessionArg != "current" {
+		return sessionArg, nil
+	}
+	projDir := filepath.Join(homeDir, ".claude", "projects", claudeProjectSlug(absRepoRoot))
+	if sid := os.Getenv("CLAUDE_CODE_SESSION_ID"); sid != "" {
+		p := filepath.Join(projDir, sid+".jsonl")
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+		// env set but file absent → fall through to newest-mtime.
+	}
+	entries, err := os.ReadDir(projDir)
+	if err != nil {
+		return "", fmt.Errorf("no Claude session dir for this repo (%s): %w", projDir, err)
+	}
+	var newest string
+	var newestMod time.Time
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".jsonl") {
+			continue
+		}
+		info, ierr := e.Info()
+		if ierr != nil {
+			continue
+		}
+		if newest == "" || info.ModTime().After(newestMod) {
+			newest = filepath.Join(projDir, e.Name())
+			newestMod = info.ModTime()
+		}
+	}
+	if newest == "" {
+		return "", fmt.Errorf("no session transcripts (*.jsonl) in %s", projDir)
+	}
+	return newest, nil
+}
 
 // FiredEvent is one injection that actually fired in a session — the dynamic
 // record that REFERENCES the M1 catalog (via Kind + Detail), rather than mutating

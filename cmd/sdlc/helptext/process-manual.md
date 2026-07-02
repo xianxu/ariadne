@@ -34,9 +34,27 @@ This is a DETERMINISTIC REGENERATION, not a hand-maintained doc — re-run it
 rather than editing the output. The sdlc-prompt slice comes straight from the
 binary, so it never drifts from what actually fires.
 
+DYNAMIC RECONSTRUCTION (--session, #157)
+
+  `--session <jsonl|current>` switches from the static catalog to a reconstruction
+  of which injection points actually FIRED in one session, in timestamp order,
+  segmented on the 60-min-gap / away_summary boundary and matched back to the
+  catalog above. Pass a transcript path, or `current` for this repo's active
+  session (`$CLAUDE_CODE_SESSION_ID`, else the newest transcript by mtime).
+
+  It surfaces: `sdlc <verb>` calls (with the recovered review verdict for
+  close / milestone-close), Skill invocations, and lessons reads. Two hard limits
+  are stated in the output, not hidden:
+    - agents-chain (AGENTS/CLAUDE.md) + memory are session-start SYSTEM-PROMPT
+      injections that never appear in a transcript — availability is knowable
+      (from the catalog), firing is not.
+    - Forked review PROMPTS aren't in the transcript; only their OUTPUT is
+      (streamed back through the close/milestone-close stdout — the verdict).
+
 CAVEATS (documented blind spots)
 
   - Persisted memories are agent-specific (Claude) and live OUTSIDE the repo, so
     they are located by convention, not parsed from the tree.
-  - This is the static catalog (M1). The dynamic pass — which of these actually
-    fired in a given session, in what order — is a separate milestone.
+  - The static catalog is what CAN inject; `--session` is what DID. Anomaly /
+    "injected-but-ignored" detection (undetectable for agents-chain/memory; an
+    LLM-judge problem for "was the guidance followed?") is deferred by design.

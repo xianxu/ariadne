@@ -1,10 +1,56 @@
 package processmanual
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+// Task 5 Test A: locateSessionJSONL resolves "current" to $CLAUDE_CODE_SESSION_ID
+// (authoritative) when set + present, else the newest *.jsonl by mtime; an explicit
+// path is returned as-is.
+func TestLocateSessionJSONL(t *testing.T) {
+	home := t.TempDir()
+	repo := "/repo/ariadne"
+	projDir := filepath.Join(home, ".claude", "projects", claudeProjectSlug(repo))
+	if err := os.MkdirAll(projDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	older := filepath.Join(projDir, "older.jsonl")
+	newer := filepath.Join(projDir, "newer.jsonl")
+	for _, p := range []string{older, newer} {
+		if err := os.WriteFile(p, []byte("{}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldT := time.Now().Add(-2 * time.Hour)
+	newT := time.Now().Add(-1 * time.Minute)
+	if err := os.Chtimes(older, oldT, oldT); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(newer, newT, newT); err != nil {
+		t.Fatal(err)
+	}
+
+	// "current", env unset → newest by mtime.
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	if got, err := locateSessionJSONL(home, repo, "current"); err != nil || got != newer {
+		t.Errorf("current (no env) = (%q, %v); want %q", got, err, newer)
+	}
+
+	// "current", env set + file present → that file wins over newest-mtime (authoritative).
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "older")
+	if got, err := locateSessionJSONL(home, repo, "current"); err != nil || got != older {
+		t.Errorf("current (env=older) = (%q, %v); want %q (authoritative)", got, err, older)
+	}
+
+	// Explicit path → returned as-is (no stat; the read step surfaces a missing file).
+	if got, err := locateSessionJSONL(home, repo, "/x/explicit.jsonl"); err != nil || got != "/x/explicit.jsonl" {
+		t.Errorf("explicit path = (%q, %v); want as-is", got, err)
+	}
+}
 
 // Task 3: segmentEvents splits the fired stream on a >60min lull in ALL activity
 // (gap over allTimes) OR an away_summary boundary.
