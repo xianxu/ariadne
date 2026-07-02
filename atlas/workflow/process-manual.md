@@ -59,8 +59,9 @@ catalog rather than serializing across a boundary (ARCH-DRY). All in
 - **Pure core** (fixture-tested, no IO): `parseEvents(data, validVerbs)` tolerantly
   scans the JSONL (unknown record types skipped), keeps the fired injections via
   `classifyToolUse`, and recovers `close`/`milestone-close` **verdicts** from the
-  following `tool_result`'s stdout — linked by `tool_use_id`, parsed with the exact
-  `judge.ParseVerdict` that `close` itself uses. `segmentEvents` splits on a >60-min
+  following `tool_result`'s stdout — linked by `tool_use_id`, parsed with the
+  `judge.ParseVerdict` that `close` itself uses, falling back to
+  `judge.ParseVerdictTrailer` for the trailer-only re-close case. `segmentEvents` splits on a >60-min
   lull (constant ported from introspect's `normalize.py`) or an `away_summary`
   boundary. `renderSessionReport` emits linked, segmented markdown.
 - **Injection detection is precision-first.** A Bash `sdlc <verb>` only counts when
