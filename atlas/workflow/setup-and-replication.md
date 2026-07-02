@@ -128,9 +128,13 @@ Test hooks `BOOTSTRAP_DRY_RUN` / `BOOTSTRAP_CLONE_ONLY`; hermetic coverage in
 
 ```
 make bootstrap (in any repo)
-  → make ensure-go: guarantee the Go toolchain first (#61) — sdlc is a
-    base-layer build dep; no-op if present, brew-installs on macOS, else
-    fails fast before the costly peer-clone cascade. See sdlc-binary.md.
+  → make ensure-go / ensure-cue / ensure-uv: guarantee toolchains first —
+    go (sdlc build dep, #61) + cue (vocabulary layer, #122) are base-layer
+    build deps; uv (#161) is a downstream-consumer Python-data-plane dep
+    provisioned at the base by operator's call. All three share one
+    `define ensure-tool` canned recipe (#161, ARCH-DRY): no-op if present,
+    brew-installs on macOS, else fails fast with a real install URL before
+    the costly peer-clone cascade. See sdlc-binary.md.
   → construct/scripts/bootstrap-peers.sh: parses construct/deps for
     `substrate ../<name>` rows (#60). For each missing peer:
        - Derives clone URL from current repo's origin (substitutes

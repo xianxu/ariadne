@@ -43,7 +43,8 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   `construct/generated/vocabulary/{issue.json,.source-sha,SKILL.md}`. The `SKILL.md`
   carries the **touch-time breadcrumb**: read `construct/vocabulary/<noun>.cue` before
   editing a lifecycle.
-- `Makefile.workflow` — `ensure-cue` (mirrors `ensure-go`; in `bootstrap`),
+- `Makefile.workflow` — `ensure-cue` (one `$(call ensure-tool,…)` in the shared
+  `define ensure-tool` family with `ensure-go`/`ensure-uv`, #161; in `bootstrap`),
   `vocabulary-build` (build-in-owner) + the `weave` target puts the vocabulary owner's
   `bin/` on the compile PATH, and `vocab-embed` (= `go generate ./pkg/vocab/...` + a
   git-diff freshness gate) regenerates the **committed** Go-binding inputs. Generic over
