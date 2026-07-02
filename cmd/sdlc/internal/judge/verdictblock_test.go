@@ -73,6 +73,29 @@ func TestParseVerdict_BlockBeatsProse(t *testing.T) {
 	}
 }
 
+// TestParseVerdictTrailer covers the trailer-only fallback: ParseVerdict reads the
+// reviewer BODY and returns unknown for a bare `Review-Verdict:` git-trailer, but
+// ParseVerdictTrailer recovers it (the re-close / verdict-reuse case).
+func TestParseVerdictTrailer(t *testing.T) {
+	trailerOnly := "Review-Verdict: FIX-THEN-SHIP\nReview-Window: abc..HEAD\n"
+	if v := ParseVerdict(trailerOnly); v != VerdictUnknown {
+		t.Errorf("ParseVerdict on trailer-only should be unknown (it reads the body): got %v", v)
+	}
+	if v := ParseVerdictTrailer(trailerOnly); v != VerdictFixThenShip {
+		t.Errorf("ParseVerdictTrailer = %v; want FIX-THEN-SHIP", v)
+	}
+	// Case-insensitive, non-emitted token, and absent-trailer cases.
+	if v := ParseVerdictTrailer("review-verdict: ship"); v != VerdictShip {
+		t.Errorf("case-insensitive trailer: got %v, want SHIP", v)
+	}
+	if v := ParseVerdictTrailer("Review-Verdict: not-run"); v != VerdictUnknown {
+		t.Errorf("non-emitted trailer token → unknown: got %v", v)
+	}
+	if v := ParseVerdictTrailer("no trailer here"); v != VerdictUnknown {
+		t.Errorf("absent trailer → unknown: got %v", v)
+	}
+}
+
 // TestVerdictDriftGuard pins the SHIP-family consumers in classify.go to the model
 // (#147 disposition table) so verdict.cue stays the single source.
 func TestVerdictDriftGuard(t *testing.T) {

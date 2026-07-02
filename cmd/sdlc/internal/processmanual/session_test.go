@@ -158,12 +158,12 @@ func TestRenderSessionReport(t *testing.T) {
 	}
 	segments := [][]FiredEvent{
 		{
-			{Time: at(0), Kind: KindSDLCPrompt, Tool: "Bash", Detail: "close", Verdict: "SHIP"},
-			{Time: at(6), Kind: KindSkill, Tool: "Skill", Detail: "xx-fix"},
+			{Time: at(0), Kind: KindSDLCPrompt, Detail: "close", Verdict: "SHIP"},
+			{Time: at(6), Kind: KindSkill, Detail: "xx-fix"},
 		},
 		{
 			// a verb with no help-text file → must render unlinked, not silently.
-			{Time: at(90), Kind: KindSDLCPrompt, Tool: "Bash", Detail: "bogus-verb"},
+			{Time: at(90), Kind: KindSDLCPrompt, Detail: "bogus-verb"},
 		},
 	}
 	out := renderSessionReport(segments, catalog, "")
@@ -231,8 +231,8 @@ func TestParseEvents_firedStreamAndVerdict(t *testing.T) {
 	}
 
 	// Ordered: close, skill, lessons.
-	if events[0].Kind != KindSDLCPrompt || events[0].Tool != "Bash" || events[0].Detail != "close" {
-		t.Errorf("event[0] = %+v; want Bash/close/KindSDLCPrompt", events[0])
+	if events[0].Kind != KindSDLCPrompt || events[0].Detail != "close" {
+		t.Errorf("event[0] = %+v; want close/KindSDLCPrompt", events[0])
 	}
 	if events[0].Verdict != "SHIP" {
 		t.Errorf("event[0].Verdict = %q; want SHIP (recovered via tool_use_id → stdout → judge.ParseVerdict)", events[0].Verdict)
@@ -249,5 +249,25 @@ func TestParseEvents_firedStreamAndVerdict(t *testing.T) {
 	}
 	if len(allTimes) != 6 {
 		t.Errorf("want 6 record timestamps (incl. the unknown line), got %d", len(allTimes))
+	}
+}
+
+// Task 1 (boundary-review I1): a RE-CLOSE streams trailer-only stdout — no fresh
+// reviewer body, just the `Review-Verdict:` git-trailer. The verdict must still be
+// recovered (via judge.ParseVerdictTrailer), not dropped as ParseVerdict alone would.
+func TestParseEvents_trailerOnlyVerdict(t *testing.T) {
+	data := fixtureJSONL(
+		`{"type":"assistant","timestamp":"2026-07-01T11:00:00.000Z","message":{"content":[{"type":"tool_use","id":"toolu_re","name":"Bash","input":{"command":"sdlc close --issue 9 --no-verified"}}]}}`,
+		`{"type":"user","timestamp":"2026-07-01T11:01:00.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_re"}]},"toolUseResult":{"stdout":"Review-Verdict: FIX-THEN-SHIP\nReview-Window: abc123..HEAD\n","stderr":"","interrupted":false}}`,
+	)
+	events, _, _, err := parseEvents(data, testVerbs)
+	if err != nil {
+		t.Fatalf("parseEvents error: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("want 1 fired event, got %d", len(events))
+	}
+	if events[0].Verdict != "FIX-THEN-SHIP" {
+		t.Errorf("trailer-only verdict = %q; want FIX-THEN-SHIP (recovered via trailer fallback)", events[0].Verdict)
 	}
 }

@@ -119,7 +119,6 @@ func locateSessionJSONL(homeDir, absRepoRoot, sessionArg string) (string, error)
 type FiredEvent struct {
 	Time    time.Time
 	Kind    Kind
-	Tool    string // "Bash" | "Skill" | "Read"
 	Detail  string // verb / skill name / file basename
 	Verdict string // optional — review verdict for close/milestone-close
 }
@@ -185,7 +184,7 @@ func parseEvents(data []byte, validVerbs map[string]bool) (events []FiredEvent, 
 					continue
 				}
 				pend = append(pend, pending{
-					ev: FiredEvent{Time: r.Timestamp, Kind: kind, Tool: c.Name, Detail: detail},
+					ev: FiredEvent{Time: r.Timestamp, Kind: kind, Detail: detail},
 					id: c.ID,
 				})
 			}
@@ -216,7 +215,14 @@ func parseEvents(data []byte, validVerbs map[string]bool) (events []FiredEvent, 
 		ev := p.ev
 		if ev.Kind == KindSDLCPrompt && (ev.Detail == "close" || ev.Detail == "milestone-close") {
 			if sd, ok := stdoutByID[p.id]; ok {
-				if v := judge.ParseVerdict(sd); v != judge.VerdictUnknown {
+				// A fresh close streams the reviewer body (VERDICT: line); a re-close
+				// streams only the Review-Verdict git-trailer — fall back to it so the
+				// ~20% trailer-only closes don't lose their verdict.
+				v := judge.ParseVerdict(sd)
+				if v == judge.VerdictUnknown {
+					v = judge.ParseVerdictTrailer(sd)
+				}
+				if v != judge.VerdictUnknown {
 					ev.Verdict = string(v)
 				}
 			}
@@ -374,7 +380,9 @@ func extractStdout(raw json.RawMessage) (string, bool) {
 // --include=*.go`, `git commit -m "…sdlc matcher…"`), which the naive substring
 // match wrongly counted as fired verbs. The verb is validated against the real
 // verb set on top of this (see classifyToolUse), so a real verb name appearing in
-// prose right after a separator is also dropped.
+// prose right after a separator is also dropped. Known accepted miss: an env-var
+// prefix (`VAR=1 sdlc close`) isn't a boundary, so it's not matched — rare, and
+// dropping it is the safe side of the precision/recall trade.
 var sdlcVerbRE = regexp.MustCompile(`(?:^\s*|[;|&(){}\n\x60]\s*)sdlc ([a-z][a-z-]*)`)
 
 // classifyToolUse is the pure match table (ports the IDEA of introspect's
