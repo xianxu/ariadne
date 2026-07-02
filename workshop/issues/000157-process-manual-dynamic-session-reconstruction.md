@@ -84,7 +84,7 @@ Same as M1: markdown report with live links + `🤖[]` slots (composes with `xx-
 
 ## Plan
 
-- [ ] Coarse — detailed plan at `start-plan` via `superpowers-writing-plans`. Shape:
+- [x] Coarse — detailed plan at `start-plan` via `superpowers-writing-plans`. Shape:
       Go JSONL parser (tolerate unknown record `type`s) → ordered event stream →
       segmentation → match to M1 catalog Kinds → linked markdown report. Reuse M1's
       `InjectionSource` + `renderManual`.
@@ -117,6 +117,31 @@ wiring = smaller-go-module; atlas relink = atlas-docs; the single close-review =
 milestone-review. Design-buffer 0.15 (thorough reviewed plan).
 
 ## Log
+
+### 2026-07-01 — implementation (session.go, all 6 tasks) + real smoke run
+
+TDD'd `session.go` in `cmd/sdlc/internal/processmanual/`: `parseEvents` (tolerant
+JSONL, verdict via `judge.ParseVerdict` on `tool_use_id`→stdout) → `classifyToolUse`
+→ `segmentEvents` (60-min gap + away_summary) → `renderSessionReport` →
+`locateSessionJSONL` + `--session` wiring (`SessionReport` composer). Full sdlc
+suite + vet green.
+
+**Real smoke run caught a real bug.** `go run ./cmd/sdlc process-manual --session
+current` on this very session surfaced false-positive "verbs": `--include` (a grep
+`--include=*.go` flag), `matcher`/`verb`/`tests` (from my own commit messages +
+echo text). The naive `sdlc <word>` substring match counted any mention. Root-cause
+fix (precision over recall): (1) `sdlc` must sit at a **command boundary** (start or
+after `;|&(){}`·newline·backtick), and (2) the verb must be a **real, linkable
+verb**, validated against the catalog's help-text titles (so "classified" ⟺
+"in-catalog" — ARCH-DRY). Regression cases pinned in the classify table. Post-fix
+smoke output is clean: 5 events (state, change-code --help, estimate --help,
+estimate-source, change-code), each linked; dev-time `go run ./cmd/sdlc <verb>`
+smoke calls correctly drop out (not workflow events).
+
+**Design note:** the plan's `FiredEvent` sketch listed a `Link` field, but links are
+resolved at render time against the catalog (`renderSessionReport` takes it), so
+carrying `Link` on parse output would be a dead field — dropped it; the parse output
+is just the fired data, presentation resolves links. Cleaner pure/render split.
 
 ### 2026-07-01 — grounding digest (M3 feasibility exploration)
 
