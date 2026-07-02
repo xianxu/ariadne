@@ -98,6 +98,10 @@ func fixtureJSONL(lines ...string) []byte {
 	return []byte(strings.Join(lines, "\n") + "\n")
 }
 
+// testVerbs is the real-verb set the classifier validates against (stands in for
+// the catalog's help-text titles).
+var testVerbs = map[string]bool{"close": true, "milestone-close": true, "state": true}
+
 // Task 2: classifyToolUse is the pure match table — the three injection-bearing
 // tool calls, with the sdlc matcher anchored so `sdlcx` doesn't false-positive.
 func TestClassifyToolUse_table(t *testing.T) {
@@ -116,6 +120,11 @@ func TestClassifyToolUse_table(t *testing.T) {
 		{"plain bash", `{"command":"ls -la"}`, "", "", false},
 		{"sdlcx not anchored", `{"command":"echo sdlcx"}`, "", "", false},
 		{"non-injection read", `{"file_path":"/repo/cmd/main.go"}`, "", "", false},
+		// Regression: smoke-run false positives that the naive substring match wrongly
+		// counted as fired verbs (#157 real-run finding).
+		{"flag not a verb", `{"command":"grep -rn foo cmd/sdlc --include=*.go"}`, "", "", false},
+		{"real verb in commit prose", `{"command":"git commit -m 'fix sdlc close bug'"}`, "", "", false},
+		{"non-verb after sdlc", `{"command":"echo done; sdlc matcher notes"}`, "", "", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -126,7 +135,7 @@ func TestClassifyToolUse_table(t *testing.T) {
 			case tc.name == "lessons read" || tc.name == "non-injection read":
 				name = "Read"
 			}
-			kind, detail, ok := classifyToolUse(name, []byte(tc.input))
+			kind, detail, ok := classifyToolUse(name, []byte(tc.input), testVerbs)
 			if kind != tc.wantKind || detail != tc.wantDetail || ok != tc.wantOK {
 				t.Errorf("classifyToolUse(%s, %s) = (%q, %q, %v); want (%q, %q, %v)",
 					name, tc.input, kind, detail, ok, tc.wantKind, tc.wantDetail, tc.wantOK)
@@ -213,7 +222,7 @@ func TestParseEvents_firedStreamAndVerdict(t *testing.T) {
 		`{"type":"file-history-snapshot","timestamp":"2026-07-01T10:09:00.000Z","messageId":"x"}`,
 	)
 
-	events, allTimes, awaySummaryTimes, err := parseEvents(data)
+	events, allTimes, awaySummaryTimes, err := parseEvents(data, testVerbs)
 	if err != nil {
 		t.Fatalf("parseEvents returned error: %v", err)
 	}

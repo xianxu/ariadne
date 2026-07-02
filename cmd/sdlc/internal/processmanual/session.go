@@ -45,12 +45,27 @@ func SessionReport(opts CollectOptions, sessionArg, linkPrefix string) (string, 
 	if err != nil {
 		return "", err
 	}
-	events, allTimes, awaySummaryTimes, err := parseEvents(data)
+	catalog := Collect(opts)
+	events, allTimes, awaySummaryTimes, err := parseEvents(data, helpTextVerbs(catalog))
 	if err != nil {
 		return "", err
 	}
 	segments := segmentEvents(events, allTimes, awaySummaryTimes)
-	return renderSessionReport(segments, Collect(opts), linkPrefix), nil
+	return renderSessionReport(segments, catalog, linkPrefix), nil
+}
+
+// helpTextVerbs is the real, linkable verb set: the titles of the catalog's
+// help-text entries (one per `sdlc … --help` contract). Deriving it from the
+// catalog keeps "a verb classifies" and "a verb links" as a single source of truth
+// (ARCH-DRY) — a fired `sdlc <verb>` is kept iff it's a documented verb.
+func helpTextVerbs(catalog []InjectionSource) map[string]bool {
+	verbs := map[string]bool{}
+	for _, s := range catalog {
+		if s.Kind == KindHelpText {
+			verbs[s.Title] = true
+		}
+	}
+	return verbs
 }
 
 // locateSessionJSONL resolves the transcript path. An explicit sessionArg (any
@@ -135,7 +150,7 @@ type rec struct {
 // tool_result's stdout (linked by tool_use_id), and reports segmentation inputs:
 // allTimes (every record's timestamp — so non-injection work between fired events
 // doesn't trigger a false gap split) and awaySummaryTimes.
-func parseEvents(data []byte) (events []FiredEvent, allTimes []time.Time, awaySummaryTimes []time.Time, err error) {
+func parseEvents(data []byte, validVerbs map[string]bool) (events []FiredEvent, allTimes []time.Time, awaySummaryTimes []time.Time, err error) {
 	// A fired event plus the tool_use id it needs for verdict recovery — dropped
 	// once the verdict is linked, so FiredEvent stays free of transcript plumbing.
 	type pending struct {
@@ -165,7 +180,7 @@ func parseEvents(data []byte) (events []FiredEvent, allTimes []time.Time, awaySu
 				if c.Type != "tool_use" {
 					continue
 				}
-				kind, detail, ok := classifyToolUse(c.Name, c.Input)
+				kind, detail, ok := classifyToolUse(c.Name, c.Input, validVerbs)
 				if !ok {
 					continue
 				}
@@ -351,15 +366,23 @@ func extractStdout(raw json.RawMessage) (string, bool) {
 	return obj.Stdout, true
 }
 
-// sdlcVerbRE matches an `sdlc <verb>` invocation anchored on a word boundary, so
-// `sdlcx` and `mysdlc ` don't match. Ports the proven jq matcher from the issue's
-// grounding digest. The verb is [a-z-]+ (e.g. close, milestone-close, state).
-var sdlcVerbRE = regexp.MustCompile(`(^|[^a-zA-Z])sdlc ([a-z-]+)`)
+// sdlcVerbRE matches a real `sdlc <verb>` INVOCATION — `sdlc` at a command
+// boundary (start of the command, or right after a shell separator `;|&(){}` /
+// newline / backtick, with optional whitespace), then a letter-initial verb. This
+// is deliberately precise (precision over recall): it rejects `sdlc` mentioned
+// mid-string in a grep pattern, a commit message, or a `--flag` (`./cmd/sdlc
+// --include=*.go`, `git commit -m "…sdlc matcher…"`), which the naive substring
+// match wrongly counted as fired verbs. The verb is validated against the real
+// verb set on top of this (see classifyToolUse), so a real verb name appearing in
+// prose right after a separator is also dropped.
+var sdlcVerbRE = regexp.MustCompile(`(?:^\s*|[;|&(){}\n\x60]\s*)sdlc ([a-z][a-z-]*)`)
 
 // classifyToolUse is the pure match table (ports the IDEA of introspect's
 // segment_text.py summarize_tool_input, not its code): the three injection-bearing
-// tool calls we can see in a transcript. Anything else → ok=false.
-func classifyToolUse(name string, input json.RawMessage) (Kind, string, bool) {
+// tool calls we can see in a transcript. A Bash `sdlc <verb>` only classifies when
+// the verb is in validVerbs (the real, linkable verb set — so "classified" implies
+// "in the catalog"). Anything else → ok=false.
+func classifyToolUse(name string, input json.RawMessage, validVerbs map[string]bool) (Kind, string, bool) {
 	switch name {
 	case "Skill":
 		var in struct {
@@ -379,7 +402,10 @@ func classifyToolUse(name string, input json.RawMessage) (Kind, string, bool) {
 		if m == nil {
 			return "", "", false
 		}
-		verb := m[2]
+		verb := m[1]
+		if !validVerbs[verb] {
+			return "", "", false // "sdlc <word>" where <word> isn't a real verb (prose mention)
+		}
 		// `sdlc <verb> --help` prints embedded help text (a distinct Kind from the
 		// injected review/gate prompts the bare verb fires).
 		if bytes.Contains([]byte(in.Command), []byte("--help")) {
