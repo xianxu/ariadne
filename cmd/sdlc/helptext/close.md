@@ -2,6 +2,14 @@ Close an issue or a milestone — perform AGENTS.md §5's mechanical closing
 steps. Edits files in place; does NOT commit (the agent commits, usually
 bundling close with other work).
 
+`sdlc close` is the LOCAL ACCEPTANCE GATE (#160): it runs the fresh-context
+boundary review (all LLM review — code quality, requirements traceability, docs
+sync incl. README, architecture) and flips a full issue to `codecomplete`, NOT
+`done`. The deterministic publish gate (`sdlc merge`/`push`) later flips
+`codecomplete → done` after verifying nothing drifted since close. close is the
+SOLE writer of `codecomplete` (set-status refuses it), which makes the commit
+carrying it a trustworthy anchor for that reviewed-HEAD-unchanged invariant.
+
 MODES
 
   Issue close:      sdlc close --issue 15 --actual 7 --verified '<evidence>'
@@ -66,8 +74,12 @@ WHAT THE GUARD DEFENDS
 WHAT IT DOES
 
   - Ticks the milestone box in the issue's ## Plan (milestone mode)
-  - Flips status: done, sets actual_hours (number or N/A) and updated (issue mode)
+  - Flips status: codecomplete (#160 — NOT done; the deterministic publish gate
+    `sdlc merge`/`push` flips codecomplete → done), sets actual_hours (number or
+    N/A) and updated (issue mode)
   - Appends a log line to ## Log: "YYYY-MM-DD: closed — <verified>"
+  - Emits the no-LLM `lessons` reminder on a whole-issue close (#160 Q4 — moved
+    here from the publish gate so it fires while findings are fresh)
   - Ticks the project task row + upserts **actual:** and **closed:** in the
     detail block
   - Does NOT git-commit, does NOT move the file to workshop/history/

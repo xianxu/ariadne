@@ -373,7 +373,7 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"anti-collusion property",
 		"Core concepts cross-check",
 		"PURE: tests run without IO",
-		"Atlas update gate",
+		"Docs update gate",
 		"Plan revision recommendations",
 		"VERDICT: <TOKEN>", // unified contract format (#70 M2 — was bare "SHIP | …")
 		"```verdict",       // the authoritative structured handoff block (#147)

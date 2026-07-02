@@ -35,6 +35,29 @@ func closeFlagsFor(issuesDir string) *closeFlags {
 		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
 }
 
+// #160 Q4: the lessons reminder moved from the publish gate to `sdlc close` — a
+// finalizing whole-issue close emits it (agent engaged, findings fresh); a
+// non-finalizing (REWORK) close does not.
+func TestRunCloseWithReview_EmitsLessonsReminder(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood")
+	var stdout strings.Builder
+	if err := runCloseWithReview(&stdout, io.Discard, closeFlagsFor(issuesDir)); err != nil {
+		t.Fatalf("SHIP close should finalize: %v", err)
+	}
+	if !strings.Contains(stdout.String(), judge.LessonsReminder) {
+		t.Error("finalizing whole-issue close should emit the lessons reminder (#160 Q4)")
+	}
+
+	issuesDir2 := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nnope")
+	var stdout2 strings.Builder
+	_ = runCloseWithReview(&stdout2, io.Discard, closeFlagsFor(issuesDir2))
+	if strings.Contains(stdout2.String(), judge.LessonsReminder) {
+		t.Error("a non-finalizing (REWORK) close must NOT emit the lessons reminder")
+	}
+}
+
 // #139: a REWORK boundary review must NOT finalize — the issue stays `working`,
 // no close log line, no actual_hours, a non-nil error, and no "flipped → done".
 func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
@@ -47,8 +70,8 @@ func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
 		t.Fatal("REWORK must return a non-nil error (close not finalized)")
 	}
 	got := readIssue(t, issuesDir)
-	if strings.Contains(got, "status: done") {
-		t.Error("REWORK must NOT flip the issue to status: done")
+	if strings.Contains(got, "status: codecomplete") {
+		t.Error("REWORK must NOT flip the issue to status: codecomplete")
 	}
 	if strings.Contains(got, "closed —") {
 		t.Error("REWORK must NOT append a closed log line")
@@ -81,7 +104,7 @@ func TestRunCloseWithReview_DispatchError_Halts(t *testing.T) {
 		t.Fatal("a judge dispatch error must halt (non-nil error)")
 	}
 	got := readIssue(t, issuesDir)
-	if strings.Contains(got, "status: done") {
+	if strings.Contains(got, "status: codecomplete") {
 		t.Error("dispatch error must NOT finalize the close")
 	}
 	if strings.Contains(got, "closed —") {
@@ -103,7 +126,7 @@ func TestRunCloseWithReview_Unknown_Halts(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unknown verdict must return a non-nil error (halt)")
 	}
-	if strings.Contains(readIssue(t, issuesDir), "status: done") {
+	if strings.Contains(readIssue(t, issuesDir), "status: codecomplete") {
 		t.Error("an unknown verdict must NOT finalize the close")
 	}
 	if !strings.Contains(stderr.String(), "UNEXPECTED") || !strings.Contains(stderr.String(), "consult a human") {
@@ -127,8 +150,8 @@ func TestRunCloseWithReview_RerunAfterREWORK(t *testing.T) {
 		t.Fatalf("rerun (SHIP) should finalize cleanly (no --no-reclose-guard), got: %v", err)
 	}
 	got := readIssue(t, issuesDir)
-	if !strings.Contains(got, "status: done") {
-		t.Error("rerun should finalize → done")
+	if !strings.Contains(got, "status: codecomplete") {
+		t.Error("rerun should finalize → codecomplete (#160)")
 	}
 	if n := strings.Count(got, "closed — tests pass"); n != 1 {
 		t.Errorf("expected exactly one closed log line, got %d:\n%s", n, got)

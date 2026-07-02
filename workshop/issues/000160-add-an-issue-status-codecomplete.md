@@ -203,3 +203,24 @@ its own review boundary (`sdlc milestone-close`).
 - Atlas: `issue-lifecycle.md` (states table + two-gate model + flow + closing),
   `vocabulary.md` (the codecomplete split + dual set-status refusals). Tests green:
   `go test ./cmd/sdlc/ ./pkg/vocab/`.
+- **M1 boundary review: FIX-THEN-SHIP.** One Important finding — `set-status --help`
+  didn't document the new `→ codecomplete` refusal (contradicted its own derived
+  LEGAL TRANSITIONS). Fixed `set-status.md` (added the refusal section, reframed
+  `→ done` as the publish flow) + added a `helptext_render_test.go` guard. Closed M1.
+
+#### M2 — Close → codecomplete
+
+- `close.go`: whole-issue close now writes `status: codecomplete` (not `done`) +
+  the "flipped → codecomplete" message. TDD: updated `close_finalize_test.go`
+  (finalize → codecomplete; REWORK/error/unknown must NOT flip to codecomplete) and
+  `close_test.go` frontmatter-chain example. Re-close guard stays keyed on `"done"`
+  (re-closing a codecomplete issue is the normal rework path — allowed).
+- **Lessons ping moved to close (Q4):** `emitLessonsReminder` fires on a finalizing
+  whole-issue close (both the reviewed and `--no-judge` paths), NOT on milestone-close
+  or REWORK. TDD in `close_finalize_test.go`.
+- **README docs gate (folded #142 Task 4):** `code-review.md` "Atlas update gate" →
+  "Docs update gate (atlas + README)" with the README bullet + the cross-ref;
+  `judge_test.go` assertion updated; golden regenerated (only `milestone-review.prompt`
+  changed).
+- Help: `close.md` (close = local acceptance gate → codecomplete; lessons ping; docs
+  sync incl. README). Full suite green: `go test ./cmd/sdlc/... ./pkg/vocab/`.
