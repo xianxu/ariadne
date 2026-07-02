@@ -123,3 +123,20 @@ Anomaly / "injected-but-ignored" detection: `agents-chain`/`memory` firing is
 undetectable (no transcript event); "offered-but-never-fired" (skill_listing − Skill
 tool_use) is a weak signal; "did the agent follow the guidance?" is an LLM-judge problem.
 Out of scope by design.
+
+## Revisions
+
+- **2026-07-01 — `FiredEvent.Link` removed (implementation).** The Core-concepts
+  sketch listed `FiredEvent{… Link string (resolved from the M1 catalog)}`, but links
+  resolve at *render* time in `renderSessionReport` (which takes the catalog), so a
+  `Link` field on the parse output would be dead. Delta: `FiredEvent` carries only the
+  fired data (`Time`/`Kind`/`Detail`/`Verdict`); presentation resolves links. (The
+  `Tool` field was likewise dropped at the boundary review — redundant with `Kind`,
+  never rendered.) Cleaner pure-core / render split; done-when unaffected.
+- **2026-07-01 — verdict recovery: trailer fallback (boundary-review I1).** Task 1's
+  `parseEvents` note assumed a close stdout "streams the full reviewer body *then* the
+  trailer, so it resolves correctly." Empirically incomplete: a *re-close* streams
+  trailer-only stdout (no fresh body), and `judge.ParseVerdict` returns `unknown` for a
+  bare `Review-Verdict:` trailer (~20% of verdict-bearing closes). Delta: `parseEvents`
+  now falls back to `judge.ParseVerdictTrailer` when `ParseVerdict` is unknown; a
+  trailer-only fixture + a direct unit test cover it.

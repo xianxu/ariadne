@@ -1,12 +1,13 @@
 ---
 id: 000157
-status: working
+status: done
 deps: [ariadne#153]
 github_issue:
 created: 2026-07-01
 updated: 2026-07-01
 estimate_hours: 2.6
 started: 2026-07-01T16:06:44-07:00
+actual_hours: 1.02
 ---
 
 # process-manual dynamic session reconstruction
@@ -119,6 +120,18 @@ milestone-review. Design-buffer 0.15 (thorough reviewed plan).
 ## Log
 
 ### 2026-07-01 — implementation (session.go, all 6 tasks) + real smoke run
+- 2026-07-01: closed — 6 TDD tasks green (parseEvents tolerant JSONL + verdict via judge.ParseVerdict; classifyToolUse; segmentEvents 60min/away_summary; renderSessionReport; locateSessionJSONL + --session wiring). go test ./cmd/sdlc/... + go vet + repo-wide go test ./... all pass. Real smoke `go run ./cmd/sdlc process-manual --session current` reconstructs the ordered fired-injection stream (5 linked events) — it caught+fixed a verb-precision bug (false-positive --include/matcher/verb/tests), now regression-tested. Two hard limits rendered into output + helptext + atlas. Go-native, matches the M1 InjectionSource catalog.; review verdict: FIX-THEN-SHIP
+
+**Boundary-review follow-up (FIX-THEN-SHIP → addressed):** the review's one Important
+finding **I1** — verdict recovery dropped the verdict on *trailer-only* (re-close)
+stdout, since `judge.ParseVerdict` reads the reviewer *body* and returns `unknown` for
+a bare `Review-Verdict:` git-trailer (~20% of verdict-bearing closes) — is fixed:
+added `judge.ParseVerdictTrailer` (sibling to `ParseVerdict`, leaves close.go's
+semantics unchanged) as a fallback in `parseEvents`, with a trailer-only fixture +
+a direct unit test. Minors also handled: dropped the dead `FiredEvent.Tool` field;
+noted the accepted `VAR=1 sdlc` env-prefix miss. (Oversized-line + timestamp-monotonic
+minors judged low-risk, left as documented.) Plan `## Revisions` updated (Link removal,
+verdict trailer fallback). Full sdlc suite + vet green post-fix.
 
 TDD'd `session.go` in `cmd/sdlc/internal/processmanual/`: `parseEvents` (tolerant
 JSONL, verdict via `judge.ParseVerdict` on `tool_use_id`→stdout) → `classifyToolUse`
