@@ -1,11 +1,12 @@
 ---
 id: 000142
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-29
-updated: 2026-06-29
+updated: 2026-07-01
 estimate_hours:
+started: 2026-07-01T23:05:44-07:00
 ---
 
 # sdlc pre-merge judges should run at the earliest useful gate
