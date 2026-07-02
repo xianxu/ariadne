@@ -239,16 +239,31 @@ func checkTransitionGuards(current, next, fm, body string) error {
 			current, next, current, strings.Join(legal, ", "))
 	}
 
-	// Guard 1: → done routes to `sdlc close`. Always refused (mutating
-	// done close requires ACTUAL + VERIFIED + atlas check; those live
-	// in `sdlc close`, not here). #122 carve-out: literal "done" is value-specific
-	// (only done has the close gate; wontfix/punt flip freely) — not IsTerminal.
+	// Guard 1: → done routes through the publish flow. Always refused (done is
+	// reached by `sdlc close` → codecomplete → `sdlc merge`/`push` → done, #160;
+	// the flip carries ACTUAL + VERIFIED + atlas + the reviewed-HEAD-unchanged
+	// invariant — none of which set-status enforces). Reached only from
+	// `codecomplete` (the sole legal `→ done` edge); `working → done` is refused
+	// earlier by Guard 0 as illegal. #122 carve-out: literal "done" value-specific.
 	if next == "done" {
 		return fmt.Errorf(
-			"refusing to flip → done directly; use:\n" +
+			"refusing to flip → done directly; done is set by the publish flow:\n" +
+				"  sdlc close --issue <N> --verified '<evidence>'   # → codecomplete (local acceptance review)\n" +
+				"  sdlc merge   (or sdlc push)                      # codecomplete → done (deterministic publish)\n" +
+				"(#160: close runs the local review, merge/push do the reviewed-HEAD-unchanged publish flip)")
+	}
+
+	// Guard 1b (#160): → codecomplete routes to `sdlc close`. Always refused —
+	// `close` is the ONLY writer of `codecomplete` (it runs the boundary review),
+	// which is exactly what makes the commit carrying `status: codecomplete` a
+	// trustworthy anchor for merge's reviewed-HEAD-unchanged invariant. Letting
+	// set-status write it would forge that anchor. Value-specific, like `done`.
+	if next == "codecomplete" {
+		return fmt.Errorf(
+			"refusing to flip → codecomplete directly; use:\n" +
 				"  sdlc close --issue <N> --verified '<evidence>'\n" +
-				"(omit --actual to let close measure the hours, or run `sdlc actual --issue N` — measured, not typed;\n" +
-				" closes through the AGENTS.md §5 contract instead of bypassing it)")
+				"(#160: codecomplete is written ONLY by `sdlc close` after its boundary review —\n" +
+				" that's what makes the merge-time reviewed-HEAD-unchanged invariant trustworthy)")
 	}
 
 	// (#113) No estimate guard here. `→ working` used to require

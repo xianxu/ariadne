@@ -69,6 +69,13 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   was widened to the legitimate legal set first (+6 edges: `open→wontfix/punt` triage,
   `punt`/`wontfix`→`working` reopen, `blocked→wontfix/punt`) so enforcement doesn't reject
   real flows; the rest is reachable via `--force`.
+- **`codecomplete` (#160):** an added *active* status splitting the old `working→done` close
+  edge — `sdlc close` now flips `working|blocked → codecomplete` (the local acceptance
+  review), and `sdlc merge`/`push` flip `codecomplete → done` (deterministic publish). So the
+  "value-specific close gate" above is now **two** set-status refusals: `→ done` (owned by
+  merge/push) AND `→ codecomplete` (owned by close) — the latter is what keeps close the sole
+  writer of `codecomplete`, so its commit is a trustworthy anchor for the reviewed-HEAD-unchanged
+  invariant. The compiled `actual_hours!` guard covers both `codecomplete` and `done`.
 - **Help text derives too (#125):** `sdlc`'s embedded help (`set-status.md`/`issue.md`) no
   longer hand-restates the status set / `when` gloss / legal transitions — those were a
   drift-prone shadow (#122 M4 made set-status's "all other transitions allowed" false). They're
