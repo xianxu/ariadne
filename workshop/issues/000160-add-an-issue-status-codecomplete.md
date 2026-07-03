@@ -225,3 +225,28 @@ its own review boundary (`sdlc milestone-close`).
   changed).
 - Help: `close.md` (close = local acceptance gate → codecomplete; lessons ping; docs
   sync incl. README). Full suite green: `go test ./cmd/sdlc/... ./pkg/vocab/`.
+- **M2 boundary review: FIX-THEN-SHIP.** Important — milestone-close's "no lessons
+  ping" behavior was untested (stdout discarded). Added the assertion +
+  refreshed stale "flipped → done" comments. Hit the atlas gate (M2 window had no
+  atlas change — the codecomplete surface was atlas'd in M1); closed with `--no-atlas`
+  + rationale. Closed M2.
+
+#### M3 — Publish gate
+
+- New `cmd/sdlc/publishgate.go` (+ `publishgate_test.go`, all green):
+  `codecompleteAnchorCommit` (newest commit leaving the issue at codecomplete — a
+  content read; re-close ADVANCES it), `mergedCodecompleteIssues` (window scan),
+  `runPublishGate` (enumerate → latest anchor → refuse if any commit landed after —
+  the reviewed-HEAD-unchanged invariant, NO LLM), `publishCodecompleteIssues` (the
+  codecomplete → done flip). Tests cover clean/drift/multi-issue/re-close/no-op.
+- Wired `merge`/`push`: step 5/4 now run `runPublishGate` (replacing the plan/specs/
+  lessons preflight); post-merge/post-push flip codecomplete → done BEFORE archiving
+  (archive keys on IsTerminal). `touchedIssuesNotDone` carves out codecomplete (else
+  every merge would trip the not-done prompt). Deleted the dead `preflight.go` +
+  `preflight_test.go`; removed the `judge` imports; renamed the merge test seam
+  `runPreflightJudgesFn → runPublishGateFn` (e2e tests adapted).
+- Integration test: `TestRunMerge_CodecompleteFlippedToDoneAndArchived` — a
+  codecomplete issue on main is flipped to done + archived by merge.
+- Help + atlas: `merge.md`/`push.md` (two-gate model, publish gate, `--no-judge`
+  reframed), `pre-merge-checks.md` (rewritten for the two-gate model), `ci-merge-check.md`
+  (three-tier note). Full suite green.
