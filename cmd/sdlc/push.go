@@ -56,7 +56,7 @@ func NewPushCmd() *cobra.Command {
 	f := pushFlags{}
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "push",
-		Short:         "Ship from main: auto-commit, run pre-merge judges, push, archive done issues",
+		Short:         "Ship from main: auto-commit, run the publish gate, push, flip codecomplete→done, archive",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"push\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
@@ -65,7 +65,7 @@ func NewPushCmd() *cobra.Command {
 		},
 	})
 	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the not-done-issue warn prompt")
-	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip pre-merge judges (emergency-only)")
+	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the pre-push publish gate — #160 reviewed-HEAD-unchanged invariant (emergency-only)")
 	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not commit/push/archive")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")

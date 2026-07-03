@@ -1,12 +1,13 @@
 ---
 id: 000160
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-02
 estimate_hours: 4
 started: 2026-07-02T11:15:34-07:00
+actual_hours: 4.72
 ---
 
 # add an issue status: codecomplete
@@ -115,19 +116,19 @@ re-judging a delta. It reuses the existing `Review-Verdict:` trailer machinery
 
 ## Done when
 
-- [ ] `codecomplete` is in `construct/vocabulary/issue.cue` with `when` + lifecycle
+- [x] `codecomplete` is in `construct/vocabulary/issue.cue` with `when` + lifecycle
       transitions; `pkg/vocab` consumers (set-status help, gates) derive it — no
       hardcoded enum.
-- [ ] `sdlc close` flips `working → codecomplete` (not done) on a finalizing
+- [x] `sdlc close` flips `working → codecomplete` (not done) on a finalizing
       boundary-review verdict, carrying the actual/verified/atlas guards.
-- [ ] `sdlc merge` flips `codecomplete → done` after the deterministic
+- [x] `sdlc merge` flips `codecomplete → done` after the deterministic
       reviewed-HEAD-unchanged check + CI, running no LLM judge.
-- [ ] `sdlc merge` refuses when commits landed after close (invariant enforced),
+- [x] `sdlc merge` refuses when commits landed after close (invariant enforced),
       with a re-run-`sdlc close` next-action message.
-- [ ] The close boundary review owns README docs sync (folded #142 pair#84 fix).
-- [ ] `plan`/`specs` LLM judges removed from merge/push; close/merge/push help
+- [x] The close boundary review owns README docs sync (folded #142 pair#84 fix).
+- [x] `plan`/`specs` LLM judges removed from merge/push; close/merge/push help
       text explains the two-gate model.
-- [ ] Tests: the `working → codecomplete → done` path; merge refuses on post-close
+- [x] Tests: the `working → codecomplete → done` path; merge refuses on post-close
       drift; a README gap caught at close (not merge).
 
 ## Estimate
@@ -167,6 +168,7 @@ its own review boundary (`sdlc milestone-close`).
 - Created.
 
 ### 2026-07-02
+- 2026-07-02: closed — codecomplete status + set-status enforcement (M1); close flips working→codecomplete + lessons-at-close + README docs gate (M2); merge/push deterministic publish gate enforces reviewed-HEAD-unchanged invariant + flips codecomplete→done, pre-merge plan/specs/lessons judges removed (M3); all 3 milestone reviews FIX-THEN-SHIP + remediated; publishgate_test + merge/push integration tests green; go test ./cmd/sdlc/... ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
 - 2026-07-02: closed M3 — publishgate.go runPublishGate enforces reviewed-HEAD-unchanged invariant (unit tests: clean/drift/multi-issue/re-close); merge/push flip codecomplete→done + archive (TestRunMerge_CodecompleteFlippedToDoneAndArchived); plan/specs/lessons pre-merge judges removed (preflight.go deleted); help+atlas updated; go test ./cmd/sdlc/... ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
 - 2026-07-02: closed M2 — close flips working→codecomplete (close_finalize_test + close_test green); lessons reminder at whole-issue close not milestone/REWORK (Q4); README docs gate folded from #142 into code-review.md (golden regenerated). --no-atlas: M2 architectural surface (codecomplete lifecycle + two-gate model + README sync) already documented in M1 atlas (issue-lifecycle.md, vocabulary.md); the pre-merge-checks.md rewrite (judge removal + invariant) is M3 cohesive unit. go test ./cmd/sdlc/... ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
 - 2026-07-02: closed M1 — codecomplete added to issue.cue (active status; working|blocked→codecomplete, codecomplete→done/working/wontfix/punt); conformance laws (reachable/escapable/documented-value) hold; pkg/vocab regenerated; set-status refuses →codecomplete and →done; go test ./cmd/sdlc/ ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP

@@ -105,8 +105,8 @@ func NewMergeCmd() *cobra.Command {
 			return runMerge(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
-	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the final irreversible-merge confirmation AND not-done warn — REQUIRED for non-interactive/agent runs (merge fail-fasts before the judges when stdin is not a terminal)")
-	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip pre-merge judges (emergency-only)")
+	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the final irreversible-merge confirmation AND not-done warn — REQUIRED for non-interactive/agent runs (merge fail-fasts before the publish gate when stdin is not a terminal)")
+	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the pre-merge publish gate — #160 reviewed-HEAD-unchanged invariant (emergency-only)")
 	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not merge or clean up")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
@@ -265,7 +265,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 	cok(stderr, "No uncommitted tracked changes")
 
-	// Fail fast — before the slow pre-merge judges — if the confirmation
+	// Fail fast — before the publish gate + irreversible merge — if the confirmation
 	// prompts (steps 8-9) can't be answered. They read os.Stdin, and in a
 	// non-tty agent/background context a bare scan blocks forever; convert
 	// that hang into a clear next-action.
@@ -402,7 +402,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 9b. Re-assert clean tree before the irreversible merge (#62 M1) ──────
-	// The step-2 check ran before the pre-merge judges; a judge/hook may have
+	// The step-2 check ran before the step-5 publish gate; a gate/hook may have
 	// dirtied the tree since. Refuse here rather than merge-then-strand: a dirty
 	// tree breaks both `gh pr merge`'s downstream `git switch main` and the
 	// resume cleanup. (With read-only judges (#62 M2) the tree stays clean; this

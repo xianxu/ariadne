@@ -549,3 +549,20 @@ assumptions* rather than your own claims.
 
 **Origin:** #131 spec review round 3 — operator domain knowledge ("I run multiple from same cwd")
 triggered the empirical check that refuted the comment-sourced premise.
+
+## 2026-07-02 — Multi-milestone atlas gate: docs land in the milestone that introduces the surface, not front-loaded (#160)
+
+`sdlc milestone-close` runs the §5 atlas gate over the *milestone window* (prev boundary → HEAD),
+not the whole branch. So if you document a multi-milestone feature's architectural surface in an
+early milestone (e.g. all the lifecycle/atlas prose in M1), the *later* milestones' windows contain
+no `atlas/` change and their milestone-close **refuses at the atlas gate** — even though the feature
+is well-documented overall. Two clean responses: (a) distribute atlas/docs updates to the milestone
+that *introduces* each surface (M1 vocab → issue-lifecycle; M3 publish gate → pre-merge-checks), so
+each window carries its own atlas change; or (b) `--no-atlas` on the milestone whose surface was
+already documented upstream, with the reason in `--verified`. The whole-issue close's atlas gate uses
+the *branch* window, so it sees all of it and passes regardless — the trap is milestone-scoped only.
+
+**Origin:** #160 M2 milestone-close — the codecomplete lifecycle surface was atlas'd in M1's window
+(issue-lifecycle.md, vocabulary.md), so M2's window had no atlas change and the gate fired; closed
+with `--no-atlas` + rationale. Same family as [[milestone-close --actual suggests CUMULATIVE]] — both
+are per-milestone-window mechanics that surprise if you reason at the whole-branch level.
