@@ -157,7 +157,7 @@ Detailed TDD plan: `workshop/plans/000160-codecomplete-status-plan.md`. Each `Mx
 its own review boundary (`sdlc milestone-close`).
 
 - [x] M1 — Vocabulary: add `codecomplete` to `issue.cue` + regenerate `pkg/vocab` + tests + atlas (+ set-status enforcement, pulled in — see Log)
-- [ ] M2 — Close → codecomplete: flip target + `set-status` refusal + lessons-at-close + README docs gate (folded #142)
+- [x] M2 — Close → codecomplete: flip target + `set-status` refusal + lessons-at-close + README docs gate (folded #142)
 - [ ] M3 — Publish gate: `merge`/`push` flip `codecomplete → done` + the reviewed-HEAD-unchanged invariant + remove pre-merge LLM judges
 
 ## Log
@@ -167,6 +167,7 @@ its own review boundary (`sdlc milestone-close`).
 - Created.
 
 ### 2026-07-02
+- 2026-07-02: closed M2 — close flips working→codecomplete (close_finalize_test + close_test green); lessons reminder at whole-issue close not milestone/REWORK (Q4); README docs gate folded from #142 into code-review.md (golden regenerated). --no-atlas: M2 architectural surface (codecomplete lifecycle + two-gate model + README sync) already documented in M1 atlas (issue-lifecycle.md, vocabulary.md); the pre-merge-checks.md rewrite (judge removal + invariant) is M3 cohesive unit. go test ./cmd/sdlc/... ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
 - 2026-07-02: closed M1 — codecomplete added to issue.cue (active status; working|blocked→codecomplete, codecomplete→done/working/wontfix/punt); conformance laws (reachable/escapable/documented-value) hold; pkg/vocab regenerated; set-status refuses →codecomplete and →done; go test ./cmd/sdlc/ ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
 
 - Folded #142 in (operator: "fold #142 into #160"). Captured the two-gate model,

@@ -80,7 +80,7 @@ func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
 		t.Error("REWORK must NOT write actual_hours")
 	}
 	if strings.Contains(stderr.String(), "flipped") {
-		t.Errorf("REWORK must NOT print 'flipped → done':\n%s", stderr.String())
+		t.Errorf("REWORK must NOT print 'flipped → codecomplete':\n%s", stderr.String())
 	}
 	if !strings.Contains(stderr.String(), "REWORK") {
 		t.Error("REWORK should tell the operator to fix + re-run")
@@ -184,10 +184,17 @@ func TestRunMilestoneClose_SHIP_Finalizes(t *testing.T) {
 
 	f := &milestoneCloseFlags{Issue: 69, Milestone: "M1", Actual: "1", Verified: "tests pass",
 		NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
-	if err := runMilestoneClose(io.Discard, io.Discard, f); err != nil {
+	var stdout strings.Builder
+	if err := runMilestoneClose(&stdout, io.Discard, f); err != nil {
 		t.Fatalf("milestone SHIP should finalize, got: %v", err)
 	}
 	if got := readIssue(t, issuesDir); !strings.Contains(got, "closed M1 — tests pass; review verdict: SHIP") {
 		t.Errorf("milestone SHIP should write + annotate the closed-M1 line:\n%s", got)
+	}
+	// #160 Q4: the lessons ping fires ONLY at the whole-issue close boundary, never
+	// at milestone-close — the `f.Milestone == ""` guard in reviewThenFinalize is
+	// the only thing enforcing that, so pin it (M2 boundary-review Important #1).
+	if strings.Contains(stdout.String(), judge.LessonsReminder) {
+		t.Error("milestone-close must NOT emit the lessons reminder (Q4 — whole-issue close only)")
 	}
 }

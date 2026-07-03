@@ -320,7 +320,7 @@ type closeResult struct {
 	// calibration-ledger inputs (read from the ORIGINAL issue):
 	fm, body, repoName, issueStr, today string
 	// success messages that describe WRITES — emitted by applyClose (post-finalize),
-	// so a REWORK never prints "flipped → done" for a write that didn't happen.
+	// so a REWORK never prints "flipped → codecomplete" for a write that didn't happen.
 	appliedMsgs []string
 }
 
@@ -624,8 +624,8 @@ func printCloseDryRun(stderr io.Writer, r closeResult) {
 
 // applyClose performs the close's writes — issue + project files + the #117
 // calibration ledger — then emits the success messages computeClose deferred
-// (so "flipped → done" prints only when the flip actually happened). Called only
-// after a finalizing verdict, or on the eager non-review path (#139).
+// (so "flipped → codecomplete" prints only when the flip actually happened). Called
+// only after a finalizing verdict, or on the eager non-review path (#139).
 func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
 	if r.newIssueText != r.issueText {
 		if err := os.WriteFile(r.issuePath, []byte(r.newIssueText), 0o644); err != nil {
