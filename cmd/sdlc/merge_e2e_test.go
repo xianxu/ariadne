@@ -353,9 +353,11 @@ func TestRunMerge_CodecompleteFlippedToDoneAndArchived(t *testing.T) {
 	git(t, dir, "switch", "feature")
 
 	gh := &e2eGH{openPR: "42"}
-	swapMergeDeps(t, gh, func(_, _ string, _ io.Writer) error { return nil }) // publish gate passes
+	// --no-judge SKIPS the publish gate, but the flip (step 10.5) is unconditional —
+	// pin that codecomplete → done still happens on the emergency-bypass path.
+	swapMergeDeps(t, gh, nil)
 
-	f := &mergeFlags{Yes: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
 	if msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) }); died {
 		t.Fatalf("merge should succeed, died: %s", msg)
 	}

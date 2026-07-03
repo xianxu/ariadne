@@ -177,3 +177,24 @@ Paste the `Review-Verdict:` trailer into the close commit; fix Critical/Importan
 - [x] close boundary review owns README docs sync (M2, folded #142).
 - [x] plan/specs auto-dispatch removed from merge/push; help updated (M3).
 - [x] Tests: working→codecomplete→done; refuse on drift; README caught at close (M3).
+
+---
+
+## Revisions
+
+### 2026-07-02 — M3 code vs Core-concepts reconciliation (M3 boundary-review §7)
+
+- The `codecomplete → done` flip lives in a **new** helper `publishCodecompleteIssues`
+  (`publishgate.go`), which the Core-concepts Integration-points table didn't list
+  separately. `runPublishGate` does **only** the reviewed-HEAD-unchanged *check* (its
+  "Wraps: invariant check + flip" description was inaccurate — the flip is the separate
+  helper, called by merge step 10.5 / push step 6.5).
+- The flip is **dir-wide** (globs all codecomplete issues in the dir), NOT the
+  window-scoped `mergedCodecompleteIssues` set the plan text implied. Intentional:
+  it matches `archiveDoneIssues`' existing dir-wide behavior, and on a healthy main no
+  codecomplete issue persists outside a publish (each merge/push flips them). The
+  invariant that guards un-reviewed drift is `runPublishGate` (window-scoped); the flip
+  is the mechanical state change once that gate passed. Documented in the helper's comment.
+- M3 remediation (FIX-THEN-SHIP): added the `touchedIssuesNotDone` codecomplete
+  carve-out test, a push-side flip+archive integration test, a `--no-judge`-still-flips
+  assertion, and made `revCount` fail-closed on a git error.

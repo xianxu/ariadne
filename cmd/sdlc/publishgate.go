@@ -109,7 +109,13 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 				"publish gate: %s is codecomplete but has no close commit reachable from HEAD.\n"+
 					"  Commit the `sdlc close` (its status flip must be committed), then retry the publish.", p)
 		}
-		if ahead := revCount(a + "..HEAD"); minAhead < 0 || ahead < minAhead {
+		ahead, ok := revCount(a + "..HEAD")
+		if !ok {
+			// Fail-closed: if we can't verify HEAD vs the anchor, refuse rather than
+			// silently pass (unreachable in practice — the anchor is from HEAD's log).
+			return fmt.Errorf("publish gate: could not compute rev-list %s..HEAD (git error) — refusing to publish unverified", shortSHA(a))
+		}
+		if minAhead < 0 || ahead < minAhead {
 			minAhead, newestAnchor = ahead, a
 		}
 	}
@@ -128,6 +134,12 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 // the merge/push, BEFORE archiving (which keys on IsTerminal). actual_hours was set
 // at close, so the compiled done-guard is already satisfied. Returns the flipped
 // issue paths (for logging); the caller's archive step stages + commits the moves.
+//
+// Scope is DIR-WIDE (glob), not window-scoped, matching archiveDoneIssues' existing
+// behavior — on a healthy main no codecomplete issue persists outside a publish (each
+// merge/push flips them), so the only codecomplete issues present are this publish's.
+// (The invariant that gates un-reviewed drift is runPublishGate; this flip is the
+// mechanical state change once that gate passed.)
 func publishCodecompleteIssues(issuesDir string) ([]string, error) {
 	matches, _ := filepath.Glob(filepath.Join(issuesDir, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
 	sort.Strings(matches)
@@ -155,8 +167,14 @@ func publishCodecompleteIssues(issuesDir string) ([]string, error) {
 	return flipped, nil
 }
 
-// revCount returns the number of commits in a `git rev-list --count` range (0 on error).
-func revCount(rangeSpec string) int {
-	n, _ := strconv.Atoi(strings.TrimSpace(gitx.Capture("rev-list", "--count", rangeSpec)))
-	return n
+// revCount returns the commit count of a `git rev-list --count` range. ok is false
+// when git errored (Capture returns "" — a valid count is always a number like "0"),
+// so the caller can fail-closed rather than treat a git error as "no drift".
+func revCount(rangeSpec string) (count int, ok bool) {
+	out := strings.TrimSpace(gitx.Capture("rev-list", "--count", rangeSpec))
+	if out == "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(out)
+	return n, err == nil
 }
