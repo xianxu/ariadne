@@ -5,7 +5,8 @@
         ],
         "active": [
             "working",
-            "blocked"
+            "blocked",
+            "codecomplete"
         ],
         "terminal": [
             "done",
@@ -17,6 +18,7 @@
         "open": "created, not yet started",
         "working": "actively in progress",
         "blocked": "waiting on another tracked issue",
+        "codecomplete": "code complete; passed local acceptance review, awaiting merge",
         "done": "complete and closed",
         "wontfix": "rejected; will not be done",
         "punt": "deferred"
@@ -46,7 +48,7 @@
         },
         {
             "from": "working",
-            "to": "done",
+            "to": "codecomplete",
             "event": "close",
             "guards": [
                 "actual-recorded",
@@ -56,13 +58,27 @@
         },
         {
             "from": "blocked",
-            "to": "done",
+            "to": "codecomplete",
             "event": "close",
             "guards": [
                 "actual-recorded",
                 "verified",
                 "atlas-updated"
             ]
+        },
+        {
+            "from": "codecomplete",
+            "to": "done",
+            "event": "merge",
+            "guards": [
+                "reviewed-head-unchanged"
+            ]
+        },
+        {
+            "from": "codecomplete",
+            "to": "working",
+            "event": "reopen",
+            "guards": []
         },
         {
             "from": "working",
@@ -117,6 +133,18 @@
             "to": "punt",
             "event": "defer",
             "guards": []
+        },
+        {
+            "from": "codecomplete",
+            "to": "wontfix",
+            "event": "abandon",
+            "guards": []
+        },
+        {
+            "from": "codecomplete",
+            "to": "punt",
+            "event": "defer",
+            "guards": []
         }
     ],
     "laws": {
@@ -124,6 +152,7 @@
             "open": "created, not yet started",
             "working": "actively in progress",
             "blocked": "waiting on another tracked issue",
+            "codecomplete": "code complete; passed local acceptance review, awaiting merge",
             "done": "complete and closed",
             "wontfix": "rejected; will not be done",
             "punt": "deferred"
@@ -131,6 +160,7 @@
         "reachable": {
             "working": true,
             "blocked": true,
+            "codecomplete": true,
             "done": true,
             "wontfix": true,
             "punt": true
@@ -138,7 +168,8 @@
         "escapable": {
             "open": true,
             "working": true,
-            "blocked": true
+            "blocked": true,
+            "codecomplete": true
         }
     }
 }

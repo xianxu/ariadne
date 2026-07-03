@@ -319,18 +319,27 @@ func TestTouchedIssuesNotDone(t *testing.T) {
 	mkIssue("000001-working.md", "working")
 	mkIssue("000002-done.md", "done")
 	mkIssue("000003-open.md", "open")
+	// #160: codecomplete is the normal pre-publish state — the publish gate is about
+	// to flip it to done — so it must NOT be flagged "not done" (else every merge/push
+	// would trip the "Continue anyway?" prompt). This pins the one-token carve-out.
+	mkIssue("000004-cc.md", "codecomplete")
 
-	r := &notDoneRunner{touched: []byte("workshop/issues/000001-working.md\nworkshop/issues/000002-done.md\nworkshop/issues/000003-open.md\n")}
+	r := &notDoneRunner{touched: []byte("workshop/issues/000001-working.md\nworkshop/issues/000002-done.md\nworkshop/issues/000003-open.md\nworkshop/issues/000004-cc.md\n")}
 	notDone, err := touchedIssuesNotDone("origin/main", issuesDir, r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Expect 000001 (working) and 000003 (open).
+	// Expect 000001 (working) and 000003 (open); NOT 000002 (done) or 000004 (codecomplete).
 	if len(notDone) != 2 {
 		t.Fatalf("got %d not-done; want 2: %v", len(notDone), notDone)
 	}
 	if !strings.Contains(notDone[0], "000001") || !strings.Contains(notDone[1], "000003") {
 		t.Errorf("entries: %v", notDone)
+	}
+	for _, e := range notDone {
+		if strings.Contains(e, "000004") {
+			t.Errorf("codecomplete issue must NOT be flagged not-done (#160): %v", notDone)
+		}
 	}
 }
 
@@ -393,6 +402,47 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 	// Done file moved.
 	if _, err := os.Stat(filepath.Join(historyDir, "000001-done.md")); err != nil {
 		t.Errorf("done issue should be in history/: %v", err)
+	}
+}
+
+// #160: the push publish sequence — step 6.5 flip (codecomplete → done) then step 7
+// archive — must land a codecomplete issue in history/ as done. Mirrors merge's
+// TestRunMerge_CodecompleteFlippedToDoneAndArchived for the direct-to-main path.
+func TestPushPublishSequence_CodecompleteFlippedThenArchived(t *testing.T) {
+	tmp := t.TempDir()
+	issuesDir := filepath.Join(tmp, "workshop", "issues")
+	historyDir := filepath.Join(tmp, "workshop", "history")
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cc := "---\nid: 160\nstatus: codecomplete\nactual_hours: 1\n---\n\n# cc\n"
+	if err := os.WriteFile(filepath.Join(issuesDir, "000160-cc.md"), []byte(cc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Step 6.5: flip codecomplete → done.
+	flipped, err := publishCodecompleteIssues(issuesDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(flipped) != 1 {
+		t.Fatalf("flipped %d, want 1", len(flipped))
+	}
+	// Step 7: archive (now terminal).
+	var stderr bytes.Buffer
+	moves, err := archiveDoneIssues(&stderr, "", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moves) != 1 {
+		t.Fatalf("archived %d, want 1", len(moves))
+	}
+	data, err := os.ReadFile(filepath.Join(historyDir, "000160-cc.md"))
+	if err != nil {
+		t.Fatalf("codecomplete issue should be archived to history: %v", err)
+	}
+	if !strings.Contains(string(data), "status: done") {
+		t.Errorf("archived issue should be flipped codecomplete → done:\n%s", data)
 	}
 }
 

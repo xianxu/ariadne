@@ -118,20 +118,21 @@ func (g *e2eGH) PRMergedForBranch(repo, headRef string) (bool, error) { return g
 func (g *e2eGH) PRMerge(repo, branch string) error                    { g.prMergeCalls++; return nil }
 
 // swapMergeDeps swaps the package-level seams (ghClient, detectRepo,
-// runPreflightJudgesFn) and restores them on cleanup. preflight may be nil to
-// keep the default; pass a stub to inject a "judge".
+// runPublishGateFn) and restores them on cleanup. gate may be nil to keep the
+// default; pass a stub to inject a step-5 hook (#160 the publish gate replaced the
+// LLM judges, but the seam still models "a step-5 hook that can dirty the tree").
 //
 // These are process-global vars with no synchronization. Safe because these
 // tests run serially (no t.Parallel(), and tempRepo does a process-global
 // os.Chdir). Do NOT add t.Parallel() to merge e2e tests without first giving
 // each its own isolated state — the swaps (and the chdir) would race.
-func swapMergeDeps(t *testing.T, gh ghCaller, preflight func(preflightOptions) error) {
+func swapMergeDeps(t *testing.T, gh ghCaller, gate func(baseRef, issuesDir string, stderr io.Writer) error) {
 	t.Helper()
-	prevGH, prevDetect, prevPre, prevVal := ghClient, detectRepo, runPreflightJudgesFn, validateChangedIssuesFn
+	prevGH, prevDetect, prevGate, prevVal := ghClient, detectRepo, runPublishGateFn, validateChangedIssuesFn
 	ghClient = gh
 	detectRepo = func() (string, error) { return "test/repo", nil }
-	if preflight != nil {
-		runPreflightJudgesFn = preflight
+	if gate != nil {
+		runPublishGateFn = gate
 	}
 	// Neutralize the #124 instance-conformance gate — these e2e tests exercise the
 	// merge FLOW, not the gate (which has its own unit tests in validategate_test.go)
@@ -140,7 +141,7 @@ func swapMergeDeps(t *testing.T, gh ghCaller, preflight func(preflightOptions) e
 	t.Cleanup(func() {
 		ghClient = prevGH
 		detectRepo = prevDetect
-		runPreflightJudgesFn = prevPre
+		runPublishGateFn = prevGate
 		validateChangedIssuesFn = prevVal
 	})
 }
@@ -158,10 +159,10 @@ func TestRunMerge_DirtyAfterJudge_RefusesPreMerge(t *testing.T) {
 	// A "judge" that dirties a tracked file (README.md is committed by tempRepo)
 	// and returns nil (success). NoJudge stays false so this fires (step 5 is
 	// gated on it). A passing judge that left a tracked file dirty is the #62 hazard.
-	dirtyingJudge := func(preflightOptions) error {
-		return os.WriteFile(filepath.Join(dir, "README.md"), []byte("dirtied by judge\n"), 0o644)
+	dirtyingGate := func(_, _ string, _ io.Writer) error {
+		return os.WriteFile(filepath.Join(dir, "README.md"), []byte("dirtied by step-5 hook\n"), 0o644)
 	}
-	swapMergeDeps(t, gh, dirtyingJudge)
+	swapMergeDeps(t, gh, dirtyingGate)
 
 	f := &mergeFlags{Yes: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
 	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
@@ -186,10 +187,10 @@ func TestRunMerge_DirtyAfterJudge_RefusesPreMerge(t *testing.T) {
 func TestRunMerge_UntrackedAfterJudge_Proceeds(t *testing.T) {
 	dir := tempRepo(t)
 	gh := &e2eGH{openPR: "42"}
-	untrackingJudge := func(preflightOptions) error {
-		return os.WriteFile(filepath.Join(dir, "judge-scratch.txt"), []byte("x\n"), 0o644)
+	untrackingGate := func(_, _ string, _ io.Writer) error {
+		return os.WriteFile(filepath.Join(dir, "gate-scratch.txt"), []byte("x\n"), 0o644)
 	}
-	swapMergeDeps(t, gh, untrackingJudge)
+	swapMergeDeps(t, gh, untrackingGate)
 
 	f := &mergeFlags{Yes: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
 	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
@@ -207,7 +208,7 @@ func TestRunMerge_UntrackedAfterJudge_Proceeds(t *testing.T) {
 	}
 	// The untracked file is still there (we never touch it) — proof it neither
 	// blocked the merge nor was clobbered by the branch switch.
-	if _, err := os.Stat(filepath.Join(dir, "judge-scratch.txt")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "gate-scratch.txt")); err != nil {
 		t.Errorf("untracked file should survive the merge/switch: %v", err)
 	}
 }
@@ -329,5 +330,46 @@ func TestRunMerge_ResumeMergedPR_FinishesCleanup(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "workshop", "issues", "000999-done.md")); !os.IsNotExist(err) {
 		t.Errorf("done issue should have moved out of issues/ (err=%v)", err)
+	}
+}
+
+// ── #160: merge flips a codecomplete issue → done and archives it ────────────
+//
+// The publish flip (step 10.5) runs on main after the merge, before the archive
+// (which keys on IsTerminal). A codecomplete issue on main must end up archived to
+// history with status: done. The publish gate is stubbed to pass (its invariant is
+// unit-tested in publishgate_test.go); this pins the merge-side flip+archive wiring.
+func TestRunMerge_CodecompleteFlippedToDoneAndArchived(t *testing.T) {
+	dir := tempRepo(t)
+	// Seed a codecomplete issue on main (the flip's target).
+	git(t, dir, "switch", "main")
+	cc := "---\nid: 160\nstatus: codecomplete\nactual_hours: 1\n---\n\n# cc issue\n"
+	if err := os.WriteFile(filepath.Join(dir, "workshop/issues/000160-cc.md"), []byte(cc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "seed codecomplete issue")
+	git(t, dir, "push", "origin", "main")
+	git(t, dir, "switch", "feature")
+
+	gh := &e2eGH{openPR: "42"}
+	// --no-judge SKIPS the publish gate, but the flip (step 10.5) is unconditional —
+	// pin that codecomplete → done still happens on the emergency-bypass path.
+	swapMergeDeps(t, gh, nil)
+
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	if msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) }); died {
+		t.Fatalf("merge should succeed, died: %s", msg)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "workshop/history/000160-cc.md"))
+	if err != nil {
+		t.Fatalf("codecomplete issue should be archived to history: %v", err)
+	}
+	if !strings.Contains(string(data), "status: done") {
+		t.Errorf("archived issue should be flipped codecomplete → done:\n%s", data)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "workshop/issues/000160-cc.md")); !os.IsNotExist(err) {
+		t.Error("codecomplete issue should have moved out of workshop/issues/")
 	}
 }

@@ -1,12 +1,13 @@
 ---
 id: 000160
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-02
-estimate_hours:
+estimate_hours: 4
 started: 2026-07-02T11:15:34-07:00
+actual_hours: 4.72
 ---
 
 # add an issue status: codecomplete
@@ -82,41 +83,83 @@ re-judging a delta. It reuses the existing `Review-Verdict:` trailer machinery
 - This is a **base-layer vocabulary change** — it propagates to every downstream
   repo via the manifest. Weigh downstream impact (`atlas/workflow/base-layer.md`).
 
-### Open design questions (decide before planning)
+### Resolved design decisions
 
-- **Q1 — verb semantics.** Keep `sdlc close` = "finish locally → codecomplete", and
-  give `sdlc merge` the `→ done` flip? (Proposed.) Or introduce a distinct verb?
-- **Q2 — actual_hours timing.** Actuals computed at close → codecomplete carries
-  them; the done-guard extends to codecomplete. Confirm.
-- **Q3 — `sdlc push` (direct-to-main, no PR).** It has no separate merge step. Does
-  push do close(→codecomplete) + flip(→done) atomically, or does direct-push keep
-  the legacy working→done? (Proposed: push = the merge-equivalent flip for the
-  no-PR path — deterministic HEAD check + `→ done`.)
-- **Q4 — `lessons` placement** (keep at merge / drop).
-- **Q5 — the boundary review at close still emits a `Review-Verdict:` trailer the
-  operator pastes into the codecomplete commit** (the invariant's anchor). Confirm
-  this stays the mechanism, or make close auto-commit the trailer.
+- **Q1 — verb semantics → RESOLVED (operator).** `sdlc close` = "finish locally →
+  `codecomplete`" (the LLM acceptance gate); `sdlc merge` = "→ `done`" (deterministic
+  publish). Operator: *"final merge would do a simple flip to done, and merge, and
+  push."*
+- **Q2 — actual_hours timing → RESOLVED.** Actuals are measured at close, so a
+  `codecomplete` issue carries them; the compiled `actual_hours!` guard extends from
+  `done` to `{done, codecomplete}`.
+- **Q3 — `sdlc push` (direct-to-main) → RESOLVED (agent judgment; operator away).**
+  Push = the merge-equivalent for the no-PR path: it runs the deterministic
+  reviewed-HEAD-unchanged check + flips `codecomplete → done` + pushes. One lifecycle
+  everywhere; push is "merge without a PR." *(Revisit if the operator prefers
+  legacy working→done for direct push.)*
+- **Q4 — `lessons` → RESOLVED (operator: move to close).** The no-LLM reminder ping
+  moves from the publish gate to `sdlc close` — it fires while the agent is engaged
+  and boundary-review findings are fresh (lessons usually come straight out of the
+  review). The publish gate (merge/push) runs no LLM and no reminder — purely
+  deterministic.
+- **Q5 — invariant mechanism → RESOLVED (operator: Option B).** The `codecomplete`
+  boundary = **the commit that set `status: codecomplete`** in the issue file
+  (derived from the issue file's git history — `git log` for the issue path). `sdlc
+  merge`/`push` refuse unless `HEAD` is that commit, i.e. nothing landed after close.
+  No dependency on a hand-pasted `Review-Verdict:` git trailer. **Sub-decision: the
+  AGENT commits the flip** (keeps today's "close mutates, agent commits/bundles"
+  convention); merge derives the anchor from git history — merge's existing
+  clean-tree + branch-pushed guards already prevent an uncommitted-close footgun.
+  The `Review-Verdict:` trailer still records the *verdict* for the audit trail and
+  still anchors the *milestone* window (`previousReviewBoundary`); it just isn't
+  this invariant's anchor.
 
 ## Done when
 
-- [ ] `codecomplete` is in `construct/vocabulary/issue.cue` with `when` + lifecycle
+- [x] `codecomplete` is in `construct/vocabulary/issue.cue` with `when` + lifecycle
       transitions; `pkg/vocab` consumers (set-status help, gates) derive it — no
       hardcoded enum.
-- [ ] `sdlc close` flips `working → codecomplete` (not done) on a finalizing
+- [x] `sdlc close` flips `working → codecomplete` (not done) on a finalizing
       boundary-review verdict, carrying the actual/verified/atlas guards.
-- [ ] `sdlc merge` flips `codecomplete → done` after the deterministic
+- [x] `sdlc merge` flips `codecomplete → done` after the deterministic
       reviewed-HEAD-unchanged check + CI, running no LLM judge.
-- [ ] `sdlc merge` refuses when commits landed after close (invariant enforced),
+- [x] `sdlc merge` refuses when commits landed after close (invariant enforced),
       with a re-run-`sdlc close` next-action message.
-- [ ] The close boundary review owns README docs sync (folded #142 pair#84 fix).
-- [ ] `plan`/`specs` LLM judges removed from merge/push; close/merge/push help
+- [x] The close boundary review owns README docs sync (folded #142 pair#84 fix).
+- [x] `plan`/`specs` LLM judges removed from merge/push; close/merge/push help
       text explains the two-gate model.
-- [ ] Tests: the `working → codecomplete → done` path; merge refuses on post-close
+- [x] Tests: the `working → codecomplete → done` path; merge refuses on post-close
       drift; a README gap caught at close (not merge).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module      design=0.2 impl=0.25
+item: smaller-go-module      design=0.25 impl=0.4
+item: greenfield-go-module   design=0.3 impl=0.5
+item: smaller-go-module      design=0.2 impl=0.4
+item: atlas-docs             design=0.15 impl=0.25
+item: milestone-review       design=0.0 impl=0.8
+design-buffer: 0.30
+total: 4.03
+```
+
+Derivation: M1 vocabulary (smaller-go-module), M2 close/set-status (smaller-go-module),
+M3 publishgate.go greenfield (greenfield-go-module) + merge/push wiring
+(smaller-go-module), help+atlas+README-gate (atlas-docs), and 4 review passes (3
+milestone-closes + the whole-issue integration close). Much of the design is
+already spent (brainstorm/Spec), which the design items + buffer capture.
 
 ## Plan
 
-- [ ] (design first — brainstorm the open questions, then author the durable plan)
+Detailed TDD plan: `workshop/plans/000160-codecomplete-status-plan.md`. Each `Mx` is
+its own review boundary (`sdlc milestone-close`).
+
+- [x] M1 — Vocabulary: add `codecomplete` to `issue.cue` + regenerate `pkg/vocab` + tests + atlas (+ set-status enforcement, pulled in — see Log)
+- [x] M2 — Close → codecomplete: flip target + `set-status` refusal + lessons-at-close + README docs gate (folded #142)
+- [x] M3 — Publish gate: `merge`/`push` flip `codecomplete → done` + the reviewed-HEAD-unchanged invariant + remove pre-merge LLM judges
 
 ## Log
 
@@ -125,6 +168,10 @@ re-judging a delta. It reuses the existing `Review-Verdict:` trailer machinery
 - Created.
 
 ### 2026-07-02
+- 2026-07-02: closed — codecomplete status + set-status enforcement (M1); close flips working→codecomplete + lessons-at-close + README docs gate (M2); merge/push deterministic publish gate enforces reviewed-HEAD-unchanged invariant + flips codecomplete→done, pre-merge plan/specs/lessons judges removed (M3); all 3 milestone reviews FIX-THEN-SHIP + remediated; publishgate_test + merge/push integration tests green; go test ./cmd/sdlc/... ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
+- 2026-07-02: closed M3 — publishgate.go runPublishGate enforces reviewed-HEAD-unchanged invariant (unit tests: clean/drift/multi-issue/re-close); merge/push flip codecomplete→done + archive (TestRunMerge_CodecompleteFlippedToDoneAndArchived); plan/specs/lessons pre-merge judges removed (preflight.go deleted); help+atlas updated; go test ./cmd/sdlc/... ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
+- 2026-07-02: closed M2 — close flips working→codecomplete (close_finalize_test + close_test green); lessons reminder at whole-issue close not milestone/REWORK (Q4); README docs gate folded from #142 into code-review.md (golden regenerated). --no-atlas: M2 architectural surface (codecomplete lifecycle + two-gate model + README sync) already documented in M1 atlas (issue-lifecycle.md, vocabulary.md); the pre-merge-checks.md rewrite (judge removal + invariant) is M3 cohesive unit. go test ./cmd/sdlc/... ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
+- 2026-07-02: closed M1 — codecomplete added to issue.cue (active status; working|blocked→codecomplete, codecomplete→done/working/wontfix/punt); conformance laws (reachable/escapable/documented-value) hold; pkg/vocab regenerated; set-status refuses →codecomplete and →done; go test ./cmd/sdlc/ ./pkg/vocab/ green; review verdict: FIX-THEN-SHIP
 
 - Folded #142 in (operator: "fold #142 into #160"). Captured the two-gate model,
   the `codecomplete` invariant (deterministic reviewed-HEAD-unchanged check at
@@ -132,4 +179,77 @@ re-judging a delta. It reuses the existing `Review-Verdict:` trailer machinery
   the no-regret README docs-gate slice inherited from #142 Task 4.
 - #142 set to `wontfix` (subsumed); its plan + audit remain the reference for the
   merge-side changes.
-- Open questions Q1–Q5 above need operator decisions before the durable plan.
+- Q1–Q5 resolved (operator confirmed Q1–Q4; Q5 = Option B). Durable plan authored,
+  fresh-eyes reviewed twice, hardened. `sdlc change-code` gates passed (plan-quality
+  + estimate-quality both INFO); in-place branch created.
+
+#### M1 — Vocabulary (+ set-status enforcement)
+
+- Added `codecomplete` to `issue.cue`: `categories.active`, a `when` line, and the
+  lifecycle edges. Relocated **both** close edges (`working→` and `blocked→`) from
+  `done` to `codecomplete` (close writes status unconditionally, so the model must
+  match — plan-quality FAILURE fix); added `codecomplete→done` (merge, guard
+  `reviewed-head-unchanged`), `codecomplete→working` (reopen), `codecomplete→
+  wontfix|punt`. Extended the compiled `actual_hours!` guard to `{done, codecomplete}`.
+- Regenerated `pkg/vocab/issue.json` (`make vocab-embed`); conformance laws
+  (reachable/escapable/documented-value) all hold. Updated `vocab_test.go`
+  (predicates + `AllStatuses` ordering).
+- **Pulled set-status enforcement into M1** (was M2 Step 3): relocating `working→done`
+  made it illegal, which broke `TestCheckTransitionGuards_RefusesDone` — the
+  enforcement is the model's direct counterpart (ARCH-PURPOSE), so it belongs with
+  the model. Added Guard 1b (`→ codecomplete` refused → route to `sdlc close`, the
+  Q5 anchor-trust enforcement); updated Guard 1 (`→ done` routes through the
+  close→merge publish flow); updated/added guard tests.
+- Shadow-swept status consumers: `state.go` handles codecomplete gracefully (no
+  change); `merge.go:568` archiving + `push.go` archiving/GH-close and
+  `touchedIssuesNotDone` are M3 (flip-before-archive + carve-out). `close.go:486`
+  status write is M2.
+- Atlas: `issue-lifecycle.md` (states table + two-gate model + flow + closing),
+  `vocabulary.md` (the codecomplete split + dual set-status refusals). Tests green:
+  `go test ./cmd/sdlc/ ./pkg/vocab/`.
+- **M1 boundary review: FIX-THEN-SHIP.** One Important finding — `set-status --help`
+  didn't document the new `→ codecomplete` refusal (contradicted its own derived
+  LEGAL TRANSITIONS). Fixed `set-status.md` (added the refusal section, reframed
+  `→ done` as the publish flow) + added a `helptext_render_test.go` guard. Closed M1.
+
+#### M2 — Close → codecomplete
+
+- `close.go`: whole-issue close now writes `status: codecomplete` (not `done`) +
+  the "flipped → codecomplete" message. TDD: updated `close_finalize_test.go`
+  (finalize → codecomplete; REWORK/error/unknown must NOT flip to codecomplete) and
+  `close_test.go` frontmatter-chain example. Re-close guard stays keyed on `"done"`
+  (re-closing a codecomplete issue is the normal rework path — allowed).
+- **Lessons ping moved to close (Q4):** `emitLessonsReminder` fires on a finalizing
+  whole-issue close (both the reviewed and `--no-judge` paths), NOT on milestone-close
+  or REWORK. TDD in `close_finalize_test.go`.
+- **README docs gate (folded #142 Task 4):** `code-review.md` "Atlas update gate" →
+  "Docs update gate (atlas + README)" with the README bullet + the cross-ref;
+  `judge_test.go` assertion updated; golden regenerated (only `milestone-review.prompt`
+  changed).
+- Help: `close.md` (close = local acceptance gate → codecomplete; lessons ping; docs
+  sync incl. README). Full suite green: `go test ./cmd/sdlc/... ./pkg/vocab/`.
+- **M2 boundary review: FIX-THEN-SHIP.** Important — milestone-close's "no lessons
+  ping" behavior was untested (stdout discarded). Added the assertion +
+  refreshed stale "flipped → done" comments. Hit the atlas gate (M2 window had no
+  atlas change — the codecomplete surface was atlas'd in M1); closed with `--no-atlas`
+  + rationale. Closed M2.
+
+#### M3 — Publish gate
+
+- New `cmd/sdlc/publishgate.go` (+ `publishgate_test.go`, all green):
+  `codecompleteAnchorCommit` (newest commit leaving the issue at codecomplete — a
+  content read; re-close ADVANCES it), `mergedCodecompleteIssues` (window scan),
+  `runPublishGate` (enumerate → latest anchor → refuse if any commit landed after —
+  the reviewed-HEAD-unchanged invariant, NO LLM), `publishCodecompleteIssues` (the
+  codecomplete → done flip). Tests cover clean/drift/multi-issue/re-close/no-op.
+- Wired `merge`/`push`: step 5/4 now run `runPublishGate` (replacing the plan/specs/
+  lessons preflight); post-merge/post-push flip codecomplete → done BEFORE archiving
+  (archive keys on IsTerminal). `touchedIssuesNotDone` carves out codecomplete (else
+  every merge would trip the not-done prompt). Deleted the dead `preflight.go` +
+  `preflight_test.go`; removed the `judge` imports; renamed the merge test seam
+  `runPreflightJudgesFn → runPublishGateFn` (e2e tests adapted).
+- Integration test: `TestRunMerge_CodecompleteFlippedToDoneAndArchived` — a
+  codecomplete issue on main is flipped to done + archived by merge.
+- Help + atlas: `merge.md`/`push.md` (two-gate model, publish gate, `--no-judge`
+  reframed), `pre-merge-checks.md` (rewritten for the two-gate model), `ci-merge-check.md`
+  (three-tier note). Full suite green.

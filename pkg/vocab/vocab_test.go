@@ -22,6 +22,18 @@ func TestIssuePredicates(t *testing.T) {
 		{"CanTransition(open,working)", m.CanTransition("open", "working"), true},
 		{"CanTransition(open,done)", m.CanTransition("open", "done"), false},
 		{"CanTransition(done,working)", m.CanTransition("done", "working"), true},
+		// #160: codecomplete is an active (not terminal) status.
+		{"IsActive(codecomplete)", m.IsActive("codecomplete"), true},
+		{"IsTerminal(codecomplete)", m.IsTerminal("codecomplete"), false},
+		// #160 close edges: close writes codecomplete unconditionally, so BOTH
+		// working→codecomplete and blocked→codecomplete are model-legal.
+		{"CanTransition(working,codecomplete)", m.CanTransition("working", "codecomplete"), true},
+		{"CanTransition(blocked,codecomplete)", m.CanTransition("blocked", "codecomplete"), true},
+		// #160 publish edge + rework/abandon.
+		{"CanTransition(codecomplete,done)", m.CanTransition("codecomplete", "done"), true},
+		{"CanTransition(codecomplete,working)", m.CanTransition("codecomplete", "working"), true},
+		// working no longer closes straight to done (it routes through codecomplete).
+		{"CanTransition(working,done)", m.CanTransition("working", "done"), false},
 	}
 	for _, c := range cases {
 		if c.got != c.want {
@@ -32,7 +44,7 @@ func TestIssuePredicates(t *testing.T) {
 
 func TestAllStatuses(t *testing.T) {
 	// Ordered open → active → terminal; must match the legacy validStatuses set.
-	want := []string{"open", "working", "blocked", "done", "wontfix", "punt"}
+	want := []string{"open", "working", "blocked", "codecomplete", "done", "wontfix", "punt"}
 	if got := Issue().AllStatuses(); !reflect.DeepEqual(got, want) {
 		t.Errorf("AllStatuses() = %v, want %v", got, want)
 	}

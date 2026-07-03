@@ -15,16 +15,18 @@
 //  2. no uncommitted tracked changes (untracked files warn, don't block — #78)
 //  3. upstream configured
 //  4. branch not ahead of upstream
-//  5. pre-merge judges (plan + specs + lessons, skippable with --no-judge) —
-//     read-only reviewers; they report, they do not edit the tree (#62 M2)
+//  5. pre-merge PUBLISH GATE (#160) — the deterministic reviewed-HEAD-unchanged
+//     invariant (refuse unless HEAD is unchanged since the codecomplete issues'
+//     `sdlc close`); NO LLM (all LLM review is close-time). Skippable --no-judge.
 //  6. resolve topology (in-place vs worktree)
 //  7. show unmerged commits (informational)
 //  8. not-done issue warn (vs main)
 //  9. interactive confirmation (skippable with --yes)
 //     9b. re-assert no tracked dirt before the irreversible merge — refuse if a
-//     judge/hook dirtied a tracked file since step 2 (#62 M1; never cross dirty)
+//     gate/hook dirtied a tracked file since step 2 (#62 M1; never cross dirty)
 //  10. gh pr merge (server-side), OR resume an already-merged PR if a prior run
 //     was interrupted (#62 M3) → in-place: switch main; both: pull main
+//     10.5 publish flip (#160): codecomplete → done on main (before archiving)
 //  11. archive done/wontfix/punt issues into history/ (in the main checkout)
 //  12. cleanup — in-place: branch delete; worktree: worktree remove + branch delete + .goto
 package main
@@ -43,7 +45,6 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -67,14 +68,13 @@ var mergeRunner gitRunner = execGitRunner{}
 // confirmation prompts deterministically. Production wraps os.Stdin.
 var mergePrompter prompter = stdinPrompter{}
 
-// runPreflightJudgesFn is the package-level seam for merge's step-5 pre-merge
-// judges. Production points at runPreflightJudges. Tests swap it for a stub
-// "judge" — most usefully one that DIRTIES the worktree, to prove step 9b
-// re-checks cleanliness after the judges ran and refuses before the
-// irreversible merge (#62 M1 / #63). It runs after step 2's clean check and
-// before 9b's re-check, which is exactly the window a real dirtying hook
-// would occupy.
-var runPreflightJudgesFn = runPreflightJudges
+// runPublishGateFn is the package-level seam for merge's step-5 pre-merge publish
+// gate (#160 — the deterministic reviewed-HEAD-unchanged invariant that replaced
+// the LLM judges). Production points at runPublishGate. Tests swap it for a stub —
+// most usefully one that DIRTIES the worktree, to prove step 9b re-checks
+// cleanliness before the irreversible merge (#62 M1 / #63); it runs after step 2's
+// clean check and before 9b's re-check, the window a real dirtying hook would occupy.
+var runPublishGateFn = runPublishGate
 
 // prompter abstracts the "read a line, return trimmed text" surface.
 type prompter interface {
@@ -105,8 +105,8 @@ func NewMergeCmd() *cobra.Command {
 			return runMerge(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
-	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the final irreversible-merge confirmation AND not-done warn — REQUIRED for non-interactive/agent runs (merge fail-fasts before the judges when stdin is not a terminal)")
-	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip pre-merge judges (emergency-only)")
+	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the final irreversible-merge confirmation AND not-done warn — REQUIRED for non-interactive/agent runs (merge fail-fasts before the publish gate when stdin is not a terminal)")
+	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the pre-merge publish gate — #160 reviewed-HEAD-unchanged invariant (emergency-only)")
 	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not merge or clean up")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
@@ -265,7 +265,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 	cok(stderr, "No uncommitted tracked changes")
 
-	// Fail fast — before the slow pre-merge judges — if the confirmation
+	// Fail fast — before the publish gate + irreversible merge — if the confirmation
 	// prompts (steps 8-9) can't be answered. They read os.Stdin, and in a
 	// non-tty agent/background context a bare scan blocks forever; convert
 	// that hang into a clear next-action.
@@ -309,23 +309,21 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — issue frontmatter/sections NOT verified before main. Escape hatch: say why in your commit/log.")
 	}
 
-	// ── 5. Pre-merge judges ─────────────────────────────────────────────────
+	// ── 5. Pre-merge publish gate (#160) — deterministic, NO LLM ─────────────
+	// All LLM review is now close-time (the boundary review). The publish gate
+	// enforces the reviewed-HEAD-unchanged invariant: refuse unless HEAD is
+	// unchanged since the codecomplete issues' `sdlc close`. (Replaces the old
+	// plan/specs/lessons pre-merge judges — #142 folded here.)
 	if !f.NoJudge {
-		preOpts := preflightOptions{
-			Categories: []judge.Category{judge.Plan, judge.Specs, judge.Lessons},
-			IssuesDir:  f.IssuesDir,
-			HistoryDir: f.HistoryDir,
-			DryRun:     f.DryRun,
-			Stdout:     stdout,
-			Stderr:     stderr,
-		}
-		if err := runPreflightJudgesFn(preOpts); err != nil {
-			die(stderr, fmt.Sprintf("pre-merge judges failed: %v\n"+
-				"  → fix the finding, commit, `git push`, then re-run `sdlc merge` "+
-				"(the fix must reach origin — merge is server-side).", err))
+		if err := runPublishGateFn(gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
+			if f.DryRun {
+				cwarn(stderr, fmt.Sprintf("dry-run: publish gate WOULD refuse: %v", err))
+			} else {
+				die(stderr, err.Error()+"\n  (the fix must reach origin — merge is server-side.)")
+			}
 		}
 	} else {
-		cwarn(stderr, "--no-judge: skipping pre-merge judges")
+		cwarn(stderr, "--no-judge: skipping the pre-merge publish gate (#160 reviewed-HEAD-unchanged invariant)")
 	}
 
 	// ── 6. Resolve merge topology: in-place vs worktree ─────────────────────
@@ -404,7 +402,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 9b. Re-assert clean tree before the irreversible merge (#62 M1) ──────
-	// The step-2 check ran before the pre-merge judges; a judge/hook may have
+	// The step-2 check ran before the step-5 publish gate; a gate/hook may have
 	// dirtied the tree since. Refuse here rather than merge-then-strand: a dirty
 	// tree breaks both `gh pr merge`'s downstream `git switch main` and the
 	// resume cleanup. (With read-only judges (#62 M2) the tree stays clean; this
@@ -476,6 +474,18 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 		// Worktree path: falls through to archive + worktree removal regardless
 		// — the shell does the same. If no unmerged, we silently proceed.
+	}
+
+	// ── 10.5 Publish flip (#160): codecomplete → done on main ────────────────
+	// The merged issues arrive on main at `codecomplete`; flip them to done (the
+	// deterministic publish flip) BEFORE archiving — archiveDoneIssuesInDir keys on
+	// IsTerminal, and codecomplete is active. Actuals were set at close, so the
+	// done-guard holds. The flip is captured by the archive commit below (the
+	// flipped files move to history).
+	if flipped, ferr := publishCodecompleteIssues(filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
+		die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
+	} else if len(flipped) > 0 {
+		cinfo(stderr, fmt.Sprintf("Published %d issue(s): codecomplete → done", len(flipped)))
 	}
 
 	// ── 11. Archive done issues in MAIN worktree ────────────────────────────

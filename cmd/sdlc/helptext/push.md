@@ -5,9 +5,10 @@ Since #51 the **default close path is the in-place branch flow**:
 `sdlc pr` → `sdlc merge` (server-side PR merge, then switches back to
 main). `push` is the **direct-on-main shortcut**, kept for quick
 one-liners small enough to commit straight onto main without a PR.
-Both paths run the same pre-merge judges; the difference is whether
+Both paths run the same deterministic pre-publish gate (#160 — the
+reviewed-HEAD-unchanged invariant, no LLM); the difference is whether
 the change goes through a reviewable PR (`merge`) or lands directly
-(`push`).
+(`push`). All LLM review is close-time (the `sdlc close` boundary review).
 
 REFUSES IF
 
@@ -28,10 +29,11 @@ WHAT IT DOES
      subject is synthesized from the `# Title` of every changed
      `workshop/issues/NNNNNN-*.md` (one per line). If none changed,
      the fallback subject is "auto-commit before push".
-  2. Runs pre-merge judges: `sdlc judge plan`, `sdlc judge specs`,
-     `sdlc judge lessons`. Any Failure aborts the push. Skip with
-     `--no-judge` (emergency only — judges are why we know what
-     we're shipping).
+  2. Runs the pre-push PUBLISH GATE (#160) — deterministic, NO LLM.
+     It refuses unless HEAD is unchanged since the codecomplete issues'
+     `sdlc close` (nothing drifted after the boundary review). On refusal,
+     re-run `sdlc close --issue N --verified '...'`, then retry. Skip with
+     `--no-judge` (emergency only).
   3. Scans `origin/main..HEAD` for touched issue files whose status
      is NOT in {done, wontfix, punt}; warns and prompts the operator
      unless `--yes`.
@@ -45,14 +47,14 @@ WHAT IT DOES
 FLAGS
 
   --yes                 skip the not-done-issue warn prompt
-  --no-judge            skip pre-merge judges (emergency only)
+  --no-judge            skip the pre-push publish gate (#160; emergency only)
   --dry-run             print would-be operations; do nothing
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
 
 EXAMPLES
 
-  sdlc push                       # full flow with judges + prompts
+  sdlc push                       # full flow: publish gate + prompts
   sdlc push --yes                 # skip not-done prompt
   sdlc push --no-judge --yes      # emergency push, both gates bypassed
   sdlc push --dry-run             # see what would happen
@@ -60,7 +62,7 @@ EXAMPLES
 EXIT CODES
 
   0   pushed (or dry-run completed)
-  1   branch != main, untracked files, judge failure, push failure,
+  1   branch != main, untracked files, publish-gate refusal, push failure,
       operator-aborted not-done prompt
 
 WHY PUSH (NOT GIT PUSH)
@@ -75,5 +77,5 @@ RELATED
   sdlc change-code  start the default in-place branch flow (the PR path)
   sdlc pr           open the PR for an in-place / worktree branch
   sdlc merge        branch-counterpart: merge PR, archive, clean up worktree
-  sdlc judge        one-category check (run by push/merge as pre-flight)
+  sdlc judge        standalone one-category LLM check (ad-hoc; #160 push/merge no longer run judges — review is close-time)
   sdlc close        mark an issue done before push picks it up for archive

@@ -52,7 +52,7 @@ Requirements traceability
 
 Production readiness
   - Migration / backward-compatibility considered where state or formats change.
-  - Docs / atlas updated for new surface (see the Atlas update gate).
+  - Docs / atlas updated for new surface (see the Docs update gate).
 
 ## Core concepts cross-check (if the plan has a Core concepts table)
 
@@ -70,13 +70,20 @@ Any contradiction between table and code = Critical finding, plus a plan-revisio
 recommendation (a "## Revisions" entry so the plan stops claiming what the code
 doesn't deliver).
 
-## Atlas update gate (per AGENTS.md §8)
+## Docs update gate (atlas + README, per AGENTS.md §8)
 
-The boundary should update atlas/ entries for any new architectural surface,
-flow, or terminology introduced. Scan the diff for evidence of new surface — new
-entity types, new subcommands, new conventions, new file-tree locations. Any
-present without corresponding atlas/ changes in the same range = Important
-finding ("atlas update appears missing for <surface>").
+The boundary should update user-facing docs for any new surface introduced:
+
+  - **atlas/** — new architectural surface, flow, or terminology. Scan the diff
+    for new entity types, subcommands, conventions, file-tree locations. Any
+    present without corresponding atlas/ changes in the same range = Important
+    finding ("atlas update appears missing for <surface>").
+  - **README.md** — new user-facing surface a reader runs or types: subcommands,
+    flags, keybindings, config keys, install/usage steps. If the diff adds or
+    changes such surface and README.md is not updated in the same range =
+    Important finding ("README update appears missing for <surface>"). This is the
+    class of gap that used to surface only at the merge-time `specs` judge (#142);
+    catch it here, at the earliest gate, before the close verdict is recorded.
 
 ## Architecture (the at-review backstop — these matter most long-term)
 

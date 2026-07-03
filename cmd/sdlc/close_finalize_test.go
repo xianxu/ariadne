@@ -35,6 +35,29 @@ func closeFlagsFor(issuesDir string) *closeFlags {
 		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
 }
 
+// #160 Q4: the lessons reminder moved from the publish gate to `sdlc close` — a
+// finalizing whole-issue close emits it (agent engaged, findings fresh); a
+// non-finalizing (REWORK) close does not.
+func TestRunCloseWithReview_EmitsLessonsReminder(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood")
+	var stdout strings.Builder
+	if err := runCloseWithReview(&stdout, io.Discard, closeFlagsFor(issuesDir)); err != nil {
+		t.Fatalf("SHIP close should finalize: %v", err)
+	}
+	if !strings.Contains(stdout.String(), judge.LessonsReminder) {
+		t.Error("finalizing whole-issue close should emit the lessons reminder (#160 Q4)")
+	}
+
+	issuesDir2 := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nnope")
+	var stdout2 strings.Builder
+	_ = runCloseWithReview(&stdout2, io.Discard, closeFlagsFor(issuesDir2))
+	if strings.Contains(stdout2.String(), judge.LessonsReminder) {
+		t.Error("a non-finalizing (REWORK) close must NOT emit the lessons reminder")
+	}
+}
+
 // #139: a REWORK boundary review must NOT finalize — the issue stays `working`,
 // no close log line, no actual_hours, a non-nil error, and no "flipped → done".
 func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
@@ -47,8 +70,8 @@ func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
 		t.Fatal("REWORK must return a non-nil error (close not finalized)")
 	}
 	got := readIssue(t, issuesDir)
-	if strings.Contains(got, "status: done") {
-		t.Error("REWORK must NOT flip the issue to status: done")
+	if strings.Contains(got, "status: codecomplete") {
+		t.Error("REWORK must NOT flip the issue to status: codecomplete")
 	}
 	if strings.Contains(got, "closed —") {
 		t.Error("REWORK must NOT append a closed log line")
@@ -57,7 +80,7 @@ func TestRunCloseWithReview_REWORK_DoesNotFinalize(t *testing.T) {
 		t.Error("REWORK must NOT write actual_hours")
 	}
 	if strings.Contains(stderr.String(), "flipped") {
-		t.Errorf("REWORK must NOT print 'flipped → done':\n%s", stderr.String())
+		t.Errorf("REWORK must NOT print 'flipped → codecomplete':\n%s", stderr.String())
 	}
 	if !strings.Contains(stderr.String(), "REWORK") {
 		t.Error("REWORK should tell the operator to fix + re-run")
@@ -81,7 +104,7 @@ func TestRunCloseWithReview_DispatchError_Halts(t *testing.T) {
 		t.Fatal("a judge dispatch error must halt (non-nil error)")
 	}
 	got := readIssue(t, issuesDir)
-	if strings.Contains(got, "status: done") {
+	if strings.Contains(got, "status: codecomplete") {
 		t.Error("dispatch error must NOT finalize the close")
 	}
 	if strings.Contains(got, "closed —") {
@@ -103,7 +126,7 @@ func TestRunCloseWithReview_Unknown_Halts(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unknown verdict must return a non-nil error (halt)")
 	}
-	if strings.Contains(readIssue(t, issuesDir), "status: done") {
+	if strings.Contains(readIssue(t, issuesDir), "status: codecomplete") {
 		t.Error("an unknown verdict must NOT finalize the close")
 	}
 	if !strings.Contains(stderr.String(), "UNEXPECTED") || !strings.Contains(stderr.String(), "consult a human") {
@@ -127,8 +150,8 @@ func TestRunCloseWithReview_RerunAfterREWORK(t *testing.T) {
 		t.Fatalf("rerun (SHIP) should finalize cleanly (no --no-reclose-guard), got: %v", err)
 	}
 	got := readIssue(t, issuesDir)
-	if !strings.Contains(got, "status: done") {
-		t.Error("rerun should finalize → done")
+	if !strings.Contains(got, "status: codecomplete") {
+		t.Error("rerun should finalize → codecomplete (#160)")
 	}
 	if n := strings.Count(got, "closed — tests pass"); n != 1 {
 		t.Errorf("expected exactly one closed log line, got %d:\n%s", n, got)
@@ -161,10 +184,17 @@ func TestRunMilestoneClose_SHIP_Finalizes(t *testing.T) {
 
 	f := &milestoneCloseFlags{Issue: 69, Milestone: "M1", Actual: "1", Verified: "tests pass",
 		NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
-	if err := runMilestoneClose(io.Discard, io.Discard, f); err != nil {
+	var stdout strings.Builder
+	if err := runMilestoneClose(&stdout, io.Discard, f); err != nil {
 		t.Fatalf("milestone SHIP should finalize, got: %v", err)
 	}
 	if got := readIssue(t, issuesDir); !strings.Contains(got, "closed M1 — tests pass; review verdict: SHIP") {
 		t.Errorf("milestone SHIP should write + annotate the closed-M1 line:\n%s", got)
+	}
+	// #160 Q4: the lessons ping fires ONLY at the whole-issue close boundary, never
+	// at milestone-close — the `f.Milestone == ""` guard in reviewThenFinalize is
+	// the only thing enforcing that, so pin it (M2 boundary-review Important #1).
+	if strings.Contains(stdout.String(), judge.LessonsReminder) {
+		t.Error("milestone-close must NOT emit the lessons reminder (Q4 — whole-issue close only)")
 	}
 }

@@ -289,19 +289,19 @@ func TestInsertLogLine_NoLogSection(t *testing.T) {
 	}
 }
 
-// TestFrontmatterChainForIssueClose verifies the upsert chain runClose
-// applies for an issue close: status → done, actual_hours → ACTUAL, updated → today.
+// TestFrontmatterChainForIssueClose verifies the upsert chain runClose applies for
+// an issue close: status → codecomplete (#160), actual_hours → ACTUAL, updated → today.
 func TestFrontmatterChainForIssueClose(t *testing.T) {
 	doc := "---\nid: 000031\nstatus: working\nestimate_hours: 4\nactual_hours:\n---\n# title\n\nbody\n"
 	fm, body, err := issue.Parse(doc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fm = issue.SetField(fm, "status", "done")
+	fm = issue.SetField(fm, "status", "codecomplete")
 	fm = issue.SetField(fm, "actual_hours", "6.5")
 	fm = issue.SetField(fm, "updated", "2026-05-25")
 	out := issue.Compose(fm, body)
-	wantFM := "id: 000031\nstatus: done\nestimate_hours: 4\nactual_hours: 6.5\nupdated: 2026-05-25"
+	wantFM := "id: 000031\nstatus: codecomplete\nestimate_hours: 4\nactual_hours: 6.5\nupdated: 2026-05-25"
 	if !strings.Contains(out, wantFM) {
 		t.Errorf("expected frontmatter ordered as:\n%s\ngot:\n%s", wantFM, out)
 	}

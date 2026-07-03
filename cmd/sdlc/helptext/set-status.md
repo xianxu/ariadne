@@ -14,12 +14,21 @@ TRANSITION GUARDS (refusable with --force)
     flipping to working — like `sdlc claim` — no longer demands an
     estimate. Claim/start work early; estimate at start-plan.
 
-  → done
-    Always refused. Use `sdlc close` instead (omit --actual to let it
-    compute the hours, or run `sdlc actual --issue N` — measured, not typed):
+  → codecomplete  (#160)
+    Always refused. `codecomplete` is written ONLY by `sdlc close` (after its
+    boundary review) — that's what makes the commit carrying it a trustworthy
+    anchor for the merge-time reviewed-HEAD-unchanged invariant. Use:
       sdlc close --issue N --verified '<evidence>'
-    The close-issue contract (ACTUAL + VERIFIED + atlas check) is
-    the real gate; bypassing it via set-status would skip §5 step 3+5.
+    (LEGAL TRANSITIONS shows `working|blocked → codecomplete` as model-legal
+    edges — they are, but only `close` may perform them, not set-status.)
+
+  → done
+    Always refused. `done` is reached by the publish flow — `sdlc close`
+    (→ codecomplete) then `sdlc merge`/`push` (codecomplete → done, #160). The
+    close-issue contract (ACTUAL + VERIFIED + atlas) and the deterministic
+    publish flip are the real gates; bypassing them via set-status would skip
+    §5 step 3+5. Start with:
+      sdlc close --issue N --verified '<evidence>'
 
   done → <anything-not-done>  (reopen)
     Requires a fresh ## Log entry dated today. Reopens carry a
@@ -47,7 +56,7 @@ FLAGS
 
   --issue <n>           workshop issue ID (required)
   <status>              positional: any status from STATUSES above except `done`
-                        (done is refused — use `sdlc close`)
+                        and `codecomplete` (both refused — use `sdlc close`; #160)
   --force               bypass transition guards
   --dry-run             print the would-be edit; do not write
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
@@ -66,6 +75,6 @@ EXAMPLES
 
 RELATED
 
-  sdlc close          close → done with the §5 contract (use this for done)
+  sdlc close          close → codecomplete with the §5 contract (#160; merge/push then → done)
   sdlc claim          sync the new status to origin/main
   sdlc state          inspect current issue statuses

@@ -25,11 +25,32 @@ func TestIsValidStatus(t *testing.T) {
 }
 
 func TestCheckTransitionGuards_RefusesDone(t *testing.T) {
-	fm := "id: 000001\nstatus: working\nestimate_hours: 2\n"
+	fm := "id: 000001\nstatus: codecomplete\nestimate_hours: 2\n"
 	body := "# Title\n"
-	err := checkTransitionGuards("working", "done", fm, body)
+	// #160: done is reachable only from codecomplete (the merge edge); set-status
+	// still refuses it, routing through the publish flow (close → merge/push).
+	err := checkTransitionGuards("codecomplete", "done", fm, body)
 	if err == nil {
 		t.Fatal("expected refusal")
+	}
+	if !strings.Contains(err.Error(), "sdlc close") || !strings.Contains(err.Error(), "sdlc merge") {
+		t.Errorf("error should redirect through the publish flow: %q", err.Error())
+	}
+	// working → done is now illegal (routes through codecomplete) — Guard 0 refuses.
+	illegal := checkTransitionGuards("working", "done", fm, body)
+	if illegal == nil || !strings.Contains(illegal.Error(), "illegal transition") {
+		t.Errorf("working → done should be an illegal transition now: %v", illegal)
+	}
+}
+
+// TestCheckTransitionGuards_RefusesCodecomplete pins #160: only `sdlc close`
+// writes codecomplete, so set-status refuses it and points at close.
+func TestCheckTransitionGuards_RefusesCodecomplete(t *testing.T) {
+	fm := "id: 000001\nstatus: working\nestimate_hours: 2\n"
+	body := "# Title\n"
+	err := checkTransitionGuards("working", "codecomplete", fm, body)
+	if err == nil {
+		t.Fatal("expected refusal for → codecomplete")
 	}
 	if !strings.Contains(err.Error(), "sdlc close") {
 		t.Errorf("error should redirect to sdlc close: %q", err.Error())
@@ -105,6 +126,12 @@ func TestCheckTransitionGuards_NormalTransitions(t *testing.T) {
 		{"wontfix", "working"}, // reconsider a rejected
 		{"blocked", "wontfix"}, // abandon while blocked
 		{"blocked", "punt"},    // defer while blocked
+		// #160 codecomplete edges that must pass cleanly (→codecomplete and →done
+		// are refused by Guards 1b/1 and tested separately; reopen from codecomplete
+		// is NOT a done-reopen, so Guard 2 must not demand a log entry):
+		{"codecomplete", "working"}, // reopen / rework after drift
+		{"codecomplete", "wontfix"}, // abandon late
+		{"codecomplete", "punt"},    // defer late
 	}
 	for _, tr := range legal {
 		if err := checkTransitionGuards(tr[0], tr[1], fm, "# T\n"); err != nil {

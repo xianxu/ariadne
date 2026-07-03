@@ -11,9 +11,9 @@ import "list"
 // or(), so there is nothing to keep in sync. Only `categories` (concrete data)
 // reaches the exported JSON — CUE definitions (#) do not export.
 categories: {
-	open:     ["open"]                    // created, not yet started
-	active:   ["working", "blocked"]      // started, not yet closed
-	terminal: ["done", "wontfix", "punt"] // closed
+	open:     ["open"]                                    // created, not yet started
+	active:   ["working", "blocked", "codecomplete"]      // started, not yet closed
+	terminal: ["done", "wontfix", "punt"]                 // closed
 }
 
 #Active:   or(categories.active)
@@ -26,12 +26,13 @@ categories: {
 
 // ── when: one-line semantics per status (the documented-value source) ──
 when: {
-	open:    "created, not yet started"
-	working: "actively in progress"
-	blocked: "waiting on another tracked issue"
-	done:    "complete and closed"
-	wontfix: "rejected; will not be done"
-	punt:    "deferred"
+	open:         "created, not yet started"
+	working:      "actively in progress"
+	blocked:      "waiting on another tracked issue"
+	codecomplete: "code complete; passed local acceptance review, awaiting merge"
+	done:         "complete and closed"
+	wontfix:      "rejected; will not be done"
+	punt:         "deferred"
 }
 
 // ── discovery: where instances of this noun live. Concrete data (so it reaches
@@ -56,9 +57,11 @@ discovery: {
 	// apply; arbitrary strings still fail instance validation (#135).
 	estimate_hours?: (number & >0) | null
 	actual_hours?:   (number & >0) | #ActualNotApplicable | null
-	// compiled guard: a done issue must carry measured actuals (a positive number)
-	// or the explicit not-applicable sentinel, not null/absent.
-	if status == "done" {
+	// compiled guard: a closed-work issue must carry measured actuals (a positive
+	// number) or the explicit not-applicable sentinel, not null/absent. Actuals are
+	// measured at `sdlc close` (#160), which now yields `codecomplete`; `merge` then
+	// flips codecomplete→done carrying the same actuals — so both states require them.
+	if status == "done" || status == "codecomplete" {
 		actual_hours!: (number & >0) | #ActualNotApplicable
 	}
 	// OPEN (#124): allow organically-growing frontmatter (target/references/
@@ -83,8 +86,16 @@ lifecycle: [...#Transition] & [
 	{from: "open", to: "working", event: "claim"},      // start work
 	{from: "working", to: "blocked", event: "block"},   // hit a dependency
 	{from: "blocked", to: "working", event: "unblock"}, // dependency cleared
-	{from: "working", to: "done", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
-	{from: "blocked", to: "done", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
+	// #160: `sdlc close` (the local acceptance gate) flips to `codecomplete`, NOT
+	// `done`. It writes the target status unconditionally, so BOTH working and
+	// blocked close-edges route to codecomplete (else the model contradicts close.go).
+	{from: "working", to: "codecomplete", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
+	{from: "blocked", to: "codecomplete", event: "close", guards: ["actual-recorded", "verified", "atlas-updated"]},
+	// #160: `sdlc merge`/`push` (deterministic publish) flip codecomplete→done after
+	// verifying HEAD is unchanged since close (the reviewed-head-unchanged invariant).
+	{from: "codecomplete", to: "done", event: "merge", guards: ["reviewed-head-unchanged"]},
+	// #160: post-close drift / reviewer feedback returns codecomplete→working (re-close re-reviews).
+	{from: "codecomplete", to: "working", event: "reopen"},
 	{from: "working", to: "wontfix", event: "abandon"}, // rejected mid-flight
 	{from: "working", to: "punt", event: "defer"},      // deferred mid-flight
 	{from: "done", to: "working", event: "reopen"},     // re-open a closed issue
@@ -98,6 +109,9 @@ lifecycle: [...#Transition] & [
 	// #122 M4: abandon/defer while blocked (don't force an unblock-first detour)
 	{from: "blocked", to: "wontfix", event: "abandon"},
 	{from: "blocked", to: "punt", event: "defer"},
+	// #160: abandon/defer a codecomplete issue late (mirror the working/blocked edges)
+	{from: "codecomplete", to: "wontfix", event: "abandon"},
+	{from: "codecomplete", to: "punt", event: "defer"},
 ]
 
 // ── laws: named assertions the graph shape doesn't already guarantee.

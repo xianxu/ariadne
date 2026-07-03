@@ -3,7 +3,7 @@
 ## Flow
 
 ```
-Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) → workshop/issues/NNNNNN-slug.md → sdlc claim → sdlc start-plan → design (complex → durable plan via superpowers-writing-plans → workshop/plans/NNNNNN-slug-plan.md) → sdlc change-code (in-place branch by default) → work → sdlc pr → sdlc merge   [direct sdlc push on main still available, but not the default]
+Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) → workshop/issues/NNNNNN-slug.md → sdlc claim → sdlc start-plan → design (complex → durable plan via superpowers-writing-plans → workshop/plans/NNNNNN-slug-plan.md) → sdlc change-code (in-place branch by default) → work → sdlc close (local acceptance review → codecomplete) → sdlc pr → sdlc merge (deterministic publish → done)   [direct sdlc push on main still available, but not the default]
 ```
 
 ## States
@@ -13,9 +13,20 @@ Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) →
 | open | Not started |
 | working | An agent is working on it |
 | blocked | Waiting on something |
-| done | Completed, awaiting archive |
+| codecomplete | Code complete; passed the local acceptance review (`sdlc close`), awaiting merge (#160) |
+| done | Merged/published, awaiting archive |
 | wontfix | Declined |
 | punt | Deferred |
+
+**The two-gate publish model (#160).** `sdlc close` is the **local acceptance
+gate** — it runs the fresh-context boundary review (all LLM review lives here,
+incl. docs/atlas + README sync) and flips `working → codecomplete`, NOT straight
+to `done`. `sdlc merge`/`push` are the **deterministic publish gate**: they verify
+`HEAD` is unchanged since close (the *reviewed-HEAD-unchanged* invariant — nothing
+drifted after the review), run no LLM judge, flip `codecomplete → done`, and
+archive. `codecomplete` is written **only** by `sdlc close` (set-status refuses it),
+which is what makes the commit carrying it a trustworthy anchor for that invariant.
+So `done` now means "reviewed AND published," not "an agent thinks it's finished."
 
 ## Transitions
 
@@ -118,11 +129,12 @@ log) see **AGENTS.md §5 closing checklist**.
 Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before that, run the **closing checklist** from AGENTS.md §5:
 
 1. Verify behavior.
-2. Tick the completed `## Plan` items and flip `status` to `done`. Atomic
-   single-pass work uses plain `- [ ]` checkboxes and closes in one `sdlc
-   close`; only tag `Mx` rows when the work has ≥2 separate review boundaries
-   you'll `milestone-close` individually (AGENTS.md §3 — an `Mx` tag is a
-   review boundary, not a task label).
+2. Tick the completed `## Plan` items; `sdlc close` flips `status` to
+   `codecomplete` (#160 — the local acceptance review; `merge`/`push` later flip
+   it to `done`). Atomic single-pass work uses plain `- [ ]` checkboxes and closes
+   in one `sdlc close`; only tag `Mx` rows when the work has ≥2 separate review
+   boundaries you'll `milestone-close` individually (AGENTS.md §3 — an `Mx` tag is
+   a review boundary, not a task label).
 3. **Record `actual_hours`** in the frontmatter: a measured positive number, or
    explicit `N/A` only when measurement is not applicable.
 4. Update the parent project file (if any).

@@ -21,16 +21,20 @@ REFUSES IF
 WHAT IT DOES
 
   1. Verifies the four refusal conditions above.
-  2. Runs pre-merge judges: `sdlc judge plan`, `specs`, `lessons`.
-     Skip with `--no-judge`. Judges are READ-ONLY reviewers (#62) — they
-     report findings (e.g. stale atlas docs); you apply the fix, commit,
-     `git push`, then re-run. A judge never edits the tree.
-     PUSH IS NOT OPTIONAL: merge is server-side — it merges *origin's*
-     branch tip via `gh pr merge`, not your local HEAD. So a fix you commit
-     for ANY failed pre-merge gate (a judge finding, the dirty-tree refusal)
-     must reach origin first, or the re-run stops at the ahead-of-upstream
-     refusal (above) before it ever re-runs the gate you just fixed. The
+  2. Runs the pre-merge PUBLISH GATE (#160) — deterministic, NO LLM. All LLM
+     review is now close-time (the `sdlc close` boundary review, which owns
+     plan/docs/atlas/README). The publish gate enforces the reviewed-HEAD-
+     unchanged invariant: it refuses unless HEAD is unchanged since the
+     codecomplete issues' `sdlc close` (i.e. nothing drifted after the review).
+     On refusal, re-run `sdlc close --issue N --verified '...'` to re-review the
+     delta, then retry. Skip with `--no-judge` (emergency only).
+     PUSH IS NOT OPTIONAL: merge is server-side — it merges *origin's* branch tip
+     via `gh pr merge`, not your local HEAD. So a fix you commit for any failed
+     pre-merge gate (the publish gate, the dirty-tree refusal) must reach origin
+     first, or the re-run stops at the ahead-of-upstream refusal (above). The
      recovery loop is: fix → commit → push → re-run `sdlc merge`.
+     After the merge, merge flips the published issues codecomplete → done and
+     archives them (§ below).
   3. Resolves topology from `git rev-parse --git-dir`: in-place (primary
      checkout) vs worktree (git-dir under `.git/worktrees/`). For worktree,
      locates the main worktree via `git worktree list --porcelain`.
@@ -43,7 +47,7 @@ WHAT IT DOES
         actions? [y/N]"
   6b. RE-ASSERTS the working tree is still clean immediately before the
       irreversible merge (#62 M1). Step 1 checked it, but a pre-merge
-      judge/hook could have dirtied it since; refuses with an actionable
+      gate/hook could have dirtied it since; refuses with an actionable
       message ("review + commit, then re-run") rather than merging and
       then stranding on the post-merge `git switch`.
   7. Finds the open PR for the branch via `gh pr list`.
@@ -70,7 +74,7 @@ FLAGS
 
   --yes                 skip both the not-done warn AND the final confirm.
                         REQUIRED for non-interactive/agent runs — see below.
-  --no-judge            skip pre-merge judges (emergency only)
+  --no-judge            skip the pre-merge publish gate (#160; emergency only)
   --dry-run             print would-be operations; do nothing
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
@@ -79,9 +83,9 @@ NON-INTERACTIVE / AGENT RUNS
 
   The final confirmation reads stdin. When stdin is NOT a terminal (an
   agent, a pipe, a `</dev/null` redirect), there is no one to answer it, so
-  merge FAILS FAST — before the slow pre-merge judges — with a message
+  merge FAILS FAST — before the publish gate + irreversible merge — with a message
   telling you to re-run with `--yes`. This early refusal is deliberate: it
-  turns "ran all the judges, then aborted at the prompt" into an immediate,
+  turns "ran the whole gate, then aborted at the prompt" into an immediate,
   actionable error. `--yes` is the explicit opt-in for scripted/agent flows
   where the operator has already accepted the irreversible actions.
   `--dry-run` never prompts (it mutates nothing), so it needs no `--yes`.
@@ -90,13 +94,13 @@ EXAMPLES
 
   sdlc merge                    # full flow, both prompts presented
   sdlc merge --yes              # skip not-done + final confirm
-  sdlc merge --no-judge         # emergency: bypass pre-merge judges
+  sdlc merge --no-judge         # emergency: bypass the publish gate
   sdlc merge --dry-run          # see what would happen
 
 EXIT CODES
 
   0   merged + cleaned (in-place: back on main; worktree: removed) — or dry-run
-  1   any refusal condition, judge failure, gh pr merge failure,
+  1   any refusal condition, publish-gate refusal, gh pr merge failure,
       operator-aborted at confirmation
 
 IRREVERSIBLE ACTIONS
@@ -117,4 +121,4 @@ RELATED
 
   sdlc pr         open the PR this verb merges
   sdlc push       direct-on-main counterpart (no PR, no worktree)
-  sdlc judge      one-category check (run by merge as pre-flight)
+  sdlc judge      standalone one-category LLM check (ad-hoc; #160 merge no longer runs judges — review is close-time)

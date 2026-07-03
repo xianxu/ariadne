@@ -8,12 +8,13 @@
 //  3. auto-commit tracked changes (commit subject synthesized from
 //     touched workshop/issues/*.md titles, fallback "auto-commit
 //     before push")
-//  4. pre-merge judges (plan + specs + lessons by default — same
-//     categories the shell `make pre-merge` runs via parallel-checks.sh).
-//     Skippable with --no-judge.
+//  4. pre-push PUBLISH GATE (#160) — the deterministic reviewed-HEAD-unchanged
+//     invariant (push is "merge without a PR", Q3); NO LLM. Skippable --no-judge.
 //  5. not-done issue warn: scan touched issue files vs origin/main, warn
-//     if any are still in working/open/blocked. Skippable with --yes.
+//     if any are still in working/open/blocked (codecomplete is NOT flagged —
+//     it's about to be published). Skippable with --yes.
 //  6. git push
+//     6.5 publish flip (#160): codecomplete → done (before archiving)
 //  7. archive done/wontfix/punt issue files into history/. For status=done
 //     with a github_issue: frontmatter, close the GitHub issue first.
 //     Commit + push if any moved.
@@ -31,7 +32,6 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -56,7 +56,7 @@ func NewPushCmd() *cobra.Command {
 	f := pushFlags{}
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "push",
-		Short:         "Ship from main: auto-commit, run pre-merge judges, push, archive done issues",
+		Short:         "Ship from main: auto-commit, run the publish gate, push, flip codecomplete→done, archive",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"push\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
@@ -65,7 +65,7 @@ func NewPushCmd() *cobra.Command {
 		},
 	})
 	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the not-done-issue warn prompt")
-	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip pre-merge judges (emergency-only)")
+	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the pre-push publish gate — #160 reviewed-HEAD-unchanged invariant (emergency-only)")
 	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not commit/push/archive")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
@@ -129,21 +129,19 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — issue frontmatter/sections NOT verified before main. Escape hatch: say why in your commit/log.")
 	}
 
-	// ── 4. Pre-merge judges ─────────────────────────────────────────────────
+	// ── 4. Pre-push publish gate (#160) — deterministic, NO LLM ──────────────
+	// Push is "merge without a PR": the same reviewed-HEAD-unchanged invariant.
+	// All LLM review is close-time; the publish gate carries no judge.
 	if !f.NoJudge {
-		preOpts := preflightOptions{
-			Categories: []judge.Category{judge.Plan, judge.Specs, judge.Lessons},
-			IssuesDir:  f.IssuesDir,
-			HistoryDir: f.HistoryDir,
-			DryRun:     f.DryRun,
-			Stdout:     stdout,
-			Stderr:     stderr,
-		}
-		if err := runPreflightJudges(preOpts); err != nil {
-			die(stderr, fmt.Sprintf("pre-merge judges failed: %v", err))
+		if err := runPublishGate(gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
+			if f.DryRun {
+				cwarn(stderr, fmt.Sprintf("dry-run: publish gate WOULD refuse: %v", err))
+			} else {
+				die(stderr, err.Error())
+			}
 		}
 	} else {
-		cwarn(stderr, "--no-judge: skipping pre-merge judges")
+		cwarn(stderr, "--no-judge: skipping the pre-push publish gate (#160 reviewed-HEAD-unchanged invariant)")
 	}
 
 	// ── 5. Not-done issue warn ──────────────────────────────────────────────
@@ -174,6 +172,16 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	cinfo(stderr, "Pushing to origin/main...")
 	if out, gerr := pushRunner.Git("push"); gerr != nil {
 		die(stderr, fmt.Sprintf("git push failed: %v\n%s", gerr, out))
+	}
+
+	// ── 6.5 Publish flip (#160): codecomplete → done before archiving ────────
+	// Direct-to-main publish (Q3): the just-pushed codecomplete issues become done
+	// (the deterministic flip) before the archive scan, which keys on IsTerminal.
+	// The flip is bundled into the archive commit + push below.
+	if flipped, ferr := publishCodecompleteIssues(f.IssuesDir); ferr != nil {
+		die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
+	} else if len(flipped) > 0 {
+		cinfo(stderr, fmt.Sprintf("Published %d issue(s): codecomplete → done", len(flipped)))
 	}
 
 	// ── 7. Archive done/wontfix/punt issues ─────────────────────────────────
@@ -522,7 +530,10 @@ func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, err
 			continue
 		}
 		st, _ := issue.GetField(fm, "status")
-		if !vocab.Issue().IsTerminal(st) {
+		// #160: `codecomplete` is the normal pre-publish state — the publish gate is
+		// about to flip it to done — so it is NOT "not done" (else every merge/push
+		// would trip this warn). Only open/working/blocked are genuinely not-done.
+		if !vocab.Issue().IsTerminal(st) && st != "codecomplete" {
 			notDone = append(notDone, fmt.Sprintf("%s (status: %s)", p, valueOr(st, "unset")))
 		}
 	}

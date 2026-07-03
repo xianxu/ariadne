@@ -49,11 +49,17 @@ merge button; direct pushes to `main` stay open). Making `merge-check` a *requir
 status check — and creating the remote repo — is the `make remote-init` operator verb
 (#52 M2; needs `gh` auth). Mechanism works advisory-only without it.
 
-## Not the same as the LLM judges
+## Not the same as the publish gate or the close review
 
-These are **deterministic, server-side, repo-specific** (a substrate gate, a lint, a
-test). The `sdlc judge` / `parallel-checks.sh` judges are **LLM, local, generic**
-(plan/specs/lessons). Two complementary tiers — see `pre-merge-checks.md`.
+Three distinct tiers, none an LLM at merge-time (#160):
+
+- **This CI merge-check** — **deterministic, server-side, repo-specific** (a substrate
+  gate, a lint, a test), gating the PR.
+- **The publish gate** (`sdlc merge`/`push`, `cmd/sdlc/publishgate.go`) — **deterministic,
+  local**: the reviewed-HEAD-unchanged invariant + the `codecomplete → done` flip. No LLM.
+- **The close boundary review** (`sdlc close`) — the **LLM, local** acceptance review;
+  all LLM review is now close-time, NOT merge-time (the old merge-time `plan`/`specs`
+  judges were removed, #142 folded into #160). See `pre-merge-checks.md`.
 
 ## Example consumer
 

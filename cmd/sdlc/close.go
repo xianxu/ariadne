@@ -320,7 +320,7 @@ type closeResult struct {
 	// calibration-ledger inputs (read from the ORIGINAL issue):
 	fm, body, repoName, issueStr, today string
 	// success messages that describe WRITES — emitted by applyClose (post-finalize),
-	// so a REWORK never prints "flipped → done" for a write that didn't happen.
+	// so a REWORK never prints "flipped → codecomplete" for a write that didn't happen.
 	appliedMsgs []string
 }
 
@@ -481,16 +481,20 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 					filepath.Base(issuePath), len(unchecked)))
 			}
 		}
-		// #122 carve-out: close WRITES the "done" target state (a value, like claim's
-		// "working" write) — not a category test, so it stays a literal.
-		newFM = issue.SetField(newFM, "status", "done")
+		// #160: close is the LOCAL acceptance gate — it flips to `codecomplete`, NOT
+		// `done`. `merge`/`push` (the deterministic publish gate) flip codecomplete→done
+		// after the reviewed-HEAD-unchanged invariant. close is the SOLE writer of
+		// codecomplete (set-status refuses it), which is what makes the commit carrying
+		// it a trustworthy anchor for that invariant. (#122 carve-out: value-specific
+		// write, a literal like claim's "working" — not a category test.)
+		newFM = issue.SetField(newFM, "status", "codecomplete")
 		if f.Actual != "" {
 			newFM = issue.SetField(newFM, "actual_hours", f.Actual)
 		} else if f.skip("actual") {
 			newFM = issue.SetField(newFM, "actual_hours", issue.ActualNotApplicableSentinel)
 		}
 		newFM = issue.SetField(newFM, "updated", today)
-		msg := fmt.Sprintf("flipped %s → status: done", filepath.Base(issuePath))
+		msg := fmt.Sprintf("flipped %s → status: codecomplete", filepath.Base(issuePath))
 		if f.Actual != "" {
 			msg += fmt.Sprintf(", actual_hours: %s", f.Actual)
 		} else if f.skip("actual") {
@@ -620,8 +624,8 @@ func printCloseDryRun(stderr io.Writer, r closeResult) {
 
 // applyClose performs the close's writes — issue + project files + the #117
 // calibration ledger — then emits the success messages computeClose deferred
-// (so "flipped → done" prints only when the flip actually happened). Called only
-// after a finalizing verdict, or on the eager non-review path (#139).
+// (so "flipped → codecomplete" prints only when the flip actually happened). Called
+// only after a finalizing verdict, or on the eager non-review path (#139).
 func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
 	if r.newIssueText != r.issueText {
 		if err := os.WriteFile(r.issuePath, []byte(r.newIssueText), 0o644); err != nil {
@@ -873,6 +877,9 @@ func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, 
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 		}
+		if f.Milestone == "" { // #160 Q4: lessons ping only at the whole-issue close boundary
+			emitLessonsReminder(stdout)
+		}
 		return nil
 	case closeRework:
 		emitTrailerBlock(stdout, review, kind)
@@ -897,7 +904,17 @@ func finishBoundaryReview(stdout, stderr io.Writer, f *closeFlags, result review
 	if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, "", result.Verdict); err != nil {
 		cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 	}
+	emitLessonsReminder(stdout) // #160 Q4: whole-issue close (this path is milestone-less by construction)
 	return nil
+}
+
+// emitLessonsReminder prints the no-LLM lessons ping at a whole-issue close (#160
+// Q4). It moved here from the publish gate (merge/push) so it fires while the agent
+// is engaged and the boundary-review findings are fresh — when non-obvious patterns
+// are easiest to capture into workshop/lessons.md (constitution §4).
+func emitLessonsReminder(stdout io.Writer) {
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, judge.LessonsReminder)
 }
 
 // ── explainers ───────────────────────────────────────────────────────────────
