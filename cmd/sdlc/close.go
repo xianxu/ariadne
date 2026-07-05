@@ -129,7 +129,8 @@ func NewCloseCmd() *cobra.Command {
 	})
 
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (numeric, required)")
-	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag (e.g. M1, M4b); omit for full issue close")
+	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "DEPRECATED (#146) — use `sdlc milestone-close`; passing this to `close` refuses")
+	_ = cmd.Flags().MarkHidden("milestone") // #146: milestone closing moved fully to `sdlc milestone-close`
 	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours (sdlc computes it; see `sdlc actual`)")
 	cmd.Flags().StringVar(&f.Mode, "mode", "", "optional supervision mode for the calibration ledger: supervised | delegated (#117)")
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "one-line evidence the work meets done-when")
@@ -779,11 +780,19 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 // issue it is the end-of-issue integration review (each milestone already
 // reviewed its own slice).
 func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
-	// `sdlc close --milestone` keeps the eager path — its review belongs to
-	// milestone-close (the #69 one-review-per-boundary invariant), so it never
-	// double-reviews here.
+	// #146: `sdlc close --milestone` was a redundant no-review milestone close — it
+	// ran the mechanical close but skipped the boundary review milestone-close
+	// dispatches, with no signal. Removed from the public surface (flag hidden):
+	// refuse with a redirect. Returnable error, NOT die() — die()→os.Exit would kill
+	// the test binary; runCloseWithReview returns error under SilenceErrors, so
+	// main.go prints it. The mechanical milestone close still lives in
+	// runClose(Milestone=…), which milestone-close calls in-process (unaffected).
 	if f.Milestone != "" {
-		return runClose(stderr, f)
+		return fmt.Errorf(
+			"`sdlc close` no longer closes milestones (it would skip the boundary review).\n"+
+				"  reviewed:       sdlc milestone-close --issue %d --milestone %s\n"+
+				"  explicit skip:  sdlc milestone-close --issue %d --milestone %s --no-judge",
+			f.Issue, f.Milestone, f.Issue, f.Milestone)
 	}
 
 	// Whole-issue close (#139): COMPUTE the close but write nothing yet — the

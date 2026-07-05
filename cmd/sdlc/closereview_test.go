@@ -247,10 +247,11 @@ func readIssue(t *testing.T, issuesDir string) string {
 }
 
 // #69 guard: a milestone close routed through runClose (as milestone-close does)
-// must NOT dispatch the whole-issue review — that's milestone-close's own job.
-// This is the structural invariant that keeps it "exactly one review per
-// boundary" on the multi-milestone path.
-func TestRunCloseWithReview_MilestoneClose_DoesNotDispatch(t *testing.T) {
+// must be REFUSED (#146): the no-review `close --milestone` path was removed, so
+// runCloseWithReview redirects a milestone to `sdlc milestone-close` and dispatches
+// nothing. The "exactly one review per boundary" invariant this used to guard is
+// now structural — milestone-close never routes through runCloseWithReview.
+func TestRunCloseWithReview_MilestoneRefuses(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
 
@@ -258,11 +259,15 @@ func TestRunCloseWithReview_MilestoneClose_DoesNotDispatch(t *testing.T) {
 		Issue: 69, Milestone: "M1", Actual: "1", Verified: "slice done", NoAtlas: true,
 		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
 	}
-	if err := runCloseWithReview(io.Discard, io.Discard, f); err != nil {
-		t.Fatalf("runCloseWithReview (milestone): %v", err)
+	err := runCloseWithReview(io.Discard, io.Discard, f)
+	if err == nil {
+		t.Fatal("expected refusal for a milestone passed to runCloseWithReview")
+	}
+	if !strings.Contains(err.Error(), "milestone-close") {
+		t.Errorf("refusal should redirect to milestone-close; got: %v", err)
 	}
 	if *calls != 0 {
-		t.Fatalf("milestone close must not dispatch the issue review, got %d dispatch(es)", *calls)
+		t.Fatalf("refused close must not dispatch a review, got %d dispatch(es)", *calls)
 	}
 }
 

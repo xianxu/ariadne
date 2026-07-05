@@ -112,6 +112,30 @@ func TestCloseCmd_Registered(t *testing.T) {
 	}
 }
 
+// TestClose_MilestoneRefusesWithRedirect: the close command still parses the
+// (now hidden, deprecated) --milestone flag, but refuses it with a redirect to
+// milestone-close rather than silently doing a no-review milestone close (#146).
+func TestClose_MilestoneRefusesWithRedirect(t *testing.T) {
+	cmd := NewCloseCmd()
+	f := cmd.Flags().Lookup("milestone")
+	if f == nil {
+		t.Fatal("--milestone should still parse (hidden), to give a friendly refusal not `unknown flag`")
+	}
+	if !f.Hidden {
+		t.Error("--milestone should be hidden from `close --help` (#146)")
+	}
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--issue", "31", "--milestone", "M4", "--actual", "1", "--verified", "x"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("close --milestone should refuse")
+	}
+	if !strings.Contains(err.Error(), "milestone-close") {
+		t.Errorf("refusal should redirect to milestone-close; got: %v", err)
+	}
+}
+
 // TestMilestoneCloseCmd_RegistersBypasses asserts the per-gate flags are also
 // exposed on milestone-close (it forwards them into runClose).
 func TestMilestoneCloseCmd_RegistersBypasses(t *testing.T) {
