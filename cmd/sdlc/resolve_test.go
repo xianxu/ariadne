@@ -5,11 +5,37 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+// TestResolveDocExamplesParse binds the human-facing grammar doc (resolve.md /
+// open.md) to the parser: every single-quoted ref shown in an EXAMPLES block
+// must parse. So the documented table can't silently drift from parseRef (the
+// single source) — the plan-quality judge's suggested guard (#144).
+func TestResolveDocExamplesParse(t *testing.T) {
+	exampleRef := regexp.MustCompile(`sdlc (?:resolve|open)(?: --json)? '([^']+)'`)
+	found := 0
+	for _, name := range []string{"resolve", "open"} {
+		doc, ok := helptext.Get(name)
+		if !ok {
+			t.Fatalf("%s.md not embedded", name)
+		}
+		for _, m := range exampleRef.FindAllStringSubmatch(doc, -1) {
+			found++
+			if _, err := parseRef(m[1]); err != nil {
+				t.Errorf("%s.md example %q does not parse: %v", name, m[1], err)
+			}
+		}
+	}
+	if found == 0 {
+		t.Fatal("no example refs found in resolve.md/open.md — regex or docs changed")
+	}
+}
 
 // seedTempRepo lays out <tmp>/ariadne/workshop/{issues,plans,history} with a
 // #144 family and returns the ariadne repo root. Placing the root at

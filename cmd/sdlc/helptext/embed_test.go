@@ -46,6 +46,30 @@ func TestCloseEmbedded(t *testing.T) {
 	}
 }
 
+func TestResolveEmbedded(t *testing.T) {
+	s, ok := Get("resolve")
+	if !ok {
+		t.Fatal("resolve.md not found in embed FS")
+	}
+	// Load-bearing anchors: the single-source contract + the grammar + the
+	// read-only/lock-free guarantee that make parley#160 shell to it.
+	for _, want := range []string{"single source", "REF GRAMMAR", "NO git transaction lock", "gh#id"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("resolve.md missing %q", want)
+		}
+	}
+}
+
+func TestOpenEmbedded(t *testing.T) {
+	s, ok := Get("open")
+	if !ok {
+		t.Fatal("open.md not found in embed FS")
+	}
+	if !strings.Contains(s, "$EDITOR") || !strings.Contains(s, "sdlc resolve") {
+		t.Errorf("open.md missing $EDITOR / resolve cross-link")
+	}
+}
+
 func TestPushEmbedded(t *testing.T) {
 	s, ok := Get("push")
 	if !ok {
