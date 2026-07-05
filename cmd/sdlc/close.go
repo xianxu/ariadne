@@ -869,6 +869,19 @@ func closeVerb(milestone string) string {
 	return "sdlc close"
 }
 
+// rerunCmd builds the "Then re-run:" command line printed by a close gate refusal
+// (explainActual / explainVerified). It picks the verb via closeVerb(milestone),
+// so a milestone refusal points at `sdlc milestone-close` — never the removed
+// `close --milestone` bypass (#146). actualArg is the pre-formatted " --actual X"
+// segment (a concrete value or the " --actual <hours>" placeholder). Pure.
+func rerunCmd(issueStr, milestone, actualArg string) string {
+	ms := ""
+	if milestone != "" {
+		ms = " --milestone " + milestone
+	}
+	return fmt.Sprintf("%s --issue %s%s%s --verified '<evidence>'", closeVerb(milestone), issueStr, ms, actualArg)
+}
+
 // reviewThenFinalize dispatches the boundary review for an already-computed close
 // and finalizes ONLY on a finalizing verdict (#139). Shared by full-issue close
 // and milestone-close (annotateLogLineWithVerdict keys on f.Milestone). On REWORK
@@ -944,13 +957,9 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 	// prose, lifted into the binary. Same engine as `sdlc actual`.
 	printActual(stderr, computeActual(repoTop, brainAbs, issueStr))
 
-	extra := ""
-	if milestone != "" {
-		extra = " --milestone " + milestone
-	}
 	var tail []string
 	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	tail = append(tail, fmt.Sprintf("    sdlc close --issue %s%s --actual <hours> --verified '<evidence>'", issueStr, extra), "")
+	tail = append(tail, "    "+rerunCmd(issueStr, milestone, " --actual <hours>"), "")
 	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
 	tail = append(tail, "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A and skips calibration.")
 	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
@@ -1047,16 +1056,12 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	lines = append(lines, "    VERIFIED='e2e flow X→Y verified manually'")
 	lines = append(lines, "    VERIFIED='code-review subagent, all Important addressed in <sha>'")
 	lines = append(lines, "    VERIFIED='ran make nous-test-bootstrap, ROUND-TRIP-OK in 2:34'", "")
-	extra := ""
-	if milestone != "" {
-		extra = " --milestone " + milestone
-	}
 	actualArg := " --actual <hours>"
 	if actual != "" {
 		actualArg = " --actual " + actual
 	}
 	lines = append(lines, fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	lines = append(lines, fmt.Sprintf("    sdlc close --issue %s%s%s --verified '<evidence>'", issueStr, extra, actualArg), "")
+	lines = append(lines, "    "+rerunCmd(issueStr, milestone, actualArg), "")
 	lines = append(lines, "  Pass --no-verified (or --force) only if there's genuinely no behavior to verify.")
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }

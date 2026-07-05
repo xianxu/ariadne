@@ -24,6 +24,26 @@ func TestCloseVerb(t *testing.T) {
 	}
 }
 
+// TestRerunCmd: a close gate refusal re-run hint must pick the verb by mode — a
+// milestone points at `sdlc milestone-close`, NEVER the removed `close --milestone`
+// bypass (#146). The whole-issue form stays `sdlc close`.
+func TestRerunCmd(t *testing.T) {
+	ms := rerunCmd("31", "M4", " --actual <hours>")
+	if !strings.Contains(ms, "sdlc milestone-close --issue 31 --milestone M4") {
+		t.Errorf("milestone re-run should use milestone-close; got: %s", ms)
+	}
+	if strings.Contains(ms, "sdlc close --issue 31 --milestone") {
+		t.Errorf("milestone re-run must NOT suggest the removed close --milestone path: %s", ms)
+	}
+	issueForm := rerunCmd("31", "", " --actual 2.5")
+	if !strings.HasPrefix(issueForm, "sdlc close --issue 31 --actual 2.5 --verified") {
+		t.Errorf("whole-issue re-run shape wrong: %s", issueForm)
+	}
+	if strings.Contains(issueForm, "--milestone") {
+		t.Errorf("whole-issue re-run must not carry --milestone: %s", issueForm)
+	}
+}
+
 // ── #67: per-gate --no-<gate> bypass flags ───────────────────────────────────
 
 // TestCloseFlags_Skip pins the skip() contract: --force waives EVERY gate, while
