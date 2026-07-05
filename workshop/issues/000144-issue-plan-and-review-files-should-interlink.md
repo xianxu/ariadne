@@ -1,9 +1,10 @@
 ---
 id: 000144
-status: open
+status: working
 deps: []
 created: 2026-06-29
-updated: 2026-07-04
+updated: 2026-07-05
+started: 2026-07-05T10:18:05-07:00
 ---
 
 # sdlc resolve — read-only artifact-reference resolver
