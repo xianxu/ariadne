@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -379,5 +380,64 @@ func NewResolveCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit the structured resolution as JSON")
+	return cmd
+}
+
+// ── command surface (`sdlc open`) ──
+
+// openExec is the injectable editor seam (tests swap it). Default execs $EDITOR.
+var openExec = defaultOpenExec
+
+func defaultOpenExec(editor, path string) error {
+	c := exec.Command(editor, path)
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return c.Run()
+}
+
+type openOpts struct {
+	ref  string
+	root string
+	out  io.Writer
+}
+
+// runOpen resolves a ref and opens the PRIMARY artifact in $EDITOR: the Mx
+// review when a milestone is given, else the issue (classifyFamily orders it
+// first). GitHub refs are labeled, not opened. Shares resolveArtifacts with
+// runResolve (ARCH-DRY).
+func runOpen(o openOpts) error {
+	root, err := currentRoot(o.root)
+	if err != nil {
+		return err
+	}
+	fam, ref, err := resolveArtifacts(o.ref, root)
+	if err != nil {
+		return err
+	}
+	if ref.GitHub {
+		who := ref.Repo
+		if who == "" {
+			who = filepath.Base(root)
+		}
+		fmt.Fprintf(o.out, "github:%s#%d (not opened — github ref)\n", who, ref.ID)
+		return nil
+	}
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi"
+	}
+	return openExec(editor, fam[0].Path)
+}
+
+// NewOpenCmd builds `sdlc open <ref>`. Read-only (no lock) like resolve.
+func NewOpenCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "open <ref>",
+		Args:          cobra.ExactArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runOpen(openOpts{ref: args[0], out: cmd.OutOrStdout()})
+		},
+	}
 	return cmd
 }

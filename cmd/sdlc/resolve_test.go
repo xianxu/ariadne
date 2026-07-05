@@ -122,6 +122,46 @@ func TestResolveRun_NotFound(t *testing.T) {
 	}
 }
 
+func TestOpenPicksPrimary(t *testing.T) {
+	root := seedTempRepo(t)
+	var opened string
+	prev := openExec
+	openExec = func(editor, path string) error { opened = path; return nil }
+	t.Cleanup(func() { openExec = prev })
+
+	if err := runOpen(openOpts{ref: "#144", root: root, out: &bytes.Buffer{}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(opened, "000144-foo.md") {
+		t.Fatalf("open primary (bare id → issue): %q", opened)
+	}
+	if err := runOpen(openOpts{ref: "#144 M2", root: root, out: &bytes.Buffer{}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(opened, "000144-foo-m2-review.md") {
+		t.Fatalf("open Mx primary (→ review): %q", opened)
+	}
+}
+
+func TestOpenGitHubNotOpened(t *testing.T) {
+	root := seedTempRepo(t)
+	called := false
+	prev := openExec
+	openExec = func(editor, path string) error { called = true; return nil }
+	t.Cleanup(func() { openExec = prev })
+
+	var buf bytes.Buffer
+	if err := runOpen(openOpts{ref: "gh#42", root: root, out: &buf}); err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("github ref must not invoke the editor")
+	}
+	if !strings.Contains(buf.String(), "github:ariadne#42") {
+		t.Fatalf("github label missing: %q", buf.String())
+	}
+}
+
 func TestFamilyFiles(t *testing.T) {
 	root := t.TempDir()
 	d := vocab.Issue().Discovery()
