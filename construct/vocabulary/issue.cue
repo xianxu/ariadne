@@ -42,6 +42,14 @@ when: {
 discovery: {
 	home: "workshop/issues" // repo-relative home folder for issue instances
 	glob: "*.md"            // filename glob within home
+	// archive: terminal issues AND their id-keyed plan/review family move here on
+	// close/merge (ariadne#160). A resolver (ariadne#144 `sdlc resolve`) must search
+	// here to stay correct after archiving. Repo-relative.
+	archive: "workshop/history"
+	// plans: active home of the issue's durable plan (NNNNNN-*-plan.md) and every
+	// boundary-review sidecar (NNNNNN-*-mX-review.md / -close-review.md), same
+	// 6-digit id; co-archived to `archive` on close/merge (ariadne#136).
+	plans: "workshop/plans"
 }
 
 // ── #Issue: the data shape of an issue record ──

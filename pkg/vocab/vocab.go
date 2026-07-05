@@ -31,13 +31,28 @@ type Transition struct {
 	Guards []string `json:"guards"`
 }
 
+// Discovery is the parsed `discovery:` block: where instances of the issue noun
+// and its id-keyed family (durable plan + boundary-review sidecars) live, and
+// where they move on close/merge. Repo-relative — a consumer joins these to a
+// repo root. Single source: construct/vocabulary/issue.cue. Consumed by
+// parley.nvim#116 (home) and sdlc resolve #144 (the full family).
+type Discovery struct {
+	Home    string `json:"home"`    // active issue instances
+	Glob    string `json:"glob"`    // filename glob within Home
+	Archive string `json:"archive"` // terminal issues + family move here on close/merge
+	Plans   string `json:"plans"`   // active durable plan + boundary-review sidecars
+}
+
 // IssueModel is the read-only, parsed `issue` noun: status categories, the
 // lifecycle transition graph, and per-status semantics. Derived from
 // construct/vocabulary/issue.cue at generate time; never hand-edited.
 type IssueModel struct {
 	Categories map[string][]string `json:"categories"` // "open"/"active"/"terminal" → status names
 	When       map[string]string   `json:"when"`       // status → one-line semantics
-	Lifecycle  []Transition        `json:"lifecycle"`
+	// Disc holds the discovery: block; the field is unexported-name-clash-avoiding
+	// (Disc, not Discovery) so the Discovery() accessor can carry the read name.
+	Disc      Discovery    `json:"discovery"`
+	Lifecycle []Transition `json:"lifecycle"`
 }
 
 var issueModel = mustLoadIssue()
@@ -52,6 +67,11 @@ func mustLoadIssue() *IssueModel {
 
 // Issue returns the embedded `issue` model.
 func Issue() *IssueModel { return issueModel }
+
+// Discovery returns the issue noun's location model (home/glob/archive/plans),
+// so consumers derive artifact locations from the model instead of hardcoding
+// them (ariadne#144).
+func (m *IssueModel) Discovery() Discovery { return m.Disc }
 
 func (m *IssueModel) inCategory(cat, s string) bool {
 	for _, v := range m.Categories[cat] {

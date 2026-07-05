@@ -99,6 +99,8 @@ func buildRoot() *cobra.Command {
 	add(NewMergeCmd(), "merge", "Merge the PR, archive done issues, clean up")
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewStateCmd(), "state", "Inspect workflow state (branch, working issues, drift)")
+	add(NewResolveCmd(), "resolve", "Resolve a symbolic artifact ref (ariadne#11, #15 M4) to its current path(s) — read-only")
+	add(NewOpenCmd(), "open", "Resolve a ref and open the primary artifact in $EDITOR")
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
 	add(NewArchPrinciplesCmd(), "arch-principles", "Print the ARCH-* architecture principles (single source; pull for non-gate work)")
 	add(NewEstimateSourceCmd(), "estimate-source", "Name the shared estimate method + the repo-local calibration source (pull)")
