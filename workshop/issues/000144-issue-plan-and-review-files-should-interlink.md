@@ -1,11 +1,12 @@
 ---
 id: 000144
-status: working
+status: codecomplete
 deps: []
 created: 2026-06-29
 updated: 2026-07-05
 started: 2026-07-05T10:18:05-07:00
 estimate_hours: 1.8
+actual_hours: 2.0
 ---
 
 # sdlc resolve — read-only artifact-reference resolver
@@ -122,6 +123,7 @@ this issue stays as the ariadne slice. Reframed off the stored-link premise onto
 `sdlc resolve`; parley#160 `deps: [ariadne#144]`.
 
 ### 2026-07-05 — implemented `sdlc resolve` / `sdlc open`
+- 2026-07-05: closed — sdlc resolve/open implemented + verified end-to-end (go build): resolve #144 -> issue+plan (active); #160 -> full 6-file family in history/ (archive-correct, even with divergent plan slug); parley#160 -> cross-repo parley.nvim; #160 M2 -> m2-review; --json #144 structured; gh#7 -> github label; open #160 M3 -> m3-review; distinct errors for unknown-id/missing-milestone/bad-ref. Lock-free proven structurally (commandNeedsRepoLock==false) + at runtime (held repolock.Acquire). go test ./... green. ACTUAL: tool suggested 7.88h is a known multi-day-window over-attribution (#92/#162) spanning 29 issues incl 2026-07-02/03 cross-session activity; scoped to today (claim 10:18 -> HEAD 12:27 ~2.2h wall-clock, nearly all active, background-agent spans counted per #118) the measured actual is ~2.0h, validating the 1.8h estimate.; review verdict: SHIP
 
 Durable plan `workshop/plans/000144-sdlc-resolve-plan.md`, fresh-eyes reviewed
 (plan-quality: CLEAN; a codebase-assumption sweep caught several plan errors —
