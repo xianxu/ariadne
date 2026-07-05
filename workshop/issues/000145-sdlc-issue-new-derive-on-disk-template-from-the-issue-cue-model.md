@@ -1,11 +1,12 @@
 ---
 id: 000145
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-06-30
-updated: 2026-06-30
+updated: 2026-07-05
 estimate_hours:
+started: 2026-07-05T15:01:33-07:00
 ---
 
 # sdlc issue new: derive on-disk template from the issue.cue model
