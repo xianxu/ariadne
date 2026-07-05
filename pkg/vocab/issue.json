@@ -25,7 +25,9 @@
     },
     "discovery": {
         "home": "workshop/issues",
-        "glob": "*.md"
+        "glob": "*.md",
+        "archive": "workshop/history",
+        "plans": "workshop/plans"
     },
     "lifecycle": [
         {
