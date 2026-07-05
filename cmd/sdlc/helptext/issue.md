@@ -13,8 +13,11 @@ SUBCOMMANDS
 
 CANONICAL ISSUE FILE
 
-`sdlc issue new` writes — and this is the single source of truth for — the
-template below. Filename: `workshop/issues/NNNNNN-<slug>.md` (zero-padded
+`sdlc issue new` writes the template below; its section shape is DERIVED from
+`construct/vocabulary/issue.cue` (`scaffold.sections`) via `pkg/vocab` (#145) —
+that model is the single source of truth, and this doc is the human reference
+(a drift-tested superset: it may list optional sections the skeleton omits).
+Filename: `workshop/issues/NNNNNN-<slug>.md` (zero-padded
 6-digit ID, kebab-case slug). Keep the slug to <5 words: it becomes the git
 branch name verbatim, and the branch feeds the orientation slug's left segment.
 

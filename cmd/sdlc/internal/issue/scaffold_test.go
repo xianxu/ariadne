@@ -177,6 +177,13 @@ func TestRender_DrivenByModel(t *testing.T) {
 		}
 		last = idx
 	}
+	// Guard the last-section newline logic: the file must close with exactly one
+	// trailing newline. Catches a regression from appending a trailing seedless
+	// section (which the fixed-input byte goldens wouldn't — they pin the current
+	// model, not a widened one).
+	if !strings.HasSuffix(out, "\n") || strings.HasSuffix(out, "\n\n") {
+		t.Errorf("Render output must end with exactly one newline; got %q", out[max(0, len(out)-8):])
+	}
 }
 
 // TestRender_Blank: a blank `issue new` yields every canonical field +

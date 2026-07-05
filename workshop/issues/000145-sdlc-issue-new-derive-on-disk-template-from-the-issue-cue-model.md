@@ -1,12 +1,13 @@
 ---
 id: 000145
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-06-30
 updated: 2026-07-05
 estimate_hours: 1.08
 started: 2026-07-05T15:01:33-07:00
+actual_hours: 0.72
 ---
 
 # sdlc issue new: derive on-disk template from the issue.cue model
@@ -122,6 +123,7 @@ from cue, the issue noun has a single model in cue that both sdlc and derivative
 consume. No hard cross-repo dep either way.
 
 ### 2026-07-05
+- 2026-07-05: closed — go build/vet/test ./... — 25 pkgs, 0 failures. Byte-stable goldens (blank + --from-github) captured pre-refactor held unchanged after Render rewrite; real `sdlc issue new --dry-run` output byte-identical to pre-change. Propagation e2e (core Done-when): adding {name:"Risks"} to issue.cue scaffold.sections surfaced ## Risks in `sdlc issue new` with ZERO Go edits, then reverted clean. Invariant chain enforced by test: structural gated ⊆ scaffold.sections (TestGatedSectionsSubsetOfModel) ⊆ helptext documented (TestIssueHelpDocumentsEveryScaffoldSection); Problem/Log name-coupling pinned (TestScaffold_SpecialSectionsPresent); model-driven order (TestRender_DrivenByModel).; review verdict: FIX-THEN-SHIP
 
 Claimed → start-plan → durable plan authored (`workshop/plans/000145-…-plan.md`) →
 change-code gate run. **Plan-quality judge: INFO (pass)** — "architecturally
