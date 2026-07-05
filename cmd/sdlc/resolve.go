@@ -17,7 +17,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,6 +27,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -234,4 +239,145 @@ func familyFiles(repoDir string, d vocab.Discovery, id int) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// filterMilestone narrows the family to the review sidecar(s) for milestone ms.
+// Returns the (possibly empty) hits; the caller turns an empty result for a
+// present issue into a distinct "exists but has no <Mx> review sidecar" error.
+func filterMilestone(fam []Artifact, ms string) []Artifact {
+	var hits []Artifact
+	for _, a := range fam {
+		if a.Kind == kindReview && a.Milestone == ms {
+			hits = append(hits, a)
+		}
+	}
+	return hits
+}
+
+// currentRoot returns the injected root, else the git repo top-level. The single
+// place the read-only IO of "where am I" happens (tests inject a temp root).
+func currentRoot(injected string) (string, error) {
+	if injected != "" {
+		return injected, nil
+	}
+	return gitx.RepoTopLevel()
+}
+
+// resolveArtifacts is the read-only engine shared by runResolve and runOpen
+// (ARCH-DRY): parse the ref → resolve the repo dir → glob the family → classify
+// → narrow to a milestone when asked. `root` must be non-empty. GitHub refs
+// return (nil, ref, nil) — the caller labels them (no local path; offline).
+func resolveArtifacts(refStr, root string) ([]Artifact, ArtifactRef, error) {
+	ref, err := parseRef(refStr)
+	if err != nil {
+		return nil, ArtifactRef{}, err
+	}
+	if ref.GitHub {
+		return nil, ref, nil
+	}
+	repoDir, err := resolveRepoDir(ref, root)
+	if err != nil {
+		return nil, ref, err
+	}
+	files, err := familyFiles(repoDir, vocab.Issue().Discovery(), ref.ID)
+	if err != nil {
+		return nil, ref, err
+	}
+	fam := classifyFamily(ref.ID, files)
+	// Distinguish "id not found at all" from "id found but this milestone has no
+	// review sidecar" — clearer than a single generic not-found.
+	if len(fam) == 0 {
+		return nil, ref, fmt.Errorf("no artifact resolves for #%d (searched %s)", ref.ID, repoDir)
+	}
+	if ref.Milestone != "" {
+		narrowed := filterMilestone(fam, ref.Milestone)
+		if len(narrowed) == 0 {
+			return nil, ref, fmt.Errorf("#%d exists but has no %s review sidecar in %s", ref.ID, ref.Milestone, repoDir)
+		}
+		fam = narrowed
+	}
+	return fam, ref, nil
+}
+
+// ── command surface (`sdlc resolve`) ──
+
+// resolveResult is the --json schema (field names are the JSON keys).
+type resolveResult struct {
+	Ref       string        `json:"ref"`
+	Repo      string        `json:"repo"`
+	ID        int           `json:"id"`
+	Milestone string        `json:"milestone,omitempty"`
+	GitHub    bool          `json:"github,omitempty"`
+	Files     []resolveFile `json:"files"`
+}
+
+type resolveFile struct {
+	Kind      string `json:"kind"`
+	Path      string `json:"path"`
+	Milestone string `json:"milestone,omitempty"`
+}
+
+type resolveOpts struct {
+	ref    string
+	root   string // current repo root; "" ⇒ gitx.RepoTopLevel()
+	asJSON bool
+	out    io.Writer
+}
+
+func encodeJSON(w io.Writer, v any) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
+}
+
+// runResolve prints the resolved family paths (or --json). Read-only: takes no
+// lock. A GitHub ref is labeled, not resolved to a file.
+func runResolve(o resolveOpts) error {
+	root, err := currentRoot(o.root)
+	if err != nil {
+		return err
+	}
+	fam, ref, err := resolveArtifacts(o.ref, root)
+	if err != nil {
+		return err
+	}
+	if ref.GitHub {
+		who := ref.Repo
+		if who == "" {
+			who = filepath.Base(root)
+		}
+		if o.asJSON {
+			return encodeJSON(o.out, resolveResult{Ref: o.ref, Repo: who, ID: ref.ID, GitHub: true})
+		}
+		fmt.Fprintf(o.out, "github:%s#%d\n", who, ref.ID)
+		return nil
+	}
+	if o.asJSON {
+		res := resolveResult{Ref: o.ref, Repo: ref.Repo, ID: ref.ID, Milestone: ref.Milestone}
+		for _, a := range fam {
+			res.Files = append(res.Files, resolveFile{Kind: a.Kind.String(), Path: a.Path, Milestone: a.Milestone})
+		}
+		return encodeJSON(o.out, res)
+	}
+	for _, a := range fam {
+		fmt.Fprintln(o.out, a.Path)
+	}
+	return nil
+}
+
+// NewResolveCmd builds `sdlc resolve <ref>`. NOT tagged markMutatingCommand, so
+// it never acquires .git/sdlc.lock — lock-free by construction (ariadne#144).
+func NewResolveCmd() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:           "resolve <ref>",
+		Args:          cobra.ExactArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runResolve(resolveOpts{ref: args[0], asJSON: asJSON, out: cmd.OutOrStdout()})
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit the structured resolution as JSON")
+	return cmd
 }
