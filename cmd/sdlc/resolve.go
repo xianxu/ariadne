@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // ArtifactRef is a parsed symbolic artifact reference. Repo "" means the current
@@ -208,4 +210,28 @@ func resolveRepoDir(ref ArtifactRef, curRoot string) (string, error) {
 		sort.Strings(pref)
 		return "", fmt.Errorf("ambiguous repo %q: matches %s", ref.Repo, strings.Join(pref, ", "))
 	}
+}
+
+// familyFiles globs id NNNNNN's artifacts across the issue home, the plans home,
+// and the archive — unioned and de-duped — so resolution is correct whether the
+// family is active or (partially) archived. Directories come from the injected
+// Discovery; nothing is hardcoded (ARCH-DRY).
+func familyFiles(repoDir string, d vocab.Discovery, id int) ([]string, error) {
+	pat := fmt.Sprintf("%06d-*.md", id)
+	seen := map[string]bool{}
+	var out []string
+	for _, sub := range []string{d.Home, d.Plans, d.Archive} {
+		matches, err := filepath.Glob(filepath.Join(repoDir, sub, pat))
+		if err != nil {
+			return nil, fmt.Errorf("glob %s: %w", sub, err)
+		}
+		for _, m := range matches {
+			if !seen[m] {
+				seen[m] = true
+				out = append(out, m)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out, nil
 }

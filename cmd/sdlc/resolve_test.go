@@ -4,7 +4,37 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+func TestFamilyFiles(t *testing.T) {
+	root := t.TempDir()
+	d := vocab.Issue().Discovery()
+	seed := map[string][]string{
+		d.Home:    {"000144-foo.md", "000200-bar.md"},
+		d.Plans:   {"000144-foo-plan.md", "000144-foo-m1-review.md"},
+		d.Archive: {"000144-foo-close-review.md"}, // partially archived
+	}
+	for dir, files := range seed {
+		full := filepath.Join(root, dir)
+		if err := os.MkdirAll(full, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range files {
+			if err := os.WriteFile(filepath.Join(full, f), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	got, err := familyFiles(root, d, 144)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 4 { // foo.md, plan, m1-review, close-review — NOT 000200
+		t.Fatalf("got %d files: %v", len(got), got)
+	}
+}
 
 func TestResolveRepoDir(t *testing.T) {
 	parent := t.TempDir()
