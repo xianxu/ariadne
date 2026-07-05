@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 func TestSlugify(t *testing.T) {
@@ -75,6 +77,105 @@ func TestNextID_MissingDirs(t *testing.T) {
 	}
 	if got != "000001" {
 		t.Errorf("NextID = %q, want 000001 for empty dirs", got)
+	}
+}
+
+// TestRender_ByteStable pins the exact blank-issue output so deriving the
+// template from the cue model (#145) provably preserves bytes.
+func TestRender_ByteStable(t *testing.T) {
+	got := Render(ScaffoldSpec{ID: "000057", Title: "Some new thing", Today: "2026-05-31"})
+	want := `---
+id: 000057
+status: open
+deps: []
+github_issue:
+created: 2026-05-31
+updated: 2026-05-31
+estimate_hours:
+---
+
+# Some new thing
+
+## Problem
+
+## Spec
+
+## Done when
+
+-
+
+## Plan
+
+- [ ]
+
+## Log
+
+### 2026-05-31
+`
+	if got != want {
+		t.Errorf("Render byte-drift:\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
+// TestRender_ByteStable_FromGitHub locks the --from-github path too, so the
+// Problem-body special-case is provably byte-preserved by the refactor.
+func TestRender_ByteStable_FromGitHub(t *testing.T) {
+	got := Render(ScaffoldSpec{
+		ID: "000057", Title: "Imported", Today: "2026-05-31",
+		GithubIssue: "42", ProblemBody: "The GH issue body.\n\nMore detail.",
+	})
+	want := `---
+id: 000057
+status: open
+deps: []
+github_issue: 42
+created: 2026-05-31
+updated: 2026-05-31
+estimate_hours:
+---
+
+# Imported
+
+## Problem
+
+The GH issue body.
+
+More detail.
+
+## Spec
+
+## Done when
+
+-
+
+## Plan
+
+- [ ]
+
+## Log
+
+### 2026-05-31
+`
+	if got != want {
+		t.Errorf("Render byte-drift (from-github):\n--- got ---\n%q\n--- want ---\n%q", got, want)
+	}
+}
+
+// TestRender_DrivenByModel asserts Render emits exactly the model's sections in
+// the model's order — so a cue section add/rename/reorder propagates (#145).
+func TestRender_DrivenByModel(t *testing.T) {
+	out := Render(ScaffoldSpec{ID: "000057", Title: "x", Today: "2026-05-31"})
+	last := -1
+	for _, sec := range vocab.Issue().Sections() {
+		idx := strings.Index(out, "## "+sec.Name+"\n")
+		if idx < 0 {
+			t.Errorf("Render output missing section %q", sec.Name)
+			continue
+		}
+		if idx < last {
+			t.Errorf("section %q out of model order", sec.Name)
+		}
+		last = idx
 	}
 }
 
