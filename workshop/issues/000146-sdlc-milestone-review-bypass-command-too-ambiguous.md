@@ -1,9 +1,10 @@
 ---
 id: 000146
-status: open
+status: working
 deps: []
 created: 2026-06-30
-updated: 2026-06-30
+updated: 2026-07-05
+started: 2026-07-05T16:28:52-07:00
 ---
 
 # sdlc milestone review bypass command too ambiguous
