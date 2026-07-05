@@ -25,6 +25,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources) |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
 | `state`           | (new)                       | Workflow state inspection + drift detection |
+| `resolve`         | (new #144)                  | **Read-only** symbolic-ref → current path(s): the issue + its plan/review family, archive-correct + cross-repo. Locations from the `discovery:` model; grammar single-sourced as the parser. No lock (see below) |
+| `open`            | (new #144)                  | Sugar over `resolve`: open the primary artifact in `$EDITOR` |
 | `propagate-base`  | (new #106; precheck #109)   | Re-weave every recursive DEPENDENT of this repo (downstream counterpart to `substrateChain`): discover dependents (Makefile.workflow + substrate chain), order foundation-first, then per repo a clean-tree precheck → `make weave` + verify-complete + commit (untracking now-generated files). A dependent with a DIRTY working tree (pre-existing uncommitted work — e.g. a concurrent session) is SKIPPED untouched (never `git add -A`'d) and the run exits non-zero. `--dry-run`/`--ref`. |
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
@@ -77,6 +79,40 @@ Cross-host or over-age uncertainty still produces operator-facing recovery
 guidance rather than silent deletion; a live same-host pid overrides the age
 ceiling.
 
+## Artifact-reference resolution (`sdlc resolve` / `open`, #144)
+
+ariadne artifacts cross-reference each other with **symbolic** refs
+(`ariadne#11`, `#15 M4`, `pair#84`). The id is stable but the path is not — slugs
+get renamed, and `sdlc merge`/`push` move an issue and its whole plan/review
+family `issues|plans/ → history/` (#160). So refs stay symbolic and resolve at
+**read time**; nothing is stored, nothing rots. `sdlc resolve <ref>` is that
+resolver (the parley#160 editor UX shells to it).
+
+- **Grammar single-sourced as the parser.** `parseRef` (`cmd/sdlc/resolve.go`) is
+  the *only* implementation of the ref grammar. parley#160 and agents shell to
+  `sdlc resolve` rather than re-encoding it in Lua — so the grammar can't diverge.
+  `helptext/resolve.md` documents it for humans; a test (`TestResolveDocExamplesParse`)
+  binds every documented example back to `parseRef` so the doc can't drift.
+- **Locations derive from the model, not hardcoded.** The issue's `discovery:`
+  block (`construct/vocabulary/issue.cue`, read via `pkg/vocab` `Discovery()`) now
+  carries `home` + `glob` + `archive` (`workshop/history`) + `plans`
+  (`workshop/plans`). `familyFiles` globs those three dirs for `NNNNNN-*.md` and
+  `classifyFamily` sorts issue → plan → reviews. A 6-digit id resolves the whole
+  family; `#id Mx` narrows to the `-mX-review.md` sidecar; `gh#id` labels a GitHub
+  ref without resolving a local file (read-only + offline).
+- **Cross-repo** by scanning the current repo's parent for a sibling: exact
+  basename wins, else a unique case-insensitive prefix (`parley` → `parley.nvim`).
+- **Read-only ⟹ lock-free by construction.** `resolve`/`open` are never tagged
+  `markMutatingCommand`, so `wrapRepoLockCommands` skips them and they never touch
+  `.git/sdlc.lock` (proven structurally + under a held lock). That's what makes it
+  cheap enough (~process spawn) for parley to shell to on a keypress.
+
+Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
+(`resolveRepoDir`, `familyFiles`) test against temp repos (ARCH-PURE). **Follow-up
+(#163):** the existing `workshop/plans`/`workshop/history` hardcoders in
+`push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
+accessor — a DRY consolidation, separate from this resolver.
+
 ## Progressive disclosure
 
   - `sdlc --help` — the workflow contract (start-of-work runbook, conventions,
@@ -111,6 +147,8 @@ cmd/sdlc/
                        per agent CLI (claude.go / codex.go), pure Select aggregator
                        feeding actual.go; adding a harness = one entry
   state.go             new (read-only inspection + drift detection; see "Drift checks")
+  resolve.go           new (#144): `sdlc resolve`/`open` — pure parseRef + classifyFamily
+                       behind the resolveRepoDir/familyFiles IO seams; read-only, lock-free
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
   issue.go             new (#56): `sdlc issue` group — new / set-status / list / show / validate (#124)

@@ -5,6 +5,7 @@ deps: []
 created: 2026-06-29
 updated: 2026-07-05
 started: 2026-07-05T10:18:05-07:00
+estimate_hours: 1.8
 ---
 
 # sdlc resolve — read-only artifact-reference resolver
@@ -67,6 +68,41 @@ file path(s).
 - [ ] `--json` output + optional `sdlc open` sugar.
 - [ ] Tests: archived-file resolution, cross-repo, milestone/family refs.
 
+Full durable plan: `workshop/plans/000144-sdlc-resolve-plan.md` (2 milestones,
+TDD, fresh-eyes reviewed).
+
+## Estimate
+
+Best guess: ~1.8 hr (ship wall-clock, AI-paired).
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.5 impl=0.32
+item: smaller-go-module      design=0.1 impl=0.18
+item: atlas-docs             design=0.1 impl=0.15
+item: milestone-review       design=0.0 impl=0.18
+item: milestone-review       design=0.0 impl=0.18
+design-buffer: 0.15
+total: 1.82
+```
+
+Derivation (design kept from v2; impl = 40% of the v2/v2.1 primitive-table impl
+per estimate-logic-v3.1; +15% design buffer for a thorough plan doc):
+- **greenfield-go-module** — `resolve.go`: `parseRef` + `classifyFamily` + the two
+  IO seams (`resolveRepoDir`, `familyFiles`) + `resolve`/`open` commands + ~10 tests.
+  The meaty new module. design 0.5 (parser edge cases carry real design density
+  even with the plan); impl 0.32 (top of the greenfield band × 0.4).
+- **smaller-go-module** — `pkg/vocab` `Discovery()` accessor + `issue.cue` discovery
+  extension + JSON regen. Extend-existing.
+- **atlas-docs** — `helptext/resolve.md` (the single-source grammar doc) + `open.md`
+  + `atlas/workflow/sdlc-binary.md`.
+- **milestone-review ×2** — the M1 + M2 fresh-context boundary reviews (process overhead).
+
+recomputed = Σdesign(0.7)×1.15 + Σimpl(1.01)×1.0 = 0.805 + 1.01 = 1.815 ≈ total 1.82.
+
 ## Log
 
 ### 2026-06-29
@@ -80,3 +116,34 @@ parley (parley#160), but the **resolver is ariadne work** (`sdlc resolve`, base-
 Go). Operator caught that I'd wrongly wontfix'd this: since sdlc owns the resolver,
 this issue stays as the ariadne slice. Reframed off the stored-link premise onto
 `sdlc resolve`; parley#160 `deps: [ariadne#144]`.
+
+### 2026-07-05 — implemented `sdlc resolve` / `sdlc open`
+
+Durable plan `workshop/plans/000144-sdlc-resolve-plan.md`, fresh-eyes reviewed
+(plan-quality: CLEAN; a codebase-assumption sweep caught several plan errors —
+`make vocab-embed` not bare `go generate`, `vocabulary vet` not `cue vet ./...`,
+no `writeJSON`/`acquireTestLock` helpers — all folded in before coding).
+
+**Structure** (single close boundary; M1/M2 kept as logical phases — see plan Revisions):
+- **Model:** extended `issue.cue` `discovery:` with `archive` (`workshop/history`) +
+  `plans` (`workshop/plans`); regen `pkg/vocab/issue.json`; `vocab.Discovery()` accessor.
+  So resolve derives every location from the model — zero hardcoded artifact paths (ARCH-DRY).
+- **Pure core:** `parseRef` (the SINGLE-SOURCE grammar parser — parley#160 shells to it,
+  never re-encodes) + `classifyFamily` (issue→plan→reviews ordering). No IO.
+- **IO shell:** `resolveRepoDir` (sibling repo: exact basename then unique-prefix, so
+  `parley`→`parley.nvim`), `familyFiles` (model-derived 3-dir glob, archive-inclusive).
+- **Commands:** `sdlc resolve` (family output / `--json` / `Mx` narrow / `gh#` label) +
+  `sdlc open` sugar; grammar in `helptext/resolve.md`; a doc-drift test binds every
+  documented example to `parseRef`.
+
+**Verification (real repo, `go build`):**
+- `resolve '#144'` → issue + plan (active). ✓
+- `resolve '#160'` → the 6-file family in `workshop/history/` (issue+plan+M1/M2/M3+close),
+  correct after archiving AND despite #160's plan slug differing from its issue slug. ✓
+- `resolve 'parley#160'` → `../parley.nvim/workshop/issues/000160-*.md` (cross-repo). ✓
+- `resolve '#160 M2'` → the m2-review sidecar; `--json '#144'` → structured; `gh#7` →
+  `github:ariadne#7`; `open '#160 M3'` (EDITOR=echo) → the m3-review. ✓
+- Errors distinct: unknown id, "exists but has no M7 review sidecar", bad-ref grammar. ✓
+- Lock-free: structural (`commandNeedsRepoLock`==false) + runtime (resolves under a
+  held `repolock.Acquire`). ✓
+- `go test ./cmd/sdlc/... ./pkg/vocab/...` green.
