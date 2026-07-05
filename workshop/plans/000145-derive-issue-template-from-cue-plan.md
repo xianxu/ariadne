@@ -692,3 +692,23 @@ Single-pass atomic change — **no `Mx` milestone tags** (one review boundary). 
 
 - [ ] `sdlc close --issue 145 --verified '<byte-stable golden + model-driven propagation e2e; go test ./... green; sdlc issue new --dry-run identical output>'` (let it compute `--actual`).
 - [ ] The mandatory fresh-context boundary review is auto-dispatched by `sdlc close`; fix any Critical/Important before crossing; log the `Review-Verdict:` outcome in `## Log`.
+
+---
+
+## Revisions
+
+### 2026-07-05 — Task 7: the generated face is gitignored (no commit)
+
+**Reason:** Implementing Task 7 revealed `/construct/generated/` is a `.gitignore`'d
+build artifact (`.gitignore:30`), not a committed consumer face — `git ls-files
+construct/generated/` is empty.
+
+**Delta:** Task 7 no longer commits `construct/generated/vocabulary/issue.json` /
+`.source-sha` (there is nothing to track). It reduces to: regenerate the **local**
+artifact for hygiene via `go run ./cmd/vocabulary export --output construct/generated/vocabulary`
+(picks up `scaffold` + the latent `codecomplete`/`discovery.plans`/`archive` drift),
+but produce **no commit**. Downstream repos materialize this face themselves via
+`make weave`. The single tracked deliverable of the exported model is the embedded
+`pkg/vocab/issue.json` (Task 2). Consequently the plan-quality judge's finding #2
+(a large generated diff surprising the close reviewer) cannot occur — the face is
+never in the diff.

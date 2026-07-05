@@ -54,10 +54,22 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
 **The Go binding + consumers (M3).**
 - `pkg/vocab` — the **Go binding**: `//go:embed`s the cue-exported `issue.json` once and
   exposes read-only predicates (`IsTerminal`/`IsActive`/`IsOpen`/`AllStatuses`/
-  `CanTransition`). Every Go consumer imports it — the import graph is the distribution, so
+  `CanTransition`), the `Discovery()` location model, and — for the creation template
+  (#145) — `Sections()` (the ordered `scaffold.sections`) + `InitialStatus()`
+  (`categories.open[0]`, no new data — the status was already the sole open-category member).
+  Every Go consumer imports it — the import graph is the distribution, so
   the model is never re-encoded per consumer (placement is per-*language*, not per-instance).
   The committed `pkg/vocab/issue.json` is the embed input; a conformance test derives its
   cases from the model (fail-closed).
+- **Creation template (#145):** `sdlc issue new` (`cmd/sdlc/internal/issue/scaffold.go:Render`)
+  derives its section list/order/seeds + `status:` from `scaffold.sections` via `vocab`,
+  not a hardcoded Go template — add/rename a section in `issue.cue` and created issues
+  follow with no Go edit (proven by a propagation e2e). The *shape* is single-sourced in
+  cue; only two dynamic behaviors stay in Go (Problem ← `--from-github` body, Log ← dated
+  heading), name-coupled and test-pinned. An **invariant chain** holds the two related
+  section references to the model by test rather than deriving them: `structural.go` gated
+  sections ⊆ `scaffold.sections` ⊆ `helptext/issue.md` documented (the gate can't require a
+  section the template never writes; the human `--help` doc can't omit one it does).
 - `sdlc` consumers read `vocab.Issue()` predicates in place of the scattered category/enum
   literals — `isTerminalStatus` + `validStatuses` are gone; `push`/`merge`/`setstatus`/
   `state`/`claim` branch on the model. *Value-specific* behaviors (done's close gate, the

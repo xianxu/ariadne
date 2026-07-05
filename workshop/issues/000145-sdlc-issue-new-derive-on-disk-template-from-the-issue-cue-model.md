@@ -147,3 +147,27 @@ duplicated *fact* — `status: open` — is derived (→ `InitialStatus()`).
 they're per-instance *values* or live only in the non-exporting `#Issue` definition,
 so there is nothing concrete to derive them from. Not an under-delivery — recorded
 here so the close-boundary reviewer doesn't re-flag "frontmatter still hardcoded."
+
+**Task 7 correction — the `construct/generated/` face is gitignored.** Building it
+out revealed `/construct/generated/` is a `.gitignore`'d build artifact (`.gitignore:30`),
+NOT a committed consumer face — `git ls-files construct/generated/` is empty. It's
+materialized per-repo by `make weave` (the vocabulary marker), so downstream
+consumers regenerate it locally; nothing to commit. Regenerated the local copy for
+hygiene (now carries `scaffold` + the previously-latent `codecomplete` status/edges
++ `discovery.plans/archive`), but the **tracked** deliverable is the embedded
+`pkg/vocab/issue.json` (committed fresh in Task 2). Net: the plan-quality judge's
+"unexpectedly large generated diff at close" (finding #2) can't occur — the face
+never appears in the diff. Plan Task 7 revised accordingly (see plan ## Revisions).
+
+**Verification (all green):**
+- `go build ./...`, `go vet ./...`, `go test ./...` — 25 packages, zero failures.
+- Byte-stability: `TestRender_ByteStable` + `TestRender_ByteStable_FromGitHub` pass
+  against the pre-refactor golden captured first, then unchanged after the rewrite.
+- Real command parity: `sdlc issue new --dry-run "Derive check probe"` emits identical
+  bytes to pre-change (`status: open`, 5 sections in order, `-`/`- [ ]` seeds, dated Log).
+- **Propagation e2e (core Done-when):** added a throwaway `{name: "Risks"}` to
+  `scaffold.sections`, regenerated the embed, and `## Risks` appeared in `sdlc issue new`
+  output with **zero Go edits**; reverted cue + embed clean.
+- Invariant chain enforced: `TestGatedSectionsSubsetOfModel` (gated ⊆ model),
+  `TestIssueHelpDocumentsEveryScaffoldSection` (documented ⊇ model),
+  `TestScaffold_SpecialSectionsPresent` (Problem/Log name-coupling), `TestRender_DrivenByModel`.
