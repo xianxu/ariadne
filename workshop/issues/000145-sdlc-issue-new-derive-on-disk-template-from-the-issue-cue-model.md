@@ -101,14 +101,14 @@ Route: concrete-data + embed-JSON (`scaffold.sections` in `issue.cue`). Single-p
 chain** enforces the shadow-sweep by test: `structural.go` gated ⊆ `scaffold.sections`
 ⊆ `helptext/issue.md` documented.
 
-- [ ] Model `scaffold.sections` in `issue.cue`; vet + confirm it exports.
-- [ ] `pkg/vocab`: `Sections()` + `InitialStatus()` (status = `categories.open[0]`, no new data); regen embedded `issue.json`.
-- [ ] `issue.Render` derives sections + status from `vocab.Issue()`; byte-stable (golden test) + model-driven test.
-- [ ] Guard the `Problem`/`Log` name-coupling with a test.
-- [ ] Enforce `structural.go` gated ⊆ model (`gatedSections` consts + drift test).
-- [ ] Enforce `helptext/issue.md` documents ⊇ model (drift test).
-- [ ] Regenerate `construct/generated/vocabulary/issue.json` face (also clears the latent `codecomplete` drift).
-- [ ] Build + `go test ./...` + manual `sdlc issue new --dry-run` parity + propagation e2e; atlas update; close.
+- [x] Model `scaffold.sections` in `issue.cue`; vet + confirm it exports.
+- [x] `pkg/vocab`: `Sections()` + `InitialStatus()` (status = `categories.open[0]`, no new data); regen embedded `issue.json`.
+- [x] `issue.Render` derives sections + status from `vocab.Issue()`; byte-stable (golden test) + model-driven test.
+- [x] Guard the `Problem`/`Log` name-coupling with a test.
+- [x] Enforce `structural.go` gated ⊆ model (`gatedSections` consts + drift test).
+- [x] Enforce `helptext/issue.md` documents ⊇ model (drift test).
+- [x] Regenerate the local `construct/generated/vocabulary/issue.json` face — **gitignored build artifact, no commit** (see Log/plan Revisions); tracked deliverable is the embedded `pkg/vocab/issue.json`.
+- [x] Build + `go test ./...` + manual `sdlc issue new --dry-run` parity + propagation e2e; atlas update; close.
 
 ## Log
 
