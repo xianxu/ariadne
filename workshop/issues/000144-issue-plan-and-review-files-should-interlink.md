@@ -53,20 +53,24 @@ file path(s).
 
 ## Done when
 
-- [ ] `sdlc resolve ariadne#11` prints the current path, correct after the file
-      archived (`issues/ → history/`) and across sibling repos.
-- [ ] It's read-only (no lock; provable by running under a held lock).
-- [ ] Locations + grammar derive from the models (no hardcoded artifact paths).
-- [ ] Resolving by id returns the family (issue + plan + reviews).
-- [ ] Grammar is documented/single-sourced so parley#160 + agents consume one spec.
+- [x] `sdlc resolve ariadne#11` prints the current path, correct after the file
+      archived (`issues/ → history/`) and across sibling repos. *(verified: `#160`
+      archived family, `parley#160` cross-repo)*
+- [x] It's read-only (no lock; provable by running under a held lock). *(structural
+      `commandNeedsRepoLock`==false + runtime `repolock.Acquire` held-lock test)*
+- [x] Locations + grammar derive from the models (no hardcoded artifact paths).
+      *(`issue.cue` discovery + `vocab.Discovery()`; grammar = `parseRef`)*
+- [x] Resolving by id returns the family (issue + plan + reviews).
+- [x] Grammar is documented/single-sourced so parley#160 + agents consume one spec.
+      *(`parseRef` is the sole parser; `helptext/resolve.md` + doc-drift test)*
 
 ## Plan
 
-- [ ] Define the ref grammar (single source — a small doc or vocab entry).
-- [ ] `sdlc resolve` reading `discovery:` from the models; family resolution by id.
-- [ ] Read-only guarantee (no lock) + a test proving it resolves under a held lock.
-- [ ] `--json` output + optional `sdlc open` sugar.
-- [ ] Tests: archived-file resolution, cross-repo, milestone/family refs.
+- [x] Define the ref grammar (single source — `parseRef`, the sole parser).
+- [x] `sdlc resolve` reading `discovery:` from the models; family resolution by id.
+- [x] Read-only guarantee (no lock) + a test proving it resolves under a held lock.
+- [x] `--json` output + `sdlc open` sugar.
+- [x] Tests: archived-file resolution, cross-repo, milestone/family refs.
 
 Full durable plan: `workshop/plans/000144-sdlc-resolve-plan.md` (2 milestones,
 TDD, fresh-eyes reviewed).
