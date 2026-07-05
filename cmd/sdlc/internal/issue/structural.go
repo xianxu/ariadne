@@ -6,6 +6,24 @@ import (
 	"strings"
 )
 
+// Section names the presence gates validate. Constants so the names are
+// single-sourced within this file (ARCH-DRY) and pinned to the cue model by
+// TestGatedSectionsSubsetOfModel. The gates' logic (word counts, checklist/bullet
+// regex, related: fallback) is bespoke per section and intentionally NOT modeled
+// in cue — only the section identity is.
+const (
+	secSpec     = "Spec"
+	secDoneWhen = "Done when"
+	secPlan     = "Plan"
+)
+
+// gatedSections is the set of sections CheckSectionsPresence enforces.
+// INVARIANT (TestGatedSectionsSubsetOfModel): a subset of issue.cue
+// scaffold.sections — a gate must not require a section the creation template
+// never writes. (Note: checkPlan encodes "Plan" in PlanSectionRE, so a rename
+// there needs a matching regex edit — the test fires to remind you.)
+var gatedSections = []string{secSpec, secPlan, secDoneWhen}
+
 // StructuralFailure is one gate's verdict against an issue file's
 // shape. Returned by CheckStructural; callers render the slice and
 // refuse to proceed unless --force is set.
@@ -108,7 +126,7 @@ func CheckEstimate(text string) *StructuralFailure {
 
 // checkSpecPresent — presence only (shared, well-formedness).
 func checkSpecPresent(body string) *StructuralFailure {
-	if _, ok := SectionBody(body, "Spec"); !ok {
+	if _, ok := SectionBody(body, secSpec); !ok {
 		return &StructuralFailure{
 			Name:    "spec-present",
 			Message: "no `## Spec` section found",
@@ -121,7 +139,7 @@ func checkSpecPresent(body string) *StructuralFailure {
 // CheckSectionsPresence). No-ops when ## Spec is absent (presence is reported by
 // checkSpecPresent) so a missing Spec yields exactly one failure, not two.
 func checkSpecWordCount(body string) *StructuralFailure {
-	sec, ok := SectionBody(body, "Spec")
+	sec, ok := SectionBody(body, secSpec)
 	if !ok {
 		return nil
 	}
@@ -160,7 +178,7 @@ var bulletRE = regexp.MustCompile(`(?m)^[-*]\s+\S`)
 
 func checkDoneWhen(fm, body string) *StructuralFailure {
 	// First try: ## Done when section with at least one non-empty bullet.
-	if sec, ok := SectionBody(body, "Done when"); ok {
+	if sec, ok := SectionBody(body, secDoneWhen); ok {
 		if bulletRE.MatchString(sec) {
 			return nil
 		}
