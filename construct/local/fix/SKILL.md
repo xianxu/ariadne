@@ -213,7 +213,7 @@ sends when it opens, or the "…please review" / "applied N edits…" round poke
   below — the readiness probe; `new` → memory discovery + `docflow start`).
 - **After the pane's `"applied N edit(s)… commit the agent round"` poke**: read the
   landed-artifact (seam #2b, currently `$XDG_DATA_HOME/pair/review-landed-<tag>.json` =
-  `{summary, body, applied, dropped}`) and commit the agent round **verbatim**:
+  `{summary, body, applied, dropped, conflicts}`) and commit the agent round **verbatim**:
   `docflow round --side agent -m <summary> --body <body>`. The body is *what actually
   landed* — the pane is the apply authority (drops filtered, occurrences resolved); do
   **not** regenerate it from your proposal (invariant #3).
@@ -223,6 +223,18 @@ sends when it opens, or the "…please review" / "applied N edits…" round poke
 **Commit only after the pane signals.** Never commit the agent round from your own
 proposal — the pane may have dropped unanchorable records; the landed-artifact is the
 truth. ("ship it" → `docflow ship` is **M4b**.)
+
+**Reconcile markers (pair #89).** The human is never locked out while you review, so
+by the time your round lands they may have edited the very spans you targeted. The
+pane reconciles per-record: your edits that still anchor apply; the rest the pane
+surfaces as **`🤖<human's current text>[reconcile — agent wanted: • old → new (why …)]`**
+markers (the `<…>` is the human's version of that region, possibly with git-diff-like
+text; the `[…]` restates *your* blocked intent). The landed-artifact's `conflicts`
+count flags how many were placed, and its `body` carries only the records that
+actually landed — so committing it verbatim is still correct. On the **next** round,
+treat each `[reconcile — …]` as an ordinary `🤖[…]` request: read the human's current
+text and your restated intent, and propose a record that replaces the whole marker
+with the reconciled text (or punt with `🤖<…>[…]{your question}` if you truly can't).
 
 **Preparing & resuming a review (M4a' — the propose poke, before the pane opens).**
 `:PairReview <file>` (or the operator naming a doc) **proposes** a target and pokes you to
