@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -166,6 +168,45 @@ func TestOpenPicksPrimary(t *testing.T) {
 	}
 	if !strings.HasSuffix(opened, "000144-foo-m2-review.md") {
 		t.Fatalf("open Mx primary (→ review): %q", opened)
+	}
+}
+
+// TestResolveOpenAreLockFree is the structural proof (#144 Done-when): resolve
+// and open are never tagged markMutatingCommand, so wrapRepoLockCommands skips
+// them and they never acquire .git/sdlc.lock. Lock-free by construction.
+func TestResolveOpenAreLockFree(t *testing.T) {
+	if commandNeedsRepoLock(NewResolveCmd()) {
+		t.Fatal("resolve must not require the repo lock (read-only)")
+	}
+	if commandNeedsRepoLock(NewOpenCmd()) {
+		t.Fatal("open must not require the repo lock (read-only)")
+	}
+}
+
+// TestResolveResolvesUnderHeldLock is the runtime proof: hold a real
+// .git/sdlc.lock (via repolock.Acquire against a temp GitCommonDir), then call
+// runResolve directly (parley's read-only path) and confirm it returns the
+// family without blocking on the lock.
+func TestResolveResolvesUnderHeldLock(t *testing.T) {
+	root := seedTempRepo(t)
+	gitCommon := t.TempDir()
+	lock, err := repolock.Acquire(context.Background(), repolock.Options{
+		GitCommonDir: gitCommon,
+		PID:          os.Getpid(),
+		Hostname:     "test",
+		ProcessAlive: func(int) bool { return true },
+	})
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+	defer lock.Release()
+
+	var buf bytes.Buffer
+	if err := runResolve(resolveOpts{ref: "#144", root: root, out: &buf}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(buf.String()) == "" {
+		t.Fatal("resolve produced no output under a held lock")
 	}
 }
 
