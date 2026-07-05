@@ -251,6 +251,21 @@ func TestRender_TargetAndDeps(t *testing.T) {
 	}
 }
 
+// TestScaffold_SpecialSectionsPresent guards the name-coupling: Render injects
+// the --from-github body into "Problem" and the dated heading into "Log" by name.
+// If the cue model renames either, this trips before a silent creation regression.
+func TestScaffold_SpecialSectionsPresent(t *testing.T) {
+	have := map[string]bool{}
+	for _, sec := range vocab.Issue().Sections() {
+		have[sec.Name] = true
+	}
+	for _, name := range []string{"Problem", "Log"} {
+		if !have[name] {
+			t.Errorf("scaffold model missing %q — Render special-cases it by name; update Render's switch if renamed", name)
+		}
+	}
+}
+
 func mustMkdir(t *testing.T, dirs ...string) {
 	t.Helper()
 	for _, d := range dirs {
