@@ -54,3 +54,84 @@ None.
 
 ### 7. Plan revision recommendations
 None — the plan already carries the accurate Task 7 revision (generated face is gitignored), and the code matches the Core-concepts table (every listed entity exists at its stated path: `scaffold.sections` in `issue.cue`, `Section`/`Scaffold`/`Sections()`/`InitialStatus()` in `vocab.go`, `gatedSections` in `structural.go`, both drift tests present). No contradiction between table and code.
+
+---
+
+## Re-review — 2026-07-05T16:16:23-07:00 (unknown)
+
+| field | value |
+|-------|-------|
+| issue | 145 — sdlc issue new: derive on-disk template from the issue.cue model |
+| repo | ariadne |
+| issue file | workshop/issues/000145-sdlc-issue-new-derive-on-disk-template-from-the-issue-cue-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f0e5a6deb8e1daf9e8c8aab6f64d451451a66952..HEAD |
+| command | sdlc close --issue 145 |
+| reviewer | claude |
+| timestamp | 2026-07-05T16:16:23-07:00 |
+| verdict | unknown |
+
+## Review
+
+Not logged in · Please run /login
+
+---
+
+## Re-review — 2026-07-05T16:25:14-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 145 — sdlc issue new: derive on-disk template from the issue.cue model |
+| repo | ariadne |
+| issue file | workshop/issues/000145-sdlc-issue-new-derive-on-disk-template-from-the-issue-cue-model.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f0e5a6deb8e1daf9e8c8aab6f64d451451a66952..HEAD |
+| command | sdlc close --issue 145 |
+| reviewer | claude |
+| timestamp | 2026-07-05T16:25:14-07:00 |
+| verdict | SHIP |
+
+## Review
+
+All green: `go build ./...` and `go vet` pass, changed-package tests pass, the embed seam is verified (fresh cue export byte-identical to the committed embed), the provenance sweep is clean, and the data sweep confirms the only creation-template consumer (`Render`) derives while the other section-touching code (`close.go`/`setstatus.go`/`plan.go`) manipulates the Log/Plan of *existing* files — a separate concern, correctly out of scope.
+
+I verified the two findings from the prior FIX-THEN-SHIP sidecar review are both resolved at HEAD: (1) `helptext/issue.md:16-19` no longer claims to be the source of truth — it now names the cue model as the source and itself as the human reference; (2) `TestRender_DrivenByModel` now carries the trailing-newline guard that closes the appended-seedless-section coverage gap.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This diff genuinely delivers the issue's purpose — `issue.Render` now derives its section list, order, seed placeholders, and initial `status:` from `scaffold.sections`/`categories.open` in `issue.cue` via `pkg/vocab`, not from Go literals — and I verified it's real rather than claimed: the embedded `pkg/vocab/issue.json` is byte-identical to a fresh `cmd/vocabulary export` (the derivation seam actually carries `scaffold` to runtime), the byte-stable goldens prove the refactor preserved output, and `TestRender_DrivenByModel` proves the output is model-*driven* not coincidental. The invariant chain (structural gated ⊆ `scaffold.sections` ⊆ helptext documented) is enforced by three PURE tests with no mocks. Nothing blocks the boundary; the one Minor and one coverage note from the prior close-review have already been applied.
+
+### 1. Strengths
+- **Derivation is genuinely wired, not documented-only.** `pkg/vocab/issue.json == cmd/vocabulary export --noun issue` (verified live), so the `scaffold` block reaches the runtime through the real `//go:embed` seam; `Render` loops `m.Sections()` (`scaffold.go:117-136`).
+- **Byte-stability guarded on both paths.** `TestRender_ByteStable` + `TestRender_ByteStable_FromGitHub` (`scaffold_test.go:82-193`) pin exact pre-refactor output for blank and `--from-github`; both green.
+- **Coverage gap from the prior review is closed.** `TestRender_DrivenByModel` now asserts `HasSuffix("\n") && !HasSuffix("\n\n")` (`scaffold_test.go:239-244`), catching a future appended seedless-last-section regression the fixed-input goldens couldn't.
+- **Provenance self-claims corrected (the #122-class trap).** `helptext/issue.md:16-19` now reads "that model is the single source of truth, and this doc is the human reference"; a full `grep -i "source of truth|canonical"` sweep of every touched surface shows no file still falsely claiming to be the source.
+- **ARCH-DRY line drawn correctly.** `gatedSections` consts (`structural.go:14-25`) single-source the gated names *within* the file without over-modeling the bespoke gate logic (word counts/regex/fallback) into cue.
+- **Name-coupling made safe.** The `Problem`/`Log` dynamic special-cases are keyed by name and pinned by `TestScaffold_SpecialSectionsPresent`, with matching comments on both cue and Go sides.
+
+### 2. Critical findings
+None.
+
+### 3. Important findings
+None.
+
+### 4. Minor findings
+- `pkg/vocab/vocab.go:104` — `InitialStatus()` returns `categories.open[0]`, which assumes the open category's first member is the creation status. True today (sole member) and tested; note only if a second open-category status is ever added.
+
+### 5. Test coverage notes
+- Tests pin real logic, not mocks: goldens compare literal `Render()` bytes; `TestRender_DrivenByModel` would fail if `Render` hardcoded a divergent set/order; `TestSections`/`TestInitialStatus` pin the model decode. All PURE (no IO) — consistent with ARCH-PURE.
+- The `helptext` drift test's regex (`docSectionRE`) was validated live — it extracts exactly `{Problem, Spec, Done when, Estimate, Plan, Log, Side quests}` and correctly treats the doc as a superset; a modeled section omitted from the doc fails the test (right direction).
+- The three invariant-chain tests (`TestGatedSectionsSubsetOfModel`, `TestIssueHelpDocumentsEveryScaffoldSection`, `TestScaffold_SpecialSectionsPresent`) cover the exact bug classes this refactor could ship (a gate requiring an unwritten section; a doc silently dropping a section; a rename silently breaking dynamic injection).
+
+### 6. Architectural notes for upcoming work
+- **ARCH-DRY — pass.** Section vocabulary lives once in cue; `status: open` derived; gated names consolidated to consts. The goldens/`TestSections` restate the section list, but that's legitimate test-expectation data, not a source-of-truth duplication.
+- **ARCH-PURE — pass.** `Sections()`, `InitialStatus()`, `Render` are pure over the once-embedded model; every new test runs without IO/mocks; the build-time `//go:embed` is the correct thin seam.
+- **ARCH-PURPOSE — pass (shadow-sweep completed both axes).** *Data:* the one true creation consumer (`Render`) derives, proven by the propagation e2e recorded in the Log; `structural.go` (subset) and `helptext` (superset) are held to the model by tests, not prose; `parley.nvim#116` derives transitively by delegating to `sdlc issue new`; `close.go`/`setstatus.go`/`plan.go` touch the Log/Plan of *existing* files (a distinct concern, correctly not derived). *Provenance:* every self-claim now points at the cue model — the exact leak the just-added `lessons.md` rule targets, and it's clean here.
+
+### 7. Plan revision recommendations
+None — the plan already carries the accurate Task 7 revision (generated face is gitignored), and the Core-concepts table matches the code: `scaffold.sections` in `issue.cue`, `Section`/`Scaffold`/`Sections()`/`InitialStatus()` in `vocab.go`, `gatedSections` in `structural.go`, both drift tests present at their stated paths. No table/code contradiction.
