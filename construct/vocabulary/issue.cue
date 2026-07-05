@@ -52,6 +52,29 @@ discovery: {
 	plans: "workshop/plans"
 }
 
+// ── scaffold: the on-disk creation template `sdlc issue new` writes (#145).
+// Concrete data (CUE #-definitions don't export) so sdlc's issue.Render derives
+// the section list + order + seed placeholders from HERE instead of a hardcoded
+// Go template — add/rename/reorder a section and `sdlc issue new` follows with no
+// Go edit. The initial `status:` is categories.open[0] (not restated). `seed` is
+// the literal placeholder written under a blank section's heading (absent = bare
+// heading). Two sections carry creation BEHAVIOUR that stays in Go, keyed by name
+// — `Problem` receives a --from-github body, `Log` seeds a dated `### <today>`
+// subheading; renaming either needs a matching Go edit (a test pins the names).
+// The invariant chain the tests enforce: structural.go gated ⊆ scaffold.sections
+// ⊆ helptext/issue.md documented — this block is the middle, canonical term. ──
+#ScaffoldSection: {
+	name:  string
+	seed?: string
+}
+scaffold: sections: [...#ScaffoldSection] & [
+	{name: "Problem"},
+	{name: "Spec"},
+	{name: "Done when", seed: "-"},
+	{name: "Plan", seed: "- [ ]"},
+	{name: "Log"},
+]
+
 // ── #Issue: the data shape of an issue record ──
 #Issue: {
 	// id: a 6-digit zero-padded number. UNQUOTED in real frontmatter (`id: 000124`),
