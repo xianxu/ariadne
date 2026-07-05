@@ -6,6 +6,32 @@ import (
 	"testing"
 )
 
+func TestInitialStatus(t *testing.T) {
+	if got := Issue().InitialStatus(); got != "open" {
+		t.Errorf("InitialStatus() = %q, want open (categories.open[0])", got)
+	}
+}
+
+func TestSections(t *testing.T) {
+	secs := Issue().Sections()
+	// Order + seeds must match the cue model exactly (creation-template shape).
+	want := []struct{ name, seed string }{
+		{"Problem", ""},
+		{"Spec", ""},
+		{"Done when", "-"},
+		{"Plan", "- [ ]"},
+		{"Log", ""},
+	}
+	if len(secs) != len(want) {
+		t.Fatalf("Sections() len = %d, want %d: %+v", len(secs), len(want), secs)
+	}
+	for i, w := range want {
+		if secs[i].Name != w.name || secs[i].Seed != w.seed {
+			t.Errorf("Sections()[%d] = {%q,%q}, want {%q,%q}", i, secs[i].Name, secs[i].Seed, w.name, w.seed)
+		}
+	}
+}
+
 func TestIssuePredicates(t *testing.T) {
 	m := Issue()
 	cases := []struct {

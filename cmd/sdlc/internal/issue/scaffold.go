@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // idPrefixRE matches a leading zero-padded 6-digit issue ID in a filename.
@@ -77,17 +79,22 @@ type ScaffoldSpec struct {
 }
 
 // Render returns the canonical new-issue file content (trailing newline
-// included). This is the single source of truth for the on-disk template;
-// `sdlc issue --help` documents the same shape in prose.
+// included). The section list, their order, their seed placeholders, and the
+// initial `status:` are DERIVED from the cue model (`construct/vocabulary/issue.cue`
+// `scaffold.sections` + `categories.open`) via vocab.Issue() — not hardcoded here
+// (#145). The cue model is the single source of the template shape; this function
+// is its renderer. `sdlc issue --help` documents a superset of the same sections
+// (a test enforces documented ⊇ modeled).
 //
 // A freshly rendered issue is intentionally a skeleton (empty Spec, empty
-// Done-when bullet): it sits at status `open` and only has to satisfy
-// CheckStructural later, at `sdlc change-code`, once the author fills it in.
+// Done-when bullet): it sits at the initial status (`open`) and only has to
+// satisfy CheckStructural later, at `sdlc change-code`, once the author fills it in.
 func Render(s ScaffoldSpec) string {
+	m := vocab.Issue()
 	var b strings.Builder
 	b.WriteString("---\n")
 	fmt.Fprintf(&b, "id: %s\n", s.ID)
-	b.WriteString("status: open\n")
+	fmt.Fprintf(&b, "status: %s\n", m.InitialStatus())
 	fmt.Fprintf(&b, "deps: [%s]\n", strings.Join(s.Deps, ", "))
 	if s.GithubIssue != "" {
 		fmt.Fprintf(&b, "github_issue: %s\n", s.GithubIssue)
@@ -102,15 +109,30 @@ func Render(s ScaffoldSpec) string {
 	b.WriteString("estimate_hours:\n")
 	b.WriteString("---\n\n")
 	fmt.Fprintf(&b, "# %s\n\n", s.Title)
-	b.WriteString("## Problem\n\n")
-	if body := strings.TrimSpace(s.ProblemBody); body != "" {
-		b.WriteString(body)
-		b.WriteString("\n\n")
+
+	// Body sections come from the cue model: their names, order, and static seed
+	// placeholders live in issue.cue `scaffold.sections`. Two sections carry
+	// DYNAMIC creation content that stays here, keyed by name — keep these names
+	// in sync with the model (TestScaffold_SpecialSectionsPresent pins them).
+	sections := m.Sections()
+	for i, sec := range sections {
+		fmt.Fprintf(&b, "## %s\n\n", sec.Name)
+		content := sec.Seed
+		switch sec.Name {
+		case "Problem":
+			content = strings.TrimSpace(s.ProblemBody) // --from-github body, else blank
+		case "Log":
+			content = fmt.Sprintf("### %s", s.Today) // dated session subheading
+		}
+		if content == "" {
+			continue
+		}
+		b.WriteString(content)
+		if i < len(sections)-1 {
+			b.WriteString("\n\n")
+		} else {
+			b.WriteString("\n") // last section closes the file with a single newline
+		}
 	}
-	b.WriteString("## Spec\n\n")
-	b.WriteString("## Done when\n\n-\n\n")
-	b.WriteString("## Plan\n\n- [ ]\n\n")
-	b.WriteString("## Log\n\n")
-	fmt.Fprintf(&b, "### %s\n", s.Today)
 	return b.String()
 }
