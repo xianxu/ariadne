@@ -43,6 +43,21 @@ type Discovery struct {
 	Plans   string `json:"plans"`   // active durable plan + boundary-review sidecars
 }
 
+// Section is one body section of the new-issue creation template: a heading
+// name and an optional literal seed line written beneath it in a blank issue.
+// Ordered (list order = created-file order). Source: construct/vocabulary/issue.cue
+// `scaffold.sections`.
+type Section struct {
+	Name string `json:"name"`
+	Seed string `json:"seed"`
+}
+
+// Scaffold is the parsed `scaffold:` block — the on-disk creation-template shape
+// that sdlc's `issue new` renders from (#145) instead of a hardcoded Go template.
+type Scaffold struct {
+	Sections []Section `json:"sections"`
+}
+
 // IssueModel is the read-only, parsed `issue` noun: status categories, the
 // lifecycle transition graph, and per-status semantics. Derived from
 // construct/vocabulary/issue.cue at generate time; never hand-edited.
@@ -53,6 +68,9 @@ type IssueModel struct {
 	// (Disc, not Discovery) so the Discovery() accessor can carry the read name.
 	Disc      Discovery    `json:"discovery"`
 	Lifecycle []Transition `json:"lifecycle"`
+	// Scaf holds the scaffold: block; unexported-name-clash-avoiding (Scaf, not
+	// Scaffold) so the Sections() accessor can carry the read name — mirrors Disc.
+	Scaf Scaffold `json:"scaffold"`
 }
 
 var issueModel = mustLoadIssue()
@@ -72,6 +90,24 @@ func Issue() *IssueModel { return issueModel }
 // so consumers derive artifact locations from the model instead of hardcoding
 // them (ariadne#144).
 func (m *IssueModel) Discovery() Discovery { return m.Disc }
+
+// Sections returns the ordered creation-template body sections, so the issue
+// scaffolder derives the section list from the model instead of hardcoding it
+// (ariadne#145).
+func (m *IssueModel) Sections() []Section { return m.Scaf.Sections }
+
+// InitialStatus returns the status a newly-created issue carries — the sole
+// member of the `open` category — so the scaffolder's `status:` line derives from
+// the model, not a Go literal (ariadne#145). Falls back to "open" only if a
+// corrupt model defines no open status (mustLoadIssue already panics on corrupt
+// JSON, so this is a belt-and-suspenders guard, not a real path).
+func (m *IssueModel) InitialStatus() string {
+	open := m.Categories["open"]
+	if len(open) == 0 {
+		return "open"
+	}
+	return open[0]
+}
 
 func (m *IssueModel) inCategory(cat, s string) bool {
 	for _, v := range m.Categories[cat] {

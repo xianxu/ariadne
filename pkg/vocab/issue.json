@@ -29,6 +29,27 @@
         "archive": "workshop/history",
         "plans": "workshop/plans"
     },
+    "scaffold": {
+        "sections": [
+            {
+                "name": "Problem"
+            },
+            {
+                "name": "Spec"
+            },
+            {
+                "name": "Done when",
+                "seed": "-"
+            },
+            {
+                "name": "Plan",
+                "seed": "- [ ]"
+            },
+            {
+                "name": "Log"
+            }
+        ]
+    },
     "lifecycle": [
         {
             "from": "open",
