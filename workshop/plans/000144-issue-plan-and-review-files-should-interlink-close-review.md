@@ -49,3 +49,24 @@ confidence: high
 - The #163 follow-up (migrate `push`/`merge`/`state`/`close`/`reviewsidecar` off their `workshop/plans`/`workshop/history` hardcoders onto `Discovery()`) is correctly scoped out here — those predate #144 and aren't consumers of the ref grammar. ARCH-PURPOSE shadow-sweep passes: the resolver itself fully derives from the model; the deferred migration is a separable DRY consolidation, not the deferred point of the issue. Keep the #163 cross-link live so the accessor doesn't grow orphan consumers.
 
 **7. Plan revision recommendations** — none. The plan matches the shipped code (Core-concepts table entries all verified at their stated paths/kinds), and the existing `## Revisions` entry already documents the M1/M2→single-boundary collapse that this close reflects.
+
+---
+
+## Re-review — 2026-07-05T13:20:15-07:00 (unknown)
+
+| field | value |
+|-------|-------|
+| issue | 144 — sdlc resolve — read-only artifact-reference resolver |
+| repo | ariadne |
+| issue file | workshop/issues/000144-issue-plan-and-review-files-should-interlink.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 270662ff97907aa2ecba1bf1b6833857a893735f..HEAD |
+| command | sdlc close --issue 144 |
+| reviewer | claude |
+| timestamp | 2026-07-05T13:20:15-07:00 |
+| verdict | unknown |
+
+## Review
+
+The review is complete — verdict delivered above (**SHIP**, high confidence). That background notification is just the leftover full-suite run whose reported exit code is `tail`'s, not `go test`'s; I already ran the #144 tests in isolation (all 24 pass) and diagnosed the full-suite hang as the review-dispatching `sdlc close` holding `.git/sdlc.lock` — not a defect in the diff. Nothing further to do.
