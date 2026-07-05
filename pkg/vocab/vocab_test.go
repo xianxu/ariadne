@@ -42,6 +42,22 @@ func TestIssuePredicates(t *testing.T) {
 	}
 }
 
+// TestDiscovery pins the discovery: block accessor (ariadne#144): the location
+// model must expose home/glob (existing) plus archive/plans (added for the
+// artifact-family resolver). Derived from issue.cue, never hand-set.
+func TestDiscovery(t *testing.T) {
+	d := Issue().Discovery()
+	if d.Home != "workshop/issues" || d.Glob != "*.md" {
+		t.Fatalf("home/glob: got %+v", d)
+	}
+	if d.Archive != "workshop/history" {
+		t.Fatalf("archive: got %q, want workshop/history", d.Archive)
+	}
+	if d.Plans != "workshop/plans" {
+		t.Fatalf("plans: got %q, want workshop/plans", d.Plans)
+	}
+}
+
 func TestAllStatuses(t *testing.T) {
 	// Ordered open → active → terminal; must match the legacy validStatuses set.
 	want := []string{"open", "working", "blocked", "codecomplete", "done", "wontfix", "punt"}
