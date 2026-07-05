@@ -857,6 +857,18 @@ func closeVerdictOutcome(v judge.Verdict) closeOutcome {
 	}
 }
 
+// closeVerb returns the sdlc verb that owns a close of this shape — the milestone
+// verb when a milestone tag is set, else the whole-issue close. Single source of
+// the mode→verb mapping (#146), reused by the re-run hints (explainActual /
+// explainVerified) so a gate refusal never suggests the removed `close --milestone`
+// bypass path.
+func closeVerb(milestone string) string {
+	if milestone != "" {
+		return "sdlc milestone-close"
+	}
+	return "sdlc close"
+}
+
 // reviewThenFinalize dispatches the boundary review for an already-computed close
 // and finalizes ONLY on a finalizing verdict (#139). Shared by full-issue close
 // and milestone-close (annotateLogLineWithVerdict keys on f.Milestone). On REWORK
@@ -865,11 +877,10 @@ func closeVerdictOutcome(v judge.Verdict) closeOutcome {
 func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams) error {
 	review := dispatchBoundaryReview(stdout, stderr, p)
 	kind := "close"
-	verb := "sdlc close"
 	if f.Milestone != "" {
 		kind = "milestone-close"
-		verb = "sdlc milestone-close"
 	}
+	verb := closeVerb(f.Milestone)
 	switch closeVerdictOutcome(review.Verdict) {
 	case closeFinalize:
 		applyClose(stderr, f, r)

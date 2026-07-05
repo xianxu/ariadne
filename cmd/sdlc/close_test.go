@@ -13,6 +13,17 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
+// TestCloseVerb: the mode→verb mapping is single-sourced (#146). A milestone tag
+// selects `sdlc milestone-close`; empty selects the whole-issue `sdlc close`.
+func TestCloseVerb(t *testing.T) {
+	if got := closeVerb(""); got != "sdlc close" {
+		t.Errorf(`closeVerb("") = %q, want "sdlc close"`, got)
+	}
+	if got := closeVerb("M2"); got != "sdlc milestone-close" {
+		t.Errorf(`closeVerb("M2") = %q, want "sdlc milestone-close"`, got)
+	}
+}
+
 // ── #67: per-gate --no-<gate> bypass flags ───────────────────────────────────
 
 // TestCloseFlags_Skip pins the skip() contract: --force waives EVERY gate, while
