@@ -18,7 +18,9 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -87,4 +89,75 @@ func parseRef(raw string) (ArtifactRef, error) {
 		return ArtifactRef{}, fmt.Errorf("ref %q: malformed repo token %q", raw, ref.Repo)
 	}
 	return ref, nil
+}
+
+// artifactKind classifies a family member by role.
+type artifactKind int
+
+const (
+	kindIssue artifactKind = iota
+	kindPlan
+	kindReview
+)
+
+func (k artifactKind) String() string {
+	switch k {
+	case kindPlan:
+		return "plan"
+	case kindReview:
+		return "review"
+	default:
+		return "issue"
+	}
+}
+
+// Artifact is one resolved family member. Milestone is set for reviews (from
+// -mX-review.md); "" for the -close-review.md and for non-reviews.
+type Artifact struct {
+	Kind      artifactKind
+	Path      string
+	Milestone string
+}
+
+var reviewMilestoneRe = regexp.MustCompile(`-m(\d+[a-z]?)-review\.md$`)
+
+// classifyFamily classifies id NNNNNN's matched paths by filename suffix and
+// returns them ordered issue → plan → reviews (reviews by milestone, close
+// last). Pure: no IO. Paths not matching the id prefix are dropped defensively
+// (a glob can only over-match a shorter id if globs are ever widened).
+func classifyFamily(id int, paths []string) []Artifact {
+	prefix := fmt.Sprintf("%06d-", id)
+	var issue, plan, reviews []Artifact
+	for _, p := range paths {
+		base := filepath.Base(p)
+		if !strings.HasPrefix(base, prefix) {
+			continue
+		}
+		switch {
+		case strings.HasSuffix(base, "-plan.md"):
+			plan = append(plan, Artifact{Kind: kindPlan, Path: p})
+		case strings.HasSuffix(base, "-review.md"):
+			ms := ""
+			if m := reviewMilestoneRe.FindStringSubmatch(base); m != nil {
+				ms = "M" + m[1]
+			}
+			reviews = append(reviews, Artifact{Kind: kindReview, Path: p, Milestone: ms})
+		default:
+			issue = append(issue, Artifact{Kind: kindIssue, Path: p})
+		}
+	}
+	sort.Slice(reviews, func(i, j int) bool {
+		// milestone-tagged before close ("" sorts last); then lexically. NOTE:
+		// lexical means M10 would sort before M2 — fine for the realistic M1–M9
+		// range; make it numeric only if milestones ever exceed 9.
+		if (reviews[i].Milestone == "") != (reviews[j].Milestone == "") {
+			return reviews[j].Milestone == ""
+		}
+		if reviews[i].Milestone != reviews[j].Milestone {
+			return reviews[i].Milestone < reviews[j].Milestone
+		}
+		return reviews[i].Path < reviews[j].Path
+	})
+	out := append(issue, plan...)
+	return append(out, reviews...)
 }

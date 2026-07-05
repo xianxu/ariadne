@@ -2,6 +2,34 @@ package main
 
 import "testing"
 
+func TestClassifyFamily(t *testing.T) {
+	paths := []string{
+		"/r/workshop/plans/000144-foo-m2-review.md",
+		"/r/workshop/issues/000144-foo.md",
+		"/r/workshop/plans/000144-foo-plan.md",
+		"/r/workshop/plans/000144-foo-close-review.md",
+		"/r/workshop/plans/000144-foo-m1-review.md",
+		"/r/workshop/plans/000999-other.md", // wrong id — dropped
+	}
+	got := classifyFamily(144, paths)
+	// Ordered: issue, plan, then reviews (M1, M2, close).
+	wantKinds := []artifactKind{kindIssue, kindPlan, kindReview, kindReview, kindReview}
+	if len(got) != len(wantKinds) {
+		t.Fatalf("len=%d want %d: %+v", len(got), len(wantKinds), got)
+	}
+	for i, k := range wantKinds {
+		if got[i].Kind != k {
+			t.Fatalf("pos %d: kind=%v want %v", i, got[i].Kind, k)
+		}
+	}
+	if got[2].Milestone != "M1" || got[3].Milestone != "M2" || got[4].Milestone != "" {
+		t.Fatalf("review milestones: %+v", got[2:])
+	}
+	if got[0].Kind.String() != "issue" || got[1].Kind.String() != "plan" || got[2].Kind.String() != "review" {
+		t.Fatalf("kind String() mismatch: %+v", got[:3])
+	}
+}
+
 func TestParseRef(t *testing.T) {
 	cases := []struct {
 		in   string
