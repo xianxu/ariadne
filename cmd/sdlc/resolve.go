@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -160,4 +161,51 @@ func classifyFamily(id int, paths []string) []Artifact {
 	})
 	out := append(issue, plan...)
 	return append(out, reviews...)
+}
+
+// ── IO shell (thin; directories come from the model, repo dirs from disk) ──
+
+// resolveRepoDir maps a ref's repo token to an absolute repo directory. Empty
+// token → curRoot. Else scan curRoot's parent for a sibling: exact basename
+// match wins; else a unique case-insensitive prefix match (so `parley` →
+// `parley.nvim`); ambiguity or no match errors with the candidates. IO seam
+// (reads the parent dir); curRoot is injected so the match logic is unit-testable.
+func resolveRepoDir(ref ArtifactRef, curRoot string) (string, error) {
+	if ref.Repo == "" {
+		return curRoot, nil
+	}
+	parent := filepath.Dir(curRoot)
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		return "", fmt.Errorf("read sibling dir %s: %w", parent, err)
+	}
+	var siblings []string
+	for _, e := range entries {
+		if e.IsDir() {
+			siblings = append(siblings, e.Name())
+		}
+	}
+	// exact basename match wins (so `brain` beats the `brain-family` prefix sibling)
+	for _, s := range siblings {
+		if s == ref.Repo {
+			return filepath.Join(parent, s), nil
+		}
+	}
+	// unique case-insensitive prefix match
+	var pref []string
+	low := strings.ToLower(ref.Repo)
+	for _, s := range siblings {
+		if strings.HasPrefix(strings.ToLower(s), low) {
+			pref = append(pref, s)
+		}
+	}
+	switch len(pref) {
+	case 1:
+		return filepath.Join(parent, pref[0]), nil
+	case 0:
+		return "", fmt.Errorf("no sibling repo matches %q under %s", ref.Repo, parent)
+	default:
+		sort.Strings(pref)
+		return "", fmt.Errorf("ambiguous repo %q: matches %s", ref.Repo, strings.Join(pref, ", "))
+	}
 }

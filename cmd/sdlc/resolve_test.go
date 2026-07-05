@@ -1,6 +1,47 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestResolveRepoDir(t *testing.T) {
+	parent := t.TempDir()
+	for _, name := range []string{"ariadne", "pair", "parley.nvim", "brain", "brain-family"} {
+		if err := os.MkdirAll(filepath.Join(parent, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cur := filepath.Join(parent, "ariadne")
+	cases := []struct {
+		repo    string
+		wantDir string // basename, "" = expect error
+	}{
+		{"", "ariadne"},           // current repo
+		{"pair", "pair"},          // exact
+		{"parley", "parley.nvim"}, // unique prefix
+		{"ariadne", "ariadne"},    // exact
+		{"brain", "brain"},        // exact wins over the brain-family prefix sibling
+		{"nope", ""},              // no match
+		{"br", ""},                // ambiguous prefix (brain, brain-family)
+	}
+	for _, c := range cases {
+		got, err := resolveRepoDir(ArtifactRef{Repo: c.repo}, cur)
+		if c.wantDir == "" {
+			if err == nil {
+				t.Fatalf("%q: expected error, got %q", c.repo, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("%q: %v", c.repo, err)
+		}
+		if filepath.Base(got) != c.wantDir {
+			t.Fatalf("%q: got %q want basename %q", c.repo, got, c.wantDir)
+		}
+	}
+}
 
 func TestClassifyFamily(t *testing.T) {
 	paths := []string{
