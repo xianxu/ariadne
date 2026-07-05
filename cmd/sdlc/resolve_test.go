@@ -142,6 +142,50 @@ func TestResolveRun_GitHub(t *testing.T) {
 	}
 }
 
+// A GitHub ref's --json must emit files as an empty array, never null, so a
+// consumer (parley#160) can iterate .files unconditionally.
+func TestResolveRun_GitHubJSONFilesNotNull(t *testing.T) {
+	root := seedTempRepo(t)
+	var buf bytes.Buffer
+	if err := runResolve(resolveOpts{ref: "gh#42", root: root, asJSON: true, out: &buf}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), `"files": null`) {
+		t.Fatalf("github --json emitted null files: %q", buf.String())
+	}
+	var res resolveResult
+	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Files == nil || len(res.Files) != 0 || !res.GitHub {
+		t.Fatalf("want empty non-nil files + github=true: %+v", res)
+	}
+}
+
+// Cross-repo where the resolved repo dir differs from the current root: run
+// pair#50 from within ariadne and confirm it reads pair's own family. Exercises
+// the full runResolve → resolveRepoDir(sibling) → familyFiles path end-to-end.
+func TestResolveRun_CrossRepo(t *testing.T) {
+	root := seedTempRepo(t) // <parent>/ariadne
+	parent := filepath.Dir(root)
+	d := vocab.Issue().Discovery()
+	pairIssues := filepath.Join(parent, "pair", d.Home)
+	if err := os.MkdirAll(pairIssues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pairIssues, "000050-pair-thing.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := runResolve(resolveOpts{ref: "pair#50", root: root, out: &buf}); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(buf.String())
+	if !strings.HasSuffix(got, filepath.Join("pair", d.Home, "000050-pair-thing.md")) {
+		t.Fatalf("cross-repo pair#50 did not resolve pair's file: %q", got)
+	}
+}
+
 func TestResolveRun_NotFound(t *testing.T) {
 	root := seedTempRepo(t)
 	err := runResolve(resolveOpts{ref: "#999", root: root, out: &bytes.Buffer{}})

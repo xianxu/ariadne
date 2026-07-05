@@ -280,6 +280,10 @@ func resolveArtifacts(refStr, root string) ([]Artifact, ArtifactRef, error) {
 	if err != nil {
 		return nil, ref, err
 	}
+	// NOTE: cross-repo resolution applies THIS repo's discovery model to a sibling
+	// — fine while peers share ariadne's workshop/{issues,plans,history} layout
+	// (all ariadne-styled repos do today). If a peer ever customizes its
+	// discovery:, resolve would need to load the sibling's own model here.
 	files, err := familyFiles(repoDir, vocab.Issue().Discovery(), ref.ID)
 	if err != nil {
 		return nil, ref, err
@@ -331,6 +335,15 @@ func encodeJSON(w io.Writer, v any) error {
 	return enc.Encode(v)
 }
 
+// githubWho resolves the display repo for a GitHub ref: the explicit token, else
+// the current repo's basename. Shared by runResolve/runOpen (ARCH-DRY).
+func githubWho(ref ArtifactRef, root string) string {
+	if ref.Repo != "" {
+		return ref.Repo
+	}
+	return filepath.Base(root)
+}
+
 // runResolve prints the resolved family paths (or --json). Read-only: takes no
 // lock. A GitHub ref is labeled, not resolved to a file.
 func runResolve(o resolveOpts) error {
@@ -343,18 +356,17 @@ func runResolve(o resolveOpts) error {
 		return err
 	}
 	if ref.GitHub {
-		who := ref.Repo
-		if who == "" {
-			who = filepath.Base(root)
-		}
+		who := githubWho(ref, root)
 		if o.asJSON {
-			return encodeJSON(o.out, resolveResult{Ref: o.ref, Repo: who, ID: ref.ID, GitHub: true})
+			// files is always an array (empty here) — never null — so a consumer
+			// can iterate .files unconditionally.
+			return encodeJSON(o.out, resolveResult{Ref: o.ref, Repo: who, ID: ref.ID, GitHub: true, Files: []resolveFile{}})
 		}
 		fmt.Fprintf(o.out, "github:%s#%d\n", who, ref.ID)
 		return nil
 	}
 	if o.asJSON {
-		res := resolveResult{Ref: o.ref, Repo: ref.Repo, ID: ref.ID, Milestone: ref.Milestone}
+		res := resolveResult{Ref: o.ref, Repo: ref.Repo, ID: ref.ID, Milestone: ref.Milestone, Files: []resolveFile{}}
 		for _, a := range fam {
 			res.Files = append(res.Files, resolveFile{Kind: a.Kind.String(), Path: a.Path, Milestone: a.Milestone})
 		}
@@ -414,11 +426,7 @@ func runOpen(o openOpts) error {
 		return err
 	}
 	if ref.GitHub {
-		who := ref.Repo
-		if who == "" {
-			who = filepath.Base(root)
-		}
-		fmt.Fprintf(o.out, "github:%s#%d (not opened — github ref)\n", who, ref.ID)
+		fmt.Fprintf(o.out, "github:%s#%d (not opened — github ref)\n", githubWho(ref, root), ref.ID)
 		return nil
 	}
 	editor := os.Getenv("EDITOR")
