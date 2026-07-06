@@ -566,3 +566,26 @@ the *branch* window, so it sees all of it and passes regardless — the trap is 
 (issue-lifecycle.md, vocabulary.md), so M2's window had no atlas change and the gate fired; closed
 with `--no-atlas` + rationale. Same family as [[milestone-close --actual suggests CUMULATIVE]] — both
 are per-milestone-window mechanics that surprise if you reason at the whole-branch level.
+
+## 2026-07-06 — A git-probe unit test on a non-repo temp dir exercises only the error branch (#154)
+
+**Pattern (#154):** the fix injects a `git ls-files` trackedness probe (`gitSrcUntracked`) into the
+archive move-builder; the untracked → "stage dest only" branch *is* the fix. I covered the **push**
+caller end-to-end in a real repo (`hermeticRepo`) but leaned on the pre-existing **merge** sweep test,
+which runs on a bare `t.TempDir()` that is **not a git repo**. There every `git ls-files` errors → the
+probe's conservative `err != nil → tracked` fallback fires → the untracked branch is *never reached*.
+The test was green and looked like coverage, but merge's `GitInDir(mainPath,…)` probe wiring — the
+exact topology the bug was reproduced on 3× — was unexercised. The fresh-context boundary review
+caught it (FIX-THEN-SHIP); I added a real-repo merge regression.
+
+**Rule:** a real git call injected behind an interface is only truly tested **inside an actual repo**
+(`hermeticRepo` / init+commit) — a non-repo temp dir tests only that call's *failure* path. Probes
+with a conservative on-error default (`err → safe branch`) are especially deceptive: the no-repo test
+passes *because* the probe errored, masking that the interesting branch never ran. Add a real-repo
+test **per caller/wiring**, not just per shared helper — the helper being covered doesn't prove each
+caller's dir/closure is wired right. Same family as [[temp workspace silently no-ops]] (#79 — bare
+temp dirs giving false confidence), but the failure mode here is a silent conservative-branch, not a
+`cd ""` write hazard.
+
+**Origin:** #154 close-boundary review — push had a real-repo regression, merge did not; the merge
+probe closure was reachable only in a real repo.
