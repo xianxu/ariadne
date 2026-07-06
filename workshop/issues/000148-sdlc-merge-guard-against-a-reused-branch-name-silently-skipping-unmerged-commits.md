@@ -137,3 +137,14 @@ this also proves finding #3 (the guard's `git fetch origin main` refreshes
 the reused-name message, PRMerge not called, still on feature, branch not deleted,
 issue not archived (tree untouched). So Done-when bullet 3 ("abort + tree
 untouched" / "cleanup proceeds") is AUTOMATED e2e, not manual.
+
+**Boundary review: FIX-THEN-SHIP** (verdict recorded "unknown" — the long-running
+reviewer emitted the verdict in prose, not the parseable token; re-close retries).
+Both non-blocking Important findings fixed: (I1) `_FinishesCleanup` didn't actually
+PIN the guard's fetch — the test's `git push origin main` already refreshed the
+local `origin/main` tracking ref, so the fetch was redundant there (my "proves
+finding #3" claim was overstated). Fixed by forcing the tracking ref stale
+(`update-ref refs/remotes/origin/main <seed>`) after the push — proven: neutering
+the guard's fetch now FAILS the test, restoring passes. (I2) `helptext/merge.md`
+REFUSES-IF block didn't mention the #148 guard — added it (section-granularity
+sweep: I'd updated root.md's PUBLISH block but not the merge subcommand's own help).

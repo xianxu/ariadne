@@ -17,6 +17,9 @@ REFUSES IF
     about, not refused (#78).
   - no upstream is configured for the branch
   - branch is ahead of upstream (unpushed local commits — push first)
+  - the branch has a MERGED PR but still carries commits not in main (#148) —
+    a reused branch name; merge refuses (rather than silently deleting the
+    branch and stranding the new commits) so you rename + `sdlc pr` + retry.
 
 WHAT IT DOES
 

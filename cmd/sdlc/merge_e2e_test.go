@@ -308,10 +308,19 @@ func TestRunMerge_ResumeMergedPR_FinishesCleanup(t *testing.T) {
 	// feature one commit ahead of main; merge it in + push so origin/main reflects
 	// the shipped work (#148: the resume guard counts origin/main..origin/feature and
 	// only cleans up at 0). Without this the guard would (correctly) refuse.
+	seedSHA := git(t, dir, "rev-parse", "main")
 	git(t, dir, "switch", "main")
 	git(t, dir, "merge", "--ff-only", "feature")
 	git(t, dir, "push", "origin", "main")
 	git(t, dir, "switch", "feature")
+	// PIN the guard's fetch (review I1): the `git push` above also refreshed THIS
+	// checkout's origin/main tracking ref, which would make the guard's `git fetch
+	// origin main` redundant — the test would pass even if the fetch were broken.
+	// Force the tracking ref stale (back to seed), mirroring the real scenario where
+	// ANOTHER clone merged the PR. Now the test passes ONLY if the guard's fetch
+	// refreshes origin/main (→ count 0); a broken/removed fetch reads seed → count 1
+	// → refuse → this test fails.
+	git(t, dir, "update-ref", "refs/remotes/origin/main", seedSHA)
 	gh := &e2eGH{openPR: "", mergedExists: true}
 	swapMergeDeps(t, gh, nil)
 
