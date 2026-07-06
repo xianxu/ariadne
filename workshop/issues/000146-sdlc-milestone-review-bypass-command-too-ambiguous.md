@@ -99,11 +99,11 @@ same `close.go`/vocab neighborhood).
 Durable design: [`workshop/plans/000146-remove-close-milestone-bypass-plan.md`](../plans/000146-remove-close-milestone-bypass-plan.md).
 Single-pass (no `Mx` — one `sdlc close`).
 
-- [ ] Extract `closeVerb(milestone)` helper; reuse in `reviewThenFinalize` (DRY).
-- [ ] Repoint `explainActual` + `explainVerified` re-run hints to `milestone-close` (kill the misdirection).
-- [ ] Hide `--milestone` on `close` + refuse with a redirect to `milestone-close` (the mechanical `runClose(Milestone=…)` path stays for milestone-close).
-- [ ] Docs: `helptext/close.md`, `helptext/milestone-close.md`, `milestoneclose.go` comment, `close.go` comment, base-layer `AGENTS.base.md`; then `make weave` to recompose the gitignored `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`.
-- [ ] Build + `go test ./...` + manual e2e (refusal fires, `--help` drops flag, hint points at milestone-close, entry files flag-free); atlas; close.
+- [x] Extract `closeVerb(milestone)` helper; reuse in `reviewThenFinalize` (DRY).
+- [x] Repoint `explainActual` + `explainVerified` re-run hints to `milestone-close` (kill the misdirection) — via a pure `rerunCmd` builder (ARCH-PURE).
+- [x] Hide `--milestone` on `close` + refuse with a redirect to `milestone-close` (the mechanical `runClose(Milestone=…)` path stays for milestone-close). Repurposed the obsolete guard test.
+- [x] Docs: `helptext/close.md`, `helptext/milestone-close.md`, `milestoneclose.go` comment, `close.go` comment, base-layer `AGENTS.base.md`; then `make weave` recomposed the gitignored `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`.
+- [x] Build + `go test ./...` (25 pkgs green) + manual e2e (refusal fires, `--help` drops flag, hint points at milestone-close, entry files flag-free); atlas; close.
 
 ## Log
 
@@ -144,4 +144,19 @@ in-process `runClose` path via milestone-close is what's untouched, not this dir
 caller). (2) [Info] `helptext/close.md:96` has a hand-authored `--milestone <Mx>`
 FLAGS entry — must be deleted or `sdlc close --help` keeps listing the flag. Plan
 updated: Task 3 Step 3b repurposes the test; Task 4 Step 1 names close.md:96.
+
+change-code round 3: plan-quality **INFO (pass)**; estimate-quality advisory-only
+(0.53 slightly low — a known v3.1 property, no change). One INFO folded in
+(close.md:18 "both forms remain valid" clause + broadened verify grep). Re-crossed
+with `--no-judge` (judges adjudicated).
+
+**Implemented + verified.** `go build/vet/test ./...` — 25 pkgs, 0 failures. E2E:
+(1) `sdlc close --issue 999 --milestone M1 …` refuses with the milestone-close
+redirect (fires before issue-existence, as designed); (2) `close --help` FLAGS
+block no longer lists `--milestone`; (3) no `close --milestone` bypass anywhere in
+`helptext/`, `AGENTS.base.md`, or the recomposed `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`.
+Tests: `TestCloseVerb`, `TestRerunCmd` (hints → milestone-close), `TestClose_
+MilestoneRefusesWithRedirect` (command-level), `TestRunCloseWithReview_Milestone
+Refuses` (repurposed guard). `make weave` recomposed the entry files (settings.json
+write needed sandbox off — deny-listed path, unrelated to this change).
 
