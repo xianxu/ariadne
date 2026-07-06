@@ -3,6 +3,7 @@ package layergraph
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -162,22 +163,68 @@ func TestWalkAbsoluteSubstratePath(t *testing.T) {
 	}
 }
 
-func TestWalkPresentSkipNonLayerDep(t *testing.T) {
-	// _seen_or_add drops a substrate target that does NOT ship a
-	// construct/base.manifest (it isn't a layer).
+func TestWalkPresentSubstrateMissingManifestErrors(t *testing.T) {
+	// #155: a declared substrate whose target is PRESENT on disk but ships no
+	// construct/base.manifest is a broken layer edge — Walk must fail LOUD (the
+	// pre-#155 silent skip dropped the whole transitive chain under it with no
+	// signal). The error must name the missing base.manifest.
 	parent := t.TempDir()
 	notALayer := filepath.Join(parent, "notalayer")
 	derived := filepath.Join(parent, "d")
-	writeFile(t, filepath.Join(notALayer, "README.md"), "not a layer")
+	writeFile(t, filepath.Join(notALayer, "README.md"), "present, but no base.manifest")
 	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../notalayer\n")
+	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+
+	_, err := Walk(OSFS{}, derived)
+	if err == nil {
+		t.Fatal("Walk must error on a present substrate lacking base.manifest, got nil")
+	}
+	if !strings.Contains(err.Error(), "base.manifest") {
+		t.Errorf("error must name the missing base.manifest, got: %v", err)
+	}
+}
+
+func TestWalkAbsentSubstrateSilentlySkipped(t *testing.T) {
+	// #155: the loud failure is scoped to a PRESENT-but-manifest-less substrate.
+	// A substrate target that is simply not checked out (absent dir) keeps the
+	// silent present-skip — a partial checkout must not hard-fail the walk.
+	parent := t.TempDir()
+	derived := filepath.Join(parent, "d")
+	// ../absent is never created on disk.
+	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../absent\n")
 	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 
 	roots, err := Walk(OSFS{}, derived)
 	if err != nil {
-		t.Fatalf("Walk: %v", err)
+		t.Fatalf("absent substrate must be silently skipped, got error: %v", err)
 	}
 	if len(roots) != 1 || roots[0] != canon(t, derived) {
-		t.Fatalf("non-layer dep not skipped: %v", roots)
+		t.Fatalf("absent substrate not skipped cleanly: %v", roots)
+	}
+}
+
+func TestWalkChainBrokenByManifestlessIntermediate(t *testing.T) {
+	// #155 exact repro: kbench → kaggle → metis, where the MID layer (kaggle) is
+	// present but lacks base.manifest. The old walk silently stopped at kaggle and
+	// under-compiled kbench to a no-op; now the transitive walk errors when it
+	// reaches the broken intermediate, naming it.
+	parent := t.TempDir()
+	base := filepath.Join(parent, "metis")
+	mid := filepath.Join(parent, "kaggle")
+	derived := filepath.Join(parent, "kbench")
+
+	writeFile(t, filepath.Join(base, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+	// mid is present (has construct/deps) but ships NO base.manifest.
+	writeFile(t, filepath.Join(mid, "construct", "deps"), "substrate ../metis\n")
+	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../kaggle\n")
+	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+
+	_, err := Walk(OSFS{}, derived)
+	if err == nil {
+		t.Fatal("Walk must error when a manifest-less intermediate breaks the chain, got nil")
+	}
+	if !strings.Contains(err.Error(), "kaggle") {
+		t.Errorf("error must name the broken intermediate (kaggle), got: %v", err)
 	}
 }
 

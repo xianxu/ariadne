@@ -228,6 +228,7 @@ func buildLink() *cobra.Command {
 func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
 	depsPath := filepath.Join(root, "construct", "deps")
 
+	rowPresent := false
 	var existing string
 	if data, rerr := fs.ReadFile(depsPath); rerr == nil {
 		existing = string(data)
@@ -237,25 +238,76 @@ func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
 		}
 		for _, r := range rows {
 			if r == path {
-				fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
-				return nil
+				rowPresent = true
+				break
 			}
 		}
 	}
 
-	if err := fs.MkdirAll(filepath.Dir(depsPath)); err != nil {
-		return fmt.Errorf("link: mkdir %s: %w", filepath.Dir(depsPath), err)
+	if rowPresent {
+		fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
+	} else {
+		if err := fs.MkdirAll(filepath.Dir(depsPath)); err != nil {
+			return fmt.Errorf("link: mkdir %s: %w", filepath.Dir(depsPath), err)
+		}
+		next := existing
+		if next != "" && !strings.HasSuffix(next, "\n") {
+			next += "\n"
+		}
+		next += "substrate " + path + "\n"
+		if err := fs.WriteFile(depsPath, []byte(next)); err != nil {
+			return fmt.Errorf("link: write %s: %w", depsPath, err)
+		}
+		fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
 	}
-	next := existing
-	if next != "" && !strings.HasSuffix(next, "\n") {
-		next += "\n"
+
+	// Seed a minimal construct/base.manifest so this repo is itself a valid,
+	// traversable layer for its OWN downstream consumers (#155). A fresh
+	// `mkdir foo && weave link ../bar && weave compile` otherwise leaves foo
+	// manifest-less: invisible as a layer, and — post-#155 — a hard error in a
+	// consumer's walk. Runs on every link (even when the deps row was already
+	// present, to repair a pre-#155 repo), and never clobbers an existing manifest.
+	return ensureBaseManifest(fs, root, path, out)
+}
+
+// ensureBaseManifest seeds root/construct/base.manifest when absent so the repo is
+// a traversable weave layer (#155). Idempotent — a present manifest (hand-authored
+// or already seeded) is left untouched. Injecting fs + out keeps it testable.
+func ensureBaseManifest(fs weavefs.FS, root, substratePath string, out io.Writer) error {
+	manifestPath := filepath.Join(root, "construct", "base.manifest")
+	if _, err := fs.Stat(manifestPath); err == nil {
+		return nil // already a layer — never overwrite a hand-authored manifest
 	}
-	next += "substrate " + path + "\n"
-	if err := fs.WriteFile(depsPath, []byte(next)); err != nil {
-		return fmt.Errorf("link: write %s: %w", depsPath, err)
+	if err := fs.MkdirAll(filepath.Dir(manifestPath)); err != nil {
+		return fmt.Errorf("link: mkdir %s: %w", filepath.Dir(manifestPath), err)
 	}
-	fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
+	if err := fs.WriteFile(manifestPath, []byte(seededBaseManifest(filepath.Base(root), substratePath))); err != nil {
+		return fmt.Errorf("link: write %s: %w", manifestPath, err)
+	}
+	fmt.Fprintf(out, "weave: seeded construct/base.manifest (marks %s a traversable layer)\n", filepath.Base(root))
 	return nil
+}
+
+// seededBaseManifest returns the minimal construct/base.manifest weave link seeds
+// for a fresh derivative (#155): a header naming the repo + its substrate, and the
+// single `internal prose AGENTS.local.md` row that both declares the repo's own
+// constitution fragment and marks it a traversable layer. Mirrors what #95-cutover
+// repos hand-authored — the SINGLE source for the seed content (ARCH-DRY), so a
+// future change to the stub lands in one place rather than a third hand-copy.
+func seededBaseManifest(repoName, substratePath string) string {
+	return "# " + repoName + " base.manifest — " + repoName + "'s module declaration for the weave layer compiler.\n" +
+		"#\n" +
+		"# Seeded by `weave link " + substratePath + "` (ariadne#155). " + repoName + " consumes " + substratePath + "\n" +
+		"# as its substrate (construct/deps `substrate " + substratePath + "`) and inherits that layer's\n" +
+		"# EXPORTED base layer through the edge. This manifest declares " + repoName + "'s OWN internal artifacts.\n" +
+		"#\n" +
+		"# Format and verbs: see ariadne's construct/base.manifest. The leading `internal` token\n" +
+		"# (ariadne#99) keeps an artifact with this repo (selected only on its own self-walk), never\n" +
+		"# leaked into a consumer. NOTE: shipping a base.manifest is ALSO what marks this repo a\n" +
+		"# TRAVERSABLE layer — without it a downstream consumer's weave walk stops here.\n" +
+		"\n" +
+		"# ── Constitution ──────────────────────────────────────────────────────────────\n" +
+		"internal  prose AGENTS.local.md\n"
 }
 
 // buildSkills assembles `weave skills` — print the agent-agnostic skill listing

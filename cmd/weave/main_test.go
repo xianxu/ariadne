@@ -843,6 +843,83 @@ func TestLinkAppendsToExisting(t *testing.T) {
 	}
 }
 
+func TestLinkSeedsBaseManifest(t *testing.T) {
+	// #155: `weave link` seeds a minimal construct/base.manifest in a fresh repo,
+	// so it is a valid, traversable layer out of the box. The seed carries the
+	// `internal prose AGENTS.local.md` row (marks it traversable) and names the
+	// substrate in its header.
+	root := t.TempDir()
+	var out bytes.Buffer
+	if err := runLink(weavefs.OSFS{}, root, "../ariadne", &out); err != nil {
+		t.Fatalf("runLink: %v", err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(root, "construct", "base.manifest"))
+	if err != nil {
+		t.Fatalf("seed must create construct/base.manifest: %v", err)
+	}
+	if !strings.Contains(string(manifest), "internal  prose AGENTS.local.md") {
+		t.Errorf("seeded manifest missing the traversable-layer row:\n%s", manifest)
+	}
+	if !strings.Contains(string(manifest), "../ariadne") {
+		t.Errorf("seeded manifest header should name the substrate:\n%s", manifest)
+	}
+	if !strings.Contains(out.String(), "seeded construct/base.manifest") {
+		t.Errorf("link should announce the seed, got: %q", out.String())
+	}
+}
+
+func TestLinkSeedNeverClobbersExisting(t *testing.T) {
+	// The seed is idempotent: a repo that already ships a (hand-authored) manifest
+	// must keep it verbatim — link never overwrites it.
+	root := t.TempDir()
+	manifestPath := filepath.Join(root, "construct", "base.manifest")
+	original := "# hand-authored\nexport  prose AGENTS.base.md\ninternal  prose AGENTS.local.md\n"
+	mkfile(t, manifestPath, original)
+	var out bytes.Buffer
+	if err := runLink(weavefs.OSFS{}, root, "../ariadne", &out); err != nil {
+		t.Fatalf("runLink: %v", err)
+	}
+	got, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != original {
+		t.Fatalf("existing manifest was clobbered:\ngot:  %q\nwant: %q", got, original)
+	}
+	if strings.Contains(out.String(), "seeded construct/base.manifest") {
+		t.Errorf("link must not announce a seed when a manifest already exists, got: %q", out.String())
+	}
+}
+
+func TestLinkSeedMakesRepoTraversable(t *testing.T) {
+	// #155 end-to-end: after `weave link`-seeding a fresh MID repo, a downstream
+	// consumer's walk traverses THROUGH it to the foundation — the exact chain
+	// (kbench → kaggle → metis) that used to silently under-compile. Proves the
+	// seed (not just the file) fixes the footgun.
+	parent := t.TempDir()
+	base := filepath.Join(parent, "base")
+	mid := filepath.Join(parent, "mid")
+	derived := filepath.Join(parent, "derived")
+	mkfile(t, filepath.Join(base, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+
+	// Bootstrap mid the natural way: link it to base (seeds mid's own manifest).
+	var out bytes.Buffer
+	if err := runLink(weavefs.OSFS{}, mid, "../base", &out); err != nil {
+		t.Fatalf("runLink(mid): %v", err)
+	}
+	// derived depends on the freshly-seeded mid.
+	mkfile(t, filepath.Join(derived, "construct", "deps"), "substrate ../mid\n")
+	mkfile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
+
+	layers, err := walk.Walk(weavefs.OSFS{}, derived)
+	if err != nil {
+		t.Fatalf("walk through a seeded intermediate must reach the foundation, got error: %v", err)
+	}
+	if len(layers) != 3 {
+		t.Fatalf("chain must compose fully (base, mid, derived), got %d: %+v", len(layers), layers)
+	}
+}
+
 func TestLinkWired(t *testing.T) {
 	// `link` is registered as a subcommand on the root.
 	cmd := buildRoot()
