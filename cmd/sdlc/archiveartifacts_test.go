@@ -184,6 +184,62 @@ func TestArchiveDoneIssues_UntrackedSidecar_RealRepo(t *testing.T) {
 	}
 }
 
+// #154 end-to-end, MERGE path: the topology the bug was reproduced on 3×. Mirror
+// of the push real-repo test but through archiveDoneIssuesInDir + its
+// GitInDir(mainPath,…) probe wiring — the existing merge sweep test runs on a bare
+// temp dir (probe always errors → tracked), so this is the only coverage that
+// exercises merge's untracked branch. hermeticRepo is an in-place checkout, so
+// mainPath == the repo root.
+func TestArchiveDoneIssuesInDir_UntrackedSidecar_RealRepo(t *testing.T) {
+	mainPath := hermeticRepo(t) // real repo; mergeRunner (execGitRunner) runs here
+	issues, history, plans := "workshop/issues", "workshop/history", "workshop/plans"
+	mkArtifact(t, filepath.Join(mainPath, issues, "000154-x.md"), "---\nid: 154\nstatus: done\n---\n\n# x\n")
+	mkArtifact(t, filepath.Join(mainPath, plans, "000154-x-plan.md"), "durable plan")
+	// Commit the issue + durable plan → tracked at archive time.
+	if out, err := mergeRunner.GitInDir(mainPath, "add", "--", filepath.Join(issues, "000154-x.md"), filepath.Join(plans, "000154-x-plan.md")); err != nil {
+		t.Fatalf("git add seed: %v\n%s", err, out)
+	}
+	if out, err := mergeRunner.GitInDir(mainPath, "commit", "-m", "seed"); err != nil {
+		t.Fatalf("git commit seed: %v\n%s", err, out)
+	}
+	// The review sidecar exists on disk but was never committed → untracked.
+	mkArtifact(t, filepath.Join(mainPath, plans, "000154-x-close-review.md"), "untracked sidecar")
+
+	var stderr bytes.Buffer
+	moves, err := archiveDoneIssuesInDir(&stderr, "", mainPath, issues, history, plans)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moves) != 3 {
+		t.Fatalf("want 3 moves (issue + plan + sidecar), got %d: %#v", len(moves), moves)
+	}
+	var sawUntrackedSidecar bool
+	for _, m := range moves {
+		if filepath.Base(m.IssuePath) == "000154-x-close-review.md" {
+			sawUntrackedSidecar = m.SourceUntracked
+		}
+	}
+	if !sawUntrackedSidecar {
+		t.Errorf("merge path must flag the real untracked sidecar SourceUntracked=true: %#v", moves)
+	}
+
+	// The real archive add + commit through the main worktree — the exit-128 site.
+	if out, gerr := mergeRunner.GitInDir(mainPath, archiveAddArgs(moves)...); gerr != nil {
+		t.Fatalf("merge archive git add died (the #154 bug): %v\n%s", gerr, out)
+	}
+	if out, gerr := mergeRunner.GitInDir(mainPath, "commit", "-m", "archive completed issues to history"); gerr != nil {
+		t.Fatalf("merge archive commit failed: %v\n%s", gerr, out)
+	}
+	if out, _ := mergeRunner.GitInDir(mainPath, "status", "--porcelain"); strings.TrimSpace(string(out)) != "" {
+		t.Errorf("worktree not clean after merge archive — half-archived state (#154):\n%s", out)
+	}
+	for _, name := range []string{"000154-x.md", "000154-x-plan.md", "000154-x-close-review.md"} {
+		if out, gerr := mergeRunner.GitInDir(mainPath, "ls-files", "--error-unmatch", "--", filepath.Join(history, name)); gerr != nil {
+			t.Errorf("%s should be tracked in history after merge archive: %v\n%s", name, gerr, out)
+		}
+	}
+}
+
 func TestArchivePlanArtifacts_NoPlanIsNoOp(t *testing.T) {
 	tmp := t.TempDir()
 	plans := filepath.Join(tmp, "plans")

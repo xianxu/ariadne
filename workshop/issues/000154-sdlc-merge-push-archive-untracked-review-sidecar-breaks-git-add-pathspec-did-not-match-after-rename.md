@@ -1,12 +1,13 @@
 ---
 id: 000154
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-05
 estimate_hours: 0.53
 started: 2026-07-05T22:54:11-07:00
+actual_hours: 0.64
 ---
 
 # sdlc merge/push archive: untracked review sidecar breaks git-add (pathspec did not match) after rename
@@ -145,6 +146,7 @@ though this one fails loud (exit 128) rather than silent — still leaves main i
 half-state a form-gate should prevent.
 
 ### 2026-07-05 — implemented (Option A)
+- 2026-07-05: closed — Real-repo end-to-end regression (TestArchiveDoneIssues_UntrackedSidecar_RealRepo) reproduces the exit-128 pathspec failure with the guard reverted and passes with it — worktree ends clean, all 3 files tracked in history/. Pure-seam tests: TestArchiveAddArgs (untracked->dest only; mixed), TestGitSrcUntracked (empty->untracked, echoed/error->tracked), TestArchivePlanArtifacts_UntrackedSidecarStagesDestOnly. Full go test ./cmd/sdlc/ green; go build/vet/gofmt clean. Atlas updated (sdlc-binary.md archive-recovery section).; review verdict: FIX-THEN-SHIP
 
 Shipped the minimal targeted fix:
 
@@ -185,3 +187,19 @@ Shipped the minimal targeted fix:
 
 Atlas: updated `atlas/workflow/sdlc-binary.md` "sdlc push archive recovery" with
 the untracked-sidecar seam.
+
+### 2026-07-05 — boundary review (FIX-THEN-SHIP) applied
+
+Close-boundary review verdict **FIX-THEN-SHIP** (high, no Critical). Addressed the
+one Important finding before shipping: the merge path (the topology reproduced 3×)
+had no real-repo test of the untracked branch — the existing merge sweep test runs
+on a bare temp dir where the `git ls-files` probe always errors → tracked, so the
+`GitInDir(mainPath,…)` probe wiring was unexercised. Added
+`TestArchiveDoneIssuesInDir_UntrackedSidecar_RealRepo` (hermetic in-place repo,
+mainPath == root): commits issue + durable plan, leaves the sidecar untracked,
+drives the real `archiveDoneIssuesInDir` → real `GitInDir(mainPath, git add)` +
+commit; asserts `SourceUntracked=true`, clean worktree, all three files tracked in
+history. Green. The reviewer's two other notes (minor gofmt realignment; a
+separate-worktree topology where an untracked sidecar under `wtPath` is never
+globbed by `mainPath/plans` — out of scope for #154, which matches the reproduced
+in-place case) are acknowledged, no action.
