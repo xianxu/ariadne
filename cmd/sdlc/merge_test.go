@@ -1,12 +1,42 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// countRunner is a minimal gitRunner fake for countUnmerged (#148): Git returns
+// canned output/err; the other methods are no-ops (countUnmerged only calls Git).
+type countRunner struct {
+	out []byte
+	err error
+}
+
+func (r countRunner) Git(_ ...string) ([]byte, error)                { return r.out, r.err }
+func (r countRunner) GitInDir(_ string, _ ...string) ([]byte, error) { return nil, nil }
+func (r countRunner) MkdirAll(_ string) error                        { return nil }
+func (r countRunner) WriteFile(_ string, _ []byte) error             { return nil }
+
+// TestCountUnmerged covers the count seam with faked git IO (#148): numeric output
+// parses; a git error or non-numeric output propagates so the caller fails safe.
+func TestCountUnmerged(t *testing.T) {
+	if n, err := countUnmerged(countRunner{out: []byte("16\n")}, "origin/main", "origin/x"); err != nil || n != 16 {
+		t.Errorf(`countUnmerged("16\n") = (%d,%v), want (16,nil)`, n, err)
+	}
+	if n, err := countUnmerged(countRunner{out: []byte("0")}, "origin/main", "origin/x"); err != nil || n != 0 {
+		t.Errorf(`countUnmerged("0") = (%d,%v), want (0,nil)`, n, err)
+	}
+	if _, err := countUnmerged(countRunner{err: fmt.Errorf("git blew up")}, "a", "b"); err == nil {
+		t.Error("countUnmerged must propagate a git error (caller fails safe, does not default to 0)")
+	}
+	if _, err := countUnmerged(countRunner{out: []byte("not-a-number")}, "a", "b"); err == nil {
+		t.Error("countUnmerged must error on non-numeric output (fail-safe)")
+	}
+}
 
 // ── #62 M1: worktree clean re-check before the irreversible merge ────────────
 func TestWorktreeDirty(t *testing.T) {
@@ -110,20 +140,23 @@ func TestPorcelainPaths(t *testing.T) {
 // ── #62 M3: merge-vs-resume decision ─────────────────────────────────────────
 func TestDecideMergeAction(t *testing.T) {
 	cases := []struct {
-		name         string
-		openPR       string
-		mergedExists bool
-		want         mergeAction
+		name          string
+		openPR        string
+		mergedExists  bool
+		unmergedCount int
+		want          mergeAction
 	}{
-		{"open PR → merge it", "42", false, actionMergeOpen},
-		{"open PR present, merged irrelevant", "42", true, actionMergeOpen},
-		{"no open PR but merged exists → resume", "", true, actionResume},
-		{"no PR at all → no-PR path", "", false, actionNoPR},
+		{"open PR → merge it", "42", false, 0, actionMergeOpen},
+		{"open PR present, merged irrelevant", "42", true, 0, actionMergeOpen},
+		{"open PR wins even with unmerged commits", "42", true, 16, actionMergeOpen},
+		{"merged, fully merged (count 0) → resume", "", true, 0, actionResume},
+		{"merged but commits not in base → blocked (#148)", "", true, 16, actionResumeBlocked},
+		{"no PR at all → no-PR path", "", false, 0, actionNoPR},
 	}
 	for _, tc := range cases {
-		if got := decideMergeAction(tc.openPR, tc.mergedExists); got != tc.want {
-			t.Errorf("%s: decideMergeAction(%q,%v) = %d, want %d",
-				tc.name, tc.openPR, tc.mergedExists, got, tc.want)
+		if got := decideMergeAction(tc.openPR, tc.mergedExists, tc.unmergedCount); got != tc.want {
+			t.Errorf("%s: decideMergeAction(%q,%v,%d) = %d, want %d",
+				tc.name, tc.openPR, tc.mergedExists, tc.unmergedCount, got, tc.want)
 		}
 	}
 }
