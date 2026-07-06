@@ -358,7 +358,12 @@ judge used to auto-edit stale docs (`Edit,Write`), which let a *passing* gate
 leave the tree dirty and strand the subsequent merge. `merge` now also (a)
 re-asserts no **tracked** dirt immediately before the irreversible `gh pr merge`
 (refuse, don't strand), and (b) resumes an interrupted merge — a re-run detects
-an already-merged PR and finishes the local cleanup instead of erroring.
+an already-merged PR and finishes the local cleanup instead of erroring. The
+resume path is guarded (#148): before cleanup it fetches `origin/main` and counts
+`origin/main..origin/<branch>` (`countUnmerged`, fakeable seam); a nonzero count
+means a **reused branch name** (its old work shipped via that PR, new work piled on)
+→ `decideMergeAction` returns `actionResumeBlocked` and merge refuses *before* any
+switch/delete/archive, rather than silently stranding the new commits.
 The clean-tree guards (step 2 and the 9b re-assert) refuse only on tracked
 **code** changes via one pure `assessDirty(...).Refuse()` decision (#78);
 `assessDirty` buckets each porcelain line into Blocking / Untracked / Tracker.

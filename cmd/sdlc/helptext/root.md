@@ -21,6 +21,10 @@ ENTER IMPLEMENTATION
 PUBLISH
   - Publishing goes through a PR: `sdlc pr` → `sdlc merge`. Direct `sdlc push`
     if working directly on main.
+  - Publish ONCE at issue close, not per milestone — and do NOT reuse a branch
+    name that already has a merged PR. `sdlc merge` refuses (#148) when a branch
+    has commits not in main despite a merged PR (a reused name would otherwise
+    silently strand the new commits); rename to a fresh branch, `sdlc pr`, retry.
 
 RECOVER
   - After a compaction or session resume, run `sdlc state` to recover where you
