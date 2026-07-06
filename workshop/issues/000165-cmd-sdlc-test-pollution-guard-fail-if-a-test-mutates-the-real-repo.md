@@ -1,6 +1,6 @@
 ---
 id: 000165
-status: open
+status: punt
 deps: []
 github_issue:
 created: 2026-07-05
@@ -79,3 +79,9 @@ is itself the argument for a guard: a future leak should FAIL a test, not silent
 rewrite `main`. Related: this surfaced while shipping #148 (the `sdlc merge`
 reused-branch guard) — thematically adjacent (both are "refuse loudly instead of
 silently doing the wrong thing"), but a distinct, separable concern.
+
+- Folded into #149 (paired: same root cause — cmd/sdlc tests resolving the REAL
+  repo from cwd). #149 now covers both: isolating the repo lock+tree AND this
+  TestMain backstop (the guard checks HEAD/branch/status + the real .git/sdlc.lock,
+  catching both the #149 lock-grab and the #165 tree-mutation classes). Punted here
+  to avoid a duplicate close; the guard ships under #149.
