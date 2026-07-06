@@ -173,7 +173,16 @@ cmd/sdlc/
   changecode.go        new (#39): planning → implementation gate
   branchcreate.go      new (#39): branch-creation helpers shared by
                        changecode.go (worktree + in-place paths) + the
-                       name-resolution previously in start.go
+                       name-resolution previously in start.go. #156: both
+                       paths are IDEMPOTENT for milestone re-runs — pure
+                       deciders `decideInPlaceBranch` (onTarget/switch/create)
+                       + `decideWorktreeBranch` (reuse/addExisting/addNew)
+                       over `currentBranch`/`branchExists`/`worktreeForBranch`
+                       probes, so re-running change-code on an existing branch
+                       switches/reuses instead of dying `checkout -b: already
+                       exists`. `worktreeForBranch` filters the single-source
+                       `parseWorktrees` (extracted from state.go's listWorktrees;
+                       findMainWorktree refolded onto it — one porcelain grammar).
   setstatus.go         new
   push.go              ← Makefile push:
   pr.go                ← Makefile pull-request:
