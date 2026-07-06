@@ -1,11 +1,12 @@
 ---
 id: 000156
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-01
-updated: 2026-07-01
+updated: 2026-07-06
 estimate_hours:
+started: 2026-07-06T15:08:58-07:00
 ---
 
 # change-code idempotent branch for milestone re-runs
