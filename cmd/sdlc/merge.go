@@ -213,10 +213,10 @@ func porcelainPaths(line string) (path, dest string) {
 type mergeAction int
 
 const (
-	actionMergeOpen    mergeAction = iota // an open PR exists → merge it (irreversible)
-	actionResume                          // no open PR, a merged one, branch fully merged → resume cleanup (#62 M3)
-	actionResumeBlocked                   // merged PR, but the branch has commits not in base → refuse (#148, likely a reused branch name)
-	actionNoPR                            // neither → create-PR / abandon path
+	actionMergeOpen     mergeAction = iota // an open PR exists → merge it (irreversible)
+	actionResume                           // no open PR, a merged one, branch fully merged → resume cleanup (#62 M3)
+	actionResumeBlocked                    // merged PR, but the branch has commits not in base → refuse (#148, likely a reused branch name)
+	actionNoPR                             // neither → create-PR / abandon path
 )
 
 // countUnmerged returns how many commits are on head but not in base
@@ -653,7 +653,10 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 		})
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// Rename under mainPath; record mainPath-relative paths for the git add.
-		planMoves, perr := archivePlanArtifacts(base, plansFull, historyFull, plansDir, historyDir)
+		// An untracked sidecar (#154) stages only its history dest — probe via
+		// `git ls-files` in the main worktree.
+		planMoves, perr := archivePlanArtifacts(base, plansFull, historyFull, plansDir, historyDir,
+			gitSrcUntracked(func(a ...string) ([]byte, error) { return mergeRunner.GitInDir(mainPath, a...) }))
 		if perr != nil {
 			return moves, perr
 		}

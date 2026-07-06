@@ -18,6 +18,12 @@ func mkArtifact(t *testing.T, path, content string) {
 	}
 }
 
+// trackedProbe is the archivePlanArtifacts source-trackedness probe faked to
+// report every source as tracked (the pre-#154 assumption). Tests exercising the
+// untracked branch pass their own probe. Injecting it keeps the git IO out of the
+// pure move-builder (ARCH-PURE) — these tests run on plain temp dirs, not repos.
+func trackedProbe(string) bool { return false }
+
 // #143: archivePlanArtifacts moves exactly the id-prefixed plan + sidecars,
 // leaves unrelated ids, and records paths that stage cleanly via archiveAddArgs.
 func TestArchivePlanArtifacts(t *testing.T) {
@@ -28,7 +34,7 @@ func TestArchivePlanArtifacts(t *testing.T) {
 	mkArtifact(t, filepath.Join(plans, "000143-x-close-review.md"), "the review")
 	mkArtifact(t, filepath.Join(plans, "000999-y-plan.md"), "unrelated")
 
-	moves, err := archivePlanArtifacts("000143-x.md", plans, history, "plans", "history")
+	moves, err := archivePlanArtifacts("000143-x.md", plans, history, "plans", "history", trackedProbe)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,13 +66,131 @@ func TestArchivePlanArtifacts(t *testing.T) {
 	}
 }
 
+// #154: an untracked review sidecar (created by `sdlc close`, never committed)
+// must archive without dying on `git add <vanished-source>`. The move records
+// SourceUntracked=true so archiveAddArgs stages only its history dest, while the
+// tracked durable plan alongside it still stages source-deletion + dest. The
+// probe is faked (index-based `git ls-files` in production) — a working-tree
+// os.Stat check would wrongly flag the tracked-then-renamed plan as untracked.
+func TestArchivePlanArtifacts_UntrackedSidecarStagesDestOnly(t *testing.T) {
+	tmp := t.TempDir()
+	plans := filepath.Join(tmp, "plans")
+	history := filepath.Join(tmp, "history")
+	mkArtifact(t, filepath.Join(plans, "000154-x-plan.md"), "tracked durable plan")
+	mkArtifact(t, filepath.Join(plans, "000154-x-close-review.md"), "untracked sidecar")
+
+	// Fake the probe: the sidecar is untracked, the durable plan is tracked.
+	untrackedSet := map[string]bool{filepath.Join("plans", "000154-x-close-review.md"): true}
+	probe := func(recPath string) bool { return untrackedSet[recPath] }
+
+	moves, err := archivePlanArtifacts("000154-x.md", plans, history, "plans", "history", probe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moves) != 2 {
+		t.Fatalf("want 2 plan moves, got %d: %#v", len(moves), moves)
+	}
+	// Both files physically moved to history regardless of trackedness.
+	for _, name := range []string{"000154-x-plan.md", "000154-x-close-review.md"} {
+		if _, err := os.Stat(filepath.Join(history, name)); err != nil {
+			t.Errorf("%s should be in history: %v", name, err)
+		}
+	}
+	// The move flags: sidecar untracked, plan tracked.
+	byBase := map[string]preparedArchiveMove{}
+	for _, m := range moves {
+		byBase[filepath.Base(m.IssuePath)] = m
+	}
+	if !byBase["000154-x-close-review.md"].SourceUntracked {
+		t.Errorf("untracked sidecar move must set SourceUntracked=true: %#v", byBase["000154-x-close-review.md"])
+	}
+	if byBase["000154-x-plan.md"].SourceUntracked {
+		t.Errorf("tracked plan move must keep SourceUntracked=false: %#v", byBase["000154-x-plan.md"])
+	}
+
+	// The staging contract: the untracked sidecar's vanished plans source is NOT
+	// in the add-list (that's the exit-128 pathspec failure this fixes), its
+	// history dest IS; the tracked plan stages both halves.
+	add := strings.Join(archiveAddArgs(moves), " ")
+	sidecarSrc := filepath.Join("plans", "000154-x-close-review.md")
+	if strings.Contains(add, sidecarSrc) {
+		t.Errorf("untracked sidecar source %q must NOT be staged (pathspec would fail):\n%s", sidecarSrc, add)
+	}
+	for _, want := range []string{
+		filepath.Join("history", "000154-x-close-review.md"), // sidecar dest
+		filepath.Join("plans", "000154-x-plan.md"),           // tracked plan src
+		filepath.Join("history", "000154-x-plan.md"),         // tracked plan dest
+	} {
+		if !strings.Contains(add, want) {
+			t.Errorf("archiveAddArgs missing %q:\n%s", want, add)
+		}
+	}
+}
+
+// #154 end-to-end: in a REAL git repo, archive a done issue whose durable plan is
+// committed (tracked) but whose review sidecar is untracked — exactly the state
+// `sdlc close` + a FIX-THEN-SHIP fixup leaves. This drives the real `git ls-files`
+// probe (not a fake) through pushRunner, then runs the real `git add`/`commit`
+// that used to die "pathspec did not match" (exit 128). It must complete cleanly.
+func TestArchiveDoneIssues_UntrackedSidecar_RealRepo(t *testing.T) {
+	hermeticRepo(t) // real repo, chdir'd in; pushRunner (execGitRunner) runs here
+	issues, history, plans := "workshop/issues", "workshop/history", "workshop/plans"
+	mkArtifact(t, filepath.Join(issues, "000154-x.md"), "---\nid: 154\nstatus: done\n---\n\n# x\n")
+	mkArtifact(t, filepath.Join(plans, "000154-x-plan.md"), "durable plan")
+	// Commit the issue + durable plan → they are tracked at archive time.
+	if out, err := pushRunner.Git("add", "--", filepath.Join(issues, "000154-x.md"), filepath.Join(plans, "000154-x-plan.md")); err != nil {
+		t.Fatalf("git add seed: %v\n%s", err, out)
+	}
+	if out, err := pushRunner.Git("commit", "-m", "seed"); err != nil {
+		t.Fatalf("git commit seed: %v\n%s", err, out)
+	}
+	// The review sidecar exists on disk but was never committed → untracked.
+	mkArtifact(t, filepath.Join(plans, "000154-x-close-review.md"), "untracked sidecar")
+
+	var stderr bytes.Buffer
+	moves, err := archiveDoneIssues(&stderr, "", issues, history, plans)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moves) != 3 {
+		t.Fatalf("want 3 moves (issue + plan + sidecar), got %d: %#v", len(moves), moves)
+	}
+	// The untracked sidecar move must be flagged so its vanished source is not staged.
+	var sawUntrackedSidecar bool
+	for _, m := range moves {
+		if filepath.Base(m.IssuePath) == "000154-x-close-review.md" {
+			sawUntrackedSidecar = m.SourceUntracked
+		}
+	}
+	if !sawUntrackedSidecar {
+		t.Errorf("real untracked sidecar must set SourceUntracked=true: %#v", moves)
+	}
+
+	// The real archive git-add + commit — this is what failed with exit 128 before.
+	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
+		t.Fatalf("archive git add died (the #154 bug): %v\n%s", gerr, out)
+	}
+	if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
+		t.Fatalf("archive commit failed: %v\n%s", gerr, out)
+	}
+	// Clean worktree + all three files tracked in history, none left in plans/issues.
+	if out, _ := pushRunner.Git("status", "--porcelain"); strings.TrimSpace(string(out)) != "" {
+		t.Errorf("worktree not clean after archive — half-archived state (#154):\n%s", out)
+	}
+	for _, name := range []string{"000154-x.md", "000154-x-plan.md", "000154-x-close-review.md"} {
+		if out, gerr := pushRunner.Git("ls-files", "--error-unmatch", "--", filepath.Join(history, name)); gerr != nil {
+			t.Errorf("%s should be tracked in history after archive: %v\n%s", name, gerr, out)
+		}
+	}
+}
+
 func TestArchivePlanArtifacts_NoPlanIsNoOp(t *testing.T) {
 	tmp := t.TempDir()
 	plans := filepath.Join(tmp, "plans")
 	if err := os.MkdirAll(plans, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	moves, err := archivePlanArtifacts("000143-x.md", plans, filepath.Join(tmp, "history"), "plans", "history")
+	moves, err := archivePlanArtifacts("000143-x.md", plans, filepath.Join(tmp, "history"), "plans", "history", trackedProbe)
 	if err != nil {
 		t.Fatalf("a no-plan issue must not error: %v", err)
 	}

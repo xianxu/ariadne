@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-05
-estimate_hours:
+estimate_hours: 0.53
 started: 2026-07-05T22:54:11-07:00
 ---
 
@@ -93,12 +93,43 @@ stay path-scoped, just not add a vanished untracked source path.
   (`archiveAddArgs` / `preparedArchiveMoves`). Fake the tracked-vs-untracked
   probe so the git IO is injected.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module    design=0.1 impl=0.2
+item: milestone-review     design=0.0 impl=0.2
+design-buffer: 0.30
+total: 0.53
+```
+
 ## Plan
 
-- [ ] In the archive step of `sdlc merge`/`push`, stage the review sidecar even when it
-      is untracked (e.g. `git add -A <sidecar path>` / stage the moved path after the
-      rename) so the archive-to-history commit doesn't die with "pathspec did not match".
-      Add a regression test that archives with an untracked sidecar present.
+Design (decided at plan time — Option A from Spec, "add destination always; add
+source only if tracked"):
+
+- Add `SourceUntracked bool` to `preparedArchiveMove` (`push.go`). Default `false`
+  = "add both paths" → **every existing move site is behavior-preserved with zero
+  edits** (issue-file moves, recovery moves — all always carry a tracked source).
+- `archiveAddArgs` stages `IssuePath` only when `!SourceUntracked`; `HistoryPath`
+  is always staged (the moved file physically exists at its new path). Keeps the
+  precise-path, no-broad-`add <dir>/` discipline (#80).
+- Only plan sidecars can be untracked, so the probe is confined to
+  `archivePlanArtifacts`: inject an `untracked func(recPath string) bool` (thin IO
+  seam, ARCH-PURE) that runs `git ls-files -- <recPath>` in the caller's git dir
+  (empty ⇒ untracked). Conservative: on git error → treat as tracked (preserve old
+  behavior). Push passes a `pushRunner.Git`-backed probe; merge a
+  `mergeRunner.GitInDir(mainPath, …)`-backed probe (each resolves the recorded,
+  git-relative path in the right worktree).
+
+Verified empirically: `git add -- <vanished-untracked-src> <dest>` → exit 128
+"pathspec did not match" (the bug); `git add -- <dest>` alone → OK.
+
+- [x] Add `SourceUntracked` field + probe injection; make `archiveAddArgs` omit an
+      untracked source from the add-list. Pure-seam table test on `archiveAddArgs`
+      (untracked move → dest only; tracked → both) with the git probe faked, plus a
+      regression covering `archivePlanArtifacts` archiving an untracked sidecar.
 
 ## Log
 
@@ -112,3 +143,45 @@ failed, recovered by hand each time. Suspect seam: `archivePlanArtifacts`
 Symmetric to #148 (another `sdlc merge` edge that "silently did the wrong thing"),
 though this one fails loud (exit 128) rather than silent — still leaves main in a
 half-state a form-gate should prevent.
+
+### 2026-07-05 — implemented (Option A)
+
+Shipped the minimal targeted fix:
+
+- `preparedArchiveMove` gains `SourceUntracked bool` (default `false` = pre-#154
+  "stage both halves" → every existing move site — issue files, durable plans,
+  recovery moves — is behavior-preserved with zero edits).
+- `archiveAddArgs` stages `IssuePath` only when `!SourceUntracked`; `HistoryPath`
+  always (the moved file physically exists at its new path). Keeps the precise,
+  no-`add <dir>/` discipline (#80).
+- Only plan sidecars can be untracked, so the probe is confined to
+  `archivePlanArtifacts`, which gains an injected `srcUntracked func(recPath) bool`
+  (ARCH-PURE — the git IO stays a thin, faked-in-tests seam). Backed by the shared
+  `gitSrcUntracked` builder: `git ls-files -- <recPath>` empty ⇒ untracked; on any
+  git error ⇒ treat as tracked (conservative — never drop a real deletion). Push
+  passes a `pushRunner.Git` probe (cwd); merge a `mergeRunner.GitInDir(mainPath,…)`
+  probe (main worktree). The recovery path (`preparedArchiveMoves`) is untouched:
+  it only forms a move on a *staged deletion*, so its sources are inherently
+  tracked — confirmed by the plan-quality judge.
+
+**Verification (behavior diff vs main, not just green tests):**
+
+- `TestArchiveDoneIssues_UntrackedSidecar_RealRepo` — end-to-end in a *real* git
+  repo (`hermeticRepo`): commits an issue + durable plan, leaves the review
+  sidecar untracked, runs the real `archiveDoneIssues` → real `git ls-files`
+  probe → real `git add`/`commit`. Passes; worktree ends clean, all three files
+  tracked in `history/`.
+- **Proved it catches the bug:** temporarily reverting the `archiveAddArgs` guard
+  (always add `IssuePath`) makes that same test fail with the exact production
+  symptom — `exit status 128 / fatal: pathspec 'workshop/plans/000154-x-close-review.md'
+  did not match any files`. Restored; test green again.
+- Pure-seam unit tests: `TestArchiveAddArgs` (untracked → dest only; mixed →
+  tracked stages both, untracked dest only), `TestGitSrcUntracked` (empty→untracked,
+  echoed→tracked, git-error→tracked), `TestArchivePlanArtifacts_UntrackedSidecarStagesDestOnly`
+  (faked probe; asserts index-based, not `os.Stat`, classification).
+- Full `go test ./cmd/sdlc/` green (18.9s); `go build ./...`, `go vet`, `gofmt`
+  clean. Incidental: `gofmt -w` corrected a pre-existing whitespace realignment in
+  `merge.go`'s `mergeAction` const block (latent drift on main, unrelated to #154).
+
+Atlas: updated `atlas/workflow/sdlc-binary.md` "sdlc push archive recovery" with
+the untracked-sidecar seam.

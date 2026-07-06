@@ -218,6 +218,13 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 type preparedArchiveMove struct {
 	IssuePath   string
 	HistoryPath string
+	// SourceUntracked marks a move whose source was untracked at archive time
+	// (a not-yet-committed review sidecar, #154). After the rename its old path
+	// has no worktree file AND no index entry, so `git add <IssuePath>` would die
+	// with "pathspec did not match" — stage only HistoryPath for these. Default
+	// false = tracked source (issue files, durable plans, recovery moves): stage
+	// the source deletion + the history addition, exactly as before.
+	SourceUntracked bool
 }
 
 // archiveAddArgs builds the precise `git add` argument list that stages exactly
@@ -230,7 +237,14 @@ type preparedArchiveMove struct {
 func archiveAddArgs(moves []preparedArchiveMove) []string {
 	args := []string{"add", "--"}
 	for _, m := range moves {
-		args = append(args, m.IssuePath, m.HistoryPath)
+		// The source path stages a deletion — only meaningful when the source was
+		// tracked. An untracked source (#154) simply vanished at the rename; adding
+		// its pre-move path would fail "pathspec did not match". Stage the moved
+		// file at its new location either way.
+		if !m.SourceUntracked {
+			args = append(args, m.IssuePath)
+		}
+		args = append(args, m.HistoryPath)
 	}
 	return args
 }
@@ -260,7 +274,15 @@ func issueIDPrefix(name string) string {
 // differ from *Full only on the merge path, which renames under mainPath but
 // records mainPath-relative paths). An issue with no plan → zero moves, no error
 // (the glob simply matches nothing). One mover, both archive callers (ARCH-DRY).
-func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHistoryDir string) ([]preparedArchiveMove, error) {
+//
+// srcUntracked is the injected IO seam (ARCH-PURE): given a move's recorded
+// (git-relative) source path, it reports whether that path was untracked at
+// archive time — a review sidecar `sdlc close` created but no commit staged
+// reaches here untracked (#154). The caller backs it with `git ls-files` in the
+// right worktree (cwd for push, mainPath for merge); a nil probe means "assume
+// tracked" (the pre-#154 behavior). The probe is consulted before the rename so
+// it observes the source at its original path.
+func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHistoryDir string, srcUntracked func(recPath string) bool) ([]preparedArchiveMove, error) {
 	id := issueIDPrefix(issueBase)
 	if id == "" {
 		return nil, nil
@@ -277,15 +299,31 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 	for _, p := range matches {
 		base := filepath.Base(p)
 		dest := filepath.Join(historyFull, base)
+		recSrc := filepath.Join(recPlansDir, base)
+		untracked := srcUntracked != nil && srcUntracked(recSrc)
 		if err := os.Rename(p, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
 		}
 		moves = append(moves, preparedArchiveMove{
-			IssuePath:   filepath.Join(recPlansDir, base),
-			HistoryPath: filepath.Join(recHistoryDir, base),
+			IssuePath:       recSrc,
+			HistoryPath:     filepath.Join(recHistoryDir, base),
+			SourceUntracked: untracked,
 		})
 	}
 	return moves, nil
+}
+
+// gitSrcUntracked builds the archivePlanArtifacts source-trackedness probe (#154)
+// from a git invoker (pushRunner.Git in cwd, or a mergeRunner.GitInDir(mainPath,…)
+// closure). It reports a recorded source path as untracked iff `git ls-files`
+// cleanly returns no index entry for it (empty output, no error). On any git
+// error it returns false — treat the source as tracked and stage its deletion,
+// preserving the pre-#154 behavior rather than risk dropping a real deletion.
+func gitSrcUntracked(git func(args ...string) ([]byte, error)) func(string) bool {
+	return func(recPath string) bool {
+		out, err := git("ls-files", "--", recPath)
+		return err == nil && strings.TrimSpace(string(out)) == ""
+	}
 }
 
 // isPlanPath reports whether path is a plan artifact directly under plansDir
@@ -583,7 +621,9 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir s
 		}
 		moves = append(moves, preparedArchiveMove{IssuePath: p, HistoryPath: dest})
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
-		planMoves, perr := archivePlanArtifacts(filepath.Base(p), plansDir, historyDir, plansDir, historyDir)
+		// An untracked sidecar (#154) stages only its history dest, not a vanished
+		// source path — probe via `git ls-files` in cwd.
+		planMoves, perr := archivePlanArtifacts(filepath.Base(p), plansDir, historyDir, plansDir, historyDir, gitSrcUntracked(pushRunner.Git))
 		if perr != nil {
 			return moves, perr
 		}
