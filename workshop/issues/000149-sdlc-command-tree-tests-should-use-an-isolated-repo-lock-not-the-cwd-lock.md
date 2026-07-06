@@ -88,11 +88,11 @@ Root cause (verified): `repoLockGitCommonDir()` (`repolock.go:115`) resolves the
 common dir via `git rev-parse` from cwd → the REAL repo when a test doesn't isolate.
 Single-pass. Fixes #149 + folds #165.
 
-- [ ] Pure guard core: `repoSnapshot` + `snapshotDiff(before,after)` (new-mutations-only; pre-existing untracked ignored) — unit-tested (TDD).
-- [ ] `TestMain(m)` in `cmd/sdlc`: snapshot the real repo (HEAD/branch/porcelain/`.git/sdlc.lock`) resolved from the initial cwd, before+after `m.Run()`; fail on any new mutation. Run the suite → it surfaces the offenders.
-- [ ] Isolate the surfaced offenders (`TestSetStatusAlias_BothPathsMutate` + peers) into an inited temp git repo (chdir, mirror `closereview_test`) so the lock resolves to the temp `.git`. Shared `hermeticRepo(t)` helper if ≥2.
-- [ ] Prove the guard fires (pure `guardVerdict` decision test; optional env-gated live variant).
-- [ ] Build + `go test ./...` green + guard passes; #149 acceptance (lock resolves temp-rooted); atlas; close (note #165 delivered).
+- [x] Pure guard core: `repoSnapshot` + `snapshotDiff` (new-mutations-only) + `guardVerdict` — unit-tested (`TestSnapshotDiff`, `TestGuardVerdict`).
+- [x] `TestMain(m)` in `cmd/sdlc`: snapshots the real repo (HEAD/branch/porcelain/`.git/sdlc.lock`) from the initial cwd, before+after `m.Run()`; fails a passing run that left durable damage.
+- [x] Isolate the lock offender: `hermeticRepo(t)` + chdir in `TestSetStatusAlias_BothPathsMutate`. (Sole offender — inspection: other `buildRoot().Execute()` tests are read-only or chdir'd; `issue new` tests call `runIssueNew` directly; `NewCloseCmd` isn't lock-wrapped.)
+- [x] Guard-fires proof: `TestGuardVerdict` (pure decision) — fires on passing+mutation, doesn't mask a failing run.
+- [x] `go build/vet/test ./...` green + guard 0 false-fires; acceptance `TestRepoLock_IsolatedFromRealRepo` (lock never resolves under the real checkout); atlas; close (#165 delivered).
 
 ## Log
 
@@ -101,3 +101,15 @@ Single-pass. Fixes #149 + folds #165.
 - Filed from the #140 close boundary review (SHIP), "test-hygiene backlog" note:
   `buildRoot().Execute()` tests grab the real cwd repo lock, so the suite hangs
   when a live `sdlc` (here `sdlc close --issue 140`, pid 82204) holds it.
+
+### 2026-07-05 (implemented)
+
+change-code plan-quality **CLEAN**; estimate INFO (advisory). Implemented + verified:
+`go build/vet/test ./...` — all packages green; the new `cmd/sdlc` `TestMain` guard
+0 false-fires and the real repo is unchanged across the run. Root cause confirmed
+(`repoLockGitCommonDir` resolves the common dir from cwd → the real repo). Sole lock
+offender was `TestSetStatusAlias_BothPathsMutate` (the issue's "and peers" was
+speculative — verified the other `buildRoot().Execute()` tests are read-only or
+already chdir'd, `issue new` tests bypass the wrapper, `NewCloseCmd` isn't wrapped).
+**#165 delivered here**: its Done-when (a TestMain that fails on real-repo mutation)
+is met by the guard, whose `snapshotDiff` also flags a leaked `.git/sdlc.lock`.
