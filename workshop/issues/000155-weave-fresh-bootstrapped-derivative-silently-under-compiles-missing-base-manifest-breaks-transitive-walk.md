@@ -1,11 +1,12 @@
 ---
 id: 000155
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-01
-updated: 2026-07-01
+updated: 2026-07-06
 estimate_hours:
+started: 2026-07-06T10:00:21-07:00
 ---
 
 # weave: fresh-bootstrapped derivative silently under-compiles (missing base.manifest breaks transitive walk)
