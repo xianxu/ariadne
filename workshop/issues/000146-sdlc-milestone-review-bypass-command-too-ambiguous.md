@@ -1,11 +1,12 @@
 ---
 id: 000146
-status: working
+status: codecomplete
 deps: []
 created: 2026-06-30
 updated: 2026-07-05
 started: 2026-07-05T16:28:52-07:00
 estimate_hours: 0.53
+actual_hours: 1.35
 ---
 
 # sdlc milestone review bypass command too ambiguous
@@ -22,8 +23,8 @@ let's start with checking what does th `sdlc close` verb do, and then systematic
   (explicit skip).
 - The milestone close's actual/verified gate re-run hints suggest `sdlc
   milestone-close …`, never `sdlc close --milestone …` (the misdirection is gone).
-- `milestone-close`'s in-process mechanical close (via `runClose` with a milestone
-  set) is unchanged — it is the ONLY caller of the milestone-close mechanics.
+- `milestone-close`'s mechanical close (via `computeClose` directly — #139's
+  compute→review→finalize, NOT `runClose`) is unchanged.
 - Docs updated: `helptext/close.md`, `helptext/milestone-close.md`,
   `milestoneclose.go` doc comment, and the base-layer `AGENTS.base.md` (`[--milestone
   Mx]` dropped from the close example — propagates downstream).
@@ -112,6 +113,7 @@ Single-pass (no `Mx` — one `sdlc close`).
 Filed: agent used `sdlc close --milestone Mx` instead of `sdlc milestone-close`.
 
 ### 2026-07-05
+- 2026-07-05: closed — go build/vet/test ./... — 25 pkgs, 0 failures. Removed the unlabeled close --milestone no-review bypass: runCloseWithReview refuses a milestone with a returnable-error redirect to `sdlc milestone-close` (reviewed) / `--no-judge` (labeled skip); flag hidden. E2E: `sdlc close --issue 999 --milestone M1` refuses (before issue-existence); `close --help` FLAGS drops --milestone; no `close --milestone` in helptext/AGENTS.base.md/entry files (make weave recomposed). Hints (explainActual/explainVerified) point at milestone-close via pure rerunCmd+closeVerb. milestone-close mechanics unchanged (in-process runClose; repurposed guard test asserts the refusal). Prior close-review verdict was spuriously "unknown" (empty review body — transient dispatch failure), now retried.; review verdict: FIX-THEN-SHIP
 
 Investigated the verb/escape-hatch contour (Explore digest + direct read).
 Confirmed the bug is real and precise (`close.go:781-787` short-circuit skips the

@@ -651,10 +651,13 @@ func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
 	cok(stderr, "done — review with `git diff`, then commit")
 }
 
-// runClose is the eager wrapper (compute → dry-run-or-apply) — the exact behavior
-// its non-review callers depend on: milestone-close's in-process mechanical step
-// (runClose with the milestone set) and direct callers. (#146 removed the public
-// `sdlc close --milestone` short-circuit; runCloseWithReview now refuses it.)
+// runClose is the eager compute→dry-run-or-apply wrapper. Since #139 the two
+// production close paths finalize AFTER their review (compute → review → apply),
+// so neither calls runClose: runCloseWithReview (whole-issue) and runMilestoneClose
+// both drive computeClose/applyClose directly. #146 then removed the last
+// production caller (the `sdlc close --milestone` short-circuit — runCloseWithReview
+// now refuses it). runClose survives as the test-only convenience that bundles the
+// mechanical close without a review (close_test.go / close_ledger_test.go).
 func runClose(stderr io.Writer, f *closeFlags) error {
 	r := computeClose(stderr, f)
 	if f.DryRun {
@@ -787,7 +790,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	// refuse with a redirect. Returnable error, NOT die() — die()→os.Exit would kill
 	// the test binary; runCloseWithReview returns error under SilenceErrors, so
 	// main.go prints it. The mechanical milestone close still lives in
-	// runClose(Milestone=…), which milestone-close calls in-process (unaffected).
+	// computeClose (which milestone-close calls directly, then reviews + finalizes).
 	if f.Milestone != "" {
 		return fmt.Errorf(
 			"`sdlc close` no longer closes milestones (it would skip the boundary review).\n"+

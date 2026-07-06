@@ -78,6 +78,7 @@ USAGE
 
 RELATED
 
-  sdlc close             same close logic without milestone-review auto-dispatch
+  sdlc close             whole-issue close (auto-dispatches the end-of-issue
+                         boundary review; refuses --milestone — #146)
   sdlc judge milestone-review --base SHA --head HEAD
                          manual milestone-review invocation for ad-hoc windows

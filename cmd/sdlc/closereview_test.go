@@ -246,11 +246,11 @@ func readIssue(t *testing.T, issuesDir string) string {
 	return string(data)
 }
 
-// #69 guard: a milestone close routed through runClose (as milestone-close does)
-// must be REFUSED (#146): the no-review `close --milestone` path was removed, so
-// runCloseWithReview redirects a milestone to `sdlc milestone-close` and dispatches
-// nothing. The "exactly one review per boundary" invariant this used to guard is
-// now structural — milestone-close never routes through runCloseWithReview.
+// #69 guard: a milestone passed to runCloseWithReview must be REFUSED (#146) — the
+// no-review `close --milestone` path was removed, so runCloseWithReview redirects a
+// milestone to `sdlc milestone-close` and dispatches nothing. The "exactly one
+// review per boundary" invariant this used to guard is now structural —
+// milestone-close computes + reviews via computeClose, never runCloseWithReview.
 func TestRunCloseWithReview_MilestoneRefuses(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	calls, _ := stubJudge(t, "VERDICT: SHIP\n")

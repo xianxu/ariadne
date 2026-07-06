@@ -109,7 +109,8 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
 	}
 
-	// Step 1: delegate the mechanical close to runClose.
+	// Step 1: build the closeFlags for the mechanical close (computed below via
+	// computeClose — #139's compute→review→finalize; NOT runClose, which is test-only).
 	closeF := &closeFlags{
 		Issue:         f.Issue,
 		Milestone:     f.Milestone,

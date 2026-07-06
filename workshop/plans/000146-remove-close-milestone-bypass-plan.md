@@ -249,6 +249,35 @@ The `#69` one-review-per-boundary invariant this test used to guard is now *stru
 
 ---
 
+## Revisions
+
+### 2026-07-05 — close-boundary review (FIX-THEN-SHIP) fixes
+
+Boundary review at close surfaced two things the plan's shadow-sweep missed:
+
+1. **[Important] `helptext/milestone-close.md`'s RELATED section** (line ~81) still
+   read `sdlc close  same close logic without milestone-review auto-dispatch` —
+   false post-#146 (close refuses `--milestone`; a whole-issue close *does*
+   auto-dispatch). Task 4 enumerated this file but only line ~8; the bottom
+   cross-ref slipped through. Fixed. **Lesson:** a doc shadow-sweep must cover a
+   file's cross-reference/RELATED/"see also" sections, not just the primary prose.
+
+2. **[Minor] Stale call-graph in comments + Done-when.** The plan asserted
+   "milestone-close calls `runClose` in-process." Since #139, milestone-close calls
+   `computeClose` directly (compute→review→finalize); with the `close --milestone`
+   short-circuit removed, **`runClose` now has zero production callers** (test-only).
+   The safety conclusion (milestone-close unaffected) held, but via `computeClose`.
+   Corrected the comments (`close.go`, `milestoneclose.go`, `closereview_test.go`)
+   and the issue Done-when. Left `runClose` in place as the test-only mechanical-
+   close helper (deletion = separable future cleanup, not this issue's scope).
+
+Also: Task 5's `grep -c -- '--milestone Mx' → 0` check was imprecise — the corrected
+`sdlc milestone-close --issue N --milestone Mx` text legitimately contains that
+substring. The real invariant is **no `close --milestone`** (verified: `grep -rn
+'close --milestone'` → none in helptext/AGENTS.base.md/entry files).
+
+---
+
 ## Task 5: Build, test, verify, atlas, close
 
 - [ ] **Step 1: Build + vet** — `go build ./... && go vet ./...` clean.
