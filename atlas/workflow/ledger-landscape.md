@@ -47,8 +47,8 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 - *Known limit (#118):* span matching is **per-transcript-file** — a subagent run whose dispatch and return straddle a session-compaction boundary (dispatch in file A, return in file B) is not paired, so that gap truncates at 15 min. Forward-looking only (all historical spans were within-file and sub-cap); when long delegated runs routinely cross files, aggregate the pending-dispatch map across files in `loadEvents`.
 
 **"What's the current convention for human-machine markdown markers?"**
-- *Authoritative:* the target file (`workshop/targets/review-convention.md`). Targets are commitments.
-- *Reference:* atlas may point to the target.
+- *Authoritative:* `review-convention.md` bundled in the `xx-fix` skill dir (`construct/local/fix/review-convention.md`), reachable in **every** repo via the neutral Agent Skills path `.agents/skills/xx-fix/review-convention.md` (#158). It rides the skill symlink into derivatives, unlike a `workshop/targets/` file which is ariadne-only.
+- *Reference:* `AGENTS.base.md §1` points at that path; atlas may too.
 
 **"What was the operator thinking when they proposed this feature?"**
 - *Primary:* the pensive or parley file that crystallized into the issue.

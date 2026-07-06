@@ -93,3 +93,5 @@ Resolution collapses a marker into its final text:
 ### 6. Agentic resolution (Claude Code / xx-fix)
 
 When the operator asks an agent to resolve outstanding markers ("we're aligned, please resolve"), the agent walks each chain and reads the *last* commentary block — typically the trailing `[H]` if there's no further robot reply — interprets it as accept or reject, and applies §5. The agent does not unilaterally resolve markers the operator hasn't acknowledged; resolution is always operator-initiated.
+
+One case *is* operator-initiated the moment it's written: a `🤖[H]` the operator authored **as a question or instruction directed at the agent** (per `AGENTS.base.md §1`). That marker is itself the operator's ask, so the agent answers it and resolves it in place *that same turn* — folding the answer into the prose and dropping the marker. This is not unilateral resolution of an unacknowledged marker; the operator's authored `[H]` *is* the acknowledgment.

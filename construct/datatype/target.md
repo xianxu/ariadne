@@ -75,7 +75,7 @@ Targets transition on *intent* boundaries, not execution states:
 
 ## Agent ↔ human inline-marker convention
 
-Targets are human-centric documents — the operator must fully understand and own the content. Agent contributions go in via inline `🤖{...}` / `🤖~X~` / `🤖<X>[H]` markers, never as direct edits to the operator's prose. The full grammar (markers, combinations, `Alt+q` / `Alt+a` / `Alt+r` resolution semantics, agentic resolution flow) is specified in [`workshop/targets/review-convention.md`](../../workshop/targets/review-convention.md). Direct overwrites of operator prose are a discipline failure.
+Targets are human-centric documents — the operator must fully understand and own the content. Agent contributions go in via inline `🤖{...}` / `🤖~X~` / `🤖<X>[H]` markers, never as direct edits to the operator's prose. The full grammar (markers, combinations, `Alt+q` / `Alt+a` / `Alt+r` resolution semantics, agentic resolution flow) is specified in [`.agents/skills/xx-fix/review-convention.md`](../../.agents/skills/xx-fix/review-convention.md) — the agent-agnostic path that resolves in every woven repo (mirrors the `AGENTS.base.md §1` reference). Direct overwrites of operator prose are a discipline failure.
 
 ## Authoring instructions
 
