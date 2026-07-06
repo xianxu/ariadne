@@ -1,15 +1,15 @@
 // milestoneclose.go — `sdlc milestone-close` subcommand.
 //
-// Thin wrapper over `sdlc close --milestone Mx` that adds the
-// AGENTS.md §3 mandatory post-milestone code review as an auto-dispatched
-// follow-on: after the milestone close completes, fires the one binary-owned
-// boundary review (dispatchBoundaryReview, shared with `sdlc close` since #69)
-// against the commit window for the milestone.
+// THE milestone close: runs the mechanical close (via computeClose with the
+// milestone set, then applyClose — #139) and adds the AGENTS.md §3 mandatory post-milestone
+// code review as an auto-dispatched follow-on — after the close completes, fires
+// the one binary-owned boundary review (dispatchBoundaryReview, shared with
+// `sdlc close` since #69) against the commit window for the milestone.
 //
-// Promotes milestone close from "a flag on close" to its own verb so the
-// auto-dispatch is implicit. `sdlc close --milestone Mx` still works
-// (operators may want it without the auto-judge), but the canonical
-// closing flow is `sdlc milestone-close`.
+// #146: `sdlc close --milestone Mx` used to be the "flag on close" spelling that
+// ran the mechanical close WITHOUT the review — a redundant, unlabeled bypass. It
+// was removed (close refuses --milestone and redirects here). To close a milestone
+// without the review, use the self-labeling `sdlc milestone-close --no-judge`.
 package main
 
 import (
@@ -43,7 +43,7 @@ type milestoneCloseFlags struct {
 	BrainDir      string
 	IssuesDir     string
 
-	// Per-gate close bypasses (#67), threaded into the delegated runClose.
+	// Per-gate close bypasses (#67), threaded into the delegated computeClose.
 	NoActual    bool
 	NoVerified  bool
 	NoReclose   bool
@@ -87,7 +87,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass ALL close gates (≡ every --no-* flag); reason in --verified")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "plan only; do not write or dispatch judge")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the auto-dispatched milestone-review")
-	// Per-gate close bypasses (#67) — forwarded to runClose; --force waives all.
+	// Per-gate close bypasses (#67) — forwarded to computeClose; --force waives all.
 	cmd.Flags().BoolVar(&f.NoActual, "no-actual", false, "record actual_hours: N/A on issue close / skip actual on milestone close")
 	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement")
 	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal")
@@ -109,7 +109,8 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
 	}
 
-	// Step 1: delegate the mechanical close to runClose.
+	// Step 1: build the closeFlags for the mechanical close (computed below via
+	// computeClose — #139's compute→review→finalize; NOT runClose, which is test-only).
 	closeF := &closeFlags{
 		Issue:         f.Issue,
 		Milestone:     f.Milestone,
@@ -365,9 +366,9 @@ func emitTrailerBlock(stdout io.Writer, r reviewResult, kind string) {
 // this milestone. Idempotent: if the line already carries a verdict
 // suffix (re-run case), it's left alone.
 //
-// Why post-mutation rather than threading the verdict through runClose:
-// runClose runs before the judge has a verdict to record. The cleanest
-// seam is to let runClose own its log-line shape and let milestone-close
+// Why post-mutation rather than threading the verdict through the mechanical close:
+// computeClose/applyClose run before the judge has a verdict to record. The cleanest
+// seam is to let the mechanical close own its log-line shape and let milestone-close
 // extend it afterwards. The cost is one extra file read+write; the
 // benefit is that close.go doesn't grow a verdict-aware code path that
 // only ever fires from this wrapper.

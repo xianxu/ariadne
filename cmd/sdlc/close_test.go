@@ -13,6 +13,37 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
+// TestCloseVerb: the mode→verb mapping is single-sourced (#146). A milestone tag
+// selects `sdlc milestone-close`; empty selects the whole-issue `sdlc close`.
+func TestCloseVerb(t *testing.T) {
+	if got := closeVerb(""); got != "sdlc close" {
+		t.Errorf(`closeVerb("") = %q, want "sdlc close"`, got)
+	}
+	if got := closeVerb("M2"); got != "sdlc milestone-close" {
+		t.Errorf(`closeVerb("M2") = %q, want "sdlc milestone-close"`, got)
+	}
+}
+
+// TestRerunCmd: a close gate refusal re-run hint must pick the verb by mode — a
+// milestone points at `sdlc milestone-close`, NEVER the removed `close --milestone`
+// bypass (#146). The whole-issue form stays `sdlc close`.
+func TestRerunCmd(t *testing.T) {
+	ms := rerunCmd("31", "M4", " --actual <hours>")
+	if !strings.Contains(ms, "sdlc milestone-close --issue 31 --milestone M4") {
+		t.Errorf("milestone re-run should use milestone-close; got: %s", ms)
+	}
+	if strings.Contains(ms, "sdlc close --issue 31 --milestone") {
+		t.Errorf("milestone re-run must NOT suggest the removed close --milestone path: %s", ms)
+	}
+	issueForm := rerunCmd("31", "", " --actual 2.5")
+	if !strings.HasPrefix(issueForm, "sdlc close --issue 31 --actual 2.5 --verified") {
+		t.Errorf("whole-issue re-run shape wrong: %s", issueForm)
+	}
+	if strings.Contains(issueForm, "--milestone") {
+		t.Errorf("whole-issue re-run must not carry --milestone: %s", issueForm)
+	}
+}
+
 // ── #67: per-gate --no-<gate> bypass flags ───────────────────────────────────
 
 // TestCloseFlags_Skip pins the skip() contract: --force waives EVERY gate, while
@@ -78,6 +109,30 @@ func TestCloseCmd_Registered(t *testing.T) {
 		if cmd.Flags().Lookup(flag) == nil {
 			t.Errorf("close command missing flag: --%s", flag)
 		}
+	}
+}
+
+// TestClose_MilestoneRefusesWithRedirect: the close command still parses the
+// (now hidden, deprecated) --milestone flag, but refuses it with a redirect to
+// milestone-close rather than silently doing a no-review milestone close (#146).
+func TestClose_MilestoneRefusesWithRedirect(t *testing.T) {
+	cmd := NewCloseCmd()
+	f := cmd.Flags().Lookup("milestone")
+	if f == nil {
+		t.Fatal("--milestone should still parse (hidden), to give a friendly refusal not `unknown flag`")
+	}
+	if !f.Hidden {
+		t.Error("--milestone should be hidden from `close --help` (#146)")
+	}
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--issue", "31", "--milestone", "M4", "--actual", "1", "--verified", "x"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("close --milestone should refuse")
+	}
+	if !strings.Contains(err.Error(), "milestone-close") {
+		t.Errorf("refusal should redirect to milestone-close; got: %v", err)
 	}
 }
 

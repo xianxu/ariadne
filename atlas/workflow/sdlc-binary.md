@@ -37,7 +37,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `push`            | `make push`                 | Direct-on-main ship + the #124 instance-conformance gate (`--no-validate`) + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + the #124 instance-conformance gate (`--no-validate`) + cleanup + irreversible-action confirm (#51) |
-| `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69) |
+| `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
@@ -287,7 +287,8 @@ review), each with its own `--no-<gate>` flag (`--no-actual`, `--no-verified`,
 per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
 pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires
 when the gate would actually have refused. `--force` waives all at once.
-`milestone-close` forwards the same flags into its delegated `runClose`.
+`milestone-close` forwards the same flags into its delegated `computeClose`
+(the #139 compute→review→finalize; `runClose` is now test-only, #146).
 The convention generalizes `merge`'s pre-existing `--no-judge`.
 
 **Measured actuals (#68, #110).** `--actual` is computed, not hand-typed. `sdlc
@@ -343,7 +344,7 @@ runs the engine and compares (`actualDeviation`, the pure comparator in
 0.5h absolute floor so small gaps don't trip. Skips silently when the engine
 can't measure. Closes the hole where a hand-typed value (the failure #86's docs
 prime against) was trusted blindly — the doc fix removes the priming, this
-removes the blind trust. `milestone-close` inherits it (wraps `runClose`).
+removes the blind trust. `milestone-close` inherits it (computes via `computeClose`).
 
 `push` and `merge` auto-dispatch `judge plan|specs|lessons` as pre-
 flight so the checks run consistently rather than as a remembered
@@ -516,7 +517,7 @@ after scrollback loss or compaction (the path is echoed as `review sidecar: …`
 
 **Window base — prior review boundary (#58).** `boundaryWindowBase`
 (`milestoneclose.go`) is the single source for *both* the atlas-coverage gate
-(`runClose`) and the boundary review's window, so they provably cover the same
+(`computeClose`) and the boundary review's window, so they provably cover the same
 commits (ARCH-DRY). A milestone window bases on the **previous review boundary**
 — the most recent prior commit touching the issue file that carries a
 `Review-Verdict:` trailer (the prior milestone close), found by

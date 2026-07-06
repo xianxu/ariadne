@@ -62,8 +62,8 @@ type closeFlags struct {
 	AgentExplicit bool
 	Mode          string // optional supervision mode (supervised|delegated) for the calibration ledger (#117)
 
-	// Per-gate bypass flags (#67). Each waives exactly ONE of runClose's
-	// guards; --force waives them all. The flag is an explicit acknowledgment
+	// Per-gate bypass flags (#67). Each waives exactly ONE of the close
+	// guards (checked in computeClose); --force waives them all. The flag is an explicit acknowledgment
 	// that the gate doesn't apply here (the rationale belongs in --verified) —
 	// not a way to forget it. See skip().
 	NoActual    bool
@@ -129,7 +129,8 @@ func NewCloseCmd() *cobra.Command {
 	})
 
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (numeric, required)")
-	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag (e.g. M1, M4b); omit for full issue close")
+	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "DEPRECATED (#146) — use `sdlc milestone-close`; passing this to `close` refuses")
+	_ = cmd.Flags().MarkHidden("milestone") // #146: milestone closing moved fully to `sdlc milestone-close`
 	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours (sdlc computes it; see `sdlc actual`)")
 	cmd.Flags().StringVar(&f.Mode, "mode", "", "optional supervision mode for the calibration ledger: supervised | delegated (#117)")
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "one-line evidence the work meets done-when")
@@ -149,7 +150,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
 	// differently-formatted error that conflicts with die()'s red prefix.
-	// Validation lives in runClose so all error formatting flows through
+	// Validation lives in computeClose so all error formatting flows through
 	// one path. SilenceErrors keeps cobra from printing on top of us.
 	cmd.SilenceErrors = true
 	return cmd
@@ -650,9 +651,13 @@ func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
 	cok(stderr, "done — review with `git diff`, then commit")
 }
 
-// runClose is the eager wrapper (compute → dry-run-or-apply) — the exact behavior
-// its non-review callers depend on: milestone-close's mechanical step, the
-// `sdlc close --milestone` short-circuit, and direct callers.
+// runClose is the eager compute→dry-run-or-apply wrapper. Since #139 the two
+// production close paths finalize AFTER their review (compute → review → apply),
+// so neither calls runClose: runCloseWithReview (whole-issue) and runMilestoneClose
+// both drive computeClose/applyClose directly. #146 then removed the last
+// production caller (the `sdlc close --milestone` short-circuit — runCloseWithReview
+// now refuses it). runClose survives as the test-only convenience that bundles the
+// mechanical close without a review (close_test.go / close_ledger_test.go).
 func runClose(stderr io.Writer, f *closeFlags) error {
 	r := computeClose(stderr, f)
 	if f.DryRun {
@@ -770,20 +775,28 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 // whole-issue window (branch-point..HEAD), emits its Review-Verdict trailer, and
 // mirrors the verdict into the close log line.
 //
-// milestone-close does NOT route through here: it calls runClose directly and
-// dispatches its own per-milestone review, so a milestone is never reviewed
-// twice. The guard is structural — only a full-issue close (`f.Milestone == ""`)
+// milestone-close does NOT route through here: it calls computeClose directly
+// (then reviews + finalizes), dispatching its own per-milestone review, so a
+// milestone is never reviewed twice. The guard is structural — only a full-issue close (`f.Milestone == ""`)
 // reaches the dispatch — and is the load-bearing invariant for "exactly one
 // review per boundary". For a no-milestone issue this is the single review the
 // boundary gets (previously it got none from the binary); for a multi-milestone
 // issue it is the end-of-issue integration review (each milestone already
 // reviewed its own slice).
 func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
-	// `sdlc close --milestone` keeps the eager path — its review belongs to
-	// milestone-close (the #69 one-review-per-boundary invariant), so it never
-	// double-reviews here.
+	// #146: `sdlc close --milestone` was a redundant no-review milestone close — it
+	// ran the mechanical close but skipped the boundary review milestone-close
+	// dispatches, with no signal. Removed from the public surface (flag hidden):
+	// refuse with a redirect. Returnable error, NOT die() — die()→os.Exit would kill
+	// the test binary; runCloseWithReview returns error under SilenceErrors, so
+	// main.go prints it. The mechanical milestone close still lives in
+	// computeClose (which milestone-close calls directly, then reviews + finalizes).
 	if f.Milestone != "" {
-		return runClose(stderr, f)
+		return fmt.Errorf(
+			"`sdlc close` no longer closes milestones (it would skip the boundary review).\n"+
+				"  reviewed:       sdlc milestone-close --issue %d --milestone %s\n"+
+				"  explicit skip:  sdlc milestone-close --issue %d --milestone %s --no-judge",
+			f.Issue, f.Milestone, f.Issue, f.Milestone)
 	}
 
 	// Whole-issue close (#139): COMPUTE the close but write nothing yet — the
@@ -857,6 +870,31 @@ func closeVerdictOutcome(v judge.Verdict) closeOutcome {
 	}
 }
 
+// closeVerb returns the sdlc verb that owns a close of this shape — the milestone
+// verb when a milestone tag is set, else the whole-issue close. Single source of
+// the mode→verb mapping (#146), reused by the re-run hints (explainActual /
+// explainVerified) so a gate refusal never suggests the removed `close --milestone`
+// bypass path.
+func closeVerb(milestone string) string {
+	if milestone != "" {
+		return "sdlc milestone-close"
+	}
+	return "sdlc close"
+}
+
+// rerunCmd builds the "Then re-run:" command line printed by a close gate refusal
+// (explainActual / explainVerified). It picks the verb via closeVerb(milestone),
+// so a milestone refusal points at `sdlc milestone-close` — never the removed
+// `close --milestone` bypass (#146). actualArg is the pre-formatted " --actual X"
+// segment (a concrete value or the " --actual <hours>" placeholder). Pure.
+func rerunCmd(issueStr, milestone, actualArg string) string {
+	ms := ""
+	if milestone != "" {
+		ms = " --milestone " + milestone
+	}
+	return fmt.Sprintf("%s --issue %s%s%s --verified '<evidence>'", closeVerb(milestone), issueStr, ms, actualArg)
+}
+
 // reviewThenFinalize dispatches the boundary review for an already-computed close
 // and finalizes ONLY on a finalizing verdict (#139). Shared by full-issue close
 // and milestone-close (annotateLogLineWithVerdict keys on f.Milestone). On REWORK
@@ -865,11 +903,10 @@ func closeVerdictOutcome(v judge.Verdict) closeOutcome {
 func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams) error {
 	review := dispatchBoundaryReview(stdout, stderr, p)
 	kind := "close"
-	verb := "sdlc close"
 	if f.Milestone != "" {
 		kind = "milestone-close"
-		verb = "sdlc milestone-close"
 	}
+	verb := closeVerb(f.Milestone)
 	switch closeVerdictOutcome(review.Verdict) {
 	case closeFinalize:
 		applyClose(stderr, f, r)
@@ -933,13 +970,9 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 	// prose, lifted into the binary. Same engine as `sdlc actual`.
 	printActual(stderr, computeActual(repoTop, brainAbs, issueStr))
 
-	extra := ""
-	if milestone != "" {
-		extra = " --milestone " + milestone
-	}
 	var tail []string
 	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	tail = append(tail, fmt.Sprintf("    sdlc close --issue %s%s --actual <hours> --verified '<evidence>'", issueStr, extra), "")
+	tail = append(tail, "    "+rerunCmd(issueStr, milestone, " --actual <hours>"), "")
 	tail = append(tail, fmt.Sprintf("  (Re-measure anytime: sdlc actual --issue %s)", issueStr))
 	tail = append(tail, "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A and skips calibration.")
 	fmt.Fprintln(stderr, strings.Join(tail, "\n"))
@@ -1036,16 +1069,12 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	lines = append(lines, "    VERIFIED='e2e flow X→Y verified manually'")
 	lines = append(lines, "    VERIFIED='code-review subagent, all Important addressed in <sha>'")
 	lines = append(lines, "    VERIFIED='ran make nous-test-bootstrap, ROUND-TRIP-OK in 2:34'", "")
-	extra := ""
-	if milestone != "" {
-		extra = " --milestone " + milestone
-	}
 	actualArg := " --actual <hours>"
 	if actual != "" {
 		actualArg = " --actual " + actual
 	}
 	lines = append(lines, fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
-	lines = append(lines, fmt.Sprintf("    sdlc close --issue %s%s%s --verified '<evidence>'", issueStr, extra, actualArg), "")
+	lines = append(lines, "    "+rerunCmd(issueStr, milestone, actualArg), "")
 	lines = append(lines, "  Pass --no-verified (or --force) only if there's genuinely no behavior to verify.")
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }

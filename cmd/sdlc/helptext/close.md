@@ -13,9 +13,10 @@ carrying it a trustworthy anchor for that reviewed-HEAD-unchanged invariant.
 MODES
 
   Issue close:      sdlc close --issue 15 --actual 7 --verified '<evidence>'
-  Milestone close:  sdlc close --issue 15 --milestone M4 --actual 2.5 --verified '<evidence>'
+  Milestone close:  sdlc milestone-close --issue 15 --milestone M4 --actual 2.5 --verified '<evidence>'
 
-  (`milestone-close` is also exposed as its own verb; both forms remain valid.)
+  (Milestone closing lives on `sdlc milestone-close` — `close` no longer takes
+   `--milestone` (#146). See `sdlc milestone-close --help`.)
   (The --actual values above are MEASURED — from `sdlc actual` or the omit-then-
    suggest path below — not typed estimates. See the --actual flag note.)
 
@@ -25,9 +26,10 @@ MODES
   is the single review the boundary gets; for a multi-milestone issue it's the
   end-of-issue integration review on top of the per-milestone ones. The agent
   does NOT separately run `superpowers-requesting-code-review` (AGENTS.md §3).
-  Skip with `--no-judge` (records a not-run trailer). A `sdlc close --milestone
-  Mx` does NOT dispatch — that path is the no-auto-judge escape; use
-  `milestone-close` for the reviewed milestone close.
+  Skip with `--no-judge` (records a not-run trailer). Milestone slices are
+  reviewed by `sdlc milestone-close` (per-milestone); to skip THAT review
+  explicitly, use `sdlc milestone-close --no-judge` — `close` no longer has a
+  `--milestone` path to skip it silently (#146).
 
 WHAT THE GUARD DEFENDS
 
@@ -93,7 +95,6 @@ FLAGS
 
   --issue <n>           ariadne workshop issue ID (numeric, zero-pad
                         applied internally; required)
-  --milestone <Mx>      milestone tag; presence selects milestone mode
   --actual <hours>      focused dev-hours (required unless --no-actual/--force)
   --verified '<line>'   one-line behavior evidence (required unless --no-verified/--force)
   --force               bypass ALL gates (≡ every --no-* flag); reason in --verified
@@ -145,7 +146,7 @@ guessed --actual would otherwise sail through. (milestone-close inherits it.)
 
 CALIBRATION LEDGER (#117 — closing the estimate↔actual loop)
 
-  On a full-issue close (no --milestone) with a measured numeric --actual, close
+  On a whole-issue close (not a milestone) with a measured numeric --actual, close
   appends one estimate↔actual row to the calibration ledger (default
   brain/data/life/42shots/velocity/calibration-ledger.tsv; override with
   $WF_CALIB_LEDGER) and flags >2× same-direction drift over the last N unique

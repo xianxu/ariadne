@@ -5,7 +5,7 @@ review into one invocation so neither half is skipped.
 
 WHAT IT DOES
 
-  1. Runs `sdlc close --milestone Mx` semantics:
+  1. Runs the mechanical milestone close:
      - ticks the `- [ ] Mx — ...` item in ## Plan
      - updates the project file's task row + detail block (if any)
      - appends a verification log entry
@@ -78,6 +78,7 @@ USAGE
 
 RELATED
 
-  sdlc close             same close logic without milestone-review auto-dispatch
+  sdlc close             whole-issue close (auto-dispatches the end-of-issue
+                         boundary review; refuses --milestone — #146)
   sdlc judge milestone-review --base SHA --head HEAD
                          manual milestone-review invocation for ad-hoc windows
