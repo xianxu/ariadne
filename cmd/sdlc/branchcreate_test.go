@@ -52,14 +52,16 @@ func TestDecideWorktreeBranch(t *testing.T) {
 // ── porcelain parser + branch filter (#156, single-source grammar) ───────────
 
 func TestParseWorktrees(t *testing.T) {
-	porcelain := "worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\n" +
+	porcelain := "worktree /bare-repo\nbare\n\n" +
+		"worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\n" +
 		"worktree /repo/wt/feat\nHEAD bbb\nbranch refs/heads/000156-feat\n\n" +
 		"worktree /repo/wt/detached\nHEAD ccc\ndetached\n"
 	got := parseWorktrees(porcelain)
-	if len(got) != 3 {
-		t.Fatalf("parseWorktrees returned %d entries, want 3: %+v", len(got), got)
+	if len(got) != 4 {
+		t.Fatalf("parseWorktrees returned %d entries, want 4: %+v", len(got), got)
 	}
 	want := []WorktreeState{
+		{Path: "/bare-repo", Branch: "(bare)"},
 		{Path: "/repo", Branch: "main"},
 		{Path: "/repo/wt/feat", Branch: "000156-feat"},
 		{Path: "/repo/wt/detached", Branch: "(detached)"},

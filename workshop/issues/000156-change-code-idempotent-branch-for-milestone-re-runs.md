@@ -1,12 +1,13 @@
 ---
 id: 000156
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-06
 estimate_hours: 0.68
 started: 2026-07-06T15:08:58-07:00
+actual_hours: 0.59
 ---
 
 # change-code idempotent branch for milestone re-runs
@@ -116,6 +117,7 @@ in a worktree while on the 000153 branch) — this file needs to land on main se
 NOT bundled into #153's PR.
 
 ### 2026-07-06 — implemented (both axes, ARCH-PURE + ARCH-DRY)
+- 2026-07-06: closed — Real-git repro (TestCreateInPlaceBranch_RealRepo_IdempotentRerun via hermeticRepo + execGitRunner): re-run while on the branch → idempotent Already-on; switch to main → re-run → Switched. Forcing old unconditional checkout -b reproduces the exact exit-128 "branch already exists". Pure deciders + parseWorktrees + worktreeForBranch table-tested; six captureRunner wiring tests assert the exact git command per state. ARCH-DRY: parseWorktrees single-sourced, findMainWorktree refolded. Full go test ./cmd/sdlc green; build/vet/gofmt clean.; review verdict: SHIP
 
 Both `createInPlaceBranch` + `createWorktreeBranch` (`cmd/sdlc/branchcreate.go`) are
 now idempotent via a pure-decision seam (mirrors `estimateRefusal`):
@@ -150,3 +152,12 @@ now idempotent via a pure-decision seam (mirrors `estimateRefusal`):
 
 Atlas: `atlas/workflow/sdlc-binary.md` `branchcreate.go` entry — idempotent
 branching + the `parseWorktrees` single-source consolidation.
+
+Boundary review: **SHIP** (high, no Critical/Important). Closed the one flagged
+coverage gap (added a `bare` case to `TestParseWorktrees`). Two other Minors
+acknowledged, not actioned: (a) `createWorktreeBranch`'s `porcelain, _ := r.Git(...)`
+swallows the probe error — reviewer confirmed it degrades safely (empty porcelain →
+addExisting/addNew, and a genuinely-conflicting `worktree add` still errors from
+git); (b) a real-git worktree-*reuse* e2e is future hardening — the worktree axis is
+covered via captureRunner synthetic porcelain + the pure deciders, and a real second
+worktree risks filesystem escape in the test sandbox.
