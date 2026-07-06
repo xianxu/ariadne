@@ -29,6 +29,19 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   edits `go.mod`; the substrate edge comes from `weave link` / `construct/deps`.
 - **Symlink-only** (vendor mode retired); agent-agnostic floor = a system prompt
   + shell, no `.claude/` assumptions in the core.
+- **A present substrate must be a compilable layer (#155)** — `construct/deps`
+  `substrate` rows are layer edges (ParseDeps yields only those), so `layergraph.Walk`
+  ERRORS (loud, actionable, naming the missing file) when a substrate target is
+  present on disk but ships no `construct/base.manifest`. The pre-#155 walk silently
+  skipped it, dropping the whole transitive chain below — a fresh-bootstrapped
+  derivative under-compiled to a 1-action no-op with no signal. An **absent**
+  substrate (peer not checked out) keeps the silent present-skip. The error is the
+  single-source backstop for all three `Walk` consumers (weave, datatype,
+  vocabulary). Companion: **`weave link` seeds** a minimal `construct/base.manifest`
+  (header + `internal prose AGENTS.local.md`, one-source `seededBaseManifest`) in the
+  linking repo when absent (idempotent, never clobbers), so a chain bootstrapped
+  foundation-leafward — each repo seeding its own manifest at link time — compiles
+  fully without any hand-authored manifest.
 
 ## Surface (grows per milestone)
 - `pkg/layergraph` (module-level — imported by BOTH weave AND the `datatype`

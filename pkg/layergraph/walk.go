@@ -1,6 +1,9 @@
 package layergraph
 
-import "path/filepath"
+import (
+	"fmt"
+	"path/filepath"
+)
 
 // Walk discovers the transitive construct/deps layer graph for the repo at root
 // (which must be absolute) and returns its layer roots foundation-first, leaf
@@ -56,7 +59,21 @@ func discoverEdges(fs FS, root string) (map[string][]string, error) {
 				continue // target-self-exclusion
 			}
 			if !hasManifest(fs, dep) {
-				continue // base.manifest-existence filter
+				// A declared `substrate` row is a layer edge (ParseDeps yields only
+				// substrate rows). If its target is PRESENT on disk but ships no
+				// construct/base.manifest, it is a broken layer edge — the old
+				// silent skip dropped the ENTIRE transitive chain below it with no
+				// signal (#155: a fresh-bootstrapped derivative under-compiled to a
+				// 1-action no-op). Fail loud and actionable. An ABSENT target keeps
+				// the silent present-skip (a peer simply not checked out).
+				if pathExists(fs, dep) {
+					return nil, fmt.Errorf(
+						"substrate %s (declared in %s) is present but not a compilable layer: "+
+							"missing %s — seed its base.manifest (`weave link` does this) or fix the construct/deps path",
+						dep, filepath.Join(cur, "construct", "deps"),
+						filepath.Join(dep, "construct", "base.manifest"))
+				}
+				continue // absent peer — present-skip (not checked out)
 			}
 			edges[cur] = append(edges[cur], dep)
 			if !visited[dep] {
@@ -106,6 +123,15 @@ func substrateTargets(fs FS, repoRoot string) ([]string, error) {
 // _seen_or_add layer filter).
 func hasManifest(fs FS, dir string) bool {
 	_, err := fs.Stat(filepath.Join(dir, "construct", "base.manifest"))
+	return err == nil
+}
+
+// pathExists reports whether path is present on disk (dir or file). It
+// distinguishes a substrate target that is checked out but not a compilable
+// layer (present, no base.manifest → a #155 loud error) from one that simply
+// isn't present (absent → a silent present-skip).
+func pathExists(fs FS, path string) bool {
+	_, err := fs.Stat(path)
 	return err == nil
 }
 

@@ -3,6 +3,7 @@ package walk
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
@@ -281,23 +282,24 @@ func TestWalkAbsoluteSubstratePath(t *testing.T) {
 	}
 }
 
-func TestWalkPresentSkipNonLayerDep(t *testing.T) {
-	// _seen_or_add drops a substrate target that does NOT ship a
-	// construct/base.manifest (it isn't a layer). The derived repo names a peer
-	// dir with no manifest; it must be filtered, leaving derived alone.
+func TestWalkPresentSubstrateMissingManifestErrors(t *testing.T) {
+	// #155: a substrate target present on disk but shipping no base.manifest is a
+	// broken layer edge — the walk must fail loud rather than silently drop the
+	// chain under it. (This reverses the pre-#155 silent-skip this test used to
+	// pin: the footgun that under-compiled a fresh derivative to a 1-action no-op.)
 	parent := t.TempDir()
 	notALayer := filepath.Join(parent, "notalayer")
 	derived := filepath.Join(parent, "d")
-	writeFile(t, filepath.Join(notALayer, "README.md"), "not a layer")
+	writeFile(t, filepath.Join(notALayer, "README.md"), "present, but no base.manifest")
 	writeFile(t, filepath.Join(derived, "construct", "deps"), "substrate ../notalayer\n")
 	writeFile(t, filepath.Join(derived, "construct", "base.manifest"), "prose AGENTS.local.md\n")
 	writeFile(t, filepath.Join(derived, "AGENTS.local.md"), "D")
 
-	layers, err := Walk(weavefs.OSFS{}, derived)
-	if err != nil {
-		t.Fatalf("Walk: %v", err)
+	_, err := Walk(weavefs.OSFS{}, derived)
+	if err == nil {
+		t.Fatal("Walk must error on a present substrate lacking base.manifest, got nil")
 	}
-	if len(layers) != 1 || layers[0].Path != canon(t, derived) {
-		t.Fatalf("non-layer dep not skipped: %+v", layers)
+	if !strings.Contains(err.Error(), "base.manifest") {
+		t.Errorf("error must name the missing base.manifest, got: %v", err)
 	}
 }
