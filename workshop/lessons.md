@@ -589,3 +589,28 @@ temp dirs giving false confidence), but the failure mode here is a silent conser
 
 **Origin:** #154 close-boundary review — push had a real-repo regression, merge did not; the merge
 probe closure was reachable only in a real repo.
+
+## 2026-07-06 — A green test can PIN a footgun as intended behavior — reverse it, don't route around it (#155)
+
+**Pattern (#155):** the bug was that `layergraph.Walk` silently skipped a declared `substrate` whose
+target is present-on-disk but ships no `base.manifest`, dropping the whole transitive chain (a fresh
+derivative under-compiled to a 1-action no-op). But two tests — `TestWalkPresentSkipNonLayerDep` in
+*both* `pkg/layergraph` and `cmd/weave/internal/walk` — asserted exactly that silent skip as correct
+("_seen_or_add drops a non-layer dep"), ported verbatim from the shell `setup.sh` it mirrored. The
+footgun wasn't just un-tested; it was *pinned green*. The fix had to **rewrite those tests to assert
+the new loud error**, not add a parallel case beside them. Distinguishing the two collapsed cases
+(present-but-invalid → loud; genuinely-absent peer → keep the silent present-skip) was the whole fix.
+
+**Rule:** when a bug report contradicts an existing passing test, suspect the test **encodes the bug as
+intended behavior** — especially a behavior "ported verbatim" from a predecessor (the port faithfully
+copied the footgun too). Grep the bug's mechanism for a test that asserts the wrong outcome *before*
+writing the fix; reversing that assertion is part of the fix, and a fix that leaves the old test green
+probably didn't change the behavior the user reported. Second half: a silent filter that drops
+candidates usually conflates "legitimately absent" with "present but malformed" — split them (loud on
+malformed, silent on absent) rather than making the whole filter loud. Same "inherited assumption"
+family as [[Verify an issue's factual premises against ground truth]] (#118) — there a comment lied;
+here a *test* did.
+
+**Origin:** #155 — the two `TestWalkPresentSkipNonLayerDep` pins had to be rewritten to
+`TestWalkPresentSubstrateMissingManifestErrors`; the plan-quality judge flagged them up front as the
+tests that "currently PIN the silent skip."
