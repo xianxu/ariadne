@@ -611,8 +611,17 @@ both `push` and `merge`. The archive sweep also moves the issue's
 alongside it (`archivePlanArtifacts`, #143); recovery reconstructs those plan
 moves too, but — since plan artifacts carry no terminal frontmatter — gates them
 on their id-prefixed plans-dir source rather than the terminal-status check used
-for issue files. Any unrelated dirty file keeps the refusal path and
-tells the operator to clear that unrelated work before rerunning `sdlc push --yes`.
+for issue files. A review sidecar is frequently **untracked** at ship time
+(`sdlc close` writes it after the implementer's last commit, and a FIX-THEN-SHIP
+fixup stages explicit paths, not the sidecar), so `archivePlanArtifacts` probes
+each source with `git ls-files` (the injected `gitSrcUntracked` seam) and marks
+the move `SourceUntracked`; `archiveAddArgs` then stages **only the history dest**
+for an untracked source — adding its vanished pre-rename path would abort the
+whole archive commit with `pathspec did not match` (#154). Tracked sources (issue
+files, committed durable plans, recovery moves) still stage source-deletion +
+history-addition exactly as before. Any unrelated dirty file keeps the refusal
+path and tells the operator to clear that unrelated work before rerunning `sdlc
+push --yes`.
 
 ## Makefile wrappers (transition state)
 

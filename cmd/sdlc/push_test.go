@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+// errStub is a sentinel git failure for probe/runner tests.
+var errStub = errors.New("git failed")
 
 // ── Pure-helper tests ────────────────────────────────────────────────────────
 
@@ -475,6 +479,25 @@ func TestArchiveAddArgs(t *testing.T) {
 				"workshop/issues/000001-done.md", "workshop/history/000001-done.md",
 				"workshop/issues/000002-punt.md", "workshop/history/000002-punt.md"},
 		},
+		{
+			// #154: an untracked source (vanished at the rename) must NOT be staged —
+			// `git add <it>` would fail "pathspec did not match". Only its dest.
+			name:  "untracked source stages dest only",
+			moves: []preparedArchiveMove{{IssuePath: "workshop/plans/000154-x-close-review.md", HistoryPath: "workshop/history/000154-x-close-review.md", SourceUntracked: true}},
+			want:  []string{"add", "--", "workshop/history/000154-x-close-review.md"},
+		},
+		{
+			// A tracked issue/plan move alongside an untracked sidecar: the tracked
+			// one stages both halves, the untracked one stages dest only.
+			name: "mixed tracked and untracked",
+			moves: []preparedArchiveMove{
+				{IssuePath: "workshop/issues/000154-x.md", HistoryPath: "workshop/history/000154-x.md"},
+				{IssuePath: "workshop/plans/000154-x-close-review.md", HistoryPath: "workshop/history/000154-x-close-review.md", SourceUntracked: true},
+			},
+			want: []string{"add", "--",
+				"workshop/issues/000154-x.md", "workshop/history/000154-x.md",
+				"workshop/history/000154-x-close-review.md"},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -492,6 +515,42 @@ func TestArchiveAddArgs(t *testing.T) {
 				if strings.HasSuffix(a, "/") {
 					t.Errorf("arg %q is a directory — broad add reintroduced (#80)", a)
 				}
+			}
+		})
+	}
+}
+
+// #154: gitSrcUntracked classifies a source as untracked ONLY when `git ls-files`
+// cleanly reports no index entry (empty output, no error). A tracked path (git
+// echoes it) and any git error both classify as tracked — the conservative
+// direction that preserves the pre-#154 "stage the source deletion" behavior.
+func TestGitSrcUntracked(t *testing.T) {
+	cases := []struct {
+		name string
+		out  []byte
+		err  error
+		want bool // true = untracked
+	}{
+		{"empty output → untracked", []byte(""), nil, true},
+		{"whitespace-only output → untracked", []byte("\n"), nil, true},
+		{"path echoed → tracked", []byte("workshop/plans/000154-x-plan.md\n"), nil, false},
+		{"git error → tracked (conservative)", nil, errStub, false},
+		{"error with stale output → tracked", []byte("workshop/plans/000154-x-plan.md\n"), errStub, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotArgs []string
+			probe := gitSrcUntracked(func(args ...string) ([]byte, error) {
+				gotArgs = args
+				return tc.out, tc.err
+			})
+			if got := probe("workshop/plans/000154-x-plan.md"); got != tc.want {
+				t.Errorf("gitSrcUntracked = %v, want %v", got, tc.want)
+			}
+			// Always an index-scoped ls-files, `--`-guarded, on the exact path.
+			want := []string{"ls-files", "--", "workshop/plans/000154-x-plan.md"}
+			if strings.Join(gotArgs, " ") != strings.Join(want, " ") {
+				t.Errorf("git args = %v, want %v", gotArgs, want)
 			}
 		})
 	}
