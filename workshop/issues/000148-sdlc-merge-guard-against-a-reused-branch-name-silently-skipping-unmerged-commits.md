@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-06-30
 updated: 2026-07-05
-estimate_hours:
+estimate_hours: 0.48
 started: 2026-07-05T20:31:25-07:00
 ---
 
@@ -59,9 +59,53 @@ Keep this scoped to the merged-PR path; the open-PR and no-PR paths are unchange
   issue close, not per milestone; don't reuse a branch name with a merged PR"
   guidance (the doc half of this fix).
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module   design=0.15 impl=0.2
+item: atlas-docs          design=0.05 impl=0.05
+design-buffer: 0.15
+total: 0.48
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+Decomposition: (1) `merge.go` — new `actionResumeBlocked`, extend the pure
+`decideMergeAction` with an `unmergedCount` param, fetch-base+count guard in the
+merged-PR caller path, + tests; (2) `helptext/root.md` PUBLISH note. `impl=` at
+v3.1's 40%; familiarity 1.0 (deeply warm — just shipped #145/#146 in this exact
+close/merge neighborhood, ran `sdlc merge` several times).
+
 ## Plan
 
-- [ ]
+Single-pass (no `Mx` — one `sdlc close`). Scoped strictly to `merge.go`'s
+**merged-PR** path (open-PR / no-PR paths untouched, per Spec). Design decisions:
+
+- **Extend the pure decision seam (ARCH-PURE/DRY).** Add `actionResumeBlocked` to
+  the `mergeAction` enum and give `decideMergeAction(openPR, mergedExists,
+  unmergedCount int)` a third arg: `mergedExists && unmergedCount > 0 →
+  actionResumeBlocked`; `mergedExists && count 0 → actionResume` (unchanged); open-PR
+  / no-PR arms unchanged. The decision stays pure + unit-tested (extends the existing
+  `TestDecideMergeAction`); the git IO stays in the caller.
+- **Fetch-then-count, fail-safe (correctness subtlety).** At step 10, `origin/main`
+  is stale — the merged PR advanced it but the flow doesn't `pull`/`fetch` until
+  *after* deciding to merge. So the guard, only when `prNumber == "" && mergedExists`,
+  must first `mergeRunner.Git("fetch", "origin", "main")`, then count
+  `rev-list --count origin/main..origin/<branch>` (base = origin/main, head =
+  `remoteRef`, already resolved at line ~285). Route the count through `mergeRunner`
+  (injectable) so it's fakeable. If the fetch or count *errors* (can't verify) →
+  **die** (fail-safe: never clean up an unverified branch), don't default to 0.
+- **The refusal.** `actionResumeBlocked` → `die` with an actionable message
+  (non-zero exit, BEFORE any switch/pull/archive/delete): the branch has N commits
+  not in main despite a merged PR — likely a reused name; rename + `sdlc pr` +
+  `sdlc merge`; note the commits are safe on `origin/<branch>`.
+
+- [ ] Add `actionResumeBlocked` + extend `decideMergeAction(openPR, mergedExists, unmergedCount int)`; update `TestDecideMergeAction` with the count cases (RED→GREEN).
+- [ ] Extract `countUnmerged(r gitRunner, base, head string) (int, error)` (the count seam: fetch is the caller's; this parses `rev-list --count base..head` via the injected runner, errors on non-numeric/failed) and unit-test it with a **fake `gitRunner`**: `"16\n"→16`; runner error / non-numeric → error propagates (plan-quality finding #1 — makes the Done-when's "count computation is the pure seam, git IO faked/injected" *automated*, not manual).
+- [ ] Wire into the merged-PR caller path: `mergeRunner.Git("fetch","origin","main")` then `countUnmerged(mergeRunner, "origin/main", remoteRef)`; on error → `die` (fail-safe); handle `actionResumeBlocked` with the actionable `die` **before any switch/pull/archive/delete**.
+- [ ] `helptext/root.md` PUBLISH block: "publish once at issue close, not per milestone; don't reuse a branch name that already has a merged PR."
+- [ ] `go build/vet/test ./...`; manual: on a scripted reused-name scenario confirm the abort fires + tree untouched, and that `git fetch origin main` refreshes `refs/remotes/origin/main` (finding #3); atlas check; close.
 
 ## Log
 
@@ -71,3 +115,13 @@ Filed from the parley.nvim#116 landing session — see parley `workshop/lessons.
 (2026-06-30, lesson #4) for the incident. The doc half (the PUBLISH-block wording)
 is drafted there too. Root-cause fix lives in `cmd/sdlc/merge.go`'s merged-PR
 cleanup branch.
+
+### 2026-07-05
+
+Claimed → start-plan → change-code. Both judges **INFO (pass)**. Folded plan-quality
+finding #1: extract `countUnmerged` + fake-runner unit test so the count seam is
+*automated* coverage (not manual), satisfying Done-when bullet 3. DRY note (finding
+#2): `merge.go:291`'s ahead-check also runs `rev-list --count` but via `gitx.Capture`
+(not fakeable); it stays as-is (pre-existing) — `countUnmerged` is the fakeable home
+for the new guard's count, the divergence is intentional (the guard must be testable).
+Estimate findings advisory only (design slightly generous) — no change.
