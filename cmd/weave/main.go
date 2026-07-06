@@ -197,14 +197,16 @@ func runVerifyComplete(fs weavefs.FS, cwd string, args []string, target plan.Tar
 // buildLink assembles `weave link <path>` — the directory-agnostic
 // substrate-establishment verb. It records `substrate <path>` VERBATIM (the path
 // exactly as given, relative or absolute) in the cwd repo's construct/deps,
-// idempotently. This is the module-include verb of weave's repo-composition
-// dialect: how a fresh derivative declares its dependency on a real ariadne
-// checkout anywhere on disk (the plan's "directory-agnostic substrate paths"
-// Revisions entry) — recording the real path, not a hardcoded ../ariadne.
+// idempotently, AND seeds a minimal construct/base.manifest when absent so the
+// repo is a valid traversable layer out of the box (#155). This is the
+// module-include verb of weave's repo-composition dialect: how a fresh derivative
+// declares its dependency on a real ariadne checkout anywhere on disk (the plan's
+// "directory-agnostic substrate paths" Revisions entry) — recording the real path,
+// not a hardcoded ../ariadne.
 func buildLink() *cobra.Command {
 	return &cobra.Command{
 		Use:           "link <path>",
-		Short:         "Record `substrate <path>` (verbatim) in this repo's construct/deps",
+		Short:         "Record `substrate <path>` in construct/deps + seed base.manifest (a traversable layer)",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -222,9 +224,10 @@ func buildLink() *cobra.Command {
 // VERBATIM (no resolution/relativization — the establishment verb captures the
 // real path it was handed). Idempotent: it reuses layergraph.ParseDeps (the same
 // grammar the walk + Apply read deps with, ARCH-DRY) to skip when the row is
-// already present, and creates construct/deps (+ construct/) when absent.
-// Injecting fs + out keeps it testable. Read-only on everything but the one deps
-// file.
+// already present, and creates construct/deps (+ construct/) when absent. It then
+// seeds construct/base.manifest when absent (#155), so the two files it may write
+// are construct/deps and construct/base.manifest — nothing else. Injecting fs +
+// out keeps it testable.
 func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
 	depsPath := filepath.Join(root, "construct", "deps")
 

@@ -1,12 +1,13 @@
 ---
 id: 000155
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-06
 estimate_hours: 1.08
 started: 2026-07-06T10:00:21-07:00
+actual_hours: 1.34
 ---
 
 # weave: fresh-bootstrapped derivative silently under-compiles (missing base.manifest breaks transitive walk)
@@ -85,6 +86,7 @@ create `AGENTS.local.md`).
 Filed from the kaggle-ml-base-layer bootstrap (metis/kaggle/kbench, in nous). **Workaround already applied** in those three repos: hand-authored a minimal `construct/base.manifest` (`internal prose AGENTS.local.md` + a header noting that shipping the manifest is what marks the repo as a traversable layer) in each; all three then compiled to 97 actions and the transitive chain composed correctly (kbench `AGENTS.md` carries the ariadne Constitution). This ticket is to fix the *tooling* so the next fresh derivative doesn't hit the silent failure.
 
 ### 2026-07-06 — implemented (Fix 1 + Fix 2)
+- 2026-07-06: closed — Real weave binary end-to-end: (1) present-but-manifest-less substrate → weave compile errors loudly naming the missing base.manifest (was silent 1-action no-op); (2) absent substrate → silent skip preserved; (3) weave link seeds base.manifest, a fresh 3-level chain compiles fully — leaf AGENTS.md composes the foundation constitution through the seeded intermediate + symlinks foundation Makefile; (4) verify-complete over all 10 present siblings = 0 under-produced, none trips new error. Tests: both TestWalkPresentSkipNonLayerDep pins rewritten to assert the error, + absent-skip + kbench-chain-broken + 3 runLink seed tests. Full go test ./... green (25 pkg), build/vet/gofmt clean.; review verdict: FIX-THEN-SHIP
 
 Shipped both preferred options:
 
@@ -125,3 +127,21 @@ Shipped both preferred options:
 
 Atlas: `atlas/workflow/weave.md` Key-decisions — added the present-substrate-must-be-a-layer
 rule + the `weave link` seed companion.
+
+### 2026-07-06 — boundary review (FIX-THEN-SHIP) applied
+
+Verdict **FIX-THEN-SHIP** (high, no Critical/Important). Applied all three actionable
+notes before shipping:
+
+- Stale doc: `runLink`'s "Read-only on everything but the one deps file" was false
+  (it now also writes `base.manifest`) — corrected to name both writes; updated
+  `buildLink` `Short` + the `buildLink` doc comment to mention the seed.
+- Coverage gap: the "repair a pre-#155 repo" path (seed when the deps row already
+  exists) was exercised by `TestLinkIdempotent` but unasserted — a regression
+  re-adding an early `return nil` before `ensureBaseManifest` would have passed.
+  Extended `TestLinkIdempotent` to assert the manifest is seeded in that case.
+- The third note (raw substrate path interpolated into seed `#` comments) is
+  harmless (comment-stripped by both parsers; a newline-bearing path isn't a real
+  CLI arg) — no change, acknowledged.
+
+Re-ran weave + layergraph suites green; build/vet/gofmt clean.

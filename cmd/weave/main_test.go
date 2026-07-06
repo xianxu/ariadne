@@ -806,7 +806,9 @@ func TestLinkCreatesDepsVerbatim(t *testing.T) {
 
 func TestLinkIdempotent(t *testing.T) {
 	// A second link with the same path must NOT duplicate the row, and must
-	// preserve existing content.
+	// preserve existing content. It must STILL seed base.manifest when absent —
+	// the #155 "repair a pre-#155 repo" path: a repo linked before the seed
+	// existed has the deps row but no manifest, and re-linking must heal it.
 	root := t.TempDir()
 	depsPath := filepath.Join(root, "construct", "deps")
 	mkfile(t, depsPath, "data ../d git@x\nsubstrate ../existing\n")
@@ -821,6 +823,15 @@ func TestLinkIdempotent(t *testing.T) {
 	want := "data ../d git@x\nsubstrate ../existing\n"
 	if string(deps) != want {
 		t.Fatalf("construct/deps = %q, want unchanged %q", deps, want)
+	}
+	// The seed must run even though the deps row was already present (guards
+	// against a regression that early-returns before ensureBaseManifest).
+	manifest, err := os.ReadFile(filepath.Join(root, "construct", "base.manifest"))
+	if err != nil {
+		t.Fatalf("re-linking a manifest-less repo must seed base.manifest (#155): %v", err)
+	}
+	if !strings.Contains(string(manifest), "internal  prose AGENTS.local.md") {
+		t.Errorf("seeded manifest missing the traversable-layer row:\n%s", manifest)
 	}
 }
 
