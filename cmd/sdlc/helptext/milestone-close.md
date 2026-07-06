@@ -5,7 +5,7 @@ review into one invocation so neither half is skipped.
 
 WHAT IT DOES
 
-  1. Runs `sdlc close --milestone Mx` semantics:
+  1. Runs the mechanical milestone close:
      - ticks the `- [ ] Mx — ...` item in ## Plan
      - updates the project file's task row + detail block (if any)
      - appends a verification log entry

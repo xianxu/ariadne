@@ -652,8 +652,9 @@ func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
 }
 
 // runClose is the eager wrapper (compute → dry-run-or-apply) — the exact behavior
-// its non-review callers depend on: milestone-close's mechanical step, the
-// `sdlc close --milestone` short-circuit, and direct callers.
+// its non-review callers depend on: milestone-close's in-process mechanical step
+// (runClose with the milestone set) and direct callers. (#146 removed the public
+// `sdlc close --milestone` short-circuit; runCloseWithReview now refuses it.)
 func runClose(stderr io.Writer, f *closeFlags) error {
 	r := computeClose(stderr, f)
 	if f.DryRun {

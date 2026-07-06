@@ -1,15 +1,15 @@
 // milestoneclose.go — `sdlc milestone-close` subcommand.
 //
-// Thin wrapper over `sdlc close --milestone Mx` that adds the
-// AGENTS.md §3 mandatory post-milestone code review as an auto-dispatched
-// follow-on: after the milestone close completes, fires the one binary-owned
-// boundary review (dispatchBoundaryReview, shared with `sdlc close` since #69)
-// against the commit window for the milestone.
+// THE milestone close: runs the mechanical close (via runClose with the
+// milestone set, in-process) and adds the AGENTS.md §3 mandatory post-milestone
+// code review as an auto-dispatched follow-on — after the close completes, fires
+// the one binary-owned boundary review (dispatchBoundaryReview, shared with
+// `sdlc close` since #69) against the commit window for the milestone.
 //
-// Promotes milestone close from "a flag on close" to its own verb so the
-// auto-dispatch is implicit. `sdlc close --milestone Mx` still works
-// (operators may want it without the auto-judge), but the canonical
-// closing flow is `sdlc milestone-close`.
+// #146: `sdlc close --milestone Mx` used to be the "flag on close" spelling that
+// ran the mechanical close WITHOUT the review — a redundant, unlabeled bypass. It
+// was removed (close refuses --milestone and redirects here). To close a milestone
+// without the review, use the self-labeling `sdlc milestone-close --no-judge`.
 package main
 
 import (
