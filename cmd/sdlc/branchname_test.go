@@ -15,6 +15,13 @@ type captureRunner struct {
 	// untrackedOutput is what `git ls-files --others --exclude-standard`
 	// should return (newline-separated paths).
 	untrackedOutput string
+	// currentBranch is what `git rev-parse --abbrev-ref HEAD` returns (#156).
+	currentBranch string
+	// branchExists drives `git show-ref --verify --quiet refs/heads/<name>`:
+	// nil error when true (branch present), error when false (#156).
+	branchExists bool
+	// worktreePorcelain is what `git worktree list --porcelain` returns (#156).
+	worktreePorcelain string
 	// gitCalls records every Git(...) invocation in order.
 	gitCalls [][]string
 	// gitInDirCalls records every GitInDir(...) invocation.
@@ -37,9 +44,18 @@ type writeOp struct {
 
 func (c *captureRunner) Git(args ...string) ([]byte, error) {
 	c.gitCalls = append(c.gitCalls, append([]string{}, args...))
-	// Stub the only call resolveBranchName makes.
-	if len(args) >= 1 && args[0] == "ls-files" {
+	switch {
+	case len(args) >= 1 && args[0] == "ls-files":
 		return []byte(c.untrackedOutput), nil
+	case len(args) >= 2 && args[0] == "rev-parse" && args[1] == "--abbrev-ref":
+		return []byte(c.currentBranch), nil // #156 current-branch probe
+	case len(args) >= 1 && args[0] == "show-ref":
+		if c.branchExists { // #156 branch-existence probe (exit code)
+			return nil, nil
+		}
+		return nil, fmt.Errorf("refs/heads not found")
+	case len(args) >= 2 && args[0] == "worktree" && args[1] == "list":
+		return []byte(c.worktreePorcelain), nil // #156 worktree probe
 	}
 	return nil, nil
 }

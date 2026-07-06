@@ -22,8 +22,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -385,21 +383,12 @@ func findMainWorktree(r gitRunner) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("git worktree list: %v\n%s", err, out)
 	}
-	var currentPath, mainPath string
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	for scanner.Scan() {
-		line := scanner.Text()
-		switch {
-		case strings.HasPrefix(line, "worktree "):
-			currentPath = strings.TrimPrefix(line, "worktree ")
-		case line == "branch refs/heads/main":
-			mainPath = currentPath
-		}
+	// Reuse the single-source porcelain parser (ARCH-DRY, #156) rather than
+	// re-walking the grammar. The IO (r.Git) stays here; the parse is pure.
+	if mainPath, ok := worktreeForBranch(string(out), "main"); ok {
+		return mainPath, nil
 	}
-	if mainPath == "" {
-		return "", fmt.Errorf("could not find a worktree on branch 'main'. Is main checked out somewhere?")
-	}
-	return mainPath, nil
+	return "", fmt.Errorf("could not find a worktree on branch 'main'. Is main checked out somewhere?")
 }
 
 // mainHasUncommittedIssueChanges returns the list of issue files in the

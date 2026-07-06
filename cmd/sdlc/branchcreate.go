@@ -136,9 +136,12 @@ func commitUntrackedIssueFile(stderr io.Writer, untrackedFile string, r gitRunne
 	return nil
 }
 
-// createWorktreeBranch creates a fresh git worktree on a new branch
-// under ../worktree/<repo-dir-name>/<name>/, and writes the worktree
-// path to <repo-root>/.goto so the `g` shell alias can cd there.
+// createWorktreeBranch places the branch <name> in a git worktree under
+// ../worktree/<repo-dir-name>/<name>/ and writes that path to <repo-root>/.goto
+// so the `g` shell alias can cd there. Idempotent for milestone re-runs (#156):
+// if the branch is already checked out in a worktree it reuses it; if the branch
+// exists but isn't in a worktree it adds one without -b; only a brand-new branch
+// takes `worktree add -b`.
 //
 // Returns the worktree path on success.
 func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (string, error) {
@@ -150,13 +153,30 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 	wtRoot := filepath.Join(filepath.Dir(repoTop), "worktree", repoDir)
 	wtPath := filepath.Join(wtRoot, name)
 
-	if err := r.MkdirAll(wtRoot); err != nil {
-		return "", fmt.Errorf("mkdir %s: %v", wtRoot, err)
+	porcelain, _ := r.Git("worktree", "list", "--porcelain")
+	existingWt, wtFound := worktreeForBranch(string(porcelain), name)
+	action := decideWorktreeBranch(branchExists(r, name), wtFound)
+
+	if action != worktreeReuse {
+		if err := r.MkdirAll(wtRoot); err != nil {
+			return "", fmt.Errorf("mkdir %s: %v", wtRoot, err)
+		}
 	}
-	if out, err := r.Git("worktree", "add", "-b", name, wtPath, "HEAD"); err != nil {
-		return "", fmt.Errorf("git worktree add: %v\n%s", err, out)
+	switch action {
+	case worktreeReuse:
+		wtPath = existingWt // git forbids the same branch in two worktrees — reuse it
+		cok(stderr, fmt.Sprintf("Reusing existing worktree at %s on branch %s", wtPath, name))
+	case worktreeAddExisting:
+		if out, err := r.Git("worktree", "add", wtPath, name); err != nil {
+			return "", fmt.Errorf("git worktree add: %v\n%s", err, out)
+		}
+		cok(stderr, fmt.Sprintf("Worktree created at %s on existing branch %s", wtPath, name))
+	case worktreeAddNew:
+		if out, err := r.Git("worktree", "add", "-b", name, wtPath, "HEAD"); err != nil {
+			return "", fmt.Errorf("git worktree add: %v\n%s", err, out)
+		}
+		cok(stderr, fmt.Sprintf("Worktree created at %s on branch %s", wtPath, name))
 	}
-	cok(stderr, fmt.Sprintf("Worktree created at %s on branch %s", wtPath, name))
 
 	gotoPath := filepath.Join(repoTop, ".goto")
 	if err := r.WriteFile(gotoPath, []byte(wtPath)); err != nil {
@@ -168,18 +188,108 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 	return wtPath, nil
 }
 
-// createInPlaceBranch creates a new branch on the current worktree.
-// The working tree (including any uncommitted plan edits) carries
-// forward to the new branch — that's the whole point of "in-place":
-// the operator stays put and starts coding.
+// createInPlaceBranch puts the branch <name> on the current worktree, carrying
+// the working tree (including any uncommitted plan edits) forward — the whole
+// point of "in-place": the operator stays put and starts coding. Idempotent for
+// milestone re-runs (#156): already on <name> → skip; branch exists but not
+// checked out → `git checkout` (switch); only a brand-new branch takes `-b`.
 //
-// Returns the branch name on success (same as input, for symmetry
-// with createWorktreeBranch's return-the-location pattern).
+// Returns the branch name on success (same as input, for symmetry with
+// createWorktreeBranch's return-the-location pattern).
 func createInPlaceBranch(stdout, stderr io.Writer, name string, r gitRunner) (string, error) {
-	if out, err := r.Git("checkout", "-b", name); err != nil {
-		return "", fmt.Errorf("git checkout -b %s: %v\n%s", name, err, out)
+	switch decideInPlaceBranch(currentBranch(r), name, branchExists(r, name)) {
+	case inPlaceOnTarget:
+		cok(stderr, fmt.Sprintf("Already on branch %s (working tree carried forward)", name))
+	case inPlaceSwitch:
+		if out, err := r.Git("checkout", name); err != nil {
+			return "", fmt.Errorf("git checkout %s: %v\n%s", name, err, out)
+		}
+		cok(stderr, fmt.Sprintf("Switched to existing branch %s (working tree carried forward)", name))
+	case inPlaceCreate:
+		if out, err := r.Git("checkout", "-b", name); err != nil {
+			return "", fmt.Errorf("git checkout -b %s: %v\n%s", name, err, out)
+		}
+		cok(stderr, fmt.Sprintf("Branch %s created in place (working tree carried forward)", name))
 	}
-	cok(stderr, fmt.Sprintf("Branch %s created in place (working tree carried forward)", name))
 	fmt.Fprintln(stdout, name)
 	return name, nil
+}
+
+// ── idempotent-branch decision seam (#156) ──────────────────────────────────
+// Pure deciders + probe helpers, mirroring the estimateRefusal pure/IO split so
+// the branch choice is table-testable without a git fake (ARCH-PURE).
+
+type inPlaceAction int
+
+const (
+	inPlaceCreate   inPlaceAction = iota // branch absent → git checkout -b
+	inPlaceSwitch                        // branch exists, not current → git checkout
+	inPlaceOnTarget                      // already on the target branch → no-op
+)
+
+// decideInPlaceBranch picks the in-place git action from the observed state.
+func decideInPlaceBranch(current, target string, exists bool) inPlaceAction {
+	switch {
+	case current == target:
+		return inPlaceOnTarget
+	case exists:
+		return inPlaceSwitch
+	default:
+		return inPlaceCreate
+	}
+}
+
+type worktreeAction int
+
+const (
+	worktreeAddNew      worktreeAction = iota // branch absent → worktree add -b
+	worktreeAddExisting                       // branch exists, no worktree → worktree add (no -b)
+	worktreeReuse                             // branch already in a worktree → reuse it
+)
+
+// decideWorktreeBranch picks the worktree git action from the observed state. A
+// branch already checked out in a worktree must be reused — git forbids the same
+// branch in two worktrees — so wtFound wins over branchExists.
+func decideWorktreeBranch(branchExists, wtFound bool) worktreeAction {
+	switch {
+	case wtFound:
+		return worktreeReuse
+	case branchExists:
+		return worktreeAddExisting
+	default:
+		return worktreeAddNew
+	}
+}
+
+// worktreeForBranch returns the path of the worktree currently checked out on
+// branch target (found=false if none). A filter over the single-source
+// parseWorktrees parser (ARCH-DRY, #156); at most one worktree can match.
+func worktreeForBranch(porcelain, target string) (string, bool) {
+	for _, w := range parseWorktrees(porcelain) {
+		if w.Branch == target {
+			return w.Path, true
+		}
+	}
+	return "", false
+}
+
+// currentBranch returns the checked-out branch name, or "" when detached or
+// unresolvable (a fresh repo with no commits). "" never equals a real target, so
+// the deciders fall through to the exists/create paths.
+func currentBranch(r gitRunner) string {
+	out, err := r.Git("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return ""
+	}
+	if b := strings.TrimSpace(string(out)); b != "HEAD" {
+		return b
+	}
+	return ""
+}
+
+// branchExists reports whether refs/heads/<name> exists locally (via the exit
+// code of `git show-ref --verify --quiet`).
+func branchExists(r gitRunner, name string) bool {
+	_, err := r.Git("show-ref", "--verify", "--quiet", "refs/heads/"+name)
+	return err == nil
 }

@@ -139,17 +139,22 @@ func runState(stdout io.Writer, f *stateFlags) error {
 	return renderProse(stdout, s)
 }
 
-// listWorktrees parses `git worktree list --porcelain`. Each entry is
-// three lines: "worktree <path>", "HEAD <sha>", "branch refs/heads/<name>"
-// or "detached" or "bare". We surface (path, branch).
+// listWorktrees returns the parsed `git worktree list --porcelain` entries.
 func listWorktrees() []WorktreeState {
-	out := gitx.Capture("worktree", "list", "--porcelain")
-	if out == "" {
+	return parseWorktrees(gitx.Capture("worktree", "list", "--porcelain"))
+}
+
+// parseWorktrees is the pure `git worktree list --porcelain` parser — the SINGLE
+// source of that grammar (ARCH-DRY; reused by listWorktrees, findMainWorktree, and
+// worktreeForBranch). Each entry is a block: "worktree <path>", "HEAD <sha>",
+// then "branch refs/heads/<name>" | "detached" | "bare". Surfaces (path, branch).
+func parseWorktrees(porcelain string) []WorktreeState {
+	if porcelain == "" {
 		return nil
 	}
 	var wts []WorktreeState
 	var cur WorktreeState
-	for _, line := range strings.Split(out, "\n") {
+	for _, line := range strings.Split(porcelain, "\n") {
 		switch {
 		case strings.HasPrefix(line, "worktree "):
 			if cur.Path != "" {
