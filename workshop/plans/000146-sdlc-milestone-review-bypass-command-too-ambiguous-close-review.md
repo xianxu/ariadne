@@ -241,3 +241,65 @@ The prior FIX-THEN-SHIP passes corrected exactly this `runClose`→`computeClose
 ### 7. Plan revision recommendations
 Add a `## Revisions` entry to `workshop/plans/000146-remove-close-milestone-bypass-plan.md`:
 - **Comment-sweep miss in the subject file.** The plan's Task 4 doc-sweep and the earlier `## Revisions` corrected `runClose`→`computeClose` in `close.go`/`closereview_test.go`/atlas but never re-swept `milestoneclose.go` itself — which still names `runClose` at lines 3 (rewritten wrong in this diff), 46, 90, 369-371. Record that the section-granularity sweep must include the *primary edited file's* untouched sections, and that the plan's "Architecture" line ("`milestone-close` calls `runClose` in-process") was itself the source of the header's wrong phrasing — the plan text should be corrected to `computeClose` so it stops seeding the inaccuracy.
+
+---
+
+## Re-review — 2026-07-05T19:14:51-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 146 — sdlc milestone review bypass command too ambiguous |
+| repo | ariadne |
+| issue file | workshop/issues/000146-sdlc-milestone-review-bypass-command-too-ambiguous.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4d2dd20809fe6885855b66ae7740cf67d790ddb1..HEAD |
+| command | sdlc close --issue 146 |
+| reviewer | claude |
+| timestamp | 2026-07-05T19:14:51-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The sweep is complete. The only remaining `close --milestone` references are in **historical/diagnostic artifacts** — the pensive thinking-note, a continuation, and the issue file's own root-cause Spec — all of which correctly describe the removed behavior as the problem being fixed. No live consumer (helptext, atlas, entry files, Makefile, scripts) advertises the removed command.
+
+I've independently verified every prior-pass finding is resolved at HEAD (not trusting commit messages): `milestoneclose.go`/`close.go`/atlas comments all say `computeClose`; `helptext/milestone-close.md:81` RELATED corrected; Makefile routes to `milestone-close`; entry files flag-free; `runClose` confirmed zero production callers. Build/vet/tests green.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This whole-issue close cleanly and completely delivers #146's stated purpose. `sdlc close` hides `--milestone` and refuses it with a teaching redirect to `sdlc milestone-close` (reviewed) / `--no-judge` (labeled skip); the two gate re-run hints (`explainActual`/`explainVerified`) are repointed through a single-sourced `closeVerb` + pure `rerunCmd`; the milestone-close mechanics (`computeClose` → `reviewThenFinalize`) are provably untouched; and the full consumer set — entry files, helptext, atlas, doc comments, **and** the base-layer `Makefile.workflow` executable consumer — all derive correctly from the change. The three embedded prior FIX-THEN-SHIP passes drove a fix treadmill (RELATED cross-ref → executable Makefile consumer → subject-file comment sweep); the final "end the drift" commit converged it, and my independent verification at HEAD confirms no stale `runClose`/`close --milestone` reference survives in any production surface. What remains is genuinely Minor and non-blocking.
+
+### 1. Strengths
+- **Refusal placement is load-bearing and correct** (`close.go:794`): the `f.Milestone != ""` guard sits at the *top* of `runCloseWithReview`, before `computeClose`, so it fires ahead of any issue-existence check, and milestone-close never routes through this function (it drives `computeClose`/`reviewThenFinalize` directly, `milestoneclose.go:136,169`) — so the mechanical milestone close is provably unaffected.
+- **Returnable error, not `die()`** (`close.go:795`): correct so the command-level test can assert the refusal instead of `os.Exit` killing the test binary; rationale captured in the comment.
+- **ARCH-DRY consolidation is genuine and verified**: `closeVerb` single-sources the mode→verb mapping across `reviewThenFinalize` (`close.go:909`) + both hints via `rerunCmd`; the previously-inline `verb := "sdlc close"; if …` selection is now one call.
+- **ARCH-PURE**: `closeVerb`/`rerunCmd` are pure string→string, unit-tested directly without IO (`close_test.go:18-45`); the refusal is a thin cobra guard; the explainers correctly thread `milestone` into `rerunCmd` (`close.go:975,1077`).
+- **Obsolete guard test repurposed, not deleted** (`closereview_test.go:262`): `TestRunCloseWithReview_MilestoneRefuses` now asserts the refusal + zero dispatch, preserving the #69 one-review-per-boundary coverage; its header comment was corrected in-diff.
+- **Executable consumer actually fixed** (`Makefile.workflow:104-125`): branches on `MILESTONE` → `bin/sdlc milestone-close` (reviewed) when set, else `bin/sdlc close` — restoring `make close-issue MILESTONE=Mx` *and* making atlas row 40's "the milestone-close path" claim true. Verified at HEAD.
+
+### 2. Critical findings
+None.
+
+### 3. Important findings
+None. (All prior-pass Important findings — the RELATED line and the Makefile consumer — are resolved at HEAD; independently confirmed.)
+
+### 4. Minor findings
+- **`Makefile.workflow:54-56`** — the `close-issue` help block still frames the target as the "Close (mechanical §5 checklist)" that only "Tick[s] checkboxes, set[s] status/actual_hours, update[s] project file." With #146's routing, `make close-issue MILESTONE=Mx` now auto-dispatches a full boundary review (and the whole-issue path has since #69). Partly pre-existing, but #146 widens the gap; a half-line noting the review dispatch would keep the help honest. Non-blocking.
+- **`close.go:661` — `runClose` is now dead production code** (test-only, zero production callers — confirmed via grep: only `close_test.go:390`, `close_ledger_test.go:121,134`), duplicating the `computeClose→applyClose` sequence both real paths inline. It's clearly documented as test-only (`close.go:654-660`), so this is a note for a separable future cleanup (delete it; have the ledger/close tests drive `computeClose`+`applyClose` directly), not a defect.
+- **`close.go:794`** — refusal with `--issue` omitted renders `sdlc milestone-close --issue 0 --milestone …`; the `0` is an obvious placeholder in a teaching redirect (the operator supplies the real issue). Cosmetic only.
+
+### 5. Test coverage notes
+- Well covered: pure builders pinned directly (`TestCloseVerb`, `TestRerunCmd`, incl. the negative assertion that the hint must NOT emit `close --milestone`); the refusal asserted at both the function level (`TestRunCloseWithReview_MilestoneRefuses`, incl. zero dispatch) and the cobra level (`TestClose_MilestoneRefusesWithRedirect`, which also asserts the flag is hidden yet still parses). All pass (0.34s). Tests pin real behavior, not mocks reasserting implementation.
+- Acceptable gap (unchanged from prior passes): no test threads `milestone` through `explainActual`/`explainVerified` into `rerunCmd` (they shell to `computeActual`); the ARCH-PURE extraction of the pure builder + testing it directly is the right trade-off.
+- Inherent gap: the `make close-issue MILESTONE=Mx` → binary wiring isn't unit-testable (shell wrapper); prior pass verified it via `DRY=1`. Not blocking.
+
+### 6. Architectural notes for upcoming work
+- **ARCH-DRY: PASS** — mode→verb mapping single-sourced; the window source (`boundaryWindowBase`) remains shared between the atlas gate and the review. Only residual smell is the now-test-only `runClose` duplication (Minor above).
+- **ARCH-PURE: PASS** — pure core (`closeVerb`, `rerunCmd`) / thin IO shell (cobra refusal, explainers) split is clean and directly tested.
+- **ARCH-PURPOSE: PASS** — ran the shadow-sweep: every *executing or advertising* consumer of `close --milestone` now derives correctly (flag hidden+refused, hints repointed, Makefile routed, helptext/atlas/entry files swept). The sole remaining no-review milestone close (`scripts/close-issue.py`) is the deprecated pre-binary fallback, explicitly acknowledged as M8-scope — a legitimate separable deferral, not the deferred point of the issue.
+
+### 7. Plan revision recommendations
+None required — the plan's `## Revisions` section already records the three corrections (RELATED cross-ref, the `Makefile.workflow` executable consumer, and the comprehensive `runClose`→`computeClose` comment sweep) and notes that the design-time "milestone-close calls `runClose`" prose is a superseded snapshot corrected by those entries. The plan now matches the shipped code.
