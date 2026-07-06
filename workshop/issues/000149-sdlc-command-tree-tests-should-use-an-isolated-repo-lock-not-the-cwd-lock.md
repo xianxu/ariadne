@@ -1,11 +1,12 @@
 ---
 id: 000149
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-01
-updated: 2026-07-01
+updated: 2026-07-05
 estimate_hours:
+started: 2026-07-05T21:50:49-07:00
 ---
 
 # sdlc command-tree tests should use an isolated repo lock, not the cwd lock
