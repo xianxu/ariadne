@@ -61,6 +61,17 @@ The lock directory is created atomically with `mkdir`; holder metadata lives in
 `meta.json` inside the directory and records pid, hostname, cwd, command, argv,
 and start time.
 
+**Test hermeticity (#149/#165).** Because the lock path (and other repo state)
+resolves from cwd via `git rev-parse`, a `cmd/sdlc` test that drives a mutating verb
+through `buildRoot().Execute()` without chdir-ing into a temp git repo would grab
+the developer's REAL `.git/sdlc.lock` (hanging `go test` under a live holder) and
+could mutate the real tree (a stray test sequence corrupted `main` in the #148
+session). Two guards: command-tree tests chdir into an isolated repo via
+`hermeticRepo(t)` (so the lock resolves to the temp `.git`); and a package `TestMain`
+snapshots the real repo (HEAD/branch/porcelain/`.git/sdlc.lock`) before+after the
+run and FAILS a passing run that left durable damage (`snapshotDiff`, pure) — the
+backstop that catches any test that still leaks.
+
 The lock path is resolved from `git rev-parse --git-common-dir`, so linked
 worktrees for one repo share the same lock. That is intentional: worktrees share
 the issue namespace, object store, and remote refs that the motivating races

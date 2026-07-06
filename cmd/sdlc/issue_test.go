@@ -332,6 +332,11 @@ func TestRunIssueShow_HeadersNotBodies(t *testing.T) {
 // mutate the issue identically — the back-compat promise, exercised
 // through the real command tree (buildRoot).
 func TestSetStatusAlias_BothPathsMutate(t *testing.T) {
+	// #149: set-status is a mutating verb, so buildRoot().Execute() acquires the
+	// repo transaction lock. Chdir into a temp git repo so that lock resolves to
+	// the temp .git, not the developer's real .git/sdlc.lock (which hangs the
+	// suite when a live `sdlc` holds it). --issues-dir stays an absolute temp path.
+	hermeticRepo(t)
 	issues, _ := newTestDirs(t)
 	writeOpen := func() {
 		if err := os.WriteFile(filepath.Join(issues, "000001-x.md"), []byte("---\nid: 000001\nstatus: open\n---\n\n# X\n"), 0o644); err != nil {
