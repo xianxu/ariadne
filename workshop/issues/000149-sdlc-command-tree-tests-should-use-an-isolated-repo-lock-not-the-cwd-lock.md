@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-05
-estimate_hours:
+estimate_hours: 0.6
 started: 2026-07-05T21:50:49-07:00
 ---
 
@@ -49,15 +49,50 @@ serialize real mutating verbs on the real checkout) while letting tests isolate.
       dir, not the real checkout's `.git/sdlc.lock`.
 - [ ] Production lock behavior unchanged — real mutating verbs still serialize on
       the common-dir lock (`internal/repolock` semantics intact).
+- [ ] **(folds #165)** A package-level `TestMain` in `cmd/sdlc` FAILS the run
+      (non-zero) if the package's tests changed the REAL repo's HEAD, branch,
+      tracked/untracked set, or created `.git/sdlc.lock` — the backstop for BOTH
+      the lock-grab (#149) and tree-mutation (#165, the session incident) classes.
+      Pre-existing untracked files must not trip it; a proving test confirms it fires.
+
+## Fold note (#165)
+
+This issue now also delivers #165 (test-pollution guard). Same root cause: a
+`cmd/sdlc` test invokes sdlc code that resolves the repo from cwd (`git rev-parse
+--git-common-dir`), and cwd (`cmd/sdlc/`) is inside the real repo — so it grabs the
+real lock (#149) and/or mutates the real tree (#165, which corrupted `main` this
+session). One fix (isolate offenders into a temp repo) + one backstop (the TestMain
+guard, whose `snapshotDiff` covers both symptom classes) — see the durable plan.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module   design=0.15 impl=0.2
+item: smaller-go-module   design=0.1  impl=0.15
+design-buffer: 0.15
+total: 0.6
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+Two focused test-infra chunks: (1) the pure `snapshotDiff` + `TestMain` guard;
+(2) isolating the lock offenders into a temp repo + the proving/acceptance tests.
+`impl=` at v3.1's 40%; familiarity 1.0 (just spent the session deep in `cmd/sdlc`
+close/merge/lock code + diagnosed this exact non-hermeticity).
 
 ## Plan
 
-- [ ] Locate the lock-root resolution in `internal/repolock` + how
-      `buildRoot().Execute()` reaches it; find the seam to redirect the root.
-- [ ] Redirect command-tree tests' lock root to `t.TempDir()` (injection or
-      repo-root-derived key).
-- [ ] Add a regression test: two `Execute()` runs against distinct temp roots do
-      not contend; a concurrent real-lock holder does not block a temp-rooted test.
+Durable design: [`workshop/plans/000149-cmd-sdlc-test-hermeticity-plan.md`](../plans/000149-cmd-sdlc-test-hermeticity-plan.md).
+Root cause (verified): `repoLockGitCommonDir()` (`repolock.go:115`) resolves the
+common dir via `git rev-parse` from cwd → the REAL repo when a test doesn't isolate.
+Single-pass. Fixes #149 + folds #165.
+
+- [ ] Pure guard core: `repoSnapshot` + `snapshotDiff(before,after)` (new-mutations-only; pre-existing untracked ignored) — unit-tested (TDD).
+- [ ] `TestMain(m)` in `cmd/sdlc`: snapshot the real repo (HEAD/branch/porcelain/`.git/sdlc.lock`) resolved from the initial cwd, before+after `m.Run()`; fail on any new mutation. Run the suite → it surfaces the offenders.
+- [ ] Isolate the surfaced offenders (`TestSetStatusAlias_BothPathsMutate` + peers) into an inited temp git repo (chdir, mirror `closereview_test`) so the lock resolves to the temp `.git`. Shared `hermeticRepo(t)` helper if ≥2.
+- [ ] Prove the guard fires (pure `guardVerdict` decision test; optional env-gated live variant).
+- [ ] Build + `go test ./...` green + guard passes; #149 acceptance (lock resolves temp-rooted); atlas; close (note #165 delivered).
 
 ## Log
 
