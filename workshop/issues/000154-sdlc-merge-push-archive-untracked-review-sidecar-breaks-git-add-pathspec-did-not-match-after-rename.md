@@ -1,11 +1,12 @@
 ---
 id: 000154
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-01
-updated: 2026-07-01
+updated: 2026-07-05
 estimate_hours:
+started: 2026-07-05T22:54:11-07:00
 ---
 
 # sdlc merge/push archive: untracked review sidecar breaks git-add (pathspec did not match) after rename
