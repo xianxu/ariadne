@@ -1,12 +1,13 @@
 ---
 id: 000148
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-06-30
 updated: 2026-07-05
 estimate_hours: 0.48
 started: 2026-07-05T20:31:25-07:00
+actual_hours: 0.51
 ---
 
 # sdlc merge: guard against a reused branch name silently skipping unmerged commits
@@ -117,6 +118,7 @@ is drafted there too. Root-cause fix lives in `cmd/sdlc/merge.go`'s merged-PR
 cleanup branch.
 
 ### 2026-07-05
+- 2026-07-05: closed — Re-close after FIX-THEN-SHIP fixes. --no-atlas: this delta is only test-hardening (pin the guard fetch in _FinishesCleanup) + one helptext/merge.md REFUSES-IF line — NO new architectural surface; the atlas resume-path description was already updated in the feature commit (05a9e14) earlier in this issue. I1: _FinishesCleanup now pins the fetch (proven — neutering the fetch fails the test). I2: merge.md guard note. Prior review verdict was FIX-THEN-SHIP (recorded "unknown" due to a non-parseable prose verdict from the long-running reviewer). go build/vet/test ./... — 25 pkgs, 0 failures.; review verdict: FIX-THEN-SHIP
 
 Claimed → start-plan → change-code. Both judges **INFO (pass)**. Folded plan-quality
 finding #1: extract `countUnmerged` + fake-runner unit test so the count seam is
