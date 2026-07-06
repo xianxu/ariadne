@@ -287,7 +287,8 @@ review), each with its own `--no-<gate>` flag (`--no-actual`, `--no-verified`,
 per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
 pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires
 when the gate would actually have refused. `--force` waives all at once.
-`milestone-close` forwards the same flags into its delegated `runClose`.
+`milestone-close` forwards the same flags into its delegated `computeClose`
+(the #139 compute→review→finalize; `runClose` is now test-only, #146).
 The convention generalizes `merge`'s pre-existing `--no-judge`.
 
 **Measured actuals (#68, #110).** `--actual` is computed, not hand-typed. `sdlc
@@ -343,7 +344,7 @@ runs the engine and compares (`actualDeviation`, the pure comparator in
 0.5h absolute floor so small gaps don't trip. Skips silently when the engine
 can't measure. Closes the hole where a hand-typed value (the failure #86's docs
 prime against) was trusted blindly — the doc fix removes the priming, this
-removes the blind trust. `milestone-close` inherits it (wraps `runClose`).
+removes the blind trust. `milestone-close` inherits it (computes via `computeClose`).
 
 `push` and `merge` auto-dispatch `judge plan|specs|lessons` as pre-
 flight so the checks run consistently rather than as a remembered

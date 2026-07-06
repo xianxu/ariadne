@@ -113,6 +113,7 @@ Single-pass (no `Mx` — one `sdlc close`).
 Filed: agent used `sdlc close --milestone Mx` instead of `sdlc milestone-close`.
 
 ### 2026-07-05
+- 2026-07-05: closed — Re-close to re-review the post-close delta (lessons.md shadow-sweep-at-section-granularity addition; the FIX-THEN-SHIP fixes are within anchor 94ea6e9). No product-code change since the reviewed close. go build/vet/test ./... — 25 pkgs green. close --milestone removed + refuses with redirect; hints point at milestone-close; docs+entry files swept.; review verdict: FIX-THEN-SHIP
 - 2026-07-05: closed — go build/vet/test ./... — 25 pkgs, 0 failures. Removed the unlabeled close --milestone no-review bypass: runCloseWithReview refuses a milestone with a returnable-error redirect to `sdlc milestone-close` (reviewed) / `--no-judge` (labeled skip); flag hidden. E2E: `sdlc close --issue 999 --milestone M1` refuses (before issue-existence); `close --help` FLAGS drops --milestone; no `close --milestone` in helptext/AGENTS.base.md/entry files (make weave recomposed). Hints (explainActual/explainVerified) point at milestone-close via pure rerunCmd+closeVerb. milestone-close mechanics unchanged (in-process runClose; repurposed guard test asserts the refusal). Prior close-review verdict was spuriously "unknown" (empty review body — transient dispatch failure), now retried.; review verdict: FIX-THEN-SHIP
 
 Investigated the verb/escape-hatch contour (Explore digest + direct read).

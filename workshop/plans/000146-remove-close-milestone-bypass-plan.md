@@ -276,6 +276,27 @@ Also: Task 5's `grep -c -- '--milestone Mx' → 0` check was imprecise — the c
 substring. The real invariant is **no `close --milestone`** (verified: `grep -rn
 'close --milestone'` → none in helptext/AGENTS.base.md/entry files).
 
+### 2026-07-05 — second close-boundary review: the EXECUTABLE consumer
+
+The re-close review (of the lessons.md delta) caught the bigger miss the doc sweep
+never had: **`Makefile.workflow`'s `close-issue` target** (base-layer, `symlink` in
+base.manifest:112 → propagates downstream) shelled `MILESTONE` into `bin/sdlc close
+--milestone`, which #146 made *refuse* — so `make close-issue MILESTONE=Mx` hard-
+failed, and it contradicted this issue's own atlas edit (row 40 = "the milestone-close
+path"). Fixed: the target now branches on `MILESTONE` → `bin/sdlc milestone-close`
+(reviewed) when set, else `bin/sdlc close`. This both restores the interface AND makes
+`make close-issue MILESTONE=Mx` actually get the review (net improvement). Verified:
+`make close-issue ISSUE=146 MILESTONE=M1 DRY=1` routes to milestone-close, no refusal.
+
+**Lesson (generalizes the section-granularity one):** the shadow-sweep must include
+**command-invoking wrappers** (Makefiles/scripts), not only prose docs — a target that
+*invokes* a removed flag is a harder-failing consumer than a doc that *mentions* it.
+Also corrected two stale atlas call-graph lines (`sdlc-binary.md:290,346` still said
+milestone-close "delegates/wraps runClose" — #139 made it `computeClose`; per-file, not
+per-section, sweep). Out of scope, acknowledged: `scripts/close-issue.py` (the pre-binary
+fallback, used only when `bin/sdlc` isn't built) still does a no-review milestone close —
+slated for M8 removal.
+
 ---
 
 ## Task 5: Build, test, verify, atlas, close

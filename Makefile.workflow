@@ -91,24 +91,35 @@ close-issue: export VERIFIED    := $(VERIFIED)
 close-issue: export FORCE       := $(FORCE)
 close-issue: export DRY         := $(DRY)
 close-issue: export BRAIN_DIR   := $(BRAIN_DIR)
-# Delegates to bin/sdlc close when the Go binary is built; falls back to
-# the Python script otherwise. Both implementations match byte-for-byte
-# on stderr (Go is a faithful port of close-issue.py). The fallback path
-# keeps downstream repos that haven't run `make sdlc-build` yet working.
-# After M8 deprecates the Python script, the fallback branch goes away.
+# Delegates to bin/sdlc when the Go binary is built; falls back to the Python
+# script otherwise. #146: with MILESTONE set, routes to `bin/sdlc milestone-close`
+# (the reviewed path — `close` refuses --milestone), else `bin/sdlc close`.
+# The fallback path keeps downstream repos that haven't run `make sdlc-build` yet
+# working — but scripts/close-issue.py still does a NO-REVIEW milestone close (the
+# pre-binary behavior, slated for M8 removal); build the binary for the reviewed path.
 #
 # Bash ${VAR:+--flag "$$VAR"} expands to nothing when VAR is unset/empty,
 # else to --flag "value" — preserves spaces in VERIFIED across the call.
 close-issue:
 	@if [ -x bin/sdlc ]; then \
-	    bin/sdlc close \
-	      $${ISSUE:+--issue "$$ISSUE"} \
-	      $${MILESTONE:+--milestone "$$MILESTONE"} \
-	      $${ACTUAL:+--actual "$$ACTUAL"} \
-	      $${VERIFIED:+--verified "$$VERIFIED"} \
-	      $${FORCE:+--force} \
-	      $${DRY:+--dry-run} \
-	      $${BRAIN_DIR:+--brain-dir "$$BRAIN_DIR"}; \
+	    if [ -n "$$MILESTONE" ]; then \
+	        bin/sdlc milestone-close \
+	          $${ISSUE:+--issue "$$ISSUE"} \
+	          --milestone "$$MILESTONE" \
+	          $${ACTUAL:+--actual "$$ACTUAL"} \
+	          $${VERIFIED:+--verified "$$VERIFIED"} \
+	          $${FORCE:+--force} \
+	          $${DRY:+--dry-run} \
+	          $${BRAIN_DIR:+--brain-dir "$$BRAIN_DIR"}; \
+	    else \
+	        bin/sdlc close \
+	          $${ISSUE:+--issue "$$ISSUE"} \
+	          $${ACTUAL:+--actual "$$ACTUAL"} \
+	          $${VERIFIED:+--verified "$$VERIFIED"} \
+	          $${FORCE:+--force} \
+	          $${DRY:+--dry-run} \
+	          $${BRAIN_DIR:+--brain-dir "$$BRAIN_DIR"}; \
+	    fi; \
 	else \
 	    scripts/close-issue.py; \
 	fi
