@@ -517,7 +517,7 @@ after scrollback loss or compaction (the path is echoed as `review sidecar: …`
 
 **Window base — prior review boundary (#58).** `boundaryWindowBase`
 (`milestoneclose.go`) is the single source for *both* the atlas-coverage gate
-(`runClose`) and the boundary review's window, so they provably cover the same
+(`computeClose`) and the boundary review's window, so they provably cover the same
 commits (ARCH-DRY). A milestone window bases on the **previous review boundary**
 — the most recent prior commit touching the issue file that carries a
 `Review-Verdict:` trailer (the prior milestone close), found by

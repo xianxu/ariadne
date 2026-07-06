@@ -1,7 +1,7 @@
 // milestoneclose.go — `sdlc milestone-close` subcommand.
 //
-// THE milestone close: runs the mechanical close (via runClose with the
-// milestone set, in-process) and adds the AGENTS.md §3 mandatory post-milestone
+// THE milestone close: runs the mechanical close (via computeClose with the
+// milestone set, then applyClose — #139) and adds the AGENTS.md §3 mandatory post-milestone
 // code review as an auto-dispatched follow-on — after the close completes, fires
 // the one binary-owned boundary review (dispatchBoundaryReview, shared with
 // `sdlc close` since #69) against the commit window for the milestone.
@@ -43,7 +43,7 @@ type milestoneCloseFlags struct {
 	BrainDir      string
 	IssuesDir     string
 
-	// Per-gate close bypasses (#67), threaded into the delegated runClose.
+	// Per-gate close bypasses (#67), threaded into the delegated computeClose.
 	NoActual    bool
 	NoVerified  bool
 	NoReclose   bool
@@ -87,7 +87,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass ALL close gates (≡ every --no-* flag); reason in --verified")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "plan only; do not write or dispatch judge")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the auto-dispatched milestone-review")
-	// Per-gate close bypasses (#67) — forwarded to runClose; --force waives all.
+	// Per-gate close bypasses (#67) — forwarded to computeClose; --force waives all.
 	cmd.Flags().BoolVar(&f.NoActual, "no-actual", false, "record actual_hours: N/A on issue close / skip actual on milestone close")
 	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement")
 	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal")
@@ -366,9 +366,9 @@ func emitTrailerBlock(stdout io.Writer, r reviewResult, kind string) {
 // this milestone. Idempotent: if the line already carries a verdict
 // suffix (re-run case), it's left alone.
 //
-// Why post-mutation rather than threading the verdict through runClose:
-// runClose runs before the judge has a verdict to record. The cleanest
-// seam is to let runClose own its log-line shape and let milestone-close
+// Why post-mutation rather than threading the verdict through the mechanical close:
+// computeClose/applyClose run before the judge has a verdict to record. The cleanest
+// seam is to let the mechanical close own its log-line shape and let milestone-close
 // extend it afterwards. The cost is one extra file read+write; the
 // benefit is that close.go doesn't grow a verdict-aware code path that
 // only ever fires from this wrapper.

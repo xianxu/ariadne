@@ -297,6 +297,31 @@ per-section, sweep). Out of scope, acknowledged: `scripts/close-issue.py` (the p
 fallback, used only when `bin/sdlc` isn't built) still does a no-review milestone close —
 slated for M8 removal.
 
+### 2026-07-05 — third close-boundary review: comprehensive `runClose` comment sweep
+
+The re-close review caught that this issue's *own subject file* `milestoneclose.go`
+still named the removed-from-production `runClose` in four comment sections (lines 3,
+46, 90, 369-371) — and worse, an earlier fix pass *rewrote the header* (line 3) to a
+NEW wrong claim ("via runClose"). Root cause: the plan's own "Architecture"/"Scope"
+prose asserts "milestone-close calls `runClose` in-process" (design-time understanding),
+which seeded every downstream copy. Since #139 milestone-close drives `computeClose`
+directly; with #146 removing the `close --milestone` short-circuit, `runClose` has ZERO
+production callers (test-only wrapper).
+
+To END the fix treadmill (each round found one more stale comment), did a **global**
+`grep -rn runClose` and fixed EVERY inaccurate production reference in one pass:
+`milestoneclose.go` (3/46/90/369-371), `close.go` (65 "close guards", 153 "computeClose",
+778 "calls computeClose directly"), `atlas/workflow/sdlc-binary.md` (520 "(computeClose)").
+Verified: no inaccurate `runClose` remains in production `.go`/atlas — only the accurate
+"runClose is the test-only wrapper" (close.go:654-661), the historical "#139: extracted
+from runClose" (close.go:330), and "NOT runClose, test-only" (milestoneclose.go:113).
+
+**The plan's + issue's original design prose (Architecture/Scope/Spec) still says
+"runClose"** — left in place per the constitution's *append-a-Revisions-correction,
+don't-overwrite* rule for plan artifacts. This Revisions entry (and the issue Log /
+Done-when line 27, already `computeClose`) is the correction of record; the original
+prose is the design-time snapshot, NOT undetected drift.
+
 ---
 
 ## Task 5: Build, test, verify, atlas, close

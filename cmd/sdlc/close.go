@@ -62,8 +62,8 @@ type closeFlags struct {
 	AgentExplicit bool
 	Mode          string // optional supervision mode (supervised|delegated) for the calibration ledger (#117)
 
-	// Per-gate bypass flags (#67). Each waives exactly ONE of runClose's
-	// guards; --force waives them all. The flag is an explicit acknowledgment
+	// Per-gate bypass flags (#67). Each waives exactly ONE of the close
+	// guards (checked in computeClose); --force waives them all. The flag is an explicit acknowledgment
 	// that the gate doesn't apply here (the rationale belongs in --verified) —
 	// not a way to forget it. See skip().
 	NoActual    bool
@@ -150,7 +150,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
 	// differently-formatted error that conflicts with die()'s red prefix.
-	// Validation lives in runClose so all error formatting flows through
+	// Validation lives in computeClose so all error formatting flows through
 	// one path. SilenceErrors keeps cobra from printing on top of us.
 	cmd.SilenceErrors = true
 	return cmd
@@ -775,9 +775,9 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 // whole-issue window (branch-point..HEAD), emits its Review-Verdict trailer, and
 // mirrors the verdict into the close log line.
 //
-// milestone-close does NOT route through here: it calls runClose directly and
-// dispatches its own per-milestone review, so a milestone is never reviewed
-// twice. The guard is structural — only a full-issue close (`f.Milestone == ""`)
+// milestone-close does NOT route through here: it calls computeClose directly
+// (then reviews + finalizes), dispatching its own per-milestone review, so a
+// milestone is never reviewed twice. The guard is structural — only a full-issue close (`f.Milestone == ""`)
 // reaches the dispatch — and is the load-bearing invariant for "exactly one
 // review per boundary". For a no-milestone issue this is the single review the
 // boundary gets (previously it got none from the binary); for a multi-milestone
