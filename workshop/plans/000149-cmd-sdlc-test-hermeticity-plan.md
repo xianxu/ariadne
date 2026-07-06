@@ -98,3 +98,16 @@ There is **no real `TestMain`** in the package yet (a test merely *named* `TestM
 - [ ] **Step 4:** atlas — note in `atlas/workflow/sdlc-binary.md` (or the testing/vocab atlas) that `cmd/sdlc`'s `TestMain` guards real-repo hermeticity and command-tree tests lock in a temp repo. (If no natural home, `--no-atlas` with rationale: test-infra, no production surface.)
 - [ ] **Step 5:** `sdlc close --issue 149 --verified '<go test ./... green + guard passes; TestSetStatusAlias (+peers) lock in a temp repo; snapshotDiff unit-tested incl. pre-existing-untracked-not-tripped; guard proven to fire; folds #165>'` (let it compute `--actual`). Single-pass — no `Mx`. The boundary review auto-dispatches; log the `Review-Verdict:`.
 - [ ] **Step 6:** in the close/Log, note #165 is delivered here (its Done-when — a TestMain that fails on real-repo mutation — is met).
+
+---
+
+## Revisions
+
+### 2026-07-05 — pure-entities table completeness
+
+The Core-concepts pure-entities table lists `repoSnapshot` + `snapshotDiff`; the
+implementation also ships a third pure entity, `guardVerdict(before, after, code)
+(int, []string)` (extracted per Task 4 — the exit-code decision that fires on a
+passing+mutated run and preserves an already-failing run's code). It lives in
+`cmd/sdlc/testmain_test.go` and is unit-tested by `TestGuardVerdict`. Recorded here
+per the close-review's completeness note (not drift — every listed row matched code).

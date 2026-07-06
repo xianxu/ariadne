@@ -104,6 +104,7 @@ Single-pass. Fixes #149 + folds #165.
   when a live `sdlc` (here `sdlc close --issue 140`, pid 82204) holds it.
 
 ### 2026-07-05 (implemented)
+- 2026-07-05: closed — Re-close after applying boundary-review Minor #1 (readSnapshot resolves the lock dir via --git-common-dir → leaked-lock detection works in linked worktrees). No behavior change to the guard decision or the #149 isolation; go build/vet/test ./... green, guard 0 false-fires, real repo unchanged. Prior review SHIP.; review verdict: SHIP
 - 2026-07-05: closed — go build/vet/test ./... — all packages green; new cmd/sdlc TestMain hermeticity guard 0 false-fires + real repo unchanged across the run. #149: TestSetStatusAlias_BothPathsMutate (sole lock offender — others verified read-only/chdir-d/direct-run/unwrapped) now chdirs into hermeticRepo(t) so its lock resolves to the temp .git; acceptance TestRepoLock_IsolatedFromRealRepo asserts repoLockGitCommonDir never resolves under the real checkout. #165 (folded): TestMain snapshots the real repo (HEAD/branch/porcelain/.git/sdlc.lock) before+after m.Run() and fails a passing run that left durable damage — the backstop that would have caught the #148-session main corruption; snapshotDiff (new-mutations-only, pre-existing untracked ignored) + guardVerdict (does not mask a failing run) unit-tested. Production lock behavior unchanged.; review verdict: SHIP
 
 change-code plan-quality **CLEAN**; estimate INFO (advisory). Implemented + verified:
