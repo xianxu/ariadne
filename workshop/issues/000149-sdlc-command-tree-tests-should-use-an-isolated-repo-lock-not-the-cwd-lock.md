@@ -1,12 +1,13 @@
 ---
 id: 000149
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-01
 updated: 2026-07-05
 estimate_hours: 0.6
 started: 2026-07-05T21:50:49-07:00
+actual_hours: 0.35
 ---
 
 # sdlc command-tree tests should use an isolated repo lock, not the cwd lock
@@ -103,6 +104,7 @@ Single-pass. Fixes #149 + folds #165.
   when a live `sdlc` (here `sdlc close --issue 140`, pid 82204) holds it.
 
 ### 2026-07-05 (implemented)
+- 2026-07-05: closed — go build/vet/test ./... — all packages green; new cmd/sdlc TestMain hermeticity guard 0 false-fires + real repo unchanged across the run. #149: TestSetStatusAlias_BothPathsMutate (sole lock offender — others verified read-only/chdir-d/direct-run/unwrapped) now chdirs into hermeticRepo(t) so its lock resolves to the temp .git; acceptance TestRepoLock_IsolatedFromRealRepo asserts repoLockGitCommonDir never resolves under the real checkout. #165 (folded): TestMain snapshots the real repo (HEAD/branch/porcelain/.git/sdlc.lock) before+after m.Run() and fails a passing run that left durable damage — the backstop that would have caught the #148-session main corruption; snapshotDiff (new-mutations-only, pre-existing untracked ignored) + guardVerdict (does not mask a failing run) unit-tested. Production lock behavior unchanged.; review verdict: SHIP
 
 change-code plan-quality **CLEAN**; estimate INFO (advisory). Implemented + verified:
 `go build/vet/test ./...` — all packages green; the new `cmd/sdlc` `TestMain` guard

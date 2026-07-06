@@ -107,7 +107,17 @@ func readSnapshot(root string) repoSnapshot {
 			porc[l] = true
 		}
 	}
-	_, lockErr := os.Stat(filepath.Join(root, ".git", "sdlc.lock"))
+	// Resolve the lock via --git-common-dir (mirrors repoLockGitCommonDir), not a
+	// hardcoded <root>/.git — so leaked-lock detection also works in a linked
+	// worktree, where <root>/.git is a file and the shared lock lives elsewhere.
+	common := git("rev-parse", "--git-common-dir")
+	if common == "" {
+		common = ".git"
+	}
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(root, common)
+	}
+	_, lockErr := os.Stat(filepath.Join(common, "sdlc.lock"))
 	return repoSnapshot{
 		head:      head,
 		branch:    git("branch", "--show-current"),
