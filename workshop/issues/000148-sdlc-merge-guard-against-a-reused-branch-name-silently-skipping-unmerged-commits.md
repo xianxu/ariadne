@@ -101,11 +101,11 @@ Single-pass (no `Mx` — one `sdlc close`). Scoped strictly to `merge.go`'s
   not in main despite a merged PR — likely a reused name; rename + `sdlc pr` +
   `sdlc merge`; note the commits are safe on `origin/<branch>`.
 
-- [ ] Add `actionResumeBlocked` + extend `decideMergeAction(openPR, mergedExists, unmergedCount int)`; update `TestDecideMergeAction` with the count cases (RED→GREEN).
-- [ ] Extract `countUnmerged(r gitRunner, base, head string) (int, error)` (the count seam: fetch is the caller's; this parses `rev-list --count base..head` via the injected runner, errors on non-numeric/failed) and unit-test it with a **fake `gitRunner`**: `"16\n"→16`; runner error / non-numeric → error propagates (plan-quality finding #1 — makes the Done-when's "count computation is the pure seam, git IO faked/injected" *automated*, not manual).
-- [ ] Wire into the merged-PR caller path: `mergeRunner.Git("fetch","origin","main")` then `countUnmerged(mergeRunner, "origin/main", remoteRef)`; on error → `die` (fail-safe); handle `actionResumeBlocked` with the actionable `die` **before any switch/pull/archive/delete**.
-- [ ] `helptext/root.md` PUBLISH block: "publish once at issue close, not per milestone; don't reuse a branch name that already has a merged PR."
-- [ ] `go build/vet/test ./...`; manual: on a scripted reused-name scenario confirm the abort fires + tree untouched, and that `git fetch origin main` refreshes `refs/remotes/origin/main` (finding #3); atlas check; close.
+- [x] Add `actionResumeBlocked` + extend `decideMergeAction(openPR, mergedExists, unmergedCount int)`; update `TestDecideMergeAction` with the count cases (RED→GREEN).
+- [x] Extract `countUnmerged(r gitRunner, base, head string) (int, error)` + fake-runner unit test (`"16\n"→16`, `"0"→0`, git-error → propagates, non-numeric → error).
+- [x] Wire fetch-base + `countUnmerged(mergeRunner,"origin/main",remoteRef)` into the merged-PR path; fail-safe `die` on error; `actionResumeBlocked` → actionable `die` before any switch/pull/archive/delete.
+- [x] `helptext/root.md` PUBLISH block note (renders in `sdlc --help`).
+- [x] `go build/vet/test ./...` (25 pkgs green) + **e2e** (both resume branches, real git): cleanup-proceeds when fully merged + refuse-tree-untouched when reused; atlas updated; close.
 
 ## Log
 
@@ -125,3 +125,15 @@ finding #1: extract `countUnmerged` + fake-runner unit test so the count seam is
 (not fakeable); it stays as-is (pre-existing) — `countUnmerged` is the fakeable home
 for the new guard's count, the divergence is intentional (the guard must be testable).
 Estimate findings advisory only (design slightly generous) — no change.
+
+**Implemented + verified.** `go build/vet/test ./...` — 25 pkgs, 0 failures.
+Pure decision (`decideMergeAction` +count arg) + count seam (`countUnmerged`, fake
+runner) unit-tested. **E2E (real git, `merge_e2e_test.go`):** existing
+`…_ResumeMergedPR_FinishesCleanup` fixture was unrealistic (stubbed "merged" but
+never merged feature→main); made it genuinely merge (count 0 → cleanup proceeds) —
+this also proves finding #3 (the guard's `git fetch origin main` refreshes
+`refs/remotes/origin/main`, else it'd count 1 and refuse). Added
+`…_UnmergedCommits_Refuses`: feature 1 commit ahead + stubbed-merged → aborts with
+the reused-name message, PRMerge not called, still on feature, branch not deleted,
+issue not archived (tree untouched). So Done-when bullet 3 ("abort + tree
+untouched" / "cleanup proceeds") is AUTOMATED e2e, not manual.

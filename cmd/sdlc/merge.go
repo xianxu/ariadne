@@ -213,19 +213,42 @@ func porcelainPaths(line string) (path, dest string) {
 type mergeAction int
 
 const (
-	actionMergeOpen mergeAction = iota // an open PR exists → merge it (irreversible)
-	actionResume                       // no open PR, but a merged one → resume cleanup (#62 M3)
-	actionNoPR                         // neither → create-PR / abandon path
+	actionMergeOpen    mergeAction = iota // an open PR exists → merge it (irreversible)
+	actionResume                          // no open PR, a merged one, branch fully merged → resume cleanup (#62 M3)
+	actionResumeBlocked                   // merged PR, but the branch has commits not in base → refuse (#148, likely a reused branch name)
+	actionNoPR                            // neither → create-PR / abandon path
 )
 
-// decideMergeAction picks the step-10 action from the open-PR number and whether
-// a merged PR already exists for the branch. Pure + testable; the irreversible
-// PRMerge stays in runMerge. Resume (merged-but-not-open) is how a re-run
-// recovers an interrupted merge (#62 M3).
-func decideMergeAction(openPRNumber string, mergedExists bool) mergeAction {
+// countUnmerged returns how many commits are on head but not in base
+// (`git rev-list --count base..head`), via the injected runner so it's fakeable
+// (#148). Errors on a failed git call or non-numeric output — the caller treats
+// an error as "can't verify" and fails safe (refuses) rather than defaulting to 0.
+func countUnmerged(r gitRunner, base, head string) (int, error) {
+	out, err := r.Git("rev-list", "--count", base+".."+head)
+	if err != nil {
+		return 0, fmt.Errorf("git rev-list --count %s..%s: %w\n%s", base, head, err, out)
+	}
+	trimmed := strings.TrimSpace(string(out))
+	n, err := strconv.Atoi(trimmed)
+	if err != nil {
+		return 0, fmt.Errorf("unexpected `rev-list --count %s..%s` output %q: %w", base, head, trimmed, err)
+	}
+	return n, nil
+}
+
+// decideMergeAction picks the step-10 action from the open-PR number, whether a
+// merged PR already exists for the branch, and how many commits the branch has
+// that are NOT in the base. Pure + testable; the irreversible PRMerge stays in
+// runMerge and the count IO stays in the caller (countUnmerged). Resume
+// (merged-but-not-open, fully merged) is how a re-run recovers an interrupted
+// merge (#62 M3); a merged PR whose branch still carries unmerged commits is a
+// reused branch name (#148) — refuse instead of silently cleaning it up.
+func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int) mergeAction {
 	switch {
 	case openPRNumber != "":
 		return actionMergeOpen
+	case mergedExists && unmergedCount > 0:
+		return actionResumeBlocked
 	case mergedExists:
 		return actionResume
 	default:
@@ -425,8 +448,25 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	if prNumber == "" {
 		mergedExists, _ = ghClient.PRMergedForBranch(repo, branch)
 	}
+	// #148: only a MERGED PR (no open one) means "resume cleanup" — but a reused
+	// branch name can carry commits that the merged PR never shipped. Verify the
+	// branch is genuinely fully merged before we switch/pull/archive/delete it.
+	// origin/main is stale here (the flow doesn't pull until AFTER deciding, below),
+	// so fetch the base first, then count commits on the branch not in it. Any
+	// error → die (fail-safe: never clean up a branch we couldn't verify).
+	unmergedCount := 0
+	if prNumber == "" && mergedExists {
+		if out, ferr := mergeRunner.Git("fetch", "origin", "main"); ferr != nil {
+			die(stderr, fmt.Sprintf("git fetch origin main (to verify %s is fully merged): %v\n%s", branch, ferr, out))
+		}
+		n, cerr := countUnmerged(mergeRunner, "origin/main", remoteRef)
+		if cerr != nil {
+			die(stderr, fmt.Sprintf("couldn't verify %s is fully merged — refusing to clean up: %v", branch, cerr))
+		}
+		unmergedCount = n
+	}
 	merged := false
-	switch decideMergeAction(prNumber, mergedExists) {
+	switch decideMergeAction(prNumber, mergedExists, unmergedCount) {
 	case actionMergeOpen:
 		cok(stderr, fmt.Sprintf("Open PR found: #%s", prNumber))
 		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))
@@ -440,6 +480,17 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		// on "no open PR" — re-running `sdlc merge` just completes the cleanup (#62 M3).
 		cwarn(stderr, fmt.Sprintf("No open PR, but a MERGED PR exists for %s — resuming post-merge cleanup", branch))
 		merged = true
+	case actionResumeBlocked:
+		// #148: the branch has commits not in main despite a merged PR — almost
+		// always a reused branch name (its old work shipped via that PR; new work
+		// piled on the same name). Cleaning up here would delete the branch and
+		// strand the new commits on origin, main never advancing. Refuse loudly —
+		// BEFORE any switch/pull/archive/delete — so nothing is lost.
+		die(stderr, fmt.Sprintf(
+			"branch '%s' has %d commit(s) not in main despite a merged PR — likely a reused branch name.\n"+
+				"  Rename the branch to a fresh name (e.g. <issue>-<short-slug>) and run `sdlc pr`, then `sdlc merge`.\n"+
+				"  Not switching / pulling / archiving / deleting — your %d commit(s) are safe on %s.",
+			branch, unmergedCount, unmergedCount, remoteRef))
 	}
 
 	if merged {

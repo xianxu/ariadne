@@ -304,6 +304,14 @@ func TestRunMerge_ArchiveDoesNotSweepUntrackedIssue(t *testing.T) {
 // branch — exercised for real against the temp repo + bare origin.
 func TestRunMerge_ResumeMergedPR_FinishesCleanup(t *testing.T) {
 	dir := tempRepo(t)
+	// A genuinely merged PR means the branch's commits ARE in main. tempRepo leaves
+	// feature one commit ahead of main; merge it in + push so origin/main reflects
+	// the shipped work (#148: the resume guard counts origin/main..origin/feature and
+	// only cleans up at 0). Without this the guard would (correctly) refuse.
+	git(t, dir, "switch", "main")
+	git(t, dir, "merge", "--ff-only", "feature")
+	git(t, dir, "push", "origin", "main")
+	git(t, dir, "switch", "feature")
 	gh := &e2eGH{openPR: "", mergedExists: true}
 	swapMergeDeps(t, gh, nil)
 
@@ -330,6 +338,43 @@ func TestRunMerge_ResumeMergedPR_FinishesCleanup(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "workshop", "issues", "000999-done.md")); !os.IsNotExist(err) {
 		t.Errorf("done issue should have moved out of issues/ (err=%v)", err)
+	}
+}
+
+// #148: a MERGED PR whose branch still carries commits not in main is a reused
+// branch name — sdlc merge must REFUSE (non-zero exit, no cleanup) instead of
+// silently deleting the branch and stranding the new commits. tempRepo leaves
+// feature one commit ahead of main and never merges it, so the merged-PR stub is
+// exactly that scenario. Assert the abort AND that the tree is untouched.
+func TestRunMerge_ResumeMergedPR_UnmergedCommits_Refuses(t *testing.T) {
+	dir := tempRepo(t)
+	gh := &e2eGH{openPR: "", mergedExists: true} // gh says merged; git graph disagrees
+	swapMergeDeps(t, gh, nil)
+
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if !died {
+		t.Fatal("expected refusal: merged PR but branch has commits not in main (reused name)")
+	}
+	if !strings.Contains(msg, "not in main") || !strings.Contains(msg, "reused branch name") {
+		t.Errorf("refusal should name the reused-branch cause; got: %s", msg)
+	}
+	// Nothing merged, nothing cleaned up.
+	if gh.prMergeCalls != 0 {
+		t.Errorf("PRMerge called %d times — a blocked resume must not merge", gh.prMergeCalls)
+	}
+	// Tree untouched: still on feature, branch not deleted, issue not archived.
+	if got := git(t, dir, "branch", "--show-current"); got != "feature" {
+		t.Errorf("should stay on feature (no switch to main), got %q", got)
+	}
+	if got := git(t, dir, "branch", "--list", "feature"); got == "" {
+		t.Error("feature branch must NOT be deleted on a blocked resume")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "workshop", "issues", "000999-done.md")); err != nil {
+		t.Errorf("done issue must stay in issues/ (not archived) on a blocked resume: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "workshop", "history", "000999-done.md")); !os.IsNotExist(err) {
+		t.Error("issue must NOT be archived to history/ on a blocked resume")
 	}
 }
 
