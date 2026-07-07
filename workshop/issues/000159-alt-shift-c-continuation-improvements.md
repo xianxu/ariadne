@@ -1,6 +1,6 @@
 ---
 id: 000159
-status: blocked
+status: wontfix
 deps: [pair#104]
 github_issue:
 created: 2026-07-01
@@ -10,6 +10,8 @@ started: 2026-07-06T16:45:44-07:00
 ---
 
 # alt+shift+c continuation improvements
+
+> **Moved to `pair#105`** (2026-07-06). All the code is in the `pair` repo; once its blocker (#104 single-pair-binary) landed, the work was re-filed as `pair#105-altc-deterministic-restart-draft-fold` where the code + its close review live. Closed here as `wontfix` (moved, not abandoned). The full trace + decisions are preserved below and carried into pair#105.
 
 a couple of things. 
 
