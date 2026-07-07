@@ -1,11 +1,12 @@
 ---
 id: 000166
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-07
 updated: 2026-07-07
 estimate_hours:
+started: 2026-07-07T16:43:47-07:00
 ---
 
 # sdlc git lock is too long
