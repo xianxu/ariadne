@@ -37,3 +37,20 @@ Resolution:
 - The plan now classifies `CloseReviewSnapshot` as integration behavior.
 - Helptext and atlas docs now mention stale checks for prepared project-file edits.
 - This sidecar was normalized to preserve the review findings without carrying the huge captured prompt/diff payload that caused later boundary-review dispatches to exceed OS argument limits.
+
+## 2026-07-07 - SHIP
+
+The final boundary review returned `SHIP` with no Critical, Important, or Minor findings.
+
+Reviewer verification:
+
+- `go test ./cmd/sdlc -run 'TestRepoLock|TestCloseCommandsReleaseLockDuringBoundaryReview|TestCloseCommands_IssueChangedDuringBoundaryReview|TestCloseCommand_HEADChangedDuringBoundaryReview|TestCloseCommand_ProjectChangedDuringBoundaryReview' -count=1`
+- `go test ./...`
+- `git diff --check b290512127f61337811d858315b2a02eb2f076b2..HEAD`
+- `git diff --check`
+
+Architecture notes:
+
+- ARCH-DRY: pass; the existing repo-lock annotation/helper path is reused.
+- ARCH-PURE: pass; IO remains in command orchestration and snapshot integration guards.
+- ARCH-PURPOSE: pass; close/milestone-close release the lock during external review and stale finalization guards include prepared project-file edits.

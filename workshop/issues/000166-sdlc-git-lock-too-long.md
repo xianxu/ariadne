@@ -1,12 +1,13 @@
 ---
 id: 000166
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-07
 updated: 2026-07-07
 estimate_hours: 2.05
 started: 2026-07-07T16:43:47-07:00
+actual_hours: 1.04
 ---
 
 # sdlc git lock is too long
@@ -80,6 +81,7 @@ total: 2.05
 ## Log
 
 ### 2026-07-07
+- 2026-07-07: closed — go test ./cmd/sdlc -count=1; go test ./...; git diff --check; review verdict: SHIP
 
 - Moved from pair#109 to ariadne#166 because the `sdlc` binary lives here.
 - Plan: narrow the lock to close compute/finalize critical sections while running
