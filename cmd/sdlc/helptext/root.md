@@ -38,8 +38,8 @@ LOCAL REPO TRANSACTION LOCK
   - Wait messages identify the holder pid and command when metadata is
     available. `close` and `milestone-close` release the lock while the external
     boundary-review subprocess runs, then reacquire before finalization; if HEAD
-    or the issue file changed meanwhile, they refuse to finalize and tell you to
-    rerun. `change-code`, `merge`, and `push` can still hold the lock during
+    or the issue/project file state they prepared changed meanwhile, they refuse
+    to finalize and tell you to rerun. `change-code`, `merge`, and `push` can still hold the lock during
     long-running review/ship transactions; wait or retry rather than removing
     the lock while that process is alive.
   - A dead same-host holder is reclaimed automatically; initializing metadata

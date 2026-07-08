@@ -94,3 +94,6 @@ total: 2.05
   the implemented lock mode with the plan's `RepoLockMode` entity.
 - Review-fix verification: focused stale-guard/repolock tests, `go test
   ./cmd/sdlc -count=1`, `go test ./...`, and `git diff --check` passed.
+- Second close review returned REWORK on artifact/doc hygiene: moved
+  `CloseReviewSnapshot` to integration concepts, updated stale-check docs to
+  include project files, and normalized the generated review sidecar whitespace.

@@ -4,7 +4,7 @@
 
 **Goal:** Shorten `.git/sdlc.lock` hold time for `sdlc close` / `sdlc milestone-close` by releasing it during long boundary-review dispatch while preserving serialized repo mutation.
 
-**Architecture:** Keep one lock implementation in `cmd/sdlc/repolock.go` (ARCH-DRY). Add a manual-lock command mode for commands whose critical sections are narrower than their full `RunE`, and have close/milestone-close run compute and finalization under explicit lock sections while the external judge runs unlocked. Before finalization, validate that the reviewed HEAD and issue file are unchanged so an unlocked review cannot finalize stale state (ARCH-PURPOSE).
+**Architecture:** Keep one lock implementation in `cmd/sdlc/repolock.go` (ARCH-DRY). Add a manual-lock command mode for commands whose critical sections are narrower than their full `RunE`, and have close/milestone-close run compute and finalization under explicit lock sections while the external judge runs unlocked. Before finalization, validate that the reviewed HEAD, issue file, and any prepared project-file edit are unchanged so an unlocked review cannot finalize stale state (ARCH-PURPOSE).
 
 **Tech Stack:** Go, Cobra command annotations, existing `cmd/sdlc/internal/repolock`, existing `judge.Run` seam, hermetic git test repos.
 
@@ -17,7 +17,6 @@
 | Name | Lives in | Status |
 |------|----------|--------|
 | `RepoLockMode` | `cmd/sdlc/repolock.go` | new |
-| `CloseReviewSnapshot` | `cmd/sdlc/close.go` | new |
 
 **RepoLockMode** — command annotation value that distinguishes automatic whole-command locking from manual phase locking.
 
@@ -25,17 +24,12 @@
 - **DRY rationale:** Reuses the existing command annotation registry instead of creating a separate list of phase-locked commands.
 - **Future extensions:** Other long-running mutating commands can opt into manual mode without changing the lock primitive.
 
-**CloseReviewSnapshot** — the reviewed state captured before dispatch and checked before finalization.
-
-- **Relationships:** 1:1 with a boundary review dispatch; owns the reviewed HEAD SHA, original issue text, and original project text when a project edit is prepared.
-- **DRY rationale:** Gives both whole-issue close and milestone-close the same stale-review guard.
-- **Future extensions:** Can grow to include any additional repo files whose writes are prepared before review dispatch.
-
 ### Integration Points
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
 | `withRequiredRepoTransactionLock` | `cmd/sdlc/repolock.go` | new | `.git/sdlc.lock` acquisition/release |
+| `CloseReviewSnapshot` | `cmd/sdlc/close.go` | new | stale finalization validation around git/file reads |
 | `runCloseWithReviewLocked` | `cmd/sdlc/close.go` | new | close command `RunE` |
 | `runMilestoneCloseLocked` | `cmd/sdlc/milestoneclose.go` | new | milestone-close command `RunE` |
 
@@ -43,6 +37,13 @@
 
 - **Injected into:** close/milestone command runners through the existing Cobra command context.
 - **Future extensions:** Reusable by any command that needs multiple lock sections in one invocation.
+
+**CloseReviewSnapshot** — the reviewed state captured before dispatch and checked before finalization.
+
+- **Injected into:** shared close finalization after reacquiring the repo lock.
+- **Relationships:** 1:1 with a boundary review dispatch; owns the reviewed HEAD SHA, original issue text, and original project text when a project edit is prepared.
+- **DRY rationale:** Gives both whole-issue close and milestone-close the same stale-review guard.
+- **Future extensions:** Can grow to include any additional repo files whose writes are prepared before review dispatch.
 
 **runCloseWithReviewLocked** — command-level orchestration that computes under lock, dispatches outside lock, then finalizes under lock.
 
@@ -203,3 +204,8 @@ Expected: no output.
 
 - Reason: close boundary review found stale validation covered HEAD/issue state but not precomputed project-file edits; it also found the `RepoLockMode` entity was represented as untyped string constants.
 - Delta: `CloseReviewSnapshot` now validates original project-file text whenever close prepares a project edit, and `RepoLockMode` is implemented as a typed internal mode in `repolock.go`.
+
+### 2026-07-07 — second close-review REWORK
+
+- Reason: the second close review found `CloseReviewSnapshot` listed under Pure Entities even though its implementation reads git and files, and found docs still described only HEAD/issue stale checks.
+- Delta: `CloseReviewSnapshot` is documented as an integration guard, and stale-check docs now mention prepared project-file edits.
