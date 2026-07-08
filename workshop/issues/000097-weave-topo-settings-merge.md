@@ -71,9 +71,23 @@ intermediate steps and strip meta only once, at the end.
 - `weave golden` / `verify-complete` classify the multi-source merge correctly.
 - Existing two-input behavior (ariadne-base + local) is byte-for-byte unchanged.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec             design=0.3 impl=0.1
+item: smaller-go-module      design=0.4 impl=0.45
+item: cross-cutting-refactor design=0.4 impl=0.75
+item: atlas-docs             design=0.1 impl=0.12
+item: milestone-review       design=0.0 impl=0.2
+design-buffer: 0.15
+total: 3.0
+```
+
 ## Plan
 
-- [ ] Write the durable implementation plan at
+- [x] Write the durable implementation plan at
       `workshop/plans/000097-weave-topo-settings-merge-plan.md`.
 - [ ] Add the pure `settingsx.MergeChain` fold and keep `Merge(base, local)`
       compatible.
