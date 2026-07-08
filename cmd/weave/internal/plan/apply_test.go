@@ -343,11 +343,11 @@ func mustModTime(t *testing.T, path string) time.Time {
 	return fi.ModTime()
 }
 
-// MergeSettings is the IO half of the settings cascade: Apply reads Source
-// (settings.ariadne.json) + the sibling settings.local.json off disk, runs the
-// pure settingsx.Merge, and writes Target (settings.json). Ported from
-// merge-settings.sh: LOCAL_FILE is <dir(target)>/settings.local.json, absent ⇒
-// base-with-meta-stripped. We assert on PARSED JSON (semantic equality).
+// MergeSettings is the IO half of the settings cascade: Apply reads ordered
+// Sources + the sibling settings.local.json off disk, runs the pure
+// settingsx.MergeChain, and writes Target (settings.json). LOCAL_FILE is
+// <dir(target)>/settings.local.json. We assert on PARSED JSON (semantic
+// equality).
 
 func TestApplyMergeSettingsLocalAbsent(t *testing.T) {
 	root := t.TempDir()

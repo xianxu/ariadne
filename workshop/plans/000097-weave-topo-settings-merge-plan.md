@@ -1,6 +1,6 @@
 # Topological Settings Merge Implementation Plan
 
-> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make weave compose settings fragments across the whole selected layer stack, foundation-first, with repo-local settings applied last.
 
@@ -86,7 +86,7 @@
 - Modify: `cmd/weave/internal/settingsx/settingsx_test.go`
 - Modify: `cmd/weave/internal/settingsx/settingsx.go`
 
-- [ ] **Step 1: Write `TestMergeChainPreservesMergeKeysAcrossIntermediateSources`**
+- [x] **Step 1: Write `TestMergeChainPreservesMergeKeysAcrossIntermediateSources`**
 
 Add a test that calls the not-yet-existing `MergeChain` with foundation, middle, leaf, and local JSON sources:
 
@@ -109,17 +109,17 @@ func TestMergeChainPreservesMergeKeysAcrossIntermediateSources(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write `TestMergeChainAppliesRemoveFromFinalLocalOnly`**
+- [x] **Step 2: Write `TestMergeChainAppliesRemoveFromFinalLocalOnly`**
 
 Prove `$remove` in the final source filters the accumulated base before the final union, while the output still strips all meta keys.
 
-- [ ] **Step 3: Run RED**
+- [x] **Step 3: Run RED**
 
 Run: `go test ./cmd/weave/internal/settingsx -run 'TestMergeChain' -count=1`
 
 Expected: compile failure because `MergeChain` is undefined.
 
-- [ ] **Step 4: Implement `MergeChain`**
+- [x] **Step 4: Implement `MergeChain`**
 
 Implementation shape:
 
@@ -161,7 +161,7 @@ func MergeChain(sources [][]byte) ([]byte, error) {
 
 Extract `mergeKeySet(baseObj map[string]any) map[string]bool` from the current `Merge` body.
 
-- [ ] **Step 5: Refactor `Merge` to delegate to `MergeChain`**
+- [x] **Step 5: Refactor `Merge` to delegate to `MergeChain`**
 
 Keep the old local-absent behavior:
 
@@ -174,7 +174,7 @@ func Merge(base, local []byte) ([]byte, error) {
 }
 ```
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 Run: `go test ./cmd/weave/internal/settingsx -count=1`
 
@@ -193,7 +193,7 @@ Expected: PASS. Existing two-input tests remain green.
 - Modify: `cmd/weave/internal/plan/prune.go`
 - Modify: `cmd/weave/main.go`
 
-- [ ] **Step 1: Update planner tests first**
+- [x] **Step 1: Update planner tests first**
 
 Change `TestPlanMergeLowering` to expect:
 
@@ -218,7 +218,7 @@ Run: `go test ./cmd/weave/internal/plan -run 'TestPlan.*Merge' -count=1`
 
 Expected: FAIL because `MergeSettings.Source` still exists and grouping is not implemented.
 
-- [ ] **Step 2: Change the action type**
+- [x] **Step 2: Change the action type**
 
 In `action.go`, replace `Source string` with:
 
@@ -229,7 +229,7 @@ Target  string
 
 The `Sources` entries should be absolute layer-joined paths, matching `Symlink.Src` and `Seed.Src`; this lets a downstream repo read each ancestor's real fragment instead of requiring every fragment to be present in the leaf checkout.
 
-- [ ] **Step 3: Group merge intents in `Plan`**
+- [x] **Step 3: Group merge intents in `Plan`**
 
 In `Plan`, collect selected `intent.Merge` rows into an ordered map during the existing layer/intents scan, and append the grouped merge actions after the ordinary file-op actions. Merge writes a generated target and does not feed later pure planning, so preserving exact interleaving is unnecessary; preserving source order inside each target chain is the important behavior.
 
@@ -246,7 +246,7 @@ var mergeOrder []string
 
 When seeing a merge intent, append `joinPath(l.Path, in.Source)` to the group for `in.Target`; do not append an action immediately. After the intent scan, append one `MergeSettings` per `mergeOrder`.
 
-- [ ] **Step 4: Update `applyMergeSettings`**
+- [x] **Step 4: Update `applyMergeSettings`**
 
 Read every `act.Sources` path directly. Because sources are absolute, do not join them with `repoRoot`.
 
@@ -267,15 +267,15 @@ merged, err := settingsx.MergeChain(sources)
 
 Return an explicit error if `len(act.Sources) == 0`.
 
-- [ ] **Step 5: Update apply tests**
+- [x] **Step 5: Update apply tests**
 
 Existing tests now pass absolute source paths in `MergeSettings.Sources`. Add `TestApplyMergeSettingsMultipleSourcesWithLocal` proving base, middle, and local compose into one target.
 
-- [ ] **Step 6: Update action printers and prune**
+- [x] **Step 6: Update action printers and prune**
 
 Replace every `act.Source` reference in dry-run output, prune managed-location scans, and similar action fan-out code with `act.Sources`. Keep default unknown-action branches unchanged.
 
-- [ ] **Step 7: Run GREEN**
+- [x] **Step 7: Run GREEN**
 
 Run: `go test ./cmd/weave/internal/plan -count=1`
 
@@ -293,7 +293,7 @@ Expected: PASS.
 - Modify: `cmd/weave/internal/golden/completeness.go`
 - Modify: `cmd/weave/internal/golden/completeness_test.go`
 
-- [ ] **Step 1: Update golden tests first**
+- [x] **Step 1: Update golden tests first**
 
 Change existing `MergeSettings` fixtures to use `Sources`.
 
@@ -305,11 +305,11 @@ Run: `go test ./cmd/weave/internal/golden -run 'MergeSettings|Completeness' -cou
 
 Expected: FAIL until consumers inspect `Sources`.
 
-- [ ] **Step 2: Update gather**
+- [x] **Step 2: Update gather**
 
 For a `MergeSettings`, call `observeMerge` for every source in `act.Sources`. Sources are absolute; use `observeAbs` or a new helper that follows symlinks and records content by absolute path. Continue observing `act.Target` and local sibling.
 
-- [ ] **Step 3: Update classify**
+- [x] **Step 3: Update classify**
 
 Build the chain from `act.Sources` in order:
 
@@ -330,13 +330,13 @@ merged, err := settingsx.MergeChain(chain)
 
 Preserve semantic JSON comparison with `settingsx.SemanticEqual`.
 
-- [ ] **Step 4: Update completeness**
+- [x] **Step 4: Update completeness**
 
 Index merge actions as `target -> set(source)`, not only `target -> bool`. `coverIntent` should require a `MergeSettings` for the target and the joined source path for that intent.
 
 Because `coverIntent` currently receives only the `intent.Intent`, widen it to receive the layer path or compute expected source during the layer loop before calling the helper.
 
-- [ ] **Step 5: Run GREEN**
+- [x] **Step 5: Run GREEN**
 
 Run: `go test ./cmd/weave/internal/golden -count=1`
 
@@ -351,7 +351,7 @@ Expected: PASS.
 - Modify: `atlas/workflow/weave.md`
 - Modify: `workshop/issues/000097-weave-topo-settings-merge.md`
 
-- [ ] **Step 1: Write failing integration test**
+- [x] **Step 1: Write failing integration test**
 
 Add `TestCompileMergesSettingsAcrossLayerChain` to `main_test.go`.
 
@@ -370,19 +370,19 @@ Run: `go test ./cmd/weave -run TestCompileMergesSettingsAcrossLayerChain -count=
 
 Expected: FAIL before the implementation is wired end to end.
 
-- [ ] **Step 2: Make the integration test pass**
+- [x] **Step 2: Make the integration test pass**
 
 Fix any absolute-vs-relative source handling gaps exposed by the integration test. Do not add a real metis/nous consumer in this issue; the purpose is compiler capability, not a downstream policy decision.
 
-- [ ] **Step 3: Update atlas**
+- [x] **Step 3: Update atlas**
 
 In `atlas/workflow/weave.md`, change the settings backend description from "reads `.claude/settings.ariadne.json` + optional local" to "groups selected merge rows by target and folds ordered sources foundation-first plus optional local."
 
-- [ ] **Step 4: Update issue log and plan checkboxes**
+- [x] **Step 4: Update issue log and plan checkboxes**
 
 Mark the issue `## Plan` items as complete as work lands. Add log entries with verification commands and ARCH markers where decisions mattered.
 
-- [ ] **Step 5: Run full verification**
+- [x] **Step 5: Run full verification**
 
 Run:
 
@@ -403,3 +403,12 @@ Expected: all pass.
 - Do not introduce a second merge implementation in `plan` or `golden`; all semantic comparison must flow through `settingsx.MergeChain` (ARCH-DRY).
 - Keep `settings.local.json` as the target-sibling local convention. The issue is about layer-source topology, not changing local settings discovery (Simplicity First).
 - Do not add milestone tags unless the work is split into multiple close boundaries. This plan is intended as one close boundary.
+
+## Revisions
+
+### 2026-07-07
+
+- **Reason:** Close review found the durable plan checklist was still unchecked
+  after implementation.
+- **Delta:** Marked the detailed execution checkboxes complete so the durable
+  plan state matches the issue checklist and implemented diff.

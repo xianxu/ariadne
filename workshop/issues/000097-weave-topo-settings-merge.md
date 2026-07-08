@@ -1,12 +1,13 @@
 ---
 id: 000097
-status: working
+status: codecomplete
 deps: [ariadne#95]
 github_issue:
 created: 2026-06-14
 updated: 2026-07-07
 estimate_hours: 3
 started: 2026-07-07T22:21:33-07:00
+actual_hours: 0.69
 ---
 
 # weave: topological multi-layer settings merge
@@ -101,6 +102,7 @@ total: 3.0
 ## Log
 
 ### 2026-07-07
+- 2026-07-07: closed — Implemented topological settings merge across layer chains. Verification passed: go test ./cmd/weave/internal/settingsx -count=1; go test ./cmd/weave/internal/plan -count=1; go test ./cmd/weave/internal/golden -count=1; go test ./cmd/weave -count=1; go test ./...; git diff --check; sdlc issue validate workshop/issues/000097-weave-topo-settings-merge.md.; review verdict: FIX-THEN-SHIP
 - Claimed the issue and entered planning. Current design keeps merge semantics in
   the pure `settingsx` core, keeps filesystem reads/writes in `plan.Apply`, and
   updates all `MergeSettings` consumers to derive from the ordered source-chain

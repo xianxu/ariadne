@@ -204,11 +204,10 @@ func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 
 func TestPlanMergeLowering(t *testing.T) {
 	// A `merge` intent lowers to a MergeSettings{Sources, Target} — the settings
-	// cascade (ported from setup.sh's `merge` case + merge-settings.sh). Source is
-	// the layer's base settings (settings.ariadne.json), Target the composed
-	// settings.json. The pure planner records the path facts; Apply reads base +
-	// (optional) local off disk, runs settingsx.Merge, writes Target. The manifest
-	// row is `merge .claude/settings.ariadne.json .claude/settings.json`.
+	// cascade. The planner records ordered source path facts; Apply reads those
+	// sources plus optional local off disk, runs settingsx.MergeChain, and writes
+	// Target. The manifest row is
+	// `merge .claude/settings.ariadne.json .claude/settings.json`.
 	layers := []layer.Layer{
 		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
 			{Kind: intent.Merge, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
