@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
@@ -33,6 +36,159 @@ func TestCloseVerdictOutcome(t *testing.T) {
 func closeFlagsFor(issuesDir string) *closeFlags {
 	return &closeFlags{Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
 		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
+}
+
+func TestCloseCommands_IssueChangedDuringBoundaryReview_DoesNotFinalize(t *testing.T) {
+	cases := []struct {
+		name      string
+		args      func(string) []string
+		forbidden []string
+		wantErr   string
+		wantStays string
+	}{
+		{
+			name: "close",
+			args: func(issuesDir string) []string {
+				return []string{"close", "--issue", "69", "--actual", "1", "--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir, "--brain-dir", "../nonexistent-brain"}
+			},
+			forbidden: []string{"status: codecomplete", "closed — tests pass", "actual_hours: 1"},
+			wantErr:   "boundary review stale",
+			wantStays: "status: working",
+		},
+		{
+			name: "milestone-close",
+			args: func(issuesDir string) []string {
+				return []string{"milestone-close", "--issue", "69", "--milestone", "M1", "--actual", "1", "--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir, "--brain-dir", "../nonexistent-brain"}
+			},
+			forbidden: []string{"closed M1 — tests pass"},
+			wantErr:   "boundary review stale",
+			wantStays: "status: working",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			issuesDir := closeRepo(t, 69)
+			started := make(chan struct{})
+			releaseReview := make(chan struct{})
+			orig := judge.Run
+			t.Cleanup(func() { judge.Run = orig })
+			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+				close(started)
+				<-releaseReview
+				return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+			}
+
+			done := make(chan struct {
+				stdout string
+				err    error
+			}, 1)
+			go func() {
+				stdout, _, err := executeSDLCTestCommand(tc.args(issuesDir)...)
+				done <- struct {
+					stdout string
+					err    error
+				}{stdout: stdout, err: err}
+			}()
+
+			waitForSignal(t, started, "boundary review to start")
+			issuePath := filepath.Join(issuesDir, "000069-x.md")
+			f, err := os.OpenFile(issuePath, os.O_APPEND|os.O_WRONLY, 0)
+			if err != nil {
+				t.Fatalf("open issue for concurrent edit: %v", err)
+			}
+			if _, err := f.WriteString("\nconcurrent operator note\n"); err != nil {
+				_ = f.Close()
+				t.Fatalf("write concurrent edit: %v", err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatalf("close concurrent edit: %v", err)
+			}
+			close(releaseReview)
+
+			var got struct {
+				stdout string
+				err    error
+			}
+			select {
+			case got = <-done:
+			case <-time.After(2 * time.Second):
+				t.Fatal("timeout waiting for stale close command")
+			}
+			if got.err == nil || !strings.Contains(got.err.Error(), tc.wantErr) {
+				t.Fatalf("%s should return stale-review error, got %v", tc.name, got.err)
+			}
+			if !strings.Contains(got.stdout, "Review-Verdict: SHIP") {
+				t.Fatalf("%s should emit review trailer without finalizing:\n%s", tc.name, got.stdout)
+			}
+			text := readIssue(t, issuesDir)
+			if !strings.Contains(text, tc.wantStays) {
+				t.Fatalf("%s should leave issue working:\n%s", tc.name, text)
+			}
+			if !strings.Contains(text, "concurrent operator note") {
+				t.Fatalf("%s should preserve concurrent edit:\n%s", tc.name, text)
+			}
+			for _, forbidden := range tc.forbidden {
+				if strings.Contains(text, forbidden) {
+					t.Fatalf("%s finalized stale state; found %q:\n%s", tc.name, forbidden, text)
+				}
+			}
+		})
+	}
+}
+
+func TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	started := make(chan struct{})
+	releaseReview := make(chan struct{})
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+		close(started)
+		<-releaseReview
+		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+	}
+
+	done := make(chan struct {
+		stdout string
+		err    error
+	}, 1)
+	go func() {
+		stdout, _, err := executeSDLCTestCommand("close", "--issue", "69", "--actual", "1", "--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir, "--brain-dir", "../nonexistent-brain")
+		done <- struct {
+			stdout string
+			err    error
+		}{stdout: stdout, err: err}
+	}()
+
+	waitForSignal(t, started, "boundary review to start")
+	if err := os.WriteFile("other.txt", []byte("new head\n"), 0o644); err != nil {
+		t.Fatalf("write concurrent file: %v", err)
+	}
+	git(t, "", "add", "other.txt")
+	git(t, "", "commit", "-q", "-m", "concurrent #69 side change")
+	close(releaseReview)
+
+	var got struct {
+		stdout string
+		err    error
+	}
+	select {
+	case got = <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for stale HEAD close command")
+	}
+	if got.err == nil || !strings.Contains(got.err.Error(), "boundary review stale") {
+		t.Fatalf("close should return stale-review error, got %v", got.err)
+	}
+	if !strings.Contains(got.stdout, "Review-Verdict: SHIP") {
+		t.Fatalf("close should emit review trailer without finalizing:\n%s", got.stdout)
+	}
+	text := readIssue(t, issuesDir)
+	for _, forbidden := range []string{"status: codecomplete", "closed — tests pass", "actual_hours: 1"} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("close finalized stale HEAD; found %q:\n%s", forbidden, text)
+		}
+	}
 }
 
 // #160 Q4: the lessons reminder moved from the publish gate to `sdlc close` — a

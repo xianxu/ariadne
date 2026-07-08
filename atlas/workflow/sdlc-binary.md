@@ -54,9 +54,10 @@ documented in prose by `sdlc issue --help`.
 ## Repo transaction lock (#132)
 
 Mutating `sdlc` verbs are serialized by an SDLC-owned local transaction lock at
-`.git/sdlc.lock`. The lock covers the whole command transaction, not just
-individual Git calls: issue ID allocation, issue/status file writes, commits,
-branch changes, local archive moves, and pushes all run under the same holder.
+`.git/sdlc.lock`. Most mutating verbs hold the lock for the whole command
+transaction, not just individual Git calls: issue ID allocation, issue/status
+file writes, commits, branch changes, local archive moves, and pushes all run
+under the same holder.
 The lock directory is created atomically with `mkdir`; holder metadata lives in
 `meta.json` inside the directory and records pid, hostname, cwd, command, argv,
 and start time.
@@ -78,8 +79,11 @@ the issue namespace, object store, and remote refs that the motivating races
 touched. The lock does not serialize another clone or machine, so remote
 push/ref races still surface through the existing push/merge retry guidance.
 
-`change-code`, `close`, `milestone-close`, `merge`, and `push` may hold the lock
-while synchronous judges run. Their wait/timeout messages call this out as a
+`close` and `milestone-close` are narrower: they lock the compute phase, release
+the lock while the external boundary review runs, then reacquire before
+finalization and refuse to write if HEAD or the issue file changed while the lock
+was released. `change-code`, `merge`, and `push` may still hold the lock while
+synchronous judges run. Their wait/timeout messages call this out as a
 long-running review/ship transaction; quick commands should wait or retry
 instead of deleting a live lock. Recovery is conservative but not wedging:
 `die()` drains the active lock cleanup registry before `os.Exit`, missing
@@ -506,7 +510,10 @@ read-only `computeClose` (all gates + composes the new issue/project text → a
 Full-issue close and milestone-close both **compute → review → finalize**: the
 boundary review runs against the *un-mutated* working tree (the reviewer reads the
 honest `status: working` issue), and `applyClose` fires only on a **finalizing**
-verdict via the shared `reviewThenFinalize`. `closeVerdictOutcome` derives from
+verdict via the shared finalization helper. The command path releases
+`.git/sdlc.lock` while the external review subprocess runs, then reacquires and
+checks that HEAD and the issue file still match the reviewed snapshot before
+writing. `closeVerdictOutcome` derives from
 `vocab.Verdict()` (#147): finalizing (SHIP/FIX-THEN-SHIP) → finalize; blocking
 (REWORK) → **not finalized**, issue left `working`, non-zero exit, "fix + re-run"
 (no `--no-reclose-guard` needed on the rerun since it never went `done`);

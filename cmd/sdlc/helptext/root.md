@@ -36,9 +36,12 @@ LOCAL REPO TRANSACTION LOCK
     branches, or pushing. The lock is local to the Git common dir, so linked
     worktrees of the same repo serialize with each other.
   - Wait messages identify the holder pid and command when metadata is
-    available. `change-code`, `close`, `milestone-close`, `merge`, and `push`
-    can hold the lock during long-running review/ship transactions; wait or
-    retry rather than removing the lock while that process is alive.
+    available. `close` and `milestone-close` release the lock while the external
+    boundary-review subprocess runs, then reacquire before finalization; if HEAD
+    or the issue file changed meanwhile, they refuse to finalize and tell you to
+    rerun. `change-code`, `merge`, and `push` can still hold the lock during
+    long-running review/ship transactions; wait or retry rather than removing
+    the lock while that process is alive.
   - A dead same-host holder is reclaimed automatically; initializing metadata
     is waited through. Other stale/timeout errors tell you how to inspect
     `.git/sdlc.lock`. Remote push/ref races are separate: the local lock

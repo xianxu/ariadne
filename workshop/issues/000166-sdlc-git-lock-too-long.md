@@ -69,13 +69,13 @@ total: 2.05
 
 ## Plan
 
-- [ ] Locate the SDLC transaction-lock call sites around close/milestone/review
+- [x] Locate the SDLC transaction-lock call sites around close/milestone/review
       flows and identify which steps truly need serialization.
-- [ ] Add a regression test with a controllable slow review seam that observes
+- [x] Add a regression test with a controllable slow review seam that observes
       the lock is released during the slow external work.
-- [ ] Refactor the flow to use narrower lock scopes while preserving locked
+- [x] Refactor the flow to use narrower lock scopes while preserving locked
       repo mutations and final state commits.
-- [ ] Run targeted tests plus the relevant `sdlc` package suite.
+- [x] Run targeted tests plus the relevant `sdlc` package suite.
 
 ## Log
 
@@ -85,3 +85,8 @@ total: 2.05
 - Plan: narrow the lock to close compute/finalize critical sections while running
   the external boundary review unlocked; re-check reviewed HEAD/issue state before
   finalization (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
+- Implemented manual repo-lock mode for close/milestone-close and regression tests
+  for unlocked review dispatch plus stale issue/HEAD refusal.
+- Verification: `go test ./cmd/sdlc -count=1` passed.
+- Verification: `go test ./...` passed.
+- Verification: `git diff --check` passed.

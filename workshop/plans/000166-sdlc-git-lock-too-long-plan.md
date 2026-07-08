@@ -62,17 +62,17 @@
 - Modify: `cmd/sdlc/repolock.go`
 - Modify: `cmd/sdlc/repolock_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add a test proving a manually locked command still reports `commandNeedsRepoLock(cmd) == true` but `wrapRepoLockCommands` does not automatically acquire the lock for its whole `RunE`.
 
-- [ ] **Step 2: Run the focused test**
+- [x] **Step 2: Run the focused test**
 
 Run: `go test ./cmd/sdlc -run 'TestRepoLockManual|TestWrapRepoLockCommands' -count=1`
 
 Expected: FAIL because all marked commands are currently auto-wrapped.
 
-- [ ] **Step 3: Implement manual mode**
+- [x] **Step 3: Implement manual mode**
 
 Replace the boolean annotation value with lock modes:
 
@@ -83,7 +83,7 @@ Replace the boolean annotation value with lock modes:
 
 Refactor the common acquire/release body so `withRepoTransactionLock` and `withRequiredRepoTransactionLock` share the same implementation.
 
-- [ ] **Step 4: Run the focused lock tests**
+- [x] **Step 4: Run the focused lock tests**
 
 Run: `go test ./cmd/sdlc -run 'TestRepoLock|TestWrapRepoLockCommands' -count=1`
 
@@ -98,11 +98,11 @@ Expected: PASS.
 - Modify: `cmd/sdlc/milestoneclose.go`
 - Modify: `cmd/sdlc/repolock_test.go`
 
-- [ ] **Step 1: Write the failing command metadata test**
+- [x] **Step 1: Write the failing command metadata test**
 
 Update `TestRepoLockCommandMetadata` to assert `close` and `milestone-close` still need the repo lock but are manual-lock commands.
 
-- [ ] **Step 2: Write the failing behavioral test**
+- [x] **Step 2: Write the failing behavioral test**
 
 In `cmd/sdlc/closereview_test.go`, add a test with:
 
@@ -113,13 +113,13 @@ In `cmd/sdlc/closereview_test.go`, add a test with:
 
 The assertion: while the judge stub is blocked, the lock has been released; after the judge returns `VERDICT: SHIP`, finalization reacquires and releases the lock.
 
-- [ ] **Step 3: Run the failing tests**
+- [x] **Step 3: Run the failing tests**
 
 Run: `go test ./cmd/sdlc -run 'TestRepoLockCommandMetadata|TestCloseWithReviewReleasesLockDuringBoundaryReview' -count=1`
 
 Expected: FAIL because close/milestone-close are still whole-command wrapped.
 
-- [ ] **Step 4: Implement phase locking**
+- [x] **Step 4: Implement phase locking**
 
 Change `NewCloseCmd` and `NewMilestoneCloseCmd` to use `markManualLockCommand`.
 
@@ -130,7 +130,7 @@ Add:
 
 Keep existing direct helpers for unit tests, but make the command path use the locked variants.
 
-- [ ] **Step 5: Run focused close/repolock tests**
+- [x] **Step 5: Run focused close/repolock tests**
 
 Run: `go test ./cmd/sdlc -run 'TestRepoLock|TestRunCloseWithReview|TestRunMilestoneClose|TestCloseWithReviewReleasesLockDuringBoundaryReview' -count=1`
 
@@ -144,21 +144,21 @@ Expected: PASS.
 - Modify: `cmd/sdlc/close.go`
 - Modify: `cmd/sdlc/close_finalize_test.go`
 
-- [ ] **Step 1: Write failing tests for stale finalization**
+- [x] **Step 1: Write failing tests for stale finalization**
 
 Add tests that mutate HEAD or the issue file while the judge stub is blocked. After the stub returns a finalizing verdict, the command must return an error and must not write `status: codecomplete`, close log lines, or milestone ticks.
 
-- [ ] **Step 2: Run stale-guard tests**
+- [x] **Step 2: Run stale-guard tests**
 
 Run: `go test ./cmd/sdlc -run 'TestCloseWithReview.*ChangedDuringBoundaryReview|TestMilestoneClose.*ChangedDuringBoundaryReview' -count=1`
 
 Expected: FAIL because finalization currently trusts the pre-review `closeResult`.
 
-- [ ] **Step 3: Implement the guard**
+- [x] **Step 3: Implement the guard**
 
 Capture the reviewed HEAD SHA and original issue text before dispatch. In the finalization lock section, re-read HEAD and the issue file. If either differs, emit the review trailer for traceability, warn that the close was not finalized, and return an error instructing the operator to rerun the close.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run: `go test ./cmd/sdlc -run 'TestRunCloseWithReview|TestRunMilestoneClose|TestCloseWithReview.*ChangedDuringBoundaryReview|TestMilestoneClose.*ChangedDuringBoundaryReview' -count=1`
 
@@ -173,23 +173,23 @@ Expected: PASS.
 - Modify: `workshop/issues/000166-sdlc-git-lock-too-long.md`
 - Modify: `workshop/plans/000166-sdlc-git-lock-too-long-plan.md`
 
-- [ ] **Step 1: Update docs**
+- [x] **Step 1: Update docs**
 
 Adjust lock prose from “close/milestone-close hold the lock during long review transactions” to “close/milestone-close release the lock during external review dispatch and reacquire before finalization.”
 
-- [ ] **Step 2: Run targeted tests**
+- [x] **Step 2: Run targeted tests**
 
 Run: `go test ./cmd/sdlc -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 3: Run repository verification**
+- [x] **Step 3: Run repository verification**
 
 Run: `go test ./...`
 
 Expected: PASS.
 
-- [ ] **Step 4: Format and diff-check**
+- [x] **Step 4: Format and diff-check**
 
 Run: `gofmt -w cmd/sdlc/repolock.go cmd/sdlc/repolock_test.go cmd/sdlc/close.go cmd/sdlc/closereview_test.go cmd/sdlc/close_finalize_test.go cmd/sdlc/milestoneclose.go`
 

@@ -110,7 +110,7 @@ func (f *closeFlags) skip(gate string) bool {
 func NewCloseCmd() *cobra.Command {
 	var f closeFlags
 
-	cmd := markMutatingCommand(&cobra.Command{
+	cmd := markManualLockCommand(&cobra.Command{
 		Use:   "close",
 		Short: "Close an issue or milestone (records ACTUAL + VERIFIED, mutates issue + project files)",
 		Long: "Performs AGENTS.md §5's mechanical closing steps for an issue or " +
@@ -124,7 +124,7 @@ func NewCloseCmd() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f.AgentExplicit = cmd.Flags().Changed("agent")
-			return runCloseWithReview(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runCloseWithReviewLocked(cmd, cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
 
@@ -845,6 +845,39 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	})
 }
 
+func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags) error {
+	if f.Milestone != "" || f.skip("judge") || f.DryRun {
+		return withRequiredRepoTransactionLock(cmd, func() error {
+			return runCloseWithReview(stdout, stderr, f)
+		})
+	}
+
+	var r closeResult
+	var base, baseLong, head string
+	var snapshot closeReviewSnapshot
+	if err := withRequiredRepoTransactionLock(cmd, func() error {
+		r = computeClose(stderr, f)
+		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
+		snapshot = captureCloseReviewSnapshot(r)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return reviewThenFinalizeLocked(cmd, stdout, stderr, f, r, boundaryReviewParams{
+		Label:         "#" + strconv.Itoa(f.Issue),
+		Base:          base,
+		BaseLong:      baseLong,
+		Head:          head,
+		IssuesDir:     f.IssuesDir,
+		Agent:         f.Agent,
+		AgentExplicit: f.AgentExplicit,
+		IssueNum:      f.Issue,
+		Milestone:     "",
+		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
+	}, snapshot)
+}
+
 // closeOutcome is what the boundary verdict tells close to do (#139).
 type closeOutcome int
 
@@ -902,13 +935,43 @@ func rerunCmd(issueStr, milestone, actualArg string) string {
 // trailer for the record, and returns a non-nil error.
 func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams) error {
 	review := dispatchBoundaryReview(stdout, stderr, p)
+	return finalizeBoundaryReview(stdout, stderr, f, r, review, p, nil)
+}
+
+func reviewThenFinalizeLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams, snapshot closeReviewSnapshot) error {
+	dispatchParams := p
+	dispatchParams.PlansDir = "" // sidecar is a repo write; persist it after reacquiring the lock.
+	review := dispatchBoundaryReview(stdout, stderr, dispatchParams)
+	return withRequiredRepoTransactionLock(cmd, func() error {
+		return finalizeBoundaryReview(stdout, stderr, f, r, review, p, snapshot.validate)
+	})
+}
+
+func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, p boundaryReviewParams, validate func() error) error {
 	kind := "close"
 	if f.Milestone != "" {
 		kind = "milestone-close"
 	}
+	if review.Output != "" && review.SidecarPath == "" && p.PlansDir != "" {
+		p.Agent = review.Agent
+		if path, werr := writeReviewSidecar(p, string(review.Verdict), review.Output, nowRFC3339()); werr != nil {
+			cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
+		} else {
+			review.SidecarPath = path
+			cok(stderr, "review sidecar: "+path)
+		}
+	}
 	verb := closeVerb(f.Milestone)
 	switch closeVerdictOutcome(review.Verdict) {
 	case closeFinalize:
+		if validate != nil {
+			if err := validate(); err != nil {
+				emitTrailerBlock(stdout, review, kind)
+				cwarn(stderr, fmt.Sprintf("boundary review: reviewed state changed while the lock was released — close NOT finalized: %v", err))
+				cwarn(stderr, fmt.Sprintf("re-run `%s` so the review covers the current repo state", verb))
+				return fmt.Errorf("boundary review stale: %w", err)
+			}
+		}
 		applyClose(stderr, f, r)
 		emitTrailerBlock(stdout, review, kind)
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
@@ -930,6 +993,42 @@ func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, 
 		cwarn(stderr, "STOP: investigate the review output (sidecar) and consult a human before re-running.")
 		return fmt.Errorf("boundary review verdict %q — unexpected; close not finalized, consult a human", review.Verdict)
 	}
+}
+
+type closeReviewSnapshot struct {
+	head      string
+	issuePath string
+	issueText string
+}
+
+func captureCloseReviewSnapshot(r closeResult) closeReviewSnapshot {
+	return closeReviewSnapshot{
+		head:      strings.TrimSpace(gitx.Capture("rev-parse", "HEAD")),
+		issuePath: r.issuePath,
+		issueText: r.issueText,
+	}
+}
+
+func (s closeReviewSnapshot) validate() error {
+	if s.head != "" {
+		currentHead := strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
+		if currentHead == "" {
+			return fmt.Errorf("cannot resolve HEAD")
+		}
+		if currentHead != s.head {
+			return fmt.Errorf("HEAD changed from %s to %s", shortSHA(s.head), shortSHA(currentHead))
+		}
+	}
+	if s.issuePath != "" {
+		data, err := os.ReadFile(s.issuePath)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", s.issuePath, err)
+		}
+		if string(data) != s.issueText {
+			return fmt.Errorf("%s changed", s.issuePath)
+		}
+	}
+	return nil
 }
 
 // finishBoundaryReview emits the close trailer and mirrors the verdict into the
