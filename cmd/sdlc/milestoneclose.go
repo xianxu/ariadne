@@ -65,11 +65,13 @@ type reviewResult struct {
 	Head        string // short SHA ("HEAD" fine in dry-run)
 	BaseLong    string // long SHA, used by trailer-verifier lookups in close
 	SidecarPath string // #136: durable review transcript path ("" when no review ran)
+	Output      string // full review body, retained when sidecar writing is deferred
+	Agent       string // resolved reviewer CLI, retained for deferred sidecar metadata
 }
 
 func NewMilestoneCloseCmd() *cobra.Command {
 	f := milestoneCloseFlags{}
-	cmd := markMutatingCommand(&cobra.Command{
+	cmd := markManualLockCommand(&cobra.Command{
 		Use:           "milestone-close",
 		Short:         "Close one milestone of an issue + auto-dispatch post-milestone review (AGENTS.md §3)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"milestone-close\") in main.go.",
@@ -77,7 +79,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f.AgentExplicit = cmd.Flags().Changed("agent")
-			return runMilestoneClose(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runMilestoneCloseLocked(cmd, cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (required, positive)")
@@ -101,17 +103,8 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	return cmd
 }
 
-func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
-	if f.Milestone == "" {
-		die(stderr, "--milestone is required for milestone-close (use `sdlc close` without it for full-issue close)")
-	}
-	if f.Issue <= 0 {
-		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
-	}
-
-	// Step 1: build the closeFlags for the mechanical close (computed below via
-	// computeClose — #139's compute→review→finalize; NOT runClose, which is test-only).
-	closeF := &closeFlags{
+func (f *milestoneCloseFlags) closeFlags() *closeFlags {
+	return &closeFlags{
 		Issue:         f.Issue,
 		Milestone:     f.Milestone,
 		Actual:        f.Actual,
@@ -130,6 +123,19 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		NoPlanCheck:   f.NoPlanCheck,
 		NoProject:     f.NoProject,
 	}
+}
+
+func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
+	if f.Milestone == "" {
+		die(stderr, "--milestone is required for milestone-close (use `sdlc close` without it for full-issue close)")
+	}
+	if f.Issue <= 0 {
+		die(stderr, fmt.Sprintf("--issue is required and must be positive (got %d)", f.Issue))
+	}
+
+	// Step 1: build the closeFlags for the mechanical close (computed below via
+	// computeClose — #139's compute→review→finalize; NOT runClose, which is test-only).
+	closeF := f.closeFlags()
 	// Step 1: COMPUTE the mechanical close — write NOTHING yet (#139). The review
 	// runs against the un-mutated tree; applyClose fires only after a finalizing
 	// verdict, so a REWORK/unexpected milestone review leaves nothing written.
@@ -178,6 +184,44 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		Milestone:     f.Milestone,
 		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
 	})
+}
+
+func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *milestoneCloseFlags) error {
+	if f.Milestone == "" || f.Issue <= 0 || f.NoJudge || f.Force || f.DryRun {
+		return withRequiredRepoTransactionLock(cmd, func() error {
+			return runMilestoneClose(stdout, stderr, f)
+		})
+	}
+
+	closeF := f.closeFlags()
+	var r closeResult
+	var base, baseLong, head string
+	var snapshot closeReviewSnapshot
+	if err := withRequiredRepoTransactionLock(cmd, func() error {
+		r = computeClose(stderr, closeF)
+		issuePath, perr := issueFilePath(f.IssuesDir, f.Issue)
+		if perr != nil {
+			cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
+		}
+		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
+		snapshot = captureCloseReviewSnapshot(r)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return reviewThenFinalizeLocked(cmd, stdout, stderr, closeF, r, boundaryReviewParams{
+		Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
+		Base:          base,
+		BaseLong:      baseLong,
+		Head:          head,
+		IssuesDir:     f.IssuesDir,
+		Agent:         f.Agent,
+		AgentExplicit: f.AgentExplicit,
+		IssueNum:      f.Issue,
+		Milestone:     f.Milestone,
+		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
+	}, snapshot)
 }
 
 // resolveReviewWindow computes the (base, baseLong, head) tuple for a
@@ -516,18 +560,20 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, fmt.Sprintf("boundary review: no '%s' verdict found (block or line) — recording verdict as 'unknown'",
 			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
-	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong}
+	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, Output: output, Agent: string(agent)}
 	// Persist the full transcript to a durable sidecar (#136) so an agent can
 	// reopen it after scrollback loss / compaction. Non-fatal: the review already
 	// ran, so a write failure is warned, not propagated (matches the philosophy above).
 	// Record the RESOLVED reviewer (opts.Agent), not the raw --agent flag — the
 	// latter defaults to "" so the sidecar's reviewer cell would otherwise be empty.
 	p.Agent = string(agent)
-	if path, werr := writeReviewSidecar(p, string(verdict), output, nowRFC3339()); werr != nil {
-		cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
-	} else {
-		rr.SidecarPath = path
-		cok(stderr, "review sidecar: "+path)
+	if p.PlansDir != "" {
+		if path, werr := writeReviewSidecar(p, string(verdict), output, nowRFC3339()); werr != nil {
+			cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
+		} else {
+			rr.SidecarPath = path
+			cok(stderr, "review sidecar: "+path)
+		}
 	}
 	return rr
 }

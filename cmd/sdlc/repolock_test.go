@@ -35,6 +35,12 @@ func TestRepoLockCommandMetadata(t *testing.T) {
 			t.Fatalf("%v should require repo lock", path)
 		}
 	}
+	for _, path := range [][]string{{"close"}, {"milestone-close"}} {
+		cmd := mustFindCommand(t, root, path...)
+		if commandAutoWrapsRepoLock(cmd) {
+			t.Fatalf("%v should be manually lock-scoped, not whole-command wrapped", path)
+		}
+	}
 
 	readOnly := [][]string{
 		{"issue", "list"},
@@ -147,6 +153,26 @@ func TestWithRepoTransactionLockAcquiresAndReleasesMutatingCommand(t *testing.T)
 	}
 }
 
+func TestWithRequiredRepoTransactionLockAcquiresManualCommand(t *testing.T) {
+	cmd := markManualLockCommand(&cobra.Command{Use: "close"})
+	var acquired, released int
+	restore := stubRepoLockAcquire(t, func(*cobra.Command) (func() error, error) {
+		acquired++
+		return func() error {
+			released++
+			return nil
+		}, nil
+	})
+	defer restore()
+
+	if err := withRequiredRepoTransactionLock(cmd, func() error { return nil }); err != nil {
+		t.Fatalf("withRequiredRepoTransactionLock err: %v", err)
+	}
+	if acquired != 1 || released != 1 {
+		t.Fatalf("acquired/released = %d/%d, want 1/1", acquired, released)
+	}
+}
+
 func TestWithRepoTransactionLockIsContextReentrantOnly(t *testing.T) {
 	cmd := markMutatingCommand(&cobra.Command{Use: "claim"})
 	var acquired int
@@ -196,6 +222,41 @@ func TestWithRepoTransactionLockRegistersDieCleanup(t *testing.T) {
 	}
 	if released != 1 {
 		t.Fatalf("die cleanup + normal defer released %d times, want exactly 1", released)
+	}
+}
+
+func TestWrapRepoLockCommandsDoesNotWrapManualLockCommand(t *testing.T) {
+	var acquired int
+	restore := stubRepoLockAcquire(t, func(*cobra.Command) (func() error, error) {
+		acquired++
+		return func() error { return nil }, nil
+	})
+	defer restore()
+
+	root := &cobra.Command{Use: "root"}
+	manualRan := false
+	manual := markManualLockCommand(&cobra.Command{
+		Use:  "close",
+		Args: cobra.NoArgs,
+		RunE: func(*cobra.Command, []string) error {
+			manualRan = true
+			return nil
+		},
+	})
+	root.AddCommand(manual)
+	wrapRepoLockCommands(root)
+	root.SetArgs([]string{"close"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("Execute manual err: %v", err)
+	}
+	if !manualRan {
+		t.Fatal("manual command did not run")
+	}
+	if acquired != 0 {
+		t.Fatalf("manual command should not be whole-command wrapped, acquired %d time(s)", acquired)
+	}
+	if !commandNeedsRepoLock(manual) {
+		t.Fatal("manual command should still be registered as needing repo lock")
 	}
 }
 

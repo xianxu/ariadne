@@ -18,6 +18,13 @@ import (
 const repoLockAnnotation = "ariadne.sdlc.repo-lock"
 const repoLockWrappedAnnotation = "ariadne.sdlc.repo-lock-wrapped"
 
+type repoLockMode string
+
+const (
+	repoLockAuto   repoLockMode = "auto"
+	repoLockManual repoLockMode = "manual"
+)
+
 type repoLockContextKey struct{}
 
 var repoLockAcquireForCommand = acquireRepoLockForCommand
@@ -26,7 +33,15 @@ func markMutatingCommand(cmd *cobra.Command) *cobra.Command {
 	if cmd.Annotations == nil {
 		cmd.Annotations = map[string]string{}
 	}
-	cmd.Annotations[repoLockAnnotation] = "true"
+	cmd.Annotations[repoLockAnnotation] = string(repoLockAuto)
+	return cmd
+}
+
+func markManualLockCommand(cmd *cobra.Command) *cobra.Command {
+	if cmd.Annotations == nil {
+		cmd.Annotations = map[string]string{}
+	}
+	cmd.Annotations[repoLockAnnotation] = string(repoLockManual)
 	return cmd
 }
 
@@ -34,13 +49,21 @@ func commandNeedsRepoLock(cmd *cobra.Command) bool {
 	if cmd == nil {
 		return false
 	}
-	return cmd.Annotations[repoLockAnnotation] == "true"
+	mode := repoLockMode(cmd.Annotations[repoLockAnnotation])
+	return mode == repoLockAuto || mode == repoLockManual
+}
+
+func commandAutoWrapsRepoLock(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+	return repoLockMode(cmd.Annotations[repoLockAnnotation]) == repoLockAuto
 }
 
 func wrapRepoLockCommands(root *cobra.Command) {
 	var walk func(*cobra.Command)
 	walk = func(cmd *cobra.Command) {
-		if cmd.RunE != nil && cmd.Annotations[repoLockWrappedAnnotation] != "true" {
+		if commandAutoWrapsRepoLock(cmd) && cmd.RunE != nil && cmd.Annotations[repoLockWrappedAnnotation] != "true" {
 			orig := cmd.RunE
 			cmd.RunE = func(c *cobra.Command, args []string) error {
 				return withRepoTransactionLock(c, func() error {
@@ -63,6 +86,10 @@ func withRepoTransactionLock(cmd *cobra.Command, run func() error) error {
 	if !commandNeedsRepoLock(cmd) {
 		return run()
 	}
+	return withRequiredRepoTransactionLock(cmd, run)
+}
+
+func withRequiredRepoTransactionLock(cmd *cobra.Command, run func() error) error {
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()

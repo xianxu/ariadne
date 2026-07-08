@@ -8,8 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
@@ -92,6 +95,127 @@ func stubJudgeCommand(t *testing.T, output string) (*int, *string) {
 		return []byte(output), nil
 	}
 	return &calls, &lastName
+}
+
+func TestCloseCommandsReleaseLockDuringBoundaryReview(t *testing.T) {
+	cases := []struct {
+		name string
+		args func(string) []string
+	}{
+		{
+			name: "close",
+			args: func(issuesDir string) []string {
+				return []string{"close", "--issue", "69", "--actual", "1", "--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir, "--brain-dir", "../nonexistent-brain"}
+			},
+		},
+		{
+			name: "milestone-close",
+			args: func(issuesDir string) []string {
+				return []string{"milestone-close", "--issue", "69", "--milestone", "M1", "--actual", "1", "--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir, "--brain-dir", "../nonexistent-brain"}
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			issuesDir := closeRepo(t, 69)
+			lock := newObservedRepoLock()
+			restore := stubRepoLockAcquire(t, lock.acquire)
+			defer restore()
+
+			started := make(chan struct{})
+			releaseReview := make(chan struct{})
+			orig := judge.Run
+			t.Cleanup(func() { judge.Run = orig })
+			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+				close(started)
+				<-releaseReview
+				return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+			}
+
+			done := make(chan error, 1)
+			go func() {
+				_, _, err := executeSDLCTestCommand(tc.args(issuesDir)...)
+				done <- err
+			}()
+
+			waitForSignal(t, started, "boundary review to start")
+			if held := lock.held(); held != 0 {
+				close(releaseReview)
+				t.Fatalf("repo lock held during %s boundary review: held=%d events=%v", tc.name, held, lock.events())
+			}
+			close(releaseReview)
+			if err := waitForErr(t, done, tc.name+" command"); err != nil {
+				t.Fatalf("%s command returned error: %v", tc.name, err)
+			}
+			if got := lock.acquireCount(); got < 2 {
+				t.Fatalf("%s should acquire for compute and finalization, got %d events=%v", tc.name, got, lock.events())
+			}
+		})
+	}
+}
+
+type observedRepoLock struct {
+	mu       sync.Mutex
+	heldNow  int
+	acquired int
+	eventLog []string
+}
+
+func newObservedRepoLock() *observedRepoLock {
+	return &observedRepoLock{}
+}
+
+func (l *observedRepoLock) acquire(cmd *cobra.Command) (func() error, error) {
+	l.mu.Lock()
+	l.heldNow++
+	l.acquired++
+	l.eventLog = append(l.eventLog, "acquire "+cmd.CommandPath())
+	l.mu.Unlock()
+	return func() error {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		l.heldNow--
+		l.eventLog = append(l.eventLog, "release "+cmd.CommandPath())
+		return nil
+	}, nil
+}
+
+func (l *observedRepoLock) held() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.heldNow
+}
+
+func (l *observedRepoLock) acquireCount() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.acquired
+}
+
+func (l *observedRepoLock) events() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]string(nil), l.eventLog...)
+}
+
+func waitForSignal(t *testing.T, ch <-chan struct{}, label string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting for %s", label)
+	}
+}
+
+func waitForErr(t *testing.T, ch <-chan error, label string) error {
+	t.Helper()
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting for %s", label)
+		return nil
+	}
 }
 
 // #69 (load-bearing invariant): a standalone full-issue close auto-dispatches
