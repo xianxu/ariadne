@@ -1,11 +1,12 @@
 ---
 id: 000097
-status: open
+status: working
 deps: [ariadne#95]
 github_issue:
 created: 2026-06-14
-updated: 2026-06-14
+updated: 2026-07-07
 estimate_hours: 3
+started: 2026-07-07T22:21:33-07:00
 ---
 
 # weave: topological multi-layer settings merge
