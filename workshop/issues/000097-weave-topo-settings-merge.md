@@ -102,6 +102,7 @@ total: 3.0
 ## Log
 
 ### 2026-07-07
+- 2026-07-07: closed — Implemented topological settings merge across layer chains and addressed close-review findings. Verification passed: go test ./cmd/weave/internal/settingsx ./cmd/weave/internal/plan ./cmd/weave/internal/golden ./cmd/weave -count=1; go test ./...; git diff --check; sdlc issue validate workshop/issues/000097-weave-topo-settings-merge.md. Sidecar normalized after REWORK.; review verdict: SHIP
 - 2026-07-07: closed — Implemented topological settings merge across layer chains. Verification passed: go test ./cmd/weave/internal/settingsx -count=1; go test ./cmd/weave/internal/plan -count=1; go test ./cmd/weave/internal/golden -count=1; go test ./cmd/weave -count=1; go test ./...; git diff --check; sdlc issue validate workshop/issues/000097-weave-topo-settings-merge.md.; review verdict: FIX-THEN-SHIP
 - Claimed the issue and entered planning. Current design keeps merge semantics in
   the pure `settingsx` core, keeps filesystem reads/writes in `plan.Apply`, and
