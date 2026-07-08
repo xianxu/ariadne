@@ -73,9 +73,24 @@ intermediate steps and strip meta only once, at the end.
 
 ## Plan
 
-- [ ]
+- [ ] Write the durable implementation plan at
+      `workshop/plans/000097-weave-topo-settings-merge-plan.md`.
+- [ ] Add the pure `settingsx.MergeChain` fold and keep `Merge(base, local)`
+      compatible.
+- [ ] Change `MergeSettings` to carry ordered sources, group merge rows by target
+      in `plan.Plan`, and update apply/prune/dry-run consumers.
+- [ ] Update golden and verify-complete so they classify and cover every source
+      in the chain, not just the target.
+- [ ] Add an end-to-end 3-layer compile fixture, update atlas, and run the full
+      weave/Go verification suite.
 
 ## Log
+
+### 2026-07-07
+- Claimed the issue and entered planning. Current design keeps merge semantics in
+  the pure `settingsx` core, keeps filesystem reads/writes in `plan.Apply`, and
+  updates all `MergeSettings` consumers to derive from the ordered source-chain
+  action shape (ARCH-PURE, ARCH-DRY, ARCH-PURPOSE).
 
 ### 2026-06-14
 - Filed from the ariadne #95 tart pass: operator asked whether settings merged
