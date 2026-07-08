@@ -359,7 +359,7 @@ func TestApplyMergeSettingsLocalAbsent(t *testing.T) {
 	mustWrite(t, filepath.Join(root, ".claude", "settings.ariadne.json"), base)
 
 	if err := Apply(weavefs.OSFS{}, root, []Action{
-		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		MergeSettings{Sources: []string{filepath.Join(root, ".claude", "settings.ariadne.json")}, Target: ".claude/settings.json"},
 	}); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
@@ -389,7 +389,7 @@ func TestApplyMergeSettingsWithLocal(t *testing.T) {
 	mustWrite(t, filepath.Join(root, ".claude", "settings.local.json"), local)
 
 	if err := Apply(weavefs.OSFS{}, root, []Action{
-		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		MergeSettings{Sources: []string{filepath.Join(root, ".claude", "settings.ariadne.json")}, Target: ".claude/settings.json"},
 	}); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
@@ -406,11 +406,48 @@ func TestApplyMergeSettingsWithLocal(t *testing.T) {
 	}
 }
 
+func TestApplyMergeSettingsMultipleSourcesWithLocal(t *testing.T) {
+	root := t.TempDir()
+	base := `{
+		"$merge_keys": ["permissions.allow"],
+		"permissions": {"allow": ["A"]},
+		"scalar": "base"
+	}`
+	mid := `{
+		"permissions": {"allow": ["B"]},
+		"scalar": "mid"
+	}`
+	local := `{
+		"$remove": {"permissions.allow": ["A"]},
+		"permissions": {"allow": ["C"]},
+		"scalar": "local"
+	}`
+	basePath := filepath.Join(root, "base", "settings.json")
+	midPath := filepath.Join(root, "mid", "settings.json")
+	mustWrite(t, basePath, base)
+	mustWrite(t, midPath, mid)
+	mustWrite(t, filepath.Join(root, ".claude", "settings.local.json"), local)
+
+	if err := Apply(weavefs.OSFS{}, root, []Action{
+		MergeSettings{Sources: []string{basePath, midPath}, Target: ".claude/settings.json"},
+	}); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	got := readJSON(t, filepath.Join(root, ".claude", "settings.json"))
+	want := map[string]any{
+		"permissions": map[string]any{"allow": []any{"B", "C"}},
+		"scalar":      "local",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("merged (multi-source with local):\n got=%#v\nwant=%#v", got, want)
+	}
+}
+
 func TestApplyMergeSettingsMissingBaseErrors(t *testing.T) {
 	// merge-settings.sh errors when the base file is absent; Apply must surface it.
 	root := t.TempDir()
 	err := Apply(weavefs.OSFS{}, root, []Action{
-		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		MergeSettings{Sources: []string{filepath.Join(root, ".claude", "settings.ariadne.json")}, Target: ".claude/settings.json"},
 	})
 	if err == nil {
 		t.Fatal("Apply: expected error for missing base, got nil")

@@ -89,13 +89,13 @@ total: 3.0
 
 - [x] Write the durable implementation plan at
       `workshop/plans/000097-weave-topo-settings-merge-plan.md`.
-- [ ] Add the pure `settingsx.MergeChain` fold and keep `Merge(base, local)`
+- [x] Add the pure `settingsx.MergeChain` fold and keep `Merge(base, local)`
       compatible.
-- [ ] Change `MergeSettings` to carry ordered sources, group merge rows by target
+- [x] Change `MergeSettings` to carry ordered sources, group merge rows by target
       in `plan.Plan`, and update apply/prune/dry-run consumers.
-- [ ] Update golden and verify-complete so they classify and cover every source
+- [x] Update golden and verify-complete so they classify and cover every source
       in the chain, not just the target.
-- [ ] Add an end-to-end 3-layer compile fixture, update atlas, and run the full
+- [x] Add an end-to-end 3-layer compile fixture, update atlas, and run the full
       weave/Go verification suite.
 
 ## Log
@@ -105,6 +105,17 @@ total: 3.0
   the pure `settingsx` core, keeps filesystem reads/writes in `plan.Apply`, and
   updates all `MergeSettings` consumers to derive from the ordered source-chain
   action shape (ARCH-PURE, ARCH-DRY, ARCH-PURPOSE).
+- Implemented `settingsx.MergeChain`, grouped merge rows into ordered
+  `MergeSettings{Sources, Target}` actions, updated apply/golden/completeness
+  consumers, and added a 3-layer compile fixture proving middle-layer settings
+  composition. Targeted verification passed: `go test
+  ./cmd/weave/internal/settingsx -count=1`, `go test ./cmd/weave/internal/plan
+  -count=1`, `go test ./cmd/weave/internal/golden -count=1`, `go test
+  ./cmd/weave -run TestCompileMergesSettingsAcrossLayerChain -count=1`.
+- Full verification passed: `go test ./cmd/weave/internal/settingsx -count=1`;
+  `go test ./cmd/weave/internal/plan -count=1`; `go test
+  ./cmd/weave/internal/golden -count=1`; `go test ./cmd/weave -count=1`; `go
+  test ./...`; `git diff --check`.
 
 ### 2026-06-14
 - Filed from the ariadne #95 tart pass: operator asked whether settings merged

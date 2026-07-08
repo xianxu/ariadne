@@ -233,11 +233,11 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 }
 
 // classifyMergeSettings classifies a MergeSettings against the live tree. The
-// probe is THREE observed files: the base (act.Source), the optional sibling
-// local (<dir(Target)>/settings.local.json), and the live target (act.Target —
-// which IS merge-settings.sh's output). The classifier RECOMPUTES weave's merge
-// from the observed base + local (settingsx.Merge — the same pure port Apply
-// uses, ARCH-DRY) and SEMANTICALLY compares it to the live target:
+// probe is the ordered sources (act.Sources), the optional sibling local
+// (<dir(Target)>/settings.local.json), and the live target. The classifier
+// RECOMPUTES weave's merge from the observed chain (settingsx.MergeChain — the
+// same pure core Apply uses, ARCH-DRY) and SEMANTICALLY compares it to the live
+// target:
 //
 //   - MATCH iff the live settings.json parses + deep-equals weave's merge output.
 //     The compare is on PARSED JSON, NOT bytes — merge-settings.sh (jq/python)
@@ -249,14 +249,21 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 // The local file's presence is read from Observed: an absent/empty local takes
 // settingsx.Merge's local-absent path (base with meta keys stripped).
 func classifyMergeSettings(root string, act plan.MergeSettings, obs map[string]Observed) Divergence {
-	baseAbs := filepath.Join(root, act.Source)
 	targetAbs := filepath.Join(root, act.Target)
 	localAbs := filepath.Join(filepath.Dir(targetAbs), "settings.local.json")
 
-	baseO := obs[baseAbs]
-	if !baseO.Exists {
+	var chain [][]byte
+	for _, source := range act.Sources {
+		sourceO := obs[source]
+		if !sourceO.Exists {
+			return Divergence{Unexpected, "merge", act.Target,
+				fmt.Sprintf("weave would merge %s, but source %s absent in live", act.Target, source)}
+		}
+		chain = append(chain, []byte(sourceO.Content))
+	}
+	if len(chain) == 0 {
 		return Divergence{Unexpected, "merge", act.Target,
-			fmt.Sprintf("weave would merge %s, but base %s absent in live", act.Target, act.Source)}
+			"weave would write merged settings, but the action has no sources"}
 	}
 	targetO := obs[targetAbs]
 	if !targetO.Exists {
@@ -264,11 +271,10 @@ func classifyMergeSettings(root string, act plan.MergeSettings, obs map[string]O
 			"weave would write the merged settings, but the target is absent in live"}
 	}
 
-	var local []byte
 	if localO := obs[localAbs]; localO.Exists {
-		local = []byte(localO.Content)
+		chain = append(chain, []byte(localO.Content))
 	}
-	merged, err := settingsx.Merge([]byte(baseO.Content), local)
+	merged, err := settingsx.MergeChain(chain)
 	if err != nil {
 		return Divergence{Unexpected, "merge", act.Target,
 			fmt.Sprintf("weave's merge failed: %v", err)}

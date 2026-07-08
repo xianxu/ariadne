@@ -89,11 +89,14 @@ func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered 
 			}
 			verb := verbName(in.Kind)
 			key := verb + "\x00" + in.Target
+			if in.Kind == intent.Merge {
+				key += "\x00" + l.Path + "/" + in.Source
+			}
 			if seen[key] {
 				continue
 			}
 			seen[key] = true
-			if u, missing := coverIntent(in, idx); missing {
+			if u, missing := coverIntent(l.Path, in, idx); missing {
 				out = append(out, u)
 			}
 		}
@@ -110,22 +113,22 @@ func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered 
 // actionIndex is the precomputed coverage sets over weave's planned Actions,
 // keyed for O(1) lookup by the cover-checks.
 type actionIndex struct {
-	symlinkDsts map[string]bool // every plan.Symlink.Dst
-	seedDsts    map[string]bool // every plan.Seed.Dst
-	mkdirPaths  map[string]bool // every plan.Mkdir.Path
-	touchPaths  map[string]bool // every plan.Touch.Path
-	mergeTgts   map[string]bool // every plan.MergeSettings.Target
-	skillLinks  int             // count of plan.Symlink under a per-harness skill dir
-	entryFile   bool            // a plan.WriteFile for SOME per-harness entry file exists
+	symlinkDsts  map[string]bool            // every plan.Symlink.Dst
+	seedDsts     map[string]bool            // every plan.Seed.Dst
+	mkdirPaths   map[string]bool            // every plan.Mkdir.Path
+	touchPaths   map[string]bool            // every plan.Touch.Path
+	mergeSources map[string]map[string]bool // target -> every plan.MergeSettings source
+	skillLinks   int                        // count of plan.Symlink under a per-harness skill dir
+	entryFile    bool                       // a plan.WriteFile for SOME per-harness entry file exists
 }
 
 func indexActions(actions []plan.Action) actionIndex {
 	idx := actionIndex{
-		symlinkDsts: map[string]bool{},
-		seedDsts:    map[string]bool{},
-		mkdirPaths:  map[string]bool{},
-		touchPaths:  map[string]bool{},
-		mergeTgts:   map[string]bool{},
+		symlinkDsts:  map[string]bool{},
+		seedDsts:     map[string]bool{},
+		mkdirPaths:   map[string]bool{},
+		touchPaths:   map[string]bool{},
+		mergeSources: map[string]map[string]bool{},
 	}
 	// The per-harness entry files (Option B): prose is covered if it lands in ANY of
 	// them (CLAUDE.md / AGENTS.md / GEMINI.md). Reuse the face registry as the single
@@ -148,7 +151,12 @@ func indexActions(actions []plan.Action) actionIndex {
 		case plan.Touch:
 			idx.touchPaths[act.Path] = true
 		case plan.MergeSettings:
-			idx.mergeTgts[act.Target] = true
+			if idx.mergeSources[act.Target] == nil {
+				idx.mergeSources[act.Target] = map[string]bool{}
+			}
+			for _, source := range act.Sources {
+				idx.mergeSources[act.Target][source] = true
+			}
 		case plan.WriteFile:
 			if entryFiles[act.Path] {
 				idx.entryFile = true
@@ -160,7 +168,7 @@ func indexActions(actions []plan.Action) actionIndex {
 
 // coverIntent reports whether weave's plan covers one manifest Intent, returning
 // the Uncovered gap when it does not.
-func coverIntent(in intent.Intent, idx actionIndex) (Uncovered, bool) {
+func coverIntent(layerPath string, in intent.Intent, idx actionIndex) (Uncovered, bool) {
 	mk := func(reason string) (Uncovered, bool) {
 		return Uncovered{Verb: verbName(in.Kind), Source: in.Source, Target: in.Target, Reason: reason}, true
 	}
@@ -182,8 +190,13 @@ func coverIntent(in intent.Intent, idx actionIndex) (Uncovered, bool) {
 			return mk("no plan.Touch creates this file")
 		}
 	case intent.Merge:
-		if !idx.mergeTgts[in.Target] {
+		sources := idx.mergeSources[in.Target]
+		if len(sources) == 0 {
 			return mk("no plan.MergeSettings writes this target")
+		}
+		expectedSource := layerPath + "/" + in.Source
+		if !sources[expectedSource] {
+			return mk("plan.MergeSettings for this target omits this layer source")
 		}
 	case intent.Prose:
 		if !idx.entryFile {

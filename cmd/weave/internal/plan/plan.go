@@ -27,10 +27,10 @@ import (
 //     Mkdir{Target}; Touch → empty WriteFile{Target}; Seed →
 //     Seed{upstream/Source, Target} (a content-tracking real-file copy whose
 //     bytes the IO seam reads from the upstream source — see plan.applySeed).
-//   - Merge lowers to a MergeSettings{Source, Target} — the settings cascade
-//     (ported from setup.sh's `merge` case). The planner records the path facts;
-//     Apply reads Source + the sibling settings.local.json off disk and runs
-//     settingsx.Merge (the merge-settings.sh port) to write Target.
+//   - Merge rows group by Target into MergeSettings{Sources, Target} — the
+//     settings cascade. Sources stay foundation-first, matching layer order.
+//     Apply reads Sources + the sibling settings.local.json off disk and runs
+//     settingsx.MergeChain to write Target.
 //   - Skill is DEFERRED (M3 skill serving): it emits no Action and must not
 //     error — a manifest carrying it still compiles. Skill feeds the SkillIndex
 //     (the menu), not the filesystem-op list.
@@ -81,6 +81,9 @@ func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 		}
 	}
 
+	mergeGroups := map[string][]string{}
+	var mergeOrder []string
+
 	// File-op intents lower per intent, in layer (foundation-first) order, under
 	// the SAME 𝒜(R) filter: an intent participates iff it is an EXPORT or it
 	// belongs to the LEAF (so an ancestor's internal is excluded; the leaf's
@@ -118,18 +121,18 @@ func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 			case intent.Prose:
 				// Handled above (composes across layers); nothing per-intent.
 			case intent.Merge:
-				// The settings cascade (setup.sh's `merge` case): lower to a
-				// MergeSettings{Source, Target}. Source is the layer's base
-				// settings (settings.ariadne.json), Target the composed
-				// settings.json. The planner records only the path facts (pure);
-				// Apply reads Source + the sibling settings.local.json off disk,
-				// runs settingsx.Merge (the merge-settings.sh port), writes Target.
-				actions = append(actions, MergeSettings{Source: in.Source, Target: in.Target})
+				if _, ok := mergeGroups[in.Target]; !ok {
+					mergeOrder = append(mergeOrder, in.Target)
+				}
+				mergeGroups[in.Target] = append(mergeGroups[in.Target], joinPath(l.Path, in.Source))
 			case intent.Skill:
 				// TODO(M3): feeds the SkillIndex (agent-agnostic skill serving),
 				// not the filesystem-op list. No Action here.
 			}
 		}
+	}
+	for _, target := range mergeOrder {
+		actions = append(actions, MergeSettings{Sources: mergeGroups[target], Target: target})
 	}
 
 	return actions, nil

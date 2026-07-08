@@ -71,16 +71,14 @@ type Touch struct {
 	Path string
 }
 
-// MergeSettings is the lowering of an intent.Merge — the JSON settings cascade
-// (the base settings.ariadne.json deep-merged UNDER the sibling
-// settings.local.json). The planner emits one per `merge` row, recording only
-// the path facts (pure); Apply reads Source + the optional sibling
-// settings.local.json off disk, runs the pure settingsx.Merge (the
-// merge-settings.sh port — deep dict merge, $merge_keys array union, $remove
-// filter, meta-key strip), and writes the result to Target.
+// MergeSettings is the lowering of one or more intent.Merge rows sharing a
+// Target — the JSON settings cascade across ordered layer sources and the
+// sibling settings.local.json. The planner records only path facts (pure);
+// Apply reads Sources + the optional sibling local off disk, runs the pure
+// settingsx.MergeChain, and writes the result to Target.
 type MergeSettings struct {
-	Source string // the layer's base settings (e.g. .claude/settings.ariadne.json), repo-relative
-	Target string // the merged output (e.g. .claude/settings.json), repo-relative
+	Sources []string // ordered source settings files, usually absolute layer paths
+	Target  string   // the merged output (e.g. .claude/settings.json), repo-relative
 }
 
 func (Symlink) isAction()       {}
