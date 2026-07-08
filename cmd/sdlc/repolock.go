@@ -17,8 +17,13 @@ import (
 
 const repoLockAnnotation = "ariadne.sdlc.repo-lock"
 const repoLockWrappedAnnotation = "ariadne.sdlc.repo-lock-wrapped"
-const repoLockAuto = "auto"
-const repoLockManual = "manual"
+
+type repoLockMode string
+
+const (
+	repoLockAuto   repoLockMode = "auto"
+	repoLockManual repoLockMode = "manual"
+)
 
 type repoLockContextKey struct{}
 
@@ -28,7 +33,7 @@ func markMutatingCommand(cmd *cobra.Command) *cobra.Command {
 	if cmd.Annotations == nil {
 		cmd.Annotations = map[string]string{}
 	}
-	cmd.Annotations[repoLockAnnotation] = repoLockAuto
+	cmd.Annotations[repoLockAnnotation] = string(repoLockAuto)
 	return cmd
 }
 
@@ -36,7 +41,7 @@ func markManualLockCommand(cmd *cobra.Command) *cobra.Command {
 	if cmd.Annotations == nil {
 		cmd.Annotations = map[string]string{}
 	}
-	cmd.Annotations[repoLockAnnotation] = repoLockManual
+	cmd.Annotations[repoLockAnnotation] = string(repoLockManual)
 	return cmd
 }
 
@@ -44,7 +49,7 @@ func commandNeedsRepoLock(cmd *cobra.Command) bool {
 	if cmd == nil {
 		return false
 	}
-	mode := cmd.Annotations[repoLockAnnotation]
+	mode := repoLockMode(cmd.Annotations[repoLockAnnotation])
 	return mode == repoLockAuto || mode == repoLockManual
 }
 
@@ -52,7 +57,7 @@ func commandAutoWrapsRepoLock(cmd *cobra.Command) bool {
 	if cmd == nil {
 		return false
 	}
-	return cmd.Annotations[repoLockAnnotation] == repoLockAuto
+	return repoLockMode(cmd.Annotations[repoLockAnnotation]) == repoLockAuto
 }
 
 func wrapRepoLockCommands(root *cobra.Command) {

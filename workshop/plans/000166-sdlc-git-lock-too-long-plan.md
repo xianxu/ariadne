@@ -27,9 +27,9 @@
 
 **CloseReviewSnapshot** — the reviewed state captured before dispatch and checked before finalization.
 
-- **Relationships:** 1:1 with a boundary review dispatch; owns the reviewed HEAD SHA and original issue text.
+- **Relationships:** 1:1 with a boundary review dispatch; owns the reviewed HEAD SHA, original issue text, and original project text when a project edit is prepared.
 - **DRY rationale:** Gives both whole-issue close and milestone-close the same stale-review guard.
-- **Future extensions:** Can grow to include project file content if another concurrent-write path starts mutating project files during close review.
+- **Future extensions:** Can grow to include any additional repo files whose writes are prepared before review dispatch.
 
 ### Integration Points
 
@@ -196,3 +196,10 @@ Run: `gofmt -w cmd/sdlc/repolock.go cmd/sdlc/repolock_test.go cmd/sdlc/close.go 
 Run: `git diff --check`
 
 Expected: no output.
+
+## Revisions
+
+### 2026-07-07 — close-review REWORK
+
+- Reason: close boundary review found stale validation covered HEAD/issue state but not precomputed project-file edits; it also found the `RepoLockMode` entity was represented as untyped string constants.
+- Delta: `CloseReviewSnapshot` now validates original project-file text whenever close prepares a project edit, and `RepoLockMode` is implemented as a typed internal mode in `repolock.go`.

@@ -317,6 +317,7 @@ type closeResult struct {
 	issueText       string // original, for the "changed?" guard
 	newIssueText    string
 	projectEditPath string
+	projectText     string
 	projectEditText string
 	// calibration-ledger inputs (read from the ORIGINAL issue):
 	fm, body, repoName, issueStr, today string
@@ -518,6 +519,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 
 	// ── Locate + edit project file ──────────────────────────────────────────
 	var projectEditPath string
+	var projectText string
 	var projectEditText string
 
 	projPath, err := project.FindByIssueRef(f.BrainDir, repoName, issueStr)
@@ -595,6 +597,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 
 		if newPT != pt {
 			projectEditPath = projPath
+			projectText = pt
 			projectEditText = newPT
 		}
 	}
@@ -604,6 +607,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		issueText:       issueText,
 		newIssueText:    newIssueText,
 		projectEditPath: projectEditPath,
+		projectText:     projectText,
 		projectEditText: projectEditText,
 		fm:              fm,
 		body:            body,
@@ -996,16 +1000,20 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 }
 
 type closeReviewSnapshot struct {
-	head      string
-	issuePath string
-	issueText string
+	head        string
+	issuePath   string
+	issueText   string
+	projectPath string
+	projectText string
 }
 
 func captureCloseReviewSnapshot(r closeResult) closeReviewSnapshot {
 	return closeReviewSnapshot{
-		head:      strings.TrimSpace(gitx.Capture("rev-parse", "HEAD")),
-		issuePath: r.issuePath,
-		issueText: r.issueText,
+		head:        strings.TrimSpace(gitx.Capture("rev-parse", "HEAD")),
+		issuePath:   r.issuePath,
+		issueText:   r.issueText,
+		projectPath: r.projectEditPath,
+		projectText: r.projectText,
 	}
 }
 
@@ -1026,6 +1034,15 @@ func (s closeReviewSnapshot) validate() error {
 		}
 		if string(data) != s.issueText {
 			return fmt.Errorf("%s changed", s.issuePath)
+		}
+	}
+	if s.projectPath != "" {
+		data, err := os.ReadFile(s.projectPath)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", s.projectPath, err)
+		}
+		if string(data) != s.projectText {
+			return fmt.Errorf("%s changed", s.projectPath)
 		}
 	}
 	return nil

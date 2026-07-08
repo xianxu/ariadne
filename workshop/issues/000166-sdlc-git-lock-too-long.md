@@ -90,3 +90,7 @@ total: 2.05
 - Verification: `go test ./cmd/sdlc -count=1` passed.
 - Verification: `go test ./...` passed.
 - Verification: `git diff --check` passed.
+- Close review returned REWORK; fixing stale project-file validation and aligning
+  the implemented lock mode with the plan's `RepoLockMode` entity.
+- Review-fix verification: focused stale-guard/repolock tests, `go test
+  ./cmd/sdlc -count=1`, `go test ./...`, and `git diff --check` passed.

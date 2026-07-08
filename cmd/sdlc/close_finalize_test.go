@@ -191,6 +191,78 @@ func TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 	}
 }
 
+func TestCloseCommand_ProjectChangedDuringBoundaryReview_DoesNotFinalize(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	brainDir := t.TempDir()
+	projectDir := filepath.Join(brainDir, "data", "project")
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		t.Fatalf("mkdir project dir: %v", err)
+	}
+	projectPath := filepath.Join(projectDir, "roadmap.md")
+	projectText := "# roadmap\n\n- [ ] ship close fix [" + repoIdentity() + "#69]\n"
+	if err := os.WriteFile(projectPath, []byte(projectText), 0o644); err != nil {
+		t.Fatalf("write project file: %v", err)
+	}
+
+	started := make(chan struct{})
+	releaseReview := make(chan struct{})
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+		close(started)
+		<-releaseReview
+		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+	}
+
+	done := make(chan struct {
+		stdout string
+		err    error
+	}, 1)
+	go func() {
+		stdout, _, err := executeSDLCTestCommand("close", "--issue", "69", "--actual", "1", "--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir, "--brain-dir", brainDir)
+		done <- struct {
+			stdout string
+			err    error
+		}{stdout: stdout, err: err}
+	}()
+
+	waitForSignal(t, started, "boundary review to start")
+	concurrentText := projectText + "\noperator updated project scope\n"
+	if err := os.WriteFile(projectPath, []byte(concurrentText), 0o644); err != nil {
+		t.Fatalf("write concurrent project edit: %v", err)
+	}
+	close(releaseReview)
+
+	var got struct {
+		stdout string
+		err    error
+	}
+	select {
+	case got = <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for stale project close command")
+	}
+	if got.err == nil || !strings.Contains(got.err.Error(), "boundary review stale") {
+		t.Fatalf("close should return stale-review error, got %v", got.err)
+	}
+	if !strings.Contains(got.stdout, "Review-Verdict: SHIP") {
+		t.Fatalf("close should emit review trailer without finalizing:\n%s", got.stdout)
+	}
+	gotProject, err := os.ReadFile(projectPath)
+	if err != nil {
+		t.Fatalf("read project file: %v", err)
+	}
+	if string(gotProject) != concurrentText {
+		t.Fatalf("close overwrote concurrent project edit:\n%s", gotProject)
+	}
+	text := readIssue(t, issuesDir)
+	for _, forbidden := range []string{"status: codecomplete", "closed — tests pass", "actual_hours: 1"} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("close finalized stale project state; found %q:\n%s", forbidden, text)
+		}
+	}
+}
+
 // #160 Q4: the lessons reminder moved from the publish gate to `sdlc close` — a
 // finalizing whole-issue close emits it (agent engaged, findings fresh); a
 // non-finalizing (REWORK) close does not.
