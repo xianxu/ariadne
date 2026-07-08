@@ -62,8 +62,7 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 	// Observed (a path may also be a Symlink-action probe, observed as a symlink
 	// with no content) rather than clobbering its symlink fields. Absent ⇒ leave
 	// the existing record (or an Exists:false) so the classifier sees it missing.
-	observeMerge := func(rel string) {
-		abs := filepath.Join(root, rel)
+	observeMergeAbs := func(abs string) {
 		cur, had := obs[abs]
 		if _, err := fs.Stat(abs); err != nil {
 			if !had {
@@ -76,6 +75,9 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 			cur.Content = string(data)
 		}
 		obs[abs] = cur
+	}
+	observeMerge := func(rel string) {
+		observeMergeAbs(filepath.Join(root, rel))
 	}
 
 	// observeAbs observes a path given ALREADY-ABSOLUTE (not root-joined) — for a
@@ -109,11 +111,10 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 		case plan.WriteFile:
 			observe(act.Path, true) // content compared for a WriteFile
 		case plan.MergeSettings:
-			// The probe is THREE files (matching classifyMergeSettings): the base
-			// (Source), the optional sibling settings.local.json, and the live
-			// target (Target = setup.sh's output). All need CONTENT — the
-			// classifier recomputes the merge from base+local and semantically
-			// compares it to the target. The local path mirrors Apply/the bash:
+			// The probe is every source, the optional sibling
+			// settings.local.json, and the live target. All need CONTENT — the
+			// classifier recomputes the chain and semantically compares it to the
+			// target. The local path mirrors Apply/the bash:
 			// <dir(Target)>/settings.local.json.
 			//
 			// Crucially the merge probe reads content by FOLLOWING symlinks: in a
@@ -123,7 +124,9 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 			// so a symlinked base would carry an empty Content and the merge would
 			// spuriously fail to parse — a harness bug, not a port gap. observeMerge
 			// records the resolved content alongside any existing symlink fields.
-			observeMerge(act.Source)
+			for _, source := range act.Sources {
+				observeMergeAbs(source)
+			}
 			observeMerge(act.Target)
 			localRel := filepath.Join(filepath.Dir(act.Target), "settings.local.json")
 			observeMerge(localRel)

@@ -64,7 +64,7 @@ func TestGatherObservesMergeSettingsTriple(t *testing.T) {
 	}
 
 	actions := []plan.Action{
-		plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		plan.MergeSettings{Sources: []string{filepath.Join(root, ".claude", "settings.ariadne.json")}, Target: ".claude/settings.json"},
 	}
 	in := Gather(weavefs.OSFS{}, root, actions, nil)
 
@@ -109,7 +109,7 @@ func TestGatherMergeFollowsSymlinkedBase(t *testing.T) {
 	// probe .claude/settings.ariadne.json.
 	actions := []plan.Action{
 		plan.Symlink{Src: upstream, Dst: ".claude/settings.ariadne.json"},
-		plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		plan.MergeSettings{Sources: []string{filepath.Join(claude, "settings.ariadne.json")}, Target: ".claude/settings.json"},
 	}
 	in := Gather(weavefs.OSFS{}, root, actions, nil)
 

@@ -30,7 +30,9 @@ Re-run to refresh after ariadne updates. Mode is recorded in `.ariadne-mode`.
 Defined in `construct/base.manifest` (in ariadne):
 
 - **Constitution**: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` — shared development rules (per-harness prose entry files, composed once + fanned; see [harness-integration.md](harness-integration.md))
-- **Settings**: `.claude/settings.json` — merged from `.ariadne` and `.local` layers
+- **Settings**: `.claude/settings.json` — weave folds manifest-declared layer
+  settings fragments foundation-first, then applies `.claude/settings.local.json`
+  last
 - **Skills**: per-harness skill dirs — `.claude/skills/xx-*` (claude) + `.agents/skills/xx-*` (codex/gemini), each carrying the local (`xx-*`) + adapted (`superpowers-*`) skills — weave lowers these per layer (#107 Option B; see [harness-integration.md](harness-integration.md)); derivatives pick up ariadne's local + adapted skills through the weave LAYER WALK, each `<skill-dir>/<name>` pointing straight at ariadne's source dir (NO whole-dir `construct/adapted` symlink — #104 M3 dropped those; see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
 - **Makefile system**:
   - `Makefile` — generic root template (REPO_NAME, workflow + local include, help chain). Identical across consumers; per-repo concerns belong in `Makefile.local`.

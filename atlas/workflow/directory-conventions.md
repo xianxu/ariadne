@@ -13,7 +13,7 @@ repo/
 │                          #   anything not in the vendored base
 ├── scripts/               # Automation scripts supporting Makefile
 ├── .claude/
-│   ├── settings.json      # Merged from settings.ariadne.json + settings.local.json
+│   ├── settings.json      # Merged from layer settings fragments + settings.local.json
 │   └── skills/            # Skill definitions (superpowers, fix, construct, local)
 ├── construct/
 │   ├── local/             # Local-origin skill sources

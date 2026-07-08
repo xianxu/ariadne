@@ -1,12 +1,13 @@
 ---
 id: 000097
-status: working
+status: codecomplete
 deps: [ariadne#95]
 github_issue:
 created: 2026-06-14
 updated: 2026-07-07
 estimate_hours: 3
 started: 2026-07-07T22:21:33-07:00
+actual_hours: 0.69
 ---
 
 # weave: topological multi-layer settings merge
@@ -89,22 +90,35 @@ total: 3.0
 
 - [x] Write the durable implementation plan at
       `workshop/plans/000097-weave-topo-settings-merge-plan.md`.
-- [ ] Add the pure `settingsx.MergeChain` fold and keep `Merge(base, local)`
+- [x] Add the pure `settingsx.MergeChain` fold and keep `Merge(base, local)`
       compatible.
-- [ ] Change `MergeSettings` to carry ordered sources, group merge rows by target
+- [x] Change `MergeSettings` to carry ordered sources, group merge rows by target
       in `plan.Plan`, and update apply/prune/dry-run consumers.
-- [ ] Update golden and verify-complete so they classify and cover every source
+- [x] Update golden and verify-complete so they classify and cover every source
       in the chain, not just the target.
-- [ ] Add an end-to-end 3-layer compile fixture, update atlas, and run the full
+- [x] Add an end-to-end 3-layer compile fixture, update atlas, and run the full
       weave/Go verification suite.
 
 ## Log
 
 ### 2026-07-07
+- 2026-07-07: closed — Implemented topological settings merge across layer chains and addressed close-review findings. Verification passed: go test ./cmd/weave/internal/settingsx ./cmd/weave/internal/plan ./cmd/weave/internal/golden ./cmd/weave -count=1; go test ./...; git diff --check; sdlc issue validate workshop/issues/000097-weave-topo-settings-merge.md. Sidecar normalized after REWORK.; review verdict: SHIP
+- 2026-07-07: closed — Implemented topological settings merge across layer chains. Verification passed: go test ./cmd/weave/internal/settingsx -count=1; go test ./cmd/weave/internal/plan -count=1; go test ./cmd/weave/internal/golden -count=1; go test ./cmd/weave -count=1; go test ./...; git diff --check; sdlc issue validate workshop/issues/000097-weave-topo-settings-merge.md.; review verdict: FIX-THEN-SHIP
 - Claimed the issue and entered planning. Current design keeps merge semantics in
   the pure `settingsx` core, keeps filesystem reads/writes in `plan.Apply`, and
   updates all `MergeSettings` consumers to derive from the ordered source-chain
   action shape (ARCH-PURE, ARCH-DRY, ARCH-PURPOSE).
+- Implemented `settingsx.MergeChain`, grouped merge rows into ordered
+  `MergeSettings{Sources, Target}` actions, updated apply/golden/completeness
+  consumers, and added a 3-layer compile fixture proving middle-layer settings
+  composition. Targeted verification passed: `go test
+  ./cmd/weave/internal/settingsx -count=1`, `go test ./cmd/weave/internal/plan
+  -count=1`, `go test ./cmd/weave/internal/golden -count=1`, `go test
+  ./cmd/weave -run TestCompileMergesSettingsAcrossLayerChain -count=1`.
+- Full verification passed: `go test ./cmd/weave/internal/settingsx -count=1`;
+  `go test ./cmd/weave/internal/plan -count=1`; `go test
+  ./cmd/weave/internal/golden -count=1`; `go test ./cmd/weave -count=1`; `go
+  test ./...`; `git diff --check`.
 
 ### 2026-06-14
 - Filed from the ariadne #95 tart pass: operator asked whether settings merged

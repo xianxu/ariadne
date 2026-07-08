@@ -75,12 +75,15 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   owner→`go mod edit -tool` via a `weavefs.GoModEditor` exec seam — **retired in
   M5**: ownership is location-based, weave does not edit `go.mod`.)
 - `cmd/weave/internal/settingsx` + the `merge` lowering — the `settings`
-  backend: pure `Merge`/`SemanticEqual` porting `merge-settings.sh`
-  (`$merge_keys` union, `$remove` filter, meta-key strip, local-overrides-base);
-  the `MergeSettings` action reads `.claude/settings.ariadne.json` + optional
-  `settings.local.json` → `.claude/settings.json`; the golden classifier
-  compares **semantically** (not byte-wise). No formal `Backend` interface — the
-  `Action` sum type is the seam (YAGNI with a single backend). **[M4]**
+  backend: pure `MergeChain`/`Merge`/`SemanticEqual` porting and extending
+  `merge-settings.sh` (`$merge_keys` union, final-source `$remove` filter,
+  meta-key strip). `plan.Plan` groups selected `merge` rows by target into one
+  `MergeSettings{Sources, Target}`; `Apply` folds ordered layer sources
+  foundation-first, then optional sibling `settings.local.json` last, into the
+  generated target. The golden classifier recomputes the same chain and compares
+  **semantically** (not byte-wise); `verify-complete` checks every manifest merge
+  source is represented in the planned chain. No formal `Backend` interface —
+  the `Action` sum type is the seam (YAGNI with a single backend). **[M4, #97]**
 - **Cutover surface** — `weave compile` (the **Union** over every harness face by
   default; `--target {claude|codex|gemini}` for a lean subset; bare `weave` is
   help-only, mutates nothing) + `weave verify-complete` (completeness companion

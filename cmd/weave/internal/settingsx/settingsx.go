@@ -1,10 +1,10 @@
 // Package settingsx is the ONE home for weave's pure settings-merge reasoning
-// (ARCH-DRY, ARCH-PURE), the port of construct/scripts/merge-settings.sh. Two
-// consumers need it: plan.Apply (the IO seam reads base + local, calls Merge,
-// writes the target) and the golden classifier (it recomputes Merge from the
-// observed base + local and asks SemanticEqual whether the live settings.json
-// matches). It sits below plan and golden with no internal imports, so both
-// import it without a cycle. No IO: it transforms in-memory bytes only.
+// (ARCH-DRY, ARCH-PURE), the port of construct/scripts/merge-settings.sh and
+// the extension that folds settings across a layer chain. Plan.Apply reads the
+// ordered sources + optional local and calls MergeChain; the golden classifier
+// recomputes the same MergeChain and asks SemanticEqual whether live
+// settings.json matches. It sits below plan and golden with no internal imports,
+// so both import it without a cycle. No IO: it transforms in-memory bytes only.
 //
 // merge-settings.sh is the source of truth; this reproduces its embedded
 // python's deep_merge / get_nested / set_nested / strip_meta semantics
@@ -37,13 +37,59 @@ import (
 // Output is indent-2 JSON with a trailing newline, matching the bash's
 // json.dump(indent=2) + print().
 func Merge(base, local []byte) ([]byte, error) {
-	var baseObj map[string]any
-	if err := json.Unmarshal(base, &baseObj); err != nil {
-		return nil, fmt.Errorf("settingsx.Merge: parse base: %w", err)
+	if local == nil {
+		return MergeChain([][]byte{base})
+	}
+	return MergeChain([][]byte{base, local})
+}
+
+// MergeChain deep-merges ordered settings sources into the composed
+// settings.json content. The first source is the foundation: its $merge_keys
+// define the array-union paths for the whole chain. Later sources override
+// earlier sources foundation-first. Only the final source's $remove is applied,
+// preserving the historical "repo-local removes from inherited settings"
+// contract while allowing intermediate layers to contribute settings.
+func MergeChain(sources [][]byte) ([]byte, error) {
+	if len(sources) == 0 {
+		return nil, fmt.Errorf("settingsx.MergeChain: no sources")
 	}
 
-	// merge_keys = set(base.get('$merge_keys', [])) — the dotted paths whose
-	// arrays union rather than replace.
+	objects := make([]map[string]any, 0, len(sources))
+	for i, source := range sources {
+		var obj map[string]any
+		if err := json.Unmarshal(source, &obj); err != nil {
+			return nil, fmt.Errorf("settingsx.MergeChain: parse source %d: %w", i, err)
+		}
+		objects = append(objects, obj)
+	}
+
+	mergeKeys := mergeKeySet(objects[0])
+	acc := deepCopy(objects[0]).(map[string]any)
+	for i := 1; i < len(objects); i++ {
+		next := objects[i]
+		baseForMerge := acc
+		if i == len(objects)-1 {
+			if removals, ok := next["$remove"].(map[string]any); ok && len(removals) > 0 {
+				baseForMerge = applyRemovals(acc, removals)
+			}
+		}
+		merged := deepMerge(baseForMerge, next, "", mergeKeys)
+		acc, _ = merged.(map[string]any)
+		if i != len(objects)-1 {
+			copyRootMeta(acc, baseForMerge)
+		}
+	}
+
+	result := stripMeta(acc).(map[string]any)
+	out, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("settingsx.MergeChain: marshal result: %w", err)
+	}
+	out = append(out, '\n') // match the bash's trailing print().
+	return out, nil
+}
+
+func mergeKeySet(baseObj map[string]any) map[string]bool {
 	mergeKeys := map[string]bool{}
 	if raw, ok := baseObj["$merge_keys"].([]any); ok {
 		for _, k := range raw {
@@ -52,34 +98,15 @@ func Merge(base, local []byte) ([]byte, error) {
 			}
 		}
 	}
+	return mergeKeys
+}
 
-	var result map[string]any
-	if local == nil {
-		// Local absent → base with meta keys stripped.
-		result = stripMeta(baseObj).(map[string]any)
-	} else {
-		var localObj map[string]any
-		if err := json.Unmarshal(local, &localObj); err != nil {
-			return nil, fmt.Errorf("settingsx.Merge: parse local: %w", err)
+func copyRootMeta(dst, src map[string]any) {
+	for k, v := range src {
+		if len(k) > 0 && k[0] == '$' {
+			dst[k] = deepCopy(v)
 		}
-
-		// Apply $remove against base BEFORE merging (the bash filters a deep copy
-		// of base, then merges strip_meta(base_filtered) with local).
-		baseForMerge := baseObj
-		if removals, ok := localObj["$remove"].(map[string]any); ok && len(removals) > 0 {
-			baseForMerge = applyRemovals(baseObj, removals)
-		}
-		merged := deepMerge(stripMeta(baseForMerge), localObj, "", mergeKeys)
-		// deepMerge over two dicts always yields a dict here (both are objects).
-		result, _ = merged.(map[string]any)
 	}
-
-	out, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("settingsx.Merge: marshal result: %w", err)
-	}
-	out = append(out, '\n') // match the bash's trailing print().
-	return out, nil
 }
 
 // SemanticEqual reports whether two JSON byte slices decode to deeply-equal

@@ -203,12 +203,11 @@ func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 }
 
 func TestPlanMergeLowering(t *testing.T) {
-	// A `merge` intent lowers to a MergeSettings{Source, Target} — the settings
-	// cascade (ported from setup.sh's `merge` case + merge-settings.sh). Source is
-	// the layer's base settings (settings.ariadne.json), Target the composed
-	// settings.json. The pure planner records the path facts; Apply reads base +
-	// (optional) local off disk, runs settingsx.Merge, writes Target. The manifest
-	// row is `merge .claude/settings.ariadne.json .claude/settings.json`.
+	// A `merge` intent lowers to a MergeSettings{Sources, Target} — the settings
+	// cascade. The planner records ordered source path facts; Apply reads those
+	// sources plus optional local off disk, runs settingsx.MergeChain, and writes
+	// Target. The manifest row is
+	// `merge .claude/settings.ariadne.json .claude/settings.json`.
 	layers := []layer.Layer{
 		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
 			{Kind: intent.Merge, Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
@@ -219,7 +218,43 @@ func TestPlanMergeLowering(t *testing.T) {
 		t.Fatalf("Plan: unexpected error: %v", err)
 	}
 	want := []Action{
-		MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		MergeSettings{Sources: []string{"/ws/ariadne/.claude/settings.ariadne.json"}, Target: ".claude/settings.json"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Plan = %#v, want %#v", got, want)
+	}
+}
+
+func TestPlanGroupsMergeRowsByTargetFoundationFirst(t *testing.T) {
+	layers := []layer.Layer{
+		{Name: "base", Path: "/ws/base", Intents: []intent.Intent{
+			{Kind: intent.Merge, Source: ".claude/settings.base.json", Target: ".claude/settings.json"},
+		}},
+		{Name: "mid", Path: "/ws/mid", Intents: []intent.Intent{
+			{Kind: intent.Merge, Source: ".claude/settings.mid.json", Target: ".claude/settings.json"},
+			{Kind: intent.Merge, Source: ".gemini/settings.mid.json", Target: ".gemini/settings.json"},
+		}},
+		{Name: "leaf", Path: "/ws/leaf", Intents: []intent.Intent{
+			{Kind: intent.Merge, Source: ".claude/settings.leaf.json", Target: ".claude/settings.json"},
+		}},
+	}
+	got, err := Plan(layers, []string{"AGENTS.md"})
+	if err != nil {
+		t.Fatalf("Plan: unexpected error: %v", err)
+	}
+	want := []Action{
+		MergeSettings{
+			Sources: []string{
+				"/ws/base/.claude/settings.base.json",
+				"/ws/mid/.claude/settings.mid.json",
+				"/ws/leaf/.claude/settings.leaf.json",
+			},
+			Target: ".claude/settings.json",
+		},
+		MergeSettings{
+			Sources: []string{"/ws/mid/.gemini/settings.mid.json"},
+			Target:  ".gemini/settings.json",
+		},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Plan = %#v, want %#v", got, want)

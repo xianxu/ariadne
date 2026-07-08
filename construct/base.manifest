@@ -69,9 +69,10 @@ internal  prose AGENTS.local.md
 symlink   .codex/config.toml
 
 # ── Claude Code settings ──────────────────────────────────────────────────────
-# settings.ariadne.json is symlinked (or copied in vendor mode) so the local
-# merge script can read it without ../ariadne, and so updates to the base
-# propagate via the standard refresh flow.
+# settings.ariadne.json is ariadne's own settings fragment. weave groups every
+# selected `merge <source> .claude/settings.json` row across the layer stack,
+# folds those sources foundation-first, then applies the repo-local sibling
+# settings.local.json last.
 symlink   .claude/settings.ariadne.json
 merge     .claude/settings.ariadne.json        .claude/settings.json
 

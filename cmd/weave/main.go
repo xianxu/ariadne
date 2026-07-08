@@ -783,7 +783,7 @@ func formatActions(actions []plan.Action) string {
 		case plan.Touch:
 			b = append(b, fmt.Sprintf("touch     %s\n", act.Path)...)
 		case plan.MergeSettings:
-			b = append(b, fmt.Sprintf("merge     %s -> %s\n", act.Source, act.Target)...)
+			b = append(b, fmt.Sprintf("merge     %s -> %s\n", strings.Join(act.Sources, ", "), act.Target)...)
 		case plan.EnsureGitignore:
 			b = append(b, fmt.Sprintf("gitignore .gitignore (%d entries)\n", len(act.Entries))...)
 		default:

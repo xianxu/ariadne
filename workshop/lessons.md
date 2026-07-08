@@ -2,6 +2,27 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A changed surface has shadow docs and execution records, not just the main atlas page
+
+**Pattern (#97 close review):** The implementation updated `atlas/workflow/weave.md`
+for topological settings merge, but two other atlas pages still described
+settings as only `settings.ariadne.json + settings.local.json`. The code and
+primary atlas page were right; the shadow documentation was stale. The same
+review found the durable implementation plan still had every detailed checkbox
+unchecked even though the issue checklist was complete.
+
+**Rule:** When changing a named surface or convention, run a shadow-doc sweep for
+the old phrase and update every live explanatory copy, not just the page you
+remember editing. Also update the durable plan's execution state before close:
+issue checkboxes, detailed plan checkboxes, and any generated review sidecars
+should tell the same story. Grep for the old model terms before committing
+(`settings.ariadne.json + settings.local.json`, `MergeSettings{Source}`, etc.),
+then rerun `git diff --check`.
+
+**Origin:** #97 close review (FIX-THEN-SHIP). The code review found no behavior
+blockers, but caught stale atlas shadows and unchecked durable-plan steps before
+the issue crossed the boundary.
+
 ## Generated review sidecars must be bounded, or they become the next review's input bug
 
 **Pattern (#166):** `sdlc close` writes a durable review sidecar, and the next close review diffs that sidecar too. Capturing the full raw reviewer transcript, including the prompt and diff, made the sidecar enormous, introduced whitespace-check failures from embedded patches, and eventually made a later review dispatch fail with `argument list too long`. The evidence file became active input to the gate it was supposed to document.

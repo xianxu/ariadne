@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -117,6 +119,75 @@ func TestCompileEndToEnd(t *testing.T) {
 	if c, _ := os.ReadFile(selfdoc); string(c) != "SELF DOC" {
 		t.Fatalf("selfdoc.md content changed to %q — self-reference clobbered it", c)
 	}
+}
+
+func TestCompileMergesSettingsAcrossLayerChain(t *testing.T) {
+	parent := t.TempDir()
+	base := filepath.Join(parent, "base")
+	mid := filepath.Join(parent, "mid")
+	derived := filepath.Join(parent, "derived")
+
+	mkfile(t, filepath.Join(base, "construct", "base.manifest"),
+		"merge .claude/settings.base.json .claude/settings.json\n")
+	mkfile(t, filepath.Join(base, ".claude", "settings.base.json"), `{
+		"$merge_keys": ["permissions.allow"],
+		"permissions": {"allow": ["A"]},
+		"scalar": "base"
+	}`)
+
+	mkfile(t, filepath.Join(mid, "construct", "deps"), "substrate ../base\n")
+	mkfile(t, filepath.Join(mid, "construct", "base.manifest"),
+		"merge .claude/settings.mid.json .claude/settings.json\n")
+	mkfile(t, filepath.Join(mid, ".claude", "settings.mid.json"), `{
+		"permissions": {"allow": ["B"]},
+		"scalar": "mid"
+	}`)
+
+	mkfile(t, filepath.Join(derived, "construct", "deps"), "substrate ../mid\n")
+	mkfile(t, filepath.Join(derived, "construct", "base.manifest"),
+		"merge .claude/settings.derived.json .claude/settings.json\n")
+	mkfile(t, filepath.Join(derived, ".claude", "settings.derived.json"), `{
+		"permissions": {"allow": ["C"]},
+		"leaf": true
+	}`)
+	mkfile(t, filepath.Join(derived, ".claude", "settings.local.json"), `{
+		"$remove": {"permissions.allow": ["A"]},
+		"permissions": {"allow": ["D"]},
+		"scalar": "local"
+	}`)
+
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	got := readJSONMap(t, filepath.Join(derived, ".claude", "settings.json"))
+	want := map[string]any{
+		"permissions": map[string]any{"allow": []any{"B", "C", "D"}},
+		"scalar":      "local",
+		"leaf":        true,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("settings.json:\n got=%#v\nwant=%#v", got, want)
+	}
+	for _, meta := range []string{"$merge_keys", "$remove"} {
+		if _, ok := got[meta]; ok {
+			t.Fatalf("meta key %q leaked into settings.json: %#v", meta, got)
+		}
+	}
+}
+
+func readJSONMap(t *testing.T, path string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("parse %s: %v\n%s", path, err, data)
+	}
+	return out
 }
 
 // TestCompileEnsuresGitignore proves weave OWNS ignoring its own generated-

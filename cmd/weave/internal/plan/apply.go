@@ -30,8 +30,8 @@ import (
 //     skip when the source is absent. Distinct from WriteFile (whose content the
 //     planner holds): a Seed's content is read from Src here in the IO seam.
 //   - WriteFile → AGENTS.md/touch: ensure parents, then write.
-//   - MergeSettings → merge-settings.sh: read base + optional sibling
-//     settings.local.json, run the pure mergeSettings, write the merged target.
+//   - MergeSettings → settings merge: read ordered sources + optional sibling
+//     settings.local.json, run the pure settingsx.MergeChain, write the target.
 //   - EnsureGitignore → the generated-runtime ignore mechanism (gitignore.go):
 //     read the repo's .gitignore, append the missing fixed entries (idempotent
 //     whole-line append, never duplicating), write back only on change. weave
@@ -69,30 +69,35 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 	return nil
 }
 
-// applyMergeSettings is the IO half of the settings cascade, ported from
-// merge-settings.sh: read the base (act.Source) and the optional sibling local
-// (settings.local.json, alongside act.Target), run the pure settingsx.Merge, and
-// write the result to act.Target. The local file's path is derived the same way
-// the bash does — LOCAL_FILE="$TARGET_DIR/settings.local.json", i.e. the
-// settings.local.json sibling of the target — so an arbitrary Target dir resolves
-// its local correctly. A missing base is an error (the bash's `[[ ! -f BASE ]]`
-// exit 1); a missing local takes the local-absent path (base with meta stripped).
-// All IO lives here (ARCH-PURE); the merge itself is the pure settingsx.Merge.
+// applyMergeSettings is the IO half of the settings cascade: read ordered
+// sources and the optional sibling local (settings.local.json, alongside
+// act.Target), run the pure settingsx.MergeChain, and write the result to
+// act.Target. The local file's path is derived the same way the bash did —
+// LOCAL_FILE="$TARGET_DIR/settings.local.json", i.e. the settings.local.json
+// sibling of the target — so an arbitrary Target dir resolves its local
+// correctly. A missing source is an error; a missing local takes the
+// source-only path (sources with meta stripped at the end). All IO lives here
+// (ARCH-PURE); the merge itself is pure.
 func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error {
-	basePath := filepath.Join(repoRoot, act.Source)
-	base, err := fs.ReadFile(basePath)
-	if err != nil {
-		return fmt.Errorf("apply merge: read base %s: %w", basePath, err)
+	if len(act.Sources) == 0 {
+		return fmt.Errorf("apply merge: %s: no sources", act.Target)
+	}
+	sources := make([][]byte, 0, len(act.Sources)+1)
+	for _, sourcePath := range act.Sources {
+		data, err := fs.ReadFile(sourcePath)
+		if err != nil {
+			return fmt.Errorf("apply merge: read source %s: %w", sourcePath, err)
+		}
+		sources = append(sources, data)
 	}
 
 	targetPath := filepath.Join(repoRoot, act.Target)
 	localPath := filepath.Join(filepath.Dir(targetPath), "settings.local.json")
-	var local []byte
 	if data, lerr := fs.ReadFile(localPath); lerr == nil {
-		local = data // present ⇒ deep-merge; absent ⇒ nil ⇒ base-with-meta-stripped
+		sources = append(sources, data)
 	}
 
-	merged, err := settingsx.Merge(base, local)
+	merged, err := settingsx.MergeChain(sources)
 	if err != nil {
 		return fmt.Errorf("apply merge: %s: %w", targetPath, err)
 	}

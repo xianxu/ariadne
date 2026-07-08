@@ -39,7 +39,7 @@ func fullActions() []plan.Action {
 		plan.Seed{Src: "/ws/ariadne/bootstrap.sh", Dst: "bootstrap.sh"},
 		plan.Mkdir{Path: "atlas"},
 		plan.Touch{Path: "workshop/lessons.md"},
-		plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+		plan.MergeSettings{Sources: []string{"/ws/ariadne/.claude/settings.ariadne.json"}, Target: ".claude/settings.json"},
 		plan.Symlink{Src: "/ws/ariadne/construct/local/fix", Dst: ".claude/skills/xx-fix"}, // claude skill backend
 	}
 }
@@ -92,6 +92,27 @@ func TestCheckCompletenessCatchesDroppedSymlinkAndMerge(t *testing.T) {
 	// Sorted by verb: merge before symlink.
 	if got[0].Verb != "merge" || got[1].Verb != "symlink" {
 		t.Fatalf("uncovered verbs = [%s %s], want [merge symlink]", got[0].Verb, got[1].Verb)
+	}
+}
+
+func TestCheckCompletenessCatchesDroppedMergeSource(t *testing.T) {
+	layers := []layer.Layer{
+		{Name: "base", Path: "/ws/base", Intents: []intent.Intent{
+			{Kind: intent.Merge, Source: ".claude/settings.base.json", Target: ".claude/settings.json"},
+		}},
+		{Name: "mid", Path: "/ws/mid", Intents: []intent.Intent{
+			{Kind: intent.Merge, Source: ".claude/settings.mid.json", Target: ".claude/settings.json"},
+		}},
+	}
+	actions := []plan.Action{
+		plan.MergeSettings{
+			Sources: []string{"/ws/base/.claude/settings.base.json"},
+			Target:  ".claude/settings.json",
+		},
+	}
+	got := CheckCompleteness(layers, actions)
+	if len(got) != 1 || got[0].Verb != "merge" || got[0].Source != ".claude/settings.mid.json" {
+		t.Fatalf("dropped merge source: got %+v, want one uncovered middle merge source", got)
 	}
 }
 

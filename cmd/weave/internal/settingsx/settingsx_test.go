@@ -38,6 +38,61 @@ func runMerge(t *testing.T, base, local string) map[string]any {
 	return mustParse(t, out)
 }
 
+// runMergeChain runs MergeChain and returns the parsed result, failing on error.
+func runMergeChain(t *testing.T, sources []string) map[string]any {
+	t.Helper()
+	sourceBytes := make([][]byte, 0, len(sources))
+	for _, source := range sources {
+		sourceBytes = append(sourceBytes, []byte(source))
+	}
+	out, err := MergeChain(sourceBytes)
+	if err != nil {
+		t.Fatalf("MergeChain: %v", err)
+	}
+	return mustParse(t, out)
+}
+
+func TestMergeChainPreservesMergeKeysAcrossIntermediateSources(t *testing.T) {
+	// The foundation's $merge_keys must survive every intermediate fold. If an
+	// intermediate result strips meta too early, the later arrays replace instead
+	// of unioning and this test loses B/C.
+	got := runMergeChain(t, []string{
+		`{"$merge_keys":["permissions.allow"],"permissions":{"allow":["A"]},"scalar":"base"}`,
+		`{"permissions":{"allow":["B"]},"scalar":"mid"}`,
+		`{"permissions":{"allow":["C"]},"leaf":true}`,
+		`{"permissions":{"allow":["D"]},"scalar":"local"}`,
+	})
+	want := map[string]any{
+		"permissions": map[string]any{"allow": []any{"A", "B", "C", "D"}},
+		"scalar":      "local",
+		"leaf":        true,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MergeChain:\n got=%#v\nwant=%#v", got, want)
+	}
+}
+
+func TestMergeChainAppliesRemoveFromFinalLocalOnly(t *testing.T) {
+	// The repo-local final source is the only layer whose $remove is applied,
+	// matching the old base+local contract while allowing middle layers to add.
+	got := runMergeChain(t, []string{
+		`{"$merge_keys":["permissions.allow"],"permissions":{"allow":["A","B"]}}`,
+		`{"$remove":{"permissions.allow":["A"]},"permissions":{"allow":["C"]}}`,
+		`{"$remove":{"permissions.allow":["B"]},"permissions":{"allow":["D"]}}`,
+	})
+	want := map[string]any{
+		"permissions": map[string]any{"allow": []any{"A", "C", "D"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MergeChain final remove:\n got=%#v\nwant=%#v", got, want)
+	}
+	for _, meta := range []string{"$merge_keys", "$remove"} {
+		if _, ok := got[meta]; ok {
+			t.Fatalf("meta key %q leaked into output: %#v", meta, got)
+		}
+	}
+}
+
 func TestMergeLocalAbsentStripsMeta(t *testing.T) {
 	base := `{
 		"$comment": "doc",

@@ -278,7 +278,7 @@ func TestMergeSettingsSemanticMatch(t *testing.T) {
 	in := Input{
 		RepoRoot: "/ws/ariadne",
 		Actions: []plan.Action{
-			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+			plan.MergeSettings{Sources: []string{"/ws/ariadne/.claude/settings.ariadne.json"}, Target: ".claude/settings.json"},
 		},
 		Observed: map[string]Observed{
 			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
@@ -306,12 +306,41 @@ func TestMergeSettingsWithLocalMatch(t *testing.T) {
 	in := Input{
 		RepoRoot: "/ws/ariadne",
 		Actions: []plan.Action{
-			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+			plan.MergeSettings{Sources: []string{"/ws/ariadne/.claude/settings.ariadne.json"}, Target: ".claude/settings.json"},
 		},
 		Observed: map[string]Observed{
 			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
 			"/ws/ariadne/.claude/settings.local.json":   {Exists: true, Content: local},
 			"/ws/ariadne/.claude/settings.json":         {Exists: true, Content: liveTarget},
+		},
+	}
+	divs := Classify(in)
+	if len(divs) != 1 || divs[0].Class != Match {
+		t.Fatalf("got %+v, want one MATCH", divs)
+	}
+}
+
+func TestMergeSettingsChainSemanticMatch(t *testing.T) {
+	base := `{"$merge_keys":["permissions.allow"],"permissions":{"allow":["A"]},"scalar":"base"}`
+	mid := `{"permissions":{"allow":["B"]},"scalar":"mid"}`
+	local := `{"$remove":{"permissions.allow":["A"]},"permissions":{"allow":["C"]},"scalar":"local"}`
+	liveTarget := `{"permissions":{"allow":["B","C"]},"scalar":"local"}`
+	in := Input{
+		RepoRoot: "/ws/ariadne",
+		Actions: []plan.Action{
+			plan.MergeSettings{
+				Sources: []string{
+					"/ws/base/.claude/settings.base.json",
+					"/ws/mid/.claude/settings.mid.json",
+				},
+				Target: ".claude/settings.json",
+			},
+		},
+		Observed: map[string]Observed{
+			"/ws/base/.claude/settings.base.json":     {Exists: true, Content: base},
+			"/ws/mid/.claude/settings.mid.json":       {Exists: true, Content: mid},
+			"/ws/ariadne/.claude/settings.local.json": {Exists: true, Content: local},
+			"/ws/ariadne/.claude/settings.json":       {Exists: true, Content: liveTarget},
 		},
 	}
 	divs := Classify(in)
@@ -327,7 +356,7 @@ func TestMergeSettingsContentDriftUnexpected(t *testing.T) {
 	in := Input{
 		RepoRoot: "/ws/ariadne",
 		Actions: []plan.Action{
-			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+			plan.MergeSettings{Sources: []string{"/ws/ariadne/.claude/settings.ariadne.json"}, Target: ".claude/settings.json"},
 		},
 		Observed: map[string]Observed{
 			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
@@ -346,7 +375,7 @@ func TestMergeSettingsTargetAbsentUnexpected(t *testing.T) {
 	in := Input{
 		RepoRoot: "/ws/ariadne",
 		Actions: []plan.Action{
-			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+			plan.MergeSettings{Sources: []string{"/ws/ariadne/.claude/settings.ariadne.json"}, Target: ".claude/settings.json"},
 		},
 		Observed: map[string]Observed{
 			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: true, Content: base},
@@ -365,7 +394,7 @@ func TestMergeSettingsBaseAbsentUnexpected(t *testing.T) {
 	in := Input{
 		RepoRoot: "/ws/ariadne",
 		Actions: []plan.Action{
-			plan.MergeSettings{Source: ".claude/settings.ariadne.json", Target: ".claude/settings.json"},
+			plan.MergeSettings{Sources: []string{"/ws/ariadne/.claude/settings.ariadne.json"}, Target: ".claude/settings.json"},
 		},
 		Observed: map[string]Observed{
 			"/ws/ariadne/.claude/settings.ariadne.json": {Exists: false},
