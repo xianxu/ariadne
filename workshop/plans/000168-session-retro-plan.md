@@ -163,7 +163,7 @@ git commit -m "#168: record session retro baseline"
 - Modify: `workshop/plans/000168-session-retro-evaluation.md`
 - Modify: `workshop/issues/000168-session-retro.md`
 
-- [ ] **Step 1: Create the minimal skill package**
+- [x] **Step 1: Create the minimal skill package**
 
 Create only `construct/local/session-retro/SKILL.md`; do not add scripts, assets, a README, or a parser. Use frontmatter containing only:
 
@@ -191,7 +191,7 @@ The body must require this sequence:
 
 Include a concise no-findings result and a common-mistakes section addressing the exact baseline failures. Keep the skill under 500 words unless evaluation proves more guidance is necessary.
 
-- [ ] **Step 2: Validate static skill shape**
+- [x] **Step 2: Validate static skill shape**
 
 Run:
 
@@ -203,7 +203,7 @@ test "$(wc -w < construct/local/session-retro/SKILL.md | tr -d ' ')" -lt 500
 
 Expected: one file, valid discovery metadata, and no unnecessary supporting files; word count remains below 500.
 
-- [ ] **Step 3: Run the same scenarios with the skill**
+- [x] **Step 3: Run the same scenarios with the skill**
 
 Dispatch fresh workers with only the original scenario plus an explicit
 instruction to use `construct/local/session-retro/SKILL.md`. Do not provide the
@@ -220,11 +220,11 @@ Expected GREEN signal for every scenario:
 - unsupported findings are omitted; and
 - no durable artifact is written or proposed as already executed.
 
-- [ ] **Step 4: Refactor only against observed failures**
+- [x] **Step 4: Refactor only against observed failures**
 
 If an agent finds a new loophole, append its exact behavior to the evaluation record, minimally tighten `SKILL.md`, and rerun that same scenario. Do not add hypothetical machinery or generic exhortation.
 
-- [ ] **Step 5: Record GREEN results and update issue progress**
+- [x] **Step 5: Record GREEN results and update issue progress**
 
 Append the with-skill excerpts and `green` records for the same scenarios and
 criteria to `workshop/plans/000168-session-retro-evaluation.md`. If the computed
@@ -240,7 +240,7 @@ awk -F'|' '$1 == "eval" { if (NF != 5 || ($2 != "baseline" && $2 != "green") || 
 
 Expected: RED is proven nonzero and GREEN is zero against the same rubric.
 
-- [ ] **Step 6: Commit the skill and evaluation**
+- [x] **Step 6: Commit the skill and evaluation**
 
 ```bash
 git add construct/local/session-retro/SKILL.md workshop/plans/000168-session-retro-evaluation.md workshop/issues/000168-session-retro.md

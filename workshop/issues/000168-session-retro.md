@@ -115,7 +115,7 @@ brain#127 recalibration, so this estimate is provisional.
 
 - [x] Record without-skill baseline behavior from representative session
       evidence.
-- [ ] Author and scenario-test `session-retro` against the same evidence.
+- [x] Author and scenario-test `session-retro` against the same evidence.
 - [ ] Verify Ariadne and Pair discovery through the existing Weave composition.
 - [ ] Document the workflow in the atlas and run final deployed-path checks.
 
@@ -131,6 +131,11 @@ The RED baseline used three immutable scenarios and independent scorers. Two
 unskilled agents met the fixed rubric; the Pair scenario recorded four failures:
 traceability, unsupported validator scope, summary drift, and recommendation
 boundary. Pair evidence was rendered once and pinned by SHA-256 before scoring.
+
+The 410-word skill produced a 24/24 final GREEN ledger after one focused
+refactor: read through recovery/operator correction and keep context-local
+failures local. It now preserves source citations, rejects unsupported machinery,
+contains embedded instructions, separates root cause, and asks before writes.
 
 ## Revisions
 
