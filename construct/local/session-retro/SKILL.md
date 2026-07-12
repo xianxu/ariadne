@@ -19,7 +19,7 @@ session.
    ```bash
    raw="$PAIR_DATA_DIR/scrollback-$PAIR_TAG-$PAIR_AGENT.raw"
    events="${raw%.raw}.events.jsonl"
-   out="$(mktemp /tmp/session-retro.XXXXXX.txt)"
+   out="$(mktemp /tmp/session-retro.XXXXXX)"
    pair scrollback render --plain "$raw" "$events" "$out"
    ```
 

@@ -255,7 +255,7 @@ git commit -m "#168: add evidence-backed session retro skill"
 If existing Weave export fails, stop and re-plan or file a blocking issue. Do
 not expand #168 into composition/compiler changes (`ARCH-DRY`).
 
-- [ ] **Step 1: Smoke-test live source resolution separately from behavior**
+- [x] **Step 1: Smoke-test live source resolution separately from behavior**
 
 Use the deployed skill for three thin IO smokes; do not reuse these mutable
 sources for RED/GREEN scoring:
@@ -278,7 +278,7 @@ Record pass/fail and source evidence for all three in the evaluation document.
 These smokes prove acquisition; the immutable scenarios prove analysis quality
 (`ARCH-PURE`).
 
-- [ ] **Step 2: Compile Ariadne's harness faces**
+- [x] **Step 2: Compile Ariadne's harness faces**
 
 Run:
 
@@ -292,27 +292,36 @@ test "$(readlink .agents/skills/xx-session-retro)" = "../../construct/local/sess
 
 Expected: Weave succeeds and both harness skill directories point to the one source skill.
 
-- [ ] **Step 3: Compile Pair as a representative downstream consumer**
+- [x] **Step 3: Compile Pair as a representative downstream consumer**
 
-From `/Users/xianxu/workspace/pair`, capture the exact preexisting status, run
-the compile, and prove it did not alter tracked or untracked state:
+The real Pair checkout resolves sibling Ariadne `main`, not this isolated
+feature worktree. Create a disposable stack instead: a detached Pair worktree
+at `/tmp/session-retro-stack/pair` and a sibling
+`/tmp/session-retro-stack/ariadne` symlink to this Ariadne feature worktree.
+This preserves Pair's live #83 draft while exercising Pair's real
+`construct/deps substrate ../ariadne` edge.
 
 ```bash
-before="$(git status --porcelain=v1)"
+mkdir -p /tmp/session-retro-stack
+ln -s /Users/xianxu/workspace/worktree/ariadne/000168-session-retro /tmp/session-retro-stack/ariadne
+git -C /Users/xianxu/workspace/pair worktree add --detach /tmp/session-retro-stack/pair origin/main
+cd /tmp/session-retro-stack/pair
+before="$(git status --porcelain=v1 --untracked-files=all)"
 make weave
-after="$(git status --porcelain=v1)"
+after="$(git status --porcelain=v1 --untracked-files=all)"
 test "$before" = "$after"
 test -L .claude/skills/xx-session-retro
 test -L .agents/skills/xx-session-retro
 readlink .agents/skills/xx-session-retro
+git -C /Users/xianxu/workspace/pair worktree remove /tmp/session-retro-stack/pair
 ```
 
 Expected: Pair discovers Ariadne's exported skill through its substrate edge,
 with the link resolving to Ariadne's `construct/local/session-retro` directory.
-The before/after status strings are byte-identical, preserving the current #83
-draft and any other unrelated state.
+The disposable worktree stays clean, and the real Pair checkout remains
+byte-untouched with its current #83 draft.
 
-- [ ] **Step 4: Run composition regressions**
+- [x] **Step 4: Run composition regressions**
 
 Run from Ariadne:
 
@@ -324,7 +333,7 @@ git diff --check
 
 Expected: all commands pass. If generic export already works, make no Weave code changes (`ARCH-DRY`).
 
-- [ ] **Step 5: Update issue progress and commit only if tracked files changed**
+- [x] **Step 5: Update issue progress and commit only if tracked files changed**
 
 Tick the third issue-plan item and log the Ariadne/Pair discovery evidence.
 
@@ -432,3 +441,12 @@ Pair snapshot digest; current-source acquisition is a separate smoke surface;
 the named non-Pair adapter is Codex's conversation already in context; Pair
 preflight failures stop or request a real operator path rather than manufacturing
 evidence. Estimate increased to 2.00 hours.
+
+### 2026-07-12 — isolated downstream verification
+
+Reason: Pair's live checkout resolves Ariadne `main`, so it cannot discover an
+unmerged skill authored in an isolated Ariadne feature worktree.
+
+Delta: verify the same Pair substrate edge in a disposable detached Pair
+worktree whose sibling Ariadne path points at this feature worktree; preserve
+the real Pair checkout and its #83 draft untouched.

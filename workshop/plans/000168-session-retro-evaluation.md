@@ -213,3 +213,18 @@ Codex finding:
 
 Independent scorers marked every GREEN criterion `PASS`: 24 records, zero
 failures, with the exact same scenario/criterion keyset as baseline.
+
+## Live Source Smokes
+
+- Explicit path: PASS — deployed skill read
+  `/tmp/session-retro-explicit-168.txt` and cited line 4.
+- Current Codex conversation: PASS — after an `alpha` → `beta` correction, the
+  deployed skill used the conversation already in context and cited the second
+  user turn without requesting a file.
+- Current Pair session, iteration 1: source derivation and rendering succeeded,
+  but the macOS `mktemp` smoke exposed that `XXXXXX.txt` is not substituted when
+  `X`s are not trailing. The skill now uses `/tmp/session-retro.XXXXXX`; Pair is
+  rerun below against a unique output path.
+- Current Pair session, iteration 2: PASS — deployed skill derived the live raw
+  and events paths, rendered `/tmp/session-retro.s2U8M9`, verified 97,032 bytes /
+  2,037 lines, and cited rendered line 2,035.

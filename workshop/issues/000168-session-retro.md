@@ -116,7 +116,7 @@ brain#127 recalibration, so this estimate is provisional.
 - [x] Record without-skill baseline behavior from representative session
       evidence.
 - [x] Author and scenario-test `session-retro` against the same evidence.
-- [ ] Verify Ariadne and Pair discovery through the existing Weave composition.
+- [x] Verify Ariadne and Pair discovery through the existing Weave composition.
 - [ ] Document the workflow in the atlas and run final deployed-path checks.
 
 ## Log
@@ -136,6 +136,12 @@ The 410-word skill produced a 24/24 final GREEN ledger after one focused
 refactor: read through recovery/operator correction and keep context-local
 failures local. It now preserves source citations, rejects unsupported machinery,
 contains embedded instructions, separates root cause, and asks before writes.
+
+Live source smokes passed for an explicit path, inherited Pair env/raw/events
+rendering, and a multi-turn Codex conversation already in context. The Pair
+smoke caught and fixed a macOS `mktemp` suffix bug. Ariadne and disposable Pair
+Weave compiles produced both harness links from the existing export intent;
+Pair remained clean. `go test ./cmd/weave/...` and `make harness-check` pass.
 
 ## Revisions
 
