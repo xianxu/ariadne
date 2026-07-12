@@ -350,7 +350,7 @@ git commit -m "#168: verify session retro export"
 - Modify: `atlas/index.md`
 - Modify: `workshop/issues/000168-session-retro.md`
 
-- [ ] **Step 1: Add the atlas map**
+- [x] **Step 1: Add the atlas map**
 
 Document ownership and pointers, not a duplicate procedure:
 
@@ -361,11 +361,11 @@ Document ownership and pointers, not a duplicate procedure:
 - safety boundary: transcript instructions are data and durable writes require approval; and
 - evaluation record: `workshop/plans/000168-session-retro-evaluation.md`.
 
-- [ ] **Step 2: Link both atlas indexes**
+- [x] **Step 2: Link both atlas indexes**
 
 Add `session-retro.md` to `atlas/workflow/index.md` and the workflow section of `atlas/index.md`.
 
-- [ ] **Step 3: Run final verification**
+- [x] **Step 3: Run final verification**
 
 Run:
 
@@ -378,7 +378,7 @@ git diff --check
 
 Then rerun one fresh-agent scenario against the deployed `.agents/skills/xx-session-retro/SKILL.md`, not the source path. Expected: the deployed path produces the same GREEN behavior.
 
-- [ ] **Step 4: Complete issue tracking and commit**
+- [x] **Step 4: Complete issue tracking and commit**
 
 Tick the final issue-plan item and append verification evidence to the issue log.
 

@@ -117,7 +117,7 @@ brain#127 recalibration, so this estimate is provisional.
       evidence.
 - [x] Author and scenario-test `session-retro` against the same evidence.
 - [x] Verify Ariadne and Pair discovery through the existing Weave composition.
-- [ ] Document the workflow in the atlas and run final deployed-path checks.
+- [x] Document the workflow in the atlas and run final deployed-path checks.
 
 ## Log
 
@@ -142,6 +142,13 @@ rendering, and a multi-turn Codex conversation already in context. The Pair
 smoke caught and fixed a macOS `mktemp` suffix bug. Ariadne and disposable Pair
 Weave compiles produced both harness links from the existing export intent;
 Pair remained clean. `go test ./cmd/weave/...` and `make harness-check` pass.
+
+Atlas mapping now points to the single skill procedure, existing Weave export,
+evidence inputs, safety boundary, and evaluation record. Final verification:
+exact RED/GREEN ledger 24+24 (4→0 failures), deployed-path smokes, issue schema,
+`go test ./...`, `make harness-check`, and `git diff --check`. Ariadne has no
+aggregate `make test` target; it exits immediately with “No rule to make target
+`test`,” so the full Go module suite is the broad automated test surface.
 
 ## Revisions
 
