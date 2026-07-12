@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-12
 updated: 2026-07-12
-estimate_hours: 1.20
+estimate_hours: 1.25
 started: 2026-07-12T16:20:20-07:00
 ---
 
@@ -96,12 +96,13 @@ skill's purpose.
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: single-skill design=0.10 impl=0.20
-item: skill-evaluation design=0.15 impl=0.35
-item: cross-repo-verification design=0.03 impl=0.10
+item: skill-or-dispatcher design=0.10 impl=0.20
+item: method-b-decisions design=0.15 impl=0.35
+item: cross-repo-refactor-small design=0.03 impl=0.10
 item: atlas-docs design=0.03 impl=0.06
 item: milestone-review design=0.03 impl=0.15
-total: 1.20
+design-buffer: 0.15
+total: 1.25
 ```
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
@@ -136,3 +137,13 @@ without/with-skill evaluation campaign and source-resolution checks.
 Delta: estimate increased from 0.65 to 1.20 hours; evaluation now explicitly
 covers an explicit path, current Pair evidence, and a non-Pair native session,
 with machine-checkable RED/GREEN criteria and dirty-consumer preservation.
+
+### 2026-07-12 — estimate reconciliation gate
+
+Reason: `sdlc change-code` rejected descriptive item labels outside the closed
+primitive vocabulary and applied the default 30% design buffer.
+
+Delta: mapped the same work to `skill-or-dispatcher`,
+`method-b-decisions`, `cross-repo-refactor-small`, `atlas-docs`, and
+`milestone-review`; made the calibrated 15% design buffer explicit; reconciled
+the rounded total and frontmatter from 1.20 to 1.25 hours.

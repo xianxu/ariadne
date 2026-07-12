@@ -337,4 +337,12 @@ that omitted the evaluation campaign.
 Delta: scenarios now cover explicit, Pair-current, and non-Pair-current sources;
 RED/GREEN scoring is derived from a machine-readable criterion ledger; Pair status is compared before/after;
 Weave failures require re-planning; close omits a hand-entered actual; estimate
-is reconciled in the issue at 1.20 hours.
+is reconciled in the issue at 1.25 hours.
+
+### 2026-07-12 — estimate reconciliation gate
+
+Reason: `sdlc change-code` enforces a closed primitive vocabulary and explicit
+design-buffer arithmetic.
+
+Delta: replaced descriptive estimate labels with canonical primitives and
+recorded the 15% thorough-plan design buffer; no implementation scope changed.
