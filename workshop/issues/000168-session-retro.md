@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-12
 updated: 2026-07-12
-estimate_hours:
+estimate_hours: 1.20
 started: 2026-07-12T16:20:20-07:00
 ---
 
@@ -91,13 +91,32 @@ skill's purpose.
   improves evidence traceability and process-focused judgment.
 - No retro binary or unconditional SDLC gate is introduced.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: single-skill design=0.10 impl=0.20
+item: skill-evaluation design=0.15 impl=0.35
+item: cross-repo-verification design=0.03 impl=0.10
+item: atlas-docs design=0.03 impl=0.06
+item: milestone-review design=0.03 impl=0.15
+total: 1.20
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. The specification pre-resolves the
+workflow, output contract, and no-binary boundary; implementation values use
+v3.1's 40% ship-wall-clock calibration. The source is marked stale pending
+brain#127 recalibration, so this estimate is provisional.
+
 ## Plan
 
-- [ ] Record without-skill baseline behavior, then author and scenario-test the
-      `session-retro` skill against the same representative cases.
-- [ ] Export it through Ariadne's existing skill composition and verify
-      downstream discovery.
-- [ ] Document the skill in the workflow atlas and validate the composed output.
+- [ ] Record without-skill baseline behavior from representative session
+      evidence.
+- [ ] Author and scenario-test `session-retro` against the same evidence.
+- [ ] Verify Ariadne and Pair discovery through the existing Weave composition.
+- [ ] Document the workflow in the atlas and run final deployed-path checks.
 
 ## Log
 
@@ -106,3 +125,14 @@ skill's purpose.
 Transferred from pair#80 after scope review. The operator chose a skill-only
 approach: reuse existing session evidence, keep the output evidence-backed, and
 defer automation until repeated retrospective findings justify it.
+
+## Revisions
+
+### 2026-07-12 — implementation-plan review
+
+Reason: the first estimate covered skill authoring but undercounted the required
+without/with-skill evaluation campaign and source-resolution checks.
+
+Delta: estimate increased from 0.65 to 1.20 hours; evaluation now explicitly
+covers an explicit path, current Pair evidence, and a non-Pair native session,
+with machine-checkable RED/GREEN criteria and dirty-consumer preservation.
