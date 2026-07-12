@@ -113,7 +113,7 @@ brain#127 recalibration, so this estimate is provisional.
 
 ## Plan
 
-- [ ] Record without-skill baseline behavior from representative session
+- [x] Record without-skill baseline behavior from representative session
       evidence.
 - [ ] Author and scenario-test `session-retro` against the same evidence.
 - [ ] Verify Ariadne and Pair discovery through the existing Weave composition.
@@ -126,6 +126,11 @@ brain#127 recalibration, so this estimate is provisional.
 Transferred from pair#80 after scope review. The operator chose a skill-only
 approach: reuse existing session evidence, keep the output evidence-backed, and
 defer automation until repeated retrospective findings justify it.
+
+The RED baseline used three immutable scenarios and independent scorers. Two
+unskilled agents met the fixed rubric; the Pair scenario recorded four failures:
+traceability, unsupported validator scope, summary drift, and recommendation
+boundary. Pair evidence was rendered once and pinned by SHA-256 before scoring.
 
 ## Revisions
 

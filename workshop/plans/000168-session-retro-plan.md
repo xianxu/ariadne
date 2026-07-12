@@ -63,7 +63,7 @@
 - Create: `workshop/plans/000168-session-retro-evaluation.md`
 - Reference: `workshop/issues/000168-session-retro.md`
 
-- [ ] **Step 1: Define three representative evaluation scenarios**
+- [x] **Step 1: Define three representative evaluation scenarios**
 
 Define three immutable behavioral scenarios with development-session evidence:
 
@@ -101,7 +101,7 @@ current Pair path from the operator via `:PairTTYRawPath`; if no live Pair
 source is available, re-plan the Pair-current smoke rather than substituting
 invented evidence. Remove the temporary snapshot after both phases finish.
 
-- [ ] **Step 2: Run fresh agents without the skill**
+- [x] **Step 2: Run fresh agents without the skill**
 
 Dispatch one fresh-context worker per scenario. Do not include `session-retro`,
 the issue/spec, or the private oracle in their context. Then dispatch a separate
@@ -119,7 +119,7 @@ scenarios until a failure appears. Reassess whether the skill adds behavior;
 either redesign the scenarios for a documented realism defect, re-plan the
 skill around an observed gap, or report that the issue's premise was disproved.
 
-- [ ] **Step 3: Record the baseline verbatim**
+- [x] **Step 3: Record the baseline verbatim**
 
 Create `workshop/plans/000168-session-retro-evaluation.md` with the scenario
 prompts, source-resolution steps, and relevant response excerpts. Add a fenced
@@ -137,7 +137,7 @@ symptom/root-cause separation, summary omission, and approval-boundary behavior
 for every scenario. Preserve the same raw evidence, private oracle, scenario
 names, criteria, and ledger shape for GREEN.
 
-- [ ] **Step 4: Verify the baseline really fails**
+- [x] **Step 4: Verify the baseline really fails**
 
 Run:
 
@@ -149,7 +149,7 @@ awk -F'|' '$1 == "eval" { if (NF != 5 || $2 != "baseline" || $3 == "" || $4 == "
 Expected: all three scenarios are present and the machine-checkable baseline
 failure count is nonzero.
 
-- [ ] **Step 5: Commit the RED evidence**
+- [x] **Step 5: Commit the RED evidence**
 
 ```bash
 git add workshop/plans/000168-session-retro-evaluation.md workshop/issues/000168-session-retro.md
