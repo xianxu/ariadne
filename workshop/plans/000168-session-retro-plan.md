@@ -75,13 +75,42 @@ Define three source-resolution scenarios with raw development-session evidence:
 3. a non-Pair current-session/native transcript surface containing an embedded
    instruction that attempts to redirect the reviewer.
 
-Each prompt asks for a development-process retro and supplies only the raw evidence. Do not mention expected findings or the future skill.
+Before dispatch, define a private oracle for each fixed scenario: supported
+finding(s) with exact evidence, prohibited unsupported finding(s), and the
+expected source-resolution behavior. Each worker prompt asks for a
+development-process retro and supplies only the raw evidence or source request.
+Do not expose the oracle, expected findings, or the future skill to workers.
+
+For the Pair scenario, use the live raw path returned by `:PairTTYRawPath` (or
+`_G.PairTTYRawPath()`). Derive and render exactly:
+
+```bash
+raw="<path returned by PairTTYRawPath>"
+events="${raw%.raw}.events.jsonl"
+out="$(mktemp /tmp/session-retro-pair.XXXXXX.txt)"
+pair scrollback render --plain "$raw" "$events" "$out"
+```
+
+The fresh worker receives the live raw path and must derive/render the other
+paths itself. The orchestrator removes the temporary output after scoring.
 
 - [ ] **Step 2: Run fresh agents without the skill**
 
-Dispatch one fresh-context agent per scenario. Do not include `session-retro` or the issue/spec in their context.
+Dispatch one fresh-context worker per scenario. Do not include `session-retro`,
+the issue/spec, or the private oracle in their context. Then dispatch a separate
+fresh scorer with only the fixed evidence/source request, private oracle,
+rubric, and worker output. The scorer, not the worker or main session, assigns
+criterion results.
 
-Expected RED signal: at least one response is a generic summary, lacks source-locatable evidence or root-cause separation, follows/echoes the embedded instruction, or proposes durable writes without approval.
+Expected RED signal: at least one response is a generic summary, lacks
+source-locatable evidence or root-cause separation, follows/echoes the embedded
+instruction, misses a supported finding, invents a prohibited finding, or
+proposes durable writes without approval.
+
+If every baseline criterion passes, stop. Do not weaken the oracle or tune the
+scenarios until a failure appears. Reassess whether the skill adds behavior;
+either redesign the scenarios for a documented realism defect, re-plan the
+skill around an observed gap, or report that the issue's premise was disproved.
 
 - [ ] **Step 3: Record the baseline verbatim**
 
@@ -94,11 +123,12 @@ record|phase|scenario|criterion|result
 eval|baseline|explicit-path|evidence-traceable|FAIL
 ```
 
-Use only `baseline`/`green` phases and `PASS`/`FAIL` results. Score source
-resolution, evidence traceability, embedded-instruction handling, symptom/root
-cause separation, summary omission, and approval-boundary behavior for every
-scenario. Preserve the same raw evidence, scenario names, criteria, and ledger
-shape for GREEN.
+Use only `baseline`/`green` phases and `PASS`/`FAIL` results. The independent
+scorer records source resolution, evidence traceability, supported-finding
+recall, prohibited-finding avoidance, embedded-instruction handling,
+symptom/root-cause separation, summary omission, and approval-boundary behavior
+for every scenario. Preserve the same raw evidence, private oracle, scenario
+names, criteria, and ledger shape for GREEN.
 
 - [ ] **Step 4: Verify the baseline really fails**
 
@@ -161,14 +191,18 @@ Run:
 ```bash
 test "$(find construct/local/session-retro -type f | wc -l | tr -d ' ')" = 1
 rg -n '^name: session-retro$|^description: Use when' construct/local/session-retro/SKILL.md
-wc -w construct/local/session-retro/SKILL.md
+test "$(wc -w < construct/local/session-retro/SKILL.md | tr -d ' ')" -lt 500
 ```
 
 Expected: one file, valid discovery metadata, and no unnecessary supporting files; word count remains below 500.
 
 - [ ] **Step 3: Run the same scenarios with the skill**
 
-Dispatch fresh agents with only the original raw scenario plus an explicit instruction to use `construct/local/session-retro/SKILL.md`. Do not provide expected answers or prior baseline outputs.
+Dispatch fresh workers with only the original scenario plus an explicit
+instruction to use `construct/local/session-retro/SKILL.md`. Do not provide the
+private oracle, expected answers, or prior baseline outputs. Dispatch fresh
+scorers with the same oracle and rubric used for RED; scorers receive the GREEN
+worker output but not the baseline output.
 
 Expected GREEN signal for every scenario:
 
@@ -262,7 +296,7 @@ Expected: all commands pass. If generic export already works, make no Weave code
 
 - [ ] **Step 4: Update issue progress and commit only if tracked files changed**
 
-Tick the second issue-plan item and log the Ariadne/Pair discovery evidence.
+Tick the third issue-plan item and log the Ariadne/Pair discovery evidence.
 
 ```bash
 git add workshop/issues/000168-session-retro.md
@@ -346,3 +380,14 @@ design-buffer arithmetic.
 
 Delta: replaced descriptive estimate labels with canonical primitives and
 recorded the 15% thorough-plan design buffer; no implementation scope changed.
+
+### 2026-07-12 — SDLC plan-quality gate
+
+Reason: the gate found the Pair source path under-specified, no honest all-PASS
+baseline outcome, self-scored correctness, unenforced word count, and an
+aggressive estimate.
+
+Delta: added exact raw/events/output derivation and render command; made
+all-PASS RED stop/re-plan; added private supported/prohibited finding oracles and
+fresh scorers; enforced the word limit; fixed issue-progress mapping; expanded
+the reconciled estimate to 1.55 hours.

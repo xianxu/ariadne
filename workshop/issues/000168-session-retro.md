@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-12
 updated: 2026-07-12
-estimate_hours: 1.25
+estimate_hours: 1.55
 started: 2026-07-12T16:20:20-07:00
 ---
 
@@ -96,13 +96,13 @@ skill's purpose.
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: skill-or-dispatcher design=0.10 impl=0.20
-item: method-b-decisions design=0.15 impl=0.35
+item: skill-or-dispatcher design=0.10 impl=0.25
+item: method-b-decisions design=0.20 impl=0.50
 item: cross-repo-refactor-small design=0.03 impl=0.10
-item: atlas-docs design=0.03 impl=0.06
-item: milestone-review design=0.03 impl=0.15
+item: atlas-docs design=0.03 impl=0.07
+item: milestone-review design=0.03 impl=0.18
 design-buffer: 0.15
-total: 1.25
+total: 1.55
 ```
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
@@ -147,3 +147,15 @@ Delta: mapped the same work to `skill-or-dispatcher`,
 `method-b-decisions`, `cross-repo-refactor-small`, `atlas-docs`, and
 `milestone-review`; made the calibrated 15% design buffer explicit; reconciled
 the rounded total and frontmatter from 1.20 to 1.25 hours.
+
+### 2026-07-12 — SDLC plan-quality gate
+
+Reason: plan review required independent correctness scoring and executable
+current-Pair evidence derivation, increasing the evaluation surface.
+
+Delta: fixed per-scenario supported/prohibited finding oracles are hidden from
+workers and scored by fresh agents; Pair rendering now derives `.events.jsonl`
+from the live `.raw` path and writes a temporary plain-text output; an all-PASS
+baseline stops for premise review rather than manufacturing RED. Estimate
+increased from 1.25 to 1.55 hours. Arithmetic: design 0.39 × 1.15 = 0.4485;
+implementation 1.10; total 1.5485, rounded to 1.55.
