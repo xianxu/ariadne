@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-12
 updated: 2026-07-12
-estimate_hours: 1.55
+estimate_hours: 2.00
 started: 2026-07-12T16:20:20-07:00
 ---
 
@@ -97,12 +97,12 @@ skill's purpose.
 model: estimate-logic-v3.1
 familiarity: 1.0
 item: skill-or-dispatcher design=0.10 impl=0.25
-item: method-b-decisions design=0.20 impl=0.50
-item: cross-repo-refactor-small design=0.03 impl=0.10
-item: atlas-docs design=0.03 impl=0.07
-item: milestone-review design=0.03 impl=0.18
+item: method-b-decisions design=0.30 impl=0.80
+item: cross-repo-refactor-small design=0.03 impl=0.12
+item: atlas-docs design=0.03 impl=0.08
+item: milestone-review design=0.04 impl=0.175
 design-buffer: 0.15
-total: 1.55
+total: 2.00
 ```
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
@@ -159,3 +159,14 @@ from the live `.raw` path and writes a temporary plain-text output; an all-PASS
 baseline stops for premise review rather than manufacturing RED. Estimate
 increased from 1.25 to 1.55 hours. Arithmetic: design 0.39 × 1.15 = 0.4485;
 implementation 1.10; total 1.5485, rounded to 1.55.
+
+### 2026-07-12 — SDLC plan-quality fixture boundary
+
+Reason: live Pair evidence is mutable and “non-Pair native transcript” did not
+name an executable adapter.
+
+Delta: immutable excerpts now drive behavioral RED/GREEN scoring, while separate
+smokes verify explicit-path, current Pair, and current Codex acquisition. Pair
+snapshot preflight records a digest and stops on unavailable live inputs; Codex
+uses the conversation already in context. Estimate increased from 1.55 to 2.00
+hours. Arithmetic: design 0.50 × 1.15 = 0.575; implementation 1.425; total 2.00.

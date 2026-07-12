@@ -65,14 +65,13 @@
 
 - [ ] **Step 1: Define three representative evaluation scenarios**
 
-Define three source-resolution scenarios with raw development-session evidence:
+Define three immutable behavioral scenarios with development-session evidence:
 
 1. an explicit temporary plain-text evidence path containing an avoidable
    command failure followed by recovery;
-2. the current Pair session discovered through `:PairTTYRawPath` and rendered
-   through the existing `pair scrollback render` command, containing repeated
-   SDLC/review friction where root cause differs from the immediate error; and
-3. a non-Pair current-session/native transcript surface containing an embedded
+2. a fixed excerpt snapshotted from the current Pair session containing SDLC or
+   review friction where root cause differs from the immediate error; and
+3. a fixed Codex-style native transcript excerpt containing an embedded
    instruction that attempts to redirect the reviewer.
 
 Before dispatch, define a private oracle for each fixed scenario: supported
@@ -81,18 +80,26 @@ expected source-resolution behavior. Each worker prompt asks for a
 development-process retro and supplies only the raw evidence or source request.
 Do not expose the oracle, expected findings, or the future skill to workers.
 
-For the Pair scenario, use the live raw path returned by `:PairTTYRawPath` (or
-`_G.PairTTYRawPath()`). Derive and render exactly:
+Acquire the Pair source once before RED. Preflight the live environment and
+render a stable snapshot exactly:
 
 ```bash
-raw="<path returned by PairTTYRawPath>"
+test -n "$PAIR_DATA_DIR" && test -n "$PAIR_TAG" && test -n "$PAIR_AGENT"
+raw="$PAIR_DATA_DIR/scrollback-$PAIR_TAG-$PAIR_AGENT.raw"
 events="${raw%.raw}.events.jsonl"
-out="$(mktemp /tmp/session-retro-pair.XXXXXX.txt)"
-pair scrollback render --plain "$raw" "$events" "$out"
+snapshot="$(mktemp /tmp/session-retro-pair.XXXXXX.txt)"
+test -s "$raw" && test -f "$events"
+pair scrollback render --plain "$raw" "$events" "$snapshot"
+test -s "$snapshot"
+shasum -a 256 "$snapshot"
 ```
 
-The fresh worker receives the live raw path and must derive/render the other
-paths itself. The orchestrator removes the temporary output after scoring.
+Record the snapshot digest and a fixed line-bounded excerpt in the evaluation
+record; RED and GREEN receive that identical excerpt, never the growing live
+`.raw`. If Pair env/files/rendering are unavailable, stop and obtain an actual
+current Pair path from the operator via `:PairTTYRawPath`; if no live Pair
+source is available, re-plan the Pair-current smoke rather than substituting
+invented evidence. Remove the temporary snapshot after both phases finish.
 
 - [ ] **Step 2: Run fresh agents without the skill**
 
@@ -240,7 +247,7 @@ git add construct/local/session-retro/SKILL.md workshop/plans/000168-session-ret
 git commit -m "#168: add evidence-backed session retro skill"
 ```
 
-### Task 3: Verify Ariadne and downstream discovery
+### Task 3: Verify live source resolution and downstream discovery
 
 **Files:**
 - Modify: `workshop/issues/000168-session-retro.md`
@@ -248,7 +255,30 @@ git commit -m "#168: add evidence-backed session retro skill"
 If existing Weave export fails, stop and re-plan or file a blocking issue. Do
 not expand #168 into composition/compiler changes (`ARCH-DRY`).
 
-- [ ] **Step 1: Compile Ariadne's harness faces**
+- [ ] **Step 1: Smoke-test live source resolution separately from behavior**
+
+Use the deployed skill for three thin IO smokes; do not reuse these mutable
+sources for RED/GREEN scoring:
+
+1. **Explicit path:** give a fresh agent a temporary evidence-file path and
+   verify it reads that exact file.
+2. **Current Pair session:** in the current Pair environment, give a fresh agent
+   no path. The skill must derive
+   `$PAIR_DATA_DIR/scrollback-$PAIR_TAG-$PAIR_AGENT.raw`, derive the sibling
+   `.events.jsonl`, render with `pair scrollback render --plain <raw> <events>
+   <tmp-output>`, and cite the rendered source. If Pair env is unavailable, the
+   skill must ask the operator to run `:PairTTYRawPath`/
+   `_G.PairTTYRawPath()` and supply the returned path.
+3. **Current Codex conversation:** start a fresh agent, send one ordinary work
+   turn and one correction turn, then ask it to use `session-retro` on its
+   current session. It must use the conversation already in context without
+   requiring a transcript file.
+
+Record pass/fail and source evidence for all three in the evaluation document.
+These smokes prove acquisition; the immutable scenarios prove analysis quality
+(`ARCH-PURE`).
+
+- [ ] **Step 2: Compile Ariadne's harness faces**
 
 Run:
 
@@ -262,7 +292,7 @@ test "$(readlink .agents/skills/xx-session-retro)" = "../../construct/local/sess
 
 Expected: Weave succeeds and both harness skill directories point to the one source skill.
 
-- [ ] **Step 2: Compile Pair as a representative downstream consumer**
+- [ ] **Step 3: Compile Pair as a representative downstream consumer**
 
 From `/Users/xianxu/workspace/pair`, capture the exact preexisting status, run
 the compile, and prove it did not alter tracked or untracked state:
@@ -282,7 +312,7 @@ with the link resolving to Ariadne's `construct/local/session-retro` directory.
 The before/after status strings are byte-identical, preserving the current #83
 draft and any other unrelated state.
 
-- [ ] **Step 3: Run composition regressions**
+- [ ] **Step 4: Run composition regressions**
 
 Run from Ariadne:
 
@@ -294,7 +324,7 @@ git diff --check
 
 Expected: all commands pass. If generic export already works, make no Weave code changes (`ARCH-DRY`).
 
-- [ ] **Step 4: Update issue progress and commit only if tracked files changed**
+- [ ] **Step 5: Update issue progress and commit only if tracked files changed**
 
 Tick the third issue-plan item and log the Ariadne/Pair discovery evidence.
 
@@ -391,3 +421,14 @@ Delta: added exact raw/events/output derivation and render command; made
 all-PASS RED stop/re-plan; added private supported/prohibited finding oracles and
 fresh scorers; enforced the word limit; fixed issue-progress mapping; expanded
 the reconciled estimate to 1.55 hours.
+
+### 2026-07-12 — SDLC plan-quality fixture boundary
+
+Reason: the gate found mutable Pair evidence and an undefined non-Pair native
+surface made identical RED/GREEN comparison impossible.
+
+Delta: behavioral scoring now consumes immutable fixed excerpts with a recorded
+Pair snapshot digest; current-source acquisition is a separate smoke surface;
+the named non-Pair adapter is Codex's conversation already in context; Pair
+preflight failures stop or request a real operator path rather than manufacturing
+evidence. Estimate increased to 2.00 hours.
