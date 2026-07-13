@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-03
 updated: 2026-07-12
-estimate_hours:
+estimate_hours: 1.05
 started: 2026-07-12T23:38:52-07:00
 ---
 
@@ -19,7 +19,7 @@ Four `cmd/sdlc` helpers converged on the same shape — **enumerate issue files
 flagged the duplication (ARCH-DRY), noting the comments even say *"mirrors … (ARCH-DRY)"*
 but mirror rather than reuse:
 
-- `mergedCodecompleteIssues(issuesDir)` — `cmd/sdlc/publishgate.go`: `git diff
+- `mergedCodecompleteIssues(baseRef, issuesDir)` — `cmd/sdlc/publishgate.go`: `git diff
   --name-only baseRef..HEAD -- issuesDir/*.md` → parse → keep `status == codecomplete`.
 - `touchedIssuesNotDone(baseRef, issuesDir, r)` — `cmd/sdlc/push.go`: same window diff
   → parse → keep non-terminal (and, post-#160, not `codecomplete`).
@@ -41,7 +41,7 @@ Extract one shared helper that both the window-scoped and dir-wide callers use, 
 // scanIssueFiles returns parsed issue files
 // in a window (baseRef..HEAD) OR — when baseRef == "" — the whole issuesDir glob.
 type issueFileRef struct { Path, Status, Frontmatter, Body string }
-func scanIssueFiles(baseRef, issuesDir string, r gitRunner) ([]issueFileRef, error)
+func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, error)) ([]issueFileRef, error)
 ```
 
 The helper name must not collide with claim's existing, behaviorally different
@@ -70,6 +70,11 @@ Design notes / constraints:
   publishgate helpers currently use `gitx.RunGit` directly (cwd). Reconcile — either
   thread `gitRunner` through, or standardize on `gitx` — without regressing the
   merge/push test seams (`runPublishGateFn`, the e2e stubs).
+- Preserve the two window callers' distinct diagnostics: `mergedCodecompleteIssues`
+  wraps the underlying `gitx.RunGit` error with `%w`, while `touchedIssuesNotDone`
+  includes `gitRunner.Git`'s combined output. The shared scanner accepts a narrow git
+  function and returns a typed error carrying raw output plus the underlying error so
+  each caller retains its current contract.
 - Preserve current edge semantics: a failed window `git diff` returns an error;
   unreadable or malformed issue files are skipped; a missing status is still reported
   as `unset` by the not-done warning; dir-wide glob results stay sorted while window
@@ -94,7 +99,27 @@ Design notes / constraints:
       ordering, and a non-six-digit `.md` included by the window scan but excluded by
       the dir-wide scan.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.10 impl=0.10
+item: smaller-go-module design=0.05 impl=0.20
+item: cross-cutting-refactor design=0.15 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+design-buffer: 0.15
+total: 1.05
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. The thorough reviewed spec earns the v2.1 design
+discount and 15% design buffer; v3.1 implementation values use 40% of the v2 ranges.
+The calibration source is currently marked stale, so this estimate is provisional.
+
 ## Plan
+
+Durable execution plan: `workshop/plans/000163-consolidate-issue-file-scanners-plan.md`.
 
 - [ ] Inspect the four scanners; identify the shared parse core vs the per-caller filter.
 - [ ] Extract `scanIssueFiles` (window + dir-wide) + `issueFileRef`; reconcile the
@@ -136,3 +161,17 @@ Design notes / constraints:
   consistently names `scanIssueFiles` and cannot be read as merging with claim sync.
 - Made the enumeration grammar testable: window scope keeps `issuesDir/*.md`, while
   dir-wide scope alone requires the six-digit issue filename convention.
+
+### 2026-07-13T00:15:00-07:00 — implementation plan and derived estimate
+
+- Added the durable TDD plan and a reconciled estimate-logic-v3.1 breakdown totaling
+  1.05 ship-wall-clock hours. Kept the refactor atomic with one close-time review
+  boundary; no artificial milestone tags.
+
+### 2026-07-13T00:27:00-07:00 — fresh-context plan review
+
+- Corrected the Problem's stale `mergedCodecompleteIssues` signature.
+- Narrowed scanner injection from the broad `gitRunner` interface to a git function,
+  preserving `gitx.RunGit` for the publish gate and `r.Git` for warning callers.
+- Made raw git output and error unwrapping part of the shared scan-error contract so
+  consolidation cannot silently change caller diagnostics.
