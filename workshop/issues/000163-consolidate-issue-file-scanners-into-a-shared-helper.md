@@ -4,7 +4,7 @@ status: working
 deps: []
 github_issue:
 created: 2026-07-03
-updated: 2026-07-12
+updated: 2026-07-13
 estimate_hours: 2.06
 started: 2026-07-12T23:38:52-07:00
 ---
@@ -96,15 +96,15 @@ Design notes / constraints:
 
 ## Done when
 
-- [ ] The shared `scanIssueFiles` helper backs all four scanners; no caller
+- [x] The shared `scanIssueFiles` helper backs all four scanners; no caller
       re-implements the glob/diff + parse + status-read boilerplate.
-- [ ] The six-digit issue filename pattern has one definition shared by directory
+- [x] The six-digit issue filename pattern has one definition shared by directory
       scanning, `buildPushCommitMessage`, `issueFilename`, `issueIDPrefix`, and state
       inventory/untracked-branch parsing.
-- [ ] Behavior is unchanged (the `codecomplete` carve-out, terminal filters, and
+- [x] Behavior is unchanged (the `codecomplete` carve-out, terminal filters, and
       window vs dir-wide scoping all preserved) — existing tests pass untouched where
       they assert behavior.
-- [ ] The pure status-filters are unit-tested across terminal, `codecomplete`, active,
+- [x] The pure status-filters are unit-tested across terminal, `codecomplete`, active,
       and missing statuses; the git/IO seam is exercised against a real temp repo,
       including malformed/unreadable/deleted records, the six-digit dir-wide glob,
       ordering, and a non-six-digit `.md` included by the window scan but excluded by
@@ -138,11 +138,11 @@ estimate is provisional.
 Durable execution plan:
 `workshop/plans/000163-consolidate-issue-file-scanners-into-a-shared-helper-plan.md`.
 
-- [ ] Inspect the four scanners; identify the shared parse core vs the per-caller filter.
-- [ ] Extract `scanIssueFiles` (window + dir-wide) + `issueFileRef`; reconcile the
+- [x] Inspect the four scanners; identify the shared parse core vs the per-caller filter.
+- [x] Extract `scanIssueFiles` (window + dir-wide) + `issueFileRef`; reconcile the
       `gitRunner` vs `gitx` seam.
-- [ ] Rewrite the four callers as filters over it; keep their signatures/behavior.
-- [ ] Tests: pure filters + temp-repo seam; confirm the existing merge/push/publishgate
+- [x] Rewrite the four callers as filters over it; keep their signatures/behavior.
+- [x] Tests: pure filters + temp-repo seam; confirm the existing merge/push/publishgate
       suites stay green.
 
 ## Log
@@ -160,6 +160,26 @@ Durable execution plan:
   their real-repo and injected-runner test seams. Design approved: one window/dir scan
   helper returns a complete parsed record, with pure status filters and caller-owned
   side effects (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
+
+### 2026-07-13
+
+- Implemented the parsed scanner, typed git failure, pure status filters, and one
+  shared six-digit filename grammar. Rewired both window callers and all three
+  directory action paths while retaining caller-owned diagnostics and side effects.
+- TDD evidence: pure-filter and scanner tests were observed RED before implementation,
+  then GREEN; window and directory caller characterization passed before and after
+  rewiring. Added real-git, injected-order, malformed/unreadable/deleted, missing-
+  status, error-chain, mutation-body, GitHub-close, and relative-path coverage.
+- Verification: focused scanner/caller regressions passed; `go test ./cmd/sdlc
+  -count=1` passed; `go test ./... -count=1` passed; the committed branch window is
+  whitespace-clean. ARCH-DRY sweeps found one production filename-pattern definition
+  and no legacy full-filename regex/manual digit loop. The two remaining status
+  parsers are behaviorally distinct: historical close-anchor inspection and
+  interrupted-archive validation.
+- Atlas assessment: no live atlas map names or describes these internal scanner
+  implementations, so the refactor introduces no atlas surface change (ARCH-PURPOSE).
+  Repo-wide `git diff --check` still reports only pre-existing user edits in
+  `atlas/workflow/process-manual.md` and issue #170; #163's committed window is clean.
 
 ## Revisions
 

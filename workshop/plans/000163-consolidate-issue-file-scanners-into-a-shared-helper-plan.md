@@ -114,20 +114,20 @@
 - Modify: `cmd/sdlc/branchcreate.go`
 - Modify: `cmd/sdlc/branchname_test.go`
 
-- [ ] **Step 1: Write failing pure-filter tests**
+- [x] **Step 1: Write failing pure-filter tests**
 
 Add table-driven `TestIssueFileRefFilters` cases whose input order includes
 `working`, `done`, `codecomplete`, missing status, `wontfix`, `open`, and `punt`.
 Assert codecomplete-only, not-done (`working`, missing, `open`), and terminal
 (`done`, `wontfix`, `punt`) results with order preserved.
 
-- [ ] **Step 2: Run the pure tests and confirm RED**
+- [x] **Step 2: Run the pure tests and confirm RED**
 
 Run: `go test ./cmd/sdlc -run 'TestIssueFileRefFilters' -count=1`
 
 Expected: FAIL to compile because the record and filters do not exist.
 
-- [ ] **Step 3: Implement the minimal record and pure filters**
+- [x] **Step 3: Implement the minimal record and pure filters**
 
 ```go
 type issueFileRef struct {
@@ -145,13 +145,13 @@ func terminalIssueFiles(refs []issueFileRef) []issueFileRef
 Use `vocab.Issue().IsTerminal` for category membership and keep `codecomplete` as the
 value-specific carve-out. Return new slices in input order (ARCH-PURE, ARCH-DRY).
 
-- [ ] **Step 4: Run the pure tests and confirm GREEN**
+- [x] **Step 4: Run the pure tests and confirm GREEN**
 
 Run: `go test ./cmd/sdlc -run 'TestIssueFileRefFilters' -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 5: Write failing integration tests for both scan modes**
+- [x] **Step 5: Write failing integration tests for both scan modes**
 
 Use a real temporary git repository plus `execGitRunner{}`. Pin:
 
@@ -175,13 +175,13 @@ Use a real temporary git repository plus `execGitRunner{}`. Pin:
   the underlying failure;
 - returned frontmatter/body support `SetField` + `Compose` without another read.
 
-- [ ] **Step 6: Run the scanner tests and confirm RED**
+- [x] **Step 6: Run the scanner tests and confirm RED**
 
 Run: `go test ./cmd/sdlc -run 'TestScanIssueFiles' -count=1`
 
 Expected: FAIL to compile because `scanIssueFiles` does not exist.
 
-- [ ] **Step 7: Implement the minimal integration seam**
+- [x] **Step 7: Implement the minimal integration seam**
 
 ```go
 func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, error)) ([]issueFileRef, error)
@@ -199,13 +199,13 @@ path; silently skip read/parse failures. Return a failed window runner error. Pe
 no writes or caller policy here. On git failure return an `issueFileScanError` with
 `Output []byte`, `Err error`, `Error()`, and `Unwrap()`.
 
-- [ ] **Step 8: Run focused tests and confirm GREEN**
+- [x] **Step 8: Run focused tests and confirm GREEN**
 
 Run: `go test ./cmd/sdlc -run 'Test(IssueFileRefFilters|ScanIssueFiles)' -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit the scanner core**
+- [x] **Step 9: Commit the scanner core**
 
 ```bash
 gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/state.go cmd/sdlc/state_test.go cmd/sdlc/branchcreate.go cmd/sdlc/branchname_test.go
@@ -221,39 +221,39 @@ git commit -m "#163: add shared issue-file scanner" -m "Centralize issue enumera
 - Modify: `cmd/sdlc/publishgate_test.go`
 - Modify: `cmd/sdlc/push_test.go`
 
-- [ ] **Step 1: Strengthen caller tests before rewiring**
+- [x] **Step 1: Strengthen caller tests before rewiring**
 
 Pin that `mergedCodecompleteIssues` returns only codecomplete paths and preserves its
 exact `git diff <base>..HEAD: <cause>` message plus `errors.Is` chain; that
 `touchedIssuesNotDone` formats missing status as `unset`, preserves order, and excludes
 terminal plus `codecomplete`, while its failure message retains combined runner output.
 
-- [ ] **Step 2: Run the strengthened tests before refactor**
+- [x] **Step 2: Run the strengthened tests before refactor**
 
 Run: `go test ./cmd/sdlc -run 'Test(MergedCodecompleteIssues|TouchedIssuesNotDone)' -count=1`
 
 Expected: PASS, proving the assertions describe current behavior.
 
-- [ ] **Step 3: Rewire `mergedCodecompleteIssues`**
+- [x] **Step 3: Rewire `mergedCodecompleteIssues`**
 
 Call `scanIssueFiles(baseRef, issuesDir, gitx.RunGit)`, filter with
 `codecompleteIssueFiles`, and return record paths. Keep the function and
 `runPublishGateFn` signatures unchanged. Convert `issueFileScanError` back to the
 existing `%w` diagnostic.
 
-- [ ] **Step 4: Rewire `touchedIssuesNotDone`**
+- [x] **Step 4: Rewire `touchedIssuesNotDone`**
 
 Call `scanIssueFiles(baseRef, issuesDir, r.Git)`, filter with `notDoneIssueFiles`, and
 format `path (status: valueOr(status, "unset"))`. Remove its read/parse/membership
 boilerplate. Pass `r.Git` and preserve the current combined-output diagnostic.
 
-- [ ] **Step 5: Run window caller regressions**
+- [x] **Step 5: Run window caller regressions**
 
 Run: `go test ./cmd/sdlc -run 'Test(MergedCodecompleteIssues|TouchedIssuesNotDone|RunPublishGate)' -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the window rewiring**
+- [x] **Step 6: Commit the window rewiring**
 
 ```bash
 gofmt -w cmd/sdlc/publishgate.go cmd/sdlc/publishgate_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go
@@ -273,7 +273,7 @@ git commit -m "#163: route window scans through shared helper" -m "Make publish 
 - Verify: `cmd/sdlc/archiveartifacts_test.go`
 - Verify: `cmd/sdlc/merge_e2e_test.go`
 
-- [ ] **Step 1: Strengthen directory characterization tests**
+- [x] **Step 1: Strengthen directory characterization tests**
 
 Before rewiring, pin the current externally visible contracts with exact named tests:
 
@@ -284,7 +284,7 @@ Before rewiring, pin the current externally visible contracts with exact named t
 - `TestArchiveDoneIssuesInDir_MovesTerminalAndRecordsRelativePaths` asserts terminal
   selection and mainPath-relative staging records;
 
-- [ ] **Step 2: Run characterization tests before refactor**
+- [x] **Step 2: Run characterization tests before refactor**
 
 Run: `go test ./cmd/sdlc -run 'Test(PublishCodecompleteIssues|ArchiveDoneIssues|ArchiveDoneIssuesInDir)' -count=1`
 
@@ -292,36 +292,36 @@ Expected: PASS, proving the assertions describe existing behavior. This refactor
 tests belong to the new scanner/filter entities; caller characterization is green
 before and after.
 
-- [ ] **Step 3: Rewire `publishCodecompleteIssues`**
+- [x] **Step 3: Rewire `publishCodecompleteIssues`**
 
 Use `scanIssueFiles("", issuesDir, nil)` plus `codecompleteIssueFiles`. Update each
 record's frontmatter/body, preserving updated-date behavior and order. The write loop
 and its existing error return remain structurally unchanged.
 
-- [ ] **Step 4: Rewire `archiveDoneIssues`**
+- [x] **Step 4: Rewire `archiveDoneIssues`**
 
 Use directory scan plus `terminalIssueFiles`; read `github_issue` from the record.
 Preserve push-only GitHub close, mkdir/rename, recorded paths, plan sweep, logging, and
 the existing action-loop error returns.
 
-- [ ] **Step 5: Rewire `archiveDoneIssuesInDir`**
+- [x] **Step 5: Rewire `archiveDoneIssuesInDir`**
 
 Scan `filepath.Join(mainPath, issuesDir)`, filter terminals, preserve no-GitHub
 behavior, and keep absolute scan paths separate from mainPath-relative staging paths.
 
-- [ ] **Step 6: Run directory behavior tests**
+- [x] **Step 6: Run directory behavior tests**
 
 Run: `go test ./cmd/sdlc -run 'Test(PublishCodecompleteIssues|ArchiveDoneIssues|ArchiveDoneIssuesInDir|PushPublishSequence|RunMerge_Codecomplete)' -count=1`
 
 Expected: PASS, including real-repo plan/sidecar archive cases.
 
-- [ ] **Step 7: Prove structural consolidation**
+- [x] **Step 7: Prove structural consolidation**
 
 Run the Task 4 ARCH-DRY `rg` sweep before committing. Behavior-equivalent duplicated
 code can keep characterization tests green, so the source sweep—not an artificial
 mock seam—is the direct proof that all five caller functions derive from the helper.
 
-- [ ] **Step 8: Format and commit directory caller rewiring**
+- [x] **Step 8: Format and commit directory caller rewiring**
 
 ```bash
 gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/publishgate.go cmd/sdlc/publishgate_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/merge.go cmd/sdlc/merge_test.go
@@ -336,7 +336,7 @@ git commit -m "#163: route directory scans through shared helper" -m "Remove par
 - Modify: `workshop/plans/000163-consolidate-issue-file-scanners-into-a-shared-helper-plan.md`
 - Inspect: `atlas/`
 
-- [ ] **Step 1: Format and run focused tests**
+- [x] **Step 1: Format and run focused tests**
 
 Run:
 
@@ -348,14 +348,14 @@ Then:
 
 Expected: PASS.
 
-- [ ] **Step 2: Run full verification**
+- [x] **Step 2: Run full verification**
 
 Run `go test ./cmd/sdlc -count=1`, `go test ./... -count=1`,
 `git diff --check "$(git merge-base main HEAD)"..HEAD`, and `git diff --check`.
 
 Expected: all tests PASS and whitespace check prints nothing.
 
-- [ ] **Step 3: Perform the ARCH-DRY shadow sweep**
+- [x] **Step 3: Perform the ARCH-DRY shadow sweep**
 
 Run:
 
@@ -375,18 +375,18 @@ Also confirm `issueFilenameRE` is gone and both `buildPushCommitMessage` and
 and confirm both legacy full-filename regexes are gone; document the scaffold's
 prefix-only regex as a behaviorally distinct remainder.
 
-- [ ] **Step 4: Assess atlas impact**
+- [x] **Step 4: Assess atlas impact**
 
 Search `atlas/` for moved names and scanner descriptions. This is an internal refactor;
 record “no atlas surface change” in the issue Log if no live map points at the old
 implementation.
 
-- [ ] **Step 5: Reconcile issue and plan state**
+- [x] **Step 5: Reconcile issue and plan state**
 
 Check completed issue/plan boxes, append verification and ARCH outcomes to `## Log`,
 and append a timestamped `## Revisions` entry if execution changed this plan.
 
-- [ ] **Step 6: Commit completion records**
+- [x] **Step 6: Commit completion records**
 
 ```bash
 git add workshop/issues/000163-consolidate-issue-file-scanners-into-a-shared-helper.md workshop/plans/000163-consolidate-issue-file-scanners-into-a-shared-helper-plan.md
