@@ -1,13 +1,13 @@
 ---
 id: 000167
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-07
 updated: 2026-07-12
 estimate_hours: 1.08
 started: 2026-07-12T22:02:15-07:00
-actual_hours: 2.44
+actual_hours: 2.71
 ---
 
 # institutionalize using continuation for long running session
@@ -102,6 +102,7 @@ Detailed execution plan:
 ### 2026-07-07
 
 ### 2026-07-12
+- 2026-07-12: closed — Complete relational policy guard verified: threshold-to-checkpoint, unavailable-percentage-to-warning fallback, atomic-action-to-durable-state ordering, checkpoint-before-continuation, writer restart precondition, no double restart, and no-writer behavior. The exact not-more-than-60% mutant fails; every registered harness contains the full scoped policy. go test ./... -count=1, issue validation, and git diff --check pass.; review verdict: SHIP
 - 2026-07-12: closed — Relational policy contract verified: complete fallback clause binds unavailable percentage to warning triggers; complete checkpoint clause binds atomic completion to durable-state-first ordering; explicit positions require checkpointing before continuation routing. Every registered harness contains the full scoped policy. go test ./... -count=1, issue validation, and git diff --check pass.; review verdict: FIX-THEN-SHIP
 - 2026-07-12: closed — All specified source semantics and complete fan-out are guarded: threshold direction, pre-unit checkpoint, atomic-action completion, durable-state-first ordering, unavailable-percentage warning fallback, datatype route, successful-durable-write restart ownership, no double restart, and no-writer behavior. Every TargetAll consumer contains the full scoped policy. go test ./... -count=1, issue validation, and git diff --check pass.; review verdict: FIX-THEN-SHIP
 - 2026-07-12: closed — Complete fan-out contract verified: every plan.TargetAll.EntryFiles() output must contain the full scoped Session Continuity policy; go test ./... -count=1 passes, issue validation passes, and git diff --check is clean. Mutation evidence covers wrong direction, moved markers, commented/broken export; full-string consumer assertions now also reject partial composition.; review verdict: FIX-THEN-SHIP
