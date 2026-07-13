@@ -321,7 +321,7 @@ git commit -m "#163: route directory scans through shared helper" -m "Remove par
 
 **Files:**
 - Modify: `workshop/issues/000163-consolidate-issue-file-scanners-into-a-shared-helper.md`
-- Modify: `workshop/plans/000163-consolidate-issue-file-scanners-plan.md`
+- Modify: `workshop/plans/000163-consolidate-issue-file-scanners-into-a-shared-helper-plan.md`
 - Inspect: `atlas/`
 
 - [ ] **Step 1: Format and run focused tests**
@@ -372,7 +372,7 @@ and append a timestamped `## Revisions` entry if execution changed this plan.
 - [ ] **Step 6: Commit completion records**
 
 ```bash
-git add workshop/issues/000163-consolidate-issue-file-scanners-into-a-shared-helper.md workshop/plans/000163-consolidate-issue-file-scanners-plan.md
+git add workshop/issues/000163-consolidate-issue-file-scanners-into-a-shared-helper.md workshop/plans/000163-consolidate-issue-file-scanners-into-a-shared-helper-plan.md
 git commit -m "#163: record scanner consolidation verification" -m "Keep the durable execution record aligned with the verified implementation and close evidence." -m "Co-Authored-By: OpenAI Codex <noreply@openai.com>"
 ```
 
@@ -425,3 +425,8 @@ review and must report no unresolved Critical/Important findings before completi
   sort turns the test red; retained real-repository coverage for the IO seam.
 - Re-derived the issue estimate from 1.05h to 2.06h for the expanded consumers, tests,
   full verification, and close-time review.
+
+### 2026-07-13T01:08:00-07:00 — post-rename path reconciliation
+
+- Updated Task 4's Files inventory and completion-record `git add` command to the
+  canonical renamed plan path; the plan-quality gate found no other blocker.
