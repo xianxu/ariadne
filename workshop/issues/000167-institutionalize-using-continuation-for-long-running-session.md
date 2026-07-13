@@ -83,8 +83,9 @@ against `baseline-v3.1.md`. Method A only. The source was marked stale by
 ## Plan
 
 - [x] Add the session-continuity policy to `AGENTS.base.md`.
-- [x] Add a focused regression guard for the policy contract.
+- [x] Replace the marker-only guard with a feature-specific weave integration guard.
 - [x] Update the workflow atlas and verify base-layer composition.
+- [x] Resolve the close-review findings and re-run full verification.
 
 Detailed execution plan:
 `workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md`.
@@ -112,3 +113,18 @@ boundary. Added the referential atlas mapping without changing the continuation
 prototype or Pair. Verified with the focused datatype test, all datatype tests,
 `go test ./cmd/weave/... -count=1`, `go test ./... -count=1`, `git diff --check`,
 and a scoped diff/name-only audit showing exactly the three planned files.
+
+The first close review returned REWORK. It verified the policy and ownership
+boundaries, then found that the plan incorrectly classified a filesystem-backed
+contract test as PURE, the threshold assertion accepted reversed semantics, and
+the feature test did not directly prove the three harness consumers derive from
+the exported base fragment. Re-planned to treat the policy as an INTEGRATION
+contract and exercise the real weave fan-out with exact semantic assertions.
+
+Resolved the REWORK findings by replacing the `cmd/datatype` marker test with an
+end-to-end `cmd/weave` integration test. The guard now pins the direction and
+checkpoint boundary, checks the live export row, and composes the real base
+fragment into all three harness entry files. Wrong-direction and broken-export
+mutants both failed before restoration; the focused guard, weave suite, full Go
+suite, issue validation, and whitespace check then passed. Recorded the reusable
+classification/contract-testing rule in `workshop/lessons.md`.

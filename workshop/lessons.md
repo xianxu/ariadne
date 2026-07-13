@@ -2,6 +2,31 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A prose policy is an integration contract when its test reads the repository; pin semantics and every derived consumer
+
+**Pattern (#167 close review):** The plan labeled `SessionContinuityPolicy` PURE,
+but its only regression test read `AGENTS.base.md` and the continuation prototype
+from disk. The label contradicted the actual boundary: this was a repository
+contract consumed by harness entry files, not an IO-free transformation. The
+same test checked only that `"60%"` appeared, so reversing the requirement from
+“more than 60%” to “less than 60%” still passed. Generic weave tests proved the
+fan-out mechanism in isolation, but the feature test never proved this policy's
+source was exported into all three consumers.
+
+**Rule:** Classify an entity by the boundary its behavior test crosses, not by
+whether its source happens to be prose. A test that reads live repository files
+is INTEGRATION; call something PURE only when its behavior is exercised entirely
+from in-memory inputs. For declarative policy contracts, pin the semantic
+predicate (direction + boundary + action), not a bag of tokens, and drive the
+actual source through its real composition seam to assert every derived consumer.
+Prove the guard with a wrong-direction mutant and a broken-export mutant before
+trusting green. (`ARCH-PURE`, `ARCH-PURPOSE`.)
+
+**Origin:** #167 whole-issue close review (REWORK). The remediation moved the
+guard from `cmd/datatype` to an end-to-end `cmd/weave` fixture, pinned “more than
+60% full” plus the checkpoint boundary, checked the live base-manifest export,
+and asserted `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` all derive the policy.
+
 ## A changed surface has shadow docs and execution records, not just the main atlas page
 
 **Pattern (#97 close review):** The implementation updated `atlas/workflow/weave.md`

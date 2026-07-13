@@ -261,3 +261,57 @@ git commit -m "#167: close proactive session continuity" \
 delivered to the plan-quality reviewer, so the plan moved to the issue-basename
 form and its self-references were updated. Scope and implementation steps are
 unchanged.
+
+### 2026-07-12T22:44:00-07:00 — reclassify the policy contract and test real fan-out
+
+The first whole-issue close review returned REWORK. The original **Pure
+entities** section is superseded: `SessionContinuityPolicy` is a declarative
+INTEGRATION contract consumed by agent harnesses, not a PURE code entity. Its
+repository contract test necessarily reads the exported prose and composition
+manifest. `BaseConstitutionExport` is also existing/unmodified infrastructure in
+`construct/base.manifest` and `cmd/weave/internal/plan`; this issue changes only
+its `AGENTS.base.md` input.
+
+Revised integration concepts:
+
+| Name | Lives in | Status | Wraps |
+|------|----------|--------|-------|
+| `SessionContinuityPolicy` | `AGENTS.base.md` | new | agent behavior under context pressure |
+| `ContinuationWriterBoundary` | `AGENTS.base.md` | new | producer-provided continuation writer and restart behavior |
+
+The existing `BaseConstitutionExport` composes the policy into `CLAUDE.md`,
+`AGENTS.md`, and `GEMINI.md`; it remains unmodified and is exercised rather than
+reimplemented (`ARCH-DRY`, `ARCH-PURPOSE`). No new PURE entity is introduced.
+
+#### Revision task 1: Replace the marker-only test with a weave integration guard
+
+**Files:**
+- Delete: `cmd/datatype/continuation_policy_test.go`
+- Create: `cmd/weave/session_continuity_test.go`
+
+- [x] Assert the exact trigger semantics (`more than 60% full`, checkpoint
+  before another substantial unit), both fallback signals, datatype routing,
+  no-double-restart wording, and existing no-writer behavior.
+- [x] Assert the live `construct/base.manifest` exports `AGENTS.base.md`, compile
+  the real base fragment through a minimal end-to-end weave fixture, and verify
+  the distinctive policy appears in all three harness entry files.
+- [x] Prove the regression guard by mutating the threshold direction and export
+  visibility one at a time, observing focused failures, then restoring both and
+  observing a pass.
+
+#### Revision task 2: Record the review lesson and reverify
+
+**Files:**
+- Modify: `workshop/lessons.md`
+- Modify: `workshop/issues/000167-institutionalize-using-continuation-for-long-running-session.md`
+- Modify: this plan
+
+- [x] Record that plan entity classification must match the test boundary, and
+  that prose contract tests pin semantics plus derived consumers rather than
+  token presence alone.
+- [x] Run `go test ./cmd/weave -run TestSessionContinuityPolicyFansOutToEveryHarness -count=1`,
+  `go test ./cmd/weave/... -count=1`, `go test ./... -count=1`, issue validation,
+  and `git diff --check`.
+- [x] Reconcile all issue/plan checkboxes, commit the remediation with the prior
+  `Review-Verdict: REWORK` and `Review-Window: 6eeb64d..792fc3f` trailers, then
+  re-run `sdlc close --issue 167 --actual 1.05 ...`.
