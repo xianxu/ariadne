@@ -332,3 +332,14 @@ The test-hardening delta is:
   restore both, then re-run the focused, weave, and full repository suites.
 - [x] Reconcile records and commit with `Review-Verdict: FIX-THEN-SHIP` and
   `Review-Window: 6eeb64d..5d112ae` before the final close rerun.
+
+### 2026-07-12T23:07:00-07:00 — derive the consumer sweep from the harness registry
+
+The next whole-issue review confirmed the policy and prior hardening, but found
+that the test's literal `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` list duplicated
+the canonical registry. This cheap `ARCH-DRY` / `ARCH-PURPOSE` remediation keeps
+the “every harness” promise true as the registry evolves:
+
+- [x] Replace the literal consumer slice with `plan.TargetAll.EntryFiles()`.
+- [x] Re-run the focused guard, full repository suite, issue validation, and
+  whitespace verification before rerunning the close boundary.

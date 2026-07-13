@@ -86,7 +86,7 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
 		t.Fatalf("compile policy fixture: %v", err)
 	}
-	for _, entry := range []string{"CLAUDE.md", "AGENTS.md", "GEMINI.md"} {
+	for _, entry := range plan.TargetAll.EntryFiles() {
 		raw, err := os.ReadFile(filepath.Join(leaf, entry))
 		if err != nil {
 			t.Fatalf("read composed %s: %v", entry, err)

@@ -7,7 +7,7 @@ created: 2026-07-07
 updated: 2026-07-12
 estimate_hours: 1.08
 started: 2026-07-12T22:02:15-07:00
-actual_hours: 1.43
+actual_hours: 1.74
 ---
 
 # institutionalize using continuation for long running session
@@ -88,6 +88,7 @@ against `baseline-v3.1.md`. Method A only. The source was marked stale by
 - [x] Update the workflow atlas and verify base-layer composition.
 - [x] Resolve the close-review findings and re-run full verification.
 - [x] Harden section scoping and typed export parsing from the FIX-THEN-SHIP review.
+- [x] Derive the feature test's consumer sweep from the canonical harness registry.
 
 Detailed execution plan:
 `workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md`.
@@ -97,6 +98,7 @@ Detailed execution plan:
 ### 2026-07-07
 
 ### 2026-07-12
+- 2026-07-12: closed — Post-review hardening verified: go test ./cmd/weave -run TestSessionContinuityPolicyFansOutToEveryHarness -count=1 and go test ./... -count=1 pass; issue validation and git diff --check pass. Mutation checks proved the guard fails when the canonical route is changed inside Session Continuity and when the AGENTS.base.md export is only commented out. The test now scopes policy assertions to the owning section and parses active manifest intents.; review verdict: FIX-THEN-SHIP
 - 2026-07-12: closed — TDD remediation proved wrong-direction and broken-export mutants fail; go test ./cmd/weave -run TestSessionContinuityPolicyFansOutToEveryHarness -count=1, go test ./cmd/weave/... -count=1, and go test ./... -count=1 passed; sdlc issue validate passed; git diff --check clean; the integration guard pins semantic threshold, live base export, and all Claude/Codex/Gemini consumers.; review verdict: FIX-THEN-SHIP
 
 Claimed the issue and inspected the continuation datatype plus Pair's existing
@@ -144,3 +146,9 @@ its fixture from the validated active export. A moved-marker mutant and a
 commented-export mutant both failed before restoration; the focused test passed
 afterward. Extended the #167 lesson with section-scoping and structured-source
 parsing rules.
+
+The final close review confirmed the behavior and documentation, then identified
+one remaining `ARCH-DRY`/`ARCH-PURPOSE` weakness: the feature test repeated the
+current harness filenames. Reopened the issue and changed the sweep to derive
+from `plan.TargetAll.EntryFiles()`, so adding a future registered harness also
+extends this policy contract automatically.

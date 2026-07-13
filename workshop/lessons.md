@@ -23,7 +23,10 @@ Prove the guard with a wrong-direction mutant and a broken-export mutant before
 trusting green. Scope prose assertions to the owning section so duplicate words
 elsewhere cannot mask a deletion. When the source is structured (a manifest,
 frontmatter, JSON), parse its semantic records instead of substring-matching raw
-text — a commented-out row contains the same bytes but has no behavior.
+text — a commented-out row contains the same bytes but has no behavior. When a
+consumer registry already exists, derive an “every consumer” sweep from it rather
+than copying today's members into the test; otherwise future consumers silently
+escape the contract.
 (`ARCH-PURE`, `ARCH-PURPOSE`.)
 
 **Origin:** #167 whole-issue close review (REWORK). The remediation moved the
