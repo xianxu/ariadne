@@ -30,15 +30,15 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 		t.Fatal("Session Continuity policy missing Core Design Principles boundary")
 	}
 	policy = policy[:end]
+	const checkpointClause = "Finish the current atomic action and update its durable issue/plan/log state first."
+	const fallbackClause = "If an exact percentage is unavailable, treat a harness context-pressure or compaction warning as the trigger."
+	const continuationRoute = "Apply the canonical **`continuation` datatype** for the checkpoint"
 	for name, marker := range map[string]string{
 		"threshold direction":        "more than 60% full",
 		"checkpoint boundary":        "before starting another substantial unit of work",
-		"atomic-action boundary":     "Finish the current atomic action",
-		"durable-state ordering":     "update its durable issue/plan/log state first",
-		"fallback condition":         "If an exact percentage is unavailable",
-		"pressure fallback":          "context-pressure",
-		"warning fallback":           "compaction warning",
-		"canonical route":            "`continuation` datatype",
+		"checkpoint ordering clause": checkpointClause,
+		"fallback trigger clause":    fallbackClause,
+		"canonical route":            continuationRoute,
 		"writer boundary":            "writer owns the restart",
 		"durable-write precondition": "after a successful durable write",
 		"no double restart":          "don't separately restart",
@@ -47,6 +47,9 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 		if !strings.Contains(policy, marker) {
 			t.Errorf("Session Continuity policy missing %s marker %q", name, marker)
 		}
+	}
+	if checkpointAt, routeAt := strings.Index(policy, checkpointClause), strings.Index(policy, continuationRoute); checkpointAt >= routeAt {
+		t.Errorf("Session Continuity policy must checkpoint durable state before applying continuation: checkpoint=%d route=%d", checkpointAt, routeAt)
 	}
 
 	proto, err := os.ReadFile(filepath.Join(repo, "construct", "datatype", "continuation.md"))

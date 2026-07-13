@@ -365,3 +365,14 @@ semantics could still be reversed or deleted without failing the marker guard.
   durable-write precondition independently.
 - [x] Re-run the focused guard, full repository suite, issue validation, and
   whitespace verification before the next close boundary.
+
+### 2026-07-12T23:30:00-07:00 — bind clauses and verify relative order
+
+The next review correctly distinguished phrase presence from relational
+semantics. The guard now proves the relationships, not merely their vocabulary:
+
+- [x] Assert the complete unavailable-percentage → warning-trigger clause.
+- [x] Assert the complete atomic-action → durable-state-first clause and verify
+  it appears before the continuation route.
+- [x] Re-run the focused guard, full repository suite, issue validation, and
+  whitespace verification before the next close boundary.

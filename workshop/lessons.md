@@ -29,7 +29,9 @@ than copying today's members into the test; otherwise future consumers silently
 escape the contract. Assert the complete scoped contract in each derived consumer,
 not just identifying sentinels, when partial propagation would violate Done-when.
 For the source itself, enumerate every behavioral predicate in the Spec—including
-conditions and ordering—not merely the nouns or actions it mentions.
+conditions and ordering—not merely the nouns or actions it mentions. Where the
+contract is relational, assert the bound clause or relative positions; separate
+presence checks do not prove causality or sequence.
 (`ARCH-PURE`, `ARCH-PURPOSE`.)
 
 **Origin:** #167 whole-issue close review (REWORK). The remediation moved the
