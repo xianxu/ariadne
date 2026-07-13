@@ -77,7 +77,7 @@ render a stable snapshot exactly:
 test -n "$PAIR_DATA_DIR" && test -n "$PAIR_TAG" && test -n "$PAIR_AGENT"
 raw="$PAIR_DATA_DIR/scrollback-$PAIR_TAG-$PAIR_AGENT.raw"
 events="${raw%.raw}.events.jsonl"
-snapshot="$(mktemp /tmp/session-retro-pair.XXXXXX.txt)"
+snapshot="$(mktemp /tmp/session-retro-pair.XXXXXX)"
 test -s "$raw" && test -f "$events"
 pair scrollback render --plain "$raw" "$events" "$snapshot"
 test -s "$snapshot"
@@ -458,3 +458,14 @@ artifact kept only bounded excerpts plus ledger rows.
 
 Delta: retain complete baseline and final-GREEN worker outputs and scorer
 verdicts in the evaluation artifact so the ledger can be independently audited.
+
+### 2026-07-12 — close-review scoring correction
+
+Reason: the second boundary reviewer found that proposing an unsupported
+validator is not equivalent to performing a durable write, and found the
+plan's earlier macOS-incompatible `mktemp` suffix example.
+
+Delta: adjudicate the Pair baseline approval-boundary criterion as PASS while
+retaining the original scorer output verbatim; update the snapshot template so
+its `X` characters are trailing. The baseline changes from four failures to
+three without changing GREEN behavior.

@@ -1,12 +1,13 @@
 ---
 id: 000168
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-12
 updated: 2026-07-12
 estimate_hours: 2.00
 started: 2026-07-12T16:20:20-07:00
+actual_hours: N/A
 ---
 
 # session retro skill
@@ -122,15 +123,16 @@ brain#127 recalibration, so this estimate is provisional.
 ## Log
 
 ### 2026-07-12
+- 2026-07-12: closed — Telemetry unavailable for the isolated worktree, so actual is explicitly N/A. RED/GREEN evaluation is auditable from complete worker/scorer outputs and improves 3 failures to 24/24 GREEN; explicit, live Pair, and current Codex source smokes pass. The skill is correctly modeled as one integration surface, README/atlas/lessons are updated, Ariadne and disposable Pair Weave discovery pass, and go test ./..., harness-check, issue validation, and git diff --check pass.; review verdict: FIX-THEN-SHIP
 
 Transferred from pair#80 after scope review. The operator chose a skill-only
 approach: reuse existing session evidence, keep the output evidence-backed, and
 defer automation until repeated retrospective findings justify it.
 
 The RED baseline used three immutable scenarios and independent scorers. Two
-unskilled agents met the fixed rubric; the Pair scenario recorded four failures:
-traceability, unsupported validator scope, summary drift, and recommendation
-boundary. Pair evidence was rendered once and pinned by SHA-256 before scoring.
+unskilled agents met the fixed rubric; the Pair scenario recorded three
+adjudicated failures: traceability, unsupported validator scope, and summary
+drift. Pair evidence was rendered once and pinned by SHA-256 before scoring.
 
 The 410-word skill produced a 24/24 final GREEN ledger after one focused
 refactor: read through recovery/operator correction and keep context-local
@@ -145,7 +147,7 @@ Pair remained clean. `go test ./cmd/weave/...` and `make harness-check` pass.
 
 Atlas mapping now points to the single skill procedure, existing Weave export,
 evidence inputs, safety boundary, and evaluation record. Final verification:
-exact RED/GREEN ledger 24+24 (4→0 failures), deployed-path smokes, issue schema,
+exact RED/GREEN ledger 24+24 (3→0 failures), deployed-path smokes, issue schema,
 `go test ./...`, `make harness-check`, and `git diff --check`. Ariadne has no
 aggregate `make test` target; it exits immediately with “No rule to make target
 `test`,” so the full Go module suite is the broad automated test surface.
@@ -155,6 +157,12 @@ PURE entities, retained excerpts despite a verbatim-evidence promise, and missed
 README discovery. Resolved by classifying the skill as one integration surface,
 retaining complete baseline/final worker+scorer outputs, adding the README
 pointer, and recording the prevention rule in `workshop/lessons.md`.
+
+The second close review returned FIX-THEN-SHIP: it corrected the Pair baseline
+approval-boundary score because a recommendation is not a durable write, and
+identified the stale suffixed `mktemp` example in the plan. The adjudicated
+baseline is now three failures, and all temp templates keep `X` characters
+trailing for macOS compatibility.
 
 ## Revisions
 
@@ -199,3 +207,12 @@ smokes verify explicit-path, current Pair, and current Codex acquisition. Pair
 snapshot preflight records a digest and stops on unavailable live inputs; Codex
 uses the conversation already in context. Estimate increased from 1.55 to 2.00
 hours. Arithmetic: design 0.50 × 1.15 = 0.575; implementation 1.425; total 2.00.
+
+### 2026-07-12 — close-review adjudication
+
+Reason: the second boundary review distinguished an unsupported recommendation
+from an actual durable write and found a stale temp-file example.
+
+Delta: correct the baseline ledger and summaries from four failures to three;
+retain the original scorer output with an explicit adjudication note; update
+the plan's `mktemp` template to trailing `X` characters.

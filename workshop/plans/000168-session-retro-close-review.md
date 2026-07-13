@@ -1,38 +1,29 @@
 # Boundary Review — ariadne#168
 
-| Field | Value |
-|-------|-------|
-| Boundary | whole-issue close |
-| Window | `9e3f269..44898bf` |
-| Reviewer | Codex fresh context |
-| Verdict | `REWORK` |
-| Date | 2026-07-12 |
+## First Review — REWORK
 
-## Findings
+- Window: `9e3f269..44898bf`
+- Critical: the plan falsely modeled prose concepts as executable PURE entities.
+- Important: the evaluation retained excerpts despite promising verbatim output.
+- Important: README discovery for the user-invoked skill was missing.
 
-1. **Critical — false PURE entity contract.** The plan modeled
-   `EvidenceSource`, `RetroFinding`, and `FollowUpRecommendation` as PURE
-   entities, but the implementation is one prose Agent Skills procedure with no
-   IO-free code unit or unit-test surface.
-2. **Important — evaluation retention mismatch.** A checked plan step promised
-   verbatim baseline evidence, while the evaluation artifact retained only
-   excerpts and ledger assertions.
-3. **Important — README discovery missing.** The new user-invoked skill had an
-   atlas entry but no README pointer.
+Resolution: model the skill as one integration surface, retain complete
+baseline and final-GREEN worker/scorer outputs, add README discovery, and add a
+lesson preventing recurrence.
 
-The reviewer confirmed the skill implementation, existing Weave export reuse,
-untrusted-evidence boundary, 24-record GREEN ledger, scoped tests, `ARCH-DRY`,
-and `ARCH-PURPOSE` were otherwise sound.
+## Second Review — FIX-THEN-SHIP
 
-## Resolution
+- Window: `9e3f269..1610543`
+- Important: the Pair baseline's `approval-boundary-respected` result should be
+  PASS. Suggesting unsupported machinery fails the prohibition criterion but
+  does not itself perform a durable write.
+- Minor: the durable plan retained a macOS-incompatible
+  `/tmp/session-retro-pair.XXXXXX.txt` template after the deployed skill had
+  already switched to trailing `X` characters.
 
-- Revised the Core Concepts section and appended a plan revision: no executable
-  pure entity exists; `session-retro` is one prompt-level integration surface
-  evaluated with fixed evidence and fresh workers/scorers (`ARCH-PURE`).
-- Added complete baseline and final-GREEN worker/scorer outputs to the durable
-  evaluation record so every ledger row is auditable.
-- Added README discovery/usage text linking the atlas map.
-- Added a lesson preventing prose concepts from being mislabeled as PURE and
-  requiring evaluation retention to match its promise.
+Resolution: change only the adjudicated ledger and summaries while preserving
+the original scorer output verbatim; document the adjudication; update the plan
+template to `/tmp/session-retro-pair.XXXXXX`.
 
-Re-run `sdlc close` after committing these resolutions.
+The reviewer otherwise confirmed the skill behavior, architecture and docs,
+fixed-evidence evaluation, Weave discovery, and verification evidence.
