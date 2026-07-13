@@ -1,11 +1,12 @@
 ---
 id: 000163
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-03
-updated: 2026-07-03
+updated: 2026-07-12
 estimate_hours:
+started: 2026-07-12T23:38:52-07:00
 ---
 
 # consolidate issue-file scanners into a shared helper
