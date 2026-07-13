@@ -21,6 +21,7 @@
 | `issueFilenamePattern` | `cmd/sdlc/issuefiles.go` | new |
 | `issueFilenameParts` | `cmd/sdlc/issuefiles.go` | new |
 | `issueFilename` | `cmd/sdlc/issuefiles.go` | modified |
+| `issueIDPrefix` | `cmd/sdlc/push.go` | modified |
 | `issueFilenameRE` | `cmd/sdlc/state.go` | deleted |
 | `codecompleteIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
 | `notDoneIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
@@ -49,8 +50,9 @@
   and state inventory ID/slug extraction.
   - **Relationships:** one constant feeds `filepath.Glob` and `filepath.Match`; the
     parts helper returns ID/slug from accepted names; `issueFilename` delegates to it.
-    `issueFilenameRE` is deleted, while state inventory separately retains its existing
-    non-empty-slug rule after parsing.
+    `issueIDPrefix` delegates to it for archive-plan lookup. `issueFilenameRE` is
+    deleted, while state inventory separately retains its existing non-empty-slug rule
+    after parsing.
   - **DRY rationale:** the refactor must not replace repeated scanners by introducing
     a repeated filename-pattern literal (ARCH-DRY).
   - **Future extensions:** grammar changes occur in the constant and are verified
@@ -156,6 +158,8 @@ Use a real temporary git repository plus `execGitRunner{}`. Pin:
 - `issueFilename` and directory-mode globbing accept/reject the same fixture names,
   `issueFilenameParts` extracts the same padded ID/slug state inventory expects, and
   the six-digit glob literal appears only once in production source;
+- `issueIDPrefix` returns the parts helper's ID for valid and empty-slug issue names,
+  and rejects malformed/non-six-digit names without its old manual digit loop;
 - `buildPushCommitMessage` uses the shared directory grammar; state inventory still
   skips an empty slug even though the low-level glob/membership grammar permits it;
 - deleted/unreadable/malformed candidates are skipped;
@@ -182,7 +186,8 @@ Window mode uses `issuesDir+"/*.md"` and preserves git output order. Move the ex
 `issueFilenamePattern`, and have every six-digit issue glob—including
 `buildPushCommitMessage`—join that constant while the parts helper passes it to
 `filepath.Match`. Replace `state.go`'s `issueFilenameRE` with `issueFilenameParts`,
-keeping its explicit non-empty-slug check. Sort directory matches. Read, parse, and extract status once per
+keeping its explicit non-empty-slug check. Make `issueIDPrefix` delegate to the same
+parts helper. Sort directory matches. Read, parse, and extract status once per
 path; silently skip read/parse failures. Return a failed window runner error. Perform
 no writes or caller policy here. On git failure return an `issueFileScanError` with
 `Output []byte`, `Err error`, `Error()`, and `Unwrap()`.
@@ -356,7 +361,9 @@ boilerplate. Explain any remaining parse as a behaviorally distinct job. Also ru
 `rg -n '\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]-\*\.md' cmd/sdlc --glob '*.go'`
 and confirm the production pattern has one definition (test fixtures may repeat it).
 Also confirm `issueFilenameRE` is gone and both `buildPushCommitMessage` and
-`listIssues` derive from the shared filename helpers.
+`listIssues` derive from the shared filename helpers. Run
+`rg -n 'for i := 0; i < 6|base\[6\]' cmd/sdlc --glob '*.go'` and confirm the old
+`issueIDPrefix` digit-loop implementation is gone.
 
 - [ ] **Step 4: Assess atlas impact**
 
@@ -430,3 +437,9 @@ review and must report no unresolved Critical/Important findings before completi
 
 - Updated Task 4's Files inventory and completion-record `git add` command to the
   canonical renamed plan path; the plan-quality gate found no other blocker.
+
+### 2026-07-13T01:15:00-07:00 — filename shadow-consumer sweep
+
+- Added `issueIDPrefix` to the concept inventory and made it delegate to
+  `issueFilenameParts`; equivalence fixtures cover valid, empty-slug, malformed, and
+  non-six-digit names, and the structural sweep rejects the former manual digit loop.

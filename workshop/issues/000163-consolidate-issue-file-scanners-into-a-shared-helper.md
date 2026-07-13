@@ -84,8 +84,9 @@ Design notes / constraints:
 - Reuse the existing issue-filename grammar everywhere: one `issueFilenamePattern`
   feeds directory globbing (including `buildPushCommitMessage`) and membership; a
   small pure parts helper replaces `state.go`'s parallel capture regex while preserving
-  its non-empty-slug rule. Do not introduce another six-digit literal while removing
-  scanner duplication (ARCH-DRY).
+  its non-empty-slug rule and supplies `issueIDPrefix` for archive-plan lookup. Do not
+  introduce another six-digit literal or manual digit loop while removing scanner
+  duplication (ARCH-DRY).
 - Preserve merge's path topology: a dir-wide scan under `mainPath` may return absolute
   filesystem paths, while `archiveDoneIssuesInDir` must continue recording
   `mainPath`-relative paths for `GitInDir` staging.
@@ -96,7 +97,8 @@ Design notes / constraints:
 - [ ] The shared `scanIssueFiles` helper backs all four scanners; no caller
       re-implements the glob/diff + parse + status-read boilerplate.
 - [ ] The six-digit issue filename pattern has one definition shared by directory
-      scanning, `buildPushCommitMessage`, `issueFilename`, and state inventory parsing.
+      scanning, `buildPushCommitMessage`, `issueFilename`, `issueIDPrefix`, and state
+      inventory parsing.
 - [ ] Behavior is unchanged (the `codecomplete` carve-out, terminal filters, and
       window vs dir-wide scoping all preserved) — existing tests pass untouched where
       they assert behavior.
@@ -210,3 +212,9 @@ Durable execution plan:
 - `change-code` reviews `<issue-filename-stem>-plan.md` exactly. Renamed the shortened
   plan slug to match the issue stem so the gate receives the detailed executable plan
   instead of reviewing only the issue's abbreviated checklist.
+
+### 2026-07-13T01:15:00-07:00 — filename shadow-consumer sweep
+
+- The detailed gate review found `issueIDPrefix` manually revalidating the same six
+  digits and hyphen for archive-plan lookup. Added it to `issueFilenameParts` and the
+  equivalence tests/sweep so no manual digit loop survives the single source.
