@@ -315,3 +315,20 @@ reimplemented (`ARCH-DRY`, `ARCH-PURPOSE`). No new PURE entity is introduced.
 - [x] Reconcile all issue/plan checkboxes, commit the remediation with the prior
   `Review-Verdict: REWORK` and `Review-Window: 6eeb64d..792fc3f` trailers, then
   re-run `sdlc close --issue 167 --actual 1.05 ...`.
+
+### 2026-07-12T22:52:00-07:00 — harden policy-section and active-export assertions
+
+The second whole-issue review returned FIX-THEN-SHIP. Behavior and architecture
+passed, but the integration guard could accept (1) a policy marker moved outside
+the Session Continuity section and (2) a commented-out base-manifest export.
+The test-hardening delta is:
+
+- [x] Slice `AGENTS.base.md` from `### 14. Session Continuity` through
+  `## Core Design Principles` before checking every policy semantic marker.
+- [x] Parse the live manifest with `intent.ParseManifest` and require an active
+  `intent.Prose` / `intent.Export` entry whose source is `AGENTS.base.md`; use
+  that validated row to build the synthetic fixture.
+- [x] Prove the guards with a moved-marker mutant and a commented-export mutant,
+  restore both, then re-run the focused, weave, and full repository suites.
+- [x] Reconcile records and commit with `Review-Verdict: FIX-THEN-SHIP` and
+  `Review-Window: 6eeb64d..5d112ae` before the final close rerun.

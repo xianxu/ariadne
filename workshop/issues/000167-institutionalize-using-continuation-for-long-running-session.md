@@ -7,6 +7,7 @@ created: 2026-07-07
 updated: 2026-07-12
 estimate_hours: 1.08
 started: 2026-07-12T22:02:15-07:00
+actual_hours: 1.43
 ---
 
 # institutionalize using continuation for long running session
@@ -86,6 +87,7 @@ against `baseline-v3.1.md`. Method A only. The source was marked stale by
 - [x] Replace the marker-only guard with a feature-specific weave integration guard.
 - [x] Update the workflow atlas and verify base-layer composition.
 - [x] Resolve the close-review findings and re-run full verification.
+- [x] Harden section scoping and typed export parsing from the FIX-THEN-SHIP review.
 
 Detailed execution plan:
 `workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md`.
@@ -95,6 +97,7 @@ Detailed execution plan:
 ### 2026-07-07
 
 ### 2026-07-12
+- 2026-07-12: closed — TDD remediation proved wrong-direction and broken-export mutants fail; go test ./cmd/weave -run TestSessionContinuityPolicyFansOutToEveryHarness -count=1, go test ./cmd/weave/... -count=1, and go test ./... -count=1 passed; sdlc issue validate passed; git diff --check clean; the integration guard pins semantic threshold, live base export, and all Claude/Codex/Gemini consumers.; review verdict: FIX-THEN-SHIP
 
 Claimed the issue and inspected the continuation datatype plus Pair's existing
 writer/restart path. Design decision: `AGENTS.base.md` owns the proactive trigger;
@@ -128,3 +131,16 @@ fragment into all three harness entry files. Wrong-direction and broken-export
 mutants both failed before restoration; the focused guard, weave suite, full Go
 suite, issue validation, and whitespace check then passed. Recorded the reusable
 classification/contract-testing rule in `workshop/lessons.md`.
+
+The second close review returned FIX-THEN-SHIP and advanced the issue to
+`codecomplete`, but found two Important test gaps: an unanchored manifest
+substring accepted a commented-out export, and marker checks were not scoped to
+the Session Continuity section. Reopened to `working` through `sdlc issue
+set-status` to fix both before shipping.
+
+Resolved the FIX-THEN-SHIP findings: the guard now slices only the Session
+Continuity section, parses the live base manifest into typed intents, and builds
+its fixture from the validated active export. A moved-marker mutant and a
+commented-export mutant both failed before restoration; the focused test passed
+afterward. Extended the #167 lesson with section-scoping and structured-source
+parsing rules.

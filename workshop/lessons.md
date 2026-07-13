@@ -20,12 +20,19 @@ from in-memory inputs. For declarative policy contracts, pin the semantic
 predicate (direction + boundary + action), not a bag of tokens, and drive the
 actual source through its real composition seam to assert every derived consumer.
 Prove the guard with a wrong-direction mutant and a broken-export mutant before
-trusting green. (`ARCH-PURE`, `ARCH-PURPOSE`.)
+trusting green. Scope prose assertions to the owning section so duplicate words
+elsewhere cannot mask a deletion. When the source is structured (a manifest,
+frontmatter, JSON), parse its semantic records instead of substring-matching raw
+text — a commented-out row contains the same bytes but has no behavior.
+(`ARCH-PURE`, `ARCH-PURPOSE`.)
 
 **Origin:** #167 whole-issue close review (REWORK). The remediation moved the
 guard from `cmd/datatype` to an end-to-end `cmd/weave` fixture, pinned “more than
 60% full” plus the checkpoint boundary, checked the live base-manifest export,
 and asserted `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` all derive the policy.
+The follow-up FIX-THEN-SHIP review hardened it further with section scoping and
+typed manifest parsing after moved-marker and commented-export mutants exposed
+the raw-text false positives.
 
 ## A changed surface has shadow docs and execution records, not just the main atlas page
 

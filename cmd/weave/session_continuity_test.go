@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
@@ -17,7 +18,18 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	const policyHeading = "### 14. Session Continuity"
 	policy := string(policyRaw)
+	start := strings.Index(policy, policyHeading)
+	if start < 0 {
+		t.Fatalf("AGENTS.base.md missing %q", policyHeading)
+	}
+	policy = policy[start:]
+	end := strings.Index(policy, "\n## Core Design Principles")
+	if end < 0 {
+		t.Fatal("Session Continuity policy missing Core Design Principles boundary")
+	}
+	policy = policy[:end]
 	for name, marker := range map[string]string{
 		"threshold direction": "more than 60% full",
 		"checkpoint boundary": "before starting another substantial unit of work",
@@ -45,10 +57,21 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const exportRow = "export    prose AGENTS.base.md"
-	if !strings.Contains(string(manifest), exportRow) {
-		t.Fatalf("construct/base.manifest missing canonical policy export %q", exportRow)
+	intents, err := intent.ParseManifest(string(manifest))
+	if err != nil {
+		t.Fatalf("parse construct/base.manifest: %v", err)
 	}
+	exportSource := ""
+	for _, in := range intents {
+		if in.Kind == intent.Prose && in.Visibility == intent.Export && in.Source == "AGENTS.base.md" {
+			exportSource = in.Source
+			break
+		}
+	}
+	if exportSource == "" {
+		t.Fatal("construct/base.manifest missing active exported prose AGENTS.base.md intent")
+	}
+	exportRow := "export prose " + exportSource
 
 	parent := t.TempDir()
 	foundation := filepath.Join(parent, "foundation")
@@ -68,7 +91,7 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read composed %s: %v", entry, err)
 		}
-		if !strings.Contains(string(raw), "### 14. Session Continuity") ||
+		if !strings.Contains(string(raw), policyHeading) ||
 			!strings.Contains(string(raw), "more than 60% full") {
 			t.Errorf("%s did not derive the Session Continuity policy", entry)
 		}
