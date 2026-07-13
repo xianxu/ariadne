@@ -81,6 +81,10 @@ Design notes / constraints:
   results retain git's order. Window enumeration preserves the existing
   `issuesDir/*.md` git pathspec; only dir-wide enumeration applies the six-digit
   `NNNNNN-*.md` filename restriction.
+- Reuse the existing `issueFilename` grammar for the directory glob: relocate its
+  six-digit pattern to one shared constant consumed by both `filepath.Glob` and
+  `filepath.Match`, rather than introducing another literal while removing scanner
+  duplication (ARCH-DRY).
 - Preserve merge's path topology: a dir-wide scan under `mainPath` may return absolute
   filesystem paths, while `archiveDoneIssuesInDir` must continue recording
   `mainPath`-relative paths for `GitInDir` staging.
@@ -90,6 +94,8 @@ Design notes / constraints:
 
 - [ ] The shared `scanIssueFiles` helper backs all four scanners; no caller
       re-implements the glob/diff + parse + status-read boilerplate.
+- [ ] The six-digit issue filename pattern has one definition shared by directory
+      scanning and the existing `issueFilename` membership predicate.
 - [ ] Behavior is unchanged (the `codecomplete` carve-out, terminal filters, and
       window vs dir-wide scoping all preserved) — existing tests pass untouched where
       they assert behavior.
@@ -175,3 +181,9 @@ Durable execution plan: `workshop/plans/000163-consolidate-issue-file-scanners-p
   preserving `gitx.RunGit` for the publish gate and `r.Git` for warning callers.
 - Made raw git output and error unwrapping part of the shared scan-error contract so
   consolidation cannot silently change caller diagnostics.
+
+### 2026-07-13T00:47:00-07:00 — change-code plan-quality refusal
+
+- The gate found that the planned directory glob would duplicate `issueFilename`'s
+  existing six-digit grammar. Revised the design so one `issueFilenamePattern`
+  constant feeds both glob enumeration and filename membership (ARCH-DRY).

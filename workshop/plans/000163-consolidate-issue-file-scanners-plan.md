@@ -18,6 +18,8 @@
 |------|----------|--------|
 | `issueFileRef` | `cmd/sdlc/issuefiles.go` | new |
 | `issueFileScanError` | `cmd/sdlc/issuefiles.go` | new |
+| `issueFilenamePattern` | `cmd/sdlc/issuefiles.go` | new |
+| `issueFilename` | `cmd/sdlc/issuefiles.go` | modified |
 | `codecompleteIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
 | `notDoneIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
 | `terminalIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
@@ -39,6 +41,16 @@
     to share presentation or error-wrapping policy.
   - **Future extensions:** none; add fields only if an existing diagnostic requires a
     fact unavailable from output/cause.
+
+- **`issueFilenamePattern` / `issueFilename`** — the one six-digit issue-name grammar,
+  shared by directory glob enumeration and existing issue/history path membership.
+  - **Relationships:** one constant feeds both `filepath.Glob` and `filepath.Match`;
+    `issueFilename` moves from `push.go` beside the new scanner without changing its
+    callers.
+  - **DRY rationale:** the refactor must not replace repeated scanners by introducing
+    a repeated filename-pattern literal (ARCH-DRY).
+  - **Future extensions:** grammar changes occur in the constant and are verified
+    against both glob selection and predicate membership.
 
 - **Named status filters** — select records for each existing caller policy while
   preserving input order.
@@ -129,6 +141,8 @@ Use a real temporary git repository plus `execGitRunner{}`. Pin:
 
 - window mode includes changed `custom.md` and six-digit files in git order;
 - directory mode includes only sorted six-digit `NNNNNN-*.md` files;
+- `issueFilename` and directory-mode globbing accept/reject the same fixture names,
+  and the six-digit glob literal appears only once in production source;
 - deleted/unreadable/malformed candidates are skipped;
 - missing `status` produces `Status == ""`;
 - a failing window runner returns an error;
@@ -148,8 +162,10 @@ Expected: FAIL to compile because `scanIssueFiles` does not exist.
 func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, error)) ([]issueFileRef, error)
 ```
 
-Window mode uses `issuesDir+"/*.md"` and preserves git output order. Directory mode
-uses the six-digit glob and sorts matches. Read, parse, and extract status once per
+Window mode uses `issuesDir+"/*.md"` and preserves git output order. Move the existing
+`issueFilename` predicate from `push.go` into `issuefiles.go`, define one
+`issueFilenamePattern`, and have directory mode join that constant into its glob while
+the predicate passes it to `filepath.Match`. Sort directory matches. Read, parse, and extract status once per
 path; silently skip read/parse failures. Return a failed window runner error. Perform
 no writes or caller policy here. On git failure return an `issueFileScanError` with
 `Output []byte`, `Err error`, `Error()`, and `Unwrap()`.
@@ -163,8 +179,8 @@ Expected: PASS.
 - [ ] **Step 9: Commit the scanner core**
 
 ```bash
-gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go
-git add cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go
+gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go
+git add cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go
 git commit -m "#163: add shared issue-file scanner" -m "Centralize issue enumeration and parsing while keeping status policy pure and caller effects outside the seam." -m "Co-Authored-By: OpenAI Codex <noreply@openai.com>"
 ```
 
@@ -319,7 +335,9 @@ rg -n 'issue.Parse|GetField\(fm, "status"\)|Glob\(filepath.Join\(.*\[0-9\]' cmd/
 ```
 
 Expected: none of the four scanner families retains enumeration + parse + status-read
-boilerplate. Explain any remaining parse as a behaviorally distinct job.
+boilerplate. Explain any remaining parse as a behaviorally distinct job. Also run
+`rg -n '\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]-\*\.md' cmd/sdlc --glob '*.go'`
+and confirm the production pattern has one definition (test fixtures may repeat it).
 
 - [ ] **Step 4: Assess atlas impact**
 
@@ -371,3 +389,10 @@ review and must report no unresolved Critical/Important findings before completi
   have exact tests.
 - Replaced the stale close-evidence “mutation check” label with the actual ARCH-DRY
   source sweep and both committed-window and working-tree diff checks.
+
+### 2026-07-13T00:47:00-07:00 — change-code plan-quality refusal
+
+- Added the existing `issueFilename` predicate and new shared pattern constant to the
+  concept inventory. The implementation now relocates the predicate beside the
+  scanner, derives both glob and match behavior from one grammar, tests their
+  equivalence, and structurally sweeps for duplicate production literals.
