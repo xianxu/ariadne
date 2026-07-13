@@ -31,14 +31,18 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 	}
 	policy = policy[:end]
 	for name, marker := range map[string]string{
-		"threshold direction": "more than 60% full",
-		"checkpoint boundary": "before starting another substantial unit of work",
-		"pressure fallback":   "context-pressure",
-		"warning fallback":    "compaction warning",
-		"canonical route":     "`continuation` datatype",
-		"writer boundary":     "writer owns the restart",
-		"no double restart":   "don't separately restart",
-		"no-writer behavior":  "no writer",
+		"threshold direction":        "more than 60% full",
+		"checkpoint boundary":        "before starting another substantial unit of work",
+		"atomic-action boundary":     "Finish the current atomic action",
+		"durable-state ordering":     "update its durable issue/plan/log state first",
+		"fallback condition":         "If an exact percentage is unavailable",
+		"pressure fallback":          "context-pressure",
+		"warning fallback":           "compaction warning",
+		"canonical route":            "`continuation` datatype",
+		"writer boundary":            "writer owns the restart",
+		"durable-write precondition": "after a successful durable write",
+		"no double restart":          "don't separately restart",
+		"no-writer behavior":         "no writer",
 	} {
 		if !strings.Contains(policy, marker) {
 			t.Errorf("Session Continuity policy missing %s marker %q", name, marker)

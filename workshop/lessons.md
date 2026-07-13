@@ -28,6 +28,8 @@ consumer registry already exists, derive an “every consumer” sweep from it r
 than copying today's members into the test; otherwise future consumers silently
 escape the contract. Assert the complete scoped contract in each derived consumer,
 not just identifying sentinels, when partial propagation would violate Done-when.
+For the source itself, enumerate every behavioral predicate in the Spec—including
+conditions and ordering—not merely the nouns or actions it mentions.
 (`ARCH-PURE`, `ARCH-PURPOSE`.)
 
 **Origin:** #167 whole-issue close review (REWORK). The remediation moved the

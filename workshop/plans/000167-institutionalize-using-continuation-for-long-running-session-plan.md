@@ -354,3 +354,14 @@ datatype route or writer boundary. To make the propagation proof match Done-when
   the complete scoped Session Continuity policy.
 - [x] Re-run the focused guard, full repository suite, issue validation, and
   whitespace verification before the next close boundary.
+
+### 2026-07-12T23:23:00-07:00 — pin fallback and checkpoint ordering semantics
+
+The next review confirmed complete consumer propagation but found two source
+semantics could still be reversed or deleted without failing the marker guard.
+
+- [x] Assert `If an exact percentage is unavailable`, `Finish the current atomic
+  action`, `update its durable issue/plan/log state first`, and the successful
+  durable-write precondition independently.
+- [x] Re-run the focused guard, full repository suite, issue validation, and
+  whitespace verification before the next close boundary.

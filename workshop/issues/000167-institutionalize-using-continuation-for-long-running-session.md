@@ -7,7 +7,7 @@ created: 2026-07-07
 updated: 2026-07-12
 estimate_hours: 1.08
 started: 2026-07-12T22:02:15-07:00
-actual_hours: 1.90
+actual_hours: 2.10
 ---
 
 # institutionalize using continuation for long running session
@@ -90,6 +90,7 @@ against `baseline-v3.1.md`. Method A only. The source was marked stale by
 - [x] Harden section scoping and typed export parsing from the FIX-THEN-SHIP review.
 - [x] Derive the feature test's consumer sweep from the canonical harness registry.
 - [x] Require every registered harness to contain the complete scoped policy.
+- [x] Pin the fallback condition and atomic/durable checkpoint ordering.
 
 Detailed execution plan:
 `workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md`.
@@ -99,6 +100,7 @@ Detailed execution plan:
 ### 2026-07-07
 
 ### 2026-07-12
+- 2026-07-12: closed — Complete fan-out contract verified: every plan.TargetAll.EntryFiles() output must contain the full scoped Session Continuity policy; go test ./... -count=1 passes, issue validation passes, and git diff --check is clean. Mutation evidence covers wrong direction, moved markers, commented/broken export; full-string consumer assertions now also reject partial composition.; review verdict: FIX-THEN-SHIP
 - 2026-07-12: closed — Final review remediation verified: TestSessionContinuityPolicyFansOutToEveryHarness passes while deriving its consumer sweep from plan.TargetAll.EntryFiles(); go test ./... -count=1 passes in the writable workspace; issue validation and git diff --check pass. Earlier mutation checks also proved wrong-direction, moved-marker, commented-export, and broken-export regressions fail.; review verdict: FIX-THEN-SHIP
 - 2026-07-12: closed — Post-review hardening verified: go test ./cmd/weave -run TestSessionContinuityPolicyFansOutToEveryHarness -count=1 and go test ./... -count=1 pass; issue validation and git diff --check pass. Mutation checks proved the guard fails when the canonical route is changed inside Session Continuity and when the AGENTS.base.md export is only commented out. The test now scopes policy assertions to the owning section and parses active manifest intents.; review verdict: FIX-THEN-SHIP
 - 2026-07-12: closed — TDD remediation proved wrong-direction and broken-export mutants fail; go test ./cmd/weave -run TestSessionContinuityPolicyFansOutToEveryHarness -count=1, go test ./cmd/weave/... -count=1, and go test ./... -count=1 passed; sdlc issue validate passed; git diff --check clean; the integration guard pins semantic threshold, live base export, and all Claude/Codex/Gemini consumers.; review verdict: FIX-THEN-SHIP
@@ -160,3 +162,9 @@ each generated consumer was checked for only the heading and threshold. Reopened
 again and strengthened the fan-out assertion to require the complete scoped
 policy, including datatype routing and writer-owned restart semantics, in every
 registered harness (`ARCH-PURPOSE`).
+
+The next review validated complete propagation and identified two source-policy
+semantics that still lacked independent mutation guards. Reopened and added exact
+markers for the percentage-unavailable fallback, finishing the atomic action,
+updating durable state first, and the successful-durable-write restart
+precondition.
