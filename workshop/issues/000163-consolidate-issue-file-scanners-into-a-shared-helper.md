@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-03
 updated: 2026-07-12
-estimate_hours: 1.05
+estimate_hours: 2.06
 started: 2026-07-12T23:38:52-07:00
 ---
 
@@ -81,10 +81,11 @@ Design notes / constraints:
   results retain git's order. Window enumeration preserves the existing
   `issuesDir/*.md` git pathspec; only dir-wide enumeration applies the six-digit
   `NNNNNN-*.md` filename restriction.
-- Reuse the existing `issueFilename` grammar for the directory glob: relocate its
-  six-digit pattern to one shared constant consumed by both `filepath.Glob` and
-  `filepath.Match`, rather than introducing another literal while removing scanner
-  duplication (ARCH-DRY).
+- Reuse the existing issue-filename grammar everywhere: one `issueFilenamePattern`
+  feeds directory globbing (including `buildPushCommitMessage`) and membership; a
+  small pure parts helper replaces `state.go`'s parallel capture regex while preserving
+  its non-empty-slug rule. Do not introduce another six-digit literal while removing
+  scanner duplication (ARCH-DRY).
 - Preserve merge's path topology: a dir-wide scan under `mainPath` may return absolute
   filesystem paths, while `archiveDoneIssuesInDir` must continue recording
   `mainPath`-relative paths for `GitInDir` staging.
@@ -95,7 +96,7 @@ Design notes / constraints:
 - [ ] The shared `scanIssueFiles` helper backs all four scanners; no caller
       re-implements the glob/diff + parse + status-read boilerplate.
 - [ ] The six-digit issue filename pattern has one definition shared by directory
-      scanning and the existing `issueFilename` membership predicate.
+      scanning, `buildPushCommitMessage`, `issueFilename`, and state inventory parsing.
 - [ ] Behavior is unchanged (the `codecomplete` carve-out, terminal filters, and
       window vs dir-wide scoping all preserved) — existing tests pass untouched where
       they assert behavior.
@@ -110,18 +111,23 @@ Design notes / constraints:
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: issue-spec design=0.10 impl=0.10
+item: issue-spec design=0.15 impl=0.10
+item: smaller-go-module design=0.10 impl=0.20
 item: smaller-go-module design=0.05 impl=0.20
-item: cross-cutting-refactor design=0.15 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: atlas-docs design=0.05 impl=0.10
 item: milestone-review design=0.00 impl=0.20
 design-buffer: 0.15
-total: 1.05
+total: 2.06
 ```
 
 Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only. The thorough reviewed spec earns the v2.1 design
 discount and 15% design buffer; v3.1 implementation values use 40% of the v2 ranges.
-The calibration source is currently marked stale, so this estimate is provisional.
+The second module/refactor primitives cover the additional filename/state consumers
+and their focused tests. The calibration source is currently marked stale, so this
+estimate is provisional.
 
 ## Plan
 
@@ -187,3 +193,13 @@ Durable execution plan: `workshop/plans/000163-consolidate-issue-file-scanners-p
 - The gate found that the planned directory glob would duplicate `issueFilename`'s
   existing six-digit grammar. Revised the design so one `issueFilenamePattern`
   constant feeds both glob enumeration and filename membership (ARCH-DRY).
+
+### 2026-07-13T00:55:00-07:00 — second change-code plan-quality refusal
+
+- Expanded the filename single source to `buildPushCommitMessage` and state inventory,
+  replacing the latter's equivalent capture regex with a pure parts helper while
+  retaining its non-empty-slug behavior.
+- Added a fake-runner test whose deliberately non-lexicographic output proves window
+  order is not sorted; a real git repo alone cannot expose that mutation.
+- Re-derived the estimate as 2.06h for the expanded consumer/test surface; the prior
+  1.05h no longer matched the executable plan.

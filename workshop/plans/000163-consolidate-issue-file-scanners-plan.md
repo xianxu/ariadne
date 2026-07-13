@@ -19,7 +19,9 @@
 | `issueFileRef` | `cmd/sdlc/issuefiles.go` | new |
 | `issueFileScanError` | `cmd/sdlc/issuefiles.go` | new |
 | `issueFilenamePattern` | `cmd/sdlc/issuefiles.go` | new |
+| `issueFilenameParts` | `cmd/sdlc/issuefiles.go` | new |
 | `issueFilename` | `cmd/sdlc/issuefiles.go` | modified |
+| `issueFilenameRE` | `cmd/sdlc/state.go` | deleted |
 | `codecompleteIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
 | `notDoneIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
 | `terminalIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
@@ -42,11 +44,13 @@
   - **Future extensions:** none; add fields only if an existing diagnostic requires a
     fact unavailable from output/cause.
 
-- **`issueFilenamePattern` / `issueFilename`** — the one six-digit issue-name grammar,
-  shared by directory glob enumeration and existing issue/history path membership.
-  - **Relationships:** one constant feeds both `filepath.Glob` and `filepath.Match`;
-    `issueFilename` moves from `push.go` beside the new scanner without changing its
-    callers.
+- **`issueFilenamePattern` / `issueFilenameParts` / `issueFilename`** — the one
+  six-digit issue-name grammar, shared by directory globs, issue/history membership,
+  and state inventory ID/slug extraction.
+  - **Relationships:** one constant feeds `filepath.Glob` and `filepath.Match`; the
+    parts helper returns ID/slug from accepted names; `issueFilename` delegates to it.
+    `issueFilenameRE` is deleted, while state inventory separately retains its existing
+    non-empty-slug rule after parsing.
   - **DRY rationale:** the refactor must not replace repeated scanners by introducing
     a repeated filename-pattern literal (ARCH-DRY).
   - **Future extensions:** grammar changes occur in the constant and are verified
@@ -70,6 +74,8 @@
 | `publishCodecompleteIssues` | `cmd/sdlc/publishgate.go` | modified | status/date file writes |
 | `archiveDoneIssues` | `cmd/sdlc/push.go` | modified | GitHub close, rename, plan sweep |
 | `archiveDoneIssuesInDir` | `cmd/sdlc/merge.go` | modified | main-worktree rename and relative staging paths |
+| `buildPushCommitMessage` | `cmd/sdlc/push.go` | modified | changed-issue title enumeration |
+| `listIssues` | `cmd/sdlc/state.go` | modified | state inventory filename parsing |
 
 - **`scanIssueFiles`** — with non-empty `baseRef`, asks the injected git function for
   `git diff --name-only baseRef..HEAD -- issuesDir/*.md`; with empty `baseRef`, globs
@@ -97,6 +103,10 @@
 **Files:**
 - Create: `cmd/sdlc/issuefiles.go`
 - Create: `cmd/sdlc/issuefiles_test.go`
+- Modify: `cmd/sdlc/push.go`
+- Modify: `cmd/sdlc/push_test.go`
+- Modify: `cmd/sdlc/state.go`
+- Modify: `cmd/sdlc/state_test.go`
 
 - [ ] **Step 1: Write failing pure-filter tests**
 
@@ -140,9 +150,14 @@ Expected: PASS.
 Use a real temporary git repository plus `execGitRunner{}`. Pin:
 
 - window mode includes changed `custom.md` and six-digit files in git order;
+- an injected runner returns paths in deliberately non-lexicographic order and the
+  scanner preserves that exact order (the real git test cannot prove this invariant);
 - directory mode includes only sorted six-digit `NNNNNN-*.md` files;
 - `issueFilename` and directory-mode globbing accept/reject the same fixture names,
-  and the six-digit glob literal appears only once in production source;
+  `issueFilenameParts` extracts the same padded ID/slug state inventory expects, and
+  the six-digit glob literal appears only once in production source;
+- `buildPushCommitMessage` uses the shared directory grammar; state inventory still
+  skips an empty slug even though the low-level glob/membership grammar permits it;
 - deleted/unreadable/malformed candidates are skipped;
 - missing `status` produces `Status == ""`;
 - a failing window runner returns an error;
@@ -164,8 +179,10 @@ func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, e
 
 Window mode uses `issuesDir+"/*.md"` and preserves git output order. Move the existing
 `issueFilename` predicate from `push.go` into `issuefiles.go`, define one
-`issueFilenamePattern`, and have directory mode join that constant into its glob while
-the predicate passes it to `filepath.Match`. Sort directory matches. Read, parse, and extract status once per
+`issueFilenamePattern`, and have every six-digit issue glob—including
+`buildPushCommitMessage`—join that constant while the parts helper passes it to
+`filepath.Match`. Replace `state.go`'s `issueFilenameRE` with `issueFilenameParts`,
+keeping its explicit non-empty-slug check. Sort directory matches. Read, parse, and extract status once per
 path; silently skip read/parse failures. Return a failed window runner error. Perform
 no writes or caller policy here. On git failure return an `issueFileScanError` with
 `Output []byte`, `Err error`, `Error()`, and `Unwrap()`.
@@ -179,8 +196,8 @@ Expected: PASS.
 - [ ] **Step 9: Commit the scanner core**
 
 ```bash
-gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go
-git add cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go
+gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/state.go cmd/sdlc/state_test.go
+git add cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/state.go cmd/sdlc/state_test.go
 git commit -m "#163: add shared issue-file scanner" -m "Centralize issue enumeration and parsing while keeping status policy pure and caller effects outside the seam." -m "Co-Authored-By: OpenAI Codex <noreply@openai.com>"
 ```
 
@@ -338,6 +355,8 @@ Expected: none of the four scanner families retains enumeration + parse + status
 boilerplate. Explain any remaining parse as a behaviorally distinct job. Also run
 `rg -n '\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]-\*\.md' cmd/sdlc --glob '*.go'`
 and confirm the production pattern has one definition (test fixtures may repeat it).
+Also confirm `issueFilenameRE` is gone and both `buildPushCommitMessage` and
+`listIssues` derive from the shared filename helpers.
 
 - [ ] **Step 4: Assess atlas impact**
 
@@ -396,3 +415,13 @@ review and must report no unresolved Critical/Important findings before completi
   concept inventory. The implementation now relocates the predicate beside the
   scanner, derives both glob and match behavior from one grammar, tests their
   equivalence, and structurally sweeps for duplicate production literals.
+
+### 2026-07-13T00:55:00-07:00 — second change-code plan-quality refusal
+
+- Added the previously missed `buildPushCommitMessage` glob consumer and replaced
+  state inventory's equivalent filename regex with `issueFilenameParts`, preserving
+  its stricter non-empty-slug behavior.
+- Added a deliberately non-lexicographic injected-runner test so an accidental window
+  sort turns the test red; retained real-repository coverage for the IO seam.
+- Re-derived the issue estimate from 1.05h to 2.06h for the expanded consumers, tests,
+  full verification, and close-time review.
