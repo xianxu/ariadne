@@ -79,6 +79,10 @@
 ### 13. Model User Intention
 - Hold a running hypothesis of the user's intent and update it **every turn** — each exchange moves the model positively or negatively. Keep it **self-consistent** and **fitting the observed interactions**; when a turn contradicts the model, revise the model — don't rationalize the observation away (a "that's not what I meant" is a model failure to fix, not noise). These two criteria are **canonical here**; the `continuation` datatype's `## Thread arc & user model` checkpoint and the per-session `pensive` flush persist the model but defer to this definition.
 
+### 14. Session Continuity
+- When the harness reports that the active context is more than 60% full, proactively checkpoint the session before starting another substantial unit of work. Finish the current atomic action and update its durable issue/plan/log state first. If an exact percentage is unavailable, treat a harness context-pressure or compaction warning as the trigger.
+- Apply the canonical **`continuation` datatype** for the checkpoint; it owns what to preserve and how to finalize the handoff. Use the available continuation writer. The writer owns the restart after a successful durable write, so don't separately restart the session. If no writer is available, follow the datatype's existing no-writer stop behavior.
+
 ## Core Design Principles
 The architectural taste — the `ARCH-*` principles — is single-sourced in a registry and
 delivered by **`sdlc arch-principles`**. It's also PUSHED at the gates: `sdlc start-plan`
