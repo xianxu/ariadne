@@ -150,6 +150,12 @@ exact RED/GREEN ledger 24+24 (4→0 failures), deployed-path smokes, issue schem
 aggregate `make test` target; it exits immediately with “No rule to make target
 `test`,” so the full Go module suite is the broad automated test surface.
 
+The first close review returned REWORK: the plan falsely modeled prose nouns as
+PURE entities, retained excerpts despite a verbatim-evidence promise, and missed
+README discovery. Resolved by classifying the skill as one integration surface,
+retaining complete baseline/final worker+scorer outputs, adding the README
+pointer, and recording the prevention rule in `workshop/lessons.md`.
+
 ## Revisions
 
 ### 2026-07-12 — implementation-plan review

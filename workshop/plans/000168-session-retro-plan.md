@@ -16,44 +16,34 @@
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| `EvidenceSource` | `construct/local/session-retro/SKILL.md` | new |
-| `RetroFinding` | `construct/local/session-retro/SKILL.md` | new |
-| `FollowUpRecommendation` | `construct/local/session-retro/SKILL.md` | new |
+| None | — | — |
 
-- **`EvidenceSource`** — a current-session transcript/log or an explicit evidence path, always treated as untrusted data.
-  - **Relationships:** One retrospective consumes one or more sources; every finding identifies exactly one source and a locatable excerpt or line range.
-  - **DRY rationale:** Harnesses continue to own capture/rendering. The skill consumes their existing output instead of defining a parallel transcript format (`ARCH-DRY`).
-  - **Future extensions:** Additional harness-specific location guidance can be added only after a real source requires it.
-
-- **`RetroFinding`** — one evidence-backed development-process problem with classification, severity, impact, root cause, and recommendation.
-  - **Relationships:** One source may yield many findings; a finding owns one follow-up recommendation.
-  - **DRY rationale:** One report contract prevents each retro from inventing its own summary shape.
-  - **Future extensions:** Repeated finding classes may later justify deterministic detectors, but no detector taxonomy is encoded now.
-
-- **`FollowUpRecommendation`** — a proposed issue, instruction change, tool fix, or explicit no-action conclusion.
-  - **Relationships:** Exactly one recommendation belongs to each finding; durable execution remains separate.
-  - **DRY rationale:** Reuses Ariadne's existing issue/lesson/instruction workflows instead of duplicating their write mechanics.
-  - **Future extensions:** None until repeated retros show another durable destination.
+This issue adds no executable pure transformation. `EvidenceSource`,
+`RetroFinding`, and `FollowUpRecommendation` are prose concepts inside one agent
+procedure, not code entities with IO-free unit-test surfaces. Their behavior is
+therefore evaluated through fixed evidence plus fresh worker/scorer integration
+runs, not mislabeled as pure code (`ARCH-PURE`).
 
 ### Integration points
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `HarnessEvidence` | `construct/local/session-retro/SKILL.md` | new | harness transcript or rendered log access |
+| `session-retro` procedure | `construct/local/session-retro/SKILL.md` | new | agent reasoning, harness evidence, and operator-facing findings |
 | `WeaveSkillExport` | `construct/base.manifest` | existing | downstream Claude/Codex/Gemini skill discovery |
-| `DurableWriteApproval` | `construct/local/session-retro/SKILL.md` | new | operator authorization for issues/docs |
 
-- **`HarnessEvidence`** — instructs the agent to use an explicit path when supplied, otherwise discover the current harness's supported evidence surface; Pair uses its existing TTY path and scrollback renderer.
-  - **Injected into:** The retrospective procedure receives the resulting text as data; no new IO helper is introduced.
-  - **Future extensions:** Add narrowly scoped harness notes only when their native transcript cannot be consumed directly.
+- **`session-retro` procedure** — one prompt-level integration surface covering
+  source resolution, untrusted-evidence handling, finding selection/reporting,
+  and approval before durable writes. Pair uses its existing TTY path and
+  renderer; no new IO helper exists.
+  - **Injected into:** Harness-native Agent Skills discovery supplies it to the
+    active model.
+  - **Future extensions:** Add a harness note only when a real native source
+    cannot follow the generic path.
 
 - **`WeaveSkillExport`** — the existing `skill construct/local` manifest intent discovers the new directory and lowers it into `.claude/skills/xx-session-retro` and `.agents/skills/xx-session-retro` in Ariadne and derivatives.
   - **Injected into:** Harness-native skill discovery.
   - **Future extensions:** None; changing Weave for one skill would violate `ARCH-DRY` and YAGNI.
 
-- **`DurableWriteApproval`** — keeps retrospective judgment read-only until the operator explicitly approves issue, lesson, instruction, or other artifact edits.
-  - **Injected into:** The final step of the skill workflow.
-  - **Future extensions:** Batch approval only if operator usage demonstrates a need.
 
 ## Chunk 1: Skill, Evaluation, And Export
 
@@ -450,3 +440,21 @@ unmerged skill authored in an isolated Ariadne feature worktree.
 Delta: verify the same Pair substrate edge in a disposable detached Pair
 worktree whose sibling Ariadne path points at this feature worktree; preserve
 the real Pair checkout and its #83 draft untouched.
+
+### 2026-07-12 — close-review concept correction
+
+Reason: the original Core Concepts table represented prose nouns as if they
+were executable PURE entities, creating a false table-to-implementation and
+unit-test contract.
+
+Delta: record that this issue has no executable pure entity and classify the
+actual `session-retro` Agent Skills procedure as one integration surface;
+behavior remains covered by fixed-evidence worker/scorer evaluation.
+
+### 2026-07-12 — evaluation evidence contract
+
+Reason: Task 1 said “record the baseline verbatim,” while the first evaluation
+artifact kept only bounded excerpts plus ledger rows.
+
+Delta: retain complete baseline and final-GREEN worker outputs and scorer
+verdicts in the evaluation artifact so the ledger can be independently audited.
