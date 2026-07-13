@@ -230,6 +230,7 @@ func TestListUntrackedIssues_FilterShape(t *testing.T) {
 	}{
 		{"", nil},
 		{"issues/000077-real.md\n", []string{"issues/000077-real.md"}},
+		{"issues/000077-.md\n", []string{"issues/000077-.md"}},
 		{"workshop/issues/000001-foo.md\nworkshop/issues/junk.md\n",
 			[]string{"workshop/issues/000001-foo.md"}},
 		// 5 digits → must not match.

@@ -254,16 +254,11 @@ func archiveAddArgs(moves []preparedArchiveMove) []string {
 // NNNNNN- convention. The single source for "which plan artifacts belong to
 // this issue" — the glob key is id+"-*" (#143).
 func issueIDPrefix(name string) string {
-	base := filepath.Base(name)
-	if len(base) < 7 || base[6] != '-' {
+	id, _, ok := issueFilenameParts(name)
+	if !ok {
 		return ""
 	}
-	for i := 0; i < 6; i++ {
-		if base[i] < '0' || base[i] > '9' {
-			return ""
-		}
-	}
-	return base[:6]
+	return id
 }
 
 // archivePlanArtifacts moves every workshop/plans/NNNNNN-* artifact (the durable
@@ -482,11 +477,6 @@ func isHistoryPath(path, historyDir string) bool {
 	return filepath.Dir(path) == filepath.Clean(historyDir) && issueFilename(filepath.Base(path))
 }
 
-func issueFilename(name string) bool {
-	matched, _ := filepath.Match("[0-9][0-9][0-9][0-9][0-9][0-9]-*.md", name)
-	return matched
-}
-
 func historyFileIsTerminal(path string) (bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -507,7 +497,7 @@ func historyFileIsTerminal(path string) (bool, error) {
 //
 // Multiple touched issues → newline-joined titles. Single → just the title.
 func buildPushCommitMessage(issuesDir string, r gitRunner) string {
-	matches, _ := filepath.Glob(filepath.Join(issuesDir, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
+	matches, _ := filepath.Glob(filepath.Join(issuesDir, issueFilenamePattern))
 	sort.Strings(matches)
 	var titles []string
 	for _, f := range matches {

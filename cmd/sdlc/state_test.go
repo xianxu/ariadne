@@ -40,6 +40,7 @@ updated: 2026-05-25
 - [ ] M2 — pending
 `)
 	mustWrite("000003-broken.md", "no frontmatter here\n")
+	mustWrite("000004-.md", "no slug\n")   // low-level grammar accepts it; inventory requires a slug
 	mustWrite("not-an-issue.md", "junk\n") // should be skipped (filename pattern)
 
 	got, err := listIssues(dir)

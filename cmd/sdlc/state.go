@@ -209,11 +209,6 @@ func recentCommits() ([]CommitState, string) {
 // titleRE matches the first `# Title` heading after the frontmatter.
 var titleRE = regexp.MustCompile(`(?m)^# (.+)$`)
 
-// issueFilenameRE matches workshop/issues/NNNNNN-slug.md. We extract the
-// padded ID from the filename to keep the JSON consistent with how
-// close-issue.py / sdlc close address issues.
-var issueFilenameRE = regexp.MustCompile(`^(\d{6})-(.+)\.md$`)
-
 // listIssues scans issuesDir for NNNNNN-*.md files, parses frontmatter,
 // counts plan items. Returns issues sorted by numeric ID.
 func listIssues(issuesDir string) ([]IssueState, error) {
@@ -230,8 +225,8 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 			continue
 		}
 		name := e.Name()
-		m := issueFilenameRE.FindStringSubmatch(name)
-		if m == nil {
+		id, slug, ok := issueFilenameParts(name)
+		if !ok || slug == "" {
 			continue
 		}
 		path := filepath.Join(issuesDir, name)
@@ -243,7 +238,7 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 			// inventory on transient permission/symlink errors
 			// undermines that. M2 review C2.
 			out = append(out, IssueState{
-				ID:     m[1],
+				ID:     id,
 				Path:   path,
 				Status: "unreadable",
 			})
@@ -254,7 +249,7 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 		if ferr != nil {
 			// Issue file without frontmatter — surface with empty status
 			// so drift detection notices.
-			out = append(out, IssueState{ID: m[1], Path: path, Status: ""})
+			out = append(out, IssueState{ID: id, Path: path, Status: ""})
 			continue
 		}
 		status, _ := issue.GetField(fm, "status")
@@ -265,7 +260,7 @@ func listIssues(issuesDir string) ([]IssueState, error) {
 			title = tm[1]
 		}
 		out = append(out, IssueState{
-			ID:         m[1],
+			ID:         id,
 			Path:       path,
 			Status:     status,
 			Title:      title,

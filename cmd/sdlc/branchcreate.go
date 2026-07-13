@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -104,16 +103,12 @@ func listUntrackedIssues(issuesDir string, r gitRunner) ([]string, error) {
 	var matches []string
 	for _, line := range strings.Split(text, "\n") {
 		base := filepath.Base(line)
-		if issueIDRE.MatchString(base) {
+		if issueFilename(base) {
 			matches = append(matches, line)
 		}
 	}
 	return matches, nil
 }
-
-// issueIDRE matches NNNNNN-<slug>.md filenames (6-digit prefix, dash,
-// any slug, .md).
-var issueIDRE = regexp.MustCompile(`^\d{6}-.*\.md$`)
 
 // commitUntrackedIssueFile commits + pushes one untracked file before
 // branch creation, so the new branch starts from a tracked state.
