@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-07
 updated: 2026-07-12
-estimate_hours:
+estimate_hours: 1.08
 started: 2026-07-12T22:02:15-07:00
 ---
 
@@ -63,11 +63,31 @@ machinery.
 - Automated tests guard the policy boundary, and the atlas describes the
   resulting lifecycle.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.50 impl=0.04
+item: skill-or-dispatcher design=0.06 impl=0.12
+item: atlas-docs design=0.05 impl=0.04
+item: milestone-review design=0.05 impl=0.12
+design-buffer: 0.15
+total: 1.08
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. The source was marked stale by
+`sdlc estimate-source` on 2026-07-12, so the calibration is provisional.
+
 ## Plan
 
 - [ ] Add the session-continuity policy to `AGENTS.base.md`.
 - [ ] Add a focused regression guard for the policy contract.
 - [ ] Update the workflow atlas and verify base-layer composition.
+
+Detailed execution plan:
+`workshop/plans/000167-session-continuity-policy-plan.md`.
 
 ## Log
 
