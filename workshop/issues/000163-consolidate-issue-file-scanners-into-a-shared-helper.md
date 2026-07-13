@@ -73,7 +73,9 @@ Design notes / constraints:
 - Preserve current edge semantics: a failed window `git diff` returns an error;
   unreadable or malformed issue files are skipped; a missing status is still reported
   as `unset` by the not-done warning; dir-wide glob results stay sorted while window
-  results retain git's order.
+  results retain git's order. Window enumeration preserves the existing
+  `issuesDir/*.md` git pathspec; only dir-wide enumeration applies the six-digit
+  `NNNNNN-*.md` filename restriction.
 - Preserve merge's path topology: a dir-wide scan under `mainPath` may return absolute
   filesystem paths, while `archiveDoneIssuesInDir` must continue recording
   `mainPath`-relative paths for `GitInDir` staging.
@@ -81,7 +83,7 @@ Design notes / constraints:
 
 ## Done when
 
-- [ ] A single `changedIssueFiles`-style helper backs all four scanners; no caller
+- [ ] The shared `scanIssueFiles` helper backs all four scanners; no caller
       re-implements the glob/diff + parse + status-read boilerplate.
 - [ ] Behavior is unchanged (the `codecomplete` carve-out, terminal filters, and
       window vs dir-wide scoping all preserved) — existing tests pass untouched where
@@ -89,12 +91,13 @@ Design notes / constraints:
 - [ ] The pure status-filters are unit-tested across terminal, `codecomplete`, active,
       and missing statuses; the git/IO seam is exercised against a real temp repo,
       including malformed/unreadable/deleted records, the six-digit dir-wide glob,
-      ordering, and window-vs-dir scope.
+      ordering, and a non-six-digit `.md` included by the window scan but excluded by
+      the dir-wide scan.
 
 ## Plan
 
 - [ ] Inspect the four scanners; identify the shared parse core vs the per-caller filter.
-- [ ] Extract `changedIssueFiles` (window + dir-wide) + `issueFileRef`; reconcile the
+- [ ] Extract `scanIssueFiles` (window + dir-wide) + `issueFileRef`; reconcile the
       `gitRunner` vs `gitx` seam.
 - [ ] Rewrite the four callers as filters over it; keep their signatures/behavior.
 - [ ] Tests: pure filters + temp-repo seam; confirm the existing merge/push/publishgate
@@ -126,3 +129,10 @@ Design notes / constraints:
   not reparse.
 - Pinned existing error, malformed-file, ordering, missing-status, and merge-relative-
   path behavior as explicit no-change constraints and test obligations.
+
+### 2026-07-13T00:02:00-07:00 — fresh-context spec review
+
+- Corrected the stale `changedIssueFiles` name in Done-when and Plan so every section
+  consistently names `scanIssueFiles` and cannot be read as merging with claim sync.
+- Made the enumeration grammar testable: window scope keeps `issuesDir/*.md`, while
+  dir-wide scope alone requires the six-digit issue filename convention.
