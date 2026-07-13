@@ -131,7 +131,8 @@ estimate is provisional.
 
 ## Plan
 
-Durable execution plan: `workshop/plans/000163-consolidate-issue-file-scanners-plan.md`.
+Durable execution plan:
+`workshop/plans/000163-consolidate-issue-file-scanners-into-a-shared-helper-plan.md`.
 
 - [ ] Inspect the four scanners; identify the shared parse core vs the per-caller filter.
 - [ ] Extract `scanIssueFiles` (window + dir-wide) + `issueFileRef`; reconcile the
@@ -203,3 +204,9 @@ Durable execution plan: `workshop/plans/000163-consolidate-issue-file-scanners-p
   order is not sorted; a real git repo alone cannot expose that mutation.
 - Re-derived the estimate as 2.06h for the expanded consumer/test surface; the prior
   1.05h no longer matched the executable plan.
+
+### 2026-07-13T01:02:00-07:00 — durable-plan discovery correction
+
+- `change-code` reviews `<issue-filename-stem>-plan.md` exactly. Renamed the shortened
+  plan slug to match the issue stem so the gate receives the detailed executable plan
+  instead of reviewing only the issue's abbreviated checklist.
