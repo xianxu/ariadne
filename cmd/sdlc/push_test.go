@@ -416,6 +416,17 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 	if len(moves) != 3 {
 		t.Errorf("moved = %d, want 3", len(moves))
 	}
+	for i, name := range []string{"000001-done.md", "000002-wontfix.md", "000003-punt.md"} {
+		if i >= len(moves) {
+			break
+		}
+		if got, want := moves[i].IssuePath, filepath.Join(issuesDir, name); got != want {
+			t.Errorf("moves[%d].IssuePath = %q, want %q", i, got, want)
+		}
+		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, name); got != want {
+			t.Errorf("moves[%d].HistoryPath = %q, want %q", i, got, want)
+		}
+	}
 	// Only the done issue with a github_issue should have been closed.
 	if len(stub.closed) != 1 || stub.closed[0] != "100" {
 		t.Errorf("closed = %v, want [100]", stub.closed)

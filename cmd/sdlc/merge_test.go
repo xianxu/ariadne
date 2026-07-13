@@ -194,7 +194,7 @@ func TestIsInPlaceCheckout(t *testing.T) {
 
 // ── archiveDoneIssuesInDir ───────────────────────────────────────────────────
 
-func TestArchiveDoneIssuesInDir_MovesAndDoesNotCloseGH(t *testing.T) {
+func TestArchiveDoneIssuesInDir_MovesTerminalAndRecordsRelativePaths(t *testing.T) {
 	tmp := t.TempDir()
 	issuesDir := "workshop/issues"
 	historyDir := "workshop/history"
@@ -214,7 +214,9 @@ func TestArchiveDoneIssuesInDir_MovesAndDoesNotCloseGH(t *testing.T) {
 		}
 	}
 	mk("000001-done.md", "done", "100")
-	mk("000002-working.md", "working", "200")
+	mk("000002-wontfix.md", "wontfix", "200")
+	mk("000003-punt.md", "punt", "300")
+	mk("000004-working.md", "working", "400")
 
 	// Track that IssueClose is NOT called (merge ships through PR which
 	// closes via "Fixes #N" body — calling gh issue close would be a bug).
@@ -228,17 +230,20 @@ func TestArchiveDoneIssuesInDir_MovesAndDoesNotCloseGH(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(moves) != 1 {
-		t.Errorf("moved = %d, want 1", len(moves))
+	if len(moves) != 3 {
+		t.Errorf("moved = %d, want 3", len(moves))
 	}
 	// Returned paths are mainPath-relative (so GitInDir resolves them) — never
 	// absolute, or a precise `git add` from the main worktree would silently miss.
-	if len(moves) == 1 {
-		if got, want := moves[0].IssuePath, filepath.Join(issuesDir, "000001-done.md"); got != want {
-			t.Errorf("IssuePath = %q, want relative %q", got, want)
+	for i, name := range []string{"000001-done.md", "000002-wontfix.md", "000003-punt.md"} {
+		if i >= len(moves) {
+			break
 		}
-		if got, want := moves[0].HistoryPath, filepath.Join(historyDir, "000001-done.md"); got != want {
-			t.Errorf("HistoryPath = %q, want relative %q", got, want)
+		if got, want := moves[i].IssuePath, filepath.Join(issuesDir, name); got != want {
+			t.Errorf("moves[%d].IssuePath = %q, want relative %q", i, got, want)
+		}
+		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, name); got != want {
+			t.Errorf("moves[%d].HistoryPath = %q, want relative %q", i, got, want)
 		}
 	}
 	if len(stub.closed) != 0 {
@@ -247,7 +252,7 @@ func TestArchiveDoneIssuesInDir_MovesAndDoesNotCloseGH(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(tmp, historyDir, "000001-done.md")); err != nil {
 		t.Errorf("expected file in history/: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(tmp, issuesDir, "000002-working.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(tmp, issuesDir, "000004-working.md")); err != nil {
 		t.Errorf("working file should remain in issues/: %v", err)
 	}
 }

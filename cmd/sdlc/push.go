@@ -560,27 +560,17 @@ func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, err
 // not abort). Returns the moves it made (deleted issue path + created history
 // path, repo-relative) so the caller can stage exactly those paths (#80).
 func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
-	matches, _ := filepath.Glob(filepath.Join(issuesDir, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
-	sort.Strings(matches)
+	refs, err := scanIssueFiles("", issuesDir, nil)
+	if err != nil {
+		return nil, err
+	}
 	var moves []preparedArchiveMove
-	for _, p := range matches {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		fm, _, perr := issue.Parse(string(data))
-		if perr != nil {
-			continue
-		}
-		st, _ := issue.GetField(fm, "status")
-		if !vocab.Issue().IsTerminal(st) {
-			continue
-		}
+	for _, ref := range terminalIssueFiles(refs) {
 		// status=done + github_issue: → close GitHub issue first. (#122 carve-out:
 		// literal "done" is value-specific — only done has a GitHub issue to close —
 		// not a category test, so it stays a literal, not vocab.Issue().IsTerminal.)
-		if st == "done" && repo != "" {
-			if ghNum, ok := issue.GetField(fm, "github_issue"); ok && ghNum != "" {
+		if ref.Status == "done" && repo != "" {
+			if ghNum, ok := issue.GetField(ref.Frontmatter, "github_issue"); ok && ghNum != "" {
 				cinfo(stderr, fmt.Sprintf("Closing GitHub issue #%s...", ghNum))
 				if cerr := ghClient.IssueClose(repo, ghNum, "Fixed on main."); cerr != nil {
 					cwarn(stderr, fmt.Sprintf("gh issue close %s failed: %v (continuing)", ghNum, cerr))
@@ -590,16 +580,16 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir s
 		if err := os.MkdirAll(historyDir, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", historyDir, err)
 		}
-		dest := filepath.Join(historyDir, filepath.Base(p))
-		cinfo(stderr, fmt.Sprintf("Archiving %s to %s/", p, historyDir))
-		if err := os.Rename(p, dest); err != nil {
-			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
+		dest := filepath.Join(historyDir, filepath.Base(ref.Path))
+		cinfo(stderr, fmt.Sprintf("Archiving %s to %s/", ref.Path, historyDir))
+		if err := os.Rename(ref.Path, dest); err != nil {
+			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}
-		moves = append(moves, preparedArchiveMove{IssuePath: p, HistoryPath: dest})
+		moves = append(moves, preparedArchiveMove{IssuePath: ref.Path, HistoryPath: dest})
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// An untracked sidecar (#154) stages only its history dest, not a vanished
 		// source path — probe via `git ls-files` in cwd.
-		planMoves, perr := archivePlanArtifacts(filepath.Base(p), plansDir, historyDir, plansDir, historyDir, gitSrcUntracked(pushRunner.Git))
+		planMoves, perr := archivePlanArtifacts(filepath.Base(ref.Path), plansDir, historyDir, plansDir, historyDir, gitSrcUntracked(pushRunner.Git))
 		if perr != nil {
 			return moves, perr
 		}

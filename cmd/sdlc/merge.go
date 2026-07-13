@@ -37,16 +37,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
-
-	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // mergeFlags holds the parsed flag values for the merge subcommand.
@@ -612,23 +608,13 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 	issuesFull := filepath.Join(mainPath, issuesDir)
 	historyFull := filepath.Join(mainPath, historyDir)
 	plansFull := filepath.Join(mainPath, plansDir)
-	matches, _ := filepath.Glob(filepath.Join(issuesFull, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
-	sort.Strings(matches)
+	refs, err := scanIssueFiles("", issuesFull, nil)
+	if err != nil {
+		return nil, err
+	}
 	var moves []preparedArchiveMove
 	cinfo(stderr, fmt.Sprintf("Archiving completed issues to %s/...", historyDir))
-	for _, p := range matches {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		fm, _, perr := issue.Parse(string(data))
-		if perr != nil {
-			continue
-		}
-		st, _ := issue.GetField(fm, "status")
-		if !vocab.Issue().IsTerminal(st) {
-			continue
-		}
+	for _, ref := range terminalIssueFiles(refs) {
 		// Merge target's shell DOES NOT call gh issue close — only push:
 		// closes GH issues. We mirror that. (Rationale: PR merge itself
 		// closes the linked GH issue via the "Fixes #N" body, so a second
@@ -638,11 +624,11 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 		if err := os.MkdirAll(historyFull, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", historyFull, err)
 		}
-		base := filepath.Base(p)
+		base := filepath.Base(ref.Path)
 		dest := filepath.Join(historyFull, base)
 		fmt.Fprintf(stderr, "  Moving %s to %s/\n", base, historyDir)
-		if err := os.Rename(p, dest); err != nil {
-			return moves, fmt.Errorf("mv %s → %s: %v", p, dest, err)
+		if err := os.Rename(ref.Path, dest); err != nil {
+			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}
 		// Record paths relative to mainPath: GitInDir(mainPath, "add", …)
 		// resolves them from the main worktree root, so an absolute path here

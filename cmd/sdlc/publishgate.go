@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -135,28 +133,20 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 // (The invariant that gates un-reviewed drift is runPublishGate; this flip is the
 // mechanical state change once that gate passed.)
 func publishCodecompleteIssues(issuesDir string) ([]string, error) {
-	matches, _ := filepath.Glob(filepath.Join(issuesDir, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
-	sort.Strings(matches)
+	refs, err := scanIssueFiles("", issuesDir, nil)
+	if err != nil {
+		return nil, err
+	}
 	today := time.Now().Format("2006-01-02")
 	var flipped []string
-	for _, p := range matches {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
-		}
-		fm, body, perr := issue.Parse(string(data))
-		if perr != nil {
-			continue
-		}
-		if st, _ := issue.GetField(fm, "status"); st != "codecomplete" {
-			continue
-		}
+	for _, ref := range codecompleteIssueFiles(refs) {
+		fm := ref.Frontmatter
 		fm = issue.SetField(fm, "status", "done")
 		fm = issue.SetField(fm, "updated", today)
-		if werr := os.WriteFile(p, []byte(issue.Compose(fm, body)), 0o644); werr != nil {
-			return flipped, fmt.Errorf("flip %s → done: %w", p, werr)
+		if werr := os.WriteFile(ref.Path, []byte(issue.Compose(fm, ref.Body)), 0o644); werr != nil {
+			return flipped, fmt.Errorf("flip %s → done: %w", ref.Path, werr)
 		}
-		flipped = append(flipped, p)
+		flipped = append(flipped, ref.Path)
 	}
 	return flipped, nil
 }

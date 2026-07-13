@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // publishRepo inits a temp git repo, chdir's in (so gitx.RunGit/Capture bind to it),
@@ -175,6 +177,14 @@ func TestPublishCodecompleteIssues(t *testing.T) {
 	git, _ := publishRepo(t)
 	writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
 	writeIssueStatus(t, git, 70, "working", "#70 wip")
+	before, err := os.ReadFile(issuePathFor(69))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, bodyBefore, err := issue.Parse(string(before))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	flipped, err := publishCodecompleteIssues("workshop/issues")
 	if err != nil {
@@ -186,6 +196,16 @@ func TestPublishCodecompleteIssues(t *testing.T) {
 	got69, _ := os.ReadFile(issuePathFor(69))
 	if !strings.Contains(string(got69), "status: done") {
 		t.Errorf("#69 should be flipped to done:\n%s", got69)
+	}
+	fmAfter, bodyAfter, err := issue.Parse(string(got69))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bodyAfter != bodyBefore {
+		t.Errorf("body changed during status flip:\nbefore %q\nafter  %q", bodyBefore, bodyAfter)
+	}
+	if updated, _ := issue.GetField(fmAfter, "updated"); updated != time.Now().Format("2006-01-02") {
+		t.Errorf("updated = %q, want today", updated)
 	}
 	got70, _ := os.ReadFile(issuePathFor(70))
 	if !strings.Contains(string(got70), "status: working") {
