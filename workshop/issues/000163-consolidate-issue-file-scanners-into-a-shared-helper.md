@@ -84,9 +84,11 @@ Design notes / constraints:
 - Reuse the existing issue-filename grammar everywhere: one `issueFilenamePattern`
   feeds directory globbing (including `buildPushCommitMessage`) and membership; a
   small pure parts helper replaces `state.go`'s parallel capture regex while preserving
-  its non-empty-slug rule and supplies `issueIDPrefix` for archive-plan lookup. Do not
-  introduce another six-digit literal or manual digit loop while removing scanner
-  duplication (ARCH-DRY).
+  its non-empty-slug rule, supplies `issueIDPrefix` for archive-plan lookup, and
+  replaces branch creation's equivalent `issueIDRE` full-filename check. Do not
+  introduce another six-digit literal, full-filename regex, or manual digit loop while
+  removing scanner duplication (ARCH-DRY). The scaffold's prefix-only parser remains
+  distinct because it does not validate a full filename.
 - Preserve merge's path topology: a dir-wide scan under `mainPath` may return absolute
   filesystem paths, while `archiveDoneIssuesInDir` must continue recording
   `mainPath`-relative paths for `GitInDir` staging.
@@ -98,7 +100,7 @@ Design notes / constraints:
       re-implements the glob/diff + parse + status-read boilerplate.
 - [ ] The six-digit issue filename pattern has one definition shared by directory
       scanning, `buildPushCommitMessage`, `issueFilename`, `issueIDPrefix`, and state
-      inventory parsing.
+      inventory/untracked-branch parsing.
 - [ ] Behavior is unchanged (the `codecomplete` carve-out, terminal filters, and
       window vs dir-wide scoping all preserved) — existing tests pass untouched where
       they assert behavior.
@@ -218,3 +220,9 @@ Durable execution plan:
 - The detailed gate review found `issueIDPrefix` manually revalidating the same six
   digits and hyphen for archive-plan lookup. Added it to `issueFilenameParts` and the
   equivalence tests/sweep so no manual digit loop survives the single source.
+
+### 2026-07-13T01:22:00-07:00 — full-filename regex consumer sweep
+
+- Added branch creation's equivalent `issueIDRE`/`listUntrackedIssues` consumer to the
+  shared filename predicate and tests. Kept the internal scaffold's prefix-only parser
+  separate because it intentionally does not validate a complete filename.

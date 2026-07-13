@@ -23,6 +23,7 @@
 | `issueFilename` | `cmd/sdlc/issuefiles.go` | modified |
 | `issueIDPrefix` | `cmd/sdlc/push.go` | modified |
 | `issueFilenameRE` | `cmd/sdlc/state.go` | deleted |
+| `issueIDRE` | `cmd/sdlc/branchcreate.go` | deleted |
 | `codecompleteIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
 | `notDoneIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
 | `terminalIssueFiles` | `cmd/sdlc/issuefiles.go` | new |
@@ -78,6 +79,7 @@
 | `archiveDoneIssuesInDir` | `cmd/sdlc/merge.go` | modified | main-worktree rename and relative staging paths |
 | `buildPushCommitMessage` | `cmd/sdlc/push.go` | modified | changed-issue title enumeration |
 | `listIssues` | `cmd/sdlc/state.go` | modified | state inventory filename parsing |
+| `listUntrackedIssues` | `cmd/sdlc/branchcreate.go` | modified | branch-name issue discovery |
 
 - **`scanIssueFiles`** — with non-empty `baseRef`, asks the injected git function for
   `git diff --name-only baseRef..HEAD -- issuesDir/*.md`; with empty `baseRef`, globs
@@ -109,6 +111,8 @@
 - Modify: `cmd/sdlc/push_test.go`
 - Modify: `cmd/sdlc/state.go`
 - Modify: `cmd/sdlc/state_test.go`
+- Modify: `cmd/sdlc/branchcreate.go`
+- Modify: `cmd/sdlc/branchname_test.go`
 
 - [ ] **Step 1: Write failing pure-filter tests**
 
@@ -162,6 +166,8 @@ Use a real temporary git repository plus `execGitRunner{}`. Pin:
   and rejects malformed/non-six-digit names without its old manual digit loop;
 - `buildPushCommitMessage` uses the shared directory grammar; state inventory still
   skips an empty slug even though the low-level glob/membership grammar permits it;
+- `listUntrackedIssues` preserves accepted/rejected filenames and input order while
+  delegating to the shared predicate; its equivalent `issueIDRE` is removed;
 - deleted/unreadable/malformed candidates are skipped;
 - missing `status` produces `Status == ""`;
 - a failing window runner returns an error;
@@ -187,7 +193,8 @@ Window mode uses `issuesDir+"/*.md"` and preserves git output order. Move the ex
 `buildPushCommitMessage`—join that constant while the parts helper passes it to
 `filepath.Match`. Replace `state.go`'s `issueFilenameRE` with `issueFilenameParts`,
 keeping its explicit non-empty-slug check. Make `issueIDPrefix` delegate to the same
-parts helper. Sort directory matches. Read, parse, and extract status once per
+parts helper. Replace branch creation's `issueIDRE` check with `issueFilename` (the
+prefix-only scaffold regex remains behaviorally distinct). Sort directory matches. Read, parse, and extract status once per
 path; silently skip read/parse failures. Return a failed window runner error. Perform
 no writes or caller policy here. On git failure return an `issueFileScanError` with
 `Output []byte`, `Err error`, `Error()`, and `Unwrap()`.
@@ -201,8 +208,8 @@ Expected: PASS.
 - [ ] **Step 9: Commit the scanner core**
 
 ```bash
-gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/state.go cmd/sdlc/state_test.go
-git add cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/state.go cmd/sdlc/state_test.go
+gofmt -w cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/state.go cmd/sdlc/state_test.go cmd/sdlc/branchcreate.go cmd/sdlc/branchname_test.go
+git add cmd/sdlc/issuefiles.go cmd/sdlc/issuefiles_test.go cmd/sdlc/push.go cmd/sdlc/push_test.go cmd/sdlc/state.go cmd/sdlc/state_test.go cmd/sdlc/branchcreate.go cmd/sdlc/branchname_test.go
 git commit -m "#163: add shared issue-file scanner" -m "Centralize issue enumeration and parsing while keeping status policy pure and caller effects outside the seam." -m "Co-Authored-By: OpenAI Codex <noreply@openai.com>"
 ```
 
@@ -363,7 +370,10 @@ and confirm the production pattern has one definition (test fixtures may repeat 
 Also confirm `issueFilenameRE` is gone and both `buildPushCommitMessage` and
 `listIssues` derive from the shared filename helpers. Run
 `rg -n 'for i := 0; i < 6|base\[6\]' cmd/sdlc --glob '*.go'` and confirm the old
-`issueIDPrefix` digit-loop implementation is gone.
+`issueIDPrefix` digit-loop implementation is gone. Run
+`rg -n 'issueFilenameRE|issueIDRE|\\d\{6\}-\.\*\\\.md' cmd/sdlc --glob '*.go'`
+and confirm both legacy full-filename regexes are gone; document the scaffold's
+prefix-only regex as a behaviorally distinct remainder.
 
 - [ ] **Step 4: Assess atlas impact**
 
@@ -443,3 +453,9 @@ review and must report no unresolved Critical/Important findings before completi
 - Added `issueIDPrefix` to the concept inventory and made it delegate to
   `issueFilenameParts`; equivalence fixtures cover valid, empty-slug, malformed, and
   non-six-digit names, and the structural sweep rejects the former manual digit loop.
+
+### 2026-07-13T01:22:00-07:00 — full-filename regex consumer sweep
+
+- Added `listUntrackedIssues` to the integration inventory, removed its equivalent
+  `issueIDRE` in favor of `issueFilename`, and expanded branch-name tests plus the
+  structural sweep. Explicitly classified the scaffold prefix parser as distinct.
