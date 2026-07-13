@@ -76,6 +76,8 @@ Heuristic: *session or ledger?* A fragment that grows past ~3 paragraphs and dev
 
 `continuation` is the human-understanding cousin of a native session **`resume`**: `resume` restores *machine state* (the agent's own transcript + session id, byte-faithful); a continuation restores *human understanding* (next action, the thread's arc + the user's intention, open questions, decisions + dead ends, lessons), distilled from the *rendered* session. You earn its terseness by **flushing** loose understanding into `pensive` first, then narrating over the artifacts rather than restating them. Use a continuation to park or hand off work across time, machines, people, or agent stacks; use `resume` to reattach to a still-live session. It's also the one datatype committed + pushed on creation — a deliberate exception to the dispatcher's "never auto-commit" default, because an unpushed recovery doc is useless.
 
+`AGENTS.base.md`'s **Session Continuity** policy is the canonical proactive trigger: under material context pressure, the agent finishes its current atomic action, updates durable work state, and routes into the continuation datatype before beginning another substantial unit. The datatype remains the procedure source; a producer-provided writer owns persistence and any automatic restart. This keeps the trigger visible to every harness without copying the continuation skeleton or Pair-specific mechanics into the constitution.
+
 ## Rules of thumb
 
 - **Frontmatter is for queryable, stable, externally-referenced fields.** Free-form prose stays in the body.
