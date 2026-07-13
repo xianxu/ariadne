@@ -163,6 +163,7 @@ Durable execution plan:
   side effects (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
 
 ### 2026-07-13
+- 2026-07-13: closed — Boundary remediation added AST source guard for the sole filename literal and all named consumers; focused guard/scanner tests passed; go test ./cmd/sdlc -count=1 and go test ./... -count=1 passed; committed window whitespace clean; no atlas surface change; unrelated pre-existing worktree edits excluded.; review verdict: SHIP
 - 2026-07-13: closed — Focused scanner/caller regressions passed; go test ./cmd/sdlc -count=1 and go test ./... -count=1 passed; committed window git diff --check clean; ARCH-DRY sweeps show one filename pattern and no legacy full-filename regex/manual digit loop; remaining parsers are distinct historical-anchor/archive-recovery jobs; no atlas surface change; unrelated pre-existing worktree whitespace in process-manual.md and #170 excluded.; review verdict: FIX-THEN-SHIP
 - The boundary review found no correctness defects and confirmed the consolidation,
   error contracts, side-effect topology, and ARCH-PURE separation. Its one Important

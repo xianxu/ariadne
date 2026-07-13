@@ -393,7 +393,7 @@ git add workshop/issues/000163-consolidate-issue-file-scanners-into-a-shared-hel
 git commit -m "#163: record scanner consolidation verification" -m "Keep the durable execution record aligned with the verified implementation and close evidence." -m "Co-Authored-By: OpenAI Codex <noreply@openai.com>"
 ```
 
-- [ ] **Step 7: Close through the single SDLC boundary**
+- [x] **Step 7: Close through the single SDLC boundary**
 
 Run `sdlc actual --issue 163`, inspect the measured window, then run:
 
