@@ -702,3 +702,20 @@ says verbatim, retain complete worker/scorer outputs; if bounded excerpts are
 intentional, say so explicitly and do not claim independent replayability.
 
 **Origin:** #168 whole-issue close review.
+
+## 2026-07-13 — A manual shadow sweep does not enforce a promised single source (#163)
+
+**Pattern:** #163 centralized the issue-filename grammar and its current source sweep
+proved every named consumer derived from the helper. The implementation was correct,
+but the durable plan also promised an automated guard that would fail if a future
+consumer copied the six-digit literal or bypassed the shared parser. Behavioral tests
+alone remained green under exactly that architectural regression.
+
+**Rule:** When a change's purpose is a single source of truth (ARCH-DRY/ARCH-PURPOSE),
+turn the shadow sweep into an automated source guard before checking the plan item.
+Assert both halves: the canonical production literal occurs once, and each named
+consumer references the canonical constant/helper. A one-time `rg` proves today's
+diff; a checked-in guard defends the invariant from tomorrow's drift.
+
+**Origin:** #163 whole-issue close review — implementation passed the manual sweep,
+but the promised structural regression test was missing.

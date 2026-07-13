@@ -1,12 +1,13 @@
 ---
 id: 000163
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-03
 updated: 2026-07-13
 estimate_hours: 2.06
 started: 2026-07-12T23:38:52-07:00
+actual_hours: 4.98
 ---
 
 # consolidate issue-file scanners into a shared helper
@@ -162,6 +163,13 @@ Durable execution plan:
   side effects (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
 
 ### 2026-07-13
+- 2026-07-13: closed — Focused scanner/caller regressions passed; go test ./cmd/sdlc -count=1 and go test ./... -count=1 passed; committed window git diff --check clean; ARCH-DRY sweeps show one filename pattern and no legacy full-filename regex/manual digit loop; remaining parsers are distinct historical-anchor/archive-recovery jobs; no atlas surface change; unrelated pre-existing worktree whitespace in process-manual.md and #170 excluded.; review verdict: FIX-THEN-SHIP
+- The boundary review found no correctness defects and confirmed the consolidation,
+  error contracts, side-effect topology, and ARCH-PURE separation. Its one Important
+  finding was an enforcement gap: the plan promised an automated source guard, while
+  execution had only run the equivalent manual sweep. Added an AST-based regression
+  that requires one production pattern literal and verifies every named consumer
+  references its canonical constant/helper (ARCH-DRY, ARCH-PURPOSE).
 
 - Implemented the parsed scanner, typed git failure, pure status filters, and one
   shared six-digit filename grammar. Rewired both window callers and all three

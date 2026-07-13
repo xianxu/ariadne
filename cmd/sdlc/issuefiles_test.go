@@ -3,10 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -203,6 +207,65 @@ func TestScanIssueFilesRetainsGitFailureFacts(t *testing.T) {
 	}
 	if got := string(scanErr.Output); got != "fatal detail" {
 		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestIssueFilenameGrammarHasOneProductionSource(t *testing.T) {
+	fset := token.NewFileSet()
+	packages, err := parser.ParseDir(fset, ".", func(info os.FileInfo) bool {
+		return strings.HasSuffix(info.Name(), ".go") && !strings.HasSuffix(info.Name(), "_test.go")
+	}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := packages["main"]
+	if pkg == nil {
+		t.Fatal("main package not found")
+	}
+
+	wantReference := map[string]string{
+		"scanIssueFiles":         "issueFilenamePattern",
+		"issueFilenameParts":     "issueFilenamePattern",
+		"issueFilename":          "issueFilenameParts",
+		"issueIDPrefix":          "issueFilenameParts",
+		"buildPushCommitMessage": "issueFilenamePattern",
+		"listIssues":             "issueFilenameParts",
+		"listUntrackedIssues":    "issueFilename",
+	}
+	foundReference := make(map[string]bool, len(wantReference))
+	literalCount := 0
+	for _, file := range pkg.Files {
+		ast.Inspect(file, func(node ast.Node) bool {
+			switch node := node.(type) {
+			case *ast.BasicLit:
+				if node.Kind == token.STRING {
+					value, err := strconv.Unquote(node.Value)
+					if err == nil && value == issueFilenamePattern {
+						literalCount++
+					}
+				}
+			case *ast.FuncDecl:
+				want, tracked := wantReference[node.Name.Name]
+				if tracked {
+					ast.Inspect(node.Body, func(inner ast.Node) bool {
+						if ident, ok := inner.(*ast.Ident); ok && ident.Name == want {
+							foundReference[node.Name.Name] = true
+						}
+						return true
+					})
+				}
+			}
+			return true
+		})
+	}
+
+	if literalCount != 1 {
+		t.Errorf("issue filename pattern has %d production literals, want exactly 1", literalCount)
+	}
+	for function, identifier := range wantReference {
+		if !foundReference[function] {
+			t.Errorf("%s must derive from %s", function, identifier)
+		}
 	}
 }
 

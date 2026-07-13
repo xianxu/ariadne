@@ -459,3 +459,10 @@ review and must report no unresolved Critical/Important findings before completi
 - Added `listUntrackedIssues` to the integration inventory, removed its equivalent
   `issueIDRE` in favor of `issueFilename`, and expanded branch-name tests plus the
   structural sweep. Explicitly classified the scaffold prefix parser as distinct.
+
+### 2026-07-13 — boundary-review enforcement gap
+
+- The close review found that Task 1 Step 5 promised, but did not implement, an
+  automated single-source filename-grammar guard. Added an AST-based regression test
+  covering the sole production literal and every named consumer, preserving ARCH-DRY
+  and ARCH-PURPOSE beyond the manual source sweep.
