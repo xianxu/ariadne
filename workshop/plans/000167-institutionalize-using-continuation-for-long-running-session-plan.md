@@ -376,3 +376,15 @@ semantics. The guard now proves the relationships, not merely their vocabulary:
   it appears before the continuation route.
 - [x] Re-run the focused guard, full repository suite, issue validation, and
   whitespace verification before the next close boundary.
+
+### 2026-07-12T23:39:00-07:00 — bind threshold direction to checkpoint action
+
+The next review identified the final independent-marker gap: inserting `not`
+before “more than 60%” retained both threshold and action substrings.
+
+- [x] Replace the separate threshold/action markers with the complete
+  threshold-to-checkpoint clause.
+- [x] Insert the reviewer-proposed `not more than 60%` mutant and observe the
+  focused test fail, then restore the policy.
+- [x] Re-run the focused guard, full repository suite, issue validation, and
+  whitespace verification before the next close boundary.

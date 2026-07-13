@@ -30,12 +30,12 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 		t.Fatal("Session Continuity policy missing Core Design Principles boundary")
 	}
 	policy = policy[:end]
+	const triggerClause = "When the harness reports that the active context is more than 60% full, proactively checkpoint the session before starting another substantial unit of work."
 	const checkpointClause = "Finish the current atomic action and update its durable issue/plan/log state first."
 	const fallbackClause = "If an exact percentage is unavailable, treat a harness context-pressure or compaction warning as the trigger."
 	const continuationRoute = "Apply the canonical **`continuation` datatype** for the checkpoint"
 	for name, marker := range map[string]string{
-		"threshold direction":        "more than 60% full",
-		"checkpoint boundary":        "before starting another substantial unit of work",
+		"threshold-to-action clause": triggerClause,
 		"checkpoint ordering clause": checkpointClause,
 		"fallback trigger clause":    fallbackClause,
 		"canonical route":            continuationRoute,

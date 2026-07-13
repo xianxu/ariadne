@@ -31,7 +31,7 @@ not just identifying sentinels, when partial propagation would violate Done-when
 For the source itself, enumerate every behavioral predicate in the Spec—including
 conditions and ordering—not merely the nouns or actions it mentions. Where the
 contract is relational, assert the bound clause or relative positions; separate
-presence checks do not prove causality or sequence.
+presence checks do not prove causality, sequence, or the absence of negation.
 (`ARCH-PURE`, `ARCH-PURPOSE`.)
 
 **Origin:** #167 whole-issue close review (REWORK). The remediation moved the
