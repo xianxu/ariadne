@@ -643,3 +643,22 @@ here a *test* did.
 **Origin:** #155 — the two `TestWalkPresentSkipNonLayerDep` pins had to be rewritten to
 `TestWalkPresentSubstrateMissingManifestErrors`; the plan-quality judge flagged them up front as the
 tests that "currently PIN the silent skip."
+
+## 2026-07-12 — Prose concepts are not PURE entities, and evaluation evidence must match its retention claim (#168)
+
+**Pattern:** A skill-only implementation plan listed `EvidenceSource`,
+`RetroFinding`, and `FollowUpRecommendation` under “Pure entities.” Those were
+conceptual nouns in `SKILL.md`, not executable units with IO-free tests. The
+close reviewer correctly treated the table as a false architecture contract.
+The same plan said baseline outputs would be retained “verbatim,” while the
+evaluation artifact kept only excerpts and asserted ledger rows.
+
+**Rule:** In a prose/process-skill plan, do not manufacture code-shaped PURE
+entities to satisfy a planning template. If behavior exists only when an agent
+loads a skill and reads evidence, classify the skill honestly as an integration
+surface and test it with fixed inputs plus independent fresh-agent evaluation.
+Likewise, choose the evidence-retention contract before testing: if the plan
+says verbatim, retain complete worker/scorer outputs; if bounded excerpts are
+intentional, say so explicitly and do not claim independent replayability.
+
+**Origin:** #168 whole-issue close review.

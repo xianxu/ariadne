@@ -25,3 +25,4 @@ The ariadne workflow is an issue-based development loop designed for AI-assisted
 - [Introspection](introspect.md) — postmortem mining of Claude transcripts into auto-loading taste-rule skills
 - [sdlc process-manual](process-manual.md) — the process manual: `sdlc process-manual` unrolls every always-on injection source (sdlc prompts, help text, skills, lessons, AGENTS chain, memories) into one linked markdown doc (#153, M1)
 - [docflow](docflow.md) — branch-scoped prose review with per-round git journaling; companion to the `xx-fix` skill (`--no-ff` merge keeps the back-and-forth + rationale, `--first-parent` stays clean)
+- [Session Retro](session-retro.md) — evidence-backed development-process retrospectives over current or supplied session evidence
