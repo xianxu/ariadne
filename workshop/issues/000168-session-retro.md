@@ -123,6 +123,7 @@ brain#127 recalibration, so this estimate is provisional.
 ## Log
 
 ### 2026-07-12
+- 2026-07-12: closed — Telemetry is unavailable for the isolated worktree, so actual is explicitly N/A. Corrected adjudicated RED/GREEN ledger is 24+24 with 3→0 failures; original scorer evidence is retained with adjudication documented. Explicit-path, live Pair, and current Codex source smokes pass. Skill stays below 500 words; portable trailing-X mktemp examples pass static checks; README, atlas, lessons, Ariadne and disposable Pair Weave discovery are updated. sdlc issue validate --issue 168, go test ./... -count=1, make harness-check (6 PASS), exact ledger checks, and git diff --check pass.; review verdict: SHIP
 - 2026-07-12: closed — Telemetry unavailable for the isolated worktree, so actual is explicitly N/A. RED/GREEN evaluation is auditable from complete worker/scorer outputs and improves 3 failures to 24/24 GREEN; explicit, live Pair, and current Codex source smokes pass. The skill is correctly modeled as one integration surface, README/atlas/lessons are updated, Ariadne and disposable Pair Weave discovery pass, and go test ./..., harness-check, issue validation, and git diff --check pass.; review verdict: FIX-THEN-SHIP
 
 Transferred from pair#80 after scope review. The operator chose a skill-only

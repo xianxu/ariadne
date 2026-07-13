@@ -377,7 +377,7 @@ git add atlas/workflow/session-retro.md atlas/workflow/index.md atlas/index.md w
 git commit -m "#168: document session retro workflow"
 ```
 
-- [ ] **Step 5: Run the SDLC close gate**
+- [x] **Step 5: Run the SDLC close gate**
 
 Run `sdlc actual --issue 168` and inspect the measured attribution. Then let
 `close` compute/suggest the measured actual rather than typing one from memory:

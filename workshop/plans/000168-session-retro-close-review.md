@@ -25,5 +25,15 @@ Resolution: change only the adjudicated ledger and summaries while preserving
 the original scorer output verbatim; document the adjudication; update the plan
 template to `/tmp/session-retro-pair.XXXXXX`.
 
-The reviewer otherwise confirmed the skill behavior, architecture and docs,
-fixed-evidence evaluation, Weave discovery, and verification evidence.
+## Final Review — SHIP
+
+- Window: `9e3f269..f41d9ad`
+- Confidence: high.
+- Critical, important, and minor findings: none.
+- Architecture: `ARCH-DRY`, `ARCH-PURE`, and `ARCH-PURPOSE` pass.
+
+The reviewer confirmed the skill behavior, fixed-evidence evaluation,
+approval boundary, README and atlas discovery, corrected Core Concepts model,
+and existing Weave export reuse. Main-session verification completed the full
+Go suite and all six harness checks; the review sandbox's lock restriction and
+harness timeout were not product failures.
