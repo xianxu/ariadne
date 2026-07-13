@@ -208,7 +208,7 @@ Expected: exactly `AGENTS.base.md`, `atlas/workflow/data-artifacts.md`, and `cmd
 
 **Files:**
 - Modify: `workshop/issues/000167-institutionalize-using-continuation-for-long-running-session.md`
-- Modify: `workshop/plans/000167-session-continuity-policy-plan.md`
+- Modify: `workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md`
 
 - [ ] **Step 1: Tick the completed implementation checkboxes and record verification**
 
@@ -227,7 +227,7 @@ Expected: no output and exit 0.
 - [ ] **Step 3: Commit the reconciled records**
 
 ```bash
-git add workshop/issues/000167-institutionalize-using-continuation-for-long-running-session.md workshop/plans/000167-session-continuity-policy-plan.md
+git add workshop/issues/000167-institutionalize-using-continuation-for-long-running-session.md workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md
 git commit -m "#167: record session continuity verification" \
   -m "Keep the issue and durable plan aligned with the verified implementation before the close boundary." \
   -m "Co-Authored-By: OpenAI Codex <noreply@openai.com>"
@@ -251,3 +251,13 @@ git commit -m "#167: close proactive session continuity" \
   -m "Record the measured actual and successful boundary review." \
   -m "Co-Authored-By: OpenAI Codex <noreply@openai.com>"
 ```
+
+## Revisions
+
+### 2026-07-12T22:31:00-07:00 — align the durable-plan filename with SDLC discovery
+
+`sdlc change-code` resolves a separate plan as
+`workshop/plans/<issue-basename>-plan.md`. The original shorter filename was not
+delivered to the plan-quality reviewer, so the plan moved to the issue-basename
+form and its self-references were updated. Scope and implementation steps are
+unchanged.

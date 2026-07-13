@@ -87,7 +87,7 @@ against `baseline-v3.1.md`. Method A only. The source was marked stale by
 - [ ] Update the workflow atlas and verify base-layer composition.
 
 Detailed execution plan:
-`workshop/plans/000167-session-continuity-policy-plan.md`.
+`workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md`.
 
 ## Log
 
@@ -100,3 +100,7 @@ writer/restart path. Design decision: `AGENTS.base.md` owns the proactive trigge
 the datatype continues to own the handoff procedure, and Pair's writer continues
 to own restart. This avoids duplicating either contract (`ARCH-DRY`, `ARCH-PURE`)
 while delivering the agent-neutral behavior the issue asks for (`ARCH-PURPOSE`).
+
+The first `sdlc change-code` attempt correctly refused because the shorter plan
+filename was invisible to its exact issue-basename resolver. Renamed the plan to
+the canonical discoverable path and retained the same reviewed scope.
