@@ -82,9 +82,9 @@ against `baseline-v3.1.md`. Method A only. The source was marked stale by
 
 ## Plan
 
-- [ ] Add the session-continuity policy to `AGENTS.base.md`.
-- [ ] Add a focused regression guard for the policy contract.
-- [ ] Update the workflow atlas and verify base-layer composition.
+- [x] Add the session-continuity policy to `AGENTS.base.md`.
+- [x] Add a focused regression guard for the policy contract.
+- [x] Update the workflow atlas and verify base-layer composition.
 
 Detailed execution plan:
 `workshop/plans/000167-institutionalize-using-continuation-for-long-running-session-plan.md`.
@@ -104,3 +104,11 @@ while delivering the agent-neutral behavior the issue asks for (`ARCH-PURPOSE`).
 The first `sdlc change-code` attempt correctly refused because the shorter plan
 filename was invisible to its exact issue-basename resolver. Renamed the plan to
 the canonical discoverable path and retained the same reviewed scope.
+
+Implemented the constitution-owned trigger with TDD: the focused policy guard
+failed on the missing section, then passed after `AGENTS.base.md` gained the 60%
+trigger, both fallback signals, the datatype route, and writer-owned restart
+boundary. Added the referential atlas mapping without changing the continuation
+prototype or Pair. Verified with the focused datatype test, all datatype tests,
+`go test ./cmd/weave/... -count=1`, `go test ./... -count=1`, `git diff --check`,
+and a scoped diff/name-only audit showing exactly the three planned files.
