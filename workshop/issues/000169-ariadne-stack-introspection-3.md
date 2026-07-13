@@ -10,6 +10,8 @@ estimate_hours:
 
 # ariadne stack introspection 3
 
+time to run an /xx-introspect for the last couple of months sessions.
+
 ## Problem
 
 ## Spec
