@@ -291,13 +291,14 @@ func TestRecoverInterruptedArchiveCommitsAndPushes(t *testing.T) {
 // notDoneRunner stubs `git diff --name-only` for the touched-issues query.
 type notDoneRunner struct {
 	captureRunner
-	touched []byte
+	touched    []byte
+	touchedErr error
 }
 
 func (r *notDoneRunner) Git(args ...string) ([]byte, error) {
 	r.gitCalls = append(r.gitCalls, append([]string{}, args...))
 	if len(args) >= 2 && args[0] == "diff" && args[1] == "--name-only" {
-		return r.touched, nil
+		return r.touched, r.touchedErr
 	}
 	return nil, nil
 }
@@ -327,23 +328,43 @@ func TestTouchedIssuesNotDone(t *testing.T) {
 	// to flip it to done — so it must NOT be flagged "not done" (else every merge/push
 	// would trip the "Continue anyway?" prompt). This pins the one-token carve-out.
 	mkIssue("000004-cc.md", "codecomplete")
+	missingStatus := filepath.Join(issuesDir, "000005-missing.md")
+	if err := os.WriteFile(missingStatus, []byte("---\nid: 5\n---\n\n# X\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
-	r := &notDoneRunner{touched: []byte("workshop/issues/000001-working.md\nworkshop/issues/000002-done.md\nworkshop/issues/000003-open.md\nworkshop/issues/000004-cc.md\n")}
+	r := &notDoneRunner{touched: []byte("workshop/issues/000005-missing.md\nworkshop/issues/000001-working.md\nworkshop/issues/000002-done.md\nworkshop/issues/000003-open.md\nworkshop/issues/000004-cc.md\n")}
 	notDone, err := touchedIssuesNotDone("origin/main", issuesDir, r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Expect 000001 (working) and 000003 (open); NOT 000002 (done) or 000004 (codecomplete).
-	if len(notDone) != 2 {
-		t.Fatalf("got %d not-done; want 2: %v", len(notDone), notDone)
+	// Expect missing, 000001 (working), and 000003 (open), in git order;
+	// NOT 000002 (done) or 000004 (codecomplete).
+	if len(notDone) != 3 {
+		t.Fatalf("got %d not-done; want 3: %v", len(notDone), notDone)
 	}
-	if !strings.Contains(notDone[0], "000001") || !strings.Contains(notDone[1], "000003") {
+	if got, want := notDone[0], "workshop/issues/000005-missing.md (status: unset)"; got != want {
+		t.Errorf("missing-status entry = %q, want %q", got, want)
+	}
+	if !strings.Contains(notDone[1], "000001") || !strings.Contains(notDone[2], "000003") {
 		t.Errorf("entries: %v", notDone)
 	}
 	for _, e := range notDone {
 		if strings.Contains(e, "000004") {
 			t.Errorf("codecomplete issue must NOT be flagged not-done (#160): %v", notDone)
 		}
+	}
+}
+
+func TestTouchedIssuesNotDonePreservesGitOutputOnFailure(t *testing.T) {
+	cause := errors.New("exit status 128")
+	r := &notDoneRunner{touched: []byte("fatal: bad revision\n"), touchedErr: cause}
+	_, err := touchedIssuesNotDone("origin/main", "workshop/issues", r)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if got, want := err.Error(), "git diff origin/main..HEAD: exit status 128\nfatal: bad revision\n"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
 	}
 }
 

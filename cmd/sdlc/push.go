@@ -540,30 +540,16 @@ func extractFirstTitle(body string) string {
 // by push's not-done warn step. Mirrors check_undone_issues in
 // Makefile.workflow.
 func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, error) {
-	out, err := r.Git("diff", "--name-only", baseRef+"..HEAD", "--", issuesDir+"/*.md")
+	refs, err := scanIssueFiles(baseRef, issuesDir, r.Git)
 	if err != nil {
-		return nil, fmt.Errorf("git diff %s..HEAD: %v\n%s", baseRef, err, out)
+		if scanErr, ok := err.(*issueFileScanError); ok {
+			return nil, fmt.Errorf("git diff %s..HEAD: %v\n%s", baseRef, scanErr.Err, scanErr.Output)
+		}
+		return nil, fmt.Errorf("git diff %s..HEAD: %v", baseRef, err)
 	}
-	touched := splitNonEmptyLines(string(out))
 	var notDone []string
-	for _, p := range touched {
-		// Read from the working tree — the file is on disk at p relative
-		// to repo top. Matches the shell `[ -f "$target" ]` guard.
-		data, derr := os.ReadFile(p)
-		if derr != nil {
-			continue
-		}
-		fm, _, perr := issue.Parse(string(data))
-		if perr != nil {
-			continue
-		}
-		st, _ := issue.GetField(fm, "status")
-		// #160: `codecomplete` is the normal pre-publish state — the publish gate is
-		// about to flip it to done — so it is NOT "not done" (else every merge/push
-		// would trip this warn). Only open/working/blocked are genuinely not-done.
-		if !vocab.Issue().IsTerminal(st) && st != "codecomplete" {
-			notDone = append(notDone, fmt.Sprintf("%s (status: %s)", p, valueOr(st, "unset")))
-		}
+	for _, ref := range notDoneIssueFiles(refs) {
+		notDone = append(notDone, fmt.Sprintf("%s (status: %s)", ref.Path, valueOr(ref.Status, "unset")))
 	}
 	return notDone, nil
 }

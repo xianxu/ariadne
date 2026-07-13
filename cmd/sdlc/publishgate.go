@@ -63,25 +63,19 @@ func codecompleteAnchorCommit(issuePath string) string {
 // publish is about to flip to done. Mirrors touchedIssuesNotDone's window scan
 // (ARCH-DRY).
 func mergedCodecompleteIssues(baseRef, issuesDir string) ([]string, error) {
-	out, err := gitx.RunGit("diff", "--name-only", baseRef+"..HEAD", "--", issuesDir+"/*.md")
+	refs, err := scanIssueFiles(baseRef, issuesDir, gitx.RunGit)
 	if err != nil {
+		if scanErr, ok := err.(*issueFileScanError); ok {
+			return nil, fmt.Errorf("git diff %s..HEAD: %w", baseRef, scanErr.Err)
+		}
 		return nil, fmt.Errorf("git diff %s..HEAD: %w", baseRef, err)
 	}
-	var cc []string
-	for _, p := range splitNonEmptyLines(string(out)) {
-		data, derr := os.ReadFile(p)
-		if derr != nil {
-			continue
-		}
-		fm, _, perr := issue.Parse(string(data))
-		if perr != nil {
-			continue
-		}
-		if st, _ := issue.GetField(fm, "status"); st == "codecomplete" {
-			cc = append(cc, p)
-		}
+	codecomplete := codecompleteIssueFiles(refs)
+	paths := make([]string, 0, len(codecomplete))
+	for _, ref := range codecomplete {
+		paths = append(paths, ref.Path)
 	}
-	return cc, nil
+	return paths, nil
 }
 
 // runPublishGate is the deterministic pre-publish check (#160) — no LLM. It

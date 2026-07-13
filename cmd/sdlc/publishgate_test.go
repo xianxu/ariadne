@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -106,6 +107,20 @@ func TestMergedCodecompleteIssues(t *testing.T) {
 	}
 	if len(got) != 1 || got[0] != issuePathFor(69) {
 		t.Fatalf("want only the codecomplete issue #69, got %v", got)
+	}
+}
+
+func TestMergedCodecompleteIssuesPreservesGitError(t *testing.T) {
+	t.Setenv("PATH", "")
+	_, err := mergedCodecompleteIssues("base", "workshop/issues")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if got, want := err.Error(), `git diff base..HEAD: exec: "git": executable file not found in $PATH`; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
+	if !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("errors.Is(%v, exec.ErrNotFound) = false", err)
 	}
 }
 
