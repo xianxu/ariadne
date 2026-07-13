@@ -343,3 +343,14 @@ the “every harness” promise true as the registry evolves:
 - [x] Replace the literal consumer slice with `plan.TargetAll.EntryFiles()`.
 - [x] Re-run the focused guard, full repository suite, issue validation, and
   whitespace verification before rerunning the close boundary.
+
+### 2026-07-12T23:16:00-07:00 — require complete policy fan-out
+
+The following whole-issue review confirmed the registry-derived sweep, then
+found that checking only the heading and threshold could miss truncation of the
+datatype route or writer boundary. To make the propagation proof match Done-when:
+
+- [x] Require each generated `plan.TargetAll.EntryFiles()` consumer to contain
+  the complete scoped Session Continuity policy.
+- [x] Re-run the focused guard, full repository suite, issue validation, and
+  whitespace verification before the next close boundary.

@@ -26,7 +26,8 @@ frontmatter, JSON), parse its semantic records instead of substring-matching raw
 text — a commented-out row contains the same bytes but has no behavior. When a
 consumer registry already exists, derive an “every consumer” sweep from it rather
 than copying today's members into the test; otherwise future consumers silently
-escape the contract.
+escape the contract. Assert the complete scoped contract in each derived consumer,
+not just identifying sentinels, when partial propagation would violate Done-when.
 (`ARCH-PURE`, `ARCH-PURPOSE`.)
 
 **Origin:** #167 whole-issue close review (REWORK). The remediation moved the

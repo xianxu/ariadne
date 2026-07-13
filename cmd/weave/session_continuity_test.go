@@ -91,9 +91,8 @@ func TestSessionContinuityPolicyFansOutToEveryHarness(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read composed %s: %v", entry, err)
 		}
-		if !strings.Contains(string(raw), policyHeading) ||
-			!strings.Contains(string(raw), "more than 60% full") {
-			t.Errorf("%s did not derive the Session Continuity policy", entry)
+		if !strings.Contains(string(raw), policy) {
+			t.Errorf("%s did not derive the complete Session Continuity policy", entry)
 		}
 	}
 }
