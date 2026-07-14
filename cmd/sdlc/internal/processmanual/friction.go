@@ -210,7 +210,7 @@ func classifyOutputLine(line, verb string) (GateEvent, bool) {
 			return GateEvent{
 				Kind: GateBypass, Gate: g.Flag, Command: verb,
 				ViaForce:      g.Grammar == grammarG2 || strings.Contains(stripped, "--force:"),
-				Observability: bypassObs(g),
+				Observability: gateObs(g),
 			}, true
 		}
 		// Refusal — grammar+digit-anchored, NOT reset-gated (runtime refusals are
@@ -218,22 +218,24 @@ func classifyOutputLine(line, verb string) (GateEvent, bool) {
 		if g.HasRefusal && g.refusalRE != nil && g.refusalRE.MatchString(stripped) {
 			return GateEvent{
 				Kind: GateRefusal, Gate: g.Flag, Command: verb,
-				Observability: refusalObs(g),
+				Observability: gateObs(g),
 			}, true
 		}
 	}
 	return GateEvent{}, false
 }
 
-func bypassObs(g *GateSig) Observability {
+// gateObs is a (command, flag)'s intrinsic measurement caveat — a property of the
+// gate, not of which event type happened to be seen, so the caveat shows even when
+// e.g. only refusals were observed for a change-code force-only gate. The two
+// non-full caveats are mutually exclusive per gate: change-code gates are
+// SilentAlone (bypass observable only via --force); merge/push no-judge refusals
+// don't name the flag (best-effort attribution). Everything else is fully observable.
+func gateObs(g *GateSig) Observability {
 	if g.SilentAlone {
 		return ObsForceOnly
 	}
-	return ObsFull
-}
-
-func refusalObs(g *GateSig) Observability {
-	if !g.RefusalNamesFlag {
+	if g.HasRefusal && !g.RefusalNamesFlag {
 		return ObsFlagOmitted
 	}
 	return ObsFull
@@ -306,8 +308,12 @@ func enumerateClaudeTranscripts(claudeRoot string) []transcriptRef {
 	return out
 }
 
-// GateStat is one gate's aggregated friction.
+// GateStat is one (command, gate) pair's aggregated friction. Keyed per command —
+// NOT per flag alone — because a gate like no-judge spans five commands with three
+// different observabilities (close/mclose full, change-code force-only, merge/push
+// flag-omitted); collapsing to the flag mislabels the honesty column (#172 M1 review).
 type GateStat struct {
+	Command       string `json:"command"`
 	Flag          string `json:"flag"`
 	Bypasses      int    `json:"bypasses"`
 	Refusals      int    `json:"refusals"`
@@ -339,9 +345,10 @@ func obsString(o Observability) string {
 // tallies per-gate bypass/refusal + per-repo bypass. IsHelp invocations are skipped
 // (their output lists every flag). Gates are sorted by bypass count descending.
 func aggregate(invs []SdlcInvocation, nTranscripts int) FrictionReport {
-	bypass := map[string]int{}
-	refusal := map[string]int{}
-	obs := map[string]Observability{}
+	type key struct{ cmd, flag string }
+	bypass := map[key]int{}
+	refusal := map[key]int{}
+	obs := map[key]Observability{}
 	byRepo := map[string]int{}
 	for _, inv := range invs {
 		// NB: we do NOT skip IsHelp invocations — a compound Bash command
@@ -353,26 +360,44 @@ func aggregate(invs []SdlcInvocation, nTranscripts int) FrictionReport {
 			if !ok {
 				continue
 			}
-			obs[ev.Gate] = ev.Observability
+			k := key{ev.Command, ev.Gate}
+			obs[k] = ev.Observability // uniform per (command, flag) — no last-write collapse
 			if ev.Kind == GateBypass {
-				bypass[ev.Gate]++
+				bypass[k]++
 				byRepo[inv.Repo]++
 			} else {
-				refusal[ev.Gate]++
+				refusal[k]++
 			}
 		}
 	}
+	seen := map[key]bool{}
+	for k := range bypass {
+		seen[k] = true
+	}
+	for k := range refusal {
+		seen[k] = true
+	}
 	var gates []GateStat
-	for _, flag := range GateFlagNames() {
-		if bypass[flag] == 0 && refusal[flag] == 0 {
-			continue
-		}
+	for k := range seen {
 		gates = append(gates, GateStat{
-			Flag: flag, Bypasses: bypass[flag], Refusals: refusal[flag],
-			Observability: obsString(obs[flag]),
+			Command: k.cmd, Flag: k.flag, Bypasses: bypass[k], Refusals: refusal[k],
+			Observability: obsString(obs[k]),
 		})
 	}
-	sort.SliceStable(gates, func(i, j int) bool { return gates[i].Bypasses > gates[j].Bypasses })
+	// Deterministic order: bypasses desc, then refusals desc, then flag/command.
+	sort.SliceStable(gates, func(i, j int) bool {
+		a, b := gates[i], gates[j]
+		if a.Bypasses != b.Bypasses {
+			return a.Bypasses > b.Bypasses
+		}
+		if a.Refusals != b.Refusals {
+			return a.Refusals > b.Refusals
+		}
+		if a.Flag != b.Flag {
+			return a.Flag < b.Flag
+		}
+		return a.Command < b.Command
+	})
 	return FrictionReport{
 		TranscriptsScanned: nTranscripts, InvocationsSeen: len(invs),
 		Gates: gates, ByRepoBypass: byRepo,
@@ -384,13 +409,13 @@ func renderFrictionReport(rep FrictionReport) string {
 	fmt.Fprintf(&b, "# sdlc friction report\n\n")
 	fmt.Fprintf(&b, "%d transcripts scanned, %d spine-verb invocations.\n\n", rep.TranscriptsScanned, rep.InvocationsSeen)
 	fmt.Fprintf(&b, "## Per-gate bypasses (command-anchored, contamination-filtered)\n\n")
-	fmt.Fprintf(&b, "| gate | bypasses | refusals | observability |\n|---|---|---|---|\n")
+	fmt.Fprintf(&b, "| command | gate | bypasses | refusals | observability |\n|---|---|---|---|---|\n")
 	for _, g := range rep.Gates {
 		note := ""
 		if g.Observability != "full" {
 			note = " ⚠️"
 		}
-		fmt.Fprintf(&b, "| %s | %d | %d | %s%s |\n", g.Flag, g.Bypasses, g.Refusals, g.Observability, note)
+		fmt.Fprintf(&b, "| %s | %s | %d | %d | %s%s |\n", g.Command, g.Flag, g.Bypasses, g.Refusals, g.Observability, note)
 	}
 	fmt.Fprintf(&b, "\n## Bypass concentration by repo\n\n| repo | bypasses |\n|---|---|\n")
 	type rc struct {

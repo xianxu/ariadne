@@ -148,6 +148,7 @@ instrument) spans M1–M3; T2/T3 (analysis) are M4.
 ## Log
 
 ### 2026-07-14 — M1 built (instrument runs over the real corpus)
+- 2026-07-14: closed M1 — M1 friction instrument built + runs over the real corpus (998 spine invocations / 1006 transcripts); go build + go vet clean, 7 processmanual unit suites green incl the load-bearing anti-contamination test + cross-command drift guard; reproduces the Spec headline from a CLEAN anchored measure — no-judge dominant (17), no-verified=0 (design works), bypasses concentrate in peers (brain 19/pair 15) not ariadne (3); raw grep over-counted ~4x (unlinked echoes correctly excluded); review verdict: FIX-THEN-SHIP
 
 M1 complete (4 TDD tasks, all committed; 998 spine invocations over 1006 non-scratch
 transcripts): (1) `GateCatalog` — 12 gates / 16 sigs / 3 ACK grammars + cross-command

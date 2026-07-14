@@ -89,28 +89,28 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 
 ### Task 1: `GateSig` catalog + `AllGates()` drift guard (all commands)
 **Files:** Create `cmd/sdlc/internal/processmanual/gatesig.go`; `cmd/sdlc/gates.go` (`AllGates()`); Tests `gatesig_test.go`, `gates_test.go`. Modify flag registrations in `close.go`/`milestoneclose.go`/`changecode.go`/`merge.go`/`push.go` to source names from `AllGates()`.
-- [ ] **Step 1: Failing test** — `AllGates()` == the **12 bypass-gate** flags across the **five spine commands** (close, milestone-close, change-code, merge, push). The drift guard asserts `AllGates()` equals every `--no-*`/gated-`--force` flag registered by those five command files, **explicitly excluding a known-non-gate allowlist** — currently `{no-start}` (`claim.go:62`, a workflow toggle on a sixth command, NOT a bypass gate: no ACK, no refusal). Without the allowlist the guard fails on day one (there are 13 registered `--no-*` flags; one is `no-start`). `gateCatalog` has one `GateSig` per row of the table above.
-- [ ] **Step 2: Run** → FAIL → **Step 3: Implement** `gatesig.go` (the table as data) + `gates.go`; point registrations at `AllGates()`.
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/...` → PASS → **Step 5: Commit** — `#172 M1: gate signature catalog + cross-command drift guard`.
+- [x] **Step 1: Failing test** — `AllGates()` == the **12 bypass-gate** flags across the **five spine commands** (close, milestone-close, change-code, merge, push). The drift guard asserts `AllGates()` equals every `--no-*`/gated-`--force` flag registered by those five command files, **explicitly excluding a known-non-gate allowlist** — currently `{no-start}` (`claim.go:62`, a workflow toggle on a sixth command, NOT a bypass gate: no ACK, no refusal). Without the allowlist the guard fails on day one (there are 13 registered `--no-*` flags; one is `no-start`). `gateCatalog` has one `GateSig` per row of the table above.
+- [x] **Step 2: Run** → FAIL → **Step 3: Implement** `gatesig.go` (the table as data) + `gates.go`; point registrations at `AllGates()`.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/...` → PASS → **Step 5: Commit** — `#172 M1: gate signature catalog + cross-command drift guard`.
 
 ### Task 2: `classifyOutputLine` over REAL fixtures (3 grammars + rejections)
 **Files:** Create `friction.go`; Test `friction_test.go` with real captured lines.
-- [ ] **Step 1: Failing tests** — one positive per grammar (G1 `[!]…[0m --no-verdict (or --force): skipping…`→Bypass; cinfo `==>…[0m skipping…per --no-judge (or --force)`→Bypass; G2 `[!]…[0m plan-quality gate bypassed (--force: x)`→Bypass{force-only}; G3 `[!]…[0m ⚠️ --no-validate: SKIPPING…`→Bypass); one refusal per shape incl comma/slash forms; and the REJECTIONS: the `:219` warmup line→none, a `cwarn(stderr, "--no-plan-check (or --force):` source line→none, a `17\t==> …` cat-n line→none, a `%s#%s is already status`→none.
-- [ ] **Step 2: Run** → FAIL → **Step 3: Implement** `classifyOutputLine` (ANSI strip, require `[0m ` runtime reset or the G2 shape, match per-`GateSig` `ackRE`/`refusalRE`, reject contamination markers + `warmupTrap`).
-- [ ] **Step 4: Run** → PASS → **Step 5: Commit** — `#172 M1: classifyOutputLine (3 ACK grammars, warmup+source rejection)`.
+- [x] **Step 1: Failing tests** — one positive per grammar (G1 `[!]…[0m --no-verdict (or --force): skipping…`→Bypass; cinfo `==>…[0m skipping…per --no-judge (or --force)`→Bypass; G2 `[!]…[0m plan-quality gate bypassed (--force: x)`→Bypass{force-only}; G3 `[!]…[0m ⚠️ --no-validate: SKIPPING…`→Bypass); one refusal per shape incl comma/slash forms; and the REJECTIONS: the `:219` warmup line→none, a `cwarn(stderr, "--no-plan-check (or --force):` source line→none, a `17\t==> …` cat-n line→none, a `%s#%s is already status`→none.
+- [x] **Step 2: Run** → FAIL → **Step 3: Implement** `classifyOutputLine` (ANSI strip, require `[0m ` runtime reset or the G2 shape, match per-`GateSig` `ackRE`/`refusalRE`, reject contamination markers + `warmupTrap`).
+- [x] **Step 4: Run** → PASS → **Step 5: Commit** — `#172 M1: classifyOutputLine (3 ACK grammars, warmup+source rejection)`.
 
 ### Task 3: `SdlcInvocation` from anchored calls + Edit/Write capture + output linkage
 **Files:** Modify `session.go` (`classifyToolUse` +`KindFileEdit`; `parseEvents` attach linked output to all `KindSDLCPrompt`); `friction.go` builder; Tests.
-- [ ] **Step 1: Failing tests** — `Bash(sdlc close --no-atlas --issue 173)` + its linked `tool_result` → `SdlcInvocation{verb:close, issueID:"173", output:<ack>}`; `Edit`/`Write`/`MultiEdit` → `KindFileEdit`; `sdlc close --help` → `isHelp`.
-- [ ] **Step 2–4:** implement — note `parseEvents` currently parses the verdict from close/mclose output then **discards the raw text** (`session.go:216`); extend it to (a) link results to EVERY `KindSDLCPrompt` and (b) **retain the raw output** on the event for `classifyOutputLine`. Per-session golden unchanged; PASS.
-- [ ] **Step 5: Commit** — `#172 M1: SdlcInvocation (anchored, issue-keyed) + Edit/Write capture + output linkage`.
+- [x] **Step 1: Failing tests** — `Bash(sdlc close --no-atlas --issue 173)` + its linked `tool_result` → `SdlcInvocation{verb:close, issueID:"173", output:<ack>}`; `Edit`/`Write`/`MultiEdit` → `KindFileEdit`; `sdlc close --help` → `isHelp`.
+- [x] **Step 2–4:** implement — note `parseEvents` currently parses the verdict from close/mclose output then **discards the raw text** (`session.go:216`); extend it to (a) link results to EVERY `KindSDLCPrompt` and (b) **retain the raw output** on the event for `classifyOutputLine`. Per-session golden unchanged; PASS.
+- [x] **Step 5: Commit** — `#172 M1: SdlcInvocation (anchored, issue-keyed) + Edit/Write capture + output linkage`.
 
 ### Task 4: whole-corpus walk + `detectGateEvents` + aggregate + render (Claude)
 **Files:** `friction.go`, `processmanual.go`; Tests + temp-dir corpus test.
-- [ ] **Step 1: Failing tests** — anti-contamination test (a); warmup-rejection test (b); `enumerateAllTranscripts` over temp `<slugA>`/`<slugB>` incl a `-worktree-ariadne-` slug (→ labeled `ariadne`) and a `-private-tmp-` slug (→ excluded); `aggregate` per-gate + per-repo; `detectGateEvents` sets `observability`.
-- [ ] **Step 2–3:** implement Claude glob, `detectGateEvents`, `aggregate`, `renderFrictionReport` (markdown + `--json`), `--friction-report` + `--session` conflict guard.
-- [ ] **Step 4: Run** → PASS; smoke over the real corpus; the clean ranking should reproduce judge≈65-dominant, no-verified 0. Record clean per-gate + per-repo numbers in the Log; note the peer-vs-ariadne split.
-- [ ] **Step 5: Commit** — `#172 M1: whole-corpus bypass measure, anti-contamination + repo labeling (claude)`.
+- [x] **Step 1: Failing tests** — anti-contamination test (a); warmup-rejection test (b); `enumerateAllTranscripts` over temp `<slugA>`/`<slugB>` incl a `-worktree-ariadne-` slug (→ labeled `ariadne`) and a `-private-tmp-` slug (→ excluded); `aggregate` per-gate + per-repo; `detectGateEvents` sets `observability`.
+- [x] **Step 2–3:** implement Claude glob, `detectGateEvents`, `aggregate`, `renderFrictionReport` (markdown + `--json`), `--friction-report` + `--session` conflict guard.
+- [x] **Step 4: Run** → PASS; smoke over the real corpus; the clean ranking should reproduce judge≈65-dominant, no-verified 0. Record clean per-gate + per-repo numbers in the Log; note the peer-vs-ariadne split.
+- [x] **Step 5: Commit** — `#172 M1: whole-corpus bypass measure, anti-contamination + repo labeling (claude)`.
 
 **M1 close:** `sdlc milestone-close --issue 172 --milestone M1`.
 
@@ -190,3 +190,38 @@ The third fresh-eyes verification confirmed the architecture is sound and empiri
 Minors folded: the G3 `no-validate` ACK regex tolerates the `⚠️ ` emoji + double-space; `parseEvents` must **retain** the raw output (today it parses the verdict then discards it); **push `no-validate` refusal IS flag-named** (the shared `validategate.go:82` cwarn fires for both merge and push — so push no-validate is observability `full`, not `flag-omitted`); the change-code `no-judge` ACK (`gate bypassed (--force:)`) is a `--force` override of a *failed* judge, distinct from the silent `--no-judge` skip (label both, don't conflate). Per-gate runtime counts are approximate (±a few) but the ranking + sum hold.
 
 **Status: approved-ready for implementation** (`sdlc change-code` → estimate → M1 TDD). No Critical ever surfaced across the three rounds; the architecture (anchor to `Bash(sdlc <verb>)` + table-driven signature classifier + honest observability limits) was affirmed by rounds 2 and 3.
+
+### 2026-07-14 — M1 execution deviations (recorded at boundary review)
+
+M1 shipped (verdict FIX-THEN-SHIP; both Important fixed before crossing). Three
+deviations from the as-planned M1 task shapes, all functionally sound — treat this
+entry as authoritative over the Chunk-1 task text:
+
+1. **No `cmd/sdlc/gates.go` / `AllGates()`; registrations stay literal.** Task 1
+   planned to source the flag names from `AllGates()`. Delivered instead as a
+   drift-guard enforced the *other* direction: `cmd/sdlc/gates_test.go` introspects
+   each spine command's live-registered `--no-*` flags (via cobra) and diffs against
+   `GateFlagsFor` — production registration code untouched, same lockstep guarantee,
+   and it catches a real registration without a catalog edit.
+2. **`parseEvents` not extended; a sibling scanner does the anchored scan.** Task 3
+   planned to extend `parseEvents` to retain raw output on every `KindSDLCPrompt`.
+   Delivered as `sdlcInvocations` (friction.go) — a pure sibling that scans + links
+   by `tool_use_id`, sharing `rec` + `sdlcVerbRE`, and reads the tool_result
+   **content-block** (more complete than `toolUseResult.stdout`: no-judge ACK 105× vs
+   49×). Watch item (review §6): extract the shared scan-and-link core before M3 adds
+   a codex sibling, so the two walkers can't drift.
+3. **Edit/Write/MultiEdit → `KindFileEdit` deferred to M2**, where the firing-order
+   skill-late detector actually consumes it (disclosed in the issue Log).
+
+**Boundary-review fix (Important #1):** `GateStat` observability was per-flag
+last-write-wins and mislabeled the headline gate (no-judge shown `flag-omitted` when
+its 17 bypasses are full-observable close/mclose). Now keyed per **(command, flag)**
+and derived from the gate's *intrinsic* caveat (`gateObs`), so the label is correct
+regardless of which event type was seen — close/mclose no-judge `full`, change-code
+`force-only`, merge/push no-judge `flag-omitted`. Test: `TestObservabilityPerCommand`.
+
+**Deferred to M2 (review Minors):** dedupe gate events per invocation (the
+`no-validate` refusal double-line: `validategate.go:82` cwarn + the die-wrapped
+error); `sdlcVerbRE` misses `go run ./cmd/sdlc <verb>` dev invocations (footnote);
+error (not silent-0) when zero transcripts enumerate; compound-command second-verb
+anchoring; a `renderFrictionReport`/JSON shape test + `toolResultText` array-form test.

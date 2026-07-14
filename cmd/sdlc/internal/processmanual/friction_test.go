@@ -173,6 +173,31 @@ func TestAggregateAntiContamination(t *testing.T) {
 	}
 }
 
+// Observability must be keyed per (command, flag): no-judge is `full` for
+// close/mclose but `force-only` for change-code — collapsing to the flag mislabels
+// the honesty column (#172 M1 boundary review Important #1).
+func TestObservabilityPerCommand(t *testing.T) {
+	esc := "\x1b"
+	closeAck := esc + "[1;36m==>" + esc + "[0m skipping issue boundary review per --no-judge (or --force)"
+	ccAck := "  " + esc + "[1;33m[!]" + esc + "[0m plan-quality gate bypassed (--force: needed to iterate)"
+	rep := aggregate([]SdlcInvocation{
+		{Verb: "close", Output: closeAck, Repo: "r"},
+		{Verb: "change-code", Output: ccAck, Repo: "r"},
+	}, 2)
+	got := map[string]string{}
+	for _, g := range rep.Gates {
+		if g.Flag == "no-judge" {
+			got[g.Command] = g.Observability
+		}
+	}
+	if got["close"] != "full" {
+		t.Errorf("close no-judge observability = %q, want full", got["close"])
+	}
+	if got["change-code"] != "force-only" {
+		t.Errorf("change-code no-judge observability = %q, want force-only (not last-write-wins)", got["change-code"])
+	}
+}
+
 func TestEnumerateClaudeTranscripts(t *testing.T) {
 	root := t.TempDir()
 	mk := func(slug string, n int) {
