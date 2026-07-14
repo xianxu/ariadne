@@ -123,7 +123,10 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 - Test: `construct/local/introspect/scripts/agents/test_codex.py`
 - Fixture: `construct/local/introspect/scripts/agents/testdata/codex-sample.jsonl` (a trimmed real rollout: session_meta + a user_message + agent_message + function_call/output + patch_apply_end + a failing tool + compacted)
 
-- [ ] **Step 1: Write failing tests** asserting the discovery mapping (see #173 Log table): `session_meta`→session id/cwd/start (via locator, not a NormEvent); `event_msg/user_message`→`user_msg`; `event_msg/agent_message`→`assistant_msg`; `response_item/function_call`(+output)→`tool_call`/`tool_result` (error→`is_error`); `event_msg/patch_apply_end`→`file_edit` (file_path); `compacted`→`boundary`(`boundary_kind="compacted"`); `token_count`/`reasoning`/`turn_context`→ dropped.
+- [ ] **Step 1: Write failing tests** asserting the discovery mapping (see #173 Log table): `session_meta`→session id/cwd/start (via locator, not a NormEvent); `event_msg/user_message`→`user_msg`; `event_msg/agent_message`→`assistant_msg`; `response_item/function_call`(+output)→`tool_call`/`tool_result`; `event_msg/patch_apply_end`→`file_edit` (file_path); `compacted`→`boundary`(`boundary_kind="compacted"`); `token_count`/`reasoning`/`turn_context`→ dropped.
+  - **⚠️ Friction `is_error` is DERIVED, not a flag (plan-quality finding 1).** `function_call_output.payload` is `{type, call_id, output}` where `output` is a **plain string** (e.g. `"...Process exited with code 71\nsandbox-exec: Operation not permitted"`). There is NO structured `is_error` field. `codex_events` must derive `is_error` by string-parsing exit-code/error markers — the analogue of Claude's `detect_friction` path (b)/(c) at `detect.py:422-426`, NOT the (a) is_error-flag path. Add a test with a failing `output` string → `is_error=True`. If coded to a nonexistent field, codex friction silently never fires (breaks the keystone parity test).
+  - **Good news:** `patch_apply_end` DOES carry structured `success`/`status` — use that for file-edit success (cleaner than Claude).
+  - **Also map the other tool events** (plan-quality finding 3): `response_item/custom_tool_call(+_output)`, `web_search_call`, `tool_search_call`, `mcp_tool_call_end` → `tool_call` (else codex `tool_calls_by_name` undercounts).
   - **Double-representation guard:** assert we count assistant turns from exactly ONE source (`event_msg/agent_message`), NOT also `response_item/message`, so amc isn't doubled.
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement** `codex_events(line, state) -> list[NormEvent]`.
@@ -151,7 +154,7 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 
 - [ ] **Step 1:** Test that a codex-origin segment's events load + a detector fires on a codex fixture.
 - [ ] **Step 2: Run** → FAIL.
-- [ ] **Step 3: Implement** origin tagging (`agent` field already on `SessionSummary` via NormEvents; persist it) so `load_segment_events` dispatches to the codex reader. Update SKILL.md Stage 1 to offer codex/claude/both and document `--agent`.
+- [ ] **Step 3: Implement** origin tagging (`agent` field already on `SessionSummary` via NormEvents; persist it) so `load_segment_events` dispatches to the codex reader. **Name the locate mechanism (plan-quality finding 3):** codex per-event lines carry NO `sessionId` (only `session_meta` does), unlike Claude — so persist the **rollout file path** into `sessions.json` per segment (`transcript_files` already exists; reuse it) and have the codex `load_segment_events` read that file directly rather than re-glob+match. Update SKILL.md Stage 1 to offer codex/claude/both and document `--agent`.
 - [ ] **Step 4: Run** `pytest construct/local/introspect/scripts/ -v` → PASS.
 - [ ] **Step 5: Commit** — `#173 M2: detect loads codex segments; scope picker learns codex`.
 
@@ -163,7 +166,8 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 
 ### Task 8: end-to-end dogfood over a real codex corpus
 
-- [ ] Run `normalize.py --agent codex --since 2026-05-27` → `detect.py` over a small codex slice; verify moments carry codex `session_id`s and evidence traces back to a rollout file. Record counts in #173 Log (the "moments trace to codex" Done-when evidence).
+- [ ] Run `normalize.py --agent codex --since 2026-05-27` → **classify (Stage 3) to produce `classified.json` for the codex slice** → `detect.py`. **`detect.main` reads `classified.json` (detect.py:486) and only processes sessions in it — omitting classify makes detect crash/no-op (plan-quality finding 2).** No code change (classify is format-agnostic), but the dogfood *procedure* must include it. Verify moments carry codex `session_id`s and evidence traces back to a rollout file. Record counts in #173 Log.
+- [ ] **Refresh all 5 `introspect-*` skills from the mixed codex+claude corpus** and record the comparative finding (estimate-quality finding 3): does codex yield *more* taste signal than diminishing-returns Claude (#169)? This is the M3 analytical payload; absorbed into the M3 review span.
 - [ ] Sanity-check the keystone agent-neutrality test (same interaction, both agents → same detector output) is green.
 - [ ] Commit — `#173 M3: dogfood codex ingest`.
 
@@ -186,3 +190,33 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 - **ARCH-PURE:** `events.py` + both adapters are pure (fixture-tested, no IO); locators are the thin injected IO seam.
 - **ARCH-PURPOSE:** delivers the actual purpose (codex taste captured end-to-end, dogfooded), not just "normalize reads codex" while detectors stay Claude-only. Realizes the SKILL's already-planned `events.jsonl`.
 - **ARCH-SIMPLICITY:** two adapters wired via a `main` branch, not a plugin registry — codex is only the second backend. The registry is a named future extension, not built now.
+
+---
+
+## Revisions
+
+### 2026-07-13 — M1 execution refinements (behavior-preserving)
+
+Deltas from the as-approved plan, decided during M1 after reading the detector
+internals; none change the architecture, all guarded by the M1 regression gates:
+
+- **Flat modules, not an `agents/` subpackage.** `agent_claude.py` / `agent_codex.py`
+  live directly in `scripts/` to match the flat `from detect import …` convention
+  (a subpackage complicates the `sys.path`-insert import style the scripts use).
+- **`NormEvent` gained `tool_use_id`.** The friction detector correlates a
+  tool_result back to its tool_call's name across events; that needs the id on the
+  event (call and result arrive separately).
+- **M1 keeps segmentation + cwd/branch/permission reads Claude-shaped** (in
+  `split_into_segments` + the new `_apply_line_metadata` seam) rather than lifting
+  them onto NormEvents now. This makes M1 a strictly lower-risk, byte-identical
+  refactor; **codex segmentation (`compacted` boundaries) + codex session-meta
+  (cwd/start) move to M2**, where they're needed anyway.
+- **Detectors reconstruct turns from the atomic stream** (`ASSISTANT_MSG` = one
+  turn; its `TOOL_CALL`/`FILE_EDIT` events accumulate until the next turn/user).
+  Verified equivalent to the old per-line logic by the run-3 moment-ID regression.
+- **`is_error` derived in the adapter** (already folded from the change-code
+  plan-quality finding) — `FRICTION_HINTS` moved to `events.py` (shared); detect
+  reads the flag.
+
+M1 gates met: normalize `sessions.json` byte-identical on kbench+metis; detect
+reproduces the run-3 cache exactly (543 moments, identical stable-hash id set).
