@@ -123,7 +123,10 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 - Test: `construct/local/introspect/scripts/agents/test_codex.py`
 - Fixture: `construct/local/introspect/scripts/agents/testdata/codex-sample.jsonl` (a trimmed real rollout: session_meta + a user_message + agent_message + function_call/output + patch_apply_end + a failing tool + compacted)
 
-- [ ] **Step 1: Write failing tests** asserting the discovery mapping (see #173 Log table): `session_meta`→session id/cwd/start (via locator, not a NormEvent); `event_msg/user_message`→`user_msg`; `event_msg/agent_message`→`assistant_msg`; `response_item/function_call`(+output)→`tool_call`/`tool_result` (error→`is_error`); `event_msg/patch_apply_end`→`file_edit` (file_path); `compacted`→`boundary`(`boundary_kind="compacted"`); `token_count`/`reasoning`/`turn_context`→ dropped.
+- [ ] **Step 1: Write failing tests** asserting the discovery mapping (see #173 Log table): `session_meta`→session id/cwd/start (via locator, not a NormEvent); `event_msg/user_message`→`user_msg`; `event_msg/agent_message`→`assistant_msg`; `response_item/function_call`(+output)→`tool_call`/`tool_result`; `event_msg/patch_apply_end`→`file_edit` (file_path); `compacted`→`boundary`(`boundary_kind="compacted"`); `token_count`/`reasoning`/`turn_context`→ dropped.
+  - **⚠️ Friction `is_error` is DERIVED, not a flag (plan-quality finding 1).** `function_call_output.payload` is `{type, call_id, output}` where `output` is a **plain string** (e.g. `"...Process exited with code 71\nsandbox-exec: Operation not permitted"`). There is NO structured `is_error` field. `codex_events` must derive `is_error` by string-parsing exit-code/error markers — the analogue of Claude's `detect_friction` path (b)/(c) at `detect.py:422-426`, NOT the (a) is_error-flag path. Add a test with a failing `output` string → `is_error=True`. If coded to a nonexistent field, codex friction silently never fires (breaks the keystone parity test).
+  - **Good news:** `patch_apply_end` DOES carry structured `success`/`status` — use that for file-edit success (cleaner than Claude).
+  - **Also map the other tool events** (plan-quality finding 3): `response_item/custom_tool_call(+_output)`, `web_search_call`, `tool_search_call`, `mcp_tool_call_end` → `tool_call` (else codex `tool_calls_by_name` undercounts).
   - **Double-representation guard:** assert we count assistant turns from exactly ONE source (`event_msg/agent_message`), NOT also `response_item/message`, so amc isn't doubled.
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement** `codex_events(line, state) -> list[NormEvent]`.
@@ -151,7 +154,7 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 
 - [ ] **Step 1:** Test that a codex-origin segment's events load + a detector fires on a codex fixture.
 - [ ] **Step 2: Run** → FAIL.
-- [ ] **Step 3: Implement** origin tagging (`agent` field already on `SessionSummary` via NormEvents; persist it) so `load_segment_events` dispatches to the codex reader. Update SKILL.md Stage 1 to offer codex/claude/both and document `--agent`.
+- [ ] **Step 3: Implement** origin tagging (`agent` field already on `SessionSummary` via NormEvents; persist it) so `load_segment_events` dispatches to the codex reader. **Name the locate mechanism (plan-quality finding 3):** codex per-event lines carry NO `sessionId` (only `session_meta` does), unlike Claude — so persist the **rollout file path** into `sessions.json` per segment (`transcript_files` already exists; reuse it) and have the codex `load_segment_events` read that file directly rather than re-glob+match. Update SKILL.md Stage 1 to offer codex/claude/both and document `--agent`.
 - [ ] **Step 4: Run** `pytest construct/local/introspect/scripts/ -v` → PASS.
 - [ ] **Step 5: Commit** — `#173 M2: detect loads codex segments; scope picker learns codex`.
 
@@ -163,7 +166,8 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 
 ### Task 8: end-to-end dogfood over a real codex corpus
 
-- [ ] Run `normalize.py --agent codex --since 2026-05-27` → `detect.py` over a small codex slice; verify moments carry codex `session_id`s and evidence traces back to a rollout file. Record counts in #173 Log (the "moments trace to codex" Done-when evidence).
+- [ ] Run `normalize.py --agent codex --since 2026-05-27` → **classify (Stage 3) to produce `classified.json` for the codex slice** → `detect.py`. **`detect.main` reads `classified.json` (detect.py:486) and only processes sessions in it — omitting classify makes detect crash/no-op (plan-quality finding 2).** No code change (classify is format-agnostic), but the dogfood *procedure* must include it. Verify moments carry codex `session_id`s and evidence traces back to a rollout file. Record counts in #173 Log.
+- [ ] **Refresh all 5 `introspect-*` skills from the mixed codex+claude corpus** and record the comparative finding (estimate-quality finding 3): does codex yield *more* taste signal than diminishing-returns Claude (#169)? This is the M3 analytical payload; absorbed into the M3 review span.
 - [ ] Sanity-check the keystone agent-neutrality test (same interaction, both agents → same detector output) is green.
 - [ ] Commit — `#173 M3: dogfood codex ingest`.
 
@@ -186,3 +190,192 @@ Today the pipeline has an implicit event model tangled into Claude's wire format
 - **ARCH-PURE:** `events.py` + both adapters are pure (fixture-tested, no IO); locators are the thin injected IO seam.
 - **ARCH-PURPOSE:** delivers the actual purpose (codex taste captured end-to-end, dogfooded), not just "normalize reads codex" while detectors stay Claude-only. Realizes the SKILL's already-planned `events.jsonl`.
 - **ARCH-SIMPLICITY:** two adapters wired via a `main` branch, not a plugin registry — codex is only the second backend. The registry is a named future extension, not built now.
+
+---
+
+## Revisions
+
+### 2026-07-13 — M1 execution refinements (behavior-preserving)
+
+Deltas from the as-approved plan, decided during M1 after reading the detector
+internals; none change the architecture, all guarded by the M1 regression gates:
+
+- **Flat modules, not an `agents/` subpackage.** `agent_claude.py` / `agent_codex.py`
+  live directly in `scripts/` to match the flat `from detect import …` convention
+  (a subpackage complicates the `sys.path`-insert import style the scripts use).
+- **`NormEvent` gained `tool_use_id`.** The friction detector correlates a
+  tool_result back to its tool_call's name across events; that needs the id on the
+  event (call and result arrive separately).
+- **M1 keeps segmentation + cwd/branch/permission reads Claude-shaped** (in
+  `split_into_segments` + the new `_apply_line_metadata` seam) rather than lifting
+  them onto NormEvents now. This makes M1 a strictly lower-risk, byte-identical
+  refactor; **codex segmentation (`compacted` boundaries) + codex session-meta
+  (cwd/start) move to M2**, where they're needed anyway.
+- **Detectors reconstruct turns from the atomic stream** (`ASSISTANT_MSG` = one
+  turn; its `TOOL_CALL`/`FILE_EDIT` events accumulate until the next turn/user).
+  Verified equivalent to the old per-line logic by the run-3 moment-ID regression.
+- **`is_error` derived in the adapter** (already folded from the change-code
+  plan-quality finding) — `FRICTION_HINTS` moved to `events.py` (shared); detect
+  reads the flag.
+
+M1 gates met: normalize `sessions.json` byte-identical on kbench+metis; detect
+reproduces the run-3 cache exactly (543 moments, identical stable-hash id set).
+
+### 2026-07-13 — M1 review (FIX-THEN-SHIP): a third consumer was missed
+
+The M1 boundary review caught that **`segment_text.py`** — the extract-pass
+renderer (raw segment → text for the LLM pattern-extraction call) — is a THIRD
+Claude-wire-format consumer, not lifted by M1. It has its own
+`PROJECTS_ROOT` glob, `sessionId` filter, `toolUseResult`/`away_summary` walk in
+`render_segment`, and near-verbatim duplicates of the adapter's
+`_text_from_content` / `_tool_result_text`. Consequences + plan corrections:
+
+1. **Read-site inventory corrected.** M1 lifted `normalize` + `detect.load_segment_events`
+   only — NOT `segment_text.py`'s `extract_text_from_content` / `extract_tool_result_text`
+   / `load_segment_events` / `render_segment`. The "owns ALL" / "collapses ~6 sites"
+   claims were softened in `agent_claude.py`, `events.py`, and `atlas/workflow/introspect.md`.
+2. **New M2 task — lift `segment_text.render_segment` + its locator onto `NormEvent`**
+   (or a codex reader), sequenced BEFORE the M3 dogfood. Without it, codex sessions
+   normalize + produce moments but their transcripts can't be *rendered* for the
+   extract pass → codex taste is detectable but not extractable end-to-end, which
+   fails the Done-when "refresh the 5 skills from a mixed corpus." Converge the two
+   `load_segment_events` (detect + segment_text) onto ONE agent-keyed locator rather
+   than adding a third copy (ARCH-DRY).
+3. **Task 7 correction — `SessionSummary.agent` does NOT exist yet.** The plan assumed
+   origin tagging was free ("`agent` already on `SessionSummary` via NormEvents"), but
+   `agent` is a `NormEvent` field; `SessionSummary` has no origin field and `to_json`
+   doesn't persist one. M2 Task 7 must ADD + persist `SessionSummary.agent` before
+   `load_segment_events` can dispatch by origin.
+4. **Keystone agent-neutrality test extends to rendering** — same interaction on both
+   agents must fire the same detectors AND *render* equivalently (guards I2).
+
+Minor (not fixed, by design): redirect/endorsement evidence emits `"name": "?"` for a
+nameless tool_use where pre-#173 emitted `None` — theoretical (real tool_uses always
+carry a name; doesn't affect `stable_id` or the regression).
+
+### 2026-07-13 — M2 close (FIX-THEN-SHIP): review fixes + deferrals
+
+M2 delivered codex ingest end-to-end (adapter → normalize → detect → render). The
+boundary review caught fixes, all applied before crossing:
+
+**Fixed:**
+- **Codex file-edit render bug (Important):** `patch_apply_end` FILE_EDITs now set
+  `tool_input_summary=f"file_path={path}"`, so the extract renderer shows WHICH file
+  changed (was a bare `[tool: Edit ]`). Regression-tested in `test_agent_codex`.
+- **`custom_tool_call` input source:** reads `input` (dict), not `arguments`.
+- **Missing tool events mapped:** `web_search_call` / `tool_search_call` → TOOL_CALL.
+- **Test debt closed:** added `test_segment_loader.py` (dispatch + codex/claude IO +
+  window) and `test_parity.py` — the **keystone agent-neutrality test** (same
+  interaction in both wire formats → same detector-type set → same salient render).
+
+**Deferred (recorded, not blocking):**
+- `event_msg/mcp_tool_call_end` (corpus: 3) not mapped — its payload shape wasn't
+  inspected; negligible magnitude. Map in a later pass if MCP-heavy codex use grows.
+- `--since` reads all codex rollout files before `filter_since` drops old ones
+  (inefficient, not incorrect).
+- Claude extract render lost the `old≈…/new≈…` diff previews (from the removed
+  `summarize_tool_input`) — accepted uniformity tradeoff, documented in
+  `render_segment`. Revisit if #169-style claude extract quality drops.
+
+**Known measurement caveat for M3:** codex `apply_patch` double-counts
+`tool_call_count` (the `custom_tool_call` invocation + its `patch_apply_end` file
+edits both bump it), inflating codex tool counts vs claude — factor this into the
+"does codex yield more signal" comparison.
+
+**Core Concepts table is superseded** by the M1 flat-module revision: adapters are
+`agent_claude.py` / `agent_codex.py` (not an `agents/` package), plus the new
+`segment_loader.py`. Treat the M1/M2 revisions as authoritative over the original table.
+
+### 2026-07-14 — M3 dogfood surfaced two adapter gaps (fixed before close)
+
+Task 8's dogfood was designed to *answer* "does codex reopen the taste well"; it also
+*surfaced two real codex-adapter gaps* that the M2 fixture tests couldn't (they only
+appear on the real corpus's multi-agent + benign-exit shapes). Both fixed
+(user-approved "fix both now"), turning M3 from pure-measurement into
+measurement-plus-two-fixes:
+
+1. **Multi-agent fork-replay** — the M2 codex reader assumed one rollout = one raw
+   session. pair/parley.nvim fork codex sessions; a fork *replays the parent
+   transcript* and carries two `session_meta`. `process_codex_file` now keys off the
+   FIRST meta and skips `forked_from_id` files (66% moment inflation otherwise). This
+   is a genuine third codex-format property (beyond the M2 discovery table), now
+   documented in the atlas spec as a trap #172's Go reader must also handle.
+2. **Benign-exit friction** — M2's `_output_is_error` over-derived (any non-zero exit
+   → error). Tightened to require a `FRICTION_HINT`, symmetric with Claude's gate.
+
+The **finding stands independent of the fixes** (they only *inflate* codex's apparent
+signal, so fixing strengthens the "no"). Task 9's atlas spec absorbed the fork trap +
+the M3 finding. No architecture change — both fixes are in the codex edge (adapter +
+locator), consumers untouched (ARCH-DRY held).
+
+### 2026-07-14 — M3 review: fork-replay vs sub-agent are two properties, not one
+
+The M3 revision above (and the first draft of the atlas spec) described the fork trap
+as "meta has `forked_from_id`/`parent_thread_id`/`agent_nickname` → replays the
+parent". The boundary review caught that these are TWO distinct codex concepts, and
+corpus evidence (592 rollouts) confirms:
+- **fork-replay**: `forked_from_id` (40/592), two `session_meta`, replays the parent
+  transcript → skipped by `process_codex_file`. The 66%-inflation source.
+- **sub-agent thread**: `parent_thread_id`/`agent_nickname` *without* `forked_from_id`
+  (79/592), one `session_meta`, own content (no replay), 22/79 even carry user turns →
+  **NOT a replay and NOT skipped**; contributes 8 of M3's 202 substantial moments
+  (edit-after-edit only).
+
+The **code was already correct** — it keys strictly on `forked_from_id`, so it skips
+40, not 119. The **spec over-claimed**; corrected in `atlas/workflow/introspect.md` so
+#172's Go reader skips 40 (not 119) — the exact cross-language drift the spec-level
+DRY exists to prevent. Whether sub-agent threads should ALSO be dropped
+(agent-orchestration, but no duplication and 22 carry user turns) is recorded as a
+defensible-but-deferred precision refinement, not silently implied. Added
+`test_codex_subagent_thread_not_skipped` to pin the distinction.
+
+**Recorded follow-ups (review §6, not built now — ARCH-SIMPLICITY, single `if` today):**
+- A pure `codex_meta_kind(meta) -> {root,sub-agent,fork-replay}` in `agent_codex.py`
+  would move the fork rule (codex wire-format knowledge) out of `normalize.py` back
+  into the adapter and give the atlas spec a 1:1 code referent for #172. Trigger: when
+  the classification grows past one branch.
+- A `target` capturing "codex format spec == both readers' behavior" as a drift guard:
+  #173 discovered three codex format properties (double-representation, derived
+  `is_error`, fork-replay) *after* the spec was written, each from the real corpus.
+  Worth a landing spot for the next discovery, referenced from #172.
+
+### 2026-07-14 — close review: reconcile tables + two agent-neutrality gaps
+
+The whole-issue close review (FIX-THEN-SHIP; Claude path proven byte-identical — 543
+moments, identical id-set at HEAD) caught three Important items, all fixed before
+crossing:
+
+**I3 — the Core Concepts / Integration tables name entities never built.** Superseded
+explicitly (the tables are what a reader greps; "authoritative over" wasn't enough):
+- `claude_sessions()` / `codex_sessions()` locators → never existed. Delivered as
+  `normalize.process_codex()` / `process_codex_file()` (bulk) +
+  `segment_loader.load_segment_norm_events()` (per-segment, agent-keyed).
+- `aggregate_summary(norm_events)` → `aggregate_norm_event(nev, summary)` (per-event
+  fold, not a list aggregate).
+- `agents/claude.py` / `agents/codex.py` → flat `agent_claude.py` / `agent_codex.py`.
+- `split_into_segments(norm_events)` → takes raw `(dict, src)` pairs; boundary
+  predicate injected (`is_boundary=`).
+The issue's M2 Plan checkbox (`codex_sessions()`) was corrected too.
+
+**I1 — `--scope`/`--project` was ignored on the codex path (fixed, code).** A
+repo-scoped `--agent both` run silently ingested every repo's codex sessions (measured:
+`--project ariadne` → 85 codex ariadne segments now, was 687 from 13 other projects).
+`process_codex(scope_slugs)` now filters codex rollouts by cwd-derived slug in `both`
+mode (codex-only still ingests all — picker-documented). The invalid SKILL "no per-slug
+dirs" carve-out was dropped. Test: `test_codex_scope_filter_excludes_out_of_scope`.
+
+**I2 — `ASSISTANT_MSG` is not agent-comparable (fixed, doc + recorded follow-up).**
+`claude_events` emits one per model turn (73% tool-only); `codex_events` only per text
+`agent_message`. So `amc≥15` is a stricter bar on codex and `EDIT_AFTER_EDIT_WINDOW`
+(counts `ASSISTANT_MSG` turns) inflates codex eae (46% of "rapid" pairs are 35–44 tool
+events apart). Verified NOT to change the M3 finding (redirects 8→8, endorsements 28→28
+at the comparable `amc≥4` bar). Atlas now states the caveat + the durable comparable
+metrics (`tool_call_count`/`user_message_count`); `test_parity` gained a comment that
+it proves shape- not meaning-neutrality. **Deep fix deferred** (codex emits
+`ASSISTANT_MSG` per model turn + define `EventKind` semantics per model turn) — gated
+on a third agent, sibling of the spec-drift `target` above.
+
+**Minors:** dead `PROJECTS_ROOT` removed from `detect.py`. Recorded-not-fixed: the
+`apply_patch` `call_id` collision mislabels a failed-apply_patch friction as `Edit`
+(`custom_tool_call` and `patch_apply_end` share `call_id`) — mislabels, never drops;
+negligible on this corpus; fold into the `codex_meta_kind`/turn-derivation pass.

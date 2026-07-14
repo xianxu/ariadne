@@ -1,12 +1,13 @@
 ---
 id: 000173
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 estimate_hours: 1.73
 started: 2026-07-13T17:22:21-07:00
+actual_hours: 9.04
 ---
 
 # introspect ingest codex transcripts
@@ -93,14 +94,61 @@ Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md
 (design approach **B — normalized event stream**; approved 2026-07-13).
 
 - [x] Discovery — codex store + event→NormEvent mapping (see Log)
-- [ ] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
+- [x] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
   onto it; **run-3 reproduced** (behavior-preserving refactor, de-risks the abstraction)
-- [ ] M2 — codex adapter + `codex_sessions()` locator + `--agent` dispatch + scope picker
-- [ ] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
+- [x] M2 — codex adapter + `process_codex()` locator + `--agent` dispatch + scope picker
+- [x] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
 
 ## Log
 
+### 2026-07-14
+- **Close-review fixes (FIX-THEN-SHIP).** Whole-issue review proved the Claude path
+  byte-identical at HEAD (543 moments, identical id-set) and reproduced every M3
+  number; 3 Important, all fixed: **I1** — `--scope`/`--project` was ignored on the
+  codex path (a repo-scoped `--agent both` run mined every repo: measured `--project
+  ariadne` → 85 codex ariadne segments now, was 687 from 13 other projects);
+  `process_codex(scope_slugs)` filters codex in `both` mode + test + dropped the
+  invalid SKILL carve-out. **I2** — `ASSISTANT_MSG` isn't agent-comparable (claude =
+  per model turn / 73% tool-only; codex = per text turn), so `amc≥15` is a stricter
+  codex bar and eae inflates; verified NOT to move the finding (redirects/endorsements
+  8/28 at `amc≥4` too); atlas caveat + comparable-metric note + parity comment; deep
+  fix deferred (3rd-agent-gated). **I3** — plan/issue tables named 4 never-built
+  entities (`codex_sessions()` etc.); superseded explicitly. Minor: removed dead
+  `PROJECTS_ROOT`. 8 unit suites green (added scope-filter test).
+- 2026-07-14: closed — codex ingests end-to-end (normalize→classify→detect→render), moments trace to rollout files; --agent both mixes corpora (36 codex/25 claude, verified in review); Claude path byte-identical (7 suites green incl new fork-replay/sub-agent/benign-exit tests); M3 finding recorded — codex does NOT reopen the taste well (0 new generalizable rules, ~95% of apparent surplus was fork-replay+benign-exit artifact), same diminishing returns as #169; boundary review FIX-THEN-SHIP, all 3 Important fixed; review verdict: FIX-THEN-SHIP
+- 2026-07-14: closed M3 — 7 unit suites green (incl new fork-skip + benign-exit friction tests); codex dogfood ran normalize→classify→detect end-to-end over 552 root sessions, moments trace to rollout files; pipeline emits confound-clean counts directly (40 forks skipped, friction 112→12 hint-gated); M3 finding recorded — 0 new generalizable rules, diminishing returns confirmed on codex; review verdict: FIX-THEN-SHIP
+- **M3 dogfood + finding (the payload).** Ran normalize→classify→detect over the
+  full codex corpus (592 rollouts, 552 root sessions). **Finding: codex does NOT
+  reopen the taste well.** Raw counts looked ~10× richer than Claude (112 friction,
+  198 endorsements) but were **~95% artifact**. Two confounds — both real adapter
+  gaps the dogfood surfaced, both fixed (FIX-THEN-SHIP, user-approved):
+  1. **Fork-replay (66% moment inflation).** pair/parley.nvim multi-agent runs fork
+     codex sessions; a forked rollout *replays the parent transcript* and carries
+     TWO `session_meta` (own first w/ `forked_from_id`, then the replayed parent's).
+     normalize kept the LAST → 40 forks collapsed onto 12 parent ids, shared moments
+     counted ×(1+forks) (one redirect ×11). Fix: key off FIRST meta + skip forks
+     (`process_codex_file`); `run.json.codex_forks_skipped`. Test: `test_normalize`.
+  2. **Benign-exit friction (106/112 noise).** `_output_is_error` flagged any
+     non-zero exit (grep/sed/ls no-match, cmd-not-found, timeouts). Fix: require a
+     `FRICTION_HINT` paired with the failing signal, mirroring Claude's gate. Test:
+     `test_agent_codex`. Substantial friction 112→12 (genuine sandbox denials:
+     `.git/index.lock`, PATH "Operation not permitted").
+  Cleaned codex signal (substantial): **8 unique redirects (all project-local UX),
+  12 sandbox frictions, 0 tool-backed endorsements, 0 new generalizable rules** —
+  the one real debugging moment ("don't guess, use logging") was already deployed in
+  `introspect-debugging`. Stage-5 walkthrough (user-in-loop) → close with 0 skill
+  changes. Same diminishing-returns conclusion as #169, now on both agents. 7 unit
+  suites green post-fix; pipeline emits the clean numbers directly (no de-confound
+  script needed). Atlas codex-format spec written (`atlas/workflow/introspect.md` →
+  "Codex transcript format") as #172's Go shared source, incl. the fork-skip trap.
+- Deferred (recorded): the friction gate still has a small false-positive tail when a
+  `FRICTION_HINT` word (e.g. "sandbox") appears in benign non-zero-exit command
+  *output* (grepping a config that mentions sandbox). Tiny magnitude; doesn't affect
+  the finding. Tighten only if codex friction becomes a headline signal (it isn't).
+
 ### 2026-07-13
+- 2026-07-13: closed M2 — M2 codex ingest end-to-end. codex adapter (fixture + real 6.5k-event rollout validated); normalize --agent {claude,codex,both} → 783 codex segments (227 substantial) correctly agent-tagged + cwd-slugged from 553 rollouts; SessionSummary.agent added (review-flagged); shared segment_loader replaces the 2 divergent load_segment_events; segment_text lifted onto NormEvent so codex RENDERS (extractable). Regressions: claude detect STILL 543 moments w/ identical id-set through the shared loader; codex detect 227 segs → 313 moments incl 112 friction (vs claude run-3 0 friction). scope picker learns codex. 5 unit suites green.; review verdict: FIX-THEN-SHIP
+- 2026-07-13: closed M1 — M1 behavior-preserving refactor onto agent-neutral NormEvent. normalize sessions.json BYTE-IDENTICAL on kbench+metis; detect reproduces #169 run-3 cache EXACTLY (543 moments, by-type 504/28/11, full 543 stable-hash id set identical); 4 unit suites green. atlas/workflow/introspect.md documents the new NormEvent layer.; review verdict: FIX-THEN-SHIP
 
 Filed from #169 run-3, where the corpus was Claude-only by construction
 (`~/.claude/projects`). Not made a hard dep of #170 — the #170 audit proceeds on

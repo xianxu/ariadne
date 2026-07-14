@@ -27,7 +27,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_claude import claude_events
+from agent_codex import codex_events
+from events import EventKind, NormEvent
+
 PROJECTS_ROOT = Path.home() / ".claude" / "projects"
+CODEX_SESSIONS_ROOT = Path.home() / ".codex" / "sessions"
 # Boundary thresholds for segmenting a long resumed session into smaller units
 # of analysis. The user's actual workflow flips between activities within one
 # raw sessionId (because Claude Code preserves it across resume), so a single
@@ -96,6 +101,8 @@ class SessionSummary:
     segment_index: int           # 1-indexed
     segment_count: int           # total segments in the raw session (filled at finalize)
     project_slug: str
+    agent: str = "claude"        # origin agent — "claude" | "codex" (#173 M2); lets
+                                 # detect/segment_text dispatch to the right reader
     cwd: str | None = None
     git_branch: str | None = None
     start_ts: str | None = None
@@ -136,21 +143,6 @@ def parse_ts(ts: str | None) -> datetime | None:
         return None
 
 
-def extract_text_from_message_content(content: Any) -> str:
-    """Flatten user/assistant message.content into text. Handles str and list-of-blocks."""
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if not isinstance(item, dict):
-                continue
-            if item.get("type") == "text" and "text" in item:
-                parts.append(item["text"])
-        return "\n".join(parts)
-    return ""
-
-
 def detect_slash_commands(text: str) -> list[str]:
     """Find all slash-command invocations in a user message text.
 
@@ -172,16 +164,17 @@ def detect_slash_commands(text: str) -> list[str]:
     return []
 
 
-def process_event(line: dict[str, Any], summary: SessionSummary) -> None:
-    """Mutate `summary` based on a single transcript event."""
-    et = line.get("type")
+def _apply_line_metadata(line: dict[str, Any], summary: SessionSummary) -> None:
+    """Session-level metadata read straight off a raw line — timestamp span, cwd,
+    git branch, permission modes. This is the small per-agent seam that stays
+    format-aware (codex carries cwd/start in `session_meta`, not per-line); the
+    agent-neutral event aggregation goes through `aggregate_norm_event`."""
     ts = line.get("timestamp")
     if ts:
         if summary.start_ts is None or ts < summary.start_ts:
             summary.start_ts = ts
         if summary.end_ts is None or ts > summary.end_ts:
             summary.end_ts = ts
-
     cwd = line.get("cwd")
     if cwd and not summary.cwd:
         summary.cwd = cwd
@@ -192,54 +185,42 @@ def process_event(line: dict[str, Any], summary: SessionSummary) -> None:
     if pm:
         summary.permission_modes_seen.add(pm)
 
-    if et == "user":
-        msg = line.get("message", {})
-        if isinstance(msg, dict):
-            text = extract_text_from_message_content(msg.get("content"))
-            # tool-result user messages have toolUseResult on the wrapper, not real prose
-            if not line.get("toolUseResult"):
-                cmds = detect_slash_commands(text)
-                summary.slash_commands.extend(cmds)
-                # A turn counts as a user message if it has prose OR a slash command.
-                if text.strip() or cmds:
-                    summary.user_message_count += 1
-                    if summary.first_user_message is None:
-                        # Prefer the slash command for legibility, fall back to prose.
-                        if cmds and not text.strip():
-                            summary.first_user_message = cmds[0]
-                        else:
-                            summary.first_user_message = text[:500]
 
-    elif et == "assistant":
+def aggregate_norm_event(nev: NormEvent, summary: SessionSummary) -> None:
+    """Fold one NormEvent into the session aggregates — agent-neutral (reads only
+    NormEvent fields, no wire format). The adapter already flattened messages,
+    tool calls, and file edits into NormEvents."""
+    k = nev.kind
+    if k == EventKind.USER_MSG and not nev.is_tool_result:
+        text = nev.text or ""
+        cmds = detect_slash_commands(text)
+        summary.slash_commands.extend(cmds)
+        # A turn counts as a user message if it has prose OR a slash command.
+        if text.strip() or cmds:
+            summary.user_message_count += 1
+            if summary.first_user_message is None:
+                # Prefer the slash command for legibility, fall back to prose.
+                if cmds and not text.strip():
+                    summary.first_user_message = cmds[0]
+                else:
+                    summary.first_user_message = text[:500]
+    elif k == EventKind.ASSISTANT_MSG:
         summary.assistant_message_count += 1
-        msg = line.get("message", {})
-        if isinstance(msg, dict):
-            content = msg.get("content", [])
-            if isinstance(content, list):
-                for item in content:
-                    if not isinstance(item, dict):
-                        continue
-                    if item.get("type") == "tool_use":
-                        summary.tool_call_count += 1
-                        name = item.get("name", "?")
-                        summary.tool_calls_by_name[name] = (
-                            summary.tool_calls_by_name.get(name, 0) + 1
-                        )
-                        ipt = item.get("input", {}) or {}
-                        if name == "Bash":
-                            summary.bash_command_count += 1
-                        elif name == "Write":
-                            fp = ipt.get("file_path")
-                            if fp:
-                                summary.files_written.add(fp)
-                        elif name == "Edit":
-                            fp = ipt.get("file_path")
-                            if fp:
-                                summary.files_edited.add(fp)
-                        elif name == "Read":
-                            fp = ipt.get("file_path")
-                            if fp:
-                                summary.files_read.add(fp)
+    elif k in (EventKind.TOOL_CALL, EventKind.FILE_EDIT):
+        summary.tool_call_count += 1
+        name = nev.tool_name or "?"
+        summary.tool_calls_by_name[name] = summary.tool_calls_by_name.get(name, 0) + 1
+        if name == "Bash":
+            summary.bash_command_count += 1
+        elif name == "Write":
+            if nev.file_path:
+                summary.files_written.add(nev.file_path)
+        elif name == "Edit":
+            if nev.file_path:
+                summary.files_edited.add(nev.file_path)
+        elif name == "Read":
+            if nev.file_path:
+                summary.files_read.add(nev.file_path)
 
 
 def collect_raw_events(
@@ -276,13 +257,19 @@ def is_away_summary(line: dict[str, Any]) -> bool:
     return line.get("type") == "system" and line.get("subtype") == "away_summary"
 
 
+def is_compacted(line: dict[str, Any]) -> bool:
+    """Codex's explicit segment boundary — emitted when the context window rolls."""
+    return line.get("type") == "compacted"
+
+
 def split_into_segments(
     events: list[tuple[dict[str, Any], str]],
+    is_boundary: Any = is_away_summary,
 ) -> list[list[tuple[dict[str, Any], str]]]:
-    """Split a raw session's events into segments based on away_summary events
-    and gaps ≥ GAP_BOUNDARY_SECONDS. The away_summary itself stays as the last
-    event of the closing segment (so its content can be captured as metadata).
-    """
+    """Split a raw session's events into segments on an explicit boundary event
+    (`is_boundary`, default Claude's away_summary) and gaps ≥ GAP_BOUNDARY_SECONDS.
+    The boundary event stays as the last event of the closing segment (so its
+    content can be captured as metadata)."""
     # Sort by timestamp, with a stable secondary key on event type so ties
     # produce deterministic order.
     events_sorted = sorted(
@@ -309,9 +296,9 @@ def split_into_segments(
 
         current.append(evt_pair)
 
-        # away_summary boundary: close current AFTER appending so the recap is
-        # the last event of the closing segment (its content becomes metadata).
-        if is_away_summary(line) and current:
+        # boundary: close current AFTER appending so the recap is the last event
+        # of the closing segment (its content becomes metadata).
+        if is_boundary(line) and current:
             segments.append(current)
             current = []
 
@@ -346,7 +333,9 @@ def build_segment_summary(
             if isinstance(content, str):
                 summary.closing_away_summary = content[:400]
             continue
-        process_event(line, summary)
+        _apply_line_metadata(line, summary)
+        for nev in claude_events(line):
+            aggregate_norm_event(nev, summary)
     if summary.start_ts and summary.end_ts:
         t0, t1 = parse_ts(summary.start_ts), parse_ts(summary.end_ts)
         if t0 and t1:
@@ -364,6 +353,113 @@ def process_project(project_slug: str) -> tuple[list[SessionSummary], int]:
         for idx, seg in enumerate(segments, start=1):
             out.append(build_segment_summary(raw_sid, idx, n, project_slug, seg))
     return out, total_events
+
+
+# ── Codex path (#173 M2) ─────────────────────────────────────────────────────
+# One rollout file = one raw codex session. cwd/start live in session_meta (once),
+# not per-line, so the codex metadata seam differs from Claude's per-line one — but
+# the event aggregation goes through the same agent-neutral aggregate_norm_event.
+
+def build_codex_segment(
+    raw_sid: str, idx: int, n: int, slug: str, cwd: str | None,
+    branch: str | None, events: list[tuple[dict[str, Any], str]], rollout_path: str,
+) -> SessionSummary:
+    summary = SessionSummary(
+        session_id=f"{raw_sid}#s{idx}", raw_session_id=raw_sid, segment_index=idx,
+        segment_count=n, project_slug=slug, agent="codex",
+    )
+    summary.cwd = cwd
+    summary.git_branch = branch
+    summary.transcript_files.add(rollout_path)  # abspath — load_segment_events reads it
+    for line, _src in events:
+        ts = line.get("timestamp")
+        if ts:
+            if summary.start_ts is None or ts < summary.start_ts:
+                summary.start_ts = ts
+            if summary.end_ts is None or ts > summary.end_ts:
+                summary.end_ts = ts
+        if is_compacted(line):
+            continue
+        for nev in codex_events(line, raw_sid):
+            if nev.kind == EventKind.BOUNDARY:
+                continue
+            aggregate_norm_event(nev, summary)
+    if summary.start_ts and summary.end_ts:
+        t0, t1 = parse_ts(summary.start_ts), parse_ts(summary.end_ts)
+        if t0 and t1:
+            summary.duration_seconds = (t1 - t0).total_seconds()
+    return summary
+
+
+def process_codex_file(
+    rollout_path: Path, scope_slugs: set[str] | None = None
+) -> tuple[list[SessionSummary], int, bool]:
+    """One codex rollout → its segments. session_meta gives id/cwd/branch; segment
+    on `compacted` + gap; aggregate each segment via codex_events.
+
+    **Multi-agent forks (#173 M3).** A forked rollout REPLAYS the parent's whole
+    transcript, so it carries TWO session_meta lines — its own (`id`=fork,
+    `forked_from_id`=parent) FIRST, then the parent's replayed one. We must (a) key
+    off the FIRST meta (the file's own identity) not the last — else every fork
+    collapses onto its parent's id — and (b) SKIP forks entirely: their events are a
+    replay of the parent's, so processing them double-counts every shared moment (the
+    M3 dogfood measured 66% moment inflation from this). The user-facing taste signal
+    (redirects/endorsements) lives in the parent thread; forks are agent-orchestration.
+    Returns (segments, events_read, skipped_fork)."""
+    meta: dict[str, Any] = {}
+    lines: list[dict[str, Any]] = []
+    try:
+        with rollout_path.open() as f:
+            for raw in f:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    d = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if d.get("type") == "session_meta":
+                    if not meta:                       # keep the FIRST — the file's own id
+                        meta = d.get("payload") or {}
+                    continue
+                lines.append(d)
+    except OSError:
+        return [], 0, False
+    if meta.get("forked_from_id"):                      # replay of a parent → skip
+        return [], 0, True
+    raw_sid = meta.get("id") or meta.get("session_id") or rollout_path.stem
+    cwd = meta.get("cwd")
+    git = meta.get("git")
+    branch = git.get("branch") if isinstance(git, dict) else None
+    slug = cwd_to_slug(cwd) if cwd else "-codex-unknown"
+    if scope_slugs is not None and slug not in scope_slugs:
+        return [], 0, False                         # out of scope (#173 close I1)
+    pairs = [(d, rollout_path.name) for d in lines]
+    segments = split_into_segments(pairs, is_boundary=is_compacted)
+    n = len(segments)
+    out = [
+        build_codex_segment(raw_sid, idx, n, slug, cwd, branch, seg, str(rollout_path))
+        for idx, seg in enumerate(segments, start=1)
+    ]
+    return out, len(lines), False
+
+
+def process_codex(scope_slugs: set[str] | None = None) -> tuple[list[SessionSummary], int, int, int]:
+    """Walk ~/.codex/sessions/**/rollout-*.jsonl (one file per raw session).
+    When `scope_slugs` is given, only rollouts whose cwd-derived slug is in it are
+    kept (#173 close I1 — honor --scope/--project on the codex path). Returns
+    (segments, events_read, files_read, forked_files_skipped)."""
+    files = sorted(CODEX_SESSIONS_ROOT.rglob("rollout-*.jsonl"))
+    all_segs: list[SessionSummary] = []
+    total_events = 0
+    forks_skipped = 0
+    for f in files:
+        segs, n, skipped_fork = process_codex_file(f, scope_slugs)
+        if skipped_fork:
+            forks_skipped += 1
+        all_segs.extend(segs)
+        total_events += n
+    return all_segs, total_events, len(files), forks_skipped
 
 
 def filter_since(segments: list[SessionSummary], since_iso: str | None) -> list[SessionSummary]:
@@ -398,16 +494,21 @@ def main() -> int:
     )
     ap.add_argument("--since", help="ISO timestamp; filter to sessions starting at/after this.")
     ap.add_argument("--out", required=True, help="Output cache dir (will be created).")
+    ap.add_argument(
+        "--agent", choices=["claude", "codex", "both"], default="claude",
+        help="Which agent's transcripts to read (#173). Default claude. "
+             "codex reads ~/.codex/sessions (--scope/--project apply to claude only).",
+    )
     args = ap.parse_args()
 
-    if not args.scope:
+    do_claude = args.agent in ("claude", "both")
+    do_codex = args.agent in ("codex", "both")
+
+    if do_claude and not args.scope:
         if args.project:
             args.scope = "select"
         else:
-            ap.error("--scope is required (or pass --project for shorthand select).")
-
-    project_slugs = resolve_project_slugs(args.scope, args.cwd, args.project)
-    print(f"resolved {len(project_slugs)} project dir(s): {project_slugs}", file=sys.stderr)
+            ap.error("--scope is required for --agent claude/both (or pass --project).")
 
     out_dir = Path(args.out).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -415,12 +516,31 @@ def main() -> int:
     segments: list[SessionSummary] = []
     total_events = 0
     total_files = 0
-    for slug in project_slugs:
-        proj_dir = PROJECTS_ROOT / slug
-        total_files += len(list(proj_dir.glob("*.jsonl")))
-        proj_segments, proj_events = process_project(slug)
-        segments.extend(proj_segments)
-        total_events += proj_events
+    project_slugs: list[str] = []
+
+    if do_claude:
+        project_slugs = resolve_project_slugs(args.scope, args.cwd, args.project)
+        print(f"resolved {len(project_slugs)} claude project dir(s): {project_slugs}", file=sys.stderr)
+        for slug in project_slugs:
+            proj_dir = PROJECTS_ROOT / slug
+            total_files += len(list(proj_dir.glob("*.jsonl")))
+            proj_segments, proj_events = process_project(slug)
+            segments.extend(proj_segments)
+            total_events += proj_events
+
+    codex_forks_skipped = 0
+    if do_codex:
+        # I1 (#173 close): honor --scope/--project on the codex path. In `both` mode
+        # codex filters to the same slugs claude resolved (unless --scope all);
+        # codex-only ingests every codex rollout (the Stage-1 picker documents this —
+        # codex has no repo-scoped invocation of its own).
+        codex_scope = set(project_slugs) if (do_claude and args.scope != "all") else None
+        codex_segments, codex_events_n, codex_files, codex_forks_skipped = process_codex(codex_scope)
+        print(f"read {codex_files} codex rollout file(s) "
+              f"({codex_forks_skipped} multi-agent forks skipped)", file=sys.stderr)
+        segments.extend(codex_segments)
+        total_events += codex_events_n
+        total_files += codex_files
 
     segments = filter_since(segments, args.since)
 
@@ -435,12 +555,14 @@ def main() -> int:
     raw_session_ids = {s.raw_session_id for s in segments}
     summary = {
         "run_ts": datetime.now(timezone.utc).isoformat(),
+        "agent": args.agent,
         "scope": args.scope,
         "projects": project_slugs,
         "transcript_files_read": total_files,
         "events_processed": total_events,
         "raw_sessions": len(raw_session_ids),
         "segments_emitted": len(segments),
+        "codex_forks_skipped": codex_forks_skipped,
         "since_filter": args.since,
     }
     (out_dir / "run.json").write_text(json.dumps(summary, indent=2))
