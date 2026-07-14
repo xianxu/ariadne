@@ -88,12 +88,43 @@ clusters.json              # extracted ∪ hints, retirement-checked
 ~/.claude/introspect/versions/<run-id>/consumed-hints/<activity>/<slug>.md
 ```
 
+## Agent-neutral event layer (#173)
+
+The pipeline no longer reads Claude's wire format directly. A canonical
+**`NormEvent`** (`scripts/events.py`) is the shape `normalize` aggregation and the
+`detect` detectors reason about; per-agent **adapters** map raw transcripts into it:
+
+```
+~/.claude/projects/*.jsonl  ─┐
+~/.codex/sessions/**/*.jsonl ─┼─► agent adapter ──► NormEvent stream ──► normalize + detect
+(future agents) ─────────────┘   claude_events /     (agent-agnostic:
+                                 codex_events         aggregation + 4 detectors)
+```
+
+- **`events.py`** — `NormEvent` (kind ∈ {user_msg, assistant_msg, tool_call,
+  tool_result, file_edit, boundary}) + shared `FRICTION_HINTS`. Pure.
+- **`agent_claude.py`** — `claude_events(line)` owns ALL Claude wire-format reads
+  (message / tool_use / toolUseResult / away_summary) and **derives `is_error`**
+  (Claude flag + text patterns) so detectors read a flag.
+- **`agent_codex.py`** — `codex_events(...)`, the codex rollout mapping (M2).
+- `normalize`'s `aggregate_norm_event` and the 4 detectors read **only** `NormEvent`
+  — a new agent is one adapter, consumers untouched (ARCH-DRY). Session metadata
+  (cwd/branch/permission, segment boundaries) stays a small per-agent seam
+  (`_apply_line_metadata`, `split_into_segments`).
+
+Why: introspect was Claude-only while the rest of ariadne is agent-neutral, so
+codex taste was invisible. M1 put Claude behind this abstraction
+(behavior-preserving — byte-identical `sessions.json`, identical run-3 moment set);
+M2 adds the codex adapter.
+
 ## Where things live
 
 | Path | Purpose |
 |---|---|
 | `construct/local/introspect/SKILL.md` | umbrella skill body |
 | `construct/local/introspect/scripts/` | pipeline scripts (normalize, classify, segment_text, aggregate, controller) |
+| `construct/local/introspect/scripts/events.py` | canonical `NormEvent` — the agent-neutral core (#173) |
+| `construct/local/introspect/scripts/agent_claude.py` · `agent_codex.py` | per-agent raw→NormEvent adapters (#173) |
 | `construct/local/introspect/prompts/` | system prompts for extract + cluster passes |
 | `construct/local/introspect/scripts/README.md` | composition recipes for claude / codex / gemini / local |
 | `~/.claude/skills/introspect-*/SKILL.md` | deployed sub-skills (auto-load) |
