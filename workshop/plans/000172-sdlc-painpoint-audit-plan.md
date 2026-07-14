@@ -139,14 +139,14 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 
 ### Task 8: `codexMetaKind` + `parseCodexEvents`
 **Files:** Create `codex.go`; Tests + real `testdata/codex-*.jsonl`. (Note: `transcripts/codex.go:69 codexCWDFromBytes` is cwd-only + unexported — share only the "iterate to first `session_meta`" loop shape; extract `forked_from_id`/`parent_thread_id`/`agent_nickname` net-new, review M1.)
-- [ ] **Step 1: Failing tests** from the atlas spec — `codexMetaKind`→fork-replay/sub-agent/root; `parseCodexEvents` maps a `function_call` running `sdlc <verb>` → `SdlcInvocation`, derives Bypass/Refusal from the plain-string `function_call_output.output` via the SAME `classifyOutputLine`; FIRST `session_meta`; skip fork-replay, keep sub-agent.
-- [ ] **Step 2–4:** implement; PASS.
-- [ ] **Step 5: Commit** — `#172 M3: Go codex parser (atlas-spec-derived)`.
+- [x] **Step 1: Failing tests** from the atlas spec — `codexMetaKind`→fork-replay/sub-agent/root; `parseCodexEvents` maps a `function_call` running `sdlc <verb>` → `SdlcInvocation`, derives Bypass/Refusal from the plain-string `function_call_output.output` via the SAME `classifyOutputLine`; FIRST `session_meta`; skip fork-replay, keep sub-agent.
+- [x] **Step 2–4:** implement; PASS.
+- [x] **Step 5: Commit** — `#172 M3: Go codex parser (atlas-spec-derived)`.
 
 ### Task 9: wire codex into the walk + cross-language golden test
-- [ ] **Step 1: Failing tests** — walk over 1 Claude + 1 codex transcript each with a `--no-judge` bypass → both counted, agent-tagged (codex adds e.g. no-reclose-guard 30); cross-language golden (Go decisions == Python `agent_codex.py`/`normalize.py` on a shared fixture, spec-derived snapshot).
-- [ ] **Step 2–4:** codex glob in `enumerateAllTranscripts` + dispatch; PASS; smoke over both-agent corpus; record per-agent split in Log.
-- [ ] **Step 5: Commit** — `#172 M3: codex coverage in friction-report (both agents)`.
+- [x] **Step 1: Failing tests** — walk over 1 Claude + 1 codex transcript each with a `--no-judge` bypass → both counted, agent-tagged (codex adds e.g. no-reclose-guard 30); cross-language golden (Go decisions == Python `agent_codex.py`/`normalize.py` on a shared fixture, spec-derived snapshot).
+- [x] **Step 2–4:** codex glob in `enumerateAllTranscripts` + dispatch; PASS; smoke over both-agent corpus; record per-agent split in Log.
+- [x] **Step 5: Commit** — `#172 M3: codex coverage in friction-report (both agents)`.
 
 **M3 close:** `sdlc milestone-close --issue 172 --milestone M3`.
 
@@ -279,3 +279,43 @@ capture `tool_result.is_error` when M3 touches the scanner. Review Minors deferr
 to M3 (single events computation in `buildFrictionReport`; scan-and-link core
 extraction before the codex sibling), except the refusal→retry pairing caveats,
 now stated in the report footnote.
+
+### 2026-07-14 — M3 execution deviations (recorded at boundary)
+
+M3 shipped (Tasks 8–9). Deviations, all deliberate:
+
+1. **The codex sibling is `parseCodexInvocations` + `codexMeta`, not a
+   `parseCodexEvents` FiredEvent walker** — the friction audit consumes
+   `SdlcInvocation`s, so the parser yields those directly (same shape as
+   `scanTranscript`), sharing `sdlcVerbRE`/`parseIssueID`/`classifyOutputLine`.
+   The plan's Core-Concepts row `codexMetaKind + parseCodexEvents` maps to
+   `codexMetaKind`/`codexMeta` + `parseCodexInvocations` in `processmanual/codex.go`
+   (not a `--session` codex reader — that remains out of scope).
+2. **Codex yields no ActivityMarks** — codex has no Skill tool, and its file
+   edits (patch_apply_end) would feed nothing without a plan-skill counterpart,
+   so the skill-late arm is Claude-only (stated in the report footer + helptext),
+   rather than capturing consumer-less marks (ARCH-SIMPLICITY).
+3. **`enumerateAllTranscripts` stayed two enumerators** — codex repo labels need
+   the file's `session_meta.cwd` (not derivable from the path like Claude's slug),
+   so `enumerateCodexTranscripts` returns paths and the walk labels + fork-skips
+   per file (`repoLabelFromPath`, worktree-normalized, temp-excluded). Forks
+   skipped are COUNTED (`codex_forks_skipped`) — real corpus: exactly the spec's
+   40, validating the skip-40-not-119 contract.
+4. **Cross-language golden is a spec-derived snapshot** (`testdata/codex-golden/`
+   + `expected.json`), asserting keep/skip/bypass/refusal/failed decisions — no
+   live python3, per plan; the fixture dir is the shared artifact a Python-side
+   test can consume.
+5. **M2-review deferred items landed here:** `SdlcInvocation.Failed` (Claude
+   `is_error` flag / codex non-zero wrapper exit — deliberately NOT the atlas
+   spec's hint-gated taste-friction `is_error`; documented) guards the ladder,
+   with REWORK rollback checked BEFORE the failure skip (a REWORK close reads as
+   failed but must still roll back); events classified once in
+   `buildFrictionReport` (`allGateEvents`) and shared by all three consumers;
+   `forEachRec` extracted as the shared Claude scan core for
+   `parseEvents`/`scanTranscript`.
+
+M3 both-agent headline: 1558 transcripts / 1833 invocations; codex 43 vs claude
+37 bypasses; codex's signature move is the re-close (no-reclose-guard 25
+bypasses; its 3 refusals resolved 3/3 VIA BYPASS — the one gate routed around
+after refusal); no-actual refusals 38 corpus-wide (35 satisfied); firing-order
+unchanged by codex (16 + 2 skill-late), 52 unattributed publishes.

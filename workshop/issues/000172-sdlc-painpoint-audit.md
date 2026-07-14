@@ -142,10 +142,34 @@ instrument) spans M1–M3; T2/T3 (analysis) are M4.
   per-gate **bypass** measure (claude), anti-contamination + repo labeling. Runs over
   the real corpus; reproduces the headline (T1 partial)
 - [x] M2 — refusal→retry + firing-order detectors (T1 complete for claude)
-- [ ] M3 — codex coverage (net-new Go parser from the atlas spec; both agents)
+- [x] M3 — codex coverage (net-new Go parser from the atlas spec; both agents)
 - [ ] M4 — T2 triage (gap vs escape-hatch) + T3 coverage-gap read
 
 ## Log
+
+### 2026-07-14 — M3 built (codex coverage; T1 complete, both agents)
+
+M3 complete (2 TDD tasks): (8) `codex.go` — `codexMeta` keys off the FIRST
+`session_meta` and skips fork-replays (real corpus: **exactly the spec's 40**,
+validating skip-40-not-119), keeps sub-agent threads; `parseCodexInvocations`
+maps `function_call` (`arguments.cmd`) + `call_id`-linked `function_call_output`
+onto the SAME `SdlcInvocation`/`classifyOutputLine` — sdlc's ANSI survives the
+exec_command wrapper (verified on real corpus lines). (9) walk wiring — codex
+glob + `repoLabelFromPath` (cwd-based, worktree-normalized), per-agent bypass
+split + `codex_forks_skipped` in the report, cross-language golden
+(`testdata/codex-golden/` + spec-derived `expected.json`). M2-review deferred
+items landed: `Failed` (Claude `is_error` / codex non-zero exit) guards the
+ladder (REWORK rollback checked first), events classified once
+(`allGateEvents`), `forEachRec` shared scan core, skill-late stated Claude-only.
+
+**Both-agent headline (T1 instrument complete):** 1558 transcripts / 1833
+invocations; **codex 43 vs claude 37 bypasses**. Codex's signature move is the
+**re-close**: no-reclose-guard 25 bypasses (claude 0), and its 3 refusals
+resolved 3/3 **via bypass** — the only gate agents route around after refusal.
+no-actual refusals 38 corpus-wide, 35 satisfied — refusal texts keep working as
+next-action specs. Firing-order unchanged by codex (16 change-code-after-close +
+2 skill-late; 52 unattributed publishes). Repo split now pair 37 / brain 19 /
+parley.nvim 16 / ariadne 8 — bypasses still concentrate in peers.
 
 ### 2026-07-14 — M2 built (refusal→retry + firing-order; T1 complete for claude)
 - 2026-07-14: closed M2 — go test ./cmd/sdlc/... green incl the new M2 suites (refusal-retry pairing + dedupe, firing-order ladder/attribution/skill-late, render+JSON shape, zero-transcripts error, toolResultText array form); real-corpus smoke: M1 bypass headline reproduced post-dedupe (no-judge 17, no-verified 0, brain 19/pair 15/ariadne 3), new sections render (71 refusals / 70 retried, 18 firing-order anomalies, 37 unattributed publishes); review verdict: FIX-THEN-SHIP

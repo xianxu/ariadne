@@ -284,6 +284,27 @@ M2 headline: refusals mostly resolve by **satisfying** the gate (no-estimate-rec
 19/19 satisfied; via-bypass is rare — no-verdict 2, no-atlas 1), i.e. refusals do
 their job; firing-order found change-code-after-close 16 / skill-late 2.
 
+**M3 — codex coverage (both agents).** The walk also enumerates
+`~/.codex/sessions/**/rollout-*.jsonl` via `codex.go`, whose format knowledge
+derives entirely from `atlas/workflow/introspect.md` → "Codex transcript format"
+(the spec is the DRY point with Python introspect; a cross-language golden at
+`internal/processmanual/testdata/codex-golden/` pins the shared keep/skip +
+classification decisions). Fork-replay rollouts (`forked_from_id` on the FIRST
+`session_meta`) are skipped — the real corpus skips exactly the spec's 40 —
+while sub-agent threads are processed; repo labels come from `session_meta.cwd`
+(worktree-normalized). sdlc's ANSI survives codex's exec_command wrapper, so the
+SAME `classifyOutputLine` serves both agents. `SdlcInvocation.Failed` (Claude's
+`is_error` flag / codex's non-zero `Process exited with code N` — deliberately
+NOT the spec's hint-gated taste-friction `is_error`) keeps failed invocations
+from raising the firing-order ladder. Report adds the per-agent bypass split +
+forks-skipped counter; skill-late is Claude-only (codex has no Skill tool).
+
+M3 headline: codex 43 vs claude 37 bypasses; codex's signature move is the
+**re-close** (no-reclose-guard: 25 bypasses, and its 3 refusals all resolved
+**via bypass** — the one gate agents route around after refusal); no-actual
+refusals jump to 38 corpus-wide (35 satisfied). Firing-order anomalies unchanged
+by codex (16 + 2).
+
 ## Anti-collusion + form-vs-essence
 
 Checkpoint guards defend against **omission** (claiming done without
