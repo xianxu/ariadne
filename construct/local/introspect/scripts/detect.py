@@ -36,8 +36,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-from agent_claude import claude_events
 from events import EventKind, NormEvent
+from segment_loader import load_segment_norm_events
 
 PROJECTS_ROOT = Path.home() / ".claude" / "projects"
 EDIT_AFTER_EDIT_WINDOW = 5    # max assistant turns between edits, no user turn between
@@ -115,47 +115,9 @@ class Moment:
 
 
 # Claude wire-format reading (extract_text / assistant_text_and_tools /
-# tool-result text / is_error derivation) now lives in agent_claude.py; the
-# detectors below read NormEvent fields only (#173).
-
-
-def load_segment_events(
-    raw_session_id: str,
-    project_slug: str,
-    start_ts: str | None,
-    end_ts: str | None,
-) -> list[NormEvent]:
-    """Read the Claude JSONL for this raw sessionId within [start_ts, end_ts],
-    sort by timestamp, and map each raw line through the claude adapter into the
-    NormEvent stream the detectors consume."""
-    proj_dir = PROJECTS_ROOT / project_slug
-    raw_lines: list[dict[str, Any]] = []
-    for jf in proj_dir.glob("*.jsonl"):
-        try:
-            with jf.open() as f:
-                for raw in f:
-                    raw = raw.strip()
-                    if not raw:
-                        continue
-                    try:
-                        line = json.loads(raw)
-                    except json.JSONDecodeError:
-                        continue
-                    if line.get("sessionId") != raw_session_id:
-                        continue
-                    ts = line.get("timestamp")
-                    if start_ts and ts and ts < start_ts:
-                        continue
-                    if end_ts and ts and ts > end_ts:
-                        continue
-                    raw_lines.append(line)
-        except OSError:
-            continue
-    raw_lines.sort(key=lambda l: l.get("timestamp") or "")
-    events: list[NormEvent] = []
-    for line in raw_lines:
-        events.extend(claude_events(line))
-    return events
+# tool-result text / is_error derivation) now lives in agent_claude.py, and the
+# agent-keyed raw→NormEvent loading in segment_loader.py; the detectors below read
+# NormEvent fields only (#173).
 
 
 # ── Detectors ────────────────────────────────────────────────────────────────
@@ -377,13 +339,9 @@ def main() -> int:
                 skipped += 1
                 continue
             project_slug = sess["project_slug"]
-            # Segments: load events bounded by the segment's time range and
-            # filtered to its raw sessionId. Older sessions.json (pre-segment)
-            # may not have raw_session_id; fall back to session_id then.
-            raw_sid = sess.get("raw_session_id") or sid
-            events = load_segment_events(
-                raw_sid, project_slug, sess.get("start_ts"), sess.get("end_ts")
-            )
+            # Agent-keyed load: claude project JSONL (by sessionId+ts) or codex
+            # rollout (by persisted path) → NormEvent stream (segment_loader, #173).
+            events = load_segment_norm_events(sess)
             moments = run_all_detectors(events, sid, project_slug, activity)
             counts: Counter = Counter()
             for m in moments:

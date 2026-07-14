@@ -40,6 +40,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from events import EventKind, NormEvent
+from segment_loader import load_segment_norm_events
+
 # Quiet SIGPIPE handling — let "segment_text.py … | head" exit cleanly without
 # Python printing a BrokenPipeError to stderr at interpreter shutdown.
 try:
@@ -47,7 +50,6 @@ try:
 except (AttributeError, ValueError):
     pass  # Windows / non-main-thread
 
-PROJECTS_ROOT = Path.home() / ".claude" / "projects"
 ASSISTANT_TEXT_HEAD = 1500
 ASSISTANT_TEXT_TAIL = 500
 ASSISTANT_TEXT_MAX = 4000
@@ -63,76 +65,6 @@ def truncate(text: str, max_len: int, head: int | None = None, tail: int | None 
     tail = tail if tail is not None else 0
     omitted = len(text) - head - tail
     return f"{text[:head]}\n… [{omitted} chars omitted] …\n{text[-tail:]}" if tail else text[:head] + f" … [{omitted} chars omitted]"
-
-
-def extract_text_from_content(content: Any) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if not isinstance(item, dict):
-                continue
-            if item.get("type") == "text" and "text" in item:
-                parts.append(item["text"])
-        return "\n".join(parts)
-    return ""
-
-
-def extract_tool_uses(content: Any) -> list[dict[str, Any]]:
-    if not isinstance(content, list):
-        return []
-    return [item for item in content if isinstance(item, dict) and item.get("type") == "tool_use"]
-
-
-def summarize_tool_input(name: str, ipt: dict[str, Any]) -> str:
-    if name in ("Edit", "Write", "Read"):
-        fp = ipt.get("file_path", "")
-        extras = []
-        if "old_string" in ipt:
-            extras.append(f"old≈{(ipt['old_string'] or '')[:60].strip()!r}")
-        if "new_string" in ipt:
-            extras.append(f"new≈{(ipt['new_string'] or '')[:60].strip()!r}")
-        if "limit" in ipt:
-            extras.append(f"limit={ipt['limit']}")
-        if "offset" in ipt:
-            extras.append(f"offset={ipt['offset']}")
-        suffix = (" " + " ".join(extras)) if extras else ""
-        return f"file_path={fp}{suffix}"
-    if name == "Bash":
-        cmd = (ipt.get("command") or "").replace("\n", " ⏎ ")
-        return f"command={truncate(cmd, 240)!r}"
-    if name == "Skill":
-        return f"skill={ipt.get('skill', '')} args={ipt.get('args', '')!r}"
-    if name == "Agent":
-        return f"description={(ipt.get('description') or '')[:120]!r} type={ipt.get('subagent_type', 'general-purpose')}"
-    if name == "Grep":
-        return f"pattern={ipt.get('pattern', '')!r} path={ipt.get('path', '')}"
-    keys = sorted(ipt.keys())[:4]
-    return f"keys={keys}"
-
-
-def extract_tool_result_text(line: dict[str, Any]) -> str:
-    msg = line.get("message", {})
-    if not isinstance(msg, dict):
-        return ""
-    c = msg.get("content", "")
-    if isinstance(c, str):
-        return c
-    if isinstance(c, list):
-        parts = []
-        for it in c:
-            if not isinstance(it, dict):
-                continue
-            ct = it.get("content", "")
-            if isinstance(ct, str):
-                parts.append(ct)
-            elif isinstance(ct, list):
-                for sub in ct:
-                    if isinstance(sub, dict) and sub.get("type") == "text":
-                        parts.append(sub.get("text", ""))
-        return "\n".join(parts)
-    return ""
 
 
 def load_session_index(cache_dir: Path) -> dict[str, dict[str, Any]]:
@@ -157,37 +89,19 @@ def resolve_segment_id(cache_dir: Path, raw: str) -> str | None:
     return None
 
 
-def load_segment_events(
-    raw_session_id: str, project_slug: str, start_ts: str | None, end_ts: str | None
-) -> list[dict[str, Any]]:
-    proj_dir = PROJECTS_ROOT / project_slug
-    events: list[dict[str, Any]] = []
-    for jf in proj_dir.glob("*.jsonl"):
-        try:
-            with jf.open() as f:
-                for raw in f:
-                    raw = raw.strip()
-                    if not raw:
-                        continue
-                    try:
-                        line = json.loads(raw)
-                    except json.JSONDecodeError:
-                        continue
-                    if line.get("sessionId") != raw_session_id:
-                        continue
-                    ts = line.get("timestamp")
-                    if start_ts and ts and ts < start_ts:
-                        continue
-                    if end_ts and ts and ts > end_ts:
-                        continue
-                    events.append(line)
-        except OSError:
-            continue
-    events.sort(key=lambda l: l.get("timestamp") or "")
-    return events
+def _sep(out: list[str]) -> None:
+    """Ensure a blank separator before a new turn/block (keeps tool lines attached
+    to their assistant turn)."""
+    if out and out[-1] != "":
+        out.append("")
 
 
-def render_segment(segment: dict[str, Any], events: list[dict[str, Any]]) -> str:
+def render_segment(segment: dict[str, Any], events: list[NormEvent]) -> str:
+    """Render a segment's NormEvent stream as light-markdown text for the extract
+    LLM. Agent-neutral (#173): reads NormEvent fields, so codex and claude segments
+    render through the same path. Tool detail is the adapter's terse
+    `tool_input_summary` (file_path / command) — less rich than the pre-#173 Claude
+    renderer's old/new-string previews, but uniform across agents."""
     out: list[str] = []
     sid = segment["session_id"]
     activity = segment.get("activity") or "?"
@@ -201,6 +115,7 @@ def render_segment(segment: dict[str, Any], events: list[dict[str, Any]]) -> str
         dur_min = f" [{int(segment['duration_seconds']/60)} min]"
 
     out.append(f"# transcript segment {sid}{pos}{dur_min}")
+    out.append(f"# agent: {segment.get('agent', 'claude')}")
     out.append(f"# project: {proj_short}")
     out.append(f"# activity: {activity}")
     if segment.get("cwd"):
@@ -220,60 +135,42 @@ def render_segment(segment: dict[str, Any], events: list[dict[str, Any]]) -> str
             out.append(f"#   {line}")
     out.append("")
 
-    # Walk events in order
-    for evt in events:
-        et = evt.get("type")
-        ts = evt.get("timestamp", "")
-        if et == "user":
-            tur = evt.get("toolUseResult")
-            if tur:
-                rt = extract_tool_result_text(evt)
-                is_err = isinstance(tur, dict) and tur.get("is_error")
-                # Skip empty / no-output results unless they were errors.
-                if not rt.strip() and not is_err:
-                    continue
-                rt = truncate(rt, TOOL_RESULT_MAX)
-                err_marker = " ERROR" if is_err else ""
-                out.append(f"[tool_result @ {ts}{err_marker}]")
-                if rt.strip():
-                    for ln in rt.splitlines():
-                        out.append(f"  {ln}")
-                else:
-                    out.append("  (empty)")
-                out.append("")
-            else:
-                # actual user prose
-                text = extract_text_from_content(evt.get("message", {}).get("content"))
-                text = truncate(text, USER_TEXT_MAX)
-                if text.strip():
-                    out.append(f"== user @ {ts} ==")
-                    out.append(text)
-                    out.append("")
-        elif et == "assistant":
-            msg = evt.get("message", {})
-            if not isinstance(msg, dict):
+    for e in events:
+        ts = e.ts or ""
+        if e.kind == EventKind.USER_MSG and not e.is_tool_result:
+            text = truncate(e.text or "", USER_TEXT_MAX)
+            if text.strip():
+                _sep(out)
+                out.append(f"== user @ {ts} ==")
+                out.append(text)
+        elif e.kind == EventKind.ASSISTANT_MSG:
+            _sep(out)
+            out.append(f"== assistant @ {ts} ==")
+            text = truncate(e.text or "", ASSISTANT_TEXT_MAX,
+                            head=ASSISTANT_TEXT_HEAD, tail=ASSISTANT_TEXT_TAIL)
+            if text.strip():
+                out.append(text)
+        elif e.kind in (EventKind.TOOL_CALL, EventKind.FILE_EDIT):
+            # attaches to the assistant turn above (no separator)
+            out.append(f"[tool: {e.tool_name} {e.tool_input_summary or ''}]".rstrip())
+        elif e.kind == EventKind.TOOL_RESULT:
+            rt = e.text or ""
+            if not rt.strip() and not e.is_error:
                 continue
-            content = msg.get("content", [])
-            text = extract_text_from_content(content)
-            tools = extract_tool_uses(content)
-            text_trunc = truncate(text, ASSISTANT_TEXT_MAX, head=ASSISTANT_TEXT_HEAD, tail=ASSISTANT_TEXT_TAIL)
-            if text_trunc.strip() or tools:
-                out.append(f"== assistant @ {ts} ==")
-                if text_trunc.strip():
-                    out.append(text_trunc)
-                for tu in tools:
-                    name = tu.get("name", "?")
-                    summary = summarize_tool_input(name, tu.get("input") or {})
-                    out.append(f"[tool: {name} {summary}]")
-                out.append("")
-        elif et == "system" and evt.get("subtype") == "away_summary":
-            content = evt.get("content")
-            if isinstance(content, str):
-                out.append(f"[away_summary @ {ts}]")
-                for line in content.splitlines():
-                    out.append(f"  {line}")
-                out.append("")
-        # Skip permission-mode, file-history-snapshot, attachment, ai-title, etc.
+            rt = truncate(rt, TOOL_RESULT_MAX)
+            _sep(out)
+            out.append(f"[tool_result @ {ts}{' ERROR' if e.is_error else ''}]")
+            if rt.strip():
+                for ln in rt.splitlines():
+                    out.append(f"  {ln}")
+            else:
+                out.append("  (empty)")
+        elif e.kind == EventKind.BOUNDARY and e.text:
+            label = "away_summary" if e.boundary_kind == "away" else (e.boundary_kind or "boundary")
+            _sep(out)
+            out.append(f"[{label} @ {ts}]")
+            for line in e.text.splitlines():
+                out.append(f"  {line}")
 
     return "\n".join(out).rstrip() + "\n"
 
@@ -331,10 +228,7 @@ def main() -> int:
                 segment["activity"] = c.get("activity", "?")
                 break
 
-    raw_sid = segment.get("raw_session_id") or canonical
-    events = load_segment_events(
-        raw_sid, segment["project_slug"], segment.get("start_ts"), segment.get("end_ts")
-    )
+    events = load_segment_norm_events(segment)
     sys.stdout.write(render_segment(segment, events))
     return 0
 
