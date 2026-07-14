@@ -15,11 +15,22 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from agent_claude import claude_events
 from detect import (
     detect_edit_after_edit,
     detect_friction,
     detect_redirects_and_endorsements,
 )
+
+
+def norm(raw_lines: list[dict]) -> list:
+    """Flatten raw Claude-line fixtures through the claude adapter into the
+    NormEvent stream the detectors now consume (#173) — so these tests exercise
+    the full adapter→detector pipeline."""
+    out = []
+    for line in raw_lines:
+        out.extend(claude_events(line))
+    return out
 
 
 # ── Event-builder helpers ────────────────────────────────────────────────────
@@ -90,7 +101,7 @@ def test_redirect_basic() -> None:
         assistant("Let me write the file", tool_uses=[tu_write("t1", "/x.txt")]),
         user_text("no, do it differently"),
     ]
-    moments = list(detect_redirects_and_endorsements(events, "s1", "p1", "implementation"))
+    moments = list(detect_redirects_and_endorsements(norm(events), "s1", "p1", "implementation"))
     check("redirect: 'no, ...' triggers", any(m.type == "redirect" for m in moments))
 
 
@@ -99,7 +110,7 @@ def test_redirect_actually() -> None:
         assistant("Done"),
         user_text("actually, can you also add the test"),
     ]
-    moments = list(detect_redirects_and_endorsements(events, "s1", "p1", "implementation"))
+    moments = list(detect_redirects_and_endorsements(norm(events), "s1", "p1", "implementation"))
     check("redirect: 'actually,' triggers", any(m.type == "redirect" for m in moments))
 
 
@@ -108,7 +119,7 @@ def test_redirect_neutral_no_fire() -> None:
         assistant("Done"),
         user_text("now let's move on to the next thing"),
     ]
-    moments = list(detect_redirects_and_endorsements(events, "s1", "p1", "implementation"))
+    moments = list(detect_redirects_and_endorsements(norm(events), "s1", "p1", "implementation"))
     check("redirect: neutral message does not fire",
           not any(m.type == "redirect" for m in moments))
 
@@ -118,14 +129,14 @@ def test_endorsement_yes() -> None:
         assistant("Implemented it.", tool_uses=[tu_write("t1", "/x.go")]),
         user_text("perfect, ship it"),
     ]
-    moments = list(detect_redirects_and_endorsements(events, "s1", "p1", "implementation"))
+    moments = list(detect_redirects_and_endorsements(norm(events), "s1", "p1", "implementation"))
     check("endorsement: 'perfect' triggers", any(m.type == "endorsement" for m in moments))
 
 
 def test_endorsement_skips_when_no_assistant_action() -> None:
     # First user turn, no preceding assistant action → no endorsement target
     events = [user_text("yes")]
-    moments = list(detect_redirects_and_endorsements(events, "s1", "p1", "implementation"))
+    moments = list(detect_redirects_and_endorsements(norm(events), "s1", "p1", "implementation"))
     check("endorsement: no fire without assistant action",
           not any(m.type == "endorsement" for m in moments))
 
@@ -136,7 +147,7 @@ def test_edit_after_edit_fires_on_three_rapid_edits() -> None:
         assistant("", tool_uses=[tu_edit("t2", "/a.go")]),
         assistant("", tool_uses=[tu_edit("t3", "/a.go")]),
     ]
-    moments = list(detect_edit_after_edit(events, "s1", "p1", "implementation"))
+    moments = list(detect_edit_after_edit(norm(events), "s1", "p1", "implementation"))
     eae = [m for m in moments if m.type == "edit-after-edit"]
     check("edit-after-edit: 3 rapid edits → 1 moment", len(eae) == 1,
           f"got {len(eae)}")
@@ -151,7 +162,7 @@ def test_edit_after_edit_user_break_resets() -> None:
         user_text("looks good but also fix this"),
         assistant("", tool_uses=[tu_edit("t2", "/a.go")]),
     ]
-    moments = list(detect_edit_after_edit(events, "s1", "p1", "implementation"))
+    moments = list(detect_edit_after_edit(norm(events), "s1", "p1", "implementation"))
     eae = [m for m in moments if m.type == "edit-after-edit"]
     check("edit-after-edit: user-break between edits suppresses", not eae)
 
@@ -161,7 +172,7 @@ def test_edit_after_edit_single_pair_below_threshold() -> None:
         assistant("", tool_uses=[tu_edit("t1", "/a.go")]),
         assistant("", tool_uses=[tu_edit("t2", "/a.go")]),
     ]
-    moments = list(detect_edit_after_edit(events, "s1", "p1", "implementation"))
+    moments = list(detect_edit_after_edit(norm(events), "s1", "p1", "implementation"))
     eae = [m for m in moments if m.type == "edit-after-edit"]
     check("edit-after-edit: single pair stays below threshold", not eae)
 
@@ -171,7 +182,7 @@ def test_friction_three_errors() -> None:
     for i in range(3):
         events.append(assistant("", tool_uses=[tu_bash(f"t{i}", "rm /x")]))
         events.append(user_tool_result(f"t{i}", "Operation not permitted", is_error=True))
-    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    moments = list(detect_friction(norm(events), "s1", "p1", "implementation"))
     fr = [m for m in moments if m.type == "friction"]
     check("friction: 3 is_error results → 1 moment", len(fr) == 1, f"got {len(fr)}")
     if fr:
@@ -191,7 +202,7 @@ def test_friction_ignores_content_match_without_error_flag() -> None:
             "...permission...granted...this is just a paragraph mentioning permission again",
             is_error=False,
         ))
-    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    moments = list(detect_friction(norm(events), "s1", "p1", "implementation"))
     check("friction: content match without is_error flag is suppressed",
           not [m for m in moments if m.type == "friction"])
 
@@ -203,7 +214,7 @@ def test_friction_below_threshold_no_fire() -> None:
         assistant("", tool_uses=[tu_bash("t2", "rm /y")]),
         user_tool_result("t2", "Operation not permitted", is_error=True),
     ]
-    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    moments = list(detect_friction(norm(events), "s1", "p1", "implementation"))
     check("friction: 2 errors below threshold (3) → no moment",
           not [m for m in moments if m.type == "friction"])
 
@@ -218,7 +229,7 @@ def test_friction_exit_code_with_hint() -> None:
             "Exit code 1\nopen /tmp/x: operation not permitted",
             is_error=False,
         ))
-    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    moments = list(detect_friction(norm(events), "s1", "p1", "implementation"))
     check("friction: Exit-code + hint path fires without is_error",
           len([m for m in moments if m.type == "friction"]) == 1)
 
@@ -238,7 +249,7 @@ def test_friction_cross_tool_buckets_separately() -> None:
                                     "input": {"file_path": "/b", "old_string": "x", "new_string": "y"}}]),
         user_tool_result("t4", "Operation not permitted", is_error=True),
     ]
-    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    moments = list(detect_friction(norm(events), "s1", "p1", "implementation"))
     check("friction: cross-tool errors don't merge into one bucket",
           not [m for m in moments if m.type == "friction"])
 
@@ -249,7 +260,7 @@ def test_friction_unknown_bucket_suppressed() -> None:
     for i in range(5):
         # Tool result references an id that was never seen in an assistant turn
         events.append(user_tool_result(f"unseen-{i}", "Operation not permitted", is_error=True))
-    moments = list(detect_friction(events, "s1", "p1", "implementation"))
+    moments = list(detect_friction(norm(events), "s1", "p1", "implementation"))
     check("friction: '?' tool bucket suppressed even past threshold",
           not [m for m in moments if m.type == "friction"])
 
@@ -264,7 +275,7 @@ def test_edit_after_edit_window_decay_suppresses() -> None:
     events.append(assistant("", tool_uses=[tu_edit("t1", "/a.go")]))
     # Add another rapid pair to confirm nothing else fires either
     events.append(assistant("", tool_uses=[tu_edit("t2", "/a.go")]))
-    moments = list(detect_edit_after_edit(events, "s1", "p1", "implementation"))
+    moments = list(detect_edit_after_edit(norm(events), "s1", "p1", "implementation"))
     eae = [m for m in moments if m.type == "edit-after-edit"]
     check("edit-after-edit: 6-turn gap breaks the rapid pair", not eae)
 
@@ -276,7 +287,7 @@ def test_redirect_skips_tool_result_text() -> None:
         assistant("", tool_uses=[tu_bash("t1", "ls")]),
         user_tool_result("t1", "no such file or directory"),
     ]
-    moments = list(detect_redirects_and_endorsements(events, "s1", "p1", "implementation"))
+    moments = list(detect_redirects_and_endorsements(norm(events), "s1", "p1", "implementation"))
     check("redirect: tool_result text starting with 'no' is skipped",
           not [m for m in moments if m.type == "redirect"])
 
@@ -292,9 +303,9 @@ def test_endorsement_weight_tier() -> None:
         assistant("Here's what I think we should do..."),
         user_text("yes, go ahead"),
     ]
-    m_tool = [m for m in detect_redirects_and_endorsements(events_tool, "s1", "p1", "i")
+    m_tool = [m for m in detect_redirects_and_endorsements(norm(events_tool), "s1", "p1", "i")
               if m.type == "endorsement"]
-    m_text = [m for m in detect_redirects_and_endorsements(events_text_only, "s2", "p1", "i")
+    m_text = [m for m in detect_redirects_and_endorsements(norm(events_text_only), "s2", "p1", "i")
               if m.type == "endorsement"]
     check("endorsement: tool-backed weight=2", bool(m_tool) and m_tool[0].weight == 2,
           f"got {m_tool[0].weight if m_tool else 'none'}")
