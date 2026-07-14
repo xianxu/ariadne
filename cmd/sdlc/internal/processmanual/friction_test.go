@@ -33,6 +33,16 @@ func mkUserResult(id, stdout string) string {
 	return string(b)
 }
 
+func mkUserResultErr(id, stdout string) string {
+	b, _ := json.Marshal(map[string]any{
+		"type": "user",
+		"message": map[string]any{"content": []any{
+			map[string]any{"type": "tool_result", "tool_use_id": id, "content": stdout, "is_error": true},
+		}},
+	})
+	return string(b)
+}
+
 // scanTranscript extracts only anchored Bash(sdlc <verb>) calls, joined to their
 // tool_use_id-linked output, with issueID + isHelp parsed from the command.
 func TestSdlcInvocations(t *testing.T) {
@@ -166,7 +176,7 @@ func TestAggregateAntiContamination(t *testing.T) {
 		{Verb: "close", Output: mixed, Repo: "ariadne"},
 		{Verb: "close", Output: "no gate events here", Repo: "ariadne"},
 	}
-	rep := aggregate(invs, 2)
+	rep := aggregate(invs, allGateEvents(invs), 2)
 	if len(rep.Gates) != 1 || rep.Gates[0].Flag != "no-atlas" || rep.Gates[0].Bypasses != 1 {
 		t.Fatalf("want exactly one no-atlas bypass (the real ACK; source+cat-n rejected), got %+v", rep.Gates)
 	}
@@ -182,10 +192,11 @@ func TestObservabilityPerCommand(t *testing.T) {
 	esc := "\x1b"
 	closeAck := esc + "[1;36m==>" + esc + "[0m skipping issue boundary review per --no-judge (or --force)"
 	ccAck := "  " + esc + "[1;33m[!]" + esc + "[0m plan-quality gate bypassed (--force: needed to iterate)"
-	rep := aggregate([]SdlcInvocation{
+	obsInvs := []SdlcInvocation{
 		{Verb: "close", Output: closeAck, Repo: "r"},
 		{Verb: "change-code", Output: ccAck, Repo: "r"},
-	}, 2)
+	}
+	rep := aggregate(obsInvs, allGateEvents(obsInvs), 2)
 	got := map[string]string{}
 	for _, g := range rep.Gates {
 		if g.Flag == "no-judge" {
@@ -241,7 +252,7 @@ func TestDetectRefusalRetries(t *testing.T) {
 		{Verb: "merge", IssueID: "", Transcript: "t2", Repo: "brain", Output: publishRefusal},
 		{Verb: "merge", IssueID: "", Transcript: "t2", Repo: "brain", Output: "merged 000042 into main."},
 	}
-	rrs := detectRefusalRetries(invs)
+	rrs := detectRefusalRetries(invs, allGateEvents(invs))
 	if len(rrs) != 3 {
 		t.Fatalf("want 3 refusal→retry records (warmup adds none), got %d: %+v", len(rrs), rrs)
 	}
@@ -266,7 +277,8 @@ func TestDetectRefusalRetriesSameInvocation(t *testing.T) {
 	esc := "\x1b"
 	out := "  or pass --no-atlas (or --force) with the rationale in --verified\n" +
 		"  " + esc + "[1;33m[!]" + esc + "[0m --no-atlas (or --force): skipping atlas/ change check — rationale in --verified"
-	rrs := detectRefusalRetries([]SdlcInvocation{{Verb: "close", IssueID: "9", Transcript: "t", Output: out}})
+	oneInv := []SdlcInvocation{{Verb: "close", IssueID: "9", Transcript: "t", Output: out}}
+	rrs := detectRefusalRetries(oneInv, allGateEvents(oneInv))
 	if len(rrs) != 1 || !rrs[0].Retried || !rrs[0].Resolved || !rrs[0].ViaBypass {
 		t.Fatalf("want in-invocation refusal resolved via bypass, got %+v", rrs)
 	}
@@ -331,9 +343,17 @@ func TestDetectFiringOrderLadder(t *testing.T) {
 				Time: time.Date(2026, 7, 14, 10, 0, 0, 0, time.UTC)},
 			foInv("change-code", "5", "t", 1, ""),
 		}, nil},
+		{"a FAILED close (non-gate: is_error/non-zero exit) does not raise the ladder", []SdlcInvocation{
+			foInv("change-code", "5", "t", 0, ""),
+			{Verb: "close", IssueID: "5", Transcript: "t", Repo: "r", Failed: true,
+				Output: "Error: working tree dirty — commit or stash first",
+				Time:   time.Date(2026, 7, 14, 10, 1, 0, 0, time.UTC)},
+			foInv("change-code", "5", "t", 2, ""),
+			foInv("close", "5", "t", 3, "closed."),
+		}, nil},
 	}
 	for _, c := range cases {
-		res := detectFiringOrder(c.invs, nil)
+		res := detectFiringOrder(c.invs, allGateEvents(c.invs), nil)
 		var kinds []string
 		for _, a := range res.Anomalies {
 			kinds = append(kinds, a.Kind)
@@ -354,7 +374,7 @@ func TestDetectFiringOrderMergeAttribution(t *testing.T) {
 		foInv("merge", "", "t", 12, "merged."), // → attributed to 8 (nearest preceding --issue)
 		foInv("change-code", "8", "t", 20, ""), // → after the attributed merge
 	}
-	res := detectFiringOrder(invs, nil)
+	res := detectFiringOrder(invs, allGateEvents(invs), nil)
 	if len(res.Anomalies) != 1 || res.Anomalies[0].Kind != "change-code-after-close" ||
 		!strings.Contains(res.Anomalies[0].Detail, "merge") {
 		t.Fatalf("want one change-code-after-close with merge detail (attribution raised the ladder), got %+v", res.Anomalies)
@@ -363,7 +383,8 @@ func TestDetectFiringOrderMergeAttribution(t *testing.T) {
 		t.Errorf("attributed merge counted as unattributed: %d", res.UnattributedPublish)
 	}
 
-	res2 := detectFiringOrder([]SdlcInvocation{foInv("merge", "", "t2", 0, "merged.")}, nil)
+	loneMerge := []SdlcInvocation{foInv("merge", "", "t2", 0, "merged.")}
+	res2 := detectFiringOrder(loneMerge, allGateEvents(loneMerge), nil)
 	if res2.UnattributedPublish != 1 || len(res2.Anomalies) != 0 {
 		t.Errorf("context-free merge: want unattributed=1, no anomalies; got %d / %+v",
 			res2.UnattributedPublish, res2.Anomalies)
@@ -379,7 +400,7 @@ func TestDetectFiringOrderSkillLate(t *testing.T) {
 	}
 	invs := []SdlcInvocation{foInv("claim", "9", "t", 0, "")}
 
-	res := detectFiringOrder(invs, []ActivityMark{
+	res := detectFiringOrder(invs, allGateEvents(invs), []ActivityMark{
 		mark(KindFileEdit, "cmd/sdlc/foo.go", 1),
 		mark(KindSkill, "superpowers-writing-plans", 2),
 	})
@@ -388,7 +409,7 @@ func TestDetectFiringOrderSkillLate(t *testing.T) {
 	}
 
 	// doc/plan/issue (.md) edits are design work, not implementation — no flag
-	res2 := detectFiringOrder(invs, []ActivityMark{
+	res2 := detectFiringOrder(invs, allGateEvents(invs), []ActivityMark{
 		mark(KindFileEdit, "workshop/plans/000009-x-plan.md", 1),
 		mark(KindSkill, "superpowers-writing-plans", 2),
 	})
@@ -397,12 +418,78 @@ func TestDetectFiringOrderSkillLate(t *testing.T) {
 	}
 
 	// skill loaded BEFORE any edit is the correct order
-	res3 := detectFiringOrder(invs, []ActivityMark{
+	res3 := detectFiringOrder(invs, allGateEvents(invs), []ActivityMark{
 		mark(KindSkill, "superpowers-writing-plans", 1),
 		mark(KindFileEdit, "cmd/sdlc/foo.go", 2),
 	})
 	if len(res3.Anomalies) != 0 {
 		t.Errorf("skill-then-edit must not flag, got %+v", res3.Anomalies)
+	}
+}
+
+// Bypasses are agent-tagged so the report can split claude vs codex (M3).
+func TestAggregatePerAgent(t *testing.T) {
+	esc := "\x1b"
+	ack := esc + "[1;36m==>" + esc + "[0m skipping issue boundary review per --no-judge (or --force)"
+	invs := []SdlcInvocation{
+		{Verb: "close", Output: ack, Repo: "r", Agent: "claude"},
+		{Verb: "close", Output: ack, Repo: "r", Agent: "codex"},
+	}
+	rep := aggregate(invs, allGateEvents(invs), 2)
+	if rep.ByAgentBypass["claude"] != 1 || rep.ByAgentBypass["codex"] != 1 {
+		t.Errorf("want per-agent bypass 1/1, got %v", rep.ByAgentBypass)
+	}
+	for _, g := range rep.Gates {
+		if g.Flag == "no-judge" && g.Bypasses != 2 {
+			t.Errorf("both agents' bypasses must land in the same gate row, got %+v", g)
+		}
+	}
+}
+
+// A tool_result with is_error:true marks the invocation Failed (M2-review
+// deferred hardening — failed invocations must not raise the ladder).
+func TestScanTranscriptFailed(t *testing.T) {
+	lines := []string{
+		mkAssistantBash("tu1", "sdlc close --issue 7"),
+		mkUserResultErr("tu1", "Error: working tree dirty"),
+	}
+	invs, _ := scanTranscript([]byte(strings.Join(lines, "\n")), map[string]bool{"close": true})
+	if len(invs) != 1 || !invs[0].Failed {
+		t.Fatalf("want one Failed invocation from is_error tool_result, got %+v", invs)
+	}
+}
+
+func TestRepoLabelFromPath(t *testing.T) {
+	cases := []struct {
+		cwd, want string
+		include   bool
+	}{
+		{"/Users/xianxu/workspace/pair", "pair", true},
+		{"/Users/xianxu/workspace/brain/data/life/politics", "brain", true},
+		{"/Users/xianxu/workspace/worktree/ariadne/000031-x", "ariadne", true},
+		{"/private/tmp/claude-501/scratch", "", false},
+		{"/private/var/folders/07/xyz", "", false},
+		{"", "", false},
+	}
+	for _, c := range cases {
+		got, inc := repoLabelFromPath(c.cwd)
+		if inc != c.include || (inc && got != c.want) {
+			t.Errorf("repoLabelFromPath(%q) = (%q,%v), want (%q,%v)", c.cwd, got, inc, c.want, c.include)
+		}
+	}
+}
+
+func TestEnumerateCodexTranscripts(t *testing.T) {
+	root := t.TempDir()
+	d := filepath.Join(root, "2026", "07", "10")
+	if err := os.MkdirAll(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(d, "rollout-2026-07-10T07-55-56-abc.jsonl"), []byte("{}"), 0o644)
+	os.WriteFile(filepath.Join(d, "not-a-rollout.jsonl"), []byte("{}"), 0o644)
+	paths := enumerateCodexTranscripts(root)
+	if len(paths) != 1 || !strings.HasSuffix(paths[0], "rollout-2026-07-10T07-55-56-abc.jsonl") {
+		t.Errorf("want the one rollout-*.jsonl, got %v", paths)
 	}
 }
 
@@ -507,7 +594,7 @@ func TestToolResultTextArrayForm(t *testing.T) {
 // Zero enumerable transcripts must ERROR, not print an empty report — the #68
 // lesson: a misinvocation must not look like a real empty answer (M1 review Minor).
 func TestRunFrictionReportZeroTranscripts(t *testing.T) {
-	if _, err := RunFrictionReport(filepath.Join(t.TempDir(), "no-such-dir"), false); err == nil {
+	if _, err := RunFrictionReport(filepath.Join(t.TempDir(), "no-claude"), filepath.Join(t.TempDir(), "no-codex"), false); err == nil {
 		t.Fatal("want an error when zero transcripts enumerate, got nil")
 	}
 }

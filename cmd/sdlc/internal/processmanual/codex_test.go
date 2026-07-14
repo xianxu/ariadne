@@ -2,6 +2,8 @@ package processmanual
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -106,6 +108,82 @@ func TestParseCodexInvocations(t *testing.T) {
 	sub := codexSubMeta + "\n" + strings.Join(strings.Split(root, "\n")[1:], "\n")
 	if got := parseCodexInvocations([]byte(sub), verbs); len(got) != 1 {
 		t.Errorf("sub-agent rollout must be processed, got %+v", got)
+	}
+}
+
+// Cross-language golden (plan Task 9): the Go reader's keep/skip + classification
+// decisions on testdata/codex-golden/ must match expected.json — the spec-derived
+// snapshot both this reader and Python introspect (agent_codex.py/normalize.py)
+// answer to. No live python3: the expectations are derived from the shared spec
+// (atlas/workflow/introspect.md), which is the DRY point.
+func TestCodexGoldenDecisions(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("testdata", "codex-golden", "expected.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exp struct {
+		Files map[string]struct {
+			Decision    string         `json:"decision"`
+			Invocations int            `json:"invocations"`
+			Bypasses    map[string]int `json:"bypasses"`
+			Refusals    map[string]int `json:"refusals"`
+			Failed      int            `json:"failed_invocations"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(raw, &exp); err != nil {
+		t.Fatal(err)
+	}
+	verbs := map[string]bool{"close": true}
+	for name, want := range exp.Files {
+		data, err := os.ReadFile(filepath.Join("testdata", "codex-golden", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		kind, _, ok := codexMeta(data)
+		decision := "process"
+		if ok && kind == codexForkReplay {
+			decision = "skip-fork-replay"
+		}
+		if decision != want.Decision {
+			t.Errorf("%s: decision %q, want %q", name, decision, want.Decision)
+		}
+		invs := parseCodexInvocations(data, verbs)
+		if len(invs) != want.Invocations {
+			t.Errorf("%s: %d invocations, want %d: %+v", name, len(invs), want.Invocations, invs)
+		}
+		bypasses, refusals := map[string]int{}, map[string]int{}
+		failed := 0
+		for _, inv := range invs {
+			if inv.Failed {
+				failed++
+			}
+			for _, ev := range invocationGateEvents(inv) {
+				if ev.Kind == GateBypass {
+					bypasses[ev.Gate]++
+				} else {
+					refusals[ev.Gate]++
+				}
+			}
+		}
+		if failed != want.Failed {
+			t.Errorf("%s: %d failed invocations, want %d", name, failed, want.Failed)
+		}
+		for gate, n := range want.Bypasses {
+			if bypasses[gate] != n {
+				t.Errorf("%s: bypass %s = %d, want %d", name, gate, bypasses[gate], n)
+			}
+		}
+		if len(bypasses) != len(want.Bypasses) {
+			t.Errorf("%s: extra bypasses beyond golden: %v (want %v)", name, bypasses, want.Bypasses)
+		}
+		for gate, n := range want.Refusals {
+			if refusals[gate] != n {
+				t.Errorf("%s: refusal %s = %d, want %d", name, gate, refusals[gate], n)
+			}
+		}
+		if len(refusals) != len(want.Refusals) {
+			t.Errorf("%s: extra refusals beyond golden: %v (want %v)", name, refusals, want.Refusals)
+		}
 	}
 }
 

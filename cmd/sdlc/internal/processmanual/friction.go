@@ -97,18 +97,9 @@ func scanTranscript(data []byte, validVerbs map[string]bool) ([]SdlcInvocation, 
 	var pend []pending
 	var marks []ActivityMark
 	outByID := map[string]string{}
+	errByID := map[string]bool{}
 
-	sc := bufio.NewScanner(bytes.NewReader(data))
-	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
-	for sc.Scan() {
-		line := bytes.TrimSpace(sc.Bytes())
-		if len(line) == 0 {
-			continue
-		}
-		var r rec
-		if json.Unmarshal(line, &r) != nil {
-			continue
-		}
+	forEachRec(data, func(r rec) {
 		switch r.Type {
 		case "assistant":
 			for _, c := range r.Message.Content {
@@ -153,19 +144,44 @@ func scanTranscript(data []byte, validVerbs map[string]bool) ([]SdlcInvocation, 
 					if txt := toolResultText(c.Result); txt != "" {
 						outByID[c.ToolUseID] = txt
 					}
+					if c.IsError {
+						errByID[c.ToolUseID] = true
+					}
 				}
 			}
 		}
-	}
+	})
 
 	out := make([]SdlcInvocation, 0, len(pend))
 	for _, p := range pend {
 		if sd, ok := outByID[p.id]; ok {
 			p.inv.Output = sd
 		}
+		p.inv.Failed = errByID[p.id]
 		out = append(out, p.inv)
 	}
 	return out, marks
+}
+
+// forEachRec is THE shared Claude-transcript scan core — parseEvents (the
+// --session report) and scanTranscript (the friction audit) both iterate through
+// it, so the two walkers can't drift on scanner buffer sizing or line tolerance
+// (#172 M1 review watch item). Malformed lines are skipped, not fatal.
+func forEachRec(data []byte, fn func(rec)) error {
+	sc := bufio.NewScanner(bytes.NewReader(data))
+	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024) // transcript lines can be large
+	for sc.Scan() {
+		line := bytes.TrimSpace(sc.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		var r rec
+		if json.Unmarshal(line, &r) != nil {
+			continue
+		}
+		fn(r)
+	}
+	return sc.Err()
 }
 
 // GateEvent is one classified bypass-ACK or gate-refusal observed in an sdlc
@@ -318,9 +334,21 @@ type RefusalRetry struct {
 	Observability string `json:"observability"`
 }
 
+// allGateEvents classifies every invocation ONCE — the single events stream all
+// three consumers (aggregate, detectRefusalRetries, detectFiringOrder) read, so
+// there is one source of classification (#172 M2 review Minor).
+func allGateEvents(invs []SdlcInvocation) [][]GateEvent {
+	events := make([][]GateEvent, len(invs))
+	for i := range invs {
+		events[i] = invocationGateEvents(invs[i])
+	}
+	return events
+}
+
 // detectRefusalRetries is pure over the parsed invocations, which arrive in
 // transcript order (the corpus walk appends per transcript chronologically).
-func detectRefusalRetries(invs []SdlcInvocation) []RefusalRetry {
+// events is the precomputed allGateEvents stream, index-aligned with invs.
+func detectRefusalRetries(invs []SdlcInvocation, events [][]GateEvent) []RefusalRetry {
 	byTranscript := map[string][]int{}
 	var order []string
 	for i, inv := range invs {
@@ -328,10 +356,6 @@ func detectRefusalRetries(invs []SdlcInvocation) []RefusalRetry {
 			order = append(order, inv.Transcript)
 		}
 		byTranscript[inv.Transcript] = append(byTranscript[inv.Transcript], i)
-	}
-	events := make([][]GateEvent, len(invs))
-	for i := range invs {
-		events[i] = invocationGateEvents(invs[i])
 	}
 	var out []RefusalRetry
 	for _, t := range order {
@@ -400,7 +424,8 @@ type FiringOrderResult struct {
 	UnattributedPublish int                  `json:"unattributed_publish"`
 }
 
-// detectFiringOrder walks each (repo, issue)'s invocations in time order against
+// detectFiringOrder walks each (repo, issue)'s invocations (events precomputed,
+// index-aligned) in time order against
 // the workflowStage ladder, iteration-aware: the legal loops that must NOT flag
 // are milestone-close→change-code (next milestone), start-plan re-runs
 // (AGENTS.md: "re-run per design"), and close→change-code/start-plan after a
@@ -412,7 +437,7 @@ type FiringOrderResult struct {
 // preceding --issue invocation in the same transcript within the gap boundary)
 // or counted unattributed. The skill-late arm flags a plan/TDD Skill load after
 // a non-doc file edit in the same segment+issue.
-func detectFiringOrder(invs []SdlcInvocation, marks []ActivityMark) FiringOrderResult {
+func detectFiringOrder(invs []SdlcInvocation, events [][]GateEvent, marks []ActivityMark) FiringOrderResult {
 	var res FiringOrderResult
 
 	// 1. Attribute merge/push from segment context. --help invocations are not
@@ -476,22 +501,23 @@ func detectFiringOrder(invs []SdlcInvocation, marks []ActivityMark) FiringOrderR
 				})
 				flagged = true // once per issue — repeated regressions are one finding
 			}
-			if evs := invocationGateEvents(inv); anyGateEvent(evs, GateRefusal) && !anyGateEvent(evs, GateBypass) {
-				// A gate-REFUSED invocation did not cross its boundary — a refused
-				// close followed by change-code is legal recovery, not an inversion,
-				// so the ladder must not raise (M2 boundary review, Important #1). A
-				// refusal WITH a bypass ACK is the compound retry (`close || close
-				// --no-X`) — that one completed. Residual: non-gate failures (dirty
-				// tree, no claim) carry no refusal signature; capturing
-				// tool_result.is_error is the M3 hardening.
-				continue
-			}
 			if (inv.Verb == "close" || inv.Verb == "milestone-close") && isReworkVerdict(inv.Output) {
 				// REWORK reopens (codecomplete→working): roll the ladder back to the
-				// implementing stage instead of raising it.
+				// implementing stage instead of raising it. Checked BEFORE the
+				// failure skip — a REWORK close also reads as failed, but it must
+				// still roll an already-raised ladder back.
 				if maxStage > workflowStage["change-code"] {
 					maxStage = workflowStage["change-code"]
 				}
+				continue
+			}
+			if inv.Failed || (anyGateEvent(events[i], GateRefusal) && !anyGateEvent(events[i], GateBypass)) {
+				// A failed or gate-REFUSED invocation did not cross its boundary — a
+				// refused close followed by change-code is legal recovery, not an
+				// inversion (M2 boundary review, Important #1). Failed covers the
+				// non-gate failures (dirty tree, no claim) via Claude's is_error /
+				// codex's non-zero exit (M3 hardening); a refusal WITH a bypass ACK
+				// is the compound retry (`close || close --no-X`) — that completed.
 				continue
 			}
 			if s := workflowStage[inv.Verb]; s > maxStage {
@@ -631,6 +657,46 @@ func repoLabel(slug string) (label string, include bool) {
 	return strings.TrimPrefix(slug, "-"), true
 }
 
+// repoLabelFromPath maps a codex session_meta.cwd (a real path, unlike the
+// dash-joined Claude slug) to a repo label — the codex counterpart of repoLabel.
+// Worktree checkouts normalize to their repo; scratch/temp dirs are excluded.
+func repoLabelFromPath(cwd string) (label string, include bool) {
+	if cwd == "" || strings.HasPrefix(cwd, "/tmp/") || strings.HasPrefix(cwd, "/private/tmp") ||
+		strings.HasPrefix(cwd, "/private/var/folders") {
+		return "", false
+	}
+	first := func(rest string) string {
+		if j := strings.IndexByte(rest, '/'); j >= 0 {
+			return rest[:j]
+		}
+		return rest
+	}
+	if i := strings.Index(cwd, "/workspace/worktree/"); i >= 0 {
+		return first(cwd[i+len("/workspace/worktree/"):]), true
+	}
+	if i := strings.Index(cwd, "/workspace/"); i >= 0 {
+		return first(cwd[i+len("/workspace/"):]), true
+	}
+	return filepath.Base(cwd), true
+}
+
+// enumerateCodexTranscripts walks ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
+// under codexRoot. Repo labels need the file's session_meta.cwd, so this returns
+// paths only; the walk labels (and fork-skips) per file.
+func enumerateCodexTranscripts(codexRoot string) []string {
+	var out []string
+	_ = filepath.WalkDir(codexRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil // tolerant: unreadable subtree is skipped
+		}
+		if !d.IsDir() && strings.HasPrefix(d.Name(), "rollout-") && strings.HasSuffix(d.Name(), ".jsonl") {
+			out = append(out, path)
+		}
+		return nil
+	})
+	return out
+}
+
 // enumerateClaudeTranscripts walks every ~/.claude/projects/<slug>/*.jsonl under
 // claudeRoot (injectable for tests). The IO seam; the pure detectors receive the
 // parsed invocations.
@@ -676,16 +742,20 @@ type FrictionReport struct {
 	InvocationsSeen    int               `json:"invocations_seen"`
 	Gates              []GateStat        `json:"gates"`
 	ByRepoBypass       map[string]int    `json:"by_repo_bypass"`
+	ByAgentBypass      map[string]int    `json:"by_agent_bypass"`
+	CodexForksSkipped  int               `json:"codex_forks_skipped"`
 	RefusalRetries     []RefusalRetry    `json:"refusal_retries"`
 	FiringOrder        FiringOrderResult `json:"firing_order"`
 }
 
 // buildFrictionReport composes the pure detectors over one parsed corpus — the
-// single seam RunFrictionReport (and M3's codex walk) feed.
+// single seam RunFrictionReport feeds (both agents' invocations merged). Events
+// are classified once here and shared by all three consumers.
 func buildFrictionReport(invs []SdlcInvocation, marks []ActivityMark, nTranscripts int) FrictionReport {
-	rep := aggregate(invs, nTranscripts)
-	rep.RefusalRetries = detectRefusalRetries(invs)
-	rep.FiringOrder = detectFiringOrder(invs, marks)
+	events := allGateEvents(invs)
+	rep := aggregate(invs, events, nTranscripts)
+	rep.RefusalRetries = detectRefusalRetries(invs, events)
+	rep.FiringOrder = detectFiringOrder(invs, events, marks)
 	return rep
 }
 
@@ -710,28 +780,30 @@ func obsString(o Observability) string {
 	}
 }
 
-// aggregate is pure over the parsed invocations — classifies each output line and
-// tallies per-gate bypass/refusal + per-repo bypass. IsHelp invocations are skipped
-// (their output lists every flag). Gates are sorted by bypass count descending.
-func aggregate(invs []SdlcInvocation, nTranscripts int) FrictionReport {
+// aggregate is pure over the parsed invocations (events precomputed via
+// allGateEvents, index-aligned) — tallies per-gate bypass/refusal + per-repo and
+// per-agent bypass. Gates are sorted by bypass count descending.
+func aggregate(invs []SdlcInvocation, events [][]GateEvent, nTranscripts int) FrictionReport {
 	type key struct{ cmd, flag string }
 	bypass := map[key]int{}
 	refusal := map[key]int{}
 	obs := map[key]Observability{}
 	byRepo := map[string]int{}
-	for _, inv := range invs {
+	byAgent := map[string]int{}
+	for i, inv := range invs {
 		// NB: we do NOT skip IsHelp invocations — a compound Bash command
 		// (`sdlc close --no-judge && sdlc x --help`) contains "--help" yet carries a
 		// real close bypass, and help-text lines don't match the specific ACK/refusal
 		// patterns anyway, so the classifier already rejects them (#172).
-		// invocationGateEvents dedupes per (kind, gate, command) — one no-validate
+		// The events stream is deduped per (kind, gate, command) — one no-validate
 		// refusal prints two matching lines and must count once (M2).
-		for _, ev := range invocationGateEvents(inv) {
+		for _, ev := range events[i] {
 			k := key{ev.Command, ev.Gate}
 			obs[k] = ev.Observability // uniform per (command, flag) — no last-write collapse
 			if ev.Kind == GateBypass {
 				bypass[k]++
 				byRepo[inv.Repo]++
+				byAgent[inv.Agent]++
 			} else {
 				refusal[k]++
 			}
@@ -767,7 +839,7 @@ func aggregate(invs []SdlcInvocation, nTranscripts int) FrictionReport {
 	})
 	return FrictionReport{
 		TranscriptsScanned: nTranscripts, InvocationsSeen: len(invs),
-		Gates: gates, ByRepoBypass: byRepo,
+		Gates: gates, ByRepoBypass: byRepo, ByAgentBypass: byAgent,
 	}
 }
 
@@ -796,6 +868,31 @@ func renderFrictionReport(rep FrictionReport) string {
 	sort.SliceStable(repos, func(i, j int) bool { return repos[i].n > repos[j].n })
 	for _, r := range repos {
 		fmt.Fprintf(&b, "| %s | %d |\n", r.repo, r.n)
+	}
+
+	// ── Per-agent split (M3) ──
+	if len(rep.ByAgentBypass) > 0 {
+		fmt.Fprintf(&b, "\n## Bypass concentration by agent\n\n| agent | bypasses |\n|---|---|\n")
+		var agents []string
+		for a := range rep.ByAgentBypass {
+			agents = append(agents, a)
+		}
+		sort.SliceStable(agents, func(i, j int) bool {
+			if rep.ByAgentBypass[agents[i]] != rep.ByAgentBypass[agents[j]] {
+				return rep.ByAgentBypass[agents[i]] > rep.ByAgentBypass[agents[j]]
+			}
+			return agents[i] < agents[j]
+		})
+		for _, a := range agents {
+			name := a
+			if name == "" {
+				name = "(untagged)"
+			}
+			fmt.Fprintf(&b, "| %s | %d |\n", name, rep.ByAgentBypass[a])
+		}
+	}
+	if rep.CodexForksSkipped > 0 {
+		fmt.Fprintf(&b, "\n_%d codex fork-replay rollout(s) skipped (they replay their parent's transcript — counting them double-counts every shared event)._\n", rep.CodexForksSkipped)
 	}
 
 	// ── Refusal→retry (M2) ──
@@ -895,19 +992,22 @@ func renderFrictionReport(rep FrictionReport) string {
 	}
 
 	b.WriteString("\n_Observability: `force-only` = change-code silent bypass (countable only via --force); `flag-omitted` = merge/push refusal doesn't name the flag._\n")
-	b.WriteString("_Stated limits: dev-style invocations (`go run ./cmd/sdlc <verb>`, `bin/sdlc <verb>`) are not anchored — undercounts the repo that dogfoods sdlc; in a compound command only the FIRST `sdlc <verb>` anchors (a second verb's gate lines are conservatively dropped)._\n")
+	b.WriteString("_Stated limits: dev-style invocations (`go run ./cmd/sdlc <verb>`, `bin/sdlc <verb>`) are not anchored — undercounts the repo that dogfoods sdlc; in a compound command only the FIRST `sdlc <verb>` anchors (a second verb's gate lines are conservatively dropped); the skill-late arm is Claude-only (codex has no Skill tool; its file edits have no plan-skill counterpart to pair with)._\n")
 	return b.String()
 }
 
-// RunFrictionReport walks the whole Claude corpus under claudeRoot, extracts sdlc
-// invocations, and returns the friction report as markdown (or JSON). The IO entry;
-// enumeration + file reads are the only side effects.
-func RunFrictionReport(claudeRoot string, asJSON bool) (string, error) {
+// RunFrictionReport walks the whole corpus — every Claude transcript under
+// claudeRoot AND every codex rollout under codexRoot (M3) — extracts sdlc
+// invocations, and returns the friction report as markdown (or JSON). The IO
+// entry; enumeration + file reads are the only side effects. A missing corpus on
+// ONE side is fine (single-agent machines); zero transcripts on BOTH errors.
+func RunFrictionReport(claudeRoot, codexRoot string, asJSON bool) (string, error) {
 	refs := enumerateClaudeTranscripts(claudeRoot)
-	if len(refs) == 0 {
-		// #68 lesson: a misinvocation (wrong/missing corpus root) must not look
+	codexPaths := enumerateCodexTranscripts(codexRoot)
+	if len(refs)+len(codexPaths) == 0 {
+		// #68 lesson: a misinvocation (wrong/missing corpus roots) must not look
 		// like a real empty answer.
-		return "", fmt.Errorf("no transcripts found under %s — is this the Claude projects dir?", claudeRoot)
+		return "", fmt.Errorf("no transcripts found under %s or %s — are these the Claude projects / codex sessions dirs?", claudeRoot, codexRoot)
 	}
 	verbs := WorkflowVerbs()
 	var invs []SdlcInvocation
@@ -927,7 +1027,35 @@ func RunFrictionReport(claudeRoot string, asJSON bool) (string, error) {
 			marks = append(marks, mk)
 		}
 	}
-	rep := buildFrictionReport(invs, marks, len(refs))
+	scanned := len(refs)
+	forksSkipped := 0
+	for _, path := range codexPaths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		kind, cwd, ok := codexMeta(data)
+		if !ok {
+			continue // not a session rollout
+		}
+		if kind == codexForkReplay {
+			// Replays its parent's transcript — processing it double-counts every
+			// shared event (the spec's 66%-inflation trap). Counted, not hidden.
+			forksSkipped++
+			continue
+		}
+		label, include := repoLabelFromPath(cwd)
+		if !include {
+			continue
+		}
+		scanned++
+		for _, inv := range parseCodexInvocations(data, verbs) {
+			inv.Transcript, inv.Repo = path, label
+			invs = append(invs, inv)
+		}
+	}
+	rep := buildFrictionReport(invs, marks, scanned)
+	rep.CodexForksSkipped = forksSkipped
 	if asJSON {
 		out, err := json.MarshalIndent(rep, "", "  ")
 		if err != nil {

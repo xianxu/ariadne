@@ -39,7 +39,7 @@ func NewProcessManualCmd() *cobra.Command {
 	cmd.Flags().StringVar(&session, "session", "", "reconstruct which injection points FIRED in a session transcript (a .jsonl path, or \"current\" for this repo's active session) instead of the static catalog (#157)")
 	cmd.Flags().BoolVar(&full, "full", false, "inline the complete judge prompts instead of a first-paragraph gist (outline unchanged)")
 	cmd.Flags().BoolVar(&includeMemory, "include-memory", false, "inline private, machine-local persisted memories (redacted by default; do NOT commit the output)")
-	cmd.Flags().BoolVar(&frictionReport, "friction-report", false, "aggregate per-gate bypass rates, refusal→retry resolution, and firing-order anomalies across the WHOLE Claude corpus (all repos), command-anchored + contamination-filtered (#172)")
+	cmd.Flags().BoolVar(&frictionReport, "friction-report", false, "aggregate per-gate bypass rates, refusal→retry resolution, and firing-order anomalies across the WHOLE corpus — Claude + codex, all repos — command-anchored + contamination-filtered (#172)")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "with --friction-report: emit the machine-readable JSON report instead of markdown")
 	return cmd
 }
@@ -57,7 +57,9 @@ func runProcessManual(stdout, stderr io.Writer, outPath, session string, full, i
 			return fmt.Errorf("--friction-report and --session are mutually exclusive (corpus aggregate vs single session)")
 		}
 		home, _ := os.UserHomeDir()
-		content, err := processmanual.RunFrictionReport(filepath.Join(home, ".claude", "projects"), asJSON)
+		content, err := processmanual.RunFrictionReport(
+			filepath.Join(home, ".claude", "projects"),
+			filepath.Join(home, ".codex", "sessions"), asJSON)
 		if err != nil {
 			return err
 		}
