@@ -49,8 +49,15 @@ Claude transcripts (`~/.claude/projects`). Measuring bypass/friction from Claude
 alone gives a partial, biased picture (e.g. the "bypasses concentrate in peer
 repos" finding could differ by agent). So T1's telemetry must ingest codex
 transcripts as well. This shares the codex-transcript-reading concern with
-**#173** (introspect codex ingest) — coordinate on a common codex transcript
-locator/parser rather than each building its own (ARCH-DRY).
+**#173** (introspect codex ingest). The two can't share code (introspect is
+Python, `process-manual --session` is Go), so the DRY point is the **format spec**:
+#173 M3 documented the codex rollout format — `{timestamp,type,payload}` vocabulary,
+event→field mapping table, `is_error` derivation, and the **multi-agent fork-replay
+trap** (forked rollouts replay the parent transcript and carry two `session_meta`;
+key off the FIRST, skip forks, or per-session counts inflate ~66%) — as the single
+source of truth in **`atlas/workflow/introspect.md` → "Codex transcript format"**.
+T1's Go reader MUST derive from that section (esp. the fork-skip), not re-discover
+the format (ARCH-DRY).
 
 **Baseline signal (cleaned — command-field-only grep over ~2,300 transcripts;
 order-of-magnitude, not exact):** per-gate bypass frequency —

@@ -121,10 +121,81 @@ The pipeline no longer reads Claude's wire format directly. A canonical
 Why: introspect was Claude-only while the rest of ariadne is agent-neutral, so
 codex taste was invisible. M1 put normalize + detect behind the abstraction
 (behavior-preserving — byte-identical `sessions.json`, identical run-3 moment set);
-**M2 added the codex adapter + `segment_loader` + lifted `segment_text`**, so codex
-is now both detectable and extractable end-to-end. Empirical: codex sessions carry
-far more **friction** signal than claude (non-zero exit codes vs claude's harness
-is_error flag; some benign like grep-no-match).
+**M2 added the codex adapter + `segment_loader` + lifted `segment_text`**; **M3
+dogfooded it over the real codex corpus** (see "M3 finding" below).
+
+## Codex transcript format (single source of truth — shared with #172)
+
+The codex rollout format is documented **here, once**, because two implementations
+derive from it and can't share code: introspect is **Python**
+(`agent_codex.py`/`normalize.py`); #172's `process-manual --session` is **Go**
+(`cmd/sdlc/internal/processmanual/session.go`). The DRY point (ARCH-DRY) is this
+spec, not a shared reader. Keep this table and `agent_codex.py` in lockstep.
+
+**Location.** One JSONL file per raw session at
+`~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl`. The sibling SQLite DBs
+(`logs_2.sqlite`, `state_5.sqlite`) are tracing/state, **not** the transcript —
+ignore them. So ingestion is a **format mapping, not a DB extraction.**
+
+**Record shape.** Every line is `{timestamp, type, payload}`. Codex emits both an
+`event_msg/*` stream AND `response_item/*` canonical items — the same turn appears
+twice. **Pick ONE canonical source per field** or counts double.
+
+| codex event | → `NormEvent` | notes |
+|---|---|---|
+| `session_meta.payload` `{id, cwd, git.branch, forked_from_id}` | session id / cwd / branch (via locator, not an event) | **use the FIRST `session_meta` in the file** — see forks below |
+| `event_msg/user_message` | `user_msg` | canonical user source |
+| `event_msg/agent_message` | `assistant_msg` | canonical assistant source (NOT `response_item/message` — that's the double-rep) |
+| `response_item/function_call` (+ `arguments`) | `tool_call` | `call_id` → `tool_use_id` (correlates to its output) |
+| `response_item/custom_tool_call` (+ `input`) | `tool_call` | custom/MCP; args under `input` (dict), not `arguments` |
+| `response_item/{web_search_call,tool_search_call}` | `tool_call` | else tool counts undercount |
+| `response_item/function_call_output` (+ `custom_tool_call_output`) | `tool_result` | `output` is a **plain string**; `is_error` DERIVED (below) |
+| `event_msg/patch_apply_end` `{changes, success}` | one `file_edit` per changed file | `type:"add"`→Write, else Edit; `success` is a structured flag (cleaner than Claude) |
+| `compacted` | `boundary` (`compacted`) | explicit segment boundary — better than Claude's lull heuristic |
+| `response_item/reasoning`, `event_msg/token_count`, `turn_context`, `response_item/message` | dropped | metadata / double-representation |
+
+**`is_error` is derived, not a flag.** `function_call_output.output` is a plain
+string (e.g. `"…Process exited with code 71\n…Operation not permitted"`) — codex has
+no structured error field. Mirror Claude's gate: a failing signal (a non-zero
+`Process exited with code N`, or an `error:`/`exit code` prefix) **paired with a
+`FRICTION_HINT`** (permission / sandbox / operation-not-permitted / blocked). A
+non-zero exit ALONE is not friction — grep/sed/ls no-match, `command not found`,
+and expected test failures exit non-zero benignly (M3: 106 of 112 raw codex
+"friction" moments were this noise). `event_msg/mcp_tool_call_end` (rare) is not
+yet mapped.
+
+**⚠️ Multi-agent forks replay the parent — MUST be handled (both languages).** A
+forked/sub-agent rollout (pair, parley.nvim multi-agent runs; meta has
+`forked_from_id`/`parent_thread_id`/`agent_nickname`) **replays the parent session's
+entire transcript**, then adds its own events. Two consequences:
+
+1. It carries **TWO `session_meta` lines** — its own (`id`=fork, `forked_from_id`
+   set) FIRST, then the replayed parent's (`id`=parent). Key off the **FIRST** meta,
+   or every fork collapses onto its parent's id.
+2. Its events **duplicate the parent's**. Processing both double-counts every shared
+   moment — the M3 dogfood measured **66% moment inflation** (one redirect counted
+   ×11 across a parent + 10 forks).
+
+`normalize.process_codex_file` **skips any rollout whose first meta has
+`forked_from_id`** (the user-facing taste — redirects/endorsements — lives in the
+parent thread; forks are agent-orchestration). `run.json` reports
+`codex_forks_skipped`. Any consumer of this format (incl. #172's Go) must do the
+same, or its per-session counts are wrong.
+
+## M3 finding — does codex reopen the taste well? (No)
+
+The M3 dogfood answered #173's headline question: **does the codex corpus yield
+more taste than Claude, which hit diminishing returns in #169?** Confound-normalized
+answer: **no.** Over 54 root codex sessions (pair / parley.nvim / ariadne), the raw
+counts *looked* ~10× richer (112 friction, 198 endorsements) but were **~95%
+artifact**: 66% fork-replay duplication + benign-exit friction. Cleaned, the codex
+signal is **8 unique redirects (all project-local UX), 12 genuine sandbox-denial
+frictions, 0 tool-backed endorsements, 0 new generalizable rules** — the one real
+debugging moment ("don't guess, use the logging") was already deployed in
+`introspect-debugging`. Same conclusion as #169: the constitution + 22 existing
+rules capture the transferable taste regardless of agent; **introspect run cadence
+should stretch on both agents.** The engineering (agent-neutral ingest, end-to-end)
+is validated; the *hypothesis* that a less-tuned agent reopens the well is not.
 
 ## Where things live
 
