@@ -111,6 +111,19 @@ func TestParseCodexInvocations(t *testing.T) {
 	}
 }
 
+// The wrapper's exit line precedes the command's own output, and the FIRST match
+// wins — a body that merely mentions a non-zero "Process exited with code N"
+// (e.g. a test log read back) must not mark the invocation Failed (M3 review).
+func TestCodexOutputFailedFirstMatch(t *testing.T) {
+	ok := "Chunk ID: x\nWall time: 0.1 seconds\nProcess exited with code 0\nOriginal token count: 9\nOutput:\ntest log: Process exited with code 3\n"
+	if codexOutputFailed(ok) {
+		t.Error("zero wrapper exit with a non-zero mention in the body must not be Failed")
+	}
+	if !codexOutputFailed("Chunk ID: x\nProcess exited with code 71\nOutput:\nError: refused") {
+		t.Error("non-zero wrapper exit must be Failed")
+	}
+}
+
 // Cross-language golden (plan Task 9): the Go reader's keep/skip + classification
 // decisions on testdata/codex-golden/ must match expected.json — the spec-derived
 // snapshot both this reader and Python introspect (agent_codex.py/normalize.py)

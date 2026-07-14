@@ -122,6 +122,7 @@ func parseCodexInvocations(data []byte, validVerbs map[string]bool) []SdlcInvoca
 			Type      string    `json:"type"`
 			Payload   struct {
 				Type      string `json:"type"`
+				Name      string `json:"name"`
 				Arguments string `json:"arguments"`
 				CallID    string `json:"call_id"`
 				Output    string `json:"output"`
@@ -132,6 +133,9 @@ func parseCodexInvocations(data []byte, validVerbs map[string]bool) []SdlcInvoca
 		}
 		switch r.Payload.Type {
 		case "function_call":
+			if r.Payload.Name != "exec_command" {
+				continue // only the shell tool runs sdlc; other tools' args can't collide (M3 review Minor)
+			}
 			var args struct {
 				Cmd string `json:"cmd"`
 			}

@@ -319,3 +319,17 @@ M3 both-agent headline: 1558 transcripts / 1833 invocations; codex 43 vs claude
 bypasses; its 3 refusals resolved 3/3 VIA BYPASS — the one gate routed around
 after refusal); no-actual refusals 38 corpus-wide (35 satisfied); firing-order
 unchanged by codex (16 + 2 skill-late), 52 unattributed publishes.
+
+**Boundary-review fixes (FIX-THEN-SHIP):** Important #1 — the two-corpus walk
+seam now has an integration test (`TestRunFrictionReportTwoAgentWalk`:
+enumerate→label→agent-tag→merge over a temp claude+codex tree, plus the
+one-corpus-missing-is-fine contract). Important #2 — the cross-language golden
+gained its Python consumer: `test_normalize.py::test_codex_golden_shared_fixture`
+asserts the keep/skip decision on the shared `testdata/codex-golden/` fixtures
+(skips gracefully in downstream repos without `cmd/sdlc`), so drift on the one
+genuinely shared judgment now fails a test on BOTH sides. Minors folded:
+`/var/folders` (unresolved TMPDIR) excluded from codex repo labels;
+`parseCodexInvocations` pins `name == "exec_command"`; `RefusalRetry.Agent` for
+M4's per-agent triage; `codexOutputFailed` first-match pinned by test;
+`forEachRec` error discard made deliberate; `gofmt -w` zeroed the package's
+format drift. Post-fix smoke: agents/forks counts identical.

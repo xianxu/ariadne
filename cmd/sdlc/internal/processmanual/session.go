@@ -137,9 +137,9 @@ type rec struct {
 			Name      string          `json:"name"`
 			ID        string          `json:"id"`
 			Input     json.RawMessage `json:"input"`
-			ToolUseID string          `json:"tool_use_id"`      // tool_result → its tool_use's id
-			Result    json.RawMessage `json:"content"`          // tool_result → its output (string | [{text}])
-			IsError   bool            `json:"is_error"`         // tool_result → harness-set failure flag
+			ToolUseID string          `json:"tool_use_id"` // tool_result → its tool_use's id
+			Result    json.RawMessage `json:"content"`     // tool_result → its output (string | [{text}])
+			IsError   bool            `json:"is_error"`    // tool_result → harness-set failure flag
 		} `json:"content"`
 	} `json:"message"`
 	ToolUseResult json.RawMessage `json:"toolUseResult"` // polymorphic: {stdout,…} | string | null

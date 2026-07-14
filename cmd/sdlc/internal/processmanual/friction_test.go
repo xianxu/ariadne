@@ -168,7 +168,7 @@ func TestAggregateAntiContamination(t *testing.T) {
 	mixed := strings.Join([]string{
 		"reading close.go for context",
 		`cmd/sdlc/close.go:437:  cwarn(stderr, "--no-atlas (or --force): skipping atlas/ change check")`, // source
-		"944\t\ttail = append(tail, \"Pass --no-atlas (or --force) …\")",                                // cat-n
+		"944\t\ttail = append(tail, \"Pass --no-atlas (or --force) …\")",                                 // cat-n
 		ackLine, // the ONE real bypass
 		"done.",
 	}, "\n")
@@ -469,6 +469,7 @@ func TestRepoLabelFromPath(t *testing.T) {
 		{"/Users/xianxu/workspace/worktree/ariadne/000031-x", "ariadne", true},
 		{"/private/tmp/claude-501/scratch", "", false},
 		{"/private/var/folders/07/xyz", "", false},
+		{"/var/folders/07/xyz", "", false}, // unresolved macOS TMPDIR form
 		{"", "", false},
 	}
 	for _, c := range cases {
@@ -549,12 +550,12 @@ func TestFrictionReportRenderAndJSON(t *testing.T) {
 
 	md := renderFrictionReport(rep)
 	for _, want := range []string{
-		"| close | no-atlas | 1 | 1 |",  // per-gate row: 1 bypass, 1 refusal
-		"## Refusal→retry",              // section present
+		"| close | no-atlas | 1 | 1 |",         // per-gate row: 1 bypass, 1 refusal
+		"## Refusal→retry",                     // section present
 		"| close | no-atlas | 1 | 1 | 1 | 1 |", // refusals/retried/resolved/via-bypass tallies
 		"## Firing-order anomalies",
 		"change-code-after-close",
-		"go run",                        // stated-limitations footnote (dev invocations not anchored)
+		"go run", // stated-limitations footnote (dev invocations not anchored)
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("render missing %q in:\n%s", want, md)
@@ -588,6 +589,60 @@ func TestToolResultTextArrayForm(t *testing.T) {
 	got := toolResultText(json.RawMessage(`[{"type":"text","text":"line one"},{"type":"text","text":"line two"}]`))
 	if !strings.Contains(got, "line one") || !strings.Contains(got, "line two") {
 		t.Fatalf("array-form content not joined: %q", got)
+	}
+}
+
+// The two-corpus walk end-to-end: enumerate → meta/label → agent-tag → merge —
+// one Claude transcript + one codex rollout, each with a no-judge bypass, both
+// counted and agent-tagged; a missing corpus on ONE side is fine (M3 review
+// Important #1 — the wiring seam had only live smoke before).
+func TestRunFrictionReportTwoAgentWalk(t *testing.T) {
+	root := t.TempDir()
+	claudeRoot := filepath.Join(root, "claude")
+	codexRoot := filepath.Join(root, "codex")
+
+	slugDir := filepath.Join(claudeRoot, "-Users-x-workspace-pair")
+	if err := os.MkdirAll(slugDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ack := "\x1b[1;36m==>\x1b[0m skipping issue boundary review per --no-judge (or --force)"
+	claudeLines := mkAssistantBash("tu1", "sdlc close --issue 9 --no-judge --actual 1 --verified x") + "\n" + mkUserResult("tu1", ack)
+	if err := os.WriteFile(filepath.Join(slugDir, "s.jsonl"), []byte(claudeLines), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	codexDay := filepath.Join(codexRoot, "2026", "07", "01")
+	if err := os.MkdirAll(codexDay, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub, err := os.ReadFile(filepath.Join("testdata", "codex-golden", "subagent.jsonl")) // carries a no-judge close, cwd …/workspace/pair
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(codexDay, "rollout-2026-07-01T12-00-00-x.jsonl"), sub, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := RunFrictionReport(claudeRoot, codexRoot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rep FrictionReport
+	if err := json.Unmarshal([]byte(out), &rep); err != nil {
+		t.Fatal(err)
+	}
+	if rep.ByAgentBypass["claude"] != 1 || rep.ByAgentBypass["codex"] != 1 {
+		t.Fatalf("want 1 no-judge bypass per agent, got %v", rep.ByAgentBypass)
+	}
+	if rep.ByRepoBypass["pair"] != 2 {
+		t.Errorf("both transcripts label to repo pair (slug + cwd): got %v", rep.ByRepoBypass)
+	}
+	if rep.TranscriptsScanned != 2 {
+		t.Errorf("transcripts scanned = %d, want 2", rep.TranscriptsScanned)
+	}
+
+	if _, err := RunFrictionReport(claudeRoot, filepath.Join(root, "absent"), true); err != nil {
+		t.Errorf("a missing corpus on one side must not error: %v", err)
 	}
 }
 

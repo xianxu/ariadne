@@ -21,12 +21,12 @@ import (
 // that saturates this repo's transcripts. Transcript/Agent/Repo are set by the
 // corpus walk (M1 Task 4 / M3).
 type SdlcInvocation struct {
-	Verb       string
-	Command    string // full bash command (for --force / --issue parsing)
-	IssueID    string // from "--issue N" / "#N" in the command ("" if absent)
-	Output     string // linked tool_result stdout
-	Time       time.Time
-	IsHelp     bool // `sdlc <verb> --help` — its output lists every flag; excluded
+	Verb    string
+	Command string // full bash command (for --force / --issue parsing)
+	IssueID string // from "--issue N" / "#N" in the command ("" if absent)
+	Output  string // linked tool_result stdout
+	Time    time.Time
+	IsHelp  bool // `sdlc <verb> --help` — its output lists every flag; excluded
 	// Failed: the command did not complete — Claude's tool_result is_error flag /
 	// codex's non-zero "Process exited with code N". NOT the taste-friction
 	// is_error gate (atlas spec); used so failed invocations don't raise the
@@ -99,7 +99,11 @@ func scanTranscript(data []byte, validVerbs map[string]bool) ([]SdlcInvocation, 
 	outByID := map[string]string{}
 	errByID := map[string]bool{}
 
-	forEachRec(data, func(r rec) {
+	// Error deliberately discarded: a >16MB line truncates the rest of THAT
+	// transcript only — for a whole-corpus aggregate, partial data from one
+	// pathological file beats failing the walk (parseEvents, single-session,
+	// does propagate it).
+	_ = forEachRec(data, func(r rec) {
 		switch r.Type {
 		case "assistant":
 			for _, c := range r.Message.Content {
@@ -205,9 +209,9 @@ const (
 type Observability int
 
 const (
-	ObsFull       Observability = iota // ACK/refusal is emitted and names the flag
-	ObsForceOnly                       // change-code: bypass observable only via --force (silent alone)
-	ObsFlagOmitted                     // merge/push: refusal never names the flag (best-effort attribution)
+	ObsFull        Observability = iota // ACK/refusal is emitted and names the flag
+	ObsForceOnly                        // change-code: bypass observable only via --force (silent alone)
+	ObsFlagOmitted                      // merge/push: refusal never names the flag (best-effort attribution)
 )
 
 var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -328,6 +332,7 @@ type RefusalRetry struct {
 	Command       string `json:"command"`
 	IssueID       string `json:"issue_id,omitempty"`
 	Repo          string `json:"repo,omitempty"`
+	Agent         string `json:"agent,omitempty"` // claude | codex — M4's triage wants the split
 	Retried       bool   `json:"retried"`
 	Resolved      bool   `json:"resolved"`
 	ViaBypass     bool   `json:"via_bypass"`
@@ -367,7 +372,7 @@ func detectRefusalRetries(invs []SdlcInvocation, events [][]GateEvent) []Refusal
 				}
 				rr := RefusalRetry{
 					Gate: ev.Gate, Command: ev.Command,
-					IssueID: invs[i].IssueID, Repo: invs[i].Repo,
+					IssueID: invs[i].IssueID, Repo: invs[i].Repo, Agent: invs[i].Agent,
 					Observability: obsString(ev.Observability),
 				}
 				if hasGateEvent(events[i], GateBypass, ev.Gate) {
@@ -662,7 +667,7 @@ func repoLabel(slug string) (label string, include bool) {
 // Worktree checkouts normalize to their repo; scratch/temp dirs are excluded.
 func repoLabelFromPath(cwd string) (label string, include bool) {
 	if cwd == "" || strings.HasPrefix(cwd, "/tmp/") || strings.HasPrefix(cwd, "/private/tmp") ||
-		strings.HasPrefix(cwd, "/private/var/folders") {
+		strings.HasPrefix(cwd, "/private/var/folders") || strings.HasPrefix(cwd, "/var/folders") {
 		return "", false
 	}
 	first := func(rest string) string {

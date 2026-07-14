@@ -53,4 +53,3 @@ func TestNoJudgeCloseHasNoRefusal(t *testing.T) {
 		}
 	}
 }
-

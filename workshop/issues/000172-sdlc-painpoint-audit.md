@@ -148,6 +148,7 @@ instrument) spans M1–M3; T2/T3 (analysis) are M4.
 ## Log
 
 ### 2026-07-14 — M3 built (codex coverage; T1 complete, both agents)
+- 2026-07-14: closed M3 — go test ./cmd/sdlc/... green incl codex suites (meta-kind fork/sub-agent/root, parser end-to-end with real-shape fixtures, Failed derivation, cross-language golden vs spec-derived expected.json); both-agent real-corpus smoke: 1558 transcripts / 1833 invocations, exactly 40 fork-replays skipped (matches the atlas spec census), codex 43 / claude 37 bypasses, codex re-close pattern surfaced (no-reclose-guard 25 bypasses, 3/3 refusals resolved via bypass); review verdict: FIX-THEN-SHIP
 
 M3 complete (2 TDD tasks): (8) `codex.go` — `codexMeta` keys off the FIRST
 `session_meta` and skips fork-replays (real corpus: **exactly the spec's 40**,
@@ -170,6 +171,16 @@ no-actual refusals 38 corpus-wide, 35 satisfied — refusal texts keep working a
 next-action specs. Firing-order unchanged by codex (16 change-code-after-close +
 2 skill-late; 52 unattributed publishes). Repo split now pair 37 / brain 19 /
 parley.nvim 16 / ariadne 8 — bypasses still concentrate in peers.
+
+**Boundary review: FIX-THEN-SHIP** (sidecar
+`workshop/plans/000172-sdlc-painpoint-audit-m3-review.md`). Both Importants
+fixed before crossing: (1) walk-level integration test for the two-corpus seam
+(`TestRunFrictionReportTwoAgentWalk` + one-sided-corpus contract); (2) the
+cross-language golden now has its Python consumer
+(`test_normalize.py::test_codex_golden_shared_fixture` — keep/skip decision on
+the shared fixtures, downstream-safe skip). Minors folded (see plan Revisions);
+post-fix smoke identical (claude 37 / codex 43, forks 40). Both test suites
+green (`go test ./cmd/sdlc/...`, `python3 test_normalize.py`).
 
 ### 2026-07-14 — M2 built (refusal→retry + firing-order; T1 complete for claude)
 - 2026-07-14: closed M2 — go test ./cmd/sdlc/... green incl the new M2 suites (refusal-retry pairing + dedupe, firing-order ladder/attribution/skill-late, render+JSON shape, zero-transcripts error, toolResultText array form); real-corpus smoke: M1 bypass headline reproduced post-dedupe (no-judge 17, no-verified 0, brain 19/pair 15/ariadne 3), new sections render (71 refusals / 70 retried, 18 firing-order anomalies, 37 unattributed publishes); review verdict: FIX-THEN-SHIP

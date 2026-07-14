@@ -186,6 +186,28 @@ def test_codex_scope_filter_excludes_out_of_scope() -> None:
         check(len(segs_none) >= 1, "scope_slugs=None ingests everything (codex-only default)")
 
 
+def test_codex_golden_shared_fixture() -> None:
+    # Cross-language golden (#172 M3): cmd/sdlc/internal/processmanual/testdata/
+    # codex-golden/ is the SHARED fixture both this adapter and the Go friction
+    # reader (codex.go) answer to — the keep/skip decision is the one genuinely
+    # shared judgment (gate bypass/refusal classification is Go-only), and
+    # cross-language drift on it is the exact failure the spec-level DRY
+    # (atlas/workflow/introspect.md "Codex transcript format") exists to prevent.
+    # Skipped when the golden dir is absent: these scripts propagate to
+    # downstream repos that don't carry cmd/sdlc.
+    golden = (Path(__file__).parents[4]
+              / "cmd" / "sdlc" / "internal" / "processmanual" / "testdata" / "codex-golden")
+    if not golden.is_dir():
+        print("  (codex-golden fixture absent — downstream repo, skipped)")
+        return
+    expected = json.loads((golden / "expected.json").read_text())
+    for name, want in expected["files"].items():
+        _segs, _n, skipped = process_codex_file(golden / name)
+        want_skip = want["decision"] == "skip-fork-replay"
+        check(skipped is want_skip,
+              f"golden {name}: skipped={skipped}, want {want_skip} (decision {want['decision']!r})")
+
+
 def main() -> int:
     print("Running normalize aggregation tests...")
     for t in (
@@ -200,6 +222,7 @@ def main() -> int:
         test_codex_fork_replay_skipped,
         test_codex_subagent_thread_not_skipped,
         test_codex_scope_filter_excludes_out_of_scope,
+        test_codex_golden_shared_fixture,
     ):
         t()
     if failures:
