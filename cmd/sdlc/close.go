@@ -341,18 +341,34 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	if f.Milestone != "" {
 		mode = "milestone"
 	}
+	// #178: the omit-path MEASURES AND ADOPTS. The gate's purpose is preventing
+	// GUESSED hours; a value sdlc measured itself can't be a guess, so the old
+	// compute-then-ask refusal ("→ close with: --actual N", copied verbatim
+	// ~45/48 times — the spine's second-largest refusal volume, #172) is now an
+	// adoption with a loud info line. Unmeasurable statuses keep the refusal.
+	adopted := false
+	if f.Actual == "" && !f.skip("actual") {
+		if adoptOmittedActual(stderr, f, issueStr, mode) {
+			adopted = true
+		} else {
+			explainActual(stderr, issueStr, mode, f.Milestone)
+			exitWithCode(1)
+		}
+	}
+
 	if f.Actual != "" {
 		v, err := strconv.ParseFloat(f.Actual, 64)
 		if err != nil {
 			die(stderr, fmt.Sprintf("ACTUAL must be a number, got '%s'", f.Actual))
 		}
 		// #87: sanity-check a PASSED --actual against the active-time-v3
-		// measurement. The omit-path (explainActual) already measures+suggests;
-		// the pass-path used to trust the value blindly, which let a fabricated
-		// 13.5 (measured 0.30) pollute velocity calibration. A wildly-off value
-		// is refused; a moderately-off one warns. --force/--no-actual bypasses
-		// (rationale in --verified). Skips silently when the engine can't measure.
-		if !f.skip("actual") {
+		// measurement — the pass-path used to trust the value blindly, which let
+		// a fabricated 13.5 (measured 0.30) pollute velocity calibration. A
+		// wildly-off value is refused; a moderately-off one warns. --force/
+		// --no-actual bypasses (rationale in --verified). Skips silently when
+		// the engine can't measure — and for an ADOPTED value (#178): comparing
+		// the measurement against itself would just re-run the engine.
+		if !adopted && !f.skip("actual") {
 			if derr := checkActualDeviation(stderr, issueStr, v); derr != nil {
 				die(stderr, derr.Error())
 			}
@@ -360,10 +376,8 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	}
 
 	if f.Actual == "" {
-		if !f.skip("actual") {
-			explainActual(stderr, issueStr, mode, f.Milestone)
-			exitWithCode(1)
-		}
+		// Reachable only via --no-actual/--force (the omit-path above either
+		// adopted or exited): genuinely nothing to measure.
 		cwarn(stderr, fmt.Sprintf("--no-actual (or --force): closing with actual_hours: %s — velocity calibration skipped", issue.ActualNotApplicableSentinel))
 	}
 	if f.Verified == "" {
@@ -1071,6 +1085,60 @@ func emitLessonsReminder(stdout io.Writer) {
 }
 
 // ── explainers ───────────────────────────────────────────────────────────────
+
+// computeActualForCloseFn is the measurement seam for the omit-path (#178) —
+// a package var so tests can stub the engine (the file's validateChangedIssuesFn
+// pattern). Production resolves roots and runs the same engine as `sdlc actual`.
+var computeActualForCloseFn = func(issueStr string) actualResult {
+	repoTop, brainAbs := resolveActualRoots()
+	return computeActual(repoTop, brainAbs, issueStr)
+}
+
+// resolveOmittedActual is the pure omit-path decision (#178): adopt a measured
+// value (format pinned to %.2f — the ledger value must equal what the info line
+// shows) or refuse. Only actualMeasured adopts; telemetry-gap/no-window/empty/
+// error keep the explainActual refusal (judgment paths).
+func resolveOmittedActual(res actualResult) (string, bool) {
+	if res.Status != actualMeasured {
+		return "", false
+	}
+	return strconv.FormatFloat(res.Hours, 'f', 2, 64), true
+}
+
+// formatAdoptLine renders the adoption info line. Milestone mode states the
+// cumulative-window semantics: computeActual's window is ISSUE-scoped (claim →
+// HEAD), so at M2+ the value is cumulative issue hours — the same number the
+// old suggest-path proposed; pre-existing semantics, now stated. Must never
+// match a GateCatalog ACK/refusal pattern (TestAdoptLineNoGatesigCollision).
+func formatAdoptLine(res actualResult, mode string) string {
+	line := fmt.Sprintf("using measured actual: %.2fh (window %s", res.Hours, res.Window)
+	if len(res.Peers) > 1 {
+		line += "; attributed across window issues: #" + strings.Join(res.Peers, ", #")
+	}
+	line += ")"
+	if mode == "milestone" {
+		line += " — cumulative issue hours (the measurement window starts at claim, not the milestone boundary)"
+	}
+	return line
+}
+
+// adoptOmittedActual is the omit-path wiring (#178): measure once via the seam,
+// adopt into f.Actual on success (deviation check is then skipped — it would
+// compare the measurement with itself), print the info line. Returns false on
+// unmeasurable statuses with NO side effects — the caller explains and exits.
+func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) bool {
+	res := computeActualForCloseFn(issueStr)
+	v, ok := resolveOmittedActual(res)
+	if !ok {
+		return false
+	}
+	f.Actual = v
+	cinfo(stderr, formatAdoptLine(res, mode))
+	for _, w := range res.Warnings {
+		cwarn(stderr, w)
+	}
+	return true
+}
 
 func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
 	repoTop, brainAbs := resolveActualRoots()
