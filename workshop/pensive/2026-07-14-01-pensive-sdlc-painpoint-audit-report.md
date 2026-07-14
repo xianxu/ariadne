@@ -4,12 +4,12 @@ date: 2026-07-14
 topic: sdlc painpoint audit report (#172) — where the workflow spine actually hurts
 mode: thoughts
 description: Full report of the #172 friction audit — the measurement instrument, the both-agent per-gate numbers, refusal→retry resolution, firing-order anomalies, T2 per-gate verdicts, T3 coverage gaps, three post-audit follow-on studies, and the five follow-up issues filed (#174–#178).
-references: [workshop/issues/000172-sdlc-painpoint-audit.md, workshop/plans/000172-sdlc-painpoint-audit-plan.md, atlas/workflow/sdlc-binary.md]
+references: [workshop/history/000172-sdlc-painpoint-audit.md, workshop/history/000172-sdlc-painpoint-audit-plan.md, atlas/workflow/sdlc-binary.md]
 ---
 
 # Pensive: sdlc painpoint audit report (#172)
 
-**Ticket: [#172 — sdlc painpoint audit](../issues/000172-sdlc-painpoint-audit.md)**
+**Ticket: [#172 — sdlc painpoint audit](../history/000172-sdlc-painpoint-audit.md)**
 (closed 2026-07-14, verdict SHIP, actual 7.42h vs estimate 8.07h). Corpus:
 1,566 transcripts / 1,838 sdlc invocations, both agents (claude + codex).
 Regenerate the live numbers anytime: `sdlc process-manual --friction-report [--json]`.
@@ -221,9 +221,9 @@ and revisit any judge relaxation only with that evidence.
 
 ## References
 
-- Ticket: `workshop/issues/000172-sdlc-painpoint-audit.md` (Findings = T2/T3
-  core; Log = per-milestone evidence). Moves to `workshop/history/` on archive.
-- Durable plan + 4 review sidecars: `workshop/plans/000172-*`.
+- Ticket: `workshop/history/000172-sdlc-painpoint-audit.md` (Findings = T2/T3
+  core; Log = per-milestone evidence; archived at ship).
+- Durable plan + 4 review sidecars: `workshop/history/000172-*`.
 - Atlas map: `atlas/workflow/sdlc-binary.md` → "Friction audit".
 - Instrument source: `cmd/sdlc/internal/processmanual/` (gatesig.go catalog,
   friction.go detectors, codex.go parser, testdata/codex-golden/).
