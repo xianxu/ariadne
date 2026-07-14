@@ -1,12 +1,13 @@
 ---
 id: 000169
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-13
 updated: 2026-07-13
 estimate_hours:
 started: 2026-07-13T16:10:13-07:00
+actual_hours: 1.03
 ---
 
 # ariadne stack introspection 3
@@ -34,6 +35,7 @@ time to run an /xx-introspect for the last couple of months sessions.
 ## Log
 
 ### 2026-07-13
+- 2026-07-13: closed — introspect run-3 completed over 449 real sessions (all-projects, since 2026-05-27), Stages 1-7 with user in loop. 543 moments detected; 39 high-value (11 redirect + 28 endorsement) all reinforced EXISTING rules, 0 new robust rules, 0 friction → per precision-over-recall, user chose option A: NO skill changes. Consumed probe-before-rm hint (already deployed); bumped introspect-state.json. Meta-finding: introspect at diminishing returns (logged to #169/#170). No repo/architectural surface (outputs are user-global ~/.claude) → --no-atlas. Follow-ups filed: #172, #173.; review verdict: SHIP
 
 **introspect run-3 in progress.** run-id `20260713T161752` (cache under
 `~/.claude/introspect/cache/20260713T161752/`).
