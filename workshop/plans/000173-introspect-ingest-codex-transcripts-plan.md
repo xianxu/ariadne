@@ -338,3 +338,44 @@ defensible-but-deferred precision refinement, not silently implied. Added
   #173 discovered three codex format properties (double-representation, derived
   `is_error`, fork-replay) *after* the spec was written, each from the real corpus.
   Worth a landing spot for the next discovery, referenced from #172.
+
+### 2026-07-14 — close review: reconcile tables + two agent-neutrality gaps
+
+The whole-issue close review (FIX-THEN-SHIP; Claude path proven byte-identical — 543
+moments, identical id-set at HEAD) caught three Important items, all fixed before
+crossing:
+
+**I3 — the Core Concepts / Integration tables name entities never built.** Superseded
+explicitly (the tables are what a reader greps; "authoritative over" wasn't enough):
+- `claude_sessions()` / `codex_sessions()` locators → never existed. Delivered as
+  `normalize.process_codex()` / `process_codex_file()` (bulk) +
+  `segment_loader.load_segment_norm_events()` (per-segment, agent-keyed).
+- `aggregate_summary(norm_events)` → `aggregate_norm_event(nev, summary)` (per-event
+  fold, not a list aggregate).
+- `agents/claude.py` / `agents/codex.py` → flat `agent_claude.py` / `agent_codex.py`.
+- `split_into_segments(norm_events)` → takes raw `(dict, src)` pairs; boundary
+  predicate injected (`is_boundary=`).
+The issue's M2 Plan checkbox (`codex_sessions()`) was corrected too.
+
+**I1 — `--scope`/`--project` was ignored on the codex path (fixed, code).** A
+repo-scoped `--agent both` run silently ingested every repo's codex sessions (measured:
+`--project ariadne` → 85 codex ariadne segments now, was 687 from 13 other projects).
+`process_codex(scope_slugs)` now filters codex rollouts by cwd-derived slug in `both`
+mode (codex-only still ingests all — picker-documented). The invalid SKILL "no per-slug
+dirs" carve-out was dropped. Test: `test_codex_scope_filter_excludes_out_of_scope`.
+
+**I2 — `ASSISTANT_MSG` is not agent-comparable (fixed, doc + recorded follow-up).**
+`claude_events` emits one per model turn (73% tool-only); `codex_events` only per text
+`agent_message`. So `amc≥15` is a stricter bar on codex and `EDIT_AFTER_EDIT_WINDOW`
+(counts `ASSISTANT_MSG` turns) inflates codex eae (46% of "rapid" pairs are 35–44 tool
+events apart). Verified NOT to change the M3 finding (redirects 8→8, endorsements 28→28
+at the comparable `amc≥4` bar). Atlas now states the caveat + the durable comparable
+metrics (`tool_call_count`/`user_message_count`); `test_parity` gained a comment that
+it proves shape- not meaning-neutrality. **Deep fix deferred** (codex emits
+`ASSISTANT_MSG` per model turn + define `EventKind` semantics per model turn) — gated
+on a third agent, sibling of the spec-drift `target` above.
+
+**Minors:** dead `PROJECTS_ROOT` removed from `detect.py`. Recorded-not-fixed: the
+`apply_patch` `call_id` collision mislabels a failed-apply_patch friction as `Edit`
+(`custom_tool_call` and `patch_apply_end` share `call_id`) — mislabels, never drops;
+negligible on this corpus; fold into the `codex_meta_kind`/turn-derivation pass.

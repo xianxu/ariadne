@@ -39,7 +39,6 @@ from typing import Any, Iterable
 from events import EventKind, NormEvent
 from segment_loader import load_segment_norm_events
 
-PROJECTS_ROOT = Path.home() / ".claude" / "projects"
 EDIT_AFTER_EDIT_WINDOW = 5    # max assistant turns between edits, no user turn between
 EDIT_AFTER_EDIT_MIN_PAIRS = 2  # ≥2 rapid pairs (i.e. ≥3 rapid touches) per file → moment
 FRICTION_MIN_DENIALS = 3       # ≥3 explicit errors per tool per session → moment

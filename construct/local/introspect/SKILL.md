@@ -49,12 +49,14 @@ Ask the user TWO things: which **agent(s)** and which **transcripts**.
 
 **Agent (#173):** introspect is agent-neutral — pick `claude`, `codex`, or `both`.
 - `claude` → `~/.claude/projects/*.jsonl` (scoped by the picker below)
-- `codex`  → `~/.codex/sessions/**/rollout-*.jsonl` (ALL codex sessions; the
-  scope/project picker applies to claude only — codex has no per-slug dirs, it's
-  keyed by each rollout's `session_meta.cwd`)
-- `both`   → union
+- `codex`  → `~/.codex/sessions/**/rollout-*.jsonl`, **all** codex sessions (codex has
+  no repo-scoped invocation of its own; each rollout's project is derived from its
+  `session_meta.cwd`)
+- `both`   → union — and here the scope below **DOES** filter codex too: codex rollouts
+  are kept only for the resolved slug(s) (#173 close I1), so `[1] current repo` mines
+  this repo's claude *and* codex sessions, not every repo's codex history.
 
-**Scope (claude only):**
+**Scope (drives claude selection; also filters codex in `both` mode):**
 
 ```
 [1] current repo  → ~/.claude/projects/<repo-slug-of-cwd>/*.jsonl

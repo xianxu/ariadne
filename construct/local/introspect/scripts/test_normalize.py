@@ -162,6 +162,30 @@ def test_codex_subagent_thread_not_skipped() -> None:
               "sub-agent processed under its own id")
 
 
+def test_codex_scope_filter_excludes_out_of_scope() -> None:
+    # I1 (#173 close): --scope/--project must apply to codex too — a rollout whose
+    # cwd-derived slug isn't in scope_slugs produces no segments (else a repo-scoped
+    # `--agent both` run silently mines every repo's codex sessions).
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "rollout-scoped.jsonl"
+        _write_rollout(
+            p,
+            [{"id": "s-scope", "cwd": "/Users/x/workspace/projA"}],
+            [{"timestamp": "2026-07-13T00:00:00Z", "type": "event_msg",
+              "payload": {"type": "user_message", "message": "hi"}}],
+        )
+        # in scope → processed
+        segs_in, _n, _s = process_codex_file(p, {"-Users-x-workspace-projA"})
+        check(len(segs_in) >= 1, "in-scope codex rollout is processed")
+        # out of scope → dropped, no segments
+        segs_out, n_out, skipped = process_codex_file(p, {"-Users-x-workspace-projB"})
+        check(segs_out == [] and n_out == 0, "out-of-scope codex rollout produces nothing")
+        check(skipped is False, "scope-skip is not miscounted as a fork skip")
+        # None → no filter (codex-only default)
+        segs_none, _n2, _s2 = process_codex_file(p, None)
+        check(len(segs_none) >= 1, "scope_slugs=None ingests everything (codex-only default)")
+
+
 def main() -> int:
     print("Running normalize aggregation tests...")
     for t in (
@@ -175,6 +199,7 @@ def main() -> int:
         test_codex_root_uses_own_first_meta,
         test_codex_fork_replay_skipped,
         test_codex_subagent_thread_not_skipped,
+        test_codex_scope_filter_excludes_out_of_scope,
     ):
         t()
     if failures:

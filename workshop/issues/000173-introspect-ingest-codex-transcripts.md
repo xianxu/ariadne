@@ -1,12 +1,13 @@
 ---
 id: 000173
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 estimate_hours: 1.73
 started: 2026-07-13T17:22:21-07:00
+actual_hours: 9.04
 ---
 
 # introspect ingest codex transcripts
@@ -95,12 +96,26 @@ Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md
 - [x] Discovery — codex store + event→NormEvent mapping (see Log)
 - [x] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
   onto it; **run-3 reproduced** (behavior-preserving refactor, de-risks the abstraction)
-- [x] M2 — codex adapter + `codex_sessions()` locator + `--agent` dispatch + scope picker
+- [x] M2 — codex adapter + `process_codex()` locator + `--agent` dispatch + scope picker
 - [x] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
 
 ## Log
 
 ### 2026-07-14
+- **Close-review fixes (FIX-THEN-SHIP).** Whole-issue review proved the Claude path
+  byte-identical at HEAD (543 moments, identical id-set) and reproduced every M3
+  number; 3 Important, all fixed: **I1** — `--scope`/`--project` was ignored on the
+  codex path (a repo-scoped `--agent both` run mined every repo: measured `--project
+  ariadne` → 85 codex ariadne segments now, was 687 from 13 other projects);
+  `process_codex(scope_slugs)` filters codex in `both` mode + test + dropped the
+  invalid SKILL carve-out. **I2** — `ASSISTANT_MSG` isn't agent-comparable (claude =
+  per model turn / 73% tool-only; codex = per text turn), so `amc≥15` is a stricter
+  codex bar and eae inflates; verified NOT to move the finding (redirects/endorsements
+  8/28 at `amc≥4` too); atlas caveat + comparable-metric note + parity comment; deep
+  fix deferred (3rd-agent-gated). **I3** — plan/issue tables named 4 never-built
+  entities (`codex_sessions()` etc.); superseded explicitly. Minor: removed dead
+  `PROJECTS_ROOT`. 8 unit suites green (added scope-filter test).
+- 2026-07-14: closed — codex ingests end-to-end (normalize→classify→detect→render), moments trace to rollout files; --agent both mixes corpora (36 codex/25 claude, verified in review); Claude path byte-identical (7 suites green incl new fork-replay/sub-agent/benign-exit tests); M3 finding recorded — codex does NOT reopen the taste well (0 new generalizable rules, ~95% of apparent surplus was fork-replay+benign-exit artifact), same diminishing returns as #169; boundary review FIX-THEN-SHIP, all 3 Important fixed; review verdict: FIX-THEN-SHIP
 - 2026-07-14: closed M3 — 7 unit suites green (incl new fork-skip + benign-exit friction tests); codex dogfood ran normalize→classify→detect end-to-end over 552 root sessions, moments trace to rollout files; pipeline emits confound-clean counts directly (40 forks skipped, friction 112→12 hint-gated); M3 finding recorded — 0 new generalizable rules, diminishing returns confirmed on codex; review verdict: FIX-THEN-SHIP
 - **M3 dogfood + finding (the payload).** Ran normalize→classify→detect over the
   full codex corpus (592 rollouts, 552 root sessions). **Finding: codex does NOT

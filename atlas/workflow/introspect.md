@@ -217,6 +217,21 @@ rules capture the transferable taste regardless of agent; **introspect run caden
 should stretch on both agents.** The engineering (agent-neutral ingest, end-to-end)
 is validated; the *hypothesis* that a less-tuned agent reopens the well is not.
 
+**⚠️ Neutral in shape, not yet in meaning — the amc caveat (#173 close I2).** The
+substantiality bar above (`amc≥15`) is **not like-for-like across agents**, so read
+the *counts* structurally, not as a precise cross-agent ratio. `assistant_message_count`
+comes from `ASSISTANT_MSG`, which the two adapters emit differently: `claude_events`
+emits one per **model turn** (73% are tool-only, empty text), while `codex_events`
+emits one only per `event_msg/agent_message` (**text** turns). So `amc≥15` is a
+materially stricter bar on codex, and `EDIT_AFTER_EDIT_WINDOW` (which counts
+`ASSISTANT_MSG` turns, `detect.py`) means different things per agent — on codex 46% of
+"rapid" re-edit pairs are 35–44 tool events apart, inflating codex eae. **What holds:**
+the taste signal is bar-invariant — redirects 8→8 and endorsements 28→28 whether the
+bar is `amc≥15` or the comparable `amc≥4`, so the finding stands. The durable
+cross-agent metrics are `tool_call_count` / `user_message_count`, not `amc`. True
+neutrality-in-meaning (codex emitting an `ASSISTANT_MSG` per model turn) is a recorded
+follow-up, gated on a third agent landing — see the plan's close revision.
+
 ## Where things live
 
 | Path | Purpose |

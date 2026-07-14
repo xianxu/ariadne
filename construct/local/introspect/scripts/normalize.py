@@ -391,7 +391,9 @@ def build_codex_segment(
     return summary
 
 
-def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int, bool]:
+def process_codex_file(
+    rollout_path: Path, scope_slugs: set[str] | None = None
+) -> tuple[list[SessionSummary], int, bool]:
     """One codex rollout → its segments. session_meta gives id/cwd/branch; segment
     on `compacted` + gap; aggregate each segment via codex_events.
 
@@ -430,6 +432,8 @@ def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int, b
     git = meta.get("git")
     branch = git.get("branch") if isinstance(git, dict) else None
     slug = cwd_to_slug(cwd) if cwd else "-codex-unknown"
+    if scope_slugs is not None and slug not in scope_slugs:
+        return [], 0, False                         # out of scope (#173 close I1)
     pairs = [(d, rollout_path.name) for d in lines]
     segments = split_into_segments(pairs, is_boundary=is_compacted)
     n = len(segments)
@@ -440,15 +444,17 @@ def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int, b
     return out, len(lines), False
 
 
-def process_codex() -> tuple[list[SessionSummary], int, int, int]:
+def process_codex(scope_slugs: set[str] | None = None) -> tuple[list[SessionSummary], int, int, int]:
     """Walk ~/.codex/sessions/**/rollout-*.jsonl (one file per raw session).
-    Returns (segments, events_read, files_read, forked_files_skipped)."""
+    When `scope_slugs` is given, only rollouts whose cwd-derived slug is in it are
+    kept (#173 close I1 — honor --scope/--project on the codex path). Returns
+    (segments, events_read, files_read, forked_files_skipped)."""
     files = sorted(CODEX_SESSIONS_ROOT.rglob("rollout-*.jsonl"))
     all_segs: list[SessionSummary] = []
     total_events = 0
     forks_skipped = 0
     for f in files:
-        segs, n, skipped_fork = process_codex_file(f)
+        segs, n, skipped_fork = process_codex_file(f, scope_slugs)
         if skipped_fork:
             forks_skipped += 1
         all_segs.extend(segs)
@@ -524,7 +530,12 @@ def main() -> int:
 
     codex_forks_skipped = 0
     if do_codex:
-        codex_segments, codex_events_n, codex_files, codex_forks_skipped = process_codex()
+        # I1 (#173 close): honor --scope/--project on the codex path. In `both` mode
+        # codex filters to the same slugs claude resolved (unless --scope all);
+        # codex-only ingests every codex rollout (the Stage-1 picker documents this —
+        # codex has no repo-scoped invocation of its own).
+        codex_scope = set(project_slugs) if (do_claude and args.scope != "all") else None
+        codex_segments, codex_events_n, codex_files, codex_forks_skipped = process_codex(codex_scope)
         print(f"read {codex_files} codex rollout file(s) "
               f"({codex_forks_skipped} multi-agent forks skipped)", file=sys.stderr)
         segments.extend(codex_segments)

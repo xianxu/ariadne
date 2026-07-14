@@ -55,7 +55,15 @@ def claude_interaction() -> list:
 
 
 def codex_interaction() -> list:
-    """Same interaction, codex wire format."""
+    """Same interaction, codex wire format.
+
+    NOTE (#173 close I2): this fixture pairs an `agent_message` with EVERY
+    `patch_apply_end`, so its `ASSISTANT_MSG` count matches Claude's turn count. Real
+    codex emits an `agent_message` only ~57% of the time (tool-only turns produce
+    none), and Claude emits an `ASSISTANT_MSG` per model turn (73% tool-only). So this
+    proves shape-neutrality (same detectors fire, same salient render) but NOT
+    meaning-neutrality — `assistant_message_count` and the eae window are not
+    cross-agent comparable in the real corpus. See atlas "amc caveat"."""
     def ev(t, p, ts):
         return {"timestamp": ts, "type": t, "payload": p}
     lines = [ev("event_msg", {"type": "user_message", "message": "fix the parser"}, T + "1Z")]
