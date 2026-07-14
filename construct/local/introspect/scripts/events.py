@@ -18,6 +18,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+# Phrases inside a tool result that, PAIRED with an explicit error signal (an
+# is_error flag or an "error:"/"exit code" prefix), mark a friction moment. Lives
+# here (shared) because each agent adapter DERIVES NormEvent.is_error — Claude has
+# an is_error flag + text patterns, codex only a plain-string output to parse — so
+# both import this rather than the detector re-checking text (keeps detect.py
+# agent-neutral: it reads the derived flag). #173.
+FRICTION_HINTS = (
+    "permission",
+    "user denied",
+    "operation not permitted",
+    "is not allowed",
+    "blocked",
+    "sandbox",
+)
+
 
 class EventKind(str, Enum):
     """The closed set of event shapes the detectors switch on.
@@ -54,6 +69,9 @@ class NormEvent:
     # tool_call / tool_result
     tool_name: str | None = None
     tool_input_summary: str | None = None
+    # correlates a tool_result back to the tool_call that produced it (the friction
+    # detector needs the call's name; call and result arrive as separate events)
+    tool_use_id: str | None = None
     # file_edit
     file_path: str | None = None
     # tool_result / friction: DERIVED by the adapter (codex has no is_error flag;

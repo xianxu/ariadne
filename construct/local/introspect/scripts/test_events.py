@@ -34,6 +34,7 @@ def test_normevent_defaults() -> None:
     check(e.tool_name is None, "tool_name defaults None")
     check(e.tool_input_summary is None, "tool_input_summary defaults None")
     check(e.file_path is None, "file_path defaults None")
+    check(e.tool_use_id is None, "tool_use_id defaults None")
     check(e.boundary_kind is None, "boundary_kind defaults None")
     check(e.agent is None, "agent defaults None")
     check(e.raw_session_id is None, "raw_session_id defaults None")
