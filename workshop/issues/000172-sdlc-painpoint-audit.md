@@ -120,7 +120,7 @@ total: 8.07
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
 
-Item→work: the 4 greenfield-go + 1 cross-cutting-refactor = **M1** (gatesig.go
+Item→work: the 3 greenfield-go + 1 cross-cutting-refactor = **M1** (gatesig.go
 catalog + drift guard; friction.go `classifyOutputLine` with 3 ACK grammars +
 discriminators; session.go `parseEvents`/`classifyToolUse` + output linkage; corpus
 walk + `detectGateEvents` + aggregate + render + dispatch). 2 greenfield-go = **M2**
