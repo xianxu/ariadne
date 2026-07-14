@@ -42,18 +42,20 @@ def _output_is_error(output: str) -> bool:
 
 
 def _summarize_args(args: Any) -> str:
-    if not isinstance(args, str):
-        return ""
-    try:
-        d = json.loads(args)
-    except (json.JSONDecodeError, TypeError):
-        return args[:120]
+    """Summarize a tool call's args. function_call carries a JSON *string*;
+    custom_tool_call carries a dict under `input` — handle both."""
+    d: Any = args
+    if isinstance(args, str):
+        try:
+            d = json.loads(args)
+        except (json.JSONDecodeError, TypeError):
+            return args[:120]
     if isinstance(d, dict):
         cmd = d.get("cmd")
         if isinstance(cmd, str):
             return f"command={cmd[:120]}"
         return f"keys={sorted(d.keys())[:3]}"
-    return args[:120]
+    return str(d)[:120] if d else ""
 
 
 def codex_events(line: dict[str, Any], raw_session_id: str = "") -> list[NormEvent]:
@@ -85,16 +87,25 @@ def codex_events(line: dict[str, Any], raw_session_id: str = "") -> list[NormEve
                 for path, meta in changes.items():
                     ctype = meta.get("type") if isinstance(meta, dict) else None
                     tool = "Write" if ctype == "add" else "Edit"
-                    out.append(mk(EventKind.FILE_EDIT, tool_name=tool,
-                                  file_path=path, tool_use_id=call_id))
+                    # tool_input_summary carries the path so the extract renderer
+                    # shows WHICH file changed (else "[tool: Edit ]" — M2 review).
+                    out.append(mk(EventKind.FILE_EDIT, tool_name=tool, file_path=path,
+                                  tool_use_id=call_id, tool_input_summary=f"file_path={path}"))
             return out
         return []  # token_count, task_started/complete, context_compacted-as-event, …
 
     if etype == "response_item":
-        if ptype in ("function_call", "custom_tool_call"):
+        if ptype == "function_call":
             return [mk(EventKind.TOOL_CALL, tool_name=p.get("name") or "?",
                        tool_use_id=p.get("call_id"),
                        tool_input_summary=_summarize_args(p.get("arguments")))]
+        if ptype == "custom_tool_call":
+            # custom/MCP tool calls carry their payload under `input`, not `arguments`.
+            return [mk(EventKind.TOOL_CALL, tool_name=p.get("name") or "?",
+                       tool_use_id=p.get("call_id"),
+                       tool_input_summary=_summarize_args(p.get("input")))]
+        if ptype in ("web_search_call", "tool_search_call"):
+            return [mk(EventKind.TOOL_CALL, tool_name=ptype, tool_use_id=p.get("call_id"))]
         if ptype in ("function_call_output", "custom_tool_call_output"):
             output = p.get("output") or ""
             if not isinstance(output, str):

@@ -88,6 +88,24 @@ def test_patch_apply_end_file_edits() -> None:
     by_path = {x.file_path: x.tool_name for x in fe}
     check(by_path["/a.py"] == "Edit", "update → Edit (files_edited)")
     check(by_path["/b.py"] == "Write", "add → Write (files_written)")
+    # M2-review regression: file edits MUST carry the path in tool_input_summary
+    # (else the extract renderer shows a bare "[tool: Edit ]").
+    by_summary = {x.file_path: x.tool_input_summary for x in fe}
+    check(by_summary["/a.py"] == "file_path=/a.py", "FILE_EDIT summary carries the path")
+
+
+def test_web_search_call() -> None:
+    e = codex_events(ev("response_item", {"type": "web_search_call", "call_id": "w1"}), "sid1")
+    tc = of_kind(e, EventKind.TOOL_CALL)
+    check(len(tc) == 1 and tc[0].tool_name == "web_search_call", "web_search_call → TOOL_CALL")
+
+
+def test_custom_tool_call_reads_input() -> None:
+    e = codex_events(ev("response_item", {"type": "custom_tool_call", "name": "apply_patch",
+                                          "call_id": "c9", "input": {"cmd": "patch"}}), "sid1")
+    tc = of_kind(e, EventKind.TOOL_CALL)
+    check(len(tc) == 1 and tc[0].tool_name == "apply_patch", "custom_tool_call → TOOL_CALL")
+    check(tc[0].tool_input_summary == "command=patch", "custom_tool_call summary from `input` dict")
 
 
 def test_compacted_boundary() -> None:
@@ -109,6 +127,7 @@ def main() -> int:
         test_user_message, test_agent_message, test_response_item_message_ignored,
         test_function_call, test_function_call_output_exit0_no_error,
         test_function_call_output_nonzero_is_error, test_patch_apply_end_file_edits,
+        test_web_search_call, test_custom_tool_call_reads_input,
         test_compacted_boundary, test_ignored_events,
     ):
         t()

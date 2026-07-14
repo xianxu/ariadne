@@ -95,12 +95,13 @@ Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md
 - [x] Discovery — codex store + event→NormEvent mapping (see Log)
 - [x] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
   onto it; **run-3 reproduced** (behavior-preserving refactor, de-risks the abstraction)
-- [ ] M2 — codex adapter + `codex_sessions()` locator + `--agent` dispatch + scope picker
+- [x] M2 — codex adapter + `codex_sessions()` locator + `--agent` dispatch + scope picker
 - [ ] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
 
 ## Log
 
 ### 2026-07-13
+- 2026-07-13: closed M2 — M2 codex ingest end-to-end. codex adapter (fixture + real 6.5k-event rollout validated); normalize --agent {claude,codex,both} → 783 codex segments (227 substantial) correctly agent-tagged + cwd-slugged from 553 rollouts; SessionSummary.agent added (review-flagged); shared segment_loader replaces the 2 divergent load_segment_events; segment_text lifted onto NormEvent so codex RENDERS (extractable). Regressions: claude detect STILL 543 moments w/ identical id-set through the shared loader; codex detect 227 segs → 313 moments incl 112 friction (vs claude run-3 0 friction). scope picker learns codex. 5 unit suites green.; review verdict: FIX-THEN-SHIP
 - 2026-07-13: closed M1 — M1 behavior-preserving refactor onto agent-neutral NormEvent. normalize sessions.json BYTE-IDENTICAL on kbench+metis; detect reproduces #169 run-3 cache EXACTLY (543 moments, by-type 504/28/11, full 543 stable-hash id set identical); 4 unit suites green. atlas/workflow/introspect.md documents the new NormEvent layer.; review verdict: FIX-THEN-SHIP
 
 Filed from #169 run-3, where the corpus was Claude-only by construction

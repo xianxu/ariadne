@@ -252,3 +252,36 @@ Claude-wire-format consumer, not lifted by M1. It has its own
 Minor (not fixed, by design): redirect/endorsement evidence emits `"name": "?"` for a
 nameless tool_use where pre-#173 emitted `None` — theoretical (real tool_uses always
 carry a name; doesn't affect `stable_id` or the regression).
+
+### 2026-07-13 — M2 close (FIX-THEN-SHIP): review fixes + deferrals
+
+M2 delivered codex ingest end-to-end (adapter → normalize → detect → render). The
+boundary review caught fixes, all applied before crossing:
+
+**Fixed:**
+- **Codex file-edit render bug (Important):** `patch_apply_end` FILE_EDITs now set
+  `tool_input_summary=f"file_path={path}"`, so the extract renderer shows WHICH file
+  changed (was a bare `[tool: Edit ]`). Regression-tested in `test_agent_codex`.
+- **`custom_tool_call` input source:** reads `input` (dict), not `arguments`.
+- **Missing tool events mapped:** `web_search_call` / `tool_search_call` → TOOL_CALL.
+- **Test debt closed:** added `test_segment_loader.py` (dispatch + codex/claude IO +
+  window) and `test_parity.py` — the **keystone agent-neutrality test** (same
+  interaction in both wire formats → same detector-type set → same salient render).
+
+**Deferred (recorded, not blocking):**
+- `event_msg/mcp_tool_call_end` (corpus: 3) not mapped — its payload shape wasn't
+  inspected; negligible magnitude. Map in a later pass if MCP-heavy codex use grows.
+- `--since` reads all codex rollout files before `filter_since` drops old ones
+  (inefficient, not incorrect).
+- Claude extract render lost the `old≈…/new≈…` diff previews (from the removed
+  `summarize_tool_input`) — accepted uniformity tradeoff, documented in
+  `render_segment`. Revisit if #169-style claude extract quality drops.
+
+**Known measurement caveat for M3:** codex `apply_patch` double-counts
+`tool_call_count` (the `custom_tool_call` invocation + its `patch_apply_end` file
+edits both bump it), inflating codex tool counts vs claude — factor this into the
+"does codex yield more signal" comparison.
+
+**Core Concepts table is superseded** by the M1 flat-module revision: adapters are
+`agent_claude.py` / `agent_codex.py` (not an `agents/` package), plus the new
+`segment_loader.py`. Treat the M1/M2 revisions as authoritative over the original table.

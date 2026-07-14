@@ -1,14 +1,17 @@
 # introspect-extract: UNIX kit
 
-Composable building blocks for postmortem taste-extraction over Claude Code transcripts. No build-time LLM coupling — every step emits text on stdout, and you choose which model to send it to.
+Composable building blocks for postmortem taste-extraction over agent transcripts — **Claude Code and codex** (#173). No build-time LLM coupling — every step emits text on stdout, and you choose which model to send it to.
+
+**Agent-neutral core (#173):** raw transcripts (`~/.claude/projects/*.jsonl` for Claude, `~/.codex/sessions/**/rollout-*.jsonl` for codex) are mapped by per-agent adapters (`agent_claude.py` / `agent_codex.py`) into a canonical `NormEvent` (`events.py`); `normalize`, the `detect` detectors, and `segment_text` rendering read only `NormEvent`, and `segment_loader.py` is the shared agent-keyed reader. Pick the source with `normalize.py --agent {claude,codex,both}`.
 
 ## Pipeline
 
 ```
-~/.claude/projects/*.jsonl
+~/.claude/projects/*.jsonl  ─┐
+~/.codex/sessions/**/*.jsonl ─┴─►  normalize.py --agent {claude,codex,both}
         │
-        ▼  normalize.py
-sessions.json (one row per segment)
+        ▼
+sessions.json (one row per segment; `agent` field records origin)
         │
         ▼  classify.py (legacy rule pass) OR LLM-direct via skill body
 classified.json (segment → activity)
