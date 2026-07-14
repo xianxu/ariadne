@@ -32,13 +32,21 @@ _EXIT_RE = re.compile(r"Process exited with code (\d+)")
 
 
 def _output_is_error(output: str) -> bool:
-    m = _EXIT_RE.search(output)
-    if m and int(m.group(1)) != 0:
-        return True
+    """Codex has no structured is_error flag (Claude's harness sets one) — derive
+    it, mirroring Claude's gate (agent_claude._result_is_error): a *failing signal*
+    PAIRED with a FRICTION_HINT. The failing signal is codex-shaped — a non-zero
+    exit code embedded anywhere ("...Process exited with code N...") or an
+    'error:'/'exit code' prefix — but a non-zero exit ALONE is NOT friction:
+    grep/sed/ls no-match, `command not found`, and expected test failures all exit
+    non-zero benignly (#173 M3 dogfood: 106 of 112 codex "friction" moments were
+    this noise). Only a permission/sandbox/blocked hint marks the taste signal."""
     low = output.lower()
-    if low.lstrip().startswith(("error:", "exit code")):
-        return any(h in low for h in FRICTION_HINTS)
-    return False
+    if not any(h in low for h in FRICTION_HINTS):
+        return False
+    m = _EXIT_RE.search(output)
+    nonzero_exit = bool(m and int(m.group(1)) != 0)
+    starts_with_error = low.lstrip().startswith(("error:", "exit code"))
+    return nonzero_exit or starts_with_error
 
 
 def _summarize_args(args: Any) -> str:

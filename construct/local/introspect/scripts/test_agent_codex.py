@@ -71,11 +71,39 @@ def test_function_call_output_exit0_no_error() -> None:
     check(tr[0].is_error is False, "exit code 0 → not an error")
 
 
-def test_function_call_output_nonzero_is_error() -> None:
+def test_function_call_output_permission_is_error() -> None:
+    # Real friction: a non-zero exit PAIRED with a permission/sandbox hint.
     e = codex_events(ev("response_item", {"type": "function_call_output", "call_id": "call_2",
                                           "output": "Process exited with code 1\nsandbox: operation not permitted"}), "sid1")
     tr = of_kind(e, EventKind.TOOL_RESULT)
-    check(tr[0].is_error is True, "non-zero exit → derived error")
+    check(tr[0].is_error is True, "non-zero exit + friction hint → derived error")
+
+
+def test_function_call_output_benign_nonzero_no_error() -> None:
+    # A non-zero exit ALONE is not friction — grep/sed/ls no-match, `command not
+    # found`, expected test failures all exit non-zero benignly. Without a friction
+    # hint the codex adapter must NOT flag them (else 100+ false friction moments;
+    # see #173 M3 dogfood). This mirrors Claude's hint-gated derivation.
+    benign_outputs = [
+        "Chunk ID: c0c725 Process exited with code 2\nrg: no such file or directory",
+        "Process exited with code 1\nls: /Users/xianxu/.local/share: No such file",
+        "Process exited with code 127\nzsh:1: command not found: foo",
+        "Process exited with code 1\n(no matches)",
+    ]
+    for out in benign_outputs:
+        e = codex_events(ev("response_item", {"type": "function_call_output",
+                                              "call_id": "c", "output": out}), "sid1")
+        tr = of_kind(e, EventKind.TOOL_RESULT)
+        check(tr[0].is_error is False, f"benign non-zero exit → not an error: {out[:40]!r}")
+
+
+def test_function_call_output_error_prefix_hint_is_error() -> None:
+    # An 'error:'-prefixed output paired with a hint is friction even absent an
+    # exit code (symmetry with Claude's error-prefix path).
+    e = codex_events(ev("response_item", {"type": "function_call_output", "call_id": "c",
+                                          "output": "error: permission denied"}), "sid1")
+    tr = of_kind(e, EventKind.TOOL_RESULT)
+    check(tr[0].is_error is True, "error: + permission hint → derived error")
 
 
 def test_patch_apply_end_file_edits() -> None:
@@ -126,7 +154,10 @@ def main() -> int:
     for t in (
         test_user_message, test_agent_message, test_response_item_message_ignored,
         test_function_call, test_function_call_output_exit0_no_error,
-        test_function_call_output_nonzero_is_error, test_patch_apply_end_file_edits,
+        test_function_call_output_permission_is_error,
+        test_function_call_output_benign_nonzero_no_error,
+        test_function_call_output_error_prefix_hint_is_error,
+        test_patch_apply_end_file_edits,
         test_web_search_call, test_custom_tool_call_reads_input,
         test_compacted_boundary, test_ignored_events,
     ):
