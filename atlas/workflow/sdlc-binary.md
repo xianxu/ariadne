@@ -229,6 +229,82 @@ actual/verified judgment a heuristic can't supply). The probe is injected into
 `detectDrift` as a `shipProbe` func so the drift logic stays testable without
 git.
 
+## Friction audit (`process-manual --friction-report`, #172)
+
+The per-gate `--no-<gate>` bypass design (below) was built to make bypasses
+*explicit and measurable*; `process-manual --friction-report` closes that loop. It
+measures, across the **whole Claude corpus** (all repos), where the spine creates
+friction — per-gate bypass rates, and (M2+) refusal→retry loops + firing-order
+anomalies — as a clean, command-anchored measure that replaces a contaminated grep.
+
+The core problem is **discrimination, not capture**: this repo *develops* sdlc, so
+`close.go`'s source and cat-n log reads spray every `--no-<gate>` string into tool
+output. So the instrument (1) **anchors to `Bash(sdlc <verb>)` invocations** (drops
+the source/edit/log-read noise — the dominant contamination), joined to their
+`tool_use_id`-linked tool_result content-block; (2) classifies each output line
+against a **per-gate signature catalog** (`internal/processmanual/gatesig.go` —
+12 gates / 16 sigs / 3 ACK grammars: G1 close·mclose `--no-X (or --force): …`,
+cinfo no-judge, G2 change-code `X gate bypassed (--force: …)` (silent alone), G3
+merge/push `--no-X: …`), requiring the runtime `\x1b[0m` reset for a bypass ACK and
+grammar+digit-anchored patterns for refusals (so the `printSemanticWarmup` success
+line and source restatements are rejected); and (3) states **observability limits**
+honestly (change-code silent-alone bypasses countable only via `--force`; merge/push
+refusals that don't name the flag). A **cross-command drift guard** (`gates_test.go`)
+asserts the catalog matches each command's registered `--no-*` flags, so a new gate
+can't be added without the audit noticing (ARCH-DRY). Codex coverage (M3) derives a
+net-new Go parser from `atlas/workflow/introspect.md` → "Codex transcript format" —
+the two can't share code (Python vs Go), only the spec.
+
+M1 headline over the real corpus: `--no-judge` dominant, `--no-verified` = 0 (the
+gate design works), and bypasses concentrate in **peer repos, not ariadne** — the
+substrate repo follows its own gates; lighter repos route around them. The raw grep
+over-counted ~4× (unlinked echoes: process-manual outputs, transcript reads).
+
+The M2 detectors ride the same invocation stream (`buildFrictionReport` is the
+composition seam; gate events are deduped per invocation — one no-validate refusal
+prints two matching lines):
+
+- **Refusal→retry** (`detectRefusalRetries`) pairs each gate refusal with the next
+  same-verb+same-issue invocation in the same transcript; `resolved` distinguishes
+  satisfying the gate from routing around it (`via bypass`). merge/push refusals
+  never name their flag → paired by verb+context, labeled `flag-omitted`.
+- **Firing-order** (`detectFiringOrder`) walks each (repo, issue)'s invocations
+  across transcripts against the AGENTS.md §2 ladder (claim ≺ start-plan ≺
+  change-code ≺ milestone-close ≺ close ≺ merge/push). Only an observed **order
+  inversion** flags (change-code after a clean close/merge); legal loops —
+  mclose→change-code, start-plan re-runs, close→change-code after a REWORK verdict
+  (recovered via `judge.ParseVerdict`) — stay silent, and absent early stages are
+  partial observation, not anomalies (precision over recall). merge/push carry no
+  `--issue` → attributed from segment context or counted unattributed. The
+  `skill-late` arm flags a plan/TDD Skill load after a non-`.md` file edit in the
+  same segment+issue (Edit/Write/MultiEdit → `KindFileEdit`, excluded from
+  `--session` reports).
+
+M2 headline: refusals mostly resolve by **satisfying** the gate (no-estimate-recon
+19/19 satisfied; via-bypass is rare — no-verdict 2, no-atlas 1), i.e. refusals do
+their job; firing-order found change-code-after-close 16 / skill-late 2.
+
+**M3 — codex coverage (both agents).** The walk also enumerates
+`~/.codex/sessions/**/rollout-*.jsonl` via `codex.go`, whose format knowledge
+derives entirely from `atlas/workflow/introspect.md` → "Codex transcript format"
+(the spec is the DRY point with Python introspect; a cross-language golden at
+`internal/processmanual/testdata/codex-golden/` pins the shared keep/skip +
+classification decisions). Fork-replay rollouts (`forked_from_id` on the FIRST
+`session_meta`) are skipped — the real corpus skips exactly the spec's 40 —
+while sub-agent threads are processed; repo labels come from `session_meta.cwd`
+(worktree-normalized). sdlc's ANSI survives codex's exec_command wrapper, so the
+SAME `classifyOutputLine` serves both agents. `SdlcInvocation.Failed` (Claude's
+`is_error` flag / codex's non-zero `Process exited with code N` — deliberately
+NOT the spec's hint-gated taste-friction `is_error`) keeps failed invocations
+from raising the firing-order ladder. Report adds the per-agent bypass split +
+forks-skipped counter; skill-late is Claude-only (codex has no Skill tool).
+
+M3 headline: codex 43 vs claude 37 bypasses; codex's signature move is the
+**re-close** (no-reclose-guard: 25 bypasses, and its 3 refusals all resolved
+**via bypass** — the one gate agents route around after refusal); no-actual
+refusals jump to 38 corpus-wide (35 satisfied). Firing-order anomalies unchanged
+by codex (16 + 2).
+
 ## Anti-collusion + form-vs-essence
 
 Checkpoint guards defend against **omission** (claiming done without

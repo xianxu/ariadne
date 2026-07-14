@@ -19,7 +19,6 @@
 package processmanual
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -139,6 +138,8 @@ type rec struct {
 			ID        string          `json:"id"`
 			Input     json.RawMessage `json:"input"`
 			ToolUseID string          `json:"tool_use_id"` // tool_result → its tool_use's id
+			Result    json.RawMessage `json:"content"`     // tool_result → its output (string | [{text}])
+			IsError   bool            `json:"is_error"`    // tool_result → harness-set failure flag
 		} `json:"content"`
 	} `json:"message"`
 	ToolUseResult json.RawMessage `json:"toolUseResult"` // polymorphic: {stdout,…} | string | null
@@ -159,17 +160,8 @@ func parseEvents(data []byte, validVerbs map[string]bool) (events []FiredEvent, 
 	var pend []pending
 	stdoutByID := map[string]string{}
 
-	sc := bufio.NewScanner(bytes.NewReader(data))
-	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024) // transcript lines can be large
-	for sc.Scan() {
-		line := bytes.TrimSpace(sc.Bytes())
-		if len(line) == 0 {
-			continue
-		}
-		var r rec
-		if uerr := json.Unmarshal(line, &r); uerr != nil {
-			continue // tolerant: a malformed line is skipped, not fatal
-		}
+	// forEachRec (friction.go) is the shared scan core with scanTranscript.
+	scanErr := forEachRec(data, func(r rec) {
 		if !r.Timestamp.IsZero() {
 			allTimes = append(allTimes, r.Timestamp)
 		}
@@ -180,7 +172,9 @@ func parseEvents(data []byte, validVerbs map[string]bool) (events []FiredEvent, 
 					continue
 				}
 				kind, detail, ok := classifyToolUse(c.Name, c.Input, validVerbs)
-				if !ok {
+				if !ok || kind == KindFileEdit {
+					// File edits feed the friction audit only (#172 M2); the --session
+					// report catalogs injections and stays unchanged.
 					continue
 				}
 				pend = append(pend, pending{
@@ -203,9 +197,9 @@ func parseEvents(data []byte, validVerbs map[string]bool) (events []FiredEvent, 
 				awaySummaryTimes = append(awaySummaryTimes, r.Timestamp)
 			}
 		}
-	}
-	if serr := sc.Err(); serr != nil {
-		return nil, nil, nil, serr
+	})
+	if scanErr != nil {
+		return nil, nil, nil, scanErr
 	}
 
 	// Resolve verdicts after the full scan (the tool_result follows its tool_use, so
@@ -430,6 +424,16 @@ func classifyToolUse(name string, input json.RawMessage, validVerbs map[string]b
 		base := path.Base(in.FilePath)
 		if base == "lessons.md" {
 			return KindLessons, base, true
+		}
+	case "Edit", "Write", "MultiEdit":
+		// Not an injection — a file-edit mark for the friction audit's skill-late
+		// detector (#172 M2). Detail keeps the FULL path (the detector needs the
+		// extension to separate doc edits from implementation edits).
+		var in struct {
+			FilePath string `json:"file_path"`
+		}
+		if json.Unmarshal(input, &in) == nil && in.FilePath != "" {
+			return KindFileEdit, in.FilePath, true
 		}
 	}
 	return "", "", false

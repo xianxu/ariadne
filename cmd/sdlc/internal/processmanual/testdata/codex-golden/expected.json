@@ -1,0 +1,8 @@
+{
+  "_comment": "Spec-derived golden (atlas/workflow/introspect.md → 'Codex transcript format'). The Go reader (codex.go) and Python introspect (agent_codex.py/normalize.py) must make the SAME keep/skip + classification decisions on these fixtures — cross-language drift here is the exact failure the spec-level DRY exists to prevent. root.jsonl's third call carries cat-n source contamination that must classify to none.",
+  "files": {
+    "root.jsonl": {"decision": "process", "invocations": 3, "bypasses": {"no-atlas": 1}, "refusals": {"no-reclose-guard": 1}, "failed_invocations": 1},
+    "fork.jsonl": {"decision": "skip-fork-replay", "invocations": 0, "bypasses": {}, "refusals": {}, "failed_invocations": 0},
+    "subagent.jsonl": {"decision": "process", "invocations": 1, "bypasses": {"no-judge": 1}, "refusals": {}, "failed_invocations": 0}
+  }
+}

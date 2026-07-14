@@ -59,7 +59,7 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 | `GateEvent` (Bypass\|Refusal, gate, command, viaForce, observability, invocation) | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `classifyOutputLine` (line → GateEvent\|none, via `gateCatalog` + runtime/contam discriminator) | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `RefusalRetry` | `cmd/sdlc/internal/processmanual/friction.go` | new |
-| `FiringOrderAnomaly` + `workflowOrder` (per-issue, iteration-aware) | `cmd/sdlc/internal/processmanual/friction.go` | new |
+| `FiringOrderAnomaly` + `workflowStage` (per-issue, iteration-aware) | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `FrictionReport` + `renderFrictionReport` | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `AllGates()` drift guard (catalog vs registered `--no-*` across all cmd files) | `cmd/sdlc/gates_test.go` | new |
 | `classifyToolUse` (+ `KindFileEdit` for Edit/Write/MultiEdit) | `cmd/sdlc/internal/processmanual/session.go` | modified |
@@ -69,7 +69,7 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 - **`GateSig` / `gateCatalog`** — the catalog table encoded as data; `classifyOutputLine` is a pure matcher over it. **DRY:** one source for the classifier, the drift guard, and the report's per-gate rows. A new gate = one table row (+ its flag registration).
 - **`classifyOutputLine`** — strips ANSI, then: for a **bypass ACK** requires the runtime `[0m ` reset (G1/G3) or the change-code `gate bypassed (--force:` shape (G2), matched against each `GateSig`'s `ackRE`; for a **refusal** matches the grammar-anchored `refusalRE` (digits, colon-delimited, exact tail — NOT reset-gated). Both REJECT contamination markers (`%s`/`%d`, `cwrite(`/`cwarn(`, `fmt.Sprintf(`, leading `"`, `NN\t`) and the `warmupTrap`. The G3 `no-validate` ACK regex must tolerate the literal `⚠️ ` emoji (`\x{26a0}\x{fe0f}`) + **two** spaces before `--no-validate` (`merge.go:328`/`push.go:129`). Returns the `GateEvent` with `observability` (`full` | `force-only` | `flag-omitted`).
 - **`SdlcInvocation`** — a `Bash(sdlc <verb> …)` call + its `tool_use_id`-linked result output. `issueID` parsed from `--issue N`/`#N` in args (keys firing-order per issue). `isHelp` (a `--help` invocation) excluded — its output legitimately lists every flag.
-- **`workflowOrder` / `FiringOrderAnomaly`** — ordered stages from AGENTS.md's flow `claim(0) ≺ start-plan(1) ≺ change-code(2) ≺ milestone-close(3) ≺ close(4) ≺ merge(5)`, **keyed per issueID**, **iteration-aware**: legal loops that must NOT flag — `milestone-close→change-code` (next milestone), `start-plan` re-runs (AGENTS.md "re-run per design"), `close→change-code`/`close→start-plan` after a REWORK/reopen (`codecomplete→working`, `issue.cue:129/132`). Only a verb below the issue's max-reached stage with **no** intervening legal-loop trigger flags. **`merge`/`push` carry NO `--issue`** (they derive touched issues from the git diff, invisible to the transcript — `merge.go:105-110`, `push.go`), so stage-5 `merge` is **attributed from segment context** (the nearest preceding `--issue`-bearing invocation in the same segment) or, if none, recorded as `unattributed` and kept OUT of any per-issue ladder — never bucketed under a global `""` key that would cross-contaminate. `skill-late` = a plan/TDD `Skill` load after a `KindFileEdit` in the same segment+issue.
+- **`workflowStage` / `FiringOrderAnomaly`** — ordered stages from AGENTS.md's flow `claim(0) ≺ start-plan(1) ≺ change-code(2) ≺ milestone-close(3) ≺ close(4) ≺ merge(5)`, **keyed per issueID**, **iteration-aware**: legal loops that must NOT flag — `milestone-close→change-code` (next milestone), `start-plan` re-runs (AGENTS.md "re-run per design"), `close→change-code`/`close→start-plan` after a REWORK/reopen (`codecomplete→working`, `issue.cue:129/132`). Only a verb below the issue's max-reached stage with **no** intervening legal-loop trigger flags. **`merge`/`push` carry NO `--issue`** (they derive touched issues from the git diff, invisible to the transcript — `merge.go:105-110`, `push.go`), so stage-5 `merge` is **attributed from segment context** (the nearest preceding `--issue`-bearing invocation in the same segment) or, if none, recorded as `unattributed` and kept OUT of any per-issue ladder — never bucketed under a global `""` key that would cross-contaminate. `skill-late` = a plan/TDD `Skill` load after a `KindFileEdit` in the same segment+issue.
 
 ### Integration points
 
@@ -89,28 +89,28 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 
 ### Task 1: `GateSig` catalog + `AllGates()` drift guard (all commands)
 **Files:** Create `cmd/sdlc/internal/processmanual/gatesig.go`; `cmd/sdlc/gates.go` (`AllGates()`); Tests `gatesig_test.go`, `gates_test.go`. Modify flag registrations in `close.go`/`milestoneclose.go`/`changecode.go`/`merge.go`/`push.go` to source names from `AllGates()`.
-- [ ] **Step 1: Failing test** — `AllGates()` == the **12 bypass-gate** flags across the **five spine commands** (close, milestone-close, change-code, merge, push). The drift guard asserts `AllGates()` equals every `--no-*`/gated-`--force` flag registered by those five command files, **explicitly excluding a known-non-gate allowlist** — currently `{no-start}` (`claim.go:62`, a workflow toggle on a sixth command, NOT a bypass gate: no ACK, no refusal). Without the allowlist the guard fails on day one (there are 13 registered `--no-*` flags; one is `no-start`). `gateCatalog` has one `GateSig` per row of the table above.
-- [ ] **Step 2: Run** → FAIL → **Step 3: Implement** `gatesig.go` (the table as data) + `gates.go`; point registrations at `AllGates()`.
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/...` → PASS → **Step 5: Commit** — `#172 M1: gate signature catalog + cross-command drift guard`.
+- [x] **Step 1: Failing test** — `AllGates()` == the **12 bypass-gate** flags across the **five spine commands** (close, milestone-close, change-code, merge, push). The drift guard asserts `AllGates()` equals every `--no-*`/gated-`--force` flag registered by those five command files, **explicitly excluding a known-non-gate allowlist** — currently `{no-start}` (`claim.go:62`, a workflow toggle on a sixth command, NOT a bypass gate: no ACK, no refusal). Without the allowlist the guard fails on day one (there are 13 registered `--no-*` flags; one is `no-start`). `gateCatalog` has one `GateSig` per row of the table above.
+- [x] **Step 2: Run** → FAIL → **Step 3: Implement** `gatesig.go` (the table as data) + `gates.go`; point registrations at `AllGates()`.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/...` → PASS → **Step 5: Commit** — `#172 M1: gate signature catalog + cross-command drift guard`.
 
 ### Task 2: `classifyOutputLine` over REAL fixtures (3 grammars + rejections)
 **Files:** Create `friction.go`; Test `friction_test.go` with real captured lines.
-- [ ] **Step 1: Failing tests** — one positive per grammar (G1 `[!]…[0m --no-verdict (or --force): skipping…`→Bypass; cinfo `==>…[0m skipping…per --no-judge (or --force)`→Bypass; G2 `[!]…[0m plan-quality gate bypassed (--force: x)`→Bypass{force-only}; G3 `[!]…[0m ⚠️ --no-validate: SKIPPING…`→Bypass); one refusal per shape incl comma/slash forms; and the REJECTIONS: the `:219` warmup line→none, a `cwarn(stderr, "--no-plan-check (or --force):` source line→none, a `17\t==> …` cat-n line→none, a `%s#%s is already status`→none.
-- [ ] **Step 2: Run** → FAIL → **Step 3: Implement** `classifyOutputLine` (ANSI strip, require `[0m ` runtime reset or the G2 shape, match per-`GateSig` `ackRE`/`refusalRE`, reject contamination markers + `warmupTrap`).
-- [ ] **Step 4: Run** → PASS → **Step 5: Commit** — `#172 M1: classifyOutputLine (3 ACK grammars, warmup+source rejection)`.
+- [x] **Step 1: Failing tests** — one positive per grammar (G1 `[!]…[0m --no-verdict (or --force): skipping…`→Bypass; cinfo `==>…[0m skipping…per --no-judge (or --force)`→Bypass; G2 `[!]…[0m plan-quality gate bypassed (--force: x)`→Bypass{force-only}; G3 `[!]…[0m ⚠️ --no-validate: SKIPPING…`→Bypass); one refusal per shape incl comma/slash forms; and the REJECTIONS: the `:219` warmup line→none, a `cwarn(stderr, "--no-plan-check (or --force):` source line→none, a `17\t==> …` cat-n line→none, a `%s#%s is already status`→none.
+- [x] **Step 2: Run** → FAIL → **Step 3: Implement** `classifyOutputLine` (ANSI strip, require `[0m ` runtime reset or the G2 shape, match per-`GateSig` `ackRE`/`refusalRE`, reject contamination markers + `warmupTrap`).
+- [x] **Step 4: Run** → PASS → **Step 5: Commit** — `#172 M1: classifyOutputLine (3 ACK grammars, warmup+source rejection)`.
 
 ### Task 3: `SdlcInvocation` from anchored calls + Edit/Write capture + output linkage
 **Files:** Modify `session.go` (`classifyToolUse` +`KindFileEdit`; `parseEvents` attach linked output to all `KindSDLCPrompt`); `friction.go` builder; Tests.
-- [ ] **Step 1: Failing tests** — `Bash(sdlc close --no-atlas --issue 173)` + its linked `tool_result` → `SdlcInvocation{verb:close, issueID:"173", output:<ack>}`; `Edit`/`Write`/`MultiEdit` → `KindFileEdit`; `sdlc close --help` → `isHelp`.
-- [ ] **Step 2–4:** implement — note `parseEvents` currently parses the verdict from close/mclose output then **discards the raw text** (`session.go:216`); extend it to (a) link results to EVERY `KindSDLCPrompt` and (b) **retain the raw output** on the event for `classifyOutputLine`. Per-session golden unchanged; PASS.
-- [ ] **Step 5: Commit** — `#172 M1: SdlcInvocation (anchored, issue-keyed) + Edit/Write capture + output linkage`.
+- [x] **Step 1: Failing tests** — `Bash(sdlc close --no-atlas --issue 173)` + its linked `tool_result` → `SdlcInvocation{verb:close, issueID:"173", output:<ack>}`; `Edit`/`Write`/`MultiEdit` → `KindFileEdit`; `sdlc close --help` → `isHelp`.
+- [x] **Step 2–4:** implement — note `parseEvents` currently parses the verdict from close/mclose output then **discards the raw text** (`session.go:216`); extend it to (a) link results to EVERY `KindSDLCPrompt` and (b) **retain the raw output** on the event for `classifyOutputLine`. Per-session golden unchanged; PASS.
+- [x] **Step 5: Commit** — `#172 M1: SdlcInvocation (anchored, issue-keyed) + Edit/Write capture + output linkage`.
 
 ### Task 4: whole-corpus walk + `detectGateEvents` + aggregate + render (Claude)
 **Files:** `friction.go`, `processmanual.go`; Tests + temp-dir corpus test.
-- [ ] **Step 1: Failing tests** — anti-contamination test (a); warmup-rejection test (b); `enumerateAllTranscripts` over temp `<slugA>`/`<slugB>` incl a `-worktree-ariadne-` slug (→ labeled `ariadne`) and a `-private-tmp-` slug (→ excluded); `aggregate` per-gate + per-repo; `detectGateEvents` sets `observability`.
-- [ ] **Step 2–3:** implement Claude glob, `detectGateEvents`, `aggregate`, `renderFrictionReport` (markdown + `--json`), `--friction-report` + `--session` conflict guard.
-- [ ] **Step 4: Run** → PASS; smoke over the real corpus; the clean ranking should reproduce judge≈65-dominant, no-verified 0. Record clean per-gate + per-repo numbers in the Log; note the peer-vs-ariadne split.
-- [ ] **Step 5: Commit** — `#172 M1: whole-corpus bypass measure, anti-contamination + repo labeling (claude)`.
+- [x] **Step 1: Failing tests** — anti-contamination test (a); warmup-rejection test (b); `enumerateAllTranscripts` over temp `<slugA>`/`<slugB>` incl a `-worktree-ariadne-` slug (→ labeled `ariadne`) and a `-private-tmp-` slug (→ excluded); `aggregate` per-gate + per-repo; `detectGateEvents` sets `observability`.
+- [x] **Step 2–3:** implement Claude glob, `detectGateEvents`, `aggregate`, `renderFrictionReport` (markdown + `--json`), `--friction-report` + `--session` conflict guard.
+- [x] **Step 4: Run** → PASS; smoke over the real corpus; the clean ranking should reproduce judge≈65-dominant, no-verified 0. Record clean per-gate + per-repo numbers in the Log; note the peer-vs-ariadne split.
+- [x] **Step 5: Commit** — `#172 M1: whole-corpus bypass measure, anti-contamination + repo labeling (claude)`.
 
 **M1 close:** `sdlc milestone-close --issue 172 --milestone M1`.
 
@@ -119,17 +119,17 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 ## Chunk 2: M2 — refusal→retry + firing-order detectors (Claude)
 
 ### Task 5: `detectRefusalRetries` (per-gate refusal sigs, flag-omitted best-effort)
-- [ ] **Step 1: Failing tests** — `[close Refusal{no-atlas}, …, close Bypass{no-atlas}]` in one transcript → `RefusalRetry{Resolved:true}`; a `no-verdict` comma-form refusal never retried → `Resolved:false`; a merge `no-judge` publish-gate refusal (flag not named) paired by verb+context → `observability:flag-omitted`; the `:219` warmup must NOT produce a refusal.
-- [ ] **Step 2–4:** implement (pair a `Refusal` with the next same-verb+issue invocation; carry `observability`); PASS.
-- [ ] **Step 5: Commit** — `#172 M2: refusal→retry pairing (per-gate sigs)`.
+- [x] **Step 1: Failing tests** — `[close Refusal{no-atlas}, …, close Bypass{no-atlas}]` in one transcript → `RefusalRetry{Resolved:true}`; a `no-verdict` comma-form refusal never retried → `Resolved:false`; a merge `no-judge` publish-gate refusal (flag not named) paired by verb+context → `observability:flag-omitted`; the `:219` warmup must NOT produce a refusal.
+- [x] **Step 2–4:** implement (pair a `Refusal` with the next same-verb+issue invocation; carry `observability`); PASS.
+- [x] **Step 5: Commit** — `#172 M2: refusal→retry pairing (per-gate sigs)`.
 
 ### Task 6: `detectFiringOrder` (per-issue, iteration-aware)
-- [ ] **Step 1: Failing tests** — `close` before any `change-code` for issue N → anomaly; **`milestone-close`→`change-code` (same issue) → none**; **`start-plan` re-run after `change-code` → none**; **`close`→`change-code` after a REWORK → none**; cross-issue interleave (`claim A; close A; claim B; start-plan B`) → none (keyed per issue); **`merge` (no `--issue`) after `close #N` in the same segment → attributed to N; a `change-code #N` after N was merged → anomaly**; a `merge` with no preceding `--issue` context → `unattributed`, not flagged; `Skill(writing-plans)` after a `KindFileEdit` → `skill-late`.
-- [ ] **Step 2–4:** implement `workflowOrder` (AGENTS.md-sourced table, cited) + per-issue max-stage tracking with the legal-loop triggers; PASS.
-- [ ] **Step 5: Commit** — `#172 M2: firing-order (per-issue, iteration-aware)`.
+- [x] **Step 1: Failing tests** — `close` before any `change-code` for issue N → anomaly; **`milestone-close`→`change-code` (same issue) → none**; **`start-plan` re-run after `change-code` → none**; **`close`→`change-code` after a REWORK → none**; cross-issue interleave (`claim A; close A; claim B; start-plan B`) → none (keyed per issue); **`merge` (no `--issue`) after `close #N` in the same segment → attributed to N; a `change-code #N` after N was merged → anomaly**; a `merge` with no preceding `--issue` context → `unattributed`, not flagged; `Skill(writing-plans)` after a `KindFileEdit` → `skill-late`. *(See M2 Revisions: the first arm resolved as order-INVERSION semantics.)*
+- [x] **Step 2–4:** implement `workflowOrder` (AGENTS.md-sourced table, cited) + per-issue max-stage tracking with the legal-loop triggers; PASS.
+- [x] **Step 5: Commit** — `#172 M2: firing-order (per-issue, iteration-aware)`.
 
 ### Task 7: fold both into the report
-- [ ] Extend `FrictionReport`/render (+ JSON) with refusal→retry (resolution rate, observability caveats) + firing-order; update golden; `go test ./cmd/sdlc/...` PASS; smoke + Log. Commit — `#172 M2: report renders refusal→retry + firing-order`.
+- [x] Extend `FrictionReport`/render (+ JSON) with refusal→retry (resolution rate, observability caveats) + firing-order; update golden; `go test ./cmd/sdlc/...` PASS; smoke + Log. Commit — `#172 M2: report renders refusal→retry + firing-order`.
 
 **M2 close:** `sdlc milestone-close --issue 172 --milestone M2`.
 
@@ -139,14 +139,14 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 
 ### Task 8: `codexMetaKind` + `parseCodexEvents`
 **Files:** Create `codex.go`; Tests + real `testdata/codex-*.jsonl`. (Note: `transcripts/codex.go:69 codexCWDFromBytes` is cwd-only + unexported — share only the "iterate to first `session_meta`" loop shape; extract `forked_from_id`/`parent_thread_id`/`agent_nickname` net-new, review M1.)
-- [ ] **Step 1: Failing tests** from the atlas spec — `codexMetaKind`→fork-replay/sub-agent/root; `parseCodexEvents` maps a `function_call` running `sdlc <verb>` → `SdlcInvocation`, derives Bypass/Refusal from the plain-string `function_call_output.output` via the SAME `classifyOutputLine`; FIRST `session_meta`; skip fork-replay, keep sub-agent.
-- [ ] **Step 2–4:** implement; PASS.
-- [ ] **Step 5: Commit** — `#172 M3: Go codex parser (atlas-spec-derived)`.
+- [x] **Step 1: Failing tests** from the atlas spec — `codexMetaKind`→fork-replay/sub-agent/root; `parseCodexEvents` maps a `function_call` running `sdlc <verb>` → `SdlcInvocation`, derives Bypass/Refusal from the plain-string `function_call_output.output` via the SAME `classifyOutputLine`; FIRST `session_meta`; skip fork-replay, keep sub-agent.
+- [x] **Step 2–4:** implement; PASS.
+- [x] **Step 5: Commit** — `#172 M3: Go codex parser (atlas-spec-derived)`.
 
 ### Task 9: wire codex into the walk + cross-language golden test
-- [ ] **Step 1: Failing tests** — walk over 1 Claude + 1 codex transcript each with a `--no-judge` bypass → both counted, agent-tagged (codex adds e.g. no-reclose-guard 30); cross-language golden (Go decisions == Python `agent_codex.py`/`normalize.py` on a shared fixture, spec-derived snapshot).
-- [ ] **Step 2–4:** codex glob in `enumerateAllTranscripts` + dispatch; PASS; smoke over both-agent corpus; record per-agent split in Log.
-- [ ] **Step 5: Commit** — `#172 M3: codex coverage in friction-report (both agents)`.
+- [x] **Step 1: Failing tests** — walk over 1 Claude + 1 codex transcript each with a `--no-judge` bypass → both counted, agent-tagged (codex adds e.g. no-reclose-guard 30); cross-language golden (Go decisions == Python `agent_codex.py`/`normalize.py` on a shared fixture, spec-derived snapshot).
+- [x] **Step 2–4:** codex glob in `enumerateAllTranscripts` + dispatch; PASS; smoke over both-agent corpus; record per-agent split in Log.
+- [x] **Step 5: Commit** — `#172 M3: codex coverage in friction-report (both agents)`.
 
 **M3 close:** `sdlc milestone-close --issue 172 --milestone M3`.
 
@@ -155,10 +155,10 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 ## Chunk 4: M4 — T2 triage + T3 coverage-gap read (analysis)
 
 ### Task 10: T2 — triage the top-bypassed gates
-- [ ] Run `--friction-report`. Triage each top gate (judge 65, change-code pq/eq via --force, no-actual, no-atlas, no-verdict) as **workflow gap** (mis-designed/too costly → fix/relax) vs **legit escape hatch**, using refusal→retry + firing-order as evidence; note the `observability` caveats where a count is `force-only`. Confirm `no-verified`=0 left alone. Record verdicts + actions in `## Findings`; file follow-ups.
+- [x] Run `--friction-report`. Triage each top gate (judge 65, change-code pq/eq via --force, no-actual, no-atlas, no-verdict) as **workflow gap** (mis-designed/too costly → fix/relax) vs **legit escape hatch**, using refusal→retry + firing-order as evidence; note the `observability` caveats where a count is `force-only`. Confirm `no-verified`=0 left alone. Record verdicts + actions in `## Findings`; file follow-ups.
 
 ### Task 11: T3 — coverage-gap read
-- [ ] From firing-order anomalies + refusal→retry loops + segment context, identify un-gated workflow moments that recur as errors. Record gaps + candidate gates/relaxations. Commit — `#172 M4: T2 triage + T3 coverage-gap findings`.
+- [x] From firing-order anomalies + refusal→retry loops + segment context, identify un-gated workflow moments that recur as errors. Record gaps + candidate gates/relaxations. Commit — `#172 M4: T2 triage + T3 coverage-gap findings`.
 
 **Issue close:** `sdlc close --issue 172`.
 
@@ -190,3 +190,158 @@ The third fresh-eyes verification confirmed the architecture is sound and empiri
 Minors folded: the G3 `no-validate` ACK regex tolerates the `⚠️ ` emoji + double-space; `parseEvents` must **retain** the raw output (today it parses the verdict then discards it); **push `no-validate` refusal IS flag-named** (the shared `validategate.go:82` cwarn fires for both merge and push — so push no-validate is observability `full`, not `flag-omitted`); the change-code `no-judge` ACK (`gate bypassed (--force:)`) is a `--force` override of a *failed* judge, distinct from the silent `--no-judge` skip (label both, don't conflate). Per-gate runtime counts are approximate (±a few) but the ranking + sum hold.
 
 **Status: approved-ready for implementation** (`sdlc change-code` → estimate → M1 TDD). No Critical ever surfaced across the three rounds; the architecture (anchor to `Bash(sdlc <verb>)` + table-driven signature classifier + honest observability limits) was affirmed by rounds 2 and 3.
+
+### 2026-07-14 — M1 execution deviations (recorded at boundary review)
+
+M1 shipped (verdict FIX-THEN-SHIP; both Important fixed before crossing). Three
+deviations from the as-planned M1 task shapes, all functionally sound — treat this
+entry as authoritative over the Chunk-1 task text:
+
+1. **No `cmd/sdlc/gates.go` / `AllGates()`; registrations stay literal.** Task 1
+   planned to source the flag names from `AllGates()`. Delivered instead as a
+   drift-guard enforced the *other* direction: `cmd/sdlc/gates_test.go` introspects
+   each spine command's live-registered `--no-*` flags (via cobra) and diffs against
+   `GateFlagsFor` — production registration code untouched, same lockstep guarantee,
+   and it catches a real registration without a catalog edit.
+2. **`parseEvents` not extended; a sibling scanner does the anchored scan.** Task 3
+   planned to extend `parseEvents` to retain raw output on every `KindSDLCPrompt`.
+   Delivered as `sdlcInvocations` (friction.go) — a pure sibling that scans + links
+   by `tool_use_id`, sharing `rec` + `sdlcVerbRE`, and reads the tool_result
+   **content-block** (more complete than `toolUseResult.stdout`: no-judge ACK 105× vs
+   49×). Watch item (review §6): extract the shared scan-and-link core before M3 adds
+   a codex sibling, so the two walkers can't drift.
+3. **Edit/Write/MultiEdit → `KindFileEdit` deferred to M2**, where the firing-order
+   skill-late detector actually consumes it (disclosed in the issue Log).
+
+**Boundary-review fix (Important #1):** `GateStat` observability was per-flag
+last-write-wins and mislabeled the headline gate (no-judge shown `flag-omitted` when
+its 17 bypasses are full-observable close/mclose). Now keyed per **(command, flag)**
+and derived from the gate's *intrinsic* caveat (`gateObs`), so the label is correct
+regardless of which event type was seen — close/mclose no-judge `full`, change-code
+`force-only`, merge/push no-judge `flag-omitted`. Test: `TestObservabilityPerCommand`.
+
+**Deferred to M2 (review Minors):** dedupe gate events per invocation (the
+`no-validate` refusal double-line: `validategate.go:82` cwarn + the die-wrapped
+error); `sdlcVerbRE` misses `go run ./cmd/sdlc <verb>` dev invocations (footnote);
+error (not silent-0) when zero transcripts enumerate; compound-command second-verb
+anchoring; a `renderFrictionReport`/JSON shape test + `toolResultText` array-form test.
+
+### 2026-07-14 — M2 execution deviations (recorded at boundary)
+
+M2 shipped (Tasks 5–7). Deviations from the Chunk-2 task text, all deliberate:
+
+1. **Firing-order's first arm is order-INVERSION, not absence.** Task 6's test list
+   was internally contradictory under absence semantics: "`close` before any
+   `change-code` → anomaly" vs the cross-issue interleave "`claim A; close A; …` →
+   none" (close A there also lacks a change-code). Resolved as: only an observed
+   inversion flags — a `change-code` arriving AFTER a clean close/merge with no
+   REWORK between (`change-code-after-close`, detail distinguishes close vs
+   merge/push) — while absent early stages are treated as partial observation
+   (sessions predate the corpus or ran on codex, unreadable until M3). Both plan
+   examples pass under this rule; precision over recall. REWORK is recovered from
+   the close/mclose output via `judge.ParseVerdict` (+ trailer fallback, ARCH-DRY)
+   and rolls the ladder back to the implementing stage. Flagged once per issue.
+2. **skill-late excludes `.md` edits** — plan/issue/doc edits ARE design work; only
+   implementation (non-`.md`) edits make a later plan/TDD skill load "late". The
+   matcher covers `writing-plans` + `test-driven-development` by suffix. Issue
+   attribution = the segment's current `--issue` context; the file-edit flag resets
+   on segment gap (60 min) or issue-context change.
+3. **`KindFileEdit` lands in `classifyToolUse` (shared match table) with the full
+   path as detail**, and `parseEvents` filters it so `--session` reports (and their
+   goldens) are unchanged.
+4. **Minors folded as planned:** per-invocation event dedupe (feeds `aggregate` too —
+   bypass headline unchanged, verified over the real corpus); zero-transcripts is an
+   error (#68 lesson); go-run + compound-command limits stated in the report footer
+   (footnote, not fixed — both are conservative undercounts); render/JSON-shape +
+   `toolResultText` array-form tests; corpus verb set widened to claim/start-plan
+   (`WorkflowVerbs`) so the ladder sees stages 0–1 — the header now counts
+   "workflow-verb invocations" (1240 vs M1's 998 spine-only).
+5. **`buildFrictionReport`** (invs + marks + nTranscripts → report) added as the
+   single composition seam M3's codex walk will feed; helptext gained the FRICTION
+   REPORT section.
+
+M2 real-corpus headline: bypass table identical to M1 post-dedupe (no-judge 17,
+no-verified 0, brain 19/pair 15/ariadne 3). Refusal→retry: 71 refusals, nearly all
+resolved by SATISFYING the gate (no-estimate-recon 19/19 satisfied; via-bypass rare —
+no-verdict 2, no-atlas 1) — the refusal texts do their job. Firing-order:
+change-code-after-close 16, skill-late 2, 37 unattributed publishes.
+
+**Boundary-review fix (Important #1, FIX-THEN-SHIP):** the ladder raised `maxStage`
+for every close/merge invocation, including gate-REFUSED ones that never crossed
+their boundary — contradicting the documented clean-close semantics and risking
+false `change-code-after-close` anomalies (refused close → more work → change-code
+is legal recovery). Now an invocation carrying a `GateRefusal` with no accompanying
+`GateBypass` leaves the ladder unchanged (the compound `close || close --no-X`
+retry still counts as completed). Regression test added; re-run over the real
+corpus left the anomaly count at 16 — none of the reported anomalies were this
+false-positive class. Residual (M3): non-gate failures carry no refusal signature;
+capture `tool_result.is_error` when M3 touches the scanner. Review Minors deferred
+to M3 (single events computation in `buildFrictionReport`; scan-and-link core
+extraction before the codex sibling), except the refusal→retry pairing caveats,
+now stated in the report footnote.
+
+### 2026-07-14 — M3 execution deviations (recorded at boundary)
+
+M3 shipped (Tasks 8–9). Deviations, all deliberate:
+
+1. **The codex sibling is `parseCodexInvocations` + `codexMeta`, not a
+   `parseCodexEvents` FiredEvent walker** — the friction audit consumes
+   `SdlcInvocation`s, so the parser yields those directly (same shape as
+   `scanTranscript`), sharing `sdlcVerbRE`/`parseIssueID`/`classifyOutputLine`.
+   The plan's Core-Concepts row `codexMetaKind + parseCodexEvents` maps to
+   `codexMetaKind`/`codexMeta` + `parseCodexInvocations` in `processmanual/codex.go`
+   (not a `--session` codex reader — that remains out of scope).
+2. **Codex yields no ActivityMarks** — codex has no Skill tool, and its file
+   edits (patch_apply_end) would feed nothing without a plan-skill counterpart,
+   so the skill-late arm is Claude-only (stated in the report footer + helptext),
+   rather than capturing consumer-less marks (ARCH-SIMPLICITY).
+3. **`enumerateAllTranscripts` stayed two enumerators** — codex repo labels need
+   the file's `session_meta.cwd` (not derivable from the path like Claude's slug),
+   so `enumerateCodexTranscripts` returns paths and the walk labels + fork-skips
+   per file (`repoLabelFromPath`, worktree-normalized, temp-excluded). Forks
+   skipped are COUNTED (`codex_forks_skipped`) — real corpus: exactly the spec's
+   40, validating the skip-40-not-119 contract.
+4. **Cross-language golden is a spec-derived snapshot** (`testdata/codex-golden/`
+   + `expected.json`), asserting keep/skip/bypass/refusal/failed decisions — no
+   live python3, per plan; the fixture dir is the shared artifact a Python-side
+   test can consume.
+5. **M2-review deferred items landed here:** `SdlcInvocation.Failed` (Claude
+   `is_error` flag / codex non-zero wrapper exit — deliberately NOT the atlas
+   spec's hint-gated taste-friction `is_error`; documented) guards the ladder,
+   with REWORK rollback checked BEFORE the failure skip (a REWORK close reads as
+   failed but must still roll back); events classified once in
+   `buildFrictionReport` (`allGateEvents`) and shared by all three consumers;
+   `forEachRec` extracted as the shared Claude scan core for
+   `parseEvents`/`scanTranscript`.
+
+M3 both-agent headline: 1558 transcripts / 1833 invocations; codex 43 vs claude
+37 bypasses; codex's signature move is the re-close (no-reclose-guard 25
+bypasses; its 3 refusals resolved 3/3 VIA BYPASS — the one gate routed around
+after refusal); no-actual refusals 38 corpus-wide (35 satisfied); firing-order
+unchanged by codex (16 + 2 skill-late), 52 unattributed publishes.
+
+### 2026-07-14 — M4 (analysis) — instrument correction + findings landed
+
+One instrument fix made DURING the analysis (recorded here, tested):
+`parseIssueID`'s bare-`#N` fallback mis-attributed a `git stash -m "…#145" &&
+sdlc merge` compound onto #145's ladder — a live false firing-order anomaly.
+Now `--issue`-only (merge/push rely on segment-context attribution, which is
+the designed path); firing-order anomalies 16 → 11 (5 were this artifact class;
+unattributed publishes 52 → 60, the honest side of the trade). T2 verdicts +
+T3 coverage gaps live in the issue's `## Findings`; follow-ups filed: #174
+(post-FIX-THEN-SHIP protocol), #175 (no-verdict single-pass recovery), #176
+(spine off-workflow guards).
+
+**Boundary-review fixes (FIX-THEN-SHIP):** Important #1 — the two-corpus walk
+seam now has an integration test (`TestRunFrictionReportTwoAgentWalk`:
+enumerate→label→agent-tag→merge over a temp claude+codex tree, plus the
+one-corpus-missing-is-fine contract). Important #2 — the cross-language golden
+gained its Python consumer: `test_normalize.py::test_codex_golden_shared_fixture`
+asserts the keep/skip decision on the shared `testdata/codex-golden/` fixtures
+(skips gracefully in downstream repos without `cmd/sdlc`), so drift on the one
+genuinely shared judgment now fails a test on BOTH sides. Minors folded:
+`/var/folders` (unresolved TMPDIR) excluded from codex repo labels;
+`parseCodexInvocations` pins `name == "exec_command"`; `RefusalRetry.Agent` for
+M4's per-agent triage; `codexOutputFailed` first-match pinned by test;
+`forEachRec` error discard made deliberate; `gofmt -w` zeroed the package's
+format drift. Post-fix smoke: agents/forks counts identical.
