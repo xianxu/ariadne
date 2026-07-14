@@ -141,11 +141,39 @@ instrument) spans M1–M3; T2/T3 (analysis) are M4.
 - [x] M1 — signature catalog + `classifyOutputLine` + `SdlcInvocation` + whole-corpus
   per-gate **bypass** measure (claude), anti-contamination + repo labeling. Runs over
   the real corpus; reproduces the headline (T1 partial)
-- [ ] M2 — refusal→retry + firing-order detectors (T1 complete for claude)
+- [x] M2 — refusal→retry + firing-order detectors (T1 complete for claude)
 - [ ] M3 — codex coverage (net-new Go parser from the atlas spec; both agents)
 - [ ] M4 — T2 triage (gap vs escape-hatch) + T3 coverage-gap read
 
 ## Log
+
+### 2026-07-14 — M2 built (refusal→retry + firing-order; T1 complete for claude)
+
+M2 complete (3 TDD tasks, committed separately): (5) `detectRefusalRetries` —
+pairs each refusal with the next same-verb+same-issue invocation per transcript;
+`resolved` vs `via bypass` separates satisfying a gate from routing around it;
+merge/push flag-omitted refusals paired by verb+context, caveat carried. The
+M1-review Minor fixed at root: gate events dedupe per (kind, gate, command) per
+invocation (the no-validate cwarn + die double-line), and `aggregate` reads the
+deduped stream. (6) `detectFiringOrder` — per-(repo, issue) ladder across
+transcripts against the AGENTS.md §2 order; only observed INVERSIONS flag
+(change-code after clean close/merge); legal loops (mclose→change-code,
+start-plan re-runs, REWORK reopen via `judge.ParseVerdict`) silent; merge/push
+attributed from segment context or counted unattributed; `skill-late` = plan/TDD
+skill load after a non-.md file edit in the same segment+issue
+(Edit/Write/MultiEdit → `KindFileEdit`, filtered out of `--session` reports).
+(7) report fold: refusal→retry + firing-order sections in markdown + `--json`,
+zero-transcripts errors (#68 lesson), go-run/compound limits stated in the
+footer, render/JSON + toolResultText-array tests, helptext section.
+
+**Real-corpus M2 headline:** bypass table identical to M1 post-dedupe (instrument
+stable). Refusal→retry: 71 refusals, 70 retried, nearly all resolved by
+**satisfying** the gate — no-estimate-recon 19/19 satisfied, via-bypass rare
+(no-verdict 2, no-atlas 1): the refusal texts work as next-action specs.
+Firing-order: change-code-after-close 16 (12 in peers), skill-late 2 (both
+brain), 37 unattributed publishes. Deviations recorded in the plan's M2
+Revisions entry (inversion semantics for the ladder's first arm; .md edits
+excluded from skill-late).
 
 ### 2026-07-14 — M1 built (instrument runs over the real corpus)
 - 2026-07-14: closed M1 — M1 friction instrument built + runs over the real corpus (998 spine invocations / 1006 transcripts); go build + go vet clean, 7 processmanual unit suites green incl the load-bearing anti-contamination test + cross-command drift guard; reproduces the Spec headline from a CLEAN anchored measure — no-judge dominant (17), no-verified=0 (design works), bypasses concentrate in peers (brain 19/pair 15) not ariadne (3); raw grep over-counted ~4x (unlinked echoes correctly excluded); review verdict: FIX-THEN-SHIP

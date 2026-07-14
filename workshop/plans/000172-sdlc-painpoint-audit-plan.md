@@ -119,17 +119,17 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 ## Chunk 2: M2 — refusal→retry + firing-order detectors (Claude)
 
 ### Task 5: `detectRefusalRetries` (per-gate refusal sigs, flag-omitted best-effort)
-- [ ] **Step 1: Failing tests** — `[close Refusal{no-atlas}, …, close Bypass{no-atlas}]` in one transcript → `RefusalRetry{Resolved:true}`; a `no-verdict` comma-form refusal never retried → `Resolved:false`; a merge `no-judge` publish-gate refusal (flag not named) paired by verb+context → `observability:flag-omitted`; the `:219` warmup must NOT produce a refusal.
-- [ ] **Step 2–4:** implement (pair a `Refusal` with the next same-verb+issue invocation; carry `observability`); PASS.
-- [ ] **Step 5: Commit** — `#172 M2: refusal→retry pairing (per-gate sigs)`.
+- [x] **Step 1: Failing tests** — `[close Refusal{no-atlas}, …, close Bypass{no-atlas}]` in one transcript → `RefusalRetry{Resolved:true}`; a `no-verdict` comma-form refusal never retried → `Resolved:false`; a merge `no-judge` publish-gate refusal (flag not named) paired by verb+context → `observability:flag-omitted`; the `:219` warmup must NOT produce a refusal.
+- [x] **Step 2–4:** implement (pair a `Refusal` with the next same-verb+issue invocation; carry `observability`); PASS.
+- [x] **Step 5: Commit** — `#172 M2: refusal→retry pairing (per-gate sigs)`.
 
 ### Task 6: `detectFiringOrder` (per-issue, iteration-aware)
-- [ ] **Step 1: Failing tests** — `close` before any `change-code` for issue N → anomaly; **`milestone-close`→`change-code` (same issue) → none**; **`start-plan` re-run after `change-code` → none**; **`close`→`change-code` after a REWORK → none**; cross-issue interleave (`claim A; close A; claim B; start-plan B`) → none (keyed per issue); **`merge` (no `--issue`) after `close #N` in the same segment → attributed to N; a `change-code #N` after N was merged → anomaly**; a `merge` with no preceding `--issue` context → `unattributed`, not flagged; `Skill(writing-plans)` after a `KindFileEdit` → `skill-late`.
-- [ ] **Step 2–4:** implement `workflowOrder` (AGENTS.md-sourced table, cited) + per-issue max-stage tracking with the legal-loop triggers; PASS.
-- [ ] **Step 5: Commit** — `#172 M2: firing-order (per-issue, iteration-aware)`.
+- [x] **Step 1: Failing tests** — `close` before any `change-code` for issue N → anomaly; **`milestone-close`→`change-code` (same issue) → none**; **`start-plan` re-run after `change-code` → none**; **`close`→`change-code` after a REWORK → none**; cross-issue interleave (`claim A; close A; claim B; start-plan B`) → none (keyed per issue); **`merge` (no `--issue`) after `close #N` in the same segment → attributed to N; a `change-code #N` after N was merged → anomaly**; a `merge` with no preceding `--issue` context → `unattributed`, not flagged; `Skill(writing-plans)` after a `KindFileEdit` → `skill-late`. *(See M2 Revisions: the first arm resolved as order-INVERSION semantics.)*
+- [x] **Step 2–4:** implement `workflowOrder` (AGENTS.md-sourced table, cited) + per-issue max-stage tracking with the legal-loop triggers; PASS.
+- [x] **Step 5: Commit** — `#172 M2: firing-order (per-issue, iteration-aware)`.
 
 ### Task 7: fold both into the report
-- [ ] Extend `FrictionReport`/render (+ JSON) with refusal→retry (resolution rate, observability caveats) + firing-order; update golden; `go test ./cmd/sdlc/...` PASS; smoke + Log. Commit — `#172 M2: report renders refusal→retry + firing-order`.
+- [x] Extend `FrictionReport`/render (+ JSON) with refusal→retry (resolution rate, observability caveats) + firing-order; update golden; `go test ./cmd/sdlc/...` PASS; smoke + Log. Commit — `#172 M2: report renders refusal→retry + firing-order`.
 
 **M2 close:** `sdlc milestone-close --issue 172 --milestone M2`.
 
@@ -225,3 +225,43 @@ regardless of which event type was seen — close/mclose no-judge `full`, change
 error); `sdlcVerbRE` misses `go run ./cmd/sdlc <verb>` dev invocations (footnote);
 error (not silent-0) when zero transcripts enumerate; compound-command second-verb
 anchoring; a `renderFrictionReport`/JSON shape test + `toolResultText` array-form test.
+
+### 2026-07-14 — M2 execution deviations (recorded at boundary)
+
+M2 shipped (Tasks 5–7). Deviations from the Chunk-2 task text, all deliberate:
+
+1. **Firing-order's first arm is order-INVERSION, not absence.** Task 6's test list
+   was internally contradictory under absence semantics: "`close` before any
+   `change-code` → anomaly" vs the cross-issue interleave "`claim A; close A; …` →
+   none" (close A there also lacks a change-code). Resolved as: only an observed
+   inversion flags — a `change-code` arriving AFTER a clean close/merge with no
+   REWORK between (`change-code-after-close`, detail distinguishes close vs
+   merge/push) — while absent early stages are treated as partial observation
+   (sessions predate the corpus or ran on codex, unreadable until M3). Both plan
+   examples pass under this rule; precision over recall. REWORK is recovered from
+   the close/mclose output via `judge.ParseVerdict` (+ trailer fallback, ARCH-DRY)
+   and rolls the ladder back to the implementing stage. Flagged once per issue.
+2. **skill-late excludes `.md` edits** — plan/issue/doc edits ARE design work; only
+   implementation (non-`.md`) edits make a later plan/TDD skill load "late". The
+   matcher covers `writing-plans` + `test-driven-development` by suffix. Issue
+   attribution = the segment's current `--issue` context; the file-edit flag resets
+   on segment gap (60 min) or issue-context change.
+3. **`KindFileEdit` lands in `classifyToolUse` (shared match table) with the full
+   path as detail**, and `parseEvents` filters it so `--session` reports (and their
+   goldens) are unchanged.
+4. **Minors folded as planned:** per-invocation event dedupe (feeds `aggregate` too —
+   bypass headline unchanged, verified over the real corpus); zero-transcripts is an
+   error (#68 lesson); go-run + compound-command limits stated in the report footer
+   (footnote, not fixed — both are conservative undercounts); render/JSON-shape +
+   `toolResultText` array-form tests; corpus verb set widened to claim/start-plan
+   (`WorkflowVerbs`) so the ladder sees stages 0–1 — the header now counts
+   "workflow-verb invocations" (1240 vs M1's 998 spine-only).
+5. **`buildFrictionReport`** (invs + marks + nTranscripts → report) added as the
+   single composition seam M3's codex walk will feed; helptext gained the FRICTION
+   REPORT section.
+
+M2 real-corpus headline: bypass table identical to M1 post-dedupe (no-judge 17,
+no-verified 0, brain 19/pair 15/ariadne 3). Refusal→retry: 71 refusals, nearly all
+resolved by SATISFYING the gate (no-estimate-recon 19/19 satisfied; via-bypass rare —
+no-verdict 2, no-atlas 1) — the refusal texts do their job. Firing-order:
+change-code-after-close 16, skill-late 2, 37 unattributed publishes.

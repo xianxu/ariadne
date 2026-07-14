@@ -260,6 +260,30 @@ gate design works), and bypasses concentrate in **peer repos, not ariadne** — 
 substrate repo follows its own gates; lighter repos route around them. The raw grep
 over-counted ~4× (unlinked echoes: process-manual outputs, transcript reads).
 
+The M2 detectors ride the same invocation stream (`buildFrictionReport` is the
+composition seam; gate events are deduped per invocation — one no-validate refusal
+prints two matching lines):
+
+- **Refusal→retry** (`detectRefusalRetries`) pairs each gate refusal with the next
+  same-verb+same-issue invocation in the same transcript; `resolved` distinguishes
+  satisfying the gate from routing around it (`via bypass`). merge/push refusals
+  never name their flag → paired by verb+context, labeled `flag-omitted`.
+- **Firing-order** (`detectFiringOrder`) walks each (repo, issue)'s invocations
+  across transcripts against the AGENTS.md §2 ladder (claim ≺ start-plan ≺
+  change-code ≺ milestone-close ≺ close ≺ merge/push). Only an observed **order
+  inversion** flags (change-code after a clean close/merge); legal loops —
+  mclose→change-code, start-plan re-runs, close→change-code after a REWORK verdict
+  (recovered via `judge.ParseVerdict`) — stay silent, and absent early stages are
+  partial observation, not anomalies (precision over recall). merge/push carry no
+  `--issue` → attributed from segment context or counted unattributed. The
+  `skill-late` arm flags a plan/TDD Skill load after a non-`.md` file edit in the
+  same segment+issue (Edit/Write/MultiEdit → `KindFileEdit`, excluded from
+  `--session` reports).
+
+M2 headline: refusals mostly resolve by **satisfying** the gate (no-estimate-recon
+19/19 satisfied; via-bypass is rare — no-verdict 2, no-atlas 1), i.e. refusals do
+their job; firing-order found change-code-after-close 16 / skill-late 2.
+
 ## Anti-collusion + form-vs-essence
 
 Checkpoint guards defend against **omission** (claiming done without
