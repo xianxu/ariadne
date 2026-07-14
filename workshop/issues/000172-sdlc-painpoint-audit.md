@@ -143,9 +143,95 @@ instrument) spans M1–M3; T2/T3 (analysis) are M4.
   the real corpus; reproduces the headline (T1 partial)
 - [x] M2 — refusal→retry + firing-order detectors (T1 complete for claude)
 - [x] M3 — codex coverage (net-new Go parser from the atlas spec; both agents)
-- [ ] M4 — T2 triage (gap vs escape-hatch) + T3 coverage-gap read
+- [x] M4 — T2 triage (gap vs escape-hatch) + T3 coverage-gap read
+
+## Findings
+
+*M4 analysis over the T1 instrument (both agents, whole corpus: 1558 transcripts,
+1834 workflow-verb invocations). Method: anchored per-gate counts + refusal→retry
+resolution + firing-order + rationale spot-checks (command-field extraction of
+`--verified` texts, 283 bypass-bearing commands). Instrument correction made
+during analysis: the bare-`#N` issue-attribution fallback mis-keyed a `git stash
+-m "…#145"` merge onto #145's ladder — removed (`--issue`-only now); firing-order
+anomalies 16 → 11 (5 were this artifact).*
+
+### T2 — per-gate triage (gap vs escape hatch)
+
+**The headline the refusal data settles: gates work by refusing, not by being
+obeyed voluntarily.** 158 refusals → 158 retried → 149 resolved, and only **8**
+resolved by routing around the gate. Refusal texts function as next-action specs.
+The bypass problem is NOT "agents dodge refusals" — bypasses are almost always
+*pre-emptive* (flag passed up front), which is exactly what the per-gate flag
+design intended: explicit, measurable escape hatches.
+
+| gate | verdict | evidence + action |
+|---|---|---|
+| `no-judge` (close/mclose, 17 bypasses — top gate) | **mixed: legit hatch, but its dominant driver is a workflow gap** | Rationales cluster on (a) *re-closes where the review already ran* ("review ALREADY RAN, SHIP, twice") and (b) bookkeeping-only deltas. The gate is fine; the **post-close re-close loop** it protects against is the gap (→ T3-1). No gate change. |
+| change-code `plan-quality`/`estimate-quality`/`estimate-recon` (force-only obs; **76 refusals — highest volume in the spine**) | **legit, working as designed — but the #1 friction cost** | no-estimate-recon 51 refusals (codex 31 / claude 20), ~all resolved by SATISFYING (0 bypasses). The gate teaches; the cost is retry round-trips. Action: monitor; if volume persists, move the reconciliation check earlier (plan-save/start-plan reminder) rather than relaxing. |
+| `no-actual` (8 bypasses, 48 refusals → ~45 satisfied) | **legit hatch + gate works** | When refused, agents measure (close now computes + suggests). The "tension with measured-not-typed" the Spec feared is resolved: bypass volume is low and refusals convert. Leave alone. |
+| `no-atlas` (16 bypasses) | **legit escape hatch** | Rationales are the intended ones ("delta is test-hardening only", "no new surface"). This is the flag doing its §5 job. Leave alone. |
+| `no-verdict` (6 bypasses, 8 refusals, **4/8 resolved via bypass — highest claude route-around rate**) | **workflow gap (gate calibration)** | Cause: Mx-tagged plans closed in ONE pass — the per-milestone trailer demand can't be satisfied retroactively, so agents route around. AGENTS.md §3 now warns against over-splitting, but the gate still punishes the recovered case. Action: follow-up filed (accept the issue-close review as covering trailing unclosed milestones; refusal text should cite §3). |
+| `no-reclose-guard` (25 bypasses, ~all codex; refusals resolved **3/3 via bypass — the one gate agents always route around**) | **workflow gap (post-FIX-THEN-SHIP protocol), guard itself correct** | Live trace (#145): close → FIX-THEN-SHIP → fix commits → re-close → re-close. Agents re-close to "record" fixes because the post-verdict protocol is ambiguous. Action: follow-up filed (→ T3-1). |
+| `no-project` (3+ bypasses) | **legit hatch** (Spec pre-judged) | Single-repo work has no project file. Optional relaxation noted in follow-up: auto-skip when no project references the issue. |
+| merge/push `no-judge` (publish gate; 6 refusals → 6 resolved) | **workflow gap (bookkeeping-after-close)** | Refusals fire on post-close bookkeeping commits (Log/lessons edits move HEAD after the reviewed anchor). Same family as the re-close loop (→ T3-2). |
+| `no-validate` (1 bypass, 4 refusals → satisfied) | **working** | leave alone. |
+| `no-plan-check` (6 refusals → satisfied) | **working** | leave alone. |
+| `no-verified` (**0 bypasses, both agents, whole corpus**) | **correctly calibrated** | confirmed; left alone. The one gate NEVER bypassed — verification evidence is universally accepted as non-negotiable. |
+
+**Cross-cutting:** bypasses concentrate in peers (pair 37 / brain 19 /
+parley.nvim 16 / ariadne 8) and codex out-bypasses claude (43 vs 37) with the
+re-close as its signature move. The Spec's hypothesis ("gates calibrated to
+ariadne's rigor feel heavy downstream") holds only partially — the top drivers
+are protocol gaps (re-close, bookkeeping) and off-workflow use (brain), not
+gate strictness per se.
+
+### T3 — coverage-gap read (un-gated recurring moments)
+
+1. **Post-FIX-THEN-SHIP is un-specified → the re-close loop.** The verdict
+   finalizes the close, fixes land after, and nothing tells the agent what
+   "recording the fixes" looks like — so they re-run close, hit the reclose
+   guard, and bypass it (3/3 via-bypass; 25 codex re-closes; #145 live trace).
+   Candidate: close's FIX-THEN-SHIP output states "commit fixes with the
+   verdict trailer; do NOT re-close", and/or a lightweight `sdlc reverify` to
+   update evidence without a re-close.
+2. **Post-close bookkeeping breaks the publish gate.** Log/lessons/plan-tick
+   commits after close move HEAD past the reviewed anchor → merge/push refuse →
+   `--no-judge`. Candidate: close orders bookkeeping before finalizing, or the
+   publish gate tolerates doc-only deltas (workshop/, atlas/, lessons.md).
+3. **Working on a `done` issue is un-gated until close.** change-code (and all
+   other verbs) run silently against done issues; only re-close is guarded.
+   Firing-order found 11 change-code-after-close (8 brain, 2 pair, 1 ariadne —
+   the ariadne one is #160 dogfooding sdlc-on-sdlc, an accepted instrument
+   residual). Candidate: change-code warns "issue #N is done — reopen (REWORK
+   path) or open a new issue".
+4. **brain runs the spine against its own charter.** brain is a capture repo,
+   not an SDLC repo, yet it concentrates 19 bypasses and 8/11 firing-order
+   anomalies — sdlc gets invoked where the workflow doesn't apply, and every
+   gate becomes noise to route around. Candidate: a repo-level guard (spine
+   verbs refuse/warn in repos without the SDLC layout), which would also clean
+   future friction measurements.
+5. **Non-gaps confirmed:** skill-late ≈ 0 real signal (2, both brain) — the
+   plan-first discipline holds on claude; verification (no-verified=0) needs
+   nothing; refusal texts need no strengthening (149/158 conversions).
 
 ## Log
+
+### 2026-07-14 — M4: T2 triage + T3 coverage-gap read (see ## Findings)
+
+Analysis over the finished instrument; full verdicts + evidence in
+`## Findings` above. Headline: **the refusal system works** (158 refusals → 149
+resolved, only 8 via bypass) — bypasses are pre-emptive escape hatches, exactly
+what the flag design intended, and the real problems are three protocol gaps,
+not gate strictness: the un-specified post-FIX-THEN-SHIP flow (re-close loop +
+bookkeeping publish-gate trips → **#174**), the no-verdict gate punishing
+recovered single-pass Mx plans (→ **#175**), and un-gated off-workflow
+invocations (done-issue change-code; brain running the spine against its
+charter — 19 bypasses + 8/11 anomalies there → **#176**). `no-verified` = 0
+confirmed correctly calibrated; no-actual/no-atlas/no-project confirmed legit
+escape hatches; change-code's estimate-recon is the highest-volume friction
+(51 refusals, all satisfied) — monitor, don't relax. One instrument fix during
+analysis: `parseIssueID` is `--issue`-only now (a bare-`#N` in a stash message
+had forged a false anomaly; 16 → 11, all tests green).
 
 ### 2026-07-14 — M3 built (codex coverage; T1 complete, both agents)
 - 2026-07-14: closed M3 — go test ./cmd/sdlc/... green incl codex suites (meta-kind fork/sub-agent/root, parser end-to-end with real-shape fixtures, Failed derivation, cross-language golden vs spec-derived expected.json); both-agent real-corpus smoke: 1558 transcripts / 1833 invocations, exactly 40 fork-replays skipped (matches the atlas spec census), codex 43 / claude 37 bypasses, codex re-close pattern surfaced (no-reclose-guard 25 bypasses, 3/3 refusals resolved via bypass); review verdict: FIX-THEN-SHIP

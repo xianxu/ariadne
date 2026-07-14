@@ -155,10 +155,10 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 ## Chunk 4: M4 — T2 triage + T3 coverage-gap read (analysis)
 
 ### Task 10: T2 — triage the top-bypassed gates
-- [ ] Run `--friction-report`. Triage each top gate (judge 65, change-code pq/eq via --force, no-actual, no-atlas, no-verdict) as **workflow gap** (mis-designed/too costly → fix/relax) vs **legit escape hatch**, using refusal→retry + firing-order as evidence; note the `observability` caveats where a count is `force-only`. Confirm `no-verified`=0 left alone. Record verdicts + actions in `## Findings`; file follow-ups.
+- [x] Run `--friction-report`. Triage each top gate (judge 65, change-code pq/eq via --force, no-actual, no-atlas, no-verdict) as **workflow gap** (mis-designed/too costly → fix/relax) vs **legit escape hatch**, using refusal→retry + firing-order as evidence; note the `observability` caveats where a count is `force-only`. Confirm `no-verified`=0 left alone. Record verdicts + actions in `## Findings`; file follow-ups.
 
 ### Task 11: T3 — coverage-gap read
-- [ ] From firing-order anomalies + refusal→retry loops + segment context, identify un-gated workflow moments that recur as errors. Record gaps + candidate gates/relaxations. Commit — `#172 M4: T2 triage + T3 coverage-gap findings`.
+- [x] From firing-order anomalies + refusal→retry loops + segment context, identify un-gated workflow moments that recur as errors. Record gaps + candidate gates/relaxations. Commit — `#172 M4: T2 triage + T3 coverage-gap findings`.
 
 **Issue close:** `sdlc close --issue 172`.
 
@@ -319,6 +319,18 @@ M3 both-agent headline: 1558 transcripts / 1833 invocations; codex 43 vs claude
 bypasses; its 3 refusals resolved 3/3 VIA BYPASS — the one gate routed around
 after refusal); no-actual refusals 38 corpus-wide (35 satisfied); firing-order
 unchanged by codex (16 + 2 skill-late), 52 unattributed publishes.
+
+### 2026-07-14 — M4 (analysis) — instrument correction + findings landed
+
+One instrument fix made DURING the analysis (recorded here, tested):
+`parseIssueID`'s bare-`#N` fallback mis-attributed a `git stash -m "…#145" &&
+sdlc merge` compound onto #145's ladder — a live false firing-order anomaly.
+Now `--issue`-only (merge/push rely on segment-context attribution, which is
+the designed path); firing-order anomalies 16 → 11 (5 were this artifact class;
+unattributed publishes 52 → 60, the honest side of the trade). T2 verdicts +
+T3 coverage gaps live in the issue's `## Findings`; follow-ups filed: #174
+(post-FIX-THEN-SHIP protocol), #175 (no-verdict single-pass recovery), #176
+(spine off-workflow guards).
 
 **Boundary-review fixes (FIX-THEN-SHIP):** Important #1 — the two-corpus walk
 seam now has an integration test (`TestRunFrictionReportTwoAgentWalk`:

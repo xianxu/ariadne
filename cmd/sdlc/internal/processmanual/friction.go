@@ -37,7 +37,13 @@ type SdlcInvocation struct {
 	Repo       string
 }
 
-var issueArgRE = regexp.MustCompile(`(?:--issue[ =]+|#)0*(\d+)`)
+// issueArgRE accepts ONLY the explicit `--issue N` form. A bare-`#N` fallback
+// was tried and removed (M4): commit/stash messages inside compound commands
+// carry `#N` constantly, and a `git stash -m "… #145" && sdlc merge` mis-keyed
+// an unrelated merge onto #145's ladder (a live false anomaly). The spine verbs
+// all take --issue; merge/push carry none and are attributed from segment
+// context instead (precision over recall).
+var issueArgRE = regexp.MustCompile(`--issue[ =]+0*(\d+)`)
 
 func parseIssueID(command string) string {
 	if m := issueArgRE.FindStringSubmatch(command); m != nil {
