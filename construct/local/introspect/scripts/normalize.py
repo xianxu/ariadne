@@ -27,6 +27,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from agent_claude import claude_events
+from events import EventKind, NormEvent
+
 PROJECTS_ROOT = Path.home() / ".claude" / "projects"
 # Boundary thresholds for segmenting a long resumed session into smaller units
 # of analysis. The user's actual workflow flips between activities within one
@@ -136,21 +139,6 @@ def parse_ts(ts: str | None) -> datetime | None:
         return None
 
 
-def extract_text_from_message_content(content: Any) -> str:
-    """Flatten user/assistant message.content into text. Handles str and list-of-blocks."""
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for item in content:
-            if not isinstance(item, dict):
-                continue
-            if item.get("type") == "text" and "text" in item:
-                parts.append(item["text"])
-        return "\n".join(parts)
-    return ""
-
-
 def detect_slash_commands(text: str) -> list[str]:
     """Find all slash-command invocations in a user message text.
 
@@ -172,16 +160,17 @@ def detect_slash_commands(text: str) -> list[str]:
     return []
 
 
-def process_event(line: dict[str, Any], summary: SessionSummary) -> None:
-    """Mutate `summary` based on a single transcript event."""
-    et = line.get("type")
+def _apply_line_metadata(line: dict[str, Any], summary: SessionSummary) -> None:
+    """Session-level metadata read straight off a raw line — timestamp span, cwd,
+    git branch, permission modes. This is the small per-agent seam that stays
+    format-aware (codex carries cwd/start in `session_meta`, not per-line); the
+    agent-neutral event aggregation goes through `aggregate_norm_event`."""
     ts = line.get("timestamp")
     if ts:
         if summary.start_ts is None or ts < summary.start_ts:
             summary.start_ts = ts
         if summary.end_ts is None or ts > summary.end_ts:
             summary.end_ts = ts
-
     cwd = line.get("cwd")
     if cwd and not summary.cwd:
         summary.cwd = cwd
@@ -192,54 +181,42 @@ def process_event(line: dict[str, Any], summary: SessionSummary) -> None:
     if pm:
         summary.permission_modes_seen.add(pm)
 
-    if et == "user":
-        msg = line.get("message", {})
-        if isinstance(msg, dict):
-            text = extract_text_from_message_content(msg.get("content"))
-            # tool-result user messages have toolUseResult on the wrapper, not real prose
-            if not line.get("toolUseResult"):
-                cmds = detect_slash_commands(text)
-                summary.slash_commands.extend(cmds)
-                # A turn counts as a user message if it has prose OR a slash command.
-                if text.strip() or cmds:
-                    summary.user_message_count += 1
-                    if summary.first_user_message is None:
-                        # Prefer the slash command for legibility, fall back to prose.
-                        if cmds and not text.strip():
-                            summary.first_user_message = cmds[0]
-                        else:
-                            summary.first_user_message = text[:500]
 
-    elif et == "assistant":
+def aggregate_norm_event(nev: NormEvent, summary: SessionSummary) -> None:
+    """Fold one NormEvent into the session aggregates — agent-neutral (reads only
+    NormEvent fields, no wire format). The adapter already flattened messages,
+    tool calls, and file edits into NormEvents."""
+    k = nev.kind
+    if k == EventKind.USER_MSG and not nev.is_tool_result:
+        text = nev.text or ""
+        cmds = detect_slash_commands(text)
+        summary.slash_commands.extend(cmds)
+        # A turn counts as a user message if it has prose OR a slash command.
+        if text.strip() or cmds:
+            summary.user_message_count += 1
+            if summary.first_user_message is None:
+                # Prefer the slash command for legibility, fall back to prose.
+                if cmds and not text.strip():
+                    summary.first_user_message = cmds[0]
+                else:
+                    summary.first_user_message = text[:500]
+    elif k == EventKind.ASSISTANT_MSG:
         summary.assistant_message_count += 1
-        msg = line.get("message", {})
-        if isinstance(msg, dict):
-            content = msg.get("content", [])
-            if isinstance(content, list):
-                for item in content:
-                    if not isinstance(item, dict):
-                        continue
-                    if item.get("type") == "tool_use":
-                        summary.tool_call_count += 1
-                        name = item.get("name", "?")
-                        summary.tool_calls_by_name[name] = (
-                            summary.tool_calls_by_name.get(name, 0) + 1
-                        )
-                        ipt = item.get("input", {}) or {}
-                        if name == "Bash":
-                            summary.bash_command_count += 1
-                        elif name == "Write":
-                            fp = ipt.get("file_path")
-                            if fp:
-                                summary.files_written.add(fp)
-                        elif name == "Edit":
-                            fp = ipt.get("file_path")
-                            if fp:
-                                summary.files_edited.add(fp)
-                        elif name == "Read":
-                            fp = ipt.get("file_path")
-                            if fp:
-                                summary.files_read.add(fp)
+    elif k in (EventKind.TOOL_CALL, EventKind.FILE_EDIT):
+        summary.tool_call_count += 1
+        name = nev.tool_name or "?"
+        summary.tool_calls_by_name[name] = summary.tool_calls_by_name.get(name, 0) + 1
+        if name == "Bash":
+            summary.bash_command_count += 1
+        elif name == "Write":
+            if nev.file_path:
+                summary.files_written.add(nev.file_path)
+        elif name == "Edit":
+            if nev.file_path:
+                summary.files_edited.add(nev.file_path)
+        elif name == "Read":
+            if nev.file_path:
+                summary.files_read.add(nev.file_path)
 
 
 def collect_raw_events(
@@ -346,7 +323,9 @@ def build_segment_summary(
             if isinstance(content, str):
                 summary.closing_away_summary = content[:400]
             continue
-        process_event(line, summary)
+        _apply_line_metadata(line, summary)
+        for nev in claude_events(line):
+            aggregate_norm_event(nev, summary)
     if summary.start_ts and summary.end_ts:
         t0, t1 = parse_ts(summary.start_ts), parse_ts(summary.end_ts)
         if t0 and t1:
