@@ -103,6 +103,37 @@ The per-gate `--no-<flag>` design was built precisely to make bypasses
 
 ## Log
 
+### 2026-07-14 — design phase complete (plan v3.1 build-ready)
+
+Claimed + start-plan; durable plan authored at
+`workshop/plans/000172-sdlc-painpoint-audit-plan.md` and hardened through **three
+fresh-eyes plan-review rounds** + a ground-truth signature-catalog enumeration.
+The instrument: **anchor to `Bash(sdlc <verb>)` invocations**, classify each output
+line against a source+corpus-verified **per-gate signature catalog**, whole
+cross-repo corpus, both agents. Milestones M1 (catalog + bypass measure) → M2
+(refusal→retry + firing-order) → M3 (codex) → M4 (T2 triage + T3 read).
+
+**Two operator scope decisions:** (1) measure **all 12 spine gates** across
+close/mclose/change-code/merge/push (not just the 8 close-gates) — the Spec's thesis
+is "where does the SPINE hurt"; (2) firing-order oracle from **AGENTS.md's workflow
+DAG** (issue.cue lacks the mid-verbs), iteration-aware.
+
+**Review arc (the reviews earned their keep, as on #173):** v1's premise was
+inverted — the bypass signal is in the captured **tool-result output**, not a
+discarded `.stderr` field (`extractStdout` already reads it); the real problem is
+**discrimination, not capture** (this repo develops sdlc, so `close.go` source +
+cat-n log reads spray every gate string into tool output — command-anchoring is the
+key filter). v2 affirmed the architecture but hand-picked fixtures that didn't match
+reality (the "refusal" fixture was actually the `printSemanticWarmup` success line).
+v3 rebuilt on the exhaustive catalog; v3.1 folded the final precision fixes.
+**Corrected headline: judge bypass ≈ 65 dominant** (`--no-validate` runtime is only
+~3 — the naive-grep 87 was source contamination); `--no-verified` = 0 (design works).
+Verdict across all rounds: BUILDABLE, no Critical.
+
+**Next (build phase):** `sdlc change-code` (branch + estimate now that scope is
+knowable) → implement M1 via TDD (real captured fixtures, incl. the contamination
+rejection cases).
+
 ### 2026-07-13
 
 Created as a prerequisite to #170 (stack-simplification audit). Baseline
