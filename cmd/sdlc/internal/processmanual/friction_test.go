@@ -439,6 +439,72 @@ func TestScanTranscriptMarks(t *testing.T) {
 	}
 }
 
+// ── M2 Task 7: report fold + render/JSON shape (M1 review gap) ───────────────
+
+func TestFrictionReportRenderAndJSON(t *testing.T) {
+	esc := "\x1b"
+	atlasRefusal := "  or pass --no-atlas (or --force) with the rationale in --verified"
+	atlasAck := "  " + esc + "[1;33m[!]" + esc + "[0m --no-atlas (or --force): skipping atlas/ change check — rationale in --verified"
+	invs := []SdlcInvocation{
+		foInv("claim", "5", "t", 0, ""),
+		foInv("close", "5", "t", 1, atlasRefusal), // refused …
+		foInv("close", "5", "t", 2, atlasAck),     // … retried via bypass
+		foInv("change-code", "5", "t", 3, ""),     // change-code after the clean close → anomaly
+	}
+	rep := buildFrictionReport(invs, nil, 1)
+
+	md := renderFrictionReport(rep)
+	for _, want := range []string{
+		"| close | no-atlas | 1 | 1 |",  // per-gate row: 1 bypass, 1 refusal
+		"## Refusal→retry",              // section present
+		"| close | no-atlas | 1 | 1 | 1 | 1 |", // refusals/retried/resolved/via-bypass tallies
+		"## Firing-order anomalies",
+		"change-code-after-close",
+		"go run",                        // stated-limitations footnote (dev invocations not anchored)
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("render missing %q in:\n%s", want, md)
+		}
+	}
+
+	raw, err := json.Marshal(rep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	rrs, ok := m["refusal_retries"].([]any)
+	if !ok || len(rrs) != 1 {
+		t.Fatalf("JSON refusal_retries: want 1 record, got %v", m["refusal_retries"])
+	}
+	fo, ok := m["firing_order"].(map[string]any)
+	if !ok {
+		t.Fatalf("JSON firing_order missing: %v", m)
+	}
+	if an, ok := fo["anomalies"].([]any); !ok || len(an) != 1 {
+		t.Errorf("JSON firing_order.anomalies: want 1, got %v", fo["anomalies"])
+	}
+}
+
+// toolResultText's legacy array-of-{text} form (older transcripts) — untested in
+// M1 (review Minor).
+func TestToolResultTextArrayForm(t *testing.T) {
+	got := toolResultText(json.RawMessage(`[{"type":"text","text":"line one"},{"type":"text","text":"line two"}]`))
+	if !strings.Contains(got, "line one") || !strings.Contains(got, "line two") {
+		t.Fatalf("array-form content not joined: %q", got)
+	}
+}
+
+// Zero enumerable transcripts must ERROR, not print an empty report — the #68
+// lesson: a misinvocation must not look like a real empty answer (M1 review Minor).
+func TestRunFrictionReportZeroTranscripts(t *testing.T) {
+	if _, err := RunFrictionReport(filepath.Join(t.TempDir(), "no-such-dir"), false); err == nil {
+		t.Fatal("want an error when zero transcripts enumerate, got nil")
+	}
+}
+
 func TestEnumerateClaudeTranscripts(t *testing.T) {
 	root := t.TempDir()
 	mk := func(slug string, n int) {

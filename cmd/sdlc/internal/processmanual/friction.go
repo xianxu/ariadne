@@ -645,13 +645,34 @@ type GateStat struct {
 }
 
 // FrictionReport is the whole-corpus aggregate (#172): per-gate bypass/refusal
-// counts + per-repo bypass concentration. Refusal→retry pairing and firing-order
-// are M2; codex coverage is M3.
+// counts + per-repo bypass concentration, plus the M2 detectors — refusal→retry
+// pairing and firing-order anomalies. Codex coverage is M3.
 type FrictionReport struct {
-	TranscriptsScanned int            `json:"transcripts_scanned"`
-	InvocationsSeen    int            `json:"invocations_seen"`
-	Gates              []GateStat     `json:"gates"`
-	ByRepoBypass       map[string]int `json:"by_repo_bypass"`
+	TranscriptsScanned int               `json:"transcripts_scanned"`
+	InvocationsSeen    int               `json:"invocations_seen"`
+	Gates              []GateStat        `json:"gates"`
+	ByRepoBypass       map[string]int    `json:"by_repo_bypass"`
+	RefusalRetries     []RefusalRetry    `json:"refusal_retries"`
+	FiringOrder        FiringOrderResult `json:"firing_order"`
+}
+
+// buildFrictionReport composes the pure detectors over one parsed corpus — the
+// single seam RunFrictionReport (and M3's codex walk) feed.
+func buildFrictionReport(invs []SdlcInvocation, marks []ActivityMark, nTranscripts int) FrictionReport {
+	rep := aggregate(invs, nTranscripts)
+	rep.RefusalRetries = detectRefusalRetries(invs)
+	rep.FiringOrder = detectFiringOrder(invs, marks)
+	return rep
+}
+
+// WorkflowVerbs is SpineVerbs plus the gate-less workflow verbs the firing-order
+// ladder anchors on (claim/start-plan — stages 0–1 carry no bypass gates, so the
+// catalog can't supply them).
+func WorkflowVerbs() map[string]bool {
+	out := SpineVerbs()
+	out["claim"] = true
+	out["start-plan"] = true
+	return out
 }
 
 func obsString(o Observability) string {
@@ -729,7 +750,7 @@ func aggregate(invs []SdlcInvocation, nTranscripts int) FrictionReport {
 func renderFrictionReport(rep FrictionReport) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# sdlc friction report\n\n")
-	fmt.Fprintf(&b, "%d transcripts scanned, %d spine-verb invocations.\n\n", rep.TranscriptsScanned, rep.InvocationsSeen)
+	fmt.Fprintf(&b, "%d transcripts scanned, %d workflow-verb invocations.\n\n", rep.TranscriptsScanned, rep.InvocationsSeen)
 	fmt.Fprintf(&b, "## Per-gate bypasses (command-anchored, contamination-filtered)\n\n")
 	fmt.Fprintf(&b, "| command | gate | bypasses | refusals | observability |\n|---|---|---|---|---|\n")
 	for _, g := range rep.Gates {
@@ -752,7 +773,105 @@ func renderFrictionReport(rep FrictionReport) string {
 	for _, r := range repos {
 		fmt.Fprintf(&b, "| %s | %d |\n", r.repo, r.n)
 	}
+
+	// ── Refusal→retry (M2) ──
+	fmt.Fprintf(&b, "\n## Refusal→retry (per gate)\n\n")
+	if len(rep.RefusalRetries) == 0 {
+		b.WriteString("_No gate refusals observed._\n")
+	} else {
+		type rrKey struct{ cmd, gate string }
+		type rrTally struct {
+			refusals, retried, resolved, viaBypass int
+			obs                                    string
+		}
+		tally := map[rrKey]*rrTally{}
+		var rrOrder []rrKey
+		for _, rr := range rep.RefusalRetries {
+			k := rrKey{rr.Command, rr.Gate}
+			tl := tally[k]
+			if tl == nil {
+				tl = &rrTally{obs: rr.Observability}
+				tally[k] = tl
+				rrOrder = append(rrOrder, k)
+			}
+			tl.refusals++
+			if rr.Retried {
+				tl.retried++
+			}
+			if rr.Resolved {
+				tl.resolved++
+			}
+			if rr.ViaBypass {
+				tl.viaBypass++
+			}
+		}
+		sort.SliceStable(rrOrder, func(i, j int) bool {
+			a, bK := rrOrder[i], rrOrder[j]
+			if tally[a].refusals != tally[bK].refusals {
+				return tally[a].refusals > tally[bK].refusals
+			}
+			if a.gate != bK.gate {
+				return a.gate < bK.gate
+			}
+			return a.cmd < bK.cmd
+		})
+		fmt.Fprintf(&b, "| command | gate | refusals | retried | resolved | via bypass | observability |\n|---|---|---|---|---|---|---|\n")
+		for _, k := range rrOrder {
+			tl := tally[k]
+			note := ""
+			if tl.obs != "full" {
+				note = " ⚠️"
+			}
+			fmt.Fprintf(&b, "| %s | %s | %d | %d | %d | %d | %s%s |\n",
+				k.cmd, k.gate, tl.refusals, tl.retried, tl.resolved, tl.viaBypass, tl.obs, note)
+		}
+		b.WriteString("\n_`resolved` = the retry no longer refused this gate; `via bypass` = it resolved by routing AROUND the gate (--no-<gate>/--force), not by satisfying it. `flag-omitted` rows pair refusal→retry by verb+context only (best-effort)._\n")
+	}
+
+	// ── Firing-order (M2) ──
+	fmt.Fprintf(&b, "\n## Firing-order anomalies\n\n")
+	if len(rep.FiringOrder.Anomalies) == 0 {
+		b.WriteString("_None detected._\n")
+	} else {
+		byKind := map[string]int{}
+		for _, a := range rep.FiringOrder.Anomalies {
+			byKind[a.Kind]++
+		}
+		var kinds []string
+		for k := range byKind {
+			kinds = append(kinds, k)
+		}
+		sort.Strings(kinds)
+		fmt.Fprintf(&b, "| kind | count |\n|---|---|\n")
+		for _, k := range kinds {
+			fmt.Fprintf(&b, "| %s | %d |\n", k, byKind[k])
+		}
+		const maxListed = 20
+		b.WriteString("\n")
+		for i, a := range rep.FiringOrder.Anomalies {
+			if i == maxListed {
+				fmt.Fprintf(&b, "- …and %d more (full list in --json)\n", len(rep.FiringOrder.Anomalies)-maxListed)
+				break
+			}
+			loc := a.Repo
+			if a.IssueID != "" {
+				loc += " #" + a.IssueID
+			} else {
+				loc += " (no issue context)"
+			}
+			fmt.Fprintf(&b, "- **%s** · %s", a.Kind, loc)
+			if a.Detail != "" {
+				fmt.Fprintf(&b, " — %s", a.Detail)
+			}
+			b.WriteString("\n")
+		}
+	}
+	if rep.FiringOrder.UnattributedPublish > 0 {
+		fmt.Fprintf(&b, "\n_%d merge/push invocation(s) had no attributable --issue context (kept out of every per-issue ladder)._\n", rep.FiringOrder.UnattributedPublish)
+	}
+
 	b.WriteString("\n_Observability: `force-only` = change-code silent bypass (countable only via --force); `flag-omitted` = merge/push refusal doesn't name the flag._\n")
+	b.WriteString("_Stated limits: dev-style invocations (`go run ./cmd/sdlc <verb>`, `bin/sdlc <verb>`) are not anchored — undercounts the repo that dogfoods sdlc; in a compound command only the FIRST `sdlc <verb>` anchors (a second verb's gate lines are conservatively dropped)._\n")
 	return b.String()
 }
 
@@ -761,20 +880,30 @@ func renderFrictionReport(rep FrictionReport) string {
 // enumeration + file reads are the only side effects.
 func RunFrictionReport(claudeRoot string, asJSON bool) (string, error) {
 	refs := enumerateClaudeTranscripts(claudeRoot)
-	verbs := SpineVerbs()
+	if len(refs) == 0 {
+		// #68 lesson: a misinvocation (wrong/missing corpus root) must not look
+		// like a real empty answer.
+		return "", fmt.Errorf("no transcripts found under %s — is this the Claude projects dir?", claudeRoot)
+	}
+	verbs := WorkflowVerbs()
 	var invs []SdlcInvocation
+	var marks []ActivityMark
 	for _, ref := range refs {
 		data, err := os.ReadFile(ref.Path)
 		if err != nil {
 			continue
 		}
-		tInvs, _ := scanTranscript(data, verbs) // marks wired into the report in Task 7
+		tInvs, tMarks := scanTranscript(data, verbs)
 		for _, inv := range tInvs {
 			inv.Transcript, inv.Repo, inv.Agent = ref.Path, ref.Repo, ref.Agent
 			invs = append(invs, inv)
 		}
+		for _, mk := range tMarks {
+			mk.Transcript, mk.Repo = ref.Path, ref.Repo
+			marks = append(marks, mk)
+		}
 	}
-	rep := aggregate(invs, len(refs))
+	rep := buildFrictionReport(invs, marks, len(refs))
 	if asJSON {
 		out, err := json.MarshalIndent(rep, "", "  ")
 		if err != nil {

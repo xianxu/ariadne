@@ -51,6 +51,20 @@ DYNAMIC RECONSTRUCTION (--session, #157)
     - Forked review PROMPTS aren't in the transcript; only their OUTPUT is
       (streamed back through the close/milestone-close stdout — the verdict).
 
+FRICTION REPORT (--friction-report, #172)
+
+  `--friction-report` switches to a WHOLE-CORPUS aggregate (every repo's Claude
+  transcripts, not just this repo's): per-gate bypass/refusal counts anchored to
+  real `Bash(sdlc <verb>)` invocations (source reads, cat-n log output, help
+  text, and prose mentions never count), refusal→retry resolution (was a refused
+  gate satisfied on retry, or routed around via --no-<gate>/--force?), and
+  workflow firing-order anomalies (change-code after a clean close/merge; a
+  plan/TDD skill loaded after implementation edits already started). `--json`
+  emits the machine-readable report. Measurement limits are stated in the report
+  footer, not hidden: change-code's silent bypasses are countable only via
+  --force, merge/push refusals never name their flag (best-effort attribution),
+  and dev-style invocations (`go run ./cmd/sdlc <verb>`) are not anchored.
+
 CAVEATS (documented blind spots)
 
   - Persisted memories are agent-specific (Claude) and live OUTSIDE the repo, so
