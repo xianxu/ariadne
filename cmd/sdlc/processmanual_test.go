@@ -16,7 +16,7 @@ import (
 func TestRunProcessManual_IncludeMemoryWithOutRefused(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "manual.md")
 	var stdout, stderr bytes.Buffer
-	err := runProcessManual(&stdout, &stderr, out, "" /*session*/, false /*full*/, true /*includeMemory*/)
+	err := runProcessManual(&stdout, &stderr, out, "" /*session*/, false /*full*/, true /*includeMemory*/, false /*frictionReport*/, false /*asJSON*/)
 	if err == nil {
 		t.Fatal("expected error: --include-memory with --out must be refused")
 	}

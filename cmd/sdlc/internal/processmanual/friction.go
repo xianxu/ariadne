@@ -4,7 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -31,6 +35,30 @@ var issueArgRE = regexp.MustCompile(`(?:--issue[ =]+|#)0*(\d+)`)
 func parseIssueID(command string) string {
 	if m := issueArgRE.FindStringSubmatch(command); m != nil {
 		return m[1]
+	}
+	return ""
+}
+
+// toolResultText extracts a tool_result block's content, which is polymorphic — a
+// plain string, or an array of {type:"text", text:…} parts (older transcripts).
+func toolResultText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	var parts []struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &parts) == nil {
+		var b strings.Builder
+		for _, p := range parts {
+			b.WriteString(p.Text)
+			b.WriteByte('\n')
+		}
+		return b.String()
 	}
 	return ""
 }
@@ -88,8 +116,12 @@ func sdlcInvocations(data []byte, validVerbs map[string]bool) []SdlcInvocation {
 		case "user":
 			for _, c := range r.Message.Content {
 				if c.Type == "tool_result" && c.ToolUseID != "" {
-					if sd, ok := extractStdout(r.ToolUseResult); ok {
-						outByID[c.ToolUseID] = sd
+					// The tool_result BLOCK content is the merged displayed output
+					// (stdout+stderr) — more complete than toolUseResult.stdout, which
+					// misses stderr-only ACKs like the cinfo no-judge skip (verified:
+					// no-judge ACK in content-block 105× vs stdout 49×). #172.
+					if txt := toolResultText(c.Result); txt != "" {
+						outByID[c.ToolUseID] = txt
 					}
 				}
 			}
@@ -214,4 +246,193 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// ── Corpus walk + aggregation + report (M1 Task 4) ───────────────────────────
+
+// SpineVerbs is the set of sdlc verbs that carry bypass gates — the only verbs the
+// friction audit needs to recognize. Derived from the catalog so it can't drift.
+func SpineVerbs() map[string]bool {
+	out := map[string]bool{}
+	for _, g := range GateCatalog {
+		for _, c := range g.Commands {
+			out[c] = true
+		}
+	}
+	return out
+}
+
+type transcriptRef struct{ Path, Repo, Agent string }
+
+// repoLabel maps a ~/.claude/projects slug to a repo label for per-repo grouping,
+// normalizing ariadne worktrees to "ariadne" and excluding scratch/temp dirs
+// (include=false). Slug→repo is inherently lossy (dash-joined); this is best-effort
+// grouping for the peer-vs-ariadne concentration finding.
+func repoLabel(slug string) (label string, include bool) {
+	if strings.HasPrefix(slug, "-private-tmp-") || strings.HasPrefix(slug, "-private-var-folders-") {
+		return "", false
+	}
+	if strings.Contains(slug, "-worktree-ariadne-") {
+		return "ariadne", true
+	}
+	if i := strings.Index(slug, "-workspace-"); i >= 0 {
+		return slug[i+len("-workspace-"):], true
+	}
+	return strings.TrimPrefix(slug, "-"), true
+}
+
+// enumerateClaudeTranscripts walks every ~/.claude/projects/<slug>/*.jsonl under
+// claudeRoot (injectable for tests). The IO seam; the pure detectors receive the
+// parsed invocations.
+func enumerateClaudeTranscripts(claudeRoot string) []transcriptRef {
+	entries, err := os.ReadDir(claudeRoot)
+	if err != nil {
+		return nil
+	}
+	var out []transcriptRef
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		label, include := repoLabel(e.Name())
+		if !include {
+			continue
+		}
+		files, _ := filepath.Glob(filepath.Join(claudeRoot, e.Name(), "*.jsonl"))
+		for _, f := range files {
+			out = append(out, transcriptRef{Path: f, Repo: label, Agent: "claude"})
+		}
+	}
+	return out
+}
+
+// GateStat is one gate's aggregated friction.
+type GateStat struct {
+	Flag          string `json:"flag"`
+	Bypasses      int    `json:"bypasses"`
+	Refusals      int    `json:"refusals"`
+	Observability string `json:"observability"`
+}
+
+// FrictionReport is the whole-corpus aggregate (#172): per-gate bypass/refusal
+// counts + per-repo bypass concentration. Refusal→retry pairing and firing-order
+// are M2; codex coverage is M3.
+type FrictionReport struct {
+	TranscriptsScanned int            `json:"transcripts_scanned"`
+	InvocationsSeen    int            `json:"invocations_seen"`
+	Gates              []GateStat     `json:"gates"`
+	ByRepoBypass       map[string]int `json:"by_repo_bypass"`
+}
+
+func obsString(o Observability) string {
+	switch o {
+	case ObsForceOnly:
+		return "force-only"
+	case ObsFlagOmitted:
+		return "flag-omitted"
+	default:
+		return "full"
+	}
+}
+
+// aggregate is pure over the parsed invocations — classifies each output line and
+// tallies per-gate bypass/refusal + per-repo bypass. IsHelp invocations are skipped
+// (their output lists every flag). Gates are sorted by bypass count descending.
+func aggregate(invs []SdlcInvocation, nTranscripts int) FrictionReport {
+	bypass := map[string]int{}
+	refusal := map[string]int{}
+	obs := map[string]Observability{}
+	byRepo := map[string]int{}
+	for _, inv := range invs {
+		// NB: we do NOT skip IsHelp invocations — a compound Bash command
+		// (`sdlc close --no-judge && sdlc x --help`) contains "--help" yet carries a
+		// real close bypass, and help-text lines don't match the specific ACK/refusal
+		// patterns anyway, so the classifier already rejects them (#172).
+		for _, ln := range strings.Split(inv.Output, "\n") {
+			ev, ok := classifyOutputLine(ln, inv.Verb)
+			if !ok {
+				continue
+			}
+			obs[ev.Gate] = ev.Observability
+			if ev.Kind == GateBypass {
+				bypass[ev.Gate]++
+				byRepo[inv.Repo]++
+			} else {
+				refusal[ev.Gate]++
+			}
+		}
+	}
+	var gates []GateStat
+	for _, flag := range GateFlagNames() {
+		if bypass[flag] == 0 && refusal[flag] == 0 {
+			continue
+		}
+		gates = append(gates, GateStat{
+			Flag: flag, Bypasses: bypass[flag], Refusals: refusal[flag],
+			Observability: obsString(obs[flag]),
+		})
+	}
+	sort.SliceStable(gates, func(i, j int) bool { return gates[i].Bypasses > gates[j].Bypasses })
+	return FrictionReport{
+		TranscriptsScanned: nTranscripts, InvocationsSeen: len(invs),
+		Gates: gates, ByRepoBypass: byRepo,
+	}
+}
+
+func renderFrictionReport(rep FrictionReport) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# sdlc friction report\n\n")
+	fmt.Fprintf(&b, "%d transcripts scanned, %d spine-verb invocations.\n\n", rep.TranscriptsScanned, rep.InvocationsSeen)
+	fmt.Fprintf(&b, "## Per-gate bypasses (command-anchored, contamination-filtered)\n\n")
+	fmt.Fprintf(&b, "| gate | bypasses | refusals | observability |\n|---|---|---|---|\n")
+	for _, g := range rep.Gates {
+		note := ""
+		if g.Observability != "full" {
+			note = " ⚠️"
+		}
+		fmt.Fprintf(&b, "| %s | %d | %d | %s%s |\n", g.Flag, g.Bypasses, g.Refusals, g.Observability, note)
+	}
+	fmt.Fprintf(&b, "\n## Bypass concentration by repo\n\n| repo | bypasses |\n|---|---|\n")
+	type rc struct {
+		repo string
+		n    int
+	}
+	var repos []rc
+	for r, n := range rep.ByRepoBypass {
+		repos = append(repos, rc{r, n})
+	}
+	sort.SliceStable(repos, func(i, j int) bool { return repos[i].n > repos[j].n })
+	for _, r := range repos {
+		fmt.Fprintf(&b, "| %s | %d |\n", r.repo, r.n)
+	}
+	b.WriteString("\n_Observability: `force-only` = change-code silent bypass (countable only via --force); `flag-omitted` = merge/push refusal doesn't name the flag._\n")
+	return b.String()
+}
+
+// RunFrictionReport walks the whole Claude corpus under claudeRoot, extracts sdlc
+// invocations, and returns the friction report as markdown (or JSON). The IO entry;
+// enumeration + file reads are the only side effects.
+func RunFrictionReport(claudeRoot string, asJSON bool) (string, error) {
+	refs := enumerateClaudeTranscripts(claudeRoot)
+	verbs := SpineVerbs()
+	var invs []SdlcInvocation
+	for _, ref := range refs {
+		data, err := os.ReadFile(ref.Path)
+		if err != nil {
+			continue
+		}
+		for _, inv := range sdlcInvocations(data, verbs) {
+			inv.Transcript, inv.Repo, inv.Agent = ref.Path, ref.Repo, ref.Agent
+			invs = append(invs, inv)
+		}
+	}
+	rep := aggregate(invs, len(refs))
+	if asJSON {
+		out, err := json.MarshalIndent(rep, "", "  ")
+		if err != nil {
+			return "", err
+		}
+		return string(out) + "\n", nil
+	}
+	return renderFrictionReport(rep), nil
 }

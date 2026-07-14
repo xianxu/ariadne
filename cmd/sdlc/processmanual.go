@@ -24,7 +24,7 @@ import (
 // NewProcessManualCmd returns the cobra command for `sdlc process-manual`.
 func NewProcessManualCmd() *cobra.Command {
 	var out, session string
-	var full, includeMemory bool
+	var full, includeMemory, frictionReport, asJSON bool
 	cmd := &cobra.Command{
 		Use:           "process-manual",
 		Short:         "Unroll every injection source into a linked process manual",
@@ -32,13 +32,15 @@ func NewProcessManualCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProcessManual(cmd.OutOrStdout(), cmd.ErrOrStderr(), out, session, full, includeMemory)
+			return runProcessManual(cmd.OutOrStdout(), cmd.ErrOrStderr(), out, session, full, includeMemory, frictionReport, asJSON)
 		},
 	}
 	cmd.Flags().StringVar(&out, "out", "", "write the manual to a file (default: stdout)")
 	cmd.Flags().StringVar(&session, "session", "", "reconstruct which injection points FIRED in a session transcript (a .jsonl path, or \"current\" for this repo's active session) instead of the static catalog (#157)")
 	cmd.Flags().BoolVar(&full, "full", false, "inline the complete judge prompts instead of a first-paragraph gist (outline unchanged)")
 	cmd.Flags().BoolVar(&includeMemory, "include-memory", false, "inline private, machine-local persisted memories (redacted by default; do NOT commit the output)")
+	cmd.Flags().BoolVar(&frictionReport, "friction-report", false, "aggregate per-gate bypass rates across the WHOLE Claude corpus (all repos), command-anchored + contamination-filtered (#172)")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "with --friction-report: emit the machine-readable JSON report instead of markdown")
 	return cmd
 }
 
@@ -47,7 +49,29 @@ func NewProcessManualCmd() *cobra.Command {
 // with --session it reconstructs which injection points FIRED in a transcript
 // (SessionReport, #157). For --out, links are prefixed with the out file's path
 // back to the repo root so they stay clickable (assumes --out is within the repo).
-func runProcessManual(stdout, stderr io.Writer, outPath, session string, full, includeMemory bool) error {
+func runProcessManual(stdout, stderr io.Writer, outPath, session string, full, includeMemory, frictionReport, asJSON bool) error {
+	// Friction report is WHOLE-CORPUS (all repos), so it is NOT repo-bound — handle it
+	// before the RepoTopLevel() requirement below (#172).
+	if frictionReport {
+		if session != "" {
+			return fmt.Errorf("--friction-report and --session are mutually exclusive (corpus aggregate vs single session)")
+		}
+		home, _ := os.UserHomeDir()
+		content, err := processmanual.RunFrictionReport(filepath.Join(home, ".claude", "projects"), asJSON)
+		if err != nil {
+			return err
+		}
+		if outPath == "" {
+			fmt.Fprint(stdout, content)
+			return nil
+		}
+		if werr := os.WriteFile(outPath, []byte(content), 0o644); werr != nil {
+			return werr
+		}
+		fmt.Fprintf(stderr, "wrote friction report: %s\n", outPath)
+		return nil
+	}
+
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err

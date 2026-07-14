@@ -2,6 +2,9 @@ package processmanual
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -123,5 +126,73 @@ func TestClassifyOutputLine(t *testing.T) {
 			t.Errorf("%s: got {kind:%d gate:%q obs:%d} want {kind:%d gate:%q obs:%d}",
 				c.name, ev.Kind, ev.Gate, ev.Observability, c.wantK, c.wantG, c.wantObs)
 		}
+	}
+}
+
+func TestRepoLabel(t *testing.T) {
+	cases := []struct {
+		slug, want string
+		include    bool
+	}{
+		{"-Users-xianxu-workspace-ariadne", "ariadne", true},
+		{"-Users-xianxu-workspace-parley.nvim", "parley.nvim", true},
+		{"-Users-xianxu-workspace-worktree-ariadne-000095-weave", "ariadne", true},
+		{"-private-tmp-claude-501", "", false},
+		{"-private-var-folders-07-xyz-T", "", false},
+	}
+	for _, c := range cases {
+		got, inc := repoLabel(c.slug)
+		if inc != c.include || (inc && got != c.want) {
+			t.Errorf("repoLabel(%q) = (%q,%v), want (%q,%v)", c.slug, got, inc, c.want, c.include)
+		}
+	}
+}
+
+// The load-bearing test: one real close bypass ACK buried among source-code +
+// cat-n contamination lines must yield exactly ONE bypass, zero from the noise.
+func TestAggregateAntiContamination(t *testing.T) {
+	esc := "\x1b"
+	ackLine := "  " + esc + "[1;33m[!]" + esc + "[0m --no-atlas (or --force): skipping atlas/ change check — rationale in --verified"
+	mixed := strings.Join([]string{
+		"reading close.go for context",
+		`cmd/sdlc/close.go:437:  cwarn(stderr, "--no-atlas (or --force): skipping atlas/ change check")`, // source
+		"944\t\ttail = append(tail, \"Pass --no-atlas (or --force) …\")",                                // cat-n
+		ackLine, // the ONE real bypass
+		"done.",
+	}, "\n")
+	invs := []SdlcInvocation{
+		{Verb: "close", Output: mixed, Repo: "ariadne"},
+		{Verb: "close", Output: "no gate events here", Repo: "ariadne"},
+	}
+	rep := aggregate(invs, 2)
+	if len(rep.Gates) != 1 || rep.Gates[0].Flag != "no-atlas" || rep.Gates[0].Bypasses != 1 {
+		t.Fatalf("want exactly one no-atlas bypass (the real ACK; source+cat-n rejected), got %+v", rep.Gates)
+	}
+	if rep.ByRepoBypass["ariadne"] != 1 {
+		t.Errorf("want ariadne=1 bypass, got %v", rep.ByRepoBypass)
+	}
+}
+
+func TestEnumerateClaudeTranscripts(t *testing.T) {
+	root := t.TempDir()
+	mk := func(slug string, n int) {
+		d := filepath.Join(root, slug)
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < n; i++ {
+			os.WriteFile(filepath.Join(d, fmt.Sprintf("s%d.jsonl", i)), []byte("{}"), 0o644)
+		}
+	}
+	mk("-Users-x-workspace-ariadne", 2)
+	mk("-Users-x-workspace-worktree-ariadne-000-w", 1) // → labeled ariadne
+	mk("-private-tmp-claude-501", 3)                   // excluded
+	refs := enumerateClaudeTranscripts(root)
+	byRepo := map[string]int{}
+	for _, r := range refs {
+		byRepo[r.Repo]++
+	}
+	if byRepo["ariadne"] != 3 || len(byRepo) != 1 {
+		t.Errorf("want ariadne=3 (2 + 1 worktree), temp excluded; got %v", byRepo)
 	}
 }
