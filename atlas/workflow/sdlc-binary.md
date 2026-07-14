@@ -229,6 +229,37 @@ actual/verified judgment a heuristic can't supply). The probe is injected into
 `detectDrift` as a `shipProbe` func so the drift logic stays testable without
 git.
 
+## Friction audit (`process-manual --friction-report`, #172)
+
+The per-gate `--no-<gate>` bypass design (below) was built to make bypasses
+*explicit and measurable*; `process-manual --friction-report` closes that loop. It
+measures, across the **whole Claude corpus** (all repos), where the spine creates
+friction — per-gate bypass rates, and (M2+) refusal→retry loops + firing-order
+anomalies — as a clean, command-anchored measure that replaces a contaminated grep.
+
+The core problem is **discrimination, not capture**: this repo *develops* sdlc, so
+`close.go`'s source and cat-n log reads spray every `--no-<gate>` string into tool
+output. So the instrument (1) **anchors to `Bash(sdlc <verb>)` invocations** (drops
+the source/edit/log-read noise — the dominant contamination), joined to their
+`tool_use_id`-linked tool_result content-block; (2) classifies each output line
+against a **per-gate signature catalog** (`internal/processmanual/gatesig.go` —
+12 gates / 16 sigs / 3 ACK grammars: G1 close·mclose `--no-X (or --force): …`,
+cinfo no-judge, G2 change-code `X gate bypassed (--force: …)` (silent alone), G3
+merge/push `--no-X: …`), requiring the runtime `\x1b[0m` reset for a bypass ACK and
+grammar+digit-anchored patterns for refusals (so the `printSemanticWarmup` success
+line and source restatements are rejected); and (3) states **observability limits**
+honestly (change-code silent-alone bypasses countable only via `--force`; merge/push
+refusals that don't name the flag). A **cross-command drift guard** (`gates_test.go`)
+asserts the catalog matches each command's registered `--no-*` flags, so a new gate
+can't be added without the audit noticing (ARCH-DRY). Codex coverage (M3) derives a
+net-new Go parser from `atlas/workflow/introspect.md` → "Codex transcript format" —
+the two can't share code (Python vs Go), only the spec.
+
+M1 headline over the real corpus: `--no-judge` dominant, `--no-verified` = 0 (the
+gate design works), and bypasses concentrate in **peer repos, not ariadne** — the
+substrate repo follows its own gates; lighter repos route around them. The raw grep
+over-counted ~4× (unlinked echoes: process-manual outputs, transcript reads).
+
 ## Anti-collusion + form-vs-essence
 
 Checkpoint guards defend against **omission** (claiming done without
