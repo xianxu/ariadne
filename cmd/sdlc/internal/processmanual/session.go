@@ -181,7 +181,9 @@ func parseEvents(data []byte, validVerbs map[string]bool) (events []FiredEvent, 
 					continue
 				}
 				kind, detail, ok := classifyToolUse(c.Name, c.Input, validVerbs)
-				if !ok {
+				if !ok || kind == KindFileEdit {
+					// File edits feed the friction audit only (#172 M2); the --session
+					// report catalogs injections and stays unchanged.
 					continue
 				}
 				pend = append(pend, pending{
@@ -431,6 +433,16 @@ func classifyToolUse(name string, input json.RawMessage, validVerbs map[string]b
 		base := path.Base(in.FilePath)
 		if base == "lessons.md" {
 			return KindLessons, base, true
+		}
+	case "Edit", "Write", "MultiEdit":
+		// Not an injection — a file-edit mark for the friction audit's skill-late
+		// detector (#172 M2). Detail keeps the FULL path (the detector needs the
+		// extension to separate doc edits from implementation edits).
+		var in struct {
+			FilePath string `json:"file_path"`
+		}
+		if json.Unmarshal(input, &in) == nil && in.FilePath != "" {
+			return KindFileEdit, in.FilePath, true
 		}
 	}
 	return "", "", false

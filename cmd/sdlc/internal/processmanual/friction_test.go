@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func mkAssistantBash(id, cmd string) string {
@@ -31,7 +33,7 @@ func mkUserResult(id, stdout string) string {
 	return string(b)
 }
 
-// sdlcInvocations extracts only anchored Bash(sdlc <verb>) calls, joined to their
+// scanTranscript extracts only anchored Bash(sdlc <verb>) calls, joined to their
 // tool_use_id-linked output, with issueID + isHelp parsed from the command.
 func TestSdlcInvocations(t *testing.T) {
 	ack := "  \x1b[1;33m[!]\x1b[0m --no-atlas (or --force): skipping atlas/ change check — rationale in --verified"
@@ -43,7 +45,7 @@ func TestSdlcInvocations(t *testing.T) {
 		mkAssistantBash("tu3", "git status"), // non-sdlc Bash → excluded
 		mkUserResult("tu3", "clean"),
 	}
-	invs := sdlcInvocations([]byte(strings.Join(lines, "\n")),
+	invs, _ := scanTranscript([]byte(strings.Join(lines, "\n")),
 		map[string]bool{"close": true, "change-code": true})
 
 	if len(invs) != 2 {
@@ -267,6 +269,173 @@ func TestDetectRefusalRetriesSameInvocation(t *testing.T) {
 	rrs := detectRefusalRetries([]SdlcInvocation{{Verb: "close", IssueID: "9", Transcript: "t", Output: out}})
 	if len(rrs) != 1 || !rrs[0].Retried || !rrs[0].Resolved || !rrs[0].ViaBypass {
 		t.Fatalf("want in-invocation refusal resolved via bypass, got %+v", rrs)
+	}
+}
+
+// ── M2 Task 6: firing-order (per-issue, iteration-aware) ─────────────────────
+
+func foInv(verb, issue, transcript string, min int, output string) SdlcInvocation {
+	return SdlcInvocation{Verb: verb, IssueID: issue, Transcript: transcript, Repo: "r",
+		Time: time.Date(2026, 7, 14, 10, min, 0, 0, time.UTC), Output: output}
+}
+
+// reworkOutput carries the structured verdict block a REWORK boundary review
+// streams back through the close/milestone-close output.
+const reworkOutput = "review dispatched\n```verdict\nverdict: REWORK\nconfidence: high\n```\nrework required"
+
+func TestDetectFiringOrderLadder(t *testing.T) {
+	cases := []struct {
+		name      string
+		invs      []SdlcInvocation
+		wantKinds []string
+	}{
+		{"change-code after a clean close flags (inverted order)", []SdlcInvocation{
+			foInv("claim", "5", "t", 0, ""),
+			foInv("close", "5", "t", 1, "closed."),
+			foInv("change-code", "5", "t", 2, ""),
+		}, []string{"change-code-after-close"}},
+		{"milestone-close→change-code is the legal next-milestone loop", []SdlcInvocation{
+			foInv("change-code", "5", "t", 0, ""),
+			foInv("milestone-close", "5", "t", 1, "closed M1"),
+			foInv("change-code", "5", "t", 2, ""),
+			foInv("milestone-close", "5", "t", 3, "closed M2"),
+			foInv("close", "5", "t", 4, "closed."),
+		}, nil},
+		{"start-plan re-runs are legal (AGENTS.md: re-run per design)", []SdlcInvocation{
+			foInv("claim", "5", "t", 0, ""),
+			foInv("start-plan", "5", "t", 1, ""),
+			foInv("change-code", "5", "t", 2, ""),
+			foInv("start-plan", "5", "t", 3, ""),
+		}, nil},
+		{"close→change-code after REWORK is the legal reopen loop", []SdlcInvocation{
+			foInv("change-code", "5", "t", 0, ""),
+			foInv("close", "5", "t", 1, reworkOutput),
+			foInv("change-code", "5", "t", 2, ""),
+			foInv("close", "5", "t", 3, "closed."),
+		}, nil},
+		{"cross-issue interleave keys per issue", []SdlcInvocation{
+			foInv("claim", "5", "t", 0, ""),
+			foInv("close", "5", "t", 1, "closed."),
+			foInv("claim", "6", "t", 2, ""),
+			foInv("start-plan", "6", "t", 3, ""),
+		}, nil},
+		{"--help invocations are not workflow steps", []SdlcInvocation{
+			{Verb: "close", IssueID: "5", Transcript: "t", Repo: "r", IsHelp: true,
+				Time: time.Date(2026, 7, 14, 10, 0, 0, 0, time.UTC)},
+			foInv("change-code", "5", "t", 1, ""),
+		}, nil},
+	}
+	for _, c := range cases {
+		res := detectFiringOrder(c.invs, nil)
+		var kinds []string
+		for _, a := range res.Anomalies {
+			kinds = append(kinds, a.Kind)
+		}
+		if !reflect.DeepEqual(kinds, c.wantKinds) {
+			t.Errorf("%s: anomalies %v, want %v (%+v)", c.name, kinds, c.wantKinds, res.Anomalies)
+		}
+	}
+}
+
+// merge/push carry no --issue (touched issues come from the git diff, invisible
+// to the transcript) — attribute from segment context, or count unattributed and
+// keep OUT of every per-issue ladder.
+func TestDetectFiringOrderMergeAttribution(t *testing.T) {
+	invs := []SdlcInvocation{
+		foInv("change-code", "8", "t", 0, ""),
+		foInv("close", "8", "t", 10, "closed."),
+		foInv("merge", "", "t", 12, "merged."), // → attributed to 8 (nearest preceding --issue)
+		foInv("change-code", "8", "t", 20, ""), // → after the attributed merge
+	}
+	res := detectFiringOrder(invs, nil)
+	if len(res.Anomalies) != 1 || res.Anomalies[0].Kind != "change-code-after-close" ||
+		!strings.Contains(res.Anomalies[0].Detail, "merge") {
+		t.Fatalf("want one change-code-after-close with merge detail (attribution raised the ladder), got %+v", res.Anomalies)
+	}
+	if res.UnattributedPublish != 0 {
+		t.Errorf("attributed merge counted as unattributed: %d", res.UnattributedPublish)
+	}
+
+	res2 := detectFiringOrder([]SdlcInvocation{foInv("merge", "", "t2", 0, "merged.")}, nil)
+	if res2.UnattributedPublish != 1 || len(res2.Anomalies) != 0 {
+		t.Errorf("context-free merge: want unattributed=1, no anomalies; got %d / %+v",
+			res2.UnattributedPublish, res2.Anomalies)
+	}
+}
+
+// skill-late: a plan/TDD Skill load AFTER a (non-doc) file edit in the same
+// segment+issue — planning arriving once implementation already started.
+func TestDetectFiringOrderSkillLate(t *testing.T) {
+	mark := func(kind Kind, detail string, min int) ActivityMark {
+		return ActivityMark{Kind: kind, Detail: detail, Transcript: "t", Repo: "r",
+			Time: time.Date(2026, 7, 14, 10, min, 0, 0, time.UTC)}
+	}
+	invs := []SdlcInvocation{foInv("claim", "9", "t", 0, "")}
+
+	res := detectFiringOrder(invs, []ActivityMark{
+		mark(KindFileEdit, "cmd/sdlc/foo.go", 1),
+		mark(KindSkill, "superpowers-writing-plans", 2),
+	})
+	if len(res.Anomalies) != 1 || res.Anomalies[0].Kind != "skill-late" || res.Anomalies[0].IssueID != "9" {
+		t.Fatalf("code edit → plan skill: want one skill-late on issue 9, got %+v", res.Anomalies)
+	}
+
+	// doc/plan/issue (.md) edits are design work, not implementation — no flag
+	res2 := detectFiringOrder(invs, []ActivityMark{
+		mark(KindFileEdit, "workshop/plans/000009-x-plan.md", 1),
+		mark(KindSkill, "superpowers-writing-plans", 2),
+	})
+	if len(res2.Anomalies) != 0 {
+		t.Errorf(".md edit before plan skill must not flag, got %+v", res2.Anomalies)
+	}
+
+	// skill loaded BEFORE any edit is the correct order
+	res3 := detectFiringOrder(invs, []ActivityMark{
+		mark(KindSkill, "superpowers-writing-plans", 1),
+		mark(KindFileEdit, "cmd/sdlc/foo.go", 2),
+	})
+	if len(res3.Anomalies) != 0 {
+		t.Errorf("skill-then-edit must not flag, got %+v", res3.Anomalies)
+	}
+}
+
+// Edit/Write/MultiEdit + Skill tool_use records surface as ActivityMarks
+// alongside the anchored invocations (KindFileEdit — deferred from M1 Task 3).
+func TestScanTranscriptMarks(t *testing.T) {
+	mkTool := func(id, name string, input map[string]any) string {
+		b, _ := json.Marshal(map[string]any{
+			"type": "assistant", "timestamp": "2026-07-14T10:00:00Z",
+			"message": map[string]any{"content": []any{
+				map[string]any{"type": "tool_use", "id": id, "name": name, "input": input},
+			}},
+		})
+		return string(b)
+	}
+	lines := []string{
+		mkTool("e1", "Edit", map[string]any{"file_path": "/r/cmd/foo.go", "old_string": "a", "new_string": "b"}),
+		mkTool("w1", "Write", map[string]any{"file_path": "/r/docs/x.md", "content": "c"}),
+		mkTool("s1", "Skill", map[string]any{"skill": "superpowers-writing-plans"}),
+		mkAssistantBash("tu1", "sdlc claim --issue 9"),
+	}
+	invs, marks := scanTranscript([]byte(strings.Join(lines, "\n")), map[string]bool{"claim": true})
+	if len(invs) != 1 || invs[0].Verb != "claim" {
+		t.Fatalf("want the one claim invocation, got %+v", invs)
+	}
+	want := []struct {
+		kind   Kind
+		detail string
+	}{
+		{KindFileEdit, "/r/cmd/foo.go"},
+		{KindFileEdit, "/r/docs/x.md"},
+		{KindSkill, "superpowers-writing-plans"},
+	}
+	if len(marks) != len(want) {
+		t.Fatalf("want %d marks, got %+v", len(want), marks)
+	}
+	for i, w := range want {
+		if marks[i].Kind != w.kind || marks[i].Detail != w.detail {
+			t.Errorf("mark %d = {%s %q}, want {%s %q}", i, marks[i].Kind, marks[i].Detail, w.kind, w.detail)
+		}
 	}
 }
 

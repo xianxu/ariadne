@@ -20,6 +20,10 @@ const (
 	KindLessons     Kind = "lessons"
 	KindAgentsChain Kind = "agents-chain"
 	KindMemory      Kind = "memory"
+	// KindFileEdit is not an injection source: it marks an Edit/Write/MultiEdit
+	// tool call, consumed only by the friction audit's firing-order detector
+	// (skill-late, #172 M2). parseEvents drops it from the --session report.
+	KindFileEdit Kind = "file-edit"
 )
 
 // InjectionSource is one catalogued point where content enters an agent's context.

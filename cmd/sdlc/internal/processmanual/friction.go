@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 // SdlcInvocation is one observed `Bash(sdlc <verb> …)` tool call plus its linked
@@ -63,18 +65,32 @@ func toolResultText(raw json.RawMessage) string {
 	return ""
 }
 
-// sdlcInvocations extracts every `Bash(sdlc <verb>)` call from a Claude transcript,
-// joined to its `tool_use_id`-linked result output. Pure over bytes; reuses the same
-// scan/linkage shape as parseEvents but yields SdlcInvocations (verb + args + output)
-// rather than the per-session FiredEvents (verb + verdict), because the friction
-// audit needs the raw output parseEvents discards. `validVerbs` gates on the real
-// verb set so a prose "sdlc foo" isn't counted.
-func sdlcInvocations(data []byte, validVerbs map[string]bool) []SdlcInvocation {
+// ActivityMark is a non-sdlc transcript event the firing-order detector consumes:
+// a file edit (Edit/Write/MultiEdit → KindFileEdit, deferred here from M1 Task 3)
+// or a Skill load. Captured by scanTranscript alongside the anchored invocations;
+// Transcript/Repo are stamped by the corpus walk.
+type ActivityMark struct {
+	Kind       Kind   // KindFileEdit | KindSkill
+	Detail     string // file path / skill name
+	Time       time.Time
+	Transcript string
+	Repo       string
+}
+
+// scanTranscript extracts every `Bash(sdlc <verb>)` call from a Claude transcript,
+// joined to its `tool_use_id`-linked result output, plus the ActivityMarks (file
+// edits + Skill loads) the firing-order detector needs. Pure over bytes; reuses the
+// same scan/linkage shape as parseEvents but yields SdlcInvocations (verb + args +
+// output) rather than the per-session FiredEvents (verb + verdict), because the
+// friction audit needs the raw output parseEvents discards. `validVerbs` gates on
+// the real verb set so a prose "sdlc foo" isn't counted.
+func scanTranscript(data []byte, validVerbs map[string]bool) ([]SdlcInvocation, []ActivityMark) {
 	type pending struct {
 		inv SdlcInvocation
 		id  string
 	}
 	var pend []pending
+	var marks []ActivityMark
 	outByID := map[string]string{}
 
 	sc := bufio.NewScanner(bytes.NewReader(data))
@@ -91,7 +107,16 @@ func sdlcInvocations(data []byte, validVerbs map[string]bool) []SdlcInvocation {
 		switch r.Type {
 		case "assistant":
 			for _, c := range r.Message.Content {
-				if c.Type != "tool_use" || c.Name != "Bash" {
+				if c.Type != "tool_use" {
+					continue
+				}
+				if c.Name != "Bash" {
+					// Skill loads + file edits mark the activity stream for the
+					// skill-late arm; classifyToolUse is the shared match table.
+					if kind, detail, ok := classifyToolUse(c.Name, c.Input, nil); ok &&
+						(kind == KindSkill || kind == KindFileEdit) {
+						marks = append(marks, ActivityMark{Kind: kind, Detail: detail, Time: r.Timestamp})
+					}
 					continue
 				}
 				var in struct {
@@ -135,7 +160,7 @@ func sdlcInvocations(data []byte, validVerbs map[string]bool) []SdlcInvocation {
 		}
 		out = append(out, p.inv)
 	}
-	return out
+	return out, marks
 }
 
 // GateEvent is one classified bypass-ACK or gate-refusal observed in an sdlc
@@ -336,6 +361,199 @@ func detectRefusalRetries(invs []SdlcInvocation) []RefusalRetry {
 		}
 	}
 	return out
+}
+
+// ── Firing-order detector (M2 Task 6) ────────────────────────────────────────
+
+// workflowStage orders the workflow verbs per AGENTS.md §2's flow:
+// claim ≺ start-plan ≺ change-code ≺ milestone-close ≺ close ≺ merge
+// (push is merge-without-PR — the same publish stage).
+var workflowStage = map[string]int{
+	"claim": 0, "start-plan": 1, "change-code": 2,
+	"milestone-close": 3, "close": 4, "merge": 5, "push": 5,
+}
+
+// lateSkillRE matches the plan/TDD skills whose load AFTER implementation edits
+// signals planning-arrived-late (matched on the suffix so adapted/prefixed skill
+// names still hit).
+var lateSkillRE = regexp.MustCompile(`(writing-plans|test-driven-development)$`)
+
+// FiringOrderAnomaly is one detected workflow-order violation (#172 M2).
+type FiringOrderAnomaly struct {
+	Kind    string `json:"kind"` // change-code-after-close | skill-late
+	Verb    string `json:"verb,omitempty"`
+	IssueID string `json:"issue_id,omitempty"`
+	Repo    string `json:"repo,omitempty"`
+	Detail  string `json:"detail,omitempty"`
+}
+
+// FiringOrderResult carries the anomalies plus the honesty counter: merge/push
+// invocations with no attributable issue context are COUNTED, never bucketed
+// under a global "" ladder that would cross-contaminate issues.
+type FiringOrderResult struct {
+	Anomalies           []FiringOrderAnomaly `json:"anomalies"`
+	UnattributedPublish int                  `json:"unattributed_publish"`
+}
+
+// detectFiringOrder walks each (repo, issue)'s invocations in time order against
+// the workflowStage ladder, iteration-aware: the legal loops that must NOT flag
+// are milestone-close→change-code (next milestone), start-plan re-runs
+// (AGENTS.md: "re-run per design"), and close→change-code/start-plan after a
+// REWORK verdict (codecomplete→working reopen, issue.cue). Only an observed
+// ORDER INVERSION flags — change-code after a clean close/merge; the mere
+// absence of earlier stages is treated as partial observation (sessions predate
+// the corpus or ran on another agent), not an anomaly (precision over recall).
+// merge/push carry no --issue → attributed from segment context (the nearest
+// preceding --issue invocation in the same transcript within the gap boundary)
+// or counted unattributed. The skill-late arm flags a plan/TDD Skill load after
+// a non-doc file edit in the same segment+issue.
+func detectFiringOrder(invs []SdlcInvocation, marks []ActivityMark) FiringOrderResult {
+	var res FiringOrderResult
+
+	// 1. Attribute merge/push from segment context. --help invocations are not
+	//    workflow steps (their output lists every flag; running them moves nothing).
+	effIssue := make([]string, len(invs))
+	lastIssue := map[string]string{}
+	lastIssueTime := map[string]time.Time{}
+	for i, inv := range invs {
+		if inv.IsHelp {
+			continue
+		}
+		effIssue[i] = inv.IssueID
+		if inv.IssueID != "" {
+			lastIssue[inv.Transcript] = inv.IssueID
+			lastIssueTime[inv.Transcript] = inv.Time
+			continue
+		}
+		if inv.Verb != "merge" && inv.Verb != "push" {
+			continue
+		}
+		if li := lastIssue[inv.Transcript]; li != "" && inv.Time.Sub(lastIssueTime[inv.Transcript]) <= gapBoundary {
+			effIssue[i] = li
+		} else {
+			res.UnattributedPublish++
+		}
+	}
+
+	// 2. Per-(repo, issue) ladder, merged across transcripts in time order (an
+	//    issue's claim/change-code/close usually span several sessions).
+	type issueKey struct{ repo, issue string }
+	seqs := map[issueKey][]int{}
+	var keys []issueKey
+	for i, inv := range invs {
+		if inv.IsHelp || effIssue[i] == "" {
+			continue
+		}
+		if _, ok := workflowStage[inv.Verb]; !ok {
+			continue
+		}
+		k := issueKey{inv.Repo, effIssue[i]}
+		if _, ok := seqs[k]; !ok {
+			keys = append(keys, k)
+		}
+		seqs[k] = append(seqs[k], i)
+	}
+	for _, k := range keys {
+		idxs := seqs[k]
+		sort.SliceStable(idxs, func(a, b int) bool { return invs[idxs[a]].Time.Before(invs[idxs[b]].Time) })
+		maxStage := -1
+		flagged := false
+		for _, i := range idxs {
+			inv := invs[i]
+			if inv.Verb == "change-code" && maxStage >= workflowStage["close"] && !flagged {
+				detail := "change-code after close (no REWORK observed)"
+				if maxStage >= workflowStage["merge"] {
+					detail = "change-code after merge/push"
+				}
+				res.Anomalies = append(res.Anomalies, FiringOrderAnomaly{
+					Kind: "change-code-after-close", Verb: inv.Verb,
+					IssueID: k.issue, Repo: k.repo, Detail: detail,
+				})
+				flagged = true // once per issue — repeated regressions are one finding
+			}
+			if (inv.Verb == "close" || inv.Verb == "milestone-close") && isReworkVerdict(inv.Output) {
+				// REWORK reopens (codecomplete→working): roll the ladder back to the
+				// implementing stage instead of raising it.
+				if maxStage > workflowStage["change-code"] {
+					maxStage = workflowStage["change-code"]
+				}
+				continue
+			}
+			if s := workflowStage[inv.Verb]; s > maxStage {
+				maxStage = s
+			}
+		}
+	}
+
+	// 3. skill-late — per transcript, over the merged invocation+mark stream.
+	type tev struct {
+		time  time.Time
+		issue string
+		mark  *ActivityMark
+	}
+	byT := map[string][]tev{}
+	var tOrder []string
+	add := func(t string, e tev) {
+		if _, ok := byT[t]; !ok {
+			tOrder = append(tOrder, t)
+		}
+		byT[t] = append(byT[t], e)
+	}
+	for i, inv := range invs {
+		if inv.IsHelp {
+			continue
+		}
+		add(inv.Transcript, tev{time: inv.Time, issue: effIssue[i]})
+	}
+	for i := range marks {
+		add(marks[i].Transcript, tev{time: marks[i].Time, mark: &marks[i]})
+	}
+	for _, t := range tOrder {
+		evs := byT[t]
+		sort.SliceStable(evs, func(a, b int) bool { return evs[a].time.Before(evs[b].time) })
+		var curIssue string
+		var editSeen bool
+		var last time.Time
+		for _, e := range evs {
+			if !last.IsZero() && e.time.Sub(last) > gapBoundary {
+				editSeen = false // new segment
+			}
+			last = e.time
+			switch {
+			case e.mark == nil:
+				if e.issue != "" && e.issue != curIssue {
+					curIssue = e.issue
+					editSeen = false // earlier edits belonged to the previous issue's work
+				}
+			case e.mark.Kind == KindFileEdit:
+				if !strings.HasSuffix(e.mark.Detail, ".md") {
+					// .md edits (plans/issues/docs) ARE design work; only
+					// implementation edits make a later plan-skill load "late".
+					editSeen = true
+				}
+			case e.mark.Kind == KindSkill && lateSkillRE.MatchString(e.mark.Detail):
+				if editSeen {
+					res.Anomalies = append(res.Anomalies, FiringOrderAnomaly{
+						Kind: "skill-late", IssueID: curIssue, Repo: e.mark.Repo,
+						Detail: e.mark.Detail,
+					})
+					editSeen = false // one finding per late load, not per subsequent load
+				}
+			}
+		}
+	}
+	return res
+}
+
+// isReworkVerdict recovers a REWORK boundary-review verdict from a close/
+// milestone-close invocation's output — judge.ParseVerdict is the exact parser
+// `sdlc close` itself uses (ARCH-DRY), with the trailer fallback for re-closes.
+func isReworkVerdict(output string) bool {
+	v := judge.ParseVerdict(output)
+	if v == judge.VerdictUnknown {
+		v = judge.ParseVerdictTrailer(output)
+	}
+	return v == judge.VerdictRework
 }
 
 func hasGateEvent(evs []GateEvent, kind GateEventKind, gate string) bool {
@@ -550,7 +768,8 @@ func RunFrictionReport(claudeRoot string, asJSON bool) (string, error) {
 		if err != nil {
 			continue
 		}
-		for _, inv := range sdlcInvocations(data, verbs) {
+		tInvs, _ := scanTranscript(data, verbs) // marks wired into the report in Task 7
+		for _, inv := range tInvs {
 			inv.Transcript, inv.Repo, inv.Agent = ref.Path, ref.Repo, ref.Agent
 			invs = append(invs, inv)
 		}
