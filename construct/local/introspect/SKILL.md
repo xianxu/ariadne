@@ -66,9 +66,12 @@ If `cwd` doesn't have a corresponding `~/.claude/projects/<slug>/` (slug = cwd p
 
 For dogfood/testing, the user may pass an explicit slug: `/xx-introspect extract --project charon` (resolves to `-Users-xianxu-workspace-charon`).
 
-Note: codex sessions carry MORE friction signal than claude (non-zero exit codes
-vs claude's harness is_error flag) — some benign (grep-no-match); the cluster
-walkthrough (Stage 5) filters those.
+Note (#173 M3 finding): codex does NOT carry more taste signal than claude — its
+friction is ≈ claude's once the adapter's hint gate drops benign non-zero exits
+(`agent_codex._output_is_error` filters grep-no-match / command-not-found in the
+adapter, not in Stage 5). Codex introspect hit the same diminishing returns as #169's
+claude run. See `atlas/workflow/introspect.md` → "Codex transcript format" / "M3
+finding". Multi-agent fork-replay rollouts are skipped in `normalize` (see atlas).
 
 ### 2. Run normalize
 
@@ -84,9 +87,9 @@ python3 $REPO_ROOT/construct/local/introspect/scripts/normalize.py \
 
 Outputs:
 - `sessions.json` — one record per session: id, start, end, cwd, gitBranch, message counts, tool counts, slash commands invoked, files touched
-- `run.json` — meta-record of the run (scope, projects, file/event counts, since filter)
+- `run.json` — meta-record of the run (scope, projects, file/event counts, since filter, `codex_forks_skipped` for codex/both runs)
 
-A flat `events.jsonl` stream will be added in M2/M3 once detectors need to walk events outside of session aggregates. Until then the raw JSONL files remain the source of truth for downstream stages.
+Downstream stages read the raw transcript files (claude project JSONL / codex rollouts) on demand via the agent-keyed `segment_loader`, mapping each to the in-memory `NormEvent` stream (#173). The once-anticipated on-disk `events.jsonl` was not needed — the NormEvent stream stays in memory by design.
 
 Run-id format: `YYYYMMDDTHHMMSS`.
 

@@ -15,9 +15,12 @@ double-representation — else assistant turns double-count):
   file edits  ← event_msg/patch_apply_end (one FILE_EDIT per changed file)
   boundaries  ← compacted
 
-`is_error` is DERIVED from the function_call_output string ("Process exited with
-code N", N != 0, or an `error:`/`exit code` prefix + friction hint) — codex has no
-structured error flag (the M1-review-noted analogue of Claude's derivation).
+`is_error` is DERIVED from the function_call_output string — a failing signal (a
+non-zero "Process exited with code N", or an `error:`/`exit code` prefix) PAIRED with
+a FRICTION_HINT (permission/sandbox/blocked). codex has no structured error flag, and
+a bare non-zero exit is not equivalent to Claude's harness-set flag (grep/sed/ls
+no-match, `command not found`, expected test failures all exit non-zero benignly), so
+codex is deliberately STRICTER than Claude — it always requires the hint (#173 M3).
 """
 
 from __future__ import annotations
@@ -33,8 +36,11 @@ _EXIT_RE = re.compile(r"Process exited with code (\d+)")
 
 def _output_is_error(output: str) -> bool:
     """Codex has no structured is_error flag (Claude's harness sets one) — derive
-    it, mirroring Claude's gate (agent_claude._result_is_error): a *failing signal*
-    PAIRED with a FRICTION_HINT. The failing signal is codex-shaped — a non-zero
+    it. Deliberately STRICTER than Claude's gate (agent_claude._result_is_error is
+    `is_err_flag OR (error-prefix AND hint)` — its flag path needs no hint): codex
+    has no flag and a bare non-zero exit isn't equivalent to one, so it ALWAYS
+    requires a *failing signal* PAIRED with a FRICTION_HINT. The failing signal is
+    codex-shaped — a non-zero
     exit code embedded anywhere ("...Process exited with code N...") or an
     'error:'/'exit code' prefix — but a non-zero exit ALONE is NOT friction:
     grep/sed/ls no-match, `command not found`, and expected test failures all exit

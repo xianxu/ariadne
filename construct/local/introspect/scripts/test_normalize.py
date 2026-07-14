@@ -141,6 +141,27 @@ def test_codex_fork_replay_skipped() -> None:
         check(segs == [] and n == 0, "skipped fork emits no segments/events")
 
 
+def test_codex_subagent_thread_not_skipped() -> None:
+    # A sub-agent thread (parent_thread_id / agent_nickname but NO forked_from_id)
+    # has ONE meta and its OWN content — it does NOT replay the parent, so it must be
+    # PROCESSED, not skipped (79/592 in the corpus; 22 even carry user turns). The
+    # skip rule keys strictly on forked_from_id — this pins that a "skip all
+    # sub-agents" edit would be a regression (#173 M3 review).
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "rollout-subagent.jsonl"
+        _write_rollout(
+            p,
+            [{"id": "sub-1", "parent_thread_id": "root-abc",
+              "agent_nickname": "reviewer", "cwd": "/w/proj"}],   # no forked_from_id
+            [{"timestamp": "2026-07-13T00:00:00Z", "type": "event_msg",
+              "payload": {"type": "agent_message", "message": "sub-agent's own work"}}],
+        )
+        segs, _n, skipped = process_codex_file(p)
+        check(skipped is False, "sub-agent thread not skipped (no forked_from_id)")
+        check(len(segs) >= 1 and segs[0].raw_session_id == "sub-1",
+              "sub-agent processed under its own id")
+
+
 def main() -> int:
     print("Running normalize aggregation tests...")
     for t in (
@@ -153,6 +174,7 @@ def main() -> int:
         test_line_metadata,
         test_codex_root_uses_own_first_meta,
         test_codex_fork_replay_skipped,
+        test_codex_subagent_thread_not_skipped,
     ):
         t()
     if failures:

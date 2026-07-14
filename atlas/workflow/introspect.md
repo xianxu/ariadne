@@ -156,37 +156,57 @@ twice. **Pick ONE canonical source per field** or counts double.
 
 **`is_error` is derived, not a flag.** `function_call_output.output` is a plain
 string (e.g. `"…Process exited with code 71\n…Operation not permitted"`) — codex has
-no structured error field. Mirror Claude's gate: a failing signal (a non-zero
+no structured error field. The gate: a failing signal (a non-zero
 `Process exited with code N`, or an `error:`/`exit code` prefix) **paired with a
 `FRICTION_HINT`** (permission / sandbox / operation-not-permitted / blocked). A
 non-zero exit ALONE is not friction — grep/sed/ls no-match, `command not found`,
 and expected test failures exit non-zero benignly (M3: 106 of 112 raw codex
-"friction" moments were this noise). `event_msg/mcp_tool_call_end` (rare) is not
-yet mapped.
+"friction" moments were this noise). This is **deliberately stricter than Claude**:
+`agent_claude._result_is_error` is `is_err_flag OR (error-prefix AND hint)` — the
+harness-set flag alone suffices there. Codex has no such flag, and a bare non-zero
+exit isn't equivalent to one, so codex always requires the hint.
+`event_msg/mcp_tool_call_end` (rare) is not yet mapped.
 
-**⚠️ Multi-agent forks replay the parent — MUST be handled (both languages).** A
-forked/sub-agent rollout (pair, parley.nvim multi-agent runs; meta has
-`forked_from_id`/`parent_thread_id`/`agent_nickname`) **replays the parent session's
-entire transcript**, then adds its own events. Two consequences:
+**⚠️ Multi-agent rollouts — two DISTINCT properties, don't conflate them (both
+languages).** pair / parley.nvim multi-agent runs produce two kinds of non-root
+rollout. They look similar in the meta but behave oppositely; the corpus (592
+rollouts) splits:
 
-1. It carries **TWO `session_meta` lines** — its own (`id`=fork, `forked_from_id`
-   set) FIRST, then the replayed parent's (`id`=parent). Key off the **FIRST** meta,
-   or every fork collapses onto its parent's id.
-2. Its events **duplicate the parent's**. Processing both double-counts every shared
-   moment — the M3 dogfood measured **66% moment inflation** (one redirect counted
-   ×11 across a parent + 10 forks).
+| meta shape | count | `session_meta` lines | replays parent? | code |
+|---|---|---|---|---|
+| **fork-replay** — `forked_from_id` set | 40 | **2** (own first, then replayed parent's) | **yes** (39/40 share the parent's first user msg) | **SKIP** |
+| **sub-agent thread** — `parent_thread_id`/`agent_nickname`, no `forked_from_id` | 79 | 1 | **no** (own content; 22/79 even carry user turns) | process |
+| plain root — neither | 473 | 1 | n/a | process |
 
-`normalize.process_codex_file` **skips any rollout whose first meta has
-`forked_from_id`** (the user-facing taste — redirects/endorsements — lives in the
-parent thread; forks are agent-orchestration). `run.json` reports
-`codex_forks_skipped`. Any consumer of this format (incl. #172's Go) must do the
-same, or its per-session counts are wrong.
+1. **Fork-replay MUST be skipped.** A forked rollout **replays the parent's entire
+   transcript**, then adds its own events, and carries **two `session_meta`** — its
+   own (`id`=fork, `forked_from_id` set) FIRST, then the replayed parent's
+   (`id`=parent). Key off the **FIRST** meta or every fork collapses onto its parent's
+   id; and skip it, because its events **duplicate the parent's** — processing both
+   double-counts every shared moment (M3 measured **66% inflation**, one redirect ×11
+   across a parent + 10 forks). `normalize.process_codex_file` skips any rollout whose
+   first meta has `forked_from_id`; `run.json.codex_forks_skipped` reports the count.
+2. **Sub-agent threads are NOT skipped.** A `parent_thread_id`/`agent_nickname`
+   rollout *without* `forked_from_id` has one meta and its **own** content (no replay
+   → no duplication), and 22/79 carry real user turns — so it's processed like any
+   session. Its contribution is small and low-signal (8 of M3's 202 substantial
+   moments, all edit-after-edit — agent-orchestration edits), which the downstream
+   cluster thresholds filter anyway. Dropping them too (they can only ever produce
+   eae/friction on the no-user-turn majority) is a *defensible precision refinement*,
+   deliberately **not** done: it's not the 66% problem (no duplication), it would also
+   drop the 22 user-bearing ones, and it adds a second skip rule for marginal gain
+   (ARCH-SIMPLICITY). If revisited, gate on "no user_message events", not on the
+   `parent_thread_id`/`agent_nickname` markers.
+
+**#172's Go reader must skip 40 (fork-replay), NOT 119** — conflating the two is the
+exact cross-language drift the spec-level DRY exists to prevent.
 
 ## M3 finding — does codex reopen the taste well? (No)
 
 The M3 dogfood answered #173's headline question: **does the codex corpus yield
 more taste than Claude, which hit diminishing returns in #169?** Confound-normalized
-answer: **no.** Over 54 root codex sessions (pair / parley.nvim / ariadne), the raw
+answer: **no.** Over the codex corpus (592 rollouts → 552 root sessions; the
+substantial slice is 54 raw sessions / amc≥15, pair / parley.nvim / ariadne), the raw
 counts *looked* ~10× richer (112 friction, 198 endorsements) but were **~95%
 artifact**: 66% fork-replay duplication + benign-exit friction. Cleaned, the codex
 signal is **8 unique redirects (all project-local UX), 12 genuine sandbox-denial

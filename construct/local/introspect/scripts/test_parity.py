@@ -80,6 +80,14 @@ def types_fired(nevs) -> set:
 
 
 def test_same_detectors_fire() -> None:
+    # NOTE (#173 M3 review): both fixtures pair a failing tool result with a friction
+    # hint ("operation not permitted"), so this proves the *symmetric* friction path
+    # only. The adapters are NOT fully symmetric on friction by design: Claude fires
+    # on its harness is_error flag ALONE (no hint needed), while codex ALWAYS requires
+    # a hint (a bare non-zero exit is benign — see agent_codex._output_is_error). A
+    # Claude is_error-flag-without-hint result would fire on Claude but not codex. That
+    # asymmetry is intentional and doesn't affect M3's conclusion (Claude run-3 had 0
+    # friction moments); this test just doesn't — and can't — exercise it.
     c = types_fired(claude_interaction())
     x = types_fired(codex_interaction())
     check("edit-after-edit" in c and "edit-after-edit" in x, f"edit-after-edit both (c={c} x={x})")

@@ -307,3 +307,34 @@ The **finding stands independent of the fixes** (they only *inflate* codex's app
 signal, so fixing strengthens the "no"). Task 9's atlas spec absorbed the fork trap +
 the M3 finding. No architecture change — both fixes are in the codex edge (adapter +
 locator), consumers untouched (ARCH-DRY held).
+
+### 2026-07-14 — M3 review: fork-replay vs sub-agent are two properties, not one
+
+The M3 revision above (and the first draft of the atlas spec) described the fork trap
+as "meta has `forked_from_id`/`parent_thread_id`/`agent_nickname` → replays the
+parent". The boundary review caught that these are TWO distinct codex concepts, and
+corpus evidence (592 rollouts) confirms:
+- **fork-replay**: `forked_from_id` (40/592), two `session_meta`, replays the parent
+  transcript → skipped by `process_codex_file`. The 66%-inflation source.
+- **sub-agent thread**: `parent_thread_id`/`agent_nickname` *without* `forked_from_id`
+  (79/592), one `session_meta`, own content (no replay), 22/79 even carry user turns →
+  **NOT a replay and NOT skipped**; contributes 8 of M3's 202 substantial moments
+  (edit-after-edit only).
+
+The **code was already correct** — it keys strictly on `forked_from_id`, so it skips
+40, not 119. The **spec over-claimed**; corrected in `atlas/workflow/introspect.md` so
+#172's Go reader skips 40 (not 119) — the exact cross-language drift the spec-level
+DRY exists to prevent. Whether sub-agent threads should ALSO be dropped
+(agent-orchestration, but no duplication and 22 carry user turns) is recorded as a
+defensible-but-deferred precision refinement, not silently implied. Added
+`test_codex_subagent_thread_not_skipped` to pin the distinction.
+
+**Recorded follow-ups (review §6, not built now — ARCH-SIMPLICITY, single `if` today):**
+- A pure `codex_meta_kind(meta) -> {root,sub-agent,fork-replay}` in `agent_codex.py`
+  would move the fork rule (codex wire-format knowledge) out of `normalize.py` back
+  into the adapter and give the atlas spec a 1:1 code referent for #172. Trigger: when
+  the classification grows past one branch.
+- A `target` capturing "codex format spec == both readers' behavior" as a drift guard:
+  #173 discovered three codex format properties (double-representation, derived
+  `is_error`, fork-replay) *after* the spec was written, each from the real corpus.
+  Worth a landing spot for the next discovery, referenced from #172.

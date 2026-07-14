@@ -101,6 +101,7 @@ Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md
 ## Log
 
 ### 2026-07-14
+- 2026-07-14: closed M3 — 7 unit suites green (incl new fork-skip + benign-exit friction tests); codex dogfood ran normalize→classify→detect end-to-end over 552 root sessions, moments trace to rollout files; pipeline emits confound-clean counts directly (40 forks skipped, friction 112→12 hint-gated); M3 finding recorded — 0 new generalizable rules, diminishing returns confirmed on codex; review verdict: FIX-THEN-SHIP
 - **M3 dogfood + finding (the payload).** Ran normalize→classify→detect over the
   full codex corpus (592 rollouts, 552 root sessions). **Finding: codex does NOT
   reopen the taste well.** Raw counts looked ~10× richer than Claude (112 friction,

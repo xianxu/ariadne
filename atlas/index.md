@@ -14,7 +14,7 @@ Central directory for atlas entries — practical pointers for future developers
 - [Sandbox](workflow/sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer usage
 - [OpenShell Sandbox](workflow/openshell-sandbox.md) — the containerized dev sandbox in the workflow: setup, what's inside, git transport (HTTPS-not-SSH, #152), base-layer provisioning
 - [Data Artifacts](workflow/data-artifacts.md) — typed markdown documents (xx-datatype skill, prototypes, capture flow)
-- [Introspection](workflow/introspect.md) — postmortem mining of past Claude transcripts into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)
+- [Introspection](workflow/introspect.md) — postmortem mining of past agent transcripts (Claude + codex) into auto-loading taste-rule skills (xx-introspect + introspect-&lt;activity&gt;)
 - [sdlc process-manual](workflow/process-manual.md) — the process manual: `sdlc process-manual` regenerates one linked markdown doc unrolling every always-on injection source (sdlc prompts, help text, skills, lessons, AGENTS chain, memories); deterministic, navigate-to-source, `🤖[]`-editable (#153: M1 static catalog + M2 judge-prompts-as-embedded-markdown). `--session <jsonl|current>` reconstructs which injection points actually *fired* in a session, in order, matched to the catalog (#157)
 - [docflow](workflow/docflow.md) — branch-scoped prose review with per-round git journaling (`review/<slug>` branch, `--no-ff` merge); companion to the `xx-fix` skill (#79)
 - [Session Retro](workflow/session-retro.md) — exported skill for evidence-backed development-process findings from current or supplied session evidence
