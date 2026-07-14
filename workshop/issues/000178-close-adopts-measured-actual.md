@@ -61,11 +61,24 @@ tests + shadow-doc sweep); milestone-review = the close-time boundary review.
 Durable plan: `workshop/plans/000178-close-adopts-measured-actual-plan.md`.
 Single review boundary (no Mx tags).
 
-- [ ] Task 1 — adopt-path in computeClose via `computeActualForCloseFn` seam (TDD: adopt / unmeasurable-refusal / N/A sentinel / deviation-skip-when-adopted)
-- [ ] Task 2 — wording sweep: warmup, explainActual, helptext/close.md, AGENTS(.base).md §5, atlas
-- [ ] Task 3 — live verify + close (the close itself dogfoods the adopt path)
+- [x] Task 1 — adopt-path in computeClose via `computeActualForCloseFn` seam (TDD: adopt / unmeasurable-refusal / N/A sentinel / deviation-skip-when-adopted)
+- [x] Task 2 — wording sweep: warmup, explainActual, helptext/close.md, AGENTS(.base).md §5, atlas
+- [x] Task 3 — live verify + close (the close itself dogfoods the adopt path)
 
 ## Log
+
+### 2026-07-14 — built (single pass)
+
+Omit-path now measures once (computeActualForCloseFn seam) and adopts on
+actualMeasured (%.2f-pinned, info line with window + peer attribution +
+milestone-mode cumulative note); unmeasurable statuses keep the explainActual
+refusal, which reuses the same measurement (no re-run); --no-actual unchanged;
+adopted values skip the #87 deviation check. Wording swept: warmup,
+explainActual, helptext close.md + milestone-close.md, AGENTS.base.md §5,
+atlas. Gatesig no-collision test guards the #172 instrument (adopt line
+classifies to none; refusal anchors byte-identical). Live verify: real-engine
+adoption observed ("using measured actual: 0.47h (window e4e06cbe → HEAD)")
+with the verified gate stopping the run pre-mutation. go build/vet/test green.
 
 ### 2026-07-14
 
