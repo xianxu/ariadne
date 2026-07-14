@@ -391,9 +391,19 @@ def build_codex_segment(
     return summary
 
 
-def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int]:
+def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int, bool]:
     """One codex rollout → its segments. session_meta gives id/cwd/branch; segment
-    on `compacted` + gap; aggregate each segment via codex_events."""
+    on `compacted` + gap; aggregate each segment via codex_events.
+
+    **Multi-agent forks (#173 M3).** A forked rollout REPLAYS the parent's whole
+    transcript, so it carries TWO session_meta lines — its own (`id`=fork,
+    `forked_from_id`=parent) FIRST, then the parent's replayed one. We must (a) key
+    off the FIRST meta (the file's own identity) not the last — else every fork
+    collapses onto its parent's id — and (b) SKIP forks entirely: their events are a
+    replay of the parent's, so processing them double-counts every shared moment (the
+    M3 dogfood measured 66% moment inflation from this). The user-facing taste signal
+    (redirects/endorsements) lives in the parent thread; forks are agent-orchestration.
+    Returns (segments, events_read, skipped_fork)."""
     meta: dict[str, Any] = {}
     lines: list[dict[str, Any]] = []
     try:
@@ -407,11 +417,14 @@ def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int]:
                 except json.JSONDecodeError:
                     continue
                 if d.get("type") == "session_meta":
-                    meta = d.get("payload") or {}
+                    if not meta:                       # keep the FIRST — the file's own id
+                        meta = d.get("payload") or {}
                     continue
                 lines.append(d)
     except OSError:
-        return [], 0
+        return [], 0, False
+    if meta.get("forked_from_id"):                      # replay of a parent → skip
+        return [], 0, True
     raw_sid = meta.get("id") or meta.get("session_id") or rollout_path.stem
     cwd = meta.get("cwd")
     git = meta.get("git")
@@ -424,19 +437,23 @@ def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int]:
         build_codex_segment(raw_sid, idx, n, slug, cwd, branch, seg, str(rollout_path))
         for idx, seg in enumerate(segments, start=1)
     ]
-    return out, len(lines)
+    return out, len(lines), False
 
 
-def process_codex() -> tuple[list[SessionSummary], int, int]:
-    """Walk ~/.codex/sessions/**/rollout-*.jsonl (one file per raw session)."""
+def process_codex() -> tuple[list[SessionSummary], int, int, int]:
+    """Walk ~/.codex/sessions/**/rollout-*.jsonl (one file per raw session).
+    Returns (segments, events_read, files_read, forked_files_skipped)."""
     files = sorted(CODEX_SESSIONS_ROOT.rglob("rollout-*.jsonl"))
     all_segs: list[SessionSummary] = []
     total_events = 0
+    forks_skipped = 0
     for f in files:
-        segs, n = process_codex_file(f)
+        segs, n, skipped_fork = process_codex_file(f)
+        if skipped_fork:
+            forks_skipped += 1
         all_segs.extend(segs)
         total_events += n
-    return all_segs, total_events, len(files)
+    return all_segs, total_events, len(files), forks_skipped
 
 
 def filter_since(segments: list[SessionSummary], since_iso: str | None) -> list[SessionSummary]:
@@ -505,9 +522,11 @@ def main() -> int:
             segments.extend(proj_segments)
             total_events += proj_events
 
+    codex_forks_skipped = 0
     if do_codex:
-        codex_segments, codex_events_n, codex_files = process_codex()
-        print(f"read {codex_files} codex rollout file(s)", file=sys.stderr)
+        codex_segments, codex_events_n, codex_files, codex_forks_skipped = process_codex()
+        print(f"read {codex_files} codex rollout file(s) "
+              f"({codex_forks_skipped} multi-agent forks skipped)", file=sys.stderr)
         segments.extend(codex_segments)
         total_events += codex_events_n
         total_files += codex_files
@@ -532,6 +551,7 @@ def main() -> int:
         "events_processed": total_events,
         "raw_sessions": len(raw_session_ids),
         "segments_emitted": len(segments),
+        "codex_forks_skipped": codex_forks_skipped,
         "since_filter": args.since,
     }
     (out_dir / "run.json").write_text(json.dumps(summary, indent=2))

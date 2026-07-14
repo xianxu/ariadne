@@ -10,13 +10,20 @@ Run: python3 test_normalize.py
 
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from events import EventKind, NormEvent
-from normalize import SessionSummary, _apply_line_metadata, aggregate_norm_event
+from normalize import (
+    SessionSummary,
+    _apply_line_metadata,
+    aggregate_norm_event,
+    process_codex_file,
+)
 
 failures: list[str] = []
 
@@ -91,6 +98,49 @@ def test_line_metadata() -> None:
     check("acceptEdits" in s.permission_modes_seen, "permission mode accumulated")
 
 
+def _write_rollout(path: Path, metas: list[dict], body: list[dict]) -> None:
+    with path.open("w") as f:
+        for m in metas:
+            f.write(json.dumps({"type": "session_meta", "payload": m}) + "\n")
+        for b in body:
+            f.write(json.dumps(b) + "\n")
+
+
+def test_codex_root_uses_own_first_meta() -> None:
+    # A root rollout has one session_meta; its segment id keys off that own id.
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "rollout-root.jsonl"
+        _write_rollout(
+            p,
+            [{"id": "root-abc", "cwd": "/w/proj"}],
+            [{"timestamp": "2026-07-13T00:00:00Z", "type": "event_msg",
+              "payload": {"type": "user_message", "message": "work on it"}}],
+        )
+        segs, _n, skipped = process_codex_file(p)
+        check(skipped is False, "root file not skipped")
+        check(len(segs) >= 1 and segs[0].raw_session_id == "root-abc",
+              "root segment keyed off its own first-meta id")
+
+
+def test_codex_fork_replay_skipped() -> None:
+    # A forked rollout replays the parent transcript and carries TWO metas: its own
+    # (forked_from_id set) FIRST, then the replayed parent's. It must be skipped —
+    # keying off the FIRST meta detects the fork; processing it would double-count
+    # every replayed parent moment (#173 M3: 66% inflation).
+    with tempfile.TemporaryDirectory() as d:
+        p = Path(d) / "rollout-fork.jsonl"
+        _write_rollout(
+            p,
+            [{"id": "fork-xyz", "forked_from_id": "root-abc", "cwd": "/w/proj"},
+             {"id": "root-abc", "cwd": "/w/proj"}],   # replayed parent meta (must NOT win)
+            [{"timestamp": "2026-07-13T00:00:00Z", "type": "event_msg",
+              "payload": {"type": "user_message", "message": "replayed parent turn"}}],
+        )
+        segs, n, skipped = process_codex_file(p)
+        check(skipped is True, "forked rollout skipped")
+        check(segs == [] and n == 0, "skipped fork emits no segments/events")
+
+
 def main() -> int:
     print("Running normalize aggregation tests...")
     for t in (
@@ -101,6 +151,8 @@ def main() -> int:
         test_assistant_count,
         test_tool_buckets,
         test_line_metadata,
+        test_codex_root_uses_own_first_meta,
+        test_codex_fork_replay_skipped,
     ):
         t()
     if failures:
