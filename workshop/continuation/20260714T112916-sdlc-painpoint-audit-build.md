@@ -12,9 +12,30 @@ issues: [000172, 000170]
 
 ## NEXT ACTION
 
-Build **#172** (sdlc painpoint audit). Design done + `sdlc change-code` done — **on
-branch `000172-sdlc-painpoint-audit`**, estimate 8.07h set, plan-quality CLEAN +
-estimate-quality INFO. **M1 Tasks 1-2 committed** (the classification core):
+Build **#172** (sdlc painpoint audit). **M1 COMPLETE** (all 4 tasks committed, on
+branch `000172-sdlc-painpoint-audit`; instrument runs over the real corpus and
+reproduces the headline). **Next: `sdlc milestone-close --issue 172 --milestone M1`**
+(dispatches the fresh-eyes boundary review; fix Critical/Important, then cross). Then
+M2 → M3 → M4.
+
+- M1 commits: `a6c3559` (catalog+drift guard) · `113ee31` (classifyOutputLine) ·
+  `77875c5` (SdlcInvocation) · `97c7b2c` (corpus walk + `--friction-report`).
+- Run it: `go run ./cmd/sdlc process-manual --friction-report`. Headline: no-judge 17
+  dominant, no-verified 0, peers (brain 19/pair 15) ≫ ariadne 3.
+- M1 residual for the boundary review to note: ~2 of ~19 linked no-judge ACKs
+  unclassified (classifier edge cases); repo-label slug→repo is lossy (best-effort).
+
+**M2 (next milestone):** `detectRefusalRetries` (pair a Refusal invocation with the
+next same-verb+issue invocation; per-gate refusal sigs already in the catalog) +
+`detectFiringOrder` (per-issue, iteration-aware: mclose→change-code / start-plan
+re-runs / rework legal; merge/push have no --issue → attribute from segment context).
+**Edit/Write→KindFileEdit capture (deferred from M1 Task 3) lands here** for the
+skill-late arm. Then M3 (codex parser from the atlas spec) → M4 (T2/T3 analysis).
+
+---
+[superseded — M1 Tasks 1-2 detail retained below for reference]
+
+**M1 Tasks 1-2 committed** (the classification core):
 - Task 1 (`a6c3559`): `GateCatalog` (16 sigs / 12 gates, 3 ACK grammars) +
   cross-command drift guard (`cmd/sdlc/gates_test.go` introspects each spine
   command's registered `--no-*` flags vs the catalog).

@@ -135,12 +135,38 @@ were under-weighted). milestone-review ×3 = M1/M2/M3 boundary reviews.
 
 ## Plan
 
-- [ ] T1 — extend `process-manual --session` to capture bypass flags,
-  refusal→retry, and firing-order/load-timing; emit a per-gate friction report
-- [ ] T2 — triage top-bypassed gates (gap vs escape-hatch) using T1's clean data
-- [ ] T3 — coverage-gap read for un-gated workflow moments that recur as errors
+Milestones per the durable plan (`workshop/plans/000172-*-plan.md`). T1 (the
+instrument) spans M1–M3; T2/T3 (analysis) are M4.
+
+- [x] M1 — signature catalog + `classifyOutputLine` + `SdlcInvocation` + whole-corpus
+  per-gate **bypass** measure (claude), anti-contamination + repo labeling. Runs over
+  the real corpus; reproduces the headline (T1 partial)
+- [ ] M2 — refusal→retry + firing-order detectors (T1 complete for claude)
+- [ ] M3 — codex coverage (net-new Go parser from the atlas spec; both agents)
+- [ ] M4 — T2 triage (gap vs escape-hatch) + T3 coverage-gap read
 
 ## Log
+
+### 2026-07-14 — M1 built (instrument runs over the real corpus)
+
+M1 complete (4 TDD tasks, all committed; 998 spine invocations over 1006 non-scratch
+transcripts): (1) `GateCatalog` — 12 gates / 16 sigs / 3 ACK grammars + cross-command
+drift guard; (2) `classifyOutputLine` — verb-anchored, reset-gated ACKs, grammar+digit
+refusals, rejects warmup/source/cat-n; (3) `SdlcInvocation` — anchored `Bash(sdlc)`
+calls joined to the tool_result **content-block** (verified more complete than
+`toolUseResult.stdout`: no-judge ACK 105× vs 49×); (4) whole-corpus walk + aggregate +
+`--friction-report` (markdown/--json), worktree-normalized repo labels.
+
+**Real-corpus headline (clean anchored measure):** no-judge dominant (**17**),
+no-actual 8, no-atlas 5; **no-verified = 0** (the design works); bypasses concentrate
+in **peers (brain 19, pair 15) not ariadne (3)** — confirming the Spec's hypothesis.
+The raw-grep no-judge 64 was ~70% unlinked echoes (process-manual outputs / transcript
+reads) the anchoring correctly excludes — the instrument's whole purpose. Known
+residual: ~2 of ~19 linked no-judge ACKs not yet classified (edge cases) — a small
+accuracy tail for the M1 boundary review / M2 to tighten.
+
+**Deviation:** Edit/Write capture (plan Task 3) deferred to M2, where the firing-order
+skill-late detector actually consumes it.
 
 ### 2026-07-14 — design phase complete (plan v3.1 build-ready)
 
