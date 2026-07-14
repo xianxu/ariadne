@@ -12,24 +12,38 @@ issues: [000172, 000170]
 
 ## NEXT ACTION
 
-Build **#172** (sdlc painpoint audit). The design phase is **done** — a
-3-review-round-hardened durable plan sits at
-`workshop/plans/000172-sdlc-painpoint-audit-plan.md` (verdict: BUILDABLE). Start the
-build:
+Build **#172** (sdlc painpoint audit). Design done + `sdlc change-code` done — **on
+branch `000172-sdlc-painpoint-audit`**, estimate 8.07h set, plan-quality CLEAN +
+estimate-quality INFO. **M1 Tasks 1-2 committed** (the classification core):
+- Task 1 (`a6c3559`): `GateCatalog` (16 sigs / 12 gates, 3 ACK grammars) +
+  cross-command drift guard (`cmd/sdlc/gates_test.go` introspects each spine
+  command's registered `--no-*` flags vs the catalog).
+- Task 2 (`113ee31`): `classifyOutputLine` — anchors on verb, requires the runtime
+  `\x1b[0m` reset for a bypass ACK, grammar+digit-anchored refusals keyed on the exact
+  per-gate tail; rejects warmup/source/cat-n contamination. `GateEvent` +
+  observability (force-only / flag-omitted). Tests use REAL captured fixtures.
 
-1. `sdlc change-code --issue 172` — creates the feature branch. It **requires an
-   estimate** in the issue frontmatter first (scope is now knowable from the plan);
-   estimate against `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`. Set
-   `estimate_hours:` then run change-code.
-2. Implement **M1** via TDD (`superpowers-executing-plans` or
-   `-subagent-driven-development` per AGENTS.md §3): Task 1 (gate signature catalog +
-   cross-command drift guard) → Task 2 (`classifyOutputLine`, 3 ACK grammars +
-   warmup/source rejection) → Task 3 (`SdlcInvocation` anchored + Edit/Write capture +
-   output linkage) → Task 4 (whole-corpus walk + bypass measure + anti-contamination +
-   repo labeling). **Use REAL captured fixtures** (copy verbatim from
-   `~/.claude/projects` / `~/.codex/sessions`), including the contamination cases the
-   classifier must REJECT — hand-invented fixtures are exactly what the reviews caught.
-3. `sdlc milestone-close --issue 172 --milestone M1`, then M2/M3/M4.
+**Remaining M1** (in `cmd/sdlc/internal/processmanual/`, TDD, real fixtures):
+3. **`SdlcInvocation`** — build from anchored `Bash(sdlc <verb>)` calls joined to
+   their `tool_use_id`-linked result output; add `Edit`/`Write`/`MultiEdit` →
+   `KindFileEdit` in `classifyToolUse` (`session.go:393`); **extend `parseEvents` to
+   attach + RETAIN the raw output** on every `KindSDLCPrompt` event (today it links
+   stdout only for close/mclose verdict recovery at `session.go:216` and DISCARDS the
+   raw text — the plan-quality/estimate-quality judges both confirmed this). Parse
+   `issueID` from `--issue N`/`#N` in args.
+4. **Whole-corpus walk** — `enumerateAllTranscripts()` (globs all
+   `~/.claude/projects/*/*.jsonl`; **take injectable roots** per the plan-quality
+   advisory so the temp-dir test works) + `detectGateEvents` + `aggregate` +
+   `renderFrictionReport` (markdown + `--json`) + `--friction-report` dispatch in
+   `processmanual.go` (mutually exclusive with `--session`, not repo-bound). Repo
+   label: normalize `-worktree-ariadne-` → `ariadne`, exclude `-private-tmp-`/
+   `-private-var-folders-`. **Anti-contamination test is load-bearing.**
+Then `sdlc milestone-close --issue 172 --milestone M1`, then M2 (refusal→retry +
+firing-order) / M3 (codex) / M4 (T2+T3).
+
+Two judge advisories to honor (both non-blocking, noted at change-code): drift guard
+keyed on distinct **(command, flag)** pairs (done); `enumerateAllTranscripts` takes
+**injectable roots** (Task 4).
 
 ## State of play
 
