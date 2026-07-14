@@ -95,29 +95,36 @@ The pipeline no longer reads Claude's wire format directly. A canonical
 `detect` detectors reason about; per-agent **adapters** map raw transcripts into it:
 
 ```
-~/.claude/projects/*.jsonl  ─┐
-~/.codex/sessions/**/*.jsonl ─┼─► agent adapter ──► NormEvent stream ──► normalize + detect
-(future agents) ─────────────┘   claude_events /     (agent-agnostic:
-                                 codex_events         aggregation + 4 detectors)
+~/.claude/projects/*.jsonl   ─┐
+~/.codex/sessions/**/*.jsonl  ─┼─► agent adapter ──► NormEvent stream ──► normalize + detect + segment_text
+(future agents) ──────────────┘   claude_events /     (agent-agnostic:
+                                  codex_events          aggregation + 4 detectors + render)
 ```
 
 - **`events.py`** — `NormEvent` (kind ∈ {user_msg, assistant_msg, tool_call,
   tool_result, file_edit, boundary}) + shared `FRICTION_HINTS`. Pure.
-- **`agent_claude.py`** — `claude_events(line)` owns ALL Claude wire-format reads
+- **`agent_claude.py`** — `claude_events(line)` owns the Claude wire-format reads
   (message / tool_use / toolUseResult / away_summary) and **derives `is_error`**
   (Claude flag + text patterns) so detectors read a flag.
-- **`agent_codex.py`** — `codex_events(...)`, the codex rollout mapping (M2).
-- `normalize`'s `aggregate_norm_event` and the 4 detectors read **only** `NormEvent`
-  — a new agent is one adapter, consumers untouched (ARCH-DRY). Session metadata
-  (cwd/branch/permission, segment boundaries) stays a small per-agent seam
-  (`_apply_line_metadata`, `split_into_segments`).
+- **`agent_codex.py`** — `codex_events(line, raw_sid)` maps codex rollout events
+  (`event_msg`/`response_item`/`patch_apply_end`/`compacted`); **derives `is_error`
+  from the "Process exited with code N" string** (codex has no error flag).
+- **`segment_loader.py`** — `load_segment_norm_events(session)`: agent-keyed raw
+  reader (claude project JSONL by sessionId / codex rollout by persisted path) →
+  NormEvent stream. Shared by detect + segment_text.
+- `normalize`'s `aggregate_norm_event`, the 4 detectors, AND `segment_text`'s
+  `render_segment` read **only** `NormEvent` — a new agent is one adapter, consumers
+  untouched (ARCH-DRY). Session metadata (cwd/branch, segment boundaries) is a small
+  per-agent seam: claude reads per-line (`_apply_line_metadata`, away_summary), codex
+  reads `session_meta` once + segments on `compacted`.
 
 Why: introspect was Claude-only while the rest of ariadne is agent-neutral, so
-codex taste was invisible. M1 put the **normalize + detect** consumers behind this
-abstraction (behavior-preserving — byte-identical `sessions.json`, identical run-3
-moment set). Still Claude-shaped: **`segment_text.py`**, the extract-pass renderer —
-it must be lifted too (M2) or codex taste is detectable but not *extractable*
-end-to-end. M2 adds the codex adapter + lifts `segment_text`.
+codex taste was invisible. M1 put normalize + detect behind the abstraction
+(behavior-preserving — byte-identical `sessions.json`, identical run-3 moment set);
+**M2 added the codex adapter + `segment_loader` + lifted `segment_text`**, so codex
+is now both detectable and extractable end-to-end. Empirical: codex sessions carry
+far more **friction** signal than claude (non-zero exit codes vs claude's harness
+is_error flag; some benign like grep-no-match).
 
 ## Where things live
 

@@ -45,7 +45,16 @@ review time it stays in `hints/` for the next run.
 
 ### 1. Scope picker
 
-Ask the user which transcripts to read. Three options:
+Ask the user TWO things: which **agent(s)** and which **transcripts**.
+
+**Agent (#173):** introspect is agent-neutral — pick `claude`, `codex`, or `both`.
+- `claude` → `~/.claude/projects/*.jsonl` (scoped by the picker below)
+- `codex`  → `~/.codex/sessions/**/rollout-*.jsonl` (ALL codex sessions; the
+  scope/project picker applies to claude only — codex has no per-slug dirs, it's
+  keyed by each rollout's `session_meta.cwd`)
+- `both`   → union
+
+**Scope (claude only):**
 
 ```
 [1] current repo  → ~/.claude/projects/<repo-slug-of-cwd>/*.jsonl
@@ -57,11 +66,16 @@ If `cwd` doesn't have a corresponding `~/.claude/projects/<slug>/` (slug = cwd p
 
 For dogfood/testing, the user may pass an explicit slug: `/xx-introspect extract --project charon` (resolves to `-Users-xianxu-workspace-charon`).
 
+Note: codex sessions carry MORE friction signal than claude (non-zero exit codes
+vs claude's harness is_error flag) — some benign (grep-no-match); the cluster
+walkthrough (Stage 5) filters those.
+
 ### 2. Run normalize
 
 ```
 python3 $REPO_ROOT/construct/local/introspect/scripts/normalize.py \
-  --scope <choice> \
+  --agent <claude|codex|both> \    # #173; default claude. codex ignores --scope/--project
+  --scope <choice> \               # claude/both only
   [--project <slug>] \
   [--cwd "$PWD"]                   # only when --scope current; defaults to os.getcwd()
   [--since <last_run_at-from-state>] \
