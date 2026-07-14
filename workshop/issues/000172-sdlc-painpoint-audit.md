@@ -148,6 +148,7 @@ instrument) spans M1–M3; T2/T3 (analysis) are M4.
 ## Log
 
 ### 2026-07-14 — M2 built (refusal→retry + firing-order; T1 complete for claude)
+- 2026-07-14: closed M2 — go test ./cmd/sdlc/... green incl the new M2 suites (refusal-retry pairing + dedupe, firing-order ladder/attribution/skill-late, render+JSON shape, zero-transcripts error, toolResultText array form); real-corpus smoke: M1 bypass headline reproduced post-dedupe (no-judge 17, no-verified 0, brain 19/pair 15/ariadne 3), new sections render (71 refusals / 70 retried, 18 firing-order anomalies, 37 unattributed publishes); review verdict: FIX-THEN-SHIP
 
 M2 complete (3 TDD tasks, committed separately): (5) `detectRefusalRetries` —
 pairs each refusal with the next same-verb+same-issue invocation per transcript;
@@ -174,6 +175,16 @@ Firing-order: change-code-after-close 16 (12 in peers), skill-late 2 (both
 brain), 37 unattributed publishes. Deviations recorded in the plan's M2
 Revisions entry (inversion semantics for the ladder's first arm; .md edits
 excluded from skill-late).
+
+**Boundary review: FIX-THEN-SHIP** (sidecar
+`workshop/plans/000172-sdlc-painpoint-audit-m2-review.md`). Important #1 fixed
+before crossing: a gate-REFUSED close/merge no longer raises the firing-order
+ladder (refused close → change-code is legal recovery); regression test added;
+corpus re-run left the anomaly count at 16 (none were the false-positive class —
+the fix is semantics-correcting, headline stable). Pairing caveats added to the
+report footnote. Deferred to M3 with the scanner work: `tool_result.is_error`
+capture, single events computation in `buildFrictionReport`, scan-and-link core
+extraction before the codex sibling, codex ActivityMark coverage statement.
 
 ### 2026-07-14 — M1 built (instrument runs over the real corpus)
 - 2026-07-14: closed M1 — M1 friction instrument built + runs over the real corpus (998 spine invocations / 1006 transcripts); go build + go vet clean, 7 processmanual unit suites green incl the load-bearing anti-contamination test + cross-command drift guard; reproduces the Spec headline from a CLEAN anchored measure — no-judge dominant (17), no-verified=0 (design works), bypasses concentrate in peers (brain 19/pair 15) not ariadne (3); raw grep over-counted ~4x (unlinked echoes correctly excluded); review verdict: FIX-THEN-SHIP

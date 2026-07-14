@@ -319,6 +319,13 @@ func TestDetectFiringOrderLadder(t *testing.T) {
 			foInv("claim", "6", "t", 2, ""),
 			foInv("start-plan", "6", "t", 3, ""),
 		}, nil},
+		{"a gate-REFUSED close does not raise the ladder (legal recovery)", []SdlcInvocation{
+			foInv("change-code", "5", "t", 0, ""),
+			// close refused by the actual-hours gate — boundary NOT crossed
+			foInv("close", "5", "t", 1, "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A."),
+			foInv("change-code", "5", "t", 2, ""),
+			foInv("close", "5", "t", 3, "closed."),
+		}, nil},
 		{"--help invocations are not workflow steps", []SdlcInvocation{
 			{Verb: "close", IssueID: "5", Transcript: "t", Repo: "r", IsHelp: true,
 				Time: time.Date(2026, 7, 14, 10, 0, 0, 0, time.UTC)},

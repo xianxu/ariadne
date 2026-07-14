@@ -471,6 +471,16 @@ func detectFiringOrder(invs []SdlcInvocation, marks []ActivityMark) FiringOrderR
 				})
 				flagged = true // once per issue — repeated regressions are one finding
 			}
+			if evs := invocationGateEvents(inv); anyGateEvent(evs, GateRefusal) && !anyGateEvent(evs, GateBypass) {
+				// A gate-REFUSED invocation did not cross its boundary — a refused
+				// close followed by change-code is legal recovery, not an inversion,
+				// so the ladder must not raise (M2 boundary review, Important #1). A
+				// refusal WITH a bypass ACK is the compound retry (`close || close
+				// --no-X`) — that one completed. Residual: non-gate failures (dirty
+				// tree, no claim) carry no refusal signature; capturing
+				// tool_result.is_error is the M3 hardening.
+				continue
+			}
 			if (inv.Verb == "close" || inv.Verb == "milestone-close") && isReworkVerdict(inv.Output) {
 				// REWORK reopens (codecomplete→working): roll the ladder back to the
 				// implementing stage instead of raising it.
@@ -559,6 +569,15 @@ func isReworkVerdict(output string) bool {
 func hasGateEvent(evs []GateEvent, kind GateEventKind, gate string) bool {
 	for _, e := range evs {
 		if e.Kind == kind && e.Gate == gate {
+			return true
+		}
+	}
+	return false
+}
+
+func anyGateEvent(evs []GateEvent, kind GateEventKind) bool {
+	for _, e := range evs {
+		if e.Kind == kind {
 			return true
 		}
 	}
@@ -825,7 +844,7 @@ func renderFrictionReport(rep FrictionReport) string {
 			fmt.Fprintf(&b, "| %s | %s | %d | %d | %d | %d | %s%s |\n",
 				k.cmd, k.gate, tl.refusals, tl.retried, tl.resolved, tl.viaBypass, tl.obs, note)
 		}
-		b.WriteString("\n_`resolved` = the retry no longer refused this gate; `via bypass` = it resolved by routing AROUND the gate (--no-<gate>/--force), not by satisfying it. `flag-omitted` rows pair refusal→retry by verb+context only (best-effort)._\n")
+		b.WriteString("\n_`resolved` = the retry no longer refused this gate; `via bypass` = it resolved by routing AROUND the gate (--no-<gate>/--force), not by satisfying it. `flag-omitted` rows pair refusal→retry by verb+context only (best-effort). Pairing is within-transcript, unbounded in time, and milestone-blind (an M1 refusal can pair with an M2 retry); refuse→refuse→satisfy chains count per-record — both mildly overstate `retried`/understate `resolved`._\n")
 	}
 
 	// ── Firing-order (M2) ──

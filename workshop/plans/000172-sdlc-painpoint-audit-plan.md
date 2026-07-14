@@ -59,7 +59,7 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 | `GateEvent` (Bypass\|Refusal, gate, command, viaForce, observability, invocation) | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `classifyOutputLine` (line → GateEvent\|none, via `gateCatalog` + runtime/contam discriminator) | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `RefusalRetry` | `cmd/sdlc/internal/processmanual/friction.go` | new |
-| `FiringOrderAnomaly` + `workflowOrder` (per-issue, iteration-aware) | `cmd/sdlc/internal/processmanual/friction.go` | new |
+| `FiringOrderAnomaly` + `workflowStage` (per-issue, iteration-aware) | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `FrictionReport` + `renderFrictionReport` | `cmd/sdlc/internal/processmanual/friction.go` | new |
 | `AllGates()` drift guard (catalog vs registered `--no-*` across all cmd files) | `cmd/sdlc/gates_test.go` | new |
 | `classifyToolUse` (+ `KindFileEdit` for Edit/Write/MultiEdit) | `cmd/sdlc/internal/processmanual/session.go` | modified |
@@ -69,7 +69,7 @@ Built from source + verified against the real corpus (2,356 Claude files + 592 c
 - **`GateSig` / `gateCatalog`** — the catalog table encoded as data; `classifyOutputLine` is a pure matcher over it. **DRY:** one source for the classifier, the drift guard, and the report's per-gate rows. A new gate = one table row (+ its flag registration).
 - **`classifyOutputLine`** — strips ANSI, then: for a **bypass ACK** requires the runtime `[0m ` reset (G1/G3) or the change-code `gate bypassed (--force:` shape (G2), matched against each `GateSig`'s `ackRE`; for a **refusal** matches the grammar-anchored `refusalRE` (digits, colon-delimited, exact tail — NOT reset-gated). Both REJECT contamination markers (`%s`/`%d`, `cwrite(`/`cwarn(`, `fmt.Sprintf(`, leading `"`, `NN\t`) and the `warmupTrap`. The G3 `no-validate` ACK regex must tolerate the literal `⚠️ ` emoji (`\x{26a0}\x{fe0f}`) + **two** spaces before `--no-validate` (`merge.go:328`/`push.go:129`). Returns the `GateEvent` with `observability` (`full` | `force-only` | `flag-omitted`).
 - **`SdlcInvocation`** — a `Bash(sdlc <verb> …)` call + its `tool_use_id`-linked result output. `issueID` parsed from `--issue N`/`#N` in args (keys firing-order per issue). `isHelp` (a `--help` invocation) excluded — its output legitimately lists every flag.
-- **`workflowOrder` / `FiringOrderAnomaly`** — ordered stages from AGENTS.md's flow `claim(0) ≺ start-plan(1) ≺ change-code(2) ≺ milestone-close(3) ≺ close(4) ≺ merge(5)`, **keyed per issueID**, **iteration-aware**: legal loops that must NOT flag — `milestone-close→change-code` (next milestone), `start-plan` re-runs (AGENTS.md "re-run per design"), `close→change-code`/`close→start-plan` after a REWORK/reopen (`codecomplete→working`, `issue.cue:129/132`). Only a verb below the issue's max-reached stage with **no** intervening legal-loop trigger flags. **`merge`/`push` carry NO `--issue`** (they derive touched issues from the git diff, invisible to the transcript — `merge.go:105-110`, `push.go`), so stage-5 `merge` is **attributed from segment context** (the nearest preceding `--issue`-bearing invocation in the same segment) or, if none, recorded as `unattributed` and kept OUT of any per-issue ladder — never bucketed under a global `""` key that would cross-contaminate. `skill-late` = a plan/TDD `Skill` load after a `KindFileEdit` in the same segment+issue.
+- **`workflowStage` / `FiringOrderAnomaly`** — ordered stages from AGENTS.md's flow `claim(0) ≺ start-plan(1) ≺ change-code(2) ≺ milestone-close(3) ≺ close(4) ≺ merge(5)`, **keyed per issueID**, **iteration-aware**: legal loops that must NOT flag — `milestone-close→change-code` (next milestone), `start-plan` re-runs (AGENTS.md "re-run per design"), `close→change-code`/`close→start-plan` after a REWORK/reopen (`codecomplete→working`, `issue.cue:129/132`). Only a verb below the issue's max-reached stage with **no** intervening legal-loop trigger flags. **`merge`/`push` carry NO `--issue`** (they derive touched issues from the git diff, invisible to the transcript — `merge.go:105-110`, `push.go`), so stage-5 `merge` is **attributed from segment context** (the nearest preceding `--issue`-bearing invocation in the same segment) or, if none, recorded as `unattributed` and kept OUT of any per-issue ladder — never bucketed under a global `""` key that would cross-contaminate. `skill-late` = a plan/TDD `Skill` load after a `KindFileEdit` in the same segment+issue.
 
 ### Integration points
 
@@ -265,3 +265,17 @@ no-verified 0, brain 19/pair 15/ariadne 3). Refusal→retry: 71 refusals, nearly
 resolved by SATISFYING the gate (no-estimate-recon 19/19 satisfied; via-bypass rare —
 no-verdict 2, no-atlas 1) — the refusal texts do their job. Firing-order:
 change-code-after-close 16, skill-late 2, 37 unattributed publishes.
+
+**Boundary-review fix (Important #1, FIX-THEN-SHIP):** the ladder raised `maxStage`
+for every close/merge invocation, including gate-REFUSED ones that never crossed
+their boundary — contradicting the documented clean-close semantics and risking
+false `change-code-after-close` anomalies (refused close → more work → change-code
+is legal recovery). Now an invocation carrying a `GateRefusal` with no accompanying
+`GateBypass` leaves the ladder unchanged (the compound `close || close --no-X`
+retry still counts as completed). Regression test added; re-run over the real
+corpus left the anomaly count at 16 — none of the reported anomalies were this
+false-positive class. Residual (M3): non-gate failures carry no refusal signature;
+capture `tool_result.is_error` when M3 touches the scanner. Review Minors deferred
+to M3 (single events computation in `buildFrictionReport`; scan-and-link core
+extraction before the codex sibling), except the refusal→retry pairing caveats,
+now stated in the report footnote.
