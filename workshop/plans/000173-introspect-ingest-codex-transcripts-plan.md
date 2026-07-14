@@ -285,3 +285,25 @@ edits both bump it), inflating codex tool counts vs claude — factor this into 
 **Core Concepts table is superseded** by the M1 flat-module revision: adapters are
 `agent_claude.py` / `agent_codex.py` (not an `agents/` package), plus the new
 `segment_loader.py`. Treat the M1/M2 revisions as authoritative over the original table.
+
+### 2026-07-14 — M3 dogfood surfaced two adapter gaps (fixed before close)
+
+Task 8's dogfood was designed to *answer* "does codex reopen the taste well"; it also
+*surfaced two real codex-adapter gaps* that the M2 fixture tests couldn't (they only
+appear on the real corpus's multi-agent + benign-exit shapes). Both fixed
+(user-approved "fix both now"), turning M3 from pure-measurement into
+measurement-plus-two-fixes:
+
+1. **Multi-agent fork-replay** — the M2 codex reader assumed one rollout = one raw
+   session. pair/parley.nvim fork codex sessions; a fork *replays the parent
+   transcript* and carries two `session_meta`. `process_codex_file` now keys off the
+   FIRST meta and skips `forked_from_id` files (66% moment inflation otherwise). This
+   is a genuine third codex-format property (beyond the M2 discovery table), now
+   documented in the atlas spec as a trap #172's Go reader must also handle.
+2. **Benign-exit friction** — M2's `_output_is_error` over-derived (any non-zero exit
+   → error). Tightened to require a `FRICTION_HINT`, symmetric with Claude's gate.
+
+The **finding stands independent of the fixes** (they only *inflate* codex's apparent
+signal, so fixing strengthens the "no"). Task 9's atlas spec absorbed the fork trap +
+the M3 finding. No architecture change — both fixes are in the codex edge (adapter +
+locator), consumers untouched (ARCH-DRY held).

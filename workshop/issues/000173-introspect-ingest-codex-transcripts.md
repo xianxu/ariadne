@@ -96,9 +96,39 @@ Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md
 - [x] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
   onto it; **run-3 reproduced** (behavior-preserving refactor, de-risks the abstraction)
 - [x] M2 — codex adapter + `codex_sessions()` locator + `--agent` dispatch + scope picker
-- [ ] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
+- [x] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
 
 ## Log
+
+### 2026-07-14
+- **M3 dogfood + finding (the payload).** Ran normalize→classify→detect over the
+  full codex corpus (592 rollouts, 552 root sessions). **Finding: codex does NOT
+  reopen the taste well.** Raw counts looked ~10× richer than Claude (112 friction,
+  198 endorsements) but were **~95% artifact**. Two confounds — both real adapter
+  gaps the dogfood surfaced, both fixed (FIX-THEN-SHIP, user-approved):
+  1. **Fork-replay (66% moment inflation).** pair/parley.nvim multi-agent runs fork
+     codex sessions; a forked rollout *replays the parent transcript* and carries
+     TWO `session_meta` (own first w/ `forked_from_id`, then the replayed parent's).
+     normalize kept the LAST → 40 forks collapsed onto 12 parent ids, shared moments
+     counted ×(1+forks) (one redirect ×11). Fix: key off FIRST meta + skip forks
+     (`process_codex_file`); `run.json.codex_forks_skipped`. Test: `test_normalize`.
+  2. **Benign-exit friction (106/112 noise).** `_output_is_error` flagged any
+     non-zero exit (grep/sed/ls no-match, cmd-not-found, timeouts). Fix: require a
+     `FRICTION_HINT` paired with the failing signal, mirroring Claude's gate. Test:
+     `test_agent_codex`. Substantial friction 112→12 (genuine sandbox denials:
+     `.git/index.lock`, PATH "Operation not permitted").
+  Cleaned codex signal (substantial): **8 unique redirects (all project-local UX),
+  12 sandbox frictions, 0 tool-backed endorsements, 0 new generalizable rules** —
+  the one real debugging moment ("don't guess, use logging") was already deployed in
+  `introspect-debugging`. Stage-5 walkthrough (user-in-loop) → close with 0 skill
+  changes. Same diminishing-returns conclusion as #169, now on both agents. 7 unit
+  suites green post-fix; pipeline emits the clean numbers directly (no de-confound
+  script needed). Atlas codex-format spec written (`atlas/workflow/introspect.md` →
+  "Codex transcript format") as #172's Go shared source, incl. the fork-skip trap.
+- Deferred (recorded): the friction gate still has a small false-positive tail when a
+  `FRICTION_HINT` word (e.g. "sandbox") appears in benign non-zero-exit command
+  *output* (grepping a config that mentions sandbox). Tiny magnitude; doesn't affect
+  the finding. Tighten only if codex friction becomes a headline signal (it isn't).
 
 ### 2026-07-13
 - 2026-07-13: closed M2 — M2 codex ingest end-to-end. codex adapter (fixture + real 6.5k-event rollout validated); normalize --agent {claude,codex,both} → 783 codex segments (227 substantial) correctly agent-tagged + cwd-slugged from 553 rollouts; SessionSummary.agent added (review-flagged); shared segment_loader replaces the 2 divergent load_segment_events; segment_text lifted onto NormEvent so codex RENDERS (extractable). Regressions: claude detect STILL 543 moments w/ identical id-set through the shared loader; codex detect 227 segs → 313 moments incl 112 friction (vs claude run-3 0 friction). scope picker learns codex. 5 unit suites green.; review verdict: FIX-THEN-SHIP
