@@ -28,9 +28,11 @@ from pathlib import Path
 from typing import Any
 
 from agent_claude import claude_events
+from agent_codex import codex_events
 from events import EventKind, NormEvent
 
 PROJECTS_ROOT = Path.home() / ".claude" / "projects"
+CODEX_SESSIONS_ROOT = Path.home() / ".codex" / "sessions"
 # Boundary thresholds for segmenting a long resumed session into smaller units
 # of analysis. The user's actual workflow flips between activities within one
 # raw sessionId (because Claude Code preserves it across resume), so a single
@@ -99,6 +101,8 @@ class SessionSummary:
     segment_index: int           # 1-indexed
     segment_count: int           # total segments in the raw session (filled at finalize)
     project_slug: str
+    agent: str = "claude"        # origin agent — "claude" | "codex" (#173 M2); lets
+                                 # detect/segment_text dispatch to the right reader
     cwd: str | None = None
     git_branch: str | None = None
     start_ts: str | None = None
@@ -253,13 +257,19 @@ def is_away_summary(line: dict[str, Any]) -> bool:
     return line.get("type") == "system" and line.get("subtype") == "away_summary"
 
 
+def is_compacted(line: dict[str, Any]) -> bool:
+    """Codex's explicit segment boundary — emitted when the context window rolls."""
+    return line.get("type") == "compacted"
+
+
 def split_into_segments(
     events: list[tuple[dict[str, Any], str]],
+    is_boundary: Any = is_away_summary,
 ) -> list[list[tuple[dict[str, Any], str]]]:
-    """Split a raw session's events into segments based on away_summary events
-    and gaps ≥ GAP_BOUNDARY_SECONDS. The away_summary itself stays as the last
-    event of the closing segment (so its content can be captured as metadata).
-    """
+    """Split a raw session's events into segments on an explicit boundary event
+    (`is_boundary`, default Claude's away_summary) and gaps ≥ GAP_BOUNDARY_SECONDS.
+    The boundary event stays as the last event of the closing segment (so its
+    content can be captured as metadata)."""
     # Sort by timestamp, with a stable secondary key on event type so ties
     # produce deterministic order.
     events_sorted = sorted(
@@ -286,9 +296,9 @@ def split_into_segments(
 
         current.append(evt_pair)
 
-        # away_summary boundary: close current AFTER appending so the recap is
-        # the last event of the closing segment (its content becomes metadata).
-        if is_away_summary(line) and current:
+        # boundary: close current AFTER appending so the recap is the last event
+        # of the closing segment (its content becomes metadata).
+        if is_boundary(line) and current:
             segments.append(current)
             current = []
 
@@ -345,6 +355,90 @@ def process_project(project_slug: str) -> tuple[list[SessionSummary], int]:
     return out, total_events
 
 
+# ── Codex path (#173 M2) ─────────────────────────────────────────────────────
+# One rollout file = one raw codex session. cwd/start live in session_meta (once),
+# not per-line, so the codex metadata seam differs from Claude's per-line one — but
+# the event aggregation goes through the same agent-neutral aggregate_norm_event.
+
+def build_codex_segment(
+    raw_sid: str, idx: int, n: int, slug: str, cwd: str | None,
+    branch: str | None, events: list[tuple[dict[str, Any], str]], rollout_path: str,
+) -> SessionSummary:
+    summary = SessionSummary(
+        session_id=f"{raw_sid}#s{idx}", raw_session_id=raw_sid, segment_index=idx,
+        segment_count=n, project_slug=slug, agent="codex",
+    )
+    summary.cwd = cwd
+    summary.git_branch = branch
+    summary.transcript_files.add(rollout_path)  # abspath — load_segment_events reads it
+    for line, _src in events:
+        ts = line.get("timestamp")
+        if ts:
+            if summary.start_ts is None or ts < summary.start_ts:
+                summary.start_ts = ts
+            if summary.end_ts is None or ts > summary.end_ts:
+                summary.end_ts = ts
+        if is_compacted(line):
+            continue
+        for nev in codex_events(line, raw_sid):
+            if nev.kind == EventKind.BOUNDARY:
+                continue
+            aggregate_norm_event(nev, summary)
+    if summary.start_ts and summary.end_ts:
+        t0, t1 = parse_ts(summary.start_ts), parse_ts(summary.end_ts)
+        if t0 and t1:
+            summary.duration_seconds = (t1 - t0).total_seconds()
+    return summary
+
+
+def process_codex_file(rollout_path: Path) -> tuple[list[SessionSummary], int]:
+    """One codex rollout → its segments. session_meta gives id/cwd/branch; segment
+    on `compacted` + gap; aggregate each segment via codex_events."""
+    meta: dict[str, Any] = {}
+    lines: list[dict[str, Any]] = []
+    try:
+        with rollout_path.open() as f:
+            for raw in f:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    d = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if d.get("type") == "session_meta":
+                    meta = d.get("payload") or {}
+                    continue
+                lines.append(d)
+    except OSError:
+        return [], 0
+    raw_sid = meta.get("id") or meta.get("session_id") or rollout_path.stem
+    cwd = meta.get("cwd")
+    git = meta.get("git")
+    branch = git.get("branch") if isinstance(git, dict) else None
+    slug = cwd_to_slug(cwd) if cwd else "-codex-unknown"
+    pairs = [(d, rollout_path.name) for d in lines]
+    segments = split_into_segments(pairs, is_boundary=is_compacted)
+    n = len(segments)
+    out = [
+        build_codex_segment(raw_sid, idx, n, slug, cwd, branch, seg, str(rollout_path))
+        for idx, seg in enumerate(segments, start=1)
+    ]
+    return out, len(lines)
+
+
+def process_codex() -> tuple[list[SessionSummary], int, int]:
+    """Walk ~/.codex/sessions/**/rollout-*.jsonl (one file per raw session)."""
+    files = sorted(CODEX_SESSIONS_ROOT.rglob("rollout-*.jsonl"))
+    all_segs: list[SessionSummary] = []
+    total_events = 0
+    for f in files:
+        segs, n = process_codex_file(f)
+        all_segs.extend(segs)
+        total_events += n
+    return all_segs, total_events, len(files)
+
+
 def filter_since(segments: list[SessionSummary], since_iso: str | None) -> list[SessionSummary]:
     if not since_iso:
         return segments
@@ -377,16 +471,21 @@ def main() -> int:
     )
     ap.add_argument("--since", help="ISO timestamp; filter to sessions starting at/after this.")
     ap.add_argument("--out", required=True, help="Output cache dir (will be created).")
+    ap.add_argument(
+        "--agent", choices=["claude", "codex", "both"], default="claude",
+        help="Which agent's transcripts to read (#173). Default claude. "
+             "codex reads ~/.codex/sessions (--scope/--project apply to claude only).",
+    )
     args = ap.parse_args()
 
-    if not args.scope:
+    do_claude = args.agent in ("claude", "both")
+    do_codex = args.agent in ("codex", "both")
+
+    if do_claude and not args.scope:
         if args.project:
             args.scope = "select"
         else:
-            ap.error("--scope is required (or pass --project for shorthand select).")
-
-    project_slugs = resolve_project_slugs(args.scope, args.cwd, args.project)
-    print(f"resolved {len(project_slugs)} project dir(s): {project_slugs}", file=sys.stderr)
+            ap.error("--scope is required for --agent claude/both (or pass --project).")
 
     out_dir = Path(args.out).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -394,12 +493,24 @@ def main() -> int:
     segments: list[SessionSummary] = []
     total_events = 0
     total_files = 0
-    for slug in project_slugs:
-        proj_dir = PROJECTS_ROOT / slug
-        total_files += len(list(proj_dir.glob("*.jsonl")))
-        proj_segments, proj_events = process_project(slug)
-        segments.extend(proj_segments)
-        total_events += proj_events
+    project_slugs: list[str] = []
+
+    if do_claude:
+        project_slugs = resolve_project_slugs(args.scope, args.cwd, args.project)
+        print(f"resolved {len(project_slugs)} claude project dir(s): {project_slugs}", file=sys.stderr)
+        for slug in project_slugs:
+            proj_dir = PROJECTS_ROOT / slug
+            total_files += len(list(proj_dir.glob("*.jsonl")))
+            proj_segments, proj_events = process_project(slug)
+            segments.extend(proj_segments)
+            total_events += proj_events
+
+    if do_codex:
+        codex_segments, codex_events_n, codex_files = process_codex()
+        print(f"read {codex_files} codex rollout file(s)", file=sys.stderr)
+        segments.extend(codex_segments)
+        total_events += codex_events_n
+        total_files += codex_files
 
     segments = filter_since(segments, args.since)
 
@@ -414,6 +525,7 @@ def main() -> int:
     raw_session_ids = {s.raw_session_id for s in segments}
     summary = {
         "run_ts": datetime.now(timezone.utc).isoformat(),
+        "agent": args.agent,
         "scope": args.scope,
         "projects": project_slugs,
         "transcript_files_read": total_files,
