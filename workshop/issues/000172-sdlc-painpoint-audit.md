@@ -1,12 +1,13 @@
 ---
 id: 000172
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-13
 updated: 2026-07-14
 estimate_hours: 8.07
 started: 2026-07-14T08:07:22-07:00
+actual_hours: 7.42
 ---
 
 # sdlc painpoint audit
@@ -217,6 +218,7 @@ gate strictness per se.
 ## Log
 
 ### 2026-07-14 — M4: T2 triage + T3 coverage-gap read (see ## Findings)
+- 2026-07-14: closed — T1 instrument shipped + verified: go test ./cmd/sdlc/... green (gatesig/classify/scan/codex/detector/walk suites, real captured fixtures incl contamination rejections + cross-language golden with Python consumer); both-agent real-corpus runs reproduce and refine the Spec baseline (no-judge dominant 17, no-verified 0, bypasses concentrate in peers, exactly 40 codex forks skipped per spec census). T2 verdicts + T3 gaps in ## Findings (158 refusals -> 149 resolved, 8 via bypass); follow-ups #174/#175/#176 filed. --no-verdict: M4 is the plan-designated issue-close milestone (Chunk 4 ends at sdlc close, no separate milestone-close) — THIS close boundary review covers exactly M4 window; a prior milestone-close would double-review it. Live instance of the #175 finding.; review verdict: SHIP
 
 Analysis over the finished instrument; full verdicts + evidence in
 `## Findings` above. Headline: **the refusal system works** (158 refusals → 149
