@@ -93,7 +93,7 @@ Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md
 (design approach **B — normalized event stream**; approved 2026-07-13).
 
 - [x] Discovery — codex store + event→NormEvent mapping (see Log)
-- [ ] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
+- [x] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
   onto it; **run-3 reproduced** (behavior-preserving refactor, de-risks the abstraction)
 - [ ] M2 — codex adapter + `codex_sessions()` locator + `--agent` dispatch + scope picker
 - [ ] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
@@ -101,6 +101,7 @@ Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md
 ## Log
 
 ### 2026-07-13
+- 2026-07-13: closed M1 — M1 behavior-preserving refactor onto agent-neutral NormEvent. normalize sessions.json BYTE-IDENTICAL on kbench+metis; detect reproduces #169 run-3 cache EXACTLY (543 moments, by-type 504/28/11, full 543 stable-hash id set identical); 4 unit suites green. atlas/workflow/introspect.md documents the new NormEvent layer.; review verdict: FIX-THEN-SHIP
 
 Filed from #169 run-3, where the corpus was Claude-only by construction
 (`~/.claude/projects`). Not made a hard dep of #170 — the #170 audit proceeds on

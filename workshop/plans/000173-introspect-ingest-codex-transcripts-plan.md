@@ -220,3 +220,35 @@ internals; none change the architecture, all guarded by the M1 regression gates:
 
 M1 gates met: normalize `sessions.json` byte-identical on kbench+metis; detect
 reproduces the run-3 cache exactly (543 moments, identical stable-hash id set).
+
+### 2026-07-13 — M1 review (FIX-THEN-SHIP): a third consumer was missed
+
+The M1 boundary review caught that **`segment_text.py`** — the extract-pass
+renderer (raw segment → text for the LLM pattern-extraction call) — is a THIRD
+Claude-wire-format consumer, not lifted by M1. It has its own
+`PROJECTS_ROOT` glob, `sessionId` filter, `toolUseResult`/`away_summary` walk in
+`render_segment`, and near-verbatim duplicates of the adapter's
+`_text_from_content` / `_tool_result_text`. Consequences + plan corrections:
+
+1. **Read-site inventory corrected.** M1 lifted `normalize` + `detect.load_segment_events`
+   only — NOT `segment_text.py`'s `extract_text_from_content` / `extract_tool_result_text`
+   / `load_segment_events` / `render_segment`. The "owns ALL" / "collapses ~6 sites"
+   claims were softened in `agent_claude.py`, `events.py`, and `atlas/workflow/introspect.md`.
+2. **New M2 task — lift `segment_text.render_segment` + its locator onto `NormEvent`**
+   (or a codex reader), sequenced BEFORE the M3 dogfood. Without it, codex sessions
+   normalize + produce moments but their transcripts can't be *rendered* for the
+   extract pass → codex taste is detectable but not extractable end-to-end, which
+   fails the Done-when "refresh the 5 skills from a mixed corpus." Converge the two
+   `load_segment_events` (detect + segment_text) onto ONE agent-keyed locator rather
+   than adding a third copy (ARCH-DRY).
+3. **Task 7 correction — `SessionSummary.agent` does NOT exist yet.** The plan assumed
+   origin tagging was free ("`agent` already on `SessionSummary` via NormEvents"), but
+   `agent` is a `NormEvent` field; `SessionSummary` has no origin field and `to_json`
+   doesn't persist one. M2 Task 7 must ADD + persist `SessionSummary.agent` before
+   `load_segment_events` can dispatch by origin.
+4. **Keystone agent-neutrality test extends to rendering** — same interaction on both
+   agents must fire the same detectors AND *render* equivalently (guards I2).
+
+Minor (not fixed, by design): redirect/endorsement evidence emits `"name": "?"` for a
+nameless tool_use where pre-#173 emitted `None` — theoretical (real tool_uses always
+carry a name; doesn't affect `stable_id` or the regression).

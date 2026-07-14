@@ -2,14 +2,20 @@
 """
 Claude Code JSONL → NormEvent adapter (#173).
 
-Owns ALL Claude wire-format knowledge: event `type` (user/assistant/system),
-`message.content` text/tool_use blocks, `toolUseResult` wrappers, and
-`away_summary` boundaries. Pure: `claude_events(line) -> list[NormEvent]`.
+Owns the Claude wire-format reads for the `normalize` + `detect` consumers: event
+`type` (user/assistant/system), `message.content` text/tool_use blocks,
+`toolUseResult` wrappers, and `away_summary` boundaries. Pure:
+`claude_events(line) -> list[NormEvent]`.
 
 Before #173 these reads were duplicated across `normalize.process_event` +
-`detect`'s helpers/detectors; M1 moves them here so normalize + detect read only
+`detect`'s helpers/detectors; M1 moves those here so normalize + detect read only
 `NormEvent` (ARCH-DRY). `is_error` is DERIVED here (Claude has an is_error flag
 plus text patterns) so the detector reads a flag and stays agent-neutral.
+
+NOT yet behind this adapter: `segment_text.py` (the extract-pass renderer) still
+reads Claude wire format directly and duplicates `_text_from_content` /
+`_tool_result_text` — it gets lifted in M2 (see the plan's Revisions), which is
+required for codex taste to be *extractable* end-to-end, not just detectable.
 """
 
 from __future__ import annotations

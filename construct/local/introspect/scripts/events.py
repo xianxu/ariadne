@@ -7,8 +7,10 @@ Raw transcripts differ per agent (Claude Code JSONL vs codex rollout JSONL vs
 future agents). Rather than teach `normalize` and every `detect` detector each
 wire format, per-agent *adapters* map their raw events into `NormEvent`s, and the
 consumers read only `NormEvent`. A new agent is one adapter; the aggregation and
-detectors stay untouched (ARCH-DRY: collapses the ~6 Claude-shape read-sites that
-existed across normalize.process_event + the 4 detectors + load_segment_events).
+detectors stay untouched (ARCH-DRY: collapses the Claude-shape read-sites that
+existed across normalize.process_event + the 4 detectors + detect.load_segment_events).
+(The extract renderer `segment_text.py` is a third wire-format consumer still to be
+lifted — M2, see the plan's Revisions.)
 
 Pure module: no IO, no clock. Unit-tested in test_events.py with no mocks.
 """

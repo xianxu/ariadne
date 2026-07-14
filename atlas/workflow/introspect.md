@@ -113,9 +113,11 @@ The pipeline no longer reads Claude's wire format directly. A canonical
   (`_apply_line_metadata`, `split_into_segments`).
 
 Why: introspect was Claude-only while the rest of ariadne is agent-neutral, so
-codex taste was invisible. M1 put Claude behind this abstraction
-(behavior-preserving — byte-identical `sessions.json`, identical run-3 moment set);
-M2 adds the codex adapter.
+codex taste was invisible. M1 put the **normalize + detect** consumers behind this
+abstraction (behavior-preserving — byte-identical `sessions.json`, identical run-3
+moment set). Still Claude-shaped: **`segment_text.py`**, the extract-pass renderer —
+it must be lifted too (M2) or codex taste is detectable but not *extractable*
+end-to-end. M2 adds the codex adapter + lifts `segment_text`.
 
 ## Where things live
 
