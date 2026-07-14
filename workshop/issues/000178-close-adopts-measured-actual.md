@@ -1,11 +1,12 @@
 ---
 id: 000178
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours:
+started: 2026-07-14T16:42:01-07:00
 ---
 
 # close: adopt the measured actual when --actual is omitted (kill the compute-then-ask loop)
