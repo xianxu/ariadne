@@ -27,6 +27,11 @@ type SdlcInvocation struct {
 	Output     string // linked tool_result stdout
 	Time       time.Time
 	IsHelp     bool // `sdlc <verb> --help` — its output lists every flag; excluded
+	// Failed: the command did not complete — Claude's tool_result is_error flag /
+	// codex's non-zero "Process exited with code N". NOT the taste-friction
+	// is_error gate (atlas spec); used so failed invocations don't raise the
+	// firing-order ladder.
+	Failed     bool
 	Transcript string
 	Agent      string
 	Repo       string
