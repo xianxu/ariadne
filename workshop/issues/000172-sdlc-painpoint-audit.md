@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-13
 updated: 2026-07-14
-estimate_hours:
+estimate_hours: 8.07
 started: 2026-07-14T08:07:22-07:00
 ---
 
@@ -93,6 +93,45 @@ The per-gate `--no-<flag>` design was built precisely to make bypasses
   `--no-verified` (=0) confirmed as correctly-calibrated, left alone.
 - **T3** — a qualitative coverage-gap read: workflow moments with *no* gate that
   keep going wrong (needs T1 data + judgment).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module     design=0.4   impl=0.24
+item: greenfield-go-module     design=0.5   impl=0.32
+item: cross-cutting-refactor   design=0.3   impl=0.20
+item: greenfield-go-module     design=0.4   impl=0.28
+item: greenfield-go-module     design=0.25  impl=0.16
+item: greenfield-go-module     design=0.4   impl=0.24
+item: greenfield-go-module     design=0.3   impl=0.24
+item: pensive                  design=0.5   impl=0.12
+item: pensive                  design=0.4   impl=0.10
+item: issue-spec               design=1.5   impl=0.12
+item: milestone-review         design=0.0   impl=0.12
+item: milestone-review         design=0.0   impl=0.12
+item: milestone-review         design=0.0   impl=0.12
+design-buffer: 0.15
+total: 8.07
+```
+
+Σdesign 4.95 × 1.15 + Σimpl 2.38 × 1.0 = 8.07.
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
+Item→work: the 4 greenfield-go + 1 cross-cutting-refactor = **M1** (gatesig.go
+catalog + drift guard; friction.go `classifyOutputLine` with 3 ACK grammars +
+discriminators; session.go `parseEvents`/`classifyToolUse` + output linkage; corpus
+walk + `detectGateEvents` + aggregate + render + dispatch). 2 greenfield-go = **M2**
+(`detectRefusalRetries`; `detectFiringOrder` per-issue/iteration-aware). 1
+greenfield-go = **M3** (codex.go parser, atlas-spec-derived, + cross-language golden).
+2 pensive = **M4** (T2 triage findings; T3 coverage-gap read). issue-spec (1.5
+design) = the durable plan v1→v3.1 across **three fresh-eyes review rounds** + the
+ground-truth signature-catalog enumeration — design is deliberately weighted
+mid-range, NOT ×0.2-discounted, correcting the #173 lesson (its 1.73h estimate
+under-ran actual 9.04h precisely because interactive design + review-driven additions
+were under-weighted). milestone-review ×3 = M1/M2/M3 boundary reviews.
 
 ## Plan
 
