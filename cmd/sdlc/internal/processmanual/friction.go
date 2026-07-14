@@ -241,6 +241,112 @@ func gateObs(g *GateSig) Observability {
 	return ObsFull
 }
 
+// invocationGateEvents classifies one invocation's output lines and collapses
+// duplicate events per (kind, gate, command): a single refusal can emit two
+// matching lines — no-validate prints the validategate cwarn AND the die-wrapped
+// returned error — which would double-count refusals and skew M2's
+// refusal→retry resolution rates (#172 M1 review Minor).
+func invocationGateEvents(inv SdlcInvocation) []GateEvent {
+	type evKey struct {
+		kind      GateEventKind
+		gate, cmd string
+	}
+	seen := map[evKey]bool{}
+	var out []GateEvent
+	for _, ln := range strings.Split(inv.Output, "\n") {
+		ev, ok := classifyOutputLine(ln, inv.Verb)
+		if !ok {
+			continue
+		}
+		k := evKey{ev.Kind, ev.Gate, ev.Command}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, ev)
+	}
+	return out
+}
+
+// ── Refusal→retry pairing (M2 Task 5) ────────────────────────────────────────
+
+// RefusalRetry pairs one observed gate refusal with the agent's next attempt —
+// the next invocation of the same verb + same issue in the same transcript.
+// Resolved = the retry no longer refused this gate; ViaBypass distinguishes
+// routing AROUND the gate (a bypass ACK on the retry) from satisfying it. For
+// merge/push refusals that never name their flag, pairing is the same
+// verb+context walk but Observability carries the flag-omitted caveat so the
+// report can mark the attribution best-effort.
+type RefusalRetry struct {
+	Gate          string `json:"gate"`
+	Command       string `json:"command"`
+	IssueID       string `json:"issue_id,omitempty"`
+	Repo          string `json:"repo,omitempty"`
+	Retried       bool   `json:"retried"`
+	Resolved      bool   `json:"resolved"`
+	ViaBypass     bool   `json:"via_bypass"`
+	Observability string `json:"observability"`
+}
+
+// detectRefusalRetries is pure over the parsed invocations, which arrive in
+// transcript order (the corpus walk appends per transcript chronologically).
+func detectRefusalRetries(invs []SdlcInvocation) []RefusalRetry {
+	byTranscript := map[string][]int{}
+	var order []string
+	for i, inv := range invs {
+		if _, ok := byTranscript[inv.Transcript]; !ok {
+			order = append(order, inv.Transcript)
+		}
+		byTranscript[inv.Transcript] = append(byTranscript[inv.Transcript], i)
+	}
+	events := make([][]GateEvent, len(invs))
+	for i := range invs {
+		events[i] = invocationGateEvents(invs[i])
+	}
+	var out []RefusalRetry
+	for _, t := range order {
+		idxs := byTranscript[t]
+		for pi, i := range idxs {
+			for _, ev := range events[i] {
+				if ev.Kind != GateRefusal {
+					continue
+				}
+				rr := RefusalRetry{
+					Gate: ev.Gate, Command: ev.Command,
+					IssueID: invs[i].IssueID, Repo: invs[i].Repo,
+					Observability: obsString(ev.Observability),
+				}
+				if hasGateEvent(events[i], GateBypass, ev.Gate) {
+					// A compound command refused then bypassed within ONE invocation
+					// (`sdlc close … || sdlc close --no-atlas …`) — resolved in place.
+					rr.Retried, rr.Resolved, rr.ViaBypass = true, true, true
+				} else {
+					for _, j := range idxs[pi+1:] {
+						if invs[j].Verb != invs[i].Verb || invs[j].IssueID != invs[i].IssueID {
+							continue
+						}
+						rr.Retried = true
+						rr.Resolved = !hasGateEvent(events[j], GateRefusal, ev.Gate)
+						rr.ViaBypass = hasGateEvent(events[j], GateBypass, ev.Gate)
+						break
+					}
+				}
+				out = append(out, rr)
+			}
+		}
+	}
+	return out
+}
+
+func hasGateEvent(evs []GateEvent, kind GateEventKind, gate string) bool {
+	for _, e := range evs {
+		if e.Kind == kind && e.Gate == gate {
+			return true
+		}
+	}
+	return false
+}
+
 func contains(ss []string, s string) bool {
 	for _, x := range ss {
 		if x == s {
@@ -355,11 +461,9 @@ func aggregate(invs []SdlcInvocation, nTranscripts int) FrictionReport {
 		// (`sdlc close --no-judge && sdlc x --help`) contains "--help" yet carries a
 		// real close bypass, and help-text lines don't match the specific ACK/refusal
 		// patterns anyway, so the classifier already rejects them (#172).
-		for _, ln := range strings.Split(inv.Output, "\n") {
-			ev, ok := classifyOutputLine(ln, inv.Verb)
-			if !ok {
-				continue
-			}
+		// invocationGateEvents dedupes per (kind, gate, command) — one no-validate
+		// refusal prints two matching lines and must count once (M2).
+		for _, ev := range invocationGateEvents(inv) {
 			k := key{ev.Command, ev.Gate}
 			obs[k] = ev.Observability // uniform per (command, flag) — no last-write collapse
 			if ev.Kind == GateBypass {

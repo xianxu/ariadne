@@ -198,6 +198,78 @@ func TestObservabilityPerCommand(t *testing.T) {
 	}
 }
 
+// ── M2 Task 5: per-invocation dedupe + refusal→retry pairing ─────────────────
+
+// One no-validate refusal emits TWO matching lines — the validategate.go cwarn
+// ("… nonconforming changed issue file(s) — fix and re-run, or --no-validate …")
+// and the die-wrapped returned error ("… nonconforming issue file(s)") — which
+// must collapse to ONE refusal per invocation, else refusal→retry resolution
+// rates skew (#172 M1 review Minor).
+func TestInvocationGateEventsDedupe(t *testing.T) {
+	esc := "\x1b"
+	out := strings.Join([]string{
+		"  " + esc + "[1;33m[!]" + esc + "[0m instance-conformance gate: 2 nonconforming changed issue file(s) — fix and re-run, or --no-validate to bypass (loud):",
+		"  - workshop/issues/000042-x.md (frontmatter):",
+		"  " + esc + "[1;31m[✗]" + esc + "[0m instance-conformance gate: 2 nonconforming issue file(s)",
+	}, "\n")
+	evs := invocationGateEvents(SdlcInvocation{Verb: "merge", Output: out})
+	if len(evs) != 1 || evs[0].Kind != GateRefusal || evs[0].Gate != "no-validate" {
+		t.Fatalf("want exactly ONE deduped no-validate refusal, got %+v", evs)
+	}
+}
+
+// detectRefusalRetries pairs a refusal with the next same-verb+same-issue
+// invocation in the same transcript. Real captured line shapes throughout.
+func TestDetectRefusalRetries(t *testing.T) {
+	esc := "\x1b"
+	atlasRefusal := "  or pass --no-atlas (or --force) with the rationale in --verified"
+	atlasAck := "  " + esc + "[1;33m[!]" + esc + "[0m --no-atlas (or --force): skipping atlas/ change check — rationale in --verified"
+	verdictRefusal := "  Or pass --no-verdict (or --force); record the reason in --verified."
+	publishRefusal := "  " + esc + "[1;31m[✗]" + esc + "[0m publish gate: 2 commit(s) landed after `sdlc close` (anchor abc1234) — the boundary review no longer covers HEAD."
+	warmup := "             Pass --no-actual (or --force) only if there's genuinely nothing"
+
+	invs := []SdlcInvocation{
+		// t1 / issue 5: no-atlas refusal → (unrelated issue-6 close between) → retried WITH the bypass flag
+		{Verb: "close", IssueID: "5", Transcript: "t1", Repo: "ariadne", Output: atlasRefusal},
+		{Verb: "close", IssueID: "6", Transcript: "t1", Repo: "ariadne", Output: "closed."}, // different issue — NOT the retry
+		{Verb: "close", IssueID: "5", Transcript: "t1", Repo: "ariadne", Output: atlasAck},
+		// t1 / issue 7: no-verdict refusal never retried; warmup line must add nothing
+		{Verb: "close", IssueID: "7", Transcript: "t1", Repo: "ariadne", Output: verdictRefusal + "\n" + warmup},
+		// t2: merge publish-gate refusal (flag never named) → paired by verb+context; retry clean
+		{Verb: "merge", IssueID: "", Transcript: "t2", Repo: "brain", Output: publishRefusal},
+		{Verb: "merge", IssueID: "", Transcript: "t2", Repo: "brain", Output: "merged 000042 into main."},
+	}
+	rrs := detectRefusalRetries(invs)
+	if len(rrs) != 3 {
+		t.Fatalf("want 3 refusal→retry records (warmup adds none), got %d: %+v", len(rrs), rrs)
+	}
+	byGate := map[string]RefusalRetry{}
+	for _, rr := range rrs {
+		byGate[rr.Gate] = rr
+	}
+	if rr := byGate["no-atlas"]; !rr.Retried || !rr.Resolved || !rr.ViaBypass || rr.IssueID != "5" {
+		t.Errorf("no-atlas: want retried+resolved VIA BYPASS on issue 5, got %+v", rr)
+	}
+	if rr := byGate["no-verdict"]; rr.Retried || rr.Resolved {
+		t.Errorf("no-verdict: want never-retried, got %+v", rr)
+	}
+	if rr := byGate["no-judge"]; !rr.Retried || !rr.Resolved || rr.ViaBypass || rr.Observability != "flag-omitted" {
+		t.Errorf("merge no-judge: want retried+resolved (satisfied, not bypassed), flag-omitted attribution, got %+v", rr)
+	}
+}
+
+// A refusal→bypass inside ONE compound invocation (`sdlc close … || sdlc close
+// --no-atlas …` output carries both) resolves in place.
+func TestDetectRefusalRetriesSameInvocation(t *testing.T) {
+	esc := "\x1b"
+	out := "  or pass --no-atlas (or --force) with the rationale in --verified\n" +
+		"  " + esc + "[1;33m[!]" + esc + "[0m --no-atlas (or --force): skipping atlas/ change check — rationale in --verified"
+	rrs := detectRefusalRetries([]SdlcInvocation{{Verb: "close", IssueID: "9", Transcript: "t", Output: out}})
+	if len(rrs) != 1 || !rrs[0].Retried || !rrs[0].Resolved || !rrs[0].ViaBypass {
+		t.Fatalf("want in-invocation refusal resolved via bypass, got %+v", rrs)
+	}
+}
+
 func TestEnumerateClaudeTranscripts(t *testing.T) {
 	root := t.TempDir()
 	mk := func(slug string, n int) {
