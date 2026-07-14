@@ -55,6 +55,7 @@
         "0.0.0.0",
         "host.docker.internal",
         "api.moesif.net",
+        "*.kaggle.com",
         "*.local"
       ],
       "allowUnixSockets": [
