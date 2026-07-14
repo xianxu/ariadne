@@ -1,9 +1,110 @@
 package processmanual
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"regexp"
 	"strings"
+	"time"
 )
+
+// SdlcInvocation is one observed `Bash(sdlc <verb> …)` tool call plus its linked
+// result output — the atom the friction detectors read. Anchoring detection to these
+// (vs any line mentioning a flag) is what drops the source/log-read contamination
+// that saturates this repo's transcripts. Transcript/Agent/Repo are set by the
+// corpus walk (M1 Task 4 / M3).
+type SdlcInvocation struct {
+	Verb       string
+	Command    string // full bash command (for --force / --issue parsing)
+	IssueID    string // from "--issue N" / "#N" in the command ("" if absent)
+	Output     string // linked tool_result stdout
+	Time       time.Time
+	IsHelp     bool // `sdlc <verb> --help` — its output lists every flag; excluded
+	Transcript string
+	Agent      string
+	Repo       string
+}
+
+var issueArgRE = regexp.MustCompile(`(?:--issue[ =]+|#)0*(\d+)`)
+
+func parseIssueID(command string) string {
+	if m := issueArgRE.FindStringSubmatch(command); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+// sdlcInvocations extracts every `Bash(sdlc <verb>)` call from a Claude transcript,
+// joined to its `tool_use_id`-linked result output. Pure over bytes; reuses the same
+// scan/linkage shape as parseEvents but yields SdlcInvocations (verb + args + output)
+// rather than the per-session FiredEvents (verb + verdict), because the friction
+// audit needs the raw output parseEvents discards. `validVerbs` gates on the real
+// verb set so a prose "sdlc foo" isn't counted.
+func sdlcInvocations(data []byte, validVerbs map[string]bool) []SdlcInvocation {
+	type pending struct {
+		inv SdlcInvocation
+		id  string
+	}
+	var pend []pending
+	outByID := map[string]string{}
+
+	sc := bufio.NewScanner(bytes.NewReader(data))
+	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
+	for sc.Scan() {
+		line := bytes.TrimSpace(sc.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		var r rec
+		if json.Unmarshal(line, &r) != nil {
+			continue
+		}
+		switch r.Type {
+		case "assistant":
+			for _, c := range r.Message.Content {
+				if c.Type != "tool_use" || c.Name != "Bash" {
+					continue
+				}
+				var in struct {
+					Command string `json:"command"`
+				}
+				if json.Unmarshal(c.Input, &in) != nil {
+					continue
+				}
+				m := sdlcVerbRE.FindStringSubmatch(in.Command)
+				if m == nil || !validVerbs[m[1]] {
+					continue
+				}
+				pend = append(pend, pending{
+					inv: SdlcInvocation{
+						Verb: m[1], Command: in.Command, Time: r.Timestamp,
+						IssueID: parseIssueID(in.Command),
+						IsHelp:  bytes.Contains([]byte(in.Command), []byte("--help")),
+					},
+					id: c.ID,
+				})
+			}
+		case "user":
+			for _, c := range r.Message.Content {
+				if c.Type == "tool_result" && c.ToolUseID != "" {
+					if sd, ok := extractStdout(r.ToolUseResult); ok {
+						outByID[c.ToolUseID] = sd
+					}
+				}
+			}
+		}
+	}
+
+	out := make([]SdlcInvocation, 0, len(pend))
+	for _, p := range pend {
+		if sd, ok := outByID[p.id]; ok {
+			p.inv.Output = sd
+		}
+		out = append(out, p.inv)
+	}
+	return out
+}
 
 // GateEvent is one classified bypass-ACK or gate-refusal observed in an sdlc
 // invocation's output (#172 friction audit).

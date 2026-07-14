@@ -1,6 +1,71 @@
 package processmanual
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+func mkAssistantBash(id, cmd string) string {
+	b, _ := json.Marshal(map[string]any{
+		"type": "assistant", "timestamp": "2026-07-14T10:00:00Z",
+		"message": map[string]any{"content": []any{
+			map[string]any{"type": "tool_use", "id": id, "name": "Bash",
+				"input": map[string]any{"command": cmd}},
+		}},
+	})
+	return string(b)
+}
+
+func mkUserResult(id, stdout string) string {
+	b, _ := json.Marshal(map[string]any{
+		"type": "user",
+		"message": map[string]any{"content": []any{
+			map[string]any{"type": "tool_result", "tool_use_id": id, "content": stdout},
+		}},
+		"toolUseResult": map[string]any{"stdout": stdout, "stderr": ""},
+	})
+	return string(b)
+}
+
+// sdlcInvocations extracts only anchored Bash(sdlc <verb>) calls, joined to their
+// tool_use_id-linked output, with issueID + isHelp parsed from the command.
+func TestSdlcInvocations(t *testing.T) {
+	ack := "  \x1b[1;33m[!]\x1b[0m --no-atlas (or --force): skipping atlas/ change check — rationale in --verified"
+	lines := []string{
+		mkAssistantBash("tu1", "sdlc close --issue 173 --no-atlas"),
+		mkUserResult("tu1", "some preamble\n"+ack+"\ndone"),
+		mkAssistantBash("tu2", "sdlc change-code --help --issue 172"),
+		mkUserResult("tu2", "usage: sdlc change-code ..."),
+		mkAssistantBash("tu3", "git status"), // non-sdlc Bash → excluded
+		mkUserResult("tu3", "clean"),
+	}
+	invs := sdlcInvocations([]byte(strings.Join(lines, "\n")),
+		map[string]bool{"close": true, "change-code": true})
+
+	if len(invs) != 2 {
+		t.Fatalf("got %d invocations, want 2 (close, change-code; git excluded): %+v", len(invs), invs)
+	}
+	if invs[0].Verb != "close" || invs[0].IssueID != "173" || invs[0].IsHelp {
+		t.Errorf("inv0 = {verb:%q issue:%q help:%v}, want {close 173 false}", invs[0].Verb, invs[0].IssueID, invs[0].IsHelp)
+	}
+	if !strings.Contains(invs[0].Output, "--no-atlas (or --force): skipping") {
+		t.Errorf("inv0 output missing the linked ACK: %q", invs[0].Output)
+	}
+	if invs[1].Verb != "change-code" || invs[1].IssueID != "172" || !invs[1].IsHelp {
+		t.Errorf("inv1 = {verb:%q issue:%q help:%v}, want {change-code 172 true}", invs[1].Verb, invs[1].IssueID, invs[1].IsHelp)
+	}
+	// end-to-end: the linked ACK line classifies as a no-atlas bypass under `close`
+	var got bool
+	for _, ln := range strings.Split(invs[0].Output, "\n") {
+		if ev, ok := classifyOutputLine(ln, invs[0].Verb); ok && ev.Kind == GateBypass && ev.Gate == "no-atlas" {
+			got = true
+		}
+	}
+	if !got {
+		t.Errorf("expected a no-atlas bypass from inv0's output lines")
+	}
+}
 
 // classifyOutputLine over REAL captured lines (copied verbatim from
 // ~/.claude/projects) plus the documented-shape G2/refusal cases and — the whole
