@@ -68,7 +68,7 @@ func TestAdoptOmittedActual(t *testing.T) {
 
 	var stderr bytes.Buffer
 	f := &closeFlags{Issue: 178}
-	ok := adoptOmittedActual(&stderr, f, "178", "issue")
+	_, ok := adoptOmittedActual(&stderr, f, "178", "issue")
 	if !ok || f.Actual != "0.65" {
 		t.Fatalf("want adoption of 0.65, got ok=%v f.Actual=%q", ok, f.Actual)
 	}
@@ -84,11 +84,15 @@ func TestAdoptOmittedActual(t *testing.T) {
 	computeActualForCloseFn = func(string) actualResult { return actualResult{Status: actualTelemetryGap} }
 	var stderr2 bytes.Buffer
 	f2 := &closeFlags{Issue: 178}
-	if adoptOmittedActual(&stderr2, f2, "178", "issue") {
+	res, ok2 := adoptOmittedActual(&stderr2, f2, "178", "issue")
+	if ok2 {
 		t.Fatal("telemetry gap must not adopt")
 	}
 	if f2.Actual != "" {
 		t.Errorf("f.Actual must stay empty on refusal, got %q", f2.Actual)
+	}
+	if res.Status != actualTelemetryGap {
+		t.Errorf("the measurement must be returned for the caller's explainActual (no re-measure), got %v", res.Status)
 	}
 }
 

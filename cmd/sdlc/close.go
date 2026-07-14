@@ -214,8 +214,9 @@ func printSemanticWarmup(w io.Writer) {
 		"  calibration. Both must be earned, not guessed:",
 		"",
 		fmt.Sprintf("  %sACTUAL%s   = focused dev-hours on this issue (not wall-clock).", ansiCyan, ansiReset),
-		"             sdlc computes it — close suggests a number, or run",
-		"             `sdlc actual --issue N`. (method: 42shots/velocity/baseline-v3.md)",
+		"             sdlc measures it — omit --actual and close ADOPTS the measured",
+		"             value (#178), or run `sdlc actual --issue N` to preview.",
+		"             (method: 42shots/velocity/baseline-v3.md)",
 		"             Pass --no-actual (or --force) only if there's genuinely nothing",
 		"             to measure; close records actual_hours: N/A and skips calibration.",
 		"",
@@ -348,10 +349,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// adoption with a loud info line. Unmeasurable statuses keep the refusal.
 	adopted := false
 	if f.Actual == "" && !f.skip("actual") {
-		if adoptOmittedActual(stderr, f, issueStr, mode) {
+		if res, ok := adoptOmittedActual(stderr, f, issueStr, mode); ok {
 			adopted = true
 		} else {
-			explainActual(stderr, issueStr, mode, f.Milestone)
+			explainActual(stderr, issueStr, mode, f.Milestone, res)
 			exitWithCode(1)
 		}
 	}
@@ -1124,35 +1125,38 @@ func formatAdoptLine(res actualResult, mode string) string {
 
 // adoptOmittedActual is the omit-path wiring (#178): measure once via the seam,
 // adopt into f.Actual on success (deviation check is then skipped — it would
-// compare the measurement with itself), print the info line. Returns false on
-// unmeasurable statuses with NO side effects — the caller explains and exits.
-func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) bool {
+// compare the measurement with itself), print the info line. On unmeasurable
+// statuses it returns ok=false with NO side effects — the caller explains
+// (reusing the same measurement) and exits.
+func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
 	res := computeActualForCloseFn(issueStr)
 	v, ok := resolveOmittedActual(res)
 	if !ok {
-		return false
+		return res, false
 	}
 	f.Actual = v
 	cinfo(stderr, formatAdoptLine(res, mode))
 	for _, w := range res.Warnings {
 		cwarn(stderr, w)
 	}
-	return true
+	return res, true
 }
 
-func explainActual(stderr io.Writer, issueStr, mode, milestone string) {
-	repoTop, brainAbs := resolveActualRoots()
-
+// explainActual is now the UNMEASURABLE explainer (#178): the omit-path adopts
+// a successful measurement, so this renders only when the engine couldn't
+// produce a number — res (already computed by the caller) says why, and the
+// agent supplies a labeled judgment value.
+func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actualResult) {
 	var head []string
-	head = append(head, fmt.Sprintf("%sACTUAL=<hours> required for %s close (§5 step 3).%s", ansiRed, mode, ansiReset), "")
+	head = append(head, fmt.Sprintf("%sACTUAL=<hours> required for %s close (§5 step 3) — measurement unavailable for this window.%s", ansiRed, mode, ansiReset), "")
 	head = append(head, fmt.Sprintf("  %sSemantic:%s  focused dev-hours on this %s (#%s) — not wall-clock.", ansiCyan, ansiReset, mode, issueStr))
-	head = append(head, "             sdlc computes it (below); method: 42shots/velocity/baseline-v3.md.", "")
+	head = append(head, "             (a measured value is adopted automatically; you only land here", "             when the engine can't measure — the status below says why)", "")
 	fmt.Fprintln(stderr, strings.Join(head, "\n"))
 
-	// #68 M2: run v3 ourselves (brain + repo transcript dirs, window + peers) and
-	// print the measured suggestion — the old "run this python command yourself"
-	// prose, lifted into the binary. Same engine as `sdlc actual`.
-	printActual(stderr, computeActual(repoTop, brainAbs, issueStr))
+	// #68 M2: render the engine's diagnosis (telemetry gap / no window / error)
+	// with its next-action guidance. Same engine as `sdlc actual`; the caller
+	// already ran it — no re-measure.
+	printActual(stderr, res)
 
 	var tail []string
 	tail = append(tail, "", fmt.Sprintf("  %sThen re-run:%s", ansiCyan, ansiReset))
