@@ -148,6 +148,9 @@ instrument) spans M1–M3; T2/T3 (analysis) are M4.
 
 ## Findings
 
+*Full narrative report (incl. the post-M4 follow-on studies):
+[`workshop/pensive/2026-07-14-01-pensive-sdlc-painpoint-audit-report.md`](../pensive/2026-07-14-01-pensive-sdlc-painpoint-audit-report.md).*
+
 *M4 analysis over the T1 instrument (both agents, whole corpus: 1558 transcripts,
 1834 workflow-verb invocations). Method: anchored per-gate counts + refusal→retry
 resolution + firing-order + rationale spot-checks (command-field extraction of
