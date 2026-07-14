@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-13
 updated: 2026-07-13
-estimate_hours:
+estimate_hours: 1.73
 started: 2026-07-13T17:22:21-07:00
 ---
 
@@ -55,14 +55,48 @@ memory: gemini is deprecated, "agy" = Antigravity.
   moments traced to codex transcripts (dogfood evidence).
 - The 5 `introspect-*` skills can be refreshed from a mixed codex+claude corpus.
 - The Claude path is unchanged (additive).
+- **M3 finding recorded:** does the codex corpus yield *more* taste signal than
+  Claude (which hit diminishing returns in #169)? Codex is likely less tuned to
+  the user's taste → more redirects/friction. Worth an explicit answer.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: cross-cutting-refactor   design=0.2   impl=0.16
+item: smaller-go-module        design=0.05  impl=0.12
+item: greenfield-go-module     design=0.15  impl=0.20
+item: smaller-go-module        design=0.05  impl=0.12
+item: skill-or-dispatcher      design=0.05  impl=0.08
+item: atlas-docs               design=0.05  impl=0.06
+item: milestone-review         design=0.0   impl=0.12
+item: milestone-review         design=0.0   impl=0.12
+item: milestone-review         design=0.0   impl=0.12
+design-buffer: 0.15
+total: 1.73
+```
+
+Design pre-resolved by the durable plan (spec discount applied). impl at v3.1's
+40% of v2 ranges. Σdesign 0.55 × 1.15 + Σimpl 1.10 × 1.0 = 1.73.
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
+Item→work: cross-cutting-refactor = M1 lift normalize+detect onto `NormEvent`;
+smaller-go ×2 = events.py+claude adapter, codex locator+`--agent` dispatch;
+greenfield-go = codex adapter; skill = SKILL.md scope picker; atlas = codex format
+spec; milestone-review ×3 = M1/M2/M3 boundary reviews.
 
 ## Plan
 
-- [ ] Discovery — locate codex transcript store + document its record/event format
-- [ ] normalize.py — codex→normalized adapter emitting the existing session shape
-- [ ] detect.py — map/lift detectors onto codex event fields
-- [ ] xx-introspect Stage 1 scope picker learns codex sources
-- [ ] Dogfood — run over a codex corpus, verify moments trace back to codex
+Durable plan: `workshop/plans/000173-introspect-ingest-codex-transcripts-plan.md`
+(design approach **B — normalized event stream**; approved 2026-07-13).
+
+- [x] Discovery — codex store + event→NormEvent mapping (see Log)
+- [ ] M1 — normalized-event layer: `NormEvent` + claude adapter; lift normalize+detect
+  onto it; **run-3 reproduced** (behavior-preserving refactor, de-risks the abstraction)
+- [ ] M2 — codex adapter + `codex_sessions()` locator + `--agent` dispatch + scope picker
+- [ ] M3 — dogfood over a codex corpus + atlas codex-format spec (shared source for #172)
 
 ## Log
 
@@ -72,3 +106,34 @@ Filed from #169 run-3, where the corpus was Claude-only by construction
 (`~/.claude/projects`). Not made a hard dep of #170 — the #170 audit proceeds on
 Claude data; this closes the agent-neutrality gap introspect has independent of
 the audit.
+
+**Discovery (done).** Codex stores per-session **JSONL rollout files** at
+`~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl` (591 files here) —
+structurally analogous to Claude's `~/.claude/projects/<slug>/*.jsonl`. The
+SQLite DBs (`logs_2.sqlite` 74k rows, `state_5.sqlite`) are tracing/state, **not**
+the transcript — ignore them. So the adapter is a **format mapping, not a DB
+extraction.**
+
+Codex event shape: each line `{timestamp, type, payload}`. Vocabulary + mapping:
+
+| codex event | → normalized field |
+|---|---|
+| `session_meta.payload` `{id, cwd, timestamp, model_provider}` | session_id, cwd, start_ts |
+| `event_msg/user_message` | user turns, `first_user_message`, user_message_count |
+| `event_msg/agent_message` or `response_item/message` (role) | assistant_message_count (the amc≥15 filter) |
+| `response_item/function_call` + `function_call_output` | tool_calls_by_name, tool_call_count; output carries error → **friction** |
+| `response_item/custom_tool_call(+_output)` | MCP/custom tools |
+| `event_msg/patch_apply_end` | files_written/edited → **edit-after-edit** |
+| `compacted` / `event_msg/context_compacted` | explicit segment boundary (better than Claude's lull heuristic) |
+| `response_item/reasoning`, `event_msg/token_count`, `turn_context` | ignore / metadata |
+
+Note the double-representation: codex emits both `event_msg/*` (stream) AND
+`response_item/message` (canonical items) — pick ONE canonical source per field to
+avoid double-counting.
+
+**Cross-language reality for #172 coordination:** introspect is **Python**
+(`normalize.py`/`detect.py`); `process-manual --session` (#172's instrument) is
+**Go** (`cmd/sdlc/internal/processmanual/session.go`). So the codex reader can't
+be *literally* shared code — the DRY (ARCH-DRY) is at the **format-spec level**:
+document the codex rollout format once (atlas) as the single source both
+implementations derive from.

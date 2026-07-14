@@ -43,6 +43,15 @@ prose/help/flags). Extend *that* to capture what it currently discards: bypass
 flags, refusal→retry events, and firing-order/load-timing. Go-native,
 uncontaminated, matched against the in-process injection catalog.
 
+**Must cover BOTH Claude and codex sdlc usage.** `sdlc` is agent-neutral — it's
+invoked from codex sessions too — but `process-manual --session` today reads only
+Claude transcripts (`~/.claude/projects`). Measuring bypass/friction from Claude
+alone gives a partial, biased picture (e.g. the "bypasses concentrate in peer
+repos" finding could differ by agent). So T1's telemetry must ingest codex
+transcripts as well. This shares the codex-transcript-reading concern with
+**#173** (introspect codex ingest) — coordinate on a common codex transcript
+locator/parser rather than each building its own (ARCH-DRY).
+
 **Baseline signal (cleaned — command-field-only grep over ~2,300 transcripts;
 order-of-magnitude, not exact):** per-gate bypass frequency —
 
