@@ -475,7 +475,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// its close commit (AGENTS.md §3 fresh-eyes review evidence). The
 	// check is bypassable with --force; the rationale belongs in --verified.
 	if mode == "issue" {
-		missing, err := findMilestonesMissingVerdict(body, issueStr, issuePath)
+		_, missing, err := findMilestonesMissingVerdict(body, issueStr, issuePath)
 		if err != nil {
 			cwarn(stderr, fmt.Sprintf("milestone-verdict check skipped: %v", err))
 		} else if len(missing) > 0 {
@@ -1417,33 +1417,35 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 }
 
 // findMilestonesMissingVerdict enumerates milestones in the issue body's
-// `## Plan` section and returns the tags of any whose close commit lacks
-// a `Review-Verdict:` trailer.
+// `## Plan` section and returns them in plan order (ordered), plus the
+// tags of any whose close commit lacks a `Review-Verdict:` trailer
+// (missing). The caller partitions missing against ordered to tell
+// midstream from trailing misses (#175, partitionMissingVerdicts).
 //
 // "Close commit" for milestone Mx = a commit whose subject opens with
 // `#<issue> Mx:` AND whose message body contains a `Review-Verdict:`
 // trailer line. The conjunctive `--all-match` over both --grep patterns
 // matches the task spec exactly.
 //
-// Returns ([], nil) when every milestone has evidence. Returns ([], err)
-// only on hard failures (issue body unparseable, git unavailable). A
-// milestone whose subject doesn't match any commit is treated the same
-// as one whose commit lacks the trailer — both are "no review evidence."
-func findMilestonesMissingVerdict(body, issueStr, issuePath string) ([]string, error) {
+// Returns (ordered, [], nil) when every milestone has evidence. Returns
+// (nil, nil, err) only on hard failures (issue body unparseable, git
+// unavailable). A milestone whose subject doesn't match any commit is
+// treated the same as one whose commit lacks the trailer — both are "no
+// review evidence."
+func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, missing []string, err error) {
 	m := issue.PlanSectionRE.FindStringSubmatchIndex(body)
 	if m == nil {
 		// No plan section → no milestones to check. Treat as "fine":
 		// the operator may be closing an issue that never had milestones.
-		return nil, nil
+		return nil, nil, nil
 	}
 	planBody := body[m[2]:m[3]]
 	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
 	if len(matches) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	// Preserve plan order; de-duplicate (a milestone may appear in the
 	// plan more than once if revised).
-	var ordered []string
 	seen := map[string]bool{}
 	for _, mm := range matches {
 		tag := mm[1]
@@ -1453,17 +1455,16 @@ func findMilestonesMissingVerdict(body, issueStr, issuePath string) ([]string, e
 		seen[tag] = true
 		ordered = append(ordered, tag)
 	}
-	var missing []string
 	for _, tag := range ordered {
 		ok, err := milestoneHasVerdictCommit(issueStr, tag, issuePath)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if !ok {
 			missing = append(missing, tag)
 		}
 	}
-	return missing, nil
+	return ordered, missing, nil
 }
 
 // milestoneHasVerdictCommit reports whether `git log` finds a commit

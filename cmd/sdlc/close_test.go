@@ -509,7 +509,7 @@ Just prose, no milestone bullets.
 
 ## Log
 `
-	missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
+	_, missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -522,7 +522,7 @@ Just prose, no milestone bullets.
 // for issues that never grew a Plan section.
 func TestFindMilestonesMissingVerdict_NoPlanSection(t *testing.T) {
 	body := "# title\n\nNo plan here.\n"
-	missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
+	_, missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -597,9 +597,12 @@ func TestFindMilestonesMissingVerdict_Integration(t *testing.T) {
 
 ## Log
 `
-	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	ordered, missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
 	if err != nil {
 		t.Fatalf("findMilestonesMissingVerdict: %v", err)
+	}
+	if wantOrdered := []string{"M1", "M2", "M3"}; strings.Join(ordered, ",") != strings.Join(wantOrdered, ",") {
+		t.Errorf("ordered = %v, want %v", ordered, wantOrdered)
 	}
 	want := []string{"M2", "M3"}
 	if strings.Join(missing, ",") != strings.Join(want, ",") {
@@ -659,7 +662,7 @@ func TestFindMilestonesMissingVerdict_AllPresent(t *testing.T) {
 
 ## Log
 `
-	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	_, missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
 	if err != nil {
 		t.Fatalf("findMilestonesMissingVerdict: %v", err)
 	}
@@ -707,7 +710,7 @@ func TestFindMilestonesMissingVerdict_SpaceBeforeColonSubject(t *testing.T) {
 		"-m", "Body.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD")
 
 	planBody := "## Plan\n\n- [x] **M1 — first**\n\n## Log\n"
-	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	_, missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
 	if err != nil {
 		t.Fatalf("findMilestonesMissingVerdict: %v", err)
 	}
