@@ -219,8 +219,51 @@ func checkEstimate(fm string) *StructuralFailure {
 // snippet so the Spec word count reflects prose, not embedded code.
 // Naive — doesn't handle nested fences or indented code — but good
 // enough for our gate purpose.
+//
+// NOT built on SplitFences, deliberately: the two have different
+// unterminated-fence policies. Here an unterminated tail stays in the
+// output (counted as prose by the word-count gates — changing that would
+// silently shift gate behavior); SplitFences classifies it Fenced (a
+// rewriter must never touch the inside of a broken fence).
 var fencedCodeRE = regexp.MustCompile("(?s)```.*?```")
 
 func stripCodeFences(s string) string {
 	return fencedCodeRE.ReplaceAllString(s, " ")
+}
+
+// FenceSegment is one run of markdown text, classified by whether it lies
+// inside a ``` fence. Concatenating the Text of every segment reproduces
+// the input byte-for-byte.
+type FenceSegment struct {
+	Text   string
+	Fenced bool
+}
+
+// SplitFences segments a markdown snippet into prose and fenced runs for
+// rewriters that must skip code fences (#179 `sdlc migrate`). An
+// unterminated trailing fence is classified Fenced — the conservative
+// direction for a rewriter (see stripCodeFences's comment for why the
+// word-count gate makes the opposite call).
+func SplitFences(s string) []FenceSegment {
+	var segs []FenceSegment
+	rest := s
+	for rest != "" {
+		start := strings.Index(rest, "```")
+		if start < 0 {
+			segs = append(segs, FenceSegment{Text: rest})
+			break
+		}
+		if start > 0 {
+			segs = append(segs, FenceSegment{Text: rest[:start]})
+		}
+		end := strings.Index(rest[start+3:], "```")
+		if end < 0 { // unterminated: the whole tail is fenced
+			segs = append(segs, FenceSegment{Text: rest[start:], Fenced: true})
+			break
+		}
+		stop := start + 3 + end + 3
+		segs = append(segs, FenceSegment{Text: rest[start:stop], Fenced: true})
+		rest = rest[stop:]
+	}
+	return segs
 }
