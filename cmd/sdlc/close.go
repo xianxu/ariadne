@@ -1502,10 +1502,35 @@ func milestoneHasVerdictCommit(issueStr, milestone, issuePath string) (bool, err
 	return strings.TrimSpace(string(out)) != "", nil
 }
 
+// verdictBypassClosingLine is the shared last line of every no-verdict
+// refusal. internal/processmanual/gatesig.go regex-pins it for friction
+// attribution (#172) — reword there and here together, never one side.
+const verdictBypassClosingLine = "  Or pass --no-verdict (or --force); record the reason in --verified."
+
+// verdictNextActionLines renders the per-milestone retroactive-review
+// commands + trailer shape shared by both no-verdict refusals (ARCH-DRY).
+// Pure.
+func verdictNextActionLines(issueStr string, tags []string) []string {
+	lines := []string{fmt.Sprintf("  %sNext actions:%s", ansiCyan, ansiReset)}
+	for _, tag := range tags {
+		lines = append(lines, fmt.Sprintf("    sdlc judge milestone-review --issue %s --milestone %s", issueStr, tag))
+	}
+	lines = append(lines,
+		"    # then amend the milestone-close commit (or land a new commit)",
+		"    # with these trailers:",
+		"    #   Review-Verdict: SHIP",
+		"    #   Review-Window: <base>..<head>")
+	return lines
+}
+
 // formatMissingVerdicts builds the next-action error message naming the
 // milestones that lack Review-Verdict trailers. Pure: no IO, no exit.
 // Lives next to explainMissingVerdicts so tests can assert the contract
 // without subprocessing or os.Exit gymnastics.
+//
+// Since #175 this fires only for MIDSTREAM misses (a later milestone
+// closed with review evidence while these rows have none); trailing
+// misses are accepted by the issue-close boundary review instead.
 func formatMissingVerdicts(issueStr string, missing []string) string {
 	var lines []string
 	lines = append(lines, fmt.Sprintf("%smilestones %s lack Review-Verdict trailer in close commits (AGENTS.md §3).%s",
@@ -1515,16 +1540,47 @@ func formatMissingVerdicts(issueStr string, missing []string) string {
 	lines = append(lines, "  the commit message. Without it, there's no evidence the work")
 	lines = append(lines, "  was reviewed before the next milestone began.")
 	lines = append(lines, "")
-	lines = append(lines, fmt.Sprintf("  %sNext actions:%s", ansiCyan, ansiReset))
-	for _, tag := range missing {
-		lines = append(lines, fmt.Sprintf("    sdlc judge milestone-review --issue %s --milestone %s", issueStr, tag))
-	}
-	lines = append(lines, "    # then amend the milestone-close commit (or land a new commit)")
-	lines = append(lines, "    # with these trailers:")
-	lines = append(lines, "    #   Review-Verdict: SHIP")
-	lines = append(lines, "    #   Review-Window: <base>..<head>")
+	lines = append(lines, "  An `Mx` tag in ## Plan is a review boundary, not a task label")
+	lines = append(lines, "  (AGENTS.md §3) — single-pass work should use plain checkboxes.")
+	lines = append(lines, "  If this plan was over-split, fold the never-closed Mx rows into")
+	lines = append(lines, "  plain checkboxes (append a ## Revisions note saying why);")
+	lines = append(lines, "  otherwise land the per-row review evidence:")
 	lines = append(lines, "")
-	lines = append(lines, "  Or pass --no-verdict (or --force); record the reason in --verified.")
+	lines = append(lines, verdictNextActionLines(issueStr, missing)...)
+	lines = append(lines, "")
+	lines = append(lines, verdictBypassClosingLine)
+	return strings.Join(lines, "\n")
+}
+
+// formatTrailingVerdictAccepted builds the loud acceptance line for trailing
+// unclosed milestones (#175): the issue-close boundary review's window is
+// branch-point→HEAD, so their work is inside the diff this close is about to
+// review — the close IS their review boundary. Pure.
+func formatTrailingVerdictAccepted(trailing []string) string {
+	return fmt.Sprintf("milestones %s never had their own milestone-close; accepted — the "+
+		"issue-close boundary review (window branch-point→HEAD) covers their work (#175). "+
+		"Next time: single-pass work takes plain checkboxes, not Mx tags (AGENTS.md §3).",
+		strings.Join(trailing, ", "))
+}
+
+// formatTrailingNeedsJudge builds the refusal for trailing unclosed
+// milestones when --no-judge skips the issue-close review — the coverage
+// premise behind the #175 acceptance is gone. Pure. Ends with the same
+// closing line gatesig.go pins for the no-verdict gate.
+func formatTrailingNeedsJudge(issueStr string, trailing []string) string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("%smilestones %s lack Review-Verdict trailers, and --no-judge skips the issue-close review that would cover them (#175).%s",
+		ansiRed, strings.Join(trailing, ", "), ansiReset))
+	lines = append(lines, "")
+	lines = append(lines, "  Trailing milestones without their own milestone-close are normally")
+	lines = append(lines, "  accepted because the issue-close boundary review covers their work.")
+	lines = append(lines, "  With --no-judge that review never runs, so the coverage is fictional.")
+	lines = append(lines, "")
+	lines = append(lines, "  Drop --no-judge (let the close review run), or review each row:")
+	lines = append(lines, "")
+	lines = append(lines, verdictNextActionLines(issueStr, trailing)...)
+	lines = append(lines, "")
+	lines = append(lines, verdictBypassClosingLine)
 	return strings.Join(lines, "\n")
 }
 

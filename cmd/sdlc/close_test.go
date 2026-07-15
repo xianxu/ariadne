@@ -733,10 +733,55 @@ func TestFormatMissingVerdicts_ContractElements(t *testing.T) {
 		"Review-Verdict: SHIP",
 		"Review-Window:",
 		"--force",
+		// #175: the refusal must cite §3's don't-over-split rule and name
+		// the sanctioned fold-to-plain-checkboxes recovery.
+		"AGENTS.md",
+		"§3",
+		"plain checkboxes",
+		// Pinned by internal/processmanual/gatesig.go (friction attribution).
+		"Or pass --no-verdict (or --force); record",
 	}
 	for _, w := range want {
 		if !strings.Contains(msg, w) {
 			t.Errorf("formatMissingVerdicts missing %q in:\n%s", w, msg)
+		}
+	}
+}
+
+// TestFormatTrailingVerdictAccepted_ContractElements pins the loud
+// acceptance line (#175): names the accepted milestones, says what covers
+// them, and hints §3 for next time.
+func TestFormatTrailingVerdictAccepted_ContractElements(t *testing.T) {
+	msg := formatTrailingVerdictAccepted([]string{"M1", "M2"})
+	for _, w := range []string{
+		"M1, M2",                      // names the accepted milestones
+		"issue-close boundary review", // what covers them
+		"#175",                        // provenance
+		"plain checkboxes",            // §3 hint for next time
+	} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("formatTrailingVerdictAccepted missing %q in:\n%s", w, msg)
+		}
+	}
+	// The acceptance line is a fresh cinfo output on the close path — it must
+	// not match any gatesig ack/refusal classifier pattern (#177 precedent).
+	assertNoGatesigCollision(t, msg)
+}
+
+// TestFormatTrailingNeedsJudge_ContractElements pins the refusal fired when
+// trailing unclosed milestones exist but --no-judge skips the very review
+// that would cover them (#175). Shares the gatesig-pinned closing line so
+// friction measurement keys on one no-verdict signature.
+func TestFormatTrailingNeedsJudge_ContractElements(t *testing.T) {
+	msg := formatTrailingNeedsJudge("31", []string{"M1"})
+	for _, w := range []string{
+		"M1",
+		"--no-judge", // names the premise-killer
+		"sdlc judge milestone-review --issue 31 --milestone M1",
+		"Or pass --no-verdict (or --force); record", // same gatesig signature
+	} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("formatTrailingNeedsJudge missing %q in:\n%s", w, msg)
 		}
 	}
 }
