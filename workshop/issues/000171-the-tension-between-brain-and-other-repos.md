@@ -87,9 +87,11 @@ and the `## Revisions` arc.)*
 
 - **Project files live in coding repos** — each in its project's
   center-of-gravity repo (top product by default; a soft rule, since
-  `repo#id` addressing + `sdlc migrate` (#179) make moves cheap). The 5
-  files in `brain/data/project/` are relocated per-project; brain's
-  `data/project/` ends empty.
+  `repo#id` addressing + `sdlc migrate` (#179) make moves cheap), under
+  **`workshop/project/`** (operator, 2026-07-15 — the workshop/ SDLC-artifact
+  family, replacing the brain-era `data/project/` path). The 5 files in
+  `brain/data/project/` are relocated per-project; brain's `data/project/`
+  ends empty.
 - **Brain is untouched**: it remains the personal/team dumping ground on the
   auto-commit rhythm (with history) — correct as designed; it just holds no
   SDLC process artifacts anymore.
