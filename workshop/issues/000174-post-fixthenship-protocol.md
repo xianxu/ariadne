@@ -1,11 +1,12 @@
 ---
 id: 000174
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours:
+started: 2026-07-14T19:35:30-07:00
 ---
 
 # close: specify the post-FIX-THEN-SHIP protocol (stop the re-close loop and the bookkeeping publish-gate trip)
