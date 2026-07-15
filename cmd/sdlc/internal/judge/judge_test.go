@@ -310,6 +310,10 @@ func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
 		"Vague checklist items",
 		"Undeclared cross-issue",
 		"Mismatched estimate vs scope",
+		// #175 forward fix: flag over-split Mx plans at design time.
+		"Over-split milestones",
+		"review boundary",
+		"plain checkboxes",
 		"VERDICT: <TOKEN>", // the shared contract format (#70 M2)
 		"CLEAN   = plan is concrete",
 		"ISSUE_FILE_BODY",

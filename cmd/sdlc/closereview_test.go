@@ -426,3 +426,142 @@ func TestRunCloseWithReview_NoJudge_Skips(t *testing.T) {
 		t.Errorf("--no-judge must not write a review sidecar (stat err=%v)", err)
 	}
 }
+
+// rewriteIssuePlan replaces the fixture issue's body with the given ## Plan
+// rows and commits the edit with a NEUTRAL subject (no `#69 Mx` anchor, so
+// the rewrite itself never fakes milestone-close evidence). Shared by the
+// #175 trailing/midstream gate tests.
+func rewriteIssuePlan(t *testing.T, issuesDir, planRows string) {
+	t.Helper()
+	issuePath := filepath.Join(issuesDir, "000069-x.md")
+	content := "---\nid: 000069\nstatus: working\nestimate_hours: 1\n---\n\n" +
+		"# x\n\n## Spec\n\nThing.\n\n## Plan\n\n" + planRows + "\n\n## Log\n"
+	if err := os.WriteFile(issuePath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"add", issuePath},
+		{"commit", "-q", "-m", "#69: plan update"},
+	} {
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v — %s", args, err, out)
+		}
+	}
+}
+
+// #175: single-pass work with legacy Mx tags closes WITHOUT --no-verdict —
+// the trailing misses are covered by the issue-close boundary review, which
+// this close dispatches (window branch-point→HEAD).
+func TestClose_TrailingUnclosedMilestones_AcceptedByCloseReview(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	rewriteIssuePlan(t, issuesDir, "- [x] **M1 — all the work**")
+	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+
+	var stdout, stderr strings.Builder
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	if err := runCloseWithReview(&stdout, &stderr, f); err != nil {
+		t.Fatalf("runCloseWithReview should accept trailing Mx misses: %v\nstderr:\n%s", err, stderr.String())
+	}
+	if *calls != 1 {
+		t.Fatalf("the issue-close review must actually run (the acceptance premise), got %d dispatches", *calls)
+	}
+	for _, want := range []string{"M1", "issue-close boundary review"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("acceptance info line missing %q:\n%s", want, stderr.String())
+		}
+	}
+	// close finalizes: codecomplete (#160 — close never writes `done`) + the
+	// verdict-annotated log line.
+	got := readIssue(t, issuesDir)
+	for _, want := range []string{"status: codecomplete", "review verdict: SHIP"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("finalized issue missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// #175: a midstream miss (M1 unreviewed while M2 closed WITH a trailer)
+// still refuses, BEFORE the review dispatch, and the refusal cites the §3
+// recovery — the boundary into M2 was genuinely crossed unreviewed.
+func TestClose_MidstreamMissingVerdict_Refuses(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	rewriteIssuePlan(t, issuesDir, "- [x] **M1 — first**\n- [x] **M2 — second**")
+	issuePath := filepath.Join(issuesDir, "000069-x.md")
+	// M2's close commit carries the trailer; M1 never got one. The commit
+	// must touch the issue file (the probe scopes to it) — an innocuous
+	// whitespace append keeps the file's real content intact.
+	fh, err := os.OpenFile(issuePath, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fh.WriteString("\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := fh.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"add", issuePath},
+		{"commit", "-q", "-m", "#69 M2: close — tick milestone",
+			"-m", "Body.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD"},
+	} {
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v — %s", args, err, out)
+		}
+	}
+	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
+
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	msg, died := expectDie(t, func() {
+		_ = runCloseWithReview(io.Discard, io.Discard, f)
+	})
+	if !died {
+		t.Fatal("midstream missing verdict should refuse the close")
+	}
+	for _, want := range []string{"M1", "AGENTS.md §3", "plain checkboxes"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("midstream refusal missing %q:\n%s", want, msg)
+		}
+	}
+	if strings.Contains(msg, "milestones M1, M2") || strings.Contains(msg, "M2 lack") {
+		t.Errorf("refusal must name only the midstream miss (M2 has evidence):\n%s", msg)
+	}
+	if *calls != 0 {
+		t.Errorf("refusal must fire at the gate, before review dispatch; got %d dispatches", *calls)
+	}
+}
+
+// #175: a trailing miss with --no-judge refuses — the issue-close review
+// that justifies the acceptance is exactly what --no-judge skips.
+func TestClose_TrailingMissingVerdict_NoJudgeRefuses(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	rewriteIssuePlan(t, issuesDir, "- [x] **M1 — all the work**")
+	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
+
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true, NoJudge: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	msg, died := expectDie(t, func() {
+		_ = runCloseWithReview(io.Discard, io.Discard, f)
+	})
+	if !died {
+		t.Fatal("trailing miss + --no-judge should refuse the close")
+	}
+	for _, want := range []string{"M1", "--no-judge", "Or pass --no-verdict (or --force); record"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("needs-judge refusal missing %q:\n%s", want, msg)
+		}
+	}
+	if *calls != 0 {
+		t.Errorf("refusal must dispatch nothing; got %d", *calls)
+	}
+}

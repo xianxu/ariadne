@@ -452,6 +452,48 @@ func TestMilestonePlanRE_Enumerates(t *testing.T) {
 	}
 }
 
+// TestPartitionMissingVerdicts pins the trailing-vs-midstream split (#175):
+// a missing milestone BEFORE the last verdict-carrying one is a genuine
+// skipped-review violation (midstream); missing milestones after it (or all,
+// when none carries a verdict — the single-pass case) are trailing and
+// covered by the imminent issue-close review.
+func TestPartitionMissingVerdicts(t *testing.T) {
+	cases := []struct {
+		name               string
+		ordered, missing   []string
+		wantMid, wantTrail []string
+	}{
+		{"single-pass: all missing → all trailing",
+			[]string{"M1", "M2", "M3"}, []string{"M1", "M2", "M3"},
+			nil, []string{"M1", "M2", "M3"}},
+		{"midstream: miss before a verdict-carrying row",
+			[]string{"M1", "M2", "M3"}, []string{"M2"},
+			[]string{"M2"}, nil}, // M3 has a verdict → M2's boundary was crossed unreviewed
+		{"mixed: M1 missing before M2's verdict, M3 trailing",
+			[]string{"M1", "M2", "M3"}, []string{"M1", "M3"},
+			[]string{"M1"}, []string{"M3"}},
+		{"none missing",
+			[]string{"M1", "M2"}, nil, nil, nil},
+		{"only last missing → trailing",
+			[]string{"M1", "M2"}, []string{"M2"}, nil, []string{"M2"}},
+		// The reopened-issue shape: prior milestones all reviewed, one new
+		// trailing Mx added by the reopen — second most likely real-world hit.
+		{"reopened issue: new trailing row after all-reviewed history",
+			[]string{"M1", "M2", "M3"}, []string{"M3"}, nil, []string{"M3"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mid, trail := partitionMissingVerdicts(tc.ordered, tc.missing)
+			if strings.Join(mid, ",") != strings.Join(tc.wantMid, ",") {
+				t.Errorf("midstream = %v, want %v", mid, tc.wantMid)
+			}
+			if strings.Join(trail, ",") != strings.Join(tc.wantTrail, ",") {
+				t.Errorf("trailing = %v, want %v", trail, tc.wantTrail)
+			}
+		})
+	}
+}
+
 // TestFindMilestonesMissingVerdict_AllPresent confirms the helper
 // returns no missing milestones when every plan entry has a matching
 // close commit carrying the Review-Verdict trailer. Driven via a fake
@@ -467,7 +509,7 @@ Just prose, no milestone bullets.
 
 ## Log
 `
-	missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
+	_, missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,7 +522,7 @@ Just prose, no milestone bullets.
 // for issues that never grew a Plan section.
 func TestFindMilestonesMissingVerdict_NoPlanSection(t *testing.T) {
 	body := "# title\n\nNo plan here.\n"
-	missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
+	_, missing, err := findMilestonesMissingVerdict(body, "31", "workshop/issues/000031-x.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -555,9 +597,12 @@ func TestFindMilestonesMissingVerdict_Integration(t *testing.T) {
 
 ## Log
 `
-	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	ordered, missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
 	if err != nil {
 		t.Fatalf("findMilestonesMissingVerdict: %v", err)
+	}
+	if wantOrdered := []string{"M1", "M2", "M3"}; strings.Join(ordered, ",") != strings.Join(wantOrdered, ",") {
+		t.Errorf("ordered = %v, want %v", ordered, wantOrdered)
 	}
 	want := []string{"M2", "M3"}
 	if strings.Join(missing, ",") != strings.Join(want, ",") {
@@ -617,7 +662,7 @@ func TestFindMilestonesMissingVerdict_AllPresent(t *testing.T) {
 
 ## Log
 `
-	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	_, missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
 	if err != nil {
 		t.Fatalf("findMilestonesMissingVerdict: %v", err)
 	}
@@ -665,7 +710,7 @@ func TestFindMilestonesMissingVerdict_SpaceBeforeColonSubject(t *testing.T) {
 		"-m", "Body.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD")
 
 	planBody := "## Plan\n\n- [x] **M1 — first**\n\n## Log\n"
-	missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
+	_, missing, err := findMilestonesMissingVerdict(planBody, "31", issuePath)
 	if err != nil {
 		t.Fatalf("findMilestonesMissingVerdict: %v", err)
 	}
@@ -688,10 +733,55 @@ func TestFormatMissingVerdicts_ContractElements(t *testing.T) {
 		"Review-Verdict: SHIP",
 		"Review-Window:",
 		"--force",
+		// #175: the refusal must cite §3's don't-over-split rule and name
+		// the sanctioned fold-to-plain-checkboxes recovery.
+		"AGENTS.md",
+		"§3",
+		"plain checkboxes",
+		// Pinned by internal/processmanual/gatesig.go (friction attribution).
+		"Or pass --no-verdict (or --force); record",
 	}
 	for _, w := range want {
 		if !strings.Contains(msg, w) {
 			t.Errorf("formatMissingVerdicts missing %q in:\n%s", w, msg)
+		}
+	}
+}
+
+// TestFormatTrailingVerdictAccepted_ContractElements pins the loud
+// acceptance line (#175): names the accepted milestones, says what covers
+// them, and hints §3 for next time.
+func TestFormatTrailingVerdictAccepted_ContractElements(t *testing.T) {
+	msg := formatTrailingVerdictAccepted([]string{"M1", "M2"})
+	for _, w := range []string{
+		"M1, M2",                      // names the accepted milestones
+		"issue-close boundary review", // what covers them
+		"#175",                        // provenance
+		"plain checkboxes",            // §3 hint for next time
+	} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("formatTrailingVerdictAccepted missing %q in:\n%s", w, msg)
+		}
+	}
+	// The acceptance line is a fresh cinfo output on the close path — it must
+	// not match any gatesig ack/refusal classifier pattern (#177 precedent).
+	assertNoGatesigCollision(t, msg)
+}
+
+// TestFormatTrailingNeedsJudge_ContractElements pins the refusal fired when
+// trailing unclosed milestones exist but --no-judge skips the very review
+// that would cover them (#175). Shares the gatesig-pinned closing line so
+// friction measurement keys on one no-verdict signature.
+func TestFormatTrailingNeedsJudge_ContractElements(t *testing.T) {
+	msg := formatTrailingNeedsJudge("31", []string{"M1"})
+	for _, w := range []string{
+		"M1",
+		"--no-judge", // names the premise-killer
+		"sdlc judge milestone-review --issue 31 --milestone M1",
+		"Or pass --no-verdict (or --force); record", // same gatesig signature
+	} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("formatTrailingNeedsJudge missing %q in:\n%s", w, msg)
 		}
 	}
 }
