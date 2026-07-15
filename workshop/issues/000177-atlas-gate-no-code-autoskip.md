@@ -1,11 +1,12 @@
 ---
 id: 000177
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours:
+started: 2026-07-14T17:20:20-07:00
 ---
 
 # atlas gate: auto-satisfy when the close window contains no code changes
