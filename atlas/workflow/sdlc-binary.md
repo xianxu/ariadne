@@ -128,6 +128,25 @@ Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 `push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
 accessor — a DRY consolidation, separate from this resolver.
 
+## Artifact migration (`sdlc migrate`, #179)
+
+The write-side companion to resolve: `sdlc migrate <file> <dest-repo-dir>`
+moves a markdown artifact to a peer repo with repo-relative refs rewritten
+(bare `#N` → `<source>#N`; `<dest>#M` → `#M`; everything else passes through),
+because under #171's peer-repo addressing an artifact's home repo is a soft
+center-of-gravity default and moves are normal. Same two-layer shape:
+`rewriteRefs` (pure — fence-aware via `issue.SplitFences`, inline spans
+rewritten only when the whole span parses as one ref, every candidate filtered
+through `parseRef`) + `runMigrate` (guards, verification, scoped two-repo
+commits, inbound-ref report). Every rewrite is verified from the
+**destination's vantage** (`resolveArtifacts` against the dest root) before
+any write — fail-closed. Guard inversions worth knowing: migrate deliberately
+is NOT in the spine guard set (moving an artifact OUT of brain is its #171 use
+case); instead it refuses a brain **destination** (SDLC process artifacts
+don't live in brain, #171 amendment). Id-keyed issue-family files refuse (ids
+are per-repo sequences; renumbering migration is v2). Round-trips
+canonicalize (self-qualified → bare on return) and are then idempotent.
+
 ## Progressive disclosure
 
   - `sdlc --help` — the workflow contract (start-of-work runbook, conventions,

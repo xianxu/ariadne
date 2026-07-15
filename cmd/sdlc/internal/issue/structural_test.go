@@ -178,3 +178,46 @@ func sameStrings(a, b []string) bool {
 	}
 	return true
 }
+
+// TestSplitFences pins the segmenter contract (#179): segments cover the
+// input exactly (concatenation identity, byte-for-byte), fenced blocks are
+// classified Fenced, and an UNTERMINATED trailing fence is Fenced too —
+// conservative for rewriters, which must never rewrite inside a broken
+// fence. (Deliberately different from stripCodeFences's unterminated
+// policy — see the cross-referencing comments.)
+func TestSplitFences(t *testing.T) {
+	cases := []struct {
+		name   string
+		in     string
+		fenced []string // texts of the segments expected to be Fenced
+	}{
+		{"no fence", "just prose #12 here\n", nil},
+		{"one fence mid-text", "before\n```go\n#99\n```\nafter\n",
+			[]string{"```go\n#99\n```"}},
+		{"fence at start", "```\nx\n```\ntail", []string{"```\nx\n```"}},
+		{"back-to-back fences", "a```one``` mid ```two```z",
+			[]string{"```one```", "```two```"}},
+		{"unterminated trailing fence", "prose\n```\nbroken #99 tail",
+			[]string{"```\nbroken #99 tail"}},
+		{"empty input", "", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			segs := SplitFences(tc.in)
+			var joined string
+			var gotFenced []string
+			for _, s := range segs {
+				joined += s.Text
+				if s.Fenced {
+					gotFenced = append(gotFenced, s.Text)
+				}
+			}
+			if joined != tc.in {
+				t.Errorf("concatenation identity broken:\n got %q\nwant %q", joined, tc.in)
+			}
+			if strings.Join(gotFenced, "\x00") != strings.Join(tc.fenced, "\x00") {
+				t.Errorf("fenced segments = %q, want %q", gotFenced, tc.fenced)
+			}
+		})
+	}
+}

@@ -773,6 +773,9 @@ func buildFrictionReport(invs []SdlcInvocation, marks []ActivityMark, nTranscrip
 // WorkflowVerbs is SpineVerbs plus the gate-less workflow verbs the firing-order
 // ladder anchors on (claim/start-plan — stages 0–1 carry no bypass gates, so the
 // catalog can't supply them).
+// NOTE: `migrate` (#179) is deliberately ABSENT: it must run in a brain repo
+// (migrating an artifact OUT of brain is its #171 use case), so it cannot
+// carry guardSpineRepo; its brain check applies to the DESTINATION instead.
 func WorkflowVerbs() map[string]bool {
 	out := SpineVerbs()
 	out["claim"] = true
