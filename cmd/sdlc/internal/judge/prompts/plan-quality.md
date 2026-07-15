@@ -19,6 +19,11 @@ Common failure modes to flag:
     that should be its own issue.
   - Mismatched estimate vs scope — estimate_hours wildly disagrees with the
     visible scope (e.g., 0.5h for what looks like 8h of work).
+  - Over-split milestones — every ## Plan row is tagged Mx for work that will
+    plainly land in one pass. An Mx tag is a review boundary (AGENTS.md §3):
+    each one commits to its own `sdlc milestone-close` + review. Single-pass
+    atomic work takes plain checkboxes; flag the plan unless it genuinely has
+    ≥2 boundaries the author will close separately.
 
 Then check the plan against our architecture (this is the highest-leverage place
 to catch architectural drift — the design is still changeable here):
