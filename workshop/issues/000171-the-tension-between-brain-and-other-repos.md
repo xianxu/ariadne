@@ -133,9 +133,18 @@ set (project iteration sessions will now happen there).
   (close updating a project file in a peer repo must scoped-commit there or
   warn loudly — the wrinkle exists under every candidate, now designed once);
   the **endpoint-less artifacts** residual (portfolio-wide roadmap has no
-  product repo — park in brain as intent/capture until it hurts); parley's
+  product repo — destination decided at design time; parking in brain was
+  proposed and REJECTED, see the 7/15 amendment below); parley's
   super-repo search specializing `project` as an always-cross-repo artifact
   class complements `sdlc resolve`.
+
+**Amendment (2026-07-15, operator):** SDLC process artifacts do NOT go in
+brain — no exceptions, including the endpoint-less roadmap. Brain is a brain-
+dumping space for a person (or a team), on the auto-commit rhythm; software
+development process artifacts follow the deliberate rhythm and live in normal
+repos, wherever addressing puts them. Supporting tool filed as #179
+(`sdlc migrate` — cross-repo artifact move with ref rewrite), which makes the
+residency default cheap to revise later.
 - Orthogonal thread spun out of the discussion (not this issue): the weave
   conflates *tool dependency* with *constitution layer* (brain needs nous's
   binary, inherits ariadne's SDLC constitution transitively). A
