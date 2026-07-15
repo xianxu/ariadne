@@ -61,6 +61,7 @@ func NewPushCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			return runPush(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})

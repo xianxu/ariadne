@@ -53,6 +53,7 @@ func NewClaimCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			return runClaim(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})

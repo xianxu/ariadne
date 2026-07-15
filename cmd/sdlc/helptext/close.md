@@ -32,6 +32,11 @@ MODES
   explicitly, use `sdlc milestone-close --no-judge` — `close` no longer has a
   `--milestone` path to skip it silently (#146).
 
+  (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
+   merge/push — also carry the repo guard (#176): they refuse in a brain
+   (capture) repo and in repos without workshop/issues/. WF_SPINE_GUARD=off is
+   the logged emergency hatch.)
+
 WHAT THE GUARD DEFENDS
 
   --actual <hours>     focused dev-hours. Omit it: close measures and ADOPTS

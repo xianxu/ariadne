@@ -17,7 +17,7 @@
 #### Peer Repo
 - Peer = sibling repo in the same parent dir, usually ariadne-styled (has `construct/`).
 - Touching peer X: skip its `AGENTS.md` (near-duplicate of this); read its `AGENTS.local.md` + `MEMORY.md`. Its issues/atlas/tests live in its tree.
-- "brain" = special peer holding cross-cutting state (`project`, `roadmap`). A repo is a brain iff `.brain/config.md` exists (`test -d .brain`). Encrypted via gcrypt + GPG recipient list unless local-only; see `brain/atlas/threat-model-shared-brain.md`.
+- "brain" = special peer holding cross-cutting state (`project`, `roadmap`). A repo is a brain iff `.brain/config.md` exists (`test -d .brain`). The binary enforces the charter: spine lifecycle verbs (claim/start-plan/change-code/milestone-close/close/merge/push) **refuse** in a brain repo and in repos without `workshop/issues/` (#176; `WF_SPINE_GUARD=off` is the logged emergency hatch; reads like `estimate-source` are unaffected). Encrypted via gcrypt + GPG recipient list unless local-only; see `brain/atlas/threat-model-shared-brain.md`.
 
 ### 2. Overall Workflow
 - Unclear requirement → brainstorm. Non-trivial task (>3 files or >100 lines) → design via the **`superpowers-writing-plans`** skill, landing the durable plan in `workshop/plans/NNNNNN-slug-plan.md`, and wait for approval. The harness builtin plan-mode (`EnterPlanMode`) is fine as a read-only/approval affordance, but its `~/.claude/plans/` file is ephemeral and version-uncontrolled — **NOT the record of truth**; the durable plan lives in `workshop/plans/`.
