@@ -87,8 +87,8 @@ func TestPrintActualWarnings(t *testing.T) {
 	if !strings.Contains(s, "attribution warning:") || !strings.Contains(s, "fallback") {
 		t.Fatalf("actual output missing warning:\n%s", s)
 	}
-	if !strings.Contains(s, "close with") {
-		t.Fatalf("actual output should still include close suggestion:\n%s", s)
+	if !strings.Contains(s, "ADOPTS") || !strings.Contains(s, "increment") {
+		t.Fatalf("actual output should state the adopt/increment next step (#178):\n%s", s)
 	}
 }
 

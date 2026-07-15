@@ -1,12 +1,13 @@
 ---
 id: 000178
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours: 0.65
 started: 2026-07-14T16:42:01-07:00
+actual_hours: 0.49
 ---
 
 # close: adopt the measured actual when --actual is omitted (kill the compute-then-ask loop)
@@ -68,6 +69,7 @@ Single review boundary (no Mx tags).
 ## Log
 
 ### 2026-07-14 — built (single pass)
+- 2026-07-14: closed — go test ./cmd/sdlc/... green incl the 4 new adopt suites (pure decision %.2f-pinned per status, adopt line incl milestone cumulative note, seam wiring with single-engine-run call count, gatesig no-collision); live real-engine verify: omit-path printed "using measured actual: 0.47h (window e4e06cbe -> HEAD)" then the verified gate refused pre-mutation; THIS close itself runs with --actual omitted, dogfooding the adoption; review verdict: FIX-THEN-SHIP
 
 Omit-path now measures once (computeActualForCloseFn seam) and adopts on
 actualMeasured (%.2f-pinned, info line with window + peer attribution +
@@ -79,6 +81,16 @@ atlas. Gatesig no-collision test guards the #172 instrument (adopt line
 classifies to none; refusal anchors byte-identical). Live verify: real-engine
 adoption observed ("using measured actual: 0.47h (window e4e06cbe → HEAD)")
 with the verified gate stopping the run pre-mutation. go build/vet/test green.
+
+### 2026-07-14 — close review: FIX-THEN-SHIP (both Importants fixed)
+
+Sidecar `workshop/plans/000178-close-adopts-measured-actual-close-review.md`.
+Important #1: milestone mode no longer adopts (issue-scoped window would write
+cumulative hours into per-milestone project blocks — double-count; suggest
+flow retained there, regression test added). Important #2: xx-issues SKILL.md
+shadow doc updated. Minors: flag help, prefixHash reuse, `sdlc actual` advice
+now adopt/increment-shaped. Ledger: est 0.65 / actual 0.49 (ratio 1.3x) — the
+actual was ADOPTED by the feature itself (first production use).
 
 ### 2026-07-14
 

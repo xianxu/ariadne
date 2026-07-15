@@ -55,3 +55,29 @@ AGENTS.base.md, with the working copy updated in place for session consistency.
 gate refuses before mutation — real-engine adoption observed with zero side
 effects. Task 1 test (e)'s "call count" pins the single engine run inside the
 adopt arm; the pass-path deviation skip is the adjacent `!adopted` guard.
+
+### 2026-07-14 — close-review fixes (FIX-THEN-SHIP)
+
+**Important #1 — milestone mode no longer adopts.** computeActual's window is
+issue-scoped, so auto-adopting at M2+ writes CUMULATIVE hours into
+per-milestone project detail blocks — double-counting when summed
+(lessons.md increments rule). Milestones keep the suggest-then-decide flow
+(the measurement still feeds the explainer; the agent applies the increment
+arithmetic). Task 1's test (f) is superseded: `formatAdoptLine` lost the mode
+param and the cumulative note; `TestAdoptOmittedActualMilestoneKeepsSuggestFlow`
+pins the no-adopt arm. The windowed per-milestone measurement (option (b)) is
+the future fix if milestone refusal volume warrants it.
+
+**Important #2 — shadow doc:** `construct/local/issues/SKILL.md` still taught
+the two-step; now "close measures + adopts it; milestones still suggest".
+
+**Test-layer honesty (reviewer §7):** Task 1 tests (a)–(c) as written claimed
+frontmatter-landing / refusal-exit / N/A-sentinel pins; what shipped pins those
+at the helper layer (resolveOmittedActual / adoptOmittedActual) and leans on
+pre-existing computeClose tests for frontmatter + sentinel — the exit paths
+call os.Exit in-process. Substance covered; claims now match.
+
+**Minors folded:** `--actual` flag help updated; `prefixHash` reused;
+`sdlc actual`'s "→ close with: --actual N" advice replaced with
+adopt/increment guidance (its verbatim copy-back was the #87 round-trip and,
+for milestones, the double-count vector); TestPrintActualWarnings re-pinned.

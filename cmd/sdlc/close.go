@@ -131,7 +131,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (numeric, required)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "DEPRECATED (#146) — use `sdlc milestone-close`; passing this to `close` refuses")
 	_ = cmd.Flags().MarkHidden("milestone") // #146: milestone closing moved fully to `sdlc milestone-close`
-	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours (sdlc computes it; see `sdlc actual`)")
+	cmd.Flags().StringVar(&f.Actual, "actual", "", "focused dev-hours (measured + adopted when omitted at issue close; see `sdlc actual`)")
 	cmd.Flags().StringVar(&f.Mode, "mode", "", "optional supervision mode for the calibration ledger: supervised | delegated (#117)")
 	cmd.Flags().StringVar(&f.Verified, "verified", "", "one-line evidence the work meets done-when")
 	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass ALL gates (≡ every --no-* flag); record the reason in --verified")
@@ -1106,21 +1106,15 @@ func resolveOmittedActual(res actualResult) (string, bool) {
 	return strconv.FormatFloat(res.Hours, 'f', 2, 64), true
 }
 
-// formatAdoptLine renders the adoption info line. Milestone mode states the
-// cumulative-window semantics: computeActual's window is ISSUE-scoped (claim →
-// HEAD), so at M2+ the value is cumulative issue hours — the same number the
-// old suggest-path proposed; pre-existing semantics, now stated. Must never
-// match a GateCatalog ACK/refusal pattern (TestAdoptLineNoGatesigCollision).
-func formatAdoptLine(res actualResult, mode string) string {
+// formatAdoptLine renders the adoption info line (issue mode only — milestone
+// closes keep the suggest flow, see adoptOmittedActual). Must never match a
+// GateCatalog ACK/refusal pattern (TestAdoptLineNoGatesigCollision).
+func formatAdoptLine(res actualResult) string {
 	line := fmt.Sprintf("using measured actual: %.2fh (window %s", res.Hours, res.Window)
 	if len(res.Peers) > 1 {
-		line += "; attributed across window issues: #" + strings.Join(res.Peers, ", #")
+		line += "; attributed across window issues: " + strings.Join(prefixHash(res.Peers), ", ")
 	}
-	line += ")"
-	if mode == "milestone" {
-		line += " — cumulative issue hours (the measurement window starts at claim, not the milestone boundary)"
-	}
-	return line
+	return line + ")"
 }
 
 // adoptOmittedActual is the omit-path wiring (#178): measure once via the seam,
@@ -1130,12 +1124,21 @@ func formatAdoptLine(res actualResult, mode string) string {
 // (reusing the same measurement) and exits.
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
 	res := computeActualForCloseFn(issueStr)
+	if mode == "milestone" {
+		// #178 close-review Important #1: per-milestone project detail blocks
+		// record per-milestone hours, but computeActual's window is ISSUE-scoped
+		// (claim → HEAD) — auto-adopting the cumulative value at M2+ would
+		// double-count across blocks (lessons.md increments rule). Milestones
+		// keep the suggest-then-decide flow (the agent applies the increment
+		// arithmetic) until a windowed per-milestone measurement lands.
+		return res, false
+	}
 	v, ok := resolveOmittedActual(res)
 	if !ok {
 		return res, false
 	}
 	f.Actual = v
-	cinfo(stderr, formatAdoptLine(res, mode))
+	cinfo(stderr, formatAdoptLine(res))
 	for _, w := range res.Warnings {
 		cwarn(stderr, w)
 	}

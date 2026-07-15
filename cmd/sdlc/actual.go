@@ -211,7 +211,7 @@ func printActual(w io.Writer, res actualResult) {
 		for _, warning := range res.Warnings {
 			fmt.Fprintf(w, "  attribution warning: %s\n", warning)
 		}
-		fmt.Fprintf(w, "  → close with:  --actual %.2f\n", res.Hours)
+		fmt.Fprintf(w, "  → issue close ADOPTS this when --actual is omitted (#178); milestone close: pass the per-milestone increment\n")
 		if len(res.Peers) > 1 {
 			fmt.Fprintf(w, "  (attributed across window issues: %s)\n", strings.Join(prefixHash(res.Peers), ", "))
 		}

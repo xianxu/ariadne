@@ -39,19 +39,36 @@ func TestFormatAdoptLine(t *testing.T) {
 	res := actualResult{Status: actualMeasured, Hours: 1.23,
 		Window: "a1b2c3d4 → HEAD", Peers: []string{"172", "173"}}
 
-	line := formatAdoptLine(res, "issue")
+	line := formatAdoptLine(res)
 	for _, want := range []string{"1.23", "a1b2c3d4 → HEAD", "#172", "#173", "measured"} {
 		if !strings.Contains(line, want) {
-			t.Errorf("issue-mode adopt line missing %q: %q", want, line)
+			t.Errorf("adopt line missing %q: %q", want, line)
 		}
 	}
+}
 
-	// milestone mode states the cumulative-window semantics (computeActual's
-	// window is issue-scoped — at M2+ the value is cumulative issue hours, the
-	// same number the old suggest-path proposed; pre-existing, now stated).
-	mline := formatAdoptLine(res, "milestone")
-	if !strings.Contains(mline, "cumulative") {
-		t.Errorf("milestone-mode adopt line must state cumulative semantics: %q", mline)
+// Milestone mode NEVER adopts (#178 close-review Important #1): computeActual's
+// window is issue-scoped, so the cumulative value would double-count across
+// per-milestone project detail blocks (lessons.md increments rule). The
+// measurement is still returned — it feeds the suggest flow unchanged.
+func TestAdoptOmittedActualMilestoneKeepsSuggestFlow(t *testing.T) {
+	orig := computeActualForCloseFn
+	computeActualForCloseFn = func(string) actualResult {
+		return actualResult{Status: actualMeasured, Hours: 6.57, Window: "abcd1234 → HEAD"}
+	}
+	t.Cleanup(func() { computeActualForCloseFn = orig })
+
+	var stderr bytes.Buffer
+	f := &closeFlags{Issue: 172}
+	res, ok := adoptOmittedActual(&stderr, f, "172", "milestone")
+	if ok || f.Actual != "" {
+		t.Fatalf("milestone mode must not adopt, got ok=%v f.Actual=%q", ok, f.Actual)
+	}
+	if res.Status != actualMeasured || res.Hours != 6.57 {
+		t.Errorf("measurement must be returned for the suggest flow, got %+v", res)
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("no side effects on the milestone arm, got %q", stderr.String())
 	}
 }
 
@@ -102,16 +119,14 @@ func TestAdoptOmittedActual(t *testing.T) {
 func TestAdoptLineNoGatesigCollision(t *testing.T) {
 	res := actualResult{Status: actualMeasured, Hours: 1.23,
 		Window: "a1b2c3d4 → HEAD", Peers: []string{"172"}}
-	for _, mode := range []string{"issue", "milestone"} {
-		// as rendered: cinfo prefixes "==> " with ANSI + the reset marker
-		line := "\x1b[1;36m==>\x1b[0m " + formatAdoptLine(res, mode)
-		for _, g := range processmanual.GateCatalog {
-			if g.AckPat != "" && regexp.MustCompile(g.AckPat).MatchString(line) {
-				t.Errorf("adopt line (%s) matches %s/%s AckPat", mode, g.Commands, g.Flag)
-			}
-			if g.RefusalPat != "" && regexp.MustCompile(g.RefusalPat).MatchString(line) {
-				t.Errorf("adopt line (%s) matches %s/%s RefusalPat", mode, g.Commands, g.Flag)
-			}
+	// as rendered: cinfo prefixes "==> " with ANSI + the reset marker
+	line := "\x1b[1;36m==>\x1b[0m " + formatAdoptLine(res)
+	for _, g := range processmanual.GateCatalog {
+		if g.AckPat != "" && regexp.MustCompile(g.AckPat).MatchString(line) {
+			t.Errorf("adopt line matches %s/%s AckPat", g.Commands, g.Flag)
+		}
+		if g.RefusalPat != "" && regexp.MustCompile(g.RefusalPat).MatchString(line) {
+			t.Errorf("adopt line matches %s/%s RefusalPat", g.Commands, g.Flag)
 		}
 	}
 }
