@@ -1,11 +1,12 @@
 ---
 id: 000176
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours:
+started: 2026-07-14T17:44:20-07:00
 ---
 
 # spine guards for off-workflow invocations: change-code on done issues + non-SDLC repos
