@@ -80,10 +80,10 @@ skipped — without teeth it's `--no-judge` with nicer bookkeeping. Plus one
 leg: reclose refusal names the new-issue path. Single-pass, plain checkboxes.
 
 - [x] brainstorm the mechanism (output-protocol vs `sdlc reverify` vs bookkeeping-ordering) and pick at design time
-- [ ] leg A: `formatFixThenShipProtocol` + verdict-conditional block in the closeFinalize arm (+ SHIP negative test)
-- [ ] leg C: `runPublishGate` docs-only pass via `hasCodePath` (#177, ARCH-DRY) + augmented refusal (pinned span preserved) + multi-issue subtest + mutation check
-- [ ] reclose refusal appends the new-issue recovery (append-only — gatesig + codex golden fixtures freeze the head span)
-- [ ] docs sweep: helptext close/milestone-close/merge/push + atlas publish-gate prose; bookkeeping
+- [x] leg A: `formatFixThenShipProtocol` + verdict-conditional block in the closeFinalize arm (+ SHIP negative test)
+- [x] leg C: `runPublishGate` docs-only pass via `hasCodePath` (#177, ARCH-DRY) + augmented refusal (pinned span preserved) + multi-issue subtest + mutation check
+- [x] reclose refusal appends the new-issue recovery (append-only — gatesig + codex golden fixtures freeze the head span)
+- [x] docs sweep: helptext close/milestone-close/merge/push + atlas publish-gate prose; bookkeeping
 
 ## Log
 
@@ -102,3 +102,12 @@ the protocol gap is total, hence the route-arounds. Plan reviewed fresh-eyes
 (approved; multi-issue anchor soundness verified: an inter-anchor code commit
 is inside the newest close's branch-point→HEAD review window, so
 newestAnchor..HEAD docs-only is sound for the #160 invariant).
+
+Implementation: all legs landed TDD (red→green per leg). formatFixThenShipProtocol
+is verb-parameterized (closeVerb — the plan-quality judge's finding), so milestone
+closes name `sdlc milestone-close` in the escape hatch, mirroring the REWORK arm
+(ARCH-DRY). Leg C reuses hasCodePath (#177) + gitx.DiffNames; fail-closed on git
+error; mutation-checked (inverted predicate reddens the docs-only subtests). All
+new lines gatesig-collision-checked; pinned refusal heads preserved append-only
+(gatesig + frozen codex golden fixtures). Docs: helptext close/milestone-close/
+merge/push + atlas pre-merge-checks.md (canonical) + issue-lifecycle.md.

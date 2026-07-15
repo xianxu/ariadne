@@ -23,8 +23,8 @@ gate** — it runs the fresh-context boundary review (all LLM review lives here,
 incl. docs/atlas + README sync) and flips `working → codecomplete`, NOT straight
 to `done`. `sdlc merge`/`push` are the **deterministic publish gate**: they verify
 `HEAD` is unchanged since close (the *reviewed-HEAD-unchanged* invariant — nothing
-drifted after the review), run no LLM judge, flip `codecomplete → done`, and
-archive. `codecomplete` is written **only** by `sdlc close` (set-status refuses it),
+drifted after the review; doc-only bookkeeping deltas are tolerated, #174), run no
+LLM judge, flip `codecomplete → done`, and archive. `codecomplete` is written **only** by `sdlc close` (set-status refuses it),
 which is what makes the commit carrying it a trustworthy anchor for that invariant.
 So `done` now means "reviewed AND published," not "an agent thinks it's finished."
 

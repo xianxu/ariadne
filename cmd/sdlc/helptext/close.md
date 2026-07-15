@@ -10,6 +10,14 @@ sync incl. README, architecture) and flips a full issue to `codecomplete`, NOT
 SOLE writer of `codecomplete` (set-status refuses it), which makes the commit
 carrying it a trustworthy anchor for that reviewed-HEAD-unchanged invariant.
 
+POST-VERDICT PROTOCOL (#174): on FIX-THEN-SHIP, close prints it — fix the
+findings NOW (before committing), bundle fixes + the issue-file mutations +
+bookkeeping (lessons, plan ticks) into ONE commit so the publish anchor is
+HEAD, and do NOT re-run close. Fixes that must land after the close commit:
+re-run close (re-reviews the delta, advances the anchor — no bypass flag
+needed at codecomplete). Doc-only post-close commits pass the publish gate
+on their own.
+
 MODES
 
   Issue close:      sdlc close --issue 15 --actual 7 --verified '<evidence>'

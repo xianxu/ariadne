@@ -35,6 +35,10 @@ WHAT IT DOES
          Review-Window: abc1234..HEAD
          [Review-Reason: --no-judge]   (only when verdict is not-run)
 
+     On FIX-THEN-SHIP it also prints the post-verdict protocol (#174):
+     fix the findings before committing, bundle them into the one
+     milestone-close commit, do NOT re-run milestone-close.
+
   4. Appends "; review verdict: <verdict>" to the just-written log line
      in the issue file so a human grep finds it.
 
