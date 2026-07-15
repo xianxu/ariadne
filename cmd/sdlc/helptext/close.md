@@ -44,7 +44,9 @@ WHAT THE GUARD DEFENDS
                        Required.
 
   Plus structural checks:
-    - atlas/ must have changed in the issue's commit window (§5 step 5)
+    - atlas/ must have changed in the issue's commit window (§5 step 5) —
+      auto-satisfied when the window has NO code surface (docs/workshop-only
+      deltas have nothing to map, #177)
     - issue's `## Plan` has no unchecked items (issue close only)
     - each milestone listed in ## Plan must carry a `Review-Verdict:`
       trailer on its close commit (issue close only; AGENTS.md §3).
@@ -104,7 +106,8 @@ FLAGS
   --no-actual           record actual_hours: N/A; skip velocity calibration
   --no-verified         bypass the VERIFIED-evidence requirement
   --no-reclose-guard    re-close an already-done issue (skip the refusal)
-  --no-atlas            skip the atlas/ change check (no new architectural surface)
+  --no-atlas            skip the atlas/ change check (code changed, but no NEW
+                        architectural surface; docs-only windows auto-satisfy, #177)
   --no-verdict          skip the milestone Review-Verdict trailer check
   --no-plan-check       close despite unchecked ## Plan items
   --no-project          skip the project detail-block update requirement

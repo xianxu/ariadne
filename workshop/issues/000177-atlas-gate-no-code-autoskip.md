@@ -68,10 +68,20 @@ boundary review. *Produced via
 Durable plan: `workshop/plans/000177-atlas-gate-no-code-autoskip-plan.md`.
 Single review boundary (no Mx tags).
 
-- [ ] Task 1 — `hasCodePath` predicate + gate arm + gatesig no-collision test (TDD)
-- [ ] Task 2 — doc sweep (helptexts, AGENTS.base.md §5, atlas) + live verify + close
+- [x] Task 1 — `hasCodePath` predicate + gate arm + gatesig no-collision test (TDD)
+- [x] Task 2 — doc sweep (helptexts, AGENTS.base.md §5, atlas) + live verify + close
 
 ## Log
+
+### 2026-07-14 — built (single pass)
+
+`hasCodePath` (single docs classifier: *.md / workshop/ / atlas/ / docs/;
+everything else conservatively code) + the auto-satisfy arm in computeClose
+(both verbs; empty windows included). Code-touching windows keep the exact
+refusal/bypass semantics. Gatesig no-collision test guards the #172
+instrument. Live-verified both arms in a hermetic repo via milestone-close
+--dry-run. Docs swept (helptexts, AGENTS.base.md §5, atlas). go
+build/vet/test green.
 
 ### 2026-07-14
 

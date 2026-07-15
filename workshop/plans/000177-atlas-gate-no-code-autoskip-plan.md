@@ -10,16 +10,28 @@
 
 ### Task 1: predicate + gate arm (TDD)
 **Files:** `cmd/sdlc/close.go`; new `cmd/sdlc/close_atlasskip_test.go`.
-- [ ] **Step 1: Failing tests** — `hasCodePath` table: `.go`→true; `README.md`→false; `workshop/issues/x.md`→false; `docs/vision/x.md`→false; `Makefile`→true; extensionless `LICENSE`→true; empty list→false; `atlas/x.md`→false (single classifier — atlas is peeled off before the call but the definition stays whole). Info-line format test. Gatesig no-collision test (cinfo-rendered line vs every AckPat/RefusalPat).
-- [ ] **Step 2–4:** implement the arm (`no code → cinfo auto-satisfied`; `code → existing refusal/bypass`); `go test ./cmd/sdlc/...` PASS.
-- [ ] **Step 5: Commit** — `#177: atlas gate auto-satisfies on no-code windows`.
+- [x] **Step 1: Failing tests** — `hasCodePath` table: `.go`→true; `README.md`→false; `workshop/issues/x.md`→false; `docs/vision/x.md`→false; `Makefile`→true; extensionless `LICENSE`→true; empty list→false; `atlas/x.md`→false (single classifier — atlas is peeled off before the call but the definition stays whole). Info-line format test. Gatesig no-collision test (cinfo-rendered line vs every AckPat/RefusalPat).
+- [x] **Step 2–4:** implement the arm (`no code → cinfo auto-satisfied`; `code → existing refusal/bypass`); `go test ./cmd/sdlc/...` PASS.
+- [x] **Step 5: Commit** — `#177: atlas gate auto-satisfies on no-code windows`.
 
 ### Task 2: docs + verify + close
-- [ ] Helptext (`close.md` atlas section + `milestone-close.md` if it restates the gate) + `AGENTS.base.md` §5 close bullet ("atlas update" clause gains the docs-only carve-out) + atlas sdlc-binary.md gate description; shadow-sweep `grep -rn "no-atlas"` for other restatements.
-- [ ] Live verify: a real docs-only window close attempt shows the auto-satisfy line pre-mutation (the omit+no-verified trick from #178); code-window behavior unchanged (existing tests).
-- [ ] Close: `sdlc close --issue 177 --verified '<evidence>'` (adopt path records the actual).
+- [x] Helptext (`close.md` atlas section + `milestone-close.md` if it restates the gate) + `AGENTS.base.md` §5 close bullet ("atlas update" clause gains the docs-only carve-out) + atlas sdlc-binary.md gate description; shadow-sweep `grep -rn "no-atlas"` for other restatements.
+- [x] Live verify: a real docs-only window close attempt shows the auto-satisfy line pre-mutation (the omit+no-verified trick from #178); code-window behavior unchanged (existing tests).
+- [x] Close: `sdlc close --issue 177 --verified '<evidence>'` (adopt path records the actual).
 
 ## ARCH notes
 - **ARCH-PURE:** the predicate is pure + table-tested; the gate arm is three lines of glue.
 - **ARCH-DRY:** one docs classifier, defined once and named, aligned with the #172 windowstat study's classification.
 - **Root Cause / Simplicity:** removes an incoherent demand rather than adding a flag or a config; refusal semantics for code windows untouched.
+
+## Revisions
+
+### 2026-07-14 — executed (both tasks complete)
+
+As planned, no shape deviations. Live verify used a hermetic repo driven
+through `milestone-close --dry-run` (runs the real computeClose gates, skips
+mutation + judge): a docs-only window printed
+"atlas gate: no code surface in window (2 doc/workshop file(s)) — auto-satisfied";
+adding one `.go` file to the same window restored the exact old refusal.
+Doc sweep: helptext close.md (2 spots) + milestone-close.md, AGENTS.base.md §5
+(+ generated AGENTS.md in place), atlas sdlc-binary.md gate paragraph.
