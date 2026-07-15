@@ -398,3 +398,49 @@ func TestParseRef(t *testing.T) {
 		}
 	}
 }
+
+// #181: resolution finds archived families in BOTH layouts — the per-kind
+// subfolders (history/issues + history/plans) and the pre-#181 flat root
+// (un-migrated + downstream repos) — as one complete, ordered family each.
+func TestResolveRun_SubfolderedAndFlatArchive(t *testing.T) {
+	root := seedTempRepo(t)
+	d := vocab.Issue().Discovery()
+	issuesSub, plansSub := vocab.ArchiveSubdirs(d.Archive)
+	seed := map[string][]string{
+		issuesSub: {"000031-sub.md"},                              // subfoldered issue
+		plansSub:  {"000031-sub-plan.md", "000031-sub-close-review.md"}, // + family
+		d.Archive: {"000032-flat.md", "000032-flat-plan.md"},      // legacy flat family
+	}
+	for sub, files := range seed {
+		full := filepath.Join(root, sub)
+		if err := os.MkdirAll(full, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range files {
+			if err := os.WriteFile(filepath.Join(full, f), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for _, tc := range []struct {
+		ref   string
+		wants []string
+	}{
+		{"#31", []string{"000031-sub.md", "000031-sub-plan.md", "000031-sub-close-review.md"}},
+		{"#32", []string{"000032-flat.md", "000032-flat-plan.md"}},
+	} {
+		var buf bytes.Buffer
+		if err := runResolve(resolveOpts{ref: tc.ref, root: root, out: &buf}); err != nil {
+			t.Fatalf("%s: %v", tc.ref, err)
+		}
+		lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+		if len(lines) != len(tc.wants) {
+			t.Fatalf("%s: got %d lines, want %d: %q", tc.ref, len(lines), len(tc.wants), buf.String())
+		}
+		for i, w := range tc.wants {
+			if !strings.HasSuffix(lines[i], w) {
+				t.Errorf("%s line %d = %q, want suffix %q (ordering: issue → plan → reviews)", tc.ref, i, lines[i], w)
+			}
+		}
+	}
+}
