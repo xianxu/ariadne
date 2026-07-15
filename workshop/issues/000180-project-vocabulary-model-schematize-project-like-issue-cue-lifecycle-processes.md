@@ -1,11 +1,12 @@
 ---
 id: 000180
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-15
 updated: 2026-07-15
 estimate_hours:
+started: 2026-07-15T15:12:34-07:00
 ---
 
 # project vocabulary model: schematize project like issue (cue + lifecycle + processes)
