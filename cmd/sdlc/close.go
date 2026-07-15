@@ -1022,6 +1022,12 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 		}
+		if review.Verdict == judge.VerdictFixThenShip {
+			// #174: state the post-FIX-THEN-SHIP protocol at the moment of
+			// ambiguity — before the lessons reminder, so bookkeeping lands
+			// inside the same pre-commit window the protocol describes.
+			cwarn(stderr, formatFixThenShipProtocol(verb))
+		}
 		if f.Milestone == "" { // #160 Q4: lessons ping only at the whole-issue close boundary
 			emitLessonsReminder(stdout)
 		}
@@ -1559,6 +1565,25 @@ func formatMissingVerdicts(issueStr string, missing []string) string {
 	lines = append(lines, verdictNextActionLines(issueStr, missing)...)
 	lines = append(lines, "")
 	lines = append(lines, verdictBypassClosingLine)
+	return strings.Join(lines, "\n")
+}
+
+// formatFixThenShipProtocol builds the post-FIX-THEN-SHIP next-action block
+// (#174). FIX-THEN-SHIP finalizes the close but the findings still need
+// fixing — and nothing else states what to do with them, which is how the
+// re-close loop and the publish-gate --no-judge bypasses started (#172).
+// verb is closeVerb(f.Milestone) — the escape hatch names the boundary verb
+// that was actually run (same threading as the REWORK arm). Pure.
+func formatFixThenShipProtocol(verb string) string {
+	var lines []string
+	lines = append(lines, "FIX-THEN-SHIP protocol (#174):")
+	lines = append(lines, "      1. Fix the findings NOW, before committing this close.")
+	lines = append(lines, "      2. Bundle the fixes + the issue-file close mutations (+ lessons/bookkeeping)")
+	lines = append(lines, "         into ONE commit (or amend), so the publish gate's reviewed anchor is HEAD.")
+	lines = append(lines, fmt.Sprintf("      3. Do NOT re-run `%s` — this verdict already sanctions shipping after", verb))
+	lines = append(lines, "         the fixes; a second review of the same boundary is the #172 re-close loop.")
+	lines = append(lines, fmt.Sprintf("      Only if fixes must land AFTER the close commit: re-run `%s` so the", verb))
+	lines = append(lines, "      delta is re-reviewed and the anchor advances (doc-only deltas pass on their own).")
 	return strings.Join(lines, "\n")
 }
 
