@@ -435,7 +435,14 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	}
 
 	if windowBase != "" {
-		diffFiles, _ := gitx.DiffNames(windowBase, "HEAD")
+		diffFiles, derr := gitx.DiffNames(windowBase, "HEAD")
+		if derr != nil {
+			// #177 review Important #1: a swallowed diff error used to inherit the
+			// refusal (fail-closed); with the auto-satisfy arm, nil files would
+			// fail OPEN ("0 doc files — auto-satisfied"). A broken window diff is
+			// a hard stop, consistent with the other git failures in this path.
+			die(stderr, fmt.Sprintf("window diff %s..HEAD failed: %v", shortSHA(windowBase), derr))
+		}
 		var atlasChanged, nonAtlas []string
 		for _, p := range diffFiles {
 			if strings.HasPrefix(p, "atlas/") {

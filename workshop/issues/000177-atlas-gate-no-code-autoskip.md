@@ -1,12 +1,13 @@
 ---
 id: 000177
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours: 0.44
 started: 2026-07-14T17:20:20-07:00
+actual_hours: 0.23
 ---
 
 # atlas gate: auto-satisfy when the close window contains no code changes
@@ -74,6 +75,7 @@ Single review boundary (no Mx tags).
 ## Log
 
 ### 2026-07-14 — built (single pass)
+- 2026-07-14: closed — go test ./cmd/sdlc/... green incl the 3 new suites (hasCodePath table with conservative Makefile/extensionless arms, info-line format, gatesig no-collision); hermetic live verify via milestone-close --dry-run: docs-only window prints "atlas gate: no code surface in window (2 doc/workshop file(s)) — auto-satisfied", adding a .go file restores the exact refusal; this close runs with --actual omitted (adopt path, #178); review verdict: FIX-THEN-SHIP
 
 `hasCodePath` (single docs classifier: *.md / workshop/ / atlas/ / docs/;
 everything else conservatively code) + the auto-satisfy arm in computeClose

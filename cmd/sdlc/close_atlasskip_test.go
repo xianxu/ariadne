@@ -8,6 +8,23 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 )
 
+// assertNoGatesigCollision matches an info line against every GateCatalog
+// pattern the way the #172 classifier does — ANSI-STRIPPED (friction.go strips
+// before matching; a pattern spanning the "==> " prefix would otherwise slip
+// the test while firing live). Shared by the #177 and #178 info-line guards.
+func assertNoGatesigCollision(t *testing.T, renderedLine string) {
+	t.Helper()
+	stripped := regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(renderedLine, "")
+	for _, g := range processmanual.GateCatalog {
+		if g.AckPat != "" && regexp.MustCompile(g.AckPat).MatchString(stripped) {
+			t.Errorf("line matches %s/%s AckPat: %q", g.Commands, g.Flag, stripped)
+		}
+		if g.RefusalPat != "" && regexp.MustCompile(g.RefusalPat).MatchString(stripped) {
+			t.Errorf("line matches %s/%s RefusalPat: %q", g.Commands, g.Flag, stripped)
+		}
+	}
+}
+
 // #177: the single docs classifier — *.md anywhere, or anything under
 // workshop/, atlas/, docs/. Everything else (Makefile, .gitignore,
 // extensionless files) conservatively counts as code: build files ARE
@@ -49,13 +66,5 @@ func TestAtlasAutoSatisfyLine(t *testing.T) {
 // else the friction report would count routine auto-satisfactions as gate events.
 func TestAtlasAutoSatisfyLineNoGatesigCollision(t *testing.T) {
 	// as rendered: cinfo prefixes "==> " with ANSI + the reset marker
-	line := "\x1b[1;36m==>\x1b[0m " + atlasAutoSatisfyLine(2)
-	for _, g := range processmanual.GateCatalog {
-		if g.AckPat != "" && regexp.MustCompile(g.AckPat).MatchString(line) {
-			t.Errorf("auto-satisfy line matches %s/%s AckPat", g.Commands, g.Flag)
-		}
-		if g.RefusalPat != "" && regexp.MustCompile(g.RefusalPat).MatchString(line) {
-			t.Errorf("auto-satisfy line matches %s/%s RefusalPat", g.Commands, g.Flag)
-		}
-	}
+	assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+atlasAutoSatisfyLine(2))
 }

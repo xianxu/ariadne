@@ -35,3 +35,17 @@ mutation + judge): a docs-only window printed
 adding one `.go` file to the same window restored the exact old refusal.
 Doc sweep: helptext close.md (2 spots) + milestone-close.md, AGENTS.base.md §5
 (+ generated AGENTS.md in place), atlas sdlc-binary.md gate paragraph.
+
+### 2026-07-14 — close-review fixes (FIX-THEN-SHIP)
+
+Important #1: the pre-existing swallowed `gitx.DiffNames` error would have
+flipped fail-closed → fail-open under the new arm (git failure → nil files →
+auto-satisfy); the gate now DIES on a window-diff failure, consistent with the
+path's other git failures. The legitimate empty window (nil, nil) still
+auto-satisfies. Important #2: the weave-generated entry files (CLAUDE.md et al)
+now derive — `weave compile` re-run; they'd been stale since before #178's
+sweep (the settings.json half of compile was sandbox-blocked; prose faces
+landed). Minors: the gatesig collision guard is now the shared
+`assertNoGatesigCollision` helper and matches ANSI-STRIPPED lines (the way the
+classifier does) — fixes #178's copy too. Case-sensitive `.md` left as-is
+(conservative miss direction).
