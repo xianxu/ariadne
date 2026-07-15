@@ -1,11 +1,12 @@
 ---
 id: 000171
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 estimate_hours:
+started: 2026-07-14T20:24:05-07:00
 ---
 
 # the tension between brain and other repos
