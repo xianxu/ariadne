@@ -156,8 +156,7 @@ type migrateOpts struct {
 	destPath     string // --dest-path: repo-root-relative path at dest ("" = same as source)
 	noCommit     bool
 	noCleanCheck bool
-	stdout       io.Writer
-	stderr       io.Writer
+	stderr       io.Writer // all migrate output is stderr (status/report); stdout stays clean
 }
 
 // gitInDir runs one git command in dir, returning combined output.
@@ -268,6 +267,13 @@ func runMigrate(o *migrateOpts) error {
 	}
 	destRel = filepath.ToSlash(destRel)
 	destFile := filepath.Join(destTop, filepath.FromSlash(destRel))
+	// Containment guard (close review I3): a traversal --dest-path
+	// (../evil.md) would otherwise write a stray file OUTSIDE the dest repo
+	// before git add fails — breaking fail-closed. Mirror the source-side
+	// inside-repo check.
+	if rel, rerr := filepath.Rel(destTop, destFile); rerr != nil || strings.HasPrefix(rel, "..") {
+		die(o.stderr, fmt.Sprintf("--dest-path %s escapes the destination repo (%s) — pass a repo-root-relative path", o.destPath, destRepo))
+	}
 	if _, err := os.Stat(destFile); err == nil {
 		die(o.stderr, fmt.Sprintf("destination path %s already exists in %s — pass --dest-path to place it elsewhere", destRel, destRepo))
 	}
@@ -297,6 +303,10 @@ func runMigrate(o *migrateOpts) error {
 		cinfo(o.stderr, fmt.Sprintf("line %d: %s → %s", r.Line, r.Old, r.New))
 	}
 	if len(rewrites) == 0 {
+		// NOTE: with zero rewrites there is nothing to verify, so the
+		// non-sibling-dest backstop (a side effect of dest-vantage
+		// verification) is vacuous for ref-free files. Harmless in v1 —
+		// the file carries no refs that could dangle.
 		cinfo(o.stderr, "no refs needed rewriting")
 	}
 
@@ -407,7 +417,7 @@ func NewMigrateCmd() *cobra.Command {
 			// a brain is the #171 use case; the brain guard applies to the
 			// DESTINATION instead (inside runMigrate).
 			o.file, o.destDir = args[0], args[1]
-			o.stdout, o.stderr = cmd.OutOrStdout(), cmd.ErrOrStderr()
+			o.stderr = cmd.ErrOrStderr()
 			return runMigrate(&o)
 		},
 	})

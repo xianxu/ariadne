@@ -117,3 +117,19 @@
 - The scanner regex and `parseRef` MUST stay coupled through the drift test — if the grammar ever gains a form, the round-trip test is what breaks loudly.
 - New stderr lines: run `assertNoGatesigCollision` over the refusal + summary lines (close_atlasskip_test.go pattern) — cheap insurance even though migrate isn't in the gate catalog.
 - Don't add migrate to `processmanual.WorkflowVerbs()`; its drift test enumerates the spine — absence is the point (runs in brain, outbound).
+
+## Revisions
+
+### 2026-07-15 — close-review (FIX-THEN-SHIP) deltas
+
+1. **Containment guard added** (review I3): `--dest-path` is now checked to
+   stay inside the destination repo (`filepath.Rel` mirror of the source-side
+   guard) — a traversal value previously wrote a stray file outside the repo
+   before `git add` failed, breaking fail-closed. Happy-path + traversal
+   tests added (the flag previously had zero coverage).
+2. Live dogfood (Task 5) found the symlinked-cwd guard misfire (os.Getwd's
+   logical-$PWD vs git's resolved paths) — fixed with EvalSymlinks on both
+   sides + a $PWD-setting regression test, already logged in the issue.
+3. Minor review items applied: unused `migrateOpts.stdout` dropped (all
+   output is stderr); zero-rewrites verification vacuity documented at the
+   branch; atlas/index.md hook line mentions migrate.

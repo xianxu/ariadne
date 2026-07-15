@@ -1,12 +1,13 @@
 ---
 id: 000179
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-15
 updated: 2026-07-15
 estimate_hours: 1.16
 started: 2026-07-15T11:49:25-07:00
+actual_hours: 0.24
 ---
 
 # sdlc migrate: move a markdown artifact across peer repos with ref rewrite
@@ -120,6 +121,7 @@ parseRef candidate filter). Single-pass, plain checkboxes.
 ## Log
 
 ### 2026-07-15
+- 2026-07-15: closed — go test ./cmd/sdlc/... 11/11 green: 20-case rewriter table + grammar drift test, 10 e2e scenarios on real two-repo fixtures (guards, fail-closed verification, scoped commits, --no-commit), round-trip canonicalization+idempotence, bare-ref mutation check reddens 12 tests; live dogfood on scratch fixture passed end-to-end and caught+fixed the symlinked-cwd guard misfire; review verdict: FIX-THEN-SHIP
 
 Filed from the #171 brainstorm (operator): moves become normal under
 peer-repo addressing, rules are fixed patterns → binary-owned. Bare-ref
