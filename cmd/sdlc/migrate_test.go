@@ -487,3 +487,27 @@ func TestMigrateLines_NoGatesigCollision(t *testing.T) {
 		assertNoGatesigCollision(t, line)
 	}
 }
+
+// #179 regression (found by live dogfood): Go's os.Getwd prefers the $PWD
+// env var — a LOGICAL, symlink-preserving path — while git rev-parse
+// --show-toplevel returns the RESOLVED path. Under a symlinked cwd (macOS
+// /tmp → /private/tmp, or any `ln -s`), filepath.Abs and the repo top then
+// disagree on a prefix and the inside-repo guard misfires. runMigrate must
+// EvalSymlinks both sides.
+func TestRunMigrate_SymlinkedCwd(t *testing.T) {
+	srcRoot, dstRoot := migrateRepos(t)
+	parent := filepath.Dir(srcRoot)
+	link := filepath.Join(parent, "link-parent")
+	if err := os.Symlink(parent, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	// Simulate the shell: logical $PWD through the symlink, same physical dir.
+	t.Setenv("PWD", filepath.Join(link, filepath.Base(srcRoot)))
+	var errBuf strings.Builder
+	if err := runMigrate(&migrateOpts{file: "data/project/p.md", destDir: "../dst", stdout: io.Discard, stderr: &errBuf}); err != nil {
+		t.Fatalf("runMigrate under symlinked $PWD: %v\nstderr:\n%s", err, errBuf.String())
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "data/project/p.md")); err != nil {
+		t.Errorf("dest file not written: %v", err)
+	}
+}

@@ -208,18 +208,28 @@ func runMigrate(o *migrateOpts) error {
 
 	// (0) source path normalization: must lie inside the cwd repo — the
 	// transaction lock and the source-side commit are anchored there.
+	// EvalSymlinks BOTH sides before comparing: os.Getwd (behind
+	// filepath.Abs) prefers the logical $PWD env path, while git returns
+	// the resolved one — under a symlinked cwd (macOS /tmp) the two
+	// disagree on a prefix and Rel would misfire (live-dogfood regression).
 	absFile, err := filepath.Abs(o.file)
 	if err != nil {
 		die(o.stderr, fmt.Sprintf("resolve %s: %v", o.file, err))
+	}
+	if _, err := os.Stat(absFile); err != nil {
+		die(o.stderr, fmt.Sprintf("source file %s: %v", o.file, err))
+	}
+	if resolved, rerr := filepath.EvalSymlinks(absFile); rerr == nil {
+		absFile = resolved
+	}
+	if resolved, rerr := filepath.EvalSymlinks(srcRoot); rerr == nil {
+		srcRoot = resolved
 	}
 	relPath, err := filepath.Rel(srcRoot, absFile)
 	if err != nil || strings.HasPrefix(relPath, "..") {
 		die(o.stderr, fmt.Sprintf("%s is not inside the current repo (%s) — run migrate from the repo that owns the file (the lock and the source commit anchor there)", o.file, srcRepo))
 	}
 	relPath = filepath.ToSlash(relPath)
-	if _, err := os.Stat(absFile); err != nil {
-		die(o.stderr, fmt.Sprintf("source file %s: %v", relPath, err))
-	}
 
 	// (1) tracked + unmodified — we migrate reviewed, committed state only.
 	if out, err := gitInDir(srcRoot, "status", "--porcelain", "--untracked-files=all", "--", relPath); err != nil {
