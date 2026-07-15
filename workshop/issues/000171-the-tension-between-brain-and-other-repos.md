@@ -43,6 +43,9 @@ metis-v1, metis-v2-experiment-algebra, shared-brain).
 
 ## Spec
 
+**(SUPERSEDED — see `## Revisions` 2026-07-15: no meta repo; peer-repo
+addressing + sdlc project lift instead.)**
+
 **Decision (operator, 2026-07-14): create a `meta` repo** — the cross-repo
 coordination container ("company container"). Chosen over (a) a
 non-auto-committed subtree in brain (keeps coordination behind brain's
@@ -87,8 +90,70 @@ set (project iteration sessions will now happen there).
 
 ## Plan
 
-- [ ] design via start-plan (repo scaffold, resolution order in the project
-      gate, migration steps, base-layer edits) → durable plan
+- [ ] design via start-plan (the sdlc project lift: resolve-based project
+      lookup in the close gate, peer-write commit mechanics, residency
+      default + move procedure, §8/atlas updates) → durable plan; decide
+      there whether the lift splits into implementation sub-issues
+
+## Revisions
+
+### 2026-07-15 — meta repo DROPPED; peer-repo addressing + sdlc project lift
+
+**Reason:** three further realizations (operator), after a two-axis reframe
+(scope × commit-rhythm) and a top-product-residency detour:
+
+1. **Hub model rejected on first principles.** A "project management repo"
+   (meta ≈ local Jira) hard-codes today's org shape into artifact layout;
+   reorgs (sub-teams → repo-per-team) make containers churn. The ariadne
+   approach is to design the agentic-age SDLC from first principles, not to
+   reproduce Jira's container pathology locally.
+2. **Committing to peer-repo addressing dissolves the container question.**
+   With qualified `repo#id` refs as the universal addressing scheme and
+   `sdlc resolve` as lookup, an artifact's home repo is an implementation
+   detail. Projects (and future cross-repo artifacts) live wherever the work
+   center of gravity is (default: the top-product repo — soft rule, not
+   architecture) and can MOVE between repos cheaply (mechanical ref rewrite
+   `#222` → `metis#111`; the formal ref grammar makes this greppable).
+3. **The real work is lifting project management into sdlc** — the same lift
+   issues got: today it's a datatype + §8 prose discipline + ONE hardcoded
+   lookup (`close --brain-dir` → `../brain/data/project/`). The lift:
+   project lookup goes through peer-walking resolution (not a hardcoded
+   path); project verbs join the spine; sdlc grows from "how do I fix one
+   issue" to "how do I manage a long-running project."
+
+**Delta vs the 2026-07-14 Spec:**
+- No meta repo. No file migration to a new container. The 5 project files
+  relocate (or stay) per the center-of-gravity default, addressed by
+  `repo#id` — decided per-project at design time.
+- The two-axis analysis stands (brain = per-user + auto-save capture is
+  CORRECT; calibration/transcripts stay in brain), but its conclusion was
+  wrong: breadth is a VIEW/RESOLUTION concern, not a storage concern — no
+  (broad, deliberate) container is needed.
+- Carried forward into the design: the **peer-write commit mechanics**
+  (close updating a project file in a peer repo must scoped-commit there or
+  warn loudly — the wrinkle exists under every candidate, now designed once);
+  the **endpoint-less artifacts** residual (portfolio-wide roadmap has no
+  product repo — park in brain as intent/capture until it hurts); parley's
+  super-repo search specializing `project` as an always-cross-repo artifact
+  class complements `sdlc resolve`.
+- Orthogonal thread spun out of the discussion (not this issue): the weave
+  conflates *tool dependency* with *constitution layer* (brain needs nous's
+  binary, inherits ariadne's SDLC constitution transitively). A
+  workbench-only profile / dependency-kind distinction is the principled
+  #176 completion — future issue.
+
+**Revised Done when:**
+- `sdlc close`'s project gate finds a project file in ANY peer repo via
+  resolution (no `--brain-dir` hardcode); closing a project-tracked issue
+  ticks the file wherever it lives, with the peer-write committed or loudly
+  reported.
+- `sdlc resolve` (and parley super-repo search) resolve project refs across
+  the fleet.
+- A documented default + move procedure for project residency (center of
+  gravity / top product; ref-rewrite on move) lands in §8 + the project
+  datatype; brain's `data/project/` is emptied per-project, not migrated
+  wholesale.
+- Working a cross-repo project no longer requires starting in brain.
 
 ## Log
 
@@ -105,3 +170,15 @@ source (measurement) — and the clean split is the main evidence the meta
 boundary is natural, not forced. Operator picked the meta repo; Spec captures
 the decision, the residency rule, and the transition mechanics. Next: `sdlc
 start-plan` + durable design.
+
+### 2026-07-15 — reframe arc → final direction
+
+Three-session brainstorm arc, recorded for the design: (1) meta repo decided
+(7/14); (2) two-axis reframe — scope × rhythm — showed brain is a correct
+(per-user, auto-save) capture store and calibration/transcripts never move;
+(3) top-product residency + tooling detour surfaced the driving-seat argument
+(container repos are context-starved seats; colocation with code is the
+monorepo lesson); (4) final: commit to peer-repo `repo#id` addressing, make
+sdlc resolution cross-repo, lift project management into the sdlc spine (the
+same prose→binary lift issues received). See ## Revisions for the delta and
+carried-forward design questions.
