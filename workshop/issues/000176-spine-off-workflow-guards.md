@@ -93,13 +93,26 @@ Single review boundary (no Mx tags).
 - [x] inventory brain's workshop/issues backlog — done, recorded in Log: 1 open
   + 9 archived (all June-era, already done); the audit's brain#116/#128
   anomalies were cwd-label noise; nothing to migrate
-- [ ] Task 1 — guardSpineRepo (brain marker + no-workshop/issues arms, env escape
+- [x] Task 1 — guardSpineRepo (brain marker + no-workshop/issues arms, env escape
   with cwarn ACK) + done-issue guard on start-plan/change-code + WorkflowVerbs
   drift test + gatesig no-collision (TDD)
-- [ ] Task 2 — docs (helptext, AGENTS.base.md, atlas) + brain AGENTS.local.md
+- [x] Task 2 — docs (helptext, AGENTS.base.md, atlas) + brain AGENTS.local.md
   charter + weave + live verify + close
 
 ## Log
+
+### 2026-07-14 — built (single pass)
+
+`repoguard.go`: guardSpineRepo (brain-marker refusal with charter + positive
+path; no-workshop/issues refusal, repo-top anchored; WF_SPINE_GUARD=off env
+hatch with measurable cwarn ACK) wired first into all 7 lifecycle verbs;
+guardIssueNotDone on start-plan/change-code (done is terminal per issue.cue).
+Drift test enumerates the verb set from processmanual.WorkflowVerbs; gatesig
+no-collision on all four new lines. Brain constitution: AGENTS.local.md
+charter section, weave-compiled into brain's entry files (autosave committed).
+Live-verified in the REAL brain: claim refuses with the charter,
+estimate-source reads fine, env bypass ACKs. go build/vet/test green
+(including the cwd-subdirectory regression the suite itself caught).
 
 ### 2026-07-14 — brain inventory (plan prerequisite)
 
