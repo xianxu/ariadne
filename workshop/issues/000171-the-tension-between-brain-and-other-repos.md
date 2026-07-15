@@ -218,3 +218,11 @@ history — vindicated as designed, just with no SDLC artifacts in it.
 mechanical. Remaining implementation: the sdlc project-gate lift
 (resolve-based lookup + peer-write commit), the parley `project` artifact
 class, §8/atlas updates, and moving the 5 files.
+
+### 2026-07-15 — schema half split out as #180
+
+The sdlc project lift needs a schematized noun to lift onto: #180 files the
+project vocabulary model (construct/vocabulary/project.cue + pkg/vocab +
+conformance + prose-derives-from-model), mirroring issue's treatment. #171
+keeps the residency/navigation/close-gate half; its design consumes #180's
+model (soft ordering: model first or together).
