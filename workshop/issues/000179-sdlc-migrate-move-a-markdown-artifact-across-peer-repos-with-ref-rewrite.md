@@ -1,11 +1,12 @@
 ---
 id: 000179
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-15
 updated: 2026-07-15
 estimate_hours:
+started: 2026-07-15T11:49:25-07:00
 ---
 
 # sdlc migrate: move a markdown artifact across peer repos with ref rewrite
