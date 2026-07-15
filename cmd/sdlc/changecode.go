@@ -67,6 +67,7 @@ func NewChangeCodeCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			f.AgentExplicit = cmd.Flags().Changed("agent")
 			return runChangeCode(cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
@@ -105,6 +106,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	if err != nil {
 		die(stderr, err.Error())
 	}
+	guardIssueNotDone(stderr, issuePath, strconv.Itoa(f.Issue)) // #176 done-issue guard
 
 	// 2. Read issue content (and optional plan file).
 	issueBytes, err := os.ReadFile(issuePath)

@@ -37,6 +37,13 @@ func NewStartPlanCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
+			if issue > 0 {
+				issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+				if path, err := locateIssueFile(issuesDir, issue); err == nil {
+					guardIssueNotDone(cmd.ErrOrStderr(), path, strconv.Itoa(issue)) // #176 done-issue guard
+				}
+			}
 			runStartPlan(cmd.OutOrStdout(), issue)
 			return nil
 		},

@@ -78,6 +78,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			f.AgentExplicit = cmd.Flags().Changed("agent")
 			return runMilestoneCloseLocked(cmd, cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
