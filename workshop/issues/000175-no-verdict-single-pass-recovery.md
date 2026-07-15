@@ -1,11 +1,12 @@
 ---
 id: 000175
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours:
+started: 2026-07-14T18:42:44-07:00
 ---
 
 # no-verdict gate: accept the issue-close review for trailing unclosed milestones (single-pass Mx recovery)
