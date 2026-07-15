@@ -1,11 +1,12 @@
 ---
 id: 000181
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-15
 updated: 2026-07-15
 estimate_hours:
+started: 2026-07-15T16:23:08-07:00
 ---
 
 # workshop/history subfolders: history/issues, history/plans, later history/projects
