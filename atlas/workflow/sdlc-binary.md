@@ -154,7 +154,7 @@ cmd/sdlc/
   ghclient.go          ghCaller interface + realGH impl (shared)
   preflight.go         runPreflightJudges (push + merge pre-flight)
   close.go             ← scripts/close-issue.py
-  actual.go            new (#68): computeActual → internal/activetime → suggested --actual
+  actual.go            new (#68): computeActual → internal/activetime → measured --actual (adopted at close when omitted, #178)
   activetime.go        new (#110): `sdlc active-time` CLI (runActiveTime + table renderer)
   internal/activetime/ new (#110): native v3 engine ported from active-time-v3.py
                        (event/commit/segment loaders + Compute; pure core + thin IO seam)

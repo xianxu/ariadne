@@ -17,8 +17,9 @@ MODES
 
   (Milestone closing lives on `sdlc milestone-close` — `close` no longer takes
    `--milestone` (#146). See `sdlc milestone-close --help`.)
-  (The --actual values above are MEASURED — from `sdlc actual` or the omit-then-
-   suggest path below — not typed estimates. See the --actual flag note.)
+  (The --actual values above are MEASURED — from `sdlc actual` or, when the
+   flag is omitted, adopted directly from the measurement (#178) — not typed
+   estimates. See the --actual flag note.)
 
   THE BOUNDARY REVIEW (#69). A standalone full-issue close auto-dispatches the
   one binary-owned fresh-context review on the whole-issue window (the same
@@ -33,9 +34,11 @@ MODES
 
 WHAT THE GUARD DEFENDS
 
-  --actual <hours>     focused dev-hours (sdlc computes it — close suggests a
-                       number, or run `sdlc actual --issue N`). Required unless
-                       measurement is explicitly not applicable.
+  --actual <hours>     focused dev-hours. Omit it: close measures and ADOPTS
+                       the value (#178; loud info line with window + attribution).
+                       An explicit value is deviation-checked (#87). Run
+                       `sdlc actual --issue N` to preview. Required by hand only
+                       when measurement fails.
   --verified '<line>'  one-line evidence the work meets done-when (behavior,
                        not artifacts: "tests pass" beats "code written").
                        Required.
@@ -121,12 +124,12 @@ DEEP-DIVE REFERENCES
   construct/datatype/project.md      project-file shape & detail blocks
 
 If --actual is missing, close runs active-time-v3 itself (brain + repo
-transcript dirs, this issue's window + auto-discovered peers) and prints the
-measured suggestion inline — `→ close with: --actual <h>` — or, when the
-telemetry isn't available, points you to a labeled judgment estimate. The
-suggestion may include attribution warnings; inspect those before recording the
-actual, because they identify dominant long runs or mention fallback where commit
-boundary evidence was weak. If
+transcript dirs, this issue's window + auto-discovered peers) and ADOPTS the
+measured value in the same invocation (#178) — a loud info line shows the hours,
+window, and peer attribution. When the telemetry isn't available it refuses and
+points you to a labeled judgment estimate. Attribution warnings print alongside
+the adoption; inspect them, because they identify dominant long runs or mention
+fallback where commit boundary evidence was weak. If
 --verified is missing, the explainer shows a worked example of a
 behavior-grounded VERIFIED string. Read the explainer; the contract is
 load-bearing.

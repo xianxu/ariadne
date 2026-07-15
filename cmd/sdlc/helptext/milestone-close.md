@@ -49,8 +49,9 @@ FLAGS
   --issue <n>           ariadne workshop issue ID (required, positive)
   --milestone <Mx>      milestone tag (required)
   --actual <hours>      focused dev-hours — MEASURED, not typed. Omit it and
-                        close computes + suggests the value (active-time-v3),
-                        or run `sdlc actual --issue N` first; don't hand-type.
+                        close ADOPTS the measured value (active-time-v3; #178 —
+                        the info line states the cumulative-window semantics),
+                        or run `sdlc actual --issue N` to preview; don't hand-type.
                         A passed value is sanity-checked against the measurement
                         (#87, inherited from close): ≥3× warns, ≥10× refuses.
   --verified '<line>'   one-line behavior evidence

@@ -14,7 +14,7 @@ the contract, and use the verbs instead of hand-editing:
 - `sdlc issue set-status <status> --issue N` — flip status (carries the
   transition guards); `sdlc claim --issue N` to start work.
 - `sdlc issue list` / `sdlc issue show <N>` — inspect.
-- `sdlc close --issue N --verified '<evidence>'` — close. `--actual` is **measured, not typed**: omit it (close computes + suggests it) or run `sdlc actual --issue N` first; never hand-type the hours.
+- `sdlc close --issue N --verified '<evidence>'` — close. `--actual` is **measured, not typed**: omit it (close measures + adopts it; milestones still suggest) or run `sdlc actual --issue N` to preview; never hand-type the hours.
 
 This skill keeps only the judgment the binary can't encode.
 
