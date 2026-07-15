@@ -87,6 +87,12 @@ func TestAssessDirty(t *testing.T) {
 		{"untracked issue file proceeds", "?? workshop/issues/000888-wip.md\n", false, 0, 0, 1},
 		{"dirty history file proceeds", " M workshop/history/000080-done.md\n", false, 0, 0, 1},
 		{"renamed into history proceeds", "R  workshop/issues/000080-x.md -> workshop/history/000080-x.md\n", false, 0, 0, 1},
+		// #181 subfolder layout: both per-kind subdirs classify as Tracker.
+		// The plans one is the real regression case — a migrated plan file at
+		// history/plans/ would otherwise become Blocking and refuse merges.
+		{"dirty subfoldered issue proceeds", " M workshop/history/issues/000080-done.md\n", false, 0, 0, 1},
+		{"dirty subfoldered plan proceeds", " M workshop/history/plans/000080-done-plan.md\n", false, 0, 0, 1},
+		{"renamed into history/issues proceeds", "R  workshop/issues/000080-x.md -> workshop/history/issues/000080-x.md\n", false, 0, 0, 1},
 		// Regression: worktreeDirty whole-trims its output, so the FIRST porcelain
 		// line loses its leading status space ("M workshop/..." not " M workshop/
 		// ..."). Column-slicing would mis-read the path and bucket it as Blocking;
@@ -242,15 +248,15 @@ func TestArchiveDoneIssuesInDir_MovesTerminalAndRecordsRelativePaths(t *testing.
 		if got, want := moves[i].IssuePath, filepath.Join(issuesDir, name); got != want {
 			t.Errorf("moves[%d].IssuePath = %q, want relative %q", i, got, want)
 		}
-		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, name); got != want {
+		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, "issues", name); got != want {
 			t.Errorf("moves[%d].HistoryPath = %q, want relative %q", i, got, want)
 		}
 	}
 	if len(stub.closed) != 0 {
 		t.Errorf("merge must NOT call gh issue close (PR merge does it via Fixes); got closed = %v", stub.closed)
 	}
-	if _, err := os.Stat(filepath.Join(tmp, historyDir, "000001-done.md")); err != nil {
-		t.Errorf("expected file in history/: %v", err)
+	if _, err := os.Stat(filepath.Join(tmp, historyDir, "issues", "000001-done.md")); err != nil {
+		t.Errorf("expected file in history/issues/: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(tmp, issuesDir, "000004-working.md")); err != nil {
 		t.Errorf("working file should remain in issues/: %v", err)

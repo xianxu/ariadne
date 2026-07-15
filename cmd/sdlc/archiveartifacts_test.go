@@ -42,8 +42,8 @@ func TestArchivePlanArtifacts(t *testing.T) {
 		t.Fatalf("want 2 plan moves, got %d: %#v", len(moves), moves)
 	}
 	for _, name := range []string{"000143-x-plan.md", "000143-x-close-review.md"} {
-		if _, err := os.Stat(filepath.Join(history, name)); err != nil {
-			t.Errorf("%s should be in history: %v", name, err)
+		if _, err := os.Stat(filepath.Join(history, "plans", name)); err != nil {
+			t.Errorf("%s should be in history/plans: %v", name, err)
 		}
 		if _, err := os.Stat(filepath.Join(plans, name)); !os.IsNotExist(err) {
 			t.Errorf("%s should be gone from plans (err=%v)", name, err)
@@ -57,8 +57,8 @@ func TestArchivePlanArtifacts(t *testing.T) {
 	// archive git-add args — this is what makes them committed, pinned at unit level.
 	add := strings.Join(archiveAddArgs(moves), " ")
 	for _, want := range []string{
-		filepath.Join("plans", "000143-x-plan.md"), filepath.Join("history", "000143-x-plan.md"),
-		filepath.Join("plans", "000143-x-close-review.md"), filepath.Join("history", "000143-x-close-review.md"),
+		filepath.Join("plans", "000143-x-plan.md"), filepath.Join("history", "plans", "000143-x-plan.md"),
+		filepath.Join("plans", "000143-x-close-review.md"), filepath.Join("history", "plans", "000143-x-close-review.md"),
 	} {
 		if !strings.Contains(add, want) {
 			t.Errorf("archiveAddArgs missing %q:\n%s", want, add)
@@ -92,8 +92,8 @@ func TestArchivePlanArtifacts_UntrackedSidecarStagesDestOnly(t *testing.T) {
 	}
 	// Both files physically moved to history regardless of trackedness.
 	for _, name := range []string{"000154-x-plan.md", "000154-x-close-review.md"} {
-		if _, err := os.Stat(filepath.Join(history, name)); err != nil {
-			t.Errorf("%s should be in history: %v", name, err)
+		if _, err := os.Stat(filepath.Join(history, "plans", name)); err != nil {
+			t.Errorf("%s should be in history/plans: %v", name, err)
 		}
 	}
 	// The move flags: sidecar untracked, plan tracked.
@@ -111,15 +111,18 @@ func TestArchivePlanArtifacts_UntrackedSidecarStagesDestOnly(t *testing.T) {
 	// The staging contract: the untracked sidecar's vanished plans source is NOT
 	// in the add-list (that's the exit-128 pathspec failure this fixes), its
 	// history dest IS; the tracked plan stages both halves.
-	add := strings.Join(archiveAddArgs(moves), " ")
+	addArgs := archiveAddArgs(moves)
+	add := strings.Join(addArgs, " ")
 	sidecarSrc := filepath.Join("plans", "000154-x-close-review.md")
-	if strings.Contains(add, sidecarSrc) {
-		t.Errorf("untracked sidecar source %q must NOT be staged (pathspec would fail):\n%s", sidecarSrc, add)
+	for _, arg := range addArgs {
+		if arg == sidecarSrc {
+			t.Errorf("untracked sidecar source %q must NOT be staged (pathspec would fail):\n%s", sidecarSrc, add)
+		}
 	}
 	for _, want := range []string{
-		filepath.Join("history", "000154-x-close-review.md"), // sidecar dest
-		filepath.Join("plans", "000154-x-plan.md"),           // tracked plan src
-		filepath.Join("history", "000154-x-plan.md"),         // tracked plan dest
+		filepath.Join("history", "plans", "000154-x-close-review.md"), // sidecar dest
+		filepath.Join("plans", "000154-x-plan.md"),                    // tracked plan src
+		filepath.Join("history", "plans", "000154-x-plan.md"),         // tracked plan dest
 	} {
 		if !strings.Contains(add, want) {
 			t.Errorf("archiveAddArgs missing %q:\n%s", want, add)
@@ -177,9 +180,13 @@ func TestArchiveDoneIssues_UntrackedSidecar_RealRepo(t *testing.T) {
 	if out, _ := pushRunner.Git("status", "--porcelain"); strings.TrimSpace(string(out)) != "" {
 		t.Errorf("worktree not clean after archive — half-archived state (#154):\n%s", out)
 	}
-	for _, name := range []string{"000154-x.md", "000154-x-plan.md", "000154-x-close-review.md"} {
-		if out, gerr := pushRunner.Git("ls-files", "--error-unmatch", "--", filepath.Join(history, name)); gerr != nil {
-			t.Errorf("%s should be tracked in history after archive: %v\n%s", name, gerr, out)
+	for _, rel := range []string{
+		filepath.Join("issues", "000154-x.md"),
+		filepath.Join("plans", "000154-x-plan.md"),
+		filepath.Join("plans", "000154-x-close-review.md"),
+	} {
+		if out, gerr := pushRunner.Git("ls-files", "--error-unmatch", "--", filepath.Join(history, rel)); gerr != nil {
+			t.Errorf("%s should be tracked in history after archive: %v\n%s", rel, gerr, out)
 		}
 	}
 }
@@ -233,9 +240,13 @@ func TestArchiveDoneIssuesInDir_UntrackedSidecar_RealRepo(t *testing.T) {
 	if out, _ := mergeRunner.GitInDir(mainPath, "status", "--porcelain"); strings.TrimSpace(string(out)) != "" {
 		t.Errorf("worktree not clean after merge archive — half-archived state (#154):\n%s", out)
 	}
-	for _, name := range []string{"000154-x.md", "000154-x-plan.md", "000154-x-close-review.md"} {
-		if out, gerr := mergeRunner.GitInDir(mainPath, "ls-files", "--error-unmatch", "--", filepath.Join(history, name)); gerr != nil {
-			t.Errorf("%s should be tracked in history after merge archive: %v\n%s", name, gerr, out)
+	for _, rel := range []string{
+		filepath.Join("issues", "000154-x.md"),
+		filepath.Join("plans", "000154-x-plan.md"),
+		filepath.Join("plans", "000154-x-close-review.md"),
+	} {
+		if out, gerr := mergeRunner.GitInDir(mainPath, "ls-files", "--error-unmatch", "--", filepath.Join(history, rel)); gerr != nil {
+			t.Errorf("%s should be tracked in history after merge archive: %v\n%s", rel, gerr, out)
 		}
 	}
 }
@@ -279,9 +290,13 @@ func TestArchiveDoneIssues_SweepsPlanArtifacts(t *testing.T) {
 	if len(moves) != 3 {
 		t.Fatalf("want 3 moves (issue + plan + sidecar), got %d: %#v", len(moves), moves)
 	}
-	for _, name := range []string{"000143-x.md", "000143-x-plan.md", "000143-x-close-review.md"} {
-		if _, err := os.Stat(filepath.Join(history, name)); err != nil {
-			t.Errorf("%s should be archived to history: %v", name, err)
+	for _, rel := range []string{
+		filepath.Join("issues", "000143-x.md"),
+		filepath.Join("plans", "000143-x-plan.md"),
+		filepath.Join("plans", "000143-x-close-review.md"),
+	} {
+		if _, err := os.Stat(filepath.Join(history, rel)); err != nil {
+			t.Errorf("%s should be archived to history: %v", rel, err)
 		}
 	}
 	// The open issue and its plan are untouched.
@@ -318,9 +333,13 @@ func TestArchiveDoneIssuesInDir_SweepsPlanArtifacts(t *testing.T) {
 			t.Errorf("merge archive paths must be mainPath-relative (GitInDir resolves them): %#v", m)
 		}
 	}
-	for _, name := range []string{"000143-x.md", "000143-x-plan.md", "000143-x-m1-review.md"} {
-		if _, err := os.Stat(filepath.Join(tmp, history, name)); err != nil {
-			t.Errorf("%s should be archived to history: %v", name, err)
+	for _, rel := range []string{
+		filepath.Join("issues", "000143-x.md"),
+		filepath.Join("plans", "000143-x-plan.md"),
+		filepath.Join("plans", "000143-x-m1-review.md"),
+	} {
+		if _, err := os.Stat(filepath.Join(tmp, history, rel)); err != nil {
+			t.Errorf("%s should be archived to history: %v", rel, err)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(tmp, plans, "000144-y-plan.md")); err != nil {

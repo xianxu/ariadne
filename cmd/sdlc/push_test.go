@@ -423,7 +423,7 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 		if got, want := moves[i].IssuePath, filepath.Join(issuesDir, name); got != want {
 			t.Errorf("moves[%d].IssuePath = %q, want %q", i, got, want)
 		}
-		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, name); got != want {
+		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, "issues", name); got != want {
 			t.Errorf("moves[%d].HistoryPath = %q, want %q", i, got, want)
 		}
 	}
@@ -436,8 +436,8 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 		t.Errorf("working issue should still be in issues/: %v", err)
 	}
 	// Done file moved.
-	if _, err := os.Stat(filepath.Join(historyDir, "000001-done.md")); err != nil {
-		t.Errorf("done issue should be in history/: %v", err)
+	if _, err := os.Stat(filepath.Join(historyDir, "issues", "000001-done.md")); err != nil {
+		t.Errorf("done issue should be in history/issues/: %v", err)
 	}
 }
 
@@ -473,7 +473,7 @@ func TestPushPublishSequence_CodecompleteFlippedThenArchived(t *testing.T) {
 	if len(moves) != 1 {
 		t.Fatalf("archived %d, want 1", len(moves))
 	}
-	data, err := os.ReadFile(filepath.Join(historyDir, "000160-cc.md"))
+	data, err := os.ReadFile(filepath.Join(historyDir, "issues", "000160-cc.md"))
 	if err != nil {
 		t.Fatalf("codecomplete issue should be archived to history: %v", err)
 	}

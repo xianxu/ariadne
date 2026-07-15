@@ -279,7 +279,7 @@ func TestRunMerge_ArchiveDoesNotSweepUntrackedIssue(t *testing.T) {
 	if !strings.Contains(files, "workshop/issues/000999-done.md") {
 		t.Errorf("archive commit should record the moved issue's deletion; files:\n%s", files)
 	}
-	if !strings.Contains(files, "workshop/history/000999-done.md") {
+	if !strings.Contains(files, "workshop/history/issues/000999-done.md") {
 		t.Errorf("archive commit should record the history addition; files:\n%s", files)
 	}
 	if strings.Contains(files, "000888-unrelated.md") {
@@ -341,9 +341,9 @@ func TestRunMerge_ResumeMergedPR_FinishesCleanup(t *testing.T) {
 	if got := git(t, dir, "branch", "--list", "feature"); got != "" {
 		t.Errorf("feature branch not deleted: %q", got)
 	}
-	// Archive ran for real: the done issue moved into history/, off issues/.
-	if _, err := os.Stat(filepath.Join(dir, "workshop", "history", "000999-done.md")); err != nil {
-		t.Errorf("archived issue not in history/: %v", err)
+	// Archive ran for real: the done issue moved into history/issues/, off issues/.
+	if _, err := os.Stat(filepath.Join(dir, "workshop", "history", "issues", "000999-done.md")); err != nil {
+		t.Errorf("archived issue not in history/issues/: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "workshop", "issues", "000999-done.md")); !os.IsNotExist(err) {
 		t.Errorf("done issue should have moved out of issues/ (err=%v)", err)
@@ -382,8 +382,8 @@ func TestRunMerge_ResumeMergedPR_UnmergedCommits_Refuses(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "workshop", "issues", "000999-done.md")); err != nil {
 		t.Errorf("done issue must stay in issues/ (not archived) on a blocked resume: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "workshop", "history", "000999-done.md")); !os.IsNotExist(err) {
-		t.Error("issue must NOT be archived to history/ on a blocked resume")
+	if _, err := os.Stat(filepath.Join(dir, "workshop", "history", "issues", "000999-done.md")); !os.IsNotExist(err) {
+		t.Error("issue must NOT be archived to history/issues/ on a blocked resume")
 	}
 }
 
@@ -416,7 +416,7 @@ func TestRunMerge_CodecompleteFlippedToDoneAndArchived(t *testing.T) {
 		t.Fatalf("merge should succeed, died: %s", msg)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, "workshop/history/000160-cc.md"))
+	data, err := os.ReadFile(filepath.Join(dir, "workshop/history/issues/000160-cc.md"))
 	if err != nil {
 		t.Fatalf("codecomplete issue should be archived to history: %v", err)
 	}
