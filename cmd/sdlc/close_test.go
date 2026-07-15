@@ -452,6 +452,48 @@ func TestMilestonePlanRE_Enumerates(t *testing.T) {
 	}
 }
 
+// TestPartitionMissingVerdicts pins the trailing-vs-midstream split (#175):
+// a missing milestone BEFORE the last verdict-carrying one is a genuine
+// skipped-review violation (midstream); missing milestones after it (or all,
+// when none carries a verdict — the single-pass case) are trailing and
+// covered by the imminent issue-close review.
+func TestPartitionMissingVerdicts(t *testing.T) {
+	cases := []struct {
+		name               string
+		ordered, missing   []string
+		wantMid, wantTrail []string
+	}{
+		{"single-pass: all missing → all trailing",
+			[]string{"M1", "M2", "M3"}, []string{"M1", "M2", "M3"},
+			nil, []string{"M1", "M2", "M3"}},
+		{"midstream: miss before a verdict-carrying row",
+			[]string{"M1", "M2", "M3"}, []string{"M2"},
+			[]string{"M2"}, nil}, // M3 has a verdict → M2's boundary was crossed unreviewed
+		{"mixed: M1 missing before M2's verdict, M3 trailing",
+			[]string{"M1", "M2", "M3"}, []string{"M1", "M3"},
+			[]string{"M1"}, []string{"M3"}},
+		{"none missing",
+			[]string{"M1", "M2"}, nil, nil, nil},
+		{"only last missing → trailing",
+			[]string{"M1", "M2"}, []string{"M2"}, nil, []string{"M2"}},
+		// The reopened-issue shape: prior milestones all reviewed, one new
+		// trailing Mx added by the reopen — second most likely real-world hit.
+		{"reopened issue: new trailing row after all-reviewed history",
+			[]string{"M1", "M2", "M3"}, []string{"M3"}, nil, []string{"M3"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mid, trail := partitionMissingVerdicts(tc.ordered, tc.missing)
+			if strings.Join(mid, ",") != strings.Join(tc.wantMid, ",") {
+				t.Errorf("midstream = %v, want %v", mid, tc.wantMid)
+			}
+			if strings.Join(trail, ",") != strings.Join(tc.wantTrail, ",") {
+				t.Errorf("trailing = %v, want %v", trail, tc.wantTrail)
+			}
+		})
+	}
+}
+
 // TestFindMilestonesMissingVerdict_AllPresent confirms the helper
 // returns no missing milestones when every plan entry has a matching
 // close commit carrying the Review-Verdict trailer. Driven via a fake

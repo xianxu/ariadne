@@ -1384,6 +1384,38 @@ func explainNoAtlas(stderr io.Writer, windowBaseShort string, nonAtlas []string)
 // existing issue files that vary the formatting.
 var milestonePlanRE = regexp.MustCompile(`(?m)^- \[[ x.]\] \*{0,2}(M\d+[a-z]?)\b`)
 
+// partitionMissingVerdicts splits the missing-verdict milestones by plan
+// position relative to the LAST verdict-carrying milestone (#175). Missing
+// rows before it are "midstream" — a later boundary was crossed with no
+// review evidence for them, a genuine §3 violation. Missing rows after it
+// (or every row, when nothing carries a verdict — the single-pass case)
+// are "trailing" — no reviewed boundary follows them, so the imminent
+// issue-close boundary review (window branch-point→HEAD) is their review.
+// Pure; plan order is preserved in both outputs.
+func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []string) {
+	missingSet := make(map[string]bool, len(missing))
+	for _, tag := range missing {
+		missingSet[tag] = true
+	}
+	last := -1 // index of the last verdict-carrying milestone
+	for i, tag := range ordered {
+		if !missingSet[tag] {
+			last = i
+		}
+	}
+	for i, tag := range ordered {
+		if !missingSet[tag] {
+			continue
+		}
+		if i < last {
+			midstream = append(midstream, tag)
+		} else {
+			trailing = append(trailing, tag)
+		}
+	}
+	return midstream, trailing
+}
+
 // findMilestonesMissingVerdict enumerates milestones in the issue body's
 // `## Plan` section and returns the tags of any whose close commit lacks
 // a `Review-Verdict:` trailer.
