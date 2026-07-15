@@ -1,12 +1,13 @@
 ---
 id: 000176
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours: 0.65
 started: 2026-07-14T17:44:20-07:00
+actual_hours: 1.53
 ---
 
 # spine guards for off-workflow invocations: change-code on done issues + non-SDLC repos
@@ -102,6 +103,7 @@ Single review boundary (no Mx tags).
 ## Log
 
 ### 2026-07-14 — built (single pass)
+- 2026-07-14: closed — go test ./cmd/sdlc/... green incl the guard suites (7-verb drift test from WorkflowVerbs, non-SDLC arm, env-bypass ACK, done-issue arm on start-plan+change-code, gatesig no-collision); live-verified all arms in the REAL brain repo: sdlc claim refuses with the charter, estimate-source reads unaffected, WF_SPINE_GUARD=off cwarn-ACKs; brain constitution weave-compiled (AGENTS.md + CLAUDE.md carry the charter); suite itself caught + fixed the cwd-subdirectory false positive; review verdict: FIX-THEN-SHIP
 
 `repoguard.go`: guardSpineRepo (brain-marker refusal with charter + positive
 path; no-workshop/issues refusal, repo-top anchored; WF_SPINE_GUARD=off env
