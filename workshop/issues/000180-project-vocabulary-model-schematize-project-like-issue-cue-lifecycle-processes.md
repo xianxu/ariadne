@@ -107,12 +107,13 @@ entry (gate, like issue close requires --verified).
 **Schema/machinery candidates (as filed, still current):**
 - `construct/vocabulary/project.cue` — fields incl. `deadline:`, the
   lifecycle above, transition rules, and a `discovery:` block: home =
-  **`workshop/project/`** (operator, 2026-07-15 — project files live under
-  workshop/ like every SDLC artifact, one dir per repo; cross-repo
-  resolution globs it across peers per #171). Settle at design: singular
-  vs plural (sibling dirs are plural — issues/plans/targets), and whether
-  done projects archive to workshop/history/ like issues or stay in place
-  as records (the datatype prose says "the file becomes a record").
+  **`workshop/projects/`** (operator, 2026-07-15 — plural, matching
+  issues/plans/targets; project files live under workshop/ like every SDLC
+  artifact, one dir per repo; cross-repo resolution globs it across peers
+  per #171). Settle at design: whether done projects archive to
+  `workshop/history/projects/` (#181's subfolder layout) like issues or
+  stay in place as records (the datatype prose says "the file becomes a
+  record").
 - `pkg/vocab` accessor (`vocab.Project()`) mirroring `Issue()`; no consumer
   hardcodes the enum.
 - Project verbs on the spine (new/list/show/set-status/status/retro; tick
@@ -189,9 +190,10 @@ is the issue lifecycle one level up, so the artifacts follow fractally (one
 file growing gated sections; derived views; calibrated loops). Dogfood: the
 project-management lift itself becomes the first project file.
 
-### 2026-07-15 — residency dir: workshop/project/
+### 2026-07-15 — residency dir: workshop/projects/
 
-Operator: project files live in `workshop/project/` (per coding repo) — the
-workshop/ family, alongside issues/plans/targets, not the brain-era
-`data/project/` path. Folded into the cue discovery candidate; singular-vs-
-plural naming + archive-on-done left as design details.
+Operator: project files live in `workshop/projects/` (per coding repo;
+plural confirmed) — the workshop/ family, alongside issues/plans/targets,
+not the brain-era `data/project/` path. Folded into the cue discovery
+candidate; archive-on-done → `workshop/history/projects/` per #181's
+subfolder layout, decided at design.
