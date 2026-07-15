@@ -418,7 +418,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// state), not IsTerminal — re-closing a done issue is the case to guard.
 	if currentStatus, _ := issue.GetField(fm, "status"); mode == "issue" && currentStatus == "done" {
 		if !f.skip("reclose") {
-			die(stderr, fmt.Sprintf("%s#%s is already status: done — pass --no-reclose-guard (or --force) to re-close intentionally", repoName, issueStr))
+			// #174: append-only after the pinned span — gatesig's RefusalPat and
+			// the frozen codex golden fixtures both key on the head text.
+			die(stderr, fmt.Sprintf("%s#%s is already status: done — pass --no-reclose-guard (or --force) to re-close intentionally.\n"+
+				"  Post-publish follow-up work is a new issue (a `side-quest:` commit or `sdlc issue new`), not a re-close.", repoName, issueStr))
 		}
 		cwarn(stderr, fmt.Sprintf("--no-reclose-guard (or --force): re-closing %s#%s (already done)", repoName, issueStr))
 	}

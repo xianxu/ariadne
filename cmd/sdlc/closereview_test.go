@@ -613,3 +613,35 @@ func TestClose_Ship_NoProtocolBlock(t *testing.T) {
 		}
 	}
 }
+
+// #174: the reclose refusal (fires only at status: done, i.e. post-publish)
+// names the sanctioned recovery — follow-up work is a new issue, not a
+// re-close. The head span stays verbatim (gatesig RefusalPat + frozen codex
+// golden fixtures pin it).
+func TestClose_RecloseRefusal_NamesNewIssuePath(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	issuePath := filepath.Join(issuesDir, "000069-x.md")
+	content := strings.Replace(readIssue(t, issuesDir), "status: working", "status: done", 1)
+	if err := os.WriteFile(issuePath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	msg, died := expectDie(t, func() {
+		_ = runCloseWithReview(io.Discard, io.Discard, f)
+	})
+	if !died {
+		t.Fatal("re-close of a done issue should refuse")
+	}
+	for _, want := range []string{
+		"is already status: done — pass --no-reclose-guard (or --force) to re-close", // pinned span
+		"new issue",
+		"side-quest",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("reclose refusal missing %q:\n%s", want, msg)
+		}
+	}
+}
