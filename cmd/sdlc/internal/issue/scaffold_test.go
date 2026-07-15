@@ -290,3 +290,22 @@ func writeFiles(t *testing.T, dir string, names ...string) {
 		}
 	}
 }
+
+// TestNextID_SubfolderLayout (#181): the max id may live in the archive's
+// issues/ subdir after migration — NextID must scan it.
+func TestNextID_SubfolderLayout(t *testing.T) {
+	dir := t.TempDir()
+	issues := filepath.Join(dir, "issues")
+	history := filepath.Join(dir, "history")
+	sub := filepath.Join(history, "issues")
+	mustMkdir(t, issues, history, sub)
+	writeFiles(t, issues, "000003-a.md")
+	writeFiles(t, sub, "000041-archived.md")
+	got, err := NextID(issues, history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "000042" {
+		t.Errorf("NextID = %q, want 000042 (max id in history/issues/)", got)
+	}
+}

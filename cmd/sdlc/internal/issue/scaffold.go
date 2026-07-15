@@ -23,12 +23,15 @@ var idPrefixRE = regexp.MustCompile(`^(\d{6})-`)
 // hyphenRunRE collapses runs of hyphens produced by slugification.
 var hyphenRunRE = regexp.MustCompile(`-+`)
 
-// NextID scans issuesDir + historyDir for filenames starting with a
-// 6-digit ID and returns the next ID, zero-padded to 6 chars. Missing
-// dirs are treated as empty (so a fresh repo yields "000001").
+// NextID scans issuesDir + historyDir (flat legacy) + the archive's issues
+// subdir (#181 layout) for filenames starting with a 6-digit ID and returns
+// the next ID, zero-padded to 6 chars. Missing dirs are treated as empty (so
+// a fresh repo yields "000001"). The plans subdir is skipped — plan/review
+// files carry the same ids as their issues, so it can't hold a new max.
 func NextID(issuesDir, historyDir string) (string, error) {
+	archivedIssues, _ := vocab.ArchiveSubdirs(historyDir)
 	max := 0
-	for _, dir := range []string{issuesDir, historyDir} {
+	for _, dir := range []string{issuesDir, historyDir, archivedIssues} {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			if os.IsNotExist(err) {

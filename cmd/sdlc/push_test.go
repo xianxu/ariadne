@@ -642,3 +642,26 @@ func TestRunPush_DryRun_NoOpEnvironment(t *testing.T) {
 
 // silence unused-import warnings in cases the file shrinks
 var _ io.Writer = (*bytes.Buffer)(nil)
+
+// TestIsHistoryPath (NEW at #181 — previously only indirectly exercised):
+// accepts the root (legacy flat layout + downstream repos) and both per-kind
+// subdirs; still demands an id-keyed filename.
+func TestIsHistoryPath(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"workshop/history/000036-x.md", true},           // legacy flat
+		{"workshop/history/issues/000036-x.md", true},    // issues subdir
+		{"workshop/history/plans/000036-x-plan.md", true}, // plans subdir
+		{"workshop/history/plans/000036-x-close-review.md", true},
+		{"workshop/issues/000036-x.md", false},           // not history
+		{"workshop/history/notes.md", false},             // not id-keyed
+		{"workshop/history/issues/deeper/000036-x.md", false}, // too deep
+	}
+	for _, tc := range cases {
+		if got := isHistoryPath(tc.path, "workshop/history"); got != tc.want {
+			t.Errorf("isHistoryPath(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}

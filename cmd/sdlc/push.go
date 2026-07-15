@@ -474,8 +474,16 @@ func isIssuePath(path, issuesDir string) bool {
 	return filepath.Dir(path) == filepath.Clean(issuesDir) && issueFilename(filepath.Base(path))
 }
 
+// isHistoryPath accepts an id-keyed file directly under the archive ROOT
+// (pre-#181 flat layout — kept for un-migrated + downstream repos) or under
+// either per-kind subdir (history/issues, history/plans — the #181 layout).
 func isHistoryPath(path, historyDir string) bool {
-	return filepath.Dir(path) == filepath.Clean(historyDir) && issueFilename(filepath.Base(path))
+	if !issueFilename(filepath.Base(path)) {
+		return false
+	}
+	dir := filepath.Dir(path)
+	issuesSub, plansSub := vocab.ArchiveSubdirs(filepath.Clean(historyDir))
+	return dir == filepath.Clean(historyDir) || dir == issuesSub || dir == plansSub
 }
 
 func historyFileIsTerminal(path string) (bool, error) {
