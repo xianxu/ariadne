@@ -391,6 +391,17 @@ The atlas gate additionally auto-satisfies (info line, no flag needed) when
 the window contains no code surface — `hasCodePath`, the single docs
 classifier: `*.md` / `workshop/` / `atlas/` / `docs/` are documentation,
 everything else is surface (#177; docs-only closes had an incoherent demand).
+
+**Off-workflow guards (#176, `repoguard.go`).** The 7 lifecycle verbs (=
+`processmanual.WorkflowVerbs()`, enforced by a drift test) refuse up front in
+a brain repo (`.brain/config.md` — the #172 audit found brain concentrating
+bypasses because its own merged constitution invited sdlc) and in repos
+without `workshop/issues/`; reads (estimate-source, actual, state,
+process-manual, issue …) are unguarded by construction since sdlc legitimately
+reads brain. `WF_SPINE_GUARD=off` is the single emergency hatch and cwarn-ACKs
+(measurable by the friction instrument). `guardIssueNotDone` closes the front
+door on terminal issues: start-plan/change-code refuse on `status: done`
+(re-close was already guarded at the back).
 `milestone-close` forwards the same flags into its delegated `computeClose`
 (the #139 compute→review→finalize; `runClose` is now test-only, #146).
 The convention generalizes `merge`'s pre-existing `--no-judge`.
