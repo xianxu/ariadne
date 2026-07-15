@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
-estimate_hours:
+estimate_hours: 0.44
 started: 2026-07-14T17:20:20-07:00
 ---
 
@@ -46,9 +46,30 @@ the docs classifier in one place (the friction report's repo classifier in
   info line must not match the bypass ACK signature — add the gatesig-catalog
   awareness if the wording overlaps).
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module    design=0.1  impl=0.2
+item: milestone-review     design=0.0  impl=0.12
+design-buffer: 0.15
+total: 0.44
+```
+
+Σdesign 0.1 × 1.15 + Σimpl 0.32 × 1.0 = 0.44. One new arm in an existing gate
+block + a pure predicate + tests + doc sweep; milestone-review = the close-time
+boundary review. *Produced via
+`brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
 ## Plan
 
-- [ ] classify window paths (docs-only predicate) in the atlas gate + info line + tests
+Durable plan: `workshop/plans/000177-atlas-gate-no-code-autoskip-plan.md`.
+Single review boundary (no Mx tags).
+
+- [ ] Task 1 — `hasCodePath` predicate + gate arm + gatesig no-collision test (TDD)
+- [ ] Task 2 — doc sweep (helptexts, AGENTS.base.md §5, atlas) + live verify + close
 
 ## Log
 
