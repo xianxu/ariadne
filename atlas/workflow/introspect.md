@@ -320,7 +320,7 @@ Authoring paths (equivalent — both produce the same file shape):
 
 ## Pointers
 
-- Issue & log: `workshop/history/000018-transcript-driven-introspection.md` (or `workshop/issues/` if still open)
+- Issue & log: `workshop/history/issues/000018-transcript-driven-introspection.md` (or `workshop/issues/` if still open)
 - Hints feature issue: `workshop/issues/000019-introspect-human-hints.md`
 - Plan with v1.0 → v1.1 revision header: `workshop/plans/000018-transcript-driven-introspection-plan.md`
 - Composition recipes: `construct/local/introspect/scripts/README.md`

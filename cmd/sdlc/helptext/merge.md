@@ -65,7 +65,8 @@ WHAT IT DOES
          hand-recovery needed.
        - if no PR at all: in-place aborts (run `sdlc pr` first); worktree,
          with unmerged commits, prompts to create a PR or remove the worktree.
-  8. Archives done/wontfix/punt issue files into `workshop/history/`
+  8. Archives done/wontfix/punt issue files into `workshop/history/issues/`
+     (plans + review sidecars into `workshop/history/plans/`, #181)
      in the main checkout; commits + pushes on main if any moved. Unlike
      `sdlc push`, does NOT call `gh issue close` — the PR merge already
      closes linked issues via the "Fixes #N" body.

@@ -103,13 +103,13 @@ Single-pass, plain checkboxes.
 - [x] design at start-plan: discovery-model shape (per-kind archive dirs vs
       root+convention), sidecar placement, migrate-vs-transition-glob,
       downstream rollout
-- [ ] vocab.ArchiveSubdirs + layout-tolerant predicates (isHistoryPath,
+- [x] vocab.ArchiveSubdirs + layout-tolerant predicates (isHistoryPath,
       NextID) + guard test
-- [ ] resolve reads across both layouts (familyFiles)
-- [ ] writers → subfolders (push archiveDoneIssues + merge
+- [x] resolve reads across both layouts (familyFiles)
+- [x] writers → subfolders (push archiveDoneIssues + merge
       archiveDoneIssuesInDir + archivePlanArtifacts) + test inventory sweep
       + both mutants
-- [ ] migrate ariadne's 258 files (git mv, one commit) + docs sweep +
+- [x] migrate ariadne's 258 files (git mv, one commit) + docs sweep +
       bookkeeping
 
 ## Log
@@ -120,3 +120,17 @@ Filed from the #180 brainstorm (operator): history should have subfolders —
 issues/, plans/, later projects/. Current state: 258 flat files; archive
 path single-sourced in issue.cue discovery (good — the change is a model
 edit + consumer derivation, not a path hunt).
+
+Implementation: reads-tolerant/writes-strict landed per plan. ArchiveSubdirs
+single-sourced in pkg/vocab with a #163-pattern source guard (no literal
+subdir concatenation outside it); both duplicate write sites (push + merge)
+mutation-checked independently; assessDirty pins both subdirs as Tracker
+(the history/plans case was the latent merge-refusal). Migration: one git mv
+commit, 159 issues + 99 plans, basenames preserved (recovery-safe by
+construction — preparedArchiveMoves pairs by basename). Dogfooded: resolve
+returns complete families for archived #175/#63/#12 post-migration. The
+migration itself broke 3 inbound path links in atlas (exactly the failure
+class the #179 inbound report exists for) — swept. Test-sweep gotchas
+logged: substring path assertions false-positive when old dir names nest
+inside new paths; negative assertions rot vacuous when a writer stops
+producing a path.

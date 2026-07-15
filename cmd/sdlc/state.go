@@ -317,7 +317,7 @@ func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []Dr
 			out = append(out, DriftFinding{
 				Severity: "warn",
 				Issue:    i.ID,
-				Message:  fmt.Sprintf("status=%s but still in workshop/issues/ — move to %s/", i.Status, historyDir),
+				Message:  fmt.Sprintf("status=%s but still in workshop/issues/ — move to %s/issues/ (`sdlc push`/`merge` archives it)", i.Status, historyDir),
 			})
 		case i.Status == "working": // #122 carve-out: working-specific (blocked is waiting; IsActive too broad)
 			if i.PlanTotal > 0 && i.PlanTicked == 0 {

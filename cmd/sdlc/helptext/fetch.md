@@ -15,7 +15,8 @@ WHAT IT DOES
   - Calls `gh issue view N --json title,body` for that issue.
   - Slugifies the title (lowercase, non-alphanumerics → hyphens).
   - Picks the next 6-digit ID by scanning workshop/issues/ AND
-    workshop/history/ (so archived issues' IDs are not reused).
+    workshop/history/ incl. its issues/ subdir (#181; so archived issues'
+    IDs are not reused).
   - Writes `workshop/issues/NNNNNN-<slug>.md` with the canonical
     frontmatter (id, status: open, deps: [], github_issue,
     created/updated, estimate_hours) and body skeleton (`# title`,

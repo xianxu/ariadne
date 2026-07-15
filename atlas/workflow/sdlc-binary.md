@@ -7,7 +7,7 @@ namespace with embedded `--help` per subcommand. Agents should invoke
 downstream repos that have not built the binary yet.
 
 Design rationale: `docs/vision/2026-05-25-01-pensive-sdlc-checkpoint-binary.md`.
-Build issue + plan: `workshop/history/000031-sdlc-checkpoint-binary.md`
+Build issue + plan: `workshop/history/issues/000031-sdlc-checkpoint-binary.md`
 (after archive) or `workshop/issues/000031-...` (during build).
 
 ## What it owns
@@ -110,7 +110,10 @@ resolver (the parley#160 editor UX shells to it).
   binds every documented example back to `parseRef` so the doc can't drift.
 - **Locations derive from the model, not hardcoded.** The issue's `discovery:`
   block (`construct/vocabulary/issue.cue`, read via `pkg/vocab` `Discovery()`) now
-  carries `home` + `glob` + `archive` (`workshop/history`) + `plans`
+  carries `home` + `glob` + `archive` (`workshop/history` — the ROOT; writes
+  land in per-kind subdirs `history/issues` + `history/plans` derived by the
+  Go-owned `vocab.ArchiveSubdirs`, #181; reads tolerate the flat legacy
+  layout, so downstream repos migrate lazily) + `plans`
   (`workshop/plans`). `familyFiles` globs those three dirs for `NNNNNN-*.md` and
   `classifyFamily` sorts issue → plan → reviews. A 6-digit id resolves the whole
   family; `#id Mx` narrows to the `-mX-review.md` sidecar; `gh#id` labels a GitHub
