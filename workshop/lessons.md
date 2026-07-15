@@ -719,3 +719,20 @@ diff; a checked-in guard defends the invariant from tomorrow's drift.
 
 **Origin:** #163 whole-issue close review — implementation passed the manual sweep,
 but the promised structural regression test was missing.
+
+## 2026-07-14 — Gating a commit on a piped test run gates on the pipe's LAST command (#175)
+
+**Pattern:** `go test ./pkg/ 2>&1 | tail -1 && git add … && git commit` committed on a
+FAILING suite — the `&&` reads the pipeline's exit status, which is `tail`'s (0), not
+`go test`'s. The failure was visible in the printed output ("FAIL") but the chain ran
+anyway, producing a bad commit that later needed a history rewrite (soft-reset +
+recommit) to deduplicate.
+
+**Rule:** Never pipe the command whose exit status gates the next step. Run the gate
+bare (`go test ./pkg/ && git commit …`) and do any filtering on a second read; or use
+`set -o pipefail` if a pipe is unavoidable. Same family as the #115 "don't truncate
+judge output" rule — filtering a load-bearing command's output also swallowed its
+load-bearing exit code.
+
+**Origin:** #175 implementation session — the golden-drift test failure was piped
+through `tail -1`, so the Task-5 commit landed before the golden was regenerated.

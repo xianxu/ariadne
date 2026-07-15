@@ -1,12 +1,13 @@
 ---
 id: 000175
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours: 1.04
 started: 2026-07-14T18:42:44-07:00
+actual_hours: 0.65
 ---
 
 # no-verdict gate: accept the issue-close review for trailing unclosed milestones (single-pass Mx recovery)
@@ -77,6 +78,7 @@ Single-pass work — plain checkboxes (§3), one close boundary.
 ## Log
 
 ### 2026-07-14
+- 2026-07-14: closed — go test ./cmd/sdlc/... 11/11 pkgs green incl. 3 new gate integration tests (accept trailing / refuse midstream / refuse trailing+--no-judge) + mutation-checked partition; gatesig pins hold (processmanual green); plan-quality golden regenerated; review verdict: SHIP
 
 Filed from #172 M4 (T2 no-verdict triage).
 
