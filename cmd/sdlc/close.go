@@ -445,11 +445,19 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			}
 		}
 		if len(atlasChanged) == 0 {
-			if !f.skip("atlas") {
+			switch {
+			case !hasCodePath(nonAtlas):
+				// #177: no code surface in the window — nothing to map. Demanding
+				// an atlas delta (or a --no-atlas acknowledgment) on a docs/
+				// workshop-only close is incoherent; auto-satisfy loudly. Also
+				// covers the empty window (a bookkeeping-only re-close).
+				cinfo(stderr, atlasAutoSatisfyLine(len(nonAtlas)))
+			case !f.skip("atlas"):
 				explainNoAtlas(stderr, shortSHA(windowBase), nonAtlas)
 				exitWithCode(1)
+			default:
+				cwarn(stderr, "--no-atlas (or --force): skipping atlas/ change check — rationale in --verified")
 			}
-			cwarn(stderr, "--no-atlas (or --force): skipping atlas/ change check — rationale in --verified")
 		}
 	}
 
@@ -1268,6 +1276,31 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	lines = append(lines, "    "+rerunCmd(issueStr, milestone, actualArg), "")
 	lines = append(lines, "  Pass --no-verified (or --force) only if there's genuinely no behavior to verify.")
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
+}
+
+// hasCodePath reports whether any window path is code surface — the single
+// docs classifier (#177, aligned with the #172 windowstat study): *.md anywhere,
+// or anything under workshop/, atlas/, docs/, is documentation; EVERYTHING else
+// (Makefile, .gitignore, extensionless files) conservatively counts as code —
+// build files are architectural surface, so they keep the atlas refusal.
+func hasCodePath(paths []string) bool {
+	for _, p := range paths {
+		if strings.HasSuffix(p, ".md") ||
+			strings.HasPrefix(p, "workshop/") ||
+			strings.HasPrefix(p, "atlas/") ||
+			strings.HasPrefix(p, "docs/") {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// atlasAutoSatisfyLine renders the #177 info line. Must never match a
+// GateCatalog ACK/refusal pattern (TestAtlasAutoSatisfyLineNoGatesigCollision) —
+// the friction instrument must not count auto-satisfactions as gate events.
+func atlasAutoSatisfyLine(nDocs int) string {
+	return fmt.Sprintf("atlas gate: no code surface in window (%d doc/workshop file(s)) — auto-satisfied", nDocs)
 }
 
 func explainNoAtlas(stderr io.Writer, windowBaseShort string, nonAtlas []string) {
