@@ -153,3 +153,21 @@ t.Run("mixed docs+code drift refuses", ...)     // both commits → refuse
 - gatesig pins to preserve verbatim: `close.go` reclose spans (`gatesig.go:83-84`), publish-gate refusal head (`gatesig.go:120,126`). Any NEW info/warn line goes through `assertNoGatesigCollision`.
 - `hasCodePath` treats root-level `*.md` (lessons.md) as docs and `Makefile`/extensionless as code — the conservative direction for the publish gate too.
 - The protocol block prints via `cwarn` (it's an action demand, not a status) — but verify `cwarn` vs `cinfo` against how the REWORK arm styles its instructions, and keep the two consistent.
+
+## Revisions
+
+### 2026-07-14 — close-review (FIX-THEN-SHIP) deltas
+
+1. `formatFixThenShipProtocol` is **verb-parameterized** (`closeVerb(f.Milestone)`),
+   not "pure, no args" as the Core concepts bullet + Task 1 sketch said — a
+   plan-quality-judge finding folded in at implementation. The milestone variant's
+   escape hatch speaks next-boundary coverage (#58), not issue-close anchor
+   semantics (close review minor finding).
+2. Task 4's atlas target moved: the publish-gate prose lives in
+   `atlas/workflow/pre-merge-checks.md` (canonical) + `issue-lifecycle.md`, not
+   `sdlc-binary.md` (verified non-stale — it carries no publish-gate claim).
+3. Close-review Important finding I1 fixed in-boundary: the publish gate uses
+   `publishGateHasCodeSurface` — `hasCodePath` (#177) tightened so anything under
+   `cmd/` is code surface even when `*.md` (helptext is //go:embed'ed binary
+   surface). The atlas gate keeps plain `hasCodePath` (embedded docs SHOULD
+   satisfy a docs demand there); only the publish decision reads stricter.

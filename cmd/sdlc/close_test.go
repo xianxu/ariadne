@@ -805,8 +805,19 @@ func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
 			t.Errorf("formatFixThenShipProtocol missing %q in:\n%s", w, msg)
 		}
 	}
-	if ms := formatFixThenShipProtocol("sdlc milestone-close"); !strings.Contains(ms, "re-run `sdlc milestone-close`") {
-		t.Errorf("milestone verb not threaded into the escape hatch:\n%s", ms)
+	// Milestone variant: verb threaded into the anti-loop line, and the
+	// escape hatch speaks next-boundary coverage, NOT issue-close anchor
+	// semantics (which don't apply — no codecomplete anchor at a milestone).
+	ms := formatFixThenShipProtocol("sdlc milestone-close")
+	if !strings.Contains(ms, "re-run `sdlc milestone-close`") {
+		t.Errorf("milestone verb not threaded into the anti-loop line:\n%s", ms)
+	}
+	if !strings.Contains(ms, "NEXT boundary review") {
+		t.Errorf("milestone escape hatch should point at the next boundary review:\n%s", ms)
+	}
+	if strings.Contains(ms, "anchor advances") {
+		t.Errorf("milestone variant must not claim anchor semantics:\n%s", ms)
 	}
 	assertNoGatesigCollision(t, msg)
+	assertNoGatesigCollision(t, ms)
 }

@@ -1,12 +1,13 @@
 ---
 id: 000174
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
 estimate_hours: 0.97
 started: 2026-07-14T19:35:30-07:00
+actual_hours: 0.55
 ---
 
 # close: specify the post-FIX-THEN-SHIP protocol (stop the re-close loop and the bookkeeping publish-gate trip)
@@ -88,6 +89,7 @@ leg: reclose refusal names the new-issue path. Single-pass, plain checkboxes.
 ## Log
 
 ### 2026-07-14
+- 2026-07-14: closed — go test ./cmd/sdlc/... 11/11 green: FIX-THEN-SHIP protocol block (SHIP negative pinned), publish-gate docs-only pass (mixed/code refuse, multi-issue anchor subtest, mutation-checked), reclose refusal recovery; gatesig + codex golden pins hold; review verdict: FIX-THEN-SHIP
 
 Filed from #172 M4 (T3 findings 1–2).
 

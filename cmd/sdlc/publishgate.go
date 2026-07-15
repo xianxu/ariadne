@@ -121,7 +121,7 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 		if derr != nil {
 			return fmt.Errorf("publish gate: could not diff %s..HEAD (%v) — refusing to publish unverified", shortSHA(newestAnchor), derr)
 		}
-		if !hasCodePath(paths) {
+		if !publishGateHasCodeSurface(paths) {
 			cinfo(stderr, formatPublishGateDocsOnly(minAhead, shortSHA(newestAnchor)))
 			return nil
 		}
@@ -163,6 +163,25 @@ func publishCodecompleteIssues(issuesDir string) ([]string, error) {
 		flipped = append(flipped, ref.Path)
 	}
 	return flipped, nil
+}
+
+// publishGateHasCodeSurface is the publish gate's code-surface predicate
+// (#174 close review I1): hasCodePath's docs definition (#177), TIGHTENED so
+// anything under cmd/ counts as code even when it's *.md — helptext is
+// //go:embed'ed into the binary and shapes shipped agent-facing behavior, so
+// a post-close helptext edit must not ride the doc-only pass. The atlas
+// gate keeps plain hasCodePath (there, embedded docs SHOULD satisfy a docs
+// demand); only the publish decision needs the stricter read. Pure.
+func publishGateHasCodeSurface(paths []string) bool {
+	if hasCodePath(paths) {
+		return true
+	}
+	for _, p := range paths {
+		if strings.HasPrefix(p, "cmd/") {
+			return true
+		}
+	}
+	return false
 }
 
 // formatPublishGateDocsOnly renders the docs-only pass line (#174). Phrased

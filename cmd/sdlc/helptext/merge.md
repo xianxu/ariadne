@@ -30,7 +30,8 @@ WHAT IT DOES
      unchanged invariant: it refuses unless HEAD is unchanged since the
      codecomplete issues' `sdlc close` (i.e. nothing drifted after the review).
      Doc-only post-close deltas (workshop/, atlas/, docs/, *.md — #177's "no
-     code surface") pass with an info line (#174); code deltas refuse.
+     code surface", except cmd/ which is embedded binary surface) pass with
+     an info line (#174); code deltas refuse.
      On refusal, re-run `sdlc close --issue N --verified '...'` to re-review the
      delta, then retry. Skip with `--no-judge` (emergency only).
      PUSH IS NOT OPTIONAL: merge is server-side — it merges *origin's* branch tip

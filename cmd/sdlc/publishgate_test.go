@@ -275,3 +275,44 @@ func TestFormatPublishGateDocsOnly_ContractElements(t *testing.T) {
 	}
 	assertNoGatesigCollision(t, msg)
 }
+
+// #174 close review I1: helptext under cmd/ is *.md but ships inside the
+// binary (//go:embed) — a post-close helptext edit is code surface for the
+// PUBLISH decision and must not ride the doc-only pass.
+func TestRunPublishGate_EmbeddedHelptextIsCodeSurface(t *testing.T) {
+	git, base := publishRepo(t)
+	writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
+	if err := os.MkdirAll("cmd/sdlc/helptext", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile("cmd/sdlc/helptext/close.md", []byte("edited\n"), 0o644)
+	git("add", "cmd/sdlc/helptext/close.md")
+	git("commit", "-q", "-m", "docs: helptext tweak")
+	err := runPublishGate(base, "workshop/issues", io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
+		t.Errorf("embedded-helptext delta should refuse, got: %v", err)
+	}
+}
+
+// TestPublishGateHasCodeSurface pins the tightened predicate directly:
+// hasCodePath's docs stay docs, EXCEPT under cmd/.
+func TestPublishGateHasCodeSurface(t *testing.T) {
+	cases := []struct {
+		name  string
+		paths []string
+		want  bool
+	}{
+		{"lessons.md is docs", []string{"lessons.md"}, false},
+		{"workshop is docs", []string{"workshop/issues/000174-x.md"}, false},
+		{"atlas is docs", []string{"atlas/workflow/x.md"}, false},
+		{"go file is code", []string{"cmd/sdlc/close.go"}, true},
+		{"embedded helptext md is code (ships in the binary)", []string{"cmd/sdlc/helptext/close.md"}, true},
+		{"mixed docs + helptext is code", []string{"lessons.md", "cmd/sdlc/helptext/push.md"}, true},
+		{"empty is docs", nil, false},
+	}
+	for _, tc := range cases {
+		if got := publishGateHasCodeSurface(tc.paths); got != tc.want {
+			t.Errorf("%s: publishGateHasCodeSurface(%v) = %v, want %v", tc.name, tc.paths, got, tc.want)
+		}
+	}
+}

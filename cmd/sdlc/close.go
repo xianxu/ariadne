@@ -1585,8 +1585,15 @@ func formatFixThenShipProtocol(verb string) string {
 	lines = append(lines, "         into ONE commit (or amend), so the publish gate's reviewed anchor is HEAD.")
 	lines = append(lines, fmt.Sprintf("      3. Do NOT re-run `%s` — this verdict already sanctions shipping after", verb))
 	lines = append(lines, "         the fixes; a second review of the same boundary is the #172 re-close loop.")
-	lines = append(lines, fmt.Sprintf("      Only if fixes must land AFTER the close commit: re-run `%s` so the", verb))
-	lines = append(lines, "      delta is re-reviewed and the anchor advances (doc-only deltas pass on their own).")
+	if verb == "sdlc close" {
+		// Anchor semantics are issue-close/publish-gate territory; a milestone
+		// close writes no codecomplete anchor (close review #174 M-finding).
+		lines = append(lines, fmt.Sprintf("      Only if fixes must land AFTER the close commit: re-run `%s` so the", verb))
+		lines = append(lines, "      delta is re-reviewed and the anchor advances (doc-only deltas pass on their own).")
+	} else {
+		lines = append(lines, "      Fixes that land after this milestone-close commit are covered by the")
+		lines = append(lines, "      NEXT boundary review — its window starts at this boundary (#58).")
+	}
 	return strings.Join(lines, "\n")
 }
 
