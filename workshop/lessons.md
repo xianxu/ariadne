@@ -736,3 +736,25 @@ load-bearing exit code.
 
 **Origin:** #175 implementation session — the golden-drift test failure was piped
 through `tail -1`, so the Task-5 commit landed before the golden was regenerated.
+
+## 2026-07-15 — os.Getwd returns the logical $PWD; git returns resolved paths — EvalSymlinks before comparing (#179)
+
+**Pattern:** `sdlc migrate`'s inside-repo guard compared `filepath.Abs(file)`
+(built on `os.Getwd`) against `git rev-parse --show-toplevel`. Go's `os.Getwd`
+prefers the `$PWD` env var — a LOGICAL, symlink-preserving path — whenever it
+stats to the same dir; git always returns the RESOLVED path. Under a shell cwd
+that crosses a symlink (macOS `/tmp` → `/private/tmp`, any `ln -s`), the two
+disagree on a prefix and `filepath.Rel` "proves" a file is outside its own
+repo. The hermetic suite couldn't see it: in-process `os.Chdir` doesn't update
+the `$PWD` env var, so tests silently exercised the resolved-path branch only.
+Found by the plan's mandatory live-dogfood step on a scratch fixture.
+
+**Rule:** when comparing a getwd-derived path with a git-derived (or any
+syscall-resolved) path, `filepath.EvalSymlinks` BOTH sides first. And when a
+test needs to reproduce shell-launched path behavior, set `t.Setenv("PWD",
+<symlinked form>)` explicitly — chdir alone tests only half the reality. Same
+family as the #44 "IO needs a live run" lesson; the specific new tripwire is
+that `os.Getwd` has an env-dependent branch your tests won't hit by accident.
+
+**Origin:** #179 live dogfood (`sdlc migrate` refused a file that was plainly
+inside the repo). Fixed with EvalSymlinks + a $PWD-setting regression test.
