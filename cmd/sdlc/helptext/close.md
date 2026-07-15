@@ -59,6 +59,11 @@ WHAT THE GUARD DEFENDS
       such requirement — atomic single-pass work closes in ONE `sdlc
       close`, no milestone-close, one `closed —` log line. Reserve `Mx`
       tags for ≥2 genuinely separate review boundaries (AGENTS.md §3).
+      TRAILING Mx rows that never got a milestone-close (over-split
+      single-pass work) are accepted with an info line — the issue-close
+      boundary review covers them (#175) — unless --no-judge skips that
+      review; a MIDSTREAM miss (a later Mx closed with review) still
+      refuses.
     - milestone-close ticks the `- [ ] M4 — ...` row; refuses if absent
     - project file (if any, under <brain>/data/project/*.md referencing
       <repo>#<id>) gets its task row ticked + detail block updated

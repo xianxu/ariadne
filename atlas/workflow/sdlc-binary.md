@@ -392,6 +392,18 @@ the window contains no code surface — `hasCodePath`, the single docs
 classifier: `*.md` / `workshop/` / `atlas/` / `docs/` are documentation,
 everything else is surface (#177; docs-only closes had an incoherent demand).
 
+The milestone-verdict gate demands per-milestone `Review-Verdict:` evidence,
+EXCEPT for **trailing** unclosed milestones (#175): Mx rows after the last
+verdict-carrying one — or all rows, when none carries a verdict (the
+single-pass over-split shape) — are accepted with a loud info line, because
+the issue-close boundary review's window (branch-point→HEAD) covers their
+work and the close *is* their first boundary. `partitionMissingVerdicts`
+(pure, `close.go`) does the split; **midstream** misses (a later milestone
+closed WITH review) still refuse — that boundary was genuinely crossed
+unreviewed — and `--no-judge` turns trailing acceptance back into a refusal,
+since it skips the very review the acceptance leans on. The plan-quality
+judge flags over-split Mx plans at design time (the forward fix).
+
 **Off-workflow guards (#176, `repoguard.go`).** The 7 lifecycle verbs (=
 `processmanual.WorkflowVerbs()`, enforced by a drift test) refuse up front in
 a brain repo (`.brain/config.md` — the #172 audit found brain concentrating

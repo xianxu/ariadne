@@ -67,12 +67,12 @@ Durable design: `workshop/plans/000175-no-verdict-single-pass-recovery-plan.md`.
 Single-pass work — plain checkboxes (§3), one close boundary.
 
 - [x] design the acceptance rule (issue-close review covers trailing unclosed milestones) + refusal-text recovery hint
-- [ ] `partitionMissingVerdicts` (pure trailing-vs-midstream split) + table test
-- [ ] `findMilestonesMissingVerdict` returns plan order; update 5 call sites
-- [ ] message formatters: §3 citation + fold recovery in `formatMissingVerdicts`; new `formatTrailingVerdictAccepted` / `formatTrailingNeedsJudge` (gatesig closing line preserved)
-- [ ] rewire verdict-gate block in `computeClose` + 3 integration tests (accept trailing / refuse midstream / refuse trailing+--no-judge)
-- [ ] plan-quality prompt: over-split failure-mode bullet + prompt-content pin
-- [ ] atlas (`atlas/workflow/sdlc-binary.md` close-gates prose) + bookkeeping
+- [x] `partitionMissingVerdicts` (pure trailing-vs-midstream split) + table test
+- [x] `findMilestonesMissingVerdict` returns plan order; update 5 call sites
+- [x] message formatters: §3 citation + fold recovery in `formatMissingVerdicts`; new `formatTrailingVerdictAccepted` / `formatTrailingNeedsJudge` (gatesig closing line preserved)
+- [x] rewire verdict-gate block in `computeClose` + 3 integration tests (accept trailing / refuse midstream / refuse trailing+--no-judge)
+- [x] plan-quality prompt: over-split failure-mode bullet + prompt-content pin
+- [x] atlas (`atlas/workflow/sdlc-binary.md` close-gates prose) + bookkeeping
 
 ## Log
 
@@ -90,3 +90,16 @@ Partition is a pure function (ARCH-PURE); all three Spec candidates ship
 (ARCH-PURPOSE). Plan reviewer confirmed gate reachability via the
 closeRepo/stubJudge/expectDie seams and caught one sketch bug (close writes
 `codecomplete`, not `done`, #160).
+
+Implementation: all six plan rows landed. New refusal/acceptance messages
+share `verdictNextActionLines` + `verdictBypassClosingLine` (ARCH-DRY —
+gatesig.go pins the closing line for #172 friction attribution; the new
+acceptance info line is pinned non-colliding via assertNoGatesigCollision,
+#177 precedent). Mutation check: an everything-midstream mutant fails both
+the partition table test and the acceptance integration test. plan-quality
+golden regenerated (byte-pin, intentional prompt change). Shadow-doc sweep:
+helptext/close.md gate description + atlas/workflow/sdlc-binary.md updated;
+AGENTS.base.md bypass prose still accurate. Done-when line 2 (via-bypass
+drop from 4/8) is a lagging metric — measurable only as future closes
+accrue; `TestClose_TrailingUnclosedMilestones_AcceptedByCloseReview` is the
+leading proof that the friction case now passes without `--no-verdict`.
