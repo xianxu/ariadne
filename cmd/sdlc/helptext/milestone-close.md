@@ -10,7 +10,8 @@ WHAT IT DOES
      - updates the project file's task row + detail block (if any)
      - appends a verification log entry
      - refuses without --actual / --verified (unless --force)
-     - refuses if atlas/ wasn't touched in the window (unless --force)
+     - refuses if atlas/ wasn't touched in the window (unless --force);
+       auto-satisfied when the window has no code surface (#177)
 
   2. Auto-dispatches `sdlc judge milestone-review`:
      - Diff window: the PREVIOUS review boundary..HEAD — the prior

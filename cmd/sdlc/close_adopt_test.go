@@ -2,11 +2,8 @@ package main
 
 import (
 	"bytes"
-	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 )
 
 // #178: the omit-path ADOPTS a measured actual instead of refusing with a
@@ -120,13 +117,5 @@ func TestAdoptLineNoGatesigCollision(t *testing.T) {
 	res := actualResult{Status: actualMeasured, Hours: 1.23,
 		Window: "a1b2c3d4 → HEAD", Peers: []string{"172"}}
 	// as rendered: cinfo prefixes "==> " with ANSI + the reset marker
-	line := "\x1b[1;36m==>\x1b[0m " + formatAdoptLine(res)
-	for _, g := range processmanual.GateCatalog {
-		if g.AckPat != "" && regexp.MustCompile(g.AckPat).MatchString(line) {
-			t.Errorf("adopt line matches %s/%s AckPat", g.Commands, g.Flag)
-		}
-		if g.RefusalPat != "" && regexp.MustCompile(g.RefusalPat).MatchString(line) {
-			t.Errorf("adopt line matches %s/%s RefusalPat", g.Commands, g.Flag)
-		}
-	}
+	assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+formatAdoptLine(res))
 }

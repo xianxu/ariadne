@@ -1,12 +1,13 @@
 ---
 id: 000177
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-14
 updated: 2026-07-14
-estimate_hours:
+estimate_hours: 0.44
 started: 2026-07-14T17:20:20-07:00
+actual_hours: 0.23
 ---
 
 # atlas gate: auto-satisfy when the close window contains no code changes
@@ -46,11 +47,43 @@ the docs classifier in one place (the friction report's repo classifier in
   info line must not match the bypass ACK signature — add the gatesig-catalog
   awareness if the wording overlaps).
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module    design=0.1  impl=0.2
+item: milestone-review     design=0.0  impl=0.12
+design-buffer: 0.15
+total: 0.44
+```
+
+Σdesign 0.1 × 1.15 + Σimpl 0.32 × 1.0 = 0.44. One new arm in an existing gate
+block + a pure predicate + tests + doc sweep; milestone-review = the close-time
+boundary review. *Produced via
+`brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
 ## Plan
 
-- [ ] classify window paths (docs-only predicate) in the atlas gate + info line + tests
+Durable plan: `workshop/plans/000177-atlas-gate-no-code-autoskip-plan.md`.
+Single review boundary (no Mx tags).
+
+- [x] Task 1 — `hasCodePath` predicate + gate arm + gatesig no-collision test (TDD)
+- [x] Task 2 — doc sweep (helptexts, AGENTS.base.md §5, atlas) + live verify + close
 
 ## Log
+
+### 2026-07-14 — built (single pass)
+- 2026-07-14: closed — go test ./cmd/sdlc/... green incl the 3 new suites (hasCodePath table with conservative Makefile/extensionless arms, info-line format, gatesig no-collision); hermetic live verify via milestone-close --dry-run: docs-only window prints "atlas gate: no code surface in window (2 doc/workshop file(s)) — auto-satisfied", adding a .go file restores the exact refusal; this close runs with --actual omitted (adopt path, #178); review verdict: FIX-THEN-SHIP
+
+`hasCodePath` (single docs classifier: *.md / workshop/ / atlas/ / docs/;
+everything else conservatively code) + the auto-satisfy arm in computeClose
+(both verbs; empty windows included). Code-touching windows keep the exact
+refusal/bypass semantics. Gatesig no-collision test guards the #172
+instrument. Live-verified both arms in a hermetic repo via milestone-close
+--dry-run. Docs swept (helptexts, AGENTS.base.md §5, atlas). go
+build/vet/test green.
 
 ### 2026-07-14
 

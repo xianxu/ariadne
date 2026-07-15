@@ -387,6 +387,10 @@ review), each with its own `--no-<gate>` flag (`--no-actual`, `--no-verified`,
 per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
 pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires
 when the gate would actually have refused. `--force` waives all at once.
+The atlas gate additionally auto-satisfies (info line, no flag needed) when
+the window contains no code surface — `hasCodePath`, the single docs
+classifier: `*.md` / `workshop/` / `atlas/` / `docs/` are documentation,
+everything else is surface (#177; docs-only closes had an incoherent demand).
 `milestone-close` forwards the same flags into its delegated `computeClose`
 (the #139 compute→review→finalize; `runClose` is now test-only, #146).
 The convention generalizes `merge`'s pre-existing `--no-judge`.
