@@ -565,3 +565,83 @@ func TestClose_TrailingMissingVerdict_NoJudgeRefuses(t *testing.T) {
 		t.Errorf("refusal must dispatch nothing; got %d", *calls)
 	}
 }
+
+// #174 leg A: a FIX-THEN-SHIP close finalizes AND states the protocol —
+// fix now, bundle into one commit, don't re-run close.
+func TestClose_FixThenShip_EmitsProtocol(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nFinding: nit.\n")
+
+	var stdout, stderr strings.Builder
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	if err := runCloseWithReview(&stdout, &stderr, f); err != nil {
+		t.Fatalf("FIX-THEN-SHIP is finalizing; close should succeed: %v", err)
+	}
+	for _, want := range []string{"ONE commit", "Do NOT re-run"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("protocol block missing %q:\n%s", want, stderr.String())
+		}
+	}
+	got := readIssue(t, issuesDir)
+	for _, want := range []string{"status: codecomplete", "review verdict: FIX-THEN-SHIP"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("finalized issue missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// #174 leg A negative: a SHIP close emits NO protocol block — it is
+// verdict-conditional.
+func TestClose_Ship_NoProtocolBlock(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nLooks good.\n")
+
+	var stdout, stderr strings.Builder
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	if err := runCloseWithReview(&stdout, &stderr, f); err != nil {
+		t.Fatalf("runCloseWithReview: %v", err)
+	}
+	for _, forbidden := range []string{"FIX-THEN-SHIP", "ONE commit"} {
+		if strings.Contains(stderr.String(), forbidden) {
+			t.Errorf("SHIP close must not emit the protocol block (%q found):\n%s", forbidden, stderr.String())
+		}
+	}
+}
+
+// #174: the reclose refusal (fires only at status: done, i.e. post-publish)
+// names the sanctioned recovery — follow-up work is a new issue, not a
+// re-close. The head span stays verbatim (gatesig RefusalPat + frozen codex
+// golden fixtures pin it).
+func TestClose_RecloseRefusal_NamesNewIssuePath(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	issuePath := filepath.Join(issuesDir, "000069-x.md")
+	content := strings.Replace(readIssue(t, issuesDir), "status: working", "status: done", 1)
+	if err := os.WriteFile(issuePath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f := &closeFlags{
+		Issue: 69, Actual: "1", Verified: "tests pass", NoAtlas: true,
+		IssuesDir: issuesDir, BrainDir: "../nonexistent-brain",
+	}
+	msg, died := expectDie(t, func() {
+		_ = runCloseWithReview(io.Discard, io.Discard, f)
+	})
+	if !died {
+		t.Fatal("re-close of a done issue should refuse")
+	}
+	for _, want := range []string{
+		"is already status: done — pass --no-reclose-guard (or --force) to re-close", // pinned span
+		"new issue",
+		"side-quest",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("reclose refusal missing %q:\n%s", want, msg)
+		}
+	}
+}

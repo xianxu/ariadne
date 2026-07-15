@@ -112,9 +112,23 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 		}
 	}
 	if minAhead > 0 {
+		// #174: a post-close delta with no code surface (lessons.md, plan
+		// ticks, atlas — the bookkeeping the close itself invites) does not
+		// weaken the review's claims, which are about code behavior. Same
+		// "no code surface" definition as the atlas gate's auto-satisfy
+		// (#177, hasCodePath). Git errors keep the fail-closed posture.
+		paths, derr := gitx.DiffNames(newestAnchor, "HEAD")
+		if derr != nil {
+			return fmt.Errorf("publish gate: could not diff %s..HEAD (%v) — refusing to publish unverified", shortSHA(newestAnchor), derr)
+		}
+		if !publishGateHasCodeSurface(paths) {
+			cinfo(stderr, formatPublishGateDocsOnly(minAhead, shortSHA(newestAnchor)))
+			return nil
+		}
 		return fmt.Errorf(
 			"publish gate: %d commit(s) landed after `sdlc close` (anchor %s) — the boundary review no longer covers HEAD.\n"+
-				"  Re-run `sdlc close --issue <N> --verified '<evidence>'` to re-review the delta, then retry the publish.",
+				"  Re-run `sdlc close --issue <N> --verified '<evidence>'` to re-review the code delta, then retry the publish.\n"+
+				"  (Next time: bundle post-close bookkeeping into the close commit — doc-only deltas pass on their own, #174.)",
 			minAhead, shortSHA(newestAnchor))
 	}
 	cok(stderr, fmt.Sprintf("publish gate: HEAD unchanged since close (anchor %s) — reviewed-HEAD-unchanged ✓", shortSHA(newestAnchor)))
@@ -149,6 +163,34 @@ func publishCodecompleteIssues(issuesDir string) ([]string, error) {
 		flipped = append(flipped, ref.Path)
 	}
 	return flipped, nil
+}
+
+// publishGateHasCodeSurface is the publish gate's code-surface predicate
+// (#174 close review I1): hasCodePath's docs definition (#177), TIGHTENED so
+// anything under cmd/ counts as code even when it's *.md — helptext is
+// //go:embed'ed into the binary and shapes shipped agent-facing behavior, so
+// a post-close helptext edit must not ride the doc-only pass. The atlas
+// gate keeps plain hasCodePath (there, embedded docs SHOULD satisfy a docs
+// demand); only the publish decision needs the stricter read. Pure.
+func publishGateHasCodeSurface(paths []string) bool {
+	if hasCodePath(paths) {
+		return true
+	}
+	for _, p := range paths {
+		if strings.HasPrefix(p, "cmd/") {
+			return true
+		}
+	}
+	return false
+}
+
+// formatPublishGateDocsOnly renders the docs-only pass line (#174). Phrased
+// to share NO vocabulary with the drift refusal ("landed after") — gatesig
+// classifies transcripts by substring, so a pass line echoing refusal words
+// would corrupt friction attribution (#172). Pure.
+func formatPublishGateDocsOnly(n int, anchorShort string) string {
+	return fmt.Sprintf("publish gate: %d doc-only commit(s) since close (anchor %s) — no code surface, "+
+		"reviewed-HEAD-unchanged holds for code (#174)", n, anchorShort)
 }
 
 // revCount returns the commit count of a `git rev-list --count` range. ok is false

@@ -31,6 +31,19 @@ refuse if any commit landed after the latest anchor, pointing you to re-run `sdl
 close`. Deterministic — it *forces* a real re-review rather than silently re-judging
 a delta (the elegance that replaced #142's proposed post-close LLM delta-review).
 
+**Doc-only tolerance (#174).** A post-anchor delta with **no code surface**
+(`publishGateHasCodeSurface`: the #177 `hasCodePath` docs classifier — `*.md`,
+`workshop/`, `atlas/`, `docs/` — tightened so anything under `cmd/` is code
+even when `*.md`, because helptext is embedded binary surface) passes with an
+info line instead of refusing — post-close bookkeeping
+(lessons, plan ticks, atlas notes) is the friction shape #172 measured at 6/6
+publish-gate refusals, and docs don't weaken the review's claims about code
+behavior. Code deltas still refuse. The sanctioned protocol after a
+FIX-THEN-SHIP verdict is printed by close itself (#174): fix findings before
+committing, bundle everything into the one close commit, don't re-run close;
+the reclose guard (fires at `done` only) points post-publish follow-ups at a
+new issue.
+
 ## The judge categories (now ad-hoc / close-time)
 
 The LLM judge categories still exist as **standalone** `sdlc judge <cat>` commands

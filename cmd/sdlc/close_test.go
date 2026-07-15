@@ -785,3 +785,39 @@ func TestFormatTrailingNeedsJudge_ContractElements(t *testing.T) {
 		}
 	}
 }
+
+// TestFormatFixThenShipProtocol_ContractElements pins the post-FIX-THEN-SHIP
+// next-action block (#174): fix NOW (pre-commit), bundle into ONE commit,
+// do NOT re-run close, why (publish-gate anchor), and the post-commit escape
+// hatch (re-run the boundary verb). Verb-parameterized so a milestone close
+// names `sdlc milestone-close` (same closeVerb threading as the REWORK arm).
+func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
+	msg := formatFixThenShipProtocol("sdlc close")
+	for _, w := range []string{
+		"FIX-THEN-SHIP",
+		"before committing",   // fix NOW, pre-commit
+		"ONE commit",          // bundle fixes + close mutations
+		"Do NOT re-run",       // the anti-loop instruction
+		"publish gate",        // the why (anchor semantics)
+		"re-run `sdlc close`", // the post-commit escape hatch
+	} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("formatFixThenShipProtocol missing %q in:\n%s", w, msg)
+		}
+	}
+	// Milestone variant: verb threaded into the anti-loop line, and the
+	// escape hatch speaks next-boundary coverage, NOT issue-close anchor
+	// semantics (which don't apply — no codecomplete anchor at a milestone).
+	ms := formatFixThenShipProtocol("sdlc milestone-close")
+	if !strings.Contains(ms, "re-run `sdlc milestone-close`") {
+		t.Errorf("milestone verb not threaded into the anti-loop line:\n%s", ms)
+	}
+	if !strings.Contains(ms, "NEXT boundary review") {
+		t.Errorf("milestone escape hatch should point at the next boundary review:\n%s", ms)
+	}
+	if strings.Contains(ms, "anchor advances") {
+		t.Errorf("milestone variant must not claim anchor semantics:\n%s", ms)
+	}
+	assertNoGatesigCollision(t, msg)
+	assertNoGatesigCollision(t, ms)
+}
