@@ -15,10 +15,18 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // refRewrite is one applied rewrite — the unit of the printed summary and
@@ -138,4 +146,264 @@ func rewriteRefs(body, sourceRepo, destRepo string) (string, []refRewrite, []str
 		offset += len(text)
 	}
 	return out.String(), rewrites, skipped
+}
+
+// ── IO shell ──────────────────────────────────────────────────────────────
+
+type migrateOpts struct {
+	file         string // source file path (cwd-relative or absolute)
+	destDir      string // destination repo dir
+	destPath     string // --dest-path: repo-root-relative path at dest ("" = same as source)
+	noCommit     bool
+	noCleanCheck bool
+	stdout       io.Writer
+	stderr       io.Writer
+}
+
+// gitInDir runs one git command in dir, returning combined output.
+func gitInDir(dir string, args ...string) (string, error) {
+	c := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	out, err := c.CombinedOutput()
+	return string(out), err
+}
+
+// issueFamilyRE matches the id-keyed artifact filename prefix (NNNNNN-).
+var issueFamilyRE = regexp.MustCompile(`^[0-9]{6}-`)
+
+// isIssueFamilyPath reports whether root-relative relPath lies in one of the
+// vocab Discovery dirs with an id-keyed name — the artifact class whose
+// migration needs dest-side renumbering (v2), so v1 refuses it.
+func isIssueFamilyPath(relPath string, d vocab.Discovery) bool {
+	if !issueFamilyRE.MatchString(filepath.Base(relPath)) {
+		return false
+	}
+	dir := filepath.ToSlash(filepath.Dir(relPath))
+	for _, sub := range []string{d.Home, d.Plans, d.Archive} {
+		if dir == filepath.ToSlash(sub) {
+			return true
+		}
+	}
+	return false
+}
+
+// verifyRefTarget strips a milestone tag off a rewritten ref: verification
+// asserts the ISSUE exists, not that a review sidecar for the milestone does.
+func verifyRefTarget(newForm string) string {
+	if i := strings.IndexByte(newForm, ' '); i > 0 {
+		return newForm[:i]
+	}
+	return newForm
+}
+
+// runMigrate moves o.file into o.destDir with refs rewritten (#179). Guard
+// order and semantics per the plan: refusals via die (fail-closed, nothing
+// half-moved); every rewrite verified from the DESTINATION's vantage before
+// any write.
+func runMigrate(o *migrateOpts) error {
+	srcRoot, err := gitx.RepoTopLevel()
+	if err != nil {
+		die(o.stderr, "not inside a git repo: "+err.Error())
+	}
+	srcRepo := filepath.Base(srcRoot)
+
+	// (0) source path normalization: must lie inside the cwd repo — the
+	// transaction lock and the source-side commit are anchored there.
+	absFile, err := filepath.Abs(o.file)
+	if err != nil {
+		die(o.stderr, fmt.Sprintf("resolve %s: %v", o.file, err))
+	}
+	relPath, err := filepath.Rel(srcRoot, absFile)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		die(o.stderr, fmt.Sprintf("%s is not inside the current repo (%s) — run migrate from the repo that owns the file (the lock and the source commit anchor there)", o.file, srcRepo))
+	}
+	relPath = filepath.ToSlash(relPath)
+	if _, err := os.Stat(absFile); err != nil {
+		die(o.stderr, fmt.Sprintf("source file %s: %v", relPath, err))
+	}
+
+	// (1) tracked + unmodified — we migrate reviewed, committed state only.
+	if out, err := gitInDir(srcRoot, "status", "--porcelain", "--untracked-files=all", "--", relPath); err != nil {
+		die(o.stderr, fmt.Sprintf("git status %s: %v — %s", relPath, err, out))
+	} else if strings.TrimSpace(out) != "" {
+		die(o.stderr, fmt.Sprintf("%s has uncommitted changes (or is untracked) — commit it first; migrate moves reviewed state only", relPath))
+	}
+
+	// (2) issue-family artifacts need dest-side renumbering — v2 (#179).
+	if isIssueFamilyPath(relPath, vocab.Issue().Discovery()) {
+		die(o.stderr, fmt.Sprintf("%s is an id-keyed issue-family artifact — issue IDs are per-repo sequences, so migrating it must renumber it at the destination (v2, #179). v1 moves slug-named artifacts (project files, docs).", relPath))
+	}
+
+	// (3) destination shape: a git repo, not this repo, not a brain.
+	destAbs, err := filepath.Abs(o.destDir)
+	if err != nil {
+		die(o.stderr, fmt.Sprintf("resolve %s: %v", o.destDir, err))
+	}
+	destTopOut, err := gitInDir(destAbs, "rev-parse", "--show-toplevel")
+	if err != nil {
+		die(o.stderr, fmt.Sprintf("%s is not a git repo: %s", o.destDir, strings.TrimSpace(destTopOut)))
+	}
+	destTop := strings.TrimSpace(destTopOut)
+	destRepo := filepath.Base(destTop)
+	if destTop == srcRoot {
+		die(o.stderr, fmt.Sprintf("destination resolves to the same repo (%s) — a same-repo migrate would flip bare↔qualified forms for nothing; use git mv", srcRepo))
+	}
+	if _, err := os.Stat(filepath.Join(destTop, ".brain", "config.md")); err == nil {
+		die(o.stderr, fmt.Sprintf("%s is a brain (capture repo) — SDLC process artifacts don't live in brain (#171); pick the work's center-of-gravity repo instead", destRepo))
+	}
+
+	// (4) destination cleanliness + free path.
+	destRel := o.destPath
+	if destRel == "" {
+		destRel = relPath
+	}
+	destRel = filepath.ToSlash(destRel)
+	destFile := filepath.Join(destTop, filepath.FromSlash(destRel))
+	if _, err := os.Stat(destFile); err == nil {
+		die(o.stderr, fmt.Sprintf("destination path %s already exists in %s — pass --dest-path to place it elsewhere", destRel, destRepo))
+	}
+	if st, err := gitStatusPorcelain(destTop); err != nil {
+		die(o.stderr, fmt.Sprintf("git status in %s: %v", destRepo, err))
+	} else if st != "" {
+		if !o.noCleanCheck {
+			die(o.stderr, fmt.Sprintf("destination repo %s is dirty — commit/stash there first (or pass --no-clean-check to proceed; staging is explicit-path either way)", destRepo))
+		}
+		cwarn(o.stderr, "--no-clean-check: proceeding into a dirty destination (staging is explicit-path)")
+	}
+
+	// (5) rewrite + verify from the destination's vantage, BEFORE any write.
+	raw, err := os.ReadFile(absFile)
+	if err != nil {
+		die(o.stderr, fmt.Sprintf("read %s: %v", relPath, err))
+	}
+	rewritten, rewrites, skipped := rewriteRefs(string(raw), srcRepo, destRepo)
+	for _, s := range skipped {
+		cwarn(o.stderr, "not rewritten — "+s)
+	}
+	for _, r := range rewrites {
+		target := verifyRefTarget(r.New)
+		if _, _, verr := resolveArtifacts(target, destTop); verr != nil {
+			die(o.stderr, fmt.Sprintf("ref %s (line %d, rewritten to %s) does not resolve from %s: %v\n  Nothing was moved. Fix the ref (or fence it), then re-run.", r.Old, r.Line, r.New, destRepo, verr))
+		}
+		cinfo(o.stderr, fmt.Sprintf("line %d: %s → %s", r.Line, r.Old, r.New))
+	}
+	if len(rewrites) == 0 {
+		cinfo(o.stderr, "no refs needed rewriting")
+	}
+
+	// (6) move: write dest, remove source, stage both sides explicitly.
+	if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
+		die(o.stderr, fmt.Sprintf("mkdir for %s: %v", destRel, err))
+	}
+	if err := os.WriteFile(destFile, []byte(rewritten), 0o644); err != nil {
+		die(o.stderr, fmt.Sprintf("write %s: %v", destFile, err))
+	}
+	if out, err := gitInDir(destTop, "add", "--", destRel); err != nil {
+		die(o.stderr, fmt.Sprintf("git add in %s: %v — %s", destRepo, err, out))
+	}
+	if err := os.Remove(absFile); err != nil {
+		die(o.stderr, fmt.Sprintf("remove %s: %v", relPath, err))
+	}
+	if out, err := gitInDir(srcRoot, "add", "--", relPath); err != nil {
+		die(o.stderr, fmt.Sprintf("git add in %s: %v — %s", srcRepo, err, out))
+	}
+
+	// (7) scoped commits (or hand the staged state to the operator).
+	if o.noCommit {
+		cinfo(o.stderr, "--no-commit: both sides staged; commit with:")
+		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q\n", destTop, "migrate: receive "+destRel+" from "+srcRepo)
+		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q\n", srcRoot, "migrate: move "+relPath+" to "+destRepo)
+	} else {
+		if out, err := gitInDir(destTop, "commit", "-q", "-m", "migrate: receive "+destRel+" from "+srcRepo); err != nil {
+			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", destRepo, err, out))
+		}
+		if out, err := gitInDir(srcRoot, "commit", "-q", "-m", "migrate: move "+relPath+" to "+destRepo); err != nil {
+			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", srcRepo, err, out))
+		}
+		cok(o.stderr, fmt.Sprintf("moved %s → %s/%s (both sides committed, scoped)", relPath, destRepo, destRel))
+	}
+
+	// (8) inbound-ref sweep (report-only, v1): every parent-dir sibling repo,
+	// including the two participants, minus the migrated file itself.
+	reportInboundRefs(o.stderr, srcRoot, destTop, relPath, destRel)
+	return nil
+}
+
+// reportInboundRefs prints tracked-file references to the migrated artifact
+// (by old repo-relative path or basename) across the source's parent-dir
+// sibling repos. Report-only (#179 v1): issue refs are location-independent,
+// path references are not — the operator judges.
+func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel string) {
+	parent := filepath.Dir(srcRoot)
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		cwarn(stderr, "inbound-ref sweep skipped: "+err.Error())
+		return
+	}
+	base := filepath.Base(relPath)
+	var hits []string
+	seen := map[string]bool{}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		repoDir := filepath.Join(parent, e.Name())
+		if _, err := os.Stat(filepath.Join(repoDir, ".git")); err != nil {
+			continue
+		}
+		for _, pat := range []string{relPath, base} {
+			out, gerr := gitInDir(repoDir, "grep", "-n", "-F", pat)
+			if gerr != nil {
+				continue // exit 1 = no match; other errors are non-fatal for a report
+			}
+			for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+				if line == "" {
+					continue
+				}
+				file := line
+				if i := strings.IndexByte(line, ':'); i > 0 {
+					file = line[:i]
+				}
+				// The migrated file's own new home isn't an inbound ref.
+				if repoDir == destTop && filepath.ToSlash(file) == destRel {
+					continue
+				}
+				key := e.Name() + "/" + line
+				if !seen[key] {
+					seen[key] = true
+					hits = append(hits, key)
+				}
+			}
+		}
+	}
+	if len(hits) == 0 {
+		cinfo(stderr, "inbound-ref sweep: no references to the old path across sibling repos")
+		return
+	}
+	cwarn(stderr, fmt.Sprintf("inbound references to the moved artifact (%d) — path refs need hand-fixing (issue refs survive moves):", len(hits)))
+	for _, h := range hits {
+		fmt.Fprintf(stderr, "    %s\n", h)
+	}
+}
+
+// NewMigrateCmd returns the cobra command for `sdlc migrate` (#179).
+func NewMigrateCmd() *cobra.Command {
+	var o migrateOpts
+	cmd := markMutatingCommand(&cobra.Command{
+		Use:   "migrate <file> <dest-repo-dir>",
+		Short: "Move a markdown artifact to a peer repo, rewriting refs (#179)",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Deliberately NOT guardSpineRepo'd: migrating an artifact OUT of
+			// a brain is the #171 use case; the brain guard applies to the
+			// DESTINATION instead (inside runMigrate).
+			o.file, o.destDir = args[0], args[1]
+			o.stdout, o.stderr = cmd.OutOrStdout(), cmd.ErrOrStderr()
+			return runMigrate(&o)
+		},
+	})
+	cmd.Flags().StringVar(&o.destPath, "dest-path", "", "repo-root-relative path at the destination (default: same as the source's)")
+	cmd.Flags().BoolVar(&o.noCommit, "no-commit", false, "stage both sides but leave the two commits to the operator")
+	cmd.Flags().BoolVar(&o.noCleanCheck, "no-clean-check", false, "proceed even if the destination repo has uncommitted changes")
+	cmd.SilenceErrors = true
+	return cmd
 }
