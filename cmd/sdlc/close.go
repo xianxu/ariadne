@@ -475,16 +475,26 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// its close commit (AGENTS.md §3 fresh-eyes review evidence). The
 	// check is bypassable with --force; the rationale belongs in --verified.
 	if mode == "issue" {
-		_, missing, err := findMilestonesMissingVerdict(body, issueStr, issuePath)
+		ordered, missing, err := findMilestonesMissingVerdict(body, issueStr, issuePath)
 		if err != nil {
 			cwarn(stderr, fmt.Sprintf("milestone-verdict check skipped: %v", err))
 		} else if len(missing) > 0 {
-			if !f.skip("verdict") {
-				explainMissingVerdicts(stderr, issueStr, missing)
+			midstream, trailing := partitionMissingVerdicts(ordered, missing)
+			switch {
+			case f.skip("verdict"):
+				cwarn(stderr, fmt.Sprintf("--no-verdict (or --force): skipping Review-Verdict check for %d milestone(s): %s",
+					len(missing), strings.Join(missing, ", ")))
+			case len(midstream) > 0:
+				explainMissingVerdicts(stderr, issueStr, midstream)
 				exitWithCode(1)
+			case f.skip("judge"):
+				// Trailing-only, but --no-judge skips the very review that
+				// would cover them — the #175 acceptance premise is gone.
+				die(stderr, formatTrailingNeedsJudge(issueStr, trailing))
+				exitWithCode(1)
+			default:
+				cinfo(stderr, formatTrailingVerdictAccepted(trailing))
 			}
-			cwarn(stderr, fmt.Sprintf("--no-verdict (or --force): skipping Review-Verdict check for %d milestone(s): %s",
-				len(missing), strings.Join(missing, ", ")))
 		}
 	}
 
