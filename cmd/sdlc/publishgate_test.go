@@ -212,3 +212,66 @@ func TestPublishCodecompleteIssues(t *testing.T) {
 		t.Errorf("#70 (working) must be untouched:\n%s", got70)
 	}
 }
+
+// commitDocs makes a docs-only commit (root-level *.md — the measured 6/6
+// friction shape: lessons.md / plan ticks / atlas after the close commit).
+func commitDocs(t *testing.T, git func(...string), name string) {
+	t.Helper()
+	os.WriteFile(name, []byte("# notes\n"), 0o644)
+	git("add", name)
+	git("commit", "-q", "-m", "docs: "+name)
+}
+
+// #174 leg C: post-close deltas with no code surface pass the publish gate —
+// the boundary review's claims are about code behavior, and docs are not
+// reviewable code surface (#177's hasCodePath definition, shared here).
+func TestRunPublishGate_DocsOnly(t *testing.T) {
+	t.Run("docs-only drift after close passes (#174)", func(t *testing.T) {
+		git, base := publishRepo(t)
+		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
+		commitDocs(t, git, "lessons.md")
+		var stderr strings.Builder
+		if err := runPublishGate(base, "workshop/issues", &stderr); err != nil {
+			t.Errorf("docs-only delta should pass: %v", err)
+		}
+		for _, want := range []string{"doc-only", "#174"} {
+			if !strings.Contains(stderr.String(), want) {
+				t.Errorf("docs-only pass line missing %q:\n%s", want, stderr.String())
+			}
+		}
+	})
+
+	t.Run("mixed docs+code drift refuses", func(t *testing.T) {
+		git, base := publishRepo(t)
+		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
+		commitDocs(t, git, "lessons.md")
+		commitCode(t, git, "late.go")
+		err := runPublishGate(base, "workshop/issues", io.Discard)
+		if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
+			t.Errorf("mixed delta should refuse with the pinned message, got: %v", err)
+		}
+	})
+
+	t.Run("multi-issue: two anchors + trailing docs commit passes", func(t *testing.T) {
+		git, base := publishRepo(t)
+		writeIssueStatus(t, git, 69, "codecomplete", "#69 close") // older anchor
+		writeIssueStatus(t, git, 70, "codecomplete", "#70 close") // newest anchor
+		commitDocs(t, git, "lessons.md")
+		if err := runPublishGate(base, "workshop/issues", io.Discard); err != nil {
+			t.Errorf("docs-only delta past the newest anchor should pass: %v", err)
+		}
+	})
+}
+
+// TestFormatPublishGateDocsOnly_ContractElements pins the pass line's content
+// and, critically, that it collides with no gatesig classifier pattern — the
+// refusal vocabulary ("landed after") lives one branch away (#172).
+func TestFormatPublishGateDocsOnly_ContractElements(t *testing.T) {
+	msg := formatPublishGateDocsOnly(3, "abc1234")
+	for _, w := range []string{"3", "abc1234", "doc-only", "#174"} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("formatPublishGateDocsOnly missing %q in:\n%s", w, msg)
+		}
+	}
+	assertNoGatesigCollision(t, msg)
+}
