@@ -237,16 +237,16 @@ func TestIssueSubjectDescriptor_WindowOwnership(t *testing.T) {
 		subject string
 		owned   bool
 	}{
-		{"134", "#134: make actuals robust", true},          // canonical
-		{"134", "#134 M2: estimator source", true},          // canonical + milestone
+		{"134", "#134: make actuals robust", true},            // canonical
+		{"134", "#134 M2: estimator source", true},            // canonical + milestone
 		{"134", "sdlc: #134 measure codex transcripts", true}, // <area>: #N
-		{"134", "side-quest: #134 robustness pass", true},   // hyphenated area
-		{"134", "close #134: archive", true},                // window counts close (allowClosePrefix)
-		{"134", "#134: close (done, actual 3.9h)", true},    // close commit IS in-window (no denylist)
-		{"134", "docs: mention #134 in a note", false},      // loose ref after colon, not anchored
-		{"134", "see #134 for context", false},              // not subject-anchored
-		{"134", "#1340: a different issue entirely", false}, // #1340 must not match #134
-		{"134", "issue-sync: update issues", false},         // never anchors #N
+		{"134", "side-quest: #134 robustness pass", true},     // hyphenated area
+		{"134", "close #134: archive", true},                  // window counts close (allowClosePrefix)
+		{"134", "#134: close (done, actual 3.9h)", true},      // close commit IS in-window (no denylist)
+		{"134", "docs: mention #134 in a note", false},        // loose ref after colon, not anchored
+		{"134", "see #134 for context", false},                // not subject-anchored
+		{"134", "#1340: a different issue entirely", false},   // #1340 must not match #134
+		{"134", "issue-sync: update issues", false},           // never anchors #N
 	}
 	for _, tt := range tests {
 		t.Run(tt.subject, func(t *testing.T) {

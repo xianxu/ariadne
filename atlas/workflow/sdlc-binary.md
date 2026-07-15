@@ -398,8 +398,9 @@ a brain repo (`.brain/config.md` — the #172 audit found brain concentrating
 bypasses because its own merged constitution invited sdlc) and in repos
 without `workshop/issues/`; reads (estimate-source, actual, state,
 process-manual, issue …) are unguarded by construction since sdlc legitimately
-reads brain. `WF_SPINE_GUARD=off` is the single emergency hatch and cwarn-ACKs
-(measurable by the friction instrument). `guardIssueNotDone` closes the front
+reads brain. `WF_SPINE_GUARD=off` is the single emergency hatch and cwarn-ACKs — greppable
+in transcripts (GateCatalog wiring for this env-gate family is deliberate
+follow-up work; the instrument today derives only from catalog rows). `guardIssueNotDone` closes the front
 door on terminal issues: start-plan/change-code refuse on `status: done`
 (re-close was already guarded at the back).
 `milestone-close` forwards the same flags into its delegated `computeClose`

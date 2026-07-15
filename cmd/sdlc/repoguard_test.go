@@ -138,8 +138,41 @@ func TestGuardIssueNotDone(t *testing.T) {
 	}
 }
 
-// #172-instrument guard: none of the three new lines may collide with a
-// GateCatalog pattern.
+// The false-positive arm the guard must never hit: non-done statuses pass —
+// a guard firing on a live issue would block all work.
+func TestGuardIssueNotDone_WorkingIssuePasses(t *testing.T) {
+	dir := hermeticRepo(t)
+	issuesDir := filepath.Join(dir, "workshop", "issues")
+	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	workingIssue := "---\nid: 000006\nstatus: working\ndeps: []\ncreated: 2026-07-01\nupdated: 2026-07-01\nestimate_hours: 1\n---\n\n# t\n\n## Problem\n\nx\n\n## Spec\n\nx\n\n## Done when\n\n- x\n\n## Plan\n\n- [ ] x\n\n## Log\n\n### 2026-07-01\n"
+	if err := os.WriteFile(filepath.Join(issuesDir, "000006-t.md"), []byte(workingIssue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WF_ISSUES_DIR", "")
+	// Guard layer: a working issue passes for both consumers (change-code's
+	// command tree can't be driven past the guard here — its own downstream
+	// gates exit via bare exitWithCode, which expectDie can't intercept).
+	issuePath := filepath.Join(issuesDir, "000006-t.md")
+	msg, died := expectDie(t, func() { guardIssueNotDone(io.Discard, issuePath, "6") })
+	if died {
+		t.Fatalf("done-guard fired on a WORKING issue: %q", msg)
+	}
+	// Command tree: start-plan completes normally on a working issue.
+	root := buildRoot()
+	root.SetOut(io.Discard)
+	root.SetErr(io.Discard)
+	root.SetArgs([]string{"start-plan", "--issue", "6"})
+	msg, died = expectDie(t, func() { _ = root.Execute() })
+	if died && strings.Contains(msg, "is status: done") {
+		t.Fatalf("done-guard fired through start-plan on a WORKING issue: %q", msg)
+	}
+}
+
+// #172-instrument guard: none of the new lines (all four) may collide with a
+// GateCatalog pattern. (Deliberate flip side: the instrument also does not
+// COUNT these — no catalog row; see repoguard.go's follow-up note.)
 func TestSpineGuardLinesNoGatesigCollision(t *testing.T) {
 	for _, line := range []string{
 		brainGuardMsg("brain"),

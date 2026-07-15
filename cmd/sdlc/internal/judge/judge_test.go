@@ -166,7 +166,7 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		"downstream repo",                   // {{REPO_NOTE}}
 		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
-		"```verdict",                        // {{VERDICT_BLOCK}} — the structured handoff (#147)
+		"```verdict", // {{VERDICT_BLOCK}} — the structured handoff (#147)
 		"verdict: <SHIP | FIX-THEN-SHIP | REWORK>", // tokens rendered from vocab.Verdict().Emitted()
 	} {
 		if !strings.Contains(body, want) {
@@ -375,8 +375,8 @@ func TestBuildPrompt_MilestoneReview_HasContract(t *testing.T) {
 		"PURE: tests run without IO",
 		"Docs update gate",
 		"Plan revision recommendations",
-		"VERDICT: <TOKEN>", // unified contract format (#70 M2 — was bare "SHIP | …")
-		"```verdict",       // the authoritative structured handoff block (#147)
+		"VERDICT: <TOKEN>",                     // unified contract format (#70 M2 — was bare "SHIP | …")
+		"```verdict",                           // the authoritative structured handoff block (#147)
 		"FIX-THEN-SHIP  ship after addressing", // token gloss rendered from the model's `when`
 		"Strengths:",
 	} {

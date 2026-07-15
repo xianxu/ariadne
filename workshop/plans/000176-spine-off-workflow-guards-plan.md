@@ -49,3 +49,21 @@ CLAUDE.md (ariadne-built weave binary — `go run` from brain cwd picks up
 brain's go.mod); brain's autosave daemon committed it. Live-verified all three
 arms in the REAL brain: claim → charter refusal; estimate-source (read) →
 unaffected; WF_SPINE_GUARD=off → cwarn ACK + proceed.
+
+### 2026-07-14 — close-review fixes (FIX-THEN-SHIP)
+
+Important #1 (ARCH-PURPOSE): the "instrument can measure the env bypass" claim
+was a hand-maintained restatement — the #172 classifier derives exclusively
+from GateCatalog, which has no row for this family. Claim corrected at all
+three sites (repoguard.go, atlas, this plan): the ACK is
+**transcript-greppable; instrument wiring is deliberate follow-up** (needs an
+env-gate GateSig variant + a drift-guard exemption — noted for #170's orbit).
+Important #2: the non-done-pass test now exists
+(TestGuardIssueNotDone_WorkingIssuePasses) — guard-layer for both consumers +
+command-tree through start-plan; change-code can't be driven past the guard in
+tests (its downstream gates exit via bare exitWithCode). Minors: notSDLCRepoMsg
+names the actual failing dir (incl. WF_ISSUES_DIR overrides); start-plan's
+done-guard resolution now repo-top anchored like guardSpineRepo;
+"three new lines" → four. Also noted per review §7: the constitution edit
+landed in the §1 Peer-Repo brain bullet (not §0/§5), and Done-when #3 ("brain
+drops out of the friction report") is verifiable only at the next re-measure.

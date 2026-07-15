@@ -39,7 +39,16 @@ func NewStartPlanCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			if issue > 0 {
-				issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+				// Same resolution as guardSpineRepo: env override cwd-relative,
+				// default anchored at repo top (correct from any subdirectory).
+				issuesDir := os.Getenv("WF_ISSUES_DIR")
+				if issuesDir == "" {
+					if repoTop, err := gitx.RepoTopLevel(); err == nil {
+						issuesDir = filepath.Join(repoTop, "workshop", "issues")
+					} else {
+						issuesDir = "workshop/issues"
+					}
+				}
 				if path, err := locateIssueFile(issuesDir, issue); err == nil {
 					guardIssueNotDone(cmd.ErrOrStderr(), path, strconv.Itoa(issue)) // #176 done-issue guard
 				}

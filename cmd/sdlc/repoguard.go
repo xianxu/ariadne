@@ -18,7 +18,11 @@
 //     at the very end). start-plan/change-code now refuse up front.
 //
 // Escape hatch: WF_SPINE_GUARD=off (an env, not 7 new per-verb flags) — it
-// cwarn-ACKs so the #172 friction instrument can measure bypasses.
+// cwarn-ACKs so bypasses are greppable in transcripts. NOTE: the #172 friction
+// instrument derives exclusively from GateCatalog and has no row for this
+// family (that wiring needs an env-gate GateSig variant + a drift-guard
+// exemption — deliberate follow-up, tracked in #170's orbit), so today the ACK
+// is transcript-greppable, not instrument-counted.
 package main
 
 import (
@@ -74,7 +78,7 @@ func guardSpineRepo(stderr io.Writer) {
 		issuesDir = filepath.Join(repoTop, "workshop", "issues")
 	}
 	if _, serr := os.Stat(issuesDir); serr != nil {
-		die(stderr, notSDLCRepoMsg("workshop/issues"))
+		die(stderr, notSDLCRepoMsg(issuesDir))
 	}
 }
 
