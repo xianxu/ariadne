@@ -80,12 +80,28 @@ set (project iteration sessions will now happen there).
 
 ## Done when
 
-- `meta` exists as a peer repo holding the 5 project files; brain's
-  `data/project/` is empty (or a tombstone pointing at meta).
-- `sdlc close` finds project files in meta (fallback to brain warns loudly);
-  a close of a project-tracked issue ticks the meta-side file.
-- The residency rule is written down once (meta's README or AGENTS.local) and
-  AGENTS.base §8 + atlas reflect the split; downstream repos re-woven.
+*(Rewritten 2026-07-15 per operator direction — the final shape: project
+files follow the work into coding repos; parley owns navigation; NO meta
+repo; brain unchanged. The meta-era criteria are preserved in git history
+and the `## Revisions` arc.)*
+
+- **Project files live in coding repos** — each in its project's
+  center-of-gravity repo (top product by default; a soft rule, since
+  `repo#id` addressing + `sdlc migrate` (#179) make moves cheap). The 5
+  files in `brain/data/project/` are relocated per-project; brain's
+  `data/project/` ends empty.
+- **Brain is untouched**: it remains the personal/team dumping ground on the
+  auto-commit rhythm (with history) — correct as designed; it just holds no
+  SDLC process artifacts anymore.
+- **`sdlc close`'s project gate resolves across peer repos** (no
+  `--brain-dir` hardcode): closing a project-tracked issue finds and ticks
+  the project file wherever it lives, with the peer-repo write committed
+  (scoped) or loudly reported.
+- **parley navigates**: super-repo mode treats `project` as an
+  always-cross-repo artifact class (search/jump regardless of which repo
+  holds the file) — discovery is tooling's job, not a residency rule's.
+- AGENTS.base §8 ("Project files are usually in brain") + atlas reflect the
+  new residency; downstream repos re-woven.
 - Working a cross-repo project no longer requires starting in brain.
 
 ## Plan
@@ -191,3 +207,14 @@ monorepo lesson); (4) final: commit to peer-repo `repo#id` addressing, make
 sdlc resolution cross-repo, lift project management into the sdlc spine (the
 same prose→binary lift issues received). See ## Revisions for the delta and
 carried-forward design questions.
+
+### 2026-07-15 — Done-when finalized (operator)
+
+Done-when rewritten to the settled shape: project files follow the work into
+coding repos (center-of-gravity default), parley super-repo search owns
+navigation, no meta repo, and brain stays a dumping ground with auto-save +
+history — vindicated as designed, just with no SDLC artifacts in it.
+#179 (`sdlc migrate`) shipped today and makes the per-project relocation
+mechanical. Remaining implementation: the sdlc project-gate lift
+(resolve-based lookup + peer-write commit), the parley `project` artifact
+class, §8/atlas updates, and moving the 5 files.
