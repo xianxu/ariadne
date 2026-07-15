@@ -111,11 +111,11 @@ parseRef candidate filter). Single-pass, plain checkboxes.
 - [x] design at start-plan: ref-rewrite rules as a pure entity over the
       existing ref grammar (ARCH-DRY with `sdlc resolve`), thin IO for
       move/commit; fixture repos for the round-trip test
-- [ ] `issue.SplitFences` segmenter + tests
-- [ ] `rewriteRefs` pure core (scanner + parseRef filter + span rule + 3 rewrite rules) + grammar drift test
-- [ ] `runMigrate` IO shell: guards, dest-vantage verification, scoped two-repo commits, registration + helptext
-- [ ] inbound-ref report + round-trip canonicalization/idempotence e2e + mutation check
-- [ ] atlas + bookkeeping
+- [x] `issue.SplitFences` segmenter + tests
+- [x] `rewriteRefs` pure core (scanner + parseRef filter + span rule + 3 rewrite rules) + grammar drift test
+- [x] `runMigrate` IO shell: guards, dest-vantage verification, scoped two-repo commits, registration + helptext
+- [x] inbound-ref report + round-trip canonicalization/idempotence e2e + mutation check
+- [x] atlas + bookkeeping
 
 ## Log
 
@@ -125,3 +125,15 @@ Filed from the #171 brainstorm (operator): moves become normal under
 peer-repo addressing, rules are fixed patterns → binary-owned. Bare-ref
 requalification + existence verification are the core; inbound refs are
 report-only in v1.
+
+Implementation (all TDD, red→green per task): pure core landed exactly per
+plan (ARCH-PURE: rewriteRefs/SplitFences string-in string-out, zero IO in
+their tests; ARCH-DRY: parseRef stays the sole grammar authority via the
+candidate filter + drift test; stripCodeFences deliberately NOT refactored —
+different unterminated-fence policy, cross-referenced comments). Mutation
+check: neutering the bare-ref rule reddens 12 tests. Live dogfood on a
+scratch two-repo fixture found a REAL bug the hermetic suite missed: under a
+symlinked cwd (macOS /tmp), os.Getwd's logical-$PWD preference vs git's
+resolved paths made the inside-repo guard misfire — fixed with EvalSymlinks
+on both sides + a $PWD-setting regression test (the lessons.md "IO needs a
+live run" pattern, again).
