@@ -803,5 +803,9 @@ roadmap with delivered code.
 Calibration input sets must also be sets by canonical identity, not merely YAML
 lists: normalize aliases to the durable entity key and reject duplicates before
 aggregation or mutation, or one logical input can silently acquire extra weight.
+Canonicalization at a degraded-input boundary must be best-effort: it may catch
+more aliases when peers are present, but must not turn an already modeled
+unavailable input into a new unconditional failure that defeats an explicit
+non-calibrating bypass.
 
 **Origin:** #180 M4 boundary review (REWORK).

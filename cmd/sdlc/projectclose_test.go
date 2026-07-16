@@ -244,6 +244,41 @@ func TestProjectCloseRejectsDuplicateLogicalMVPScopeRefs(t *testing.T) {
 	}
 }
 
+func TestProjectCloseTreatsUnavailablePeerAsIncompleteActual(t *testing.T) {
+	for _, noLedger := range []bool{false, true} {
+		f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
+		f.NoLedger = noLedger
+		b, _ := os.ReadFile(projectPath)
+		text := strings.Replace(string(b), "ariadne#2", "missing-peer#2", 1)
+		if err := os.WriteFile(projectPath, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		original := projectIssueLookupFn
+		projectIssueLookupFn = func(ref string, _ string) (issueMeta, error) {
+			if ref == "missing-peer#2" {
+				return issueMeta{}, errors.New("peer unavailable")
+			}
+			return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
+		}
+		var stderr bytes.Buffer
+		err := runProjectClose(&bytes.Buffer{}, &stderr, f)
+		projectIssueLookupFn = original
+		if !noLedger {
+			if err == nil || !strings.Contains(err.Error(), "incomplete MVP actuals") {
+				t.Fatalf("ledger-backed close error = %v, want incomplete actuals", err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("--no-ledger close: %v", err)
+		}
+		archived, readErr := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
+		if readErr != nil || !strings.Contains(string(archived), "actuals: incomplete") || !strings.Contains(string(archived), "fog: n/a") {
+			t.Fatalf("degraded close did not archive incomplete calibration: err=%v\n%s", readErr, archived)
+		}
+	}
+}
+
 func TestProjectCloseCapturesTodayOnce(t *testing.T) {
 	f, _, _ := projectCloseFixture(t, "executing", true, true)
 	f.NoLedger = true

@@ -372,6 +372,19 @@ actuals or preparing either durable mutation. Regressions cover
 Verification: `go test ./... -count=1`; the expanded focused race suite;
 `bash construct/vocabulary/vet_test.sh`; and `git diff --check` all pass.
 
+### 2026-07-16 — M4 follow-up review: REWORK (unavailable peer compatibility)
+
+The next review found that filesystem-required duplicate normalization changed
+an absent peer from an incomplete actual into an unconditional error, preventing
+the documented `--no-ledger` degraded close. Canonicalization is now
+best-effort: resolvable aliases share a durable path identity; absent peers use
+a normalized repository token; unparseable refs remain lookup failures. The
+regression proves ordinary close refuses incomplete actuals while
+`--no-ledger` archives with `actuals: incomplete` and `fog: n/a`
+(ARCH-PURPOSE).
+Verification: `go test ./... -count=1`; expanded focused race suite;
+vocabulary vet; and `git diff --check` pass.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

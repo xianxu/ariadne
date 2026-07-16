@@ -1411,3 +1411,17 @@ factor.
 close parses each MVP ref to a canonical resolved-repository-plus-issue-ID
 identity and refuses duplicates. Regressions cover both exact duplicates and
 `ariadne#1` / `#1` alias equivalence (ARCH-PURPOSE).
+
+### 2026-07-16 — M4 unavailable-peer compatibility reconciliation
+
+**Reason:** the next M4 review found that filesystem-required canonicalization
+made an absent peer an unconditional error, overriding the established contract
+that lookup failures are incomplete actuals and `--no-ledger` may explicitly
+close without calibration.
+
+**Delta:** duplicate identity is now best-effort: resolvable refs use the
+canonical repository path, while an absent peer uses a normalized repository
+token so repeated spellings are still caught. Unparseable refs continue to the
+lookup seam and become unavailable inputs. A missing-peer regression proves a
+ledger-backed close refuses as incomplete and `--no-ledger` archives with
+`actuals: incomplete` / `fog: n/a` (ARCH-PURPOSE).

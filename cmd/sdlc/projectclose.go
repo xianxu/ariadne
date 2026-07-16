@@ -166,9 +166,9 @@ func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64
 	var unavailable []string
 	seen := map[string]string{}
 	for _, ref := range refs {
-		identity, err := canonicalProjectIssueIdentity(ref, root)
-		if err != nil {
-			return 0, nil, err
+		identity, ok := canonicalProjectIssueIdentity(ref, root)
+		if !ok {
+			continue
 		}
 		if prior, ok := seen[identity]; ok {
 			return 0, nil, fmt.Errorf("duplicate logical MVP issue: %s and %s both resolve to %s", prior, ref, identity)
@@ -200,23 +200,22 @@ func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64
 	return actuals, unavailable, nil
 }
 
-func canonicalProjectIssueIdentity(refText, root string) (string, error) {
+func canonicalProjectIssueIdentity(refText, root string) (string, bool) {
 	ref, err := parseRef(refText)
-	if err != nil {
-		return "", err
-	}
-	if ref.GitHub {
-		return "", fmt.Errorf("GitHub ref %q has no local issue identity", refText)
+	if err != nil || ref.GitHub {
+		return "", false
 	}
 	repoDir, err := resolveRepoDir(ref, root)
 	if err != nil {
-		return "", err
+		// Preserve lookup's established unavailable-input semantics when a peer
+		// is absent, while still catching repeated spellings of that peer.
+		return fmt.Sprintf("repo:%s#%d", strings.ToLower(ref.Repo), ref.ID), true
 	}
 	resolved, err := filepath.EvalSymlinks(repoDir)
 	if err != nil {
-		return "", err
+		resolved = filepath.Clean(repoDir)
 	}
-	return fmt.Sprintf("%s#%d", resolved, ref.ID), nil
+	return fmt.Sprintf("%s#%d", resolved, ref.ID), true
 }
 
 func renderProjectCloseEntry(today string, phaseA, actuals float64, hasPhaseA, actualsComplete bool) string {
