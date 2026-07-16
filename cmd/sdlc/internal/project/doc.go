@@ -43,6 +43,10 @@ func ParseDoc(text string) (*Doc, error) {
 	if err != nil {
 		return nil, err
 	}
+	return parseDocBody(fm, body), nil
+}
+
+func parseDocBody(fm, body string) *Doc {
 	d := &Doc{
 		fm:       fm,
 		lines:    strings.Split(body, "\n"),
@@ -83,7 +87,7 @@ func ParseDoc(text string) (*Doc, error) {
 		})
 	}
 
-	return d, nil
+	return d
 }
 
 // FM returns a trimmed frontmatter field value, or an empty string when absent.

@@ -63,6 +63,18 @@ func TestTickMilestoneTaskRow_Match(t *testing.T) {
 			"- [ ] do work [ariadne#31 M1-extra]\n",
 			0,
 		},
+		{
+			"trailing_note_after_ref",
+			"- [ ] do work [ariadne#31 M1] (operator note)\n",
+			"- [x] do work [ariadne#31 M1] (operator note)\n",
+			1,
+		},
+		{
+			"later_bracket_group_is_not_a_ref",
+			"- [ ] do work [ariadne#31 M1] (see [notes](url))\n",
+			"- [ ] do work [ariadne#31 M1] (see [notes](url))\n",
+			0,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
