@@ -30,10 +30,11 @@ type sectionSpan struct {
 // Doc is a parsed project file. The body lines remain the render source of
 // truth so parsing and non-mutating reads never reflow the document.
 type Doc struct {
-	fm       string
-	lines    []string
-	Tasks    []Task
-	sections map[string]sectionSpan
+	fm             string
+	lines          []string
+	Tasks          []Task
+	legacyTaskRows []Task // close ticking historically scans every real section
+	sections       map[string]sectionSpan
 }
 
 // ParseDoc parses frontmatter, section spans, and task rows without changing
@@ -54,7 +55,20 @@ func parseDocBody(fm, body string) *Doc {
 	}
 
 	var current string
+	var fence byte
+	var fenceWidth int
 	for i, line := range d.lines {
+		if marker, width, rest, ok := fenceMarker(line); ok {
+			if fence == 0 {
+				fence, fenceWidth = marker, width
+			} else if marker == fence && width >= fenceWidth && strings.TrimSpace(rest) == "" {
+				fence, fenceWidth = 0, 0
+			}
+			continue
+		}
+		if fence != 0 {
+			continue
+		}
 		if strings.HasPrefix(line, "## ") {
 			if current != "" {
 				span := d.sections[current]
@@ -79,15 +93,37 @@ func parseDocBody(fm, body string) *Doc {
 			title = strings.TrimSpace(remainder[:last[0]])
 			refText = remainder[last[2]:last[3]]
 		}
-		d.Tasks = append(d.Tasks, Task{
+		task := Task{
 			LineIdx: i,
 			State:   match[1][0],
 			Title:   title,
 			RefText: refText,
-		})
+		}
+		d.legacyTaskRows = append(d.legacyTaskRows, task)
+		if current == "Breakdown" {
+			d.Tasks = append(d.Tasks, task)
+		}
 	}
 
 	return d
+}
+
+// fenceMarker recognizes CommonMark-style backtick or tilde fences indented
+// by at most three spaces. The caller owns opener/closer state.
+func fenceMarker(line string) (byte, int, string, bool) {
+	trimmed := strings.TrimLeft(line, " ")
+	if len(line)-len(trimmed) > 3 || len(trimmed) < 3 {
+		return 0, 0, "", false
+	}
+	marker := trimmed[0]
+	if marker != '`' && marker != '~' {
+		return 0, 0, "", false
+	}
+	width := 0
+	for width < len(trimmed) && trimmed[width] == marker {
+		width++
+	}
+	return marker, width, trimmed[width:], width >= 3
 }
 
 // FM returns a trimmed frontmatter field value, or an empty string when absent.
@@ -142,18 +178,39 @@ func (d *Doc) AppendToSection(name, block string) error {
 	return nil
 }
 
-// SetTaskState rewrites only the selected task row's checkbox state.
-func (d *Doc) SetTaskState(i int, state byte) {
+// SetTaskState rewrites only the selected Breakdown task's checkbox state.
+// It returns false for an invalid index or state.
+func (d *Doc) SetTaskState(i int, state byte) bool {
 	if i < 0 || i >= len(d.Tasks) {
-		return
+		return false
 	}
-	task := &d.Tasks[i]
-	line := d.lines[task.LineIdx]
+	if !strings.ContainsRune(" x.-~", rune(state)) {
+		return false
+	}
+	if !d.setTaskStateAtLine(d.Tasks[i].LineIdx, state) {
+		return false
+	}
+	d.Tasks[i].State = state
+	return true
+}
+
+// setTaskStateAtLine is the explicit compatibility seam for legacy close
+// ticking, which historically scans checkbox rows outside Breakdown too.
+func (d *Doc) setTaskStateAtLine(lineIdx int, state byte) bool {
+	if lineIdx < 0 || lineIdx >= len(d.lines) || !strings.ContainsRune(" x.-~", rune(state)) {
+		return false
+	}
+	line := d.lines[lineIdx]
 	if len(line) < 4 {
-		return
+		return false
 	}
-	d.lines[task.LineIdx] = line[:3] + string(state) + line[4:]
-	task.State = state
+	d.lines[lineIdx] = line[:3] + string(state) + line[4:]
+	for i := range d.legacyTaskRows {
+		if d.legacyTaskRows[i].LineIdx == lineIdx {
+			d.legacyTaskRows[i].State = state
+		}
+	}
+	return true
 }
 
 // Render reassembles the current frontmatter and line-preserved markdown body.

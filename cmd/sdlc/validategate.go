@@ -45,7 +45,7 @@ type nounGate struct {
 
 func nounGates(issuesDir string) []nounGate {
 	if issuesDir == "" {
-		issuesDir = envOr("WF_ISSUES_DIR", "workshop/issues")
+		issuesDir = envOr("WF_ISSUES_DIR", vocab.Issue().Discovery().Home)
 	}
 	return []nounGate{
 		{noun: "issue", dir: issuesDir, checkSections: true},

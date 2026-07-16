@@ -113,6 +113,23 @@ func TestTickAllTaskRowsForIssue(t *testing.T) {
 	}
 }
 
+func TestLegacyTickScansRealSectionsButIgnoresFencedExamples(t *testing.T) {
+	in := "---\ntype: project\nstatus: executing\n---\n" +
+		"## PRD\n- [ ] acceptance [ariadne#31 M1]\n\n" +
+		"```markdown\n- [ ] example [ariadne#31 M1]\n" +
+		"```go\n- [ ] still example [ariadne#31 M1]\n```\n\n" +
+		"## Breakdown\n- [ ] task [ariadne#31 M1]\n"
+	want := strings.Replace(in, "- [ ] acceptance", "- [x] acceptance", 1)
+	want = strings.Replace(want, "- [ ] task", "- [x] task", 1)
+	got, n := TickMilestoneTaskRow(in, "ariadne", "31", "M1")
+	if got != want {
+		t.Fatalf("legacy tick changed the wrong rows:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+	if n != 2 {
+		t.Fatalf("ticks = %d, want 2 real-section rows", n)
+	}
+}
+
 func TestUpsertDetailBlockFields_FieldPresent_Replaces(t *testing.T) {
 	doc := `## details
 

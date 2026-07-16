@@ -591,7 +591,7 @@ func ArchiveSubdir(root string, kind ArchiveKind) string {
 **Files:**
 - Create: `cmd/sdlc/internal/project/doc.go`, `doc_test.go`
 
-- [ ] **Step 1: Write failing tests** — parse a fixture with frontmatter + all
+- [x] **Step 1: Write failing tests** — parse a fixture with frontmatter + all
   four sections + task rows in every checkbox state
   (`[ ]`,`[x]`,`[.]`,`[-]`,`[~]`), refs with and without milestones, and a
   plain-text task (no ref):
@@ -611,9 +611,9 @@ func TestDocSetTaskState(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run** — FAIL (undefined).
+- [x] **Step 2: Run** — FAIL (undefined).
 
-- [ ] **Step 3: Implement**:
+- [x] **Step 3: Implement**:
 
 ```go
 // Doc is a parsed project file: raw lines (render source of truth), frontmatter
@@ -652,9 +652,9 @@ func (d *Doc) Render() string
   Step 1). The class includes `~` so the milestone tick can flip it (the
   issue-close tick filters it out by State, per the pinned asymmetry).
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/internal/project/` — PASS.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/internal/project/` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M2: internal/project.Doc — typed project-file records`
+- [x] **Step 5: Commit** — `#180 M2: internal/project.Doc — typed project-file records`
 
 #### Task M2.2: retype the tick mutators over `Doc`
 
@@ -662,7 +662,7 @@ func (d *Doc) Render() string
 - Modify: `cmd/sdlc/internal/project/project.go:62-95` (`TickMilestoneTaskRow`,
   `TickAllTaskRowsForIssue`)
 
-- [ ] **Step 1: Note the pin** — the existing `project_test.go` cases define the
+- [x] **Step 1: Note the pin** — the existing `project_test.go` cases define the
   behavior contract, including the intentional asymmetry: the milestone tick
   flips states `[ .\-~]`, the issue-close tick flips only `[ .]` (so
   cancelled/blocked rows aren't silently completed at issue close). Do NOT
@@ -680,7 +680,7 @@ func (d *Doc) Render() string
   deliberately — pin the skip behavior with its own test case so the narrowing
   is visible, not incidental.
 
-- [ ] **Step 2: Reimplement bodies** — parse via `ParseDoc`, select tasks by
+- [x] **Step 2: Reimplement bodies** — parse via `ParseDoc`, select tasks by
   matching `RefText` against `repo#id [milestone]` (exact-match on the parsed
   ref text: `RefText == repoName+"#"+issueID` or
   `strings.HasPrefix(RefText, repoName+"#"+issueID+" ")` for the all-rows form;
@@ -689,13 +689,13 @@ func (d *Doc) Render() string
   `Render`. Legacy `~` state: M2.1's grammar class already accepts it — the
   milestone tick flips it, the issue-close tick doesn't (State filter).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/internal/project/` — the pre-existing
+- [x] **Step 3: Run** `go test ./cmd/sdlc/internal/project/` — the pre-existing
   tests must PASS unchanged (that's the point: typed parsing, same semantics).
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/` (close-gate tests exercise the call
+- [x] **Step 4: Run** `go test ./cmd/sdlc/` (close-gate tests exercise the call
   sites) — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M2: tick mutators re-implemented over typed Doc (same contract, no substring convention)`
+- [x] **Step 5: Commit** — `#180 M2: tick mutators re-implemented over typed Doc (same contract, no substring convention)`
 
 #### Task M2.3: generalize the validate gate to a noun table
 
@@ -705,13 +705,13 @@ func (d *Doc) Render() string
   (merge.go:326, push.go:126) and the `validateChangedIssuesFn` stub in
   `cmd/sdlc/merge_e2e_test.go:131,140`
 
-- [ ] **Step 1: Write failing test** — hermetic (seams injected per
+- [x] **Step 1: Write failing test** — hermetic (seams injected per
   `validategate.go:30-35`): a diff window touching
   `workshop/projects/demo.md` must invoke the validator with
   `--type project`; an issue file still gets `--type issue` + section presence
   on added files; a project file gets NO issue-section check.
 
-- [ ] **Step 2: Implement** — introduce the table and generalize:
+- [x] **Step 2: Implement** — introduce the table and generalize:
 
 ```go
 // nounGate binds one vocabulary noun to the repo dir whose changed instances
@@ -743,17 +743,17 @@ func nounGates(issuesDir string) []nounGate {
   the `validateChangedIssuesFn` stub signature in `merge_e2e_test.go:131,140`
   (add to Files list).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ -run Validate` — PASS.
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ -run Validate` — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M2: validate gate generalized to a noun table — project instances conform at push/merge`
+- [x] **Step 4: Commit** — `#180 M2: validate gate generalized to a noun table — project instances conform at push/merge`
 
 #### Task M2.4: close M2
 
-- [ ] Full bare suite + `sh construct/vocabulary/vet_test.sh` — PASS.
-- [ ] **Live check (IO-adjacent milestone):** in a scratch clone, create
+- [x] Full bare suite + `sh construct/vocabulary/vet_test.sh` — PASS.
+- [x] **Live check (IO-adjacent milestone):** in a scratch clone, create
   `workshop/projects/bad.md` with `status: shipped`, run `sdlc push` — expect
   the gate to refuse naming the file and the enum. Delete the scratch.
-- [ ] Tick M2 plan rows; log; `sdlc milestone-close --issue 180 --milestone M2`.
+- [x] Tick M2 plan rows; log; `sdlc milestone-close --issue 180 --milestone M2`.
 
 ---
 
@@ -1258,3 +1258,25 @@ the approved plan in place.
   effort-to-calendar feasibility is the defining timeline capability that
   distinguishes a project from an issue, so #182 is in the MVP while remaining
   a separately implemented issue.
+
+### 2026-07-16 — M2 boundary-review reconciliation
+
+**Reason:** the M2 `FIX-THEN-SHIP` review found three implementation ambiguities,
+one ownership contradiction, and durable verification evidence that had not
+been reflected in the detailed plan rows.
+
+**Delta:**
+
+- Typed `Doc.Tasks` is scoped to the real `## Breakdown`; the legacy close
+  mutators retain their historical whole-document scan through an explicitly
+  named compatibility seam. Markdown fences are structure-aware so example H2s
+  and checkboxes cannot masquerade as project structure.
+- Close-time schema validation cannot safely hard-fail until #171 migrates the
+  five legacy `status: active` brain projects. #180 supplies typed mutation and
+  push/merge conformance; #171 owns activating close-time validation afterward.
+- The scratch bad-status push refusal, live-instance conformance, full suite,
+  and vocabulary harness were run before review and are now recorded in the
+  checked M2 rows and issue Log.
+- The milestone-actual deviation correction is an enabling side quest, not an
+  expansion of M2's project-model scope: cumulative claim-to-HEAD measurements
+  cannot be compared to per-milestone increments.

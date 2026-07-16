@@ -66,11 +66,11 @@ func TickMilestoneTaskRow(text, repoName, issueID, milestone string) (string, in
 	}
 	wantRef := repoName + "#" + issueID + " " + milestone
 	n := 0
-	for i, task := range d.Tasks {
+	for _, task := range d.legacyTaskRows {
 		if !strings.Contains(" .-~", string(task.State)) || task.RefText != wantRef {
 			continue
 		}
-		d.SetTaskState(i, 'x')
+		d.setTaskStateAtLine(task.LineIdx, 'x')
 		n++
 	}
 	return renderTickDoc(d, fullDoc), n
@@ -90,14 +90,14 @@ func TickAllTaskRowsForIssue(text, repoName, issueID string) (string, int) {
 	}
 	wantRef := repoName + "#" + issueID
 	n := 0
-	for i, task := range d.Tasks {
+	for _, task := range d.legacyTaskRows {
 		if task.State != ' ' && task.State != '.' {
 			continue
 		}
 		if task.RefText != wantRef && !strings.HasPrefix(task.RefText, wantRef+" ") {
 			continue
 		}
-		d.SetTaskState(i, 'x')
+		d.setTaskStateAtLine(task.LineIdx, 'x')
 		n++
 	}
 	return renderTickDoc(d, fullDoc), n

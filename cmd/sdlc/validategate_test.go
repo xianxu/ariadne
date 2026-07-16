@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 const (
@@ -112,6 +113,14 @@ func TestIsInstanceFile(t *testing.T) {
 		if got := isInstanceFile(c.path, "workshop/issues"); got != c.want {
 			t.Errorf("isInstanceFile(%q) = %v, want %v", c.path, got, c.want)
 		}
+	}
+}
+
+func TestNounGatesDefaultIssueHomeComesFromVocabulary(t *testing.T) {
+	t.Setenv("WF_ISSUES_DIR", "")
+	gates := nounGates("")
+	if got, want := gates[0].dir, vocab.Issue().Discovery().Home; got != want {
+		t.Fatalf("issue gate dir = %q, want vocabulary discovery home %q", got, want)
 	}
 }
 

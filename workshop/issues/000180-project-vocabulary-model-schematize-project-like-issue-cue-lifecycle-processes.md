@@ -185,8 +185,9 @@ doc).*
 - `construct/vocabulary/project.cue` models the project noun (fields,
   status enum, lifecycle) and `pkg/vocab` exposes it; no consumer hardcodes
   the enum.
-- `sdlc close`'s project-file update parses/validates against the model
-  (typed records, not substring convention — lessons.md #167).
+- `sdlc close`'s project-file update parses through typed records rather than
+  substring convention (lessons.md #167); #171 owns enabling close-time model
+  validation after migrating the grandfathered brain project records.
 - A project instance failing conformance is caught by a gate (which gate —
   merge instance-conformance vs close — is a design decision).
 - `construct/datatype/project.md` cites the cue as schema authority; a
@@ -216,7 +217,7 @@ doc).*
 - [x] M1 — model + binding: project.cue (funnel, baseline guard, discovery,
       scaffold, laws) + vet block, pkg/vocab lifecycle-helper extraction,
       `vocab.Project()`, kind-keyed `ArchiveSubdir` (+projects)
-- [ ] M2 — typed parsing + conformance: `internal/project.Doc`/`Task`,
+- [x] M2 — typed parsing + conformance: `internal/project.Doc`/`Task`,
       tick mutators re-implemented over Doc (same contract), validate gate
       generalized to a noun table (project instances at push/merge)
 - [ ] M3 — verbs: `sdlc project` family (new/list/show/set-status/validate),
@@ -266,6 +267,8 @@ rejected: stay-in-place records. Spec updated in place where these were
 parked.
 
 ### 2026-07-16 — durable plan authored + reviewed
+- 2026-07-16: closed M2 — go test ./... and construct/vocabulary/vet_test.sh pass; make vocab-embed clean; live project-management-primitive conforms to #Project; scratch sdlc push refuses workshop/projects/bad.md specifically because status shipped is outside the project enum; milestone-increment deviation regression pinned; review verdict: FIX-THEN-SHIP
+- 2026-07-16: M2 review fixes — issue discovery now falls back to vocab.Issue().Discovery().Home (ARCH-DRY); fenced headings no longer corrupt section spans (ARCH-PURE); Doc.Tasks is Breakdown-only while close ticking uses an explicit whole-document compatibility seam (ARCH-PURPOSE); #171 owns close-time validation after legacy migration. Targeted regressions and full-suite evidence recorded in the M2 boundary commit.
 - 2026-07-16: closed M1 — go test ./... + vet_test.sh green (bare); invalid fixture fails vet on the enum conflict specifically; live pm-primitive instance vets clean against #Project; embeds byte-identical under vocabulary binary; ArchiveSubdir guard test widened, 11 call sites migrated; review verdict: FIX-THEN-SHIP
 
 Plan landed at `workshop/plans/000180-project-vocabulary-model-plan.md`

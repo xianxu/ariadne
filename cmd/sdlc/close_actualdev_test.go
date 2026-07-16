@@ -41,7 +41,7 @@ func TestActualDeviation(t *testing.T) {
 // unavailable measurement.
 func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 	var buf bytes.Buffer
-	// #99999 has no commits referencing it → computeActual → actualNoWindow.
+	// #99999 has no commits referencing it → computeActualForCloseFn → actualNoWindow.
 	if err := checkActualDeviation(&buf, "99999", 13.5, "issue"); err != nil {
 		t.Fatalf("expected nil (skip) when unmeasurable, got: %v", err)
 	}
