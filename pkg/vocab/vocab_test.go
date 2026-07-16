@@ -141,29 +141,31 @@ func TestStatusNamesAndGloss(t *testing.T) {
 	}
 }
 
-// TestArchiveSubdirs pins the per-kind archive layout convention (#181):
-// derived from an arbitrary root (writers take --history-dir overrides), one
-// function, every consumer routes through it.
-func TestArchiveSubdirs(t *testing.T) {
-	issues, plans := ArchiveSubdirs("workshop/history")
-	if issues != "workshop/history/issues" {
-		t.Errorf("issues subdir = %q", issues)
-	}
-	if plans != "workshop/history/plans" {
-		t.Errorf("plans subdir = %q", plans)
+// TestArchiveSubdir pins the per-kind archive layout convention (#181, widened
+// kind-keyed for #180): derived from an arbitrary root (writers take
+// --history-dir overrides), one function, every consumer routes through it.
+func TestArchiveSubdir(t *testing.T) {
+	for kind, want := range map[ArchiveKind]string{
+		ArchiveIssues:   "workshop/history/issues",
+		ArchivePlans:    "workshop/history/plans",
+		ArchiveProjects: "workshop/history/projects",
+	} {
+		if got := ArchiveSubdir("workshop/history", kind); got != filepath.FromSlash(want) {
+			t.Errorf("%s = %q, want %q", kind, got, want)
+		}
 	}
 	// Arbitrary root (flag override) derives consistently.
-	if i2, p2 := ArchiveSubdirs("/tmp/hx"); i2 != "/tmp/hx/issues" || p2 != "/tmp/hx/plans" {
-		t.Errorf("override root: got (%q, %q)", i2, p2)
+	if got := ArchiveSubdir("/tmp/hx", ArchiveIssues); got != filepath.FromSlash("/tmp/hx/issues") {
+		t.Errorf("override root: got %q", got)
 	}
 }
 
-// TestArchiveSubdirs_SingleDerivationPoint is the #163-pattern source guard
+// TestArchiveSubdir_SingleDerivationPoint is the #163-pattern source guard
 // (#181): no non-test Go file may concatenate the archive subdir literals
-// itself — every consumer derives through ArchiveSubdirs, so a future layout
-// change (e.g. history/projects/, #180) is one function edit. Scans the
+// itself — every consumer derives through ArchiveSubdir, so a future layout
+// change is one function edit. Scans the
 // repo's Go source for the tell-tale literals.
-func TestArchiveSubdirs_SingleDerivationPoint(t *testing.T) {
+func TestArchiveSubdir_SingleDerivationPoint(t *testing.T) {
 	root, err := repoRoot()
 	if err != nil {
 		t.Skipf("repo root not found: %v", err)
@@ -178,13 +180,13 @@ func TestArchiveSubdirs_SingleDerivationPoint(t *testing.T) {
 			if rerr != nil {
 				return nil
 			}
-			for _, lit := range []string{`"history/issues"`, `"history/plans"`, `history + "/issues"`, `history + "/plans"`} {
+			for _, lit := range []string{`"history/issues"`, `"history/plans"`, `"history/projects"`, `history + "/issues"`, `history + "/plans"`, `history + "/projects"`} {
 				if strings.Contains(string(data), lit) {
 					offenders = append(offenders, path+": "+lit)
 				}
 			}
 			// The subdir names may only appear as filepath.Join(<root>, "issues"/"plans")
-			// inside ArchiveSubdirs itself (vocab.go) — regardless of the root
+			// inside ArchiveSubdir itself (vocab.go) — regardless of the root
 			// variable's name (historyDir, historyFull, …) or a format-string embed.
 			if filepath.Base(path) != "vocab.go" {
 				for _, m := range archiveJoinRE.FindAllString(string(data), -1) {
@@ -195,16 +197,16 @@ func TestArchiveSubdirs_SingleDerivationPoint(t *testing.T) {
 		})
 	}
 	if len(offenders) > 0 {
-		t.Errorf("archive subdir literals outside vocab.ArchiveSubdirs (derive, don't concatenate):\n  %s",
+		t.Errorf("archive subdir literals outside vocab.ArchiveSubdir (derive, don't concatenate):\n  %s",
 			strings.Join(offenders, "\n  "))
 	}
 }
 
 // archiveJoinRE catches hand-derivations of the archive subdirs that the
 // literal patterns above miss: any filepath.Join whose last argument is the
-// bare "issues"/"plans" literal with a history-ish root variable, and
+// bare "issues"/"plans"/"projects" literal with a history-ish root variable, and
 // %s/issues-style format embeds.
-var archiveJoinRE = regexp.MustCompile(`filepath\.Join\([A-Za-z0-9_.]*[Hh]istory[A-Za-z0-9_.]*,\s*"(issues|plans)"\)|%s/(issues|plans)/`)
+var archiveJoinRE = regexp.MustCompile(`filepath\.Join\([A-Za-z0-9_.]*[Hh]istory[A-Za-z0-9_.]*,\s*"(issues|plans|projects)"\)|%s/(issues|plans|projects)/`)
 
 // repoRoot walks up from cwd to the go.mod that declares module ariadne.
 func repoRoot() (string, error) {

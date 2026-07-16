@@ -296,7 +296,7 @@ type shipProbe func(issueNum string) (sha, subject string, shipped bool)
 //     check 2. Warn-only: surface for a human glance, never auto-close (closing
 //     carries actual/verified judgment a heuristic can't supply).
 func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []DriftFinding {
-	archivedIssuesDir, _ := vocab.ArchiveSubdirs(historyDir) // #181 layout in the drift hint
+	archivedIssuesDir := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues) // #181 layout in the drift hint
 	var out []DriftFinding
 	for _, i := range issues {
 		// Tagless switch so the terminal arm can read the model's category (#122);

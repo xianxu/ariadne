@@ -229,7 +229,8 @@ func familyFiles(repoDir string, d vocab.Discovery, id int) ([]string, error) {
 	// Archive root kept alongside its per-kind subdirs (#181): reads tolerate
 	// the pre-#181 flat layout (un-migrated + downstream repos) indefinitely;
 	// the seen-map de-dupes if the dirs ever overlap.
-	archIssues, archPlans := vocab.ArchiveSubdirs(d.Archive)
+	archIssues := vocab.ArchiveSubdir(d.Archive, vocab.ArchiveIssues)
+	archPlans := vocab.ArchiveSubdir(d.Archive, vocab.ArchivePlans)
 	for _, sub := range []string{d.Home, d.Plans, d.Archive, archIssues, archPlans} {
 		matches, err := filepath.Glob(filepath.Join(repoDir, sub, pat))
 		if err != nil {

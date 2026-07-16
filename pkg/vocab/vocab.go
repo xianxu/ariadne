@@ -93,18 +93,27 @@ func Issue() *IssueModel { return issueModel }
 // them (ariadne#144).
 func (m *IssueModel) Discovery() Discovery { return m.Disc }
 
-// ArchiveSubdirs derives the per-kind archive layout from an archive ROOT
-// (#181): issues under root/issues, plans + review sidecars under root/plans.
-// Go-owned rather than cue-encoded because writers take --history-dir /
-// WF_HISTORY_DIR root overrides and must derive from an arbitrary root (and
-// widening the cue's `archive` string to a struct would break downstream JSON
-// consumers of the discovery export). THE single derivation point — consumers
-// route through it; nothing concatenates these subdir literals elsewhere (a
-// guard test enforces this). Reads stay tolerant of the pre-#181 flat layout;
-// writes emit only into these subdirs. `history/projects/` (ariadne#180) will
-// widen this when project archiving lands.
-func ArchiveSubdirs(root string) (issues, plans string) {
-	return filepath.Join(root, "issues"), filepath.Join(root, "plans")
+// ArchiveKind names one per-kind archive subdir under the archive root (#181
+// layout, widened kind-keyed for #180): issues under root/issues, plans +
+// review sidecars under root/plans, done/dropped projects under root/projects.
+type ArchiveKind string
+
+const (
+	ArchiveIssues   ArchiveKind = "issues"
+	ArchivePlans    ArchiveKind = "plans"
+	ArchiveProjects ArchiveKind = "projects"
+)
+
+// ArchiveSubdir derives one kind's archive dir from an archive ROOT. Go-owned
+// rather than cue-encoded because writers take --history-dir / WF_HISTORY_DIR
+// root overrides and must derive from an arbitrary root (and widening the
+// cue's `archive` string to a struct would break downstream JSON consumers of
+// the discovery export). THE single derivation point — consumers route through
+// it; nothing concatenates these subdir literals elsewhere (a guard test
+// enforces this). Reads stay tolerant of the pre-#181 flat layout; writes emit
+// only into these subdirs.
+func ArchiveSubdir(root string, kind ArchiveKind) string {
+	return filepath.Join(root, string(kind))
 }
 
 // Sections returns the ordered creation-template body sections, so the issue

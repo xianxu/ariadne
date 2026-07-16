@@ -29,7 +29,7 @@ var hyphenRunRE = regexp.MustCompile(`-+`)
 // a fresh repo yields "000001"). The plans subdir is skipped — plan/review
 // files carry the same ids as their issues, so it can't hold a new max.
 func NextID(issuesDir, historyDir string) (string, error) {
-	archivedIssues, _ := vocab.ArchiveSubdirs(historyDir)
+	archivedIssues := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)
 	max := 0
 	for _, dir := range []string{issuesDir, historyDir, archivedIssues} {
 		entries, err := os.ReadDir(dir)
