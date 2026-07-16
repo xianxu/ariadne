@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"go.yaml.in/yaml/v3"
@@ -35,17 +36,23 @@ func (d *Doc) Metadata() (Metadata, error) { return DecodeMetadata(d.fm) }
 // model's explicit N/A sentinel. Stringified numbers remain accepted for legacy
 // records; other strings are malformed rather than silently becoming zero.
 func NumberValue(value any, field string) (number float64, present, notApplicable bool, err error) {
+	valid := func(n float64) (float64, bool, bool, error) {
+		if math.IsNaN(n) || math.IsInf(n, 0) || n <= 0 {
+			return 0, true, false, fmt.Errorf("invalid %s %v; must be finite and positive", field, n)
+		}
+		return n, true, false, nil
+	}
 	switch v := value.(type) {
 	case nil:
 		return 0, false, false, nil
 	case int:
-		return float64(v), true, false, nil
+		return valid(float64(v))
 	case int64:
-		return float64(v), true, false, nil
+		return valid(float64(v))
 	case uint64:
-		return float64(v), true, false, nil
+		return valid(float64(v))
 	case float64:
-		return v, true, false, nil
+		return valid(v)
 	case string:
 		if v == "N/A" {
 			return 0, true, true, nil
@@ -54,7 +61,7 @@ func NumberValue(value any, field string) (number float64, present, notApplicabl
 		if parseErr != nil {
 			return 0, true, false, fmt.Errorf("invalid %s %q", field, v)
 		}
-		return n, true, false, nil
+		return valid(n)
 	default:
 		return 0, true, false, fmt.Errorf("invalid %s YAML type %T", field, value)
 	}

@@ -344,6 +344,22 @@ Third-review remediation verification: `go test ./... -count=1`; focused race
 suite including Phase/Metadata; `bash construct/vocabulary/vet_test.sh`; live
 `project status`; and `git diff --check` all pass.
 
+### 2026-07-16 — M4 fourth review: REWORK (non-finite + residual consumers)
+
+The fourth review found that NaN/Inf could evade a `<= 0` actual check and enter
+the fog ledger; board name and stale-retro nudge still used raw scalar reads;
+close dates were sampled repeatedly; close/blocked semantics retained enum
+literals; and two Core concepts rows claimed planned M5 files as delivered.
+Remediation rejects non-finite/non-positive metadata (quoted and YAML numeric),
+defends the injected close seam, moves the remaining consumers to typed
+metadata, captures one transaction date, derives close/drop and blocked meaning
+from model lifecycle events, and labels M5 rows `planned M5`. Focused regressions
+cover every edge (ARCH-DRY, ARCH-PURPOSE).
+
+Fourth-review remediation verification: full `go test ./... -count=1`, expanded
+focused race suite including vocab event/number tests, vocabulary vet, and diff
+check all pass.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

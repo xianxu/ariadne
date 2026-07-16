@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,7 @@ import (
 const projectLedgerRel = "data/life/42shots/velocity/estimate-logic-project-v1.md"
 
 var (
-	projectCloseTransitionFn = func(from, to string) *vocab.Transition { return vocab.Project().TransitionFor(from, to) }
+	projectCloseTransitionFn = func(from, event string) *vocab.Transition { return vocab.Project().TransitionForEvent(from, event) }
 	projectCloseStageFileFn  = stageProjectCloseFile
 	projectCloseRenameFn     = os.Rename
 )
@@ -61,21 +62,26 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 	if err != nil {
 		return err
 	}
+	today := projectTodayFn()
 	from := metadata.Status
-	to := "done"
+	event := "close"
+	m := vocab.Project()
 	if f.Drop {
-		to = "dropped"
-		if from != "executing" && from != "paused" {
+		event = "drop"
+		if !m.IsExecuting(from) {
 			return fmt.Errorf("project close --drop requires status executing or paused (current %q); use the lifecycle's ordinary status transition for a pre-execution drop", from)
 		}
-	} else if from == "paused" {
-		return fmt.Errorf("project is paused; resume first with `sdlc project set-status --to executing`")
-	} else if from != "executing" {
-		return fmt.Errorf("project close requires status executing (current %q); advance it through the project lifecycle funnel first", from)
 	}
-	tr := projectCloseTransitionFn(from, to)
+	tr := projectCloseTransitionFn(from, event)
 	if tr == nil {
-		return fmt.Errorf("illegal project transition %s → %s; legal from %q: %s", from, to, from, strings.Join(vocab.Project().LegalTransitions(from), ", "))
+		required := m.FirstTransitionForEvent(event)
+		if !f.Drop && m.IsExecuting(from) && required != nil {
+			return fmt.Errorf("project is %s; resume first with `sdlc project set-status --to %s`", from, required.From)
+		}
+		if required != nil {
+			return fmt.Errorf("project close requires status %s (current %q); advance it through the project lifecycle funnel first", required.From, from)
+		}
+		return fmt.Errorf("no modeled %s transition from project status %q", event, from)
 	}
 
 	var ledgerPath, ledgerNext string
@@ -87,7 +93,7 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 				cwarn(stderr, "--no-retro (or --force): closing without a recorded project retro")
 				return nil
 			}
-			if err := projectdoc.Guards()["retro-recorded"](d, projectdoc.GuardCtx{Today: projectTodayFn()}); err != nil {
+			if err := projectdoc.Guards()["retro-recorded"](d, projectdoc.GuardCtx{Today: today}); err != nil {
 				return fmt.Errorf("retro gate: %w; run `sdlc project retro`, or pass --no-retro (or --force) when it is not applicable", err)
 			}
 			return nil
@@ -120,7 +126,7 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 				return fmt.Errorf("incomplete MVP actuals (%s); resolve every measured actual_hours or pass --no-ledger (or --force) to close without calibration", strings.Join(unavailable, ", "))
 			}
 			ledgerPath = filepath.Join(f.BrainDir, filepath.FromSlash(projectLedgerRel))
-			ledgerNext, err = prepareProjectLedgerRow(ledgerPath, metadata.Name, phaseA, actuals, projectTodayFn())
+			ledgerNext, err = prepareProjectLedgerRow(ledgerPath, metadata.Name, phaseA, actuals, today)
 			return err
 		},
 	}
@@ -134,12 +140,12 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 		}
 	}
 
-	closeEntry := renderProjectCloseEntry(projectTodayFn(), phaseA, actuals, hasPhaseA, actualsComplete)
+	closeEntry := renderProjectCloseEntry(today, phaseA, actuals, hasPhaseA, actualsComplete)
 	if err := d.AppendToSection("Log", closeEntry); err != nil {
 		return err
 	}
-	d.SetFM("status", to)
-	d.SetFM("updated", projectTodayFn())
+	d.SetFM("status", tr.To)
+	d.SetFM("updated", today)
 	archiveDir := vocab.ArchiveSubdir(f.HistoryDir, vocab.ArchiveProjects)
 	dest := filepath.Join(archiveDir, filepath.Base(path))
 	if err := commitProjectClose(path, dest, d.Render(), ledgerPath, ledgerNext); err != nil {
@@ -165,6 +171,8 @@ func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64
 			reason = "actual_hours is N/A"
 		case !meta.ActualAvailable:
 			reason = "actual_hours is missing"
+		case math.IsNaN(meta.ActualHours) || math.IsInf(meta.ActualHours, 0):
+			reason = "actual_hours must be finite"
 		case meta.ActualHours <= 0:
 			reason = "actual_hours must be positive"
 		default:

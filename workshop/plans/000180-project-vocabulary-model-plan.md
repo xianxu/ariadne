@@ -107,8 +107,8 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 | Tick mutators (typed re-impl) | `cmd/sdlc/internal/project/project.go` | modified |
 | Guard registry | `cmd/sdlc/internal/project/guards.go` | new |
 | `computeBoard` | `cmd/sdlc/projectstatus.go` | new |
-| datatype prose (demoted to cite cue) | `construct/datatype/project.md` | modified |
-| prose↔model drift test | `pkg/vocab/prose_drift_test.go` | new |
+| datatype prose (demoted to cite cue) | `construct/datatype/project.md` | planned M5 |
+| prose↔model drift test | `pkg/vocab/prose_drift_test.go` | planned M5 |
 
 - **`project` noun model** — categories/when/lifecycle/laws/discovery/scaffold +
   `#Project` frontmatter shape, mirroring issue.cue.
@@ -1379,3 +1379,23 @@ ledger replacement and the checked board contract's last-retro age was absent.
 - Transaction rename is injected in tests: a forced archive rename after the
   ledger has been replaced proves reverse compensation restores both original
   records. Board rendering now includes last-retro age from injected `today`.
+
+### 2026-07-16 — M4 finite-number and residual-consumer reconciliation
+
+**Reason:** the fourth fresh review found that YAML/legacy non-finite numbers
+could survive semantic decoding and enter the fog ledger, two M4 consumers had
+not yet switched to decoded metadata, and the Core concepts table described M5
+entities as already delivered.
+
+**Delta:**
+
+- Numeric metadata is valid only when finite and positive; quoted/unquoted
+  NaN/Inf and zero refuse before board aggregation or calibration. Close also
+  defends its injected issue-meta seam against non-finite test/future callers.
+- Board name and stale-retro status use typed metadata. A close transaction
+  captures `today` once so Log, ledger, and frontmatter cannot cross midnight.
+- Close/drop endpoints derive from vocabulary event transitions; explicit
+  blocked detection derives from the issue model's `block` event target. Event
+  names remain deliberate verb-policy identifiers; enum values are not copied.
+- Datatype prose and the prose-drift test are labeled `planned M5` in Core
+  concepts until that milestone lands.

@@ -145,3 +145,17 @@ func TestRenderBoardIncludesOperationalLines(t *testing.T) {
 		}
 	}
 }
+
+func TestComputeBoardDecodesQuotedProjectName(t *testing.T) {
+	d, err := projectdoc.ParseDoc("---\nname: 'quoted-demo'\nstatus: ideation\n---\n## Breakdown\n\n## Log\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := computeBoard(d, func(string) (issueMeta, error) { return issueMeta{}, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Name != "quoted-demo" {
+		t.Fatalf("board name = %q", b.Name)
+	}
+}

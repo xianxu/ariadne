@@ -30,6 +30,33 @@ func canTransition(l []Transition, from, to string) bool {
 	return false
 }
 
+func transitionForEvent(l []Transition, from, event string) *Transition {
+	for i := range l {
+		if l[i].From == from && l[i].Event == event {
+			return &l[i]
+		}
+	}
+	return nil
+}
+
+func firstTransitionForEvent(l []Transition, event string) *Transition {
+	for i := range l {
+		if l[i].Event == event {
+			return &l[i]
+		}
+	}
+	return nil
+}
+
+func isEventTarget(l []Transition, status, event string) bool {
+	for _, tr := range l {
+		if tr.To == status && tr.Event == event {
+			return true
+		}
+	}
+	return false
+}
+
 // legalTransitions returns from's legal targets in lifecycle order, de-duplicated.
 // Empty when from is unknown or a true dead-end.
 func legalTransitions(l []Transition, from string) []string {

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,8 +115,8 @@ func TestProjectCloseFailsClosedOnUnknownModeledGuard(t *testing.T) {
 	projectIssueLookupFn = func(string, string) (issueMeta, error) {
 		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
 	}
-	projectCloseTransitionFn = func(from, to string) *vocab.Transition {
-		tr := *vocab.Project().TransitionFor(from, to)
+	projectCloseTransitionFn = func(from, event string) *vocab.Transition {
+		tr := *vocab.Project().TransitionForEvent(from, event)
 		tr.Guards = append(append([]string(nil), tr.Guards...), "future-close-guard")
 		return &tr
 	}
@@ -191,6 +192,52 @@ func TestProjectCloseNoLedgerAllowsIncompleteActualsButLogsNA(t *testing.T) {
 	}
 	if !strings.Contains(string(b), "actuals: incomplete") || !strings.Contains(string(b), "fog: n/a") {
 		t.Fatalf("incomplete bypass wrote a calibrated-looking log:\n%s", b)
+	}
+}
+
+func TestProjectCloseRejectsNonFiniteActuals(t *testing.T) {
+	for _, actual := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
+		original := projectIssueLookupFn
+		projectIssueLookupFn = func(string, string) (issueMeta, error) {
+			return issueMeta{ActualHours: actual, ActualAvailable: true}, nil
+		}
+		err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+		projectIssueLookupFn = original
+		if err == nil || !strings.Contains(err.Error(), "incomplete MVP actuals") {
+			t.Errorf("actual %v error = %v, want refusal", actual, err)
+		}
+		if _, statErr := os.Stat(projectPath); statErr != nil {
+			t.Errorf("actual %v mutated project: %v", actual, statErr)
+		}
+	}
+}
+
+func TestProjectCloseCapturesTodayOnce(t *testing.T) {
+	f, _, _ := projectCloseFixture(t, "executing", true, true)
+	f.NoLedger = true
+	originalToday := projectTodayFn
+	originalLookup := projectIssueLookupFn
+	calls := 0
+	projectTodayFn = func() string {
+		calls++
+		if calls == 1 {
+			return "2026-07-16"
+		}
+		return "2026-07-17"
+	}
+	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
+	}
+	t.Cleanup(func() {
+		projectTodayFn = originalToday
+		projectIssueLookupFn = originalLookup
+	})
+	if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("projectTodayFn called %d times, want one transaction date", calls)
 	}
 }
 

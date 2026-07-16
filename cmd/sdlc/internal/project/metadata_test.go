@@ -32,4 +32,13 @@ func TestNumberValueDistinguishesMissingNAAndMalformed(t *testing.T) {
 	if _, _, _, err := NumberValue("bogus", "estimate_hours"); err == nil {
 		t.Fatal("malformed number accepted")
 	}
+	for _, raw := range []string{"actual_hours: .nan", "actual_hours: .inf", "actual_hours: 'NaN'", "actual_hours: 'Inf'", "actual_hours: 0"} {
+		m, err := DecodeMetadata(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, err := NumberValue(m.ActualHours, "actual_hours"); err == nil {
+			t.Errorf("non-positive/non-finite value accepted: %s", raw)
+		}
+	}
 }

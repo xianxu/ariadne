@@ -147,6 +147,10 @@ func (m *IssueModel) IsActive(s string) bool { return m.inCategory("active", s) 
 // IsOpen reports whether s is the not-yet-started status.
 func (m *IssueModel) IsOpen(s string) bool { return m.inCategory("open", s) }
 
+func (m *IssueModel) IsEventTarget(status, event string) bool {
+	return isEventTarget(m.Lifecycle, status, event)
+}
+
 // issueCategoryOrder is the issue noun's category ordering for AllStatuses.
 var issueCategoryOrder = []string{"open", "active", "terminal"}
 

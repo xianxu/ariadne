@@ -84,7 +84,7 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 	if err != nil {
 		return board{}, err
 	}
-	b := board{Name: d.FM("name"), Status: metadata.Status, Deadline: metadata.Deadline, PlannedFinish: metadata.PlannedFinish, Total: len(d.Tasks), LastRetro: projectdoc.LatestRetroDate(d)}
+	b := board{Name: metadata.Name, Status: metadata.Status, Deadline: metadata.Deadline, PlannedFinish: metadata.PlannedFinish, Total: len(d.Tasks), LastRetro: projectdoc.LatestRetroDate(d)}
 	metas := map[string]issueMeta{}
 	for _, task := range d.Tasks {
 		row := boardRow{RefText: task.RefText, Title: task.Title, Ticked: task.State == 'x'}
@@ -147,7 +147,7 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 				blocked = true
 			}
 		}
-		if blocked || meta.Status == "blocked" {
+		if blocked || vocab.Issue().IsEventTarget(meta.Status, "block") {
 			b.Blocked = append(b.Blocked, ref)
 		} else if !vocab.Issue().IsTerminal(meta.Status) {
 			b.Frontier = append(b.Frontier, ref)

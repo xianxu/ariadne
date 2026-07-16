@@ -670,7 +670,11 @@ func shouldNudgeProjectRetro(text, today string, skip bool) bool {
 		return false
 	}
 	d, err := project.ParseDoc(text)
-	if err != nil || !vocab.Project().IsExecuting(d.FM("status")) {
+	if err != nil {
+		return false
+	}
+	metadata, err := d.Metadata()
+	if err != nil || !vocab.Project().IsExecuting(metadata.Status) {
 		return false
 	}
 	return project.RetroStale(d, today, 7)

@@ -102,6 +102,14 @@ func (m *ProjectModel) TransitionFor(from, to string) *Transition {
 	return nil
 }
 
+func (m *ProjectModel) TransitionForEvent(from, event string) *Transition {
+	return transitionForEvent(m.Lifecycle, from, event)
+}
+
+func (m *ProjectModel) FirstTransitionForEvent(event string) *Transition {
+	return firstTransitionForEvent(m.Lifecycle, event)
+}
+
 // RenderLifecycleHelp renders the model-derived lifecycle reference (STATUSES +
 // LEGAL TRANSITIONS) for the `sdlc project` help text.
 func (m *ProjectModel) RenderLifecycleHelp() string {

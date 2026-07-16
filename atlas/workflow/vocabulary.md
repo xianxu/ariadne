@@ -26,7 +26,8 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   retro/fog guards and moves terminal records to the model-derived project
   archive rather than hand-maintaining a second portfolio state. Those
   consumers decode typed YAML metadata once, so flow/block lists and quoted
-  scalars carry the same semantics the vocabulary validator accepts.
+  scalars carry the same semantics the vocabulary validator accepts; numeric
+  estimates/actuals must also be finite and positive before aggregation.
 - `construct/vocabulary/verdict.cue` — the `verdict` noun (#147): boundary-review
   verdict tokens by category (`finalizing` = SHIP/FIX-THEN-SHIP, `blocking` = REWORK,
   `internal` = system-set not-run/unknown), with `#Emitted`/`#Token` *derived*; the

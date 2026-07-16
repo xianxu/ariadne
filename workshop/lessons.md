@@ -795,5 +795,10 @@ flat regex/line readers are not schema consumers because quoted scalars and
 block lists are equally valid data. Parsers for guarded evidence must preserve
 absent vs invalid states so only genuine legacy absence can take an explicit
 bypass.
+Numeric validation must reject NaN and infinities explicitly—ordinary
+comparisons do not reject NaN (`NaN <= 0` is false), so “positive” checks alone
+can admit a durable false calibration value. Core-concepts status must describe
+the current boundary (`planned M5` is not `new`) so review does not confuse the
+roadmap with delivered code.
 
 **Origin:** #180 M4 boundary review (REWORK).

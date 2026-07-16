@@ -59,6 +59,8 @@ func TestIssuePredicates(t *testing.T) {
 		// working→codecomplete and blocked→codecomplete are model-legal.
 		{"CanTransition(working,codecomplete)", m.CanTransition("working", "codecomplete"), true},
 		{"CanTransition(blocked,codecomplete)", m.CanTransition("blocked", "codecomplete"), true},
+		{"IsEventTarget(blocked,block)", m.IsEventTarget("blocked", "block"), true},
+		{"IsEventTarget(working,block)", m.IsEventTarget("working", "block"), false},
 		// #160 publish edge + rework/abandon.
 		{"CanTransition(codecomplete,done)", m.CanTransition("codecomplete", "done"), true},
 		{"CanTransition(codecomplete,working)", m.CanTransition("codecomplete", "working"), true},

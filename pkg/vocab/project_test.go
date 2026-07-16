@@ -37,7 +37,7 @@ func TestProjectAllStatuses(t *testing.T) {
 func TestProjectPredicates(t *testing.T) {
 	m := Project()
 	cases := []struct {
-		s                             string
+		s                            string
 		forming, executing, terminal bool
 	}{
 		{"ideation", true, false, false},
@@ -66,6 +66,17 @@ func TestProjectTransitionFor(t *testing.T) {
 	}
 }
 
+func TestProjectTransitionForEventDerivesCloseAndDrop(t *testing.T) {
+	m := Project()
+	closeTr := m.FirstTransitionForEvent("close")
+	if closeTr == nil || m.TransitionForEvent(closeTr.From, "close") == nil {
+		t.Fatal("close event transition not derivable")
+	}
+	if tr := m.TransitionForEvent("paused", "drop"); tr == nil || tr.Event != "drop" {
+		t.Fatalf("paused drop transition = %+v", tr)
+	}
+}
+
 func TestProjectSections(t *testing.T) {
 	secs := Project().Sections()
 	want := []string{"PRD", "Estimate", "Breakdown", "Log"}
@@ -90,4 +101,3 @@ func TestProjectRenderLifecycleHelp(t *testing.T) {
 		}
 	}
 }
-
