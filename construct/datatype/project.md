@@ -8,14 +8,14 @@ description: Use when starting an execution container — a focused push of work
 
 A project is the *execution container* — what we've decided to do for a defined purpose, with an explicit MVP boundary, sequenced top-down. Operator-POV; cuts across issues, products, and repos.
 
-A project is forward-looking and time-bounded — it has a `done_when` criterion. When the criterion is met, status flips to `done` and the file becomes a record. When the criterion stops being worth pursuing, status flips to `dropped` (also archival).
+A project is forward-looking and time-bounded — it has a `done_when` criterion. When the criterion is met, status flips to `done` and the file archives under `workshop/history/projects/`. When the criterion stops being worth pursuing, status flips to `dropped` (also archival).
 
 Distinct from sibling datatypes:
 
 - `product` — the durable charter ("what is being built"). Static. A project advances one or more products.
 - `roadmap` — month-level aggregate ("what we want true by month T"). A project lives inside a roadmap month.
 
-A project is where the velocity calibration loop closes: each completed task records `actual_hours`, which propagates to the issue's frontmatter and to the velocity-skill validation table.
+A project is where the Phase-A calibration loop closes: referenced issues carry measured `actual_hours`, and `sdlc project close` rolls the complete MVP set into the project fog-factor ledger.
 
 ## Frontmatter shape
 
@@ -25,7 +25,9 @@ A project is where the velocity calibration loop closes: each completed task rec
 | `name` | yes | Slug form, lowercase-hyphenated. Matches the filename without `.md`. |
 | `goal` | yes | One sentence. Why this project exists. |
 | `done_when` | yes | The MVP boundary as a falsifiable criterion. *"What would make me say this project is finished?"* |
-| `status` | yes | `active` \| `paused` \| `done` \| `dropped`. |
+| `status` | yes | See `construct/vocabulary/project.cue` (the schema authority): `ideation` → `defined` → `committed` → `executing` → `done` \| `dropped`, plus `paused`. |
+| `deadline` | required after commit | ISO date. The time-bound baseline set by the `defined` → `committed` transition. |
+| `planned_finish` | required after commit | ISO date. The committed forecast paired with `deadline`. |
 | `operator` | optional | Persona / name of the single human running this project. Default = self. **Exactly one** — see Single-operator discipline below. |
 | `mvp_scope` | optional | List of issue refs (`[<repo>#<id>, ...]`) declared in MVP at project start. Anchors what counts as "done." |
 | `explicitly_out` | optional | List of issue refs deliberately excluded from MVP. The conversation about what's *out* is more useful than the in-list — record it here. |
@@ -33,19 +35,38 @@ A project is where the velocity calibration loop closes: each completed task rec
 | `updated` | yes | ISO date of the last edit. |
 | `sources` | optional | Lineage — files, parley chat IDs, URLs the agent read when authoring. |
 
+## Lifecycle
+
+The schema authority is `construct/vocabulary/project.cue`; this prose explains
+how to author within the model rather than maintaining a second enum.
+
+- `ideation` — idea captured; PRD not yet written (ideation lives in parley, linked via sources)
+- `defined` — PRD exists in the project file; not yet committed to a timeline
+- `committed` — baseline set (deadline + planned finish + parallelism intent); not yet broken down
+- `executing` — PRD broken down into issues across repos; work in flight
+- `paused` — execution suspended; committed baseline stays intact
+- `done` — `done_when` met; retro + fog-factor ledger row recorded
+- `dropped` — no longer worth pursuing
+
+Ordinary transitions go through `sdlc project set-status`; terminal completion
+and post-execution dropping go through `sdlc project close`, which owns the
+retro, calibration, and archive gates.
+
 ## Body skeleton
 
 An instance of `project` has, in order:
 
 1. `# <name>` — title matching the slug.
 2. **Lede paragraph** — one short paragraph. **Explicitly call out the headline omission** (what's NOT in MVP) — that's the discipline this datatype enforces.
-3. `## tasks` — a single ordered list, top-down execution. See *Task line format* below.
-4. `## details` (optional) — per-task detail blocks for tasks with state worth recording. See *Per-task details*.
-5. *Reference definitions at end of file* — see *Jump-link convention*. One line per task that has a detail block.
+3. `## PRD` — the product-requirements narrative, grown before the project becomes `defined`.
+4. `## Estimate` — Phase-A estimate, fog multiplier, and sizing basis, completed before commitment.
+5. `## Breakdown` — the committed baseline: deadline rationale, thread assignments, sequencing decisions, and the ordered task list. Per-task detail blocks also live here.
+6. `## Log` — append-only retros, re-forecasts, and project-level scope events. Retro headings use `### <ISO date> — retro`.
+7. *Reference definitions at end of file* — see *Jump-link convention*. One line per task that has a detail block.
 
 ### Task line format
 
-Keep one line per task short — **title + ref only**. Nothing else. No inline est, no inline status, no inline blocking reason. Those live in `## details`.
+Keep one line per task short — **title + ref only**. Nothing else. No inline est, no inline status, no inline blocking reason. Those live in the task's detail block under `## Breakdown`.
 
 ```markdown
 - [ ] provider interface skeleton [charon#13 M1]
@@ -72,7 +93,7 @@ The ordered list is the execution order. Top to bottom. The first `[ ]` task is 
 
 ### Per-task details
 
-Optional. A task earns a detail block when it has state worth recording: estimate, started/closed dates, actual hours, blocking reason, prose notes. Open-not-started tasks with no notes need no detail block.
+Optional. A task earns a detail block under `## Breakdown` when it has state worth recording: estimate, started/closed dates, actual hours, blocking reason, prose notes. Open-not-started tasks with no notes need no detail block.
 
 Detail block format:
 
@@ -186,21 +207,23 @@ When the dispatcher applies this prototype:
 
 4. **Confirm operator.** Default to self for solo founders. If the user says "we" or names multiple people, flag the multi-operator smell and suggest splitting.
 
-5. **Build the initial `## tasks` list, top-down by execution order.**
+5. **Build the initial task list in `## Breakdown`, top-down by execution order.**
    - For tasks already in flight or with known estimates, create detail blocks.
    - For tasks not yet started, just task lines. Detail blocks are added later as state accumulates.
    - Pull estimates from the corresponding issue's `estimate_hours` frontmatter when authoring detail blocks.
 
 6. **Add reference definitions** at the end of the file for each task with a detail block. Slug per the rule above.
 
-7. **Default location:** `data/project/<slug>.md`.
+7. **Default location:** `workshop/projects/<slug>.md`. Legacy brain-era records
+   migrate under #171. Terminal records archive to `workshop/history/projects/`.
 
 8. **Updates preserve everything else.** Common edits: flipping a checkbox state, adding a detail block, recording `actual:` and `closed:` on completion, adding or removing tasks. Edit in place — never rewrite the file.
 
 9. **Velocity calibration loop discipline.** When a task closes (checkbox flips to `[x]` and `actual:` is recorded in the detail block), the dispatcher should also:
    - Update `actual_hours: <N>` in the corresponding issue's frontmatter (in the product repo's `workshop/issues/`).
-   - Append a row to `brain/data/life/42shots/velocity/estimate-logic-v1.md`'s validation table.
    - State the calibration analysis ("estimate was X, actual was Y, off by Z×") to the user.
+   Project-level Phase-A calibration is separate: `sdlc project close` requires
+   complete issue actuals and appends the fog-factor row.
 
 10. **Confirm before writing** a new project file: show destination path, lede line, mvp_scope, explicitly_out, initial task list. One round of confirmation.
 
@@ -210,29 +233,29 @@ When the dispatcher applies this prototype:
 # All projects
 rg -l "^type: project"
 
-# Active projects
-rg -l "^type: project" | xargs rg -l "^status: active"
+# Executing projects
+rg -l "^type: project" | xargs rg -l "^status: executing"
 
 # Projects involving a specific repo (look for refs in the body)
 rg -l "^type: project" | xargs rg -l "\[charon#"
 
 # All open tasks across all active projects
-rg "^- \[ \] " data/project/
+rg "^- \[ \] " workshop/projects/
 
 # All blocked tasks
-rg "^- \[\.\] " data/project/
+rg "^- \[\.\] " workshop/projects/
 
 # Tasks in a specific project, in order
-rg "^- \[" data/project/charon-release-push.md
+rg "^- \[" workshop/projects/charon-release-push.md
 
 # All issue refs touched by a project
-rg -o "\[[a-z][a-z0-9-]*#[a-z0-9 -]+\]" data/project/<name>.md | sort -u
+rg -o "\[[a-z][a-z0-9-]*#[a-z0-9 -]+\]" workshop/projects/<name>.md | sort -u
 
 # Closed tasks with their actual hours (across projects)
-rg -B1 "^\*\*actual:\*\*" data/project/
+rg -B1 "^\*\*actual:\*\*" workshop/projects/
 
 # Lede lines for all projects
-rg -A2 "^# " data/project/
+rg -A2 "^# " workshop/projects/
 ```
 
 ## Rules
@@ -241,7 +264,7 @@ rg -A2 "^# " data/project/
 - One operator per project. Multiple operators on one project is a smell — split instead.
 - A project always has a falsifiable `done_when`. "Vague goal" is a planning failure; force the conversation at authoring time.
 - `mvp_scope` and `explicitly_out` together form the MVP commitment. The `out` list is the load-bearing one.
-- Task lines stay short — title + ref only. State and detail belong in `## details`.
+- Task lines stay short — title + ref only. State and detail belong in `## Breakdown` detail blocks.
 - Reference definitions and detail blocks are paired: when adding a detail block, add the reference definition; when removing one, remove the other.
-- Closing a task triggers the velocity calibration loop — propagate `actual_hours` to the issue's frontmatter and to the validation table. Without this discipline, calibration drifts.
+- Closing a task propagates `actual_hours` to the issue's frontmatter. Project close rolls the complete MVP issue set into the Phase-A fog ledger; without both steps, calibration drifts.
 - A project doesn't replace an issue tracker. Issues describe units of work that exist regardless of timing; a project is the operator's view of what's currently in flight. The same issue can appear in multiple projects over its lifetime.

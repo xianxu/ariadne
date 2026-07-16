@@ -232,6 +232,14 @@ doc).*
 
 ## Log
 
+### 2026-07-16 — M5.1 datatype prose demotion
+
+`construct/datatype/project.md` now treats `project.cue` as schema authority,
+documents the modeled funnel and commit-time deadline baseline, teaches the four
+gated scaffold sections, and points authoring/search/archive behavior at
+`workshop/projects/` and `workshop/history/projects/`. The task-detail,
+single-operator, scope-event, and MVP disciplines remain intact (ARCH-PURPOSE).
+
 ### 2026-07-16 — M4.3 project close
 - 2026-07-16: closed M4 — Fog ledger insertion is pure, fence-aware, section-scoped, and safe at EOF with or without existing rows; full suite, expanded race suite, vocabulary vet, and diff check pass.; review verdict: FIX-THEN-SHIP
 - 2026-07-16: closed M4 — Post-fourth-REWORK: finite-positive validation rejects quoted/unquoted NaN/Inf/zero and close seam non-finites; stale-retro status and board name use typed metadata; close/drop/blocked meaning derives from lifecycle events; today captured once; M5 core-concept rows marked planned; full and expanded race suites plus vocabulary vet and diff check pass.; review verdict: SHIP

@@ -1114,7 +1114,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
 **Files:**
 - Modify: `construct/datatype/project.md`
 
-- [ ] **Step 1: Edit** — (procedure refers, registry defines):
+- [x] **Step 1: Edit** — (procedure refers, registry defines):
   - Frontmatter-shape table: `status` row now reads "see
     `construct/vocabulary/project.cue` (the schema authority) — funnel:
     ideation → defined → committed → executing → done | dropped, + paused";
@@ -1142,7 +1142,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   - Keep everything else (single-operator discipline, scope events, MVP
     conversation) — this is a demotion of the *schema* claims only.
 
-- [ ] **Step 2: Commit** — `#180 M5: datatype prose demoted — project.cue is schema authority`
+- [x] **Step 2: Commit** — `#180 M5: datatype prose demoted — project.cue is schema authority`
 
 #### Task M5.2: drift test binding prose ↔ model
 
