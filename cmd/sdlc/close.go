@@ -1123,7 +1123,7 @@ func emitLessonsReminder(stdout io.Writer) {
 // ── explainers ───────────────────────────────────────────────────────────────
 
 // computeActualForCloseFn is the measurement seam for the omit-path (#178) —
-// a package var so tests can stub the engine (the file's validateChangedIssuesFn
+// a package var so tests can stub the engine (the file's validateChangedInstancesFn
 // pattern). Production resolves roots and runs the same engine as `sdlc actual`.
 var computeActualForCloseFn = func(issueStr string) actualResult {
 	repoTop, brainAbs := resolveActualRoots()

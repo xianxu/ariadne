@@ -123,11 +123,11 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	// Deterministic, separate from the judges (so --no-judge keeps it, and
 	// --no-validate keeps the judges). Same window the judges use.
 	if !f.NoValidate {
-		if err := validateChangedIssuesFn(gitx.DiffBase(), "", f.IssuesDir, stdout, stderr); err != nil {
+		if err := validateChangedInstancesFn(gitx.DiffBase(), "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
 			die(stderr, err.Error())
 		}
 	} else {
-		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — issue frontmatter/sections NOT verified before main. Escape hatch: say why in your commit/log.")
+		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — modeled frontmatter and issue sections NOT verified before main. Escape hatch: say why in your commit/log.")
 	}
 
 	// ── 4. Pre-push publish gate (#160) — deterministic, NO LLM ──────────────
