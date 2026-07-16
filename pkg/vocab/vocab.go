@@ -126,12 +126,7 @@ func (m *IssueModel) InitialStatus() string {
 }
 
 func (m *IssueModel) inCategory(cat, s string) bool {
-	for _, v := range m.Categories[cat] {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return inCat(m.Categories, cat, s)
 }
 
 // IsTerminal reports whether s is a closed status (done/wontfix/punt).
@@ -143,13 +138,12 @@ func (m *IssueModel) IsActive(s string) bool { return m.inCategory("active", s) 
 // IsOpen reports whether s is the not-yet-started status.
 func (m *IssueModel) IsOpen(s string) bool { return m.inCategory("open", s) }
 
+// issueCategoryOrder is the issue noun's category ordering for AllStatuses.
+var issueCategoryOrder = []string{"open", "active", "terminal"}
+
 // AllStatuses returns every status, ordered open → active → terminal.
 func (m *IssueModel) AllStatuses() []string {
-	var out []string
-	for _, cat := range []string{"open", "active", "terminal"} {
-		out = append(out, m.Categories[cat]...)
-	}
-	return out
+	return allStatuses(m.Categories, issueCategoryOrder)
 }
 
 // CanTransition reports whether the lifecycle declares a from→to edge. As of
@@ -157,27 +151,14 @@ func (m *IssueModel) AllStatuses() []string {
 // the model doesn't declare, with a `--force` escape (claim/close perform fixed
 // legal transitions and stay ungated).
 func (m *IssueModel) CanTransition(from, to string) bool {
-	for _, t := range m.Lifecycle {
-		if t.From == from && t.To == to {
-			return true
-		}
-	}
-	return false
+	return canTransition(m.Lifecycle, from, to)
 }
 
 // LegalTransitions returns the statuses `from` may legally transition to, in
 // lifecycle order, de-duplicated. Empty when `from` is unknown or a true
 // dead-end. Used to render the legal targets in set-status's refusal message.
 func (m *IssueModel) LegalTransitions(from string) []string {
-	var out []string
-	seen := map[string]bool{}
-	for _, t := range m.Lifecycle {
-		if t.From == from && !seen[t.To] {
-			out = append(out, t.To)
-			seen[t.To] = true
-		}
-	}
-	return out
+	return legalTransitions(m.Lifecycle, from)
 }
 
 // ── Help-text renders (#125) ──
@@ -191,27 +172,7 @@ func (m *IssueModel) LegalTransitions(from string) []string {
 // (each status + its one-line `When` semantics) and a LEGAL TRANSITIONS section
 // (each status → its legal targets). 2-space indented to match the help style.
 func (m *IssueModel) RenderLifecycleHelp() string {
-	statuses := m.AllStatuses()
-	width := 0
-	for _, s := range statuses {
-		if len(s) > width {
-			width = len(s)
-		}
-	}
-	var b strings.Builder
-	b.WriteString("STATUSES\n\n")
-	for _, s := range statuses {
-		b.WriteString(fmt.Sprintf("  %-*s  %s\n", width, s, m.When[s]))
-	}
-	b.WriteString("\nLEGAL TRANSITIONS\n\n")
-	for _, s := range statuses {
-		targets := m.LegalTransitions(s)
-		if len(targets) == 0 {
-			continue
-		}
-		b.WriteString(fmt.Sprintf("  %-*s  → %s\n", width, s, strings.Join(targets, ", ")))
-	}
-	return strings.TrimRight(b.String(), "\n")
+	return renderLifecycleHelp(m.AllStatuses(), m.When, m.Lifecycle)
 }
 
 // StatusNames joins the status set with sep, in AllStatuses order — for an inline

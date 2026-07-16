@@ -36,12 +36,7 @@ func mustLoadVerdict() *VerdictModel {
 func Verdict() *VerdictModel { return verdictModel }
 
 func (m *VerdictModel) inCategory(cat, t string) bool {
-	for _, v := range m.Categories[cat] {
-		if v == t {
-			return true
-		}
-	}
-	return false
+	return inCat(m.Categories, cat, t)
 }
 
 // IsEmitted reports whether t is a token a reviewer may emit (finalizing or
