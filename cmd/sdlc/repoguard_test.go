@@ -45,7 +45,7 @@ func TestGuardSpineRepo_BrainRefusesAllLifecycleVerbs(t *testing.T) {
 			root := buildRoot()
 			root.SetOut(io.Discard)
 			root.SetErr(io.Discard)
-			root.SetArgs([]string{verb})
+			root.SetArgs(strings.Fields(verb))
 			msg, died := expectDie(t, func() { _ = root.Execute() })
 			if !died {
 				t.Fatalf("`sdlc %s` in a brain repo must die", verb)

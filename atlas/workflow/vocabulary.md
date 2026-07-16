@@ -21,6 +21,10 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   deadline baseline, named guards, per-repo `workshop/projects/` discovery, and the
   four-section scaffold. `pkg/vocab.Project()` embeds the export and shares the
   lifecycle helpers with the issue/verdict bindings.
+  Its M4 workflow consumers keep the baseline stored while deriving the live
+  board from referenced issue records; dedicated close runs the model's named
+  retro/fog guards and moves terminal records to the model-derived project
+  archive rather than hand-maintaining a second portfolio state.
 - `construct/vocabulary/verdict.cue` — the `verdict` noun (#147): boundary-review
   verdict tokens by category (`finalizing` = SHIP/FIX-THEN-SHIP, `blocking` = REWORK,
   `internal` = system-set not-run/unknown), with `#Emitted`/`#Token` *derived*; the

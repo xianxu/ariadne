@@ -260,6 +260,34 @@ confirmed the lookup and dependency graph were correct. Added the failing
 active-issue regression and changed frontier membership to non-terminal after
 the blocked checks (ARCH-PURPOSE).
 
+### 2026-07-16 — M4.5 process-level dogfood
+
+Built the feature binary and ran it from symlinked cwd
+`/tmp/ariadne-180-live-link` over a scratch Git repo: `project new`; substantive
+PRD; ideation→defined; committed transition first refused without
+deadline/planned_finish, then passed with reality evidence; two dependency-linked
+fixture issues seeded; executing transition passed with coverage evidence;
+status rendered `frontier: #1`, `blocked: #2`, one thread, and 5h remaining;
+retro appended; both issues/ticks closed; final status rendered 2/2 and 0h;
+`project close --no-ledger` emitted its cataloged acknowledgement and archived
+the record to `workshop/history/projects/alpha.md` with Phase-A 6h, actuals 4h,
+fog 0.67. This exercises command IO, `$PWD`/symlink repo discovery, cross-file
+lookup, mutation, and archive behavior beyond unit seams.
+
+### 2026-07-16 — M4.5 full-suite integration fixes
+
+The first `go test ./... -count=1` exposed two broader drift guards omitted by
+the focused M4.3 run: nested `project close` did not yet call the #176 brain/
+non-SDLC spine guard, and fixed process-manual/repo-lock census tests still
+pinned the pre-M4 command set. Added guard-first execution (manual slug check
+keeps it ahead of Cobra required-flag validation), corrected the multiword test
+argv, and widened the lock and 14-gate pins. Targeted regressions pass; the CUE
+vocabulary harness passes via `bash construct/vocabulary/vet_test.sh` (the file
+is intentionally/non-regressively non-executable).
+
+Re-run evidence: `go test ./... -count=1` passes across every package;
+`bash construct/vocabulary/vet_test.sh` passes; `git diff --check` passes.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

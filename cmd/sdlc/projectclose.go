@@ -29,6 +29,10 @@ func newProjectCloseCmd() *cobra.Command {
 	f := projectCloseFlags{}
 	cmd := markMutatingCommand(&cobra.Command{Use: "close", Short: "Close or drop a project and archive its record", Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard; must precede verb validation
+			if strings.TrimSpace(f.Slug) == "" {
+				return fmt.Errorf("--slug is required")
+			}
 			return runProjectClose(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		}})
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
@@ -39,7 +43,6 @@ func newProjectCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoRetro, "no-retro", false, "waive the retrospective gate")
 	cmd.Flags().BoolVar(&f.NoLedger, "no-ledger", false, "skip the Phase-A fog-factor ledger")
 	cmd.Flags().BoolVar(&f.Force, "force", false, "waive the retro and ledger gates")
-	_ = cmd.MarkFlagRequired("slug")
 	return cmd
 }
 

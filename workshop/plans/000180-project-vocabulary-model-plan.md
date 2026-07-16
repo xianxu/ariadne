@@ -1092,7 +1092,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
 
 #### Task M4.5: live dogfood + close M4
 
-- [ ] **Live fixture pass** (lessons.md: IO needs a live run; use a symlinked
+- [x] **Live fixture pass** (lessons.md: IO needs a live run; use a symlinked
   cwd to exercise the `$PWD` branch): in a scratch repo (`$TMPDIR` via a
   symlink), run the full arc: `project new` → hand-write a PRD →
   `set-status --to defined` → fill `## Estimate` per M4.4 →
@@ -1102,7 +1102,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   issues cover PRD"` → `project status` (board renders) → `project retro` →
   tick issues → `project close --no-ledger` (or with a fixture brain) →
   file lands in `workshop/history/projects/`. Record the transcript in `## Log`.
-- [ ] Full bare suite — PASS. Tick plan rows; log.
+- [x] Full bare suite — PASS. Tick plan rows; log.
 - [ ] `sdlc milestone-close --issue 180 --milestone M4`.
 
 ### M5 — prose demotion, drift binding, atlas
@@ -1313,3 +1313,14 @@ frontier as “what's unblocked”; `IssueModel.IsOpen` is narrower and means on
 **Delta:** frontier membership is any unfinished, dependency-unblocked,
 non-terminal issue (with explicit `blocked` still excluded). A focused
 regression covers the active `working` case before the one-predicate fix.
+
+### 2026-07-16 — M4 full-suite integration correction
+
+**Reason:** the first full bare suite found that the new nested lifecycle verb
+was present in the shared workflow catalog but had not joined the brain/non-SDLC
+repo guard, and two fixed census tests still pinned the pre-M4 gate/lock sets.
+
+**Delta:** `project close` runs `guardSpineRepo` before manual `--slug`
+validation (so repository identity remains guard-first), the lifecycle test
+executes multiword catalog keys as separate argv tokens, and the repo-lock plus
+14-gate census pins include the new boundary.
