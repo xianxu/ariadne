@@ -209,7 +209,7 @@ doc).*
 
 - [x] brainstorm: taxonomy, lifecycle funnel, two-phase estimation,
       kanban baseline/derived/logged split, retro mechanism (Spec)
-- [ ] design at start-plan: cue shape (esp. cross-repo discovery),
+- [x] design at start-plan: cue shape (esp. cross-repo discovery),
       transition guard mechanics, Phase-A estimate vocabulary, which gate
       owns conformance, verb set — single multi-boundary issue (dogfood
       deferred; #171 consumes the finished model) →
@@ -227,7 +227,7 @@ doc).*
       stale-retro nudge in the issue-close gate, `project close` (retro gate,
       fog-factor ledger row, archive to history/projects), Phase-A method doc
       v1 in brain; live-fixture dogfood pass
-- [ ] M5 — docs + drift: datatype prose demoted to cite the cue, prose↔model
+- [x] M5 — docs + drift: datatype prose demoted to cite the cue, prose↔model
       drift test (bite-proofed both ways), atlas + xx-vocabulary claim
 
 ## Log
@@ -261,6 +261,12 @@ Verification: `go test ./... -count=1`; vocabulary vet and generated-output
 freshness; live `project validate` and `project status` against
 `project-management-primitive`; datatype served-output assertions; live-doc
 shadow sweep; and `git diff --check` pass.
+
+### 2026-07-16 — M5 implementation complete
+
+All issue and durable-plan implementation rows are complete. The final
+whole-issue boundary will verify M5 integration and the end-to-end Done-when
+contract before `codecomplete`.
 
 ### 2026-07-16 — M4.3 project close
 - 2026-07-16: closed M4 — Fog ledger insertion is pure, fence-aware, section-scoped, and safe at EOF with or without existing rows; full suite, expanded race suite, vocabulary vet, and diff check pass.; review verdict: FIX-THEN-SHIP

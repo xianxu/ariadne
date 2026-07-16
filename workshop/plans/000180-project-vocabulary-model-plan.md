@@ -1194,7 +1194,7 @@ func TestProjectProseCitesModel(t *testing.T) {
 - [x] **lessons.md:** only if something recurred that no code now enforces
   (memory: feedback_lessons_only_if_not_code_enforced).
 - [x] Full bare suite + vet_test.sh — PASS.
-- [ ] Tick remaining plan rows. `sdlc close --issue 180 --verified '<evidence:
+- [x] Tick remaining plan rows. `sdlc close --issue 180 --verified '<evidence:
   test suite + live-fixture transcript + dormant-gate demo>'` (actuals measured,
   not typed; atlas gate satisfied by M5.3). Then `sdlc pr` → `sdlc merge` per
   the publish convention (single publish at issue close).
