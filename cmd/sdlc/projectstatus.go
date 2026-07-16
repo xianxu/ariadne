@@ -58,6 +58,7 @@ func runProjectStatus(stdout, _ io.Writer, f *projectStatusFlags) error {
 type issueMeta struct {
 	Status                     string
 	EstimateHours, ActualHours float64
+	ActualAvailable, ActualNA  bool
 	Deps                       []string
 }
 
@@ -248,7 +249,15 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 		meta.EstimateHours, _ = strconv.ParseFloat(value, 64)
 	}
 	if value, _ := issue.GetField(fm, "actual_hours"); value != "" {
-		meta.ActualHours, _ = strconv.ParseFloat(value, 64)
+		if value == "N/A" {
+			meta.ActualNA = true
+		} else {
+			meta.ActualHours, err = strconv.ParseFloat(value, 64)
+			if err != nil {
+				return issueMeta{}, fmt.Errorf("%s has invalid actual_hours %q", refText, value)
+			}
+			meta.ActualAvailable = true
+		}
 	}
 	if value, _ := issue.GetField(fm, "deps"); value != "" {
 		meta.Deps = parseInlineRefs(value)

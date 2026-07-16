@@ -288,6 +288,32 @@ is intentionally/non-regressively non-executable).
 Re-run evidence: `go test ./... -count=1` passes across every package;
 `bash construct/vocabulary/vet_test.sh` passes; `git diff --check` passes.
 
+### 2026-07-16 — M4 boundary review: REWORK
+
+The gate-owned fresh review found three blocking contract gaps: close selected
+guard names instead of failing closed over the full modeled list; unavailable
+MVP actuals could create a false partial fog row; and the plan mislabeled the
+human Phase-A method as PURE. Important findings were non-atomic project/ledger
+writes, missing README runnable examples, and incomplete documentation of the
+real-instance dogfood. Remediation: close-owned complete guard registry;
+availability-aware actual parsing and complete-only calibration; staged writes
+with compensation and forced-failure coverage; Phase-A reclassified as an
+Integration/process document; README command/bypass examples; live status +
+retro dry-run against the real project. Added the general prevention rule to
+`workshop/lessons.md` (ARCH-DRY, ARCH-PURPOSE).
+
+Real-instance evidence after remediation: `project status --slug
+project-management-primitive` rendered 0/3, 8.1h remaining, frontier
+`ariadne#180, ariadne#171`, blocked `ariadne#182`, and two dependency threads;
+`project retro --dry-run` rendered the same board in a dated retro without
+mutating the still-honest ideation record.
+
+Remediation verification: `go test ./... -count=1`, the review's focused race
+suite (`go test -race ./cmd/sdlc ./cmd/sdlc/internal/project
+./cmd/sdlc/internal/processmanual -run 'Project|Board|Retro|Gate|TwoWord'
+-count=1`), `bash construct/vocabulary/vet_test.sh`, and `git diff --check` all
+pass.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

@@ -38,7 +38,7 @@ func TestLookupIssueMetaCrossRepoAndArchive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if meta.Status != "done" || meta.EstimateHours != 3.5 || meta.ActualHours != 4.25 || strings.Join(meta.Deps, ",") != "ariadne#1,nous#2" {
+	if meta.Status != "done" || meta.EstimateHours != 3.5 || meta.ActualHours != 4.25 || !meta.ActualAvailable || meta.ActualNA || strings.Join(meta.Deps, ",") != "ariadne#1,nous#2" {
 		t.Fatalf("meta = %+v", meta)
 	}
 }

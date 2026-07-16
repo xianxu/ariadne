@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 func TestProjectCloseRequiresExecutingAndPointsPausedAtResume(t *testing.T) {
@@ -31,6 +34,7 @@ func TestProjectCloseRequiresRetroUnlessBypassed(t *testing.T) {
 		t.Fatalf("runProjectClose error = %v, want --no-retro pointer", err)
 	}
 	f.NoRetro = true
+	f.NoLedger = true
 	var stderr bytes.Buffer
 	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err != nil {
 		t.Fatal(err)
@@ -45,8 +49,8 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 	originalLookup := projectIssueLookupFn
 	projectIssueLookupFn = func(ref, _ string) (issueMeta, error) {
 		return map[string]issueMeta{
-			"ariadne#1": {ActualHours: 10},
-			"ariadne#2": {ActualHours: 30},
+			"ariadne#1": {ActualHours: 10, ActualAvailable: true},
+			"ariadne#2": {ActualHours: 30, ActualAvailable: true},
 		}[ref], nil
 	}
 	t.Cleanup(func() { projectIssueLookupFn = originalLookup })
@@ -78,6 +82,127 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), archived) || stderr.Len() != 0 {
 		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
+
+func TestProjectCloseFailsClosedOnUnknownModeledGuard(t *testing.T) {
+	f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
+	original := projectCloseTransitionFn
+	originalLookup := projectIssueLookupFn
+	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
+	}
+	projectCloseTransitionFn = func(from, to string) *vocab.Transition {
+		tr := *vocab.Project().TransitionFor(from, to)
+		tr.Guards = append(append([]string(nil), tr.Guards...), "future-close-guard")
+		return &tr
+	}
+	t.Cleanup(func() {
+		projectCloseTransitionFn = original
+		projectIssueLookupFn = originalLookup
+	})
+
+	err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+	if err == nil || !strings.Contains(err.Error(), `unknown project close guard "future-close-guard"`) {
+		t.Fatalf("runProjectClose error = %v, want unknown modeled guard refusal", err)
+	}
+	if _, statErr := os.Stat(projectPath); statErr != nil {
+		t.Fatalf("unknown guard mutated live project: %v", statErr)
+	}
+}
+
+func TestProjectCloseRefusesIncompleteActualsUnlessLedgerBypassed(t *testing.T) {
+	tests := []struct {
+		name   string
+		lookup func(string, string) (issueMeta, error)
+	}{
+		{"lookup error", func(ref, _ string) (issueMeta, error) {
+			if ref == "ariadne#2" {
+				return issueMeta{}, errors.New("peer unavailable")
+			}
+			return issueMeta{ActualHours: 10, ActualAvailable: true}, nil
+		}},
+		{"unset actual", func(ref, _ string) (issueMeta, error) {
+			if ref == "ariadne#2" {
+				return issueMeta{}, nil
+			}
+			return issueMeta{ActualHours: 10, ActualAvailable: true}, nil
+		}},
+		{"explicit N/A", func(ref, _ string) (issueMeta, error) {
+			if ref == "ariadne#2" {
+				return issueMeta{ActualNA: true}, nil
+			}
+			return issueMeta{ActualHours: 10, ActualAvailable: true}, nil
+		}},
+		{"all unavailable", func(string, string) (issueMeta, error) { return issueMeta{}, nil }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
+			original := projectIssueLookupFn
+			projectIssueLookupFn = tt.lookup
+			t.Cleanup(func() { projectIssueLookupFn = original })
+			err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+			if err == nil || !strings.Contains(err.Error(), "incomplete MVP actuals") || !strings.Contains(err.Error(), "--no-ledger") {
+				t.Fatalf("runProjectClose error = %v, want incomplete-actual refusal", err)
+			}
+			if _, statErr := os.Stat(projectPath); statErr != nil {
+				t.Fatalf("refusal mutated live project: %v", statErr)
+			}
+		})
+	}
+}
+
+func TestProjectCloseNoLedgerAllowsIncompleteActualsButLogsNA(t *testing.T) {
+	f, _, _ := projectCloseFixture(t, "executing", true, true)
+	f.NoLedger = true
+	original := projectIssueLookupFn
+	projectIssueLookupFn = func(string, string) (issueMeta, error) { return issueMeta{}, nil }
+	t.Cleanup(func() { projectIssueLookupFn = original })
+	var stderr bytes.Buffer
+	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "actuals: incomplete") || !strings.Contains(string(b), "fog: n/a") {
+		t.Fatalf("incomplete bypass wrote a calibrated-looking log:\n%s", b)
+	}
+}
+
+func TestProjectCloseLedgerStageFailureLeavesBothRecordsUnchanged(t *testing.T) {
+	f, projectPath, ledgerPath := projectCloseFixture(t, "executing", true, true)
+	projectBefore, _ := os.ReadFile(projectPath)
+	ledgerBefore, _ := os.ReadFile(ledgerPath)
+	originalLookup := projectIssueLookupFn
+	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
+	}
+	originalStage := projectCloseStageFileFn
+	projectCloseStageFileFn = func(dir, pattern string, data []byte) (string, error) {
+		if strings.Contains(pattern, "ledger") {
+			return "", errors.New("forced ledger stage failure")
+		}
+		return originalStage(dir, pattern, data)
+	}
+	t.Cleanup(func() {
+		projectIssueLookupFn = originalLookup
+		projectCloseStageFileFn = originalStage
+	})
+
+	err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+	if err == nil || !strings.Contains(err.Error(), "forced ledger stage failure") {
+		t.Fatalf("runProjectClose error = %v, want forced stage failure", err)
+	}
+	projectAfter, _ := os.ReadFile(projectPath)
+	ledgerAfter, _ := os.ReadFile(ledgerPath)
+	if string(projectAfter) != string(projectBefore) || string(ledgerAfter) != string(ledgerBefore) {
+		t.Fatal("stage failure changed a durable record")
+	}
+	if _, statErr := os.Stat(filepath.Join(f.HistoryDir, "projects", "alpha.md")); !os.IsNotExist(statErr) {
+		t.Fatalf("stage failure left archived project: %v", statErr)
 	}
 }
 

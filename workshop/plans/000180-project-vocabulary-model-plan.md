@@ -105,7 +105,6 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 | Tick mutators (typed re-impl) | `cmd/sdlc/internal/project/project.go` | modified |
 | Guard registry | `cmd/sdlc/internal/project/guards.go` | new |
 | `computeBoard` | `cmd/sdlc/projectstatus.go` | new |
-| Phase-A estimation method (doc) | `brain/data/life/42shots/velocity/estimate-logic-project-v1.md` | new |
 | datatype prose (demoted to cite cue) | `construct/datatype/project.md` | modified |
 | prose↔model drift test | `pkg/vocab/prose_drift_test.go` | new |
 
@@ -152,6 +151,7 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 | `sdlc project` verb family | `cmd/sdlc/project.go` (+ `helptext/project.md`) | new | fs + git commit + peer repos |
 | issue lookup seam | `cmd/sdlc/projectstatus.go` | new | peer-repo fs reads via `resolveRepoDir` |
 | fog-factor ledger append | `cmd/sdlc/projectclose.go` | new | brain fs (sibling repo) |
+| Phase-A estimation method (process doc) | `brain/data/life/42shots/velocity/estimate-logic-project-v1.md` | new | human-executed sizing method + calibration ledger |
 | close-gate project parsing | `cmd/sdlc/close.go:565-655` (call sites unchanged) | modified | brain project files |
 
 - **validate gate** — generalize `validateChangedIssues` into a per-noun table
@@ -1324,3 +1324,34 @@ repo guard, and two fixed census tests still pinned the pre-M4 gate/lock sets.
 validation (so repository identity remains guard-first), the lifecycle test
 executes multiword catalog keys as separate argv tokens, and the repo-lock plus
 14-gate census pins include the new boundary.
+
+### 2026-07-16 — M4 REWORK boundary reconciliation
+
+**Reason:** the M4 fresh-context review found that close recognized selected
+guard names instead of consuming the transition's complete ordered guard list,
+could calibrate from a partial actual sum, and changed the live project before
+the sibling ledger write. It also found the Phase-A document misclassified as a
+PURE entity, missing README examples, and ambiguity about real-instance M4
+dogfood.
+
+**Delta:**
+
+- Close iterates every modeled guard through a close-owned handler registry and
+  refuses unknown names. The retro and fog handlers remain distinct because fog
+  prepares a cross-repo transaction rather than calling the generic document
+  guard.
+- Fog calibration requires a positive measured actual for every MVP ref.
+  Lookup errors, unset values, explicit `N/A`, and non-positive values make the
+  set incomplete: ledger-backed close refuses; acknowledged `--no-ledger`
+  archives with `actuals: incomplete` / `fog: n/a` instead of a false row.
+- Project and ledger contents are staged before either durable path changes;
+  ordered renames have reverse-order compensation. A forced ledger-stage
+  failure regression proves both original records remain unchanged.
+- The Phase-A method moves from PURE entities to Integration points as a
+  human-executed process/document surface. Validation is structural content
+  review, helptext linkage, live command use, and close-ledger tests—not a
+  fictional colocated pure unit test.
+- README now shows status, retro dry-run/write, close/drop, and explicit bypass
+  semantics. The real ideation project is exercised with read-only `status` and
+  `retro --dry-run`; lifecycle mutation remains correctly deferred until its
+  PRD and baseline are genuinely ready.

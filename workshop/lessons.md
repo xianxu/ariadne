@@ -773,3 +773,22 @@ slug-to-path resolver that validates grammar and containment; every read and
 write verb must call it, with traversal tests proving no downstream IO runs.
 
 **Origin:** #180 M3 boundary review (REWORK).
+
+## 2026-07-16 — Modeled guards are a closed execution list; calibration needs complete inputs and staged writes (#180 M4)
+
+**Pattern:** A dedicated close verb looked up the modeled transition but then
+recognized only one guard by name, silently ignoring another modeled guard and
+any future addition. Its fog ledger also summed only the issue actuals it could
+read, producing a precise-looking but false partial calibration row, then
+archived the project before the sibling ledger write could fail.
+
+**Rule:** When a model names ordered guards, iterate the entire list through an
+explicit handler registry and fail closed on every unknown name—never use the
+model only as an edge check while shadowing its guards in conditionals. A
+calibration row is valid only when every required input is measured; otherwise
+refuse or record a visibly non-calibrating `n/a` under an explicit bypass. For
+one command changing multiple durable records, stage every output first and
+test a forced late-stage failure leaves all original records unchanged. At each
+user-facing milestone, add runnable README examples in the same boundary.
+
+**Origin:** #180 M4 boundary review (REWORK).

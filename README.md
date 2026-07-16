@@ -23,8 +23,18 @@ sdlc project list
 sdlc project show --slug example
 sdlc project validate --slug example
 sdlc project set-status --slug example --to defined
+sdlc project status --slug example
+sdlc project retro --slug example --dry-run
+sdlc project retro --slug example
+sdlc project close --slug example
+# A paused or executing project may be dropped instead of completed:
+sdlc project close --slug example --drop
+# Explicit escape for a legacy record where neither gate applies:
+sdlc project close --slug legacy-example --no-retro --no-ledger
 ```
 
 `set-status` enforces the lifecycle and named guards declared in
 `construct/vocabulary/project.cue`; project completion remains owned by
-`sdlc project close` so its retro and calibration gates cannot be bypassed.
+`sdlc project close`. When a retro or calibration ledger genuinely does not
+apply, acknowledge that explicitly with `--no-retro` or `--no-ledger`
+(`--force` waives both); ordinary closes should satisfy both gates.

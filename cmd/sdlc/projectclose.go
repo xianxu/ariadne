@@ -20,6 +20,11 @@ const projectLedgerRel = "data/life/42shots/velocity/estimate-logic-project-v1.m
 
 var projectPhaseARE = regexp.MustCompile(`(?m)^\*\*phase-a:\*\*\s+((?:\d+(?:\.\d+)?|\.\d+))h\s*$`)
 
+var (
+	projectCloseTransitionFn = func(from, to string) *vocab.Transition { return vocab.Project().TransitionFor(from, to) }
+	projectCloseStageFileFn  = stageProjectCloseFile
+)
+
 type projectCloseFlags struct {
 	Slug, ProjectsDir, HistoryDir, BrainDir string
 	Drop, NoRetro, NoLedger, Force          bool
@@ -67,91 +72,102 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 	} else if from != "executing" {
 		return fmt.Errorf("project close requires status executing (current %q); advance it through the project lifecycle funnel first", from)
 	}
-	tr := vocab.Project().TransitionFor(from, to)
+	tr := projectCloseTransitionFn(from, to)
 	if tr == nil {
 		return fmt.Errorf("illegal project transition %s → %s; legal from %q: %s", from, to, from, strings.Join(vocab.Project().LegalTransitions(from), ", "))
 	}
 
-	skipRetro := f.NoRetro || f.Force
-	if transitionHasGuard(tr.Guards, "retro-recorded") {
-		if skipRetro {
-			cwarn(stderr, "--no-retro (or --force): closing without a recorded project retro")
-		} else if err := projectdoc.Guards()["retro-recorded"](d, projectdoc.GuardCtx{Today: projectTodayFn()}); err != nil {
-			return fmt.Errorf("retro gate: %w; run `sdlc project retro`, or pass --no-retro (or --force) when it is not applicable", err)
-		}
-	}
-
 	var ledgerPath, ledgerNext string
 	phaseA, hasPhaseA := projectPhaseA(d)
-	actuals := 0.0
-	if !f.Drop && hasPhaseA {
-		root, err := gitx.RepoTopLevel()
-		if err != nil {
-			return err
-		}
-		for _, ref := range parseInlineRefs(d.FM("mvp_scope")) {
-			meta, lookupErr := projectIssueLookupFn(ref, root)
-			if lookupErr != nil || meta.ActualHours <= 0 {
-				detail := "missing or N/A actual_hours"
-				if lookupErr != nil {
-					detail = lookupErr.Error()
-				}
-				cwarn(stderr, fmt.Sprintf("fog factor: skipping %s (%s)", ref, detail))
-				continue
+	actuals, actualsComplete := 0.0, false
+	handlers := map[string]func() error{
+		"retro-recorded": func() error {
+			if f.NoRetro || f.Force {
+				cwarn(stderr, "--no-retro (or --force): closing without a recorded project retro")
+				return nil
 			}
-			actuals += meta.ActualHours
-		}
-		if f.NoLedger || f.Force {
-			cwarn(stderr, "--no-ledger (or --force): skipping fog-factor ledger")
-		} else {
-			ledgerPath = filepath.Join(f.BrainDir, filepath.FromSlash(projectLedgerRel))
-			ledgerNext, err = prepareProjectLedgerRow(ledgerPath, d.FM("name"), phaseA, actuals, projectTodayFn())
+			if err := projectdoc.Guards()["retro-recorded"](d, projectdoc.GuardCtx{Today: projectTodayFn()}); err != nil {
+				return fmt.Errorf("retro gate: %w; run `sdlc project retro`, or pass --no-retro (or --force) when it is not applicable", err)
+			}
+			return nil
+		},
+		"fog-factor-recorded": func() error {
+			if !hasPhaseA {
+				cwarn(stderr, "fog factor: missing **phase-a:** <N>h in ## Estimate; recording fog: n/a and skipping ledger")
+				return nil
+			}
+			root, err := gitx.RepoTopLevel()
 			if err != nil {
 				return err
 			}
+			var unavailable []string
+			actuals, unavailable = rollupProjectActuals(d, root, stderr)
+			actualsComplete = len(unavailable) == 0
+			if f.NoLedger || f.Force {
+				cwarn(stderr, "--no-ledger (or --force): skipping fog-factor ledger")
+				return nil
+			}
+			if !actualsComplete {
+				return fmt.Errorf("incomplete MVP actuals (%s); resolve every measured actual_hours or pass --no-ledger (or --force) to close without calibration", strings.Join(unavailable, ", "))
+			}
+			ledgerPath = filepath.Join(f.BrainDir, filepath.FromSlash(projectLedgerRel))
+			ledgerNext, err = prepareProjectLedgerRow(ledgerPath, d.FM("name"), phaseA, actuals, projectTodayFn())
+			return err
+		},
+	}
+	for _, name := range tr.Guards {
+		handler, ok := handlers[name]
+		if !ok {
+			return fmt.Errorf("unknown project close guard %q named by the vocabulary", name)
 		}
-	} else if !f.Drop {
-		cwarn(stderr, "fog factor: missing **phase-a:** <N>h in ## Estimate; recording fog: n/a and skipping ledger")
+		if err := handler(); err != nil {
+			return err
+		}
 	}
 
-	closeEntry := renderProjectCloseEntry(projectTodayFn(), phaseA, actuals, hasPhaseA)
+	closeEntry := renderProjectCloseEntry(projectTodayFn(), phaseA, actuals, hasPhaseA, actualsComplete)
 	if err := d.AppendToSection("Log", closeEntry); err != nil {
 		return err
 	}
 	d.SetFM("status", to)
 	d.SetFM("updated", projectTodayFn())
 	archiveDir := vocab.ArchiveSubdir(f.HistoryDir, vocab.ArchiveProjects)
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
-		return err
-	}
 	dest := filepath.Join(archiveDir, filepath.Base(path))
-	if _, err := os.Stat(dest); err == nil {
-		return fmt.Errorf("archived project already exists: %s", dest)
-	} else if !os.IsNotExist(err) {
+	if err := commitProjectClose(path, dest, d.Render(), ledgerPath, ledgerNext); err != nil {
 		return err
-	}
-	if err := os.WriteFile(path, []byte(d.Render()), 0o644); err != nil {
-		return err
-	}
-	if err := os.Rename(path, dest); err != nil {
-		return err
-	}
-	if ledgerPath != "" {
-		if err := os.WriteFile(ledgerPath, []byte(ledgerNext), 0o644); err != nil {
-			return fmt.Errorf("project archived but fog ledger write failed: %w", err)
-		}
 	}
 	fmt.Fprintln(stdout, dest)
 	return nil
 }
 
-func transitionHasGuard(guards []string, want string) bool {
-	for _, guard := range guards {
-		if guard == want {
-			return true
+func rollupProjectActuals(d *projectdoc.Doc, root string, stderr io.Writer) (float64, []string) {
+	refs := parseInlineRefs(d.FM("mvp_scope"))
+	if len(refs) == 0 {
+		return 0, []string{"mvp_scope is empty"}
+	}
+	actuals := 0.0
+	var unavailable []string
+	for _, ref := range refs {
+		meta, err := projectIssueLookupFn(ref, root)
+		reason := ""
+		switch {
+		case err != nil:
+			reason = err.Error()
+		case meta.ActualNA:
+			reason = "actual_hours is N/A"
+		case !meta.ActualAvailable:
+			reason = "actual_hours is missing"
+		case meta.ActualHours <= 0:
+			reason = "actual_hours must be positive"
+		default:
+			actuals += meta.ActualHours
+		}
+		if reason != "" {
+			unavailable = append(unavailable, fmt.Sprintf("%s: %s", ref, reason))
+			cwarn(stderr, fmt.Sprintf("fog factor: %s unavailable (%s)", ref, reason))
 		}
 	}
-	return false
+	return actuals, unavailable
 }
 
 func projectPhaseA(d *projectdoc.Doc) (float64, bool) {
@@ -163,11 +179,145 @@ func projectPhaseA(d *projectdoc.Doc) (float64, bool) {
 	return hours, err == nil && hours > 0
 }
 
-func renderProjectCloseEntry(today string, phaseA, actuals float64, hasPhaseA bool) string {
+func renderProjectCloseEntry(today string, phaseA, actuals float64, hasPhaseA, actualsComplete bool) string {
 	if !hasPhaseA {
 		return fmt.Sprintf("### %s — close\n\n- fog: n/a", today)
 	}
+	if !actualsComplete {
+		return fmt.Sprintf("### %s — close\n\n- phase-a: %gh\n- actuals: incomplete\n- fog: n/a", today, phaseA)
+	}
 	return fmt.Sprintf("### %s — close\n\n- phase-a: %gh\n- actuals: %gh\n- fog: %.2f", today, phaseA, actuals, actuals/phaseA)
+}
+
+func stageProjectCloseFile(dir, pattern string, data []byte) (path string, err error) {
+	f, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return "", err
+	}
+	path = f.Name()
+	defer func() {
+		if closeErr := f.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+		if err != nil {
+			_ = os.Remove(path)
+		}
+	}()
+	if err = f.Chmod(0o644); err != nil {
+		return "", err
+	}
+	_, err = f.Write([]byte(data))
+	return path, err
+}
+
+// commitProjectClose stages both records before changing either durable path.
+// Renames are compensated in reverse order on failure, so a reported error
+// leaves the live project and ledger at their pre-command contents.
+func commitProjectClose(livePath, dest, projectNext, ledgerPath, ledgerNext string) error {
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	if _, err := os.Stat(dest); err == nil {
+		return fmt.Errorf("archived project already exists: %s", dest)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	projectStage, err := projectCloseStageFileFn(filepath.Dir(dest), ".sdlc-project-close-project-*", []byte(projectNext))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(projectStage)
+
+	ledgerStage := ""
+	if ledgerPath != "" {
+		ledgerStage, err = projectCloseStageFileFn(filepath.Dir(ledgerPath), ".sdlc-project-close-ledger-*", []byte(ledgerNext))
+		if err != nil {
+			return err
+		}
+		defer os.Remove(ledgerStage)
+	}
+
+	liveBackup, err := reserveProjectCloseBackup(filepath.Dir(livePath), ".sdlc-project-close-live-backup-*")
+	if err != nil {
+		return err
+	}
+	ledgerBackup := ""
+	ledgerBackupActive := false
+	if ledgerPath != "" {
+		ledgerBackup, err = reserveProjectCloseBackup(filepath.Dir(ledgerPath), ".sdlc-project-close-ledger-backup-*")
+		if err != nil {
+			return err
+		}
+		if err := os.Rename(ledgerPath, ledgerBackup); err != nil {
+			return err
+		}
+		ledgerBackupActive = true
+		if err := os.Rename(ledgerStage, ledgerPath); err != nil {
+			if rollbackErr := os.Rename(ledgerBackup, ledgerPath); rollbackErr != nil {
+				return fmt.Errorf("ledger commit failed: %v; original remains at %s because rollback failed: %w", err, ledgerBackup, rollbackErr)
+			}
+			ledgerBackupActive = false
+			return err
+		}
+	}
+	rollbackLedger := func() error {
+		if ledgerPath == "" {
+			return nil
+		}
+		if err := os.Remove(ledgerPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err := os.Rename(ledgerBackup, ledgerPath); err != nil {
+			return err
+		}
+		ledgerBackupActive = false
+		return nil
+	}
+	if err := os.Rename(livePath, liveBackup); err != nil {
+		if rollbackErr := rollbackLedger(); rollbackErr != nil {
+			return fmt.Errorf("archive preparation failed: %v; ledger rollback failed: %w", err, rollbackErr)
+		}
+		return err
+	}
+	liveBackupActive := true
+	if err := os.Rename(projectStage, dest); err != nil {
+		projectRollbackErr := os.Rename(liveBackup, livePath)
+		if projectRollbackErr == nil {
+			liveBackupActive = false
+		}
+		ledgerRollbackErr := rollbackLedger()
+		if projectRollbackErr != nil || ledgerRollbackErr != nil {
+			return fmt.Errorf("archive commit failed: %v; project rollback: %v; ledger rollback: %v", err, projectRollbackErr, ledgerRollbackErr)
+		}
+		return err
+	}
+	if liveBackupActive {
+		if err := os.Remove(liveBackup); err != nil {
+			return fmt.Errorf("project close committed but original backup cleanup failed at %s: %w", liveBackup, err)
+		}
+	}
+	if ledgerBackupActive {
+		if err := os.Remove(ledgerBackup); err != nil {
+			return fmt.Errorf("project close committed but ledger backup cleanup failed at %s: %w", ledgerBackup, err)
+		}
+	}
+	return nil
+}
+
+func reserveProjectCloseBackup(dir, pattern string) (string, error) {
+	f, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return "", err
+	}
+	path := f.Name()
+	if err := f.Close(); err != nil {
+		_ = os.Remove(path)
+		return "", err
+	}
+	if err := os.Remove(path); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func prepareProjectLedgerRow(path, name string, phaseA, actuals float64, today string) (string, error) {

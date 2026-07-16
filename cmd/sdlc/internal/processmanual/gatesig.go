@@ -141,7 +141,7 @@ var GateCatalog = []GateSig{
 var closeMclose = []string{"close", "milestone-close"}
 
 // GateFlagNames returns the distinct gate flag names, sorted — the closed
-// vocabulary of the 12 spine bypass gates.
+// vocabulary of the 14 spine bypass gates.
 func GateFlagNames() []string {
 	seen := map[string]bool{}
 	var out []string
