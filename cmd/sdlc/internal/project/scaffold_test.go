@@ -13,8 +13,7 @@ func TestRenderScaffoldDerivesProjectModel(t *testing.T) {
 		DoneWhen: "The derived board is trustworthy.", Today: "2026-07-16",
 	})
 	for _, want := range []string{
-		"type: project", "name: demo", "goal: Make projects computable.",
-		"done_when: The derived board is trustworthy.",
+		"type: project",
 		"status: " + vocab.Project().InitialStatus(),
 		"created: 2026-07-16", "updated: 2026-07-16",
 	} {
@@ -36,6 +35,9 @@ func TestRenderScaffoldDerivesProjectModel(t *testing.T) {
 	}
 	if d.FM("name") != "demo" {
 		t.Fatalf("parsed name = %q", d.FM("name"))
+	}
+	if d.FM("goal") != "Make projects computable." || d.FM("done_when") != "The derived board is trustworthy." {
+		t.Fatalf("quoted fields did not round-trip: goal=%q done_when=%q", d.FM("goal"), d.FM("done_when"))
 	}
 }
 
@@ -64,6 +66,17 @@ deadline: 2026-09-01
 	for _, want := range []string{"workshop/projects/alpha.md", "status: executing", "tasks: 1/2 done"} {
 		if !strings.Contains(show, want) {
 			t.Errorf("show missing %q:\n%s", want, show)
+		}
+	}
+}
+
+func TestResolvePathRejectsTraversal(t *testing.T) {
+	if got, err := ResolvePath("workshop/projects", "demo"); err != nil || got != "workshop/projects/demo.md" {
+		t.Fatalf("ResolvePath valid = %q, %v", got, err)
+	}
+	for _, slug := range []string{"../history/projects/demo", "nested/demo", ".", "demo.md", "Demo Space"} {
+		if _, err := ResolvePath("workshop/projects", slug); err == nil {
+			t.Errorf("ResolvePath accepted %q", slug)
 		}
 	}
 }

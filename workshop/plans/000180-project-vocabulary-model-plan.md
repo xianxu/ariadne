@@ -99,6 +99,9 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 | shared lifecycle helpers | `pkg/vocab/lifecycle.go` | new |
 | `ArchiveSubdir` (kind-keyed) | `pkg/vocab/vocab.go` | modified |
 | `Doc` / `Task` (typed project file) | `cmd/sdlc/internal/project/doc.go` | new |
+| `ScaffoldSpec` / `RenderScaffold` | `cmd/sdlc/internal/project/scaffold.go` | new |
+| `Summary` renderers | `cmd/sdlc/internal/project/summary.go` | new |
+| project slug/path resolver | `cmd/sdlc/internal/project/path.go` | new |
 | Tick mutators (typed re-impl) | `cmd/sdlc/internal/project/project.go` | modified |
 | Guard registry | `cmd/sdlc/internal/project/guards.go` | new |
 | `computeBoard` | `cmd/sdlc/projectstatus.go` | new |
@@ -1280,3 +1283,22 @@ been reflected in the detailed plan rows.
 - The milestone-actual deviation correction is an enabling side quest, not an
   expansion of M2's project-model scope: cumulative claim-to-HEAD measurements
   cannot be compared to per-milestone increments.
+
+### 2026-07-16 — M3 REWORK boundary reconciliation
+
+**Reason:** the first M3 boundary review found that free-text scaffold values
+were not YAML-safe and that three slug consumers could escape the modeled live
+project directory. It also found the new user-facing verb family absent from
+README.md.
+
+**Delta:**
+
+- `RenderScaffold` encodes every user-provided frontmatter string as a YAML-safe
+  double-quoted scalar, and `Doc.FM` decodes that representation for typed
+  consumers. Regression coverage includes colons, comments, quotes, newlines,
+  booleans, and date-like text plus a real vocabulary-validator subprocess.
+- The PURE `project.ResolvePath` is now the single slug-to-path boundary for
+  new/show/validate/set-status. Canonical lowercase kebab slugs are required;
+  traversal and nested paths refuse before any read, validator call, or write.
+- The Core concepts table now names scaffold, summary, and locator entities;
+  README.md carries the runnable M3 project workflow.

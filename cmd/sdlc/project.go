@@ -107,10 +107,10 @@ func runProjectNew(stdout, _ io.Writer, f *projectNewFlags) error {
 			return fmt.Errorf("--%s is required and must be non-empty", name)
 		}
 	}
-	if filepath.Base(f.Slug) != f.Slug || strings.Contains(f.Slug, ".") {
-		return fmt.Errorf("invalid project slug %q", f.Slug)
+	dest, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
+	if err != nil {
+		return err
 	}
-	dest := filepath.Join(f.ProjectsDir, f.Slug+".md")
 	if _, err := os.Stat(dest); err == nil {
 		return fmt.Errorf("project already exists: %s", dest)
 	} else if !os.IsNotExist(err) {
@@ -157,7 +157,10 @@ func runProjectList(stdout, _ io.Writer, f *projectListFlags) error {
 }
 
 func runProjectShow(stdout, _ io.Writer, f *projectShowFlags) error {
-	path := filepath.Join(f.ProjectsDir, f.Slug+".md")
+	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
+	if err != nil {
+		return err
+	}
 	d, err := readProject(path)
 	if err != nil {
 		return err
@@ -172,7 +175,11 @@ func runProjectValidate(stdout, stderr io.Writer, f *projectValidateFlags, args 
 	}
 	files := args
 	if f.Slug != "" {
-		files = []string{filepath.Join(f.ProjectsDir, f.Slug+".md")}
+		path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
+		if err != nil {
+			return err
+		}
+		files = []string{path}
 	}
 	if f.All {
 		var err error

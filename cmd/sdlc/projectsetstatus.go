@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -38,7 +37,10 @@ func newProjectSetStatusCmd() *cobra.Command {
 }
 
 func runProjectSetStatus(stdout, _ io.Writer, f *projectSetStatusFlags) error {
-	path := filepath.Join(f.ProjectsDir, f.Slug+".md")
+	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
+	if err != nil {
+		return err
+	}
 	ctx := projectdoc.GuardCtx{Today: projectTodayFn(), Evidence: map[string]string{"reality-check": f.Reality, "issues-cover-prd": f.Coverage}}
 	prev, changed, err := applyProjectStatus(path, f.To, f.Force, ctx)
 	if err != nil {

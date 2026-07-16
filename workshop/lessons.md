@@ -758,3 +758,18 @@ that `os.Getwd` has an env-dependent branch your tests won't hit by accident.
 
 **Origin:** #179 live dogfood (`sdlc migrate` refused a file that was plainly
 inside the repo). Fixed with EvalSymlinks + a $PWD-setting regression test.
+
+## 2026-07-16 — User strings need serialization tests; slug containment needs one resolver (#180 M3)
+
+**Pattern:** A model-derived project scaffold interpolated CLI prose directly
+into YAML, so colons broke parsing and `#` silently changed the stored value.
+Separately, `project new` checked its slug locally while show/validate/set-status
+joined unchecked slugs to the project directory, allowing `../` traversal.
+
+**Rule:** Treat every user-provided frontmatter value as serialized data: encode
+it with a format-safe scalar writer and test hostile punctuation plus a real
+parser/validator round trip. For slug-addressed files, expose one canonical
+slug-to-path resolver that validates grammar and containment; every read and
+write verb must call it, with traversal tests proving no downstream IO runs.
+
+**Origin:** #180 M3 boundary review (REWORK).

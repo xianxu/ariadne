@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -129,6 +130,11 @@ func fenceMarker(line string) (byte, int, string, bool) {
 // FM returns a trimmed frontmatter field value, or an empty string when absent.
 func (d *Doc) FM(field string) string {
 	value, _ := issue.GetField(d.fm, field)
+	if len(value) >= 2 && value[0] == '"' {
+		if decoded, err := strconv.Unquote(value); err == nil {
+			return decoded
+		}
+	}
 	return value
 }
 

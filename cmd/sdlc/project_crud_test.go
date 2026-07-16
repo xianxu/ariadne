@@ -57,6 +57,56 @@ func TestProjectScaffoldConformsToProjectVocabularyProcess(t *testing.T) {
 	}
 }
 
+func TestProjectScaffoldPreservesYAMLHostileScalars(t *testing.T) {
+	dir := t.TempDir()
+	goal := "Ship: safely #1 \"yes\"\nwithout corruption"
+	doneWhen := "2026-08-01 is true: yes"
+	f := &projectNewFlags{Slug: "demo", Goal: goal, DoneWhen: doneWhen, ProjectsDir: dir}
+	if err := runProjectNew(&bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "demo.md")
+	cmd := exec.Command("go", "run", "../vocabulary", "validate-instance", "--type", "project", path)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("hostile scaffold is nonconforming: %v\n%s", err, out)
+	}
+	d, err := readProject(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := d.FM("goal"); got != goal {
+		t.Fatalf("goal round-trip = %q, want %q", got, goal)
+	}
+	if got := d.FM("done_when"); got != doneWhen {
+		t.Fatalf("done_when round-trip = %q, want %q", got, doneWhen)
+	}
+}
+
+func TestProjectSlugConsumersRejectTraversal(t *testing.T) {
+	dir := t.TempDir()
+	slug := "../outside"
+	var out, errOut bytes.Buffer
+	if err := runProjectNew(&out, &errOut, &projectNewFlags{Slug: slug, Goal: "g", DoneWhen: "d", ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
+		t.Errorf("new traversal = %v", err)
+	}
+	if err := runProjectShow(&out, &errOut, &projectShowFlags{Slug: slug, ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
+		t.Errorf("show traversal = %v", err)
+	}
+	orig := validateFrontmatterFn
+	calls := 0
+	validateFrontmatterFn = func(string, string) (string, bool, error) { calls++; return "", true, nil }
+	t.Cleanup(func() { validateFrontmatterFn = orig })
+	if err := runProjectValidate(&out, &errOut, &projectValidateFlags{Slug: slug, ProjectsDir: dir}, nil); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
+		t.Errorf("validate traversal = %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("validator called %d times for traversal", calls)
+	}
+	if err := runProjectSetStatus(&out, &errOut, &projectSetStatusFlags{Slug: slug, To: "defined", ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
+		t.Errorf("set-status traversal = %v", err)
+	}
+}
+
 func TestProjectNewRequiresGoalAndDoneWhenFlags(t *testing.T) {
 	cmd := newProjectNewCmd()
 	for _, name := range []string{"goal", "done-when"} {

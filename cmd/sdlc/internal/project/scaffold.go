@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -17,7 +18,7 @@ func RenderScaffold(s ScaffoldSpec) string {
 	m := vocab.Project()
 	var b strings.Builder
 	b.WriteString("---\n")
-	fmt.Fprintf(&b, "type: project\nname: %s\ngoal: %s\ndone_when: %s\n", s.Name, s.Goal, s.DoneWhen)
+	fmt.Fprintf(&b, "type: project\nname: %s\ngoal: %s\ndone_when: %s\n", yamlString(s.Name), yamlString(s.Goal), yamlString(s.DoneWhen))
 	fmt.Fprintf(&b, "status: %s\ncreated: %s\nupdated: %s\n---\n\n# %s\n", m.InitialStatus(), s.Today, s.Today, s.Name)
 	for _, section := range m.Sections() {
 		fmt.Fprintf(&b, "\n## %s\n", section.Name)
@@ -27,3 +28,7 @@ func RenderScaffold(s ScaffoldSpec) string {
 	}
 	return b.String()
 }
+
+// JSON string syntax is a strict subset of YAML double-quoted scalar syntax,
+// giving us deterministic escaping without adding a second YAML implementation.
+func yamlString(value string) string { return strconv.Quote(value) }
