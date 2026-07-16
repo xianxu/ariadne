@@ -371,7 +371,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// the engine can't measure — and for an ADOPTED value (#178): comparing
 		// the measurement against itself would just re-run the engine.
 		if !adopted && !f.skip("actual") {
-			if derr := checkActualDeviation(stderr, issueStr, v); derr != nil {
+			if derr := checkActualDeviation(stderr, issueStr, v, mode); derr != nil {
 				die(stderr, derr.Error())
 			}
 		}
@@ -1261,13 +1261,16 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 	}
 }
 
-// checkActualDeviation is the thin IO glue: measure via the shared engine, run
-// the pure comparator, and warn (to stderr) or return a refusal error. Returns
-// nil — never blocks — when the engine can't measure (no window / telemetry gap
-// / no script): an unavailable measurement must not gate a legitimate close.
-func checkActualDeviation(stderr io.Writer, issueStr string, passed float64) error {
-	repoTop, brainAbs := resolveActualRoots()
-	res := computeActual(repoTop, brainAbs, issueStr)
+// checkActualDeviation is the thin IO glue for issue-close values: measure via
+// the shared engine, run the pure comparator, and warn (to stderr) or return a
+// refusal error. Milestone values are increments but the available measurement
+// is cumulative claim→HEAD, so they are deliberately skipped until a windowed
+// milestone measurement exists. Unavailable issue measurements also never gate.
+func checkActualDeviation(stderr io.Writer, issueStr string, passed float64, mode string) error {
+	if mode == "milestone" {
+		return nil
+	}
+	res := computeActualForCloseFn(issueStr)
 	if res.Status != actualMeasured {
 		return nil // can't measure → don't block (judgment path owns this)
 	}
