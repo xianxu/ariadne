@@ -771,14 +771,14 @@ func nounGates(issuesDir string) []nounGate {
 - Test: `cmd/sdlc/project_cmd_test.go`; helptext anchors mirror
   `cmd/sdlc/helptext/embed_test.go` conventions
 
-- [ ] **Step 1: Write failing tests** — cobra tree has `project` with
+- [x] **Step 1: Write failing tests** — cobra tree has `project` with
   subcommands `new,list,show,set-status,validate,status,retro,close`
   (walk the tree like `helptext_render_test.go:71-82` does); rendered Long
   contains the model-derived lifecycle (assert a `when` gloss line surfaces);
   `TestNoCommandLongHasSurvivingPlaceholder` still passes (it auto-covers the
   new placeholders).
 
-- [ ] **Step 2: Implement** `NewProjectCmd()` mirroring `issue.go:27-52`
+- [x] **Step 2: Implement** `NewProjectCmd()` mirroring `issue.go:27-52`
   (parent `RunE → cmd.Help()`; each subcommand a `newProject<X>Cmd()` builder
   with its own flags struct; mutating ones wrap `markMutatingCommand`).
   `helptext/project.md` documents: the funnel (via placeholder), the gated
@@ -790,9 +790,9 @@ func nounGates(issuesDir string) []nounGate {
   add in M4 (**do the latter**: register only
   `new,list,show,set-status,validate` now; the tree test grows in M4).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ -run 'Project|Placeholder|Helptext'` — PASS.
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ -run 'Project|Placeholder|Helptext'` — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M3: sdlc project — verb family skeleton + model-derived helptext`
+- [x] **Step 4: Commit** — `#180 M3: sdlc project — verb family skeleton + model-derived helptext`
 
 #### Task M3.2: `project new` / `list` / `show` / `validate`
 
