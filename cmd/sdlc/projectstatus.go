@@ -20,6 +20,8 @@ import (
 
 type projectStatusFlags struct{ Slug, ProjectsDir string }
 
+var projectIssueLookupFn = lookupIssueMeta
+
 func newProjectStatusCmd() *cobra.Command {
 	f := projectStatusFlags{}
 	cmd := &cobra.Command{Use: "status", Short: "Render the derived project board", Args: cobra.NoArgs, SilenceErrors: true,
@@ -45,7 +47,7 @@ func runProjectStatus(stdout, _ io.Writer, f *projectStatusFlags) error {
 	if err != nil {
 		return err
 	}
-	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return lookupIssueMeta(ref, root) })
+	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ref, root) })
 	if err != nil {
 		return err
 	}

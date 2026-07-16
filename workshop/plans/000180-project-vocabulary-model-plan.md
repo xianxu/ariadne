@@ -959,7 +959,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
 **Files:**
 - Extend: `cmd/sdlc/project.go`; pure bits in `internal/project`
 
-- [ ] **Step 1: Write failing tests** — `retro --slug demo` appends to `## Log`:
+- [x] **Step 1: Write failing tests** — `retro --slug demo` appends to `## Log`:
 
 ```markdown
 ### 2026-07-20 — retro
@@ -973,10 +973,10 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   agent/operator's to fill — mechanism, not mandate). Appending twice on one
   date is allowed (distinct entries). `--dry-run` prints without writing.
 
-- [ ] **Step 2: Implement** (reuse `Doc.AppendToSection("Log", …)`); commit
+- [x] **Step 2: Implement** (reuse `Doc.AppendToSection("Log", …)`); commit
   convention as other mutating verbs. Run tests — PASS.
 
-- [ ] **Step 3: Staleness nudge at issue close** — in `close.go`'s project gate
+- [x] **Step 3: Staleness nudge at issue close** — in `close.go`'s project gate
   (after the tick edit is prepared, ~`close.go:584-655`): when the matched
   project's `status` is in the executing category and its newest retro heading
   is older than 7 days (or absent), print a `[!]` info line nudging
@@ -987,9 +987,9 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   `status: active` (legacy) is NOT in the model's executing category → no nudge,
   which is correct pre-#171. Hermetic test each branch.
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Retro|Close'` — PASS.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Retro|Close'` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M4: project retro verb + stale-retro nudge in the issue-close project gate`
+- [x] **Step 5: Commit** — `#180 M4: project retro verb + stale-retro nudge in the issue-close project gate`
 
 #### Task M4.3: `sdlc project close` — retro gate, fog factor, archive
 

@@ -19,7 +19,7 @@ func TestProjectCommandTreeM3(t *testing.T) {
 			t.Errorf("project %s not registered: %v", name, findErr)
 		}
 	}
-	for _, deferred := range []string{"retro", "close"} {
+	for _, deferred := range []string{"close"} {
 		if found, _, _ := project.Find([]string{deferred}); found != project {
 			t.Errorf("project %s registered before M4", deferred)
 		}

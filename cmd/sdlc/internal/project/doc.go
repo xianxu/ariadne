@@ -152,6 +152,11 @@ func (d *Doc) SectionBody(name string) string {
 	return strings.Join(d.lines[span.start:span.end], "\n")
 }
 
+func (d *Doc) HasSection(name string) bool {
+	_, ok := d.sections[name]
+	return ok
+}
+
 // AppendToSection adds a block after the section's existing content, separated
 // by one blank line, then rebuilds spans and task indexes from the new body.
 func (d *Doc) AppendToSection(name, block string) error {

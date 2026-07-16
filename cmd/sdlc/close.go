@@ -644,6 +644,9 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			projectText = pt
 			projectEditText = newPT
 		}
+		if shouldNudgeProjectRetro(newPT, today, f.skip("project")) {
+			cwarn(stderr, fmt.Sprintf("project retro is absent or older than 7 days in %s — consider `sdlc project retro`", filepath.Base(projPath)))
+		}
 	}
 
 	return closeResult{
@@ -660,6 +663,17 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		today:           today,
 		appliedMsgs:     applied,
 	}
+}
+
+func shouldNudgeProjectRetro(text, today string, skip bool) bool {
+	if skip {
+		return false
+	}
+	d, err := project.ParseDoc(text)
+	if err != nil || !vocab.Project().IsExecuting(d.FM("status")) {
+		return false
+	}
+	return project.RetroStale(d, today, 7)
 }
 
 // printCloseDryRun prints what a close WOULD change, writing nothing (#139).
