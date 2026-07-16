@@ -123,12 +123,13 @@ entry (gate, like issue close requires --verified).
   the cue as schema authority (procedure refers, registry defines), drift
   test binding the two.
 
-**Dogfood:** deferred until after the model lands (operator, 2026-07-15 at
-design start): #180 stays a single multi-boundary issue; the first project
-file under the new model is created AFTER the model + verbs + gates ship —
-not mid-flight. (The original proposal — the lift itself PRD'd by its own
-emerging machinery — was considered and set aside to avoid hand-authoring a
-project file against a schema that doesn't exist yet.)
+**Dogfood:** REVERSED at plan approval (operator, 2026-07-16; supersedes the
+2026-07-15 deferral): `workshop/projects/project-management-primitive.md`
+exists from ideation, hand-authored to the emerging model shape, and is the
+live test subject as machinery comes online — M2's conformance gate validates
+it, M3's verbs transition it, M4's board/retro/close drive it. #180 itself
+stays a single multi-boundary issue (that part of the deferral stands); the
+project file tracks the wider lift (#180 + #171, with #182 explicitly out).
 
 Out of scope (own tickets later): `product` and `roadmap` deserve the same
 lift; project first — it is the one the sdlc spine touches.
@@ -241,6 +242,16 @@ Estimate set: 8.5h (v3.1 Method A: design ≈3.3h incl. boundary reviews,
 impl 8.2h×0.4≈3.3h, +15% design buffer — thorough plan doc). *Produced via
 `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
+
+### 2026-07-16 — dogfood reversal + calendar-estimator spun off
+
+At plan approval the operator (1) identified the effort→calendar gap ("we
+need a higher level time estimator") — filed as #182, deliberately out of
+#180 scope, upgrading the `reality-check` guard from evidence-flag to
+computed check later; (2) reversed the dogfood deferral: created
+`workshop/projects/project-management-primitive.md` at ideation as the
+guinea pig (see the plan's Revisions). The plan's M2 live-check and M4
+dogfood pass now run against a real instance instead of scratch fixtures.
 
 ### 2026-07-15 — residency dir: workshop/projects/
 

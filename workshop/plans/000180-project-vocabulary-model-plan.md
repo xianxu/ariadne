@@ -1202,3 +1202,33 @@ func TestProjectProseCitesModel(t *testing.T) {
   `estimate_hours:` — derived per estimate-logic-v3.1 after plan approval.
 - Milestone → plan-row mapping lands in the issue `## Plan` as five `Mx` rows
   (each a genuine review boundary).
+
+## Revisions
+
+### 2026-07-16 — dogfood reversal (operator, at plan approval)
+
+**Reason:** the operator wants the project-management lift itself as the
+guinea pig from day one: "use the creation of project management in ariadne
+as a project to guinea pig the project management improvement itself."
+Supersedes the 2026-07-15 dogfood-deferral decision recorded in Chunk 1's
+scope boundary.
+
+**Delta:** `workshop/projects/project-management-primitive.md` now exists
+(hand-authored at ideation to the emerging model shape; mvp_scope
+[ariadne#180, ariadne#171], #182 explicitly out). Consequences for tasks:
+
+- Chunk 1 scope boundary: "the repo has no project instances yet … dormant
+  until files exist" no longer holds — the conformance gate goes LIVE against
+  this instance the moment M2.3 lands. M1.1's `#Project` must accept this
+  file as-written (it is the first conformance fixture; if it fails vet, fix
+  whichever side is wrong and log the call).
+- M2.4 live-check: run the bad-status check against a scratch COPY as
+  planned, but ALSO run `vocabulary validate-instance --type project` against
+  the real instance — expected PASS.
+- M3/M4 dogfood: prefer the real instance over scratch fixtures wherever a
+  verb test wants a live file (set-status define→…, status board, retro);
+  the M4.5 fixture arc still runs in a scratch repo for the destructive
+  close/archive step (the real instance closes only when the project is
+  actually done).
+- #180's issue scope is unchanged — single multi-boundary issue; the project
+  file tracks the wider lift, it does not restructure the issue.
