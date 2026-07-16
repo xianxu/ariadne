@@ -800,7 +800,7 @@ func nounGates(issuesDir string) []nounGate {
 - Extend: `cmd/sdlc/project.go`; scaffold render in
   `cmd/sdlc/internal/project/scaffold.go` (+ test)
 
-- [ ] **Step 1: Write failing tests** —
+- [x] **Step 1: Write failing tests** —
   `new --slug demo --goal "…" --done-when "…"` writes
   `workshop/projects/demo.md` with `type: project`, `name:`, `goal:`,
   `done_when:` (ALL four are `#Project`-required — the scaffold's own file must
@@ -815,12 +815,12 @@ func nounGates(issuesDir string) []nounGate {
   `vocabulary validate-instance --type project <file>` (seam-injected like
   `issue.go:99-124`'s `runIssueValidate` — mirror it).
 
-- [ ] **Step 2: Implement.** Pure render/summarize helpers live in
+- [x] **Step 2: Implement.** Pure render/summarize helpers live in
   `internal/project`; the command layer only does fs + output.
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ ./cmd/sdlc/internal/project/` — PASS.
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ ./cmd/sdlc/internal/project/` — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M3: project new/list/show/validate — scaffold + listing derive from the model`
+- [x] **Step 4: Commit** — `#180 M3: project new/list/show/validate — scaffold + listing derive from the model`
 
 #### Task M3.3: guard registry + `project set-status`
 
