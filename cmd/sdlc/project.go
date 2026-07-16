@@ -42,7 +42,6 @@ type projectNewFlags struct {
 }
 type projectListFlags struct{ ProjectsDir string }
 type projectShowFlags struct{ Slug, ProjectsDir string }
-type projectSetStatusFlags struct{}
 type projectValidateFlags struct {
 	Slug, ProjectsDir string
 	All               bool
@@ -90,10 +89,6 @@ func newProjectShowCmd() *cobra.Command {
 	return cmd
 }
 
-func newProjectSetStatusCmd() *cobra.Command {
-	return deferredProjectCmd("set-status", "Move a project through its guarded lifecycle", true)
-}
-
 func newProjectValidateCmd() *cobra.Command {
 	f := projectValidateFlags{}
 	cmd := &cobra.Command{Use: "validate [<file>...]", Short: "Validate project records against #Project", Args: cobra.ArbitraryArgs, SilenceErrors: true,
@@ -103,17 +98,6 @@ func newProjectValidateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "validate one project slug")
 	cmd.Flags().BoolVar(&f.All, "all", false, "validate all live projects")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
-	return cmd
-}
-
-func deferredProjectCmd(use, short string, mutating bool) *cobra.Command {
-	cmd := &cobra.Command{Use: use, Short: short, Args: cobra.NoArgs, SilenceErrors: true,
-		RunE: func(*cobra.Command, []string) error {
-			return fmt.Errorf("sdlc project %s implementation lands later in M3", use)
-		}}
-	if mutating {
-		return markMutatingCommand(cmd)
-	}
 	return cmd
 }
 

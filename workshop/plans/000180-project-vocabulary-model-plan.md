@@ -831,7 +831,7 @@ func nounGates(issuesDir string) []nounGate {
   the parent + the thin new/list/show/validate builders, mirroring how
   status/close get `projectstatus.go`/`projectclose.go`)
 
-- [ ] **Step 1: Write failing guard tests** (pure, table-driven):
+- [x] **Step 1: Write failing guard tests** (pure, table-driven):
 
 ```go
 // GuardCtx carries the injected world: evidence strings from flags, today's date.
@@ -854,9 +854,9 @@ func Guards() map[string]GuardFunc
   never legally need it since →done is refused anyway; registering it keeps the
   unknown-guard check honest).
 
-- [ ] **Step 2: Implement guards** — pure over `Doc`.
+- [x] **Step 2: Implement guards** — pure over `Doc`.
 
-- [ ] **Step 3: Write failing set-status tests** — legality from the model
+- [x] **Step 3: Write failing set-status tests** — legality from the model
   (`CanTransition`; refusal message renders `LegalTransitions` like
   `setstatus.go` does for issues — read it first and mirror the UX);
   `--to done` refuses with "use `sdlc project close`"; guards of the matched
@@ -866,9 +866,9 @@ func Guards() map[string]GuardFunc
   `updated:` via `Doc` and commits per the same convention `sdlc issue
   set-status` uses (verify at implementation and mirror).
 
-- [ ] **Step 4: Implement; run** `go test ./cmd/sdlc/... -run 'Guard|ProjectSetStatus'` — PASS.
+- [x] **Step 4: Implement; run** `go test ./cmd/sdlc/... -run 'Guard|ProjectSetStatus'` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M3: project set-status — model-legality + named-guard registry (unknown guard = refusal)`
+- [x] **Step 5: Commit** — `#180 M3: project set-status — model-legality + named-guard registry (unknown guard = refusal)`
 
 #### Task M3.4: close M3
 
