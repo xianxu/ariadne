@@ -1185,15 +1185,15 @@ func TestProjectProseCitesModel(t *testing.T) {
 
 #### Task M5.3: atlas + skill claim + issue close
 
-- [ ] **Atlas:** add `atlas/` coverage for the project noun (new file or the
+- [x] **Atlas:** add `atlas/` coverage for the project noun (new file or the
   vocabulary page, matching how the issue noun is mapped — check
   `atlas/index.md` and link from it): model location, funnel, verb family,
   gates, fog-factor loop, #171 handoff note.
-- [ ] **xx-vocabulary skill:** verify `.claude/skills/xx-vocabulary/SKILL.md` —
+- [x] **xx-vocabulary skill:** verify `.claude/skills/xx-vocabulary/SKILL.md` —
   its claim is now true for project; update any noun enumeration it carries.
-- [ ] **lessons.md:** only if something recurred that no code now enforces
+- [x] **lessons.md:** only if something recurred that no code now enforces
   (memory: feedback_lessons_only_if_not_code_enforced).
-- [ ] Full bare suite + vet_test.sh — PASS.
+- [x] Full bare suite + vet_test.sh — PASS.
 - [ ] Tick remaining plan rows. `sdlc close --issue 180 --verified '<evidence:
   test suite + live-fixture transcript + dormant-gate demo>'` (actuals measured,
   not typed; atlas gate satisfied by M5.3). Then `sdlc pr` → `sdlc merge` per

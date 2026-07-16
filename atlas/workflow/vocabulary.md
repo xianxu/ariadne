@@ -30,6 +30,11 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   estimates/actuals must also be finite and positive before aggregation. Issue
   refs carry one canonical repository-plus-ID identity through lookup, so aliases
   cannot split dependency threads or double-count remaining effort/calibration.
+  The human authoring prototype cites this CUE file as schema authority;
+  `TestProjectProseCitesModel` binds every modeled status and scaffold section
+  into that prose and rejects the retired `active` vocabulary. #171 owns moving
+  the remaining legacy brain records and enabling close-time conformance after
+  that migration; #180 supplies the model and typed consumers it will use.
 - `construct/vocabulary/verdict.cue` — the `verdict` noun (#147): boundary-review
   verdict tokens by category (`finalizing` = SHIP/FIX-THEN-SHIP, `blocking` = REWORK,
   `internal` = system-set not-run/unknown), with `#Emitted`/`#Token` *derived*; the

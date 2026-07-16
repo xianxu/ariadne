@@ -248,6 +248,20 @@ retired `active` byte forms. The bite check failed against the stashed old
 prototype on all intended predicates, then passed after restoration (ARCH-DRY,
 ARCH-PURPOSE).
 
+### 2026-07-16 — M5.3 atlas and served-skill sweep
+
+The vocabulary atlas now maps the datatype-prose drift binding and #171's
+legacy-record/close-validation handoff. Both served `xx-vocabulary` skill copies
+already enumerate `project`, so no regeneration was needed. The live shadow-doc
+sweep corrected `construct/datatype/product.md`'s canonical project-home example
+to `workshop/projects/<slug>.md`; historical issue/plan migration references
+remain as provenance (ARCH-DRY, ARCH-PURPOSE).
+
+Verification: `go test ./... -count=1`; vocabulary vet and generated-output
+freshness; live `project validate` and `project status` against
+`project-management-primitive`; datatype served-output assertions; live-doc
+shadow sweep; and `git diff --check` pass.
+
 ### 2026-07-16 — M4.3 project close
 - 2026-07-16: closed M4 — Fog ledger insertion is pure, fence-aware, section-scoped, and safe at EOF with or without existing rows; full suite, expanded race suite, vocabulary vet, and diff check pass.; review verdict: FIX-THEN-SHIP
 - 2026-07-16: closed M4 — Post-fourth-REWORK: finite-positive validation rejects quoted/unquoted NaN/Inf/zero and close seam non-finites; stale-retro status and board name use typed metadata; close/drop/blocked meaning derives from lifecycle events; today captured once; M5 core-concept rows marked planned; full and expanded race suites plus vocabulary vet and diff check pass.; review verdict: SHIP
