@@ -665,3 +665,57 @@ func TestIsHistoryPath(t *testing.T) {
 		}
 	}
 }
+
+// #181 close-review I1: an interrupted archive under the SUBFOLDER layout —
+// the writers now leave `?? workshop/history/issues/...` (+ a plans-side
+// sidecar half whose terminal-status gate is bypassed) — must recover the
+// same way the flat fixtures do. Exercises porcelain parse → basename
+// pairing → historyFileIsTerminal reading the subdir path.
+func TestRecoverInterruptedArchive_SubfolderLayout(t *testing.T) {
+	tmp := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	writeArchiveCandidate(t, "workshop/history/issues/000036-done.md", "done")
+	// Plan sidecar half: content is NOT issue frontmatter — its pairing rides
+	// the plan-artifact leg, not the terminal gate.
+	if err := os.MkdirAll("workshop/history/plans", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("workshop/history/plans/000036-done-plan.md", []byte("# plan\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	prev := pushRunner
+	r := &archiveRecoveryRunner{
+		status: []byte(" D workshop/issues/000036-done.md\n?? workshop/history/issues/000036-done.md\n" +
+			" D workshop/plans/000036-done-plan.md\n?? workshop/history/plans/000036-done-plan.md\n"),
+	}
+	pushRunner = r
+	defer func() { pushRunner = prev }()
+
+	var stdout, stderr bytes.Buffer
+	recovered, err := recoverInterruptedArchive(&stdout, &stderr, &pushFlags{
+		IssuesDir:  "workshop/issues",
+		HistoryDir: "workshop/history",
+		PlansDir:   "workshop/plans",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !recovered {
+		t.Fatal("expected recovery of a subfolder-layout interrupted archive")
+	}
+	got := callsJoined(r.gitCalls)
+	for _, want := range []string{
+		"workshop/issues/000036-done.md workshop/history/issues/000036-done.md",
+		"workshop/plans/000036-done-plan.md workshop/history/plans/000036-done-plan.md",
+		"commit -m archive completed issues to history",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("git calls missing %q:\n%s", want, got)
+		}
+	}
+}

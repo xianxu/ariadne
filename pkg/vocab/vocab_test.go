@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -182,10 +183,13 @@ func TestArchiveSubdirs_SingleDerivationPoint(t *testing.T) {
 					offenders = append(offenders, path+": "+lit)
 				}
 			}
-			// The subdir names may only appear as filepath.Join(root, "issues"/"plans")
-			// inside ArchiveSubdirs itself (vocab.go).
-			if filepath.Base(path) != "vocab.go" && strings.Contains(string(data), `filepath.Join(historyDir, "issues")`) {
-				offenders = append(offenders, path+`: filepath.Join(historyDir, "issues")`)
+			// The subdir names may only appear as filepath.Join(<root>, "issues"/"plans")
+			// inside ArchiveSubdirs itself (vocab.go) — regardless of the root
+			// variable's name (historyDir, historyFull, …) or a format-string embed.
+			if filepath.Base(path) != "vocab.go" {
+				for _, m := range archiveJoinRE.FindAllString(string(data), -1) {
+					offenders = append(offenders, path+": "+m)
+				}
 			}
 			return nil
 		})
@@ -195,6 +199,12 @@ func TestArchiveSubdirs_SingleDerivationPoint(t *testing.T) {
 			strings.Join(offenders, "\n  "))
 	}
 }
+
+// archiveJoinRE catches hand-derivations of the archive subdirs that the
+// literal patterns above miss: any filepath.Join whose last argument is the
+// bare "issues"/"plans" literal with a history-ish root variable, and
+// %s/issues-style format embeds.
+var archiveJoinRE = regexp.MustCompile(`filepath\.Join\([A-Za-z0-9_.]*[Hh]istory[A-Za-z0-9_.]*,\s*"(issues|plans)"\)|%s/(issues|plans)/`)
 
 // repoRoot walks up from cwd to the go.mod that declares module ariadne.
 func repoRoot() (string, error) {

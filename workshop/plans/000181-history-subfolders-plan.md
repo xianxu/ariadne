@@ -104,3 +104,21 @@ basename-preserving relayout is recovery-safe; migration classification is
 exact (53 plan + 46 review = 99; 159 issues; the two frontmatter-bearing
 plan docs are genuine plans — filename-suffix, not frontmatter, is the
 reliable discriminator).
+
+## Revisions
+
+### 2026-07-15 — close-review (FIX-THEN-SHIP) deltas
+
+1. **I1 fixed in-boundary:** `TestRecoverInterruptedArchive_SubfolderLayout`
+   pins interrupted-archive recovery under the new layout (issue half via the
+   terminal gate + plan-sidecar half), the promised-but-missed test-surface
+   line. The flat-fixture recovery tests stay as legacy-tolerance pins.
+2. Minors applied: merge's ArchiveSubdirs/MkdirAll hoisted out of the
+   per-issue loop; state.go's drift hint derives via ArchiveSubdirs (no
+   format-string subdir embed); the source-guard regex broadened to catch
+   any history-rooted `filepath.Join(..., "issues"/"plans")` regardless of
+   variable name plus `%s/issues`-style embeds; stale flat links in
+   pensive/continuation swept to subdir paths.
+3. Deferred knowingly: the push/merge issue-dest duplication consolidation
+   (three near-identical computations counting archivePlanArtifacts) — next
+   touch of the archive path should extract one helper.

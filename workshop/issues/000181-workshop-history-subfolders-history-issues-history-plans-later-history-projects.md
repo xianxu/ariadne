@@ -1,12 +1,13 @@
 ---
 id: 000181
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-15
 updated: 2026-07-15
 estimate_hours: 0.94
 started: 2026-07-15T16:23:08-07:00
+actual_hours: 0.38
 ---
 
 # workshop/history subfolders: history/issues, history/plans, later history/projects
@@ -115,6 +116,7 @@ Single-pass, plain checkboxes.
 ## Log
 
 ### 2026-07-15
+- 2026-07-15: closed — go test ./cmd/sdlc/... ./pkg/... 14/14 green: subfolder writers (both sites mutation-checked), flat+subfolder resolve fixture, assessDirty subdir Tracker cases, NextID subdir scan, ArchiveSubdirs source guard; migration verified live — sdlc resolve returns complete families for archived 175/63/12; git mv preserved history; review verdict: FIX-THEN-SHIP
 
 Filed from the #180 brainstorm (operator): history should have subfolders —
 issues/, plans/, later projects/. Current state: 258 flat files; archive
