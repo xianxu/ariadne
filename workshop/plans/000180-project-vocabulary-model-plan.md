@@ -1105,7 +1105,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   tick issues → `project close --no-ledger` (or with a fixture brain) →
   file lands in `workshop/history/projects/`. Record the transcript in `## Log`.
 - [x] Full bare suite — PASS. Tick plan rows; log.
-- [ ] `sdlc milestone-close --issue 180 --milestone M4`.
+- [x] `sdlc milestone-close --issue 180 --milestone M4`.
 
 ### M5 — prose demotion, drift binding, atlas
 

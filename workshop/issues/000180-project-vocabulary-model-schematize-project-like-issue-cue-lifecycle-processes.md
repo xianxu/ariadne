@@ -233,6 +233,7 @@ doc).*
 ## Log
 
 ### 2026-07-16 — M4.3 project close
+- 2026-07-16: closed M4 — Fog ledger insertion is pure, fence-aware, section-scoped, and safe at EOF with or without existing rows; full suite, expanded race suite, vocabulary vet, and diff check pass.; review verdict: FIX-THEN-SHIP
 - 2026-07-16: closed M4 — Post-fourth-REWORK: finite-positive validation rejects quoted/unquoted NaN/Inf/zero and close seam non-finites; stale-retro status and board name use typed metadata; close/drop/blocked meaning derives from lifecycle events; today captured once; M5 core-concept rows marked planned; full and expanded race suites plus vocabulary vet and diff check pass.; review verdict: SHIP
 
 Added the dedicated close/drop boundary: lifecycle edges remain model-owned;
@@ -408,6 +409,15 @@ and existing-row EOF plus inline/fenced fake headings (ARCH-DRY, ARCH-PURE,
 ARCH-PURPOSE).
 Verification: full `go test ./... -count=1`; expanded focused race suite;
 vocabulary vet; and `git diff --check` pass.
+
+### 2026-07-16 — M4 boundary finalized
+
+The final gate verdict is `FIX-THEN-SHIP`: all code and architecture checks
+passed; the sanctioned follow-up updated `atlas/workflow/ledger-landscape.md`
+from the brain-era, hand-maintained portfolio description to per-repository live
+projects, derived status, and terminal archive residency. This final record
+supersedes the earlier provisional “closed M4 / SHIP” Log line, which was
+written before later gate re-runs uncovered and resolved additional findings.
 
 ### 2026-07-15
 
