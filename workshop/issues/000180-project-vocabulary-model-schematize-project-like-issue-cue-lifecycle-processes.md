@@ -220,7 +220,7 @@ doc).*
 - [x] M2 — typed parsing + conformance: `internal/project.Doc`/`Task`,
       tick mutators re-implemented over Doc (same contract), validate gate
       generalized to a noun table (project instances at push/merge)
-- [ ] M3 — verbs: `sdlc project` family (new/list/show/set-status/validate),
+- [x] M3 — verbs: `sdlc project` family (new/list/show/set-status/validate),
       model-derived helptext, named-guard registry (unknown guard = refusal)
 - [ ] M4 — derived board + calibrated close: `project status` (computeBoard:
       frontier, Σ remaining, dep-subgraph threads), `project retro` +
@@ -267,6 +267,7 @@ rejected: stay-in-place records. Spec updated in place where these were
 parked.
 
 ### 2026-07-16 — durable plan authored + reviewed
+- 2026-07-16: closed M3 — go test ./... passes; construct/vocabulary/vet_test.sh passes; hostile YAML scalar scaffold round-trips and passes process-level vocabulary validation; shared ResolvePath rejects traversal for new/show/validate/set-status before IO; README, atlas, plan Core concepts/revision, and lessons updated; live dogfood list/show/validate succeeds; review verdict: FIX-THEN-SHIP
 - 2026-07-16: M3 built — `sdlc project new/list/show/validate/set-status`; scaffolds and lifecycle facts derive from #Project, command IO wraps pure render/summary/guard cores, unknown model guards refuse, and done stays close-owned. `go test ./...`, vocabulary vet harness, and live list/show/validate against the dogfood project pass (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
 - 2026-07-16: closed M2 — go test ./... and construct/vocabulary/vet_test.sh pass; make vocab-embed clean; live project-management-primitive conforms to #Project; scratch sdlc push refuses workshop/projects/bad.md specifically because status shipped is outside the project enum; milestone-increment deviation regression pinned; review verdict: FIX-THEN-SHIP
 - 2026-07-16: M2 review fixes — issue discovery now falls back to vocab.Issue().Discovery().Home (ARCH-DRY); fenced headings no longer corrupt section spans (ARCH-PURE); Doc.Tasks is Breakdown-only while close ticking uses an explicit whole-document compatibility seam (ARCH-PURPOSE); #171 owns close-time validation after legacy migration. Targeted regressions and full-suite evidence recorded in the M2 boundary commit.
