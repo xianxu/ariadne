@@ -222,7 +222,7 @@ doc).*
       generalized to a noun table (project instances at push/merge)
 - [x] M3 — verbs: `sdlc project` family (new/list/show/set-status/validate),
       model-derived helptext, named-guard registry (unknown guard = refusal)
-- [ ] M4 — derived board + calibrated close: `project status` (computeBoard:
+- [x] M4 — derived board + calibrated close: `project status` (computeBoard:
       frontier, Σ remaining, dep-subgraph threads), `project retro` +
       stale-retro nudge in the issue-close gate, `project close` (retro gate,
       fog-factor ledger row, archive to history/projects), Phase-A method doc
@@ -233,6 +233,7 @@ doc).*
 ## Log
 
 ### 2026-07-16 — M4.3 project close
+- 2026-07-16: closed M4 — Post-fourth-REWORK: finite-positive validation rejects quoted/unquoted NaN/Inf/zero and close seam non-finites; stale-retro status and board name use typed metadata; close/drop/blocked meaning derives from lifecycle events; today captured once; M5 core-concept rows marked planned; full and expanded race suites plus vocabulary vet and diff check pass.; review verdict: SHIP
 
 Added the dedicated close/drop boundary: lifecycle edges remain model-owned;
 retro and fog-ledger bypasses are explicit cataloged gates; Phase-A fog rolls
@@ -359,6 +360,17 @@ cover every edge (ARCH-DRY, ARCH-PURPOSE).
 Fourth-review remediation verification: full `go test ./... -count=1`, expanded
 focused race suite including vocab event/number tests, vocabulary vet, and diff
 check all pass.
+
+### 2026-07-16 — M4 later review: REWORK (duplicate logical scope refs)
+
+A later gate-owned fresh review found that exact or alias-equivalent
+`mvp_scope` entries could count one issue twice and permanently inflate the
+Phase-A fog calibration. Close now canonicalizes every reference to a resolved
+repository-plus-issue-ID identity and refuses duplicates before looking up
+actuals or preparing either durable mutation. Regressions cover
+`[ariadne#1, ariadne#1]` and `[ariadne#1, '#1']` (ARCH-PURPOSE).
+Verification: `go test ./... -count=1`; the expanded focused race suite;
+`bash construct/vocabulary/vet_test.sh`; and `git diff --check` all pass.
 
 ### 2026-07-15
 

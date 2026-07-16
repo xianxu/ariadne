@@ -1399,3 +1399,15 @@ entities as already delivered.
   names remain deliberate verb-policy identifiers; enum values are not copied.
 - Datatype prose and the prose-drift test are labeled `planned M5` in Core
   concepts until that milestone lands.
+
+### 2026-07-16 — M4 canonical-scope calibration reconciliation
+
+**Reason:** a later M4 fresh review found that `mvp_scope` could repeat one
+logical issue through identical or current-repository alias references. Close
+would sum every list entry and persist a precise-looking but inflated fog
+factor.
+
+**Delta:** before reading any actual or mutating either durable record, project
+close parses each MVP ref to a canonical resolved-repository-plus-issue-ID
+identity and refuses duplicates. Regressions cover both exact duplicates and
+`ariadne#1` / `#1` alias equivalence (ARCH-PURPOSE).

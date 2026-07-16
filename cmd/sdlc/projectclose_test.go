@@ -213,6 +213,37 @@ func TestProjectCloseRejectsNonFiniteActuals(t *testing.T) {
 	}
 }
 
+func TestProjectCloseRejectsDuplicateLogicalMVPScopeRefs(t *testing.T) {
+	for _, scope := range []string{
+		"mvp_scope: [ariadne#1, ariadne#1]",
+		"mvp_scope: [ariadne#1, '#1']",
+	} {
+		f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
+		b, _ := os.ReadFile(projectPath)
+		text := strings.Replace(string(b), "mvp_scope: [ariadne#1, ariadne#2]", scope, 1)
+		if err := os.WriteFile(projectPath, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		original := projectIssueLookupFn
+		lookups := 0
+		projectIssueLookupFn = func(string, string) (issueMeta, error) {
+			lookups++
+			return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
+		}
+		err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+		projectIssueLookupFn = original
+		if err == nil || !strings.Contains(err.Error(), "duplicate logical MVP issue") {
+			t.Errorf("scope %q error = %v, want duplicate refusal", scope, err)
+		}
+		if _, statErr := os.Stat(projectPath); statErr != nil {
+			t.Errorf("scope %q mutated project: %v", scope, statErr)
+		}
+		if lookups != 0 {
+			t.Errorf("scope %q performed %d issue lookups before duplicate refusal", scope, lookups)
+		}
+	}
+}
+
 func TestProjectCloseCapturesTodayOnce(t *testing.T) {
 	f, _, _ := projectCloseFixture(t, "executing", true, true)
 	f.NoLedger = true

@@ -116,7 +116,10 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 				return err
 			}
 			var unavailable []string
-			actuals, unavailable = rollupProjectActuals(metadata.MVPScope, root, stderr)
+			actuals, unavailable, err = rollupProjectActuals(metadata.MVPScope, root, stderr)
+			if err != nil {
+				return err
+			}
 			actualsComplete = len(unavailable) == 0
 			if f.NoLedger || f.Force {
 				cwarn(stderr, "--no-ledger (or --force): skipping fog-factor ledger")
@@ -155,12 +158,23 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 	return nil
 }
 
-func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64, []string) {
+func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64, []string, error) {
 	if len(refs) == 0 {
-		return 0, []string{"mvp_scope is empty"}
+		return 0, []string{"mvp_scope is empty"}, nil
 	}
 	actuals := 0.0
 	var unavailable []string
+	seen := map[string]string{}
+	for _, ref := range refs {
+		identity, err := canonicalProjectIssueIdentity(ref, root)
+		if err != nil {
+			return 0, nil, err
+		}
+		if prior, ok := seen[identity]; ok {
+			return 0, nil, fmt.Errorf("duplicate logical MVP issue: %s and %s both resolve to %s", prior, ref, identity)
+		}
+		seen[identity] = ref
+	}
 	for _, ref := range refs {
 		meta, err := projectIssueLookupFn(ref, root)
 		reason := ""
@@ -183,7 +197,26 @@ func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64
 			cwarn(stderr, fmt.Sprintf("fog factor: %s unavailable (%s)", ref, reason))
 		}
 	}
-	return actuals, unavailable
+	return actuals, unavailable, nil
+}
+
+func canonicalProjectIssueIdentity(refText, root string) (string, error) {
+	ref, err := parseRef(refText)
+	if err != nil {
+		return "", err
+	}
+	if ref.GitHub {
+		return "", fmt.Errorf("GitHub ref %q has no local issue identity", refText)
+	}
+	repoDir, err := resolveRepoDir(ref, root)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := filepath.EvalSymlinks(repoDir)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s#%d", resolved, ref.ID), nil
 }
 
 func renderProjectCloseEntry(today string, phaseA, actuals float64, hasPhaseA, actualsComplete bool) string {

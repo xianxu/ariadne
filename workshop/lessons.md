@@ -800,5 +800,8 @@ comparisons do not reject NaN (`NaN <= 0` is false), so “positive” checks al
 can admit a durable false calibration value. Core-concepts status must describe
 the current boundary (`planned M5` is not `new`) so review does not confuse the
 roadmap with delivered code.
+Calibration input sets must also be sets by canonical identity, not merely YAML
+lists: normalize aliases to the durable entity key and reject duplicates before
+aggregation or mutation, or one logical input can silently acquire extra weight.
 
 **Origin:** #180 M4 boundary review (REWORK).
