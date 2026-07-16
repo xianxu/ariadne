@@ -886,7 +886,7 @@ func Guards() map[string]GuardFunc
 - Create: `cmd/sdlc/projectstatus.go`, `projectstatus_test.go`
 - Extend: `cmd/sdlc/project.go` (register `status` subcommand)
 
-- [ ] **Step 1: Write failing pure tests** — map-backed lookup fake:
+- [x] **Step 1: Write failing pure tests** — map-backed lookup fake:
 
 ```go
 // issueMeta is the cross-repo issue surface the board reads.
@@ -934,9 +934,9 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   `internal/project`, shared with M4.2's nudge so the close gate never grows a
   lookup dependency).
 
-- [ ] **Step 2: Implement pure core; run** — PASS.
+- [x] **Step 2: Implement pure core; run** — PASS.
 
-- [ ] **Step 3: Wire the seam** — real lookup: `parseRef(refText)` →
+- [x] **Step 3: Wire the seam** — real lookup: `parseRef(refText)` →
   `resolveRepoDir` (current repo when `Repo` empty) → read
   `<repoDir>/<vocab.Issue().Discovery().Home>/NNNNNN-*.md` frontmatter via
   `internal/issue` helpers; tolerate archived issues by also checking
@@ -950,9 +950,9 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   hermetic test with a sibling fixture repo (mirror `hermeticrepo_test.go`
   scaffolding) covering one cross-repo ref.
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Board|ProjectStatus'` — PASS.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Board|ProjectStatus'` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M4: sdlc project status — the derived kanban (baseline stored, progression computed, nothing hand-maintained)`
+- [x] **Step 5: Commit** — `#180 M4: sdlc project status — the derived kanban (baseline stored, progression computed, nothing hand-maintained)`
 
 #### Task M4.2: `sdlc project retro`
 
