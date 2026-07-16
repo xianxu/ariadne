@@ -1057,7 +1057,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   (brain is a capture repo — write + let its auto-save flow own the commit;
   do NOT run sdlc there)
 
-- [ ] **Step 1: Write the v1 method** — contents (complete, this IS the design):
+- [x] **Step 1: Write the v1 method** — contents (complete, this IS the design):
   - **Scope:** PRD-stage estimation (Phase A), before issues exist. Phase B (at
     breakdown) is per-issue estimate-logic-v3.1, unchanged. Same calibration
     process as v3.1, different primitives + an explicit uncertainty multiplier
@@ -1082,12 +1082,12 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
     multiplier exactly the way issue closes calibrated v3.1.
   - Include the empty `## Fog ledger` table header row.
 
-- [ ] **Step 2: Cross-link** — `sdlc estimate-source` surfaces the issue-level
+- [x] **Step 2: Cross-link** — `sdlc estimate-source` surfaces the issue-level
   doc; add a one-line pointer to the project doc from `helptext/project.md`
   ("Phase-A method: …path…"). (Extending `estimatesource.go` to know both docs
   is a natural follow-up, NOT the purpose — note in Log if skipped.)
 
-- [ ] **Step 3: Commit** (ariadne side: the helptext pointer edit rides the next
+- [x] **Step 3: Commit** (ariadne side: the helptext pointer edit rides the next
   ariadne commit) — `#180 M4: helptext — Phase-A method pointer`.
 
 #### Task M4.5: live dogfood + close M4

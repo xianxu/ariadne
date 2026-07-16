@@ -242,6 +242,15 @@ two-word `project close` catalog key in both Claude and Codex transcripts
 (ARCH-DRY, ARCH-PURPOSE). Hermetic close/gate/scanner tests, `go test
 ./cmd/sdlc/... -count=1`, and `git diff --check` pass.
 
+### 2026-07-16 — M4.4 Phase-A method
+
+Captured the project estimation method at
+`brain/data/life/42shots/velocity/estimate-logic-project-v1.md`: workstream
+midpoints, explicit default/median fog, Phase-A recording, and the close-time
+calibration ledger. `sdlc project` help now links it and lists the complete M4
+command surface. Extending `estimate-source` to dispatch both issue and project
+methods remains a natural follow-up, intentionally outside #180.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

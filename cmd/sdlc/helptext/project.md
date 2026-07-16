@@ -9,6 +9,9 @@ SUBCOMMANDS
   show           Print one project's baseline and task summary
   set-status     Move through the guarded lifecycle (except →done)
   validate       Validate project frontmatter against #Project
+  status         Render the issue-derived progress board
+  retro          Append a retrospective checkpoint
+  close          Close or drop, calibrate, and archive the project
 
 PROJECT FILE
 
@@ -37,3 +40,7 @@ frontmatter. The status set and transition graph above derive from
 For depth:
 
   sdlc project <verb> --help
+
+Phase-A method:
+
+  brain/data/life/42shots/velocity/estimate-logic-project-v1.md
