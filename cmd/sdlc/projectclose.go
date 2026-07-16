@@ -346,20 +346,21 @@ func prepareProjectLedgerRow(path, name string, phaseA, actuals float64, today s
 	if err != nil {
 		return "", fmt.Errorf("fog ledger unavailable: %w; add `## Fog ledger` and its markdown table, or pass --no-ledger (or --force)", err)
 	}
-	text := string(b)
-	heading := strings.Index(text, "## Fog ledger")
-	if heading < 0 {
+	row := fmt.Sprintf("| %s | %gh | %gh | %.2f | %s |", name, phaseA, actuals, actuals/phaseA, today)
+	return appendProjectLedgerRow(string(b), row)
+}
+
+func appendProjectLedgerRow(text, row string) (string, error) {
+	start, end, ok := projectdoc.SectionLineBounds(text, "Fog ledger")
+	if !ok {
 		return "", fmt.Errorf("fog ledger missing exact heading `## Fog ledger`; add the heading and its markdown table, or pass --no-ledger (or --force)")
 	}
-	tail := text[heading:]
-	lines := strings.Split(tail, "\n")
+	lines := strings.Split(text, "\n")
 	tableEnd := -1
 	seenHeader, seenDivider := false, false
-	for i, line := range lines {
+	for i := start; i < end; i++ {
+		line := lines[i]
 		trimmed := strings.TrimSpace(line)
-		if i > 0 && strings.HasPrefix(trimmed, "## ") {
-			break
-		}
 		if strings.HasPrefix(trimmed, "|") {
 			if !seenHeader {
 				seenHeader = true
@@ -367,15 +368,16 @@ func prepareProjectLedgerRow(path, name string, phaseA, actuals float64, today s
 				seenDivider = strings.Contains(trimmed, "---")
 			}
 			tableEnd = i
+		} else if seenHeader {
+			break
 		}
 	}
 	if !seenHeader || !seenDivider || tableEnd < 0 {
 		return "", fmt.Errorf("fog ledger `## Fog ledger` is missing its markdown table; add it, or pass --no-ledger (or --force)")
 	}
-	row := fmt.Sprintf("| %s | %gh | %gh | %.2f | %s |", name, phaseA, actuals, actuals/phaseA, today)
-	insertAt := heading
-	for i := 0; i <= tableEnd; i++ {
-		insertAt += len(lines[i]) + 1
-	}
-	return text[:insertAt] + row + "\n" + text[insertAt:], nil
+	next := make([]string, 0, len(lines)+1)
+	next = append(next, lines[:tableEnd+1]...)
+	next = append(next, row)
+	next = append(next, lines[tableEnd+1:]...)
+	return strings.Join(next, "\n"), nil
 }

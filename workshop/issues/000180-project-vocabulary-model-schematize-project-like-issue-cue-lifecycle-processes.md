@@ -397,6 +397,18 @@ ARCH-PURPOSE).
 Verification: full `go test ./... -count=1`; expanded focused race suite;
 vocabulary vet; and `git diff --check` pass.
 
+### 2026-07-16 — M4 structural review: REWORK (fog-ledger EOF/heading)
+
+The next review found a valid EOF-without-newline panic in fog-ledger insertion
+and unanchored heading selection that could target prose/fenced examples. The
+pure ledger transformer now uses the shared fence-aware Markdown line scanner,
+inserts into the first contiguous table of the real level-two section, and
+reconstructs lines without assumed delimiter bytes. Regressions cover divider
+and existing-row EOF plus inline/fenced fake headings (ARCH-DRY, ARCH-PURE,
+ARCH-PURPOSE).
+Verification: full `go test ./... -count=1`; expanded focused race suite;
+vocabulary vet; and `git diff --check` pass.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

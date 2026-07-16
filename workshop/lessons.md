@@ -810,5 +810,9 @@ non-calibrating bypass.
 Derived dependency graphs must key vertices by the same canonical entity
 identity used at mutation/calibration boundaries, never by display spelling;
 otherwise aliases invent parallelism and duplicate rows inflate forecasts.
+When inserting into line-oriented records, never derive byte offsets by adding
+an assumed delimiter per split element: the last element may end at EOF. Keep
+the transformation pure, parse structural headings fence-aware, and rebuild
+from line slices so valid newline/no-newline forms are equally safe.
 
 **Origin:** #180 M4 boundary review (REWORK).

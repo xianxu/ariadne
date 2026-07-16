@@ -86,6 +86,34 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 	}
 }
 
+func TestAppendProjectLedgerRowHandlesEOFAndStructuralHeadings(t *testing.T) {
+	row := "| alpha | 40h | 20h | 0.50 | 2026-07-16 |"
+	for _, text := range []string{
+		"# Ledger\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|",
+		"# Ledger\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|\n| old | 1h | 1h | 1.00 | 2026-01-01 |",
+	} {
+		got, err := appendProjectLedgerRow(text, row)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasSuffix(got, row) {
+			t.Fatalf("row not appended safely at EOF:\n%s", got)
+		}
+	}
+
+	text := "# Ledger\n\n`## Fog ledger` is the required section.\n\n```md\n## Fog ledger\n| fake | table |\n|---|---|\n```\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|\n\n## Notes\nkeep\n"
+	got, err := appendProjectLedgerRow(text, row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(got, row) != 1 || !strings.Contains(got, "|---|---:|---:|---:|---|\n"+row+"\n\n## Notes") {
+		t.Fatalf("row was not confined to the real Fog ledger section:\n%s", got)
+	}
+	if !strings.Contains(got, "| fake | table |\n|---|---|\n```") {
+		t.Fatalf("fenced example changed:\n%s", got)
+	}
+}
+
 func TestProjectCloseReadsQuotedStatusAndBlockMVPScope(t *testing.T) {
 	f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
 	b, _ := os.ReadFile(projectPath)

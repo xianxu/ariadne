@@ -1439,3 +1439,16 @@ identity while retaining the first authored ref for display; duplicate task
 refs contribute one effort value and one component. Regressions cover
 `ariadne#3` / `#3`, peer-prefix / full-peer identity, and exact duplicates. The
 same resolver helper now serves close and status (ARCH-DRY, ARCH-PURPOSE).
+
+### 2026-07-16 — M4 structural fog-ledger reconciliation
+
+**Reason:** the next M4 review found that fog-ledger insertion assumed every
+split line owned a newline byte (panicking at a valid EOF table) and located the
+section with an unanchored substring that could select prose or fenced examples.
+
+**Delta:** ledger transformation is now a pure helper over text. It uses the
+project package's shared fence-aware Markdown scanner to locate the real
+level-two section, restricts insertion to its first contiguous table, and
+reconstructs lines without invented byte offsets. Regressions cover EOF after
+the divider, EOF after an existing row, inline/fenced fake headings, and the
+real later section (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
