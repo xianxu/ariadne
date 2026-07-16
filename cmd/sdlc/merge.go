@@ -43,6 +43,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // mergeFlags holds the parsed flag values for the merge subcommand.
@@ -614,7 +615,13 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 		return nil, err
 	}
 	var moves []preparedArchiveMove
-	cinfo(stderr, fmt.Sprintf("Archiving completed issues to %s/...", historyDir))
+	// #181: issues subdir on BOTH legs — the rename dest (mainPath-joined)
+	// and the recorded mainPath-relative path. This duplicates push.go's
+	// archiveDoneIssues dest logic (pre-existing two-write-site debt); both
+	// derive via ArchiveSubdirs.
+	issuesSubFull, _ := vocab.ArchiveSubdirs(historyFull)
+	issuesSubRec, _ := vocab.ArchiveSubdirs(historyDir)
+	cinfo(stderr, fmt.Sprintf("Archiving completed issues to %s/...", issuesSubRec))
 	for _, ref := range terminalIssueFiles(refs) {
 		// Merge target's shell DOES NOT call gh issue close — only push:
 		// closes GH issues. We mirror that. (Rationale: PR merge itself
@@ -622,12 +629,12 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 		// `gh issue close` would be redundant.) Repo param kept in
 		// signature for API symmetry with push's archive helper.
 		_ = repo
-		if err := os.MkdirAll(historyFull, 0o755); err != nil {
-			return moves, fmt.Errorf("mkdir %s: %v", historyFull, err)
+		if err := os.MkdirAll(issuesSubFull, 0o755); err != nil {
+			return moves, fmt.Errorf("mkdir %s: %v", issuesSubFull, err)
 		}
 		base := filepath.Base(ref.Path)
-		dest := filepath.Join(historyFull, base)
-		fmt.Fprintf(stderr, "  Moving %s to %s/\n", base, historyDir)
+		dest := filepath.Join(issuesSubFull, base)
+		fmt.Fprintf(stderr, "  Moving %s to %s/\n", base, issuesSubRec)
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}
@@ -636,7 +643,7 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 		// would silently miss the staged move.
 		moves = append(moves, preparedArchiveMove{
 			IssuePath:   filepath.Join(issuesDir, base),
-			HistoryPath: filepath.Join(historyDir, base),
+			HistoryPath: filepath.Join(issuesSubRec, base),
 		})
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// Rename under mainPath; record mainPath-relative paths for the git add.

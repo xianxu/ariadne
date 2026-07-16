@@ -288,13 +288,18 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 		return nil, nil
 	}
 	sort.Strings(matches)
-	if err := os.MkdirAll(historyFull, 0o755); err != nil {
-		return nil, fmt.Errorf("mkdir %s: %v", historyFull, err)
+	// #181: plan docs + review sidecars archive into the plans/ subdir. Both
+	// legs derive via ArchiveSubdirs — the rename dest (historyFull, absolute
+	// or mainPath-joined) and the recorded git-relative path (recHistoryDir).
+	_, plansSubFull := vocab.ArchiveSubdirs(historyFull)
+	_, plansSubRec := vocab.ArchiveSubdirs(recHistoryDir)
+	if err := os.MkdirAll(plansSubFull, 0o755); err != nil {
+		return nil, fmt.Errorf("mkdir %s: %v", plansSubFull, err)
 	}
 	var moves []preparedArchiveMove
 	for _, p := range matches {
 		base := filepath.Base(p)
-		dest := filepath.Join(historyFull, base)
+		dest := filepath.Join(plansSubFull, base)
 		recSrc := filepath.Join(recPlansDir, base)
 		untracked := srcUntracked != nil && srcUntracked(recSrc)
 		if err := os.Rename(p, dest); err != nil {
@@ -302,7 +307,7 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 		}
 		moves = append(moves, preparedArchiveMove{
 			IssuePath:       recSrc,
-			HistoryPath:     filepath.Join(recHistoryDir, base),
+			HistoryPath:     filepath.Join(plansSubRec, base),
 			SourceUntracked: untracked,
 		})
 	}
@@ -474,8 +479,16 @@ func isIssuePath(path, issuesDir string) bool {
 	return filepath.Dir(path) == filepath.Clean(issuesDir) && issueFilename(filepath.Base(path))
 }
 
+// isHistoryPath accepts an id-keyed file directly under the archive ROOT
+// (pre-#181 flat layout — kept for un-migrated + downstream repos) or under
+// either per-kind subdir (history/issues, history/plans — the #181 layout).
 func isHistoryPath(path, historyDir string) bool {
-	return filepath.Dir(path) == filepath.Clean(historyDir) && issueFilename(filepath.Base(path))
+	if !issueFilename(filepath.Base(path)) {
+		return false
+	}
+	dir := filepath.Dir(path)
+	issuesSub, plansSub := vocab.ArchiveSubdirs(filepath.Clean(historyDir))
+	return dir == filepath.Clean(historyDir) || dir == issuesSub || dir == plansSub
 }
 
 func historyFileIsTerminal(path string) (bool, error) {
@@ -578,11 +591,14 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir s
 				}
 			}
 		}
-		if err := os.MkdirAll(historyDir, 0o755); err != nil {
-			return moves, fmt.Errorf("mkdir %s: %v", historyDir, err)
+		// #181: issue files archive into the issues/ subdir (plans + sidecars
+		// go to plans/ via archivePlanArtifacts); reads stay flat-tolerant.
+		issuesSub, _ := vocab.ArchiveSubdirs(historyDir)
+		if err := os.MkdirAll(issuesSub, 0o755); err != nil {
+			return moves, fmt.Errorf("mkdir %s: %v", issuesSub, err)
 		}
-		dest := filepath.Join(historyDir, filepath.Base(ref.Path))
-		cinfo(stderr, fmt.Sprintf("Archiving %s to %s/", ref.Path, historyDir))
+		dest := filepath.Join(issuesSub, filepath.Base(ref.Path))
+		cinfo(stderr, fmt.Sprintf("Archiving %s to %s/", ref.Path, issuesSub))
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}

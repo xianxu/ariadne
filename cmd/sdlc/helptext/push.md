@@ -22,7 +22,7 @@ REFUSES IF
 WHAT IT DOES
 
   0. If the previous `sdlc push` was interrupted after moving completed
-     issue files to `workshop/history/` but before committing that archive,
+     issue files to `workshop/history/{issues,plans}/` but before committing that archive,
      recognizes the prepared archive move before the untracked-file guard,
      stages/commits/pushes it, and exits. Mixed unrelated worktree changes
      still refuse with a concrete next action.
@@ -39,7 +39,8 @@ WHAT IT DOES
      is NOT in {done, wontfix, punt}; warns and prompts the operator
      unless `--yes`.
   4. `git push`.
-  5. Archives done/wontfix/punt issue files to `workshop/history/`.
+  5. Archives done/wontfix/punt issue files to `workshop/history/issues/`
+     (their plan docs + review sidecars to `workshop/history/plans/`, #181).
      For `status: done` + `github_issue:`, calls `gh issue close`
      with the comment "Fixed on main." first. If any moved, commits
      and pushes the archive in a follow-up commit ("archive completed

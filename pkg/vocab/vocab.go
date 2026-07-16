@@ -10,6 +10,8 @@
 package vocab
 
 import (
+	"path/filepath"
+
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -90,6 +92,20 @@ func Issue() *IssueModel { return issueModel }
 // so consumers derive artifact locations from the model instead of hardcoding
 // them (ariadne#144).
 func (m *IssueModel) Discovery() Discovery { return m.Disc }
+
+// ArchiveSubdirs derives the per-kind archive layout from an archive ROOT
+// (#181): issues under root/issues, plans + review sidecars under root/plans.
+// Go-owned rather than cue-encoded because writers take --history-dir /
+// WF_HISTORY_DIR root overrides and must derive from an arbitrary root (and
+// widening the cue's `archive` string to a struct would break downstream JSON
+// consumers of the discovery export). THE single derivation point — consumers
+// route through it; nothing concatenates these subdir literals elsewhere (a
+// guard test enforces this). Reads stay tolerant of the pre-#181 flat layout;
+// writes emit only into these subdirs. `history/projects/` (ariadne#180) will
+// widen this when project archiving lands.
+func ArchiveSubdirs(root string) (issues, plans string) {
+	return filepath.Join(root, "issues"), filepath.Join(root, "plans")
+}
 
 // Sections returns the ordered creation-template body sections, so the issue
 // scaffolder derives the section list from the model instead of hardcoding it

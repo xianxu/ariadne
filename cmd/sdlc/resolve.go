@@ -226,7 +226,11 @@ func familyFiles(repoDir string, d vocab.Discovery, id int) ([]string, error) {
 	pat := fmt.Sprintf("%06d-*.md", id)
 	seen := map[string]bool{}
 	var out []string
-	for _, sub := range []string{d.Home, d.Plans, d.Archive} {
+	// Archive root kept alongside its per-kind subdirs (#181): reads tolerate
+	// the pre-#181 flat layout (un-migrated + downstream repos) indefinitely;
+	// the seen-map de-dupes if the dirs ever overlap.
+	archIssues, archPlans := vocab.ArchiveSubdirs(d.Archive)
+	for _, sub := range []string{d.Home, d.Plans, d.Archive, archIssues, archPlans} {
 		matches, err := filepath.Glob(filepath.Join(repoDir, sub, pat))
 		if err != nil {
 			return nil, fmt.Errorf("glob %s: %w", sub, err)

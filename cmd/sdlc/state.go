@@ -296,6 +296,7 @@ type shipProbe func(issueNum string) (sha, subject string, shipped bool)
 //     check 2. Warn-only: surface for a human glance, never auto-close (closing
 //     carries actual/verified judgment a heuristic can't supply).
 func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []DriftFinding {
+	archivedIssuesDir, _ := vocab.ArchiveSubdirs(historyDir) // #181 layout in the drift hint
 	var out []DriftFinding
 	for _, i := range issues {
 		// Tagless switch so the terminal arm can read the model's category (#122);
@@ -317,7 +318,7 @@ func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []Dr
 			out = append(out, DriftFinding{
 				Severity: "warn",
 				Issue:    i.ID,
-				Message:  fmt.Sprintf("status=%s but still in workshop/issues/ — move to %s/", i.Status, historyDir),
+				Message:  fmt.Sprintf("status=%s but still in workshop/issues/ — move to %s/ (`sdlc push`/`merge` archives it)", i.Status, archivedIssuesDir),
 			})
 		case i.Status == "working": // #122 carve-out: working-specific (blocked is waiting; IsActive too broad)
 			if i.PlanTotal > 0 && i.PlanTicked == 0 {

@@ -423,7 +423,7 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 		if got, want := moves[i].IssuePath, filepath.Join(issuesDir, name); got != want {
 			t.Errorf("moves[%d].IssuePath = %q, want %q", i, got, want)
 		}
-		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, name); got != want {
+		if got, want := moves[i].HistoryPath, filepath.Join(historyDir, "issues", name); got != want {
 			t.Errorf("moves[%d].HistoryPath = %q, want %q", i, got, want)
 		}
 	}
@@ -436,8 +436,8 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 		t.Errorf("working issue should still be in issues/: %v", err)
 	}
 	// Done file moved.
-	if _, err := os.Stat(filepath.Join(historyDir, "000001-done.md")); err != nil {
-		t.Errorf("done issue should be in history/: %v", err)
+	if _, err := os.Stat(filepath.Join(historyDir, "issues", "000001-done.md")); err != nil {
+		t.Errorf("done issue should be in history/issues/: %v", err)
 	}
 }
 
@@ -473,7 +473,7 @@ func TestPushPublishSequence_CodecompleteFlippedThenArchived(t *testing.T) {
 	if len(moves) != 1 {
 		t.Fatalf("archived %d, want 1", len(moves))
 	}
-	data, err := os.ReadFile(filepath.Join(historyDir, "000160-cc.md"))
+	data, err := os.ReadFile(filepath.Join(historyDir, "issues", "000160-cc.md"))
 	if err != nil {
 		t.Fatalf("codecomplete issue should be archived to history: %v", err)
 	}
@@ -642,3 +642,80 @@ func TestRunPush_DryRun_NoOpEnvironment(t *testing.T) {
 
 // silence unused-import warnings in cases the file shrinks
 var _ io.Writer = (*bytes.Buffer)(nil)
+
+// TestIsHistoryPath (NEW at #181 — previously only indirectly exercised):
+// accepts the root (legacy flat layout + downstream repos) and both per-kind
+// subdirs; still demands an id-keyed filename.
+func TestIsHistoryPath(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"workshop/history/000036-x.md", true},           // legacy flat
+		{"workshop/history/issues/000036-x.md", true},    // issues subdir
+		{"workshop/history/plans/000036-x-plan.md", true}, // plans subdir
+		{"workshop/history/plans/000036-x-close-review.md", true},
+		{"workshop/issues/000036-x.md", false},           // not history
+		{"workshop/history/notes.md", false},             // not id-keyed
+		{"workshop/history/issues/deeper/000036-x.md", false}, // too deep
+	}
+	for _, tc := range cases {
+		if got := isHistoryPath(tc.path, "workshop/history"); got != tc.want {
+			t.Errorf("isHistoryPath(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
+// #181 close-review I1: an interrupted archive under the SUBFOLDER layout —
+// the writers now leave `?? workshop/history/issues/...` (+ a plans-side
+// sidecar half whose terminal-status gate is bypassed) — must recover the
+// same way the flat fixtures do. Exercises porcelain parse → basename
+// pairing → historyFileIsTerminal reading the subdir path.
+func TestRecoverInterruptedArchive_SubfolderLayout(t *testing.T) {
+	tmp := t.TempDir()
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	writeArchiveCandidate(t, "workshop/history/issues/000036-done.md", "done")
+	// Plan sidecar half: content is NOT issue frontmatter — its pairing rides
+	// the plan-artifact leg, not the terminal gate.
+	if err := os.MkdirAll("workshop/history/plans", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("workshop/history/plans/000036-done-plan.md", []byte("# plan\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	prev := pushRunner
+	r := &archiveRecoveryRunner{
+		status: []byte(" D workshop/issues/000036-done.md\n?? workshop/history/issues/000036-done.md\n" +
+			" D workshop/plans/000036-done-plan.md\n?? workshop/history/plans/000036-done-plan.md\n"),
+	}
+	pushRunner = r
+	defer func() { pushRunner = prev }()
+
+	var stdout, stderr bytes.Buffer
+	recovered, err := recoverInterruptedArchive(&stdout, &stderr, &pushFlags{
+		IssuesDir:  "workshop/issues",
+		HistoryDir: "workshop/history",
+		PlansDir:   "workshop/plans",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !recovered {
+		t.Fatal("expected recovery of a subfolder-layout interrupted archive")
+	}
+	got := callsJoined(r.gitCalls)
+	for _, want := range []string{
+		"workshop/issues/000036-done.md workshop/history/issues/000036-done.md",
+		"workshop/plans/000036-done-plan.md workshop/history/plans/000036-done-plan.md",
+		"commit -m archive completed issues to history",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("git calls missing %q:\n%s", want, got)
+		}
+	}
+}

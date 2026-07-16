@@ -12,7 +12,7 @@ The premise of an opinionated stack is that downstream consumers inherit the
 opinions, they don't redo them. An adaptation pipeline with per-derivative
 intents is more machinery than the actual use case warrants — in practice,
 every derivative (nous, parley.nvim, ...) converges to ariadne's adaptation.
-Historical context lives in issue [#33](../../workshop/history/000033-adaptation-system-narrow-to-ariadne-only.md).
+Historical context lives in issue [#33](../../workshop/history/issues/000033-adaptation-system-narrow-to-ariadne-only.md).
 
 ## How inheritance works
 

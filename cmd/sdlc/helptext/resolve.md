@@ -39,7 +39,8 @@ WHAT IT RESOLVES (the family)
   Default output is the whole family, one absolute path per line, ordered
   issue → plan → reviews (by milestone, close-review last). A milestone ref
   (`#id Mx`) narrows to that milestone's review sidecar. Files that have moved
-  to `workshop/history/` resolve identically — the archive is searched too.
+  to `workshop/history/{issues,plans}/` (or the pre-#181 flat root) resolve
+  identically — the archive and its per-kind subdirs are searched too.
 
 GITHUB REFS
 

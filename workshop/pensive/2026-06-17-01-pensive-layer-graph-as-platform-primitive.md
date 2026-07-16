@@ -4,7 +4,7 @@ date: 2026-06-17
 topic: layer graph as a platform primitive
 mode: eureka
 description: The construct/deps layer graph is a platform primitive any subsystem can be DAG-aware against — not weave's private state. Pattern surfaced while designing DAG-merged dynamic skills.
-references: [workshop/issues/000115-dag-merged-dynamic-skills-per-repo-datatype-enumeration-across-the-layer-graph.md, workshop/history/000111-make-datatype-discovery-better.md, atlas/workflow/weave.md]
+references: [workshop/issues/000115-dag-merged-dynamic-skills-per-repo-datatype-enumeration-across-the-layer-graph.md, workshop/history/issues/000111-make-datatype-discovery-better.md, atlas/workflow/weave.md]
 ---
 
 # Pensive: Layer graph as a platform primitive

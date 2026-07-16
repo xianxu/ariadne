@@ -42,9 +42,14 @@ when: {
 discovery: {
 	home: "workshop/issues" // repo-relative home folder for issue instances
 	glob: "*.md"            // filename glob within home
-	// archive: terminal issues AND their id-keyed plan/review family move here on
-	// close/merge (ariadne#160). A resolver (ariadne#144 `sdlc resolve`) must search
-	// here to stay correct after archiving. Repo-relative.
+	// archive: the ROOT terminal issues AND their id-keyed plan/review family
+	// move under on close/merge (ariadne#160). Since ariadne#181 writes land in
+	// per-kind subdirs — <archive>/issues and <archive>/plans (review sidecars
+	// ride with plans) — derived in Go by pkg/vocab.ArchiveSubdirs (Go-owned,
+	// not modeled here: writers derive from --history-dir overrides, and
+	// widening this string to a struct would break downstream JSON consumers).
+	// Readers tolerate the pre-#181 flat layout. A resolver (ariadne#144
+	// `sdlc resolve`) must search root + both subdirs. Repo-relative.
 	archive: "workshop/history"
 	// plans: active home of the issue's durable plan (NNNNNN-*-plan.md) and every
 	// boundary-review sidecar (NNNNNN-*-mX-review.md / -close-review.md), same
