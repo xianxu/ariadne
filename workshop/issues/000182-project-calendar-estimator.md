@@ -72,3 +72,11 @@ Filed from the #180 plan-approval session. Operator: "we need a higher level
 time estimator" — the effort→calendar gap identified while reviewing #180's
 two-phase (hours-only) estimation design. Kept out of #180 scope deliberately:
 needs its own design and consumes #180's model the same way #171 does.
+
+Same day, operator placed this IN the project-management-primitive MVP
+(initially proposed as post-MVP): "that is the key differentiator between a
+project and an issue, the timeline aspect, of managing something higher
+level, longer running." The taxonomy consequence for design: the calendar
+computation isn't an optional refinement of the reality-check — it IS the
+project noun's defining capability; without it a project degenerates to an
+issue container with a hand-attested date.
