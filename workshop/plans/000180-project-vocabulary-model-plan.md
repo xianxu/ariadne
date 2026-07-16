@@ -195,7 +195,7 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 - Create: `construct/vocabulary/testdata/project_invalid.cue`
 - Modify: `construct/vocabulary/vet_test.sh`
 
-- [ ] **Step 1: Write the model** — full content:
+- [x] **Step 1: Write the model** — full content:
 
 ```cue
 // project — the vocabulary of a project: its data shape, its lifecycle funnel,
@@ -350,7 +350,7 @@ laws: {
 }
 ```
 
-- [ ] **Step 2: Write the invalid-model fixture** `testdata/project_invalid.cue` —
+- [x] **Step 2: Write the invalid-model fixture** `testdata/project_invalid.cue` —
   it must be SELF-CONTAINED (its own package; a standalone file referencing
   `#Transition`/`#Status` from project.cue would fail vet with "reference not
   found" — a vacuous pass proving nothing; `testdata/issue_invalid.cue` is
@@ -380,14 +380,14 @@ lifecycle: [...#Transition] & [
   `cue vet testdata/project_invalid.cue` by hand once) — not a missing
   reference.
 
-- [ ] **Step 3: Extend `vet_test.sh`** — append a project block mirroring the
+- [x] **Step 3: Extend `vet_test.sh`** — append a project block mirroring the
   issue block (`vet_test.sh:9-18`): `cue vet project.cue` passes;
   `cue vet testdata/project_invalid.cue` fails; export carries `"categories"`,
   `"lifecycle"`, and `"discovery"`.
 
-- [ ] **Step 4: Run** `sh construct/vocabulary/vet_test.sh` — expect `ok`.
+- [x] **Step 4: Run** `sh construct/vocabulary/vet_test.sh` — expect `ok`.
 
-- [ ] **Step 5: Commit** — `#180 M1: project.cue — the project noun modeled (funnel, baseline guard, discovery, scaffold, laws)`
+- [x] **Step 5: Commit** — `#180 M1: project.cue — the project noun modeled (funnel, baseline guard, discovery, scaffold, laws)`
 
 #### Task M1.2: shared lifecycle helpers in `pkg/vocab` (DRY refactor, behavior-preserving)
 
@@ -395,7 +395,7 @@ lifecycle: [...#Transition] & [
 - Create: `pkg/vocab/lifecycle.go`, `pkg/vocab/lifecycle_test.go`
 - Modify: `pkg/vocab/vocab.go`, `pkg/vocab/verdict.go`
 
-- [ ] **Step 1: Extract** unexported helpers (a third noun is the trigger —
+- [x] **Step 1: Extract** unexported helpers (a third noun is the trigger —
   vocab.go and verdict.go already duplicate `inCategory`):
 
 ```go
@@ -419,16 +419,16 @@ func allStatuses(cats map[string][]string, order []string) []string
 func renderLifecycleHelp(statuses []string, when map[string]string, l []Transition) string
 ```
 
-- [ ] **Step 2: Delegate** — rewrite `IssueModel.inCategory/CanTransition/
+- [x] **Step 2: Delegate** — rewrite `IssueModel.inCategory/CanTransition/
   LegalTransitions/AllStatuses/RenderLifecycleHelp` and `VerdictModel.inCategory`
   as thin calls into the helpers (issue's category order literal
   `{"open","active","terminal"}` moves to a package const). No exported-surface
   change.
 
-- [ ] **Step 3: Run** `go test ./pkg/vocab/` — the existing pins
+- [x] **Step 3: Run** `go test ./pkg/vocab/` — the existing pins
   (`vocab_test.go`, `conformance_test.go`) must pass unchanged. Expected: PASS.
 
-- [ ] **Step 4: Commit** — `#180 M1: pkg/vocab — extract shared lifecycle helpers (third noun incoming)`
+- [x] **Step 4: Commit** — `#180 M1: pkg/vocab — extract shared lifecycle helpers (third noun incoming)`
 
 #### Task M1.3: `ProjectModel` binding + embed
 
@@ -436,7 +436,7 @@ func renderLifecycleHelp(statuses []string, when map[string]string, l []Transiti
 - Create: `pkg/vocab/project.go`, `pkg/vocab/project.json` (generated)
 - Test: extend `pkg/vocab/vocab_test.go`, `pkg/vocab/conformance_test.go`
 
-- [ ] **Step 1: Write failing conformance test** — `TestProjectConformance` in
+- [x] **Step 1: Write failing conformance test** — `TestProjectConformance` in
   `conformance_test.go`, mirroring `TestIssueConformance` (:9-41) exactly but
   over `Project()`: every status in exactly one category with non-empty `when`;
   every transition references known statuses and agrees with `CanTransition`.
@@ -462,10 +462,10 @@ func TestProjectSetStatusRefusesDone(t *testing.T) { // TransitionFor surface
 }
 ```
 
-- [ ] **Step 2: Run** `go test ./pkg/vocab/ -run 'Project'` — expect FAIL
+- [x] **Step 2: Run** `go test ./pkg/vocab/ -run 'Project'` — expect FAIL
   (undefined `Project`).
 
-- [ ] **Step 3: Implement `pkg/vocab/project.go`** — mirror vocab.go's shape:
+- [x] **Step 3: Implement `pkg/vocab/project.go`** — mirror vocab.go's shape:
 
 ```go
 //go:generate sh -c "vocabulary export --noun project > project.json"
@@ -505,13 +505,13 @@ func (m *ProjectModel) StatusNames(sep string) string
   All predicates delegate to the M1.2 helpers. Also add `TransitionFor` to
   `IssueModel`? No — YAGNI; no issue consumer needs it.
 
-- [ ] **Step 4: Generate the embed** — `make vocabulary-build` then
+- [x] **Step 4: Generate the embed** — `make vocabulary-build` then
   `make vocab-embed` (runs `go generate ./pkg/vocab/...` + stale-diff check).
   Expected: `pkg/vocab/project.json` created, diff-clean afterward.
 
-- [ ] **Step 5: Run** `go test ./pkg/vocab/` — expect PASS.
+- [x] **Step 5: Run** `go test ./pkg/vocab/` — expect PASS.
 
-- [ ] **Step 6: Commit** — `#180 M1: pkg/vocab.Project() — embedded binding for the project noun`
+- [x] **Step 6: Commit** — `#180 M1: pkg/vocab.Project() — embedded binding for the project noun`
 
 #### Task M1.4: kind-keyed `ArchiveSubdir`
 
@@ -527,7 +527,7 @@ func (m *ProjectModel) StatusNames(sep string) string
   `ArchiveSubdir` name only; the "will widen" sentence lives in
   `vocab.go:104-105` and dies with Step 3's replacement comment)
 
-- [ ] **Step 1: Write failing test** — in `vocab_test.go`:
+- [x] **Step 1: Write failing test** — in `vocab_test.go`:
 
 ```go
 func TestArchiveSubdirKinds(t *testing.T) {
@@ -541,10 +541,10 @@ func TestArchiveSubdirKinds(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run** `go test ./pkg/vocab/ -run ArchiveSubdirKinds` — FAIL
+- [x] **Step 2: Run** `go test ./pkg/vocab/ -run ArchiveSubdirKinds` — FAIL
   (undefined).
 
-- [ ] **Step 3: Implement** in vocab.go, replacing `ArchiveSubdirs`:
+- [x] **Step 3: Implement** in vocab.go, replacing `ArchiveSubdirs`:
 
 ```go
 // ArchiveKind names one per-kind archive subdir under the archive root (#181
@@ -568,25 +568,25 @@ func ArchiveSubdir(root string, kind ArchiveKind) string {
 }
 ```
 
-- [ ] **Step 4: Migrate the 9 call sites** — mechanical, e.g.
+- [x] **Step 4: Migrate the 9 call sites** — mechanical, e.g.
   `issuesSub, plansSub := vocab.ArchiveSubdirs(root)` →
   `issuesSub := vocab.ArchiveSubdir(root, vocab.ArchiveIssues)` (+ plans line
   where the second value was used; several sites discard one value — those
   become a single call). Delete `ArchiveSubdirs`.
 
-- [ ] **Step 5: Update the guard test** — extend
+- [x] **Step 5: Update the guard test** — extend
   `TestArchiveSubdirs_SingleDerivationPoint`'s source scan to also forbid
   hand-concatenated `"projects"` archive paths and to accept the new call form.
 
-- [ ] **Step 6: Run** `go test ./pkg/vocab/ ./cmd/...` — expect PASS.
+- [x] **Step 6: Run** `go test ./pkg/vocab/ ./cmd/...` — expect PASS.
 
-- [ ] **Step 7: Commit** — `#180 M1: ArchiveSubdir goes kind-keyed (+projects) — 9 call sites migrated`
+- [x] **Step 7: Commit** — `#180 M1: ArchiveSubdir goes kind-keyed (+projects) — 9 call sites migrated`
 
 #### Task M1.5: close M1
 
-- [ ] Run full suite bare: `go test ./...` and `sh construct/vocabulary/vet_test.sh` — PASS.
-- [ ] Tick M1 rows in the issue `## Plan`, log the boundary in `## Log`.
-- [ ] `sdlc milestone-close --issue 180 --milestone M1` (binary dispatches the
+- [x] Run full suite bare: `go test ./...` and `sh construct/vocabulary/vet_test.sh` — PASS.
+- [x] Tick M1 rows in the issue `## Plan`, log the boundary in `## Log`.
+- [x] `sdlc milestone-close --issue 180 --milestone M1` (binary dispatches the
   mandatory fresh-eyes review; fix Critical/Important before crossing).
 
 ### M2 — typed project parsing + the conformance gate
@@ -1452,3 +1452,16 @@ level-two section, restricts insertion to its first contiguous table, and
 reconstructs lines without invented byte offsets. Regressions cover EOF after
 the divider, EOF after an existing row, inline/fenced fake headings, and the
 real later section (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
+
+### 2026-07-16 — whole-issue artifact reconciliation
+
+**Reason:** the whole-issue `FIX-THEN-SHIP` review found three durable-record
+inconsistencies after the implementation itself passed review: delivered M1
+rows remained unchecked, the M2 sidecar retained its raw reviewer transcript,
+and the issue's historical Dogfood paragraph predated the final scope decision.
+
+**Delta:** all delivered M1 rows are checked; the M2 and whole-close review
+sidecars are bounded to their verdict, findings, remediation, and verification;
+and the authoritative MVP scope is `[ariadne#180, ariadne#171, ariadne#182]`
+with `[ariadne#15]` explicitly out. Earlier scope text remains as historical
+provenance and is superseded by this revision plus the matching issue revision.

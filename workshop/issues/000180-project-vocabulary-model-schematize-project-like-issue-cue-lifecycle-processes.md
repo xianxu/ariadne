@@ -1,12 +1,13 @@
 ---
 id: 000180
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-07-16
 estimate_hours: 8.1
 started: 2026-07-15T15:12:34-07:00
+actual_hours: 11.93
 ---
 
 # project vocabulary model: schematize project like issue (cue + lifecycle + processes)
@@ -230,9 +231,34 @@ doc).*
 - [x] M5 — docs + drift: datatype prose demoted to cite the cue, prose↔model
       drift test (bite-proofed both ways), atlas + xx-vocabulary claim
 
+## Revisions
+
+### 2026-07-16 — final MVP scope and artifact reconciliation
+
+**Reason:** the whole-issue `FIX-THEN-SHIP` review found that the historical
+Dogfood paragraph still described #182 as explicitly out even though a later
+operator decision made timeline feasibility part of the project MVP. It also
+found stale detailed M1 checklist state and an unbounded M2 review transcript.
+
+**Delta:** the authoritative live scope is `mvp_scope: [ariadne#180,
+ariadne#171, ariadne#182]` with `explicitly_out: [ariadne#15]`. #182 remains a
+separate implementation issue, but its effort-to-calendar estimator is the
+capability that distinguishes the project primitive from issue aggregation.
+All delivered M1 rows are reconciled, and the M2 plus whole-close review
+sidecars are bounded decision records rather than raw session transcripts.
+
 ## Log
 
+### 2026-07-16 — whole-issue FIX-THEN-SHIP reconciliation
+
+The close review found no code blockers. Its three artifact findings are
+resolved: delivered M1 rows are checked, the M2 and close review records are
+condensed, and the final operator-approved scope (#180/#171/#182 in; #15 out)
+is recorded without overwriting the historical design decision. ARCH-DRY,
+ARCH-PURE, and ARCH-PURPOSE all pass at the whole-issue boundary.
+
 ### 2026-07-16 — M5.1 datatype prose demotion
+- 2026-07-16: closed — Full go test ./... passes; vocabulary vet/freshness and prose bite-check pass; live project model conforms and status renders; scratch full lifecycle archived with measured fog behavior; push conformance rejects invalid project instances.; review verdict: FIX-THEN-SHIP
 
 `construct/datatype/project.md` now treats `project.cue` as schema authority,
 documents the modeled funnel and commit-time deadline baseline, teaches the four
