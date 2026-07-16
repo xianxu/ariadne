@@ -145,7 +145,7 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 		}
 		if blocked || meta.Status == "blocked" {
 			b.Blocked = append(b.Blocked, ref)
-		} else if vocab.Issue().IsOpen(meta.Status) {
+		} else if !vocab.Issue().IsTerminal(meta.Status) {
 			b.Frontier = append(b.Frontier, ref)
 		}
 	}

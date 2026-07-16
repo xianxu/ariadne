@@ -99,6 +99,19 @@ func TestComputeBoardIndependentRefsFormIndependentThreads(t *testing.T) {
 	}
 }
 
+func TestComputeBoardFrontierIncludesUnblockedActiveIssue(t *testing.T) {
+	d := boardDoc(t, "- [ ] underway [#1]")
+	b, err := computeBoard(d, func(string) (issueMeta, error) {
+		return issueMeta{Status: "working", EstimateHours: 2}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b.Frontier) != 1 || b.Frontier[0] != "#1" {
+		t.Fatalf("frontier = %v, want unblocked active issue #1", b.Frontier)
+	}
+}
+
 func TestRenderBoardIncludesOperationalLines(t *testing.T) {
 	b := board{Name: "demo", Status: "executing", Deadline: "2026-09-01", PlannedFinish: "2026-08-20", Done: 1, Total: 3, RemainingHours: 22, Frontier: []string{"ariadne#2"}, Blocked: []string{"nous#9"}, Threads: [][]string{{"ariadne#2", "ariadne#3"}, {"nous#9"}}, LastRetro: "2026-07-10"}
 	out := renderBoard(b, "2026-07-20")

@@ -251,6 +251,15 @@ calibration ledger. `sdlc project` help now links it and lists the complete M4
 command surface. Extending `estimate-source` to dispatch both issue and project
 methods remains a natural follow-up, intentionally outside #180.
 
+### 2026-07-16 — M4.5 live-run correction
+
+The process-level fixture exposed a semantic mismatch: an unblocked `working`
+issue disappeared from frontier because the implementation used `IsOpen`
+(not-yet-started) where the Spec says “what's unblocked.” Root-cause tracing
+confirmed the lookup and dependency graph were correct. Added the failing
+active-issue regression and changed frontier membership to non-terminal after
+the blocked checks (ARCH-PURPOSE).
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

@@ -1302,3 +1302,14 @@ README.md.
   traversal and nested paths refuse before any read, validator call, or write.
 - The Core concepts table now names scaffold, summary, and locator entities;
   README.md carries the runnable M3 project workflow.
+
+### 2026-07-16 — M4 live-dogfood frontier correction
+
+**Reason:** the required symlinked process-level run showed an unblocked
+`working` issue missing from the derived frontier. The approved Spec defines
+frontier as “what's unblocked”; `IssueModel.IsOpen` is narrower and means only
+“not yet started.”
+
+**Delta:** frontier membership is any unfinished, dependency-unblocked,
+non-terminal issue (with explicit `blocked` still excluded). A focused
+regression covers the active `working` case before the one-predicate fix.
