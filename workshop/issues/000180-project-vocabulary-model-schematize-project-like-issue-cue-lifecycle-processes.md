@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-15
 updated: 2026-07-15
-estimate_hours:
+estimate_hours: 8.5
 started: 2026-07-15T15:12:34-07:00
 ---
 
@@ -110,10 +110,10 @@ entry (gate, like issue close requires --verified).
   **`workshop/projects/`** (operator, 2026-07-15 — plural, matching
   issues/plans/targets; project files live under workshop/ like every SDLC
   artifact, one dir per repo; cross-repo resolution globs it across peers
-  per #171). Settle at design: whether done projects archive to
-  `workshop/history/projects/` (#181's subfolder layout) like issues or
-  stay in place as records (the datatype prose says "the file becomes a
-  record").
+  per #171). Settled at design (operator, 2026-07-15): done projects
+  ARCHIVE to `workshop/history/projects/` per #181's subfolder layout —
+  `workshop/projects/` stays the live portfolio; the datatype prose's
+  "file becomes a record" claim is satisfied by the history copy.
 - `pkg/vocab` accessor (`vocab.Project()`) mirroring `Issue()`; no consumer
   hardcodes the enum.
 - Project verbs on the spine (new/list/show/set-status/status/retro; tick
@@ -123,10 +123,12 @@ entry (gate, like issue close requires --verified).
   the cue as schema authority (procedure refers, registry defines), drift
   test binding the two.
 
-**Dogfood:** the first project file under the new model should be this very
-effort — the "project-management lift" (this issue + #171's gate/navigation
-half + the verbs) PRD'd, estimated, and broken down by its own machinery as
-it comes online.
+**Dogfood:** deferred until after the model lands (operator, 2026-07-15 at
+design start): #180 stays a single multi-boundary issue; the first project
+file under the new model is created AFTER the model + verbs + gates ship —
+not mid-flight. (The original proposal — the lift itself PRD'd by its own
+emerging machinery — was considered and set aside to avoid hand-authoring a
+project file against a schema that doesn't exist yet.)
 
 Out of scope (own tickets later): `product` and `roadmap` deserve the same
 lift; project first — it is the one the sdlc spine touches.
@@ -164,8 +166,24 @@ soft ordering: model first or together).
       kanban baseline/derived/logged split, retro mechanism (Spec)
 - [ ] design at start-plan: cue shape (esp. cross-repo discovery),
       transition guard mechanics, Phase-A estimate vocabulary, which gate
-      owns conformance, verb set, ordering vs #171 — likely structured AS
-      the dogfood project (multi-boundary)
+      owns conformance, verb set — single multi-boundary issue (dogfood
+      deferred; #171 consumes the finished model) →
+      `workshop/plans/000180-project-vocabulary-model-plan.md`
+- [ ] M1 — model + binding: project.cue (funnel, baseline guard, discovery,
+      scaffold, laws) + vet block, pkg/vocab lifecycle-helper extraction,
+      `vocab.Project()`, kind-keyed `ArchiveSubdir` (+projects)
+- [ ] M2 — typed parsing + conformance: `internal/project.Doc`/`Task`,
+      tick mutators re-implemented over Doc (same contract), validate gate
+      generalized to a noun table (project instances at push/merge)
+- [ ] M3 — verbs: `sdlc project` family (new/list/show/set-status/validate),
+      model-derived helptext, named-guard registry (unknown guard = refusal)
+- [ ] M4 — derived board + calibrated close: `project status` (computeBoard:
+      frontier, Σ remaining, dep-subgraph threads), `project retro` +
+      stale-retro nudge in the issue-close gate, `project close` (retro gate,
+      fog-factor ledger row, archive to history/projects), Phase-A method doc
+      v1 in brain; live-fixture dogfood pass
+- [ ] M5 — docs + drift: datatype prose demoted to cite the cue, prose↔model
+      drift test (bite-proofed both ways), atlas + xx-vocabulary claim
 
 ## Log
 
@@ -189,6 +207,40 @@ mandatory project retro. Organizing insight recorded: the project lifecycle
 is the issue lifecycle one level up, so the artifacts follow fractally (one
 file growing gated sections; derived views; calibrated loops). Dogfood: the
 project-management lift itself becomes the first project file.
+
+### 2026-07-15 — design start: three parked questions settled (operator)
+
+At `sdlc start-plan`, the operator resolved the continuation's open
+questions: (1) **dogfood deferred** — model fully first; #180 stays a
+single multi-boundary issue, the first real project file comes after the
+machinery ships (rejected: creating the file mid-flight or hand-authoring
+it up front); (2) **ordering: model first** — #171's gate lift consumes
+the finished model as its own plan (rejected: one interleaved plan);
+(3) **archive-on-done: `workshop/history/projects/`** per #181's layout
+(`vocab.ArchiveSubdirs` widens; live portfolio = directory membership),
+rejected: stay-in-place records. Spec updated in place where these were
+parked.
+
+### 2026-07-16 — durable plan authored + reviewed
+
+Plan landed at `workshop/plans/000180-project-vocabulary-model-plan.md`
+(5 milestones, M1–M5 as review boundaries). Three fresh-eyes chunk reviews
+dispatched per the writing-plans skill: chunk 1 approved; chunks 2+3 found
+real defects, all folded — a would-be-vacuous invalid-model fixture (fixed:
+self-contained copy so vet fails on the enum conflict, verified failure
+mode), a `paused→done` model/verb contradiction (fixed: close requires
+`executing` exactly, resume-first pointer — ARCH-PURPOSE, verb never
+bypasses the model), a dir-override regression in the noun-table validate
+gate (fixed: issue row keeps `f.IssuesDir`/`WF_ISSUES_DIR`), a silently
+dropped Spec computation (fixed: `Threads` dep-subgraphs added to the
+board), and a drift-test regex that matched nothing (fixed: exact-byte
+assertions + stash-based bite-proof). Chunk-2 reviewer ran the plan's CUE
+through `cue vet`/`cue export`/`validate-instance` end-to-end — model
+valid, baseline guard bites, JSON carries what ProjectModel expects.
+Estimate set: 8.5h (v3.1 Method A: design ≈3.3h incl. boundary reviews,
+impl 8.2h×0.4≈3.3h, +15% design buffer — thorough plan doc). *Produced via
+`brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
 
 ### 2026-07-15 — residency dir: workshop/projects/
 
