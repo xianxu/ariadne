@@ -218,6 +218,29 @@ func resolveRepoDir(ref ArtifactRef, curRoot string) (string, error) {
 	}
 }
 
+// canonicalIssueIdentity maps reference aliases to one repository-plus-ID key.
+// Resolution is best-effort: an absent peer retains a normalized syntactic key
+// so callers can preserve their established unavailable-input behavior.
+func canonicalIssueIdentity(refText, root string) (string, bool) {
+	ref, err := parseRef(refText)
+	if err != nil || ref.GitHub {
+		return "", false
+	}
+	repoDir, err := resolveRepoDir(ref, root)
+	if err != nil {
+		return fmt.Sprintf("repo:%s#%d", strings.ToLower(ref.Repo), ref.ID), true
+	}
+	return canonicalRepoIssueIdentity(repoDir, ref.ID), true
+}
+
+func canonicalRepoIssueIdentity(repoDir string, id int) string {
+	resolved, err := filepath.EvalSymlinks(repoDir)
+	if err != nil {
+		resolved = filepath.Clean(repoDir)
+	}
+	return fmt.Sprintf("%s#%d", resolved, id)
+}
+
 // familyFiles globs id NNNNNN's artifacts across the issue home, the plans home,
 // and the archive — unioned and de-duped — so resolution is correct whether the
 // family is active or (partially) archived. Directories come from the injected

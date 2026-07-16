@@ -385,6 +385,18 @@ regression proves ordinary close refuses incomplete actuals while
 Verification: `go test ./... -count=1`; expanded focused race suite;
 vocabulary vet; and `git diff --check` pass.
 
+### 2026-07-16 — M4 further review: REWORK (alias-sensitive threads)
+
+The next review found that the derived dependency graph keyed tasks and deps by
+authored ref strings, so `ariadne#3` and `#3` could produce false parallel
+threads. Issue lookup now supplies the shared canonical repository-plus-ID
+identity; board maps use it while display preserves the first authored ref.
+Duplicate task refs contribute one effort value/component. Regressions cover
+current-repo aliases, peer-prefix aliases, and exact duplicates (ARCH-DRY,
+ARCH-PURPOSE).
+Verification: full `go test ./... -count=1`; expanded focused race suite;
+vocabulary vet; and `git diff --check` pass.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

@@ -807,5 +807,8 @@ Canonicalization at a degraded-input boundary must be best-effort: it may catch
 more aliases when peers are present, but must not turn an already modeled
 unavailable input into a new unconditional failure that defeats an explicit
 non-calibrating bypass.
+Derived dependency graphs must key vertices by the same canonical entity
+identity used at mutation/calibration boundaries, never by display spelling;
+otherwise aliases invent parallelism and duplicate rows inflate forecasts.
 
 **Origin:** #180 M4 boundary review (REWORK).

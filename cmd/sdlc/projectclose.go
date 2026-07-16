@@ -166,7 +166,7 @@ func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64
 	var unavailable []string
 	seen := map[string]string{}
 	for _, ref := range refs {
-		identity, ok := canonicalProjectIssueIdentity(ref, root)
+		identity, ok := canonicalIssueIdentity(ref, root)
 		if !ok {
 			continue
 		}
@@ -198,24 +198,6 @@ func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64
 		}
 	}
 	return actuals, unavailable, nil
-}
-
-func canonicalProjectIssueIdentity(refText, root string) (string, bool) {
-	ref, err := parseRef(refText)
-	if err != nil || ref.GitHub {
-		return "", false
-	}
-	repoDir, err := resolveRepoDir(ref, root)
-	if err != nil {
-		// Preserve lookup's established unavailable-input semantics when a peer
-		// is absent, while still catching repeated spellings of that peer.
-		return fmt.Sprintf("repo:%s#%d", strings.ToLower(ref.Repo), ref.ID), true
-	}
-	resolved, err := filepath.EvalSymlinks(repoDir)
-	if err != nil {
-		resolved = filepath.Clean(repoDir)
-	}
-	return fmt.Sprintf("%s#%d", resolved, ref.ID), true
 }
 
 func renderProjectCloseEntry(today string, phaseA, actuals float64, hasPhaseA, actualsComplete bool) string {

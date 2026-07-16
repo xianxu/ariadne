@@ -1425,3 +1425,17 @@ token so repeated spellings are still caught. Unparseable refs continue to the
 lookup seam and become unavailable inputs. A missing-peer regression proves a
 ledger-backed close refuses as incomplete and `--no-ledger` archives with
 `actuals: incomplete` / `fog: n/a` (ARCH-PURPOSE).
+
+### 2026-07-16 — M4 logical-identity board reconciliation
+
+**Reason:** the next M4 review found that dependency components used raw ref
+spelling, so current-repository and peer-prefix aliases could split one logical
+dependency graph into false parallel threads. Exact duplicate task refs could
+also double-count remaining effort.
+
+**Delta:** issue lookup now carries the shared canonical repository-plus-ID
+identity into the pure board core. Board maps and components key on that
+identity while retaining the first authored ref for display; duplicate task
+refs contribute one effort value and one component. Regressions cover
+`ariadne#3` / `#3`, peer-prefix / full-peer identity, and exact duplicates. The
+same resolver helper now serves close and status (ARCH-DRY, ARCH-PURPOSE).

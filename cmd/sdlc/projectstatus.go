@@ -55,6 +55,7 @@ func runProjectStatus(stdout, _ io.Writer, f *projectStatusFlags) error {
 }
 
 type issueMeta struct {
+	Identity                   string
 	Status                     string
 	EstimateHours, ActualHours float64
 	ActualAvailable, ActualNA  bool
@@ -63,6 +64,7 @@ type issueMeta struct {
 
 type boardRow struct {
 	RefText, Title, IssueStatus string
+	Identity                    string
 	Ticked                      bool
 	RemainingHours              float64
 	Warning                     string
@@ -86,6 +88,8 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 	}
 	b := board{Name: metadata.Name, Status: metadata.Status, Deadline: metadata.Deadline, PlannedFinish: metadata.PlannedFinish, Total: len(d.Tasks), LastRetro: projectdoc.LatestRetroDate(d)}
 	metas := map[string]issueMeta{}
+	display := map[string]string{}
+	refIDs := map[string]string{}
 	for _, task := range d.Tasks {
 		row := boardRow{RefText: task.RefText, Title: task.Title, Ticked: task.State == 'x'}
 		if row.Ticked {
@@ -94,17 +98,23 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 		if task.RefText != "" {
 			meta, err := lookup(task.RefText)
 			if err != nil {
+				row.Identity = "raw:" + task.RefText
 				row.IssueStatus = "unresolved"
 				row.Warning = err.Error()
 			} else {
-				metas[task.RefText] = meta
+				row.Identity = valueOr(meta.Identity, "raw:"+task.RefText)
+				_, duplicate := display[row.Identity]
+				if !duplicate {
+					display[row.Identity] = task.RefText
+				}
+				refIDs[task.RefText] = row.Identity
+				metas[row.Identity] = meta
 				row.IssueStatus = meta.Status
 				if row.Ticked && !vocab.Issue().IsTerminal(meta.Status) {
 					row.Warning = "task ticked but issue is not terminal"
 				}
-				if !row.Ticked && !vocab.Issue().IsTerminal(meta.Status) {
-					row.RemainingHours = meta.EstimateHours
-					b.RemainingHours += meta.EstimateHours
+				if duplicate && row.Warning == "" {
+					row.Warning = "duplicate logical issue reference (first " + display[row.Identity] + ")"
 				}
 			}
 		}
@@ -115,45 +125,63 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 	order := []string{}
 	for _, row := range b.Rows {
 		if !row.Ticked && row.RefText != "" {
-			unfinished[row.RefText] = true
-			order = append(order, row.RefText)
+			id := valueOr(row.Identity, "raw:"+row.RefText)
+			if !unfinished[id] {
+				unfinished[id] = true
+				order = append(order, id)
+				if display[id] == "" {
+					display[id] = row.RefText
+				}
+			}
 		}
 	}
 	graph := map[string]map[string]bool{}
 	for _, ref := range order {
 		graph[ref] = map[string]bool{}
+		if meta, ok := metas[ref]; ok && !vocab.Issue().IsTerminal(meta.Status) {
+			b.RemainingHours += meta.EstimateHours
+		}
 	}
-	for _, ref := range order {
-		meta, ok := metas[ref]
+	for _, id := range order {
+		meta, ok := metas[id]
 		if !ok {
 			continue
 		}
 		blocked := false
 		for _, dep := range meta.Deps {
-			if unfinished[dep] {
-				graph[ref][dep] = true
-				graph[dep][ref] = true
-			}
-			depMeta, ok := metas[dep]
+			depID := refIDs[dep]
+			depMeta, ok := metas[depID]
 			if !ok {
 				var err error
 				depMeta, err = lookup(dep)
 				ok = err == nil
 				if ok {
-					metas[dep] = depMeta
+					depID = valueOr(depMeta.Identity, "raw:"+dep)
+					metas[depID] = depMeta
+					refIDs[dep] = depID
 				}
+			}
+			if ok && unfinished[depID] {
+				graph[id][depID] = true
+				graph[depID][id] = true
 			}
 			if !ok || !vocab.Issue().IsTerminal(depMeta.Status) {
 				blocked = true
 			}
 		}
 		if blocked || vocab.Issue().IsEventTarget(meta.Status, "block") {
-			b.Blocked = append(b.Blocked, ref)
+			b.Blocked = append(b.Blocked, display[id])
 		} else if !vocab.Issue().IsTerminal(meta.Status) {
-			b.Frontier = append(b.Frontier, ref)
+			b.Frontier = append(b.Frontier, display[id])
 		}
 	}
-	b.Threads = connectedThreads(order, graph)
+	for _, component := range connectedThreads(order, graph) {
+		thread := make([]string, len(component))
+		for i, id := range component {
+			thread[i] = display[id]
+		}
+		b.Threads = append(b.Threads, thread)
+	}
 	return b, nil
 }
 
@@ -256,7 +284,7 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 	if err != nil {
 		return issueMeta{}, fmt.Errorf("%s: %w", refText, err)
 	}
-	meta := issueMeta{Status: decoded.Status, Deps: decoded.Deps}
+	meta := issueMeta{Identity: canonicalRepoIssueIdentity(repoDir, ref.ID), Status: decoded.Status, Deps: decoded.Deps}
 	meta.EstimateHours, _, _, err = projectdoc.NumberValue(decoded.EstimateHours, "estimate_hours")
 	if err != nil {
 		return issueMeta{}, fmt.Errorf("%s has %w", refText, err)

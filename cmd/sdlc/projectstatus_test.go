@@ -43,6 +43,33 @@ func TestLookupIssueMetaCrossRepoAndArchive(t *testing.T) {
 	}
 }
 
+func TestLookupIssueMetaCanonicalizesPeerPrefixAliases(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "ariadne")
+	issues := filepath.Join(parent, "parley.nvim", "workshop", "issues")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issue := "---\nid: 000003\nstatus: open\nestimate_hours: 1\n---\n# x\n"
+	if err := os.WriteFile(filepath.Join(issues, "000003-x.md"), []byte(issue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	prefix, err := lookupIssueMeta("parley#3", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := lookupIssueMeta("parley.nvim#3", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prefix.Identity == "" || prefix.Identity != full.Identity {
+		t.Fatalf("peer aliases have different identities: %q != %q", prefix.Identity, full.Identity)
+	}
+}
+
 func TestMalformedIssueEstimateDegradesToBoardWarning(t *testing.T) {
 	parent := t.TempDir()
 	root := filepath.Join(parent, "ariadne")
@@ -120,6 +147,35 @@ func TestComputeBoardIndependentRefsFormIndependentThreads(t *testing.T) {
 	}
 	if len(b.Threads) != 3 {
 		t.Fatalf("threads = %v, want 3 components", b.Threads)
+	}
+}
+
+func TestComputeBoardUsesLogicalIdentityForAliasDependencies(t *testing.T) {
+	d := boardDoc(t, "- [ ] parent [ariadne#2]\n- [ ] dependency [ariadne#3]")
+	metas := map[string]issueMeta{
+		"ariadne#2": {Identity: "/repo/ariadne#2", Status: "open", EstimateHours: 2, Deps: []string{"#3"}},
+		"ariadne#3": {Identity: "/repo/ariadne#3", Status: "open", EstimateHours: 3},
+		"#3":        {Identity: "/repo/ariadne#3", Status: "open", EstimateHours: 3},
+	}
+	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return metas[ref], nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b.Threads) != 1 || strings.Join(b.Threads[0], ",") != "ariadne#2,ariadne#3" {
+		t.Fatalf("alias dependency split one logical graph: %v", b.Threads)
+	}
+}
+
+func TestComputeBoardDeduplicatesExactTaskRefs(t *testing.T) {
+	d := boardDoc(t, "- [ ] first [ariadne#2]\n- [ ] duplicate [ariadne#2]")
+	b, err := computeBoard(d, func(string) (issueMeta, error) {
+		return issueMeta{Status: "open", EstimateHours: 2}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b.Threads) != 1 || b.RemainingHours != 2 {
+		t.Fatalf("duplicate task inflated board: threads=%v remaining=%g", b.Threads, b.RemainingHours)
 	}
 }
 
