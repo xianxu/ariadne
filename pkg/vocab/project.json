@@ -1,0 +1,159 @@
+{
+    "categories": {
+        "forming": [
+            "ideation",
+            "defined"
+        ],
+        "committed": [
+            "committed"
+        ],
+        "executing": [
+            "executing",
+            "paused"
+        ],
+        "terminal": [
+            "done",
+            "dropped"
+        ]
+    },
+    "when": {
+        "ideation": "idea captured; PRD not yet written (ideation lives in parley, linked via sources)",
+        "defined": "PRD exists in the project file; not yet committed to a timeline",
+        "committed": "baseline set (deadline + planned finish + parallelism intent); not yet broken down",
+        "executing": "PRD broken down into issues across repos; work in flight",
+        "paused": "execution suspended; committed baseline stays intact",
+        "done": "done_when met; retro + fog-factor ledger row recorded",
+        "dropped": "no longer worth pursuing"
+    },
+    "discovery": {
+        "home": "workshop/projects",
+        "glob": "*.md",
+        "archive": "workshop/history"
+    },
+    "scaffold": {
+        "sections": [
+            {
+                "name": "PRD"
+            },
+            {
+                "name": "Estimate"
+            },
+            {
+                "name": "Breakdown",
+                "seed": "- [ ]"
+            },
+            {
+                "name": "Log"
+            }
+        ]
+    },
+    "lifecycle": [
+        {
+            "from": "ideation",
+            "to": "defined",
+            "event": "define",
+            "guards": [
+                "prd-present"
+            ]
+        },
+        {
+            "from": "defined",
+            "to": "committed",
+            "event": "commit",
+            "guards": [
+                "phase-a-estimate",
+                "baseline-set",
+                "reality-check"
+            ]
+        },
+        {
+            "from": "committed",
+            "to": "executing",
+            "event": "breakdown",
+            "guards": [
+                "issues-cover-prd"
+            ]
+        },
+        {
+            "from": "executing",
+            "to": "done",
+            "event": "close",
+            "guards": [
+                "retro-recorded",
+                "fog-factor-recorded"
+            ]
+        },
+        {
+            "from": "executing",
+            "to": "paused",
+            "event": "pause",
+            "guards": []
+        },
+        {
+            "from": "paused",
+            "to": "executing",
+            "event": "resume",
+            "guards": []
+        },
+        {
+            "from": "ideation",
+            "to": "dropped",
+            "event": "drop",
+            "guards": []
+        },
+        {
+            "from": "defined",
+            "to": "dropped",
+            "event": "drop",
+            "guards": []
+        },
+        {
+            "from": "committed",
+            "to": "dropped",
+            "event": "drop",
+            "guards": []
+        },
+        {
+            "from": "executing",
+            "to": "dropped",
+            "event": "drop",
+            "guards": [
+                "retro-recorded"
+            ]
+        },
+        {
+            "from": "paused",
+            "to": "dropped",
+            "event": "drop",
+            "guards": [
+                "retro-recorded"
+            ]
+        }
+    ],
+    "laws": {
+        "documented-value": {
+            "ideation": "idea captured; PRD not yet written (ideation lives in parley, linked via sources)",
+            "defined": "PRD exists in the project file; not yet committed to a timeline",
+            "committed": "baseline set (deadline + planned finish + parallelism intent); not yet broken down",
+            "executing": "PRD broken down into issues across repos; work in flight",
+            "paused": "execution suspended; committed baseline stays intact",
+            "done": "done_when met; retro + fog-factor ledger row recorded",
+            "dropped": "no longer worth pursuing"
+        },
+        "reachable": {
+            "defined": true,
+            "committed": true,
+            "executing": true,
+            "paused": true,
+            "done": true,
+            "dropped": true
+        },
+        "escapable": {
+            "ideation": true,
+            "defined": true,
+            "committed": true,
+            "executing": true,
+            "paused": true
+        }
+    }
+}

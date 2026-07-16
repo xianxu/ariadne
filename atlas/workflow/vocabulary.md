@@ -16,6 +16,25 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   once and the `#`-defs can't drift). Also: `when` (per-status semantics),
   `lifecycle` (the transition table, with *named* guards whose implementations live
   in sdlc), and `laws` (documented-value + reachable/escapable, enforced by `cue vet`).
+- `construct/vocabulary/project.cue` — the `project` noun (#180 M1): the
+  ideation→defined→committed→executing funnel (+paused, done/dropped), commit-time
+  deadline baseline, named guards, per-repo `workshop/projects/` discovery, and the
+  four-section scaffold. `pkg/vocab.Project()` embeds the export and shares the
+  lifecycle helpers with the issue/verdict bindings.
+  Its M4 workflow consumers keep the baseline stored while deriving the live
+  board from referenced issue records; dedicated close runs the model's named
+  retro/fog guards and moves terminal records to the model-derived project
+  archive rather than hand-maintaining a second portfolio state. Those
+  consumers decode typed YAML metadata once, so flow/block lists and quoted
+  scalars carry the same semantics the vocabulary validator accepts; numeric
+  estimates/actuals must also be finite and positive before aggregation. Issue
+  refs carry one canonical repository-plus-ID identity through lookup, so aliases
+  cannot split dependency threads or double-count remaining effort/calibration.
+  The human authoring prototype cites this CUE file as schema authority;
+  `TestProjectProseCitesModel` binds every modeled status and scaffold section
+  into that prose and rejects the retired `active` vocabulary. #171 owns moving
+  the remaining legacy brain records and enabling close-time conformance after
+  that migration; #180 supplies the model and typed consumers it will use.
 - `construct/vocabulary/verdict.cue` — the `verdict` noun (#147): boundary-review
   verdict tokens by category (`finalizing` = SHIP/FIX-THEN-SHIP, `blocking` = REWORK,
   `internal` = system-set not-run/unknown), with `#Emitted`/`#Token` *derived*; the
@@ -26,9 +45,10 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   consumer (enum equality, `verdictFor` derive, regex/contract subset). The reviewer
   (read-only) emits the block in stdout; the binary parses + validates it — the first
   realization of the [[agent-binary-handoff-schema]] target (never parse an agent's prose).
-- `construct/vocabulary/vet_test.sh` — the M1 gate: the valid model vets, the
-  `testdata/issue_invalid.cue` fixture fails, and the **export carries `categories` +
-  `lifecycle`** (CUE `#`-definitions don't `cue export`). Test fixtures live under
+- `construct/vocabulary/vet_test.sh` — the model gate: the valid issue/project
+  models vet, their invalid fixtures fail for the intended constraint, and each
+  **export carries its concrete consumer blocks** (CUE `#`-definitions don't
+  `cue export`). Test fixtures live under
   `construct/vocabulary/testdata/` so the export doesn't treat them as nouns.
 
 **The compiler + pipeline (M2).**
@@ -123,16 +143,20 @@ against the model: `artifact → extract frontmatter → cue vet against #<Type>
   as null). The done-guard requires either a positive numeric `actual_hours` or the exact
   not-applicable sentinel `N/A`.
 
-**The gate (M2, landed).** `cmd/sdlc/validategate.go` — `validateChangedIssues(base, head, …)`
+**The gate (#124 M2, generalized by #180 M2).** `cmd/sdlc/validategate.go` —
+`validateChangedInstances(base, head, nounGates, …)`
 runs in `sdlc push` + `sdlc merge` BEFORE the irreversible action and INDEPENDENTLY of the LLM
 judges (so `--no-judge` keeps it, `--no-validate` keeps the judges). It reuses the judges'
 `gitx.DiffBase()` window and `gitx.DiffNameStatus` (A/M/R/D):
-- **Frontmatter** (shell `vocabulary validate-instance`) on **every** changed issue (added or
-  modified) — the universal invariant; catches a hand-edited bad `status:` on an *existing*
-  ticket. A binary-can't-run is a loud setup error, never a silent pass (fail-closed).
+- **Frontmatter** (shell `vocabulary validate-instance --type <noun>`) on **every**
+  changed issue or project instance (added or modified). The noun table preserves
+  the caller-resolved issue-directory override and derives the project home from
+  `vocab.Project().Discovery()`. A binary-can't-run is a loud setup error, never a
+  silent pass (fail-closed).
 - **Section presence** (`issue.CheckSectionsPresence` — the SAME policy the change-code
   structural gate uses, now single-sourced: `CheckStructural` calls it and composes its ≥50-word
-  Spec check on top) on **newly-ADDED** files only. Legacy/in-flight tickets are grandfathered
+  Spec check on top) on **newly-ADDED issue files only**. Projects conform through
+  `#Project`; legacy/in-flight tickets are grandfathered
   ("validate forward"); a rename (`R`) is not "added".
 - **Loud escape:** `--no-validate` on push/merge prints a prominent WARN naming what's skipped
   (the [escape-hatch principle](../../workshop/lessons.md): bypassable, never silent).
@@ -140,16 +164,15 @@ judges (so `--no-judge` keeps it, `--no-validate` keeps the judges). It reuses t
   check). Multi-target since #133: several files or a comma-separated `--issue` list in one
   call; the three sources are mutually exclusive.
 
-**Generalized (M3, landed).** `construct/vocabulary/pensive.cue` (`#Pensive`: `type`/`date`/
+**Engine generalized (#124 M3, landed).** `construct/vocabulary/pensive.cue` (`#Pensive`: `type`/`date`/
 `topic`/`mode` enum/`description` + optional `references`) is the **second datatype** — the same
 `validate-instance` engine validates it (`--type pensive` → `#Pensive`), proving the path isn't
 issue-specific. The ONLY per-datatype addition is the `.cue`: `make weave` materializes
 `construct/generated/vocabulary/pensive.json` (empty `{}` — `#Pensive`/`#Mode` are CUE
 `#`-definitions, which don't export; the validator reads the `.cue` directly) with no pipeline
-change. Scope note: the **engine**
-is datatype-generic; the **gate** is still issue-scoped (`shellValidateFrontmatter` hardcodes
-`--type issue`, targets `workshop/issues/*.md`) — wiring other datatypes into a fail-closed gate
-is a separable future step.
+change. The engine remains datatype-generic; #180 M2 made the publish gate
+noun-table-driven and enrolled `issue` + `project`. Enrolling another noun is now a
+table row plus its noun-specific structural policy, not another validator.
 
 ## Relationship to existing entries
 

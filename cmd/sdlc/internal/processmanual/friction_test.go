@@ -82,6 +82,21 @@ func TestSdlcInvocations(t *testing.T) {
 	}
 }
 
+func TestSdlcInvocationsRecognizesTwoWordCatalogCommand(t *testing.T) {
+	lines := []string{
+		mkAssistantBash("tu1", "sdlc project close --slug alpha --no-ledger"),
+		mkUserResult("tu1", "\x1b[1;33m[!]\x1b[0m --no-ledger (or --force): skipping fog-factor ledger"),
+	}
+	invs, _ := scanTranscript([]byte(strings.Join(lines, "\n")), map[string]bool{"project close": true})
+	if len(invs) != 1 || invs[0].Verb != "project close" {
+		t.Fatalf("two-word command not recognized: %+v", invs)
+	}
+	events := invocationGateEvents(invs[0])
+	if len(events) != 1 || events[0].Gate != "no-ledger" || events[0].Kind != GateBypass {
+		t.Fatalf("two-word gate output not attributed: %+v", events)
+	}
+}
+
 // classifyOutputLine over REAL captured lines (copied verbatim from
 // ~/.claude/projects) plus the documented-shape G2/refusal cases and — the whole
 // point — the contamination cases the classifier MUST reject. Inventing fixtures is

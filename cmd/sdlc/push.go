@@ -123,11 +123,11 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	// Deterministic, separate from the judges (so --no-judge keeps it, and
 	// --no-validate keeps the judges). Same window the judges use.
 	if !f.NoValidate {
-		if err := validateChangedIssuesFn(gitx.DiffBase(), "", f.IssuesDir, stdout, stderr); err != nil {
+		if err := validateChangedInstancesFn(gitx.DiffBase(), "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
 			die(stderr, err.Error())
 		}
 	} else {
-		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — issue frontmatter/sections NOT verified before main. Escape hatch: say why in your commit/log.")
+		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — modeled frontmatter and issue sections NOT verified before main. Escape hatch: say why in your commit/log.")
 	}
 
 	// ── 4. Pre-push publish gate (#160) — deterministic, NO LLM ──────────────
@@ -289,10 +289,10 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 	}
 	sort.Strings(matches)
 	// #181: plan docs + review sidecars archive into the plans/ subdir. Both
-	// legs derive via ArchiveSubdirs — the rename dest (historyFull, absolute
+	// legs derive via ArchiveSubdir — the rename dest (historyFull, absolute
 	// or mainPath-joined) and the recorded git-relative path (recHistoryDir).
-	_, plansSubFull := vocab.ArchiveSubdirs(historyFull)
-	_, plansSubRec := vocab.ArchiveSubdirs(recHistoryDir)
+	plansSubFull := vocab.ArchiveSubdir(historyFull, vocab.ArchivePlans)
+	plansSubRec := vocab.ArchiveSubdir(recHistoryDir, vocab.ArchivePlans)
 	if err := os.MkdirAll(plansSubFull, 0o755); err != nil {
 		return nil, fmt.Errorf("mkdir %s: %v", plansSubFull, err)
 	}
@@ -487,7 +487,8 @@ func isHistoryPath(path, historyDir string) bool {
 		return false
 	}
 	dir := filepath.Dir(path)
-	issuesSub, plansSub := vocab.ArchiveSubdirs(filepath.Clean(historyDir))
+	issuesSub := vocab.ArchiveSubdir(filepath.Clean(historyDir), vocab.ArchiveIssues)
+	plansSub := vocab.ArchiveSubdir(filepath.Clean(historyDir), vocab.ArchivePlans)
 	return dir == filepath.Clean(historyDir) || dir == issuesSub || dir == plansSub
 }
 
@@ -593,7 +594,7 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir s
 		}
 		// #181: issue files archive into the issues/ subdir (plans + sidecars
 		// go to plans/ via archivePlanArtifacts); reads stay flat-tolerant.
-		issuesSub, _ := vocab.ArchiveSubdirs(historyDir)
+		issuesSub := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)
 		if err := os.MkdirAll(issuesSub, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", issuesSub, err)
 		}

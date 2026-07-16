@@ -36,10 +36,13 @@ import (
 // placeholder stays hand-written in the helptext `.md`.
 func renderLong(name string) string {
 	m := vocab.Issue()
+	p := vocab.Project()
 	return strings.NewReplacer(
 		"{{LIFECYCLE}}", m.RenderLifecycleHelp(),
 		"{{STATUS_NAMES}}", m.StatusNames(" | "),
 		"{{STATUS_GLOSS}}", m.StatusGloss(),
+		"{{PROJECT_LIFECYCLE}}", p.RenderLifecycleHelp(),
+		"{{PROJECT_STATUS_NAMES}}", p.StatusNames(" | "),
 	).Replace(helptext.MustGet(name))
 }
 
@@ -91,6 +94,7 @@ func buildRoot() *cobra.Command {
 	add(NewStartPlanCmd(), "start-plan", "Enter planning: deliver the architecture principles to design against (#75)")
 	add(NewChangeCodeCmd(), "change-code", "Enter implementation after the structural + plan-quality gates")
 	add(NewIssueCmd(), "issue", "Create + manage issues (new / set-status / list / show)")
+	add(NewProjectCmd(), "project", "Create + manage projects (new / list / show / set-status / validate)")
 	add(NewActualCmd(), "actual", "Compute an issue's focused dev-hours via active-time-v3 (#68)")
 	add(NewActiveTimeCmd(), "active-time", "Per-issue active-time attribution table (the v3 engine, standalone)")
 	add(NewCloseCmd(), "close", "Close an issue or milestone (ACTUAL + VERIFIED + atlas/project sweep)")

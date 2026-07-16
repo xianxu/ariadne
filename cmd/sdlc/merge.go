@@ -323,11 +323,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// Deterministic, separate from the judges. Runs after the branch is synced to
 	// origin (merge is server-side) so it checks the same tree that will merge.
 	if !f.NoValidate {
-		if err := validateChangedIssuesFn(gitx.DiffBase(), "", f.IssuesDir, stdout, stderr); err != nil {
+		if err := validateChangedInstancesFn(gitx.DiffBase(), "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
 			die(stderr, err.Error()+"\n  → fix and `git push` (merge is server-side), or --no-validate to bypass.")
 		}
 	} else {
-		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — issue frontmatter/sections NOT verified before main. Escape hatch: say why in your commit/log.")
+		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — modeled frontmatter and issue sections NOT verified before main. Escape hatch: say why in your commit/log.")
 	}
 
 	// ── 5. Pre-merge publish gate (#160) — deterministic, NO LLM ─────────────
@@ -618,9 +618,9 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 	// #181: issues subdir on BOTH legs — the rename dest (mainPath-joined)
 	// and the recorded mainPath-relative path. This duplicates push.go's
 	// archiveDoneIssues dest logic (pre-existing two-write-site debt); both
-	// derive via ArchiveSubdirs.
-	issuesSubFull, _ := vocab.ArchiveSubdirs(historyFull)
-	issuesSubRec, _ := vocab.ArchiveSubdirs(historyDir)
+	// derive via ArchiveSubdir.
+	issuesSubFull := vocab.ArchiveSubdir(historyFull, vocab.ArchiveIssues)
+	issuesSubRec := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)
 	cinfo(stderr, fmt.Sprintf("Archiving completed issues to %s/...", issuesSubRec))
 	for _, ref := range terminalIssueFiles(refs) {
 		// Merge target's shell DOES NOT call gh issue close — only push:

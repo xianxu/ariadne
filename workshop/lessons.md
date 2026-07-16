@@ -758,3 +758,61 @@ that `os.Getwd` has an env-dependent branch your tests won't hit by accident.
 
 **Origin:** #179 live dogfood (`sdlc migrate` refused a file that was plainly
 inside the repo). Fixed with EvalSymlinks + a $PWD-setting regression test.
+
+## 2026-07-16 — User strings need serialization tests; slug containment needs one resolver (#180 M3)
+
+**Pattern:** A model-derived project scaffold interpolated CLI prose directly
+into YAML, so colons broke parsing and `#` silently changed the stored value.
+Separately, `project new` checked its slug locally while show/validate/set-status
+joined unchecked slugs to the project directory, allowing `../` traversal.
+
+**Rule:** Treat every user-provided frontmatter value as serialized data: encode
+it with a format-safe scalar writer and test hostile punctuation plus a real
+parser/validator round trip. For slug-addressed files, expose one canonical
+slug-to-path resolver that validates grammar and containment; every read and
+write verb must call it, with traversal tests proving no downstream IO runs.
+
+**Origin:** #180 M3 boundary review (REWORK).
+
+## 2026-07-16 — Modeled guards are a closed execution list; calibration needs complete inputs and staged writes (#180 M4)
+
+**Pattern:** A dedicated close verb looked up the modeled transition but then
+recognized only one guard by name, silently ignoring another modeled guard and
+any future addition. Its fog ledger also summed only the issue actuals it could
+read, producing a precise-looking but false partial calibration row, then
+archived the project before the sibling ledger write could fail.
+
+**Rule:** When a model names ordered guards, iterate the entire list through an
+explicit handler registry and fail closed on every unknown name—never use the
+model only as an edge check while shadowing its guards in conditionals. A
+calibration row is valid only when every required input is measured; otherwise
+refuse or record a visibly non-calibrating `n/a` under an explicit bypass. For
+one command changing multiple durable records, stage every output first and
+test a forced late-stage failure leaves all original records unchanged. At each
+user-facing milestone, add runnable README examples in the same boundary.
+If the schema accepts YAML, consume it semantically through one typed decoder;
+flat regex/line readers are not schema consumers because quoted scalars and
+block lists are equally valid data. Parsers for guarded evidence must preserve
+absent vs invalid states so only genuine legacy absence can take an explicit
+bypass.
+Numeric validation must reject NaN and infinities explicitly—ordinary
+comparisons do not reject NaN (`NaN <= 0` is false), so “positive” checks alone
+can admit a durable false calibration value. Core-concepts status must describe
+the current boundary (`planned M5` is not `new`) so review does not confuse the
+roadmap with delivered code.
+Calibration input sets must also be sets by canonical identity, not merely YAML
+lists: normalize aliases to the durable entity key and reject duplicates before
+aggregation or mutation, or one logical input can silently acquire extra weight.
+Canonicalization at a degraded-input boundary must be best-effort: it may catch
+more aliases when peers are present, but must not turn an already modeled
+unavailable input into a new unconditional failure that defeats an explicit
+non-calibrating bypass.
+Derived dependency graphs must key vertices by the same canonical entity
+identity used at mutation/calibration boundaries, never by display spelling;
+otherwise aliases invent parallelism and duplicate rows inflate forecasts.
+When inserting into line-oriented records, never derive byte offsets by adding
+an assumed delimiter per split element: the last element may end at EOF. Keep
+the transformation pure, parse structural headings fence-aware, and rebuild
+from line slices so valid newline/no-newline forms are equally safe.
+
+**Origin:** #180 M4 boundary review (REWORK).

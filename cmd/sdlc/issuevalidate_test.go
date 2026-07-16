@@ -23,7 +23,7 @@ func TestRunIssueValidate(t *testing.T) {
 	}
 
 	t.Run("clean file passes", func(t *testing.T) {
-		validateFrontmatterFn = func(string) (string, bool, error) { return "", true, nil }
+		validateFrontmatterFn = func(string, string) (string, bool, error) { return "", true, nil }
 		var out, errw bytes.Buffer
 		if err := runIssueValidate(&out, &errw, &issueValidateFlags{}, []string{good}); err != nil {
 			t.Errorf("clean file should pass, got: %v", err)
@@ -31,7 +31,7 @@ func TestRunIssueValidate(t *testing.T) {
 	})
 
 	t.Run("file missing ## Plan fails (section, full check on demand)", func(t *testing.T) {
-		validateFrontmatterFn = func(string) (string, bool, error) { return "", true, nil }
+		validateFrontmatterFn = func(string, string) (string, bool, error) { return "", true, nil }
 		var out, errw bytes.Buffer
 		if err := runIssueValidate(&out, &errw, &issueValidateFlags{}, []string{noPlan}); err == nil {
 			t.Error("a file missing ## Plan should fail on-demand validation")
@@ -39,7 +39,7 @@ func TestRunIssueValidate(t *testing.T) {
 	})
 
 	t.Run("bad frontmatter fails", func(t *testing.T) {
-		validateFrontmatterFn = func(string) (string, bool, error) { return "  - status: nope", false, nil }
+		validateFrontmatterFn = func(string, string) (string, bool, error) { return "  - status: nope", false, nil }
 		var out, errw bytes.Buffer
 		if err := runIssueValidate(&out, &errw, &issueValidateFlags{}, []string{good}); err == nil {
 			t.Error("bad frontmatter should fail validation")
@@ -54,7 +54,7 @@ func TestRunIssueValidate(t *testing.T) {
 	})
 
 	t.Run("multiple files all conforming passes", func(t *testing.T) {
-		validateFrontmatterFn = func(string) (string, bool, error) { return "", true, nil }
+		validateFrontmatterFn = func(string, string) (string, bool, error) { return "", true, nil }
 		var out, errw bytes.Buffer
 		if err := runIssueValidate(&out, &errw, &issueValidateFlags{}, []string{good, good}); err != nil {
 			t.Errorf("an all-conforming batch should pass, got: %v", err)
@@ -62,7 +62,7 @@ func TestRunIssueValidate(t *testing.T) {
 	})
 
 	t.Run("multiple files, one nonconforming exits non-zero", func(t *testing.T) {
-		validateFrontmatterFn = func(string) (string, bool, error) { return "", true, nil }
+		validateFrontmatterFn = func(string, string) (string, bool, error) { return "", true, nil }
 		var out, errw bytes.Buffer
 		if err := runIssueValidate(&out, &errw, &issueValidateFlags{}, []string{good, noPlan}); err == nil {
 			t.Error("a batch with one nonconforming file should exit non-zero")
@@ -150,7 +150,7 @@ func TestResolveValidateTargets(t *testing.T) {
 func TestIssueValidateCmdCommaIDs(t *testing.T) {
 	of := validateFrontmatterFn
 	defer func() { validateFrontmatterFn = of }()
-	validateFrontmatterFn = func(string) (string, bool, error) { return "", true, nil }
+	validateFrontmatterFn = func(string, string) (string, bool, error) { return "", true, nil }
 
 	dir := t.TempDir()
 	for _, name := range []string{"000001-one.md", "000002-two.md"} {

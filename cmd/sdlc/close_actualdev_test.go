@@ -41,11 +41,34 @@ func TestActualDeviation(t *testing.T) {
 // unavailable measurement.
 func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 	var buf bytes.Buffer
-	// #99999 has no commits referencing it → computeActual → actualNoWindow.
-	if err := checkActualDeviation(&buf, "99999", 13.5); err != nil {
+	// #99999 has no commits referencing it → computeActualForCloseFn → actualNoWindow.
+	if err := checkActualDeviation(&buf, "99999", 13.5, "issue"); err != nil {
 		t.Fatalf("expected nil (skip) when unmeasurable, got: %v", err)
 	}
 	if out := strings.TrimSpace(buf.String()); out != "" {
 		t.Fatalf("expected no output when unmeasurable, got: %q", out)
+	}
+}
+
+// Milestone actuals are per-boundary increments, while the active-time engine
+// currently returns a cumulative claim→HEAD issue measurement. Those values are
+// not comparable: checking 0.37h M2 against 5.14h cumulative falsely refuses as
+// a 14× deviation. Until the engine has a milestone window, the pass-path must
+// skip this issue-close-only backstop.
+func TestCheckActualDeviation_MilestoneSkipsCumulativeMeasurement(t *testing.T) {
+	orig := computeActualForCloseFn
+	calls := 0
+	computeActualForCloseFn = func(string) actualResult {
+		calls++
+		return actualResult{Status: actualMeasured, Hours: 5.14}
+	}
+	t.Cleanup(func() { computeActualForCloseFn = orig })
+
+	var buf bytes.Buffer
+	if err := checkActualDeviation(&buf, "180", 0.37, "milestone"); err != nil {
+		t.Fatalf("milestone increment must not be compared with cumulative actual: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("milestone mode ran cumulative measurement %d time(s), want 0", calls)
 	}
 }

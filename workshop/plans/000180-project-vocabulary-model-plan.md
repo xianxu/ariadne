@@ -99,12 +99,16 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 | shared lifecycle helpers | `pkg/vocab/lifecycle.go` | new |
 | `ArchiveSubdir` (kind-keyed) | `pkg/vocab/vocab.go` | modified |
 | `Doc` / `Task` (typed project file) | `cmd/sdlc/internal/project/doc.go` | new |
+| YAML-semantic workflow metadata decoder | `cmd/sdlc/internal/project/metadata.go` | new |
+| Phase-A tri-state parser | `cmd/sdlc/internal/project/phasea.go` | new |
+| `ScaffoldSpec` / `RenderScaffold` | `cmd/sdlc/internal/project/scaffold.go` | new |
+| `Summary` renderers | `cmd/sdlc/internal/project/summary.go` | new |
+| project slug/path resolver | `cmd/sdlc/internal/project/path.go` | new |
 | Tick mutators (typed re-impl) | `cmd/sdlc/internal/project/project.go` | modified |
 | Guard registry | `cmd/sdlc/internal/project/guards.go` | new |
 | `computeBoard` | `cmd/sdlc/projectstatus.go` | new |
-| Phase-A estimation method (doc) | `brain/data/life/42shots/velocity/estimate-logic-project-v1.md` | new |
-| datatype prose (demoted to cite cue) | `construct/datatype/project.md` | modified |
-| prose↔model drift test | `pkg/vocab/prose_drift_test.go` | new |
+| datatype prose (demoted to cite cue) | `construct/datatype/project.md` | planned M5 |
+| prose↔model drift test | `pkg/vocab/prose_drift_test.go` | planned M5 |
 
 - **`project` noun model** — categories/when/lifecycle/laws/discovery/scaffold +
   `#Project` frontmatter shape, mirroring issue.cue.
@@ -149,6 +153,7 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 | `sdlc project` verb family | `cmd/sdlc/project.go` (+ `helptext/project.md`) | new | fs + git commit + peer repos |
 | issue lookup seam | `cmd/sdlc/projectstatus.go` | new | peer-repo fs reads via `resolveRepoDir` |
 | fog-factor ledger append | `cmd/sdlc/projectclose.go` | new | brain fs (sibling repo) |
+| Phase-A estimation method (process doc) | `brain/data/life/42shots/velocity/estimate-logic-project-v1.md` | new | human-executed sizing method + calibration ledger |
 | close-gate project parsing | `cmd/sdlc/close.go:565-655` (call sites unchanged) | modified | brain project files |
 
 - **validate gate** — generalize `validateChangedIssues` into a per-noun table
@@ -190,7 +195,7 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 - Create: `construct/vocabulary/testdata/project_invalid.cue`
 - Modify: `construct/vocabulary/vet_test.sh`
 
-- [ ] **Step 1: Write the model** — full content:
+- [x] **Step 1: Write the model** — full content:
 
 ```cue
 // project — the vocabulary of a project: its data shape, its lifecycle funnel,
@@ -345,7 +350,7 @@ laws: {
 }
 ```
 
-- [ ] **Step 2: Write the invalid-model fixture** `testdata/project_invalid.cue` —
+- [x] **Step 2: Write the invalid-model fixture** `testdata/project_invalid.cue` —
   it must be SELF-CONTAINED (its own package; a standalone file referencing
   `#Transition`/`#Status` from project.cue would fail vet with "reference not
   found" — a vacuous pass proving nothing; `testdata/issue_invalid.cue` is
@@ -375,14 +380,14 @@ lifecycle: [...#Transition] & [
   `cue vet testdata/project_invalid.cue` by hand once) — not a missing
   reference.
 
-- [ ] **Step 3: Extend `vet_test.sh`** — append a project block mirroring the
+- [x] **Step 3: Extend `vet_test.sh`** — append a project block mirroring the
   issue block (`vet_test.sh:9-18`): `cue vet project.cue` passes;
   `cue vet testdata/project_invalid.cue` fails; export carries `"categories"`,
   `"lifecycle"`, and `"discovery"`.
 
-- [ ] **Step 4: Run** `sh construct/vocabulary/vet_test.sh` — expect `ok`.
+- [x] **Step 4: Run** `sh construct/vocabulary/vet_test.sh` — expect `ok`.
 
-- [ ] **Step 5: Commit** — `#180 M1: project.cue — the project noun modeled (funnel, baseline guard, discovery, scaffold, laws)`
+- [x] **Step 5: Commit** — `#180 M1: project.cue — the project noun modeled (funnel, baseline guard, discovery, scaffold, laws)`
 
 #### Task M1.2: shared lifecycle helpers in `pkg/vocab` (DRY refactor, behavior-preserving)
 
@@ -390,7 +395,7 @@ lifecycle: [...#Transition] & [
 - Create: `pkg/vocab/lifecycle.go`, `pkg/vocab/lifecycle_test.go`
 - Modify: `pkg/vocab/vocab.go`, `pkg/vocab/verdict.go`
 
-- [ ] **Step 1: Extract** unexported helpers (a third noun is the trigger —
+- [x] **Step 1: Extract** unexported helpers (a third noun is the trigger —
   vocab.go and verdict.go already duplicate `inCategory`):
 
 ```go
@@ -414,16 +419,16 @@ func allStatuses(cats map[string][]string, order []string) []string
 func renderLifecycleHelp(statuses []string, when map[string]string, l []Transition) string
 ```
 
-- [ ] **Step 2: Delegate** — rewrite `IssueModel.inCategory/CanTransition/
+- [x] **Step 2: Delegate** — rewrite `IssueModel.inCategory/CanTransition/
   LegalTransitions/AllStatuses/RenderLifecycleHelp` and `VerdictModel.inCategory`
   as thin calls into the helpers (issue's category order literal
   `{"open","active","terminal"}` moves to a package const). No exported-surface
   change.
 
-- [ ] **Step 3: Run** `go test ./pkg/vocab/` — the existing pins
+- [x] **Step 3: Run** `go test ./pkg/vocab/` — the existing pins
   (`vocab_test.go`, `conformance_test.go`) must pass unchanged. Expected: PASS.
 
-- [ ] **Step 4: Commit** — `#180 M1: pkg/vocab — extract shared lifecycle helpers (third noun incoming)`
+- [x] **Step 4: Commit** — `#180 M1: pkg/vocab — extract shared lifecycle helpers (third noun incoming)`
 
 #### Task M1.3: `ProjectModel` binding + embed
 
@@ -431,7 +436,7 @@ func renderLifecycleHelp(statuses []string, when map[string]string, l []Transiti
 - Create: `pkg/vocab/project.go`, `pkg/vocab/project.json` (generated)
 - Test: extend `pkg/vocab/vocab_test.go`, `pkg/vocab/conformance_test.go`
 
-- [ ] **Step 1: Write failing conformance test** — `TestProjectConformance` in
+- [x] **Step 1: Write failing conformance test** — `TestProjectConformance` in
   `conformance_test.go`, mirroring `TestIssueConformance` (:9-41) exactly but
   over `Project()`: every status in exactly one category with non-empty `when`;
   every transition references known statuses and agrees with `CanTransition`.
@@ -457,10 +462,10 @@ func TestProjectSetStatusRefusesDone(t *testing.T) { // TransitionFor surface
 }
 ```
 
-- [ ] **Step 2: Run** `go test ./pkg/vocab/ -run 'Project'` — expect FAIL
+- [x] **Step 2: Run** `go test ./pkg/vocab/ -run 'Project'` — expect FAIL
   (undefined `Project`).
 
-- [ ] **Step 3: Implement `pkg/vocab/project.go`** — mirror vocab.go's shape:
+- [x] **Step 3: Implement `pkg/vocab/project.go`** — mirror vocab.go's shape:
 
 ```go
 //go:generate sh -c "vocabulary export --noun project > project.json"
@@ -500,13 +505,13 @@ func (m *ProjectModel) StatusNames(sep string) string
   All predicates delegate to the M1.2 helpers. Also add `TransitionFor` to
   `IssueModel`? No — YAGNI; no issue consumer needs it.
 
-- [ ] **Step 4: Generate the embed** — `make vocabulary-build` then
+- [x] **Step 4: Generate the embed** — `make vocabulary-build` then
   `make vocab-embed` (runs `go generate ./pkg/vocab/...` + stale-diff check).
   Expected: `pkg/vocab/project.json` created, diff-clean afterward.
 
-- [ ] **Step 5: Run** `go test ./pkg/vocab/` — expect PASS.
+- [x] **Step 5: Run** `go test ./pkg/vocab/` — expect PASS.
 
-- [ ] **Step 6: Commit** — `#180 M1: pkg/vocab.Project() — embedded binding for the project noun`
+- [x] **Step 6: Commit** — `#180 M1: pkg/vocab.Project() — embedded binding for the project noun`
 
 #### Task M1.4: kind-keyed `ArchiveSubdir`
 
@@ -522,7 +527,7 @@ func (m *ProjectModel) StatusNames(sep string) string
   `ArchiveSubdir` name only; the "will widen" sentence lives in
   `vocab.go:104-105` and dies with Step 3's replacement comment)
 
-- [ ] **Step 1: Write failing test** — in `vocab_test.go`:
+- [x] **Step 1: Write failing test** — in `vocab_test.go`:
 
 ```go
 func TestArchiveSubdirKinds(t *testing.T) {
@@ -536,10 +541,10 @@ func TestArchiveSubdirKinds(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run** `go test ./pkg/vocab/ -run ArchiveSubdirKinds` — FAIL
+- [x] **Step 2: Run** `go test ./pkg/vocab/ -run ArchiveSubdirKinds` — FAIL
   (undefined).
 
-- [ ] **Step 3: Implement** in vocab.go, replacing `ArchiveSubdirs`:
+- [x] **Step 3: Implement** in vocab.go, replacing `ArchiveSubdirs`:
 
 ```go
 // ArchiveKind names one per-kind archive subdir under the archive root (#181
@@ -563,25 +568,25 @@ func ArchiveSubdir(root string, kind ArchiveKind) string {
 }
 ```
 
-- [ ] **Step 4: Migrate the 9 call sites** — mechanical, e.g.
+- [x] **Step 4: Migrate the 9 call sites** — mechanical, e.g.
   `issuesSub, plansSub := vocab.ArchiveSubdirs(root)` →
   `issuesSub := vocab.ArchiveSubdir(root, vocab.ArchiveIssues)` (+ plans line
   where the second value was used; several sites discard one value — those
   become a single call). Delete `ArchiveSubdirs`.
 
-- [ ] **Step 5: Update the guard test** — extend
+- [x] **Step 5: Update the guard test** — extend
   `TestArchiveSubdirs_SingleDerivationPoint`'s source scan to also forbid
   hand-concatenated `"projects"` archive paths and to accept the new call form.
 
-- [ ] **Step 6: Run** `go test ./pkg/vocab/ ./cmd/...` — expect PASS.
+- [x] **Step 6: Run** `go test ./pkg/vocab/ ./cmd/...` — expect PASS.
 
-- [ ] **Step 7: Commit** — `#180 M1: ArchiveSubdir goes kind-keyed (+projects) — 9 call sites migrated`
+- [x] **Step 7: Commit** — `#180 M1: ArchiveSubdir goes kind-keyed (+projects) — 9 call sites migrated`
 
 #### Task M1.5: close M1
 
-- [ ] Run full suite bare: `go test ./...` and `sh construct/vocabulary/vet_test.sh` — PASS.
-- [ ] Tick M1 rows in the issue `## Plan`, log the boundary in `## Log`.
-- [ ] `sdlc milestone-close --issue 180 --milestone M1` (binary dispatches the
+- [x] Run full suite bare: `go test ./...` and `sh construct/vocabulary/vet_test.sh` — PASS.
+- [x] Tick M1 rows in the issue `## Plan`, log the boundary in `## Log`.
+- [x] `sdlc milestone-close --issue 180 --milestone M1` (binary dispatches the
   mandatory fresh-eyes review; fix Critical/Important before crossing).
 
 ### M2 — typed project parsing + the conformance gate
@@ -591,7 +596,7 @@ func ArchiveSubdir(root string, kind ArchiveKind) string {
 **Files:**
 - Create: `cmd/sdlc/internal/project/doc.go`, `doc_test.go`
 
-- [ ] **Step 1: Write failing tests** — parse a fixture with frontmatter + all
+- [x] **Step 1: Write failing tests** — parse a fixture with frontmatter + all
   four sections + task rows in every checkbox state
   (`[ ]`,`[x]`,`[.]`,`[-]`,`[~]`), refs with and without milestones, and a
   plain-text task (no ref):
@@ -611,9 +616,9 @@ func TestDocSetTaskState(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run** — FAIL (undefined).
+- [x] **Step 2: Run** — FAIL (undefined).
 
-- [ ] **Step 3: Implement**:
+- [x] **Step 3: Implement**:
 
 ```go
 // Doc is a parsed project file: raw lines (render source of truth), frontmatter
@@ -652,9 +657,9 @@ func (d *Doc) Render() string
   Step 1). The class includes `~` so the milestone tick can flip it (the
   issue-close tick filters it out by State, per the pinned asymmetry).
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/internal/project/` — PASS.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/internal/project/` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M2: internal/project.Doc — typed project-file records`
+- [x] **Step 5: Commit** — `#180 M2: internal/project.Doc — typed project-file records`
 
 #### Task M2.2: retype the tick mutators over `Doc`
 
@@ -662,7 +667,7 @@ func (d *Doc) Render() string
 - Modify: `cmd/sdlc/internal/project/project.go:62-95` (`TickMilestoneTaskRow`,
   `TickAllTaskRowsForIssue`)
 
-- [ ] **Step 1: Note the pin** — the existing `project_test.go` cases define the
+- [x] **Step 1: Note the pin** — the existing `project_test.go` cases define the
   behavior contract, including the intentional asymmetry: the milestone tick
   flips states `[ .\-~]`, the issue-close tick flips only `[ .]` (so
   cancelled/blocked rows aren't silently completed at issue close). Do NOT
@@ -680,7 +685,7 @@ func (d *Doc) Render() string
   deliberately — pin the skip behavior with its own test case so the narrowing
   is visible, not incidental.
 
-- [ ] **Step 2: Reimplement bodies** — parse via `ParseDoc`, select tasks by
+- [x] **Step 2: Reimplement bodies** — parse via `ParseDoc`, select tasks by
   matching `RefText` against `repo#id [milestone]` (exact-match on the parsed
   ref text: `RefText == repoName+"#"+issueID` or
   `strings.HasPrefix(RefText, repoName+"#"+issueID+" ")` for the all-rows form;
@@ -689,13 +694,13 @@ func (d *Doc) Render() string
   `Render`. Legacy `~` state: M2.1's grammar class already accepts it — the
   milestone tick flips it, the issue-close tick doesn't (State filter).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/internal/project/` — the pre-existing
+- [x] **Step 3: Run** `go test ./cmd/sdlc/internal/project/` — the pre-existing
   tests must PASS unchanged (that's the point: typed parsing, same semantics).
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/` (close-gate tests exercise the call
+- [x] **Step 4: Run** `go test ./cmd/sdlc/` (close-gate tests exercise the call
   sites) — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M2: tick mutators re-implemented over typed Doc (same contract, no substring convention)`
+- [x] **Step 5: Commit** — `#180 M2: tick mutators re-implemented over typed Doc (same contract, no substring convention)`
 
 #### Task M2.3: generalize the validate gate to a noun table
 
@@ -705,13 +710,13 @@ func (d *Doc) Render() string
   (merge.go:326, push.go:126) and the `validateChangedIssuesFn` stub in
   `cmd/sdlc/merge_e2e_test.go:131,140`
 
-- [ ] **Step 1: Write failing test** — hermetic (seams injected per
+- [x] **Step 1: Write failing test** — hermetic (seams injected per
   `validategate.go:30-35`): a diff window touching
   `workshop/projects/demo.md` must invoke the validator with
   `--type project`; an issue file still gets `--type issue` + section presence
   on added files; a project file gets NO issue-section check.
 
-- [ ] **Step 2: Implement** — introduce the table and generalize:
+- [x] **Step 2: Implement** — introduce the table and generalize:
 
 ```go
 // nounGate binds one vocabulary noun to the repo dir whose changed instances
@@ -743,17 +748,17 @@ func nounGates(issuesDir string) []nounGate {
   the `validateChangedIssuesFn` stub signature in `merge_e2e_test.go:131,140`
   (add to Files list).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ -run Validate` — PASS.
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ -run Validate` — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M2: validate gate generalized to a noun table — project instances conform at push/merge`
+- [x] **Step 4: Commit** — `#180 M2: validate gate generalized to a noun table — project instances conform at push/merge`
 
 #### Task M2.4: close M2
 
-- [ ] Full bare suite + `sh construct/vocabulary/vet_test.sh` — PASS.
-- [ ] **Live check (IO-adjacent milestone):** in a scratch clone, create
+- [x] Full bare suite + `sh construct/vocabulary/vet_test.sh` — PASS.
+- [x] **Live check (IO-adjacent milestone):** in a scratch clone, create
   `workshop/projects/bad.md` with `status: shipped`, run `sdlc push` — expect
   the gate to refuse naming the file and the enum. Delete the scratch.
-- [ ] Tick M2 plan rows; log; `sdlc milestone-close --issue 180 --milestone M2`.
+- [x] Tick M2 plan rows; log; `sdlc milestone-close --issue 180 --milestone M2`.
 
 ---
 
@@ -771,14 +776,14 @@ func nounGates(issuesDir string) []nounGate {
 - Test: `cmd/sdlc/project_cmd_test.go`; helptext anchors mirror
   `cmd/sdlc/helptext/embed_test.go` conventions
 
-- [ ] **Step 1: Write failing tests** — cobra tree has `project` with
+- [x] **Step 1: Write failing tests** — cobra tree has `project` with
   subcommands `new,list,show,set-status,validate,status,retro,close`
   (walk the tree like `helptext_render_test.go:71-82` does); rendered Long
   contains the model-derived lifecycle (assert a `when` gloss line surfaces);
   `TestNoCommandLongHasSurvivingPlaceholder` still passes (it auto-covers the
   new placeholders).
 
-- [ ] **Step 2: Implement** `NewProjectCmd()` mirroring `issue.go:27-52`
+- [x] **Step 2: Implement** `NewProjectCmd()` mirroring `issue.go:27-52`
   (parent `RunE → cmd.Help()`; each subcommand a `newProject<X>Cmd()` builder
   with its own flags struct; mutating ones wrap `markMutatingCommand`).
   `helptext/project.md` documents: the funnel (via placeholder), the gated
@@ -790,9 +795,9 @@ func nounGates(issuesDir string) []nounGate {
   add in M4 (**do the latter**: register only
   `new,list,show,set-status,validate` now; the tree test grows in M4).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ -run 'Project|Placeholder|Helptext'` — PASS.
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ -run 'Project|Placeholder|Helptext'` — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M3: sdlc project — verb family skeleton + model-derived helptext`
+- [x] **Step 4: Commit** — `#180 M3: sdlc project — verb family skeleton + model-derived helptext`
 
 #### Task M3.2: `project new` / `list` / `show` / `validate`
 
@@ -800,7 +805,7 @@ func nounGates(issuesDir string) []nounGate {
 - Extend: `cmd/sdlc/project.go`; scaffold render in
   `cmd/sdlc/internal/project/scaffold.go` (+ test)
 
-- [ ] **Step 1: Write failing tests** —
+- [x] **Step 1: Write failing tests** —
   `new --slug demo --goal "…" --done-when "…"` writes
   `workshop/projects/demo.md` with `type: project`, `name:`, `goal:`,
   `done_when:` (ALL four are `#Project`-required — the scaffold's own file must
@@ -815,12 +820,12 @@ func nounGates(issuesDir string) []nounGate {
   `vocabulary validate-instance --type project <file>` (seam-injected like
   `issue.go:99-124`'s `runIssueValidate` — mirror it).
 
-- [ ] **Step 2: Implement.** Pure render/summarize helpers live in
+- [x] **Step 2: Implement.** Pure render/summarize helpers live in
   `internal/project`; the command layer only does fs + output.
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ ./cmd/sdlc/internal/project/` — PASS.
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ ./cmd/sdlc/internal/project/` — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M3: project new/list/show/validate — scaffold + listing derive from the model`
+- [x] **Step 4: Commit** — `#180 M3: project new/list/show/validate — scaffold + listing derive from the model`
 
 #### Task M3.3: guard registry + `project set-status`
 
@@ -831,7 +836,7 @@ func nounGates(issuesDir string) []nounGate {
   the parent + the thin new/list/show/validate builders, mirroring how
   status/close get `projectstatus.go`/`projectclose.go`)
 
-- [ ] **Step 1: Write failing guard tests** (pure, table-driven):
+- [x] **Step 1: Write failing guard tests** (pure, table-driven):
 
 ```go
 // GuardCtx carries the injected world: evidence strings from flags, today's date.
@@ -854,9 +859,9 @@ func Guards() map[string]GuardFunc
   never legally need it since →done is refused anyway; registering it keeps the
   unknown-guard check honest).
 
-- [ ] **Step 2: Implement guards** — pure over `Doc`.
+- [x] **Step 2: Implement guards** — pure over `Doc`.
 
-- [ ] **Step 3: Write failing set-status tests** — legality from the model
+- [x] **Step 3: Write failing set-status tests** — legality from the model
   (`CanTransition`; refusal message renders `LegalTransitions` like
   `setstatus.go` does for issues — read it first and mirror the UX);
   `--to done` refuses with "use `sdlc project close`"; guards of the matched
@@ -866,14 +871,14 @@ func Guards() map[string]GuardFunc
   `updated:` via `Doc` and commits per the same convention `sdlc issue
   set-status` uses (verify at implementation and mirror).
 
-- [ ] **Step 4: Implement; run** `go test ./cmd/sdlc/... -run 'Guard|ProjectSetStatus'` — PASS.
+- [x] **Step 4: Implement; run** `go test ./cmd/sdlc/... -run 'Guard|ProjectSetStatus'` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M3: project set-status — model-legality + named-guard registry (unknown guard = refusal)`
+- [x] **Step 5: Commit** — `#180 M3: project set-status — model-legality + named-guard registry (unknown guard = refusal)`
 
 #### Task M3.4: close M3
 
-- [ ] Full bare suite — PASS. Tick plan rows; log.
-- [ ] `sdlc milestone-close --issue 180 --milestone M3`.
+- [x] Full bare suite — PASS. Tick plan rows; log.
+- [x] `sdlc milestone-close --issue 180 --milestone M3`.
 
 ### M4 — derived board, retro, calibrated close, Phase-A method
 
@@ -883,7 +888,7 @@ func Guards() map[string]GuardFunc
 - Create: `cmd/sdlc/projectstatus.go`, `projectstatus_test.go`
 - Extend: `cmd/sdlc/project.go` (register `status` subcommand)
 
-- [ ] **Step 1: Write failing pure tests** — map-backed lookup fake:
+- [x] **Step 1: Write failing pure tests** — map-backed lookup fake:
 
 ```go
 // issueMeta is the cross-repo issue surface the board reads.
@@ -931,9 +936,9 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   `internal/project`, shared with M4.2's nudge so the close gate never grows a
   lookup dependency).
 
-- [ ] **Step 2: Implement pure core; run** — PASS.
+- [x] **Step 2: Implement pure core; run** — PASS.
 
-- [ ] **Step 3: Wire the seam** — real lookup: `parseRef(refText)` →
+- [x] **Step 3: Wire the seam** — real lookup: `parseRef(refText)` →
   `resolveRepoDir` (current repo when `Repo` empty) → read
   `<repoDir>/<vocab.Issue().Discovery().Home>/NNNNNN-*.md` frontmatter via
   `internal/issue` helpers; tolerate archived issues by also checking
@@ -947,16 +952,16 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   hermetic test with a sibling fixture repo (mirror `hermeticrepo_test.go`
   scaffolding) covering one cross-repo ref.
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Board|ProjectStatus'` — PASS.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Board|ProjectStatus'` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M4: sdlc project status — the derived kanban (baseline stored, progression computed, nothing hand-maintained)`
+- [x] **Step 5: Commit** — `#180 M4: sdlc project status — the derived kanban (baseline stored, progression computed, nothing hand-maintained)`
 
 #### Task M4.2: `sdlc project retro`
 
 **Files:**
 - Extend: `cmd/sdlc/project.go`; pure bits in `internal/project`
 
-- [ ] **Step 1: Write failing tests** — `retro --slug demo` appends to `## Log`:
+- [x] **Step 1: Write failing tests** — `retro --slug demo` appends to `## Log`:
 
 ```markdown
 ### 2026-07-20 — retro
@@ -970,10 +975,10 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   agent/operator's to fill — mechanism, not mandate). Appending twice on one
   date is allowed (distinct entries). `--dry-run` prints without writing.
 
-- [ ] **Step 2: Implement** (reuse `Doc.AppendToSection("Log", …)`); commit
+- [x] **Step 2: Implement** (reuse `Doc.AppendToSection("Log", …)`); commit
   convention as other mutating verbs. Run tests — PASS.
 
-- [ ] **Step 3: Staleness nudge at issue close** — in `close.go`'s project gate
+- [x] **Step 3: Staleness nudge at issue close** — in `close.go`'s project gate
   (after the tick edit is prepared, ~`close.go:584-655`): when the matched
   project's `status` is in the executing category and its newest retro heading
   is older than 7 days (or absent), print a `[!]` info line nudging
@@ -984,9 +989,9 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   `status: active` (legacy) is NOT in the model's executing category → no nudge,
   which is correct pre-#171. Hermetic test each branch.
 
-- [ ] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Retro|Close'` — PASS.
+- [x] **Step 4: Run** `go test ./cmd/sdlc/ -run 'Retro|Close'` — PASS.
 
-- [ ] **Step 5: Commit** — `#180 M4: project retro verb + stale-retro nudge in the issue-close project gate`
+- [x] **Step 5: Commit** — `#180 M4: project retro verb + stale-retro nudge in the issue-close project gate`
 
 #### Task M4.3: `sdlc project close` — retro gate, fog factor, archive
 
@@ -1004,7 +1009,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   the two-word `project close`; if not, extend the map key format rather than
   registering a row no invocation ever matches.
 
-- [ ] **Step 1: Write failing tests** (hermetic; brain dir = temp fixture):
+- [x] **Step 1: Write failing tests** (hermetic; brain dir = temp fixture):
   1. requires `status == "executing"` EXACTLY (design decision 9): a forming/
      committed status refuses pointing at the funnel; `paused` refuses with a
      "resume first" pointer (`sdlc project set-status --to executing`) — the
@@ -1030,7 +1035,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   frontmatter is resolvable per-ref cross-repo where the ledger is keyed
   differently. Deliberate choice, not an omission.
 
-- [ ] **Step 2: Implement.** Ledger row format (the table it appends to is
+- [x] **Step 2: Implement.** Ledger row format (the table it appends to is
   created by M4.4's doc):
 
 ```markdown
@@ -1042,10 +1047,10 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   `## Fog ledger` table is missing → refuse with the exact heading to add
   (unless `--no-ledger`).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ -run ProjectClose` and the gate
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ -run ProjectClose` and the gate
   catalog test — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M4: sdlc project close — retro-gated, fog-factor ledger row, archives to history/projects`
+- [x] **Step 4: Commit** — `#180 M4: sdlc project close — retro-gated, fog-factor ledger row, archives to history/projects`
 
 #### Task M4.4: Phase-A estimation method doc (design deliverable)
 
@@ -1054,7 +1059,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   (brain is a capture repo — write + let its auto-save flow own the commit;
   do NOT run sdlc there)
 
-- [ ] **Step 1: Write the v1 method** — contents (complete, this IS the design):
+- [x] **Step 1: Write the v1 method** — contents (complete, this IS the design):
   - **Scope:** PRD-stage estimation (Phase A), before issues exist. Phase B (at
     breakdown) is per-issue estimate-logic-v3.1, unchanged. Same calibration
     process as v3.1, different primitives + an explicit uncertainty multiplier
@@ -1079,17 +1084,17 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
     multiplier exactly the way issue closes calibrated v3.1.
   - Include the empty `## Fog ledger` table header row.
 
-- [ ] **Step 2: Cross-link** — `sdlc estimate-source` surfaces the issue-level
+- [x] **Step 2: Cross-link** — `sdlc estimate-source` surfaces the issue-level
   doc; add a one-line pointer to the project doc from `helptext/project.md`
   ("Phase-A method: …path…"). (Extending `estimatesource.go` to know both docs
   is a natural follow-up, NOT the purpose — note in Log if skipped.)
 
-- [ ] **Step 3: Commit** (ariadne side: the helptext pointer edit rides the next
+- [x] **Step 3: Commit** (ariadne side: the helptext pointer edit rides the next
   ariadne commit) — `#180 M4: helptext — Phase-A method pointer`.
 
 #### Task M4.5: live dogfood + close M4
 
-- [ ] **Live fixture pass** (lessons.md: IO needs a live run; use a symlinked
+- [x] **Live fixture pass** (lessons.md: IO needs a live run; use a symlinked
   cwd to exercise the `$PWD` branch): in a scratch repo (`$TMPDIR` via a
   symlink), run the full arc: `project new` → hand-write a PRD →
   `set-status --to defined` → fill `## Estimate` per M4.4 →
@@ -1099,8 +1104,8 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   issues cover PRD"` → `project status` (board renders) → `project retro` →
   tick issues → `project close --no-ledger` (or with a fixture brain) →
   file lands in `workshop/history/projects/`. Record the transcript in `## Log`.
-- [ ] Full bare suite — PASS. Tick plan rows; log.
-- [ ] `sdlc milestone-close --issue 180 --milestone M4`.
+- [x] Full bare suite — PASS. Tick plan rows; log.
+- [x] `sdlc milestone-close --issue 180 --milestone M4`.
 
 ### M5 — prose demotion, drift binding, atlas
 
@@ -1109,7 +1114,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
 **Files:**
 - Modify: `construct/datatype/project.md`
 
-- [ ] **Step 1: Edit** — (procedure refers, registry defines):
+- [x] **Step 1: Edit** — (procedure refers, registry defines):
   - Frontmatter-shape table: `status` row now reads "see
     `construct/vocabulary/project.cue` (the schema authority) — funnel:
     ideation → defined → committed → executing → done | dropped, + paused";
@@ -1137,14 +1142,14 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   - Keep everything else (single-operator discipline, scope events, MVP
     conversation) — this is a demotion of the *schema* claims only.
 
-- [ ] **Step 2: Commit** — `#180 M5: datatype prose demoted — project.cue is schema authority`
+- [x] **Step 2: Commit** — `#180 M5: datatype prose demoted — project.cue is schema authority`
 
 #### Task M5.2: drift test binding prose ↔ model
 
 **Files:**
 - Create: `pkg/vocab/prose_drift_test.go`
 
-- [ ] **Step 1: Write the test** (mirrors the invariant-chain pattern —
+- [x] **Step 1: Write the test** (mirrors the invariant-chain pattern —
   `helptext/issue_sections_test.go` for the ⊆-direction):
 
 ```go
@@ -1170,26 +1175,26 @@ func TestProjectProseCitesModel(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Sanity-check the binding both ways** — `git stash` the M5.1
+- [x] **Step 2: Sanity-check the binding both ways** — `git stash` the M5.1
   edit and run the test: it must FAIL against the pre-demotion prose (the
   backticked `active` + missing citation both trip). Unstash; it must PASS.
   A drift test that passes on the un-demoted prose is vacuous — prove it bites
   before committing it.
 
-- [ ] **Step 3: Commit** — `#180 M5: drift test — prose table bound to project.cue`
+- [x] **Step 3: Commit** — `#180 M5: drift test — prose table bound to project.cue`
 
 #### Task M5.3: atlas + skill claim + issue close
 
-- [ ] **Atlas:** add `atlas/` coverage for the project noun (new file or the
+- [x] **Atlas:** add `atlas/` coverage for the project noun (new file or the
   vocabulary page, matching how the issue noun is mapped — check
   `atlas/index.md` and link from it): model location, funnel, verb family,
   gates, fog-factor loop, #171 handoff note.
-- [ ] **xx-vocabulary skill:** verify `.claude/skills/xx-vocabulary/SKILL.md` —
+- [x] **xx-vocabulary skill:** verify `.claude/skills/xx-vocabulary/SKILL.md` —
   its claim is now true for project; update any noun enumeration it carries.
-- [ ] **lessons.md:** only if something recurred that no code now enforces
+- [x] **lessons.md:** only if something recurred that no code now enforces
   (memory: feedback_lessons_only_if_not_code_enforced).
-- [ ] Full bare suite + vet_test.sh — PASS.
-- [ ] Tick remaining plan rows. `sdlc close --issue 180 --verified '<evidence:
+- [x] Full bare suite + vet_test.sh — PASS.
+- [x] Tick remaining plan rows. `sdlc close --issue 180 --verified '<evidence:
   test suite + live-fixture transcript + dormant-gate demo>'` (actuals measured,
   not typed; atlas gate satisfied by M5.3). Then `sdlc pr` → `sdlc merge` per
   the publish convention (single publish at issue close).
@@ -1202,3 +1207,261 @@ func TestProjectProseCitesModel(t *testing.T) {
   `estimate_hours:` — derived per estimate-logic-v3.1 after plan approval.
 - Milestone → plan-row mapping lands in the issue `## Plan` as five `Mx` rows
   (each a genuine review boundary).
+
+## Revisions
+
+### 2026-07-16 — dogfood reversal (operator, at plan approval)
+
+**Reason:** the operator wants the project-management lift itself as the
+guinea pig from day one: "use the creation of project management in ariadne
+as a project to guinea pig the project management improvement itself."
+Supersedes the 2026-07-15 dogfood-deferral decision recorded in Chunk 1's
+scope boundary.
+
+**Delta:** `workshop/projects/project-management-primitive.md` now exists
+(hand-authored at ideation to the emerging model shape; mvp_scope
+[ariadne#180, ariadne#171], #182 explicitly out). Consequences for tasks:
+
+- Chunk 1 scope boundary: "the repo has no project instances yet … dormant
+  until files exist" no longer holds — the conformance gate goes LIVE against
+  this instance the moment M2.3 lands. M1.1's `#Project` must accept this
+  file as-written (it is the first conformance fixture; if it fails vet, fix
+  whichever side is wrong and log the call).
+- M2.4 live-check: run the bad-status check against a scratch COPY as
+  planned, but ALSO run `vocabulary validate-instance --type project` against
+  the real instance — expected PASS.
+- M3/M4 dogfood: prefer the real instance over scratch fixtures wherever a
+  verb test wants a live file (set-status define→…, status board, retro);
+  the M4.5 fixture arc still runs in a scratch repo for the destructive
+  close/archive step (the real instance closes only when the project is
+  actually done).
+- #180's issue scope is unchanged — single multi-boundary issue; the project
+  file tracks the wider lift, it does not restructure the issue.
+
+### 2026-07-16 — M1 boundary-review reconciliation
+
+**Reason:** the M1 `FIX-THEN-SHIP` review found one stale served consumer and
+three plan statements that no longer matched the implementation or the
+operator's same-day scope decision. The generated consumer is refreshed via
+`make weave`; this revision records the durable plan deltas without rewriting
+the approved plan in place.
+
+**Delta:**
+
+- M1.2's Files list drops the planned `pkg/vocab/lifecycle_test.go`. The shared
+  helpers are exercised through the issue, verdict, and project model tests;
+  the behavior-preserving extraction kept the existing pins green, so a new
+  helper-only test file would duplicate those contracts.
+- M1.4 migrated **11 call sites total: 9 non-test + 2 test**. The task's
+  implementation text and proposed commit subject saying "9 call sites" refer
+  only to the non-test sites; the implementation commit and issue estimate use
+  the total and are authoritative.
+- The prior dogfood revision's `mvp_scope [ariadne#180, ariadne#171], #182
+  explicitly out` was superseded later on 2026-07-16. The live project now has
+  `mvp_scope: [ariadne#180, ariadne#171, ariadne#182]` and
+  `explicitly_out: [ariadne#15]`: the operator established that computed
+  effort-to-calendar feasibility is the defining timeline capability that
+  distinguishes a project from an issue, so #182 is in the MVP while remaining
+  a separately implemented issue.
+
+### 2026-07-16 — M2 boundary-review reconciliation
+
+**Reason:** the M2 `FIX-THEN-SHIP` review found three implementation ambiguities,
+one ownership contradiction, and durable verification evidence that had not
+been reflected in the detailed plan rows.
+
+**Delta:**
+
+- Typed `Doc.Tasks` is scoped to the real `## Breakdown`; the legacy close
+  mutators retain their historical whole-document scan through an explicitly
+  named compatibility seam. Markdown fences are structure-aware so example H2s
+  and checkboxes cannot masquerade as project structure.
+- Close-time schema validation cannot safely hard-fail until #171 migrates the
+  five legacy `status: active` brain projects. #180 supplies typed mutation and
+  push/merge conformance; #171 owns activating close-time validation afterward.
+- The scratch bad-status push refusal, live-instance conformance, full suite,
+  and vocabulary harness were run before review and are now recorded in the
+  checked M2 rows and issue Log.
+- The milestone-actual deviation correction is an enabling side quest, not an
+  expansion of M2's project-model scope: cumulative claim-to-HEAD measurements
+  cannot be compared to per-milestone increments.
+
+### 2026-07-16 — M3 REWORK boundary reconciliation
+
+**Reason:** the first M3 boundary review found that free-text scaffold values
+were not YAML-safe and that three slug consumers could escape the modeled live
+project directory. It also found the new user-facing verb family absent from
+README.md.
+
+**Delta:**
+
+- `RenderScaffold` encodes every user-provided frontmatter string as a YAML-safe
+  double-quoted scalar, and `Doc.FM` decodes that representation for typed
+  consumers. Regression coverage includes colons, comments, quotes, newlines,
+  booleans, and date-like text plus a real vocabulary-validator subprocess.
+- The PURE `project.ResolvePath` is now the single slug-to-path boundary for
+  new/show/validate/set-status. Canonical lowercase kebab slugs are required;
+  traversal and nested paths refuse before any read, validator call, or write.
+- The Core concepts table now names scaffold, summary, and locator entities;
+  README.md carries the runnable M3 project workflow.
+
+### 2026-07-16 — M4 live-dogfood frontier correction
+
+**Reason:** the required symlinked process-level run showed an unblocked
+`working` issue missing from the derived frontier. The approved Spec defines
+frontier as “what's unblocked”; `IssueModel.IsOpen` is narrower and means only
+“not yet started.”
+
+**Delta:** frontier membership is any unfinished, dependency-unblocked,
+non-terminal issue (with explicit `blocked` still excluded). A focused
+regression covers the active `working` case before the one-predicate fix.
+
+### 2026-07-16 — M4 full-suite integration correction
+
+**Reason:** the first full bare suite found that the new nested lifecycle verb
+was present in the shared workflow catalog but had not joined the brain/non-SDLC
+repo guard, and two fixed census tests still pinned the pre-M4 gate/lock sets.
+
+**Delta:** `project close` runs `guardSpineRepo` before manual `--slug`
+validation (so repository identity remains guard-first), the lifecycle test
+executes multiword catalog keys as separate argv tokens, and the repo-lock plus
+14-gate census pins include the new boundary.
+
+### 2026-07-16 — M4 REWORK boundary reconciliation
+
+**Reason:** the M4 fresh-context review found that close recognized selected
+guard names instead of consuming the transition's complete ordered guard list,
+could calibrate from a partial actual sum, and changed the live project before
+the sibling ledger write. It also found the Phase-A document misclassified as a
+PURE entity, missing README examples, and ambiguity about real-instance M4
+dogfood.
+
+**Delta:**
+
+- Close iterates every modeled guard through a close-owned handler registry and
+  refuses unknown names. The retro and fog handlers remain distinct because fog
+  prepares a cross-repo transaction rather than calling the generic document
+  guard.
+- Fog calibration requires a positive measured actual for every MVP ref.
+  Lookup errors, unset values, explicit `N/A`, and non-positive values make the
+  set incomplete: ledger-backed close refuses; acknowledged `--no-ledger`
+  archives with `actuals: incomplete` / `fog: n/a` instead of a false row.
+- Project and ledger contents are staged before either durable path changes;
+  ordered renames have reverse-order compensation. A forced ledger-stage
+  failure regression proves both original records remain unchanged.
+- The Phase-A method moves from PURE entities to Integration points as a
+  human-executed process/document surface. Validation is structural content
+  review, helptext linkage, live command use, and close-ledger tests—not a
+  fictional colocated pure unit test.
+- README now shows status, retro dry-run/write, close/drop, and explicit bypass
+  semantics. The real ideation project is exercised with read-only `status` and
+  `retro --dry-run`; lifecycle mutation remains correctly deferred until its
+  PRD and baseline are genuinely ready.
+
+### 2026-07-16 — M4 YAML-semantics and Phase-A reconciliation
+
+**Reason:** the third fresh review found that raw line extraction did not honor
+all YAML representations accepted by `#Project`/`#Issue`, and that the close
+path collapsed absent, malformed, and non-positive Phase-A estimates into one
+automatic legacy bypass. It also found the compensation test stopped before
+ledger replacement and the checked board contract's last-retro age was absent.
+
+**Delta:**
+
+- One typed YAML metadata decoder now supplies quoted scalar, flow-list,
+  block-list, and numeric semantics to both project and issue consumers. Status,
+  `mvp_scope`, deps, estimates, and actuals are no longer re-parsed as raw lines;
+  pure plus real-lookup regressions cover each representation.
+- One tri-state Phase-A parser feeds both the commitment guard and close.
+  Malformed/non-positive values always refuse. An absent value is the only
+  legacy case and requires explicit `--no-ledger`/`--force`, matching README and
+  the model's named fog guard.
+- Transaction rename is injected in tests: a forced archive rename after the
+  ledger has been replaced proves reverse compensation restores both original
+  records. Board rendering now includes last-retro age from injected `today`.
+
+### 2026-07-16 — M4 finite-number and residual-consumer reconciliation
+
+**Reason:** the fourth fresh review found that YAML/legacy non-finite numbers
+could survive semantic decoding and enter the fog ledger, two M4 consumers had
+not yet switched to decoded metadata, and the Core concepts table described M5
+entities as already delivered.
+
+**Delta:**
+
+- Numeric metadata is valid only when finite and positive; quoted/unquoted
+  NaN/Inf and zero refuse before board aggregation or calibration. Close also
+  defends its injected issue-meta seam against non-finite test/future callers.
+- Board name and stale-retro status use typed metadata. A close transaction
+  captures `today` once so Log, ledger, and frontmatter cannot cross midnight.
+- Close/drop endpoints derive from vocabulary event transitions; explicit
+  blocked detection derives from the issue model's `block` event target. Event
+  names remain deliberate verb-policy identifiers; enum values are not copied.
+- Datatype prose and the prose-drift test are labeled `planned M5` in Core
+  concepts until that milestone lands.
+
+### 2026-07-16 — M4 canonical-scope calibration reconciliation
+
+**Reason:** a later M4 fresh review found that `mvp_scope` could repeat one
+logical issue through identical or current-repository alias references. Close
+would sum every list entry and persist a precise-looking but inflated fog
+factor.
+
+**Delta:** before reading any actual or mutating either durable record, project
+close parses each MVP ref to a canonical resolved-repository-plus-issue-ID
+identity and refuses duplicates. Regressions cover both exact duplicates and
+`ariadne#1` / `#1` alias equivalence (ARCH-PURPOSE).
+
+### 2026-07-16 — M4 unavailable-peer compatibility reconciliation
+
+**Reason:** the next M4 review found that filesystem-required canonicalization
+made an absent peer an unconditional error, overriding the established contract
+that lookup failures are incomplete actuals and `--no-ledger` may explicitly
+close without calibration.
+
+**Delta:** duplicate identity is now best-effort: resolvable refs use the
+canonical repository path, while an absent peer uses a normalized repository
+token so repeated spellings are still caught. Unparseable refs continue to the
+lookup seam and become unavailable inputs. A missing-peer regression proves a
+ledger-backed close refuses as incomplete and `--no-ledger` archives with
+`actuals: incomplete` / `fog: n/a` (ARCH-PURPOSE).
+
+### 2026-07-16 — M4 logical-identity board reconciliation
+
+**Reason:** the next M4 review found that dependency components used raw ref
+spelling, so current-repository and peer-prefix aliases could split one logical
+dependency graph into false parallel threads. Exact duplicate task refs could
+also double-count remaining effort.
+
+**Delta:** issue lookup now carries the shared canonical repository-plus-ID
+identity into the pure board core. Board maps and components key on that
+identity while retaining the first authored ref for display; duplicate task
+refs contribute one effort value and one component. Regressions cover
+`ariadne#3` / `#3`, peer-prefix / full-peer identity, and exact duplicates. The
+same resolver helper now serves close and status (ARCH-DRY, ARCH-PURPOSE).
+
+### 2026-07-16 — M4 structural fog-ledger reconciliation
+
+**Reason:** the next M4 review found that fog-ledger insertion assumed every
+split line owned a newline byte (panicking at a valid EOF table) and located the
+section with an unanchored substring that could select prose or fenced examples.
+
+**Delta:** ledger transformation is now a pure helper over text. It uses the
+project package's shared fence-aware Markdown scanner to locate the real
+level-two section, restricts insertion to its first contiguous table, and
+reconstructs lines without invented byte offsets. Regressions cover EOF after
+the divider, EOF after an existing row, inline/fenced fake headings, and the
+real later section (ARCH-DRY, ARCH-PURE, ARCH-PURPOSE).
+
+### 2026-07-16 — whole-issue artifact reconciliation
+
+**Reason:** the whole-issue `FIX-THEN-SHIP` review found three durable-record
+inconsistencies after the implementation itself passed review: delivered M1
+rows remained unchecked, the M2 sidecar retained its raw reviewer transcript,
+and the issue's historical Dogfood paragraph predated the final scope decision.
+
+**Delta:** all delivered M1 rows are checked; the M2 and whole-close review
+sidecars are bounded to their verdict, findings, remediation, and verification;
+and the authoritative MVP scope is `[ariadne#180, ariadne#171, ariadne#182]`
+with `[ariadne#15]` explicitly out. Earlier scope text remains as historical
+provenance and is superseded by this revision plus the matching issue revision.

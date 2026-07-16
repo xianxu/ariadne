@@ -1,6 +1,6 @@
-// Package project mutates brain-side project files (status ticks + detail
-// blocks) for the sdlc binary. Ported from scripts/close-issue.py — same
-// regex shapes so semantics match the Python source.
+// Package project parses and mutates project files for the sdlc binary. The
+// typed Doc core preserves the established close-issue.py tick semantics while
+// detail-block helpers retain their original line-oriented behavior.
 package project
 
 import (
@@ -60,17 +60,20 @@ func FindByIssueRef(brainDir, repoName, issueID string) (string, error) {
 // The character class `[ .\-~]` mirrors close-issue.py exactly (note the
 // escaped hyphen).
 func TickMilestoneTaskRow(text, repoName, issueID, milestone string) (string, int) {
-	pat := regexp.MustCompile(
-		`(?m)^(- )\[[ .\-~]\](.*?\[` +
-			regexp.QuoteMeta(repoName) + `#` + regexp.QuoteMeta(issueID) +
-			` ` + regexp.QuoteMeta(milestone) + `\])`,
-	)
-	n := len(pat.FindAllStringIndex(text, -1))
-	if n == 0 {
+	d, fullDoc, err := parseTickDoc(text)
+	if err != nil {
 		return text, 0
 	}
-	out := pat.ReplaceAllString(text, `${1}[x]${2}`)
-	return out, n
+	wantRef := repoName + "#" + issueID + " " + milestone
+	n := 0
+	for _, task := range d.legacyTaskRows {
+		if !strings.Contains(" .-~", string(task.State)) || task.RefText != wantRef {
+			continue
+		}
+		d.setTaskStateAtLine(task.LineIdx, 'x')
+		n++
+	}
+	return renderTickDoc(d, fullDoc), n
 }
 
 // TickAllTaskRowsForIssue ticks every task row for this issue regardless of
@@ -81,17 +84,38 @@ func TickMilestoneTaskRow(text, repoName, issueID, milestone string) (string, in
 // `[-~]`) for the issue-close path — that's intentional: cancelled/blocked
 // task rows shouldn't be silently flipped to done at issue close.
 func TickAllTaskRowsForIssue(text, repoName, issueID string) (string, int) {
-	pat := regexp.MustCompile(
-		`(?m)^(- )\[[ .]\](.*?\[` +
-			regexp.QuoteMeta(repoName) + `#` + regexp.QuoteMeta(issueID) +
-			`(?: [^\]]+)?\])`,
-	)
-	matches := pat.FindAllStringSubmatchIndex(text, -1)
-	if len(matches) == 0 {
+	d, fullDoc, err := parseTickDoc(text)
+	if err != nil {
 		return text, 0
 	}
-	out := pat.ReplaceAllString(text, `${1}[x]${2}`)
-	return out, len(matches)
+	wantRef := repoName + "#" + issueID
+	n := 0
+	for _, task := range d.legacyTaskRows {
+		if task.State != ' ' && task.State != '.' {
+			continue
+		}
+		if task.RefText != wantRef && !strings.HasPrefix(task.RefText, wantRef+" ") {
+			continue
+		}
+		d.setTaskStateAtLine(task.LineIdx, 'x')
+		n++
+	}
+	return renderTickDoc(d, fullDoc), n
+}
+
+func parseTickDoc(text string) (*Doc, bool, error) {
+	if strings.HasPrefix(text, "---\n") {
+		d, err := ParseDoc(text)
+		return d, true, err
+	}
+	return parseDocBody("", text), false, nil
+}
+
+func renderTickDoc(d *Doc, fullDoc bool) string {
+	if fullDoc {
+		return d.Render()
+	}
+	return strings.Join(d.lines, "\n")
 }
 
 // Field is a (name, value) pair used by UpsertDetailBlockFields. Callers

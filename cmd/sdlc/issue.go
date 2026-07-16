@@ -161,7 +161,7 @@ func resolveValidateTargets(f *issueValidateFlags, args []string) ([]string, err
 // the pre-merge gate's concern, not the agent's authoring check).
 func validateIssueFull(file string) []string {
 	var probs []string
-	out, ok, runErr := validateFrontmatterFn(file)
+	out, ok, runErr := validateFrontmatterFn("issue", file)
 	switch {
 	case runErr != nil:
 		probs = append(probs, "could not run the frontmatter validator: "+runErr.Error())

@@ -45,7 +45,7 @@ discovery: {
 	// archive: the ROOT terminal issues AND their id-keyed plan/review family
 	// move under on close/merge (ariadne#160). Since ariadne#181 writes land in
 	// per-kind subdirs — <archive>/issues and <archive>/plans (review sidecars
-	// ride with plans) — derived in Go by pkg/vocab.ArchiveSubdirs (Go-owned,
+	// ride with plans) — derived in Go by pkg/vocab.ArchiveSubdir (Go-owned,
 	// not modeled here: writers derive from --history-dir overrides, and
 	// widening this string to a struct would break downstream JSON consumers).
 	// Readers tolerate the pre-#181 flat layout. A resolver (ariadne#144

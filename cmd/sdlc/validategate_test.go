@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 const (
@@ -20,7 +21,7 @@ func stubGate(t *testing.T, changes []gitx.FileChange, fmOK bool, fmRunErr error
 	t.Helper()
 	od, of, or := diffNameStatusFn, validateFrontmatterFn, readIssueFileFn
 	diffNameStatusFn = func(_, _ string) ([]gitx.FileChange, error) { return changes, nil }
-	validateFrontmatterFn = func(_ string) (string, bool, error) {
+	validateFrontmatterFn = func(_, _ string) (string, bool, error) {
 		return "  - status: \"in-progress\" is not valid", fmOK, fmRunErr
 	}
 	readIssueFileFn = func(p string) ([]byte, error) { return []byte(files[p]), nil }
@@ -29,7 +30,7 @@ func stubGate(t *testing.T, changes []gitx.FileChange, fmOK bool, fmRunErr error
 
 func runGate() error {
 	var out, errw bytes.Buffer
-	return validateChangedIssues("BASE", "", "workshop/issues", &out, &errw)
+	return validateChangedInstances("BASE", "", nounGates("workshop/issues"), &out, &errw)
 }
 
 func TestValidateChangedIssues(t *testing.T) {
@@ -97,7 +98,7 @@ func TestValidateChangedIssues(t *testing.T) {
 	})
 }
 
-func TestIsIssueFile(t *testing.T) {
+func TestIsInstanceFile(t *testing.T) {
 	cases := []struct {
 		path string
 		want bool
@@ -109,8 +110,55 @@ func TestIsIssueFile(t *testing.T) {
 		{"cmd/sdlc/x.go", false},
 	}
 	for _, c := range cases {
-		if got := isIssueFile(c.path, "workshop/issues"); got != c.want {
-			t.Errorf("isIssueFile(%q) = %v, want %v", c.path, got, c.want)
+		if got := isInstanceFile(c.path, "workshop/issues"); got != c.want {
+			t.Errorf("isInstanceFile(%q) = %v, want %v", c.path, got, c.want)
 		}
+	}
+}
+
+func TestNounGatesDefaultIssueHomeComesFromVocabulary(t *testing.T) {
+	t.Setenv("WF_ISSUES_DIR", "")
+	gates := nounGates("")
+	if got, want := gates[0].dir, vocab.Issue().Discovery().Home; got != want {
+		t.Fatalf("issue gate dir = %q, want vocabulary discovery home %q", got, want)
+	}
+}
+
+func TestValidateChangedInstancesDispatchesByNoun(t *testing.T) {
+	od, of, or := diffNameStatusFn, validateFrontmatterFn, readIssueFileFn
+	t.Cleanup(func() { diffNameStatusFn, validateFrontmatterFn, readIssueFileFn = od, of, or })
+
+	diffNameStatusFn = func(_, _ string) ([]gitx.FileChange, error) {
+		return []gitx.FileChange{
+			{Status: "A", Path: "custom/issues/000900-good.md"},
+			{Status: "A", Path: "workshop/projects/demo.md"},
+			{Status: "M", Path: "workshop/issues/000901-default-dir.md"},
+		}, nil
+	}
+	var validated []string
+	validateFrontmatterFn = func(noun, path string) (string, bool, error) {
+		validated = append(validated, noun+":"+path)
+		return "", true, nil
+	}
+	reads := 0
+	readIssueFileFn = func(path string) ([]byte, error) {
+		reads++
+		return []byte(gateGood), nil
+	}
+
+	var out, errw bytes.Buffer
+	err := validateChangedInstances("BASE", "", nounGates("custom/issues"), &out, &errw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"issue:custom/issues/000900-good.md",
+		"project:workshop/projects/demo.md",
+	}
+	if strings.Join(validated, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("validated = %v, want %v", validated, want)
+	}
+	if reads != 1 {
+		t.Fatalf("issue section reads = %d, want 1 (projects have no issue-section gate)", reads)
 	}
 }

@@ -93,18 +93,27 @@ func Issue() *IssueModel { return issueModel }
 // them (ariadne#144).
 func (m *IssueModel) Discovery() Discovery { return m.Disc }
 
-// ArchiveSubdirs derives the per-kind archive layout from an archive ROOT
-// (#181): issues under root/issues, plans + review sidecars under root/plans.
-// Go-owned rather than cue-encoded because writers take --history-dir /
-// WF_HISTORY_DIR root overrides and must derive from an arbitrary root (and
-// widening the cue's `archive` string to a struct would break downstream JSON
-// consumers of the discovery export). THE single derivation point — consumers
-// route through it; nothing concatenates these subdir literals elsewhere (a
-// guard test enforces this). Reads stay tolerant of the pre-#181 flat layout;
-// writes emit only into these subdirs. `history/projects/` (ariadne#180) will
-// widen this when project archiving lands.
-func ArchiveSubdirs(root string) (issues, plans string) {
-	return filepath.Join(root, "issues"), filepath.Join(root, "plans")
+// ArchiveKind names one per-kind archive subdir under the archive root (#181
+// layout, widened kind-keyed for #180): issues under root/issues, plans +
+// review sidecars under root/plans, done/dropped projects under root/projects.
+type ArchiveKind string
+
+const (
+	ArchiveIssues   ArchiveKind = "issues"
+	ArchivePlans    ArchiveKind = "plans"
+	ArchiveProjects ArchiveKind = "projects"
+)
+
+// ArchiveSubdir derives one kind's archive dir from an archive ROOT. Go-owned
+// rather than cue-encoded because writers take --history-dir / WF_HISTORY_DIR
+// root overrides and must derive from an arbitrary root (and widening the
+// cue's `archive` string to a struct would break downstream JSON consumers of
+// the discovery export). THE single derivation point — consumers route through
+// it; nothing concatenates these subdir literals elsewhere (a guard test
+// enforces this). Reads stay tolerant of the pre-#181 flat layout; writes emit
+// only into these subdirs.
+func ArchiveSubdir(root string, kind ArchiveKind) string {
+	return filepath.Join(root, string(kind))
 }
 
 // Sections returns the ordered creation-template body sections, so the issue
@@ -126,12 +135,7 @@ func (m *IssueModel) InitialStatus() string {
 }
 
 func (m *IssueModel) inCategory(cat, s string) bool {
-	for _, v := range m.Categories[cat] {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return inCat(m.Categories, cat, s)
 }
 
 // IsTerminal reports whether s is a closed status (done/wontfix/punt).
@@ -143,13 +147,16 @@ func (m *IssueModel) IsActive(s string) bool { return m.inCategory("active", s) 
 // IsOpen reports whether s is the not-yet-started status.
 func (m *IssueModel) IsOpen(s string) bool { return m.inCategory("open", s) }
 
+func (m *IssueModel) IsEventTarget(status, event string) bool {
+	return isEventTarget(m.Lifecycle, status, event)
+}
+
+// issueCategoryOrder is the issue noun's category ordering for AllStatuses.
+var issueCategoryOrder = []string{"open", "active", "terminal"}
+
 // AllStatuses returns every status, ordered open → active → terminal.
 func (m *IssueModel) AllStatuses() []string {
-	var out []string
-	for _, cat := range []string{"open", "active", "terminal"} {
-		out = append(out, m.Categories[cat]...)
-	}
-	return out
+	return allStatuses(m.Categories, issueCategoryOrder)
 }
 
 // CanTransition reports whether the lifecycle declares a from→to edge. As of
@@ -157,27 +164,14 @@ func (m *IssueModel) AllStatuses() []string {
 // the model doesn't declare, with a `--force` escape (claim/close perform fixed
 // legal transitions and stay ungated).
 func (m *IssueModel) CanTransition(from, to string) bool {
-	for _, t := range m.Lifecycle {
-		if t.From == from && t.To == to {
-			return true
-		}
-	}
-	return false
+	return canTransition(m.Lifecycle, from, to)
 }
 
 // LegalTransitions returns the statuses `from` may legally transition to, in
 // lifecycle order, de-duplicated. Empty when `from` is unknown or a true
 // dead-end. Used to render the legal targets in set-status's refusal message.
 func (m *IssueModel) LegalTransitions(from string) []string {
-	var out []string
-	seen := map[string]bool{}
-	for _, t := range m.Lifecycle {
-		if t.From == from && !seen[t.To] {
-			out = append(out, t.To)
-			seen[t.To] = true
-		}
-	}
-	return out
+	return legalTransitions(m.Lifecycle, from)
 }
 
 // ── Help-text renders (#125) ──
@@ -191,27 +185,7 @@ func (m *IssueModel) LegalTransitions(from string) []string {
 // (each status + its one-line `When` semantics) and a LEGAL TRANSITIONS section
 // (each status → its legal targets). 2-space indented to match the help style.
 func (m *IssueModel) RenderLifecycleHelp() string {
-	statuses := m.AllStatuses()
-	width := 0
-	for _, s := range statuses {
-		if len(s) > width {
-			width = len(s)
-		}
-	}
-	var b strings.Builder
-	b.WriteString("STATUSES\n\n")
-	for _, s := range statuses {
-		b.WriteString(fmt.Sprintf("  %-*s  %s\n", width, s, m.When[s]))
-	}
-	b.WriteString("\nLEGAL TRANSITIONS\n\n")
-	for _, s := range statuses {
-		targets := m.LegalTransitions(s)
-		if len(targets) == 0 {
-			continue
-		}
-		b.WriteString(fmt.Sprintf("  %-*s  → %s\n", width, s, strings.Join(targets, ", ")))
-	}
-	return strings.TrimRight(b.String(), "\n")
+	return renderLifecycleHelp(m.AllStatuses(), m.When, m.Lifecycle)
 }
 
 // StatusNames joins the status set with sep, in AllStatuses order — for an inline

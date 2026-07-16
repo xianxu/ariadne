@@ -14,7 +14,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 | Issue Log section | same file (git) | What happened during the work, narratively? | humans skimming the issue |
 | Plan file (complex case) | `workshop/plans/<N>-*-plan.md` (git) | Detailed implementation breakdown — Core concepts, file structure, bite-sized tasks | execution sessions, milestone reviewers |
 | Target file | `workshop/targets/<slug>.md` (git) | What shape do we defend against drift? | humans + agents reading the system |
-| Project file | `brain/data/project/<slug>.md` (git) | Portfolio status — actuals, scope events, multi-issue progress | the operator's portfolio view |
+| Project file | per-repo `workshop/projects/<slug>.md` (git); terminal records archive to `workshop/history/projects/` | Committed baseline, scope events, and retros; `sdlc project status` derives live multi-issue progress from referenced issue records | operator + contributors coordinating the project |
 | Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | How well do estimates match measured actuals? (per-issue estimate↔actual + per-model drift, #117/#127) | velocity calibration; the estimate shell |
 | Atlas entries | `atlas/**.md` (git) | How is the system built — architectural map | first-level onboarding |
 | Git commits (messages + trailers) | git history (immutable) | What changed, why, and what checkpoint state was crossed? | tooling, history readers, audit |

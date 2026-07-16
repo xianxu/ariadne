@@ -63,6 +63,18 @@ func TestTickMilestoneTaskRow_Match(t *testing.T) {
 			"- [ ] do work [ariadne#31 M1-extra]\n",
 			0,
 		},
+		{
+			"trailing_note_after_ref",
+			"- [ ] do work [ariadne#31 M1] (operator note)\n",
+			"- [x] do work [ariadne#31 M1] (operator note)\n",
+			1,
+		},
+		{
+			"later_bracket_group_is_not_a_ref",
+			"- [ ] do work [ariadne#31 M1] (see [notes](url))\n",
+			"- [ ] do work [ariadne#31 M1] (see [notes](url))\n",
+			0,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -98,6 +110,23 @@ func TestTickAllTaskRowsForIssue(t *testing.T) {
 	// 3 ticks: M1 + M2 + bare ref (M3 already x, M4 cancelled not in class, #99 different issue)
 	if n != 3 {
 		t.Errorf("n = %d want 3", n)
+	}
+}
+
+func TestLegacyTickScansRealSectionsButIgnoresFencedExamples(t *testing.T) {
+	in := "---\ntype: project\nstatus: executing\n---\n" +
+		"## PRD\n- [ ] acceptance [ariadne#31 M1]\n\n" +
+		"```markdown\n- [ ] example [ariadne#31 M1]\n" +
+		"```go\n- [ ] still example [ariadne#31 M1]\n```\n\n" +
+		"## Breakdown\n- [ ] task [ariadne#31 M1]\n"
+	want := strings.Replace(in, "- [ ] acceptance", "- [x] acceptance", 1)
+	want = strings.Replace(want, "- [ ] task", "- [x] task", 1)
+	got, n := TickMilestoneTaskRow(in, "ariadne", "31", "M1")
+	if got != want {
+		t.Fatalf("legacy tick changed the wrong rows:\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+	if n != 2 {
+		t.Fatalf("ticks = %d, want 2 real-section rows", n)
 	}
 }
 

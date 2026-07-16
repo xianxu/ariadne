@@ -405,7 +405,8 @@ func TestParseRef(t *testing.T) {
 func TestResolveRun_SubfolderedAndFlatArchive(t *testing.T) {
 	root := seedTempRepo(t)
 	d := vocab.Issue().Discovery()
-	issuesSub, plansSub := vocab.ArchiveSubdirs(d.Archive)
+	issuesSub := vocab.ArchiveSubdir(d.Archive, vocab.ArchiveIssues)
+	plansSub := vocab.ArchiveSubdir(d.Archive, vocab.ArchivePlans)
 	seed := map[string][]string{
 		issuesSub: {"000031-sub.md"},                              // subfoldered issue
 		plansSub:  {"000031-sub-plan.md", "000031-sub-close-review.md"}, // + family
