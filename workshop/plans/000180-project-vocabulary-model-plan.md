@@ -1149,7 +1149,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
 **Files:**
 - Create: `pkg/vocab/prose_drift_test.go`
 
-- [ ] **Step 1: Write the test** (mirrors the invariant-chain pattern —
+- [x] **Step 1: Write the test** (mirrors the invariant-chain pattern —
   `helptext/issue_sections_test.go` for the ⊆-direction):
 
 ```go
@@ -1175,13 +1175,13 @@ func TestProjectProseCitesModel(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Sanity-check the binding both ways** — `git stash` the M5.1
+- [x] **Step 2: Sanity-check the binding both ways** — `git stash` the M5.1
   edit and run the test: it must FAIL against the pre-demotion prose (the
   backticked `active` + missing citation both trip). Unstash; it must PASS.
   A drift test that passes on the un-demoted prose is vacuous — prove it bites
   before committing it.
 
-- [ ] **Step 3: Commit** — `#180 M5: drift test — prose table bound to project.cue`
+- [x] **Step 3: Commit** — `#180 M5: drift test — prose table bound to project.cue`
 
 #### Task M5.3: atlas + skill claim + issue close
 
