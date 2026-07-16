@@ -189,10 +189,12 @@ cmd/sdlc/
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
   issue.go             new (#56): `sdlc issue` group — new / set-status / list / show / validate (#124)
-  validategate.go      new (#124): the deterministic instance-conformance gate run
-                       by push+merge before the irreversible action, independent of
-                       the LLM judges (frontmatter on every changed issue; sections
-                       added-only); shells `vocabulary validate-instance`. `--no-validate`
+  validategate.go      deterministic instance-conformance gate (#124, generalized
+                       by #180 M2): noun table enrolls issue + project; push/merge
+                       validate frontmatter on every changed instance, with
+                       added-only section checks for issues; shells
+                       `vocabulary validate-instance --type <noun>`; `--no-validate`
+                       remains the loud escape hatch
   start.go             migration stub (REMOVED in #39 — errors with
                        "use claim + change-code")
   claim.go             ← scripts/issue-sync.sh (renamed from lock.go #39)
@@ -229,7 +231,10 @@ cmd/sdlc/
     issue/             frontmatter parse/edit + plan-section regexes +
                        scaffold.go (NextID/Slugify/Render — #56)
     judge/             Category enum, prompt builder, classify, dispatch
-    project/           brain project-file mutation helpers
+    project/           project-file core: line-preserving typed Doc/Task parser +
+                       checkbox/frontmatter/section mutations (#180 M2), alongside
+                       the legacy brain-residency lookup/detail-block helpers (#171
+                       will lift residency)
 ```
 
 ## Drift checks (`sdlc state`)
