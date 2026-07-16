@@ -266,6 +266,7 @@ rejected: stay-in-place records. Spec updated in place where these were
 parked.
 
 ### 2026-07-16 — durable plan authored + reviewed
+- 2026-07-16: closed M1 — go test ./... + vet_test.sh green (bare); invalid fixture fails vet on the enum conflict specifically; live pm-primitive instance vets clean against #Project; embeds byte-identical under vocabulary binary; ArchiveSubdir guard test widened, 11 call sites migrated; review verdict: FIX-THEN-SHIP
 
 Plan landed at `workshop/plans/000180-project-vocabulary-model-plan.md`
 (5 milestones, M1–M5 as review boundaries). Three fresh-eyes chunk reviews

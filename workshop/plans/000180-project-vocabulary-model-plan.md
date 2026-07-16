@@ -1232,3 +1232,29 @@ scope boundary.
   actually done).
 - #180's issue scope is unchanged — single multi-boundary issue; the project
   file tracks the wider lift, it does not restructure the issue.
+
+### 2026-07-16 — M1 boundary-review reconciliation
+
+**Reason:** the M1 `FIX-THEN-SHIP` review found one stale served consumer and
+three plan statements that no longer matched the implementation or the
+operator's same-day scope decision. The generated consumer is refreshed via
+`make weave`; this revision records the durable plan deltas without rewriting
+the approved plan in place.
+
+**Delta:**
+
+- M1.2's Files list drops the planned `pkg/vocab/lifecycle_test.go`. The shared
+  helpers are exercised through the issue, verdict, and project model tests;
+  the behavior-preserving extraction kept the existing pins green, so a new
+  helper-only test file would duplicate those contracts.
+- M1.4 migrated **11 call sites total: 9 non-test + 2 test**. The task's
+  implementation text and proposed commit subject saying "9 call sites" refer
+  only to the non-test sites; the implementation commit and issue estimate use
+  the total and are authoritative.
+- The prior dogfood revision's `mvp_scope [ariadne#180, ariadne#171], #182
+  explicitly out` was superseded later on 2026-07-16. The live project now has
+  `mvp_scope: [ariadne#180, ariadne#171, ariadne#182]` and
+  `explicitly_out: [ariadne#15]`: the operator established that computed
+  effort-to-calendar feasibility is the defining timeline capability that
+  distinguishes a project from an issue, so #182 is in the MVP while remaining
+  a separately implemented issue.
