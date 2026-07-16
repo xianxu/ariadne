@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-15
 updated: 2026-07-15
-estimate_hours: 8.5
+estimate_hours: 8.1
 started: 2026-07-15T15:12:34-07:00
 ---
 
@@ -137,6 +137,49 @@ lift; project first — it is the one the sdlc spine touches.
 Related: #171 (residency/navigation/close-gate half — consumes this model;
 soft ordering: model first or together).
 
+## Estimate
+
+Item→milestone mapping: M1 = typed-data-prototype (project.cue) + two
+smaller-go-module (vocab helper extraction; Project() binding) +
+cross-cutting-refactor (kind-keyed ArchiveSubdir, 9 non-test + 2 test call
+sites). M2 =
+greenfield-go-module (Doc/Task parser) + two smaller-go-module (tick reimpl;
+validate-gate noun table). M3 = two smaller-go-module (verb skeleton +
+helptext; new/list/show/validate) + greenfield-go-module (guard registry +
+set-status). M4 = greenfield-go-module ×2 (computeBoard/status; project
+close) + smaller-go-module (retro + nudge) + pensive (Phase-A method doc).
+M5 = atlas-docs (prose demotion + drift test + atlas). milestone-review
+impl=1.0 aggregates the five boundary reviews at 0.2 each.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: typed-data-prototype    design=0.2 impl=0.16
+item: smaller-go-module       design=0.1 impl=0.16
+item: smaller-go-module       design=0.1 impl=0.2
+item: cross-cutting-refactor  design=0.1 impl=0.16
+item: greenfield-go-module    design=0.3 impl=0.28
+item: smaller-go-module       design=0.1 impl=0.16
+item: smaller-go-module       design=0.1 impl=0.16
+item: smaller-go-module       design=0.2 impl=0.2
+item: smaller-go-module       design=0.2 impl=0.24
+item: greenfield-go-module    design=0.3 impl=0.28
+item: greenfield-go-module    design=0.4 impl=0.4
+item: smaller-go-module       design=0.2 impl=0.2
+item: greenfield-go-module    design=0.4 impl=0.4
+item: pensive                 design=0.4 impl=0.08
+item: atlas-docs              design=0.2 impl=0.2
+item: milestone-review        design=0.0 impl=1.0
+design-buffer: 0.15
+total: 8.1
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. Design column includes the
+already-spent brainstorm/plan sessions (actuals measure from claim); impl
+values are v3.1's 40%-scaled v2 table; +15% design buffer (thorough plan
+doc).*
+
 ## Done when
 
 - `construct/vocabulary/project.cue` models the project noun (fields,
@@ -238,8 +281,8 @@ board), and a drift-test regex that matched nothing (fixed: exact-byte
 assertions + stash-based bite-proof). Chunk-2 reviewer ran the plan's CUE
 through `cue vet`/`cue export`/`validate-instance` end-to-end — model
 valid, baseline guard bites, JSON carries what ProjectModel expects.
-Estimate set: 8.5h (v3.1 Method A: design ≈3.3h incl. boundary reviews,
-impl 8.2h×0.4≈3.3h, +15% design buffer — thorough plan doc). *Produced via
+Estimate set: 8.1h (v3.1 Method A, itemized in `## Estimate` at change-code:
+design 3.3h ×1.15, impl 4.28h incl. five 0.2h boundary reviews). *Produced via
 `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
 
