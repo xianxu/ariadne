@@ -99,6 +99,8 @@ close-gate lift** and CONSUMES this model. Concretely, in scope here:
 | shared lifecycle helpers | `pkg/vocab/lifecycle.go` | new |
 | `ArchiveSubdir` (kind-keyed) | `pkg/vocab/vocab.go` | modified |
 | `Doc` / `Task` (typed project file) | `cmd/sdlc/internal/project/doc.go` | new |
+| YAML-semantic workflow metadata decoder | `cmd/sdlc/internal/project/metadata.go` | new |
+| Phase-A tri-state parser | `cmd/sdlc/internal/project/phasea.go` | new |
 | `ScaffoldSpec` / `RenderScaffold` | `cmd/sdlc/internal/project/scaffold.go` | new |
 | `Summary` renderers | `cmd/sdlc/internal/project/summary.go` | new |
 | project slug/path resolver | `cmd/sdlc/internal/project/path.go` | new |
@@ -1355,3 +1357,25 @@ dogfood.
   semantics. The real ideation project is exercised with read-only `status` and
   `retro --dry-run`; lifecycle mutation remains correctly deferred until its
   PRD and baseline are genuinely ready.
+
+### 2026-07-16 — M4 YAML-semantics and Phase-A reconciliation
+
+**Reason:** the third fresh review found that raw line extraction did not honor
+all YAML representations accepted by `#Project`/`#Issue`, and that the close
+path collapsed absent, malformed, and non-positive Phase-A estimates into one
+automatic legacy bypass. It also found the compensation test stopped before
+ledger replacement and the checked board contract's last-retro age was absent.
+
+**Delta:**
+
+- One typed YAML metadata decoder now supplies quoted scalar, flow-list,
+  block-list, and numeric semantics to both project and issue consumers. Status,
+  `mvp_scope`, deps, estimates, and actuals are no longer re-parsed as raw lines;
+  pure plus real-lookup regressions cover each representation.
+- One tri-state Phase-A parser feeds both the commitment guard and close.
+  Malformed/non-positive values always refuse. An absent value is the only
+  legacy case and requires explicit `--no-ledger`/`--force`, matching README and
+  the model's named fog guard.
+- Transaction rename is injected in tests: a forced archive rename after the
+  ledger has been replaced proves reverse compensation restores both original
+  records. Board rendering now includes last-retro age from injected `today`.

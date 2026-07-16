@@ -790,5 +790,10 @@ refuse or record a visibly non-calibrating `n/a` under an explicit bypass. For
 one command changing multiple durable records, stage every output first and
 test a forced late-stage failure leaves all original records unchanged. At each
 user-facing milestone, add runnable README examples in the same boundary.
+If the schema accepts YAML, consume it semantically through one typed decoder;
+flat regex/line readers are not schema consumers because quoted scalars and
+block lists are equally valid data. Parsers for guarded evidence must preserve
+absent vs invalid states so only genuine legacy absence can take an explicit
+bypass.
 
 **Origin:** #180 M4 boundary review (REWORK).

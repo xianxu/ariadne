@@ -14,8 +14,7 @@ type GuardCtx struct {
 type GuardFunc func(d *Doc, ctx GuardCtx) error
 
 var (
-	phaseAEstimateRE = regexp.MustCompile(`(?m)^\*\*phase-a:\*\*\s+(?:\d+(?:\.\d+)?|\.\d+)h\s*$`)
-	retroHeadingRE   = regexp.MustCompile(`(?m)^### \d{4}-\d{2}-\d{2} — retro\b`)
+	retroHeadingRE = regexp.MustCompile(`(?m)^### \d{4}-\d{2}-\d{2} — retro\b`)
 )
 
 func Guards() map[string]GuardFunc {
@@ -28,7 +27,11 @@ func Guards() map[string]GuardFunc {
 			return nil
 		},
 		"phase-a-estimate": func(d *Doc, _ GuardCtx) error {
-			if !phaseAEstimateRE.MatchString(d.SectionBody("Estimate")) {
+			_, present, err := ParsePhaseA(d.SectionBody("Estimate"))
+			if err != nil {
+				return err
+			}
+			if !present {
 				return fmt.Errorf("Estimate must contain **phase-a:** <N>h")
 			}
 			return nil

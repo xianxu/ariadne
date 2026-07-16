@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -81,7 +80,11 @@ type board struct {
 }
 
 func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (board, error) {
-	b := board{Name: d.FM("name"), Status: d.FM("status"), Deadline: d.FM("deadline"), PlannedFinish: d.FM("planned_finish"), Total: len(d.Tasks), LastRetro: projectdoc.LatestRetroDate(d)}
+	metadata, err := d.Metadata()
+	if err != nil {
+		return board{}, err
+	}
+	b := board{Name: d.FM("name"), Status: metadata.Status, Deadline: metadata.Deadline, PlannedFinish: metadata.PlannedFinish, Total: len(d.Tasks), LastRetro: projectdoc.LatestRetroDate(d)}
 	metas := map[string]issueMeta{}
 	for _, task := range d.Tasks {
 		row := boardRow{RefText: task.RefText, Title: task.Title, Ticked: task.State == 'x'}
@@ -205,7 +208,13 @@ func renderBoard(b board, today string) string {
 		parts[i] = "[" + strings.Join(thread, ", ") + "]"
 	}
 	fmt.Fprintf(&s, "threads: %d — %s\n", len(b.Threads), strings.Join(parts, " / "))
-	fmt.Fprintf(&s, "last retro: %s\n", valueOr(b.LastRetro, "-"))
+	lastRetro := valueOr(b.LastRetro, "-")
+	if retroDate, err := time.Parse("2006-01-02", b.LastRetro); err == nil {
+		if now, err := time.Parse("2006-01-02", today); err == nil {
+			lastRetro = fmt.Sprintf("%s (%d days ago)", b.LastRetro, int(now.Sub(retroDate).Hours()/24))
+		}
+	}
+	fmt.Fprintf(&s, "last retro: %s\n", lastRetro)
 	for _, row := range b.Rows {
 		if row.Warning != "" {
 			fmt.Fprintf(&s, "warning: %s — %s\n", valueOr(row.RefText, row.Title), row.Warning)
@@ -243,43 +252,18 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 	if err != nil {
 		return issueMeta{}, err
 	}
-	meta := issueMeta{}
-	meta.Status, _ = issue.GetField(fm, "status")
-	if value, _ := issue.GetField(fm, "estimate_hours"); value != "" {
-		meta.EstimateHours, err = strconv.ParseFloat(value, 64)
-		if err != nil {
-			return issueMeta{}, fmt.Errorf("%s has invalid estimate_hours %q", refText, value)
-		}
+	decoded, err := projectdoc.DecodeMetadata(fm)
+	if err != nil {
+		return issueMeta{}, fmt.Errorf("%s: %w", refText, err)
 	}
-	if value, _ := issue.GetField(fm, "actual_hours"); value != "" {
-		if value == "N/A" {
-			meta.ActualNA = true
-		} else {
-			meta.ActualHours, err = strconv.ParseFloat(value, 64)
-			if err != nil {
-				return issueMeta{}, fmt.Errorf("%s has invalid actual_hours %q", refText, value)
-			}
-			meta.ActualAvailable = true
-		}
+	meta := issueMeta{Status: decoded.Status, Deps: decoded.Deps}
+	meta.EstimateHours, _, _, err = projectdoc.NumberValue(decoded.EstimateHours, "estimate_hours")
+	if err != nil {
+		return issueMeta{}, fmt.Errorf("%s has %w", refText, err)
 	}
-	if value, _ := issue.GetField(fm, "deps"); value != "" {
-		meta.Deps = parseInlineRefs(value)
+	meta.ActualHours, meta.ActualAvailable, meta.ActualNA, err = projectdoc.NumberValue(decoded.ActualHours, "actual_hours")
+	if err != nil {
+		return issueMeta{}, fmt.Errorf("%s has %w", refText, err)
 	}
 	return meta, nil
-}
-
-func parseInlineRefs(value string) []string {
-	value = strings.TrimSpace(value)
-	value = strings.TrimPrefix(strings.TrimSuffix(value, "]"), "[")
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if ref := strings.TrimSpace(part); ref != "" {
-			out = append(out, ref)
-		}
-	}
-	return out
 }

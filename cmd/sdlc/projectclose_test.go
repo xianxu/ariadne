@@ -85,6 +85,28 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 	}
 }
 
+func TestProjectCloseReadsQuotedStatusAndBlockMVPScope(t *testing.T) {
+	f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
+	b, _ := os.ReadFile(projectPath)
+	text := strings.Replace(string(b), "status: executing", "status: 'executing'", 1)
+	text = strings.Replace(text, "mvp_scope: [ariadne#1, ariadne#2]", "mvp_scope:\n  - ariadne#1\n  - ariadne#2", 1)
+	if err := os.WriteFile(projectPath, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	original := projectIssueLookupFn
+	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+		return issueMeta{ActualHours: 20, ActualAvailable: true}, nil
+	}
+	t.Cleanup(func() { projectIssueLookupFn = original })
+	if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+		t.Fatal(err)
+	}
+	archived, err := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
+	if err != nil || !strings.Contains(string(archived), "fog: 1.00") {
+		t.Fatalf("block-list close failed: err=%v\n%s", err, archived)
+	}
+}
+
 func TestProjectCloseFailsClosedOnUnknownModeledGuard(t *testing.T) {
 	f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
 	original := projectCloseTransitionFn
@@ -206,10 +228,45 @@ func TestProjectCloseLedgerStageFailureLeavesBothRecordsUnchanged(t *testing.T) 
 	}
 }
 
+func TestProjectCloseArchiveRenameFailureRestoresProjectAndLedger(t *testing.T) {
+	f, projectPath, ledgerPath := projectCloseFixture(t, "executing", true, true)
+	projectBefore, _ := os.ReadFile(projectPath)
+	ledgerBefore, _ := os.ReadFile(ledgerPath)
+	originalLookup := projectIssueLookupFn
+	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
+	}
+	originalRename := projectCloseRenameFn
+	projectCloseRenameFn = func(oldPath, newPath string) error {
+		if strings.Contains(filepath.Base(oldPath), ".sdlc-project-close-project-") {
+			return errors.New("forced archive rename failure")
+		}
+		return originalRename(oldPath, newPath)
+	}
+	t.Cleanup(func() {
+		projectIssueLookupFn = originalLookup
+		projectCloseRenameFn = originalRename
+	})
+	err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+	if err == nil || !strings.Contains(err.Error(), "forced archive rename failure") {
+		t.Fatalf("runProjectClose error = %v", err)
+	}
+	projectAfter, _ := os.ReadFile(projectPath)
+	ledgerAfter, _ := os.ReadFile(ledgerPath)
+	if string(projectAfter) != string(projectBefore) || string(ledgerAfter) != string(ledgerBefore) {
+		t.Fatal("post-ledger archive failure did not restore both originals")
+	}
+}
+
 func TestProjectCloseMissingPhaseAWarnsAndLogsNAWithoutLedger(t *testing.T) {
 	f, _, ledgerPath := projectCloseFixture(t, "executing", true, false)
 	before, _ := os.ReadFile(ledgerPath)
 	var stderr bytes.Buffer
+	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err == nil || !strings.Contains(err.Error(), "--no-ledger") {
+		t.Fatalf("missing phase-a error = %v, want explicit bypass requirement", err)
+	}
+	f.NoLedger = true
+	stderr.Reset()
 	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err != nil {
 		t.Fatal(err)
 	}
@@ -223,6 +280,24 @@ func TestProjectCloseMissingPhaseAWarnsAndLogsNAWithoutLedger(t *testing.T) {
 	b, _ := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
 	if !strings.Contains(string(b), "fog: n/a") {
 		t.Fatalf("missing fog n/a close log:\n%s", b)
+	}
+}
+
+func TestProjectCloseRejectsMalformedOrNonPositivePhaseA(t *testing.T) {
+	for _, value := range []string{"bogus", "0h"} {
+		t.Run(value, func(t *testing.T) {
+			f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
+			b, _ := os.ReadFile(projectPath)
+			text := strings.Replace(string(b), "**phase-a:** 40h", "**phase-a:** "+value, 1)
+			if err := os.WriteFile(projectPath, []byte(text), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			f.NoLedger = true
+			err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+			if err == nil || !strings.Contains(err.Error(), "invalid phase-a") {
+				t.Fatalf("phase-a %q error = %v, want invalid refusal", value, err)
+			}
+		})
 	}
 }
 

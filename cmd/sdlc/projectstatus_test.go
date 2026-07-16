@@ -30,7 +30,7 @@ func TestLookupIssueMetaCrossRepoAndArchive(t *testing.T) {
 	if err := os.MkdirAll(archive, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	issue := "---\nid: 000007\nstatus: done\nestimate_hours: 3.5\nactual_hours: 4.25\ndeps: [ariadne#1, nous#2]\n---\n# x\n"
+	issue := "---\nid: 000007\nstatus: 'done'\nestimate_hours: 3.5\nactual_hours: 4.25\ndeps:\n  - ariadne#1\n  - nous#2\n---\n# x\n"
 	if err := os.WriteFile(filepath.Join(archive, "000007-x.md"), []byte(issue), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestComputeBoardFrontierIncludesUnblockedActiveIssue(t *testing.T) {
 func TestRenderBoardIncludesOperationalLines(t *testing.T) {
 	b := board{Name: "demo", Status: "executing", Deadline: "2026-09-01", PlannedFinish: "2026-08-20", Done: 1, Total: 3, RemainingHours: 22, Frontier: []string{"ariadne#2"}, Blocked: []string{"nous#9"}, Threads: [][]string{{"ariadne#2", "ariadne#3"}, {"nous#9"}}, LastRetro: "2026-07-10"}
 	out := renderBoard(b, "2026-07-20")
-	for _, want := range []string{"demo — executing", "1/3 done", "Σ remaining ≈ 22h", "frontier: ariadne#2", "blocked: nous#9", "threads: 2 — [ariadne#2, ariadne#3] / [nous#9]", "last retro: 2026-07-10"} {
+	for _, want := range []string{"demo — executing", "1/3 done", "Σ remaining ≈ 22h", "frontier: ariadne#2", "blocked: nous#9", "threads: 2 — [ariadne#2, ariadne#3] / [nous#9]", "last retro: 2026-07-10 (10 days ago)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("render missing %q:\n%s", want, out)
 		}

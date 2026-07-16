@@ -326,6 +326,24 @@ ref and bad value. Also narrowed the transaction comment to distinguish
 compensated commit-step failures from post-commit backup-cleanup errors
 (ARCH-PURPOSE).
 
+### 2026-07-16 — M4 third review: REWORK (YAML + Phase-A semantics)
+
+The third review found that M4 consumers still interpreted model-valid YAML
+through flat line strings (breaking quoted status and block-form scope/deps),
+and that Phase-A absence/invalidity collapsed into an implicit ledger bypass.
+It also requested compensation coverage after ledger replacement and the
+planned last-retro age. Remediation adds a shared typed YAML metadata decoder,
+a shared absent/valid/invalid Phase-A parser used by both guard and close,
+explicit no-ledger acknowledgement for legacy absence, invalid/zero refusal,
+an injected post-ledger archive-rename failure proving both originals restore,
+and age rendering from injected `today`. Pure and real-IO regressions cover
+quoted/flow/block forms; live project status remains correct (ARCH-DRY,
+ARCH-PURPOSE).
+
+Third-review remediation verification: `go test ./... -count=1`; focused race
+suite including Phase/Metadata; `bash construct/vocabulary/vet_test.sh`; live
+`project status`; and `git diff --check` all pass.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

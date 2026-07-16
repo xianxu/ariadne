@@ -24,7 +24,9 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   Its M4 workflow consumers keep the baseline stored while deriving the live
   board from referenced issue records; dedicated close runs the model's named
   retro/fog guards and moves terminal records to the model-derived project
-  archive rather than hand-maintaining a second portfolio state.
+  archive rather than hand-maintaining a second portfolio state. Those
+  consumers decode typed YAML metadata once, so flow/block lists and quoted
+  scalars carry the same semantics the vocabulary validator accepts.
 - `construct/vocabulary/verdict.cue` — the `verdict` noun (#147): boundary-review
   verdict tokens by category (`finalizing` = SHIP/FIX-THEN-SHIP, `blocking` = REWORK,
   `internal` = system-set not-run/unknown), with `#Emitted`/`#Token` *derived*; the
