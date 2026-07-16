@@ -246,7 +246,10 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 	meta := issueMeta{}
 	meta.Status, _ = issue.GetField(fm, "status")
 	if value, _ := issue.GetField(fm, "estimate_hours"); value != "" {
-		meta.EstimateHours, _ = strconv.ParseFloat(value, 64)
+		meta.EstimateHours, err = strconv.ParseFloat(value, 64)
+		if err != nil {
+			return issueMeta{}, fmt.Errorf("%s has invalid estimate_hours %q", refText, value)
+		}
 	}
 	if value, _ := issue.GetField(fm, "actual_hours"); value != "" {
 		if value == "N/A" {

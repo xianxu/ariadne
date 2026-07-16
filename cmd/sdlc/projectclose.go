@@ -211,8 +211,8 @@ func stageProjectCloseFile(dir, pattern string, data []byte) (path string, err e
 }
 
 // commitProjectClose stages both records before changing either durable path.
-// Renames are compensated in reverse order on failure, so a reported error
-// leaves the live project and ledger at their pre-command contents.
+// Commit-step failures are compensated in reverse order; post-commit backup
+// cleanup errors are explicitly reported as committed cleanup failures.
 func commitProjectClose(livePath, dest, projectNext, ledgerPath, ledgerNext string) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err

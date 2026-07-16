@@ -43,6 +43,30 @@ func TestLookupIssueMetaCrossRepoAndArchive(t *testing.T) {
 	}
 }
 
+func TestMalformedIssueEstimateDegradesToBoardWarning(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "ariadne")
+	peerIssues := filepath.Join(parent, "nous", "workshop", "issues")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(peerIssues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issue := "---\nid: 000008\nstatus: working\nestimate_hours: invalid\n---\n# malformed\n"
+	if err := os.WriteFile(filepath.Join(peerIssues, "000008-malformed.md"), []byte(issue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d := boardDoc(t, "- [ ] malformed estimate [nous#8]")
+	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return lookupIssueMeta(ref, root) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.RemainingHours != 0 || len(b.Rows) != 1 || !strings.Contains(b.Rows[0].Warning, `invalid estimate_hours "invalid"`) {
+		t.Fatalf("malformed estimate did not degrade to an explicit warning: %+v", b)
+	}
+}
+
 func TestProjectStatusCommandRegistered(t *testing.T) {
 	project, _, err := buildRoot().Find([]string{"project"})
 	if err != nil {

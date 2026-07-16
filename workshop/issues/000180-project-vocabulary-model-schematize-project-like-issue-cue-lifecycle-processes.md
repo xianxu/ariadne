@@ -314,6 +314,18 @@ suite (`go test -race ./cmd/sdlc ./cmd/sdlc/internal/project
 -count=1`), `bash construct/vocabulary/vet_test.sh`, and `git diff --check` all
 pass.
 
+### 2026-07-16 — M4 re-review: REWORK (malformed estimate)
+
+The second fresh review confirmed the guard/calibration/transaction/docs fixes
+and found one remaining derived-board bug: `lookupIssueMeta` discarded
+`ParseFloat` errors for `estimate_hours`, turning malformed input into a
+plausible zero-hour forecast. Added a real sibling-repo filesystem regression
+that proves `estimate_hours: invalid` becomes an explicit board warning and
+cannot enter remaining-hours/frontier calculations; parsing now fails with the
+ref and bad value. Also narrowed the transaction comment to distinguish
+compensated commit-step failures from post-commit backup-cleanup errors
+(ARCH-PURPOSE).
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should
