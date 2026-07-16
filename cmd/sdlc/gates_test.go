@@ -24,6 +24,7 @@ func TestGateCatalogMatchesRegisteredFlags(t *testing.T) {
 		"change-code":     NewChangeCodeCmd(),
 		"merge":           NewMergeCmd(),
 		"push":            NewPushCmd(),
+		"project close":   newProjectCloseCmd(),
 	}
 	for cmdName, cmd := range spine {
 		registered := registeredGateFlags(cmd)

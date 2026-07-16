@@ -232,6 +232,16 @@ doc).*
 
 ## Log
 
+### 2026-07-16 — M4.3 project close
+
+Added the dedicated close/drop boundary: lifecycle edges remain model-owned;
+retro and fog-ledger bypasses are explicit cataloged gates; Phase-A fog rolls
+up measured issue actuals; terminal records archive through
+`vocab.ArchiveSubdir`. The process-manual scanner now recognizes the full
+two-word `project close` catalog key in both Claude and Codex transcripts
+(ARCH-DRY, ARCH-PURPOSE). Hermetic close/gate/scanner tests, `go test
+./cmd/sdlc/... -count=1`, and `git diff --check` pass.
+
 ### 2026-07-15
 
 Filed from the #171 thread (operator): "is project a datatype? we should

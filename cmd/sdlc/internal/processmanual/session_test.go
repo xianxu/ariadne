@@ -100,7 +100,7 @@ func fixtureJSONL(lines ...string) []byte {
 
 // testVerbs is the real-verb set the classifier validates against (stands in for
 // the catalog's help-text titles).
-var testVerbs = map[string]bool{"close": true, "milestone-close": true, "state": true}
+var testVerbs = map[string]bool{"close": true, "milestone-close": true, "state": true, "project close": true}
 
 // Task 2: classifyToolUse is the pure match table — the three injection-bearing
 // tool calls, with the sdlc matcher anchored so `sdlcx` doesn't false-positive.
@@ -116,6 +116,7 @@ func TestClassifyToolUse_table(t *testing.T) {
 		{"sdlc verb", `{"command":"sdlc close --issue 9"}`, KindSDLCPrompt, "close", true},
 		{"sdlc milestone-close", `{"command":"sdlc milestone-close --issue 9 --milestone M2"}`, KindSDLCPrompt, "milestone-close", true},
 		{"sdlc help", `{"command":"sdlc state --help"}`, KindHelpText, "state", true},
+		{"two-word sdlc command", `{"command":"sdlc project close --slug alpha"}`, KindSDLCPrompt, "project close", true},
 		{"lessons read", `{"file_path":"/repo/workshop/lessons.md"}`, KindLessons, "lessons.md", true},
 		{"plain bash", `{"command":"ls -la"}`, "", "", false},
 		{"sdlcx not anchored", `{"command":"echo sdlcx"}`, "", "", false},

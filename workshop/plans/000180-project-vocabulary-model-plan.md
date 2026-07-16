@@ -1007,7 +1007,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   the two-word `project close`; if not, extend the map key format rather than
   registering a row no invocation ever matches.
 
-- [ ] **Step 1: Write failing tests** (hermetic; brain dir = temp fixture):
+- [x] **Step 1: Write failing tests** (hermetic; brain dir = temp fixture):
   1. requires `status == "executing"` EXACTLY (design decision 9): a forming/
      committed status refuses pointing at the funnel; `paused` refuses with a
      "resume first" pointer (`sdlc project set-status --to executing`) — the
@@ -1033,7 +1033,7 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   frontmatter is resolvable per-ref cross-repo where the ledger is keyed
   differently. Deliberate choice, not an omission.
 
-- [ ] **Step 2: Implement.** Ledger row format (the table it appends to is
+- [x] **Step 2: Implement.** Ledger row format (the table it appends to is
   created by M4.4's doc):
 
 ```markdown
@@ -1045,10 +1045,10 @@ func computeBoard(d *project.Doc, lookup func(refText string) (issueMeta, error)
   `## Fog ledger` table is missing → refuse with the exact heading to add
   (unless `--no-ledger`).
 
-- [ ] **Step 3: Run** `go test ./cmd/sdlc/ -run ProjectClose` and the gate
+- [x] **Step 3: Run** `go test ./cmd/sdlc/ -run ProjectClose` and the gate
   catalog test — PASS.
 
-- [ ] **Step 4: Commit** — `#180 M4: sdlc project close — retro-gated, fog-factor ledger row, archives to history/projects`
+- [x] **Step 4: Commit** — `#180 M4: sdlc project close — retro-gated, fog-factor ledger row, archives to history/projects`
 
 #### Task M4.4: Phase-A estimation method doc (design deliverable)
 

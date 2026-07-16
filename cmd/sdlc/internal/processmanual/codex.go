@@ -142,13 +142,13 @@ func parseCodexInvocations(data []byte, validVerbs map[string]bool) []SdlcInvoca
 			if json.Unmarshal([]byte(r.Payload.Arguments), &args) != nil || args.Cmd == "" {
 				continue
 			}
-			m := sdlcVerbRE.FindStringSubmatch(args.Cmd)
-			if m == nil || !validVerbs[m[1]] {
+			verb, ok := matchSdlcCommand(args.Cmd, validVerbs)
+			if !ok {
 				continue
 			}
 			pend = append(pend, pending{
 				inv: SdlcInvocation{
-					Verb: m[1], Command: args.Cmd, Time: r.Timestamp,
+					Verb: verb, Command: args.Cmd, Time: r.Timestamp,
 					IssueID: parseIssueID(args.Cmd),
 					IsHelp:  bytes.Contains([]byte(args.Cmd), []byte("--help")),
 					Agent:   "codex",

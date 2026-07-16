@@ -377,7 +377,24 @@ func extractStdout(raw json.RawMessage) (string, bool) {
 // prose right after a separator is also dropped. Known accepted miss: an env-var
 // prefix (`VAR=1 sdlc close`) isn't a boundary, so it's not matched — rare, and
 // dropping it is the safe side of the precision/recall trade.
-var sdlcVerbRE = regexp.MustCompile(`(?:^\s*|[;|&(){}\n\x60]\s*)sdlc ([a-z][a-z-]*)`)
+var sdlcVerbRE = regexp.MustCompile(`(?:^\s*|[;|&(){}\n\x60]\s*)sdlc ([a-z][a-z-]*)(?:\s+([a-z][a-z-]*))?`)
+
+// matchSdlcCommand returns the longest command name present in validCommands.
+// Most spine commands are one word; nested gate-bearing commands such as
+// `project close` use two words and must remain distinct catalog keys.
+func matchSdlcCommand(command string, validCommands map[string]bool) (string, bool) {
+	m := sdlcVerbRE.FindStringSubmatch(command)
+	if m == nil {
+		return "", false
+	}
+	if len(m) > 2 && m[2] != "" {
+		candidate := m[1] + " " + m[2]
+		if validCommands[candidate] {
+			return candidate, true
+		}
+	}
+	return m[1], validCommands[m[1]]
+}
 
 // classifyToolUse is the pure match table (ports the IDEA of introspect's
 // segment_text.py summarize_tool_input, not its code): the three injection-bearing
@@ -400,13 +417,9 @@ func classifyToolUse(name string, input json.RawMessage, validVerbs map[string]b
 		if json.Unmarshal(input, &in) != nil {
 			return "", "", false
 		}
-		m := sdlcVerbRE.FindStringSubmatch(in.Command)
-		if m == nil {
+		verb, ok := matchSdlcCommand(in.Command, validVerbs)
+		if !ok {
 			return "", "", false
-		}
-		verb := m[1]
-		if !validVerbs[verb] {
-			return "", "", false // "sdlc <word>" where <word> isn't a real verb (prose mention)
 		}
 		// `sdlc <verb> --help` prints embedded help text (a distinct Kind from the
 		// injected review/gate prompts the bare verb fires).

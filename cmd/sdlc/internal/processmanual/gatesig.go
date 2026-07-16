@@ -7,7 +7,7 @@ import (
 
 // Gate bypass/refusal signature catalog (#172 friction audit).
 //
-// The `sdlc` spine has 12 bypass gates across five commands. This catalog is the
+// The `sdlc` spine has 14 bypass gates across six commands. This catalog is the
 // single source the friction classifier, the report, and the cross-command drift
 // guard (cmd/sdlc/gates_test.go) all derive from. Its ground truth is the master
 // table in workshop/plans/000172-sdlc-painpoint-audit-plan.md, itself enumerated
@@ -68,7 +68,7 @@ func init() {
 	}
 }
 
-// GateCatalog — the 16 signature rows over the 12 distinct spine gates.
+// GateCatalog — the 18 signature rows over the 14 distinct spine gates.
 var GateCatalog = []GateSig{
 	// close / milestone-close — G1 (shared computeClose emits these). ACK = the
 	// paren+colon form; refusal = the exact per-gate tail (NOT the shared prefix —
@@ -96,6 +96,15 @@ var GateCatalog = []GateSig{
 		RefusalPat: `--no-project, or --force, if it's`},
 	{Commands: closeMclose, Flag: "no-judge", Grammar: grammarCinfo, HasRefusal: false,
 		AckPat: `skipping (issue boundary review|milestone-review) per --no-judge \(or --force\)`},
+
+	// project close — G1. Nested commands remain full catalog keys so transcript
+	// attribution cannot conflate this boundary with issue close.
+	{Commands: []string{"project close"}, Flag: "no-retro", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-retro \(or --force\): closing without a recorded project retro`,
+		RefusalPat: `run .*project retro.*, or pass --no-retro \(or --force\)`},
+	{Commands: []string{"project close"}, Flag: "no-ledger", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-ledger \(or --force\): skipping fog-factor ledger`,
+		RefusalPat: `or pass --no-ledger \(or --force\)`},
 
 	// change-code — G2, silent unless --force. ACK = "<base> gate[s] bypassed (--force:";
 	// the base differs from the flag (no-judge → plan-quality/estimate-quality).

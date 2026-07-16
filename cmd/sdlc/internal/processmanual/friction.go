@@ -131,13 +131,13 @@ func scanTranscript(data []byte, validVerbs map[string]bool) ([]SdlcInvocation, 
 				if json.Unmarshal(c.Input, &in) != nil {
 					continue
 				}
-				m := sdlcVerbRE.FindStringSubmatch(in.Command)
-				if m == nil || !validVerbs[m[1]] {
+				verb, ok := matchSdlcCommand(in.Command, validVerbs)
+				if !ok {
 					continue
 				}
 				pend = append(pend, pending{
 					inv: SdlcInvocation{
-						Verb: m[1], Command: in.Command, Time: r.Timestamp,
+						Verb: verb, Command: in.Command, Time: r.Timestamp,
 						IssueID: parseIssueID(in.Command),
 						IsHelp:  bytes.Contains([]byte(in.Command), []byte("--help")),
 					},

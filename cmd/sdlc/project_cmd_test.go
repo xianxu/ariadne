@@ -7,7 +7,7 @@ import (
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-func TestProjectCommandTreeM3(t *testing.T) {
+func TestProjectCommandTree(t *testing.T) {
 	root := buildRoot()
 	project, _, err := root.Find([]string{"project"})
 	if err != nil || project == root {
@@ -19,10 +19,8 @@ func TestProjectCommandTreeM3(t *testing.T) {
 			t.Errorf("project %s not registered: %v", name, findErr)
 		}
 	}
-	for _, deferred := range []string{"close"} {
-		if found, _, _ := project.Find([]string{deferred}); found != project {
-			t.Errorf("project %s registered before M4", deferred)
-		}
+	if found, _, findErr := project.Find([]string{"close"}); findErr != nil || found == project {
+		t.Errorf("project close not registered: %v", findErr)
 	}
 }
 

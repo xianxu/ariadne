@@ -15,9 +15,7 @@ import (
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-// NewProjectCmd returns the project-record authoring command group. The M3
-// surface deliberately excludes status/retro/close: those derived and gated
-// workflow verbs land together in M4.
+// NewProjectCmd returns the model-backed project workflow command group.
 func NewProjectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "project",
@@ -36,6 +34,7 @@ func NewProjectCmd() *cobra.Command {
 	cmd.AddCommand(newProjectValidateCmd())
 	cmd.AddCommand(newProjectStatusCmd())
 	cmd.AddCommand(newProjectRetroCmd())
+	cmd.AddCommand(newProjectCloseCmd())
 	return cmd
 }
 

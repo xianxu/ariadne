@@ -111,6 +111,18 @@ func TestParseCodexInvocations(t *testing.T) {
 	}
 }
 
+func TestParseCodexInvocationsRecognizesTwoWordCatalogCommand(t *testing.T) {
+	data := strings.Join([]string{
+		codexRootMeta,
+		codexCall(t, "call_project", "sdlc project close --slug alpha --no-retro"),
+		codexOutput(t, "call_project", "0", "done"),
+	}, "\n")
+	invs := parseCodexInvocations([]byte(data), map[string]bool{"project close": true})
+	if len(invs) != 1 || invs[0].Verb != "project close" {
+		t.Fatalf("two-word command not recognized: %+v", invs)
+	}
+}
+
 // The wrapper's exit line precedes the command's own output, and the FIRST match
 // wins — a body that merely mentions a non-zero "Process exited with code N"
 // (e.g. a test log read back) must not mark the invocation Failed (M3 review).
