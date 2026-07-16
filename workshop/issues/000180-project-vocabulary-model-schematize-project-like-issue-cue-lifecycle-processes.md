@@ -213,7 +213,7 @@ doc).*
       owns conformance, verb set — single multi-boundary issue (dogfood
       deferred; #171 consumes the finished model) →
       `workshop/plans/000180-project-vocabulary-model-plan.md`
-- [ ] M1 — model + binding: project.cue (funnel, baseline guard, discovery,
+- [x] M1 — model + binding: project.cue (funnel, baseline guard, discovery,
       scaffold, laws) + vet block, pkg/vocab lifecycle-helper extraction,
       `vocab.Project()`, kind-keyed `ArchiveSubdir` (+projects)
 - [ ] M2 — typed parsing + conformance: `internal/project.Doc`/`Task`,
@@ -285,6 +285,17 @@ Estimate set: 8.1h (v3.1 Method A, itemized in `## Estimate` at change-code:
 design 3.3h ×1.15, impl 4.28h incl. five 0.2h boundary reviews). *Produced via
 `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
+
+### 2026-07-16 — M1 built (model + binding)
+
+Four commits on the feature branch: project.cue (invalid fixture verified to
+fail on the enum conflict, not a missing ref; live pm-primitive instance
+vets clean against #Project — the plan-Revisions requirement), lifecycle
+helper extraction (behavior-preserving, pins unchanged), vocab.Project()
+(embed byte-identical under the vocabulary binary; conformance test pins the
+deliberate paused→done absence), kind-keyed ArchiveSubdir with all 11 call
+sites migrated and the source-scan guard widened to projects. Full suite +
+vet_test.sh green (run bare, per lessons.md).
 
 ### 2026-07-16 — dogfood reversal + calendar-estimator spun off
 
