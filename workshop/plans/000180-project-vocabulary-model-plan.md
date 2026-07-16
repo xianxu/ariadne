@@ -872,8 +872,8 @@ func Guards() map[string]GuardFunc
 
 #### Task M3.4: close M3
 
-- [ ] Full bare suite — PASS. Tick plan rows; log.
-- [ ] `sdlc milestone-close --issue 180 --milestone M3`.
+- [x] Full bare suite — PASS. Tick plan rows; log.
+- [x] `sdlc milestone-close --issue 180 --milestone M3`.
 
 ### M4 — derived board, retro, calibrated close, Phase-A method
 

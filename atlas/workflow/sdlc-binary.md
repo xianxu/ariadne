@@ -43,6 +43,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
 | `issue validate`  | (new #124)                  | Validate issue file(s) against `#Issue` — frontmatter cue-vet (via `vocabulary validate-instance`) + section presence; multi-target (#133): `<file>...` / `--issue N[,N...]` / `--all` (mutually exclusive). The on-demand surface of the instance-conformance loop |
+| `project new/list/show/validate` | (new #180 M3) | Author and inspect project records. Scaffold sections/status and discovery derive from `#Project`; validation shells to the noun-generic vocabulary validator |
+| `project set-status` | (new #180 M3) | Enforce the project lifecycle and its ordered named guards from `project.cue`; unknown guards fail closed, evidence lands in Log, and `done` remains owned by `project close` |
 
 **Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
 *transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the
@@ -189,6 +191,9 @@ cmd/sdlc/
   judge.go             ← scripts/pre-merge-checks.sh
   fetch.go             thin hidden alias → runIssueNew --from-github (#56 M2)
   issue.go             new (#56): `sdlc issue` group — new / set-status / list / show / validate (#124)
+  project.go           new (#180 M3): thin project new/list/show/validate IO shell
+  projectsetstatus.go  project lifecycle legality + named-guard runner; →done
+                       delegates to the M4 close verb
   validategate.go      deterministic instance-conformance gate (#124, generalized
                        by #180 M2): noun table enrolls issue + project; push/merge
                        validate frontmatter on every changed instance, with
@@ -232,7 +237,8 @@ cmd/sdlc/
                        scaffold.go (NextID/Slugify/Render — #56)
     judge/             Category enum, prompt builder, classify, dispatch
     project/           project-file core: line-preserving typed Doc/Task parser +
-                       checkbox/frontmatter/section mutations (#180 M2), alongside
+                       checkbox/frontmatter/section mutations (#180 M2); model-derived
+                       scaffold, pure summaries, and pure named guards (#180 M3), alongside
                        the legacy brain-residency lookup/detail-block helpers (#171
                        will lift residency)
 ```
