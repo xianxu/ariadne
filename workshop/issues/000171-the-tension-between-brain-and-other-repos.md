@@ -4,8 +4,8 @@ status: working
 deps: []
 github_issue:
 created: 2026-07-13
-updated: 2026-07-14
-estimate_hours:
+updated: 2026-07-17
+estimate_hours: 4.1
 started: 2026-07-14T20:24:05-07:00
 ---
 
@@ -108,10 +108,56 @@ and the `## Revisions` arc.)*
 
 ## Plan
 
-- [ ] design via start-plan (the sdlc project lift: resolve-based project
-      lookup in the close gate, peer-write commit mechanics, residency
-      default + move procedure, §8/atlas updates) → durable plan; decide
-      there whether the lift splits into implementation sub-issues
+Design settled (2026-07-17). Full purpose lands as ONE issue with six review
+boundaries — NOT split into sub-issues (ARCH-PURPOSE: the Done-when is the whole
+lift, not the cheap close-lookup subset). Durable plan:
+`workshop/plans/000171-cross-repo-project-lift-plan.md`.
+
+- [ ] M1 — relax `done` baseline guard (project.cue + regen project.json + vet/conformance)
+- [ ] M2 — cross-repo project discovery (`DiscoverByIssueRef`, scope-aware) + all-match close update; brain-legacy deprecation warning
+- [ ] M3 — safe peer-write commit mechanics (pure `planPeerWrites` + thin git shell; on-main+clean → scoped commit, else report-only; close never fails)
+- [ ] M4 — fleet navigation: `sdlc project find` + `sdlc resolve` project kind (archive-inclusive) + parley `project` artifact class
+- [ ] M5 — residency docs (AGENTS.base §8 + brain-peer line, atlas, project datatype) + `sdlc propagate-base`
+- [ ] M6 — migrate the four terminal legacy records to their center-of-gravity `workshop/history/projects/`
+
+## Estimate
+
+Derived from the durable plan's six-milestone decomposition (design pre-resolved
+by the plan → ×0.2 spec-quality discount; impl at v3.1's 40% scale of the v2
+primitive table; +15% design buffer for a thorough plan doc). Milestone-review
+overhead is one `milestone-review` per boundary (six auto-dispatched
+fresh-context reviews). M3 (peer git mutation) and M6 (four-repo data move)
+carry slightly heavier impl to reflect their fiddliness.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module         design=0.05 impl=0.15
+item: greenfield-go-module      design=0.20 impl=0.25
+item: smaller-go-module         design=0.05 impl=0.20
+item: greenfield-go-module      design=0.20 impl=0.30
+item: cross-cutting-refactor    design=0.10 impl=0.15
+item: smaller-go-module         design=0.05 impl=0.20
+item: lua-neovim                design=0.30 impl=0.35
+item: atlas-docs                design=0.05 impl=0.15
+item: cross-repo-refactor-small design=0.05 impl=0.25
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+total: 4.1
+```
+
+Item→milestone map: M1 = first `smaller-go-module`; M2 = `greenfield-go-module`
+(discovery) + `smaller-go-module` (close wiring); M3 = `greenfield-go-module`
+(peerwrite) + `cross-cutting-refactor` (applyClose signature threading); M4 =
+`smaller-go-module` (find+resolve) + `lua-neovim` (parley class); M5 =
+`atlas-docs`; M6 = `cross-repo-refactor-small`; plus six `milestone-review`.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Revisions
 
@@ -182,6 +228,40 @@ residency default cheap to revise later.
   wholesale.
 - Working a cross-repo project no longer requires starting in brain.
 
+### 2026-07-17 — design settled; migration scope + "ends empty" reconciled
+
+**Reason:** `sdlc start-plan` design session. The four migratable records'
+destinations were confirmed by the operator, and the durable plan was written
++ fresh-eyes reviewed. One Done-when clause needs reconciling.
+
+- **Migration destinations (operator-confirmed 2026-07-17):**
+  `charon-launch-push` → nous history (Charon's checkout is gone; its function
+  was absorbed into Nous, so residency follows current product ownership);
+  `shared-brain` → nous history; `kaggle-ml-base-layer` → kbench history;
+  `metis-v1` → metis history. All four are `done`; they land directly in each
+  destination's `workshop/history/projects/`, schema-converted, never passing
+  through a live portfolio (a completed record in a live portfolio would
+  manufacture false current work).
+- **"brain's `data/project/` ends empty" is amended to "ends with only the
+  active `metis-v2-experiment-algebra`, pending its own migration."** `metis-v2`
+  is still executing (legacy `status: active`) and is deliberately NOT relocated
+  to a `history/projects/` archive mid-flight — archiving a live record would
+  misrepresent it as terminal. It migrates to `metis/workshop/projects/` when it
+  closes (or sooner, as a separate deliberate move). Until then, the close
+  gate's cross-repo discovery scans brain's legacy `data/project/` too (with a
+  loud deprecation warning) so closing a `metis#*` issue in `metis-v2`'s scope
+  still ticks it. This preserves the issue's thesis (brain holds no *new* SDLC
+  process artifacts) while honoring "don't disrupt active work."
+- **Schema decision:** the project vocabulary's compiled guard is relaxed so
+  `deadline`/`planned_finish` are required for committed/executing/paused but
+  NOT `done` — a record archived from the pre-baseline era honestly has no
+  committed baseline, and forcing fabricated dates on migration would be
+  dishonest data. New projects still carry a baseline (they pass through
+  `executing`). This is M1 of the plan.
+- **No sub-issue split:** the full Done-when (discovery + all-match update +
+  safe peer commit + resolve + parley + §8/atlas + the four migrations) lands
+  as this one issue across six review boundaries (ARCH-PURPOSE).
+
 ## Log
 
 ### 2026-07-13
@@ -228,3 +308,33 @@ project vocabulary model (construct/vocabulary/project.cue + pkg/vocab +
 conformance + prose-derives-from-model), mirroring issue's treatment. #171
 keeps the residency/navigation/close-gate half; its design consumes #180's
 model (soft ordering: model first or together).
+
+### 2026-07-17 — design session: durable plan written + reviewed
+
+`sdlc start-plan --issue 171` (arch principles pulled: ARCH-DRY/PURE/PURPOSE
+in play). Mapped the #180 substrate to reuse (subagent): `resolveRepoDir`'s
+sibling walk, `Tick*`/`UpsertDetailBlockFields`, the `gitRunner` seam,
+`vocab.Project().Discovery()`. Confirmed the current close-gate hook
+(`close.go:565-650` + `project.FindByIssueRef`) is single-repo in three ways
+(single-dir glob, refuse-on-multiple, no commit) — the exact surface the lift
+generalizes.
+
+Three design forks resolved with the operator (all recommended options): full
+purpose as one milestone-split issue; a shared pure `DiscoverByIssueRef`
+(one walker, three consumers: close gate ActiveOnly, resolve/find/parley
+ActiveAndArchive); relax the `done` baseline guard rather than fabricate dates.
+
+Durable plan written to `workshop/plans/000171-cross-repo-project-lift-plan.md`
+and put through a fresh-eyes plan review (subagent). Review found 4
+blocking/important issues, all folded in: (1) `DiscoverByIssueRef` needed a
+scope parameter so find/resolve/parley scan `workshop/history/projects/` but
+the close gate does not re-tick archived `done` projects; (2) `--brain-dir`
+stays live for the calibration ledger (`close.go:758`) — only its
+project-discovery use is removed, not the flag; (3) the close path holds no
+`gitRunner`, so M3 introduces one and changes `applyClose`'s signature +
+threads it through callers; (4) the "ends empty" Done-when clause reconciled
+via the Revision above. Independently verified two correctness risks: `git
+diff --cached --quiet` exit detection works (`execGitRunner` uses
+`CombinedOutput`), and `siblingRepoDirs` must live in `internal/project`
+(not `main`) to avoid an import cycle. Ready for `sdlc change-code` +
+implementation (M1 first).
