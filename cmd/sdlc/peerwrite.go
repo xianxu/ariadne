@@ -23,10 +23,12 @@ import (
 )
 
 // RepoGitState is the snapshot of a peer repo's git state that the commit
-// decision keys on. Read by readRepoGitState; consumed by planPeerWrites.
+// decision keys on. Read by readRepoGitState BEFORE the close writes any
+// files, so pre-existing dirt is visible; consumed by planPeerWrites.
 type RepoGitState struct {
-	Branch           string
+	Branch           string // "" when the branch could not be determined
 	HasStagedChanges bool
+	TargetFilesDirty bool // the files to be committed already have uncommitted local changes
 	IsBrain          bool // gitx.IsBrainRepo — a brain is never auto-committed into (#176)
 }
 
@@ -57,7 +59,11 @@ func planPeerWrites(edits map[string][]string, states map[string]RepoGitState, c
 			continue
 		}
 		msg := fmt.Sprintf("project: close-time update (%s)", closingRef)
-		manual := fmt.Sprintf("cd %s && git add %s && git commit -m %q", repoDir, strings.Join(files, " "), msg)
+		quoted := make([]string, len(files))
+		for i, f := range files {
+			quoted[i] = fmt.Sprintf("%q", f)
+		}
+		manual := fmt.Sprintf("cd %q && git add %s && git commit -m %q", repoDir, strings.Join(quoted, " "), msg)
 		d := PeerWriteDecision{RepoDir: repoDir, Files: files}
 		st, known := states[repoDir]
 		base := filepath.Base(repoDir)
@@ -67,13 +73,21 @@ func planPeerWrites(edits map[string][]string, states map[string]RepoGitState, c
 			d.NextAction = manual
 		case st.IsBrain:
 			d.Reason = fmt.Sprintf("%s is a brain capture repo — never auto-committed into (#176)", base)
+			d.NextAction = "leave it uncommitted — nous sweeps brain on its auto-commit rhythm"
+		case st.Branch == "":
+			d.Reason = fmt.Sprintf("%s git branch could not be determined — refusing to commit blind", base)
 			d.NextAction = manual
+		// "main" is the fleet-wide default branch by convention; a peer on any
+		// other default (e.g. master) stays report-only, which is the safe side.
 		case st.Branch != "main":
 			d.Reason = fmt.Sprintf("%s is on branch %q, not main", base, st.Branch)
 			d.NextAction = manual
 		case st.HasStagedChanges:
 			d.Reason = fmt.Sprintf("%s has pre-existing staged changes — refusing to absorb another session's index", base)
 			d.NextAction = manual + "  # after handling your staged changes"
+		case st.TargetFilesDirty:
+			d.Reason = fmt.Sprintf("%s has pre-existing uncommitted edits to the project file — refusing to absorb another session's work", base)
+			d.NextAction = manual + "  # review the pre-existing edits first"
 		default:
 			d.Commit = true
 			d.Message = msg
@@ -85,14 +99,29 @@ func planPeerWrites(edits map[string][]string, states map[string]RepoGitState, c
 }
 
 // readRepoGitState snapshots the git state the peer-write decision needs.
-// `diff --cached --quiet` exits non-zero iff there are staged changes;
-// execGitRunner surfaces that as err != nil (CombinedOutput).
-func readRepoGitState(r gitRunner, repoDir string) RepoGitState {
-	branch, _ := r.GitInDir(repoDir, "rev-parse", "--abbrev-ref", "HEAD")
-	_, err := r.GitInDir(repoDir, "diff", "--cached", "--quiet")
+// MUST run before the close writes files into repoDir: the target-file dirt
+// check (`status --porcelain -- <files>`, catching modified/staged/untracked
+// alike) is only meaningful against the pre-write tree. `diff --cached
+// --quiet` exits non-zero iff there are staged changes; execGitRunner
+// surfaces that as err != nil (CombinedOutput). A failed rev-parse yields
+// Branch "" (never the error text) so the planner reports "could not be
+// determined" instead of a garbled branch name.
+func readRepoGitState(r gitRunner, repoDir string, files []string) RepoGitState {
+	branchOut, berr := r.GitInDir(repoDir, "rev-parse", "--abbrev-ref", "HEAD")
+	branch := strings.TrimSpace(string(branchOut))
+	if berr != nil {
+		branch = ""
+	}
+	_, serr := r.GitInDir(repoDir, "diff", "--cached", "--quiet")
+	dirty := false
+	if len(files) > 0 {
+		out, derr := r.GitInDir(repoDir, append([]string{"status", "--porcelain", "--"}, files...)...)
+		dirty = derr != nil || strings.TrimSpace(string(out)) != ""
+	}
 	return RepoGitState{
-		Branch:           strings.TrimSpace(string(branch)),
-		HasStagedChanges: err != nil,
+		Branch:           branch,
+		HasStagedChanges: serr != nil,
+		TargetFilesDirty: dirty,
 		IsBrain:          gitx.IsBrainRepo(repoDir),
 	}
 }

@@ -715,6 +715,28 @@ var closeRunner gitRunner = execGitRunner{}
 // (#171 M3): scoped commit when the peer is on main with a clean index,
 // report-only otherwise — never failing the close either way.
 func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeResult) {
+	// ── Peer-write state snapshot (#171 M3) — BEFORE any file writes ─────────
+	// The current repo's project edit rides the close commit; each PEER repo's
+	// edit is committed there only when git state makes it unambiguous. The
+	// snapshot must precede the writes below so pre-existing dirt on the target
+	// files (another session's uncommitted edits) flips the peer to report-only
+	// instead of being silently absorbed into the scoped commit.
+	peerEdits := map[string][]string{}
+	for _, e := range res.projectEdits {
+		if e.repoDir == "" || e.repoDir == res.repoTop {
+			continue
+		}
+		rel, rerr := filepath.Rel(e.repoDir, e.path)
+		if rerr != nil {
+			rel = e.path
+		}
+		peerEdits[e.repoDir] = append(peerEdits[e.repoDir], rel)
+	}
+	states := map[string]RepoGitState{}
+	for repoDir, files := range peerEdits {
+		states[repoDir] = readRepoGitState(r, repoDir, files)
+	}
+
 	if res.newIssueText != res.issueText {
 		if err := os.WriteFile(res.issuePath, []byte(res.newIssueText), 0o644); err != nil {
 			die(stderr, fmt.Sprintf("write %s: %v", res.issuePath, err))
@@ -729,25 +751,7 @@ func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeR
 		cok(stderr, m)
 	}
 
-	// ── Peer-write commit decision (#171 M3) ─────────────────────────────────
-	// The current repo's project edit rides the close commit; each PEER repo's
-	// edit is committed there only when git state makes it unambiguous.
-	peerEdits := map[string][]string{}
-	for _, e := range res.projectEdits {
-		if e.repoDir == "" || e.repoDir == res.repoTop {
-			continue
-		}
-		rel, rerr := filepath.Rel(e.repoDir, e.path)
-		if rerr != nil {
-			rel = e.path
-		}
-		peerEdits[e.repoDir] = append(peerEdits[e.repoDir], rel)
-	}
 	if len(peerEdits) > 0 {
-		states := map[string]RepoGitState{}
-		for repoDir := range peerEdits {
-			states[repoDir] = readRepoGitState(r, repoDir)
-		}
 		decisions := planPeerWrites(peerEdits, states, res.repoTop, res.repoName+"#"+res.issueStr)
 		applyPeerWrites(r, decisions, stdout, stderr)
 	}

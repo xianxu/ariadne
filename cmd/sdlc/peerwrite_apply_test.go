@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,9 +63,9 @@ func TestReadRepoGitState(t *testing.T) {
 	parent := t.TempDir()
 	peer := initFleetRepo(t, parent, "peer")
 
-	st := readRepoGitState(execGitRunner{}, peer)
-	if st.Branch != "main" || st.HasStagedChanges || st.IsBrain {
-		t.Errorf("clean main repo: got %+v, want {main false false}", st)
+	st := readRepoGitState(execGitRunner{}, peer, []string{"README"})
+	if st.Branch != "main" || st.HasStagedChanges || st.TargetFilesDirty || st.IsBrain {
+		t.Errorf("clean main repo: got %+v, want {main false false false}", st)
 	}
 
 	// Staged change flips HasStagedChanges.
@@ -72,17 +73,56 @@ func TestReadRepoGitState(t *testing.T) {
 		t.Fatal(err)
 	}
 	gitIn(t, peer, "add", "staged.txt")
-	if st := readRepoGitState(execGitRunner{}, peer); !st.HasStagedChanges {
+	if st := readRepoGitState(execGitRunner{}, peer, nil); !st.HasStagedChanges {
 		t.Errorf("staged change not detected: %+v", st)
 	}
 	gitIn(t, peer, "reset", "-q", "HEAD", "staged.txt")
+	if err := os.Remove(filepath.Join(peer, "staged.txt")); err != nil {
+		t.Fatal(err)
+	}
+
+	// Unstaged edits to a TARGET file flip TargetFilesDirty (other files don't).
+	if err := os.WriteFile(filepath.Join(peer, "README"), []byte("edited\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if st := readRepoGitState(execGitRunner{}, peer, []string{"README"}); !st.TargetFilesDirty {
+		t.Errorf("unstaged edit to target file not detected: %+v", st)
+	}
+	if st := readRepoGitState(execGitRunner{}, peer, []string{"other.md"}); st.TargetFilesDirty {
+		t.Errorf("dirt on a NON-target file must not flip TargetFilesDirty: %+v", st)
+	}
+	gitIn(t, peer, "checkout", "-q", "--", "README")
+
+	// An UNTRACKED target file counts as dirty too (status --porcelain sees it).
+	untracked := filepath.Join("workshop", "projects", "new.md")
+	if err := os.MkdirAll(filepath.Join(peer, "workshop", "projects"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(peer, untracked), []byte("n\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if st := readRepoGitState(execGitRunner{}, peer, []string{untracked}); !st.TargetFilesDirty {
+		t.Errorf("untracked target file not detected as dirty: %+v", st)
+	}
+	if err := os.Remove(filepath.Join(peer, untracked)); err != nil {
+		t.Fatal(err)
+	}
 
 	// Off-main branch is reported.
 	gitIn(t, peer, "checkout", "-q", "-b", "feature-x")
-	if st := readRepoGitState(execGitRunner{}, peer); st.Branch != "feature-x" {
+	if st := readRepoGitState(execGitRunner{}, peer, nil); st.Branch != "feature-x" {
 		t.Errorf("branch = %q, want feature-x", st.Branch)
 	}
 	gitIn(t, peer, "checkout", "-q", "main")
+
+	// A non-git dir yields Branch "" (never garbled error text).
+	nonGit := filepath.Join(parent, "notarepo")
+	if err := os.MkdirAll(nonGit, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if st := readRepoGitState(execGitRunner{}, nonGit, nil); st.Branch != "" {
+		t.Errorf("non-git dir should yield empty Branch, got %q", st.Branch)
+	}
 
 	// The .brain/config.md predicate marks a brain regardless of basename.
 	if err := os.MkdirAll(filepath.Join(peer, ".brain"), 0o755); err != nil {
@@ -91,7 +131,7 @@ func TestReadRepoGitState(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(peer, ".brain", "config.md"), []byte("brain\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if st := readRepoGitState(execGitRunner{}, peer); !st.IsBrain {
+	if st := readRepoGitState(execGitRunner{}, peer, nil); !st.IsBrain {
 		t.Errorf("brain predicate not detected: %+v", st)
 	}
 }
@@ -106,9 +146,6 @@ func TestApplyPeerWrites(t *testing.T) {
 
 	clean := initFleetRepo(t, parent, "nous")
 	cleanRel := seedPeerProject(t, clean, "ariadne#42")
-	if err := os.WriteFile(filepath.Join(clean, cleanRel), []byte("ticked\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 
 	dirty := initFleetRepo(t, parent, "kbench")
 	dirtyRel := seedPeerProject(t, dirty, "ariadne#42")
@@ -116,17 +153,21 @@ func TestApplyPeerWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	gitIn(t, dirty, "add", "unrelated.txt")
-	if err := os.WriteFile(filepath.Join(dirty, dirtyRel), []byte("ticked\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 
 	edits := map[string][]string{
 		clean: {cleanRel},
 		dirty: {dirtyRel},
 	}
+	// Production order (applyClose): snapshot state BEFORE writing the edits.
 	states := map[string]RepoGitState{
-		clean: readRepoGitState(execGitRunner{}, clean),
-		dirty: readRepoGitState(execGitRunner{}, dirty),
+		clean: readRepoGitState(execGitRunner{}, clean, edits[clean]),
+		dirty: readRepoGitState(execGitRunner{}, dirty, edits[dirty]),
+	}
+	if err := os.WriteFile(filepath.Join(clean, cleanRel), []byte("ticked\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dirty, dirtyRel), []byte("ticked\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	decisions := planPeerWrites(edits, states, cur, "ariadne#42")
 
@@ -163,8 +204,39 @@ func TestApplyPeerWrites(t *testing.T) {
 	if !strings.Contains(stderr.String(), "NOT committed in kbench") || !strings.Contains(stderr.String(), "staged") {
 		t.Errorf("stderr missing report-only reason: %q", stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "git add "+dirtyRel) {
+	if !strings.Contains(stderr.String(), "git add") || !strings.Contains(stderr.String(), dirtyRel) {
 		t.Errorf("stderr missing exact next action: %q", stderr.String())
+	}
+}
+
+// failingRunner errors on every git call — pins applyPeerWrites's
+// warn-and-continue contract: a peer git failure never panics or aborts.
+type failingRunner struct{}
+
+func (failingRunner) Git(args ...string) ([]byte, error) {
+	return []byte("boom"), fmt.Errorf("git %v failed", args)
+}
+func (failingRunner) GitInDir(dir string, args ...string) ([]byte, error) {
+	return []byte("boom"), fmt.Errorf("git -C %s %v failed", dir, args)
+}
+func (failingRunner) MkdirAll(path string) error               { return nil }
+func (failingRunner) WriteFile(path string, data []byte) error { return nil }
+
+func TestApplyPeerWrites_GitFailureWarnsAndContinues(t *testing.T) {
+	decisions := []PeerWriteDecision{
+		{RepoDir: "/fleet/nous", Files: []string{"workshop/projects/p.md"}, Commit: true, Message: "m"},
+		{RepoDir: "/fleet/metis", Files: []string{"workshop/projects/q.md"}, Reason: "off-main", NextAction: "cd …"},
+	}
+	var stdout, stderr bytes.Buffer
+	applyPeerWrites(failingRunner{}, decisions, &stdout, &stderr) // must not panic or die
+	if !strings.Contains(stderr.String(), "git add in nous failed") {
+		t.Errorf("expected add-failure warning, got %q", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "NOT committed in metis") {
+		t.Errorf("report-only decision must still be reported after a prior failure: %q", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "committed") {
+		t.Errorf("no commit succeeded, stdout must not claim one: %q", stdout.String())
 	}
 }
 
@@ -265,8 +337,52 @@ func TestClose_PeerOffMainReportOnly(t *testing.T) {
 	if !strings.Contains(msg, "feature-y") || !strings.Contains(msg, "NOT committed in nous") {
 		t.Errorf("missing off-main report: %q", msg)
 	}
-	if !strings.Contains(msg, "git add "+rel) {
+	if !strings.Contains(msg, "git add") || !strings.Contains(msg, rel) {
 		t.Errorf("missing exact next action: %q", msg)
+	}
+}
+
+// TestClose_PeerDirtyProjectFileReportOnly pins the M3-review Important: a
+// peer on main with a CLEAN index but uncommitted working-tree edits to the
+// very project file being ticked must flip to report-only — the close writes
+// the ticked content (preserving the local edits) but never publishes another
+// session's work inside its scoped commit.
+func TestClose_PeerDirtyProjectFileReportOnly(t *testing.T) {
+	parent, issuesDir := fleetCloseFixture(t)
+	peer := initFleetRepo(t, parent, "nous")
+	rel := seedPeerProject(t, peer, "ariadne#42")
+
+	// Another session's unstaged edit to the same project file.
+	abs := filepath.Join(peer, rel)
+	orig, err := os.ReadFile(abs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(string(orig), "# p", "# p\n\nlocal note from another session", 1)
+	if err := os.WriteFile(abs, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := runClose(&out, &out, closeFlagsFor42(issuesDir)); err != nil {
+		t.Fatalf("runClose: %v\n%s", err, out.String())
+	}
+
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "- [x] [ariadne#42]") {
+		t.Errorf("row should still be ticked in the working tree:\n%s", data)
+	}
+	if !strings.Contains(string(data), "local note from another session") {
+		t.Errorf("the other session's edit must be preserved in the file:\n%s", data)
+	}
+	if subject := gitIn(t, peer, "log", "-1", "--pretty=%s"); !strings.Contains(subject, "seed") {
+		t.Errorf("dirty-target peer must not be auto-committed, HEAD is %q", subject)
+	}
+	if !strings.Contains(out.String(), "uncommitted edits") || !strings.Contains(out.String(), "NOT committed in nous") {
+		t.Errorf("missing dirty-target report: %q", out.String())
 	}
 }
 

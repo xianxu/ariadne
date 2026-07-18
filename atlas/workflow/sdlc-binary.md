@@ -153,11 +153,14 @@ uncommitted in that peer's working tree — but blindly committing into someone
 else's checkout is worse. `planPeerWrites(edits, states, curRepoDir,
 closingRef)` is the genuinely-pure decision core: per peer repo it authorizes
 a **scoped auto-commit** only when git state makes the commit unambiguous —
-on `main`, clean index, and not a brain capture repo (`RepoGitState.IsBrain`
-via `gitx.IsBrainRepo`, #176). Anything else — off-main, pre-existing staged
-changes, unknown state, brain — is **report-only**: the file stays written and
+on `main`, clean index, clean *target files*, and not a brain capture repo
+(`RepoGitState.IsBrain` via `gitx.IsBrainRepo`, #176). Anything else —
+off-main, pre-existing staged changes, pre-existing uncommitted edits to the
+very files being committed (`TargetFilesDirty`, snapshotted BEFORE the close's
+file writes so another session's work is never absorbed), undeterminable
+branch, unknown state, brain — is **report-only**: the file stays written and
 the operator gets the reason plus the exact `cd … && git add … && git commit`
-next action. The current repo is always omitted (its edit rides the normal
+next action (for a brain: leave it — nous sweeps it). The current repo is always omitted (its edit rides the normal
 close commit), and a report-only outcome never fails the close.
 `readRepoGitState` + `applyPeerWrites` are the thin shell over the shared
 `gitRunner` seam (`runner.go`); the close path owns a package-level

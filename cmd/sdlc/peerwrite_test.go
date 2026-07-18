@@ -19,12 +19,16 @@ func TestPlanPeerWrites(t *testing.T) {
 		"/fleet/kbench":  {"workshop/projects/d.md"}, // peer on main, staged changes → report-only
 		"/fleet/brain":   {"data/project/e.md"},      // brain capture repo → report-only (#176)
 		"/fleet/hermes":  {"workshop/projects/f.md"}, // no state entry → unknown → report-only
+		"/fleet/tyche":   {"workshop/projects/g.md"}, // target file already dirty → report-only
+		"/fleet/erebus":  {"workshop/projects/h.md"}, // branch undeterminable → report-only
 	}
 	states := map[string]RepoGitState{
 		"/fleet/nous":   {Branch: "main"},
 		"/fleet/metis":  {Branch: "feature-x"},
 		"/fleet/kbench": {Branch: "main", HasStagedChanges: true},
 		"/fleet/brain":  {Branch: "main", IsBrain: true},
+		"/fleet/tyche":  {Branch: "main", TargetFilesDirty: true},
+		"/fleet/erebus": {Branch: ""},
 		// /fleet/hermes deliberately absent
 	}
 
@@ -37,8 +41,8 @@ func TestPlanPeerWrites(t *testing.T) {
 	if _, ok := byRepo[cur]; ok {
 		t.Errorf("current repo %s must be omitted from peer decisions (it rides the close commit)", cur)
 	}
-	if len(got) != 5 {
-		t.Fatalf("want 5 peer decisions, got %d: %+v", len(got), got)
+	if len(got) != 7 {
+		t.Fatalf("want 7 peer decisions, got %d: %+v", len(got), got)
 	}
 
 	nous := byRepo["/fleet/nous"]
@@ -85,6 +89,22 @@ func TestPlanPeerWrites(t *testing.T) {
 	}
 	if !strings.Contains(hermes.Reason, "unknown") {
 		t.Errorf("hermes reason should say the git state is unknown, got %q", hermes.Reason)
+	}
+
+	tyche := byRepo["/fleet/tyche"]
+	if tyche.Commit {
+		t.Error("tyche (dirty target file) must be report-only — never absorb another session's uncommitted edits")
+	}
+	if !strings.Contains(tyche.Reason, "uncommitted edits") {
+		t.Errorf("tyche reason should mention the pre-existing uncommitted edits, got %q", tyche.Reason)
+	}
+
+	erebus := byRepo["/fleet/erebus"]
+	if erebus.Commit {
+		t.Error("erebus (undeterminable branch) must be report-only")
+	}
+	if !strings.Contains(erebus.Reason, "could not be determined") {
+		t.Errorf("erebus reason should say the branch could not be determined (never a garbled error text), got %q", erebus.Reason)
 	}
 
 	// Deterministic order: sorted by RepoDir.

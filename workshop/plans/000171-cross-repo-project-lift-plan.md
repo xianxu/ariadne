@@ -107,7 +107,7 @@ Plan checkbox rows (also mirrored into the issue's `## Plan`):
 
 - [x] M1 — relax `done` baseline guard; regenerate `project.json`; vet + conformance green
 - [x] M2 — `DiscoverByIssueRef` + shared sibling walk; wire close gate to all-match update; brain legacy warning
-- [ ] M3 — `RepoGitState`/`PeerWriteDecision`/`planPeerWrites` + thin git shell; off-main/staged report path; process-level multi-repo test
+- [x] M3 — `RepoGitState`/`PeerWriteDecision`/`planPeerWrites` + thin git shell; off-main/staged report path; process-level multi-repo test
 - [ ] M4 — `sdlc project find`; `sdlc resolve` project kind; parley `project` artifact class
 - [ ] M5 — AGENTS.base §8 + brain-peer line, atlas, project datatype doc; `sdlc propagate-base`
 - [ ] M6 — migrate charon-launch-push + shared-brain → nous, kaggle-ml-base-layer → kbench, metis-v1 → metis (history/projects/, schema-converted, validated, committed both sides)
@@ -790,3 +790,17 @@ Milestone M3 shipped (commit `2127dab`). Deltas folded in while implementing:
 5. **Peer commit scoped by pathspec** (`git commit -m … -- <files>`) as
    belt-and-suspenders against a race between the staged-clean check and the
    commit; tests land in `peerwrite_apply_test.go` (the sketch's either/or).
+6. **Working-tree-dirty target files → report-only** (boundary review's
+   Important, fixed in the close bundle). The sketch's refusal checked branch +
+   staged index only, so a peer on main with a clean index but *unstaged* edits
+   to the very project file being ticked would have had those edits silently
+   absorbed into the scoped commit — the exact "absorb another session's work"
+   hazard the staged check articulates. `RepoGitState` gained
+   `TargetFilesDirty` (`git status --porcelain -- <files>` pre-write — catches
+   modified, staged, and untracked target files alike), `applyClose` snapshots
+   peer state BEFORE its file writes, and the planner gained the report-only
+   row (plus a `Branch == ""` row so a failed `rev-parse` reports "could not be
+   determined" instead of leaking garbled error text into the reason). Pinned
+   by a decision-table case, `readRepoGitState` unit cases, and the end-to-end
+   `TestClose_PeerDirtyProjectFileReportOnly`; `applyPeerWrites`'s
+   warn-and-continue contract pinned by a failing-runner stub.
