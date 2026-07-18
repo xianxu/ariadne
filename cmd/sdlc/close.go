@@ -671,11 +671,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		projectEdits: projectEdits,
 		repoTop:      repoTop,
 		fm:           fm,
-		body:            body,
-		repoName:        repoName,
-		issueStr:        issueStr,
-		today:           today,
-		appliedMsgs:     applied,
+		body:         body,
+		repoName:     repoName,
+		issueStr:     issueStr,
+		today:        today,
+		appliedMsgs:  applied,
 	}
 }
 

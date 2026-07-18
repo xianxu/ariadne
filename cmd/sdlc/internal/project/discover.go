@@ -77,8 +77,8 @@ func isFleetSibling(base string) bool {
 func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope) ([]ProjectMatch, error) {
 	marker := "[" + repoName + "#" + issueID
 	disc := vocab.Project().Discovery()
-	home := disc.Home                                                     // "workshop/projects"
-	archive := vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveProjects)   // "workshop/history/projects"
+	home := disc.Home                                                   // "workshop/projects"
+	archive := vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveProjects) // "workshop/history/projects"
 
 	var out []ProjectMatch
 	seen := map[string]bool{}

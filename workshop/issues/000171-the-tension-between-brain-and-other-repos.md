@@ -1,12 +1,13 @@
 ---
 id: 000171
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-13
 updated: 2026-07-17
 estimate_hours: 4.1
 started: 2026-07-14T20:24:05-07:00
+actual_hours: 10.02
 ---
 
 # the tension between brain and other repos
@@ -310,6 +311,8 @@ keeps the residency/navigation/close-gate half; its design consumes #180's
 model (soft ordering: model first or together).
 
 ### 2026-07-17 — design session: durable plan written + reviewed
+- 2026-07-17: closed — All six milestones boundary-reviewed (M1-M6, all FIX-THEN-SHIP, all findings fixed+bundled per #174). Tests: go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 green throughout; e2e multi-repo git fixtures pin discovery (all-match, scope, ID-boundary), peer-write (main+clean scoped commit / off-main / staged / dirty-target / brain / unknown report-only), navigation (find + resolve --kind project, archive-inclusive, legacy-flagged); parley 25/25 specs + luacheck clean (commit 81cdc3a, gP jump). Live fleet: project find kaggle#1 → archived kbench record, metis#18 → brain legacy flagged, metis#2 → only metis-v1 (fresh binary); 4 records migrated (nous 34005ce, kbench 1f25273, metis 8a4676c), brain data/project holds only active metis-v2 (deletion swept by nous d44a955); propagate-base 11/13 re-wove (42shots+pair pending their own sessions). Operator-remaining: Manual Verification items 1 (live gP jump) and 4 (close a metis#18-referenced issue for the deprecation warn, metis#18-class ref per M6 review); review verdict: FIX-THEN-SHIP
+- 2026-07-17: issue-close FIX-THEN-SHIP resolved (bundled per #174, no re-close): the Important — 42shots + pair still carried the pre-#171 constitution — resolved by direct `make weave` in each (gitignored faces only; both sessions' tracked work untouched; verified "capture and measurement only" present in all their faces) → 13/13 dependents current. Minors: gofmt'd close.go + discover{,_test}.go; nous sweep of brain deletions CONFIRMED (d44a955, ls-tree HEAD = only metis-v2); test-fixture dedupe filed as #186; ActiveOnly-terminal-in-active-home + isFleetSibling-name nits left as noted (cold-path). Operator-remaining manual verifications: live gP jump (parley), legacy-warn close using a metis#18-class ref.
 - 2026-07-17: closed M6 — data op per operator-confirmed table: 4 records → dest history/projects (nous 34005ce: charon-launch-push+shared-brain; kbench 1f25273: kaggle-ml-base-layer; metis 8a4676c: metis-v1), moved verbatim w/ qualified refs, closed: added from each body (2026-05-04/2026-06-02-preexisting/2026-07-02/2026-07-07), all 4 sdlc project validate conforms. brain git rm staged (nous auto-commit sweeps); only metis-v2 remains. Read-path from kbench: kaggle#1→archived hit; metis#2→archived metis-v1 + legacy-flagged metis-v2 multi-match; charon#13 unresolvable while charon not checked out (plan Revisions note). --no-atlas: pure data-op window, no new ariadne surface (M2-M5 atlas sections already document discovery/navigation). actual 0.2h = transcript increment since M5 close; review verdict: FIX-THEN-SHIP
 - 2026-07-17: M6 FIX-THEN-SHIP resolved (bundled per #174, no re-close): the Important — the Step-6 "metis#2 multi-match" evidence was produced by a STALE manually-built binary (/tmp copy predating M4's ID-boundary fix; the bare-Contains bug prefix-matched [metis#22] in metis-v2). Re-verified with a fresh build: metis#2 → ONLY archived metis-v1 (the M4 boundary fix working); metis#18 → brain metis-v2 flagged (legacy) — the live legacy-flag path; kaggle#1 → archived kbench record; all four migrated files re-validated `sdlc project validate` conforms (the subcommand exists — cmd/sdlc/project.go newProjectValidateCmd — the review's minor 2 is factually wrong, verified by running it). Plan Revisions note 2 corrected; lessons.md gains the stale-binary rule. Reviewer's minor 1 (M6 issue-row ticked outside the window) is also mistaken — the tick landed in cbbb820, inside 5f8182f..HEAD. Carried to issue close: confirm nous swept brain's staged deletions; Manual Verification item 4 must use a metis#18-class ref.
 - 2026-07-17: closed M5 — docs-only window: AGENTS.base §1 brain=capture/measurement-only + §8 center-of-gravity residency (verified woven into AGENTS/CLAUDE/GEMINI faces via make weave — grep center-of-gravity=1 each); construct/datatype/project.md residency+move procedure; atlas sibling-discovery-model caveat. propagate-base: 11 dependents re-wove+verified (nous/metis spot-checked containing the new brain line), 42shots+pair SKIPPED dirty (designed refusal, re-run at issue close). go test ./cmd/sdlc/ -run Propagate green. actual 0.1h = transcript increment since M4 close (21:22→21:26 + close loop); review verdict: FIX-THEN-SHIP

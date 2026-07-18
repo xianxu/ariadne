@@ -116,8 +116,8 @@ func TestDiscoverByIssueRef_SkipsStaleSiblings(t *testing.T) {
 	parent := t.TempDir()
 	writeProject(t, parent, "metis", "workshop/projects", "p1", "[metis#18]")
 	writeProject(t, parent, "metis.bak", "workshop/projects", "p1", "[metis#18]") // backup copy
-	writeProject(t, parent, "worktree", "workshop/projects", "x", "[metis#18]")    // worktree tree
-	writeProject(t, parent, ".hidden", "workshop/projects", "y", "[metis#18]")     // dot-dir
+	writeProject(t, parent, "worktree", "workshop/projects", "x", "[metis#18]")   // worktree tree
+	writeProject(t, parent, ".hidden", "workshop/projects", "y", "[metis#18]")    // dot-dir
 	got, _ := DiscoverByIssueRef(parent, "metis", "18", ActiveOnly)
 	if len(got) != 1 {
 		t.Fatalf("stale siblings must be skipped; want 1, got %d: %+v", len(got), got)

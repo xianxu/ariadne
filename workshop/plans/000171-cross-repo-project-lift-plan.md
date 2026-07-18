@@ -899,3 +899,10 @@ not checked out — the ref's repo token needs the sibling present; the frozen
 records conformed to #Project verbatim under M1's relaxed guard; only
 `closed:` was added (charon-launch-push 2026-05-04, kaggle-ml-base-layer
 2026-07-02, metis-v1 2026-07-07, from each record's own body).
+
+Issue-close amendment (2026-07-17): the M5 delta-2 loop is closed — `42shots`
+and `pair` re-wove at issue close (direct `make weave` per repo; safe because
+the woven faces are gitignored, so the other sessions' tracked work was
+untouched), verified carrying the new §Peer-Repo text. 13/13 dependents
+current. nous's auto-commit swept brain's staged deletions (`d44a955`;
+`git ls-tree HEAD data/project/` = only metis-v2), closing the M6 carried item.
