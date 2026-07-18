@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -109,14 +110,15 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 		return nil, err
 	}
 	for _, repoDir := range siblings {
-		base := filepath.Base(repoDir)
-		if !isFleetSibling(base) {
+		if !isFleetSibling(filepath.Base(repoDir)) {
 			continue
 		}
-		if base == "brain" {
-			// Legacy brain home (deprecated). Under ActiveOnly, terminal legacy
-			// records are dropped below so the close gate can't re-tick a `done`
-			// record during the migration window; navigation keeps them.
+		// Brain is identified by the canonical .brain/config.md predicate, not a
+		// basename — a brain under any name still holds its projects in the
+		// legacy data/project home (and must never be treated as a normal fleet
+		// repo the close gate would auto-commit into, #176). Legacy home
+		// (deprecated); under ActiveOnly terminal records are dropped below.
+		if gitx.IsBrainRepo(repoDir) {
 			scan(repoDir, filepath.Join("data", "project"), true)
 			continue
 		}

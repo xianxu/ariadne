@@ -722,3 +722,47 @@ Discovery refinement (from the change-code plan-quality finding, applied in M2's
 spec): under `ActiveOnly`, `DiscoverByIssueRef` drops terminal-status
 brain-legacy matches (`dropTerminalLegacy`) so the close gate can't re-tick a
 `done` legacy record during the M2→M6 window.
+
+### 2026-07-17 — M2 executed; boundary-review corrections
+
+Milestone M2 shipped (commits `1e6b411` discovery, `e0cbb09` close wiring,
+`de28b6c` atlas; boundary review FIX-THEN-SHIP, no Critical, 4 Important + minors
+fixed in the close commit). Design/plan reconciliations:
+
+1. **Skip-list placement (supersedes Task 2.1 Step 1 + the Integration-points
+   "sibling-repo FS enumeration" bullet).** `SiblingRepoDirs` ships **unfiltered**
+   — literally `resolveRepoDir`'s enumeration, pinned by
+   `TestSiblingRepoDirs_ReturnsAllDirs`, so the refactor is provably
+   behavior-identical. The spurious-sibling skip-list lives in `isFleetSibling`,
+   called only inside `DiscoverByIssueRef`. (The plan text had it inside the
+   shared helper *and* claimed identity — the shipped split is the better design.)
+2. **`DiscoverByIssueRef` is an fs-seam, not a PURE entity.** The Core Concepts
+   table lists it under "Pure entities," but it reads the filesystem; it's
+   deterministic-given-a-fs-root and tested mock-free against temp dirs (the
+   `resolve_test.go` pattern), which satisfies ARCH-PURE in spirit, but it should
+   be read as an IO seam, not a pure function. The genuinely-pure core is
+   `planPeerWrites` (M3).
+3. **Brain is the `.brain/config.md` predicate, not a basename.** The initial
+   `base == "brain"` check was a third divergent brain predicate (alongside
+   `repoguard.go`, `migrate.go`). Consolidated into `gitx.IsBrainRepo(repoTop)`
+   and adopted at all three sites (ARCH-DRY). A brain under any name is now
+   handled correctly, and a non-brain repo named `brain` is a normal fleet home
+   — pinned by `TestDiscoverByIssueRef_BrainIsPredicateNotBasename`. M3's
+   peer-write commit will reuse `gitx.IsBrainRepo` to refuse committing into brain.
+4. **Edge-case tests now delivered** (Chunk 2 Step 5): `RepoDir`/`Repo`
+   assertions, symlink dedup, and unreadable-file skip are pinned in
+   `discover_test.go`.
+5. **Project-tracked milestone closes need `--no-project`.** Now that discovery
+   finds the local `workshop/projects` project, a milestone close of a
+   project-tracked issue looks for a per-milestone `[repo#id Mx]` row + detail
+   block. When the tracking project records the issue at **issue** granularity
+   (`[ariadne#171]`, as `project-management-primitive.md` does), that row ticks
+   at the final issue-close (`TickAllTaskRowsForIssue`); each milestone close
+   passes `--no-project`. (Surfaced by dogfooding — the old `--brain-dir` lookup
+   never found this local project.)
+
+Deferred to M3 (reviewer note): a close test whose matched project lives in a
+*different* repo than the closing one — it belongs with M3's peer-write tests
+where cross-repo write/commit behavior gets exercised. `dropTerminalLegacy`
+re-reading files `scan` already read is a cold-path micro-inefficiency; the
+`ProjectMatch.Status` future-extension is the fix if it ever matters.

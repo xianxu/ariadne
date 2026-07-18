@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -27,13 +28,28 @@ func writeProject(t *testing.T, parent, repo, subdir, name, marker string) {
 	writeProjectStatus(t, parent, repo, subdir, name, "executing", marker)
 }
 
+// markBrain writes <parent>/<repo>/.brain/config.md so gitx.IsBrainRepo treats
+// the dir as a brain (the canonical predicate — a basename is not enough).
+func markBrain(t *testing.T, parent, repo string) {
+	t.Helper()
+	dir := filepath.Join(parent, repo, ".brain")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.md"), []byte("brain\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDiscoverByIssueRef_AllMatchesAcrossPeers(t *testing.T) {
 	parent := t.TempDir()
 	writeProject(t, parent, "metis", "workshop/projects", "p1", "[metis#18 M1]")
 	writeProject(t, parent, "kbench", "workshop/projects", "p2", "[metis#18]")
 	writeProject(t, parent, "nous", "workshop/projects", "p3", "[nous#9]")
-	// brain legacy record — ACTIVE, so it survives ActiveOnly.
+	// brain legacy record — ACTIVE, so it survives ActiveOnly. Requires the
+	// .brain/config.md marker for gitx.IsBrainRepo to treat it as brain.
 	writeProjectStatus(t, parent, "brain", "data/project", "legacy", "active", "[metis#18]")
+	markBrain(t, parent, "brain")
 	// an ARCHIVED match (history/projects) — only ActiveAndArchive sees it.
 	writeProject(t, parent, "metis", "workshop/history/projects", "old", "[metis#18]")
 
@@ -45,13 +61,29 @@ func TestDiscoverByIssueRef_AllMatchesAcrossPeers(t *testing.T) {
 		t.Fatalf("ActiveOnly: want 3 (2 active + 1 active-legacy), got %d: %+v", len(act), act)
 	}
 	legacy := 0
+	byRepo := map[string]ProjectMatch{}
 	for _, m := range act {
+		byRepo[m.Repo] = m
 		if m.Legacy {
 			legacy++
+		}
+		// RepoDir must be the owning repo root (M3's peer-commit scoping keys
+		// on this) and Repo its basename.
+		if filepath.Base(m.RepoDir) != m.Repo {
+			t.Errorf("Repo %q != base(RepoDir %q)", m.Repo, m.RepoDir)
+		}
+		if !strings.HasPrefix(m.Path, m.RepoDir+string(filepath.Separator)) {
+			t.Errorf("Path %q not under RepoDir %q", m.Path, m.RepoDir)
 		}
 	}
 	if legacy != 1 {
 		t.Fatalf("want 1 legacy match, got %d", legacy)
+	}
+	if byRepo["metis"].RepoDir != filepath.Join(parent, "metis") {
+		t.Errorf("metis RepoDir = %q, want %q", byRepo["metis"].RepoDir, filepath.Join(parent, "metis"))
+	}
+	if byRepo["brain"].RepoDir != filepath.Join(parent, "brain") || !byRepo["brain"].Legacy {
+		t.Errorf("brain match RepoDir/Legacy wrong: %+v", byRepo["brain"])
 	}
 
 	all, err := DiscoverByIssueRef(parent, "metis", "18", ActiveAndArchive)
@@ -68,6 +100,7 @@ func TestDiscoverByIssueRef_DropsTerminalLegacyUnderActiveOnly(t *testing.T) {
 	// a DONE brain-legacy record must NOT appear under ActiveOnly (would be
 	// re-ticked by the close gate) but MUST appear under ActiveAndArchive.
 	writeProjectStatus(t, parent, "brain", "data/project", "done-legacy", "done", "[metis#18]")
+	markBrain(t, parent, "brain")
 
 	act, _ := DiscoverByIssueRef(parent, "metis", "18", ActiveOnly)
 	if len(act) != 0 {
@@ -110,6 +143,70 @@ func TestDiscoverByIssueRef_SameRepoTwoProjects(t *testing.T) {
 	got, _ := DiscoverByIssueRef(parent, "metis", "18", ActiveOnly)
 	if len(got) != 2 {
 		t.Fatalf("both same-repo projects should match; want 2, got %d", len(got))
+	}
+}
+
+// A repo is brain by the .brain/config.md predicate, NOT its basename: a repo
+// named "capture" with the marker is scanned as brain (data/project, legacy),
+// while a repo literally named "brain" WITHOUT the marker is a normal fleet home
+// (workshop/projects). This pins finding 3.1's fix.
+func TestDiscoverByIssueRef_BrainIsPredicateNotBasename(t *testing.T) {
+	parent := t.TempDir()
+	// "capture" is a brain (has the marker); its project lives in data/project.
+	writeProjectStatus(t, parent, "capture", "data/project", "p", "active", "[metis#18]")
+	markBrain(t, parent, "capture")
+	// a dir literally named "brain" but WITHOUT the marker is a normal repo;
+	// its project lives in workshop/projects and data/project is NOT scanned.
+	writeProject(t, parent, "brain", "workshop/projects", "q", "[metis#18]")
+	writeProject(t, parent, "brain", "data/project", "ignored", "[metis#18]")
+
+	got, _ := DiscoverByIssueRef(parent, "metis", "18", ActiveOnly)
+	if len(got) != 2 {
+		t.Fatalf("want 2 (capture legacy + brain-named fleet home), got %d: %+v", len(got), got)
+	}
+	for _, m := range got {
+		switch m.Repo {
+		case "capture":
+			if !m.Legacy || filepath.Base(filepath.Dir(m.Path)) != "project" {
+				t.Errorf("capture should be a legacy data/project match: %+v", m)
+			}
+		case "brain":
+			if m.Legacy || filepath.Base(filepath.Dir(m.Path)) != "projects" {
+				t.Errorf("brain-named repo (no marker) should be a fleet workshop/projects match: %+v", m)
+			}
+		}
+	}
+}
+
+func TestDiscoverByIssueRef_DedupsSymlinkAndSkipsUnreadable(t *testing.T) {
+	parent := t.TempDir()
+	writeProject(t, parent, "metis", "workshop/projects", "p", "[metis#18]")
+	// A second .md in the same scanned dir that symlinks to the real file: both
+	// glob-match but resolve (EvalSymlinks) to one real path → counted once.
+	projects := filepath.Join(parent, "metis", "workshop", "projects")
+	if err := os.Symlink(filepath.Join(projects, "p.md"), filepath.Join(projects, "alias.md")); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+	got, err := DiscoverByIssueRef(parent, "metis", "18", ActiveOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("symlinked duplicate must be deduped to 1, got %d: %+v", len(got), got)
+	}
+
+	// An unreadable project file is skipped best-effort, not fatal.
+	bad := filepath.Join(parent, "kbench", "workshop", "projects")
+	if err := os.MkdirAll(bad, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	badFile := filepath.Join(bad, "x.md")
+	if err := os.WriteFile(badFile, []byte("[metis#18]"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(badFile, 0o644) })
+	if _, err := DiscoverByIssueRef(parent, "metis", "18", ActiveOnly); err != nil {
+		t.Fatalf("unreadable file must be skipped, not error: %v", err)
 	}
 }
 

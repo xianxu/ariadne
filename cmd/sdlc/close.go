@@ -311,9 +311,6 @@ func insertLogLine(body, logLine string) string {
 
 // ── main entry point ─────────────────────────────────────────────────────────
 
-// closeResult bundles everything applyClose needs, computed by computeClose
-// WITHOUT any writes — so the boundary review can run against the un-mutated
-// working tree and the writes fire only after a finalizing verdict (#139).
 // projectEdit is one project-file mutation the close performs. The close gate
 // discovers every project across the fleet that references the closing issue
 // (multiple matches are legitimate membership — #171), so a close can carry
@@ -325,6 +322,9 @@ type projectEdit struct {
 	newText string // post-edit content to write
 }
 
+// closeResult bundles everything applyClose needs, computed by computeClose
+// WITHOUT any writes — so the boundary review can run against the un-mutated
+// working tree and the writes fire only after a finalizing verdict (#139).
 type closeResult struct {
 	issuePath    string
 	issueText    string // original, for the "changed?" guard
@@ -583,8 +583,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		cwarn(stderr, fmt.Sprintf("no project across the fleet references %s#%s — skipping project update", repoName, issueStr))
 	}
 	for _, m := range matches {
+		// Label messages by repo/file so same-named projects in different repos
+		// are distinguishable under fleet-wide multi-match (#171 M2 review).
+		label := m.Repo + "/" + filepath.Base(m.Path)
 		if m.Legacy {
-			cwarn(stderr, fmt.Sprintf("project %s is in the deprecated brain/data/project home — migrate it to <repo>/workshop/projects (ariadne#171)", filepath.Base(m.Path)))
+			cwarn(stderr, fmt.Sprintf("project %s is in the deprecated brain/data/project home — migrate it to <repo>/workshop/projects (ariadne#171)", label))
 		}
 		projBytes, rerr := os.ReadFile(m.Path)
 		if rerr != nil {
@@ -597,9 +600,9 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			tickedPT, n := project.TickMilestoneTaskRow(newPT, repoName, issueStr, f.Milestone)
 			newPT = tickedPT
 			if n > 0 {
-				applied = append(applied, fmt.Sprintf("ticked [%s#%s %s] in %s", repoName, issueStr, f.Milestone, filepath.Base(m.Path)))
+				applied = append(applied, fmt.Sprintf("ticked [%s#%s %s] in %s", repoName, issueStr, f.Milestone, label))
 			} else {
-				cwarn(stderr, fmt.Sprintf("no task line for [%s#%s %s] in %s", repoName, issueStr, f.Milestone, filepath.Base(m.Path)))
+				cwarn(stderr, fmt.Sprintf("no task line for [%s#%s %s] in %s", repoName, issueStr, f.Milestone, label))
 			}
 
 			anchor := project.AnchorFor(repoName, issueStr, f.Milestone)
@@ -633,19 +636,19 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 							"  And add this reference definition at the file bottom:\n"+
 							"    %s\n\n"+
 							"  Then re-run. (--no-project, or --force, if it's a track-only milestone with nothing worth recording.)",
-						anchor, filepath.Base(m.Path), skel, refDef))
+						anchor, label, skel, refDef))
 				}
-				cwarn(stderr, fmt.Sprintf("--no-project (or --force): skipping detail-block update for <a id=\"%s\"> in %s", anchor, filepath.Base(m.Path)))
+				cwarn(stderr, fmt.Sprintf("--no-project (or --force): skipping detail-block update for <a id=\"%s\"> in %s", anchor, label))
 			}
 			if found {
 				newPT = updated
-				applied = append(applied, fmt.Sprintf("updated detail block <a id=\"%s\"> in %s", anchor, filepath.Base(m.Path)))
+				applied = append(applied, fmt.Sprintf("updated detail block <a id=\"%s\"> in %s", anchor, label))
 			}
 		} else { // issue close
 			tickedPT, n := project.TickAllTaskRowsForIssue(newPT, repoName, issueStr)
 			newPT = tickedPT
 			if n > 0 {
-				applied = append(applied, fmt.Sprintf("ticked %d remaining task line(s) for %s#%s in %s", n, repoName, issueStr, filepath.Base(m.Path)))
+				applied = append(applied, fmt.Sprintf("ticked %d remaining task line(s) for %s#%s in %s", n, repoName, issueStr, label))
 			}
 			if n > 1 {
 				cwarn(stderr, fmt.Sprintf("multiple %s#%s task rows ticked at once — confirm individual milestones were genuinely closed (§5 step 1)", repoName, issueStr))
@@ -656,7 +659,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			projectEdits = append(projectEdits, projectEdit{path: m.Path, repoDir: m.RepoDir, oldText: pt, newText: newPT})
 		}
 		if shouldNudgeProjectRetro(newPT, today, f.skip("project")) {
-			cwarn(stderr, fmt.Sprintf("project retro is absent or older than 7 days in %s — consider `sdlc project retro`", filepath.Base(m.Path)))
+			cwarn(stderr, fmt.Sprintf("project retro is absent or older than 7 days in %s — consider `sdlc project retro`", label))
 		}
 	}
 

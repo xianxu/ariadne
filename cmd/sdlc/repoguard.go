@@ -67,7 +67,7 @@ func guardSpineRepo(stderr io.Writer) {
 	if err != nil {
 		return // not a git repo — the verb's own error explains better
 	}
-	if _, serr := os.Stat(filepath.Join(repoTop, ".brain", "config.md")); serr == nil {
+	if gitx.IsBrainRepo(repoTop) {
 		die(stderr, brainGuardMsg(filepath.Base(repoTop)))
 	}
 	// A WF_ISSUES_DIR override is honored as the verbs read it (cwd-relative);

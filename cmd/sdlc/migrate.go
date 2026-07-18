@@ -256,7 +256,7 @@ func runMigrate(o *migrateOpts) error {
 	if destTop == srcRoot {
 		die(o.stderr, fmt.Sprintf("destination resolves to the same repo (%s) — a same-repo migrate would flip bare↔qualified forms for nothing; use git mv", srcRepo))
 	}
-	if _, err := os.Stat(filepath.Join(destTop, ".brain", "config.md")); err == nil {
+	if gitx.IsBrainRepo(destTop) {
 		die(o.stderr, fmt.Sprintf("%s is a brain (capture repo) — SDLC process artifacts don't live in brain (#171); pick the work's center-of-gravity repo instead", destRepo))
 	}
 
