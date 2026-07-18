@@ -31,6 +31,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -183,38 +184,38 @@ func resolveRepoDir(ref ArtifactRef, curRoot string) (string, error) {
 		return curRoot, nil
 	}
 	parent := filepath.Dir(curRoot)
-	entries, err := os.ReadDir(parent)
+	// Shared fleet walk (ARCH-DRY with the cross-repo project discovery). It
+	// applies no filtering, so this matching stays behavior-identical.
+	dirs, err := project.SiblingRepoDirs(parent)
 	if err != nil {
 		return "", fmt.Errorf("read sibling dir %s: %w", parent, err)
 	}
-	var siblings []string
-	for _, e := range entries {
-		if e.IsDir() {
-			siblings = append(siblings, e.Name())
-		}
-	}
 	// exact basename match wins (so `brain` beats the `brain-family` prefix sibling)
-	for _, s := range siblings {
-		if s == ref.Repo {
-			return filepath.Join(parent, s), nil
+	for _, d := range dirs {
+		if filepath.Base(d) == ref.Repo {
+			return d, nil
 		}
 	}
 	// unique case-insensitive prefix match
 	var pref []string
 	low := strings.ToLower(ref.Repo)
-	for _, s := range siblings {
-		if strings.HasPrefix(strings.ToLower(s), low) {
-			pref = append(pref, s)
+	for _, d := range dirs {
+		if strings.HasPrefix(strings.ToLower(filepath.Base(d)), low) {
+			pref = append(pref, d)
 		}
 	}
 	switch len(pref) {
 	case 1:
-		return filepath.Join(parent, pref[0]), nil
+		return pref[0], nil
 	case 0:
 		return "", fmt.Errorf("no sibling repo matches %q under %s", ref.Repo, parent)
 	default:
-		sort.Strings(pref)
-		return "", fmt.Errorf("ambiguous repo %q: matches %s", ref.Repo, strings.Join(pref, ", "))
+		sort.Slice(pref, func(i, j int) bool { return filepath.Base(pref[i]) < filepath.Base(pref[j]) })
+		bases := make([]string, len(pref))
+		for i, d := range pref {
+			bases[i] = filepath.Base(d)
+		}
+		return "", fmt.Errorf("ambiguous repo %q: matches %s", ref.Repo, strings.Join(bases, ", "))
 	}
 }
 
