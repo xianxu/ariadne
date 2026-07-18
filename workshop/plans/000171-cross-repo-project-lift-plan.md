@@ -105,7 +105,7 @@ Six milestones, each its own `sdlc milestone-close` boundary. Order reflects dep
 
 Plan checkbox rows (also mirrored into the issue's `## Plan`):
 
-- [ ] M1 — relax `done` baseline guard; regenerate `project.json`; vet + conformance green
+- [x] M1 — relax `done` baseline guard; regenerate `project.json`; vet + conformance green
 - [ ] M2 — `DiscoverByIssueRef` + shared sibling walk; wire close gate to all-match update; brain legacy warning
 - [ ] M3 — `RepoGitState`/`PeerWriteDecision`/`planPeerWrites` + thin git shell; off-main/staged report path; process-level multi-repo test
 - [ ] M4 — `sdlc project find`; `sdlc resolve` project kind; parley `project` artifact class
@@ -122,7 +122,7 @@ Plan checkbox rows (also mirrored into the issue's `## Plan`):
 - Modify: `construct/vocabulary/project.cue:88` (the `if status == ...` guard)
 - Test: `construct/vocabulary/vet_test.sh` (existing; add/confirm a done-without-baseline case)
 
-- [ ] **Step 1: Write the failing conformance case**
+- [x] **Step 1: Write the failing conformance case**
 
 Add to the project section of `construct/vocabulary/vet_test.sh` (after the existing `pjson` export ~line 34) a check that a minimal `done` record **without** `deadline`/`planned_finish` unifies against `#Project`. Concretely, export a fixture and assert `cue vet` passes:
 
@@ -137,12 +137,12 @@ cue vet "$dir/project.cue" "$tmp/legacy_done.json" -d '#Project' \
   || { echo "FAIL: done record without baseline should validate"; exit 1; }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `bash construct/vocabulary/vet_test.sh`
 Expected: FAIL — the current guard requires `deadline!` for `done`, so `cue vet` errors with an incomplete-value / missing-field message.
 
-- [ ] **Step 3: Make the minimal change**
+- [x] **Step 3: Make the minimal change**
 
 In `construct/vocabulary/project.cue`, change the guard condition (currently line ~88):
 
@@ -170,40 +170,41 @@ to:
 	}
 ```
 
-- [ ] **Step 4: Run the vet test to verify it passes**
+- [x] **Step 4: Run the vet test to verify it passes**
 
 Run: `bash construct/vocabulary/vet_test.sh`
 Expected: PASS.
 
-### Task 1.2: Regenerate the embedded JSON and confirm the binding
+### Task 1.2: Regenerate the derived faces and confirm the binding
 
 **Files:**
-- Regenerate: `pkg/vocab/project.json` (never hand-edited; `//go:generate` at `pkg/vocab/project.go:10`)
+- Regenerate: `pkg/vocab/project.json` (embed input; `//go:generate` at `pkg/vocab/project.go:10`)
+- Regenerate: `construct/generated/vocabulary/` served face + `.source-sha` stamp (gitignored local build artifact; via `make weave`)
 
-- [ ] **Step 1: Regenerate**
+- [x] **Step 1: Regenerate the embed + served face**
 
-Run: `make vocab-embed` (or, if the `vocabulary` binary is on PATH, `go generate ./pkg/vocab`).
-Expected: `pkg/vocab/project.json` updates so the `done` status no longer forces the baseline; `git diff pkg/vocab/project.json` shows only the guard-condition change.
+Run `make vocab-embed` (the embed input) **and** `make weave` (the served face). **Correction (M1 execution, 2026-07-17):** `#Project` is a CUE `#`-definition and does NOT `cue export`, so the guard change does NOT alter the exported concrete blocks — `pkg/vocab/project.json` is a **byte-identical no-op** (there is no guard-condition diff to look for; the earlier expectation of one was wrong). The real regeneration deliverable at any cue-touching boundary is `make weave`: it rewrites `construct/generated/vocabulary/.source-sha` (a sha256 over the raw `.cue` text, so any edit invalidates it even when the export is identical). Skipping it leaves `vocabulary check` STALE — the M1 boundary review's Important finding. `construct/generated/` is gitignored, so this produces no committable diff, but it must be run so `vocabulary check` / `make check` gates go green.
+Expected: `git diff pkg/vocab/project.json` is empty; `./bin/vocabulary check --output construct/generated/vocabulary` exits 0.
 
-- [ ] **Step 2: Run the vocab package tests**
+- [x] **Step 2: Run the vocab package tests**
 
 Run: `go test ./pkg/vocab/...`
 Expected: PASS (the drift test binding `project.cue` ↔ `project.json` is green).
 
-- [ ] **Step 3: Confirm the prose-drift binding + fix the prose guard restatement**
+- [x] **Step 3: Confirm the prose-drift binding + fix the prose guard restatement**
 
 The prose-derives-from-model drift test is `pkg/vocab/prose_drift_test.go` — already covered by Step 2's `go test ./pkg/vocab/...`; no separate target needed. But `construct/datatype/project.md:29-30` restates the guard as `deadline | required after commit` / `planned_finish | required after commit`. "after commit" is now imprecise for `done` (a `done` record archived from the pre-baseline era has neither). Update those two rows to: `required for committed/executing/paused (a done record archived pre-baseline may lack it)`.
 Run: `go test ./pkg/vocab/...`
 Expected: PASS (and the prose no longer over-claims the requirement).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add construct/vocabulary/project.cue construct/vocabulary/vet_test.sh pkg/vocab/project.json construct/datatype/project.md
 git commit -m "#171 M1: relax project baseline guard — done exempt from deadline requirement"
 ```
 
-- [ ] **Step 5: Milestone-close**
+- [x] **Step 5: Milestone-close**
 
 Run: `sdlc milestone-close --issue 171 --milestone M1`
 Fix any Critical/Important findings before crossing; log the `Review-Verdict:` outcome in `## Log`.
@@ -697,4 +698,27 @@ Automated tests cover discovery, the planner, and the multi-repo commit shell. T
 
 ## Revisions
 
-*(none yet — append here if the design changes mid-implementation, per AGENTS §1.)*
+### 2026-07-17 — M1 executed; two corrections + a discovery refinement
+
+Milestone M1 shipped (commits `4c6922a` guard + `50c9e3f` side-quest test fix;
+boundary review verdict FIX-THEN-SHIP, no Critical, one Important resolved).
+Corrections folded back into the plan:
+
+1. **`pkg/vocab/project.json` regeneration is a byte-identical no-op.** `#Project`
+   is a CUE `#`-definition and doesn't `cue export`, so relaxing its guard does
+   not change the exported concrete blocks. Task 1.2 Step 1's expected diff does
+   not exist. The real regeneration deliverable at a cue-touching boundary is
+   **`make weave`** — it rewrites the `construct/generated/vocabulary/.source-sha`
+   stamp (sha256 over raw `.cue` text; invalidated by any edit). The plan
+   omitted it; now added explicitly. (`construct/generated/` is gitignored →
+   no committable diff, but `vocabulary check` goes STALE without it. This is
+   the third recurrence of the class — a follow-up to wire `vocabulary check`
+   into the push/merge gate is warranted, tracked separately, not M1 scope.)
+2. **Fixtures landed durably.** Task 1.1 Step 1's mktemp sketch was superseded by
+   committed `construct/vocabulary/testdata/project_{done,executing}_no_baseline.json`
+   with a negative control (executing-without-baseline must still be rejected).
+
+Discovery refinement (from the change-code plan-quality finding, applied in M2's
+spec): under `ActiveOnly`, `DiscoverByIssueRef` drops terminal-status
+brain-legacy matches (`dropTerminalLegacy`) so the close gate can't re-tick a
+`done` legacy record during the M2→M6 window.

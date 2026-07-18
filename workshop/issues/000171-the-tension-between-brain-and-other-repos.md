@@ -310,6 +310,7 @@ keeps the residency/navigation/close-gate half; its design consumes #180's
 model (soft ordering: model first or together).
 
 ### 2026-07-17 — design session: durable plan written + reviewed
+- 2026-07-17: closed M1 — vet_test.sh green: done-without-baseline validates, executing-without-baseline still rejected (negative control). vocabulary validate-instance --type project confirms end-to-end (done ok exit0, executing rejected exit1). pkg/vocab drift+prose tests pass; full ./cmd/sdlc green incl side-quest date-flaky fix. project.json unchanged — guard lives in #Project definition not the exported blocks.; review verdict: FIX-THEN-SHIP
 
 `sdlc start-plan --issue 171` (arch principles pulled: ARCH-DRY/PURE/PURPOSE
 in play). Mapped the #180 substrate to reuse (subagent): `resolveRepoDir`'s
@@ -348,3 +349,20 @@ plan-quality finding into the durable plan before building: under `ActiveOnly`,
 gate can't re-tick a `done` legacy record during the M2→M6 window (the four
 migratable records are `done`; only active `metis-v2` should tick). Now
 implementing M1.
+
+### 2026-07-17 — M1 boundary review FIX-THEN-SHIP resolved
+
+M1 milestone-close verdict FIX-THEN-SHIP (no Critical; one Important, two
+Minor). Fixed before this close commit (bundled per #174): (Important) the
+served vocabulary face `construct/generated/vocabulary/` was STALE vs the
+edited `project.cue` — the `.source-sha` stamp is a sha256 over raw cue text,
+so an edit invalidates it even though `#Project` doesn't export and
+`project.json` is byte-identical; ran `make weave` (which regenerated the face
+before its settings.json step hit a local sandbox block, unrelated to M1), and
+`vocabulary check` now exits 0. `construct/generated/` is gitignored, so no
+committable diff. (Minor) ticked the durable plan's Chunk 1 checkboxes to agree
+with the issue Plan; corrected Task 1.2 Step 1's impossible `project.json`-diff
+expectation and added the `make weave` served-face step (plan `## Revisions`
+2026-07-17). Follow-up noted (not M1 scope): wire `vocabulary check` into the
+push/merge gate so the recurring generated-face staleness stops depending on
+reviewer catch (third occurrence).
