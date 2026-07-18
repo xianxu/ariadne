@@ -114,7 +114,7 @@ lift, not the cheap close-lookup subset). Durable plan:
 `workshop/plans/000171-cross-repo-project-lift-plan.md`.
 
 - [x] M1 — relax `done` baseline guard (project.cue + regen project.json + vet/conformance)
-- [ ] M2 — cross-repo project discovery (`DiscoverByIssueRef`, scope-aware) + all-match close update; brain-legacy deprecation warning
+- [x] M2 — cross-repo project discovery (`DiscoverByIssueRef`, scope-aware) + all-match close update; brain-legacy deprecation warning
 - [ ] M3 — safe peer-write commit mechanics (pure `planPeerWrites` + thin git shell; on-main+clean → scoped commit, else report-only; close never fails)
 - [ ] M4 — fleet navigation: `sdlc project find` + `sdlc resolve` project kind (archive-inclusive) + parley `project` artifact class
 - [ ] M5 — residency docs (AGENTS.base §8 + brain-peer line, atlas, project datatype) + `sdlc propagate-base`

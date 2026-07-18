@@ -106,7 +106,7 @@ Six milestones, each its own `sdlc milestone-close` boundary. Order reflects dep
 Plan checkbox rows (also mirrored into the issue's `## Plan`):
 
 - [x] M1 — relax `done` baseline guard; regenerate `project.json`; vet + conformance green
-- [ ] M2 — `DiscoverByIssueRef` + shared sibling walk; wire close gate to all-match update; brain legacy warning
+- [x] M2 — `DiscoverByIssueRef` + shared sibling walk; wire close gate to all-match update; brain legacy warning
 - [ ] M3 — `RepoGitState`/`PeerWriteDecision`/`planPeerWrites` + thin git shell; off-main/staged report path; process-level multi-repo test
 - [ ] M4 — `sdlc project find`; `sdlc resolve` project kind; parley `project` artifact class
 - [ ] M5 — AGENTS.base §8 + brain-peer line, atlas, project datatype doc; `sdlc propagate-base`
@@ -222,11 +222,11 @@ Fix any Critical/Important findings before crossing; log the `Review-Verdict:` o
 
 **Placement decision (resolves the layering the design flagged):** `DiscoverByIssueRef` lives in `internal/project`, which **cannot** import package `main`. So the shared walk goes **into `internal/project`** (`siblingRepoDirs`), and `resolveRepoDir` (package `main`) calls it — `main` already imports `internal/project` (see `close.go`'s `project.FindByIssueRef`). This keeps the lower package import-clean.
 
-- [ ] **Step 1: Extract the reusable half of `resolveRepoDir`, behavior-identical**
+- [x] **Step 1: Extract the reusable half of `resolveRepoDir`, behavior-identical**
 
 Read `resolve.go:181-224`. Today it lists **all** sibling directories under `filepath.Dir(curRoot)` (`os.ReadDir` + `IsDir`, resolve.go:191-195 — no git filter) and then exact/prefix-matches one basename. Extract `func siblingRepoDirs(parentDir string) ([]string, error)` in `internal/project`, returning absolute sibling dir paths. **Keep it behavior-identical for `resolveRepoDir`** — do NOT add a git-repo filter (that would change `resolveRepoDir`'s enumeration and break the "no regression" claim). The only filtering `siblingRepoDirs` applies is the spurious-sibling skip-list (names ending `.bak`, `worktree`, dot-prefixed) — verify none of the real fleet repos match those (they don't: ariadne, nous, metis, kbench, brain, charon, …), so `resolveRepoDir`'s behavior is preserved for every real lookup. Rebuild `resolveRepoDir`'s matching (exact > unique prefix > error) on top.
 
-- [ ] **Step 2: Run the resolve tests to verify no regression**
+- [x] **Step 2: Run the resolve tests to verify no regression**
 
 Run: `go test ./cmd/sdlc/ -run 'Resolve|RepoDir' -v`
 Expected: PASS (behavior unchanged for all real-fleet lookups; only stale `.bak`/`worktree`/dot siblings are newly skipped).
@@ -237,7 +237,7 @@ Expected: PASS (behavior unchanged for all real-fleet lookups; only stale `.bak`
 - Modify: `cmd/sdlc/internal/project/discover.go` (created in Task 2.1 for `siblingRepoDirs`)
 - Test: `cmd/sdlc/internal/project/discover_test.go`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```go
 func TestDiscoverByIssueRef_AllMatchesAcrossPeers(t *testing.T) {
@@ -276,12 +276,12 @@ func TestDiscoverByIssueRef_SkipsStaleSiblings(t *testing.T) {
 
 (Provide a `writeProject` helper that `os.MkdirAll`s `<parent>/<repo>/<subdir>` and writes the file with a minimal project frontmatter + the marker in the body.)
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `go test ./cmd/sdlc/internal/project/ -run TestDiscoverByIssueRef -v`
 Expected: FAIL — `DiscoverByIssueRef` undefined.
 
-- [ ] **Step 3: Implement `DiscoverByIssueRef` + `ProjectMatch` + `DiscoverScope`**
+- [x] **Step 3: Implement `DiscoverByIssueRef` + `ProjectMatch` + `DiscoverScope`**
 
 ```go
 type DiscoverScope int
@@ -358,12 +358,12 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 
 Notes: the `workshop/projects` / `workshop/history/projects` strings come from `vocab`, not literals (ARCH-DRY with #181). `siblingRepoDirs` (Task 2.1, same package) already applies the spurious-sibling skip-list, so a stale `metis.bak/` copy is never scanned. `dropTerminalLegacy` is a tiny helper that parses each `Legacy` match's `status:` front-matter (via the existing `projectdoc`/metadata decode) and drops `done`/`dropped` — closing the close-gate re-tick hazard the scope parameter exists for (plan-quality review finding, 2026-07-17). Add a test: a `done` legacy record is absent under `ActiveOnly` but present under `ActiveAndArchive`; an `active` legacy record (metis-v2 shape) is present under both.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `go test ./cmd/sdlc/internal/project/ -run TestDiscoverByIssueRef -v`
 Expected: PASS.
 
-- [ ] **Step 5: Add edge-case tests**
+- [x] **Step 5: Add edge-case tests**
 
 Cover: zero matches → empty slice, nil error; a symlinked duplicate path counted once; an unreadable file skipped; the same issue referenced by two projects in the *same* repo both returned.
 
@@ -377,16 +377,16 @@ Expected: PASS.
 - Modify: `cmd/sdlc/close.go` `closeResult` — change `projectEditPath/projectText/projectEditText` (single) to a slice of per-file edits
 - Test: `cmd/sdlc/close_test.go` (add a two-project all-match case)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `close_test.go`, build a temp fleet where the closing issue (`ariadne#31 M1`) is referenced by **two** project files in two peer repos. Assert that after `computeClose`, both files have the milestone row ticked and both appear in `closeResult`'s edit list, and that the applied-messages mention both.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `go test ./cmd/sdlc/ -run TestClose.*Project.*AllMatch -v`
 Expected: FAIL — current code finds one file and refuses on multiple.
 
-- [ ] **Step 3: Replace `FindByIssueRef` with `DiscoverByIssueRef` and loop**
+- [x] **Step 3: Replace `FindByIssueRef` with `DiscoverByIssueRef` and loop**
 
 In `computeClose`, replace the `project.FindByIssueRef(f.BrainDir, ...)` block (`close.go:569`) with (note `repoTop`/`repoName` already exist at `close.go:406`/`410`):
 
@@ -412,23 +412,23 @@ The close gate passes `ActiveOnly` — it must not re-tick a `done` project alre
 
 **`--brain-dir` is NOT removed and is NOT a no-op.** It has a second, live consumer: `estimate.VelocityPath(f.BrainDir, "calibration-ledger.tsv")` (`close.go:758-762`) — the velocity/calibration ledger the issue deliberately keeps in brain (measurement, not coordination). This change removes only the flag's **project-discovery** use (`close.go:569`); the flag stays fully functional for the ledger. Update the flag's help text (`close.go:140`) to say it now locates only the calibration ledger, no longer project files. (The same `--brain-dir` on `milestone-close`, `actual`, `estimate-source`, and `project close` is untouched — those are all measurement paths.)
 
-- [ ] **Step 4: Update `applyClose` to write every edit**
+- [x] **Step 4: Update `applyClose` to write every edit**
 
 `applyClose` (`close.go:696-706`) currently writes one project file. Loop the edit slice and write each (the peer-commit decision comes in M3 — for now, M2 writes all matched files in place, exactly as the single-file path did, and reports paths).
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `go test ./cmd/sdlc/ -run TestClose -v`
 Expected: PASS (single-match cases unchanged; the new all-match case green).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cmd/sdlc/resolve.go cmd/sdlc/close.go cmd/sdlc/internal/project/discover.go cmd/sdlc/internal/project/discover_test.go cmd/sdlc/close_test.go cmd/sdlc/resolve_test.go
 git commit -m "#171 M2: cross-repo project discovery + all-match close update"
 ```
 
-- [ ] **Step 7: Milestone-close**
+- [x] **Step 7: Milestone-close**
 
 Run: `sdlc milestone-close --issue 171 --milestone M2`
 Fix Critical/Important; log the verdict.

@@ -124,6 +124,27 @@ resolver (the parley#160 editor UX shells to it).
   ref without resolving a local file (read-only + offline).
 - **Cross-repo** by scanning the current repo's parent for a sibling: exact
   basename wins, else a unique case-insensitive prefix (`parley` → `parley.nvim`).
+  The sibling enumeration is factored into `project.SiblingRepoDirs` (ARCH-DRY),
+  shared with the cross-repo **project discovery** below.
+
+### Cross-repo project discovery (`project.DiscoverByIssueRef`, #171)
+
+The close gate no longer looks project files up in a single `--brain-dir`
+(`FindByIssueRef`, removed). `project.DiscoverByIssueRef(parentDir, repo, id,
+scope)` walks the fleet (`SiblingRepoDirs`) and globs each peer's
+`workshop/projects` — plus, under `ActiveAndArchive`, `workshop/history/projects`
+(derived via `vocab.ArchiveSubdir`) — for the marker `[repo#id`, returning
+**every** match (multiple projects referencing one issue is legitimate
+membership, not ambiguity). The deprecated `brain/data/project` legacy home is
+still scanned (a loud deprecation warning nudges migration) so the still-active
+`metis-v2` keeps ticking until it moves. Scope is load-bearing: the close gate
+uses `ActiveOnly` (and drops terminal-status legacy matches so an archived
+`done` project is never re-ticked); `find`/`resolve`/parley use
+`ActiveAndArchive`. A fleet-glob skip-list excludes non-fleet siblings
+(`*.bak`, `worktree`, dot-dirs) that the exact-match resolver was immune to.
+`sdlc close` loops the existing tick/upsert helpers over every match
+(`closeResult.projectEdits []projectEdit`), each carrying its `repoDir` for the
+safe peer-write commit decision (M3).
 - **Read-only ⟹ lock-free by construction.** `resolve`/`open` are never tagged
   `markMutatingCommand`, so `wrapRepoLockCommands` skips them and they never touch
   `.git/sdlc.lock` (proven structurally + under a held lock). That's what makes it
