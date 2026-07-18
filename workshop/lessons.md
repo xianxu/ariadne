@@ -816,3 +816,13 @@ the transformation pure, parse structural headings fence-aware, and rebuild
 from line slices so valid newline/no-newline forms are equally safe.
 
 **Origin:** #180 M4 boundary review (REWORK).
+
+Verification evidence must come from a binary built from the code under
+review: a manually-built copy (e.g. /tmp/claude/sdlc) goes stale the moment a
+FIX-THEN-SHIP bundle amends the behavior it exercises, and a stale binary can
+"demonstrate" exactly the bug the bundle just fixed as if it were designed
+behavior. Rebuild immediately before capturing evidence, or invoke the `sdlc`
+shell function (which rebuilds from source every call).
+
+**Origin:** #171 M6 boundary review (FIX-THEN-SHIP) — the Step-6 read-path
+evidence recorded a "multi-match" produced by the pre-M4-fix prefix-match bug.

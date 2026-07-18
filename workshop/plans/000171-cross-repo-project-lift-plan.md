@@ -679,7 +679,7 @@ For each record:
 
 - [x] **Step 6: Verify discovery finds the migrated records** — from a dest repo, `sdlc project find --issue <a-ref-from-the-record>` returns the archived path. This exercises the `ActiveAndArchive` scope end-to-end (the record now lives in `workshop/history/projects/`, which only the archive-inclusive scope scans — the reason M2's `DiscoverByIssueRef` took a scope parameter). Note: closing already-closed issues won't re-tick; this is a read-path verification.
 
-- [ ] **Step 7: Milestone-close** — `sdlc milestone-close --issue 171 --milestone M6`
+- [x] **Step 7: Milestone-close** — `sdlc milestone-close --issue 171 --milestone M6`
 
 ---
 
@@ -878,10 +878,21 @@ line's roadmap residual now points at the filed follow-up #185.
 Data op per the table (nous `34005ce`, kbench `1f25273`, metis `8a4676c`).
 Notes: (1) brain-side `git rm` of the four is STAGED, riding nous's
 auto-commit rhythm per Step 5 — only `metis-v2-experiment-algebra.md` remains
-under `brain/data/project/`. (2) Step 6 verified from kbench: `project find
---issue kaggle#1` returns the archived record; `metis#2` returns BOTH the
-archived `metis-v1` and the brain-legacy `metis-v2` (flagged) — the designed
-multi-match. (3) `charon#13` does NOT resolve in this fleet because charon is
+under `brain/data/project/`. (2) **CORRECTED at the M6 boundary review
+(FIX-THEN-SHIP Important):** the first Step-6 run used a stale manually-built
+binary predating M4's ID-boundary fix, so `metis#2` prefix-matched
+`[metis#22]` in metis-v2 and the Log recorded a "multi-match" the current
+code correctly refuses (v1's refs 1–9 and v2's 18+ are disjoint — no single
+ref legitimately matches both). Re-verified with a freshly built binary, from
+kbench: `project find --issue kaggle#1` → the archived kbench record;
+`metis#2` → ONLY the archived `metis-v1` (boundary fix working as designed);
+`metis#18` → the brain-legacy `metis-v2` flagged `(legacy)` (the live
+legacy-flag path). Multi-match remains unit-pinned by
+`TestProjectFind_FleetWideArchiveInclusive`. Also re-ran `sdlc project
+validate` (which exists — `cmd/sdlc/project.go` `newProjectValidateCmd`,
+contra the review's minor; it was the command used both times) over all four
+migrated files with the fresh binary: conforms. Manual Verification item 4
+must use a metis#18-class ref. (3) `charon#13` does NOT resolve in this fleet because charon is
 not checked out — the ref's repo token needs the sibling present; the frozen
 `charon-launch-push` record becomes navigable whenever charon is checked out
 (a documented navigation limitation, not a discovery gap). (4) All four
