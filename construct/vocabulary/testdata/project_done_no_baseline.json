@@ -1,0 +1,7 @@
+{
+  "type": "project",
+  "name": "legacy-done-record",
+  "goal": "a project archived from the pre-baseline era",
+  "done_when": "criterion met",
+  "status": "done"
+}

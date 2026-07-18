@@ -26,8 +26,8 @@ A project is where the Phase-A calibration loop closes: referenced issues carry 
 | `goal` | yes | One sentence. Why this project exists. |
 | `done_when` | yes | The MVP boundary as a falsifiable criterion. *"What would make me say this project is finished?"* |
 | `status` | yes | See `construct/vocabulary/project.cue` (the schema authority): `ideation` → `defined` → `committed` → `executing` → `done` \| `dropped`, plus `paused`. |
-| `deadline` | required after commit | ISO date. The time-bound baseline set by the `defined` → `committed` transition. |
-| `planned_finish` | required after commit | ISO date. The committed forecast paired with `deadline`. |
+| `deadline` | required for committed/executing/paused | ISO date. The time-bound baseline set by the `defined` → `committed` transition. Not required for `done` — a record archived from the pre-baseline era may lack it (#171). |
+| `planned_finish` | required for committed/executing/paused | ISO date. The committed forecast paired with `deadline`. Not required for `done` (see `deadline`). |
 | `operator` | optional | Persona / name of the single human running this project. Default = self. **Exactly one** — see Single-operator discipline below. |
 | `mvp_scope` | optional | List of issue refs (`[<repo>#<id>, ...]`) declared in MVP at project start. Anchors what counts as "done." |
 | `explicitly_out` | optional | List of issue refs deliberately excluded from MVP. The conversation about what's *out* is more useful than the in-list — record it here. |

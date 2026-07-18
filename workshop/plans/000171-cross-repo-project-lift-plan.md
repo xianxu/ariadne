@@ -233,7 +233,7 @@ Expected: PASS (behavior unchanged for all real-fleet lookups; only stale `.bak`
 ### Task 2.2: `DiscoverByIssueRef` (all-match, cross-peer, brain-legacy-aware)
 
 **Files:**
-- Create: `cmd/sdlc/internal/project/discover.go`
+- Modify: `cmd/sdlc/internal/project/discover.go` (created in Task 2.1 for `siblingRepoDirs`)
 - Test: `cmd/sdlc/internal/project/discover_test.go`
 
 - [ ] **Step 1: Write the failing test**
@@ -334,6 +334,11 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 	if err != nil { return nil, err }
 	for _, repoDir := range siblings {
 		if filepath.Base(repoDir) == "brain" {
+			// Legacy brain home. Under ActiveOnly (the close gate), skip a
+			// legacy record whose status is terminal — the four migratable
+			// records are `done` and must not be re-ticked during the M2→M6
+			// window; only a still-active brain record (metis-v2) should tick.
+			// Under ActiveAndArchive (navigation), include all legacy records.
 			scan(repoDir, filepath.Join("data", "project"), true)
 			continue
 		}
@@ -342,12 +347,15 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 			scan(repoDir, archive, false)
 		}
 	}
+	if scope == ActiveOnly {
+		out = dropTerminalLegacy(out) // reads status: front-matter of Legacy matches; drops done/dropped
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil
 }
 ```
 
-Notes: the `workshop/projects` / `workshop/history/projects` strings come from `vocab`, not literals (ARCH-DRY with #181). `siblingRepoDirs` (Task 2.1, same package) already applies the spurious-sibling skip-list, so a stale `metis.bak/` copy is never scanned.
+Notes: the `workshop/projects` / `workshop/history/projects` strings come from `vocab`, not literals (ARCH-DRY with #181). `siblingRepoDirs` (Task 2.1, same package) already applies the spurious-sibling skip-list, so a stale `metis.bak/` copy is never scanned. `dropTerminalLegacy` is a tiny helper that parses each `Legacy` match's `status:` front-matter (via the existing `projectdoc`/metadata decode) and drops `done`/`dropped` — closing the close-gate re-tick hazard the scope parameter exists for (plan-quality review finding, 2026-07-17). Add a test: a `done` legacy record is absent under `ActiveOnly` but present under `ActiveAndArchive`; an `active` legacy record (metis-v2 shape) is present under both.
 
 - [ ] **Step 4: Run the test to verify it passes**
 

@@ -338,3 +338,13 @@ diff --cached --quiet` exit detection works (`execGitRunner` uses
 `CombinedOutput`), and `siblingRepoDirs` must live in `internal/project`
 (not `main`) to avoid an import cycle. Ready for `sdlc change-code` +
 implementation (M1 first).
+
+`sdlc change-code --issue 171 --worktree=no` passed: plan-quality judge INFO
+("executable as-written"; ARCH-DRY/PURE/PURPOSE all pass), estimate-quality
+judge INFO ("genuine, not back-fitted"; 4.1h reconciles). Branch
+`000171-the-tension-between-brain-and-other-repos` created in place. Folded one
+plan-quality finding into the durable plan before building: under `ActiveOnly`,
+`DiscoverByIssueRef` now drops terminal-status brain-legacy matches so the close
+gate can't re-tick a `done` legacy record during the M2→M6 window (the four
+migratable records are `done`; only active `metis-v2` should tick). Now
+implementing M1.

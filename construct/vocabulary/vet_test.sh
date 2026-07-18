@@ -36,4 +36,17 @@ echo "$pjson" | grep -q '"categories"' || { echo "FAIL: project categories not i
 echo "$pjson" | grep -q '"lifecycle"'  || { echo "FAIL: project lifecycle not in export";  exit 1; }
 echo "$pjson" | grep -q '"discovery"'  || { echo "FAIL: project discovery not in export";  exit 1; }
 
+# project baseline guard (ariadne#171 M1): a `done` record predating baseline
+# discipline (no deadline/planned_finish) must VALIDATE — a properly-run project
+# still carries a baseline (it passed through executing), but a record archived
+# from the pre-baseline era honestly has none, and migration must not fabricate
+# dates. The negative control guards against over-relaxing: a LIVE `executing`
+# record with no baseline must STILL be rejected.
+cue vet "$dir/project.cue" "$dir/testdata/project_done_no_baseline.json" -d '#Project' \
+  || { echo "FAIL: done record without baseline should validate (#171 M1)"; exit 1; }
+
+if cue vet "$dir/project.cue" "$dir/testdata/project_executing_no_baseline.json" -d '#Project' 2>/dev/null; then
+  echo "FAIL: executing record without baseline must still be rejected"; exit 1
+fi
+
 echo ok
