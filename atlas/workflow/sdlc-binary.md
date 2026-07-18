@@ -188,7 +188,10 @@ deprecated brain legacy home (flagged ` (legacy)` in text mode; JSON rows
 carry kind `"project"`). Default `resolve` (kind issue) is pinned unchanged.
 Read-only, lock-free. parley.nvim binds `gP` (`ResolveRefProject` →
 `sdlc resolve --json --kind project`) as the always-cross-repo project jump,
-separate from `gf`'s issue-family flow.
+separate from `gf`'s issue-family flow. Caveat (shared with issue resolution,
+`resolve.go` sibling-model note): cross-repo discovery applies THIS repo's
+discovery model to siblings — fine while all peers share the ariadne layout;
+a peer customizing `discovery:` would need its own model loaded here.
 
 Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 (`resolveRepoDir`, `familyFiles`) test against temp repos (ARCH-PURE). **Follow-up

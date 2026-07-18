@@ -109,7 +109,7 @@ Plan checkbox rows (also mirrored into the issue's `## Plan`):
 - [x] M2 — `DiscoverByIssueRef` + shared sibling walk; wire close gate to all-match update; brain legacy warning
 - [x] M3 — `RepoGitState`/`PeerWriteDecision`/`planPeerWrites` + thin git shell; off-main/staged report path; process-level multi-repo test
 - [x] M4 — `sdlc project find`; `sdlc resolve` project kind; parley `project` artifact class
-- [ ] M5 — AGENTS.base §8 + brain-peer line, atlas, project datatype doc; `sdlc propagate-base`
+- [x] M5 — AGENTS.base §8 + brain-peer line, atlas, project datatype doc; `sdlc propagate-base`
 - [ ] M6 — migrate charon-launch-push + shared-brain → nous, kaggle-ml-base-layer → kbench, metis-v1 → metis (history/projects/, schema-converted, validated, committed both sides)
 
 ---
@@ -585,7 +585,7 @@ git add cmd/sdlc/peerwrite.go cmd/sdlc/peerwrite_test.go cmd/sdlc/close.go cmd/s
 git commit -m "#171 M3: safe peer-write commit mechanics — scoped commit on main+clean, report-only otherwise"
 ```
 
-- [ ] **Step 7: Milestone-close**
+- [x] **Step 7: Milestone-close**
 
 Run: `sdlc milestone-close --issue 171 --milestone M3`
 This is the risky git-mutation milestone — read the fresh review carefully; fix Critical/Important; log the verdict.
@@ -625,7 +625,7 @@ This is the risky git-mutation milestone — read the fresh review carefully; fi
 - [ ] **Step 3:** Verify in parley (Manual Verification below).
 - [x] **Step 4: Commit** (parley.nvim is a peer repo — commit there per its own conventions; note the cross-repo edit in this issue's `## Log` per AGENTS §Peer Repo).
 
-- [ ] **Step 5: Milestone-close**
+- [x] **Step 5: Milestone-close**
 
 Run: `sdlc milestone-close --issue 171 --milestone M4`
 
@@ -639,11 +639,11 @@ Run: `sdlc milestone-close --issue 171 --milestone M4`
 - Modify: `construct/datatype/project.md` (residency + move procedure section, if not already covered)
 - Regenerate: woven `AGENTS.md`/`CLAUDE.md`/`GEMINI.md` via `sdlc propagate-base`
 
-- [ ] **Step 1:** Rewrite `AGENTS.base.md:62` to state projects live in each project's center-of-gravity repo under `workshop/projects/` (default: top product; movable via `sdlc migrate`; refs are `repo#id`), archived under `workshop/history/projects/`. Update `:20` so brain is described as capture/measurement only — no SDLC process artifacts.
-- [ ] **Step 2:** Update the atlas residency/workflow map to the new home and the cross-peer close-gate discovery; keep `atlas/index.md` linking every file.
-- [ ] **Step 3:** Ensure `construct/datatype/project.md` documents the residency default + move procedure (center of gravity; ref-rewrite on move via `sdlc migrate`).
-- [ ] **Step 4:** Run `sdlc propagate-base` to re-weave downstream constitution files; run `go test ./cmd/sdlc/ -run Propagate` if present.
-- [ ] **Step 5: Commit**
+- [x] **Step 1:** Rewrite `AGENTS.base.md:62` to state projects live in each project's center-of-gravity repo under `workshop/projects/` (default: top product; movable via `sdlc migrate`; refs are `repo#id`), archived under `workshop/history/projects/`. Update `:20` so brain is described as capture/measurement only — no SDLC process artifacts.
+- [x] **Step 2:** Update the atlas residency/workflow map to the new home and the cross-peer close-gate discovery; keep `atlas/index.md` linking every file.
+- [x] **Step 3:** Ensure `construct/datatype/project.md` documents the residency default + move procedure (center of gravity; ref-rewrite on move via `sdlc migrate`).
+- [x] **Step 4:** Run `sdlc propagate-base` to re-weave downstream constitution files; run `go test ./cmd/sdlc/ -run Propagate` if present.
+- [x] **Step 5: Commit**
 
 ```bash
 git add AGENTS.base.md atlas/ construct/datatype/project.md AGENTS.md CLAUDE.md GEMINI.md
@@ -840,3 +840,24 @@ Milestone M4 shipped (ariadne `49942fc`, parley.nvim `81cdc3a`). Deltas:
    project` (the #142 docs-gate class), shared `printProjectMatches` (DRY),
    JSON rows carry `legacy: true`, helptext documents the marker forms and the
    milestone-token ignore, and the github-ref/milestone-token arms are pinned.
+
+### 2026-07-17 — M5 executed; deltas from the Chunk 5 sketch
+
+Milestone M5 shipped. Deltas:
+
+1. **Woven faces are gitignored — the commit list amends.** Step 5's `git add
+   … AGENTS.md CLAUDE.md GEMINI.md` is stale: `/AGENTS.md`, `/CLAUDE.md`,
+   `/GEMINI.md` are gitignored woven output (fleet-wide — downstream repos'
+   faces refreshed in place with nothing to commit, hence propagate-base's
+   "re-wove + verified (no change)"). Only `AGENTS.base.md` + atlas + datatype
+   sources commit.
+2. **propagate-base skipped 2 dirty dependents** (`42shots`, `pair` —
+   pre-existing uncommitted work; the designed refusal). Their gitignored
+   faces stay stale until a re-run; noted in the issue Log for a re-run at
+   issue close rather than touching another session's tree.
+3. **`make weave`'s settings merge writes `.claude/settings.json`**, which the
+   agent sandbox deny-lists — the weave step needs an out-of-sandbox run (same
+   class as propagate-base's documented out-of-sandbox requirement).
+4. **Brain-peer line also records the M3 guarantee** (peer-write never
+   auto-commits into a brain) and scopes the residual: `roadmap` stays in
+   brain until it lifts.

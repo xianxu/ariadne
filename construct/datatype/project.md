@@ -214,8 +214,17 @@ When the dispatcher applies this prototype:
 
 6. **Add reference definitions** at the end of the file for each task with a detail block. Slug per the rule above.
 
-7. **Default location:** `workshop/projects/<slug>.md`. Legacy brain-era records
-   migrate under #171. Terminal records archive to `workshop/history/projects/`.
+7. **Residency:** `workshop/projects/<slug>.md` in the project's
+   **center-of-gravity repo** — the top product repo by default. A soft rule,
+   not an address: every ref inside is a qualified `repo#id`, so the record
+   reads identically from any vantage, and tooling discovers it fleet-wide
+   (close gate ticks it wherever it lives; `sdlc project find --issue <ref>` /
+   `sdlc resolve --kind project <ref>` navigate to it). **Never in brain** —
+   brain is capture/measurement, holds no SDLC process artifacts (#171).
+   **Moving a record** when the center of gravity shifts: `sdlc migrate`
+   relocates it and rewrites refs for the new vantage; frozen terminal records
+   move verbatim instead (keep qualified refs — see #171 M6's precedent).
+   Terminal records archive to `workshop/history/projects/`.
 
 8. **Updates preserve everything else.** Common edits: flipping a checkbox state, adding a detail block, recording `actual:` and `closed:` on completion, adding or removing tasks. Edit in place — never rewrite the file.
 
