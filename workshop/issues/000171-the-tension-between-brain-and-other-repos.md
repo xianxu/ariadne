@@ -113,7 +113,7 @@ boundaries — NOT split into sub-issues (ARCH-PURPOSE: the Done-when is the who
 lift, not the cheap close-lookup subset). Durable plan:
 `workshop/plans/000171-cross-repo-project-lift-plan.md`.
 
-- [ ] M1 — relax `done` baseline guard (project.cue + regen project.json + vet/conformance)
+- [x] M1 — relax `done` baseline guard (project.cue + regen project.json + vet/conformance)
 - [ ] M2 — cross-repo project discovery (`DiscoverByIssueRef`, scope-aware) + all-match close update; brain-legacy deprecation warning
 - [ ] M3 — safe peer-write commit mechanics (pure `planPeerWrites` + thin git shell; on-main+clean → scoped commit, else report-only; close never fails)
 - [ ] M4 — fleet navigation: `sdlc project find` + `sdlc resolve` project kind (archive-inclusive) + parley `project` artifact class
