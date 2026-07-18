@@ -47,6 +47,11 @@ func TestProjectCloseRequiresRetroUnlessBypassed(t *testing.T) {
 
 func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 	f, projectPath, ledgerPath := projectCloseFixture(t, "executing", true, true)
+	// Pin the close date — the assertions below expect 2026-07-16, so the
+	// transaction date must be injected rather than read from the real clock
+	// (otherwise the test is date-flaky: it only passes on 2026-07-16).
+	originalToday := projectTodayFn
+	projectTodayFn = func() string { return "2026-07-16" }
 	originalLookup := projectIssueLookupFn
 	projectIssueLookupFn = func(ref, _ string) (issueMeta, error) {
 		return map[string]issueMeta{
@@ -54,7 +59,10 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 			"ariadne#2": {ActualHours: 30, ActualAvailable: true},
 		}[ref], nil
 	}
-	t.Cleanup(func() { projectIssueLookupFn = originalLookup })
+	t.Cleanup(func() {
+		projectTodayFn = originalToday
+		projectIssueLookupFn = originalLookup
+	})
 
 	var stdout, stderr bytes.Buffer
 	if err := runProjectClose(&stdout, &stderr, f); err != nil {
