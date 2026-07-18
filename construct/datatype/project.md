@@ -85,7 +85,7 @@ Keep one line per task short — **title + ref only**. Nothing else. No inline e
 
 #### Reference syntax
 
-- `[<repo>#<id>]` — issue in any repo with an issue tracker. Product repos (`charon`, `ariadne`, etc.) and shared brain repos (`brain-team`, `brain-family`, etc.) work uniformly.
+- `[<repo>#<id>]` — issue in any peer repo with a `workshop/issues/` tracker (`charon`, `ariadne`, `metis`, etc.). Brain repos hold no issue trackers (capture/measurement only — the spine refuses there, #176).
 - `[<repo>#<id> M<N>]` — milestone-level granularity within an issue.
 - Plain text — for items that don't fit any issue tracker (e.g., `write release notes`, `email investors`).
 
@@ -161,7 +161,7 @@ The bracketed `[<ref>]` in task lines becomes a clickable link to the correspond
 
 - `charon#13 M2` → `charon-13-m2`
 - `charon#13 sketch` → `charon-13-sketch`
-- `brain-team#40 doc-cleanup` → `brain-team-40-doc-cleanup`
+- `metis#40 doc-cleanup` → `metis-40-doc-cleanup`
 
 **Three pieces, in order in the file:**
 
@@ -223,8 +223,9 @@ When the dispatcher applies this prototype:
    brain is capture/measurement, holds no SDLC process artifacts (#171).
    **Moving a record** when the center of gravity shifts: `sdlc migrate`
    relocates it and rewrites refs for the new vantage; frozen terminal records
-   move verbatim instead (keep qualified refs — see #171 M6's precedent).
-   Terminal records archive to `workshop/history/projects/`.
+   move verbatim instead, keeping qualified refs (the rule the #171 M6
+   migration follows). Terminal records archive to
+   `workshop/history/projects/`.
 
 8. **Updates preserve everything else.** Common edits: flipping a checkbox state, adding a detail block, recording `actual:` and `closed:` on completion, adding or removing tasks. Edit in place — never rewrite the file.
 

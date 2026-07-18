@@ -861,3 +861,14 @@ Milestone M5 shipped. Deltas:
 4. **Brain-peer line also records the M3 guarantee** (peer-write never
    auto-commits into a brain) and scopes the residual: `roadmap` stays in
    brain until it lifts.
+
+Post-review amendment (M5 FIX-THEN-SHIP, bundled): delta 2's "noted in the
+issue Log" became true at finalize — the `closed M5` Log line carries the
+42shots/pair re-run reminder (the reviewer read the pre-write tree). Swept in
+the close bundle, extending the M5 sweep record: `helptext/close.md` (fleet
+discovery + peer-write summary; `--brain-dir` = calibration-ledger root),
+`helptext/milestone-close.md` (same flag line), `helptext/state.md`
+(BRAIN_DIR → fleet discovery), `construct/datatype/project.md` (brain-repos-
+host-issues contradiction removed; M6 forward-ref reworded),
+`scripts/close-issue.py` (annotated SUPERSEDED by sdlc close), and the brain
+line's roadmap residual now points at the filed follow-up #185.

@@ -73,8 +73,12 @@ WHAT THE GUARD DEFENDS
       review; a MIDSTREAM miss (a later Mx closed with review) still
       refuses.
     - milestone-close ticks the `- [ ] M4 — ...` row; refuses if absent
-    - project file (if any, under <brain>/data/project/*.md referencing
-      <repo>#<id>) gets its task row ticked + detail block updated
+    - every project record across the fleet referencing <repo>#<id>
+      (each peer's workshop/projects/*.md; the deprecated brain legacy
+      home still scans with a migration warning, #171) gets its task row
+      ticked + detail block updated; a PEER repo's edit is committed
+      there only when git state is unambiguous (main, clean), else
+      reported with the exact finish command
 
   BYPASSING A GATE (#67) — each gate has its own --no-<gate> flag, so you
   can waive exactly the one that doesn't apply (and acknowledge it) instead
@@ -134,7 +138,8 @@ FLAGS
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.
   --dry-run             print what would change, write nothing
-  --brain-dir <path>    project-file lookup root (default ../brain)
+  --brain-dir <path>    brain root for the calibration ledger (default ../brain);
+                        project files are discovered across the fleet (#171)
   --issues-dir <path>   issues directory (default workshop/issues)
 
 DEEP-DIVE REFERENCES

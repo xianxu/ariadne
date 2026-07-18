@@ -9,6 +9,9 @@
 # Does NOT commit — the agent commits, usually bundling the close with other work.
 #
 # Conventions assumed (see nous/AGENTS.md §5 + construct/datatype/project.md):
+#   SUPERSEDED (#171): fully ported to `sdlc close` (cmd/sdlc/close.go), which
+#   discovers project files across the FLEET (workshop/projects/), not the
+#   brain-era $BRAIN_DIR/data/project/ documented below. Kept for reference.
 #   - Issue file at $WF_ISSUES_DIR/<padded-id>-*.md, YAML frontmatter with `status:`.
 #   - Issue ## Plan items shaped like "- [ ] M4 — ..." (optional; project-tracked
 #     issues live in a project file's ## tasks).

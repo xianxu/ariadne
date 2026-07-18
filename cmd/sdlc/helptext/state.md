@@ -43,8 +43,9 @@ to history.
 Deferred to later milestones (not yet implemented):
   - working-but-no-recent-commits — needs commit-window cross-reference,
     lands with M4 (set-status).
-  - project-file task-tick vs issue-tick mismatch — needs BRAIN_DIR
-    resolution, lands with M6 (milestone-close).
+  - project-file task-tick vs issue-tick mismatch — needs the fleet-wide
+    project discovery (#171 DiscoverByIssueRef), lands with M6
+    (milestone-close).
   - atlas-touch surfacing — M7.
 
 FLAGS
