@@ -443,7 +443,7 @@ Fix Critical/Important; log the verdict.
 - Create: `cmd/sdlc/peerwrite.go`
 - Test: `cmd/sdlc/peerwrite_test.go`
 
-- [ ] **Step 1: Write the failing test (the decision table)**
+- [x] **Step 1: Write the failing test (the decision table)**
 
 ```go
 func TestPlanPeerWrites(t *testing.T) {
@@ -466,12 +466,12 @@ func TestPlanPeerWrites(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `go test ./cmd/sdlc/ -run TestPlanPeerWrites -v`
 Expected: FAIL — undefined.
 
-- [ ] **Step 3: Implement the planner**
+- [x] **Step 3: Implement the planner**
 
 ```go
 type RepoGitState struct {
@@ -518,7 +518,7 @@ func planPeerWrites(edits map[string][]string, states map[string]RepoGitState, c
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `go test ./cmd/sdlc/ -run TestPlanPeerWrites -v`
 Expected: PASS. Add cases: repo with edits but no state entry (treat as unknown → report-only, not commit); empty edits → empty decisions.
@@ -530,16 +530,16 @@ Expected: PASS. Add cases: repo with edits but no state entry (treat as unknown 
 - Modify: `cmd/sdlc/close.go` (`applyClose` calls the shell)
 - Test: `cmd/sdlc/close_finalize_test.go` or a new `peerwrite_apply_test.go` with a real multi-repo git fixture
 
-- [ ] **Step 1: Write the failing process-level test**
+- [x] **Step 1: Write the failing process-level test**
 
 Build a temp parent dir with two real git repos (init, commit an initial project file) — reuse the `hermeticRepo`/sibling-fixture pattern from `resolve_test.go`/`migrate_test.go`. Peer on `main` clean → after `applyPeerWrites`, assert `git -C <peer> log -1` shows a new commit touching exactly the project file and the working tree is clean. Peer with a staged unrelated change → assert the project file is written but **not** committed and the staged change is untouched.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `go test ./cmd/sdlc/ -run TestApplyPeerWrites -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement the shell**
+- [x] **Step 3: Implement the shell**
 
 ```go
 func readRepoGitState(r gitRunner, repoDir string) RepoGitState {
@@ -569,16 +569,16 @@ func applyPeerWrites(r gitRunner, decisions []PeerWriteDecision, stdout, stderr 
 
 (File writes happen in `applyClose` as in M2; `applyPeerWrites` only handles the commit decision. `diff --cached --quiet` semantics: exit 0 = no staged changes; the `gitRunner` impl must surface the non-zero exit as an error — verify `execGitRunner` does, and if it swallows exit codes, read `git status --porcelain` for staged entries instead. Add a unit test pinning the staged-detection path.)
 
-- [ ] **Step 4: Introduce a gitRunner into the close path and change `applyClose`'s signature**
+- [x] **Step 4: Introduce a gitRunner into the close path and change `applyClose`'s signature**
 
 The close path constructs **no** `gitRunner` today (unlike claim/changecode/merge/pr/push). Add `var closeRunner gitRunner = execGitRunner{}` at the close path's entry, and change `applyClose` from `(stderr io.Writer, f *closeFlags, r closeResult)` to `(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeResult)` — it needs the runner for peer commits and a `stdout` writer for the "committed X in Y" report (it currently gets only `stderr`). Thread the new args through every caller: `reviewThenFinalize` → `finalizeBoundaryReview`, `runClose`, and the `--no-judge` branch in `runCloseWithReview` (grep `applyClose(` for the full call set). Then, after writing the local issue + current-repo project file, build `edits map[string][]string` from the M2 edit slice grouped by `RepoDir`, read `RepoGitState` per peer, run `planPeerWrites`, then `applyPeerWrites`. The current repo's project file (if any) commits with the issue as today.
 
-- [ ] **Step 5: Run all close + peerwrite tests**
+- [x] **Step 5: Run all close + peerwrite tests**
 
 Run: `go test ./cmd/sdlc/ -run 'Close|PeerWrite' -v`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cmd/sdlc/peerwrite.go cmd/sdlc/peerwrite_test.go cmd/sdlc/close.go cmd/sdlc/close_finalize_test.go
@@ -766,3 +766,27 @@ Deferred to M3 (reviewer note): a close test whose matched project lives in a
 where cross-repo write/commit behavior gets exercised. `dropTerminalLegacy`
 re-reading files `scan` already read is a cold-path micro-inefficiency; the
 `ProjectMatch.Status` future-extension is the fix if it ever matters.
+
+### 2026-07-17 — M3 executed; deltas from the Chunk 3 sketch
+
+Milestone M3 shipped (commit `2127dab`). Deltas folded in while implementing:
+
+1. **Brain refusal lives in `RepoGitState.IsBrain`, keeping the planner pure.**
+   The sketch left the brain check ambiguous ("planner or shell"); the shipped
+   design snapshots `gitx.IsBrainRepo` into `RepoGitState` in `readRepoGitState`
+   so `planPeerWrites` stays a pure function and the brain case is a fourth
+   decision-table row (report-only, before the branch/staged checks, #176).
+2. **Commit message parameterized by `closingRef`.** The sketch hardcoded
+   `(ariadne#171)`; the shipped planner takes a `closingRef` ("<repo>#<id>") and
+   carries the message on the decision (`PeerWriteDecision.Message`), so peer
+   history cites the actual closing issue.
+3. **Unknown-state row added** (sketch Step 4's "add cases" note): a repo with
+   edits but no state entry is report-only — never commit blind.
+4. **`runClose` gained `stdout` too** (it's the test-only wrapper; its three
+   callers updated), and the runner is a package-level `var closeRunner
+   gitRunner = execGitRunner{}` rather than a per-entry local — one seam, all
+   four `applyClose` callsites (incl. `milestoneclose.go`'s `--no-judge` branch,
+   which the sketch's caller list missed).
+5. **Peer commit scoped by pathspec** (`git commit -m … -- <files>`) as
+   belt-and-suspenders against a race between the staged-clean check and the
+   commit; tests land in `peerwrite_apply_test.go` (the sketch's either/or).

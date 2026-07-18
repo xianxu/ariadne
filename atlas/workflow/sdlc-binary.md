@@ -144,7 +144,30 @@ uses `ActiveOnly` (and drops terminal-status legacy matches so an archived
 (`*.bak`, `worktree`, dot-dirs) that the exact-match resolver was immune to.
 `sdlc close` loops the existing tick/upsert helpers over every match
 (`closeResult.projectEdits []projectEdit`), each carrying its `repoDir` for the
-safe peer-write commit decision (M3).
+safe peer-write commit decision below.
+
+### Safe peer-write commit mechanics (`peerwrite.go`, #171 M3)
+
+A close that edits a project file in a *peer* repo must not strand the edit
+uncommitted in that peer's working tree — but blindly committing into someone
+else's checkout is worse. `planPeerWrites(edits, states, curRepoDir,
+closingRef)` is the genuinely-pure decision core: per peer repo it authorizes
+a **scoped auto-commit** only when git state makes the commit unambiguous —
+on `main`, clean index, and not a brain capture repo (`RepoGitState.IsBrain`
+via `gitx.IsBrainRepo`, #176). Anything else — off-main, pre-existing staged
+changes, unknown state, brain — is **report-only**: the file stays written and
+the operator gets the reason plus the exact `cd … && git add … && git commit`
+next action. The current repo is always omitted (its edit rides the normal
+close commit), and a report-only outcome never fails the close.
+`readRepoGitState` + `applyPeerWrites` are the thin shell over the shared
+`gitRunner` seam (`runner.go`); the close path owns a package-level
+`closeRunner` and `applyClose(stdout, stderr, gitRunner, …)` runs the
+plan→apply pair after its file writes. The peer commit is scoped by pathspec
+(`git commit -m … -- <files>`) and its message cites the closing ref
+(`project: close-time update (<repo>#<id>)`), so peer history says which close
+produced it. Pinned end-to-end by real multi-repo git fixtures
+(`peerwrite_apply_test.go`), including the cross-repo close case where the
+matched project lives in a different repo than the closing one.
 - **Read-only ⟹ lock-free by construction.** `resolve`/`open` are never tagged
   `markMutatingCommand`, so `wrapRepoLockCommands` skips them and they never touch
   `.git/sdlc.lock` (proven structurally + under a held lock). That's what makes it
