@@ -5,53 +5,9 @@ package project
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
-
-// FindByIssueRef finds the project file under
-// `<brainDir>/data/project/*.md` that contains the marker
-// `[<repoName>#<issueID>` (the open-bracket form matches both
-// `[charon#13]` and `[charon#13 M2]`).
-//
-// Returns:
-//   - one match → its absolute path, nil
-//   - zero matches → "", nil (callers decide whether to warn)
-//   - multiple matches → "", error (callers warn + skip; PROJECT= override
-//     is not implemented, matching close-issue.py)
-//   - hard filesystem error → "", error
-func FindByIssueRef(brainDir, repoName, issueID string) (string, error) {
-	glob := filepath.Join(brainDir, "data", "project", "*.md")
-	files, err := filepath.Glob(glob)
-	if err != nil {
-		return "", fmt.Errorf("glob %s: %w", glob, err)
-	}
-	marker := "[" + repoName + "#" + issueID
-	var hits []string
-	for _, f := range files {
-		data, rerr := os.ReadFile(f)
-		if rerr != nil {
-			// best-effort: ignore unreadable files (permission, broken
-			// symlink, etc.); close-issue.py would propagate, but that's
-			// because it uses Path.read_text() unconditionally — we keep
-			// going since the worst case is "no project found" warning.
-			continue
-		}
-		if strings.Contains(string(data), marker) {
-			hits = append(hits, f)
-		}
-	}
-	switch len(hits) {
-	case 0:
-		return "", nil
-	case 1:
-		return hits[0], nil
-	default:
-		return "", fmt.Errorf("multiple project files reference %s#%s: %v", repoName, issueID, hits)
-	}
-}
 
 // TickMilestoneTaskRow ticks "- [ ] title [<repo>#<id> <milestone>]" (and
 // the [.] [-] [~] in-progress/blocked/cancelled forms) to "- [x] ...".
