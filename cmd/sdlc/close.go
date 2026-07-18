@@ -330,6 +330,7 @@ type closeResult struct {
 	issueText    string // original, for the "changed?" guard
 	newIssueText string
 	projectEdits []projectEdit
+	repoTop      string // closing repo's top-level — the peer-write "current repo" anchor (M3)
 	// calibration-ledger inputs (read from the ORIGINAL issue):
 	fm, body, repoName, issueStr, today string
 	// success messages that describe WRITES — emitted by applyClose (post-finalize),
@@ -668,6 +669,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		issueText:    issueText,
 		newIssueText: newIssueText,
 		projectEdits: projectEdits,
+		repoTop:      repoTop,
 		fm:           fm,
 		body:            body,
 		repoName:        repoName,
@@ -701,30 +703,61 @@ func printCloseDryRun(stderr io.Writer, r closeResult) {
 	}
 }
 
+// closeRunner is the close path's gitRunner — the seam M3's peer-write commit
+// shells through. Production is execGitRunner; tests may substitute.
+var closeRunner gitRunner = execGitRunner{}
+
 // applyClose performs the close's writes — issue + project files + the #117
 // calibration ledger — then emits the success messages computeClose deferred
 // (so "flipped → codecomplete" prints only when the flip actually happened). Called
 // only after a finalizing verdict, or on the eager non-review path (#139).
-func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
-	if r.newIssueText != r.issueText {
-		if err := os.WriteFile(r.issuePath, []byte(r.newIssueText), 0o644); err != nil {
-			die(stderr, fmt.Sprintf("write %s: %v", r.issuePath, err))
+// Peer-repo project edits then go through the safe peer-write commit decision
+// (#171 M3): scoped commit when the peer is on main with a clean index,
+// report-only otherwise — never failing the close either way.
+func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeResult) {
+	if res.newIssueText != res.issueText {
+		if err := os.WriteFile(res.issuePath, []byte(res.newIssueText), 0o644); err != nil {
+			die(stderr, fmt.Sprintf("write %s: %v", res.issuePath, err))
 		}
 	}
-	for _, e := range r.projectEdits {
+	for _, e := range res.projectEdits {
 		if err := os.WriteFile(e.path, []byte(e.newText), 0o644); err != nil {
 			die(stderr, fmt.Sprintf("write %s: %v", e.path, err))
 		}
 	}
-	for _, m := range r.appliedMsgs {
+	for _, m := range res.appliedMsgs {
 		cok(stderr, m)
 	}
+
+	// ── Peer-write commit decision (#171 M3) ─────────────────────────────────
+	// The current repo's project edit rides the close commit; each PEER repo's
+	// edit is committed there only when git state makes it unambiguous.
+	peerEdits := map[string][]string{}
+	for _, e := range res.projectEdits {
+		if e.repoDir == "" || e.repoDir == res.repoTop {
+			continue
+		}
+		rel, rerr := filepath.Rel(e.repoDir, e.path)
+		if rerr != nil {
+			rel = e.path
+		}
+		peerEdits[e.repoDir] = append(peerEdits[e.repoDir], rel)
+	}
+	if len(peerEdits) > 0 {
+		states := map[string]RepoGitState{}
+		for repoDir := range peerEdits {
+			states[repoDir] = readRepoGitState(r, repoDir)
+		}
+		decisions := planPeerWrites(peerEdits, states, res.repoTop, res.repoName+"#"+res.issueStr)
+		applyPeerWrites(r, decisions, stdout, stderr)
+	}
+
 	// ── Close the loop (#117 mechanism 3) ────────────────────────────────────
 	// On a full-issue close with a measured actual, append the estimate↔actual
 	// data point to the calibration ledger. Milestone closes carry a partial
 	// actual, so only the whole-issue close yields a clean row.
 	if shouldLogCalibration(f) {
-		appendCalibrationRow(stderr, f, r.fm, r.body, r.repoName, r.issueStr, r.today)
+		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today)
 	}
 	cok(stderr, "done — review with `git diff`, then commit")
 }
@@ -736,13 +769,13 @@ func applyClose(stderr io.Writer, f *closeFlags, r closeResult) {
 // production caller (the `sdlc close --milestone` short-circuit — runCloseWithReview
 // now refuses it). runClose survives as the test-only convenience that bundles the
 // mechanical close without a review (close_test.go / close_ledger_test.go).
-func runClose(stderr io.Writer, f *closeFlags) error {
+func runClose(stdout, stderr io.Writer, f *closeFlags) error {
 	r := computeClose(stderr, f)
 	if f.DryRun {
 		printCloseDryRun(stderr, r)
 		return nil
 	}
-	applyClose(stderr, f, r)
+	applyClose(stdout, stderr, closeRunner, f, r)
 	return nil
 }
 
@@ -890,7 +923,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		// Explicit operator skip → finalize (this runs BEFORE dispatch, so only a
 		// dispatch-ERROR VerdictNotRun ever reaches closeVerdictOutcome's halt).
 		cinfo(stderr, "skipping issue boundary review per --no-judge (or --force)")
-		applyClose(stderr, f, r)
+		applyClose(stdout, stderr, closeRunner, f, r)
 		return finishBoundaryReview(stdout, stderr, f,
 			reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong})
 	case f.DryRun:
@@ -1050,7 +1083,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 				return fmt.Errorf("boundary review stale: %w", err)
 			}
 		}
-		applyClose(stderr, f, r)
+		applyClose(stdout, stderr, closeRunner, f, r)
 		emitTrailerBlock(stdout, review, kind)
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))

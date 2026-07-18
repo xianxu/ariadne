@@ -160,7 +160,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		// full-issue close's f.skip("judge"); otherwise a --force milestone-close would
 		// still dispatch and could halt/rework, defeating the emergency bypass.
 		cinfo(stderr, "skipping milestone-review per --no-judge (or --force)")
-		applyClose(stderr, closeF, r)
+		applyClose(stdout, stderr, closeRunner, closeF, r)
 		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}, "milestone-close")
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, judge.VerdictNotRun); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))

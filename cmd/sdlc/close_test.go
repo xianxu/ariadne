@@ -387,7 +387,7 @@ func TestRunClose_NoActualWritesNotApplicableSentinel(t *testing.T) {
 		IssuesDir: issuesDir,
 		BrainDir:  "../nonexistent-brain",
 	}
-	if err := runClose(io.Discard, f); err != nil {
+	if err := runClose(io.Discard, io.Discard, f); err != nil {
 		t.Fatalf("runClose: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(issuesDir, "000135-x.md"))
