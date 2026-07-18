@@ -110,7 +110,7 @@ Plan checkbox rows (also mirrored into the issue's `## Plan`):
 - [x] M3 — `RepoGitState`/`PeerWriteDecision`/`planPeerWrites` + thin git shell; off-main/staged report path; process-level multi-repo test
 - [x] M4 — `sdlc project find`; `sdlc resolve` project kind; parley `project` artifact class
 - [x] M5 — AGENTS.base §8 + brain-peer line, atlas, project datatype doc; `sdlc propagate-base`
-- [ ] M6 — migrate charon-launch-push + shared-brain → nous, kaggle-ml-base-layer → kbench, metis-v1 → metis (history/projects/, schema-converted, validated, committed both sides)
+- [x] M6 — migrate charon-launch-push + shared-brain → nous, kaggle-ml-base-layer → kbench, metis-v1 → metis (history/projects/, schema-converted, validated, committed both sides)
 
 ---
 
@@ -650,7 +650,7 @@ git add AGENTS.base.md atlas/ construct/datatype/project.md AGENTS.md CLAUDE.md 
 git commit -m "#171 M5: project residency docs — coding-repo workshop/projects, brain holds no SDLC artifacts"
 ```
 
-- [ ] **Step 6: Milestone-close** — `sdlc milestone-close --issue 171 --milestone M5`
+- [x] **Step 6: Milestone-close** — `sdlc milestone-close --issue 171 --milestone M5`
 
 ---
 
@@ -671,13 +671,13 @@ Destinations (operator-confirmed 2026-07-17):
 
 For each record:
 
-- [ ] **Step 1: Create the destination dir** — `mkdir -p <dest>/workshop/history/projects` (none exist yet).
-- [ ] **Step 2: Copy + schema-convert** — copy the file in; confirm frontmatter conforms to `#Project` under the relaxed guard. Add `closed:` (ISO) if absent, using the record's own stated close date from its body/Log. Do NOT fabricate `deadline`/`planned_finish` (M1 makes them optional for `done`). Leave `mvp_scope`/`explicitly_out` refs qualified.
-- [ ] **Step 3: Validate** — `sdlc project validate <dest>/workshop/history/projects/<name>.md` (or `bin/vocabulary`/the conformance check the project verbs use). Expected: valid.
-- [ ] **Step 4: Commit in the destination peer** — from the dest repo, `git add workshop/history/projects/<name>.md && git commit -m "history: archive <name> project (migrated from brain, ariadne#171)"`. (These are ariadne-styled peers on `main`; if a dest is off-main, follow the same report-and-hand-off discipline as the close gate.)
-- [ ] **Step 5: Remove from brain** — `git rm data/project/<name>.md` in brain (nous auto-commits brain). Confirm the four are gone and only `metis-v2-experiment-algebra.md` remains under `brain/data/project/`.
+- [x] **Step 1: Create the destination dir** — `mkdir -p <dest>/workshop/history/projects` (none exist yet).
+- [x] **Step 2: Copy + schema-convert** — copy the file in; confirm frontmatter conforms to `#Project` under the relaxed guard. Add `closed:` (ISO) if absent, using the record's own stated close date from its body/Log. Do NOT fabricate `deadline`/`planned_finish` (M1 makes them optional for `done`). Leave `mvp_scope`/`explicitly_out` refs qualified.
+- [x] **Step 3: Validate** — `sdlc project validate <dest>/workshop/history/projects/<name>.md` (or `bin/vocabulary`/the conformance check the project verbs use). Expected: valid.
+- [x] **Step 4: Commit in the destination peer** — from the dest repo, `git add workshop/history/projects/<name>.md && git commit -m "history: archive <name> project (migrated from brain, ariadne#171)"`. (These are ariadne-styled peers on `main`; if a dest is off-main, follow the same report-and-hand-off discipline as the close gate.)
+- [x] **Step 5: Remove from brain** — `git rm data/project/<name>.md` in brain (nous auto-commits brain). Confirm the four are gone and only `metis-v2-experiment-algebra.md` remains under `brain/data/project/`.
 
-- [ ] **Step 6: Verify discovery finds the migrated records** — from a dest repo, `sdlc project find --issue <a-ref-from-the-record>` returns the archived path. This exercises the `ActiveAndArchive` scope end-to-end (the record now lives in `workshop/history/projects/`, which only the archive-inclusive scope scans — the reason M2's `DiscoverByIssueRef` took a scope parameter). Note: closing already-closed issues won't re-tick; this is a read-path verification.
+- [x] **Step 6: Verify discovery finds the migrated records** — from a dest repo, `sdlc project find --issue <a-ref-from-the-record>` returns the archived path. This exercises the `ActiveAndArchive` scope end-to-end (the record now lives in `workshop/history/projects/`, which only the archive-inclusive scope scans — the reason M2's `DiscoverByIssueRef` took a scope parameter). Note: closing already-closed issues won't re-tick; this is a read-path verification.
 
 - [ ] **Step 7: Milestone-close** — `sdlc milestone-close --issue 171 --milestone M6`
 
@@ -872,3 +872,19 @@ discovery + peer-write summary; `--brain-dir` = calibration-ledger root),
 host-issues contradiction removed; M6 forward-ref reworded),
 `scripts/close-issue.py` (annotated SUPERSEDED by sdlc close), and the brain
 line's roadmap residual now points at the filed follow-up #185.
+
+### 2026-07-17 — M6 executed; notes
+
+Data op per the table (nous `34005ce`, kbench `1f25273`, metis `8a4676c`).
+Notes: (1) brain-side `git rm` of the four is STAGED, riding nous's
+auto-commit rhythm per Step 5 — only `metis-v2-experiment-algebra.md` remains
+under `brain/data/project/`. (2) Step 6 verified from kbench: `project find
+--issue kaggle#1` returns the archived record; `metis#2` returns BOTH the
+archived `metis-v1` and the brain-legacy `metis-v2` (flagged) — the designed
+multi-match. (3) `charon#13` does NOT resolve in this fleet because charon is
+not checked out — the ref's repo token needs the sibling present; the frozen
+`charon-launch-push` record becomes navigable whenever charon is checked out
+(a documented navigation limitation, not a discovery gap). (4) All four
+records conformed to #Project verbatim under M1's relaxed guard; only
+`closed:` was added (charon-launch-push 2026-05-04, kaggle-ml-base-layer
+2026-07-02, metis-v1 2026-07-07, from each record's own body).

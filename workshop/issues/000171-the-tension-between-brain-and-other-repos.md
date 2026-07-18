@@ -118,7 +118,7 @@ lift, not the cheap close-lookup subset). Durable plan:
 - [x] M3 — safe peer-write commit mechanics (pure `planPeerWrites` + thin git shell; on-main+clean → scoped commit, else report-only; close never fails)
 - [x] M4 — fleet navigation: `sdlc project find` + `sdlc resolve` project kind (archive-inclusive) + parley `project` artifact class
 - [x] M5 — residency docs (AGENTS.base §8 + brain-peer line, atlas, project datatype) + `sdlc propagate-base`
-- [ ] M6 — migrate the four terminal legacy records to their center-of-gravity `workshop/history/projects/`
+- [x] M6 — migrate the four terminal legacy records to their center-of-gravity `workshop/history/projects/`
 
 ## Estimate
 
