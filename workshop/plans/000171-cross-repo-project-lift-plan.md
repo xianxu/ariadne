@@ -829,3 +829,14 @@ Milestone M4 shipped (ariadne `49942fc`, parley.nvim `81cdc3a`). Deltas:
    mixed into the family picker — a 1-issue-file ref still opens directly).
    Unit specs pin the `--kind` argv and the default no-kind argv; luacheck
    clean. Live in-editor jump remains Manual Verification item 1.
+4. **M2 discovery contract amended: marker match now boundary-aware** (M4
+   review Important 2, fixed in the close bundle). `DiscoverByIssueRef`'s bare
+   `strings.Contains(text, "[repo#id")` prefix-matched longer ids — `#18` hit
+   `[metis#180]`, so navigation would jump to (and a close of #18 would tick)
+   the wrong project. `containsIssueMarker` now requires a non-digit boundary
+   after the id (accepting `[repo#id]`, `[repo#id Mx]`, EOF), pinned by
+   `TestDiscoverByIssueRef_IDBoundary` + `TestContainsIssueMarker`. Also from
+   that review: README project-command listing gained `find`/`resolve --kind
+   project` (the #142 docs-gate class), shared `printProjectMatches` (DRY),
+   JSON rows carry `legacy: true`, helptext documents the marker forms and the
+   milestone-token ignore, and the github-ref/milestone-token arms are pinned.

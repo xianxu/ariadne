@@ -63,6 +63,19 @@ func discoverProjectsForRef(refStr, root string) ([]projectdoc.ProjectMatch, Art
 	return matches, ref, nil
 }
 
+// printProjectMatches is the shared text renderer for both navigation surfaces
+// (`project find`, `resolve --kind project`): one path per line, legacy (brain)
+// records flagged.
+func printProjectMatches(w io.Writer, matches []projectdoc.ProjectMatch) {
+	for _, m := range matches {
+		line := m.Path
+		if m.Legacy {
+			line += " (legacy)"
+		}
+		fmt.Fprintln(w, line)
+	}
+}
+
 func runProjectFind(stdout io.Writer, f *projectFindFlags) error {
 	root, err := currentRoot(f.root)
 	if err != nil {
@@ -72,12 +85,6 @@ func runProjectFind(stdout io.Writer, f *projectFindFlags) error {
 	if err != nil {
 		return err
 	}
-	for _, m := range matches {
-		line := m.Path
-		if m.Legacy {
-			line += " (legacy)"
-		}
-		fmt.Fprintln(stdout, line)
-	}
+	printProjectMatches(stdout, matches)
 	return nil
 }

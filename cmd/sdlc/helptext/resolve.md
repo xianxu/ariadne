@@ -52,11 +52,14 @@ GITHUB REFS
 KINDS
 
   `--kind project` resolves the ref to PROJECT RECORDS instead of the issue
-  family: every project across the fleet referencing the issue (`[repo#id`),
-  archive-inclusive (`workshop/projects/` + `workshop/history/projects/` +
-  the deprecated brain legacy home, flagged `(legacy)` in text mode). A
+  family: every project across the fleet whose body contains the reference
+  marker (`[repo#id]` or `[repo#id Mx]`), archive-inclusive
+  (`workshop/projects/` + `workshop/history/projects/` + the deprecated brain
+  legacy home, flagged `(legacy)` in text mode, `legacy: true` in JSON). A
   project may live in a different repo than the issue it tracks (ariadne#171).
-  Default (`--kind issue`) is the family resolution described above.
+  A milestone token in the ref (`#171 M4`) is accepted and ignored — project
+  records are found per issue, not per milestone. Default (`--kind issue`) is
+  the family resolution described above.
 
 OUTPUT MODES
 

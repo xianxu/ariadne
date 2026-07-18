@@ -96,7 +96,7 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 			if rerr != nil {
 				continue // best-effort, matches FindByIssueRef
 			}
-			if strings.Contains(string(data), marker) {
+			if containsIssueMarker(string(data), marker) {
 				seen[real] = true
 				out = append(out, ProjectMatch{
 					Path: f, RepoDir: repoDir, Repo: filepath.Base(repoDir), Legacy: legacy,
@@ -133,6 +133,25 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil
+}
+
+// containsIssueMarker reports whether text contains the ref marker followed by
+// a NON-DIGIT boundary — "[metis#18]" or "[metis#18 M2]", never "[metis#180]".
+// A bare Contains on the open-bracket prefix would false-positive on longer
+// ids sharing the prefix (#171 M4 review: a close of #18 must not tick #180's
+// project, and `project find` must not navigate to it).
+func containsIssueMarker(text, marker string) bool {
+	for i := 0; ; {
+		j := strings.Index(text[i:], marker)
+		if j < 0 {
+			return false
+		}
+		k := i + j + len(marker)
+		if k >= len(text) || text[k] < '0' || text[k] > '9' {
+			return true
+		}
+		i = k
+	}
 }
 
 // dropTerminalLegacy removes Legacy (brain) matches whose status is terminal

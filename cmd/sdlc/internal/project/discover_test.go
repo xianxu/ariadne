@@ -231,3 +231,55 @@ func TestSiblingRepoDirs_ReturnsAllDirs(t *testing.T) {
 		t.Fatalf("want 4 dirs (no filtering), got %d: %+v", len(got), got)
 	}
 }
+
+// TestDiscoverByIssueRef_IDBoundary pins the marker boundary (#171 M4 review):
+// searching #18 must NOT match a record referencing #180 (the open-bracket
+// prefix alone would), while both documented forms — "[repo#18]" and
+// "[repo#18 Mx]" — still match. The close gate shares this match, so without
+// the boundary a close of #18 would falsely tick #180's project.
+func TestDiscoverByIssueRef_IDBoundary(t *testing.T) {
+	parent := t.TempDir()
+	writeProject(t, parent, "metis", "workshop/projects", "longer", "[metis#180]")
+	writeProject(t, parent, "kbench", "workshop/projects", "bare", "[metis#18]")
+	writeProject(t, parent, "nous", "workshop/projects", "tagged", "[metis#18 M2]")
+
+	got, err := DiscoverByIssueRef(parent, "metis", "18", ActiveAndArchive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want 2 matches (bare + milestone-tagged), got %d: %+v", len(got), got)
+	}
+	for _, m := range got {
+		if strings.Contains(m.Path, "longer") {
+			t.Errorf("#18 matched the #180 record: %+v", m)
+		}
+	}
+
+	longer, err := DiscoverByIssueRef(parent, "metis", "180", ActiveAndArchive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(longer) != 1 || !strings.Contains(longer[0].Path, "longer") {
+		t.Fatalf("#180 should match exactly its own record: %+v", longer)
+	}
+}
+
+func TestContainsIssueMarker(t *testing.T) {
+	cases := []struct {
+		text string
+		want bool
+	}{
+		{"- [ ] [metis#18] t", true},
+		{"- [ ] [metis#18 M2] t", true},
+		{"- [ ] [metis#180] t", false},
+		{"tail is the marker [metis#18", true}, // EOF is a non-digit boundary
+		{"[metis#180] then [metis#18]", true},  // later true occurrence still found
+		{"no ref here", false},
+	}
+	for _, c := range cases {
+		if got := containsIssueMarker(c.text, "[metis#18"); got != c.want {
+			t.Errorf("containsIssueMarker(%q) = %v, want %v", c.text, got, c.want)
+		}
+	}
+}

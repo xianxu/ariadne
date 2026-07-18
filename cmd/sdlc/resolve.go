@@ -349,6 +349,7 @@ type resolveFile struct {
 	Kind      string `json:"kind"`
 	Path      string `json:"path"`
 	Milestone string `json:"milestone,omitempty"`
+	Legacy    bool   `json:"legacy,omitempty"` // project kind: record found in the deprecated brain home
 }
 
 type resolveOpts struct {
@@ -430,17 +431,11 @@ func runResolveProjects(o resolveOpts, root string) error {
 	if o.asJSON {
 		res := resolveResult{Ref: o.ref, Repo: ref.Repo, ID: ref.ID, Files: []resolveFile{}}
 		for _, m := range matches {
-			res.Files = append(res.Files, resolveFile{Kind: "project", Path: m.Path})
+			res.Files = append(res.Files, resolveFile{Kind: "project", Path: m.Path, Legacy: m.Legacy})
 		}
 		return encodeJSON(o.out, res)
 	}
-	for _, m := range matches {
-		line := m.Path
-		if m.Legacy {
-			line += " (legacy)"
-		}
-		fmt.Fprintln(o.out, line)
-	}
+	printProjectMatches(o.out, matches)
 	return nil
 }
 

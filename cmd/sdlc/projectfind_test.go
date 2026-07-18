@@ -83,6 +83,27 @@ func TestProjectFind_RepoPrefixAndNoMatch(t *testing.T) {
 	}
 }
 
+func TestProjectFind_GitHubRefRejected(t *testing.T) {
+	root := seedProjectFleet(t)
+	err := runProjectFind(&bytes.Buffer{}, &projectFindFlags{Issue: "gh#42", root: root})
+	if err == nil || !strings.Contains(err.Error(), "github") {
+		t.Fatalf("want github-ref rejection, got %v", err)
+	}
+}
+
+// A milestone token in the ref is accepted and ignored — project records are
+// found per issue, not per milestone (documented in helptext/resolve.md).
+func TestProjectFind_MilestoneTokenIgnored(t *testing.T) {
+	root := seedProjectFleet(t)
+	var buf bytes.Buffer
+	if err := runProjectFind(&buf, &projectFindFlags{Issue: "metis#18 M2", root: root}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "p.md") {
+		t.Fatalf("milestone-tagged ref should still find the project: %q", buf.String())
+	}
+}
+
 func TestResolveRun_KindProject(t *testing.T) {
 	root := seedProjectFleet(t)
 	var buf bytes.Buffer
@@ -111,10 +132,20 @@ func TestResolveRun_KindProjectJSON(t *testing.T) {
 	if res.ID != 18 || len(res.Files) != 3 {
 		t.Fatalf("bad result: %+v", res)
 	}
+	legacies := 0
 	for _, f := range res.Files {
 		if f.Kind != "project" {
 			t.Fatalf("kind = %q, want project: %+v", f.Kind, res.Files)
 		}
+		if f.Legacy {
+			legacies++
+			if !strings.Contains(f.Path, "brain") {
+				t.Fatalf("legacy flag on a non-brain record: %+v", f)
+			}
+		}
+	}
+	if legacies != 1 {
+		t.Fatalf("want exactly 1 legacy row in JSON, got %d: %+v", legacies, res.Files)
 	}
 }
 
