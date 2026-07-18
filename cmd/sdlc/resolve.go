@@ -354,6 +354,7 @@ type resolveFile struct {
 type resolveOpts struct {
 	ref    string
 	root   string // current repo root; "" ⇒ gitx.RepoTopLevel()
+	kind   string // "" (issue family, default) or "project" (fleet-wide records, #171 M4)
 	asJSON bool
 	out    io.Writer
 }
@@ -374,11 +375,21 @@ func githubWho(ref ArtifactRef, root string) string {
 }
 
 // runResolve prints the resolved family paths (or --json). Read-only: takes no
-// lock. A GitHub ref is labeled, not resolved to a file.
+// lock. A GitHub ref is labeled, not resolved to a file. `--kind project`
+// routes through the fleet-wide project discovery instead of the issue-family
+// glob (#171 M4); the default issue-kind path is unchanged.
 func runResolve(o resolveOpts) error {
 	root, err := currentRoot(o.root)
 	if err != nil {
 		return err
+	}
+	switch o.kind {
+	case "", "issue":
+		// fall through to the issue-family resolution below
+	case "project":
+		return runResolveProjects(o, root)
+	default:
+		return fmt.Errorf("unknown --kind %q (supported: issue, project)", o.kind)
 	}
 	fam, ref, err := resolveArtifacts(o.ref, root)
 	if err != nil {
@@ -407,20 +418,48 @@ func runResolve(o resolveOpts) error {
 	return nil
 }
 
+// runResolveProjects is the `--kind project` arm: every project record across
+// the fleet referencing the issue, archive-inclusive, via the shared discovery
+// (`discoverProjectsForRef`). Legacy (brain) matches are flagged in text mode
+// and carry Kind "project" in JSON like every other match.
+func runResolveProjects(o resolveOpts, root string) error {
+	matches, ref, err := discoverProjectsForRef(o.ref, root)
+	if err != nil {
+		return err
+	}
+	if o.asJSON {
+		res := resolveResult{Ref: o.ref, Repo: ref.Repo, ID: ref.ID, Files: []resolveFile{}}
+		for _, m := range matches {
+			res.Files = append(res.Files, resolveFile{Kind: "project", Path: m.Path})
+		}
+		return encodeJSON(o.out, res)
+	}
+	for _, m := range matches {
+		line := m.Path
+		if m.Legacy {
+			line += " (legacy)"
+		}
+		fmt.Fprintln(o.out, line)
+	}
+	return nil
+}
+
 // NewResolveCmd builds `sdlc resolve <ref>`. NOT tagged markMutatingCommand, so
 // it never acquires .git/sdlc.lock — lock-free by construction (ariadne#144).
 func NewResolveCmd() *cobra.Command {
 	var asJSON bool
+	var kind string
 	cmd := &cobra.Command{
 		Use:           "resolve <ref>",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runResolve(resolveOpts{ref: args[0], asJSON: asJSON, out: cmd.OutOrStdout()})
+			return runResolve(resolveOpts{ref: args[0], kind: kind, asJSON: asJSON, out: cmd.OutOrStdout()})
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit the structured resolution as JSON")
+	cmd.Flags().StringVar(&kind, "kind", "", "artifact kind: issue (default) or project (fleet-wide project records, archive-inclusive)")
 	return cmd
 }
 
