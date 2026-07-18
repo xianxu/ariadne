@@ -108,7 +108,7 @@ Plan checkbox rows (also mirrored into the issue's `## Plan`):
 - [x] M1 — relax `done` baseline guard; regenerate `project.json`; vet + conformance green
 - [x] M2 — `DiscoverByIssueRef` + shared sibling walk; wire close gate to all-match update; brain legacy warning
 - [x] M3 — `RepoGitState`/`PeerWriteDecision`/`planPeerWrites` + thin git shell; off-main/staged report path; process-level multi-repo test
-- [ ] M4 — `sdlc project find`; `sdlc resolve` project kind; parley `project` artifact class
+- [x] M4 — `sdlc project find`; `sdlc resolve` project kind; parley `project` artifact class
 - [ ] M5 — AGENTS.base §8 + brain-peer line, atlas, project datatype doc; `sdlc propagate-base`
 - [ ] M6 — migrate charon-launch-push + shared-brain → nous, kaggle-ml-base-layer → kbench, metis-v1 → metis (history/projects/, schema-converted, validated, committed both sides)
 
@@ -600,10 +600,10 @@ This is the risky git-mutation milestone — read the fresh review carefully; fi
 - Modify: `cmd/sdlc/project.go` (register `find` subcommand)
 - Test: `cmd/sdlc/project_crud_test.go` or a new `projectfind_test.go`
 
-- [ ] **Step 1: Write the failing test** — `sdlc project find --issue metis#18` over a temp fleet prints the matching project paths (one per line), legacy matches flagged.
-- [ ] **Step 2: Run to verify it fails.** `go test ./cmd/sdlc/ -run TestProjectFind -v`
-- [ ] **Step 3: Implement** — parse `--issue <repo>#<id>` via `parseRef` (`resolve.go:56`), call `project.DiscoverByIssueRef(filepath.Dir(repoTop), ref.Repo, ref.ID, project.ActiveAndArchive)` (navigation includes archived records), print `m.Path` (+ ` (legacy)` when `m.Legacy`). Add help text under `cmd/sdlc/helptext/`.
-- [ ] **Step 4: Run to verify it passes.**
+- [x] **Step 1: Write the failing test** — `sdlc project find --issue metis#18` over a temp fleet prints the matching project paths (one per line), legacy matches flagged.
+- [x] **Step 2: Run to verify it fails.** `go test ./cmd/sdlc/ -run TestProjectFind -v`
+- [x] **Step 3: Implement** — parse `--issue <repo>#<id>` via `parseRef` (`resolve.go:56`), call `project.DiscoverByIssueRef(filepath.Dir(repoTop), ref.Repo, ref.ID, project.ActiveAndArchive)` (navigation includes archived records), print `m.Path` (+ ` (legacy)` when `m.Legacy`). Add help text under `cmd/sdlc/helptext/`.
+- [x] **Step 4: Run to verify it passes.**
 
 ### Task 4.2: `sdlc resolve` project kind
 
@@ -611,8 +611,8 @@ This is the risky git-mutation milestone — read the fresh review carefully; fi
 - Modify: `cmd/sdlc/resolve.go`
 - Test: `cmd/sdlc/resolve_test.go`
 
-- [ ] **Step 1: Write the failing test** — resolving a `project` ref (or `--kind project`) returns project records fleet-wide via `DiscoverByIssueRef(..., project.ActiveAndArchive)` (archived records resolve too).
-- [ ] **Step 2–4:** implement the smallest wiring that routes a project-kind resolution through the shared discovery with `ActiveAndArchive` scope; keep issue/other-kind resolution unchanged. Run `go test ./cmd/sdlc/ -run Resolve -v`.
+- [x] **Step 1: Write the failing test** — resolving a `project` ref (or `--kind project`) returns project records fleet-wide via `DiscoverByIssueRef(..., project.ActiveAndArchive)` (archived records resolve too).
+- [x] **Step 2–4:** implement the smallest wiring that routes a project-kind resolution through the shared discovery with `ActiveAndArchive` scope; keep issue/other-kind resolution unchanged. Run `go test ./cmd/sdlc/ -run Resolve -v`.
 
 ### Task 4.3: parley `project` artifact class
 
@@ -620,10 +620,10 @@ This is the risky git-mutation milestone — read the fresh review carefully; fi
 - Modify: `parley.nvim` super-repo search config (find the artifact-class registry; grep for where `issue`/`plan` classes are declared)
 - Test: parley's own test harness if present; else a manual step in this plan's Manual Verification
 
-- [ ] **Step 1:** Read parley.nvim's super-repo search to locate how artifact classes are declared and how a class maps to a search root.
-- [ ] **Step 2:** Add `project` as an always-cross-repo class: its search shells out to `sdlc project find` / `sdlc resolve` (or globs every peer's `workshop/projects/`), so a project jump works regardless of which repo holds the file.
+- [x] **Step 1:** Read parley.nvim's super-repo search to locate how artifact classes are declared and how a class maps to a search root.
+- [x] **Step 2:** Add `project` as an always-cross-repo class: its search shells out to `sdlc project find` / `sdlc resolve` (or globs every peer's `workshop/projects/`), so a project jump works regardless of which repo holds the file.
 - [ ] **Step 3:** Verify in parley (Manual Verification below).
-- [ ] **Step 4: Commit** (parley.nvim is a peer repo — commit there per its own conventions; note the cross-repo edit in this issue's `## Log` per AGENTS §Peer Repo).
+- [x] **Step 4: Commit** (parley.nvim is a peer repo — commit there per its own conventions; note the cross-repo edit in this issue's `## Log` per AGENTS §Peer Repo).
 
 - [ ] **Step 5: Milestone-close**
 
@@ -804,3 +804,28 @@ Milestone M3 shipped (commit `2127dab`). Deltas folded in while implementing:
    by a decision-table case, `readRepoGitState` unit cases, and the end-to-end
    `TestClose_PeerDirtyProjectFileReportOnly`; `applyPeerWrites`'s
    warn-and-continue contract pinned by a failing-runner stub.
+
+### 2026-07-17 — M4 executed; deltas from the Chunk 4 sketch
+
+Milestone M4 shipped (ariadne `49942fc`, parley.nvim `81cdc3a`). Deltas:
+
+1. **One shared seam for both surfaces.** `discoverProjectsForRef(refStr, root)`
+   (new `cmd/sdlc/projectfind.go`) owns parse → sibling-resolve → discovery for
+   BOTH `project find` and `resolve --kind project` (ARCH-DRY); the sketch
+   implied two parallel wirings. The ref's repo token gets `resolveRepoDir`'s
+   full matching (exact, then unique case-insensitive prefix) — so `met#18`
+   works — where the sketch passed `ref.Repo` to discovery verbatim.
+2. **`--kind` flag, not a new ref grammar.** The "project ref" alternative in
+   Task 4.2 was dropped: the ref grammar stays single-sourced and untouched;
+   kind is a resolution mode (`--kind issue|project`, unknown kinds error).
+   Default resolution is pinned unchanged by
+   `TestResolveRun_DefaultKindUnchangedByProjects`.
+3. **Parley's "class" is a jump binding, not a search-root registry.** parley
+   has no artifact-class registry to extend (Step 1's premise); the natural
+   integration point is the #160 artifact-ref flow. Shipped: `gP`
+   (`chat_shortcut_resolve_ref_project`) → `M.cmd.ResolveRefProject` →
+   `goto_ref_at_cursor({kind = "project"})` → `sdlc resolve --json --kind
+   project`. The existing `gf` family flow is untouched (a project row is never
+   mixed into the family picker — a 1-issue-file ref still opens directly).
+   Unit specs pin the `--kind` argv and the default no-kind argv; luacheck
+   clean. Live in-editor jump remains Manual Verification item 1.

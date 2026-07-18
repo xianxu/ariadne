@@ -176,6 +176,20 @@ matched project lives in a different repo than the closing one.
   `.git/sdlc.lock` (proven structurally + under a held lock). That's what makes it
   cheap enough (~process spawn) for parley to shell to on a keypress.
 
+### Fleet project navigation (`projectfind.go`, #171 M4)
+
+`sdlc project find --issue <ref>` and `sdlc resolve --kind project <ref>` both
+answer "which project records reference this issue, anywhere in the fleet?"
+via one shared seam: `discoverProjectsForRef` (parse ref → `resolveRepoDir`
+sibling matching, exact-then-unique-prefix → `DiscoverByIssueRef` under
+**`ActiveAndArchive`**). Navigation is archive-inclusive by design — active
+`workshop/projects/`, archived `workshop/history/projects/`, and the
+deprecated brain legacy home (flagged ` (legacy)` in text mode; JSON rows
+carry kind `"project"`). Default `resolve` (kind issue) is pinned unchanged.
+Read-only, lock-free. parley.nvim binds `gP` (`ResolveRefProject` →
+`sdlc resolve --json --kind project`) as the always-cross-repo project jump,
+separate from `gf`'s issue-family flow.
+
 Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 (`resolveRepoDir`, `familyFiles`) test against temp repos (ARCH-PURE). **Follow-up
 (#163):** the existing `workshop/plans`/`workshop/history` hardcoders in
