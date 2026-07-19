@@ -1,11 +1,12 @@
 ---
 id: 000182
-status: open
+status: working
 deps: [ariadne#180]
 github_issue:
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-18
 estimate_hours:
+started: 2026-07-18T22:35:59-07:00
 ---
 
 # project calendar estimator: mechanize the commit reality-check (effort→calendar bridge)
