@@ -36,6 +36,13 @@ record's path. A project can live in a different repo than the issue it
 tracks; discovery is tooling's job, not a residency rule's (ariadne#171).
 Read-only, lock-free. Equivalent: `sdlc resolve --kind project <ref>`.
 
+Once a throughput baseline is blessed, the calendar forecast (throughput ÷
+contention → projected finish vs deadline) surfaces at three points, always
+informing and never blocking: `set-status --to committed` computes it, records
+it as the reality-check evidence, and derives `planned_finish:` (override with
+`--planned-finish`); `show`/`status` append the live forecast-vs-deadline
+drift; `close` records planned-vs-actual finish in the Calendar ledger.
+
 `throughput` bridges effort to calendar (ariadne#182). Its unit is measured
 focused hours/week, summed from the calibration ledger — the operator picks a
 representative span, the machinery measures the rate (trailing windows skew

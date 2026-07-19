@@ -171,9 +171,45 @@ func TestForecastForProject_NoBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, ferr := forecastForProject(d, subject, parent, "/nonexistent-brain", "2026-09-01")
+	_, _, ferr := forecastForProject(d, subject, "/nonexistent-brain", "2026-09-01")
 	if ferr != errNoBaseline {
 		t.Errorf("want errNoBaseline, got %v", ferr)
+	}
+}
+
+// TestForecastForProject_RelativePathResolvesVantage pins the verification-caught
+// bug: a relative project path (as the default projects-dir yields) must still
+// resolve the issue-lookup vantage to the real repo root — otherwise the
+// cross-repo lookup silently reads 0 remaining while the board reads correctly.
+func TestForecastForProject_RelativePathResolvesVantage(t *testing.T) {
+	parent := t.TempDir()
+	writeFleetProjectDeadline(t, parent, "ariadne", "subj", "committed", "ariadne#182", "55h", "2026-09-01")
+	stubIssueLookup(t, map[string]float64{})
+	blPath := filepath.Join(t.TempDir(), "baseline.tsv")
+	if err := os.WriteFile(blPath, []byte(estimate.BaselineHeader()+"\n2026-07-19\ts\te\t55.00\t10\t2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WF_THROUGHPUT_BASELINE", blPath)
+
+	// chdir into the repo and pass the RELATIVE project path.
+	repoDir := filepath.Join(parent, "ariadne")
+	cwd, _ := os.Getwd()
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatal(err)
+	}
+	relPath := filepath.Join("workshop", "projects", "subj.md")
+	d, err := readProject(relPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, _, ferr := forecastForProject(d, relPath, "/nonexistent-brain", "2026-09-01")
+	if ferr != nil {
+		t.Fatalf("relative path should forecast (Phase-A 55h): %v", ferr)
+	}
+	// Phase-A 55h ÷ 55h/wk ÷ 1 = +7 days.
+	if f.ProjectedFinish != "2026-09-08" {
+		t.Errorf("ProjectedFinish = %q, want 2026-09-08", f.ProjectedFinish)
 	}
 }
 
@@ -191,7 +227,7 @@ func TestForecastForProject_WithBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, deadline, ferr := forecastForProject(d, subject, parent, "/nonexistent-brain", "2026-09-01")
+	f, deadline, ferr := forecastForProject(d, subject, "/nonexistent-brain", "2026-09-01")
 	if ferr != nil {
 		t.Fatalf("forecast: %v", ferr)
 	}

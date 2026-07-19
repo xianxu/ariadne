@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -130,6 +131,12 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 			}
 			ledgerPath = filepath.Join(f.BrainDir, filepath.FromSlash(projectLedgerRel))
 			ledgerNext, err = prepareProjectLedgerRow(ledgerPath, metadata.Name, phaseA, actuals, today)
+			if err != nil {
+				return err
+			}
+			// #182: append the planned-vs-actual finish calendar row to the same
+			// ledger text (one commit), beside the fog row.
+			ledgerNext, err = prepareCalendarLedgerRow(ledgerNext, metadata.Name, metadata.PlannedFinish, today)
 			return err
 		},
 	}
@@ -347,13 +354,46 @@ func prepareProjectLedgerRow(path, name string, phaseA, actuals float64, today s
 		return "", fmt.Errorf("fog ledger unavailable: %w; add `## Fog ledger` and its markdown table, or pass --no-ledger (or --force)", err)
 	}
 	row := fmt.Sprintf("| %s | %gh | %gh | %.2f | %s |", name, phaseA, actuals, actuals/phaseA, today)
-	return appendProjectLedgerRow(string(b), row)
+	return appendProjectLedgerRow(string(b), "Fog ledger", row)
 }
 
-func appendProjectLedgerRow(text, row string) (string, error) {
-	start, end, ok := projectdoc.SectionLineBounds(text, "Fog ledger")
+// prepareCalendarLedgerRow appends a planned-vs-actual finish row to the
+// `## Calendar ledger` table in the same project ledger text (#182): the
+// project-level calendar feedback loop, beside the fog-factor row. slip_days =
+// actual_finish − planned_finish (positive = late, negative = early); an absent
+// planned_finish records `n/a` slip (informational, never refuses).
+func prepareCalendarLedgerRow(text, name, plannedFinish, today string) (string, error) {
+	slip := "n/a"
+	if pf := strings.TrimSpace(plannedFinish); pf != "" {
+		if d, ok := slipDays(pf, today); ok {
+			slip = fmt.Sprintf("%d", d)
+		}
+	}
+	planned := strings.TrimSpace(plannedFinish)
+	if planned == "" {
+		planned = "n/a"
+	}
+	row := fmt.Sprintf("| %s | %s | %s | %s | %s |", name, planned, today, slip, today)
+	return appendProjectLedgerRow(text, "Calendar ledger", row)
+}
+
+// slipDays returns actual − planned in whole days.
+func slipDays(planned, actual string) (int, bool) {
+	p, err1 := time.Parse("2006-01-02", planned)
+	a, err2 := time.Parse("2006-01-02", actual)
+	if err1 != nil || err2 != nil {
+		return 0, false
+	}
+	return int(a.Sub(p).Hours() / 24), true
+}
+
+// appendProjectLedgerRow inserts row after the markdown table under the given
+// level-two heading. Errors name that specific heading so the two ledgers
+// (Fog ledger, Calendar ledger) give heading-specific guidance.
+func appendProjectLedgerRow(text, heading, row string) (string, error) {
+	start, end, ok := projectdoc.SectionLineBounds(text, heading)
 	if !ok {
-		return "", fmt.Errorf("fog ledger missing exact heading `## Fog ledger`; add the heading and its markdown table, or pass --no-ledger (or --force)")
+		return "", fmt.Errorf("ledger missing exact heading `## %s`; add the heading and its markdown table, or pass --no-ledger (or --force)", heading)
 	}
 	lines := strings.Split(text, "\n")
 	tableEnd := -1
@@ -373,7 +413,7 @@ func appendProjectLedgerRow(text, row string) (string, error) {
 		}
 	}
 	if !seenHeader || !seenDivider || tableEnd < 0 {
-		return "", fmt.Errorf("fog ledger `## Fog ledger` is missing its markdown table; add it, or pass --no-ledger (or --force)")
+		return "", fmt.Errorf("ledger `## %s` is missing its markdown table; add it, or pass --no-ledger (or --force)", heading)
 	}
 	next := make([]string, 0, len(lines)+1)
 	next = append(next, lines[:tableEnd+1]...)

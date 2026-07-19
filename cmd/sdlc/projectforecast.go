@@ -125,10 +125,33 @@ func boardRowsResolved(b board) bool {
 	return false
 }
 
+// forecastLine renders the one-line forecast for the read verbs (show/status),
+// best-effort: no baseline yields a short bless hint, any other error yields a
+// short unavailable line, and neither ever fails the read. Empty only when the
+// project doc itself can't be read (the verb reports that separately).
+func forecastLine(path, brainDir, today string) string {
+	d, err := readProject(path)
+	if err != nil {
+		return ""
+	}
+	f, deadline, ferr := forecastForProject(d, path, brainDir, today)
+	if ferr == errNoBaseline {
+		return "forecast: no blessed baseline (sdlc project throughput --bless <FROM>..<TO>)"
+	}
+	if ferr != nil {
+		return "forecast: unavailable (" + ferr.Error() + ")"
+	}
+	return projectdoc.RenderForecast(f, deadline)
+}
+
 // forecastForProject is the shared assembly every consumer calls: build this
 // project's load + the fleet's other loads + the baseline, then ComputeForecast.
-// Returns errNoBaseline (bubbled) so each consumer picks its own fallback.
-func forecastForProject(d *projectdoc.Doc, projectPath, parentDir, brainDir, today string) (projectdoc.Forecast, string, error) {
+// The issue-lookup vantage (repo root) and the fleet parent are BOTH derived
+// from the project path resolved to absolute — a relative path (as the default
+// projects-dir gives) would otherwise resolve to "." and silently fail every
+// cross-repo issue lookup. Returns errNoBaseline (bubbled) so each consumer
+// picks its own fallback.
+func forecastForProject(d *projectdoc.Doc, projectPath, brainDir, today string) (projectdoc.Forecast, string, error) {
 	baseline, err := loadThroughputBaseline(brainDir)
 	if err != nil {
 		return projectdoc.Forecast{}, "", err
@@ -137,11 +160,16 @@ func forecastForProject(d *projectdoc.Doc, projectPath, parentDir, brainDir, tod
 	if merr != nil {
 		return projectdoc.Forecast{}, "", merr
 	}
+	absPath := projectPath
+	if a, aerr := filepath.Abs(projectPath); aerr == nil {
+		absPath = a
+	}
+	repoDir := projectRepoDir(absPath)
+	parentDir := filepath.Dir(repoDir)
 	// Repo is the repo basename fleet-wide (consistent with sibling loads); the
 	// project's own name lives in ProjectLoad.Name via projectLoadFromDoc.
-	repoDir := projectRepoDir(projectPath)
-	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: projectPath, RepoDir: repoDir, Repo: filepath.Base(repoDir)})
-	others := ListFleetProjects(parentDir, projectPath)
+	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: absPath, RepoDir: repoDir, Repo: filepath.Base(repoDir)})
+	others := ListFleetProjects(parentDir, absPath)
 	f, cerr := projectdoc.ComputeForecast(baseline, this, others, today)
 	if cerr != nil {
 		return projectdoc.Forecast{}, meta.Deadline, cerr

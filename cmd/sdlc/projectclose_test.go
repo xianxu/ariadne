@@ -100,7 +100,7 @@ func TestAppendProjectLedgerRowHandlesEOFAndStructuralHeadings(t *testing.T) {
 		"# Ledger\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|",
 		"# Ledger\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|\n| old | 1h | 1h | 1.00 | 2026-01-01 |",
 	} {
-		got, err := appendProjectLedgerRow(text, row)
+		got, err := appendProjectLedgerRow(text, "Fog ledger", row)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -110,7 +110,7 @@ func TestAppendProjectLedgerRowHandlesEOFAndStructuralHeadings(t *testing.T) {
 	}
 
 	text := "# Ledger\n\n`## Fog ledger` is the required section.\n\n```md\n## Fog ledger\n| fake | table |\n|---|---|\n```\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|\n\n## Notes\nkeep\n"
-	got, err := appendProjectLedgerRow(text, row)
+	got, err := appendProjectLedgerRow(text, "Fog ledger", row)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,7 +504,7 @@ func projectCloseFixture(t *testing.T, status string, retro, phaseA bool) (*proj
 	if err := os.MkdirAll(filepath.Dir(ledgerPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	ledger := "# Phase-A\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|\n"
+	ledger := "# Phase-A\n\n## Fog ledger\n\n| project | phase-a | actuals | fog | closed |\n|---|---:|---:|---:|---|\n\n## Calendar ledger\n\n| project | planned_finish | actual_finish | slip_days | closed |\n|---|---|---|---:|---|\n"
 	if err := os.WriteFile(ledgerPath, []byte(ledger), 0o644); err != nil {
 		t.Fatal(err)
 	}

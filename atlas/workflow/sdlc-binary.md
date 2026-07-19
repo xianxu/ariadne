@@ -234,9 +234,33 @@ recorded at the right surfaces, not a gate.
   same `computeBoard` the status board uses, reusing
   `project.ListActiveProjectFiles` — the `DiscoverByIssueRef` fleet walk
   factored into a shared `walkFleetProjects` (one fleet-walk source,
-  behavior-identical for discovery). `loadThroughputBaseline` maps absence
-  AND parse failure to one `errNoBaseline`; `forecastForProject` is the shared
-  assembly the three M3 consumers (commit / show+status / close) call.
+  behavior-identical for discovery). A project whose breakdown resolved into
+  issues reads board hours even at 0 remaining (a complete project reads ~0,
+  not the stale PRD number); Phase-A is a fallback only when nothing resolved;
+  a project with 0 remaining or `unknown` load doesn't contend.
+  `loadThroughputBaseline` maps absence AND parse failure to one
+  `errNoBaseline`; `forecastForProject` is the shared assembly the three
+  consumers call.
+- **The three consumers — inform, never block (M3).**
+  1. **`set-status →committed`** computes the forecast, prints the statement,
+     injects it as the `reality-check` evidence when the operator gave no
+     `--reality` (so the existing `evidenceGuard` passes on *having computed* —
+     zero guard/model change), and derives `planned_finish:`. Precedence
+     (`plannedFinishDecision`): explicit `--planned-finish` > a pre-existing
+     value > the derived date, each provenance-noted in the Log. The derived
+     `planned_finish` is applied to the doc **before** the guard loop, because
+     the `baseline-set` guard requires it. No blessed baseline → the legacy
+     `--reality` prose fallback (with a bless hint); it never refuses on the
+     forecast's *answer*, only on the absence of *any* evidence.
+  2. **`project show` / `status`** append the live forecast line
+     (`forecastLine`, best-effort — a read verb never fails on a forecast
+     error; no baseline → a quiet bless hint).
+  3. **`project close`** appends a planned-vs-actual `## Calendar ledger` row
+     (`slip_days = actual − planned`, `n/a` when unset) beside the fog row in
+     the same `estimate-logic-project-v1.md` — the project-level calendar
+     calibration loop, the analogue of the fog factor.
+  `appendProjectLedgerRow` is heading-parameterized (`Fog ledger` |
+  `Calendar ledger`), each error naming its own heading.
 
 ## Artifact migration (`sdlc migrate`, #179)
 

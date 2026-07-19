@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -90,8 +89,7 @@ func computeCommitForecast(stdout, stderr io.Writer, path string, f *projectSetS
 	if err != nil {
 		return err
 	}
-	parentDir := filepath.Dir(projectRepoDir(path))
-	forecast, _, ferr := forecastForProject(d, path, parentDir, f.BrainDir, today)
+	forecast, _, ferr := forecastForProject(d, path, f.BrainDir, today)
 	if ferr == errNoBaseline {
 		if strings.TrimSpace(f.Reality) == "" && !f.Force {
 			return fmt.Errorf("guard reality-check: no throughput baseline blessed — bless one (`sdlc project throughput --bless <FROM>..<TO>`) so the commit forecast computes, or pass --reality '<why it fits>'")
