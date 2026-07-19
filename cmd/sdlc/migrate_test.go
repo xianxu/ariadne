@@ -3,10 +3,11 @@ package main
 import (
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // TestRewriteRefs pins the #179 rewrite semantics: three rules (bare →
@@ -102,32 +103,13 @@ func migrateRepos(t *testing.T) (srcRoot, dstRoot string) {
 
 	mkRepo := func(name string) string {
 		t.Helper()
-		dir := filepath.Join(parent, name)
+		dir := testfix.Repo(t, testfix.At(parent, name))
 		if err := os.MkdirAll(filepath.Join(dir, "workshop", "issues"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		for _, args := range [][]string{
-			{"init", "-q", "-b", "main"},
-			{"config", "user.email", "t@e.com"},
-			{"config", "user.name", "T"},
-			{"config", "commit.gpgsign", "false"},
-		} {
-			c := exec.Command("git", args...)
-			c.Dir = dir
-			if out, err := c.CombinedOutput(); err != nil {
-				t.Fatalf("git %v in %s: %v — %s", args, name, err, out)
-			}
-		}
 		return dir
 	}
-	gitIn := func(dir string, args ...string) {
-		t.Helper()
-		c := exec.Command("git", args...)
-		c.Dir = dir
-		if out, err := c.CombinedOutput(); err != nil {
-			t.Fatalf("git %v in %s: %v — %s", args, dir, err, out)
-		}
-	}
+	gitIn := func(dir string, args ...string) { testfix.Git(t, dir, args...) }
 	write := func(dir, rel, content string) {
 		t.Helper()
 		p := filepath.Join(dir, rel)
@@ -186,13 +168,7 @@ Styled ref ` + "`src#12`" + ` and quoted command ` + "`git log --grep \"^#15\"`"
 
 func gitOut(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	c := exec.Command("git", args...)
-	c.Dir = dir
-	out, err := c.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %v in %s: %v — %s", args, dir, err, out)
-	}
-	return string(out)
+	return testfix.Git(t, dir, args...)
 }
 
 // #179 happy path: content rewritten at dest, source gone, one scoped commit
@@ -357,13 +333,7 @@ func TestRunMigrate_Guards(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(nested, "workshop", "issues"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "t@e.com"}, {"config", "user.name", "T"}, {"config", "commit.gpgsign", "false"}} {
-			c := exec.Command("git", args...)
-			c.Dir = nested
-			if out, err := c.CombinedOutput(); err != nil {
-				t.Fatalf("git %v: %v — %s", args, err, out)
-			}
-		}
+		testfix.Repo(t, testfix.At(filepath.Dir(nested), filepath.Base(nested)))
 		msg, died := expectDie(t, func() {
 			_ = runMigrate(&migrateOpts{file: "data/project/p.md", destDir: nested, stderr: io.Discard})
 		})
@@ -404,13 +374,7 @@ func TestRunMigrate_InboundReport(t *testing.T) {
 	if err := os.MkdirAll(sib, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "t@e.com"}, {"config", "user.name", "T"}, {"config", "commit.gpgsign", "false"}} {
-		c := exec.Command("git", args...)
-		c.Dir = sib
-		if out, err := c.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
-	}
+	testfix.Repo(t, testfix.At(filepath.Dir(sib), filepath.Base(sib)))
 	if err := os.WriteFile(filepath.Join(sib, "notes.md"), []byte("see src's data/project/p.md for the plan\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

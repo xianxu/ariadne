@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // TestCommitWindow_ExtendedCapIncludes45Days pins the #68 cap bump (31→61): a
@@ -17,23 +19,11 @@ import (
 // CommitWindow reads the cwd via direct git, so we build a throwaway repo and
 // chdir into it.
 func TestCommitWindow_ExtendedCapIncludes45Days(t *testing.T) {
-	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-	run("init", "-q")
-	run("config", "user.email", "t@t")
-	run("config", "user.name", "t")
-	run("config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t, testfix.Chdir())
 	if err := os.WriteFile(filepath.Join(dir, "f"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	run("add", "f")
+	testfix.Git(t, dir, "add", "f")
 	// Author/committer date 45 days ago: inside the 61-day cap, outside the old 31.
 	dated := time.Now().AddDate(0, 0, -45).Format("2006-01-02T15:04:05")
 	cmd := exec.Command("git", "commit", "-q", "-m", "#99 M1: the work")
@@ -42,15 +32,6 @@ func TestCommitWindow_ExtendedCapIncludes45Days(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git commit: %v\n%s", err, out)
 	}
-
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prev) })
 
 	sha, _, _, err := CommitWindow("99")
 	if err != nil {
@@ -97,21 +78,8 @@ func TestIssueRefRE_DiscoveryParsing(t *testing.T) {
 // parent-of-first-#N anchor cut off. Builds a real throwaway repo (the
 // established gitx pattern) since the risk lives in the `git log -G` behavior.
 func TestWorkingTransitionISO(t *testing.T) {
-	dir := t.TempDir()
-	git := func(args ...string) string {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-		return strings.TrimSpace(string(out))
-	}
-	git("init", "-q")
-	git("config", "user.email", "t@t")
-	git("config", "user.name", "t")
-	git("config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t, testfix.Chdir())
+	git := func(args ...string) string { t.Helper(); return strings.TrimSpace(testfix.Git(t, dir, args...)) }
 
 	issueFile := "000113-foo.md"
 	writeStatus := func(status string) {
@@ -154,15 +122,6 @@ func TestWorkingTransitionISO(t *testing.T) {
 	}
 	commit(1, "code.go", "#113: implement")
 	workISO := lastISO()
-
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prev) })
 
 	got, ok := WorkingTransitionISO(issueFile)
 	if !ok {

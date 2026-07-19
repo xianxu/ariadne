@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // closeRepo builds a minimal temp git repo with one no-milestone issue file
@@ -24,31 +24,9 @@ import (
 func closeRepo(t *testing.T, issueNum int) string {
 	t.Helper()
 	padded := fmt.Sprintf("%06d", issueNum)
-	dir := t.TempDir()
-	cwd, _ := os.Getwd()
-	t.Cleanup(func() { _ = os.Chdir(cwd) })
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	runGit := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
-	}
-	runGit("init", "-q", "-b", "main")
-	runGit("config", "user.email", "test@example.com")
-	runGit("config", "user.name", "Test")
-	runGit("config", "commit.gpgsign", "false")
-
-	// An initial commit so the #<issue> commit has a parent (baseLong = firstSHA^).
-	if err := os.WriteFile("README", []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	runGit("add", "README")
-	runGit("commit", "-q", "-m", "init")
+	// InitialCommit so the #<issue> commit has a parent (baseLong = firstSHA^).
+	dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
+	runGit := func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
 
 	issuesDir := "workshop/issues"
 	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
@@ -443,10 +421,7 @@ func rewriteIssuePlan(t *testing.T, issuesDir, planRows string) {
 		{"add", issuePath},
 		{"commit", "-q", "-m", "#69: plan update"},
 	} {
-		cmd := exec.Command("git", args...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
+		testfix.Git(t, "", args...)
 	}
 }
 
@@ -509,10 +484,7 @@ func TestClose_MidstreamMissingVerdict_Refuses(t *testing.T) {
 		{"commit", "-q", "-m", "#69 M2: close — tick milestone",
 			"-m", "Body.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD"},
 	} {
-		cmd := exec.Command("git", args...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
+		testfix.Git(t, "", args...)
 	}
 	calls, _ := stubJudge(t, "VERDICT: SHIP\n")
 

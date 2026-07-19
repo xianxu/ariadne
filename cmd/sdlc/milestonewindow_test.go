@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // windowRepo builds a temp git repo and chdir's into it, returning a runGit
@@ -15,31 +16,11 @@ import (
 // follow. Restores cwd on cleanup.
 func windowRepo(t *testing.T, issueNum int) (runGit func(args ...string), issuesDir, issuePath string) {
 	t.Helper()
-	dir := t.TempDir()
-	cwd, _ := os.Getwd()
-	t.Cleanup(func() { _ = os.Chdir(cwd) })
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	runGit = func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
-	}
-	runGit("init", "-q", "-b", "main")
-	runGit("config", "user.email", "test@example.com")
-	runGit("config", "user.name", "Test")
-	runGit("config", "commit.gpgsign", "false")
-
-	// Initial commit so the first #N commit has a parent (branch start = firstSHA^).
-	if err := os.WriteFile("README", []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	runGit("add", "README")
-	runGit("commit", "-q", "-m", "init")
+	// testfix.Repo seeds the initial commit so the first #N commit has a parent
+	// (branch start = firstSHA^) and chdir's in; runGit keeps the callers'
+	// bound-closure signature over the shared runner.
+	dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
+	runGit = func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
 
 	issuesDir = "workshop/issues"
 	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
@@ -87,11 +68,7 @@ func commitMarkerOnly(t *testing.T, runGit func(...string), marker, subject stri
 
 func captureGit(t *testing.T, args ...string) string {
 	t.Helper()
-	out, err := exec.Command("git", args...).Output()
-	if err != nil {
-		t.Fatalf("git %v: %v", args, err)
-	}
-	return string(out)
+	return testfix.Capture(t, "", args...)
 }
 
 // #58: a milestone's review window must base on the PREVIOUS review boundary

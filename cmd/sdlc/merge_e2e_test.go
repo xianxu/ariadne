@@ -3,10 +3,11 @@ package main
 import (
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // ── e2e harness for runMerge (#63) ───────────────────────────────────────────
@@ -26,16 +27,12 @@ import (
 // in-place merge path (git switch main → pull → archive → branch -D). The
 // linked-worktree topology is not exercised by this harness.
 
-// git runs `git <args>` in dir and fails the test on error, returning stdout.
+// git runs `git <args>` in dir and fails the test on error, returning TRIMMED
+// stdout+stderr. It delegates the exec/fatal to the shared testfix.Git and keeps
+// the trim its callers rely on (e.g. a bare rev-parse SHA).
 func git(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %s (in %s): %v\n%s", strings.Join(args, " "), dir, err, out)
-	}
-	return strings.TrimSpace(string(out))
+	return strings.TrimSpace(testfix.Git(t, dir, args...))
 }
 
 // tempRepo builds a throwaway repo on branch `feature` with a local bare

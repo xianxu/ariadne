@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // gitInit builds a throwaway repo with deterministic, offset-explicit commit
@@ -14,19 +16,7 @@ func gitInit(t *testing.T) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
 	}
-	repo := t.TempDir()
-	run := func(env []string, args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
-		cmd.Env = append(os.Environ(), env...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-	run(nil, "init", "-q")
-	run(nil, "config", "user.email", "t@t")
-	run(nil, "config", "user.name", "t")
-	run(nil, "config", "commit.gpgsign", "false")
-	return repo
+	return testfix.Repo(t)
 }
 
 func gitCommit(t *testing.T, repo, isoDate, msg string) {

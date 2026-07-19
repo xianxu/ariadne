@@ -826,3 +826,15 @@ shell function (which rebuilds from source every call).
 
 **Origin:** #171 M6 boundary review (FIX-THEN-SHIP) — the Step-6 read-path
 evidence recorded a "multi-match" produced by the pre-M4-fix prefix-match bug.
+
+When verifying a consolidation / dedup sweep is complete, the acceptance grep
+must match EVERY signature of the duplicated behavior, not one proxy for it. A
+partially-delegated copy — a test fixture whose SETUP already delegates to the
+shared helper but whose RUNNER does not — carries neither full signature, so a
+gate keyed on a single marker (the setup's `commit.gpgsign` line) passes over
+it silently. Grep each distinct idiom independently (setup AND runner:
+`exec.Command("git"` across all `*_test.go`), minus the documented locals.
+
+**Origin:** #186 close review (FIX-THEN-SHIP) — the rg gate keyed on
+`commit.gpgsign` missed `runGitCommand`, a byte-identical `testfix.Git` twin
+whose repo came from an already-delegated `hermeticRepo` (no gpgsign line).

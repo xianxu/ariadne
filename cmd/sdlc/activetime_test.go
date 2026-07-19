@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // --- misinvoke guards (exit 2) — pure, no git/files ---
@@ -42,7 +43,7 @@ func atGitRepo(t *testing.T, commits map[string]string) string {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
 	}
-	repo := t.TempDir()
+	repo := testfix.Repo(t)
 	gitcmd := func(env []string, args ...string) {
 		c := exec.Command("git", append([]string{"-C", repo}, args...)...)
 		c.Env = append(os.Environ(), env...)
@@ -50,10 +51,6 @@ func atGitRepo(t *testing.T, commits map[string]string) string {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
-	gitcmd(nil, "init", "-q")
-	gitcmd(nil, "config", "user.email", "t@t")
-	gitcmd(nil, "config", "user.name", "t")
-	gitcmd(nil, "config", "commit.gpgsign", "false")
 	for iso, msg := range commits {
 		if err := os.WriteFile(filepath.Join(repo, "f"), []byte(iso), 0o644); err != nil {
 			t.Fatal(err)
