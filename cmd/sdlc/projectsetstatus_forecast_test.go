@@ -137,6 +137,28 @@ func TestSetStatusCommit_NoBaselineWithRealityPasses(t *testing.T) {
 	}
 }
 
+// TestSetStatusCommit_AlreadyCommittedNoBaselineNoOp pins the close-review
+// minor: re-running --to committed on an already-committed project with no
+// baseline must NOT fire the no-baseline refusal (the transition is a legal
+// no-op, not a defined→committed forecast).
+func TestSetStatusCommit_AlreadyCommittedNoBaselineNoOp(t *testing.T) {
+	dir := commitFixture(t, 55)
+	// Flip the fixture to already-committed.
+	p := filepath.Join(dir, "demo.md")
+	b, _ := os.ReadFile(p)
+	os.WriteFile(p, []byte(strings.Replace(string(b), "status: defined", "status: committed", 1)), 0o644)
+	t.Setenv("WF_THROUGHPUT_BASELINE", filepath.Join(t.TempDir(), "missing.tsv"))
+
+	var out strings.Builder
+	f := &projectSetStatusFlags{Slug: "demo", To: "committed", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
+	if err := runProjectSetStatus(&out, &out, f); err != nil {
+		t.Fatalf("re-committing with no baseline should be a clean no-op, got: %v", err)
+	}
+	if strings.Contains(out.String(), "forecast:") {
+		t.Errorf("no forecast should compute on a non-defined source: %q", out.String())
+	}
+}
+
 func TestSetStatusNonCommit_Untouched(t *testing.T) {
 	// A non-committed transition must not invoke the forecast at all.
 	dir := t.TempDir()

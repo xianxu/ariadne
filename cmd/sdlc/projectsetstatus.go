@@ -89,6 +89,14 @@ func computeCommitForecast(stdout, stderr io.Writer, path string, f *projectSetS
 	if err != nil {
 		return err
 	}
+	// The forecast (and its no-baseline refusal) applies only to the LEGAL
+	// defined→committed transition. Skip it for a re-run on an already-committed
+	// project (idempotent no-op) or an illegal source — applyProjectStatus owns
+	// that legality, and computing here would emit a spurious forecast or a
+	// misleading no-baseline error on a transition that won't happen.
+	if d.FM("status") != "defined" {
+		return nil
+	}
 	forecast, deadline, ferr := forecastForProject(d, path, f.BrainDir, today)
 	if ferr == errNoBaseline {
 		if strings.TrimSpace(f.Reality) == "" && !f.Force {

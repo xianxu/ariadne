@@ -27,7 +27,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 |------|----------|--------|
 | `SpanThroughput` (consumes existing `estimate.LedgerRow`) | `cmd/sdlc/internal/estimate/throughput.go` | new |
 | `ThroughputBaseline` (+ TSV parse/render) | `cmd/sdlc/internal/estimate/throughput.go` | new |
-| `ProjectFile` + `ListActiveProjectFiles` (shared fleet walk) | `cmd/sdlc/internal/project/discover.go` | modified |
+| `ProjectFile` (data struct) | `cmd/sdlc/internal/project/discover.go` | modified |
 | `ProjectLoad` | `cmd/sdlc/internal/project/forecast.go` | new |
 | `Forecast` / `ComputeForecast` | `cmd/sdlc/internal/project/forecast.go` | new |
 | `RenderForecast` | `cmd/sdlc/internal/project/forecast.go` | new |
@@ -51,6 +51,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
+| `ListActiveProjectFiles` (shared fleet walk) | `cmd/sdlc/internal/project/discover.go` | modified | fleet fs walk |
 | `runProjectThroughput` (bless + show) | `cmd/sdlc/projectthroughput.go` | new | calibration ledger + baseline TSV |
 | `loadThroughputBaseline` | `cmd/sdlc/projectforecast.go` | new | baseline TSV + `WF_THROUGHPUT_BASELINE` |
 | `ListFleetProjects` | `cmd/sdlc/projectforecast.go` | new | fleet fs walk + `computeBoard` |
@@ -178,3 +179,9 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 5. **Calendar ledger `## Calendar ledger` heading added to the live brain
    `estimate-logic-project-v1.md`** (one-time data edit, rides nous
    auto-commit like #171 M6).
+6. **`ListActiveProjectFiles` reclassified as an Integration point** (close
+   review): it does filesystem IO (`SiblingRepoDirs`/`Glob`/`EvalSymlinks`)
+   and its test needs real temp files — the Core-concepts table wrongly listed
+   it under "Pure entities." Moved to the Integration-points table beside its
+   consumer `ListFleetProjects`; only `ProjectFile` (the data struct) is pure.
+   The code's pure/IO split was already correct — this is a table fix only.
