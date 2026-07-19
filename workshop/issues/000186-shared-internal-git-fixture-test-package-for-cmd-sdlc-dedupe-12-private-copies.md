@@ -1,11 +1,12 @@
 ---
 id: 000186
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-19
 estimate_hours:
+started: 2026-07-19T11:17:40-07:00
 ---
 
 # shared internal git-fixture test package for cmd/sdlc (dedupe ~12 private copies)
