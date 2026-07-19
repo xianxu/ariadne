@@ -126,6 +126,33 @@ statement. Ledger unreadable → same fallback as no-baseline.
 Roadmap-level rollup, per-render forecast history, multi-operator
 throughput, ratio-corrected numerator.
 
+## Done when
+
+- `set-status →committed` prints a computed feasibility statement
+  (throughput ÷ contention → projected finish vs proposed deadline) and
+  records it as the reality-check evidence; it INFORMS and never refuses on
+  the answer (`--reality` prose survives only as the no-baseline fallback).
+- `planned_finish:` derives from the computation (manual override recorded
+  as such).
+- Throughput comes from measured ledger data over an operator-BLESSED span
+  (operator picks the span, never types the rate); baseline stored in brain
+  with provenance.
+- `project show`/`status` surface the live forecast-vs-deadline drift.
+- Project close records planned-vs-actual finish as a calibration row.
+
+## Revisions
+
+### 2026-07-18 — brainstorm settles the four forks; inform-not-gate
+
+Done-when amended from the seed: the computed statement no longer *replaces*
+`--reality` as a gate — it never blocks at all (operator direction: track
+and inform; slippage is recoverable by means the math can't see). Forks
+settled: blessed-span baseline over trailing window (volatility evidence);
+contention = committed+executing, paused listed at weight 0; ceiling =
+constant 2 in the baseline record, warning-only; `--reality` survives as the
+no-baseline process fallback. (Restored 2026-07-19: an editing slip dropped
+this section when the Spec was rewritten; caught by the plan review.)
+
 ## Plan
 
 - [ ] brainstorm: throughput window, paused-project weighting, ceiling as
