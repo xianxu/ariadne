@@ -89,7 +89,7 @@ func computeCommitForecast(stdout, stderr io.Writer, path string, f *projectSetS
 	if err != nil {
 		return err
 	}
-	forecast, _, ferr := forecastForProject(d, path, f.BrainDir, today)
+	forecast, deadline, ferr := forecastForProject(d, path, f.BrainDir, today)
 	if ferr == errNoBaseline {
 		if strings.TrimSpace(f.Reality) == "" && !f.Force {
 			return fmt.Errorf("guard reality-check: no throughput baseline blessed — bless one (`sdlc project throughput --bless <FROM>..<TO>`) so the commit forecast computes, or pass --reality '<why it fits>'")
@@ -100,7 +100,6 @@ func computeCommitForecast(stdout, stderr io.Writer, path string, f *projectSetS
 		cwarn(stderr, "commit forecast unavailable: "+ferr.Error())
 		return nil // informational — never block the transition on a compute error
 	}
-	deadline := d.FM("deadline")
 	statement := projectdoc.RenderForecast(forecast, deadline)
 	cinfo(stdout, statement)
 	if strings.TrimSpace(f.Reality) == "" {

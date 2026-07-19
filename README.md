@@ -33,6 +33,12 @@ sdlc resolve --kind project 'metis#18'   # same discovery via the resolver
 # Bridge effort to calendar: bless a measured throughput baseline, then show it:
 sdlc project throughput --bless 2026-06-22..2026-07-19
 sdlc project throughput                  # current baseline + trailing-4wk comparison
+# Once blessed, the forecast (throughput ÷ contention → finish vs deadline)
+# informs — never blocks — at three surfaces:
+sdlc project set-status --slug example --to committed   # computes + derives planned_finish
+sdlc project set-status --slug example --to committed --planned-finish 2026-09-01  # override
+sdlc project show --slug example         # appends the live forecast-vs-deadline line
+# and project close records planned-vs-actual finish in the Calendar ledger.
 # A paused or executing project may be dropped instead of completed:
 sdlc project close --slug example --drop
 # Explicit escape for a legacy record where neither gate applies:

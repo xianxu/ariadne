@@ -87,7 +87,13 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(ledger), "| alpha | 40h | 40h | 1.00 | 2026-07-16 |") {
-		t.Fatalf("ledger row missing:\n%s", ledger)
+		t.Fatalf("fog ledger row missing:\n%s", ledger)
+	}
+	// #182: the calendar row must land too (planned 2026-07-30, closed
+	// 2026-07-16 → 14 days early). Asserting it pins the prepareCalendarLedgerRow
+	// wiring end-to-end — without this, deleting that call would pass every test.
+	if !strings.Contains(string(ledger), "| alpha | 2026-07-30 | 2026-07-16 | -14 | 2026-07-16 |") {
+		t.Fatalf("calendar ledger row missing or wrong:\n%s", ledger)
 	}
 	if !strings.Contains(stdout.String(), archived) || stderr.Len() != 0 {
 		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())

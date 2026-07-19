@@ -140,7 +140,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 - [x] **Step 4: Run to verify pass; full suite `go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1`.**
 - [x] **Step 5: Update atlas** — EXTEND the forecast section in `atlas/workflow/sdlc-binary.md` (added at M2 close per AGENTS §8) with the three consumer surfaces (commit-transition evidence + `planned_finish` derivation, show/status live drift, close calendar-ledger row); tick issue Plan rows.
 - [x] **Step 6: Commit** — `#182 M3: forecast surfaces on show/status + calendar calibration row at close`.
-- [ ] **Step 7: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M3 --no-project`.
+- [x] **Step 7: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M3 --no-project`.
 
 ## Manual Verification
 
@@ -151,3 +151,30 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 ## Issue close (after M3)
 
 `sdlc close --issue 182 --verified '<test names + manual results>'` — omit `--actual` (measure+adopt). At `change-code` time: set `estimate_hours` (v3.1 derivation in the issue `## Estimate` — M1 smaller-go-module, M2 greenfield-go-module, M3 cross-cutting-refactor; see #171's block for the format) AND replace the issue `## Plan`'s brainstorm checkbox with the three `- [ ] Mx — …` milestone rows this plan's milestone-close steps assume.
+
+## Revisions
+
+### 2026-07-19 — M1–M3 executed; deltas from the plan
+
+1. **`plannedFinishDecision` lives in package `main`, not `projectdoc`.** Task
+   3.1 Step 3 wrote `projectdoc.PlannedFinishDecision`, but the type is a
+   main-package orchestration concern (consumed only by `applyProjectStatus`),
+   so it ships as `main.plannedFinishDecision` — the better location (M3 review
+   §7).
+2. **Derived `planned_finish` is applied BEFORE the guard loop.** A design
+   interaction surfaced in M3: the `baseline-set` guard requires
+   `planned_finish` present, and #182 derives it at commit — so the derived
+   value is set on the in-memory doc before guards run (nothing is written on a
+   guard failure). Pinned by the commit-hook tests.
+3. **Verification-caught vantage bug (M3).** `forecastForProject` derived the
+   issue-lookup repo root from a possibly-relative project path (the default
+   `--projects-dir` is relative → `.`), silently reading 0 remaining for every
+   cross-repo lookup while the board read correctly. Fixed by resolving the
+   path to absolute first; regression-pinned. The live `sdlc project show`
+   smoke test is what exposed it — unit tests used absolute temp paths.
+4. **Atlas mapped per-milestone (M2 + M3), not deferred to a single M3 sweep.**
+   The atlas gate refused deferring M2's surface; the forecast section was
+   added at M2 close and extended with the consumer surfaces at M3.
+5. **Calendar ledger `## Calendar ledger` heading added to the live brain
+   `estimate-logic-project-v1.md`** (one-time data edit, rides nous
+   auto-commit like #171 M6).
