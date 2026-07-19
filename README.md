@@ -30,6 +30,9 @@ sdlc project close --slug example
 # Find every project record referencing an issue, fleet-wide (archive-inclusive):
 sdlc project find --issue metis#18
 sdlc resolve --kind project 'metis#18'   # same discovery via the resolver
+# Bridge effort to calendar: bless a measured throughput baseline, then show it:
+sdlc project throughput --bless 2026-06-22..2026-07-19
+sdlc project throughput                  # current baseline + trailing-4wk comparison
 # A paused or executing project may be dropped instead of completed:
 sdlc project close --slug example --drop
 # Explicit escape for a legacy record where neither gate applies:

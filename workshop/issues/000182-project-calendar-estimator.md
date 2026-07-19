@@ -192,12 +192,15 @@ against `baseline-v3.1.md`. Method A only. (Source [stale] per estimate-source
 
 ## Plan
 
-- [ ] M1 — throughput measurement: pure span math over the existing ledger parser + `sdlc project throughput` (`--bless`, append-only baseline TSV in brain)
+- [x] M1 — throughput measurement: pure span math over the existing ledger parser + `sdlc project throughput` (`--bless`, append-only baseline TSV in brain)
 - [ ] M2 — pure `ComputeForecast`/`RenderForecast` core + fleet load assembly (`ListFleetProjects` reusing #171 sibling walk)
 - [ ] M3 — three consumers: commit-transition forecast (informs, derives `planned_finish`), show/status live drift, close calendar-ledger row + atlas
 
 ## Log
 
+
+- 2026-07-19: closed M1 — go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 green. Pure: TestSpanThroughput_{28DaySpan,PartialWeek,EmptySpan,BadSpanBounds} (untrusted counted, bad-date skipped, days/7 partial weeks), TestBaselineTSV_RoundTrip + BadFloat + Empty. Verb: TestProjectThroughput_{Registered,Bless,BlessAppends,EmptySpanRefuses,BareShowsCurrentAndTrailing,NoBaselineBareHints}. Live: sdlc project throughput --bless 2026-06-22..2026-07-19 → 110.60 h/wk (280 rows), bare form shows trailing-4wk -3.81 delta; baseline written to brain velocity dir. actual 0.5h = M1 increment (2 tasks: pure span math + verb); review verdict: FIX-THEN-SHIP
+- 2026-07-19: M1 FIX-THEN-SHIP resolved (bundled per #174, no re-close): Important — README project quick-start omitted the new `throughput` verb (Docs gate); added `--bless` + bare forms. Minor — `showThroughput` swallowed ALL baseline read errors as "not blessed yet"; now distinguishes os.IsNotExist (informational) from a real IO error (surfaced). Left as noted: isoLayout/isoDate cross-package const dup (pre-existing ~15× pattern, not a #182 regression), --ceiling no-op in show mode (documented). Re-ran go build ./... && go test ./cmd/sdlc/... green.
 ### 2026-07-16
 
 Filed from the #180 plan-approval session. Operator: "we need a higher level

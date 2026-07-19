@@ -93,7 +93,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 - [x] **Step 3: Implement** — flags `--bless FROM..TO`, `--ceiling N` (default 2, only meaningful with `--bless`), `--brain-dir` (default `../brain`). Read-only bare form; bless is `markMutatingCommand`. Wire `newProjectThroughputCmd()` into `NewProjectCmd`; add the subcommand row + a short section to `helptext/project.md`.
 - [x] **Step 4: Run to verify pass; run `go test ./cmd/sdlc/ -run Helptext`** (embed tests).
 - [x] **Step 5: Commit** — `#182 M1: sdlc project throughput — bless + show the measured baseline`.
-- [ ] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M1 --no-project` (project tracks at issue granularity).
+- [x] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M1 --no-project` (project tracks at issue granularity).
 
 ## Chunk 2: M2 — Pure forecast core + fleet load assembly
 

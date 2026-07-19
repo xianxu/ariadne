@@ -136,6 +136,11 @@ func appendBaselineRow(path string, row estimate.ThroughputBaseline) error {
 func showThroughput(stdout, stderr io.Writer, f *projectThroughputFlags) error {
 	baselineText, err := os.ReadFile(throughputBaselinePath(f.BrainDir))
 	if err != nil {
+		if !os.IsNotExist(err) {
+			// A real IO error (permission, etc.) is worth surfacing honestly
+			// rather than reporting it as "not blessed yet".
+			return fmt.Errorf("read throughput baseline: %w", err)
+		}
 		cinfo(stdout, "no blessed throughput baseline yet")
 		cinfo(stdout, "  bless one: sdlc project throughput --bless <FROM>..<TO>  (a representative ~4-week span)")
 		return nil
