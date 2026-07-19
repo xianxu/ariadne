@@ -30,11 +30,19 @@ deadline math is still attestation.
 
 ## Breakdown
 
-- [ ] project vocabulary model: cue + lifecycle + gates + verbs [ariadne#180]
+- [x] project vocabulary model: cue + lifecycle + gates + verbs [ariadne#180]
 - [x] brain-vs-repos residency + close-gate lift (consumes the model) [ariadne#171]
 - [ ] calendar estimator: effort→calendar bridge, computed reality-check [ariadne#182]
 
 ## Log
+
+### 2026-07-18
+
+Ticked [ariadne#180] retroactively (done 2026-07-16, actual 11.93h, PR #100
+— archived in ariadne/workshop/history/issues/). Its close predated #171 M2's
+fleet-wide discovery, so the then-current `--brain-dir` lookup never found
+this local project file to tick the row. [ariadne#171] closed 2026-07-17
+(actual 10.02h, PR #101) and was ticked by the new close gate itself.
 
 ### 2026-07-16
 
