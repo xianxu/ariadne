@@ -78,21 +78,21 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 
 **Files:** Create `cmd/sdlc/internal/estimate/throughput.go`, `cmd/sdlc/internal/estimate/throughput_test.go`
 
-- [ ] **Step 1: Write the failing tests** — table tests: `SpanThroughput` over `estimate.ParseRows` fixture text (the REAL 10-column ledger shape — reuse a snippet of real rows): 28-day span → `Σactual/4.0`; 27-day span divides by `27/7.0`; rows outside span excluded; untrusted counted but included in the sum; a row with an unparsable DATE → skipped + counted in `Skipped` (bad-actual rows never arrive — `ParseRows` drops them upstream, note this in the test comment); empty span → error. `ParseBaselineTSV` (last row current, comments skipped, bad float → error) + `RenderBaselineRow` round-trip.
-- [ ] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/estimate/ -run 'Throughput|Baseline' -v` → FAIL undefined.
-- [ ] **Step 3: Implement** — `SpanMeasure{HoursPerWeek float64; Rows, UntrustedRows, Skipped, Days int}`, `SpanThroughput(rows []LedgerRow, from, to string)` (dates ISO `YYYY-MM-DD`, inclusive; `days = to-from+1`; `HoursPerWeek = sum / (float64(days)/7.0)`), `ThroughputBaseline`, `ParseBaselineTSV`, `RenderBaselineRow`. NO new ledger parser or row type — consume `estimate.LedgerRow`/`ParseRows` as-is. Baseline TSV columns: `blessed_date span_start span_end hours_per_week rows ceiling` (tab-separated, `#` comments).
-- [ ] **Step 4: Run to verify pass.**
-- [ ] **Step 5: Commit** — `#182 M1: pure span throughput + baseline TSV codec`.
+- [x] **Step 1: Write the failing tests** — table tests: `SpanThroughput` over `estimate.ParseRows` fixture text (the REAL 10-column ledger shape — reuse a snippet of real rows): 28-day span → `Σactual/4.0`; 27-day span divides by `27/7.0`; rows outside span excluded; untrusted counted but included in the sum; a row with an unparsable DATE → skipped + counted in `Skipped` (bad-actual rows never arrive — `ParseRows` drops them upstream, note this in the test comment); empty span → error. `ParseBaselineTSV` (last row current, comments skipped, bad float → error) + `RenderBaselineRow` round-trip.
+- [x] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/estimate/ -run 'Throughput|Baseline' -v` → FAIL undefined.
+- [x] **Step 3: Implement** — `SpanMeasure{HoursPerWeek float64; Rows, UntrustedRows, Skipped, Days int}`, `SpanThroughput(rows []LedgerRow, from, to string)` (dates ISO `YYYY-MM-DD`, inclusive; `days = to-from+1`; `HoursPerWeek = sum / (float64(days)/7.0)`), `ThroughputBaseline`, `ParseBaselineTSV`, `RenderBaselineRow`. NO new ledger parser or row type — consume `estimate.LedgerRow`/`ParseRows` as-is. Baseline TSV columns: `blessed_date span_start span_end hours_per_week rows ceiling` (tab-separated, `#` comments).
+- [x] **Step 4: Run to verify pass.**
+- [x] **Step 5: Commit** — `#182 M1: pure span throughput + baseline TSV codec`.
 
 ### Task 1.2: The `sdlc project throughput` verb
 
 **Files:** Create `cmd/sdlc/projectthroughput.go`, `cmd/sdlc/projectthroughput_test.go`; Modify `cmd/sdlc/project.go` (register), `cmd/sdlc/helptext/project.md`
 
-- [ ] **Step 1: Write the failing process-level test** — temp brain dir with a fixture `calibration-ledger.tsv`; `--bless 2026-06-16..2026-07-13` → baseline file created under the velocity dir with one row, printed h/wk matches, untrusted rows warned; second bless appends (2 rows, last wins); empty-span bless refuses; bare verb prints current baseline + trailing comparison; no baseline → bare verb says so with the bless hint. Use a `--brain-dir` flag (mirrors close) so tests stay hermetic.
-- [ ] **Step 2: Run to verify failure.**
-- [ ] **Step 3: Implement** — flags `--bless FROM..TO`, `--ceiling N` (default 2, only meaningful with `--bless`), `--brain-dir` (default `../brain`). Read-only bare form; bless is `markMutatingCommand`. Wire `newProjectThroughputCmd()` into `NewProjectCmd`; add the subcommand row + a short section to `helptext/project.md`.
-- [ ] **Step 4: Run to verify pass; run `go test ./cmd/sdlc/ -run Helptext`** (embed tests).
-- [ ] **Step 5: Commit** — `#182 M1: sdlc project throughput — bless + show the measured baseline`.
+- [x] **Step 1: Write the failing process-level test** — temp brain dir with a fixture `calibration-ledger.tsv`; `--bless 2026-06-16..2026-07-13` → baseline file created under the velocity dir with one row, printed h/wk matches, untrusted rows warned; second bless appends (2 rows, last wins); empty-span bless refuses; bare verb prints current baseline + trailing comparison; no baseline → bare verb says so with the bless hint. Use a `--brain-dir` flag (mirrors close) so tests stay hermetic.
+- [x] **Step 2: Run to verify failure.**
+- [x] **Step 3: Implement** — flags `--bless FROM..TO`, `--ceiling N` (default 2, only meaningful with `--bless`), `--brain-dir` (default `../brain`). Read-only bare form; bless is `markMutatingCommand`. Wire `newProjectThroughputCmd()` into `NewProjectCmd`; add the subcommand row + a short section to `helptext/project.md`.
+- [x] **Step 4: Run to verify pass; run `go test ./cmd/sdlc/ -run Helptext`** (embed tests).
+- [x] **Step 5: Commit** — `#182 M1: sdlc project throughput — bless + show the measured baseline`.
 - [ ] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M1 --no-project` (project tracks at issue granularity).
 
 ## Chunk 2: M2 — Pure forecast core + fleet load assembly
