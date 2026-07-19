@@ -199,6 +199,45 @@ Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 `push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
 accessor — a DRY consolidation, separate from this resolver.
 
+### Project calendar forecast (`throughput.go` + `forecast.go` + `projectforecast.go`, #182)
+
+Bridges effort (hours) to calendar (a date) — a project's load-bearing
+`deadline:` is a date, but both estimators produce hours. The forecast
+**informs, never blocks** (estimation is often wrong and slippage is
+recoverable by means the math can't see), so it's a computed statement
+recorded at the right surfaces, not a gate.
+
+- **Measured throughput (`internal/estimate/throughput.go`, M1).** `SpanThroughput`
+  sums the calibration ledger's `actual` hours over an operator-**blessed**
+  representative span ÷ span-weeks — the operator picks the span (trailing
+  windows skew under vacations/crunch), the machinery measures the rate.
+  `sdlc project throughput --bless FROM..TO` appends a provenance row
+  (`{span, hours_per_week, rows, ceiling}`) to
+  `brain/data/life/42shots/velocity/throughput-baseline.tsv` (append-only,
+  last = current); the bare form shows the current baseline + a trailing-4wk
+  comparison, never auto-substituted. Reuses the existing `estimate.LedgerRow`
+  parser (one ledger parser, ARCH-DRY).
+- **Pure forecast core (`internal/project/forecast.go`, M2).** `ComputeForecast`
+  divides this project's remaining issue-hours by its share of throughput
+  (baseline h/wk ÷ n active projects) → projected finish. **Unit identity:**
+  numerator (remaining issue-estimates) and denominator (ledger actuals/wk)
+  are both ship wall-clock engineer+AI hours (#118) — no human-hour
+  conversion, and parallelism is already priced into the measured rate, so
+  the attention ceiling is a **warning threshold, not arithmetic**. Paused
+  projects weigh 0 as named risks; a project with neither resolvable board
+  hours nor a Phase-A estimate is `unknown` (weight 0 + warning, never
+  silently dropped). `RenderForecast` is the single one-line statement every
+  consumer prints. No IO in the core; zero remaining / zero baseline → error
+  so callers fall back.
+- **Fleet load assembly (`projectforecast.go`, M2 — the IO seam).**
+  `ListFleetProjects` builds each active project's contention load via the
+  same `computeBoard` the status board uses, reusing
+  `project.ListActiveProjectFiles` — the `DiscoverByIssueRef` fleet walk
+  factored into a shared `walkFleetProjects` (one fleet-walk source,
+  behavior-identical for discovery). `loadThroughputBaseline` maps absence
+  AND parse failure to one `errNoBaseline`; `forecastForProject` is the shared
+  assembly the three M3 consumers (commit / show+status / close) call.
+
 ## Artifact migration (`sdlc migrate`, #179)
 
 The write-side companion to resolve: `sdlc migrate <file> <dest-repo-dir>`

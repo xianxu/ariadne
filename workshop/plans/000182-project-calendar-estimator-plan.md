@@ -138,7 +138,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 - [ ] **Step 2: Run to verify failure.**
 - [ ] **Step 3: Implement** — show/status call `forecastForProject` best-effort (any error → the one quiet line; never fail a read verb); both verbs gain `--brain-dir` (default `../brain`) like set-status — a read-verb flag, not a lock change. Generalize `appendProjectLedgerRow(text, heading, row)`; close computes slip from `metadata.PlannedFinish` vs `today`. Add `## Calendar ledger` heading + table to the live `estimate-logic-project-v1.md` in brain (one-time data edit, commit rides nous's auto-commit like #171 M6).
 - [ ] **Step 4: Run to verify pass; full suite `go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1`.**
-- [ ] **Step 5: Update atlas** — `atlas/workflow/sdlc-binary.md`: forecast section (blessed baseline, pure core, three consumers, unit identity); tick issue Plan rows.
+- [ ] **Step 5: Update atlas** — EXTEND the forecast section in `atlas/workflow/sdlc-binary.md` (added at M2 close per AGENTS §8) with the three consumer surfaces (commit-transition evidence + `planned_finish` derivation, show/status live drift, close calendar-ledger row); tick issue Plan rows.
 - [ ] **Step 6: Commit** — `#182 M3: forecast surfaces on show/status + calendar calibration row at close`.
 - [ ] **Step 7: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M3 --no-project`.
 
