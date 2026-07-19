@@ -22,7 +22,7 @@ func writeStatusProject(t *testing.T, dir, status, prd, estimate, extraFM string
 func TestApplyProjectStatusUsesModelAndGuards(t *testing.T) {
 	dir := t.TempDir()
 	path := writeStatusProject(t, dir, "ideation", "A real PRD.", "", "")
-	prev, changed, err := applyProjectStatus(path, "defined", false, projectdoc.GuardCtx{Today: "2026-07-16"})
+	prev, changed, err := applyProjectStatus(path, "defined", false, projectdoc.GuardCtx{Today: "2026-07-16"}, plannedFinishDecision{})
 	if err != nil || prev != "ideation" || !changed {
 		t.Fatalf("apply = %q,%v,%v", prev, changed, err)
 	}
@@ -31,10 +31,10 @@ func TestApplyProjectStatusUsesModelAndGuards(t *testing.T) {
 		t.Fatalf("file not updated:\n%s", b)
 	}
 
-	if _, _, err := applyProjectStatus(path, "executing", true, projectdoc.GuardCtx{Today: "2026-07-16"}); err == nil || !strings.Contains(err.Error(), "legal from") {
+	if _, _, err := applyProjectStatus(path, "executing", true, projectdoc.GuardCtx{Today: "2026-07-16"}, plannedFinishDecision{}); err == nil || !strings.Contains(err.Error(), "legal from") {
 		t.Fatalf("force bypassed lifecycle legality: %v", err)
 	}
-	if _, _, err := applyProjectStatus(path, "bogus", true, projectdoc.GuardCtx{}); err == nil || !strings.Contains(err.Error(), "invalid status") {
+	if _, _, err := applyProjectStatus(path, "bogus", true, projectdoc.GuardCtx{}, plannedFinishDecision{}); err == nil || !strings.Contains(err.Error(), "invalid status") {
 		t.Fatalf("unknown status accepted: %v", err)
 	}
 }
@@ -42,15 +42,15 @@ func TestApplyProjectStatusUsesModelAndGuards(t *testing.T) {
 func TestApplyProjectStatusForceWaivesNamedGuardsAndDoneRoutesToClose(t *testing.T) {
 	dir := t.TempDir()
 	path := writeStatusProject(t, dir, "ideation", "", "", "")
-	if _, _, err := applyProjectStatus(path, "defined", false, projectdoc.GuardCtx{}); err == nil || !strings.Contains(err.Error(), "prd-present") {
+	if _, _, err := applyProjectStatus(path, "defined", false, projectdoc.GuardCtx{}, plannedFinishDecision{}); err == nil || !strings.Contains(err.Error(), "prd-present") {
 		t.Fatalf("missing PRD guard = %v", err)
 	}
-	if _, changed, err := applyProjectStatus(path, "defined", true, projectdoc.GuardCtx{Today: "2026-07-16"}); err != nil || !changed {
+	if _, changed, err := applyProjectStatus(path, "defined", true, projectdoc.GuardCtx{Today: "2026-07-16"}, plannedFinishDecision{}); err != nil || !changed {
 		t.Fatalf("force did not waive guard: %v", err)
 	}
 
 	path = writeStatusProject(t, dir, "executing", "ok", "", "deadline: 2026-09-01\nplanned_finish: 2026-08-20\n")
-	if _, _, err := applyProjectStatus(path, "done", true, projectdoc.GuardCtx{}); err == nil || !strings.Contains(err.Error(), "sdlc project close") {
+	if _, _, err := applyProjectStatus(path, "done", true, projectdoc.GuardCtx{}, plannedFinishDecision{}); err == nil || !strings.Contains(err.Error(), "sdlc project close") {
 		t.Fatalf("done did not route to close: %v", err)
 	}
 }
@@ -61,7 +61,7 @@ func TestApplyProjectStatusRefusesUnknownModelGuard(t *testing.T) {
 	orig := projectGuardsFn
 	projectGuardsFn = func() map[string]projectdoc.GuardFunc { return map[string]projectdoc.GuardFunc{} }
 	t.Cleanup(func() { projectGuardsFn = orig })
-	if _, _, err := applyProjectStatus(path, "defined", false, projectdoc.GuardCtx{}); err == nil || !strings.Contains(err.Error(), "unknown project guard") {
+	if _, _, err := applyProjectStatus(path, "defined", false, projectdoc.GuardCtx{}, plannedFinishDecision{}); err == nil || !strings.Contains(err.Error(), "unknown project guard") {
 		t.Fatalf("unknown guard = %v", err)
 	}
 }
@@ -70,7 +70,7 @@ func TestApplyProjectStatusAppendsEvidence(t *testing.T) {
 	dir := t.TempDir()
 	path := writeStatusProject(t, dir, "defined", "ok", "\n**phase-a:** 3h\n", "deadline: 2026-09-01\nplanned_finish: 2026-08-20\n")
 	ctx := projectdoc.GuardCtx{Today: "2026-07-16", Evidence: map[string]string{"reality-check": "capacity checked"}}
-	if _, _, err := applyProjectStatus(path, "committed", false, ctx); err != nil {
+	if _, _, err := applyProjectStatus(path, "committed", false, ctx, plannedFinishDecision{}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(path)

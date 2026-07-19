@@ -1,12 +1,13 @@
 ---
 id: 000182
-status: working
+status: codecomplete
 deps: [ariadne#180]
 github_issue:
 created: 2026-07-16
-updated: 2026-07-18
-estimate_hours:
+updated: 2026-07-19
+estimate_hours: 2.65
 started: 2026-07-18T22:35:59-07:00
+actual_hours: 3.21
 ---
 
 # project calendar estimator: mechanize the commit reality-check (effort→calendar bridge)
@@ -153,13 +154,63 @@ constant 2 in the baseline record, warning-only; `--reality` survives as the
 no-baseline process fallback. (Restored 2026-07-19: an editing slip dropped
 this section when the Spec was rewritten; caught by the plan review.)
 
+## Estimate
+
+Derived from the durable plan's three-milestone decomposition (design
+pre-resolved by the spec+plan → items carry only the residual design cost;
+impl at v3.1's 40% scale of the v2 primitive table; +0.15 flat design buffer).
+One `milestone-review` per boundary (three auto-dispatched fresh-context
+reviews). M3 carries the heavier impl (three consumers + the
+`applyProjectStatus` signature threading).
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module         design=0.05 impl=0.20
+item: smaller-go-module         design=0.05 impl=0.20
+item: greenfield-go-module      design=0.20 impl=0.30
+item: smaller-go-module         design=0.05 impl=0.20
+item: cross-cutting-refactor    design=0.10 impl=0.20
+item: smaller-go-module         design=0.05 impl=0.25
+item: atlas-docs                design=0.05 impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+total: 2.65
+```
+
+Item→milestone map: M1 = `smaller-go-module` (pure span throughput) +
+`smaller-go-module` (throughput verb); M2 = `greenfield-go-module` (forecast
+core) + `smaller-go-module` (fleet load assembly); M3 =
+`cross-cutting-refactor` (commit hook + `applyProjectStatus` threading) +
+`smaller-go-module` (show/status/close surfaces) + `atlas-docs`; plus three
+`milestone-review`.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. (Source [stale] per estimate-source
+— treat per-primitive hours as provisional, #127.)*
+
 ## Plan
 
-- [ ] brainstorm: throughput window, paused-project weighting, ceiling as
-      config vs constant, override UX (blocked on #180 M4 board machinery)
+- [x] M1 — throughput measurement: pure span math over the existing ledger parser + `sdlc project throughput` (`--bless`, append-only baseline TSV in brain)
+- [x] M2 — pure `ComputeForecast`/`RenderForecast` core + fleet load assembly (`ListFleetProjects` reusing #171 sibling walk)
+- [x] M3 — three consumers: commit-transition forecast (informs, derives `planned_finish`), show/status live drift, close calendar-ledger row + atlas
 
 ## Log
 
+
+
+
+
+- 2026-07-19: closed — All 3 milestones boundary-reviewed (M1/M2/M3, all FIX-THEN-SHIP, findings fixed+bundled per #174). go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 green throughout. Pure: SpanThroughput (7 tests), ComputeForecast/RenderForecast (11 tests incl. zero-remaining-no-contend). IO: ListActiveProjectFiles (shared walk + DiscoverByIssueRef regression), ListFleetProjects (board/phase-a/unknown + all-terminal-reads-0), loadThroughputBaseline (env/absent/unparsable→errNoBaseline), forecastForProject (relative-path vantage regression). Consumers: commit-hook (informs-never-blocks, planned_finish precedence, derived-before-guard), show/status forecast line, close Calendar ledger row (-14 slip e2e). Live fleet: sdlc project throughput --bless → 110.60 h/wk; sdlc project show on project-management-primitive → 2.6h ÷ 110.6 h/wk forecast against the real fleet. Calendar ledger heading added to brain; atlas+README+helptext updated.; review verdict: FIX-THEN-SHIP
+- 2026-07-19: issue-close FIX-THEN-SHIP resolved (bundled per #174, no re-close): Important — the Core-concepts table mislabeled `ListActiveProjectFiles` (a fs-walk IO seam) as a Pure entity; moved to the Integration-points table + plan Revisions item 6 (code's pure/IO split was already correct — table fix only). Minor — the commit forecast/no-baseline-refusal fired for ANY `--to committed` before transition legality; now gated on `status == defined` so a re-run on an already-committed project (no baseline) is a clean no-op, pinned by TestSetStatusCommit_AlreadyCommittedNoBaselineNoOp. Left as noted: slipDays/dayDelta cross-package dup, trailing-window 29 inclusive days, ISO-layout literal dup, double doc-read cold path. Close measured actual 3.21h vs est 2.65h (ratio 0.8×, trusted) — calibration row appended. Re-ran go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 green.
+- 2026-07-19: closed M3 — go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 green. Commit hook: TestSetStatusCommit_{ComputesAndDerivesPlannedFinish,PreExistingPlannedFinishKept,ExplicitPlannedFinishWins,NoBaselineRefusesWithHint,NoBaselineWithRealityPasses} + TestSetStatusNonCommit_Untouched (informs-never-blocks; planned_finish precedence manual>existing>derived; derived applied before baseline-set guard). Surfaces: TestProjectShow_IncludesForecast, TestProjectStatus_IncludesForecast, TestProjectShow_NoBaselineQuietLine. Calendar ledger: TestPrepareCalendarLedgerRow{,_NoPlannedFinish,_MissingHeadingErrors}, TestAppendProjectLedgerRow_FogHeadingUnchanged (fog regression). Vantage bug (verification-caught) fixed + pinned: TestForecastForProject_RelativePathResolvesVantage. Live: sdlc project show on the real tracking project → 2.6h ÷ 110.6 h/wk forecast. Atlas + helptext updated; Calendar ledger heading added to real brain file. actual 0.9h = M3 increment (3 consumers + vantage fix); review verdict: FIX-THEN-SHIP
+- 2026-07-19: M3 FIX-THEN-SHIP resolved (bundled per #174, no re-close): Important 1 — the calendar-row wiring wasn't asserted end-to-end (deleting prepareCalendarLedgerRow would pass every test); added a calendar-row assertion to TestProjectCloseRecordsFogAndArchives (planned 2026-07-30, closed 2026-07-16 → -14 slip). Important 2 — README not extended for the forecast surfacing; added the commit/--planned-finish/show lines under the calendar block. Minor — computeCommitForecast now uses the deadline returned by forecastForProject instead of re-reading d.FM (consistent with forecastLine). Left as noted: slipDays/dayDelta cross-package dup (consolidate on 3rd copy), double doc-read on cold CLI path, two unreachable defensive branches. Plan Revisions records the plannedFinishDecision package placement + the 4 execution deltas. Re-ran go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 — green.
+- 2026-07-19: closed M2 — go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 green. Pure forecast core: TestComputeForecast_{Solo,TwoActiveOthers,PausedExcludedButListed,UnknownOtherWeightZero,ZeroRemainingErrors,ZeroBaselineErrors} (exact date arithmetic: 55h/55hpw/n1=+7d, 36h/55hpw/n3=+14d), TestRenderForecast_{FullStatement,NoDeadline,PhaseAFallbackNoted}. Fleet assembly: TestListActiveProjectFiles (shared walk, subject excluded, archive/.bak skipped, DiscoverByIssueRef regression green), TestListFleetProjects (board/phase-a/unknown sources), TestLoadThroughputBaseline_{EnvOverride,AbsentIsErrNoBaseline,UnparsableIsErrNoBaseline}, TestForecastForProject_{NoBaseline,WithBaseline}. Atlas: forecast section added (throughput baseline, pure core, fleet assembly). actual 0.6h = M2 increment; review verdict: FIX-THEN-SHIP
+- 2026-07-19: M2 FIX-THEN-SHIP resolved (bundled per #174, no re-close): Important — a fully-burned-down-but-open project fell through to its stale Phase-A total (predicate was board `RemainingHours > 0`), reading e.g. 12h remaining and inflating N for every fleet forecast. Two-part fix: (1) `boardRowsResolved` — the board is authoritative once the breakdown resolves into ANY issue row, even at 0 remaining (a complete project is maximally mature, reads ~0, not the coarse PRD number); Phase-A is a fallback only when nothing resolved; (2) `isActiveContention` now also requires `RemainingHours > 0` so a 0-remaining project consumes no throughput. Pinned by TestListFleetProjects_AllTerminalReadsBoardZero (board/0, N stays 1) + TestComputeForecast_ZeroRemainingOtherDoesNotContend. Minors: subject `Repo` now the repo basename (consistent with siblings, was project name); ListFleetProjects warns on a fleet-walk error instead of silent solo-degrade; copy-paste test comment fixed + the EvalSymlinks subject-exclusion now actually exercised (TestListActiveProjectFiles_ExcludeResolvesSymlink). Left as noted: 3× Metadata decode per project (cheap, not hot). Re-ran go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ green.
+- 2026-07-19: closed M1 — go test ./cmd/sdlc/... ./pkg/vocab/ -count=1 green. Pure: TestSpanThroughput_{28DaySpan,PartialWeek,EmptySpan,BadSpanBounds} (untrusted counted, bad-date skipped, days/7 partial weeks), TestBaselineTSV_RoundTrip + BadFloat + Empty. Verb: TestProjectThroughput_{Registered,Bless,BlessAppends,EmptySpanRefuses,BareShowsCurrentAndTrailing,NoBaselineBareHints}. Live: sdlc project throughput --bless 2026-06-22..2026-07-19 → 110.60 h/wk (280 rows), bare form shows trailing-4wk -3.81 delta; baseline written to brain velocity dir. actual 0.5h = M1 increment (2 tasks: pure span math + verb); review verdict: FIX-THEN-SHIP
+- 2026-07-19: M1 FIX-THEN-SHIP resolved (bundled per #174, no re-close): Important — README project quick-start omitted the new `throughput` verb (Docs gate); added `--bless` + bare forms. Minor — `showThroughput` swallowed ALL baseline read errors as "not blessed yet"; now distinguishes os.IsNotExist (informational) from a real IO error (surfaced). Left as noted: isoLayout/isoDate cross-package const dup (pre-existing ~15× pattern, not a #182 regression), --ceiling no-op in show mode (documented). Re-ran go build ./... && go test ./cmd/sdlc/... green.
 ### 2026-07-16
 
 Filed from the #180 plan-approval session. Operator: "we need a higher level

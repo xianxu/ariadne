@@ -199,6 +199,69 @@ Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 `push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
 accessor — a DRY consolidation, separate from this resolver.
 
+### Project calendar forecast (`throughput.go` + `forecast.go` + `projectforecast.go`, #182)
+
+Bridges effort (hours) to calendar (a date) — a project's load-bearing
+`deadline:` is a date, but both estimators produce hours. The forecast
+**informs, never blocks** (estimation is often wrong and slippage is
+recoverable by means the math can't see), so it's a computed statement
+recorded at the right surfaces, not a gate.
+
+- **Measured throughput (`internal/estimate/throughput.go`, M1).** `SpanThroughput`
+  sums the calibration ledger's `actual` hours over an operator-**blessed**
+  representative span ÷ span-weeks — the operator picks the span (trailing
+  windows skew under vacations/crunch), the machinery measures the rate.
+  `sdlc project throughput --bless FROM..TO` appends a provenance row
+  (`{span, hours_per_week, rows, ceiling}`) to
+  `brain/data/life/42shots/velocity/throughput-baseline.tsv` (append-only,
+  last = current); the bare form shows the current baseline + a trailing-4wk
+  comparison, never auto-substituted. Reuses the existing `estimate.LedgerRow`
+  parser (one ledger parser, ARCH-DRY).
+- **Pure forecast core (`internal/project/forecast.go`, M2).** `ComputeForecast`
+  divides this project's remaining issue-hours by its share of throughput
+  (baseline h/wk ÷ n active projects) → projected finish. **Unit identity:**
+  numerator (remaining issue-estimates) and denominator (ledger actuals/wk)
+  are both ship wall-clock engineer+AI hours (#118) — no human-hour
+  conversion, and parallelism is already priced into the measured rate, so
+  the attention ceiling is a **warning threshold, not arithmetic**. Paused
+  projects weigh 0 as named risks; a project with neither resolvable board
+  hours nor a Phase-A estimate is `unknown` (weight 0 + warning, never
+  silently dropped). `RenderForecast` is the single one-line statement every
+  consumer prints. No IO in the core; zero remaining / zero baseline → error
+  so callers fall back.
+- **Fleet load assembly (`projectforecast.go`, M2 — the IO seam).**
+  `ListFleetProjects` builds each active project's contention load via the
+  same `computeBoard` the status board uses, reusing
+  `project.ListActiveProjectFiles` — the `DiscoverByIssueRef` fleet walk
+  factored into a shared `walkFleetProjects` (one fleet-walk source,
+  behavior-identical for discovery). A project whose breakdown resolved into
+  issues reads board hours even at 0 remaining (a complete project reads ~0,
+  not the stale PRD number); Phase-A is a fallback only when nothing resolved;
+  a project with 0 remaining or `unknown` load doesn't contend.
+  `loadThroughputBaseline` maps absence AND parse failure to one
+  `errNoBaseline`; `forecastForProject` is the shared assembly the three
+  consumers call.
+- **The three consumers — inform, never block (M3).**
+  1. **`set-status →committed`** computes the forecast, prints the statement,
+     injects it as the `reality-check` evidence when the operator gave no
+     `--reality` (so the existing `evidenceGuard` passes on *having computed* —
+     zero guard/model change), and derives `planned_finish:`. Precedence
+     (`plannedFinishDecision`): explicit `--planned-finish` > a pre-existing
+     value > the derived date, each provenance-noted in the Log. The derived
+     `planned_finish` is applied to the doc **before** the guard loop, because
+     the `baseline-set` guard requires it. No blessed baseline → the legacy
+     `--reality` prose fallback (with a bless hint); it never refuses on the
+     forecast's *answer*, only on the absence of *any* evidence.
+  2. **`project show` / `status`** append the live forecast line
+     (`forecastLine`, best-effort — a read verb never fails on a forecast
+     error; no baseline → a quiet bless hint).
+  3. **`project close`** appends a planned-vs-actual `## Calendar ledger` row
+     (`slip_days = actual − planned`, `n/a` when unset) beside the fog row in
+     the same `estimate-logic-project-v1.md` — the project-level calendar
+     calibration loop, the analogue of the fog factor.
+  `appendProjectLedgerRow` is heading-parameterized (`Fog ledger` |
+  `Calendar ledger`), each error naming its own heading.
+
 ## Artifact migration (`sdlc migrate`, #179)
 
 The write-side companion to resolve: `sdlc migrate <file> <dest-repo-dir>`

@@ -32,7 +32,7 @@ deadline math is still attestation.
 
 - [x] project vocabulary model: cue + lifecycle + gates + verbs [ariadne#180]
 - [x] brain-vs-repos residency + close-gate lift (consumes the model) [ariadne#171]
-- [ ] calendar estimator: effort→calendar bridge, computed reality-check [ariadne#182]
+- [x] calendar estimator: effort→calendar bridge, computed reality-check [ariadne#182]
 
 ## Log
 

@@ -36,6 +36,7 @@ func NewProjectCmd() *cobra.Command {
 	cmd.AddCommand(newProjectRetroCmd())
 	cmd.AddCommand(newProjectCloseCmd())
 	cmd.AddCommand(newProjectFindCmd())
+	cmd.AddCommand(newProjectThroughputCmd())
 	return cmd
 }
 
@@ -43,7 +44,7 @@ type projectNewFlags struct {
 	Slug, Goal, DoneWhen, ProjectsDir string
 }
 type projectListFlags struct{ ProjectsDir string }
-type projectShowFlags struct{ Slug, ProjectsDir string }
+type projectShowFlags struct{ Slug, ProjectsDir, BrainDir string }
 type projectValidateFlags struct {
 	Slug, ProjectsDir string
 	All               bool
@@ -87,6 +88,7 @@ func newProjectShowCmd() *cobra.Command {
 		}}
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
+	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "brain root holding the throughput baseline (for the forecast line)")
 	_ = cmd.MarkFlagRequired("slug")
 	return cmd
 }
@@ -168,6 +170,9 @@ func runProjectShow(stdout, _ io.Writer, f *projectShowFlags) error {
 		return err
 	}
 	fmt.Fprint(stdout, projectdoc.RenderShow(projectdoc.Summarize(path, d)))
+	if line := forecastLine(path, f.BrainDir, projectTodayFn()); line != "" {
+		fmt.Fprintln(stdout, line)
+	}
 	return nil
 }
 

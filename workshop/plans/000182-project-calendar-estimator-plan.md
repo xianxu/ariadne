@@ -27,6 +27,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 |------|----------|--------|
 | `SpanThroughput` (consumes existing `estimate.LedgerRow`) | `cmd/sdlc/internal/estimate/throughput.go` | new |
 | `ThroughputBaseline` (+ TSV parse/render) | `cmd/sdlc/internal/estimate/throughput.go` | new |
+| `ProjectFile` (data struct) | `cmd/sdlc/internal/project/discover.go` | modified |
 | `ProjectLoad` | `cmd/sdlc/internal/project/forecast.go` | new |
 | `Forecast` / `ComputeForecast` | `cmd/sdlc/internal/project/forecast.go` | new |
 | `RenderForecast` | `cmd/sdlc/internal/project/forecast.go` | new |
@@ -50,6 +51,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
+| `ListActiveProjectFiles` (shared fleet walk) | `cmd/sdlc/internal/project/discover.go` | modified | fleet fs walk |
 | `runProjectThroughput` (bless + show) | `cmd/sdlc/projectthroughput.go` | new | calibration ledger + baseline TSV |
 | `loadThroughputBaseline` | `cmd/sdlc/projectforecast.go` | new | baseline TSV + `WF_THROUGHPUT_BASELINE` |
 | `ListFleetProjects` | `cmd/sdlc/projectforecast.go` | new | fleet fs walk + `computeBoard` |
@@ -61,7 +63,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 - **runProjectThroughput** — `sdlc project throughput [--bless FROM..TO] [--ceiling N]`. Bless: read ledger (`estimate.VelocityPath(brainDir, "calibration-ledger.tsv")`), `SpanThroughput`, refuse empty span, append `RenderBaselineRow` to `VelocityPath(brainDir, "throughput-baseline.tsv")` (create with header comment if absent), print measure + untrusted-row warning. Bare: print current baseline + trailing-28-day comparison (computed live from the ledger; comparison only — never substituted).
   - **Injected into:** nothing — it's a leaf verb; the baseline file is the interface.
 - **loadThroughputBaseline** — resolves `WF_THROUGHPUT_BASELINE` env override, else `VelocityPath(brainDir, "throughput-baseline.tsv")`; parses; returns current baseline or a typed `errNoBaseline`. **Read AND parse failures both map to `errNoBaseline`** (spec Errors: "ledger unreadable → same fallback"); consumers never distinguish. The bless path reads the calibration ledger honoring `WF_CALIB_LEDGER` first (mirroring `appendCalibrationRow`), else `VelocityPath(brainDir, "calibration-ledger.tsv")`.
-- **ListFleetProjects** — **deliberately in package `main`** (`computeBoard` lives there): walk `SiblingRepoDirs(parent)` filtered by `isFleetSibling`, glob each repo's `vocab.Project().Discovery().Home` (active only — archived/terminal projects hold no load; brain legacy home included while metis-v2 lives there, same `gitx.IsBrainRepo` branch as `DiscoverByIssueRef`), parse each doc, build `ProjectLoad` via `computeBoard` with that repo's vantage (`projectIssueLookupFn(ref, repoDir)`), Phase-A fallback, `unknown` → weight 0 + warning. Excludes the subject project by resolved path.
+- **ListFleetProjects** — **deliberately in package `main`** (`computeBoard` lives there): the fs walk is NOT re-derived — `isFleetSibling` and the filtered/brain-aware/active-home glob inside `DiscoverByIssueRef` are unexported in package `project`, so copy-pasting them into `main` would violate ARCH-DRY. **Decision (plan-quality review):** add an exported `project.ListActiveProjectFiles(parentDir, excludePath string) ([]ProjectFile, error)` to `discover.go` (`ProjectFile{Path, RepoDir, Repo string, Legacy bool}`) that reuses the SAME `SiblingRepoDirs`/`isFleetSibling`/`gitx.IsBrainRepo`/active-home(+legacy) walk `DiscoverByIssueRef` already has — factor the shared walk into an internal helper both call, so the fleet enumeration has one source. `main.ListFleetProjects` then does ONLY the per-file `computeBoard` assembly (parse doc → status + `RemainingHours`, Phase-A fallback via `ParsePhaseA`, `unknown` → weight 0 + warning) — no fs logic in `main`. Excludes the subject project by resolved (`EvalSymlinks`) path. Active homes only (archived/terminal projects hold no load).
   - **Injected into:** `ComputeForecast` via `[]ProjectLoad` — the pure core never walks anything.
 - **forecastForProject** — the shared assembly used by all three consumers: `(doc, path, projectsDir, brainDir, today) → (Forecast, deadline string, error)`; maps `errNoBaseline` through untouched so each consumer picks its own fallback.
 - **Commit hook** — in `runProjectSetStatus`, only when `f.To == "committed"`: try `forecastForProject`; on success, `f.Reality` empty → `ctx.Evidence["reality-check"] = "computed: " + RenderForecast(...)` (the EXISTING evidence machinery records it in the Log — zero guard change); `planned_finish` absent → `d.SetFM("planned_finish", f.ProjectedFinish)` + note; `planned_finish` present or `--planned-finish` given → kept, logged as manual override. On `errNoBaseline` → legacy behavior exactly (operator must pass `--reality` prose; error message gains the bless hint).
@@ -77,22 +79,22 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 
 **Files:** Create `cmd/sdlc/internal/estimate/throughput.go`, `cmd/sdlc/internal/estimate/throughput_test.go`
 
-- [ ] **Step 1: Write the failing tests** — table tests: `SpanThroughput` over `estimate.ParseRows` fixture text (the REAL 10-column ledger shape — reuse a snippet of real rows): 28-day span → `Σactual/4.0`; 27-day span divides by `27/7.0`; rows outside span excluded; untrusted counted but included in the sum; a row with an unparsable DATE → skipped + counted in `Skipped` (bad-actual rows never arrive — `ParseRows` drops them upstream, note this in the test comment); empty span → error. `ParseBaselineTSV` (last row current, comments skipped, bad float → error) + `RenderBaselineRow` round-trip.
-- [ ] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/estimate/ -run 'Throughput|Baseline' -v` → FAIL undefined.
-- [ ] **Step 3: Implement** — `SpanMeasure{HoursPerWeek float64; Rows, UntrustedRows, Skipped, Days int}`, `SpanThroughput(rows []LedgerRow, from, to string)` (dates ISO `YYYY-MM-DD`, inclusive; `days = to-from+1`; `HoursPerWeek = sum / (float64(days)/7.0)`), `ThroughputBaseline`, `ParseBaselineTSV`, `RenderBaselineRow`. NO new ledger parser or row type — consume `estimate.LedgerRow`/`ParseRows` as-is. Baseline TSV columns: `blessed_date span_start span_end hours_per_week rows ceiling` (tab-separated, `#` comments).
-- [ ] **Step 4: Run to verify pass.**
-- [ ] **Step 5: Commit** — `#182 M1: pure span throughput + baseline TSV codec`.
+- [x] **Step 1: Write the failing tests** — table tests: `SpanThroughput` over `estimate.ParseRows` fixture text (the REAL 10-column ledger shape — reuse a snippet of real rows): 28-day span → `Σactual/4.0`; 27-day span divides by `27/7.0`; rows outside span excluded; untrusted counted but included in the sum; a row with an unparsable DATE → skipped + counted in `Skipped` (bad-actual rows never arrive — `ParseRows` drops them upstream, note this in the test comment); empty span → error. `ParseBaselineTSV` (last row current, comments skipped, bad float → error) + `RenderBaselineRow` round-trip.
+- [x] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/estimate/ -run 'Throughput|Baseline' -v` → FAIL undefined.
+- [x] **Step 3: Implement** — `SpanMeasure{HoursPerWeek float64; Rows, UntrustedRows, Skipped, Days int}`, `SpanThroughput(rows []LedgerRow, from, to string)` (dates ISO `YYYY-MM-DD`, inclusive; `days = to-from+1`; `HoursPerWeek = sum / (float64(days)/7.0)`), `ThroughputBaseline`, `ParseBaselineTSV`, `RenderBaselineRow`. NO new ledger parser or row type — consume `estimate.LedgerRow`/`ParseRows` as-is. Baseline TSV columns: `blessed_date span_start span_end hours_per_week rows ceiling` (tab-separated, `#` comments).
+- [x] **Step 4: Run to verify pass.**
+- [x] **Step 5: Commit** — `#182 M1: pure span throughput + baseline TSV codec`.
 
 ### Task 1.2: The `sdlc project throughput` verb
 
 **Files:** Create `cmd/sdlc/projectthroughput.go`, `cmd/sdlc/projectthroughput_test.go`; Modify `cmd/sdlc/project.go` (register), `cmd/sdlc/helptext/project.md`
 
-- [ ] **Step 1: Write the failing process-level test** — temp brain dir with a fixture `calibration-ledger.tsv`; `--bless 2026-06-16..2026-07-13` → baseline file created under the velocity dir with one row, printed h/wk matches, untrusted rows warned; second bless appends (2 rows, last wins); empty-span bless refuses; bare verb prints current baseline + trailing comparison; no baseline → bare verb says so with the bless hint. Use a `--brain-dir` flag (mirrors close) so tests stay hermetic.
-- [ ] **Step 2: Run to verify failure.**
-- [ ] **Step 3: Implement** — flags `--bless FROM..TO`, `--ceiling N` (default 2, only meaningful with `--bless`), `--brain-dir` (default `../brain`). Read-only bare form; bless is `markMutatingCommand`. Wire `newProjectThroughputCmd()` into `NewProjectCmd`; add the subcommand row + a short section to `helptext/project.md`.
-- [ ] **Step 4: Run to verify pass; run `go test ./cmd/sdlc/ -run Helptext`** (embed tests).
-- [ ] **Step 5: Commit** — `#182 M1: sdlc project throughput — bless + show the measured baseline`.
-- [ ] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M1 --no-project` (project tracks at issue granularity).
+- [x] **Step 1: Write the failing process-level test** — temp brain dir with a fixture `calibration-ledger.tsv`; `--bless 2026-06-16..2026-07-13` → baseline file created under the velocity dir with one row, printed h/wk matches, untrusted rows warned; second bless appends (2 rows, last wins); empty-span bless refuses; bare verb prints current baseline + trailing comparison; no baseline → bare verb says so with the bless hint. Use a `--brain-dir` flag (mirrors close) so tests stay hermetic.
+- [x] **Step 2: Run to verify failure.**
+- [x] **Step 3: Implement** — flags `--bless FROM..TO`, `--ceiling N` (default 2, only meaningful with `--bless`), `--brain-dir` (default `../brain`). Read-only bare form; bless is `markMutatingCommand`. Wire `newProjectThroughputCmd()` into `NewProjectCmd`; add the subcommand row + a short section to `helptext/project.md`.
+- [x] **Step 4: Run to verify pass; run `go test ./cmd/sdlc/ -run Helptext`** (embed tests).
+- [x] **Step 5: Commit** — `#182 M1: sdlc project throughput — bless + show the measured baseline`.
+- [x] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M1 --no-project` (project tracks at issue granularity).
 
 ## Chunk 2: M2 — Pure forecast core + fleet load assembly
 
@@ -100,22 +102,22 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 
 **Files:** Create `cmd/sdlc/internal/project/forecast.go`, `cmd/sdlc/internal/project/forecast_test.go`
 
-- [ ] **Step 1: Write the failing decision-table test** — solo project (n=1, full share, date = today + remaining/hpw weeks); two active others (n=3, share/3); paused other → excluded from n, present in `PausedRisks`; `unknown`-source other → weight 0 + note; `n > ceiling` → `CeilingWarning` set; zero remaining → error; zero baseline h/wk → error; date arithmetic pinned exactly (e.g. 36h remaining, 55h/wk, n=2 → 27.5h/wk → 36/27.5 = 1.309 wk → ceil(9.16)=10 days → today+10). `RenderForecast`: statement contains remaining+source, share arithmetic, projected date, deadline delta in days (over/under), paused lines, ceiling warning; absent deadline → "no deadline set".
-- [ ] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/project/ -run Forecast -v`
-- [ ] **Step 3: Implement** per the Core-concepts contract. Date math on `time.Time` parsed from ISO; output dates ISO.
-- [ ] **Step 4: Run to verify pass.**
-- [ ] **Step 5: Commit** — `#182 M2: pure calendar forecast core`.
+- [x] **Step 1: Write the failing decision-table test** — solo project (n=1, full share, date = today + remaining/hpw weeks); two active others (n=3, share/3); paused other → excluded from n, present in `PausedRisks`; `unknown`-source other → weight 0 + note; `n > ceiling` → `CeilingWarning` set; zero remaining → error; zero baseline h/wk → error; date arithmetic pinned exactly (e.g. 36h remaining, 55h/wk, n=2 → 27.5h/wk → 36/27.5 = 1.309 wk → ceil(9.16)=10 days → today+10). `RenderForecast`: statement contains remaining+source, share arithmetic, projected date, deadline delta in days (over/under), paused lines, ceiling warning; absent deadline → "no deadline set".
+- [x] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/project/ -run Forecast -v`
+- [x] **Step 3: Implement** per the Core-concepts contract. Date math on `time.Time` parsed from ISO; output dates ISO.
+- [x] **Step 4: Run to verify pass.**
+- [x] **Step 5: Commit** — `#182 M2: pure calendar forecast core`.
 
 ### Task 2.2: Fleet load assembly + baseline loader (IO, package main)
 
 **Files:** Create `cmd/sdlc/projectforecast.go`, `cmd/sdlc/projectforecast_test.go`
 
-- [ ] **Step 1: Write the failing temp-fleet test** — parent with `ariadne` (subject project, executing, breakdown rows → issues with estimates), `metis` (executing project, remaining via its own issues), `nous` (paused project), non-project repo ignored; `ListFleetProjects` returns loads with correct statuses/remaining/vantage; subject excluded by path; sibling with unresolvable rows + `**phase-a:** 12h` → `phase-a` source 12h; neither → `unknown` weight 0. `loadThroughputBaseline`: env override wins; typed `errNoBaseline` when file absent.
-- [ ] **Step 2: Run to verify failure.**
-- [ ] **Step 3: Implement** — `ListFleetProjects(parentDir, excludePath string) []ProjectLoad` (best-effort per repo: unreadable/unparsable file → skipped with a warning load? No — skip silently is a silent cap; append `unknown` load with Warning so the statement can surface it); `loadThroughputBaseline(brainDir string)`; `forecastForProject(...)` assembling this-project load (board → Phase-A fallback via `ParsePhaseA`) + others + baseline + today.
-- [ ] **Step 4: Run to verify pass.**
-- [ ] **Step 5: Commit** — `#182 M2: fleet load assembly + baseline loader (IO seams)`.
-- [ ] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M2 --no-project`.
+- [x] **Step 1: Write the failing tests** — (a) package `project`: `ListActiveProjectFiles(parent, excludePath)` over a temp fleet returns active-home + legacy-home project files, excludes the subject by resolved path, skips `.bak`/dot/worktree siblings (reuse the `discover_test.go` fixture helpers); a `TestDiscoverByIssueRef_*` regression still passes (shared-walk refactor is behavior-identical). (b) package `main` temp-fleet: `ariadne` (subject, executing, breakdown → issues with estimates), `metis` (executing, remaining via its issues), `nous` (paused); `ListFleetProjects` returns loads with correct statuses/remaining/vantage; subject excluded; sibling with unresolvable rows + `**phase-a:** 12h` → `phase-a` source 12h; neither → `unknown` weight 0 + Warning. `loadThroughputBaseline`: env override wins; typed `errNoBaseline` when file absent OR unreadable/unparsable.
+- [x] **Step 2: Run to verify failure.**
+- [x] **Step 3: Implement** — in package `project`: factor the `DiscoverByIssueRef` walk into a shared internal helper, add exported `ListActiveProjectFiles(parentDir, excludePath string) ([]ProjectFile, error)` (`DiscoverByIssueRef` keeps behavior — pin with its existing tests). In `main`: `ListFleetProjects(parentDir, excludePath string) []ProjectLoad` (per file: parse → status + `computeBoard` remaining with that repo's `projectIssueLookupFn` vantage → Phase-A fallback → `unknown`+Warning on neither; a genuinely unreadable/unparsable file appends an `unknown` load with Warning, never silently dropped — a silent cap reads as "no contention"); `loadThroughputBaseline(brainDir string)`; `forecastForProject(...)` assembling this-project load + others + baseline + today.
+- [x] **Step 4: Run to verify pass.**
+- [x] **Step 5: Commit** — `#182 M2: fleet load assembly + baseline loader (IO seams)`.
+- [x] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M2 --no-project`.
 
 ## Chunk 3: M3 — The three consumers
 
@@ -123,23 +125,23 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 
 **Files:** Modify `cmd/sdlc/projectsetstatus.go`; Test `cmd/sdlc/projectsetstatus_test.go` (extend)
 
-- [ ] **Step 1: Write the failing tests** — with baseline env + temp fleet: `set-status --to committed` (no `--reality`) succeeds, Log gains `- reality-check: computed: …` evidence block, `planned_finish:` set to the projected date, statement printed to stdout; pre-existing `planned_finish` → kept + `manual planned_finish kept …` Log note; explicit `--planned-finish 2026-09-01` → that date wins over both, Log notes `planned_finish set manually (forecast projected <date>)`; no baseline → refuses with legacy `guard reality-check` error + bless hint; no baseline + `--reality 'fits'` → passes exactly as today (regression pin); non-committed transitions untouched (regression pin).
-- [ ] **Step 2: Run to verify failure.**
-- [ ] **Step 3: Implement** — add two flags to `projectSetStatusFlags`: `--planned-finish` (explicit manual date) and `--brain-dir` (default `../brain`, mirroring `project close` — `forecastForProject` needs it to reach the baseline; `WF_THROUGHPUT_BASELINE` still wins for tests). In `runProjectSetStatus`, when `f.To == "committed"`: call `forecastForProject`; on success print `RenderForecast` and inject `ctx.Evidence["reality-check"] = "computed: " + statement` when `f.Reality == ""` (the existing evidence machinery records it — no guard change). **`applyProjectStatus` gains one parameter** `plannedFinish projectdoc.PlannedFinishDecision` (small struct `{Derived, Manual string}`) — it owns the doc write, so it applies the precedence there: `Manual` non-empty → set + manual-override Log note; else FM already non-empty → keep + `manual planned_finish kept` note; else `Derived` non-empty → set + derived note. Update `applyProjectStatus`'s two callers (`runProjectSetStatus`, and grep for test callers). On `errNoBaseline`: leave `f.Reality` handling exactly as-is; wrap the eventual guard error with the bless hint.
-- [ ] **Step 4: Run to verify pass; full `go test ./cmd/sdlc/ -run ProjectSetStatus -count=1`.**
-- [ ] **Step 5: Commit** — `#182 M3: commit transition computes, informs, derives planned_finish — never blocks on the answer`.
+- [x] **Step 1: Write the failing tests** — with baseline env + temp fleet: `set-status --to committed` (no `--reality`) succeeds, Log gains `- reality-check: computed: …` evidence block, `planned_finish:` set to the projected date, statement printed to stdout; pre-existing `planned_finish` → kept + `manual planned_finish kept …` Log note; explicit `--planned-finish 2026-09-01` → that date wins over both, Log notes `planned_finish set manually (forecast projected <date>)`; no baseline → refuses with legacy `guard reality-check` error + bless hint; no baseline + `--reality 'fits'` → passes exactly as today (regression pin); non-committed transitions untouched (regression pin).
+- [x] **Step 2: Run to verify failure.**
+- [x] **Step 3: Implement** — add two flags to `projectSetStatusFlags`: `--planned-finish` (explicit manual date) and `--brain-dir` (default `../brain`, mirroring `project close` — `forecastForProject` needs it to reach the baseline; `WF_THROUGHPUT_BASELINE` still wins for tests). In `runProjectSetStatus`, when `f.To == "committed"`: call `forecastForProject`; on success print `RenderForecast` and inject `ctx.Evidence["reality-check"] = "computed: " + statement` when `f.Reality == ""` (the existing evidence machinery records it — no guard change). **`applyProjectStatus` gains one parameter** `plannedFinish projectdoc.PlannedFinishDecision` (small struct `{Derived, Manual string}`) — it owns the doc write, so it applies the precedence there: `Manual` non-empty → set + manual-override Log note; else FM already non-empty → keep + `manual planned_finish kept` note; else `Derived` non-empty → set + derived note. Update ALL `applyProjectStatus` callers — `runProjectSetStatus` plus the ~6 test call sites in `projectsetstatus_test.go` (grep `applyProjectStatus(` — expect ~7 total, not 2). On `errNoBaseline`: leave `f.Reality` handling exactly as-is; wrap the eventual guard error with the bless hint.
+- [x] **Step 4: Run to verify pass; full `go test ./cmd/sdlc/ -run ProjectSetStatus -count=1`.**
+- [x] **Step 5: Commit** — `#182 M3: commit transition computes, informs, derives planned_finish — never blocks on the answer`.
 
 ### Task 3.2: show/status surfaces + close calendar row
 
 **Files:** Modify `cmd/sdlc/project.go` (`runProjectShow`), `cmd/sdlc/projectstatus.go` (`renderBoard` or its caller), `cmd/sdlc/projectclose.go`; helptext `project.md`, `set-status` help if present; Tests: extend `projectstatus_test.go` / `project_crud_test.go` / `projectclose_test.go`
 
-- [ ] **Step 1: Write the failing tests** — `project show` and `project status` on a committed/executing project with baseline present include the forecast line (drift vs deadline); without baseline → one quiet `forecast: no blessed baseline (sdlc project throughput --bless …)` line, no error. Close: fog row still appended (regression pin); NEW calendar row under `## Calendar ledger` with `slip_days = actual_finish − planned_finish` (negative = early); `planned_finish` empty → `n/a` row; `--no-ledger` skips both; missing `## Calendar ledger` heading → same add-the-heading error contract as fog. `appendProjectLedgerRow` heading parameterization pinned for both tables, including that each heading's error message names ITS OWN heading (the current fog error text names the fog heading).
-- [ ] **Step 2: Run to verify failure.**
-- [ ] **Step 3: Implement** — show/status call `forecastForProject` best-effort (any error → the one quiet line; never fail a read verb); both verbs gain `--brain-dir` (default `../brain`) like set-status — a read-verb flag, not a lock change. Generalize `appendProjectLedgerRow(text, heading, row)`; close computes slip from `metadata.PlannedFinish` vs `today`. Add `## Calendar ledger` heading + table to the live `estimate-logic-project-v1.md` in brain (one-time data edit, commit rides nous's auto-commit like #171 M6).
-- [ ] **Step 4: Run to verify pass; full suite `go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1`.**
-- [ ] **Step 5: Update atlas** — `atlas/workflow/sdlc-binary.md`: forecast section (blessed baseline, pure core, three consumers, unit identity); tick issue Plan rows.
-- [ ] **Step 6: Commit** — `#182 M3: forecast surfaces on show/status + calendar calibration row at close`.
-- [ ] **Step 7: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M3 --no-project`.
+- [x] **Step 1: Write the failing tests** — `project show` and `project status` on a committed/executing project with baseline present include the forecast line (drift vs deadline); without baseline → one quiet `forecast: no blessed baseline (sdlc project throughput --bless …)` line, no error. Close: fog row still appended (regression pin); NEW calendar row under `## Calendar ledger` with `slip_days = actual_finish − planned_finish` (negative = early); `planned_finish` empty → `n/a` row; `--no-ledger` skips both; missing `## Calendar ledger` heading → same add-the-heading error contract as fog. `appendProjectLedgerRow` heading parameterization pinned for both tables, including that each heading's error message names ITS OWN heading (the current fog error text names the fog heading).
+- [x] **Step 2: Run to verify failure.**
+- [x] **Step 3: Implement** — show/status call `forecastForProject` best-effort (any error → the one quiet line; never fail a read verb); both verbs gain `--brain-dir` (default `../brain`) like set-status — a read-verb flag, not a lock change. Generalize `appendProjectLedgerRow(text, heading, row)`; close computes slip from `metadata.PlannedFinish` vs `today`. Add `## Calendar ledger` heading + table to the live `estimate-logic-project-v1.md` in brain (one-time data edit, commit rides nous's auto-commit like #171 M6).
+- [x] **Step 4: Run to verify pass; full suite `go build ./... && go test ./cmd/sdlc/... ./pkg/vocab/ -count=1`.**
+- [x] **Step 5: Update atlas** — EXTEND the forecast section in `atlas/workflow/sdlc-binary.md` (added at M2 close per AGENTS §8) with the three consumer surfaces (commit-transition evidence + `planned_finish` derivation, show/status live drift, close calendar-ledger row); tick issue Plan rows.
+- [x] **Step 6: Commit** — `#182 M3: forecast surfaces on show/status + calendar calibration row at close`.
+- [x] **Step 7: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M3 --no-project`.
 
 ## Manual Verification
 
@@ -150,3 +152,36 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 ## Issue close (after M3)
 
 `sdlc close --issue 182 --verified '<test names + manual results>'` — omit `--actual` (measure+adopt). At `change-code` time: set `estimate_hours` (v3.1 derivation in the issue `## Estimate` — M1 smaller-go-module, M2 greenfield-go-module, M3 cross-cutting-refactor; see #171's block for the format) AND replace the issue `## Plan`'s brainstorm checkbox with the three `- [ ] Mx — …` milestone rows this plan's milestone-close steps assume.
+
+## Revisions
+
+### 2026-07-19 — M1–M3 executed; deltas from the plan
+
+1. **`plannedFinishDecision` lives in package `main`, not `projectdoc`.** Task
+   3.1 Step 3 wrote `projectdoc.PlannedFinishDecision`, but the type is a
+   main-package orchestration concern (consumed only by `applyProjectStatus`),
+   so it ships as `main.plannedFinishDecision` — the better location (M3 review
+   §7).
+2. **Derived `planned_finish` is applied BEFORE the guard loop.** A design
+   interaction surfaced in M3: the `baseline-set` guard requires
+   `planned_finish` present, and #182 derives it at commit — so the derived
+   value is set on the in-memory doc before guards run (nothing is written on a
+   guard failure). Pinned by the commit-hook tests.
+3. **Verification-caught vantage bug (M3).** `forecastForProject` derived the
+   issue-lookup repo root from a possibly-relative project path (the default
+   `--projects-dir` is relative → `.`), silently reading 0 remaining for every
+   cross-repo lookup while the board read correctly. Fixed by resolving the
+   path to absolute first; regression-pinned. The live `sdlc project show`
+   smoke test is what exposed it — unit tests used absolute temp paths.
+4. **Atlas mapped per-milestone (M2 + M3), not deferred to a single M3 sweep.**
+   The atlas gate refused deferring M2's surface; the forecast section was
+   added at M2 close and extended with the consumer surfaces at M3.
+5. **Calendar ledger `## Calendar ledger` heading added to the live brain
+   `estimate-logic-project-v1.md`** (one-time data edit, rides nous
+   auto-commit like #171 M6).
+6. **`ListActiveProjectFiles` reclassified as an Integration point** (close
+   review): it does filesystem IO (`SiblingRepoDirs`/`Glob`/`EvalSymlinks`)
+   and its test needs real temp files — the Core-concepts table wrongly listed
+   it under "Pure entities." Moved to the Integration-points table beside its
+   consumer `ListFleetProjects`; only `ProjectFile` (the data struct) is pure.
+   The code's pure/IO split was already correct — this is a table fix only.
