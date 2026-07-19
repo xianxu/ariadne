@@ -1,10 +1,10 @@
 ---
 id: 000171
-status: codecomplete
+status: done
 deps: []
 github_issue:
 created: 2026-07-13
-updated: 2026-07-17
+updated: 2026-07-18
 estimate_hours: 4.1
 started: 2026-07-14T20:24:05-07:00
 actual_hours: 10.02
