@@ -180,3 +180,17 @@ Full write-up: `nous/workshop/targets/oauth-credential-lifecycle.md` `## Revisio
 (2026-06-08, nous#48). This is the n=2-real leg of the promotion gate's evidence
 base (alongside gh n=2 in nous#46); #71's own promotion work still waits on
 `deps: [nous#42, nous#44, nous#45]`.
+
+### 2026-07-18 — promotion evidence: fake-kaggle, an independent convergent instance
+
+Operator-directed note (arena2 session): **kaggle repo's `cmd/fake-kaggle`** (kaggle#1/#2,
+June, metis-v1 era) is a third-family instance that shares no code or lineage with the nous
+shims yet converged on the same pattern — a process-level fake of the official `kaggle` CLI
+covering exactly the consumed surface (`competitions {download, submit, submissions}`),
+fixture-driven (`KAGGLE_FAKE_DATA_DIR`), stateful (scoring; multi-submission polling), loud
+on anything outside the surface. Its war story is the pattern's argument in miniature: the
+"competition already has an older scored submission" polling case was an interaction bug
+only a stateful process-level fake could catch — per-call stubs would have passed. It is
+exercised daily by kbench's hermetic e2e across two competitions (titanic, playground-s6e7).
+When the deps clear and the ARCH registry entry is written (operator's working name:
+**ARCH-MOCK**), cite fake-kaggle alongside gh/OAuth as independent-convergence evidence.
