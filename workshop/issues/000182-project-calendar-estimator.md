@@ -24,41 +24,107 @@ whose whole point is computed gates over attestation.
 
 ## Spec
 
-*(Seeded from the #180 design session, 2026-07-16 — refine at brainstorm.)*
+*(Settled at the 2026-07-18 brainstorm — supersedes the 2026-07-16 seed. One
+material change from the seed: the reality-check INFORMS, it never BLOCKS —
+"estimation is a funny business, often wrong; when behind we work overtime,
+shift resources. Always track and inform the operator" (operator). See
+`## Revisions`.)*
 
-Mechanize the commit reality-check into a computed feasibility statement:
+### Layering: issue facts, project math
 
-- **Throughput:** measured focused hours/week, derived from the same
-  active-time machinery `sdlc actual` already uses (aggregate the velocity
-  ledger over a trailing window) — no new data collection.
-- **Contention:** Σ remaining hours across OTHER committed/executing projects —
-  #180's board machinery (`computeBoard`) already computes per-project
-  remaining hours; this is one roll-up away. Decide how paused projects weigh.
-- **Ceiling:** the ~2-concurrent-sessions operator-attention constant (#117)
-  bounds how parallelism converts hours to elapsed time; decide whether it is
-  a per-operator config or stays a constant.
-- **Output:** `sdlc project commit` computes "36h Phase-A at your measured
-  ~12 focused h/wk with <other projects> already committed → lands ~Sep 20;
-  proposed deadline Sep 1" — operator confirms or overrides (the override is
-  the recorded evidence). `planned_finish:` derives from the same computation
-  instead of being hand-typed.
-- **Calibration:** planned vs actual finish at project close becomes a second
-  project-level ledger row, analogous to #180's fog factor — slippage gets
-  measured, not remembered.
+Projects don't burn down directly — issues do. The forecast divides two
+numbers, and issue-level data supplies both:
 
-Relationship to #180: consumes its model (deadline, planned_finish, board
-remaining-hours) and its guard registry — the `reality-check` guard name is
-already in project.cue's commit transition, so this issue upgrades the guard's
-IMPLEMENTATION from evidence-flag to computed check; drop-in, no model change.
+- **Numerator — this project's remaining hours:** Σ `estimate_hours` over
+  unfinished breakdown rows (`computeBoard.RemainingHours`); before the
+  breakdown resolves, fall back to the Phase-A total (#180) with a note in
+  the statement. Issue estimates progressively replace the coarse Phase-A
+  number as the project matures.
+- **Denominator — throughput (hours/week):** measured from the calibration
+  ledger (`brain/data/life/42shots/velocity/calibration-ledger.tsv`, one row
+  per issue close): Σ `actual` per week over the blessed span.
 
-## Done when
+**Unit identity (load-bearing):** both sides are SHIP WALL-CLOCK hours for
+one engineer + AI (#118). Weekly Σ actual can exceed 168h because concurrent
+agent sessions overlap wall-clock — the unit is *issue-hours produced*, not
+human attention-hours. The division is sound because numerator and
+denominator share the unit; we never convert to human hours. (Consequence:
+parallelism is already priced into measured throughput, so the attention
+ceiling is a warning, not arithmetic.) MVP uses issue estimates raw; the
+est/actual ratio bias (~0.4–1.7× recently) is a future refinement once the
+calendar ledger shows it matters.
 
-- `sdlc project commit` (or set-status →committed) prints a computed
-  feasibility statement (throughput × contention × ceiling → projected finish
-  vs proposed deadline) instead of accepting bare `--reality` prose.
-- `planned_finish:` derives from the computation (override recorded as such).
-- Throughput comes from measured active-time data, not a typed constant.
-- Project close records planned-vs-actual finish as a calibration row.
+### Blessed throughput baseline (new, in brain)
+
+Trailing windows skew under vacations and life events (measured weekly
+volatility: 14 → 56 → 153 → 91 → 139h across the last 6 active weeks). The
+operator instead **blesses a representative span**; the machinery measures
+the number — operator picks the SPAN, never types the RATE:
+
+- `sdlc project throughput --bless 2026-06-16..2026-07-13` reads the ledger,
+  computes Σ actual ÷ span-weeks, and APPENDS to
+  `brain/data/life/42shots/velocity/throughput-baseline.tsv`:
+  `blessed_date  span_start  span_end  hours_per_week  rows  ceiling`.
+  Last row = current baseline; append-only = free history of re-blessings.
+  `ceiling` defaults to 2 (#117), settable at bless time. Refuses an empty
+  span (no ledger rows).
+- Bare `sdlc project throughput` prints the current baseline + a trailing-4-
+  week comparison, so staleness/divergence is visible on demand. The gate
+  never auto-substitutes the trailing number.
+- Same write-to-brain class as the calibration ledger (measurement — the
+  #171 residency charter's brain).
+- Test override: `WF_THROUGHPUT_BASELINE` env (mirrors `WF_CALIB_LEDGER`).
+
+### Pure core
+
+`internal/project/forecast.go` — `ComputeForecast(baseline, thisRemaining,
+others []ProjectLoad, today) Forecast`, no IO:
+
+- `n` = this project + others with status `committed`/`executing` (fleet-wide;
+  enumerate via a small `ListFleetProjects` reusing #171's sibling walk; each
+  project's remaining via its own `computeBoard` from its own repo vantage).
+- share = `hours_per_week ÷ n`; projected finish = today + remaining ÷ share
+  weeks. Auditable one-line arithmetic — no hidden knobs.
+- **Ceiling = warning threshold, not arithmetic:** `n > ceiling` adds
+  "n active projects exceed your ~2-session attention ceiling — forecast
+  degrades".
+- **Paused projects: weight 0, named risk lines** ("paused: metis-v2, 14h
+  remaining — resuming it invalidates this forecast").
+- Output struct: projected date, the arithmetic trail (n, share, remaining,
+  source of remaining), divergence note, ceiling warning, risk lines.
+  `RenderForecast` produces the one-paragraph statement every surface prints
+  identically.
+
+### Consumers — inform, never block
+
+1. **`set-status →committed`:** compute → print → derive `planned_finish:` →
+   record the rendered statement in the Log as the reality-check evidence.
+   The guard passes on HAVING COMPUTED, never on the answer (feasible or
+   not). Only when computation is impossible (no blessed baseline) does it
+   fall back to requiring the legacy `--reality` prose — a process fallback,
+   not a feasibility gate. Explicit `--planned-finish` overrides the derived
+   date and is recorded as a manual override.
+2. **`project show` / `project status`:** recompute live; render forecast-
+   vs-deadline drift ("at baseline pace you land Oct 3; deadline Sep 1").
+3. **`project close`:** append planned-vs-actual finish + slip days as a
+   calendar calibration row beside the fog-factor row (exact file/columns
+   decided at plan time after reading projectclose.go's ledger shape). This
+   creates the project-level feedback loop that issue-level est/actual
+   already has.
+
+Future roadmap rollup (#15/#185 territory) = "call `ComputeForecast` per
+project and sum" — deliberately nothing reserved for it.
+
+### Errors
+
+No baseline → legacy `--reality` fallback + bless hint. Empty bless span →
+refuse. Unresolvable issue estimates → Phase-A fallback, noted in the
+statement. Ledger unreadable → same fallback as no-baseline.
+
+### Out of scope
+
+Roadmap-level rollup, per-render forecast history, multi-operator
+throughput, ratio-corrected numerator.
 
 ## Plan
 
