@@ -67,20 +67,23 @@ func isFleetSibling(base string) bool {
 	return true
 }
 
-// DiscoverByIssueRef returns every project record across the fleet whose body
-// contains the marker "[<repoName>#<issueID>" (open-bracket form matches both
-// "[metis#18]" and "[metis#18 M1]"). It always scans each sibling repo's
-// canonical home (vocab.Project().Discovery().Home) and, when scope is
-// ActiveAndArchive, the derived archive home; it also scans the deprecated
-// brain/data/project/*.md legacy home. Multiple matches are legitimate
-// membership, not an error. Deterministic given parentDir.
-func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope) ([]ProjectMatch, error) {
-	marker := "[" + repoName + "#" + issueID
+// walkFleetProjects is the shared fleet walk (#182): for every fleet sibling
+// under parentDir, it visits each project-home *.md (deduped by resolved path)
+// and calls visit(path, repoDir, legacy). Homes: each non-brain repo's
+// canonical home, plus — when includeArchive — the derived archive home; a
+// brain repo (canonical .brain/config.md predicate, #176) contributes only its
+// deprecated data/project legacy home. Non-fleet siblings (.bak, worktree,
+// dot-dirs) are skipped. Both DiscoverByIssueRef and ListActiveProjectFiles
+// drive off this one walk so "where the fleet's projects live" has one source.
+func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, repoDir string, legacy bool)) error {
 	disc := vocab.Project().Discovery()
 	home := disc.Home                                                   // "workshop/projects"
 	archive := vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveProjects) // "workshop/history/projects"
 
-	var out []ProjectMatch
+	siblings, err := SiblingRepoDirs(parentDir)
+	if err != nil {
+		return err
+	}
 	seen := map[string]bool{}
 	scan := func(repoDir, relDir string, legacy bool) {
 		files, _ := filepath.Glob(filepath.Join(repoDir, relDir, "*.md"))
@@ -92,44 +95,89 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 			if seen[real] {
 				continue
 			}
-			data, rerr := os.ReadFile(f)
-			if rerr != nil {
-				continue // best-effort, matches FindByIssueRef
-			}
-			if containsIssueMarker(string(data), marker) {
-				seen[real] = true
-				out = append(out, ProjectMatch{
-					Path: f, RepoDir: repoDir, Repo: filepath.Base(repoDir), Legacy: legacy,
-				})
-			}
+			seen[real] = true
+			visit(f, repoDir, legacy)
 		}
-	}
-
-	siblings, err := SiblingRepoDirs(parentDir)
-	if err != nil {
-		return nil, err
 	}
 	for _, repoDir := range siblings {
 		if !isFleetSibling(filepath.Base(repoDir)) {
 			continue
 		}
-		// Brain is identified by the canonical .brain/config.md predicate, not a
-		// basename — a brain under any name still holds its projects in the
-		// legacy data/project home (and must never be treated as a normal fleet
-		// repo the close gate would auto-commit into, #176). Legacy home
-		// (deprecated); under ActiveOnly terminal records are dropped below.
 		if gitx.IsBrainRepo(repoDir) {
 			scan(repoDir, filepath.Join("data", "project"), true)
 			continue
 		}
 		scan(repoDir, home, false)
-		if scope == ActiveAndArchive {
+		if includeArchive {
 			scan(repoDir, archive, false)
 		}
 	}
+	return nil
+}
 
+// DiscoverByIssueRef returns every project record across the fleet whose body
+// contains the marker "[<repoName>#<issueID>" (open-bracket form matches both
+// "[metis#18]" and "[metis#18 M1]"). It always scans each sibling repo's
+// canonical home (vocab.Project().Discovery().Home) and, when scope is
+// ActiveAndArchive, the derived archive home; it also scans the deprecated
+// brain/data/project/*.md legacy home. Multiple matches are legitimate
+// membership, not an error. Deterministic given parentDir.
+func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope) ([]ProjectMatch, error) {
+	marker := "[" + repoName + "#" + issueID
+	var out []ProjectMatch
+	err := walkFleetProjects(parentDir, scope == ActiveAndArchive, func(path, repoDir string, legacy bool) {
+		data, rerr := os.ReadFile(path)
+		if rerr != nil {
+			return // best-effort, matches FindByIssueRef
+		}
+		if containsIssueMarker(string(data), marker) {
+			out = append(out, ProjectMatch{
+				Path: path, RepoDir: repoDir, Repo: filepath.Base(repoDir), Legacy: legacy,
+			})
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
 	if scope == ActiveOnly {
 		out = dropTerminalLegacy(out)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, nil
+}
+
+// ProjectFile is one active project record's location, from the fleet walk.
+type ProjectFile struct {
+	Path    string
+	RepoDir string
+	Repo    string
+	Legacy  bool // deprecated brain/data/project home
+}
+
+// ListActiveProjectFiles returns every ACTIVE project record across the fleet
+// (canonical home + brain legacy home; NOT the archive — archived/terminal
+// records hold no current load), excluding excludePath (resolved via
+// EvalSymlinks so a symlink to the subject still matches). Reuses the shared
+// walkFleetProjects so the fleet enumeration has one source (#182 M2; the
+// calendar forecast's contention input). Deterministic (sorted by path).
+func ListActiveProjectFiles(parentDir, excludePath string) ([]ProjectFile, error) {
+	exclude := excludePath
+	if r, err := filepath.EvalSymlinks(excludePath); err == nil && r != "" {
+		exclude = r
+	}
+	var out []ProjectFile
+	err := walkFleetProjects(parentDir, false, func(path, repoDir string, legacy bool) {
+		real := path
+		if r, evErr := filepath.EvalSymlinks(path); evErr == nil && r != "" {
+			real = r
+		}
+		if real == exclude {
+			return
+		}
+		out = append(out, ProjectFile{Path: path, RepoDir: repoDir, Repo: filepath.Base(repoDir), Legacy: legacy})
+	})
+	if err != nil {
+		return nil, err
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil
