@@ -101,21 +101,21 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 
 **Files:** Create `cmd/sdlc/internal/project/forecast.go`, `cmd/sdlc/internal/project/forecast_test.go`
 
-- [ ] **Step 1: Write the failing decision-table test** — solo project (n=1, full share, date = today + remaining/hpw weeks); two active others (n=3, share/3); paused other → excluded from n, present in `PausedRisks`; `unknown`-source other → weight 0 + note; `n > ceiling` → `CeilingWarning` set; zero remaining → error; zero baseline h/wk → error; date arithmetic pinned exactly (e.g. 36h remaining, 55h/wk, n=2 → 27.5h/wk → 36/27.5 = 1.309 wk → ceil(9.16)=10 days → today+10). `RenderForecast`: statement contains remaining+source, share arithmetic, projected date, deadline delta in days (over/under), paused lines, ceiling warning; absent deadline → "no deadline set".
-- [ ] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/project/ -run Forecast -v`
-- [ ] **Step 3: Implement** per the Core-concepts contract. Date math on `time.Time` parsed from ISO; output dates ISO.
-- [ ] **Step 4: Run to verify pass.**
-- [ ] **Step 5: Commit** — `#182 M2: pure calendar forecast core`.
+- [x] **Step 1: Write the failing decision-table test** — solo project (n=1, full share, date = today + remaining/hpw weeks); two active others (n=3, share/3); paused other → excluded from n, present in `PausedRisks`; `unknown`-source other → weight 0 + note; `n > ceiling` → `CeilingWarning` set; zero remaining → error; zero baseline h/wk → error; date arithmetic pinned exactly (e.g. 36h remaining, 55h/wk, n=2 → 27.5h/wk → 36/27.5 = 1.309 wk → ceil(9.16)=10 days → today+10). `RenderForecast`: statement contains remaining+source, share arithmetic, projected date, deadline delta in days (over/under), paused lines, ceiling warning; absent deadline → "no deadline set".
+- [x] **Step 2: Run to verify failure.** `go test ./cmd/sdlc/internal/project/ -run Forecast -v`
+- [x] **Step 3: Implement** per the Core-concepts contract. Date math on `time.Time` parsed from ISO; output dates ISO.
+- [x] **Step 4: Run to verify pass.**
+- [x] **Step 5: Commit** — `#182 M2: pure calendar forecast core`.
 
 ### Task 2.2: Fleet load assembly + baseline loader (IO, package main)
 
 **Files:** Create `cmd/sdlc/projectforecast.go`, `cmd/sdlc/projectforecast_test.go`
 
-- [ ] **Step 1: Write the failing tests** — (a) package `project`: `ListActiveProjectFiles(parent, excludePath)` over a temp fleet returns active-home + legacy-home project files, excludes the subject by resolved path, skips `.bak`/dot/worktree siblings (reuse the `discover_test.go` fixture helpers); a `TestDiscoverByIssueRef_*` regression still passes (shared-walk refactor is behavior-identical). (b) package `main` temp-fleet: `ariadne` (subject, executing, breakdown → issues with estimates), `metis` (executing, remaining via its issues), `nous` (paused); `ListFleetProjects` returns loads with correct statuses/remaining/vantage; subject excluded; sibling with unresolvable rows + `**phase-a:** 12h` → `phase-a` source 12h; neither → `unknown` weight 0 + Warning. `loadThroughputBaseline`: env override wins; typed `errNoBaseline` when file absent OR unreadable/unparsable.
-- [ ] **Step 2: Run to verify failure.**
-- [ ] **Step 3: Implement** — in package `project`: factor the `DiscoverByIssueRef` walk into a shared internal helper, add exported `ListActiveProjectFiles(parentDir, excludePath string) ([]ProjectFile, error)` (`DiscoverByIssueRef` keeps behavior — pin with its existing tests). In `main`: `ListFleetProjects(parentDir, excludePath string) []ProjectLoad` (per file: parse → status + `computeBoard` remaining with that repo's `projectIssueLookupFn` vantage → Phase-A fallback → `unknown`+Warning on neither; a genuinely unreadable/unparsable file appends an `unknown` load with Warning, never silently dropped — a silent cap reads as "no contention"); `loadThroughputBaseline(brainDir string)`; `forecastForProject(...)` assembling this-project load + others + baseline + today.
-- [ ] **Step 4: Run to verify pass.**
-- [ ] **Step 5: Commit** — `#182 M2: fleet load assembly + baseline loader (IO seams)`.
+- [x] **Step 1: Write the failing tests** — (a) package `project`: `ListActiveProjectFiles(parent, excludePath)` over a temp fleet returns active-home + legacy-home project files, excludes the subject by resolved path, skips `.bak`/dot/worktree siblings (reuse the `discover_test.go` fixture helpers); a `TestDiscoverByIssueRef_*` regression still passes (shared-walk refactor is behavior-identical). (b) package `main` temp-fleet: `ariadne` (subject, executing, breakdown → issues with estimates), `metis` (executing, remaining via its issues), `nous` (paused); `ListFleetProjects` returns loads with correct statuses/remaining/vantage; subject excluded; sibling with unresolvable rows + `**phase-a:** 12h` → `phase-a` source 12h; neither → `unknown` weight 0 + Warning. `loadThroughputBaseline`: env override wins; typed `errNoBaseline` when file absent OR unreadable/unparsable.
+- [x] **Step 2: Run to verify failure.**
+- [x] **Step 3: Implement** — in package `project`: factor the `DiscoverByIssueRef` walk into a shared internal helper, add exported `ListActiveProjectFiles(parentDir, excludePath string) ([]ProjectFile, error)` (`DiscoverByIssueRef` keeps behavior — pin with its existing tests). In `main`: `ListFleetProjects(parentDir, excludePath string) []ProjectLoad` (per file: parse → status + `computeBoard` remaining with that repo's `projectIssueLookupFn` vantage → Phase-A fallback → `unknown`+Warning on neither; a genuinely unreadable/unparsable file appends an `unknown` load with Warning, never silently dropped — a silent cap reads as "no contention"); `loadThroughputBaseline(brainDir string)`; `forecastForProject(...)` assembling this-project load + others + baseline + today.
+- [x] **Step 4: Run to verify pass.**
+- [x] **Step 5: Commit** — `#182 M2: fleet load assembly + baseline loader (IO seams)`.
 - [ ] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M2 --no-project`.
 
 ## Chunk 3: M3 — The three consumers
