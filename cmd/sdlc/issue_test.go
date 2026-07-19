@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // newTestDirs makes an issues/ + history/ pair under a temp dir and
@@ -194,11 +195,7 @@ func TestRunIssueNew_AutoSyncsToMainCleanTree(t *testing.T) {
 // a gate. A warning is surfaced. (Regression: an earlier cut had the sync die()
 // internally, which os.Exit'd the whole command on a failed push.)
 func TestRunIssueNew_AutoSyncBestEffort(t *testing.T) {
-	dir := t.TempDir()
-	git(t, "", "init", "-b", "main", dir)
-	git(t, dir, "config", "user.email", "e2e@example.com")
-	git(t, dir, "config", "user.name", "e2e")
-	git(t, dir, "config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t)
 	issuesDir := filepath.Join(dir, "workshop", "issues")
 	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
 		t.Fatal(err)

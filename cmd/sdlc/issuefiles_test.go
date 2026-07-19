@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestIssueFileRefFilters(t *testing.T) {
@@ -289,11 +289,5 @@ func issueFilePaths(refs []issueFileRef) []string {
 
 func runGitCommand(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %v: %v\n%s", args, err, out)
-	}
-	return string(out)
+	return testfix.Git(t, dir, args...)
 }

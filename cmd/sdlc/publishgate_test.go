@@ -13,6 +13,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // publishRepo inits a temp git repo, chdir's in (so gitx.RunGit/Capture bind to it),
@@ -20,30 +21,11 @@ import (
 // use as the merge/push window base. Restores cwd on cleanup.
 func publishRepo(t *testing.T) (git func(args ...string), base string) {
 	t.Helper()
-	dir := t.TempDir()
-	cwd, _ := os.Getwd()
-	t.Cleanup(func() { _ = os.Chdir(cwd) })
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	git = func(args ...string) {
-		t.Helper()
-		c := exec.Command("git", args...)
-		c.Dir = dir
-		if out, err := c.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
-	}
-	git("init", "-q", "-b", "main")
-	git("config", "user.email", "t@e.com")
-	git("config", "user.name", "T")
-	git("config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
+	git = func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
 	if err := os.MkdirAll("workshop/issues", 0o755); err != nil {
 		t.Fatal(err)
 	}
-	os.WriteFile("README", []byte("x\n"), 0o644)
-	git("add", "README")
-	git("commit", "-q", "-m", "init")
 	base = strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
 	return git, base
 }

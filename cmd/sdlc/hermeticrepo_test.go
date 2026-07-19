@@ -1,10 +1,10 @@
 package main
 
 import (
-	"os"
-	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // hermeticRepo inits a throwaway git repo, chdirs into it (restored on cleanup),
@@ -15,26 +15,7 @@ import (
 // Chdir-ing into a temp git repo makes that resolution land on the temp .git.
 func hermeticRepo(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	for _, args := range [][]string{
-		{"init", "-q", "-b", "main"},
-		{"config", "user.email", "t@t"},
-		{"config", "user.name", "t"},
-		{"config", "commit.gpgsign", "false"},
-	} {
-		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(cwd) })
-	return dir
+	return testfix.Repo(t, testfix.Chdir())
 }
 
 // TestRepoLock_IsolatedFromRealRepo is #149's acceptance: inside a hermeticRepo,

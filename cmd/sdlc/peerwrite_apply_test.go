@@ -4,41 +4,23 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // gitIn runs git in dir, failing the test on error.
 func gitIn(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git -C %s %v: %v — %s", dir, args, err, out)
-	}
-	return string(out)
+	return testfix.Git(t, dir, args...)
 }
 
 // initFleetRepo creates parent/name as a git repo on main with one initial commit.
 func initFleetRepo(t *testing.T, parent, name string) string {
 	t.Helper()
-	dir := filepath.Join(parent, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	gitIn(t, dir, "init", "-q", "-b", "main")
-	gitIn(t, dir, "config", "user.email", "t@t")
-	gitIn(t, dir, "config", "user.name", "t")
-	gitIn(t, dir, "config", "commit.gpgsign", "false")
-	if err := os.WriteFile(filepath.Join(dir, "README"), []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	gitIn(t, dir, "add", "README")
-	gitIn(t, dir, "commit", "-q", "-m", "init")
-	return dir
+	return testfix.Repo(t, testfix.At(parent, name), testfix.InitialCommit())
 }
 
 // seedPeerProject commits a project file in the peer referencing ref, returning

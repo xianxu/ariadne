@@ -11,6 +11,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // TestCloseVerb: the mode→verb mapping is single-sourced (#146). A milestone tag
@@ -537,26 +538,8 @@ func TestFindMilestonesMissingVerdict_NoPlanSection(t *testing.T) {
 // commits — M1 with trailer, M2 without trailer, M3 missing entirely —
 // and assert the verifier reports {M2, M3} as the missing set.
 func TestFindMilestonesMissingVerdict_Integration(t *testing.T) {
-	dir := t.TempDir()
-	cwd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(cwd) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-
-	// Minimal repo with a deterministic identity (tests run in any env).
-	runGit := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
-	}
-	runGit("init", "-q", "-b", "main")
-	runGit("config", "user.email", "test@example.com")
-	runGit("config", "user.name", "Test")
-	runGit("config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t, testfix.Chdir())
+	runGit := func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
 
 	issuesDir := "workshop/issues"
 	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
@@ -573,11 +556,7 @@ func TestFindMilestonesMissingVerdict_Integration(t *testing.T) {
 		if body != "" {
 			args = append(args, "-m", body)
 		}
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
+		testfix.Git(t, dir, args...)
 	}
 
 	// M1: close commit WITH trailer — should be detected as present.
@@ -614,24 +593,8 @@ func TestFindMilestonesMissingVerdict_Integration(t *testing.T) {
 // but every milestone gets a close commit with the trailer. Expectation:
 // empty missing slice.
 func TestFindMilestonesMissingVerdict_AllPresent(t *testing.T) {
-	dir := t.TempDir()
-	cwd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(cwd) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	runGit := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
-	}
-	runGit("init", "-q", "-b", "main")
-	runGit("config", "user.email", "test@example.com")
-	runGit("config", "user.name", "Test")
-	runGit("config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t, testfix.Chdir())
+	runGit := func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
 
 	issuesDir := "workshop/issues"
 	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
@@ -646,11 +609,7 @@ func TestFindMilestonesMissingVerdict_AllPresent(t *testing.T) {
 		runGit("add", issuePath)
 		subject := "#31 " + milestone + ": close — tick milestone"
 		body := "Body.\n\nReview-Verdict: " + verdict + "\nReview-Window: abc1234..HEAD"
-		cmd := exec.Command("git", "commit", "-q", "-m", subject, "-m", body)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git commit: %v — %s", err, out)
-		}
+		testfix.Git(t, dir, "commit", "-q", "-m", subject, "-m", body)
 	}
 	commit("v1", "M1", "SHIP")
 	commit("v2", "M2", "FIX-THEN-SHIP")
@@ -676,24 +635,8 @@ func TestFindMilestonesMissingVerdict_AllPresent(t *testing.T) {
 // `#31 M1 close: …` — the milestone followed by more subject words before the
 // colon — not only `#31 M1: …`. The matcher must detect the trailer in both.
 func TestFindMilestonesMissingVerdict_SpaceBeforeColonSubject(t *testing.T) {
-	dir := t.TempDir()
-	cwd, _ := os.Getwd()
-	defer func() { _ = os.Chdir(cwd) }()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	runGit := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v — %s", args, err, out)
-		}
-	}
-	runGit("init", "-q", "-b", "main")
-	runGit("config", "user.email", "test@example.com")
-	runGit("config", "user.name", "Test")
-	runGit("config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t, testfix.Chdir())
+	runGit := func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
 
 	issuesDir := "workshop/issues"
 	if err := os.MkdirAll(issuesDir, 0o755); err != nil {

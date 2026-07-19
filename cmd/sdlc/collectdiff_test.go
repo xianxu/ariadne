@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // TestCollectDiff_Plan_FollowsArchiveRename pins #64: when a close-and-archive
@@ -15,11 +16,7 @@ import (
 // the done content), never the deleted issues/ path (whose only readable
 // version is the stale base). Uses a throwaway repo + the git() helper.
 func TestCollectDiff_Plan_FollowsArchiveRename(t *testing.T) {
-	dir := t.TempDir()
-	git(t, "", "init", "-b", "main", dir)
-	git(t, dir, "config", "user.email", "t@t")
-	git(t, dir, "config", "user.name", "t")
-	git(t, dir, "config", "commit.gpgsign", "false")
+	dir := testfix.Repo(t)
 
 	issuesDir, historyDir := "workshop/issues", "workshop/history"
 	for _, d := range []string{issuesDir, historyDir} {
