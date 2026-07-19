@@ -194,7 +194,11 @@ func TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 func TestCloseCommand_ProjectChangedDuringBoundaryReview_DoesNotFinalize(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	brainDir := t.TempDir()
-	projectDir := filepath.Join(brainDir, "data", "project")
+	// The project lives in the repo's own workshop/projects (the fleet home
+	// DiscoverByIssueRef scans — the repo is a sibling under its own parent),
+	// not brain/data/project. brainDir remains only for the calibration ledger.
+	repoRoot, _ := os.Getwd()
+	projectDir := filepath.Join(repoRoot, "workshop", "projects")
 	if err := os.MkdirAll(projectDir, 0o755); err != nil {
 		t.Fatalf("mkdir project dir: %v", err)
 	}
@@ -283,6 +287,38 @@ func TestRunCloseWithReview_EmitsLessonsReminder(t *testing.T) {
 	_ = runCloseWithReview(&stdout2, io.Discard, closeFlagsFor(issuesDir2))
 	if strings.Contains(stdout2.String(), judge.LessonsReminder) {
 		t.Error("a non-finalizing (REWORK) close must NOT emit the lessons reminder")
+	}
+}
+
+// #171: a whole-issue close updates EVERY project across the fleet that
+// references the issue — multiple matches are legitimate membership, not
+// ambiguity (the old FindByIssueRef refused on >1; DiscoverByIssueRef ticks all).
+func TestRunClose_UpdatesAllMatchingProjects(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\ngood")
+	repoRoot, _ := os.Getwd()
+	projectsDir := filepath.Join(repoRoot, "workshop", "projects")
+	if err := os.MkdirAll(projectsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	id := repoIdentity()
+	for _, name := range []string{"alpha", "beta"} {
+		body := "# " + name + "\n\n- [ ] ship it [" + id + "#69]\n"
+		if err := os.WriteFile(filepath.Join(projectsDir, name+".md"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := runCloseWithReview(io.Discard, io.Discard, closeFlagsFor(issuesDir)); err != nil {
+		t.Fatalf("SHIP close should finalize: %v", err)
+	}
+	for _, name := range []string{"alpha", "beta"} {
+		data, err := os.ReadFile(filepath.Join(projectsDir, name+".md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(data), "- [x] ship it ["+id+"#69]") {
+			t.Errorf("project %s.md was not ticked by the all-match close:\n%s", name, data)
+		}
 	}
 }
 

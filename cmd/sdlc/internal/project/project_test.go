@@ -1,8 +1,6 @@
 package project
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -268,47 +266,8 @@ func TestFindTaskTitle(t *testing.T) {
 	}
 }
 
-func TestFindByIssueRef(t *testing.T) {
-	dir := t.TempDir()
-	projectsDir := filepath.Join(dir, "data", "project")
-	if err := os.MkdirAll(projectsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	mustWrite := func(name, body string) {
-		if err := os.WriteFile(filepath.Join(projectsDir, name), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	mustWrite("alpha.md", "irrelevant content\n")
-	mustWrite("beta.md", "## tasks\n\n- [ ] thing [ariadne#31 M1]\n")
-	mustWrite("gamma.md", "## tasks\n\n- [ ] thing [nous#31]\n")
-
-	t.Run("one match", func(t *testing.T) {
-		got, err := FindByIssueRef(dir, "ariadne", "31")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if filepath.Base(got) != "beta.md" {
-			t.Errorf("got %q want .../beta.md", got)
-		}
-	})
-	t.Run("no match", func(t *testing.T) {
-		got, err := FindByIssueRef(dir, "ariadne", "99")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got != "" {
-			t.Errorf("got %q want \"\"", got)
-		}
-	})
-	t.Run("multiple matches", func(t *testing.T) {
-		mustWrite("delta.md", "## tasks\n\n- [ ] thing [ariadne#31 M2]\n")
-		_, err := FindByIssueRef(dir, "ariadne", "31")
-		if err == nil {
-			t.Errorf("expected error for multiple matches")
-		}
-	})
-}
+// (TestFindByIssueRef removed with FindByIssueRef — superseded by
+// DiscoverByIssueRef's cross-fleet, all-match discovery; see discover_test.go.)
 
 func TestSkeleton_Render(t *testing.T) {
 	s := Skeleton{

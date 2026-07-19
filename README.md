@@ -27,6 +27,9 @@ sdlc project status --slug example
 sdlc project retro --slug example --dry-run
 sdlc project retro --slug example
 sdlc project close --slug example
+# Find every project record referencing an issue, fleet-wide (archive-inclusive):
+sdlc project find --issue metis#18
+sdlc resolve --kind project 'metis#18'   # same discovery via the resolver
 # A paused or executing project may be dropped instead of completed:
 sdlc project close --slug example --drop
 # Explicit escape for a legacy record where neither gate applies:

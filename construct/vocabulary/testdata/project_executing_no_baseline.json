@@ -1,0 +1,7 @@
+{
+  "type": "project",
+  "name": "live-record-missing-baseline",
+  "goal": "a live executing project with no committed baseline",
+  "done_when": "criterion met",
+  "status": "executing"
+}

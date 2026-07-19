@@ -12,6 +12,7 @@ SUBCOMMANDS
   status         Render the issue-derived progress board
   retro          Append a retrospective checkpoint
   close          Close or drop, calibrate, and archive the project
+  find           Find every project record referencing an issue, fleet-wide
 
 PROJECT FILE
 
@@ -26,6 +27,13 @@ Live records reside under `workshop/projects/`; terminal records archive under
 A retrospective is a Log entry headed `### <ISO date> — retro`. Transitioning
 to `done` is intentionally unavailable through `set-status`; use
 `sdlc project close`, which owns the retro and fog-factor gates.
+
+`find --issue <ref>` (e.g. `metis#18`, `#171`) walks every fleet sibling —
+active `workshop/projects/`, archived `workshop/history/projects/`, and the
+deprecated brain legacy home (flagged `(legacy)`) — and prints each matching
+record's path. A project can live in a different repo than the issue it
+tracks; discovery is tooling's job, not a residency rule's (ariadne#171).
+Read-only, lock-free. Equivalent: `sdlc resolve --kind project <ref>`.
 
 STATUSES
 

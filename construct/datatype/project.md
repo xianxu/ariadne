@@ -26,8 +26,8 @@ A project is where the Phase-A calibration loop closes: referenced issues carry 
 | `goal` | yes | One sentence. Why this project exists. |
 | `done_when` | yes | The MVP boundary as a falsifiable criterion. *"What would make me say this project is finished?"* |
 | `status` | yes | See `construct/vocabulary/project.cue` (the schema authority): `ideation` → `defined` → `committed` → `executing` → `done` \| `dropped`, plus `paused`. |
-| `deadline` | required after commit | ISO date. The time-bound baseline set by the `defined` → `committed` transition. |
-| `planned_finish` | required after commit | ISO date. The committed forecast paired with `deadline`. |
+| `deadline` | required for committed/executing/paused | ISO date. The time-bound baseline set by the `defined` → `committed` transition. Not required for `done` — a record archived from the pre-baseline era may lack it (#171). |
+| `planned_finish` | required for committed/executing/paused | ISO date. The committed forecast paired with `deadline`. Not required for `done` (see `deadline`). |
 | `operator` | optional | Persona / name of the single human running this project. Default = self. **Exactly one** — see Single-operator discipline below. |
 | `mvp_scope` | optional | List of issue refs (`[<repo>#<id>, ...]`) declared in MVP at project start. Anchors what counts as "done." |
 | `explicitly_out` | optional | List of issue refs deliberately excluded from MVP. The conversation about what's *out* is more useful than the in-list — record it here. |
@@ -85,7 +85,7 @@ Keep one line per task short — **title + ref only**. Nothing else. No inline e
 
 #### Reference syntax
 
-- `[<repo>#<id>]` — issue in any repo with an issue tracker. Product repos (`charon`, `ariadne`, etc.) and shared brain repos (`brain-team`, `brain-family`, etc.) work uniformly.
+- `[<repo>#<id>]` — issue in any peer repo with a `workshop/issues/` tracker (`charon`, `ariadne`, `metis`, etc.). Brain repos hold no issue trackers (capture/measurement only — the spine refuses there, #176).
 - `[<repo>#<id> M<N>]` — milestone-level granularity within an issue.
 - Plain text — for items that don't fit any issue tracker (e.g., `write release notes`, `email investors`).
 
@@ -161,7 +161,7 @@ The bracketed `[<ref>]` in task lines becomes a clickable link to the correspond
 
 - `charon#13 M2` → `charon-13-m2`
 - `charon#13 sketch` → `charon-13-sketch`
-- `brain-team#40 doc-cleanup` → `brain-team-40-doc-cleanup`
+- `metis#40 doc-cleanup` → `metis-40-doc-cleanup`
 
 **Three pieces, in order in the file:**
 
@@ -214,8 +214,18 @@ When the dispatcher applies this prototype:
 
 6. **Add reference definitions** at the end of the file for each task with a detail block. Slug per the rule above.
 
-7. **Default location:** `workshop/projects/<slug>.md`. Legacy brain-era records
-   migrate under #171. Terminal records archive to `workshop/history/projects/`.
+7. **Residency:** `workshop/projects/<slug>.md` in the project's
+   **center-of-gravity repo** — the top product repo by default. A soft rule,
+   not an address: every ref inside is a qualified `repo#id`, so the record
+   reads identically from any vantage, and tooling discovers it fleet-wide
+   (close gate ticks it wherever it lives; `sdlc project find --issue <ref>` /
+   `sdlc resolve --kind project <ref>` navigate to it). **Never in brain** —
+   brain is capture/measurement, holds no SDLC process artifacts (#171).
+   **Moving a record** when the center of gravity shifts: `sdlc migrate`
+   relocates it and rewrites refs for the new vantage; frozen terminal records
+   move verbatim instead, keeping qualified refs (the rule the #171 M6
+   migration follows). Terminal records archive to
+   `workshop/history/projects/`.
 
 8. **Updates preserve everything else.** Common edits: flipping a checkbox state, adding a detail block, recording `actual:` and `closed:` on completion, adding or removing tasks. Edit in place — never rewrite the file.
 

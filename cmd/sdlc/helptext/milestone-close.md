@@ -66,7 +66,8 @@ FLAGS
   --agent <name>        agent CLI for the judge: claude | codex | gemini.
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.
-  --brain-dir <path>    project-file lookup root (default ../brain)
+  --brain-dir <path>    brain root for the calibration ledger (default ../brain);
+                        project files are discovered across the fleet (#171)
   --issues-dir <path>   directory holding issue files
 
 USAGE

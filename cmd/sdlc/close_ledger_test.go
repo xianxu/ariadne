@@ -118,7 +118,7 @@ func TestRunClose_LedgerGuardWiring(t *testing.T) {
 		ledger := filepath.Join(t.TempDir(), "l.tsv")
 		t.Setenv("WF_CALIB_LEDGER", ledger)
 		f := &closeFlags{Issue: 71, Milestone: "M1", Actual: "1", Verified: "slice", NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
-		if err := runClose(io.Discard, f); err != nil {
+		if err := runClose(io.Discard, io.Discard, f); err != nil {
 			t.Fatalf("runClose (milestone): %v", err)
 		}
 		if _, err := os.Stat(ledger); !os.IsNotExist(err) {
@@ -131,7 +131,7 @@ func TestRunClose_LedgerGuardWiring(t *testing.T) {
 		ledger := filepath.Join(t.TempDir(), "l.tsv")
 		t.Setenv("WF_CALIB_LEDGER", ledger)
 		f := &closeFlags{Issue: 72, Actual: "1", Verified: "done", NoAtlas: true, IssuesDir: issuesDir, BrainDir: "../nonexistent-brain"}
-		if err := runClose(io.Discard, f); err != nil {
+		if err := runClose(io.Discard, io.Discard, f); err != nil {
 			t.Fatalf("runClose (issue): %v", err)
 		}
 		data, err := os.ReadFile(ledger)

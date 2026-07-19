@@ -83,9 +83,13 @@ scaffold: sections: [...#ScaffoldSection] & [
 	// load-bearing half of the scoping conversation.
 	mvp_scope?:      [...string] | null
 	explicitly_out?: [...string] | null
-	// compiled guard: every post-commit status except dropped carries the
-	// baseline (a dropped project may have died pre-commit).
-	if status == "committed" || status == "executing" || status == "paused" || status == "done" {
+	// compiled guard: a LIVE post-commit project (committed/executing/paused)
+	// carries the baseline. `done` is exempt: a properly-run project reaches
+	// done via executing (so it still has one), but a record archived from the
+	// pre-baseline era honestly has none — requiring it would force fabricated
+	// dates on legacy migrations (ariadne#171 M1). A dropped project may have
+	// died pre-commit, so it was never required either.
+	if status == "committed" || status == "executing" || status == "paused" {
 		deadline!:       string
 		planned_finish!: string
 	}

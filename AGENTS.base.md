@@ -17,7 +17,7 @@
 #### Peer Repo
 - Peer = sibling repo in the same parent dir, usually ariadne-styled (has `construct/`).
 - Touching peer X: skip its `AGENTS.md` (near-duplicate of this); read its `AGENTS.local.md` + `MEMORY.md`. Its issues/atlas/tests live in its tree.
-- "brain" = special peer holding cross-cutting state (`project`, `roadmap`). A repo is a brain iff `.brain/config.md` exists (`test -d .brain`). The binary enforces the charter: spine lifecycle verbs (claim/start-plan/change-code/milestone-close/close/merge/push) **refuse** in a brain repo and in repos without `workshop/issues/` (#176; `WF_SPINE_GUARD=off` is the logged emergency hatch; reads like `estimate-source` are unaffected). Encrypted via gcrypt + GPG recipient list unless local-only; see `brain/atlas/threat-model-shared-brain.md`.
+- "brain" = special peer for **capture and measurement only** — pensive dumps, life-data, velocity calibration, transcripts — on the nous auto-commit rhythm. It holds **no SDLC process artifacts** (projects live in coding repos, see §8; `roadmap` remains until it too lifts — #185). A repo is a brain iff `.brain/config.md` exists (`test -d .brain`). The binary enforces the charter: spine lifecycle verbs (claim/start-plan/change-code/milestone-close/close/merge/push) **refuse** in a brain repo and in repos without `workshop/issues/` (#176; `WF_SPINE_GUARD=off` is the logged emergency hatch; reads like `estimate-source` are unaffected), and the close gate's peer-write never auto-commits into a brain. Encrypted via gcrypt + GPG recipient list unless local-only; see `brain/atlas/threat-model-shared-brain.md`.
 
 ### 2. Overall Workflow
 - Unclear requirement → brainstorm. Non-trivial task (>3 files or >100 lines) → design via the **`superpowers-writing-plans`** skill, landing the durable plan in `workshop/plans/NNNNNN-slug-plan.md`, and wait for approval. The harness builtin plan-mode (`EnterPlanMode`) is fine as a read-only/approval affordance, but its `~/.claude/plans/` file is ephemeral and version-uncontrolled — **NOT the record of truth**; the durable plan lives in `workshop/plans/`.
@@ -59,7 +59,7 @@
 
 ### 8. Cross-Cutting Artifacts
 - **Atlas:** at each milestone close, update `atlas/` for new surface/flow/terminology — don't defer to an end-of-project sweep. Keep `atlas/index.md` linking every file. Map, don't over-specify; details live in code + issues.
-- **Project file** (multi-issue project, see `construct/datatype/project.md`): same per-milestone discipline — tick tasks, update `**actual:**`/`**closed:**`/scope notes. It's the portfolio view; don't let it lag. Append scope events, don't overwrite. Project files are usually in `brain`
+- **Project file** (multi-issue project, see `construct/datatype/project.md`): same per-milestone discipline — tick tasks, update `**actual:**`/`**closed:**`/scope notes. It's the portfolio view; don't let it lag. Append scope events, don't overwrite. A project lives in its **center-of-gravity repo** (top product by default — a soft rule; `repo#id` refs + `sdlc migrate` make moves cheap) under `workshop/projects/`, archived to `workshop/history/projects/`. Never in brain. Discovery is tooling's job: the close gate finds and ticks every referencing project fleet-wide; navigate with `sdlc project find --issue <ref>` / `sdlc resolve --kind project <ref>` (parley: `gP`).
 
 ### 9. Answer User Questions
 - Answer the question directly. DON'T change code when the user is only asking.
