@@ -81,6 +81,49 @@ func TestListFleetProjects(t *testing.T) {
 	}
 }
 
+// TestListFleetProjects_AllTerminalReadsBoardZero pins the M2-review Important:
+// an open project whose breakdown fully resolved to terminal issues reads board
+// source with 0 remaining (NOT the stale Phase-A total), and does not contend.
+func TestListFleetProjects_AllTerminalReadsBoardZero(t *testing.T) {
+	parent := t.TempDir()
+	subject := writeFleetProject(t, parent, "ariadne", "subject", "executing", "ariadne#182", "")
+	// A committed sibling whose one breakdown row resolved to a DONE issue, but
+	// which carries a Phase-A of 12h. Must read board/0, not phase-a/12.
+	writeFleetProject(t, parent, "kbench", "burned-down", "committed", "kbench#1", "12h")
+
+	orig := projectIssueLookupFn
+	t.Cleanup(func() { projectIssueLookupFn = orig })
+	projectIssueLookupFn = func(ref, _ string) (issueMeta, error) {
+		// kbench#1 resolves to a terminal (done) issue → board remaining 0.
+		return issueMeta{Identity: ref, Status: "done", EstimateHours: 5}, nil
+	}
+
+	loads := ListFleetProjects(parent, subject)
+	var bd projectdoc.ProjectLoad
+	for _, l := range loads {
+		if l.Name == "burned-down" {
+			bd = l
+		}
+	}
+	if bd.RemainingSource != "board" {
+		t.Errorf("all-terminal project should read board source (not phase-a), got %q", bd.RemainingSource)
+	}
+	if bd.RemainingHours != 0 {
+		t.Errorf("all-terminal project remaining = %v, want 0", bd.RemainingHours)
+	}
+	// And it must not contend: a solo subject's forecast stays N=1.
+	f, err := projectdoc.ComputeForecast(
+		estimate.ThroughputBaseline{HoursPerWeek: 40, Ceiling: 2},
+		projectdoc.ProjectLoad{Name: "subject", Status: "executing", RemainingHours: 40, RemainingSource: "board"},
+		loads, "2026-09-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.N != 1 {
+		t.Errorf("burned-down project must not contend: N = %d, want 1", f.N)
+	}
+}
+
 func TestLoadThroughputBaseline_EnvOverride(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "baseline.tsv")

@@ -99,6 +99,23 @@ func TestComputeForecast_UnknownOtherWeightZero(t *testing.T) {
 	}
 }
 
+func TestComputeForecast_ZeroRemainingOtherDoesNotContend(t *testing.T) {
+	// A committed/executing OTHER with 0 remaining (burned down, not yet closed)
+	// consumes no throughput → must not bump N.
+	others := []ProjectLoad{
+		{Name: "done-soon", Status: "committed", RemainingHours: 0, RemainingSource: "board"},
+	}
+	f, err := ComputeForecast(baseline(40, 2),
+		ProjectLoad{Name: "p", Status: "executing", RemainingHours: 40, RemainingSource: "board"},
+		others, "2026-09-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.N != 1 {
+		t.Errorf("a zero-remaining other must not contend: N = %d, want 1", f.N)
+	}
+}
+
 func TestComputeForecast_ZeroRemainingErrors(t *testing.T) {
 	_, err := ComputeForecast(baseline(55, 2),
 		ProjectLoad{Name: "p", Status: "executing", RemainingHours: 0, RemainingSource: "board"},

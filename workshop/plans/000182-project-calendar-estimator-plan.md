@@ -116,7 +116,7 @@ The system reasons about a **blessed throughput baseline** (measured issue-hours
 - [x] **Step 3: Implement** — in package `project`: factor the `DiscoverByIssueRef` walk into a shared internal helper, add exported `ListActiveProjectFiles(parentDir, excludePath string) ([]ProjectFile, error)` (`DiscoverByIssueRef` keeps behavior — pin with its existing tests). In `main`: `ListFleetProjects(parentDir, excludePath string) []ProjectLoad` (per file: parse → status + `computeBoard` remaining with that repo's `projectIssueLookupFn` vantage → Phase-A fallback → `unknown`+Warning on neither; a genuinely unreadable/unparsable file appends an `unknown` load with Warning, never silently dropped — a silent cap reads as "no contention"); `loadThroughputBaseline(brainDir string)`; `forecastForProject(...)` assembling this-project load + others + baseline + today.
 - [x] **Step 4: Run to verify pass.**
 - [x] **Step 5: Commit** — `#182 M2: fleet load assembly + baseline loader (IO seams)`.
-- [ ] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M2 --no-project`.
+- [x] **Step 6: Milestone-close** — `sdlc milestone-close --issue 182 --milestone M2 --no-project`.
 
 ## Chunk 3: M3 — The three consumers
 

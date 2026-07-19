@@ -1,6 +1,7 @@
 package project
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -52,12 +53,35 @@ func TestListActiveProjectFiles(t *testing.T) {
 	}
 }
 
-// TestListActiveProjectFiles_ExcludeByRealPath ensures the subject exclusion
-// resolves symlinks (a project reached via a symlinked repo dir is still the
-// subject).
 func TestListActiveProjectFiles_NoParent(t *testing.T) {
 	_, err := ListActiveProjectFiles(filepath.Join(t.TempDir(), "does-not-exist"), "")
 	if err == nil {
 		t.Error("a missing parent dir should error")
+	}
+}
+
+// TestListActiveProjectFiles_ExcludeResolvesSymlink pins the EvalSymlinks-based
+// subject exclusion: a subject reached through a symlinked path is still
+// recognized as the subject and excluded.
+func TestListActiveProjectFiles_ExcludeResolvesSymlink(t *testing.T) {
+	parent := t.TempDir()
+	writeProject(t, parent, "ariadne", "workshop/projects", "subject", "[ariadne#182]")
+	writeProject(t, parent, "metis", "workshop/projects", "m", "[metis#2]")
+	real := filepath.Join(parent, "ariadne", "workshop", "projects", "subject.md")
+
+	// A symlink pointing at the real subject file; excluding via the symlink
+	// path must still drop the real file.
+	link := filepath.Join(parent, "subject-link.md")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	got, err := ListActiveProjectFiles(parent, link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range got {
+		if filepath.Base(f.Path) == "subject.md" {
+			t.Errorf("subject reached via symlink should be excluded: %+v", f)
+		}
 	}
 }

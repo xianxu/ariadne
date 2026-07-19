@@ -58,6 +58,9 @@ func loadThroughputBaseline(brainDir string) (estimate.ThroughputBaseline, error
 func ListFleetProjects(parentDir, excludePath string) []projectdoc.ProjectLoad {
 	files, err := projectdoc.ListActiveProjectFiles(parentDir, excludePath)
 	if err != nil {
+		// A fleet-walk failure (e.g. unreadable parent) degrades to a solo
+		// forecast; surface it rather than silently reading as "no contention".
+		cwarn(os.Stderr, "fleet project walk failed: "+err.Error()+" — forecasting without cross-project contention")
 		return nil
 	}
 	var loads []projectdoc.ProjectLoad
@@ -91,8 +94,12 @@ func projectLoadFromDoc(d *projectdoc.Doc, f projectdoc.ProjectFile) projectdoc.
 	}
 	load.Status = meta.Status
 
+	// The board is authoritative once the breakdown resolves into issue rows —
+	// even at 0 remaining (a fully-done project is maximally mature and reads
+	// ~0, NOT the coarse Phase-A number). Phase-A is a fallback only for a
+	// project whose breakdown hasn't resolved into any issues yet.
 	b, berr := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ref, f.RepoDir) })
-	if berr == nil && b.RemainingHours > 0 {
+	if berr == nil && boardRowsResolved(b) {
 		load.RemainingHours, load.RemainingSource = b.RemainingHours, "board"
 		return load
 	}
@@ -101,8 +108,21 @@ func projectLoadFromDoc(d *projectdoc.Doc, f projectdoc.ProjectFile) projectdoc.
 		return load
 	}
 	load.RemainingSource = "unknown"
-	load.Warning = "no resolvable breakdown hours and no **phase-a:** estimate"
+	load.Warning = "no resolvable breakdown rows and no **phase-a:** estimate"
 	return load
+}
+
+// boardRowsResolved reports whether the breakdown produced at least one row
+// that resolved to a real issue (status != "unresolved"). An empty or
+// all-unresolvable breakdown has NOT resolved, so the caller falls back to
+// Phase-A rather than reporting a spurious 0.
+func boardRowsResolved(b board) bool {
+	for _, row := range b.Rows {
+		if row.RefText != "" && row.IssueStatus != "unresolved" {
+			return true
+		}
+	}
+	return false
 }
 
 // forecastForProject is the shared assembly every consumer calls: build this
@@ -117,7 +137,10 @@ func forecastForProject(d *projectdoc.Doc, projectPath, parentDir, brainDir, tod
 	if merr != nil {
 		return projectdoc.Forecast{}, "", merr
 	}
-	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: projectPath, RepoDir: projectRepoDir(projectPath), Repo: meta.Name})
+	// Repo is the repo basename fleet-wide (consistent with sibling loads); the
+	// project's own name lives in ProjectLoad.Name via projectLoadFromDoc.
+	repoDir := projectRepoDir(projectPath)
+	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: projectPath, RepoDir: repoDir, Repo: filepath.Base(repoDir)})
 	others := ListFleetProjects(parentDir, projectPath)
 	f, cerr := projectdoc.ComputeForecast(baseline, this, others, today)
 	if cerr != nil {

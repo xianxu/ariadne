@@ -32,9 +32,12 @@ type ProjectLoad struct {
 }
 
 // isActiveContention reports whether a load competes for throughput NOW: a
-// committed or executing project with a measurable (non-unknown) load.
+// committed or executing project with a measurable (non-unknown) load AND
+// actual remaining work. A fully-burned-down but not-yet-closed project
+// (remaining 0) consumes no throughput, so it must not bump the contention
+// count for everyone else.
 func (l ProjectLoad) isActiveContention() bool {
-	if l.RemainingSource == "unknown" {
+	if l.RemainingSource == "unknown" || l.RemainingHours <= 0 {
 		return false
 	}
 	return l.Status == "committed" || l.Status == "executing"
