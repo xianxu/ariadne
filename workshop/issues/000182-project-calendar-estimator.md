@@ -4,8 +4,8 @@ status: working
 deps: [ariadne#180]
 github_issue:
 created: 2026-07-16
-updated: 2026-07-18
-estimate_hours:
+updated: 2026-07-19
+estimate_hours: 2.65
 started: 2026-07-18T22:35:59-07:00
 ---
 
@@ -153,10 +153,48 @@ constant 2 in the baseline record, warning-only; `--reality` survives as the
 no-baseline process fallback. (Restored 2026-07-19: an editing slip dropped
 this section when the Spec was rewritten; caught by the plan review.)
 
+## Estimate
+
+Derived from the durable plan's three-milestone decomposition (design
+pre-resolved by the spec+plan → items carry only the residual design cost;
+impl at v3.1's 40% scale of the v2 primitive table; +0.15 flat design buffer).
+One `milestone-review` per boundary (three auto-dispatched fresh-context
+reviews). M3 carries the heavier impl (three consumers + the
+`applyProjectStatus` signature threading).
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module         design=0.05 impl=0.20
+item: smaller-go-module         design=0.05 impl=0.20
+item: greenfield-go-module      design=0.20 impl=0.30
+item: smaller-go-module         design=0.05 impl=0.20
+item: cross-cutting-refactor    design=0.10 impl=0.20
+item: smaller-go-module         design=0.05 impl=0.25
+item: atlas-docs                design=0.05 impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+item: milestone-review          design=0.0  impl=0.15
+total: 2.65
+```
+
+Item→milestone map: M1 = `smaller-go-module` (pure span throughput) +
+`smaller-go-module` (throughput verb); M2 = `greenfield-go-module` (forecast
+core) + `smaller-go-module` (fleet load assembly); M3 =
+`cross-cutting-refactor` (commit hook + `applyProjectStatus` threading) +
+`smaller-go-module` (show/status/close surfaces) + `atlas-docs`; plus three
+`milestone-review`.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. (Source [stale] per estimate-source
+— treat per-primitive hours as provisional, #127.)*
+
 ## Plan
 
-- [ ] brainstorm: throughput window, paused-project weighting, ceiling as
-      config vs constant, override UX (blocked on #180 M4 board machinery)
+- [ ] M1 — throughput measurement: pure span math over the existing ledger parser + `sdlc project throughput` (`--bless`, append-only baseline TSV in brain)
+- [ ] M2 — pure `ComputeForecast`/`RenderForecast` core + fleet load assembly (`ListFleetProjects` reusing #171 sibling walk)
+- [ ] M3 — three consumers: commit-transition forecast (informs, derives `planned_finish`), show/status live drift, close calendar-ledger row + atlas
 
 ## Log
 
