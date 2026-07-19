@@ -29,7 +29,9 @@ projectfind_test.go. Flagged by the #171 M3 boundary review and again at the
 
 ## Plan
 
-- [ ]
+- [ ] inventory the private fixture copies (closeRepo, hermeticRepo, initFleetRepo/gitIn, migrate/resolve fixtures, writeProject duplicates)
+- [ ] extract cmd/sdlc/internal/testfix with the shared git-repo/fleet idiom
+- [ ] delegate the copies; suites stay green (behavior-identical)
 
 ## Log
 
