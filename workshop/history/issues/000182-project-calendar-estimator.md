@@ -1,6 +1,6 @@
 ---
 id: 000182
-status: codecomplete
+status: done
 deps: [ariadne#180]
 github_issue:
 created: 2026-07-16
