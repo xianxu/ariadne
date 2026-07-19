@@ -194,7 +194,7 @@ against `baseline-v3.1.md`. Method A only. (Source [stale] per estimate-source
 
 - [x] M1 — throughput measurement: pure span math over the existing ledger parser + `sdlc project throughput` (`--bless`, append-only baseline TSV in brain)
 - [x] M2 — pure `ComputeForecast`/`RenderForecast` core + fleet load assembly (`ListFleetProjects` reusing #171 sibling walk)
-- [ ] M3 — three consumers: commit-transition forecast (informs, derives `planned_finish`), show/status live drift, close calendar-ledger row + atlas
+- [x] M3 — three consumers: commit-transition forecast (informs, derives `planned_finish`), show/status live drift, close calendar-ledger row + atlas
 
 ## Log
 
