@@ -3,7 +3,8 @@
 ## Workflow Orchestration
 
 ### 0. SDLC
-- `sdlc` manages the development life cycle. **Run `sdlc --help` for the workflow contract**. READ IT NOW.
+- `sdlc` manages the development life cycle. **Run `sdlc --help` for the workflow contract**. READ IT NOW. 
+- only use `sdlc` for full blown software development project. 
 
 ### 1. Artifact Hierarchy
 
@@ -63,6 +64,7 @@
 
 ### 9. Answer User Questions
 - Answer the question directly. DON'T change code when the user is only asking.
+- Use less jargon. Explain things to a smart but out of domain operator.
 
 ### 10. Heavy Data / Complex Workflows
 - Use Web Search when needed.
