@@ -3,7 +3,7 @@ type: target
 slug: review-convention
 status: active
 created: 2026-05-23
-updated: 2026-06-22
+updated: 2026-07-22
 ---
 
 # Target: Review convention for human-robot collaboration in markdown
@@ -95,3 +95,9 @@ Resolution collapses a marker into its final text:
 When the operator asks an agent to resolve outstanding markers ("we're aligned, please resolve"), the agent walks each chain and reads the *last* commentary block — typically the trailing `[H]` if there's no further robot reply — interprets it as accept or reject, and applies §5. The agent does not unilaterally resolve markers the operator hasn't acknowledged; resolution is always operator-initiated.
 
 One case *is* operator-initiated the moment it's written: a `🤖[H]` the operator authored **as a question or instruction directed at the agent** (per `AGENTS.base.md §1`). That marker is itself the operator's ask, so the agent answers it and resolves it in place *that same turn* — folding the answer into the prose and dropping the marker. This is not unilateral resolution of an unacknowledged marker; the operator's authored `[H]` *is* the acknowledgment.
+
+**Fold into clean prose, not a narrated reply — the light-touch default.** When you resolve a `🤖[H]` by folding the answer in, the result must read as **clean documentation that stands on its own**, not as a reply to the operator: drop the meta ("a fair correction…", "this answers your question…", "as you noted…") — the reader of the finished document never saw the marker. This is the right default for any **light-touch review**: a document carrying a few `🤖[]` markers that is *not* going through xx-fix's full docflow (§ the heavier propose/review cycle). There the goal is simply a clean document, not a tracked review conversation — so resolve-and-fold, don't stage a dialogue.
+
+## Revisions
+
+- **2026-07-22** — added the "fold into clean prose, not a narrated reply" light-touch default to §6 (earned resolving light `🤖[]` review markers on a framing doc outside the full docflow — the first-pass resolutions had leaked reply-narration into the documentation prose).
