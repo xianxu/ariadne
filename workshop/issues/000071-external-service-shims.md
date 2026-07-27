@@ -4,10 +4,10 @@ status: codecomplete
 deps: [nous#42, nous#44, nous#45]
 github_issue:
 created: 2026-06-02
-updated: 2026-07-26
+updated: 2026-07-27
 estimate_hours: 1.5
 started: 2026-07-26T22:49:54-07:00
-actual_hours: 0.48
+actual_hours: 0.76
 ---
 
 # construct a testable shim for every external service (gh/github first): the deterministic-shell mock pattern
@@ -117,6 +117,10 @@ total: 1.50
       touched-file `git diff --check`, and `go run ./cmd/sdlc arch-principles`.
 
 ## Log
+
+### 2026-07-27
+
+- 2026-07-27: closed — Verified ARCH-MOCK portable backend refinement with env GOCACHE=/tmp/ariadne-go-cache go run ./cmd/sdlc arch-principles, env GOCACHE=/tmp/ariadne-go-cache go test ./cmd/sdlc/internal/judge ./cmd/sdlc -count=1, and scoped git diff --check HEAD~1..HEAD for the architecture registry, atlas shadow, and regenerated judge prompt goldens.; review verdict: FIX-THEN-SHIP
 
 ### 2026-06-02
 
