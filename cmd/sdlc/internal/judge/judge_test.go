@@ -95,7 +95,7 @@ func TestBuildPrompt_DRY(t *testing.T) {
 // #75: architecture.md is the single source — it carries both markers and both
 // lenses, and is embedded verbatim into every prompt that needs it.
 func TestArchitectureRegistry_Content(t *testing.T) {
-	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "at-plan", "at-review", "principle:"} {
+	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "at-plan", "at-review", "principle:"} {
 		if !strings.Contains(ArchitectureRegistry, want) {
 			t.Errorf("ArchitectureRegistry missing %q", want)
 		}
@@ -132,7 +132,7 @@ func TestArchitectureRegistry_EmbeddedInPrompts(t *testing.T) {
 // shared by the {{ARCH_STAR}} substitution and the AGENTS.md drift guard.
 func TestArchitectureMarkers(t *testing.T) {
 	markers := ArchitectureMarkers()
-	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE"}
+	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK"}
 	if len(markers) != len(want) {
 		t.Fatalf("ArchitectureMarkers() = %v, want %v", markers, want)
 	}
@@ -164,7 +164,7 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		"workshop/issues/000072-x.md",       // {{ISSUE_FILE}}
 		"milestone M1 close",                // {{BOUNDARY}}
 		"downstream repo",                   // {{REPO_NOTE}}
-		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
+		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
 		"```verdict", // {{VERDICT_BLOCK}} — the structured handoff (#147)
 		"verdict: <SHIP | FIX-THEN-SHIP | REWORK>", // tokens rendered from vocab.Verdict().Emitted()

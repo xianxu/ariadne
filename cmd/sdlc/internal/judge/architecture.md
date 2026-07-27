@@ -54,3 +54,30 @@ Principles"; this is its machine-delivered companion.
   confirm each derives from the source, flag any remaining hand-maintained
   restatement of the model. A "follow-up" that is actually the deferred point of
   the issue is a finding, not a deferral.
+
+## ARCH-MOCK — Stateful external doubles
+
+- **principle:** Every external binary or service dependency the system relies on
+  has a stateful fake behind the same seam, modeling our current understanding of
+  the dependency's behavior across calls. For libraries, services, and binaries we
+  own, the storage/backend layer is backed by a portable folder of files and/or
+  database configuration, so the component can be spun up without depending on
+  production configuration or production databases. Integration and end-to-end
+  tests run against the fake; scheduled/live conformance checks compare the
+  fake's modeled behavior with the real binary or service so drift is detected
+  and corrected.
+- **at-plan:** Flag a design that shells out to, or calls, an external binary or
+  service without naming the seam and stateful fake. For owned libraries, services,
+  and binaries, also flag any design whose storage/backend depends on production
+  configuration or databases instead of a portable file folder and/or database
+  configuration. The plan should identify the dependency surface consumed, the
+  fake's persisted state model, the owned component's portable backend shape,
+  the integration or end-to-end tests that run against it, and the live
+  conformance check cadence.
+  Examples include `git`, GitHub/`gh`, and Google OAuth.
+- **at-review:** Flag direct external calls outside the seam, stateless mocks for
+  stateful interactions, tests that cannot run the stack against the fake, owned
+  components that cannot boot from portable non-production storage/backend
+  configuration, or a missing live conformance check for behavior we depend on. A
+  fake satisfies this only when production flow and test flow share the same
+  boundary.

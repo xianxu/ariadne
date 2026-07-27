@@ -75,7 +75,7 @@ For each:
   - **Injected into:** Which pure entities receive this as a dependency, so the pure logic stays unit-testable with a fake.
   - **Future extensions:** Where this surface might grow.
 
-**Test surface for integration points.** Integration tests use **fakes**, not function-call mocks. For external services (GitHub, Gmail, Anthropic API, etc.), prefer a **process-level fake** that spawns a real subprocess/server speaking the same protocol — function-call mocks miss interaction bugs and don't extend the deterministic shell outward. The fake is part of the feature's deliverable, not separate test scaffolding; if a feature integrates with an external service, the plan should list a fake as either a new entity (when first being built) or a referenced existing entity (when reusing an established fake).
+**Test surface for integration points.** Integration tests use **fakes**, not function-call mocks. For external binaries/services (GitHub/`gh`, Google OAuth, `git`, Gmail, Anthropic API, etc.), prefer a stateful fake behind the same seam, with live conformance checks where practical; function-call mocks miss interaction bugs and don't extend the deterministic shell outward. The fake is part of the feature's deliverable, not separate test scaffolding; if a feature integrates with an external dependency, the plan should list the seam, the fake's state model, and either a new fake entity or the existing fake being reused.
 
 Example:
 

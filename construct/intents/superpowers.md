@@ -134,13 +134,31 @@ Example updated to show both tables with the IssueWindow + GitRunner case, with 
 
 User: Testing isn't a separate SDLC stage — it threads through stages 3 (planning), 4 (build), 5 (milestone review). The PURE/INTEGRATION lens from Core concepts already names what tests to write where. Make this explicit in the writing-plans skill so agents understand the implied test surface as they fill out the table.
 
-Concretely: PURE entities default to unit tests colocated with them; INTEGRATION entities default to integration tests using fakes — preferably process-level fakes for external services (GitHub, Gmail, Anthropic API, etc.) rather than function-call mocks. Function-call mocks miss interaction bugs; process-level fakes extend the deterministic shell outward (per the user's feedback_model_external_services memory).
+Concretely: PURE entities default to unit tests colocated with them; INTEGRATION entities default to integration tests using fakes — for external binaries/services (GitHub/`gh`, Google OAuth, `git`, Gmail, Anthropic API, etc.), prefer a stateful fake behind the same seam, with live conformance checks where practical. Function-call mocks miss interaction bugs; stateful external doubles extend the deterministic shell outward (per `ARCH-MOCK` and the user's feedback_model_external_services memory).
 
-AI: Added a short "Test surface implied by the table" paragraph in each Core concepts sub-section: under Pure entities (after the status legend) noting unit tests colocated, no IO mocks; under Integration points (after the example) noting integration tests with process-level fakes preferred over function-call mocks.
+AI: Added a short "Test surface implied by the table" paragraph in each Core concepts sub-section: under Pure entities (after the status legend) noting unit tests colocated, no IO mocks; under Integration points (after the example) noting integration tests with fakes preferred over function-call mocks.
 
 ### Verify
 - Pure entities sub-section mentions "Test surface implied" (or equivalent)
 - Names unit tests for PURE entities, colocated, without IO mocks
-- Integration points sub-section mentions process-level fakes
+- Integration points sub-section mentions stateful fakes behind the same seam for external binaries/services
 - Calls out function-call mocks as the anti-pattern for external services
 - All previous verify clauses (Conv 1-5) still hold
+
+## Conversation 7 (2026-07-26): writing-plans — align external fakes with ARCH-MOCK
+
+User: Codify the architecture principle that all external binary/service dependencies should
+have stateful mocks representing our understanding of their behavior, with periodic live
+behavior comparison to keep the mock honest, and use those mocks in integration/e2e tests.
+
+AI: Updated the active writing-plans guidance to require a stateful fake behind the same
+seam for external binaries/services, with live conformance checks where practical. This
+keeps the planning skill aligned with `ARCH-MOCK`, `AGENTS.base.md` §5, and the architecture
+registry consumed by `sdlc arch-principles`.
+
+### Verify
+- Integration point planning guidance names the seam, fake state model, and reused/new fake entity
+- External binaries/services mention stateful fakes behind the same seam
+- Live conformance checks are mentioned where practical
+- Function-call mocks remain the explicit anti-pattern for external services
+- All previous verify clauses (Conv 1-6) still hold
