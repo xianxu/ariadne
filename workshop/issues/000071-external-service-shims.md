@@ -1,11 +1,12 @@
 ---
 id: 000071
-status: open
+status: working
 deps: [nous#42, nous#44, nous#45]
 github_issue:
 created: 2026-06-02
-updated: 2026-06-06
+updated: 2026-07-26
 estimate_hours:
+started: 2026-07-26T22:49:54-07:00
 ---
 
 # construct a testable shim for every external service (gh/github first): the deterministic-shell mock pattern
