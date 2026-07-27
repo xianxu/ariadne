@@ -28,7 +28,7 @@ Common failure modes to flag:
 Then check the plan against our architecture (this is the highest-leverage place
 to catch architectural drift — the design is still changeable here):
 
-ARCHITECTURE PRINCIPLES — work through each of the 3 entries below explicitly, applying its `at-plan` lens; cite the marker (e.g. ARCH-DRY) in any finding.
+ARCHITECTURE PRINCIPLES — work through each of the 4 entries below explicitly, applying its `at-plan` lens; cite the marker (e.g. ARCH-DRY) in any finding.
 
 # Architecture principles (ARCH-*)
 
@@ -86,6 +86,23 @@ Principles"; this is its machine-delivered companion.
   confirm each derives from the source, flag any remaining hand-maintained
   restatement of the model. A "follow-up" that is actually the deferred point of
   the issue is a finding, not a deferral.
+
+## ARCH-MOCK — Stateful external doubles
+
+- **principle:** Every external binary or service dependency the system relies on
+  has a stateful fake behind the same seam, modeling our current understanding of
+  the dependency's behavior across calls. Integration and end-to-end tests run
+  against the fake; scheduled/live conformance checks compare the fake's modeled
+  behavior with the real binary or service so drift is detected and corrected.
+- **at-plan:** Flag a design that shells out to, or calls, an external binary or
+  service without naming the seam and stateful fake. The plan should identify the
+  dependency surface consumed, the fake's persisted state model, the integration
+  or end-to-end tests that run against it, and the live conformance check cadence.
+  Examples include `git`, GitHub/`gh`, and Google OAuth.
+- **at-review:** Flag direct external calls outside the seam, stateless mocks for
+  stateful interactions, tests that cannot run the stack against the fake, or a
+  missing live conformance check for behavior we depend on. A fake satisfies this
+  only when production flow and test flow share the same boundary.
 
 
 OUTPUT CONTRACT (machine-read — do not deviate). Your response's FIRST line
