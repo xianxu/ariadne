@@ -1,6 +1,6 @@
 ---
 id: 000071
-status: codecomplete
+status: done
 deps: [nous#42, nous#44, nous#45]
 github_issue:
 created: 2026-06-02
