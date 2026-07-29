@@ -37,6 +37,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
@@ -117,69 +118,23 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 
 	planContent := readOptionalPlanFile(f.PlansDir, name)
 
-	// 3. Structural gates.
-	if !f.NoStructural {
-		failures := issue.CheckStructural(issueContent)
-		if len(failures) > 0 {
-			if f.Force == "" {
-				fmt.Fprintln(stderr, "structural-sanity gates failed:")
-				for _, fail := range failures {
-					fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
-				}
-				cwarn(stderr, "fix the failures above, OR re-run with --force <reason>")
-				exitWithCode(1)
-			}
-			cwarn(stderr, fmt.Sprintf("structural gates bypassed (--force: %s)", f.Force))
-			for _, fail := range failures {
-				fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
-			}
-		}
+	// 3. Run the gate sequence. RUNNING the declaration (rather than hand-sequencing
+	//    blocks that happen to match it) is what makes changeCodeGateOrder a real guard:
+	//    reordering the literal reorders execution, so the B1 ordering test fails on the
+	//    regression it exists to catch instead of passing on a restatement (ARCH-DRY).
+	ctx := &changeCodeCtx{
+		f: f, stdout: stdout, stderr: stderr,
+		name: name, issuePath: issuePath,
+		issueContent: issueContent, planContent: planContent,
 	}
-
-	// 3b. Estimate gate (#113). The universal estimate requirement, relocated
-	//     here from `sdlc claim` so claiming stays a cheap early lock. Its own
-	//     --no-estimate bypass (per the per-gate --no-<gate> convention),
-	//     reusing the pure issue.CheckEstimate split out of CheckStructural.
-	if fail := estimateRefusal(issueContent, f.NoEstimate); fail != nil {
-		if f.Force == "" {
-			fmt.Fprintln(stderr, "estimate gate failed:")
-			fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
-			cwarn(stderr, "add `estimate_hours: <n>` to the issue frontmatter (set it at start-plan), OR re-run with --no-estimate / --force <reason>")
-			exitWithCode(1)
-		}
-		cwarn(stderr, fmt.Sprintf("estimate gate bypassed (--force: %s)", f.Force))
-		fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
-	}
-
-	// 3c. Estimate-reconciliation gate (#117). Forces the documented model to be
-	//     applied: estimate_hours must reconcile with an itemized ## Estimate
-	//     block (no unitemized estimate). Pure decision (estimateReconRefusal);
-	//     own --no-estimate-recon bypass per the per-gate convention.
-	if fail := estimateReconRefusal(issueContent, f.NoEstimateRecon); fail != nil {
-		if f.Force == "" {
-			fmt.Fprintln(stderr, "estimate-reconciliation gate failed:")
-			fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
-			cwarn(stderr, "fix the ## Estimate block so it reconciles, OR re-run with --no-estimate-recon / --force <reason>")
-			exitWithCode(1)
-		}
-		cwarn(stderr, fmt.Sprintf("estimate-reconciliation gate bypassed (--force: %s)", f.Force))
-		fmt.Fprintf(stderr, "  [%s] %s\n", fail.Name, fail.Message)
-	}
-
-	// 4. Plan-quality + estimate-quality judges (fresh-context LLM).
-	if !f.NoJudge {
-		if err := runPlanQualityJudge(stdout, stderr, f, name, issueContent, planContent); err != nil {
-			// runPlanQualityJudge already printed; honor --force.
+	for _, g := range changeCodeGates(ctx) {
+		if err := g.run(); err != nil {
+			// Each gate has already printed its specifics; this is the one shared
+			// --force decision, previously copy-pasted across five blocks.
 			if f.Force == "" {
 				exitWithCode(1)
 			}
-			cwarn(stderr, fmt.Sprintf("plan-quality gate bypassed (--force: %s)", f.Force))
-		}
-		if err := runEstimateQualityJudge(stdout, stderr, f, name, issueContent); err != nil {
-			if f.Force == "" {
-				exitWithCode(1)
-			}
-			cwarn(stderr, fmt.Sprintf("estimate-quality gate bypassed (--force: %s)", f.Force))
+			cwarn(stderr, fmt.Sprintf("%s gate bypassed (--force: %s)", g.name, f.Force))
 		}
 	}
 
@@ -218,6 +173,113 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		}
 	}
 	return nil
+}
+
+// ── the gate sequence ───────────────────────────────────────────────────────
+
+// changeCodeCtx carries everything the gate closures need. Bundled so
+// changeCodeGates can be a plain data declaration rather than a function with a
+// nine-parameter signature.
+type changeCodeCtx struct {
+	f              *changeCodeFlags
+	stdout, stderr io.Writer
+	name           string
+	issuePath      string
+	issueContent   string
+	planContent    string
+}
+
+// gate is one named step in change-code's sequence. Declaring the gates as data and
+// RUNNING that data is the point: the list IS the order.
+type gate struct {
+	name string
+	run  func() error // nil = passed; each closure owns its own --no-<gate> skip
+}
+
+// changeCodeGates is the ordered gate sequence.
+//
+// #187 B1: plan-quality precedes EVERY estimate gate, because the estimate is a function
+// of the plan. Demanding one before the plan has been looked at once forces a
+// re-derivation per plan revision — pair#127 re-derived its estimate five times, four of
+// them forced by plan changes that were still in flight. Costing an unapproved plan is
+// waste by construction.
+//
+// Structural stays first because it is free (no subprocess).
+func changeCodeGates(c *changeCodeCtx) []gate {
+	return []gate{
+		{"structural", c.structural},
+		{"plan-quality", c.planQuality},
+		{"estimate", c.estimate},
+		{"estimate-recon", c.estimateRecon},
+		{"estimate-quality", c.estimateQuality},
+	}
+}
+
+// changeCodeGateOrder returns the gate names in execution order — derived from the same
+// declaration the runner iterates, so the ordering test cannot pass on a stale copy.
+func changeCodeGateOrder() []string {
+	names := []string{}
+	for _, g := range changeCodeGates(&changeCodeCtx{f: &changeCodeFlags{}}) {
+		names = append(names, g.name)
+	}
+	return names
+}
+
+func (c *changeCodeCtx) structural() error {
+	if c.f.NoStructural {
+		return nil
+	}
+	failures := issue.CheckStructural(c.issueContent)
+	if len(failures) == 0 {
+		return nil
+	}
+	fmt.Fprintln(c.stderr, "structural-sanity gates failed:")
+	for _, fail := range failures {
+		fmt.Fprintf(c.stderr, "  [%s] %s\n", fail.Name, fail.Message)
+	}
+	cwarn(c.stderr, "fix the failures above, OR re-run with --force <reason>")
+	return fmt.Errorf("structural failure")
+}
+
+// estimate is the universal estimate_hours requirement (#113), relocated here from
+// `sdlc claim` so claiming stays a cheap early lock — and, since #187 B1, sequenced
+// AFTER plan-quality so the estimate is only ever asked for against an accepted plan.
+func (c *changeCodeCtx) estimate() error {
+	fail := estimateRefusal(c.issueContent, c.f.NoEstimate)
+	if fail == nil {
+		return nil
+	}
+	fmt.Fprintln(c.stderr, "estimate gate failed:")
+	fmt.Fprintf(c.stderr, "  [%s] %s\n", fail.Name, fail.Message)
+	cwarn(c.stderr, "the plan has cleared plan-quality — derive `estimate_hours: <n>` now and add it to the issue frontmatter, OR re-run with --no-estimate / --force <reason>")
+	return fmt.Errorf("estimate failure")
+}
+
+// estimateRecon forces the documented model to be applied (#117): estimate_hours must
+// reconcile with an itemized ## Estimate block.
+func (c *changeCodeCtx) estimateRecon() error {
+	fail := estimateReconRefusal(c.issueContent, c.f.NoEstimateRecon)
+	if fail == nil {
+		return nil
+	}
+	fmt.Fprintln(c.stderr, "estimate-reconciliation gate failed:")
+	fmt.Fprintf(c.stderr, "  [%s] %s\n", fail.Name, fail.Message)
+	cwarn(c.stderr, "fix the ## Estimate block so it reconciles, OR re-run with --no-estimate-recon / --force <reason>")
+	return fmt.Errorf("estimate-recon failure")
+}
+
+func (c *changeCodeCtx) planQuality() error {
+	if c.f.NoJudge {
+		return nil
+	}
+	return runPlanQualityJudge(c.stdout, c.stderr, c.f, c.name, c.issuePath, c.issueContent, c.planContent)
+}
+
+func (c *changeCodeCtx) estimateQuality() error {
+	if c.f.NoJudge {
+		return nil
+	}
+	return runEstimateQualityJudge(c.stdout, c.stderr, c.f, c.name, c.issueContent)
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -328,19 +390,48 @@ func readOptionalPlanFile(plansDir, name string) string {
 	return string(b)
 }
 
-// runPlanQualityJudge dispatches the plan-quality judge against the
-// issue + plan content and returns nil on Clean/Info, error on Failure.
-// Output is surfaced on stdout exactly as judge.go's dispatch does.
-func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, issueContent, planContent string) error {
+// runPlanQualityJudge dispatches the STATEFUL plan-quality judge (#187).
+//
+// Unlike the pre-#187 version — which built a prompt, printed, and forgot — this reads the
+// gate's accumulated ledger, feeds the prior rounds back into the prompt, parses a schema'd
+// findings block out of the reply, and computes the block/pass decision as a pure function
+// of the accumulated state rather than reading it off the judge's verdict token. That is
+// what lets the gate converge: a fresh Minor no longer costs a round-trip, and disposed
+// blockers open the gate.
+//
+// The thin IO seam over internal/gatestate (ARCH-PURE): this function owns the filesystem,
+// the clock, and the subprocess; every decision is pure and unit-tested next door.
+func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, issuePath, issueContent, planContent string) error {
 	issueRef := name
 	if f.Issue > 0 {
 		issueRef = fmt.Sprintf("ariadne#%d", f.Issue)
 	}
+	issueFile := filepath.Base(issuePath)
+
+	ledger, lerr := readPlanGateLedger(f.PlansDir, issueFile, f.Issue)
+	if lerr != nil {
+		// A corrupt ledger must HALT, not silently forget — see planreview.go.
+		cwarn(stderr, "plan-gate ledger: "+lerr.Error())
+		return fmt.Errorf("plan-gate ledger unreadable")
+	}
+
+	// Pass-through (#187): unchanged content after a passing round ⇒ no dispatch, no
+	// round. This is what makes B1 a net win rather than a net cost. Without it, moving
+	// the estimate gates below plan-quality would make EVERY estimate-gate failure pay a
+	// fresh multi-minute judge dispatch on the retry — and since B2 tells the agent to
+	// derive the estimate only after the plan clears, that retry is guaranteed on every
+	// issue. Same mechanism #183 wants at the close boundary (ARCH-DRY).
+	contentHash := gatestate.ContentHash(issueContent, planContent)
+	if !f.DryRun && gatestate.PassesUnchanged(ledger, contentHash) {
+		cok(stderr, fmt.Sprintf("plan-quality: unchanged since round %d — passing through (no re-dispatch)", len(ledger.Rounds)))
+		return nil
+	}
 
 	prompt := judge.BuildPrompt(judge.PlanQuality, judge.PromptInput{
-		IssueRef:     issueRef,
-		IssueContent: issueContent,
-		PlanContent:  planContent,
+		IssueRef:      issueRef,
+		IssueContent:  issueContent,
+		PlanContent:   planContent,
+		PriorFindings: gatestate.RenderPriorFindings(ledger),
 	})
 
 	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
@@ -377,19 +468,116 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		fmt.Fprintln(stdout)
 	}
 
-	outcome := judge.Classify(output)
-	switch outcome {
+	n := len(ledger.Rounds) + 1
+	rr, ok := gatestate.ParseFindingsBlock(output)
+	if !ok {
+		// Transitional prose fallback (agent-binary-handoff-schema: the schema'd path is
+		// authoritative; a fallback may exist transitionally). Warn loudly — this round
+		// carries no findings, so the gate cannot converge on it.
+		//
+		// The round is STILL persisted. If a protocol miss returned early, len(Rounds)
+		// would stay 0 forever for an agent CLI that never emits the fence: the prompt
+		// would announce "this is the FIRST round" on invocation six, Decide's round cap
+		// could never fire to bound the loop it exists to bound, and the close-time
+		// gate_rounds metric would report 0 for precisely the most expensive sessions.
+		cwarn(stderr, "plan-quality: no valid ```findings block — falling back to the verdict token; this round carries NO findings, so the gate cannot converge on it")
+		blocked := classifyFallback(stderr, output) != nil
+		persistPlanGateRound(stderr, f, issueFile, ledger, gatestate.Round{
+			N: n, Timestamp: nowRFC3339(), Agent: string(agent),
+			ProtocolError: "no valid findings block",
+			Blocked:       blocked,
+			Forced:        forcedRationale(f.Force, blocked),
+		})
+		if blocked {
+			return fmt.Errorf("plan-quality failure")
+		}
+		return nil
+	}
+
+	round := gatestate.AssignIDs(ledger, rr, n, nowRFC3339(), string(agent))
+	applied, aerr := gatestate.ApplyChecked(ledger, round)
+	if aerr != nil {
+		// Same reasoning: a protocol error is a round that happened and cost latency.
+		cwarn(stderr, "plan-quality: "+aerr.Error())
+		persistPlanGateRound(stderr, f, issueFile, ledger, gatestate.Round{
+			N: n, Timestamp: nowRFC3339(), Agent: string(agent),
+			ProtocolError: aerr.Error(), Blocked: true,
+			Forced: forcedRationale(f.Force, true),
+		})
+		return fmt.Errorf("plan-quality protocol error: %v", aerr)
+	}
+	ledger = applied
+
+	d := gatestate.Decide(ledger, roundCapFromEnv())
+	last := len(ledger.Rounds) - 1
+	ledger.Rounds[last].Blocked = d.Block
+	ledger.Rounds[last].Forced = forcedRationale(f.Force, d.Block)
+	// Stamp the pass-through key only on a PASSING round — caching a refusal would let a
+	// still-blocked plan walk through unchanged on the next invocation.
+	if !d.Block {
+		ledger.ContentHash = contentHash
+	}
+	if werr := writePlanGateLedger(f.PlansDir, issueFile, ledger, repoIdentity()); werr != nil {
+		cwarn(stderr, fmt.Sprintf("plan-gate ledger not persisted: %v", werr))
+	}
+
+	if d.Block {
+		cwarn(stderr, "plan-quality: "+d.Reason)
+		cwarn(stderr, "address the findings above and re-run — the gate remembers what you fixed; OR re-run with --force <reason>")
+		return fmt.Errorf("plan-quality failure")
+	}
+	cok(stderr, "plan-quality: "+d.Reason)
+	return nil
+}
+
+// classifyFallback is the pre-#187 tri-state read of the judge's output — judge.Classify's
+// switch, extracted verbatim so the schema'd path and the transitional prose path don't
+// each carry a copy (ARCH-DRY). Returns nil on Clean/Info, an error on Failure.
+func classifyFallback(stderr io.Writer, output string) error {
+	switch judge.Classify(output) {
 	case judge.Clean:
-		cok(stderr, "plan-quality: clean")
+		cok(stderr, "plan-quality: clean (verdict token)")
 		return nil
 	case judge.Info:
-		cinfo(stderr, "plan-quality: info")
+		cinfo(stderr, "plan-quality: info (verdict token)")
 		return nil
 	case judge.Failure:
 		cwarn(stderr, "plan-quality: findings reported — fix the plan, OR re-run with --force <reason>")
 		return fmt.Errorf("plan-quality failure")
 	}
 	return nil
+}
+
+// forcedRationale returns the --force rationale only when this gate actually refused; ""
+// otherwise. --force is a GLOBAL bypass consulted by every gate, so stamping it
+// unconditionally would mark a plan-gate round "forced" when the operator forced past a
+// structural failure — or even when the gate passed cleanly — over-reporting overrides in
+// the one number whose whole purpose is to answer "which gates earn their cost".
+func forcedRationale(force string, blocked bool) string {
+	if blocked {
+		return force
+	}
+	return ""
+}
+
+// persistPlanGateRound appends one round and writes the ledger, warning (never failing) on
+// a write error. The single persistence call site for the protocol-miss exit paths.
+func persistPlanGateRound(stderr io.Writer, f *changeCodeFlags, issueFile string, l gatestate.Ledger, r gatestate.Round) {
+	if werr := writePlanGateLedger(f.PlansDir, issueFile, gatestate.Apply(l, r), repoIdentity()); werr != nil {
+		cwarn(stderr, fmt.Sprintf("plan-gate ledger not persisted: %v", werr))
+	}
+}
+
+// roundCapFromEnv reads WF_PLAN_ROUND_CAP, defaulting to gatestate.DefaultRoundCap. Past
+// the cap only hard-blocking findings refuse the gate; the rest are carried to the close
+// review via the ledger.
+func roundCapFromEnv() int {
+	if v := os.Getenv("WF_PLAN_ROUND_CAP"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return gatestate.DefaultRoundCap
 }
 
 // runEstimateQualityJudge dispatches the estimate-quality judge against the issue
