@@ -26,7 +26,7 @@ var estimateTimingRE = regexp.MustCompile(`(?i)estimate.{0,80}start-plan|start-p
 var estimateTimingAllowed = map[string]string{
 	"cmd/sdlc/helptext/estimate.md":        "documents the ## Estimate block grammar; states no timing",
 	"cmd/sdlc/helptext/estimate-source.md": "points at the calibration source; states no timing",
-	"cmd/sdlc/startplan.go":                "the nudge itself, asserted positively below",
+	"cmd/sdlc/startplan.go":                "the nudge itself; asserted by TestEstimateNudge in startplan_test.go",
 	"cmd/sdlc/startplan_test.go":           "asserts the nudge's wording",
 	"cmd/sdlc/estimatetiming_test.go":      "this guard",
 	"atlas/workflow/sdlc-binary.md":        "gate-order table + estimate-source seam; retimed, asserted below",
@@ -73,6 +73,12 @@ func TestEstimateTimingStatedPositively(t *testing.T) {
 		"cmd/sdlc/helptext/issue.md",
 		"cmd/sdlc/helptext/set-status.md",
 		"atlas/workflow/issue-lifecycle.md",
+		// start-plan.md is here and NOT in the sweep above for a structural reason: the
+		// sweep needs "estimate" and "start-plan" within 80 chars ON ONE LINE, and in
+		// this file the identifier is the filename, not the prose — so the guard built to
+		// catch exactly this class was blind to its most obvious surface (M1 review I3).
+		// The positive assertion is what covers it; a revert fails here.
+		"cmd/sdlc/helptext/start-plan.md",
 	} {
 		body, err := os.ReadFile(filepath.Join(root, rel))
 		if err != nil {

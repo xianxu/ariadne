@@ -237,7 +237,9 @@ func (c *changeCodeCtx) structural() error {
 	for _, fail := range failures {
 		fmt.Fprintf(c.stderr, "  [%s] %s\n", fail.Name, fail.Message)
 	}
-	cwarn(c.stderr, "fix the failures above, OR re-run with --force <reason>")
+	if c.f.Force == "" {
+		cwarn(c.stderr, "fix the failures above, OR re-run with --force <reason>")
+	}
 	return fmt.Errorf("structural failure")
 }
 
@@ -421,7 +423,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	// fresh multi-minute judge dispatch on the retry — and since B2 tells the agent to
 	// derive the estimate only after the plan clears, that retry is guaranteed on every
 	// issue. Same mechanism #183 wants at the close boundary (ARCH-DRY).
-	contentHash := gatestate.ContentHash(issueContent, planContent)
+	contentHash := gatestate.ContentHash(planGateContent(issueContent), planContent)
 	if !f.DryRun && gatestate.PassesUnchanged(ledger, contentHash) {
 		cok(stderr, fmt.Sprintf("plan-quality: unchanged since round %d — passing through (no re-dispatch)", len(ledger.Rounds)))
 		return nil
@@ -566,6 +568,51 @@ func persistPlanGateRound(stderr io.Writer, f *changeCodeFlags, issueFile string
 	if werr := writePlanGateLedger(f.PlansDir, issueFile, gatestate.Apply(l, r), repoIdentity()); werr != nil {
 		cwarn(stderr, fmt.Sprintf("plan-gate ledger not persisted: %v", werr))
 	}
+}
+
+// planGateContent returns the part of the issue the PLAN gate is actually asked to review:
+// everything except the estimate. It strips the `## Estimate` section and the
+// `estimate_hours:` frontmatter line before hashing.
+//
+// This is what makes the pass-through cover the retry it exists for. B1 moved the estimate
+// gates below plan-quality and B2 tells the agent to derive the estimate only once the plan
+// clears — so the guaranteed sequence is: plan-quality passes → estimate gate refuses →
+// operator adds `estimate_hours:` AND an `## Estimate` block → re-run. Hashing the whole
+// issue would see both edits, invalidate the pass-through, and re-dispatch a multi-minute
+// judge on exactly the retry the mechanism was built to make cheap.
+//
+// It is also correct on the merits, not just convenient: B1 removed the estimate from
+// plan-quality's remit entirely (the prompt is now forbidden from mentioning it, pinned by
+// TestBuildPrompt_PlanQuality_HasContract), so an estimate-only edit cannot change what
+// that gate would conclude. Pure (ARCH-PURE).
+func planGateContent(issueContent string) string {
+	fm, body, err := issue.Parse(issueContent)
+	if err != nil {
+		return issueContent // no frontmatter to strip; hash it as-is
+	}
+	var keptFM []string
+	for _, line := range strings.Split(fm, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "estimate_hours:") {
+			continue
+		}
+		keptFM = append(keptFM, line)
+	}
+	// Strip the whole `## Estimate` section INCLUDING its heading. issue.EstimateSection
+	// returns only the body beneath the heading, so removing that alone would leave an
+	// orphan "## Estimate" behind — enough to change the hash and defeat the point.
+	// Done line-wise rather than by regex because Go's RE2 has no lookahead, so a pattern
+	// spanning to the next `## ` would consume that heading too.
+	var kept []string
+	inEstimate := false
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			inEstimate = strings.TrimSpace(strings.TrimPrefix(line, "## ")) == "Estimate"
+		}
+		if !inEstimate {
+			kept = append(kept, line)
+		}
+	}
+	return strings.Join(keptFM, "\n") + "\n" + strings.TrimRight(strings.Join(kept, "\n"), "\n") + "\n"
 }
 
 // roundCapFromEnv reads WF_PLAN_ROUND_CAP, defaulting to gatestate.DefaultRoundCap. Past

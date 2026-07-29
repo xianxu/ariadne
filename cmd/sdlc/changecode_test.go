@@ -3,13 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 )
 
 // TestEstimateRefusal pins change-code's estimate gate (#113): the universal
@@ -522,6 +525,7 @@ func TestPlanQualityHaltsOnCorruptLedger(t *testing.T) {
 
 // roundCapFromEnv reads the operator override and ignores nonsense.
 func TestRoundCapFromEnv(t *testing.T) {
+	t.Setenv("WF_PLAN_ROUND_CAP", "") // hermetic: don't read the ambient value
 	if got := roundCapFromEnv(); got != gatestate.DefaultRoundCap {
 		t.Errorf("unset = %d, want %d", got, gatestate.DefaultRoundCap)
 	}
@@ -534,5 +538,95 @@ func TestRoundCapFromEnv(t *testing.T) {
 		if got := roundCapFromEnv(); got != gatestate.DefaultRoundCap {
 			t.Errorf("WF_PLAN_ROUND_CAP=%q = %d, want the default", bad, got)
 		}
+	}
+}
+
+// TestForceAckMatchesGateCatalog closes the drift C1 found at the M1 boundary: Task 8
+// consolidated five hand-written bypass messages into one template, changing the emitted
+// strings ("structural gateS bypassed" → "structural gate bypassed",
+// "estimate-reconciliation" → "estimate-recon"), while processmanual's ACK patterns still
+// matched the old wording. Those rows are SilentAlone, so the ACK line is the ONLY
+// observable evidence a gate was force-bypassed — a dead pattern makes a forced structural
+// or estimate-recon bypass invisible to `sdlc process-manual` and every retro built on it.
+//
+// The guard DERIVES the emitted string from changeCodeGateOrder — the same declaration the
+// runner iterates — so the catalog is checked against what the binary actually prints
+// rather than against a second copy of the wording (ARCH-DRY, in the spirit of B1's guard).
+func TestForceAckMatchesGateCatalog(t *testing.T) {
+	// The exact template runChangeCode emits (changecode.go's --force branch).
+	emitted := func(gateName string) string {
+		return fmt.Sprintf("%s gate bypassed (--force: %s)", gateName, "some reason")
+	}
+	for _, name := range changeCodeGateOrder() {
+		line := emitted(name)
+		matched := false
+		for _, row := range processmanual.GateCatalog {
+			if !slicesContains(row.Commands, "change-code") || row.AckPat == "" {
+				continue
+			}
+			if regexp.MustCompile(row.AckPat).MatchString(line) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			t.Errorf("no change-code ACK pattern in GateCatalog matches the emitted line %q — "+
+				"a forced %s bypass would be invisible to process-manual", line, name)
+		}
+	}
+}
+
+func slicesContains(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+// TestPlanGateContentIgnoresEstimate pins I1 from the M1 boundary review: the pass-through
+// must survive the ONE edit B1+B2 guarantee between invocations.
+//
+// The sequence the mechanism exists for: plan-quality passes → estimate gate refuses (no
+// `## Estimate` yet, exactly as B2 instructs) → operator adds `estimate_hours:` plus the
+// block → re-runs. Hashing the whole issue would see both edits and re-dispatch a
+// multi-minute judge on precisely the retry the pass-through was built to make cheap —
+// reintroducing the cost round 4 of this issue's own gate flagged.
+func TestPlanGateContentIgnoresEstimate(t *testing.T) {
+	before := "---\nid: 187\nstatus: working\nestimate_hours:\n---\n\n# T\n\n## Spec\n\nthe plan\n"
+	after := "---\nid: 187\nstatus: working\nestimate_hours: 8.45\n---\n\n# T\n\n## Spec\n\nthe plan\n\n" +
+		"## Estimate\n\n```estimate\nmodel: estimate-logic-v3.1\nitem: smaller-go-module design=0.1 impl=0.2\ntotal: 0.32\n```\n"
+
+	if planGateContent(before) != planGateContent(after) {
+		t.Errorf("adding the estimate changed the plan-gate content:\n before %q\n after  %q",
+			planGateContent(before), planGateContent(after))
+	}
+	// A real plan edit MUST still change it — the strip must not blind the gate.
+	edited := strings.Replace(after, "the plan", "the plan, revised", 1)
+	if planGateContent(after) == planGateContent(edited) {
+		t.Error("a genuine Spec edit must change the plan-gate content")
+	}
+}
+
+// The end-to-end consequence: adding the estimate between invocations must NOT re-dispatch.
+func TestPlanQualityPassThroughSurvivesEstimateEdit(t *testing.T) {
+	dir := t.TempDir()
+	f := &changeCodeFlags{Issue: 187, PlansDir: dir}
+	calls, _ := stubJudgeSeq(t, findingsReply("CLEAN", "findings: []\n"))
+
+	before := "---\nid: 187\nstatus: working\nestimate_hours:\n---\n\n# T\n\n## Spec\n\nthe plan\n"
+	after := "---\nid: 187\nstatus: working\nestimate_hours: 8.45\n---\n\n# T\n\n## Spec\n\nthe plan\n\n" +
+		"## Estimate\n\n```estimate\nmodel: estimate-logic-v3.1\nitem: smaller-go-module design=0.1 impl=0.2\ntotal: 0.32\n```\n"
+
+	if err := runPlanQualityJudge(ioDiscard(), ioDiscard(), f, "n", "000187-x.md", before, "plan"); err != nil {
+		t.Fatalf("round 1: %v", err)
+	}
+	if err := runPlanQualityJudge(ioDiscard(), ioDiscard(), f, "n", "000187-x.md", after, "plan"); err != nil {
+		t.Fatalf("round 2 (estimate added): %v", err)
+	}
+	if *calls != 1 {
+		t.Errorf("judge invoked %d times, want 1 — adding the estimate must not re-dispatch "+
+			"(that retry is the whole reason the pass-through exists)", *calls)
 	}
 }

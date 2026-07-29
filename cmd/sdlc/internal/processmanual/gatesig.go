@@ -112,13 +112,13 @@ var GateCatalog = []GateSig{
 		AckPat:     `(plan-quality|estimate-quality) gate bypassed \(--force:`,
 		RefusalPat: `(plan-quality|estimate-quality): findings reported`},
 	{Commands: []string{"change-code"}, Flag: "no-structural", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
-		AckPat:     `structural gates bypassed \(--force:`,
+		AckPat:     `structural gate bypassed \(--force:`,
 		RefusalPat: `structural-sanity gates failed:`},
 	{Commands: []string{"change-code"}, Flag: "no-estimate", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `estimate gate bypassed \(--force:`,
 		RefusalPat: `estimate gate failed:`},
 	{Commands: []string{"change-code"}, Flag: "no-estimate-recon", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
-		AckPat:     `estimate-reconciliation gate bypassed \(--force:`,
+		AckPat:     `estimate-recon gate bypassed \(--force:`,
 		RefusalPat: `estimate-reconciliation gate failed:`},
 
 	// merge / push — G3, colon, no "(or --force)". no-validate ACK carries a ⚠️ +

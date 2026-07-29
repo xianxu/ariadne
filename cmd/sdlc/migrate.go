@@ -49,8 +49,8 @@ var inlineSpanRE = regexp.MustCompile("`[^`\n]+`")
 
 // spanRefRE decides whether an inline span's ENTIRE content is one ref
 // (optionally with a milestone tag) — the grammar-anchored discriminator
-// for mixed-content spans: `` `#171` `` is a styled ref and rewrites;
-// `` `git log --grep "^#15"` `` is a quoted command and must not (#179
+// for mixed-content spans: “ `#171` “ is a styled ref and rewrites;
+// “ `git log --grep "^#15"` “ is a quoted command and must not (#179
 // plan: real corruption cases in this repo's markdown).
 var spanRefRE = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9_.-]*)?#[0-9]{1,6}( M[0-9]+[a-z]?)?$`)
 

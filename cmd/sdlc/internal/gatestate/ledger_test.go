@@ -3,6 +3,8 @@ package gatestate
 import (
 	"reflect"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // TestAssignIDsAndApply pins the ID contract: the binary assigns stable sequential IDs, a
@@ -136,9 +138,26 @@ func TestDispositionCounts(t *testing.T) {
 		round(1, nil, findings("Critical/a", "Important/b", "Minor/c")),
 		round(2, dispose("PQ-1", "addressed", "PQ-2", "withdrawn"), findings("Minor/d")),
 	)
-	addressed, withdrawn, open := DispositionCounts(l)
-	if addressed != 1 || withdrawn != 1 || open != 2 {
-		t.Errorf("counts = (%d,%d,%d), want (1,1,2)", addressed, withdrawn, open)
+	counts, open := DispositionCounts(l)
+	if counts["addressed"] != 1 || counts["withdrawn"] != 1 || open != 2 {
+		t.Errorf("counts = %v, open = %d, want addressed 1 / withdrawn 1 / open 2", counts, open)
+	}
+
+	// The buckets must COVER the model — a disposition added to finding.cue must appear
+	// here automatically, not silently fall into `open` via a missing switch arm (M1
+	// boundary-review I4).
+	for _, d := range vocab.Finding().AllDispositions() {
+		if _, ok := counts[d]; !ok && vocab.Finding().Closes(d) {
+			t.Errorf("closing disposition %q has no bucket — it would be miscounted as open", d)
+		}
+	}
+	// A `not-addressed` finding counts as open, not as a settled bucket.
+	reopened := ledgerWith(
+		round(1, nil, findings("Critical/a")),
+		round(2, dispose("PQ-1", "not-addressed"), nil),
+	)
+	if c, o := DispositionCounts(reopened); o != 1 || c["addressed"] != 0 {
+		t.Errorf("not-addressed should count as open: counts=%v open=%d", c, o)
 	}
 }
 

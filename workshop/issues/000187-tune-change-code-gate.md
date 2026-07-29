@@ -220,7 +220,7 @@ optimistic end for work of this shape, and is recorded as such rather than padde
       relocated below plan-quality (Task 8)
 - [x] M1 — one story about estimate timing across helptext ×3, `startplan.go`,
       `AGENTS.base.md`, + `atlas/workflow/gate-state.md`, with a consistency guard (Task 9)
-- [ ] M1 — `sdlc milestone-close --issue 187 --milestone M1` (Task 10)
+- [x] M1 — `sdlc milestone-close --issue 187 --milestone M1` (Task 10)
 
 **M2 — the gate's cost becomes measurable (D).** Plan Tasks 11–15.
 
@@ -289,6 +289,58 @@ code before acting on it; all seven held up. Estimate 5.79 → 6.07 (added repla
   `judge.Classify` switch.
 - **Nits:** duplicate step numbering, `cap` shadowing the builtin, one self-contradictory
   test comment.
+
+### 2026-07-29 — M1 boundary review: FIX-THEN-SHIP, all findings fixed before commit
+
+**Reason:** `sdlc milestone-close --issue 187 --milestone M1`. Verdict FIX-THEN-SHIP;
+per #174 the fixes land in the SAME commit as the close, and the review is not re-run.
+Sidecar: `workshop/plans/000187-tune-change-code-gate-m1-review.md`.
+
+**Fixed (all verified against the code first):**
+- **C1 (Critical) — the `--force` consolidation silently killed two friction ACK patterns.**
+  Task 8 collapsed five hand-written bypass messages into one template, changing the
+  emitted strings (`structural gateS bypassed` → `structural gate bypassed`,
+  `estimate-reconciliation` → `estimate-recon`), while `processmanual/gatesig.go:115,121`
+  still matched the old wording. Those rows are `SilentAlone`, so the ACK line is the
+  **only** observable evidence a gate was force-bypassed — a forced structural or
+  estimate-recon bypass had become invisible to `sdlc process-manual` and every retro built
+  on it. The consolidation was right; the consumer sweep was skipped. Patterns fixed, plus
+  `TestForceAckMatchesGateCatalog`, which DERIVES the emitted string from
+  `changeCodeGateOrder()` and asserts the catalog matches it — mutation-verified.
+- **I1 (Important) — the pass-through did not prevent the re-dispatch it was built for.**
+  `ContentHash` hashed the whole issue file, but the retry it exists to make cheap is by
+  construction the one that edits both frontmatter (`estimate_hours:`) and body
+  (`## Estimate`) — exactly what B2 instructs after a plan passes and the estimate gate
+  refuses. So the hash differed and the judge re-dispatched: the very cost round 4 flagged.
+  The live #187 exercise could not have caught it, because #187 already carried an estimate
+  from the pre-M1 rounds. Fixed with `planGateContent`, which strips the estimate before
+  hashing — correct on the merits too, since B1 removed the estimate from this gate's remit
+  entirely. Two tests added, including the end-to-end "adding the estimate must not
+  re-dispatch".
+- **I2/I3 (Important) — two helptext surfaces Task 9 listed but never edited.**
+  `change-code.md` still documented the pre-B1 gate order, never mentioned the stateful
+  gate, omitted `--no-estimate-recon` from FLAGS, and left `WF_PLAN_ROUND_CAP` — a new
+  operator-settable env var — undocumented against this binary's own convention.
+  `start-plan.md` still said start-plan is where the estimate is set, contradicting
+  `startplan.go`'s retimed runtime output on the one policy B2 exists to unify.
+  **My own guard was blind to `start-plan.md`**: the sweep needs "estimate" and
+  "start-plan" within 80 chars on one line, and there the identifier is the *filename*, not
+  prose. Added it to the positive-assertion list with that reason recorded — a guard that
+  passes while the thing it guards is broken is the failure mode worth naming.
+- **I4 (Important) — `DispositionCounts` branched on disposition string literals**, the
+  exact posture `finding.cue` argues against and `Closes()` exists to prevent. Latent
+  today (M2 consumer), so it would have shipped as a silent under-count the moment a
+  closing disposition was added. Now model-derived, with a coverage assertion.
+- **Minors:** PQ-3's last stale "seven columns" (now ten); `TestRoundCapFromEnv` reads the
+  ambient env before setting it (now hermetic); `structural()` told the operator to use
+  `--force` even when `--force` was already supplied.
+
+**Deferred with reasons, not silently:** promoting `exitWithCode` to a swappable var (the
+review's suggestion for testing the gate loop end-to-end) — the C1 guard covers the message
+contract, which was the actual risk, and changing a process-exit seam at a milestone
+boundary is not a fix I want bundled into a FIX-THEN-SHIP commit. `finding.cue`'s
+`discovery` block is declared but unconsumed — matching the `verdict.cue` precedent, so
+it's a fleet-wide decision for its own issue, not a #187 change.
 
 ### 2026-07-29 — M1 landed; **the gate converged in 2 rounds, live, on its own plan**
 
@@ -530,6 +582,8 @@ positional indexing.
 
 ## Log
 
+
+- 2026-07-29: closed M1 — Live 2-round convergence on #187 own plan: round 1 blocked (1 Critical + 1 Important + 2 Minor, ledger written, PQ-1..PQ-4 assigned); round 2 passed ("no open blocking findings after 2 round(s); 1 advisory recorded") with a not-addressed Minor correctly NOT blocking. Review quality held: round 1 caught two real seam defects in M2 plan (runChangeCode os.Exit vs harness return value; gitx.Capture cannot report the failure Task 13 warns on). go test ./... green; 2 fuzz targets (13.8M execs) — FuzzRenderParseRoundTrip caught a yaml/v3 emitter bug that would have made ledgers unreadable. Mutation-verified: swapping the gate-order literal fails TestGateOrderPlanBeforeEstimate; reverting helptext/issue.md fails TestEstimateTimingConsistency.; review verdict: FIX-THEN-SHIP
 ### 2026-07-28
 
 - Filed from the pair#127 postmortem. Related: **#183** (FIX-THEN-SHIP needs

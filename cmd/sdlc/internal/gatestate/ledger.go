@@ -201,7 +201,12 @@ func OpenFindings(l Ledger) []Finding {
 // retracted as withdrawn, and still open. This is the "finding disposition" the close-time
 // report emits — the number that answers "did the gate's findings get acted on, or worked
 // around?", distinct from the accepted-vs-forced count.
-func DispositionCounts(l Ledger) (addressed, withdrawn, open int) {
+// The tally is keyed off the MODEL, not a switch on disposition literals. A switch would
+// be the exact posture finding.cue argues against: adding `obsolete` to
+// `dispositions.closing` would leave OpenFindings correct (it derives from Closes) while
+// this silently counted the finding as open — under-reporting settled findings in the one
+// metric meant to answer "did the gate's findings get acted on, or worked around?".
+func DispositionCounts(l Ledger) (counts map[string]int, open int) {
 	// Last disposition wins, matching closedSet.
 	state := map[string]string{}
 	for _, r := range l.Rounds {
@@ -209,19 +214,22 @@ func DispositionCounts(l Ledger) (addressed, withdrawn, open int) {
 			state[d.ID] = d.State
 		}
 	}
+	m := vocab.Finding()
+	counts = map[string]int{}
+	for _, d := range m.AllDispositions() {
+		counts[d] = 0
+	}
 	for _, r := range l.Rounds {
 		for _, f := range r.New {
-			switch state[f.ID] {
-			case "addressed":
-				addressed++
-			case "withdrawn":
-				withdrawn++
-			default:
+			s := state[f.ID]
+			if s == "" || !m.Closes(s) {
 				open++
+				continue
 			}
+			counts[s]++
 		}
 	}
-	return addressed, withdrawn, open
+	return counts, open
 }
 
 // ContentHash is the pass-through key: sha256 of the issue + plan text the gate reviewed.
