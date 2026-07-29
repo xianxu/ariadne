@@ -182,3 +182,19 @@ expensive to *repair* later.
   moves an issue to a new ID *and* rewrites the branch name, commit-message
   references, `deps:`/project refs, and sidecar filenames. That is the honest home
   for repair; `issue new` should only ever prevent.
+
+- **Second manifestation observed, distinct from ID allocation (2026-07-29).**
+  `sdlc claim` publishes a **snapshot** of the issue file to main, once. All
+  authoring that happens *after* the claim — spec, plan, gate-finding revisions,
+  estimate re-costing — stays on the branch, so main keeps showing whatever the
+  issue looked like at claim time. Live case: pair#129 was claimed while its body
+  was still the empty template (a heredoc had silently no-oped), then fully
+  authored over three plan-quality rounds; main showed a 28-line stub while the
+  branch had 237 lines. The operator noticed, not the tooling.
+  So the sync is **one-shot, not continuous** — a second gap alongside the
+  allocation bug, with the same root cause (issue state lives in a working tree
+  rather than being read from and written to main). Worth covering in the same
+  design: either re-sync issue-file edits on the later lifecycle verbs
+  (`change-code`, `milestone-close`), or make the branch's copy authoritative and
+  publish at merge — but pick one, because "publish at claim and never again" is
+  the worst of both.
