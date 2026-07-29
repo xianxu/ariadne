@@ -2133,7 +2133,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Create: `cmd/sdlc/internal/churn/report.go`
 - Create: `cmd/sdlc/internal/churn/report_test.go`
 
-- [ ] **Step 1: Write the failing classification test.** Pin the rules *and* the
+- [x] **Step 1: Write the failing classification test.** Pin the rules *and* the
   judgment calls, so a later reader sees the reasoning.
 
   **The rule, in order:** `atlas/` → atlas; `workshop/` → workshop; a test file
@@ -2180,7 +2180,7 @@ func TestClassifyPath(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write the failing report test**
+- [x] **Step 2: Write the failing report test**
 
 ```go
 func TestSummarize(t *testing.T) {
@@ -2211,11 +2211,11 @@ func TestSummarizeZeroFinal(t *testing.T) {
 func TestSummarizeSkipsBinary(t *testing.T) { … }
 ```
 
-- [ ] **Step 3: Run to verify they fail; Step 4: implement; Step 5: run to verify PASS.**
+- [x] **Step 3: Run to verify they fail; Step 4: implement; Step 5: run to verify PASS.**
 
 Run: `go test ./cmd/sdlc/internal/churn/ -v`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cmd/sdlc/internal/churn/
