@@ -1,7 +1,7 @@
 ---
 type: type
 name: roadmap
-description: Use when planning one product's work for a target month — capacity, scope decisions, target state per component. Lives at data/roadmap/YYYYMM/<product>.md. Triggers on "let's roadmap <product> for <month>", "plan <product> for end of <month>", "/xx-datatype roadmap".
+description: Use when planning one product's work for a target month — capacity, scope decisions, target state per component. Lives in the product's center-of-gravity repo at workshop/projects/roadmap/YYYYMM/<product>.md. Triggers on "let's roadmap <product> for <month>", "plan <product> for end of <month>", "/xx-datatype roadmap".
 ---
 
 # roadmap
@@ -10,14 +10,14 @@ A roadmap is the *plan* for one product across one month. It states what we want
 
 A roadmap is forward-looking. It is not a snapshot of where we are now (that lives in the product file's per-component `**State:**` line) and not a changelog (git diff between adjacent roadmaps shows the trajectory).
 
-A roadmap is per-product. The proto-company view is the *aggregate* of `data/roadmap/YYYYMM/*.md` — multiple per-product files in one month directory. Cross-product dependencies are expressed by `` `other-product:slug` `` references in component prose, not by combined docs.
+A roadmap is per-product and lives in that product's center-of-gravity repo, under `workshop/projects/roadmap/YYYYMM/<product>.md`. The proto-company view is the *aggregate* of roadmaps across center-of-gravity repos for a given month. Cross-product dependencies are expressed by `` `other-product:slug` `` references in component prose, not by combined docs.
 
 ## Frontmatter shape
 
 | Field | Required | Notes |
 |---|---|---|
 | `type` | yes | `roadmap` |
-| `product` | yes | The product slug. Must reference an existing `data/product/<product>.md`. |
+| `product` | yes | The product slug. Must reference an existing `data/product/<product>.md` in the same center-of-gravity repo. |
 | `month` | yes | `YYYYMM`. Target end-of-period. |
 | `target_event` | optional | Free-form short tag if this month is gated to a specific external event (e.g., `external launch`, `investor meeting`). |
 | `created` | yes | ISO date. |
@@ -62,12 +62,12 @@ Empty placeholder (`*(added after month concludes)*`) until the month is over. O
 When the dispatcher applies this prototype:
 
 1. **Resolve `product` and `month` first.**
-   - `product` — must reference an existing `data/product/<product>.md`. If that file doesn't exist, ask the user — usually the answer is "create the product first, then come back."
+   - `product` — must reference an existing `data/product/<product>.md` in the product's center-of-gravity repo. If that file doesn't exist, ask the user — usually the answer is "create the product first, then come back."
    - `month` — `YYYYMM`. Default to current month if unstated.
-   - Default location: `data/roadmap/<month>/<product>.md`.
+   - Default location: `workshop/projects/roadmap/<month>/<product>.md` in the product's center-of-gravity repo.
 
 2. **Check for prior roadmaps of this product.**
-   - List `data/roadmap/*/<product>.md` to find the most recent prior roadmap.
+   - List `workshop/projects/roadmap/*/<product>.md` in the product's center-of-gravity repo to find the most recent prior roadmap.
    - If non-adjacent (gap of ≥1 month), the capacity statement must explicitly cover the gap.
    - If a prior roadmap exists, read its `## components` to understand what was in flight; pre-fill components that likely carry forward.
 
@@ -99,28 +99,28 @@ When the dispatcher applies this prototype:
 # All roadmaps
 rg -l "^type: roadmap"
 
-# All roadmaps for a product (across months)
-ls data/roadmap/*/<product>.md 2>/dev/null
+# All roadmaps for a product in the current repo (across months)
+ls workshop/projects/roadmap/*/<product>.md 2>/dev/null
 
 # All roadmaps in a month (proto-company view)
-ls data/roadmap/202610/ 2>/dev/null
+ls workshop/projects/roadmap/202610/ 2>/dev/null
 
 # All roadmaps gated to a specific event
 rg -l "^type: roadmap" | xargs rg -l "^target_event: external launch"
 
 # Capacity statements across all roadmaps in a month
-rg "^\*\*Capacity:\*\*" data/roadmap/202610/
+rg "^\*\*Capacity:\*\*" workshop/projects/roadmap/202610/
 
 # Component-level target states for a specific component across months
-rg -B1 -A1 "^### substrate-skill-management" data/roadmap/
+rg -B1 -A1 "^### substrate-skill-management" workshop/projects/roadmap/
 
 # Trajectory for a component (changes across months via git)
-git log -p --follow data/roadmap/*/<product>.md | rg -A 5 "^### substrate-skill-management"
+git log -p --follow workshop/projects/roadmap/*/<product>.md | rg -A 5 "^### substrate-skill-management"
 ```
 
 ## Rules
 
-- One roadmap per (product, month) pair. The filename is `data/roadmap/<month>/<product>.md` and the frontmatter `product` + `month` must match the path.
+- One roadmap per (product, month) pair. The filename is `workshop/projects/roadmap/<month>/<product>.md` in the product's center-of-gravity repo, and the frontmatter `product` + `month` must match the path.
 - A roadmap targets one product. Cross-product dependencies are expressed by `` `other-product:slug` `` references in component prose, not by combined docs.
 - Component slugs in the roadmap MUST exist as `### <slug>` sections in the corresponding product file. If a slug doesn't exist there yet, add it to the product file first.
 - The roadmap is forward-looking. Current state of components lives in the product file's `**State:**` line. Don't duplicate.

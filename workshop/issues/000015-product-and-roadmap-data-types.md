@@ -18,7 +18,7 @@ Add two typed-document prototypes to the data system: `product` (the durable cha
 - `construct/datatype/product.md` exists, conforming to the meta-prototype's contract.
 - `construct/datatype/roadmap.md` exists, conforming to the meta-prototype's contract.
 - Both prototypes ship with `Search recipes` and authoring instructions sufficient for a fresh agent to author good instances unaided.
-- Ariadne itself is described retrospectively using these prototypes — `data/product/ariadne.md` (or equivalent path, decided during planning) plus a first `data/roadmap/202604/ariadne.md`. This is the dogfood test.
+- Ariadne itself is described retrospectively using these prototypes — `data/product/ariadne.md` (or equivalent path, decided during planning) plus a first roadmap at `workshop/projects/roadmap/202604/ariadne.md`. This is the dogfood test.
 - Charon is described as the second test, authored from outside ariadne.
 - `atlas/data-artifacts.md` updated to include the two new types.
 
@@ -41,7 +41,7 @@ Key design points to nail down during brainstorming (delegated per the meta-prot
 
 ### Roadmap type — design intent
 
-Roadmap is the temporal snapshot — *where we are against a product's components at month T*. Roadmaps live in monthly snapshot directories (`data/roadmap/YYYYMM/<product>.md`) so multiple months can be authored in parallel and edited as plans shift; git history is the change log.
+Roadmap is the temporal snapshot — *where we are against a product's components at month T*. Roadmaps live in the product's center-of-gravity repo under monthly directories (`workshop/projects/roadmap/YYYYMM/<product>.md`) so multiple months can be authored in parallel and edited as plans shift; git history is the change log.
 
 Key design points to nail down:
 
@@ -70,16 +70,26 @@ These are the smallest typed pair that can test "model a company as data." Perso
 ## Plan
 
 - [ ] **Brainstorm `product` prototype** via `superpowers-brainstorming`. Settle frontmatter fields (especially `repos`, `status`), the component-section convention (slug IDs, depth rules), and the authoring-instructions content.
-- [ ] **Brainstorm `roadmap` prototype** via `superpowers-brainstorming`. Settle the snapshot-directory path (`data/roadmap/YYYYMM/<product>.md` vs alternatives), how component IDs link back to the product file, and what each component section in a roadmap should contain.
-- [ ] Decide where instances live by default — `data/product/<name>.md` and `data/roadmap/YYYYMM/<name>.md` is the working assumption.
+- [ ] **Brainstorm `roadmap` prototype** via `superpowers-brainstorming`. Settle the snapshot-directory path (`workshop/projects/roadmap/YYYYMM/<product>.md` vs alternatives), how component IDs link back to the product file, and what each component section in a roadmap should contain.
+- [ ] Decide where instances live by default — `data/product/<name>.md` and `workshop/projects/roadmap/YYYYMM/<name>.md` is the working assumption.
 - [ ] Write `construct/datatype/product.md`. Self-contained per meta-prototype rules.
 - [ ] Write `construct/datatype/roadmap.md`. Self-contained.
 - [ ] Both prototypes include `Search recipes` for the `rg` queries each type's downstream tooling will need (find all active products, find all components of product X, find all roadmaps for product X across months, find roadmaps targeting a given quarter).
 - [ ] Run `construct/scripts/sync-local-skills.sh` if needed, and verify the dispatcher (`xx-datatype`) can fuzzy-match conversational triggers like "let's roadmap Charon for May" or "set up a product file for Ariadne."
-- [ ] **Dogfood test 1 — Ariadne, retrospectively.** Author `data/product/ariadne.md` describing what Ariadne is, its durable shape, and its components (Construct, base layer, sandbox, data system, ...). Then author `data/roadmap/202604/ariadne.md` (this month's snapshot) with status against each component.
+- [ ] **Dogfood test 1 — Ariadne, retrospectively.** Author `data/product/ariadne.md` describing what Ariadne is, its durable shape, and its components (Construct, base layer, sandbox, data system, ...). Then author `workshop/projects/roadmap/202604/ariadne.md` (this month's snapshot) with status against each component.
 - [ ] **Dogfood test 2 — Charon, forward-looking.** From outside ariadne, in Charon's repo or wherever Charon's brain lives, author a Charon product file and an initial roadmap. This validates the prototypes work in a non-self-referential setting.
 - [ ] Update `atlas/data-artifacts.md` to list `product` and `roadmap` with one-line descriptions and pointers.
 - [ ] If dogfood reveals schema drift, iterate on the prototypes before declaring done. Capture iterations in `## Log`.
+
+## Revisions
+
+### 2026-07-28
+
+- ariadne#185 lifted roadmap residency out of the old brain-era roadmap path
+  language. Live #15 acceptance/spec/plan text now points roadmap instances at
+  the product's center-of-gravity repo under
+  `workshop/projects/roadmap/<YYYYMM>/<product>.md`. Older dated Log entries
+  remain historical records of the original prototype decision.
 
 ## Log
 
@@ -102,13 +112,13 @@ These are the smallest typed pair that can test "model a company as data." Perso
 
 - **Roadmap brainstorming converged.** Decisions:
   - **Roadmap is a forward-looking *plan*, not a snapshot.** Targets what should be true at end of month T. Not a changelog (git diff between roadmaps is the changelog). Not a current-state report (that's in product).
-  - **Per-product, period.** One roadmap = one (product, month) pair. Proto-company view is the aggregate of `data/roadmap/YYYYMM/*.md`. Cross-product dependencies via `` `other-product:slug` `` references in component prose. No cross-product roadmap datatype yet (deferred — add `month-plan` datatype later if needed).
+  - **Per-product, period.** One roadmap = one (product, month) pair. Proto-company view is the aggregate of monthly product roadmaps. Cross-product dependencies via `` `other-product:slug` `` references in component prose. No cross-product roadmap datatype yet (deferred — add `month-plan` datatype later if needed). The original path decision was superseded by the 2026-07-28 Revisions note.
   - **Body skeleton:** `# product — month` title, `**Target:**` lede, `## plan`, `## components`, `## postmortem`. Postmortem starts empty and is filled after the month closes.
   - **`## plan` shape:** `**Capacity:**` (free-form, dev-weeks), `**In scope:**` priority-ordered list, `**Out of scope:**` priority-ordered list (cut between the two = capacity boundary), `**Reasoning:**` paragraph.
   - **`## components` shape:** only components being touched this month appear (sparse, not full snapshot). Each has `**Target state:**` and `**Effort:**` (free-form), plus prose. Component slugs MUST exist in the corresponding product file.
   - **Multi-month gaps allowed.** If 202605 then 202607 (no 202606), the 202607 roadmap covers the 2-month horizon; capacity statement says so explicitly.
   - **Frontmatter:** `type`, `product`, `month`, optional `target_event`, `created`, `updated`, optional `sources`.
-  - **Default path:** `data/roadmap/<YYYYMM>/<product>.md`.
+  - **Default path:** superseded by the 2026-07-28 Revisions note.
 
 - **Files landed:**
   - `construct/datatype/product.md` (revised to add `**State:**` element)
