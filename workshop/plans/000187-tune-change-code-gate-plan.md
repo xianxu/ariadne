@@ -161,7 +161,8 @@ stated invariants.
   which `dispatch_test.go` already fakes).
 
 - **`churnForWindow` (M2)** — the only new external-command surface. It shells `git` via
-  the existing `gitx.Capture` seam — same seam `boundaryWindowBase` already uses — so
+  the error-returning `gitx.RunGit` seam (NOT `gitx.Capture`, which flattens errors to
+  `""` and so could never fire Task 13's promised warning) — so
   tests drive it against a real temp git repo the way `closereview_test.go` already does
   (`ARCH-MOCK`: `git` is exercised for real in a disposable repo, not mocked).
 
@@ -2133,7 +2134,13 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Create: `cmd/sdlc/internal/churn/report_test.go`
 
 - [ ] **Step 1: Write the failing classification test.** Pin the rules *and* the
-  judgment calls, so a later reader sees the reasoning:
+  judgment calls, so a later reader sees the reasoning.
+
+  **The rule, in order:** `atlas/` → atlas; `workshop/` → workshop; a test file
+  (`*_test.go`, a `testdata/` segment) → code-test; **everything else → code-prod**, which
+  is the stated DEFAULT rather than a fallthrough nobody chose. Embedded markdown counts as
+  production here because it ships inside the binary via `//go:embed`; so do build and
+  config files, which are versioned, reviewed, and break the build when wrong.
 
 ```go
 func TestClassifyPath(t *testing.T) {
@@ -2153,6 +2160,17 @@ func TestClassifyPath(t *testing.T) {
 		"cmd/sdlc/helptext/change-code.md":                CodeProd,
 		"construct/vocabulary/finding.cue":                CodeProd,
 		"AGENTS.base.md":                                  CodeProd,
+		// The DEFAULT bucket, named explicitly rather than left to whichever switch arm
+		// happens to be last. Build/config/meta files are production artifacts of the
+		// repo: they are versioned, reviewed, and break the build when wrong. Routing
+		// them to code-prod is a decision, and a lockfile-sized diff landing there must
+		// be a visible choice rather than an accident.
+		"go.mod":                    CodeProd,
+		"go.sum":                    CodeProd,
+		"Makefile.workflow":         CodeProd,
+		".github/workflows/ci.yml":  CodeProd,
+		"construct/base.manifest":   CodeProd,
+		"docs/vision/roadmap.md":    CodeProd,
 	}
 	for path, want := range cases {
 		if got := ClassifyPath(path); got != want {
@@ -2256,8 +2274,19 @@ func TestChurnForWindowEmptyBase(t *testing.T) {
 
 - [ ] **Step 2–4: run-fail, implement, run-pass.** `churnForWindow(baseLong string)`:
   - `""` base → zero `churn.Report`, nil error.
-  - final: `gitx.Capture("diff", "--numstat", base+"..HEAD")` → `[]churn.FileStat`.
-  - commit total: `gitx.Capture("log", "--numstat", "--format=", base+"..HEAD")` summed.
+  - final: `gitx.RunGit("diff", "--numstat", base+"..HEAD")` → `[]churn.FileStat`.
+  - commit total: `gitx.RunGit("log", "--numstat", "--format=", base+"..HEAD")` summed.
+
+  **Use `RunGit`, not `Capture`.** `gitx.Capture` returns `""` on ANY error
+  (`internal/gitx/window.go:50-56`) and its own doc says it is "not suitable for queries
+  where you must distinguish 'ran but empty' from 'errored'" (`:47-49`). Task 13's contract
+  is "a git failure warns and leaves the values at zero" — with `Capture` that warning can
+  never fire, because a bad base SHA prints `churn: prod 0 / test 0 / …` identically to a
+  genuinely empty window, in the one number introduced to answer "which gates earn their
+  cost". `gitx.RunGit` (`window.go:38-40`) is the exported error-returning variant and
+  exists for exactly this (`ARCH-DRY` — reuse the seam that already distinguishes them,
+  don't degrade silently through the flattening one). `churnForWindow` returns
+  `(churn.Report, error)`; the CALLER warns and zeroes.
   - `churn.Summarize(final, commitTotal)`.
   - Reuse `boundaryWindowBase` for the base — **do not** re-derive the window
     (`ARCH-DRY`; it keeps churn provably covering the same commits as the review and the
@@ -2270,7 +2299,7 @@ func TestChurnForWindowEmptyBase(t *testing.T) {
 ### Task 13: Emit the metrics at close (D1/D2/D3)
 
 **Files:**
-- Modify: `cmd/sdlc/internal/estimate/ledger.go` (7 appended columns)
+- Modify: `cmd/sdlc/internal/estimate/ledger.go` (10 appended columns)
 - Modify: `cmd/sdlc/internal/estimate/ledger_test.go`
 - Modify: `cmd/sdlc/close.go` (`appendCalibrationRow`, the info line)
 - Modify: `cmd/sdlc/close_ledger_test.go`
@@ -2356,8 +2385,9 @@ func TestFormatRowCarriesChurnColumns(t *testing.T) {
 		rounds, forced, addressed, withdrawn, stillOpen))
 ```
 
-  Ledger columns become nine, not seven — append
-  `gate_addressed  gate_withdrawn  gate_open` after `gate_forced`, so the appended block is
+  Ledger columns become TEN, not seven — append
+  `gate_addressed  gate_withdrawn  gate_open` after `gate_forced` — **ten** appended
+  columns in total (Step 3 enumerates them), so the appended block is
   `cols[10]`…`cols[19]` (20 columns total) and the `ParseRows` presence check reads
   `len(c) >= 20`. Counts come from a pure
   `gatestate.DispositionCounts(l Ledger) (addressed, withdrawn, open int)` — unit-tested
@@ -2473,32 +2503,40 @@ This is the Done-when criterion that protects the gate's *value*. It cannot be a
 // TestReplayPair127 is the regression test for "did the tuning weaken review?" (#187
 // Done-when). Manual-tagged: it spends real agent latency, so CI does not run it.
 //   go test ./cmd/sdlc -tags manual -run TestReplayPair127 -v -timeout 30m
+//
+// It drives runPlanQualityJudge DIRECTLY, not runChangeCode. runChangeCode iterates
+// changeCodeGates and calls exitWithCode(1) on any gate failure (changecode.go:130-139 →
+// term.go:56-59 → os.Exit), so it never RETURNS a gate failure — a `err := runChangeCode(…)`
+// loop would os.Exit(1) the test process on round 1, which is precisely the round whose
+// blocking is the point. (expectDie doesn't help: it swaps the `die` var, which this path
+// bypasses.) runPlanQualityJudge owns the entire ledger path — read → dispatch → parse →
+// assign ids → Decide → write — and returns an error, so rounds stay countable in-process.
 func TestReplayPair127(t *testing.T) {
-	closeRepo(t, 900)                          // scratch repo + committed issue file
-	writeIssueFile(t, 900, pair127Round1Issue) // testdata: the round-1 Spec/Plan, from the
-	                                           // ISSUE file — pair#127 had no plan doc.
-	// Drive real rounds until the gate passes or a cap trips.
-	//
-	// NOT DryRun. `--dry-run` returns at changecode.go:357-367 BEFORE judge.Dispatch, so
-	// it would run no agent, produce no findings block, persist no round, and return nil —
-	// making every assertion below vacuous. Worktree "no" keeps branch creation in the
-	// scratch repo. Note B1 puts the estimate gates AFTER plan-quality, so once the plan
-	// clears, round N also reaches them: seed the scratch issue with a reconciling
-	// `## Estimate` block, or pass --no-estimate/--no-estimate-recon, so the replay
-	// measures the PLAN gate rather than tripping on an unrelated one.
-	for round := 1; round <= 6; round++ {
-		err := runChangeCode(…, &changeCodeFlags{
-			Issue: 900, Worktree: "no",
-			NoEstimate: true, NoEstimateRecon: true, // isolate the plan gate
-		})
-		t.Logf("round %d: err=%v", round, err)
-		if err == nil { break }
-		// The operator's job between rounds is real work — this harness does NOT
-		// auto-edit the plan. Stop and hand the findings to the session (see Step 3).
-		break
+	dir := t.TempDir()
+	f := &changeCodeFlags{Issue: 900, PlansDir: dir}
+	issue := mustReadTestdata(t, "pair127-round1-issue.md")
+
+	// Round 1 against the recovered plan. Expect a refusal.
+	err := runPlanQualityJudge(os.Stdout, os.Stderr, f, "000900-replay", "000900-replay.md", issue, "")
+	t.Logf("round 1: err=%v", err)
+
+	l, lerr := readPlanGateLedger(dir, "000900-replay.md", 900)
+	if lerr != nil { t.Fatalf("ledger: %v", lerr) }
+	for _, fd := range gatestate.OpenFindings(l) {
+		t.Logf("round 1 finding [%s] %s: %s", fd.Severity, fd.ID, fd.Title)
 	}
+	// Step 3 authors the between-rounds edit BY HAND from these findings, then re-runs
+	// this test with REPLAY_PLAN pointing at the edited plan. The harness deliberately
+	// does NOT auto-edit: faking the author's response would prove nothing about
+	// convergence.
 }
 ```
+
+> **Isolation note.** Because this drives the plan gate directly, the estimate gates are
+> not in the loop at all — no `--no-estimate` needed. Do NOT "seed a reconciling
+> `## Estimate` block" instead: `runEstimateQualityJudge` skips silently only when the
+> block is ABSENT (`changecode.go:589-593`), so seeding one would dispatch a second real
+> agent per round whose failure would end the run for a reason unrelated to the plan gate.
 
 > The loop deliberately does **not** simulate a plan author. Rounds 2+ require a real
 > plan edit responding to round 1's findings; that is the session's work, and faking it

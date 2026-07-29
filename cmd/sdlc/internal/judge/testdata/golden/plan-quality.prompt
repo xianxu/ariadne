@@ -176,13 +176,20 @@ assigns the stable id. Omit a key entirely when it has no entries.
 dispose:
   - id: <a prior finding's id>
     disposition: <addressed | withdrawn | not-addressed>
-    note: <one line, optional>
+    note: |
+      <optional, one line>
 findings:
   - id: new
     severity: <Critical | Important | Minor>
-    title: <one line>
-    detail: <a sentence or two, optional>
+    title: |
+      <one line>
+    detail: |
+      <a sentence or two, optional>
 ```
+
+Use the `|` block form for title, detail and note exactly as shown, and indent
+their text by six spaces. In plain YAML a ` #` starts a comment, so an
+unquoted `## Estimate` or `issue #187` would silently truncate your finding.
 
   Critical       must fix before the gate is crossed
   Important      fix before the gate if cheap; blocks until disposed

@@ -146,3 +146,39 @@ func FuzzParseFindingsBlock(f *testing.F) {
 		}
 	})
 }
+
+// TestParseFindingsBlockBlockScalarSurvivesHash pins the fidelity hazard found in live use
+// on ariadne#187 round 1: in a YAML PLAIN scalar a ` #` begins a comment, so a finding
+// whose text contains "## Estimate" or "issue #187" is silently truncated — and the
+// truncated text is what the NEXT round is shown as its own prior finding, so the gate's
+// memory quietly degrades.
+//
+// The block instruction now shows title/detail/note as `|` block scalars, which are immune.
+// This test pins both halves: block form survives, plain form does not — so if anyone
+// "simplifies" the template back to plain scalars, the second assertion documents why not.
+func TestParseFindingsBlockBlockScalarSurvivesHash(t *testing.T) {
+	blockForm := "```findings\nfindings:\n  - id: new\n    severity: Minor\n" +
+		"    title: |\n      drop the \"seed a reconciling ## Estimate block\" option\n" +
+		"    detail: |\n      see issue #187 for why\n```\n"
+	rr, ok := ParseFindingsBlock(blockForm)
+	if !ok {
+		t.Fatal("block-scalar form must parse")
+	}
+	if !strings.Contains(rr.New[0].Title, "## Estimate block") {
+		t.Errorf("block scalar truncated the title: %q", rr.New[0].Title)
+	}
+	if !strings.Contains(rr.New[0].Detail, "#187") {
+		t.Errorf("block scalar truncated the detail: %q", rr.New[0].Detail)
+	}
+
+	// The hazard itself, documented: plain form loses everything from ` #' onward.
+	plainForm := "```findings\nfindings:\n  - id: new\n    severity: Minor\n" +
+		"    title: drop the reconciling ## Estimate block option\n```\n"
+	plain, ok := ParseFindingsBlock(plainForm)
+	if !ok {
+		t.Fatal("plain form still parses — it is lossy, not invalid")
+	}
+	if strings.Contains(plain.New[0].Title, "Estimate") {
+		t.Error("plain scalar unexpectedly preserved text after ` #' — re-check the template rationale")
+	}
+}

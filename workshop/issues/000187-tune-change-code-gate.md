@@ -204,21 +204,21 @@ optimistic end for work of this shape, and is recorded as such rather than padde
 
 **M1 — the gate converges (A + B + C).** Plan: `workshop/plans/000187-tune-change-code-gate-plan.md` Tasks 1–10.
 
-- [ ] M1 — model the `finding` vocabulary in CUE + `pkg/vocab` binding, with the
+- [x] M1 — model the `finding` vocabulary in CUE + `pkg/vocab` binding, with the
       `code-review.md` severity drift guard (Task 1)
-- [ ] M1 — `gatestate` ledger: stable binary-assigned IDs, dispositions, open-set (Task 2)
-- [ ] M1 — `gatestate.Decide`: block only on undisposed Critical/Important; round cap
+- [x] M1 — `gatestate` ledger: stable binary-assigned IDs, dispositions, open-set (Task 2)
+- [x] M1 — `gatestate.Decide`: block only on undisposed Critical/Important; round cap
       demotes Important but never Critical (Task 3)
-- [ ] M1 — parse the fenced ` ```findings ` handoff, validated against the model,
+- [x] M1 — parse the fenced ` ```findings ` handoff, validated against the model,
       fail-closed (Task 4)
-- [ ] M1 — sidecar render/parse round-trip + the prior-findings prompt block (Task 5)
-- [ ] M1 — IO shell: persist `NNNNNN-slug-plan-gate.md`; corrupt sidecar errors rather
+- [x] M1 — sidecar render/parse round-trip + the prior-findings prompt block (Task 5)
+- [x] M1 — IO shell: persist `NNNNNN-slug-plan-gate.md`; corrupt sidecar errors rather
       than forgetting; archiving coverage pinned (Task 6)
-- [ ] M1 — rewrite `plan-quality.md`: dispose-first, strategy-not-enumeration, keep the
+- [x] M1 — rewrite `plan-quality.md`: dispose-first, strategy-not-enumeration, keep the
       hard-to-reverse-decision + unbacked-claim asks (Task 7)
-- [ ] M1 — wire `change-code`: stateful judge, `--force` recorded durably, estimate gates
+- [x] M1 — wire `change-code`: stateful judge, `--force` recorded durably, estimate gates
       relocated below plan-quality (Task 8)
-- [ ] M1 — one story about estimate timing across helptext ×3, `startplan.go`,
+- [x] M1 — one story about estimate timing across helptext ×3, `startplan.go`,
       `AGENTS.base.md`, + `atlas/workflow/gate-state.md`, with a consistency guard (Task 9)
 - [ ] M1 — `sdlc milestone-close --issue 187 --milestone M1` (Task 10)
 
@@ -226,7 +226,7 @@ optimistic end for work of this shape, and is recorded as such rather than padde
 
 - [ ] M2 — `churn` package: four-bucket classification + rework ratio (Task 11)
 - [ ] M2 — `churnForWindow` over the shared `boundaryWindowBase` window (Task 12)
-- [ ] M2 — seven appended ledger columns + the close-time churn/round-trip lines, all
+- [ ] M2 — ten appended ledger columns + the close-time churn/round-trip lines, all
       degrading to zero rather than breaking a close (Task 13)
 - [ ] M2 — replay pair#127's first plan: fewer rounds, but the seam relocation and the
       absorb-layer removal must still surface (Task 14)
@@ -289,6 +289,71 @@ code before acting on it; all seven held up. Estimate 5.79 → 6.07 (added repla
   `judge.Classify` switch.
 - **Nits:** duplicate step numbering, `cap` shadowing the builtin, one self-contradictory
   test comment.
+
+### 2026-07-29 — M1 landed; **the gate converged in 2 rounds, live, on its own plan**
+
+**Reason:** Tasks 1–9 implemented and committed. The stateful gate was then exercised
+end-to-end against a real judge on #187 itself — the first live proof of the whole loop.
+
+**The headline Done-when, demonstrated:**
+
+| round | findings | outcome |
+|---|---|---|
+| 1 | 1 Critical + 1 Important + 2 Minor | **BLOCKED** — ledger written, ids PQ-1…PQ-4 assigned |
+| 2 | PQ-1 `addressed`, PQ-2 `addressed`, PQ-4 `addressed`, PQ-3 `not-addressed`, 1 new Minor | **PASSED** |
+
+Round 2's message: *"no open blocking findings after 2 round(s); 1 advisory finding(s)
+recorded for the close review."* Two rounds, against pair#127's six invocations / five
+rejections — and the convergence is structural, not luck: PQ-3 was disposed
+`not-addressed` (I had fixed only one of three stale mentions) and the gate correctly did
+**not** block on it, because Minor never blocks. The new Minor raised in round 2 likewise
+cost no round-trip. Both would have cost one under the old gate.
+
+**Review quality was NOT weakened — round 1 caught two real defects:**
+- **PQ-1 (Critical):** Task 14's replay harness read a return value `runChangeCode` never
+  produces. Task 8's own gates-as-data refactor routes gate failures through
+  `exitWithCode(1)` → `os.Exit`, so round 1 of the replay would have killed the test
+  process — the round whose blocking *is* the point. Respecified onto
+  `runPlanQualityJudge`, which returns an error and owns the full ledger path.
+- **PQ-2 (Important):** Task 12 specified `churnForWindow` on `gitx.Capture`, which
+  flattens every error to `""` (`window.go:50-56`, and its own doc warns against exactly
+  this use). Task 13's "a git failure warns and leaves the values at zero" would have been
+  unimplementable — a bad base SHA would print an all-zero churn line indistinguishable
+  from an empty window. Switched to `gitx.RunGit`.
+
+Both are seam-level findings about hard-to-reverse decisions — the class #187's Problem
+section says the gate must keep catching.
+
+**A fidelity bug live use found that the fuzz could not.** Round 1's PQ-1 detail came back
+**truncated** mid-sentence. The judge wrote `## Estimate` inside a YAML *plain* scalar,
+where ` #` begins a comment — so the finding silently lost its second half, and that
+truncated text is what round 2 was shown as its prior finding. The gate's memory was
+quietly lossy. `FuzzRenderParseRoundTrip` could not catch it: it fuzzes OUR render/parse,
+not the judge's authoring. Fixed by rendering title/detail/note as `|` block scalars in the
+handoff instruction (immune to `#` and `:`), pinned by a test that asserts both halves —
+block form survives, plain form loses text — so nobody "simplifies" it back.
+
+**Also from M1 implementation:** `FuzzRenderParseRoundTrip` failed within one second of its
+first run on input `"\n0"` — `go.yaml.in/yaml/v3` mis-emits leading-newline strings,
+writing a block-scalar indent indicator (`|4-`) contradicting its own 8-space indentation,
+so its own parser rejects the result. A finding whose detail began with a newline would
+have written a ledger that could never be read back, destroying that issue's gate memory
+permanently. Fixed by canonicalizing agent prose at the schema boundary plus a defensive
+canonicalization at the write boundary.
+
+**Mutation-verified guards** (a guard that cannot fail is worse than none): swapping the
+gate-order literal makes `TestGateOrderPlanBeforeEstimate` fail; reverting
+`helptext/issue.md` to the old estimate story makes `TestEstimateTimingConsistency` fail.
+
+**Estimate-quality on round 2: INFO** (non-blocking), five methodology notes. One is a
+factual slip worth correcting here: the design-share comparison mixed conventions — the
+peer figures (#172 61%, #180 41%, #186 53%) are pre-buffer `est_design/estimate`, so the
+like-for-like number for this issue is **45.6%** (3.85/8.45), not the post-buffer 52%.
+The conclusion is unchanged (45.6% sits inside 41–61%). The remaining four notes —
+near-uniform ceiling selection on impl, the Step 3/Step 6 coupling, the un-itemized sunk
+cost, and item 5 being a multiplier wearing an item's clothes — are recorded as advisory;
+the estimate has been re-derived three times already and further tuning would cost more
+than it informs.
 
 ### 2026-07-29 — gate PASSED on round 5; estimate re-derived on the estimate-quality review
 

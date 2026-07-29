@@ -88,10 +88,19 @@ func (m *FindingModel) RenderBlockInstruction() string {
 	b.WriteString("binary parses. `dispose:` first (every prior finding), then `findings:`\n")
 	b.WriteString("(anything newly raised). Use `id: new` for a new finding — the binary\n")
 	b.WriteString("assigns the stable id. Omit a key entirely when it has no entries.\n\n")
+	// title/detail/note are shown as BLOCK SCALARS (`|`), not plain scalars. This is not
+	// cosmetic: in a YAML plain scalar a ` #` begins a comment, so a finding whose text
+	// contains "issue #187" or "## Estimate" is SILENTLY TRUNCATED at that point — and the
+	// truncated text is what the next round is shown as its own prior finding. Observed
+	// live on ariadne#187 round 1, where a detail lost its second half. Block scalars are
+	// immune to `#` and `:` alike.
 	b.WriteString("```findings\ndispose:\n  - id: <a prior finding's id>\n    disposition: <" +
-		strings.Join(m.AllDispositions(), " | ") + ">\n    note: <one line, optional>\nfindings:\n" +
+		strings.Join(m.AllDispositions(), " | ") + ">\n    note: |\n      <optional, one line>\nfindings:\n" +
 		"  - id: new\n    severity: <" + strings.Join(m.Severities(), " | ") + ">\n" +
-		"    title: <one line>\n    detail: <a sentence or two, optional>\n```\n\n")
+		"    title: |\n      <one line>\n    detail: |\n      <a sentence or two, optional>\n```\n\n")
+	b.WriteString("Use the `|` block form for title, detail and note exactly as shown, and indent\n")
+	b.WriteString("their text by six spaces. In plain YAML a ` #` starts a comment, so an\n")
+	b.WriteString("unquoted `## Estimate` or `issue #187` would silently truncate your finding.\n\n")
 
 	width := 0
 	for _, t := range append(append([]string{}, m.Severities()...), m.AllDispositions()...) {
