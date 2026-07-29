@@ -86,7 +86,7 @@ func ParseNumstat(out string) []FileStat {
 		if err != nil {
 			continue // binary ("-"), or a header line that is not a numstat row
 		}
-		path := strings.TrimSpace(fields[len(fields)-1])
+		path := resolveRenamePath(strings.TrimSpace(fields[len(fields)-1]))
 		if path == "" {
 			continue
 		}
@@ -104,4 +104,37 @@ func TotalInsertions(stats []FileStat) int {
 		total += s.Insertions
 	}
 	return total
+}
+
+// resolveRenamePath rewrites numstat's rename notation to the DESTINATION path. Git renders
+// a rename as `prefix{old => new}suffix` (or bare `old => new` when the paths share no
+// prefix), so the raw field is not a path at all.
+//
+// It matters for bucketing, not tidiness: a cross-top-level rename renders as
+// `{atlas => docs}/x.md`, whose first path segment is the literal `{atlas` — so
+// ClassifyPath's segment rule, which is otherwise exactly right, would miss it and bucket
+// map churn as production code. Resolving here rather than in ClassifyPath means every
+// consumer of FileStat.Path gets a real path.
+func resolveRenamePath(field string) string {
+	const arrow = " => "
+	if !strings.Contains(field, arrow) {
+		return field
+	}
+	// openBrace/closeBrace, not open/close — `close` is a builtin, and the review that
+	// found this function's bug also flagged a shadowed builtin two files over.
+	openBrace := strings.Index(field, "{")
+	closeBrace := strings.Index(field, "}")
+	if openBrace < 0 || closeBrace < openBrace {
+		// Bare form: `old.go => new.go` — the destination is everything after the arrow.
+		return strings.TrimSpace(field[strings.Index(field, arrow)+len(arrow):])
+	}
+	inner := field[openBrace+1 : closeBrace]
+	i := strings.Index(inner, arrow)
+	if i < 0 {
+		return field
+	}
+	// `prefix` + `new` + `suffix`, where an empty `new` collapses a doubled separator
+	// (`workshop/{ => history}/x` vs `workshop/{history => }/x`).
+	rebuilt := field[:openBrace] + strings.TrimSpace(inner[i+len(arrow):]) + field[closeBrace+1:]
+	return strings.ReplaceAll(rebuilt, "//", "/")
 }

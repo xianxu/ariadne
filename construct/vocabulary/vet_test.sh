@@ -49,4 +49,17 @@ if cue vet "$dir/project.cue" "$dir/testdata/project_executing_no_baseline.json"
   echo "FAIL: executing record without baseline must still be rejected"; exit 1
 fi
 
+# finding (ariadne#187): atomic noun like verdict — no lifecycle. Guard every concrete
+# block the Go binding consumes, because `cue export` drops `#`-definitions and an EMPTY
+# export would pass TestFindingConformance vacuously (all its loops range over
+# model-derived slices, and both negative assertions are satisfied by an empty model).
+# `hardBlocking` is listed separately from `categories`: it is the post-round-cap rule
+# (Critical never demotes), so losing it would silently let the cap demote a Critical.
+cue vet "$dir/finding.cue" || { echo "FAIL: valid finding model did not vet"; exit 1; }
+fjson="$(cue export "$dir/finding.cue" --out json)"
+echo "$fjson" | grep -q '"categories"'   || { echo "FAIL: finding categories not in export";   exit 1; }
+echo "$fjson" | grep -q '"dispositions"' || { echo "FAIL: finding dispositions not in export"; exit 1; }
+echo "$fjson" | grep -q '"hardBlocking"' || { echo "FAIL: finding hardBlocking not in export"; exit 1; }
+echo "$fjson" | grep -q '"closing"'      || { echo "FAIL: finding disposition partition not in export"; exit 1; }
+
 echo ok

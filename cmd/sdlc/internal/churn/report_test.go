@@ -75,9 +75,9 @@ func TestParseNumstatHandlesLogOutput(t *testing.T) {
 	if got := TotalInsertions(stats); got != 64 {
 		t.Errorf("TotalInsertions = %d, want 64", got)
 	}
-	// The rename's path keeps git's arrow form; it classifies by the leading segment,
-	// which is all the bucketing needs.
-	if stats[2].Insertions != 4 {
+	// The rename resolves to its DESTINATION path (see TestParseNumstatResolvesRenames);
+	// what matters here is that the row is counted at all.
+	if stats[2].Insertions != 4 || stats[2].Path != "cmd/new.go" {
 		t.Errorf("rename row = %+v", stats[2])
 	}
 }
@@ -93,5 +93,41 @@ func TestTotalInsertionsCountsRepeatedPaths(t *testing.T) {
 	}
 	if got := TotalInsertions(stats); got != 90 {
 		t.Errorf("TotalInsertions = %d, want 90", got)
+	}
+}
+
+// numstat renders a rename as `prefix{old => new}suffix`, which is not a path. Left raw, a
+// cross-top-level rename (`{atlas => docs}/x.md`) has the literal `{atlas` as its first
+// segment, so ClassifyPath's segment rule — otherwise exactly right — would bucket map
+// churn as production code (#187 close review, Minor).
+func TestParseNumstatResolvesRenames(t *testing.T) {
+	for _, tc := range []struct{ field, want string }{
+		{"atlas/{index.md => index-tmp.md}", "atlas/index-tmp.md"},
+		{"workshop/{ => history}/issues/000185-x.md", "workshop/history/issues/000185-x.md"},
+		{"{atlas => docs}/x.md", "docs/x.md"},
+		{"cmd/{old.go => new.go}", "cmd/new.go"},
+		{"cmd/old.go => cmd/new.go", "cmd/new.go"},
+		{"cmd/sdlc/close.go", "cmd/sdlc/close.go"},
+	} {
+		stats := ParseNumstat("1\t0\t" + tc.field + "\n")
+		if len(stats) != 1 {
+			t.Fatalf("ParseNumstat(%q) returned %d stats", tc.field, len(stats))
+		}
+		if stats[0].Path != tc.want {
+			t.Errorf("ParseNumstat(%q) path = %q, want %q", tc.field, stats[0].Path, tc.want)
+		}
+	}
+}
+
+// The bucketing consequence, stated as its own assertion: a rename OUT of atlas/ must not
+// land in code-prod.
+func TestRenameOutOfAtlasStillBucketsByDestination(t *testing.T) {
+	r := Summarize(ParseNumstat("5\t0\t{atlas => docs}/x.md\n"), 5)
+	if r.Final.CodeProd != 5 {
+		t.Errorf("a rename INTO docs/ is prod churn: %+v", r.Final)
+	}
+	r2 := Summarize(ParseNumstat("5\t0\t{docs => atlas}/x.md\n"), 5)
+	if r2.Final.Atlas != 5 {
+		t.Errorf("a rename INTO atlas/ is atlas churn, not prod: %+v", r2.Final)
 	}
 }

@@ -1,12 +1,13 @@
 ---
 id: 000187
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-28
 updated: 2026-07-29
 estimate_hours: 8.45
 started: 2026-07-29T10:26:05-07:00
+actual_hours: 2.32
 ---
 
 # tune the change-code gate: stateful plan review, estimate after plan, churn metric
@@ -233,6 +234,68 @@ optimistic end for work of this shape, and is recorded as such rather than padde
 - [x] M2 — `sdlc close --issue 187` (Task 15)
 
 ## Revisions
+
+### 2026-07-29 — close review: FIX-THEN-SHIP, all findings fixed before the close commit
+
+**Reason:** `sdlc close --issue 187`. Verdict FIX-THEN-SHIP, no Critical, four Important.
+Per #174 the fixes land in the SAME commit as the close and the review is not re-run.
+Sidecar: `workshop/plans/000187-tune-change-code-gate-close-review.md`.
+
+Every finding was verified against the code before acting on it; all four held up.
+
+**Fixed:**
+- **I1 — appending columns left every existing ledger self-describing wrongly.**
+  `appendCalibrationRow` writes the header only when it CREATES the file, so a
+  pre-existing calibration ledger would carry 20-column rows under its 10-column header:
+  churn and rework data present but unlabeled, in a file whose entire audience reads
+  columns by name. Fixed with `estimate.UpgradeHeader`, which upgrades **only** a header
+  that is a genuine prefix of the current one — a wider header (a newer binary's) or a
+  diverging one (foreign) is left untouched rather than migrated on a guess. My own
+  column-append discipline protected the reader and forgot the file's own schema line.
+- **I2 — the new noun sat outside the model gate every other noun sits inside.**
+  `construct/vocabulary/vet_test.sh` covered issue/verdict/project, not `finding`, though
+  both prior nouns treated it as a mandatory step. This had teeth:
+  `TestFindingConformance` passes **vacuously** on an empty export (every loop ranges over
+  model-derived slices; both negative assertions are satisfied by an empty model), so the
+  Go side would not have caught a broken export either. Now asserts `categories`,
+  `dispositions`, `hardBlocking` and the `closing` partition — mutation-verified by
+  renaming the `hardBlocking` field, which fails the gate.
+- **I3 — the noun registry was not updated.** `atlas/workflow/vocabulary.md` gained a
+  `finding` entry naming its two partitions, `hardBlocking`, every consumer, and the one
+  consumer that cannot derive its names (the ledger's literal columns, guarded instead).
+- **I4 — the protocol-error path threw away findings the judge legitimately raised, then
+  claimed a clean slate.** `ApplyChecked` failing means the DISPOSITIONS were invalid;
+  `round.New` has already been parsed and model-validated. Persisting a findings-less round
+  therefore discarded real work — and worse, `RenderPriorFindings` then told the next round
+  *"every prior finding has been disposed"*, a positive claim that was false. A judge
+  raising three real Criticals alongside one hallucinated disposition id would have seen an
+  empty slate on re-run, in the artifact whose sole purpose is not losing findings. Fixed on
+  both halves (keep the findings; distinguish "all disposed" from "none ever recorded") and
+  mutation-verified.
+
+**Minors fixed:** the last surviving "seven columns" in the plan (`:2440` → "ten", the
+instance M1's Revisions already claimed closed); `changecode.go`'s package doc, which still
+said "four gates" in the **pre-B1** order — the first thing a reader of the most-changed
+file sees, flagged at M1 and still wrong; the step comment that jumped 3 → 5 when the
+`--force` blocks were consolidated; `nextIDSeq`'s `max` shadowing the builtin (`Decide` in
+the same package deliberately avoids that, so one convention now); `DispositionCounts`
+seeding a `not-addressed` bucket that can never increment; and a **real bug in my own new
+code** — `churn.ClassifyPath` bucketed a cross-top-level rename wrong, because numstat
+renders one as `{atlas => docs}/x.md` whose first segment is the literal `{atlas`. Resolved
+at the parse boundary so every consumer gets a real path.
+
+**Not fixed, with reasons:** `planGateContent`'s fence-unawareness matches
+`issue.SectionBody`'s existing behavior, so changing one and not the other would create the
+inconsistency rather than remove it (`issue.SplitFences` exists if it is ever worth doing
+fleet-wide). `readPlanGateLedger` stamping `issue: 0` under `--name` with no `--issue` is a
+pre-existing carry from M1 that needs a decision about what identity `--name` mode has —
+its own issue, not a close-commit change.
+
+**Carried forward for #183, in the reviewer's words:** the recurring miss across BOTH
+boundaries of this issue is the same shape — the derivation lands and one consumer is left
+behind, and in both cases the consumer was a file that *describes* the thing rather than
+*uses* it. Treat an artifact's own header/schema line and the noun registry as consumers.
+
 
 ### 2026-07-29 — M2: the replay ANSWERS the "did we weaken review" question, and beats it
 
@@ -689,6 +752,8 @@ positional indexing.
 ## Log
 
 
+
+- 2026-07-29: closed — M2 delivers D1-D3: sdlc close now prints the four-bucket churn split, rework ratio, and BOTH senses of gate disposition, and the calibration ledger records all ten as appended columns (indices 10-19, legacy 10-column rows still parse). Verified by go test ./... + go vet clean; TestChurnLinePrintsWhenLedgerRowIsSkipped pins the unconditional contract across the three conditions that gate the ledger row (milestone / --no-actual / no-brain); TestCloseLedgerRowCarriesCostMetrics proves the wiring end-to-end over a real git window and a real gate ledger. Mutation-verified guards: swapping RunGit->Capture fails the bad-base test, reordering the classify switch or loosening its segment match fails their tests. THE HEADLINE (Task 14, evidence in workshop/plans/000187-replay-pair127.md): replaying pair#127 pre-gate plan through the tuned gate took 2 rounds / 1 rejection against the baseline 6 invocations / 5 rejections, and review got BETTER not weaker -- both must-survive findings landed in round 1, the seam finding came back deeper (it derived the snapshot-under-m.mu lock contract and named deadlock as the alternative violation mode), round 2 raised ZERO new findings, and the malformed-input->panic class that originally escaped to close review was caught at PLAN time. C1 exercised on both halves twice (real artifact + controlled synthetic pair; the strategy-line variant drew no test-surface finding yet still drew three substantive ones, so the shape buys no leniency). Risk 5 discharged: both rounds parsed with protocol_error="". CALIBRATION, flagged not corrected per the M2 pickup note: 8.45h estimate vs measured actual ~2.29h = 3.7x OVER, matching the note prediction of roughly 4x; the estimate was re-derived three times across five gate rounds and each round that added plan scope added estimate items, so a stateless gate inflates estimates the same way it inflates round-trips -- a #187-shaped observation for the postmortem. MEASUREMENT ARTIFACT worth its own issue: active-time mention-fallback attributed 46.1m to pair#127 because this issue own replay work cites #127 constantly, so 2.29h likely UNDERCOUNTS #187; adopted as measured rather than hand-corrected, since a typed actual is exactly what the gate exists to prevent. Two defects M2 found in its own house, neither in the plan: --plans-dir was empty on the milestone-close path (milestoneCloseFlags.closeFlags() builds closeFlags directly, and an empty plans dir resolves to the REPO ROOT -- every milestone close would have read as no-gate-ledger and written sidecars beside the Makefile), and the ledger column names cannot be model-derived from finding.cue, now pinned by TestLedgerCoversEveryClosingDisposition.; review verdict: FIX-THEN-SHIP
 - 2026-07-29: closed M1 — Live 2-round convergence on #187 own plan: round 1 blocked (1 Critical + 1 Important + 2 Minor, ledger written, PQ-1..PQ-4 assigned); round 2 passed ("no open blocking findings after 2 round(s); 1 advisory recorded") with a not-addressed Minor correctly NOT blocking. Review quality held: round 1 caught two real seam defects in M2 plan (runChangeCode os.Exit vs harness return value; gitx.Capture cannot report the failure Task 13 warns on). go test ./... green; 2 fuzz targets (13.8M execs) — FuzzRenderParseRoundTrip caught a yaml/v3 emitter bug that would have made ledgers unreadable. Mutation-verified: swapping the gate-order literal fails TestGateOrderPlanBeforeEstimate; reverting helptext/issue.md fails TestEstimateTimingConsistency.; review verdict: FIX-THEN-SHIP
 ### 2026-07-28
 

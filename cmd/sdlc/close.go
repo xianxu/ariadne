@@ -915,8 +915,18 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 	if len(existing) == 0 {
 		buf.WriteString(estimate.Header() + "\n")
 	} else {
-		buf.Write(existing)
-		if !strings.HasSuffix(string(existing), "\n") {
+		// Upgrade a legacy header before appending (#187). The column APPEND protects the
+		// reader, but the header is written only on creation — so without this, every
+		// pre-existing ledger would carry 20-column rows under a 10-column header: the
+		// churn and gate data present but unlabeled, which for a file read by humans and
+		// scripts by column name is worse than absent.
+		text := string(existing)
+		if upgraded, changed := estimate.UpgradeHeader(text); changed {
+			text = upgraded
+			cok(stderr, "calibration ledger: header upgraded to the #187 column set")
+		}
+		buf.WriteString(text)
+		if !strings.HasSuffix(text, "\n") {
 			buf.WriteString("\n")
 		}
 	}

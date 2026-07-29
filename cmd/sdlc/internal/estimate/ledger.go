@@ -181,3 +181,42 @@ func yesno(b bool) string {
 	}
 	return "no"
 }
+
+// UpgradeHeader rewrites a ledger's header line to the CURRENT column set, returning the
+// updated text and whether it changed.
+//
+// It exists because appending columns (#187) only protects the reader. The writer emits a
+// header solely when creating the file, so every pre-existing ledger in the fleet kept its
+// 10-column header while newly appended rows carried 20 — the data present but unlabeled,
+// which is worse than absent for a file whose whole audience is humans and scripts reading
+// columns by name.
+//
+// Upgrades ONLY when the existing header is a genuine PREFIX of the current one, i.e. a
+// strictly older version of this schema. A header with unknown or reordered columns is left
+// untouched: that is either a foreign file or a newer binary's, and rewriting it would be
+// this function inventing a schema migration it cannot verify.
+func UpgradeHeader(text string) (string, bool) {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimRight(line, "\r")
+		if !strings.HasPrefix(trimmed, "issue\t") {
+			continue
+		}
+		if trimmed == ledgerHeader {
+			return text, false
+		}
+		have := strings.Split(trimmed, "\t")
+		want := strings.Split(ledgerHeader, "\t")
+		if len(have) >= len(want) {
+			return text, false // same width or wider — not ours to migrate
+		}
+		for j, col := range have {
+			if col != want[j] {
+				return text, false // diverges, so it is not an older version of THIS schema
+			}
+		}
+		lines[i] = ledgerHeader
+		return strings.Join(lines, "\n"), true
+	}
+	return text, false
+}

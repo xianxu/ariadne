@@ -1,15 +1,25 @@
 // changecode.go — `sdlc change-code --issue N` subcommand.
 //
-// The planning → implementation transition. Composes four gates:
+// The planning → implementation transition. Composes a GATE SEQUENCE plus the branching
+// decision. The sequence is data, not prose — `changeCodeGates` is the single source of the
+// order, so this list documents it rather than defining it:
 //
-//  1. Structural sanity   — deterministic checks against the issue file
-//     (Spec ≥ 50 words, non-empty Plan, etc.).
-//  2. Estimate gate       — a positive estimate_hours: (#113), relocated
-//     from claim; --no-estimate bypasses.
-//  3. Plan-quality judge  — fresh-context LLM review: is this plan
-//     executable as-written?
-//  4. Branching strategy  — default in-place (#51); --worktree=yes for a
-//     worktree, --worktree=ask to be prompted.
+//  1. Structural sanity     — deterministic checks against the issue file
+//     (Spec ≥ 50 words, non-empty Plan, etc.). Free: no subprocess.
+//  2. Plan-quality judge    — fresh-context LLM review: is this plan executable
+//     as-written? STATEFUL since #187 — it remembers its own prior findings
+//     (see internal/gatestate) and passes through unchanged content.
+//  3. Estimate gate         — a positive estimate_hours: (#113).
+//  4. Estimate reconcile    — the frontmatter number vs the ## Estimate block.
+//  5. Estimate-quality judge — is the estimate DERIVED rather than guessed?
+//
+// then the branching strategy: default in-place (#51); --worktree=yes for a worktree,
+// --worktree=ask to be prompted.
+//
+// Plan-quality runs BEFORE the estimate gates (#187 B1): the estimate is derived once the
+// design is settled, so costing an unapproved plan is work thrown away. The pass-through
+// hash is what keeps that reorder from charging a fresh judge dispatch for every
+// estimate-gate retry.
 //
 // Any gate can be skipped with the corresponding --no-* flag, or
 // bypassed wholesale with --force <reason>. The --force rationale
@@ -138,7 +148,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		}
 	}
 
-	// 5. Branching strategy.
+	// 4. Branching strategy (the gate sequence above is step 3).
 	wt, err := resolveBranchingStrategy(stdin, stdout, stderr, f, name, issueContent)
 	if err != nil {
 		die(stderr, err.Error())
@@ -501,8 +511,20 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	if aerr != nil {
 		// Same reasoning: a protocol error is a round that happened and cost latency.
 		cwarn(stderr, "plan-quality: "+aerr.Error())
+		// KEEP the findings — only the DISPOSITIONS failed validation. `round.New` came
+		// through ParseFindingsBlock (severities checked against the model) and got its ids
+		// from AssignIDs, so those findings are as valid as any other round's. This differs
+		// from the no-findings-block path above, which genuinely has nothing to record.
+		//
+		// Discarding them was worse than losing data: with no findings recorded,
+		// RenderPriorFindings would tell the NEXT round "every prior finding has been
+		// disposed" — a positive claim that is false — so a judge that raised three real
+		// Criticals alongside one hallucinated disposition id would see a clean slate on
+		// re-run, in the artifact whose sole purpose is not losing findings. It also
+		// under-reported gate_addressed/gate_open in the close-time metric.
 		persistPlanGateRound(stderr, f, issueFile, ledger, gatestate.Round{
 			N: n, Timestamp: nowRFC3339(), Agent: string(agent),
+			New:           round.New,
 			ProtocolError: aerr.Error(), Blocked: true,
 			Forced: forcedRationale(f.Force, true),
 		})

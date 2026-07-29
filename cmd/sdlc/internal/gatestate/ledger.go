@@ -103,15 +103,17 @@ func trimIDPrefix(id, prefix string) string {
 // AssignIDs, and refusing to issue new IDs because an old one looks odd would wedge the
 // gate shut.
 func nextIDSeq(l Ledger) int {
-	max := 0
+	// highest, not `max` — Decide in this package spells out `roundCap` for the same reason,
+	// and one convention per package beats two.
+	highest := 0
 	for _, r := range l.Rounds {
 		for _, f := range r.New {
-			if n, err := strconv.Atoi(trimIDPrefix(f.ID, l.IDPrefix)); err == nil && n > max {
-				max = n
+			if n, err := strconv.Atoi(trimIDPrefix(f.ID, l.IDPrefix)); err == nil && n > highest {
+				highest = n
 			}
 		}
 	}
-	return max + 1
+	return highest + 1
 }
 
 // AssignIDs stamps binary-assigned stable IDs onto a RoundReport's new findings and
@@ -216,8 +218,14 @@ func DispositionCounts(l Ledger) (counts map[string]int, open int) {
 	}
 	m := vocab.Finding()
 	counts = map[string]int{}
+	// Seed only the CLOSING dispositions. An open one (`not-addressed`) can never be
+	// incremented here — those findings are counted in `open` — so seeding it produced a
+	// permanent zero bucket that told a caller iterating the map that a real category had
+	// no members. The buckets are exactly "the ways a finding got settled".
 	for _, d := range m.AllDispositions() {
-		counts[d] = 0
+		if m.Closes(d) {
+			counts[d] = 0
+		}
 	}
 	for _, r := range l.Rounds {
 		for _, f := range r.New {

@@ -2437,7 +2437,7 @@ func TestChurnLinePrintsWhenLedgerRowIsSkipped(t *testing.T) {
 Run: `go test ./cmd/sdlc/... ./cmd/sdlc/internal/... -v`
 Expected: PASS, including `projectthroughput_test.go`'s ledger fixture.
 
-- [x] **Step 7: Update the atlas** — the calibration-ledger schema row gains the seven
+- [x] **Step 7: Update the atlas** — the calibration-ledger schema row gains the ten
   columns; `atlas/workflow/gate-state.md` gains the "what close reports" section.
 
 - [x] **Step 8: Commit**
@@ -2635,3 +2635,46 @@ func TestReplayPair127(t *testing.T) {
    plan judge emits `VERDICT:` *and* ` ```findings `). That is a transitional redundancy,
    not the end state: once adoption is confirmed, the token drops and `Decide` is the only
    reader. Recorded here so a future reader does not mistake it for a design intent.
+
+---
+
+## Revisions
+
+### 2026-07-29 — M2-as-shipped deltas, from the close review (FIX-THEN-SHIP)
+
+Recorded so the plan stops claiming what the code did not deliver. All three were found by
+the close-boundary review, verified against the code, and fixed in the close commit.
+
+- **Task 1 shipped incomplete — two surfaces of "adding a noun" were skipped.**
+  `construct/vocabulary/vet_test.sh` was never extended for `finding`, and
+  `atlas/workflow/vocabulary.md` — the noun registry the page-per-noun convention lives in —
+  was not updated. Task 1's file list named neither, yet both prior nouns (#147 `verdict`,
+  #180 `project`) treated `vet_test.sh` as a mandatory step. The gap had teeth:
+  `TestFindingConformance` would pass **vacuously** on an empty export, because every loop
+  ranges over model-derived slices and both negative assertions are satisfied by an empty
+  model. Now guarded, with `categories` / `dispositions` / `hardBlocking` / `closing`
+  asserted in the export — and mutation-verified (renaming the `hardBlocking` field fails
+  the gate).
+- **Task 13's ledger append was write-only for existing files.** The column-append
+  discipline correctly protects the *reader*, but the plan never stated that
+  `appendCalibrationRow` writes the header **only on creation** — so every pre-existing
+  ledger in the fleet would carry 20-column rows under a 10-column header: the churn and
+  gate data present but unlabeled, which for a file read by column name is worse than
+  absent. Fixed with `estimate.UpgradeHeader`, which upgrades **only** a header that is a
+  genuine prefix of the current one (a wider or diverging header is left alone rather than
+  migrated on a guess).
+- **Task 8's protocol-error path discarded validated findings.** The plan specifies
+  persisting a findings-less round for the *no-block* case — correctly, with the
+  `len(Rounds)` reasoning — and Task 8 reused that shape for the `ApplyChecked` failure,
+  where `rr.New` has **already** been parsed and model-validated. The two cases differ. The
+  consequence was worse than lost data: with no findings recorded, the next round's prompt
+  announced *"every prior finding has been disposed"*, so a judge that raised three real
+  Criticals alongside one hallucinated disposition id would see a clean slate on re-run.
+  Fixed on both halves — the round keeps its findings, and `RenderPriorFindings` now
+  distinguishes "all disposed" from "none ever recorded".
+
+**Also deviated, deliberately, in Task 14 Step 4** — see
+`workshop/plans/000187-replay-pair127.md` for the full reasoning: C1's negative control
+could not use pair#127's ~15 prose test bullets, because that plan state was never
+committed. A controlled synthetic pair replaced it (and the negative half fired on the real
+four-case enumeration anyway).

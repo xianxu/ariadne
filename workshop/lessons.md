@@ -859,3 +859,22 @@ it silently. Grep each distinct idiom independently (setup AND runner:
 **Origin:** #186 close review (FIX-THEN-SHIP) — the rg gate keyed on
 `commit.gpgsign` missed `runGitCommand`, a byte-identical `testfix.Git` twin
 whose repo came from an already-delegated `hermeticRepo` (no gpgsign line).
+
+When you change a thing, the artifacts that *describe* it are consumers too — the
+shadow-sweep must include them, not just the code that calls it. Two misses of exactly
+this shape landed at both boundaries of one issue: a TSV whose header line still declared
+the old column set while new rows carried the new one (data present but unlabeled), and a
+noun registry page that never gained the noun. Both were skipped for the same reason — a
+"who consumes this?" sweep naturally follows call sites, and a file that states the schema
+has no call site. Add two named checks to the sweep: **the artifact's own header/schema
+line**, and **the registry/index page for its kind**.
+
+A corollary worth its own habit: a conformance test that ranges only over
+model-derived slices passes **vacuously** when the model exports empty, and its negative
+assertions ("an unmodeled value is rejected") are satisfied by an empty model too. Such a
+test needs one assertion with a literal in it — a length check, or a named member — or an
+independent gate that the export is non-empty.
+
+**Origin:** #187 close review (FIX-THEN-SHIP) — I1 (`estimate.UpgradeHeader`) and I2/I3
+(`vet_test.sh` + `atlas/workflow/vocabulary.md` missing the `finding` noun, where
+`TestFindingConformance` would have passed on an empty export).

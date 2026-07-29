@@ -164,3 +164,42 @@ func TestParseRows_SkipsNotApplicableActualRows(t *testing.T) {
 		t.Fatalf("N/A actual row should be skipped; got %d rows", len(got))
 	}
 }
+
+// The header is written only when the ledger is CREATED, so appending columns leaves every
+// pre-existing ledger describing 20-column rows with a 10-column header. This is the guard
+// for that upgrade (#187 close review I1).
+func TestUpgradeHeaderRewritesLegacyHeader(t *testing.T) {
+	legacy := "issue\testimate\test_design\test_impl\tactual\tratio\tmodel\tmode\twindow_trusted\tdate"
+	text := legacy + "\nariadne#1\t2\t1\t1\t3\t0.67\tm\t-\tyes\t2026-01-01\n"
+	got, changed := UpgradeHeader(text)
+	if !changed {
+		t.Fatal("a legacy 10-column header must be upgraded")
+	}
+	if !strings.HasPrefix(got, Header()+"\n") {
+		t.Errorf("header not replaced: %q", strings.SplitN(got, "\n", 2)[0])
+	}
+	// The data rows must survive untouched.
+	if !strings.Contains(got, "ariadne#1\t2\t1\t1\t3\t0.67\tm\t-\tyes\t2026-01-01") {
+		t.Errorf("data row altered: %q", got)
+	}
+}
+
+func TestUpgradeHeaderLeavesCurrentAndForeignHeadersAlone(t *testing.T) {
+	if _, changed := UpgradeHeader(Header() + "\nx\n"); changed {
+		t.Error("the current header must not be rewritten")
+	}
+	// Wider than ours — a newer binary's file. Migrating it would be inventing a schema
+	// change we cannot verify.
+	wider := Header() + "\tsomething_new"
+	if _, changed := UpgradeHeader(wider + "\n"); changed {
+		t.Error("a wider header must be left alone")
+	}
+	// Same width as a legacy header but different columns — foreign, not older.
+	foreign := "issue\twidgets\tfrobs\tactual\tratio\tmodel\tmode\twindow_trusted\tdate\tzzz"
+	if _, changed := UpgradeHeader(foreign + "\n"); changed {
+		t.Error("a diverging header must be left alone")
+	}
+	if _, changed := UpgradeHeader("no header here\n"); changed {
+		t.Error("text with no header line must be left alone")
+	}
+}

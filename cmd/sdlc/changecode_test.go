@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -628,5 +629,60 @@ func TestPlanQualityPassThroughSurvivesEstimateEdit(t *testing.T) {
 	if *calls != 1 {
 		t.Errorf("judge invoked %d times, want 1 — adding the estimate must not re-dispatch "+
 			"(that retry is the whole reason the pass-through exists)", *calls)
+	}
+}
+
+// A judge that hallucinates a disposition id while ALSO raising real findings must not cost
+// us the findings (#187 close review I4). Only the dispositions failed validation; the
+// findings came through the model-checked parser and already carry assigned ids.
+//
+// Failure scenario this pins: three real Criticals plus one bogus `dispose:` id. Before the
+// fix the round persisted with zero findings, so the NEXT round's prompt announced "every
+// prior finding has been disposed" — a false positive claim — and the gate's memory asserted
+// a clean slate it did not have, in the artifact whose sole purpose is not losing findings.
+func TestPlanQualityInvalidDispositionKeepsFindings(t *testing.T) {
+	dir := t.TempDir()
+	f := &changeCodeFlags{Issue: 187, PlansDir: dir}
+	stubJudgeSeq(t, findingsReply("FAILURE",
+		"dispose:\n  - id: PQ-99\n    disposition: addressed\n"+
+			"findings:\n  - id: new\n    severity: Critical\n    title: real seam defect\n"+
+			"  - id: new\n    severity: Important\n    title: real lock contract gap\n"))
+
+	err := runPlanQualityJudge(io.Discard, io.Discard, f, "000187-x", "000187-x.md", "issue", "plan")
+	if err == nil {
+		t.Fatal("a disposition naming an unknown finding is a protocol error and must block")
+	}
+
+	l, lerr := readPlanGateLedger(dir, "000187-x.md", 187)
+	if lerr != nil {
+		t.Fatal(lerr)
+	}
+	if len(l.Rounds) != 1 {
+		t.Fatalf("want 1 persisted round, got %d", len(l.Rounds))
+	}
+	r := l.Rounds[0]
+	if r.ProtocolError == "" {
+		t.Error("the round must record the protocol error")
+	}
+	if !r.Blocked {
+		t.Error("a protocol error must block")
+	}
+	if len(r.New) != 2 {
+		t.Fatalf("the judge's 2 VALID findings must survive the invalid disposition, got %d", len(r.New))
+	}
+	// The invalid disposition itself must NOT be recorded — that is the part that failed.
+	if len(r.Dispositions) != 0 {
+		t.Errorf("the unknown-id disposition must be dropped, got %+v", r.Dispositions)
+	}
+	if open := gatestate.OpenFindings(l); len(open) != 2 {
+		t.Errorf("both findings must be OPEN for the next round, got %d", len(open))
+	}
+	// And the next round's prompt must not claim a clean slate.
+	prior := gatestate.RenderPriorFindings(l)
+	if strings.Contains(prior, "every prior finding has been disposed") {
+		t.Errorf("the prompt claims a clean slate it does not have:\n%s", prior)
+	}
+	if !strings.Contains(prior, "real seam defect") {
+		t.Errorf("the next round must be shown the surviving findings:\n%s", prior)
 	}
 }
