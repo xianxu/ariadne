@@ -228,11 +228,84 @@ optimistic end for work of this shape, and is recorded as such rather than padde
 - [x] M2 — `churnForWindow` over the shared `boundaryWindowBase` window (Task 12)
 - [x] M2 — ten appended ledger columns + the close-time churn/round-trip lines, all
       degrading to zero rather than breaking a close (Task 13)
-- [ ] M2 — replay pair#127's first plan: fewer rounds, but the seam relocation and the
+- [x] M2 — replay pair#127's first plan: fewer rounds, but the seam relocation and the
       absorb-layer removal must still surface (Task 14)
 - [ ] M2 — `sdlc close --issue 187` (Task 15)
 
 ## Revisions
+
+### 2026-07-29 — M2: the replay ANSWERS the "did we weaken review" question, and beats it
+
+**Reason:** Tasks 11–14 implemented. The replay (Task 14) drove pair#127's actual pre-gate
+plan through the tuned gate against a real judge. Evidence:
+`workshop/plans/000187-replay-pair127.md`; harness `cmd/sdlc/planreplay_test.go` (tag
+`manual`).
+
+**2 rounds / 1 rejection, against the baseline's 6 invocations / 5 rejections** — and at
+better finding quality on every axis the replay can measure:
+
+| round | wall | findings | outcome |
+|---|---|---|---|
+| 1 | 244s | 3 Important + 2 Minor | BLOCKED |
+| 2 | 102s | 5 disposed `addressed`, **0 new** | PASSED |
+
+- **Both must-survive findings landed in round 1.** The filter-seam relocation (PQ-1) came
+  back *deeper* than the original gate produced it — it derived the concurrency contract each
+  seam choice implies (`appendBuffer` re-slices `tab.buffer` from the output goroutine; the
+  three `redrawTab` callers must snapshot under `m.mu`) and named deadlock as the
+  alternative's violation mode. The absorb-layer removal (PQ-2) came back with the mechanism
+  intact, including the "silently breaking capability negotiation **while the root-cause fix
+  stays green**" observation that makes it dangerous rather than merely wrong.
+- **A bug class moved from close review to plan review.** This issue's own evidence base
+  records that in the original run "the class of bug they missed (malformed input → panic)
+  was caught only at close review". PQ-3 caught it at *plan* time, naming the three specific
+  malformed forms (truncated CSI, overlapping OSC prefix/suffix on a short body, bare ESC at
+  end of buffer) and the blast radius ("kills `pair term` with every shell in the pane").
+  That is the single strongest result in M2 and it is more than the Done-when asked for.
+- **Round 2 raised ZERO new findings.** The stateless gate's pathology was re-deriving an
+  absolute bar each round and surfacing the next-deepest layer of an improving plan. Shown
+  its own prior findings, round 2 verified the five fixes and stopped.
+- **C1's semantics are exercised on BOTH halves, twice.** On the real artifact: the
+  enumerated shape drew PQ-3, the strategy-line rewrite passed with no test-surface finding.
+  On a controlled synthetic pair (`TestC1TestSurfaceShape`): the 15-case plan drew *"compress
+  to functions-under-test plus one strategy line each"* — verbatim the Done-when — while the
+  strategy-line plan drew **no** test-surface finding yet still drew three substantive ones,
+  including a real third-terminator-site defect. So the strategy shape bought no leniency on
+  substance; the gate simply stopped objecting to how tests were described. Neither variant
+  alone could show that.
+- **Risk 5 discharged.** Both rounds parsed with `protocol_error=""` — the live conformance
+  check for the ` ```findings ` fence — and five dispositions round-tripped through the
+  sidecar with notes intact.
+
+**Deviation from the plan, recorded rather than papered over.** Task 14 Step 4 planned to use
+pair#127's own ~15 prose test bullets as C1's negative control, citing `000127-*.md:346`.
+**That text is unrecoverable:** git holds the pre-gate revision (four cases in one prose
+bullet) and the final accepted plan (already strategy-form); the ~15-case version lived in an
+intermediate state never committed. C1 therefore runs as a controlled synthetic pair, which
+is sharper for a claim about *shape* — the historical artifact varied substance and shape at
+once. As it happened the negative half also fired on the real four-case enumeration, so both
+controls have historical backing.
+
+**Two defects M2 found in its own house, neither in the plan:**
+- **`--plans-dir` was empty on the milestone-close path.** Routing plans-dir through the new
+  `closeFlags.PlansDir` field broke a test, and the trace found the real cause:
+  `milestoneCloseFlags.closeFlags()` constructs `closeFlags` directly, so a field only cobra
+  populates is empty there — and an empty plans dir resolves to the REPO ROOT. Every
+  milestone close would have read as "no plan-gate ledger" (zeroing the metrics this
+  milestone exists to produce) and written review sidecars beside the Makefile. Fixed with one
+  `resolvePlansDir` plus the `--plans-dir` flag `milestone-close` never had.
+- **The ledger's column names cannot be model-derived.** `DispositionCounts` became
+  model-keyed in M1's boundary review, but a positional append-only TSV commits to literal
+  column names. Resolved by pinning schema against model:
+  `TestLedgerCoversEveryClosingDisposition` fails the moment `finding.cue` adds a closing
+  disposition with no column, instead of silently under-counting.
+
+**Churn on this issue's own window, measured by the code it added:** prod 1633 / test 2124 /
+atlas 116 / workshop 3327 (final 7200, **rework 1.0×**). Almost no rewriting — #187's work
+was additive. Note the honest caveat for `gate_rounds`: the sidecar counts **2** rounds, not
+the 7 this issue actually cost, because rounds 1–5 predate the ledger that records them. The
+metric is right; it just cannot see before its own existence.
+
 
 ### 2026-07-29 — plan authored; three deliberate deviations from the Spec
 

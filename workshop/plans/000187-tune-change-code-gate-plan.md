@@ -2475,7 +2475,7 @@ This is the Done-when criterion that protects the gate's *value*. It cannot be a
 - Create: `cmd/sdlc/planreplay_test.go` (the harness; build-tagged manual)
 - Create: `workshop/plans/000187-replay-pair127.md` (the evidence record)
 
-- [ ] **Step 1: Recover pair#127's round-1 state from the ISSUE file — there is no plan
+- [x] **Step 1: Recover pair#127's round-1 state from the ISSUE file — there is no plan
       doc.** `pair/workshop/history/` holds exactly two #127 artifacts:
       `issues/000127-term-pane-stream-corruption.md` and
       `plans/000127-term-pane-stream-corruption-close-review.md`. The close-review sidecar
@@ -2493,7 +2493,7 @@ This is the Done-when criterion that protects the gate's *value*. It cannot be a
       the "defense in depth" absorb layer that would have swallowed solicited terminal
       replies.
 
-- [ ] **Step 2: Build the replay harness.** A scratch repo driven through the real verb —
+- [x] **Step 2: Build the replay harness.** A scratch repo driven through the real verb —
       the same shape as the existing git-touching tests, so the ledger, the round counter
       and the convergence policy are all exercised for real:
 
@@ -2543,7 +2543,7 @@ func TestReplayPair127(t *testing.T) {
 > would prove nothing about convergence. The harness's job is to make each round
 > reproducible and the ledger inspectable.
 
-- [ ] **Step 3: Run the rounds for real.** Round 1 against the recovered plan; then edit
+- [x] **Step 3: Run the rounds for real.** Round 1 against the recovered plan; then edit
       the scratch plan to address only what round 1 raised; then round 2. Read
       `workshop/plans/000900-*-plan-gate.md` between rounds to confirm the dispositions
       landed.
@@ -2555,7 +2555,7 @@ func TestReplayPair127(t *testing.T) {
       *"a plan enumerating 15 prose test cases **draws a finding**"* — and a prompt rewrite
       that made the judge reject *both* shapes would otherwise ship green.
 
-- [ ] **Step 4: Record the evidence** in `000187-replay-pair127.md`. Four questions —
+- [x] **Step 4: Record the evidence** in `000187-replay-pair127.md`. Four questions —
       the fourth is the ONLY verification C1 gets anywhere in this plan:
       - rounds to acceptance (baseline: 6 invocations / 5 rejections);
       - **load-bearing check 1** — did the seam relocation still surface? Quote verbatim.
@@ -2574,7 +2574,7 @@ func TestReplayPair127(t *testing.T) {
         **didn't land** (check 3): revisit Task 7's prompt and re-run before closing. This
         is a gate on the issue, not a report.
 
-- [ ] **Step 5:** Summarize the outcome in the issue's `## Log` and commit.
+- [x] **Step 5:** Summarize the outcome in the issue's `## Log` and commit.
 
 ---
 
