@@ -311,7 +311,6 @@ func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
 		"Is this plan executable as-written",
 		"Vague checklist items",
 		"Undeclared cross-issue",
-		"Mismatched estimate vs scope",
 		// #175 forward fix: flag over-split Mx plans at design time.
 		"Over-split milestones",
 		"review boundary",
@@ -323,6 +322,16 @@ func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("PlanQuality prompt missing %q:\n%s", want, p)
+		}
+	}
+
+	// #187 B1: the estimate gates now run AFTER plan-quality, so at this point the
+	// estimate legitimately does not exist yet. A "mismatched estimate vs scope" ask
+	// here would demand the agent cost a plan nobody has accepted — the waste-by-
+	// construction B2 removes. This assertion replaces the old one that required it.
+	for _, forbidden := range []string{"Mismatched estimate vs scope", "estimate_hours"} {
+		if strings.Contains(p, forbidden) {
+			t.Errorf("PlanQuality prompt must not mention the estimate (#187 B1), found %q", forbidden)
 		}
 	}
 }
@@ -861,6 +870,59 @@ func TestCodeReviewSeveritiesMatchModel(t *testing.T) {
 	for _, s := range vocab.Finding().Severities() {
 		if !strings.Contains(body, s+" (") {
 			t.Errorf("code-review.md does not name severity %q from the finding model", s)
+		}
+	}
+}
+
+// TestPlanQualityPromptRendersFindingModel pins that the plan-quality prompt renders its
+// accepted severity/disposition set FROM the model (#187), so finding.cue stays the single
+// source and the prompt cannot drift from what the parser will accept.
+func TestPlanQualityPromptRendersFindingModel(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{})
+	m := vocab.Finding()
+	for _, s := range m.Severities() {
+		if !strings.Contains(p, s) {
+			t.Errorf("plan-quality prompt omits severity %q", s)
+		}
+	}
+	// AllDispositions(), not .Dispositions — the latter is map[string][]string since the
+	// closing/open partition landed.
+	for _, d := range m.AllDispositions() {
+		if !strings.Contains(p, d) {
+			t.Errorf("plan-quality prompt omits disposition %q", d)
+		}
+	}
+	if !strings.Contains(p, "```findings") {
+		t.Error("plan-quality prompt must show the fenced findings block")
+	}
+}
+
+// TestPlanQualityPromptCarriesPriorFindings pins A2's actual mechanism: the prior-round
+// block must reach the rendered prompt. Without this the gate is stateless no matter what
+// the ledger records.
+func TestPlanQualityPromptCarriesPriorFindings(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{PriorFindings: "SENTINEL-PRIOR-BLOCK"})
+	if !strings.Contains(p, "SENTINEL-PRIOR-BLOCK") {
+		t.Error("PriorFindings did not reach the rendered plan-quality prompt")
+	}
+	// Round 1 must announce itself rather than rendering an empty section.
+	first := BuildPrompt(PlanQuality, PromptInput{})
+	if !strings.Contains(first, "(no prior rounds)") {
+		t.Error("an empty PriorFindings should render the explicit no-prior-rounds default")
+	}
+}
+
+// TestPlanQualityPromptDemandsStrategyNotEnumeration pins C1's semantics in the prompt
+// text: the gate must ask for test FUNCTIONS + strategy and explicitly reject enumerated
+// case lists. This is the plumbing check; the behavioral check is the pair#127 replay.
+func TestPlanQualityPromptDemandsStrategyNotEnumeration(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{})
+	for _, want := range []string{
+		"functions", "one line of strategy", "fuzz it",
+		"enumerated list of test cases", "line-numbered inventory",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("plan-quality prompt missing the C1 ask %q", want)
 		}
 	}
 }
