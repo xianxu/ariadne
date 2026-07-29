@@ -46,7 +46,19 @@ it had no commit anchoring the segment and fell back to text mentions.
 
 ## Done when
 
--
+- A window whose commits all anchor `#A` while the prose mentions `#B` attributes to `#A`.
+  Commit boundaries outrank mention fallback; the engine already distinguishes them in its
+  warning text.
+- Mention-fallback attribution to a **terminal-status** issue (`done`/`wontfix`) refuses or
+  warns loudly — a closed issue is not accruing work, and silently growing its actual after
+  the fact corrupts calibration history.
+- **Regression check against a known answer:** re-measuring ariadne#187's real window
+  returns the 46.1m currently charged to pair#127 back to #187.
+- `sdlc actual` output states which rule attributed each segment, so a wrong number is
+  diagnosable without reading the engine.
+- No operator-facing workaround is introduced: hand-typing a corrected actual stays exactly
+  as forbidden as it is today (#178).
+- `atlas/workflow/` documents the precedence rule, since attribution now has one.
 
 ## Plan
 

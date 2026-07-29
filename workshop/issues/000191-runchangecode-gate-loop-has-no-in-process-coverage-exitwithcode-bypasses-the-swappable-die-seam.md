@@ -41,7 +41,15 @@ deferral note.
 
 ## Done when
 
--
+- `exitWithCode` is swappable in the same style as `die`, so `runChangeCode`'s gate loop is
+  drivable in-process.
+- Two currently-uncovered branches have tests: an unforced failing gate stops the sequence
+  and exits non-zero; a **forced** failing gate records the bypass and reaches the NEXT gate
+  (`changecode.go:134-138`, the branch that decides whether a forced run proceeds).
+- **It is verifiably a refactor:** `TestForceAckMatchesGateCatalog` and the gate-order guard
+  pass UNCHANGED, and no gate's behavior moves.
+- No new process-exit path: one seam, matching the existing convention rather than adding a
+  second way to exit.
 
 ## Plan
 

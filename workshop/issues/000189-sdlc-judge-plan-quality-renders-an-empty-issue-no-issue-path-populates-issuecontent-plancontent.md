@@ -42,7 +42,16 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
 
 ## Done when
 
--
+- `sdlc judge plan-quality --issue N` renders a prompt containing the issue's `## Spec`
+  text and, when a durable plan exists, its body — pinned by a golden prompt so an empty
+  render cannot pass again.
+- The issue/plan resolution is SHARED with `change-code` rather than a second copy
+  (`ARCH-DRY`): one of them changing cannot leave the other reading a different file.
+- The no-ledger question is SETTLED in the code, not left implicit — either the sidecar is
+  read read-only (prior findings shown, nothing recorded) or the category refuses and points
+  at `change-code`. Whichever is chosen, a test asserts it, so "stateless plan-quality" can
+  never quietly return.
+- Categories that take no issue context render byte-identically to today.
 
 ## Plan
 
