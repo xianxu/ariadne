@@ -2240,7 +2240,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Create: `cmd/sdlc/churnreport.go`
 - Create: `cmd/sdlc/churnreport_test.go`
 
-- [ ] **Step 1: Write the failing test** against a real temp git repo (the pattern
+- [x] **Step 1: Write the failing test** against a real temp git repo (the pattern
   `closereview_test.go` already establishes — `git` is exercised for real in a disposable
   repo rather than mocked, per `ARCH-MOCK`):
 
@@ -2272,7 +2272,7 @@ func TestChurnForWindowEmptyBase(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2–4: run-fail, implement, run-pass.** `churnForWindow(baseLong string)`:
+- [x] **Step 2–4: run-fail, implement, run-pass.** `churnForWindow(baseLong string)`:
   - `""` base → zero `churn.Report`, nil error.
   - final: `gitx.RunGit("diff", "--numstat", base+"..HEAD")` → `[]churn.FileStat`.
   - commit total: `gitx.RunGit("log", "--numstat", "--format=", base+"..HEAD")` summed.
@@ -2292,7 +2292,7 @@ func TestChurnForWindowEmptyBase(t *testing.T) {
     (`ARCH-DRY`; it keeps churn provably covering the same commits as the review and the
     atlas gate).
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ---
 

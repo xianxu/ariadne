@@ -225,7 +225,7 @@ optimistic end for work of this shape, and is recorded as such rather than padde
 **M2 — the gate's cost becomes measurable (D).** Plan Tasks 11–15.
 
 - [x] M2 — `churn` package: four-bucket classification + rework ratio (Task 11)
-- [ ] M2 — `churnForWindow` over the shared `boundaryWindowBase` window (Task 12)
+- [x] M2 — `churnForWindow` over the shared `boundaryWindowBase` window (Task 12)
 - [ ] M2 — ten appended ledger columns + the close-time churn/round-trip lines, all
       degrading to zero rather than breaking a close (Task 13)
 - [ ] M2 — replay pair#127's first plan: fewer rounds, but the seam relocation and the
