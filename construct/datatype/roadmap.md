@@ -102,8 +102,11 @@ rg -l "^type: roadmap"
 # All roadmaps for a product in the current repo (across months)
 ls workshop/projects/roadmap/*/<product>.md 2>/dev/null
 
-# All roadmaps in a month (proto-company view)
+# All roadmaps in a month in the current repo
 ls workshop/projects/roadmap/202610/ 2>/dev/null
+
+# Proto-company view across sibling repos
+rg -l "^type: roadmap" ../*/workshop/projects/roadmap/202610/ 2>/dev/null
 
 # All roadmaps gated to a specific event
 rg -l "^type: roadmap" | xargs rg -l "^target_event: external launch"

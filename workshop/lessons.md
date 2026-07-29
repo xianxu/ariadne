@@ -2,6 +2,27 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A residency/path change includes search recipes, not just prose path mentions
+
+**Pattern (#185 close review):** The roadmap residency lift updated the main
+datatype path, atlas row, and constitution, but left two search recipes with the
+old effective scope: roadmap's "proto-company view" listed only the current repo,
+and product's "all artifacts linking to a product" searched only `data/`, missing
+roadmaps/projects now under `workshop/projects/`. A raw stale-string sweep caught
+literal old paths, but not a query whose words stayed current while its search
+scope was wrong.
+
+**Rule:** When moving a datatype's residency or canonical home, audit every
+`Search recipes` block as executable contract. For each recipe, ask whether its
+filesystem roots still cover the stated semantic set; update labels and command
+roots together. A clean `rg old/path` sweep is necessary but insufficient —
+recipes can be stale by omission, not just by containing the old bytes
+(`ARCH-PURPOSE`, `ARCH-DRY`).
+
+**Origin:** #185 close review (FIX-THEN-SHIP). The fix split roadmap's
+current-repo month listing from the sibling-repo proto-company view and widened
+product link searches to include `workshop/projects/`.
+
 ## A prose policy is an integration contract when its test reads the repository; pin semantics and every derived consumer
 
 **Pattern (#167 close review):** The plan labeled `SessionContinuityPolicy` PURE,

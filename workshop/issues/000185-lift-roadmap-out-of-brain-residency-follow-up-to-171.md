@@ -1,12 +1,13 @@
 ---
 id: 000185
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-17
 updated: 2026-07-28
 estimate_hours: 0.84
 started: 2026-07-28T17:41:54-07:00
+actual_hours: 0.22
 ---
 
 # lift roadmap out of brain (residency follow-up to #171)
@@ -72,6 +73,7 @@ implementation hours to 40% of the v2/v2.1 primitive table.
 ## Log
 
 ### 2026-07-28
+- 2026-07-28: closed — Updated roadmap residency contract to center-of-gravity coding repo under workshop/projects/roadmap; regenerated ariadne harness docs with make weave; refreshed 42shots/parley.nvim with make weave after temporary stashes and restored their local changes; verified kbench read-only already has new clause; verified no brain roadmap artifacts with find /Users/xianxu/workspace/brain -path '*/data/roadmap/*' -print and rg -n '^type: roadmap\b' /Users/xianxu/workspace/brain -g '*.md'; verified no roadmap vocabulary model with rg --files construct/vocabulary | rg roadmap; ran sdlc issue validate --issue 185, sdlc issue validate --issue 15, make weave-drift-check, git diff --check, and stale-clause rg sweep.; review verdict: FIX-THEN-SHIP
 
 - Claimed, planned, and entered implementation. Operator chose the same
   center-of-gravity repo residency as projects; roadmap instances live under
@@ -94,6 +96,10 @@ implementation hours to 40% of the v2/v2.1 primitive table.
   change and no longer carry the stale roadmap residual clause. Left `kbench`
   unmodified per operator direction; read-only verification shows its generated
   harness docs already carry the new roadmaps-in-coding-repos clause.
+- Close review returned FIX-THEN-SHIP. Fixed the roadmap month search recipe to
+  distinguish current-repo listing from the proto-company sibling-repo view,
+  fixed product link searches to include `workshop/projects/`, and revised the
+  durable plan's Core Concepts table with INTEGRATION kind values.
 
 ### 2026-07-17
 

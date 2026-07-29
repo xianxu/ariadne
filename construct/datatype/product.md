@@ -125,8 +125,8 @@ rg -A2 "^# " $(rg -l "^type: product")
 rg "^\*\*State:\*\* in-progress" $(rg -l "^type: product")
 
 # All artifacts linking to a given product
-rg "^product: book-4$" data/
-rg "^products:.*\bbook-4\b" data/
+rg "^product: book-4$" data/ workshop/projects/
+rg "^products:.*\bbook-4\b" data/ workshop/projects/
 
 # State of one component (history via git)
 git log -p --follow data/product/ariadne.md | rg -B1 "^\*\*State:\*\* " | head -50

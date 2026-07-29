@@ -12,11 +12,11 @@
 
 ## Core Concepts
 
-| Name | Lives in | Status |
-|------|----------|--------|
-| `RoadmapResidency` | `construct/datatype/roadmap.md` | modified |
-| `BrainResidencyCharter` | `AGENTS.base.md` | modified |
-| `DatatypeAtlasRow` | `atlas/workflow/data-artifacts.md` | modified |
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `RoadmapResidency` | INTEGRATION | `construct/datatype/roadmap.md` | modified |
+| `BrainResidencyCharter` | INTEGRATION | `AGENTS.base.md` | modified |
+| `DatatypeAtlasRow` | INTEGRATION | `atlas/workflow/data-artifacts.md` | modified |
 
 - **RoadmapResidency** — contract for where roadmap instances live and how agents discover prior roadmaps.
   - **Relationships:** One roadmap belongs to one product/month pair; it resides in the center-of-gravity repo for that product, under `workshop/projects/roadmap/<YYYYMM>/<product>.md`.
@@ -47,6 +47,16 @@
 - **RoadmapSweep** — `rg`/`find` checks for stale roadmap residency text and live brain roadmap artifacts.
   - **Injected into:** Verification only.
   - **Future extensions:** Can become a deterministic lint if roadmap residency drifts again.
+
+## Revisions
+
+### 2026-07-28
+
+- Close review returned FIX-THEN-SHIP. Added `Kind` to the Core Concepts table
+  and classified the docs-contract entities as INTEGRATION because their
+  behavior is verified through repository files and generated consumers. Also
+  corrected roadmap/product search recipes so they match the center-of-gravity
+  repo residency instead of current-repo-only or data-only searches.
 
 ## Chunk 1: Contract And Verification
 
