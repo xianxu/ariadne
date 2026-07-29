@@ -88,7 +88,7 @@ When the dispatcher applies this prototype:
 
    **Owned by an entity.** When a product belongs to a containing entity that already has its own directory under `data/` (e.g., a company under `data/life/<entity>/`), the product may live in an entity-nested subdirectory: `data/<entity-path>/<slug>/<slug>.md`. Slug uniqueness across the brain and slug-as-filename are preserved. Example: `data/life/42shots/book-4/book-4.md`.
 
-   **What goes in the entity-nested folder vs. elsewhere.** The folder is the *home for the product spine plus the residue*: product-specific artifacts that don't fit any cross-cutting datatype (raw draft material, reader/customer-feedback notes, contract scans, asset files, marketing copy that hasn't earned its own type yet). It is **not** "everything related to the product." Cross-cutting datatypes — `project`, `roadmap`, `meeting-notes`, `pensive`, `reference`, `procedure`, `event`, `travel-plan` — stay in their canonical homes (e.g., `workshop/projects/<slug>.md`) and link via a `product: <slug>` frontmatter field. This keeps `rg -l "^type: <type>"` queries one-liners regardless of which product an artifact serves, and lets cross-product instances (e.g., a marketing campaign covering two products) be a single canonical file with `products: [a, b]` rather than duplicated under two folders.
+   **What goes in the entity-nested folder vs. elsewhere.** The folder is the *home for the product spine plus the residue*: product-specific artifacts that don't fit any cross-cutting datatype (raw draft material, reader/customer-feedback notes, contract scans, asset files, marketing copy that hasn't earned its own type yet). It is **not** "everything related to the product." Cross-cutting datatypes — `project`, `roadmap`, `meeting-notes`, `pensive`, `reference`, `procedure`, `event`, `travel-plan` — stay in their canonical homes (e.g., `workshop/projects/<slug>.md` for a project, `workshop/projects/roadmap/<YYYYMM>/<product>.md` for a roadmap) and link via a `product: <slug>` frontmatter field. This keeps `rg -l "^type: <type>"` queries one-liners regardless of which product an artifact serves, and lets cross-product instances (e.g., a marketing campaign covering two products) be a single canonical file with `products: [a, b]` rather than duplicated under two folders.
 
    **`prose.md` is the recognized sibling for pre-manuscript fragments.** Long-running written endeavors (book, blog, essay, spec) accumulate sentences and half-thoughts before they have a chapter or post to live in. When that happens, a `prose.md` lives next to the product spine — `<product-folder>/prose.md` — and the `prose` datatype owns it. **A product in default file form (`data/product/<slug>.md`) graduates to folder form when it first gains a prose sibling**: `data/product/<slug>.md` becomes `data/product/<slug>/<slug>.md` plus `data/product/<slug>/prose.md`. The graduation is a one-time `git mv` plus an `rg` sweep for stale path references; do it explicitly rather than silently relocating. See `construct/datatype/prose.md` for the prose datatype itself.
 
@@ -125,8 +125,8 @@ rg -A2 "^# " $(rg -l "^type: product")
 rg "^\*\*State:\*\* in-progress" $(rg -l "^type: product")
 
 # All artifacts linking to a given product
-rg "^product: book-4$" data/
-rg "^products:.*\bbook-4\b" data/
+rg "^product: book-4$" data/ workshop/projects/
+rg "^products:.*\bbook-4\b" data/ workshop/projects/
 
 # State of one component (history via git)
 git log -p --follow data/product/ariadne.md | rg -B1 "^\*\*State:\*\* " | head -50
@@ -136,6 +136,6 @@ git log -p --follow data/product/ariadne.md | rg -B1 "^\*\*State:\*\* " | head -
 
 - One product per file. Slug, filename, and `name:` field must agree.
 - Components are flat (`### ` only). No `#### ` headings; promote to top-level or describe sub-features in prose.
-- A roadmap targeting this product references components by slug. Renaming a component requires an `rg` sweep across `data/product/`, `data/roadmap/`, and any prose docs that reference it.
+- A roadmap targeting this product references components by slug. Renaming a component requires an `rg` sweep across `data/product/`, `workshop/projects/roadmap/`, and any prose docs that reference it.
 - Vision text is never fabricated by the dispatcher. Empty placeholder + flag-to-human is the right behavior when unstated.
 - `sources` records what the agent read. It is not a rigorous reproducibility chain — model nondeterminism and cross-repo dependencies make sha/model tracking too brittle to be worth the cost. Use `sources` as a "where did this come from" hint for human auditing.
