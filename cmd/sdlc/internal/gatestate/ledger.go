@@ -80,7 +80,7 @@ type Ledger struct {
 	Gate     string  `yaml:"gate"` // e.g. "plan-quality"
 	IssueNum int     `yaml:"issue"`
 	IDPrefix string  `yaml:"id_prefix"` // e.g. "PQ" — IDs are <prefix>-<n>
-	Rounds   []Round `yaml:"rounds"`
+	Rounds   []Round `yaml:"rounds,omitempty"`
 	// ContentHash is sha256(issue+plan) as of the last PASSING round — the pass-through
 	// key. Without it, moving the estimate gates below plan-quality (#187 B1) would make
 	// every estimate-gate failure cost a fresh multi-minute judge dispatch on the retry,

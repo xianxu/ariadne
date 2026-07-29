@@ -35,17 +35,33 @@ func ParseFindingsBlock(output string) (RoundReport, bool) {
 		return RoundReport{}, false
 	}
 	m := vocab.Finding()
-	for _, f := range rr.New {
+	for i, f := range rr.New {
 		// A titleless finding is unusable in the ledger and in the next round's prompt,
 		// and an unmodeled severity would reach Decide with no defined blocking behavior.
 		if !m.IsSeverity(f.Severity) || strings.TrimSpace(f.Title) == "" {
 			return RoundReport{}, false
 		}
+		rr.New[i].Title = normalizeText(f.Title)
+		rr.New[i].Detail = normalizeText(f.Detail)
 	}
-	for _, d := range rr.Dispositions {
+	for i, d := range rr.Dispositions {
 		if !m.IsDisposition(d.State) || strings.TrimSpace(d.ID) == "" {
 			return RoundReport{}, false
 		}
+		rr.Dispositions[i].ID = strings.TrimSpace(d.ID)
+		rr.Dispositions[i].Note = normalizeText(d.Note)
 	}
 	return rr, true
 }
+
+// normalizeText canonicalizes one field of agent-authored prose. Surrounding whitespace in
+// a finding's title or detail carries no meaning — the judge wrote prose, not data — so the
+// schema boundary is the right place to strip it.
+//
+// It is also load-bearing for durability. go.yaml.in/yaml/v3 mis-emits a string with a
+// LEADING newline: it writes an explicit block-scalar indentation indicator (`|4-`) that
+// disagrees with the 8-space indentation it actually produces, so its own parser rejects
+// the result. A finding whose detail began with a newline would therefore render a gate
+// ledger that could never be read back — permanently destroying the gate's memory for that
+// issue. Found by FuzzRenderParseRoundTrip within a second of its first run.
+func normalizeText(s string) string { return strings.TrimSpace(s) }
