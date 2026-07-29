@@ -926,3 +926,17 @@ func TestPlanQualityPromptDemandsStrategyNotEnumeration(t *testing.T) {
 		}
 	}
 }
+
+// TestCodeReviewCarriesPlanGateForward pins #187 A3's safety argument. The plan gate stops
+// blocking on Minor and round-cap-demoted findings ONLY because the boundary review picks
+// them up from the ledger. That claim is made in Decide's doc comment, the plan-quality
+// prompt, and the change-code helptext — if this pointer were ever dropped, all three
+// would become false and the demotion would become a silent loss.
+func TestCodeReviewCarriesPlanGateForward(t *testing.T) {
+	body := CodeReviewBody(PromptInput{})
+	for _, want := range []string{"plan-gate.md", "Open findings", "deferred"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("code-review.md must point the boundary reviewer at the plan-gate ledger; missing %q", want)
+		}
+	}
+}

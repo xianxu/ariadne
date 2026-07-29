@@ -54,6 +54,18 @@ Production readiness
   - Migration / backward-compatibility considered where state or formats change.
   - Docs / atlas updated for new surface (see the Docs update gate).
 
+## Plan-gate carry-forward (ariadne#187)
+
+Read `workshop/plans/<issue-stem>-plan-gate.md` if it exists — the durable ledger of the
+pre-implementation plan gate. It holds the findings that gate raised but deliberately did
+NOT block on: Minor findings, and blocking ones demoted once the round cap was reached.
+They were deferred to THIS boundary by design — that deferral is only safe because you
+pick them up.
+
+For each finding still listed under `## Open findings`, confirm the code either addresses
+it or that it no longer applies. A still-valid deferred finding is a finding here, at its
+original severity.
+
 ## Core concepts cross-check (if the plan has a Core concepts table)
 
 The plan should list entities in a greppable table — name, kind

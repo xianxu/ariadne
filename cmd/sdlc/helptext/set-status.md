@@ -12,7 +12,7 @@ TRANSITION GUARDS (refusable with --force)
   → working
     No guard (#113). The estimate gate moved to `sdlc change-code`, so
     flipping to working — like `sdlc claim` — no longer demands an
-    estimate. Claim/start work early; estimate at start-plan.
+    estimate. Claim/start work early; estimate after the plan clears plan-quality.
 
   → codecomplete  (#160)
     Always refused. `codecomplete` is written ONLY by `sdlc close` (after its

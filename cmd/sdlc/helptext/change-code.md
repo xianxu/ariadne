@@ -8,7 +8,7 @@ between planning (which happens on `main`) and code-changing work:
                            block (#117): a fenced ```estimate block of
                            v2-lineage primitives whose design/impl hours sum to
                            estimate_hours (no unitemized estimate). Set
-                           it at start-plan. --no-estimate /
+                           it AFTER the plan clears plan-quality. --no-estimate /
                            --no-estimate-recon bypass the two halves; the
                            block grammar + vocabulary live in
                            helptext/estimate.md.
