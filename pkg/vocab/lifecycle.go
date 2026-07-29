@@ -12,8 +12,15 @@ import (
 
 // inCat reports whether s is a member of cats[cat]. Shared by every noun model.
 func inCat(cats map[string][]string, cat, s string) bool {
-	for _, v := range cats[cat] {
-		if v == s {
+	return contains(cats[cat], s)
+}
+
+// contains reports whether xs holds s. The flat-slice counterpart to inCat, for the
+// model fields that are plain lists rather than category maps (e.g. the finding noun's
+// hardBlocking). Promoted from conformance_test.go by #187 so non-test code can use it.
+func contains(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
 			return true
 		}
 	}

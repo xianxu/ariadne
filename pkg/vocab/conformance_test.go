@@ -131,12 +131,3 @@ func TestProjectConformance(t *testing.T) {
 		t.Errorf("TransitionFor(paused, done) must be nil")
 	}
 }
-
-func contains(xs []string, s string) bool {
-	for _, x := range xs {
-		if x == s {
-			return true
-		}
-	}
-	return false
-}

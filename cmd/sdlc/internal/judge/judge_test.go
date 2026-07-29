@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // execCommand is exposed as a var so the test can swap to a fake if
@@ -156,17 +158,17 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		RepoNote: "a downstream repo built on the ariadne base layer",
 	})
 	for _, want := range []string{
-		"pair#72 M1",                        // {{ISSUE_REF}} — repo-prefixed, not hardcoded ariadne (#137)
-		"Base: BASE_SHA",                    // {{BASE}}
-		"Head: HEAD_SHA",                    // {{HEAD}}
-		"pair",                              // {{REPO}}
-		"/w/pair",                           // {{REPO_ROOT}}
-		"workshop/issues/000072-x.md",       // {{ISSUE_FILE}}
-		"milestone M1 close",                // {{BOUNDARY}}
-		"downstream repo",                   // {{REPO_NOTE}}
+		"pair#72 M1",                  // {{ISSUE_REF}} — repo-prefixed, not hardcoded ariadne (#137)
+		"Base: BASE_SHA",              // {{BASE}}
+		"Head: HEAD_SHA",              // {{HEAD}}
+		"pair",                        // {{REPO}}
+		"/w/pair",                     // {{REPO_ROOT}}
+		"workshop/issues/000072-x.md", // {{ISSUE_FILE}}
+		"milestone M1 close",          // {{BOUNDARY}}
+		"downstream repo",             // {{REPO_NOTE}}
 		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
-		"```verdict", // {{VERDICT_BLOCK}} — the structured handoff (#147)
+		"```verdict",                               // {{VERDICT_BLOCK}} — the structured handoff (#147)
 		"verdict: <SHIP | FIX-THEN-SHIP | REWORK>", // tokens rendered from vocab.Verdict().Emitted()
 	} {
 		if !strings.Contains(body, want) {
@@ -845,4 +847,20 @@ func TestDispatch_ExitErrorWithEmptyOutput_NotAnError(t *testing.T) {
 // genuine *exec.ExitError. Wrapped here to keep the test's intent clear.
 func realExec(name string) ([]byte, error) {
 	return execCommand(name).CombinedOutput()
+}
+
+// TestCodeReviewSeveritiesMatchModel pins code-review.md's severity buckets to the
+// `finding` model (#187): the boundary review and the plan gate share ONE taxonomy, so a
+// severity renamed in finding.cue cannot leave the boundary-review prose behind.
+//
+// The `s + " ("` shape matches code-review.md's bucket headings ("Critical (must fix
+// before crossing the boundary)"), so this fails on a rename rather than merely on the
+// word appearing somewhere in the prose.
+func TestCodeReviewSeveritiesMatchModel(t *testing.T) {
+	body := CodeReviewBody(PromptInput{})
+	for _, s := range vocab.Finding().Severities() {
+		if !strings.Contains(body, s+" (") {
+			t.Errorf("code-review.md does not name severity %q from the finding model", s)
+		}
+	}
 }

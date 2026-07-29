@@ -1,0 +1,37 @@
+{
+    "categories": {
+        "blocking": [
+            "Critical",
+            "Important"
+        ],
+        "advisory": [
+            "Minor"
+        ]
+    },
+    "hardBlocking": [
+        "Critical"
+    ],
+    "dispositions": {
+        "closing": [
+            "addressed",
+            "withdrawn"
+        ],
+        "open": [
+            "not-addressed"
+        ]
+    },
+    "when": {
+        "Critical": "must fix before the gate is crossed",
+        "Important": "fix before the gate if cheap; blocks until disposed",
+        "Minor": "note for the close review; never blocks a gate"
+    },
+    "whenDisposed": {
+        "addressed": "the plan changed to satisfy this finding",
+        "not-addressed": "still open — the judge re-raises it this round",
+        "withdrawn": "the judge retracts it (mistaken, or overtaken by a design change)"
+    },
+    "discovery": {
+        "home": "workshop/plans",
+        "glob": "*-plan-gate.md"
+    }
+}
