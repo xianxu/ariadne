@@ -1,11 +1,12 @@
 ---
 id: 000187
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-07-29
 estimate_hours:
+started: 2026-07-29T10:26:05-07:00
 ---
 
 # tune the change-code gate: stateful plan review, estimate after plan, churn metric
