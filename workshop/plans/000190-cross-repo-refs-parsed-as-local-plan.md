@@ -2,14 +2,14 @@
 
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Stop `pair#127` from resolving to local issue 127, so cross-repo references never
-absorb another issue's measured hours.
+**Goal:** Stop `pair#127` from resolving to local issue 127, so a cross-repo reference never
+absorbs another issue's measured hours.
 
-**Architecture:** One pure `issueref` package owns the answer to "is this `#N` a local issue
-ref?", and the three sites that currently each carry their own copy of `#(\d+)\b` derive from
-it. The rule turns out to be expressible directly in RE2 — `\B#(\d+)\b`, the mirror of the
-trailing `\b` this codebase already relies on — so the fix is a boundary assertion plus a
-qualifier capture, not a hand-rolled scanner.
+**Architecture:** The repo-qualified ref grammar already has a canonical validator
+(`parseRef`) and one derived scanner (`migrate.go`'s `refScanRE`). This work moves the SCAN
+half into `internal/issueref` so it can be reached from the internal packages, then routes
+**four** call sites through it — the three broken ones plus `refScanRE` itself. Net encodings
+of the grammar: 4 → 1.
 
 **Tech Stack:** Go, RE2 (`regexp`), existing `cmd/sdlc/internal/{gitx,activetime}` packages.
 
@@ -30,10 +30,10 @@ Measured over ariadne's last 400 commit subjects:
 | foreign `pair#127`, `pair#129`, `pair#105`, `pair#104` | 5 | **local ✗** | foreign |
 | self-qualified `ariadne#180` | 1 | local ✓ | local (must not regress) |
 
-That last row is why the parser captures the qualifier instead of just asserting a boundary:
+That last row is why the parser captures the qualifier rather than only asserting a boundary:
 `\B#` alone would make `ariadne#180` foreign inside ariadne, trading one bug for a smaller one.
 
-### The three sites, and why fixing one is not enough
+### The three broken sites, and why fixing one is not enough
 
 | site | feeds | consequence today |
 |---|---|---|
@@ -41,9 +41,24 @@ That last row is why the parser captures the qualifier instead of just asserting
 | `activetime/commit.go:67` `allIssuePattern()` | `Commit.Issues` → `selectClaimant`/`attributeRun` | **commit-weighted** share splits equally with the foreign issue (`attributeRun`: `perCommit := weight * active / len(commitIssues)`) |
 | `activetime/util.go:34` `issuePattern()` | `parseEventMentions` → mention counts | every `pair#127` in transcript prose counts as local `#127` |
 
-The middle row is the one that invalidates the issue's originally-filed Spec: attribution is
-corrupted on the **commit** path too, so "make commit boundaries outrank mentions" would have
-left the bug in place.
+The middle row invalidates the issue's originally-filed Spec: attribution is corrupted on the
+**commit** path too, so "make commit boundaries outrank mentions" would have left the bug in
+place.
+
+### What already exists, and must not be duplicated
+
+Verified before designing:
+
+- **`parseRef` (`resolve.go:50-57`) is the canonical ref grammar** — `[repo]#id [Mx]`,
+  `gh#id`, id 1–6 digits — documented in `helptext/resolve.md` and explicitly single-sourced.
+- **`refScanRE` (`migrate.go:39-45`) is `([A-Za-z0-9][A-Za-z0-9_.-]*)?#([0-9]{1,6})\b`** — the
+  prose *candidate* scanner, whose own doc says it is "Derived from parseRef's grammar but not
+  a second authority."
+
+So the qualified-ref grammar is already solved and already single-sourced. This work must
+**join** that lineage, not start a parallel one. `parseRef` lives in package `main`, which
+internal packages cannot import — that is the only reason a new package is needed at all, and
+it is why the new package takes the SCAN half and leaves validation where it is.
 
 ---
 
@@ -54,39 +69,46 @@ left the bug in place.
 | Name | Lives in | Status |
 |------|----------|--------|
 | `Ref` | `cmd/sdlc/internal/issueref/ref.go` | new |
+| `ScanRE` | `cmd/sdlc/internal/issueref/ref.go` | new |
 | `Find` | `cmd/sdlc/internal/issueref/ref.go` | new |
 | `LocalNums` | `cmd/sdlc/internal/issueref/ref.go` | new |
 | `CountLocal` | `cmd/sdlc/internal/issueref/ref.go` | new |
 | `issueRefRE` | `cmd/sdlc/internal/gitx/window.go` | deleted |
 | `allIssuePattern` | `cmd/sdlc/internal/activetime/util.go` | deleted |
 | `issuePattern` | `cmd/sdlc/internal/activetime/util.go` | deleted |
-| `parseEventMentions` | `cmd/sdlc/internal/activetime/util.go` | modified |
 | `uniqueRefs` | `cmd/sdlc/internal/activetime/util.go` | deleted |
+| `parseEventMentions` | `cmd/sdlc/internal/activetime/util.go` | modified |
+| `refScanRE` | `cmd/sdlc/migrate.go` | deleted |
 
-- **Ref** — one parsed `#N` occurrence: `{Qualifier, Num string}`. `Qualifier == ""` is a bare
-  ref; otherwise it is the repo name that preceded the `#`.
-  - **Relationships:** N refs per text. No ownership — a value type.
-  - **DRY rationale:** collapses three independent copies of `#(\d+)\b` into one source. The
-    three copies are precisely why this bug shipped: fixing the regex a reader happens to find
-    would leave the other two paths wrong, and nothing connects them today.
-  - **Future extensions:** the retained `Qualifier` is what keeps cross-repo attribution open —
-    a future `pair#127` row in the active-time table needs exactly this field. Deliberately
-    parsed and kept, not discarded, even though nothing reads it yet beyond the local check.
+- **Ref** — one parsed `#N`: `{Qualifier, Num string}`. `Qualifier == ""` is a bare ref.
+  - **Relationships:** N per text; a value type with no ownership.
+  - **DRY rationale:** four encodings of one grammar become one. The duplication is not
+    hypothetical — it is *why this bug shipped*: three of the four copies were unbounded, and
+    nothing connected them, so fixing whichever a reader found would leave two wrong.
+  - **Future extensions:** the retained `Qualifier` is what keeps cross-repo attribution open;
+    a `pair#127` row in the active-time table needs exactly this field.
 
-- **Find** — `Find(text string) []Ref`, every occurrence in order.
-  - **DRY rationale:** the single scanner. `LocalNums` and `CountLocal` are thin filters over it.
+- **ScanRE** — the compiled grammar, exported so `migrate.go` derives its candidate scan from
+  this rather than restating it.
+  - **Grammar decision:** adopt `refScanRE`'s **`[0-9]{1,6}`**, not `\d+`. It is the bound
+    `parseRef` documents and `TestRewriteRefs` pins (a 7+-digit run must match nothing), and
+    workshop ids are 6-digit. Widening it here would fork the grammar in the same breath as
+    consolidating it.
 
-- **LocalNums** — `LocalNums(text, selfRepo string) []string`, deduped bare numbers preserving
-  first-seen order, keeping refs whose qualifier is empty **or** equals `selfRepo`.
-  - **Relationships:** replaces `uniqueRefs(allIssuePattern(), …)` at the commit sites, which
-    today do the same dedupe-preserving-order job in two places.
+- **Find** — `Find(text string) []Ref`, every occurrence in order. The single scanner.
 
-- **CountLocal** — `CountLocal(text, selfRepo string, tracked map[string]bool) map[string]int`,
-  mention counts restricted to `tracked`.
-  - **Relationships:** replaces `parseEventMentions(text, issuePattern(issues))`. The
-    pattern-as-parameter indirection goes away: the tracked set is data, not a compiled regex.
+- **LocalNums** — `LocalNums(text, selfRepo string) []string`: local numbers, deduped,
+  first-seen order (the contract `uniqueRefs` held at both commit sites).
+
+- **CountLocal** — `CountLocal(text, selfRepo string, tracked map[string]bool) map[string]int`.
   - **Contract to preserve:** an EMPTY `tracked` set yields no mentions, matching today's
-    `issuePattern(nil) == nil` → "match nothing" guard that `Compute` depends on.
+    `issuePattern(nil) == nil` → "match nothing" guard that `Compute` relies on.
+
+- **`Ref.IsLocal` matches the qualifier EXACTLY** — deliberately unlike `resolveRepoDir`
+  (`resolve.go:193-199`), which does exact-basename-wins then unique-prefix. Prefix matching is
+  a navigation convenience; here it would be a correctness bug, silently re-introducing the
+  cross-repo bleed this issue exists to remove (`brain` would match `brain-family`). Stated
+  because the divergence from a sibling convention is intentional.
 
 ### Integration points
 
@@ -94,27 +116,28 @@ left the bug in place.
 |------|----------|--------|-------|
 | `DiscoverWindowIssues` | `cmd/sdlc/internal/gitx/window.go` | modified | `git log` |
 | `loadWindowCommits` | `cmd/sdlc/internal/activetime/commit.go` | modified | `git log` |
-| `Options.RepoName` | `cmd/sdlc/internal/activetime/compute.go` | new | caller-supplied identity |
+| `selfQualifier` | `cmd/sdlc/internal/activetime/commit.go` | new | `opts.GitRepo` path |
 
-- **DiscoverWindowIssues** — already shells to `git log`; gains the self-qualifier by taking the
-  repo directory's basename via the existing `RepoTopLevel()`.
-  - **Injected into:** nothing new; it hands `[]string` to `Options.Issues` as before.
+- **DiscoverWindowIssues** — gains the self-qualifier from the existing `RepoTopLevel()`
+  basename; also moves onto the package `run` shim (see Task 2) so it is testable at all.
 
-- **loadWindowCommits** — already shells to `git log` through the package's `gitRun` shim.
-  - **Injected into:** `Commit.Issues`, consumed by the pure `selectClaimant`/`attributeRun`.
+- **loadWindowCommits** — already shells through the package's `gitRun` shim.
 
-- **Options.RepoName** — the caller's repo identity, so `activetime` can recognize a
-  self-qualified ref without importing `gitx` (it deliberately does not — it carries its own
-  `gitRun` shim). Empty string keeps today's bare-only behavior, so no test fixture is forced
-  to know a repo name.
-  - **Injected into:** `CountLocal` and `LocalNums` calls inside the package.
-  - **Future extensions:** if cross-repo attribution lands, this becomes "the local repo" in a
-    set of known repos.
+- **selfQualifier** — derives the local repo name from **`opts.GitRepo`**, not the process cwd.
+  - **Why not an `Options.RepoName` from `repoIdentity()`:** the commits being parsed come from
+    `opts.GitRepo` (`commit.go:42`), which the standalone verb takes as `--git-repo`
+    (`activetime.go:203`). A cwd-derived qualifier would, with `--git-repo` pointed at a peer,
+    drop that peer's own self-qualified refs as foreign *and* admit ariadne-qualified refs as
+    local — reproducing this very bug class inside the diagnostic verb. `sdlc actual` passes
+    `repoTop` (`actual.go:110`), so it would have looked correct in every test that goes
+    through `actual`. The qualifier must name the repo the commits come from.
+  - **Path handling:** `filepath.Base(filepath.Clean(abs))` after the existing `expandUser`;
+    yields `""` for `"."`/`"/"`/unresolvable, which degrades to bare-refs-only exactly as
+    `IsLocal("")` specifies.
 
-**Test surface.** `issueref` is pure with a colocated `ref_test.go` — no IO, no mocks. The two
-git-touching integration points keep their existing test styles (`gitx` has its `run` shim;
-`activetime` has `gitRun`), so no new fake is introduced and `ARCH-MOCK` is unaffected: this
-change adds no external dependency.
+**Test surface.** `issueref` is pure with a colocated `ref_test.go` — no IO, no mocks. Both git
+seams keep their existing shims (`run`, `gitRun`), so no new fake is introduced and no external
+dependency is added: `ARCH-MOCK` is unaffected.
 
 ---
 
@@ -126,30 +149,20 @@ change adds no external dependency.
 - Create: `cmd/sdlc/internal/issueref/ref.go`
 - Create: `cmd/sdlc/internal/issueref/ref_test.go`
 
-- [ ] **Step 1: Write the failing table test.** Every row below is a real form taken from
-      ariadne's own history or the #190 investigation — not invented shapes.
+- [ ] **Step 1: Write the failing table test.** Every row is a real form from ariadne's own
+      history or the #190 investigation — not invented shapes.
 
 ```go
-package issueref
-
-import (
-	"reflect"
-	"testing"
-)
-
 func TestFindSeparatesLocalFromForeign(t *testing.T) {
-	cases := []struct {
-		text string
-		want []Ref
-	}{
+	cases := []struct{ text string; want []Ref }{
 		// The convention (312 of 400 recent subjects).
 		{"#187 M2: churn — four-bucket classification", []Ref{{Num: "187"}}},
 		{"fixes #127, #128", []Ref{{Num: "127"}, {Num: "128"}}},
 		{"(#127)", []Ref{{Num: "127"}}},
 		{"PR #106", []Ref{{Num: "106"}}},
-		// A RANGE must stay two local refs. `-` is a non-word char, so the boundary rule
-		// does not mistake the second for a qualified ref — this is the false positive a
-		// hand-written "preceded by [A-Za-z0-9_.-]" class would have introduced.
+		// A RANGE stays two LOCAL refs: `-` is a non-word char, so the second is not read as
+		// `174-`-qualified. This is the false positive a hand-written preceded-by class
+		// would have introduced, and it appears in real history ("#174-#176").
 		{"#174-#176", []Ref{{Num: "174"}, {Num: "176"}}},
 		// The bug: one subject carrying both a local and a foreign ref.
 		{"#187 M2: pair#127 replay harness + round 1 evidence",
@@ -160,277 +173,104 @@ func TestFindSeparatesLocalFromForeign(t *testing.T) {
 		{"parley.nvim#12", []Ref{{Qualifier: "parley.nvim", Num: "12"}}},
 		{"42shots#12", []Ref{{Qualifier: "42shots", Num: "12"}}},
 		{"xianxu.dev#3", []Ref{{Qualifier: "xianxu.dev", Num: "3"}}},
-		// Self-qualified: parsed WITH its qualifier; localness is decided by the caller.
+		// Self-qualified: parsed WITH its qualifier; localness is the caller's call.
 		{"ariadne#180", []Ref{{Qualifier: "ariadne", Num: "180"}}},
 		{"no refs here", nil},
 	}
-	for _, c := range cases {
-		if got := Find(c.text); !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Find(%q) = %+v, want %+v", c.text, got, c.want)
-		}
+	// … assert reflect.DeepEqual(Find(c.text), c.want) …
+}
+
+// The {1,6} bound is inherited from refScanRE/parseRef, and RE2's trailing \b makes a
+// 7+-digit run match NOTHING (not a truncated 6-digit prefix). TestRewriteRefs pins this
+// for migrate; pin it here too, since this is now the source.
+func TestFindRejectsOverlongIDs(t *testing.T) {
+	if got := Find("#1234567"); got != nil {
+		t.Errorf("Find(#1234567) = %+v, want nil (7 digits is not a ref)", got)
+	}
+	if got := Find("#123456"); len(got) != 1 || got[0].Num != "123456" {
+		t.Errorf("Find(#123456) = %+v, want one ref", got)
 	}
 }
 
-// LocalNums keeps bare refs and self-qualified ones, drops foreign, dedupes preserving
-// first-seen order (the contract uniqueRefs held at both commit sites).
-func TestLocalNums(t *testing.T) {
-	const subject = "#187 M2: pair#127 replay harness; also #187 and ariadne#180"
-	if got, want := LocalNums(subject, "ariadne"), []string{"187", "180"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("LocalNums(selfRepo=ariadne) = %v, want %v", got, want)
-	}
-	// With no self-repo known, only bare refs are local — and nothing panics.
-	if got, want := LocalNums(subject, ""), []string{"187"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("LocalNums(selfRepo=\"\") = %v, want %v", got, want)
-	}
-	// A foreign ref must never appear, even when its number matches a real local issue.
-	for _, n := range LocalNums("pair#127", "ariadne") {
-		if n == "127" {
-			t.Error("pair#127 resolved to local 127 — the #190 defect")
-		}
-	}
-}
+func TestLocalNums(t *testing.T) { /* bare + self-qualified kept, foreign dropped, deduped
+	first-seen order; selfRepo "" keeps only bare; "pair#127" never yields "127" */ }
 
-// CountLocal is the mention counter. The tracked set gates it, and an EMPTY set must yield
-// nothing — Compute relies on that (today via issuePattern(nil) == nil).
-func TestCountLocal(t *testing.T) {
-	text := "working #187, replaying pair#127, more #187, and #190"
-	tracked := map[string]bool{"187": true, "127": true, "190": true}
-	got := CountLocal(text, "ariadne", tracked)
-	want := map[string]int{"187": 2, "190": 1}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("CountLocal = %v, want %v — 127 is pair's, not ours", got, want)
-	}
-	if got := CountLocal(text, "ariadne", nil); len(got) != 0 {
-		t.Errorf("an empty tracked set must yield no mentions, got %v", got)
-	}
-	if got := CountLocal("", "ariadne", tracked); len(got) != 0 {
-		t.Errorf("empty text must yield no mentions, got %v", got)
+func TestCountLocal(t *testing.T) { /* tracked gates it; empty tracked → empty map (the
+	Compute contract); empty text → empty map; pair#127 contributes nothing */ }
+
+// IsLocal is EXACT, unlike resolveRepoDir's prefix matching — a prefix rule would let
+// `brain` match `brain-family` and re-introduce the bleed this package removes.
+func TestIsLocalIsExactNotPrefix(t *testing.T) {
+	if (Ref{Qualifier: "brain", Num: "1"}).IsLocal("brain-family") {
+		t.Error("prefix matching would re-introduce cross-repo bleed")
 	}
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 2: Run to verify it fails.** `go test ./cmd/sdlc/internal/issueref/` → build failure.
 
-Run: `go test ./cmd/sdlc/internal/issueref/`
-Expected: build failure — `undefined: Ref`, `undefined: Find`.
-
-- [ ] **Step 3: Implement**
+- [ ] **Step 3: Implement.** Signatures plus the strategy for each; the package doc carries the
+      *why* (the 46-minute misattribution, and that `parseRef` remains the canonical validator
+      while this owns the scan half).
 
 ```go
-// Package issueref answers one question: does this `#N` refer to an issue in THIS repo?
-//
-// It exists because `#(\d+)\b` — copied into three separate files — has no LEFT boundary, so
-// `pair#127` matched as local issue 127. ariadne#127 exists (an archived issue about
-// recalibrating estimates), so 46 minutes of ariadne#187's work were charged to it, corrupting
-// the very calibration data that issue had produced (ariadne#190).
-//
-// The rule is expressible directly in RE2: `\B#` asserts that the character before `#` is NOT
-// a word character, which is exactly the mirror of the trailing `\b` these patterns already
-// used. No lookbehind and no hand-rolled scanner needed. `\b`'s word class is [0-9A-Za-z_],
-// which matches how repo names end — and deliberately EXCLUDES `-` and `.`, so a range like
-// `#174-#176` stays two local refs rather than reading the second as `174-`-qualified.
-//
-// Pure: no IO, no clock, no git. The repo's own name arrives as a parameter.
-package issueref
+type Ref struct{ Qualifier, Num string }
 
-import "regexp"
+// ScanRE is the grammar, exported so migrate.go derives rather than restates it.
+// Same expression as the refScanRE it replaces, including the {1,6} bound.
+var ScanRE = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9_.-]*)?#([0-9]{1,6})\b`)
 
-// Ref is one parsed `#N`. Qualifier is the repo name that preceded it ("" for a bare ref).
-//
-// The qualifier is KEPT rather than discarded once localness is decided: it is the field a
-// future cross-repo attribution row (`pair#127` as its own line in the active-time table)
-// would need, and dropping it here would foreclose that (ariadne#190 Spec).
-type Ref struct {
-	Qualifier string
-	Num       string
-}
-
-// refRE captures an optional repo qualifier and the number. The qualifier must START
-// alphanumeric (so a leading `-` or `.` is not swallowed) and may then contain the `-`/`.`
-// that real repo names carry: brain-family, parley.nvim, xianxu.dev.
-//
-// `\B` before the unqualified `#` is the boundary assertion; the qualified alternative
-// consumes the word characters itself, so both forms are recognized by ONE pass and the
-// caller can tell them apart.
-var refRE = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9_.-]*)?#(\d+)\b`)
-
-// Find returns every `#N` in text, in order, each tagged with its qualifier.
-func Find(text string) []Ref {
-	var out []Ref
-	for _, m := range refRE.FindAllStringSubmatch(text, -1) {
-		out = append(out, Ref{Qualifier: m[1], Num: m[2]})
-	}
-	return out
-}
-
-// IsLocal reports whether r names an issue in the repo called selfRepo. A bare ref is always
-// local; a qualified one is local only when the qualifier IS this repo (`ariadne#180` inside
-// ariadne). selfRepo "" means "unknown", so only bare refs count.
-func (r Ref) IsLocal(selfRepo string) bool {
-	return r.Qualifier == "" || (selfRepo != "" && r.Qualifier == selfRepo)
-}
-
-// LocalNums returns the local issue numbers in text, deduped preserving first-seen order.
-func LocalNums(text, selfRepo string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, r := range Find(text) {
-		if !r.IsLocal(selfRepo) || seen[r.Num] {
-			continue
-		}
-		seen[r.Num] = true
-		out = append(out, r.Num)
-	}
-	return out
-}
-
-// CountLocal counts local mentions of tracked issues. An empty tracked set yields an empty
-// map — the contract Compute depends on (previously expressed as a nil regexp).
-func CountLocal(text, selfRepo string, tracked map[string]bool) map[string]int {
-	counts := map[string]int{}
-	if len(tracked) == 0 || text == "" {
-		return counts
-	}
-	for _, r := range Find(text) {
-		if r.IsLocal(selfRepo) && tracked[r.Num] {
-			counts[r.Num]++
-		}
-	}
-	return counts
-}
+func Find(text string) []Ref                                    // ScanRE.FindAllStringSubmatch → Refs, in order
+func (r Ref) IsLocal(selfRepo string) bool                      // bare, or qualifier EXACTLY == selfRepo
+func LocalNums(text, selfRepo string) []string                  // filter Find, dedupe first-seen
+func CountLocal(text, selfRepo string, tracked map[string]bool) map[string]int
 ```
 
-> **Note on `refRE` vs the probed `\B#(\d+)\b`.** Both express the same boundary. This form
-> additionally *captures* the qualifier, which `\B#` cannot — and the qualifier is required for
-> the self-qualified row (`ariadne#180`, 1 of 400 subjects) not to regress. Step 1's
-> `#174-#176` case is the guard that the alternation did not reintroduce the greedy-class bug.
+- [ ] **Step 4: Run to verify PASS.** `go test ./cmd/sdlc/internal/issueref/ -v`
 
-- [ ] **Step 4: Run to verify it passes**
+- [ ] **Step 5: Mutation-verify the boundary.** Replace `ScanRE` with the old unbounded
+      `#(\d+)\b` (Num from group 1, no qualifier). Expect
+      `TestFindSeparatesLocalFromForeign`, `TestLocalNums`, `TestCountLocal` and
+      `TestFindRejectsOverlongIDs` to FAIL. Restore. A guard that cannot fail is worse than none.
 
-Run: `go test ./cmd/sdlc/internal/issueref/ -v`
-Expected: PASS, all three tests.
-
-- [ ] **Step 5: Mutation-verify the boundary.** A guard that cannot fail is worse than none.
-
-```bash
-# Drop the qualifier alternation → foreign refs become local again.
-# Expect TestFindSeparatesLocalFromForeign and TestLocalNums to FAIL.
-```
-Temporarily change `refRE` to `regexp.MustCompile(`#(\d+)\b`)` with `m[1]` as Num and no
-qualifier; confirm the foreign cases fail; restore.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add cmd/sdlc/internal/issueref/
-git commit -m "#190: issueref — one boundary-aware answer to 'is this #N ours?'
-
-pair#127 matched #(\d+)\b as local 127, and ariadne#127 exists, so a cross-repo
-ref absorbed another issue's hours. The rule is a left boundary — the mirror of
-the trailing \b already in use — plus a captured qualifier so a self-qualified
-ariadne#180 does not regress to foreign.
-
-The qualifier is kept rather than discarded: it is what a future cross-repo
-attribution row would need.
-
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
-```
+- [ ] **Step 6: Commit.**
 
 ---
 
 ### Task 2: `gitx.DiscoverWindowIssues` derives from `issueref`
 
 **Files:**
-- Modify: `cmd/sdlc/internal/gitx/window.go` (delete `issueRefRE` at `:384`, rewrite the scan at `:404`)
+- Modify: `cmd/sdlc/internal/gitx/window.go` (delete `issueRefRE` `:384`; rewrite the scan `:404`; route the git call through `run`)
 - Modify: `cmd/sdlc/internal/gitx/window_test.go`
 
-- [ ] **Step 1: Write the failing test.** `DiscoverWindowIssues` shells to `git log`, and this
-      package's `run` shim exists for exactly this — override it rather than building a repo.
+- [ ] **Step 1: Write the failing test.** Override the package `run` shim — the established
+      pattern in this file (`window_test.go:262,307,334`).
 
 ```go
-// A subject carrying a foreign ref must not admit that number to the tracked set. This is
-// the entry point of the #190 chain: whatever lands here becomes Options.Issues, which
-// becomes the mention pattern.
+// The entry point of the chain: whatever lands here becomes Options.Issues, which becomes
+// the mention pattern. A foreign ref must not be admitted.
 func TestDiscoverWindowIssuesExcludesForeignRefs(t *testing.T) {
-	restore := run
-	t.Cleanup(func() { run = restore })
-	run = func(name string, args ...string) ([]byte, error) {
-		return []byte("#187 M2: pair#127 replay harness + round 1 evidence\n" +
-			"#187 M2: churn — four-bucket classification\n"), nil
-	}
-	got, err := DiscoverWindowIssues("2026-07-29T00:00:00Z", "2026-07-30T00:00:00Z", "187")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, iss := range got {
-		if iss == "127" {
-			t.Errorf("pair#127 admitted 127 to the tracked set: %v", got)
-		}
-	}
-	if len(got) != 1 || got[0] != "187" {
-		t.Errorf("DiscoverWindowIssues = %v, want [187]", got)
-	}
+	// run = fixture returning "#187 M2: pair#127 replay harness…\n#187 M2: churn…\n"
+	// assert result == ["187"], and specifically that "127" is absent.
 }
 ```
 
-> **`DiscoverWindowIssues` currently uses `exec.Command` directly (`window.go:394`), not the
-> `run` shim.** Route it through `run` as part of this task — the shim is documented as the
-> path all new callers use, and the test above needs it. Note this in the commit body: it is a
-> seam correction, not scope creep, and it is what makes the entry point testable at all.
+> **`DiscoverWindowIssues` uses `exec.Command` directly (`window.go:394`), not the `run` shim** —
+> verified. Route it through `run` as part of this task: the shim's own doc says all new callers
+> in the package should use it, and the test above is impossible without it. Call it out in the
+> commit body as a seam correction, not scope creep.
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 2: Run to verify it fails** — `127` present.
 
-Run: `go test ./cmd/sdlc/internal/gitx/ -run TestDiscoverWindowIssuesExcludesForeignRefs -v`
-Expected: FAIL — `127` present.
+- [ ] **Step 3: Implement.** Delete `issueRefRE`; scan each subject with
+      `issueref.LocalNums(line, selfRepoName())`, where `selfRepoName()` is
+      `filepath.Base(RepoTopLevel())` and `""` on error (degrades to bare-refs-only rather
+      than losing the scan).
 
-- [ ] **Step 3: Implement.** Delete `issueRefRE`; scan with `issueref.LocalNums`, passing the
-      repo basename as the self-qualifier.
+- [ ] **Step 4: Run the whole package.** `CommitWindow`, `subjectAnchorRE` and
+      `IsShippedWorkSubject` must be untouched. `go test ./cmd/sdlc/internal/gitx/ -v`
 
-```go
-// selfRepoName returns this repo's directory basename — the qualifier that counts as LOCAL
-// (`ariadne#180` inside ariadne). "" when the toplevel is unavailable, which degrades to
-// bare-refs-only rather than failing: an unknown repo name must not cost us the whole scan.
-func selfRepoName() string {
-	top, err := RepoTopLevel()
-	if err != nil {
-		return ""
-	}
-	return filepath.Base(top)
-}
-```
-
-Then in `DiscoverWindowIssues`, replace the `issueRefRE.FindAllStringSubmatch` loop with:
-
-```go
-	self := selfRepoName()
-	for _, line := range strings.Split(text, "\n") {
-		for _, num := range issueref.LocalNums(line, self) {
-			seen[num] = struct{}{}
-		}
-	}
-```
-
-- [ ] **Step 4: Run to verify it passes.** Run the whole package — `CommitWindow` and the
-      `subjectAnchorRE` guards must be unaffected.
-
-Run: `go test ./cmd/sdlc/internal/gitx/ -v`
-Expected: PASS, no other test changed behavior.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add cmd/sdlc/internal/gitx/
-git commit -m "#190: DiscoverWindowIssues drops foreign refs
-
-The entry point of the chain: whatever lands here becomes Options.Issues and
-then the mention pattern, so admitting pair#127 as 127 here is what let a
-cross-repo ref collect transcript minutes.
-
-Also routes the git call through the package run shim, which is what makes the
-entry point testable — a seam correction the shim's own doc already asks for.
-
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
-```
+- [ ] **Step 5: Commit.**
 
 ---
 
@@ -438,195 +278,240 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `cmd/sdlc/internal/activetime/util.go` (delete `issuePattern`, `allIssuePattern`, `uniqueRefs`; rewrite `parseEventMentions`)
-- Modify: `cmd/sdlc/internal/activetime/commit.go:67`
-- Modify: `cmd/sdlc/internal/activetime/compute.go` (add `Options.RepoName`, drop the `pat` plumbing)
+- Modify: `cmd/sdlc/internal/activetime/commit.go` (`:67`, plus `selfQualifier`)
+- Modify: `cmd/sdlc/internal/activetime/compute.go` (build `tracked` once; thread the qualifier)
 - Modify: `cmd/sdlc/internal/activetime/event.go` (the `pat` parameter threading)
 - Modify: `cmd/sdlc/internal/activetime/{util_test.go,commit_test.go,compute_test.go}`
-- Modify: `cmd/sdlc/actual.go:107`, `cmd/sdlc/activetime.go:206` (supply `RepoName`)
+
+**No CLI change and no `Options.RepoName`** — the qualifier comes from `opts.GitRepo`, which both
+callers already set correctly. See the `selfQualifier` rationale in Core concepts.
 
 - [ ] **Step 1: Write the failing tests — BOTH paths, because both are broken.**
 
 ```go
-// The commit path. Commit.Issues drives selectClaimant and attributeRun, and attributeRun
-// splits weight*active EQUALLY across the slice — so a foreign entry here silently hands
-// half a commit's weighted share to an unrelated local issue. This is the path the issue's
-// originally-filed Spec missed entirely.
+// The COMMIT path — the one the filed Spec missed. Commit.Issues drives selectClaimant and
+// attributeRun, which splits weight*active EQUALLY across the slice, so a foreign entry
+// silently takes half a commit's weighted share.
 func TestCommitIssuesExcludeForeignRefs(t *testing.T) {
 	// withGitRun (commit_test.go:9) is the package's existing shim-swap helper — reuse it
-	// rather than hand-rolling the save/restore (ARCH-DRY).
+	// rather than hand-rolling save/restore (ARCH-DRY).
 	withGitRun(t, func(dir string, args ...string) ([]byte, error) {
 		return []byte("abc1234\t2026-07-29T10:30:00-07:00\t#187 M2: pair#127 replay harness\n"), nil
 	})
-	commits, err := loadWindowCommits(".", "2026-07-29T00:00:00Z", "2026-07-30T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(commits) != 1 {
-		t.Fatalf("want 1 commit, got %d", len(commits))
-	}
-	if got, want := commits[0].Issues, []string{"187"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("Commit.Issues = %v, want %v — a foreign ref would take half the weighted share", got, want)
-	}
+	// loadWindowCommits(repo="/tmp/…/ariadne", …) → Issues == ["187"] only.
 }
 
-// The mention path.
+// The qualifier names the repo the COMMITS come from, not the cwd. With a peer repo, that
+// peer's self-qualified refs are local and ariadne's are foreign — the inverse of the cwd
+// bug this avoids.
+func TestSelfQualifierComesFromGitRepo(t *testing.T) {
+	// gitRun fixture subject: "pair#129 M1: …  (also ariadne#180)"
+	// loadWindowCommits(repo=".../pair", …) → Issues contains "129", NOT "180".
+}
+
+// The MENTION path.
 func TestParseEventMentionsExcludesForeignRefs(t *testing.T) {
-	tracked := map[string]bool{"187": true, "127": true}
-	got := parseEventMentions("working #187; replaying pair#127; more #187", "ariadne", tracked)
-	if got["127"] != 0 {
-		t.Errorf("pair#127 counted as local 127: %v", got)
-	}
-	if got["187"] != 2 {
-		t.Errorf("mentions[187] = %d, want 2", got["187"])
-	}
+	// "working #187; replaying pair#127; more #187", tracked{187,127}, self "ariadne"
+	// → {187: 2}; 127 absent.
 }
 
-// End to end through Compute: the #190 shape. One run, no claimant, prose mentioning both a
-// local and a foreign ref — the foreign issue must receive ZERO minutes and the local one
-// must receive the whole segment, not a proportional slice.
+// End to end through Compute: the #190 shape — one run, no claimant, prose naming both.
 func TestComputeDoesNotAttributeToForeignIssue(t *testing.T) {
-	// … events mentioning "#187" and "pair#127" across a gap, no commits …
-	res, err := Compute(Options{ /* Files: fixture, Issues: []string{"187","127"}, RepoName: "ariadne", … */ })
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.PerIssue["127"] != 0 {
-		t.Errorf("foreign ref drew %.1f minutes", res.PerIssue["127"])
-	}
-	if res.PerIssue["187"] <= 0 {
-		t.Error("the local issue should hold the whole segment")
-	}
+	// PerIssue["127"] == 0; PerIssue["187"] holds the whole segment.
 }
 ```
 
-- [ ] **Step 2: Run to verify they fail**
-
-Run: `go test ./cmd/sdlc/internal/activetime/ -run 'Foreign' -v`
-Expected: FAIL on all three — `127` present with non-zero minutes.
+- [ ] **Step 2: Run to verify they fail.** `go test ./cmd/sdlc/internal/activetime/ -run Foreign -v`
 
 - [ ] **Step 3: Implement.**
   - `parseEventMentions(text, selfRepo string, tracked map[string]bool)` → delegates to
     `issueref.CountLocal`. The compiled-pattern parameter disappears; the tracked set is data.
-  - `loadWindowCommits` → `Issues: issueref.LocalNums(parts[2], selfRepo)`.
-  - `Options.RepoName` threads to both. `Compute` builds `tracked` from `opts.Issues` once and
-    passes it down in place of `pat`.
+  - `loadWindowCommits` → `Issues: issueref.LocalNums(parts[2], selfQualifier(repo))`.
+  - `Compute` builds `tracked` from `opts.Issues` once and threads it plus the qualifier in
+    place of `pat`.
   - Delete `issuePattern`, `allIssuePattern`, `uniqueRefs`.
+  - **Preserve the empty-set contract:** `compute_test.go`'s existing no-issues cases are the
+    guard and must pass unchanged.
 
-  **Preserve the empty-set contract.** `issuePattern(nil) == nil` today means "match nothing";
-  `CountLocal` with an empty `tracked` returns an empty map. Same behavior, and
-  `compute_test.go`'s existing no-issues cases are the guard — they must pass unchanged.
+- [ ] **Step 4: Make the drop OBSERVABLE, not silent.** A foreign ref now contributes nothing;
+      if that is invisible, a future reader cannot tell "correctly excluded" from "never seen".
+      Add a warning when a window's commits or mentions contained foreign refs, naming the
+      qualifier — e.g. `foreign refs ignored: pair#127 (×3)`. Reuses the existing
+      `AttributionWarning`/`formatAttributionWarning` channel (`activetime.go:100`); no new
+      output surface. **This also disposes the Done-when bullet on per-segment rule reporting**
+      — see the Revisions note.
 
-- [ ] **Step 4: Supply `RepoName` at the two CLI call sites.** `cmd/sdlc/actual.go:107` and
-      `cmd/sdlc/activetime.go:206`, both `RepoName: repoIdentity()`. **Verified:**
-      `repoIdentity()` → `repoNameAndRoot()` → `filepath.Base(root)`
-      (`reviewsidecar.go:113-126`), so it already yields the bare basename (`"ariadne"`) — no
-      `filepath.Base` wrapper needed, and `""` on failure degrades to bare-refs-only exactly as
-      `Ref.IsLocal` specifies.
+- [ ] **Step 5: Run the full suite.** `go test ./cmd/sdlc/... -v`
+      **`parity_test.go` — CHECKED, unaffected:** `grep '[A-Za-z]#[0-9]'` over it returns
+      nothing, so no fixture carries a qualified ref. If one is ever added, a legitimately
+      changed expectation must be edited with a comment; bug-for-bug parity with the superseded
+      Python is not a property worth defending.
 
-- [ ] **Step 5: Run the full suite.** `parity_test.go` is the one to watch: it pins v3 parity
-      against the Python original, whose regex had the same missing boundary. If a parity case
-      contains a qualified ref its expected value changes — and that change is CORRECT. Update
-      it with a comment recording why, rather than preserving bug-for-bug parity.
-
-Run: `go test ./cmd/sdlc/... -v`
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add cmd/sdlc/internal/activetime/ cmd/sdlc/actual.go cmd/sdlc/activetime.go
-git commit -m "#190: activetime attributes only local refs, on BOTH paths
-
-Commit.Issues was the path the filed Spec missed: attributeRun splits
-weight*active equally across it, so a foreign ref took half a commit's weighted
-share. Fixing only the mention path would have left that in place.
-
-Options.RepoName carries the self-qualifier so activetime need not import gitx
-(it deliberately does not — it has its own gitRun shim).
-
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
-```
+- [ ] **Step 6: Commit.**
 
 ---
 
-### Task 4: The regression check with a known answer
+### Task 4: `migrate.go` derives its scan from `issueref`
+
+**Files:**
+- Modify: `cmd/sdlc/migrate.go` (delete `refScanRE` `:45`; use `issueref.ScanRE`)
+
+The task that makes this a consolidation rather than a fourth encoding (`ARCH-DRY`).
+
+- [ ] **Step 1: Replace `refScanRE` with `issueref.ScanRE`.** Group indices are identical, so
+      the call sites are unchanged. Keep the comment explaining that every candidate is still
+      filtered through `parseRef` — `issueref` owns the SCAN, `parseRef` owns VALIDATION, and
+      the doc on each should name the other.
+
+- [ ] **Step 2: Run migrate's existing tests unchanged.** `TestRewriteRefs` is the guard that
+      the grammar did not move — including the 7+-digit case. `go test ./cmd/sdlc/ -run Migrate -v`
+      Expected: PASS with no test edits. If a test needs changing, the grammar changed and that
+      is a finding, not a fixup.
+
+- [ ] **Step 3: Commit.**
+
+---
+
+### Task 5: The regression check with a known answer
 
 **Files:**
 - Create: `workshop/plans/000190-evidence.md`
 
-This is the one check whose correct answer is already known from #187's close, which makes it
-worth more than any fixture: **46.1 minutes currently charged to ariadne#127 must return to
-#187**, and #187's measured actual must rise from 2.32h.
+The one check whose correct answer is already known: **46.1 minutes currently charged to
+ariadne#127 must return to #187.**
 
-- [ ] **Step 1: Record the BEFORE state** from #187's close output (already captured in its
-      issue Log): `#127 46.1m/77% mention fallback`, `#187 84.5m/62%`, actual 2.32h.
+- [ ] **Step 1: Record the BEFORE state.** Captured live before implementation:
 
-- [ ] **Step 2: Re-measure the same window after the fix.** #187 is archived, so prefer the
-      standalone verb over `sdlc actual --issue 187` (which needs the live issue file — check
-      whether `issueFilePath` searches `workshop/history/`; if it does, run both):
-
-```bash
-sdlc active-time --since 2026-07-29T10:00:00-07:00 --until 2026-07-29T13:00:00-07:00 \
-  --issues 187,127 --threshold 15
+```
+#187 84.5m/50% mention fallback without issue commit boundary (2026-07-29 10:25 → 12:36)
+#127 46.1m/77% mention fallback without issue commit boundary (2026-07-29 10:25 → 12:36)
+#127 46.1m/77% dominant long attribution segment              (2026-07-29 10:25 → 12:36)
 ```
 
-- [ ] **Step 3: Assert the three outcomes** in the evidence file:
-  - `127` receives **0** minutes (it is `pair#127` throughout);
-  - `187` gains what `127` held;
-  - no `mention fallback` warning names `127`.
+- [ ] **Step 2: Re-measure the same window.** The corrected invocation — **verified against
+      `activetime.go`**: `--dir`, `--git-repo` and `--issue` are all REQUIRED (`:29-41`, exit 2
+      otherwise); `--issue` is repeatable `StringArrayVar` (`:224`), *not* `--issues` with a
+      comma list; the flag is `--threshold-min` (`:227`). `--include-assistant` matches what
+      `sdlc actual` uses (`actual.go:114`), without which the streams are not comparable.
 
-- [ ] **Step 4: State the ledger consequence honestly.** ariadne#187's calibration row records
-      actual 2.32h and ratio 3.6×; the true actual is higher, so the recorded ratio is too
-      generous. **Do not silently rewrite the row** — #117's integrity rule and #178's
-      measured-not-typed gate both exist to keep that history honest. Record in the evidence
-      file what the corrected measurement is, and note that the row predates the fix. Whether
-      to re-measure historical rows is a separate decision with its own issue.
+```bash
+sdlc active-time \
+  --dir ~/.claude/projects/-Users-xianxu-workspace-ariadne \
+  --dir ../brain \
+  --git-repo /Users/xianxu/workspace/ariadne \
+  --issue 187 --issue 127 \
+  --since 2026-07-29T10:00:00-07:00 --until 2026-07-29T13:00:00-07:00 \
+  --threshold-min 15 --include-assistant
+```
 
-- [ ] **Step 5: Commit the evidence.**
+> Run the BEFORE measurement with this same command *before* Task 1 lands, so the comparison is
+> like-for-like. Resolve the exact `--dir` values from what `transcripts.Select` picks for
+> `sdlc actual` (`actual.go:101-103`) rather than guessing the slug.
+
+- [ ] **Step 3: Assert three outcomes** in the evidence file: `127` receives **0** minutes; `187`
+      gains what `127` held; no warning names `127` except the new foreign-refs-ignored line.
+
+- [ ] **Step 4: Corroborate with `sdlc actual --issue 187`.** **Verified it works on the
+      archived issue** (`computeActual` resolved it and reported 2.83h). But its window is
+      `<first-commit> → HEAD`, so the number drifts as unrelated work lands — it is a
+      corroborating signal, not the stable comparison. Step 2's fixed window is the measurement.
+
+- [ ] **Step 5: State the ledger consequence honestly.** #187's calibration row records actual
+      2.32h / ratio 3.6×; the true actual is higher, so the recorded ratio is too generous.
+      **Do not rewrite the row** — #117's integrity rule and #178's measured-not-typed gate exist
+      to keep that history honest. Record the corrected figure and note the row predates the fix.
+      Whether to re-measure historical rows is a separate decision with its own issue.
+
+- [ ] **Step 6: Commit the evidence.**
 
 ---
 
-### Task 5: Atlas + close
+### Task 6: Atlas + close
 
-**Files:**
-- Modify: `atlas/workflow/ledger-landscape.md` (the "How many hours did this issue actually take?" worked example)
-- Modify: `atlas/index.md` only if a new file was added (none planned)
+- [ ] **Step 1: Document the rule** in `atlas/workflow/ledger-landscape.md`'s "How many hours
+      did this issue actually take?" worked example (`:43`), which names the engine and its unit
+      but not what counts as a ref: bare `#N` and `<thisrepo>#N` are local; `<other>#N` is
+      foreign and attributable to no local issue; `-`/`.` are outside the boundary class so
+      `#174-#176` stays two refs; the qualifier names the repo the **commits** come from.
+      Cross-reference `helptext/resolve.md`, which owns the grammar.
 
-- [ ] **Step 1: Document the rule** where attribution is already described — the worked example
-      at `ledger-landscape.md:43` names the engine and its unit but not what counts as a ref.
-      Add: bare `#N` and `<thisrepo>#N` are local; `<other>#N` is foreign and attributable to no
-      local issue; `-`/`.` are excluded from the boundary class so `#174-#176` stays two refs.
+- [ ] **Step 2:** `go test ./... && go vet ./... && sh construct/vocabulary/vet_test.sh`
 
-- [ ] **Step 2: `go test ./... && go vet ./...`**
+- [ ] **Step 3:** Tick every Plan row; write the `## Log` entry.
 
-- [ ] **Step 3: Tick every Plan row; write the `## Log` entry.**
+- [ ] **Step 4:** `sdlc actual --issue 190` to preview, then
+      `sdlc close --issue 190 --verified '<evidence>'` with `--actual` omitted so close measures
+      and adopts it. The binary auto-dispatches the mandatory close review.
 
-- [ ] **Step 4: `sdlc actual --issue 190` to preview; then
-      `sdlc close --issue 190 --verified '<evidence>'`** with `--actual` omitted so close
-      measures and adopts it. The binary auto-dispatches the mandatory close review.
-
-- [ ] **Step 5:** `workshop/lessons.md` entry **only if** the close review surfaces something
-      not already prevented by code or tooling. Candidate, if the review agrees: three copies of
-      one regex is how a single-line bug reached three subsystems — the `issueref` extraction is
-      the code-enforced half, so a lesson is only warranted for the part tooling cannot catch.
+- [ ] **Step 5:** `workshop/lessons.md` **only if** the close review surfaces something not
+      already prevented by code or tooling. The four-copies-of-one-grammar lesson is now
+      code-enforced by the `issueref` consolidation, so it likely does not qualify.
 
 ---
 
 ## Risks and open questions
 
-1. **`parity_test.go` encoding the bug — CHECKED, it does not.**
-   `grep -n '[A-Za-z]#[0-9]' cmd/sdlc/internal/activetime/parity_test.go` returns nothing, so no
-   parity fixture carries a qualified ref and parity is unaffected by this change. Recorded as a
-   resolved check rather than a live risk, because the reasoning still matters if a fixture is
-   ever added: bug-for-bug parity with the superseded Python is not a property worth defending,
-   and a legitimately-changed expectation must be edited with a comment, never silently.
+1. **`parity_test.go` encoding the bug — CHECKED, it does not.** No fixture carries a qualified
+   ref, so v3 parity is unaffected. The reasoning is retained for the day one is added.
 2. **Historical ledger rows keep their pre-fix numbers.** Every calibration row measured before
-   this fix may be slightly wrong in the same direction. Deliberately out of scope: rewriting
-   measured history is exactly what #117/#178 forbid. Task 4 Step 4 records the discrepancy so a
-   future decision has data.
-3. **`\b`'s word class is ASCII.** A non-ASCII repo name would not be recognized as a
-   qualifier. No such repo exists in the workspace; noted so the constraint is a known one.
-4. **Foreign refs vanish rather than being reported.** `Ref.Qualifier` is retained so the table
-   *could* show `pair#127`, but nothing renders it in this issue. If the operator wants to see
-   cross-repo time, that is the widening point — stated so the omission reads as scoped, not
-   forgotten.
+   this fix may be wrong in the same direction. Deliberately out of scope: rewriting measured
+   history is what #117/#178 forbid. Task 5 Step 5 records the discrepancy so a future decision
+   has data.
+3. **`\b`'s word class is ASCII.** A non-ASCII repo name would not be recognized as a qualifier.
+   No such repo exists in the workspace; noted so the constraint is a known one.
+4. **`gh#id` refs are out of scope.** `parseRef` handles a `gh` token before `#` as a GitHub
+   ref; `ScanRE` will parse `gh#42` as qualifier `gh`, num `42` — correctly NOT local, since a
+   GitHub issue is not a workshop issue. Stated because it looks like an oversight and is not.
+5. **The `--dir` slug in Task 5 must be resolved, not guessed.** Named as a step rather than
+   hard-coded, because a wrong transcript dir yields a silent 0-event window (which `--dir`'s
+   own exit-2 guard exists to prevent, but only when the flag is missing entirely).
+
+---
+
+## Revisions
+
+### 2026-07-29 — plan-quality round 1: FAILURE, 4 Important + 1 Minor, all confirmed
+
+**Reason:** `sdlc change-code --issue 190` round 1. Every finding was verified against the code
+before acting; all four held up, and one changed the plan's central claim.
+
+- **[Important] The grammar already existed twice — the plan added a third encoding while
+  claiming to consolidate.** `migrate.go:45` `refScanRE` is
+  `([A-Za-z0-9][A-Za-z0-9_.-]*)?#([0-9]{1,6})\b` — **byte-identical** to what I proposed — and
+  its own doc says it is derived from `parseRef` (`resolve.go:50-57`), the canonical grammar
+  documented as not-to-be-re-encoded. Verified both. The plan now makes `issueref` the single
+  scan source and **Task 4 retires `refScanRE`**, so the count goes 4 → 1 instead of 3 → 1+1.
+  Two divergences settled explicitly: adopt the pinned `[0-9]{1,6}` bound (not `\d+`), and keep
+  `IsLocal` EXACT rather than adopting `resolveRepoDir`'s prefix matching, because a prefix rule
+  would let `brain` match `brain-family` and re-introduce the bleed this issue removes.
+- **[Important] The qualifier was derived from the wrong repo.** I had `Options.RepoName` from
+  `repoIdentity()` (cwd), while the commits being parsed come from `opts.GitRepo`
+  (`commit.go:42`), a `--git-repo` flag (`activetime.go:203`). Pointed at a peer, that drops the
+  peer's own refs as foreign and admits ariadne's as local — **this bug class, reproduced inside
+  the diagnostic verb**, and invisible to any test going through `sdlc actual` (which passes
+  `repoTop`). Now derived from `opts.GitRepo`, which also removes the CLI plumbing and the new
+  `Options` field entirely.
+- **[Important] Task 5's regression command would have exited 2 before computing.** Verified
+  against `activetime.go`: `--dir`, `--git-repo`, `--issue` are all required (`:29-41`); `--issue`
+  is repeatable, not `--issues` with commas (`:224`); it is `--threshold-min`, not `--threshold`
+  (`:227`). The most valuable verification in the document could not run. Corrected, plus
+  `--include-assistant` for comparability with `sdlc actual`, plus a BEFORE run on the same
+  command so the comparison is like-for-like.
+- **[Important] A Done-when bullet was neither planned nor dropped** — "`sdlc actual` output
+  states which rule attributed each segment". **Disposed:** already satisfied, because
+  `AttributionWarning.Reason` carries the rule name and `formatAttributionWarning`
+  (`activetime.go:100-105`) renders it verbatim — that is exactly how #187's close surfaced
+  `mention fallback without issue commit boundary`. But the finding surfaced a real gap next to
+  it: after this fix a foreign ref contributes nothing *silently*. Task 3 Step 4 now adds a
+  `foreign refs ignored: pair#127 (×3)` warning through that same channel, so the exclusion is
+  observable rather than invisible.
+- **[Minor] The plan restated the diff.** Full `ref.go` body and five pre-written commit
+  messages, stale on arrival. Compressed to signatures plus a strategy line each; commit
+  messages dropped. The corpus-derived test table and the mutation-verify step are kept — the
+  judge agreed those earn their place, and the mutation step is the mechanical guard this gate
+  asks every plan for.
+
+**Also verified before this round, so the gate was not asked to take them on faith:**
+`repoIdentity()` returns a bare basename (`reviewsidecar.go:113-126`); `parity_test.go` carries
+no qualified refs; `commit_test.go:9` already has a `withGitRun` helper to reuse;
+`sdlc actual --issue 187` works on the archived issue file.
