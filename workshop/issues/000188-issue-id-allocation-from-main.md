@@ -91,6 +91,34 @@ expensive to *repair* later.
   when the push eventually happens. Refusing outright would make the tracker
   unusable on a plane.
 
+- **Reach main without a checkout of it — the write side too.** `syncOnBranch`
+  requires a worktree on `main` (`findMainWorktree`, `claim.go:382`), copies files
+  into it, then commits and pushes from there. That precondition cannot be
+  satisfied by keeping a permanent main worktree around: **git refuses two
+  worktrees on one branch** (verified — `fatal: 'main' is already used by worktree
+  at /Users/xianxu/workspace/ariadne`), and the primary checkout's resting state
+  *is* main. The two states are mutually exclusive, which is also the way out:
+  - on `main` → `syncOnMain` (`claim.go:99`) commits in place, no worktree needed;
+  - on an in-place branch → main is free, so a worktree on it *can* be created.
+
+  **Near-term:** make the main worktree **ephemeral** — create it, sync through
+  it, remove it. Small change to `findMainWorktree` ("find one, or make one and
+  clean up"), no persistent state, and the collision case is exactly the case
+  that does not need it.
+
+  **Endgame:** no worktree at all. Fetch `origin/main`, build a tree with a
+  temporary index, `commit-tree` on top, push the ref. Same principle as the read
+  side — talk to git objects, not to checkouts — which is why it belongs in this
+  issue rather than a separate one. It also deletes a failure mode the worktree
+  design carries: `mainHasUncommittedIssueChanges` (`claim.go:225`) refuses the
+  sync outright when the main worktree has any uncommitted issue edits.
+
+- **Not** switching feature work to `--worktree=yes` so main stays permanently
+  checked out. It would work, but it moves the operator's cwd per issue while
+  their session is anchored at the repo root — a real workflow change to paper
+  over a tooling gap. The in-place branch default (#51) is right; sdlc adapts to
+  it.
+
 ### Deliberately rejected
 
 - **A `.next-id` counter file** so two creates conflict textually and git
@@ -118,6 +146,11 @@ expensive to *repair* later.
   command refuse and name both paths.
 - Offline creation still works, warns, and is corrected on the next successful
   publish.
+- Sync succeeds from an in-place feature branch **with no pre-existing main
+  worktree**, and leaves no worktree behind afterwards.
+- If the endgame is taken: sync succeeds while the main checkout carries
+  unrelated uncommitted issue edits (the `mainHasUncommittedIssueChanges`
+  precondition is gone, not merely bypassed).
 
 ## Plan
 
@@ -139,9 +172,12 @@ expensive to *repair* later.
   scans), so that particular allocation was correct. The hazard is not history
   drift — it is a peer landing a new issue on main that a stale branch has never
   seen.
-- **Operational follow-up, independent of any code change:** ariadne has no
-  permanent `main` worktree, which is what disables the sync path today. Adding
-  one restores it immediately.
+- **Correction (same session):** it was first suggested that adding a permanent
+  `main` worktree to ariadne would restore the sync path with no code change.
+  That is wrong — git refuses two worktrees on one branch, and the primary
+  checkout normally *is* main, so the permanent worktree is uncreatable most of
+  the time. Verified by attempting it. Folded into the Spec above as the
+  ephemeral-worktree / no-worktree change instead. There is no pure-ops fix.
 - **Follow-up worth its own issue:** an explicit `sdlc issue renumber <id>` that
   moves an issue to a new ID *and* rewrites the branch name, commit-message
   references, `deps:`/project refs, and sidecar filenames. That is the honest home
