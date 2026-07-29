@@ -2580,9 +2580,9 @@ func TestReplayPair127(t *testing.T) {
 
 ### Task 15: Close the issue
 
-- [ ] **Step 1:** `go test ./... && go vet ./...`
-- [ ] **Step 2:** Tick every Plan row; write the final `## Log` entry.
-- [ ] **Step 3:** `sdlc actual --issue 187` to preview the measured hours (never
+- [x] **Step 1:** `go test ./... && go vet ./...`
+- [x] **Step 2:** Tick every Plan row; write the final `## Log` entry.
+- [x] **Step 3:** `sdlc actual --issue 187` to preview the measured hours (never
       hand-type them).
 - [ ] **Step 4:** `sdlc close --issue 187 --verified '<evidence>'` — omit `--actual` so
       close measures and adopts it. The binary auto-dispatches the mandatory close review.

@@ -230,7 +230,7 @@ optimistic end for work of this shape, and is recorded as such rather than padde
       degrading to zero rather than breaking a close (Task 13)
 - [x] M2 — replay pair#127's first plan: fewer rounds, but the seam relocation and the
       absorb-layer removal must still surface (Task 14)
-- [ ] M2 — `sdlc close --issue 187` (Task 15)
+- [x] M2 — `sdlc close --issue 187` (Task 15)
 
 ## Revisions
 
