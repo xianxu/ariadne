@@ -290,6 +290,39 @@ code before acting on it; all seven held up. Estimate 5.79 → 6.07 (added repla
 - **Nits:** duplicate step numbering, `cap` shadowing the builtin, one self-contradictory
   test comment.
 
+### 2026-07-29 — M2 pickup note (context handoff)
+
+**M1 measured 1.55h against an 8.45h whole-issue estimate**, and M1 is the larger half
+(13 of 22 estimate items). If M2 lands proportionally the ratio is roughly 4× OVER — in a
+repo whose recent rows drift *under* (#171 0.41, #173 0.19, #186 0.56, and the named analog
+#180 at 0.68). That is the opposite direction from the calibration context recorded when
+the estimate was derived, and it is the single most useful signal this issue has produced
+for velocity work so far.
+
+Do **not** silently re-derive the estimate to make the ratio look better — the whole point
+of the close-time ledger is to record it honestly. `sdlc close` will measure and adopt the
+actual (#178); let it. Flag the variance in the close `--verified` evidence so the
+calibration ledger carries the story, not just the number.
+
+Worth noting *why* it may be inflated: the estimate was derived under gate pressure and
+re-derived three times across five plan-quality rounds, each round adding items for work
+the judge surfaced. Rounds that add scope to the plan also add items to the estimate, so a
+stateless gate inflates estimates the same way it inflates round-trips. That is a #187-shaped
+observation and belongs in the postmortem, not in a silent correction.
+
+**Where M2 picks up:** `workshop/plans/000187-tune-change-code-gate-plan.md` Tasks 11–15,
+all five unticked rows in `## Plan` above. Tasks 11–13 are the churn/rework/round-trip
+metrics at close; Task 14 is the pair#127 replay (the regression test for "did we weaken
+review", and per Risk 5 also the de-facto live conformance check for the ` ```findings `
+fence); Task 15 is `sdlc close`. The plan's Task 12 and Task 14 already carry the
+corrections from plan-gate rounds 1–2 (`gitx.RunGit` not `Capture`; drive
+`runPlanQualityJudge`, not `runChangeCode`, which `os.Exit`s on gate failure).
+
+**Loose end deliberately left unfiled:** `sdlc judge plan-quality` never populates
+`IssueContent`/`PlanContent` (`cmd/sdlc/judge.go:109-113`), so any manual invocation
+reviews an empty issue. Real defect in a verb the helptext advertises; recorded in Task 14's
+rationale, out of scope for #187. File with `sdlc issue new` when convenient.
+
 ### 2026-07-29 — M1 boundary review: FIX-THEN-SHIP, all findings fixed before commit
 
 **Reason:** `sdlc milestone-close --issue 187 --milestone M1`. Verdict FIX-THEN-SHIP;
