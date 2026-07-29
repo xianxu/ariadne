@@ -1,11 +1,12 @@
 ---
 id: 000185
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-28
 estimate_hours:
+started: 2026-07-28T17:41:54-07:00
 ---
 
 # lift roadmap out of brain (residency follow-up to #171)
