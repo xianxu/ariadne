@@ -8,8 +8,9 @@ absorbs another issue's measured hours.
 **Architecture:** The repo-qualified ref grammar already has a canonical validator
 (`parseRef`) and one derived scanner (`migrate.go`'s `refScanRE`). This work moves the SCAN
 half into `internal/issueref` so it can be reached from the internal packages, then routes
-**four** call sites through it — the three broken ones plus `refScanRE` itself. Net encodings
-of the grammar: 4 → 1.
+**five** call sites through it — the three broken ones plus `migrate.go`'s two. Net encodings
+of the grammar: **5 → 1**, achieved by exporting the qualifier+id *fragment* so an anchored
+variant composes instead of restating.
 
 **Tech Stack:** Go, RE2 (`regexp`), existing `cmd/sdlc/internal/{gitx,activetime}` packages.
 
@@ -54,6 +55,9 @@ Verified before designing:
 - **`refScanRE` (`migrate.go:39-45`) is `([A-Za-z0-9][A-Za-z0-9_.-]*)?#([0-9]{1,6})\b`** — the
   prose *candidate* scanner, whose own doc says it is "Derived from parseRef's grammar but not
   a second authority."
+- **`spanRefRE` (`migrate.go:50-55`) is the same grammar ANCHORED**, plus an optional milestone
+  tag: `^([A-Za-z0-9][A-Za-z0-9_.-]*)?#[0-9]{1,6}( M[0-9]+[a-z]?)?$` — the whole-span
+  discriminator that keeps `` `#171` `` rewriting while `` `git log --grep "^#15"` `` does not.
 
 So the qualified-ref grammar is already solved and already single-sourced. This work must
 **join** that lineage, not start a parallel one. `parseRef` lives in package `main`, which
@@ -79,17 +83,25 @@ it is why the new package takes the SCAN half and leaves validation where it is.
 | `uniqueRefs` | `cmd/sdlc/internal/activetime/util.go` | deleted |
 | `parseEventMentions` | `cmd/sdlc/internal/activetime/util.go` | modified |
 | `refScanRE` | `cmd/sdlc/migrate.go` | deleted |
+| `spanRefRE` | `cmd/sdlc/migrate.go` | deleted |
 
 - **Ref** — one parsed `#N`: `{Qualifier, Num string}`. `Qualifier == ""` is a bare ref.
   - **Relationships:** N per text; a value type with no ownership.
-  - **DRY rationale:** four encodings of one grammar become one. The duplication is not
-    hypothetical — it is *why this bug shipped*: three of the four copies were unbounded, and
-    nothing connected them, so fixing whichever a reader found would leave two wrong.
+  - **DRY rationale:** five encodings of one grammar become one. The duplication is not
+    hypothetical — it is *why this bug shipped*: three of the five copies were unbounded, and
+    nothing connected them, so fixing whichever a reader happened to find would leave two
+    wrong. (The two in `migrate.go` were already correct — they are the ones that show what the
+    grammar should have been all along.)
   - **Future extensions:** the retained `Qualifier` is what keeps cross-repo attribution open;
     a `pair#127` row in the active-time table needs exactly this field.
 
-- **ScanRE** — the compiled grammar, exported so `migrate.go` derives its candidate scan from
-  this rather than restating it.
+- **ScanRE / QualifiedIDPattern** — `QualifiedIDPattern` is the un-anchored qualifier+id
+  fragment as a string **const**; `ScanRE` is it plus `\b`, compiled. The fragment is exported
+  because `migrate.go` needs the grammar in two shapes — un-anchored candidate scanning
+  (`refScanRE`) and a whole-span anchored discriminator with a trailing milestone group
+  (`spanRefRE:55`). A regex cannot be re-anchored, so exporting only the compiled form would
+  have forced `spanRefRE` to stay a separate encoding; exporting the fragment lets both
+  compose. This is what makes the count 5 → 1 rather than 5 → 2.
   - **Grammar decision:** adopt `refScanRE`'s **`[0-9]{1,6}`**, not `\d+`. It is the bound
     `parseRef` documents and `TestRewriteRefs` pins (a 7+-digit run must match nothing), and
     workshop ids are 6-digit. Widening it here would fork the grammar in the same breath as
@@ -118,8 +130,15 @@ it is why the new package takes the SCAN half and leaves validation where it is.
 | `loadWindowCommits` | `cmd/sdlc/internal/activetime/commit.go` | modified | `git log` |
 | `selfQualifier` | `cmd/sdlc/internal/activetime/commit.go` | new | `opts.GitRepo` path |
 
-- **DiscoverWindowIssues** — gains the self-qualifier from the existing `RepoTopLevel()`
-  basename; also moves onto the package `run` shim (see Task 2) so it is testable at all.
+- **DiscoverWindowIssues** — takes the self-qualifier as a **parameter**, and moves onto the
+  package `run` shim (Task 2) so it is testable at all.
+  - **Why a parameter, not a `RepoTopLevel()` call inside:** `RepoTopLevel` shells out via
+    `exec.Command` directly (`window.go:524`), bypassing the `run` shim — so a self-qualifier
+    resolved internally would be untestable, and the plan's own must-not-regress row
+    (`ariadne#180` stays local) would ship with **no guard**. A `""` or wrong basename would
+    silently drop it. There is exactly one production caller (`actual.go:99`), which already
+    holds `repoTop`, so passing `filepath.Base(repoTop)` costs nothing and makes the dependency
+    explicit.
 
 - **loadWindowCommits** — already shells through the package's `gitRun` shim.
 
@@ -262,10 +281,14 @@ func TestDiscoverWindowIssuesExcludesForeignRefs(t *testing.T) {
 
 - [ ] **Step 2: Run to verify it fails** — `127` present.
 
-- [ ] **Step 3: Implement.** Delete `issueRefRE`; scan each subject with
-      `issueref.LocalNums(line, selfRepoName())`, where `selfRepoName()` is
-      `filepath.Base(RepoTopLevel())` and `""` on error (degrades to bare-refs-only rather
-      than losing the scan).
+- [ ] **Step 3: Implement.** Delete `issueRefRE`; add a `selfRepo string` parameter and scan
+      each subject with `issueref.LocalNums(line, selfRepo)`. Update the one production caller
+      (`actual.go:99`) to pass `filepath.Base(repoTop)`.
+
+      **The self-qualified case gets its own test** — `ariadne#180` with `selfRepo: "ariadne"`
+      must yield `180`, and with `selfRepo: ""` must not. That is the must-not-regress row from
+      the measurement table, and making `selfRepo` a parameter is what allows it to be asserted
+      at all.
 
 - [ ] **Step 4: Run the whole package.** `CommitWindow`, `subjectAnchorRE` and
       `IsShippedWorkSubject` must be untouched. `go test ./cmd/sdlc/internal/gitx/ -v`
@@ -351,24 +374,38 @@ func TestComputeDoesNotAttributeToForeignIssue(t *testing.T) {
 
 ---
 
-### Task 4: `migrate.go` derives its scan from `issueref`
+### Task 4: `migrate.go`'s BOTH encodings derive from `issueref`
 
 **Files:**
-- Modify: `cmd/sdlc/migrate.go` (delete `refScanRE` `:45`; use `issueref.ScanRE`)
+- Modify: `cmd/sdlc/migrate.go` (delete `refScanRE` `:45` and `spanRefRE` `:55`)
 
-The task that makes this a consolidation rather than a fourth encoding (`ARCH-DRY`).
+The task that makes this a consolidation rather than a new encoding (`ARCH-DRY`).
 
 - [ ] **Step 1: Replace `refScanRE` with `issueref.ScanRE`.** Group indices are identical, so
-      the call sites are unchanged. Keep the comment explaining that every candidate is still
+      its call sites are unchanged. Keep the comment recording that every candidate is still
       filtered through `parseRef` — `issueref` owns the SCAN, `parseRef` owns VALIDATION, and
-      the doc on each should name the other.
+      each doc should name the other.
 
-- [ ] **Step 2: Run migrate's existing tests unchanged.** `TestRewriteRefs` is the guard that
-      the grammar did not move — including the 7+-digit case. `go test ./cmd/sdlc/ -run Migrate -v`
-      Expected: PASS with no test edits. If a test needs changing, the grammar changed and that
-      is a finding, not a fixup.
+- [ ] **Step 2: Recompose `spanRefRE` from the shared fragment.**
 
-- [ ] **Step 3: Commit.**
+```go
+var spanRefRE = regexp.MustCompile(`^` + issueref.QualifiedIDPattern + `( M[0-9]+[a-z]?)?$`)
+```
+
+      **Check the group indices before assuming this is transparent.** Today `spanRefRE` does
+      NOT capture the id (`#[0-9]{1,6}`), while `QualifiedIDPattern` does — so the milestone
+      group shifts from 2 to 3. Confirm whether any call site reads a submatch or only
+      `MatchString`; if it reads groups, update the index in the same commit. This is exactly
+      the kind of silent shift the composition is worth doing carefully.
+
+- [ ] **Step 3: Run migrate's existing tests unchanged.** `TestRewriteRefs` is the guard that
+      the grammar did not move — including the 7+-digit case — and the `#179` span cases
+      (a styled `` `#171` `` rewrites; a quoted `` `git log --grep "^#15"` `` must not) are the
+      guard for `spanRefRE`. `go test ./cmd/sdlc/ -run 'Migrate|RewriteRefs|Span' -v`
+      Expected: PASS with **no test edits**. If a test needs changing, the grammar moved and
+      that is a finding, not a fixup.
+
+- [ ] **Step 4: Commit.**
 
 ---
 

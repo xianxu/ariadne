@@ -60,6 +60,58 @@ rounds:
             line per function.
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-07-29T16:45:03-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Task 4 retires refScanRE; issueref.ScanRE adopts the pinned [0-9]{1,6} and IsLocal stays exact — both divergences settled explicitly.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: selfQualifier now derives from opts.GitRepo (commit.go:42), and Options.RepoName plus the CLI plumbing are gone.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Invocation verified against activetime.go:29-41/:224/:227 plus --include-assistant, with a like-for-like BEFORE run.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: Disposed as already satisfied via AttributionWarning.Reason (compute.go:68, activetime.go:100-105), and Task 3 Step 4 adds the foreign-refs-ignored warning.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: Compressed to signatures plus a strategy line; commit messages dropped; corpus table and mutation-verify retained.
+          round: 2
+      findings:
+        - id: PQ-6
+          severity: Minor
+          title: ARCH-DRY — spanRefRE (migrate.go:55) is a fifth encoding of the same qualifier+id grammar, so "4 → 1" is not the real count
+          detail: |-
+            `^([A-Za-z0-9][A-Za-z0-9_.-]*)?#[0-9]{1,6}( M[0-9]+[a-z]?)?$` restates the grammar in
+            anchored form. After Task 4 the count is 5 → 2. Compose both from one exported
+            qualifier+id fragment, or state why the anchored variant stays separate.
+          round: 2
+        - id: PQ-7
+          severity: Minor
+          title: The self-qualified-is-local case is untestable in gitx because RepoTopLevel bypasses the run shim (window.go:524)
+          detail: |-
+            selfRepoName() calls RepoTopLevel, which shells out via exec.Command directly, so the new
+            test can only assert the foreign case. A "" or wrong basename would silently drop
+            ariadne#180 — the plan's own must-not-regress row — with no guard. Pass selfRepo as a
+            parameter, or route RepoTopLevel through run.
+          round: 2
+        - id: PQ-8
+          severity: Minor
+          title: The issue's Plan rows are the superseded ones, so Task 6 Step 3's "tick every Plan row" would record dropped work as done
+          detail: |-
+            The issue file still lists the precedence rule and the terminal-status guard, both
+            explicitly dropped by the Revisions ledger. Rewrite the issue's Plan to mirror Tasks 1-6
+            before the close, so the plan-unchecked gate is satisfied honestly.
+          round: 2
+      blocked: false
+content_hash: 0383d183aef77374384439b2c0861f8f39f3ff983fa2a25c7bb22d83464f0715
 ---
 
 # Gate ledger — ariadne#190 (plan-quality)
@@ -104,10 +156,34 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   implementation and are stale on arrival; compress to the signature plus the strategy
   line per function.
 
+## Round 2 — 2026-07-29T16:45:03-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Task 4 retires refScanRE; issueref.ScanRE adopts the pinned [0-9]{1,6} and IsLocal stays exact — both divergences settled explicitly.
+- PQ-2 — addressed — selfQualifier now derives from opts.GitRepo (commit.go:42), and Options.RepoName plus the CLI plumbing are gone.
+- PQ-3 — addressed — Invocation verified against activetime.go:29-41/:224/:227 plus --include-assistant, with a like-for-like BEFORE run.
+- PQ-4 — addressed — Disposed as already satisfied via AttributionWarning.Reason (compute.go:68, activetime.go:100-105), and Task 3 Step 4 adds the foreign-refs-ignored warning.
+- PQ-5 — addressed — Compressed to signatures plus a strategy line; commit messages dropped; corpus table and mutation-verify retained.
+
+### Raised
+
+- **PQ-6** [Minor] ARCH-DRY — spanRefRE (migrate.go:55) is a fifth encoding of the same qualifier+id grammar, so "4 → 1" is not the real count
+  `^([A-Za-z0-9][A-Za-z0-9_.-]*)?#[0-9]{1,6}( M[0-9]+[a-z]?)?$` restates the grammar in
+  anchored form. After Task 4 the count is 5 → 2. Compose both from one exported
+  qualifier+id fragment, or state why the anchored variant stays separate.
+- **PQ-7** [Minor] The self-qualified-is-local case is untestable in gitx because RepoTopLevel bypasses the run shim (window.go:524)
+  selfRepoName() calls RepoTopLevel, which shells out via exec.Command directly, so the new
+  test can only assert the foreign case. A "" or wrong basename would silently drop
+  ariadne#180 — the plan's own must-not-regress row — with no guard. Pass selfRepo as a
+  parameter, or route RepoTopLevel through run.
+- **PQ-8** [Minor] The issue's Plan rows are the superseded ones, so Task 6 Step 3's "tick every Plan row" would record dropped work as done
+  The issue file still lists the precedence rule and the terminal-status guard, both
+  explicitly dropped by the Revisions ledger. Rewrite the issue's Plan to mirror Tasks 1-6
+  before the close, so the plan-unchecked gate is satisfied honestly.
+
 ## Open findings
 
-- **PQ-1** [Important] ARCH-DRY — the repo-qualified ref grammar already exists twice; the plan adds a third encoding while claiming to consolidate
-- **PQ-2** [Important] Options.RepoName is derived from the process cwd but the commit path parses opts.GitRepo, which the standalone verb takes as a flag
-- **PQ-3** [Important] Task 4's regression command exits 2 before computing — wrong flag names and two required flags missing
-- **PQ-4** [Important] Done-when bullet on per-segment attribution-rule output is neither planned nor explicitly dropped
-- **PQ-5** [Minor] Plan restates the diff — full implementation source and five pre-written commit messages
+- **PQ-6** [Minor] ARCH-DRY — spanRefRE (migrate.go:55) is a fifth encoding of the same qualifier+id grammar, so "4 → 1" is not the real count
+- **PQ-7** [Minor] The self-qualified-is-local case is untestable in gitx because RepoTopLevel bypasses the run shim (window.go:524)
+- **PQ-8** [Minor] The issue's Plan rows are the superseded ones, so Task 6 Step 3's "tick every Plan row" would record dropped work as done
