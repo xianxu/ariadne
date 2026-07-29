@@ -15,7 +15,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 | Plan file (complex case) | `workshop/plans/<N>-*-plan.md` (git) | Detailed implementation breakdown — Core concepts, file structure, bite-sized tasks | execution sessions, milestone reviewers |
 | Target file | `workshop/targets/<slug>.md` (git) | What shape do we defend against drift? | humans + agents reading the system |
 | Project file | per-repo `workshop/projects/<slug>.md` (git); terminal records archive to `workshop/history/projects/` | Committed baseline, scope events, and retros; `sdlc project status` derives live multi-issue progress from referenced issue records | operator + contributors coordinating the project |
-| Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | How well do estimates match measured actuals? (per-issue estimate↔actual + per-model drift, #117/#127) | velocity calibration; the estimate shell |
+| Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | How well do estimates match measured actuals, and what did the work cost? (per-issue estimate↔actual + per-model drift, #117/#127; churn / rework / plan-gate round-trips, #187) | velocity calibration; the estimate shell |
 | Atlas entries | `atlas/**.md` (git) | How is the system built — architectural map | first-level onboarding |
 | Git commits (messages + trailers) | git history (immutable) | What changed, why, and what checkpoint state was crossed? | tooling, history readers, audit |
 | Claude transcripts | `~/.claude/projects/<repo-id>/*.jsonl` (local) | What was the AI actually saying that day? | audit, active-time-v3, memory writers |
@@ -45,6 +45,21 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 - No mirror needed — frontmatter is already terse.
 - *Unit (#118/#92):* the engine measures **ship wall-clock**, not operator-attention — idle gaps still truncate at 15 min, but a subagent-execution span (an `Agent` `tool_use` dispatch → its `tool_result` return, both in the operator's transcript) counts **in full** even when it exceeds the cap. Overlaps collapse only within one transcript source; overlapping sessions remain separate claimable issue work. Activity runs are claimed by nearby issue-referenced commit boundaries, with no-ref commits acting as neutral cut points. This matches the current estimate model's unit (`estimate-logic-v3.1` estimates ship wall-clock directly), so the calibration ledger compares like-for-like.
 - *Known limit (#118):* span matching is **per-transcript-file** — a subagent run whose dispatch and return straddle a session-compaction boundary (dispatch in file A, return in file B) is not paired, so that gap truncates at 15 min. Forward-looking only (all historical spans were within-file and sub-cap); when long delegated runs routinely cross files, aggregate the pending-dispatch map across files in `loadEvents`.
+
+**"Did the plan-quality gate earn its cost on this issue?"** (#187)
+- *Authoritative:* the calibration ledger's appended columns — `gate_rounds`, `gate_forced`,
+  `gate_addressed`, `gate_withdrawn`, `gate_open`, beside `churn_prod` / `churn_test` /
+  `churn_atlas` / `churn_workshop` / `rework`. Twenty columns total; the #187 block is
+  indices 10–19.
+- *Schema contract:* columns are **APPENDED, never reordered or inserted.** `ParseRows`
+  indexes positionally and live ledgers are full of rows written by older binaries, so an
+  insertion would not fail — it would silently re-interpret every historical row. Rows
+  shorter than the full width parse as legacy: they keep their estimate↔actual data point
+  and carry no metrics.
+- *Human mirror:* the two lines `sdlc close` prints (see
+  [gate-state.md § What close reports](gate-state.md)). Unconditional, unlike the row.
+- *Not* a substitute for the gate ledger itself (`workshop/plans/NNNNNN-*-plan-gate.md`),
+  which holds the findings and dispositions these counts summarize.
 
 **"What's the current convention for human-machine markdown markers?"**
 - *Authoritative:* `review-convention.md` bundled in the `xx-fix` skill dir (`construct/local/fix/review-convention.md`), reachable in **every** repo via the neutral Agent Skills path `.agents/skills/xx-fix/review-convention.md` (#158). It rides the skill symlink into derivatives, unlike a `workshop/targets/` file which is ariadne-only.

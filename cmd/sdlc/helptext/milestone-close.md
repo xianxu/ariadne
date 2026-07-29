@@ -69,6 +69,8 @@ FLAGS
   --brain-dir <path>    brain root for the calibration ledger (default ../brain);
                         project files are discovered across the fleet (#171)
   --issues-dir <path>   directory holding issue files
+  --plans-dir <path>    durable plans + gate sidecars (default workshop/plans);
+                        where the cost report finds the plan-gate ledger (#187)
 
 USAGE
 

@@ -2304,7 +2304,7 @@ func TestChurnForWindowEmptyBase(t *testing.T) {
 - Modify: `cmd/sdlc/close.go` (`appendCalibrationRow`, the info line)
 - Modify: `cmd/sdlc/close_ledger_test.go`
 
-- [ ] **Step 1: Write the failing ledger tests.** Columns are **appended**, never
+- [x] **Step 1: Write the failing ledger tests.** Columns are **appended**, never
   reordered — `ParseRows` indexes positionally (`c[0]`…`c[9]`) and
   `projectthroughput_test.go` seeds fixture rows, so an insertion would silently
   mis-read history:
@@ -2334,7 +2334,7 @@ func TestFormatRowCarriesChurnColumns(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run-fail; Step 3: implement.** Append to `LedgerRow` and to
+- [x] **Step 2: Run-fail; Step 3: implement.** Append to `LedgerRow` and to
   `ledgerHeader`, in this order:
   `churn_prod  churn_test  churn_atlas  churn_workshop  rework  gate_rounds  gate_forced
   gate_addressed  gate_withdrawn  gate_open` — **ten** appended columns (see the
@@ -2346,7 +2346,7 @@ func TestFormatRowCarriesChurnColumns(t *testing.T) {
   **only when present** (`len(c) >= 20` — `>= 19` would admit a 19-column row and then
   panic reading `c[19]`), so legacy 10-column rows keep parsing.
 
-- [ ] **Step 4: Wire `close.go` — TWO consumers with DIFFERENT contracts.** Do not fold
+- [x] **Step 4: Wire `close.go` — TWO consumers with DIFFERENT contracts.** Do not fold
   them together; that is the trap here.
 
   **(a) The operator-facing line is unconditional.** Emit it in `applyClose`, beside the
@@ -2408,7 +2408,7 @@ func TestFormatRowCarriesChurnColumns(t *testing.T) {
   plan-gate sidecar warns and leaves the values at zero. `closeMetrics` returns zeroes and
   warns; it never returns an error.
 
-- [ ] **Step 5: Write the failing close-side tests** — the unconditional contract is the
+- [x] **Step 5: Write the failing close-side tests** — the unconditional contract is the
   point, so test the three cases that would silently lose it:
 
 ```go
@@ -2432,15 +2432,15 @@ func TestChurnLinePrintsWhenLedgerRowIsSkipped(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run**
+- [x] **Step 6: Run**
 
 Run: `go test ./cmd/sdlc/... ./cmd/sdlc/internal/... -v`
 Expected: PASS, including `projectthroughput_test.go`'s ledger fixture.
 
-- [ ] **Step 7: Update the atlas** — the calibration-ledger schema row gains the seven
+- [x] **Step 7: Update the atlas** — the calibration-ledger schema row gains the seven
   columns; `atlas/workflow/gate-state.md` gains the "what close reports" section.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add cmd/sdlc/internal/estimate/ cmd/sdlc/close.go cmd/sdlc/*_test.go atlas/

@@ -99,6 +99,47 @@ findings. Dropping it would freeze `len(Rounds)` at 0 for an agent CLI that neve
 the fence: the prompt would announce "this is the FIRST round" on invocation six, the round
 cap could never fire, and `gate_rounds` would report 0 for the most expensive sessions.
 
+## What close reports
+
+A gate that remembers can also be *costed*. `sdlc close` and `sdlc milestone-close` print
+two lines derived from the window they just reviewed:
+
+```
+  [ok] churn: prod 554 / test 300 / atlas 20 / workshop 778 (final 1652, rework 2.4×)
+  [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 2 still open
+```
+
+**Churn** splits the window's surviving insertions four ways (`atlas/` → atlas,
+`workshop/` → workshop, `*_test.go`/`testdata/` → test, **everything else** → prod —
+including embedded prompt markdown and build files, which are production artifacts here).
+**Rework** is insertions-across-commits over insertions-in-the-final-diff: `1.0` means
+every line written survived, `2.4×` means the window wrote 2.4 lines per line it kept.
+That ratio is the point — pair#127's final diff read as merely process-heavy and said
+nothing about the file it rewrote five times.
+
+**Two senses of "disposition", both reported.** *Forced* counts rounds the operator
+bypassed; *addressed / withdrawn / still open* counts what happened to the findings. The
+first answers "was the gate worked around", the second "were its findings acted on". Both
+are free from the ledger, so neither is inferred from the other.
+
+Three properties worth not breaking:
+
+- **The window is `boundaryWindowBase`'s**, not a second derivation — so the churn provably
+  covers the commits the review saw. The close's own uncommitted edits fall outside it, and
+  that is the correct trade: diverging from the review's window would make the numbers
+  incomparable across issues.
+- **The operator lines are unconditional; the ledger row is not.** The calibration row is
+  gated by #117's integrity rule (a milestone close carries a partial actual and must not
+  pollute the ledger) and skipped again with no `brain/`. The report inherits none of that —
+  emitting it from inside `appendCalibrationRow` would silently produce nothing on a
+  milestone close, under `--no-actual`, or in any downstream repo without a sibling brain.
+- **Everything degrades to zero with a warning.** A bad base SHA, a corrupt sidecar: warn,
+  zero, close. No diagnostic is worth failing a close over. (An *absent* sidecar is not a
+  failure — it is every issue closed before #187, and reads as honest zeroes.)
+
+The same values land in the calibration ledger as ten appended columns — see
+[ledger-landscape.md](ledger-landscape.md).
+
 ## Code map
 
 | file | role |
@@ -110,3 +151,5 @@ cap could never fire, and `gate_rounds` would report 0 for the most expensive se
 | `cmd/sdlc/changecode.go` | wires it into the plan-quality gate |
 | `cmd/sdlc/internal/judge/prompts/plan-quality.md` | dispose-first prompt |
 | `cmd/sdlc/internal/judge/code-review.md` | the carry-forward consumer |
+| `cmd/sdlc/internal/churn/` | PURE churn: four-bucket classification, rework ratio, numstat parsing |
+| `cmd/sdlc/churnreport.go` | the close-time cost report — git seam + the two operator lines |

@@ -35,7 +35,7 @@ func TestAppendCalibrationRow_Happy(t *testing.T) {
 	f := &closeFlags{Actual: "1.7", Mode: "supervised"}
 	fm := "id: 1\nstatus: working\nestimate_hours: 3.4\n"
 
-	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17")
+	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{})
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -63,7 +63,7 @@ func TestAppendCalibrationRow_TrustedWithStarted(t *testing.T) {
 	f := &closeFlags{Actual: "2.0"}
 	fm := "estimate_hours: 3.4\nstarted: 2026-06-17T10:00:00Z\n"
 
-	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17")
+	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{})
 
 	data, _ := os.ReadFile(path)
 	if !strings.Contains(string(data), "\tyes\t") {
@@ -79,7 +79,7 @@ func TestAppendCalibrationRow_BrainAbsentSkips(t *testing.T) {
 	var errb bytes.Buffer
 	f := &closeFlags{Actual: "1.0", BrainDir: "/no/such/brain/dir"}
 
-	appendCalibrationRow(&errb, f, "estimate_hours: 1\n", "# T\n", "ariadne", "117", "2026-06-17")
+	appendCalibrationRow(&errb, f, "estimate_hours: 1\n", "# T\n", "ariadne", "117", "2026-06-17", closeCostMetrics{})
 
 	if !strings.Contains(errb.String(), "skipped") {
 		t.Errorf("expected a skip warning, got %q", errb.String())
@@ -165,7 +165,7 @@ func TestAppendCalibrationRow_DriftWarns(t *testing.T) {
 	var errb bytes.Buffer
 	f := &closeFlags{Actual: "0.3"}
 	fm := "estimate_hours: 3.4\nstarted: 2026-06-17T10:00:00Z\n"
-	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17")
+	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{})
 
 	if !strings.Contains(errb.String(), "drift") {
 		t.Errorf("expected a drift warning, got %q", errb.String())
