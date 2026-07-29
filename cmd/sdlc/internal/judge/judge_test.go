@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // execCommand is exposed as a var so the test can swap to a fake if
@@ -156,17 +158,17 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		RepoNote: "a downstream repo built on the ariadne base layer",
 	})
 	for _, want := range []string{
-		"pair#72 M1",                        // {{ISSUE_REF}} — repo-prefixed, not hardcoded ariadne (#137)
-		"Base: BASE_SHA",                    // {{BASE}}
-		"Head: HEAD_SHA",                    // {{HEAD}}
-		"pair",                              // {{REPO}}
-		"/w/pair",                           // {{REPO_ROOT}}
-		"workshop/issues/000072-x.md",       // {{ISSUE_FILE}}
-		"milestone M1 close",                // {{BOUNDARY}}
-		"downstream repo",                   // {{REPO_NOTE}}
+		"pair#72 M1",                  // {{ISSUE_REF}} — repo-prefixed, not hardcoded ariadne (#137)
+		"Base: BASE_SHA",              // {{BASE}}
+		"Head: HEAD_SHA",              // {{HEAD}}
+		"pair",                        // {{REPO}}
+		"/w/pair",                     // {{REPO_ROOT}}
+		"workshop/issues/000072-x.md", // {{ISSUE_FILE}}
+		"milestone M1 close",          // {{BOUNDARY}}
+		"downstream repo",             // {{REPO_NOTE}}
 		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
-		"```verdict", // {{VERDICT_BLOCK}} — the structured handoff (#147)
+		"```verdict",                               // {{VERDICT_BLOCK}} — the structured handoff (#147)
 		"verdict: <SHIP | FIX-THEN-SHIP | REWORK>", // tokens rendered from vocab.Verdict().Emitted()
 	} {
 		if !strings.Contains(body, want) {
@@ -309,7 +311,6 @@ func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
 		"Is this plan executable as-written",
 		"Vague checklist items",
 		"Undeclared cross-issue",
-		"Mismatched estimate vs scope",
 		// #175 forward fix: flag over-split Mx plans at design time.
 		"Over-split milestones",
 		"review boundary",
@@ -321,6 +322,16 @@ func TestBuildPrompt_PlanQuality_HasContract(t *testing.T) {
 	} {
 		if !strings.Contains(p, want) {
 			t.Errorf("PlanQuality prompt missing %q:\n%s", want, p)
+		}
+	}
+
+	// #187 B1: the estimate gates now run AFTER plan-quality, so at this point the
+	// estimate legitimately does not exist yet. A "mismatched estimate vs scope" ask
+	// here would demand the agent cost a plan nobody has accepted — the waste-by-
+	// construction B2 removes. This assertion replaces the old one that required it.
+	for _, forbidden := range []string{"Mismatched estimate vs scope", "estimate_hours"} {
+		if strings.Contains(p, forbidden) {
+			t.Errorf("PlanQuality prompt must not mention the estimate (#187 B1), found %q", forbidden)
 		}
 	}
 }
@@ -845,4 +856,87 @@ func TestDispatch_ExitErrorWithEmptyOutput_NotAnError(t *testing.T) {
 // genuine *exec.ExitError. Wrapped here to keep the test's intent clear.
 func realExec(name string) ([]byte, error) {
 	return execCommand(name).CombinedOutput()
+}
+
+// TestCodeReviewSeveritiesMatchModel pins code-review.md's severity buckets to the
+// `finding` model (#187): the boundary review and the plan gate share ONE taxonomy, so a
+// severity renamed in finding.cue cannot leave the boundary-review prose behind.
+//
+// The `s + " ("` shape matches code-review.md's bucket headings ("Critical (must fix
+// before crossing the boundary)"), so this fails on a rename rather than merely on the
+// word appearing somewhere in the prose.
+func TestCodeReviewSeveritiesMatchModel(t *testing.T) {
+	body := CodeReviewBody(PromptInput{})
+	for _, s := range vocab.Finding().Severities() {
+		if !strings.Contains(body, s+" (") {
+			t.Errorf("code-review.md does not name severity %q from the finding model", s)
+		}
+	}
+}
+
+// TestPlanQualityPromptRendersFindingModel pins that the plan-quality prompt renders its
+// accepted severity/disposition set FROM the model (#187), so finding.cue stays the single
+// source and the prompt cannot drift from what the parser will accept.
+func TestPlanQualityPromptRendersFindingModel(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{})
+	m := vocab.Finding()
+	for _, s := range m.Severities() {
+		if !strings.Contains(p, s) {
+			t.Errorf("plan-quality prompt omits severity %q", s)
+		}
+	}
+	// AllDispositions(), not .Dispositions — the latter is map[string][]string since the
+	// closing/open partition landed.
+	for _, d := range m.AllDispositions() {
+		if !strings.Contains(p, d) {
+			t.Errorf("plan-quality prompt omits disposition %q", d)
+		}
+	}
+	if !strings.Contains(p, "```findings") {
+		t.Error("plan-quality prompt must show the fenced findings block")
+	}
+}
+
+// TestPlanQualityPromptCarriesPriorFindings pins A2's actual mechanism: the prior-round
+// block must reach the rendered prompt. Without this the gate is stateless no matter what
+// the ledger records.
+func TestPlanQualityPromptCarriesPriorFindings(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{PriorFindings: "SENTINEL-PRIOR-BLOCK"})
+	if !strings.Contains(p, "SENTINEL-PRIOR-BLOCK") {
+		t.Error("PriorFindings did not reach the rendered plan-quality prompt")
+	}
+	// Round 1 must announce itself rather than rendering an empty section.
+	first := BuildPrompt(PlanQuality, PromptInput{})
+	if !strings.Contains(first, "(no prior rounds)") {
+		t.Error("an empty PriorFindings should render the explicit no-prior-rounds default")
+	}
+}
+
+// TestPlanQualityPromptDemandsStrategyNotEnumeration pins C1's semantics in the prompt
+// text: the gate must ask for test FUNCTIONS + strategy and explicitly reject enumerated
+// case lists. This is the plumbing check; the behavioral check is the pair#127 replay.
+func TestPlanQualityPromptDemandsStrategyNotEnumeration(t *testing.T) {
+	p := BuildPrompt(PlanQuality, PromptInput{})
+	for _, want := range []string{
+		"functions", "one line of strategy", "fuzz it",
+		"enumerated list of test cases", "line-numbered inventory",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("plan-quality prompt missing the C1 ask %q", want)
+		}
+	}
+}
+
+// TestCodeReviewCarriesPlanGateForward pins #187 A3's safety argument. The plan gate stops
+// blocking on Minor and round-cap-demoted findings ONLY because the boundary review picks
+// them up from the ledger. That claim is made in Decide's doc comment, the plan-quality
+// prompt, and the change-code helptext — if this pointer were ever dropped, all three
+// would become false and the demotion would become a silent loss.
+func TestCodeReviewCarriesPlanGateForward(t *testing.T) {
+	body := CodeReviewBody(PromptInput{})
+	for _, want := range []string{"plan-gate.md", "Open findings", "deferred"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("code-review.md must point the boundary reviewer at the plan-gate ledger; missing %q", want)
+		}
+	}
 }

@@ -111,7 +111,30 @@ WHAT IT DOES
     here from the publish gate so it fires while findings are fresh)
   - Ticks the project task row + upserts **actual:** and **closed:** in the
     detail block
+  - Prints the COST REPORT (#187) — see below
   - Does NOT git-commit, does NOT move the file to workshop/history/
+
+THE COST REPORT (#187)
+
+  Two lines, over the same window the boundary review saw:
+
+    [ok] churn: prod 554 / test 300 / atlas 20 / workshop 778 (final 1652, rework 2.4×)
+    [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 2 still open
+
+  rework is insertions-across-commits over insertions-in-the-final-diff: 1.0
+  means every line written survived; 2.4× means 2.4 lines written per line kept.
+  It is the number a final diff cannot show — a file rewritten five times looks
+  identical to one written once.
+
+  Both lines are UNCONDITIONAL: unlike the calibration row, they print on a
+  milestone close, under --no-actual, and with no sibling brain/. Every value
+  degrades to zero with a warning rather than failing the close; an ABSENT
+  plan-gate sidecar is not a failure (it is every issue closed before #187) and
+  reads as honest zeroes.
+
+  The same values append to the calibration ledger as ten columns
+  (churn_prod … gate_open, indices 10–19). Columns are APPENDED, never
+  reordered — ParseRows indexes positionally and legacy rows must keep parsing.
 
 WARMUP
 
@@ -141,6 +164,8 @@ FLAGS
   --brain-dir <path>    brain root for the calibration ledger (default ../brain);
                         project files are discovered across the fleet (#171)
   --issues-dir <path>   issues directory (default workshop/issues)
+  --plans-dir <path>    durable plans + gate sidecars (default workshop/plans);
+                        where the cost report finds the plan-gate ledger (#187)
 
 DEEP-DIVE REFERENCES
 

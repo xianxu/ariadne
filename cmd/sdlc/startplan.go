@@ -193,18 +193,18 @@ func planPointer(issue int) string {
 		"    file (~/.claude/plans/…) is ephemeral — NOT the record.", slug)
 }
 
-// estimateNudge renders the start-plan reminder about estimate_hours (#113):
-// a prompt to set it (required at change-code now that claim no longer asks)
-// when absent, or a one-line acknowledgment when present. Pure: the only input
+// estimateNudge renders the start-plan reminder about estimate_hours (#113, retimed by
+// #187): when absent, it tells you NOT to derive it yet — change-code asks only after the
+// plan clears plan-quality — or a one-line acknowledgment when already present. Pure: the only input
 // is the current estimate value (empty when unset), so the wording is
 // table-testable without IO. Continuation lines indent 4 to align under
 // cinfo's `==> ` prefix.
 func estimateNudge(estimate string) string {
 	est := strings.TrimSpace(estimate)
 	if est == "" {
-		return "Set `estimate_hours:` in the issue frontmatter before `sdlc change-code` —\n" +
-			"    it's required there now (#113; claim no longer asks). Estimate post-design,\n" +
-			"    when the scope is knowable."
+		return "Don't derive `estimate_hours:` yet — `sdlc change-code` runs plan-quality\n" +
+			"    FIRST and asks for the estimate only after the plan clears (#187). Costing a\n" +
+			"    plan nobody has accepted just gets recomputed on the next revision."
 	}
 	return fmt.Sprintf("estimate_hours: %s already set — change-code's estimate gate will pass.", est)
 }

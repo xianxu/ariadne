@@ -30,17 +30,24 @@ type sidecarMeta struct {
 	Body      string
 }
 
+// sidecarPathFor derives a sidecar path from an issue filename stem plus a suffix. The one
+// stem derivation shared by the boundary-review sidecar (#136) and the plan-gate ledger
+// (#187), so both track the issue's slug from a single source (ARCH-DRY).
+func sidecarPathFor(plansDir, issueFileName, suffix string) string {
+	stem := strings.TrimSuffix(filepath.Base(issueFileName), ".md")
+	return filepath.Join(plansDir, stem+"-"+suffix+".md")
+}
+
 // sidecarPath derives the deterministic sidecar path from the issue filename
 // stem: `NNNNNN-slug-close-review.md` for a whole-issue close, or
 // `NNNNNN-slug-m<x>-review.md` for milestone `Mx` (lowercased). Reusing the
 // issue filename's stem keeps one slug source of truth (ARCH-DRY).
 func sidecarPath(plansDir, issueFileName, milestone string) string {
-	stem := strings.TrimSuffix(filepath.Base(issueFileName), ".md")
 	suffix := "close-review"
 	if milestone != "" {
 		suffix = strings.ToLower(milestone) + "-review"
 	}
-	return filepath.Join(plansDir, stem+"-"+suffix+".md")
+	return sidecarPathFor(plansDir, issueFileName, suffix)
 }
 
 // boundaryKind is the human label for the review boundary.

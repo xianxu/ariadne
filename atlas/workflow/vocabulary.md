@@ -45,8 +45,26 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   consumer (enum equality, `verdictFor` derive, regex/contract subset). The reviewer
   (read-only) emits the block in stdout; the binary parses + validates it — the first
   realization of the [[agent-binary-handoff-schema]] target (never parse an agent's prose).
-- `construct/vocabulary/vet_test.sh` — the model gate: the valid issue/project
-  models vet, their invalid fixtures fail for the intended constraint, and each
+- `construct/vocabulary/finding.cue` — the `finding` noun (#187): the judgments a gate
+  reviewer may emit. An **atomic** noun like `verdict` — no lifecycle — but with TWO
+  partitions the binary branches on: `categories` (`blocking` = Critical/Important,
+  `advisory` = Minor) and `dispositions` (`closing` = addressed/withdrawn, `open` =
+  not-addressed), plus `hardBlocking` (`["Critical"]`) — the subset that still blocks PAST
+  the round cap. Both partitions are modeled rather than glossed in prose because a Go
+  switch on disposition literals was the exact failure mode: adding a closing disposition
+  would pass validation and hit no case in the open-set computation, wedging a finding open
+  forever. Consumers: the plan-quality prompt renders the emitted set from it
+  (`vocab.Finding().RenderBlockInstruction`), `ParseFindingsBlock` validates the fenced
+  ```` ```findings ```` handoff, `gatestate.Decide` reads `categories.blocking` +
+  `hardBlocking`, `OpenFindings`/`DispositionCounts` derive from `Closes()`, and
+  `code-review.md`'s severity names are drift-tested against it. The calibration ledger's
+  `gate_addressed`/`gate_withdrawn` columns are the one consumer that CANNOT derive its
+  names — a positional append-only TSV commits to literals — so
+  `TestLedgerCoversEveryClosingDisposition` pins schema against model instead.
+  See [[gate-state]] for how the ledger uses it.
+- `construct/vocabulary/vet_test.sh` — the model gate, covering every noun
+  (issue, verdict, project, finding): the valid models vet, their invalid fixtures fail
+  for the intended constraint, and each
   **export carries its concrete consumer blocks** (CUE `#`-definitions don't
   `cue export`). Test fixtures live under
   `construct/vocabulary/testdata/` so the export doesn't treat them as nouns.

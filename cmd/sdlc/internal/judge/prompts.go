@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // promptFS holds the per-category prompt templates as embedded markdown — the
@@ -63,6 +64,8 @@ func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
 		"{{DIFF}}", in.Diff,
 		"{{CHANGED_ISSUES}}", strings.Join(in.ChangedIssues, "\n"),
 		"{{ISSUE_CONTENT}}", in.IssueContent,
+		"{{PRIOR_FINDINGS}}", orDefault(in.PriorFindings, "(no prior rounds)"),
+		"{{FINDINGS_BLOCK}}", vocab.Finding().RenderBlockInstruction(),
 		"{{PLAN_CONTENT}}", orDefault(in.PlanContent, "(no separate plan file)"),
 		"{{REF}}", orDefault(in.IssueRef, "<unknown>"),
 		"{{MODEL}}", estimate.CurrentModel(),
@@ -168,6 +171,10 @@ type PromptInput struct {
 	IssueContent  string   // full issue file text (for plan-quality, where we
 	//   assess current state, not a diff)
 	PlanContent string // optional separate plan file text (for plan-quality)
+	// PriorFindings is the rendered prior-round block (gatestate.RenderPriorFindings)
+	// that turns the memoryless plan judge into a converging one (#187 A2). Empty for
+	// every category but plan-quality, and for plan-quality's first round.
+	PriorFindings string
 	// Boundary-review repo orientation (#137) — derived in cmd/sdlc from the live
 	// git context and rendered into code-review.md so a fresh reviewer is anchored
 	// to the ACTUAL repo, not a hardcoded "ariadne". Empty for non-review categories.

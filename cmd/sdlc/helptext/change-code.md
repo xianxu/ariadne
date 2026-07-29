@@ -3,21 +3,22 @@ between planning (which happens on `main`) and code-changing work:
 
   1. Structural sanity   — does the issue have a filled-in Spec, a
                            non-empty Plan, and Done-when criteria?
-  2. Estimate gate       — a positive `estimate_hours:` (#113) that
+  2. Plan-quality judge  — fresh-context LLM review (skip with
+                           --no-judge): is the plan executable as-written?
+                           STATEFUL since #187 — see THE PLAN GATE below.
+                           It runs BEFORE the estimate gates (#187 B1),
+                           because the estimate is a function of the plan.
+  3. Estimate gates      — a positive `estimate_hours:` (#113) that
                            RECONCILES with an itemized `## Estimate`
                            block (#117): a fenced ```estimate block of
                            v2-lineage primitives whose design/impl hours sum to
-                           estimate_hours (no unitemized estimate). Set
-                           it at start-plan. --no-estimate /
-                           --no-estimate-recon bypass the two halves; the
-                           block grammar + vocabulary live in
-                           helptext/estimate.md.
-  3. Quality judges      — fresh-context LLM review (skip with
-                           --no-judge): plan-quality (is the plan
-                           executable as-written — vague items, missing
-                           test surface, undefined acceptance criteria?)
-                           and estimate-quality (#117: was the
-                           ## Estimate derivation actually applied, or
+                           estimate_hours (no unitemized estimate). Derive
+                           it AFTER the plan clears plan-quality — nothing
+                           above this point mentions the estimate.
+                           --no-estimate / --no-estimate-recon bypass the
+                           two halves; the block grammar + vocabulary live
+                           in helptext/estimate.md. Then estimate-quality
+                           (#117: was the derivation actually applied, or
                            back-fitted to a predetermined total?).
   4. Branching strategy  — defaults to in-place (a branch in the
                            current checkout, carrying the working tree
@@ -25,6 +26,25 @@ between planning (which happens on `main`) and code-changing work:
                            worktree; `--worktree=ask` to be prompted
                            (with a sizing hint) or, headless, get the
                            agent sentinel.
+
+THE PLAN GATE (stateful since #187)
+
+  The plan-quality gate REMEMBERS. Its findings persist to
+  `workshop/plans/NNNNNN-slug-plan-gate.md` with binary-assigned stable
+  ids, and each re-run must dispose of every prior finding
+  (addressed / not-addressed / withdrawn) before raising new ones.
+
+  Only *undisposed* Critical or Important findings block. New Minor
+  findings are recorded and carried to the close review — they cost no
+  round-trip. Past WF_PLAN_ROUND_CAP rounds (default 3) only Critical
+  blocks; the rest are recorded and reach the boundary review, which is
+  instructed to read the ledger.
+
+  If the issue + plan are byte-identical to what a previous round
+  ACCEPTED, the gate passes through without re-dispatching the judge —
+  so fixing an estimate refusal costs milliseconds, not a fresh review.
+  The estimate itself is excluded from that comparison, since #187 B1
+  removed it from this gate's remit.
 
 WHEN TO USE
 
@@ -54,10 +74,17 @@ FLAGS
   --no-judge          skip the plan-quality LLM judge.
   --no-structural     skip the deterministic structural checks.
   --no-estimate       skip the estimate_hours gate (#113).
+  --no-estimate-recon skip the `## Estimate` reconciliation gate (#117).
   --dry-run           print would-be operations; do nothing.
   --agent <cli>       agent for the plan-quality judge.
                       Default: explicit --agent, then AGENT_CMD, then
                       PAIR_AGENT/current known agent signals, then claude.
+
+ENVIRONMENT
+
+  WF_PLAN_ROUND_CAP   rounds after which only Critical findings block the
+                      plan gate (default 3). Bounds the tail of a review
+                      that keeps descending severity levels.
 
 EXIT CODES
 

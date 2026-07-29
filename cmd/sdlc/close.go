@@ -50,14 +50,19 @@ import (
 
 // closeFlags holds the parsed flag values for the close subcommand.
 type closeFlags struct {
-	Issue         int
-	Milestone     string
-	Actual        string
-	Verified      string
-	Force         bool
-	DryRun        bool
-	BrainDir      string
-	IssuesDir     string
+	Issue     int
+	Milestone string
+	Actual    string
+	Verified  string
+	Force     bool
+	DryRun    bool
+	BrainDir  string
+	IssuesDir string
+	// PlansDir holds durable plans and the gate sidecars beside them. Added in #187 as a
+	// FIELD rather than a third inline envOr: the boundary review already resolved it twice
+	// inline, and the cost report needs it a third time to find the plan-gate ledger
+	// (ARCH-DRY).
+	PlansDir      string
 	Agent         string // agent CLI for the issue boundary-review dispatch (#69)
 	AgentExplicit bool
 	Mode          string // optional supervision mode (supervised|delegated) for the calibration ledger (#117)
@@ -75,6 +80,25 @@ type closeFlags struct {
 	NoProject   bool
 	NoJudge     bool // skip the issue boundary review (#69)
 }
+
+// resolvePlansDir is the SINGLE resolution of the durable-plans directory: the explicit
+// value when set, else WF_PLANS_DIR, else the convention.
+//
+// The fallback is not belt-and-braces. closeFlags is constructed directly in production —
+// milestoneCloseFlags.closeFlags() translates one struct into the other — so a field that
+// only cobra's flag default populates is empty on the milestone-close path. An empty plans
+// dir resolves to the REPO ROOT, which fails silently in the worst way: every issue reads
+// as "no plan-gate ledger" (zeroing the metrics this feature exists to produce) and review
+// sidecars land beside the Makefile.
+func resolvePlansDir(explicit string) string {
+	if explicit != "" {
+		return explicit
+	}
+	return envOr("WF_PLANS_DIR", "workshop/plans")
+}
+
+// plansDir resolves this close's durable-plans directory. See resolvePlansDir.
+func (f *closeFlags) plansDir() string { return resolvePlansDir(f.PlansDir) }
 
 // skip reports whether the named gate should be bypassed — either the blanket
 // --force or that gate's specific --no-<gate> flag (#67). Single source of
@@ -139,6 +163,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would change; do not write")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for the calibration ledger; project files are now discovered across the fleet, #171)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", "workshop/issues", "directory holding issue files")
+	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding durable plans + gate sidecars (the plan-gate ledger the cost report reads, #187)")
 	// Per-gate bypasses (#67) — each waives one guard; --force waives all.
 	cmd.Flags().BoolVar(&f.NoActual, "no-actual", false, "record actual_hours: N/A and skip velocity calibration")
 	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement (only if there's no behavior to verify)")
@@ -756,12 +781,27 @@ func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeR
 		applyPeerWrites(r, decisions, stdout, stderr)
 	}
 
+	// ── The cost report (#187 D1–D3) ─────────────────────────────────────────
+	// UNCONDITIONAL, and that is the contract worth stating: unlike the ledger row
+	// below — gated by #117's calibration-integrity rule, and skipped again inside
+	// appendCalibrationRow when no brain/ledger dir resolves — this is diagnostic
+	// output the operator always gets. Putting it inside appendCalibrationRow would
+	// mean no cost report on a milestone close, under --no-actual, or in any
+	// downstream repo without a sibling brain/, against a Done-when that says plainly
+	// that `sdlc close` prints it.
+	m := closeMetrics(stderr, f, res)
+	cok(stderr, m.ChurnLine())
+	cok(stderr, m.GateLine())
+
 	// ── Close the loop (#117 mechanism 3) ────────────────────────────────────
 	// On a full-issue close with a measured actual, append the estimate↔actual
 	// data point to the calibration ledger. Milestone closes carry a partial
-	// actual, so only the whole-issue close yields a clean row.
+	// actual, so only the whole-issue close yields a clean row. The metrics are
+	// PASSED IN rather than recomputed (ARCH-DRY) — two measurements of the same
+	// window that could disagree would make the ledger unauditable against the
+	// line the operator just read.
 	if shouldLogCalibration(f) {
-		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today)
+		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today, m)
 	}
 	cok(stderr, "done — review with `git diff`, then commit")
 }
@@ -800,7 +840,7 @@ func shouldLogCalibration(f *closeFlags) bool {
 // propagates to downstream repos that may have no sibling brain/. When
 // WF_CALIB_LEDGER is unset AND the resolved ledger dir is absent, it skips with a
 // warning and returns — a missing ledger must NEVER break `sdlc close`.
-func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string) {
+func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string, m closeCostMetrics) {
 	ledgerPath := os.Getenv("WF_CALIB_LEDGER")
 	usingOverride := ledgerPath != ""
 	if !usingOverride {
@@ -850,6 +890,19 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		// and excluded from drift stats. Auto-upgrades once started: is present.
 		WindowTrusted: strings.TrimSpace(started) != "",
 		Date:          today,
+
+		// #187 D1–D3: the cost columns, so "which gates earn their cost" is a query
+		// over history rather than a recollection.
+		ChurnProd:     m.Churn.Final.CodeProd,
+		ChurnTest:     m.Churn.Final.CodeTest,
+		ChurnAtlas:    m.Churn.Final.Atlas,
+		ChurnWorkshop: m.Churn.Final.Workshop,
+		Rework:        m.Churn.Rework,
+		GateRounds:    m.Rounds,
+		GateForced:    m.Forced,
+		GateAddressed: m.Addressed,
+		GateWithdrawn: m.Withdrawn,
+		GateOpen:      m.Open,
 	}
 
 	existing, rerr := os.ReadFile(ledgerPath)
@@ -862,8 +915,18 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 	if len(existing) == 0 {
 		buf.WriteString(estimate.Header() + "\n")
 	} else {
-		buf.Write(existing)
-		if !strings.HasSuffix(string(existing), "\n") {
+		// Upgrade a legacy header before appending (#187). The column APPEND protects the
+		// reader, but the header is written only on creation — so without this, every
+		// pre-existing ledger would carry 20-column rows under a 10-column header: the
+		// churn and gate data present but unlabeled, which for a file read by humans and
+		// scripts by column name is worse than absent.
+		text := string(existing)
+		if upgraded, changed := estimate.UpgradeHeader(text); changed {
+			text = upgraded
+			cok(stderr, "calibration ledger: header upgraded to the #187 column set")
+		}
+		buf.WriteString(text)
+		if !strings.HasSuffix(text, "\n") {
 			buf.WriteString("\n")
 		}
 	}
@@ -956,7 +1019,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		AgentExplicit: f.AgentExplicit,
 		IssueNum:      f.Issue,
 		Milestone:     "",
-		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
+		PlansDir:      f.plansDir(),
 	})
 }
 
@@ -989,7 +1052,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 		AgentExplicit: f.AgentExplicit,
 		IssueNum:      f.Issue,
 		Milestone:     "",
-		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
+		PlansDir:      f.plansDir(),
 	}, snapshot)
 }
 

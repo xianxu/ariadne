@@ -32,16 +32,20 @@ func TestArchivePlanArtifacts(t *testing.T) {
 	history := filepath.Join(tmp, "history")
 	mkArtifact(t, filepath.Join(plans, "000143-x-plan.md"), "the plan")
 	mkArtifact(t, filepath.Join(plans, "000143-x-close-review.md"), "the review")
+	// #187: the plan-gate ledger is caught by the same `<id>-*` glob. Fixtured here so
+	// that coverage is PINNED rather than incidental — a future narrowing of the glob
+	// would otherwise strand gate ledgers in workshop/plans/ silently.
+	mkArtifact(t, filepath.Join(plans, "000143-x-plan-gate.md"), "the gate ledger")
 	mkArtifact(t, filepath.Join(plans, "000999-y-plan.md"), "unrelated")
 
 	moves, err := archivePlanArtifacts("000143-x.md", plans, history, "plans", "history", trackedProbe)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(moves) != 2 {
-		t.Fatalf("want 2 plan moves, got %d: %#v", len(moves), moves)
+	if len(moves) != 3 {
+		t.Fatalf("want 3 plan moves, got %d: %#v", len(moves), moves)
 	}
-	for _, name := range []string{"000143-x-plan.md", "000143-x-close-review.md"} {
+	for _, name := range []string{"000143-x-plan.md", "000143-x-close-review.md", "000143-x-plan-gate.md"} {
 		if _, err := os.Stat(filepath.Join(history, "plans", name)); err != nil {
 			t.Errorf("%s should be in history/plans: %v", name, err)
 		}
@@ -59,6 +63,7 @@ func TestArchivePlanArtifacts(t *testing.T) {
 	for _, want := range []string{
 		filepath.Join("plans", "000143-x-plan.md"), filepath.Join("history", "plans", "000143-x-plan.md"),
 		filepath.Join("plans", "000143-x-close-review.md"), filepath.Join("history", "plans", "000143-x-close-review.md"),
+		filepath.Join("plans", "000143-x-plan-gate.md"), filepath.Join("history", "plans", "000143-x-plan-gate.md"),
 	} {
 		if !strings.Contains(add, want) {
 			t.Errorf("archiveAddArgs missing %q:\n%s", want, add)

@@ -651,12 +651,12 @@ func TestIsHistoryPath(t *testing.T) {
 		path string
 		want bool
 	}{
-		{"workshop/history/000036-x.md", true},           // legacy flat
-		{"workshop/history/issues/000036-x.md", true},    // issues subdir
+		{"workshop/history/000036-x.md", true},            // legacy flat
+		{"workshop/history/issues/000036-x.md", true},     // issues subdir
 		{"workshop/history/plans/000036-x-plan.md", true}, // plans subdir
 		{"workshop/history/plans/000036-x-close-review.md", true},
-		{"workshop/issues/000036-x.md", false},           // not history
-		{"workshop/history/notes.md", false},             // not id-keyed
+		{"workshop/issues/000036-x.md", false},                // not history
+		{"workshop/history/notes.md", false},                  // not id-keyed
 		{"workshop/history/issues/deeper/000036-x.md", false}, // too deep
 	}
 	for _, tc := range cases {

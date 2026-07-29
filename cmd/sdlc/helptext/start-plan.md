@@ -27,9 +27,10 @@ OUTPUT
   shaped a decision. Then a durable-plan pointer — author the plan via the
   `superpowers-writing-plans` skill into `workshop/plans/NNNNNN-slug-plan.md`
   (version-controlled), not the harness builtin's ephemeral `~/.claude/plans/`
-  file (#72). Then a non-blocking `estimate_hours` nudge (#113): this is where
-  you set the estimate — post-design, when scope is knowable — because
-  `change-code` requires it (claim no longer does). Closes with the non-blocking
+  file (#72). Then a non-blocking `estimate_hours` note (#113, retimed by #187):
+  do NOT derive the estimate here. `change-code` runs plan-quality FIRST and asks
+  for the estimate only after the plan clears — costing a plan nobody has accepted
+  just gets recomputed on the next revision. Closes with the non-blocking
   dependency-path contention heads-up.
 
 FLAGS

@@ -32,7 +32,7 @@ So `done` now means "reviewed AND published," not "an agent thinks it's finished
 
 1. **Create**: `sdlc issue new "<title>"` allocates the next ID and writes the canonical template (the no-GitHub entry path); `sdlc issue new --from-github <num>` (or the older `sdlc fetch`) seeds it from a GitHub issue. See `sdlc issue --help` for the canonical issue-file contract.
 2. **Claim**: `sdlc claim --issue N` flips an open issue to `working` and publishes the issue-state claim to main in one step (`--no-start` to skip the flip). A **cheap lock** — no estimate demanded (#113), so claim early (at brainstorm start). The flip stamps an explicit `started:` timestamp (#116) that anchors the active-time window at engagement start, so `sdlc actual` measures design attention instead of dropping it (superseding the older `WorkingTransitionISO` git-log heuristic; gap-truncation keeps a dormant claim→work gap from inflating the actual).
-3. **Plan**: `sdlc start-plan` marks the design entry — it delivers the `at-plan` architecture lens, points at the durable-plan path, and nudges you to set `estimate_hours` here (post-design; required by `change-code`). For complex work, author the plan via the **`superpowers-writing-plans`** skill into `workshop/plans/NNNNNN-slug-plan.md` (version-controlled — never the harness builtin's ephemeral `~/.claude/plans/`, #72).
+3. **Plan**: `sdlc start-plan` marks the design entry — it delivers the `at-plan` architecture lens, points at the durable-plan path, and tells you NOT to derive `estimate_hours` yet — `change-code` asks for it only after the plan clears plan-quality (#187). For complex work, author the plan via the **`superpowers-writing-plans`** skill into `workshop/plans/NNNNNN-slug-plan.md` (version-controlled — never the harness builtin's ephemeral `~/.claude/plans/`, #72).
 4. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
 5. **Default — branch + PR**: `sdlc change-code` creates an **in-place branch** (a branch in the current checkout) after the gates; `sdlc pr` opens the pull request; `sdlc merge` merges it server-side, archives done issues, and switches back to main. `--worktree=yes` gets an isolated worktree instead (parallel work).
 6. **Shortcut — direct on main**: `sdlc push` (auto-commit, pre-merge checks, push, archive, close GH issues) still exists for quick one-liners, but is no longer the default (#51).
@@ -90,7 +90,7 @@ github_issue: 42
 target:            # optional; a workshop/targets/ slug
 created: 2026-04-20
 updated: 2026-04-20
-estimate_hours:    # set at start-plan; required by change-code, not claim (#113)
+estimate_hours:    # derived after the plan clears plan-quality; required by change-code, not claim (#113, #187)
                    # actual_hours: added at close; number or N/A when status=done
 ---
 

@@ -13,14 +13,101 @@ func TestFormatRow_Stable(t *testing.T) {
 	}
 	got := FormatRow(r)
 	cols := strings.Split(got, "\t")
-	if len(cols) != 10 {
-		t.Fatalf("FormatRow produced %d columns, want 10: %q", len(cols), got)
+	// Derived from Header() rather than a literal: the count grew from 10 to 20 in #187,
+	// and an assertion that restates the number just has to be edited alongside it
+	// without ever having caught anything. What matters is that row and header agree.
+	if want := len(strings.Split(Header(), "\t")); len(cols) != want {
+		t.Fatalf("FormatRow produced %d columns, header has %d: %q", len(cols), want, got)
 	}
 	if cols[0] != "ariadne#117" || cols[6] != "estimate-logic-v2" || cols[8] != "no" {
 		t.Errorf("unexpected columns: %v", cols)
 	}
 	if cols[5] != "2.00" { // ratio 3.4/1.7
 		t.Errorf("ratio col = %q, want 2.00", cols[5])
+	}
+}
+
+// Appending columns must not break the reader for PRE-EXISTING 10-column rows. Every
+// ledger in the fleet is full of them, and projectthroughput_test.go seeds them as
+// fixtures — a presence check that read the new columns unconditionally would drop the
+// entire calibration history rather than just the metrics it lacks.
+func TestParseRowsAcceptsLegacyTenColumnRows(t *testing.T) {
+	legacy := Header() + "\nariadne#1\t2\t1\t1\t3\t0.67\tm\t-\tyes\t2026-01-01\n"
+	rows := ParseRows(legacy)
+	if len(rows) != 1 || rows[0].Issue != "ariadne#1" {
+		t.Fatalf("legacy row lost: %+v", rows)
+	}
+	if rows[0].Actual != 3 || rows[0].Date != "2026-01-01" {
+		t.Errorf("legacy row misread: %+v", rows[0])
+	}
+	// The #187 metrics are simply absent, not garbage.
+	if rows[0].ChurnProd != 0 || rows[0].GateRounds != 0 || rows[0].Rework != 0 {
+		t.Errorf("legacy row should carry zero churn/gate metrics: %+v", rows[0])
+	}
+}
+
+func TestFormatRowCarriesChurnColumns(t *testing.T) {
+	r := LedgerRow{Issue: "ariadne#187", Estimate: 4, Actual: 5,
+		ChurnProd: 554, ChurnTest: 300, ChurnAtlas: 20, ChurnWorkshop: 778,
+		Rework: 2.4, GateRounds: 6, GateForced: 1,
+		GateAddressed: 2, GateWithdrawn: 1, GateOpen: 3}
+	cols := strings.Split(FormatRow(r), "\t")
+	if len(cols) != len(strings.Split(Header(), "\t")) {
+		t.Fatalf("row has %d columns, header has %d", len(cols), len(strings.Split(Header(), "\t")))
+	}
+	// Positional, because ParseRows indexes positionally: these assertions are what makes
+	// "append, never reorder" enforceable rather than a comment.
+	for i, want := range map[int]string{
+		10: "554", 11: "300", 12: "20", 13: "778", 14: "2.40",
+		15: "6", 16: "1", 17: "2", 18: "1", 19: "3",
+	} {
+		if cols[i] != want {
+			t.Errorf("col %d = %q, want %q (header: %s)", i, cols[i], want,
+				strings.Split(Header(), "\t")[i])
+		}
+	}
+}
+
+// The full round trip through the new columns — a metric that formats but does not parse
+// back is a column of write-only noise.
+func TestRoundTripChurnColumns(t *testing.T) {
+	in := LedgerRow{Issue: "ariadne#187", Estimate: 8.45, Actual: 4.2, Date: "2026-07-29",
+		ChurnProd: 554, ChurnTest: 300, ChurnAtlas: 20, ChurnWorkshop: 778,
+		Rework: 2.4, GateRounds: 6, GateForced: 1,
+		GateAddressed: 2, GateWithdrawn: 1, GateOpen: 3}
+	rows := ParseRows(Header() + "\n" + FormatRow(in) + "\n")
+	if len(rows) != 1 {
+		t.Fatalf("ParseRows returned %d rows, want 1", len(rows))
+	}
+	got := rows[0]
+	if got.ChurnProd != 554 || got.ChurnTest != 300 || got.ChurnAtlas != 20 || got.ChurnWorkshop != 778 {
+		t.Errorf("churn columns lost: %+v", got)
+	}
+	if got.Rework != 2.4 || got.GateRounds != 6 || got.GateForced != 1 {
+		t.Errorf("rework/round columns lost: %+v", got)
+	}
+	if got.GateAddressed != 2 || got.GateWithdrawn != 1 || got.GateOpen != 3 {
+		t.Errorf("disposition columns lost: %+v", got)
+	}
+}
+
+// A 19-column row is malformed, not legacy: reading it as if the last column were there
+// would panic on c[19]. The presence check is `>= 20` for exactly this reason, so pin it.
+func TestParseRowsSkipsNineteenColumnRow(t *testing.T) {
+	cols := make([]string, 19)
+	for i := range cols {
+		cols[i] = "0"
+	}
+	cols[0] = "ariadne#9"
+	text := Header() + "\n" + strings.Join(cols, "\t") + "\n"
+	rows := ParseRows(text)
+	// It parses as a legacy row (the first 10 columns are well-formed) and simply carries
+	// no metrics — what must NOT happen is a panic or a half-read metric block.
+	if len(rows) != 1 {
+		t.Fatalf("want the row read as legacy, got %d rows", len(rows))
+	}
+	if rows[0].GateOpen != 0 || rows[0].ChurnProd != 0 {
+		t.Errorf("a 19-column row must contribute no metrics: %+v", rows[0])
 	}
 }
 
@@ -75,5 +162,44 @@ func TestParseRows_SkipsNotApplicableActualRows(t *testing.T) {
 		FormatRow(LedgerRow{Issue: "x", Estimate: 1, Actual: 1, Model: "estimate-logic-v2", Date: "2026-06-26"}) + "\n"
 	if got := ParseRows(text); len(got) != 1 {
 		t.Fatalf("N/A actual row should be skipped; got %d rows", len(got))
+	}
+}
+
+// The header is written only when the ledger is CREATED, so appending columns leaves every
+// pre-existing ledger describing 20-column rows with a 10-column header. This is the guard
+// for that upgrade (#187 close review I1).
+func TestUpgradeHeaderRewritesLegacyHeader(t *testing.T) {
+	legacy := "issue\testimate\test_design\test_impl\tactual\tratio\tmodel\tmode\twindow_trusted\tdate"
+	text := legacy + "\nariadne#1\t2\t1\t1\t3\t0.67\tm\t-\tyes\t2026-01-01\n"
+	got, changed := UpgradeHeader(text)
+	if !changed {
+		t.Fatal("a legacy 10-column header must be upgraded")
+	}
+	if !strings.HasPrefix(got, Header()+"\n") {
+		t.Errorf("header not replaced: %q", strings.SplitN(got, "\n", 2)[0])
+	}
+	// The data rows must survive untouched.
+	if !strings.Contains(got, "ariadne#1\t2\t1\t1\t3\t0.67\tm\t-\tyes\t2026-01-01") {
+		t.Errorf("data row altered: %q", got)
+	}
+}
+
+func TestUpgradeHeaderLeavesCurrentAndForeignHeadersAlone(t *testing.T) {
+	if _, changed := UpgradeHeader(Header() + "\nx\n"); changed {
+		t.Error("the current header must not be rewritten")
+	}
+	// Wider than ours — a newer binary's file. Migrating it would be inventing a schema
+	// change we cannot verify.
+	wider := Header() + "\tsomething_new"
+	if _, changed := UpgradeHeader(wider + "\n"); changed {
+		t.Error("a wider header must be left alone")
+	}
+	// Same width as a legacy header but different columns — foreign, not older.
+	foreign := "issue\twidgets\tfrobs\tactual\tratio\tmodel\tmode\twindow_trusted\tdate\tzzz"
+	if _, changed := UpgradeHeader(foreign + "\n"); changed {
+		t.Error("a diverging header must be left alone")
+	}
+	if _, changed := UpgradeHeader("no header here\n"); changed {
+		t.Error("text with no header line must be left alone")
 	}
 }

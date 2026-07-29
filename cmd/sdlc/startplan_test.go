@@ -113,16 +113,25 @@ func TestPlanPointer(t *testing.T) {
 	}
 }
 
-// TestEstimateNudge pins the #113 start-plan estimate reminder: absent → a
-// "set estimate_hours before change-code" prompt; present → an acknowledgment
-// echoing the value. Pure, no IO.
+// TestEstimateNudge pins the start-plan estimate reminder, RETIMED by #187 B2: absent →
+// a "don't derive it yet, change-code asks after plan-quality clears" prompt; present →
+// an acknowledgment echoing the value. Pure, no IO.
+//
+// The absent-case assertions changed direction deliberately. Before #187 this line told
+// the agent to set the estimate here; that instruction is now wrong, because change-code
+// runs plan-quality first and the estimate is a function of the accepted plan. The
+// negative assertion below is the load-bearing half — a revert to "set it at start-plan"
+// must fail here.
 func TestEstimateNudge(t *testing.T) {
 	for _, empty := range []string{"", "   "} {
 		got := estimateNudge(empty)
-		for _, want := range []string{"estimate_hours", "change-code", "required"} {
+		for _, want := range []string{"estimate_hours", "change-code", "plan-quality", "after the plan clears"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("estimateNudge(%q) missing %q:\n%s", empty, want, got)
 			}
+		}
+		if strings.Contains(got, "before `sdlc change-code`") {
+			t.Errorf("estimateNudge(%q) still tells the agent to set the estimate at start-plan (#187 B2):\n%s", empty, got)
 		}
 	}
 	got := estimateNudge(" 4 ")

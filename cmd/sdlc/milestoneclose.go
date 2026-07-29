@@ -42,6 +42,7 @@ type milestoneCloseFlags struct {
 	AgentExplicit bool
 	BrainDir      string
 	IssuesDir     string
+	PlansDir      string
 
 	// Per-gate close bypasses (#67), threaded into the delegated computeClose.
 	NoActual    bool
@@ -101,6 +102,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for judge dispatch (claude | codex | gemini)")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding durable plans + gate sidecars (#187)")
 	return cmd
 }
 
@@ -114,6 +116,7 @@ func (f *milestoneCloseFlags) closeFlags() *closeFlags {
 		DryRun:        f.DryRun,
 		BrainDir:      f.BrainDir,
 		IssuesDir:     f.IssuesDir,
+		PlansDir:      f.PlansDir,
 		Agent:         f.Agent,
 		AgentExplicit: f.AgentExplicit,
 		NoActual:      f.NoActual,
@@ -183,7 +186,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		AgentExplicit: f.AgentExplicit,
 		IssueNum:      f.Issue,
 		Milestone:     f.Milestone,
-		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
+		PlansDir:      resolvePlansDir(f.PlansDir),
 	})
 }
 
@@ -221,7 +224,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 		AgentExplicit: f.AgentExplicit,
 		IssueNum:      f.Issue,
 		Milestone:     f.Milestone,
-		PlansDir:      envOr("WF_PLANS_DIR", "workshop/plans"),
+		PlansDir:      resolvePlansDir(f.PlansDir),
 	}, snapshot)
 }
 
