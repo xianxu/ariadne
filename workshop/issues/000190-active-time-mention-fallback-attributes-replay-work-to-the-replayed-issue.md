@@ -70,6 +70,57 @@ it had no commit anchoring the segment and fell back to text mentions.
 - [ ] Regression check against #187's real window: the pair#127 46.1m returns to #187
 - [ ] Note in `atlas/workflow/` how attribution resolves, since it now has a precedence rule
 
+## Revisions
+
+### 2026-07-29 — root cause found, and the Spec above describes the SYMPTOM
+
+**Reason:** investigation before design. The filed Spec assumed the defect was mention
+fallback out-competing commit boundaries, and proposed a precedence rule plus a
+terminal-status guard. Both premises are wrong, and the real cause is narrower, sharper, and
+affects **more paths** than mention fallback.
+
+**The actual defect: a cross-repo issue ref is parsed as a LOCAL issue number.**
+
+`#(\d+)\b` has no left boundary, so `pair#127` matches as `127`. My commit
+`28428da #187 M2: pair#127 replay harness + round 1 evidence` therefore reads as referencing
+local issue 127 — and **ariadne#127 exists**: `000127-recalibrate-estimate-logic-v2-high.md`,
+long closed. So 46 minutes of #187's work were charged to an unrelated archived issue about
+*recalibrating estimates*, corrupting precisely the calibration data that issue produced.
+
+**Three sites share the missing boundary, not one:**
+
+| site | what it feeds | consequence |
+|---|---|---|
+| `gitx/window.go:384` `issueRefRE` | `DiscoverWindowIssues` → the tracked peer set | admits a foreign issue as a mention target |
+| `activetime/commit.go:67` `allIssuePattern()` | `Commit.Issues` → the claimant | **commit-weighted** share splits equally with the foreign issue |
+| `activetime/util.go:34` `issuePattern()` | transcript mention counts | every `pair#127` in prose counts as local `#127` |
+
+The second row is why the filed Spec's precedence rule would not have worked: attribution is
+corrupted on the **commit** path too, so making commits outrank mentions would still
+misattribute — `attributeRun` splits `weight * active` equally across `Commit.Issues`, and
+`127` is in that slice. A precedence rule fixes nothing when both sides are poisoned by the
+same parse.
+
+**Superseding Spec:**
+- A `#N` preceded by a repo-name character (letter, digit, `_`, `-`, `.`, `/`) is a FOREIGN
+  ref and must not resolve to a local issue. One shared boundary rule, derived once and used
+  by all three sites (`ARCH-DRY`) — the current three copies of the same regex are why one
+  fix would otherwise miss two paths.
+- Go's RE2 has no lookbehind, so the boundary is expressed the way `subjectAnchorRE`
+  (`window.go:205`) already handles its lookahead problem: match the preceding character and
+  reject it in code.
+- **Cross-repo refs are not merely ignored — they are a separate question.** `pair#127` is
+  real work on a real issue in another repo; the honest reading is "not attributable to any
+  LOCAL issue". Whether the engine should ever attribute across repos is out of scope here,
+  and the fix must not foreclose it.
+
+**Retained from the original Spec:** the regression check against #187's window (the 46.1m
+returns to #187), no operator-facing hand-correction, and documenting the rule in `atlas/`.
+**Dropped:** the commit-boundary-outranks-mentions precedence rule (wrong premise, see
+above) and the terminal-status guard (it would have masked this bug rather than fixed it —
+ariadne#127 being closed is a symptom of the misparse, not the reason it was wrong; a
+same-numbered *open* foreign issue would have slipped through).
+
 ## Log
 
 ### 2026-07-29
