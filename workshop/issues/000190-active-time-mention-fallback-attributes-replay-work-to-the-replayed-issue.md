@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-29
 updated: 2026-07-29
-estimate_hours: 3.29
+estimate_hours: 3.75
 started: 2026-07-29T16:23:09-07:00
 ---
 
@@ -89,7 +89,8 @@ plan's Tasks 1–6:
 ## Estimate
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
-`baseline-v3.1.md`. Method A only.*
+`baseline-v3.1.md`. Method A only. Revised once on the estimate-quality review — see the note
+below.*
 
 ```estimate
 model: estimate-logic-v3.1
@@ -100,16 +101,18 @@ item: smaller-go-module      design=0.10 impl=0.15
 item: smaller-go-module      design=0.15 impl=0.20
 item: smaller-go-module      design=0.05 impl=0.12
 item: cross-cutting-refactor design=0.10 impl=0.15
+item: smaller-go-module      design=0.05 impl=0.15
 item: atlas-docs             design=0.05 impl=0.06
 item: atlas-docs             design=0.05 impl=0.08
 item: milestone-review       design=0.00 impl=0.20
-item: milestone-review       design=0.00 impl=0.15
+item: milestone-review       design=0.00 impl=0.20
+item: milestone-review       design=0.00 impl=0.20
 design-buffer: 0.15
-total: 3.29
+total: 3.75
 ```
 
-**Verified by recomputation:** Σdesign 1.55 × 1.15 = 1.7825, + Σimpl 1.51 = **3.2925** vs
-stated 3.29 (δ 0.0025, tolerance 0.164). Not riding the tolerance — #187's estimate review
+**Verified by recomputation:** Σdesign 1.60 × 1.15 = 1.8400, + Σimpl 1.91 = **3.7500** vs
+stated 3.75 (δ 0.0000, tolerance 0.188). Exact, not tolerance-riding — #187's estimate review
 flagged a 0.12 drift that reconciled only because 5% absorbed it, and that is the wrong habit
 for a number the helptext calls DERIVED.
 
@@ -118,7 +121,37 @@ the v2 table's implementation hours, +15% design buffer since a thorough plan do
 
 | item | what | why this value |
 |---|---|---|
-| `issue-spec` | root-cause investigation + Spec supersede | design 0.60 of 0.5–1.5: real digging — read `segment.go`/`compute.go`/`commit.go`/`util.go`, probed `\B` behavior in a scratch program, measured a 400-subject corpus, then rewrote the filed Spec through `## Revisions` because both its mechanism and its fix were wrong |
+| `issue-spec` | root-cause investigation + Spec supersede | design 0.60 of 0.5–1.5: read `segment.go`/`compute.go`/`commit.go`/`util.go`, probed `\B` in a scratch program, measured a 400-subject corpus, then rewrote the filed Spec through `## Revisions` because both its mechanism and its fix were wrong |
+| `greenfield-go-module` | the `issueref` package | **v2.1 Step 2.5 (library-availability) applied explicitly:** the grammar already exists (`parseRef` + `refScanRE`), so design HALVES from 0.90 to **0.45** — under the 0.5 table floor by that named rule, not by an implicit discount. impl 0.30 under the 0.32 ceiling |
+| `smaller-go-module` | `gitx` derive + `selfRepo` param + `run`-shim move | impl 0.15 of a 0.20 ceiling |
+| `smaller-go-module` | `activetime` both derive paths | impl 0.20 — **at** ceiling; the largest chunk (util/commit/compute/event + 4 tests + 5 `event_test.go` call sites) |
+| `smaller-go-module` | the `foreign refs ignored` warning | split OUT of the row above rather than writing that one over its ceiling |
+| `cross-cutting-refactor` | `migrate.go`'s two encodings compose from the fragment | design 0.10 under the 0.2 floor **for a named reason: no independent design work.** The decision (export the fragment un-anchored) is priced in Task 1's row; duplicating it here would double-count one decision. impl 0.15 covers the group-index check |
+| `smaller-go-module` | the regression MEASUREMENT (Task 5) | **the estimate-quality review's best catch:** this was priced `atlas-docs` (4.8-min ceiling) while actually requiring a BEFORE run sequenced ahead of Task 1, resolving the transcript slug rather than guessing, a two-`--dir` fixed-window invocation, a corroborating `sdlc actual`, and three asserted outcomes. Re-slugged. The slug is imperfect (this is not a Go module) but its ceiling honestly fits the work, and pricing the issue's most valuable verification as prose was the real error |
+| `atlas-docs` | `ledger-landscape.md` rule paragraph | impl 0.06 **under** the 0.08 ceiling — genuinely one paragraph |
+| `atlas-docs` | the evidence DOC prose | at ceiling; the measurement runs moved to their own row above |
+| `milestone-review` | the close review dispatch | 0.20, ceiling |
+| `milestone-review` | fixing the close review's findings | **0.20, raised from 0.15** — the review caught that 0.15 sat *below* the 0.20 row it was split off from, contradicting the very evidence cited to justify the split (#187's close review returned 4 Important whose fixes were demonstrably not 9 minutes) |
+| `milestone-review` | the `change-code` gate rounds | **added.** `started:` anchors the window at the claim commit, so 3 plan-quality rounds + 2 estimate-quality dispatches land INSIDE the measured actual. The block previously argued exactly this to decline the ×0.2 discount, then failed to carry it into the itemization — #187's "don't re-derive across rounds" is an argument against re-deriving, not against budgeting them once |
+
+**Calibration context, stated not padded.** Design share **42.7%** pre-buffer (1.60/3.75),
+inside the 41–61% peer band (#172 61%, #180 41%, #186 53%, #187 45.6%). Recent rows drift
+OVER-estimate — #187 closed **3.6×** over (8.45 est / 2.32 measured). This estimate was derived
+ONCE after the plan cleared (the timing #187 B1 introduced to stop cross-round accretion) and
+then revised ONCE on the estimate-quality review, in the direction that review pointed: the four
+INFO findings all said *floor, not ceiling*, and 3.29 → 3.75 is that correction, not padding.
+
+**The ×0.2 spec-quality discount is deliberately NOT applied**, and the itemization now honors
+that reasoning rather than only asserting it: with `started:` anchoring at the claim commit, the
+investigation, plan authoring, and every gate round are inside the measured window, so all three
+are itemized above.
+
+**Standing advisory, recorded not acted on:** Tasks 1–4 are independently committable, so
+within-session overlap could compress the measured actual below the sequential sum of the impl
+rows. That is #117's data to collect (a #118 non-goal), and worth naming the recursion — the
+calibration data this would feed is the data this very bug corrupted.
+
+## Revisions` because both its mechanism and its fix were wrong |
 | `greenfield-go-module` | the `issueref` package | design 0.45 of 0.5–2 — LOW because the grammar already existed (`parseRef`/`refScanRE`); the design work was deciding to join that lineage, not inventing one. impl 0.30 under the 0.32 ceiling |
 | `smaller-go-module` | `gitx` derive + `selfRepo` param + `run`-shim move | impl 0.15 of 0.20 ceiling |
 | `smaller-go-module` | `activetime` both derive paths | impl 0.20 — **at** ceiling; the largest single chunk (util/commit/compute/event + 4 tests) |

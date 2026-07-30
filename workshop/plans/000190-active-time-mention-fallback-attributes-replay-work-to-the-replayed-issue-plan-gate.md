@@ -111,7 +111,24 @@ rounds:
             before the close, so the plan-unchecked gate is satisfied honestly.
           round: 2
       blocked: false
-content_hash: 0383d183aef77374384439b2c0861f8f39f3ff983fa2a25c7bb22d83464f0715
+    - "n": 3
+      timestamp: "2026-07-29T16:50:56-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-6
+          disposition: addressed
+          note: QualifiedIDPattern exported as an un-anchored const; Task 4 Step 2 recomposes spanRefRE from it, making the count 5 → 1. Group shift is moot — both regexes are MatchString/FindAllStringIndex only.
+          round: 3
+        - id: PQ-7
+          disposition: addressed
+          note: selfRepo is now a parameter with the RepoTopLevel-bypasses-run rationale stated, and Task 2 Step 3 asserts ariadne#180 stays local for selfRepo "ariadne" and drops for "".
+          round: 3
+        - id: PQ-8
+          disposition: addressed
+          note: The issue's Plan is rewritten as six rows mirroring Tasks 1-6, with the superseded rows marked, so Task 6 Step 3 ticks only real work.
+          round: 3
+      blocked: false
+content_hash: 8001d123971f143c66ef83c189d8dfc01da22ef9b962dc09285eb7e77294e1c9
 ---
 
 # Gate ledger — ariadne#190 (plan-quality)
@@ -182,8 +199,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   explicitly dropped by the Revisions ledger. Rewrite the issue's Plan to mirror Tasks 1-6
   before the close, so the plan-unchecked gate is satisfied honestly.
 
+## Round 3 — 2026-07-29T16:50:56-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-6 — addressed — QualifiedIDPattern exported as an un-anchored const; Task 4 Step 2 recomposes spanRefRE from it, making the count 5 → 1. Group shift is moot — both regexes are MatchString/FindAllStringIndex only.
+- PQ-7 — addressed — selfRepo is now a parameter with the RepoTopLevel-bypasses-run rationale stated, and Task 2 Step 3 asserts ariadne#180 stays local for selfRepo "ariadne" and drops for "".
+- PQ-8 — addressed — The issue's Plan is rewritten as six rows mirroring Tasks 1-6, with the superseded rows marked, so Task 6 Step 3 ticks only real work.
+
 ## Open findings
 
-- **PQ-6** [Minor] ARCH-DRY — spanRefRE (migrate.go:55) is a fifth encoding of the same qualifier+id grammar, so "4 → 1" is not the real count
-- **PQ-7** [Minor] The self-qualified-is-local case is untestable in gitx because RepoTopLevel bypasses the run shim (window.go:524)
-- **PQ-8** [Minor] The issue's Plan rows are the superseded ones, so Task 6 Step 3's "tick every Plan row" would record dropped work as done
+(none — every finding has been disposed)
