@@ -2,9 +2,11 @@ package activetime
 
 import (
 	"os/exec"
-	"regexp"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 )
 
 // Commit is a window commit with its subject issue refs (deduped,
@@ -47,6 +49,8 @@ func loadWindowCommits(repo, sinceISO, untilISO string) ([]Commit, error) {
 	if text == "" {
 		return nil, nil
 	}
+	// Resolved once from the repo the commits came from, not per line.
+	self := selfQualifier(repo)
 	var commits []Commit
 	for _, line := range strings.Split(text, "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -64,27 +68,32 @@ func loadWindowCommits(repo, sinceISO, untilISO string) ([]Commit, error) {
 			Time:    ts,
 			SHA:     short7(parts[0]),
 			Subject: parts[2],
-			Issues:  uniqueRefs(allIssuePattern(), parts[2]),
+			Issues:  issueref.LocalNums(parts[2], self),
 		})
 	}
 	return commits, nil
 }
 
-// uniqueRefs returns the tracked-issue refs in s, deduped preserving order.
-// Mirrors load_commits's seen/uniq pass. nil pattern → no refs.
-func uniqueRefs(pat *regexp.Regexp, s string) []string {
-	if pat == nil {
-		return nil
+// selfQualifier is the repo name whose `#N` qualifier counts as LOCAL, derived from the repo
+// the COMMITS come from — not the process cwd (ariadne#190).
+//
+// That distinction is the whole point: loadWindowCommits reads from `repo`, which the
+// standalone `sdlc active-time` verb takes as `--git-repo`. A cwd-derived qualifier would,
+// with --git-repo pointed at a peer, drop that peer's own self-qualified refs as foreign AND
+// admit ariadne-qualified refs as local — reproducing this bug class inside the diagnostic
+// verb, and invisibly, since `sdlc actual` passes the current repo and would look correct.
+//
+// "" for an unresolvable or non-specific path (".", "/"), which keeps only bare refs.
+func selfQualifier(repo string) string {
+	abs, err := filepath.Abs(expandUser(repo))
+	if err != nil {
+		return ""
 	}
-	seen := map[string]bool{}
-	var out []string
-	for _, m := range pat.FindAllStringSubmatch(s, -1) {
-		if !seen[m[1]] {
-			seen[m[1]] = true
-			out = append(out, m[1])
-		}
+	base := filepath.Base(filepath.Clean(abs))
+	if base == "." || base == string(filepath.Separator) {
+		return ""
 	}
-	return out
+	return base
 }
 
 // short7 truncates a SHA to 7 chars (Python's sha[:7]).

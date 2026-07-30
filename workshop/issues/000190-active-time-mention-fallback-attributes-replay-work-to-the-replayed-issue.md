@@ -77,7 +77,7 @@ plan's Tasks 1–6:
       test + mutation-verified boundary (Task 1)
 - [x] `gitx.DiscoverWindowIssues` takes `selfRepo` as a parameter and derives from `issueref`;
       moves onto the package `run` shim so the self-qualified case is testable at all (Task 2)
-- [ ] `activetime` derives on BOTH paths — `Commit.Issues` and transcript mentions — with the
+- [x] `activetime` derives on BOTH paths — `Commit.Issues` and transcript mentions — with the
       self-qualifier from `opts.GitRepo`, not the process cwd; plus a `foreign refs ignored`
       warning so the exclusion is observable rather than silent (Task 3)
 - [ ] `migrate.go`'s two encodings compose from `QualifiedIDPattern`, retiring `refScanRE` and

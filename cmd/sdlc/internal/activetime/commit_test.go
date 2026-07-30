@@ -2,6 +2,8 @@ package activetime
 
 import (
 	"fmt"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -87,5 +89,60 @@ func TestLoadWindowCommitsEmpty(t *testing.T) {
 	}
 	if len(commits) != 0 {
 		t.Fatalf("want 0 commits, got %d", len(commits))
+	}
+}
+
+// The COMMIT path — the one the issue's originally-filed Spec missed entirely. Commit.Issues
+// drives selectClaimant and attributeRun, and attributeRun splits weight*active EQUALLY
+// across the slice, so a foreign entry silently hands half a commit's weighted share to an
+// unrelated local issue (ariadne#190).
+func TestCommitIssuesExcludeForeignRefs(t *testing.T) {
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) {
+		return []byte("abc1234\t2026-07-29T10:30:00-07:00\t#187 M2: pair#127 replay harness\n"), nil
+	})
+
+	commits, err := loadWindowCommits("/tmp/workspace/ariadne", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) != 1 {
+		t.Fatalf("want 1 commit, got %d", len(commits))
+	}
+	if got, want := commits[0].Issues, []string{"187"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Commit.Issues = %v, want %v — a foreign ref here takes half the weighted share", got, want)
+	}
+}
+
+// The qualifier names the repo the COMMITS come from, not the process cwd. Pointed at a peer,
+// that peer's self-qualified refs are LOCAL and ariadne's are foreign — the inverse of the
+// cwd-derived bug, and the case no test going through `sdlc actual` could ever surface.
+func TestSelfQualifierComesFromGitRepo(t *testing.T) {
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) {
+		return []byte("abc1234\t2026-07-29T10:30:00-07:00\tpair#129 M1: fix it (see ariadne#180)\n"), nil
+	})
+
+	commits, err := loadWindowCommits("/tmp/workspace/pair", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := commits[0].Issues, []string{"129"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Commit.Issues = %v, want %v — inside pair, pair#129 is local and ariadne#180 is not", got, want)
+	}
+}
+
+func TestSelfQualifier(t *testing.T) {
+	for _, tc := range []struct{ repo, want string }{
+		{"/Users/x/workspace/ariadne", "ariadne"},
+		{"/Users/x/workspace/pair/", "pair"},
+		{"/", ""},
+	} {
+		if got := selfQualifier(tc.repo); got != tc.want {
+			t.Errorf("selfQualifier(%q) = %q, want %q", tc.repo, got, tc.want)
+		}
+	}
+	// "." resolves to the cwd's basename, which is a real repo name when the caller means
+	// "here" — assert only that it does not panic or yield a path separator.
+	if got := selfQualifier("."); strings.ContainsRune(got, filepath.Separator) {
+		t.Errorf(`selfQualifier(".") = %q, want a bare basename`, got)
 	}
 }

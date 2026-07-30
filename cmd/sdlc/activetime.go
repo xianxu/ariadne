@@ -98,6 +98,12 @@ func renderAttributionWarnings(out io.Writer, warnings []activetime.AttributionW
 }
 
 func formatAttributionWarning(w activetime.AttributionWarning) string {
+	// A foreign-ref warning (#190) is WINDOW-scoped, not segment-scoped: it reports a ref the
+	// engine declined to attribute, so it carries neither minutes nor a time range. Rendering
+	// its zero time as "0000-12-31 16:07" would be noise dressed as data.
+	if w.Start.IsZero() && w.End.IsZero() {
+		return fmt.Sprintf("%s %s", displayIssue(w.Issue), w.Reason)
+	}
 	return fmt.Sprintf("%s %.1fm/%.0f%% %s (%s → %s)",
 		displayIssue(w.Issue), w.Active, w.Share*100, w.Reason,
 		w.Start.Local().Format("2006-01-02 15:04"),
@@ -144,6 +150,11 @@ type Segment = activetime.Segment
 func displayIssue(key string) string {
 	if key == activetime.UnattributedKey {
 		return "unattributed"
+	}
+	// A foreign-ref key is already qualified ("pair#127", #190) — prefixing it again would
+	// render "#pair#127".
+	if strings.Contains(key, "#") {
+		return key
 	}
 	return "#" + key
 }

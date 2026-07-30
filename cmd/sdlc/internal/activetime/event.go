@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -83,7 +82,7 @@ type codexPayload struct {
 // bearing user/assistant asymmetry: a user turn is dropped on empty text (and a
 // pure tool_result is dropped), but an assistant turn (when includeAssistant) is
 // ALWAYS emitted — its timestamp counts toward active time even with no text.
-func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) ([]Event, []TaskSpan, error) {
+func walkSessionEvents(path string, sc mentionScope, includeAssistant bool) ([]Event, []TaskSpan, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, err
@@ -110,7 +109,7 @@ func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) (
 			continue
 		}
 		if d.Type == "response_item" {
-			ev, ok := codexEvent(d.Payload, ts, pat, includeAssistant)
+			ev, ok := codexEvent(d.Payload, ts, sc, includeAssistant)
 			if ok {
 				events = append(events, ev)
 			}
@@ -148,12 +147,12 @@ func walkSessionEvents(path string, pat *regexp.Regexp, includeAssistant bool) (
 		default:
 			continue
 		}
-		events = append(events, Event{Time: ts, Mentions: parseEventMentions(text, pat)})
+		events = append(events, Event{Time: ts, Mentions: parseEventMentions(text, sc)})
 	}
 	return events, spans, nil
 }
 
-func codexEvent(payload json.RawMessage, ts time.Time, pat *regexp.Regexp, includeAssistant bool) (Event, bool) {
+func codexEvent(payload json.RawMessage, ts time.Time, sc mentionScope, includeAssistant bool) (Event, bool) {
 	var p codexPayload
 	if json.Unmarshal(payload, &p) != nil {
 		return Event{}, false
@@ -166,12 +165,12 @@ func codexEvent(payload json.RawMessage, ts time.Time, pat *regexp.Regexp, inclu
 			if strings.TrimSpace(text) == "" {
 				return Event{}, false
 			}
-			return Event{Time: ts, Mentions: parseEventMentions(text, pat)}, true
+			return Event{Time: ts, Mentions: parseEventMentions(text, sc)}, true
 		case "assistant":
 			if !includeAssistant {
 				return Event{}, false
 			}
-			return Event{Time: ts, Mentions: parseEventMentions(text, pat)}, true
+			return Event{Time: ts, Mentions: parseEventMentions(text, sc)}, true
 		default:
 			return Event{}, false
 		}
@@ -183,7 +182,7 @@ func codexEvent(payload json.RawMessage, ts time.Time, pat *regexp.Regexp, inclu
 		if text == "" && len(p.Input) > 0 {
 			text = string(p.Input)
 		}
-		return Event{Time: ts, Mentions: parseEventMentions(text, pat)}, true
+		return Event{Time: ts, Mentions: parseEventMentions(text, sc)}, true
 	default:
 		return Event{}, false
 	}
@@ -312,11 +311,11 @@ func eventTimesAndMentions(events []Event) ([]time.Time, map[string]int) {
 // Python: ts < since skip, ts > until skip), sorted by time. It also collects
 // the subagent TaskSpans (#118), clamped to the same window so all measured
 // active time lies within it. Mirrors load_events (events) + adds the span pass.
-func loadEvents(dirs []string, pat *regexp.Regexp, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
-	return loadEventsWithFiles(dirs, nil, pat, includeAssistant, sinceISO, untilISO)
+func loadEvents(dirs []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
+	return loadEventsWithFiles(dirs, nil, sc, includeAssistant, sinceISO, untilISO)
 }
 
-func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
+func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
 	var since, until time.Time
 	haveSince, haveUntil := sinceISO != "", untilISO != ""
 	if haveSince {
@@ -343,7 +342,7 @@ func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssist
 		}
 		files, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
 		for _, f := range files {
-			evs, sps, err := walkSessionEvents(f, pat, includeAssistant)
+			evs, sps, err := walkSessionEvents(f, sc, includeAssistant)
 			if err != nil {
 				// Skip a session file that became unreadable after globbing —
 				// more robust than Python's unguarded open() (which would crash),
@@ -377,7 +376,7 @@ func loadEventsWithFiles(dirs, files []string, pat *regexp.Regexp, includeAssist
 		}
 	}
 	for _, f := range files {
-		evs, sps, err := walkSessionEvents(expandUser(f), pat, includeAssistant)
+		evs, sps, err := walkSessionEvents(expandUser(f), sc, includeAssistant)
 		if err != nil {
 			continue
 		}
