@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 )
 
 // TestCommitWindow_ExtendedCapIncludes45Days pins the #68 cap bump (31→61): a
@@ -42,32 +44,66 @@ func TestCommitWindow_ExtendedCapIncludes45Days(t *testing.T) {
 	}
 }
 
-// TestIssueRefRE_DiscoveryParsing exercises the regex used by
-// DiscoverWindowIssues, in isolation from git.
-func TestIssueRefRE_DiscoveryParsing(t *testing.T) {
+// TestDiscoveryRefParsing exercises the ref scan used by DiscoverWindowIssues, in isolation
+// from git. Formerly TestIssueRefRE_DiscoveryParsing, against the deleted local issueRefRE.
+//
+// NOTE the changed expectation, and that it is a FIX rather than a relaxation. This test
+// previously asserted `{"prefix#42 suffix", []string{"42"}}` — it PINNED the ariadne#190 bug
+// as intended behavior. A qualified ref names another repo's issue, and treating `pair#127` as
+// local 127 is what charged 46 minutes of ariadne#187's work to the unrelated archived
+// ariadne#127. The row is inverted below, with the self-qualified case added beside it.
+func TestDiscoveryRefParsing(t *testing.T) {
 	tests := []struct {
-		subject string
-		want    []string
+		name     string
+		subject  string
+		selfRepo string
+		want     []string
 	}{
-		{"#15: subject text", []string{"15"}},
-		{"close #31 M4: foo", []string{"31"}},
-		{"chore: bump (refs #1, #2, #3)", []string{"1", "2", "3"}},
-		{"no issue ref here", nil},
-		{"#42abc not a real ref", nil}, // word boundary blocks #42 from "42abc"
-		{"prefix#42 suffix", []string{"42"}},
-		{"#1 and #11 distinct", []string{"1", "11"}},
+		{"bare", "#15: subject text", "ariadne", []string{"15"}},
+		{"close prefix", "close #31 M4: foo", "ariadne", []string{"31"}},
+		{"several bare", "chore: bump (refs #1, #2, #3)", "ariadne", []string{"1", "2", "3"}},
+		{"none", "no issue ref here", "ariadne", nil},
+		// The trailing word boundary still blocks #42 inside "42abc".
+		{"trailing junk", "#42abc not a real ref", "ariadne", nil},
+		// WAS []string{"42"} — the #190 defect, pinned as correct.
+		{"foreign qualified", "pair#127 replay harness", "ariadne", nil},
+		{"foreign among local", "#187 M2: pair#127 replay", "ariadne", []string{"187"}},
+		// The must-not-regress case: our OWN qualifier stays local. Testable only because
+		// selfRepo is a parameter (RepoTopLevel bypasses the run shim).
+		{"self qualified", "ariadne#180: subject", "ariadne", []string{"180"}},
+		{"self qualified, unknown self", "ariadne#180: subject", "", nil},
+		{"distinct", "#1 and #11 distinct", "ariadne", []string{"1", "11"}},
 	}
 	for _, tt := range tests {
-		t.Run(tt.subject, func(t *testing.T) {
-			matches := issueRefRE.FindAllStringSubmatch(tt.subject, -1)
-			var got []string
-			for _, m := range matches {
-				got = append(got, m[1])
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got %v want %v", got, tt.want)
+		t.Run(tt.name, func(t *testing.T) {
+			if got := issueref.LocalNums(tt.subject, tt.selfRepo); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("LocalNums(%q, %q) = %v want %v", tt.subject, tt.selfRepo, got, tt.want)
 			}
 		})
+	}
+}
+
+// The end-to-end guard on the entry point of the #190 chain: a foreign ref in a real commit
+// subject must not enter the tracked set that becomes activetime's mention pattern.
+func TestDiscoverWindowIssuesExcludesForeignRefs(t *testing.T) {
+	orig := run
+	t.Cleanup(func() { run = orig })
+	run = func(name string, args ...string) ([]byte, error) {
+		return []byte("#187 M2: pair#127 replay harness + round 1 evidence\n" +
+			"#187 M2: churn — four-bucket classification\n" +
+			"ariadne#180: a self-qualified ref stays local\n"), nil
+	}
+	got, err := DiscoverWindowIssues("2026-07-29T00:00:00Z", "2026-07-30T00:00:00Z", "187", "ariadne")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, iss := range got {
+		if iss == "127" {
+			t.Errorf("pair#127 admitted 127 to the tracked set: %v", got)
+		}
+	}
+	if want := []string{"180", "187"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("DiscoverWindowIssues = %v, want %v (sorted numerically)", got, want)
 	}
 }
 

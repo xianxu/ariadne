@@ -75,7 +75,7 @@ plan's Tasks 1–6:
 - [x] `issueref` package: the ONE qualifier+id grammar — `Ref`, `QualifiedIDPattern`, `ScanRE`,
       `Find`, `IsLocal` (exact, not prefix), `LocalNums`, `CountLocal`; corpus-derived table
       test + mutation-verified boundary (Task 1)
-- [ ] `gitx.DiscoverWindowIssues` takes `selfRepo` as a parameter and derives from `issueref`;
+- [x] `gitx.DiscoverWindowIssues` takes `selfRepo` as a parameter and derives from `issueref`;
       moves onto the package `run` shim so the self-qualified case is testable at all (Task 2)
 - [ ] `activetime` derives on BOTH paths — `Commit.Issues` and transcript mentions — with the
       self-qualifier from `opts.GitRepo`, not the process cwd; plus a `foreign refs ignored`

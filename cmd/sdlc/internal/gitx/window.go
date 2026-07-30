@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 )
 
 // run is the package-level command runner. Test code in this package
@@ -380,29 +382,37 @@ func windowCapISO() string {
 		Format("2006-01-02T15:04:05-07:00")
 }
 
-// issueRefRE matches "#<digits>" with a word boundary on the trailing side.
-var issueRefRE = regexp.MustCompile(`#(\d+)\b`)
-
-// DiscoverWindowIssues returns every distinct issue number referenced in
-// commit subjects within [since, until]. `primary` is always included in
-// the result, even if no commits match it.
+// DiscoverWindowIssues returns every distinct LOCAL issue number referenced in commit
+// subjects within [since, until]. `primary` is always included, even if no commits match it.
 //
-// Why all of them: the active-time-v3 algorithm anchors segments by
-// commit-subject issue ref; unrecognized refs fall into mention-fallback
-// and inflate the closing issue's share by 3-10x.
-func DiscoverWindowIssues(sinceISO, untilISO, primary string) ([]string, error) {
-	cmd := exec.Command("git", "log",
+// Why all of them: the active-time-v3 algorithm anchors segments by commit-subject issue ref;
+// unrecognized refs fall into mention-fallback and inflate the closing issue's share by
+// 3-10x.
+//
+// selfRepo is this repo's name — the qualifier that counts as LOCAL, so `ariadne#180` inside
+// ariadne is kept while `pair#127` is not. It is a PARAMETER rather than a RepoTopLevel() call
+// here for two reasons: RepoTopLevel shells out via exec.Command directly, bypassing the `run`
+// shim, so a self-qualifier resolved internally would be untestable — the self-qualified case
+// would ship with no guard at all; and the single caller already holds the repo root, so
+// passing it makes the dependency explicit rather than implicit in the process cwd. "" means
+// unknown, which keeps only bare refs (ariadne#190).
+//
+// This is the entry point of the #190 chain: whatever lands here becomes activetime's tracked
+// issue set, and therefore its mention pattern.
+func DiscoverWindowIssues(sinceISO, untilISO, primary, selfRepo string) ([]string, error) {
+	// Via the package `run` shim, not exec.Command directly — the shim is the documented path
+	// for callers in this package, and it is what makes the ref filtering testable.
+	out, err := run("git", "log",
 		"--since="+sinceISO, "--until="+untilISO, "--pretty=%s",
 	)
-	out, err := cmd.Output()
 	if err != nil {
 		return []string{primary}, nil
 	}
 	text := strings.TrimRight(string(out), "\n")
 	seen := map[string]struct{}{}
 	for _, line := range strings.Split(text, "\n") {
-		for _, m := range issueRefRE.FindAllStringSubmatch(line, -1) {
-			seen[m[1]] = struct{}{}
+		for _, num := range issueref.LocalNums(line, selfRepo) {
+			seen[num] = struct{}{}
 		}
 	}
 	if _, ok := seen[primary]; !ok {
