@@ -44,6 +44,15 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 - *Authoritative:* `actual_hours:` in the issue frontmatter, derived from the in-binary active-time-v3 engine (`sdlc actual` / `sdlc active-time`, `cmd/sdlc/internal/activetime`) over the commit window.
 - No mirror needed — frontmatter is already terse.
 - *Unit (#118/#92):* the engine measures **ship wall-clock**, not operator-attention — idle gaps still truncate at 15 min, but a subagent-execution span (an `Agent` `tool_use` dispatch → its `tool_result` return, both in the operator's transcript) counts **in full** even when it exceeds the cap. Overlaps collapse only within one transcript source; overlapping sessions remain separate claimable issue work. Activity runs are claimed by nearby issue-referenced commit boundaries, with no-ref commits acting as neutral cut points. This matches the current estimate model's unit (`estimate-logic-v3.1` estimates ship wall-clock directly), so the calibration ledger compares like-for-like.
+- *What counts as a ref (#190):* a **bare** `#N` is local; `<thisrepo>#N` is local; and
+  `<otherrepo>#N` is **foreign** — attributable to no local issue, and reported as
+  `pair#127 foreign ref ignored` rather than dropped silently. The qualifier names the repo the
+  **commits** come from (`--git-repo`), not the process cwd, so measuring a peer reads that
+  peer's refs as local. `-` and `.` sit outside the boundary class, so `#174-#176` is two refs,
+  not one qualified one. The grammar is single-sourced in `cmd/sdlc/internal/issueref`
+  (`parseRef` in `helptext/resolve.md` remains the canonical *validator*). Before this,
+  `pair#127` matched as local 127 and charged 46 minutes of #187's work to an unrelated
+  archived issue.
 - *Known limit (#118):* span matching is **per-transcript-file** — a subagent run whose dispatch and return straddle a session-compaction boundary (dispatch in file A, return in file B) is not paired, so that gap truncates at 15 min. Forward-looking only (all historical spans were within-file and sub-cap); when long delegated runs routinely cross files, aggregate the pending-dispatch map across files in `loadEvents`.
 
 **"Did the plan-quality gate earn its cost on this issue?"** (#187)

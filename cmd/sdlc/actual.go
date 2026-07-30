@@ -96,7 +96,9 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		}
 	}
 
-	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum)
+	// selfRepo is the basename of the repo whose commits are being scanned, so a
+	// self-qualified `ariadne#180` counts as local while `pair#127` does not (#190).
+	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum, filepath.Base(repoTop))
 	src := transcripts.Select(nonEmpty(brainAbs, repoTop), transcripts.DefaultHarnesses())
 	res.Dirs = src.Dirs
 	if len(src.Dirs) == 0 && len(src.Files) == 0 {

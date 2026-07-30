@@ -26,6 +26,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -36,13 +37,16 @@ type refRewrite struct {
 	Old, New string
 }
 
-// refScanRE finds ref CANDIDATES in prose: an optional directly-attached
-// repo token + '#' + 1–6 digits. Derived from parseRef's grammar but not a
-// second authority — every candidate is filtered through parseRef before
-// any rewrite (a non-parsing candidate like `#0` is a non-ref). Note the
-// trailing \b: a 7+-digit run matches NOTHING (RE2 still demands the
+// refScanRE finds ref CANDIDATES in prose: an optional directly-attached repo token + '#' +
+// 1–6 digits. Derived from parseRef's grammar but not a second authority — every candidate is
+// filtered through parseRef before any rewrite (a non-parsing candidate like `#0` is a
+// non-ref). Note the trailing \b: a 7+-digit run matches NOTHING (RE2 still demands the
 // boundary after backtracking), which TestRewriteRefs pins.
-var refScanRE = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9_.-]*)?#([0-9]{1,6})\b`)
+//
+// Since ariadne#190 the expression itself lives in internal/issueref, which needed the same
+// grammar for active-time attribution and could not import this package. `issueref` owns the
+// SCAN, `parseRef` still owns VALIDATION.
+var refScanRE = issueref.ScanRE
 
 // inlineSpanRE finds single-backtick code spans within one line.
 var inlineSpanRE = regexp.MustCompile("`[^`\n]+`")
@@ -52,7 +56,10 @@ var inlineSpanRE = regexp.MustCompile("`[^`\n]+`")
 // for mixed-content spans: “ `#171` “ is a styled ref and rewrites;
 // “ `git log --grep "^#15"` “ is a quoted command and must not (#179
 // plan: real corruption cases in this repo's markdown).
-var spanRefRE = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9_.-]*)?#[0-9]{1,6}( M[0-9]+[a-z]?)?$`)
+// Composed from issueref's exported FRAGMENT rather than the compiled ScanRE: a compiled
+// regexp cannot be re-anchored, and this variant needs `^…$` plus the milestone group. Sharing
+// the fragment is what keeps one grammar rather than two spellings of it (ariadne#190).
+var spanRefRE = regexp.MustCompile(`^` + issueref.QualifiedIDPattern + `( M[0-9]+[a-z]?)?$`)
 
 // rewriteToken applies the three rewrite rules to one parseRef-validated
 // candidate. Textual (prefix add/strip), so digit padding and any trailing

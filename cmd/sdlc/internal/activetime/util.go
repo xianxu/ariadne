@@ -3,9 +3,10 @@ package activetime
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 )
 
 // parseISO parses an ISO-8601 timestamp. Mirrors active-time-v3.py parse_iso:
@@ -27,35 +28,35 @@ func expandUser(p string) string {
 	return p
 }
 
-// issuePattern compiles the tracked-issue matcher: #(<n1>|<n2>|…)\b, capture
-// group 1 is the bare number. Mirrors active-time-v3.py's issue_pat. RE2
-// supports \b. Returns nil when no issues are tracked (callers treat nil as
-// "match nothing", same as the Python guard `if issue_pat is not None`).
-func issuePattern(issues []string) *regexp.Regexp {
+// mentionScope decides which `#N` refs in text count as mentions of a tracked issue: the
+// tracked set, plus the name of the repo whose qualifier is LOCAL.
+//
+// It replaces the compiled `*regexp.Regexp` that used to thread through this package
+// (ariadne#190). Two reasons the set beats a pattern: building a regex from the tracked
+// issues was the indirection that let three copies of the `#N` grammar drift apart, and a
+// pattern cannot express "a qualified ref belongs to another repo" — which is the whole bug.
+//
+// The zero value matches nothing, preserving the old `nil pat` contract exactly.
+type mentionScope struct {
+	selfRepo string
+	tracked  map[string]bool
+}
+
+// newMentionScope builds the scope for a set of tracked issue numbers.
+func newMentionScope(selfRepo string, issues []string) mentionScope {
 	if len(issues) == 0 {
-		return nil
+		return mentionScope{selfRepo: selfRepo}
 	}
-	alts := make([]string, len(issues))
-	for i, iss := range issues {
-		alts[i] = regexp.QuoteMeta(iss)
+	tracked := make(map[string]bool, len(issues))
+	for _, iss := range issues {
+		tracked[iss] = true
 	}
-	return regexp.MustCompile(`#(` + strings.Join(alts, "|") + `)\b`)
+	return mentionScope{selfRepo: selfRepo, tracked: tracked}
 }
 
-func allIssuePattern() *regexp.Regexp {
-	return regexp.MustCompile(`#(\d+)\b`)
-}
-
-// parseEventMentions counts tracked-issue #N refs in text. Pure — split out so
-// the mention logic is unit-testable without files. nil pattern or empty text →
-// no mentions.
-func parseEventMentions(text string, pat *regexp.Regexp) map[string]int {
-	mentions := map[string]int{}
-	if pat == nil || text == "" {
-		return mentions
-	}
-	for _, m := range pat.FindAllStringSubmatch(text, -1) {
-		mentions[m[1]]++
-	}
-	return mentions
+// parseEventMentions counts tracked-issue #N refs in text, excluding refs qualified with
+// ANOTHER repo's name. Pure — split out so the mention logic is unit-testable without files.
+// An empty scope or empty text yields no mentions.
+func parseEventMentions(text string, sc mentionScope) map[string]int {
+	return issueref.CountLocal(text, sc.selfRepo, sc.tracked)
 }

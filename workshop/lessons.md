@@ -878,3 +878,20 @@ independent gate that the export is non-empty.
 **Origin:** #187 close review (FIX-THEN-SHIP) — I1 (`estimate.UpgradeHeader`) and I2/I3
 (`vet_test.sh` + `atlas/workflow/vocabulary.md` missing the `finding` noun, where
 `TestFindingConformance` would have passed on an empty export).
+
+A consolidation sweep must scope its verification to the LANGUAGE BOUNDARY of the thing being
+consolidated, not to the language you happen to be working in. A grep proving "one encoding
+remains" across `*.go` said nothing about the same pattern in a `.py` sibling — and that sibling
+was a live fallback path, symlinked into every derivative repo. The tell was available: the file
+was in `construct/base.manifest` and invoked by a Makefile target. When retiring a duplicated
+rule, grep the manifest and the Makefiles for other implementations of it before claiming the
+count.
+
+Related but distinct from the two entries above (#186's "match every signature" and #187's
+"artifacts that describe a thing are consumers too"): those are about missing a *consumer* or a
+*shape*; this is about missing an entire *implementation* because the search was language-scoped.
+The three together suggest one habit: before asserting a sweep is complete, write down what
+class of thing you searched and ask what class you did not.
+
+**Origin:** #190 close review (FIX-THEN-SHIP) — `scripts/close-issue.py:212` was a sixth
+encoding of the ref grammar that the Go-only grep declared consolidated.

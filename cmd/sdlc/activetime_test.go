@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
@@ -141,5 +142,32 @@ func writeJSONLmain(t *testing.T, path string, lines ...string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A foreign-ref warning is window-scoped: no minutes, no time range. Rendering its zero time
+// as "0000-12-31 16:07" would be noise dressed as data (#190).
+func TestFormatAttributionWarningOmitsZeroTimeRange(t *testing.T) {
+	got := formatAttributionWarning(activetime.AttributionWarning{
+		Issue:  "pair#127",
+		Reason: "foreign ref ignored — another repo's issue, not attributable here (×2)",
+	})
+	if strings.Contains(got, "0000") {
+		t.Errorf("zero time rendered: %q", got)
+	}
+	if !strings.HasPrefix(got, "pair#127 foreign ref ignored") {
+		t.Errorf("got %q — want the qualified key unprefixed, then the reason", got)
+	}
+	// A real segment warning keeps its range.
+	seg := formatAttributionWarning(activetime.AttributionWarning{
+		Issue: "187", Active: 46.1, Share: 0.77, Reason: "mention fallback",
+		Start: time.Date(2026, 7, 29, 10, 25, 0, 0, time.Local),
+		End:   time.Date(2026, 7, 29, 12, 36, 0, 0, time.Local),
+	})
+	if !strings.Contains(seg, "2026-07-29 10:25 → 2026-07-29 12:36") {
+		t.Errorf("a segment warning must keep its range: %q", seg)
+	}
+	if !strings.HasPrefix(seg, "#187 ") {
+		t.Errorf("a bare key must still be #-prefixed: %q", seg)
 	}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseEventMentions(t *testing.T) {
-	pat := issuePattern([]string{"8", "10"})
+	pat := newMentionScope("ariadne", []string{"8", "10"})
 	got := parseEventMentions("#8 and #8 then #10 but not #9", pat)
 	if got["8"] != 2 || got["10"] != 1 {
 		t.Fatalf("want {8:2,10:1}, got %v", got)
@@ -16,7 +16,7 @@ func TestParseEventMentions(t *testing.T) {
 		t.Fatalf("untracked #9 should be ignored: %v", got)
 	}
 	// nil pattern → no mentions.
-	if m := parseEventMentions("#8", nil); len(m) != 0 {
+	if m := parseEventMentions("#8", mentionScope{}); len(m) != 0 {
 		t.Fatalf("nil pattern should match nothing, got %v", m)
 	}
 }
@@ -48,7 +48,7 @@ func TestLoadEventsShapes(t *testing.T) {
 	}
 	writeJSONL(t, filepath.Join(dir, "session.jsonl"), lines)
 
-	pat := issuePattern([]string{"8", "10"})
+	pat := newMentionScope("ariadne", []string{"8", "10"})
 
 	// With include-assistant.
 	evs, _, err := loadEvents([]string{dir}, pat, true,
@@ -97,7 +97,7 @@ func TestLoadEventsShapes(t *testing.T) {
 }
 
 func TestLoadEventsMissingDirSkipped(t *testing.T) {
-	evs, _, err := loadEvents([]string{"/no/such/dir"}, issuePattern([]string{"8"}), true, "", "")
+	evs, _, err := loadEvents([]string{"/no/such/dir"}, newMentionScope("ariadne", []string{"8"}), true, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestLoadEventsTaskSpans(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:31:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"B1","name":"Bash","input":{}}]}}`,
 		`{"timestamp":"2026-01-01T00:32:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"B1","content":"ok"}]}}`,
 	})
-	_, spans, err := loadEvents([]string{dir}, nil, true, "", "")
+	_, spans, err := loadEvents([]string{dir}, mentionScope{}, true, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestLoadEventsCodexTranscriptShape(t *testing.T) {
 		`{"timestamp":"2026-06-26T16:55:14.322Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"git status\"}"}}`,
 	})
 
-	evs, _, err := loadEvents([]string{dir}, issuePattern([]string{"144"}), true, "", "")
+	evs, _, err := loadEvents([]string{dir}, newMentionScope("ariadne", []string{"144"}), true, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestLoadEventsCodexTranscriptShape(t *testing.T) {
 		t.Fatalf("want two #144 mentions from user+assistant messages, got %v", total)
 	}
 
-	evs, _, err = loadEvents([]string{dir}, issuePattern([]string{"144"}), false, "", "")
+	evs, _, err = loadEvents([]string{dir}, newMentionScope("ariadne", []string{"144"}), false, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestLoadEventsDanglingDispatchNoSpan(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"A1","name":"Agent","input":{}}]}}`,
 		// no matching tool_result → no span.
 	})
-	_, spans, err := loadEvents([]string{dir}, nil, true, "", "")
+	_, spans, err := loadEvents([]string{dir}, mentionScope{}, true, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestLoadEventsSpanClampedToWindow(t *testing.T) {
 		`{"timestamp":"2026-01-01T00:00:00Z","type":"assistant","message":{"content":[{"type":"tool_use","id":"A1","name":"Agent","input":{}}]}}`,
 		`{"timestamp":"2026-01-01T01:00:00Z","type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"A1","content":"done"}]}}`,
 	})
-	_, spans, err := loadEvents([]string{dir}, nil, true, "", "2026-01-01T00:20:00Z")
+	_, spans, err := loadEvents([]string{dir}, mentionScope{}, true, "", "2026-01-01T00:20:00Z")
 	if err != nil {
 		t.Fatal(err)
 	}
