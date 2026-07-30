@@ -1,7 +1,9 @@
 package activetime
 
 import (
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -289,5 +291,65 @@ func TestComputeNoCommitsMentionFallbackWarning(t *testing.T) {
 	}
 	if len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0].Reason, "fallback") {
 		t.Fatalf("no-commit mention fallback should warn, got %+v", res.Warnings)
+	}
+}
+
+// The SEAM test (ariadne#190 close review I2): Compute must build its mentionScope from
+// opts.GitRepo. The leaf tests cover the grammar and the two derive paths, but nothing
+// exercised compute.go's construction — the one line that decides which repo counts as local
+// for the whole run. A wrong qualifier there silently reverses the fix.
+func TestComputeBuildsMentionScopeFromGitRepo(t *testing.T) {
+	dir := t.TempDir()
+	// One transcript with prose naming a local and a foreign issue, two events far enough
+	// apart to make a measurable gap but inside the 15-minute cap.
+	line := func(ts, text string) string {
+		return `{"timestamp":"` + ts + `","type":"user","message":{"role":"user","content":` +
+			strconv.Quote(text) + `}}`
+	}
+	session := line("2026-07-29T10:00:00Z", "starting #187, replaying pair#127") + "\n" +
+		line("2026-07-29T10:05:00Z", "more #187 work, still on pair#127") + "\n"
+	path := filepath.Join(dir, "session.jsonl")
+	if err := os.WriteFile(path, []byte(session), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// No commits: this test isolates the MENTION path, and the repo paths are fictional, so
+	// the real `git` would exit 128. An empty log is the correct fixture.
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) { return nil, nil })
+
+	res, err := Compute(Options{
+		Files:            []string{path},
+		GitRepo:          "/tmp/workspace/ariadne",
+		Issues:           []string{"187", "127"},
+		CommitWeight:     1.0,
+		ThresholdMin:     15,
+		IncludeAssistant: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.PerIssue["127"] != 0 {
+		t.Errorf("pair#127 drew %.1f minutes — Compute's scope did not carry the repo qualifier",
+			res.PerIssue["127"])
+	}
+	if res.PerIssue["187"] <= 0 {
+		t.Errorf("the local issue should hold the segment, got %+v", res.PerIssue)
+	}
+
+	// The inverse direction: with GitRepo pointed at pair, pair#127 IS local. This is what
+	// proves the qualifier comes from GitRepo rather than being hardcoded or cwd-derived.
+	res2, err := Compute(Options{
+		Files:            []string{path},
+		GitRepo:          "/tmp/workspace/pair",
+		Issues:           []string{"187", "127"},
+		CommitWeight:     1.0,
+		ThresholdMin:     15,
+		IncludeAssistant: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.PerIssue["127"] <= 0 {
+		t.Errorf("inside pair, pair#127 must be local, got %+v", res2.PerIssue)
 	}
 }

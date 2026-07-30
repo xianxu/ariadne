@@ -1,12 +1,13 @@
 ---
 id: 000190
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-29
 updated: 2026-07-29
 estimate_hours: 3.75
 started: 2026-07-29T16:23:09-07:00
+actual_hours: 0.86
 ---
 
 # active-time mention-fallback attributes replay work to the replayed issue
@@ -276,3 +277,4 @@ same-numbered *open* foreign issue would have slipped through).
 ## Log
 
 ### 2026-07-29
+- 2026-07-29: closed — Root cause was NOT what the issue was filed as, and the filed fix would not have worked: `#(\d+)\b` has no LEFT boundary, so pair#127 matched as local 127 — and ariadne#127 exists (an archived issue about recalibrating estimates), which absorbed 46.1 minutes of #187 work. The filed Spec proposed a commit-boundary-outranks-mentions precedence rule; that fixes nothing, because Commit.Issues is poisoned by the same parse and attributeRun splits weight*active EQUALLY across it, so a foreign entry took half a commit weighted share regardless of precedence. Superseded via ## Revisions before designing. KNOWN-ANSWER REGRESSION PASSED TO THE TENTH OF A MINUTE (evidence: workshop/plans/000190-evidence.md): #187 segment over fixed window boundaries went 84.5m -> 130.6m = +46.1m, exactly the disputed quantity, and #127 is absent from the attribution set entirely rather than zeroed. The measurement also found a SECOND victim the plan did not predict — pair#129 was likewise in the tracked set, eligible to claim mention share. CONSOLIDATION IS GREP-VERIFIABLE: no encoding of the qualifier+id grammar remains outside cmd/sdlc/internal/issueref/ref.go. Five copies became one — the three broken ones plus migrate.go two, the anchored one composing from the exported FRAGMENT since a compiled regexp cannot be re-anchored. Migrate existing tests pass with ZERO edits, which is the proof the grammar did not move. Verified: go test ./... + go vet ./... + construct/vocabulary/vet_test.sh all clean; mutation-verified three times (restoring the unbounded pattern fails 4 issueref tests including LocalNums reproducing the exact [187 127 180] misparse; ignoring selfRepo fails the gitx self-qualified guard). TWO THINGS I GOT WRONG, caught while implementing: a test was PINNING the bug (TestIssueRefRE_DiscoveryParsing asserted prefix#42 -> [42] as intended behavior — not a fixture that happened to contain a qualified ref, but a deliberate assertion of the defect; inverted with the reason inline), and my own new code carried the class of defect the #187 review had just flagged elsewhere (foreignRefWarnings rendered zero time as 0000-12-31 16:07 — noise dressed as data; fixed with a test). THE EXCLUSION IS NOW OBSERVABLE: a silently-dropped foreign ref reads identically to one never there, which is how this survived — the numbers looked plausible. sdlc actual now prints "pair#127 foreign ref ignored — another repo issue, not attributable here (x2)". CALIBRATION, flagged not corrected: 3.75h estimate vs 0.86h measured = 4.4x OVER, the same direction and rough magnitude as #187 (3.6x). Two consecutive rows ~4x over is now a pattern rather than noise, and it points at the primitive table itself — which is what ariadne#127 tracks, the very issue this bug corrupted. #187 own calibration row is deliberately LEFT ALONE despite its actual being provably too low: rewriting a measured historical actual is exactly what #117/#178 exist to forbid; the discrepancy is recorded in the evidence file instead. GATE COST: 3 plan-quality rounds + 2 estimate-quality dispatches. Round 1 overturned the plan central claim (I was adding a FOURTH encoding while claiming to consolidate three) and round 2 found the FIFTH — neither would have surfaced from re-reading my own plan.; review verdict: FIX-THEN-SHIP

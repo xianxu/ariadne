@@ -82,8 +82,8 @@ it is why the new package takes the SCAN half and leaves validation where it is.
 | `issuePattern` | `cmd/sdlc/internal/activetime/util.go` | deleted |
 | `uniqueRefs` | `cmd/sdlc/internal/activetime/util.go` | deleted |
 | `parseEventMentions` | `cmd/sdlc/internal/activetime/util.go` | modified |
-| `refScanRE` | `cmd/sdlc/migrate.go` | deleted |
-| `spanRefRE` | `cmd/sdlc/migrate.go` | deleted |
+| `refScanRE` | `cmd/sdlc/migrate.go` | modified (alias to `issueref.ScanRE`) |
+| `spanRefRE` | `cmd/sdlc/migrate.go` | modified (recomposed from the fragment) |
 
 - **Ref** — one parsed `#N`: `{Qualifier, Num string}`. `Qualifier == ""` is a bare ref.
   - **Relationships:** N per text; a value type with no ownership.
@@ -552,3 +552,43 @@ before acting; all four held up, and one changed the plan's central claim.
 `repoIdentity()` returns a bare basename (`reviewsidecar.go:113-126`); `parity_test.go` carries
 no qualified refs; `commit_test.go:9` already has a `withGitRun` helper to reuse;
 `sdlc actual --issue 187` works on the archived issue file.
+
+### 2026-07-29 — close review: FIX-THEN-SHIP, as-shipped deltas
+
+All findings verified against the code before acting. The three the review asked to be recorded
+here, plus the one it found that this plan had missed entirely:
+
+1. **A SIXTH encoding existed, outside Go.** `scripts/close-issue.py:212` carried
+   `re.findall(r"#(\d+)\b", …)` in its own `discover_window_issues` — the same unbounded pattern,
+   in the **live fallback path** `Makefile.workflow:124` uses when `bin/sdlc` is not built, and
+   `construct/base.manifest:118` symlinks into every derivative repo. My "grep-verifiable 5 → 1"
+   claim was true only of `*.go`; the sweep had the wrong file scope. Fixed to mirror the Go
+   rule, with one **deliberate divergence stated in the code**: the fallback also drops a
+   *self*-qualified `ariadne#180`, having no repo identity to compare against — erring toward
+   under-attribution rather than mis-attribution, which is the safe direction for a deprecated
+   path.
+2. **`refScanRE` / `spanRefRE` are `modified`, not `deleted`** (entity table rows corrected).
+   Both identifiers survive in `migrate.go` — one as an alias, one as a recomposition — and
+   Task 4's own steps said "Replace"/"Recompose", so the table contradicted the task at plan
+   time.
+3. **`TestComputeDoesNotAttributeToForeignIssue` was specified and never written.** The leaf
+   tests covered the grammar and both derive paths, but nothing exercised `compute.go:84` — the
+   one line choosing which repo is local for the whole run, where a wrong qualifier silently
+   reverses the fix. Written as `TestComputeBuildsMentionScopeFromGitRepo`, asserting **both**
+   directions (inside ariadne `pair#127` draws zero; inside pair it draws the segment), which is
+   what proves the qualifier comes from `opts.GitRepo` rather than being hardcoded.
+4. **Task 5's fixed-window run was substituted, not performed.** I had used `sdlc actual`'s
+   segment comparison instead. Now actually run, and it shows two things the substitute cannot:
+   `mentions #187=11` *and nothing else* (the foreign ref never entered the mention count), and
+   `#127` absent from `per-issue totals` rather than zeroed. Recorded in
+   `000190-evidence.md`.
+
+**Also from the review, acted on:** `selfQualifier`'s doc now names its asymmetry with
+`gitx.DiscoverWindowIssues` — that one takes `selfRepo` as a parameter for testability, this one
+resolves `opts.GitRepo` because `--git-repo .` requires cwd resolution — and points at
+`TestSelfQualifier`'s weakened `"."` assertion as the visible cost.
+
+**A limit the fixed-window run exposed, now documented in both places:** `foreignRefWarnings`
+scans commit subjects, so in that window `pair#129` is named while `pair#127` is not (its commits
+fell after the cutoff). Exclusion is correct on both paths; only the *naming* is
+commit-subject-scoped.

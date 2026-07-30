@@ -208,8 +208,19 @@ def discover_window_issues(since_iso: str, until_iso: str, primary: str) -> list
              "--pretty=%s"], text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
         return [primary]
-    found = sorted({m for line in out.splitlines()
-                    for m in re.findall(r"#(\d+)\b", line)},
+    # A `#N` preceded by a repo-name character is ANOTHER repo's issue (ariadne#190):
+    # `pair#127` is not local 127. Mirrors cmd/sdlc/internal/issueref — the Go binary is the
+    # authority, and this fallback must not disagree with it. The optional qualifier group is
+    # matched and then REJECTED when non-empty; Python has lookbehind, but matching the
+    # qualifier keeps the two implementations legible as the same rule.
+    #
+    # DELIBERATE divergence from the Go path: this drops a SELF-qualified `ariadne#180` too,
+    # because the fallback has no repo identity to compare against. That errs toward
+    # under-attribution rather than mis-attribution, which is the safe direction for a
+    # deprecated path — and self-qualified refs are ~1-in-400 in practice.
+    found = sorted({m[1] for line in out.splitlines()
+                    for m in re.findall(r"([A-Za-z0-9][A-Za-z0-9_.-]*)?#([0-9]{1,6})\b", line)
+                    if not m[0]},
                    key=int)
     if primary not in found:
         found.append(primary)

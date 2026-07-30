@@ -64,6 +64,49 @@ number that moved is the same number the bug had misplaced, to the tenth of a mi
 `pair#129` had also been sitting in the tracked-issue set, eligible to claim mention share on
 any segment whose prose named it.
 
+## The fixed-window run (the plan's stated command)
+
+The comparison above uses `sdlc actual`, whose window ends at `HEAD`. The plan also specified a
+FIXED-window `sdlc active-time` invocation, so the primary evidence rests on boundaries that
+cannot drift. Run after Tasks 1–4:
+
+```
+$ sdlc active-time \
+    --dir ~/.claude/projects/-Users-xianxu-workspace-ariadne \
+    --git-repo /Users/xianxu/workspace/ariadne \
+    --issue 187 --issue 127 \
+    --since 2026-07-29T10:00:00-07:00 --until 2026-07-29T13:00:00-07:00 \
+    --threshold-min 15 --include-assistant
+
+# events in window: 462  •  commits in window: 14
+
+  #  start             end                 min  commit       issues  mentions    alloc
+  1  2026-07-29 10:25  2026-07-29 12:36  130.6  (no anchor)          #187=11     #187=130.6m
+
+# per-issue totals
+  #187: 2.18 hr  (130.6 min)
+
+  attribution warning: #187 130.6m/100% dominant long attribution segment
+  attribution warning: #187 130.6m/100% mention fallback without issue commit boundary
+  attribution warning: pair#129 foreign ref ignored — another repo's issue, not attributable here (×1)
+```
+
+Three things this shows that the `sdlc actual` comparison cannot:
+
+- **`mentions #187=11` and nothing else.** Before the fix this same prose yielded mentions for
+  BOTH `187` and `127`, and the segment's 130.6m was split 84.5/46.1 between them. The mention
+  column now shows the foreign ref was never counted.
+- **`#127` is absent from `per-issue totals` entirely** — not a zero row. It is no longer a
+  participant.
+- **`#187: 130.6 min` is the whole segment**, over boundaries that cannot drift.
+
+**A practical limit of the warning, visible right here.** `pair#129` is named but `pair#127` is
+not — because `foreignRefWarnings` scans COMMIT SUBJECTS, and the `pair#127` commits landed after
+13:00, outside this window. The `pair#127` *mentions* inside the window were correctly excluded
+but silently. So the observability improvement is real yet partial: it names foreign refs that
+appear in commit subjects, not those appearing only in transcript prose. Stated in
+`foreignRefWarnings`' doc, and repeated here because this run is the concrete demonstration.
+
 ## Corroboration, and why it is not the primary measurement
 
 `sdlc actual --issue 187` works on the archived issue file (verified — `computeActual` resolved

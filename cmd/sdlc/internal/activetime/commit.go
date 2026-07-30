@@ -84,6 +84,14 @@ func loadWindowCommits(repo, sinceISO, untilISO string) ([]Commit, error) {
 // verb, and invisibly, since `sdlc actual` passes the current repo and would look correct.
 //
 // "" for an unresolvable or non-specific path (".", "/"), which keeps only bare refs.
+//
+// ASYMMETRY WITH gitx.DiscoverWindowIssues, deliberate: that one takes selfRepo as an explicit
+// PARAMETER, because resolving it internally would have made its self-qualified case untestable
+// (RepoTopLevel bypasses the package run shim). Here the repo path is already a parameter —
+// opts.GitRepo — so the only environment touch is resolving it to an absolute path, which
+// `--git-repo .` genuinely requires. The cost is visible in TestSelfQualifier, which can only
+// assert that "." yields SOME bare basename rather than a specific one; that weakened assertion
+// is the tell, and it is the price of supporting a relative --git-repo.
 func selfQualifier(repo string) string {
 	abs, err := filepath.Abs(expandUser(repo))
 	if err != nil {
