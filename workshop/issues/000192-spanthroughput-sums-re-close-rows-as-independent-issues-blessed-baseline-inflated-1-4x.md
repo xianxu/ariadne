@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-29
 updated: 2026-07-29
-estimate_hours:
+estimate_hours: 1.94
 started: 2026-07-29T22:32:28-07:00
 ---
 
@@ -155,6 +155,50 @@ straddle `from` contributes hours accrued *before* the span. Acceptable — the 
 apportioning a cumulative measurement across span boundaries, which needs per-close deltas the
 ledger does not record — but stated beside the append-only non-goal so it is a choice, not an
 oversight.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec            design=0.35 impl=0.10
+item: smaller-go-module     design=0.15 impl=0.15
+item: smaller-go-module     design=0.10 impl=0.15
+item: smaller-go-module     design=0.00 impl=0.10
+item: atlas-docs            design=0.05 impl=0.08
+item: atlas-docs            design=0.00 impl=0.06
+item: milestone-review      design=0.00 impl=0.20
+item: milestone-review      design=0.00 impl=0.20
+item: milestone-review      design=0.00 impl=0.15
+design-buffer: 0.15
+total: 1.94
+```
+
+**Verified by recomputation:** Σdesign 0.65 × 1.15 = 0.7475, + Σimpl 1.19 = **1.9375** vs stated
+1.94 (δ 0.0025, tolerance 0.097). No item above its v3.1 ceiling.
+
+| item | what | why this value |
+|---|---|---|
+| `issue-spec` | the Spec + plan rows | **design 0.35, under the 0.5 table floor, by a NAMED discount:** the investigation is already complete and it happened **before the claim commit** — quantifying the 31% duplication, tracing both consumers, and finding the 1.41× blessed-baseline inflation were all done pre-filing. `started:` anchors the window at the claim, so that time is *outside* the measured actual and must not be estimated as if it will be spent again. (Precisely the inverse of #190, where I declined the ×0.2 discount *because* the design work fell inside the window.) |
+| `smaller-go-module` | `NewestPerIssue` + routing `driftSample` through it | the load-bearing chunk: pre-filtered contract, positional blank-issue key, `drift_test.go` unmodified as the guard |
+| `smaller-go-module` | `SpanThroughput` + the `SpanMeasure` field split | includes the `UntrustedRows` denominator fix |
+| `smaller-go-module` | `projectthroughput.go` call sites + labelled output | design 0.00 — mechanical; the decision is priced above |
+| `atlas-docs` | **three** doc surfaces | at ceiling: `ledger-landscape.md`, `sdlc-binary.md:210-219`, and brain `SKILL.md:93` |
+| `atlas-docs` | re-bless + the `#` provenance comment | 0.06 under the 0.08 ceiling — one command and one line |
+| `milestone-review` ×3 | close review, fixing its findings, the gate rounds | the pattern #190 established: review and fix cannot share one row, and `started:` puts the gate rounds inside the window |
+
+**Design share is 33.5%**, below the 41–61% peer band — expected and not padded: this is a bugfix
+whose analysis was finished before filing, so there is genuinely less design left than in a
+feature. Stating it because a share outside the band is normally worth a second look.
+
+**Calibration context.** ariadne on v3.1 measured **geo-mean 1.02× over 41 issues before
+2026-07-20**, then four rows at 3.73× median — a regression substantially explained by the
+attribution bug #190 just fixed (re-measuring #71 moved it 1.97× → 1.48×). #192 is among the
+first issues measured with correct attribution, so its ratio is a **data point about whether that
+regression is closed**, not just about this estimate. Recorded so the close reads it that way.
 
 ## Log
 

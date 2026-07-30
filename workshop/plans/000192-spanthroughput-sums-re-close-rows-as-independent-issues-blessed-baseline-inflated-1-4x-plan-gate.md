@@ -48,6 +48,30 @@ rounds:
             append-only non-goal.
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-07-29T22:39:38-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Pre-filtered contract, positional blank-issue key, and unmodified drift_test.go as guard are all now explicit and match drift.go:47-53.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: brain SKILL.md:93 confirmed to carry the wrong per-issue claim; now the third docs surface.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: UntrustedRows required over the deduped set; projectthroughput.go:94,101,103 named.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          round: 2
+      blocked: false
+content_hash: 5511687ff9d4ab6c02aed5f9739e7a4ce814215b103008466483a312da47d100
 ---
 
 # Gate ledger — ariadne#192 (plan-quality)
@@ -81,10 +105,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   issue's closes straddle `from`. Acceptable, but worth naming as a known limit beside the
   append-only non-goal.
 
+## Round 2 — 2026-07-29T22:39:38-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Pre-filtered contract, positional blank-issue key, and unmodified drift_test.go as guard are all now explicit and match drift.go:47-53.
+- PQ-2 — addressed — brain SKILL.md:93 confirmed to carry the wrong per-issue claim; now the third docs surface.
+- PQ-3 — addressed — UntrustedRows required over the deduped set; projectthroughput.go:94,101,103 named.
+- PQ-4 — addressed
+- PQ-5 — addressed
+
 ## Open findings
 
-- **PQ-1** [Important] Shared dedupe helper's contract is under-specified — routing driftSample through it as described breaks existing tests and changes drift semantics
-- **PQ-2** [Important] Plan corrects the ariadne atlas but leaves the same wrong per-issue claim standing in brain SKILL.md
-- **PQ-3** [Minor] SpanMeasure.UntrustedRows denominator not addressed — projectthroughput.go:103 can print "12 of 8 rows"
-- **PQ-4** [Minor] atlas/workflow/sdlc-binary.md:210-219 also documents the sum-over-rows semantics and is not in the plan
-- **PQ-5** [Minor] Span-boundary attribution unstated — a re-close inside the span carries cumulative hours worked before it
+(none — every finding has been disposed)
