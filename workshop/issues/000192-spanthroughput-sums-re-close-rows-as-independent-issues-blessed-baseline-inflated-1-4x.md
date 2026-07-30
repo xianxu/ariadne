@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-29
 updated: 2026-07-29
-estimate_hours: 1.94
+estimate_hours: 2.33
 started: 2026-07-29T22:32:28-07:00
 ---
 
@@ -127,21 +127,21 @@ an append-only file; renaming the `rows` column would leave the existing header 
 and new rows meaning another. `ThroughputBaseline.Rows` keeps its name, is fed the deduped count,
 and its doc records that pre-#192 rows counted raw ledger lines and are not comparable.
 
-- [ ] Failing test: `SpanThroughput` over a fixture with a 3-times-closed issue (growing
+- [x] Failing test: `SpanThroughput` over a fixture with a 3-times-closed issue (growing
       actuals, the real `ariadne#167` shape) equals the computation over that issue's last row
       alone
-- [ ] `NewestPerIssue` in `internal/estimate` per the contract above, with the blank-issue
+- [x] `NewestPerIssue` in `internal/estimate` per the contract above, with the blank-issue
       positional fallback absorbed from `driftSample`
-- [ ] Route `driftSample` through it — **`drift_test.go` must pass unmodified** — so `grep` finds
+- [x] Route `driftSample` through it — **`drift_test.go` must pass unmodified** — so `grep` finds
       one implementation
-- [ ] Fix `SpanThroughput` to use it; mutation-verify (removing the dedupe must fail the test)
-- [ ] `SpanMeasure`: `Issues` (summed) + `RowsScanned` (seen). **`UntrustedRows` must be counted
+- [x] Fix `SpanThroughput` to use it; mutation-verify (removing the dedupe must fail the test)
+- [x] `SpanMeasure`: `Issues` (summed) + `RowsScanned` (seen). **`UntrustedRows` must be counted
       over the DEDUPED set**, or `projectthroughput.go:103` prints "12 of 8 rows" — mixed
       denominators. Update `projectthroughput.go:94,101,103` and print both counts, labelled
-- [ ] Known-answer check: the 2026-06-22..07-19 span recomputes to **~80 h/wk**, not 110.60
-- [ ] Re-bless the baseline from the corrected measure; record the prior inflation as a `#`
+- [x] Known-answer check: the 2026-06-22..07-19 span recomputes to **~80 h/wk**, not 110.60
+- [x] Re-bless the baseline from the corrected measure; record the prior inflation as a `#`
       comment in `throughput-baseline.tsv`
-- [ ] Docs — **three** surfaces, not one:
+- [x] Docs — **three** surfaces, not one:
       `atlas/workflow/ledger-landscape.md` (the ledger is per-CLOSE; readers must dedupe),
       `atlas/workflow/sdlc-binary.md:210-219` (documents the sum-over-rows semantics and the
       `rows` provenance field), and
@@ -159,46 +159,73 @@ oversight.
 ## Estimate
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
-`baseline-v3.1.md`. Method A only.*
+`baseline-v3.1.md`. Method A only. Revised once on the estimate-quality review (1.94 → 2.33) —
+see the deltas below.*
 
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: issue-spec            design=0.35 impl=0.10
-item: smaller-go-module     design=0.15 impl=0.15
-item: smaller-go-module     design=0.10 impl=0.15
-item: smaller-go-module     design=0.00 impl=0.10
-item: atlas-docs            design=0.05 impl=0.08
-item: atlas-docs            design=0.00 impl=0.06
-item: milestone-review      design=0.00 impl=0.20
-item: milestone-review      design=0.00 impl=0.20
-item: milestone-review      design=0.00 impl=0.15
-design-buffer: 0.15
-total: 1.94
+item: issue-spec                design=0.30 impl=0.10
+item: smaller-go-module         design=0.15 impl=0.15
+item: smaller-go-module         design=0.10 impl=0.15
+item: cross-cutting-refactor    design=0.00 impl=0.08
+item: smaller-go-module         design=0.00 impl=0.10
+item: atlas-docs                design=0.05 impl=0.08
+item: atlas-docs                design=0.00 impl=0.06
+item: cross-repo-refactor-small design=0.10 impl=0.10
+item: milestone-review          design=0.15 impl=0.00
+item: milestone-review          design=0.00 impl=0.20
+item: milestone-review          design=0.00 impl=0.20
+design-buffer: 0.30
+total: 2.33
 ```
 
-**Verified by recomputation:** Σdesign 0.65 × 1.15 = 0.7475, + Σimpl 1.19 = **1.9375** vs stated
-1.94 (δ 0.0025, tolerance 0.097). No item above its v3.1 ceiling.
+**Verified by recomputation:** Σdesign 0.85 × 1.30 = 1.1050, + Σimpl 1.22 = **2.3250** vs stated
+2.33 (δ 0.0050, tolerance 0.117). No item above its v3.1 ceiling.
 
-| item | what | why this value |
-|---|---|---|
-| `issue-spec` | the Spec + plan rows | **design 0.35, under the 0.5 table floor, by a NAMED discount:** the investigation is already complete and it happened **before the claim commit** — quantifying the 31% duplication, tracing both consumers, and finding the 1.41× blessed-baseline inflation were all done pre-filing. `started:` anchors the window at the claim, so that time is *outside* the measured actual and must not be estimated as if it will be spent again. (Precisely the inverse of #190, where I declined the ×0.2 discount *because* the design work fell inside the window.) |
-| `smaller-go-module` | `NewestPerIssue` + routing `driftSample` through it | the load-bearing chunk: pre-filtered contract, positional blank-issue key, `drift_test.go` unmodified as the guard |
-| `smaller-go-module` | `SpanThroughput` + the `SpanMeasure` field split | includes the `UntrustedRows` denominator fix |
-| `smaller-go-module` | `projectthroughput.go` call sites + labelled output | design 0.00 — mechanical; the decision is priced above |
-| `atlas-docs` | **three** doc surfaces | at ceiling: `ledger-landscape.md`, `sdlc-binary.md:210-219`, and brain `SKILL.md:93` |
-| `atlas-docs` | re-bless + the `#` provenance comment | 0.06 under the 0.08 ceiling — one command and one line |
-| `milestone-review` ×3 | close review, fixing its findings, the gate rounds | the pattern #190 established: review and fix cannot share one row, and `started:` puts the gate rounds inside the window |
+**What the estimate-quality review changed, and why each was right:**
 
-**Design share is 33.5%**, below the 41–61% peer band — expected and not padded: this is a bugfix
-whose analysis was finished before filing, so there is genuinely less design left than in a
-feature. Stating it because a share outside the band is normally worth a second look.
+- **`design-buffer` 0.15 → 0.30.** v3.1 step 4 gives +15% only "when the issue has a thorough
+  plan doc"; this issue's Plan opens by stating it has **none** (§1 simple work). I had copied
+  #190's buffer without the condition that licensed it there — #190 does have a durable plan doc.
+  This alone is 1.94 → 2.04.
+- **Docs are three instances, not one at ceiling.** `design=0.05` is the atlas-docs **floor**, not
+  its ceiling, and the v2 calibration anchor priced charon's "docs ×3" as three instances. Split
+  into two `atlas-docs` rows plus a `cross-repo-refactor-small` for the two **brain** writes —
+  which are a genuine second-repo coordination cost, since the close gate never auto-commits into
+  a brain, so those land as a manual commit there.
+- **The known-answer check had no item at all.** "the span recomputes to ~80 h/wk, not 110.60" is
+  the issue's headline verification and means building the binary, running it against a live
+  318-row ledger in a peer repo, and reconciling to a hand-computed figure. Now its own row.
+- **`issue-spec design` 0.35 → 0.30, onto the model's lattice.** Step 3 offers ×0.2 / ×0.5 / ×1.0;
+  0.35 corresponded to ~×0.7 and was derived from nothing. 0.30 is the ×0.2 band top — and the
+  review correctly noted my stated reason (the investigation predates the claim commit, so it is
+  outside the measured window) argues for the ×0.2 band, not above it.
+- **Gate rounds moved from `impl` to `design`.** v3.1 keeps design hours unscaled precisely
+  because "the design conversation does not compress like implementation." Booking gate rounds as
+  `impl` pre-scaled them by 0.40, which understates them.
+- **`projectthroughput.go` re-slugged** from `smaller-go-module` to `cross-cutting-refactor`:
+  three call sites is not a Go module.
 
-**Calibration context.** ariadne on v3.1 measured **geo-mean 1.02× over 41 issues before
-2026-07-20**, then four rows at 3.73× median — a regression substantially explained by the
-attribution bug #190 just fixed (re-measuring #71 moved it 1.97× → 1.48×). #192 is among the
-first issues measured with correct attribution, so its ratio is a **data point about whether that
-regression is closed**, not just about this estimate. Recorded so the close reads it that way.
+**A disagreement recorded rather than split.** The review's strongest non-blocking point is that
+`milestone-review` ×3 — now 26% of the total — is where this estimate will most likely over-fire,
+citing #190, which booked 0.60h of review overhead against a **0.86h measured actual for the whole
+issue**. I have kept the three rows, because each names work that will actually happen (a review
+dispatch, fixing its findings, and the gate rounds already spent). If it over-fires, that is
+evidence about the **`milestone-review` primitive's hours** — a table-calibration finding — not a
+reason to shave the estimate now. Shaving it to hedge against a predicted miss is the same
+dishonesty as #187's warning about re-deriving to make a ratio look better, just in the other
+direction. The ledger adjudicates.
+
+**Correction to an earlier claim in this issue.** An earlier draft argued the post-2026-07-20
+regression was "substantially explained" by the #190 attribution bug, citing #71 re-measuring
+1.97× → 1.48×. **That 1.48 is not in the ledger** — it was an ad-hoc `sdlc actual` run, and the
+newest recorded `ariadne#71` row still reads 1.97×. Meanwhile all three ariadne rows dated
+2026-07-29 sit at 3.6–4.4× over, **including #190 itself, which was measured with the fix in
+place**. So the honest statement is: the bug was *one* proven contributor (#71's own re-measurement
+moved inside 1.5×), and whether it explains the rest is **open**. #192 is among the first issues
+measured with correct attribution throughout, so its ratio is a data point on that question — which
+is why the number above must not be tuned toward a hoped-for answer.
 
 ## Log
 

@@ -1,6 +1,7 @@
 package estimate
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -219,4 +220,52 @@ func UpgradeHeader(text string) (string, bool) {
 		return strings.Join(lines, "\n"), true
 	}
 	return text, false
+}
+
+// NewestPerIssue returns, for each distinct issue in an ALREADY-FILTERED slice, the LAST row for
+// that issue — its newest measurement, the ledger being append-only. Result order follows the
+// position of each issue's newest row.
+//
+// It exists because the ledger is written per CLOSE, not per issue (ariadne#192). Re-closing a
+// done issue is legal, and each re-close measures a LONGER cumulative window of the same work —
+// so the rows are PARTIAL SUMS, not repeated observations. ariadne#167 accumulated seven rows
+// summing 14.57h for work that measured 2.71h. Summing them inflated the blessed throughput
+// baseline by 1.41x, and every roadmap forecast derived from it.
+//
+// Two contract details, both load-bearing:
+//
+//   - It takes a PRE-FILTERED slice. driftSample filters (trusted, actual>0, same model) BEFORE
+//     deduping, and that order matters: dedupe-then-filter would let an untrusted newest row mask
+//     an older trusted one and drop the issue from the sample entirely.
+//   - A blank Issue is keyed POSITIONALLY, never collapsed. Rows carrying no issue id cannot be
+//     known to name the same issue, and drift_test.go's fixtures are exactly that shape — three
+//     blank-issue rows are three distinct observations there. Collapsing them would drop the
+//     drift sample below its threshold and silently disable the check.
+//
+// Direction-agnostic by construction (last-wins over the given order), because driftSample walks
+// backward taking first-seen while SpanThroughput walks forward needing last-seen — the same rule
+// under opposite traversal.
+func NewestPerIssue(rows []LedgerRow) []LedgerRow {
+	newest := map[string]int{} // key -> index of its newest row
+	var order []string
+	for i, r := range rows {
+		key := r.Issue
+		if key == "" {
+			key = "@row:" + strconv.Itoa(i)
+		}
+		if _, seen := newest[key]; !seen {
+			order = append(order, key)
+		}
+		newest[key] = i
+	}
+	idx := make([]int, 0, len(order))
+	for _, k := range order {
+		idx = append(idx, newest[k])
+	}
+	sort.Ints(idx)
+	out := make([]LedgerRow, 0, len(idx))
+	for _, i := range idx {
+		out = append(out, rows[i])
+	}
+	return out
 }

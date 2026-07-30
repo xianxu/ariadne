@@ -208,11 +208,13 @@ recoverable by means the math can't see), so it's a computed statement
 recorded at the right surfaces, not a gate.
 
 - **Measured throughput (`internal/estimate/throughput.go`, M1).** `SpanThroughput`
-  sums the calibration ledger's `actual` hours over an operator-**blessed**
-  representative span ÷ span-weeks — the operator picks the span (trailing
+  sums the calibration ledger's `actual` hours — **deduped to one row per issue**, since the
+  ledger is written per CLOSE and a re-close carries a cumulative partial sum (#192) — over an
+  operator-**blessed** representative span ÷ span-weeks; the operator picks the span (trailing
   windows skew under vacations/crunch), the machinery measures the rate.
   `sdlc project throughput --bless FROM..TO` appends a provenance row
-  (`{span, hours_per_week, rows, ceiling}`) to
+  (`{span, hours_per_week, rows, ceiling}` — `rows` counts distinct ISSUES since #192;
+  earlier rows counted raw ledger lines and are not comparable) to
   `brain/data/life/42shots/velocity/throughput-baseline.tsv` (append-only,
   last = current); the bare form shows the current baseline + a trailing-4wk
   comparison, never auto-substituted. Reuses the existing `estimate.LedgerRow`

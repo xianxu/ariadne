@@ -91,16 +91,18 @@ func blessThroughput(stdout, stderr io.Writer, f *projectThroughputFlags) error 
 		SpanStart:    from,
 		SpanEnd:      to,
 		HoursPerWeek: measure.HoursPerWeek,
-		Rows:         measure.Rows,
+		Rows:         measure.Issues, // distinct issues since #192; see ThroughputBaseline.Rows
 		Ceiling:      f.Ceiling,
 	}
 	if err := appendBaselineRow(throughputBaselinePath(f.BrainDir), row); err != nil {
 		return err
 	}
-	cok(stdout, fmt.Sprintf("blessed baseline: %.2f h/wk over %s..%s (%d rows, %d days, ceiling %d)",
-		row.HoursPerWeek, from, to, measure.Rows, measure.Days, f.Ceiling))
+	// Print BOTH counts: the gap between issues and rows scanned is the re-close duplication,
+	// and the old single "%d rows" is exactly what made a 1.41x inflation look like data (#192).
+	cok(stdout, fmt.Sprintf("blessed baseline: %.2f h/wk over %s..%s (%d issues from %d ledger rows, %d days, ceiling %d)",
+		row.HoursPerWeek, from, to, measure.Issues, measure.RowsScanned, measure.Days, f.Ceiling))
 	if measure.UntrustedRows > 0 {
-		cwarn(stderr, fmt.Sprintf("%d of %d rows are window_trusted=no (truncated actuals) — the rate may run low", measure.UntrustedRows, measure.Rows))
+		cwarn(stderr, fmt.Sprintf("%d of %d issues have window_trusted=no newest measurements (truncated actuals) — the rate may run low", measure.UntrustedRows, measure.Issues))
 	}
 	if measure.Skipped > 0 {
 		cwarn(stderr, fmt.Sprintf("%d ledger row(s) had an unparsable date and were excluded", measure.Skipped))
