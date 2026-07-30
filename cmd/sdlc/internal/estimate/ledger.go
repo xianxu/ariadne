@@ -247,20 +247,18 @@ func UpgradeHeader(text string) (string, bool) {
 // under opposite traversal.
 func NewestPerIssue(rows []LedgerRow) []LedgerRow {
 	newest := map[string]int{} // key -> index of its newest row
-	var order []string
 	for i, r := range rows {
 		key := r.Issue
 		if key == "" {
 			key = "@row:" + strconv.Itoa(i)
 		}
-		if _, seen := newest[key]; !seen {
-			order = append(order, key)
-		}
 		newest[key] = i
 	}
-	idx := make([]int, 0, len(order))
-	for _, k := range order {
-		idx = append(idx, newest[k])
+	// Sorting the surviving indices both restores input order and makes the result deterministic
+	// despite the random map iteration — no separate first-seen order needs tracking.
+	idx := make([]int, 0, len(newest))
+	for _, i := range newest {
+		idx = append(idx, i)
 	}
 	sort.Ints(idx)
 	out := make([]LedgerRow, 0, len(idx))

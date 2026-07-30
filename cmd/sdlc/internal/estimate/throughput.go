@@ -11,7 +11,7 @@ import (
 // (#182). A project's calendar forecast divides remaining issue-hours by this
 // rate; both sides are ship wall-clock engineer+AI hours (#118), so the
 // division needs no unit conversion. The number is MEASURED from the
-// calibration ledger (one row per issue close); the operator only picks the
+// calibration ledger (one row per CLOSE); the operator only picks the
 // span — trailing windows skew under vacations/crunch, so the representative
 // span is blessed deliberately.
 //
@@ -30,12 +30,13 @@ type SpanMeasure struct {
 	// is the re-close duplication; reporting both makes a future recurrence visible instead of
 	// silent — the old single `Rows` field read as an issue count and hid a 1.41x inflation.
 	RowsScanned int
-	// UntrustedRows counts issues whose NEWEST measurement is window_trusted=no (their hours
+	// UntrustedIssues counts issues whose NEWEST measurement is window_trusted=no (their hours
 	// still count; reported so bless can warn). Counted over the DEDUPED set so it shares a
-	// denominator with Issues — raw-counted it could print "12 of 8".
-	UntrustedRows int
-	Skipped       int // rows with an unparsable date (excluded)
-	Days          int // inclusive span length
+	// denominator with Issues — raw-counted it could print "12 of 8". Named for what it counts:
+	// this whole defect began with a count named `rows` that was read as issues.
+	UntrustedIssues int
+	Skipped         int // rows with an unparsable date (excluded)
+	Days            int // inclusive span length
 }
 
 const isoDate = "2006-01-02"
@@ -83,7 +84,7 @@ func SpanThroughput(rows []LedgerRow, from, to string) (SpanMeasure, error) {
 		sum += r.Actual
 		m.Issues++
 		if !r.WindowTrusted {
-			m.UntrustedRows++
+			m.UntrustedIssues++
 		}
 	}
 	if m.Issues == 0 {

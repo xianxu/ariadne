@@ -39,8 +39,8 @@ func TestSpanThroughput_28DaySpan(t *testing.T) {
 	if m.RowsScanned != 3 {
 		t.Errorf("RowsScanned = %d, want 3 (no re-closes in this fixture)", m.RowsScanned)
 	}
-	if m.UntrustedRows != 1 {
-		t.Errorf("UntrustedRows = %d, want 1 (a#2)", m.UntrustedRows)
+	if m.UntrustedIssues != 1 {
+		t.Errorf("UntrustedIssues = %d, want 1 (a#2)", m.UntrustedIssues)
 	}
 	// a#5's actual parses fine (2.00) but its DATE is unparsable → Skipped.
 	// (a bad ACTUAL never reaches us — ParseRows drops it upstream.)
@@ -174,13 +174,15 @@ a#9	1.00	0.00	0.00	1.00	1.00	m	-	yes	2026-06-08`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.HoursPerWeek != b.HoursPerWeek || a.Issues != b.Issues {
+	// Epsilon, not exact equality: the two branches happen to sum in the same order today, but
+	// that is a property of the fixture, not of the equivalence being asserted.
+	if d := a.HoursPerWeek - b.HoursPerWeek; d < -0.0001 || d > 0.0001 || a.Issues != b.Issues {
 		t.Errorf("re-closes changed the measure: %+v vs last-row-only %+v", a, b)
 	}
 }
 
-// UntrustedRows must be counted over the DEDUPED set, or the warning at
-// projectthroughput.go:103 prints mixed denominators ("12 of 8 rows").
+// UntrustedIssues must be counted over the DEDUPED set, or the bless warning prints mixed
+// denominators ("12 of 8 rows").
 func TestSpanThroughput_UntrustedCountedOverDedupedSet(t *testing.T) {
 	// a#7's newest row is TRUSTED, so the issue must not count as untrusted even though an
 	// earlier close of it was not.
@@ -194,10 +196,31 @@ a#7	1.00	0.00	0.00	2.00	0.50	m	-	yes	2026-06-06`)
 	if m.Issues != 1 {
 		t.Fatalf("Issues = %d, want 1", m.Issues)
 	}
-	if m.UntrustedRows > m.Issues {
-		t.Errorf("UntrustedRows %d > Issues %d — mixed denominators", m.UntrustedRows, m.Issues)
+	if m.UntrustedIssues > m.Issues {
+		t.Errorf("UntrustedIssues %d > Issues %d — mixed denominators", m.UntrustedIssues, m.Issues)
 	}
-	if m.UntrustedRows != 0 {
-		t.Errorf("UntrustedRows = %d, want 0 — the issue's NEWEST measurement is trusted", m.UntrustedRows)
+	if m.UntrustedIssues != 0 {
+		t.Errorf("UntrustedIssues = %d, want 0 — the issue's NEWEST measurement is trusted", m.UntrustedIssues)
+	}
+}
+
+// The two-stage ORDER is load-bearing and the code comment says so, but nothing failed if the
+// stages were swapped: both re-close fixtures above sit entirely inside their span. Here a#5's
+// newest close is OUTSIDE the span — dedupe-then-filter would pick that out-of-span row, find it
+// filtered away, and drop the issue's in-span measurement entirely.
+func TestSpanThroughput_OutOfSpanReCloseDoesNotMaskInSpanRow(t *testing.T) {
+	rows := ParseRows(`issue	estimate	est_design	est_impl	actual	ratio	model	mode	window_trusted	date
+a#5	1.00	0.00	0.00	3.00	0.33	m	-	yes	2026-06-08
+a#5	1.00	0.00	0.00	9.00	0.11	m	-	yes	2026-07-20`)
+	// Span covers only the first close. Correct: 3.00h over 1 issue, 1 row scanned.
+	m, err := SpanThroughput(rows, "2026-06-05", "2026-06-11")
+	if err != nil {
+		t.Fatalf("the in-span row must still be measured: %v", err)
+	}
+	if m.Issues != 1 || m.RowsScanned != 1 {
+		t.Errorf("Issues/RowsScanned = %d/%d, want 1/1", m.Issues, m.RowsScanned)
+	}
+	if got := m.HoursPerWeek; got < 2.99 || got > 3.01 {
+		t.Errorf("HoursPerWeek = %.4f, want 3.00 — the out-of-span re-close leaked into the span", got)
 	}
 }

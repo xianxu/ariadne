@@ -203,3 +203,81 @@ func TestUpgradeHeaderLeavesCurrentAndForeignHeadersAlone(t *testing.T) {
 		t.Error("text with no header line must be left alone")
 	}
 }
+
+// NewestPerIssue is the single shared dedupe rule two readers (SpanThroughput, driftSample)
+// depend on, and its two contract clauses were only covered indirectly — via drift_test.go,
+// where a violation surfaces as "expected drift warning" three files away instead of as a
+// contract breach at the helper (ariadne#192 close review, I5).
+
+func TestNewestPerIssue_KeepsLastPerIssue(t *testing.T) {
+	rows := []LedgerRow{
+		{Issue: "a#1", Actual: 1.0, Date: "2026-06-01"},
+		{Issue: "a#2", Actual: 5.0, Date: "2026-06-02"},
+		{Issue: "a#1", Actual: 2.0, Date: "2026-06-03"},
+		{Issue: "a#1", Actual: 3.0, Date: "2026-06-04"},
+	}
+	got := NewestPerIssue(rows)
+	if len(got) != 2 {
+		t.Fatalf("got %d rows, want 2 distinct issues: %+v", len(got), got)
+	}
+	// Last-wins over the GIVEN order — the helper never reads Date. Callers hand it an
+	// append-ordered slice, so "last" is "newest".
+	if got[0].Issue != "a#2" || got[0].Actual != 5.0 {
+		t.Errorf("first kept row = %+v, want a#2 @5.0 (input order preserved)", got[0])
+	}
+	if got[1].Issue != "a#1" || got[1].Actual != 3.0 {
+		t.Errorf("second kept row = %+v, want a#1 @3.0 (its LAST row, not its first)", got[1])
+	}
+}
+
+func TestNewestPerIssue_ReversedInputTakesTheOtherEnd(t *testing.T) {
+	// Direction-agnostic by construction: driftSample walks backward taking first-seen while
+	// SpanThroughput walks forward needing last-seen. Reversing the input must move which row
+	// survives — if it doesn't, the helper has baked in an order and one caller is wrong.
+	rows := []LedgerRow{
+		{Issue: "a#1", Actual: 1.0},
+		{Issue: "a#1", Actual: 3.0},
+	}
+	reversed := []LedgerRow{rows[1], rows[0]}
+	if got := NewestPerIssue(rows); len(got) != 1 || got[0].Actual != 3.0 {
+		t.Errorf("forward: kept %+v, want the last row (3.0)", got)
+	}
+	if got := NewestPerIssue(reversed); len(got) != 1 || got[0].Actual != 1.0 {
+		t.Errorf("reversed: kept %+v, want the last row of THAT order (1.0)", got)
+	}
+}
+
+func TestNewestPerIssue_BlankIssueRowsStayDistinct(t *testing.T) {
+	// Rows carrying no issue id cannot be known to name the same issue, so they are keyed
+	// positionally. Collapsing them would drop drift_test.go's fixtures below the sample
+	// threshold and silently disable the drift check — the bug the plan gate caught.
+	rows := []LedgerRow{
+		{Actual: 1.0}, {Actual: 2.0}, {Actual: 3.0},
+	}
+	got := NewestPerIssue(rows)
+	if len(got) != 3 {
+		t.Fatalf("got %d rows, want 3 — blank-issue rows must not collapse: %+v", len(got), got)
+	}
+	for i, want := range []float64{1.0, 2.0, 3.0} {
+		if got[i].Actual != want {
+			t.Errorf("row %d actual = %.1f, want %.1f (order must survive)", i, got[i].Actual, want)
+		}
+	}
+	// A blank-issue row must not collapse into a NAMED one either.
+	mixed := NewestPerIssue([]LedgerRow{{Issue: "a#1", Actual: 1.0}, {Actual: 2.0}})
+	if len(mixed) != 2 {
+		t.Errorf("got %d rows, want 2 — a blank issue is not the named one: %+v", len(mixed), mixed)
+	}
+}
+
+func TestNewestPerIssue_EmptyAndSingle(t *testing.T) {
+	if got := NewestPerIssue(nil); len(got) != 0 {
+		t.Errorf("nil input → %d rows, want 0", len(got))
+	}
+	if got := NewestPerIssue([]LedgerRow{}); len(got) != 0 {
+		t.Errorf("empty input → %d rows, want 0", len(got))
+	}
+	if got := NewestPerIssue([]LedgerRow{{Issue: "a#1", Actual: 7.0}}); len(got) != 1 || got[0].Actual != 7.0 {
+		t.Errorf("single row → %+v, want it back unchanged", got)
+	}
+}

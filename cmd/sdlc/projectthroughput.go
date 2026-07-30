@@ -101,8 +101,8 @@ func blessThroughput(stdout, stderr io.Writer, f *projectThroughputFlags) error 
 	// and the old single "%d rows" is exactly what made a 1.41x inflation look like data (#192).
 	cok(stdout, fmt.Sprintf("blessed baseline: %.2f h/wk over %s..%s (%d issues from %d ledger rows, %d days, ceiling %d)",
 		row.HoursPerWeek, from, to, measure.Issues, measure.RowsScanned, measure.Days, f.Ceiling))
-	if measure.UntrustedRows > 0 {
-		cwarn(stderr, fmt.Sprintf("%d of %d issues have window_trusted=no newest measurements (truncated actuals) — the rate may run low", measure.UntrustedRows, measure.Issues))
+	if measure.UntrustedIssues > 0 {
+		cwarn(stderr, fmt.Sprintf("%d of %d issues have window_trusted=no newest measurements (truncated actuals) — the rate may run low", measure.UntrustedIssues, measure.Issues))
 	}
 	if measure.Skipped > 0 {
 		cwarn(stderr, fmt.Sprintf("%d ledger row(s) had an unparsable date and were excluded", measure.Skipped))
