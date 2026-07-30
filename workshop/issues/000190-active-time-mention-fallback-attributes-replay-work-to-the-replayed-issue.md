@@ -82,7 +82,7 @@ plan's Tasks 1–6:
       warning so the exclusion is observable rather than silent (Task 3)
 - [x] `migrate.go`'s two encodings compose from `QualifiedIDPattern`, retiring `refScanRE` and
       `spanRefRE` — the step that makes this 5 → 1 rather than a sixth encoding (Task 4)
-- [ ] Regression check with a known answer: the 46.1m charged to ariadne#127 returns to #187,
+- [x] Regression check with a known answer: the 46.1m charged to ariadne#127 returns to #187,
       measured over a fixed window (Task 5)
 - [ ] `atlas/workflow/ledger-landscape.md` documents the rule; `sdlc close --issue 190` (Task 6)
 
