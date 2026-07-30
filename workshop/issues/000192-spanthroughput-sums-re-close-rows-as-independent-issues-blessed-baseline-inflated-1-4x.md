@@ -1,11 +1,12 @@
 ---
 id: 000192
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-29
 updated: 2026-07-29
 estimate_hours:
+started: 2026-07-29T22:32:28-07:00
 ---
 
 # SpanThroughput sums re-close rows as independent issues — blessed baseline inflated 1.4x
