@@ -72,7 +72,7 @@ commit-boundary-precedence rule and a terminal-status guard; both were dropped o
 cause turned out to be a ref-parsing bug affecting the commit path too). These rows mirror the
 plan's Tasks 1–6:
 
-- [ ] `issueref` package: the ONE qualifier+id grammar — `Ref`, `QualifiedIDPattern`, `ScanRE`,
+- [x] `issueref` package: the ONE qualifier+id grammar — `Ref`, `QualifiedIDPattern`, `ScanRE`,
       `Find`, `IsLocal` (exact, not prefix), `LocalNums`, `CountLocal`; corpus-derived table
       test + mutation-verified boundary (Task 1)
 - [ ] `gitx.DiscoverWindowIssues` takes `selfRepo` as a parameter and derives from `issueref`;
