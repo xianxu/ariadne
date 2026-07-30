@@ -95,15 +95,37 @@ both inputs to "is the model calibrated", so this should land before any estimat
 
 ## Plan
 
+Simple work (§1): no durable plan doc — these rows are the plan. Single-pass, plain checkboxes,
+one `sdlc close`.
+
+**Design decisions taken from reading the code:**
+- The dedupe helper lives in `internal/estimate` beside the two consumers, keyed on
+  `LedgerRow.Issue`, keeping the **last** row per issue in file order (newest measurement wins).
+  That is the rule `driftSample` already implements by walking backward with a `seen` set, so the
+  helper must be shaped so `driftSample` can adopt it without changing its backward-walk
+  semantics — otherwise this creates a third notion of "an observation" instead of collapsing two.
+- **The baseline TSV schema does NOT change.** `ParseBaselineTSV` reads 6 columns positionally
+  and the file is append-only; renaming the `rows` column would leave the existing header saying
+  one thing and new rows meaning another. Instead `ThroughputBaseline.Rows` keeps its name and is
+  fed the deduped count, with its doc recording that pre-#192 rows counted raw ledger lines and
+  are therefore not comparable to later ones. A `#` comment in the brain file records the same.
+- `SpanMeasure` gets honest field names: the count of things summed becomes `Issues`, and
+  `RowsScanned` is retained for transparency (the gap between them IS the duplication, so
+  reporting both makes a future recurrence visible instead of silent).
+
 - [ ] Failing test: `SpanThroughput` over a fixture with a 3-times-closed issue (growing
-      actuals) equals the computation over its last row alone
-- [ ] Extract the per-issue dedupe as one shared helper; route `driftSample` through it so there
-      is a single implementation
-- [ ] Fix `SpanThroughput` to use it; mutation-verify by removing the dedupe
-- [ ] Make `SpanMeasure.Rows` honest (issues, or both counts labeled)
-- [ ] Known-answer check: the 06-22..07-19 span recomputes to ~80 h/wk, not 110.60
-- [ ] Re-bless the baseline from the corrected measure; record the prior inflation in the file
-- [ ] `atlas/workflow/ledger-landscape.md`: the ledger is per-close; readers must dedupe
+      actuals, the real `ariadne#167` shape) equals the computation over that issue's last row
+      alone
+- [ ] Extract the per-issue dedupe as ONE helper in `internal/estimate`; route `driftSample`
+      through it so `grep` finds a single implementation
+- [ ] Fix `SpanThroughput` to use it; mutation-verify (removing the dedupe must fail the test)
+- [ ] `SpanMeasure`: `Issues` (summed) + `RowsScanned` (seen); update
+      `projectthroughput.go:94,101,103` and print both, labelled
+- [ ] Known-answer check: the 2026-06-22..07-19 span recomputes to **~80 h/wk**, not 110.60
+- [ ] Re-bless the baseline from the corrected measure; record the prior inflation as a `#`
+      comment in `throughput-baseline.tsv`
+- [ ] `atlas/workflow/ledger-landscape.md`: the ledger is per-CLOSE, not per-issue — every reader
+      must dedupe
 - [ ] `sdlc close --issue 192`
 
 ## Log
