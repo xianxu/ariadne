@@ -98,35 +98,63 @@ both inputs to "is the model calibrated", so this should land before any estimat
 Simple work (§1): no durable plan doc — these rows are the plan. Single-pass, plain checkboxes,
 one `sdlc close`.
 
-**Design decisions taken from reading the code:**
-- The dedupe helper lives in `internal/estimate` beside the two consumers, keyed on
-  `LedgerRow.Issue`, keeping the **last** row per issue in file order (newest measurement wins).
-  That is the rule `driftSample` already implements by walking backward with a `seen` set, so the
-  helper must be shaped so `driftSample` can adopt it without changing its backward-walk
-  semantics — otherwise this creates a third notion of "an observation" instead of collapsing two.
-- **The baseline TSV schema does NOT change.** `ParseBaselineTSV` reads 6 columns positionally
-  and the file is append-only; renaming the `rows` column would leave the existing header saying
-  one thing and new rows meaning another. Instead `ThroughputBaseline.Rows` keeps its name and is
-  fed the deduped count, with its doc recording that pre-#192 rows counted raw ledger lines and
-  are therefore not comparable to later ones. A `#` comment in the brain file records the same.
-- `SpanMeasure` gets honest field names: the count of things summed becomes `Issues`, and
-  `RowsScanned` is retained for transparency (the gap between them IS the duplication, so
-  reporting both makes a future recurrence visible instead of silent).
+**The shared helper's contract** (tightened on plan-quality round 1 — the first draft would have
+broken `drift_test.go`):
+
+```go
+// NewestPerIssue returns, for each distinct issue in an ALREADY-FILTERED slice, the LAST row
+// for that issue — the newest measurement, the ledger being append-only.
+func NewestPerIssue(rows []LedgerRow) []LedgerRow
+```
+
+- **It takes a PRE-FILTERED slice, and that ordering is load-bearing.** `driftSample` filters
+  (trusted, `Actual > 0`, same model) *before* its `seen` check. Deduping first would let an
+  untrusted newest row mask an older trusted one and drop that issue from the sample entirely —
+  a silent change to drift semantics.
+- **A blank `Issue` is keyed POSITIONALLY (`@row:N`), not collapsed.** Rows with no issue id
+  cannot be known to be the same issue, and `driftSample` already does this
+  (`drift.go:50-53`). This is not defensive: `drift_test.go`'s `trustedRow(est, act)` fixtures
+  leave `Issue` empty, so `TestDrift_AllOver`/`AllUnder`/`TrustedZeroActualExcluded` pass three
+  *distinct* observations. Keyed plainly on `Issue` they collapse to one, the sample falls below
+  `n`, and all three tests fail.
+- **`drift_test.go` passing UNMODIFIED is the guard** that the extraction changed no drift
+  behavior. A test needing an edit means the semantics moved — a finding, not a fixup.
+- Direction-agnostic: `driftSample` walks backward taking first-seen, `SpanThroughput` forward
+  taking last-seen. Same rule, opposite traversal, so the helper must not bake in an order.
+
+**The baseline TSV schema does NOT change.** `ParseBaselineTSV` reads 6 columns positionally into
+an append-only file; renaming the `rows` column would leave the existing header saying one thing
+and new rows meaning another. `ThroughputBaseline.Rows` keeps its name, is fed the deduped count,
+and its doc records that pre-#192 rows counted raw ledger lines and are not comparable.
 
 - [ ] Failing test: `SpanThroughput` over a fixture with a 3-times-closed issue (growing
       actuals, the real `ariadne#167` shape) equals the computation over that issue's last row
       alone
-- [ ] Extract the per-issue dedupe as ONE helper in `internal/estimate`; route `driftSample`
-      through it so `grep` finds a single implementation
+- [ ] `NewestPerIssue` in `internal/estimate` per the contract above, with the blank-issue
+      positional fallback absorbed from `driftSample`
+- [ ] Route `driftSample` through it — **`drift_test.go` must pass unmodified** — so `grep` finds
+      one implementation
 - [ ] Fix `SpanThroughput` to use it; mutation-verify (removing the dedupe must fail the test)
-- [ ] `SpanMeasure`: `Issues` (summed) + `RowsScanned` (seen); update
-      `projectthroughput.go:94,101,103` and print both, labelled
+- [ ] `SpanMeasure`: `Issues` (summed) + `RowsScanned` (seen). **`UntrustedRows` must be counted
+      over the DEDUPED set**, or `projectthroughput.go:103` prints "12 of 8 rows" — mixed
+      denominators. Update `projectthroughput.go:94,101,103` and print both counts, labelled
 - [ ] Known-answer check: the 2026-06-22..07-19 span recomputes to **~80 h/wk**, not 110.60
 - [ ] Re-bless the baseline from the corrected measure; record the prior inflation as a `#`
       comment in `throughput-baseline.tsv`
-- [ ] `atlas/workflow/ledger-landscape.md`: the ledger is per-CLOSE, not per-issue — every reader
-      must dedupe
+- [ ] Docs — **three** surfaces, not one:
+      `atlas/workflow/ledger-landscape.md` (the ledger is per-CLOSE; readers must dedupe),
+      `atlas/workflow/sdlc-binary.md:210-219` (documents the sum-over-rows semantics and the
+      `rows` provenance field), and
+      `brain/data/life/42shots/velocity/SKILL.md:93` — which states "one row per closed issue",
+      *the exact wrong fact this defect grew from*, in the doc the recalibration loop reads
+      (`calibration-findings.md:30` analyses those rows)
 - [ ] `sdlc close --issue 192`
+
+**Known limit, named not fixed:** keeping the newest in-span row means an issue whose closes
+straddle `from` contributes hours accrued *before* the span. Acceptable — the alternative is
+apportioning a cumulative measurement across span boundaries, which needs per-close deltas the
+ledger does not record — but stated beside the append-only non-goal so it is a choice, not an
+oversight.
 
 ## Log
 
