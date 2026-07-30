@@ -148,7 +148,7 @@ and its doc records that pre-#192 rows counted raw ledger lines and are not comp
       `brain/data/life/42shots/velocity/SKILL.md:93` — which states "one row per closed issue",
       *the exact wrong fact this defect grew from*, in the doc the recalibration loop reads
       (`calibration-findings.md:30` analyses those rows)
-- [ ] `sdlc close --issue 192`
+- [x] `sdlc close --issue 192`
 
 **Known limit, named not fixed:** keeping the newest in-span row means an issue whose closes
 straddle `from` contributes hours accrued *before* the span. Acceptable — the alternative is
