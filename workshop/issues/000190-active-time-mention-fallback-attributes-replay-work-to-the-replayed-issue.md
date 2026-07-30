@@ -84,7 +84,7 @@ plan's Tasks 1–6:
       `spanRefRE` — the step that makes this 5 → 1 rather than a sixth encoding (Task 4)
 - [x] Regression check with a known answer: the 46.1m charged to ariadne#127 returns to #187,
       measured over a fixed window (Task 5)
-- [ ] `atlas/workflow/ledger-landscape.md` documents the rule; `sdlc close --issue 190` (Task 6)
+- [x] `atlas/workflow/ledger-landscape.md` documents the rule; `sdlc close --issue 190` (Task 6)
 
 ## Estimate
 
@@ -178,6 +178,51 @@ measured actual. Discounting design for a good spec while the measurement counts
 producing it would guarantee an under-estimate.
 
 ## Revisions
+
+### 2026-07-29 — implemented: 5 grammars → 1, and the 46.1 minutes came back exactly
+
+**Reason:** Tasks 1–6 landed. Evidence: `workshop/plans/000190-evidence.md`.
+
+**The known-answer check passed to the tenth of a minute.** #187's segment over fixed window
+boundaries went **84.5m → 130.6m (+46.1m)** — the same quantity the bug had charged to
+ariadne#127 — and `#127` is now absent from the attribution set entirely rather than zeroed.
+
+**The measurement found a second victim the plan did not predict.** `pair#129` had also been
+sitting in the tracked-issue set, eligible to claim mention share on any segment whose prose
+named it. One predicted misattribution, two actual.
+
+**Two things I got wrong in the plan, caught while implementing:**
+- **A test was PINNING the bug.** `TestIssueRefRE_DiscoveryParsing` asserted
+  `{"prefix#42 suffix", []string{"42"}}` — the #190 defect encoded as intended behavior. Not a
+  fixture that happened to contain a qualified ref (the risk I had checked for and cleared in
+  `parity_test.go`), but a deliberate assertion that a qualified ref resolves locally. Inverted,
+  with the reason recorded inline so the row reads as the fix rather than a relaxation.
+- **My own new code had the defect the review had just flagged elsewhere.** `resolveRenamePath`
+  in the churn package (#187 M2) shadowed the builtin `close`; here `foreignRefWarnings` rendered
+  its zero time as `0000-12-31 16:07` — noise dressed as data. Both fixed, the second with a
+  test.
+
+**Where the design changed from the filed Spec, and why it matters:** the Spec proposed a
+commit-boundary-outranks-mentions precedence rule. That would have fixed nothing —
+`Commit.Issues` is poisoned by the same parse, and `attributeRun` splits `weight × active`
+**equally** across it, so a foreign entry took half a commit's weighted share regardless of
+precedence. The root cause was one missing left boundary in a regex copied five times.
+
+**The consolidation is grep-verifiable:** no encoding of the qualifier+id grammar remains
+outside `cmd/sdlc/internal/issueref/ref.go`. `migrate.go`'s two both compose from it — the
+anchored one from the exported *fragment*, since a compiled regexp cannot be re-anchored — and
+migrate's tests pass with **zero edits**, which is the proof the grammar did not move.
+
+**The exclusion is observable.** A silently-dropped foreign ref reads identically to one that
+was never there, which is how this survived: the numbers looked plausible. `sdlc actual` now
+prints `pair#127 foreign ref ignored — another repo's issue, not attributable here (×2)`.
+
+**Gate cost, for the record:** 3 plan-quality rounds (1 FAILURE with 4 Important, then a PASS,
+then a pass-through with no re-dispatch after the advisory fixes) + 2 estimate-quality
+dispatches. Round 1 overturned the plan's central claim — I was adding a *fourth* encoding while
+claiming to consolidate three — and round 2 found the *fifth*. Neither would have surfaced from
+re-reading my own plan.
+
 
 ### 2026-07-29 — root cause found, and the Spec above describes the SYMPTOM
 
