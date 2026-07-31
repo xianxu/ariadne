@@ -11,17 +11,32 @@ import (
 // (#182). A project's calendar forecast divides remaining issue-hours by this
 // rate; both sides are ship wall-clock engineer+AI hours (#118), so the
 // division needs no unit conversion. The number is MEASURED from the
-// calibration ledger (one row per issue close); the operator only picks the
+// calibration ledger (one row per CLOSE); the operator only picks the
 // span — trailing windows skew under vacations/crunch, so the representative
 // span is blessed deliberately.
+//
+// The ledger holds one row per CLOSE, not per issue: re-closing a done issue is legal and each
+// re-close measures a longer cumulative window of the same work. Every reader must therefore
+// dedupe per issue (NewestPerIssue). Not doing so inflated the blessed baseline 1.41x — see
+// ariadne#192.
 
 // SpanMeasure is the result of measuring throughput over a date span.
 type SpanMeasure struct {
-	HoursPerWeek  float64
-	Rows          int // ledger rows counted in the sum
-	UntrustedRows int // subset with window_trusted=no (their hours still count; reported so bless can warn)
-	Skipped       int // rows in the ledger with an unparsable date (excluded)
-	Days          int // inclusive span length
+	HoursPerWeek float64
+	// Issues is the number of DISTINCT issues summed — the ledger is written per CLOSE, so a
+	// re-closed issue contributes one observation, at its newest measurement (ariadne#192).
+	Issues int
+	// RowsScanned is how many in-span ledger rows were seen. The GAP between this and Issues
+	// is the re-close duplication; reporting both makes a future recurrence visible instead of
+	// silent — the old single `Rows` field read as an issue count and hid a 1.41x inflation.
+	RowsScanned int
+	// UntrustedIssues counts issues whose NEWEST measurement is window_trusted=no (their hours
+	// still count; reported so bless can warn). Counted over the DEDUPED set so it shares a
+	// denominator with Issues — raw-counted it could print "12 of 8". Named for what it counts:
+	// this whole defect began with a count named `rows` that was read as issues.
+	UntrustedIssues int
+	Skipped         int // rows with an unparsable date (excluded)
+	Days            int // inclusive span length
 }
 
 const isoDate = "2006-01-02"
@@ -48,7 +63,10 @@ func SpanThroughput(rows []LedgerRow, from, to string) (SpanMeasure, error) {
 	days := int(toT.Sub(fromT).Hours()/24) + 1 // inclusive
 
 	m := SpanMeasure{Days: days}
-	var sum float64
+	// FILTER to the span first (counting unparsable dates), THEN dedupe per issue, THEN sum.
+	// The order matters: deduping before the span filter would let an out-of-span re-close
+	// mask the in-span measurement it superseded.
+	inSpan := make([]LedgerRow, 0, len(rows))
 	for _, r := range rows {
 		d, derr := time.Parse(isoDate, r.Date)
 		if derr != nil {
@@ -58,13 +76,18 @@ func SpanThroughput(rows []LedgerRow, from, to string) (SpanMeasure, error) {
 		if d.Before(fromT) || d.After(toT) {
 			continue
 		}
+		inSpan = append(inSpan, r)
+	}
+	m.RowsScanned = len(inSpan)
+	var sum float64
+	for _, r := range NewestPerIssue(inSpan) {
 		sum += r.Actual
-		m.Rows++
+		m.Issues++
 		if !r.WindowTrusted {
-			m.UntrustedRows++
+			m.UntrustedIssues++
 		}
 	}
-	if m.Rows == 0 {
+	if m.Issues == 0 {
 		return SpanMeasure{}, fmt.Errorf("no calibration-ledger rows fall in %s..%s — pick a span that contains closed issues", from, to)
 	}
 	m.HoursPerWeek = sum / (float64(days) / 7.0)
@@ -80,8 +103,14 @@ type ThroughputBaseline struct {
 	SpanStart    string
 	SpanEnd      string
 	HoursPerWeek float64
-	Rows         int
-	Ceiling      int
+	// Rows records the number of observations behind HoursPerWeek. Since ariadne#192 that is
+	// the count of distinct ISSUES; rows blessed BEFORE #192 recorded raw ledger lines and are
+	// therefore not comparable (the 2026-07-19 row's 280 is ~1.41x inflated). The column keeps
+	// its name deliberately: ParseBaselineTSV reads 6 columns positionally from an append-only
+	// file, so renaming it would leave the stored header describing one thing and new rows
+	// meaning another.
+	Rows    int
+	Ceiling int
 }
 
 const baselineHeader = "blessed_date\tspan_start\tspan_end\thours_per_week\trows\tceiling"

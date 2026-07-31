@@ -44,9 +44,12 @@ it as the reality-check evidence, and derives `planned_finish:` (override with
 drift; `close` records planned-vs-actual finish in the Calendar ledger.
 
 `throughput` bridges effort to calendar (ariadne#182). Its unit is measured
-focused hours/week, summed from the calibration ledger — the operator picks a
-representative span, the machinery measures the rate (trailing windows skew
-under vacations/crunch, so the span is blessed deliberately):
+focused hours/week, summed PER ISSUE from the calibration ledger — the ledger
+holds one row per CLOSE and re-closing is legal, so a re-closed issue counts
+ONCE, at its newest in-span measurement (ariadne#192; summing the raw rows
+inflated the blessed baseline 1.41x). The operator picks a representative span,
+the machinery measures the rate (trailing windows skew under vacations/crunch,
+so the span is blessed deliberately):
 
   sdlc project throughput --bless 2026-06-22..2026-07-19   # measure + record
   sdlc project throughput                                  # show current + trailing-4wk
@@ -54,7 +57,10 @@ under vacations/crunch, so the span is blessed deliberately):
 `--bless FROM..TO` appends `{span, hours_per_week, rows, ceiling}` to
 `<brain>/data/life/42shots/velocity/throughput-baseline.tsv` (append-only —
 last row is current; `--ceiling N` sets the concurrent-attention ceiling,
-default 2). The bare form shows the current baseline and a trailing-4-week
+default 2). Since #192 the `rows` column counts distinct ISSUES; rows blessed
+earlier counted raw ledger lines and are NOT comparable. Bless prints both
+counts ("N issues from M ledger rows") — the gap between them is re-close
+duplication. The bare form shows the current baseline and a trailing-4-week
 comparison so staleness surfaces; it never auto-substitutes the trailing
 number. The forecast at `project commit` / `show` / `status` reads this
 baseline.

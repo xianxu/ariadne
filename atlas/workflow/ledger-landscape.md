@@ -15,7 +15,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 | Plan file (complex case) | `workshop/plans/<N>-*-plan.md` (git) | Detailed implementation breakdown — Core concepts, file structure, bite-sized tasks | execution sessions, milestone reviewers |
 | Target file | `workshop/targets/<slug>.md` (git) | What shape do we defend against drift? | humans + agents reading the system |
 | Project file | per-repo `workshop/projects/<slug>.md` (git); terminal records archive to `workshop/history/projects/` | Committed baseline, scope events, and retros; `sdlc project status` derives live multi-issue progress from referenced issue records | operator + contributors coordinating the project |
-| Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | How well do estimates match measured actuals, and what did the work cost? (per-issue estimate↔actual + per-model drift, #117/#127; churn / rework / plan-gate round-trips, #187) | velocity calibration; the estimate shell |
+| Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | **One row per CLOSE, not per issue** (#192 — readers MUST dedupe). How well do estimates match measured actuals, and what did the work cost? (per-issue estimate↔actual + per-model drift, #117/#127; churn / rework / plan-gate round-trips, #187) | velocity calibration; the estimate shell |
 | Atlas entries | `atlas/**.md` (git) | How is the system built — architectural map | first-level onboarding |
 | Git commits (messages + trailers) | git history (immutable) | What changed, why, and what checkpoint state was crossed? | tooling, history readers, audit |
 | Claude transcripts | `~/.claude/projects/<repo-id>/*.jsonl` (local) | What was the AI actually saying that day? | audit, active-time-v3, memory writers |
@@ -44,6 +44,13 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 - *Authoritative:* `actual_hours:` in the issue frontmatter, derived from the in-binary active-time-v3 engine (`sdlc actual` / `sdlc active-time`, `cmd/sdlc/internal/activetime`) over the commit window.
 - No mirror needed — frontmatter is already terse.
 - *Unit (#118/#92):* the engine measures **ship wall-clock**, not operator-attention — idle gaps still truncate at 15 min, but a subagent-execution span (an `Agent` `tool_use` dispatch → its `tool_result` return, both in the operator's transcript) counts **in full** even when it exceeds the cap. Overlaps collapse only within one transcript source; overlapping sessions remain separate claimable issue work. Activity runs are claimed by nearby issue-referenced commit boundaries, with no-ref commits acting as neutral cut points. This matches the current estimate model's unit (`estimate-logic-v3.1` estimates ship wall-clock directly), so the calibration ledger compares like-for-like.
+- *One row per CLOSE, not per issue (#192):* re-closing a done issue is legal, and each
+  re-close measures a LONGER cumulative window of the same work — so repeat rows are **partial
+  sums**, not repeated observations (`ariadne#167`: 7 rows summing 14.57h for work that measured
+  2.71h). **Every reader must dedupe per issue**, keeping the newest row —
+  `estimate.NewestPerIssue` is the single implementation. Not doing so inflated the blessed
+  throughput baseline 1.41× and every forecast derived from it; the write path is correct and
+  the ledger stays append-only, so the dedupe belongs at the read.
 - *What counts as a ref (#190):* a **bare** `#N` is local; `<thisrepo>#N` is local; and
   `<otherrepo>#N` is **foreign** — attributable to no local issue, and reported as
   `pair#127 foreign ref ignored` rather than dropped silently. The qualifier names the repo the

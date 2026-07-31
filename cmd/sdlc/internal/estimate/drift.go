@@ -40,22 +40,24 @@ func driftSample(rows []LedgerRow, n int) []LedgerRow {
 		return nil
 	}
 	model := rows[latest].Model
-	seen := map[string]bool{}
-	var out []LedgerRow
-	for i := latest; i >= 0 && len(out) < n; i-- {
+	// FILTER first, then dedupe — the order is load-bearing (see NewestPerIssue): deduping
+	// first would let an untrusted newest row mask an older trusted one and drop that issue
+	// from the sample entirely.
+	eligible := make([]LedgerRow, 0, latest+1)
+	for i := 0; i <= latest; i++ {
 		r := rows[i]
 		if !r.WindowTrusted || r.Actual <= 0 || r.Model != model {
 			continue
 		}
-		key := r.Issue
-		if key == "" {
-			key = fmt.Sprintf("@row:%d", i)
-		}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, r)
+		eligible = append(eligible, r)
+	}
+	// One dedupe rule, shared with SpanThroughput (ariadne#192 — the two used to disagree
+	// about what an observation is, and only this one was right).
+	deduped := NewestPerIssue(eligible)
+	// Newest-first, capped at n: this function's contract is "the last n distinct issues".
+	out := make([]LedgerRow, 0, n)
+	for i := len(deduped) - 1; i >= 0 && len(out) < n; i-- {
+		out = append(out, deduped[i])
 	}
 	return out
 }

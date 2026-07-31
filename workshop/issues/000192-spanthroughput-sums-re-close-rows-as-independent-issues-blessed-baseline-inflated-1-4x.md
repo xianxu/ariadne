@@ -1,12 +1,13 @@
 ---
 id: 000192
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-29
 updated: 2026-07-29
-estimate_hours:
+estimate_hours: 2.33
 started: 2026-07-29T22:32:28-07:00
+actual_hours: 0.55
 ---
 
 # SpanThroughput sums re-close rows as independent issues — blessed baseline inflated 1.4x
@@ -95,17 +96,175 @@ both inputs to "is the model calibrated", so this should land before any estimat
 
 ## Plan
 
-- [ ] Failing test: `SpanThroughput` over a fixture with a 3-times-closed issue (growing
-      actuals) equals the computation over its last row alone
-- [ ] Extract the per-issue dedupe as one shared helper; route `driftSample` through it so there
-      is a single implementation
-- [ ] Fix `SpanThroughput` to use it; mutation-verify by removing the dedupe
-- [ ] Make `SpanMeasure.Rows` honest (issues, or both counts labeled)
-- [ ] Known-answer check: the 06-22..07-19 span recomputes to ~80 h/wk, not 110.60
-- [ ] Re-bless the baseline from the corrected measure; record the prior inflation in the file
-- [ ] `atlas/workflow/ledger-landscape.md`: the ledger is per-close; readers must dedupe
-- [ ] `sdlc close --issue 192`
+Simple work (§1): no durable plan doc — these rows are the plan. Single-pass, plain checkboxes,
+one `sdlc close`.
+
+**The shared helper's contract** (tightened on plan-quality round 1 — the first draft would have
+broken `drift_test.go`):
+
+```go
+// NewestPerIssue returns, for each distinct issue in an ALREADY-FILTERED slice, the LAST row
+// for that issue — the newest measurement, the ledger being append-only.
+func NewestPerIssue(rows []LedgerRow) []LedgerRow
+```
+
+- **It takes a PRE-FILTERED slice, and that ordering is load-bearing.** `driftSample` filters
+  (trusted, `Actual > 0`, same model) *before* its `seen` check. Deduping first would let an
+  untrusted newest row mask an older trusted one and drop that issue from the sample entirely —
+  a silent change to drift semantics.
+- **A blank `Issue` is keyed POSITIONALLY (`@row:N`), not collapsed.** Rows with no issue id
+  cannot be known to be the same issue, and `driftSample` already does this
+  (`drift.go:50-53`). This is not defensive: `drift_test.go`'s `trustedRow(est, act)` fixtures
+  leave `Issue` empty, so `TestDrift_AllOver`/`AllUnder`/`TrustedZeroActualExcluded` pass three
+  *distinct* observations. Keyed plainly on `Issue` they collapse to one, the sample falls below
+  `n`, and all three tests fail.
+- **`drift_test.go` passing UNMODIFIED is the guard** that the extraction changed no drift
+  behavior. A test needing an edit means the semantics moved — a finding, not a fixup.
+- Direction-agnostic: `driftSample` walks backward taking first-seen, `SpanThroughput` forward
+  taking last-seen. Same rule, opposite traversal, so the helper must not bake in an order.
+
+**The baseline TSV schema does NOT change.** `ParseBaselineTSV` reads 6 columns positionally into
+an append-only file; renaming the `rows` column would leave the existing header saying one thing
+and new rows meaning another. `ThroughputBaseline.Rows` keeps its name, is fed the deduped count,
+and its doc records that pre-#192 rows counted raw ledger lines and are not comparable.
+
+- [x] Failing test: `SpanThroughput` over a fixture with a 3-times-closed issue (growing
+      actuals, the real `ariadne#167` shape) equals the computation over that issue's last row
+      alone
+- [x] `NewestPerIssue` in `internal/estimate` per the contract above, with the blank-issue
+      positional fallback absorbed from `driftSample`
+- [x] Route `driftSample` through it — **`drift_test.go` must pass unmodified** — so `grep` finds
+      one implementation
+- [x] Fix `SpanThroughput` to use it; mutation-verify (removing the dedupe must fail the test)
+- [x] `SpanMeasure`: `Issues` (summed) + `RowsScanned` (seen). **`UntrustedRows` must be counted
+      over the DEDUPED set**, or `projectthroughput.go:103` prints "12 of 8 rows" — mixed
+      denominators. Update `projectthroughput.go:94,101,103` and print both counts, labelled
+- [x] Known-answer check: the 2026-06-22..07-19 span recomputes to **~80 h/wk**, not 110.60
+- [x] Re-bless the baseline from the corrected measure; record the prior inflation as a `#`
+      comment in `throughput-baseline.tsv`
+- [x] Docs — **three** surfaces, not one:
+      `atlas/workflow/ledger-landscape.md` (the ledger is per-CLOSE; readers must dedupe),
+      `atlas/workflow/sdlc-binary.md:210-219` (documents the sum-over-rows semantics and the
+      `rows` provenance field), and
+      `brain/data/life/42shots/velocity/SKILL.md:93` — which states "one row per closed issue",
+      *the exact wrong fact this defect grew from*, in the doc the recalibration loop reads
+      (`calibration-findings.md:30` analyses those rows)
+- [x] `sdlc close --issue 192`
+
+**Known limit, named not fixed:** keeping the newest in-span row means an issue whose closes
+straddle `from` contributes hours accrued *before* the span. Acceptable — the alternative is
+apportioning a cumulative measurement across span boundaries, which needs per-close deltas the
+ledger does not record — but stated beside the append-only non-goal so it is a choice, not an
+oversight.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. Revised once on the estimate-quality review (1.94 → 2.33) —
+see the deltas below.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec                design=0.30 impl=0.10
+item: smaller-go-module         design=0.15 impl=0.15
+item: smaller-go-module         design=0.10 impl=0.15
+item: cross-cutting-refactor    design=0.00 impl=0.08
+item: smaller-go-module         design=0.00 impl=0.10
+item: atlas-docs                design=0.05 impl=0.08
+item: atlas-docs                design=0.00 impl=0.06
+item: cross-repo-refactor-small design=0.10 impl=0.10
+item: milestone-review          design=0.15 impl=0.00
+item: milestone-review          design=0.00 impl=0.20
+item: milestone-review          design=0.00 impl=0.20
+design-buffer: 0.30
+total: 2.33
+```
+
+**Verified by recomputation:** Σdesign 0.85 × 1.30 = 1.1050, + Σimpl 1.22 = **2.3250** vs stated
+2.33 (δ 0.0050, tolerance 0.117). No item above its v3.1 ceiling.
+
+**What the estimate-quality review changed, and why each was right:**
+
+- **`design-buffer` 0.15 → 0.30.** v3.1 step 4 gives +15% only "when the issue has a thorough
+  plan doc"; this issue's Plan opens by stating it has **none** (§1 simple work). I had copied
+  #190's buffer without the condition that licensed it there — #190 does have a durable plan doc.
+  This alone is 1.94 → 2.04.
+- **Docs are three instances, not one at ceiling.** `design=0.05` is the atlas-docs **floor**, not
+  its ceiling, and the v2 calibration anchor priced charon's "docs ×3" as three instances. Split
+  into two `atlas-docs` rows plus a `cross-repo-refactor-small` for the two **brain** writes —
+  which are a genuine second-repo coordination cost, since the close gate never auto-commits into
+  a brain, so those land as a manual commit there.
+- **The known-answer check had no item at all.** "the span recomputes to ~80 h/wk, not 110.60" is
+  the issue's headline verification and means building the binary, running it against a live
+  318-row ledger in a peer repo, and reconciling to a hand-computed figure. Now its own row.
+- **`issue-spec design` 0.35 → 0.30, onto the model's lattice.** Step 3 offers ×0.2 / ×0.5 / ×1.0;
+  0.35 corresponded to ~×0.7 and was derived from nothing. 0.30 is the ×0.2 band top — and the
+  review correctly noted my stated reason (the investigation predates the claim commit, so it is
+  outside the measured window) argues for the ×0.2 band, not above it.
+- **Gate rounds moved from `impl` to `design`.** v3.1 keeps design hours unscaled precisely
+  because "the design conversation does not compress like implementation." Booking gate rounds as
+  `impl` pre-scaled them by 0.40, which understates them.
+- **`projectthroughput.go` re-slugged** from `smaller-go-module` to `cross-cutting-refactor`:
+  three call sites is not a Go module.
+
+**A disagreement recorded rather than split.** The review's strongest non-blocking point is that
+`milestone-review` ×3 — now 26% of the total — is where this estimate will most likely over-fire,
+citing #190, which booked 0.60h of review overhead against a **0.86h measured actual for the whole
+issue**. I have kept the three rows, because each names work that will actually happen (a review
+dispatch, fixing its findings, and the gate rounds already spent). If it over-fires, that is
+evidence about the **`milestone-review` primitive's hours** — a table-calibration finding — not a
+reason to shave the estimate now. Shaving it to hedge against a predicted miss is the same
+dishonesty as #187's warning about re-deriving to make a ratio look better, just in the other
+direction. The ledger adjudicates.
+
+**Correction to an earlier claim in this issue.** An earlier draft argued the post-2026-07-20
+regression was "substantially explained" by the #190 attribution bug, citing #71 re-measuring
+1.97× → 1.48×. **That 1.48 is not in the ledger** — it was an ad-hoc `sdlc actual` run, and the
+newest recorded `ariadne#71` row still reads 1.97×. Meanwhile all three ariadne rows dated
+2026-07-29 sit at 3.6–4.4× over, **including #190 itself, which was measured with the fix in
+place**. So the honest statement is: the bug was *one* proven contributor (#71's own re-measurement
+moved inside 1.5×), and whether it explains the rest is **open**. #192 is among the first issues
+measured with correct attribution throughout, so its ratio is a data point on that question — which
+is why the number above must not be tuned toward a hoped-for answer.
+
+## Revisions
+
+**2026-07-30 — the docs surfaces were FIVE, not three (close review I1/I2).** The Plan's docs row
+named `atlas/workflow/ledger-landscape.md`, `atlas/workflow/sdlc-binary.md`, and
+`brain/.../velocity/SKILL.md`. The close review's shadow sweep found two further hand-maintained
+restatements of the superseded per-issue model, both of them more prominent than the ones the plan
+caught:
+
+- `brain/data/life/42shots/velocity/calibration-ledger.tsv:1-2` — **the ledger's own header
+  comment**, the first two lines any reader opens, still saying "one row per closed issue". Not
+  generated (`close.go:915` writes only `estimate.Header()` on creation), and #118 precedent
+  treats this comment as a maintained doc surface.
+- `cmd/sdlc/helptext/project.md:47,54` — the operator-facing `sdlc project throughput --help`,
+  still saying "summed from the calibration ledger" with `rows` unqualified. The atlas was updated
+  for exactly these two facts; the helptext is where an operator actually reads them, so it
+  contradicted the atlas by omission.
+
+Both fixed, plus two low-stakes brain restatements the sweep also turned up
+(`estimate-logic-v2.md:132`, and a dedupe-before-aggregating note added to
+`calibration-findings.md`, the living analysis doc that will do future aggregate work over the
+ledger). **The lesson is about where the sweep must reach:** a single-source fix is only landed
+when its *deferred consumers* are too, and the highest-traffic restatement of a data file's
+semantics is usually the file's own header — the one place a plan's "update the docs" row never
+thinks to look.
+
+**2026-07-30 — three test gaps the plan did not name (close review I4/I5 + §5).** All three were
+places where the code was correct but nothing failed if it stopped being: the persisted provenance
+count at `projectthroughput.go:94` (`Rows: measure.Issues` — the exact seam the defect shipped
+through), `NewestPerIssue`'s two load-bearing contract clauses (covered only indirectly, three
+files away in `drift_test.go`), and the filter-then-dedupe ORDER in `SpanThroughput`, which the
+code comment calls load-bearing while both re-close fixtures sat entirely inside their span. Added
+and mutation-verified.
+
+**Not revised:** the `NewestPerIssue` contract, the pre-filtered/positional-key clauses, the
+baseline-schema non-change, and the named known limit all still describe the code accurately.
 
 ## Log
 
 ### 2026-07-29
+- 2026-07-29: closed — KNOWN-ANSWER CHECK PASSED: the blessed span recomputes to 80.31 h/wk over 191 issues from 287 ledger rows, not 110.60 — the exact target stated in the issue before the fix was written. Re-blessed (brain 36f7454) with a # provenance comment recording that pre-#192 rows counted raw ledger LINES and are not comparable; the trailing-4wk comparison now reads -6.95 instead of the phantom -37.24. ROOT CAUSE was not arithmetic but a disagreement between two readers of one file about what an observation IS: the ledger is written per CLOSE (re-closing is legal), so a re-closed issue contributes PARTIAL SUMS of one measurement — ariadne#167 gave 7 rows summing 14.57h for work that measured 2.71h — and driftSample already deduped while SpanThroughput did not. Fixed with ONE shared NewestPerIssue routed through both, so grep finds a single implementation. drift_test.go passes UNMODIFIED (absent from the diff), which is the proof the extraction changed no drift behavior; the dedupe is mutation-verified (removing it fails all three new SpanThroughput tests). SpanMeasure now reports Issues AND RowsScanned because the GAP between them is the duplication — the old single Rows field read as an issue count and hid a 1.41x inflation for weeks — and UntrustedRows is counted over the deduped set or the warning printed mixed denominators. Verified: go test ./... + go vet ./... clean. Docs are THREE surfaces, including brain velocity SKILL.md:93 which stated "one row per closed issue", the exact wrong fact this defect grew from, sitting in the doc the recalibration loop reads. THE PLAN GATE CAUGHT A REAL DESIGN BUG: my first helper contract keyed plainly on Issue, which would have collapsed drift_test.go blank-issue fixtures and silently disabled the drift check; the positional @row:N fallback is load-bearing, not defensive. CALIBRATION — THIS IS THE HEADLINE FINDING: 2.33h estimate vs 0.53h measured = 4.4x OVER, with attribution 100% clean (no foreign refs). #192 was the first ariadne issue measured with correct attribution throughout, so this CLOSES the question this issue was framed to answer: the post-2026-07-20 regression is NOT a measurement artifact. Three consecutive rows now stand at 3.64x / 4.36x / 4.4x (#187, #190, #192), the last two measured correctly. Earlier in this session I claimed the regression was "substantially explained" by the #190 attribution bug, citing #71 moving 1.97x to 1.48x — that 1.48 was an unrecorded ad-hoc measurement and the claim is now DISPROVEN by clean data. The estimate-quality judge also predicted precisely where this would over-fire: milestone-review x3 at 26% of the total, which I kept deliberately and recorded as a disagreement for the ledger to adjudicate. It adjudicated against me. That points at the milestone-review primitive hours and the v3.1 table generally, which is ariadne#127 territory and now has three clean data points to recalibrate against.; review verdict: FIX-THEN-SHIP
