@@ -109,7 +109,12 @@ the four M1 rounds.**
 
 Capping on finding *count* is arbitrary; capping when families stop repeating is not.
 
-### E. Scope a re-review to what changed since the last round
+### E. Scope a re-review to what changed since the last round — REJECTED
+
+> **Rejected 2026-08-20 by the operator: the reviewer keeps seeing the whole
+> branch.** Kept as the record of what was considered and why it lost. B's
+> recorded-coverage argument is not a substitute for a reviewer that has actually
+> read the integrated result. See `## Revisions`.
 
 With A and B in place this becomes expressible for the first time. Today
 `boundaryWindowBase` gives a whole-issue close `merge-base(main, HEAD)` —
@@ -121,11 +126,13 @@ A re-run whose prior round has an anchor and a ledger should review
 `lastReviewedSHA..HEAD` with the prior findings carried in, rather than re-deriving
 the whole branch.
 
-**This trades integration coverage for wall clock, and that trade must be made
-explicitly.** The whole-issue window is merge-base-scoped *by design* (#77) so the
-final review sees the branch as it will ship. The mitigation is B: coverage becomes
-*recorded* (every prior finding disposed) instead of *re-derived*. If that argument
-does not survive the plan-quality gate, E is the part to drop — A–D stand alone.
+**This trades integration coverage for wall clock, and the trade was refused.** The
+whole-issue window is merge-base-scoped *by design* (#77) so the final review sees the
+branch as it will ship. B makes coverage *recorded* (every prior finding disposed)
+rather than *re-derived* — but recorded coverage is a weaker claim than a reviewer
+having read the integrated result, and the integration read is the one this gate
+exists for. A–D stand alone; the wall-clock win comes from B and C collapsing the
+NUMBER of rounds instead of shrinking each one.
 
 ### F. A mid-review commit is a delta, not an invalidation
 
@@ -155,9 +162,9 @@ Ranked last deliberately: it removes the freeze on close-time *bookkeeping*
 - [ ] A repeat family changes the reviewer's recommendation from "fix this instance"
       to "state the rule", and the verdict names the family and the repeat count.
 - [ ] The verdict carries a one-line convergence summary.
-- [ ] A re-run reviews only the commits since its prior round's anchor, carrying the
-      prior findings — or, if that trade is rejected at plan-quality, the rejection is
-      recorded in `## Log` with the reason and E is dropped.
+- [ ] Every boundary review still reads the whole branch — the window source is
+      unchanged, and a test pins that `boundaryWindowBase` still returns
+      `merge-base(main, HEAD)` for a whole-issue close after this work.
 - [ ] A doc-only commit landing mid-review no longer discards the review; a code
       commit still refuses, naming the commits it did not cover.
 - [ ] The publish-time invariant is unchanged: no code ships unreviewed.
@@ -186,10 +193,8 @@ Four review boundaries, closed separately (AGENTS.md §3).
       Go, then `RenderBlockInstruction`); escalate a repeat family from "fix this
       instance" to "state the rule"; emit the convergence line. Verified against
       `tools#1`'s four-round history as a copied fixture.
-- [ ] M4 — Round-scoped re-review: base a re-run's window on the prior round's anchor.
-      **May be dropped** — it trades integration coverage (#77) for wall clock; the
-      trade must survive plan-quality on its own terms, and the decision is recorded
-      either way.
+- [ ] M3 also pins the window: a regression test asserting the whole-issue review
+      window stays `merge-base(main, HEAD)` (M4 was considered and rejected).
 
 ## Log` with the reason and E is dropped.
 - [ ] A doc-only commit landing mid-review no longer discards the review; a code
@@ -253,3 +258,22 @@ window strings.
   operator's loop, and only expressible once A and B exist.
 - Original scope (anchor + delta classification) is retained as A and F, with F ranked
   last since it addresses bookkeeping friction rather than the measured cost.
+
+### 2026-08-20 (later) — M4 rejected; the window stays whole-branch
+
+**Reason.** Operator decision: *"I'd rather have review see whole branch still."*
+
+Round-scoping a re-review (`lastReviewedSHA..HEAD`) was the only scope item that
+would have shortened an individual round, but it means no single reviewer ever reads
+the integrated branch — and the whole-issue boundary is merge-base-scoped precisely
+so the last review sees what ships (#77). The ledger's recorded-coverage argument
+(every prior finding disposed) is real but weaker: it certifies that findings were
+handled, not that anyone read the result of handling them.
+
+**Delta.** Spec E marked REJECTED in place (kept as the record of the road not
+taken); M4 dropped from the plan; the corresponding Done-when item inverted into a
+**regression test** that pins the window at `merge-base(main, HEAD)`, so a future
+change cannot quietly narrow it. The wall-clock win now comes entirely from B and C
+reducing the NUMBER of rounds rather than the size of each — which is the mechanism
+the `tools#1` evidence actually supports (family escalation would have collapsed at
+least two of four M1 rounds).

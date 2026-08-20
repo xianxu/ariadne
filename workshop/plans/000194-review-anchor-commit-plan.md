@@ -23,9 +23,10 @@ on the anchor plus the ledger.
 `pkg/vocab`, CUE (`construct/vocabulary/finding.cue`), `go test` with the hermetic-repo
 harness (`closeRepo`, `executeSDLCTestCommand`, `judge.Run` override).
 
-**Milestone shape:** four review boundaries, genuinely closed separately (AGENTS.md §3) —
-`M1` lands a standalone defect fix, `M2` a durable artifact, `M3` the prompt behavior,
-`M4` a policy change that may be dropped. Each gets its own `sdlc milestone-close`.
+**Milestone shape:** three review boundaries, genuinely closed separately (AGENTS.md §3) —
+`M1` lands a standalone defect fix, `M2` a durable artifact, `M3` the prompt behavior.
+Each gets its own `sdlc milestone-close`. (A fourth, round-scoped re-review, was
+considered and rejected — see M4 below.)
 
 ---
 
@@ -69,7 +70,6 @@ The extension point is explicit in the source. `planreview.go:26-30`:
 | `gatestate.Finding.Family` | `cmd/sdlc/internal/gatestate/ledger.go:34` | modified |
 | `gatestate.FamilyCounts` | `cmd/sdlc/internal/gatestate/ledger.go` | new |
 | `gatestate.ConvergenceLine` | `cmd/sdlc/internal/gatestate/prompt.go` | new |
-| `boundaryWindowBase` | `cmd/sdlc/milestoneclose.go:271` | modified (M4) |
 
 - **`reviewAnchorDelta` / `classifyReviewAnchor`** — the git-free description of
   `reviewedSHA..HEAD` and the decision over it: `anchorUnchanged`, `anchorDocsOnly`,
@@ -368,35 +368,31 @@ prerequisites.
       - Reading a peer repo: per AGENTS.md, read `tools`' `AGENTS.local.md` + `MEMORY.md`,
         not its `AGENTS.md`. Copy the fixture into `cmd/sdlc/internal/gatestate/testdata/`
         — do not make the test depend on a sibling checkout existing.
-- [ ] **Task 3.6: `sdlc milestone-close --issue 194 --milestone M3`**
+- [ ] **Task 3.6: Pin the window.** Regression test: a whole-issue close still resolves
+      its review window to `merge-base(main, HEAD)`. M4 was rejected; this test is what
+      keeps it rejected.
+- [ ] **Task 3.7: `sdlc milestone-close --issue 194 --milestone M3`**
 
 ---
 
-## M4 — Scope a re-review to what changed since the last round
+## M4 — REJECTED (recorded, not built)
 
-Spec E. **This milestone may be dropped.** It trades integration coverage for wall clock,
-and the trade must survive plan-quality on its own terms.
+Round-scoping a re-review to `lastReviewedSHA..HEAD` was considered and **rejected by
+the operator on 2026-08-20**: the reviewer keeps reading the whole branch.
 
-- [ ] **Task 4.1: State the trade explicitly before writing code.** The whole-issue window
-      is `merge-base(main, HEAD)` *by design* (#77) so the final review sees the branch as
-      it ships. Narrowing round N+1 to `lastReviewedSHA..HEAD` means no single reviewer
-      ever sees the whole branch. The argument for it: M2 makes coverage *recorded* (every
-      prior finding disposed) rather than *re-derived*. Write this into `## Log` as a
-      decision with its counter-argument, then proceed or drop.
-- [ ] **Task 4.2:** Modify `boundaryWindowBase` to consult the ledger: when the prior round
-      has an anchor and the current run is a re-run at the same boundary, base =
-      that anchor. Otherwise unchanged. Keep the atlas gate on the **same** window source —
-      `close.go:465-469` deliberately shares it, and splitting them would break the ARCH-DRY
-      invariant that the review and the atlas check provably cover the same commits.
-- [ ] **Task 4.3:** Test the multi-round window directly: round 1 reviews `base..A`, a fix
-      lands at `B`, round 2 reviews `A..B` — and the round-2 prompt carries round 1's
-      findings.
-- [ ] **Task 4.4:** Decide whether the **final** round before finalize should widen back to
-      the full branch for one integration pass. Cheap insurance; likely the right answer.
-      Record the decision either way.
-- [ ] **Task 4.5: `sdlc milestone-close --issue 194 --milestone M4`**
+The reasoning, kept so it is not re-proposed: it was the only scope item that would
+have shortened an individual round, but it means no single reviewer ever reads the
+integrated branch, and the whole-issue window is `merge-base(main, HEAD)` *by design*
+(#77) so the final review sees what ships. M2's recorded coverage certifies that
+findings were handled — not that anyone read the result of handling them.
 
----
+**Consequence for this plan:** the wall-clock win comes entirely from M2+M3 reducing
+the NUMBER of rounds, not the size of each. That is also what the evidence supports —
+family escalation would have collapsed at least two of `tools#1`'s four M1 rounds.
+
+**Consequence for the code:** `boundaryWindowBase` is **unmodified**. Add a regression
+test in M3 pinning that a whole-issue close still resolves its window to
+`merge-base(main, HEAD)`, so a later change cannot quietly narrow it.
 
 ## Verification
 
