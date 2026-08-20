@@ -1,6 +1,6 @@
 ---
 id: 000195
-status: open
+status: punt
 deps: []
 github_issue:
 created: 2026-08-20
@@ -117,6 +117,24 @@ cap: capping on *count* is arbitrary, capping when families stop repeating is no
 - [ ] Design via `sdlc start-plan` before implementing.
 
 ## Log
+
+### 2026-08-20 (later)
+
+- **Folded into #194 and punted.** Not a deferral of the work — the substance
+  (ledger reuse, `family:` tagging, repeat escalation, the convergence line) is
+  now `#194` Spec sections B–D, with the Done-when items carried over verbatim
+  including the `tools#1` four-round fixture.
+- Why merge rather than sequence: the two issues named one root cause from two
+  sides. A boundary review neither records the commit it read (#194 A) nor reads
+  what it said last round (this issue). Neither half stands alone — the ledger
+  cannot scope a re-review without an anchor to measure from, and the anchor has
+  nothing to carry without the ledger. Landing them separately would mean
+  building the wiring twice and reviewing the same prompt surface twice.
+- The discovery that settled it: `gatestate.Ledger` is already gate-generic
+  (`Gate`, `IDPrefix` fields; its `ContentHash` comment names the close boundary
+  as an intended user via #183). Extending it is wiring, not a second mechanism —
+  so the merged scope is barely larger than either issue alone.
+- Reopen only if #194 is split back apart.
 
 ### 2026-08-20
 
