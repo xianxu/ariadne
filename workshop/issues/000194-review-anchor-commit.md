@@ -168,6 +168,40 @@ Ranked last deliberately: it removes the freeze on close-time *bookkeeping*
 
 ## Plan
 
+Durable design: `workshop/plans/000194-review-anchor-commit-plan.md`.
+Four review boundaries, closed separately (AGENTS.md §3).
+
+- [x] Design via `sdlc start-plan` before implementing.
+- [x] Establish that #136 persists prose while #187's ledger persists addressable
+      findings, and that only the latter is read back — the asymmetry this folds.
+- [ ] M1 — Anchor: resolve the review head to a concrete SHA once under the lock and
+      thread it through diff/prompt/trailer/sidecar/finalize (closing the
+      lock-release drift); classify a mid-review delta instead of refusing on HEAD
+      identity, reusing `publishGateHasCodeSurface`. Standalone value: fixes a live
+      defect regardless of M2–M4.
+- [ ] M2 — Ledger: declare the boundary gate's `Gate`/`IDPrefix` pair that
+      `planreview.go:26-30` already anticipates; wire `PriorFindings` into
+      `MilestoneReview`; require every prior finding disposed before new ones.
+- [ ] M3 — Families: model `family` on `#Finding` (closed schema — model first, then
+      Go, then `RenderBlockInstruction`); escalate a repeat family from "fix this
+      instance" to "state the rule"; emit the convergence line. Verified against
+      `tools#1`'s four-round history as a copied fixture.
+- [ ] M4 — Round-scoped re-review: base a re-run's window on the prior round's anchor.
+      **May be dropped** — it trades integration coverage (#77) for wall clock; the
+      trade must survive plan-quality on its own terms, and the decision is recorded
+      either way.
+
+## Log` with the reason and E is dropped.
+- [ ] A doc-only commit landing mid-review no longer discards the review; a code
+      commit still refuses, naming the commits it did not cover.
+- [ ] The publish-time invariant is unchanged: no code ships unreviewed.
+- [ ] Verified against a real multi-round history — `tools#1`'s
+      `000001-define-m1-review.md` has four rounds and two clear families, so it is a
+      ready-made fixture: a correct implementation flags `block-opener-rule` at round
+      2, not round 3.
+
+## Plan
+
 Durable design: `workshop/plans/000194-review-anchor-commit-plan.md` (being rewritten
 for the folded scope).
 

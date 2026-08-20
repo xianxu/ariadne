@@ -1,58 +1,55 @@
 ---
 issue: 000194
 created: 2026-08-20
+revised: 2026-08-20
 ---
 
-# Boundary-Review Anchor Commit — Implementation Plan
+# Boundary Reviews: Anchor + Memory — Implementation Plan
 
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Anchor a boundary review to the concrete commit it read, so a commit landing
-mid-review is classified as a *delta* (doc-only → finalize; code → refuse, by commit)
-instead of blanket-invalidating a 20-minute run.
+**Goal:** Make a boundary review anchored (it records the commit it read) and stateful (it
+reads what it said last round), so repeated rounds converge instead of re-deriving the
+whole branch from scratch every time.
 
-**Architecture:** Two changes, in order. (1) **Resolve the head once.** Today
-`resolveReviewWindow` returns the literal string `"HEAD"`, and the diff is collected
-*after* the repo lock is released — so the reviewed commit is never recorded and can
-even drift between snapshot and dispatch. Resolve HEAD to a SHA under the lock and
-thread that one value through the diff, the prompt, the trailer, the sidecar, and the
-finalize check. (2) **Classify instead of compare.** `closeReviewSnapshot.validate()`
-currently asks "is HEAD identical?"; replace that with a pure classifier over
-`reviewedSHA..currentHEAD` that reuses `publishGateHasCodeSurface` — the exact predicate
-`sdlc merge` already uses (ARCH-DRY, and the issue's Done-when names it).
+**Architecture:** Two gaps, one mechanism. A boundary review today records `..HEAD` — a
+floating ref — and its prose transcript is never read back. Fix the anchor first (it is
+the primitive everything else measures from), then extend `gatestate.Ledger` — which is
+already gate-generic and whose own comments name the close boundary as an intended user —
+to the boundary review. Families and convergence ride on the ledger; round-scoping rides
+on the anchor plus the ledger.
 
-**Tech Stack:** Go 1.x, `cmd/sdlc` (cobra), `cmd/sdlc/internal/gitx`, `go test` with the
-existing hermetic-repo harness (`closeRepo`, `executeSDLCTestCommand`, `judge.Run`
-override).
+**Tech Stack:** Go, `cmd/sdlc` (cobra), `cmd/sdlc/internal/{gitx,judge,gatestate}`,
+`pkg/vocab`, CUE (`construct/vocabulary/finding.cue`), `go test` with the hermetic-repo
+harness (`closeRepo`, `executeSDLCTestCommand`, `judge.Run` override).
 
-**Milestone shape:** single review boundary → **plain checkboxes, no `Mx` tags**
-(AGENTS.md §3). One `sdlc close` at the end; the mandatory fresh-eyes review runs there.
+**Milestone shape:** four review boundaries, genuinely closed separately (AGENTS.md §3) —
+`M1` lands a standalone defect fix, `M2` a durable artifact, `M3` the prompt behavior,
+`M4` a policy change that may be dropped. Each gets its own `sdlc milestone-close`.
 
 ---
 
-## The one real design decision
+## What is already built (do not rebuild)
 
-The issue's Spec offers a choice for a **code** delta: *"finalize the reviewed portion
-and report the unreviewed delta explicitly … **or** refuse, but say which commits are
-unreviewed."*
+Establishing this cut the scope roughly in half. Verify each before writing code:
 
-**We refuse — and name the commits.** Reason: finalizing would violate Done-when #5
-("the publish-time invariant is unchanged: no code ships unreviewed"). `runPublishGate`
-anchors on `codecompleteAnchorCommit` — the *close commit*. If close finalized on top of
-an unreviewed code delta, the close commit would sit **above** that delta, the publish
-gate would compute `closeCommit..HEAD` = 0 commits, report
-`reviewed-HEAD-unchanged ✓`, and ship code no reviewer ever read. Making that safe would
-require re-anchoring the publish gate on a recorded reviewed-SHA — a second, larger
-change to the publish contract that this issue explicitly does *not* ask for.
+| Thing | Where | State |
+|---|---|---|
+| Durable review transcript | `cmd/sdlc/reviewsidecar.go`, #136 | **Built.** 86 sidecars in `workshop/history/plans/`. Prose only; no reader. |
+| Stable-id findings ledger | `cmd/sdlc/internal/gatestate/`, #187 | **Built and gate-generic** — `Ledger.Gate`, `Ledger.IDPrefix` are fields. |
+| Prior-round prompt block | `gatestate.RenderPriorFindings` → `judge.PromptInput.PriorFindings` | **Built.** Wired to plan-quality **only**. |
+| Severity / disposition taxonomy | `construct/vocabulary/finding.cue` | **Built and shared** — a drift test already pins that the boundary review and the plan gate use one taxonomy. |
+| Doc-vs-code surface classifier | `publishGateHasCodeSurface`, `publishgate.go:175`, #174 | **Built.** Reuse; do not restate. |
+| Ledger IO shell pattern | `cmd/sdlc/planreview.go` | **Built.** Its comment says verbatim: *"#183's close-boundary gate will declare its own pair."* |
 
-The doc-only case has no such hazard: the delta carries no code surface, so the
-invariant "no **code** ships unreviewed" holds by construction — which is precisely the
-#174 judgement `publishGateHasCodeSurface` already encodes one stage later.
+The extension point is explicit in the source. `planreview.go:26-30`:
 
-Net effect on the reported pain: the ~20-minute freeze stops applying to the bookkeeping
-that a close *itself* invites (lessons.md, atlas, plan ticks, issue edits on other
-issues, parley/pensive notes) — the commits that made 4 of 8 runs dead time. A genuine
-code commit still invalidates, and should: that is the gate doing its job.
+```go
+// planGateGate / planGateIDPrefix identify the plan-quality gate within the gate-agnostic
+// gatestate package. #183's close-boundary gate will declare its own pair.
+```
+
+**M2 is that pair.** Treat any temptation to write a second ledger as a plan defect.
 
 ---
 
@@ -62,100 +59,107 @@ code commit still invalidates, and should: that is the gate doing its job.
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| `deltaCommit` | `cmd/sdlc/reviewanchor.go` | new |
 | `reviewAnchorDelta` | `cmd/sdlc/reviewanchor.go` | new |
 | `anchorOutcome` | `cmd/sdlc/reviewanchor.go` | new |
 | `classifyReviewAnchor` | `cmd/sdlc/reviewanchor.go` | new |
-| `formatAnchorDocsOnly` | `cmd/sdlc/reviewanchor.go` | new |
-| `formatAnchorRefusal` | `cmd/sdlc/reviewanchor.go` | new |
+| `formatAnchorDocsOnly` / `formatAnchorRefusal` | `cmd/sdlc/reviewanchor.go` | new |
 | `closeReviewSnapshot` | `cmd/sdlc/close.go:1182` | modified |
 | `resolveReviewWindow` | `cmd/sdlc/milestoneclose.go:243` | modified |
-| `publishGateHasCodeSurface` | `cmd/sdlc/publishgate.go:175` | unchanged (reused) |
+| `#Finding.family` | `construct/vocabulary/finding.cue:78` | modified |
+| `gatestate.Finding.Family` | `cmd/sdlc/internal/gatestate/ledger.go:34` | modified |
+| `gatestate.FamilyCounts` | `cmd/sdlc/internal/gatestate/ledger.go` | new |
+| `gatestate.ConvergenceLine` | `cmd/sdlc/internal/gatestate/prompt.go` | new |
+| `boundaryWindowBase` | `cmd/sdlc/milestoneclose.go:271` | modified (M4) |
 
-- **`reviewAnchorDelta`** — the facts about `reviewedSHA..currentHEAD`, gathered by IO,
-  decided on by pure code. Fields: `Reviewed`, `Current` (long SHAs), `Descendant`
-  (is `Current` a descendant of `Reviewed`), `Commits []deltaCommit`, `Paths []string`.
-  - **Relationships:** 1:1 with a dispatched boundary review; held by
-    `closeReviewSnapshot` for the lifetime of one close.
-  - **DRY rationale:** Gives the close gate the *same* question the publish gate asks
-    ("does this delta carry code surface?") without a second implementation of the
-    answer — `classifyReviewAnchor` calls `publishGateHasCodeSurface`, it does not
-    restate it. This is the ARCH-DRY reuse the issue's Spec §"Why the current guard is
-    stricter than its own purpose" asks for.
-  - **Future extensions:** Add `Sidecar string` if a re-attachable review (the issue's
-    "second-order effect") ever needs to point back at the transcript for the delta.
+- **`reviewAnchorDelta` / `classifyReviewAnchor`** — the git-free description of
+  `reviewedSHA..HEAD` and the decision over it: `anchorUnchanged`, `anchorDocsOnly`,
+  `anchorCodeDelta`, `anchorDiverged`.
+  - **DRY rationale:** `classifyReviewAnchor` *calls* `publishGateHasCodeSurface`; it does
+    not restate the docs-vs-code rule. This is the ARCH-DRY reuse the issue names.
+  - **Why a fourth state:** `Reviewed` may not be an ancestor of `Current` at all (rebase,
+    `reset --hard`, branch switch). `git diff A B` between unrelated commits happily
+    returns paths, so without an ancestry check a rebase-away could masquerade as
+    doc-only. The publish gate's `revCount` conflates diverged with zero-ahead; do not
+    copy that.
+  - **Future extensions:** add `Sidecar string` if a re-attachable review ever needs to
+    point back at its transcript.
 
-- **`anchorOutcome`** — four-valued: `anchorUnchanged`, `anchorDocsOnly`,
-  `anchorCodeDelta`, `anchorDiverged`. The fourth exists because `Reviewed` may not be
-  an ancestor of `Current` at all — a rebase, `reset --hard`, or a branch switch during
-  the review. `git diff A B` between unrelated commits happily returns paths, so
-  without the ancestry check a rebase-away could masquerade as a doc-only delta. It
-  refuses with the diverged message.
-  - **DRY rationale:** First occurrence — the publish gate uses `revCount(a+"..HEAD")`,
-    which conflates "diverged" with "0 ahead". Fixing that there is out of scope.
+- **`#Finding.family`** — a slug naming the *underlying rule* a finding is an instance of.
+  - **Why the model and not just the Go struct:** `#Finding` in `finding.cue` is
+    **closed** — its comment says *"a finding is an atomic judgment, not an organically
+    growing record"* — so an unmodeled `family` key fails instance validation. And
+    `RenderBlockInstruction` (`pkg/vocab/finding.go:85`) builds the `​```findings` fence the
+    judge must emit, pulling severities and dispositions from the model. Adding the field
+    in Go alone would give a judge a key it was never told to emit and a schema that
+    rejects it (ARCH-PURPOSE: every consumer derives from the source).
+  - **Relationships:** N:1 — many findings to one family, across rounds. The family slug
+    is reviewer-assigned free text, deliberately **not** an enum: the whole point is that
+    a family is discovered, not pre-declared.
 
-- **`classifyReviewAnchor(d reviewAnchorDelta) anchorOutcome`** — pure, total, no IO.
-  Unit-tested in `cmd/sdlc/reviewanchor_test.go` **without git**: it takes the gathered
-  facts as a struct (ARCH-PURE — the `exec` lives in the caller).
+- **`gatestate.FamilyCounts(l Ledger) map[string]int`** — how many findings each family
+  has across all prior rounds. Pure; the input to both the escalation instruction and the
+  convergence line.
 
-- **`formatAnchorDocsOnly` / `formatAnchorRefusal`** — pure string builders. Per
-  `formatPublishGateDocsOnly`'s comment (#172), the **pass** line must share no
-  vocabulary with the **refusal** line, because `gatesig` classifies transcripts by
-  substring and a pass line echoing refusal words corrupts friction attribution. A test
-  pins that non-collision.
-
-- **`closeReviewSnapshot`** (modified) — `head string` becomes `reviewed string`
-  (the concrete SHA, supplied by the caller rather than re-`rev-parse`d), and
-  `validate()` delegates its HEAD question to the classifier. The issue-file and
-  project-file checks are **unchanged**: the review read that text, so a mid-review edit
-  to it is still a genuine invalidation (the issue's Spec says exactly this).
-
-- **`resolveReviewWindow`** (modified) — returns a resolved `head` SHA instead of the
-  literal `"HEAD"`, falling back to `"HEAD"` when `rev-parse` fails (keeps the
-  documented `("?", "", "HEAD")` no-anchor return shape intact).
+- **`gatestate.ConvergenceLine(l Ledger, round int) string`** — `"round 4 — 2 new
+  findings, 0 repeat families, 6 disposed. Converging."` Pure; unit-tested on in-memory
+  ledgers, no IO. Reuses the existing `DispositionCounts` (`ledger.go:202`).
 
 ### Integration points
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `gatherReviewAnchorDelta` | `cmd/sdlc/reviewanchor.go` | new | `git` (via `gitx`) |
+| `gatherReviewAnchorDelta` | `cmd/sdlc/reviewanchor.go` | new | `git` via `gitx` |
+| `readBoundaryGateLedger` / `writeBoundaryGateLedger` | `cmd/sdlc/boundaryledger.go` | new | filesystem + clock |
 
-- **`gatherReviewAnchorDelta(reviewed string) (reviewAnchorDelta, error)`** — the thin IO
-  shell: `rev-parse HEAD`, `merge-base --is-ancestor`, `log --format=%H %s`,
-  `gitx.DiffNames`. Returns an error only when git itself fails, so the caller keeps the
-  **fail-closed** posture the publish gate documents ("if we can't verify, refuse").
-  - **Injected into:** `closeReviewSnapshot.validate()`. Pure decision-making stays in
-    `classifyReviewAnchor`, so the interesting logic is unit-testable with no repo.
-  - **Test surface (ARCH-MOCK):** `git` is the external binary here, and this repo's
-    established seam for it is the **hermetic real-git repo** (`hermeticrepo_test.go`,
-    `closeRepo`), not a mocked runner — every existing close/merge gate test drives real
-    git in a temp repo. We reuse that seam rather than introduce a second git double;
-    the fake-vs-real conformance question is already settled by using the real binary.
-  - **Future extensions:** Return `MergeBase` if a diverged-history delta ever needs to
-    be described rather than merely refused.
+- **`gatherReviewAnchorDelta(reviewed string)`** — `rev-parse`, `merge-base --is-ancestor`,
+  `log --format=%H %s`, `gitx.DiffNames`. Errors **only** on git failure so the caller
+  keeps the publish gate's fail-closed posture.
+  - **Injected into:** `closeReviewSnapshot.validate()`. All decision logic stays in
+    `classifyReviewAnchor` (ARCH-PURE).
+
+- **`readBoundaryGateLedger` / `writeBoundaryGateLedger`** — a near-exact sibling of
+  `readPlanGateLedger` / `writePlanGateLedger` (`planreview.go:44,66`), differing only in
+  the `Gate`/`IDPrefix`/suffix triple.
+  - **Injected into:** `dispatchBoundaryReview` (reads before dispatch to build
+    `PriorFindings`; writes after parsing the round's fence).
+  - **Critical behavior to copy verbatim:** a ledger that *exists but does not parse* is
+    an **error**, never a fresh empty ledger. `planreview.go:38-42` explains why —
+    silently resetting erases every disposition and re-opens findings the operator already
+    addressed, *"the exact forgetting this feature exists to prevent, and worse than the
+    status quo because it would look like it worked."*
+  - **If the two functions end up differing only by that triple, extract the shared body**
+    into a parameterized helper and have both gates call it (ARCH-DRY). Decide this after
+    M2's code exists, not before — but do not leave two copies.
+
+- **ARCH-MOCK note.** The external dependencies here are `git` and the reviewer CLI.
+  Both already have established seams in this repo: `git` via the hermetic real-git temp
+  repo (`hermeticrepo_test.go`, `closeRepo`), and the reviewer via the `judge.Run`
+  override that every close test uses to return a canned transcript. **Reuse both. Do not
+  introduce a mocked git runner** — the existing tests drive the real binary, and a second
+  double would fork the conformance story.
 
 ---
 
-## Chunk 1: anchor the review, classify the delta
+## M1 — Anchor the review to the commit it read
 
-### Task 1: Resolve the reviewed SHA once, and thread it
+Spec A + F. Standalone value: fixes a live defect regardless of what M2–M4 do.
 
-Today `Head` is the string `"HEAD"` from `resolveReviewWindow` down through
-`collectDiff`, `judge.PromptInput`, `emitTrailerBlock` and the sidecar — so nothing
-records what was actually reviewed. Worse: `reviewThenFinalizeLocked` **releases the
-lock before** `dispatchBoundaryReview` runs, and `boundaryReviewDispatchOptions` then
-resolves `"HEAD"` itself — so today the snapshot's `rev-parse` and the diff can already
-disagree. Resolving once, under the lock, closes that gap and is the precondition for
-everything else.
+### Task 1.1: Resolve the reviewed SHA once, under the lock
 
 **Files:**
-- Modify: `cmd/sdlc/milestoneclose.go:243-256` (`resolveReviewWindow`)
-- Modify: `cmd/sdlc/milestoneclose.go:576-600` (`boundaryReviewDispatchOptions`)
-- Modify: `cmd/sdlc/close.go:1189-1196` (`captureCloseReviewSnapshot` signature)
-- Modify: `cmd/sdlc/close.go:1036-1043`, `cmd/sdlc/milestoneclose.go:200-212` (call sites)
-- Test: `cmd/sdlc/milestonewindow_test.go`, `cmd/sdlc/closereview_test.go`
+- Modify: `cmd/sdlc/milestoneclose.go:243-256` (`resolveReviewWindow`), `:576-600`
+  (`boundaryReviewDispatchOptions`), `:200-212` (locked call site)
+- Modify: `cmd/sdlc/close.go:1189-1196` (`captureCloseReviewSnapshot`), `:1036-1043`
+- Test: `cmd/sdlc/milestonewindow_test.go`
 
-- [ ] **Step 1: Write the failing test** — `resolveReviewWindow` returns a concrete SHA.
+The defect: `resolveReviewWindow` returns `head = "HEAD"`, a literal string. It reaches
+`collectDiff`, `judge.PromptInput`, the trailer, and the sidecar unchanged — every one of
+the 86 archived sidecars records `<base>..HEAD`. And `reviewThenFinalizeLocked` releases
+the repo lock **before** `dispatchBoundaryReview`, so `boundaryReviewDispatchOptions`
+re-resolves `"HEAD"` independently: the snapshot's `rev-parse` and the reviewed diff can
+already name different commits.
+
+- [ ] **Step 1: Write the failing test**
 
 ```go
 // cmd/sdlc/milestonewindow_test.go
@@ -163,11 +167,10 @@ func TestResolveReviewWindow_HeadIsConcreteSHA(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	_, _, head := resolveReviewWindow("69", "", filepath.Join(issuesDir, "000069-boundary-review.md"))
 	if head == "HEAD" {
-		t.Fatal("head must be resolved to a SHA, not the literal \"HEAD\"")
+		t.Fatal(`head must be a resolved SHA, not the literal "HEAD"`)
 	}
-	want := captureGit(t, "rev-parse", "HEAD")
-	if head != strings.TrimSpace(want) {
-		t.Fatalf("head = %q, want %q", head, strings.TrimSpace(want))
+	if want := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD")); head != want {
+		t.Fatalf("head = %q, want %q", head, want)
 	}
 }
 ```
@@ -175,604 +178,242 @@ func TestResolveReviewWindow_HeadIsConcreteSHA(t *testing.T) {
 - [ ] **Step 2: Run it, confirm it fails**
 
 Run: `go test ./cmd/sdlc/ -run TestResolveReviewWindow_HeadIsConcreteSHA -v`
-Expected: FAIL — `head must be resolved to a SHA`.
+Expected: FAIL — `head must be a resolved SHA`.
 
-- [ ] **Step 3: Resolve the head**
+- [ ] **Step 3: Resolve the head in `resolveReviewWindow`**
 
 ```go
-// cmd/sdlc/milestoneclose.go — in resolveReviewWindow, replace `head = "HEAD"`
-// head is the CONCRETE SHA the review will read (#194), not the floating "HEAD":
-// it is the anchor the finalize check classifies against, so it must be pinned
-// under the caller's lock. Falls back to "HEAD" only when rev-parse fails (an
-// empty repo / dry-run in a non-repo), preserving the documented no-anchor shape.
+// head is the CONCRETE SHA the review will read (#194) — the anchor the finalize
+// check classifies against and the ledger measures the next round from, so it must
+// be pinned under the caller's lock. Falls back to "HEAD" only when rev-parse fails,
+// preserving the documented ("?", "", "HEAD") no-anchor return shape.
 head = "HEAD"
 if sha := strings.TrimSpace(gitx.Capture("rev-parse", "HEAD")); sha != "" {
 	head = sha
 }
 ```
 
-- [ ] **Step 4: Use the pinned head for the diff and the prompt**
+- [ ] **Step 4: Use the pinned head everywhere downstream**
 
-In `boundaryReviewDispatchOptions`, replace both literal `"HEAD"` uses with `p.Head`:
+In `boundaryReviewDispatchOptions`, replace both literal `"HEAD"` uses with `p.Head`
+(the `collectDiff` call and `judge.PromptInput{..., Head: ...}`). Update
+`dispatchBoundaryReview`'s progress line to `shortSHA(p.Head)`.
 
-```go
-diff, _, err := collectDiff(judge.MilestoneReview, p.BaseLong, p.Head, p.IssuesDir, "workshop/history")
-...
-in := judge.PromptInput{
-	Diff: diff, Base: p.BaseLong, Head: p.Head,
-	...
-}
-```
-
-Also update `dispatchBoundaryReview`'s log line — `cinfo(..., "dispatching boundary
-review (%s..%s) via %s …", p.BaseLong, shortSHA(p.Head), agent)`.
-
-- [ ] **Step 5: Take the reviewed SHA as a parameter instead of re-reading it**
+- [ ] **Step 5: Pass the SHA into the snapshot instead of re-reading it**
 
 ```go
-// cmd/sdlc/close.go
 // captureCloseReviewSnapshot pins the state the boundary review is about to read.
 // reviewedSHA is the window head the caller already resolved (#194) — passing it in
 // rather than re-`rev-parse`ing guarantees the snapshot, the reviewed diff, and the
 // finalize check all name the SAME commit.
-func captureCloseReviewSnapshot(r closeResult, reviewedSHA string) closeReviewSnapshot {
-	return closeReviewSnapshot{
-		reviewed:  reviewedSHA,
-		issuePath: r.issuePath,
-		issueText: r.issueText,
-		projects:  r.projectEdits,
-	}
-}
+func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone string) closeReviewSnapshot
 ```
 
-Update both call sites to `captureCloseReviewSnapshot(r, head)` — they already compute
-`head` on the line above, inside the lock.
+Both call sites already compute `head` one line above, inside the lock — pass it, plus
+`f.Milestone` (M1 Task 1.2 needs it to name the right re-run verb via `closeVerb`).
 
-- [ ] **Step 6: Fix the trailer/sidecar expectations**
+- [ ] **Step 6: Update trailer/sidecar expectations**
 
-`emitTrailerBlock` now renders `Review-Window: <base>..<reviewedShort>`. Shorten the head
-for the trailer via the existing `shortSHA`. `Review-Window` has **no production parser**
-(verified: only `close.go:1672` help text, `helptext/milestone-close.md`, and
-`atlas/workflow/ledger-landscape.md` mention it), so this is a pure provenance
-improvement. Update:
-- `cmd/sdlc/closereview_test.go:226` — assert a `..`-joined pair of SHAs, not `"..HEAD"`.
-- `cmd/sdlc/milestoneclose_test.go:120,134` — same.
-- `cmd/sdlc/helptext/milestone-close.md:35` and `milestoneclose.go:395` doc comment —
-  show `abc1234..def5678`.
+`emitTrailerBlock` now renders `Review-Window: <base>..<shortHead>`. `Review-Window` has
+**no production parser** — confirm with
+`grep -rn "Review-Window" --include='*.go' cmd/ pkg/ | grep -v _test` (expect only the
+writer at `milestoneclose.go:406` and help text). Update the assertions at
+`closereview_test.go:226` and `milestoneclose_test.go:120,134`, the doc comment at
+`milestoneclose.go:395`, `helptext/milestone-close.md:35`, and
+`atlas/workflow/ledger-landscape.md:102`.
 
-(Fixtures that *construct* commit messages containing `Review-Window: abc1234..HEAD` —
-`close_test.go:564,611,653`, `closereview_test.go:485`, `milestonewindow_test.go:85,164`
-— are inputs to the `Review-Verdict:` grep and need **no** change.)
+Fixtures that *construct* commit messages containing `Review-Window: abc1234..HEAD`
+(`close_test.go:564,611,653`, `closereview_test.go:485`, `milestonewindow_test.go:85,164`)
+feed the `Review-Verdict:` grep and need **no** change.
 
-- [ ] **Step 7: Run the full package**
+- [ ] **Step 7: Run the package** — `go test ./cmd/sdlc/ 2>&1 | tail -20`. Expected: PASS.
+- [ ] **Step 8: Commit** — `#194 M1: pin the boundary review to a concrete reviewed SHA`
 
-Run: `go test ./cmd/sdlc/ 2>&1 | tail -20`
-Expected: PASS (`TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize` still
-passes — the guard is still identity-based at this point).
+### Task 1.2: Classify the mid-review delta
 
-- [ ] **Step 8: Commit**
+**Files:** Create `cmd/sdlc/reviewanchor.go` + `reviewanchor_test.go`; modify
+`cmd/sdlc/close.go:1128-1152,1182-1227`; test `cmd/sdlc/close_finalize_test.go`.
 
-```bash
-git add cmd/sdlc/
-git commit -m "#194: pin the boundary review to a concrete reviewed SHA
+- [ ] **Step 1: Write the failing unit tests** — table over `classifyReviewAnchor` covering
+      all four outcomes, plus `cmd/sdlc/helptext/close.md` classified as **code** (it is
+      `//go:embed`ed — `publishGateHasCodeSurface` tightens `hasCodePath` for exactly this),
+      plus two format tests:
+  - the pass line shares **no** vocabulary with the refusal (`NOT finalized`,
+    `unreviewed`, `re-run`, `stale`) — `gatesig` classifies transcripts by substring, so a
+    pass line echoing refusal words corrupts friction attribution (#172, and
+    `formatPublishGateDocsOnly`'s comment says so);
+  - the refusal names **every** commit (short SHA + subject) and does not contain
+    `"HEAD changed from"`.
+- [ ] **Step 2: Run, confirm they fail** (`undefined: reviewAnchorDelta`).
+- [ ] **Step 3: Write `reviewanchor.go`** — `reviewAnchorDelta`, `anchorOutcome`,
+      `classifyReviewAnchor` (pure), `gatherReviewAnchorDelta` (thin IO shell),
+      `formatAnchorDocsOnly`, `formatAnchorRefusal`. `classifyReviewAnchor` delegates the
+      code-surface question to `publishGateHasCodeSurface`.
+- [ ] **Step 4: Run, confirm they pass.**
+- [ ] **Step 5: Write the failing integration test** — model on
+      `TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize`
+      (`close_finalize_test.go:139`), which already blocks the fake reviewer on a channel
+      and commits concurrently. Add a doc-only twin that commits `workshop/lessons.md`
+      mid-review and asserts the close **finalizes** (`status: codecomplete` present) with
+      the pass line on stderr. Extend the existing code-delta test to assert the refusal
+      names `"concurrent #69 side change"` and lacks `"HEAD changed from"`.
+- [ ] **Step 6: Rewrite `validate()`** to `func() (note string, err error)`: on
+      `anchorDocsOnly` return the pass line; on `anchorCodeDelta`/`anchorDiverged` return
+      `formatAnchorRefusal(..., closeVerb(s.milestone))`; fail closed on a git error. The
+      issue-file and project-file checks stay **strict and unchanged** — the review read
+      that prose, so a mid-review edit to it is a genuine invalidation.
+- [ ] **Step 7: Update `finalizeBoundaryReview`** to surface `note` via `cinfo`. Drop the
+      now-redundant second `cwarn` (`"re-run … so the review covers the current repo
+      state"`) — `formatAnchorRefusal` carries a precise instruction. Confirm nothing
+      asserts on it: `grep -rn "so the review covers the current repo state" cmd/sdlc/`.
+- [ ] **Step 8: `go test ./cmd/sdlc/`** → PASS. **Commit.**
 
-The window head was the literal string \"HEAD\", resolved independently by
-the diff collector AFTER the repo lock was released — so nothing recorded
-what was reviewed, and the snapshot could name a different commit than the
-diff. Resolve once under the lock and thread that SHA through."
-```
+**Why a code delta must still refuse.** `runPublishGate` anchors on
+`codecompleteAnchorCommit` — the *close commit*. Finalizing above an unreviewed code delta
+would put the close commit on top of it; merge would compute `closeCommit..HEAD` = 0,
+print `reviewed-HEAD-unchanged ✓`, and ship code no reviewer read. Making the other branch
+safe means re-anchoring the publish gate — out of scope (see the issue's Spec F).
+
+- [ ] **Task 1.3: `sdlc milestone-close --issue 194 --milestone M1`**
 
 ---
 
-### Task 2: The pure delta classifier
+## M2 — Give the boundary review the ledger
 
-**Files:**
-- Create: `cmd/sdlc/reviewanchor.go`
-- Test: `cmd/sdlc/reviewanchor_test.go`
+Spec B. The pair `planreview.go` says is coming.
 
-- [ ] **Step 1: Write the failing tests** (pure — no git, no temp repo)
+### Task 2.1: Declare the boundary gate's pair
 
-```go
-// cmd/sdlc/reviewanchor_test.go
-package main
+**Files:** Create `cmd/sdlc/boundaryledger.go` + test; modify
+`construct/vocabulary/finding.cue:64-69` (discovery glob).
 
-import "strings"
-import "testing"
+- [ ] **Step 1:** Widen `finding.cue`'s `discovery.glob` — it is currently
+      `"*-plan-gate.md"` (singular). A boundary ledger is also a set of finding instances,
+      so discovery must find both. Check whether the field is consumed as a single glob or
+      a list (`grep -rn "Glob" pkg/vocab/finding.go`) and widen accordingly; if the shape
+      must change from string to list, update every consumer — a hand-maintained
+      restatement is a deferred consumer (ARCH-PURPOSE).
+- [ ] **Step 2:** Write `boundaryledger.go` mirroring `planreview.go`:
+      `boundaryGateSuffix = "close-gate"`, `boundaryGateGate = "boundary-review"`,
+      `boundaryGateIDPrefix = "BR"`. Reuse `sidecarPathFor` (already shared, `#144`) and
+      `atomicWriteFile`.
+      - **Do not** name it `*-review.md`: `construct/vocabulary/verdict.cue` declares
+        `discovery.glob: "*-review.md"` to assert "this document carries a boundary
+        verdict". A gate ledger carries findings and no verdict. `planreview.go:9-11`
+        explains this trap — the boundary gate is *more* likely to fall into it, since its
+        prose sidecar legitimately IS `*-review.md`.
+      - Milestone-aware naming: the plan gate has one ledger per issue; the boundary
+        review has one per **boundary**. Decide `-m2-close-gate.md` vs one issue-wide
+        ledger. **Recommendation: one ledger per issue, rounds tagged with their
+        boundary** — families recur *across* milestones (the `tools#1` evidence spans M1
+        rounds *and* the close review), and a per-boundary ledger cannot see that. This is
+        a deliberate divergence from `sidecarPath`'s per-boundary shape; record it in
+        `## Log`.
+- [ ] **Step 3:** Copy `readPlanGateLedger`'s **parse-failure-is-an-error** behavior
+      verbatim, with a test that a corrupt ledger errors rather than silently emptying.
+- [ ] **Step 4:** If read/write differ from the plan-gate pair only by the
+      `Gate`/`IDPrefix`/suffix triple, extract the shared body and have both call it
+      (ARCH-DRY). Commit.
 
-func TestClassifyReviewAnchor(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		d    reviewAnchorDelta
-		want anchorOutcome
-	}{
-		{"identical head", reviewAnchorDelta{Reviewed: "aaa", Current: "aaa", Descendant: true}, anchorUnchanged},
-		{"docs delta", reviewAnchorDelta{
-			Reviewed: "aaa", Current: "bbb", Descendant: true,
-			Commits: []deltaCommit{{SHA: "bbb", Subject: "lessons"}},
-			Paths:   []string{"workshop/lessons.md", "atlas/index.md"},
-		}, anchorDocsOnly},
-		{"code delta", reviewAnchorDelta{
-			Reviewed: "aaa", Current: "bbb", Descendant: true,
-			Commits: []deltaCommit{{SHA: "bbb", Subject: "fix"}},
-			Paths:   []string{"cmd/sdlc/close.go"},
-		}, anchorCodeDelta},
-		{"embedded helptext counts as code", reviewAnchorDelta{
-			Reviewed: "aaa", Current: "bbb", Descendant: true,
-			Commits: []deltaCommit{{SHA: "bbb", Subject: "helptext"}},
-			Paths:   []string{"cmd/sdlc/helptext/close.md"},
-		}, anchorCodeDelta},
-		{"rebased away", reviewAnchorDelta{
-			Reviewed: "aaa", Current: "ccc", Descendant: false,
-			Paths: []string{"workshop/lessons.md"},
-		}, anchorDiverged},
-		{"unresolvable reviewed sha degrades to unchanged", reviewAnchorDelta{
-			Reviewed: "", Current: "bbb",
-		}, anchorUnchanged},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := classifyReviewAnchor(tc.d); got != tc.want {
-				t.Fatalf("classifyReviewAnchor = %v, want %v", got, tc.want)
-			}
-		})
-	}
-}
+### Task 2.2: Wire `PriorFindings` into the boundary review
 
-// The pass line must not collide with the refusal vocabulary — gatesig
-// classifies transcripts by substring (#172, mirrors the publish gate's guard).
-func TestAnchorPassLineNoRefusalVocabulary(t *testing.T) {
-	d := reviewAnchorDelta{Reviewed: "aaaaaaaaaa", Current: "bbbbbbbbbb", Descendant: true,
-		Commits: []deltaCommit{{SHA: "bbbbbbbbbb", Subject: "docs"}}}
-	pass := formatAnchorDocsOnly(d)
-	for _, forbidden := range []string{"NOT finalized", "unreviewed", "re-run", "stale"} {
-		if strings.Contains(pass, forbidden) {
-			t.Fatalf("pass line %q must not contain refusal word %q", pass, forbidden)
-		}
-	}
-}
+**Files:** `cmd/sdlc/internal/judge/prompts.go:174-177`,
+`cmd/sdlc/internal/judge/prompts/milestone-review.md`, `cmd/sdlc/milestoneclose.go:529-600`.
 
-func TestAnchorRefusalNamesEveryCommit(t *testing.T) {
-	d := reviewAnchorDelta{
-		Reviewed: "aaaaaaaaaaaa", Current: "cccccccccccc", Descendant: true,
-		Commits: []deltaCommit{
-			{SHA: "cccccccccccc", Subject: "second fix"},
-			{SHA: "bbbbbbbbbbbb", Subject: "first fix"},
-		},
-		Paths: []string{"cmd/sdlc/close.go"},
-	}
-	msg := formatAnchorRefusal(d, anchorCodeDelta, "sdlc close")
-	for _, want := range []string{"cccccccc", "second fix", "bbbbbbbb", "first fix", "cmd/sdlc/close.go", "sdlc close"} {
-		if !strings.Contains(msg, want) {
-			t.Fatalf("refusal must name %q:\n%s", want, msg)
-		}
-	}
-	if strings.Contains(msg, "HEAD changed from") {
-		t.Fatal("refusal must report commits, not a bare HEAD-identity message")
-	}
-}
-```
-
-- [ ] **Step 2: Run them, confirm they fail**
-
-Run: `go test ./cmd/sdlc/ -run 'TestClassifyReviewAnchor|TestAnchorPassLine|TestAnchorRefusal' -v`
-Expected: FAIL to compile — `undefined: reviewAnchorDelta`.
-
-- [ ] **Step 3: Write `cmd/sdlc/reviewanchor.go`**
-
-```go
-// reviewanchor.go — #194. A boundary review is anchored to the COMMIT IT READ, not
-// to "HEAD has not moved since". A commit landing while the ~20-minute review runs is
-// a DELTA to be classified, not an invalidation:
-//
-//	doc-only delta → finalize (the reviewed code surface is unchanged)
-//	code delta     → refuse, naming the commits (see the plan's design note: the
-//	                 publish gate anchors on the close commit, so finalizing above
-//	                 an unreviewed code delta would ship it unreviewed)
-//	diverged       → refuse (history was rewritten; the delta is not describable)
-//
-// The code-surface question is answered by publishGateHasCodeSurface — the SAME
-// predicate `sdlc merge` uses (#174), reused one stage earlier rather than restated
-// (ARCH-DRY). Decision logic here is PURE; the git reads live in
-// gatherReviewAnchorDelta (ARCH-PURE).
-package main
-
-import (
-	"fmt"
-	"strings"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
-)
-
-// deltaCommit is one commit in reviewedSHA..HEAD.
-type deltaCommit struct {
-	SHA     string
-	Subject string
-}
-
-// reviewAnchorDelta is the gathered, git-free description of reviewedSHA..HEAD.
-type reviewAnchorDelta struct {
-	Reviewed   string // long SHA the review read ("" ⇒ nothing to check)
-	Current    string // long SHA at HEAD now
-	Descendant bool   // Current descends from Reviewed
-	Commits    []deltaCommit
-	Paths      []string
-}
-
-type anchorOutcome int
-
-const (
-	anchorUnchanged anchorOutcome = iota // no delta — finalize
-	anchorDocsOnly                       // delta carries no code surface — finalize
-	anchorCodeDelta                      // delta carries code — refuse, name the commits
-	anchorDiverged                       // history rewritten — refuse, cannot classify
-)
-
-// classifyReviewAnchor decides what a delta means. Pure and total.
-func classifyReviewAnchor(d reviewAnchorDelta) anchorOutcome {
-	if d.Reviewed == "" || d.Reviewed == d.Current {
-		return anchorUnchanged
-	}
-	if !d.Descendant {
-		return anchorDiverged
-	}
-	if publishGateHasCodeSurface(d.Paths) {
-		return anchorCodeDelta
-	}
-	return anchorDocsOnly
-}
-
-// gatherReviewAnchorDelta is the thin IO shell (ARCH-PURE). Errors ONLY on git
-// failure, so the caller can fail closed the way the publish gate does.
-func gatherReviewAnchorDelta(reviewed string) (reviewAnchorDelta, error) {
-	d := reviewAnchorDelta{Reviewed: reviewed}
-	if reviewed == "" {
-		return d, nil
-	}
-	d.Current = strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
-	if d.Current == "" {
-		return d, fmt.Errorf("cannot resolve HEAD")
-	}
-	if d.Current == reviewed {
-		d.Descendant = true
-		return d, nil
-	}
-	if _, err := gitx.RunGit("merge-base", "--is-ancestor", reviewed, d.Current); err != nil {
-		return d, nil // not an ancestor ⇒ diverged; classifier refuses
-	}
-	d.Descendant = true
-	out, err := gitx.RunGit("log", "--format=%H %s", reviewed+".."+d.Current)
-	if err != nil {
-		return d, fmt.Errorf("log %s..%s: %w", shortSHA(reviewed), shortSHA(d.Current), err)
-	}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if line == "" {
-			continue
-		}
-		sha, subject, _ := strings.Cut(line, " ")
-		d.Commits = append(d.Commits, deltaCommit{SHA: sha, Subject: subject})
-	}
-	paths, err := gitx.DiffNames(reviewed, d.Current)
-	if err != nil {
-		return d, fmt.Errorf("diff %s..%s: %w", shortSHA(reviewed), shortSHA(d.Current), err)
-	}
-	d.Paths = paths
-	return d, nil
-}
-
-// formatAnchorDocsOnly renders the PASS line. Deliberately shares no vocabulary with
-// formatAnchorRefusal — gatesig classifies transcripts by substring, so a pass line
-// echoing refusal words would corrupt friction attribution (#172). Pure.
-func formatAnchorDocsOnly(d reviewAnchorDelta) string {
-	return fmt.Sprintf("boundary review: anchored to %s; %d doc-only commit(s) arrived since — "+
-		"no code surface, the reviewed code is intact (#194)", shortSHA(d.Reviewed), len(d.Commits))
-}
-
-// formatAnchorRefusal renders the refusal, naming EVERY commit the review did not
-// cover (Done-when: "reported by commit, not as a bare HEAD changed"). Pure.
-func formatAnchorRefusal(d reviewAnchorDelta, outcome anchorOutcome, verb string) string {
-	if outcome == anchorDiverged {
-		return fmt.Sprintf("history moved off the reviewed commit %s (HEAD %s is not a descendant) — "+
-			"the review cannot be attributed to this history; re-run `%s`",
-			shortSHA(d.Reviewed), shortSHA(d.Current), verb)
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%d code commit(s) landed after the reviewed commit %s — unreviewed:",
-		len(d.Commits), shortSHA(d.Reviewed))
-	for _, c := range d.Commits {
-		fmt.Fprintf(&b, "\n    %s  %s", shortSHA(c.SHA), c.Subject)
-	}
-	var code []string
-	for _, p := range d.Paths {
-		if publishGateHasCodeSurface([]string{p}) {
-			code = append(code, p)
-		}
-	}
-	if len(code) > 0 {
-		fmt.Fprintf(&b, "\n  code surface: %s", strings.Join(code, ", "))
-	}
-	fmt.Fprintf(&b, "\n  Re-run `%s` so the review covers them. (Doc-only commits during a review "+
-		"are fine — they finalize on their own, #194.)", verb)
-	return b.String()
-}
-```
-
-- [ ] **Step 4: Run the tests**
-
-Run: `go test ./cmd/sdlc/ -run 'TestClassifyReviewAnchor|TestAnchorPassLine|TestAnchorRefusal' -v`
-Expected: PASS (6 subtests + 2).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add cmd/sdlc/reviewanchor.go cmd/sdlc/reviewanchor_test.go
-git commit -m "#194: pure classifier for the reviewed-SHA..HEAD delta
-
-Reuses publishGateHasCodeSurface — the predicate sdlc merge already applies
-at publish time (#174) — one stage earlier, rather than restating it
-(ARCH-DRY). Decision logic is pure; the git reads sit in a thin shell."
-```
+- [ ] **Step 1:** Write a failing test: a second boundary review on an issue with an
+      existing ledger renders the prior findings into its prompt. Use
+      `judge.BuildPrompt(judge.MilestoneReview, in)` directly — no dispatch needed.
+- [ ] **Step 2:** Add `{{PRIOR_FINDINGS}}` and `{{FINDINGS_BLOCK}}` to
+      `milestone-review.md`, mirroring `plan-quality.md:8-18,85`. Update the
+      `PromptInput.PriorFindings` doc comment — it currently reads *"Empty for every
+      category but plan-quality"* and would become false. **`golden_test.go` pins
+      `BuildPrompt` output byte-for-byte**; regenerate its fixtures deliberately and read
+      the diff.
+- [ ] **Step 3:** In `dispatchBoundaryReview`: read the ledger before building the prompt,
+      parse the `​```findings` fence from the output, `AssignIDs`, append the round, write
+      the ledger. The prose sidecar keeps being written unchanged — two artifacts, two
+      consumers.
+- [ ] **Step 4:** Make an undisposed blocking finding refuse the boundary, reusing
+      `gatestate`'s existing decision code (`decide.go`) rather than a new rule. Honor
+      `WF_PLAN_ROUND_CAP`'s analogue: past the cap only `hardBlocking` (Critical) blocks.
+- [ ] **Step 5:** `go test ./...` → PASS. Commit.
+- [ ] **Task 2.3: `sdlc milestone-close --issue 194 --milestone M2`**
 
 ---
 
-### Task 3: Wire the classifier into the finalize check
+## M3 — Families, escalation, convergence
 
-**Files:**
-- Modify: `cmd/sdlc/close.go:1182-1227` (`closeReviewSnapshot`, `validate`)
-- Modify: `cmd/sdlc/close.go:1128-1152` (`finalizeBoundaryReview` — surface the pass line)
-- Test: `cmd/sdlc/close_finalize_test.go`
+Spec C + D. This is the milestone that carries the actual insight; M1 and M2 are its
+prerequisites.
 
-- [ ] **Step 1: Write the failing integration test** — the interleaving that motivated
-      the issue (Done-when #6). Model it on the existing
-      `TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize` at
-      `close_finalize_test.go:139`, which already blocks the fake reviewer on a channel
-      and commits concurrently.
-
-```go
-// cmd/sdlc/close_finalize_test.go
-// #194: a DOC-ONLY commit landing mid-review is a delta, not an invalidation.
-func TestCloseCommand_DocOnlyCommitDuringBoundaryReview_Finalizes(t *testing.T) {
-	issuesDir := closeRepo(t, 69)
-	started := make(chan struct{})
-	releaseReview := make(chan struct{})
-	orig := judge.Run
-	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		close(started)
-		<-releaseReview
-		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
-	}
-
-	done := make(chan struct {
-		stdout, stderr string
-		err            error
-	}, 1)
-	go func() {
-		stdout, stderr, err := executeSDLCTestCommand("close", "--issue", "69", "--actual", "1",
-			"--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir,
-			"--brain-dir", "../nonexistent-brain")
-		done <- struct {
-			stdout, stderr string
-			err            error
-		}{stdout, stderr, err}
-	}()
-
-	waitForSignal(t, started, "boundary review to start")
-	if err := os.MkdirAll("workshop", 0o755); err != nil {
-		t.Fatalf("mkdir workshop: %v", err)
-	}
-	if err := os.WriteFile("workshop/lessons.md", []byte("- learned a thing\n"), 0o644); err != nil {
-		t.Fatalf("write lessons: %v", err)
-	}
-	git(t, "", "add", "workshop/lessons.md")
-	git(t, "", "commit", "-q", "-m", "#69: lessons from the review")
-	close(releaseReview)
-
-	var got struct {
-		stdout, stderr string
-		err            error
-	}
-	select {
-	case got = <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for close")
-	}
-	if got.err != nil {
-		t.Fatalf("doc-only delta must finalize, got error: %v\n%s", got.err, got.stderr)
-	}
-	text := readIssue(t, issuesDir)
-	for _, want := range []string{"status: codecomplete", "closed — tests pass"} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("close did not finalize; missing %q:\n%s", want, text)
-		}
-	}
-	if !strings.Contains(got.stderr, "doc-only commit(s) arrived since") {
-		t.Fatalf("expected the anchored pass line on stderr:\n%s", got.stderr)
-	}
-}
-```
-
-Then **retarget** the existing code-delta test at `close_finalize_test.go:139` — it
-commits `other.txt`, which is code surface, so it must still refuse, but now with the
-commit named. Add to its assertions:
-
-```go
-	if !strings.Contains(got.err.Error(), "concurrent #69 side change") {
-		t.Fatalf("refusal must name the unreviewed commit, got %v", got.err)
-	}
-	if strings.Contains(got.err.Error(), "HEAD changed from") {
-		t.Fatal("refusal should report commits, not bare HEAD identity")
-	}
-```
-
-- [ ] **Step 2: Run both, confirm the new one fails**
-
-Run: `go test ./cmd/sdlc/ -run 'DuringBoundaryReview' -v`
-Expected: `DocOnlyCommit…` FAILS with `boundary review stale: HEAD changed from …`;
-`HEADChanged…` fails on the two new assertions.
-
-- [ ] **Step 3: Rewrite `validate()`**
-
-```go
-// cmd/sdlc/close.go
-type closeReviewSnapshot struct {
-	// reviewed is the CONCRETE SHA the boundary review read (#194) — the anchor
-	// validate() classifies against. The issue/project text is snapshotted too:
-	// the review READ that prose, so a mid-review edit to it is still a genuine
-	// invalidation (only the HEAD question was ever stricter than its purpose).
-	reviewed  string
-	issuePath string
-	issueText string
-	projects  []projectEdit
-}
-
-// validate reports whether the finalize may proceed. On a doc-only delta it returns
-// (pass line, nil) so the caller can say what it decided; on a code delta or a
-// rewritten history it returns an error naming the commits (#194).
-func (s closeReviewSnapshot) validate() (string, error) {
-	note := ""
-	if s.reviewed != "" {
-		d, err := gatherReviewAnchorDelta(s.reviewed)
-		if err != nil {
-			return "", err // fail closed on a git error, as the publish gate does
-		}
-		switch outcome := classifyReviewAnchor(d); outcome {
-		case anchorDocsOnly:
-			note = formatAnchorDocsOnly(d)
-		case anchorCodeDelta, anchorDiverged:
-			return "", fmt.Errorf("%s", formatAnchorRefusal(d, outcome, closeVerb(s.milestone)))
-		}
-	}
-	if s.issuePath != "" {
-		data, err := os.ReadFile(s.issuePath)
-		if err != nil {
-			return "", fmt.Errorf("read %s: %w", s.issuePath, err)
-		}
-		if string(data) != s.issueText {
-			return "", fmt.Errorf("%s changed", s.issuePath)
-		}
-	}
-	for _, e := range s.projects {
-		data, err := os.ReadFile(e.path)
-		if err != nil {
-			return "", fmt.Errorf("read %s: %w", e.path, err)
-		}
-		if string(data) != e.oldText {
-			return "", fmt.Errorf("%s changed", e.path)
-		}
-	}
-	return note, nil
-}
-```
-
-Add a `milestone string` field to the snapshot, set from `f.Milestone` in
-`captureCloseReviewSnapshot`, so the refusal names the right re-run verb (`sdlc close`
-vs `sdlc milestone-close`) via the existing `closeVerb` (ARCH-DRY).
-
-- [ ] **Step 4: Update the caller**
-
-```go
-// cmd/sdlc/close.go — finalizeBoundaryReview, the validate branch
-if validate != nil {
-	note, err := validate()
-	if err != nil {
-		emitTrailerBlock(stdout, review, kind)
-		cwarn(stderr, fmt.Sprintf("boundary review: reviewed state changed while the lock was released — close NOT finalized: %v", err))
-		return fmt.Errorf("boundary review stale: %w", err)
-	}
-	if note != "" {
-		cinfo(stderr, note)
-	}
-}
-```
-
-Note the second `cwarn` ("re-run `%s` so the review covers the current repo state") is
-**removed** — `formatAnchorRefusal` already carries a precise re-run instruction, and the
-issue/project-changed branches keep their own message. Verify no test asserts on the
-removed line: `grep -rn "so the review covers the current repo state" cmd/sdlc/`.
-
-Change the `validate func() error` parameter type to `func() (string, error)`; the
-non-locked callers pass `nil` and are unaffected.
-
-- [ ] **Step 5: Run the package**
-
-Run: `go test ./cmd/sdlc/ 2>&1 | tail -20`
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add cmd/sdlc/
-git commit -m "#194: classify the mid-review delta instead of refusing on HEAD identity
-
-A doc-only commit arriving during the ~20-minute review no longer discards
-it; a code commit still refuses, but now names the commits it did not cover.
-The publish-time invariant is untouched: only a delta with no code surface
-finalizes, so no code ships unreviewed."
-```
+- [ ] **Task 3.1:** Add `family` to `#Finding` in `construct/vocabulary/finding.cue`
+      (**closed schema** — an unmodeled key fails instance validation), to
+      `gatestate.Finding`, to the parser, and to `RenderBlockInstruction`
+      (`pkg/vocab/finding.go:97-100`) so the judge is *told* to emit it. Optional on
+      emission, so an older transcript still parses. Test the round-trip.
+- [ ] **Task 3.2:** `gatestate.FamilyCounts(l Ledger) map[string]int` — pure, unit-tested
+      on in-memory ledgers.
+- [ ] **Task 3.3:** Render the escalation instruction into `RenderPriorFindings` when a
+      family already has ≥1 prior finding, in the issue's words: *"This is the Nth finding
+      in family `X`. Rounds … fixed instances. Do not fix this instance — state the rule
+      that covers all of them, and fix that. If the rule cannot be stated, say why, and
+      record the family in `Limits` with its measured prevalence."*
+- [ ] **Task 3.4:** `gatestate.ConvergenceLine` (pure, reusing `DispositionCounts`), and
+      emit it with the verdict.
+- [ ] **Task 3.5: Verify against real history.** `tools#1`'s
+      `000001-define-m1-review.md` has four rounds and two clear families. Build it as a
+      fixture and assert a correct implementation flags `block-opener-rule` at **round 2,
+      not round 3**. This is the issue's own acceptance test and the only one that
+      measures whether the feature would have worked.
+      - Reading a peer repo: per AGENTS.md, read `tools`' `AGENTS.local.md` + `MEMORY.md`,
+        not its `AGENTS.md`. Copy the fixture into `cmd/sdlc/internal/gatestate/testdata/`
+        — do not make the test depend on a sibling checkout existing.
+- [ ] **Task 3.6: `sdlc milestone-close --issue 194 --milestone M3`**
 
 ---
 
-### Task 4: Docs + issue record
+## M4 — Scope a re-review to what changed since the last round
 
-**Files:**
-- Modify: `atlas/workflow/ledger-landscape.md:102` (`Review-Window:` now a SHA pair)
-- Modify: `cmd/sdlc/helptext/close.md`, `cmd/sdlc/helptext/milestone-close.md`
-- Modify: `workshop/issues/000194-review-anchor-commit.md` (`## Log`, tick `## Plan`)
+Spec E. **This milestone may be dropped.** It trades integration coverage for wall clock,
+and the trade must survive plan-quality on its own terms.
 
-- [ ] **Step 1: Locate every doc that states the old rule**
-
-Run: `grep -rn "HEAD changed\|reviewed-HEAD-unchanged\|Review-Window" atlas/ cmd/sdlc/helptext/`
-Read each hit; update the ones that describe the *close-time* rule. **Leave the
-publish-time `reviewed-HEAD-unchanged` wording alone** — that invariant is unchanged.
-
-- [ ] **Step 2: Add the close-time rule to the helptext**
-
-In `cmd/sdlc/helptext/close.md` (and the milestone twin), under the boundary-review
-section:
-
-```markdown
-  The review is anchored to the commit it read (#194). A commit landing while
-  the review runs is classified, not fatal:
-    doc-only delta → the close finalizes; the reviewed code is intact
-    code delta     → refused, naming the commits the review did not cover
-  Committing lessons/atlas/plan bookkeeping during a review is therefore safe.
-```
-
-- [ ] **Step 3: Tick the plan + write the Log entry** in the issue file, citing ARCH-DRY
-      (reused `publishGateHasCodeSurface`) and ARCH-PURE (classifier pure, git in a
-      shell), and recording the design decision that a code delta refuses rather than
-      finalizes, with the publish-gate reason.
-
-- [ ] **Step 4: Full verification**
-
-```bash
-go build ./... && go test ./... 2>&1 | tail -20
-```
-Expected: all packages PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add atlas/ cmd/sdlc/helptext/ workshop/issues/
-git commit -m "#194: document the anchored close-time review rule"
-```
+- [ ] **Task 4.1: State the trade explicitly before writing code.** The whole-issue window
+      is `merge-base(main, HEAD)` *by design* (#77) so the final review sees the branch as
+      it ships. Narrowing round N+1 to `lastReviewedSHA..HEAD` means no single reviewer
+      ever sees the whole branch. The argument for it: M2 makes coverage *recorded* (every
+      prior finding disposed) rather than *re-derived*. Write this into `## Log` as a
+      decision with its counter-argument, then proceed or drop.
+- [ ] **Task 4.2:** Modify `boundaryWindowBase` to consult the ledger: when the prior round
+      has an anchor and the current run is a re-run at the same boundary, base =
+      that anchor. Otherwise unchanged. Keep the atlas gate on the **same** window source —
+      `close.go:465-469` deliberately shares it, and splitting them would break the ARCH-DRY
+      invariant that the review and the atlas check provably cover the same commits.
+- [ ] **Task 4.3:** Test the multi-round window directly: round 1 reviews `base..A`, a fix
+      lands at `B`, round 2 reviews `A..B` — and the round-2 prompt carries round 1's
+      findings.
+- [ ] **Task 4.4:** Decide whether the **final** round before finalize should widen back to
+      the full branch for one integration pass. Cheap insurance; likely the right answer.
+      Record the decision either way.
+- [ ] **Task 4.5: `sdlc milestone-close --issue 194 --milestone M4`**
 
 ---
 
-## Done-when → task map
+## Verification
 
-| Issue Done-when | Satisfied by |
-|---|---|
-| Review records the SHA it reviewed, finalizes against it | Task 1 (resolve + thread + trailer/sidecar), Task 3 (`validate`) |
-| Mid-review commit classified, gate says what it decided | Task 2 (`classifyReviewAnchor`), Task 3 (pass line / refusal) |
-| Doc-only delta finalizes via the *same* classifier as merge | Task 2 — calls `publishGateHasCodeSurface`, no second impl |
-| Code delta reported by commit, not bare "HEAD changed" | Task 2 (`formatAnchorRefusal`), asserted in Task 2 Step 1 + Task 3 Step 1 |
-| Publish-time invariant unchanged | `publishgate.go` untouched; design note above explains why a code delta must refuse |
-| Test covers the interleaving | Task 3 Step 1 (both directions: doc-only finalizes, code refuses) |
+- [ ] `go build ./... && go test ./... 2>&1 | tail -20` — all packages pass.
+- [ ] `sdlc process-manual` renders without error (prompt templates changed).
+- [ ] Vocabulary conformance: the `finding.cue` edits pass whatever `make` target vets CUE
+      instances — find it (`grep -rn "cue vet" Makefile scripts/`) and run it.
+- [ ] Self-hosting check: this issue's own M2/M3 boundary reviews should produce a
+      `-close-gate.md` ledger with stable ids. If M3 lands and a repeat family shows up in
+      this very issue's rounds, say so in `## Log` — that is the feature working.
 
 ## Out of scope
 
-- Re-anchoring `runPublishGate` on a recorded reviewed-SHA (would be needed to finalize
-  *through* a code delta; a change to the publish contract this issue does not ask for).
-- Re-attachable / concurrent reviews — the issue lists these as a second-order effect
-  this work merely unblocks, explicitly "not required here".
+- Re-anchoring `runPublishGate` on a recorded reviewed-SHA (needed to finalize *through* a
+  code delta; a change to the publish contract).
+- Re-attachable / concurrent reviews — the issue lists these as a second-order effect this
+  work merely unblocks.
 - `revCount`'s diverged/zero-ahead conflation in the publish gate.
+- Replacing the #136 prose sidecar. It has a different consumer (a human or a resuming
+  agent) and stays.
