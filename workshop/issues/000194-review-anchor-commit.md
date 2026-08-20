@@ -52,8 +52,9 @@ what the previous round said. Everything below follows from those two gaps.
 `resolveReviewWindow` (`cmd/sdlc/milestoneclose.go:243`) returns `head` as the
 **literal string `"HEAD"`**. It stays literal through `collectDiff`, the judge
 prompt, the `Review-Verdict:`/`Review-Window:` trailer, and the #136 sidecar — every
-one of the 86 archived sidecars records `<base>..HEAD`. So the durable record of a
-review does not say what was reviewed.
+one of the 67 archived sidecars that carry a window row records `<base>..HEAD` (70
+sidecar files, 86 window rows — a re-run appends a `## Re-review` section). So the
+durable record of a review does not say what was reviewed.
 
 Worse, `reviewThenFinalizeLocked` releases the repo lock *before*
 `dispatchBoundaryReview`, and `boundaryReviewDispatchOptions` then resolves `"HEAD"`
@@ -176,7 +177,7 @@ Ranked last deliberately: it removes the freeze on close-time *bookkeeping*
 ## Plan
 
 Durable design: `workshop/plans/000194-review-anchor-commit-plan.md`.
-Four review boundaries, closed separately (AGENTS.md §3).
+Three review boundaries, closed separately (AGENTS.md §3).
 
 - [x] Design via `sdlc start-plan` before implementing.
 - [x] Establish that #136 persists prose while #187's ledger persists addressable
@@ -185,7 +186,7 @@ Four review boundaries, closed separately (AGENTS.md §3).
       thread it through diff/prompt/trailer/sidecar/finalize (closing the
       lock-release drift); classify a mid-review delta instead of refusing on HEAD
       identity, reusing `publishGateHasCodeSurface`. Standalone value: fixes a live
-      defect regardless of M2–M4.
+      defect regardless of M2–M3.
 - [ ] M2 — Ledger: declare the boundary gate's `Gate`/`IDPrefix` pair that
       `planreview.go:26-30` already anticipates; wire `PriorFindings` into
       `MilestoneReview`; require every prior finding disposed before new ones.
@@ -195,25 +196,6 @@ Four review boundaries, closed separately (AGENTS.md §3).
       `tools#1`'s four-round history as a copied fixture.
 - [ ] M3 also pins the window: a regression test asserting the whole-issue review
       window stays `merge-base(main, HEAD)` (M4 was considered and rejected).
-
-## Log` with the reason and E is dropped.
-- [ ] A doc-only commit landing mid-review no longer discards the review; a code
-      commit still refuses, naming the commits it did not cover.
-- [ ] The publish-time invariant is unchanged: no code ships unreviewed.
-- [ ] Verified against a real multi-round history — `tools#1`'s
-      `000001-define-m1-review.md` has four rounds and two clear families, so it is a
-      ready-made fixture: a correct implementation flags `block-opener-rule` at round
-      2, not round 3.
-
-## Plan
-
-Durable design: `workshop/plans/000194-review-anchor-commit-plan.md` (being rewritten
-for the folded scope).
-
-- [x] Design via `sdlc start-plan` before implementing.
-- [x] Establish that #136 persists prose while #187's ledger persists addressable
-      findings, and that only the latter is read back — the asymmetry this folds.
-- [ ] Re-plan for the folded scope; re-run the plan-quality gate.
 
 ## Log
 
@@ -242,8 +224,8 @@ only the new commit. `boundaryWindowBase` (`cmd/sdlc/milestoneclose.go:271-283`)
 a whole-issue close `gitx.MergeBaseWithMain()` unconditionally — there is no re-close
 narrowing anywhere — and a milestone close the previous *finalized* boundary, which a
 REWORK never advances because `finalizeBoundaryReview`'s `closeRework` branch writes
-nothing. So each round re-read the whole window: 86 archived sidecars, 69 distinct
-window strings.
+nothing. So each round re-read the whole window: 70 archived sidecar files carrying 86
+window rows across 69 distinct window strings.
 
 **Delta.**
 - The original diagnosis ("stop-the-world barrier … the single largest cost") is

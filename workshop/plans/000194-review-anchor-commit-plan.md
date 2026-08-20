@@ -13,7 +13,8 @@ reads what it said last round), so repeated rounds converge instead of re-derivi
 whole branch from scratch every time.
 
 **Architecture:** Two gaps, one mechanism. A boundary review today records `..HEAD` — a
-floating ref — and its prose transcript is never read back. Fix the anchor first (it is
+floating ref (67 of the archived sidecars say so) — and its prose transcript is never
+read back. Fix the anchor first (it is
 the primitive everything else measures from), then extend `gatestate.Ledger` — which is
 already gate-generic and whose own comments name the close boundary as an intended user —
 to the boundary review. Families and convergence ride on the ledger; round-scoping rides
@@ -36,7 +37,7 @@ Establishing this cut the scope roughly in half. Verify each before writing code
 
 | Thing | Where | State |
 |---|---|---|
-| Durable review transcript | `cmd/sdlc/reviewsidecar.go`, #136 | **Built.** 86 sidecars in `workshop/history/plans/`. Prose only; no reader. |
+| Durable review transcript | `cmd/sdlc/reviewsidecar.go`, #136 | **Built.** 70 sidecar files archived (86 window rows — a re-run appends `## Re-review`). Prose only; no reader. |
 | Stable-id findings ledger | `cmd/sdlc/internal/gatestate/`, #187 | **Built and gate-generic** — `Ledger.Gate`, `Ledger.IDPrefix` are fields. |
 | Prior-round prompt block | `gatestate.RenderPriorFindings` → `judge.PromptInput.PriorFindings` | **Built.** Wired to plan-quality **only**. |
 | Severity / disposition taxonomy | `construct/vocabulary/finding.cue` | **Built and shared** — a drift test already pins that the boundary review and the plan gate use one taxonomy. |
@@ -54,6 +55,100 @@ The extension point is explicit in the source. `planreview.go:26-30`:
 
 ---
 
+## Decisions this plan makes (do not re-litigate in code)
+
+The plan-quality gate blocked round 1 on four unstated seam decisions. They are settled
+here; each names the alternative it beat.
+
+### D1 — One ledger per issue, but the round cap and open-findings scope per BOUNDARY
+
+`gatestate.Decide` computes `CapReached: len(l.Rounds) > roundCap` with
+`DefaultRoundCap = 3` (`decide.go:14,45`), and `OpenFindings(l)` spans the whole ledger.
+So a naive issue-wide boundary ledger would arrive at the whole-issue close already past
+the cap — silently demoting every Important finding on round 1 of the gate this issue
+exists to strengthen — and would let an M1 finding left `not-addressed` block M3.
+
+Resolution, which keeps both properties:
+
+- **One ledger file per issue** (`NNNNNN-slug-close-gate.md`). Families must be visible
+  across boundaries — the `tools#1` evidence spans M1 rounds *and* the close review, and
+  a per-boundary file cannot see that recurrence, which is the whole point of M3.
+- **Add `Boundary string` to `gatestate.Round`** (`ledger.go:57-75`) — `"M1"`, `"M2"`,
+  `""` for the whole-issue close. It is a schema addition, listed in Core concepts.
+- **Add pure `gatestate.FilterBoundary(l Ledger, boundary string) Ledger`**, returning a
+  view with only that boundary's rounds. The boundary gate calls
+  `Decide(FilterBoundary(l, b), cap)` and `OpenFindings(FilterBoundary(l, b))`.
+  `FamilyCounts(l)` takes the **unfiltered** ledger.
+
+`Decide` and `OpenFindings` keep their signatures, so plan-quality is untouched — the
+scoping is a caller-side pure transform, not a widened API (ARCH-PURE).
+
+*Rejected alternative:* per-boundary ledger files, mirroring the prose sidecar's
+`-m2-review.md` shape. Simpler, cap works for free, but blind to cross-boundary families.
+
+### D2 — ONE carry-forward channel, not two
+
+`code-review.md:57-67` ("Plan-gate carry-forward", #187) already instructs the boundary
+reviewer to read `workshop/plans/<stem>-plan-gate.md` off disk and re-raise its open
+findings "at its original severity". Those carry `PQ-*` ids. Adding a `{{PRIOR_FINDINGS}}`
+block rendered from the `BR-*` ledger would hand the reviewer two id namespaces and one
+output fence, with no rule for a disposition naming an id the `BR` ledger has never seen.
+
+Resolution:
+
+- On the **first** boundary round for an issue, **seed** the `BR` ledger from the plan
+  gate's still-open findings: each is re-issued as `BR-n` with `severity` and `family`
+  preserved and a note recording its `PQ-n` origin.
+- **Delete `code-review.md`'s "Plan-gate carry-forward" section** in the same commit as
+  the seeding — never before, or the deferred findings vanish for one release. After
+  this, the rendered `{{PRIOR_FINDINGS}}` block is the reviewer's only prior-findings
+  input, in one namespace (ARCH-DRY: one mechanism, not two).
+- A disposition naming an **unknown id**: warn to stderr, drop the disposition, and
+  record it on the round as a protocol note. Never crash, and never invent the finding.
+- Note the blast radius: `code-review.md` is embedded in the ad-hoc `sdlc judge` path too,
+  so its prose changes there as well. That is correct — the file-reading instruction was
+  always a stand-in for a rendered block.
+
+### D3 — Family slugs are anchored three ways, and the test must prove it
+
+`FamilyCounts` keys on exact string equality and `RenderPriorFindings`
+(`gatestate/prompt.go:17-70`) renders `id / severity / title / detail` — **no family**. A
+stateless reviewer writing `block-opener-rule` at round 2 and `block-opener` at round 3
+leaves every count at 1, and the escalation instruction — the issue's stated purpose —
+never fires. A fixture hand-built with consistent slugs passes by construction while the
+live behavior fails (ARCH-PURPOSE).
+
+Three mechanisms, because no one of them is sufficient:
+
+1. **Render the in-play family vocabulary** into the prior-findings block, with an
+   explicit instruction: *reuse an existing slug when the finding belongs to that family;
+   coin a new one only when it genuinely does not.* This is what catches synonyms.
+2. **Normalize on ingest** — `normalizeFamily`: lowercase, trim, non-alphanumeric runs to
+   a single hyphen, strip leading/trailing hyphens. This catches casing and punctuation
+   drift (`Block Opener Rule` → `block-opener-rule`), and **nothing else**.
+3. **Test the gap explicitly** — a fixture whose rounds use *near-miss* slugs
+   (`Block Opener Rule`, `block_opener_rule`) must still collapse to one family; and a
+   fixture using a true synonym (`block-opener`) documents the residual risk in the test's
+   own name rather than pretending it is solved.
+
+Residual risk, accepted and recorded: a reviewer that coins a genuine synonym despite
+seeing the vocabulary will under-count. Mechanism 1 makes that unlikely, not impossible.
+
+### D4 — Verdict AND ledger must both clear; a boundary protocol miss halts
+
+`closeVerdictOutcome` (`close.go:1064-1082`) derives finalize/rework/halt from
+`vocab.Verdict()`. M2 adds a ledger-derived refusal beside it. Precedence:
+
+- **Finalize iff the verdict is finalizing AND no blocking finding is undisposed** — an
+  AND, not a fallback. SHIP with an undisposed Important means the reviewer contradicted
+  itself; refuse and say which finding. REWORK with everything disposed still reworks.
+- **A boundary protocol miss halts.** Plan-quality's answer is to warn, fall back to the
+  verdict token, and persist a `ProtocolError` round (`changecode.go:495`). Do **not**
+  copy that here: falling back at a boundary would finalize a close carrying no ledger
+  memory, which is the failure this milestone exists to prevent. Persist the
+  `ProtocolError` round and route to the existing `closeHalt` — the path that already
+  says "consult a human".
+
 ## Core concepts
 
 ### Pure entities
@@ -68,7 +163,10 @@ The extension point is explicit in the source. `planreview.go:26-30`:
 | `resolveReviewWindow` | `cmd/sdlc/milestoneclose.go:243` | modified |
 | `#Finding.family` | `construct/vocabulary/finding.cue:78` | modified |
 | `gatestate.Finding.Family` | `cmd/sdlc/internal/gatestate/ledger.go:34` | modified |
+| `gatestate.Round.Boundary` | `cmd/sdlc/internal/gatestate/ledger.go:57` | modified (D1) |
+| `gatestate.FilterBoundary` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D1) |
 | `gatestate.FamilyCounts` | `cmd/sdlc/internal/gatestate/ledger.go` | new |
+| `gatestate.normalizeFamily` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D3) |
 | `gatestate.ConvergenceLine` | `cmd/sdlc/internal/gatestate/prompt.go` | new |
 
 - **`reviewAnchorDelta` / `classifyReviewAnchor`** — the git-free description of
@@ -159,72 +257,34 @@ the repo lock **before** `dispatchBoundaryReview`, so `boundaryReviewDispatchOpt
 re-resolves `"HEAD"` independently: the snapshot's `rev-parse` and the reviewed diff can
 already name different commits.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: TDD the resolution.** Test that `resolveReviewWindow` returns a concrete
+      SHA equal to `rev-parse HEAD`, not the literal `"HEAD"`. Red first.
 
-```go
-// cmd/sdlc/milestonewindow_test.go
-func TestResolveReviewWindow_HeadIsConcreteSHA(t *testing.T) {
-	issuesDir := closeRepo(t, 69)
-	_, _, head := resolveReviewWindow("69", "", filepath.Join(issuesDir, "000069-boundary-review.md"))
-	if head == "HEAD" {
-		t.Fatal(`head must be a resolved SHA, not the literal "HEAD"`)
-	}
-	if want := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD")); head != want {
-		t.Fatalf("head = %q, want %q", head, want)
-	}
-}
-```
+- [ ] **Step 2: Resolve the head** in `resolveReviewWindow`, keeping the documented
+      `("?", "", "HEAD")` no-anchor return when `rev-parse` fails.
 
-- [ ] **Step 2: Run it, confirm it fails**
+- [ ] **Step 3: Spend the pinned head downstream.** `boundaryReviewDispatchOptions` passes
+      literal `"HEAD"` twice — to `collectDiff` and to `judge.PromptInput`. Both become
+      `p.Head`. **This is the actual defect fix**: those calls run after the repo lock is
+      released, so today they can resolve a different commit than the snapshot recorded.
 
-Run: `go test ./cmd/sdlc/ -run TestResolveReviewWindow_HeadIsConcreteSHA -v`
-Expected: FAIL — `head must be a resolved SHA`.
+- [ ] **Step 4: Take the SHA as a parameter.** `captureCloseReviewSnapshot(r, reviewedSHA,
+      milestone)` — both call sites already compute `head` one line above, inside the lock.
+      The `milestone` argument is for Task 1.2's refusal, which names the re-run verb via
+      the existing `closeVerb`.
 
-- [ ] **Step 3: Resolve the head in `resolveReviewWindow`**
+- [ ] **Step 5: Follow the compile errors for the trailer/sidecar surface.** `Review-Window`
+      becomes `<base>..<shortHead>`. Confirm it has no production parser before changing it
+      — `grep -rn "Review-Window" --include='*.go' cmd/ pkg/ | grep -v _test` should show
+      only the writer. Then update whatever assertions and help text the build and test run
+      surface, plus `atlas/workflow/ledger-landscape.md`.
 
-```go
-// head is the CONCRETE SHA the review will read (#194) — the anchor the finalize
-// check classifies against and the ledger measures the next round from, so it must
-// be pinned under the caller's lock. Falls back to "HEAD" only when rev-parse fails,
-// preserving the documented ("?", "", "HEAD") no-anchor return shape.
-head = "HEAD"
-if sha := strings.TrimSpace(gitx.Capture("rev-parse", "HEAD")); sha != "" {
-	head = sha
-}
-```
-
-- [ ] **Step 4: Use the pinned head everywhere downstream**
-
-In `boundaryReviewDispatchOptions`, replace both literal `"HEAD"` uses with `p.Head`
-(the `collectDiff` call and `judge.PromptInput{..., Head: ...}`). Update
-`dispatchBoundaryReview`'s progress line to `shortSHA(p.Head)`.
-
-- [ ] **Step 5: Pass the SHA into the snapshot instead of re-reading it**
-
-```go
-// captureCloseReviewSnapshot pins the state the boundary review is about to read.
-// reviewedSHA is the window head the caller already resolved (#194) — passing it in
-// rather than re-`rev-parse`ing guarantees the snapshot, the reviewed diff, and the
-// finalize check all name the SAME commit.
-func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone string) closeReviewSnapshot
-```
-
-Both call sites already compute `head` one line above, inside the lock — pass it, plus
-`f.Milestone` (M1 Task 1.2 needs it to name the right re-run verb via `closeVerb`).
-
-- [ ] **Step 6: Update trailer/sidecar expectations**
-
-`emitTrailerBlock` now renders `Review-Window: <base>..<shortHead>`. `Review-Window` has
-**no production parser** — confirm with
-`grep -rn "Review-Window" --include='*.go' cmd/ pkg/ | grep -v _test` (expect only the
-writer at `milestoneclose.go:406` and help text). Update the assertions at
-`closereview_test.go:226` and `milestoneclose_test.go:120,134`, the doc comment at
-`milestoneclose.go:395`, `helptext/milestone-close.md:35`, and
-`atlas/workflow/ledger-landscape.md:102`.
-
-Fixtures that *construct* commit messages containing `Review-Window: abc1234..HEAD`
-(`close_test.go:564,611,653`, `closereview_test.go:485`, `milestonewindow_test.go:85,164`)
-feed the `Review-Verdict:` grep and need **no** change.
+      Two traps worth knowing rather than a file list (a line-numbered inventory goes stale
+      before it is read — and one entry in this plan's first draft already was):
+      **(a)** fixtures that *construct* commit messages containing
+      `Review-Window: abc1234..HEAD` feed the `Review-Verdict:` grep and must NOT change;
+      **(b)** table-driven renderer tests that pass `Head: "HEAD"` as fixture *input* also
+      need no change. Only assertions on *produced* output do.
 
 - [ ] **Step 7: Run the package** — `go test ./cmd/sdlc/ 2>&1 | tail -20`. Expected: PASS.
 - [ ] **Step 8: Commit** — `#194 M1: pin the boundary review to a concrete reviewed SHA`
@@ -287,12 +347,11 @@ Spec B. The pair `planreview.go` says is coming.
 **Files:** Create `cmd/sdlc/boundaryledger.go` + test; modify
 `construct/vocabulary/finding.cue:64-69` (discovery glob).
 
-- [ ] **Step 1:** Widen `finding.cue`'s `discovery.glob` — it is currently
-      `"*-plan-gate.md"` (singular). A boundary ledger is also a set of finding instances,
-      so discovery must find both. Check whether the field is consumed as a single glob or
-      a list (`grep -rn "Glob" pkg/vocab/finding.go`) and widen accordingly; if the shape
-      must change from string to list, update every consumer — a hand-maintained
-      restatement is a deferred consumer (ARCH-PURPOSE).
+- [ ] **Step 1:** Widen `finding.cue`'s `discovery.glob` (currently `"*-plan-gate.md"`)
+      to cover the boundary ledger too. **This is a one-line documentation edit** —
+      `FindingModel` (`pkg/vocab/finding.go:22-28`) has no `Disc` field, unlike
+      `IssueModel`/`ProjectModel`, so `discovery` has no Go consumer to update. Do not
+      widen the Go model "for symmetry"; add the field when a consumer needs it.
 - [ ] **Step 2:** Write `boundaryledger.go` mirroring `planreview.go`:
       `boundaryGateSuffix = "close-gate"`, `boundaryGateGate = "boundary-review"`,
       `boundaryGateIDPrefix = "BR"`. Reuse `sidecarPathFor` (already shared, `#144`) and
@@ -302,13 +361,10 @@ Spec B. The pair `planreview.go` says is coming.
         verdict". A gate ledger carries findings and no verdict. `planreview.go:9-11`
         explains this trap — the boundary gate is *more* likely to fall into it, since its
         prose sidecar legitimately IS `*-review.md`.
-      - Milestone-aware naming: the plan gate has one ledger per issue; the boundary
-        review has one per **boundary**. Decide `-m2-close-gate.md` vs one issue-wide
-        ledger. **Recommendation: one ledger per issue, rounds tagged with their
-        boundary** — families recur *across* milestones (the `tools#1` evidence spans M1
-        rounds *and* the close review), and a per-boundary ledger cannot see that. This is
-        a deliberate divergence from `sidecarPath`'s per-boundary shape; record it in
-        `## Log`.
+      - Ledger shape and round-cap scoping are settled in **D1** — one file per issue,
+        `Round.Boundary` added, `FilterBoundary` applied at the call site. Implement D1;
+        do not re-derive it here.
+
 - [ ] **Step 3:** Copy `readPlanGateLedger`'s **parse-failure-is-an-error** behavior
       verbatim, with a test that a corrupt ledger errors rather than silently emptying.
 - [ ] **Step 4:** If read/write differ from the plan-gate pair only by the
@@ -330,13 +386,18 @@ Spec B. The pair `planreview.go` says is coming.
       `BuildPrompt` output byte-for-byte**; regenerate its fixtures deliberately and read
       the diff.
 - [ ] **Step 3:** In `dispatchBoundaryReview`: read the ledger before building the prompt,
-      parse the `​```findings` fence from the output, `AssignIDs`, append the round, write
-      the ledger. The prose sidecar keeps being written unchanged — two artifacts, two
-      consumers.
-- [ ] **Step 4:** Make an undisposed blocking finding refuse the boundary, reusing
-      `gatestate`'s existing decision code (`decide.go`) rather than a new rule. Honor
-      `WF_PLAN_ROUND_CAP`'s analogue: past the cap only `hardBlocking` (Critical) blocks.
-- [ ] **Step 5:** `go test ./...` → PASS. Commit.
+      **seed it from the plan gate's open findings on the first boundary round (D2)**,
+      parse the `​```findings` fence from the output, `AssignIDs`, append the round stamped
+      with its `Boundary` (D1), write the ledger. The prose sidecar keeps being written
+      unchanged — two artifacts, two consumers.
+- [ ] **Step 4:** Delete `code-review.md`'s "Plan-gate carry-forward" section **in this
+      same commit** as the seeding (D2) — earlier and the deferred findings vanish for a
+      release; later and two channels coexist. Handle an unknown-id disposition by warning
+      and dropping, never crashing.
+- [ ] **Step 5:** Make an undisposed blocking finding refuse the boundary via
+      `Decide(FilterBoundary(l, boundary), cap)` (D1) — reuse `decide.go`, do not write a
+      second rule. Wire the verdict/ledger precedence and the protocol-miss halt per **D4**.
+- [ ] **Step 6:** `go test ./...` → PASS. Commit.
 - [ ] **Task 2.3: `sdlc milestone-close --issue 194 --milestone M2`**
 
 ---
@@ -351,10 +412,13 @@ prerequisites.
       `gatestate.Finding`, to the parser, and to `RenderBlockInstruction`
       (`pkg/vocab/finding.go:97-100`) so the judge is *told* to emit it. Optional on
       emission, so an older transcript still parses. Test the round-trip.
-- [ ] **Task 3.2:** `gatestate.FamilyCounts(l Ledger) map[string]int` — pure, unit-tested
-      on in-memory ledgers.
-- [ ] **Task 3.3:** Render the escalation instruction into `RenderPriorFindings` when a
-      family already has ≥1 prior finding, in the issue's words: *"This is the Nth finding
+- [ ] **Task 3.2:** `gatestate.FamilyCounts(l Ledger) map[string]int` (unfiltered ledger,
+      per D1) and `normalizeFamily` — both pure, unit-tested on in-memory ledgers. Per
+      **D3**, `FamilyCounts` normalizes before counting.
+- [ ] **Task 3.3:** Render **the in-play family vocabulary plus a reuse instruction** into
+      `RenderPriorFindings` (D3 mechanism 1 — `RenderPriorFindings` renders no family
+      today, which is why escalation would otherwise never fire), and the escalation
+      instruction when a family already has ≥1 prior finding, in the issue's words: *"This is the Nth finding
       in family `X`. Rounds … fixed instances. Do not fix this instance — state the rule
       that covers all of them, and fix that. If the rule cannot be stated, say why, and
       record the family in `Limits` with its measured prevalence."*
@@ -368,6 +432,10 @@ prerequisites.
       - Reading a peer repo: per AGENTS.md, read `tools`' `AGENTS.local.md` + `MEMORY.md`,
         not its `AGENTS.md`. Copy the fixture into `cmd/sdlc/internal/gatestate/testdata/`
         — do not make the test depend on a sibling checkout existing.
+      - **Also required by D3:** a near-miss-slug fixture (`Block Opener Rule`,
+        `block_opener_rule`) that must collapse to one family, and a true-synonym fixture
+        (`block-opener`) whose test name records the accepted residual risk. Without
+        these, Task 3.5's consistent-slug fixture passes by construction.
 - [ ] **Task 3.6: Pin the window.** Regression test: a whole-issue close still resolves
       its review window to `merge-base(main, HEAD)`. M4 was rejected; this test is what
       keeps it rejected.

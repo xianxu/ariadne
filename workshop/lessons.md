@@ -895,3 +895,25 @@ class of thing you searched and ask what class you did not.
 
 **Origin:** #190 close review (FIX-THEN-SHIP) — `scripts/close-issue.py:212` was a sixth
 encoding of the ref grammar that the Go-only grep declared consolidated.
+
+A scripted text edit must anchor on a string that is UNIQUE in the file, and prose about a
+document's structure is not unique. Rewriting a section with `s[:s.index("## Plan")] + new +
+s[s.index("## Log"):]` spliced an issue file in half: a Done-when bullet contained the words
+`` `## Log` `` describing where a decision should be recorded, so `index` matched the prose,
+not the heading — deleting the tail of one section and leaving a stale duplicate `## Plan`
+behind it. The file then had two contradictory Plan sections and survived three commits
+undetected, because the readers that matter happened to be forgiving: `issue.PlanSectionRE`
+takes the first match and `insertLogLine`'s `^## Log\s*$` rejects a mangled heading and takes
+the last.
+
+Anchor on a line-anchored pattern (`^## Log$`) or split into lines and match exactly — never a
+bare substring. And when an edit rewrites a *region* rather than replacing a *token*, print the
+seam afterwards: the corruption was 18 lines long and one `grep -n '^## '` would have shown two
+`## Plan` headings immediately.
+
+The general rule: a self-referential document — one whose prose quotes its own structure — makes
+every substring anchor ambiguous. Issue files, plans, and skill definitions are all this kind of
+document.
+
+**Origin:** #194 plan-quality gate round 1 — PQ-1 (Critical), caught by the gate rather than by
+me, three commits after the splice.
