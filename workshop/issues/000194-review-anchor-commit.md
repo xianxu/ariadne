@@ -1,11 +1,12 @@
 ---
 id: 000194
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-08-20
 updated: 2026-08-20
 estimate_hours:
+started: 2026-08-20T15:52:21-07:00
 ---
 
 # decouple boundary review execution from HEAD: finalize against the reviewed commit
