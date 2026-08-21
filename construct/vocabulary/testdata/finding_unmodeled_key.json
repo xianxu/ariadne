@@ -1,0 +1,6 @@
+{
+  "id": "new",
+  "severity": "Important",
+  "title": "a finding carrying a key the model never declared",
+  "taxonomy": "not-a-modeled-field"
+}

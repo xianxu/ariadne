@@ -184,10 +184,13 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	// round that refused, and PassesUnchanged — which #183's --fixed-to-ship pass-through
 	// will read at exactly this gate — reads that field.
 	l.Rounds[len(l.Rounds)-1].Blocked = d.Block
-	// Forced too (BR-17): without it a bypassed refusal reads as a clean pass in the one
-	// durable record of what this gate did, and the close-time gate_forced metric
-	// under-reports overrides at exactly the boundary that matters.
-	l.Rounds[len(l.Rounds)-1].Forced = p.ForcedRationale
+	// Forced (BR-17), through the SAME helper the plan gate uses (BR-42) and therefore
+	// under the same contract Round.Forced states: set ONLY when this gate actually
+	// blocked. Stamping it whenever a waiver flag is present marks a clean round
+	// "forced" — and since --force is a GLOBAL bypass, every --force'd close would record
+	// a boundary-gate waiver even when the operator forced past an unrelated gate,
+	// over-reporting overrides in the one number meant to answer which gates earn cost.
+	l.Rounds[len(l.Rounds)-1].Forced = forcedRationale(p.ForcedRationale, d.Block)
 	// #194 M3: the convergence signal — the line that was missing when tools#1 ran four
 	// rounds with no way to tell whether round five would find more. Capping on finding
 	// COUNT is arbitrary; capping when families stop repeating is not.

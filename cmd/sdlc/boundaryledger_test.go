@@ -703,3 +703,48 @@ func TestGateLedgerBypass_IsRecordedInTheLedger(t *testing.T) {
 		t.Errorf("the record must name the flag and carry the operator's rationale, got %q", last.Forced)
 	}
 }
+
+// #194 close review BR-42: Round.Forced is set ONLY when the gate actually blocked. The
+// first version stamped it whenever a waiver flag was present — and since --force is a
+// GLOBAL bypass, a close forced past an unrelated gate recorded a boundary-gate waiver
+// for a refusal that never happened.
+func TestGateLedger_ForcedIsNotStampedOnACleanRound(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	var stderr strings.Builder
+
+	// Nothing open, so the gate does not block — even with a waiver rationale present.
+	d := persistBoundaryRound(&stderr, boundaryReviewParams{
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir,
+		ForcedRationale: "--force: unrelated gate",
+	}, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{}}, "2026-08-21T00:00:00-07:00")
+	if d.Block {
+		t.Fatal("precondition: an empty round must not block")
+	}
+	l, err := readBoundaryGateLedger(plansDir, issueFile, 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := l.Rounds[len(l.Rounds)-1].Forced; got != "" {
+		t.Errorf("a clean round must not record a waiver, got %q", got)
+	}
+
+	// ...but a round that DOES block records it.
+	d2 := persistBoundaryRound(&stderr, boundaryReviewParams{
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir,
+		ForcedRationale: "--no-ledger: shipping anyway",
+	}, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{
+		New: []gatestate.Finding{{ID: "new", Severity: "Critical", Title: "blocks"}},
+	}}, "2026-08-21T00:30:00-07:00")
+	if !d2.Block {
+		t.Fatal("precondition: an open Critical must block")
+	}
+	l2, err := readBoundaryGateLedger(plansDir, issueFile, 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := l2.Rounds[len(l2.Rounds)-1].Forced; got != "--no-ledger: shipping anyway" {
+		t.Errorf("a blocked-then-waived round must record the rationale, got %q", got)
+	}
+}

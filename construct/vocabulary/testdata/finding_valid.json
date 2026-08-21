@@ -1,0 +1,7 @@
+{
+  "id": "new",
+  "severity": "Important",
+  "title": "the oracle cannot see the thing it certifies",
+  "detail": "raw-notation check asks isPronunciation to grade its own output",
+  "family": "oracle-blind-direction"
+}

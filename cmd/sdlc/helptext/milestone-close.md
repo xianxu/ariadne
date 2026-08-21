@@ -96,9 +96,12 @@ THE GATE LEDGER (#194)
 
   Milestone reviews share the issue's one boundary ledger
   (`workshop/plans/NNNNNN-slug-close-gate.md`), with each round stamped by its
-  boundary. The round cap and the open-findings set scope PER BOUNDARY, so M2's
-  rounds cannot push the whole-issue close past its cap; finding families stay
-  visible across milestones, which is the point of one file rather than several.
+  boundary. The ROUND CAP scopes per boundary, so M2's rounds cannot push the
+  whole-issue close past its cap. The OPEN-FINDINGS set scopes per boundary here
+  but NOT at the whole-issue close, which sees every boundary's — a finding left
+  undisposed when its milestone closed has no other path to disposal. Finding
+  families always span the issue, which is the point of one file rather than
+  several.
 
   A milestone close refuses when the ledger still holds an open blocking finding
   AT ITS OWN BOUNDARY, even on a SHIP verdict. Anything left open when the

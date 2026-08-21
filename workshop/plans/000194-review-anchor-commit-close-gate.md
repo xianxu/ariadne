@@ -845,6 +845,81 @@ rounds:
           family: plan-artifact-lags-code
           round: 10
       blocked: true
+    - "n": 11
+      timestamp: "2026-08-21T11:02:02-07:00"
+      agent: claude
+      dispose:
+        - id: BR-16
+          disposition: not-addressed
+          note: 'gate-state.md is fixed. atlas/index.md:14 is not — verified verbatim, it still reads "#183 is the second intended consumer" after #194 delivered that consumer. Residual is now a one-line index blurb.'
+          round: 11
+        - id: BR-17
+          disposition: addressed
+          note: Wired at close.go:1173 and stamped at boundaryledger.go:190; mutation-verified — deleting the stamp fails TestGateLedgerBypass_IsRecordedInTheLedger. The false gate_forced claim in the comment is corrected too. The stamp's unconditional semantics are a NEW defect, raised below rather than folded here.
+          round: 11
+        - id: BR-18
+          disposition: not-addressed
+          note: Measured by grep — 10 of the 11 named entities are still absent from the plan; only RenderPriorFindingsScoped landed.
+          round: 11
+        - id: BR-26
+          disposition: not-addressed
+          note: Still two of four, and both misfired on THIS round's prompt — family.go:85 rendered "test-pins-the-invariant  5 new findings" for a running total, and family.go:108 asserted "Earlier rounds fixed instances" for comment-anchor-drift and doc-claim-exceeds-enforcement, neither of which has ever had an instance fixed.
+          round: 11
+        - id: BR-30
+          disposition: not-addressed
+          note: Still two of three — pkg/vocab/finding.go:79 says the block instruction is "for the plan-quality prompt", and TestBoundaryWindowBase_WholeIssueStaysAtMergeBase is still at boundaryledger_test.go:486 rather than beside its siblings in milestonewindow_test.go.
+          round: 11
+        - id: BR-33
+          disposition: not-addressed
+          note: 'The vet cases were added but they validate a hand-inlined COPY of #Finding in testdata, not finding.cue. Mutation-measured — adding `...` to finding.cue''s #Finding leaves vet_test.sh printing "ok" while the real definition then accepts an unmodeled key. The correct form works and is used four lines above for #Project — I ran `cue vet finding.cue <instance>.json -d ''#Finding''`: valid passes, `taxonomy` is rejected.'
+          round: 11
+        - id: BR-38
+          disposition: addressed
+          note: lessons.md:957-973 carries the exception ("a fix that removes a possible divergence"), two more beside it, and the generalization that supersedes the literal revert rule.
+          round: 11
+        - id: BR-39
+          disposition: addressed
+          note: Both halves mutation-verified independently this round — deleting the Forced stamp fails TestGateLedgerBypass_IsRecordedInTheLedger; reverting `display` to the raw round number fails TestConvergenceLine_RoundNumberSkipsNoCapRounds. The rule is enforced consumer-side in code-review.md's "Claimed fixes" section, which reached this prompt and is what drove those reverts.
+          round: 11
+        - id: BR-40
+          disposition: not-addressed
+          note: Two of three fixed — close.md:46 now distinguishes the milestone from the whole-issue close, and gate-state.md gained the two-scopes table naming DecideScoped and openScopeFor. helptext/milestone-close.md:99 is untouched (fff4cc3 edited only the paragraph below it), so the file asserts "the open-findings set scope PER BOUNDARY ... past its cap" at :99 and "the whole-issue close, which sees every boundary's findings" at :106.
+          round: 11
+        - id: BR-41
+          disposition: not-addressed
+          note: 'plan.md:244 was patched, which the finding explicitly said not to do, and the same retracted claim survives verbatim at plan.md:477. The three drifted line numbers are unchanged, and the asked-for scope refinement is absent from #198 — its Spec and Done-when still cover only path-and-symbol rows.'
+          round: 11
+      findings:
+        - id: BR-42
+          severity: Important
+          title: The boundary gate stamps Round.Forced unconditionally, contradicting that field's own documented contract
+          detail: |-
+            Measured by driving the real close command with a SHIP verdict, an empty findings
+            fence and --no-ledger: the round persists as `blocked=false forced="--no-ledger
+            (or --force): clean run"` — a waiver recorded for a refusal that never happened.
+            close.go:1173 sets ForcedRationale whenever f.skip("ledger") is true, and f.skip
+            returns true for --force, a GLOBAL bypass (close.go:108), so every --force'd close
+            now records a boundary-gate waiver even when the operator forced past --no-atlas.
+            ledger.go:104-107 says the opposite in as many words - "set ONLY when this gate
+            actually blocked ... stamping it unconditionally would ... over-report overrides in
+            the one number meant to answer which gates earn their cost". Do NOT just add an
+            `if ledger.Block`. forcedRationale(force, blocked) at changecode.go:582 already
+            encodes this rule and is called at all three plan-gate stamp sites; the boundary
+            side hand-rolled the string. This is the 4TH divergence of one copied six-step
+            persist tail - Blocked missing (BR-3), Forced missing (BR-17), Forced inert
+            (BR-39), Forced over-reporting now - each at the line nobody reads, each caught by
+            a reviewer and never by a test. THE RULE, already recommended three times and now
+            the highest-confidence structural finding on the issue - extract the tail once as
+            applyGateRound(kind, ledger, report, cap) (Ledger, Decision), so the Forced
+            semantics arrive via forcedRationale instead of being re-decided per gate.
+            Corroborating, same commit - orPlaceholder (close.go:1864) is a fourth spelling of
+            a helper this package already has twice (orStr term.go:97, valueOr term.go:109)
+            plus orDefault (judge/review.go:50), and it is not even an alias since it trims.
+            Measured prevalence of this family on the issue - 4 tail divergences plus 1 helper
+            duplication.
+          family: existing-helper-not-reused
+          round: 11
+      blocked: true
 ---
 
 # Gate ledger — ariadne#194 (boundary-review)
@@ -1321,15 +1396,55 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   path-and-symbol table rows, because a row-only check passes this file while the
   file contradicts itself. Prevalence of this family on the issue - 3.
 
+## Round 11 — 2026-08-21T11:02:02-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-16 — not-addressed — gate-state.md is fixed. atlas/index.md:14 is not — verified verbatim, it still reads "#183 is the second intended consumer" after #194 delivered that consumer. Residual is now a one-line index blurb.
+- BR-17 — addressed — Wired at close.go:1173 and stamped at boundaryledger.go:190; mutation-verified — deleting the stamp fails TestGateLedgerBypass_IsRecordedInTheLedger. The false gate_forced claim in the comment is corrected too. The stamp's unconditional semantics are a NEW defect, raised below rather than folded here.
+- BR-18 — not-addressed — Measured by grep — 10 of the 11 named entities are still absent from the plan; only RenderPriorFindingsScoped landed.
+- BR-26 — not-addressed — Still two of four, and both misfired on THIS round's prompt — family.go:85 rendered "test-pins-the-invariant  5 new findings" for a running total, and family.go:108 asserted "Earlier rounds fixed instances" for comment-anchor-drift and doc-claim-exceeds-enforcement, neither of which has ever had an instance fixed.
+- BR-30 — not-addressed — Still two of three — pkg/vocab/finding.go:79 says the block instruction is "for the plan-quality prompt", and TestBoundaryWindowBase_WholeIssueStaysAtMergeBase is still at boundaryledger_test.go:486 rather than beside its siblings in milestonewindow_test.go.
+- BR-33 — not-addressed — The vet cases were added but they validate a hand-inlined COPY of #Finding in testdata, not finding.cue. Mutation-measured — adding `...` to finding.cue's #Finding leaves vet_test.sh printing "ok" while the real definition then accepts an unmodeled key. The correct form works and is used four lines above for #Project — I ran `cue vet finding.cue <instance>.json -d '#Finding'`: valid passes, `taxonomy` is rejected.
+- BR-38 — addressed — lessons.md:957-973 carries the exception ("a fix that removes a possible divergence"), two more beside it, and the generalization that supersedes the literal revert rule.
+- BR-39 — addressed — Both halves mutation-verified independently this round — deleting the Forced stamp fails TestGateLedgerBypass_IsRecordedInTheLedger; reverting `display` to the raw round number fails TestConvergenceLine_RoundNumberSkipsNoCapRounds. The rule is enforced consumer-side in code-review.md's "Claimed fixes" section, which reached this prompt and is what drove those reverts.
+- BR-40 — not-addressed — Two of three fixed — close.md:46 now distinguishes the milestone from the whole-issue close, and gate-state.md gained the two-scopes table naming DecideScoped and openScopeFor. helptext/milestone-close.md:99 is untouched (fff4cc3 edited only the paragraph below it), so the file asserts "the open-findings set scope PER BOUNDARY ... past its cap" at :99 and "the whole-issue close, which sees every boundary's findings" at :106.
+- BR-41 — not-addressed — plan.md:244 was patched, which the finding explicitly said not to do, and the same retracted claim survives verbatim at plan.md:477. The three drifted line numbers are unchanged, and the asked-for scope refinement is absent from #198 — its Spec and Done-when still cover only path-and-symbol rows.
+
+### Raised
+
+- **BR-42** [Important] `existing-helper-not-reused` The boundary gate stamps Round.Forced unconditionally, contradicting that field's own documented contract
+  Measured by driving the real close command with a SHIP verdict, an empty findings
+  fence and --no-ledger: the round persists as `blocked=false forced="--no-ledger
+  (or --force): clean run"` — a waiver recorded for a refusal that never happened.
+  close.go:1173 sets ForcedRationale whenever f.skip("ledger") is true, and f.skip
+  returns true for --force, a GLOBAL bypass (close.go:108), so every --force'd close
+  now records a boundary-gate waiver even when the operator forced past --no-atlas.
+  ledger.go:104-107 says the opposite in as many words - "set ONLY when this gate
+  actually blocked ... stamping it unconditionally would ... over-report overrides in
+  the one number meant to answer which gates earn their cost". Do NOT just add an
+  `if ledger.Block`. forcedRationale(force, blocked) at changecode.go:582 already
+  encodes this rule and is called at all three plan-gate stamp sites; the boundary
+  side hand-rolled the string. This is the 4TH divergence of one copied six-step
+  persist tail - Blocked missing (BR-3), Forced missing (BR-17), Forced inert
+  (BR-39), Forced over-reporting now - each at the line nobody reads, each caught by
+  a reviewer and never by a test. THE RULE, already recommended three times and now
+  the highest-confidence structural finding on the issue - extract the tail once as
+  applyGateRound(kind, ledger, report, cap) (Ledger, Decision), so the Forced
+  semantics arrive via forcedRationale instead of being re-decided per gate.
+  Corroborating, same commit - orPlaceholder (close.go:1864) is a fourth spelling of
+  a helper this package already has twice (orStr term.go:97, valueOr term.go:109)
+  plus orDefault (judge/review.go:50), and it is not even an alias since it trims.
+  Measured prevalence of this family on the issue - 4 tail divergences plus 1 helper
+  duplication.
+
 ## Open findings
 
 - **BR-16** [Important] atlas gate-state.md now asserts the superseded cap rule, and NoCap/CountedRounds is undocumented
-- **BR-17** [Minor] Round.Forced is never stamped on a boundary round, unlike the plan gate
 - **BR-18** [Minor] The plan's Core-concepts tables never gained M2's entities, and Revisions omits two shared-gatestate behavior changes
 - **BR-26** [Minor] `escalation-copy-precision` The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
 - **BR-30** [Minor] `comment-anchor-drift` The convergence cinfo was inserted between the demotion comment and the loop it documents
 - **BR-33** [Minor] `doc-claim-exceeds-enforcement` The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
-- **BR-38** [Minor] `test-pins-the-invariant` The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction
-- **BR-39** [Important] `test-pins-the-invariant` Two of the ten fixes in cf18f34 do not do what the commit says — BR-17's is inert, BR-27's is unpinned
 - **BR-40** [Important] `doc-asserts-replaced-mechanism` The BR-37 behavior change left two helptext sites asserting the contract it replaced, and atlas has no entry for the new rule
 - **BR-41** [Minor] `plan-artifact-lags-code` The plan asserts a DispositionCounts reuse that its own Revisions section retracts
+- **BR-42** [Important] `existing-helper-not-reused` The boundary gate stamps Round.Forced unconditionally, contradicting that field's own documented contract
