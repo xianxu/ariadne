@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-08-20
 updated: 2026-08-20
-estimate_hours:
+estimate_hours: 3.20
 started: 2026-08-20T15:52:21-07:00
 ---
 
@@ -173,6 +173,52 @@ Ranked last deliberately: it removes the freeze on close-time *bookkeeping*
       `000001-define-m1-review.md` has four rounds and two clear families, so it is a
       ready-made fixture: a correct implementation flags `block-opener-rule` at round
       2, not round 3.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: cross-cutting-refactor design=0.1 impl=0.15
+item: greenfield-go-module design=0.2 impl=0.25
+item: milestone-review design=0.0 impl=0.15
+item: smaller-go-module design=0.1 impl=0.15
+item: smaller-go-module design=0.15 impl=0.3
+item: milestone-review design=0.0 impl=0.15
+item: typed-data-prototype design=0.2 impl=0.15
+item: smaller-go-module design=0.15 impl=0.2
+item: smaller-go-module design=0.05 impl=0.15
+item: milestone-review design=0.0 impl=0.15
+item: atlas-docs design=0.05 impl=0.1
+item: milestone-review design=0.0 impl=0.15
+total: 3.20
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
+Derivation, in plan order:
+
+| item | covers |
+|---|---|
+| `cross-cutting-refactor` | M1.1 — thread the resolved SHA through `resolveReviewWindow` → `collectDiff`/prompt/trailer/sidecar/snapshot; mechanical but multi-file, and it moves test fixtures. |
+| `greenfield-go-module` | M1.2 — `reviewanchor.go`: pure classifier + IO shell + two formatters, plus the goroutine/channel interleaving integration tests. |
+| `smaller-go-module` ×2 | M2 — `boundaryledger.go` mirroring `planreview.go` (cheap, it is a mirror); then `gatestate` (`Round.Boundary`, `FilterBoundary`, `BoundaryAll`), the seeding, the `PriorFindings` wiring, and regenerating the byte-pinned `golden_test.go` fixtures. |
+| `typed-data-prototype` | M3 — `family` on `#Finding`: the CUE model first, then `gatestate.Finding`, the parser, and `RenderBlockInstruction`. Typed-data because the closed schema is the source and three consumers derive from it. |
+| `smaller-go-module` ×2 | M3 — `FamilyCounts`/`normalizeFamily`/`ConvergenceLine` + escalation rendering; then the `tools#1` fixture, the D3 near-miss and synonym tests, and the D5 + window regression tests. |
+| `atlas-docs` | `ledger-landscape.md` (a second gate ledger joins the table) + close/milestone-close helptext. |
+| `milestone-review` ×4 | Three milestone closes plus the whole-issue close — each is one boundary review chunk. |
+
+Design is 1.00h before the +15% buffer, which the thorough plan doc earns (v3.1
+step 4). It is not zero despite the plan being written: D1–D5 were settled at the
+gate, and M3's family-anchoring still has an open judgement call (the accepted
+synonym risk) that will cost thought during implementation.
+
+Impl is 2.05h at v3.1's 40% scaling. The largest single line is M2's `gatestate`
+work at 0.3 — it is the only item touching a byte-pinned golden fixture, which
+historically costs more than the diff suggests.
+
 
 ## Plan
 

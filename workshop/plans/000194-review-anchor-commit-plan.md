@@ -134,6 +134,26 @@ Three mechanisms, because no one of them is sufficient:
 Residual risk, accepted and recorded: a reviewer that coins a genuine synonym despite
 seeing the vocabulary will under-count. Mechanism 1 makes that unlikely, not impossible.
 
+### D5 — Seeded plan-gate findings are boundary-agnostic
+
+D1 and D2 do not compose on their own: if the D2 seed round is stamped
+`Boundary: "M1"`, then `OpenFindings(FilterBoundary(l, ""))` at the whole-issue close
+never sees it — a **regression** against today, where `code-review.md:57` makes *every*
+boundary reviewer read the plan-gate ledger.
+
+Resolution: seed rounds carry the sentinel `gatestate.BoundaryAll = "*"`, and
+`FilterBoundary(l, b)` retains a round when `r.Boundary == b || r.Boundary == BoundaryAll`.
+A plan-gate finding was deferred to "the boundary review" generically, not to one
+milestone, so it stays visible at every boundary until disposed — matching the behavior
+being replaced.
+
+*Rejected alternative:* stamping the seed round with an empty boundary. `""` is already
+the whole-issue close's own value, so seeded findings would be invisible at M1–M3 —
+the same bug pointing the other way.
+
+Add a test that a seeded finding is visible from **both** a milestone boundary and the
+whole-issue close.
+
 ### D4 — Verdict AND ledger must both clear; a boundary protocol miss halts
 
 `closeVerdictOutcome` (`close.go:1064-1082`) derives finalize/rework/halt from
@@ -165,6 +185,7 @@ seeing the vocabulary will under-count. Mechanism 1 makes that unlikely, not imp
 | `gatestate.Finding.Family` | `cmd/sdlc/internal/gatestate/ledger.go:34` | modified |
 | `gatestate.Round.Boundary` | `cmd/sdlc/internal/gatestate/ledger.go:57` | modified (D1) |
 | `gatestate.FilterBoundary` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D1) |
+| `gatestate.BoundaryAll` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D5) |
 | `gatestate.FamilyCounts` | `cmd/sdlc/internal/gatestate/ledger.go` | new |
 | `gatestate.normalizeFamily` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D3) |
 | `gatestate.ConvergenceLine` | `cmd/sdlc/internal/gatestate/prompt.go` | new |
@@ -251,8 +272,9 @@ Spec A + F. Standalone value: fixes a live defect regardless of what M2–M4 do.
 - Test: `cmd/sdlc/milestonewindow_test.go`
 
 The defect: `resolveReviewWindow` returns `head = "HEAD"`, a literal string. It reaches
-`collectDiff`, `judge.PromptInput`, the trailer, and the sidecar unchanged — every one of
-the 86 archived sidecars records `<base>..HEAD`. And `reviewThenFinalizeLocked` releases
+`collectDiff`, `judge.PromptInput`, the trailer, and the sidecar unchanged — 67 of the 70
+archived sidecar files record `<base>..HEAD` (86 window rows in all; a re-run appends a
+`## Re-review` section). And `reviewThenFinalizeLocked` releases
 the repo lock **before** `dispatchBoundaryReview`, so `boundaryReviewDispatchOptions`
 re-resolves `"HEAD"` independently: the snapshot's `rev-parse` and the reviewed diff can
 already name different commits.
