@@ -658,3 +658,48 @@ func TestWholeIssueClose_RoundCapStaysBoundaryScoped(t *testing.T) {
 		t.Errorf("the Important must BLOCK, not be demoted: blocking=%d demoted=%d", len(d.OpenBlocking), len(d.Demoted))
 	}
 }
+
+// #194 close review BR-39: the first version of this fix was INERT — ForcedRationale was
+// set at zero of seven construction sites, so a waived refusal still left no durable
+// record while a comment claimed it did. Pin the wiring, not the field.
+func TestGateLedgerBypass_IsRecordedInTheLedger(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := filepath.Join("workshop", "plans")
+	if err := os.MkdirAll(plansDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	if err := writeBoundaryGateLedger(plansDir, issueFile, gatestate.Ledger{
+		Gate: "boundary-review", IssueNum: 69, IDPrefix: "BR", Rounds: []gatestate.Round{
+			{N: 1, Boundary: "", New: []gatestate.Finding{
+				{ID: "BR-1", Severity: "Critical", Title: "undisposed", Round: 1},
+			}},
+		},
+	}, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+		return []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n"), nil
+	}
+
+	if _, _, err := executeSDLCTestCommand("close", "--issue", "69", "--actual", "1",
+		"--verified", "shipping anyway, tracked in #999", "--no-atlas", "--no-ledger",
+		"--issues-dir", issuesDir, "--plans-dir", plansDir, "--brain-dir", "../nonexistent-brain"); err != nil {
+		t.Fatalf("--no-ledger should waive the refusal: %v", err)
+	}
+
+	l, err := readBoundaryGateLedger(plansDir, issueFile, 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := l.Rounds[len(l.Rounds)-1]
+	if last.Forced == "" {
+		t.Fatal("a waived ledger refusal must be recorded on the round — otherwise the " +
+			"durable record reads as a clean pass")
+	}
+	if !strings.Contains(last.Forced, "no-ledger") || !strings.Contains(last.Forced, "#999") {
+		t.Errorf("the record must name the flag and carry the operator's rationale, got %q", last.Forced)
+	}
+}

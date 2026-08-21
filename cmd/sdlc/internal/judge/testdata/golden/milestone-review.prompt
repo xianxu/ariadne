@@ -54,6 +54,24 @@ Production readiness
   - Migration / backward-compatibility considered where state or formats change.
   - Docs / atlas updated for new surface (see the Docs update gate).
 
+## Claimed fixes (ariadne#194)
+
+For each prior finding this round disposes `addressed`, check the claim rather than the
+commit message. A fix is complete only when a test FAILS WITHOUT IT.
+
+  - Locate the test the fix is supposed to be pinned by. If there is none, the
+    disposition is `not-addressed`, however plausible the diff looks.
+  - Check the fix is reachable — a field set at zero call sites, an assertion nested in a
+    runtime guard that never fires, a branch no fixture enters. These pass every test
+    suite while doing nothing, and read as protection.
+  - Where cheap, verify by reverting: undo the fix in a scratch copy and confirm the test
+    goes red. A test written from the same mental model as the fix will happily assert
+    whatever the fix happens to do, including nothing.
+
+This check exists because the rule was written down and then violated by the very commit
+that closed the findings which produced it. A reviewer that takes "fixed in <sha>" at face
+value cannot catch that; one that looks for the failing test can.
+
 ## Core concepts cross-check (if the plan has a Core concepts table)
 
 The plan should list entities in a greppable table — name, kind

@@ -43,10 +43,16 @@ MODES
   THE GATE LEDGER (#194). The boundary review REMEMBERS across rounds, the way
   `change-code`'s plan-quality gate has since #187. Each review's findings are
   written to `workshop/plans/NNNNNN-slug-close-gate.md` with binary-assigned
-  stable ids (`BR-1`, `BR-2`, …), and the next review at the same boundary is
-  shown them and must dispose of each — `addressed`, `not-addressed`, or
-  `withdrawn` — before raising anything new. That is what stops a re-run
-  renumbering the same finding forever.
+  stable ids (`BR-1`, `BR-2`, …), and the next review is shown them and must
+  dispose of each — `addressed`, `not-addressed`, or `withdrawn` — before
+  raising anything new. That is what stops a re-run renumbering the same
+  finding forever.
+
+  A MILESTONE review is shown its own boundary's findings. The WHOLE-ISSUE
+  close is shown ALL of them, from every milestone: it is the last gate before
+  publish, and a finding left undisposed when its milestone closed has no other
+  path to disposal. (The round cap still scopes per boundary — three milestones'
+  rounds must not arrive at the close already past it.)
 
   Two consequences worth knowing before you hit them:
 

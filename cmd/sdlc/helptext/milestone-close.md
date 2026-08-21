@@ -100,8 +100,10 @@ THE GATE LEDGER (#194)
   rounds cannot push the whole-issue close past its cap; finding families stay
   visible across milestones, which is the point of one file rather than several.
 
-  A milestone close refuses when the ledger still holds an open blocking finding,
-  even on a SHIP verdict. `--no-ledger` waives that one refusal;
+  A milestone close refuses when the ledger still holds an open blocking finding
+  AT ITS OWN BOUNDARY, even on a SHIP verdict. Anything left open when the
+  milestone closes is carried to the whole-issue close, which sees every
+  boundary's findings — see `sdlc close --help`. `--no-ledger` waives that one refusal;
   WF_BOUNDARY_ROUND_CAP (default 3) bounds the rounds.
 
   See `sdlc close --help` for the full contract — it is the same gate.

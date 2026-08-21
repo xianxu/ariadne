@@ -214,3 +214,18 @@ func TestFamily_SurvivesRoundTripAndIsNamedInTheFence(t *testing.T) {
 		t.Errorf("the prose projection must show the family:\n%s", rendered)
 	}
 }
+
+// #194 close review BR-27/BR-39: the displayed round number must skip no-cap rounds, so a
+// seed round the binary wrote does not make the first real review read as "round 2". The
+// first version of this fix shipped unpinned.
+func TestConvergenceLine_RoundNumberSkipsNoCapRounds(t *testing.T) {
+	l := Ledger{IDPrefix: "BR", Rounds: []Round{
+		{N: 1, Boundary: BoundaryAll, NoCap: true, New: []Finding{
+			{ID: "BR-1", Severity: "Minor", Title: "seeded", Family: "carried"},
+		}},
+		{N: 2, Boundary: "M1", New: []Finding{{ID: "BR-2", Severity: "Minor", Title: "first real"}}},
+	}}
+	if got := ConvergenceLine(l, 2); !strings.HasPrefix(got, "round 1 — ") {
+		t.Errorf("the first REVIEWED round must display as round 1, not 2: %q", got)
+	}
+}

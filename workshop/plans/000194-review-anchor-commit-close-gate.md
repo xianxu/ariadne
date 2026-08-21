@@ -723,6 +723,128 @@ rounds:
           family: test-pins-the-invariant
           round: 9
       blocked: true
+    - "n": 10
+      timestamp: "2026-08-21T10:41:27-07:00"
+      agent: claude
+      dispose:
+        - id: BR-16
+          disposition: not-addressed
+          note: 'gate-state.md:78-80 now documents CountedRounds and no_cap. The second half is not fixed — atlas/index.md:14 still reads "#183 is the second intended consumer" after #194 delivered that consumer, and the blurb still enumerates only #187''s surface.'
+          round: 10
+        - id: BR-17
+          disposition: not-addressed
+          note: The fix is INERT, not merely unpinned. boundaryledger.go:190 assigns p.ForcedRationale, which zero of the seven boundaryReviewParams construction sites ever set; mutation-verified — deleting the line leaves the whole cmd/sdlc suite green. Round.Forced is still "" on every boundary round. Its comment at :188 also names the gate_forced metric, but churnreport.go:111 reads only the PLAN gate ledger.
+          round: 10
+        - id: BR-18
+          disposition: not-addressed
+          note: The table gained gateLedgerKind, CountedRounds, Round.NoCap, DecideScoped and openScopeFor, and Revisions gained the shared-gatestate entry. Nine named entities are still absent — readGateLedger/writeGateLedger, seedFromPlanGate, persistBoundaryRound, boundaryPriorFindings, blockOnLedgerFailure, roundCapFromEnvVar, AssignIDsAt, renderFamilyVocabulary/renderFamilyEscalation.
+          round: 10
+        - id: BR-19
+          disposition: addressed
+          note: FilterBoundary carries a BoundaryAll finding's disposal across boundaries via dispositionsOfBoundaryAllFindings; mutation-verified — dropping the branch re-opens BR-1 at both "M2" and "".
+          round: 10
+        - id: BR-26
+          disposition: not-addressed
+          note: Two of four fixed — the dead counts[fam] >= 1 guard is gone and the blockquote now loops every family instead of repeats[0]. Two remain and both misfired on THIS round's prompt — family.go:85 rendered "test-pins-the-invariant  4 new findings" for a running total, and family.go:108 asserted "Earlier rounds fixed instances" for doc-claim-exceeds-enforcement, whose only finding (BR-33) has never been fixed.
+          round: 10
+        - id: BR-27
+          disposition: addressed
+          note: family.go:158 computes the display position from non-NoCap rounds, so a seed round no longer makes the first real review read as "round 2". Correct but UNPINNED — no test exercises ConvergenceLine with a NoCap round, and reverting to `display := round` leaves the suite green; folded into the new test-pins-the-invariant finding.
+          round: 10
+        - id: BR-28
+          disposition: addressed
+          note: render.go:112 and :127 both render familyTag, so the family shows in the per-round Raised list and the Open-findings projection; pinned by TestFamily_SurvivesRoundTripAndIsNamedInTheFence.
+          round: 10
+        - id: BR-29
+          disposition: addressed
+          note: 'Both items — the round-trip is covered by FuzzRenderParseRoundTrip plus TestFamily_SurvivesRoundTripAndIsNamedInTheFence, and pkg/vocab/finding_test.go:130 now pins "family: <slug>" in the emitted fence instruction.'
+          round: 10
+        - id: BR-30
+          disposition: not-addressed
+          note: One of three — the convergence cinfo now sits with its own comment and the demotion comment is adjacent to its loop again. pkg/vocab/finding.go:78 still says the block instruction is "for the plan-quality prompt", and TestBoundaryWindowBase_WholeIssueStaysAtMergeBase still lives in boundaryledger_test.go rather than beside its siblings in milestonewindow_test.go.
+          round: 10
+        - id: BR-33
+          disposition: not-addressed
+          note: Ran vet_test.sh myself (ok). It vets finding.cue at :58 and has -d '#Project' instance cases at :45 and :48, but still no -d '#Finding' equivalent, so the "closed schema, an unmodeled key fails instance validation" rationale remains unenforced.
+          round: 10
+        - id: BR-35
+          disposition: addressed
+          note: family.go:110 now says "record the family, with its measured prevalence, in the finding's own detail" — a sink the model defines. Verified by grep that no `Limits` reference survives outside quotations of the old text in the review sidecars.
+          round: 10
+        - id: BR-37
+          disposition: addressed
+          note: DecideScoped plus openScopeFor; mutation-verified (reverting openScopeFor fails TestWholeIssueClose_SeesOpenFindingsFromEveryMilestone and TestWholeIssueClose_RoundCapStaysBoundaryScoped), and confirmed against the REAL ledger — DecideScoped now returns Block=true naming BR-16 and BR-37 with CapReached=false at 1 counted close-boundary round.
+          round: 10
+        - id: BR-38
+          disposition: not-addressed
+          note: lessons.md:942-989 carries the revert-to-verify rule and the guarded-assertion sharpening, but no third exception — grep for "structural", "possible divergence" and "no behavioral difference" over lessons.md returns nothing.
+          round: 10
+      findings:
+        - id: BR-39
+          severity: Important
+          title: Two of the ten fixes in cf18f34 do not do what the commit says — BR-17's is inert, BR-27's is unpinned
+          detail: |-
+            Mutation-measured this round: reverting openScopeFor (BR-37) and the BoundaryAll
+            disposal carry (BR-19) both fail loudly; deleting `l.Rounds[last].Forced =
+            p.ForcedRationale` (BR-17) and reverting `display` to the raw round number (BR-27)
+            both leave the cmd/sdlc suite fully green. BR-17 is worse than unpinned — it is
+            INERT: ForcedRationale is set at zero of the seven boundaryReviewParams
+            construction sites (close.go:1010,1023,1052,1060; milestoneclose.go:193,226,234),
+            so Round.Forced is still "" and a --no-ledger bypass still leaves no durable
+            record. Its comment also names the gate_forced metric, which reads only the plan
+            gate ledger (churnreport.go:111). Do NOT just wire the field. The rule IS already
+            written — lessons.md:942, adopted at round 7 — and was violated at round 10 by the
+            commit closing the findings that produced it, so restating it is not the fix.
+            Enforce it consumer-side instead, in cmd/sdlc/internal/judge/code-review.md beside
+            the dispose-first contract - a reviewer must not dispose `addressed` on the
+            strength of the code reading correctly; revert the fix and confirm a named test
+            goes red, or say which recorded exception applies. Measured asymmetry - the
+            producer-side habit has failed 6 times on this issue (BR-21, BR-22, BR-29 twice,
+            BR-27, BR-17); the reviewer-side check has caught it 3 for 3 (rounds 6, 7, 10).
+            Measured prevalence of this family - 6 instances. When BR-17 is fixed, do it as the
+            applyGateRound extraction M2's review recommended - this persist tail has now
+            diverged three times at the same line (ARCH-DRY).
+          family: test-pins-the-invariant
+          round: 10
+        - id: BR-40
+          severity: Important
+          title: The BR-37 behavior change left two helptext sites asserting the contract it replaced, and atlas has no entry for the new rule
+          detail: |-
+            helptext/milestone-close.md:99 states "The round cap AND the open-findings set scope
+            PER BOUNDARY" and helptext/close.md:46 states "the next review at the same boundary
+            is shown them". Both are now false at the whole-issue close, which is the entire
+            point of f2da4c4 — and both are //go:embed'ed, agent-facing, base-layer text that
+            propagates downstream. Separately grep -rn "DecideScoped|openScopeFor|last gate
+            before publish" atlas/ returns nothing - a new exported gatestate API and the rule
+            it encodes ("scope per boundary only what the round cap needs; every other read
+            wants the full issue") exist only in a Go comment, and gate-state.md documents the
+            cap and the demotion without the scoping split they now depend on. This is the miss
+            the diff's OWN lessons.md:930-936 entry predicts, down to the grep target it names
+            (`cmd/*/helptext/`). New slug, but the underlying rule already has three instances
+            under other ids - M1 I1, M2 I3, and BR-16, whose second half is still open. Rule -
+            when a mechanism moves, grep for what you REMOVED across atlas/ AND
+            cmd/*/helptext/ in the same commit; and, because a lessons.md entry has no gate,
+            record the scoping decision in gate-state.md where the next gate to adopt this
+            ledger will read it rather than re-derive it.
+          family: doc-asserts-replaced-mechanism
+          round: 10
+        - id: BR-41
+          severity: Minor
+          title: The plan asserts a DispositionCounts reuse that its own Revisions section retracts
+          detail: |-
+            plan.md:244 says ConvergenceLine "Reuses the existing DispositionCounts
+            (ledger.go:202)"; plan.md:584 says Task 3.4 did NOT reuse it. The code uses
+            len(r.Dispositions), and DispositionCounts is at ledger.go:342. Three table line
+            numbers also remain drifted - ledger.go:57 is Dispositions (Round.Boundary is :79),
+            close.go:1182, milestoneclose.go:243. Do NOT patch the line - BR-32 already stated
+            the rule (the durable plan is the only major SDLC artifact with no automated check)
+            and filed 198. What this instance adds is a SCOPE REFINEMENT for that issue - its
+            check must cover prose CLAIMS about reuse and mechanism, not only the
+            path-and-symbol table rows, because a row-only check passes this file while the
+            file contradicts itself. Prevalence of this family on the issue - 3.
+          family: plan-artifact-lags-code
+          round: 10
+      blocked: true
 ---
 
 # Gate ledger — ariadne#194 (boundary-review)
@@ -895,7 +1017,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 ### Raised
 
-- **BR-20** [Critical] Family counts come from the boundary-FILTERED ledger, so a family never recurs across milestones
+- **BR-20** [Critical] `family-plumbing-incomplete` Family counts come from the boundary-FILTERED ledger, so a family never recurs across milestones
   boundaryledger.go:81 hands RenderPriorFindings the FilterBoundary view, and
   RenderPriorFindings calls FamilyCounts on whatever it is given (prompt.go:80). At the
   whole-issue close Milestone is "", so every M1/M2/M3 round is dropped and the family
@@ -905,18 +1027,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   prompt reads "This is the FIRST round". Fix by passing the unfiltered ledger for
   families only (RenderPriorFindingsScoped(scoped, full)) and testing through
   boundaryPriorFindings.
-- **BR-21** [Important] seedFromPlanGate drops Family, so a plan-gate rule arrives at the boundary anonymous
+- **BR-21** [Important] `family-plumbing-incomplete` seedFromPlanGate drops Family, so a plan-gate rule arrives at the boundary anonymous
   boundaryledger.go:112-117 copies Severity, Title and Detail but not Family, while D2
   specifies severity AND family preserved. This diff makes plan-quality findings carry
   families, so the earliest cross-gate recurrence cannot escalate. One-field fix; assert
   it in TestBoundaryReview_SeedsDeferredPlanGateFindings.
-- **BR-22** [Important] ConvergenceLine counts LATER rounds as prior families
+- **BR-22** [Important] `prior-means-strictly-earlier` ConvergenceLine counts LATER rounds as prior families
   family.go:131 skips only r.N == round, so rounds after the target seed priorFamilies. A
   family debuting at round 3 is reported as a repeat at round 3. Latent in production
   (the caller passes the last round) but the package's own tests already call it for
   round 2 and 4 of a 4-round ledger. Fix: if r.N >= round { continue }, plus a fixture
   where a family debuts mid-history.
-- **BR-23** [Important] Family bypasses canonical() and ParseFindingsBlock, re-opening the unreadable-ledger hazard
+- **BR-23** [Important] `agent-text-normalization` Family bypasses canonical() and ParseFindingsBlock, re-opening the unreadable-ledger hazard
   render.go:22-55 normalizes every other agent-authored string precisely so no code path
   can emit a ledger that cannot be read back; ParseFindingsBlock normalizes Title and
   Detail. Family is normalized in neither and FuzzRenderParseRoundTrip fuzzes only
@@ -924,37 +1046,37 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   family. Its consequence is blockOnLedgerFailure and a boundary wedged until the
   operator deletes the gate's memory. Add normalizeText on both paths and a third fuzz
   argument.
-- **BR-24** [Important] NormalizeFamily duplicates issue.Slugify rather than reusing it
+- **BR-24** [Important] `existing-helper-not-reused` NormalizeFamily duplicates issue.Slugify rather than reusing it
   cmd/sdlc/internal/issue/scaffold.go:58 already implements the identical algorithm
   (lowercase, non-alphanumeric to hyphen, collapse runs, trim edges). Both packages live
   under cmd/sdlc/internal so reuse is importable. Consolidate, or record in the comment
   why gatestate keeps a second copy.
-- **BR-25** [Important] The durable plan still shows M3 (and Task 2.3, and every Verification box) as unstarted
+- **BR-25** [Important] `plan-artifact-lags-code` The durable plan still shows M3 (and Task 2.3, and every Verification box) as unstarted
   workshop/plans/000194-review-anchor-commit-plan.md has Tasks 2.3 and 3.1-3.6 and the
   whole Verification list as unticked while the issue ticks M3 done. AGENTS.md section 8
   puts the plan on the same per-milestone discipline as the atlas. All four Verification
   items were confirmed passing during this review.
-- **BR-26** [Minor] The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
+- **BR-26** [Minor] `escalation-copy-precision` The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
   family.go:104 (counts[fam] >= 1 can never be false), family.go:110-118 (the blockquote
   hardcodes repeats[0] and its ordinal, so with two families in play a reviewer copying
   the template attributes the wrong count), family.go:94 (pluralFindings renders a
   family total as "3 new findings"), and family.go:114 ("Earlier rounds fixed instances"
   asserted for findings that are still open or withdrawn, where Spec C conditions on a
   DISPOSED prior finding).
-- **BR-27** [Minor] The convergence line's round number counts the no-cap seed round
+- **BR-27** [Minor] `counted-rounds-consistency` The convergence line's round number counts the no-cap seed round
   boundaryledger.go:189 passes len(l.Rounds), so after a D2 seed the first real review
   prints "round 2". CountedRounds exists for exactly this distinction and is what the
   cap uses.
-- **BR-28** [Minor] The ledger's human prose projection omits family
+- **BR-28** [Minor] `family-plumbing-incomplete` The ledger's human prose projection omits family
   render.go:104-111 prints id, severity, title and detail per finding. A human reading
   NNNNNN-slug-close-gate.md cannot see the families the gate is tracking, and the
   convergence line is stderr-only, so nothing durable shows them either.
-- **BR-29** [Minor] No round-trip test for family, and the model-drift guard does not pin the family key
+- **BR-29** [Minor] `test-pins-the-invariant` No round-trip test for family, and the model-drift guard does not pin the family key
   Task 3.1 asks for a round-trip test; none exists. TestFindingRenderBlockInstruction
   (pkg/vocab/finding_test.go:85) is the prompt-model drift guard and does not assert
   "family:" — the goldens cover it indirectly, but a judge never told to emit family
   defeats the milestone, so the invariant belongs in the model test.
-- **BR-30** [Minor] The convergence cinfo was inserted between the demotion comment and the loop it documents
+- **BR-30** [Minor] `comment-anchor-drift` The convergence cinfo was inserted between the demotion comment and the loop it documents
   boundaryledger.go:183-190. Also pkg/vocab/finding.go:78 still says the block
   instruction is "for the plan-quality prompt" though milestone-review has consumed it
   since M2, and boundaryledger_test.go:487's window regression test lives in the ledger
@@ -978,7 +1100,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 ### Raised
 
-- **BR-31** [Important] Two of the six BR-20..BR-25 fixes shipped with no test — mutation-verified, and this is the 2nd instance of the family
+- **BR-31** [Important] `test-pins-the-invariant` Two of the six BR-20..BR-25 fixes shipped with no test — mutation-verified, and this is the 2nd instance of the family
   Reverting `Family: f.Family` (boundaryledger.go:118, BR-21) and reverting `r.N >= round`
   to the original `r.N == round` (family.go:124, BR-22) each leave `go test ./cmd/sdlc/...`
   fully green; BR-20 and BR-23 both fail loudly when reverted. Each finding had named the
@@ -990,7 +1112,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   already did this once for C1 ("verified to FAIL when the fix is reverted"). Apply it as
   the standing bar for every disposition of `addressed`; measured prevalence this issue is
   4 instances plus one inert assertion.
-- **BR-32** [Important] The durable plan's Core concepts table contradicts the code in five rows and omits the new exported API
+- **BR-32** [Important] `plan-artifact-lags-code` The durable plan's Core concepts table contradicts the code in five rows and omits the new exported API
   plan.md:198-205 puts FamilyCounts, normalizeFamily and ConvergenceLine in ledger.go/prompt.go
   when all three are in family.go; normalizeFamily is exported NormalizeFamily; #Finding.family
   is finding.cue:91 not :78; Finding.Family is ledger.go:43 not :34. RenderPriorFindingsScoped
@@ -1002,7 +1124,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   "## Plan" — the durable plan in workshop/plans/ has no gate, which is why it lags. File a
   follow-up extending that gate (it already has --no-plan-check) to the durable plan's
   checkboxes for the milestone being closed.
-- **BR-33** [Minor] The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
+- **BR-33** [Minor] `doc-claim-exceeds-enforcement` The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
   grep for "#Finding" across *.sh, *.go and Makefile returns zero hits outside finding.cue;
   cue export drops it, so pkg/vocab/finding.json has no family key and the Go struct plus the
   "family: <slug>" literal in RenderBlockInstruction are hand-maintained restatements. Round 5
@@ -1025,7 +1147,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 ### Raised
 
-- **BR-34** [Important] The assertion the commit says it repaired is still unreachable — 3rd instance, and the round-6 rule cannot catch it
+- **BR-34** [Important] `test-pins-the-invariant` The assertion the commit says it repaired is still unreachable — 3rd instance, and the round-6 rule cannot catch it
   boundaryledger_test.go:546-554. Probed, not inferred: inserting a t.Fatal ahead of the
   guard prints "m2 has NO OPEN FINDINGS section". All fixture rounds are Boundary M1, so
   FilterBoundary(l, "M2") is empty, RenderPriorFindingsScoped takes the first-round branch,
@@ -1040,7 +1162,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   Greppable, and prevalence in cmd/sdlc is exactly one. The invariant itself is already
   covered by gatestate/boundary_test.go:14,54,79,97, so this is redundant dead coverage
   rather than a hole. test-pins-the-invariant now measures 5 instances on this issue.
-- **BR-35** [Minor] The escalation tells the reviewer to record prevalence in a `Limits` section that exists in no artifact model
+- **BR-35** [Minor] `escalation-copy-precision` The escalation tells the reviewer to record prevalence in a `Limits` section that exists in no artifact model
   family.go:109-110 instructs "record the family in `Limits` with its measured prevalence".
   A repo-wide grep for "## Limits" and "`Limits`" returns four hits and all four are this
   prompt string or a quotation of it (family.go:110, the issue Spec at :93, plan.md:469,
@@ -1070,7 +1192,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 ### Raised
 
-- **BR-36** [Minor] The convergence line's helptext shows output the formatter cannot produce, and the line emits markdown into a plain terminal
+- **BR-36** [Minor] `escalation-copy-precision` The convergence line's helptext shows output the formatter cannot produce, and the line emits markdown into a plain terminal
   close.md:72-73 documents "round 2 — 3 new findings, 2 repeat families. Not converging:
   fix rules." but family.go:149-150 formats "round %d — %s, %s, %d disposed. %s" with the
   disposed segment unconditional and the verdict literally "**Not converging: fix rules,
@@ -1101,7 +1223,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 ### Raised
 
-- **BR-37** [Important] The whole-issue close sees zero prior findings while the same ledger holds 15 open, three at Important — and no gate follows it
+- **BR-37** [Important] `boundary-scope-strands-findings` The whole-issue close sees zero prior findings while the same ledger holds 15 open, three at Important — and no gate follows it
   boundaryledger.go:81 scopes the prompt to FilterBoundary(l, ""), which drops every
   M1/M2/M3 round, while render.go:120 builds the durable "## Open findings" from the
   FULL ledger. This round's own prompt therefore read "FIRST round ... no prior
@@ -1116,7 +1238,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   ledger as `scoped` when Milestone == "", since the whole-issue close IS the
   boundary that covers everything, and pin it with the mirror of
   TestBoundaryPriorFindings_FamiliesSpanMilestones.
-- **BR-38** [Minor] The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction
+- **BR-38** [Minor] `test-pins-the-invariant` The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction
   Mutation-verified: deleting close.go:474-478 (M1 I3's windowHead pin) leaves
   `go test ./cmd/sdlc/` fully green. That is correct rather than a gap — both
   rev-parse calls run under one lock hold, so no interleaving can distinguish them;
@@ -1129,18 +1251,85 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   when the fix removes a POSSIBLE divergence rather than an actual one, the honest
   record is "structural, no behavioral difference to pin" in the Log.
 
+## Round 10 — 2026-08-21T10:41:27-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-16 — not-addressed — gate-state.md:78-80 now documents CountedRounds and no_cap. The second half is not fixed — atlas/index.md:14 still reads "#183 is the second intended consumer" after #194 delivered that consumer, and the blurb still enumerates only #187's surface.
+- BR-17 — not-addressed — The fix is INERT, not merely unpinned. boundaryledger.go:190 assigns p.ForcedRationale, which zero of the seven boundaryReviewParams construction sites ever set; mutation-verified — deleting the line leaves the whole cmd/sdlc suite green. Round.Forced is still "" on every boundary round. Its comment at :188 also names the gate_forced metric, but churnreport.go:111 reads only the PLAN gate ledger.
+- BR-18 — not-addressed — The table gained gateLedgerKind, CountedRounds, Round.NoCap, DecideScoped and openScopeFor, and Revisions gained the shared-gatestate entry. Nine named entities are still absent — readGateLedger/writeGateLedger, seedFromPlanGate, persistBoundaryRound, boundaryPriorFindings, blockOnLedgerFailure, roundCapFromEnvVar, AssignIDsAt, renderFamilyVocabulary/renderFamilyEscalation.
+- BR-19 — addressed — FilterBoundary carries a BoundaryAll finding's disposal across boundaries via dispositionsOfBoundaryAllFindings; mutation-verified — dropping the branch re-opens BR-1 at both "M2" and "".
+- BR-26 — not-addressed — Two of four fixed — the dead counts[fam] >= 1 guard is gone and the blockquote now loops every family instead of repeats[0]. Two remain and both misfired on THIS round's prompt — family.go:85 rendered "test-pins-the-invariant  4 new findings" for a running total, and family.go:108 asserted "Earlier rounds fixed instances" for doc-claim-exceeds-enforcement, whose only finding (BR-33) has never been fixed.
+- BR-27 — addressed — family.go:158 computes the display position from non-NoCap rounds, so a seed round no longer makes the first real review read as "round 2". Correct but UNPINNED — no test exercises ConvergenceLine with a NoCap round, and reverting to `display := round` leaves the suite green; folded into the new test-pins-the-invariant finding.
+- BR-28 — addressed — render.go:112 and :127 both render familyTag, so the family shows in the per-round Raised list and the Open-findings projection; pinned by TestFamily_SurvivesRoundTripAndIsNamedInTheFence.
+- BR-29 — addressed — Both items — the round-trip is covered by FuzzRenderParseRoundTrip plus TestFamily_SurvivesRoundTripAndIsNamedInTheFence, and pkg/vocab/finding_test.go:130 now pins "family: <slug>" in the emitted fence instruction.
+- BR-30 — not-addressed — One of three — the convergence cinfo now sits with its own comment and the demotion comment is adjacent to its loop again. pkg/vocab/finding.go:78 still says the block instruction is "for the plan-quality prompt", and TestBoundaryWindowBase_WholeIssueStaysAtMergeBase still lives in boundaryledger_test.go rather than beside its siblings in milestonewindow_test.go.
+- BR-33 — not-addressed — Ran vet_test.sh myself (ok). It vets finding.cue at :58 and has -d '#Project' instance cases at :45 and :48, but still no -d '#Finding' equivalent, so the "closed schema, an unmodeled key fails instance validation" rationale remains unenforced.
+- BR-35 — addressed — family.go:110 now says "record the family, with its measured prevalence, in the finding's own detail" — a sink the model defines. Verified by grep that no `Limits` reference survives outside quotations of the old text in the review sidecars.
+- BR-37 — addressed — DecideScoped plus openScopeFor; mutation-verified (reverting openScopeFor fails TestWholeIssueClose_SeesOpenFindingsFromEveryMilestone and TestWholeIssueClose_RoundCapStaysBoundaryScoped), and confirmed against the REAL ledger — DecideScoped now returns Block=true naming BR-16 and BR-37 with CapReached=false at 1 counted close-boundary round.
+- BR-38 — not-addressed — lessons.md:942-989 carries the revert-to-verify rule and the guarded-assertion sharpening, but no third exception — grep for "structural", "possible divergence" and "no behavioral difference" over lessons.md returns nothing.
+
+### Raised
+
+- **BR-39** [Important] `test-pins-the-invariant` Two of the ten fixes in cf18f34 do not do what the commit says — BR-17's is inert, BR-27's is unpinned
+  Mutation-measured this round: reverting openScopeFor (BR-37) and the BoundaryAll
+  disposal carry (BR-19) both fail loudly; deleting `l.Rounds[last].Forced =
+  p.ForcedRationale` (BR-17) and reverting `display` to the raw round number (BR-27)
+  both leave the cmd/sdlc suite fully green. BR-17 is worse than unpinned — it is
+  INERT: ForcedRationale is set at zero of the seven boundaryReviewParams
+  construction sites (close.go:1010,1023,1052,1060; milestoneclose.go:193,226,234),
+  so Round.Forced is still "" and a --no-ledger bypass still leaves no durable
+  record. Its comment also names the gate_forced metric, which reads only the plan
+  gate ledger (churnreport.go:111). Do NOT just wire the field. The rule IS already
+  written — lessons.md:942, adopted at round 7 — and was violated at round 10 by the
+  commit closing the findings that produced it, so restating it is not the fix.
+  Enforce it consumer-side instead, in cmd/sdlc/internal/judge/code-review.md beside
+  the dispose-first contract - a reviewer must not dispose `addressed` on the
+  strength of the code reading correctly; revert the fix and confirm a named test
+  goes red, or say which recorded exception applies. Measured asymmetry - the
+  producer-side habit has failed 6 times on this issue (BR-21, BR-22, BR-29 twice,
+  BR-27, BR-17); the reviewer-side check has caught it 3 for 3 (rounds 6, 7, 10).
+  Measured prevalence of this family - 6 instances. When BR-17 is fixed, do it as the
+  applyGateRound extraction M2's review recommended - this persist tail has now
+  diverged three times at the same line (ARCH-DRY).
+- **BR-40** [Important] `doc-asserts-replaced-mechanism` The BR-37 behavior change left two helptext sites asserting the contract it replaced, and atlas has no entry for the new rule
+  helptext/milestone-close.md:99 states "The round cap AND the open-findings set scope
+  PER BOUNDARY" and helptext/close.md:46 states "the next review at the same boundary
+  is shown them". Both are now false at the whole-issue close, which is the entire
+  point of f2da4c4 — and both are //go:embed'ed, agent-facing, base-layer text that
+  propagates downstream. Separately grep -rn "DecideScoped|openScopeFor|last gate
+  before publish" atlas/ returns nothing - a new exported gatestate API and the rule
+  it encodes ("scope per boundary only what the round cap needs; every other read
+  wants the full issue") exist only in a Go comment, and gate-state.md documents the
+  cap and the demotion without the scoping split they now depend on. This is the miss
+  the diff's OWN lessons.md:930-936 entry predicts, down to the grep target it names
+  (`cmd/*/helptext/`). New slug, but the underlying rule already has three instances
+  under other ids - M1 I1, M2 I3, and BR-16, whose second half is still open. Rule -
+  when a mechanism moves, grep for what you REMOVED across atlas/ AND
+  cmd/*/helptext/ in the same commit; and, because a lessons.md entry has no gate,
+  record the scoping decision in gate-state.md where the next gate to adopt this
+  ledger will read it rather than re-derive it.
+- **BR-41** [Minor] `plan-artifact-lags-code` The plan asserts a DispositionCounts reuse that its own Revisions section retracts
+  plan.md:244 says ConvergenceLine "Reuses the existing DispositionCounts
+  (ledger.go:202)"; plan.md:584 says Task 3.4 did NOT reuse it. The code uses
+  len(r.Dispositions), and DispositionCounts is at ledger.go:342. Three table line
+  numbers also remain drifted - ledger.go:57 is Dispositions (Round.Boundary is :79),
+  close.go:1182, milestoneclose.go:243. Do NOT patch the line - BR-32 already stated
+  the rule (the durable plan is the only major SDLC artifact with no automated check)
+  and filed 198. What this instance adds is a SCOPE REFINEMENT for that issue - its
+  check must cover prose CLAIMS about reuse and mechanism, not only the
+  path-and-symbol table rows, because a row-only check passes this file while the
+  file contradicts itself. Prevalence of this family on the issue - 3.
+
 ## Open findings
 
 - **BR-16** [Important] atlas gate-state.md now asserts the superseded cap rule, and NoCap/CountedRounds is undocumented
 - **BR-17** [Minor] Round.Forced is never stamped on a boundary round, unlike the plan gate
 - **BR-18** [Minor] The plan's Core-concepts tables never gained M2's entities, and Revisions omits two shared-gatestate behavior changes
-- **BR-19** [Minor] A seeded BoundaryAll finding's disposal is boundary-scoped, so it re-opens at every later boundary
-- **BR-26** [Minor] The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
-- **BR-27** [Minor] The convergence line's round number counts the no-cap seed round
-- **BR-28** [Minor] The ledger's human prose projection omits family
-- **BR-29** [Minor] No round-trip test for family, and the model-drift guard does not pin the family key
-- **BR-30** [Minor] The convergence cinfo was inserted between the demotion comment and the loop it documents
-- **BR-33** [Minor] The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
-- **BR-35** [Minor] The escalation tells the reviewer to record prevalence in a `Limits` section that exists in no artifact model
-- **BR-37** [Important] The whole-issue close sees zero prior findings while the same ledger holds 15 open, three at Important — and no gate follows it
-- **BR-38** [Minor] The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction
+- **BR-26** [Minor] `escalation-copy-precision` The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
+- **BR-30** [Minor] `comment-anchor-drift` The convergence cinfo was inserted between the demotion comment and the loop it documents
+- **BR-33** [Minor] `doc-claim-exceeds-enforcement` The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
+- **BR-38** [Minor] `test-pins-the-invariant` The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction
+- **BR-39** [Important] `test-pins-the-invariant` Two of the ten fixes in cf18f34 do not do what the commit says — BR-17's is inert, BR-27's is unpinned
+- **BR-40** [Important] `doc-asserts-replaced-mechanism` The BR-37 behavior change left two helptext sites asserting the contract it replaced, and atlas has no entry for the new rule
+- **BR-41** [Minor] `plan-artifact-lags-code` The plan asserts a DispositionCounts reuse that its own Revisions section retracts

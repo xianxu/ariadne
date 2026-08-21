@@ -1165,6 +1165,13 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	//
 	// The round is persisted BEFORE the switch so a REWORK round lands in the ledger
 	// too: the next round must be able to see what this one said.
+	// Stamp the waiver onto the round the gate is about to write, or a bypassed refusal
+	// reads as a clean pass in the one durable record of what this gate did (#194 close
+	// review BR-39: the field existed but was set at zero call sites — inert, and worse
+	// than absent because its comment claimed otherwise).
+	if f.skip("ledger") {
+		p.ForcedRationale = "--no-ledger (or --force): " + orPlaceholder(f.Verified, "no rationale given")
+	}
 	ledger := persistBoundaryRound(stderr, p, review, nowRFC3339())
 
 	switch closeVerdictOutcome(review.Verdict) {
@@ -1850,4 +1857,13 @@ func formatTrailingNeedsJudge(issueStr string, trailing []string) string {
 
 func explainMissingVerdicts(stderr io.Writer, issueStr string, missing []string) {
 	die(stderr, formatMissingVerdicts(issueStr, missing))
+}
+
+// orPlaceholder returns s, or fallback when s is blank — used where an operator-supplied
+// rationale is recorded durably and an empty string would read as "no waiver happened".
+func orPlaceholder(s, fallback string) string {
+	if strings.TrimSpace(s) == "" {
+		return fallback
+	}
+	return s
 }

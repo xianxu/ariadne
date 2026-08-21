@@ -241,7 +241,9 @@ whole-issue close.
 
 - **`gatestate.ConvergenceLine(l Ledger, round int) string`** — `"round 4 — 2 new
   findings, 0 repeat families, 6 disposed. Converging."` Pure; unit-tested on in-memory
-  ledgers, no IO. Reuses the existing `DispositionCounts` (`ledger.go:202`).
+  ledgers, no IO. Does **not** reuse `DispositionCounts`: that tallies the whole ledger by
+  final state, while this needs per-round counts (new / repeat / disposed *this* round).
+  Different questions — see the Revisions entry.
 
 ### Integration points
 

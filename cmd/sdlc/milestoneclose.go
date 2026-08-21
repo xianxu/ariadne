@@ -550,8 +550,10 @@ type boundaryReviewParams struct {
 	Milestone string
 	PlansDir  string
 	// ForcedRationale records a bypass of the ledger's refusal (--no-ledger / --force),
-	// stamped onto the round so the durable record and the gate_forced metric do not read
-	// a waived refusal as a clean pass (#194 close review BR-17).
+	// stamped onto the round so the durable record does not read a waived refusal as a
+	// clean pass (#194 close review BR-17/BR-39). NOT the gate_forced metric — that reads
+	// the plan-gate ledger only (churnreport.go); the boundary gate has no metric consumer
+	// yet, and claiming one was part of what made the first version of this inert.
 	ForcedRationale string
 	// PriorFindings is the rendered prior-round block for THIS boundary (#194 M2),
 	// read by the caller UNDER THE REPO LOCK and carried here rather than fetched at

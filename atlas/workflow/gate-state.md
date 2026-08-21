@@ -95,6 +95,20 @@ can be disposed by name. (Before #194, `code-review.md` told the reviewer to rea
 have put two id namespaces in one output fence.) A guard test pins the prompt half; another
 pins the seeding. Without both, the demotion becomes a silent loss.
 
+**Two scopes, one ledger** (#194). The boundary gate keeps ONE ledger per issue, and two
+different reads take two different views of it:
+
+| read | scope | why |
+|---|---|---|
+| round cap (`CountedRounds`) | this boundary only | three milestones' rounds must not arrive at the whole-issue close already past the cap |
+| open findings to dispose | this boundary at a milestone; **the whole issue** at the close | a finding left undisposed when its milestone closed has no other path to disposal, and no gate follows the close |
+| family counts | always the whole issue | a family recurring ACROSS milestones is the signal the single ledger exists to preserve |
+
+`gatestate.DecideScoped(capScope, openScope, cap)` and `openScopeFor` encode it. The rule:
+**scope per boundary only what the round cap needs; every other read wants the full
+issue.** A disposal of a `BoundaryAll` (seeded) finding crosses boundaries with the
+finding, or it re-opens at every later one forever.
+
 **Findings carry a `family:` slug** (#194) — the underlying rule, not the symptom. The
 in-play vocabulary is rendered into the next round's prompt with a reuse instruction, and
 `NormalizeFamily` folds casing and punctuation on ingest; a true synonym is a judgement,
