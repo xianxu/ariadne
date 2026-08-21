@@ -35,15 +35,19 @@ self-report — carry it, label it as such, and never let it override measuremen
 Same measured-vs-typed discipline the actuals gate already enforces, one level
 up.
 
-Scope of a row: repo, thread ref (`repo#id`), branch, worktree path, measured
-recency, measured divergence, dirty count, and the self-declared status
-alongside them. Plus a one-line human descriptor per thread — the issue title
-serves — because couch's fuzzy resolution ("the pair refactor session") needs
-something to match against.
+**The unit is the working tree, not the issue.** Enumerate `git worktree list`
+across the fleet — every checkout and every linked worktree is a row — rather
+than enumerating issue records. A tree exists whether or not anyone opened an
+issue for it, which is what makes the inventory complete.
+
+Scope of a row: repo, tree path, branch, measured recency, measured divergence,
+dirty count, and — when the tree has one — the issue ref and its self-declared
+status carried alongside as *metadata*, never as the key. Human-facing naming is
+couch's runtime layer (`pair#145`), not this inventory's job.
 
 **Two staleness signals are distinct** and both belong in the output: git
-staleness says the thread has gone cold; mailbox depth (couch's, not sdlc's)
-says someone is waiting on it. This issue owns the first only.
+staleness says the tree has gone cold; mailbox depth (couch's, not sdlc's) says
+someone is waiting on it. This issue owns the first only.
 
 **Per-repo concurrency policy** is recorded here as fleet metadata —
 `in-place-serial` for repos where the checkout is the installation (pair,
@@ -59,26 +63,26 @@ deterministically rather than inferred per spawn.
 contract and the human rendering derives from it. Pairs with `#199` — this
 inventory is a natural candidate for the exposed query set.
 
-**Known gap, deliberately not solved here:** work with no tracker entry is
-invisible to an issue-keyed inventory. The rogii-v2 phase that lost a deadline
-ran off-spine with no issue file at all — 11 days, 301 commits. Naming it so a
-clean result is not mistaken for full coverage; addressing it needs a separate
-decision about how untracked work gets named.
+**Tree-keying is what closes the coverage gap.** An issue-keyed inventory would
+miss work with no tracker entry — and that is the population most likely to be
+forgotten. The rogii-v2 phase that lost a deadline ran off-spine with no issue
+file at all: 11 days, 301 commits, invisible to any issue-based enumeration.
+Keying on trees makes it a row like any other.
 
 ## Done when
 
-- One command enumerates open threads across the fleet with measured git facts,
-  in JSON, from any working directory.
-- A thread whose issue says `working` but whose branch has not moved in weeks is
+- One command enumerates every working tree across the fleet with measured git
+  facts, in JSON, from any working directory.
+- A tree with no issue behind it appears as a row, with no field left broken.
+- A tree whose issue says `working` but whose branch has not moved in weeks is
   reported as cold, with both facts visible and measurement winning.
 - Per-repo concurrency policy is readable from the inventory so couch can enforce
-  the in-place refusal without inferring it.
+  the one-agent-per-tree refusal without inferring it.
 - The fleet walk is the existing one, not a second implementation.
-- Output carries a human descriptor per thread sufficient for fuzzy resolution.
 
 ## Plan
 
-- [ ] Fleet walk + per-repo measured facts, JSON shape.
+- [ ] Fleet walk enumerating working trees + measured facts, JSON shape.
 - [ ] Self-declared vs measured fields distinguished in the schema; drift check
       surfaces disagreement rather than hiding it.
 - [ ] Per-repo concurrency policy as recorded fleet metadata.
@@ -92,3 +96,7 @@ Filed as the inventory half of the couch split — `sdlc` owns what work exists,
 couch owns the runtime that brings actors up. Directly motivated by the
 2026-08-20 cold-revival experiment, which showed issue frontmatter is the wrong
 substrate for enumeration.
+
+Rekeyed the same day from issue-based to tree-based enumeration (see the scope
+event in `pair/workshop/projects/couch.md`). This simplifies the spec and closes
+the untracked-work gap that was previously named as a known limitation.
