@@ -408,6 +408,103 @@ rounds:
           round: 5
       boundary: M3
       blocked: true
+    - "n": 6
+      timestamp: "2026-08-20T22:37:26-07:00"
+      agent: claude
+      dispose:
+        - id: BR-20
+          disposition: addressed
+          note: RenderPriorFindingsScoped split; mutation-verified — reverting fails 3 assertions in TestBoundaryPriorFindings_FamiliesSpanMilestones, and this round's own prompt carried 9 families.
+          round: 6
+        - id: BR-21
+          disposition: addressed
+          note: Family is carried by the seed; the test the finding named was not added — folded into the test-pins-the-invariant rule finding.
+          round: 6
+        - id: BR-22
+          disposition: addressed
+          note: Now `r.N >= round`; no discriminating fixture — reverting to the original `== round` leaves the suite green.
+          round: 6
+        - id: BR-23
+          disposition: addressed
+          note: normalizeText on both canonical() and ParseFindingsBlock, fuzz target at three args, crasher corpus entry migrated; mutation-verified via seed#7.
+          round: 6
+        - id: BR-24
+          disposition: addressed
+          note: NormalizeFamily now calls issue.Slugify, wrapper retained so the not-caught note survives.
+          round: 6
+        - id: BR-25
+          disposition: addressed
+          note: Tasks 2.3, 3.1-3.7 and all four Verification boxes ticked; the table drift is raised separately as the second instance of the family.
+          round: 6
+        - id: BR-26
+          disposition: not-addressed
+          note: 'Unchanged, and now live: this round''s prompt escalated on families with a count of 1, naming only the top of nine.'
+          round: 6
+        - id: BR-27
+          disposition: not-addressed
+          note: boundaryledger.go:193 still passes len(l.Rounds) rather than CountedRounds.
+          round: 6
+        - id: BR-28
+          disposition: not-addressed
+          note: render.go's prose projection still prints id/severity/title/detail only.
+          round: 6
+        - id: BR-29
+          disposition: not-addressed
+          note: Neither item landed; subsumed by the test-pins-the-invariant rule finding below.
+          round: 6
+        - id: BR-30
+          disposition: not-addressed
+          note: cinfo still sits between the demotion comment and its loop; finding.go:78 and the window test placement unchanged.
+          round: 6
+      findings:
+        - id: BR-31
+          severity: Important
+          title: Two of the six BR-20..BR-25 fixes shipped with no test — mutation-verified, and this is the 2nd instance of the family
+          detail: |-
+            Reverting `Family: f.Family` (boundaryledger.go:118, BR-21) and reverting `r.N >= round`
+            to the original `r.N == round` (family.go:124, BR-22) each leave `go test ./cmd/sdlc/...`
+            fully green; BR-20 and BR-23 both fail loudly when reverted. Each finding had named the
+            test to add. BR-29's two requested items are also still absent, and the one new negative
+            assertion (boundaryledger_test.go:543-548) is unreachable in the state it tests and slices
+            m2 400 bytes past an index without a bound. Do NOT fix these four instances. The RULE:
+            a fix for a gate finding is complete only when a test fails without it, verified by
+            reverting the fix rather than by inspection, and the Log records that verification. M2
+            already did this once for C1 ("verified to FAIL when the fix is reverted"). Apply it as
+            the standing bar for every disposition of `addressed`; measured prevalence this issue is
+            4 instances plus one inert assertion.
+          family: test-pins-the-invariant
+          round: 6
+        - id: BR-32
+          severity: Important
+          title: The durable plan's Core concepts table contradicts the code in five rows and omits the new exported API
+          detail: |-
+            plan.md:198-205 puts FamilyCounts, normalizeFamily and ConvergenceLine in ledger.go/prompt.go
+            when all three are in family.go; normalizeFamily is exported NormalizeFamily; #Finding.family
+            is finding.cue:91 not :78; Finding.Family is ledger.go:43 not :34. RenderPriorFindingsScoped
+            — a new exported API downstream gates will consume — is absent, and there is no M3 Revisions
+            entry at all, so the scoped/full split and Task 3.4's dropped DispositionCounts reuse are
+            unrecorded. BR-25 ticked the boxes and the table drifted in the same commit, so this is the
+            2nd instance. Do NOT stop at correcting the rows. The RULE, and it is enforceable: the
+            plan-unchecked close gate (close.go:569, milestoneclose.go:113) reads only the ISSUE's
+            "## Plan" — the durable plan in workshop/plans/ has no gate, which is why it lags. File a
+            follow-up extending that gate (it already has --no-plan-check) to the durable plan's
+            checkboxes for the milestone being closed.
+          family: plan-artifact-lags-code
+          round: 6
+        - id: BR-33
+          severity: Minor
+          title: The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
+          detail: |-
+            grep for "#Finding" across *.sh, *.go and Makefile returns zero hits outside finding.cue;
+            cue export drops it, so pkg/vocab/finding.json has no family key and the Go struct plus the
+            "family: <slug>" literal in RenderBlockInstruction are hand-maintained restatements. Round 5
+            said in prose "worth not restating as if it were live"; Task 3.1 and the issue Log restate it.
+            Either add a cue vet -d '#Finding' instance case to construct/vocabulary/vet_test.sh — it
+            already does exactly that for #Project — or drop the enforcement claim from both artifacts.
+          family: doc-claim-exceeds-enforcement
+          round: 6
+      boundary: M3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#194 (boundary-review)
@@ -645,6 +742,56 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   since M2, and boundaryledger_test.go:487's window regression test lives in the ledger
   test file rather than beside its siblings in milestonewindow_test.go.
 
+## Round 6 — 2026-08-20T22:37:26-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-20 — addressed — RenderPriorFindingsScoped split; mutation-verified — reverting fails 3 assertions in TestBoundaryPriorFindings_FamiliesSpanMilestones, and this round's own prompt carried 9 families.
+- BR-21 — addressed — Family is carried by the seed; the test the finding named was not added — folded into the test-pins-the-invariant rule finding.
+- BR-22 — addressed — Now `r.N >= round`; no discriminating fixture — reverting to the original `== round` leaves the suite green.
+- BR-23 — addressed — normalizeText on both canonical() and ParseFindingsBlock, fuzz target at three args, crasher corpus entry migrated; mutation-verified via seed#7.
+- BR-24 — addressed — NormalizeFamily now calls issue.Slugify, wrapper retained so the not-caught note survives.
+- BR-25 — addressed — Tasks 2.3, 3.1-3.7 and all four Verification boxes ticked; the table drift is raised separately as the second instance of the family.
+- BR-26 — not-addressed — Unchanged, and now live: this round's prompt escalated on families with a count of 1, naming only the top of nine.
+- BR-27 — not-addressed — boundaryledger.go:193 still passes len(l.Rounds) rather than CountedRounds.
+- BR-28 — not-addressed — render.go's prose projection still prints id/severity/title/detail only.
+- BR-29 — not-addressed — Neither item landed; subsumed by the test-pins-the-invariant rule finding below.
+- BR-30 — not-addressed — cinfo still sits between the demotion comment and its loop; finding.go:78 and the window test placement unchanged.
+
+### Raised
+
+- **BR-31** [Important] Two of the six BR-20..BR-25 fixes shipped with no test — mutation-verified, and this is the 2nd instance of the family
+  Reverting `Family: f.Family` (boundaryledger.go:118, BR-21) and reverting `r.N >= round`
+  to the original `r.N == round` (family.go:124, BR-22) each leave `go test ./cmd/sdlc/...`
+  fully green; BR-20 and BR-23 both fail loudly when reverted. Each finding had named the
+  test to add. BR-29's two requested items are also still absent, and the one new negative
+  assertion (boundaryledger_test.go:543-548) is unreachable in the state it tests and slices
+  m2 400 bytes past an index without a bound. Do NOT fix these four instances. The RULE:
+  a fix for a gate finding is complete only when a test fails without it, verified by
+  reverting the fix rather than by inspection, and the Log records that verification. M2
+  already did this once for C1 ("verified to FAIL when the fix is reverted"). Apply it as
+  the standing bar for every disposition of `addressed`; measured prevalence this issue is
+  4 instances plus one inert assertion.
+- **BR-32** [Important] The durable plan's Core concepts table contradicts the code in five rows and omits the new exported API
+  plan.md:198-205 puts FamilyCounts, normalizeFamily and ConvergenceLine in ledger.go/prompt.go
+  when all three are in family.go; normalizeFamily is exported NormalizeFamily; #Finding.family
+  is finding.cue:91 not :78; Finding.Family is ledger.go:43 not :34. RenderPriorFindingsScoped
+  — a new exported API downstream gates will consume — is absent, and there is no M3 Revisions
+  entry at all, so the scoped/full split and Task 3.4's dropped DispositionCounts reuse are
+  unrecorded. BR-25 ticked the boxes and the table drifted in the same commit, so this is the
+  2nd instance. Do NOT stop at correcting the rows. The RULE, and it is enforceable: the
+  plan-unchecked close gate (close.go:569, milestoneclose.go:113) reads only the ISSUE's
+  "## Plan" — the durable plan in workshop/plans/ has no gate, which is why it lags. File a
+  follow-up extending that gate (it already has --no-plan-check) to the durable plan's
+  checkboxes for the milestone being closed.
+- **BR-33** [Minor] The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
+  grep for "#Finding" across *.sh, *.go and Makefile returns zero hits outside finding.cue;
+  cue export drops it, so pkg/vocab/finding.json has no family key and the Go struct plus the
+  "family: <slug>" literal in RenderBlockInstruction are hand-maintained restatements. Round 5
+  said in prose "worth not restating as if it were live"; Task 3.1 and the issue Log restate it.
+  Either add a cue vet -d '#Finding' instance case to construct/vocabulary/vet_test.sh — it
+  already does exactly that for #Project — or drop the enforcement claim from both artifacts.
+
 ## Open findings
 
 - **BR-10** [Minor] One bad disposition id nullifies a whole round's valid dispositions
@@ -654,14 +801,11 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-17** [Minor] Round.Forced is never stamped on a boundary round, unlike the plan gate
 - **BR-18** [Minor] The plan's Core-concepts tables never gained M2's entities, and Revisions omits two shared-gatestate behavior changes
 - **BR-19** [Minor] A seeded BoundaryAll finding's disposal is boundary-scoped, so it re-opens at every later boundary
-- **BR-20** [Critical] Family counts come from the boundary-FILTERED ledger, so a family never recurs across milestones
-- **BR-21** [Important] seedFromPlanGate drops Family, so a plan-gate rule arrives at the boundary anonymous
-- **BR-22** [Important] ConvergenceLine counts LATER rounds as prior families
-- **BR-23** [Important] Family bypasses canonical() and ParseFindingsBlock, re-opening the unreadable-ledger hazard
-- **BR-24** [Important] NormalizeFamily duplicates issue.Slugify rather than reusing it
-- **BR-25** [Important] The durable plan still shows M3 (and Task 2.3, and every Verification box) as unstarted
 - **BR-26** [Minor] The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
 - **BR-27** [Minor] The convergence line's round number counts the no-cap seed round
 - **BR-28** [Minor] The ledger's human prose projection omits family
 - **BR-29** [Minor] No round-trip test for family, and the model-drift guard does not pin the family key
 - **BR-30** [Minor] The convergence cinfo was inserted between the demotion comment and the loop it documents
+- **BR-31** [Important] Two of the six BR-20..BR-25 fixes shipped with no test — mutation-verified, and this is the 2nd instance of the family
+- **BR-32** [Important] The durable plan's Core concepts table contradicts the code in five rows and omits the new exported API
+- **BR-33** [Minor] The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere

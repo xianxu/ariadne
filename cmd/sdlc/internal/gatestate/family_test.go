@@ -171,3 +171,26 @@ func TestFamilyEscalation_AgainstRealFourRoundHistory(t *testing.T) {
 		t.Errorf("oracle-blind-direction recurred twice, got %d", counts["oracle-blind-direction"])
 	}
 }
+
+// #194 M3 review BR-22: ConvergenceLine must count only STRICTLY EARLIER rounds as
+// prior. With `!= round`, replaying an older round reports repeats against families that
+// did not exist yet — the signal reads "not converging" for work that was converging.
+func TestConvergenceLine_LaterRoundsAreNotPriorFamilies(t *testing.T) {
+	l := Ledger{IDPrefix: "BR", Rounds: []Round{
+		{N: 1, New: []Finding{{ID: "BR-1", Severity: "Minor", Title: "a", Family: "alpha"}}},
+		{N: 2, New: []Finding{{ID: "BR-2", Severity: "Minor", Title: "b", Family: "beta"}}},
+		{N: 3, New: []Finding{{ID: "BR-3", Severity: "Minor", Title: "c", Family: "beta"}}},
+	}}
+	// Round 2 is the FIRST beta — round 3's beta is later and must not count as prior.
+	got := ConvergenceLine(l, 2)
+	if strings.Contains(got, "Not converging") {
+		t.Errorf("round 2 introduced beta; a LATER round's beta must not make it a repeat: %q", got)
+	}
+	if !strings.Contains(got, "0 repeat families") {
+		t.Errorf("round 2 should report zero repeat families: %q", got)
+	}
+	// Round 3 genuinely repeats beta.
+	if got := ConvergenceLine(l, 3); !strings.Contains(got, "1 repeat family") {
+		t.Errorf("round 3 repeats beta: %q", got)
+	}
+}

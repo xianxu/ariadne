@@ -195,14 +195,15 @@ whole-issue close.
 | `anchorOutcome` | `cmd/sdlc/reviewanchor.go` | new |
 | `classifyReviewAnchor` | `cmd/sdlc/reviewanchor.go` | new |
 | `formatAnchorDocsOnly` / `formatAnchorRefusal` | `cmd/sdlc/reviewanchor.go` | new |
-| `#Finding.family` | `construct/vocabulary/finding.cue:78` | modified |
-| `gatestate.Finding.Family` | `cmd/sdlc/internal/gatestate/ledger.go:34` | modified |
+| `#Finding.family` | `construct/vocabulary/finding.cue:91` | modified |
+| `gatestate.Finding.Family` | `cmd/sdlc/internal/gatestate/ledger.go:43` | modified |
 | `gatestate.Round.Boundary` | `cmd/sdlc/internal/gatestate/ledger.go:57` | modified (D1) |
 | `gatestate.FilterBoundary` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D1) |
 | `gatestate.BoundaryAll` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D5) |
-| `gatestate.FamilyCounts` | `cmd/sdlc/internal/gatestate/ledger.go` | new |
-| `gatestate.normalizeFamily` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D3) |
-| `gatestate.ConvergenceLine` | `cmd/sdlc/internal/gatestate/prompt.go` | new |
+| `gatestate.FamilyCounts` | `cmd/sdlc/internal/gatestate/family.go` | new |
+| `gatestate.NormalizeFamily` | `cmd/sdlc/internal/gatestate/family.go` | new (D3; wraps `issue.Slugify`) |
+| `gatestate.ConvergenceLine` | `cmd/sdlc/internal/gatestate/family.go` | new |
+| `gatestate.RenderPriorFindingsScoped` | `cmd/sdlc/internal/gatestate/prompt.go` | new (M3 review BR-20) |
 
 - **`reviewAnchorDelta` / `classifyReviewAnchor`** — the git-free description of
   `reviewedSHA..HEAD` and the decision over it: `anchorUnchanged`, `anchorDocsOnly`,
@@ -566,3 +567,27 @@ The ledger's open-findings refusal shipped with no per-gate bypass, leaving an o
 who hits "verdict SHIP, but the gate ledger still has open blocking finding(s)" with only
 `--no-judge` (skip the review entirely) or `--force` (waive everything). AGENTS.md §5
 makes a per-gate `--no-<gate>` flag a property of these commands, so the gate got one.
+
+### 2026-08-20 — M3 review: the scoped/full split, and two rules (BR-20, BR-31, BR-32)
+
+`RenderPriorFindings` was given the boundary-FILTERED ledger, so `FamilyCounts` could
+never see a family recur across milestones — voiding the sole justification for one ledger
+per issue, and rendering an empty vocabulary at the whole-issue close. Split into
+`RenderPriorFindingsScoped(scoped, full)`: scoped supplies what must be disposed, full
+supplies the families. New exported API, now listed in Core concepts.
+
+Task 3.4 did **not** reuse `DispositionCounts` as the plan sketched — `ConvergenceLine`
+needs per-round counts (new / repeat / disposed *this round*), while `DispositionCounts`
+tallies the whole ledger by final state. Different questions; recorded rather than left as
+an unexplained divergence from the plan.
+
+Two rules adopted from this round, both written to `workshop/lessons.md` rather than
+applied as one-off fixes:
+
+1. **A fix is complete only when a test fails without it, verified by reverting.** Four
+   fixes across M2 and M3 shipped with tests that passed either way.
+2. **Grep `atlas/` for the mechanism you REMOVED.** Three instances across M1–M3.
+
+The durable plan itself has no gate — `close`'s plan-unchecked check reads only the
+ISSUE's `## Plan` — which is why this table drifted in the same commit that ticked its
+boxes. Filed as its own issue rather than fixed here.

@@ -232,3 +232,205 @@ findings:
       since M2, and boundaryledger_test.go:487's window regression test lives in the ledger
       test file rather than beside its siblings in milestonewindow_test.go.
 ```
+
+---
+
+## Re-review — 2026-08-20T22:37:26-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 194 — boundary reviews: anchor to the reviewed commit, and remember across rounds |
+| repo | ariadne |
+| issue file | workshop/issues/000194-review-anchor-commit.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | 5e8a3e5e12f60c1b8c1d9e7d54fb0c1638bf46b4..93a3bc421148fc420e4ad4d7349841e9d997519f |
+| command | sdlc milestone-close --issue 194 --milestone M3 |
+| reviewer | claude |
+| timestamp | 2026-08-20T22:37:26-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The Critical from round 5 is genuinely fixed and — unusually — I can prove it from the prompt I was handed: this review's own prior-findings block carried nine families across the M2 and M3 rounds and escalated me on `family-plumbing-incomplete`, which is exactly the cross-boundary behavior `BR-20` said was missing. I mutation-verified the fixes rather than trusting the commit message: reverting `RenderPriorFindingsScoped` → `RenderPriorFindings` fails `TestBoundaryPriorFindings_FamiliesSpanMilestones` on all three assertions, and removing `f.Family = normalizeText(f.Family)` from `canonical()` fails `FuzzRenderParseRoundTrip/seed#7` instantly. `go build`, `go vet`, `gofmt -l`, `go test ./...` are all clean on a clean tree. What keeps this off SHIP is not a code defect — it is that **two of the six fixes landed with no test at all**: reverting `Family: f.Family` in `seedFromPlanGate` (BR-21) and reverting `r.N >= round` to the original `r.N == round` (BR-22) both leave the entire suite green, and each finding had explicitly named the test to add. That is the second instance of `test-pins-the-invariant`, so per the escalation I am not asking for those two tests as an instance fix — I am asking for the rule.
+
+## 1. Strengths
+
+- **The feature caught its own author, live.** The prompt for this round rendered the family vocabulary and the escalation block from the full issue-wide ledger. `BR-20` claimed the M3 prompt read *"This is the FIRST round"* with three milestones of families in the ledger; that is now demonstrably false. Self-hosting proof beats any unit test here.
+- **`RenderPriorFindingsScoped(scoped, full)` is the right seam** (`cmd/sdlc/internal/gatestate/prompt.go:36`). It widens only the family input, leaves `Decide`/`OpenFindings` scoping untouched, keeps `RenderPriorFindings(l) = Scoped(l, l)` so plan-quality needs no edit, and the doc comment states *why* the two views differ. The fix also caught the second layer the finding named — the empty-scope early return short-circuiting before the family block (`prompt.go:38-48`).
+- **BR-23 was fixed at the write boundary, not just the read boundary,** and pinned by fuzz rather than by an example. The recorded crasher corpus entry was *migrated* to three args (`testdata/fuzz/FuzzRenderParseRoundTrip/417cf3fd96f47e3d`) rather than dropped, and seed#7 `family="\n0"` is the exact shape that produced the unreadable ledger. Mutation-verified: it fails within 0.3s without the fix.
+- **BR-24's consolidation kept the wrapper.** `NormalizeFamily` now calls `issue.Slugify` but survives as a named function so the paragraph about what normalization does *not* catch (`family.go:29-37`) has somewhere to live. Deleting the wrapper would have deleted the honest statement of the residual risk with it.
+- **`TestBoundaryPriorFindings_FamiliesSpanMilestones` tests the production path** (`boundaryPriorFindings`), not the pure function — which is precisely the gap that let BR-20 ship. It also covers the `Milestone: ""` whole-issue case, the one that dropped everything.
+
+## 2. Critical findings
+
+None. BR-20 is fixed and pinned.
+
+## 3. Important findings
+
+**I1 — a gate fix without a failing-first test is not a fix.** *(2nd instance in family `test-pins-the-invariant`.)*
+
+Measured, not asserted — I reverted each fix in place and re-ran `go test ./cmd/sdlc/...`:
+
+| fix | revert to | suite result |
+|---|---|---|
+| BR-20 `RenderPriorFindingsScoped` | `RenderPriorFindings(FilterBoundary(...))` | **FAIL** (3 assertions) |
+| BR-23 `canonical()` family normalize | drop the line | **FAIL** (fuzz seed#7) |
+| BR-21 `Family: f.Family` in the seed | drop the field | **PASS — nothing caught it** |
+| BR-22 `if r.N >= round` | `if r.N == round` (the original bug) | **PASS — nothing caught it** |
+
+`TestConvergenceLine` does not discriminate BR-22 because it only calls round 2 of a 2-round ledger; the tools#1 fixture only calls rounds 2 and 4, where both families already exist. `ConvergenceLine(full, 3)` is the discriminating call (round 3 debuts `oracle-blind-direction`) and nothing makes it. `TestBoundaryReview_SeedsDeferredPlanGateFindings` (`boundaryledger_test.go:149`) asserts severity, title and the `PQ-1` provenance note — the finding named this test, and Family was not added to it.
+
+Two more instances in the same family, so the rule is not a two-test patch:
+- BR-29's requested items are both still absent — no round-trip test for `family`, and `TestFindingRenderBlockInstruction` (`pkg/vocab/finding_test.go:85`) still does not assert `family:`.
+- The one *new* negative assertion is inert. `boundaryledger_test.go:543-548` guards on `strings.Contains(m2, "MUST dispose")`, but in the state under test `m2` is the first-round branch, which never emits that header — so the `t.Error` is unreachable. It also slices `m2[idx:idx+400]` unbounded, which would panic if the block were ever shorter than 400 chars past `OPEN FINDINGS`.
+
+**The rule, stated:** *a fix for a gate finding is complete only when a test fails without it — verified by reverting the fix, not by inspection — and the `## Log` records that verification.* This repo already does this correctly once: M2's Log says C1 is *"pinned by TestCloseCommand\_LiveReviewSeesPriorFindings, verified to FAIL when the fix is reverted."* The rule exists in practice and was applied to 2 of 6 fixes this round. Measured prevalence on this issue: 4 instances (BR-21, BR-22, BR-29's two items), plus one inert assertion. The gate's failure mode is *silence* — an unpinned convergence bug reports "Converging" forever and nobody learns otherwise — which is why this family deserves the rule rather than four more one-liners.
+
+**I2 — the plan's Core concepts table now contradicts the code in five rows.** *(2nd instance in family `plan-artifact-lags-code`.)*
+
+`workshop/plans/000194-review-anchor-commit-plan.md:198-205`:
+
+| table says | code says |
+|---|---|
+| `gatestate.FamilyCounts` → `ledger.go` | `family.go:45` |
+| `gatestate.normalizeFamily` → `ledger.go` | `NormalizeFamily` (exported), `family.go:38` |
+| `gatestate.ConvergenceLine` → `prompt.go` | `family.go:118` |
+| `#Finding.family` → `finding.cue:78` | `finding.cue:91` |
+| `gatestate.Finding.Family` → `ledger.go:34` | `ledger.go:43` |
+
+Absent entirely: `RenderPriorFindingsScoped` — a **new exported API** introduced by this round's fix, which is the one entity downstream gates will consume. `## Revisions` has no M3 entry at all, so it records neither the scoped/full split nor that Task 3.4's stated *"reusing `DispositionCounts`"* was silently substituted with `len(r.Dispositions)`.
+
+I am calling this Important rather than the checklist's blanket Critical, and saying why: every entity exists, is genuinely PURE, and is genuinely tested — only the stated paths are wrong. That is navigational drift, not behavior drift.
+
+**The rule, stated:** BR-25 ticked the boxes; the table drifted in the same commit — so "update the plan" is not a rule an agent can follow, because it has no failing state. The enforceable version: **the `plan-unchecked` close gate reads only the *issue's* `## Plan`** (`cmd/sdlc/close.go:569`, `milestoneclose.go:113`) — the durable plan file in `workshop/plans/` has no gate at all, which is exactly why it lags. Extend that gate to the durable plan's checkboxes for the milestone being closed (it already has a `--no-plan-check` bypass and the flag convention from AGENTS.md §5). That is a follow-up issue, not M3 scope; file it, correct the five rows here, and the family closes.
+
+## 4. Minor findings
+
+- `construct/vocabulary/finding.cue:71-92` — the plan's Task 3.1 and the issue's `## Log` both justify the model-first ordering with *"closed schema — an unmodeled key fails instance validation."* Nothing validates a finding instance against `#Finding`: `grep -rn '#Finding'` across `*.sh`/`*.go`/`Makefile` returns **zero** hits outside the file itself, `cue export` yields only `[categories, discovery, dispositions, hardBlocking, when, whenDisposed]`, and `pkg/vocab/finding.json` contains no `family` key. Round 5 said in prose *"worth not restating as if it were live"*; the Log restated it. Either add a `cue vet … -d '#Finding'` instance case to `construct/vocabulary/vet_test.sh` (it already does exactly this for `#Project`), or drop the enforcement claim.
+- `cmd/sdlc/boundaryledger.go:118-120` — `Family: f.Family,` and `Detail:` are separated by a blank line inside one struct literal, apparently to dodge gofmt's alignment group. `gofmt` accepts it; it reads as an accidental paste.
+- `gatestate` now imports `cmd/sdlc/internal/issue`, whose package does filesystem work (`NextID` → `os.ReadDir`). `Slugify` itself is pure and the build has no cycle, so this is fine today — but the package doc says *"no filesystem"*, and `issue` can never import `gatestate` now. A shared `slug` leaf package would be the cleaner end state if a third caller appears.
+
+## 5. Test coverage notes
+
+- Mutation coverage is the honest measure and it is **2 of 4** on this round's code fixes (table in I1). BR-20 and BR-23 are pinned; BR-21 and BR-22 are not.
+- The escalation/vocabulary rendering is well covered on the pure side (`family_test.go`) and now on the production side (`boundaryledger_test.go:496`). `TestFamilyCounts_TrueSynonymsAreNotMerged_AcceptedResidualRisk` remains the best test in the diff — its *name* is the documentation of the limit.
+- `ConvergenceLine` is still never exercised through a full `close`/`milestone-close` run against M2's stateful reviewer fake; `TestBoundaryReview_EmitsConvergenceLine` calls `persistBoundaryRound` directly. Adequate as a unit test, but the stderr emission path is untested end-to-end.
+- `ParseFindingsBlock`'s family normalization (`parse.go:46`) has no direct unit test; it is belt-and-braces behind `canonical()`, which the fuzz target does pin.
+
+## 6. Architectural notes for upcoming work
+
+- **ARCH-DRY — pass.** BR-24 consolidated `NormalizeFamily` onto `issue.Slugify`; the seed still mints ids through `AssignIDsAt`; `readGateLedger`/`writeGateLedger` stay shared. The one residual over-share is `pluralFindings` doing double duty in the vocabulary list and the convergence line (open as BR-26).
+- **ARCH-PURE — pass.** `family.go` is deterministic and IO-free end to end. `ConvergenceLine` is computed in the pure layer and merely *emitted* from `boundaryledger.go:193`. `RenderPriorFindingsScoped` widened the pure signature rather than pushing a boundary parameter into `Decide` — the same caller-side-transform discipline `FilterBoundary` established.
+- **ARCH-PURPOSE — pass on the milestone, one shadow left.** Shadow-sweep on the `family` single source: consumers are the prompt vocabulary (derives ✓), the escalation (derives ✓), the convergence line (derives ✓), the plan-gate seed (derives ✓ as of BR-21), and the human prose projection (does **not** — open as BR-28). The CUE `#Finding` "source" derives nothing at all (Minor above): the Go struct and the `family: <slug>` literal in `RenderBlockInstruction` are hand-maintained restatements. That is the pre-existing pattern for every field, not M3's regression — but it means "model first" bought documentation here, not enforcement, and the artifacts should stop saying otherwise.
+- **ARCH-MOCK — pass.** No new external dependency. The tools#1 four-round history is a copied `testdata/` fixture rather than a sibling-checkout read, so the acceptance test is hermetic. Git stays behind the real-repo fixture; the reviewer stays behind `judge.Run`.
+- **For the whole-issue close.** `FilterBoundary(l, "")` will hide *every* M1/M2/M3 round — including the still-open `BR-10`, `BR-17`, `BR-18`, `BR-19` (M2) and whatever remains of `BR-26`…`BR-30` (M3). Families now cross the boundary; open findings still do not. So the close reviewer will be shown a nine-family vocabulary, told *"Earlier rounds fixed instances"*, and simultaneously told *"This is the FIRST round … no prior findings to dispose of."* That is D1 working as designed plus BR-26 unfixed, but the combination is newly visible because of this round's fix, and it deserves an explicit decision before `sdlc close` runs.
+
+## 7. Plan revision recommendations
+
+`workshop/plans/000194-review-anchor-commit-plan.md` has **no `## Revisions` entry for M3 at all**. It needs four:
+
+- **"Core concepts table corrected (M3 boundary review, I2)"** — `FamilyCounts`, `normalizeFamily`→`NormalizeFamily`, and `ConvergenceLine` all landed in a new `cmd/sdlc/internal/gatestate/family.go`, not `ledger.go`/`prompt.go`; `#Finding.family` is `finding.cue:91`, `Finding.Family` is `ledger.go:43`. Add a row for `gatestate.RenderPriorFindingsScoped` (`prompt.go:36`, new, PURE) and for `renderFamilyVocabulary`/`renderFamilyEscalation`.
+- **"D1's seam is the render signature, not `FamilyCounts` alone"** — D1 (`plan.md:81`) says *"`FamilyCounts(l)` takes the unfiltered ledger"*, and BR-20 proved that wording is unenforceable at the call site. Record `RenderPriorFindingsScoped(scoped, full)` as the actual seam so the next gate to adopt the ledger inherits the rule instead of re-deriving it.
+- **"Task 3.4's `DispositionCounts` reuse dropped"** — `ConvergenceLine` counts `len(r.Dispositions)` for the target round instead. `DispositionCounts` is ledger-wide and keyed by disposition state, so it cannot answer "how many did *this round* dispose". State the substitution and why.
+- **"M3 fix round: BR-21/BR-22 shipped unpinned"** — record the measured prevalence of `test-pins-the-invariant` (4 instances this issue) under `Limits`, per the escalation contract, alongside the follow-up issue extending the `plan-unchecked` gate to the durable plan file.
+
+```findings
+dispose:
+  - id: BR-20
+    disposition: addressed
+    note: |
+      RenderPriorFindingsScoped split; mutation-verified — reverting fails 3 assertions in TestBoundaryPriorFindings_FamiliesSpanMilestones, and this round's own prompt carried 9 families.
+  - id: BR-21
+    disposition: addressed
+    note: |
+      Family is carried by the seed; the test the finding named was not added — folded into the test-pins-the-invariant rule finding.
+  - id: BR-22
+    disposition: addressed
+    note: |
+      Now `r.N >= round`; no discriminating fixture — reverting to the original `== round` leaves the suite green.
+  - id: BR-23
+    disposition: addressed
+    note: |
+      normalizeText on both canonical() and ParseFindingsBlock, fuzz target at three args, crasher corpus entry migrated; mutation-verified via seed#7.
+  - id: BR-24
+    disposition: addressed
+    note: |
+      NormalizeFamily now calls issue.Slugify, wrapper retained so the not-caught note survives.
+  - id: BR-25
+    disposition: addressed
+    note: |
+      Tasks 2.3, 3.1-3.7 and all four Verification boxes ticked; the table drift is raised separately as the second instance of the family.
+  - id: BR-26
+    disposition: not-addressed
+    note: |
+      Unchanged, and now live: this round's prompt escalated on families with a count of 1, naming only the top of nine.
+  - id: BR-27
+    disposition: not-addressed
+    note: |
+      boundaryledger.go:193 still passes len(l.Rounds) rather than CountedRounds.
+  - id: BR-28
+    disposition: not-addressed
+    note: |
+      render.go's prose projection still prints id/severity/title/detail only.
+  - id: BR-29
+    disposition: not-addressed
+    note: |
+      Neither item landed; subsumed by the test-pins-the-invariant rule finding below.
+  - id: BR-30
+    disposition: not-addressed
+    note: |
+      cinfo still sits between the demotion comment and its loop; finding.go:78 and the window test placement unchanged.
+findings:
+  - id: new
+    severity: Important
+    family: test-pins-the-invariant
+    title: |
+      Two of the six BR-20..BR-25 fixes shipped with no test — mutation-verified, and this is the 2nd instance of the family
+    detail: |
+      Reverting `Family: f.Family` (boundaryledger.go:118, BR-21) and reverting `r.N >= round`
+      to the original `r.N == round` (family.go:124, BR-22) each leave `go test ./cmd/sdlc/...`
+      fully green; BR-20 and BR-23 both fail loudly when reverted. Each finding had named the
+      test to add. BR-29's two requested items are also still absent, and the one new negative
+      assertion (boundaryledger_test.go:543-548) is unreachable in the state it tests and slices
+      m2 400 bytes past an index without a bound. Do NOT fix these four instances. The RULE:
+      a fix for a gate finding is complete only when a test fails without it, verified by
+      reverting the fix rather than by inspection, and the Log records that verification. M2
+      already did this once for C1 ("verified to FAIL when the fix is reverted"). Apply it as
+      the standing bar for every disposition of `addressed`; measured prevalence this issue is
+      4 instances plus one inert assertion.
+  - id: new
+    severity: Important
+    family: plan-artifact-lags-code
+    title: |
+      The durable plan's Core concepts table contradicts the code in five rows and omits the new exported API
+    detail: |
+      plan.md:198-205 puts FamilyCounts, normalizeFamily and ConvergenceLine in ledger.go/prompt.go
+      when all three are in family.go; normalizeFamily is exported NormalizeFamily; #Finding.family
+      is finding.cue:91 not :78; Finding.Family is ledger.go:43 not :34. RenderPriorFindingsScoped
+      — a new exported API downstream gates will consume — is absent, and there is no M3 Revisions
+      entry at all, so the scoped/full split and Task 3.4's dropped DispositionCounts reuse are
+      unrecorded. BR-25 ticked the boxes and the table drifted in the same commit, so this is the
+      2nd instance. Do NOT stop at correcting the rows. The RULE, and it is enforceable: the
+      plan-unchecked close gate (close.go:569, milestoneclose.go:113) reads only the ISSUE's
+      "## Plan" — the durable plan in workshop/plans/ has no gate, which is why it lags. File a
+      follow-up extending that gate (it already has --no-plan-check) to the durable plan's
+      checkboxes for the milestone being closed.
+  - id: new
+    severity: Minor
+    family: doc-claim-exceeds-enforcement
+    title: |
+      The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
+    detail: |
+      grep for "#Finding" across *.sh, *.go and Makefile returns zero hits outside finding.cue;
+      cue export drops it, so pkg/vocab/finding.json has no family key and the Go struct plus the
+      "family: <slug>" literal in RenderBlockInstruction are hand-maintained restatements. Round 5
+      said in prose "worth not restating as if it were live"; Task 3.1 and the issue Log restate it.
+      Either add a cue vet -d '#Finding' instance case to construct/vocabulary/vet_test.sh — it
+      already does exactly that for #Project — or drop the enforcement claim from both artifacts.
+```

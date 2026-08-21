@@ -938,3 +938,22 @@ old one finds the files you forgot.
 **Origin:** #194 M1 review (I1) and #194 M2 review (I3) — the same family, one milestone
 apart, which is the recurrence #194 M3's family escalation exists to name on the second
 instance rather than the third.
+
+A fix for a gate finding is complete only when a test FAILS WITHOUT IT — verified by
+reverting the fix and watching it go red, not by inspection — and the verification is
+recorded. On #194, four fixes across two milestones shipped with tests that passed either
+way: reverting `Family: f.Family` and reverting `r.N >= round` to `r.N == round` both left
+`go test ./cmd/sdlc/...` fully green. Each finding had *named the test to add*; the tests
+were written, and they did not actually pin the behavior.
+
+Inspection is not the check. A test written from the same mental model that produced the
+fix will assert whatever the fix happens to do, including nothing. The revert is a
+different question — "does this test distinguish the two worlds?" — and it takes about
+fifteen seconds: copy the file, undo the fix, run the one test, restore.
+
+Applies to any claim that a change is *tested*, not just gate findings. The bar is cheap
+enough that "I checked it looks right" is never the better option.
+
+**Origin:** #194 M2 review (C1, where the revert WAS done and caught a real gap) and #194
+M3 review (BR-31, where it was skipped four times — measured prevalence 4 instances plus
+one assertion that tested an unreachable state and sliced past the end of a string).

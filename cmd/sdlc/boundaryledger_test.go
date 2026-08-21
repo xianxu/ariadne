@@ -539,11 +539,50 @@ func TestBoundaryPriorFindings_FamiliesSpanMilestones(t *testing.T) {
 		t.Errorf("the whole-issue close must see families raised at milestones:\n%s", closeBlock)
 	}
 
-	// The scoping of what must be DISPOSED is unchanged: M2 does not inherit M1's
-	// open findings.
-	if strings.Contains(m2, "BR-1") && strings.Contains(m2, "MUST dispose") {
-		if idx := strings.Index(m2, "OPEN FINDINGS"); idx >= 0 && strings.Contains(m2[idx:idx+400], "BR-1") {
-			t.Error("M2 must not inherit M1's open findings — only the family vocabulary crosses")
+	// The scoping of what must be DISPOSED is unchanged: only the family vocabulary
+	// crosses boundaries, never the open-findings list. (M1's BR-1 is disposed in this
+	// fixture, so assert on a boundary-scoped OPEN finding instead — the previous
+	// version of this check tested an unreachable state and sliced past the end.)
+	if strings.Contains(m2, "OPEN FINDINGS") {
+		openSection := m2[strings.Index(m2, "OPEN FINDINGS"):]
+		if idx := strings.Index(openSection, "Families already in play"); idx >= 0 {
+			openSection = openSection[:idx]
 		}
+		if strings.Contains(openSection, "BR-1") {
+			t.Errorf("M2 must not inherit M1's findings as things to dispose:\n%s", openSection)
+		}
+	}
+}
+
+// #194 M3 review BR-21: the plan-gate seed must carry Family across gates. Without it a
+// rule deferred INTO the boundary review arrives anonymous, so escalation cannot fire on
+// exactly the findings the plan gate handed over.
+func TestSeedFromPlanGate_CarriesFamilyAcrossGates(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	if err := writePlanGateLedger(plansDir, issueFile, gatestate.Ledger{
+		Gate: "plan-quality", IssueNum: 69, IDPrefix: "PQ", Rounds: []gatestate.Round{
+			{N: 1, New: []gatestate.Finding{
+				{ID: "PQ-1", Severity: "Minor", Title: "deferred instance", Family: "oracle-blind-direction", Round: 1},
+			}},
+		},
+	}, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+	p := boundaryReviewParams{IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir}
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{}}, "2026-08-20T23:00:00-07:00")
+
+	l, err := readBoundaryGateLedger(plansDir, issueFile, 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := gatestate.FamilyCounts(l)["oracle-blind-direction"]; got != 1 {
+		t.Fatalf("the seeded finding must keep its family, got counts %v", gatestate.FamilyCounts(l))
+	}
+	// And therefore a later finding in that family escalates.
+	if prior := boundaryPriorFindings(&stderr, p); !strings.Contains(prior, "oracle-blind-direction") {
+		t.Errorf("a family carried in from the plan gate must appear in the vocabulary:\n%s", prior)
 	}
 }
