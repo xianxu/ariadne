@@ -61,6 +61,27 @@ the boundary (a non-finalizing verdict writes nothing). That is real, but this i
 second and probably larger cause: a missed paste means the boundary never advances
 **for any reason**, for the remainder of the issue.
 
+### It gates the close too, not just the window
+
+The trailer is read by **two** consumers, and the second one refuses rather than degrades:
+
+- `previousReviewBoundary` derives the review window from it (above) — a missed paste
+  silently widens the window.
+- `milestoneHasVerdictCommit` (`cmd/sdlc/close.go:1717`) is the **milestone-verdict close
+  gate**: it requires, per milestone, a commit that touches the issue file, has subject
+  `^#<issue> <Mx>[: ]`, AND carries `Review-Verdict:`. Miss the paste and
+  `sdlc close` refuses outright — *"milestones M1 lack Review-Verdict trailer in close
+  commits"* — with `--no-verdict` the only way past.
+
+Observed on ariadne#194: the paste was missed three times in one issue. Twice it widened a
+window; the third time it **blocked the issue close**, and the fix was a commit whose only
+purpose was to carry a trailer the binary had already computed and printed. A gate whose
+evidence the binary produces, prints, and then requires a human to copy back into git is a
+gate that fails on clerical error rather than on substance.
+
+That makes the ledger the better source for both consumers: it is written by the binary,
+under the repo lock, at the moment the verdict is known.
+
 ## Spec
 
 The anchor should come from state the binary owns, not from a manual step.
@@ -105,6 +126,9 @@ a line.
 - [ ] When the ledger-derived base and the trailer-derived base disagree, the
       divergence is reported rather than silently resolved.
 - [ ] `sdlc close --help` / `milestone-close --help` / atlas describe the real rule.
+- [ ] The milestone-verdict close gate is satisfiable from binary-owned state — a missed
+      paste must not be able to block a close. A test closes two milestones without ever
+      committing a trailer and asserts the whole-issue close still passes its verdict gate.
 
 ## Plan
 
