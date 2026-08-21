@@ -539,19 +539,13 @@ func TestBoundaryPriorFindings_FamiliesSpanMilestones(t *testing.T) {
 		t.Errorf("the whole-issue close must see families raised at milestones:\n%s", closeBlock)
 	}
 
-	// The scoping of what must be DISPOSED is unchanged: only the family vocabulary
-	// crosses boundaries, never the open-findings list. (M1's BR-1 is disposed in this
-	// fixture, so assert on a boundary-scoped OPEN finding instead — the previous
-	// version of this check tested an unreachable state and sliced past the end.)
-	if strings.Contains(m2, "OPEN FINDINGS") {
-		openSection := m2[strings.Index(m2, "OPEN FINDINGS"):]
-		if idx := strings.Index(openSection, "Families already in play"); idx >= 0 {
-			openSection = openSection[:idx]
-		}
-		if strings.Contains(openSection, "BR-1") {
-			t.Errorf("M2 must not inherit M1's findings as things to dispose:\n%s", openSection)
-		}
-	}
+	// (Deliberately NOT asserting here that M2 omits M1's open findings. Two attempts at
+	// that assertion were unreachable — this fixture's M2 scope is empty, so no
+	// "OPEN FINDINGS" section is emitted at all and anything nested under a
+	// `if strings.Contains(m2, "OPEN FINDINGS")` guard can never run. The invariant is
+	// covered directly and unconditionally in gatestate/boundary_test.go, where the
+	// filter itself is the subject; a guarded copy here was dead coverage that read as
+	// protection. See lessons.md on assertions nested inside runtime guards.)
 }
 
 // #194 M3 review BR-21: the plan-gate seed must carry Family across gates. Without it a

@@ -957,3 +957,31 @@ enough that "I checked it looks right" is never the better option.
 **Origin:** #194 M2 review (C1, where the revert WAS done and caught a real gap) and #194
 M3 review (BR-31, where it was skipped four times — measured prevalence 4 instances plus
 one assertion that tested an unreachable state and sliced past the end of a string).
+
+Sharpening the rule above, because reverting the fix cannot catch this case: **an
+assertion nested inside a runtime guard is unfalsifiable.** `if cond { assert }` silently
+passes whenever `cond` is false, and mutation-verification does not detect it — the test
+still goes red, on its *other* assertions.
+
+Write the guard as the assertion instead:
+
+    if !cond { t.Fatal("precondition: ...") }   // fails loudly if the state never arises
+    assert(...)                                  // then assert unconditionally
+
+or build the fixture so no guard is needed. `if cond { assert }` is legitimate only when
+`cond` IS the thing being asserted.
+
+The tell in #194: two successive "repairs" of the same assertion, the second claiming in
+its comment a fix that had not happened, both nested under
+`if strings.Contains(prompt, "OPEN FINDINGS")` — in a fixture where that section is never
+emitted. Probing beat inspecting: inserting a `t.Fatal` ahead of the guard proved in one
+run what two readings had missed. When a guarded assertion is suspect, make it fail on
+purpose.
+
+Corollary worth its own beat: the fix there was **deletion**, not repair. The invariant
+was already covered unconditionally elsewhere, so the guarded copy was dead coverage that
+read as protection — worse than no test, because it occupies the space where a real one
+would be noticed missing.
+
+**Origin:** #194 M3 review BR-34 — 3rd instance of the family, escalated from "add a test"
+(round 5) to "revert the fix to verify it" (round 6) to this.

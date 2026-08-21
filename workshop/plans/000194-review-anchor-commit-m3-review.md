@@ -434,3 +434,168 @@ findings:
       Either add a cue vet -d '#Finding' instance case to construct/vocabulary/vet_test.sh — it
       already does exactly that for #Project — or drop the enforcement claim from both artifacts.
 ```
+
+---
+
+## Re-review — 2026-08-20T22:49:07-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 194 — boundary reviews: anchor to the reviewed commit, and remember across rounds |
+| repo | ariadne |
+| issue file | workshop/issues/000194-review-anchor-commit.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | 5e8a3e5e12f60c1b8c1d9e7d54fb0c1638bf46b4..76de5dc5aeacd506906be21e0c416958b025eca6 |
+| command | sdlc milestone-close --issue 194 --milestone M3 |
+| reviewer | claude |
+| timestamp | 2026-08-20T22:49:07-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+M3's substance is delivered and, for the first time on this issue, I could verify the *verification* rather than trust it. I reverted each of the four BR-20..BR-23 code fixes in place and re-ran the suite: `Family: f.Family` in `seedFromPlanGate` now fails `TestSeedFromPlanGate_CarriesFamilyAcrossGates`, and `r.N >= round` → `r.N == round` now fails `TestConvergenceLine_LaterRoundsAreNotPriorFamilies`. Both were green-either-way at round 6; both are genuinely pinned now, and the commit's claim to have mutation-verified them is accurate. `go build`, `go vet`, `gofmt -l`, `go test ./...`, `construct/vocabulary/vet_test.sh`, and `sdlc process-manual` are all clean on a clean tree. BR-32's five table rows are corrected and independently checked against the code (`finding.cue:91`, `ledger.go:43`, all three symbols in `family.go`, `RenderPriorFindingsScoped` added), the M3 `## Revisions` entry exists, and #198 is filed against the right root cause. What keeps this off SHIP is two things, both of which I am raising as rules rather than instance fixes because both belong to families already in play: the assertion the commit says it *repaired* is still unreachable — I probed it and its body never executes — and the escalation prompt directs the reviewer to record prevalence in a `Limits` section that exists in no artifact model anywhere in the repo.
+
+## 1. Strengths
+
+- **The mutation-verification claim holds under independent re-testing.** I did not take the commit message's word for it: both reverts go red, and both go green on restore. That is the first time on this issue a fix-round's testing claim survived a check rather than being the thing the check caught.
+- **The rule was applied, not just recorded.** `workshop/lessons.md:941-959` states the revert-to-verify rule with its origin *and* its measured prevalence, and the two instances were fixed in the same commit. BR-31 asked for the rule and got the rule plus the instances — the stronger of the two available responses.
+- **#198 names the right root cause.** It does not stop at "keep the plan updated"; it identifies that the durable plan is the only major SDLC artifact with no automated check, cites the tell (the table drifted in the *same commit* that ticked its boxes), and observes the table is deterministically checkable without an LLM because every row names a path and a symbol. That is a fileable rule, not a resolution to be more careful.
+- **`RenderPriorFindingsScoped` (`prompt.go:37`) remains the right seam** and its first-round branch (`prompt.go:39-49`) correctly carries families through the empty-scope case — the second layer BR-20 named.
+- **`TestConvergenceLine_LaterRoundsAreNotPriorFamilies` (`family_test.go:176`) is a well-built discriminating fixture**: three rounds, a family debuting in the *middle*, and assertions at both round 2 (must not repeat) and round 3 (must repeat). It fails on the exact mutation it was written to catch.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**I1 — the assertion the commit says it repaired is still unreachable.** *(3rd instance in family `test-pins-the-invariant`.)*
+
+`cmd/sdlc/boundaryledger_test.go:546-554`. I probed it by inserting `if !strings.Contains(m2, "OPEN FINDINGS") { t.Fatal(...) }` ahead of the guard and running the test:
+
+```
+boundaryledger_test.go:546: PROBE: m2 has NO OPEN FINDINGS section - assertion body never runs
+```
+
+The fixture's rounds are all `Boundary: "M1"`, so `FilterBoundary(l, "M2")` yields zero rounds, `RenderPriorFindingsScoped` takes the first-round branch (`prompt.go:39`), and the `"OPEN FINDINGS"` header (`prompt.go:55`) is never emitted. The outer `if` is false, the body never runs, and `t.Errorf` at :552 is dead — exactly as it was before. The unbounded `m2[idx:idx+400]` slice *was* genuinely fixed. But the comment at :542-545 now asserts a repair that did not happen: it says *"assert on a boundary-scoped OPEN finding instead"*, and the code still asserts on `BR-1`, which this fixture disposes at round 2. A comment claiming a test does something it does not is worse than the original, because the next reader stops checking.
+
+Mitigating, and why this is Important rather than Critical: the invariant itself is covered elsewhere — `gatestate/boundary_test.go:14,54,79,97` pin `FilterBoundary`'s scoping directly, including that a seeded `BoundaryAll` finding is visible at every boundary while a milestone-scoped one is not. This is redundant dead coverage, not a hole.
+
+**The rule, stated — and it is a genuine sharpening, not a restatement.** The rule adopted this round (revert the fix, watch the test go red) operates at *test* granularity, and that is precisely why it missed here: `TestBoundaryPriorFindings_FamiliesSpanMilestones` **does** go red when BR-20 is reverted — on its other three assertions — so the revert check reports the test as pinning, while one assertion inside it never executes. The sharper rule:
+
+> **An assertion nested inside a runtime guard is unfalsifiable, because a dead branch and a passing branch are indistinguishable. Assert the guard, don't test under it:** write `if !cond { t.Fatal("precondition: …") }` followed by the unconditional assertion, or build the fixture so no guard is needed. `if cond { …assert… }` is only acceptable when `cond` is itself the assertion (`if strings.Contains(x, forbidden) { t.Error }`), which is the common and correct shape.
+
+This is mechanically greppable and its prevalence here is exactly one: `boundaryledger_test.go:546` wrapping `:551` is the only nested-guard assertion in `cmd/sdlc/**_test.go` — every other `if strings.Contains(` in the suite is either a direct negative assertion or a loop-body filter. So the rule is cheap to state, cheap to enforce, and closes the gap the round-6 rule left open. Measured prevalence of `test-pins-the-invariant` on this issue is now 5 (BR-29's two items, BR-21, BR-22, and this).
+
+## 4. Minor findings
+
+**M1 — the escalation's fallback branch writes to a section that does not exist.** *(2nd instance in family `escalation-copy-precision`; ARCH-PURPOSE.)* `family.go:109-110` instructs the reviewer: *"If the rule cannot be stated, say why, and record the family in `Limits` with its measured prevalence."* There is no `Limits` section in `construct/datatype/`, `construct/vocabulary/`, any issue, any plan, or any skill — a repo-wide grep for `## Limits` and `` `Limits` `` returns four hits, and all four are this prompt string or a quotation of it (`family.go:110`, `000194-*.md:93`, `000194-*-plan.md:469`, and this review's own round-6 recommendation echoing it). So the escalation's escape hatch — the branch that preserves the measurement precisely when the rule is *not* writable, which is the harder and more valuable case — names no consumer. A reviewer following it either invents a heading or drops the prevalence data.
+
+This originates in the issue's own Spec (`000194-review-anchor-commit.md:93`), so the implementation faithfully rendered what it was asked for; the gap is that nobody checked the referent exists. Since BR-26 (the first instance of this family) is still open and unfixed, the honest framing is not "state the rule so this stops recurring" — no instance has been fixed yet — but **fold this into BR-26's disposition**: the escalation block is hand-written prose that asserts things the ledger does not support (`counts[fam] >= 1` always true, "Earlier rounds fixed instances" asserted for open and withdrawn findings, one family's ordinal printed for all of them, a family total rendered as *"N new findings"*) and now also points at an artifact section that does not exist. The rule covering all five: **the escalation block must be generated from the data it describes and may reference only sections the artifact model defines** — either add `## Limits` to the issue/plan datatype, or point the instruction at `## Log`, which does exist.
+
+- `atlas/index.md:14`'s one-line blurb for `gate-state.md` still enumerates only #187's surface — no families, no convergence line — though the linked file itself was correctly updated. The link requirement of AGENTS.md §8 is met; the description is stale.
+- `prompt.go:46` returns the first-round branch without the `strings.TrimRight(…, "\n")` that :108 applies, so the two branches differ by a trailing newline.
+- `parse.go:46` reads `normalizeText(rr.New[i].Family)` while the two lines above it read `normalizeText(f.Title)` / `normalizeText(f.Detail)` from the loop copy. Equivalent here, but the inconsistency invites a future edit that isn't.
+
+## 5. Test coverage notes
+
+- Mutation coverage on this round's two additions is **2 of 2** — I verified both independently rather than reading the claim. Combined with round 6's verified BR-20 and BR-23, all four code fixes across the fix rounds are now genuinely pinned.
+- BR-29's first item is, contrary to round 6's disposition, effectively satisfied: `FuzzRenderParseRoundTrip` (`render_test.go:117`) now round-trips `family` through `Render → ParseSidecar → Render → ParseSidecar` with a dedicated seed (`family="\n0"`) and a migrated crasher-corpus entry. Its second item is not — `TestFindingRenderBlockInstruction` (`pkg/vocab/finding_test.go:85`) still asserts severities, dispositions and `id: new`, but not `family:`. The goldens cover it indirectly; the model↔prompt drift guard is where the invariant belongs, since a judge never told to emit `family` defeats the milestone silently.
+- Still untested end-to-end: `ConvergenceLine`'s stderr emission through a full `close` / `milestone-close` run against M2's stateful reviewer fake. `TestBoundaryReview_EmitsConvergenceLine` calls `persistBoundaryRound` directly.
+
+## 6. Architectural notes for upcoming work
+
+- **ARCH-DRY — pass.** `NormalizeFamily` is a one-line wrapper over `issue.Slugify` (`family.go:38`) with the residual-risk paragraph retained above it; id minting stays in `AssignIDsAt`; `readGateLedger`/`writeGateLedger` stay shared. The one live over-share is `pluralFindings` serving both the vocabulary list and the convergence line (BR-26, open).
+- **ARCH-PURE — pass.** `family.go` is deterministic and IO-free end to end; the package's tests need exactly one `os.ReadFile` (for the `tools#1` fixture) and no mocks. `ConvergenceLine` is computed in the pure layer and emitted from `boundaryledger.go:193`.
+- **ARCH-PURPOSE — flag (M1).** Shadow-sweep on the `family` single source: prompt vocabulary derives ✓, escalation derives ✓, convergence line derives ✓, plan-gate seed derives ✓ (verified by revert), human prose projection does not (BR-28, open), the CUE `#Finding` "source" enforces nothing so the Go struct and the `family: <slug>` literal are hand restatements (BR-33, open). New this round: the escalation's `Limits` consumer does not exist at all — a named sink with no artifact behind it, which is a stronger form of "doesn't derive" than a hand-maintained restatement.
+- **ARCH-MOCK — pass.** No new external dependency in the window. The `tools#1` four-round history remains a copied `testdata/` fixture rather than a sibling-checkout read, so the acceptance test is hermetic; git stays behind the real-repo fixture and the reviewer behind `judge.Run`.
+- **For the whole-issue close.** With families now crossing boundaries but open findings still boundary-scoped, the close reviewer will be handed a large family vocabulary and an escalation reading *"Earlier rounds fixed instances"* alongside *"This is the FIRST round … no prior findings to dispose of"* — because `FilterBoundary(l, "")` drops every M1/M2/M3 round, including the still-open `BR-10`, `BR-17`, `BR-18`, `BR-19`, `BR-26`–`BR-30` and `BR-33`. That combination is D1 working as designed plus BR-26 unfixed, but it is worth an explicit decision before `sdlc close` runs rather than discovering it in the prompt.
+
+## 7. Plan revision recommendations
+
+The plan is now accurate — the five drifted rows are corrected, `RenderPriorFindingsScoped` is listed, and the M3 `## Revisions` entry records both the scoped/full split and the dropped `DispositionCounts` reuse. Two small additions:
+
+- **Extend the existing M3 `## Revisions` entry** with the two mutation verifications performed this round, per the rule the same entry adopts: reverting `Family: f.Family` fails `TestSeedFromPlanGate_CarriesFamilyAcrossGates`, and reverting `r.N >= round` fails `TestConvergenceLine_LaterRoundsAreNotPriorFamilies`. The rule says the Log records the verification; recording it for the two fixes that motivated the rule is the first application.
+- **Add a Core-concepts row for `renderFamilyVocabulary` / `renderFamilyEscalation`** (`family.go:77`, `family.go:92`, new, PURE). They are unexported but they are the two entities the milestone's escalation behavior actually lives in, and #198's proposed path/symbol check would want them named.
+
+```findings
+dispose:
+  - id: BR-26
+    disposition: not-addressed
+    note: |
+      All four sub-items unchanged at family.go:95, :106-110, :85, :106; a fifth is added below (the `Limits` referent does not exist).
+  - id: BR-27
+    disposition: not-addressed
+    note: |
+      boundaryledger.go:193 still passes len(l.Rounds) rather than CountedRounds.
+  - id: BR-28
+    disposition: not-addressed
+    note: |
+      render.go:104-116 still prints id/severity/title/detail with no family.
+  - id: BR-29
+    disposition: not-addressed
+    note: |
+      Item one IS now covered — FuzzRenderParseRoundTrip round-trips family with a dedicated seed. Item two is not: finding_test.go:85 still does not assert "family:".
+  - id: BR-30
+    disposition: not-addressed
+    note: |
+      cinfo still sits between the demotion comment and its loop; finding.go:78 and the window-test placement unchanged.
+  - id: BR-31
+    disposition: addressed
+    note: |
+      Rule written to lessons.md with origin and prevalence, AND both instances fixed — I independently reverted each and confirmed the named test goes red. The still-inert assertion is re-raised below as the family's 3rd instance with a sharpened rule.
+  - id: BR-32
+    disposition: addressed
+    note: |
+      Five rows corrected and verified against the code, RenderPriorFindingsScoped added, M3 Revisions entry written, and #198 filed against the root cause rather than the symptom.
+  - id: BR-33
+    disposition: not-addressed
+    note: |
+      vet_test.sh still has no -d '#Finding' instance case, and Task 3.1 plus the issue Log both still restate the enforcement claim.
+findings:
+  - id: new
+    severity: Important
+    family: test-pins-the-invariant
+    title: |
+      The assertion the commit says it repaired is still unreachable — 3rd instance, and the round-6 rule cannot catch it
+    detail: |
+      boundaryledger_test.go:546-554. Probed, not inferred: inserting a t.Fatal ahead of the
+      guard prints "m2 has NO OPEN FINDINGS section". All fixture rounds are Boundary M1, so
+      FilterBoundary(l, "M2") is empty, RenderPriorFindingsScoped takes the first-round branch,
+      and the "OPEN FINDINGS" header at prompt.go:55 is never emitted. The slice-past-index bug
+      WAS fixed; the unreachability was not, and the comment at :542-545 now claims a repair
+      that did not happen. Do NOT fix this instance. The round-6 rule (revert the fix, watch it
+      go red) structurally cannot catch this: the test DOES go red on its other three
+      assertions. The sharpened RULE — an assertion nested inside a runtime guard is
+      unfalsifiable, so assert the guard rather than testing under it; write
+      "if !cond { t.Fatal(precondition) }" then assert unconditionally, or build the fixture so
+      no guard is needed. "if cond { assert }" is fine only when cond IS the assertion.
+      Greppable, and prevalence in cmd/sdlc is exactly one. The invariant itself is already
+      covered by gatestate/boundary_test.go:14,54,79,97, so this is redundant dead coverage
+      rather than a hole. test-pins-the-invariant now measures 5 instances on this issue.
+  - id: new
+    severity: Minor
+    family: escalation-copy-precision
+    title: |
+      The escalation tells the reviewer to record prevalence in a `Limits` section that exists in no artifact model
+    detail: |
+      family.go:109-110 instructs "record the family in `Limits` with its measured prevalence".
+      A repo-wide grep for "## Limits" and "`Limits`" returns four hits and all four are this
+      prompt string or a quotation of it (family.go:110, the issue Spec at :93, plan.md:469,
+      and round 6's own recommendation). There is no Limits section in construct/datatype/,
+      construct/vocabulary/, any issue, any plan, or any skill. So the escalation's FALLBACK
+      branch — the one that preserves the measurement when the rule cannot be stated, i.e. the
+      harder case — names a sink that does not exist (ARCH-PURPOSE). It originates in the
+      issue's Spec, so the implementation rendered faithfully; nobody checked the referent.
+      BR-26 is still open, so no instance of this family has been fixed yet: fold this in
+      rather than patching it separately. The rule covering all five sub-items — the escalation
+      block must be GENERATED from the data it describes and may reference only sections the
+      artifact model defines. Either add `## Limits` to the issue/plan datatype, or point the
+      instruction at `## Log`, which exists.
+```
