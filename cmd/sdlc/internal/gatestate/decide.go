@@ -41,14 +41,30 @@ type Decision struct {
 // one id namespace the reviewer can actually dispose of.
 //
 // `roundCap` is spelled out rather than `cap` so it doesn't shadow the builtin.
-func Decide(l Ledger, roundCap int) Decision {
+func Decide(l Ledger, roundCap int) Decision { return DecideScoped(l, l, roundCap) }
+
+// DecideScoped separates the two questions Decide answers, because they want different
+// scopes (ariadne#194 M3 review BR-37):
+//
+//   - `capScope` bounds the ROUND CAP — per boundary, or an issue with three milestones
+//     arrives at the whole-issue close already past the cap and demotes every Important
+//     on its first round.
+//   - `openScope` supplies the OPEN FINDINGS — the whole issue at the final boundary,
+//     because the whole-issue close is the last gate before publish and a finding left
+//     undisposed at a milestone otherwise strands: its boundary has closed, so nothing
+//     will ever look at it again.
+//
+// The rule this encodes: scope per boundary only what the round cap needs; every other
+// read wants the full issue.
+func DecideScoped(capScope, openScope Ledger, roundCap int) Decision {
+	l := openScope
 	if roundCap <= 0 {
 		roundCap = DefaultRoundCap
 	}
 	m := vocab.Finding()
 	// CountedRounds, not len(l.Rounds): a seed round and a dispatch that never started
 	// invoked no reviewer, and the cap is about reviewer invocations (ariadne#194 M2).
-	counted := CountedRounds(l)
+	counted := CountedRounds(capScope)
 	d := Decision{Rounds: counted, CapReached: counted > roundCap}
 
 	for _, f := range OpenFindings(l) {

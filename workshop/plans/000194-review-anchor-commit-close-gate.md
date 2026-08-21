@@ -640,6 +640,89 @@ rounds:
           round: 8
       boundary: M3
       blocked: false
+    - "n": 9
+      timestamp: "2026-08-20T23:16:29-07:00"
+      agent: claude
+      dispose:
+        - id: BR-10
+          disposition: addressed
+          note: Both halves fixed and verified in source — ApplyChecked now rejects per-disposition (ledger.go:248-263) and changecode.go:528-533 uses ApplyChecked's own `applied` round instead of hand-rebuilding one.
+          round: 9
+        - id: BR-14
+          disposition: addressed
+          note: TestGateLedgerRefusal_BlocksAPassingVerdictAndIsBypassable covers the passing-verdict refusal AND --no-ledger through executeSDLCTestCommand; TestBlockOnLedgerFailure_FailsClosed covers the unusable-ledger branch.
+          round: 9
+        - id: BR-15
+          disposition: addressed
+          note: 'ledger.go:74-89 now claims exactly TWO kinds and states the interrupted-review case as a KNOWN LIMITATION rather than as motivation; the issue Log''s "Not decided here" is replaced by "Cap accounting: DECIDED". All three artifacts agree.'
+          round: 9
+        - id: BR-16
+          disposition: not-addressed
+          note: 'gate-state.md is fixed (the CountedRounds / no_cap paragraphs are there). The second half is not — atlas/index.md:14 still reads "#183 is the second intended consumer" after #194 delivered it, and that blurb still enumerates only #187''s surface.'
+          round: 9
+        - id: BR-17
+          disposition: not-addressed
+          note: Verified by grep — "Forced" appears nowhere in cmd/sdlc/boundaryledger.go, while changecode.go:540 stamps it. A --force or --no-ledger bypass at the boundary still leaves no durable record.
+          round: 9
+        - id: BR-26
+          disposition: not-addressed
+          note: All four sub-items unchanged, and all four misfired on THIS round's prompt — it rendered family totals as "3 new findings", named only escalation-copy-precision of ten families in play with only its ordinal, and swept six count-1 families into "a rule that has already been patched at least once".
+          round: 9
+        - id: BR-28
+          disposition: not-addressed
+          note: render.go:110-116 still prints id/severity/title/detail with no family, in either projection. With the convergence line being stderr-only, no durable artifact renders the families the gate tracks.
+          round: 9
+        - id: BR-29
+          disposition: not-addressed
+          note: Item one stays covered by FuzzRenderParseRoundTrip. Item two is not — grep for "family" in pkg/vocab/finding_test.go returns nothing, so the model-to-prompt drift guard still does not pin the key.
+          round: 9
+        - id: BR-33
+          disposition: not-addressed
+          note: Ran vet_test.sh myself (ok). It has -d '#Project' instance cases at :45 and :48 and still no -d '#Finding' equivalent, so the "closed schema, an unmodeled key fails instance validation" rationale remains unenforced.
+          round: 9
+        - id: BR-36
+          disposition: addressed
+          note: helptext/close.md:72-74 now shows a shape the formatter can emit (the ", N disposed" segment is present in both examples) and family.go:148 dropped the markdown; TestConvergenceLine pins both exact strings.
+          round: 9
+      findings:
+        - id: BR-37
+          severity: Important
+          title: The whole-issue close sees zero prior findings while the same ledger holds 15 open, three at Important — and no gate follows it
+          detail: |-
+            boundaryledger.go:81 scopes the prompt to FilterBoundary(l, ""), which drops every
+            M1/M2/M3 round, while render.go:120 builds the durable "## Open findings" from the
+            FULL ledger. This round's own prompt therefore read "FIRST round ... no prior
+            findings to dispose of" against a ledger listing BR-10/14/15/16/17/18/19/26/27/28/
+            29/30/33/35/36. Four of those are already fixed and merely undisposed, because a
+            finding fixed after its boundary's last round has no path to disposal at all. Do
+            NOT drop the filter — measured, this ledger has 8 counted rounds against a cap of
+            3, so an unfiltered Decide would demote every Important on round one. The RULE, and
+            it is BR-20's rule one field over (BR-20's slug named its symptom, which is why the
+            second instance did not escalate): scope per boundary only what the round cap
+            needs; every other read wants the full issue. Cheapest correct fix — pass the full
+            ledger as `scoped` when Milestone == "", since the whole-issue close IS the
+            boundary that covers everything, and pin it with the mirror of
+            TestBoundaryPriorFindings_FamiliesSpanMilestones.
+          family: boundary-scope-strands-findings
+          round: 9
+        - id: BR-38
+          severity: Minor
+          title: The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction
+          detail: |-
+            Mutation-verified: deleting close.go:474-478 (M1 I3's windowHead pin) leaves
+            `go test ./cmd/sdlc/` fully green. That is correct rather than a gap — both
+            rev-parse calls run under one lock hold, so no interleaving can distinguish them;
+            the fix converts an incidental identity into a structural one. lessons.md:941 as
+            written ("a fix is complete only when a test FAILS WITHOUT IT") would force a fake
+            test or mark good work incomplete. Do NOT add a test for windowHead. This is the
+            4th instance of the family and the third limit this issue has found in its own
+            rule (r6 revert-to-verify, r7 guarded assertions, now this), so record the
+            exception in lessons.md — which is a base-layer file that propagates downstream:
+            when the fix removes a POSSIBLE divergence rather than an actual one, the honest
+            record is "structural, no behavioral difference to pin" in the Log.
+          family: test-pins-the-invariant
+          round: 9
+      blocked: true
 ---
 
 # Gate ledger — ariadne#194 (boundary-review)
@@ -1001,11 +1084,53 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   family has been fixed yet - which is BR-26 sub-item 4 - so fold this in with BR-26 and
   BR-35 rather than treating it as a separate patch.
 
+## Round 9 — 2026-08-20T23:16:29-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-10 — addressed — Both halves fixed and verified in source — ApplyChecked now rejects per-disposition (ledger.go:248-263) and changecode.go:528-533 uses ApplyChecked's own `applied` round instead of hand-rebuilding one.
+- BR-14 — addressed — TestGateLedgerRefusal_BlocksAPassingVerdictAndIsBypassable covers the passing-verdict refusal AND --no-ledger through executeSDLCTestCommand; TestBlockOnLedgerFailure_FailsClosed covers the unusable-ledger branch.
+- BR-15 — addressed — ledger.go:74-89 now claims exactly TWO kinds and states the interrupted-review case as a KNOWN LIMITATION rather than as motivation; the issue Log's "Not decided here" is replaced by "Cap accounting: DECIDED". All three artifacts agree.
+- BR-16 — not-addressed — gate-state.md is fixed (the CountedRounds / no_cap paragraphs are there). The second half is not — atlas/index.md:14 still reads "#183 is the second intended consumer" after #194 delivered it, and that blurb still enumerates only #187's surface.
+- BR-17 — not-addressed — Verified by grep — "Forced" appears nowhere in cmd/sdlc/boundaryledger.go, while changecode.go:540 stamps it. A --force or --no-ledger bypass at the boundary still leaves no durable record.
+- BR-26 — not-addressed — All four sub-items unchanged, and all four misfired on THIS round's prompt — it rendered family totals as "3 new findings", named only escalation-copy-precision of ten families in play with only its ordinal, and swept six count-1 families into "a rule that has already been patched at least once".
+- BR-28 — not-addressed — render.go:110-116 still prints id/severity/title/detail with no family, in either projection. With the convergence line being stderr-only, no durable artifact renders the families the gate tracks.
+- BR-29 — not-addressed — Item one stays covered by FuzzRenderParseRoundTrip. Item two is not — grep for "family" in pkg/vocab/finding_test.go returns nothing, so the model-to-prompt drift guard still does not pin the key.
+- BR-33 — not-addressed — Ran vet_test.sh myself (ok). It has -d '#Project' instance cases at :45 and :48 and still no -d '#Finding' equivalent, so the "closed schema, an unmodeled key fails instance validation" rationale remains unenforced.
+- BR-36 — addressed — helptext/close.md:72-74 now shows a shape the formatter can emit (the ", N disposed" segment is present in both examples) and family.go:148 dropped the markdown; TestConvergenceLine pins both exact strings.
+
+### Raised
+
+- **BR-37** [Important] The whole-issue close sees zero prior findings while the same ledger holds 15 open, three at Important — and no gate follows it
+  boundaryledger.go:81 scopes the prompt to FilterBoundary(l, ""), which drops every
+  M1/M2/M3 round, while render.go:120 builds the durable "## Open findings" from the
+  FULL ledger. This round's own prompt therefore read "FIRST round ... no prior
+  findings to dispose of" against a ledger listing BR-10/14/15/16/17/18/19/26/27/28/
+  29/30/33/35/36. Four of those are already fixed and merely undisposed, because a
+  finding fixed after its boundary's last round has no path to disposal at all. Do
+  NOT drop the filter — measured, this ledger has 8 counted rounds against a cap of
+  3, so an unfiltered Decide would demote every Important on round one. The RULE, and
+  it is BR-20's rule one field over (BR-20's slug named its symptom, which is why the
+  second instance did not escalate): scope per boundary only what the round cap
+  needs; every other read wants the full issue. Cheapest correct fix — pass the full
+  ledger as `scoped` when Milestone == "", since the whole-issue close IS the
+  boundary that covers everything, and pin it with the mirror of
+  TestBoundaryPriorFindings_FamiliesSpanMilestones.
+- **BR-38** [Minor] The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction
+  Mutation-verified: deleting close.go:474-478 (M1 I3's windowHead pin) leaves
+  `go test ./cmd/sdlc/` fully green. That is correct rather than a gap — both
+  rev-parse calls run under one lock hold, so no interleaving can distinguish them;
+  the fix converts an incidental identity into a structural one. lessons.md:941 as
+  written ("a fix is complete only when a test FAILS WITHOUT IT") would force a fake
+  test or mark good work incomplete. Do NOT add a test for windowHead. This is the
+  4th instance of the family and the third limit this issue has found in its own
+  rule (r6 revert-to-verify, r7 guarded assertions, now this), so record the
+  exception in lessons.md — which is a base-layer file that propagates downstream:
+  when the fix removes a POSSIBLE divergence rather than an actual one, the honest
+  record is "structural, no behavioral difference to pin" in the Log.
+
 ## Open findings
 
-- **BR-10** [Minor] One bad disposition id nullifies a whole round's valid dispositions
-- **BR-14** [Important] The gate-ledger refusal, --no-ledger, and blockOnLedgerFailure have no test at any level
-- **BR-15** [Important] NoCap does not implement the case it names as its motivation; doc, commit message and issue Log disagree with the code
 - **BR-16** [Important] atlas gate-state.md now asserts the superseded cap rule, and NoCap/CountedRounds is undocumented
 - **BR-17** [Minor] Round.Forced is never stamped on a boundary round, unlike the plan gate
 - **BR-18** [Minor] The plan's Core-concepts tables never gained M2's entities, and Revisions omits two shared-gatestate behavior changes
@@ -1017,4 +1142,5 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-30** [Minor] The convergence cinfo was inserted between the demotion comment and the loop it documents
 - **BR-33** [Minor] The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
 - **BR-35** [Minor] The escalation tells the reviewer to record prevalence in a `Limits` section that exists in no artifact model
-- **BR-36** [Minor] The convergence line's helptext shows output the formatter cannot produce, and the line emits markdown into a plain terminal
+- **BR-37** [Important] The whole-issue close sees zero prior findings while the same ledger holds 15 open, three at Important — and no gate follows it
+- **BR-38** [Minor] The revert-to-verify rule needs a third exception — a fix that removes a possible divergence has no failing test by construction

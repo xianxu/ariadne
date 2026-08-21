@@ -80,7 +80,7 @@ func boundaryPriorFindings(stderr io.Writer, p boundaryReviewParams) string {
 	}
 	// Scoped for what must be disposed, FULL for family counts: a family recurring across
 	// milestones is the signal one issue-wide ledger exists to preserve (BR-20).
-	return gatestate.RenderPriorFindingsScoped(gatestate.FilterBoundary(l, p.Milestone), l)
+	return gatestate.RenderPriorFindingsScoped(openScopeFor(l, p.Milestone), l)
 }
 
 // seedFromPlanGate returns a BoundaryAll round carrying the plan gate's still-open
@@ -176,7 +176,9 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 		}
 	}
 
-	d := gatestate.Decide(gatestate.FilterBoundary(l, p.Milestone), roundCapFromEnvVar("WF_BOUNDARY_ROUND_CAP"))
+	// Cap per boundary; open findings from the WHOLE issue at the final boundary (BR-37).
+	d := gatestate.DecideScoped(gatestate.FilterBoundary(l, p.Milestone), openScopeFor(l, p.Milestone),
+		roundCapFromEnvVar("WF_BOUNDARY_ROUND_CAP"))
 	// Stamp the outcome onto the round BEFORE writing (mirrors changecode.go:536-537).
 	// Without this the one durable record of "did this gate refuse" says `passed` for a
 	// round that refused, and PassesUnchanged — which #183's --fixed-to-ship pass-through
@@ -215,4 +217,22 @@ func blockOnLedgerFailure(stderr io.Writer, reason string) gatestate.Decision {
 	cwarn(stderr, "boundary gate ledger unusable — refusing to finalize rather than close without it: "+reason)
 	cwarn(stderr, "fix or delete the ledger file, then re-run; do NOT let the gate silently forget")
 	return gatestate.Decision{Block: true, Reason: "boundary gate ledger unusable: " + reason}
+}
+
+// openScopeFor returns the ledger view whose OPEN FINDINGS this boundary must dispose of.
+//
+// A milestone sees its own. The WHOLE-ISSUE close (milestone "") sees everything
+// (ariadne#194 M3 review BR-37): it is the last gate before publish, and a finding left
+// undisposed at a milestone has no other path to disposal — its boundary has closed, so
+// nothing will ever look at it again. Measured when this was found: 15 open findings,
+// three of them Important, invisible to the close that was about to ship them.
+//
+// This is NOT the same as dropping the filter. The round cap still scopes per boundary
+// (see DecideScoped) — unfiltered, this issue's 8 counted rounds against a cap of 3 would
+// demote every Important on the close's first round.
+func openScopeFor(l gatestate.Ledger, milestone string) gatestate.Ledger {
+	if milestone == "" {
+		return l
+	}
+	return gatestate.FilterBoundary(l, milestone)
 }

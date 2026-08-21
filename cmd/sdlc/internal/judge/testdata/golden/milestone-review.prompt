@@ -247,6 +247,12 @@ not its symptom — `block-opener-rule`, not `bracket-depth-bug`. If the prior-r
 block above lists families already in play, REUSE the matching slug verbatim;
 coin a new one only when the finding genuinely belongs to no existing family.
 
+Slug the RULE, because a symptom-slug will not match the next instance and the
+escalation will silently fail to fire. Ask: "if this recurs in a different file
+with different symptoms, would I still reach for this slug?" If not, it names the
+symptom. `boundary-scope-strands-reads` survives that test; `family-counts-filtered`
+does not — it describes one site, and the same rule broke a second read elsewhere.
+
 Use the `|` block form for title, detail and note exactly as shown, and indent
 their text by six spaces. In plain YAML a ` #` starts a comment, so an
 unquoted `## Estimate` or `issue #187` would silently truncate your finding.

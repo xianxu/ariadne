@@ -580,3 +580,81 @@ func TestSeedFromPlanGate_CarriesFamilyAcrossGates(t *testing.T) {
 		t.Errorf("a family carried in from the plan gate must appear in the vocabulary:\n%s", prior)
 	}
 }
+
+// #194 M3 review BR-37: a finding left undisposed at a milestone has no other path to
+// disposal — its boundary has closed. The whole-issue close is the last gate before
+// publish, so it must see EVERY open finding, not just rounds stamped with its own
+// (empty) boundary. Measured when this was found: 15 open findings, three Important,
+// invisible to the close that was about to ship them.
+func TestWholeIssueClose_SeesOpenFindingsFromEveryMilestone(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	if err := writeBoundaryGateLedger(plansDir, issueFile, gatestate.Ledger{
+		Gate: "boundary-review", IssueNum: 69, IDPrefix: "BR", Rounds: []gatestate.Round{
+			{N: 1, Boundary: "M1", New: []gatestate.Finding{
+				{ID: "BR-1", Severity: "Important", Title: "STRANDED_AT_M1", Round: 1},
+			}},
+			{N: 2, Boundary: "M2", New: []gatestate.Finding{
+				{ID: "BR-2", Severity: "Minor", Title: "stranded at M2", Round: 2},
+			}},
+		},
+	}, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+
+	// The whole-issue close is shown them...
+	closeParams := boundaryReviewParams{IssuesDir: issuesDir, IssueNum: 69, Milestone: "", PlansDir: plansDir}
+	prior := boundaryPriorFindings(&stderr, closeParams)
+	if !strings.Contains(prior, "STRANDED_AT_M1") {
+		t.Errorf("the whole-issue close must see findings left open at milestones:\n%s", prior)
+	}
+
+	// ...and BLOCKS on the Important one, because no gate follows it.
+	d := persistBoundaryRound(&stderr, closeParams,
+		reviewResult{Agent: "claude", Round: &gatestate.RoundReport{}}, "2026-08-20T23:30:00-07:00")
+	if !d.Block {
+		t.Fatalf("an Important stranded at M1 must block the whole-issue close: %+v", d)
+	}
+
+	// But a MILESTONE still sees only its own — M2 must not be blocked by M1's finding,
+	// which is what the boundary scoping exists for.
+	m2 := boundaryPriorFindings(&stderr, boundaryReviewParams{
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "M2", PlansDir: plansDir})
+	if strings.Contains(m2, "STRANDED_AT_M1") {
+		t.Errorf("M2 must not inherit M1's open findings:\n%s", m2)
+	}
+}
+
+// The other half of BR-37, and the reason the filter must NOT simply be dropped: the cap
+// stays boundary-scoped, or an issue with several milestones arrives at the whole-issue
+// close already past it and demotes every Important on round one.
+func TestWholeIssueClose_RoundCapStaysBoundaryScoped(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	rounds := []gatestate.Round{}
+	for i := 1; i <= 8; i++ { // eight milestone rounds, well past a cap of 3
+		rounds = append(rounds, gatestate.Round{N: i, Boundary: "M1"})
+	}
+	rounds = append(rounds, gatestate.Round{N: 9, Boundary: "M2", New: []gatestate.Finding{
+		{ID: "BR-1", Severity: "Important", Title: "open at M2", Round: 9},
+	}})
+	if err := writeBoundaryGateLedger(plansDir, issueFile, gatestate.Ledger{
+		Gate: "boundary-review", IssueNum: 69, IDPrefix: "BR", Rounds: rounds,
+	}, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+	d := persistBoundaryRound(&stderr, boundaryReviewParams{
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "", PlansDir: plansDir,
+	}, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{}}, "2026-08-20T23:30:00-07:00")
+
+	if d.CapReached {
+		t.Error("the whole-issue close is on its FIRST round; eight M1 rounds must not consume its cap")
+	}
+	if len(d.OpenBlocking) != 1 || len(d.Demoted) != 0 {
+		t.Errorf("the Important must BLOCK, not be demoted: blocking=%d demoted=%d", len(d.OpenBlocking), len(d.Demoted))
+	}
+}
