@@ -1,12 +1,13 @@
 ---
 id: 000194
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-08-21
 estimate_hours: 4.40
 started: 2026-08-20T15:52:21-07:00
+actual_hours: 9.74
 ---
 
 # boundary reviews: anchor to the reviewed commit, and remember across rounds
@@ -266,6 +267,8 @@ Three review boundaries, closed separately (AGENTS.md §3).
 
 ## Log
 
+
+- 2026-08-21: closed — go build ./... && go vet ./cmd/... && go test ./... && gofmt -l && vocabulary check && construct/vocabulary/vet_test.sh all clean. Round-11 findings BR-16/33/40/42 fixed and each mutation-verified. BR-33 now vets the REAL finding.cue via -d "#Finding" (the prior attempt vetted an inlined copy, so opening the real schema left the script green). BR-42 routes Round.Forced through the same forcedRationale helper the plan gate uses, restoring the set-only-when-blocked contract.; review verdict: FIX-THEN-SHIP
 ### 2026-08-20 (M3)
 
 - **M3 took four review rounds, and the escalation sharpened one rule three times** —

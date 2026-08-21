@@ -183,33 +183,27 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	// Without this the one durable record of "did this gate refuse" says `passed` for a
 	// round that refused, and PassesUnchanged — which #183's --fixed-to-ship pass-through
 	// will read at exactly this gate — reads that field.
-	l.Rounds[len(l.Rounds)-1].Blocked = d.Block
-	// Forced (BR-17), through the SAME helper the plan gate uses (BR-42) and therefore
-	// under the same contract Round.Forced states: set ONLY when this gate actually
-	// blocked. Stamping it whenever a waiver flag is present marks a clean round
-	// "forced" — and since --force is a GLOBAL bypass, every --force'd close would record
-	// a boundary-gate waiver even when the operator forced past an unrelated gate,
-	// over-reporting overrides in the one number meant to answer which gates earn cost.
-	l.Rounds[len(l.Rounds)-1].Forced = forcedRationale(p.ForcedRationale, d.Block)
-	// #194 M3: the convergence signal — the line that was missing when tools#1 ran four
-	// rounds with no way to tell whether round five would find more. Capping on finding
-	// COUNT is arbitrary; capping when families stop repeating is not.
-	cinfo(stderr, "boundary gate: "+gatestate.ConvergenceLine(l, len(l.Rounds)))
-	// A demotion means something DIFFERENT here than at the plan gate, and the difference
-	// is worth saying out loud. There, a demoted finding is deferred to the boundary
-	// review, which picks it up — that is what makes the cap safe. Here there IS no later
-	// gate: the boundary review is the last read before publish, so a demoted finding
-	// ships having blocked nothing. It stays in the ledger, but the operator has to know.
-	for _, fnd := range d.Demoted {
-		cwarn(stderr, fmt.Sprintf("boundary gate: [%s] %s demoted past the round cap and will NOT block — "+
-			"no later gate picks it up: %s", fnd.ID, fnd.Severity, fnd.Title))
-	}
-	if werr := writeBoundaryGateLedger(p.PlansDir, issueFileName, l, repoIdentity()); werr != nil {
-		cwarn(stderr, fmt.Sprintf("boundary gate ledger not written: %v", werr))
-	} else {
-		cok(stderr, "boundary gate ledger: "+boundaryGatePath(p.PlansDir, issueFileName))
-	}
-	return d
+	return stampAndPersist(stderr, gatePersist{
+		Label: "boundary gate",
+		Write: func(out gatestate.Ledger) error {
+			return writeBoundaryGateLedger(p.PlansDir, issueFileName, out, repoIdentity())
+		},
+		Extra: func(d gatestate.Decision) {
+			// #194 M3: the convergence signal — the line missing when tools#1 ran four
+			// rounds with no way to tell whether round five would find more. Capping on
+			// finding COUNT is arbitrary; capping when families stop repeating is not.
+			cinfo(stderr, "boundary gate: "+gatestate.ConvergenceLine(l, len(l.Rounds)))
+			// A demotion means something DIFFERENT here than at the plan gate, which is
+			// why this is Extra rather than shared. There, a demoted finding is deferred
+			// to the boundary review, which picks it up — that is what makes the cap
+			// safe. Here there IS no later gate, so a demoted finding ships having
+			// blocked nothing and the operator has to be told.
+			for _, fnd := range d.Demoted {
+				cwarn(stderr, fmt.Sprintf("boundary gate: [%s] %s demoted past the round cap and will NOT block — "+
+					"no later gate picks it up: %s", fnd.ID, fnd.Severity, fnd.Title))
+			}
+		},
+	}, l, d, p.ForcedRationale)
 }
 
 // blockOnLedgerFailure is the fail-closed answer to an unusable boundary ledger.

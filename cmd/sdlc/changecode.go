@@ -535,24 +535,25 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	ledger = applied
 
 	d := gatestate.Decide(ledger, roundCapFromEnv())
-	last := len(ledger.Rounds) - 1
-	ledger.Rounds[last].Blocked = d.Block
-	ledger.Rounds[last].Forced = forcedRationale(f.Force, d.Block)
 	// Stamp the pass-through key only on a PASSING round — caching a refusal would let a
-	// still-blocked plan walk through unchanged on the next invocation.
+	// still-blocked plan walk through unchanged on the next invocation. Gate-specific, so
+	// it happens here rather than in the shared tail.
 	if !d.Block {
 		ledger.ContentHash = contentHash
 	}
-	if werr := writePlanGateLedger(f.PlansDir, issueFile, ledger, repoIdentity()); werr != nil {
-		cwarn(stderr, fmt.Sprintf("plan-gate ledger not persisted: %v", werr))
-	}
+	// The SAME tail the boundary gate ends on (#194 close review BR-43). This gate's copy
+	// diverged five times before it was extracted; sharing it is what stops a sixth.
+	stampAndPersist(stderr, gatePersist{
+		Label: "plan-quality",
+		Write: func(out gatestate.Ledger) error {
+			return writePlanGateLedger(f.PlansDir, issueFile, out, repoIdentity())
+		},
+	}, ledger, d, f.Force)
 
 	if d.Block {
-		cwarn(stderr, "plan-quality: "+d.Reason)
 		cwarn(stderr, "address the findings above and re-run — the gate remembers what you fixed; OR re-run with --force <reason>")
 		return fmt.Errorf("plan-quality failure")
 	}
-	cok(stderr, "plan-quality: "+d.Reason)
 	return nil
 }
 

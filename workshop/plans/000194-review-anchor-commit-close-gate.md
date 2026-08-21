@@ -920,6 +920,92 @@ rounds:
           family: existing-helper-not-reused
           round: 11
       blocked: true
+    - "n": 12
+      timestamp: "2026-08-21T11:16:09-07:00"
+      agent: claude
+      dispose:
+        - id: BR-16
+          disposition: addressed
+          note: atlas/index.md:14 no longer calls 183 the second intended consumer, and gate-state.md carries the CountedRounds/no_cap paragraphs. Verified verbatim; the fix introduced an "and and" typo, noted as a Minor.
+          round: 12
+        - id: BR-18
+          disposition: not-addressed
+          note: Measured by grep - eight named entities still absent from the plan (readGateLedger/writeGateLedger, seedFromPlanGate, persistBoundaryRound, boundaryPriorFindings, blockOnLedgerFailure, roundCapFromEnvVar, AssignIDsAt) plus renderFamilyVocabulary/renderFamilyEscalation. Unchanged since round 11.
+          round: 12
+        - id: BR-26
+          disposition: not-addressed
+          note: Still two of four, and both misfired on THIS round's prompt - family.go:85 rendered "test-pins-the-invariant  5 new findings" for a running total, and family.go:108 asserted "Earlier rounds fixed instances" for doc-claim-exceeds-enforcement, whose only finding BR-33 had never been fixed at the time the prompt was rendered.
+          round: 12
+        - id: BR-30
+          disposition: not-addressed
+          note: Still one of three - pkg/vocab/finding.go:79 says the block instruction is "for the plan-quality prompt", and TestBoundaryWindowBase_WholeIssueStaysAtMergeBase is still at boundaryledger_test.go:486 rather than beside its siblings in milestonewindow_test.go.
+          round: 12
+        - id: BR-33
+          disposition: addressed
+          note: 'vet_test.sh now vets the REAL finding.cue against JSON instances with -d ''#Finding''. Mutation-verified BOTH directions - adding `...` to the real definition fails the closed-schema case, and deleting `family?: string` fails the valid-instance case. The hand-inlined testdata copies are deleted and unreferenced.'
+          round: 12
+        - id: BR-40
+          disposition: addressed
+          note: helptext/milestone-close.md:99-104 now separates cap scope from open-findings scope, close.md:46 was fixed in the prior round, and gate-state.md:107-108 names DecideScoped and openScopeFor with the rule they encode - grep-confirmed against atlas/.
+          round: 12
+        - id: BR-41
+          disposition: not-addressed
+          note: 'plan.md:477 still asserts the DispositionCounts reuse that :244 and :586 retract; ledger.go:57, close.go:1182 and milestoneclose.go:243 are all still drifted (actual: :79, :1251, :270); and 198''s Done-when still covers only path-and-symbol rows. New corroboration - the issue''s own "## Done when" is 10 of 10 unticked at its close.'
+          round: 12
+        - id: BR-42
+          disposition: addressed
+          note: Mutation-verified - reverting to the bare p.ForcedRationale assignment fails TestGateLedger_ForcedIsNotStampedOnACleanRound. Routed through the shared forcedRationale helper as instructed, not an inline guard. The RULE it stated (the applyGateRound extraction, the orPlaceholder consolidation) was NOT done; carried forward as the family's next finding rather than folded here.
+          round: 12
+      findings:
+        - id: BR-43
+          severity: Important
+          title: The boundary gate never reports its passing decision - the 5th divergence of one copied persist tail, and the rule that fixes it lives in no durable artifact
+          detail: |-
+            Measured against the real ledger with this round's dispositions applied, DecideScoped
+            returns Reason="no open blocking findings after 4 round(s); 1 finding(s) recorded but
+            not blocking (round cap 3 reached); 4 advisory finding(s) recorded for the close
+            review" - and NONE of it is printed. The plan gate ends its tail with
+            cok(stderr, "plan-quality: "+d.Reason) at changecode.go:555; boundaryledger.go:186-210
+            emits the convergence line, the demotion warnings and the ledger path, and drops
+            d.Reason. At the boundary it surfaces only via close.go:1187, which is guarded on the
+            unusable-ledger path. grep -rn OpenMinor over cmd/ excluding tests returns four hits,
+            all inside decide.go - the field reaches no operator anywhere. So four advisory
+            findings ship unannounced at the gate after which, by BR-37's own argument, nothing
+            looks at them again; the code makes exactly that argument one line above for
+            demotions only. Corroborating, same cause - decide.go:87 says "recorded for the close
+            review", copy written for the plan gate, false at the close review itself. Do NOT fix
+            this instance. THE RULE is already stated and has been recommended four times (M2
+            review, BR-17, BR-39, BR-42) - extract the tail once as applyGateRound(kind, ledger,
+            report, cap) (Ledger, Decision). Measured record - Blocked missing (BR-3), Forced
+            missing (BR-17), Forced inert (BR-39), Forced over-reporting (BR-42), Reason
+            unreported (now): 5 divergences, 5 caught by a reviewer, 0 by a test. orPlaceholder
+            (close.go:1864, one caller, differs from valueOr only by a TrimSpace) is the same rule
+            at helper granularity. What is NEW and is the actual ask - grep -rln for
+            "applyGateRound|persist tail|forcedRationale" over workshop/issues/ and lessons.md
+            returns NOTHING. The rule exists only in the review sidecars and the close-gate
+            ledger, both archived to workshop/history/, which AGENTS.md section 2 tells agents not
+            to read. File it as an issue the way BR-32 filed 198 and BR-39 wrote into
+            code-review.md; a fifth restatement in a sidecar is what the last four rounds did.
+          family: existing-helper-not-reused
+          round: 12
+        - id: BR-44
+          severity: Minor
+          title: The round-11 doc edits added a new typo, and the gatesig catalog's counts no longer match the catalog
+          detail: |-
+            atlas/index.md:14 now reads "the content-hash pass-through, and and the plan-gate to
+            boundary-review carry-forward" - a doubled word introduced by the BR-16 fix, in
+            base-layer text that propagates downstream. Separately gatesig.go:71 says "the 18
+            signature rows over the 14 distinct spine gates" and GateFlagNames' doc says "the
+            closed vocabulary of the 14 spine bypass gates", while the catalog now holds 19 rows
+            and --no-ledger names two semantically distinct gates - the boundary ledger on
+            close/milestone-close and the fog-factor ledger on project close
+            (projectclose.go:48, README.md:45,51). Attribution is safe (friction.go:261 scopes by
+            verb; aggregation keys on Command plus Gate), so this is a stale count plus a name
+            reuse worth knowing rather than a defect. Same class as BR-40 one file over: a
+            comment asserting a shape the code no longer has.
+          family: doc-asserts-replaced-mechanism
+          round: 12
+      blocked: false
 ---
 
 # Gate ledger — ariadne#194 (boundary-review)
@@ -1438,13 +1524,65 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   Measured prevalence of this family on the issue - 4 tail divergences plus 1 helper
   duplication.
 
+## Round 12 — 2026-08-21T11:16:09-07:00 (claude) — passed
+
+### Disposed
+
+- BR-16 — addressed — atlas/index.md:14 no longer calls 183 the second intended consumer, and gate-state.md carries the CountedRounds/no_cap paragraphs. Verified verbatim; the fix introduced an "and and" typo, noted as a Minor.
+- BR-18 — not-addressed — Measured by grep - eight named entities still absent from the plan (readGateLedger/writeGateLedger, seedFromPlanGate, persistBoundaryRound, boundaryPriorFindings, blockOnLedgerFailure, roundCapFromEnvVar, AssignIDsAt) plus renderFamilyVocabulary/renderFamilyEscalation. Unchanged since round 11.
+- BR-26 — not-addressed — Still two of four, and both misfired on THIS round's prompt - family.go:85 rendered "test-pins-the-invariant  5 new findings" for a running total, and family.go:108 asserted "Earlier rounds fixed instances" for doc-claim-exceeds-enforcement, whose only finding BR-33 had never been fixed at the time the prompt was rendered.
+- BR-30 — not-addressed — Still one of three - pkg/vocab/finding.go:79 says the block instruction is "for the plan-quality prompt", and TestBoundaryWindowBase_WholeIssueStaysAtMergeBase is still at boundaryledger_test.go:486 rather than beside its siblings in milestonewindow_test.go.
+- BR-33 — addressed — vet_test.sh now vets the REAL finding.cue against JSON instances with -d '#Finding'. Mutation-verified BOTH directions - adding `...` to the real definition fails the closed-schema case, and deleting `family?: string` fails the valid-instance case. The hand-inlined testdata copies are deleted and unreferenced.
+- BR-40 — addressed — helptext/milestone-close.md:99-104 now separates cap scope from open-findings scope, close.md:46 was fixed in the prior round, and gate-state.md:107-108 names DecideScoped and openScopeFor with the rule they encode - grep-confirmed against atlas/.
+- BR-41 — not-addressed — plan.md:477 still asserts the DispositionCounts reuse that :244 and :586 retract; ledger.go:57, close.go:1182 and milestoneclose.go:243 are all still drifted (actual: :79, :1251, :270); and 198's Done-when still covers only path-and-symbol rows. New corroboration - the issue's own "## Done when" is 10 of 10 unticked at its close.
+- BR-42 — addressed — Mutation-verified - reverting to the bare p.ForcedRationale assignment fails TestGateLedger_ForcedIsNotStampedOnACleanRound. Routed through the shared forcedRationale helper as instructed, not an inline guard. The RULE it stated (the applyGateRound extraction, the orPlaceholder consolidation) was NOT done; carried forward as the family's next finding rather than folded here.
+
+### Raised
+
+- **BR-43** [Important] `existing-helper-not-reused` The boundary gate never reports its passing decision - the 5th divergence of one copied persist tail, and the rule that fixes it lives in no durable artifact
+  Measured against the real ledger with this round's dispositions applied, DecideScoped
+  returns Reason="no open blocking findings after 4 round(s); 1 finding(s) recorded but
+  not blocking (round cap 3 reached); 4 advisory finding(s) recorded for the close
+  review" - and NONE of it is printed. The plan gate ends its tail with
+  cok(stderr, "plan-quality: "+d.Reason) at changecode.go:555; boundaryledger.go:186-210
+  emits the convergence line, the demotion warnings and the ledger path, and drops
+  d.Reason. At the boundary it surfaces only via close.go:1187, which is guarded on the
+  unusable-ledger path. grep -rn OpenMinor over cmd/ excluding tests returns four hits,
+  all inside decide.go - the field reaches no operator anywhere. So four advisory
+  findings ship unannounced at the gate after which, by BR-37's own argument, nothing
+  looks at them again; the code makes exactly that argument one line above for
+  demotions only. Corroborating, same cause - decide.go:87 says "recorded for the close
+  review", copy written for the plan gate, false at the close review itself. Do NOT fix
+  this instance. THE RULE is already stated and has been recommended four times (M2
+  review, BR-17, BR-39, BR-42) - extract the tail once as applyGateRound(kind, ledger,
+  report, cap) (Ledger, Decision). Measured record - Blocked missing (BR-3), Forced
+  missing (BR-17), Forced inert (BR-39), Forced over-reporting (BR-42), Reason
+  unreported (now): 5 divergences, 5 caught by a reviewer, 0 by a test. orPlaceholder
+  (close.go:1864, one caller, differs from valueOr only by a TrimSpace) is the same rule
+  at helper granularity. What is NEW and is the actual ask - grep -rln for
+  "applyGateRound|persist tail|forcedRationale" over workshop/issues/ and lessons.md
+  returns NOTHING. The rule exists only in the review sidecars and the close-gate
+  ledger, both archived to workshop/history/, which AGENTS.md section 2 tells agents not
+  to read. File it as an issue the way BR-32 filed 198 and BR-39 wrote into
+  code-review.md; a fifth restatement in a sidecar is what the last four rounds did.
+- **BR-44** [Minor] `doc-asserts-replaced-mechanism` The round-11 doc edits added a new typo, and the gatesig catalog's counts no longer match the catalog
+  atlas/index.md:14 now reads "the content-hash pass-through, and and the plan-gate to
+  boundary-review carry-forward" - a doubled word introduced by the BR-16 fix, in
+  base-layer text that propagates downstream. Separately gatesig.go:71 says "the 18
+  signature rows over the 14 distinct spine gates" and GateFlagNames' doc says "the
+  closed vocabulary of the 14 spine bypass gates", while the catalog now holds 19 rows
+  and --no-ledger names two semantically distinct gates - the boundary ledger on
+  close/milestone-close and the fog-factor ledger on project close
+  (projectclose.go:48, README.md:45,51). Attribution is safe (friction.go:261 scopes by
+  verb; aggregation keys on Command plus Gate), so this is a stale count plus a name
+  reuse worth knowing rather than a defect. Same class as BR-40 one file over: a
+  comment asserting a shape the code no longer has.
+
 ## Open findings
 
-- **BR-16** [Important] atlas gate-state.md now asserts the superseded cap rule, and NoCap/CountedRounds is undocumented
 - **BR-18** [Minor] The plan's Core-concepts tables never gained M2's entities, and Revisions omits two shared-gatestate behavior changes
 - **BR-26** [Minor] `escalation-copy-precision` The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
 - **BR-30** [Minor] `comment-anchor-drift` The convergence cinfo was inserted between the demotion comment and the loop it documents
-- **BR-33** [Minor] `doc-claim-exceeds-enforcement` The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
-- **BR-40** [Important] `doc-asserts-replaced-mechanism` The BR-37 behavior change left two helptext sites asserting the contract it replaced, and atlas has no entry for the new rule
 - **BR-41** [Minor] `plan-artifact-lags-code` The plan asserts a DispositionCounts reuse that its own Revisions section retracts
-- **BR-42** [Important] `existing-helper-not-reused` The boundary gate stamps Round.Forced unconditionally, contradicting that field's own documented contract
+- **BR-43** [Important] `existing-helper-not-reused` The boundary gate never reports its passing decision - the 5th divergence of one copied persist tail, and the rule that fixes it lives in no durable artifact
+- **BR-44** [Minor] `doc-asserts-replaced-mechanism` The round-11 doc edits added a new typo, and the gatesig catalog's counts no longer match the catalog

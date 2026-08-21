@@ -68,7 +68,11 @@ func init() {
 	}
 }
 
-// GateCatalog — the 18 signature rows over the 14 distinct spine gates.
+// GateCatalog — the 19 signature rows over the spine's bypass gates. Row count and
+// flag count are NOT the same number and never were: a flag can appear on more than
+// one command, and `--no-ledger` names two semantically distinct gates (the boundary
+// ledger on close/milestone-close, the fog-factor ledger on project close). Counts here
+// are prose — TestGateCatalogMatchesRegisteredFlags is what actually pins the set.
 var GateCatalog = []GateSig{
 	// close / milestone-close — G1 (shared computeClose emits these). ACK = the
 	// paren+colon form; refusal = the exact per-gate tail (NOT the shared prefix —
@@ -147,7 +151,7 @@ var GateCatalog = []GateSig{
 var closeMclose = []string{"close", "milestone-close"}
 
 // GateFlagNames returns the distinct gate flag names, sorted — the closed
-// vocabulary of the 14 spine bypass gates.
+// vocabulary of the spine's bypass-gate flags (a flag may serve more than one gate).
 func GateFlagNames() []string {
 	seen := map[string]bool{}
 	var out []string

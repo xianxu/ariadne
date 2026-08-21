@@ -748,3 +748,41 @@ func TestGateLedger_ForcedIsNotStampedOnACleanRound(t *testing.T) {
 		t.Errorf("a blocked-then-waived round must record the rationale, got %q", got)
 	}
 }
+
+// #194 close review BR-43: the boundary gate dropped Decide's Reason, so its PASSING
+// decision — which carries "N advisory finding(s) recorded for the close review" — was
+// never reported. Four advisory findings shipped unannounced from the gate after which,
+// by BR-37's own argument, nothing looks at them again.
+//
+// This pins the shared tail's reporting for BOTH gates, since one implementation now
+// serves them; the fifth divergence of a copied tail is what made it shared.
+func TestGatePersist_ReportsTheDecisionOnBothOutcomes(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		d       gatestate.Decision
+		wantOn  string
+		wantStr string
+	}{
+		{"passing decision is reported", gatestate.Decision{Reason: "no open blocking findings after 2 round(s); 4 advisory"}, "ok", "4 advisory"},
+		{"blocking decision is reported", gatestate.Decision{Block: true, Reason: "1 open blocking finding(s)"}, "warn", "1 open blocking"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var stderr strings.Builder
+			var written bool
+			stampAndPersist(&stderr, gatePersist{
+				Label: "test-gate",
+				Write: func(gatestate.Ledger) error { written = true; return nil },
+			}, gatestate.Ledger{Rounds: []gatestate.Round{{N: 1}}}, tc.d, "")
+
+			if !written {
+				t.Error("the ledger must be written on either outcome")
+			}
+			if !strings.Contains(stderr.String(), tc.wantStr) {
+				t.Errorf("the gate must report what it decided; missing %q:\n%s", tc.wantStr, stderr.String())
+			}
+			if !strings.Contains(stderr.String(), "test-gate:") {
+				t.Errorf("the report must name the gate:\n%s", stderr.String())
+			}
+		})
+	}
+}

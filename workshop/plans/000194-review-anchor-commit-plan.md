@@ -474,7 +474,7 @@ prerequisites.
       in family `X`. Rounds … fixed instances. Do not fix this instance — state the rule
       that covers all of them, and fix that. If the rule cannot be stated, say why, and
       record the family in `Limits` with its measured prevalence."*
-- [x] **Task 3.4:** `gatestate.ConvergenceLine` (pure, reusing `DispositionCounts`), and
+- [x] **Task 3.4:** `gatestate.ConvergenceLine` (pure; does NOT reuse `DispositionCounts` — see Revisions), and
       emit it with the verdict.
 - [x] **Task 3.5: Verify against real history.** `tools#1`'s
       `000001-define-m1-review.md` has four rounds and two clear families. Build it as a
@@ -611,3 +611,9 @@ original design:
 - **`DecideScoped` / `FilterBoundary` carrying BoundaryAll disposals.** The cap wants
   boundary scope; every other read wants the full issue. A seeded finding's *disposal*
   crosses boundaries with the finding, or it re-opens at every later boundary forever.
+- **`gatePersist` / `stampAndPersist` (`cmd/sdlc/gatepersist.go`).** The boundary gate's
+  persist tail began as a copy of the plan gate's and diverged five times — Blocked never
+  stamped, Forced never stamped, Forced stamped unconditionally, `ApplyChecked`'s round
+  hand-rebuilt, and `Decide`'s Reason never reported. Each was caught by a different
+  review round. Extracted rather than patched a sixth time; both gates now end on one
+  implementation, with genuinely gate-specific reporting passed in as `Extra`.
