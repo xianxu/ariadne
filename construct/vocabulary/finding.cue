@@ -65,7 +65,7 @@ whenDisposed: {
 // the verdict noun, and a gate ledger carries findings, not a boundary verdict. ──
 discovery: {
 	home: "workshop/plans" // the durable gate ledgers
-	glob: "*-plan-gate.md" // change-code's plan-quality ledger
+	glob: "*-gate.md"      // change-code's `-plan-gate.md` + the boundary review's `-close-gate.md` (#194)
 }
 
 // ── #Finding: the structured handoff the judge emits + the binary validates ──

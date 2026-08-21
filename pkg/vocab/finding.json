@@ -32,6 +32,6 @@
     },
     "discovery": {
         "home": "workshop/plans",
-        "glob": "*-plan-gate.md"
+        "glob": "*-gate.md"
     }
 }

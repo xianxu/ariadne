@@ -18,32 +18,45 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 )
 
-// planGateSuffix names the plan-quality gate's ledger file. Matches the `finding` noun's
-// discovery glob (`*-plan-gate.md`) in construct/vocabulary/finding.cue.
+// planGateSuffix names the plan-quality gate's ledger file. Covered by the `finding`
+// noun's discovery glob (`*-gate.md`) in construct/vocabulary/finding.cue, which #194
+// widened to take in the boundary review's `-close-gate.md` sibling.
 const planGateSuffix = "plan-gate"
 
-// planGateGate / planGateIDPrefix identify the plan-quality gate within the gate-agnostic
-// gatestate package. #183's close-boundary gate will declare its own pair.
-const (
-	planGateGate     = "plan-quality"
-	planGateIDPrefix = "PQ"
-)
+// planGateKind identifies the plan-quality gate within the gate-agnostic gatestate
+// package. The boundary-review gate declares its own in boundaryledger.go (#194).
+var planGateKind = gateLedgerKind{Gate: "plan-quality", IDPrefix: "PQ", Suffix: planGateSuffix}
 
 // planGatePath returns the plan-gate ledger path for an issue file.
 func planGatePath(plansDir, issueFileName string) string {
 	return sidecarPathFor(plansDir, issueFileName, planGateSuffix)
 }
 
-// readPlanGateLedger loads the ledger, or returns a fresh empty one when the sidecar does
+// gateLedgerKind identifies one gate within the gate-agnostic gatestate package: the
+// (gate name, id prefix, sidecar suffix) triple. #187 declared the plan-quality gate and
+// predicted "the close-boundary gate will declare its own pair" — #194 is that gate, and
+// since the two differ by NOTHING else, the read/write bodies are shared rather than
+// mirrored (ARCH-DRY).
+type gateLedgerKind struct {
+	Gate     string // e.g. "plan-quality"
+	IDPrefix string // e.g. "PQ" — ids are <prefix>-<n>
+	Suffix   string // e.g. "plan-gate" — sidecar is <issue-stem>-<suffix>.md
+}
+
+func (k gateLedgerKind) path(plansDir, issueFileName string) string {
+	return sidecarPathFor(plansDir, issueFileName, k.Suffix)
+}
+
+// readGateLedger loads a gate's ledger, or returns a fresh empty one when the sidecar does
 // not exist yet (the normal round-1 state).
 //
 // A sidecar that EXISTS but does not parse is an ERROR, never an empty ledger. Silently
 // resetting would erase every disposition and re-open findings the operator already
 // addressed — the exact forgetting this feature exists to prevent, and worse than the
 // status quo because it would look like it worked.
-func readPlanGateLedger(plansDir, issueFileName string, issueNum int) (gatestate.Ledger, error) {
-	empty := gatestate.Ledger{Gate: planGateGate, IssueNum: issueNum, IDPrefix: planGateIDPrefix}
-	path := planGatePath(plansDir, issueFileName)
+func readGateLedger(k gateLedgerKind, plansDir, issueFileName string, issueNum int) (gatestate.Ledger, error) {
+	empty := gatestate.Ledger{Gate: k.Gate, IssueNum: issueNum, IDPrefix: k.IDPrefix}
+	path := k.path(plansDir, issueFileName)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -57,12 +70,20 @@ func readPlanGateLedger(plansDir, issueFileName string, issueNum int) (gatestate
 	}
 	// Identity fields are owned by the binary, not the file: repair them rather than
 	// trusting a hand-edited header.
-	l.Gate, l.IssueNum, l.IDPrefix = planGateGate, issueNum, planGateIDPrefix
+	l.Gate, l.IssueNum, l.IDPrefix = k.Gate, issueNum, k.IDPrefix
 	return l, nil
 }
 
-// writePlanGateLedger renders and atomically writes the ledger, reusing reviewsidecar.go's
-// atomicWriteFile so both durable gate artifacts share one write path (ARCH-DRY).
+// writeGateLedger renders and atomically writes the ledger, reusing reviewsidecar.go's
+// atomicWriteFile so every durable gate artifact shares one write path (ARCH-DRY).
+func writeGateLedger(k gateLedgerKind, plansDir, issueFileName string, l gatestate.Ledger, repo string) error {
+	return atomicWriteFile(k.path(plansDir, issueFileName), []byte(gatestate.Render(l, repo)))
+}
+
+func readPlanGateLedger(plansDir, issueFileName string, issueNum int) (gatestate.Ledger, error) {
+	return readGateLedger(planGateKind, plansDir, issueFileName, issueNum)
+}
+
 func writePlanGateLedger(plansDir, issueFileName string, l gatestate.Ledger, repo string) error {
-	return atomicWriteFile(planGatePath(plansDir, issueFileName), []byte(gatestate.Render(l, repo)))
+	return writeGateLedger(planGateKind, plansDir, issueFileName, l, repo)
 }
