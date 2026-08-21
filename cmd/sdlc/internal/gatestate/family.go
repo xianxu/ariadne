@@ -142,9 +142,12 @@ func ConvergenceLine(l Ledger, round int) string {
 			}
 		}
 	}
-	verdict := "**Converging.**"
+	// No markdown: this is rendered by cinfo straight to a terminal (#194 M3 review), so
+	// `**Converging.**` shows an operator the asterisks. The ledger's own prose is
+	// markdown; this line is not part of it.
+	verdict := "Converging."
 	if repeats > 0 {
-		verdict = "**Not converging: fix rules, not instances.**"
+		verdict = "Not converging: fix rules, not instances."
 	}
 	return fmt.Sprintf("round %d — %s, %s, %d disposed. %s",
 		round, pluralFindings(newCount), pluralFamilies(repeats), disposed, verdict)

@@ -268,6 +268,24 @@ Three review boundaries, closed separately (AGENTS.md §3).
 
 ### 2026-08-20 (M3)
 
+- **M3 took four review rounds, and the escalation sharpened one rule three times** —
+  which is the clearest evidence available that the mechanism does what #195 claimed:
+  r5 "the fix shipped untested" → r6 "the test passes either way; **revert the fix** to
+  verify" → r7 "an assertion nested in a runtime guard is unfalsifiable, and **reverting
+  cannot catch that** — the test still goes red on its other assertions". Round 7
+  explicitly invalidated round 6's rule for its own case, which a memoryless reviewer
+  could not have argued. All three levels are in `workshop/lessons.md`.
+- The reviewer **probed rather than inferred** on BR-34: it inserted a `t.Fatal` ahead of
+  my guard and proved in one run what two of my own readings had missed. Worth copying.
+- r8's finding was the same doc-vs-code family a fourth time: `helptext/close.md`'s
+  convergence examples showed a shape `ConvergenceLine` cannot emit, and the test asserted
+  a substring that passed either way. Fixed by dropping markdown from the line (it is
+  terminal output via `cinfo`, so `**` renders literally), correcting the examples to a
+  producible shape, and pinning the EXACT string — then mutation-verifying that pin.
+- Two successor issues filed rather than folded: **#197** (derive the window from the
+  ledger instead of a hand-pasted trailer) and **#198** (the durable plan has no gate).
+- 2026-08-20: closed M3 — go build ./... && go vet && go test ./... && gofmt -l && vocabulary check all clean. BR-34 addressed as a RULE: the dead assertion is DELETED (its invariant is covered unconditionally in gatestate/boundary_test.go), and lessons.md now carries the sharpened form — an assertion nested in a runtime guard is unfalsifiable and mutation-verification cannot catch it. Prevalence of the bad shape in cmd/sdlc is now zero. NOTE: --actual is a labeled judgment estimate, not measured — see ## Log.; review verdict: FIX-THEN-SHIP
+
 - **M3's actual is a LABELED JUDGMENT ESTIMATE, not a measurement — 0.1h.** `sdlc
   active-time` over `5e8a3e5..HEAD` returned `TELEMETRY UNAVAILABLE: window has commits
   but 0 transcript events`, twice, and its own guidance is "do NOT record 0 as measured

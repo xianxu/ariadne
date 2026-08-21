@@ -70,7 +70,8 @@ MODES
   Every round also emits a convergence line:
 
       round 4 — 2 new findings, 0 repeat families, 6 disposed. Converging.
-      round 2 — 3 new findings, 2 repeat families. Not converging: fix rules.
+      round 2 — 3 new findings, 2 repeat families, 1 disposed. Not converging:
+        fix rules, not instances.
 
   Capping rounds on finding COUNT is arbitrary; a family that stops repeating
   is an honest signal that the work is converging.

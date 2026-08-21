@@ -599,3 +599,145 @@ findings:
       artifact model defines. Either add `## Limits` to the issue/plan datatype, or point the
       instruction at `## Log`, which exists.
 ```
+
+---
+
+## Re-review — 2026-08-20T22:58:22-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 194 — boundary reviews: anchor to the reviewed commit, and remember across rounds |
+| repo | ariadne |
+| issue file | workshop/issues/000194-review-anchor-commit.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | 5e8a3e5e12f60c1b8c1d9e7d54fb0c1638bf46b4..7398a35a647c83ab3d263ddba0d4b540a72c2fbb |
+| command | sdlc milestone-close --issue 194 --milestone M3 |
+| reviewer | claude |
+| timestamp | 2026-08-20T22:58:22-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Verified the tree independently: `go build`, `go vet`, `gofmt -l`, `go test ./...`, `construct/vocabulary/vet_test.sh` (→ `ok`), and `sdlc process-manual` are all clean at `7398a35`.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+M3 is substantively done and the last Important finding is genuinely closed — not repaired but **deleted**, which was the right call and which I verified rather than accepted: `gatestate/boundary_test.go:14-50` asserts unconditionally that `FilterBoundary(l,"M2")` yields only `BR-2`/`BR-3` and never M1's `BR-1`, so the guarded copy in `boundaryledger_test.go` really was redundant dead coverage and its removal loses no invariant. The `lessons.md` entry states the sharpened rule correctly, with a worked `if !cond { t.Fatal }` form and an honest account of why mutation-verification could not have caught it. I re-checked BR-32's five table rows against the filesystem myself — `finding.cue:91`, `ledger.go:43`, `FamilyCounts`/`NormalizeFamily`/`ConvergenceLine` all in `family.go:44/38/118`, `RenderPriorFindingsScoped` at `prompt.go:37` — and the plan now matches the code in every row, so `plan-artifact-lags-code` stays closed. **Nothing blocks this gate**: every remaining open finding is Minor and no Critical or Important is open. What keeps it off SHIP is that the escalation block — the *substance* of this milestone — is misfiring on this issue's own ledger, and I watched it do so in the prompt I was handed: `escalation-copy-precision` has two findings, neither ever fixed, yet the prompt told me it is "a rule that has already been patched at least once" and that "Earlier rounds fixed instances." That is BR-26 sub-item 4, still open after three rounds, and it is a live contradiction of Spec C's "≥1 **disposed** finding" in the one mechanism this milestone exists to deliver.
+
+## 1. Strengths
+
+- **The fix was deletion, and the reasoning survives scrutiny.** `boundaryledger_test.go:542-548` now carries a comment explaining *why* there is no assertion there and where the invariant actually lives. I checked the pointer: `TestFilterBoundary_ScopesRoundsToOneBoundary` covers it directly, with the filter as the subject rather than as a precondition. Replacing a test with a comment that names its real coverage is the honest move, and rarer than the repair.
+- **`lessons.md:960-989` states a rule that generalizes past its origin.** "`if cond { assert }` is legitimate only when `cond` IS the thing being asserted" is mechanically checkable and correctly bounds itself — it doesn't outlaw the common negative-assertion shape.
+- **Task 3.6's window test is not redundant with its neighbours**, which I checked rather than assumed: `TestBoundaryWindowBase_WholeIssueIgnoresPriorBoundary` (milestonewindow_test.go:159) has a trailer but runs on `main`; `TestBoundaryWindowBase_WholeIssueBasesOnBranchPoint` (:180) runs on a branch but plants no trailer. `WholeIssueStaysAtMergeBase` is the intersection — feature branch *and* a finalized `Review-Verdict:` boundary — and it is the only test that keeps M4 rejected.
+- **The `family` shadow-sweep is now complete on the write path.** Only one non-test `gatestate.Finding{...}` construction exists in the tree (`boundaryledger.go:114`, the plan-gate seed), and it carries `Family`. `canonical()` and `ParseFindingsBlock` both normalize it; `FuzzRenderParseRoundTrip` fuzzes it with a migrated crasher seed.
+- **#198 is filed against the root cause.** It cites the sharp tell — the table drifted in the same commit that ticked its boxes — and observes the check is deterministic (every row names a path and a symbol), so it does not need an LLM.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+None open. BR-34 is disposed `addressed`.
+
+## 4. Minor findings
+
+**The convergence line's helptext shows output the formatter cannot produce, and the line ships markdown into a plain terminal.** *(3rd instance in family `escalation-copy-precision`.)*
+
+`cmd/sdlc/helptext/close.md:72-73` documents:
+
+```
+round 4 — 2 new findings, 0 repeat families, 6 disposed. Converging.
+round 2 — 3 new findings, 2 repeat families. Not converging: fix rules.
+```
+
+`ConvergenceLine` (`family.go:149-150`) formats `"round %d — %s, %s, %d disposed. %s"` with `verdict` being the literal `**Converging.**` / `**Not converging: fix rules, not instances.**`. So the second example is unreachable — the `, N disposed` segment is unconditional — and both examples drop the asterisks. `cinfo` (`term.go:34`) writes the string raw with only an ANSI prefix, so what an operator actually sees is `==> boundary gate: round 2 — 3 new findings, 2 repeat families, 1 disposed. **Not converging: fix rules, not instances.**` — markdown emphasis rendered nowhere. `TestBoundaryReview_EmitsConvergenceLine` asserts `Contains(out, "Not converging")`, which passes either way, so nothing pins the shape.
+
+Both examples were copied from the issue's Spec D rather than from the formatter. Per the escalation contract I am **not** asking for these two lines to be patched — the rule is the one BR-35 already states, generalized one notch: *prose describing the gate's own output must be generated from that output or pinned to it by a test; a hand-written restatement of a formatter drifts.* Applying it here means either deriving the helptext example from `ConvergenceLine` (it is pure and takes a ledger — a doc-generation test can render one) or dropping the `**` so the string is honest about its only sink. Note honestly, against the escalation template's wording: **no instance of this family has been fixed**, so "Earlier rounds fixed instances" is false here — which is itself BR-26.
+
+- `atlas/index.md:14`'s blurb for `gate-state.md` still enumerates only #187's surface — no families, no convergence line — though the linked file was correctly updated. AGENTS.md §8's link requirement is met; the one-line description is stale. (Raised in round 7's prose without an id; carrying it forward here rather than minting one.)
+- `prompt.go:46` returns the first-round branch without the `strings.TrimRight(…, "\n")` that `:108` applies, so the two branches of one function differ by a trailing newline.
+- `parse.go:46` reads `normalizeText(rr.New[i].Family)` while the two lines above read from the loop copy `f`. Equivalent today; the asymmetry invites an edit that isn't.
+
+## 5. Test coverage notes
+
+- The suite is green and the deletion cost nothing: `TestBoundaryPriorFindings_FamiliesSpanMilestones` still fails on its three remaining assertions if `RenderPriorFindingsScoped` is reverted (round 6 mutation-verified this; the deleted assertion was never one of the three).
+- Mutation coverage on the four BR-20..BR-23 code fixes is now **4 of 4**, per round 7's independent reverts. I did not re-run those reverts this round — round 7's account is specific enough to check against the code, and both named tests (`TestSeedFromPlanGate_CarriesFamilyAcrossGates`, `TestConvergenceLine_LaterRoundsAreNotPriorFamilies`) exist and are structured to discriminate.
+- Still absent, and still worth having: `TestFindingRenderBlockInstruction` (`pkg/vocab/finding_test.go:85`) does not assert `family:`. It is the model↔prompt drift guard; a judge never told to emit `family` defeats the milestone silently, and the goldens only cover it indirectly. (BR-29 item two, open.)
+- Still untested end-to-end: the convergence line's stderr emission through a full `close` / `milestone-close` run against M2's stateful reviewer fake. `TestBoundaryReview_EmitsConvergenceLine` calls `persistBoundaryRound` directly.
+- `ConvergenceLine(l, len(l.Rounds))` is safe against an N/index mismatch — I checked `persistBoundaryRound`'s `n := len(l.Rounds) + 1` and `Apply`'s append-only contract, so the last round's `N` always equals `len(l.Rounds)`. A mismatch would have silently reported "0 new findings … Converging"; it cannot arise on this path.
+
+## 6. Architectural notes for upcoming work
+
+- **ARCH-DRY — pass.** `NormalizeFamily` is a one-line wrapper over `issue.Slugify` with the residual-risk paragraph retained above it (`family.go:28-38`); id minting stays in `AssignIDsAt`; `readGateLedger`/`writeGateLedger` stay shared. The one live over-share is `pluralFindings` serving both the vocabulary list and the convergence line (BR-26, open).
+- **ARCH-PURE — pass.** `family.go` and `prompt.go` are deterministic and IO-free end to end; the package's tests need exactly one `os.ReadFile` for the `tools#1` fixture and no mocks. `ConvergenceLine` is computed in the pure layer and merely emitted from `boundaryledger.go:193`.
+- **ARCH-PURPOSE — flag, all instances already carried.** Shadow-sweep on the `family` single source: prompt vocabulary ✓, escalation ✓, convergence line ✓, plan-gate seed ✓, write-path normalizers ✓. Not deriving: the human prose projection (`render.go:110-116`, BR-28), the CUE `#Finding` "source" which enforces nothing so the Go struct and the `family: <slug>` literal are hand restatements (BR-33), and the escalation's `Limits` sink which has no artifact behind it at all (BR-35). I re-verified BR-35 independently — a repo-wide grep for `Limits` outside `workshop/history/` returns `family.go:110`, the issue Spec, `plan.md:469`, this review family's own text, and an unrelated `hardLimitsHeader` in `processmanual/session.go`. No `## Limits` exists in `construct/datatype/`, `construct/vocabulary/`, any issue, or any skill.
+- **ARCH-MOCK — pass.** No external dependency added in the window. The `tools#1` four-round history is a copied `testdata/` fixture, so the acceptance test is hermetic; git stays behind the real-repo fixture and the reviewer behind `judge.Run` plus M2's stateful fake.
+- **For the whole-issue close, one thing to decide before running it.** `FilterBoundary(l, "")` drops every M1/M2/M3 round, so the close reviewer will be shown the full family vocabulary (families cross boundaries now) *and* "This is the FIRST round of this gate at this boundary — there are no prior findings to dispose of." Simultaneously, the still-open `BR-10`, `BR-17`, `BR-18`, `BR-19`, `BR-26`–`BR-30`, `BR-33` and `BR-35` become invisible to every future gate — nine Minor findings that no later reviewer will ever be asked to dispose of. That is D1 working as designed, but the disposal of those nine is a decision to make deliberately, not one to discover by their absence.
+- **Docs gate.** `atlas/workflow/gate-state.md` covers the new surface; `close.md` carries the family + convergence contract and `milestone-close.md:107` points at it as "the same gate". M3 introduces no new subcommand, flag, keybinding or config key, so README needs no change — confirmed by grep, not assumed.
+
+## 7. Plan revision recommendations
+
+The plan now matches the code; the M3 `## Revisions` entry records the scoped/full split, the dropped `DispositionCounts` reuse, and both adopted rules. Two small additions, both carried from round 7 and neither landed:
+
+- **Extend the M3 `## Revisions` entry with the mutation verifications**, per the rule that same entry adopts: reverting `Family: f.Family` fails `TestSeedFromPlanGate_CarriesFamilyAcrossGates`; reverting `r.N >= round` fails `TestConvergenceLine_LaterRoundsAreNotPriorFamilies`. The rule says the record carries the verification; recording it for the two fixes that motivated the rule is its first application.
+- **Add a Core-concepts row for `renderFamilyVocabulary` / `renderFamilyEscalation`** (`family.go:77`, `family.go:92`, new, PURE). They are unexported, but they are where the milestone's escalation behavior actually lives, and #198's proposed path/symbol check would want them named.
+
+```findings
+dispose:
+  - id: BR-34
+    disposition: addressed
+    note: |
+      The guarded assertion is deleted, not repaired, and the replacement comment names where the invariant really lives — I verified gatestate/boundary_test.go:14-50 covers it unconditionally. Rule landed in lessons.md with the worked precondition form.
+  - id: BR-26
+    disposition: not-addressed
+    note: |
+      All four sub-items unchanged at family.go:95, :106-110, :85, :106 — and sub-item 4 misfired on THIS round's prompt, which told me escalation-copy-precision had "already been patched at least once" when neither of its two findings has ever been fixed.
+  - id: BR-27
+    disposition: not-addressed
+    note: |
+      boundaryledger.go:193 still passes len(l.Rounds) rather than CountedRounds.
+  - id: BR-28
+    disposition: not-addressed
+    note: |
+      render.go:110-116 still prints id/severity/title/detail with no family, and the Open-findings projection likewise.
+  - id: BR-29
+    disposition: not-addressed
+    note: |
+      Item one remains covered by FuzzRenderParseRoundTrip. Item two is not - pkg/vocab/finding_test.go:85 still does not assert "family:".
+  - id: BR-30
+    disposition: not-addressed
+    note: |
+      All three sub-items unchanged - cinfo still between the demotion comment and its loop, pkg/vocab/finding.go:79 still says "for the plan-quality prompt", and the window test still sits in boundaryledger_test.go:486 rather than beside its five siblings in milestonewindow_test.go.
+  - id: BR-33
+    disposition: not-addressed
+    note: |
+      Ran vet_test.sh myself - it vets finding.cue at line 58 but has no -d '#Finding' instance case, unlike the -d '#Project' cases at :45 and :48.
+  - id: BR-35
+    disposition: not-addressed
+    note: |
+      family.go:110 still names `Limits`; re-verified by grep that the only non-quotation hit repo-wide is an unrelated hardLimitsHeader in processmanual/session.go.
+findings:
+  - id: new
+    severity: Minor
+    family: escalation-copy-precision
+    title: |
+      The convergence line's helptext shows output the formatter cannot produce, and the line emits markdown into a plain terminal
+    detail: |
+      close.md:72-73 documents "round 2 — 3 new findings, 2 repeat families. Not converging:
+      fix rules." but family.go:149-150 formats "round %d — %s, %s, %d disposed. %s" with the
+      disposed segment unconditional and the verdict literally "**Not converging: fix rules,
+      not instances.**". Both examples also drop the asterisks, and cinfo (term.go:34) writes
+      the string raw, so an operator sees "**Not converging: ...**" with the markers. Nothing
+      pins the shape - TestBoundaryReview_EmitsConvergenceLine asserts only Contains("Not
+      converging"). Copied from the issue's Spec D rather than from the formatter. Third
+      instance, so do NOT patch these two lines. The rule, generalizing BR-35 one notch:
+      prose describing the gate's own output must be GENERATED from that output or pinned to
+      it by a test. Note that unlike the escalation template's wording, no instance of this
+      family has been fixed yet - which is BR-26 sub-item 4 - so fold this in with BR-26 and
+      BR-35 rather than treating it as a separate patch.
+```

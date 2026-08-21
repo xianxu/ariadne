@@ -99,14 +99,11 @@ func TestConvergenceLine(t *testing.T) {
 			New:          []Finding{{ID: "BR-3", Severity: "Minor", Title: "c", Family: "block-opener-rule"}},
 		},
 	}}
-	got := ConvergenceLine(l, 2)
-	for _, want := range []string{"round 2", "1 new finding", "1 repeat famil", "2 disposed"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("convergence line missing %q: %q", want, got)
-		}
-	}
-	if !strings.Contains(got, "Not converging") {
-		t.Errorf("a repeat family means NOT converging — that is the whole signal: %q", got)
+	// Pin the EXACT shape (#194 M3 review): a Contains check passes whether or not the
+	// segments the helptext advertises are present, so it cannot keep the docs honest.
+	// It is also terminal output — no markdown emphasis.
+	if got, want := ConvergenceLine(l, 2), "round 2 — 1 new finding, 1 repeat family, 2 disposed. Not converging: fix rules, not instances."; got != want {
+		t.Errorf("convergence line shape drifted:\n got: %q\nwant: %q", got, want)
 	}
 
 	// No repeat families ⇒ converging.
@@ -115,8 +112,8 @@ func TestConvergenceLine(t *testing.T) {
 		{N: 2, Dispositions: []Disposition{{ID: "BR-1", State: "addressed", Round: 2}},
 			New: []Finding{{ID: "BR-2", Severity: "Minor", Title: "b", Family: "two"}}},
 	}}
-	if got := ConvergenceLine(clean, 2); !strings.Contains(got, "Converging") || strings.Contains(got, "Not converging") {
-		t.Errorf("no repeat families should read as converging: %q", got)
+	if got, want := ConvergenceLine(clean, 2), "round 2 — 1 new finding, 0 repeat families, 1 disposed. Converging."; got != want {
+		t.Errorf("converging shape drifted:\n got: %q\nwant: %q", got, want)
 	}
 }
 

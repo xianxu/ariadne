@@ -583,6 +583,63 @@ rounds:
           round: 7
       boundary: M3
       blocked: true
+    - "n": 8
+      timestamp: "2026-08-20T22:58:22-07:00"
+      agent: claude
+      dispose:
+        - id: BR-34
+          disposition: addressed
+          note: The guarded assertion is deleted, not repaired, and the replacement comment names where the invariant really lives — I verified gatestate/boundary_test.go:14-50 covers it unconditionally. Rule landed in lessons.md with the worked precondition form.
+          round: 8
+        - id: BR-26
+          disposition: not-addressed
+          note: All four sub-items unchanged at family.go:95, :106-110, :85, :106 — and sub-item 4 misfired on THIS round's prompt, which told me escalation-copy-precision had "already been patched at least once" when neither of its two findings has ever been fixed.
+          round: 8
+        - id: BR-27
+          disposition: not-addressed
+          note: boundaryledger.go:193 still passes len(l.Rounds) rather than CountedRounds.
+          round: 8
+        - id: BR-28
+          disposition: not-addressed
+          note: render.go:110-116 still prints id/severity/title/detail with no family, and the Open-findings projection likewise.
+          round: 8
+        - id: BR-29
+          disposition: not-addressed
+          note: Item one remains covered by FuzzRenderParseRoundTrip. Item two is not - pkg/vocab/finding_test.go:85 still does not assert "family:".
+          round: 8
+        - id: BR-30
+          disposition: not-addressed
+          note: All three sub-items unchanged - cinfo still between the demotion comment and its loop, pkg/vocab/finding.go:79 still says "for the plan-quality prompt", and the window test still sits in boundaryledger_test.go:486 rather than beside its five siblings in milestonewindow_test.go.
+          round: 8
+        - id: BR-33
+          disposition: not-addressed
+          note: Ran vet_test.sh myself - it vets finding.cue at line 58 but has no -d '#Finding' instance case, unlike the -d '#Project' cases at :45 and :48.
+          round: 8
+        - id: BR-35
+          disposition: not-addressed
+          note: family.go:110 still names `Limits`; re-verified by grep that the only non-quotation hit repo-wide is an unrelated hardLimitsHeader in processmanual/session.go.
+          round: 8
+      findings:
+        - id: BR-36
+          severity: Minor
+          title: The convergence line's helptext shows output the formatter cannot produce, and the line emits markdown into a plain terminal
+          detail: |-
+            close.md:72-73 documents "round 2 — 3 new findings, 2 repeat families. Not converging:
+            fix rules." but family.go:149-150 formats "round %d — %s, %s, %d disposed. %s" with the
+            disposed segment unconditional and the verdict literally "**Not converging: fix rules,
+            not instances.**". Both examples also drop the asterisks, and cinfo (term.go:34) writes
+            the string raw, so an operator sees "**Not converging: ...**" with the markers. Nothing
+            pins the shape - TestBoundaryReview_EmitsConvergenceLine asserts only Contains("Not
+            converging"). Copied from the issue's Spec D rather than from the formatter. Third
+            instance, so do NOT patch these two lines. The rule, generalizing BR-35 one notch:
+            prose describing the gate's own output must be GENERATED from that output or pinned to
+            it by a test. Note that unlike the escalation template's wording, no instance of this
+            family has been fixed yet - which is BR-26 sub-item 4 - so fold this in with BR-26 and
+            BR-35 rather than treating it as a separate patch.
+          family: escalation-copy-precision
+          round: 8
+      boundary: M3
+      blocked: false
 ---
 
 # Gate ledger — ariadne#194 (boundary-review)
@@ -915,6 +972,35 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   artifact model defines. Either add `## Limits` to the issue/plan datatype, or point the
   instruction at `## Log`, which exists.
 
+## Round 8 — 2026-08-20T22:58:22-07:00 (claude) — passed
+
+### Disposed
+
+- BR-34 — addressed — The guarded assertion is deleted, not repaired, and the replacement comment names where the invariant really lives — I verified gatestate/boundary_test.go:14-50 covers it unconditionally. Rule landed in lessons.md with the worked precondition form.
+- BR-26 — not-addressed — All four sub-items unchanged at family.go:95, :106-110, :85, :106 — and sub-item 4 misfired on THIS round's prompt, which told me escalation-copy-precision had "already been patched at least once" when neither of its two findings has ever been fixed.
+- BR-27 — not-addressed — boundaryledger.go:193 still passes len(l.Rounds) rather than CountedRounds.
+- BR-28 — not-addressed — render.go:110-116 still prints id/severity/title/detail with no family, and the Open-findings projection likewise.
+- BR-29 — not-addressed — Item one remains covered by FuzzRenderParseRoundTrip. Item two is not - pkg/vocab/finding_test.go:85 still does not assert "family:".
+- BR-30 — not-addressed — All three sub-items unchanged - cinfo still between the demotion comment and its loop, pkg/vocab/finding.go:79 still says "for the plan-quality prompt", and the window test still sits in boundaryledger_test.go:486 rather than beside its five siblings in milestonewindow_test.go.
+- BR-33 — not-addressed — Ran vet_test.sh myself - it vets finding.cue at line 58 but has no -d '#Finding' instance case, unlike the -d '#Project' cases at :45 and :48.
+- BR-35 — not-addressed — family.go:110 still names `Limits`; re-verified by grep that the only non-quotation hit repo-wide is an unrelated hardLimitsHeader in processmanual/session.go.
+
+### Raised
+
+- **BR-36** [Minor] The convergence line's helptext shows output the formatter cannot produce, and the line emits markdown into a plain terminal
+  close.md:72-73 documents "round 2 — 3 new findings, 2 repeat families. Not converging:
+  fix rules." but family.go:149-150 formats "round %d — %s, %s, %d disposed. %s" with the
+  disposed segment unconditional and the verdict literally "**Not converging: fix rules,
+  not instances.**". Both examples also drop the asterisks, and cinfo (term.go:34) writes
+  the string raw, so an operator sees "**Not converging: ...**" with the markers. Nothing
+  pins the shape - TestBoundaryReview_EmitsConvergenceLine asserts only Contains("Not
+  converging"). Copied from the issue's Spec D rather than from the formatter. Third
+  instance, so do NOT patch these two lines. The rule, generalizing BR-35 one notch:
+  prose describing the gate's own output must be GENERATED from that output or pinned to
+  it by a test. Note that unlike the escalation template's wording, no instance of this
+  family has been fixed yet - which is BR-26 sub-item 4 - so fold this in with BR-26 and
+  BR-35 rather than treating it as a separate patch.
+
 ## Open findings
 
 - **BR-10** [Minor] One bad disposition id nullifies a whole round's valid dispositions
@@ -930,5 +1016,5 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-29** [Minor] No round-trip test for family, and the model-drift guard does not pin the family key
 - **BR-30** [Minor] The convergence cinfo was inserted between the demotion comment and the loop it documents
 - **BR-33** [Minor] The "closed schema, an unmodeled key fails instance validation" rationale is enforced nowhere
-- **BR-34** [Important] The assertion the commit says it repaired is still unreachable — 3rd instance, and the round-6 rule cannot catch it
 - **BR-35** [Minor] The escalation tells the reviewer to record prevalence in a `Limits` section that exists in no artifact model
+- **BR-36** [Minor] The convergence line's helptext shows output the formatter cannot produce, and the line emits markdown into a plain terminal
