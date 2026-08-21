@@ -63,7 +63,7 @@ type reviewResult struct {
 	Verdict     judge.Verdict
 	Reason      string // populated for not-run / unknown
 	Base        string // short SHA
-	Head        string // short SHA ("HEAD" fine in dry-run)
+	Head        string // reviewed head: long SHA (falls back to "HEAD" only when rev-parse fails)
 	BaseLong    string // long SHA, used by trailer-verifier lookups in close
 	SidecarPath string // #136: durable review transcript path ("" when no review ran)
 	Output      string // full review body, retained when sidecar writing is deferred
@@ -230,9 +230,18 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 
 // resolveReviewWindow computes the (base, baseLong, head) tuple for a
 // boundary-review window. base is short; baseLong is the full base ref (used by
-// the verifier in close.go to locate the same window in `git log`); head is
-// "HEAD" — the close hasn't been committed yet, so HEAD is the operator's
-// pre-close tip and the diff is what got reviewed. The base itself comes from
+// the verifier in close.go to locate the same window in `git log`); head is the
+// CONCRETE SHA at the operator's pre-close tip — the close hasn't been committed
+// yet, so that commit is what gets reviewed.
+//
+// #194: head used to be the literal string "HEAD", which floats. Three things
+// spend it — the dispatched diff, the durable record (Review-Window trailer +
+// sidecar), and the finalize check — and none of them can be right against a
+// floating ref: the diff is collected AFTER the repo lock is released, so a
+// literal "HEAD" there could resolve to a different commit than the snapshot
+// recorded, and a finalize check cannot classify a mid-review delta with no
+// anchor to measure from. Callers resolve this under the lock and pass the SAME
+// value everywhere. The base itself comes from
 // boundaryWindowBase: the prior review boundary for a milestone close, or the
 // branch start for a whole-issue close / first milestone (see that helper). It
 // is the same window source as close.go's atlas gate (ARCH-DRY), so the review
@@ -241,7 +250,12 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 // Returns ("?", "", "HEAD") when no commit anchors the window (e.g., a docs-only
 // milestone with no #N commits) so the trailer still has something to write.
 func resolveReviewWindow(issueStr, milestone, issuePath string) (base, baseLong, head string) {
+	// Degrade to the literal only when rev-parse cannot answer (empty repo, or a
+	// dry-run outside a work tree) — the window still needs SOMETHING to print.
 	head = "HEAD"
+	if sha := gitx.Capture("rev-parse", "HEAD"); sha != "" {
+		head = sha
+	}
 	baseLong = boundaryWindowBase(issueStr, milestone, issuePath)
 	if baseLong == "" {
 		return "?", "", head
@@ -392,7 +406,7 @@ func shortSHA(ref string) string {
 //	── milestone-close trailers (paste into commit message) ──
 //
 //	Review-Verdict: SHIP
-//	Review-Window: abc1234..HEAD
+//	Review-Window: abc1234..def5678
 //	[Review-Reason: --no-judge]   (only when verdict is not-run)
 //
 // The blank line before the trailers matches git's `interpret-trailers`
@@ -403,7 +417,7 @@ func emitTrailerBlock(stdout io.Writer, r reviewResult, kind string) {
 	fmt.Fprintf(stdout, "── %s trailers (paste into commit message) ──\n", kind)
 	fmt.Fprintln(stdout)
 	fmt.Fprintf(stdout, "Review-Verdict: %s\n", r.Verdict)
-	fmt.Fprintf(stdout, "Review-Window: %s..%s\n", r.Base, r.Head)
+	fmt.Fprintf(stdout, "Review-Window: %s..%s\n", r.Base, abbrevSHA(r.Head))
 	if r.Reason != "" {
 		fmt.Fprintf(stdout, "Review-Reason: %s\n", r.Reason)
 	}
@@ -497,7 +511,7 @@ type boundaryReviewParams struct {
 	// live git context in boundaryReviewDispatchOptions (#137, via IssueNum +
 	// Milestone + the repo root), so it names the actual repo (e.g. pair#69).
 	Label                string // commit-subject substring for messages, e.g. "#69 M1"
-	Base, BaseLong, Head string // review window (short base, long base, "HEAD")
+	Base, BaseLong, Head string // review window (short base, long base, long reviewed head — #194)
 	IssuesDir            string
 	Agent                string
 	AgentExplicit        bool
@@ -539,7 +553,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	}
 
 	agent := opts.Agent
-	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..HEAD) via %s …", p.BaseLong, agent))
+	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..%s) via %s …", shortSHA(p.BaseLong), abbrevSHA(p.Head), agent))
 	output, derr := judge.Dispatch(context.Background(), opts)
 	if derr != nil {
 		// Dispatch error → VerdictNotRun → the caller halts (does NOT finalize); the
@@ -587,7 +601,10 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		return judge.DispatchOptions{}, false, fmt.Sprintf("no commits reference '%s' — cannot determine review window", p.Label)
 	}
 
-	diff, _, err := collectDiff(judge.MilestoneReview, p.BaseLong, "HEAD", p.IssuesDir, "workshop/history")
+	// p.Head, not "HEAD" (#194): this runs after reviewThenFinalizeLocked released
+	// the lock, so re-resolving here could collect a DIFFERENT commit than the
+	// snapshot pinned — the review would then be attributed to a commit it never read.
+	diff, _, err := collectDiff(judge.MilestoneReview, p.BaseLong, p.Head, p.IssuesDir, "workshop/history")
 	if err != nil {
 		return judge.DispatchOptions{}, false, fmt.Sprintf("collect diff: %v", err)
 	}
@@ -597,7 +614,7 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 	// both close and milestone-close funnel through (ARCH-DRY).
 	o := boundaryOrientation(p.IssuesDir, p.IssueNum, p.Milestone)
 	in := judge.PromptInput{
-		Diff: diff, Base: p.BaseLong, Head: "HEAD",
+		Diff: diff, Base: p.BaseLong, Head: p.Head,
 		IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 	}

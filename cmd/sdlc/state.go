@@ -369,6 +369,13 @@ func closeOffFinding(i IssueState, shipped shipProbe) (DriftFinding, bool) {
 // abbrevSHA trims an already-resolved commit hash to 8 chars for display —
 // pure, unlike the IO-doing shortSHA in milestoneclose.go (the probe hands us a
 // full SHA, so no `git rev-parse --short` round-trip is needed).
+//
+// #194 gave it a second caller where the purity is load-bearing rather than
+// merely cheap: the boundary review's Review-Window trailer. shortSHA RESOLVES
+// its argument, so shortSHA("HEAD") returns the ambient repo's HEAD — and the
+// review window's head degrades to the literal "HEAD" when rev-parse failed.
+// Rendering that through shortSHA would print a commit the review never read;
+// through abbrevSHA it stays "HEAD", visibly degraded rather than silently wrong.
 func abbrevSHA(sha string) string {
 	if len(sha) > 8 {
 		return sha[:8]

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -223,10 +224,17 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 		t.Errorf("prompt must not hardcode ariadne#69 for a non-ariadne repo (#137)")
 	}
 	out := stdout.String()
-	for _, want := range []string{"── close trailers", "Review-Verdict: SHIP", "..HEAD"} {
+	for _, want := range []string{"── close trailers", "Review-Verdict: SHIP"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("close stdout missing %q:\n%s", want, out)
 		}
+	}
+	// #194: the window names the CONCRETE commit the review read, on both ends —
+	// it used to render "<base>..HEAD", a floating ref that recorded nothing.
+	if m := regexp.MustCompile(`Review-Window: ([0-9a-f]{7,})\.\.([0-9a-f]{7,})`).FindStringSubmatch(out); m == nil {
+		t.Errorf("Review-Window must name two concrete SHAs:\n%s", out)
+	} else if head := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD")); !strings.HasPrefix(head, m[2]) {
+		t.Errorf("Review-Window head %q is not a prefix of the reviewed HEAD %q", m[2], head)
 	}
 	// The verdict is also mirrored into the close log line (#69 M2 review I1).
 	if got := readIssue(t, issuesDir); !strings.Contains(got, "closed — tests pass; review verdict: SHIP") {
