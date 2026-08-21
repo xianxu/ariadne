@@ -58,6 +58,11 @@ func TestFormatAnchorDocsOnly_SharesNoRefusalVocabulary(t *testing.T) {
 			t.Errorf("pass line must not contain refusal word %q:\n%s", forbidden, pass)
 		}
 	}
+	// The hand list above cannot track a future GateCatalog row. assertNoGatesigCollision
+	// is the DERIVED form the two sibling info lines already use (#177 atlasAutoSatisfyLine,
+	// #178 formatAdoptLine) — formatAnchorDocsOnly is a new unconditional cinfo on the same
+	// close path, so it belongs under the same guard (ARCH-DRY).
+	assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+pass)
 }
 
 func TestFormatAnchorRefusal_NamesEveryCommit(t *testing.T) {
@@ -91,5 +96,38 @@ func TestFormatAnchorRefusal_DivergedNamesBothEnds(t *testing.T) {
 		if !strings.Contains(msg, want) {
 			t.Errorf("diverged refusal must name %q:\n%s", want, msg)
 		}
+	}
+}
+
+// #194 M1 review: an unresolved anchor must read as UNANCHORED, not as "no delta".
+// git resolves the symbolic ref "HEAD" happily, so without this guard
+// gatherReviewAnchorDelta("HEAD") would compute an always-empty HEAD..<current>
+// range and every case would classify doc-only — a pass that is impossible to earn.
+func TestIsResolvedSHA(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want bool
+	}{
+		{"HEAD", false},
+		{"main", false},
+		{"origin/main", false},
+		{"HEAD~1", false},
+		{"", false},
+		{"e456565e922af72711492f918c92efea8adbf9bf", true},
+		{"e456565", true},
+	} {
+		if got := isResolvedSHA(tc.in); got != tc.want {
+			t.Errorf("isResolvedSHA(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestGatherReviewAnchorDelta_UnresolvedAnchorReadsAsUnanchored(t *testing.T) {
+	d, err := gatherReviewAnchorDelta("HEAD")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if d.Reviewed != "" {
+		t.Fatalf("a symbolic ref must blank the anchor, got Reviewed=%q", d.Reviewed)
 	}
 }

@@ -52,9 +52,9 @@ what the previous round said. Everything below follows from those two gaps.
 `resolveReviewWindow` (`cmd/sdlc/milestoneclose.go:243`) returns `head` as the
 **literal string `"HEAD"`**. It stays literal through `collectDiff`, the judge
 prompt, the `Review-Verdict:`/`Review-Window:` trailer, and the #136 sidecar — every
-one of the 67 archived sidecars that carry a window row records `<base>..HEAD` (70
-sidecar files, 86 window rows — a re-run appends a `## Re-review` section). So the
-durable record of a review does not say what was reviewed.
+one of the 66 archived sidecar files (of 70) records `<base>..HEAD`, across 84 of 86
+window rows — a re-run appends a `## Re-review` section, so rows outnumber files. So
+the durable record of a review does not say what was reviewed.
 
 Worse, `reviewThenFinalizeLocked` releases the repo lock *before*
 `dispatchBoundaryReview`, and `boundaryReviewDispatchOptions` then resolves `"HEAD"`
@@ -267,6 +267,7 @@ Three review boundaries, closed separately (AGENTS.md §3).
 ## Log
 
 ### 2026-08-20 (M1)
+- 2026-08-20: closed M1 — go build ./... && go test ./... && go vet all green; 10 new pure unit tests over classifyReviewAnchor + both formatters (no repo), 2 window/abbrevSHA tests, and both interleaving directions in close_finalize_test.go — doc-only commit mid-review finalizes emitting the pass line, code commit refuses naming "concurrent #69 side change" and asserts absence of "HEAD changed from"; review verdict: FIX-THEN-SHIP
 
 - M1 landed in three commits: `b19ac6b` (pin the SHA), `b2294ac` (snapshot takes
   it as a parameter), `7fd89bd` (classify the delta).

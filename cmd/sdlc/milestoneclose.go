@@ -417,7 +417,13 @@ func emitTrailerBlock(stdout io.Writer, r reviewResult, kind string) {
 	fmt.Fprintf(stdout, "── %s trailers (paste into commit message) ──\n", kind)
 	fmt.Fprintln(stdout)
 	fmt.Fprintf(stdout, "Review-Verdict: %s\n", r.Verdict)
-	fmt.Fprintf(stdout, "Review-Window: %s..%s\n", r.Base, abbrevSHA(r.Head))
+	// Both ends through the SAME abbreviator so the window reads symmetrically —
+	// r.Base is git's minimal-unique short form (often 7), abbrevSHA is a fixed 8.
+	base := r.Base
+	if r.BaseLong != "" {
+		base = abbrevSHA(r.BaseLong)
+	}
+	fmt.Fprintf(stdout, "Review-Window: %s..%s\n", base, abbrevSHA(r.Head))
 	if r.Reason != "" {
 		fmt.Fprintf(stdout, "Review-Reason: %s\n", r.Reason)
 	}

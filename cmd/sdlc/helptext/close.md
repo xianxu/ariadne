@@ -52,8 +52,11 @@ MODES
       rewritten       refused as diverged (HEAD no longer descends from the
                       reviewed commit), since the delta is not describable
 
-  So committing lessons/atlas/plan bookkeeping during a review is safe. Landing
-  code is not, and the refusal now tells you which commits to re-review.
+  So committing `workshop/lessons.md`, `atlas/` and `workshop/plans/` bookkeeping
+  during a review is safe. Landing code is not, and the refusal now tells you which
+  commits to re-review. The **issue file** and any **project file** are separately
+  snapshotted byte-exact and still refuse on any edit — the review READ that prose —
+  so write your `## Log` line AFTER the close, not during it.
 
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain

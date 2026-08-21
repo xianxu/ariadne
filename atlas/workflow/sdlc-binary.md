@@ -85,8 +85,10 @@ push/ref races still surface through the existing push/merge retry guidance.
 
 `close` and `milestone-close` are narrower: they lock the compute phase, release
 the lock while the external boundary review runs, then reacquire before
-finalization and refuse to write if HEAD, the issue file, or any prepared project
-file edit changed while the lock was released. `change-code`, `merge`, and `push` may still hold the lock while
+finalization and refuse to write if the issue file or any prepared project-file
+edit changed while the lock was released, or if the commits that landed during the
+review carry code surface (#194) — a doc-only delta finalizes, since the reviewed
+code is unchanged. `change-code`, `merge`, and `push` may still hold the lock while
 synchronous judges run. Their wait/timeout messages call this out as a
 long-running review/ship transaction; quick commands should wait or retry
 instead of deleting a live lock. Recovery is conservative but not wedging:

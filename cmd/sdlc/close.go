@@ -467,14 +467,21 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// the branch start otherwise — so the atlas-coverage check and the review
 	// cover exactly the same commits, including inter-milestone side-quests/fixes.
 	windowBase := boundaryWindowBase(issueStr, f.Milestone, issuePath)
+	// #194 M1 review: pin the window's upper end the same way the review does, so
+	// "the same commits" is structural rather than a consequence of both running
+	// under one lock. Falls back to the literal when rev-parse cannot answer.
+	windowHead := "HEAD"
+	if sha := gitx.Capture("rev-parse", "HEAD"); sha != "" {
+		windowHead = sha
+	}
 	if windowBase != "" {
-		cinfo(stderr, fmt.Sprintf("commit window: %s → HEAD", shortSHA(windowBase)))
+		cinfo(stderr, fmt.Sprintf("commit window: %s → %s", shortSHA(windowBase), abbrevSHA(windowHead)))
 	} else {
 		cwarn(stderr, fmt.Sprintf("no commits reference '#%s' on this branch", issueStr))
 	}
 
 	if windowBase != "" {
-		diffFiles, derr := gitx.DiffNames(windowBase, "HEAD")
+		diffFiles, derr := gitx.DiffNames(windowBase, windowHead)
 		if derr != nil {
 			// #177 review Important #1: a swallowed diff error used to inherit the
 			// refusal (fail-closed); with the auto-satisfy arm, nil files would
@@ -1147,6 +1154,14 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			if err != nil {
 				emitTrailerBlock(stdout, review, kind)
 				cwarn(stderr, fmt.Sprintf("boundary review: reviewed state changed while the lock was released — close NOT finalized: %v", err))
+				// #194 M1 review I3: formatAnchorRefusal carries its own re-run
+				// instruction, but it is reached ONLY on the anchor branches — the
+				// issue-file, project-file and git-error branches would otherwise
+				// surface with no next step, and AGENTS.md §5 makes "errors are
+				// next-action specs" a property of this gate.
+				if !strings.Contains(err.Error(), "re-run `") {
+					cwarn(stderr, fmt.Sprintf("re-run `%s` so the review covers the current repo state", verb))
+				}
 				return fmt.Errorf("boundary review stale: %w", err)
 			}
 			// #194: say what the gate decided when it let a delta through — silence
@@ -1225,6 +1240,12 @@ func (s closeReviewSnapshot) validate() (string, error) {
 		d, err := gatherReviewAnchorDelta(s.reviewed)
 		if err != nil {
 			return "", err // fail closed on a git error, as the publish gate does
+		}
+		if d.Reviewed == "" {
+			// The window head never resolved, so there is no anchor to classify
+			// against. Say so — silence would read as "checked, nothing moved".
+			return "boundary review: no resolved anchor for this window — the mid-review " +
+				"delta check did not run (#194)", nil
 		}
 		switch outcome := classifyReviewAnchor(d); outcome {
 		case anchorDocsOnly:

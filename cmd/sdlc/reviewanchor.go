@@ -28,6 +28,20 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
+// isResolvedSHA reports whether ref is a concrete object name rather than a symbolic
+// ref like "HEAD" — the guard that keeps an unresolved anchor from reading as "no delta".
+func isResolvedSHA(ref string) bool {
+	if len(ref) < 7 {
+		return false
+	}
+	for _, r := range ref {
+		if !strings.ContainsRune("0123456789abcdef", r) {
+			return false
+		}
+	}
+	return true
+}
+
 // deltaCommit is one commit in reviewedSHA..HEAD.
 type deltaCommit struct {
 	SHA     string
@@ -72,7 +86,13 @@ func classifyReviewAnchor(d reviewAnchorDelta) anchorOutcome {
 // rather than treating an unreadable repo as "no drift".
 func gatherReviewAnchorDelta(reviewed string) (reviewAnchorDelta, error) {
 	d := reviewAnchorDelta{Reviewed: reviewed}
-	if reviewed == "" {
+	// #194 M1 review: an UNRESOLVED anchor must read as unanchored, not as "no delta".
+	// resolveReviewWindow degrades head to the literal "HEAD" when rev-parse fails, and
+	// git would happily resolve that symbolic ref here — making HEAD..<current> always
+	// empty, so every case would classify doc-only and print the false-reassuring
+	// "0 doc-only commit(s) arrived since". Blank it instead; the caller warns.
+	if reviewed == "" || !isResolvedSHA(reviewed) {
+		d.Reviewed = ""
 		return d, nil
 	}
 	d.Current = strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
@@ -127,7 +147,7 @@ func formatAnchorRefusal(d reviewAnchorDelta, outcome anchorOutcome, verb string
 			abbrevSHA(d.Reviewed), abbrevSHA(d.Current), verb)
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d code commit(s) landed after the reviewed commit %s and are unreviewed:",
+	fmt.Fprintf(&b, "%d commit(s) landed after the reviewed commit %s and are unreviewed:",
 		len(d.Commits), abbrevSHA(d.Reviewed))
 	for _, c := range d.Commits {
 		fmt.Fprintf(&b, "\n    %s  %s", abbrevSHA(c.SHA), c.Subject)
