@@ -268,6 +268,27 @@ Three review boundaries, closed separately (AGENTS.md §3).
 
 ### 2026-08-20 (M2)
 
+- **Open question against M2's own code: an infrastructure failure consumes a
+  convergence round.** Both M2 close attempts died to `API Error: Your computer went
+  to sleep mid-response`, and both persisted a `ProtocolError` round — so boundary
+  `M2` now sits at 2 of 3 rounds having received zero review content. A third real
+  attempt is round 3; a fourth hits the cap and starts demoting Important findings
+  because the machine slept, not because the reviewer was churning.
+  - The tension is genuine, not an oversight. `changecode.go:490` persists protocol
+    misses **deliberately**: drop them and `len(Rounds)` stays 0 forever for a CLI
+    that never emits the fence, so the cap can never bound the loop it exists to
+    bound. That reasoning is right for a *systematically non-compliant* reviewer and
+    wrong for an *interrupted* one, and the binary cannot currently tell them apart —
+    a truncated response and a non-compliant one both arrive as "no valid fence".
+  - Not decided here. Options: count only rounds that contributed findings or
+    dispositions toward the cap (bounds a silent reviewer differently); or keep
+    counting and have the demotion warning report how many counted rounds were
+    protocol errors, so a cap consumed by dead runs is visible. **Decide at M3 or the
+    close review — do not let it pass silently.**
+- The trailer-paste defect this session surfaced is filed as ariadne#197 (window
+  derivation from the ledger rather than a hand-pasted trailer). It depends on M2's
+  ledger, which is why it is a successor rather than scope here.
+
 - Convergence verified end to end with a **stateful** reviewer fake — the ARCH-MOCK
   gap M1's review flagged for exactly this milestone. `judge.Run` is a stateless
   override, adequate while a boundary review was one call; M2 makes the reviewer
