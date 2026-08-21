@@ -165,11 +165,8 @@ func TestApplyChecked_DropsOnlyTheInvalidDispositions(t *testing.T) {
 	}
 }
 
-// #194 M2 review: the round cap is about REVIEW CYCLES. A seed round, a dispatch that
-// never started, and a round persisted before a non-review refusal consumed none — and
-// letting them eat the budget punishes the operator for something no reviewer did.
-// Observed live: two reviews killed by host sleep put a boundary at 2 of 3 rounds having
-// received zero review content.
+// #194 M2: the round cap counts REVIEWER INVOCATIONS. A seed round and a dispatch that
+// never started invoked nobody.
 func TestCountedRounds_ExcludesRoundsThatConsumedNoReview(t *testing.T) {
 	l := Ledger{IDPrefix: "BR", Rounds: []Round{
 		{N: 1, Boundary: BoundaryAll, NoCap: true, New: []Finding{{ID: "BR-1", Severity: "Minor", Title: "seeded"}}},
@@ -190,6 +187,12 @@ func TestCountedRounds_ExcludesRoundsThatConsumedNoReview(t *testing.T) {
 
 // A reviewer that RAN and emitted no fence still counts — that is exactly the case
 // #187's persist-the-protocol-error rule exists to bound.
+//
+// This is ALSO the interrupted-review case, and pinning it here is deliberate: a
+// truncated response is byte-indistinguishable from a non-compliant one, so #194 chose
+// to count both rather than remove #187's bound on a guess. The cost is real (two
+// host-sleep interruptions ate two of this issue's own cap slots); the alternative is a
+// reliable truncation signal from the dispatch layer, not heuristics here.
 func TestCountedRounds_CountsAReviewerThatRanAndEmittedNoFence(t *testing.T) {
 	l := Ledger{IDPrefix: "BR", Rounds: []Round{
 		{N: 1, Boundary: "M1", ProtocolError: "no valid findings block"},

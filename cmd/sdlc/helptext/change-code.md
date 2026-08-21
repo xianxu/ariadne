@@ -82,6 +82,9 @@ FLAGS
 
 ENVIRONMENT
 
+  WF_BOUNDARY_ROUND_CAP
+                      the same knob for the boundary review's gate ledger
+                      (`sdlc close` / `milestone-close`, #194); default 3
   WF_PLAN_ROUND_CAP   rounds after which only Critical findings block the
                       plan gate (default 3). Bounds the tail of a review
                       that keeps descending severity levels.

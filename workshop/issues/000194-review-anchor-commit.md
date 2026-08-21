@@ -267,24 +267,24 @@ Three review boundaries, closed separately (AGENTS.md §3).
 ## Log
 
 ### 2026-08-20 (M2)
+- 2026-08-20: closed M2 — go build ./... && go vet ./cmd/... && go test ./... && gofmt -l all clean. Round-1 findings C1+I1..I6 and 6 minors all fixed; C1 (PriorFindings empty in every live review) now pinned by TestCloseCommand_LiveReviewSeesPriorFindings, verified to FAIL when the fix is reverted. Deferred cap-accounting question settled: CountedRounds excludes rounds that consumed no review cycle.; review verdict: FIX-THEN-SHIP
 
-- **Open question against M2's own code: an infrastructure failure consumes a
-  convergence round.** Both M2 close attempts died to `API Error: Your computer went
-  to sleep mid-response`, and both persisted a `ProtocolError` round — so boundary
-  `M2` now sits at 2 of 3 rounds having received zero review content. A third real
-  attempt is round 3; a fourth hits the cap and starts demoting Important findings
-  because the machine slept, not because the reviewer was churning.
-  - The tension is genuine, not an oversight. `changecode.go:490` persists protocol
-    misses **deliberately**: drop them and `len(Rounds)` stays 0 forever for a CLI
-    that never emits the fence, so the cap can never bound the loop it exists to
-    bound. That reasoning is right for a *systematically non-compliant* reviewer and
-    wrong for an *interrupted* one, and the binary cannot currently tell them apart —
-    a truncated response and a non-compliant one both arrive as "no valid fence".
-  - Not decided here. Options: count only rounds that contributed findings or
-    dispositions toward the cap (bounds a silent reviewer differently); or keep
-    counting and have the demotion warning report how many counted rounds were
-    protocol errors, so a cap consumed by dead runs is visible. **Decide at M3 or the
-    close review — do not let it pass silently.**
+- **Cap accounting: DECIDED.** (This entry previously read "Not decided here" while the
+  commit message claimed otherwise — M2's boundary review caught the disagreement,
+  BR-15.) The round cap counts **reviewer invocations**, via `gatestate.CountedRounds`.
+  Two kinds are excluded and carry `no_cap: true`: the plan-gate seed round the binary
+  writes itself, and a dispatch that never started.
+  - **An interrupted review is NOT excluded, deliberately.** Both M2 close attempts died
+    to host sleep, and I first described that as the motivation for the exclusion — but
+    a truncated response arrives as `no valid findings block`, byte-indistinguishable
+    from a reviewer that ran to completion and ignored the output contract. #187
+    persists protocol-error rounds precisely so such a reviewer stays bounded, and
+    dropping that bound on a *guess* about truncation would trade a real guarantee for a
+    heuristic. So both count.
+  - The cost is real and this issue paid it: rounds 1 and 2 of M2's ledger are host-sleep
+    interruptions, so M2 reached its cap on the round that raised BR-14/15/16 and
+    demoted all three. If it recurs often enough to matter, the fix is a truncation
+    signal from the dispatch layer, not a heuristic in the ledger.
 - The trailer-paste defect this session surfaced is filed as ariadne#197 (window
   derivation from the ledger rather than a hand-pasted trailer). It depends on M2's
   ledger, which is why it is a successor rather than scope here.

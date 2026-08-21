@@ -283,3 +283,219 @@ findings:
       boundaryledger.go:107-114 formats BR-<i+1> directly; correct only because the
       function runs on an empty ledger, and nothing pins that precondition.
 ```
+
+---
+
+## Re-review — 2026-08-20T21:52:24-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 194 — boundary reviews: anchor to the reviewed commit, and remember across rounds |
+| repo | ariadne |
+| issue file | workshop/issues/000194-review-anchor-commit.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 9cb22e79b3ae4df8838ecf57a412e743c56581ed^..df5764462c6299e184d70063963a6b9fc925ab3c |
+| command | sdlc milestone-close --issue 194 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-08-20T21:52:24-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+All 13 prior findings were worked, and the two that mattered most are genuinely fixed and pinned at the right level: BR-1's wiring defect now reads the prior-findings block under the same lock that captures the snapshot, and `TestCloseCommand_LiveReviewSeesPriorFindings` drives the real `close` command rather than the helper two frames below it — the exact seam whose absence let BR-1 ship. `go build ./...`, `go test ./...`, `gofmt -l` and `go run ./cmd/vocabulary check` are all clean; I re-verified BR-6 (export in sync) and BR-12 (git's `--grep` matches line-wise, so `^Review-Verdict:` is a tightening, not a regression). What keeps this from SHIP is a coverage gap plus a purpose gap the fix commit created: the milestone's headline enforcement — a close that refuses **despite a passing verdict** — has no test at any level, nor does `--no-ledger`, nor `blockOnLedgerFailure` reaching the caller; and the new `NoCap` mechanism claims (in its doc comment and in the commit message) to settle the cap-accounting question with three exclusion kinds, of which only two exist — the host-sleep case it cites as its own motivation still counts, which is provable from this issue's own ledger and is why this round trips the cap.
+
+**Operator note, because it bites this round:** boundary `M2` has three counted rounds (rounds 1 and 2 carry no `no_cap` key). This is round 4, so `CapReached` is true and every Important below will be **demoted and will not block** — you'll see the per-finding demotion warnings. That is the designed behavior at cap; it is also finding N2 demonstrating itself.
+
+## 1. Strengths
+
+- **`cmd/sdlc/close.go:1048-1053` / `milestoneclose.go:225-228` — BR-1 fixed at the right layer.** The block is read beside `captureCloseReviewSnapshot`, under the lock, and carried as a field — not by un-blanking `PlansDir`. The comment on `boundaryReviewParams.PriorFindings` (`milestoneclose.go:552-562`) records *why* it is a field and not a lookup, so the next reader can't reintroduce it.
+- **`cmd/sdlc/boundaryledger_test.go:326` — the test entered at the production boundary.** `executeSDLCTestCommand("close", …)` with a pre-seeded ledger, asserting the dispatched prompt carries `PRIOR_FINDING_MARKER` and `BR-1`. This is the ARCH-MOCK "same boundary" property that M2's review found failing, and it was fixed by moving the entry point rather than by adding another helper-level test.
+- **`cmd/sdlc/boundaryledger.go:198-210` + `close.go:1160-1170` — fail-closed, with the two failure modes kept distinguishable.** `blockOnLedgerFailure` returns `Block: true` with a `Reason`, and the caller branches on `len(OpenBlocking) == 0` so an unusable ledger never prints "open blocking finding(s)" for findings that don't exist. Both warnings are next-action specs.
+- **`gatestate/ledger.go:230-251` — `ApplyChecked` per-disposition rejection is the right shape:** bad ids named in the error, good disposals applied, the round still recorded with a protocol error. `TestApplyChecked_DropsOnlyTheInvalidDispositions` asserts both halves (BR-1's disposal survives, BR-2 stays open).
+- **`gatestate/ledger.go:74-89` — `NoCap`'s negative spelling.** Rounds written before the field existed default to `false` and keep counting, so no historical ledger changes meaning; `TestCountedRounds_PreExistingRoundsStillCount` pins it. The backward-compat instinct is right even though the classification itself is incomplete (N2).
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**N1 — the AND-gate refusal, `--no-ledger`, and `blockOnLedgerFailure` have no test at any level (`cmd/sdlc/close.go:1156-1180`).**
+`TestBoundaryReview_PersistsLedgerAndFeedsTheNextRound` asserts `persistBoundaryRound` returns `d.Block` — nothing asserts what `finalizeBoundaryReview` *does* with it. Specifically untested: (a) a finalizing verdict + an open blocking finding refuses, `applyClose` does not run, and the issue stays `working`; (b) the error names the findings (`[BR-1] Critical — …`); (c) `--no-ledger` waives exactly that refusal and lets the close finalize; (d) the `blockOnLedgerFailure` branch reaches the caller and prints `ledger.Reason` rather than the open-findings message. `grep finalizeBoundaryReview cmd/sdlc/*_test.go` returns nothing. This is the D4 decision and Task 2.2 Step 5 — the behavior close.md advertises as the surprising one ("A close can REFUSE DESPITE A PASSING VERDICT") — and it is the same coverage shape that let BR-1 ship: assertions stop one frame below the production path. Side effect: the new `GateCatalog` row's `AckPat`/`RefusalPat` (`processmanual/gatesig.go:97-101`) are never matched against real emitted output by any test — `TestGateCatalogMatchesRegisteredFlags` only checks flag registration. *Fix sketch:* extend `TestCloseCommand_LiveReviewSeesPriorFindings`'s harness — same seeded ledger, fake returns SHIP with **no** `dispose:` block; assert the command errors, `readIssue` still shows `status: working`, stderr names `BR-1`; then a second case adding `--no-ledger` that finalizes and emits the ack line.
+
+**N2 — `NoCap` does not implement the case it names as its motivation; the doc, the commit message, and the issue Log now disagree with the code (`gatestate/ledger.go:74-89`, `boundaryledger.go:160`).**
+The field comment says "Three kinds qualify: the plan-gate SEED round, a dispatch that never started, and **a round persisted before a non-review refusal**." Only the first two are ever set — `grep -rn NoCap cmd/ | grep -v _test` shows exactly two assignment sites. A round persisted before a stale-anchor or issue-file-changed refusal has `NoCap: false` and counts. Worse, the same comment cites the live case that motivated the field — "two reviews killed by host sleep put a boundary at 2 of 3 rounds having received zero review content" — but a host-sleep kill returns output with no fence, so it lands as `ProtocolError: "no valid findings block"`, `NoCap: false`, and **counts**. Proof in this repo: `workshop/plans/000194-review-anchor-commit-close-gate.md` rounds 1 and 2 are exactly those two kills and carry no `no_cap` key, so M2 is at 3 counted rounds and this round demotes every Important. Meanwhile the issue's `## Log` (`000194-review-anchor-commit.md:268-286`) still reads "**Not decided here** … Decide at M3 or the close review — do not let it pass silently", while the commit message says "Settled the deferred cap-accounting question". *Fix sketch:* pick one and make all three agree — either implement the third kind (and decide whether a truncated response is distinguishable from a non-compliant one, e.g. `judge.Dispatch` surfacing a truncation signal), or narrow the comment to the two kinds actually implemented, drop the host-sleep example as the justification, and update the Log entry to record what was decided and what remains.
+
+**N3 — atlas docs gate: `gate-state.md` § "Protocol misses still count" now asserts the superseded rule, and `NoCap`/`CountedRounds` is undocumented (`atlas/workflow/gate-state.md:105-111`, `atlas/index.md:14`).**
+This is *not* BR-4 — BR-4's lines (22, 73, 75-78, 153) are all correctly fixed, and I verified `ledger-landscape.md:77-79` too. This staleness was **created by the fix commit**: `Decide` now reads `CountedRounds`, not `len(l.Rounds)`, and a never-dispatched round is persisted with `protocol_error` set and does *not* count — so a section titled "Protocol misses still count", whose body grounds the cap in `len(Rounds)`, states a rule the code no longer implements universally. Nothing in `atlas/` mentions `no_cap`, `CountedRounds`, or "the cap counts review cycles" — a new persisted YAML field with no map entry. Separately `atlas/index.md:14` still says "the plan-gate → boundary-review carry-forward (#187; **#183 is the second intended consumer**)" — #194 *is* that consumer and it landed. Third instance of the family this diff's own `lessons.md` entry names, which is itself the signal the rule is right: `grep -rn "len(l.Rounds)\|Protocol misses" atlas/` finds it in one command. *Fix sketch:* retitle to "Protocol misses count; interruptions and bookkeeping do not", state the `CountedRounds` rule and which rounds are excluded, add a `no_cap` line beside the `boundary` field, and update `index.md:14` to name #194 as delivered.
+
+## 4. Minor findings
+
+- `boundaryledger.go:180` mirrors `changecode.go:537` (`Blocked = d.Block`) but not `:538` (`Forced = forcedRationale(...)`), so a `--force`/`--no-ledger` bypass at the boundary leaves no durable record — the plan gate's one is the input to `closeMetrics`' "N forced" (ARCH-DRY; the divergence is again the line nobody notices).
+- The plan's Core-concepts tables (`…-plan.md:190-230`) never gained M2's entities — `gateLedgerKind`, `readGateLedger`/`writeGateLedger`, `seedFromPlanGate`, `persistBoundaryRound`, `boundaryPriorFindings`, `blockOnLedgerFailure`, `roundCapFromEnvVar`, `gatestate.AssignIDsAt`, `gatestate.CountedRounds`, `Round.NoCap`. Existing rows all verify clean against the filesystem (no contradiction), but the table stops being the greppable index it exists to be. `## Revisions` likewise omits two mid-stream changes to **shared** `gatestate` behavior — the `no_cap` schema field and `ApplyChecked`'s per-disposition semantics — both of which alter code the plan gate also runs.
+- A `BoundaryAll` (seeded) finding's *disposal* is boundary-scoped, so `OpenFindings(FilterBoundary(l, "M2"))` re-opens a seed that M1 already disposed. Cheap (one dispose entry per boundary, cleared in the same round) but it means "visible at every boundary **until disposed**" — D5's wording — is really "until disposed *at each* boundary". Worth stating explicitly rather than leaving inferable.
+- `dispatchBoundaryReview`'s `res()` still leaves `Agent: ""` on a dispatch error even where `opts.Agent` is already resolved (`milestoneclose.go:606`), so that round's frontmatter has an empty agent (see BR-9's note).
+- `printBoundaryReviewDryRun`'s params set neither `PlansDir` nor `PriorFindings`, so `--dry-run` shows a prompt that differs from the one a real run would send.
+
+## 5. Test coverage notes
+
+The pure layer is thoroughly covered and the new tests are real: `gatestate/boundary_test.go` asserts the *unfiltered* precondition before the filtered assertion in `TestFilterBoundary_KeepsEachBoundaryUnderTheRoundCap`, so removing the scoping fails the test rather than passing vacuously; `TestApplyChecked_DropsOnlyTheInvalidDispositions` and the three `TestCountedRounds_*` cases pin both directions including backward compatibility. Remaining gaps, priority order:
+
+1. **The ledger refusal at the command boundary (N1)** — the milestone's enforcement half, untested end to end.
+2. **No two-round convergence through the command boundary.** `TestCloseCommand_LiveReviewSeesPriorFindings` proves round *n+1* sees the block; `TestBoundaryReview_ConvergesAcrossRounds` proves the loop closes, but at `dispatchBoundaryReview`. Nothing drives raise → refuse → dispose → finalize through `executeSDLCTestCommand`, so the assembled loop is inferred from two half-proofs.
+3. `TestCloseCommand_LiveReviewSeesPriorFindings` discards the command's return values (`_, _, _ =`), so it would pass even if the close errored for an unrelated reason. One `if err != nil` would also close gap 2's easy half.
+4. `seedFromPlanGate` is only ever exercised on an empty ledger, so BR-13's fix (ids via `AssignIDsAt`) is correct-by-construction but still unpinned — the precondition nothing pins.
+5. `Round.Forced` on a boundary ledger has no test because it is never written (minor 1).
+
+## 6. Architectural notes for upcoming work
+
+- **ARCH-DRY — pass, two flags.** `gateLedgerKind` + `readGateLedger`/`writeGateLedger` is the consolidation M2 promised and delivered. Flags: the `Forced` stamp (minor 1), and `changecode.go:525-531`, which now hand-rebuilds a round that `ApplyChecked` already returns correctly — before M3 adds a third consumer of the read → seed/parse → `AssignIDs` → `ApplyChecked` → `Decide` → stamp → write sequence, extract it (`applyGateRound(kind, ledger, report, cap) (Ledger, Decision)`); the `Blocked`-stamp divergence recurring as a `Forced`-stamp divergence one round later is the argument.
+- **ARCH-PURE — pass, no flag.** `FilterBoundary`, `CountedRounds`, `Decide`, `classifyReviewAnchor` and both formatters are pure and unit-test with zero IO; `gatestate/boundary_test.go` runs entirely in memory. IO stays in `boundaryledger.go`/`planreview.go`.
+- **ARCH-PURPOSE — flag (N2, N3).** The shadow-sweep on the *code* single-source is clean this round (the vocabulary export derives again; no literal `"HEAD"` survives on the boundary path). The flag is on the mechanism single-source: `NoCap` is documented as solving a case it doesn't, and `atlas/` doesn't derive from the shipped cap rule.
+- **ARCH-MOCK — pass.** Stateful `fakeReviewer`, hermetic real-git repo, and now one test entering at the command boundary. Residual is N1's, not the double's: the fake exists but the refusal path never runs against it.
+- **For M3:** `FilterBoundary` returns a by-value ledger with `Rounds` replaced, so `FamilyCounts(FilterBoundary(l, b))` silently yields boundary-scoped counts — the opposite of D1's intent, which currently lives only in a comment (`ledger.go:116-118`). Pin it with a test the moment `FamilyCounts` exists. Also decide N2 there if you don't decide it now, since M3 is where the escalation instruction starts depending on how many rounds "really" happened.
+
+## 7. Plan revision recommendations
+
+Append to `workshop/plans/000194-review-anchor-commit-plan.md`:
+
+> **### 2026-08-20 (M2 close review, round 4) — cap accounting made explicit; M2 entities added to Core concepts**
+> **Reason.** M2's rework introduced `Round.NoCap` / `gatestate.CountedRounds` — a persisted schema field and a change to the shared `Decide`, neither of which the plan describes. Its doc names three exclusion kinds while the code implements two, and the kind it cites as motivation (a review killed mid-response by host sleep) is not excluded — this issue's own ledger rounds 1 and 2 prove it. `ApplyChecked`'s per-disposition rejection is likewise a behavior change to a function the plan-quality gate also calls, recorded nowhere.
+> **Delta.** New decision **D6 — the round cap counts review cycles**: state exactly which rounds are `NoCap` and which are not, and say explicitly whether an interrupted reviewer is distinguishable from a non-compliant one (today it is not). Core concepts gains — **Pure entities:** `gatestate.CountedRounds` (`ledger.go`, new), `gatestate.Round.NoCap` (`ledger.go`, modified), `gatestate.AssignIDsAt` (`ledger.go`, new), `isResolvedSHA` / `deltaCommit` (`reviewanchor.go`, new); **Integration points:** `gateLedgerKind`, `readGateLedger`, `writeGateLedger` (`planreview.go`, new — the ARCH-DRY extraction Task 2.1 Step 4 made conditional), `seedFromPlanGate`, `persistBoundaryRound`, `boundaryPriorFindings`, `blockOnLedgerFailure` (`boundaryledger.go`, new), `roundCapFromEnvVar` (`changecode.go`, new), `reviewResult.Round`/`.ProtocolError` (`milestoneclose.go`, modified).
+> Also add to Verification: "a test drives the real `close` command and asserts a finalizing verdict + an open blocking finding refuses without writing, and that `--no-ledger` waives exactly that refusal" — the D4 decision currently has no test at the boundary it governs.
+
+And update the issue's `## Log` entry of 2026-08-20 (M2): it still records the round-cap-vs-interruption question as undecided, which the `NoCap` commit contradicts. Record what was decided, and that the interrupted-reviewer case is still open.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Read under the lock beside captureCloseReviewSnapshot and carried on PriorFindings; TestCloseCommand_LiveReviewSeesPriorFindings drives the real close command.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      blockOnLedgerFailure returns Block true with a Reason; the caller branches on empty OpenBlocking so the message fits the actual failure.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      boundaryledger.go:180 stamps Blocked before the write. Residual data only - the existing ledger still records round 3 as blocked false, which no longer matches its Critical finding.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Lines 22, 73, 75-88 and the code-map row all corrected; ledger-landscape.md:77-79 too. A newly-stale section and index.md:14 are raised separately below.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      close.md and milestone-close.md now cover the ledger artifact, the passing-verdict refusal, dispose-before-raising, WF_BOUNDARY_ROUND_CAP, and the bypass table row.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Verified - go run ./cmd/vocabulary check --output construct/generated/vocabulary exits 0.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      D4's heading now reads "warns"; a Revisions section with four entries exists. The Core-concepts half is raised separately as a Minor.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Seed round carries NoCap and Decide uses CountedRounds; TestCountedRounds_ExcludesRoundsThatConsumedNoReview pins it.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      protocol_error and no_cap now distinguish the two cases in the frontmatter. Residual - Agent is still empty on a dispatch error even where opts.Agent is resolved.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      Fixed for the boundary gate, but the plan gate half named in the finding still holds - changecode.go:525-531 discards ApplyChecked's `applied` and hand-builds a round with no dispositions at all, so one typo still nullifies every valid disposal there.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      TestBoundaryGateOperatorLines_NoGatesigCollision covers all four new lines through the derived guard.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      Anchored to ^Review-Verdict:. Verified empirically that git's --grep matches line-wise, so the three real trailer commits still resolve - a tightening, not a regression.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      Ids now come from AssignIDsAt. The empty-ledger precondition is still unpinned by a test, but the code no longer depends on it.
+findings:
+  - id: new
+    severity: Important
+    title: |
+      The gate-ledger refusal, --no-ledger, and blockOnLedgerFailure have no test at any level
+    detail: |
+      grep finalizeBoundaryReview cmd/sdlc/*_test.go returns nothing. Untested - a
+      finalizing verdict plus an open blocking finding refuses without running
+      applyClose; the error names the findings; --no-ledger waives exactly that
+      refusal; the unusable-ledger branch prints Reason instead of the open-findings
+      message. This is D4 and Task 2.2 Step 5, the behavior close.md advertises as
+      surprising, and it is the same coverage shape that let BR-1 ship. The new
+      GateCatalog no-ledger Ack/Refusal patterns are also never matched against real
+      emitted output.
+  - id: new
+    severity: Important
+    title: |
+      NoCap does not implement the case it names as its motivation; doc, commit message and issue Log disagree with the code
+    detail: |
+      gatestate/ledger.go:74-89 claims three NoCap kinds; only two assignment sites
+      exist (boundaryledger.go:120 and :163). "A round persisted before a non-review
+      refusal" is never set. Worse, the cited motivation - two reviews killed by host
+      sleep - lands as ProtocolError "no valid findings block" with NoCap false and
+      still counts. Proof - this issue's own close-gate ledger rounds 1 and 2 carry
+      no no_cap key, so M2 is at 3 counted rounds and this round trips the cap. The
+      issue's Log still records the question as "Not decided here" while the commit
+      message says it was settled. Make all three agree.
+  - id: new
+    severity: Important
+    title: |
+      atlas gate-state.md now asserts the superseded cap rule, and NoCap/CountedRounds is undocumented
+    detail: |
+      Not BR-4 - those lines are fixed. This staleness was created by the fix commit.
+      gate-state.md:105-111 "Protocol misses still count" grounds the cap in
+      len(Rounds), but Decide now uses CountedRounds and a never-dispatched round is
+      persisted with protocol_error and does NOT count. No atlas file mentions
+      no_cap, CountedRounds, or "the cap counts review cycles" - a new persisted YAML
+      field with no map entry. Separately atlas/index.md:14 still calls the
+      boundary-review carry-forward consumer "intended (#183)" after #194 delivered
+      it. Third instance of the family this diff's own lessons.md entry names.
+  - id: new
+    severity: Minor
+    title: |
+      Round.Forced is never stamped on a boundary round, unlike the plan gate
+    detail: |
+      boundaryledger.go:180 mirrors changecode.go:537 but not :538, so a --force or
+      --no-ledger bypass at the boundary leaves no durable record - the same field
+      that feeds closeMetrics' "N forced" for the plan gate. ARCH-DRY - the two
+      persist tails diverge again at the one line nobody notices.
+  - id: new
+    severity: Minor
+    title: |
+      The plan's Core-concepts tables never gained M2's entities, and Revisions omits two shared-gatestate behavior changes
+    detail: |
+      Every existing row verifies clean against the filesystem, so there is no
+      table/code contradiction - but gateLedgerKind, readGateLedger/writeGateLedger,
+      seedFromPlanGate, persistBoundaryRound, boundaryPriorFindings,
+      blockOnLedgerFailure, roundCapFromEnvVar, AssignIDsAt, CountedRounds and
+      Round.NoCap are all absent, so the table stops being the greppable index it
+      exists to be. Revisions also omits the no_cap schema field and ApplyChecked's
+      per-disposition semantics, both of which change code plan-quality also runs.
+  - id: new
+    severity: Minor
+    title: |
+      A seeded BoundaryAll finding's disposal is boundary-scoped, so it re-opens at every later boundary
+    detail: |
+      FilterBoundary retains the BoundaryAll seed round at every boundary but drops
+      the M1 round that disposed it, so OpenFindings shows the seed open again at M2
+      and at the whole-issue close. Cheap in practice (one dispose entry per
+      boundary, cleared in the same round) and arguably intended, but D5's wording
+      says "until disposed" where the code means "until disposed at each boundary".
+      Decide it explicitly and say so in gate-state.md.
+```

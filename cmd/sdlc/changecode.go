@@ -522,12 +522,14 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		// Criticals alongside one hallucinated disposition id would see a clean slate on
 		// re-run, in the artifact whose sole purpose is not losing findings. It also
 		// under-reported gate_addressed/gate_open in the close-time metric.
-		persistPlanGateRound(stderr, f, issueFile, ledger, gatestate.Round{
-			N: n, Timestamp: nowRFC3339(), Agent: string(agent),
-			New:           round.New,
-			ProtocolError: aerr.Error(), Blocked: true,
-			Forced: forcedRationale(f.Force, true),
-		})
+		// #194 M2 review: use ApplyChecked's OWN round, which now keeps the valid
+		// dispositions and drops only the invalid ones. Hand-rebuilding it here dropped
+		// every disposition, so one typo'd id nullified a round's valid disposals at the
+		// gate whose purpose is disposal — the same defect fixed on the boundary side.
+		applied.Rounds[len(applied.Rounds)-1].ProtocolError = aerr.Error()
+		applied.Rounds[len(applied.Rounds)-1].Blocked = true
+		applied.Rounds[len(applied.Rounds)-1].Forced = forcedRationale(f.Force, true)
+		persistPlanGateRound(stderr, f, issueFile, ledger, applied.Rounds[len(applied.Rounds)-1])
 		return fmt.Errorf("plan-quality protocol error: %v", aerr)
 	}
 	ledger = applied

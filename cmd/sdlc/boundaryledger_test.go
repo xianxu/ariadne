@@ -377,3 +377,77 @@ func TestBoundaryGateOperatorLines_NoGatesigCollision(t *testing.T) {
 		assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+line)
 	}
 }
+
+// #194 M2 review BR-14: the gate-ledger refusal, --no-ledger, and blockOnLedgerFailure
+// shipped with no test at any level — the refusal is the whole point of the ledger, and
+// blockOnLedgerFailure is the fail-closed answer to the worst failure mode a gate has.
+func TestGateLedgerRefusal_BlocksAPassingVerdictAndIsBypassable(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := filepath.Join("workshop", "plans")
+	if err := os.MkdirAll(plansDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	seeded := gatestate.Ledger{Gate: "boundary-review", IssueNum: 69, IDPrefix: "BR", Rounds: []gatestate.Round{
+		{N: 1, Boundary: "", New: []gatestate.Finding{
+			{ID: "BR-1", Severity: "Critical", Title: "undisposed and blocking", Round: 1},
+		}},
+	}}
+	if err := writeBoundaryGateLedger(plansDir, issueFile, seeded, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	// A SHIP verdict that does NOT dispose the open finding — the reviewer contradicting
+	// itself, which is the surprising case operators hit.
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+		return []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n"), nil
+	}
+
+	args := []string{"close", "--issue", "69", "--actual", "1", "--verified", "tests pass",
+		"--no-atlas", "--issues-dir", issuesDir, "--plans-dir", plansDir, "--brain-dir", "../nonexistent-brain"}
+	_, stderr, err := executeSDLCTestCommand(args...)
+	if err == nil {
+		t.Fatal("a SHIP verdict with an undisposed Critical must NOT finalize — verdict AND ledger must both clear")
+	}
+	if !strings.Contains(stderr, "BR-1") {
+		t.Errorf("the refusal must name the blocking finding:\n%s", stderr)
+	}
+	if strings.Contains(readIssue(t, issuesDir), "status: codecomplete") {
+		t.Error("the close finalized despite the ledger refusal")
+	}
+
+	// --no-ledger waives exactly this refusal (AGENTS.md §5's per-gate bypass).
+	_, stderr2, err2 := executeSDLCTestCommand(append(args, "--no-ledger")...)
+	if err2 != nil {
+		t.Fatalf("--no-ledger must waive the ledger refusal, got: %v\n%s", err2, stderr2)
+	}
+	if !strings.Contains(stderr2, "--no-ledger") {
+		t.Errorf("the bypass must log an explicit acknowledgment:\n%s", stderr2)
+	}
+}
+
+// blockOnLedgerFailure: an unusable ledger must FAIL CLOSED. Returning a zero Decision
+// would mean Block:false — findings dropped, corrupt file unwritten, close finalizing —
+// the exact anti-behavior readGateLedger refuses at a finer grain.
+func TestBlockOnLedgerFailure_FailsClosed(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	if err := os.WriteFile(filepath.Join(plansDir, strings.TrimSuffix(issueFile, ".md")+"-close-gate.md"),
+		[]byte("---\nbroken: [yaml: here\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+	d := persistBoundaryRound(&stderr, boundaryReviewParams{
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "", PlansDir: plansDir,
+	}, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{}}, "2026-08-20T22:00:00-07:00")
+
+	if !d.Block {
+		t.Fatal("an unusable ledger must block, never silently pass the gate")
+	}
+	if !strings.Contains(stderr.String(), "refusing to finalize rather than close without it") {
+		t.Errorf("the refusal must say why:\n%s", stderr.String())
+	}
+}

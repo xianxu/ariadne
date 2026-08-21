@@ -71,7 +71,20 @@ between rounds would let a later round dispose the wrong finding.
 judge's verdict token. It blocks iff some finding is still **open** at a blocking severity.
 
 That is the mechanic that converges: a fresh `Minor` cannot cost a round-trip, and disposed
-blockers open the gate. Past `WF_PLAN_ROUND_CAP` rounds (default 3) only `Critical` blocks.
+blockers open the gate. Past the round cap — `WF_PLAN_ROUND_CAP` for plan-quality,
+`WF_BOUNDARY_ROUND_CAP` for the boundary review, both defaulting to 3 — only `Critical`
+blocks.
+
+**What the cap counts is `CountedRounds`, not every persisted round** (#194). A round that
+invoked no reviewer does not consume a cap slot: the plan-gate SEED round the binary
+writes itself, and a dispatch that never started. Those carry `no_cap: true`.
+
+An **interrupted** review — reviewer ran, response truncated — is deliberately NOT
+excluded: it is byte-indistinguishable from a reviewer that ran to completion and ignored
+the output contract, and #187 persists protocol-error rounds precisely so such a reviewer
+stays bounded. Both count. The cost is real (two host-sleep interruptions ate two of
+ariadne#194's own M2 cap slots); the fix, if it ever matters enough, is a truncation
+signal from the dispatch layer rather than a heuristic in the ledger.
 
 **The demotion is safe only because the boundary review picks the rest up.** Since #194
 that pickup is a SEED, not an instruction: on the boundary ledger's first round,

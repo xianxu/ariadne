@@ -46,9 +46,8 @@ func Decide(l Ledger, roundCap int) Decision {
 		roundCap = DefaultRoundCap
 	}
 	m := vocab.Finding()
-	// CountedRounds, not len(l.Rounds): a seed round, a dispatch that never started, or a
-	// round persisted before a non-review refusal did not consume a review cycle, and the
-	// cap is about review cycles (ariadne#194 M2 review).
+	// CountedRounds, not len(l.Rounds): a seed round and a dispatch that never started
+	// invoked no reviewer, and the cap is about reviewer invocations (ariadne#194 M2).
 	counted := CountedRounds(l)
 	d := Decision{Rounds: counted, CapReached: counted > roundCap}
 

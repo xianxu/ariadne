@@ -73,19 +73,28 @@ type Round struct {
 	// demoting the whole-issue close's first-round findings.
 	Boundary string `yaml:"boundary,omitempty"`
 	// NoCap marks a round that did NOT consume a review cycle, so it does not count
-	// toward the round cap (ariadne#194 M2 review). Three kinds qualify: the plan-gate
-	// SEED round (no reviewer ran), a dispatch that never started, and a round persisted
-	// before a non-review refusal.
+	// toward the round cap (ariadne#194 M2). Exactly TWO kinds qualify, and both are
+	// cases where no reviewer was invoked at all:
 	//
-	// The cap exists to bound a judge that keeps churning. Letting a machine-sleep
-	// interruption or a bookkeeping round eat the budget punishes the operator for
-	// something no reviewer did — observed live on ariadne#194, where two reviews killed
-	// by host sleep put a boundary at 2 of 3 rounds having received zero review content.
+	//   1. the plan-gate SEED round (bookkeeping the binary writes itself)
+	//   2. a dispatch that never started (ProtocolError "review did not run: …")
 	//
-	// It is deliberately the NEGATIVE spelling: rounds written before this field existed
+	// KNOWN LIMITATION, stated because an earlier version of this comment claimed
+	// otherwise: an INTERRUPTED review — one where the reviewer ran and the response was
+	// truncated mid-stream — is NOT excluded. It arrives as "no valid findings block",
+	// byte-indistinguishable from a reviewer that ran to completion and ignored the
+	// output contract, and the binary has no signal to separate them. Both count.
+	//
+	// That is the conservative choice, not an oversight: #187 persists protocol-error
+	// rounds precisely so a CLI that never emits the fence is still bounded, and
+	// excluding them on suspicion of interruption would remove that bound. The cost is
+	// real and was paid on ariadne#194 itself, where two host-sleep interruptions
+	// consumed two of M2's three cap slots. If that recurs often enough to matter, the
+	// fix is a reliable truncation signal from the dispatch layer, not a guess here.
+	//
+	// Deliberately the NEGATIVE spelling: rounds written before this field existed
 	// default to false and therefore keep counting, so no historical ledger changes
-	// meaning. A round where the reviewer genuinely ran and emitted no fence still counts
-	// — that is the case #187's persist-the-protocol-error rule exists to bound.
+	// meaning.
 	NoCap bool `yaml:"no_cap,omitempty"`
 	// Forced carries the --force rationale, set ONLY when this gate actually blocked.
 	// --force is a GLOBAL bypass, so stamping it unconditionally would mark a plan-gate
@@ -127,8 +136,9 @@ func FilterBoundary(l Ledger, boundary string) Ledger {
 	return out
 }
 
-// CountedRounds is the number of rounds that consumed a review cycle — the figure the
-// round cap is about. See Round.NoCap for which rounds are excluded and why. Pure.
+// CountedRounds is the number of rounds that invoked a reviewer — the figure the round
+// cap is about. See Round.NoCap for exactly which rounds are excluded, and for the
+// interrupted-review case that is deliberately NOT excluded. Pure.
 func CountedRounds(l Ledger) int {
 	n := 0
 	for _, r := range l.Rounds {
