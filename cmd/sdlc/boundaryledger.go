@@ -78,7 +78,9 @@ func boundaryPriorFindings(stderr io.Writer, p boundaryReviewParams) string {
 		cwarn(stderr, fmt.Sprintf("boundary gate ledger unreadable — this review runs WITHOUT prior-round memory: %v", err))
 		return ""
 	}
-	return gatestate.RenderPriorFindings(gatestate.FilterBoundary(l, p.Milestone))
+	// Scoped for what must be disposed, FULL for family counts: a family recurring across
+	// milestones is the signal one issue-wide ledger exists to preserve (BR-20).
+	return gatestate.RenderPriorFindingsScoped(gatestate.FilterBoundary(l, p.Milestone), l)
 }
 
 // seedFromPlanGate returns a BoundaryAll round carrying the plan gate's still-open
@@ -113,7 +115,9 @@ func seedFromPlanGate(stderr io.Writer, bl gatestate.Ledger, plansDir, issueFile
 			ID:       "new",
 			Severity: f.Severity,
 			Title:    f.Title,
-			Detail:   strings.TrimSpace(f.Detail + "\n(carried from plan-quality " + f.ID + ", deferred to the boundary review)"),
+			Family:   f.Family, // carry the rule identity across gates, or escalation cannot fire on it
+
+			Detail: strings.TrimSpace(f.Detail + "\n(carried from plan-quality " + f.ID + ", deferred to the boundary review)"),
 		})
 	}
 	seed := gatestate.AssignIDsAt(bl, rr, 1, timestamp, "sdlc", gatestate.BoundaryAll)

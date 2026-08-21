@@ -43,6 +43,7 @@ func ParseFindingsBlock(output string) (RoundReport, bool) {
 		}
 		rr.New[i].Title = normalizeText(f.Title)
 		rr.New[i].Detail = normalizeText(f.Detail)
+		rr.New[i].Family = normalizeText(rr.New[i].Family)
 	}
 	for i, d := range rr.Dispositions {
 		if !m.IsDisposition(d.State) || strings.TrimSpace(d.ID) == "" {

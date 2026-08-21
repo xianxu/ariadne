@@ -283,6 +283,131 @@ rounds:
           round: 4
       boundary: M2
       blocked: false
+    - "n": 5
+      timestamp: "2026-08-20T22:18:14-07:00"
+      agent: claude
+      findings:
+        - id: BR-20
+          severity: Critical
+          title: Family counts come from the boundary-FILTERED ledger, so a family never recurs across milestones
+          detail: |-
+            boundaryledger.go:81 hands RenderPriorFindings the FilterBoundary view, and
+            RenderPriorFindings calls FamilyCounts on whatever it is given (prompt.go:80). At the
+            whole-issue close Milestone is "", so every M1/M2/M3 round is dropped and the family
+            vocabulary is empty. This contradicts family.go:44, FilterBoundary's own doc, plan D1,
+            and helptext/milestone-close.md:100, and voids the sole justification for one ledger
+            per issue. Verified on this issue's ledger: all four rounds are boundary M2 and the M3
+            prompt reads "This is the FIRST round". Fix by passing the unfiltered ledger for
+            families only (RenderPriorFindingsScoped(scoped, full)) and testing through
+            boundaryPriorFindings.
+          family: family-plumbing-incomplete
+          round: 5
+        - id: BR-21
+          severity: Important
+          title: seedFromPlanGate drops Family, so a plan-gate rule arrives at the boundary anonymous
+          detail: |-
+            boundaryledger.go:112-117 copies Severity, Title and Detail but not Family, while D2
+            specifies severity AND family preserved. This diff makes plan-quality findings carry
+            families, so the earliest cross-gate recurrence cannot escalate. One-field fix; assert
+            it in TestBoundaryReview_SeedsDeferredPlanGateFindings.
+          family: family-plumbing-incomplete
+          round: 5
+        - id: BR-22
+          severity: Important
+          title: ConvergenceLine counts LATER rounds as prior families
+          detail: |-
+            family.go:131 skips only r.N == round, so rounds after the target seed priorFamilies. A
+            family debuting at round 3 is reported as a repeat at round 3. Latent in production
+            (the caller passes the last round) but the package's own tests already call it for
+            round 2 and 4 of a 4-round ledger. Fix: if r.N >= round { continue }, plus a fixture
+            where a family debuts mid-history.
+          family: prior-means-strictly-earlier
+          round: 5
+        - id: BR-23
+          severity: Important
+          title: Family bypasses canonical() and ParseFindingsBlock, re-opening the unreadable-ledger hazard
+          detail: |-
+            render.go:22-55 normalizes every other agent-authored string precisely so no code path
+            can emit a ledger that cannot be read back; ParseFindingsBlock normalizes Title and
+            Detail. Family is normalized in neither and FuzzRenderParseRoundTrip fuzzes only
+            title/detail, so the yaml/v3 leading-newline emitter bug is reachable again through
+            family. Its consequence is blockOnLedgerFailure and a boundary wedged until the
+            operator deletes the gate's memory. Add normalizeText on both paths and a third fuzz
+            argument.
+          family: agent-text-normalization
+          round: 5
+        - id: BR-24
+          severity: Important
+          title: NormalizeFamily duplicates issue.Slugify rather than reusing it
+          detail: |-
+            cmd/sdlc/internal/issue/scaffold.go:58 already implements the identical algorithm
+            (lowercase, non-alphanumeric to hyphen, collapse runs, trim edges). Both packages live
+            under cmd/sdlc/internal so reuse is importable. Consolidate, or record in the comment
+            why gatestate keeps a second copy.
+          family: existing-helper-not-reused
+          round: 5
+        - id: BR-25
+          severity: Important
+          title: The durable plan still shows M3 (and Task 2.3, and every Verification box) as unstarted
+          detail: |-
+            workshop/plans/000194-review-anchor-commit-plan.md has Tasks 2.3 and 3.1-3.6 and the
+            whole Verification list as unticked while the issue ticks M3 done. AGENTS.md section 8
+            puts the plan on the same per-milestone discipline as the atlas. All four Verification
+            items were confirmed passing during this review.
+          family: plan-artifact-lags-code
+          round: 5
+        - id: BR-26
+          severity: Minor
+          title: The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
+          detail: |-
+            family.go:104 (counts[fam] >= 1 can never be false), family.go:110-118 (the blockquote
+            hardcodes repeats[0] and its ordinal, so with two families in play a reviewer copying
+            the template attributes the wrong count), family.go:94 (pluralFindings renders a
+            family total as "3 new findings"), and family.go:114 ("Earlier rounds fixed instances"
+            asserted for findings that are still open or withdrawn, where Spec C conditions on a
+            DISPOSED prior finding).
+          family: escalation-copy-precision
+          round: 5
+        - id: BR-27
+          severity: Minor
+          title: The convergence line's round number counts the no-cap seed round
+          detail: |-
+            boundaryledger.go:189 passes len(l.Rounds), so after a D2 seed the first real review
+            prints "round 2". CountedRounds exists for exactly this distinction and is what the
+            cap uses.
+          family: counted-rounds-consistency
+          round: 5
+        - id: BR-28
+          severity: Minor
+          title: The ledger's human prose projection omits family
+          detail: |-
+            render.go:104-111 prints id, severity, title and detail per finding. A human reading
+            NNNNNN-slug-close-gate.md cannot see the families the gate is tracking, and the
+            convergence line is stderr-only, so nothing durable shows them either.
+          family: family-plumbing-incomplete
+          round: 5
+        - id: BR-29
+          severity: Minor
+          title: No round-trip test for family, and the model-drift guard does not pin the family key
+          detail: |-
+            Task 3.1 asks for a round-trip test; none exists. TestFindingRenderBlockInstruction
+            (pkg/vocab/finding_test.go:85) is the prompt-model drift guard and does not assert
+            "family:" — the goldens cover it indirectly, but a judge never told to emit family
+            defeats the milestone, so the invariant belongs in the model test.
+          family: test-pins-the-invariant
+          round: 5
+        - id: BR-30
+          severity: Minor
+          title: The convergence cinfo was inserted between the demotion comment and the loop it documents
+          detail: |-
+            boundaryledger.go:183-190. Also pkg/vocab/finding.go:78 still says the block
+            instruction is "for the plan-quality prompt" though milestone-review has consumed it
+            since M2, and boundaryledger_test.go:487's window regression test lives in the ledger
+            test file rather than beside its siblings in milestonewindow_test.go.
+          family: comment-anchor-drift
+          round: 5
+      boundary: M3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#194 (boundary-review)
@@ -451,6 +576,75 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   says "until disposed" where the code means "until disposed at each boundary".
   Decide it explicitly and say so in gate-state.md.
 
+## Round 5 — 2026-08-20T22:18:14-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-20** [Critical] Family counts come from the boundary-FILTERED ledger, so a family never recurs across milestones
+  boundaryledger.go:81 hands RenderPriorFindings the FilterBoundary view, and
+  RenderPriorFindings calls FamilyCounts on whatever it is given (prompt.go:80). At the
+  whole-issue close Milestone is "", so every M1/M2/M3 round is dropped and the family
+  vocabulary is empty. This contradicts family.go:44, FilterBoundary's own doc, plan D1,
+  and helptext/milestone-close.md:100, and voids the sole justification for one ledger
+  per issue. Verified on this issue's ledger: all four rounds are boundary M2 and the M3
+  prompt reads "This is the FIRST round". Fix by passing the unfiltered ledger for
+  families only (RenderPriorFindingsScoped(scoped, full)) and testing through
+  boundaryPriorFindings.
+- **BR-21** [Important] seedFromPlanGate drops Family, so a plan-gate rule arrives at the boundary anonymous
+  boundaryledger.go:112-117 copies Severity, Title and Detail but not Family, while D2
+  specifies severity AND family preserved. This diff makes plan-quality findings carry
+  families, so the earliest cross-gate recurrence cannot escalate. One-field fix; assert
+  it in TestBoundaryReview_SeedsDeferredPlanGateFindings.
+- **BR-22** [Important] ConvergenceLine counts LATER rounds as prior families
+  family.go:131 skips only r.N == round, so rounds after the target seed priorFamilies. A
+  family debuting at round 3 is reported as a repeat at round 3. Latent in production
+  (the caller passes the last round) but the package's own tests already call it for
+  round 2 and 4 of a 4-round ledger. Fix: if r.N >= round { continue }, plus a fixture
+  where a family debuts mid-history.
+- **BR-23** [Important] Family bypasses canonical() and ParseFindingsBlock, re-opening the unreadable-ledger hazard
+  render.go:22-55 normalizes every other agent-authored string precisely so no code path
+  can emit a ledger that cannot be read back; ParseFindingsBlock normalizes Title and
+  Detail. Family is normalized in neither and FuzzRenderParseRoundTrip fuzzes only
+  title/detail, so the yaml/v3 leading-newline emitter bug is reachable again through
+  family. Its consequence is blockOnLedgerFailure and a boundary wedged until the
+  operator deletes the gate's memory. Add normalizeText on both paths and a third fuzz
+  argument.
+- **BR-24** [Important] NormalizeFamily duplicates issue.Slugify rather than reusing it
+  cmd/sdlc/internal/issue/scaffold.go:58 already implements the identical algorithm
+  (lowercase, non-alphanumeric to hyphen, collapse runs, trim edges). Both packages live
+  under cmd/sdlc/internal so reuse is importable. Consolidate, or record in the comment
+  why gatestate keeps a second copy.
+- **BR-25** [Important] The durable plan still shows M3 (and Task 2.3, and every Verification box) as unstarted
+  workshop/plans/000194-review-anchor-commit-plan.md has Tasks 2.3 and 3.1-3.6 and the
+  whole Verification list as unticked while the issue ticks M3 done. AGENTS.md section 8
+  puts the plan on the same per-milestone discipline as the atlas. All four Verification
+  items were confirmed passing during this review.
+- **BR-26** [Minor] The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
+  family.go:104 (counts[fam] >= 1 can never be false), family.go:110-118 (the blockquote
+  hardcodes repeats[0] and its ordinal, so with two families in play a reviewer copying
+  the template attributes the wrong count), family.go:94 (pluralFindings renders a
+  family total as "3 new findings"), and family.go:114 ("Earlier rounds fixed instances"
+  asserted for findings that are still open or withdrawn, where Spec C conditions on a
+  DISPOSED prior finding).
+- **BR-27** [Minor] The convergence line's round number counts the no-cap seed round
+  boundaryledger.go:189 passes len(l.Rounds), so after a D2 seed the first real review
+  prints "round 2". CountedRounds exists for exactly this distinction and is what the
+  cap uses.
+- **BR-28** [Minor] The ledger's human prose projection omits family
+  render.go:104-111 prints id, severity, title and detail per finding. A human reading
+  NNNNNN-slug-close-gate.md cannot see the families the gate is tracking, and the
+  convergence line is stderr-only, so nothing durable shows them either.
+- **BR-29** [Minor] No round-trip test for family, and the model-drift guard does not pin the family key
+  Task 3.1 asks for a round-trip test; none exists. TestFindingRenderBlockInstruction
+  (pkg/vocab/finding_test.go:85) is the prompt-model drift guard and does not assert
+  "family:" — the goldens cover it indirectly, but a judge never told to emit family
+  defeats the milestone, so the invariant belongs in the model test.
+- **BR-30** [Minor] The convergence cinfo was inserted between the demotion comment and the loop it documents
+  boundaryledger.go:183-190. Also pkg/vocab/finding.go:78 still says the block
+  instruction is "for the plan-quality prompt" though milestone-review has consumed it
+  since M2, and boundaryledger_test.go:487's window regression test lives in the ledger
+  test file rather than beside its siblings in milestonewindow_test.go.
+
 ## Open findings
 
 - **BR-10** [Minor] One bad disposition id nullifies a whole round's valid dispositions
@@ -460,3 +654,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-17** [Minor] Round.Forced is never stamped on a boundary round, unlike the plan gate
 - **BR-18** [Minor] The plan's Core-concepts tables never gained M2's entities, and Revisions omits two shared-gatestate behavior changes
 - **BR-19** [Minor] A seeded BoundaryAll finding's disposal is boundary-scoped, so it re-opens at every later boundary
+- **BR-20** [Critical] Family counts come from the boundary-FILTERED ledger, so a family never recurs across milestones
+- **BR-21** [Important] seedFromPlanGate drops Family, so a plan-gate rule arrives at the boundary anonymous
+- **BR-22** [Important] ConvergenceLine counts LATER rounds as prior families
+- **BR-23** [Important] Family bypasses canonical() and ParseFindingsBlock, re-opening the unreadable-ledger hazard
+- **BR-24** [Important] NormalizeFamily duplicates issue.Slugify rather than reusing it
+- **BR-25** [Important] The durable plan still shows M3 (and Task 2.3, and every Verification box) as unstarted
+- **BR-26** [Minor] The escalation block names only the top family, reuses convergence-line wording, and has a dead threshold
+- **BR-27** [Minor] The convergence line's round number counts the no-cap seed round
+- **BR-28** [Minor] The ledger's human prose projection omits family
+- **BR-29** [Minor] No round-trip test for family, and the model-drift guard does not pin the family key
+- **BR-30** [Minor] The convergence cinfo was inserted between the demotion comment and the loop it documents

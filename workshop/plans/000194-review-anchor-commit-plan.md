@@ -442,7 +442,7 @@ Spec B. The pair `planreview.go` says is coming.
       `Decide(FilterBoundary(l, boundary), cap)` (D1) — reuse `decide.go`, do not write a
       second rule. Wire the verdict/ledger precedence and the protocol-miss halt per **D4**.
 - [x] **Step 6:** `go test ./...` → PASS. Commit.
-- [ ] **Task 2.3: `sdlc milestone-close --issue 194 --milestone M2`**
+- [x] **Task 2.3: `sdlc milestone-close --issue 194 --milestone M2`**
 
 ---
 
@@ -451,24 +451,24 @@ Spec B. The pair `planreview.go` says is coming.
 Spec C + D. This is the milestone that carries the actual insight; M1 and M2 are its
 prerequisites.
 
-- [ ] **Task 3.1:** Add `family` to `#Finding` in `construct/vocabulary/finding.cue`
+- [x] **Task 3.1:** Add `family` to `#Finding` in `construct/vocabulary/finding.cue`
       (**closed schema** — an unmodeled key fails instance validation), to
       `gatestate.Finding`, to the parser, and to `RenderBlockInstruction`
       (`pkg/vocab/finding.go:97-100`) so the judge is *told* to emit it. Optional on
       emission, so an older transcript still parses. Test the round-trip.
-- [ ] **Task 3.2:** `gatestate.FamilyCounts(l Ledger) map[string]int` (unfiltered ledger,
+- [x] **Task 3.2:** `gatestate.FamilyCounts(l Ledger) map[string]int` (unfiltered ledger,
       per D1) and `normalizeFamily` — both pure, unit-tested on in-memory ledgers. Per
       **D3**, `FamilyCounts` normalizes before counting.
-- [ ] **Task 3.3:** Render **the in-play family vocabulary plus a reuse instruction** into
+- [x] **Task 3.3:** Render **the in-play family vocabulary plus a reuse instruction** into
       `RenderPriorFindings` (D3 mechanism 1 — `RenderPriorFindings` renders no family
       today, which is why escalation would otherwise never fire), and the escalation
       instruction when a family already has ≥1 prior finding, in the issue's words: *"This is the Nth finding
       in family `X`. Rounds … fixed instances. Do not fix this instance — state the rule
       that covers all of them, and fix that. If the rule cannot be stated, say why, and
       record the family in `Limits` with its measured prevalence."*
-- [ ] **Task 3.4:** `gatestate.ConvergenceLine` (pure, reusing `DispositionCounts`), and
+- [x] **Task 3.4:** `gatestate.ConvergenceLine` (pure, reusing `DispositionCounts`), and
       emit it with the verdict.
-- [ ] **Task 3.5: Verify against real history.** `tools#1`'s
+- [x] **Task 3.5: Verify against real history.** `tools#1`'s
       `000001-define-m1-review.md` has four rounds and two clear families. Build it as a
       fixture and assert a correct implementation flags `block-opener-rule` at **round 2,
       not round 3**. This is the issue's own acceptance test and the only one that
@@ -480,10 +480,10 @@ prerequisites.
         `block_opener_rule`) that must collapse to one family, and a true-synonym fixture
         (`block-opener`) whose test name records the accepted residual risk. Without
         these, Task 3.5's consistent-slug fixture passes by construction.
-- [ ] **Task 3.6: Pin the window.** Regression test: a whole-issue close still resolves
+- [x] **Task 3.6: Pin the window.** Regression test: a whole-issue close still resolves
       its review window to `merge-base(main, HEAD)`. M4 was rejected; this test is what
       keeps it rejected.
-- [ ] **Task 3.7: `sdlc milestone-close --issue 194 --milestone M3`**
+- [x] **Task 3.7: `sdlc milestone-close --issue 194 --milestone M3`**
 
 ---
 
@@ -508,11 +508,11 @@ test in M3 pinning that a whole-issue close still resolves its window to
 
 ## Verification
 
-- [ ] `go build ./... && go test ./... 2>&1 | tail -20` — all packages pass.
-- [ ] `sdlc process-manual` renders without error (prompt templates changed).
-- [ ] Vocabulary conformance: the `finding.cue` edits pass whatever `make` target vets CUE
+- [x] `go build ./... && go test ./... 2>&1 | tail -20` — all packages pass.
+- [x] `sdlc process-manual` renders without error (prompt templates changed).
+- [x] Vocabulary conformance: the `finding.cue` edits pass whatever `make` target vets CUE
       instances — find it (`grep -rn "cue vet" Makefile scripts/`) and run it.
-- [ ] Self-hosting check: this issue's own M2/M3 boundary reviews should produce a
+- [x] Self-hosting check: this issue's own M2/M3 boundary reviews should produce a
       `-close-gate.md` ledger with stable ids. If M3 lands and a repeat family shows up in
       this very issue's rounds, say so in `## Log` — that is the feature working.
 

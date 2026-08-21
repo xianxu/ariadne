@@ -31,6 +31,11 @@ func canonical(l Ledger) Ledger {
 		for j, f := range r.New {
 			f.Title = normalizeText(f.Title)
 			f.Detail = normalizeText(f.Detail)
+			// Family too (#194 M3 review BR-23): a judge emitting it as a block scalar
+			// can produce a leading newline, which hits the yaml emitter bug this
+			// normalizer exists for — the ledger writes, then cannot be read back, and
+			// the gate's memory for the issue is destroyed.
+			f.Family = normalizeText(f.Family)
 			nf[j] = f
 		}
 		r.New = nf

@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // NormalizeFamily folds a family slug to its canonical form: lowercase, non-alphanumeric
@@ -29,22 +31,11 @@ import (
 // It catches `Block Opener Rule` and `block_opener_rule`. It does NOT catch
 // `block-opener` vs `block-opener-rule` — a true synonym is a judgement, not a spelling,
 // and mechanism 1 is what addresses those.
-func NormalizeFamily(s string) string {
-	var b strings.Builder
-	lastHyphen := true // leading hyphens are trimmed by never emitting one first
-	for _, r := range strings.ToLower(strings.TrimSpace(s)) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			b.WriteRune(r)
-			lastHyphen = false
-			continue
-		}
-		if !lastHyphen {
-			b.WriteByte('-')
-			lastHyphen = true
-		}
-	}
-	return strings.TrimSuffix(b.String(), "-")
-}
+//
+// The algorithm IS issue.Slugify (BR-24): same lowercase / non-alphanumeric-to-hyphen /
+// collapse / trim, and a second copy would drift. This stays a named wrapper so the
+// paragraph above — what normalization does NOT catch — has somewhere to live.
+func NormalizeFamily(s string) string { return issue.Slugify(s) }
 
 // FamilyCounts tallies findings per normalized family across the WHOLE ledger — not a
 // boundary-filtered view. A family recurring across milestones is precisely the signal
@@ -127,8 +118,10 @@ func renderFamilyEscalation(counts map[string]int) string {
 func ConvergenceLine(l Ledger, round int) string {
 	priorFamilies := map[string]bool{}
 	newCount, repeats, disposed := 0, 0, 0
+	// STRICTLY earlier rounds (BR-22). `!= round` also swept in later ones, so replaying
+	// an old round would report repeats against families that did not exist yet.
 	for _, r := range l.Rounds {
-		if r.N == round {
+		if r.N >= round {
 			continue
 		}
 		for _, f := range r.New {

@@ -499,3 +499,51 @@ func TestBoundaryWindowBase_WholeIssueStaysAtMergeBase(t *testing.T) {
 			"sees less than the integrated result)", got, mergeBase)
 	}
 }
+
+// #194 M3 review BR-20: family counts must come from the WHOLE ledger, not the
+// boundary-filtered view. Otherwise a family can never be seen recurring across
+// milestones — which is precisely the tools#1 evidence this feature was built from — and
+// at the whole-issue close (scope "") every milestone round drops out entirely.
+// Tested through boundaryPriorFindings, the path production actually uses.
+func TestBoundaryPriorFindings_FamiliesSpanMilestones(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+	if err := writeBoundaryGateLedger(plansDir, issueFile, gatestate.Ledger{
+		Gate: "boundary-review", IssueNum: 69, IDPrefix: "BR", Rounds: []gatestate.Round{
+			{N: 1, Boundary: "M1", New: []gatestate.Finding{
+				{ID: "BR-1", Severity: "Critical", Title: "paren case", Family: "block-opener-rule", Round: 1},
+			}},
+			{N: 2, Boundary: "M1", Dispositions: []gatestate.Disposition{{ID: "BR-1", State: "addressed", Round: 2}}},
+		},
+	}, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+
+	// A LATER milestone must still see the family, and be escalated on it.
+	m2 := boundaryPriorFindings(&stderr, boundaryReviewParams{
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "M2", PlansDir: plansDir})
+	if !strings.Contains(m2, "block-opener-rule") {
+		t.Errorf("M2 must see M1's family — cross-milestone recurrence is the whole point:\n%s", m2)
+	}
+	if !strings.Contains(m2, "state the rule") {
+		t.Errorf("M2 must be escalated on the repeat family:\n%s", m2)
+	}
+
+	// And so must the whole-issue close, whose scope is "" — the case that dropped
+	// EVERY milestone round before this fix.
+	closeBlock := boundaryPriorFindings(&stderr, boundaryReviewParams{
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "", PlansDir: plansDir})
+	if !strings.Contains(closeBlock, "block-opener-rule") {
+		t.Errorf("the whole-issue close must see families raised at milestones:\n%s", closeBlock)
+	}
+
+	// The scoping of what must be DISPOSED is unchanged: M2 does not inherit M1's
+	// open findings.
+	if strings.Contains(m2, "BR-1") && strings.Contains(m2, "MUST dispose") {
+		if idx := strings.Index(m2, "OPEN FINDINGS"); idx >= 0 && strings.Contains(m2[idx:idx+400], "BR-1") {
+			t.Error("M2 must not inherit M1's open findings — only the family vocabulary crosses")
+		}
+	}
+}
