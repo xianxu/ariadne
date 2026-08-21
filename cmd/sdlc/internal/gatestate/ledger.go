@@ -136,6 +136,37 @@ func FilterBoundary(l Ledger, boundary string) Ledger {
 	for _, r := range l.Rounds {
 		if r.Boundary == boundary || r.Boundary == BoundaryAll {
 			out.Rounds = append(out.Rounds, r)
+			continue
+		}
+		// A BoundaryAll finding is visible everywhere, so its DISPOSAL must be too
+		// (ariadne#194 close review BR-19). Otherwise the disposal lands in whichever
+		// boundary's round made it, gets filtered out at every other boundary, and the
+		// seeded finding re-opens forever — the reviewer being asked to dispose the same
+		// plan-gate finding once per milestone. Carry only those dispositions across;
+		// the round itself stays out, so the cap is unaffected.
+		if d := dispositionsOfBoundaryAllFindings(l, r); len(d) > 0 {
+			out.Rounds = append(out.Rounds, Round{N: r.N, Boundary: BoundaryAll, NoCap: true, Dispositions: d})
+		}
+	}
+	return out
+}
+
+// dispositionsOfBoundaryAllFindings returns r's dispositions that target findings raised
+// in a BoundaryAll round. Pure.
+func dispositionsOfBoundaryAllFindings(l Ledger, r Round) []Disposition {
+	universal := map[string]bool{}
+	for _, prev := range l.Rounds {
+		if prev.Boundary != BoundaryAll {
+			continue
+		}
+		for _, f := range prev.New {
+			universal[f.ID] = true
+		}
+	}
+	var out []Disposition
+	for _, d := range r.Dispositions {
+		if universal[d.ID] {
+			out = append(out, d)
 		}
 	}
 	return out

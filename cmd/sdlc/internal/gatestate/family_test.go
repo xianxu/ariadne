@@ -191,3 +191,26 @@ func TestConvergenceLine_LaterRoundsAreNotPriorFamilies(t *testing.T) {
 		t.Errorf("round 3 repeats beta: %q", got)
 	}
 }
+
+// #194 close review BR-29: family must survive the durable round-trip, and the emitted
+// fence must actually name the key — otherwise the judge is never asked for it and every
+// count stays zero while the code looks correct.
+func TestFamily_SurvivesRoundTripAndIsNamedInTheFence(t *testing.T) {
+	l := Ledger{Gate: "boundary-review", IssueNum: 194, IDPrefix: "BR", Rounds: []Round{
+		{N: 1, Boundary: "M1", New: []Finding{
+			{ID: "BR-1", Severity: "Critical", Title: "t", Family: "block-opener-rule", Round: 1},
+		}},
+	}}
+	got, err := ParseSidecar(Render(l, "ariadne"))
+	if err != nil {
+		t.Fatalf("ParseSidecar: %v", err)
+	}
+	if fam := got.Rounds[0].New[0].Family; fam != "block-opener-rule" {
+		t.Errorf("family lost in round-trip: %q", fam)
+	}
+	// The human projection shows it too (BR-28) — a recurrence invisible to a reader is
+	// half a feature.
+	if rendered := Render(l, "ariadne"); !strings.Contains(rendered, "`block-opener-rule`") {
+		t.Errorf("the prose projection must show the family:\n%s", rendered)
+	}
+}

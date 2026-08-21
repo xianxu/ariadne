@@ -90,24 +90,27 @@ func renderFamilyVocabulary(counts map[string]int) string {
 // renderFamilyEscalation is the substance of #194 M3: on a family that already has prior
 // findings, change what the reviewer is asked to do. Pure; "" when nothing repeats.
 func renderFamilyEscalation(counts map[string]int) string {
-	var repeats []string
-	for _, fam := range sortedFamilies(counts) {
-		if counts[fam] >= 1 {
-			repeats = append(repeats, fam)
-		}
-	}
+	// Every family in `counts` has at least one prior finding by construction, so the
+	// next finding in it is at least the 2nd — which is exactly when #194's Done-when
+	// says to escalate ("flags block-opener-rule at round 2, not round 3"). The old
+	// `if counts[fam] >= 1` guard was therefore DEAD CODE, not a threshold; removing it
+	// is the fix, and lowering the bar would have been the wrong reading (#194 close
+	// review BR-26).
+	repeats := sortedFamilies(counts)
 	if len(repeats) == 0 {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("\nIf a finding you are about to raise belongs to one of those families, it is the\n")
-	b.WriteString("Nth instance of a rule that has already been patched at least once. Say so\n")
-	b.WriteString("explicitly and change your recommendation:\n\n")
-	fmt.Fprintf(&b, "  > **This is the %s finding in family `%s`.** Earlier rounds fixed instances.\n",
-		ordinal(counts[repeats[0]]+1), repeats[0])
-	b.WriteString("  > Do NOT fix this instance — state the rule that covers all of them, and fix\n")
-	b.WriteString("  > that. If the rule cannot be stated, say why, and record the family in\n")
-	b.WriteString("  > `Limits` with its measured prevalence.\n")
+	b.WriteString("\nEach of these already has at least one finding, so a further one is a REPEAT.\n")
+	b.WriteString("If a finding you are about to raise belongs to one, say so explicitly and\n")
+	b.WriteString("change your recommendation:\n\n")
+	for _, fam := range repeats { // every recurring family, not just the largest
+		fmt.Fprintf(&b, "  > **This is the %s finding in family `%s`.** Earlier rounds fixed\n",
+			ordinal(counts[fam]+1), fam)
+		b.WriteString("  > instances. Do NOT fix this instance — state the rule that covers all of\n")
+		b.WriteString("  > them, and fix that. If the rule cannot be stated, say why and record the\n")
+		b.WriteString("  > family, with its measured prevalence, in the finding's own detail.\n")
+	}
 	return b.String()
 }
 
@@ -115,6 +118,9 @@ func renderFamilyEscalation(counts map[string]int) string {
 // — the signal that was missing when tools#1 ran four rounds without anyone being able to
 // tell whether round five would find more. Capping on finding COUNT is arbitrary; capping
 // when families stop repeating is not. Pure.
+// The `round` argument is a ROUND NUMBER as stored (Round.N). Display uses the counted
+// position instead, so a seed round the binary wrote does not make the first real review
+// read as "round 2" (#194 close review BR-27).
 func ConvergenceLine(l Ledger, round int) string {
 	priorFamilies := map[string]bool{}
 	newCount, repeats, disposed := 0, 0, 0
@@ -149,8 +155,17 @@ func ConvergenceLine(l Ledger, round int) string {
 	if repeats > 0 {
 		verdict = "Not converging: fix rules, not instances."
 	}
+	display := 0
+	for _, r := range l.Rounds {
+		if !r.NoCap && r.N <= round {
+			display++
+		}
+	}
+	if display == 0 {
+		display = 1 // a no-cap round still reports as the first
+	}
 	return fmt.Sprintf("round %d — %s, %s, %d disposed. %s",
-		round, pluralFindings(newCount), pluralFamilies(repeats), disposed, verdict)
+		display, pluralFindings(newCount), pluralFamilies(repeats), disposed, verdict)
 }
 
 func pluralFindings(n int) string {

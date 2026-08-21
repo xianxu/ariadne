@@ -211,3 +211,21 @@ func TestCountedRounds_PreExistingRoundsStillCount(t *testing.T) {
 		t.Fatalf("CountedRounds = %d, want 3", got)
 	}
 }
+
+// #194 close review BR-19: a BoundaryAll (seeded) finding is visible at every boundary,
+// but its DISPOSAL lands in whichever boundary's round disposed it — so FilterBoundary
+// drops the disposal and re-opens the finding at every later boundary. The reviewer is
+// then asked to dispose the same seeded finding once per milestone, forever.
+func TestFilterBoundary_DisposalOfASeededFindingIsNotBoundaryScoped(t *testing.T) {
+	l := Ledger{IDPrefix: "BR", Rounds: []Round{
+		{N: 1, Boundary: BoundaryAll, New: []Finding{
+			{ID: "BR-1", Severity: "Important", Title: "carried from plan-quality", Round: 1},
+		}},
+		{N: 2, Boundary: "M1", Dispositions: []Disposition{{ID: "BR-1", State: "addressed", Round: 2}}},
+	}}
+	for _, boundary := range []string{"M1", "M2", ""} {
+		if open := OpenFindings(FilterBoundary(l, boundary)); len(open) != 0 {
+			t.Errorf("boundary %q still sees BR-1 open after M1 disposed it: %+v", boundary, open)
+		}
+	}
+}

@@ -549,6 +549,10 @@ type boundaryReviewParams struct {
 	IssueNum  int
 	Milestone string
 	PlansDir  string
+	// ForcedRationale records a bypass of the ledger's refusal (--no-ledger / --force),
+	// stamped onto the round so the durable record and the gate_forced metric do not read
+	// a waived refusal as a clean pass (#194 close review BR-17).
+	ForcedRationale string
 	// PriorFindings is the rendered prior-round block for THIS boundary (#194 M2),
 	// read by the caller UNDER THE REPO LOCK and carried here rather than fetched at
 	// dispatch time.

@@ -200,6 +200,11 @@ whole-issue close.
 | `gatestate.Round.Boundary` | `cmd/sdlc/internal/gatestate/ledger.go:57` | modified (D1) |
 | `gatestate.FilterBoundary` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D1) |
 | `gatestate.BoundaryAll` | `cmd/sdlc/internal/gatestate/ledger.go` | new (D5) |
+| `gatestate.CountedRounds` | `cmd/sdlc/internal/gatestate/ledger.go` | new (M2 review) |
+| `gatestate.Round.NoCap` | `cmd/sdlc/internal/gatestate/ledger.go` | modified (M2 review) |
+| `gatestate.DecideScoped` | `cmd/sdlc/internal/gatestate/decide.go` | new (close review BR-37) |
+| `gateLedgerKind` | `cmd/sdlc/planreview.go` | new (M2, shared by both gates) |
+| `openScopeFor` | `cmd/sdlc/boundaryledger.go` | new (close review BR-37) |
 | `gatestate.FamilyCounts` | `cmd/sdlc/internal/gatestate/family.go` | new |
 | `gatestate.NormalizeFamily` | `cmd/sdlc/internal/gatestate/family.go` | new (D3; wraps `issue.Slugify`) |
 | `gatestate.ConvergenceLine` | `cmd/sdlc/internal/gatestate/family.go` | new |
@@ -591,3 +596,16 @@ applied as one-off fixes:
 The durable plan itself has no gate — `close`'s plan-unchecked check reads only the
 ISSUE's `## Plan` — which is why this table drifted in the same commit that ticked its
 boxes. Filed as its own issue rather than fixed here.
+
+### 2026-08-20 — close review: two shared-gatestate behaviours, recorded (BR-18, BR-19, BR-37)
+
+Three changes landed in `gatestate` that both gates now share, and none was in the
+original design:
+
+- **`ApplyChecked` rejects per-disposition, not per-round.** One typo'd id used to
+  nullify a round's valid disposals — at the gate whose purpose is disposal.
+- **`CountedRounds` / `Round.NoCap`.** The cap counts reviewer invocations, not persisted
+  rounds. An interrupted review is deliberately NOT excluded; see `Round.NoCap`.
+- **`DecideScoped` / `FilterBoundary` carrying BoundaryAll disposals.** The cap wants
+  boundary scope; every other read wants the full issue. A seeded finding's *disposal*
+  crosses boundaries with the finding, or it re-opens at every later boundary forever.
