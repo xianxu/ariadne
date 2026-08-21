@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -68,6 +69,16 @@ type reviewResult struct {
 	SidecarPath string // #136: durable review transcript path ("" when no review ran)
 	Output      string // full review body, retained when sidecar writing is deferred
 	Agent       string // resolved reviewer CLI, retained for deferred sidecar metadata
+	// Round is the findings block this review emitted (#194 M2), parsed but NOT yet
+	// applied: dispatch runs with the repo transaction lock released, and the ledger is
+	// a repo write, so it is persisted at finalize time — the same deferral the sidecar
+	// uses. nil when the reviewer emitted no valid fence.
+	Round *gatestate.RoundReport
+	// ProtocolError records a reviewer that produced no parseable findings block. The
+	// round is still persisted: dropping it would leave len(Rounds) at 0 forever for a
+	// CLI that never emits the fence, so the round cap could never bound the loop it
+	// exists to bound (the reasoning changecode.go:490 spells out for the plan gate).
+	ProtocolError string
 }
 
 func NewMilestoneCloseCmd() *cobra.Command {
@@ -585,6 +596,13 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
 	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, Output: output, Agent: string(agent)}
+	// #194 M2: capture the structured findings handoff. Persisting it is the caller's
+	// job (it holds the lock); parsing here keeps the raw output in one place.
+	if round, ok := gatestate.ParseFindingsBlock(output); ok {
+		rr.Round = &round
+	} else {
+		rr.ProtocolError = "no valid findings block"
+	}
 	// Persist the full transcript to a durable sidecar (#136) so an agent can
 	// reopen it after scrollback loss / compaction. Non-fatal: the review already
 	// ran, so a write failure is warned, not propagated (matches the philosophy above).
@@ -623,6 +641,7 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		Diff: diff, Base: p.BaseLong, Head: p.Head,
 		IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
+		PriorFindings: boundaryPriorFindings(stderr, p),
 	}
 	prompt := judge.BuildPrompt(judge.MilestoneReview, in)
 

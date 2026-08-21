@@ -162,12 +162,28 @@ whole-issue close.
 - **Finalize iff the verdict is finalizing AND no blocking finding is undisposed** — an
   AND, not a fallback. SHIP with an undisposed Important means the reviewer contradicted
   itself; refuse and say which finding. REWORK with everything disposed still reworks.
-- **A boundary protocol miss halts.** Plan-quality's answer is to warn, fall back to the
-  verdict token, and persist a `ProtocolError` round (`changecode.go:495`). Do **not**
-  copy that here: falling back at a boundary would finalize a close carrying no ledger
-  memory, which is the failure this milestone exists to prevent. Persist the
-  `ProtocolError` round and route to the existing `closeHalt` — the path that already
-  says "consult a human".
+- **A boundary protocol miss warns and persists — it does NOT halt.**
+
+  > **Revised during M2 implementation.** This clause originally said *halt*, on the
+  > reasoning that falling back would finalize a close carrying no ledger memory. That
+  > reasoning was made without two facts that only surfaced in the code:
+  >
+  > 1. **The fallback's failure mode is the status quo, not a regression.** A round with
+  >    no fence leaves the next round blind — which is exactly how every boundary review
+  >    behaved before this milestone. Halting trades a known-tolerable state for a hard
+  >    stop.
+  > 2. **The reviewer is an LLM, and the only escapes are worse than the problem.** Fence
+  >    compliance will not be 100%. The two ways past a halt are `--no-judge` and
+  >    `--force`, both of which skip the review *entirely* — so a strict halt would
+  >    convert an occasional formatting miss into a routine reason to run no review at
+  >    all. That is the opposite of what this milestone is for.
+  >
+  > `finding.cue`'s own posture backs the softer read: *"the schema'd path is
+  > authoritative; a fallback may exist transitionally."* So: mirror plan-quality — warn
+  > loudly, persist the `ProtocolError` round (never drop it, or `len(Rounds)` stays 0
+  > forever and the round cap can never fire), and let the verdict token decide. The
+  > round is marked `Blocked` so the miss is visible in the ledger and in the close-time
+  > metrics rather than being silently absorbed.
 
 ## Core concepts
 
@@ -375,12 +391,12 @@ Spec B. The pair `planreview.go` says is coming.
 **Files:** Create `cmd/sdlc/boundaryledger.go` + test; modify
 `construct/vocabulary/finding.cue:64-69` (discovery glob).
 
-- [ ] **Step 1:** Widen `finding.cue`'s `discovery.glob` (currently `"*-plan-gate.md"`)
+- [x] **Step 1:** Widen `finding.cue`'s `discovery.glob` (currently `"*-plan-gate.md"`)
       to cover the boundary ledger too. **This is a one-line documentation edit** —
       `FindingModel` (`pkg/vocab/finding.go:22-28`) has no `Disc` field, unlike
       `IssueModel`/`ProjectModel`, so `discovery` has no Go consumer to update. Do not
       widen the Go model "for symmetry"; add the field when a consumer needs it.
-- [ ] **Step 2:** Write `boundaryledger.go` mirroring `planreview.go`:
+- [x] **Step 2:** Write `boundaryledger.go` mirroring `planreview.go`:
       `boundaryGateSuffix = "close-gate"`, `boundaryGateGate = "boundary-review"`,
       `boundaryGateIDPrefix = "BR"`. Reuse `sidecarPathFor` (already shared, `#144`) and
       `atomicWriteFile`.
@@ -393,9 +409,9 @@ Spec B. The pair `planreview.go` says is coming.
         `Round.Boundary` added, `FilterBoundary` applied at the call site. Implement D1;
         do not re-derive it here.
 
-- [ ] **Step 3:** Copy `readPlanGateLedger`'s **parse-failure-is-an-error** behavior
+- [x] **Step 3:** Copy `readPlanGateLedger`'s **parse-failure-is-an-error** behavior
       verbatim, with a test that a corrupt ledger errors rather than silently emptying.
-- [ ] **Step 4:** If read/write differ from the plan-gate pair only by the
+- [x] **Step 4:** If read/write differ from the plan-gate pair only by the
       `Gate`/`IDPrefix`/suffix triple, extract the shared body and have both call it
       (ARCH-DRY). Commit.
 
@@ -404,28 +420,28 @@ Spec B. The pair `planreview.go` says is coming.
 **Files:** `cmd/sdlc/internal/judge/prompts.go:174-177`,
 `cmd/sdlc/internal/judge/prompts/milestone-review.md`, `cmd/sdlc/milestoneclose.go:529-600`.
 
-- [ ] **Step 1:** Write a failing test: a second boundary review on an issue with an
+- [x] **Step 1:** Write a failing test: a second boundary review on an issue with an
       existing ledger renders the prior findings into its prompt. Use
       `judge.BuildPrompt(judge.MilestoneReview, in)` directly — no dispatch needed.
-- [ ] **Step 2:** Add `{{PRIOR_FINDINGS}}` and `{{FINDINGS_BLOCK}}` to
+- [x] **Step 2:** Add `{{PRIOR_FINDINGS}}` and `{{FINDINGS_BLOCK}}` to
       `milestone-review.md`, mirroring `plan-quality.md:8-18,85`. Update the
       `PromptInput.PriorFindings` doc comment — it currently reads *"Empty for every
       category but plan-quality"* and would become false. **`golden_test.go` pins
       `BuildPrompt` output byte-for-byte**; regenerate its fixtures deliberately and read
       the diff.
-- [ ] **Step 3:** In `dispatchBoundaryReview`: read the ledger before building the prompt,
+- [x] **Step 3:** In `dispatchBoundaryReview`: read the ledger before building the prompt,
       **seed it from the plan gate's open findings on the first boundary round (D2)**,
       parse the `​```findings` fence from the output, `AssignIDs`, append the round stamped
       with its `Boundary` (D1), write the ledger. The prose sidecar keeps being written
       unchanged — two artifacts, two consumers.
-- [ ] **Step 4:** Delete `code-review.md`'s "Plan-gate carry-forward" section **in this
+- [x] **Step 4:** Delete `code-review.md`'s "Plan-gate carry-forward" section **in this
       same commit** as the seeding (D2) — earlier and the deferred findings vanish for a
       release; later and two channels coexist. Handle an unknown-id disposition by warning
       and dropping, never crashing.
-- [ ] **Step 5:** Make an undisposed blocking finding refuse the boundary via
+- [x] **Step 5:** Make an undisposed blocking finding refuse the boundary via
       `Decide(FilterBoundary(l, boundary), cap)` (D1) — reuse `decide.go`, do not write a
       second rule. Wire the verdict/ledger precedence and the protocol-miss halt per **D4**.
-- [ ] **Step 6:** `go test ./...` → PASS. Commit.
+- [x] **Step 6:** `go test ./...` → PASS. Commit.
 - [ ] **Task 2.3: `sdlc milestone-close --issue 194 --milestone M2`**
 
 ---

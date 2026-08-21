@@ -266,6 +266,35 @@ Three review boundaries, closed separately (AGENTS.md §3).
 
 ## Log
 
+### 2026-08-20 (M2)
+
+- **D4's protocol-miss clause revised: warn and persist, do not halt.** The plan said a
+  boundary review emitting no `findings` fence should route to `closeHalt`. Two facts
+  from the code overturned it: the fallback's failure mode (next round blind) is exactly
+  the pre-#194 status quo rather than a regression, and the only ways past a halt —
+  `--no-judge`, `--force` — skip the review *entirely*, so strictness would turn an
+  occasional LLM formatting miss into a routine reason to run no review at all. The
+  round is still persisted and marked `Blocked`, so the miss is visible rather than
+  absorbed. Full reasoning in the plan's D4.
+- **D2 landed as a seed, and the old instruction was deleted in the same commit.**
+  `code-review.md`'s "Plan-gate carry-forward" section told the reviewer to read
+  `-plan-gate.md` itself and re-raise open `PQ-*` findings — which, once a `BR-*` ledger
+  existed, would have put two id namespaces into one output fence with no rule for
+  disposing an id this ledger never issued. Now the still-open plan-gate findings are
+  seeded into the boundary ledger under `BR-*` ids at `BoundaryAll`.
+- `TestCodeReviewCarriesPlanGateForward` failed on that deletion, correctly — it guards
+  the invariant that the plan gate's round-cap demotion is safe *only because* the
+  boundary review picks those findings up. The mechanism moved, so the guard moved with
+  it (`TestBoundaryReviewIsAskedToDisposePriorFindings` for the prompt half,
+  `TestBoundaryReview_SeedsDeferredPlanGateFindings` for the mechanism half) rather than
+  being deleted. `Decide`'s doc comment pointed at the removed section and was updated.
+- ARCH-DRY: `readPlanGateLedger`/`writePlanGateLedger` and the boundary pair differed by
+  nothing but a (gate, prefix, suffix) triple, so the bodies were **extracted** into
+  `readGateLedger`/`writeGateLedger` rather than mirrored — a second copy of "a corrupt
+  sidecar is an error, never a silent reset" is exactly the drift that rule guards.
+- The ledger write is deferred to finalize time, matching the sidecar: `dispatch` runs
+  with the repo transaction lock released, and the ledger is a repo write.
+
 ### 2026-08-20 (M1)
 - 2026-08-20: closed M1 — go build ./... && go test ./... && go vet all green; 10 new pure unit tests over classifyReviewAnchor + both formatters (no repo), 2 window/abbrevSHA tests, and both interleaving directions in close_finalize_test.go — doc-only commit mid-review finalizes emitting the pass line, code commit refuses naming "concurrent #69 side change" and asserts absence of "HEAD changed from"; review verdict: FIX-THEN-SHIP
 

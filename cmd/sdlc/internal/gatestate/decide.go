@@ -34,9 +34,11 @@ type Decision struct {
 // token and every fresh reviewer re-derived an absolute bar.
 //
 // Past `roundCap` rounds, only hard-blocking severities refuse. Findings demoted there are
-// recorded in the ledger and reported to the operator — and the BOUNDARY REVIEW reads the
-// ledger (see code-review.md's plan-gate carry-forward), which is what makes the demotion
-// safe rather than a silent loss.
+// recorded in the ledger and reported to the operator — and the BOUNDARY REVIEW picks them
+// up, which is what makes the demotion safe rather than a silent loss. Since ariadne#194
+// that pickup is a SEED into the boundary gate's own ledger (seedFromPlanGate), not an
+// instruction telling the reviewer to read this file itself: one carry-forward mechanism,
+// one id namespace the reviewer can actually dispose of.
 //
 // `roundCap` is spelled out rather than `cap` so it doesn't shadow the builtin.
 func Decide(l Ledger, roundCap int) Decision {

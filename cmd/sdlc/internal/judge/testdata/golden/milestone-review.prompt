@@ -54,18 +54,6 @@ Production readiness
   - Migration / backward-compatibility considered where state or formats change.
   - Docs / atlas updated for new surface (see the Docs update gate).
 
-## Plan-gate carry-forward (ariadne#187)
-
-Read `workshop/plans/<issue-stem>-plan-gate.md` if it exists — the durable ledger of the
-pre-implementation plan gate. It holds the findings that gate raised but deliberately did
-NOT block on: Minor findings, and blocking ones demoted once the round cap was reached.
-They were deferred to THIS boundary by design — that deferral is only safe because you
-pick them up.
-
-For each finding still listed under `## Open findings`, confirm the code either addresses
-it or that it no longer applies. A still-valid deferred finding is a finding here, at its
-original severity.
-
 ## Core concepts cross-check (if the plan has a Core concepts table)
 
 The plan should list entities in a greppable table — name, kind
@@ -224,6 +212,46 @@ Principles"; this is its machine-delivered companion.
   fake satisfies this only when production flow and test flow share the same
   boundary.
 
+
+## Prior rounds — dispose of these BEFORE raising anything new
+
+(no prior rounds)
+
+Do NOT re-raise a finding listed as already disposed — not at the same severity,
+and not at a lower one. If a disposed finding is genuinely still wrong, dispose it
+`not-addressed` and say what remains, rather than raising it again under a new id.
+
+Emit your findings as this fenced block — the machine-read handoff the
+binary parses. `dispose:` first (every prior finding), then `findings:`
+(anything newly raised). Use `id: new` for a new finding — the binary
+assigns the stable id. Omit a key entirely when it has no entries.
+
+```findings
+dispose:
+  - id: <a prior finding's id>
+    disposition: <addressed | withdrawn | not-addressed>
+    note: |
+      <optional, one line>
+findings:
+  - id: new
+    severity: <Critical | Important | Minor>
+    title: |
+      <one line>
+    detail: |
+      <a sentence or two, optional>
+```
+
+Use the `|` block form for title, detail and note exactly as shown, and indent
+their text by six spaces. In plain YAML a ` #` starts a comment, so an
+unquoted `## Estimate` or `issue #187` would silently truncate your finding.
+
+  Critical       must fix before the gate is crossed
+  Important      fix before the gate if cheap; blocks until disposed
+  Minor          note for the close review; never blocks a gate
+
+  addressed      the plan changed to satisfy this finding
+  withdrawn      the judge retracts it (mistaken, or overtaken by a design change)
+  not-addressed  still open — the judge re-raises it this round
 
 OUTPUT CONTRACT (machine-read — do not deviate). LEAD your response with the
 fenced ```verdict block shown above — that is the authoritative handoff the binary

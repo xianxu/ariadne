@@ -1147,8 +1147,28 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 		}
 	}
 	verb := closeVerb(f.Milestone)
+
+	// #194 M2 (D4): the verdict and the ledger are BOTH gates, and finalizing requires
+	// both to clear — an AND, not a fallback. A SHIP verdict carrying an undisposed
+	// Important finding means the reviewer contradicted itself; taking the token at face
+	// value there is exactly the pre-#187 posture the ledger exists to replace. REWORK
+	// with everything disposed still reworks, because the verdict is still blocking.
+	//
+	// The round is persisted BEFORE the switch so a REWORK round lands in the ledger
+	// too: the next round must be able to see what this one said.
+	ledger := persistBoundaryRound(stderr, p, review, nowRFC3339())
+
 	switch closeVerdictOutcome(review.Verdict) {
 	case closeFinalize:
+		if ledger.Block {
+			emitTrailerBlock(stdout, review, kind)
+			cwarn(stderr, fmt.Sprintf("boundary review: verdict %s, but the gate ledger still has open blocking finding(s) — %s NOT finalized", review.Verdict, kind))
+			for _, fnd := range ledger.OpenBlocking {
+				cwarn(stderr, fmt.Sprintf("  [%s] %s — %s", fnd.ID, fnd.Severity, fnd.Title))
+			}
+			cwarn(stderr, fmt.Sprintf("address them, or have the review dispose them explicitly, then re-run `%s`", verb))
+			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
+		}
 		if validate != nil {
 			note, err := validate()
 			if err != nil {
