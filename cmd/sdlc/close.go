@@ -76,6 +76,7 @@ type closeFlags struct {
 	NoReclose   bool
 	NoAtlas     bool
 	NoVerdict   bool
+	NoLedger    bool
 	NoPlanCheck bool
 	NoProject   bool
 	NoJudge     bool // skip the issue boundary review (#69)
@@ -118,6 +119,8 @@ func (f *closeFlags) skip(gate string) bool {
 		return f.NoAtlas
 	case "verdict":
 		return f.NoVerdict
+	case "ledger":
+		return f.NoLedger
 	case "plan":
 		return f.NoPlanCheck
 	case "project":
@@ -169,6 +172,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement (only if there's no behavior to verify)")
 	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal (intentionally re-close)")
 	cmd.Flags().BoolVar(&f.NoAtlas, "no-atlas", false, "bypass the atlas/ change check (acknowledge: no new architectural surface)")
+	cmd.Flags().BoolVar(&f.NoLedger, "no-ledger", false, "bypass the boundary gate ledger's open-findings refusal (#194)")
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict trailer check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
@@ -1040,10 +1044,14 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	var r closeResult
 	var base, baseLong, head string
 	var snapshot closeReviewSnapshot
+	var prior string
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, f)
 		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
 		snapshot = captureCloseReviewSnapshot(r, head, "")
+		prior = boundaryPriorFindings(stderr, boundaryReviewParams{
+			IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: "", PlansDir: f.plansDir(),
+		})
 		return nil
 	}); err != nil {
 		return err
@@ -1060,6 +1068,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 		IssueNum:      f.Issue,
 		Milestone:     "",
 		PlansDir:      f.plansDir(),
+		PriorFindings: prior,
 	}, snapshot)
 }
 
@@ -1160,13 +1169,23 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 
 	switch closeVerdictOutcome(review.Verdict) {
 	case closeFinalize:
-		if ledger.Block {
+		if ledger.Block && f.skip("ledger") {
+			cwarn(stderr, "--no-ledger (or --force): skipping the gate-ledger open-findings refusal")
+		} else if ledger.Block {
 			emitTrailerBlock(stdout, review, kind)
+			if len(ledger.OpenBlocking) == 0 {
+				// The ledger itself was unusable (blockOnLedgerFailure) — there are no
+				// findings to name, and saying "open blocking finding(s)" would send the
+				// operator looking for findings that do not exist.
+				cwarn(stderr, fmt.Sprintf("%s NOT finalized: %s", kind, ledger.Reason))
+				return fmt.Errorf("boundary gate: %s", ledger.Reason)
+			}
 			cwarn(stderr, fmt.Sprintf("boundary review: verdict %s, but the gate ledger still has open blocking finding(s) — %s NOT finalized", review.Verdict, kind))
 			for _, fnd := range ledger.OpenBlocking {
 				cwarn(stderr, fmt.Sprintf("  [%s] %s — %s", fnd.ID, fnd.Severity, fnd.Title))
 			}
-			cwarn(stderr, fmt.Sprintf("address them, or have the review dispose them explicitly, then re-run `%s`", verb))
+			cwarn(stderr, fmt.Sprintf("address them, or have the review dispose them explicitly, then re-run `%s`.\n"+
+				"  Or pass --no-ledger (or --force); record why in --verified.", verb))
 			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
 		}
 		if validate != nil {

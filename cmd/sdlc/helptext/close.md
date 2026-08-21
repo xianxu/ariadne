@@ -40,6 +40,33 @@ MODES
   explicitly, use `sdlc milestone-close --no-judge` — `close` no longer has a
   `--milestone` path to skip it silently (#146).
 
+  THE GATE LEDGER (#194). The boundary review REMEMBERS across rounds, the way
+  `change-code`'s plan-quality gate has since #187. Each review's findings are
+  written to `workshop/plans/NNNNNN-slug-close-gate.md` with binary-assigned
+  stable ids (`BR-1`, `BR-2`, …), and the next review at the same boundary is
+  shown them and must dispose of each — `addressed`, `not-addressed`, or
+  `withdrawn` — before raising anything new. That is what stops a re-run
+  renumbering the same finding forever.
+
+  Two consequences worth knowing before you hit them:
+
+    - A close can REFUSE DESPITE A PASSING VERDICT. Finalizing needs the
+      verdict AND the ledger to clear; a SHIP carrying an undisposed
+      Important means the reviewer contradicted itself. Fix the findings, or
+      have the next review dispose them explicitly. `--no-ledger` waives
+      just this refusal.
+    - The ledger is NOT the prose sidecar. `-close-review.md` holds the
+      reviewer's full text for a human; `-close-gate.md` holds addressable
+      findings for the next round. Neither replaces the other.
+
+  Findings the plan gate deferred (Minor, or demoted past its round cap) are
+  seeded into this ledger on its first round, so they arrive as `BR-*` ids you
+  can dispose of rather than as a file the reviewer is told to go read.
+
+  Past WF_BOUNDARY_ROUND_CAP rounds (default 3) only Critical still blocks. A
+  demotion here is louder than at the plan gate on purpose: there is no later
+  gate to pick up what it drops, so each demoted finding is named.
+
   ANCHORED TO THE COMMIT IT READ (#194). The review records the concrete SHA it
   reviewed — in the `Review-Window:` trailer and the sidecar — and finalizes
   against that commit, not against "HEAD has not moved". A commit landing while
@@ -111,6 +138,7 @@ WHAT THE GUARD DEFENDS
     ## Plan has no unchecked       --no-plan-check
     project detail-block updated  --no-project
     issue boundary review (#69)   --no-judge
+    gate ledger open findings     --no-ledger
 
   Each bypass logs an audit "[!] --no-X: skipping ..." line (it's an
   explicit acknowledgment, not a silent skip) and the rationale belongs in

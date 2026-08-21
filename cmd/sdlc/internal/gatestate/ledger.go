@@ -72,6 +72,21 @@ type Round struct {
 	// open set per boundary via FilterBoundary is what keeps that from silently
 	// demoting the whole-issue close's first-round findings.
 	Boundary string `yaml:"boundary,omitempty"`
+	// NoCap marks a round that did NOT consume a review cycle, so it does not count
+	// toward the round cap (ariadne#194 M2 review). Three kinds qualify: the plan-gate
+	// SEED round (no reviewer ran), a dispatch that never started, and a round persisted
+	// before a non-review refusal.
+	//
+	// The cap exists to bound a judge that keeps churning. Letting a machine-sleep
+	// interruption or a bookkeeping round eat the budget punishes the operator for
+	// something no reviewer did — observed live on ariadne#194, where two reviews killed
+	// by host sleep put a boundary at 2 of 3 rounds having received zero review content.
+	//
+	// It is deliberately the NEGATIVE spelling: rounds written before this field existed
+	// default to false and therefore keep counting, so no historical ledger changes
+	// meaning. A round where the reviewer genuinely ran and emitted no fence still counts
+	// — that is the case #187's persist-the-protocol-error rule exists to bound.
+	NoCap bool `yaml:"no_cap,omitempty"`
 	// Forced carries the --force rationale, set ONLY when this gate actually blocked.
 	// --force is a GLOBAL bypass, so stamping it unconditionally would mark a plan-gate
 	// round "forced" when the operator forced past a structural failure — over-reporting
@@ -110,6 +125,18 @@ func FilterBoundary(l Ledger, boundary string) Ledger {
 		}
 	}
 	return out
+}
+
+// CountedRounds is the number of rounds that consumed a review cycle — the figure the
+// round cap is about. See Round.NoCap for which rounds are excluded and why. Pure.
+func CountedRounds(l Ledger) int {
+	n := 0
+	for _, r := range l.Rounds {
+		if !r.NoCap {
+			n++
+		}
+	}
+	return n
 }
 
 // Ledger is the accumulated state of ONE gate on ONE issue across every invocation.
@@ -189,6 +216,12 @@ func Apply(l Ledger, r Round) Ledger {
 // disposition must name a finding raised in an EARLIER round, and carry a modeled
 // disposition. A judge disposing an ID we never issued is a genuine protocol error to
 // surface, not a value to guess (the agent-binary-handoff-schema target).
+//
+// REJECTION IS PER-DISPOSITION, not per-round (ariadne#194 M2 review). Failing the whole
+// round on the first bad id meant one typo nullified every VALID disposal beside it — at
+// a gate whose entire purpose is disposal, that turns a formatting slip into findings
+// that stay open for another full review cycle. The bad ones are dropped and named; the
+// good ones apply. The error still surfaces, so the caller records a protocol error.
 func ApplyChecked(l Ledger, r Round) (Ledger, error) {
 	known := map[string]bool{}
 	for _, prev := range l.Rounds {
@@ -197,13 +230,22 @@ func ApplyChecked(l Ledger, r Round) (Ledger, error) {
 		}
 	}
 	m := vocab.Finding()
+	var kept []Disposition
+	var rejected []string
 	for _, d := range r.Dispositions {
-		if !known[d.ID] {
-			return l, fmt.Errorf("round %d disposes unknown finding %q", r.N, d.ID)
+		switch {
+		case !known[d.ID]:
+			rejected = append(rejected, fmt.Sprintf("%s (unknown finding)", d.ID))
+		case !m.IsDisposition(d.State):
+			rejected = append(rejected, fmt.Sprintf("%s (unmodeled disposition %q)", d.ID, d.State))
+		default:
+			kept = append(kept, d)
 		}
-		if !m.IsDisposition(d.State) {
-			return l, fmt.Errorf("round %d: unmodeled disposition %q for %s", r.N, d.State, d.ID)
-		}
+	}
+	r.Dispositions = kept
+	if len(rejected) > 0 {
+		return Apply(l, r), fmt.Errorf("round %d: dropped %d invalid disposition(s): %s",
+			r.N, len(rejected), strings.Join(rejected, ", "))
 	}
 	return Apply(l, r), nil
 }

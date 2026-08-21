@@ -19,7 +19,8 @@ addressed says "ship" on round 2.
 
 ## Where it lives
 
-`workshop/plans/NNNNNN-slug-plan-gate.md` — beside the durable plan and the boundary-review
+`workshop/plans/NNNNNN-slug-plan-gate.md` (plan-quality) and
+`workshop/plans/NNNNNN-slug-close-gate.md` (the boundary review, #194) — beside the durable plan and the boundary-review
 sidecars, archived with them by `sdlc push`/`sdlc merge` (the `<id>-*` glob).
 
 Deliberately **not** `*-plan-review.md`: `construct/vocabulary/verdict.cue` claims the
@@ -72,10 +73,19 @@ judge's verdict token. It blocks iff some finding is still **open** at a blockin
 That is the mechanic that converges: a fresh `Minor` cannot cost a round-trip, and disposed
 blockers open the gate. Past `WF_PLAN_ROUND_CAP` rounds (default 3) only `Critical` blocks.
 
-**The demotion is safe only because the boundary review picks the rest up.**
-`code-review.md` instructs the close/milestone reviewer to read the ledger's
-`## Open findings` and treat a still-valid deferred finding as a finding at its original
-severity. A guard test pins that pointer — without it the demotion becomes a silent loss.
+**The demotion is safe only because the boundary review picks the rest up.** Since #194
+that pickup is a SEED, not an instruction: on the boundary ledger's first round,
+`seedFromPlanGate` copies the plan gate's still-open findings into it under `BR-*` ids at
+`BoundaryAll`, so they arrive through the same prior-findings block as everything else and
+can be disposed by name. (Before #194, `code-review.md` told the reviewer to read
+`-plan-gate.md` off disk itself — which, once the boundary gate had its own ledger, would
+have put two id namespaces in one output fence.) A guard test pins the prompt half; another
+pins the seeding. Without both, the demotion becomes a silent loss.
+
+**At the boundary gate a demotion means something different**, and is announced. There is no
+later gate to pick up what the cap demotes — the boundary review is the last read before
+publish — so each demoted finding gets a warning naming it. Its cap knob is
+`WF_BOUNDARY_ROUND_CAP`.
 
 ## The pass-through
 
@@ -150,6 +160,6 @@ The same values land in the calibration ledger as ten appended columns — see
 | `cmd/sdlc/planreview.go` | the IO shell: read/write the ledger (filesystem + clock live here only) |
 | `cmd/sdlc/changecode.go` | wires it into the plan-quality gate |
 | `cmd/sdlc/internal/judge/prompts/plan-quality.md` | dispose-first prompt |
-| `cmd/sdlc/internal/judge/code-review.md` | the carry-forward consumer |
+| `cmd/sdlc/boundaryledger.go` | the boundary gate's ledger pair + seeding + per-round decision (#194) |
 | `cmd/sdlc/internal/churn/` | PURE churn: four-bucket classification, rework ratio, numstat parsing |
 | `cmd/sdlc/churnreport.go` | the close-time cost report — git seam + the two operator lines |

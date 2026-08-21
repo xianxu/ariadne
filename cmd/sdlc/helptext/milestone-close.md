@@ -91,3 +91,17 @@ RELATED
                          boundary review; refuses --milestone — #146)
   sdlc judge milestone-review --base SHA --head HEAD
                          manual milestone-review invocation for ad-hoc windows
+
+THE GATE LEDGER (#194)
+
+  Milestone reviews share the issue's one boundary ledger
+  (`workshop/plans/NNNNNN-slug-close-gate.md`), with each round stamped by its
+  boundary. The round cap and the open-findings set scope PER BOUNDARY, so M2's
+  rounds cannot push the whole-issue close past its cap; finding families stay
+  visible across milestones, which is the point of one file rather than several.
+
+  A milestone close refuses when the ledger still holds an open blocking finding,
+  even on a SHIP verdict. `--no-ledger` waives that one refusal;
+  WF_BOUNDARY_ROUND_CAP (default 3) bounds the rounds.
+
+  See `sdlc close --help` for the full contract — it is the same gate.

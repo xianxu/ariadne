@@ -93,7 +93,7 @@ func boundaryPriorFindings(stderr io.Writer, p boundaryReviewParams) string {
 // BoundaryAll, not the current boundary: those findings were deferred to "the boundary
 // review" generically, so scoping them to whichever milestone happened to run first
 // would hide them from every later one — a regression against the behavior replaced.
-func seedFromPlanGate(stderr io.Writer, plansDir, issueFileName string, issueNum int, timestamp string) (gatestate.Round, bool) {
+func seedFromPlanGate(stderr io.Writer, bl gatestate.Ledger, plansDir, issueFileName string, issueNum int, timestamp string) (gatestate.Round, bool) {
 	pl, err := readPlanGateLedger(plansDir, issueFileName, issueNum)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("plan-gate ledger unreadable — its deferred findings are NOT carried into this review: %v", err))
@@ -103,16 +103,21 @@ func seedFromPlanGate(stderr io.Writer, plansDir, issueFileName string, issueNum
 	if len(open) == 0 {
 		return gatestate.Round{}, false
 	}
-	seed := gatestate.Round{N: 1, Timestamp: timestamp, Agent: "sdlc", Boundary: gatestate.BoundaryAll}
-	for i, f := range open {
-		seed.New = append(seed.New, gatestate.Finding{
-			ID:       fmt.Sprintf("%s-%d", boundaryGateKind.IDPrefix, i+1),
+	// Ids come from AssignIDs, not a hand-rolled index (#194 M2 review): minting
+	// `BR-<i+1>` is correct only on an empty ledger, and nothing pinned that
+	// precondition. Routing through the ledger's own allocator makes it correct
+	// regardless, and keeps one id-minting site (ARCH-DRY).
+	rr := gatestate.RoundReport{}
+	for _, f := range open {
+		rr.New = append(rr.New, gatestate.Finding{
+			ID:       "new",
 			Severity: f.Severity,
 			Title:    f.Title,
 			Detail:   strings.TrimSpace(f.Detail + "\n(carried from plan-quality " + f.ID + ", deferred to the boundary review)"),
-			Round:    1,
 		})
 	}
+	seed := gatestate.AssignIDsAt(bl, rr, 1, timestamp, "sdlc", gatestate.BoundaryAll)
+	seed.NoCap = true // bookkeeping, not a review cycle
 	return seed, true
 }
 
@@ -133,17 +138,15 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	}
 	issuePath, err := issueFilePath(p.IssuesDir, p.IssueNum)
 	if err != nil {
-		cwarn(stderr, fmt.Sprintf("boundary gate ledger not updated: %v", err))
-		return gatestate.Decision{}
+		return blockOnLedgerFailure(stderr, fmt.Sprintf("cannot resolve the issue file: %v", err))
 	}
 	issueFileName := filepath.Base(issuePath)
 	l, err := readBoundaryGateLedger(p.PlansDir, issueFileName, p.IssueNum)
 	if err != nil {
-		cwarn(stderr, fmt.Sprintf("boundary gate ledger not updated: %v", err))
-		return gatestate.Decision{}
+		return blockOnLedgerFailure(stderr, err.Error())
 	}
 	if len(l.Rounds) == 0 {
-		if seed, ok := seedFromPlanGate(stderr, p.PlansDir, issueFileName, p.IssueNum, timestamp); ok {
+		if seed, ok := seedFromPlanGate(stderr, l, p.PlansDir, issueFileName, p.IssueNum, timestamp); ok {
 			l = gatestate.Apply(l, seed)
 			cinfo(stderr, fmt.Sprintf("boundary gate: carried %d deferred plan-gate finding(s) into this issue's ledger (#194)", len(seed.New)))
 		}
@@ -152,26 +155,29 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	n := len(l.Rounds) + 1
 	if review.Round == nil {
 		cwarn(stderr, "boundary review: no valid ```findings block — this round carries NO findings, so the gate cannot converge on it")
+		// A review that never STARTED did not consume a cycle; one that ran and emitted
+		// no fence did (that is the case #187's persist rule exists to bound).
+		neverRan := strings.HasPrefix(review.ProtocolError, "review did not run:")
 		l = gatestate.Apply(l, gatestate.Round{
 			N: n, Timestamp: timestamp, Agent: review.Agent, Boundary: p.Milestone,
-			ProtocolError: review.ProtocolError, Blocked: true,
+			ProtocolError: review.ProtocolError, Blocked: true, NoCap: neverRan,
 		})
 	} else {
 		round := gatestate.AssignIDsAt(l, *review.Round, n, timestamp, review.Agent, p.Milestone)
 		applied, aerr := gatestate.ApplyChecked(l, round)
+		l = applied // ApplyChecked applies the round either way, keeping the valid dispositions
 		if aerr != nil {
-			// KEEP the findings — only the DISPOSITIONS failed validation. Discarding
-			// them would tell the NEXT round that nothing was ever raised.
 			cwarn(stderr, "boundary review: "+aerr.Error())
-			round.Dispositions = nil
-			round.ProtocolError = aerr.Error()
-			l = gatestate.Apply(l, round)
-		} else {
-			l = applied
+			l.Rounds[len(l.Rounds)-1].ProtocolError = aerr.Error()
 		}
 	}
 
 	d := gatestate.Decide(gatestate.FilterBoundary(l, p.Milestone), roundCapFromEnvVar("WF_BOUNDARY_ROUND_CAP"))
+	// Stamp the outcome onto the round BEFORE writing (mirrors changecode.go:536-537).
+	// Without this the one durable record of "did this gate refuse" says `passed` for a
+	// round that refused, and PassesUnchanged — which #183's --fixed-to-ship pass-through
+	// will read at exactly this gate — reads that field.
+	l.Rounds[len(l.Rounds)-1].Blocked = d.Block
 	// A demotion means something DIFFERENT here than at the plan gate, and the difference
 	// is worth saying out loud. There, a demoted finding is deferred to the boundary
 	// review, which picks it up — that is what makes the cap safe. Here there IS no later
@@ -187,4 +193,18 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 		cok(stderr, "boundary gate ledger: "+boundaryGatePath(p.PlansDir, issueFileName))
 	}
 	return d
+}
+
+// blockOnLedgerFailure is the fail-closed answer to an unusable boundary ledger.
+//
+// Returning an empty Decision would mean Block:false — this round's findings dropped,
+// the corrupt file left unwritten, and the close FINALIZING. That is precisely the
+// behavior readGateLedger refuses at a finer grain ("a silent reset is worse than the
+// status quo because it would look like it worked"), and the plan gate halts on it
+// (changecode.go). Doing the opposite one level up would let a corrupt file turn the
+// gate off silently — the single worst failure mode a gate has.
+func blockOnLedgerFailure(stderr io.Writer, reason string) gatestate.Decision {
+	cwarn(stderr, "boundary gate ledger unusable — refusing to finalize rather than close without it: "+reason)
+	cwarn(stderr, "fix or delete the ledger file, then re-run; do NOT let the gate silently forget")
+	return gatestate.Decision{Block: true, Reason: "boundary gate ledger unusable: " + reason}
 }

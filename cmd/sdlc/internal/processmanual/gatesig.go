@@ -94,6 +94,12 @@ var GateCatalog = []GateSig{
 	{Commands: closeMclose, Flag: "no-project", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-project \(or --force\): skipping detail-block`,
 		RefusalPat: `--no-project, or --force, if it's`},
+	// #194: the boundary gate ledger's open-findings refusal. It can refuse on a PASSING
+	// verdict (verdict AND ledger must both clear), which is the surprising case an
+	// operator needs a precise flag for rather than reaching for --no-judge.
+	{Commands: closeMclose, Flag: "no-ledger", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-ledger \(or --force\): skipping the gate-ledger open-findings refusal`,
+		RefusalPat: `Or pass --no-ledger \(or --force\); record`},
 	{Commands: closeMclose, Flag: "no-judge", Grammar: grammarCinfo, HasRefusal: false,
 		AckPat: `skipping (issue boundary review|milestone-review) per --no-judge \(or --force\)`},
 

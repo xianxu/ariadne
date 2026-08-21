@@ -132,3 +132,79 @@ func TestBoundary_OmittedForSingleBoundaryGates(t *testing.T) {
 		t.Errorf("a single-boundary gate must not render a boundary key:\n%s", rendered)
 	}
 }
+
+// #194 M2 review: one typo'd id used to nullify a whole round's valid disposals — at a
+// gate whose entire purpose is disposal, that turns a formatting slip into findings that
+// stay open for another full review cycle.
+func TestApplyChecked_DropsOnlyTheInvalidDispositions(t *testing.T) {
+	l := Ledger{IDPrefix: "BR", Rounds: []Round{
+		{N: 1, New: []Finding{
+			{ID: "BR-1", Severity: "Critical", Title: "one"},
+			{ID: "BR-2", Severity: "Important", Title: "two"},
+		}},
+	}}
+	got, err := ApplyChecked(l, Round{N: 2, Dispositions: []Disposition{
+		{ID: "BR-1", State: "addressed"},
+		{ID: "BR-99", State: "addressed"}, // never issued
+		{ID: "BR-2", State: "not-a-verb"}, // unmodeled
+	}})
+	if err == nil {
+		t.Fatal("the invalid dispositions must still surface as a protocol error")
+	}
+	for _, want := range []string{"BR-99", "BR-2"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error must name the rejected id %q: %v", want, err)
+		}
+	}
+	if len(got.Rounds) != 2 {
+		t.Fatalf("the round must still be applied, got %d rounds", len(got.Rounds))
+	}
+	open := OpenFindings(got)
+	if len(open) != 1 || open[0].ID != "BR-2" {
+		t.Fatalf("BR-1's valid disposal must survive and BR-2 stay open, got %+v", open)
+	}
+}
+
+// #194 M2 review: the round cap is about REVIEW CYCLES. A seed round, a dispatch that
+// never started, and a round persisted before a non-review refusal consumed none — and
+// letting them eat the budget punishes the operator for something no reviewer did.
+// Observed live: two reviews killed by host sleep put a boundary at 2 of 3 rounds having
+// received zero review content.
+func TestCountedRounds_ExcludesRoundsThatConsumedNoReview(t *testing.T) {
+	l := Ledger{IDPrefix: "BR", Rounds: []Round{
+		{N: 1, Boundary: BoundaryAll, NoCap: true, New: []Finding{{ID: "BR-1", Severity: "Minor", Title: "seeded"}}},
+		{N: 2, Boundary: "M1", NoCap: true, ProtocolError: "review did not run: dispatch failed"},
+		{N: 3, Boundary: "M1", New: []Finding{{ID: "BR-2", Severity: "Important", Title: "real"}}},
+	}}
+	if got := CountedRounds(l); got != 1 {
+		t.Fatalf("CountedRounds = %d, want 1 (only the round a reviewer actually ran)", got)
+	}
+	d := Decide(FilterBoundary(l, "M1"), 2)
+	if d.CapReached {
+		t.Error("one real round must not reach a cap of 2")
+	}
+	if len(d.OpenBlocking) != 1 {
+		t.Errorf("the Important finding must still block, got %+v", d)
+	}
+}
+
+// A reviewer that RAN and emitted no fence still counts — that is exactly the case
+// #187's persist-the-protocol-error rule exists to bound.
+func TestCountedRounds_CountsAReviewerThatRanAndEmittedNoFence(t *testing.T) {
+	l := Ledger{IDPrefix: "BR", Rounds: []Round{
+		{N: 1, Boundary: "M1", ProtocolError: "no valid findings block"},
+		{N: 2, Boundary: "M1", ProtocolError: "no valid findings block"},
+	}}
+	if got := CountedRounds(l); got != 2 {
+		t.Fatalf("CountedRounds = %d, want 2 — a silent reviewer must still be bounded", got)
+	}
+}
+
+// Backward compatibility: a ledger written before NoCap existed has every round counted,
+// so no historical ledger changes meaning.
+func TestCountedRounds_PreExistingRoundsStillCount(t *testing.T) {
+	l := Ledger{IDPrefix: "PQ", Rounds: []Round{{N: 1}, {N: 2}, {N: 3}}}
+	if got := CountedRounds(l); got != 3 {
+		t.Fatalf("CountedRounds = %d, want 3", got)
+	}
+}

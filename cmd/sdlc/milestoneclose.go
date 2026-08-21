@@ -51,6 +51,7 @@ type milestoneCloseFlags struct {
 	NoReclose   bool
 	NoAtlas     bool
 	NoVerdict   bool
+	NoLedger    bool
 	NoPlanCheck bool
 	NoProject   bool
 }
@@ -107,6 +108,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement")
 	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal")
 	cmd.Flags().BoolVar(&f.NoAtlas, "no-atlas", false, "bypass the atlas/ change check (no new surface)")
+	cmd.Flags().BoolVar(&f.NoLedger, "no-ledger", false, "bypass the boundary gate ledger's open-findings refusal (#194)")
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
@@ -135,6 +137,7 @@ func (f *milestoneCloseFlags) closeFlags() *closeFlags {
 		NoReclose:     f.NoReclose,
 		NoAtlas:       f.NoAtlas,
 		NoVerdict:     f.NoVerdict,
+		NoLedger:      f.NoLedger,
 		NoPlanCheck:   f.NoPlanCheck,
 		NoProject:     f.NoProject,
 	}
@@ -210,7 +213,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 
 	closeF := f.closeFlags()
 	var r closeResult
-	var base, baseLong, head string
+	var base, baseLong, head, prior string
 	var snapshot closeReviewSnapshot
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, closeF)
@@ -220,6 +223,9 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 		}
 		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
 		snapshot = captureCloseReviewSnapshot(r, head, f.Milestone)
+		prior = boundaryPriorFindings(stderr, boundaryReviewParams{
+			IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: f.Milestone, PlansDir: resolvePlansDir(f.PlansDir),
+		})
 		return nil
 	}); err != nil {
 		return err
@@ -236,6 +242,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 		IssueNum:      f.Issue,
 		Milestone:     f.Milestone,
 		PlansDir:      resolvePlansDir(f.PlansDir),
+		PriorFindings: prior,
 	}, snapshot)
 }
 
@@ -339,7 +346,12 @@ func previousReviewBoundary(issuePath string) string {
 	if issuePath == "" {
 		return ""
 	}
-	out, err := gitx.RunGit("log", "--grep=Review-Verdict:", "--max-count=1", "--pretty=format:%H", "--", issuePath)
+	// Anchored (#194 M2 review): an UNANCHORED --grep matches the commit BODY, so prose
+	// merely discussing the trailer becomes a false window base. Commit 23d5b8a in this
+	// very issue's history — whose body reads "the Review-Verdict trailer" — was one
+	// character away from silently re-basing a review window. Same class as the lesson
+	// this issue added to lessons.md: a substring anchor in a self-referential document.
+	out, err := gitx.RunGit("log", "--grep=^Review-Verdict:", "--max-count=1", "--pretty=format:%H", "--", issuePath)
 	if err != nil {
 		return ""
 	}
@@ -537,6 +549,18 @@ type boundaryReviewParams struct {
 	IssueNum  int
 	Milestone string
 	PlansDir  string
+	// PriorFindings is the rendered prior-round block for THIS boundary (#194 M2),
+	// read by the caller UNDER THE REPO LOCK and carried here rather than fetched at
+	// dispatch time.
+	//
+	// M2's boundary review found the reason this is a field and not a lookup: dispatch
+	// runs with the lock released, and reviewThenFinalizeLocked blanks PlansDir there to
+	// defer the sidecar write — so a dispatch-time read keyed on PlansDir returned ""
+	// in 100% of live reviews. The ledger then blocked on findings the reviewer was
+	// never shown and therefore could not dispose. Reading it beside
+	// captureCloseReviewSnapshot also makes the ledger and the snapshot provably see the
+	// same repo state, which is M1's anchor argument applied one artifact over.
+	PriorFindings string
 }
 
 func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams) error {
@@ -559,7 +583,12 @@ func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams)
 // is recorded as VerdictNotRun with a Reason and the caller still emits a trailer.
 func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) reviewResult {
 	res := func(v judge.Verdict, reason string) reviewResult {
-		return reviewResult{Verdict: v, Reason: reason, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong}
+		// ProtocolError distinguishes "the reviewer ran and emitted no fence" from "the
+		// review never started" — both reach persistBoundaryRound with Round == nil, and
+		// a ledger that cannot tell them apart mis-reports why a round contributed
+		// nothing (#194 M2 review).
+		return reviewResult{Verdict: v, Reason: reason, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong,
+			ProtocolError: "review did not run: " + reason}
 	}
 	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
 	if !ok {
@@ -641,7 +670,7 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		Diff: diff, Base: p.BaseLong, Head: p.Head,
 		IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
-		PriorFindings: boundaryPriorFindings(stderr, p),
+		PriorFindings: p.PriorFindings,
 	}
 	prompt := judge.BuildPrompt(judge.MilestoneReview, in)
 

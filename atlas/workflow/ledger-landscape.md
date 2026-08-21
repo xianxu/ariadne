@@ -74,7 +74,8 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
   and carry no metrics.
 - *Human mirror:* the two lines `sdlc close` prints (see
   [gate-state.md § What close reports](gate-state.md)). Unconditional, unlike the row.
-- *Not* a substitute for the gate ledger itself (`workshop/plans/NNNNNN-*-plan-gate.md`),
+- *Not* a substitute for the gate ledgers themselves (`workshop/plans/NNNNNN-*-plan-gate.md`
+  for plan-quality, `NNNNNN-*-close-gate.md` for the boundary review since #194),
   which holds the findings and dispositions these counts summarize.
 
 **"What's the current convention for human-machine markdown markers?"**

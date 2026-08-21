@@ -154,7 +154,7 @@ the same bug pointing the other way.
 Add a test that a seeded finding is visible from **both** a milestone boundary and the
 whole-issue close.
 
-### D4 — Verdict AND ledger must both clear; a boundary protocol miss halts
+### D4 — Verdict AND ledger must both clear; a boundary protocol miss warns
 
 `closeVerdictOutcome` (`close.go:1064-1082`) derives finalize/rework/halt from
 `vocab.Verdict()`. M2 adds a ledger-derived refusal beside it. Precedence:
@@ -525,3 +525,44 @@ test in M3 pinning that a whole-issue close still resolves its window to
 - `revCount`'s diverged/zero-ahead conflation in the publish gate.
 - Replacing the #136 prose sidecar. It has a different consumer (a human or a resuming
   agent) and stays.
+
+---
+
+## Revisions
+
+Appended per AGENTS.md §1 — mid-stream changes are recorded here, not folded silently
+into the prose above.
+
+### 2026-08-20 — M4 rejected (operator)
+
+Round-scoping a re-review to `lastReviewedSHA..HEAD` was dropped: the reviewer keeps
+reading the whole branch. See the `## M4 — REJECTED` section for the reasoning and the
+regression test that keeps it rejected. The wall-clock win now rests entirely on M2+M3
+reducing the NUMBER of rounds.
+
+### 2026-08-20 — Core concepts table corrected (M1 boundary review, I6)
+
+`closeReviewSnapshot` and `resolveReviewWindow` were listed under **Pure entities**.
+Neither is: `validate()` does `os.ReadFile` plus git, and `resolveReviewWindow` shells
+`rev-parse` directly. Moved to Integration points. The code satisfies ARCH-PURE — the
+decision logic really is pure and really does unit-test with zero IO; the table was
+wrong, and was wrong before M1 touched it.
+
+### 2026-08-20 — D4's protocol-miss clause reversed (M2 implementation)
+
+Originally *halt*; now *warn and persist*. Two facts from the code overturned it: the
+fallback's failure mode (next round blind) is the pre-#194 status quo rather than a
+regression, and the only escapes from a halt — `--no-judge`, `--force` — skip the review
+entirely, so strictness would convert an occasional formatting miss into a routine reason
+to run no review at all. Full argument in D4 itself.
+
+The heading contradicted the body for one commit before M2's boundary review caught it
+(I6) — a D-heading that says the opposite of its own text defeats the reason the headings
+exist.
+
+### 2026-08-20 — `--no-ledger` added (M2 boundary review, I4)
+
+The ledger's open-findings refusal shipped with no per-gate bypass, leaving an operator
+who hits "verdict SHIP, but the gate ledger still has open blocking finding(s)" with only
+`--no-judge` (skip the review entirely) or `--force` (waive everything). AGENTS.md §5
+makes a per-gate `--no-<gate>` flag a property of these commands, so the gate got one.

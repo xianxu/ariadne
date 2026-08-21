@@ -293,6 +293,10 @@ func TestBoundaryReview_ConvergesAcrossRounds(t *testing.T) {
 	}
 
 	fake.disposeIDs = []string{d1.OpenBlocking[0].ID}
+	// Mirror production: the caller reads the prior-findings block UNDER THE LOCK and
+	// carries it on the params. dispatchBoundaryReview does not look it up itself —
+	// see C1 in M2's boundary review for what happened when it did.
+	p.PriorFindings = boundaryPriorFindings(&errb, p)
 	r2 := dispatchBoundaryReview(&out, &errb, p)
 	d2 := persistBoundaryRound(&errb, p, r2, "2026-08-20T18:30:00-07:00")
 	if d2.Block {
@@ -309,5 +313,67 @@ func TestBoundaryReview_ConvergesAcrossRounds(t *testing.T) {
 	}
 	if !strings.Contains(fake.sawPrior[1], "the measurement cannot fail") {
 		t.Error("round 2's prompt must carry round 1's finding — that is the whole mechanism")
+	}
+}
+
+// #194 M2 boundary review C1: the convergence test above dispatches directly, which is
+// NOT how production reaches the reviewer. reviewThenFinalizeLocked blanks PlansDir
+// before dispatch (to defer the sidecar repo write), so a dispatch-time prior-findings
+// lookup keyed on PlansDir returned "" in 100% of live reviews — the ledger blocked on
+// findings the reviewer was never shown and therefore could not dispose.
+//
+// This test drives the real command so the wiring itself is pinned.
+func TestCloseCommand_LiveReviewSeesPriorFindings(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := filepath.Join("workshop", "plans")
+	if err := os.MkdirAll(plansDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issueFile := filepath.Base(mustIssuePath(t, issuesDir, 69))
+
+	// A prior round left an open finding at the whole-issue boundary.
+	seeded := gatestate.Ledger{Gate: "boundary-review", IssueNum: 69, IDPrefix: "BR", Rounds: []gatestate.Round{
+		{N: 1, Boundary: "", New: []gatestate.Finding{
+			{ID: "BR-1", Severity: "Critical", Title: "PRIOR_FINDING_MARKER", Round: 1},
+		}},
+	}}
+	if err := writeBoundaryGateLedger(plansDir, issueFile, seeded, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+
+	var prompt string
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+		prompt = strings.Join(args, "\n")
+		return []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n" +
+			"```findings\ndispose:\n  - id: BR-1\n    disposition: addressed\n    note: |\n      fixed\n```\n"), nil
+	}
+
+	_, _, _ = executeSDLCTestCommand("close", "--issue", "69", "--actual", "1",
+		"--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir,
+		"--plans-dir", plansDir, "--brain-dir", "../nonexistent-brain")
+
+	if !strings.Contains(prompt, "PRIOR_FINDING_MARKER") {
+		t.Fatal("the LIVE review path must show the reviewer its prior findings — " +
+			"without this the ledger blocks on findings that cannot be disposed")
+	}
+	if !strings.Contains(prompt, "BR-1") {
+		t.Error("the prompt must carry the stable id so the reviewer can dispose it by name")
+	}
+}
+
+// #194 M2 review BR-11: persistBoundaryRound's new unconditional operator lines are the
+// same class as the info lines M1's I5 put under this guard — gatesig classifies
+// transcripts by substring, so a line colliding with a GateCatalog Ack/Refusal pattern
+// corrupts friction attribution (#172).
+func TestBoundaryGateOperatorLines_NoGatesigCollision(t *testing.T) {
+	for _, line := range []string{
+		"boundary gate: carried 3 deferred plan-gate finding(s) into this issue's ledger (#194)",
+		"boundary gate ledger: workshop/plans/000194-x-close-gate.md",
+		"boundary gate: [BR-2] Important demoted past the round cap and will NOT block — no later gate picks it up: some title",
+		"boundary gate ledger unusable — refusing to finalize rather than close without it: parse error",
+	} {
+		assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+line)
 	}
 }
