@@ -1,0 +1,93 @@
+# Fixture derived from a REAL multi-round history: tools#1 (`000001-define-m1-review.md`,
+# four M1 rounds plus two close rounds, 2026-08-20). Copied here rather than read from a
+# sibling checkout so the test is self-contained.
+#
+# It encodes the family assignments the real rounds WOULD have carried, taken from the
+# review prose:
+#
+#   block-opener-rule — "a part-of-speech word only opens a block when structurally placed"
+#     r1  `(banked as adjective)`            POS before a closing paren  -> fixed the trailing-boundary set
+#     r2  `[with adjective or noun modifier]` POS inside a bracket       -> bracket-depth tracking
+#     r2  `a noun phrase functioning as`      POS in plain prose         -> finally wrote the RULE (opensBlock)
+#     r4  `]` rejected as an opener           a fourth shape             -> found one round later still
+#
+#   oracle-blind-direction — "the measurement cannot fail in the direction that matters"
+#     r3  raw-notation check asks isPronunciation to grade its own output
+#     r4  strayStress is honest but too narrow
+#
+# The acceptance question (#194's Done-when): a correct implementation names
+# block-opener-rule as a REPEAT at round 2 — where a human reviewer would have said
+# "you are patching cases" — not at round 3, which is when it was actually noticed.
+gate: boundary-review
+issue: 1
+id_prefix: BR
+rounds:
+    - "n": 1
+      timestamp: "2026-08-20T10:48:07-07:00"
+      agent: claude
+      boundary: M1
+      blocked: true
+      findings:
+        - id: BR-1
+          severity: Critical
+          title: "(banked as adjective) splits the verb block"
+          family: block-opener-rule
+          round: 1
+    - "n": 2
+      timestamp: "2026-08-20T11:08:24-07:00"
+      agent: claude
+      boundary: M1
+      blocked: true
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          round: 2
+      findings:
+        - id: BR-2
+          severity: Critical
+          title: "[with adjective or noun modifier] opens two phantom blocks"
+          family: block-opener-rule
+          round: 2
+        - id: BR-3
+          severity: Important
+          title: "a noun phrase functioning as — POS in plain prose"
+          family: block-opener-rule
+          round: 2
+    - "n": 3
+      timestamp: "2026-08-20T11:38:28-07:00"
+      agent: claude
+      boundary: M1
+      blocked: true
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          round: 3
+      findings:
+        - id: BR-4
+          severity: Critical
+          title: raw-notation check asks isPronunciation to grade its own output
+          family: oracle-blind-direction
+          round: 3
+    - "n": 4
+      timestamp: "2026-08-20T12:10:00-07:00"
+      agent: claude
+      boundary: M1
+      blocked: true
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          round: 4
+      findings:
+        - id: BR-5
+          severity: Critical
+          title: "opensBlock rejects ] so a POS after a bracketed note never opens a block"
+          family: block-opener-rule
+          round: 4
+        - id: BR-6
+          severity: Important
+          title: strayStress is honest but too narrow
+          family: oracle-blind-direction
+          round: 4

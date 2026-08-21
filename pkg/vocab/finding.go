@@ -97,7 +97,16 @@ func (m *FindingModel) RenderBlockInstruction() string {
 	b.WriteString("```findings\ndispose:\n  - id: <a prior finding's id>\n    disposition: <" +
 		strings.Join(m.AllDispositions(), " | ") + ">\n    note: |\n      <optional, one line>\nfindings:\n" +
 		"  - id: new\n    severity: <" + strings.Join(m.Severities(), " | ") + ">\n" +
+		"    family: <slug>\n" +
 		"    title: |\n      <one line>\n    detail: |\n      <a sentence or two, optional>\n```\n\n")
+	// family (#194 M3): the slug names the underlying RULE, not the symptom, and is what
+	// lets the gate say "this is the 3rd instance — state the rule" instead of watching
+	// the same missing rule get patched case by case. The instruction has to be explicit:
+	// a reviewer that omits it, or coins a synonym, silently defeats the escalation.
+	b.WriteString("`family` is a short slug naming the underlying RULE a finding is an instance of,\n")
+	b.WriteString("not its symptom — `block-opener-rule`, not `bracket-depth-bug`. If the prior-round\n")
+	b.WriteString("block above lists families already in play, REUSE the matching slug verbatim;\n")
+	b.WriteString("coin a new one only when the finding genuinely belongs to no existing family.\n\n")
 	b.WriteString("Use the `|` block form for title, detail and note exactly as shown, and indent\n")
 	b.WriteString("their text by six spaces. In plain YAML a ` #` starts a comment, so an\n")
 	b.WriteString("unquoted `## Estimate` or `issue #187` would silently truncate your finding.\n\n")

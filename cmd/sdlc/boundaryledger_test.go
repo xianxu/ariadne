@@ -451,3 +451,51 @@ func TestBlockOnLedgerFailure_FailsClosed(t *testing.T) {
 		t.Errorf("the refusal must say why:\n%s", stderr.String())
 	}
 }
+
+// #194 M3: the convergence line reaches the operator, and says NOT converging when a
+// family repeats — the signal that was missing when tools#1 ran four rounds blind.
+func TestBoundaryReview_EmitsConvergenceLine(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	p := boundaryReviewParams{IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir}
+
+	var stderr strings.Builder
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{
+		New: []gatestate.Finding{{ID: "new", Severity: "Critical", Title: "paren case", Family: "block-opener-rule"}},
+	}}, "2026-08-20T22:00:00-07:00")
+
+	stderr.Reset()
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{
+		Dispositions: []gatestate.Disposition{{ID: "BR-1", State: "addressed"}},
+		// Same family, different spelling — normalization must still see the repeat.
+		New: []gatestate.Finding{{ID: "new", Severity: "Important", Title: "bracket case", Family: "Block Opener Rule"}},
+	}}, "2026-08-20T22:30:00-07:00")
+
+	out := stderr.String()
+	if !strings.Contains(out, "round 2") || !strings.Contains(out, "1 repeat family") {
+		t.Errorf("the convergence line must reach the operator and count the repeat:\n%s", out)
+	}
+	if !strings.Contains(out, "Not converging") {
+		t.Errorf("a repeat family means not converging:\n%s", out)
+	}
+}
+
+// #194 M3 Task 3.6: M4 was considered and REJECTED — the boundary review keeps reading
+// the whole branch. This test is what keeps it rejected: a whole-issue close resolves its
+// window to merge-base(main, HEAD), and no later change may quietly narrow it.
+func TestBoundaryWindowBase_WholeIssueStaysAtMergeBase(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 194)
+	runGit("checkout", "-q", "-b", "000194-work")
+	commitTouchingIssue(t, runGit, issuePath, "w1", "#194 M1: first", "")
+	// A finalized boundary exists — under M4 this would have become the new base.
+	commitTouchingIssue(t, runGit, issuePath, "w2", "#194 M1: close",
+		"Done.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..def5678")
+	commitTouchingIssue(t, runGit, issuePath, "w3", "#194 M2: more work", "")
+
+	mergeBase := strings.TrimSpace(captureGit(t, "merge-base", "main", "HEAD"))
+	if got := boundaryWindowBase("194", "", issuePath); got != mergeBase {
+		t.Fatalf("a whole-issue close must review the WHOLE branch: base = %q, want merge-base %q\n"+
+			"(M4 — round-scoping a re-review — was rejected precisely so no reviewer ever "+
+			"sees less than the integrated result)", got, mergeBase)
+	}
+}

@@ -13,6 +13,12 @@ import (
 // absolute bar. ALREADY-DISPOSED findings are listed precisely so they are NOT re-raised
 // at a lower severity, which is the descent pattern the postmortem observed.
 //
+// Since ariadne#194 M3 it also carries the FAMILY vocabulary and, when a family already
+// has prior findings, the escalation that changes the reviewer's recommendation from
+// "fix this instance" to "state the rule". Rendering the vocabulary is not decoration:
+// FamilyCounts keys on the slug, so a reviewer that cannot see which slugs are in play
+// coins a fresh one every round, every count stays 1, and the escalation never fires.
+//
 // Pure: no clock, no IO.
 func RenderPriorFindings(l Ledger) string {
 	if len(l.Rounds) == 0 {
@@ -71,6 +77,12 @@ func RenderPriorFindings(l Ledger) string {
 
 	b.WriteString("\nIf a disposed finding is genuinely still wrong, dispose it `not-addressed`\n")
 	b.WriteString("by its id — do not raise it again as new.\n")
+	if counts := FamilyCounts(l); len(counts) > 0 {
+		b.WriteString("\n")
+		b.WriteString(renderFamilyVocabulary(counts))
+		b.WriteString(renderFamilyEscalation(counts))
+	}
+
 	return strings.TrimRight(b.String(), "\n")
 }
 

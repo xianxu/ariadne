@@ -95,6 +95,15 @@ can be disposed by name. (Before #194, `code-review.md` told the reviewer to rea
 have put two id namespaces in one output fence.) A guard test pins the prompt half; another
 pins the seeding. Without both, the demotion becomes a silent loss.
 
+**Findings carry a `family:` slug** (#194) — the underlying rule, not the symptom. The
+in-play vocabulary is rendered into the next round's prompt with a reuse instruction, and
+`NormalizeFamily` folds casing and punctuation on ingest; a true synonym is a judgement,
+not a spelling, so mechanism 1 is what addresses those. When a family repeats, the
+reviewer is asked to state the rule rather than fix the instance, and the round's
+`ConvergenceLine` reports whether families are still recurring. Verified against a real
+four-round history (`tools#1`): a correct implementation names the family at round 2,
+where the human would have said "you are patching cases", not at round 3.
+
 **At the boundary gate a demotion means something different**, and is announced. There is no
 later gate to pick up what the cap demotes — the boundary review is the last read before
 publish — so each demoted finding gets a warning naming it. Its cap knob is

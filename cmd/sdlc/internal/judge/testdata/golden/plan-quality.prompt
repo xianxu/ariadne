@@ -181,11 +181,17 @@ dispose:
 findings:
   - id: new
     severity: <Critical | Important | Minor>
+    family: <slug>
     title: |
       <one line>
     detail: |
       <a sentence or two, optional>
 ```
+
+`family` is a short slug naming the underlying RULE a finding is an instance of,
+not its symptom — `block-opener-rule`, not `bracket-depth-bug`. If the prior-round
+block above lists families already in play, REUSE the matching slug verbatim;
+coin a new one only when the finding genuinely belongs to no existing family.
 
 Use the `|` block form for title, detail and note exactly as shown, and indent
 their text by six spaces. In plain YAML a ` #` starts a comment, so an

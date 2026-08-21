@@ -77,6 +77,18 @@ discovery: {
 	severity: #Severity
 	title:    string
 	detail?:  string
+	// family: a slug naming the underlying RULE a finding is an instance of, not the
+	// symptom — `block-opener-rule`, not `bracket-depth-bug` (ariadne#194 M3). When a
+	// family already has a disposed finding in a prior round, the gate escalates the
+	// reviewer's recommendation from "fix this instance" to "state the rule that covers
+	// all of them", which is the convergence mechanism the issue exists for.
+	//
+	// Deliberately FREE TEXT, not an enum: a family is DISCOVERED across rounds: the
+	// point is to notice a recurrence nobody predicted, so a closed set would defeat it.
+	// The binary normalizes on ingest (case, punctuation) and renders the in-play
+	// vocabulary into the next round's prompt so the reviewer reuses a slug rather than
+	// coining a synonym. Optional, so a transcript from before #194 M3 still parses.
+	family?: string
 }
 
 // ── #Dispose: a later round's verdict on an earlier finding ──

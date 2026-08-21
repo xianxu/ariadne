@@ -257,14 +257,36 @@ Three review boundaries, closed separately (AGENTS.md §3).
 - [x] M2 — Ledger: declare the boundary gate's `Gate`/`IDPrefix` pair that
       `planreview.go:26-30` already anticipates; wire `PriorFindings` into
       `MilestoneReview`; require every prior finding disposed before new ones.
-- [ ] M3 — Families: model `family` on `#Finding` (closed schema — model first, then
+- [x] M3 — Families: model `family` on `#Finding` (closed schema — model first, then
       Go, then `RenderBlockInstruction`); escalate a repeat family from "fix this
       instance" to "state the rule"; emit the convergence line. Verified against
       `tools#1`'s four-round history as a copied fixture.
-- [ ] M3 also pins the window: a regression test asserting the whole-issue review
+- [x] M3 also pins the window: a regression test asserting the whole-issue review
       window stays `merge-base(main, HEAD)` (M4 was considered and rejected).
 
 ## Log
+
+### 2026-08-20 (M3)
+
+- `family` is modeled first (`construct/vocabulary/finding.cue`'s `#Finding` is CLOSED,
+  so an unmodeled key fails instance validation), then carried into `gatestate.Finding`,
+  the parser, and `RenderBlockInstruction` — the fence the judge is *told* to emit. Note
+  the exported JSON is unchanged: `#Finding` is a CUE definition and definitions do not
+  export, so the schema governs validation while the Go struct is the parser.
+- All three D3 anchoring mechanisms landed, because normalization alone would have been
+  theatre: the in-play vocabulary is rendered with a REUSE instruction (this is what
+  catches synonyms), `NormalizeFamily` folds casing/punctuation (and nothing else), and
+  the tests cover a near-miss fixture plus a true-synonym fixture whose *name* records
+  the accepted residual risk rather than pretending it is solved.
+- **Acceptance test against real history.** `tools#1`'s four-round M1 review is copied
+  into `testdata/tools-1-m1-families.yaml` (self-contained — no sibling checkout).
+  `block-opener-rule` really did surface in four shapes across four rounds there, and
+  `oracle-blind-direction` in two. The test asserts the escalation names the family at
+  **round 2**, where a human reviewer would have said "you are patching cases" — one
+  round earlier than it was actually noticed.
+- Task 3.6 pins the whole-issue window at `merge-base(main, HEAD)` even when a finalized
+  prior boundary exists. That is what keeps M4 rejected: a later change cannot quietly
+  narrow the window without failing a test that says why.
 
 ### 2026-08-20 (M2)
 - 2026-08-20: closed M2 — go build ./... && go vet ./cmd/... && go test ./... && gofmt -l all clean. Round-1 findings C1+I1..I6 and 6 minors all fixed; C1 (PriorFindings empty in every live review) now pinned by TestCloseCommand_LiveReviewSeesPriorFindings, verified to FAIL when the fix is reverted. Deferred cap-accounting question settled: CountedRounds excludes rounds that consumed no review cycle.; review verdict: FIX-THEN-SHIP

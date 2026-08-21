@@ -59,6 +59,22 @@ MODES
       reviewer's full text for a human; `-close-gate.md` holds addressable
       findings for the next round. Neither replaces the other.
 
+  FINDING FAMILIES (#194). Each finding carries a `family:` slug naming the
+  underlying RULE it is an instance of, not its symptom. When a family already
+  has a finding from an earlier round, the next reviewer is told so and its
+  recommendation changes: instead of "fix this instance" it is asked to state
+  the rule that covers all of them. That is the difference between patching
+  four shapes of one missing rule across four rounds and writing the rule on
+  the second.
+
+  Every round also emits a convergence line:
+
+      round 4 — 2 new findings, 0 repeat families, 6 disposed. Converging.
+      round 2 — 3 new findings, 2 repeat families. Not converging: fix rules.
+
+  Capping rounds on finding COUNT is arbitrary; a family that stops repeating
+  is an honest signal that the work is converging.
+
   Findings the plan gate deferred (Minor, or demoted past its round cap) are
   seeded into this ledger on its first round, so they arrive as `BR-*` ids you
   can dispose of rather than as a file the reviewer is told to go read.

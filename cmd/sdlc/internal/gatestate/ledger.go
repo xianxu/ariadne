@@ -36,7 +36,12 @@ type Finding struct {
 	Severity string `yaml:"severity"`
 	Title    string `yaml:"title"`
 	Detail   string `yaml:"detail,omitempty"`
-	Round    int    `yaml:"round"` // the round that first raised it
+	// Family names the underlying RULE this finding is an instance of, not the symptom
+	// (ariadne#194 M3). Free text by design — a family is discovered across rounds, so a
+	// closed set would defeat the point — normalized on read via NormalizeFamily.
+	// Optional: a transcript from before #194 M3 still parses.
+	Family string `yaml:"family,omitempty"`
+	Round  int    `yaml:"round"` // the round that first raised it
 }
 
 // Disposition is a later round's verdict on an EARLIER finding.

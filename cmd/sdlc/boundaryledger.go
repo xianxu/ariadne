@@ -183,6 +183,10 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	// review, which picks it up — that is what makes the cap safe. Here there IS no later
 	// gate: the boundary review is the last read before publish, so a demoted finding
 	// ships having blocked nothing. It stays in the ledger, but the operator has to know.
+	// #194 M3: the convergence signal — the line that was missing when tools#1 ran four
+	// rounds with no way to tell whether round five would find more. Capping on finding
+	// COUNT is arbitrary; capping when families stop repeating is not.
+	cinfo(stderr, "boundary gate: "+gatestate.ConvergenceLine(l, len(l.Rounds)))
 	for _, fnd := range d.Demoted {
 		cwarn(stderr, fmt.Sprintf("boundary gate: [%s] %s demoted past the round cap and will NOT block — "+
 			"no later gate picks it up: %s", fnd.ID, fnd.Severity, fnd.Title))
