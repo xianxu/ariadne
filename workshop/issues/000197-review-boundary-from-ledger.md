@@ -34,6 +34,16 @@ Safe for correctness. Not cheap: a boundary review is ~20 minutes of wall clock
 during which the tree is effectively frozen, so a missed paste costs a full re-read
 of the branch at every subsequent boundary.
 
+**And the cost is not linear — past a point the run stops completing at all.**
+Measured on ariadne#194: M1's close review covered 19 files / 1899 insertions and
+finished at ~8m30s. M2's covered 40 files / 3302 insertions, because the missed
+paste widened its base back to the issue-creation commit, and **both attempts died
+at ~8m0s** to `API Error: Your computer went to sleep mid-response` — the host's
+idle-sleep threshold, which every earlier dispatch had finished inside. A wider
+window does not merely waste minutes; it pushes the dispatch past a wall-clock
+threshold where it fails outright, and each failed attempt then burns a ledger round
+(see ariadne#194's `## Log`). The third attempt only completed under `caffeinate`.
+
 ### Observed, on ariadne#194 itself
 
 M1 closed with `Review-Verdict: FIX-THEN-SHIP`. The trailer was printed and not
