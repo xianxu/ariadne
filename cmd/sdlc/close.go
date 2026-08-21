@@ -1125,7 +1125,7 @@ func reviewThenFinalizeLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	})
 }
 
-func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, p boundaryReviewParams, validate func() error) error {
+func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, p boundaryReviewParams, validate func() (string, error)) error {
 	kind := "close"
 	if f.Milestone != "" {
 		kind = "milestone-close"
@@ -1143,11 +1143,16 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	switch closeVerdictOutcome(review.Verdict) {
 	case closeFinalize:
 		if validate != nil {
-			if err := validate(); err != nil {
+			note, err := validate()
+			if err != nil {
 				emitTrailerBlock(stdout, review, kind)
 				cwarn(stderr, fmt.Sprintf("boundary review: reviewed state changed while the lock was released — close NOT finalized: %v", err))
-				cwarn(stderr, fmt.Sprintf("re-run `%s` so the review covers the current repo state", verb))
 				return fmt.Errorf("boundary review stale: %w", err)
+			}
+			// #194: say what the gate decided when it let a delta through — silence
+			// would read as "nothing happened", which is not what occurred.
+			if note != "" {
+				cinfo(stderr, note)
 			}
 		}
 		applyClose(stdout, stderr, closeRunner, f, r)
@@ -1206,35 +1211,47 @@ func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone string) cl
 	}
 }
 
-func (s closeReviewSnapshot) validate() error {
+// validate reports whether finalization may proceed. It returns a note the caller
+// surfaces when the gate allowed a delta through, so the operator learns what it
+// decided rather than only that nothing blocked.
+//
+// #194: the HEAD question is now "does the delta touch code?", not "is HEAD identical?".
+// The issue-file and project-file checks stay STRICT and unchanged — the review READ
+// that prose, so a mid-review edit to it is a genuine invalidation. Only the HEAD check
+// was ever stricter than its own purpose.
+func (s closeReviewSnapshot) validate() (string, error) {
+	note := ""
 	if s.reviewed != "" {
-		currentHead := strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
-		if currentHead == "" {
-			return fmt.Errorf("cannot resolve HEAD")
+		d, err := gatherReviewAnchorDelta(s.reviewed)
+		if err != nil {
+			return "", err // fail closed on a git error, as the publish gate does
 		}
-		if currentHead != s.reviewed {
-			return fmt.Errorf("HEAD changed from %s to %s", abbrevSHA(s.reviewed), abbrevSHA(currentHead))
+		switch outcome := classifyReviewAnchor(d); outcome {
+		case anchorDocsOnly:
+			note = formatAnchorDocsOnly(d)
+		case anchorCodeDelta, anchorDiverged:
+			return "", fmt.Errorf("%s", formatAnchorRefusal(d, outcome, closeVerb(s.milestone)))
 		}
 	}
 	if s.issuePath != "" {
 		data, err := os.ReadFile(s.issuePath)
 		if err != nil {
-			return fmt.Errorf("read %s: %w", s.issuePath, err)
+			return "", fmt.Errorf("read %s: %w", s.issuePath, err)
 		}
 		if string(data) != s.issueText {
-			return fmt.Errorf("%s changed", s.issuePath)
+			return "", fmt.Errorf("%s changed", s.issuePath)
 		}
 	}
 	for _, e := range s.projects {
 		data, err := os.ReadFile(e.path)
 		if err != nil {
-			return fmt.Errorf("read %s: %w", e.path, err)
+			return "", fmt.Errorf("read %s: %w", e.path, err)
 		}
 		if string(data) != e.oldText {
-			return fmt.Errorf("%s changed", e.path)
+			return "", fmt.Errorf("%s changed", e.path)
 		}
 	}
-	return nil
+	return note, nil
 }
 
 // finishBoundaryReview emits the close trailer and mirrors the verdict into the
