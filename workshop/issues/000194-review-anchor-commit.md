@@ -268,6 +268,14 @@ Three review boundaries, closed separately (AGENTS.md §3).
 
 ### 2026-08-20 (M3)
 
+- **M3's actual is a LABELED JUDGMENT ESTIMATE, not a measurement — 0.1h.** `sdlc
+  active-time` over `5e8a3e5..HEAD` returned `TELEMETRY UNAVAILABLE: window has commits
+  but 0 transcript events`, twice, and its own guidance is "do NOT record 0 as measured
+  — use a labeled judgment estimate". The window is 22:00:34 → 22:06:25 (5m51s) of
+  continuous back-to-back work with no idle gap, hence 0.1h. Flagged here so velocity
+  calibration can discount this row: M1 (0.25h) and M2 (0.48h) are genuine measurements;
+  this one is not.
+
 - `family` is modeled first (`construct/vocabulary/finding.cue`'s `#Finding` is CLOSED,
   so an unmodeled key fails instance validation), then carried into `gatestate.Finding`,
   the parser, and `RenderBlockInstruction` — the fence the judge is *told* to emit. Note
