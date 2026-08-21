@@ -640,8 +640,12 @@ func planGateContent(issueContent string) string {
 // roundCapFromEnv reads WF_PLAN_ROUND_CAP, defaulting to gatestate.DefaultRoundCap. Past
 // the cap only hard-blocking findings refuse the gate; the rest are carried to the close
 // review via the ledger.
-func roundCapFromEnv() int {
-	if v := os.Getenv("WF_PLAN_ROUND_CAP"); v != "" {
+func roundCapFromEnv() int { return roundCapFromEnvVar("WF_PLAN_ROUND_CAP") }
+
+// roundCapFromEnvVar is the shared reader behind each gate's cap knob (#194 M2 —
+// the boundary gate has its own, WF_BOUNDARY_ROUND_CAP).
+func roundCapFromEnvVar(name string) int {
+	if v := os.Getenv(name); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}

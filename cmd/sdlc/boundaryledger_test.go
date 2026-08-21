@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 // A missing sidecar is the normal round-1 state — an empty ledger carrying the gate's
@@ -195,4 +198,116 @@ func mustIssuePath(t *testing.T, issuesDir string, n int) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// Past the round cap, gatestate demotes non-Critical findings. At the PLAN gate that is
+// safe because the boundary review picks them up; at the BOUNDARY gate there is no later
+// gate, so the demotion must at least be announced rather than absorbed silently.
+func TestBoundaryReview_DemotionPastCapIsAnnounced(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	p := boundaryReviewParams{IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir}
+	t.Setenv("WF_BOUNDARY_ROUND_CAP", "1")
+
+	var stderr strings.Builder
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{
+		New: []gatestate.Finding{{ID: "new", Severity: "Important", Title: "carried past the cap"}},
+	}}, "2026-08-20T18:00:00-07:00")
+	// Round 2 is past a cap of 1.
+	d := persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", Round: &gatestate.RoundReport{}}, "2026-08-20T18:30:00-07:00")
+
+	if len(d.Demoted) != 1 {
+		t.Fatalf("the Important finding should be demoted past the cap, got %+v", d)
+	}
+	if d.Block {
+		t.Error("a demoted finding must not block")
+	}
+	if !strings.Contains(stderr.String(), "no later gate picks it up") {
+		t.Errorf("the demotion must be announced — it ships having blocked nothing:\n%s", stderr.String())
+	}
+}
+
+// ARCH-MOCK, raised by M1's boundary review: `judge.Run` is a STATELESS override, which
+// modelled the dependency adequately while a boundary review was a single call. M2 makes
+// the reviewer stateful — ledger in, dispositions out — so a canned-output fake stops
+// modelling it. This fake carries round state: it reads the prior-findings block out of
+// the prompt it is given and responds the way a converging reviewer would.
+type fakeReviewer struct {
+	round      int
+	sawPrior   []string // the prior-findings block observed on each round
+	raiseOnce  string   // finding title raised on round 1
+	disposeIDs []string // ids disposed on round 2+
+}
+
+func (f *fakeReviewer) install(t *testing.T) {
+	t.Helper()
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+		f.round++
+		prompt := strings.Join(args, "\n")
+		f.sawPrior = append(f.sawPrior, prompt)
+		if f.round == 1 {
+			return []byte("```verdict\nverdict: REWORK\nconfidence: high\n```\n\n" +
+				"```findings\nfindings:\n  - id: new\n    severity: Critical\n    title: |\n      " +
+				f.raiseOnce + "\n```\n"), nil
+		}
+		var b strings.Builder
+		b.WriteString("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\ndispose:\n")
+		for _, id := range f.disposeIDs {
+			b.WriteString("  - id: " + id + "\n    disposition: addressed\n    note: |\n      fixed\n")
+		}
+		b.WriteString("```\n")
+		return []byte(b.String()), nil
+	}
+}
+
+// The convergence loop end to end: round 1 raises and blocks, round 2 is SHOWN what
+// round 1 said, disposes it, and the gate clears. This is the behavior #195 asked for
+// and the reason the two issues merged.
+func TestBoundaryReview_ConvergesAcrossRounds(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	p := boundaryReviewParams{
+		Label: "#69 M1", IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir,
+	}
+	// Real refs: dispatch collects a real diff, so a fabricated base makes it bail
+	// before the reviewer is ever invoked.
+	base := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	if err := os.WriteFile("m1.go", []byte("package main // work\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, "", "add", "m1.go")
+	git(t, "", "commit", "-q", "-m", "#69 M1: the work under review")
+	p.BaseLong, p.Base = base, shortSHA(base)
+	p.Head = strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+
+	fake := &fakeReviewer{raiseOnce: "the measurement cannot fail in the direction that matters"}
+	fake.install(t)
+
+	var out, errb bytes.Buffer
+	r1 := dispatchBoundaryReview(&out, &errb, p)
+	d1 := persistBoundaryRound(&errb, p, r1, "2026-08-20T18:00:00-07:00")
+	if !d1.Block {
+		t.Fatalf("round 1 raised a Critical; the gate must block: %+v", d1)
+	}
+
+	fake.disposeIDs = []string{d1.OpenBlocking[0].ID}
+	r2 := dispatchBoundaryReview(&out, &errb, p)
+	d2 := persistBoundaryRound(&errb, p, r2, "2026-08-20T18:30:00-07:00")
+	if d2.Block {
+		t.Fatalf("round 2 disposed the finding; the gate must clear: %+v", d2)
+	}
+
+	// The load-bearing assertion: round 2's PROMPT carried round 1's finding. Without
+	// it the reviewer is memoryless and would renumber a fresh C1 instead of disposing.
+	if len(fake.sawPrior) < 2 {
+		t.Fatal("expected two dispatches")
+	}
+	if strings.Contains(fake.sawPrior[0], "the measurement cannot fail") {
+		t.Error("round 1 should have had no prior findings to show")
+	}
+	if !strings.Contains(fake.sawPrior[1], "the measurement cannot fail") {
+		t.Error("round 2's prompt must carry round 1's finding — that is the whole mechanism")
+	}
 }

@@ -171,7 +171,16 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 		}
 	}
 
-	d := gatestate.Decide(gatestate.FilterBoundary(l, p.Milestone), 0)
+	d := gatestate.Decide(gatestate.FilterBoundary(l, p.Milestone), roundCapFromEnvVar("WF_BOUNDARY_ROUND_CAP"))
+	// A demotion means something DIFFERENT here than at the plan gate, and the difference
+	// is worth saying out loud. There, a demoted finding is deferred to the boundary
+	// review, which picks it up — that is what makes the cap safe. Here there IS no later
+	// gate: the boundary review is the last read before publish, so a demoted finding
+	// ships having blocked nothing. It stays in the ledger, but the operator has to know.
+	for _, fnd := range d.Demoted {
+		cwarn(stderr, fmt.Sprintf("boundary gate: [%s] %s demoted past the round cap and will NOT block — "+
+			"no later gate picks it up: %s", fnd.ID, fnd.Severity, fnd.Title))
+	}
 	if werr := writeBoundaryGateLedger(p.PlansDir, issueFileName, l, repoIdentity()); werr != nil {
 		cwarn(stderr, fmt.Sprintf("boundary gate ledger not written: %v", werr))
 	} else {

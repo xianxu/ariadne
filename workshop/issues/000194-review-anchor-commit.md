@@ -254,7 +254,7 @@ Three review boundaries, closed separately (AGENTS.md §3).
       lock-release drift); classify a mid-review delta instead of refusing on HEAD
       identity, reusing `publishGateHasCodeSurface`. Standalone value: fixes a live
       defect regardless of M2–M3.
-- [ ] M2 — Ledger: declare the boundary gate's `Gate`/`IDPrefix` pair that
+- [x] M2 — Ledger: declare the boundary gate's `Gate`/`IDPrefix` pair that
       `planreview.go:26-30` already anticipates; wire `PriorFindings` into
       `MilestoneReview`; require every prior finding disposed before new ones.
 - [ ] M3 — Families: model `family` on `#Finding` (closed schema — model first, then
@@ -267,6 +267,19 @@ Three review boundaries, closed separately (AGENTS.md §3).
 ## Log
 
 ### 2026-08-20 (M2)
+
+- Convergence verified end to end with a **stateful** reviewer fake — the ARCH-MOCK
+  gap M1's review flagged for exactly this milestone. `judge.Run` is a stateless
+  override, adequate while a boundary review was one call; M2 makes the reviewer
+  stateful (ledger in → dispositions out), so the fake now carries round state and
+  reads its own prior-findings block back out of the prompt. Round 1 raises and
+  blocks; round 2 is *shown* what round 1 said, disposes it, and the gate clears.
+- Boundary demotion is **not** the same event as plan-gate demotion, so it is
+  announced. Past the round cap `gatestate` demotes non-Critical findings; at the plan
+  gate that is safe because the boundary review picks them up, which is what the
+  seeding now implements. At the boundary there is no later gate — a demoted finding
+  ships having blocked nothing — so each one gets a warning naming it. Cap knob is
+  `WF_BOUNDARY_ROUND_CAP`, sharing one reader with `WF_PLAN_ROUND_CAP` (ARCH-DRY).
 
 - **D4's protocol-miss clause revised: warn and persist, do not halt.** The plan said a
   boundary review emitting no `findings` fence should route to `closeHalt`. Two facts
