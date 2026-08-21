@@ -954,6 +954,27 @@ fifteen seconds: copy the file, undo the fix, run the one test, restore.
 Applies to any claim that a change is *tested*, not just gate findings. The bar is cheap
 enough that "I checked it looks right" is never the better option.
 
+**Where the revert cannot answer**, and what to do instead. Some fixes have no failing
+test by construction, and pretending otherwise just produces a test that asserts nothing:
+
+- **A fix that removes a possible divergence** — collapsing a duplicated algorithm onto
+  one source, deleting dead coverage. Reverting restores a second implementation that
+  behaves identically today, so nothing goes red. Assert the *property* instead (one
+  definition site; `grep` finds exactly one), or accept that the change is structural and
+  say so in the commit rather than claiming a pin.
+- **A fix that makes an inert thing reachable.** Reverting is not the check — the check is
+  that the thing was inert *before*. Pin the wiring, not the field: assert through the
+  path production takes, then revert.
+- **A pure deletion.** If the invariant is covered elsewhere, cite where; if it is not,
+  the deletion needs a replacement test, not a revert.
+
+The unifying question is not "does a test go red?" but **"what observation distinguishes
+the fixed world from the broken one, and does something make it?"** The revert is the
+cheapest instrument for that question, not the question itself.
+
+**Origin of this refinement:** #194 close review BR-38, raised in the same round that
+caught two inert fixes — the rule and its own limits found together.
+
 **Origin:** #194 M2 review (C1, where the revert WAS done and caught a real gap) and #194
 M3 review (BR-31, where it was skipped four times — measured prevalence 4 instances plus
 one assertion that tested an unreachable state and sliced past the end of a string).
