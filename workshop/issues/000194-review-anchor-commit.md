@@ -378,6 +378,13 @@ Three review boundaries, closed separately (AGENTS.md §3).
   with the repo transaction lock released, and the ledger is a repo write.
 
 ### 2026-08-20 (M1)
+
+- M1's boundary verdict (`FIX-THEN-SHIP`, window `e66bac8..6e466227`) was recorded late,
+  in its own commit, because the trailer `sdlc milestone-close` printed was never pasted
+  into the close commit. This is ariadne#197's defect costing time a **third** time in
+  one issue — and the first time it blocked something rather than merely widening a
+  window: `sdlc close` refuses on the milestone-verdict gate, so a missed paste does not
+  just make later reviews bigger, it stops the issue from closing at all.
 - 2026-08-20: closed M1 — go build ./... && go test ./... && go vet all green; 10 new pure unit tests over classifyReviewAnchor + both formatters (no repo), 2 window/abbrevSHA tests, and both interleaving directions in close_finalize_test.go — doc-only commit mid-review finalizes emitting the pass line, code commit refuses naming "concurrent #69 side change" and asserts absence of "HEAD changed from"; review verdict: FIX-THEN-SHIP
 
 - M1 landed in three commits: `b19ac6b` (pin the SHA), `b2294ac` (snapshot takes
