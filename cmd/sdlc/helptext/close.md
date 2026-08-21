@@ -40,6 +40,21 @@ MODES
   explicitly, use `sdlc milestone-close --no-judge` — `close` no longer has a
   `--milestone` path to skip it silently (#146).
 
+  ANCHORED TO THE COMMIT IT READ (#194). The review records the concrete SHA it
+  reviewed — in the `Review-Window:` trailer and the sidecar — and finalizes
+  against that commit, not against "HEAD has not moved". A commit landing while
+  the review runs is classified, not fatal:
+
+      doc-only delta  the close finalizes; the reviewed code surface is intact,
+                      and the same classifier `sdlc merge` applies at publish
+                      time decides it (#174)
+      code delta      refused, naming every commit the review did not cover
+      rewritten       refused as diverged (HEAD no longer descends from the
+                      reviewed commit), since the delta is not describable
+
+  So committing lessons/atlas/plan bookkeeping during a review is safe. Landing
+  code is not, and the refusal now tells you which commits to re-review.
+
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain
    (capture) repo and in repos without workshop/issues/. WF_SPINE_GUARD=off is

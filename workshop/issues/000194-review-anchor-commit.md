@@ -249,7 +249,7 @@ Three review boundaries, closed separately (AGENTS.md §3).
 - [x] Design via `sdlc start-plan` before implementing.
 - [x] Establish that #136 persists prose while #187's ledger persists addressable
       findings, and that only the latter is read back — the asymmetry this folds.
-- [ ] M1 — Anchor: resolve the review head to a concrete SHA once under the lock and
+- [x] M1 — Anchor: resolve the review head to a concrete SHA once under the lock and
       thread it through diff/prompt/trailer/sidecar/finalize (closing the
       lock-release drift); classify a mid-review delta instead of refusing on HEAD
       identity, reusing `publishGateHasCodeSurface`. Standalone value: fixes a live
@@ -265,6 +265,35 @@ Three review boundaries, closed separately (AGENTS.md §3).
       window stays `merge-base(main, HEAD)` (M4 was considered and rejected).
 
 ## Log
+
+### 2026-08-20 (M1)
+
+- M1 landed in three commits: `b19ac6b` (pin the SHA), `b2294ac` (snapshot takes
+  it as a parameter), `7fd89bd` (classify the delta).
+- The issue's Spec claimed `BASE_SHA..HEAD` was "already resolved to a concrete
+  SHA at dispatch". Only the base was. `head` was the literal string `"HEAD"`
+  from `resolveReviewWindow` all the way to the trailer and sidecar — which is
+  why all 67 archived sidecars that carry a window row say `<base>..HEAD`.
+- The live defect underneath: `reviewThenFinalizeLocked` releases the repo lock
+  **before** `dispatchBoundaryReview`, and `boundaryReviewDispatchOptions` then
+  re-resolved `"HEAD"` itself. A commit landing in that gap meant the diff handed
+  to the reviewer named a different commit than the snapshot pinned. Resolving
+  once under the lock closes it; that identity is now structural, not incidental.
+- ARCH-DRY twice. `classifyReviewAnchor` calls `publishGateHasCodeSurface` rather
+  than restating the docs-vs-code rule — the reuse the Spec asked for. And a
+  planned `abbrevSHA` turned out to already exist in `state.go`; the duplicate
+  was deleted and the original's doc extended.
+- Found while wiring display: `shortSHA` runs `git rev-parse --short`, so it
+  RESOLVES its argument — `shortSHA("HEAD")` returns the *ambient* repo's HEAD.
+  Rendering the fallback head through it would print a commit the review never
+  read. The trailer uses the pure `abbrevSHA`, so a degraded window stays
+  visibly `..HEAD` rather than silently naming the wrong commit. Test pins it.
+- ARCH-PURE: `classifyReviewAnchor` and both formatters are pure and unit-tested
+  with no repo; `gatherReviewAnchorDelta` is the only thing that touches git.
+- Four outcomes, not three. `reviewed` may not be an ancestor of HEAD at all
+  after a rebase or `reset --hard`, and `git diff A B` between unrelated commits
+  returns paths happily — without the ancestry check a rebase-away would
+  classify as doc-only and finalize.
 
 ### 2026-08-20
 
