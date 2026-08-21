@@ -61,6 +61,17 @@ type Round struct {
 	Agent        string        `yaml:"agent"`
 	Dispositions []Disposition `yaml:"dispose,omitempty"`
 	New          []Finding     `yaml:"findings,omitempty"`
+	// Boundary names which review boundary this round belongs to — "M1", "M2", "" for
+	// the whole-issue close, or BoundaryAll for a round that belongs to all of them
+	// (ariadne#194 D1). Empty on every plan-quality round, which has one boundary by
+	// construction; omitempty keeps those ledgers byte-identical to their pre-#194 form.
+	//
+	// It exists because Decide reads len(l.Rounds) against the round cap and
+	// OpenFindings spans the whole ledger. ONE boundary ledger per issue is what lets
+	// a finding FAMILY be seen recurring across milestones; scoping the cap and the
+	// open set per boundary via FilterBoundary is what keeps that from silently
+	// demoting the whole-issue close's first-round findings.
+	Boundary string `yaml:"boundary,omitempty"`
 	// Forced carries the --force rationale, set ONLY when this gate actually blocked.
 	// --force is a GLOBAL bypass, so stamping it unconditionally would mark a plan-gate
 	// round "forced" when the operator forced past a structural failure — over-reporting
@@ -73,6 +84,32 @@ type Round struct {
 	// never fire, and the close-time gate_rounds metric would report 0 for precisely the
 	// most expensive sessions.
 	ProtocolError string `yaml:"protocol_error,omitempty"`
+}
+
+// BoundaryAll marks a round that belongs to EVERY boundary rather than one (#194 D5).
+// Its use is the plan-gate seed round: those findings were deferred to "the boundary
+// review" generically, not to whichever milestone happened to close first, so scoping
+// them to one boundary would hide them everywhere else — a regression against
+// code-review.md's pre-#194 instruction that every boundary reviewer read the plan-gate
+// ledger.
+const BoundaryAll = "*"
+
+// FilterBoundary returns a view of l holding only the rounds belonging to `boundary`
+// (plus every BoundaryAll round). Pure: it is a caller-side transform, so Decide and
+// OpenFindings keep the signatures plan-quality already depends on rather than growing
+// a boundary parameter that one of the two gates would always pass empty (ARCH-PURE).
+//
+// FamilyCounts deliberately takes the UNFILTERED ledger — a family recurring across
+// milestones is precisely the signal #194 exists to surface.
+func FilterBoundary(l Ledger, boundary string) Ledger {
+	out := l
+	out.Rounds = nil
+	for _, r := range l.Rounds {
+		if r.Boundary == boundary || r.Boundary == BoundaryAll {
+			out.Rounds = append(out.Rounds, r)
+		}
+	}
+	return out
 }
 
 // Ledger is the accumulated state of ONE gate on ONE issue across every invocation.
@@ -121,8 +158,14 @@ func nextIDSeq(l Ledger) int {
 // prompt) means the judge never has to invent a globally-unique identifier — it only has
 // to REFER to the ones we handed it.
 func AssignIDs(l Ledger, rr RoundReport, n int, timestamp, agent string) Round {
+	return AssignIDsAt(l, rr, n, timestamp, agent, "")
+}
+
+// AssignIDsAt is AssignIDs with the round's boundary stamped on (#194 D1). AssignIDs
+// stays as the one-boundary spelling plan-quality uses, so its call sites need no edit.
+func AssignIDsAt(l Ledger, rr RoundReport, n int, timestamp, agent, boundary string) Round {
 	seq := nextIDSeq(l)
-	out := Round{N: n, Timestamp: timestamp, Agent: agent}
+	out := Round{N: n, Timestamp: timestamp, Agent: agent, Boundary: boundary}
 	for _, d := range rr.Dispositions {
 		d.Round = n
 		out.Dispositions = append(out.Dispositions, d)
