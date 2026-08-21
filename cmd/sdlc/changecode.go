@@ -522,35 +522,38 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		// Criticals alongside one hallucinated disposition id would see a clean slate on
 		// re-run, in the artifact whose sole purpose is not losing findings. It also
 		// under-reported gate_addressed/gate_open in the close-time metric.
-		persistPlanGateRound(stderr, f, issueFile, ledger, gatestate.Round{
-			N: n, Timestamp: nowRFC3339(), Agent: string(agent),
-			New:           round.New,
-			ProtocolError: aerr.Error(), Blocked: true,
-			Forced: forcedRationale(f.Force, true),
-		})
+		// #194 M2 review: use ApplyChecked's OWN round, which now keeps the valid
+		// dispositions and drops only the invalid ones. Hand-rebuilding it here dropped
+		// every disposition, so one typo'd id nullified a round's valid disposals at the
+		// gate whose purpose is disposal — the same defect fixed on the boundary side.
+		applied.Rounds[len(applied.Rounds)-1].ProtocolError = aerr.Error()
+		applied.Rounds[len(applied.Rounds)-1].Blocked = true
+		applied.Rounds[len(applied.Rounds)-1].Forced = forcedRationale(f.Force, true)
+		persistPlanGateRound(stderr, f, issueFile, ledger, applied.Rounds[len(applied.Rounds)-1])
 		return fmt.Errorf("plan-quality protocol error: %v", aerr)
 	}
 	ledger = applied
 
 	d := gatestate.Decide(ledger, roundCapFromEnv())
-	last := len(ledger.Rounds) - 1
-	ledger.Rounds[last].Blocked = d.Block
-	ledger.Rounds[last].Forced = forcedRationale(f.Force, d.Block)
 	// Stamp the pass-through key only on a PASSING round — caching a refusal would let a
-	// still-blocked plan walk through unchanged on the next invocation.
+	// still-blocked plan walk through unchanged on the next invocation. Gate-specific, so
+	// it happens here rather than in the shared tail.
 	if !d.Block {
 		ledger.ContentHash = contentHash
 	}
-	if werr := writePlanGateLedger(f.PlansDir, issueFile, ledger, repoIdentity()); werr != nil {
-		cwarn(stderr, fmt.Sprintf("plan-gate ledger not persisted: %v", werr))
-	}
+	// The SAME tail the boundary gate ends on (#194 close review BR-43). This gate's copy
+	// diverged five times before it was extracted; sharing it is what stops a sixth.
+	stampAndPersist(stderr, gatePersist{
+		Label: "plan-quality",
+		Write: func(out gatestate.Ledger) error {
+			return writePlanGateLedger(f.PlansDir, issueFile, out, repoIdentity())
+		},
+	}, ledger, d, f.Force)
 
 	if d.Block {
-		cwarn(stderr, "plan-quality: "+d.Reason)
 		cwarn(stderr, "address the findings above and re-run — the gate remembers what you fixed; OR re-run with --force <reason>")
 		return fmt.Errorf("plan-quality failure")
 	}
-	cok(stderr, "plan-quality: "+d.Reason)
 	return nil
 }
 
@@ -640,8 +643,12 @@ func planGateContent(issueContent string) string {
 // roundCapFromEnv reads WF_PLAN_ROUND_CAP, defaulting to gatestate.DefaultRoundCap. Past
 // the cap only hard-blocking findings refuse the gate; the rest are carried to the close
 // review via the ledger.
-func roundCapFromEnv() int {
-	if v := os.Getenv("WF_PLAN_ROUND_CAP"); v != "" {
+func roundCapFromEnv() int { return roundCapFromEnvVar("WF_PLAN_ROUND_CAP") }
+
+// roundCapFromEnvVar is the shared reader behind each gate's cap knob (#194 M2 —
+// the boundary gate has its own, WF_BOUNDARY_ROUND_CAP).
+func roundCapFromEnvVar(name string) int {
+	if v := os.Getenv(name); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}

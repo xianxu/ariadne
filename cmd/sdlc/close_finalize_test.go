@@ -180,6 +180,14 @@ func TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 	if got.err == nil || !strings.Contains(got.err.Error(), "boundary review stale") {
 		t.Fatalf("close should return stale-review error, got %v", got.err)
 	}
+	// #194: a code delta still refuses — but by NAMING what the review did not cover,
+	// not with a bare HEAD-identity comparison the operator cannot act on.
+	if !strings.Contains(got.err.Error(), "concurrent #69 side change") {
+		t.Fatalf("refusal must name the unreviewed commit, got: %v", got.err)
+	}
+	if strings.Contains(got.err.Error(), "HEAD changed from") {
+		t.Fatalf("refusal should report commits, not bare HEAD identity: %v", got.err)
+	}
 	if !strings.Contains(got.stdout, "Review-Verdict: SHIP") {
 		t.Fatalf("close should emit review trailer without finalizing:\n%s", got.stdout)
 	}
@@ -460,5 +468,68 @@ func TestRunMilestoneClose_SHIP_Finalizes(t *testing.T) {
 	// the only thing enforcing that, so pin it (M2 boundary-review Important #1).
 	if strings.Contains(stdout.String(), judge.LessonsReminder) {
 		t.Error("milestone-close must NOT emit the lessons reminder (Q4 — whole-issue close only)")
+	}
+}
+
+// #194: the interleaving that motivated the issue. A DOC-ONLY commit landing during the
+// ~20-minute review is a delta, not an invalidation — the reviewed code surface is
+// untouched, so the close finalizes and says what it decided. This is the bookkeeping a
+// close itself invites (lessons.md, atlas, plan ticks), which previously discarded the
+// review that was already most of the way through.
+func TestCloseCommand_DocOnlyCommitDuringBoundaryReview_Finalizes(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	started := make(chan struct{})
+	releaseReview := make(chan struct{})
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+		close(started)
+		<-releaseReview
+		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+	}
+
+	done := make(chan struct {
+		stdout, stderr string
+		err            error
+	}, 1)
+	go func() {
+		stdout, stderr, err := executeSDLCTestCommand("close", "--issue", "69", "--actual", "1", "--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir, "--brain-dir", "../nonexistent-brain")
+		done <- struct {
+			stdout, stderr string
+			err            error
+		}{stdout, stderr, err}
+	}()
+
+	waitForSignal(t, started, "boundary review to start")
+	if err := os.MkdirAll("workshop", 0o755); err != nil {
+		t.Fatalf("mkdir workshop: %v", err)
+	}
+	if err := os.WriteFile("workshop/lessons.md", []byte("- learned a thing\n"), 0o644); err != nil {
+		t.Fatalf("write lessons: %v", err)
+	}
+	git(t, "", "add", "workshop/lessons.md")
+	git(t, "", "commit", "-q", "-m", "#69: lessons from the review")
+	close(releaseReview)
+
+	var got struct {
+		stdout, stderr string
+		err            error
+	}
+	select {
+	case got = <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for close command")
+	}
+	if got.err != nil {
+		t.Fatalf("doc-only delta must finalize, got error: %v\nstderr:\n%s", got.err, got.stderr)
+	}
+	text := readIssue(t, issuesDir)
+	for _, want := range []string{"status: codecomplete", "closed — tests pass"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("close did not finalize; missing %q:\n%s", want, text)
+		}
+	}
+	if !strings.Contains(got.stderr, "doc-only commit(s) arrived since") {
+		t.Fatalf("expected the anchored pass line on stderr:\n%s", got.stderr)
 	}
 }

@@ -895,3 +895,114 @@ class of thing you searched and ask what class you did not.
 
 **Origin:** #190 close review (FIX-THEN-SHIP) — `scripts/close-issue.py:212` was a sixth
 encoding of the ref grammar that the Go-only grep declared consolidated.
+
+A scripted text edit must anchor on a string that is UNIQUE in the file, and prose about a
+document's structure is not unique. Rewriting a section with `s[:s.index("## Plan")] + new +
+s[s.index("## Log"):]` spliced an issue file in half: a Done-when bullet contained the words
+`` `## Log` `` describing where a decision should be recorded, so `index` matched the prose,
+not the heading — deleting the tail of one section and leaving a stale duplicate `## Plan`
+behind it. The file then had two contradictory Plan sections and survived three commits
+undetected, because the readers that matter happened to be forgiving: `issue.PlanSectionRE`
+takes the first match and `insertLogLine`'s `^## Log\s*$` rejects a mangled heading and takes
+the last.
+
+Anchor on a line-anchored pattern (`^## Log$`) or split into lines and match exactly — never a
+bare substring. And when an edit rewrites a *region* rather than replacing a *token*, print the
+seam afterwards: the corruption was 18 lines long and one `grep -n '^## '` would have shown two
+`## Plan` headings immediately.
+
+The general rule: a self-referential document — one whose prose quotes its own structure — makes
+every substring anchor ambiguous. Issue files, plans, and skill definitions are all this kind of
+document.
+
+**Origin:** #194 plan-quality gate round 1 — PQ-1 (Critical), caught by the gate rather than by
+me, three commits after the splice.
+
+When a MECHANISM moves, grep `atlas/` for the old mechanism's name in the same commit.
+Twice in one issue, a doc was left asserting the contract the diff had just replaced:
+`sdlc-binary.md` still said a close refuses "if HEAD … changed" after HEAD-identity was
+replaced by delta classification, and `gate-state.md` still said "`code-review.md`
+instructs the reviewer to read the ledger's `## Open findings`" after that section was
+deleted in favour of seeding. Both were caught by a boundary reviewer, not by me.
+
+The failure mode is specific and worse than a stale doc: a paragraph that *describes the
+replaced behavior as current fact* is trusted by the next reader, so it actively
+misinforms rather than merely lagging. Code has a compiler to catch the equivalent; prose
+does not, and "I updated the docs" is satisfied by touching *a* doc.
+
+The check is mechanical: before committing a behavior change, `grep -rn "<the old
+mechanism's name>" atlas/ cmd/*/helptext/` — searching for what you REMOVED, not for what
+you added. Searching for the new name finds the file you just edited; searching for the
+old one finds the files you forgot.
+
+**Origin:** #194 M1 review (I1) and #194 M2 review (I3) — the same family, one milestone
+apart, which is the recurrence #194 M3's family escalation exists to name on the second
+instance rather than the third.
+
+A fix for a gate finding is complete only when a test FAILS WITHOUT IT — verified by
+reverting the fix and watching it go red, not by inspection — and the verification is
+recorded. On #194, four fixes across two milestones shipped with tests that passed either
+way: reverting `Family: f.Family` and reverting `r.N >= round` to `r.N == round` both left
+`go test ./cmd/sdlc/...` fully green. Each finding had *named the test to add*; the tests
+were written, and they did not actually pin the behavior.
+
+Inspection is not the check. A test written from the same mental model that produced the
+fix will assert whatever the fix happens to do, including nothing. The revert is a
+different question — "does this test distinguish the two worlds?" — and it takes about
+fifteen seconds: copy the file, undo the fix, run the one test, restore.
+
+Applies to any claim that a change is *tested*, not just gate findings. The bar is cheap
+enough that "I checked it looks right" is never the better option.
+
+**Where the revert cannot answer**, and what to do instead. Some fixes have no failing
+test by construction, and pretending otherwise just produces a test that asserts nothing:
+
+- **A fix that removes a possible divergence** — collapsing a duplicated algorithm onto
+  one source, deleting dead coverage. Reverting restores a second implementation that
+  behaves identically today, so nothing goes red. Assert the *property* instead (one
+  definition site; `grep` finds exactly one), or accept that the change is structural and
+  say so in the commit rather than claiming a pin.
+- **A fix that makes an inert thing reachable.** Reverting is not the check — the check is
+  that the thing was inert *before*. Pin the wiring, not the field: assert through the
+  path production takes, then revert.
+- **A pure deletion.** If the invariant is covered elsewhere, cite where; if it is not,
+  the deletion needs a replacement test, not a revert.
+
+The unifying question is not "does a test go red?" but **"what observation distinguishes
+the fixed world from the broken one, and does something make it?"** The revert is the
+cheapest instrument for that question, not the question itself.
+
+**Origin of this refinement:** #194 close review BR-38, raised in the same round that
+caught two inert fixes — the rule and its own limits found together.
+
+**Origin:** #194 M2 review (C1, where the revert WAS done and caught a real gap) and #194
+M3 review (BR-31, where it was skipped four times — measured prevalence 4 instances plus
+one assertion that tested an unreachable state and sliced past the end of a string).
+
+Sharpening the rule above, because reverting the fix cannot catch this case: **an
+assertion nested inside a runtime guard is unfalsifiable.** `if cond { assert }` silently
+passes whenever `cond` is false, and mutation-verification does not detect it — the test
+still goes red, on its *other* assertions.
+
+Write the guard as the assertion instead:
+
+    if !cond { t.Fatal("precondition: ...") }   // fails loudly if the state never arises
+    assert(...)                                  // then assert unconditionally
+
+or build the fixture so no guard is needed. `if cond { assert }` is legitimate only when
+`cond` IS the thing being asserted.
+
+The tell in #194: two successive "repairs" of the same assertion, the second claiming in
+its comment a fix that had not happened, both nested under
+`if strings.Contains(prompt, "OPEN FINDINGS")` — in a fixture where that section is never
+emitted. Probing beat inspecting: inserting a `t.Fatal` ahead of the guard proved in one
+run what two readings had missed. When a guarded assertion is suspect, make it fail on
+purpose.
+
+Corollary worth its own beat: the fix there was **deletion**, not repair. The invariant
+was already covered unconditionally elsewhere, so the guarded copy was dead coverage that
+read as protection — worse than no test, because it occupies the space where a real one
+would be noticed missing.
+
+**Origin:** #194 M3 review BR-34 — 3rd instance of the family, escalated from "add a test"
+(round 5) to "revert the fix to verify it" (round 6) to this.

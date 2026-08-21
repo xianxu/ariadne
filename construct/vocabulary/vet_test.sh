@@ -62,4 +62,17 @@ echo "$fjson" | grep -q '"dispositions"' || { echo "FAIL: finding dispositions n
 echo "$fjson" | grep -q '"hardBlocking"' || { echo "FAIL: finding hardBlocking not in export"; exit 1; }
 echo "$fjson" | grep -q '"closing"'      || { echo "FAIL: finding disposition partition not in export"; exit 1; }
 
+# #Finding is CLOSED (ariadne#194 M3 review BR-33): the rationale for modelling `family`
+# in CUE *before* Go is that an unmodeled key fails instance validation — asserted in
+# three places and enforced in none. These vet the REAL definition against JSON
+# instances (`-d '#Finding'`), the same form the #Project guards above use. An earlier
+# attempt vetted a hand-inlined COPY of #Finding in testdata, which proved nothing: `...`
+# on the real definition left the script printing "ok".
+cue vet "$dir/finding.cue" "$dir/testdata/finding_valid.json" -d '#Finding' \
+  || { echo "FAIL: a valid finding instance (incl. family) did not vet"; exit 1; }
+
+if cue vet "$dir/finding.cue" "$dir/testdata/finding_unmodeled_key.json" -d '#Finding' 2>/dev/null; then
+  echo "FAIL: a finding with an unmodeled key passed vet — #Finding is not closed"; exit 1
+fi
+
 echo ok

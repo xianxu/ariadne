@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -223,10 +225,17 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 		t.Errorf("prompt must not hardcode ariadne#69 for a non-ariadne repo (#137)")
 	}
 	out := stdout.String()
-	for _, want := range []string{"── close trailers", "Review-Verdict: SHIP", "..HEAD"} {
+	for _, want := range []string{"── close trailers", "Review-Verdict: SHIP"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("close stdout missing %q:\n%s", want, out)
 		}
+	}
+	// #194: the window names the CONCRETE commit the review read, on both ends —
+	// it used to render "<base>..HEAD", a floating ref that recorded nothing.
+	if m := regexp.MustCompile(`Review-Window: ([0-9a-f]{7,})\.\.([0-9a-f]{7,})`).FindStringSubmatch(out); m == nil {
+		t.Errorf("Review-Window must name two concrete SHAs:\n%s", out)
+	} else if head := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD")); !strings.HasPrefix(head, m[2]) {
+		t.Errorf("Review-Window head %q is not a prefix of the reviewed HEAD %q", m[2], head)
 	}
 	// The verdict is also mirrored into the close log line (#69 M2 review I1).
 	if got := readIssue(t, issuesDir); !strings.Contains(got, "closed — tests pass; review verdict: SHIP") {
@@ -615,5 +624,53 @@ func TestClose_RecloseRefusal_NamesNewIssuePath(t *testing.T) {
 		if !strings.Contains(msg, want) {
 			t.Errorf("reclose refusal missing %q:\n%s", want, msg)
 		}
+	}
+}
+
+// #194 M1 review I4: the milestone's ACTUAL defect fix — boundaryReviewDispatchOptions
+// spending p.Head rather than re-resolving "HEAD" — had no test. It runs AFTER
+// reviewThenFinalizeLocked releases the repo lock, so a literal "HEAD" there could
+// collect a diff naming a different commit than the snapshot pinned. The two
+// interleaving tests commit after collectDiff has already run, so they never exercise
+// it: a regression to collectDiff(..., "HEAD", ...) would pass the whole suite.
+//
+// Pin it directly — dispatch against an OLDER head and assert the newer commit's
+// content is absent from the prompt.
+func TestBoundaryReviewDispatchOptions_DiffIsPinnedToHead(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	base := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+
+	if err := os.WriteFile("reviewed.go", []byte("package main // REVIEWED_MARKER\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, "", "add", "reviewed.go")
+	git(t, "", "commit", "-q", "-m", "#69: the commit under review")
+	reviewed := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+
+	// Land a commit AFTER the pinned head — the mid-review race.
+	if err := os.WriteFile("later.go", []byte("package main // LATER_MARKER\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, "", "add", "later.go")
+	git(t, "", "commit", "-q", "-m", "#69: landed during the review")
+
+	var stdout, stderr bytes.Buffer
+	opts, ok, reason := boundaryReviewDispatchOptions(&stdout, &stderr, boundaryReviewParams{
+		Label: "#69", Base: shortSHA(base), BaseLong: base, Head: reviewed,
+		IssuesDir: issuesDir, IssueNum: 69,
+	})
+	if !ok {
+		t.Fatalf("dispatch options not built: %s", reason)
+	}
+	if !strings.Contains(opts.Prompt, "REVIEWED_MARKER") {
+		t.Error("the diff must contain the commit the review was anchored to")
+	}
+	if strings.Contains(opts.Prompt, "LATER_MARKER") {
+		t.Error("the diff must be pinned to Head — it leaked a commit that landed after the anchor")
+	}
+	// The sidecar's window row flows from the same p.Head (a Done-when item that was
+	// otherwise only covered by fixture input).
+	if !strings.Contains(opts.Prompt, reviewed) {
+		t.Errorf("prompt must name the concrete reviewed SHA %s", abbrevSHA(reviewed))
 	}
 }

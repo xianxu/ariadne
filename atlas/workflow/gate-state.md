@@ -19,7 +19,8 @@ addressed says "ship" on round 2.
 
 ## Where it lives
 
-`workshop/plans/NNNNNN-slug-plan-gate.md` — beside the durable plan and the boundary-review
+`workshop/plans/NNNNNN-slug-plan-gate.md` (plan-quality) and
+`workshop/plans/NNNNNN-slug-close-gate.md` (the boundary review, #194) — beside the durable plan and the boundary-review
 sidecars, archived with them by `sdlc push`/`sdlc merge` (the `<id>-*` glob).
 
 Deliberately **not** `*-plan-review.md`: `construct/vocabulary/verdict.cue` claims the
@@ -70,12 +71,57 @@ between rounds would let a later round dispose the wrong finding.
 judge's verdict token. It blocks iff some finding is still **open** at a blocking severity.
 
 That is the mechanic that converges: a fresh `Minor` cannot cost a round-trip, and disposed
-blockers open the gate. Past `WF_PLAN_ROUND_CAP` rounds (default 3) only `Critical` blocks.
+blockers open the gate. Past the round cap — `WF_PLAN_ROUND_CAP` for plan-quality,
+`WF_BOUNDARY_ROUND_CAP` for the boundary review, both defaulting to 3 — only `Critical`
+blocks.
 
-**The demotion is safe only because the boundary review picks the rest up.**
-`code-review.md` instructs the close/milestone reviewer to read the ledger's
-`## Open findings` and treat a still-valid deferred finding as a finding at its original
-severity. A guard test pins that pointer — without it the demotion becomes a silent loss.
+**What the cap counts is `CountedRounds`, not every persisted round** (#194). A round that
+invoked no reviewer does not consume a cap slot: the plan-gate SEED round the binary
+writes itself, and a dispatch that never started. Those carry `no_cap: true`.
+
+An **interrupted** review — reviewer ran, response truncated — is deliberately NOT
+excluded: it is byte-indistinguishable from a reviewer that ran to completion and ignored
+the output contract, and #187 persists protocol-error rounds precisely so such a reviewer
+stays bounded. Both count. The cost is real (two host-sleep interruptions ate two of
+ariadne#194's own M2 cap slots); the fix, if it ever matters enough, is a truncation
+signal from the dispatch layer rather than a heuristic in the ledger.
+
+**The demotion is safe only because the boundary review picks the rest up.** Since #194
+that pickup is a SEED, not an instruction: on the boundary ledger's first round,
+`seedFromPlanGate` copies the plan gate's still-open findings into it under `BR-*` ids at
+`BoundaryAll`, so they arrive through the same prior-findings block as everything else and
+can be disposed by name. (Before #194, `code-review.md` told the reviewer to read
+`-plan-gate.md` off disk itself — which, once the boundary gate had its own ledger, would
+have put two id namespaces in one output fence.) A guard test pins the prompt half; another
+pins the seeding. Without both, the demotion becomes a silent loss.
+
+**Two scopes, one ledger** (#194). The boundary gate keeps ONE ledger per issue, and two
+different reads take two different views of it:
+
+| read | scope | why |
+|---|---|---|
+| round cap (`CountedRounds`) | this boundary only | three milestones' rounds must not arrive at the whole-issue close already past the cap |
+| open findings to dispose | this boundary at a milestone; **the whole issue** at the close | a finding left undisposed when its milestone closed has no other path to disposal, and no gate follows the close |
+| family counts | always the whole issue | a family recurring ACROSS milestones is the signal the single ledger exists to preserve |
+
+`gatestate.DecideScoped(capScope, openScope, cap)` and `openScopeFor` encode it. The rule:
+**scope per boundary only what the round cap needs; every other read wants the full
+issue.** A disposal of a `BoundaryAll` (seeded) finding crosses boundaries with the
+finding, or it re-opens at every later one forever.
+
+**Findings carry a `family:` slug** (#194) — the underlying rule, not the symptom. The
+in-play vocabulary is rendered into the next round's prompt with a reuse instruction, and
+`NormalizeFamily` folds casing and punctuation on ingest; a true synonym is a judgement,
+not a spelling, so mechanism 1 is what addresses those. When a family repeats, the
+reviewer is asked to state the rule rather than fix the instance, and the round's
+`ConvergenceLine` reports whether families are still recurring. Verified against a real
+four-round history (`tools#1`): a correct implementation names the family at round 2,
+where the human would have said "you are patching cases", not at round 3.
+
+**At the boundary gate a demotion means something different**, and is announced. There is no
+later gate to pick up what the cap demotes — the boundary review is the last read before
+publish — so each demoted finding gets a warning naming it. Its cap knob is
+`WF_BOUNDARY_ROUND_CAP`.
 
 ## The pass-through
 
@@ -150,6 +196,6 @@ The same values land in the calibration ledger as ten appended columns — see
 | `cmd/sdlc/planreview.go` | the IO shell: read/write the ledger (filesystem + clock live here only) |
 | `cmd/sdlc/changecode.go` | wires it into the plan-quality gate |
 | `cmd/sdlc/internal/judge/prompts/plan-quality.md` | dispose-first prompt |
-| `cmd/sdlc/internal/judge/code-review.md` | the carry-forward consumer |
+| `cmd/sdlc/boundaryledger.go` | the boundary gate's ledger pair + seeding + per-round decision (#194) |
 | `cmd/sdlc/internal/churn/` | PURE churn: four-bucket classification, rework ratio, numstat parsing |
 | `cmd/sdlc/churnreport.go` | the close-time cost report — git seam + the two operator lines |

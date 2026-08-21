@@ -68,7 +68,11 @@ func init() {
 	}
 }
 
-// GateCatalog — the 18 signature rows over the 14 distinct spine gates.
+// GateCatalog — the 19 signature rows over the spine's bypass gates. Row count and
+// flag count are NOT the same number and never were: a flag can appear on more than
+// one command, and `--no-ledger` names two semantically distinct gates (the boundary
+// ledger on close/milestone-close, the fog-factor ledger on project close). Counts here
+// are prose — TestGateCatalogMatchesRegisteredFlags is what actually pins the set.
 var GateCatalog = []GateSig{
 	// close / milestone-close — G1 (shared computeClose emits these). ACK = the
 	// paren+colon form; refusal = the exact per-gate tail (NOT the shared prefix —
@@ -94,6 +98,12 @@ var GateCatalog = []GateSig{
 	{Commands: closeMclose, Flag: "no-project", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-project \(or --force\): skipping detail-block`,
 		RefusalPat: `--no-project, or --force, if it's`},
+	// #194: the boundary gate ledger's open-findings refusal. It can refuse on a PASSING
+	// verdict (verdict AND ledger must both clear), which is the surprising case an
+	// operator needs a precise flag for rather than reaching for --no-judge.
+	{Commands: closeMclose, Flag: "no-ledger", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-ledger \(or --force\): skipping the gate-ledger open-findings refusal`,
+		RefusalPat: `Or pass --no-ledger \(or --force\); record`},
 	{Commands: closeMclose, Flag: "no-judge", Grammar: grammarCinfo, HasRefusal: false,
 		AckPat: `skipping (issue boundary review|milestone-review) per --no-judge \(or --force\)`},
 
@@ -141,7 +151,7 @@ var GateCatalog = []GateSig{
 var closeMclose = []string{"close", "milestone-close"}
 
 // GateFlagNames returns the distinct gate flag names, sorted — the closed
-// vocabulary of the 14 spine bypass gates.
+// vocabulary of the spine's bypass-gate flags (a flag may serve more than one gate).
 func GateFlagNames() []string {
 	seen := map[string]bool{}
 	var out []string

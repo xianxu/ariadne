@@ -932,11 +932,23 @@ func TestPlanQualityPromptDemandsStrategyNotEnumeration(t *testing.T) {
 // them up from the ledger. That claim is made in Decide's doc comment, the plan-quality
 // prompt, and the change-code helptext — if this pointer were ever dropped, all three
 // would become false and the demotion would become a silent loss.
-func TestCodeReviewCarriesPlanGateForward(t *testing.T) {
-	body := CodeReviewBody(PromptInput{})
-	for _, want := range []string{"plan-gate.md", "Open findings", "deferred"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("code-review.md must point the boundary reviewer at the plan-gate ledger; missing %q", want)
+// #194 M2 moved the MECHANISM without weakening the invariant. The reviewer no longer
+// reads `-plan-gate.md` off disk (two id namespaces, one output fence, no rule for
+// disposing an id this ledger never issued); instead the still-open plan-gate findings
+// are SEEDED into the boundary ledger and arrive through the same prior-findings block
+// as everything else — see persistBoundaryRound / seedFromPlanGate, and
+// TestBoundaryReview_SeedsDeferredPlanGateFindings which pins the seeding itself.
+//
+// What this test still guards is the prompt half: the reviewer must be ASKED to dispose
+// of prior findings. Without that instruction the seeded findings arrive and are ignored,
+// and the plan gate's demotion becomes the silent loss it was never allowed to be.
+func TestBoundaryReviewIsAskedToDisposePriorFindings(t *testing.T) {
+	in := goldenInput
+	in.PriorFindings = "### BR-7 (Minor, round 1)\ncarried from plan-quality PQ-3"
+	prompt := BuildPrompt(MilestoneReview, in)
+	for _, want := range []string{"BR-7", "carried from plan-quality PQ-3", "dispose", "```findings"} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("the boundary reviewer must be shown prior findings and asked to dispose them; missing %q", want)
 		}
 	}
 }

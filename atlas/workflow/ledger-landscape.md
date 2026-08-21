@@ -37,7 +37,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 **"Was the post-milestone code review conducted, and what was the verdict?"**
 - *Authoritative:* git commit trailer on the milestone-close commit (`Review-Verdict: SHIP`). Parseable, immutable, ships in git.
 - *Human mirror:* Log line in the issue file (`review verdict: SHIP`).
-- *Durable detail (#136):* the full review transcript is persisted to a git-tracked sidecar in `workshop/plans/` (`NNNNNN-slug-close-review.md` / `-m<x>-review.md`; re-runs append a `## Re-review` section). Per principle #4 this is the reliable full-detail surface; the local agent transcript is the fallback when no sidecar was written (`--no-judge`/dry-run/not-run).
+- *Durable detail (#136):* the full review transcript is persisted to a git-tracked sidecar in `workshop/plans/` (`NNNNNN-slug-close-review.md` / `-m<x>-review.md`; re-runs append a `## Re-review` section). Its `window` row names the reviewed commit (#194). Per principle #4 this is the reliable full-detail surface; the local agent transcript is the fallback when no sidecar was written (`--no-judge`/dry-run/not-run).
 - *NOT* in the project file — that tracks portfolio status, not per-milestone evidence.
 
 **"How many hours did this issue actually take?"**
@@ -74,7 +74,8 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
   and carry no metrics.
 - *Human mirror:* the two lines `sdlc close` prints (see
   [gate-state.md § What close reports](gate-state.md)). Unconditional, unlike the row.
-- *Not* a substitute for the gate ledger itself (`workshop/plans/NNNNNN-*-plan-gate.md`),
+- *Not* a substitute for the gate ledgers themselves (`workshop/plans/NNNNNN-*-plan-gate.md`
+  for plan-quality, `NNNNNN-*-close-gate.md` for the boundary review since #194),
   which holds the findings and dispositions these counts summarize.
 
 **"What's the current convention for human-machine markdown markers?"**
@@ -99,7 +100,9 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 Conventional git trailers (`Key: Value` at the end of a commit message, preceded by a blank line) extend the commit-as-ledger pattern with machine-parseable fields. Already in use: `Co-Authored-By:`. Per-checkpoint additions over time:
 
 - `Review-Verdict:` — milestone-review verdict (SHIP | FIX-THEN-SHIP | REWORK | not-run)
-- `Review-Window:` — `<base>..<head>` SHAs the review covered
+- `Review-Window:` — `<base>..<head>` SHAs the review covered. Both ends are concrete
+  commits since #194; the head was previously the literal `HEAD`, so pre-#194 sidecars
+  and trailers record `<base>..HEAD` and cannot say which commit was read.
 - `Review-Reason:` — when `not-run`, why (e.g., `--no-judge` + reason)
 
 Future trailers may emerge as more checkpoints land. Tooling reads trailers via `git log --grep "Key:"`. Operators rarely need to read trailers directly; they read the Log mirror.

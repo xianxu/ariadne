@@ -54,17 +54,23 @@ Production readiness
   - Migration / backward-compatibility considered where state or formats change.
   - Docs / atlas updated for new surface (see the Docs update gate).
 
-## Plan-gate carry-forward (ariadne#187)
+## Claimed fixes (ariadne#194)
 
-Read `workshop/plans/<issue-stem>-plan-gate.md` if it exists — the durable ledger of the
-pre-implementation plan gate. It holds the findings that gate raised but deliberately did
-NOT block on: Minor findings, and blocking ones demoted once the round cap was reached.
-They were deferred to THIS boundary by design — that deferral is only safe because you
-pick them up.
+For each prior finding this round disposes `addressed`, check the claim rather than the
+commit message. A fix is complete only when a test FAILS WITHOUT IT.
 
-For each finding still listed under `## Open findings`, confirm the code either addresses
-it or that it no longer applies. A still-valid deferred finding is a finding here, at its
-original severity.
+  - Locate the test the fix is supposed to be pinned by. If there is none, the
+    disposition is `not-addressed`, however plausible the diff looks.
+  - Check the fix is reachable — a field set at zero call sites, an assertion nested in a
+    runtime guard that never fires, a branch no fixture enters. These pass every test
+    suite while doing nothing, and read as protection.
+  - Where cheap, verify by reverting: undo the fix in a scratch copy and confirm the test
+    goes red. A test written from the same mental model as the fix will happily assert
+    whatever the fix happens to do, including nothing.
+
+This check exists because the rule was written down and then violated by the very commit
+that closed the findings which produced it. A reviewer that takes "fixed in <sha>" at face
+value cannot catch that; one that looks for the failing test can.
 
 ## Core concepts cross-check (if the plan has a Core concepts table)
 

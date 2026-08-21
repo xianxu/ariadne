@@ -36,7 +36,12 @@ type Finding struct {
 	Severity string `yaml:"severity"`
 	Title    string `yaml:"title"`
 	Detail   string `yaml:"detail,omitempty"`
-	Round    int    `yaml:"round"` // the round that first raised it
+	// Family names the underlying RULE this finding is an instance of, not the symptom
+	// (ariadne#194 M3). Free text by design — a family is discovered across rounds, so a
+	// closed set would defeat the point — normalized on read via NormalizeFamily.
+	// Optional: a transcript from before #194 M3 still parses.
+	Family string `yaml:"family,omitempty"`
+	Round  int    `yaml:"round"` // the round that first raised it
 }
 
 // Disposition is a later round's verdict on an EARLIER finding.
@@ -61,6 +66,41 @@ type Round struct {
 	Agent        string        `yaml:"agent"`
 	Dispositions []Disposition `yaml:"dispose,omitempty"`
 	New          []Finding     `yaml:"findings,omitempty"`
+	// Boundary names which review boundary this round belongs to — "M1", "M2", "" for
+	// the whole-issue close, or BoundaryAll for a round that belongs to all of them
+	// (ariadne#194 D1). Empty on every plan-quality round, which has one boundary by
+	// construction; omitempty keeps those ledgers byte-identical to their pre-#194 form.
+	//
+	// It exists because Decide reads len(l.Rounds) against the round cap and
+	// OpenFindings spans the whole ledger. ONE boundary ledger per issue is what lets
+	// a finding FAMILY be seen recurring across milestones; scoping the cap and the
+	// open set per boundary via FilterBoundary is what keeps that from silently
+	// demoting the whole-issue close's first-round findings.
+	Boundary string `yaml:"boundary,omitempty"`
+	// NoCap marks a round that did NOT consume a review cycle, so it does not count
+	// toward the round cap (ariadne#194 M2). Exactly TWO kinds qualify, and both are
+	// cases where no reviewer was invoked at all:
+	//
+	//   1. the plan-gate SEED round (bookkeeping the binary writes itself)
+	//   2. a dispatch that never started (ProtocolError "review did not run: …")
+	//
+	// KNOWN LIMITATION, stated because an earlier version of this comment claimed
+	// otherwise: an INTERRUPTED review — one where the reviewer ran and the response was
+	// truncated mid-stream — is NOT excluded. It arrives as "no valid findings block",
+	// byte-indistinguishable from a reviewer that ran to completion and ignored the
+	// output contract, and the binary has no signal to separate them. Both count.
+	//
+	// That is the conservative choice, not an oversight: #187 persists protocol-error
+	// rounds precisely so a CLI that never emits the fence is still bounded, and
+	// excluding them on suspicion of interruption would remove that bound. The cost is
+	// real and was paid on ariadne#194 itself, where two host-sleep interruptions
+	// consumed two of M2's three cap slots. If that recurs often enough to matter, the
+	// fix is a reliable truncation signal from the dispatch layer, not a guess here.
+	//
+	// Deliberately the NEGATIVE spelling: rounds written before this field existed
+	// default to false and therefore keep counting, so no historical ledger changes
+	// meaning.
+	NoCap bool `yaml:"no_cap,omitempty"`
 	// Forced carries the --force rationale, set ONLY when this gate actually blocked.
 	// --force is a GLOBAL bypass, so stamping it unconditionally would mark a plan-gate
 	// round "forced" when the operator forced past a structural failure — over-reporting
@@ -73,6 +113,76 @@ type Round struct {
 	// never fire, and the close-time gate_rounds metric would report 0 for precisely the
 	// most expensive sessions.
 	ProtocolError string `yaml:"protocol_error,omitempty"`
+}
+
+// BoundaryAll marks a round that belongs to EVERY boundary rather than one (#194 D5).
+// Its use is the plan-gate seed round: those findings were deferred to "the boundary
+// review" generically, not to whichever milestone happened to close first, so scoping
+// them to one boundary would hide them everywhere else — a regression against
+// code-review.md's pre-#194 instruction that every boundary reviewer read the plan-gate
+// ledger.
+const BoundaryAll = "*"
+
+// FilterBoundary returns a view of l holding only the rounds belonging to `boundary`
+// (plus every BoundaryAll round). Pure: it is a caller-side transform, so Decide and
+// OpenFindings keep the signatures plan-quality already depends on rather than growing
+// a boundary parameter that one of the two gates would always pass empty (ARCH-PURE).
+//
+// FamilyCounts deliberately takes the UNFILTERED ledger — a family recurring across
+// milestones is precisely the signal #194 exists to surface.
+func FilterBoundary(l Ledger, boundary string) Ledger {
+	out := l
+	out.Rounds = nil
+	for _, r := range l.Rounds {
+		if r.Boundary == boundary || r.Boundary == BoundaryAll {
+			out.Rounds = append(out.Rounds, r)
+			continue
+		}
+		// A BoundaryAll finding is visible everywhere, so its DISPOSAL must be too
+		// (ariadne#194 close review BR-19). Otherwise the disposal lands in whichever
+		// boundary's round made it, gets filtered out at every other boundary, and the
+		// seeded finding re-opens forever — the reviewer being asked to dispose the same
+		// plan-gate finding once per milestone. Carry only those dispositions across;
+		// the round itself stays out, so the cap is unaffected.
+		if d := dispositionsOfBoundaryAllFindings(l, r); len(d) > 0 {
+			out.Rounds = append(out.Rounds, Round{N: r.N, Boundary: BoundaryAll, NoCap: true, Dispositions: d})
+		}
+	}
+	return out
+}
+
+// dispositionsOfBoundaryAllFindings returns r's dispositions that target findings raised
+// in a BoundaryAll round. Pure.
+func dispositionsOfBoundaryAllFindings(l Ledger, r Round) []Disposition {
+	universal := map[string]bool{}
+	for _, prev := range l.Rounds {
+		if prev.Boundary != BoundaryAll {
+			continue
+		}
+		for _, f := range prev.New {
+			universal[f.ID] = true
+		}
+	}
+	var out []Disposition
+	for _, d := range r.Dispositions {
+		if universal[d.ID] {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// CountedRounds is the number of rounds that invoked a reviewer — the figure the round
+// cap is about. See Round.NoCap for exactly which rounds are excluded, and for the
+// interrupted-review case that is deliberately NOT excluded. Pure.
+func CountedRounds(l Ledger) int {
+	n := 0
+	for _, r := range l.Rounds {
+		if !r.NoCap {
+			n++
+		}
+	}
+	return n
 }
 
 // Ledger is the accumulated state of ONE gate on ONE issue across every invocation.
@@ -121,8 +231,14 @@ func nextIDSeq(l Ledger) int {
 // prompt) means the judge never has to invent a globally-unique identifier — it only has
 // to REFER to the ones we handed it.
 func AssignIDs(l Ledger, rr RoundReport, n int, timestamp, agent string) Round {
+	return AssignIDsAt(l, rr, n, timestamp, agent, "")
+}
+
+// AssignIDsAt is AssignIDs with the round's boundary stamped on (#194 D1). AssignIDs
+// stays as the one-boundary spelling plan-quality uses, so its call sites need no edit.
+func AssignIDsAt(l Ledger, rr RoundReport, n int, timestamp, agent, boundary string) Round {
 	seq := nextIDSeq(l)
-	out := Round{N: n, Timestamp: timestamp, Agent: agent}
+	out := Round{N: n, Timestamp: timestamp, Agent: agent, Boundary: boundary}
 	for _, d := range rr.Dispositions {
 		d.Round = n
 		out.Dispositions = append(out.Dispositions, d)
@@ -146,6 +262,12 @@ func Apply(l Ledger, r Round) Ledger {
 // disposition must name a finding raised in an EARLIER round, and carry a modeled
 // disposition. A judge disposing an ID we never issued is a genuine protocol error to
 // surface, not a value to guess (the agent-binary-handoff-schema target).
+//
+// REJECTION IS PER-DISPOSITION, not per-round (ariadne#194 M2 review). Failing the whole
+// round on the first bad id meant one typo nullified every VALID disposal beside it — at
+// a gate whose entire purpose is disposal, that turns a formatting slip into findings
+// that stay open for another full review cycle. The bad ones are dropped and named; the
+// good ones apply. The error still surfaces, so the caller records a protocol error.
 func ApplyChecked(l Ledger, r Round) (Ledger, error) {
 	known := map[string]bool{}
 	for _, prev := range l.Rounds {
@@ -154,13 +276,22 @@ func ApplyChecked(l Ledger, r Round) (Ledger, error) {
 		}
 	}
 	m := vocab.Finding()
+	var kept []Disposition
+	var rejected []string
 	for _, d := range r.Dispositions {
-		if !known[d.ID] {
-			return l, fmt.Errorf("round %d disposes unknown finding %q", r.N, d.ID)
+		switch {
+		case !known[d.ID]:
+			rejected = append(rejected, fmt.Sprintf("%s (unknown finding)", d.ID))
+		case !m.IsDisposition(d.State):
+			rejected = append(rejected, fmt.Sprintf("%s (unmodeled disposition %q)", d.ID, d.State))
+		default:
+			kept = append(kept, d)
 		}
-		if !m.IsDisposition(d.State) {
-			return l, fmt.Errorf("round %d: unmodeled disposition %q for %s", r.N, d.State, d.ID)
-		}
+	}
+	r.Dispositions = kept
+	if len(rejected) > 0 {
+		return Apply(l, r), fmt.Errorf("round %d: dropped %d invalid disposition(s): %s",
+			r.N, len(rejected), strings.Join(rejected, ", "))
 	}
 	return Apply(l, r), nil
 }

@@ -76,6 +76,7 @@ type closeFlags struct {
 	NoReclose   bool
 	NoAtlas     bool
 	NoVerdict   bool
+	NoLedger    bool
 	NoPlanCheck bool
 	NoProject   bool
 	NoJudge     bool // skip the issue boundary review (#69)
@@ -118,6 +119,8 @@ func (f *closeFlags) skip(gate string) bool {
 		return f.NoAtlas
 	case "verdict":
 		return f.NoVerdict
+	case "ledger":
+		return f.NoLedger
 	case "plan":
 		return f.NoPlanCheck
 	case "project":
@@ -169,6 +172,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerified, "no-verified", false, "bypass the VERIFIED-evidence requirement (only if there's no behavior to verify)")
 	cmd.Flags().BoolVar(&f.NoReclose, "no-reclose-guard", false, "bypass the already-done refusal (intentionally re-close)")
 	cmd.Flags().BoolVar(&f.NoAtlas, "no-atlas", false, "bypass the atlas/ change check (acknowledge: no new architectural surface)")
+	cmd.Flags().BoolVar(&f.NoLedger, "no-ledger", false, "bypass the boundary gate ledger's open-findings refusal (#194)")
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict trailer check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
@@ -467,14 +471,21 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// the branch start otherwise — so the atlas-coverage check and the review
 	// cover exactly the same commits, including inter-milestone side-quests/fixes.
 	windowBase := boundaryWindowBase(issueStr, f.Milestone, issuePath)
+	// #194 M1 review: pin the window's upper end the same way the review does, so
+	// "the same commits" is structural rather than a consequence of both running
+	// under one lock. Falls back to the literal when rev-parse cannot answer.
+	windowHead := "HEAD"
+	if sha := gitx.Capture("rev-parse", "HEAD"); sha != "" {
+		windowHead = sha
+	}
 	if windowBase != "" {
-		cinfo(stderr, fmt.Sprintf("commit window: %s → HEAD", shortSHA(windowBase)))
+		cinfo(stderr, fmt.Sprintf("commit window: %s → %s", shortSHA(windowBase), abbrevSHA(windowHead)))
 	} else {
 		cwarn(stderr, fmt.Sprintf("no commits reference '#%s' on this branch", issueStr))
 	}
 
 	if windowBase != "" {
-		diffFiles, derr := gitx.DiffNames(windowBase, "HEAD")
+		diffFiles, derr := gitx.DiffNames(windowBase, windowHead)
 		if derr != nil {
 			// #177 review Important #1: a swallowed diff error used to inherit the
 			// refusal (fail-closed); with the auto-satisfy arm, nil files would
@@ -1033,10 +1044,14 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	var r closeResult
 	var base, baseLong, head string
 	var snapshot closeReviewSnapshot
+	var prior string
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, f)
 		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
-		snapshot = captureCloseReviewSnapshot(r)
+		snapshot = captureCloseReviewSnapshot(r, head, "")
+		prior = boundaryPriorFindings(stderr, boundaryReviewParams{
+			IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: "", PlansDir: f.plansDir(),
+		})
 		return nil
 	}); err != nil {
 		return err
@@ -1053,6 +1068,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 		IssueNum:      f.Issue,
 		Milestone:     "",
 		PlansDir:      f.plansDir(),
+		PriorFindings: prior,
 	}, snapshot)
 }
 
@@ -1125,7 +1141,7 @@ func reviewThenFinalizeLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	})
 }
 
-func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, p boundaryReviewParams, validate func() error) error {
+func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, p boundaryReviewParams, validate func() (string, error)) error {
 	kind := "close"
 	if f.Milestone != "" {
 		kind = "milestone-close"
@@ -1140,14 +1156,64 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 		}
 	}
 	verb := closeVerb(f.Milestone)
+
+	// #194 M2 (D4): the verdict and the ledger are BOTH gates, and finalizing requires
+	// both to clear — an AND, not a fallback. A SHIP verdict carrying an undisposed
+	// Important finding means the reviewer contradicted itself; taking the token at face
+	// value there is exactly the pre-#187 posture the ledger exists to replace. REWORK
+	// with everything disposed still reworks, because the verdict is still blocking.
+	//
+	// The round is persisted BEFORE the switch so a REWORK round lands in the ledger
+	// too: the next round must be able to see what this one said.
+	// Stamp the waiver onto the round the gate is about to write, or a bypassed refusal
+	// reads as a clean pass in the one durable record of what this gate did (#194 close
+	// review BR-39: the field existed but was set at zero call sites — inert, and worse
+	// than absent because its comment claimed otherwise).
+	if f.skip("ledger") {
+		p.ForcedRationale = "--no-ledger (or --force): " + orPlaceholder(f.Verified, "no rationale given")
+	}
+	ledger := persistBoundaryRound(stderr, p, review, nowRFC3339())
+
 	switch closeVerdictOutcome(review.Verdict) {
 	case closeFinalize:
+		if ledger.Block && f.skip("ledger") {
+			cwarn(stderr, "--no-ledger (or --force): skipping the gate-ledger open-findings refusal")
+		} else if ledger.Block {
+			emitTrailerBlock(stdout, review, kind)
+			if len(ledger.OpenBlocking) == 0 {
+				// The ledger itself was unusable (blockOnLedgerFailure) — there are no
+				// findings to name, and saying "open blocking finding(s)" would send the
+				// operator looking for findings that do not exist.
+				cwarn(stderr, fmt.Sprintf("%s NOT finalized: %s", kind, ledger.Reason))
+				return fmt.Errorf("boundary gate: %s", ledger.Reason)
+			}
+			cwarn(stderr, fmt.Sprintf("boundary review: verdict %s, but the gate ledger still has open blocking finding(s) — %s NOT finalized", review.Verdict, kind))
+			for _, fnd := range ledger.OpenBlocking {
+				cwarn(stderr, fmt.Sprintf("  [%s] %s — %s", fnd.ID, fnd.Severity, fnd.Title))
+			}
+			cwarn(stderr, fmt.Sprintf("address them, or have the review dispose them explicitly, then re-run `%s`.\n"+
+				"  Or pass --no-ledger (or --force); record why in --verified.", verb))
+			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
+		}
 		if validate != nil {
-			if err := validate(); err != nil {
+			note, err := validate()
+			if err != nil {
 				emitTrailerBlock(stdout, review, kind)
 				cwarn(stderr, fmt.Sprintf("boundary review: reviewed state changed while the lock was released — close NOT finalized: %v", err))
-				cwarn(stderr, fmt.Sprintf("re-run `%s` so the review covers the current repo state", verb))
+				// #194 M1 review I3: formatAnchorRefusal carries its own re-run
+				// instruction, but it is reached ONLY on the anchor branches — the
+				// issue-file, project-file and git-error branches would otherwise
+				// surface with no next step, and AGENTS.md §5 makes "errors are
+				// next-action specs" a property of this gate.
+				if !strings.Contains(err.Error(), "re-run `") {
+					cwarn(stderr, fmt.Sprintf("re-run `%s` so the review covers the current repo state", verb))
+				}
 				return fmt.Errorf("boundary review stale: %w", err)
+			}
+			// #194: say what the gate decided when it let a delta through — silence
+			// would read as "nothing happened", which is not what occurred.
+			if note != "" {
+				cinfo(stderr, note)
 			}
 		}
 		applyClose(stdout, stderr, closeRunner, f, r)
@@ -1179,51 +1245,80 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	}
 }
 
+// closeReviewSnapshot pins the repo state the boundary review is about to read, so
+// finalization can tell whether that state still holds when the review returns ~20
+// minutes later.
 type closeReviewSnapshot struct {
-	head      string
+	// reviewed is the CONCRETE SHA the review read (#194) — supplied by the caller,
+	// which resolved it under the same lock that captured this snapshot, rather than
+	// re-`rev-parse`d here. That identity is what makes the three users of the value
+	// (the dispatched diff, the durable record, this check) provably agree.
+	reviewed string
+	// milestone distinguishes a milestone close from a whole-issue close, so a refusal
+	// names the right re-run verb via closeVerb (ARCH-DRY).
+	milestone string
 	issuePath string
 	issueText string
 	projects  []projectEdit
 }
 
-func captureCloseReviewSnapshot(r closeResult) closeReviewSnapshot {
+func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone string) closeReviewSnapshot {
 	return closeReviewSnapshot{
-		head:      strings.TrimSpace(gitx.Capture("rev-parse", "HEAD")),
+		reviewed:  reviewedSHA,
+		milestone: milestone,
 		issuePath: r.issuePath,
 		issueText: r.issueText,
 		projects:  r.projectEdits,
 	}
 }
 
-func (s closeReviewSnapshot) validate() error {
-	if s.head != "" {
-		currentHead := strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
-		if currentHead == "" {
-			return fmt.Errorf("cannot resolve HEAD")
+// validate reports whether finalization may proceed. It returns a note the caller
+// surfaces when the gate allowed a delta through, so the operator learns what it
+// decided rather than only that nothing blocked.
+//
+// #194: the HEAD question is now "does the delta touch code?", not "is HEAD identical?".
+// The issue-file and project-file checks stay STRICT and unchanged — the review READ
+// that prose, so a mid-review edit to it is a genuine invalidation. Only the HEAD check
+// was ever stricter than its own purpose.
+func (s closeReviewSnapshot) validate() (string, error) {
+	note := ""
+	if s.reviewed != "" {
+		d, err := gatherReviewAnchorDelta(s.reviewed)
+		if err != nil {
+			return "", err // fail closed on a git error, as the publish gate does
 		}
-		if currentHead != s.head {
-			return fmt.Errorf("HEAD changed from %s to %s", shortSHA(s.head), shortSHA(currentHead))
+		if d.Reviewed == "" {
+			// The window head never resolved, so there is no anchor to classify
+			// against. Say so — silence would read as "checked, nothing moved".
+			return "boundary review: no resolved anchor for this window — the mid-review " +
+				"delta check did not run (#194)", nil
+		}
+		switch outcome := classifyReviewAnchor(d); outcome {
+		case anchorDocsOnly:
+			note = formatAnchorDocsOnly(d)
+		case anchorCodeDelta, anchorDiverged:
+			return "", fmt.Errorf("%s", formatAnchorRefusal(d, outcome, closeVerb(s.milestone)))
 		}
 	}
 	if s.issuePath != "" {
 		data, err := os.ReadFile(s.issuePath)
 		if err != nil {
-			return fmt.Errorf("read %s: %w", s.issuePath, err)
+			return "", fmt.Errorf("read %s: %w", s.issuePath, err)
 		}
 		if string(data) != s.issueText {
-			return fmt.Errorf("%s changed", s.issuePath)
+			return "", fmt.Errorf("%s changed", s.issuePath)
 		}
 	}
 	for _, e := range s.projects {
 		data, err := os.ReadFile(e.path)
 		if err != nil {
-			return fmt.Errorf("read %s: %w", e.path, err)
+			return "", fmt.Errorf("read %s: %w", e.path, err)
 		}
 		if string(data) != e.oldText {
-			return fmt.Errorf("%s changed", e.path)
+			return "", fmt.Errorf("%s changed", e.path)
 		}
 	}
-	return nil
+	return note, nil
 }
 
 // finishBoundaryReview emits the close trailer and mirrors the verdict into the
@@ -1762,4 +1857,13 @@ func formatTrailingNeedsJudge(issueStr string, trailing []string) string {
 
 func explainMissingVerdicts(stderr io.Writer, issueStr string, missing []string) {
 	die(stderr, formatMissingVerdicts(issueStr, missing))
+}
+
+// orPlaceholder returns s, or fallback when s is blank — used where an operator-supplied
+// rationale is recorded durably and an empty string would read as "no waiver happened".
+func orPlaceholder(s, fallback string) string {
+	if strings.TrimSpace(s) == "" {
+		return fallback
+	}
+	return s
 }

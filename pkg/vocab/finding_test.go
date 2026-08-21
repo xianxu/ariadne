@@ -126,3 +126,15 @@ func TestFindingSeverityOrder(t *testing.T) {
 		}
 	}
 }
+
+// #194 close review BR-29: the model-drift guard must pin the `family` key. The fence is
+// the ONLY place the judge is told to emit it; drop the line and every family count stays
+// zero while FamilyCounts, the escalation and the convergence signal all look correct.
+func TestRenderBlockInstruction_NamesTheFamilyKey(t *testing.T) {
+	got := Finding().RenderBlockInstruction()
+	for _, want := range []string{"family: <slug>", "underlying RULE", "REUSE the matching slug"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the emitted fence instruction must carry %q, or families are never populated", want)
+		}
+	}
+}

@@ -102,26 +102,30 @@ func TestParseSidecarRejectsBadYAML(t *testing.T) {
 // block-scalar indent indicator that contradicts its own output — this fuzz target found
 // that within one second of its first run, on input "\n0".
 func FuzzRenderParseRoundTrip(f *testing.F) {
-	f.Add("seam in wrong layer", "moves the filter boundary")
-	f.Add("x", "has\n---\na fence line")
-	f.Add("x", "```findings nested inside")
-	f.Add("---", "---")
-	f.Add("", "")
-	f.Add("multi\nline\ntitle", "tab\there")
-	f.Add("x", "\n0") // the yaml/v3 emitter bug this target caught
+	f.Add("seam in wrong layer", "moves the filter boundary", "seam-family")
+	f.Add("x", "has\n---\na fence line", "x")
+	f.Add("x", "```findings nested inside", "x")
+	f.Add("---", "---", "---")
+	f.Add("", "", "")
+	f.Add("multi\nline\ntitle", "tab\there", "multi\nline\nfamily")
+	f.Add("x", "\n0", "x")
+	// #194 M3 review BR-23: family reaches the emitter too, and a judge emitting it as a
+	// block scalar can hand us a leading newline — the exact shape that produced an
+	// unreadable ledger before normalizeText covered it.
+	f.Add("x", "x", "\n0")
 
-	f.Fuzz(func(t *testing.T, title, detail string) {
+	f.Fuzz(func(t *testing.T, title, detail, family string) {
 		l := Ledger{
 			Gate: "plan-quality", IssueNum: 187, IDPrefix: "PQ",
 			ContentHash: "deadbeef",
 			Rounds: []Round{{
 				N: 1, Timestamp: testTimestamp, Agent: testAgent, Blocked: true,
-				New: []Finding{{ID: "PQ-1", Severity: "Critical", Title: title, Detail: detail, Round: 1}},
+				New: []Finding{{ID: "PQ-1", Severity: "Critical", Title: title, Detail: detail, Family: family, Round: 1}},
 			}},
 		}
 		got, err := ParseSidecar(Render(l, "ariadne"))
 		if err != nil {
-			t.Fatalf("Render emitted an unreadable ledger for title=%q detail=%q: %v", title, detail, err)
+			t.Fatalf("Render emitted an unreadable ledger for title=%q detail=%q family=%q: %v", title, detail, family, err)
 		}
 		again, err := ParseSidecar(Render(got, "ariadne"))
 		if err != nil {

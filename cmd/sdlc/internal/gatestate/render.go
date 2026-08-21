@@ -31,6 +31,11 @@ func canonical(l Ledger) Ledger {
 		for j, f := range r.New {
 			f.Title = normalizeText(f.Title)
 			f.Detail = normalizeText(f.Detail)
+			// Family too (#194 M3 review BR-23): a judge emitting it as a block scalar
+			// can produce a leading newline, which hits the yaml emitter bug this
+			// normalizer exists for — the ledger writes, then cannot be read back, and
+			// the gate's memory for the issue is destroyed.
+			f.Family = normalizeText(f.Family)
 			nf[j] = f
 		}
 		r.New = nf
@@ -104,7 +109,7 @@ func Render(rawLedger Ledger, repo string) string {
 		if len(r.New) > 0 {
 			b.WriteString("\n### Raised\n\n")
 			for _, f := range r.New {
-				fmt.Fprintf(&b, "- **%s** [%s] %s\n", f.ID, f.Severity, f.Title)
+				fmt.Fprintf(&b, "- **%s** [%s]%s %s\n", f.ID, f.Severity, familyTag(f.Family), f.Title)
 				if f.Detail != "" {
 					fmt.Fprintf(&b, "  %s\n", strings.ReplaceAll(f.Detail, "\n", "\n  "))
 				}
@@ -119,7 +124,7 @@ func Render(rawLedger Ledger, repo string) string {
 		return b.String()
 	}
 	for _, f := range open {
-		fmt.Fprintf(&b, "- **%s** [%s] %s\n", f.ID, f.Severity, f.Title)
+		fmt.Fprintf(&b, "- **%s** [%s]%s %s\n", f.ID, f.Severity, familyTag(f.Family), f.Title)
 	}
 	return b.String()
 }
@@ -141,4 +146,14 @@ func ParseSidecar(text string) (Ledger, error) {
 		return Ledger{}, fmt.Errorf("gate ledger frontmatter does not parse: %w", err)
 	}
 	return l, nil
+}
+
+// familyTag renders a finding's family for the human prose projection, or "" when it has
+// none (#194 close review BR-28: the machine acts on families, so the artifact a person
+// reads has to show them, or a recurrence is invisible in review). Pure.
+func familyTag(family string) string {
+	if family == "" {
+		return ""
+	}
+	return " `" + family + "`"
 }

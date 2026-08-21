@@ -14,7 +14,7 @@ WHAT IT DOES
        auto-satisfied when the window has no code surface (#177)
 
   2. Auto-dispatches `sdlc judge milestone-review`:
-     - Diff window: the PREVIOUS review boundary..HEAD — the prior
+     - Diff window: the PREVIOUS review boundary..the reviewed commit — the prior
        milestone close's commit (the one carrying its Review-Verdict:
        trailer), or the branch start for the first milestone. Basing on
        the prior boundary (not the first `#<issue> <milestone>` commit)
@@ -32,7 +32,7 @@ WHAT IT DOES
      each milestone was reviewed:
 
          Review-Verdict: SHIP
-         Review-Window: abc1234..HEAD
+         Review-Window: abc1234..def5678
          [Review-Reason: --no-judge]   (only when verdict is not-run)
 
      On FIX-THEN-SHIP it also prints the post-verdict protocol (#174):
@@ -91,3 +91,22 @@ RELATED
                          boundary review; refuses --milestone — #146)
   sdlc judge milestone-review --base SHA --head HEAD
                          manual milestone-review invocation for ad-hoc windows
+
+THE GATE LEDGER (#194)
+
+  Milestone reviews share the issue's one boundary ledger
+  (`workshop/plans/NNNNNN-slug-close-gate.md`), with each round stamped by its
+  boundary. The ROUND CAP scopes per boundary, so M2's rounds cannot push the
+  whole-issue close past its cap. The OPEN-FINDINGS set scopes per boundary here
+  but NOT at the whole-issue close, which sees every boundary's — a finding left
+  undisposed when its milestone closed has no other path to disposal. Finding
+  families always span the issue, which is the point of one file rather than
+  several.
+
+  A milestone close refuses when the ledger still holds an open blocking finding
+  AT ITS OWN BOUNDARY, even on a SHIP verdict. Anything left open when the
+  milestone closes is carried to the whole-issue close, which sees every
+  boundary's findings — see `sdlc close --help`. `--no-ledger` waives that one refusal;
+  WF_BOUNDARY_ROUND_CAP (default 3) bounds the rounds.
+
+  See `sdlc close --help` for the full contract — it is the same gate.

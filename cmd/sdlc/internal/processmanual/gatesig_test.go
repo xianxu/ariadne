@@ -24,9 +24,9 @@ func TestGateFlagNames(t *testing.T) {
 // which gate (drift guard in package main asserts this vs the registered flags).
 func TestGateFlagsForCommand(t *testing.T) {
 	cases := map[string][]string{
-		"close": {"no-actual", "no-atlas", "no-judge", "no-plan-check",
+		"close": {"no-actual", "no-atlas", "no-judge", "no-ledger", "no-plan-check",
 			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},
-		"milestone-close": {"no-actual", "no-atlas", "no-judge", "no-plan-check",
+		"milestone-close": {"no-actual", "no-atlas", "no-judge", "no-ledger", "no-plan-check",
 			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},
 		"change-code":   {"no-estimate", "no-estimate-recon", "no-judge", "no-structural"},
 		"merge":         {"no-judge", "no-validate"},

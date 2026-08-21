@@ -54,17 +54,23 @@ Production readiness
   - Migration / backward-compatibility considered where state or formats change.
   - Docs / atlas updated for new surface (see the Docs update gate).
 
-## Plan-gate carry-forward (ariadne#187)
+## Claimed fixes (ariadne#194)
 
-Read `workshop/plans/<issue-stem>-plan-gate.md` if it exists — the durable ledger of the
-pre-implementation plan gate. It holds the findings that gate raised but deliberately did
-NOT block on: Minor findings, and blocking ones demoted once the round cap was reached.
-They were deferred to THIS boundary by design — that deferral is only safe because you
-pick them up.
+For each prior finding this round disposes `addressed`, check the claim rather than the
+commit message. A fix is complete only when a test FAILS WITHOUT IT.
 
-For each finding still listed under `## Open findings`, confirm the code either addresses
-it or that it no longer applies. A still-valid deferred finding is a finding here, at its
-original severity.
+  - Locate the test the fix is supposed to be pinned by. If there is none, the
+    disposition is `not-addressed`, however plausible the diff looks.
+  - Check the fix is reachable — a field set at zero call sites, an assertion nested in a
+    runtime guard that never fires, a branch no fixture enters. These pass every test
+    suite while doing nothing, and read as protection.
+  - Where cheap, verify by reverting: undo the fix in a scratch copy and confirm the test
+    goes red. A test written from the same mental model as the fix will happily assert
+    whatever the fix happens to do, including nothing.
+
+This check exists because the rule was written down and then violated by the very commit
+that closed the findings which produced it. A reviewer that takes "fixed in <sha>" at face
+value cannot catch that; one that looks for the failing test can.
 
 ## Core concepts cross-check (if the plan has a Core concepts table)
 
@@ -224,6 +230,58 @@ Principles"; this is its machine-delivered companion.
   fake satisfies this only when production flow and test flow share the same
   boundary.
 
+
+## Prior rounds — dispose of these BEFORE raising anything new
+
+(no prior rounds)
+
+Do NOT re-raise a finding listed as already disposed — not at the same severity,
+and not at a lower one. If a disposed finding is genuinely still wrong, dispose it
+`not-addressed` and say what remains, rather than raising it again under a new id.
+
+Emit your findings as this fenced block — the machine-read handoff the
+binary parses. `dispose:` first (every prior finding), then `findings:`
+(anything newly raised). Use `id: new` for a new finding — the binary
+assigns the stable id. Omit a key entirely when it has no entries.
+
+```findings
+dispose:
+  - id: <a prior finding's id>
+    disposition: <addressed | withdrawn | not-addressed>
+    note: |
+      <optional, one line>
+findings:
+  - id: new
+    severity: <Critical | Important | Minor>
+    family: <slug>
+    title: |
+      <one line>
+    detail: |
+      <a sentence or two, optional>
+```
+
+`family` is a short slug naming the underlying RULE a finding is an instance of,
+not its symptom — `block-opener-rule`, not `bracket-depth-bug`. If the prior-round
+block above lists families already in play, REUSE the matching slug verbatim;
+coin a new one only when the finding genuinely belongs to no existing family.
+
+Slug the RULE, because a symptom-slug will not match the next instance and the
+escalation will silently fail to fire. Ask: "if this recurs in a different file
+with different symptoms, would I still reach for this slug?" If not, it names the
+symptom. `boundary-scope-strands-reads` survives that test; `family-counts-filtered`
+does not — it describes one site, and the same rule broke a second read elsewhere.
+
+Use the `|` block form for title, detail and note exactly as shown, and indent
+their text by six spaces. In plain YAML a ` #` starts a comment, so an
+unquoted `## Estimate` or `issue #187` would silently truncate your finding.
+
+  Critical       must fix before the gate is crossed
+  Important      fix before the gate if cheap; blocks until disposed
+  Minor          note for the close review; never blocks a gate
+
+  addressed      the plan changed to satisfy this finding
+  withdrawn      the judge retracts it (mistaken, or overtaken by a design change)
+  not-addressed  still open — the judge re-raises it this round
 
 OUTPUT CONTRACT (machine-read — do not deviate). LEAD your response with the
 fenced ```verdict block shown above — that is the authoritative handoff the binary

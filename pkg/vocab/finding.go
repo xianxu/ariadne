@@ -97,7 +97,26 @@ func (m *FindingModel) RenderBlockInstruction() string {
 	b.WriteString("```findings\ndispose:\n  - id: <a prior finding's id>\n    disposition: <" +
 		strings.Join(m.AllDispositions(), " | ") + ">\n    note: |\n      <optional, one line>\nfindings:\n" +
 		"  - id: new\n    severity: <" + strings.Join(m.Severities(), " | ") + ">\n" +
+		"    family: <slug>\n" +
 		"    title: |\n      <one line>\n    detail: |\n      <a sentence or two, optional>\n```\n\n")
+	// family (#194 M3): the slug names the underlying RULE, not the symptom, and is what
+	// lets the gate say "this is the 3rd instance — state the rule" instead of watching
+	// the same missing rule get patched case by case. The instruction has to be explicit:
+	// a reviewer that omits it, or coins a synonym, silently defeats the escalation.
+	b.WriteString("`family` is a short slug naming the underlying RULE a finding is an instance of,\n")
+	b.WriteString("not its symptom — `block-opener-rule`, not `bracket-depth-bug`. If the prior-round\n")
+	b.WriteString("block above lists families already in play, REUSE the matching slug verbatim;\n")
+	b.WriteString("coin a new one only when the finding genuinely belongs to no existing family.\n\n")
+	// Observed on ariadne#194 itself: a finding slugged for its symptom did not match the
+	// next instance of the same rule, so the escalation silently failed to fire — the
+	// mechanism looked implemented and did nothing. Naming this failure mode in the
+	// instruction is the only place it can be caught, since the binary cannot tell a
+	// symptom-slug from a rule-slug.
+	b.WriteString("Slug the RULE, because a symptom-slug will not match the next instance and the\n")
+	b.WriteString("escalation will silently fail to fire. Ask: \"if this recurs in a different file\n")
+	b.WriteString("with different symptoms, would I still reach for this slug?\" If not, it names the\n")
+	b.WriteString("symptom. `boundary-scope-strands-reads` survives that test; `family-counts-filtered`\n")
+	b.WriteString("does not — it describes one site, and the same rule broke a second read elsewhere.\n\n")
 	b.WriteString("Use the `|` block form for title, detail and note exactly as shown, and indent\n")
 	b.WriteString("their text by six spaces. In plain YAML a ` #` starts a comment, so an\n")
 	b.WriteString("unquoted `## Estimate` or `issue #187` would silently truncate your finding.\n\n")

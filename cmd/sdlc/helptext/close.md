@@ -40,6 +40,74 @@ MODES
   explicitly, use `sdlc milestone-close --no-judge` — `close` no longer has a
   `--milestone` path to skip it silently (#146).
 
+  THE GATE LEDGER (#194). The boundary review REMEMBERS across rounds, the way
+  `change-code`'s plan-quality gate has since #187. Each review's findings are
+  written to `workshop/plans/NNNNNN-slug-close-gate.md` with binary-assigned
+  stable ids (`BR-1`, `BR-2`, …), and the next review is shown them and must
+  dispose of each — `addressed`, `not-addressed`, or `withdrawn` — before
+  raising anything new. That is what stops a re-run renumbering the same
+  finding forever.
+
+  A MILESTONE review is shown its own boundary's findings. The WHOLE-ISSUE
+  close is shown ALL of them, from every milestone: it is the last gate before
+  publish, and a finding left undisposed when its milestone closed has no other
+  path to disposal. (The round cap still scopes per boundary — three milestones'
+  rounds must not arrive at the close already past it.)
+
+  Two consequences worth knowing before you hit them:
+
+    - A close can REFUSE DESPITE A PASSING VERDICT. Finalizing needs the
+      verdict AND the ledger to clear; a SHIP carrying an undisposed
+      Important means the reviewer contradicted itself. Fix the findings, or
+      have the next review dispose them explicitly. `--no-ledger` waives
+      just this refusal.
+    - The ledger is NOT the prose sidecar. `-close-review.md` holds the
+      reviewer's full text for a human; `-close-gate.md` holds addressable
+      findings for the next round. Neither replaces the other.
+
+  FINDING FAMILIES (#194). Each finding carries a `family:` slug naming the
+  underlying RULE it is an instance of, not its symptom. When a family already
+  has a finding from an earlier round, the next reviewer is told so and its
+  recommendation changes: instead of "fix this instance" it is asked to state
+  the rule that covers all of them. That is the difference between patching
+  four shapes of one missing rule across four rounds and writing the rule on
+  the second.
+
+  Every round also emits a convergence line:
+
+      round 4 — 2 new findings, 0 repeat families, 6 disposed. Converging.
+      round 2 — 3 new findings, 2 repeat families, 1 disposed. Not converging:
+        fix rules, not instances.
+
+  Capping rounds on finding COUNT is arbitrary; a family that stops repeating
+  is an honest signal that the work is converging.
+
+  Findings the plan gate deferred (Minor, or demoted past its round cap) are
+  seeded into this ledger on its first round, so they arrive as `BR-*` ids you
+  can dispose of rather than as a file the reviewer is told to go read.
+
+  Past WF_BOUNDARY_ROUND_CAP rounds (default 3) only Critical still blocks. A
+  demotion here is louder than at the plan gate on purpose: there is no later
+  gate to pick up what it drops, so each demoted finding is named.
+
+  ANCHORED TO THE COMMIT IT READ (#194). The review records the concrete SHA it
+  reviewed — in the `Review-Window:` trailer and the sidecar — and finalizes
+  against that commit, not against "HEAD has not moved". A commit landing while
+  the review runs is classified, not fatal:
+
+      doc-only delta  the close finalizes; the reviewed code surface is intact,
+                      and the same classifier `sdlc merge` applies at publish
+                      time decides it (#174)
+      code delta      refused, naming every commit the review did not cover
+      rewritten       refused as diverged (HEAD no longer descends from the
+                      reviewed commit), since the delta is not describable
+
+  So committing `workshop/lessons.md`, `atlas/` and `workshop/plans/` bookkeeping
+  during a review is safe. Landing code is not, and the refusal now tells you which
+  commits to re-review. The **issue file** and any **project file** are separately
+  snapshotted byte-exact and still refuse on any edit — the review READ that prose —
+  so write your `## Log` line AFTER the close, not during it.
+
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain
    (capture) repo and in repos without workshop/issues/. WF_SPINE_GUARD=off is
@@ -93,6 +161,7 @@ WHAT THE GUARD DEFENDS
     ## Plan has no unchecked       --no-plan-check
     project detail-block updated  --no-project
     issue boundary review (#69)   --no-judge
+    gate ledger open findings     --no-ledger
 
   Each bypass logs an audit "[!] --no-X: skipping ..." line (it's an
   explicit acknowledgment, not a silent skip) and the rationale belongs in

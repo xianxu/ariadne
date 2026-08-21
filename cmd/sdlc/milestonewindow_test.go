@@ -208,3 +208,36 @@ func TestBoundaryWindowBase_WholeIssueBasesOnBranchPoint(t *testing.T) {
 		}
 	}
 }
+
+// #194: the window head must be the CONCRETE SHA the review will read, not the
+// literal string "HEAD". Everything downstream — the diff, the prompt, the
+// Review-Window trailer, the sidecar, and the finalize check — spends this value,
+// and the finalize check cannot classify a mid-review delta against a floating ref.
+func TestResolveReviewWindow_HeadIsConcreteSHA(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 194)
+	commitTouchingIssue(t, runGit, issuePath, "work", "#194: build the thing", "")
+
+	_, _, head := resolveReviewWindow("194", "", issuePath)
+	if head == "HEAD" {
+		t.Fatal(`resolveReviewWindow head is the literal "HEAD"; it must resolve to a SHA`)
+	}
+	if want := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD")); head != want {
+		t.Fatalf("head = %q, want rev-parse HEAD = %q", head, want)
+	}
+}
+
+// #194: abbrevSHA must NOT resolve a symbolic ref. shortSHA shells out to
+// `git rev-parse --short`, so shortSHA("HEAD") returns the ambient repo's HEAD —
+// which in a review window would print a commit the review never read.
+func TestAbbrevSHA_DoesNotResolveSymbolicRefs(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"HEAD", "HEAD"}, // the fallback: degraded, not wrong
+		{"main", "main"}, // any symbolic ref survives intact
+		{"e456565e922af72711492f918c92efea8adbf9bf", "e456565e"}, // full SHA truncates
+		{"abc1234", "abc1234"}, // already short
+	} {
+		if got := abbrevSHA(tc.in); got != tc.want {
+			t.Errorf("abbrevSHA(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}

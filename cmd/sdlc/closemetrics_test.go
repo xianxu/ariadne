@@ -119,7 +119,7 @@ func TestCloseLedgerRowCarriesCostMetrics(t *testing.T) {
 	if err := os.MkdirAll("workshop/plans", 0o755); err != nil {
 		t.Fatal(err)
 	}
-	l := gatestate.Ledger{Gate: planGateGate, IssueNum: 187, IDPrefix: planGateIDPrefix}
+	l := gatestate.Ledger{Gate: planGateKind.Gate, IssueNum: 187, IDPrefix: planGateKind.IDPrefix}
 	r1 := gatestate.AssignIDs(l, gatestate.RoundReport{New: []gatestate.Finding{
 		{Severity: "Critical", Title: "one"},
 		{Severity: "Important", Title: "two"},

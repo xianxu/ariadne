@@ -172,8 +172,10 @@ type PromptInput struct {
 	//   assess current state, not a diff)
 	PlanContent string // optional separate plan file text (for plan-quality)
 	// PriorFindings is the rendered prior-round block (gatestate.RenderPriorFindings)
-	// that turns the memoryless plan judge into a converging one (#187 A2). Empty for
-	// every category but plan-quality, and for plan-quality's first round.
+	// that turns a memoryless judge into a converging one (#187 A2). Carried by
+	// plan-quality and — since #194 M2 — by milestone-review, whose ledger is scoped to
+	// the current boundary plus the plan-gate findings seeded in at BoundaryAll. Empty
+	// for every other category, and for a gate's first round.
 	PriorFindings string
 	// Boundary-review repo orientation (#137) — derived in cmd/sdlc from the live
 	// git context and rendered into code-review.md so a fresh reviewer is anchored
