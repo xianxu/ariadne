@@ -917,3 +917,24 @@ document.
 
 **Origin:** #194 plan-quality gate round 1 — PQ-1 (Critical), caught by the gate rather than by
 me, three commits after the splice.
+
+When a MECHANISM moves, grep `atlas/` for the old mechanism's name in the same commit.
+Twice in one issue, a doc was left asserting the contract the diff had just replaced:
+`sdlc-binary.md` still said a close refuses "if HEAD … changed" after HEAD-identity was
+replaced by delta classification, and `gate-state.md` still said "`code-review.md`
+instructs the reviewer to read the ledger's `## Open findings`" after that section was
+deleted in favour of seeding. Both were caught by a boundary reviewer, not by me.
+
+The failure mode is specific and worse than a stale doc: a paragraph that *describes the
+replaced behavior as current fact* is trusted by the next reader, so it actively
+misinforms rather than merely lagging. Code has a compiler to catch the equivalent; prose
+does not, and "I updated the docs" is satisfied by touching *a* doc.
+
+The check is mechanical: before committing a behavior change, `grep -rn "<the old
+mechanism's name>" atlas/ cmd/*/helptext/` — searching for what you REMOVED, not for what
+you added. Searching for the new name finds the file you just edited; searching for the
+old one finds the files you forgot.
+
+**Origin:** #194 M1 review (I1) and #194 M2 review (I3) — the same family, one milestone
+apart, which is the recurrence #194 M3's family escalation exists to name on the second
+instance rather than the third.
