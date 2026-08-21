@@ -1036,7 +1036,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, f)
 		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
-		snapshot = captureCloseReviewSnapshot(r)
+		snapshot = captureCloseReviewSnapshot(r, head, "")
 		return nil
 	}); err != nil {
 		return err
@@ -1179,16 +1179,27 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	}
 }
 
+// closeReviewSnapshot pins the repo state the boundary review is about to read, so
+// finalization can tell whether that state still holds when the review returns ~20
+// minutes later.
 type closeReviewSnapshot struct {
-	head      string
+	// reviewed is the CONCRETE SHA the review read (#194) — supplied by the caller,
+	// which resolved it under the same lock that captured this snapshot, rather than
+	// re-`rev-parse`d here. That identity is what makes the three users of the value
+	// (the dispatched diff, the durable record, this check) provably agree.
+	reviewed string
+	// milestone distinguishes a milestone close from a whole-issue close, so a refusal
+	// names the right re-run verb via closeVerb (ARCH-DRY).
+	milestone string
 	issuePath string
 	issueText string
 	projects  []projectEdit
 }
 
-func captureCloseReviewSnapshot(r closeResult) closeReviewSnapshot {
+func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone string) closeReviewSnapshot {
 	return closeReviewSnapshot{
-		head:      strings.TrimSpace(gitx.Capture("rev-parse", "HEAD")),
+		reviewed:  reviewedSHA,
+		milestone: milestone,
 		issuePath: r.issuePath,
 		issueText: r.issueText,
 		projects:  r.projectEdits,
@@ -1196,13 +1207,13 @@ func captureCloseReviewSnapshot(r closeResult) closeReviewSnapshot {
 }
 
 func (s closeReviewSnapshot) validate() error {
-	if s.head != "" {
+	if s.reviewed != "" {
 		currentHead := strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
 		if currentHead == "" {
 			return fmt.Errorf("cannot resolve HEAD")
 		}
-		if currentHead != s.head {
-			return fmt.Errorf("HEAD changed from %s to %s", shortSHA(s.head), shortSHA(currentHead))
+		if currentHead != s.reviewed {
+			return fmt.Errorf("HEAD changed from %s to %s", abbrevSHA(s.reviewed), abbrevSHA(currentHead))
 		}
 	}
 	if s.issuePath != "" {

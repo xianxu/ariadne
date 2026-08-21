@@ -208,7 +208,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 			cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
 		}
 		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
-		snapshot = captureCloseReviewSnapshot(r)
+		snapshot = captureCloseReviewSnapshot(r, head, f.Milestone)
 		return nil
 	}); err != nil {
 		return err

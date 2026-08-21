@@ -14,7 +14,7 @@ WHAT IT DOES
        auto-satisfied when the window has no code surface (#177)
 
   2. Auto-dispatches `sdlc judge milestone-review`:
-     - Diff window: the PREVIOUS review boundary..HEAD — the prior
+     - Diff window: the PREVIOUS review boundary..the reviewed commit — the prior
        milestone close's commit (the one carrying its Review-Verdict:
        trailer), or the branch start for the first milestone. Basing on
        the prior boundary (not the first `#<issue> <milestone>` commit)
@@ -32,7 +32,7 @@ WHAT IT DOES
      each milestone was reviewed:
 
          Review-Verdict: SHIP
-         Review-Window: abc1234..HEAD
+         Review-Window: abc1234..def5678
          [Review-Reason: --no-judge]   (only when verdict is not-run)
 
      On FIX-THEN-SHIP it also prints the post-verdict protocol (#174):
