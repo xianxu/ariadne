@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-08-20
 updated: 2026-08-20
-estimate_hours: 3.20
+estimate_hours: 4.40
 started: 2026-08-20T15:52:21-07:00
 ---
 
@@ -179,20 +179,21 @@ Ranked last deliberately: it removes the freeze on close-time *bookkeeping*
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-design-buffer: 0.15
+design-buffer: 0.30
 item: cross-cutting-refactor design=0.1 impl=0.15
 item: greenfield-go-module design=0.2 impl=0.25
-item: milestone-review design=0.0 impl=0.15
 item: smaller-go-module design=0.1 impl=0.15
-item: smaller-go-module design=0.15 impl=0.3
-item: milestone-review design=0.0 impl=0.15
+item: greenfield-go-module design=0.15 impl=0.3
 item: typed-data-prototype design=0.2 impl=0.15
 item: smaller-go-module design=0.15 impl=0.2
 item: smaller-go-module design=0.05 impl=0.15
-item: milestone-review design=0.0 impl=0.15
 item: atlas-docs design=0.05 impl=0.1
-item: milestone-review design=0.0 impl=0.15
-total: 3.20
+item: milestone-review design=0.0 impl=0.33
+item: milestone-review design=0.0 impl=0.33
+item: milestone-review design=0.0 impl=0.33
+item: milestone-review design=0.0 impl=0.33
+item: milestone-review design=0.0 impl=0.33
+total: 4.40
 ```
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
@@ -204,21 +205,41 @@ Derivation, in plan order:
 |---|---|
 | `cross-cutting-refactor` | M1.1 — thread the resolved SHA through `resolveReviewWindow` → `collectDiff`/prompt/trailer/sidecar/snapshot; mechanical but multi-file, and it moves test fixtures. |
 | `greenfield-go-module` | M1.2 — `reviewanchor.go`: pure classifier + IO shell + two formatters, plus the goroutine/channel interleaving integration tests. |
-| `smaller-go-module` ×2 | M2 — `boundaryledger.go` mirroring `planreview.go` (cheap, it is a mirror); then `gatestate` (`Round.Boundary`, `FilterBoundary`, `BoundaryAll`), the seeding, the `PriorFindings` wiring, and regenerating the byte-pinned `golden_test.go` fixtures. |
+| `smaller-go-module` | M2 — `boundaryledger.go`, a mirror of `planreview.go`. Cheap precisely because it is a mirror. |
+| `greenfield-go-module` | M2 — `gatestate` (`Round.Boundary`, `FilterBoundary`, `BoundaryAll`), the D2 seeding, the `PriorFindings` wiring, and regenerating the byte-pinned `golden_test.go` fixtures. |
 | `typed-data-prototype` | M3 — `family` on `#Finding`: the CUE model first, then `gatestate.Finding`, the parser, and `RenderBlockInstruction`. Typed-data because the closed schema is the source and three consumers derive from it. |
 | `smaller-go-module` ×2 | M3 — `FamilyCounts`/`normalizeFamily`/`ConvergenceLine` + escalation rendering; then the `tools#1` fixture, the D3 near-miss and synonym tests, and the D5 + window regression tests. |
 | `atlas-docs` | `ledger-landscape.md` (a second gate ledger joins the table) + close/milestone-close helptext. |
-| `milestone-review` ×4 | Three milestone closes plus the whole-issue close — each is one boundary review chunk. |
+| `milestone-review` ×5 | Four boundaries (M1, M2, M3, whole-issue close) plus one expected re-round. |
 
-Design is 1.00h before the +15% buffer, which the thorough plan doc earns (v3.1
-step 4). It is not zero despite the plan being written: D1–D5 were settled at the
-gate, and M3's family-anchoring still has an open judgement call (the accepted
-synonym risk) that will cost thought during implementation.
+### Two deliberate departures from the v3.1 defaults
 
-Impl is 2.05h at v3.1's 40% scaling. The largest single line is M2's `gatestate`
-work at 0.3 — it is the only item touching a byte-pinned golden fixture, which
-historically costs more than the diff suggests.
+**`milestone-review` is priced UNSCALED, at 0.33h.** v3.1's ×0.40 impl scaling exists
+because the v2 table's implementation hours represent roughly sequential build effort
+while `sdlc actual` measures compressed wall-clock. A boundary review is *already*
+wall-clock and is *not* compressible — this issue's `## Problem` measures it directly
+("8 boundary-review runs, ~20 min each") and its whole thesis is that the tree is frozen
+throughout ("4 of them were dead time — no other work was possible"). Under #118 a
+blocking subagent span counts as elapsed, so `sdlc actual` will bill every minute.
+Applying a compression factor to an incompressible chunk is a model misapplication; the
+unscaled v2 band (0.2–0.5) brackets the measured ~0.33h correctly. Raised by the
+estimate-quality judge and adopted.
 
+**`design-buffer` is 0.30, not 0.15.** The two tiers must agree: +15% presupposes v2.1's
+×0.2 spec-quality discount, but three of the `smaller-go-module` design values (0.1,
+0.15, 0.15) sit above the ×0.2 ceiling of 0.06 — they are priced at the ×0.5 tier, which
+v2.1 pairs with +30%. The design values are the honest ones (D1–D5 are settled, but M3's
+family anchoring still carries an open judgement call), so the buffer moves to match them
+rather than the reverse.
+
+### The fifth review chunk
+
+Budgeting exactly one review per boundary would be optimistic on the very issue that
+exists because rounds repeat: `tools#1` ran four rounds on one milestone, and this issue
+burned three plan-quality rounds before implementation began. The sharper risk is
+structural — M2 and M3 each close *through gate code the previous milestone just
+rewrote*, so a regression there blocks the boundary rather than merely failing a test.
+One extra chunk is a thin hedge against that, not a generous one.
 
 ## Plan
 
@@ -305,3 +326,25 @@ change cannot quietly narrow it. The wall-clock win now comes entirely from B an
 reducing the NUMBER of rounds rather than the size of each — which is the mechanism
 the `tools#1` evidence actually supports (family escalation would have collapsed at
 least two of four M1 rounds).
+
+### 2026-08-20 (later still) — estimate revised 3.20 → 4.40 after estimate-quality
+
+The gate passed the estimate as `info`, so this was optional; adopting it anyway,
+because a knowingly-low estimate is exactly the pollution `--actual`'s
+measured-not-typed rule exists to prevent, one stage earlier.
+
+Three of the judge's findings were right and are applied in `## Estimate`:
+`milestone-review` priced unscaled (v3.1's ×0.40 compresses sequential build effort;
+a boundary review is already wall-clock and this issue's own Problem section
+stopwatches it at ~20 min), the design-buffer tier raised to +30% to match design
+values priced at v2.1's ×0.5 tier, and one out-of-band `smaller-go-module` re-slugged
+to `greenfield-go-module` where 0.3 impl actually fits. A fifth review chunk was added
+against the M2/M3 self-hosting risk — each closes through gate code the previous
+milestone just rewrote.
+
+The judge's fifth point — that recent ariadne v3.1 rows over-estimate — was **not**
+applied. Those rows have actuals in the 0.22–2.32h range that `baseline-v3.1.md`
+itself flags as possible measurement artifacts, and the two rows from the session that
+produced this issue point the other way. The revision rests on this issue's own
+stopwatch, not on the ledger.
+

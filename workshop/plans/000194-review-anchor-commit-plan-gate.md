@@ -132,7 +132,20 @@ rounds:
             seed round carries an empty boundary or seeded findings are exempt from the filter.
           round: 2
       blocked: false
-content_hash: 388cb27daead0aa96d43d22bf36cc07ecbf0534b780326ee32b02c19cf177ac8
+    - "n": 3
+      timestamp: "2026-08-20T17:04:35-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-7
+          disposition: addressed
+          note: 70 files / 86 window rows now correctly distinguished; residual off-by-one (66 vs 67 files carrying ..HEAD) is cosmetic.
+          round: 3
+        - id: PQ-9
+          disposition: addressed
+          note: New D5 adds BoundaryAll sentinel plus the both-boundaries visibility test; composes with Decide/OpenFindings by-value signatures.
+          round: 3
+      blocked: false
+content_hash: 6ba544d9f896d212070efe5f79215030e78f6e842bed0d3b2d9c589f4b0a98b6
 ---
 
 # Gate ledger — ariadne#194 (plan-quality)
@@ -211,7 +224,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   current instruction that every boundary reviewer read the plan-gate ledger. Decide whether the
   seed round carries an empty boundary or seeded findings are exempt from the filter.
 
+## Round 3 — 2026-08-20T17:04:35-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-7 — addressed — 70 files / 86 window rows now correctly distinguished; residual off-by-one (66 vs 67 files carrying ..HEAD) is cosmetic.
+- PQ-9 — addressed — New D5 adds BoundaryAll sentinel plus the both-boundaries visibility test; composes with Decide/OpenFindings by-value signatures.
+
 ## Open findings
 
-- **PQ-7** [Minor] Sidecar count is wrong — 72 files exist repo-wide, not 86, and 67 carry ..HEAD
-- **PQ-9** [Minor] D1's boundary filter and D2's plan-gate seeding do not compose — seeded findings scope out
+(none — every finding has been disposed)
