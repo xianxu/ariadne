@@ -16,7 +16,8 @@ bookkeeping (lessons, plan ticks) into ONE commit so the publish anchor is
 HEAD, and do NOT re-run close. Fixes that must land after the close commit:
 re-run close (re-reviews the delta, advances the anchor — no bypass flag
 needed at codecomplete). Doc-only post-close commits pass the publish gate
-on their own.
+on their own. "Fix the findings" means the CLASS each one names, not only the
+site it points at — ARCH-PURPOSE (`sdlc arch-principles`).
 
 MODES
 
@@ -59,8 +60,9 @@ MODES
     - A close can REFUSE DESPITE A PASSING VERDICT. Finalizing needs the
       verdict AND the ledger to clear; a SHIP carrying an undisposed
       Important means the reviewer contradicted itself. Fix the findings, or
-      have the next review dispose them explicitly. `--no-ledger` waives
-      just this refusal.
+      have the next review dispose them explicitly — and fix the CLASS each
+      names, not only the site (ARCH-PURPOSE, `sdlc arch-principles`).
+      `--no-ledger` waives just this refusal.
     - The ledger is NOT the prose sidecar. `-close-review.md` holds the
       reviewer's full text for a human; `-close-gate.md` holds addressable
       findings for the next round. Neither replaces the other.

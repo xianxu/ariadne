@@ -37,7 +37,9 @@ WHAT IT DOES
 
      On FIX-THEN-SHIP it also prints the post-verdict protocol (#174):
      fix the findings before committing, bundle them into the one
-     milestone-close commit, do NOT re-run milestone-close.
+     milestone-close commit, do NOT re-run milestone-close. Each finding
+     names one instance; fix the CLASS it belongs to (ARCH-PURPOSE,
+     `sdlc arch-principles`).
 
   4. Appends "; review verdict: <verdict>" to the just-written log line
      in the issue file so a human grep finds it.

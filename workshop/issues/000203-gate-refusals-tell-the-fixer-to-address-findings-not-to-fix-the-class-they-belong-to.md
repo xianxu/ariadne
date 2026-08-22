@@ -201,6 +201,16 @@ Recompute: (0.04+0.10+0.20+0.00+0.25) × 1.15 + (0.16+0.24+0.06+0.14+0.10) × 1.
 - **Changing the reviewer prompt or the family slugging rules.** They work;
   parley.nvim#202 proves it — the ledger diagnosed non-convergence correctly and
   on time. The defect is downstream of the diagnosis.
+- **`cmd/doc-review`'s "triage each finding" (`review.go:125`)** — ruled OUT
+  (#203 BR-6), not overlooked. In principle it is the same framing, but it is a
+  different binary with no family ledger, its review is explicitly advisory and
+  read-only over a document the agent owns ("do not apply findings blindly"),
+  and the ARCH-* registry is not delivered to it — routing there would mean
+  teaching that tool to push or pull the registry. That is a separable
+  extension in ARCH-PURPOSE's sense, so deferring is legitimate; stating it is
+  the part that is not optional. Worth a follow-up issue if doc-review ever
+  grows a ledger. The guard's scan boundary (`cmd/sdlc/*.go`, subpackages
+  excluded) is documented at the test.
 - **Automated enforcement of the sweep itself.** Whether an enumeration was
   actually swept is not mechanically checkable. This installs the routing at the
   moment of use; the ledger's repeat-family counter already measures compliance.
@@ -281,5 +291,52 @@ I re-captured, then verified the diff is exactly the twelve added ARCH-PURPOSE
 lines across the four injected prompts and nothing else. The ⛔'s wording not
 covering deliberate registry change is a real gap, but it belongs to a different
 class than this issue's, so it is noted here rather than swept into scope.
+
+Full Go suite green (`go build ./... && go test ./...`).
+
+### 2026-08-22 (close review round 1 — all six findings addressed)
+
+Both blockers were this issue's own thesis turned back on it, so both got the
+class treatment rather than a patch each.
+
+- **BR-1 (Important) — I enumerated the code class mechanically and the doc class
+  by hand.** Exactly the defect #203 installs a guard against, committed inside
+  the issue about it. Fixed at the class: `TestEveryFixerFacingHelptextRoutes`
+  now scans `helptext/*.md` the way the Go guard scans sources. Granularity is
+  the paragraph, routed if it or the next paragraph cites the marker — matching
+  how these files are written (statement, then elaboration). Two structural
+  exclusions, both reasoned rather than line-keyed so they cannot rot: blocks
+  indented >=6 spaces (quoted tool output — this is what correctly keeps
+  `close.md`'s convergence-line examples out, since they *quote* the rule rather
+  than instruct anyone), and `referenceSections` (FLAGS/USAGE/DEFERRED/… — prose
+  describing the tool, which is why `judge.md`'s `--tools` note and its roadmap
+  mention findings without handing any to anyone). The scan then found exactly
+  the three genuine sites, which are now routed: `close.md:13`, `close.md:59`,
+  `milestone-close.md:38`. BR-3 (unguarded helptext citations) is disposed by the
+  same guard.
+- **BR-2 (Important) — the guard's signature was narrower than the class it
+  claimed.** All four blind spots closed: (a) a `cwarn`/`die` call's literals are
+  now **concatenated before matching**, since the tree's prevailing style splits
+  one message across adjacent literals — `close.go:1194` is three and
+  `changecode.go:554` became two *in this diff*; (b) pass 2 walks **every**
+  literal including package-level const/var, not just `FuncDecl` bodies; (c) the
+  directive vocabulary is widened (a narrow signature being the same defect one
+  level down); (d) pass 2 is **count-based** — routing refs >= matching literals
+  per func — because function-granularity is what pass 1's own comment already
+  declared insufficient.
+- **BR-4 (Minor) — the scans assert the source routes; neither proved the line
+  reaches an operator.** A formatter whose output were dropped or swallowed by a
+  wrapper would pass both scans and reach nobody. `TestGatePathStderrCarriesRoutingLine`
+  drives `runPlanQualityJudge` end-to-end with a findings verdict and reads
+  stderr. Proven meaningful: removing the routing from `classifyFallback` fails it
+  with "gate stderr does not carry the routing line".
+- **BR-5 (Minor)** — done earlier: `fixTheClassNote()` owns the `"\n  "` join the
+  six one-line sites had hand-spelled.
+- **BR-6 (Minor)** — scan boundary documented at the test (`cmd/sdlc/*.go`,
+  subpackages excluded, with why); `cmd/doc-review`'s sibling framing ruled OUT
+  in Non-goals with its reasoning, not dropped silently.
+
+Correction to the parked continuation: it recorded "BR-4 already done" — that was
+**BR-5**. BR-4 was open and untouched, and is fixed here.
 
 Full Go suite green (`go build ./... && go test ./...`).
