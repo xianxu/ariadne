@@ -1,11 +1,12 @@
 ---
 id: 000203
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-08-22
 updated: 2026-08-22
 estimate_hours:
+started: 2026-08-22T10:04:13-07:00
 ---
 
 # gate refusals tell the fixer to address findings, not to fix the class they belong to
