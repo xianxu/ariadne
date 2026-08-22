@@ -71,6 +71,81 @@ rounds:
           family: undocumented-scan-boundary
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-08-22T12:33:48-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: TestEveryFixerFacingHelptextRoutes verified red on revert, naming exactly close.md:13, close.md:59, milestone-close.md:38.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: All four named shapes plus a fifth I constructed now fail the guard; verified in a scratch copy.
+          round: 2
+        - id: BR-3
+          disposition: not-addressed
+          note: close.md:79's citation is guarded; change-code.md:37's is not — removing it fails no test, since neither it nor its predecessor paragraph carries a directive verb.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: 'Verified red: stripping fixTheClassNote from classifyFallback fails TestGatePathStderrCarriesRoutingLine on real stderr.'
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: fixTheClassNote owns the join at six sites; the two remaining indents are argued at gatefindings.go:33.
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: Scan boundary documented at the test; doc-review ruled OUT in Non-goals with reasoning.
+          round: 2
+      findings:
+        - id: BR-7
+          severity: Important
+          title: Third round of the same family — two further shapes of the guard's class ship green; state the rule, do not patch F and H
+          detail: |-
+            Verified green in a scratch copy: (F) a fixer-facing message split across adjacent literals in a
+            call that is not cwarn/die — pass 2 never concatenates, and cmd/sdlc non-test files hold ~200
+            fmt.Fprint* calls and ~70 adjacent-literal concatenations; (H) a func whose cwarn routes (claimed
+            by pass 1) and which also builds a second unrouted fixer-facing line — countRoutingRefs credits the
+            claimed call's ref to the unclaimed literal, and finalizeBoundaryReview already carries two such
+            credits. Rounds 1 and 2 each widened to the shapes the finding named. The RULE: match every
+            fixer-facing message as a whole string-valued expression (fold +-joined BinaryExpr chains wherever
+            they occur, not only inside two hardcoded emitter names) and attribute each match to a routing ref
+            in its own syntactic unit (count only unclaimed refs in pass 2). One pass over string-valued
+            expressions attributed to the nearest enclosing statement makes F and H the same case, and the same
+            rule covers the doc scan, which shares fixerFacingMessage. Alternative, equally valid at class
+            level: soften atlas/workflow/gate-state.md:127 and Done-when 4 to the declared boundary rather than
+            keeping the strong claim over the weak mechanism. ARCH-PURPOSE.
+          family: guard-narrower-than-claimed-class
+          round: 2
+        - id: BR-8
+          severity: Minor
+          title: The issue's own "Doc surfaces" enumeration is stale — names 2, delivered 5 across 3 files
+          detail: |-
+            Second in this family. The section whose point is being mechanical is still hand-maintained: it
+            names close.md FINDING FAMILIES and change-code.md THE PLAN GATE, while BR-1's fix routed five
+            paragraphs across close.md, change-code.md and milestone-close.md; Done-when 5 omits
+            milestone-close.md. Do not just correct the list — the rule is that a hand-written enumeration of a
+            class the guards now compute must ROUTE at the guard (the #128 pattern this issue applies
+            everywhere else) instead of restating sites that drift. Same rule covers the "eight sites" table,
+            which will go stale the moment a ninth lands.
+          family: hand-enumerated-class
+          round: 2
+        - id: BR-9
+          severity: Minor
+          title: superpowers-receiving-code-review is an unruled sibling that actively contradicts the issue's thesis
+          detail: |-
+            Second in this family. construct/adapted/superpowers-receiving-code-review/SKILL.md is the repo's
+            canonical findings-RECEPTION surface — invoked exactly when a gate hands findings over — and its
+            response pattern ends "6. IMPLEMENT: One item at a time, test each", the per-site patching #203
+            exists to stop. It escapes the doc scan only because it says "feedback"/"items", never "finding".
+            The rule: each guard declares its own glob, but the SET of globs (which instruction surfaces are in
+            the class) is never declared, so Non-goals rules siblings in or out from memory — doc-review by
+            name, this one not at all. Declare the surface set, then rule each member.
+          family: undocumented-scan-boundary
+          round: 2
+      blocked: true
 ---
 
 # Gate ledger — ariadne#203 (boundary-review)
@@ -116,11 +191,53 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   "triage each finding" to the main agent — the same framing in another binary, deserving an
   explicit in-or-out ruling.
 
+## Round 2 — 2026-08-22T12:33:48-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — TestEveryFixerFacingHelptextRoutes verified red on revert, naming exactly close.md:13, close.md:59, milestone-close.md:38.
+- BR-2 — addressed — All four named shapes plus a fifth I constructed now fail the guard; verified in a scratch copy.
+- BR-3 — not-addressed — close.md:79's citation is guarded; change-code.md:37's is not — removing it fails no test, since neither it nor its predecessor paragraph carries a directive verb.
+- BR-4 — addressed — Verified red: stripping fixTheClassNote from classifyFallback fails TestGatePathStderrCarriesRoutingLine on real stderr.
+- BR-5 — addressed — fixTheClassNote owns the join at six sites; the two remaining indents are argued at gatefindings.go:33.
+- BR-6 — addressed — Scan boundary documented at the test; doc-review ruled OUT in Non-goals with reasoning.
+
+### Raised
+
+- **BR-7** [Important] `guard-narrower-than-claimed-class` Third round of the same family — two further shapes of the guard's class ship green; state the rule, do not patch F and H
+  Verified green in a scratch copy: (F) a fixer-facing message split across adjacent literals in a
+  call that is not cwarn/die — pass 2 never concatenates, and cmd/sdlc non-test files hold ~200
+  fmt.Fprint* calls and ~70 adjacent-literal concatenations; (H) a func whose cwarn routes (claimed
+  by pass 1) and which also builds a second unrouted fixer-facing line — countRoutingRefs credits the
+  claimed call's ref to the unclaimed literal, and finalizeBoundaryReview already carries two such
+  credits. Rounds 1 and 2 each widened to the shapes the finding named. The RULE: match every
+  fixer-facing message as a whole string-valued expression (fold +-joined BinaryExpr chains wherever
+  they occur, not only inside two hardcoded emitter names) and attribute each match to a routing ref
+  in its own syntactic unit (count only unclaimed refs in pass 2). One pass over string-valued
+  expressions attributed to the nearest enclosing statement makes F and H the same case, and the same
+  rule covers the doc scan, which shares fixerFacingMessage. Alternative, equally valid at class
+  level: soften atlas/workflow/gate-state.md:127 and Done-when 4 to the declared boundary rather than
+  keeping the strong claim over the weak mechanism. ARCH-PURPOSE.
+- **BR-8** [Minor] `hand-enumerated-class` The issue's own "Doc surfaces" enumeration is stale — names 2, delivered 5 across 3 files
+  Second in this family. The section whose point is being mechanical is still hand-maintained: it
+  names close.md FINDING FAMILIES and change-code.md THE PLAN GATE, while BR-1's fix routed five
+  paragraphs across close.md, change-code.md and milestone-close.md; Done-when 5 omits
+  milestone-close.md. Do not just correct the list — the rule is that a hand-written enumeration of a
+  class the guards now compute must ROUTE at the guard (the #128 pattern this issue applies
+  everywhere else) instead of restating sites that drift. Same rule covers the "eight sites" table,
+  which will go stale the moment a ninth lands.
+- **BR-9** [Minor] `undocumented-scan-boundary` superpowers-receiving-code-review is an unruled sibling that actively contradicts the issue's thesis
+  Second in this family. construct/adapted/superpowers-receiving-code-review/SKILL.md is the repo's
+  canonical findings-RECEPTION surface — invoked exactly when a gate hands findings over — and its
+  response pattern ends "6. IMPLEMENT: One item at a time, test each", the per-site patching #203
+  exists to stop. It escapes the doc scan only because it says "feedback"/"items", never "finding".
+  The rule: each guard declares its own glob, but the SET of globs (which instruction surfaces are in
+  the class) is never declared, so Non-goals rules siblings in or out from memory — doc-review by
+  name, this one not at all. Declare the surface set, then rule each member.
+
 ## Open findings
 
-- **BR-1** [Important] `hand-enumerated-class` Doc-surface class enumerated by hand; three unrouted findings surfaces remain, two of them doc twins of code sites this diff routed
-- **BR-2** [Important] `guard-narrower-than-claimed-class` Enumeration guard's class signature is narrower than the class it claims; four synthetic ninth sites ship green
 - **BR-3** [Minor] `guard-narrower-than-claimed-class` New ARCH-PURPOSE citations in helptext are unguarded, unlike the routing line itself
-- **BR-4** [Minor] `coverage-stops-at-the-seam` No test asserts a real gate path's stderr actually contains the routing line
-- **BR-5** [Minor] `repeated-join-prefix` The "\n  " join prefix is hand-written at six of the eight call sites
-- **BR-6** [Minor] `undocumented-scan-boundary` The guard's scan scope (cmd/sdlc package dir only) is undocumented, and cmd/doc-review has an unruled sibling
+- **BR-7** [Important] `guard-narrower-than-claimed-class` Third round of the same family — two further shapes of the guard's class ship green; state the rule, do not patch F and H
+- **BR-8** [Minor] `hand-enumerated-class` The issue's own "Doc surfaces" enumeration is stale — names 2, delivered 5 across 3 files
+- **BR-9** [Minor] `undocumented-scan-boundary` superpowers-receiving-code-review is an unruled sibling that actively contradicts the issue's thesis

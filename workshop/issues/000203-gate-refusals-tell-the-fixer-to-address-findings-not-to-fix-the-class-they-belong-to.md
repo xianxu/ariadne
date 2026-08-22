@@ -78,58 +78,29 @@ general fix came from the plan gate (PQ-5), not from the planning agent.
 
 ## The class (enumeration)
 
-Enumerated **mechanically**, not by hand — every non-test `cwarn`/`die` in
-`cmd/sdlc` whose message reports judge findings and directs the reader:
+**The enumeration is computed, not listed here.** An earlier revision of this
+section carried the eight in-class sites, the seven reasoned exclusions, and the
+doc surfaces as tables — and they went stale within one round (BR-8: the doc line
+named two surfaces after the fix had routed five across three files). A
+hand-maintained restatement of a class the guards now compute is a deferred
+consumer, which is the same defect this issue exists to close. So this section
+routes, per the #128 pattern the issue applies everywhere else:
 
-    grep -rn "cwarn(\|die(" cmd/sdlc/*.go | grep -v _test | grep -iE "finding|fix the|address"
+- **The surface set and the ruling on each member** — `fixerFacingSurfaces` in
+  `cmd/sdlc/gatefindings_test.go`. It names what is guarded, what is ruled out,
+  and why.
+- **The in-class sites** — whatever `TestEveryFixerFacingSiteRoutes` and
+  `TestEveryFixerFacingHelptextRoutes` match today. Run them; a violation prints
+  the list.
+- **The exclusions** — structural and stated at each guard (the routing line's
+  own definition; >=6-space quoted output; reference sections).
 
-**In class — eight sites:**
-
-| site | enclosing func | context |
-|---|---|---|
-| `changecode.go:554` | `runPlanQualityJudge` (416) | plan gate blocked, ledger path |
-| `changecode.go:572` | `classifyFallback` (563) | plan-quality, verdict-token path |
-| `changecode.go:722` | `runEstimateQualityJudge` (664) | estimate-quality findings |
-| `close.go:1194` | `finalizeBoundaryReview` (1144) | boundary gate, open blocking |
-| `close.go:1237` | `finalizeBoundaryReview` (1144) | boundary review REWORK |
-| `close.go:1809` | `formatFixThenShipProtocol` (1806) | FIX-THEN-SHIP step 1 |
-| `milestoneclose.go:626` | `dispatchBoundaryReview` (590) | boundary review findings |
-| `judge.go:172` | `runJudge` (69) | ad-hoc `sdlc judge` |
-
-**Out of class, with reasons** — the scan surfaces them; none reports judge
-findings to fix: `changecode.go:251` (deterministic structural failures),
-`changecode.go:279` (estimate arithmetic), `changecode.go:495` +
-`boundaryledger.go:161` (*no* findings block parsed — a prompt/parse fault),
-`boundaryledger.go:101` (ledger unreadable), `close.go:1180` (bypass notice),
-`close.go:1190` (states non-finalization; `:1194` carries the instruction),
-`migrate.go:308` (ref resolution).
-
-Doc surfaces: `helptext/close.md` FINDING FAMILIES and `helptext/change-code.md`
-THE PLAN GATE.
-
-The first read of this issue found two sites; a hand enumeration found seven and
-was still wrong; the mechanical scan found eight. Recorded because it is the
-issue's own thesis: an enumeration written from memory is another instance.
-
-## Done when
-
-- [x] `ARCH-PURPOSE` carries the class-vs-instance discipline in its
-      `principle`, `at-plan`, and `at-review` lenses — the single statement.
-- [x] One pure formatter owns the routing line, and **all eight** code sites
-      emit it. No site paraphrases the procedure.
-- [x] A **drift guard** mirroring `TestArchitecture_NarrativeRoutesToArchPrinciples`:
-      the emitted line routes to `sdlc arch-principles` and cites `ARCH-PURPOSE`,
-      and the registry entry still carries the discipline the citation promises.
-      Restating the procedure in the formatter would make this test vacuous, so
-      it asserts routing, not wording.
-- [x] An **enumeration guard** — a Go test scanning non-test `cmd/sdlc` sources
-      for the class signature, asserting every match routes through the formatter
-      or sits on an explicit, reasoned exclusion list. A table over the eight
-      known funcs cannot deliver this: it is structurally blind to a ninth,
-      exactly as the first draft of this plan was blind to four of the eight.
-- [x] `helptext/close.md` FINDING FAMILIES states the fixer's half by routing to
-      the marker; `helptext/change-code.md`'s plan-gate section does the same.
-- [x] Helptext render/golden tests pass and the full Go suite is green.
+What is worth recording here is the *evidence*, which does not drift: the first
+read of this issue found **two** sites; a careful hand enumeration found **seven**
+and was still wrong; the mechanical scan found **eight**. That gap is the issue's
+thesis, and it recurred twice more under review — the doc class got a hand pass
+(BR-1) and the guard's own signature was narrower than the class it claimed
+across three rounds (BR-2, BR-7).
 
 ## Estimate
 
@@ -340,3 +311,47 @@ Correction to the parked continuation: it recorded "BR-4 already done" — that 
 **BR-5**. BR-4 was open and untouched, and is fixed here.
 
 Full Go suite green (`go build ./... && go test ./...`).
+
+### 2026-08-22 (close review round 2 — the rule, not two more shapes)
+
+Round 2 disposed all six of round 1's findings but raised a **third round of
+`guard-narrower-than-claimed-class`**, and the gate said so: *"Not converging:
+fix rules, not instances."* It was right — rounds 1 and 2 had each widened the
+guard to whatever shape the last finding named. BR-7 named two more (F: a split
+message in a non-`cwarn` call, of which the tree has ~200 candidates; H: a second
+unrouted line in an already-routing func, which `finalizeBoundaryReview` already
+carried twice) and, correctly, refused to let me patch them.
+
+**The rule, now stated and implemented:** match every fixer-facing message as a
+whole string-valued **expression** — folding `+`-joined chains wherever they
+occur, not inside two hardcoded emitter names — and attribute each match to a
+routing reference in its own **statement**. Both halves collapse a family of
+shapes the earlier drafts handled one at a time: per-literal matching misses any
+message the tree splits across pieces (its prevailing style), and per-function
+attribution credits one routing reference to every line in the func.
+
+The redesign deleted `stringLiterals`, `enclosingFunc`, `countMatchingLiterals`,
+`countRoutingRefs`, and the whole two-pass/`claimed` structure — a shorter guard
+that is strictly stronger. It immediately caught shape H in the tree
+(`formatFixThenShipProtocol` built its message in one statement and appended the
+routing line in the next); fixed by merging into one `append`, which is the
+honest shape anyway — the routing line should share a statement with the message
+it routes. Both shapes re-verified red afterwards on synthetic sites.
+
+- **BR-8 (Minor) — the issue's own enumeration was hand-maintained** and went
+  stale within one round (named two doc surfaces after the fix routed five across
+  three files). Fixed at the rule rather than by correcting the list: `## The
+  class (enumeration)` now ROUTES at the guards, keeping only the evidence that
+  does not drift. Done-when 5 likewise.
+- **BR-9 (Minor) — the SET of surfaces was never declared**, so siblings were
+  ruled in or out from memory. `fixerFacingSurfaces` now declares it with a
+  ruling on each member. The finding it surfaced is the sharpest in the issue:
+  `construct/adapted/superpowers-receiving-code-review/SKILL.md` — the canonical
+  findings-*reception* surface, invoked at exactly the moment a gate hands
+  findings over — ended with *"6. IMPLEMENT: One item at a time, test each"*,
+  the per-site patching this issue exists to stop. It escaped every scan because
+  it says "feedback"/"items", never "findings". Its response pattern now has a
+  **GENERALIZE** step before IMPLEMENT and routes to ARCH-PURPOSE, pinned by
+  `TestReceivingCodeReviewSkillGeneralizes`.
+
+Full Go suite green.

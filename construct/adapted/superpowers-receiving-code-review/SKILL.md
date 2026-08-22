@@ -21,8 +21,19 @@ WHEN receiving code review feedback:
 3. VERIFY: Check against codebase reality
 4. EVALUATE: Technically sound for THIS codebase?
 5. RESPOND: Technical acknowledgment or reasoned pushback
-6. IMPLEMENT: One item at a time, test each
+6. GENERALIZE: Name the CLASS this item is an instance of, and enumerate it
+7. IMPLEMENT: Sweep that enumeration in THIS round, testing each
 ```
+
+Step 6 is the one people skip. A finding names one site; the deliverable is the
+class it belongs to — fixing only the named site is half a disposition, and it
+is why a review that could have converged in one round takes four. Where the
+feedback comes from an `sdlc` gate, the `family:` slug on each finding names the
+class for you, so the ledger is a worklist rather than a label. The governing
+principle is **ARCH-PURPOSE** (`sdlc arch-principles`).
+
+"Test each" still applies per item — generalizing the fix does not mean batching
+the verification.
 
 ## Forbidden Responses
 

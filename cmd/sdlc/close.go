@@ -1807,8 +1807,11 @@ func formatMissingVerdicts(issueStr string, missing []string) string {
 func formatFixThenShipProtocol(verb string) string {
 	var lines []string
 	lines = append(lines, "FIX-THEN-SHIP protocol (#174):")
-	lines = append(lines, "      1. Fix the findings NOW, before committing this close.")
-	lines = append(lines, "         "+fixTheClassLine())
+	// One append, not two: the routing line must share a statement with the
+	// message it routes, or a guard that attributes per statement cannot tell
+	// which line it credits (#203 BR-7 shape H).
+	lines = append(lines, "      1. Fix the findings NOW, before committing this close.",
+		"         "+fixTheClassLine())
 	lines = append(lines, "      2. Bundle the fixes + the issue-file close mutations (+ lessons/bookkeeping)")
 	lines = append(lines, "         into ONE commit (or amend), so the publish gate's reviewed anchor is HEAD.")
 	lines = append(lines, fmt.Sprintf("      3. Do NOT re-run `%s` — this verdict already sanctions shipping after", verb))

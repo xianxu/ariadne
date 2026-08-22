@@ -49,6 +49,61 @@ func TestFixTheClassLine_RoutesToArchPrinciples(t *testing.T) {
 	}
 }
 
+// fixerFacingSurfaces DECLARES the class this file guards: every surface that
+// hands findings to a fixer and says what to do with them (#203 BR-9). Each guard
+// below globs its own slice of it; what was missing was the SET — with no declared
+// set, siblings got ruled in or out from memory, which is how
+// superpowers-receiving-code-review sat there telling the agent to implement
+// findings "one item at a time" while this very issue existed to stop that.
+//
+// Guarded here:
+//
+//	cmd/sdlc/*.go            the eight gate emissions  (TestEveryFixerFacingSiteRoutes)
+//	cmd/sdlc/helptext/*.md   the help those gates print (TestEveryFixerFacingHelptextRoutes)
+//	construct/adapted/superpowers-receiving-code-review/SKILL.md
+//	                         the canonical reception skill — the surface invoked at
+//	                         exactly the moment a gate hands findings over
+//	                         (TestReceivingCodeReviewSkillGeneralizes)
+//
+// Ruled OUT, with reasons:
+//
+//	cmd/sdlc/internal/...    reviewer-side prompts — a different audience; the judges
+//	                         are already told to slug the rule, not the symptom
+//	cmd/doc-review           different binary, no family ledger, explicitly advisory
+//	                         and read-only over a document the agent owns, and the
+//	                         ARCH-* registry is not delivered to it. A separable
+//	                         extension in ARCH-PURPOSE's sense — revisit if it grows
+//	                         a ledger
+//	AGENTS.base.md           already routes to `sdlc arch-principles` and is guarded
+//	                         by judge.TestArchitecture_NarrativeRoutesToArchPrinciples,
+//	                         so extending ARCH-PURPOSE reaches it for free
+//
+// A new instruction surface belongs in this comment AND under a guard. Adding one
+// to the tree without adding it here is the omission BR-9 names.
+
+// TestReceivingCodeReviewSkillGeneralizes pins the third surface. The skill is
+// prose, not Go, and it deliberately says "feedback"/"items" rather than
+// "findings" — so it escapes fixerFacingMessage and needs its own assertion. What
+// matters is that its response pattern tells the reader to generalize before
+// implementing, and routes to the principle.
+func TestReceivingCodeReviewSkillGeneralizes(t *testing.T) {
+	path := filepath.Join("..", "..", "construct", "adapted",
+		"superpowers-receiving-code-review", "SKILL.md")
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	skill := string(body)
+	for _, want := range []string{"GENERALIZE", "ARCH-PURPOSE", "family:"} {
+		if !strings.Contains(skill, want) {
+			t.Errorf("%s no longer carries %q — the findings-reception surface stopped telling the reader to fix the class", path, want)
+		}
+	}
+	if strings.Contains(skill, "6. IMPLEMENT: One item at a time") {
+		t.Errorf("%s restored the per-item implement step that #203 replaced with GENERALIZE-then-sweep", path)
+	}
+}
+
 // fixerFacingMessage reports whether a message is a fixer-facing findings refusal:
 // it says findings exist (or need disposing) AND directs the reader to act on them.
 // Both halves are required — "no valid ```findings block" reports a parse fault with
@@ -79,20 +134,27 @@ func fixerFacingMessage(s string) bool {
 // hypothetical: this issue's first plan listed four sites and the tree held eight.
 // So it scans the sources for the CLASS signature instead.
 //
-// SCAN BOUNDARY (#203 BR-6): cmd/sdlc's own package directory, non-test files.
-// Subpackages are excluded deliberately — they emit no fixer-facing refusals (the
-// gates live here), and internal/judge holds the reviewer-side prompts, which are a
-// different audience. The one sibling binary with the same framing,
-// cmd/doc-review/review.go's "triage each finding", is ruled OUT in the issue's
-// Non-goals: different binary, no family ledger, explicitly advisory/read-only, and
-// the ARCH-* registry is not delivered to it.
+// THE RULE (arrived at after three rounds of widening to whatever shape the last
+// finding named — #203 BR-7): match every fixer-facing message as a whole
+// string-valued EXPRESSION, and attribute each match to a routing reference in its
+// own STATEMENT.
 //
-// Granularity is the CALL, not the function: finalizeBoundaryReview emits two
-// separate arms (open-blocking and REWORK), and a function-level check would pass
-// with only one routed. Where a literal is not inside a cwarn/die call — a string
-// builder like formatFixThenShipProtocol — pass 2 is COUNT-based for the same
-// reason (#203 BR-2d): requiring merely "the func routes somewhere" would let a
-// second unrouted line ship inside an already-routing builder.
+// Both halves are load-bearing, and each collapses a family of shapes that earlier
+// drafts handled one at a time:
+//
+//   - Whole-expression matching folds `+`-joined chains wherever they occur. The
+//     tree splits one message across adjacent literals as a matter of style
+//     (close.go's boundary-gate refusal is three pieces), so per-literal matching
+//     misses any message whose "findings" and its directive verb land in different
+//     pieces. Folding at the expression — not inside two hardcoded emitter names —
+//     also covers the ~200 fmt.Fprint* calls that are not cwarn/die.
+//   - Statement attribution means a routing reference credits only the message it
+//     is joined to. Counting references per FUNCTION let an already-routing func
+//     carry a second, unrouted line for free.
+//
+// SCAN BOUNDARY (#203 BR-6): cmd/sdlc's own package directory, non-test files.
+// The full set of surfaces in this class — and the ruling on each — is
+// fixerFacingSurfaces below.
 func TestEveryFixerFacingSiteRoutes(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(".", "*.go"))
 	if err != nil {
@@ -112,52 +174,22 @@ func TestEveryFixerFacingSiteRoutes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse %s: %v", path, err)
 		}
-
-		// Pass 1: cwarn/die calls own every literal inside them. The call's
-		// literals are CONCATENATED before matching (#203 BR-2a) — the tree's
-		// prevailing style splits one message across adjacent literals, so
-		// matching each in isolation misses a message whose "findings" and its
-		// directive verb land in different pieces.
-		claimed := map[ast.Node]bool{}
-		ast.Inspect(file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			ident, ok := call.Fun.(*ast.Ident)
-			if !ok || (ident.Name != "cwarn" && ident.Name != "die") {
-				return true
-			}
-			var joined strings.Builder
-			for _, lit := range stringLiterals(call) {
-				claimed[lit.node] = true
-				joined.WriteString(lit.text)
-			}
-			if fixerFacingMessage(joined.String()) && !referencesRoutingLine(call) {
-				violations = append(violations, describe(fset, call.Pos(), path))
-			}
-			return true
-		})
-
-		// Pass 2: every remaining literal in the file — including package-level
-		// const/var, which the first draft never walked (#203 BR-2b).
-		for _, lit := range stringLiterals(file) {
-			if claimed[lit.node] || !fixerFacingMessage(lit.text) {
+		for _, m := range fixerFacingMatches(file) {
+			if m.fn != nil && (m.fn.Name.Name == "fixTheClassLine" || m.fn.Name.Name == "fixTheClassNote") {
+				// The one reasoned exclusion: the routing line's own definition
+				// matches the signature it describes and cannot route through itself.
 				continue
 			}
-			fn := enclosingFunc(file, lit.node)
-			if fn == nil {
-				violations = append(violations, describe(fset, lit.node.Pos(), path)+" (package-level)")
+			if referencesRoutingLine(m.stmt) {
 				continue
 			}
-			// The one reasoned exclusion: the routing line's own definition matches
-			// the signature it describes and cannot route through itself.
-			if fn.Name.Name == "fixTheClassLine" || fn.Name.Name == "fixTheClassNote" {
-				continue
+			where := describe(fset, m.expr.Pos(), path)
+			if m.fn != nil {
+				where += " (in " + m.fn.Name.Name + ")"
+			} else {
+				where += " (package-level)"
 			}
-			if countMatchingLiterals(fn.Body, claimed) > countRoutingRefs(fn.Body) {
-				violations = append(violations, describe(fset, lit.node.Pos(), path)+" (in "+fn.Name.Name+")")
-			}
+			violations = append(violations, where)
 		}
 	}
 	if len(violations) > 0 {
@@ -165,6 +197,96 @@ func TestEveryFixerFacingSiteRoutes(t *testing.T) {
 			"Every surface that hands findings to the fixer must say to fix the CLASS, not the site (ARCH-PURPOSE).",
 			len(violations), strings.Join(violations, "\n  "))
 	}
+}
+
+// match is one fixer-facing message: the maximal string expression carrying it,
+// the statement it belongs to (the unit a routing reference must share), and the
+// enclosing func if any.
+type match struct {
+	expr ast.Expr
+	stmt ast.Node
+	fn   *ast.FuncDecl
+}
+
+// fixerFacingMatches walks the file once, tracking the innermost enclosing
+// statement and func, and yields every MAXIMAL string-valued expression whose
+// folded text is a fixer-facing message. Maximal matters: descending into a
+// matched expression would re-report its own literal halves.
+func fixerFacingMatches(file *ast.File) []match {
+	var out []match
+	var stmts []ast.Node
+	var fns []*ast.FuncDecl
+
+	var walk func(n ast.Node)
+	walk = func(n ast.Node) {
+		if n == nil {
+			return
+		}
+		if expr, ok := n.(ast.Expr); ok && isStringExpr(expr) {
+			if fixerFacingMessage(foldStringExpr(expr)) {
+				m := match{expr: expr}
+				if len(stmts) > 0 {
+					m.stmt = stmts[len(stmts)-1]
+				} else {
+					m.stmt = expr // package-level const/var: the expression is its own unit
+				}
+				if len(fns) > 0 {
+					m.fn = fns[len(fns)-1]
+				}
+				out = append(out, m)
+			}
+			return // maximal: do not descend
+		}
+		if fn, ok := n.(*ast.FuncDecl); ok {
+			fns = append(fns, fn)
+			defer func() { fns = fns[:len(fns)-1] }()
+		}
+		if stmt, ok := n.(ast.Stmt); ok {
+			stmts = append(stmts, stmt)
+			defer func() { stmts = stmts[:len(stmts)-1] }()
+		}
+		ast.Inspect(n, func(c ast.Node) bool {
+			if c == n || c == nil {
+				return c == n
+			}
+			walk(c)
+			return false
+		})
+	}
+	walk(file)
+	return out
+}
+
+// isStringExpr reports whether e is a string literal or a +-joined chain
+// containing one.
+func isStringExpr(e ast.Expr) bool {
+	switch v := e.(type) {
+	case *ast.BasicLit:
+		return v.Kind == token.STRING
+	case *ast.BinaryExpr:
+		return v.Op == token.ADD && (isStringExpr(v.X) || isStringExpr(v.Y))
+	}
+	return false
+}
+
+// foldStringExpr concatenates the literal parts of a string expression. Non-literal
+// operands (a helper call, a variable) contribute nothing — they cannot be read
+// statically, and a message that depends on one is matched on what IS visible.
+func foldStringExpr(e ast.Expr) string {
+	switch v := e.(type) {
+	case *ast.BasicLit:
+		if v.Kind != token.STRING {
+			return ""
+		}
+		if s, err := strconv.Unquote(v.Value); err == nil {
+			return s
+		}
+	case *ast.BinaryExpr:
+		if v.Op == token.ADD {
+			return foldStringExpr(v.X) + foldStringExpr(v.Y)
+		}
+	}
+	return ""
 }
 
 // TestEveryFixerFacingHelptextRoutes is the same guard for the DOC class (#203
@@ -272,61 +394,6 @@ func isQuotedOutput(para string) bool {
 		}
 	}
 	return any
-}
-
-func enclosingFunc(file *ast.File, target ast.Node) *ast.FuncDecl {
-	for _, decl := range file.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			continue
-		}
-		if target.Pos() >= fn.Body.Pos() && target.End() <= fn.Body.End() {
-			return fn
-		}
-	}
-	return nil
-}
-
-func countMatchingLiterals(n ast.Node, claimed map[ast.Node]bool) int {
-	count := 0
-	for _, lit := range stringLiterals(n) {
-		if !claimed[lit.node] && fixerFacingMessage(lit.text) {
-			count++
-		}
-	}
-	return count
-}
-
-func countRoutingRefs(n ast.Node) int {
-	count := 0
-	ast.Inspect(n, func(node ast.Node) bool {
-		if ident, ok := node.(*ast.Ident); ok &&
-			(ident.Name == "fixTheClassLine" || ident.Name == "fixTheClassNote") {
-			count++
-		}
-		return true
-	})
-	return count
-}
-
-type litRef struct {
-	node ast.Node
-	text string
-}
-
-func stringLiterals(n ast.Node) []litRef {
-	var out []litRef
-	ast.Inspect(n, func(node ast.Node) bool {
-		lit, ok := node.(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
-			return true
-		}
-		if s, err := strconv.Unquote(lit.Value); err == nil {
-			out = append(out, litRef{node: lit, text: s})
-		}
-		return true
-	})
-	return out
 }
 
 func referencesRoutingLine(n ast.Node) bool {
