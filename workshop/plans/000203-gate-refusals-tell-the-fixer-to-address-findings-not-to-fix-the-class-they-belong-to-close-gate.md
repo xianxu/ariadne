@@ -146,6 +146,73 @@ rounds:
           family: undocumented-scan-boundary
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-08-22T12:50:38-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: not-addressed
+          note: 'Re-verified: deleting the ARCH-PURPOSE paragraph at change-code.md:37 fails no test — neither it nor its neighbours carry a directive verb, so fixerFacingMessage never reaches them. Class fix: a guard that every ARCH-* marker cited in helptext exists in the registry.'
+          round: 3
+        - id: BR-7
+          disposition: addressed
+          note: 'Verified in a scratch worktree: shapes F and H both go red, along with a package-level const and an off-list verb; the two-pass name-keyed structure is deleted, not widened.'
+          round: 3
+        - id: BR-8
+          disposition: addressed
+          note: 'The section it named now routes at the guards. Note: Plan items 4-5 still hand-name "the eight sites" and two doc surfaces, but those are checked-off historical steps rather than a live enumeration, and `## Done when` was removed entirely along with its restatements.'
+          round: 3
+        - id: BR-9
+          disposition: addressed
+          note: Surface set declared; SKILL.md guard verified red on revert on both assertions; the .claude/skills symlink confirms the edit reaches the loaded skill. Its durability is a separate new finding.
+          round: 3
+      findings:
+        - id: BR-10
+          severity: Important
+          title: Statement attribution is membership, not counting — two messages sharing one statement with one routing ref ship green
+          detail: |-
+            4th in this family, and not a new shape: it is the half of BR-7's own stated rule that round 3
+            dropped ("count only unclaimed refs"). Verified green in a scratch copy — an append carrying
+            "1. Fix the findings NOW..." + fixTheClassLine() + "2. Any remaining findings — address them"
+            passes. Reachable in formatFixThenShipProtocol specifically, because round 3's fix put the
+            routing ref into that same append. THE RULE, and why to stop widening here: a syntactic
+            approximation cannot back an absolute claim — counting closes this residue, the next (two refs
+            both joined to one message) is one level further, without bound. So fix the CLAIM:
+            atlas/workflow/gate-state.md:127 still says "a ninth refusal site cannot ship unrouted", and the
+            paragraph under it describes this exact defect with "function" where "statement" now belongs.
+            State what the guard approximates (whole +-folded string expressions, per-statement attribution,
+            statically visible literals only). I also prototyped the counting change: ~5 lines, closes the
+            residue, ZERO false positives on the real tree — free, but optional; the claim is the deliverable.
+            ARCH-PURPOSE.
+          family: guard-narrower-than-claimed-class
+          round: 3
+        - id: BR-11
+          severity: Important
+          title: BR-9's SKILL.md fix edits render output; /construct upgrade regenerates it from an intent transcript that never mentions the skill
+          detail: |-
+            construct/adapted/ is generated. /construct promote step 4 is delete-then-copy (rm -rf
+            construct/adapted/superpowers-*/ then copy staging), and /construct upgrade renders staging from
+            construct/sources/<version>/ + construct/intents/superpowers.md, where "skills not mentioned in
+            the intent → copy new source as-is". grep for receiving-code-review in that transcript returns
+            nothing, so the GENERALIZE step, the ARCH-PURPOSE routing, and the family:-as-worklist paragraph
+            are all scheduled for deletion by the substrate's own pipeline. The precedent is exact: a547179
+            (#71), the last ARCH-registry change touching an adapted skill, appended a Conversation entry
+            with Verify clauses in the same commit. TestReceivingCodeReviewSkillGeneralizes makes the loss
+            loud rather than silent, which is why this is Important not Critical — but a red test with no
+            intent record leaves the next reader reconstructing wording from three strings.Contains calls.
+            This is the issue's own principle one level out: the deliverable landed at the compiled consumer
+            instead of the source it derives from. ARCH-PURPOSE.
+          family: fix-at-consumer-not-source
+          round: 3
+        - id: BR-12
+          severity: Minor
+          title: The routing line is 120 chars — 129 at the FIX-THEN-SHIP indent, against ~83 for every neighbouring line
+          detail: |-
+            close.go:1812 places it in a block whose widest existing line is 83. It hard-wraps mid-sentence in
+            an 80/100-col terminal. Splitting after the colon would match the surrounding rhythm.
+          family: refusal-line-width
+          round: 3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#203 (boundary-review)
@@ -235,9 +302,51 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   the class) is never declared, so Non-goals rules siblings in or out from memory — doc-review by
   name, this one not at all. Declare the surface set, then rule each member.
 
+## Round 3 — 2026-08-22T12:50:38-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-3 — not-addressed — Re-verified: deleting the ARCH-PURPOSE paragraph at change-code.md:37 fails no test — neither it nor its neighbours carry a directive verb, so fixerFacingMessage never reaches them. Class fix: a guard that every ARCH-* marker cited in helptext exists in the registry.
+- BR-7 — addressed — Verified in a scratch worktree: shapes F and H both go red, along with a package-level const and an off-list verb; the two-pass name-keyed structure is deleted, not widened.
+- BR-8 — addressed — The section it named now routes at the guards. Note: Plan items 4-5 still hand-name "the eight sites" and two doc surfaces, but those are checked-off historical steps rather than a live enumeration, and `## Done when` was removed entirely along with its restatements.
+- BR-9 — addressed — Surface set declared; SKILL.md guard verified red on revert on both assertions; the .claude/skills symlink confirms the edit reaches the loaded skill. Its durability is a separate new finding.
+
+### Raised
+
+- **BR-10** [Important] `guard-narrower-than-claimed-class` Statement attribution is membership, not counting — two messages sharing one statement with one routing ref ship green
+  4th in this family, and not a new shape: it is the half of BR-7's own stated rule that round 3
+  dropped ("count only unclaimed refs"). Verified green in a scratch copy — an append carrying
+  "1. Fix the findings NOW..." + fixTheClassLine() + "2. Any remaining findings — address them"
+  passes. Reachable in formatFixThenShipProtocol specifically, because round 3's fix put the
+  routing ref into that same append. THE RULE, and why to stop widening here: a syntactic
+  approximation cannot back an absolute claim — counting closes this residue, the next (two refs
+  both joined to one message) is one level further, without bound. So fix the CLAIM:
+  atlas/workflow/gate-state.md:127 still says "a ninth refusal site cannot ship unrouted", and the
+  paragraph under it describes this exact defect with "function" where "statement" now belongs.
+  State what the guard approximates (whole +-folded string expressions, per-statement attribution,
+  statically visible literals only). I also prototyped the counting change: ~5 lines, closes the
+  residue, ZERO false positives on the real tree — free, but optional; the claim is the deliverable.
+  ARCH-PURPOSE.
+- **BR-11** [Important] `fix-at-consumer-not-source` BR-9's SKILL.md fix edits render output; /construct upgrade regenerates it from an intent transcript that never mentions the skill
+  construct/adapted/ is generated. /construct promote step 4 is delete-then-copy (rm -rf
+  construct/adapted/superpowers-*/ then copy staging), and /construct upgrade renders staging from
+  construct/sources/<version>/ + construct/intents/superpowers.md, where "skills not mentioned in
+  the intent → copy new source as-is". grep for receiving-code-review in that transcript returns
+  nothing, so the GENERALIZE step, the ARCH-PURPOSE routing, and the family:-as-worklist paragraph
+  are all scheduled for deletion by the substrate's own pipeline. The precedent is exact: a547179
+  (#71), the last ARCH-registry change touching an adapted skill, appended a Conversation entry
+  with Verify clauses in the same commit. TestReceivingCodeReviewSkillGeneralizes makes the loss
+  loud rather than silent, which is why this is Important not Critical — but a red test with no
+  intent record leaves the next reader reconstructing wording from three strings.Contains calls.
+  This is the issue's own principle one level out: the deliverable landed at the compiled consumer
+  instead of the source it derives from. ARCH-PURPOSE.
+- **BR-12** [Minor] `refusal-line-width` The routing line is 120 chars — 129 at the FIX-THEN-SHIP indent, against ~83 for every neighbouring line
+  close.go:1812 places it in a block whose widest existing line is 83. It hard-wraps mid-sentence in
+  an 80/100-col terminal. Splitting after the colon would match the surrounding rhythm.
+
 ## Open findings
 
 - **BR-3** [Minor] `guard-narrower-than-claimed-class` New ARCH-PURPOSE citations in helptext are unguarded, unlike the routing line itself
-- **BR-7** [Important] `guard-narrower-than-claimed-class` Third round of the same family — two further shapes of the guard's class ship green; state the rule, do not patch F and H
-- **BR-8** [Minor] `hand-enumerated-class` The issue's own "Doc surfaces" enumeration is stale — names 2, delivered 5 across 3 files
-- **BR-9** [Minor] `undocumented-scan-boundary` superpowers-receiving-code-review is an unruled sibling that actively contradicts the issue's thesis
+- **BR-10** [Important] `guard-narrower-than-claimed-class` Statement attribution is membership, not counting — two messages sharing one statement with one routing ref ship green
+- **BR-11** [Important] `fix-at-consumer-not-source` BR-9's SKILL.md fix edits render output; /construct upgrade regenerates it from an intent transcript that never mentions the skill
+- **BR-12** [Minor] `refusal-line-width` The routing line is 120 chars — 129 at the FIX-THEN-SHIP indent, against ~83 for every neighbouring line

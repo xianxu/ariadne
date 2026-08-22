@@ -174,22 +174,35 @@ func TestEveryFixerFacingSiteRoutes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse %s: %v", path, err)
 		}
+		// Attribution COUNTS, it does not merely test membership (#203 BR-10 —
+		// the half of the rule round 3 dropped). One statement carrying two
+		// fixer-facing messages and one routing reference routes ONE of them; the
+		// excess is unrouted. Grouping by statement and comparing counts is what
+		// makes that visible.
+		byStmt := map[ast.Node][]match{}
+		var order []ast.Node
 		for _, m := range fixerFacingMatches(file) {
 			if m.fn != nil && (m.fn.Name.Name == "fixTheClassLine" || m.fn.Name.Name == "fixTheClassNote") {
 				// The one reasoned exclusion: the routing line's own definition
 				// matches the signature it describes and cannot route through itself.
 				continue
 			}
-			if referencesRoutingLine(m.stmt) {
-				continue
+			if _, seen := byStmt[m.stmt]; !seen {
+				order = append(order, m.stmt)
 			}
-			where := describe(fset, m.expr.Pos(), path)
-			if m.fn != nil {
-				where += " (in " + m.fn.Name.Name + ")"
-			} else {
-				where += " (package-level)"
+			byStmt[m.stmt] = append(byStmt[m.stmt], m)
+		}
+		for _, stmt := range order {
+			ms := byStmt[stmt]
+			for _, m := range ms[min(countRoutingRefs(stmt), len(ms)):] {
+				where := describe(fset, m.expr.Pos(), path)
+				if m.fn != nil {
+					where += " (in " + m.fn.Name.Name + ")"
+				} else {
+					where += " (package-level)"
+				}
+				violations = append(violations, where)
 			}
-			violations = append(violations, where)
 		}
 	}
 	if len(violations) > 0 {
@@ -394,6 +407,20 @@ func isQuotedOutput(para string) bool {
 		}
 	}
 	return any
+}
+
+// countRoutingRefs counts routing references in n. A COUNT, not a boolean: one
+// reference routes one message (#203 BR-10).
+func countRoutingRefs(n ast.Node) int {
+	count := 0
+	ast.Inspect(n, func(node ast.Node) bool {
+		if ident, ok := node.(*ast.Ident); ok &&
+			(ident.Name == "fixTheClassLine" || ident.Name == "fixTheClassNote") {
+			count++
+		}
+		return true
+	})
+	return count
 }
 
 func referencesRoutingLine(n ast.Node) bool {

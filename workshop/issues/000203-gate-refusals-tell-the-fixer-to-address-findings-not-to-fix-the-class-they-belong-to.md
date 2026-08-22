@@ -102,6 +102,33 @@ thesis, and it recurred twice more under review — the doc class got a hand pas
 (BR-1) and the guard's own signature was narrower than the class it claimed
 across three rounds (BR-2, BR-7).
 
+## Done when
+
+- [x] `ARCH-PURPOSE` carries the class-vs-instance discipline in its
+      `principle`, `at-plan`, and `at-review` lenses — the single statement.
+- [x] One pure formatter owns the routing line, and every code site emits it.
+      No site paraphrases the procedure. (The site list is computed by the
+      guard, not restated here — see `## The class`.)
+- [x] A **drift guard** mirroring `TestArchitecture_NarrativeRoutesToArchPrinciples`:
+      the emitted line routes to `sdlc arch-principles` and cites `ARCH-PURPOSE`,
+      and the registry entry still carries the discipline the citation promises.
+      It asserts routing, not wording — asserting wording would let the line
+      become a second copy of the principle.
+- [x] An **enumeration guard** scanning non-test `cmd/sdlc` sources for the class
+      signature, asserting every match routes or sits on an explicit, reasoned
+      exclusion. It **raises the cost** of shipping an unrouted refusal; it is a
+      syntactic over-approximation and does not make it impossible — what it
+      approximates is stated at the guard and in `atlas/workflow/gate-state.md`
+      (#203 BR-10: a syntactic approximation cannot back an absolute claim).
+- [x] Every helptext passage that hands findings to the fixer routes to the
+      marker — enforced by `TestEveryFixerFacingHelptextRoutes` rather than by a
+      list here, so it cannot go stale.
+- [x] The **surface set** is declared with a ruling on each member
+      (`fixerFacingSurfaces`), and the canonical findings-reception skill
+      generalizes before implementing, with an intent record so
+      `/construct upgrade` cannot silently revert it.
+- [x] Helptext render/golden tests pass and the full Go suite is green.
+
 ## Estimate
 
 ```estimate
@@ -353,5 +380,44 @@ it routes. Both shapes re-verified red afterwards on synthetic sites.
   it says "feedback"/"items", never "findings". Its response pattern now has a
   **GENERALIZE** step before IMPLEMENT and routes to ARCH-PURPOSE, pinned by
   `TestReceivingCodeReviewSkillGeneralizes`.
+
+Full Go suite green.
+
+### 2026-08-22 (close review round 3 — stop widening, fix the claim)
+
+- **BR-10 (Important) — 4th in the family, and not a new shape.** It was the
+  half of BR-7's own stated rule that round 3 dropped: *"count only unclaimed
+  refs."* I implemented statement attribution as **membership** rather than
+  **counting**, so one statement carrying two fixer-facing messages and one
+  routing reference passed. Reachable in `formatFixThenShipProtocol` precisely
+  because round 3's own fix put the reference into that append. Counting is a
+  ~5-line change and is done; verified red on BR-10's exact scenario.
+
+  The more important half is the reviewer's: **a syntactic approximation cannot
+  back an absolute claim.** Counting closes this residue; the next (two
+  references both joined to one message) is one level finer, without bound. So
+  the claim is fixed rather than the mechanism widened a fifth time.
+  `atlas/workflow/gate-state.md` now states what the guard *approximates* —
+  statically visible literals only, `+` chains only, per-statement counting that
+  cannot tell which message a reference is joined to — and says plainly that it
+  raises the cost of shipping an unrouted refusal without making it impossible.
+  Done-when 4 matches.
+- **BR-11 (Important) — my BR-9 fix landed at a generated consumer.**
+  `construct/adapted/` is render output: `/construct promote` is delete-then-copy
+  and `/construct upgrade` re-renders from `construct/sources/` +
+  `construct/intents/superpowers.md`, where a skill not named in the intent is
+  copied from source as-is. `receiving-code-review` appears nowhere in that
+  transcript, so the GENERALIZE step, the ARCH-PURPOSE routing, and the
+  `family:`-as-worklist paragraph were all scheduled for deletion by the
+  substrate's own pipeline. This is the issue's own principle one level out — the
+  deliverable landed at the compiled consumer instead of the source it derives
+  from. Added **Conversation 8** to `construct/intents/superpowers.md` with Verify
+  clauses, following the exact precedent the reviewer cited (a547179, #71, the
+  last ARCH-registry change to touch an adapted skill).
+- **Mistake of mine, caught and fixed here:** the BR-8 edit replaced the span
+  from `## The class` to `## Estimate` — which silently swallowed the entire
+  `## Done when` section. Recovered from `99bb7a5` and rewritten to match the
+  current state. A structural section vanished for one commit; worth remembering
+  that a span-based edit is only as safe as the section boundary you assume.
 
 Full Go suite green.

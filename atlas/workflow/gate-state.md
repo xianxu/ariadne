@@ -125,18 +125,29 @@ reads as "address each of them" — the per-site patching the family counter exi
 detect. Every fixer-facing refusal now emits one shared routing line
 (`cmd/sdlc/gatefindings.go`) pointing at `ARCH-PURPOSE`: a finding names one instance,
 the deliverable is the class. `family:` is therefore a worklist, not a label.
-`TestEveryFixerFacingSiteRoutes` scans the sources for the class signature so a ninth
-refusal site cannot ship unrouted — a table over the known emitters would be blind to it,
-which is not hypothetical (#203's own first enumeration listed four of eight). Its rule,
-reached only after three rounds of widening to whatever shape the last finding named:
-match every fixer-facing message as a whole string-valued **expression** (folding
-`+`-joined chains wherever they occur, not inside two hardcoded emitter names), and
-attribute each match to a routing reference in its own **statement**. Per-literal
-matching misses a message the tree splits across pieces; per-function attribution lets an
-already-routing func carry a second unrouted line for free. The companion scan covers the
-helptext, and `fixerFacingSurfaces` declares the whole surface set with a ruling on each
-member — the set being undeclared is how the canonical findings-reception skill sat
-telling agents to implement findings one item at a time.
+`TestEveryFixerFacingSiteRoutes` scans the sources for the class signature, so a ninth
+refusal site is far likelier to be caught than by a table over the known emitters — which
+would be blind to it, not hypothetically (#203's own first enumeration listed four of
+eight). Its rule, reached only after four rounds of widening to whatever shape the last
+finding named: match every fixer-facing message as a whole string-valued **expression**
+(folding `+`-joined chains wherever they occur, not inside two hardcoded emitter names),
+and attribute matches to routing references by **counting within the enclosing
+statement**. Per-literal matching misses a message the tree splits across pieces;
+per-function attribution lets an already-routing func carry a second unrouted line free;
+membership rather than counting lets two messages share one reference.
+
+**State what it approximates, and do not claim more.** It is a syntactic
+over-approximation, not a proof: it sees statically visible string literals only (a
+message assembled at runtime, or read from a variable, is invisible), it folds only `+`
+chains, and per-statement counting still cannot tell which message a reference is joined
+to — two references both attached to one message would pass. Each residue is one level
+finer than the last, without bound, which is why #203 stopped widening here and fixed the
+claim instead. The guard raises the cost of shipping an unrouted refusal; it does not make
+it impossible.
+
+The companion scan covers the helptext, and `fixerFacingSurfaces` declares the whole
+surface set with a ruling on each member — the set being undeclared is how the canonical
+findings-reception skill sat telling agents to implement findings one item at a time.
 
 **At the boundary gate a demotion means something different**, and is announced. There is no
 later gate to pick up what the cap demotes — the boundary review is the last read before

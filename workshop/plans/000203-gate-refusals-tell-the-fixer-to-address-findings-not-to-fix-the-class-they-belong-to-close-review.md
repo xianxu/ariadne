@@ -314,3 +314,161 @@ findings:
       the class) is never declared, so Non-goals rules siblings in or out from memory — doc-review by
       name, this one not at all. Declare the surface set, then rule each member.
 ```
+
+---
+
+## Re-review — 2026-08-22T12:50:38-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 203 — gate refusals tell the fixer to address findings, not to fix the class they belong to |
+| repo | ariadne |
+| issue file | workshop/issues/000203-gate-refusals-tell-the-fixer-to-address-findings-not-to-fix-the-class-they-belong-to.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 63ae82c087e6f292e9da39d0b348d948f5d74f57..311673e7e9796297ec1396b1deb9d24a0dd75ec5 |
+| command | sdlc close --issue 203 |
+| reviewer | claude |
+| timestamp | 2026-08-22T12:50:38-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Cleaning up complete. Here's the review.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Round 3 finally answered `guard-narrower-than-claimed-class` at the class level rather than widening again, and I verified that independently rather than trusting the Log: the two-pass name-keyed structure is gone, and in a scratch worktree shapes F (split literals in a non-`cwarn` call) and H (a second unrouted line in an already-routing func) both go red, along with a package-level const and an off-list verb — four shapes, one rule, one shorter guard. The helptext guard is non-vacuous (a probe paragraph in `MODES` fires at `close.md:24`), BR-9's `SKILL.md` fix goes red on revert, and the shadow-sweep over every live `ARCH-PURPOSE` consumer comes back clean — no hand-maintained restatement outside the registry and its `-update-golden` derivatives. Two things hold a clean SHIP, both cheap. First, the stated rule was implemented as *membership* (`referencesRoutingLine`) where BR-7 stated it as *counting* — so two fixer-facing messages sharing one statement with one routing ref still ship green, which I demonstrated; the class answer is either the 5-line counting change (verified: zero false positives on the tree) or softening the absolute claim in `atlas/workflow/gate-state.md:127`, because no syntactic approximation can back "cannot ship unrouted". Second, and new: BR-9's fix landed on `construct/adapted/…/SKILL.md`, which is *render output* — the next `/construct upgrade superpowers` + `promote` reconstructs it from `sources/` + `intents/superpowers.md`, and `receiving-code-review` appears nowhere in that intent transcript, so the GENERALIZE step is deleted by design.
+
+### 1. Strengths
+
+- `cmd/sdlc/gatefindings_test.go:200-266` — the rewrite is a genuine class-level answer, not a third widening. One synthetic probe file carrying shape F, shape H, a package-level const, and the verb `triage` produced exactly four violations naming all four. `stringLiterals`, `enclosingFunc`, `countMatchingLiterals`, `countRoutingRefs` and the `claimed` bookkeeping are all deleted — shorter *and* stronger, which is what "state the rule" is supposed to buy.
+- `cmd/sdlc/close.go:1808-1814` — the merge into one `append` with the comment naming *why* ("the routing line must share a statement with the message it routes") is the honest shape, not a test-appeasing edit. The guard caught this in the tree, which is the guard doing its job on its own author.
+- The doc guard's exclusions are structural, and I confirmed non-vacuity: an unrouted directive dropped into `close.md`'s `MODES` fires at `close.md:24`. `isQuotedOutput` and `referenceSections` are classes, not line numbers, so they don't rot.
+- BR-9's catch is the sharpest thing in the issue and the delivery path checks out: `.claude/skills/superpowers-receiving-code-review` is a **symlink** into `construct/adapted/`, and per `construct/skill/construct/SKILL.md` derivatives reach the same dir via the weave layer walk — so the GENERALIZE step is live for this repo and downstream, not shelved. `TestReceivingCodeReviewSkillGeneralizes` goes red on revert on both assertions.
+- `## The class (enumeration)` deleting its own tables and routing at the guards (`workshop/issues/000203-*.md:79-103`) is the right answer to BR-8 — it keeps only the evidence that doesn't drift (2 → 7 → 8), which is the part worth recording.
+
+### 2. Critical findings
+
+None.
+
+### 3. Important findings
+
+**I-1 — `referencesRoutingLine` is membership where the stated rule is counting; two messages in one statement, one routing ref, ships green.** (`cmd/sdlc/gatefindings_test.go:187-189`, `:352-364`)
+
+**This is the 4th finding in family `guard-narrower-than-claimed-class`.** Per the escalation I am not asking for a patch, and this is not a new shape — it is the *un-implemented half of the rule BR-7 already stated*: "attribute each match to a routing ref in its own syntactic unit **(count only unclaimed refs)**". Round 3 implemented the unit and dropped the count. Demonstrated green in a scratch copy:
+
+```go
+lines = append(lines,
+    "1. Fix the findings NOW, before committing this close.",
+    "   "+fixTheClassLine(),
+    "2. Any remaining findings — address them one at a time.",   // ← unrouted, guard green
+)
+```
+
+That is reachable in `formatFixThenShipProtocol` specifically, because round 3's own fix put the routing ref *into* that append — the statement now has a credit to spend on any line added beside it. It is shape H exactly one granularity down (function → statement).
+
+The rule, and the reason to stop here: **a syntactic approximation cannot back an absolute claim.** Counting closes this residue, but the next one (two refs both joined to one message, second message unrouted) is one level further down, and so on without bound. So the durable fix is at the *claim*, not the mechanism: `atlas/workflow/gate-state.md:127` still says "so a ninth refusal site cannot ship unrouted", and the paragraph beneath it explains that "per-function attribution lets an already-routing func carry a second unrouted line for free" — a sentence that is still true of the shipped mechanism with "function" replaced by "statement". State what the guard approximates (whole `+`-folded string expressions, attributed per statement, matched on statically visible literals) and the claim becomes true.
+
+Minimum disposition: one sentence at `gate-state.md:127` naming the approximation. I also prototyped the counting change and it is free — `perStmt[m.stmt]++` compared against a `countRoutingRefs(m.stmt)`, ~5 lines, **zero false positives on the real tree** (only my probe fired) and it closes the residue. Both together is the strongest answer; either alone disposes the finding. `ARCH-PURPOSE`.
+
+**I-2 — BR-9's fix edits render output, not the source it derives from; the next `/construct upgrade` deletes it.** (`construct/adapted/superpowers-receiving-code-review/SKILL.md:24-37`)
+
+`construct/adapted/` is generated. `construct/skill/construct/SKILL.md` (`/construct promote`, step 4) is **delete-then-copy**: `rm -rf construct/adapted/superpowers-*/` then copy from staging. Staging is rendered by `/construct upgrade` from `construct/sources/superpowers/<version>/` plus `construct/intents/superpowers.md`, and — step 2 — *"skills not mentioned in the intent → copy new source as-is."* `grep -n "receiving-code-review" construct/intents/superpowers.md` returns **nothing**. So the GENERALIZE step, the ARCH-PURPOSE routing, and the `family:`-as-worklist paragraph are all scheduled for deletion by the substrate's own pipeline.
+
+This is the issue's own principle turned one level out: the deliverable was made at the compiled consumer instead of the source that compiles it — a hand-maintained restatement that does not derive. The precedent is exact and recent: `a547179` (#71), the last ARCH-registry change that touched an adapted skill, appended a `## Conversation 7` with a `### Verify` block to `construct/intents/superpowers.md` in the same commit. Fix sketch: append `## Conversation 8 (2026-08-22): receiving-code-review — GENERALIZE before IMPLEMENT` with the user/AI exchange and verify clauses mirroring `TestReceivingCodeReviewSkillGeneralizes`'s three substrings. `TestReceivingCodeReviewSkillGeneralizes` does make the loss loud rather than silent, which is why this is Important and not Critical — but a red test with no intent record leaves the next reader reconstructing the wording from three `strings.Contains` calls. `ARCH-PURPOSE`.
+
+### 4. Minor findings
+
+- The emitted routing line is 120 chars; at the FIX-THEN-SHIP block's 9-space indent that is 129, against ~83 for every other line in the same block (`close.go:1812`). It will hard-wrap in an 80/100-col terminal mid-sentence. Splitting after the colon would match the surrounding rhythm.
+- `fixerFacingSurfaces` (`gatefindings_test.go:52-84`) is a floating comment, not a declaration — nothing named `fixerFacingSurfaces` exists, so the issue's `## The class (enumeration)` routes to a grep target rather than a symbol. It works, but a `var fixerFacingSurfaces = []string{...}` consumed by the globs would make the declared set load-bearing instead of advisory.
+
+### 5. Test coverage notes
+
+Four guards, and I verified each goes red on its own regression, which is the #194 bar: the source scan (probe file, 4/4 shapes), the doc scan (probe paragraph → `close.md:24`), the skill pin (revert → 2 failures), and the e2e stderr pin. `go test ./...` is green repo-wide, `gofmt -l` and `go vet` clean. Remaining gaps:
+
+- The counting residue at I-1 — the only demonstrated hole, and the scans are what carry the durability claim, so it matters more than its size suggests.
+- Still no assertion on `fixTheClassNote()`'s `"\n  "` shape (noted last round). A regression to `" "` runs the routing text onto the refusal line at six sites and every test stays green. One `strings.HasPrefix` in the drift guard covers it.
+- `TestGatePathStderrCarriesRoutingLine` remains one path (`classifyFallback`); its own comment says so honestly, and the scans cover the class. Acceptable as-is.
+
+### 6. Architectural notes
+
+- **ARCH-DRY — pass.** One formatter, one pre-joined variant, eight consumers; `fixerFacingMessage` is shared by both scans rather than duplicated per guard. The hand-rolled `walk` in `fixerFacingMatches` reimplements parent-tracking that `astutil` would give, but stdlib-only is the house style here and the implementation is correct — I traced the push/pop discipline and the `c == n` re-entry.
+- **ARCH-PURE — pass.** `fixTheClassLine`/`fixTheClassNote` are constant-returning, tested without IO. `foldStringExpr`/`isStringExpr`/`fixerFacingMessage`/`isQuotedOutput`/`sectionHeading` are all pure and independently exercisable; the filesystem IO sits in the two test bodies, which is intrinsic to a source scan.
+- **ARCH-MOCK — pass.** No new external dependency. The e2e test overrides the existing `judge.Run` seam with `t.Cleanup` restore, matching `boundaryledger_test.go` / `changecode_test.go`; production and test flow share that boundary.
+- **ARCH-PURPOSE — flag (I-1, I-2).** The first-order shadow-sweep is complete and I re-derived it: every live `ARCH-PURPOSE` consumer (`archprinciples.go`, `sdlc-binary.md`, `processmanual/session.go`, `lessons.md`, `AGENTS.base.md`, three helptext files, four goldens) *cites* rather than restates, so the registry is genuinely the single source. What remains is one level out in each direction — the guard's claim exceeds the guard (I-1), and the substrate edit sits downstream of its own generator (I-2). The trajectory is convergent: round 1 found four shapes, round 2 two, round 3 one, and the round-3 answer was structural rather than another patch.
+- **Forward note.** `golden_test.go:37`'s ⛔ still doesn't cover a deliberate registry edit, and the atlas now documents that carve-out in prose (`architecture-principles.md:15-17`) rather than in the guard. It will recur on the next `ARCH-*` edit — worth its own issue.
+
+### 7. Plan revision recommendations
+
+1. **`## The class (enumeration)` — record the guard's declared approximation.** The section now correctly routes at the guards, but the guards' *boundary* is stated only in `gate-state.md`'s claim, which overstates it (I-1). Add one line: what the scan matches (`+`-folded string expressions, attributed per statement, statically visible literals only) and what it therefore does not.
+2. **`## Non-goals` — rule `construct/intents/superpowers.md` in or out.** The issue rules on `cmd/doc-review` and `AGENTS.base.md` explicitly; the substrate's intent transcript is the one surface the diff touched *without* a ruling, and it is the source `adapted/` derives from (I-2).
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      Re-verified: deleting the ARCH-PURPOSE paragraph at change-code.md:37 fails no test — neither it nor its neighbours carry a directive verb, so fixerFacingMessage never reaches them. Class fix: a guard that every ARCH-* marker cited in helptext exists in the registry.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Verified in a scratch worktree: shapes F and H both go red, along with a package-level const and an off-list verb; the two-pass name-keyed structure is deleted, not widened.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      The section it named now routes at the guards. Note: Plan items 4-5 still hand-name "the eight sites" and two doc surfaces, but those are checked-off historical steps rather than a live enumeration, and `## Done when` was removed entirely along with its restatements.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      Surface set declared; SKILL.md guard verified red on revert on both assertions; the .claude/skills symlink confirms the edit reaches the loaded skill. Its durability is a separate new finding.
+findings:
+  - id: new
+    severity: Important
+    family: guard-narrower-than-claimed-class
+    title: |
+      Statement attribution is membership, not counting — two messages sharing one statement with one routing ref ship green
+    detail: |
+      4th in this family, and not a new shape: it is the half of BR-7's own stated rule that round 3
+      dropped ("count only unclaimed refs"). Verified green in a scratch copy — an append carrying
+      "1. Fix the findings NOW..." + fixTheClassLine() + "2. Any remaining findings — address them"
+      passes. Reachable in formatFixThenShipProtocol specifically, because round 3's fix put the
+      routing ref into that same append. THE RULE, and why to stop widening here: a syntactic
+      approximation cannot back an absolute claim — counting closes this residue, the next (two refs
+      both joined to one message) is one level further, without bound. So fix the CLAIM:
+      atlas/workflow/gate-state.md:127 still says "a ninth refusal site cannot ship unrouted", and the
+      paragraph under it describes this exact defect with "function" where "statement" now belongs.
+      State what the guard approximates (whole +-folded string expressions, per-statement attribution,
+      statically visible literals only). I also prototyped the counting change: ~5 lines, closes the
+      residue, ZERO false positives on the real tree — free, but optional; the claim is the deliverable.
+      ARCH-PURPOSE.
+  - id: new
+    severity: Important
+    family: fix-at-consumer-not-source
+    title: |
+      BR-9's SKILL.md fix edits render output; /construct upgrade regenerates it from an intent transcript that never mentions the skill
+    detail: |
+      construct/adapted/ is generated. /construct promote step 4 is delete-then-copy (rm -rf
+      construct/adapted/superpowers-*/ then copy staging), and /construct upgrade renders staging from
+      construct/sources/<version>/ + construct/intents/superpowers.md, where "skills not mentioned in
+      the intent → copy new source as-is". grep for receiving-code-review in that transcript returns
+      nothing, so the GENERALIZE step, the ARCH-PURPOSE routing, and the family:-as-worklist paragraph
+      are all scheduled for deletion by the substrate's own pipeline. The precedent is exact: a547179
+      (#71), the last ARCH-registry change touching an adapted skill, appended a Conversation entry
+      with Verify clauses in the same commit. TestReceivingCodeReviewSkillGeneralizes makes the loss
+      loud rather than silent, which is why this is Important not Critical — but a red test with no
+      intent record leaves the next reader reconstructing wording from three strings.Contains calls.
+      This is the issue's own principle one level out: the deliverable landed at the compiled consumer
+      instead of the source it derives from. ARCH-PURPOSE.
+  - id: new
+    severity: Minor
+    family: refusal-line-width
+    title: |
+      The routing line is 120 chars — 129 at the FIX-THEN-SHIP indent, against ~83 for every neighbouring line
+    detail: |
+      close.go:1812 places it in a block whose widest existing line is 83. It hard-wraps mid-sentence in
+      an 80/100-col terminal. Splitting after the colon would match the surrounding rhythm.
+```
