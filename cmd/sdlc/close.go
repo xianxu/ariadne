@@ -1192,7 +1192,8 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 				cwarn(stderr, fmt.Sprintf("  [%s] %s — %s", fnd.ID, fnd.Severity, fnd.Title))
 			}
 			cwarn(stderr, fmt.Sprintf("address them, or have the review dispose them explicitly, then re-run `%s`.\n"+
-				"  Or pass --no-ledger (or --force); record why in --verified.", verb))
+				"  %s\n"+
+				"  Or pass --no-ledger (or --force); record why in --verified.", verb, fixTheClassLine()))
 			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
 		}
 		if validate != nil {
@@ -1234,7 +1235,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	case closeRework:
 		emitTrailerBlock(stdout, review, kind)
 		cwarn(stderr, "boundary review: REWORK — close NOT finalized; issue left at status: working")
-		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)", verb))
+		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)\n  %s", verb, fixTheClassLine()))
 		return fmt.Errorf("boundary review verdict REWORK — close not finalized")
 	default: // closeHalt
 		emitTrailerBlock(stdout, review, kind)
@@ -1807,6 +1808,7 @@ func formatFixThenShipProtocol(verb string) string {
 	var lines []string
 	lines = append(lines, "FIX-THEN-SHIP protocol (#174):")
 	lines = append(lines, "      1. Fix the findings NOW, before committing this close.")
+	lines = append(lines, "         "+fixTheClassLine())
 	lines = append(lines, "      2. Bundle the fixes + the issue-file close mutations (+ lessons/bookkeeping)")
 	lines = append(lines, "         into ONE commit (or amend), so the publish gate's reviewed anchor is HEAD.")
 	lines = append(lines, fmt.Sprintf("      3. Do NOT re-run `%s` — this verdict already sanctions shipping after", verb))

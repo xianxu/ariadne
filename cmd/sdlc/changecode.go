@@ -551,7 +551,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	}, ledger, d, f.Force)
 
 	if d.Block {
-		cwarn(stderr, "address the findings above and re-run — the gate remembers what you fixed; OR re-run with --force <reason>")
+		cwarn(stderr, "address the findings above and re-run — the gate remembers what you fixed; OR re-run with --force <reason>\n  "+fixTheClassLine())
 		return fmt.Errorf("plan-quality failure")
 	}
 	return nil
@@ -569,7 +569,7 @@ func classifyFallback(stderr io.Writer, output string) error {
 		cinfo(stderr, "plan-quality: info (verdict token)")
 		return nil
 	case judge.Failure:
-		cwarn(stderr, "plan-quality: findings reported — fix the plan, OR re-run with --force <reason>")
+		cwarn(stderr, "plan-quality: findings reported — fix the plan, OR re-run with --force <reason>\n  "+fixTheClassLine())
 		return fmt.Errorf("plan-quality failure")
 	}
 	return nil
@@ -719,7 +719,7 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 		cinfo(stderr, "estimate-quality: info")
 		return nil
 	case judge.Failure:
-		cwarn(stderr, "estimate-quality: findings reported — fix the ## Estimate, OR re-run with --no-judge / --force <reason>")
+		cwarn(stderr, "estimate-quality: findings reported — fix the ## Estimate, OR re-run with --no-judge / --force <reason>\n  "+fixTheClassLine())
 		return fmt.Errorf("estimate-quality failure")
 	}
 	return nil

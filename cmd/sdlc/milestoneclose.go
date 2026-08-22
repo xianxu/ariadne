@@ -623,7 +623,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	case judge.Info:
 		cinfo(stderr, "boundary review: info")
 	case judge.Failure:
-		cwarn(stderr, "boundary review: findings reported — address before crossing the boundary")
+		cwarn(stderr, "boundary review: findings reported — address before crossing the boundary\n  "+fixTheClassLine())
 	}
 	verdict := judge.ParseVerdict(output)
 	if verdict == judge.VerdictUnknown {

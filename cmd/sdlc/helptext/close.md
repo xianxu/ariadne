@@ -73,6 +73,13 @@ MODES
   four shapes of one missing rule across four rounds and writing the rule on
   the second.
 
+  That is also what the field asks of YOU (#203). A finding names one instance;
+  the deliverable is the class — and `family:` names the class for you, so the
+  ledger is a worklist, not a label. Each gate refusal says so and routes to the
+  principle that governs it: **ARCH-PURPOSE** (`sdlc arch-principles`). A family
+  that repeats across rounds is this ledger reporting that the enumeration was
+  never written.
+
   Every round also emits a convergence line:
 
       round 4 — 2 new findings, 0 repeat families, 6 disposed. Converging.

@@ -34,6 +34,10 @@ THE PLAN GATE (stateful since #187)
   ids, and each re-run must dispose of every prior finding
   (addressed / not-addressed / withdrawn) before raising new ones.
 
+  A finding names one instance; what disposes of it is the class it belongs
+  to — see ARCH-PURPOSE (`sdlc arch-principles`), which the gate's own
+  refusal routes to.
+
   Only *undisposed* Critical or Important findings block. New Minor
   findings are recorded and carried to the close review — they cost no
   round-trip. Past WF_PLAN_ROUND_CAP rounds (default 3) only Critical
