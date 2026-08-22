@@ -2,6 +2,55 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A syntactic guard cannot back an absolute claim — bound the claim, not the mechanism
+
+**Pattern (#203, four boundary rounds of one family):** each round the guard was
+widened to whatever shape the last finding named — per-literal → whole
+expression; two hardcoded emitters → any call; per-function → per-statement;
+membership → counting. Every widening was correct and every one left a finer
+residue, because a static scan over source text is an over-approximation, not a
+proof. The rounds stopped only when the reviewer said to fix the *claim*: state
+what the guard approximates (statically visible literals, `+` chains, statement
+counting that cannot tell which message a reference is joined to) and say it
+raises the cost of the defect without making it impossible.
+
+**Rule:** when a fitness function backs a strong claim ("X cannot ship"), either
+prove the claim or weaken it to what the mechanism delivers. A residue you can
+name is a bounded claim; a residue you keep chasing is an unbounded one. Ask
+"what is the next shape past this fix?" — if you can name it, you are widening,
+not converging (`ARCH-PURPOSE`).
+
+## Distinguish what a guard COMPUTES from what it takes on faith
+
+**Pattern (#203 BR-9, BR-13):** the scans compute the *sites* within each
+surface, so a new gate emission cannot be missed. The *set of surfaces* was
+hand-declared and unverified — and under that gap
+`superpowers-receiving-code-review` sat instructing agents to implement findings
+"one item at a time", the exact behavior the issue existed to stop, in the skill
+invoked at the moment findings arrive. Its sibling
+`superpowers-requesting-code-review` then survived one round longer. Both escaped
+every scan by saying "feedback"/"issues", never "findings".
+
+**Rule:** state at the guard which half is computed and which is a hand-declared
+list nothing verifies. An unstated hand-maintained set reads as coverage.
+
+## An edit to construct/adapted/ is an edit to render output
+
+**Pattern (#203 BR-11):** a fix to an adapted skill was scheduled for silent
+deletion by `/construct upgrade`, which re-renders from `construct/sources/` plus
+`construct/intents/<pkg>.md`, copying any skill the intent does not mention
+straight from source. **Rule:** every change under `construct/adapted/` needs a
+Conversation entry with Verify clauses in the same commit (precedent: a547179,
+#71). The deliverable belongs at the source, not the compiled consumer.
+
+## A span-based text edit is only as safe as the boundary you assume
+
+**Pattern (#203):** replacing `s[index("## The class"):index("## Estimate")]`
+silently deleted the whole `## Done when` section that sat between them — a
+structural section the gates require, gone for one commit. **Rule:** before
+replacing a span between two anchors, list the headings inside it. Prefer
+replacing an exact known block over a range between landmarks.
+
 ## A residency/path change includes search recipes, not just prose path mentions
 
 **Pattern (#185 close review):** The roadmap residency lift updated the main

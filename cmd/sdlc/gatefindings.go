@@ -26,8 +26,10 @@ package main
 
 // fixTheClassLine is the routing line. Pure.
 func fixTheClassLine() string {
-	return "each finding names one instance — fix the CLASS it belongs to, not only that site: " +
-		"ARCH-PURPOSE (`sdlc arch-principles`)"
+	// Kept to one line at ~88 chars: a post-colon split would read better in
+	// isolation but the continuation indent differs per site (#203 BR-12), which
+	// is the same reason fixTheClassNote exists.
+	return "fix the CLASS a finding names, not just the site — ARCH-PURPOSE (`sdlc arch-principles`)"
 }
 
 // fixTheClassNote is the routing line pre-joined for the common case: appended to

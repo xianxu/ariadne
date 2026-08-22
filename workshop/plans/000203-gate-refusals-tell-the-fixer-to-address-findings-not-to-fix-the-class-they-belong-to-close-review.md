@@ -472,3 +472,137 @@ findings:
       close.go:1812 places it in a block whose widest existing line is 83. It hard-wraps mid-sentence in
       an 80/100-col terminal. Splitting after the colon would match the surrounding rhythm.
 ```
+
+---
+
+## Re-review — 2026-08-22T13:07:21-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 203 — gate refusals tell the fixer to address findings, not to fix the class they belong to |
+| repo | ariadne |
+| issue file | workshop/issues/000203-gate-refusals-tell-the-fixer-to-address-findings-not-to-fix-the-class-they-belong-to.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 63ae82c087e6f292e9da39d0b348d948f5d74f57..bd83479912f15d883d748de2f6de7d7c74243edf |
+| command | sdlc close --issue 203 |
+| reviewer | claude |
+| timestamp | 2026-08-22T13:07:21-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Round 4 answered both Important findings and I verified each by reverting rather than by reading the Log. BR-10's counting fix is load-bearing, not decorative: with the shipped `min(countRoutingRefs(stmt), len(ms))` the exact BR-10 scenario (two fixer-facing messages, one routing reference, one `append`) fails at `close.go:1815`; restoring the membership predicate makes the same probe pass. BR-10's more important half — the claim — is genuinely fixed: `gate-state.md`'s "a ninth refusal site **cannot** ship unrouted" is gone, replaced by a stated over-approximation naming all three residues. BR-11 checks out at the substrate level: `construct/skill/construct/SKILL.md` really is delete-then-copy at promote and copy-source-as-is for unmentioned skills, `construct/sources/superpowers/v5.0.2/.../receiving-code-review/SKILL.md:24` still holds "One item at a time", and Conversation 8's Verify clauses match the shipped skill line for line. All four guards go red on their own regression (8 sites named, 3 helptext passages named, skill guard 2/2, drift guard 2/2), the goldens' `ARCH-PURPOSE` entry is byte-identical to the registry in all four, and `go build ./... && go test ./... && gofmt -l && go vet` are clean. What keeps this from a bare SHIP is four Minors, none blocking: BR-3 and BR-12 are untouched again, the superseded `referencesRoutingLine` predicate is now dead code sitting beside the live one, and — 3rd in `undocumented-scan-boundary` — `superpowers-requesting-code-review/SKILL.md` is a live, in-class sibling that `fixerFacingSurfaces` neither guards nor rules out, which means the atlas's "declares the **whole** surface set" is the same absolute-claim-over-hand-maintained-artifact that BR-10 just taught this issue not to make.
+
+### 1. Strengths
+
+- `cmd/sdlc/gatefindings_test.go:196-197` — the counting change is five lines and strictly stronger, with no false positives on the real tree. I confirmed the load-bearing direction both ways (probe red with counting, green with membership), which is the bar the `#194` claimed-fixes rule sets and the one most "fixed in \<sha\>" claims miss.
+- `atlas/workflow/gate-state.md:139-147` — "State what it approximates, and do not claim more" is the right deliverable for a 4th-round family, and it is *specific*: statically visible literals only, `+` chains only, per-statement counting that cannot tell which message a reference is joined to. Each named residue is one I could reproduce. This is the paragraph that lets the next reader stop widening.
+- `construct/intents/superpowers.md:166-187` — Conv 8's Verify clauses are written as assertions a fresh render agent can check, and they mirror `TestReceivingCodeReviewSkillGeneralizes`'s three substrings without restating the principle. The a547179 precedent the reviewer cited is real (it touched `construct/intents/superpowers.md` in the same commit as the registry edit).
+- `cmd/sdlc/close.go:1808-1814` — merging the routing line into the same `append` as the message it routes, with the comment saying *why*, is the honest shape rather than a test-appeasing edit; and BR-10 proves the guard now polices that statement rather than just noticing a name in it.
+- The `ARCH-PURPOSE` shadow-sweep comes back clean on a fresh derivation: every consumer (`archprinciples.go`, `AGENTS.base.md`, three helptext files, `gatefindings.go`, both atlas files, the skill, four goldens) *cites and routes*; not one restates the enumerate-and-sweep procedure.
+
+### 2. Critical findings
+
+None.
+
+### 3. Important findings
+
+None. Both open Importants (BR-10, BR-11) are addressed and independently verified.
+
+### 4. Minor findings
+
+- **`superpowers-requesting-code-review/SKILL.md:52-56` is an unruled in-class sibling** — "**3. Act on feedback:** Fix Critical issues immediately / Fix Important issues before proceeding / Note Minor issues for later". It is live (`.claude/skills/superpowers-requesting-code-review` → `construct/adapted/…`), it is the companion AGENTS.md §3 explicitly keeps for ad-hoc reviews, it sits in the same directory as the surface BR-9 named, and it escapes the doc scan by the identical mechanism ("feedback"/"issues", never "findings"). **3rd in `undocumented-scan-boundary`** — see below; do not patch this instance.
+- **`cmd/sdlc/gatefindings_test.go:426` — `referencesRoutingLine` is dead code**, referenced at zero call sites since round 4 replaced membership with counting. It is the *superseded* attribution predicate sitting immediately below the live one, and it is the precise defect BR-10 named; a future edit reaching for the wrong helper silently re-opens the residue. Round 3's Log claims the redesign "deleted … the whole two-pass/`claimed` structure" — this is the one piece that survived. `ARCH-DRY`.
+- **BR-12 unaddressed** — `fixTheClassLine()` measures 120 chars; 129 at `formatFixThenShipProtocol`'s 9-space indent, 122 on a `cwarn` continuation, against ~83 for neighbouring lines.
+- **BR-3 unaddressed, third round** — re-verified: deleting the `ARCH-PURPOSE` paragraph at `helptext/change-code.md:37` adds zero test failures (baseline and probe fail the same three worktree-artifact tests). `close.md`'s citations are guarded via the next-paragraph rule; `change-code.md`'s is not.
+
+### 5. Test coverage notes
+
+Four guards, each verified red on its own regression — not on a probe written from the same mental model as the fix:
+
+| guard | probe | result |
+|---|---|---|
+| `TestEveryFixerFacingSiteRoutes` | strip all 8 routings | red, names all 8 with correct file:line |
+| same, BR-10 shape | 3rd element in `formatFixThenShipProtocol`'s append | red at `close.go:1815`; **green** if membership restored |
+| `TestEveryFixerFacingHelptextRoutes` | strip 3 doc routings | red, names `close.md:13`, `close.md:59`, `milestone-close.md:38` |
+| `TestReceivingCodeReviewSkillGeneralizes` | restore "One item at a time" | red on both assertions |
+| `TestFixTheClassLine_RoutesToArchPrinciples` | strip discipline from registry | red on `CLASS` and `family:` |
+| `TestGatePathStderrCarriesRoutingLine` | strip routing from `classifyFallback` | red on real stderr |
+
+Remaining gaps, all previously noted and none newly raised:
+
+- Conv 8's own presence is unpinned. Deleting it fails nothing until someone runs `/construct upgrade`, at which point `TestReceivingCodeReviewSkillGeneralizes` goes red — loud, not silent, which is why BR-11 was Important not Critical. A one-line `strings.Contains(intent, "receiving-code-review")` beside the skill guard would close the seam, but the failure mode is already loud so this is genuinely optional.
+- Still no assertion on `fixTheClassNote()`'s `"\n  "` shape; a regression to `" "` runs the routing text onto six refusal lines with every test green.
+
+### 6. Architectural notes
+
+- **ARCH-DRY — flag (minor).** One formatter, one pre-joined variant, eight consumers; `fixerFacingMessage` shared by both scans rather than duplicated. The one blemish is `referencesRoutingLine`: two attribution predicates in one file, one live and one superseded. Consolidation is deletion, not extraction.
+- **ARCH-PURE — pass.** `fixTheClassLine`/`fixTheClassNote` are constant-returning and tested without IO; `foldStringExpr`, `isStringExpr`, `fixerFacingMessage`, `isQuotedOutput`, `sectionHeading`, `countRoutingRefs` are all pure and independently exercisable. The filesystem IO lives in the two test bodies, intrinsic to a source scan. The hand-rolled `walk` in `fixerFacingMatches` reimplements parent-tracking `astutil` would supply, but stdlib-only is the house style and I traced the push/pop and `c == n` re-entry as correct.
+- **ARCH-MOCK — pass.** No new external dependency. `TestGatePathStderrCarriesRoutingLine` overrides the existing `judge.Run` seam with `t.Cleanup` restore, matching `boundaryledger_test.go` / `changecode_test.go`; production and test flow share that boundary.
+- **ARCH-PURPOSE — flag (the `undocumented-scan-boundary` repeat only).** The first-order sweep is complete and I re-derived it independently: every live consumer of the statement routes, and the four goldens derive byte-identically from the registry. The recursion has converged in depth (round 1: four shapes; round 2: two; round 3: one; round 4: zero new shapes of that family) — `guard-narrower-than-claimed-class` is genuinely closed, and closed at the claim rather than the mechanism, which is the correct terminus. What did *not* converge is the sibling family: the **surface set** is still a hand-written comment, and a hand enumeration of this class has now been wrong three times inside this one issue (code sites 2→7→8; doc surfaces 2→5; surface set 1-of-2).
+- **Forward note.** `golden_test.go:37`'s ⛔ still doesn't cover a deliberate registry edit, and `architecture-principles.md:15-17` documents the carve-out in prose rather than in the guard. It will recur on the next `ARCH-*` edit — worth its own issue, and the atlas note makes that cheap to file.
+
+### 7. Plan revision recommendations
+
+1. **`## The class (enumeration)` — say that the surface set is declared, not computed.** The section routes to `fixerFacingSurfaces` as though it were the authority; it is a hand-maintained comment that the guards do not verify, and it is currently missing a live member. Apply BR-10's own remedy one level up: state that the two scans compute the *sites* but the *set of surfaces* is hand-declared, so a sibling can be missing without a test firing.
+2. **`## Non-goals` — rule `construct/adapted/superpowers-requesting-code-review/SKILL.md` in or out.** It is the last unruled in-class surface in the tree; `cmd/doc-review` and `AGENTS.base.md` both got explicit reasoned rulings and this one got silence.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      Re-verified a third time — deleting the ARCH-PURPOSE paragraph at helptext/change-code.md:37 adds zero test failures over the baseline. Class fix remains: a guard that every ARCH-* marker cited in helptext exists in the registry.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Counting verified load-bearing both ways (probe red with counting, green with membership restored); gate-state.md's absolute claim replaced with a stated over-approximation naming all three residues.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Pipeline premise re-derived from construct/skill/construct/SKILL.md; source still holds "One item at a time"; Conv 8's Verify clauses match the shipped skill; a547179 precedent confirmed to have touched intents in-commit.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      Unchanged — measured 120 chars, 129 at the FIX-THEN-SHIP indent, 122 on a cwarn continuation.
+findings:
+  - id: new
+    severity: Minor
+    family: undocumented-scan-boundary
+    title: |
+      superpowers-requesting-code-review is a live in-class sibling the declared surface set neither guards nor rules out
+    detail: |
+      This is the 3rd finding in family `undocumented-scan-boundary` — do NOT rule this
+      instance and stop. SKILL.md:52-56 says "3. Act on feedback: Fix Critical issues
+      immediately / Fix Important issues before proceeding / Note Minor issues for later":
+      a fixer-facing directive, in a skill symlinked live at .claude/skills/, kept in play
+      by AGENTS.md section 3 for ad-hoc reviews, in the same directory as the surface BR-9
+      named, escaping the doc scan by the identical mechanism (it says "feedback"/"issues",
+      never "findings"). THE RULE: the surface SET is hand-declared and unverified, so a
+      member can be missing without any test firing — BR-9 wrote the hand enumeration down
+      rather than computing it. Measured prevalence: 14 adapted skills, exactly 2 carry
+      fixer-facing directives, the declared set names 1. Apply BR-10's own remedy one level
+      up rather than widening again: gate-state.md:148 and the fixerFacingSurfaces header
+      both claim the "whole surface set", which is an absolute claim over a hand-maintained
+      artifact — say instead that the scans compute the sites while the set of surfaces is
+      declared by hand. (Extending the doc glob over construct/adapted/*/SKILL.md would not
+      reach this one without widening fixerFacingMessage past "finding", which is the other
+      family's residue.) ARCH-PURPOSE.
+  - id: new
+    severity: Minor
+    family: superseded-mechanism-left-in-tree
+    title: |
+      referencesRoutingLine is dead code — the superseded membership predicate sits beside the live counting one
+    detail: |
+      cmd/sdlc/gatefindings_test.go:426, zero call sites since round 4 replaced membership
+      with counting at :197. It is the exact predicate BR-10 named as the defect, left
+      immediately below its replacement, so a future edit reaching for the wrong helper
+      silently re-opens the residue. Round 3's Log claims the redesign deleted the whole
+      two-pass/claimed structure; this is the piece that survived. Delete it. ARCH-DRY.
+```

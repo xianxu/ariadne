@@ -213,6 +213,61 @@ rounds:
           family: refusal-line-width
           round: 3
       blocked: true
+    - "n": 4
+      timestamp: "2026-08-22T13:07:21-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: not-addressed
+          note: 'Re-verified a third time — deleting the ARCH-PURPOSE paragraph at helptext/change-code.md:37 adds zero test failures over the baseline. Class fix remains: a guard that every ARCH-* marker cited in helptext exists in the registry.'
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: Counting verified load-bearing both ways (probe red with counting, green with membership restored); gate-state.md's absolute claim replaced with a stated over-approximation naming all three residues.
+          round: 4
+        - id: BR-11
+          disposition: addressed
+          note: Pipeline premise re-derived from construct/skill/construct/SKILL.md; source still holds "One item at a time"; Conv 8's Verify clauses match the shipped skill; a547179 precedent confirmed to have touched intents in-commit.
+          round: 4
+        - id: BR-12
+          disposition: not-addressed
+          note: Unchanged — measured 120 chars, 129 at the FIX-THEN-SHIP indent, 122 on a cwarn continuation.
+          round: 4
+      findings:
+        - id: BR-13
+          severity: Minor
+          title: superpowers-requesting-code-review is a live in-class sibling the declared surface set neither guards nor rules out
+          detail: |-
+            This is the 3rd finding in family `undocumented-scan-boundary` — do NOT rule this
+            instance and stop. SKILL.md:52-56 says "3. Act on feedback: Fix Critical issues
+            immediately / Fix Important issues before proceeding / Note Minor issues for later":
+            a fixer-facing directive, in a skill symlinked live at .claude/skills/, kept in play
+            by AGENTS.md section 3 for ad-hoc reviews, in the same directory as the surface BR-9
+            named, escaping the doc scan by the identical mechanism (it says "feedback"/"issues",
+            never "findings"). THE RULE: the surface SET is hand-declared and unverified, so a
+            member can be missing without any test firing — BR-9 wrote the hand enumeration down
+            rather than computing it. Measured prevalence: 14 adapted skills, exactly 2 carry
+            fixer-facing directives, the declared set names 1. Apply BR-10's own remedy one level
+            up rather than widening again: gate-state.md:148 and the fixerFacingSurfaces header
+            both claim the "whole surface set", which is an absolute claim over a hand-maintained
+            artifact — say instead that the scans compute the sites while the set of surfaces is
+            declared by hand. (Extending the doc glob over construct/adapted/*/SKILL.md would not
+            reach this one without widening fixerFacingMessage past "finding", which is the other
+            family's residue.) ARCH-PURPOSE.
+          family: undocumented-scan-boundary
+          round: 4
+        - id: BR-14
+          severity: Minor
+          title: referencesRoutingLine is dead code — the superseded membership predicate sits beside the live counting one
+          detail: |-
+            cmd/sdlc/gatefindings_test.go:426, zero call sites since round 4 replaced membership
+            with counting at :197. It is the exact predicate BR-10 named as the defect, left
+            immediately below its replacement, so a future edit reaching for the wrong helper
+            silently re-opens the residue. Round 3's Log claims the redesign deleted the whole
+            two-pass/claimed structure; this is the piece that survived. Delete it. ARCH-DRY.
+          family: superseded-mechanism-left-in-tree
+          round: 4
+      blocked: false
 ---
 
 # Gate ledger — ariadne#203 (boundary-review)
@@ -344,9 +399,44 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   close.go:1812 places it in a block whose widest existing line is 83. It hard-wraps mid-sentence in
   an 80/100-col terminal. Splitting after the colon would match the surrounding rhythm.
 
+## Round 4 — 2026-08-22T13:07:21-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — not-addressed — Re-verified a third time — deleting the ARCH-PURPOSE paragraph at helptext/change-code.md:37 adds zero test failures over the baseline. Class fix remains: a guard that every ARCH-* marker cited in helptext exists in the registry.
+- BR-10 — addressed — Counting verified load-bearing both ways (probe red with counting, green with membership restored); gate-state.md's absolute claim replaced with a stated over-approximation naming all three residues.
+- BR-11 — addressed — Pipeline premise re-derived from construct/skill/construct/SKILL.md; source still holds "One item at a time"; Conv 8's Verify clauses match the shipped skill; a547179 precedent confirmed to have touched intents in-commit.
+- BR-12 — not-addressed — Unchanged — measured 120 chars, 129 at the FIX-THEN-SHIP indent, 122 on a cwarn continuation.
+
+### Raised
+
+- **BR-13** [Minor] `undocumented-scan-boundary` superpowers-requesting-code-review is a live in-class sibling the declared surface set neither guards nor rules out
+  This is the 3rd finding in family `undocumented-scan-boundary` — do NOT rule this
+  instance and stop. SKILL.md:52-56 says "3. Act on feedback: Fix Critical issues
+  immediately / Fix Important issues before proceeding / Note Minor issues for later":
+  a fixer-facing directive, in a skill symlinked live at .claude/skills/, kept in play
+  by AGENTS.md section 3 for ad-hoc reviews, in the same directory as the surface BR-9
+  named, escaping the doc scan by the identical mechanism (it says "feedback"/"issues",
+  never "findings"). THE RULE: the surface SET is hand-declared and unverified, so a
+  member can be missing without any test firing — BR-9 wrote the hand enumeration down
+  rather than computing it. Measured prevalence: 14 adapted skills, exactly 2 carry
+  fixer-facing directives, the declared set names 1. Apply BR-10's own remedy one level
+  up rather than widening again: gate-state.md:148 and the fixerFacingSurfaces header
+  both claim the "whole surface set", which is an absolute claim over a hand-maintained
+  artifact — say instead that the scans compute the sites while the set of surfaces is
+  declared by hand. (Extending the doc glob over construct/adapted/*/SKILL.md would not
+  reach this one without widening fixerFacingMessage past "finding", which is the other
+  family's residue.) ARCH-PURPOSE.
+- **BR-14** [Minor] `superseded-mechanism-left-in-tree` referencesRoutingLine is dead code — the superseded membership predicate sits beside the live counting one
+  cmd/sdlc/gatefindings_test.go:426, zero call sites since round 4 replaced membership
+  with counting at :197. It is the exact predicate BR-10 named as the defect, left
+  immediately below its replacement, so a future edit reaching for the wrong helper
+  silently re-opens the residue. Round 3's Log claims the redesign deleted the whole
+  two-pass/claimed structure; this is the piece that survived. Delete it. ARCH-DRY.
+
 ## Open findings
 
 - **BR-3** [Minor] `guard-narrower-than-claimed-class` New ARCH-PURPOSE citations in helptext are unguarded, unlike the routing line itself
-- **BR-10** [Important] `guard-narrower-than-claimed-class` Statement attribution is membership, not counting — two messages sharing one statement with one routing ref ship green
-- **BR-11** [Important] `fix-at-consumer-not-source` BR-9's SKILL.md fix edits render output; /construct upgrade regenerates it from an intent transcript that never mentions the skill
 - **BR-12** [Minor] `refusal-line-width` The routing line is 120 chars — 129 at the FIX-THEN-SHIP indent, against ~83 for every neighbouring line
+- **BR-13** [Minor] `undocumented-scan-boundary` superpowers-requesting-code-review is a live in-class sibling the declared surface set neither guards nor rules out
+- **BR-14** [Minor] `superseded-mechanism-left-in-tree` referencesRoutingLine is dead code — the superseded membership predicate sits beside the live counting one

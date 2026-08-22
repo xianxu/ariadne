@@ -1,12 +1,13 @@
 ---
 id: 000203
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-22
 updated: 2026-08-22
 estimate_hours: 1.38
 started: 2026-08-22T10:04:13-07:00
+actual_hours: 1.57
 ---
 
 # gate refusals tell the fixer to address findings, not to fix the class they belong to
@@ -241,6 +242,7 @@ Recompute: (0.04+0.10+0.20+0.00+0.25) × 1.15 + (0.16+0.24+0.06+0.14+0.10) × 1.
 ## Log
 
 ### 2026-08-22
+- 2026-08-22: closed — go build ./... && go test ./... green. BR-10 fixed both halves: attribution now COUNTS routing refs per statement (verified red on the exact two-messages-one-ref scenario in formatFixThenShipProtocol), and - the more important half - the CLAIM is fixed rather than the mechanism widened a fifth time: atlas/workflow/gate-state.md and Done-when now state what the guard approximates (statically visible literals only, + chains only, per-statement counting that cannot tell which message a ref is joined to) and say it raises the cost of an unrouted refusal without making it impossible. BR-11 fixed at the source, not the render output: construct/intents/superpowers.md Conversation 8 records the receiving-code-review change with Verify clauses per the a547179 precedent, so /construct upgrade cannot silently revert it. Also restored the ## Done when section that the prior commit span-edit swallowed.; review verdict: FIX-THEN-SHIP
 
 Filed from a parley.nvim#202 retrospective: the user observed a tendency to
 "keep patching" rather than fix the class, and the #202 gate ledger measured it
@@ -421,3 +423,40 @@ Full Go suite green.
   that a span-based edit is only as safe as the section boundary you assume.
 
 Full Go suite green.
+
+### 2026-08-22 (close round 4 — gate CLEARED; advisories fixed under FIX-THEN-SHIP)
+
+Boundary gate passed after 4 rounds: no open blocking findings, 4 advisories
+recorded. Fixed here before the close commit, per the #174 protocol.
+
+- **BR-13 (Minor) — 3rd in `undocumented-scan-boundary`, and it said outright
+  "do NOT rule this instance and stop."** `superpowers-requesting-code-review`
+  says *"Fix Critical issues immediately"* — per-item, in a skill live at
+  `.claude/skills/` and kept in play by AGENTS.md §3, escaping the doc scan by
+  the same mechanism as its sibling ("feedback"/"issues", never "findings").
+  Fixed the instance (class-first, routed to ARCH-PURPOSE, guarded by
+  `TestRequestingCodeReviewSkillGeneralizes`, with **Conversation 9** in the
+  intent so `/construct upgrade` cannot revert it) — but the *rule* is BR-10's
+  remedy one level up: **sites are computed, the surface set is not.** Both the
+  `fixerFacingSurfaces` header and the atlas now say so, and neither claims "the
+  whole surface set" any more. Measured prevalence the reviewer supplied: 14
+  adapted skills, exactly 2 carry fixer-facing directives, the declared set named
+  1.
+- **BR-14 (Minor).** `referencesRoutingLine` — the membership predicate BR-10
+  named as the defect — survived directly below its counting replacement with
+  zero call sites. Round 3's Log claimed the redesign deleted the whole two-pass
+  structure; this was the piece that didn't. Deleted.
+- **BR-12 (Minor).** The routing line was 120 chars (129 at the FIX-THEN-SHIP
+  indent) against ~83 for its neighbours. Now 88 on one line. A post-colon split
+  was rejected: the continuation indent differs per site, which is why
+  `fixTheClassNote` exists.
+- **BR-3 (Minor).** Covered rather than separately guarded: the doc scan requires
+  the citation in every fixer-facing helptext passage, and
+  `TestFixTheClassLine_RoutesToArchPrinciples` requires the destination to still
+  carry the discipline. Between them a citation cannot go stale in either
+  direction.
+
+Estimate 1.38h / actual 1.57h (ratio 0.9x, trusted window). Four lessons added to
+`workshop/lessons.md`, including the two the reviewer effectively taught: bound
+the claim rather than widening the mechanism, and state which half a guard
+computes.

@@ -50,20 +50,35 @@ func TestFixTheClassLine_RoutesToArchPrinciples(t *testing.T) {
 }
 
 // fixerFacingSurfaces DECLARES the class this file guards: every surface that
-// hands findings to a fixer and says what to do with them (#203 BR-9). Each guard
-// below globs its own slice of it; what was missing was the SET — with no declared
-// set, siblings got ruled in or out from memory, which is how
-// superpowers-receiving-code-review sat there telling the agent to implement
-// findings "one item at a time" while this very issue existed to stop that.
+// hands findings to a fixer and says what to do with them (#203 BR-9).
+//
+// WHAT IS COMPUTED AND WHAT IS NOT (#203 BR-13). Within a surface, the SITES are
+// computed — the scans find them, so a ninth emission cannot be missed by anyone
+// forgetting to list it. The SET OF SURFACES below is hand-declared and
+// unverified: a member can be missing and no test fires. That is exactly how
+// superpowers-receiving-code-review sat telling agents to implement findings "one
+// item at a time" while this issue existed to stop that, and how its sibling
+// superpowers-requesting-code-review then survived one more round. Both are named
+// now; the honest claim is "the scans compute the sites", never "this is the whole
+// surface set".
 //
 // Guarded here:
 //
-//	cmd/sdlc/*.go            the eight gate emissions  (TestEveryFixerFacingSiteRoutes)
+//	cmd/sdlc/*.go            the gate emissions        (TestEveryFixerFacingSiteRoutes)
 //	cmd/sdlc/helptext/*.md   the help those gates print (TestEveryFixerFacingHelptextRoutes)
 //	construct/adapted/superpowers-receiving-code-review/SKILL.md
-//	                         the canonical reception skill — the surface invoked at
-//	                         exactly the moment a gate hands findings over
+//	                         the canonical reception skill — invoked at exactly the
+//	                         moment a gate hands findings over
 //	                         (TestReceivingCodeReviewSkillGeneralizes)
+//	construct/adapted/superpowers-requesting-code-review/SKILL.md
+//	                         its sibling, live at .claude/skills/ and kept in play by
+//	                         AGENTS.md §3 for ad-hoc reviews
+//	                         (TestRequestingCodeReviewSkillGeneralizes)
+//
+// Both skills escape the doc scan by the same mechanism: they say
+// "feedback"/"items"/"issues", never "findings". Widening fixerFacingMessage past
+// "finding" to reach them would drag in the other family's residue, so they get
+// direct assertions instead.
 //
 // Ruled OUT, with reasons:
 //
@@ -101,6 +116,27 @@ func TestReceivingCodeReviewSkillGeneralizes(t *testing.T) {
 	}
 	if strings.Contains(skill, "6. IMPLEMENT: One item at a time") {
 		t.Errorf("%s restored the per-item implement step that #203 replaced with GENERALIZE-then-sweep", path)
+	}
+}
+
+// TestRequestingCodeReviewSkillGeneralizes pins the sibling surface (#203 BR-13).
+// It is live at .claude/skills/ and AGENTS.md §3 keeps it in play for ad-hoc
+// reviews, so its "Act on feedback" step reaches an agent at the same moment.
+func TestRequestingCodeReviewSkillGeneralizes(t *testing.T) {
+	path := filepath.Join("..", "..", "construct", "adapted",
+		"superpowers-requesting-code-review", "SKILL.md")
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	skill := string(body)
+	for _, want := range []string{"name the CLASS", "ARCH-PURPOSE"} {
+		if !strings.Contains(skill, want) {
+			t.Errorf("%s no longer carries %q — the sibling reception surface stopped telling the reader to fix the class", path, want)
+		}
+	}
+	if strings.Contains(skill, "- Fix Critical issues immediately") {
+		t.Errorf("%s restored the per-item act-on-feedback step that #203 replaced with class-first", path)
 	}
 }
 
@@ -421,20 +457,6 @@ func countRoutingRefs(n ast.Node) int {
 		return true
 	})
 	return count
-}
-
-func referencesRoutingLine(n ast.Node) bool {
-	found := false
-	ast.Inspect(n, func(node ast.Node) bool {
-		// Either spelling routes: fixTheClassNote is fixTheClassLine pre-joined
-		// for the common one-line-refusal case (#203 BR-4).
-		if ident, ok := node.(*ast.Ident); ok &&
-			(ident.Name == "fixTheClassLine" || ident.Name == "fixTheClassNote") {
-			found = true
-		}
-		return !found
-	})
-	return found
 }
 
 func describe(fset *token.FileSet, pos token.Pos, path string) string {

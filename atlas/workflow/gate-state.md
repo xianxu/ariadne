@@ -145,9 +145,18 @@ finer than the last, without bound, which is why #203 stopped widening here and 
 claim instead. The guard raises the cost of shipping an unrouted refusal; it does not make
 it impossible.
 
-The companion scan covers the helptext, and `fixerFacingSurfaces` declares the whole
-surface set with a ruling on each member — the set being undeclared is how the canonical
-findings-reception skill sat telling agents to implement findings one item at a time.
+The companion scan covers the helptext, and `fixerFacingSurfaces` declares the surfaces
+with a ruling on each member.
+
+**Sites are computed; the set of surfaces is not.** Within a guarded surface the scans
+find the sites, so an emission cannot be missed by anyone forgetting to list it. The list
+of *surfaces* is hand-declared and unverified — a member can be missing and no test fires.
+That is how `superpowers-receiving-code-review` sat telling agents to implement findings
+one item at a time while #203 existed to stop exactly that, and how its sibling
+`superpowers-requesting-code-review` survived one round longer. Both are guarded now, and
+both escaped the doc scan the same way: they say "feedback"/"issues", never "findings".
+Adding a new instruction surface means adding it to the declared set — nothing will
+remind you.
 
 **At the boundary gate a demotion means something different**, and is announced. There is no
 later gate to pick up what the cap demotes — the boundary review is the last read before

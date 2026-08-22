@@ -185,3 +185,22 @@ measured on parley.nvim#202, where two finding families each survived three revi
 - `family:` is described as a worklist that names the class
 - Per-item verification is preserved ("test each")
 - All previous verify clauses (Conv 1-7) still hold
+
+## Conversation 9 (2026-08-22): requesting-code-review — act on the class, not the item
+
+User: The sibling skill has the same defect — "Fix Critical issues immediately" is
+per-item, and it is live at `.claude/skills/`.
+
+AI: `requesting-code-review`'s "Act on feedback" step now leads with naming the class each
+item is an instance of and enumerating it, then fixes Critical/Important **classes**;
+routed to `ARCH-PURPOSE` rather than restating the principle. Recorded separately from
+Conversation 8 because it is a different skill in the same family — exactly two of the
+fourteen adapted skills carry fixer-facing directives, and both are now named here so
+`/construct upgrade` cannot silently revert either.
+
+### Verify
+- "Act on feedback" names the class and enumerates before fixing
+- Critical/Important are fixed as classes, not items
+- Routes to `ARCH-PURPOSE` / `sdlc arch-principles`; does not restate the principle
+- Push-back and Minor-deferral guidance are preserved
+- All previous verify clauses (Conv 1-8) still hold
