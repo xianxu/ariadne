@@ -118,6 +118,17 @@ reviewer is asked to state the rule rather than fix the instance, and the round'
 four-round history (`tools#1`): a correct implementation names the family at round 2,
 where the human would have said "you are patching cases", not at round 3.
 
+**The fixer is the family's fourth consumer** (#203). Slugging, counting, and the
+convergence line all address the reviewer, the ledger, and the operator; the agent that
+actually fixes the findings was told only "address the findings above and re-run", which
+reads as "address each of them" — the per-site patching the family counter exists to
+detect. Every fixer-facing refusal now emits one shared routing line
+(`cmd/sdlc/gatefindings.go`) pointing at `ARCH-PURPOSE`: a finding names one instance,
+the deliverable is the class. `family:` is therefore a worklist, not a label.
+`TestEveryFixerFacingSiteRoutes` scans the sources for the class signature so a ninth
+refusal site cannot ship unrouted — a table over the known emitters would be blind to it,
+which is not hypothetical (#203's own first enumeration listed four of eight).
+
 **At the boundary gate a demotion means something different**, and is announced. There is no
 later gate to pick up what the cap demotes — the boundary review is the last read before
 publish — so each demoted finding gets a warning naming it. Its cap knob is

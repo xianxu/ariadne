@@ -12,7 +12,21 @@ Key consumers:
 - `cmd/sdlc/internal/judge/judge_test.go` pins marker extraction and prompt
   embedding.
 - `cmd/sdlc/internal/judge/testdata/golden/*.prompt` pins the generated prompt
-  bodies that carry the registry.
+  bodies that carry the registry. A deliberate registry edit re-captures these
+  (`-update-golden`); the ⛔ in `golden_test.go` forbids re-capturing to paper
+  over *drift*, which is a different case.
+- `cmd/sdlc/gatefindings.go` routes every fixer-facing findings refusal to
+  `ARCH-PURPOSE` (#203) — the judges get the registry inlined because a marker
+  alone would dangle in a fresh context, but these lines are read by the main
+  thread, which already holds the block from `sdlc start-plan`. Guarded by
+  `TestFixTheClassLine_RoutesToArchPrinciples`, which asserts the ROUTING and
+  never the wording: asserting wording is what would let the line become a
+  second copy of the principle.
+
+`ARCH-PURPOSE` covers two axes of the same rule: deliver the issue's purpose
+rather than its easy subset, and answer a review finding with the *class* it
+names rather than the one site — a finding's named site being the easy subset
+again. That is why #203 extended it instead of coining a fifth marker.
 
 `ARCH-MOCK` codifies the external dependency rule: every relied-on external
 binary/service should sit behind a seam with a stateful fake for integration and
