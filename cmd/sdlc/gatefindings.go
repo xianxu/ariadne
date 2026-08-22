@@ -29,3 +29,13 @@ func fixTheClassLine() string {
 	return "each finding names one instance — fix the CLASS it belongs to, not only that site: " +
 		"ARCH-PURPOSE (`sdlc arch-principles`)"
 }
+
+// fixTheClassNote is the routing line pre-joined for the common case: appended to
+// a one-line refusal at the standard two-space continuation indent. Six of the
+// eight sites want exactly this, and hand-spelling "\n  " at each of them is the
+// same duplication one level down. The two that don't (the boundary gate's
+// multi-line Sprintf and the FIX-THEN-SHIP builder) compose fixTheClassLine with
+// their own indent. Pure.
+func fixTheClassNote() string {
+	return "\n  " + fixTheClassLine()
+}

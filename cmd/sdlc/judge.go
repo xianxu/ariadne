@@ -169,7 +169,7 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 	case judge.Info:
 		cinfo(stderr, fmt.Sprintf("%s: info", label))
 	case judge.Failure:
-		cwarn(stderr, fmt.Sprintf("%s: findings reported — review above\n  %s", label, fixTheClassLine()))
+		cwarn(stderr, fmt.Sprintf("%s: findings reported — review above%s", label, fixTheClassNote()))
 		os.Exit(1)
 	}
 	return nil

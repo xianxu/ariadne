@@ -1235,7 +1235,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	case closeRework:
 		emitTrailerBlock(stdout, review, kind)
 		cwarn(stderr, "boundary review: REWORK — close NOT finalized; issue left at status: working")
-		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)\n  %s", verb, fixTheClassLine()))
+		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)%s", verb, fixTheClassNote()))
 		return fmt.Errorf("boundary review verdict REWORK — close not finalized")
 	default: // closeHalt
 		emitTrailerBlock(stdout, review, kind)

@@ -123,7 +123,7 @@ func TestEveryFixerFacingSiteRoutes(t *testing.T) {
 			}
 			// The one reasoned exclusion: the routing line's own definition
 			// matches the signature it describes, and cannot route through itself.
-			if fn.Name.Name == "fixTheClassLine" {
+			if fn.Name.Name == "fixTheClassLine" || fn.Name.Name == "fixTheClassNote" {
 				continue
 			}
 			for _, lit := range stringLiterals(fn.Body) {
@@ -166,7 +166,10 @@ func stringLiterals(n ast.Node) []litRef {
 func referencesRoutingLine(n ast.Node) bool {
 	found := false
 	ast.Inspect(n, func(node ast.Node) bool {
-		if ident, ok := node.(*ast.Ident); ok && ident.Name == "fixTheClassLine" {
+		// Either spelling routes: fixTheClassNote is fixTheClassLine pre-joined
+		// for the common one-line-refusal case (#203 BR-4).
+		if ident, ok := node.(*ast.Ident); ok &&
+			(ident.Name == "fixTheClassLine" || ident.Name == "fixTheClassNote") {
 			found = true
 		}
 		return !found
