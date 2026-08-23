@@ -1,0 +1,43 @@
+// gatefindings.go — the ONE routing line every fixer-facing findings refusal emits
+// (ariadne#203).
+//
+// The `family:` machinery (#194) was built with three consumers — the reviewer
+// (told to slug the RULE, not the symptom), the ledger (counts repeats), and the
+// operator (the convergence line). The agent that actually FIXES the findings was
+// not one of them. What it read at the moment it started fixing was "address the
+// findings above and re-run", which reads as "address each of them" — the per-site
+// patching the family counter exists to detect. parley.nvim#202 spent four boundary
+// rounds against a cap of three that way, with `invariant-without-regression-guard`
+// and `stale-restatement-of-moved-source` each surviving three separate rounds.
+//
+// This is a file rather than eight strings for the reason gatepersist.go is a file:
+// eight hand-maintained copies of a rule about not hand-patching would refute
+// themselves, and that tail diverged five times before extraction.
+//
+// It ROUTES rather than restates. The discipline itself has one statement, in
+// ARCH-PURPOSE (cmd/sdlc/internal/judge/architecture.md) — the #128 pattern, where
+// the constitution stopped restating ARCH-* definitions and began routing to
+// `sdlc arch-principles`. ArchitectureBlock warns that "a marker alone would be a
+// dangling pointer in a fresh-context subagent"; that constraint is why the JUDGES
+// get the registry inlined, and why it does not bind HERE — these lines are read by
+// the main thread, which already received the block from `sdlc start-plan` and can
+// pull it any time. Restating the procedure here would make the drift guard vacuous.
+package main
+
+// fixTheClassLine is the routing line. Pure.
+func fixTheClassLine() string {
+	// Kept to one line at ~88 chars: a post-colon split would read better in
+	// isolation but the continuation indent differs per site (#203 BR-12), which
+	// is the same reason fixTheClassNote exists.
+	return "fix the CLASS a finding names, not just the site — ARCH-PURPOSE (`sdlc arch-principles`)"
+}
+
+// fixTheClassNote is the routing line pre-joined for the common case: appended to
+// a one-line refusal at the standard two-space continuation indent. Six of the
+// eight sites want exactly this, and hand-spelling "\n  " at each of them is the
+// same duplication one level down. The two that don't (the boundary gate's
+// multi-line Sprintf and the FIX-THEN-SHIP builder) compose fixTheClassLine with
+// their own indent. Pure.
+func fixTheClassNote() string {
+	return "\n  " + fixTheClassLine()
+}

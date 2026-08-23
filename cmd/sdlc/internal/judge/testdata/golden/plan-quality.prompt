@@ -126,16 +126,27 @@ Principles"; this is its machine-delivered companion.
   extensions, never for the thing that is the point. This is the *opposite axis*
   from Simplicity-First/YAGNI: not "build for an imagined future," but "don't
   **under**-deliver the purpose you already committed to."
+  The same axis governs how a *finding* is answered: a finding names one
+  instance; the deliverable is the CLASS it belongs to. Name the class, write
+  the enumeration it implies, and sweep that enumeration in the SAME round —
+  fixing only the site the finding named is the easy subset again. A gate
+  ledger's `family:` slug names the class for you, and a family that repeats
+  across rounds is the ledger reporting that the enumeration was never written.
 - **at-plan:** Flag a plan whose scope is a strict subset of the issue's stated
   goal / Done-when where the part deferred as "follow-up" *is* the purpose (e.g.
   wires one consumer + enforcement but leaves the consumers that motivated the
   issue as documentation that doesn't derive). Ask: does the plan fulfill the
   purpose, or just the cheap win? Name the deferred purpose.
+  Also flag a plan that answers a prior finding by fixing the instance it named
+  when the class is enumerable — ask for the enumeration in the plan, and for the
+  sweep in the same round rather than the round after.
 - **at-review:** Does the diff *fulfill* the purpose or settle for the easy win?
   For a single-source change, run the **shadow-sweep** — enumerate the consumers,
   confirm each derives from the source, flag any remaining hand-maintained
   restatement of the model. A "follow-up" that is actually the deferred point of
-  the issue is a finding, not a deferral.
+  the issue is a finding, not a deferral. Likewise a fix that resolves the site a
+  prior finding named while enumerable siblings of the same class remain in the
+  tree: that is the instance, not the class, and it is a finding.
 
 ## ARCH-MOCK — Stateful external doubles
 

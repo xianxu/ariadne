@@ -50,8 +50,11 @@ Use Task tool with superpowers-code-reviewer type, fill template at `code-review
 - `{DESCRIPTION}` - Brief summary
 
 **3. Act on feedback:**
-- Fix Critical issues immediately
-- Fix Important issues before proceeding
+- For each item, name the CLASS it is an instance of and enumerate that class —
+  the item names one site, the deliverable is the class (**ARCH-PURPOSE**,
+  `sdlc arch-principles`)
+- Fix Critical classes immediately
+- Fix Important classes before proceeding
 - Note Minor issues for later
 - Push back if reviewer is wrong (with reasoning)
 

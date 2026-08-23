@@ -162,3 +162,45 @@ registry consumed by `sdlc arch-principles`.
 - Live conformance checks are mentioned where practical
 - Function-call mocks remain the explicit anti-pattern for external services
 - All previous verify clauses (Conv 1-6) still hold
+
+## Conversation 8 (2026-08-22): receiving-code-review — generalize before implementing
+
+User: A review finding names one instance; the deliverable is the class it belongs to.
+The reception skill was telling agents to do the opposite.
+
+AI: `receiving-code-review`'s response pattern ended at `6. IMPLEMENT: One item at a time,
+test each` — per-site patching, in the one skill invoked at exactly the moment a gate hands
+findings over. Inserted a **GENERALIZE** step before IMPLEMENT (name the class this item is
+an instance of, and enumerate it), made IMPLEMENT sweep that enumeration in the same round,
+and routed the rationale to `ARCH-PURPOSE` (`sdlc arch-principles`) rather than restating it
+— the #128 pattern. Noted that an `sdlc` gate's `family:` slug already names the class, so
+the ledger is a worklist rather than a label, and that "test each" still applies per item:
+generalizing the fix does not mean batching the verification. Motivated by ariadne#203 and
+measured on parley.nvim#202, where two finding families each survived three review rounds.
+
+### Verify
+- The response pattern has a GENERALIZE step between RESPOND and IMPLEMENT
+- IMPLEMENT sweeps the enumeration in the same round, not one item at a time
+- The rationale routes to `ARCH-PURPOSE` and names `sdlc arch-principles`; it does not restate the principle
+- `family:` is described as a worklist that names the class
+- Per-item verification is preserved ("test each")
+- All previous verify clauses (Conv 1-7) still hold
+
+## Conversation 9 (2026-08-22): requesting-code-review — act on the class, not the item
+
+User: The sibling skill has the same defect — "Fix Critical issues immediately" is
+per-item, and it is live at `.claude/skills/`.
+
+AI: `requesting-code-review`'s "Act on feedback" step now leads with naming the class each
+item is an instance of and enumerating it, then fixes Critical/Important **classes**;
+routed to `ARCH-PURPOSE` rather than restating the principle. Recorded separately from
+Conversation 8 because it is a different skill in the same family — exactly two of the
+fourteen adapted skills carry fixer-facing directives, and both are now named here so
+`/construct upgrade` cannot silently revert either.
+
+### Verify
+- "Act on feedback" names the class and enumerates before fixing
+- Critical/Important are fixed as classes, not items
+- Routes to `ARCH-PURPOSE` / `sdlc arch-principles`; does not restate the principle
+- Push-back and Minor-deferral guidance are preserved
+- All previous verify clauses (Conv 1-8) still hold
