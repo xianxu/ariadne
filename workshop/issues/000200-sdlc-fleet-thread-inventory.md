@@ -70,15 +70,163 @@ forgotten. The rogii-v2 phase that lost a deadline ran off-spine with no issue
 file at all: 11 days, 301 commits, invisible to any issue-based enumeration.
 Keying on trees makes it a row like any other.
 
+## Revisions
+
+### 2026-08-24 — concurrency is a resolved policy, not a repo-type enum
+
+**Reason:** couch's actor model exposed four valid checkout strategies rather
+than the three coarse repo categories named above. `pair`, `ariadne`, and
+`parley` admit one actor in the installation checkout; `brain` admits multiple
+independent spaces in one checkout; `kbench` admits concurrent actors across
+largely independent competition directories but only one actor within a given
+competition; other repos isolate concurrent work by provisioning worktrees.
+Hard-coding those as named repo types would make every new topology a new enum
+case even though the enforcement questions are the same.
+
+**Delta:** the earlier `in-place-serial` / `worktree-parallel` list is
+superseded by a normalized policy with orthogonal answers:
+
+1. **Admission key** — deterministically map a requested working path to the
+   collision domain whose occupants may conflict (for example the repo root, a
+   declared competition subtree, or a worktree path).
+2. **Live capacity** — the maximum number of live couch spaces admitted for one
+   key; capacity applies to live occupants, not every durable/parked space that
+   has ever existed.
+3. **Capacity response** — reject the new actor in the existing checkout, admit
+   another actor in place, or request an isolated worktree. Worktree creation
+   and cleanup are lifecycle operations outside this inventory issue; this
+   issue supplies the deterministic policy and measured facts they consume.
+
+The concrete policy matrix that the resolver must express is:
+
+| Repository shape | Admission key | Live capacity | Capacity response |
+|---|---|---:|---|
+| installation checkout (`pair`, `ariadne`, `parley`) | repo root | 1 | reject |
+| capture filesystem (`brain`) | repo root | configured N | admit in place |
+| shared competition repo (`kbench`) | competition directory | 1 | admit other competition keys in place |
+| isolated application work | worktree path | 1 | provision a worktree for new concurrent work |
+
+For `kbench`, “competition directory” is a declared path rule, not an inferred
+git property: two actors targeting the same competition are refused, while any
+number of different competitions may run concurrently in the shared checkout.
+
+**Ownership and source of truth:** ariadne owns the policy schema, validation,
+path-to-key resolver, and fleet JSON shape. Each repo provides a portable,
+machine-readable declaration. `sdlc` reads that declaration and emits the
+resolved policy; couch consumes the inventory output and does not parse repo
+configuration independently (ARCH-DRY, ARCH-PURPOSE). `AGENTS.local.md` may
+explain or derive from the same declaration so agents understand local
+practice, but prose is not the machine authority. The exact declaration file
+belongs to implementation design; the contract is repo-local, deterministic,
+and readable without couch running.
+
+**Non-goals:** this issue does not create or remove worktrees, garbage-collect
+branches, define couch's durable space identity, or interpret repository policy
+with an LLM. It reports the policy and measured repository state needed by
+those consumers. The resolver is pure over a validated declaration plus a
+canonical path; filesystem and git discovery remain the thin fleet-walk shell
+(ARCH-PURE). Stateful fleet tests use portable temporary repositories and real
+worktree layouts rather than stateless command-call mocks (ARCH-MOCK).
+
+### 2026-08-24 — make the policy total and callable
+
+**Reason:** fresh spec review found that the first revision conflated admission
+below capacity with the action taken after capacity is full. It also attached
+policy only to existing inventory rows, while couch must decide whether a
+prospective path such as `kbench/competition/rogii-v2` may start before any new
+row exists. The review also surfaced older underspecification in fleet-root
+discovery, issue association, and the word “cold.”
+
+**Delta — total policy algebra:** resolving a prospective canonical path returns
+one normalized result:
+
+- **repo identity** — stable across the primary checkout and all linked
+  worktrees of the same repository;
+- **admission key** — the collision domain within that repo;
+- **live capacity** — the number admitted for that key;
+- **on-capacity action** — exactly `reject` or `provision-worktree`.
+
+When current occupancy is below capacity, admission in the requested checkout
+is implicit. `on-capacity` is consulted only when the resolved key is full;
+“admit another key” is therefore not an action. The corrected matrix is:
+
+| Repository shape | Admission key | Live capacity | On capacity |
+|---|---|---:|---|
+| installation checkout (`pair`, `ariadne`, `parley`) | repo identity | 1 | reject |
+| capture filesystem (`brain`) | repo identity | configured N | reject |
+| shared competition repo (`kbench`) | declared competition directory | 1 | reject |
+| isolated application work | current checkout/worktree identity | 1 | provision-worktree |
+
+For kbench, two paths under the same declared competition resolve to one key and
+the second is rejected; paths under different competitions resolve to different
+keys and are independently admitted below capacity. A path outside every
+declared competition rule is a policy-resolution error, not a guessed repo-wide
+fallback. Repo identity comes from the repository's canonical git identity, not
+the current linked-worktree root.
+
+**Delta — callable boundary:** `sdlc` exposes the same resolver used by fleet
+assembly as a JSON-first query accepting a requested path. Its response is the
+normalized `{repo identity, admission key, live capacity, on-capacity action}`
+or a structured policy diagnostic. Couch calls this query; it never receives a
+raw declaration to interpret. Inventory rows and prospective-path resolution
+therefore derive from one resolver (ARCH-DRY, ARCH-PURPOSE).
+
+**Delta — declaration rollout and failure:** the implementation must land
+validated repo-local declarations for the named live examples (`pair`,
+`ariadne`, `parley`, `brain`, and `kbench`) plus a representative
+worktree-provisioned repo. Missing or invalid declaration never triggers a
+repo-name/type inference. Fleet enumeration continues and emits a diagnostic
+for that repo so one bad peer does not erase the rest of the fleet; a
+prospective-path query for that repo refuses with the same structured
+diagnostic. The implementation plan must acknowledge the coordinated peer-repo
+declaration changes explicitly.
+
+**Delta — issue association:** a tree carries `issues: []`, never one inferred
+“current issue.” An issue is associated only when the checked-out branch has a
+valid `NNNNNN-*` prefix and that issue exists in the same repo; the row records
+`provenance: branch-prefix`. Main and untracked branches normally have an empty
+array. Multiple future association sources append provenance-bearing entries
+rather than silently choosing one.
+
+**Delta — fleet vantage:** “from any working directory” resolves the current
+repo from a nested path, asks git for the primary checkout shared by its
+worktrees, and uses the primary checkout's parent as the fleet root before
+calling the existing fleet walk. Acceptance covers a primary checkout, another
+fleet repo, a nested directory, and a linked worktree. The existing fleet walk
+is reused after this normalization; it is not asked to infer the vantage.
+
+**Delta — measured facts only:** the inventory does not emit a derived `cold`
+boolean. It emits commit time, ahead/behind, dirty count, and any associated
+self-declared issue status with provenance. Couch/advisor policy may interpret
+those facts later. This avoids both an undefined staleness threshold and a
+collision with couch's separate warm/cold process meaning.
+
 ## Done when
 
 - One command enumerates every working tree across the fleet with measured git
   facts, in JSON, from any working directory.
 - A tree with no issue behind it appears as a row, with no field left broken.
-- A tree whose issue says `working` but whose branch has not moved in weeks is
-  reported as cold, with both facts visible and measurement winning.
-- Per-repo concurrency policy is readable from the inventory so couch can enforce
-  the one-agent-per-tree refusal without inferring it.
+- A stale branch whose associated issue says `working` reports the measured
+  commit/divergence/dirty facts beside the provenance-bearing self-declared
+  status; inventory emits no derived `cold` label.
+- Repo-local concurrency policy is validated and resolved into admission key,
+  live capacity, and capacity response in the inventory, so couch enforces it
+  without inference or its own configuration reader.
+- The resolver distinguishes `kbench` competition directories: the same
+  competition shares one capacity-1 key, while different competitions have
+  different keys in the same checkout.
+- Installation, capture, competition-subtree, and worktree-provisioned policies
+  are expressed by one schema and resolver rather than named repo-type branches.
+- A JSON-first prospective-path query returns the same normalized policy used
+  by inventory rows, or a structured missing/invalid/out-of-rule diagnostic.
+- Missing or invalid policy in one repo leaves other fleet rows visible and
+  never falls back to repo-name/type inference.
+- Named live repos carry validated declarations, including kbench's same-
+  competition rejection and different-competition admission.
+- From a primary checkout, another fleet repo, a nested directory, or a linked
+  worktree, fleet-root normalization produces the same complete inventory.
+- Tree issue metadata is an array populated only by a valid branch-prefix
+  association and includes its provenance; main/untracked branches are empty.
 - The fleet walk is the existing one, not a second implementation.
 
 ## Plan
@@ -86,7 +234,22 @@ Keying on trees makes it a row like any other.
 - [ ] Fleet walk enumerating working trees + measured facts, JSON shape.
 - [ ] Self-declared vs measured fields distinguished in the schema; drift check
       surfaces disagreement rather than hiding it.
-- [ ] Per-repo concurrency policy as recorded fleet metadata.
+- [ ] Per-repo concurrency policy as recorded fleet metadata: one repo-local
+      machine declaration, schema validation, and a pure requested-path →
+      {repo identity, admission key, live capacity, on-capacity action}
+      resolver.
+- [ ] Policy matrix coverage for installation checkouts, brain-style shared
+      capture, kbench competition subtrees, and worktree-provisioned repos.
+- [ ] JSON-first prospective-path policy query and inventory integration over
+      the same resolver; structured diagnostics for missing, invalid, and
+      outside-declared-scope policy.
+- [ ] Coordinated repo-local declarations for the named live policy examples;
+      couch and `AGENTS.local.md` remain consumers rather than parallel policy
+      sources.
+- [ ] Fleet-root normalization from primary, peer, nested, and linked-worktree
+      vantage before reusing the existing fleet walk.
+- [ ] Provenance-bearing branch-prefix issue association as an array; measured
+      git facts only, with no derived `cold` label.
 - [ ] Human rendering derived from the JSON.
 
 ## Log
@@ -101,3 +264,21 @@ substrate for enumeration.
 Rekeyed the same day from issue-based to tree-based enumeration (see the scope
 event in `pair/workshop/projects/couch.md`). This simplifies the spec and closes
 the untracked-work gap that was previously named as a known limitation.
+
+### 2026-08-24 — session summary
+
+Claimed the issue while validating couch's identity and concurrency model.
+Replaced the coarse repo-type list with orthogonal admission-key, capacity, and
+capacity-response policy. Added the missing kbench invariant: one live actor per
+competition directory, with different competitions concurrent in the shared
+checkout. Ariadne owns the machine schema/resolver and fleet output; repos
+declare policy locally; couch consumes the resolved result; `AGENTS.local.md`
+is explanatory rather than authoritative. Worktree lifecycle and garbage
+collection remain explicit follow-on scope.
+
+Fresh spec review then tightened the contract: admission below capacity is now
+separate from `on-capacity`; kbench's same-key action is unambiguously reject;
+and couch gets a prospective-path JSON query backed by the same resolver as the
+inventory. The revision also specifies declaration rollout/failure, fleet-root
+normalization, provenance-bearing issue association, and measured facts without
+an undefined `cold` label.
