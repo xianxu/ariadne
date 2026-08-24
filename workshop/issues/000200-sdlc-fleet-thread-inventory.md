@@ -1,11 +1,12 @@
 ---
 id: 000200
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-24
 estimate_hours:
+started: 2026-08-24T13:24:43-07:00
 ---
 
 # sdlc: fleet thread inventory
