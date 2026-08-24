@@ -201,6 +201,46 @@ self-declared issue status with provenance. Couch/advisor policy may interpret
 those facts later. This avoids both an undefined staleness threshold and a
 collision with couch's separate warm/cold process meaning.
 
+### 2026-08-24 — separate declaration inventory from path resolution
+
+**Reason:** implementation-plan review caught an information mismatch. A Git
+worktree row identifies a checkout, but a subtree policy such as kbench's
+`competition/*` needs the *prospective work path* to choose an admission key.
+The primary kbench row is the repo root and therefore cannot truthfully invent
+`competition/rogii-v2` (or any other competition) from Git state, branch name,
+or issue metadata. Those are separate facts and using them as a target-path
+inference would violate this issue's measured-only rule.
+
+**Delta:** inventory rows carry the repo's validated policy declaration (key
+kind, capacity, on-capacity action) or a structured declaration diagnostic.
+They do **not** carry a resolved admission key. Only the prospective-path query
+accepts enough information to return `{repo identity, admission key, live
+capacity, on-capacity action}` or an outside-scope diagnostic. Both surfaces
+still share one declaration loader and one pure resolver; inventory validates
+the capability while the query applies it.
+
+The motivating consumer remains part of delivery, not a documentation-only
+follow-up (ARCH-PURPOSE): `pair#149` replaces couch's temporary repo-name
+`PolicyTable` with this query contract and keys its live-capacity decision on
+the normalized result. Ariadne owns the provider/schema; pair owns occupancy
+and actor lifecycle. The two repos keep separate SDLC artifacts, but #200 does
+not close while the hand-maintained couch policy table remains authoritative.
+
+### 2026-08-24 — unbounded is a capacity kind, not a large number
+
+**Reason:** brain supports chat-like concurrent threads in one capture checkout.
+The expected live population is normally fewer than five, but that is an
+observation, not a conflict boundary. Encoding an arbitrary large `N` would
+turn an operational expectation into a false refusal rule.
+
+**Delta:** capacity is a tagged value: `{kind: bounded, limit: <positive int>}`
+or `{kind: unbounded}`. A bounded declaration also carries its `on-capacity`
+action; an unbounded declaration omits that unreachable action and always
+admits another live occupant for the resolved key. The normalized prospective
+result preserves the tagged capacity rather than converting unbounded to a
+sentinel integer or `null`. Brain declares unbounded. “Normally fewer than
+five” may appear in explanatory prose, but it produces no warning or guard.
+
 ## Done when
 
 - One command enumerates every working tree across the fleet with measured git
@@ -209,16 +249,22 @@ collision with couch's separate warm/cold process meaning.
 - A stale branch whose associated issue says `working` reports the measured
   commit/divergence/dirty facts beside the provenance-bearing self-declared
   status; inventory emits no derived `cold` label.
-- Repo-local concurrency policy is validated and resolved into admission key,
-  live capacity, and capacity response in the inventory, so couch enforces it
-  without inference or its own configuration reader.
+- Inventory rows carry validated repo-local concurrency policy capability (or
+  a structured declaration diagnostic) without inventing a target-specific
+  admission key.
 - The resolver distinguishes `kbench` competition directories: the same
   competition shares one capacity-1 key, while different competitions have
   different keys in the same checkout.
+- Brain resolves to explicit unbounded capacity; any number of live occupants
+  remains admissible, with normal usage below five treated only as context.
 - Installation, capture, competition-subtree, and worktree-provisioned policies
   are expressed by one schema and resolver rather than named repo-type branches.
 - A JSON-first prospective-path query returns the same normalized policy used
-  by inventory rows, or a structured missing/invalid/out-of-rule diagnostic.
+  by couch's admission decision, or a structured missing/invalid/out-of-rule
+  diagnostic.
+- Couch's temporary repo-name policy table is removed; `pair#149` consumes the
+  prospective-path query and applies its normalized key/tagged-capacity and,
+  for bounded capacity, its on-capacity action.
 - Missing or invalid policy in one repo leaves other fleet rows visible and
   never falls back to repo-name/type inference.
 - Named live repos carry validated declarations, including kbench's same-
@@ -232,20 +278,25 @@ collision with couch's separate warm/cold process meaning.
 ## Plan
 
 - [ ] Fleet walk enumerating working trees + measured facts, JSON shape.
-- [ ] Self-declared vs measured fields distinguished in the schema; drift check
-      surfaces disagreement rather than hiding it.
+- [ ] Self-declared vs measured fields distinguished in the schema; measured
+      facts are juxtaposed with provenance-bearing declared status, with no
+      derived drift/cold verdict.
 - [ ] Per-repo concurrency policy as recorded fleet metadata: one repo-local
-      machine declaration, schema validation, and a pure requested-path →
-      {repo identity, admission key, live capacity, on-capacity action}
-      resolver.
+      machine declaration, schema validation, declaration capability on
+      inventory rows, and a pure requested-path → {repo identity, admission
+      key, tagged capacity, optional bounded on-capacity action} resolver.
 - [ ] Policy matrix coverage for installation checkouts, brain-style shared
       capture, kbench competition subtrees, and worktree-provisioned repos.
+- [ ] Tagged capacity coverage: positive bounded limits with an on-capacity
+      action, and explicit unbounded capacity with no unreachable action.
 - [ ] JSON-first prospective-path policy query and inventory integration over
       the same resolver; structured diagnostics for missing, invalid, and
       outside-declared-scope policy.
 - [ ] Coordinated repo-local declarations for the named live policy examples;
       couch and `AGENTS.local.md` remain consumers rather than parallel policy
       sources.
+- [ ] `pair#149` couch integration consumes the normalized prospective-path
+      query and removes the temporary repo-name `PolicyTable` authority.
 - [ ] Fleet-root normalization from primary, peer, nested, and linked-worktree
       vantage before reusing the existing fleet walk.
 - [ ] Provenance-bearing branch-prefix issue association as an array; measured
@@ -282,3 +333,15 @@ and couch gets a prospective-path JSON query backed by the same resolver as the
 inventory. The revision also specifies declaration rollout/failure, fleet-root
 normalization, provenance-bearing issue association, and measured facts without
 an undefined `cold` label.
+
+### 2026-08-24 — implementation plan
+
+Authored and fresh-reviewed the durable implementation plan. Review corrected
+an information boundary: inventory can validate a subtree policy but only a
+prospective target path can resolve its admission key. The plan therefore keeps
+inventory capability separate from path resolution, adds a stateful Git fake
+plus real-Git conformance, and includes `pair#149` removal of couch's temporary
+repo-name policy table (ARCH-PURPOSE). Capacity is a tagged bounded/unbounded
+value; brain is explicitly unbounded, while its normal occupancy below five is
+context only. The final tagged-capacity CUE/Go fixture corpus passed document
+review.
