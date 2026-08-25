@@ -1,11 +1,12 @@
 ---
 id: 000162
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-02
-updated: 2026-07-02
+updated: 2026-08-25
 estimate_hours:
+started: 2026-08-25T08:21:30-07:00
 ---
 
 # sdlc milestone-close derives gate/review windows from a wrong base (far-back or HEAD)
