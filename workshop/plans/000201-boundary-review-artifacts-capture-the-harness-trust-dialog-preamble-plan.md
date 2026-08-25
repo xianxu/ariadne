@@ -33,6 +33,28 @@
 
 `ProcessOutput` prevents an agent adapter or test fake from representing two process channels as one ambiguous byte slice. `classifyRunResult` is the sole transition from process output to semantic output: it writes diagnostics, applies the existing `*exec.ExitError` policy, and returns only stdout.
 
+### Risky-function test strategies
+
+| Function | Adversarial input class → mechanical guard |
+|----------|--------------------------------------------|
+| `Run` | interleaved stdout/stderr plus non-zero exit → real portable helper subprocess captures distinct buffers and preserves `*exec.ExitError` |
+| `BuildArgs` + `Dispatch` | every adapter with queued independent streams, launch failure, and non-zero exit → replaceable `Run` fake records argv and returns one configured `ProcessOutput` per invocation |
+| `classifyRunResult` | stderr containing verdict/findings lookalikes → diagnostic writer receives stderr before pure exit classification returns stdout only |
+| `dispatchBoundaryReview` | valid stdout review plus hostile diagnostic preamble/tool chatter → separate writers and real sidecar assert parsing/display/persistence consume only stdout |
+| `writeReviewSidecar` | semantic body containing structured findings → existing renderer round-trip asserts exact body; it receives no process-stream type and cannot accidentally rejoin stderr |
+
+The queued `Run` fake is the stateful double for the exact external dependency
+surface consumed by `Dispatch`: command/argv plus successive
+`{stdout, stderr, exit}` results. `TestRun_RealSubprocess` exercises that same
+production seam against a real portable `sh` child on every judge-package test
+run, covering OS pipe and exit behavior that the fake cannot prove. Real Claude,
+Codex, and Gemini response-channel routing is checked after an agent CLI upgrade
+with the opt-in `SDLC_LIVE_AGENT_STREAM_CONFORMANCE=1 go test
+./cmd/sdlc/internal/judge -run TestLiveAgentStreamConformance -count=1`; the test
+skips unless explicitly enabled, invokes the three installed CLIs with their
+`BuildArgs` forms, and requires a non-empty semantic stdout capture without
+assuming stderr is empty. Normal CI never spends credentials or network calls.
+
 ### Integration points
 
 | Name | Lives in | Status | Wraps |
@@ -51,6 +73,7 @@
 
 **Files:**
 - Modify: `cmd/sdlc/internal/judge/heartbeat_test.go`
+- Create: `cmd/sdlc/internal/judge/live_stream_conformance_test.go`
 - Modify: `cmd/sdlc/internal/judge/dispatch.go`
 - Modify mechanically: judge `Run` fakes in `cmd/sdlc/**/*_test.go`
 
@@ -73,6 +96,12 @@
 - [ ] Run `go test ./cmd/sdlc/internal/judge -run 'TestDispatch|TestRun_RealSubprocess' -count=1`; verify the new stream-routing assertions FAIL.
 - [ ] Change the shared completion function to accept `ProcessOutput`, the run error, binary name, and diagnostic writer. Forward stderr before applying the existing exit policy, then return only stdout. Route both synchronous and heartbeat branches through this one function.
 - [ ] Re-run `go test ./cmd/sdlc/internal/judge -count=1`; expect PASS.
+- [ ] Add `TestLiveAgentStreamConformance`, skipped unless
+      `SDLC_LIVE_AGENT_STREAM_CONFORMANCE=1`, which invokes each installed agent
+      through `BuildArgs` and production `Run`, requires non-empty stdout, and
+      reports stderr separately for diagnosis. Document it as the after-upgrade
+      conformance command; do not run it in normal CI or this change's mandatory
+      verification unless the operator explicitly opts in.
 
 ---
 
@@ -111,3 +140,16 @@
 - [ ] Inspect `git diff --stat` and `git diff` to confirm no prompt transport, reviewer isolation, or historical sidecar rewrite entered #201.
 - [ ] Close with `sdlc close --issue 201 --verified '<exact commands and results>'`; fix every Critical/Important finding from the gate-owned fresh review before retrying.
 
+## Revisions
+
+### 2026-08-25 — expose the canonical plan and pin the external-process contract
+
+**Reason:** plan-quality round 1 did not discover the separate plan because its
+filename did not share the issue slug, then correctly found the four-row issue
+checklist insufficient by itself. It also required the fake and live-conformance
+contract for the external agent processes to be explicit.
+
+**Delta:** renamed this file to the canonical issue-derived plan path; added the
+risky-function strategy table, defined the queued `Run` fake's state model,
+retained the always-on real subprocess check, and added an opt-in real-agent
+stream conformance command for CLI-upgrade cadence.
