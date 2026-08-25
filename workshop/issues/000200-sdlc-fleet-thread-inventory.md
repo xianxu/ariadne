@@ -4,8 +4,8 @@ status: working
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-24
-estimate_hours:
+updated: 2026-08-25
+estimate_hours: 4.22
 started: 2026-08-24T13:24:43-07:00
 ---
 
@@ -241,6 +241,23 @@ result preserves the tagged capacity rather than converting unbounded to a
 sentinel integer or `null`. Brain declares unbounded. “Normally fewer than
 five” may appear in explanatory prose, but it produces no warning or guard.
 
+### 2026-08-25 — normalized results carry declaration identity
+
+**Reason:** the Pair consumer persists admission evidence across couch restarts.
+A normalized key and capacity alone cannot reveal that the owning repository's
+declaration changed after the actor was admitted, so cached evidence could
+silently outlive its authority.
+
+**Delta:** every successful policy capability and prospective result carries
+the declaration schema version plus a canonical SHA-256 declaration digest.
+The digest is computed from the validated normalized declaration, not raw JSON,
+so whitespace and object-key order do not change it while any semantic policy
+change does. Structured diagnostics retain any schema version that could be
+decoded but never fabricate a digest for invalid input. Consumers persist both
+values as evidence, compare them with the current query, and re-resolve stale
+live/unknown occupants before admission; the provider remains the authority
+(ARCH-DRY, ARCH-PURPOSE).
+
 ## Done when
 
 - One command enumerates every working tree across the fleet with measured git
@@ -260,8 +277,8 @@ five” may appear in explanatory prose, but it produces no warning or guard.
 - Installation, capture, competition-subtree, and worktree-provisioned policies
   are expressed by one schema and resolver rather than named repo-type branches.
 - A JSON-first prospective-path query returns the same normalized policy used
-  by couch's admission decision, or a structured missing/invalid/out-of-rule
-  diagnostic.
+  by couch's admission decision, including schema version and canonical
+  declaration digest, or a structured missing/invalid/out-of-rule diagnostic.
 - Couch's temporary repo-name policy table is removed; `pair#149` consumes the
   prospective-path query and applies its normalized key/tagged-capacity and,
   for bounded capacity, its on-capacity action.
@@ -274,6 +291,32 @@ five” may appear in explanatory prose, but it produces no warning or guard.
 - Tree issue metadata is an array populated only by a valid branch-prefix
   association and includes its provenance; main/untracked branches are empty.
 - The fleet walk is the existing one, not a second implementation.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.30 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: greenfield-go-module design=0.30 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-repo-refactor-large design=0.20 impl=0.60
+item: cross-repo-refactor-small design=0.06 impl=0.12
+item: atlas-docs design=0.05 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+design-buffer: 0.15
+total: 4.22
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. The calibration source is marked
+stale, so this is provisional until #127 refreshes it.
 
 ## Plan
 
@@ -345,3 +388,21 @@ repo-name policy table (ARCH-PURPOSE). Capacity is a tagged bounded/unbounded
 value; brain is explicitly unbounded, while its normal occupancy below five is
 context only. The final tagged-capacity CUE/Go fixture corpus passed document
 review.
+
+### 2026-08-25 — Chunk 1
+
+Implemented and embedded the closed `fleet-policy` vocabulary, a strict
+presence-sensitive declaration loader, canonical policy identity, total JSON
+success/diagnostic envelopes, and the pure prospective-path resolver. Shared
+CUE/Go fixtures now pin missing versus null fields, variant leakage, portable
+declared-root grammar, numeric representation, and semantic digest behavior.
+The decoder rejects duplicate/unknown/trailing JSON while preserving a unique
+decodable schema version independently of object order.
+
+Fresh implementation review found and drove closure of required-field parity,
+portable path grammar, diagnostic-version retention, public tagged-union
+totality, and immutable embedded vocabulary metadata. The second review round
+was Approved after independent CUE/Go verification. Evidence:
+`bash construct/vocabulary/vet_test.sh`; `make vocab-embed`;
+`go test ./pkg/vocab ./cmd/sdlc/internal/fleet -count=1`; a 289,463-execution
+`FuzzDecodePolicy` run; and `git diff --check`.

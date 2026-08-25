@@ -1,0 +1,1 @@
+{"version":1,"admission":{"capacity":{"kind":"bounded","limit":1},"onCapacity":"reject"}}

@@ -1,0 +1,37 @@
+{
+    "declarationPath": ".sdlc/fleet.json",
+    "supportedVersions": [
+        1
+    ],
+    "keyKinds": [
+        "repo",
+        "worktree",
+        "declared-root"
+    ],
+    "capacityKinds": [
+        "bounded",
+        "unbounded"
+    ],
+    "actions": [
+        "reject",
+        "provision-worktree"
+    ],
+    "laws": {
+        "versions-nonempty": [
+            1
+        ],
+        "keys-nonempty": [
+            "repo",
+            "worktree",
+            "declared-root"
+        ],
+        "capacities-nonempty": [
+            "bounded",
+            "unbounded"
+        ],
+        "actions-nonempty": [
+            "reject",
+            "provision-worktree"
+        ]
+    }
+}

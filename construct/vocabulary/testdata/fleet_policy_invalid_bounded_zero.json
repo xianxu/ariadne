@@ -1,0 +1,1 @@
+{"version":1,"admission":{"key":{"kind":"repo","roots":[]},"capacity":{"kind":"bounded","limit":0},"onCapacity":"reject"}}

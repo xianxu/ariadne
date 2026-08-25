@@ -1,0 +1,1 @@
+{"version":1,"admission":{"key":{"kind":"declared-root","roots":["apps/*","services/*"]},"capacity":{"kind":"bounded","limit":2},"onCapacity":"reject"}}

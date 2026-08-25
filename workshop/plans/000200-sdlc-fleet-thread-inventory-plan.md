@@ -38,9 +38,9 @@
 | human renderers | `cmd/sdlc/internal/fleet/render.go` | new, derive only from typed JSON contract |
 
 - **FleetPolicy** is the parsed, validated declaration: version, admission-key rule, and tagged capacity. The bounded variant requires a positive limit and closed on-capacity action; the unbounded variant forbids that unreachable action. The CUE source exports the legal versions/key kinds/capacity kinds/actions and validates the shared instance corpus; the embedded Go binding derives its membership checks from those exported sets. Structural cross-field checks run in the strict Go loader too, with the same valid/invalid fixtures exercised by CUE and Go so the two validators cannot silently drift.
-- **PolicyCapability** is the inventory-safe tagged result: either the validated declaration `{key_kind, roots, capacity, on_capacity?}` or one declaration diagnostic. It contains no admission key because a tree row does not identify a prospective target subtree.
-- **PolicyResult** is the prospective-query tagged total result: either a normalized `{repo_identity, admission_key, capacity, on_capacity?}` value or one `PolicyDiagnostic`. `on_capacity` exists only for bounded capacity. Missing, malformed, unsupported-version, and outside-rule cases never become `null` and never infer from a repo name.
-- **ResolvePolicy** canonicalizes no filesystem itself. It accepts already-canonical repo/common-dir/worktree/requested paths and a validated policy, then deterministically maps the path to a collision key. Inventory rows and `fleet policy --path` call this same function.
+- **PolicyCapability** is the inventory-safe tagged result: either the validated declaration `{policy_version, policy_digest, key_kind, roots, capacity, on_capacity?}` or one declaration diagnostic. The SHA-256 digest derives from the validated canonical declaration rather than raw JSON, so cosmetic rewrites are stable and semantic changes are visible. It contains no admission key because a tree row does not identify a prospective target subtree.
+- **PolicyResult** is the prospective-query tagged total result: either a normalized `{policy_version, policy_digest, repo_identity, admission_key, capacity, on_capacity?}` value or one `PolicyDiagnostic`. `on_capacity` exists only for bounded capacity. Missing, malformed, unsupported-version, and outside-rule cases never become `null` and never infer from a repo name.
+- **ResolvePolicy** canonicalizes no filesystem itself. It accepts already-canonical repo/common-dir/worktree/requested paths and a validated policy, then deterministically maps the path to a collision key. Inventory and the prospective query share the declaration loader and validator; only `fleet policy --path`, which actually has a requested target path, calls `ResolvePolicy`.
 - **IssueAssociation** carries `ref`, `declared_status`, and `provenance: "branch-prefix"`. `AssociateBranchIssue` accepts a whole branch name plus an issue lookup; it rejects slash-prefixed lookalikes, main/detached branches, malformed prefixes, and missing same-repo issues.
 - **MeasuredFacts** contains only Git evidence: HEAD SHA, commit timestamp, `base_ref`, ahead, behind, dirty count, and explicit availability/error fields. `TreeRow` adds repo/tree identity, branch state, issue metadata, and policy result without deriving `cold`, `drift`, or actor liveness.
 
@@ -62,6 +62,29 @@ Relationships: one declaration produces one inventory capability and resolves ma
 
 The shell never collapses a failed Git command to an empty string: it appends a structured top-level repo diagnostic and continues the remaining fleet. The production adapter reuses `execGitRunner.GitInDir`. `FakeGit` persists repos keyed by canonical common-dir, each with primary checkout, worktrees, refs, commit graph/timestamps, and dirty path entries; it implements the exact consumed `worktree list`, `rev-parse`, `show`, `status -z`, and `rev-list` behavior. Production flows run against this fake, while portable temporary Git repositories replay the contract scenarios on every full test run as live conformance.
 
+### Function-level test strategy
+
+The named strategies below are authoritative; task-local examples are fixture
+seeds, not independent hand-enumerated procedures.
+
+| Function | Adversarial class and mechanical guard |
+|---|---|
+| `LoadPolicy` / `ValidatePolicy` | Run one shared valid/invalid JSON corpus through CUE and Go; fuzz token streams for duplicate keys, unknown fields, truncation, and cross-field capacity violations; every input returns one bounded typed capability/diagnostic and both validators agree on the corpus. Canonical digest properties pin stability under whitespace/key-order changes and inequality under every semantic field change. |
+| `ResolvePolicy` | Property-test canonical contained/outside paths across repo/worktree/declared-root policies; equivalent nested paths preserve keys, distinct declared roots do not collide, and tagged capacity/action is copied without inference. |
+| `gitx.ParseWorktrees` | Fuzz arbitrary porcelain records (including missing final separators, optional attributes, spaces, and malformed lines); parsing is bounded, never panics, and valid records round-trip through a canonical fixture encoder. |
+| `NormalizeVantage` | Replay primary/nested/linked/symlink vantages against the stateful fake and temporary real Git repos; all equivalent vantages yield the same common-dir/primary/fleet-root tuple. |
+| `GitReader` / `FakeGit` | Run one mutable contract trace through the fake and portable real Git adapter; every consumed command form observes equivalent repo/worktree/ref/status state after each mutation. |
+| `AssociateBranchIssue` | Property-test the anchored issue-branch grammar over arbitrary branch strings; only a whole valid prefix plus exactly one same-repo issue yields provenance, and all other inputs return a non-null empty association list. |
+| `CollectFacts` | Replay arbitrary NUL-delimited porcelain-v1 status records and ref graphs through FakeGit and real Git; dirty entry cardinality, divergence, and explicit unavailable/error states agree without filename parsing or derived cold/drift state. |
+| `Inventory` | Mutate a multi-repo FakeGit fleet across calls and inject per-repo failures; stable ordering and complete unaffected rows are invariant, with failures represented once as typed diagnostics. A portable real fleet checks the same interaction contract. |
+| `project.FleetRepoDirs` | Property-test arbitrary sibling-name partitions; output is sorted, includes every ordinary sibling (Git filtering is downstream), and excludes exactly the existing fleet filter classes. |
+| `JSONContract` | Golden-test the typed algebra rather than scenarios; fuzz marshal/unmarshal round trips and mechanically reject null collections, unknown envelope variants, non-snake-case keys, missing policy identity, and bounded/unbounded field leakage. |
+| `NewFleetCmd` | Table-test the Cobra command grammar and run both commands through injected collectors; one routing invariant owns loader sharing, resolver exclusivity, stdout JSON, and refusal exit semantics. |
+| `RenderInventory` | Snapshot generated combinations of tagged row facts and diagnostics; renderer output may label fields but a forbidden-token guard rejects newly derived `cold`/`drift` judgments or recollection. |
+| declaration rollout | Drive every repo-local declaration through the built prospective query and compare its result to the declaration fixture's expected algebra; no production repo-name branch is allowed. |
+| `FleetEndToEnd` | Metamorphically vary caller vantage and prospective nested path while holding the portable fleet constant, then inject declaration/repo failures; normalized inventory/query results remain equivalent and unaffected repos remain complete. |
+| Pair `Admission.Decide` / `PolicyResolver` | Table/property-test occupancy at `0`, `limit-1`, `limit`, unbounded, unknown liveness, and provider diagnostics; no refusal forks a child, and stateful fake/provider conformance proves Pair decodes the provider rather than restating policy kinds. |
+
 ---
 
 ## Chunk 1: Vocabulary, declaration loader, and pure resolver
@@ -70,29 +93,15 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 
 **Files:**
 - Create: `construct/vocabulary/fleet-policy.cue`
-- Create: `construct/vocabulary/testdata/fleet_policy_valid_bounded.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_valid_unbounded.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_action.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_capacity.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_bounded_missing_limit.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_bounded_missing_action.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_unbounded_limit.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_unbounded_action.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_unknown_field.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_unknown_kind.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_version.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_root_absolute.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_root_parent.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_root_wildcard.json`
-- Create: `construct/vocabulary/testdata/fleet_policy_invalid_root_overlap.json`
+- Create: `construct/vocabulary/testdata/fleet_policy_*.json` shared corpus
 - Modify: `construct/vocabulary/vet_test.sh`
 - Create: `pkg/vocab/fleetpolicy.go`
 - Generate: `pkg/vocab/fleetpolicy.json`
 - Create: `pkg/vocab/fleetpolicy_test.go`
 
-- [ ] Write the named shared corpus first: distinct bounded and unbounded version-1 policies validate; zero or missing bounded limit, missing/unknown bounded action, a limit or action on unbounded capacity, unknown key/capacity kind/field/version, absolute/parent/non-terminal wildcard roots, and overlapping declared-root patterns fail. `vet_test.sh` runs every file above through CUE; `cmd/sdlc/internal/fleet/load_test.go` reads the same paths and runs the Go loader/validator (the importable direction), while `pkg/vocab/fleetpolicy_test.go` pins the exported legal sets. No structural case may exist in only one validator.
-- [ ] Run `bash construct/vocabulary/vet_test.sh`; verify the new checks fail because `fleet-policy.cue` is absent.
-- [ ] Define a closed atomic noun with these JSON field names:
+- [x] Write the shared CUE/Go corpus and fuzz/property harness named in the function-level strategy; no structural rule may exist in only one validator.
+- [x] Run `bash construct/vocabulary/vet_test.sh`; verify the new checks fail because `fleet-policy.cue` is absent.
+- [x] Define a closed atomic noun with these JSON field names:
 
   ```json
   {
@@ -106,9 +115,9 @@ The shell never collapses a failed Git command to an empty string: it appends a 
   ```
 
   Brain uses `"capacity":{"kind":"unbounded"}` and omits `onCapacity`. `roots` is required and empty for `repo`/`worktree`; `declared-root` requires at least one safe relative rule and rejects absolute paths or `..` segments. Bounded actions are exactly `reject` or `provision-worktree`.
-- [ ] Export and embed concrete contract metadata (supported versions, key kinds, actions, declaration path) through `pkg/vocab/fleetpolicy.go`. Expose `FleetPolicy()` membership predicates so the loader never hardcodes the CUE-owned sets. Run the same valid/invalid instance fixtures through CUE and Go to pin the few structural checks that Go must repeat at runtime (the binary does not embed the CUE evaluator).
-- [ ] Run `make vocab-embed`, `bash construct/vocabulary/vet_test.sh`, and `go test ./pkg/vocab -run FleetPolicy -count=1`; expect PASS.
-- [ ] Stage the listed vocabulary files (including generated JSON), then commit: `git commit -m "#200: model fleet concurrency policy" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Export and embed concrete contract metadata (supported versions, key kinds, actions, declaration path) through `pkg/vocab/fleetpolicy.go`. Expose `FleetPolicy()` membership predicates so the loader never hardcodes the CUE-owned sets. Run the same valid/invalid instance fixtures through CUE and Go to pin the few structural checks that Go must repeat at runtime (the binary does not embed the CUE evaluator).
+- [x] Run `make vocab-embed`, `bash construct/vocabulary/vet_test.sh`, and `go test ./pkg/vocab -run FleetPolicy -count=1`; expect PASS.
+- [x] Stage the listed vocabulary files (including generated JSON), then commit: `git commit -m "#200: model fleet concurrency policy" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 1.2: Strict loader and diagnostic algebra
 
@@ -117,11 +126,11 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/internal/fleet/load.go`
 - Create: `cmd/sdlc/internal/fleet/load_test.go`
 
-- [ ] Write table tests for valid load, missing file, malformed JSON, duplicate/unknown JSON fields, unsupported version, and schema-invalid policy. Assert stable diagnostic codes and non-empty messages; arrays serialize as `[]`, never `null`.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run 'TestLoadPolicy|TestPolicyDiagnosticJSON' -count=1`; verify FAIL on missing package/types.
-- [ ] Implement strict decoding with `DisallowUnknownFields`, a token-walk duplicate-key rejection helper (the stdlib decoder otherwise accepts duplicates), vocabulary-derived membership checks, and the cross-field rules pinned by the shared corpus. Return tagged `PolicyCapability` values with codes `missing-policy` or `invalid-policy`; preserve the declaration path in the diagnostic. Prospective resolution wraps a successful capability as `PolicyResult` only after a requested path is supplied.
-- [ ] Re-run the targeted tests; expect PASS.
-- [ ] Stage the listed loader files, then commit: `git commit -m "#200: load fleet policy with structured diagnostics" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Write `LoadPolicy` corpus/fuzz tests from the function-level strategy.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run 'TestLoadPolicy|TestPolicyDiagnosticJSON' -count=1`; verify FAIL on missing package/types.
+- [x] Implement strict decoding with `DisallowUnknownFields`, a token-walk duplicate-key rejection helper (the stdlib decoder otherwise accepts duplicates), vocabulary-derived membership checks, and the cross-field rules pinned by the shared corpus. Canonically encode the validated declaration and expose its SHA-256 digest plus schema version on every success. Return tagged `PolicyCapability` values with codes `missing-policy` or `invalid-policy`; preserve the declaration path in the diagnostic. Prospective resolution wraps a successful capability as `PolicyResult` only after a requested path is supplied.
+- [x] Re-run the targeted tests; expect PASS.
+- [x] Stage the listed loader files, then commit: `git commit -m "#200: load fleet policy with structured diagnostics" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 1.3: Pure requested-path resolver
 
@@ -129,23 +138,16 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/internal/fleet/policy.go`
 - Create: `cmd/sdlc/internal/fleet/policy_test.go`
 
-- [ ] Write tests for:
-  - repo key: nested paths and every linked worktree resolve to the same Git-common-dir key;
-  - worktree key: nested paths share their current worktree root, while two linked worktrees differ;
-  - declared root: `competition/a/x` and `competition/a/y` share a key, while `competition/b` differs;
-  - a path outside `competition/*` returns `outside-declared-scope`;
-  - a path outside the repo returns `path-outside-repo`;
-  - malformed and overlapping declared-root rules are rejected during validation rather than resolved by order;
-  - bounded capacity/action and unbounded capacity are copied unchanged into successful results; unbounded results omit `on_capacity`.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestResolvePolicy -count=1`; verify FAIL.
-- [ ] Implement `ResolvePolicy(policy, canonicalInputs)` without filesystem or Git calls. The IO shell canonicalizes a prospective path by resolving its deepest existing ancestor and appending the clean nonexistent suffix, then performs a symlink-aware containment check; the pure resolver receives that canonical result. Reject ambiguous rules during declaration validation rather than choosing by order or repo name.
-- [ ] Re-run package tests; expect PASS.
-- [ ] Stage the listed resolver files, then commit: `git commit -m "#200: resolve prospective paths to admission keys" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Write `ResolvePolicy` property tests from the function-level strategy.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run TestResolvePolicy -count=1`; verify FAIL.
+- [x] Implement `ResolvePolicy(policy, canonicalInputs)` without filesystem or Git calls. The IO shell canonicalizes a prospective path by resolving its deepest existing ancestor and appending the clean nonexistent suffix, then performs a symlink-aware containment check; the pure resolver receives that canonical result. Reject ambiguous rules during declaration validation rather than choosing by order or repo name.
+- [x] Re-run package tests; expect PASS.
+- [x] Stage the listed resolver files, then commit: `git commit -m "#200: resolve prospective paths to admission keys" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Chunk 1 verification and review boundary
 
-- [ ] Run `bash construct/vocabulary/vet_test.sh && make vocab-embed && go test ./pkg/vocab ./cmd/sdlc/internal/fleet -count=1 && git diff --check`.
-- [ ] Request a fresh-context plan/implementation review focused on schema closure, resolver totality, and duplicate validation. Fix Critical/Important findings before proceeding.
+- [x] Run `bash construct/vocabulary/vet_test.sh && make vocab-embed && go test ./pkg/vocab ./cmd/sdlc/internal/fleet -count=1 && git diff --check`.
+- [x] Request a fresh-context plan/implementation review focused on schema closure, resolver totality, and duplicate validation. Fix Critical/Important findings before proceeding.
 
 ---
 
@@ -157,7 +159,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Modify: `cmd/sdlc/internal/project/discover.go`
 - Modify: `cmd/sdlc/internal/project/discover_test.go`
 
-- [ ] Add tests for exported `FleetRepoDirs(parent)` proving deterministic sorting and exclusion of dot directories, `worktree`, and `*.bak`; include a normal non-Git sibling because Git filtering belongs to inventory.
+- [ ] Write `FleetRepoDirs` partition/property tests from the function-level strategy.
 - [ ] Run `go test ./cmd/sdlc/internal/project -run 'TestFleetRepoDirs|TestDiscoverByIssueRef' -count=1`; verify the new test fails.
 - [ ] Extract `FleetRepoDirs` as `SiblingRepoDirs` plus the existing `isFleetSibling` filter; route `walkFleetProjects` through it. Do not duplicate filtering in fleet inventory.
 - [ ] Re-run the project package tests; expect PASS and no change to project discovery behavior.
@@ -173,7 +175,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Modify: `cmd/sdlc/claim.go`
 - Modify: `cmd/sdlc/branchcreate_test.go`
 
-- [ ] Move the existing parser cases into `internal/gitx` and add fixtures for HEAD SHA, branch, detached, bare, locked (with/without reason), prunable (with reason), final-record-without-blank-line, and paths containing spaces.
+- [ ] Move the existing parser corpus into `internal/gitx` and implement the `ParseWorktrees` fuzz/round-trip strategy.
 - [ ] Run `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc -run 'TestParseWorktrees|TestFindMainWorktree|TestWorktreeForBranch' -count=1`; verify FAIL before the exported parser exists.
 - [ ] Implement `gitx.ParseWorktrees([]byte) ([]Worktree, error)` as the only porcelain grammar. Keep `sdlc state` JSON backward-compatible by mapping the richer entity back to its existing `{path, branch}` shape.
 - [ ] Route `findMainWorktree` and `worktreeForBranch` through the shared entity; remove the old parser after all consumers migrate.
@@ -186,8 +188,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/internal/fleet/gitpaths.go`
 - Create: `cmd/sdlc/internal/fleet/gitpaths_test.go`
 
-- [ ] Build real temporary-repo tests starting from primary root, nested primary path, linked-worktree root, and nested linked-worktree path. Assert all produce the same canonical Git common directory, primary checkout, and fleet parent.
-- [ ] Add symlink-path coverage using `filepath.EvalSymlinks` where supported; skip only when the platform cannot create symlinks.
+- [ ] Implement the `NormalizeVantage` fake/real-Git equivalence strategy.
 - [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestNormalizeVantage -count=1`; verify FAIL.
 - [ ] Implement directory-scoped Git calls through a narrow `gitReader { GitInDir(...) }`: find the containing worktree, parse `git worktree list --porcelain`, select its primary record, resolve `git rev-parse --git-common-dir`, and canonicalize all path comparisons.
 - [ ] Re-run the targeted tests; expect PASS.
@@ -202,8 +203,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 
 - [ ] Define the narrow directory-scoped `GitReader` used by vantage, facts, and inventory. Adapt `execGitRunner.GitInDir` at the Cobra shell; no collector calls `exec.Command` or `gitx.Capture` directly.
 - [ ] Build `FakeGit` with persisted repo state: canonical common directory, primary checkout, worktree records, refs/HEADs, commit parent graph and timestamps, plus dirty path entries. Implement the exact command forms consumed by production: `worktree list --porcelain`, `rev-parse`, `show`, `status --porcelain=v1 -z`, and `rev-list --left-right --count`.
-- [ ] Run the normal vantage/facts/inventory flows against `FakeGit`; tests must mutate fake state across calls (add worktree, move ref, add dirty path) and observe the resulting query changes.
-- [ ] Replay the same contract table against portable temporary real Git repositories in `git_conformance_test.go`. This is the live conformance cadence: every `go test ./cmd/sdlc/internal/fleet` run compares the fake model with the installed Git binary.
+- [ ] Implement the `GitReader` / `FakeGit` mutable contract strategy; `git_conformance_test.go` runs it against installed Git on every fleet package test run.
 - [ ] Run `go test ./cmd/sdlc/internal/fleet -run 'TestFakeGit|TestGitConformance' -count=1`; expect PASS.
 - [ ] Stage the Git seam/fake/conformance files, then commit: `git commit -m "#200: model consumed git behavior with a stateful fake" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
@@ -226,7 +226,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Modify: `cmd/sdlc/issuefiles.go`
 - Modify: `cmd/sdlc/issuefiles_test.go`
 
-- [ ] Write pure tests for `000200-slug`, main, detached, malformed prefix, empty slug, `topic/000200-slug`, nonexistent same-repo issue, duplicate filename, and a valid issue whose declared status is `working`.
+- [ ] Write the `AssociateBranchIssue` grammar property test from the function-level strategy.
 - [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestAssociateBranchIssue -count=1`; verify FAIL.
 - [ ] Extract the filename grammar into `internal/issue.ParseFilename` and keep the package-main helpers as compatibility wrappers for current consumers. Build a branch-specific helper on that shared grammar which anchors at the whole branch start and resolves exactly one file through the existing issue-home/parse logic. Never call `filepath.Base` on the branch before validation.
 - [ ] Emit `issues: []` on every no-association path and `{ref, declared_status, provenance:"branch-prefix"}` on success.
@@ -239,7 +239,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/internal/fleet/facts.go`
 - Create: `cmd/sdlc/internal/fleet/facts_test.go`
 
-- [ ] Use `internal/testfix` to construct real repos with: clean main, dirty/untracked files (including a newline filename), staged rename, staged copy when supported, an ahead branch, a behind branch, divergent branch, detached HEAD, and no `main`/`origin/main`. Assert exact ahead/behind/dirty counts, commit timestamp, HEAD, branch state, and `base_ref`.
+- [ ] Implement the `CollectFacts` fake/real-Git conformance strategy.
 - [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestCollectFacts -count=1`; verify FAIL.
 - [ ] Implement directory-scoped commands with errors preserved: `rev-parse HEAD`, `show -s --format=%cI HEAD`, `status --porcelain=v1 -z --untracked-files=all`, main-ref probing, and `rev-list --left-right --count <base>...HEAD`. Parse each porcelain status code: count one status entry, then consume the extra source-path field for rename/copy records. This preserves one dirty item for `R`/`C` while remaining safe for filenames containing newlines.
 - [ ] Represent unavailable base/error explicitly; do not translate it to zero divergence and do not emit `cold` or `drift`.
@@ -253,8 +253,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/internal/fleet/inventory_test.go`
 - Create: `cmd/sdlc/fleet_integration_test.go`
 
-- [ ] Build the scenario first against `FakeGit`, then against a temporary real fleet: two sibling Git repos, multiple worktrees, one untracked/no-issue branch, one branch-associated issue, one missing policy, and one invalid policy. Assert every discovered worktree remains present and sorted even when one repo carries diagnostics.
-- [ ] Make `FakeGit` fail one repo's `git worktree list`; assert other repos remain visible and the failed repo appears in a non-null top-level `diagnostics: []` collection with stable repo path/identity fields (there is no tree row to attach it to).
+- [ ] Implement the `Inventory` mutation/fault-isolation strategy.
 - [ ] Run `go test ./cmd/sdlc/internal/fleet ./cmd/sdlc -run 'TestInventory|TestFleetInventory' -count=1`; verify FAIL.
 - [ ] Implement assembly from `project.FleetRepoDirs`, a Git-repo predicate, shared worktree parser, policy loader, measured facts, and issue association. Each row carries `PolicyCapability` (validated declaration or declaration diagnostic), never a resolved key. Use canonical `(repo_identity, tree_path)` ordering. Keep row and top-level diagnostic arrays non-null.
 - [ ] Re-run targeted tests; expect PASS.
@@ -275,20 +274,10 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/internal/fleet/json_test.go`
 - Modify: `cmd/sdlc/internal/fleet/types.go`
 
-- [ ] Add golden/structural tests for successful inventory, missing-policy inventory, invalid-policy query, and outside-scope query. Pin snake_case keys, tagged result envelopes, and `[]` arrays.
-- [ ] The contract must separate row sections:
-
-  ```json
-  {
-    "repo": {"name":"kbench","identity":"/canonical/kbench/.git","primary_checkout":"/canonical/kbench"},
-    "tree": {"path":"/canonical/kbench","branch":"000024-rogii","head":"...","detached":false},
-    "measured": {"commit_time":"...","base_ref":"origin/main","ahead":3,"behind":0,"dirty_count":1},
-    "issues": [{"ref":"kbench#24","declared_status":"working","provenance":"branch-prefix"}],
-    "policy": {"ok":true,"value":{"key_kind":"declared-root","roots":["competition/*"],"capacity":{"kind":"bounded","limit":1},"on_capacity":"reject"}}
-  }
-  ```
-
-  The top-level object also pins `diagnostics: []`. Separate prospective-query fixtures pin bounded kbench `{repo_identity, admission_key, capacity, on_capacity}` and unbounded brain `{repo_identity, admission_key, capacity}` results, including omission of the unreachable action.
+- [ ] Implement the `JSONContract` structural/golden strategy, deriving every
+      envelope from the typed result algebra and pinning snake_case fields,
+      tagged success/diagnostic variants, non-null arrays, policy version/digest,
+      and bounded-only `on_capacity` omission.
 
 - [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestJSONContract -count=1`; verify FAIL until tags/envelopes are complete.
 - [ ] Make the typed contract pass without map-shaped ad hoc encoding.
@@ -304,8 +293,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/helptext/fleet-inventory.md`
 - Create: `cmd/sdlc/helptext/fleet-policy.md`
 
-- [ ] Write command-tree/help tests first: `fleet` appears in top-level read-only commands; both subcommands require/accept the specified flags; no raw declaration is returned.
-- [ ] Write execution tests for `sdlc fleet inventory --json` and `sdlc fleet policy --path <prospective> --json`; assert both route through the same loader, only the query invokes resolution, and diagnostics are JSON on stdout with a non-zero exit only for the prospective-path refusal.
+- [ ] Implement the `NewFleetCmd` command grammar and execution strategy from the function-level table.
 - [ ] Run `go test ./cmd/sdlc -run 'TestFleet(Command|Inventory|Policy|Help)' -count=1`; verify FAIL.
 - [ ] Register `NewFleetCmd()` after `state`; wire typed collectors, `json.Encoder`, and human renderers. Default `--path` to `.` only if help and tests make that behavior explicit.
 - [ ] Re-run tests; expect PASS.
@@ -317,7 +305,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 - Create: `cmd/sdlc/internal/fleet/render.go`
 - Create: `cmd/sdlc/internal/fleet/render_test.go`
 
-- [ ] Snapshot a mixed inventory containing clean, dirty, detached, branch-associated, and policy-error rows. Assert it labels issue status as declared metadata and does not contain `cold` or a derived drift verdict.
+- [ ] Implement the `RenderInventory` semantic snapshot strategy from the function-level table.
 - [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestRender -count=1`; verify FAIL.
 - [ ] Implement a stable table/detail renderer from `Inventory`; do not recollect or reinterpret data in the view.
 - [ ] Re-run renderer and CLI tests; expect PASS.
@@ -344,8 +332,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 
 - [ ] Before touching each peer, verify its clean/dirty state and read `AGENTS.local.md` plus `MEMORY.md` when present. Preserve unrelated user changes.
 - [ ] Add each declaration with no repo-name branch in Go. Validate every instance through the built `sdlc fleet policy --path ... --json` path.
-- [ ] For kbench, test two paths in the same competition yield the same key, two competitions yield different keys, and a path outside `competition/*` refuses.
-- [ ] For brain, validate explicit unbounded capacity and verify the normalized result omits `on_capacity`; record “normally fewer than five” only in explanatory local prose, not the machine declaration.
+- [ ] Run the declaration-rollout conformance strategy from the function-level table against every named repository.
 - [ ] Commit declarations separately in each owning repo using its issue/workflow conventions. Do not bundle unrelated local changes.
 
 ### Task 5.2: Update Ariadne's map and issue checklist
@@ -364,9 +351,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 ### Task 5.3: End-to-end verification from all vantages
 
 - [ ] Build the local binary: `go build -o bin/sdlc ./cmd/sdlc`.
-- [ ] From Ariadne primary root, another fleet repo, a nested directory, and an existing linked worktree, run `sdlc fleet inventory --json`; canonicalize ordering and verify the same repo/worktree set each time.
-- [ ] Run prospective queries for pair, brain, two kbench competitions, same-kbench competition nested paths, and xianxu.dev; verify normalized keys/capacities/actions.
-- [ ] Temporarily point a test-only fleet at a missing/invalid declaration and prove other inventory rows remain visible. Do not mutate a live repo declaration for this check.
+- [ ] Run the `FleetEndToEnd` metamorphic/fault-isolation strategy from the function-level table against the built binary and test-only fleet.
 - [ ] Run the full gates:
 
   ```sh
@@ -385,7 +370,7 @@ The shell never collapses a failed Git command to an empty string: it appends a 
 
 ## Chunk 6: Pair consumer integration (`pair#149`)
 
-This is a coordinated cross-repo delivery, but Pair keeps its own SDLC artifact and review gates. Before Pair code changes, claim/start-plan `pair#149`, append the normalized admission algebra to its existing revision history, and author/review `pair/workshop/plans/000149-couch-opaque-tags-and-a-human-naming-layer-plan.md`. The Pair plan may combine this slice with #149's opaque-tag work, but it must satisfy the acceptance contract below before Ariadne #200 closes.
+This is a coordinated cross-repo delivery, but Pair keeps its own SDLC artifact and review gates. Before Pair code changes, claim/start-plan `pair#149`, append the normalized admission algebra to its existing revision history, and author/review `pair/workshop/plans/000149-couch-opaque-tags-and-a-human-naming-layer-plan.md`. That plan names **M1 — normalized policy consumer** as a real review boundary. Provider Chunks 1–5 land first; Pair then implements M1 and runs `sdlc milestone-close --issue 149 --milestone M1`; Ariadne records that reviewed commit, closes and merges #200; Pair rebases/updates to the merged provider and completes its later identity/name milestones before issue-close. Pair #149 is therefore a coordinated consumer, not blocked on the entire #200 issue state, and its frontmatter carries no circular whole-issue dependency.
 
 ### Task 6.1: Replace the shadow policy source with an sdlc query adapter
 
@@ -400,15 +385,15 @@ This is a coordinated cross-repo delivery, but Pair keeps its own SDLC artifact 
 - [ ] Define Pair's pure admission entity as `{repo_identity, admission_key, capacity, on_capacity?}` plus current live occupancy. Bounded capacity admits below its limit and returns its typed action at the limit; unbounded always admits and carries no action. No Pair enum restates repo/worktree/declared-root key kinds because couch consumes the resolved key.
 - [ ] Put the external `sdlc fleet policy --path <requested> --json` call behind `PolicyResolver`. Its stateful fake stores path-keyed normalized results/diagnostics and is injected through the same Couch composition boundary; a live conformance test runs against a temporary repo plus the built sdlc provider on every relevant Pair full-suite run (ARCH-MOCK).
 - [ ] Query before child fork. Count only records whose PID/identity probe is live and whose persisted normalized admission key equals the prospective result. Prune dead records first; unknown liveness remains occupied conservatively.
-- [ ] Persist the normalized repo/admission identities on the space/actor record so later occupancy checks do not reinterpret raw declarations. Version/backfill the registry snapshot deliberately; a legacy record must be re-resolved or conservatively block, never disappear.
+- [ ] Persist policy version/digest plus normalized repo/admission identities on the thread/incarnation record. Before later occupancy checks, compare them with the current provider result and re-resolve stale live/unknown incumbents; a legacy or unresolved record conservatively blocks, never disappears.
 - [ ] Remove `Store.policyPath`, `policy.json` loading, `PolicyTable.Mode(repo)`, `InPlaceSerial`, `WorktreeParallel`, and `HeavyLocalState`. Add a shadow-sweep test that fails if those symbols or the old policy file authority remain.
-- [ ] Cover pair/ariadne bounded-1 rejection, brain unbounded admission beyond five live occupants, kbench same-competition rejection and different-competition admission in one checkout, xianxu.dev provision-worktree response, missing/invalid/outside-scope refusal, and no child fork on refusal.
+- [ ] Implement the Pair `Admission.Decide` / `PolicyResolver` strategy above.
 - [ ] Keep human rendering actionable: `reject` offers switch/stop; `provision-worktree` offers the provision action (not a fabricated path—path allocation belongs to the later worktree lifecycle owner). Do not re-infer the action from repo name.
 
 ### Task 6.2: Cross-repo contract and close gates
 
 - [ ] Build Ariadne's `sdlc`, point the Pair live-conformance test at it, and verify the Pair decoder accepts success plus every structured diagnostic fixture emitted by the provider.
-- [ ] Run Pair's targeted policy/registry/store/couchcmd tests, full `go test ./...`, race target required by its local plan, and `git diff --check`; cross the appropriate `pair#149` milestone/close boundary through Pair's `sdlc` workflow.
+- [ ] Run Pair's targeted policy/registry/store/couchcmd tests, full `go test ./...`, race target required by its local plan, and `git diff --check`; cross the exact `pair#149` M1 boundary with `sdlc milestone-close --issue 149 --milestone M1`.
 - [ ] In Ariadne, add the Pair commit/review evidence to #200's Log and run the complete provider suite again.
 - [ ] Run `sdlc close --issue 200 --verified '<provider tests, four-vantage smoke, declarations, Pair consumer/conformance commit and removal shadow-sweep>'`; let the close gate measure actual time and dispatch the mandatory fresh-context review. Fix Critical/Important findings and re-run verification before crossing the boundary.
 
@@ -431,3 +416,27 @@ bounded/unbounded capacity. Bounded capacity requires a positive limit and an
 on-capacity action. Unbounded capacity omits that unreachable action and always
 admits. Brain's rollout declaration is explicitly unbounded; Pair conformance
 tests admit more than five live occupants without warning or refusal.
+
+### 2026-08-25 — make tests strategic and the cross-repo gates acyclic
+
+**Reason:** plan-quality round 1 found case-by-case test scripts obscuring the
+risky functions, one sentence falsely implying inventory could resolve a key
+without a target path, and a circular whole-issue dependency between the
+provider and its motivating Pair consumer.
+
+**Delta:** one function-level test-strategy table now owns adversarial classes
+and mechanical guards; task test bullets reference those strategies rather than
+restating cases. Inventory shares only loading/validation, while the
+prospective-path query alone invokes `ResolvePolicy`. Pair #149 has no
+whole-issue dependency on #200: reviewed M1 consumes the locally built provider,
+then #200 closes/merges, then Pair completes its remaining milestones.
+
+### 2026-08-25 — version persisted admission evidence
+
+**Reason:** Pair #149's transactional store revealed that persisted normalized
+keys need an authority-change detector rather than being trusted indefinitely.
+
+**Delta:** successful capabilities/results now include schema version and a
+canonical semantic declaration digest. Loader tests pin digest stability and
+change detection; Pair M1 persists the evidence and re-resolves stale
+live/unknown occupants before admitting another actor.
