@@ -159,11 +159,11 @@ seeds, not independent hand-enumerated procedures.
 - Modify: `cmd/sdlc/internal/project/discover.go`
 - Modify: `cmd/sdlc/internal/project/discover_test.go`
 
-- [ ] Write `FleetRepoDirs` partition/property tests from the function-level strategy.
-- [ ] Run `go test ./cmd/sdlc/internal/project -run 'TestFleetRepoDirs|TestDiscoverByIssueRef' -count=1`; verify the new test fails.
-- [ ] Extract `FleetRepoDirs` as `SiblingRepoDirs` plus the existing `isFleetSibling` filter; route `walkFleetProjects` through it. Do not duplicate filtering in fleet inventory.
-- [ ] Re-run the project package tests; expect PASS and no change to project discovery behavior.
-- [ ] Stage the project discovery changes, then commit: `git commit -m "#200: expose the filtered fleet repo walk" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Write `FleetRepoDirs` partition/property tests from the function-level strategy.
+- [x] Run `go test ./cmd/sdlc/internal/project -run 'TestFleetRepoDirs|TestDiscoverByIssueRef' -count=1`; verify the new test fails.
+- [x] Extract `FleetRepoDirs` as `SiblingRepoDirs` plus the existing `isFleetSibling` filter; route `walkFleetProjects` through it. Do not duplicate filtering in fleet inventory.
+- [x] Re-run the project package tests; expect PASS and no change to project discovery behavior.
+- [x] Stage the project discovery changes, then commit: `git commit -m "#200: expose the filtered fleet repo walk" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 2.2: Extract and widen worktree porcelain parsing
 
