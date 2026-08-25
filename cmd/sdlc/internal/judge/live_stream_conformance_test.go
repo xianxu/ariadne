@@ -42,8 +42,8 @@ func TestLiveAgentStreamConformance(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s invocation failed: %v\nstderr:\n%s", name, err, out.Stderr)
 			}
-			if strings.TrimSpace(string(out.Stdout)) == "" {
-				t.Fatalf("%s produced no semantic stdout; stderr:\n%s", name, out.Stderr)
+			if got := strings.TrimSpace(string(out.Stdout)); got != "STREAM_OK" {
+				t.Fatalf("%s semantic stdout = %q, want exactly STREAM_OK; stderr:\n%s", name, got, out.Stderr)
 			}
 			t.Logf("stdout bytes=%d, stderr bytes=%d", len(out.Stdout), len(out.Stderr))
 		})

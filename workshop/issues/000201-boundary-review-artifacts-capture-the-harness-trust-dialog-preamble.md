@@ -151,8 +151,9 @@ uses the calibrated 15% design buffer.
 - Plan-quality rounds found two process defects before code: the separate plan's
   non-canonical filename hid it from discovery, and the external-process fake /
   conformance responsibilities were implicit. The canonical plan now records
-  both; PQ-1 and PQ-2 were disposed as addressed. `ARCH-PURE` keeps process IO in
-  `Run` and the injected diagnostic transition in `classifyRunResult`;
+  both; PQ-1 and PQ-2 were disposed as addressed. `ARCH-PURE` keeps the plain
+  `ProcessOutput` value separate from the thin IO boundaries in `Run` and
+  `classifyRunResult`;
   `ARCH-DRY` routes synchronous and heartbeat dispatch through that transition.
 - Implemented `judge.ProcessOutput` and separate OS buffers. Every adapter now
   returns stdout as semantic review output while forwarding stderr to the
@@ -164,3 +165,9 @@ uses the calibrated 15% design buffer.
   the full suite, and `git diff --check` passed. The live Claude/Codex/Gemini
   check is intentionally opt-in after CLI upgrades via
   `SDLC_LIVE_AGENT_STREAM_CONFORMANCE=1`.
+- Close-review round 1 blocked on two contract mismatches: BR-1 found the plan
+  calling side-effecting `classifyRunResult` PURE; BR-2 found the live check
+  asserting liveness rather than semantic-channel placement. The plan now lists
+  the function as INTEGRATION, and live conformance requires stdout to equal
+  `STREAM_OK`. Stderr is not required to omit it because Codex diagnostics echo
+  the prompt containing the sentinel.

@@ -148,6 +148,17 @@ issue checklist and correctly rejected it as non-executable.
 before interpreting plan-quality findings. A good plan at a non-canonical path
 is operationally the same as no plan.
 
+**Pattern (#201 close review):** A function was called PURE because it accepted
+an injected writer, even though writing and reading launch-error environment
+context are still IO. An external conformance check asserted non-empty output,
+which proved liveness but not the channel contract it existed to defend.
+
+**Rule:** Classify entities by effects, not injectability: an injected IO seam is
+INTEGRATION. A conformance assertion must pin the dependency behavior production
+relies on (here, exact requested semantic output on stdout), never a weaker proxy
+such as non-empty output. Do not forbid prompt text on a diagnostic channel when
+the harness legitimately echoes its input there.
+
 **Origin:** #166 close-review loop. The fix for this issue manually condensed the sidecar after each generated rewrite so `git diff --check` and later boundary-review dispatches stayed usable.
 
 ## A deferred cleanup does not run through `os.Exit` — command wrappers must cover hard exits and init races

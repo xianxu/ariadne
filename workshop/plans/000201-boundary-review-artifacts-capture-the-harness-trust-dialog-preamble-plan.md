@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go 1.26, `os/exec`, stdlib writers/buffers, existing sdlc judge/boundary-review tests.
 
-**ARCH alignment.** `ARCH-DRY`: synchronous and heartbeat dispatch use the same diagnostic-routing and exit-classification function. `ARCH-PURE`: stream routing and exit classification operate on a value and injected writer; the real subprocess adapter only captures bytes. `ARCH-PURPOSE`: `Run` owns process streams, `Dispatch` owns the semantic/diagnostic boundary, and review sidecars remain durable review records rather than process logs. `ARCH-MOCK`: fake `Run` values test every adapter and boundary path, while one real subprocess test checks the OS stream split.
+**ARCH alignment.** `ARCH-DRY`: synchronous and heartbeat dispatch use the same diagnostic-routing and exit-classification function. `ARCH-PURE`: `ProcessOutput` is a plain value; `Run` and `classifyRunResult` are explicit thin IO boundaries for process capture, diagnostic writes, and launch-error context. `ARCH-PURPOSE`: `Run` owns process streams, `Dispatch` owns the semantic/diagnostic boundary, and review sidecars remain durable review records rather than process logs. `ARCH-MOCK`: fake `Run` values test every adapter and boundary path, while one real subprocess test checks the OS stream split.
 
 ---
 
@@ -28,10 +28,9 @@
 | Name | Lives in | Status |
 |------|----------|--------|
 | `ProcessOutput` | `cmd/sdlc/internal/judge/dispatch.go` | new; tagged process result with `Stdout` and `Stderr` byte slices |
-| `classifyRunResult` | `cmd/sdlc/internal/judge/dispatch.go` | modified; forwards diagnostics and classifies one `ProcessOutput` |
 | review-sidecar body contract | `cmd/sdlc/reviewsidecar.go` | unchanged implementation; body is now explicitly semantic review output |
 
-`ProcessOutput` prevents an agent adapter or test fake from representing two process channels as one ambiguous byte slice. `classifyRunResult` is the sole transition from process output to semantic output: it writes diagnostics, applies the existing `*exec.ExitError` policy, and returns only stdout.
+`ProcessOutput` prevents an agent adapter or test fake from representing two process channels as one ambiguous byte slice. It carries no behavior or IO.
 
 ### Risky-function test strategies
 
@@ -39,7 +38,7 @@
 |----------|--------------------------------------------|
 | `Run` | interleaved stdout/stderr plus non-zero exit → real portable helper subprocess captures distinct buffers and preserves `*exec.ExitError` |
 | `BuildArgs` + `Dispatch` | every adapter with queued independent streams, launch failure, and non-zero exit → replaceable `Run` fake records argv and returns one configured `ProcessOutput` per invocation |
-| `classifyRunResult` | stderr containing verdict/findings lookalikes → diagnostic writer receives stderr before pure exit classification returns stdout only |
+| `classifyRunResult` | stderr containing verdict/findings lookalikes → the thin injected IO boundary forwards stderr before exit classification returns stdout only |
 | `dispatchBoundaryReview` | valid stdout review plus hostile diagnostic preamble/tool chatter → separate writers and real sidecar assert parsing/display/persistence consume only stdout |
 | `writeReviewSidecar` | semantic body containing structured findings → existing renderer round-trip asserts exact body; it receives no process-stream type and cannot accidentally rejoin stderr |
 
@@ -52,8 +51,10 @@ Codex, and Gemini response-channel routing is checked after an agent CLI upgrade
 with the opt-in `SDLC_LIVE_AGENT_STREAM_CONFORMANCE=1 go test
 ./cmd/sdlc/internal/judge -run TestLiveAgentStreamConformance -count=1`; the test
 skips unless explicitly enabled, invokes the three installed CLIs with their
-`BuildArgs` forms, and requires a non-empty semantic stdout capture without
-assuming stderr is empty. Normal CI never spends credentials or network calls.
+`BuildArgs` forms, and requires stdout to equal the requested `STREAM_OK`
+sentinel. It deliberately does not forbid the sentinel on stderr because Codex
+diagnostics echo the input prompt containing it. Normal CI never spends
+credentials or network calls.
 
 ### Integration points
 
@@ -61,6 +62,7 @@ assuming stderr is empty. Normal CI never spends credentials or network calls.
 |------|----------|--------|-------|
 | `Run` | `cmd/sdlc/internal/judge/dispatch.go` | modified | `exec.CommandContext`, separate stdout/stderr buffers, start callback, wait |
 | `Dispatch` | `cmd/sdlc/internal/judge/dispatch.go` | modified | agent argv, optional heartbeat, shared process-result completion |
+| `classifyRunResult` | `cmd/sdlc/internal/judge/dispatch.go` | modified | injected diagnostic write, launch-error context, exit policy, semantic stdout transition |
 | `dispatchBoundaryReview` | `cmd/sdlc/milestoneclose.go` | behavior clarified | semantic output printing, verdict/findings parsing, sidecar persistence |
 | boundary-review regression | `cmd/sdlc/closereview_test.go` | extended | fake judge process through persisted sidecar and terminal writers |
 | artifact documentation | `atlas/workflow/sdlc-binary.md`, `atlas/workflow/ledger-landscape.md` | modified | durable review/gate ledger contract |
@@ -153,3 +155,16 @@ contract for the external agent processes to be explicit.
 risky-function strategy table, defined the queued `Run` fake's state model,
 retained the always-on real subprocess check, and added an opt-in real-agent
 stream conformance command for CLI-upgrade cadence.
+
+### 2026-08-25 — correct the IO taxonomy and conformance invariant
+
+**Reason:** close-review round 1 found that `classifyRunResult` was listed as a
+PURE entity despite writing to an injected diagnostic sink and reading
+launch-error environment context. It also found that non-empty stdout was only a
+liveness proxy, not proof of the semantic-channel contract.
+
+**Delta:** `classifyRunResult` is now explicitly an INTEGRATION boundary in the
+Core concepts table and ARCH-PURE narrative. Live conformance now requires
+stdout to equal the requested `STREAM_OK` sentinel. It does not forbid the
+sentinel on stderr because agent diagnostics may echo the input prompt; exact
+stdout is the mechanically sufficient semantic-channel invariant.
