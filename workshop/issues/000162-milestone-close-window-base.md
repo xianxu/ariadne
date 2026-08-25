@@ -1,6 +1,6 @@
 ---
 id: 000162
-status: working
+status: open
 deps: []
 github_issue:
 created: 2026-07-02
@@ -84,3 +84,14 @@ Guard the review dispatch against E2BIG regardless (pass the diff via a temp fil
   the precise `--no-atlas` with the atlas-carrying commit named in `--verified`.
   Recurs every milestone until fixed. See pair `workshop/lessons.md` (the
   "milestone-close's auto review-window" lesson, both manifestations).
+
+### 2026-08-25
+
+- Returned to `open` after a brief claim during pair#146 close recovery. Later
+  work already pins prior-boundary/branch-point bases (#58/#77) and a concrete
+  reviewed Head (#194); the immediate pair#146 failure was dominated by a raw
+  Codex process transcript recursively entering the next diff. That artifact
+  contract is now #201, while disposable reviewer isolation is #204. Keep #162
+  as the remaining audit/consolidation point for review-window correctness and
+  legitimately large prompt transport rather than mixing those fixes into the
+  bounded side quest.
