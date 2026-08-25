@@ -73,6 +73,14 @@ func binAugmentedEnv(binDir string, env []string) []string {
 	return out
 }
 
+// ProcessOutput preserves the two process channels across the replaceable Run
+// seam. Stdout is the agent's semantic response; Stderr is harness diagnostics
+// and progress that Dispatch may route to the operator's diagnostic sink.
+type ProcessOutput struct {
+	Stdout []byte
+	Stderr []byte
+}
+
 // Run is the package-level subprocess shim. Tests replace it with a
 // fake to assert the right command line / capture without spawning a
 // real agent process. Production execs the binary — with the owner bin/
@@ -81,25 +89,24 @@ func binAugmentedEnv(binDir string, env []string) []string {
 // onStart (nil ok) is invoked once with the child PID immediately after a
 // successful launch — before the (potentially minutes-long) Wait — so a caller
 // can report liveness while the agent runs (#140). We hand-roll Start→Wait
-// instead of CombinedOutput to get that hook; combining stdout+stderr into one
-// shared *bytes.Buffer reproduces CombinedOutput's bytes exactly (os/exec reuses
-// a single fd + copy goroutine when Stdout == Stderr, so no locking is needed).
-var Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+// instead of CombinedOutput to get that hook and preserve stdout/stderr as
+// distinct semantic and diagnostic channels (#201).
+var Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir, err := ownerBinDir(); err == nil {
 		cmd.Env = binAugmentedEnv(dir, os.Environ())
 	}
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
-		return buf.Bytes(), err
+		return ProcessOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}, err
 	}
 	if onStart != nil {
 		onStart(cmd.Process.Pid)
 	}
 	err := cmd.Wait()
-	return buf.Bytes(), err
+	return ProcessOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}, err
 }
 
 // BuildArgs returns the argv (binary name + flags + final prompt) for
@@ -137,11 +144,10 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 	}
 }
 
-// Dispatch invokes the agent CLI with the given prompt and returns the
-// captured output (stdout + stderr combined, matching the shell's eval
-// posture). The Outcome classification is the caller's responsibility
-// via Classify(); Dispatch's job is just to run the agent and return
-// what it said.
+// Dispatch invokes the agent CLI with the given prompt and returns semantic
+// stdout only. Captured process stderr is forwarded to opts.Stderr when one is
+// configured; it never enters verdict parsing or durable review artifacts.
+// Outcome classification is the caller's responsibility via Classify().
 //
 // Exit-code policy (review I3):
 //
@@ -170,7 +176,7 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	// path (unit tests, quick dispatches) and stays free of goroutines/tickers.
 	if opts.Stderr == nil {
 		out, runErr := Run(ctx, onStart, name, args...)
-		return classifyRunResult(out, runErr, name)
+		return classifyRunResult(out, runErr, name, nil)
 	}
 
 	// Progress path (#140): the agent can run for minutes. Run it on a background
@@ -180,7 +186,7 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	// exit-code policy are identical to the fast path, so verdict parsing and
 	// classification downstream are untouched.
 	type runResult struct {
-		out    []byte
+		out    ProcessOutput
 		runErr error
 	}
 	done := make(chan runResult, 1)
@@ -195,30 +201,33 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	for {
 		select {
 		case r := <-done:
-			return classifyRunResult(r.out, r.runErr, name)
+			return classifyRunResult(r.out, r.runErr, name, opts.Stderr)
 		case <-ticks:
 			fmt.Fprintln(opts.Stderr, heartbeatLine(sinceStart(start), string(opts.Agent), int(pid.Load())))
 		}
 	}
 }
 
-// classifyRunResult applies Dispatch's exit-code policy to a completed Run,
-// shared by the synchronous and heartbeat paths (ARCH-DRY): a non-zero exit is
-// swallowed (surface the output for Classify, matching the shell's `|| true`); a
-// real launch failure returns a diagnosable error naming the owner bin/ + PATH
-// (#138). name is the attempted agent binary.
-func classifyRunResult(out []byte, runErr error, name string) (string, error) {
+// classifyRunResult is the single process→semantic transition shared by the
+// synchronous and heartbeat paths (ARCH-DRY). It forwards diagnostic stderr,
+// returns semantic stdout, and applies Dispatch's existing exit-code policy: a
+// non-zero exit is swallowed so Classify can interpret the response, while a
+// real launch failure returns a diagnosable error naming owner bin/ + PATH.
+func classifyRunResult(out ProcessOutput, runErr error, name string, diagnostics io.Writer) (string, error) {
+	if diagnostics != nil && len(out.Stderr) > 0 {
+		_, _ = diagnostics.Write(out.Stderr)
+	}
 	if _, ok := runErr.(*exec.ExitError); ok {
-		return string(out), nil
+		return string(out.Stdout), nil
 	}
 	if runErr != nil {
 		dir, derr := ownerBinDir()
 		if derr != nil || dir == "" {
 			dir = "?"
 		}
-		return string(out), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
+		return string(out.Stdout), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
 	}
-	return string(out), nil
+	return string(out.Stdout), nil
 }
 
 // FormatCommandLine returns a shell-safe rendering of the would-be

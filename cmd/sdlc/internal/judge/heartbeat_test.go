@@ -64,20 +64,21 @@ func (w writerFunc) Write(p []byte) (int, error) { return w(p) }
 // must survive unchanged, so downstream Classify/ParseVerdict are untouched.
 func TestDispatch_HeartbeatWhileWaiting(t *testing.T) {
 	const canned = "VERDICT: SHIP (confidence: high)\n\nlooks good.\n"
+	const diagnostic = "agent diagnostic\n"
 
 	origRun := Run
 	t.Cleanup(func() { Run = origRun })
 	release := make(chan struct{})
 	started := make(chan struct{}) // closed once onStart has stored the pid
 	var sawOnStart bool
-	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
 		if onStart != nil {
 			onStart(4242)
 			sawOnStart = true
 		}
 		close(started)
 		<-release // block like a real review in flight
-		return []byte(canned), nil
+		return ProcessOutput{Stdout: []byte(canned), Stderr: []byte(diagnostic)}, nil
 	}
 
 	origTicker := newHeartbeatTicker
@@ -151,16 +152,24 @@ func TestDispatch_HeartbeatWhileWaiting(t *testing.T) {
 	if !stopped {
 		t.Error("heartbeat ticker was not stopped when Dispatch returned")
 	}
+	select {
+	case got := <-wrote:
+		if got != diagnostic {
+			t.Errorf("process diagnostic = %q, want %q", got, diagnostic)
+		}
+	default:
+		t.Error("captured process stderr was not forwarded after the heartbeat run")
+	}
 }
 
 // TestRun_RealSubprocess exercises the reimplemented production Run (#140)
-// against a real OS process — not a stub — so the Start→onStart→Wait→combined-
+// against a real OS process — not a stub — so the Start→onStart→Wait→separate-
 // buffer path is proven end-to-end (the lessons file: pure tests can't see IO
-// bugs). It asserts a real PID reaches onStart, stdout+stderr are combined like
-// the old CombinedOutput, and a non-zero exit surfaces as *exec.ExitError with
-// output intact (the shape Dispatch's classifyRunResult depends on).
+// bugs). It asserts a real PID reaches onStart, stdout and stderr stay separate,
+// and a non-zero exit surfaces as *exec.ExitError with both streams intact (the
+// shape Dispatch's classifyRunResult depends on).
 func TestRun_RealSubprocess(t *testing.T) {
-	t.Run("captures pid and combines streams", func(t *testing.T) {
+	t.Run("captures pid and separates streams", func(t *testing.T) {
 		var gotPID int
 		out, err := Run(context.Background(), func(pid int) { gotPID = pid },
 			"sh", "-c", "echo to-stdout; echo to-stderr 1>&2")
@@ -170,18 +179,24 @@ func TestRun_RealSubprocess(t *testing.T) {
 		if gotPID <= 0 {
 			t.Errorf("onStart pid = %d, want a real pid > 0", gotPID)
 		}
-		if s := string(out); !strings.Contains(s, "to-stdout") || !strings.Contains(s, "to-stderr") {
-			t.Errorf("combined output missing a stream: %q", s)
+		if s := string(out.Stdout); !strings.Contains(s, "to-stdout") || strings.Contains(s, "to-stderr") {
+			t.Errorf("stdout was not isolated: %q", s)
+		}
+		if s := string(out.Stderr); !strings.Contains(s, "to-stderr") || strings.Contains(s, "to-stdout") {
+			t.Errorf("stderr was not isolated: %q", s)
 		}
 	})
 
-	t.Run("non-zero exit surfaces ExitError with output", func(t *testing.T) {
-		out, err := Run(context.Background(), nil, "sh", "-c", "echo boom 1>&2; exit 3")
+	t.Run("non-zero exit surfaces ExitError with separate output", func(t *testing.T) {
+		out, err := Run(context.Background(), nil, "sh", "-c", "echo partial; echo boom 1>&2; exit 3")
 		if _, ok := err.(*exec.ExitError); !ok {
 			t.Fatalf("err = %v (%T), want *exec.ExitError", err, err)
 		}
-		if !strings.Contains(string(out), "boom") {
-			t.Errorf("output not captured on non-zero exit: %q", out)
+		if !strings.Contains(string(out.Stdout), "partial") {
+			t.Errorf("stdout not captured on non-zero exit: %q", out.Stdout)
+		}
+		if !strings.Contains(string(out.Stderr), "boom") {
+			t.Errorf("stderr not captured on non-zero exit: %q", out.Stderr)
 		}
 	})
 }
@@ -192,8 +207,11 @@ func TestRun_RealSubprocess(t *testing.T) {
 func TestDispatch_NoStderrNoHeartbeat(t *testing.T) {
 	origRun := Run
 	t.Cleanup(func() { Run = origRun })
-	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		return []byte("VERDICT: SHIP (confidence: high)\n"), nil
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+		return ProcessOutput{
+			Stdout: []byte("VERDICT: SHIP (confidence: high)\n"),
+			Stderr: []byte("diagnostic must not become semantic output\n"),
+		}, nil
 	}
 	// If Dispatch touched a nil Stderr it would panic; a clean return proves the
 	// gate holds.
@@ -203,5 +221,8 @@ func TestDispatch_NoStderrNoHeartbeat(t *testing.T) {
 	}
 	if !strings.Contains(out, "VERDICT: SHIP") {
 		t.Errorf("output = %q", out)
+	}
+	if strings.Contains(out, "diagnostic") {
+		t.Errorf("semantic output contains stderr: %q", out)
 	}
 }

@@ -24,6 +24,8 @@ WHAT IT DOES
        atlas check window exactly.
      - Builds the milestone-review prompt with issue ref + base/head
      - Invokes the configured agent (claude by default)
+     - Routes harness diagnostics/progress to terminal stderr; verdict parsing
+       and the durable `-m<x>-review.md` consume only the semantic final response
      - Surfaces findings + classifies clean / info / failure
      - Parses the first line for SHIP | FIX-THEN-SHIP | REWORK
 

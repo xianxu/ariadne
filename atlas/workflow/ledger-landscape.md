@@ -30,14 +30,14 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 2. **One authoritative source per fact; simple mirrors where helpful.** Drift comes from duplicated mutable state. If a fact lives in two places, designate one as authoritative.
 3. **Tooling reads the authoritative; humans read the mirror.** Two surfaces is OK when the mirror is derivable.
 4. **Cross-machine durability matters.** Transcripts and memory files live on individual disks — they don't ship in git. For team-shared or operator-portable state, only git-tracked surfaces are reliable.
-5. **The right ledger matches the question.** "Was the checkpoint crossed?" wants a structured marker. "What was said in detail?" wants the full transcript. Different questions, different ledgers.
+5. **The right ledger matches the question.** "Was the checkpoint crossed?" wants a structured marker. "What did the reviewer conclude?" wants the semantic final response. Process diagnostics belong to terminal/logging surfaces. Different questions, different ledgers.
 
 ## Choosing a ledger — worked examples
 
 **"Was the post-milestone code review conducted, and what was the verdict?"**
 - *Authoritative:* git commit trailer on the milestone-close commit (`Review-Verdict: SHIP`). Parseable, immutable, ships in git.
 - *Human mirror:* Log line in the issue file (`review verdict: SHIP`).
-- *Durable detail (#136):* the full review transcript is persisted to a git-tracked sidecar in `workshop/plans/` (`NNNNNN-slug-close-review.md` / `-m<x>-review.md`; re-runs append a `## Re-review` section). Its `window` row names the reviewed commit (#194). Per principle #4 this is the reliable full-detail surface; the local agent transcript is the fallback when no sidecar was written (`--no-judge`/dry-run/not-run).
+- *Durable detail (#136/#201):* boundary metadata plus the reviewer's semantic final response is persisted to a git-tracked sidecar in `workshop/plans/` (`NNNNNN-slug-close-review.md` / `-m<x>-review.md`; re-runs append a `## Re-review` section). Its `window` row names the reviewed commit (#194). Harness diagnostics/progress stay on terminal stderr; the separate `*-gate.md` is the machine finding/disposition ledger. Per principle #4 the review sidecar is the reliable human-detail surface; the local agent transcript is the fallback when no sidecar was written (`--no-judge`/dry-run/not-run).
 - *NOT* in the project file — that tracks portfolio status, not per-milestone evidence.
 
 **"How many hours did this issue actually take?"**

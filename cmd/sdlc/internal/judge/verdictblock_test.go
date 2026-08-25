@@ -15,10 +15,10 @@ import (
 func TestDispatch_ResolvesVerdictBlock(t *testing.T) {
 	orig := Run
 	defer func() { Run = orig }()
-	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		return []byte("Here is my review of the diff.\n\n" +
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+		return ProcessOutput{Stdout: []byte("Here is my review of the diff.\n\n" +
 			"```verdict\nverdict: FIX-THEN-SHIP\nconfidence: high\n```\n\n" +
-			"Findings: a couple of minors.\n"), nil
+			"Findings: a couple of minors.\n")}, nil
 	}
 	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "p", AllowedTools: "Read"})
 	if err != nil {

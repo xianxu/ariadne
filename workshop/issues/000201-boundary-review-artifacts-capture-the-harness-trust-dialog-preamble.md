@@ -1,12 +1,13 @@
 ---
 id: 000201
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-21
 updated: 2026-08-25
 estimate_hours: 1.09
 started: 2026-08-25T11:51:47-07:00
+actual_hours: 1.40
 ---
 
 # Boundary-review artifacts persist the harness transcript, not just the review
@@ -133,18 +134,42 @@ uses the calibrated 15% design buffer.
 
 ## Plan
 
-- [ ] Split the subprocess seam into semantic stdout and diagnostic stderr,
+- [x] Split the subprocess seam into semantic stdout and diagnostic stderr,
       preserving launch/non-zero-exit behavior and terminal diagnostics.
-- [ ] Persist and parse only semantic stdout through the shared boundary-review
+- [x] Persist and parse only semantic stdout through the shared boundary-review
       path.
-- [ ] Add fake-process regression coverage for all agent adapters plus the
+- [x] Add fake-process regression coverage for all agent adapters plus the
       synchronous and heartbeat dispatch paths.
-- [ ] Update the sidecar contract in atlas/help and verify the complete sdlc
+- [x] Update the sidecar contract in atlas/help and verify the complete sdlc
       suite.
 
 ## Log
 
 ### 2026-08-25
+- 2026-08-25: closed — go test ./cmd/sdlc/internal/judge -count=1; go test ./cmd/sdlc -count=1; go test ./... -count=1; semantic boundary sidecar regression; exact STREAM_OK live-conformance assertion; git diff --check; review verdict: SHIP
 
 - Scope narrowed with the operator: fix artifact semantics first; file reviewer
   checkout isolation separately as #204; then return to pair#146/couch.
+- Plan-quality rounds found two process defects before code: the separate plan's
+  non-canonical filename hid it from discovery, and the external-process fake /
+  conformance responsibilities were implicit. The canonical plan now records
+  both; PQ-1 and PQ-2 were disposed as addressed. `ARCH-PURE` keeps the plain
+  `ProcessOutput` value separate from the thin IO boundaries in `Run` and
+  `classifyRunResult`;
+  `ARCH-DRY` routes synchronous and heartbeat dispatch through that transition.
+- Implemented `judge.ProcessOutput` and separate OS buffers. Every adapter now
+  returns stdout as semantic review output while forwarding stderr to the
+  diagnostic sink, including launch and non-zero exits. A boundary regression
+  proves a trust-dialog preamble is visible on terminal stderr but absent from
+  verdict/findings parsing and `*-review.md`.
+- Verification: `go test ./cmd/sdlc/internal/judge -count=1`, `go test
+  ./cmd/sdlc -count=1`, `go test ./... -count=1`, helptext package checks within
+  the full suite, and `git diff --check` passed. The live Claude/Codex/Gemini
+  check is intentionally opt-in after CLI upgrades via
+  `SDLC_LIVE_AGENT_STREAM_CONFORMANCE=1`.
+- Close-review round 1 blocked on two contract mismatches: BR-1 found the plan
+  calling side-effecting `classifyRunResult` PURE; BR-2 found the live check
+  asserting liveness rather than semantic-channel placement. The plan now lists
+  the function as INTEGRATION, and live conformance requires stdout to equal
+  `STREAM_OK`. Stderr is not required to omit it because Codex diagnostics echo
+  the prompt containing the sentinel.

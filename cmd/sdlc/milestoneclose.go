@@ -67,8 +67,8 @@ type reviewResult struct {
 	Base        string // short SHA
 	Head        string // reviewed head: long SHA (falls back to "HEAD" only when rev-parse fails)
 	BaseLong    string // long SHA, used by trailer-verifier lookups in close
-	SidecarPath string // #136: durable review transcript path ("" when no review ran)
-	Output      string // full review body, retained when sidecar writing is deferred
+	SidecarPath string // #136: durable final-review-response path ("" when no review ran)
+	Output      string // semantic review body, retained when sidecar writing is deferred
 	Agent       string // resolved reviewer CLI, retained for deferred sidecar metadata
 	// Round is the findings block this review emitted (#194 M2), parsed but NOT yet
 	// applied: dispatch runs with the repo transaction lock released, and the ledger is
@@ -545,7 +545,7 @@ type boundaryReviewParams struct {
 	Agent                string
 	AgentExplicit        bool
 	// Sidecar persistence (#136): the issue id + milestone + plans dir needed to
-	// name and write the durable review transcript. Milestone "" ⇒ whole-issue close.
+	// name and write the durable final review response. Milestone "" ⇒ whole-issue close.
 	IssueNum  int
 	Milestone string
 	PlansDir  string
@@ -638,7 +638,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	} else {
 		rr.ProtocolError = "no valid findings block"
 	}
-	// Persist the full transcript to a durable sidecar (#136) so an agent can
+	// Persist the semantic final review response to a durable sidecar (#136) so an agent can
 	// reopen it after scrollback loss / compaction. Non-fatal: the review already
 	// ran, so a write failure is warned, not propagated (matches the philosophy above).
 	// Record the RESOLVED reviewer (opts.Agent), not the raw --agent flag — the

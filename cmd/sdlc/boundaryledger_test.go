@@ -243,14 +243,14 @@ func (f *fakeReviewer) install(t *testing.T) {
 	t.Helper()
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		f.round++
 		prompt := strings.Join(args, "\n")
 		f.sawPrior = append(f.sawPrior, prompt)
 		if f.round == 1 {
-			return []byte("```verdict\nverdict: REWORK\nconfidence: high\n```\n\n" +
+			return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: REWORK\nconfidence: high\n```\n\n" +
 				"```findings\nfindings:\n  - id: new\n    severity: Critical\n    title: |\n      " +
-				f.raiseOnce + "\n```\n"), nil
+				f.raiseOnce + "\n```\n")}, nil
 		}
 		var b strings.Builder
 		b.WriteString("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\ndispose:\n")
@@ -258,7 +258,7 @@ func (f *fakeReviewer) install(t *testing.T) {
 			b.WriteString("  - id: " + id + "\n    disposition: addressed\n    note: |\n      fixed\n")
 		}
 		b.WriteString("```\n")
-		return []byte(b.String()), nil
+		return judge.ProcessOutput{Stdout: []byte(b.String())}, nil
 	}
 }
 
@@ -344,10 +344,10 @@ func TestCloseCommand_LiveReviewSeesPriorFindings(t *testing.T) {
 	var prompt string
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		prompt = strings.Join(args, "\n")
-		return []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n" +
-			"```findings\ndispose:\n  - id: BR-1\n    disposition: addressed\n    note: |\n      fixed\n```\n"), nil
+		return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n" +
+			"```findings\ndispose:\n  - id: BR-1\n    disposition: addressed\n    note: |\n      fixed\n```\n")}, nil
 	}
 
 	_, _, _ = executeSDLCTestCommand("close", "--issue", "69", "--actual", "1",
@@ -401,8 +401,8 @@ func TestGateLedgerRefusal_BlocksAPassingVerdictAndIsBypassable(t *testing.T) {
 	t.Cleanup(func() { judge.Run = orig })
 	// A SHIP verdict that does NOT dispose the open finding — the reviewer contradicting
 	// itself, which is the surprising case operators hit.
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		return []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n"), nil
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
+		return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n")}, nil
 	}
 
 	args := []string{"close", "--issue", "69", "--actual", "1", "--verified", "tests pass",
@@ -680,8 +680,8 @@ func TestGateLedgerBypass_IsRecordedInTheLedger(t *testing.T) {
 	}
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		return []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n"), nil
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
+		return judge.ProcessOutput{Stdout: []byte("```verdict\nverdict: SHIP\nconfidence: high\n```\n\n```findings\n```\n")}, nil
 	}
 
 	if _, _, err := executeSDLCTestCommand("close", "--issue", "69", "--actual", "1",

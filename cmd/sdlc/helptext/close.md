@@ -63,9 +63,11 @@ MODES
       have the next review dispose them explicitly — and fix the CLASS each
       names, not only the site (ARCH-PURPOSE, `sdlc arch-principles`).
       `--no-ledger` waives just this refusal.
-    - The ledger is NOT the prose sidecar. `-close-review.md` holds the
-      reviewer's full text for a human; `-close-gate.md` holds addressable
-      findings for the next round. Neither replaces the other.
+    - The ledger is NOT the prose sidecar. `-close-review.md` holds boundary
+      metadata plus the reviewer's semantic final response for a human;
+      `-close-gate.md` holds addressable findings for the next round. Harness
+      diagnostics and progress stay on terminal stderr. Neither replaces the
+      other.
 
   FINDING FAMILIES (#194). Each finding carries a `family:` slug naming the
   underlying RULE it is an instance of, not its symptom. When a family already

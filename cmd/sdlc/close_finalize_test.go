@@ -72,10 +72,10 @@ func TestCloseCommands_IssueChangedDuringBoundaryReview_DoesNotFinalize(t *testi
 			releaseReview := make(chan struct{})
 			orig := judge.Run
 			t.Cleanup(func() { judge.Run = orig })
-			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 				close(started)
 				<-releaseReview
-				return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
 			}
 
 			done := make(chan struct {
@@ -142,10 +142,10 @@ func TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 	releaseReview := make(chan struct{})
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		close(started)
 		<-releaseReview
-		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
 	}
 
 	done := make(chan struct {
@@ -220,10 +220,10 @@ func TestCloseCommand_ProjectChangedDuringBoundaryReview_DoesNotFinalize(t *test
 	releaseReview := make(chan struct{})
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		close(started)
 		<-releaseReview
-		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
 	}
 
 	done := make(chan struct {
@@ -366,8 +366,8 @@ func TestRunCloseWithReview_DispatchError_Halts(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		return nil, errors.New("boom: agent not found")
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
+		return judge.ProcessOutput{}, errors.New("boom: agent not found")
 	}
 
 	var stderr strings.Builder
@@ -482,10 +482,10 @@ func TestCloseCommand_DocOnlyCommitDuringBoundaryReview_Finalizes(t *testing.T) 
 	releaseReview := make(chan struct{})
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		close(started)
 		<-releaseReview
-		return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
 	}
 
 	done := make(chan struct {

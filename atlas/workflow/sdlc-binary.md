@@ -497,12 +497,14 @@ minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
 `heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +
 child PID (`… still working — 1m0s elapsed via claude (pid N; inspect: ps -p N)`).
 It is harness-agnostic by construction: all three fields come from `sdlc` wrapping
-the child (`Run` now Start→`onStart(pid)`→Wait into one combined buffer, exposing
-the PID), not from child output, so it reads identically for claude/codex/gemini.
+the child (`Run` now Start→`onStart(pid)`→Wait into separate stdout/stderr
+buffers, exposing the PID), not from child output, so it reads identically for
+claude/codex/gemini.
 Gated on `opts.Stderr != nil`, so the fast path (unit tests, quick dispatches)
-stays synchronous and silent; the captured output + exit-code policy
-(`classifyRunResult`) are unchanged, so `Classify`/`ParseVerdict`/the sidecar are
-untouched. Deliberately no byte-count/log-tail signal — `claude -p` buffers to the
+stays synchronous and silent. `classifyRunResult` is the shared process-to-review
+boundary: it forwards captured stderr to the diagnostic sink and returns stdout
+only, so `Classify`/`ParseVerdict`/the sidecar never consume harness diagnostics.
+Deliberately no byte-count/log-tail signal — `claude -p` buffers to the
 end (a live counter would read "0 B" and look stalled) and no agent exposes a
 reliably-locatable per-invocation log; the PID is the automated form of the
 operator's manual `ps` inspection.
@@ -802,17 +804,19 @@ downstream repos (the binary is `…/ariadne/bin/sdlc` regardless of cwd) with n
 dependence on the user's `~/.zshenv`/`~/.bash_profile`. Launch-failure errors name
 the attempted agent + that bin dir.
 
-**Review sidecar (#136).** The boundary review is no longer a transient terminal
-artifact: every actually-dispatched review writes its full transcript to a durable
+**Review sidecar (#136/#201).** The boundary review is no longer a transient terminal
+artifact: every actually-dispatched review writes its semantic final response to a durable
 sidecar under `workshop/plans/` — `NNNNNN-slug-close-review.md` for a whole-issue
 close, `NNNNNN-slug-m<x>-review.md` for milestone `Mx`. The write lives in the
 single shared `dispatchBoundaryReview` (`reviewsidecar.go`: pure `sidecarMeta` +
 `renderReviewEntry` + `sidecarPath` behind a thin atomic-write seam — ARCH-PURE),
 so both close paths inherit it for free (ARCH-DRY). Each file carries a metadata
 header (issue id/title, repo, issue file, boundary kind, milestone, base..head
-window, command, reviewer, timestamp, verdict) plus the body. A re-run of the same
+window, command, reviewer, timestamp, verdict) plus that response. Harness
+diagnostics, progress, prompt echo, and tool transcript remain terminal stderr
+and never enter verdict/finding parsing or either durable sidecar. A re-run of the same
 boundary **appends** a timestamped `## Re-review` section rather than overwriting
-(the §1 revision convention). The terminal still prints the full body + the
+(the §1 revision convention). The terminal still prints the semantic body + the
 `Review-Verdict:` trailer; the sidecar adds a durable surface an agent can reopen
 after scrollback loss or compaction (the path is echoed as `review sidecar: …`).
 `--no-judge`/`--dry-run`/not-run boundaries write nothing — no body to persist.

@@ -8,7 +8,7 @@
 //
 // TWO ARTIFACTS, TWO CONSUMERS. The #136 review sidecar (`-close-review.md`,
 // `-m2-review.md`) persists the reviewer's PROSE, for a human or a resuming agent. This
-// ledger persists ADDRESSABLE findings, for the next round's prompt. A transcript cannot
+// ledger persists ADDRESSABLE findings, for the next round's prompt. Prose cannot
 // answer "has BR-2 been disposed of?", which is why the boundary review kept renumbering
 // C1/C2/I1 every round. Neither artifact replaces the other.
 //

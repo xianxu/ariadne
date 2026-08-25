@@ -476,10 +476,10 @@ func describe(fset *token.FileSet, pos token.Pos, path string) string {
 func TestGatePathStderrCarriesRoutingLine(t *testing.T) {
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		// No ```findings block, so the gate takes classifyFallback's verdict-token
 		// path — one of the eight routed sites.
-		return []byte("VERDICT: FINDINGS (confidence: high)\n"), nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: FINDINGS (confidence: high)\n")}, nil
 	}
 
 	var stderr bytes.Buffer
