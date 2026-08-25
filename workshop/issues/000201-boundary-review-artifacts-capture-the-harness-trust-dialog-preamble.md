@@ -44,9 +44,22 @@ Two distinct defects sit behind it:
 
 ## Spec
 
-- Review artifacts contain no harness diagnostic output — only the review.
-- Reproduce by running `sdlc close` in a repo whose path is absent from
-  `~/.claude.json`'s trusted projects.
+- `*-review.md` contains boundary metadata plus the reviewer's semantic final
+  response: verdict, summary, findings, test and architecture notes, plan
+  revisions, and the structured findings fence. It contains no harness
+  diagnostics, progress stream, tool transcript, prompt echo, or input diff.
+- `*-gate.md` remains the machine-readable finding/disposition ledger and the
+  source for the next round's `PriorFindings`; it is not a raw process log.
+- The judge dispatch boundary captures stdout and stderr separately for Claude,
+  Codex, and Gemini. Verdict parsing, structured-finding parsing, terminal
+  review display, and sidecar persistence consume semantic stdout only.
+- Captured stderr remains visible on the command's stderr, including for a
+  non-zero reviewer exit or failed launch. Heartbeat output uses that same
+  terminal diagnostic sink.
+- Existing sidecars are not rewritten fleet-wide. Prompt transport, review
+  window sizing, and reviewer checkout isolation remain separate work.
+- Reproduce the original trust-dialog contamination by running `sdlc close` in
+  a repo whose path is absent from `~/.claude.json`'s trusted projects.
 
 ## Notes
 
