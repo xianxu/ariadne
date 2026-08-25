@@ -1,6 +1,7 @@
 package judge
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -784,41 +785,63 @@ func TestFormatCommandLine_Quoting(t *testing.T) {
 }
 
 func TestDispatch_FakeRun_CapturesOutput(t *testing.T) {
-	orig := Run
-	defer func() { Run = orig }()
-	var gotName string
-	var gotArgs []string
-	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		gotName = name
-		gotArgs = args
-		return []byte("No DRY violations found.\n"), nil
-	}
-	out, err := Dispatch(context.Background(), DispatchOptions{
-		Agent:        AgentClaude,
-		Prompt:       "review",
-		AllowedTools: "Read",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotName != "claude" {
-		t.Errorf("name = %q", gotName)
-	}
-	if gotArgs[len(gotArgs)-1] != "review" {
-		t.Errorf("last arg should be the prompt, got %v", gotArgs)
-	}
-	if Classify(out) != Clean {
-		t.Errorf("output should classify as Clean, got %s", Classify(out))
+	for _, tc := range []struct {
+		agent AgentCLI
+		name  string
+	}{
+		{AgentClaude, "claude"},
+		{AgentCodex, "codex"},
+		{AgentGemini, "gemini"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			orig := Run
+			defer func() { Run = orig }()
+			var gotName string
+			var gotArgs []string
+			Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+				gotName = name
+				gotArgs = args
+				return ProcessOutput{
+					Stdout: []byte("No DRY violations found.\n"),
+					Stderr: []byte("diagnostic from " + name + "\n"),
+				}, nil
+			}
+			var diagnostics bytes.Buffer
+			out, err := Dispatch(context.Background(), DispatchOptions{
+				Agent: tc.agent, Prompt: "review", AllowedTools: "Read", Stderr: &diagnostics,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if gotName != tc.name {
+				t.Errorf("name = %q, want %q", gotName, tc.name)
+			}
+			if gotArgs[len(gotArgs)-1] != "review" {
+				t.Errorf("last arg should be the prompt, got %v", gotArgs)
+			}
+			if Classify(out) != Clean {
+				t.Errorf("output should classify as Clean, got %s", Classify(out))
+			}
+			if strings.Contains(out, "diagnostic") {
+				t.Errorf("semantic output contains stderr: %q", out)
+			}
+			if got := diagnostics.String(); got != "diagnostic from "+tc.name+"\n" {
+				t.Errorf("diagnostic sink = %q", got)
+			}
+		})
 	}
 }
 
 func TestDispatch_LaunchError_Surfaces(t *testing.T) {
 	orig := Run
 	defer func() { Run = orig }()
-	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
-		return nil, errors.New("exec: command not found")
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+		return ProcessOutput{Stderr: []byte("launch diagnostic\n")}, errors.New("exec: command not found")
 	}
-	_, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "x", AllowedTools: "Read"})
+	var diagnostics bytes.Buffer
+	_, err := Dispatch(context.Background(), DispatchOptions{
+		Agent: AgentClaude, Prompt: "x", AllowedTools: "Read", Stderr: &diagnostics,
+	})
 	if err == nil {
 		t.Fatal("expected error when Run fails to launch")
 	}
@@ -828,6 +851,33 @@ func TestDispatch_LaunchError_Surfaces(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("launch error missing %q: %v", want, err)
 		}
+	}
+	if got := diagnostics.String(); got != "launch diagnostic\n" {
+		t.Errorf("launch stderr = %q", got)
+	}
+}
+
+func TestDispatch_ExitErrorForwardsDiagnosticsAndReturnsStdout(t *testing.T) {
+	orig := Run
+	defer func() { Run = orig }()
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+		return ProcessOutput{
+			Stdout: []byte("VERDICT: FAILURE (confidence: high)\n"),
+			Stderr: []byte("non-zero diagnostic\n"),
+		}, &exec.ExitError{}
+	}
+	var diagnostics bytes.Buffer
+	out, err := Dispatch(context.Background(), DispatchOptions{
+		Agent: AgentClaude, Prompt: "x", AllowedTools: "Read", Stderr: &diagnostics,
+	})
+	if err != nil {
+		t.Fatalf("non-zero exit surfaced as Dispatch error: %v", err)
+	}
+	if out != "VERDICT: FAILURE (confidence: high)\n" {
+		t.Errorf("semantic output = %q", out)
+	}
+	if got := diagnostics.String(); got != "non-zero diagnostic\n" {
+		t.Errorf("non-zero stderr = %q", got)
 	}
 }
 
@@ -840,7 +890,7 @@ func TestDispatch_ExitErrorWithEmptyOutput_NotAnError(t *testing.T) {
 	// Real *exec.ExitError requires a started process. Easiest path:
 	// spawn `false` (always exits 1) via the actual exec package, no
 	// args needed.
-	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
 		return realExec("false")
 	}
 	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "x", AllowedTools: "Read"})
@@ -854,8 +904,13 @@ func TestDispatch_ExitErrorWithEmptyOutput_NotAnError(t *testing.T) {
 
 // realExec runs `false` (or any always-exit-non-zero binary) so we get a
 // genuine *exec.ExitError. Wrapped here to keep the test's intent clear.
-func realExec(name string) ([]byte, error) {
-	return execCommand(name).CombinedOutput()
+func realExec(name string) (ProcessOutput, error) {
+	cmd := execCommand(name)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	return ProcessOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}, err
 }
 
 // TestCodeReviewSeveritiesMatchModel pins code-review.md's severity buckets to the

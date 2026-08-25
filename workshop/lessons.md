@@ -139,6 +139,15 @@ the issue crossed the boundary.
 
 **Rule:** Generated review artifacts must be bounded and normalized before they enter the reviewed diff. Persist the machine-useful facts (verdict, window, findings, verification commands, resolution), not the full prompt/diff transcript. If a sidecar must carry raw output, keep it out of the code-reviewed diff or teach the generator to strip/escape whitespace-sensitive embedded patches. After any generated sidecar write, run `git diff --check` before committing it.
 
+**Pattern (#201):** A detailed plan existed, but its filename did not use the
+issue file's exact stem. `sdlc change-code` therefore discovered only the short
+issue checklist and correctly rejected it as non-executable.
+
+**Rule:** Name every separate implementation plan
+`workshop/plans/<exact-issue-stem>-plan.md`, then confirm the gate discovered it
+before interpreting plan-quality findings. A good plan at a non-canonical path
+is operationally the same as no plan.
+
 **Origin:** #166 close-review loop. The fix for this issue manually condensed the sidecar after each generated rewrite so `git diff --check` and later boundary-review dispatches stayed usable.
 
 ## A deferred cleanup does not run through `os.Exit` — command wrappers must cover hard exits and init races

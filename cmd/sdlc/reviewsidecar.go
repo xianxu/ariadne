@@ -12,7 +12,7 @@ import (
 
 // sidecarMeta is everything a fresh reader needs to orient on a persisted
 // boundary review (#136): which issue/repo, which boundary + window, who
-// reviewed, when, the verdict, and the full review body. All fields are plain
+// reviewed, when, the verdict, and the semantic final review body. All fields are plain
 // values — the clock (Timestamp) is captured at the IO boundary and passed in so
 // the renderers below stay pure (ARCH-PURE).
 type sidecarMeta struct {

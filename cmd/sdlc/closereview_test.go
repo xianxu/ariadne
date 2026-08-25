@@ -53,12 +53,12 @@ func stubJudge(t *testing.T, output string) (*int, *string) {
 	t.Cleanup(func() { judge.Run = orig })
 	calls := 0
 	var lastPrompt string
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		calls++
 		if len(args) > 0 {
 			lastPrompt = args[len(args)-1] // BuildArgs puts the prompt last
 		}
-		return []byte(output), nil
+		return judge.ProcessOutput{Stdout: []byte(output)}, nil
 	}
 	return &calls, &lastPrompt
 }
@@ -69,10 +69,10 @@ func stubJudgeCommand(t *testing.T, output string) (*int, *string) {
 	t.Cleanup(func() { judge.Run = orig })
 	calls := 0
 	var lastName string
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		calls++
 		lastName = name
-		return []byte(output), nil
+		return judge.ProcessOutput{Stdout: []byte(output)}, nil
 	}
 	return &calls, &lastName
 }
@@ -106,10 +106,10 @@ func TestCloseCommandsReleaseLockDuringBoundaryReview(t *testing.T) {
 			releaseReview := make(chan struct{})
 			orig := judge.Run
 			t.Cleanup(func() { judge.Run = orig })
-			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 				close(started)
 				<-releaseReview
-				return []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n"), nil
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
 			}
 
 			done := make(chan error, 1)
@@ -242,7 +242,7 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 		t.Errorf("issue ## Log line missing the verdict annotation:\n%s", got)
 	}
 
-	// #136: the full review transcript is persisted to a durable sidecar under
+	// #136: the semantic final review response is persisted to a durable sidecar under
 	// workshop/plans/, so an agent can reopen it after scrollback loss.
 	scData, err := os.ReadFile(filepath.Join("workshop/plans", "000069-x-close-review.md"))
 	if err != nil {
@@ -293,6 +293,58 @@ func TestDispatchBoundaryReview_WritesMilestoneSidecar(t *testing.T) {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("milestone sidecar missing %q:\n%s", want, data)
 		}
+	}
+}
+
+func TestDispatchBoundaryReview_PersistsSemanticOutputOnly(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	const semantic = "VERDICT: FIX-THEN-SHIP (confidence: high)\n\n" +
+		"One semantic finding.\n\n" +
+		"```findings\nfindings:\n  - id: new\n    severity: Important\n" +
+		"    family: semantic-stream-contract\n    title: |\n      Preserve semantic output\n" +
+		"    detail: |\n      The durable artifact must exclude diagnostics.\n```\n"
+	const diagnostic = "Ignoring permissions: workspace has not been trusted.\n"
+
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
+		return judge.ProcessOutput{Stdout: []byte(semantic), Stderr: []byte(diagnostic)}, nil
+	}
+
+	var stdout, stderr bytes.Buffer
+	res := dispatchBoundaryReview(&stdout, &stderr, boundaryReviewParams{
+		Label:     "#69 M1",
+		Base:      "HEAD^",
+		BaseLong:  "HEAD^",
+		Head:      "HEAD",
+		IssuesDir: issuesDir,
+		IssueNum:  69,
+		Milestone: "M1",
+		PlansDir:  "workshop/plans",
+	})
+
+	if res.Verdict != judge.VerdictFixThenShip {
+		t.Fatalf("verdict = %q, want FIX-THEN-SHIP", res.Verdict)
+	}
+	if res.Round == nil || len(res.Round.New) != 1 {
+		t.Fatalf("structured findings were not parsed from semantic stdout: %#v", res.Round)
+	}
+	if got := res.Output; got != semantic || strings.Contains(got, "workspace has not been trusted") {
+		t.Errorf("review result output crossed streams:\n%s", got)
+	}
+	if got := stdout.String(); !strings.Contains(got, "One semantic finding") || strings.Contains(got, diagnostic) {
+		t.Errorf("terminal stdout crossed streams:\n%s", got)
+	}
+	if got := stderr.String(); !strings.Contains(got, diagnostic) {
+		t.Errorf("terminal stderr missing diagnostic:\n%s", got)
+	}
+
+	data, err := os.ReadFile(res.SidecarPath)
+	if err != nil {
+		t.Fatalf("read semantic review sidecar: %v", err)
+	}
+	if got := string(data); !strings.Contains(got, "Preserve semantic output") || strings.Contains(got, diagnostic) {
+		t.Errorf("durable review sidecar crossed streams:\n%s", got)
 	}
 }
 

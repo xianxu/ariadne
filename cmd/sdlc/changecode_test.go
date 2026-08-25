@@ -153,9 +153,9 @@ func stubJudgeName(t *testing.T) *string {
 	orig := judge.Run
 	t.Cleanup(func() { judge.Run = orig })
 	seenName := ""
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		seenName = name
-		return []byte("VERDICT: CLEAN (confidence: high)\n"), nil
+		return judge.ProcessOutput{Stdout: []byte("VERDICT: CLEAN (confidence: high)\n")}, nil
 	}
 	return &seenName
 }
@@ -327,7 +327,7 @@ func stubJudgeSeq(t *testing.T, outputs ...string) (calls *int, prompts *[]strin
 	t.Cleanup(func() { judge.Run = orig })
 	n := 0
 	var seen []string
-	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) ([]byte, error) {
+	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		// The prompt is the last argument for every supported agent CLI.
 		if len(args) > 0 {
 			seen = append(seen, args[len(args)-1])
@@ -337,7 +337,7 @@ func stubJudgeSeq(t *testing.T, outputs ...string) (calls *int, prompts *[]strin
 			out = outputs[n]
 		}
 		n++
-		return []byte(out), nil
+		return judge.ProcessOutput{Stdout: []byte(out)}, nil
 	}
 	return &n, &seen
 }

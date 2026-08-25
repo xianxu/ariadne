@@ -133,13 +133,13 @@ uses the calibrated 15% design buffer.
 
 ## Plan
 
-- [ ] Split the subprocess seam into semantic stdout and diagnostic stderr,
+- [x] Split the subprocess seam into semantic stdout and diagnostic stderr,
       preserving launch/non-zero-exit behavior and terminal diagnostics.
-- [ ] Persist and parse only semantic stdout through the shared boundary-review
+- [x] Persist and parse only semantic stdout through the shared boundary-review
       path.
-- [ ] Add fake-process regression coverage for all agent adapters plus the
+- [x] Add fake-process regression coverage for all agent adapters plus the
       synchronous and heartbeat dispatch paths.
-- [ ] Update the sidecar contract in atlas/help and verify the complete sdlc
+- [x] Update the sidecar contract in atlas/help and verify the complete sdlc
       suite.
 
 ## Log
@@ -148,3 +148,19 @@ uses the calibrated 15% design buffer.
 
 - Scope narrowed with the operator: fix artifact semantics first; file reviewer
   checkout isolation separately as #204; then return to pair#146/couch.
+- Plan-quality rounds found two process defects before code: the separate plan's
+  non-canonical filename hid it from discovery, and the external-process fake /
+  conformance responsibilities were implicit. The canonical plan now records
+  both; PQ-1 and PQ-2 were disposed as addressed. `ARCH-PURE` keeps process IO in
+  `Run` and the injected diagnostic transition in `classifyRunResult`;
+  `ARCH-DRY` routes synchronous and heartbeat dispatch through that transition.
+- Implemented `judge.ProcessOutput` and separate OS buffers. Every adapter now
+  returns stdout as semantic review output while forwarding stderr to the
+  diagnostic sink, including launch and non-zero exits. A boundary regression
+  proves a trust-dialog preamble is visible on terminal stderr but absent from
+  verdict/findings parsing and `*-review.md`.
+- Verification: `go test ./cmd/sdlc/internal/judge -count=1`, `go test
+  ./cmd/sdlc -count=1`, `go test ./... -count=1`, helptext package checks within
+  the full suite, and `git diff --check` passed. The live Claude/Codex/Gemini
+  check is intentionally opt-in after CLI upgrades via
+  `SDLC_LIVE_AGENT_STREAM_CONFORMANCE=1`.
