@@ -1,14 +1,15 @@
 ---
 id: 000201
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-25
 estimate_hours:
+started: 2026-08-25T11:51:47-07:00
 ---
 
-# Boundary-review artifacts capture the harness trust-dialog preamble
+# Boundary-review artifacts persist the harness transcript, not just the review
 
 ## Problem
 
@@ -52,3 +53,66 @@ Two distinct defects sit behind it:
 Surfaced by `tools#4`, where it recurred across eight close rounds. Related to
 ariadne#195 (finding-family escalation), which addresses the general problem of
 findings that recur without converging, but by a different mechanism.
+
+## Revisions
+
+### 2026-08-25 — define the artifact as review output, not process output
+
+**Reason:** pair#146 exposed the same contract defect at a much larger scale.
+Codex's combined process output contains the full input prompt and diff, tool
+commands/results, harness diagnostics, and a repeated final answer. Five M3
+rounds accumulated into a 5.03 MB, 74,289-line `*-review.md`; once committed,
+that generated artifact entered the next review diff and recursively amplified.
+
+**Delta:** the durable surfaces have semantic roles rather than mirroring a
+subprocess stream:
+
+- `*-review.md` stores boundary metadata plus the reviewer's final response:
+  verdict, summary, findings, test notes, architecture notes, plan revisions,
+  and the structured findings fence.
+- `*-gate.md` remains the machine-readable finding/disposition ledger. It is
+  the source rendered into the next round's `PriorFindings` block.
+- Harness diagnostics and agent progress belong on the operator's terminal.
+  They are not review content and are never persisted in either artifact.
+- The dispatch boundary separates the agent's semantic final output from its
+  diagnostic stream before verdict parsing or sidecar persistence. The rule is
+  agent-independent even where individual CLIs route their streams differently.
+- Existing raw sidecars are not silently rewritten fleet-wide. pair#146's
+  oversized M3 artifact is condensed in that repo before its blocked close is
+  retried.
+
+Review-checkout isolation is deliberately separate (#204). Review-window and
+large legitimate payload transport remain #162. The external-finding lifecycle
+question remains the concern already tracked by #202/#195.
+
+## Done when
+
+- A fake reviewer that writes a valid verdict to stdout and diagnostics to
+  stderr produces a sidecar containing the verdict/findings but none of the
+  diagnostics.
+- Diagnostics remain visible on the command's stderr, including on a failed
+  reviewer launch or non-zero reviewer exit.
+- Verdict parsing, structured-finding parsing, heartbeat reporting, and both
+  synchronous and heartbeat dispatch paths consume the same semantic output.
+- Claude, Codex, and Gemini command adapters obey the same artifact contract;
+  an adapter regression cannot rejoin stderr to the persisted review.
+- Atlas/help describe `*-review.md` as final review output and `*-gate.md` as
+  structured gate state, not as raw/full transcripts.
+
+## Plan
+
+- [ ] Split the subprocess seam into semantic stdout and diagnostic stderr,
+      preserving launch/non-zero-exit behavior and terminal diagnostics.
+- [ ] Persist and parse only semantic stdout through the shared boundary-review
+      path.
+- [ ] Add fake-process regression coverage for all agent adapters plus the
+      synchronous and heartbeat dispatch paths.
+- [ ] Update the sidecar contract in atlas/help and verify the complete sdlc
+      suite.
+
+## Log
+
+### 2026-08-25
+
+- Scope narrowed with the operator: fix artifact semantics first; file reviewer
+  checkout isolation separately as #204; then return to pair#146/couch.
