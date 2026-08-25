@@ -188,11 +188,11 @@ seeds, not independent hand-enumerated procedures.
 - Create: `cmd/sdlc/internal/fleet/gitpaths.go`
 - Create: `cmd/sdlc/internal/fleet/gitpaths_test.go`
 
-- [ ] Implement the `NormalizeVantage` fake/real-Git equivalence strategy.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestNormalizeVantage -count=1`; verify FAIL.
-- [ ] Implement directory-scoped Git calls through a narrow `gitReader { GitInDir(...) }`: find the containing worktree, parse `git worktree list --porcelain`, select its primary record, resolve `git rev-parse --git-common-dir`, and canonicalize all path comparisons.
-- [ ] Re-run the targeted tests; expect PASS.
-- [ ] Stage the fleet Git-path files, then commit: `git commit -m "#200: normalize fleet vantage across linked worktrees" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Implement the `NormalizeVantage` fake/real-Git equivalence strategy.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run TestNormalizeVantage -count=1`; verify FAIL.
+- [x] Implement directory-scoped Git calls through a narrow `gitReader { GitInDir(...) }`: find the containing worktree, parse `git worktree list --porcelain`, select its primary record, resolve `git rev-parse --git-common-dir`, and canonicalize all path comparisons.
+- [x] Re-run the targeted tests; expect PASS.
+- [x] Stage the fleet Git-path files, then commit: `git commit -m "#200: normalize fleet vantage across linked worktrees" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 2.4: Put stateful Git behavior behind the production seam
 
