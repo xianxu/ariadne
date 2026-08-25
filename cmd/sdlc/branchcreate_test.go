@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // ── pure deciders (#156) ─────────────────────────────────────────────────────
@@ -49,40 +51,15 @@ func TestDecideWorktreeBranch(t *testing.T) {
 	}
 }
 
-// ── porcelain parser + branch filter (#156, single-source grammar) ───────────
-
-func TestParseWorktrees(t *testing.T) {
-	porcelain := "worktree /bare-repo\nbare\n\n" +
-		"worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\n" +
-		"worktree /repo/wt/feat\nHEAD bbb\nbranch refs/heads/000156-feat\n\n" +
-		"worktree /repo/wt/detached\nHEAD ccc\ndetached\n"
-	got := parseWorktrees(porcelain)
-	if len(got) != 4 {
-		t.Fatalf("parseWorktrees returned %d entries, want 4: %+v", len(got), got)
-	}
-	want := []WorktreeState{
-		{Path: "/bare-repo", Branch: "(bare)"},
-		{Path: "/repo", Branch: "main"},
-		{Path: "/repo/wt/feat", Branch: "000156-feat"},
-		{Path: "/repo/wt/detached", Branch: "(detached)"},
-	}
-	for i, w := range want {
-		if got[i] != w {
-			t.Errorf("entry[%d] = %+v, want %+v", i, got[i], w)
-		}
-	}
-	if parseWorktrees("") != nil {
-		t.Errorf("empty porcelain must yield nil")
-	}
-}
-
 func TestWorktreeForBranch(t *testing.T) {
-	porcelain := "worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\n" +
-		"worktree /repo/wt/feat\nHEAD bbb\nbranch refs/heads/000156-feat\n"
-	if p, ok := worktreeForBranch(porcelain, "000156-feat"); !ok || p != "/repo/wt/feat" {
+	worktrees := []gitx.Worktree{
+		{Path: "/repo", HEAD: "aaa", Branch: "main"},
+		{Path: "/repo/wt/feat", HEAD: "bbb", Branch: "000156-feat"},
+	}
+	if p, ok := worktreeForBranch(worktrees, "000156-feat"); !ok || p != "/repo/wt/feat" {
 		t.Errorf("worktreeForBranch(feat) = %q,%v, want /repo/wt/feat,true", p, ok)
 	}
-	if p, ok := worktreeForBranch(porcelain, "nope"); ok || p != "" {
+	if p, ok := worktreeForBranch(worktrees, "nope"); ok || p != "" {
 		t.Errorf("worktreeForBranch(nope) = %q,%v, want \"\",false", p, ok)
 	}
 }
@@ -172,7 +149,7 @@ func TestCreateWorktreeBranch_ReusesExisting(t *testing.T) {
 	// The branch is already checked out in a worktree → reuse it, never add.
 	r := &captureRunner{
 		branchExists:      true,
-		worktreePorcelain: "worktree /existing/wt/000156-x\nHEAD abc\nbranch refs/heads/000156-x\n",
+		worktreePorcelain: worktreePorcelainZ([]string{"worktree /existing/wt/000156-x", "HEAD abc", "branch refs/heads/000156-x"}),
 	}
 	var out, errb bytes.Buffer
 	wtPath, err := createWorktreeBranch(&out, &errb, "000156-x", r)
@@ -184,6 +161,9 @@ func TestCreateWorktreeBranch_ReusesExisting(t *testing.T) {
 	}
 	if wtPath != "/existing/wt/000156-x" {
 		t.Errorf("reuse must return the existing worktree path, got %q", wtPath)
+	}
+	if !gitCalled(r.gitCalls, "worktree", "list", "--porcelain", "-z") {
+		t.Errorf("createWorktreeBranch must request NUL-delimited porcelain: %v", r.gitCalls)
 	}
 	// .goto is rewritten to the reused worktree.
 	foundGoto := false
@@ -199,7 +179,7 @@ func TestCreateWorktreeBranch_ReusesExisting(t *testing.T) {
 
 func TestCreateWorktreeBranch_AddsExistingBranchWithoutDashB(t *testing.T) {
 	// Branch exists but isn't in any worktree → `worktree add <path> <name>` (no -b).
-	r := &captureRunner{branchExists: true, worktreePorcelain: "worktree /repo\nHEAD abc\nbranch refs/heads/main\n"}
+	r := &captureRunner{branchExists: true, worktreePorcelain: worktreePorcelainZ([]string{"worktree /repo", "HEAD abc", "branch refs/heads/main"})}
 	var out, errb bytes.Buffer
 	if _, err := createWorktreeBranch(&out, &errb, "000156-x", r); err != nil {
 		t.Fatal(err)
@@ -222,7 +202,7 @@ func TestCreateWorktreeBranch_AddsExistingBranchWithoutDashB(t *testing.T) {
 
 func TestCreateWorktreeBranch_AddsNewWithDashB(t *testing.T) {
 	// Brand-new branch → today's `worktree add -b <name> <path> HEAD`.
-	r := &captureRunner{branchExists: false, worktreePorcelain: "worktree /repo\nHEAD abc\nbranch refs/heads/main\n"}
+	r := &captureRunner{branchExists: false, worktreePorcelain: worktreePorcelainZ([]string{"worktree /repo", "HEAD abc", "branch refs/heads/main"})}
 	var out, errb bytes.Buffer
 	if _, err := createWorktreeBranch(&out, &errb, "000156-x", r); err != nil {
 		t.Fatal(err)

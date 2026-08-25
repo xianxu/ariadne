@@ -90,14 +90,10 @@ func TestChangedIssueFiles_FilterByIssue(t *testing.T) {
 }
 
 func TestFindMainWorktree_Parses(t *testing.T) {
-	out := `worktree /repo/main
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo/feature
-HEAD def456
-branch refs/heads/feature-x
-`
+	out := worktreePorcelainZ(
+		[]string{"worktree /repo/main", "HEAD abc123", "branch refs/heads/main"},
+		[]string{"worktree /repo/feature", "HEAD def456", "branch refs/heads/feature-x"},
+	)
 	r := &claimRunnerStub{
 		responses: map[string][]byte{"worktree list": []byte(out)},
 	}
@@ -108,13 +104,13 @@ branch refs/heads/feature-x
 	if got != "/repo/main" {
 		t.Errorf("got %q want /repo/main", got)
 	}
+	if !gitCalled(r.gitCalls, "worktree", "list", "--porcelain", "-z") {
+		t.Errorf("findMainWorktree must request NUL-delimited porcelain: %v", r.gitCalls)
+	}
 }
 
 func TestFindMainWorktree_NoMain(t *testing.T) {
-	out := `worktree /repo/feature
-HEAD def456
-branch refs/heads/feature-x
-`
+	out := worktreePorcelainZ([]string{"worktree /repo/feature", "HEAD def456", "branch refs/heads/feature-x"})
 	r := &claimRunnerStub{
 		responses: map[string][]byte{"worktree list": []byte(out)},
 	}

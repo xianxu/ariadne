@@ -46,7 +46,7 @@ func RunGit(args ...string) ([]byte, error) {
 // package-level `run` shim so tests can override.
 //
 // Suitable for one-shot queries like `git rev-parse --show-toplevel`,
-// `git branch --show-current`, `git worktree list --porcelain`. Not
+// `git branch --show-current`, `git worktree list --porcelain -z`. Not
 // suitable for queries where you must distinguish "ran but empty" from
 // "errored" — use run() directly for those.
 func Capture(args ...string) string {

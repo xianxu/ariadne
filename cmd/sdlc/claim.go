@@ -10,7 +10,7 @@
 //
 //  1. On main:    add + commit + push directly.
 //  2. On a feature branch:
-//     - locate the main worktree via `git worktree list --porcelain`
+//     - locate the main worktree via `git worktree list --porcelain -z`
 //     - check main worktree has no uncommitted issue changes
 //     - pull --rebase origin main on the main worktree
 //     - detect conflicts (files changed on both branches since merge-base)
@@ -373,20 +373,24 @@ func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
 	return out, nil
 }
 
-// findMainWorktree parses `git worktree list --porcelain` and returns
+// findMainWorktree parses `git worktree list --porcelain -z` and returns
 // the path of the worktree on branch `main`. Empty + error if none.
 //
 // Matches the awk pipeline in issue-sync.sh:
 //
 //	awk '/^worktree /{path=$2} /branch refs\/heads\/main$/{print path}'
 func findMainWorktree(r gitRunner) (string, error) {
-	out, err := r.Git("worktree", "list", "--porcelain")
+	out, err := r.Git("worktree", "list", "--porcelain", "-z")
 	if err != nil {
 		return "", fmt.Errorf("git worktree list: %v\n%s", err, out)
 	}
-	// Reuse the single-source porcelain parser (ARCH-DRY, #156) rather than
+	// Reuse the single-source porcelain parser (ARCH-DRY, #200) rather than
 	// re-walking the grammar. The IO (r.Git) stays here; the parse is pure.
-	if mainPath, ok := worktreeForBranch(string(out), "main"); ok {
+	worktrees, err := gitx.ParseWorktrees(out)
+	if err != nil {
+		return "", fmt.Errorf("parse git worktree list: %w", err)
+	}
+	if mainPath, ok := worktreeForBranch(worktrees, "main"); ok {
 		return mainPath, nil
 	}
 	return "", fmt.Errorf("could not find a worktree on branch 'main'. Is main checked out somewhere?")

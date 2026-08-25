@@ -175,12 +175,12 @@ seeds, not independent hand-enumerated procedures.
 - Modify: `cmd/sdlc/claim.go`
 - Modify: `cmd/sdlc/branchcreate_test.go`
 
-- [ ] Move the existing parser corpus into `internal/gitx` and implement the `ParseWorktrees` fuzz/round-trip strategy.
-- [ ] Run `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc -run 'TestParseWorktrees|TestFindMainWorktree|TestWorktreeForBranch' -count=1`; verify FAIL before the exported parser exists.
-- [ ] Implement `gitx.ParseWorktrees([]byte) ([]Worktree, error)` as the only porcelain grammar. Keep `sdlc state` JSON backward-compatible by mapping the richer entity back to its existing `{path, branch}` shape.
-- [ ] Route `findMainWorktree` and `worktreeForBranch` through the shared entity; remove the old parser after all consumers migrate.
-- [ ] Re-run targeted and `go test ./cmd/sdlc/... -count=1`; expect PASS.
-- [ ] Stage the worktree parser and migrated consumers, then commit: `git commit -m "#200: share rich git worktree parsing" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Move the existing parser corpus into `internal/gitx` and implement the `ParseWorktrees` fuzz/round-trip strategy.
+- [x] Run `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc -run 'TestParseWorktrees|TestFindMainWorktree|TestWorktreeForBranch' -count=1`; verify FAIL before the exported parser exists.
+- [x] Implement `gitx.ParseWorktrees([]byte) ([]Worktree, error)` as the only porcelain grammar. Keep `sdlc state` JSON backward-compatible by mapping the richer entity back to its existing `{path, branch}` shape.
+- [x] Route `findMainWorktree` and `worktreeForBranch` through the shared entity; remove the old parser after all consumers migrate.
+- [x] Re-run targeted and `go test ./cmd/sdlc/... -count=1`; expect PASS.
+- [x] Stage the worktree parser and migrated consumers, then commit: `git commit -m "#200: share rich git worktree parsing" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 2.3: Normalize fleet vantage and stable Git identity
 

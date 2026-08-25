@@ -148,8 +148,15 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 	wtRoot := filepath.Join(filepath.Dir(repoTop), "worktree", repoDir)
 	wtPath := filepath.Join(wtRoot, name)
 
-	porcelain, _ := r.Git("worktree", "list", "--porcelain")
-	existingWt, wtFound := worktreeForBranch(string(porcelain), name)
+	porcelain, err := r.Git("worktree", "list", "--porcelain", "-z")
+	if err != nil {
+		return "", fmt.Errorf("git worktree list: %v\n%s", err, porcelain)
+	}
+	worktrees, err := gitx.ParseWorktrees(porcelain)
+	if err != nil {
+		return "", fmt.Errorf("parse git worktree list: %w", err)
+	}
+	existingWt, wtFound := worktreeForBranch(worktrees, name)
 	action := decideWorktreeBranch(branchExists(r, name), wtFound)
 
 	if action != worktreeReuse {
@@ -258,9 +265,9 @@ func decideWorktreeBranch(branchExists, wtFound bool) worktreeAction {
 
 // worktreeForBranch returns the path of the worktree currently checked out on
 // branch target (found=false if none). A filter over the single-source
-// parseWorktrees parser (ARCH-DRY, #156); at most one worktree can match.
-func worktreeForBranch(porcelain, target string) (string, bool) {
-	for _, w := range parseWorktrees(porcelain) {
+// gitx.ParseWorktrees parser (ARCH-DRY, #200); at most one worktree can match.
+func worktreeForBranch(worktrees []gitx.Worktree, target string) (string, bool) {
+	for _, w := range worktrees {
 		if w.Branch == target {
 			return w.Path, true
 		}

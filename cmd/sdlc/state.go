@@ -55,7 +55,7 @@ type IssueState struct {
 	Updated    string `json:"updated,omitempty"`
 }
 
-// WorktreeState describes one entry from `git worktree list --porcelain`.
+// WorktreeState describes one entry from `git worktree list --porcelain -z`.
 type WorktreeState struct {
 	Path   string `json:"path"`
 	Branch string `json:"branch"`
@@ -110,10 +110,14 @@ func NewStateCmd() *cobra.Command {
 
 func runState(stdout io.Writer, f *stateFlags) error {
 	recent, baseRef := recentCommits()
+	worktrees, err := listWorktrees()
+	if err != nil {
+		return err
+	}
 	s := State{
 		Repo:      gitx.Capture("rev-parse", "--show-toplevel"),
 		Branch:    gitx.Capture("branch", "--show-current"),
-		Worktrees: listWorktrees(),
+		Worktrees: worktrees,
 		Recent:    recent,
 	}
 
@@ -139,40 +143,34 @@ func runState(stdout io.Writer, f *stateFlags) error {
 	return renderProse(stdout, s)
 }
 
-// listWorktrees returns the parsed `git worktree list --porcelain` entries.
-func listWorktrees() []WorktreeState {
-	return parseWorktrees(gitx.Capture("worktree", "list", "--porcelain"))
+// listWorktrees returns the parsed `git worktree list --porcelain -z` entries.
+func listWorktrees() ([]WorktreeState, error) {
+	porcelain, err := gitx.RunGit("worktree", "list", "--porcelain", "-z")
+	if err != nil {
+		return nil, fmt.Errorf("git worktree list: %w", err)
+	}
+	worktrees, err := gitx.ParseWorktrees(porcelain)
+	if err != nil {
+		return nil, fmt.Errorf("parse git worktree list: %w", err)
+	}
+	return worktreeStates(worktrees), nil
 }
 
-// parseWorktrees is the pure `git worktree list --porcelain` parser — the SINGLE
-// source of that grammar (ARCH-DRY; reused by listWorktrees, findMainWorktree, and
-// worktreeForBranch). Each entry is a block: "worktree <path>", "HEAD <sha>",
-// then "branch refs/heads/<name>" | "detached" | "bare". Surfaces (path, branch).
-func parseWorktrees(porcelain string) []WorktreeState {
-	if porcelain == "" {
-		return nil
-	}
-	var wts []WorktreeState
-	var cur WorktreeState
-	for _, line := range strings.Split(porcelain, "\n") {
+// worktreeStates deliberately maps rich porcelain records onto state's stable
+// {path,branch} JSON contract. State does not expose parser-only attributes.
+func worktreeStates(worktrees []gitx.Worktree) []WorktreeState {
+	states := make([]WorktreeState, 0, len(worktrees))
+	for _, worktree := range worktrees {
+		branch := worktree.Branch
 		switch {
-		case strings.HasPrefix(line, "worktree "):
-			if cur.Path != "" {
-				wts = append(wts, cur)
-			}
-			cur = WorktreeState{Path: strings.TrimPrefix(line, "worktree ")}
-		case strings.HasPrefix(line, "branch refs/heads/"):
-			cur.Branch = strings.TrimPrefix(line, "branch refs/heads/")
-		case line == "detached":
-			cur.Branch = "(detached)"
-		case line == "bare":
-			cur.Branch = "(bare)"
+		case worktree.Detached:
+			branch = "(detached)"
+		case worktree.Bare:
+			branch = "(bare)"
 		}
+		states = append(states, WorktreeState{Path: worktree.Path, Branch: branch})
 	}
-	if cur.Path != "" {
-		wts = append(wts, cur)
-	}
-	return wts
+	return states
 }
 
 // recentCommits returns the subjects of commits on the current branch
