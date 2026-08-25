@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-08-21
 updated: 2026-08-25
-estimate_hours:
+estimate_hours: 1.09
 started: 2026-08-25T11:51:47-07:00
 ---
 
@@ -111,6 +111,25 @@ question remains the concern already tracked by #202/#195.
   an adapter regression cannot rejoin stderr to the persisted review.
 - Atlas/help describe `*-review.md` as final review output and `*-gate.md` as
   structured gate state, not as raw/full transcripts.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.04 impl=0.12
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: atlas-docs design=0.03 impl=0.08
+item: milestone-review design=0.02 impl=0.20
+design-buffer: 0.15
+total: 1.09
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. The calibration source was stale on
+2026-08-25, so the primitive values are provisional; the thorough approved plan
+uses the calibrated 15% design buffer.
 
 ## Plan
 

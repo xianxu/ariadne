@@ -20,6 +20,20 @@ rounds:
           family: external-cli-fake-contract
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-08-25T12:32:55-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: The canonical plan now names every changed function and value, identifies the thin IO boundary, and gives one adversarial-input/mechanical-guard strategy per risky function.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: The plan defines a queued stateful Run double, adapter and dispatch-path integration coverage, an always-on real subprocess check, and opt-in live CLI conformance after upgrades.
+          round: 2
+      blocked: false
+content_hash: e8f4552bb277a017d838af31b936b512b045411ba67c9f000b0ae4f8fd438f11
 ---
 
 # Gate ledger — ariadne#201 (plan-quality)
@@ -36,7 +50,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-2** [Important] `external-cli-fake-contract` Define the external-agent fake and live conformance coverage
   “Fake-process regression coverage” does not identify the production seam, persisted/configurable fake state, adapter dependency surface, or live conformance cadence. Specify a fake executable behind Run/Dispatch that independently models stdout, stderr, launch failure, and non-zero exit behavior, drive Claude/Codex/Gemini plus synchronous/heartbeat paths through it, and name how real-CLI stream behavior is periodically checked. ARCH-MOCK.
 
+## Round 2 — 2026-08-25T12:32:55-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — The canonical plan now names every changed function and value, identifies the thin IO boundary, and gives one adversarial-input/mechanical-guard strategy per risky function.
+- PQ-2 — addressed — The plan defines a queued stateful Run double, adapter and dispatch-path integration coverage, an always-on real subprocess check, and opt-in live CLI conformance after upgrades.
+
 ## Open findings
 
-- **PQ-1** [Important] `executable-entity-contract` Name the changed functions, seam contract, purity boundary, and risky-function test strategies
-- **PQ-2** [Important] `external-cli-fake-contract` Define the external-agent fake and live conformance coverage
+(none — every finding has been disposed)
