@@ -84,3 +84,84 @@ findings:
     detail: |
       The test requests STREAM_OK but accepts any non-empty stdout. Assert trimmed stdout equals STREAM_OK and stderr does not contain it so Claude, Codex, or Gemini stream drift cannot pass unnoticed.
 ```
+
+---
+
+## Re-review — 2026-08-25T13:11:37-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 201 — Boundary-review artifacts persist the harness transcript, not just the review |
+| repo | ariadne |
+| issue file | workshop/issues/000201-boundary-review-artifacts-capture-the-harness-trust-dialog-preamble.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4a2ebbd6708dc5cc0c5843521303da0717e4bfba..9b0ab3ff70f4b57ab6b0fcfcbcec627ab6ba286d |
+| command | sdlc close --issue 201 |
+| reviewer | codex |
+| timestamp | 2026-08-25T13:11:37-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The stream separation fulfills the issue’s purpose: semantic stdout alone reaches parsing, display, and durable sidecars, while diagnostics remain on stderr. Both prior findings are addressed and no new blocking findings were found.
+
+1. Strengths
+
+- `ProcessOutput` preserves stdout/stderr independently through the replaceable subprocess seam ([dispatch.go:76](/Users/xianxu/workspace/ariadne/cmd/sdlc/internal/judge/dispatch.go:76)).
+- Both synchronous and heartbeat paths converge on `classifyRunResult`, preserving exit behavior without duplicated routing logic ([dispatch.go:175](/Users/xianxu/workspace/ariadne/cmd/sdlc/internal/judge/dispatch.go:175)).
+- The boundary regression verifies verdict/finding parsing, terminal routing, `reviewResult.Output`, and sidecar persistence together ([closereview_test.go:299](/Users/xianxu/workspace/ariadne/cmd/sdlc/closereview_test.go:299)).
+- The plan now correctly classifies `classifyRunResult` as INTEGRATION and records the correction in `## Revisions`.
+- Atlas and help text accurately describe the review-sidecar/gate-ledger split. No public command, flag, or configuration surface requires a README update.
+
+2. Critical findings
+
+None.
+
+3. Important findings
+
+None.
+
+4. Minor findings
+
+None.
+
+5. Test coverage notes
+
+Fresh targeted verification passed:
+
+- `go test ./cmd/sdlc/internal/judge -run 'TestDispatch|TestRun_RealSubprocess|TestLiveAgentStreamConformance' -count=1`
+- `go test ./cmd/sdlc -run 'TestDispatchBoundaryReview.*Semantic|TestClose.*Sidecar' -count=1`
+- `git diff --check 4a2ebbd..9b0ab3f`
+
+The opt-in live-agent test skipped normally as designed. Its exact `STREAM_OK` assertion would fail under the former non-empty-output condition.
+
+A full-suite attempt was not usable as evidence because the review sandbox forbids `.git/sdlc.lock`; an isolated clone then lacked ignored base-layer fixtures used by unrelated repository tests.
+
+6. Architectural notes for upcoming work
+
+- **ARCH-DRY: pass.** One completion helper owns diagnostic routing and exit classification.
+- **ARCH-PURE: pass.** `ProcessOutput` is a pure value; subprocess capture and diagnostic writing are explicitly integration boundaries.
+- **ARCH-PURPOSE: pass.** All review consumers—verdict parsing, findings parsing, terminal output, and sidecar persistence—derive from semantic stdout.
+- **ARCH-MOCK: pass.** Production and fake flows share the `Run` seam, with a real subprocess test and opt-in live CLI conformance check.
+
+7. Plan revision recommendations
+
+None.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The Core concepts table and ARCH-PURE narrative now classify classifyRunResult as an INTEGRATION boundary, with a dated revision recording the correction.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The live conformance test now requires trimmed stdout to equal STREAM_OK exactly; the plan documents why stderr may legitimately echo the prompt sentinel.
+```

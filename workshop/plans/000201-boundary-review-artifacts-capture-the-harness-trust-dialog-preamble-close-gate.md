@@ -20,6 +20,19 @@ rounds:
           family: external-contract-conformance
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-08-25T13:11:37-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The Core concepts table and ARCH-PURE narrative now classify classifyRunResult as an INTEGRATION boundary, with a dated revision recording the correction.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: The live conformance test now requires trimmed stdout to equal STREAM_OK exactly; the plan documents why stderr may legitimately echo the prompt sentinel.
+          round: 2
+      blocked: false
 ---
 
 # Gate ledger — ariadne#201 (boundary-review)
@@ -36,7 +49,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `external-contract-conformance` The live agent stream check does not verify the semantic channel
   The test requests STREAM_OK but accepts any non-empty stdout. Assert trimmed stdout equals STREAM_OK and stderr does not contain it so Claude, Codex, or Gemini stream drift cannot pass unnoticed.
 
+## Round 2 — 2026-08-25T13:11:37-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The Core concepts table and ARCH-PURE narrative now classify classifyRunResult as an INTEGRATION boundary, with a dated revision recording the correction.
+- BR-2 — addressed — The live conformance test now requires trimmed stdout to equal STREAM_OK exactly; the plan documents why stderr may legitimately echo the prompt sentinel.
+
 ## Open findings
 
-- **BR-1** [Critical] `core-concept-classification` classifyRunResult is declared PURE despite performing IO
-- **BR-2** [Important] `external-contract-conformance` The live agent stream check does not verify the semantic channel
+(none — every finding has been disposed)
