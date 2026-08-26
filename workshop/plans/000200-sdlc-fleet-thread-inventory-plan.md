@@ -350,8 +350,8 @@ seeds, not independent hand-enumerated procedures.
 
 ### Task 5.3: End-to-end verification from all vantages
 
-- [ ] Build the local binary: `go build -o bin/sdlc ./cmd/sdlc`.
-- [ ] Run the `FleetEndToEnd` metamorphic/fault-isolation strategy from the function-level table against the built binary and test-only fleet.
+- [x] Build the local binary: `go build -o bin/sdlc ./cmd/sdlc`.
+- [x] Run the `FleetEndToEnd` metamorphic/fault-isolation strategy from the function-level table against the built binary and test-only fleet.
 - [ ] Run the full gates:
 
   ```sh
