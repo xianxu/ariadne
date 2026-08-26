@@ -352,7 +352,7 @@ seeds, not independent hand-enumerated procedures.
 
 - [x] Build the local binary: `go build -o bin/sdlc ./cmd/sdlc`.
 - [x] Run the `FleetEndToEnd` metamorphic/fault-isolation strategy from the function-level table against the built binary and test-only fleet.
-- [ ] Run the full gates:
+- [x] Run the full gates:
 
   ```sh
   bash construct/vocabulary/vet_test.sh
@@ -364,7 +364,7 @@ seeds, not independent hand-enumerated procedures.
   git diff --check
   ```
 
-- [ ] Record the provider verification in #200's Log, but do not close while couch's temporary `PolicyTable` remains authoritative.
+- [x] Record the provider verification in #200's Log, but do not close while couch's temporary `PolicyTable` remains authoritative.
 
 ---
 

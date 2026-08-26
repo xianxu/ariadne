@@ -485,3 +485,19 @@ the required normalized-policy consumer. Documentation evidence:
 `go test ./pkg/vocab -count=1`; focused fleet command/help tests;
 `sdlc issue validate --issue 200`; atlas-link target checks; and
 `git diff --check`.
+
+### 2026-08-26 — provider verification complete
+
+The built-process `TestFleetEndToEnd` now proves byte-stable inventory across
+primary, nested, linked, linked-nested, peer, and supported symlink vantages;
+repo-key prospective-path equivalence; localized declaration/repository
+failures; and exact typed-refusal stdout, exit code, and stderr behavior. Every
+build, Git, and CLI subprocess is deadline-bounded.
+
+Final provider gates passed: `bash construct/vocabulary/vet_test.sh`;
+`make vocab-embed`; `go test ./pkg/vocab -count=1`;
+`go test ./cmd/sdlc/internal/project ./cmd/sdlc/internal/gitx
+./cmd/sdlc/internal/fleet -count=1`; `go test ./cmd/sdlc/... -count=1`;
+`go test ./... -count=1`; and `git diff --check`. Ariadne #200 intentionally
+remains open until `pair#149` consumes this normalized query and removes
+couch's temporary repo-name `PolicyTable` authority.
