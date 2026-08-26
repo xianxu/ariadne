@@ -25,6 +25,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources) |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
 | `state`           | (new)                       | Workflow state inspection + drift detection |
+| `fleet inventory` / `fleet policy` | (new #200) | Read-only fleet worktree evidence and prospective-path admission-policy resolution; typed JSON is the contract and human output renders the same values |
 | `resolve`         | (new #144)                  | **Read-only** symbolic-ref → current path(s): the issue + its plan/review family, archive-correct + cross-repo. Locations from the `discovery:` model; grammar single-sourced as the parser. No lock (see below) |
 | `open`            | (new #144)                  | Sugar over `resolve`: open the primary artifact in `$EDITOR` |
 | `propagate-base`  | (new #106; precheck #109)   | Re-weave every recursive DEPENDENT of this repo (downstream counterpart to `substrateChain`): discover dependents (Makefile.workflow + substrate chain), order foundation-first, then per repo a clean-tree precheck → `make weave` + verify-complete + commit (untracking now-generated files). A dependent with a DIRTY working tree (pre-existing uncommitted work — e.g. a concurrent session) is SKIPPED untouched (never `git add -A`'d) and the run exits non-zero. `--dry-run`/`--ref`. |
@@ -54,6 +55,44 @@ CRUD/authoring surface for the issue *record* — the noun-grouped home for
 `new` (and, post-#56-M2, `set-status`/`list`/`show`). The canonical issue-file
 template lives in one place: the `Render` function in `internal/issue/scaffold.go`,
 documented in prose by `sdlc issue --help`.
+
+## Fleet inventory and policy (`sdlc fleet`, #200)
+
+The read-only `sdlc fleet inventory` command owns assembly of canonical
+repository/worktree rows across the shared filtered fleet walk. Each row places
+measured Git evidence (HEAD SHA, commit timestamp, base divergence, and dirty
+count) beside branch-associated issue metadata whose declared status is
+explicitly attributed with `branch-prefix` provenance. It reports observations
+only: neither the typed contract nor the human renderer derives `cold`, `drift`,
+`liveness`, `staleness`, or a similar judgment.
+
+Concurrency declarations live at `.sdlc/fleet.json`, but that spelling is owned
+by `construct/vocabulary/fleet-policy.cue` and reaches Go through
+`pkg/vocab.FleetPolicy().DeclarationPath`; inventory and the CLI share
+`fleet.PolicyDeclarationPath` rather than restating it. `fleet.LoadPolicyFile`
+is the strict declaration boundary, and `fleet.ResolvePolicy` is the pure core
+over a validated capability plus canonical paths. Inventory therefore exposes
+only the repository's policy **capability** (or its declaration diagnostic); it
+does not invent a target-specific admission key. `sdlc fleet policy --path P`
+returns the distinct resolved **policy result** for prospective `P`.
+
+Before policy resolution, `fleet.CanonicalProspectivePath` resolves existing
+components in filesystem order (including symlinks before later `..`), retains a
+safe nonexistent suffix, and returns the canonical request plus its deepest
+existing directory. The command passes that directory to `NormalizeVantage`,
+which selects the containing worktree and its shared repository/fleet identities.
+Dangling links, ambiguous parent traversal after a missing component, and
+non-directory traversal fail closed. Missing/invalid declarations and
+outside-scope requests remain structured diagnostics: inventory keeps other rows
+visible, while the policy command writes the typed diagnostic to stdout and then
+returns a nonzero refusal without usage text.
+
+Implementation pointers: `cmd/sdlc/fleet.go` is the thin command adapter;
+`cmd/sdlc/internal/fleet/{inventory,load,policy,gitpaths,types,render}.go` owns the
+typed core and boundaries. Contract coverage lives beside it in
+`{inventory,load,gitpaths,json,render}_test.go`, with stateful fake/portable Git
+agreement in `git_conformance_test.go`; command routing and refusal semantics are
+pinned in `cmd/sdlc/fleet_test.go`.
 
 ## Repo transaction lock (#132)
 

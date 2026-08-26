@@ -62,11 +62,19 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   names — a positional append-only TSV commits to literals — so
   `TestLedgerCoversEveryClosingDisposition` pins schema against model instead.
   See [[gate-state]] for how the ledger uses it.
-- `construct/vocabulary/vet_test.sh` — the model gate, covering every noun
-  (issue, verdict, project, finding): the valid models vet, their invalid fixtures fail
-  for the intended constraint, and each
-  **export carries its concrete consumer blocks** (CUE `#`-definitions don't
-  `cue export`). Test fixtures live under
+- `construct/vocabulary/fleet-policy.cue` — the closed, atomic concurrency
+  declaration noun (#200; no lifecycle). It owns `.sdlc/fleet.json`, supported
+  versions, admission-key/capacity/action vocabularies, and declared-root laws.
+  `pkg/vocab.FleetPolicy()` embeds that metadata; the strict loader and pure
+  prospective-path resolver live in `cmd/sdlc/internal/fleet/`. Inventory carries
+  the validated declaration capability, while `sdlc fleet policy` returns a
+  path-resolved result; see [sdlc Binary](sdlc-binary.md#fleet-inventory-and-policy-sdlc-fleet-200)
+  for the runtime boundary and code/test pointers.
+- `construct/vocabulary/vet_test.sh` — the explicit regression gate for the
+  five models it names: issue, verdict, project, finding, and fleet-policy.
+  All five valid models vet, existing negative fixtures fail for their intended
+  constraints, and each export carries its concrete consumer blocks (CUE
+  `#`-definitions don't `cue export`). Test fixtures live under
   `construct/vocabulary/testdata/` so the export doesn't treat them as nouns.
 
 **The compiler + pipeline (M2).**

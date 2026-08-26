@@ -320,31 +320,33 @@ stale, so this is provisional until #127 refreshes it.
 
 ## Plan
 
-- [ ] Fleet walk enumerating working trees + measured facts, JSON shape.
-- [ ] Self-declared vs measured fields distinguished in the schema; measured
+- [x] Fleet walk enumerating working trees + measured facts, JSON shape.
+- [x] Self-declared vs measured fields distinguished in the schema; measured
       facts are juxtaposed with provenance-bearing declared status, with no
       derived drift/cold verdict.
-- [ ] Per-repo concurrency policy as recorded fleet metadata: one repo-local
+- [x] Per-repo concurrency policy as recorded fleet metadata: one repo-local
       machine declaration, schema validation, declaration capability on
       inventory rows, and a pure requested-path → {repo identity, admission
       key, tagged capacity, optional bounded on-capacity action} resolver.
-- [ ] Policy matrix coverage for installation checkouts, brain-style shared
+- [x] Policy matrix coverage for installation checkouts, brain-style shared
       capture, kbench competition subtrees, and worktree-provisioned repos.
-- [ ] Tagged capacity coverage: positive bounded limits with an on-capacity
+- [x] Tagged capacity coverage: positive bounded limits with an on-capacity
       action, and explicit unbounded capacity with no unreachable action.
-- [ ] JSON-first prospective-path policy query and inventory integration over
-      the same resolver; structured diagnostics for missing, invalid, and
-      outside-declared-scope policy.
-- [ ] Coordinated repo-local declarations for the named live policy examples;
+- [x] JSON-first prospective-path policy query and inventory share one strict
+      declaration loader/validator: inventory emits capability only, while only
+      `fleet policy --path` invokes the pure resolver. Inventory capability
+      diagnostics are exactly `missing-policy` or `invalid-policy`; prospective
+      results may also report `outside-declared-scope` or `path-outside-repo`.
+- [x] Coordinated repo-local declarations for the named live policy examples;
       couch and `AGENTS.local.md` remain consumers rather than parallel policy
       sources.
 - [ ] `pair#149` couch integration consumes the normalized prospective-path
       query and removes the temporary repo-name `PolicyTable` authority.
-- [ ] Fleet-root normalization from primary, peer, nested, and linked-worktree
+- [x] Fleet-root normalization from primary, peer, nested, and linked-worktree
       vantage before reusing the existing fleet walk.
-- [ ] Provenance-bearing branch-prefix issue association as an array; measured
+- [x] Provenance-bearing branch-prefix issue association as an array; measured
       git facts only, with no derived `cold` label.
-- [ ] Human rendering derived from the JSON.
+- [x] Human rendering derived from the JSON.
 
 ## Log
 
@@ -469,3 +471,17 @@ unbounded repo capacity for Brain, stable same-competition and distinct
 cross-competition keys for kbench with outside-scope refusal, and worktree
 capacity with `provision-worktree` for xianxu.dev. Existing dirty peer files
 and kbench's pre-staged registry change remained untouched.
+
+### 2026-08-25 — atlas and checklist reconciliation
+
+Mapped the fleet command boundary and the atomic `fleet-policy` vocabulary into
+the existing sdlc/vocabulary atlas pages, which were already linked from the
+atlas index. Rechecked the 2026-08-24 revisions against the delivered provider:
+inventory keeps measured Git facts beside provenance-bearing declared issue
+status without deriving cold/drift/liveness/staleness, and policy capability
+remains separate from prospective-path resolution. All completed provider,
+renderer, and declaration items are checked above; `pair#149` remains open as
+the required normalized-policy consumer. Documentation evidence:
+`go test ./pkg/vocab -count=1`; focused fleet command/help tests;
+`sdlc issue validate --issue 200`; atlas-link target checks; and
+`git diff --check`.

@@ -297,7 +297,7 @@ seeds, not independent hand-enumerated procedures.
 - [x] Run `go test ./cmd/sdlc -run 'TestFleet(Command|Inventory|Policy|Help)' -count=1`; verify FAIL.
 - [x] Register `NewFleetCmd()` after `state`; wire typed collectors, `json.Encoder`, and human renderers. Default `--path` to `.` only if help and tests make that behavior explicit.
 - [x] Re-run tests; expect PASS.
-- [ ] Stage the command and help files, then commit: `git commit -m "#200: expose fleet inventory and policy queries" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Stage the command and help files, then commit: `git commit -m "#200: expose fleet inventory and policy queries" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 4.3: Derive concise human output from typed results
 
@@ -309,7 +309,7 @@ seeds, not independent hand-enumerated procedures.
 - [x] Run `go test ./cmd/sdlc/internal/fleet -run TestRender -count=1`; verify FAIL.
 - [x] Implement a stable table/detail renderer from `Inventory`; do not recollect or reinterpret data in the view.
 - [x] Re-run renderer and CLI tests; expect PASS.
-- [ ] Stage the renderer files, then commit: `git commit -m "#200: render fleet facts for humans" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Stage the renderer files, then commit: `git commit -m "#200: render fleet facts for humans" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Chunk 4 verification and review boundary
 
@@ -343,10 +343,10 @@ seeds, not independent hand-enumerated procedures.
 - Modify: `atlas/index.md` only if a new atlas page is needed
 - Modify: `workshop/issues/000200-sdlc-fleet-thread-inventory.md`
 
-- [ ] Document command ownership, declaration location, resolver boundary, diagnostics, and measured-vs-declared output. Map details to code/tests rather than duplicating the JSON schema.
-- [ ] Verify the issue's 2026-08-24 revision and reconciled checklist still match the shipped contract: measured facts are juxtaposed with provenance-bearing declared status; no drift/cold verdict is emitted.
-- [ ] Tick every completed issue Plan item and log the peer declaration commits plus verification evidence.
-- [ ] Stage the atlas and issue updates, then commit: `git commit -m "#200: document fleet inventory and policy" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Document command ownership, declaration location, resolver boundary, diagnostics, and measured-vs-declared output. Map details to code/tests rather than duplicating the JSON schema.
+- [x] Verify the issue's 2026-08-24 revision and reconciled checklist still match the shipped contract: measured facts are juxtaposed with provenance-bearing declared status; no drift/cold verdict is emitted.
+- [x] Tick every completed issue Plan item and log the peer declaration commits plus verification evidence.
+- [x] Stage the atlas and issue updates, then commit: `git commit -m "#200: document fleet inventory and policy" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 5.3: End-to-end verification from all vantages
 
