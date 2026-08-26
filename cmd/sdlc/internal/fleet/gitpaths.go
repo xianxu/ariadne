@@ -8,13 +8,6 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
-// GitReader is the narrow Git boundary shared by fleet collection. Its caller
-// owns the directory so every response can be interpreted against the same
-// worktree vantage.
-type GitReader interface {
-	GitInDir(dir string, args ...string) ([]byte, error)
-}
-
 // Vantage is the canonical identity of the Git checkout containing a caller.
 // RepoIdentity is Git's shared common directory; PrimaryRoot is the main
 // checkout; WorktreeRoot is the checkout containing the caller; and FleetRoot

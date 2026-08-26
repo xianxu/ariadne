@@ -201,11 +201,11 @@ seeds, not independent hand-enumerated procedures.
 - Create: `cmd/sdlc/internal/fleet/fakegit_test.go`
 - Create: `cmd/sdlc/internal/fleet/git_conformance_test.go`
 
-- [ ] Define the narrow directory-scoped `GitReader` used by vantage, facts, and inventory. Adapt `execGitRunner.GitInDir` at the Cobra shell; no collector calls `exec.Command` or `gitx.Capture` directly.
-- [ ] Build `FakeGit` with persisted repo state: canonical common directory, primary checkout, worktree records, refs/HEADs, commit parent graph and timestamps, plus dirty path entries. Implement the exact command forms consumed by production: `worktree list --porcelain`, `rev-parse`, `show`, `status --porcelain=v1 -z`, and `rev-list --left-right --count`.
-- [ ] Implement the `GitReader` / `FakeGit` mutable contract strategy; `git_conformance_test.go` runs it against installed Git on every fleet package test run.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run 'TestFakeGit|TestGitConformance' -count=1`; expect PASS.
-- [ ] Stage the Git seam/fake/conformance files, then commit: `git commit -m "#200: model consumed git behavior with a stateful fake" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Define the narrow directory-scoped `GitReader` used by vantage, facts, and inventory. Adapt `execGitRunner.GitInDir` at the Cobra shell; no collector calls `exec.Command` or `gitx.Capture` directly.
+- [x] Build `FakeGit` with persisted repo state: canonical common directory, primary checkout, worktree records, refs/HEADs, commit parent graph and timestamps, plus dirty path entries. Implement the exact command forms consumed by production: `worktree list --porcelain`, `rev-parse`, `show`, `status --porcelain=v1 -z`, and `rev-list --left-right --count`.
+- [x] Implement the `GitReader` / `FakeGit` mutable contract strategy; `git_conformance_test.go` runs it against installed Git on every fleet package test run.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run 'TestFakeGit|TestGitConformance' -count=1`; expect PASS.
+- [x] Stage the Git seam/fake/conformance files, then commit: `git commit -m "#200: model consumed git behavior with a stateful fake" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Chunk 2 verification and review boundary
 
