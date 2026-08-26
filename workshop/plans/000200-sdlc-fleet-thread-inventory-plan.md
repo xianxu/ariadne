@@ -330,10 +330,10 @@ seeds, not independent hand-enumerated procedures.
 - Create: `kbench/.sdlc/fleet.json` — `declared-root`, roots `competition/*`, bounded 1, reject
 - Create: `xianxu.dev/.sdlc/fleet.json` — `worktree`, bounded 1, provision-worktree
 
-- [ ] Before touching each peer, verify its clean/dirty state and read `AGENTS.local.md` plus `MEMORY.md` when present. Preserve unrelated user changes.
-- [ ] Add each declaration with no repo-name branch in Go. Validate every instance through the built `sdlc fleet policy --path ... --json` path.
-- [ ] Run the declaration-rollout conformance strategy from the function-level table against every named repository.
-- [ ] Commit declarations separately in each owning repo using its issue/workflow conventions. Do not bundle unrelated local changes.
+- [x] Before touching each peer, verify its clean/dirty state and read `AGENTS.local.md` plus `MEMORY.md` when present. Preserve unrelated user changes.
+- [x] Add each declaration with no repo-name branch in Go. Validate every instance through the built `sdlc fleet policy --path ... --json` path.
+- [x] Run the declaration-rollout conformance strategy from the function-level table against every named repository.
+- [x] Commit declarations separately in each owning repo using its issue/workflow conventions. Do not bundle unrelated local changes.
 
 ### Task 5.2: Update Ariadne's map and issue checklist
 

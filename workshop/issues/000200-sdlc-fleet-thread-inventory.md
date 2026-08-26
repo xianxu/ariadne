@@ -458,3 +458,14 @@ failed decoding leaving receivers unchanged. Review verdict: Approved.
 Evidence: focused JSON/Fleet/Render tests, full
 `go test ./cmd/sdlc/... -count=1`, `go vet ./cmd/sdlc/...`, live inventory and
 missing-policy refusal smoke, and `git diff --check`.
+
+### 2026-08-25 — declaration rollout
+
+Landed and queried the six named repository declarations without adding a
+repo-name policy branch: Ariadne (this branch), Pair `a8e9c34`, Parley
+`c3d637a`, Brain `f83e624`, kbench `59eaf26`, and xianxu.dev `c614942`.
+Validation proved repo-singleton keys for the installation checkouts,
+unbounded repo capacity for Brain, stable same-competition and distinct
+cross-competition keys for kbench with outside-scope refusal, and worktree
+capacity with `provision-worktree` for xianxu.dev. Existing dirty peer files
+and kbench's pre-staged registry change remained untouched.
