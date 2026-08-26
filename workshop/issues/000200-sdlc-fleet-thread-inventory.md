@@ -406,3 +406,20 @@ was Approved after independent CUE/Go verification. Evidence:
 `bash construct/vocabulary/vet_test.sh`; `make vocab-embed`;
 `go test ./pkg/vocab ./cmd/sdlc/internal/fleet -count=1`; a 289,463-execution
 `FuzzDecodePolicy` run; and `git diff --check`.
+
+### 2026-08-25 — Chunk 2
+
+Centralized the filtered sibling fleet walk and all worktree porcelain parsing.
+Every production consumer now requests Git's NUL-delimited porcelain and maps
+the richer entity back to existing wire shapes where required. Normalization
+converges primary, nested, linked, and symlink vantages on one canonical common
+directory and fleet root while tolerating unrelated locked/prunable paths.
+
+Added a directory-scoped `GitReader` and a stateful fake/live conformance trace
+covering worktrees, bare and unborn repositories, asymmetric divergence and
+merge ancestry, refs, timestamps, and byte-exact status output. Boundary review
+removed the last shell `issue-sync` porcelain parser; the Make fallback now
+builds the Go implementation from Ariadne and invokes it in the consumer cwd.
+It also tightened missing-worktree and porcelain XY invariants. Review verdict:
+Approved. Evidence: targeted Chunk 2 suite, full `go test ./cmd/sdlc/... -count=1`,
+live Git conformance under hostile config, package vet, and `git diff --check`.

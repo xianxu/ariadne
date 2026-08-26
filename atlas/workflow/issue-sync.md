@@ -44,5 +44,6 @@ Issue state changes (status, assignment) need to be visible on main immediately,
 ## Implementation
 
 - Binary: `cmd/sdlc/claim.go` (`syncIssuesToMain` — shared by `claim` + `issue new`)
-- Compatibility wrapper: `make issue-sync` in `Makefile.workflow`
-- Legacy fallback script: `scripts/issue-sync.sh`
+- Compatibility wrapper: `make issue-sync` in `Makefile.workflow`; when
+  `bin/sdlc` is absent it builds Ariadne's `cmd/sdlc` source to a temporary
+  binary, then runs that binary from the consumer repository cwd.

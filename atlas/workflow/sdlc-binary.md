@@ -335,7 +335,7 @@ cmd/sdlc/
                        remains the loud escape hatch
   start.go             migration stub (REMOVED in #39 — errors with
                        "use claim + change-code")
-  claim.go             ← scripts/issue-sync.sh (renamed from lock.go #39)
+  claim.go             branch-aware issue synchronization + claim (#39)
   changecode.go        new (#39): planning → implementation gate
   branchcreate.go      new (#39): branch-creation helpers shared by
                        changecode.go (worktree + in-place paths) + the

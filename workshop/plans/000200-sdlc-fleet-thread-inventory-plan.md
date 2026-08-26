@@ -209,8 +209,8 @@ seeds, not independent hand-enumerated procedures.
 
 ### Chunk 2 verification and review boundary
 
-- [ ] Run `go test ./cmd/sdlc/internal/project ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/fleet ./cmd/sdlc -run 'Test(FleetRepoDirs|ParseWorktrees|FindMainWorktree|WorktreeForBranch|NormalizeVantage)' -count=1 && git diff --check`.
-- [ ] Request fresh-context review focused on DRY extraction, state JSON compatibility, porcelain edge cases, linked-worktree identity, and fake/real-Git conformance. Fix Critical/Important findings.
+- [x] Run `go test ./cmd/sdlc/internal/project ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/fleet ./cmd/sdlc -run 'Test(FleetRepoDirs|ParseWorktrees|FindMainWorktree|WorktreeForBranch|NormalizeVantage)' -count=1 && git diff --check`.
+- [x] Request fresh-context review focused on DRY extraction, state JSON compatibility, porcelain edge cases, linked-worktree identity, and fake/real-Git conformance. Fix Critical/Important findings.
 
 ---
 

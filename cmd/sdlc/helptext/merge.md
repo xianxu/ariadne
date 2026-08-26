@@ -43,7 +43,7 @@ WHAT IT DOES
      archives them (§ below).
   3. Resolves topology from `git rev-parse --git-dir`: in-place (primary
      checkout) vs worktree (git-dir under `.git/worktrees/`). For worktree,
-     locates the main worktree via `git worktree list --porcelain`.
+     locates the main worktree via `git worktree list --porcelain -z`.
   4. Shows unmerged commits (`git log main..HEAD --oneline`) for
      situational awareness.
   5. Scans touched issue files vs `main` for not-done statuses;

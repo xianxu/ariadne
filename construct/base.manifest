@@ -112,7 +112,6 @@ internal  skill construct/skill
 symlink   Makefile
 symlink   Makefile.workflow
 symlink   scripts/lib.sh
-symlink   scripts/issue-sync.sh
 symlink   scripts/parallel-checks.sh
 symlink   scripts/pre-merge-checks.sh
 symlink   scripts/close-issue.py

@@ -84,6 +84,30 @@ func TestGitConformance(t *testing.T) {
 	}
 }
 
+func TestGitConformanceStatusBytes(t *testing.T) {
+	fake := newFakeGitContract(t)
+	real := newRealGitContract(t)
+	for _, driver := range []*gitContractDriver{&fake, &real} {
+		driver.diverge(t)
+		driver.merge(t)
+		driver.dirty(t)
+	}
+	fakeStatus, err := fake.reader.GitInDir(fake.linked, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	realStatus, err := real.reader.GitInDir(real.linked, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(fakeStatus, realStatus) {
+		t.Fatalf("fake/live status bytes differ\nfake: %q\nreal: %q", fakeStatus, realStatus)
+	}
+	if !bytes.Contains(realStatus, []byte(" T typechange.txt\x00")) {
+		t.Fatalf("live Git did not report the unstaged type change: %q", realStatus)
+	}
+}
+
 func TestGitConformanceIgnoresAmbientRenameConfig(t *testing.T) {
 	t.Setenv("GIT_CONFIG_COUNT", "1")
 	t.Setenv("GIT_CONFIG_KEY_0", "status.renames")
@@ -331,6 +355,7 @@ func assertGitContract(t *testing.T, got []gitContractObservation) {
 				"M  copy source.txt",
 				"R  renamed \nfile.txt", "rename\n source.txt",
 				" M tracked.txt",
+				" T typechange.txt",
 				"??  untracked\nname.txt",
 			},
 			behind: 0, ahead: 2,
@@ -403,6 +428,7 @@ func newFakeGitContract(t *testing.T) gitContractDriver {
 		mustFakeMutation(t, fake.AddWorktree(commonDir, gitx.Worktree{Path: prunable, HEAD: main2SHA, Branch: "stale", Prunable: &prunableReason}))
 		mustFakeMutation(t, fake.SetDirty(linked, []FakeGitStatusEntry{
 			{Code: " M", Path: "tracked.txt"},
+			{Code: " T", Path: "typechange.txt"},
 			{Code: "R ", Path: "renamed \nfile.txt", SourcePath: "rename\n source.txt"},
 			{Code: "C ", Path: "copied\n file.txt", SourcePath: "copy source.txt"},
 			{Code: "M ", Path: "copy source.txt"},
@@ -429,9 +455,10 @@ func newRealGitContract(t *testing.T) gitContractDriver {
 	runContractGit(t, primary, nil, "config", "core.hooksPath", os.DevNull)
 	runContractGit(t, primary, nil, "config", "status.renames", "copies")
 	writeContractFile(t, primary, "tracked.txt", "initial\n")
+	writeContractFile(t, primary, "typechange.txt", "regular\n")
 	writeContractFile(t, primary, "rename\n source.txt", "rename\n")
 	writeContractFile(t, primary, "copy source.txt", "copy\n")
-	runContractGit(t, primary, nil, "add", "tracked.txt", "rename\n source.txt", "copy source.txt")
+	runContractGit(t, primary, nil, "add", "tracked.txt", "typechange.txt", "rename\n source.txt", "copy source.txt")
 	runContractGit(t, primary, contractDateEnv(contractInitialTime), "commit", "-m", "initial")
 	initialSHA := strings.TrimSpace(string(runContractGit(t, primary, nil, "rev-parse", "HEAD")))
 
@@ -465,6 +492,12 @@ func newRealGitContract(t *testing.T) gitContractDriver {
 	}
 	driver.dirty = func(t *testing.T) {
 		writeContractFile(t, linked, "tracked.txt", "dirty\n")
+		if err := os.Remove(filepath.Join(linked, "typechange.txt")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("tracked.txt", filepath.Join(linked, "typechange.txt")); err != nil {
+			t.Fatal(err)
+		}
 		writeContractFile(t, linked, " untracked\nname.txt", "untracked\n")
 		writeContractFile(t, linked, "copy source.txt", "changed\n")
 		writeContractFile(t, linked, "copied\n file.txt", "copy\n")

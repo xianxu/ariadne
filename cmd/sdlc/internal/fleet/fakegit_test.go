@@ -152,9 +152,9 @@ func fakeGitOwnedRepo(input *FakeGitRepo) (*FakeGitRepo, error) {
 }
 
 // AddWorktree mutates registered repo state while preserving the canonical
-// identity established by AddRepo. Missing paths are accepted because Git
-// continues to list locked and prunable worktrees after their checkout has
-// disappeared.
+// identity established by AddRepo. Git continues to list missing linked
+// worktrees only when their administrative state marks them locked or
+// prunable.
 func (f *FakeGit) AddWorktree(commonDir string, worktree gitx.Worktree) error {
 	repo, err := f.repoByCommonDir(commonDir)
 	if err != nil {
@@ -378,6 +378,12 @@ func validateFakeGitWorktree(repo *FakeGitRepo, index int, worktree gitx.Worktre
 	for name, value := range map[string]*string{"locked": worktree.Locked, "prunable": worktree.Prunable} {
 		if value != nil && strings.ContainsRune(*value, 0) {
 			return fmt.Errorf("%s has NUL in %s reason", prefix, name)
+		}
+	}
+	if _, err := os.Stat(worktree.Path); err != nil {
+		missingAdministrativeWorktree := index > 0 && os.IsNotExist(err) && (worktree.Locked != nil || worktree.Prunable != nil)
+		if !missingAdministrativeWorktree {
+			return fmt.Errorf("%s path is unavailable: %w", prefix, err)
 		}
 	}
 
@@ -647,7 +653,7 @@ func fakeStatusPorcelain(entries []FakeGitStatusEntry) ([]byte, error) {
 	})
 	var out bytes.Buffer
 	for _, entry := range entries {
-		if len(entry.Code) != 2 || strings.ContainsRune(entry.Code, 0) || entry.Path == "" || strings.ContainsRune(entry.Path, 0) {
+		if !fakeGitValidStatusCode(entry.Code) || entry.Path == "" || strings.ContainsRune(entry.Path, 0) {
 			return nil, fmt.Errorf("fake git: invalid dirty entry %#v", entry)
 		}
 		isRename := strings.ContainsAny(entry.Code, "RC")
@@ -664,6 +670,71 @@ func fakeStatusPorcelain(entries []FakeGitStatusEntry) ([]byte, error) {
 		}
 	}
 	return out.Bytes(), nil
+}
+
+func fakeGitValidStatusCode(code string) bool {
+	switch code {
+	case " A", " M", " T", " D",
+		"M ", "MM", "MT", "MD",
+		"T ", "TM", "TT", "TD",
+		"A ", "AM", "AT", "AD",
+		"D ",
+		"R ", "RM", "RT", "RD",
+		"C ", "CM", "CT", "CD",
+		" R", " C",
+		"DD", "AU", "UD", "UA", "DU", "AA", "UU",
+		"??":
+		return true
+	default:
+		return false
+	}
+}
+
+func TestFakeStatusPorcelainValidatesExactXYStates(t *testing.T) {
+	valid := []string{
+		" A", " M", " T", " D",
+		"M ", "MM", "MT", "MD",
+		"T ", "TM", "TT", "TD",
+		"A ", "AM", "AT", "AD",
+		"D ",
+		"R ", "RM", "RT", "RD",
+		"C ", "CM", "CT", "CD",
+		" R", " C",
+		"DD", "AU", "UD", "UA", "DU", "AA", "UU",
+		"??",
+	}
+	for _, code := range valid {
+		t.Run("valid "+fmt.Sprintf("%q", code), func(t *testing.T) {
+			entry := FakeGitStatusEntry{Code: code, Path: "target"}
+			if strings.ContainsAny(code, "RC") {
+				entry.SourcePath = "source"
+			}
+			if _, err := fakeStatusPorcelain([]FakeGitStatusEntry{entry}); err != nil {
+				t.Fatalf("fakeStatusPorcelain rejected documented state %q: %v", code, err)
+			}
+		})
+	}
+
+	invalid := []FakeGitStatusEntry{
+		{Code: "ZZ", Path: "path"},
+		{Code: "R?", Path: "target", SourcePath: "source"},
+		{Code: "!!", Path: "path"},
+		{Code: "  ", Path: "path"},
+		{Code: "? ", Path: "path"},
+		{Code: " U", Path: "path"},
+		{Code: "R ", Path: "target"},
+		{Code: "??", Path: "path", SourcePath: "source"},
+		{Code: "\x00?", Path: "path"},
+		{Code: "??", Path: "bad\x00path"},
+		{Code: "R ", Path: "target", SourcePath: "bad\x00source"},
+	}
+	for _, entry := range invalid {
+		t.Run("invalid "+fmt.Sprintf("%q", entry.Code), func(t *testing.T) {
+			if _, err := fakeStatusPorcelain([]FakeGitStatusEntry{entry}); err == nil {
+				t.Fatalf("fakeStatusPorcelain accepted impossible state %#v", entry)
+			}
+		})
+	}
 }
 
 func fakeRevList(repo *FakeGitRepo, worktree gitx.Worktree, rangeArg string) ([]byte, error) {
@@ -915,6 +986,41 @@ func TestFakeGitMutationAPIKeepsCanonicalIdentityAndMissingWorktrees(t *testing.
 	}
 	if len(got) != 3 || got[2].Path != wantMissing || got[2].Prunable == nil || *got[2].Prunable != reason {
 		t.Fatalf("worktrees after missing mutation = %+v", got)
+	}
+}
+
+func TestFakeGitRegistrationRejectsMissingOrdinaryWorktrees(t *testing.T) {
+	root := t.TempDir()
+	primary := filepath.Join(root, "repo")
+	common := filepath.Join(primary, ".git")
+	if err := os.MkdirAll(common, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const head = "1111111111111111111111111111111111111111"
+	newRepo := func(primaryRoot string) *FakeGitRepo {
+		return &FakeGitRepo{
+			CommonDir: common, PrimaryRoot: primaryRoot,
+			Worktrees: []gitx.Worktree{{Path: primaryRoot, HEAD: head, Branch: "main"}},
+			Refs:      map[string]string{"refs/heads/main": head},
+			Commits:   map[string]FakeGitCommit{head: {CommittedAt: mustContractTime(t, contractInitialTime)}},
+		}
+	}
+
+	if err := NewFakeGit().AddRepo(newRepo(filepath.Join(root, "missing-primary"))); err == nil {
+		t.Fatal("AddRepo accepted a nonexistent primary worktree")
+	}
+
+	fake := NewFakeGit()
+	if err := fake.AddRepo(newRepo(primary)); err != nil {
+		t.Fatal(err)
+	}
+	missing := filepath.Join(root, "missing-linked")
+	if err := fake.AddWorktree(common, gitx.Worktree{Path: missing, HEAD: head, Detached: true}); err == nil {
+		t.Fatal("AddWorktree accepted a nonexistent ordinary linked worktree")
+	}
+	lockedReason := "administrative lock"
+	if err := fake.AddWorktree(common, gitx.Worktree{Path: missing, HEAD: head, Detached: true, Locked: &lockedReason}); err != nil {
+		t.Fatalf("AddWorktree rejected a missing locked worktree: %v", err)
 	}
 }
 
