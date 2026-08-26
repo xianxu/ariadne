@@ -103,6 +103,47 @@ type MeasuredFacts struct {
 	DirtyCount      *int   `json:"dirty_count,omitempty"`
 }
 
+func (f *MeasuredFacts) UnmarshalJSON(raw []byte) error {
+	var wire struct {
+		Available       *bool  `json:"available"`
+		Error           string `json:"error,omitempty"`
+		Head            string `json:"head,omitempty"`
+		CommitTimestamp string `json:"commit_timestamp,omitempty"`
+		BaseAvailable   *bool  `json:"base_available"`
+		BaseError       string `json:"base_error,omitempty"`
+		BaseRef         string `json:"base_ref,omitempty"`
+		Ahead           *int   `json:"ahead,omitempty"`
+		Behind          *int   `json:"behind,omitempty"`
+		DirtyCount      *int   `json:"dirty_count,omitempty"`
+	}
+	if err := strictUnmarshal(raw, &wire); err != nil {
+		return fmt.Errorf("unmarshal measured facts: %w", err)
+	}
+	if wire.Available == nil {
+		return errors.New("unmarshal measured facts: missing available discriminator")
+	}
+	if wire.BaseAvailable == nil {
+		return errors.New("unmarshal measured facts: missing base_available discriminator")
+	}
+	value := MeasuredFacts{
+		Available:       *wire.Available,
+		Error:           wire.Error,
+		Head:            wire.Head,
+		CommitTimestamp: wire.CommitTimestamp,
+		BaseAvailable:   *wire.BaseAvailable,
+		BaseError:       wire.BaseError,
+		BaseRef:         wire.BaseRef,
+		Ahead:           wire.Ahead,
+		Behind:          wire.Behind,
+		DirtyCount:      wire.DirtyCount,
+	}
+	if err := value.validate(); err != nil {
+		return fmt.Errorf("unmarshal measured facts: %w", err)
+	}
+	*f = value
+	return nil
+}
+
 func (f MeasuredFacts) validate() error {
 	if !f.Available {
 		if f.Error == "" ||
@@ -184,12 +225,41 @@ func (r TreeRow) MarshalJSON() ([]byte, error) {
 }
 
 func (r *TreeRow) UnmarshalJSON(raw []byte) error {
-	type wire TreeRow
-	var decoded wire
-	if err := strictUnmarshal(raw, &decoded); err != nil {
+	var wire struct {
+		RepoIdentity string             `json:"repo_identity"`
+		RepoRoot     string             `json:"repo_root"`
+		TreePath     string             `json:"tree_path"`
+		Branch       string             `json:"branch,omitempty"`
+		Detached     *bool              `json:"detached"`
+		Bare         *bool              `json:"bare"`
+		Locked       *string            `json:"locked,omitempty"`
+		Prunable     *string            `json:"prunable,omitempty"`
+		Facts        MeasuredFacts      `json:"facts"`
+		Issues       []IssueAssociation `json:"issues"`
+		Policy       PolicyCapability   `json:"policy"`
+	}
+	if err := strictUnmarshal(raw, &wire); err != nil {
 		return fmt.Errorf("unmarshal tree row: %w", err)
 	}
-	value := TreeRow(decoded)
+	if wire.Detached == nil {
+		return errors.New("unmarshal tree row: missing detached discriminator")
+	}
+	if wire.Bare == nil {
+		return errors.New("unmarshal tree row: missing bare discriminator")
+	}
+	value := TreeRow{
+		RepoIdentity: wire.RepoIdentity,
+		RepoRoot:     wire.RepoRoot,
+		TreePath:     wire.TreePath,
+		Branch:       wire.Branch,
+		Detached:     *wire.Detached,
+		Bare:         *wire.Bare,
+		Locked:       wire.Locked,
+		Prunable:     wire.Prunable,
+		Facts:        wire.Facts,
+		Issues:       wire.Issues,
+		Policy:       wire.Policy,
+	}
 	if err := value.validate(); err != nil {
 		return fmt.Errorf("unmarshal tree row: %w", err)
 	}

@@ -440,3 +440,21 @@ Chunk 3 range received a fresh Approved review with no findings. Evidence:
 focused association/facts/inventory tests, fake/live conformance, full
 `go test ./cmd/sdlc/... -count=1`, fuzzed status/divergence parsers, and
 `git diff --check`.
+
+### 2026-08-25 — Chunk 4
+
+Pinned a closed JSON algebra, deterministic injection-safe human renderers, and
+the read-only `sdlc fleet inventory` / `sdlc fleet policy` command group. The
+policy query resolves prospective nonexistent paths component by component so
+symlinks take effect before later `..` traversal, rejects dangling links and
+non-directory traversal, loads the vocabulary-owned declaration path, and
+prints typed diagnostics before a nonzero refusal.
+
+Task reviews closed malformed provider envelopes, renderer record injection,
+non-total ordering, and symlink-boundary errors. The fresh Chunk 4 review then
+found that false-valued required JSON fields could be omitted; all six boolean
+discriminators now use presence-sensitive decoding and deletion coverage, with
+failed decoding leaving receivers unchanged. Review verdict: Approved.
+Evidence: focused JSON/Fleet/Render tests, full
+`go test ./cmd/sdlc/... -count=1`, `go vet ./cmd/sdlc/...`, live inventory and
+missing-policy refusal smoke, and `git diff --check`.

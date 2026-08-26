@@ -313,8 +313,8 @@ seeds, not independent hand-enumerated procedures.
 
 ### Chunk 4 verification and review boundary
 
-- [ ] Run `go test ./cmd/sdlc/internal/fleet ./cmd/sdlc -run 'Test(JSONContract|Fleet|Render)' -count=1 && go test ./cmd/sdlc/... -count=1 && git diff --check`.
-- [ ] Request fresh-context review focused on JSON stability, refusal exit semantics, shared resolver use, and renderer non-interpretation. Fix Critical/Important findings.
+- [x] Run `go test ./cmd/sdlc/internal/fleet ./cmd/sdlc -run 'Test(JSONContract|Fleet|Render)' -count=1 && go test ./cmd/sdlc/... -count=1 && git diff --check`.
+- [x] Request fresh-context review focused on JSON stability, refusal exit semantics, shared resolver use, and renderer non-interpretation. Fix Critical/Important findings.
 
 ---
 

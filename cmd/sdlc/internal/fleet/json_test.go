@@ -71,6 +71,65 @@ func TestJSONContract_StrictlyRejectsNullUnknownAndLeakedFields(t *testing.T) {
 	}
 }
 
+func TestJSONContract_RejectsMissingRequiredBooleanDiscriminators(t *testing.T) {
+	diagnostic := &PolicyDiagnostic{Code: DiagnosticInvalidPolicy, Message: "bad"}
+	row := validTreeRow()
+	row.Facts = MeasuredFacts{Available: false, Error: "git failed", BaseAvailable: false}
+	facts := row.Facts
+	for _, tt := range []struct {
+		name      string
+		value     any
+		fieldPath []string
+		target    func() any
+	}{
+		{"policy capability ok", PolicyCapability{Diagnostic: diagnostic}, []string{"ok"}, func() any { return &PolicyCapability{OK: true} }},
+		{"policy result ok", PolicyResult{Diagnostic: diagnostic}, []string{"ok"}, func() any { return &PolicyResult{OK: true} }},
+		{"tree row detached", row, []string{"detached"}, func() any { return &TreeRow{RepoIdentity: "sentinel"} }},
+		{"tree row bare", row, []string{"bare"}, func() any { return &TreeRow{RepoIdentity: "sentinel"} }},
+		{"measured facts available", facts, []string{"available"}, func() any { return &MeasuredFacts{Error: "sentinel"} }},
+		{"measured facts base available", facts, []string{"base_available"}, func() any { return &MeasuredFacts{Error: "sentinel"} }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			raw, err := json.Marshal(tt.value)
+			if err != nil {
+				t.Fatalf("marshal valid fixture: %v", err)
+			}
+			withoutField := deleteJSONField(t, raw, tt.fieldPath...)
+			target := tt.target()
+			before := reflect.ValueOf(target).Elem().Interface()
+			if err := json.Unmarshal(withoutField, target); err == nil {
+				t.Fatalf("decode accepted missing %s in %s", strings.Join(tt.fieldPath, "."), withoutField)
+			}
+			after := reflect.ValueOf(target).Elem().Interface()
+			if !reflect.DeepEqual(after, before) {
+				t.Fatalf("failed decode mutated target: before=%#v after=%#v", before, after)
+			}
+		})
+	}
+}
+
+func deleteJSONField(t *testing.T, raw []byte, path ...string) []byte {
+	t.Helper()
+	var object map[string]any
+	if err := json.Unmarshal(raw, &object); err != nil {
+		t.Fatalf("decode fixture %s: %v", raw, err)
+	}
+	current := object
+	for _, component := range path[:len(path)-1] {
+		next, ok := current[component].(map[string]any)
+		if !ok {
+			t.Fatalf("fixture path %s is not an object", strings.Join(path, "."))
+		}
+		current = next
+	}
+	delete(current, path[len(path)-1])
+	mutated, err := json.Marshal(object)
+	if err != nil {
+		t.Fatalf("marshal fixture without %s: %v", strings.Join(path, "."), err)
+	}
+	return mutated
+}
+
 func TestJSONContract_MeasuredAvailabilityDistinguishesAbsentValues(t *testing.T) {
 	row := validTreeRow()
 	one := 1
