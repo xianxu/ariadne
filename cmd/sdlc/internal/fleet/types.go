@@ -93,6 +93,41 @@ type MeasuredFacts struct {
 	DirtyCount      *int   `json:"dirty_count,omitempty"`
 }
 
+// TreeRow is one canonical Git worktree identity plus only the state observed
+// or declared for it. Policy is a declaration capability, never a resolved
+// admission key; resolving a key requires a separate prospective path.
+type TreeRow struct {
+	RepoIdentity string             `json:"repo_identity"`
+	RepoRoot     string             `json:"repo_root"`
+	TreePath     string             `json:"tree_path"`
+	Branch       string             `json:"branch,omitempty"`
+	Detached     bool               `json:"detached"`
+	Bare         bool               `json:"bare"`
+	Locked       *string            `json:"locked,omitempty"`
+	Prunable     *string            `json:"prunable,omitempty"`
+	Facts        MeasuredFacts      `json:"facts"`
+	Issues       []IssueAssociation `json:"issues"`
+	Policy       PolicyCapability   `json:"policy"`
+}
+
+// RepoDiagnostic preserves one repository-scoped collection failure without
+// erasing rows collected from other repositories. Stage identifies the seam
+// that failed; TreePath is present when the failure belongs to one worktree.
+type RepoDiagnostic struct {
+	RepoIdentity string `json:"repo_identity,omitempty"`
+	RepoPath     string `json:"repo_path"`
+	TreePath     string `json:"tree_path,omitempty"`
+	Stage        string `json:"stage"`
+	Message      string `json:"message"`
+}
+
+// Inventory is a total fleet observation. Both collections are initialized so
+// its JSON representation uses [] rather than null even for an empty fleet.
+type Inventory struct {
+	Rows        []TreeRow        `json:"rows"`
+	Diagnostics []RepoDiagnostic `json:"diagnostics"`
+}
+
 type PolicyResultValue struct {
 	PolicyVersion int      `json:"policy_version"`
 	PolicyDigest  string   `json:"policy_digest"`

@@ -253,11 +253,11 @@ seeds, not independent hand-enumerated procedures.
 - Create: `cmd/sdlc/internal/fleet/inventory_test.go`
 - Create: `cmd/sdlc/fleet_integration_test.go`
 
-- [ ] Implement the `Inventory` mutation/fault-isolation strategy.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet ./cmd/sdlc -run 'TestInventory|TestFleetInventory' -count=1`; verify FAIL.
-- [ ] Implement assembly from `project.FleetRepoDirs`, a Git-repo predicate, shared worktree parser, policy loader, measured facts, and issue association. Each row carries `PolicyCapability` (validated declaration or declaration diagnostic), never a resolved key. Use canonical `(repo_identity, tree_path)` ordering. Keep row and top-level diagnostic arrays non-null.
-- [ ] Re-run targeted tests; expect PASS.
-- [ ] Stage the inventory files, then commit: `git commit -m "#200: assemble measured fleet worktree inventory" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Implement the `Inventory` mutation/fault-isolation strategy.
+- [x] Run `go test ./cmd/sdlc/internal/fleet ./cmd/sdlc -run 'TestInventory|TestFleetInventory' -count=1`; verify FAIL.
+- [x] Implement assembly from `project.FleetRepoDirs`, a Git-repo predicate, shared worktree parser, policy loader, measured facts, and issue association. Each row carries `PolicyCapability` (validated declaration or declaration diagnostic), never a resolved key. Use canonical `(repo_identity, tree_path)` ordering. Keep row and top-level diagnostic arrays non-null.
+- [x] Re-run targeted tests; expect PASS.
+- [x] Stage the inventory files, then commit: `git commit -m "#200: assemble measured fleet worktree inventory" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Chunk 3 verification and review boundary
 

@@ -2,6 +2,9 @@ package fleet
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -17,6 +20,55 @@ type IssueRecord struct {
 
 // IssueLookup returns every same-repository issue matching a six-digit ID.
 type IssueLookup func(id string) ([]IssueRecord, error)
+
+// LookupRepoIssues reads every exact issue-ID match from one repository's
+// active issue home. It reuses the canonical filename and frontmatter grammars,
+// returns stable filename order, and discards partial results on any read or
+// parse error.
+func LookupRepoIssues(repoRoot, id string) ([]IssueRecord, error) {
+	records := make([]IssueRecord, 0)
+	parsedID, _, validID := issue.ParseFilename(id + "-.md")
+	if !validID || parsedID != id {
+		return records, nil
+	}
+	home := filepath.Join(repoRoot, "workshop", "issues")
+	entries, err := os.ReadDir(home)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return records, nil
+		}
+		return records, fmt.Errorf("read same-repo issue home %q: %w", home, err)
+	}
+	paths := make([]string, 0)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		candidateID, _, ok := issue.ParseFilename(entry.Name())
+		if ok && candidateID == id {
+			paths = append(paths, filepath.Join(home, entry.Name()))
+		}
+	}
+	sort.Strings(paths)
+	refID := strings.TrimLeft(id, "0")
+	if refID == "" {
+		refID = "0"
+	}
+	ref := filepath.Base(filepath.Clean(repoRoot)) + "#" + refID
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return make([]IssueRecord, 0), fmt.Errorf("read same-repo issue %q: %w", path, err)
+		}
+		frontmatter, _, err := issue.Parse(string(raw))
+		if err != nil {
+			return make([]IssueRecord, 0), fmt.Errorf("parse same-repo issue %q: %w", path, err)
+		}
+		status, _ := issue.GetField(frontmatter, "status")
+		records = append(records, IssueRecord{Ref: ref, DeclaredStatus: status})
+	}
+	return records, nil
+}
 
 // IssueAssociation is issue metadata carried alongside measured tree facts.
 type IssueAssociation struct {
