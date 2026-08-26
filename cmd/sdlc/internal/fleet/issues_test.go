@@ -23,7 +23,7 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 		writeLookupIssue(t, repo, "000149-target.md", "working")
 		writeLookupIssue(t, repo, "000150-other.md", "open")
 		got, err := LookupRepoIssues(repo, "000149")
-		want := []IssueRecord{{Ref: filepath.Base(repo) + "#149", DeclaredStatus: "working"}}
+		want := []IssueRecord{{Ref: filepath.Base(repo) + "#000149", DeclaredStatus: "working"}}
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Fatalf("LookupRepoIssues one = (%#v, %v), want %#v", got, err, want)
 		}
@@ -35,8 +35,8 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 		writeLookupIssue(t, repo, "000149-alpha.md", "open")
 		got, err := LookupRepoIssues(repo, "000149")
 		want := []IssueRecord{
-			{Ref: filepath.Base(repo) + "#149", DeclaredStatus: "open"},
-			{Ref: filepath.Base(repo) + "#149", DeclaredStatus: "working"},
+			{Ref: filepath.Base(repo) + "#000149", DeclaredStatus: "open"},
+			{Ref: filepath.Base(repo) + "#000149", DeclaredStatus: "working"},
 		}
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Fatalf("LookupRepoIssues ambiguous = (%#v, %v), want %#v", got, err, want)
@@ -73,6 +73,30 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 			t.Fatalf("LookupRepoIssues parse error = (%#v, %v), want non-nil empty and path error", got, err)
 		}
 	})
+
+	for _, tt := range []struct {
+		name string
+		raw  string
+	}{
+		{"missing status", "---\nowner: team\n---\n# Test\n"},
+		{"unknown status", "---\nstatus: imaginary\n---\n# Test\n"},
+	} {
+		t.Run(tt.name+" is strict", func(t *testing.T) {
+			repo := t.TempDir()
+			home := filepath.Join(repo, "workshop", "issues")
+			if err := os.MkdirAll(home, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(home, "000149-invalid.md")
+			if err := os.WriteFile(path, []byte(tt.raw), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			got, err := LookupRepoIssues(repo, "000149")
+			if err == nil || len(got) != 0 || !strings.Contains(err.Error(), path) {
+				t.Fatalf("LookupRepoIssues() = (%#v, %v), want empty result and contextual error for %q", got, err, path)
+			}
+		})
+	}
 }
 
 func writeLookupIssue(t *testing.T, repo, name, status string) {
@@ -89,10 +113,10 @@ func writeLookupIssue(t *testing.T, repo, name, status string) {
 
 func TestAssociateBranchIssue(t *testing.T) {
 	one := func(id string) ([]IssueRecord, error) {
-		return []IssueRecord{{Ref: "#" + id, DeclaredStatus: "working"}}, nil
+		return []IssueRecord{{Ref: "same-repo#" + id, DeclaredStatus: "working"}}, nil
 	}
 	lookupErr := errors.New("read same-repo issues")
-	want := []IssueAssociation{{Ref: "#000149", DeclaredStatus: "working", Provenance: "branch-prefix"}}
+	want := []IssueAssociation{{Ref: "same-repo#000149", DeclaredStatus: "working", Provenance: "branch-prefix"}}
 
 	tests := []struct {
 		name    string
@@ -135,6 +159,20 @@ func TestAssociateBranchIssue(t *testing.T) {
 				t.Fatalf("AssociateBranchIssue(%q) = %#v, want %#v", tt.branch, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestAssociateBranchIssueRejectsMalformedInjectedRecord(t *testing.T) {
+	for _, record := range []IssueRecord{
+		{Ref: "same-repo#149", DeclaredStatus: "working"},
+		{Ref: "same-repo#000149", DeclaredStatus: "imaginary"},
+	} {
+		got, err := AssociateBranchIssue("000149-test", func(string) ([]IssueRecord, error) {
+			return []IssueRecord{record}, nil
+		})
+		if err == nil || len(got) != 0 {
+			t.Fatalf("AssociateBranchIssue malformed record %#v = (%#v, %v), want empty/error", record, got, err)
+		}
 	}
 }
 

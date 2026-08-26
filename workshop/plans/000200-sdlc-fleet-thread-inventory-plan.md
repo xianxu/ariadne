@@ -274,14 +274,14 @@ seeds, not independent hand-enumerated procedures.
 - Create: `cmd/sdlc/internal/fleet/json_test.go`
 - Modify: `cmd/sdlc/internal/fleet/types.go`
 
-- [ ] Implement the `JSONContract` structural/golden strategy, deriving every
+- [x] Implement the `JSONContract` structural/golden strategy, deriving every
       envelope from the typed result algebra and pinning snake_case fields,
       tagged success/diagnostic variants, non-null arrays, policy version/digest,
       and bounded-only `on_capacity` omission.
 
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestJSONContract -count=1`; verify FAIL until tags/envelopes are complete.
-- [ ] Make the typed contract pass without map-shaped ad hoc encoding.
-- [ ] Stage the JSON-contract files, then commit: `git commit -m "#200: pin fleet JSON contract" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run TestJSONContract -count=1`; verify FAIL until tags/envelopes are complete.
+- [x] Make the typed contract pass without map-shaped ad hoc encoding.
+- [x] Stage the JSON-contract files, then commit: `git commit -m "#200: pin fleet JSON contract" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 4.2: Add `sdlc fleet inventory` and `sdlc fleet policy`
 

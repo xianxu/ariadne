@@ -67,8 +67,8 @@ func TestFleetInventory_RealGitPortableFleet(t *testing.T) {
 		}
 	}
 	linkedRow := findFleetIntegrationRow(t, first, linked)
-	if len(linkedRow.Issues) != 1 || linkedRow.Issues[0].Ref != "alpha#123" || linkedRow.Issues[0].Provenance != fleet.IssueProvenanceBranchPrefix {
-		t.Fatalf("linked row issues = %+v, want same-repo provenance", linkedRow.Issues)
+	if len(linkedRow.Issues) != 1 || linkedRow.Issues[0].Ref != "alpha#000123" || linkedRow.Issues[0].Provenance != fleet.IssueProvenanceBranchPrefix {
+		t.Fatalf("linked row issues = %+v, want alpha#000123 with same-repo provenance", linkedRow.Issues)
 	}
 	if !linkedRow.Policy.OK || linkedRow.Policy.Value == nil || linkedRow.Policy.Value.KeyKind != "worktree" {
 		t.Fatalf("linked row policy = %+v, want declaration capability", linkedRow.Policy)

@@ -252,7 +252,7 @@ func (state *inventoryRepoState) recordPending(diagnostic RepoDiagnostic) {
 }
 
 func normalizedInventoryCapability(capability PolicyCapability, repoRoot string) PolicyCapability {
-	if err := validateEnvelope(capability.OK, capability.Value != nil, capability.Diagnostic != nil); err == nil {
+	if err := validatePolicyCapability(capability); err == nil {
 		return capability
 	}
 	path := filepath.Join(repoRoot, filepath.FromSlash(fleetPolicyPath))

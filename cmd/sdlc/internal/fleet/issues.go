@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 const IssueProvenanceBranchPrefix = "branch-prefix"
@@ -50,11 +51,7 @@ func LookupRepoIssues(repoRoot, id string) ([]IssueRecord, error) {
 		}
 	}
 	sort.Strings(paths)
-	refID := strings.TrimLeft(id, "0")
-	if refID == "" {
-		refID = "0"
-	}
-	ref := filepath.Base(filepath.Clean(repoRoot)) + "#" + refID
+	ref := filepath.Base(filepath.Clean(repoRoot)) + "#" + id
 	for _, path := range paths {
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -64,7 +61,10 @@ func LookupRepoIssues(repoRoot, id string) ([]IssueRecord, error) {
 		if err != nil {
 			return make([]IssueRecord, 0), fmt.Errorf("parse same-repo issue %q: %w", path, err)
 		}
-		status, _ := issue.GetField(frontmatter, "status")
+		status, present := issue.GetField(frontmatter, "status")
+		if !present || status == "" || !containsString(vocab.Issue().AllStatuses(), status) {
+			return make([]IssueRecord, 0), fmt.Errorf("validate same-repo issue %q: invalid or missing status %q", path, status)
+		}
 		records = append(records, IssueRecord{Ref: ref, DeclaredStatus: status})
 	}
 	return records, nil
@@ -105,9 +105,13 @@ func AssociateBranchIssue(branch string, lookup IssueLookup) ([]IssueAssociation
 	if len(matches) != 1 {
 		return associations, nil
 	}
-	return append(associations, IssueAssociation{
+	association := IssueAssociation{
 		Ref:            matches[0].Ref,
 		DeclaredStatus: matches[0].DeclaredStatus,
 		Provenance:     IssueProvenanceBranchPrefix,
-	}), nil
+	}
+	if err := validateIssueAssociation(association); err != nil {
+		return associations, fmt.Errorf("validate same-repo issue association %s: %w", id, err)
+	}
+	return append(associations, association), nil
 }

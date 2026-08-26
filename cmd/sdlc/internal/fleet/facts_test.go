@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -105,6 +106,24 @@ func TestCollectFacts_PreservesGitFailure(t *testing.T) {
 	}
 	if !strings.Contains(facts.Error, "status --porcelain=v1 -z --untracked-files=all") || !strings.Contains(facts.Error, "injected failure") {
 		t.Fatalf("CollectFacts(status failure) error = %q, want command and Git output", facts.Error)
+	}
+}
+
+func TestCollectFacts_PartialFailuresMarshalAsCoherentPrefixes(t *testing.T) {
+	driver := newFakeGitContract(t)
+	for _, failure := range []string{
+		"rev-parse HEAD",
+		"show -s --format=%cI HEAD",
+		"status --porcelain=v1 -z --untracked-files=all",
+	} {
+		t.Run(failure, func(t *testing.T) {
+			facts := CollectFacts(failingFactsReader{GitReader: driver.reader, fail: failure}, driver.primary)
+			row := validTreeRow()
+			row.Facts = facts
+			if _, err := json.Marshal(row); err != nil {
+				t.Fatalf("CollectFacts(%s) partial facts %#v rejected by JSON contract: %v", failure, facts, err)
+			}
+		})
 	}
 }
 

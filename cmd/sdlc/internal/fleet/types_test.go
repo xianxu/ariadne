@@ -5,10 +5,12 @@ import (
 	"testing"
 )
 
+const testPolicyDigest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 func TestPolicyEnvelopesRoundTripOnlyTotalVariants(t *testing.T) {
-	capabilityValue := &PolicyCapabilityValue{PolicyVersion: 1, PolicyDigest: "digest", KeyKind: "repo", Roots: []string{}, Capacity: Capacity{Kind: "unbounded"}}
+	capabilityValue := &PolicyCapabilityValue{PolicyVersion: 1, PolicyDigest: testPolicyDigest, KeyKind: "repo", Roots: []string{}, Capacity: Capacity{Kind: "unbounded"}}
 	diagnostic := &PolicyDiagnostic{Code: DiagnosticInvalidPolicy, Message: "bad declaration"}
-	resultValue := &PolicyResultValue{PolicyVersion: 1, PolicyDigest: "digest", RepoIdentity: "/repo/.git", AdmissionKey: "/repo/.git", Capacity: Capacity{Kind: "unbounded"}}
+	resultValue := &PolicyResultValue{PolicyVersion: 1, PolicyDigest: testPolicyDigest, RepoIdentity: "/repo/.git", AdmissionKey: "/repo/.git", Capacity: Capacity{Kind: "unbounded"}}
 
 	tests := []struct {
 		name  string
@@ -34,7 +36,7 @@ func TestPolicyEnvelopesRoundTripOnlyTotalVariants(t *testing.T) {
 }
 
 func TestPolicyEnvelopesRejectImpossibleVariants(t *testing.T) {
-	value := &PolicyCapabilityValue{PolicyVersion: 1, PolicyDigest: "digest", KeyKind: "repo", Roots: []string{}, Capacity: Capacity{Kind: "unbounded"}}
+	value := &PolicyCapabilityValue{PolicyVersion: 1, PolicyDigest: testPolicyDigest, KeyKind: "repo", Roots: []string{}, Capacity: Capacity{Kind: "unbounded"}}
 	diagnostic := &PolicyDiagnostic{Code: DiagnosticInvalidPolicy, Message: "bad declaration"}
 
 	for name, envelope := range map[string]PolicyCapability{
@@ -66,7 +68,7 @@ func TestPolicyEnvelopesRejectImpossibleVariants(t *testing.T) {
 		})
 	}
 
-	resultValue := &PolicyResultValue{PolicyVersion: 1, PolicyDigest: "digest", RepoIdentity: "/repo/.git", AdmissionKey: "/repo/.git", Capacity: Capacity{Kind: "unbounded"}}
+	resultValue := &PolicyResultValue{PolicyVersion: 1, PolicyDigest: testPolicyDigest, RepoIdentity: "/repo/.git", AdmissionKey: "/repo/.git", Capacity: Capacity{Kind: "unbounded"}}
 	for name, envelope := range map[string]PolicyResult{
 		"success without value":      {OK: true},
 		"success with diagnostic":    {OK: true, Value: resultValue, Diagnostic: diagnostic},

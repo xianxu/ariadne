@@ -229,20 +229,11 @@ func requireJSONEOF(dec *json.Decoder) error {
 	return fmt.Errorf("decode fleet policy: %v", err)
 }
 
-type policyJSONInspection struct {
-	version          *int
-	versionAmbiguous bool
-}
-
 func inspectPolicyJSON(raw []byte) (*int, error) {
 	version := extractTopLevelPolicyVersion(raw)
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
-	inspection := &policyJSONInspection{}
-	if err := scanJSONValue(dec, true, false, inspection); err != nil {
-		if inspection.versionAmbiguous {
-			version = nil
-		}
+	if err := scanJSONNoDuplicateKeys(dec); err != nil {
 		return version, fmt.Errorf("decode fleet policy: %v", err)
 	}
 	if err := requireJSONEOF(dec); err != nil {
@@ -328,64 +319,6 @@ func consumeJSONToken(dec *json.Decoder, token json.Token) error {
 			}
 		}
 		_, err := dec.Token()
-		return err
-	default:
-		return fmt.Errorf("unexpected delimiter %q", delim)
-	}
-}
-
-func scanJSONValue(dec *json.Decoder, top, captureVersion bool, inspection *policyJSONInspection) error {
-	token, err := dec.Token()
-	if err != nil {
-		return err
-	}
-	delim, ok := token.(json.Delim)
-	if !ok {
-		if captureVersion {
-			number, ok := token.(json.Number)
-			if !ok {
-				return nil
-			}
-			value, err := strconv.Atoi(number.String())
-			if err == nil {
-				inspection.version = &value
-			}
-		}
-		return nil
-	}
-	switch delim {
-	case '{':
-		seen := map[string]struct{}{}
-		for dec.More() {
-			keyToken, err := dec.Token()
-			if err != nil {
-				return err
-			}
-			key, ok := keyToken.(string)
-			if !ok {
-				return errors.New("object key is not a string")
-			}
-			if _, exists := seen[key]; exists {
-				if top && key == "version" {
-					inspection.version = nil
-					inspection.versionAmbiguous = true
-				}
-				return fmt.Errorf("duplicate object key %q", key)
-			}
-			seen[key] = struct{}{}
-			if err := scanJSONValue(dec, false, top && key == "version", inspection); err != nil {
-				return err
-			}
-		}
-		_, err = dec.Token()
-		return err
-	case '[':
-		for dec.More() {
-			if err := scanJSONValue(dec, false, false, inspection); err != nil {
-				return err
-			}
-		}
-		_, err = dec.Token()
 		return err
 	default:
 		return fmt.Errorf("unexpected delimiter %q", delim)

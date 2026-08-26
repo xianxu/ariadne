@@ -29,7 +29,7 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 	}`))
 	invalidPolicy := DecodePolicy("zeta-policy", []byte(`{"version":1,"admission":{}}`))
 	lookups := map[string]map[string][]IssueRecord{
-		alpha.primary: {"000123": {{Ref: "alpha#123", DeclaredStatus: "working"}}},
+		alpha.primary: {"000123": {{Ref: "alpha#000123", DeclaredStatus: "working"}}},
 	}
 	options := InventoryOptions{
 		Git: fake,
@@ -59,7 +59,7 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 	}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("initial inventory row order = %#v, want %#v", got, want)
 	}
-	if got := first.Rows[0].Issues; !reflect.DeepEqual(got, []IssueAssociation{{Ref: "alpha#123", DeclaredStatus: "working", Provenance: IssueProvenanceBranchPrefix}}) {
+	if got := first.Rows[0].Issues; !reflect.DeepEqual(got, []IssueAssociation{{Ref: "alpha#000123", DeclaredStatus: "working", Provenance: IssueProvenanceBranchPrefix}}) {
 		t.Fatalf("alpha issues = %#v, want branch-prefix provenance", got)
 	}
 	if !first.Rows[0].Policy.OK || first.Rows[0].Policy.Value == nil || first.Rows[0].Policy.Value.KeyKind != "repo" {
@@ -80,7 +80,7 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 	mustFakeMutation(t, fake.SetRef(alpha.common, "refs/heads/000124-linked", alpha.head))
 	mustFakeMutation(t, fake.AddWorktree(alpha.common, gitx.Worktree{Path: linked, HEAD: alpha.head, Branch: "000124-linked"}))
 	mustFakeMutation(t, fake.SetDirty(linked, []FakeGitStatusEntry{{Code: "??", Path: "new.txt"}}))
-	lookups[alpha.primary]["000124"] = []IssueRecord{{Ref: "alpha#124", DeclaredStatus: "open"}}
+	lookups[alpha.primary]["000124"] = []IssueRecord{{Ref: "alpha#000124", DeclaredStatus: "open"}}
 
 	second, err := CollectInventory(fleetRoot, options)
 	if err != nil {
@@ -95,8 +95,29 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 	if linkedRow.Facts.DirtyCount == nil || *linkedRow.Facts.DirtyCount != 1 {
 		t.Fatalf("linked dirty facts = %+v, want one measured entry", linkedRow.Facts)
 	}
-	if got := linkedRow.Issues; len(got) != 1 || got[0].Ref != "alpha#124" {
-		t.Fatalf("linked issues = %+v, want alpha#124", got)
+	if got := linkedRow.Issues; len(got) != 1 || got[0].Ref != "alpha#000124" {
+		t.Fatalf("linked issues = %+v, want alpha#000124", got)
+	}
+
+	options.LookupIssues = func(repoRoot, id string) ([]IssueRecord, error) {
+		if repoRoot == alpha.primary && id == "000124" {
+			return []IssueRecord{{Ref: "alpha#124", DeclaredStatus: "imaginary"}}, nil
+		}
+		return append([]IssueRecord(nil), lookups[repoRoot][id]...), nil
+	}
+	malformed, err := CollectInventory(fleetRoot, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	malformedLinked := inventoryRowByPath(t, malformed, linkedPath)
+	if len(malformedLinked.Issues) != 0 || countInventoryDiagnostics(malformed, "issues") != 1 {
+		t.Fatalf("malformed issue association = row:%+v diagnostics:%+v, want empty issues plus one diagnostic", malformedLinked, malformed.Diagnostics)
+	}
+	if got := inventoryRowByPath(t, malformed, alpha.primary).Issues; len(got) != 1 || got[0].Ref != "alpha#000123" {
+		t.Fatalf("unaffected primary issues = %+v, want preserved valid association", got)
+	}
+	if _, err := json.Marshal(malformed); err != nil {
+		t.Fatalf("malformed issue inventory did not remain JSON-serializable: %v", err)
 	}
 
 	faults := &inventoryFaultGit{GitReader: fake, failures: map[string]error{

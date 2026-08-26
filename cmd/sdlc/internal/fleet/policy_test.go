@@ -104,7 +104,7 @@ func policyValue(kind string, roots []string, capacity Capacity, action string) 
 	}
 	return PolicyCapabilityValue{
 		PolicyVersion: 1,
-		PolicyDigest:  "digest",
+		PolicyDigest:  testPolicyDigest,
 		KeyKind:       kind,
 		Roots:         roots,
 		Capacity:      capacity,
