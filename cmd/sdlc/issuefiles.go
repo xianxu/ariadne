@@ -4,13 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-const issueFilenamePattern = "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"
+const issueFilenamePattern = issue.FilenamePattern
 
 type issueFileRef struct {
 	Path        string
@@ -63,12 +62,7 @@ func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, e
 }
 
 func issueFilenameParts(name string) (id, slug string, ok bool) {
-	base := filepath.Base(name)
-	matched, _ := filepath.Match(issueFilenamePattern, base)
-	if !matched {
-		return "", "", false
-	}
-	return base[:6], strings.TrimSuffix(base[7:], ".md"), true
+	return issue.ParseFilename(name)
 }
 
 func issueFilename(name string) bool {

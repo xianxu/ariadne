@@ -226,12 +226,12 @@ seeds, not independent hand-enumerated procedures.
 - Modify: `cmd/sdlc/issuefiles.go`
 - Modify: `cmd/sdlc/issuefiles_test.go`
 
-- [ ] Write the `AssociateBranchIssue` grammar property test from the function-level strategy.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestAssociateBranchIssue -count=1`; verify FAIL.
-- [ ] Extract the filename grammar into `internal/issue.ParseFilename` and keep the package-main helpers as compatibility wrappers for current consumers. Build a branch-specific helper on that shared grammar which anchors at the whole branch start and resolves exactly one file through the existing issue-home/parse logic. Never call `filepath.Base` on the branch before validation.
-- [ ] Emit `issues: []` on every no-association path and `{ref, declared_status, provenance:"branch-prefix"}` on success.
-- [ ] Re-run tests; expect PASS.
-- [ ] Stage the shared filename grammar and association files, then commit: `git commit -m "#200: associate tree issues by branch prefix" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Write the `AssociateBranchIssue` grammar property test from the function-level strategy.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run TestAssociateBranchIssue -count=1`; verify FAIL.
+- [x] Extract the filename grammar into `internal/issue.ParseFilename` and keep the package-main helpers as compatibility wrappers for current consumers. Build a branch-specific helper on that shared grammar which anchors at the whole branch start and resolves exactly one file through the existing issue-home/parse logic. Never call `filepath.Base` on the branch before validation.
+- [x] Emit `issues: []` on every no-association path and `{ref, declared_status, provenance:"branch-prefix"}` on success.
+- [x] Re-run tests; expect PASS.
+- [x] Stage the shared filename grammar and association files, then commit: `git commit -m "#200: associate tree issues by branch prefix" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 3.2: Collect measured Git facts per worktree
 

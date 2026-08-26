@@ -210,7 +210,7 @@ func TestScanIssueFilesRetainsGitFailureFacts(t *testing.T) {
 	}
 }
 
-func TestIssueFilenameGrammarHasOneProductionSource(t *testing.T) {
+func TestIssueFilenameGrammarConsumersUseSharedSource(t *testing.T) {
 	fset := token.NewFileSet()
 	packages, err := parser.ParseDir(fset, ".", func(info os.FileInfo) bool {
 		return strings.HasSuffix(info.Name(), ".go") && !strings.HasSuffix(info.Name(), "_test.go")
@@ -225,7 +225,7 @@ func TestIssueFilenameGrammarHasOneProductionSource(t *testing.T) {
 
 	wantReference := map[string]string{
 		"scanIssueFiles":         "issueFilenamePattern",
-		"issueFilenameParts":     "issueFilenamePattern",
+		"issueFilenameParts":     "ParseFilename",
 		"issueFilename":          "issueFilenameParts",
 		"issueIDPrefix":          "issueFilenameParts",
 		"buildPushCommitMessage": "issueFilenamePattern",
@@ -259,8 +259,8 @@ func TestIssueFilenameGrammarHasOneProductionSource(t *testing.T) {
 		})
 	}
 
-	if literalCount != 1 {
-		t.Errorf("issue filename pattern has %d production literals, want exactly 1", literalCount)
+	if literalCount != 0 {
+		t.Errorf("main package repeats the shared issue filename pattern %d time(s), want none", literalCount)
 	}
 	for function, identifier := range wantReference {
 		if !foundReference[function] {
