@@ -423,3 +423,20 @@ builds the Go implementation from Ariadne and invokes it in the consumer cwd.
 It also tightened missing-worktree and porcelain XY invariants. Review verdict:
 Approved. Evidence: targeted Chunk 2 suite, full `go test ./cmd/sdlc/... -count=1`,
 live Git conformance under hostile config, package vet, and `git diff --check`.
+
+### 2026-08-25 — Chunk 3
+
+Added whole-branch issue association with explicit `branch-prefix` provenance
+and a strict production same-repo issue reader. Added measured worktree facts
+for HEAD, commit timestamp, NUL-safe dirty cardinality, and explicit base/ref
+divergence availability; operational ref failures can no longer masquerade as
+missing refs, and no cold/drift verdict is derived.
+
+The inventory assembler now enumerates canonical repo/tree rows, loads policy
+capability from the primary checkout, retries duplicate linked aliases, and
+keeps repo- and tree-scoped failures distinct without erasing unaffected rows.
+All result collections are non-null and deterministically sorted. The complete
+Chunk 3 range received a fresh Approved review with no findings. Evidence:
+focused association/facts/inventory tests, fake/live conformance, full
+`go test ./cmd/sdlc/... -count=1`, fuzzed status/divergence parsers, and
+`git diff --check`.

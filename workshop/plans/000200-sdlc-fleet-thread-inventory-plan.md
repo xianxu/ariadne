@@ -261,8 +261,8 @@ seeds, not independent hand-enumerated procedures.
 
 ### Chunk 3 verification and review boundary
 
-- [ ] Run `go test ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/project ./cmd/sdlc/internal/gitx ./cmd/sdlc -run 'Test(AssociateBranchIssue|CollectFacts|Inventory|FleetInventory)' -count=1 && git diff --check`.
-- [ ] Request fresh-context review focused on measured-vs-declared separation, error preservation, branch association provenance, and complete enumeration. Fix Critical/Important findings.
+- [x] Run `go test ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/project ./cmd/sdlc/internal/gitx ./cmd/sdlc -run 'Test(AssociateBranchIssue|CollectFacts|Inventory|FleetInventory)' -count=1 && git diff --check`.
+- [x] Request fresh-context review focused on measured-vs-declared separation, error preservation, branch association provenance, and complete enumeration. Fix Critical/Important findings.
 
 ---
 
