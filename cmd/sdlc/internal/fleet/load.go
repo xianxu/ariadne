@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -16,6 +17,12 @@ import (
 
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+// PolicyDeclarationPath derives the repository-local declaration location from
+// the fleet-policy vocabulary authority.
+func PolicyDeclarationPath(repoRoot string) string {
+	return filepath.Join(repoRoot, filepath.FromSlash(vocab.FleetPolicy().DeclarationPath))
+}
 
 func LoadPolicyFile(declarationPath string) PolicyCapability {
 	raw, err := os.ReadFile(declarationPath)

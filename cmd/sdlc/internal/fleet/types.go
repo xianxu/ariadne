@@ -405,6 +405,12 @@ func validatePolicyCapability(p PolicyCapability) error {
 	return validatePolicyDiagnostic(*p.Diagnostic)
 }
 
+// ValidatePolicyCapability rejects impossible or semantically invalid typed
+// capability values before an IO adapter dereferences or forwards them.
+func ValidatePolicyCapability(p PolicyCapability) error {
+	return validatePolicyCapability(p)
+}
+
 func validatePolicyResult(p PolicyResult) error {
 	if err := validateEnvelope(p.OK, p.Value != nil, p.Diagnostic != nil); err != nil {
 		return err
@@ -417,6 +423,12 @@ func validatePolicyResult(p PolicyResult) error {
 		return errors.New("policy result success requires version, digest, repo identity, and admission key")
 	}
 	return validateCapacity(v.Capacity, v.OnCapacity)
+}
+
+// ValidatePolicyResult rejects impossible or semantically invalid typed
+// results before an IO adapter renders or dereferences them.
+func ValidatePolicyResult(p PolicyResult) error {
+	return validatePolicyResult(p)
 }
 
 func validateCapabilityValue(v PolicyCapabilityValue) error {

@@ -11,8 +11,6 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )
 
-const fleetPolicyPath = ".sdlc/fleet.json"
-
 // GitRepoPredicate distinguishes eligible Git siblings from ordinary sibling
 // directories after project.FleetRepoDirs applies the shared fleet-name filter.
 type GitRepoPredicate func(repoDir string) (bool, error)
@@ -205,7 +203,7 @@ func collectInventoryRepo(inventory *Inventory, diagnosticKeys, rowKeys map[stri
 	sort.Slice(canonicalWorktrees, func(i, j int) bool { return canonicalWorktrees[i].Path < canonicalWorktrees[j].Path })
 
 	repoRoot := primaryRoot
-	policy := normalizedInventoryCapability(loadPolicy(filepath.Join(repoRoot, filepath.FromSlash(fleetPolicyPath))), repoRoot)
+	policy := normalizedInventoryCapability(loadPolicy(PolicyDeclarationPath(repoRoot)), repoRoot)
 	for _, worktree := range canonicalWorktrees {
 		rowKey := repoIdentity + "\x00" + worktree.Path
 		if rowKeys[rowKey] {
@@ -255,7 +253,7 @@ func normalizedInventoryCapability(capability PolicyCapability, repoRoot string)
 	if err := validatePolicyCapability(capability); err == nil {
 		return capability
 	}
-	path := filepath.Join(repoRoot, filepath.FromSlash(fleetPolicyPath))
+	path := PolicyDeclarationPath(repoRoot)
 	return policyFailure(DiagnosticInvalidPolicy, path, nil, "policy loader returned an invalid capability envelope")
 }
 

@@ -4,7 +4,17 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+func TestPolicyDeclarationPathUsesVocabularyAuthority(t *testing.T) {
+	repoRoot := filepath.Join(t.TempDir(), "repo")
+	want := filepath.Join(repoRoot, filepath.FromSlash(vocab.FleetPolicy().DeclarationPath))
+	if got := PolicyDeclarationPath(repoRoot); got != want {
+		t.Fatalf("PolicyDeclarationPath(%q) = %q, want %q", repoRoot, got, want)
+	}
+}
 
 func TestLoadPolicySharedCorpus(t *testing.T) {
 	paths, err := filepath.Glob(filepath.Join("..", "..", "..", "..", "construct", "vocabulary", "testdata", "fleet_policy_*.json"))

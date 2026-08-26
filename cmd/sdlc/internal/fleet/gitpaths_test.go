@@ -82,6 +82,151 @@ func TestNormalizeVantage_EquivalentFakeVantages(t *testing.T) {
 	}
 }
 
+func TestCanonicalProspectivePathResolvesExistingSymlinkAncestorAndMissingSuffix(t *testing.T) {
+	real := filepath.Join(t.TempDir(), "real")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	makeFleetTestSymlink(t, real, link)
+	requested, containingDir, err := CanonicalProspectivePath(filepath.Join(link, "future", "child"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalReal, err := filepath.EvalSymlinks(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requested != filepath.Join(canonicalReal, "future", "child") || containingDir != canonicalReal {
+		t.Fatalf("CanonicalProspectivePath = (%q, %q), want (%q, %q)", requested, containingDir, filepath.Join(canonicalReal, "future", "child"), canonicalReal)
+	}
+}
+
+func TestCanonicalProspectivePathUsesParentForExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "target")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	requested, containingDir, err := CanonicalProspectivePath(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalFile, err := filepath.EvalSymlinks(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requested != canonicalFile || containingDir != filepath.Dir(canonicalFile) {
+		t.Fatalf("CanonicalProspectivePath = (%q, %q), want (%q, %q)", requested, containingDir, canonicalFile, filepath.Dir(canonicalFile))
+	}
+}
+
+func TestCanonicalProspectivePathResolvesSymlinkBeforeParentTraversal(t *testing.T) {
+	tempRoot := t.TempDir()
+	repo := filepath.Join(tempRoot, "repo")
+	outside := filepath.Join(tempRoot, "outside")
+	linkTarget := filepath.Join(outside, "nested")
+	for _, dir := range []string{repo, linkTarget, filepath.Join(outside, "existing")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	link := filepath.Join(repo, "link")
+	makeFleetTestSymlink(t, linkTarget, link)
+
+	separator := string(filepath.Separator)
+	for _, tt := range []struct {
+		name string
+		path string
+		want string
+		dir  string
+	}{
+		{"existing", link + separator + ".." + separator + "existing", filepath.Join(outside, "existing"), filepath.Join(outside, "existing")},
+		{"prospective", link + separator + ".." + separator + "future" + separator + "child", filepath.Join(outside, "future", "child"), outside},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			requested, containingDir, err := CanonicalProspectivePath(tt.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := filepath.EvalSymlinks(tt.want)
+			if os.IsNotExist(err) {
+				canonicalOutside, resolveErr := filepath.EvalSymlinks(outside)
+				if resolveErr != nil {
+					t.Fatal(resolveErr)
+				}
+				want = filepath.Join(canonicalOutside, "future", "child")
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			wantDir, err := filepath.EvalSymlinks(tt.dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if requested != want || containingDir != wantDir {
+				t.Fatalf("CanonicalProspectivePath(%q) = (%q, %q), want (%q, %q)", tt.path, requested, containingDir, want, wantDir)
+			}
+		})
+	}
+}
+
+func TestCanonicalProspectivePathRejectsDanglingSymlinkAndAmbiguousMissingParent(t *testing.T) {
+	repo := t.TempDir()
+	dangling := filepath.Join(repo, "dangling")
+	makeFleetTestSymlink(t, filepath.Join(repo, "absent-target"), dangling)
+	file := filepath.Join(repo, "file")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	separator := string(filepath.Separator)
+	for _, path := range []string{
+		dangling,
+		dangling + separator + "child",
+		filepath.Join(repo, "missing") + separator + ".." + separator + "target",
+		file + separator + ".." + separator + "target",
+	} {
+		if _, _, err := CanonicalProspectivePath(path); err == nil {
+			t.Fatalf("CanonicalProspectivePath(%q) succeeded, want fail-closed error", path)
+		}
+	}
+}
+
+func TestCanonicalProspectivePathRejectsDirectorySyntaxAfterFile(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "file")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "file-link")
+	makeFleetTestSymlink(t, file, link)
+	separator := string(filepath.Separator)
+	for _, tt := range []struct {
+		name string
+		path string
+	}{
+		{"file trailing separator", file + separator},
+		{"file dot component", file + separator + "."},
+		{"symlink to file trailing separator", link + separator},
+		{"symlink to file dot component", link + separator + "."},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, _, err := CanonicalProspectivePath(tt.path); err == nil {
+				t.Fatalf("CanonicalProspectivePath(%q) succeeded, want non-directory traversal error", tt.path)
+			}
+		})
+	}
+}
+
+func makeFleetTestSymlink(t *testing.T, target, link string) {
+	t.Helper()
+	if err := os.Symlink(target, link); err != nil {
+		if os.IsPermission(err) || strings.Contains(strings.ToLower(err.Error()), "not supported") || strings.Contains(strings.ToLower(err.Error()), "operation not permitted") {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		t.Fatal(err)
+	}
+}
+
 func TestNormalizeVantage_EquivalentRealGitVantages(t *testing.T) {
 	fleetRoot := t.TempDir()
 	primary := filepath.Join(fleetRoot, "ariadne")

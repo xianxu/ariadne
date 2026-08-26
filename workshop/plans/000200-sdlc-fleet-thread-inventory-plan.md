@@ -293,10 +293,10 @@ seeds, not independent hand-enumerated procedures.
 - Create: `cmd/sdlc/helptext/fleet-inventory.md`
 - Create: `cmd/sdlc/helptext/fleet-policy.md`
 
-- [ ] Implement the `NewFleetCmd` command grammar and execution strategy from the function-level table.
-- [ ] Run `go test ./cmd/sdlc -run 'TestFleet(Command|Inventory|Policy|Help)' -count=1`; verify FAIL.
-- [ ] Register `NewFleetCmd()` after `state`; wire typed collectors, `json.Encoder`, and human renderers. Default `--path` to `.` only if help and tests make that behavior explicit.
-- [ ] Re-run tests; expect PASS.
+- [x] Implement the `NewFleetCmd` command grammar and execution strategy from the function-level table.
+- [x] Run `go test ./cmd/sdlc -run 'TestFleet(Command|Inventory|Policy|Help)' -count=1`; verify FAIL.
+- [x] Register `NewFleetCmd()` after `state`; wire typed collectors, `json.Encoder`, and human renderers. Default `--path` to `.` only if help and tests make that behavior explicit.
+- [x] Re-run tests; expect PASS.
 - [ ] Stage the command and help files, then commit: `git commit -m "#200: expose fleet inventory and policy queries" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 4.3: Derive concise human output from typed results
