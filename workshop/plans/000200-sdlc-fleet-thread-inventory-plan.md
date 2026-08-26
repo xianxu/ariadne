@@ -305,10 +305,10 @@ seeds, not independent hand-enumerated procedures.
 - Create: `cmd/sdlc/internal/fleet/render.go`
 - Create: `cmd/sdlc/internal/fleet/render_test.go`
 
-- [ ] Implement the `RenderInventory` semantic snapshot strategy from the function-level table.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestRender -count=1`; verify FAIL.
-- [ ] Implement a stable table/detail renderer from `Inventory`; do not recollect or reinterpret data in the view.
-- [ ] Re-run renderer and CLI tests; expect PASS.
+- [x] Implement the `RenderInventory` semantic snapshot strategy from the function-level table.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run TestRender -count=1`; verify FAIL.
+- [x] Implement a stable table/detail renderer from `Inventory`; do not recollect or reinterpret data in the view.
+- [x] Re-run renderer and CLI tests; expect PASS.
 - [ ] Stage the renderer files, then commit: `git commit -m "#200: render fleet facts for humans" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Chunk 4 verification and review boundary
