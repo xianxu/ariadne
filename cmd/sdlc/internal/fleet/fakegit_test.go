@@ -238,6 +238,34 @@ func (f *FakeGit) SetRef(commonDir, ref, sha string) error {
 	return nil
 }
 
+// DeleteRef mutates registered refs while rejecting a deletion that would
+// leave any attached worktree without its branch tip.
+func (f *FakeGit) DeleteRef(commonDir, ref string) error {
+	repo, err := f.repoByCommonDir(commonDir)
+	if err != nil {
+		return err
+	}
+	if !fakeGitValidRefName(ref) {
+		return fmt.Errorf("fake git: invalid ref %q", ref)
+	}
+	if _, exists := repo.Refs[ref]; !exists {
+		return fmt.Errorf("fake git: ref %q is not configured", ref)
+	}
+	refs := make(map[string]string, len(repo.Refs)-1)
+	for name, sha := range repo.Refs {
+		if name != ref {
+			refs[name] = sha
+		}
+	}
+	probe := *repo
+	probe.Refs = refs
+	if err := validateFakeGitWorktrees(&probe); err != nil {
+		return err
+	}
+	repo.Refs = refs
+	return nil
+}
+
 func (f *FakeGit) DetachWorktree(commonDir, path, sha string) error {
 	repo, worktree, err := f.worktreeByPath(commonDir, path)
 	if err != nil {
@@ -516,7 +544,7 @@ func (f *FakeGit) GitInDir(dir string, args ...string) ([]byte, error) {
 		revision := args[len(args)-1]
 		sha, ok := fakeResolveRevision(repo, *worktree, revision)
 		if !ok {
-			return nil, fmt.Errorf("fake git: revision %q not found", revision)
+			return nil, fakeGitExitError{err: fmt.Errorf("fake git: revision %q not found", revision), code: 1}
 		}
 		return []byte(sha + "\n"), nil
 	}
@@ -525,6 +553,15 @@ func (f *FakeGit) GitInDir(dir string, args ...string) ([]byte, error) {
 	}
 	return nil, fmt.Errorf("fake git: unsupported command in %q: git %s", dir, command)
 }
+
+type fakeGitExitError struct {
+	err  error
+	code int
+}
+
+func (e fakeGitExitError) Error() string { return e.err.Error() }
+func (e fakeGitExitError) Unwrap() error { return e.err }
+func (e fakeGitExitError) ExitCode() int { return e.code }
 
 func (f *FakeGit) repoForDir(dir string) (*FakeGitRepo, *gitx.Worktree, string, error) {
 	commandDir, err := canonicalPath(dir)
@@ -653,7 +690,7 @@ func fakeStatusPorcelain(entries []FakeGitStatusEntry) ([]byte, error) {
 	})
 	var out bytes.Buffer
 	for _, entry := range entries {
-		if !fakeGitValidStatusCode(entry.Code) || entry.Path == "" || strings.ContainsRune(entry.Path, 0) {
+		if !validStatusCode(entry.Code) || entry.Path == "" || strings.ContainsRune(entry.Path, 0) {
 			return nil, fmt.Errorf("fake git: invalid dirty entry %#v", entry)
 		}
 		isRename := strings.ContainsAny(entry.Code, "RC")
@@ -670,24 +707,6 @@ func fakeStatusPorcelain(entries []FakeGitStatusEntry) ([]byte, error) {
 		}
 	}
 	return out.Bytes(), nil
-}
-
-func fakeGitValidStatusCode(code string) bool {
-	switch code {
-	case " A", " M", " T", " D",
-		"M ", "MM", "MT", "MD",
-		"T ", "TM", "TT", "TD",
-		"A ", "AM", "AT", "AD",
-		"D ",
-		"R ", "RM", "RT", "RD",
-		"C ", "CM", "CT", "CD",
-		" R", " C",
-		"DD", "AU", "UD", "UA", "DU", "AA", "UU",
-		"??":
-		return true
-	default:
-		return false
-	}
 }
 
 func TestFakeStatusPorcelainValidatesExactXYStates(t *testing.T) {

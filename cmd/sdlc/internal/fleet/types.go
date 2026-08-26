@@ -76,6 +76,23 @@ type CanonicalPaths struct {
 	Requested    string
 }
 
+// MeasuredFacts is Git evidence for one worktree. Available reports whether
+// HEAD, commit time, and dirty state were all measured; Error preserves the
+// command failure when they were not. Base availability is independent because
+// a repository can have otherwise sound facts without origin/main or main.
+type MeasuredFacts struct {
+	Available       bool   `json:"available"`
+	Error           string `json:"error,omitempty"`
+	Head            string `json:"head,omitempty"`
+	CommitTimestamp string `json:"commit_timestamp,omitempty"`
+	BaseAvailable   bool   `json:"base_available"`
+	BaseError       string `json:"base_error,omitempty"`
+	BaseRef         string `json:"base_ref,omitempty"`
+	Ahead           *int   `json:"ahead,omitempty"`
+	Behind          *int   `json:"behind,omitempty"`
+	DirtyCount      *int   `json:"dirty_count,omitempty"`
+}
+
 type PolicyResultValue struct {
 	PolicyVersion int      `json:"policy_version"`
 	PolicyDigest  string   `json:"policy_digest"`

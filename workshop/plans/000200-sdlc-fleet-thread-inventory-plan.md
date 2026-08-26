@@ -239,12 +239,12 @@ seeds, not independent hand-enumerated procedures.
 - Create: `cmd/sdlc/internal/fleet/facts.go`
 - Create: `cmd/sdlc/internal/fleet/facts_test.go`
 
-- [ ] Implement the `CollectFacts` fake/real-Git conformance strategy.
-- [ ] Run `go test ./cmd/sdlc/internal/fleet -run TestCollectFacts -count=1`; verify FAIL.
-- [ ] Implement directory-scoped commands with errors preserved: `rev-parse HEAD`, `show -s --format=%cI HEAD`, `status --porcelain=v1 -z --untracked-files=all`, main-ref probing, and `rev-list --left-right --count <base>...HEAD`. Parse each porcelain status code: count one status entry, then consume the extra source-path field for rename/copy records. This preserves one dirty item for `R`/`C` while remaining safe for filenames containing newlines.
-- [ ] Represent unavailable base/error explicitly; do not translate it to zero divergence and do not emit `cold` or `drift`.
-- [ ] Re-run facts tests; expect PASS.
-- [ ] Stage the measured-facts files, then commit: `git commit -m "#200: measure worktree git facts" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
+- [x] Implement the `CollectFacts` fake/real-Git conformance strategy.
+- [x] Run `go test ./cmd/sdlc/internal/fleet -run TestCollectFacts -count=1`; verify FAIL.
+- [x] Implement directory-scoped commands with errors preserved: `rev-parse HEAD`, `show -s --format=%cI HEAD`, `status --porcelain=v1 -z --untracked-files=all`, main-ref probing, and `rev-list --left-right --count <base>...HEAD`. Parse each porcelain status code: count one status entry, then consume the extra source-path field for rename/copy records. This preserves one dirty item for `R`/`C` while remaining safe for filenames containing newlines.
+- [x] Represent unavailable base/error explicitly; do not translate it to zero divergence and do not emit `cold` or `drift`.
+- [x] Re-run facts tests; expect PASS.
+- [x] Stage the measured-facts files, then commit: `git commit -m "#200: measure worktree git facts" -m "Co-Authored-By: Codex <noreply@openai.com>"`.
 
 ### Task 3.3: Assemble a failure-tolerant fleet inventory
 
