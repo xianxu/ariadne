@@ -1,12 +1,13 @@
 ---
 id: 000162
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-02
 updated: 2026-08-26
 estimate_hours: 2.05
 started: 2026-08-25T08:21:30-07:00
+actual_hours: 4.30
 ---
 
 # sdlc milestone-close derives gate/review windows from a wrong base (far-back or HEAD)
@@ -286,6 +287,7 @@ stale on 2026-08-26, so these v3.1 values are provisional.
   bounded side quest.
 
 ### 2026-08-26
+- 2026-08-26: closed — go test ./... -count=1; plan modification/creation/deletion/atomic-replacement each invalidate both close and milestone-close while reviewer is unlocked; pre-fix matrix failed all cases; issue/project/HEAD stale-review regressions; README deletion mutation; review recipe empty-range mutations; git diff --check; review verdict: SHIP
 
 - Plan-quality cleared after two rounds. PQ-1 restored the issue's full purpose:
   a first milestone now uses the feature branch point, not the parent of an
