@@ -153,18 +153,18 @@ already-resolved data (ARCH-PURE).
 
 **Revised implementation plan (supersedes the unchecked transport item below):**
 
-- [ ] Define and render the two `ReviewWindowManifest` variants with exact,
+- [x] Define and render the two `ReviewWindowManifest` variants with exact,
       safely quoted Git argv and effective issue/history exclusions.
-- [ ] Resolve and validate repository root, base/head commits, ambient `HEAD`,
+- [x] Resolve and validate repository root, base/head commits, ambient `HEAD`,
       issue path, and optional canonical plan path at the IO boundary before
       automatic or manual boundary dispatch.
-- [ ] Replace only milestone-review's embedded `Diff` with the manifest; retain
+- [x] Replace only milestone-review's embedded `Diff` with the manifest; retain
       all orientation, prior-finding, verdict, and fresh-process contracts.
-- [ ] Add unit coverage with the stateful Git fake and live temporary-repository
+- [x] Add unit coverage with the stateful Git fake and live temporary-repository
       conformance tests for explicit ranges, omitted-head working-tree scope,
       invalid refs/repositories, custom directories, safe argument rendering,
       and a multi-megabyte sentinel absent from the resulting prompt.
-- [ ] Pin every non-boundary prompt golden byte-for-byte and update process/atlas
+- [x] Pin every non-boundary prompt golden byte-for-byte and update process/atlas
       documentation for the boundary-only transport change.
 
 ### 2026-08-26 — classify Git as integration and pin command sources
@@ -253,13 +253,13 @@ stale on 2026-08-26, so these v3.1 values are provisional.
 
 ## Plan
 
-- [ ] Locate the window/BASE_SHA computation in `sdlc milestone-close` + the
+- [x] Locate the window/BASE_SHA computation in `sdlc milestone-close` + the
       judge dispatch (`sdlc judge milestone-review`) and the atlas/plan gates.
-- [ ] Anchor the window to the milestone's first commit / prior `Mx` boundary;
+- [x] Anchor the window to the milestone's first commit / prior `Mx` boundary;
       share it across review + atlas + plan gates.
 - [x] ~~Pass the review diff to `claude` via temp file / stdin (E2BIG-proof).~~
       Superseded by the compact pinned-manifest revision above.
-- [ ] Regression tests: first-milestone (branch point) + Nth-milestone (prior
+- [x] Regression tests: first-milestone (branch point) + Nth-milestone (prior
       boundary) window bases.
 
 ## Log
@@ -284,3 +284,24 @@ stale on 2026-08-26, so these v3.1 values are provisional.
   as the remaining audit/consolidation point for review-window correctness and
   legitimately large prompt transport rather than mixing those fixes into the
   bounded side quest.
+
+### 2026-08-26
+
+- Plan-quality cleared after two rounds. PQ-1 restored the issue's full purpose:
+  a first milestone now uses the feature branch point, not the parent of an
+  issue commit that may predate unrelated main history (ARCH-PURPOSE). PQ-2
+  compressed the executable test contract to named adversarial strategies.
+- Added the pure `ReviewWindowManifest` / `ReviewCommand` renderer and a thin
+  `boundaryGitRunner` resolution seam with a stateful fake plus temporary real
+  Git conformance (ARCH-PURE, ARCH-MOCK). Automatic and manual boundary review
+  now share that manifest (ARCH-DRY); only milestone-review changed transport.
+- The large-range regression first proves its multi-megabyte sentinel exists in
+  the pinned Git diff, then proves the generated prompt is under 100 KB and
+  sentinel-free. Explicit-head, working-tree, custom tracker directory,
+  issue-less manual review, fail-closed inspection wording, and non-boundary
+  prompt compatibility are pinned separately.
+- Verification: `go test ./cmd/sdlc/... -count=1` passed; `go test ./... -count=1`
+  passed; helptext/process-manual focused suites passed; `git diff --check`
+  passed. Rebuilt the live `bin/sdlc` via `make sdlc-build`; a manual
+  `judge milestone-review --dry-run` named full immutable SHAs, the issue and
+  canonical plan, and four repository-rooted Git recipes with no patch hunk.

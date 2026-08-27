@@ -66,7 +66,7 @@
 - Create: `cmd/sdlc/internal/judge/reviewwindow.go`
 - Create: `cmd/sdlc/internal/judge/reviewwindow_test.go`
 
-- [ ] **Step 1: Write failing committed-range renderer tests**
+- [x] **Step 1: Write failing committed-range renderer tests**
 
 Construct a manifest with full 40-character `BaseSHA`/`HeadSHA`, a repository path containing a space/single quote, custom issue/history directories, issue/plan paths, and assert the exact four argv displays:
 
@@ -79,25 +79,25 @@ git -C <root> diff <base> <head> -- <path-from-name-status> :!<issues>/ :!<histo
 
 Assert each argv element is POSIX-shell quoted for display and the output names committed mode, issue file, optional plan file, and pinned SHAs.
 
-- [ ] **Step 2: Write failing working-tree and validation tests**
+- [x] **Step 2: Write failing working-tree and validation tests**
 
 Assert working-tree recipes omit a head argument but display `AmbientHeadSHA`; assert untracked files are explicitly out of scope. Reject missing/non-full SHAs, inconsistent mode fields, relative repository root, and missing base/head combinations.
 
-- [ ] **Step 3: Run the focused tests and confirm RED**
+- [x] **Step 3: Run the focused tests and confirm RED**
 
 Run: `go test ./cmd/sdlc/internal/judge -run 'TestReviewWindow' -count=1`
 
 Expected: FAIL because the entities do not exist.
 
-- [ ] **Step 4: Implement the minimal pure entities**
+- [x] **Step 4: Implement the minimal pure entities**
 
 Use structured `[]string` argv internally. Implement one `shellQuoteArg` helper for display only; never feed its output to a shell. Keep the targeted command's selected path as a documented literal substitution token, not user-interpolated executable text.
 
-- [ ] **Step 5: Prove bounded output**
+- [x] **Step 5: Prove bounded output**
 
 Add a multi-megabyte sentinel only to an unrelated synthetic diff input and assert `RenderReviewWindow` output contains neither sentinel bytes nor content proportional to it. Assert a conservative upper bound for the fixed fixture.
 
-- [ ] **Step 6: Run focused tests and commit**
+- [x] **Step 6: Run focused tests and commit**
 
 Run: `go test ./cmd/sdlc/internal/judge -run 'TestReviewWindow' -count=1`
 
@@ -113,7 +113,7 @@ Commit: `git commit -am "#162: add compact review window manifest"` after adding
 - Modify: `cmd/sdlc/orientation.go`
 - Test: `cmd/sdlc/orientation_test.go`
 
-- [ ] **Step 1: Write the stateful fake and failing resolver tests**
+- [x] **Step 1: Write the stateful fake and failing resolver tests**
 
 The fake records ordered argv and returns configured values for:
 
@@ -125,21 +125,21 @@ rev-parse --verify <head>^{commit}
 
 Cover explicit committed head, omitted head resolving ambient `HEAD`, symbolic input becoming full object IDs, missing/non-commit refs, unavailable root, issue-file lookup failure, and optional canonical plan discovery.
 
-- [ ] **Step 2: Run resolver tests and confirm RED**
+- [x] **Step 2: Run resolver tests and confirm RED**
 
 Run: `go test ./cmd/sdlc -run 'TestResolveReviewWindow' -count=1`
 
 Expected: FAIL because the resolver and runner interface do not exist.
 
-- [ ] **Step 3: Implement the integration seam**
+- [x] **Step 3: Implement the integration seam**
 
 Add `boundaryGitRunner`, production adapter, and `resolveReviewWindow`. Keep object-ID format validation pure. Return errors with the failed ref/path and next action; do not fall back to `<unknown-repo>` for a boundary dispatch.
 
-- [ ] **Step 4: Add real-Git conformance tests**
+- [x] **Step 4: Add real-Git conformance tests**
 
 Using the existing temporary repository helpers, create base/reviewed/later commits plus staged, unstaged, and untracked files. Assert explicit head pins the reviewed commit; omitted head's rendered commands cover committed-after-base plus staged/unstaged tracked state and exclude untracked files when executed.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `go test ./cmd/sdlc -run 'Test(ResolveReviewWindow|BoundaryOrientation)' -count=1`
 
@@ -158,29 +158,29 @@ Commit: `git commit -am "#162: resolve pinned boundary review windows"` after ad
 - Modify: `cmd/sdlc/internal/judge/prompts/milestone-review.md`
 - Modify: `cmd/sdlc/internal/judge/testdata/golden/milestone-review.prompt`
 
-- [ ] **Step 1: Write failing prompt and dispatch tests**
+- [x] **Step 1: Write failing prompt and dispatch tests**
 
 Update the pinned-head regression to assert `REVIEWED_MARKER`/`LATER_MARKER` patch bytes are both absent, while full reviewed SHA and the exact pinned Git recipes are present. Add a multi-megabyte tracked file and assert automatic `DispatchOptions.Prompt` remains bounded and sentinel-free. Assert automatic commands use the effective `IssuesDir` and literal `workshop/history`.
 
-- [ ] **Step 2: Add failure-path tests**
+- [x] **Step 2: Add failure-path tests**
 
 Assert automatic dispatch returns `ok=false` before agent launch for empty/symbolic/unresolvable anchors, inaccessible repository root, or missing issue file. Assert the reason becomes `VerdictNotRun` through `dispatchBoundaryReview`.
 
-- [ ] **Step 3: Run focused tests and confirm RED**
+- [x] **Step 3: Run focused tests and confirm RED**
 
 Run: `go test ./cmd/sdlc -run 'TestBoundaryReviewDispatchOptions|TestDispatchBoundaryReview' -count=1`
 
 Expected: FAIL because the prompt still embeds diff bytes.
 
-- [ ] **Step 4: Wire the manifest into automatic dispatch**
+- [x] **Step 4: Wire the manifest into automatic dispatch**
 
 Add a `ReviewWindow` field to `judge.PromptInput`, replace milestone template's `Diff:` block with `Review window:` and the rendered manifest token, and stop calling `collectDiff` from `boundaryReviewDispatchOptions`. Preserve orientation fields, `PriorFindings`, agent/tool resolution, findings parsing, sidecar persistence, and concrete captured head. Capture optional plan path before `reviewThenFinalizeLocked` blanks `PlansDir`; carry it as immutable dispatch data rather than reading after the lock is released.
 
-- [ ] **Step 5: Update only the intentional golden**
+- [x] **Step 5: Update only the intentional golden**
 
 Regenerate or edit only `milestone-review.prompt`, inspect its diff, then run the full judge package golden test to prove every non-boundary category is byte-identical.
 
-- [ ] **Step 6: Run focused suites and commit**
+- [x] **Step 6: Run focused suites and commit**
 
 Run:
 
@@ -200,25 +200,25 @@ Commit: `git commit -am "#162: send manifests to automatic boundary reviews"`.
 - Modify: `cmd/sdlc/judge_command_test.go`
 - Modify: `cmd/sdlc/collectdiff_test.go`
 
-- [ ] **Step 1: Write failing manual-mode tests**
+- [x] **Step 1: Write failing manual-mode tests**
 
 For `milestone-review`, assert explicit `--base`/`--head` resolve to full commits and custom `IssuesDir`/`HistoryDir` appear in every recipe. With omitted head, assert working-tree mode, ambient `HEAD`, and no head argv. Assert invalid refs fail before dispatch with a precise message.
 
-- [ ] **Step 2: Snapshot non-boundary prompts before changing code**
+- [x] **Step 2: Snapshot non-boundary prompts before changing code**
 
 Build dry/pure/plan/specs prompt output from the existing golden input and retain the bytes in the current golden fixtures; do not route those categories through the new resolver.
 
-- [ ] **Step 3: Run focused tests and confirm RED**
+- [x] **Step 3: Run focused tests and confirm RED**
 
 Run: `go test ./cmd/sdlc -run 'TestJudge.*Milestone|TestCollectDiff' -count=1`
 
 Expected: new milestone tests FAIL; existing collectDiff tests PASS.
 
-- [ ] **Step 4: Special-case milestone review before `collectDiff`**
+- [x] **Step 4: Special-case milestone review before `collectDiff`**
 
 Resolve its review window and build the shared manifest/orientation input. Leave the existing `collectDiff` path byte-for-byte for dry/pure/plan/specs. On omitted head, document that Git diff includes committed-after-base plus staged/unstaged tracked files and excludes untracked files.
 
-- [ ] **Step 5: Run compatibility tests and commit**
+- [x] **Step 5: Run compatibility tests and commit**
 
 Run:
 
@@ -239,11 +239,11 @@ Commit: `git commit -am "#162: use pinned manifests in manual milestone review"`
 - Modify: `workshop/issues/000162-milestone-close-window-base.md`
 - Modify: `workshop/plans/000162-milestone-close-window-base-plan.md`
 
-- [ ] **Step 1: Update atlas wording**
+- [x] **Step 1: Update atlas wording**
 
 Document that boundary reviewers receive pinned repository commands instead of patch bytes, distinguish committed/working-tree scope, state untracked exclusion, and note automatic-versus-manual directory sources. Keep `atlas/index.md` unchanged because both existing pages are already linked.
 
-- [ ] **Step 2: Run shadow-document and stale-contract sweeps**
+- [x] **Step 2: Run shadow-document and stale-contract sweeps**
 
 Run:
 
@@ -254,7 +254,7 @@ git diff --check
 
 Expected: no live documentation claims that boundary prompts embed unified diff bytes; historical issue revisions may retain superseded rationale.
 
-- [ ] **Step 3: Run complete verification**
+- [x] **Step 3: Run complete verification**
 
 Run:
 
@@ -267,11 +267,11 @@ git diff --check
 
 Expected: all PASS.
 
-- [ ] **Step 4: Build and smoke-test the live in-place binary**
+- [x] **Step 4: Build and smoke-test the live in-place binary**
 
 Build using the repository's canonical target discovered from `Makefile`, then run a manual dry-run milestone review against a small local range. Assert the prompt contains the pinned manifest and no patch hunk.
 
-- [ ] **Step 5: Update durable execution state and commit**
+- [x] **Step 5: Update durable execution state and commit**
 
 Check completed issue/plan boxes, append verification and architectural decisions to `## Log`, and commit with:
 
@@ -279,7 +279,7 @@ Check completed issue/plan boxes, append verification and architectural decision
 git commit -am "#162: document compact boundary review transport"
 ```
 
-- [ ] **Step 6: Cross the SDLC boundary**
+- [x] **Step 6: Cross the SDLC boundary**
 
 Run `sdlc close --issue 162 --verified '<exact test and smoke evidence>'`, address the binary-owned fresh review, merge/push according to the SDLC next-action output, and confirm the live `bin/sdlc` used by Pair contains the fix.
 
