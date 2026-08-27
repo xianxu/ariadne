@@ -1,12 +1,13 @@
 ---
 id: 000200
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-21
 updated: 2026-08-27
 estimate_hours: 4.22
 started: 2026-08-24T13:24:43-07:00
+actual_hours: 49.90
 ---
 
 # sdlc: fleet thread inventory
@@ -518,6 +519,7 @@ remains open until `pair#149` consumes this normalized query and removes
 couch's temporary repo-name `PolicyTable` authority.
 
 ### 2026-08-27 — Pair consumer handoff complete
+- 2026-08-27: closed — full Go suite, vocabulary, vet, authoritative corrected Core concepts table red/green contract, all production refusal variants through E2E, README contract, Brain unbounded query, Pair live conformance, and git diff check pass; review verdict: SHIP
 
 Pair #149 removed the repo-name policy shadow, consumes
 `sdlc fleet policy --path <requested> --json` through an injected resolver,
