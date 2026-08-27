@@ -109,6 +109,64 @@ working-tree behavior (ARCH-MOCK).
   and non-boundary judge prompts remain byte-compatible except for intentional
   documentation wording.
 
+### 2026-08-26 — make the manifest and failure contract executable
+
+**Reason:** fresh-context review found that the original checklist below still
+prescribed stdin/temp transport and that the first manifest revision left the
+working-tree variant, custom directories, and failure semantics implicit.
+
+**Decision:** supersede the original `## Plan` transport item with the revised
+plan below. The boundary-only prompt input retains the existing orientation and
+gate fields (`Repo`, `RepoRoot`, `IssueRef`, `IssueFile`, `Boundary`, `RepoNote`,
+and `PriorFindings`) and adds a typed review-window manifest with two explicit
+variants:
+
+- **Committed range:** `BaseSHA` and `HeadSHA` are full object IDs resolved as
+  commits before dispatch; `WorkingTree` is false.
+- **Working tree:** `BaseSHA` and `AmbientHeadSHA` are full commit object IDs,
+  `HeadSHA` is empty, and `WorkingTree` is true. The range includes committed
+  changes after the base plus staged and unstaged tracked changes; as with the
+  current `git diff <base>` contract, untracked files are excluded.
+
+Both variants carry the optional canonical durable-plan path when one exists.
+The manifest renders argv as structured command plus arguments, and display
+text shell-quotes each argument; it never constructs executable shell source.
+Its stat, name-status, full-patch, and targeted-patch recipes reuse the effective
+`--issues-dir` and `--history-dir` values, including environment overrides, for
+the same exclusions as the former boundary `collectDiff` call.
+
+Automatic dispatch refuses symbolic, missing, or non-commit base/head anchors
+and an unavailable repository root before launching the reviewer. Manual
+milestone review resolves explicit refs to commits first; omitted head selects
+the working-tree variant and captures the ambient `HEAD`. The prompt instructs
+the reviewer to return REWORK when repository inspection or a required command
+is unavailable. This is the enforceable boundary: the dispatcher validates the
+inputs and verdict protocol, while the reviewer remains responsible for using
+the supplied read-only inspection recipes; `sdlc` does not claim to prove tool
+use after launch.
+
+Ref resolution is a PURE decision over an injected Git command seam. Unit tests
+use a small stateful fake that records argv and maps refs to object IDs; a real
+temporary Git repository provides conformance coverage for explicit refs and
+working-tree semantics (ARCH-MOCK). Prompt rendering is pure and receives only
+already-resolved data (ARCH-PURE).
+
+**Revised implementation plan (supersedes the unchecked transport item below):**
+
+- [ ] Define and render the two `ReviewWindowManifest` variants with exact,
+      safely quoted Git argv and effective issue/history exclusions.
+- [ ] Resolve and validate repository root, base/head commits, ambient `HEAD`,
+      issue path, and optional canonical plan path at the IO boundary before
+      automatic or manual boundary dispatch.
+- [ ] Replace only milestone-review's embedded `Diff` with the manifest; retain
+      all orientation, prior-finding, verdict, and fresh-process contracts.
+- [ ] Add unit coverage with the stateful Git fake and live temporary-repository
+      conformance tests for explicit ranges, omitted-head working-tree scope,
+      invalid refs/repositories, custom directories, safe argument rendering,
+      and a multi-megabyte sentinel absent from the resulting prompt.
+- [ ] Pin every non-boundary prompt golden byte-for-byte and update process/atlas
+      documentation for the boundary-only transport change.
+
 ## Done when
 
 - `milestone-close` on the first milestone of a fresh branch reviews only the
@@ -124,7 +182,8 @@ working-tree behavior (ARCH-MOCK).
       judge dispatch (`sdlc judge milestone-review`) and the atlas/plan gates.
 - [ ] Anchor the window to the milestone's first commit / prior `Mx` boundary;
       share it across review + atlas + plan gates.
-- [ ] Pass the review diff to `claude` via temp file / stdin (E2BIG-proof).
+- [x] ~~Pass the review diff to `claude` via temp file / stdin (E2BIG-proof).~~
+      Superseded by the compact pinned-manifest revision above.
 - [ ] Regression tests: first-milestone (branch point) + Nth-milestone (prior
       boundary) window bases.
 
