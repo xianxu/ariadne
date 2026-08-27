@@ -4,7 +4,7 @@ status: working
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-25
+updated: 2026-08-27
 estimate_hours: 4.22
 started: 2026-08-24T13:24:43-07:00
 ---
@@ -340,7 +340,7 @@ stale, so this is provisional until #127 refreshes it.
 - [x] Coordinated repo-local declarations for the named live policy examples;
       couch and `AGENTS.local.md` remain consumers rather than parallel policy
       sources.
-- [ ] `pair#149` couch integration consumes the normalized prospective-path
+- [x] `pair#149` couch integration consumes the normalized prospective-path
       query and removes the temporary repo-name `PolicyTable` authority.
 - [x] Fleet-root normalization from primary, peer, nested, and linked-worktree
       vantage before reusing the existing fleet walk.
@@ -501,3 +501,15 @@ Final provider gates passed: `bash construct/vocabulary/vet_test.sh`;
 `go test ./... -count=1`; and `git diff --check`. Ariadne #200 intentionally
 remains open until `pair#149` consumes this normalized query and removes
 couch's temporary repo-name `PolicyTable` authority.
+
+### 2026-08-27 — Pair consumer handoff complete
+
+Pair #149 removed the repo-name policy shadow, consumes
+`sdlc fleet policy --path <requested> --json` through an injected resolver,
+persists versioned policy evidence, and resolves stale incumbents before
+admission. Its M1 boundary closed at `eb47a9b` and the complete issue shipped in
+Pair PR #101 (`5fc1189`) after full, race, clean-bootstrap, runtime-drift, and
+live-provider conformance coverage. Rebuilding this branch's `bin/sdlc` and
+querying Brain returned the declared unbounded policy; the same query against
+Ariadne `main` reproduced the missing-command startup failure that this provider
+merge closes (ARCH-DRY, ARCH-PURPOSE, ARCH-MOCK).

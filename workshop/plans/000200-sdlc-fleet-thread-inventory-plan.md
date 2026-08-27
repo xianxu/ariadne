@@ -382,20 +382,20 @@ This is a coordinated cross-repo delivery, but Pair keeps its own SDLC artifact 
 - Modify: `cmd/internal/couchcmd/run.go` (render `reject` vs `provision-worktree` from normalized action)
 - Add: a typed `PolicyResolver` adapter + JSON decoder and tests
 
-- [ ] Define Pair's pure admission entity as `{repo_identity, admission_key, capacity, on_capacity?}` plus current live occupancy. Bounded capacity admits below its limit and returns its typed action at the limit; unbounded always admits and carries no action. No Pair enum restates repo/worktree/declared-root key kinds because couch consumes the resolved key.
-- [ ] Put the external `sdlc fleet policy --path <requested> --json` call behind `PolicyResolver`. Its stateful fake stores path-keyed normalized results/diagnostics and is injected through the same Couch composition boundary; a live conformance test runs against a temporary repo plus the built sdlc provider on every relevant Pair full-suite run (ARCH-MOCK).
-- [ ] Query before child fork. Count only records whose PID/identity probe is live and whose persisted normalized admission key equals the prospective result. Prune dead records first; unknown liveness remains occupied conservatively.
-- [ ] Persist policy version/digest plus normalized repo/admission identities on the thread/incarnation record. Before later occupancy checks, compare them with the current provider result and re-resolve stale live/unknown incumbents; a legacy or unresolved record conservatively blocks, never disappears.
-- [ ] Remove `Store.policyPath`, `policy.json` loading, `PolicyTable.Mode(repo)`, `InPlaceSerial`, `WorktreeParallel`, and `HeavyLocalState`. Add a shadow-sweep test that fails if those symbols or the old policy file authority remain.
-- [ ] Implement the Pair `Admission.Decide` / `PolicyResolver` strategy above.
-- [ ] Keep human rendering actionable: `reject` offers switch/stop; `provision-worktree` offers the provision action (not a fabricated path—path allocation belongs to the later worktree lifecycle owner). Do not re-infer the action from repo name.
+- [x] Define Pair's pure admission entity as `{repo_identity, admission_key, capacity, on_capacity?}` plus current live occupancy. Bounded capacity admits below its limit and returns its typed action at the limit; unbounded always admits and carries no action. No Pair enum restates repo/worktree/declared-root key kinds because couch consumes the resolved key.
+- [x] Put the external `sdlc fleet policy --path <requested> --json` call behind `PolicyResolver`. Its stateful fake stores path-keyed normalized results/diagnostics and is injected through the same Couch composition boundary; a live conformance test runs against a temporary repo plus the built sdlc provider on every relevant Pair full-suite run (ARCH-MOCK).
+- [x] Query before child fork. Count only records whose PID/identity probe is live and whose persisted normalized admission key equals the prospective result. Prune dead records first; unknown liveness remains occupied conservatively.
+- [x] Persist policy version/digest plus normalized repo/admission identities on the thread/incarnation record. Before later occupancy checks, compare them with the current provider result and re-resolve stale live/unknown incumbents; a legacy or unresolved record conservatively blocks, never disappears.
+- [x] Remove `Store.policyPath`, `policy.json` loading, `PolicyTable.Mode(repo)`, `InPlaceSerial`, `WorktreeParallel`, and `HeavyLocalState`. Add a shadow-sweep test that fails if those symbols or the old policy file authority remain.
+- [x] Implement the Pair `Admission.Decide` / `PolicyResolver` strategy above.
+- [x] Keep human rendering actionable: `reject` offers switch/stop; `provision-worktree` offers the provision action (not a fabricated path—path allocation belongs to the later worktree lifecycle owner). Do not re-infer the action from repo name.
 
 ### Task 6.2: Cross-repo contract and close gates
 
-- [ ] Build Ariadne's `sdlc`, point the Pair live-conformance test at it, and verify the Pair decoder accepts success plus every structured diagnostic fixture emitted by the provider.
-- [ ] Run Pair's targeted policy/registry/store/couchcmd tests, full `go test ./...`, race target required by its local plan, and `git diff --check`; cross the exact `pair#149` M1 boundary with `sdlc milestone-close --issue 149 --milestone M1`.
-- [ ] In Ariadne, add the Pair commit/review evidence to #200's Log and run the complete provider suite again.
-- [ ] Run `sdlc close --issue 200 --verified '<provider tests, four-vantage smoke, declarations, Pair consumer/conformance commit and removal shadow-sweep>'`; let the close gate measure actual time and dispatch the mandatory fresh-context review. Fix Critical/Important findings and re-run verification before crossing the boundary.
+- [x] Build Ariadne's `sdlc`, point the Pair live-conformance test at it, and verify the Pair decoder accepts success plus every structured diagnostic fixture emitted by the provider.
+- [x] Run Pair's targeted policy/registry/store/couchcmd tests, full `go test ./...`, race target required by its local plan, and `git diff --check`; cross the exact `pair#149` M1 boundary with `sdlc milestone-close --issue 149 --milestone M1`.
+- [x] In Ariadne, add the Pair commit/review evidence to #200's Log and run the complete provider suite again.
+- [x] Run `sdlc close --issue 200 --verified '<provider tests, four-vantage smoke, declarations, Pair consumer/conformance commit and removal shadow-sweep>'`; let the close gate measure actual time and dispatch the mandatory fresh-context review. Fix Critical/Important findings and re-run verification before crossing the boundary.
 
 ---
 
@@ -440,3 +440,17 @@ keys need an authority-change detector rather than being trusted indefinitely.
 canonical semantic declaration digest. Loader tests pin digest stability and
 change detection; Pair M1 persists the evidence and re-resolves stale
 live/unknown occupants before admitting another actor.
+
+### 2026-08-27 — complete the deferred Pair consumer handoff
+
+**Reason:** Pair #149 shipped the normalized consumer through PR #101, but this
+provider branch was not subsequently closed and merged as Chunk 6 required.
+A fresh Couch supervisor therefore invoked `sdlc fleet policy` against Ariadne
+`main`, received an unknown-command error with empty stdout, and failed strict
+response decoding.
+
+**Delta:** mark every Chunk 6 consumer/gate task complete with Pair's reviewed
+M1 and merged-issue evidence, rebuild the provider, rerun the complete Ariadne
+suite plus the real Brain prospective-path query, then close and merge #200.
+No provider or consumer contract changes; this revision completes the planned
+cross-repo delivery boundary (ARCH-DRY, ARCH-PURPOSE, ARCH-MOCK).
