@@ -167,6 +167,48 @@ already-resolved data (ARCH-PURE).
 - [ ] Pin every non-boundary prompt golden byte-for-byte and update process/atlas
       documentation for the boundary-only transport change.
 
+### 2026-08-26 — classify Git as integration and pin command sources
+
+**Reason:** the second spec review caught an effects-based classification error
+and ambiguity about whether this work should add a history-directory option to
+automatic close.
+
+**Decision:** Git execution and ref resolution are INTEGRATION even when invoked
+through an injected runner. Only validation of already-returned object IDs and
+manifest/command rendering are PURE (ARCH-PURE). The stateful fake models Git's
+ref map and command history behind the same runner interface used by production;
+temporary real repositories remain the live conformance layer (ARCH-MOCK).
+
+Directory inputs preserve each caller's current contract rather than widening
+flags in this issue:
+
+- Manual `sdlc judge milestone-review` uses its effective `--issues-dir` and
+  `--history-dir` values, including `WF_ISSUES_DIR` / `WF_HISTORY_DIR`.
+- Automatic `close` / `milestone-close` uses its effective issues directory and
+  the existing literal `workshop/history`. Adding an automatic history override
+  is out of scope.
+
+For repository root `R`, pinned commits `B` and optional `H`, effective
+directories `I` and `A`, and a selected changed path `P`, the structured argv
+recipes are exactly:
+
+```text
+committed stat:        git -C R diff --stat B H -- :!I/ :!A/
+committed names:       git -C R diff --name-status B H -- :!I/ :!A/
+committed full:        git -C R diff B H -- :!I/ :!A/
+committed targeted:    git -C R diff B H -- P :!I/ :!A/
+working-tree stat:     git -C R diff --stat B -- :!I/ :!A/
+working-tree names:    git -C R diff --name-status B -- :!I/ :!A/
+working-tree full:     git -C R diff B -- :!I/ :!A/
+working-tree targeted: git -C R diff B -- P :!I/ :!A/
+```
+
+The renderer shell-quotes each argv element only for display; resolution invokes
+the runner with an argv slice and no shell. `P` is a displayed substitution slot,
+not interpolated executable text. Rooting every recipe with `-C R` makes the
+manifest independent of the reviewer's ambient directory while preserving the
+former exclusion pathspecs and their order.
+
 ## Done when
 
 - `milestone-close` on the first milestone of a fresh branch reviews only the
