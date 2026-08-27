@@ -513,3 +513,9 @@ live-provider conformance coverage. Rebuilding this branch's `bin/sdlc` and
 querying Brain returned the declared unbounded policy; the same query against
 Ariadne `main` reproduced the missing-command startup failure that this provider
 merge closes (ARCH-DRY, ARCH-PURPOSE, ARCH-MOCK).
+
+After merging current Ariadne `main`, the full suite exposed a pre-existing
+2-second asynchronous judge-start test ceiling: cold command setup consistently
+took 2.7–3.4 seconds while the same test passed under a diagnostic 10-second
+ceiling. The shared test-only wait is now five seconds and passed three repeated
+stale-review runs; production timeouts are unchanged.
