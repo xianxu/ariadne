@@ -45,7 +45,8 @@ func (c ReviewCommand) Shell() string {
 // RenderReviewWindow validates already-resolved data and renders the compact
 // boundary-review manifest. It performs no filesystem or Git IO.
 func RenderReviewWindow(m ReviewWindowManifest) (string, error) {
-	if err := validateReviewWindow(m); err != nil {
+	commands, err := ReviewCommands(m)
+	if err != nil {
 		return "", err
 	}
 
@@ -72,10 +73,20 @@ func RenderReviewWindow(m ReviewWindowManifest) (string, error) {
 		lines = append(lines, "plan file: "+m.PlanFile)
 	}
 	lines = append(lines, "commands:")
-	for _, cmd := range reviewCommands(m) {
+	for _, cmd := range commands {
 		lines = append(lines, "  "+cmd.Label+": "+cmd.Shell())
 	}
 	return strings.Join(lines, "\n"), nil
+}
+
+// ReviewCommands returns the structured read-only Git recipes carried by the
+// rendered manifest. Callers can execute these argv directly for conformance;
+// Shell remains display-only.
+func ReviewCommands(m ReviewWindowManifest) ([]ReviewCommand, error) {
+	if err := validateReviewWindow(m); err != nil {
+		return nil, err
+	}
+	return reviewCommands(m), nil
 }
 
 func validateReviewWindow(m ReviewWindowManifest) error {
@@ -87,6 +98,12 @@ func validateReviewWindow(m ReviewWindowManifest) error {
 	}
 	if m.IssuesDir == "" || m.HistoryDir == "" {
 		return fmt.Errorf("review issue/history exclusions must be non-empty")
+	}
+	for label, dir := range map[string]string{"issue": m.IssuesDir, "history": m.HistoryDir} {
+		clean := filepath.Clean(dir)
+		if filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("review %s exclusion must be repository-relative: %q", label, dir)
+		}
 	}
 	if m.WorkingTree {
 		if m.HeadSHA != "" {

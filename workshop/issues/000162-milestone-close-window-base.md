@@ -305,3 +305,10 @@ stale on 2026-08-26, so these v3.1 values are provisional.
   passed. Rebuilt the live `bin/sdlc` via `make sdlc-build`; a manual
   `judge milestone-review --dry-run` named full immutable SHAs, the issue and
   canonical plan, and four repository-rooted Git recipes with no patch hunk.
+- Boundary-review round 1 returned REWORK. BR-1 found that absolute custom
+  tracker directories leaked into Git pathspecs; the resolver now canonicalizes
+  in-repository paths to Git-relative form and the pure renderer rejects paths
+  that bypass that invariant. BR-2 found the live test stopped at ref
+  resolution; it now executes all four structured recipes against committed,
+  staged, unstaged, untracked, and custom-directory fixture state (ARCH-MOCK,
+  ARCH-PURPOSE).

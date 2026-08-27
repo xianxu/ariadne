@@ -400,3 +400,18 @@ Git-resolution fake/conformance tests, automatic dispatch boundedness test,
 manual command tests, and prompt-contract/golden tests in that order. Each named
 surface must go red before its implementation change and green before its task
 commit. No earlier prose enumeration is an additional acceptance contract.
+
+### 2026-08-26 — close-review remediation for tracker pathspecs and conformance
+
+**Reason:** boundary-review round 1 found Task 2's custom-directory and live-Git
+coverage incomplete: absolute in-repository overrides were copied into
+repository-relative pathspecs, and the conformance fixture never executed the
+rendered recipes.
+
+**Delta:** normalize both configured exclusion directories to Git-root-relative
+paths at the resolver boundary, reject absolute/escaping exclusions in the pure
+renderer, and expose the validated structured recipes for conformance. The
+temporary-repository test now executes stat, name-status, full, and targeted
+argv across committed, staged, unstaged, untracked, and absolute custom tracker
+state, asserting both included work and excluded tracker content. The reopened
+coverage obligation is complete (ARCH-MOCK, ARCH-PURPOSE).

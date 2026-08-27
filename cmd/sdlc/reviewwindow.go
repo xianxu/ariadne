@@ -51,9 +51,17 @@ func resolveBoundaryReviewManifest(git boundaryGitRunner, req boundaryReviewMani
 	if err != nil {
 		return judge.ReviewWindowManifest{}, err
 	}
+	issuesDir, err := repositoryRelativeReviewDir(root, req.IssuesDir, "issues")
+	if err != nil {
+		return judge.ReviewWindowManifest{}, err
+	}
+	historyDir, err := repositoryRelativeReviewDir(root, req.HistoryDir, "history")
+	if err != nil {
+		return judge.ReviewWindowManifest{}, err
+	}
 	m := judge.ReviewWindowManifest{
 		RepoRoot: root, BaseSHA: base,
-		IssuesDir: req.IssuesDir, HistoryDir: req.HistoryDir,
+		IssuesDir: issuesDir, HistoryDir: historyDir,
 	}
 	if req.HeadRef == "" {
 		m.WorkingTree = true
@@ -76,6 +84,26 @@ func resolveBoundaryReviewManifest(git boundaryGitRunner, req boundaryReviewMani
 		return judge.ReviewWindowManifest{}, fmt.Errorf("invalid review window: %w", err)
 	}
 	return m, nil
+}
+
+func repositoryRelativeReviewDir(root, configured, label string) (string, error) {
+	if strings.TrimSpace(configured) == "" {
+		return "", fmt.Errorf("review %s directory is empty", label)
+	}
+	abs := filepath.Clean(configured)
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(root, abs)
+	} else if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		abs = resolved
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil {
+		return "", fmt.Errorf("make review %s directory repository-relative: %w", label, err)
+	}
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("review %s directory %q must be inside repository %q", label, configured, root)
+	}
+	return filepath.ToSlash(rel), nil
 }
 
 func resolveBoundaryCommit(git boundaryGitRunner, label, ref string) (string, error) {

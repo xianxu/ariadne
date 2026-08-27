@@ -3,10 +3,12 @@ package main
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -125,6 +127,9 @@ func TestResolveBoundaryReviewManifest_FailsClosedOnGitOrTrackerErrors(t *testin
 		"repository": {fake: &fakeBoundaryGit{}, req: boundaryReviewManifestRequest{BaseRef: "base", HeadRef: "head", IssuesDir: "i", HistoryDir: "h"}},
 		"base ref":   {fake: func() *fakeBoundaryGit { f := baseFake(); f.failRef = "bad"; return f }(), req: boundaryReviewManifestRequest{BaseRef: "bad", HeadRef: "head", IssuesDir: "i", HistoryDir: "h"}},
 		"issue path": {fake: baseFake(), req: boundaryReviewManifestRequest{BaseRef: "base", HeadRef: "head", IssuesDir: "missing", HistoryDir: "h", IssueNum: 162}},
+		"outside tracker": {fake: baseFake(), req: boundaryReviewManifestRequest{
+			BaseRef: "base", HeadRef: "head", IssuesDir: filepath.Join(root, "..", "outside"), HistoryDir: "h",
+		}},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -138,15 +143,28 @@ func TestResolveBoundaryReviewManifest_FailsClosedOnGitOrTrackerErrors(t *testin
 func TestResolveBoundaryReviewManifest_ConformsToRealGit(t *testing.T) {
 	dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
 	base := strings.TrimSpace(testfix.Capture(t, dir, "rev-parse", "HEAD"))
+	issues := filepath.Join(dir, "custom", "issues")
+	history := filepath.Join(dir, "custom", "history")
+	for _, path := range []string{issues, history} {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := os.WriteFile("tracked.txt", []byte("reviewed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	testfix.Git(t, dir, "add", "tracked.txt")
+	if err := os.WriteFile(filepath.Join(issues, "000162-review.md"), []byte("excluded issue\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(history, "old.md"), []byte("excluded history\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, dir, "add", "tracked.txt", "custom")
 	testfix.Git(t, dir, "commit", "-q", "-m", "reviewed")
 	head := strings.TrimSpace(testfix.Capture(t, dir, "rev-parse", "HEAD"))
 
 	committed, err := resolveBoundaryReviewManifest(liveBoundaryGit{}, boundaryReviewManifestRequest{
-		BaseRef: base, HeadRef: "HEAD", IssuesDir: "workshop/issues", HistoryDir: "workshop/history",
+		BaseRef: base, HeadRef: "HEAD", IssuesDir: issues, HistoryDir: history,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -154,15 +172,67 @@ func TestResolveBoundaryReviewManifest_ConformsToRealGit(t *testing.T) {
 	if committed.BaseSHA != base || committed.HeadSHA != head || committed.WorkingTree {
 		t.Fatalf("committed manifest = %+v", committed)
 	}
+	if committed.IssuesDir != "custom/issues" || committed.HistoryDir != "custom/history" {
+		t.Fatalf("repository-relative exclusions = %q and %q", committed.IssuesDir, committed.HistoryDir)
+	}
+	assertReviewCommands(t, committed, []string{"tracked.txt"}, []string{"custom/issues", "custom/history"})
+
+	if err := os.WriteFile("tracked.txt", []byte("reviewed\nunstaged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("staged.txt", []byte("staged\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, dir, "add", "staged.txt")
+	if err := os.WriteFile("untracked.txt", []byte("untracked\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	working, err := resolveBoundaryReviewManifest(liveBoundaryGit{}, boundaryReviewManifestRequest{
-		BaseRef: base, IssuesDir: "workshop/issues", HistoryDir: "workshop/history",
+		BaseRef: base, IssuesDir: issues, HistoryDir: history,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !working.WorkingTree || working.AmbientHeadSHA != head {
 		t.Fatalf("working manifest = %+v", working)
+	}
+	assertReviewCommands(t, working, []string{"tracked.txt", "staged.txt"}, []string{"untracked.txt", "custom/issues", "custom/history"})
+}
+
+func assertReviewCommands(t *testing.T, manifest judge.ReviewWindowManifest, want, reject []string) {
+	t.Helper()
+	commands, err := judge.ReviewCommands(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commands) != 4 {
+		t.Fatalf("review command count = %d, want 4", len(commands))
+	}
+	for _, command := range commands {
+		args := append([]string(nil), command.Args...)
+		for i, arg := range args {
+			if arg == "<path-from-name-status>" {
+				args[i] = "tracked.txt"
+			}
+		}
+		out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("execute %s recipe: %v\n%s", command.Label, err, out)
+		}
+		text := string(out)
+		for _, path := range reject {
+			if strings.Contains(text, path) {
+				t.Errorf("%s recipe included %q:\n%s", command.Label, path, text)
+			}
+		}
+		if command.Label == "names" || command.Label == "full" {
+			for _, path := range want {
+				if !strings.Contains(text, path) {
+					t.Errorf("%s recipe omitted %q:\n%s", command.Label, path, text)
+				}
+			}
+		}
 	}
 }
 

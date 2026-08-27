@@ -85,6 +85,7 @@ func TestRenderReviewWindow_RejectsStructurallyInvalidManifests(t *testing.T) {
 		"symbolic base":          withReviewBase(valid, "HEAD~1"),
 		"missing committed head": withReviewHead(valid, ""),
 		"working tree has head":  withWorkingTreeHead(valid, testHeadSHA),
+		"absolute issues dir":    withReviewIssuesDir(valid, "/tmp/issues"),
 	}
 	for name, mutant := range mutants {
 		t.Run(name, func(t *testing.T) {
@@ -93,6 +94,11 @@ func TestRenderReviewWindow_RejectsStructurallyInvalidManifests(t *testing.T) {
 			}
 		})
 	}
+}
+
+func withReviewIssuesDir(m ReviewWindowManifest, issuesDir string) ReviewWindowManifest {
+	m.IssuesDir = issuesDir
+	return m
 }
 
 func withReviewRoot(m ReviewWindowManifest, root string) ReviewWindowManifest {

@@ -1075,3 +1075,19 @@ would be noticed missing.
 
 **Origin:** #194 M3 review BR-34 — 3rd instance of the family, escalated from "add a test"
 (round 5) to "revert the fix to verify it" (round 6) to this.
+
+## Repository-rooted Git pathspecs still require repository-relative configured paths
+
+**Pattern (#162 close review):** A review recipe correctly used `git -C <root>`,
+but copied absolute `--issues-dir` and `--history-dir` values into exclusion
+pathspecs. Git interprets tracked pathspecs relative to the work tree, so the
+commands ran successfully while silently reviewing files promised as excluded.
+The live conformance test only resolved refs and inspected manifest fields; it
+never executed the rendered argv, so it could not observe the semantic failure.
+
+**Rule:** Normalize configured in-repository paths at the IO boundary before
+passing them to a pure Git-command renderer, and make the renderer reject
+absolute or escaping paths. Conformance for generated command recipes must
+execute the structured argv against adversarial repository state and assert
+both inclusion and exclusion; resolving refs or comparing command text proves
+shape, not behavior (`ARCH-MOCK`, `ARCH-PURPOSE`).
