@@ -54,6 +54,61 @@ derive `BASE_SHA` deterministically as the milestone's lower bound:
 Guard the review dispatch against E2BIG regardless (pass the diff via a temp file
 / stdin, not an inline argv) so a large-but-legitimate window degrades gracefully.
 
+## Revisions
+
+### 2026-08-26 — replace the embedded boundary diff with a pinned review manifest
+
+**Reason:** pair#149 reproduced the remaining transport failure with a correctly
+bounded but large M5 window. Its unified diff was 930,583 bytes and the rendered
+Codex prompt was 937,639 bytes. The npm Codex launcher on Node 26 deterministically
+stack-overflowed when `child_process.spawn` forwarded a 930 KB argument, while the
+native Codex binary accepted the same input. Passing the same payload over stdin
+would avoid argv limits, but it would still duplicate data the reviewer already
+loads from the repository: all ten inspected boundary-review sessions ran
+`git diff` themselves (41 diff calls and 58 Git-inspection calls total).
+
+**Decision:** a boundary review receives a compact, deterministic
+`ReviewWindowManifest`, not unified diff bytes. The manifest contains the absolute
+repository root, immutable full base/head commit SHAs, issue/boundary identity,
+the issue path, prior structured findings, the current code-review path
+exclusions, and exact read-only commands for `git diff --stat`,
+`git diff --name-status`, and the full/targeted patch. Commands preserve the
+existing exclusion of `workshop/issues/` and `workshop/history/`; the reviewer
+reads the issue and plan explicitly through their named paths. Automatic close
+reviews always use the already captured concrete head. Manual
+`sdlc judge milestone-review` resolves supplied refs to immutable commits; when
+the head is intentionally omitted, the manifest says the working tree is in
+scope and renders the corresponding base-vs-working-tree command.
+
+The reviewer must inspect the pinned range through repository tools and fail
+closed if it cannot. The prompt keeps the compact `PriorFindings` handoff because
+that is gate state, not repository patch data. `dry`, `pure`, `plan`, and `specs`
+retain their existing inline-diff transport: they are separate judge contracts,
+and widening all of them is not required to unblock boundary review. Reviewer
+checkout isolation remains #204.
+
+**Alternatives rejected:** sending the full patch on stdin fixes only transport
+and still front-loads large generated mirrors into model context; writing a temp
+patch file creates lifecycle/cleanup state while duplicating Git's object store.
+Pinned Git commands reuse the repository as the single source of truth
+(ARCH-DRY), keep command rendering pure while Git/ref resolution stays at the IO
+boundary (ARCH-PURE), and preserve the exact reviewed window rather than solving
+only the observed Codex wrapper crash (ARCH-PURPOSE). Git remains behind the
+existing `gitx.RunGit` seam and repository fixtures exercise ref resolution and
+working-tree behavior (ARCH-MOCK).
+
+**Done-when delta:**
+
+- An automatic boundary prompt remains bounded when the reviewed patch contains
+  a multi-megabyte sentinel and contains no sentinel bytes.
+- The manifest carries full immutable base/head SHAs and commands whose pathspecs
+  match the former boundary `collectDiff` exclusions exactly.
+- Manual milestone review pins explicit refs; omitted head is explicitly and
+  correctly represented as a working-tree review.
+- Existing verdict parsing, prior-finding convergence, fresh-process dispatch,
+  and non-boundary judge prompts remain byte-compatible except for intentional
+  documentation wording.
+
 ## Done when
 
 - `milestone-close` on the first milestone of a fresh branch reviews only the
