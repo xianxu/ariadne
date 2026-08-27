@@ -1131,3 +1131,16 @@ entry point; a pure-unit branch that no real caller can enter is not part of a
 truthful public algebra. Remove unreachable variants rather than adding inputs
 solely to manufacture them. A shared struct does not imply a shared union
 (`ARCH-PURPOSE`).
+
+## A prose correction does not supersede a structural plan contract
+
+**Pattern (#200 close review):** A revision correctly described entity path and
+PURE/INTEGRATION corrections, but the plan's only greppable Core concepts table
+still contained the old claims. Reviewers and tooling reasonably continued to
+treat that table as authoritative.
+
+**Rule:** When history-preservation forbids rewriting an obsolete structural
+table, append a complete replacement table, label it authoritative and name
+what it supersedes. Pin its high-risk rows with a repository test. Narrative
+delta alone is insufficient when the original contract is tabular
+(`ARCH-PURE`, `ARCH-PURPOSE`).

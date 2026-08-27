@@ -550,3 +550,10 @@ through built-process E2E tests; the pure resolver maps inconsistent canonical
 inputs to `invalid-policy`. The revision rejects the alternative of adding a
 second repo-context input solely to make an otherwise impossible variant
 reachable (ARCH-PURPOSE, Simplicity First).
+
+Close review round 3 confirmed BR-4 and the runtime architecture, but kept BR-1
+open because the correction was prose-only while the historical Core concepts
+table remained the sole greppable inventory. The plan now appends an explicitly
+authoritative replacement table and
+`TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` pins its paths and
+PURE/INTEGRATION classifications (ARCH-PURE).

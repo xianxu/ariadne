@@ -487,3 +487,28 @@ result union is `missing-policy`, `invalid-policy`, and
 but reports the reachable `invalid-policy` variant. Adding a separate repository
 context flag solely to expose the removed variant would add an unused authority
 and violate Simplicity First (ARCH-PURPOSE).
+
+### 2026-08-27 — authoritative corrected Core concepts inventory
+
+**Reason:** close review round 3 found that prose corrections did not replace
+the only greppable entity inventory, leaving the original table operationally
+authoritative despite its known errors.
+
+**Delta:** this table supersedes the original `## Core concepts` tables. A
+repository test pins the corrected paths and classifications so a future review
+cannot mistake the historical table for current intent (ARCH-PURE).
+
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `FleetPolicyModel` | PURE | `pkg/vocab/fleetpolicy.go` | new |
+| `PolicyDiagnostic` / `PolicyCapability` / `PolicyResult` | PURE | `cmd/sdlc/internal/fleet/types.go` | new |
+| `ResolvePolicy` | PURE | `cmd/sdlc/internal/fleet/policy.go` | new |
+| `IssueAssociation` | PURE | `cmd/sdlc/internal/fleet/issues.go` | new |
+| `AssociateBranchIssue` | INTEGRATION | `cmd/sdlc/internal/fleet/issues.go` | new |
+| `MeasuredFacts` / `TreeRow` / `Inventory` | PURE | `cmd/sdlc/internal/fleet/types.go` | new |
+| `RenderInventory` / `RenderPolicy` | INTEGRATION | `cmd/sdlc/internal/fleet/render.go` | new |
+
+`AssociateBranchIssue` crosses the injected `IssueLookup` seam. The exported
+renderers cross the `io.Writer` seam; their deterministic sorting/formatting
+helpers remain pure implementation details rather than separately promised
+entities.
