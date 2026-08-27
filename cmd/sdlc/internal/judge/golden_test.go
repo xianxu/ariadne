@@ -15,6 +15,7 @@ var updateGolden = flag.Bool("update-golden", false, "rewrite testdata/golden/*.
 // golden captures the fully-rendered output of every category.
 var goldenInput = PromptInput{
 	Diff:          "DIFF-BODY-LINE-1\nDIFF-BODY-LINE-2",
+	ReviewWindow:  "PINNED-REVIEW-WINDOW",
 	ChangedIssues: []string{"workshop/issues/000001-a.md", "workshop/issues/000002-b.md"},
 	Base:          "BASE_SHA", Head: "HEAD",
 	IssueRef:     "pair#31 M2",

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -29,6 +30,7 @@ type judgeFlags struct {
 	Tools         string
 	IssuesDir     string
 	HistoryDir    string
+	PlansDir      string
 	DryRun        bool
 	Sandbox       bool
 	AgentExplicit bool
@@ -59,6 +61,7 @@ func NewJudgeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Tools, "tools", "", "tool allowlist for claude (default: per-category, see --help)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
+	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding optional durable plans (milestone-review only)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print prompt + would-be command; do not invoke agent")
 	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (milestone-review only)")
@@ -87,39 +90,51 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 	}
 	head := f.Head // empty → working tree, matches shell
 
-	diff, changed, err := collectDiff(cat, base, head, f.IssuesDir, f.HistoryDir)
-	if err != nil {
-		die(stderr, fmt.Sprintf("collect diff: %v", err))
-	}
-	if cat == judge.Plan && len(changed) == 0 {
-		// Match shell behavior: emit_check_message "No issue files changed — skipping plan check."
-		fmt.Fprintln(stdout, "No issue files changed — skipping plan check.")
-		cok(stderr, fmt.Sprintf("%s: clean", cat.Label()))
-		return nil
-	}
-
-	// Build prompt input. When --head is omitted the diff includes the
-	// working tree (uncommitted changes), so the prompt label must say
-	// so — "Head: HEAD" alone misleads the agent about what it's reviewing
-	// (review I2).
-	headLabel := head
-	if headLabel == "" {
-		headLabel = "HEAD (working tree, including uncommitted)"
-	}
-	in := judge.PromptInput{
-		Diff:          diff,
-		ChangedIssues: changed,
-		Base:          base,
-		Head:          headLabel,
-	}
-	if cat == judge.MilestoneReview && f.Issue > 0 {
-		ref := fmt.Sprintf("ariadne#%d", f.Issue)
-		if f.Milestone != "" {
-			ref += " " + f.Milestone
+	var prompt string
+	if cat == judge.MilestoneReview {
+		manifest, err := resolveBoundaryReviewManifest(liveBoundaryGit{}, boundaryReviewManifestRequest{
+			BaseRef: base, HeadRef: head,
+			IssuesDir: f.IssuesDir, HistoryDir: f.HistoryDir,
+			IssueNum: f.Issue, PlansDir: f.PlansDir,
+		})
+		if err != nil {
+			die(stderr, fmt.Sprintf("resolve review manifest: %v", err))
 		}
-		in.IssueRef = ref
+		reviewWindow, err := judge.RenderReviewWindow(manifest)
+		if err != nil {
+			die(stderr, fmt.Sprintf("render review manifest: %v", err))
+		}
+		o := boundaryOrientation(f.IssuesDir, f.Issue, f.Milestone)
+		o.RepoRoot = manifest.RepoRoot
+		o.Repo = filepath.Base(manifest.RepoRoot)
+		o.IssueFile = manifest.IssueFile
+		if f.Issue <= 0 {
+			o.IssueRef = "<unspecified>"
+		}
+		headLabel := manifest.HeadSHA
+		if manifest.WorkingTree {
+			headLabel = "working tree (ambient HEAD " + manifest.AmbientHeadSHA + ")"
+		}
+		prompt = judge.BuildPrompt(cat, judge.PromptInput{
+			ReviewWindow: reviewWindow, Base: manifest.BaseSHA, Head: headLabel,
+			IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
+			IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
+		})
+	} else {
+		diff, changed, err := collectDiff(cat, base, head, f.IssuesDir, f.HistoryDir)
+		if err != nil {
+			die(stderr, fmt.Sprintf("collect diff: %v", err))
+		}
+		if cat == judge.Plan && len(changed) == 0 {
+			// Match shell behavior: emit_check_message "No issue files changed — skipping plan check."
+			fmt.Fprintln(stdout, "No issue files changed — skipping plan check.")
+			cok(stderr, fmt.Sprintf("%s: clean", cat.Label()))
+			return nil
+		}
+		prompt = judge.BuildPrompt(cat, judge.PromptInput{
+			Diff: diff, ChangedIssues: changed, Base: base, Head: head,
+		})
 	}
-	prompt := judge.BuildPrompt(cat, in)
 
 	// Resolve agent + tools.
 	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())

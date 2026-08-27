@@ -30,6 +30,24 @@ func TestIsValid(t *testing.T) {
 	}
 }
 
+func TestBoundaryReviewInspectionContract(t *testing.T) {
+	p := BuildPrompt(MilestoneReview, PromptInput{ReviewWindow: "PINNED-MANIFEST"})
+	normalized := strings.Join(strings.Fields(p), " ")
+	for _, want := range []string{
+		"PINNED-MANIFEST",
+		"Run at least the stat and name-status recipes",
+		"return REWORK",
+		"repository, pinned objects, or a required read-only command is unavailable",
+	} {
+		if !strings.Contains(normalized, want) {
+			t.Errorf("boundary review inspection contract missing %q:\n%s", want, p)
+		}
+	}
+	if strings.Contains(p, "Read the diff against") {
+		t.Error("boundary review procedure still assumes patch bytes are embedded")
+	}
+}
+
 // TestEstimateQuality_NotInBulkDispatch pins the #117 decision: the estimate-
 // quality judge is a change-code-time-only gate. It must stay out of
 // AllCategories() (which drives push/merge bulk dispatch) and IsValid (standalone

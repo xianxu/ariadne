@@ -1134,6 +1134,7 @@ func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, 
 
 func reviewThenFinalizeLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams, snapshot closeReviewSnapshot) error {
 	dispatchParams := p
+	dispatchParams.ReviewPlansDir = p.PlansDir
 	dispatchParams.PlansDir = "" // sidecar is a repo write; persist it after reacquiring the lock.
 	review := dispatchBoundaryReview(stdout, stderr, dispatchParams)
 	return withRequiredRepoTransactionLock(cmd, func() error {

@@ -327,10 +327,11 @@ func branchStartByIssue(issueStr string) string {
 		return ""
 	}
 	parent := firstSHA + "^"
-	if gitx.Capture("rev-parse", "--verify", parent) == "" {
+	resolvedParent := gitx.Capture("rev-parse", "--verify", parent)
+	if resolvedParent == "" {
 		return firstSHA
 	}
-	return parent
+	return resolvedParent
 }
 
 // previousReviewBoundary returns the SHA of the most recent commit touching
@@ -551,6 +552,9 @@ type boundaryReviewParams struct {
 	IssueNum  int
 	Milestone string
 	PlansDir  string
+	// ReviewPlansDir carries the read-only plan discovery root across the unlocked
+	// dispatch while PlansDir is blanked to defer sidecar writes until relock.
+	ReviewPlansDir string
 	// ForcedRationale records a bypass of the ledger's refusal (--no-ledger / --force),
 	// stamped onto the round so the durable record does not read a waived refusal as a
 	// clean pass (#194 close review BR-17/BR-39). NOT the gate_forced metric — that reads
@@ -665,17 +669,37 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 	// p.Head, not "HEAD" (#194): this runs after reviewThenFinalizeLocked released
 	// the lock, so re-resolving here could collect a DIFFERENT commit than the
 	// snapshot pinned — the review would then be attributed to a commit it never read.
-	diff, _, err := collectDiff(judge.MilestoneReview, p.BaseLong, p.Head, p.IssuesDir, "workshop/history")
+	plansDir := p.ReviewPlansDir
+	if plansDir == "" {
+		plansDir = p.PlansDir
+	}
+	manifest, err := resolveBoundaryReviewManifest(liveBoundaryGit{}, boundaryReviewManifestRequest{
+		BaseRef: p.BaseLong, HeadRef: p.Head,
+		IssuesDir: p.IssuesDir, HistoryDir: "workshop/history",
+		IssueNum: p.IssueNum, PlansDir: plansDir,
+	})
 	if err != nil {
-		return judge.DispatchOptions{}, false, fmt.Sprintf("collect diff: %v", err)
+		return judge.DispatchOptions{}, false, fmt.Sprintf("resolve review manifest: %v", err)
+	}
+	// Automatic close captures concrete anchors under the repo lock. Resolving a
+	// symbolic ref here would reintroduce the moving-window race #194 removed.
+	if manifest.BaseSHA != p.BaseLong || manifest.HeadSHA != p.Head {
+		return judge.DispatchOptions{}, false, "automatic boundary review requires concrete base/head commit object ids"
+	}
+	reviewWindow, err := judge.RenderReviewWindow(manifest)
+	if err != nil {
+		return judge.DispatchOptions{}, false, fmt.Sprintf("render review manifest: %v", err)
 	}
 
 	// Orient the fresh reviewer to the ACTUAL repo (#137) — derived from the live
 	// git context, not a hardcoded "ariadne". Computed once here, the single site
 	// both close and milestone-close funnel through (ARCH-DRY).
 	o := boundaryOrientation(p.IssuesDir, p.IssueNum, p.Milestone)
+	o.RepoRoot = manifest.RepoRoot
+	o.Repo = filepath.Base(manifest.RepoRoot)
+	o.IssueFile = manifest.IssueFile
 	in := judge.PromptInput{
-		Diff: diff, Base: p.BaseLong, Head: p.Head,
+		ReviewWindow: reviewWindow, Base: manifest.BaseSHA, Head: manifest.HeadSHA,
 		IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 		PriorFindings: p.PriorFindings,

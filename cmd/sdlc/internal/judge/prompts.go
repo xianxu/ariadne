@@ -62,6 +62,7 @@ func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
 		"{{BOUNDARY_CONTRACT}}", BoundaryReviewContract,
 		"{{CODE_REVIEW_BODY}}", CodeReviewBody(in),
 		"{{DIFF}}", in.Diff,
+		"{{REVIEW_WINDOW}}", in.ReviewWindow,
 		"{{CHANGED_ISSUES}}", strings.Join(in.ChangedIssues, "\n"),
 		"{{ISSUE_CONTENT}}", in.IssueContent,
 		"{{PRIOR_FINDINGS}}", orDefault(in.PriorFindings, "(no prior rounds)"),
@@ -165,6 +166,7 @@ func (c Category) AllowedTools() string {
 // unused fields are ignored.
 type PromptInput struct {
 	Diff          string   // unified diff of the review window
+	ReviewWindow  string   // compact pinned Git manifest (milestone-review only)
 	ChangedIssues []string // paths to changed issue files (for `plan`)
 	Base, Head    string   // refs that bound the window (for milestone-review)
 	IssueRef      string   // e.g. "pair#31 M2" — repo-prefixed (for milestone-review / plan-quality)
