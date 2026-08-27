@@ -275,6 +275,96 @@ func TestCloseCommand_ProjectChangedDuringBoundaryReview_DoesNotFinalize(t *test
 	}
 }
 
+func TestCloseCommand_PlanChangedDuringBoundaryReview_DoesNotFinalize(t *testing.T) {
+	commands := map[string]func(string, string) []string{
+		"close": func(issuesDir, plansDir string) []string {
+			return []string{"close", "--issue", "69", "--actual", "1", "--verified", "tests pass",
+				"--no-atlas", "--issues-dir", issuesDir, "--plans-dir", plansDir,
+				"--brain-dir", "../nonexistent-brain"}
+		},
+		"milestone-close": func(issuesDir, plansDir string) []string {
+			return []string{"milestone-close", "--issue", "69", "--milestone", "M1", "--actual", "1",
+				"--verified", "tests pass", "--no-atlas", "--issues-dir", issuesDir,
+				"--plans-dir", plansDir, "--brain-dir", "../nonexistent-brain"}
+		},
+	}
+	mutations := map[string]func(*testing.T, string){
+		"modified": func(t *testing.T, path string) {
+			if err := os.WriteFile(path, []byte("# Plan\n\nmodified\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"created": func(t *testing.T, path string) {
+			if err := os.WriteFile(path, []byte("# Plan\n\ncreated\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"deleted": func(t *testing.T, path string) {
+			if err := os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"replaced": func(t *testing.T, path string) {
+			replacement := path + ".replacement"
+			if err := os.WriteFile(replacement, []byte("# Plan\n\nreplacement\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Rename(replacement, path); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	for commandName, args := range commands {
+		for mutationName, mutate := range mutations {
+			t.Run(commandName+"/"+mutationName, func(t *testing.T) {
+				issuesDir := closeRepo(t, 69)
+				plansDir := filepath.Join("workshop", "plans")
+				if err := os.MkdirAll(plansDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				planPath := filepath.Join(plansDir, "000069-x-plan.md")
+				if mutationName != "created" {
+					if err := os.WriteFile(planPath, []byte("# Plan\n\noriginal\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+
+				started := make(chan struct{})
+				releaseReview := make(chan struct{})
+				orig := judge.Run
+				t.Cleanup(func() { judge.Run = orig })
+				judge.Run = func(ctx context.Context, onStart func(pid int), agent string, args ...string) (judge.ProcessOutput, error) {
+					close(started)
+					<-releaseReview
+					return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+				}
+
+				done := make(chan error, 1)
+				go func() {
+					_, _, err := executeSDLCTestCommand(args(issuesDir, plansDir)...)
+					done <- err
+				}()
+
+				waitForSignal(t, started, "boundary review to start")
+				mutate(t, planPath)
+				close(releaseReview)
+
+				select {
+				case err := <-done:
+					if err == nil || !strings.Contains(err.Error(), "boundary review stale") {
+						t.Fatalf("plan %s during %s must invalidate the review, got %v", mutationName, commandName, err)
+					}
+				case <-time.After(5 * time.Second):
+					t.Fatal("timeout waiting for stale close command")
+				}
+				if text := readIssue(t, issuesDir); !strings.Contains(text, "status: working") {
+					t.Fatalf("stale plan review finalized issue:\n%s", text)
+				}
+			})
+		}
+	}
+}
+
 // #160 Q4: the lessons reminder moved from the publish gate to `sdlc close` — a
 // finalizing whole-issue close emits it (agent engaged, findings fresh); a
 // non-finalizing (REWORK) close does not.

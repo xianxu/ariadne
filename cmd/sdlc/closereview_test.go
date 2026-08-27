@@ -267,13 +267,14 @@ func TestRunCloseWithReview_IssueClose_Dispatches(t *testing.T) {
 // sidecar (NNNNNN-slug-m<x>-review.md) via the same shared dispatch.
 func TestDispatchBoundaryReview_WritesMilestoneSidecar(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
+	head := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nMilestone looks good.\n")
 
 	res := dispatchBoundaryReview(io.Discard, io.Discard, boundaryReviewParams{
 		Label:     "#69 M1",
-		Base:      "HEAD",
-		BaseLong:  "HEAD",
-		Head:      "HEAD",
+		Base:      shortSHA(head),
+		BaseLong:  head,
+		Head:      head,
 		IssuesDir: issuesDir,
 		IssueNum:  69,
 		Milestone: "M1",
@@ -298,6 +299,8 @@ func TestDispatchBoundaryReview_WritesMilestoneSidecar(t *testing.T) {
 
 func TestDispatchBoundaryReview_PersistsSemanticOutputOnly(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
+	head := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	base := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD^"))
 	const semantic = "VERDICT: FIX-THEN-SHIP (confidence: high)\n\n" +
 		"One semantic finding.\n\n" +
 		"```findings\nfindings:\n  - id: new\n    severity: Important\n" +
@@ -314,9 +317,9 @@ func TestDispatchBoundaryReview_PersistsSemanticOutputOnly(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	res := dispatchBoundaryReview(&stdout, &stderr, boundaryReviewParams{
 		Label:     "#69 M1",
-		Base:      "HEAD^",
-		BaseLong:  "HEAD^",
-		Head:      "HEAD",
+		Base:      shortSHA(base),
+		BaseLong:  base,
+		Head:      head,
 		IssuesDir: issuesDir,
 		IssueNum:  69,
 		Milestone: "M1",
@@ -686,8 +689,8 @@ func TestClose_RecloseRefusal_NamesNewIssuePath(t *testing.T) {
 // interleaving tests commit after collectDiff has already run, so they never exercise
 // it: a regression to collectDiff(..., "HEAD", ...) would pass the whole suite.
 //
-// Pin it directly — dispatch against an OLDER head and assert the newer commit's
-// content is absent from the prompt.
+// Pin it directly — dispatch against an OLDER head and assert the manifest names
+// that immutable range without embedding either commit's patch bytes.
 func TestBoundaryReviewDispatchOptions_DiffIsPinnedToHead(t *testing.T) {
 	issuesDir := closeRepo(t, 69)
 	base := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
@@ -714,15 +717,47 @@ func TestBoundaryReviewDispatchOptions_DiffIsPinnedToHead(t *testing.T) {
 	if !ok {
 		t.Fatalf("dispatch options not built: %s", reason)
 	}
-	if !strings.Contains(opts.Prompt, "REVIEWED_MARKER") {
-		t.Error("the diff must contain the commit the review was anchored to")
+	if strings.Contains(opts.Prompt, "REVIEWED_MARKER") {
+		t.Error("the prompt must not embed the reviewed patch")
 	}
 	if strings.Contains(opts.Prompt, "LATER_MARKER") {
-		t.Error("the diff must be pinned to Head — it leaked a commit that landed after the anchor")
+		t.Error("the prompt leaked patch bytes from a commit after the anchor")
 	}
 	// The sidecar's window row flows from the same p.Head (a Done-when item that was
 	// otherwise only covered by fixture input).
 	if !strings.Contains(opts.Prompt, reviewed) {
 		t.Errorf("prompt must name the concrete reviewed SHA %s", abbrevSHA(reviewed))
+	}
+	if !strings.Contains(opts.Prompt, "git -C") || !strings.Contains(opts.Prompt, "diff --name-status "+base+" "+reviewed) {
+		t.Errorf("prompt must provide pinned repository-inspection commands:\n%s", opts.Prompt)
+	}
+}
+
+func TestBoundaryReviewDispatchOptions_LargePinnedPatchDoesNotEnterPrompt(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	base := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	marker := "MULTI_MEGABYTE_REVIEW_SENTINEL_69"
+	if err := os.WriteFile("large.txt", []byte(strings.Repeat(marker+"\n", 70000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, "", "add", "large.txt")
+	git(t, "", "commit", "-q", "-m", "#69: large reviewed patch")
+	reviewed := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	if diff := captureGit(t, "diff", base, reviewed, "--", ":!"+issuesDir+"/", ":!workshop/history/"); !strings.Contains(diff, marker) {
+		t.Fatal("fixture does not put the sentinel inside the pinned Git range")
+	}
+
+	opts, ok, reason := boundaryReviewDispatchOptions(io.Discard, io.Discard, boundaryReviewParams{
+		Label: "#69", Base: shortSHA(base), BaseLong: base, Head: reviewed,
+		IssuesDir: issuesDir, IssueNum: 69,
+	})
+	if !ok {
+		t.Fatalf("dispatch options not built: %s", reason)
+	}
+	if strings.Contains(opts.Prompt, marker) {
+		t.Fatal("boundary prompt contains bytes from the large pinned patch")
+	}
+	if len(opts.Prompt) > 100_000 {
+		t.Fatalf("boundary prompt is not bounded: %d bytes", len(opts.Prompt))
 	}
 }

@@ -70,6 +70,8 @@ func TestDispatchMilestoneReview_PromptBuildAndDispatch(t *testing.T) {
 }
 
 func TestDispatchBoundaryReview_AgentDefaultUsesPairAgent(t *testing.T) {
+	issuesDir := closeRepo(t, 31)
+	head := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
 	t.Setenv("AGENT_CMD", "")
 	t.Setenv("PAIR_AGENT", "codex")
 	orig := judge.Run
@@ -83,10 +85,12 @@ func TestDispatchBoundaryReview_AgentDefaultUsesPairAgent(t *testing.T) {
 
 	res := dispatchBoundaryReview(io.Discard, io.Discard, boundaryReviewParams{
 		Label:     "#31 M1",
-		Base:      "HEAD",
-		BaseLong:  "HEAD",
-		Head:      "HEAD",
-		IssuesDir: "workshop/issues",
+		Base:      shortSHA(head),
+		BaseLong:  head,
+		Head:      head,
+		IssuesDir: issuesDir,
+		IssueNum:  31,
+		Milestone: "M1",
 	})
 	if res.Verdict != judge.VerdictShip {
 		t.Fatalf("verdict = %s, want SHIP", res.Verdict)

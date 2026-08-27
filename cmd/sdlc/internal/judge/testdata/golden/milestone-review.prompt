@@ -16,7 +16,11 @@ take the implementor's word in commit messages or docs at face value. Tools are
 read-only: report findings precisely; the main agent (which has session context)
 applies the fixes, commits, and re-runs.
 
-Read the diff against the issue's Spec + Plan, then work the checklist below.
+Use the Review window commands below to inspect the pinned repository range
+against the issue's Spec + Plan. Run at least the stat and name-status recipes
+before targeted or full patch inspection. If the repository, pinned objects, or
+a required read-only command is unavailable, do not infer from prose: return
+REWORK and identify the failed inspection. Then work the checklist below.
 Categorize every finding by severity — not everything is Critical; a nitpick
 marked Critical is noise.
 
@@ -300,6 +304,5 @@ reads (its `verdict:` value is one of the listed tokens). Everything after the b
 is advisory: a non-blocking verdict WITH findings still PASSES the gate. A bare
 `VERDICT: <TOKEN>` line is accepted only as a FALLBACK when the block is absent.
 
-Diff:
-DIFF-BODY-LINE-1
-DIFF-BODY-LINE-2
+Review window:
+PINNED-REVIEW-WINDOW

@@ -115,9 +115,11 @@ MODES
 
   So committing `workshop/lessons.md`, `atlas/` and `workshop/plans/` bookkeeping
   during a review is safe. Landing code is not, and the refusal now tells you which
-  commits to re-review. The **issue file** and any **project file** are separately
-  snapshotted byte-exact and still refuse on any edit — the review READ that prose —
-  so write your `## Log` line AFTER the close, not during it.
+  commits to re-review. Every mutable prose artifact named to the reviewer is
+  separately snapshotted: the **issue file**, any **project file**, and the
+  canonical durable **plan** (including whether that plan exists). Any edit,
+  creation, deletion, or replacement refuses finalization — the review READ that
+  prose — so write your `## Log` line AFTER the close, not during it.
 
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain

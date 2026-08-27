@@ -104,25 +104,37 @@ func TestBoundaryWindowBase_MilestoneBasesOnPriorBoundary(t *testing.T) {
 	}
 }
 
-// #58: the FIRST milestone has no prior boundary, so it falls back to the branch
-// start (parent of the first #N commit) — unchanged from the pre-#58 behavior,
-// just no longer keyed to the Mx subject tag.
-func TestBoundaryWindowBase_FirstMilestoneBasesOnBranchStart(t *testing.T) {
+// #162: the FIRST milestone on a feature branch starts at the actual branch
+// point, not the parent of the first #N commit. An issue can be filed on main
+// long before its implementation branch; using its first commit would pull
+// unrelated main history into the review and can make the prompt enormous.
+func TestBoundaryWindowBase_FirstMilestoneBasesOnFeatureBranchPoint(t *testing.T) {
 	runGit, _, issuePath := windowRepo(t, 58)
 
-	// Only M1 work exists — the M1 close (with its trailer) hasn't happened yet,
-	// which is the real state at the moment `milestone-close --milestone M1` runs.
-	firstWork := commitTouchingIssue(t, runGit, issuePath, "m1work", "#58 M1: build the thing", "")
+	fileIssue := commitTouchingIssue(t, runGit, issuePath, "filed", "#58: file issue", "")
+	other := commitMarkerOnly(t, runGit, "other", "#99: unrelated feature")
+	branchPoint := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	runGit("switch", "-c", "feature-58")
+	impl := commitTouchingIssue(t, runGit, issuePath, "m1work", "#58 M1: build the thing", "")
 
 	if got := previousReviewBoundary(issuePath); got != "" {
 		t.Fatalf("previousReviewBoundary = %q, want empty (no prior boundary)", got)
 	}
 
 	base := boundaryWindowBase("58", "M1", issuePath)
-	wantParent := strings.TrimSpace(captureGit(t, "rev-parse", firstWork+"^"))
 	gotResolved := strings.TrimSpace(captureGit(t, "rev-parse", base))
-	if gotResolved != wantParent {
-		t.Fatalf("boundaryWindowBase(M1) resolved to %q, want branch start (firstWork^ = %q)", gotResolved, wantParent)
+	if gotResolved != branchPoint {
+		t.Fatalf("boundaryWindowBase(M1) resolved to %q, want branch point %q", gotResolved, branchPoint)
+	}
+
+	revs := captureGit(t, "rev-list", base+"..HEAD")
+	if !strings.Contains(revs, impl) {
+		t.Errorf("implementation commit %s missing from M1 window %s..HEAD:\n%s", impl, base, revs)
+	}
+	for name, sha := range map[string]string{"file-issue": fileIssue, "unrelated": other} {
+		if strings.Contains(revs, sha) {
+			t.Errorf("%s commit %s must not be in M1 window %s..HEAD:\n%s", name, sha, base, revs)
+		}
 	}
 }
 

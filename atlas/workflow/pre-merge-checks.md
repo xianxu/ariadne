@@ -9,7 +9,9 @@ enforcement is split into **two gates** on different verbs:
   boundary review (`code-review.md`) runs here: code quality, requirements
   traceability, architecture, and the **Docs update gate (atlas + README)**. On a
   finalizing verdict it flips the issue `working → codecomplete`. This is the *only*
-  place LLM review runs.
+  place LLM review runs. The fresh reviewer receives a pinned repository manifest
+  with immutable refs and read-only Git commands, not an inline unified patch;
+  this keeps dispatch bounded while preserving repository-based inspection.
 - **`sdlc merge` / `push` — the deterministic PUBLISH gate (no LLM).** They enforce
   the **reviewed-HEAD-unchanged invariant** (`runPublishGate`, `cmd/sdlc/publishgate.go`):
   refuse unless HEAD is unchanged since the codecomplete issues' `sdlc close` (i.e.
