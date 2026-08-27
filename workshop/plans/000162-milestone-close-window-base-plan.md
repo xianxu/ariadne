@@ -363,3 +363,40 @@ boundedness test.
 go test ./cmd/sdlc -run 'Test(ResolveReviewWindow|ResolveBoundaryReviewManifest|BoundaryReviewDispatchOptions|Judge.*Milestone)' -count=1
 go test ./cmd/sdlc/internal/judge -run 'Test(ReviewWindow|BoundaryReviewInspectionContract|BuildPrompt_Golden)' -count=1
 ```
+
+### 2026-08-26 — dispose plan-gate findings PQ-1 and PQ-2
+
+**Reason:** the binary-owned plan-quality gate found that the earlier review
+focused on transport and accidentally preserved a first-milestone fallback that
+still violates the issue's original branch-point contract. It also rejected the
+procedural test-case inventories in Tasks 1–4.
+
+**PQ-1 (`deliver-full-stated-purpose`) — addressed:** modify
+`boundaryWindowBase` in `cmd/sdlc/milestoneclose.go`, not the anchor tuple shape
+of `resolveReviewWindow`. When no prior milestone boundary exists, use
+`gitx.MergeBaseWithMain()` first and fall back to `branchStartByIssue` only for
+the existing direct-on-main/no-divergence case. This keeps atlas and review on
+the one shared base source (ARCH-DRY) while making a feature branch's first
+milestone start at its actual branch point (ARCH-PURPOSE). Update
+`cmd/sdlc/milestonewindow_test.go` rather than preserving it unchanged.
+
+**PQ-2 (`test-strategy-contract`) — addressed:** all case inventories and
+procedural assertion lists earlier in this plan are superseded as test design;
+the executor derives concrete cases in Go. The executable test contract is only
+the following named risky-function strategies:
+
+| Function | Strategy |
+|----------|----------|
+| `boundaryWindowBase` | adversarial issue history predating branch divergence → a real-Git fixture mechanically compares the selected base with `merge-base main HEAD`, while prior-boundary precedence and direct-on-main fallback remain invariant |
+| `RenderReviewWindow` | arbitrary paths/SHAs/mode combinations → table/property-style unit tests mechanically enforce structural validation, argv ordering, and round-trip-safe POSIX display quoting without IO |
+| `resolveBoundaryReviewManifest` | missing, symbolic, non-commit, and changing Git state → a stateful fake records every argv and mechanically permits output only after root/commit/path validation; a temporary Git repo checks fake conformance |
+| `boundaryReviewDispatchOptions` | a pinned range containing arbitrarily large patch bytes and a later moving HEAD → integration tests first prove bytes exist in the range, then enforce bounded prompt size, sentinel absence, and concrete-anchor presence |
+| `runJudge` milestone branch | optional issue identity and explicit/omitted refs under custom directories → command-level tests mechanically enforce the documented committed/working-tree variants while existing non-boundary goldens enforce byte compatibility |
+| `BuildPrompt` milestone template | unavailable repository/tool inspection → prompt-contract tests mechanically require the REWORK instruction and the manifest token; category goldens prevent shadow drift |
+
+**Revised TDD order:** make `boundaryWindowBase`'s adversarial real-Git test red
+first and fix the shared base helper; then implement the pure manifest tests,
+Git-resolution fake/conformance tests, automatic dispatch boundedness test,
+manual command tests, and prompt-contract/golden tests in that order. Each named
+surface must go red before its implementation change and green before its task
+commit. No earlier prose enumeration is an additional acceptance contract.
