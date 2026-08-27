@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-07-02
 updated: 2026-08-26
-estimate_hours:
+estimate_hours: 2.05
 started: 2026-08-25T08:21:30-07:00
 ---
 
@@ -232,6 +232,24 @@ context visible to the reviewer rather than inventing a path.
   milestone's window (no false "no atlas/ changes" when the edit is a commit back).
 - A regression test pins the window base for both the first-milestone and
   Nth-milestone cases.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.30 impl=0.12
+item: greenfield-go-module design=0.40 impl=0.32
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 2.05
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. The calibration source was marked
+stale on 2026-08-26, so these v3.1 values are provisional.
 
 ## Plan
 
