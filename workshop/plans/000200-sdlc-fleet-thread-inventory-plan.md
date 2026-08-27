@@ -454,3 +454,21 @@ M1 and merged-issue evidence, rebuild the provider, rerun the complete Ariadne
 suite plus the real Brain prospective-path query, then close and merge #200.
 No provider or consumer contract changes; this revision completes the planned
 cross-repo delivery boundary (ARCH-DRY, ARCH-PURPOSE, ARCH-MOCK).
+
+### 2026-08-27 — correct core boundaries and close diagnostic variants
+
+**Reason:** whole-issue review found that the core-concepts table overstated
+purity and named the wrong source file for the policy envelopes. It also found
+that the promised closed diagnostic algebra validated only non-empty strings.
+
+**Delta:** `PolicyDiagnostic`, `PolicyCapability`, and `PolicyResult` reside in
+`cmd/sdlc/internal/fleet/types.go`. `AssociateBranchIssue` is an INTEGRATION
+entity because it calls an injected issue lookup, and the exported renderers
+are INTEGRATION entities because they write through `io.Writer`; only their
+deterministic branch parsing, association construction, and in-memory
+formatting transformations qualify as PURE (ARCH-PURE). Capability diagnostics
+are restricted to `missing-policy` and `invalid-policy`; prospective results
+also admit `outside-declared-scope` and `path-outside-repo`. Negative JSON tests
+reject unknown and wrong-surface codes on both marshal and unmarshal, and the
+README now documents both fleet commands and typed refusal behavior
+(ARCH-PURPOSE).

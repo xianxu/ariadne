@@ -472,7 +472,7 @@ func validatePolicyCapability(p PolicyCapability) error {
 	if p.OK {
 		return validateCapabilityValue(*p.Value)
 	}
-	return validatePolicyDiagnostic(*p.Diagnostic)
+	return validatePolicyDiagnostic(*p.Diagnostic, isCapabilityDiagnosticCode)
 }
 
 // ValidatePolicyCapability rejects impossible or semantically invalid typed
@@ -486,7 +486,7 @@ func validatePolicyResult(p PolicyResult) error {
 		return err
 	}
 	if !p.OK {
-		return validatePolicyDiagnostic(*p.Diagnostic)
+		return validatePolicyDiagnostic(*p.Diagnostic, isResultDiagnosticCode)
 	}
 	v := p.Value
 	if !validPolicyVersionAndDigest(v.PolicyVersion, v.PolicyDigest) || v.RepoIdentity == "" || v.AdmissionKey == "" {
@@ -534,11 +534,22 @@ func validPolicyVersionAndDigest(version int, digest string) bool {
 	return true
 }
 
-func validatePolicyDiagnostic(d PolicyDiagnostic) error {
+func validatePolicyDiagnostic(d PolicyDiagnostic, validCode func(string) bool) error {
 	if d.Code == "" || d.Message == "" {
 		return errors.New("policy diagnostic requires code and message")
 	}
+	if !validCode(d.Code) {
+		return fmt.Errorf("unknown policy diagnostic code %q", d.Code)
+	}
 	return nil
+}
+
+func isCapabilityDiagnosticCode(code string) bool {
+	return code == DiagnosticMissingPolicy || code == DiagnosticInvalidPolicy
+}
+
+func isResultDiagnosticCode(code string) bool {
+	return isCapabilityDiagnosticCode(code) || code == DiagnosticOutsideDeclaredScope || code == DiagnosticPathOutsideRepo
 }
 
 func validateCapacity(capacity Capacity, onCapacity string) error {

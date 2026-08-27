@@ -1115,3 +1115,15 @@ absent optional file is state too—and revalidate after reacquiring the lock.
 Exercise modification, creation, deletion, and replacement through every caller
 that unlocks around review; helper-only coverage does not prove wiring
 (`ARCH-PURPOSE`, `ARCH-DRY`).
+
+## A tagged error envelope needs a validator per surface
+
+**Pattern (#200 close review):** A shared diagnostic struct checked only that
+`code` was non-empty. That preserved envelope shape while allowing arbitrary
+typos and allowed an inventory capability to carry refusal variants that only a
+prospective-path result could produce.
+
+**Rule:** For each public tagged envelope, enumerate its legal diagnostic codes
+at that envelope's validation boundary. Test both encoding and decoding against
+every legal member, an unknown typo, and every modeled code owned only by a
+sibling surface. A shared struct does not imply a shared union (`ARCH-PURPOSE`).

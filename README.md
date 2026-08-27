@@ -12,6 +12,24 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+## Fleet queries
+
+Inspect every Git worktree in the sibling-repository fleet from a caller path,
+or resolve the concurrency policy for a prospective actor path:
+
+```sh
+sdlc fleet inventory --path .
+sdlc fleet inventory --path /path/to/nested/checkout --json
+sdlc fleet policy --path /path/to/prospective/actor
+sdlc fleet policy --path /path/to/prospective/actor --json
+```
+
+The policy query prints a typed diagnostic to stdout and exits nonzero when the
+repo declaration is missing or invalid, the requested path is outside the
+repo, or it is outside the policy's declared roots. It never infers policy from
+a repository name. Both commands are read-only; omit `--json` for their human
+rendering.
+
 ## Manual boundary review
 
 For an ad-hoc fresh-context boundary review, use a pinned committed range or

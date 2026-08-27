@@ -519,3 +519,11 @@ After merging current Ariadne `main`, the full suite exposed a pre-existing
 took 2.7–3.4 seconds while the same test passed under a diagnostic 10-second
 ceiling. The shared test-only wait is now five seconds and passed three repeated
 stale-review runs; production timeouts are unchanged.
+
+Whole-issue close review round 1 returned REWORK with one Critical and two
+Important findings. The plan now correctly classifies issue lookup and
+writer-based rendering as INTEGRATION and locates policy envelopes in
+`types.go` (ARCH-PURE). Surface-specific diagnostic validators and red/green
+marshal/unmarshal tests close every capability/result code variant, and the
+README documents the inventory/policy command grammar plus typed nonzero
+refusals (ARCH-PURPOSE). Review findings: BR-1, BR-2, BR-3.

@@ -94,3 +94,61 @@ func TestPolicyEnvelopesRejectImpossibleVariants(t *testing.T) {
 		})
 	}
 }
+
+func TestPolicyEnvelopesRejectDiagnosticsOutsideTheirClosedVariants(t *testing.T) {
+	capabilityCodes := []string{DiagnosticMissingPolicy, DiagnosticInvalidPolicy}
+	for _, code := range capabilityCodes {
+		if _, err := json.Marshal(PolicyCapability{Diagnostic: &PolicyDiagnostic{Code: code, Message: "refused"}}); err != nil {
+			t.Fatalf("PolicyCapability rejected modeled code %q: %v", code, err)
+		}
+	}
+
+	resultCodes := []string{DiagnosticMissingPolicy, DiagnosticInvalidPolicy, DiagnosticOutsideDeclaredScope, DiagnosticPathOutsideRepo}
+	for _, code := range resultCodes {
+		if _, err := json.Marshal(PolicyResult{Diagnostic: &PolicyDiagnostic{Code: code, Message: "refused"}}); err != nil {
+			t.Fatalf("PolicyResult rejected modeled code %q: %v", code, err)
+		}
+	}
+
+	for _, tt := range []struct {
+		name  string
+		value any
+		raw   string
+	}{
+		{
+			name:  "capability rejects result-only code",
+			value: PolicyCapability{Diagnostic: &PolicyDiagnostic{Code: DiagnosticOutsideDeclaredScope, Message: "refused"}},
+			raw:   `{"ok":false,"diagnostic":{"code":"outside-declared-scope","message":"refused"}}`,
+		},
+		{
+			name:  "capability rejects unknown code",
+			value: PolicyCapability{Diagnostic: &PolicyDiagnostic{Code: "invalid-polciy", Message: "refused"}},
+			raw:   `{"ok":false,"diagnostic":{"code":"invalid-polciy","message":"refused"}}`,
+		},
+		{
+			name:  "result rejects unknown code",
+			value: PolicyResult{Diagnostic: &PolicyDiagnostic{Code: "invalid-polciy", Message: "refused"}},
+			raw:   `{"ok":false,"diagnostic":{"code":"invalid-polciy","message":"refused"}}`,
+		},
+	} {
+		t.Run(tt.name+" on marshal", func(t *testing.T) {
+			if _, err := json.Marshal(tt.value); err == nil {
+				t.Fatalf("json.Marshal accepted diagnostic outside closed variants: %+v", tt.value)
+			}
+		})
+		t.Run(tt.name+" on unmarshal", func(t *testing.T) {
+			switch tt.value.(type) {
+			case PolicyCapability:
+				var got PolicyCapability
+				if err := json.Unmarshal([]byte(tt.raw), &got); err == nil {
+					t.Fatalf("json.Unmarshal accepted diagnostic outside capability variants: %s", tt.raw)
+				}
+			case PolicyResult:
+				var got PolicyResult
+				if err := json.Unmarshal([]byte(tt.raw), &got); err == nil {
+					t.Fatalf("json.Unmarshal accepted diagnostic outside result variants: %s", tt.raw)
+				}
+			}
+		})
+	}
+}
