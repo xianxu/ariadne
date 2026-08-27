@@ -298,17 +298,19 @@ func resolveReviewWindow(issueStr, milestone, issuePath string) (base, baseLong,
 // HEAD)` — so the end-of-issue integration review covers exactly this branch's
 // commits, not unrelated history merged before the issue's first commit (#77).
 // On main (no divergence) merge-base == HEAD, so it falls back to the issue's
-// branch start. The first-milestone fallback (no prior boundary) also uses the
-// branch start. Returns "" when no anchor exists (no #N commit yet).
+// branch start. A first milestone (no prior boundary) uses that same feature-
+// branch point; only direct-on-main/no-divergence work uses the issue-specific
+// fallback. Returns "" when no anchor exists (no #N commit yet).
 func boundaryWindowBase(issueStr, milestone, issuePath string) string {
 	if milestone != "" {
-		// Milestone close: the prior review boundary, else the branch start (#58).
+		// A prior milestone boundary wins. Without one, continue to the shared
+		// feature-branch point below (#58/#162).
 		if prev := previousReviewBoundary(issuePath); prev != "" {
 			return prev
 		}
-		return branchStartByIssue(issueStr)
 	}
-	// Whole-issue close: the branch point, else (on main) the issue's branch start.
+	// Whole-issue close or first milestone: the branch point, else (on main)
+	// the issue's own branch start.
 	if mb := gitx.MergeBaseWithMain(); mb != "" {
 		return mb
 	}
