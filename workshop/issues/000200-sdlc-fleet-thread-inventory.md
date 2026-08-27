@@ -1,12 +1,13 @@
 ---
 id: 000200
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-24
-estimate_hours:
+updated: 2026-08-27
+estimate_hours: 4.22
 started: 2026-08-24T13:24:43-07:00
+actual_hours: 49.90
 ---
 
 # sdlc: fleet thread inventory
@@ -241,6 +242,38 @@ result preserves the tagged capacity rather than converting unbounded to a
 sentinel integer or `null`. Brain declares unbounded. “Normally fewer than
 five” may appear in explanatory prose, but it produces no warning or guard.
 
+### 2026-08-25 — normalized results carry declaration identity
+
+**Reason:** the Pair consumer persists admission evidence across couch restarts.
+A normalized key and capacity alone cannot reveal that the owning repository's
+declaration changed after the actor was admitted, so cached evidence could
+silently outlive its authority.
+
+**Delta:** every successful policy capability and prospective result carries
+the declaration schema version plus a canonical SHA-256 declaration digest.
+The digest is computed from the validated normalized declaration, not raw JSON,
+so whitespace and object-key order do not change it while any semantic policy
+change does. Structured diagnostics retain any schema version that could be
+decoded but never fabricate a digest for invalid input. Consumers persist both
+values as evidence, compare them with the current query, and re-resolve stale
+live/unknown occupants before admission; the provider remains the authority
+(ARCH-DRY, ARCH-PURPOSE).
+
+### 2026-08-27 — every public refusal is reachable
+
+**Reason:** whole-issue review proved that `path-outside-repo` could be produced
+only by calling the pure resolver with inconsistent canonical inputs. The
+production `fleet policy --path` command derives repository context from the
+requested path itself, so an external path either selects its own repository or
+fails Git discovery before policy resolution. The Plan statement that
+prospective results may report `path-outside-repo` is superseded.
+
+**Delta:** the public result union is exactly `missing-policy`,
+`invalid-policy`, and `outside-declared-scope`, all exercised through the real
+CLI. Inconsistent pre-normalized resolver inputs fail closed as
+`invalid-policy`; no unreachable public variant or second repository-context
+flag exists (ARCH-PURPOSE, Simplicity First).
+
 ## Done when
 
 - One command enumerates every working tree across the fleet with measured git
@@ -260,8 +293,8 @@ five” may appear in explanatory prose, but it produces no warning or guard.
 - Installation, capture, competition-subtree, and worktree-provisioned policies
   are expressed by one schema and resolver rather than named repo-type branches.
 - A JSON-first prospective-path query returns the same normalized policy used
-  by couch's admission decision, or a structured missing/invalid/out-of-rule
-  diagnostic.
+  by couch's admission decision, including schema version and canonical
+  declaration digest, or a structured missing/invalid/out-of-rule diagnostic.
 - Couch's temporary repo-name policy table is removed; `pair#149` consumes the
   prospective-path query and applies its normalized key/tagged-capacity and,
   for bounded capacity, its on-capacity action.
@@ -275,33 +308,61 @@ five” may appear in explanatory prose, but it produces no warning or guard.
   association and includes its provenance; main/untracked branches are empty.
 - The fleet walk is the existing one, not a second implementation.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.30 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: greenfield-go-module design=0.30 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-repo-refactor-large design=0.20 impl=0.60
+item: cross-repo-refactor-small design=0.06 impl=0.12
+item: atlas-docs design=0.05 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+design-buffer: 0.15
+total: 4.22
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. The calibration source is marked
+stale, so this is provisional until #127 refreshes it.
+
 ## Plan
 
-- [ ] Fleet walk enumerating working trees + measured facts, JSON shape.
-- [ ] Self-declared vs measured fields distinguished in the schema; measured
+- [x] Fleet walk enumerating working trees + measured facts, JSON shape.
+- [x] Self-declared vs measured fields distinguished in the schema; measured
       facts are juxtaposed with provenance-bearing declared status, with no
       derived drift/cold verdict.
-- [ ] Per-repo concurrency policy as recorded fleet metadata: one repo-local
+- [x] Per-repo concurrency policy as recorded fleet metadata: one repo-local
       machine declaration, schema validation, declaration capability on
       inventory rows, and a pure requested-path → {repo identity, admission
       key, tagged capacity, optional bounded on-capacity action} resolver.
-- [ ] Policy matrix coverage for installation checkouts, brain-style shared
+- [x] Policy matrix coverage for installation checkouts, brain-style shared
       capture, kbench competition subtrees, and worktree-provisioned repos.
-- [ ] Tagged capacity coverage: positive bounded limits with an on-capacity
+- [x] Tagged capacity coverage: positive bounded limits with an on-capacity
       action, and explicit unbounded capacity with no unreachable action.
-- [ ] JSON-first prospective-path policy query and inventory integration over
-      the same resolver; structured diagnostics for missing, invalid, and
-      outside-declared-scope policy.
-- [ ] Coordinated repo-local declarations for the named live policy examples;
+- [x] JSON-first prospective-path policy query and inventory share one strict
+      declaration loader/validator: inventory emits capability only, while only
+      `fleet policy --path` invokes the pure resolver. Inventory capability
+      diagnostics are exactly `missing-policy` or `invalid-policy`; prospective
+      results may also report `outside-declared-scope` or `path-outside-repo`.
+- [x] Coordinated repo-local declarations for the named live policy examples;
       couch and `AGENTS.local.md` remain consumers rather than parallel policy
       sources.
-- [ ] `pair#149` couch integration consumes the normalized prospective-path
+- [x] `pair#149` couch integration consumes the normalized prospective-path
       query and removes the temporary repo-name `PolicyTable` authority.
-- [ ] Fleet-root normalization from primary, peer, nested, and linked-worktree
+- [x] Fleet-root normalization from primary, peer, nested, and linked-worktree
       vantage before reusing the existing fleet walk.
-- [ ] Provenance-bearing branch-prefix issue association as an array; measured
+- [x] Provenance-bearing branch-prefix issue association as an array; measured
       git facts only, with no derived `cold` label.
-- [ ] Human rendering derived from the JSON.
+- [x] Human rendering derived from the JSON.
 
 ## Log
 
@@ -345,3 +406,156 @@ repo-name policy table (ARCH-PURPOSE). Capacity is a tagged bounded/unbounded
 value; brain is explicitly unbounded, while its normal occupancy below five is
 context only. The final tagged-capacity CUE/Go fixture corpus passed document
 review.
+
+### 2026-08-25 — Chunk 1
+
+Implemented and embedded the closed `fleet-policy` vocabulary, a strict
+presence-sensitive declaration loader, canonical policy identity, total JSON
+success/diagnostic envelopes, and the pure prospective-path resolver. Shared
+CUE/Go fixtures now pin missing versus null fields, variant leakage, portable
+declared-root grammar, numeric representation, and semantic digest behavior.
+The decoder rejects duplicate/unknown/trailing JSON while preserving a unique
+decodable schema version independently of object order.
+
+Fresh implementation review found and drove closure of required-field parity,
+portable path grammar, diagnostic-version retention, public tagged-union
+totality, and immutable embedded vocabulary metadata. The second review round
+was Approved after independent CUE/Go verification. Evidence:
+`bash construct/vocabulary/vet_test.sh`; `make vocab-embed`;
+`go test ./pkg/vocab ./cmd/sdlc/internal/fleet -count=1`; a 289,463-execution
+`FuzzDecodePolicy` run; and `git diff --check`.
+
+### 2026-08-25 — Chunk 2
+
+Centralized the filtered sibling fleet walk and all worktree porcelain parsing.
+Every production consumer now requests Git's NUL-delimited porcelain and maps
+the richer entity back to existing wire shapes where required. Normalization
+converges primary, nested, linked, and symlink vantages on one canonical common
+directory and fleet root while tolerating unrelated locked/prunable paths.
+
+Added a directory-scoped `GitReader` and a stateful fake/live conformance trace
+covering worktrees, bare and unborn repositories, asymmetric divergence and
+merge ancestry, refs, timestamps, and byte-exact status output. Boundary review
+removed the last shell `issue-sync` porcelain parser; the Make fallback now
+builds the Go implementation from Ariadne and invokes it in the consumer cwd.
+It also tightened missing-worktree and porcelain XY invariants. Review verdict:
+Approved. Evidence: targeted Chunk 2 suite, full `go test ./cmd/sdlc/... -count=1`,
+live Git conformance under hostile config, package vet, and `git diff --check`.
+
+### 2026-08-25 — Chunk 3
+
+Added whole-branch issue association with explicit `branch-prefix` provenance
+and a strict production same-repo issue reader. Added measured worktree facts
+for HEAD, commit timestamp, NUL-safe dirty cardinality, and explicit base/ref
+divergence availability; operational ref failures can no longer masquerade as
+missing refs, and no cold/drift verdict is derived.
+
+The inventory assembler now enumerates canonical repo/tree rows, loads policy
+capability from the primary checkout, retries duplicate linked aliases, and
+keeps repo- and tree-scoped failures distinct without erasing unaffected rows.
+All result collections are non-null and deterministically sorted. The complete
+Chunk 3 range received a fresh Approved review with no findings. Evidence:
+focused association/facts/inventory tests, fake/live conformance, full
+`go test ./cmd/sdlc/... -count=1`, fuzzed status/divergence parsers, and
+`git diff --check`.
+
+### 2026-08-25 — Chunk 4
+
+Pinned a closed JSON algebra, deterministic injection-safe human renderers, and
+the read-only `sdlc fleet inventory` / `sdlc fleet policy` command group. The
+policy query resolves prospective nonexistent paths component by component so
+symlinks take effect before later `..` traversal, rejects dangling links and
+non-directory traversal, loads the vocabulary-owned declaration path, and
+prints typed diagnostics before a nonzero refusal.
+
+Task reviews closed malformed provider envelopes, renderer record injection,
+non-total ordering, and symlink-boundary errors. The fresh Chunk 4 review then
+found that false-valued required JSON fields could be omitted; all six boolean
+discriminators now use presence-sensitive decoding and deletion coverage, with
+failed decoding leaving receivers unchanged. Review verdict: Approved.
+Evidence: focused JSON/Fleet/Render tests, full
+`go test ./cmd/sdlc/... -count=1`, `go vet ./cmd/sdlc/...`, live inventory and
+missing-policy refusal smoke, and `git diff --check`.
+
+### 2026-08-25 — declaration rollout
+
+Landed and queried the six named repository declarations without adding a
+repo-name policy branch: Ariadne (this branch), Pair `a8e9c34`, Parley
+`c3d637a`, Brain `f83e624`, kbench `59eaf26`, and xianxu.dev `c614942`.
+Validation proved repo-singleton keys for the installation checkouts,
+unbounded repo capacity for Brain, stable same-competition and distinct
+cross-competition keys for kbench with outside-scope refusal, and worktree
+capacity with `provision-worktree` for xianxu.dev. Existing dirty peer files
+and kbench's pre-staged registry change remained untouched.
+
+### 2026-08-25 — atlas and checklist reconciliation
+
+Mapped the fleet command boundary and the atomic `fleet-policy` vocabulary into
+the existing sdlc/vocabulary atlas pages, which were already linked from the
+atlas index. Rechecked the 2026-08-24 revisions against the delivered provider:
+inventory keeps measured Git facts beside provenance-bearing declared issue
+status without deriving cold/drift/liveness/staleness, and policy capability
+remains separate from prospective-path resolution. All completed provider,
+renderer, and declaration items are checked above; `pair#149` remains open as
+the required normalized-policy consumer. Documentation evidence:
+`go test ./pkg/vocab -count=1`; focused fleet command/help tests;
+`sdlc issue validate --issue 200`; atlas-link target checks; and
+`git diff --check`.
+
+### 2026-08-26 — provider verification complete
+
+The built-process `TestFleetEndToEnd` now proves byte-stable inventory across
+primary, nested, linked, linked-nested, peer, and supported symlink vantages;
+repo-key prospective-path equivalence; localized declaration/repository
+failures; and exact typed-refusal stdout, exit code, and stderr behavior. Every
+build, Git, and CLI subprocess is deadline-bounded.
+
+Final provider gates passed: `bash construct/vocabulary/vet_test.sh`;
+`make vocab-embed`; `go test ./pkg/vocab -count=1`;
+`go test ./cmd/sdlc/internal/project ./cmd/sdlc/internal/gitx
+./cmd/sdlc/internal/fleet -count=1`; `go test ./cmd/sdlc/... -count=1`;
+`go test ./... -count=1`; and `git diff --check`. Ariadne #200 intentionally
+remains open until `pair#149` consumes this normalized query and removes
+couch's temporary repo-name `PolicyTable` authority.
+
+### 2026-08-27 — Pair consumer handoff complete
+- 2026-08-27: closed — full Go suite, vocabulary, vet, authoritative corrected Core concepts table red/green contract, all production refusal variants through E2E, README contract, Brain unbounded query, Pair live conformance, and git diff check pass; review verdict: SHIP
+
+Pair #149 removed the repo-name policy shadow, consumes
+`sdlc fleet policy --path <requested> --json` through an injected resolver,
+persists versioned policy evidence, and resolves stale incumbents before
+admission. Its M1 boundary closed at `eb47a9b` and the complete issue shipped in
+Pair PR #101 (`5fc1189`) after full, race, clean-bootstrap, runtime-drift, and
+live-provider conformance coverage. Rebuilding this branch's `bin/sdlc` and
+querying Brain returned the declared unbounded policy; the same query against
+Ariadne `main` reproduced the missing-command startup failure that this provider
+merge closes (ARCH-DRY, ARCH-PURPOSE, ARCH-MOCK).
+
+After merging current Ariadne `main`, the full suite exposed a pre-existing
+2-second asynchronous judge-start test ceiling: cold command setup consistently
+took 2.7–3.4 seconds while the same test passed under a diagnostic 10-second
+ceiling. The shared test-only wait is now five seconds and passed three repeated
+stale-review runs; production timeouts are unchanged.
+
+Whole-issue close review round 1 returned REWORK with one Critical and two
+Important findings. The plan now correctly classifies issue lookup and
+writer-based rendering as INTEGRATION and locates policy envelopes in
+`types.go` (ARCH-PURE). Surface-specific diagnostic validators and red/green
+marshal/unmarshal tests close every capability/result code variant, and the
+README documents the inventory/policy command grammar plus typed nonzero
+refusals (ARCH-PURPOSE). Review findings: BR-1, BR-2, BR-3.
+
+Close review round 2 disposed BR-1 through BR-3 and raised BR-4: the fourth
+claimed result code, `path-outside-repo`, was unreachable from the production
+command. The public union now contains only the three variants already covered
+through built-process E2E tests; the pure resolver maps inconsistent canonical
+inputs to `invalid-policy`. The revision rejects the alternative of adding a
+second repo-context input solely to make an otherwise impossible variant
+reachable (ARCH-PURPOSE, Simplicity First).
+
+Close review round 3 confirmed BR-4 and the runtime architecture, but kept BR-1
+open because the correction was prose-only while the historical Core concepts
+table remained the sole greppable inventory. The plan now appends an explicitly
+authoritative replacement table and
+`TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` pins its paths and
+PURE/INTEGRATION classifications (ARCH-PURE).

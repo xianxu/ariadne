@@ -359,10 +359,10 @@ func (s *stringWriter) String() string { return s.b.String() }
 
 func TestMergeUsesFindMainWorktree_ViaStub(t *testing.T) {
 	r := &claimRunnerStub{
-		responses: map[string][]byte{"worktree list": []byte(
-			"worktree /repo/main\nHEAD abc\nbranch refs/heads/main\n\n" +
-				"worktree /repo/feat\nHEAD def\nbranch refs/heads/feature\n",
-		)},
+		responses: map[string][]byte{"worktree list": []byte(worktreePorcelainZ(
+			[]string{"worktree /repo/main", "HEAD abc", "branch refs/heads/main"},
+			[]string{"worktree /repo/feat", "HEAD def", "branch refs/heads/feature"},
+		))},
 	}
 	got, err := findMainWorktree(r)
 	if err != nil {

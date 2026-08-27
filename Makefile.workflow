@@ -1,6 +1,11 @@
 # AI issue-based workflow — include from your project Makefile:
 #   include Makefile.workflow
 
+# Resolve this shared workflow's source directory before optional includes add
+# their own entries to MAKEFILE_LIST. Consumers symlink this file from ariadne;
+# the Go source lives here while commands must still run in the consumer cwd.
+WF_WORKFLOW_SOURCE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+
 # Include openshell targets if available
 -include .openshell/Makefile
 
@@ -61,13 +66,18 @@ help-workflow:
 
 # ── Issue sync ────────────────────────────────────────────────────────────────
 # Sync issue file changes to main and push, even when on a feature branch.
-# Delegates to bin/sdlc claim (renamed from `sdlc lock` in #39) when the
-# binary is built; falls back to the shell script otherwise.
+# Delegates to the single Go claim implementation. Before bin/sdlc has been
+# built, compile from this workflow's source directory to a temporary binary,
+# then invoke it from the consumer cwd. That preserves the target repo for
+# claim while avoiding a shell worktree-porcelain parser.
 issue-sync:
 	@if [ -x bin/sdlc ]; then \
 	    bin/sdlc claim; \
 	else \
-	    scripts/issue-sync.sh; \
+	    sync_bin=$$(mktemp "$${TMPDIR:-/tmp}/sdlc-issue-sync.XXXXXX"); \
+	    trap 'rm -f "$$sync_bin"' EXIT; \
+	    ( cd "$(WF_WORKFLOW_SOURCE_DIR)" && go build -o "$$sync_bin" ./cmd/sdlc ) && \
+	    "$$sync_bin" claim; \
 	fi
 
 # ── Close (issue or milestone) ────────────────────────────────────────────────

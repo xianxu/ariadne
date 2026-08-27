@@ -1115,3 +1115,32 @@ absent optional file is state too—and revalidate after reacquiring the lock.
 Exercise modification, creation, deletion, and replacement through every caller
 that unlocks around review; helper-only coverage does not prove wiring
 (`ARCH-PURPOSE`, `ARCH-DRY`).
+
+## A tagged error envelope needs a validator per surface
+
+**Pattern (#200 close review):** A shared diagnostic struct checked only that
+`code` was non-empty. That preserved envelope shape while allowing arbitrary
+typos and allowed an inventory capability to carry refusal variants that only a
+prospective-path result could produce.
+
+**Rule:** For each public tagged envelope, enumerate its legal diagnostic codes
+at that envelope's validation boundary. Test both encoding and decoding against
+every legal member, an unknown typo, and every modeled code owned only by a
+sibling surface. Then reach every surviving variant through the production
+entry point; a pure-unit branch that no real caller can enter is not part of a
+truthful public algebra. Remove unreachable variants rather than adding inputs
+solely to manufacture them. A shared struct does not imply a shared union
+(`ARCH-PURPOSE`).
+
+## A prose correction does not supersede a structural plan contract
+
+**Pattern (#200 close review):** A revision correctly described entity path and
+PURE/INTEGRATION corrections, but the plan's only greppable Core concepts table
+still contained the old claims. Reviewers and tooling reasonably continued to
+treat that table as authoritative.
+
+**Rule:** When history-preservation forbids rewriting an obsolete structural
+table, append a complete replacement table, label it authoritative and name
+what it supersedes. Pin its high-risk rows with a repository test. Narrative
+delta alone is insufficient when the original contract is tabular
+(`ARCH-PURE`, `ARCH-PURPOSE`).

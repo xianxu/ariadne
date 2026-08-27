@@ -30,7 +30,7 @@ TWO PATHS
     push origin main
 
   ON A FEATURE BRANCH (or worktree)
-    1. find the main worktree via `git worktree list --porcelain`
+    1. find the main worktree via `git worktree list --porcelain -z`
     2. verify it's on `main`, has no uncommitted issue changes
     3. pull --rebase origin main on the main worktree
     4. detect conflicts (files changed on both branches since

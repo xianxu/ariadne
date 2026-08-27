@@ -48,6 +48,24 @@ func SiblingRepoDirs(parentDir string) ([]string, error) {
 	return dirs, nil
 }
 
+// FleetRepoDirs returns the sorted sibling directories eligible for a
+// fleet-wide walk. It deliberately applies only the existing fleet-name
+// filter; callers still decide whether an eligible directory is a Git repo.
+func FleetRepoDirs(parentDir string) ([]string, error) {
+	dirs, err := SiblingRepoDirs(parentDir)
+	if err != nil {
+		return nil, err
+	}
+	fleet := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		if isFleetSibling(filepath.Base(dir)) {
+			fleet = append(fleet, dir)
+		}
+	}
+	sort.Strings(fleet)
+	return fleet, nil
+}
+
 // isFleetSibling filters out obvious non-fleet directories a fleet-wide glob
 // would otherwise scan: backup copies (`*.bak`), the worktree container, and
 // dot-dirs. Without this, a stale `metis.bak/workshop/projects/` copy yields a
@@ -80,7 +98,7 @@ func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, r
 	home := disc.Home                                                   // "workshop/projects"
 	archive := vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveProjects) // "workshop/history/projects"
 
-	siblings, err := SiblingRepoDirs(parentDir)
+	siblings, err := FleetRepoDirs(parentDir)
 	if err != nil {
 		return err
 	}
@@ -100,9 +118,6 @@ func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, r
 		}
 	}
 	for _, repoDir := range siblings {
-		if !isFleetSibling(filepath.Base(repoDir)) {
-			continue
-		}
 		if gitx.IsBrainRepo(repoDir) {
 			scan(repoDir, filepath.Join("data", "project"), true)
 			continue

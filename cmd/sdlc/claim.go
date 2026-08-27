@@ -1,24 +1,24 @@
 // claim.go — `sdlc claim [--issue N]` subcommand.
 //
-// Ports scripts/issue-sync.sh — the issue-file synchronizer that
-// commits + pushes workshop/issues/ changes to origin/main even when
+// Implements the issue-file synchronizer that commits + pushes
+// workshop/issues/ changes to origin/main even when
 // the operator is on a feature branch. Used as the workstream claim
 // primitive: agents claim work by flipping status to `working` and
 // running `sdlc claim` to broadcast that claim to origin/main.
 //
-// Two paths in the source script (preserved verbatim here):
+// Two synchronization paths:
 //
 //  1. On main:    add + commit + push directly.
 //  2. On a feature branch:
-//     - locate the main worktree via `git worktree list --porcelain`
+//     - locate the main worktree via `git worktree list --porcelain -z`
 //     - check main worktree has no uncommitted issue changes
 //     - pull --rebase origin main on the main worktree
 //     - detect conflicts (files changed on both branches since merge-base)
 //     - copy changed issue files from feature worktree → main worktree
 //     - commit + push on main worktree
 //
-// The shell script supports no flags. We add --issue (filter the sync to
-// one issue file), --issues-dir (env override), --dry-run.
+// The command supports --issue (filter the sync to one issue file),
+// --issues-dir (env override), and --dry-run.
 package main
 
 import (
@@ -330,7 +330,7 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 // Sorted + deduped. If f.Issue is set, filter to only the matching
 // NNNNNN-*.md file.
 //
-// Matches issue-sync.sh's changed_issue_files() — note the union includes
+// The changed-file union includes
 // "diff HEAD" (which already covers cached) plus "diff --cached" separately
 // (redundant but preserved for parity); de-dup happens at the sort step.
 func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
@@ -373,20 +373,20 @@ func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
 	return out, nil
 }
 
-// findMainWorktree parses `git worktree list --porcelain` and returns
+// findMainWorktree parses `git worktree list --porcelain -z` and returns
 // the path of the worktree on branch `main`. Empty + error if none.
-//
-// Matches the awk pipeline in issue-sync.sh:
-//
-//	awk '/^worktree /{path=$2} /branch refs\/heads\/main$/{print path}'
 func findMainWorktree(r gitRunner) (string, error) {
-	out, err := r.Git("worktree", "list", "--porcelain")
+	out, err := r.Git("worktree", "list", "--porcelain", "-z")
 	if err != nil {
 		return "", fmt.Errorf("git worktree list: %v\n%s", err, out)
 	}
-	// Reuse the single-source porcelain parser (ARCH-DRY, #156) rather than
+	// Reuse the single-source porcelain parser (ARCH-DRY, #200) rather than
 	// re-walking the grammar. The IO (r.Git) stays here; the parse is pure.
-	if mainPath, ok := worktreeForBranch(string(out), "main"); ok {
+	worktrees, err := gitx.ParseWorktrees(out)
+	if err != nil {
+		return "", fmt.Errorf("parse git worktree list: %w", err)
+	}
+	if mainPath, ok := worktreeForBranch(worktrees, "main"); ok {
 		return mainPath, nil
 	}
 	return "", fmt.Errorf("could not find a worktree on branch 'main'. Is main checked out somewhere?")

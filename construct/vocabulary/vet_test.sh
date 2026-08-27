@@ -75,4 +75,27 @@ if cue vet "$dir/finding.cue" "$dir/testdata/finding_unmodeled_key.json" -d '#Fi
   echo "FAIL: a finding with an unmodeled key passed vet — #Finding is not closed"; exit 1
 fi
 
+# fleet-policy (ariadne#200): an atomic, closed declaration noun. The fixtures
+# are shared with the Go loader tests, so CUE and the runtime validator cannot
+# silently grow different structural contracts.
+cue vet "$dir/fleet-policy.cue" \
+  || { echo "FAIL: valid fleet-policy model did not vet"; exit 1; }
+
+fpjson="$(cue export "$dir/fleet-policy.cue" --out json)"
+for field in declarationPath supportedVersions keyKinds capacityKinds actions; do
+  echo "$fpjson" | grep -q "\"$field\"" \
+    || { echo "FAIL: fleet-policy $field not in export"; exit 1; }
+done
+
+for fixture in "$dir"/testdata/fleet_policy_valid_*.json; do
+  cue vet "$dir/fleet-policy.cue" "$fixture" -d '#FleetPolicy' \
+    || { echo "FAIL: valid fleet-policy fixture did not vet: $fixture"; exit 1; }
+done
+
+for fixture in "$dir"/testdata/fleet_policy_invalid_*.json; do
+  if cue vet "$dir/fleet-policy.cue" "$fixture" -d '#FleetPolicy' 2>/dev/null; then
+    echo "FAIL: invalid fleet-policy fixture passed vet: $fixture"; exit 1
+  fi
+done
+
 echo ok

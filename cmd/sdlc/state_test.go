@@ -2,13 +2,40 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // CountPlanItems lives in internal/issue/plan.go and is tested there.
+
+func TestWorktreeStatesPreserveStateJSONShape(t *testing.T) {
+	got := worktreeStates([]gitx.Worktree{
+		{Path: "/repo", HEAD: "aaa", Branch: "main"},
+		{Path: "/repo/detached", HEAD: "bbb", Detached: true},
+		{Path: "/bare", Bare: true},
+	})
+	want := []WorktreeState{
+		{Path: "/repo", Branch: "main"},
+		{Path: "/repo/detached", Branch: "(detached)"},
+		{Path: "/bare", Branch: "(bare)"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("worktreeStates() = %+v, want %+v", got, want)
+	}
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wantJSON := `[{"path":"/repo","branch":"main"},{"path":"/repo/detached","branch":"(detached)"},{"path":"/bare","branch":"(bare)"}]`; string(data) != wantJSON {
+		t.Fatalf("state worktree JSON = %s, want %s", data, wantJSON)
+	}
+}
 
 func TestListIssues(t *testing.T) {
 	dir := t.TempDir()

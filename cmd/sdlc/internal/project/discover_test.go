@@ -3,6 +3,8 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -210,6 +212,76 @@ func TestDiscoverByIssueRef_DedupsSymlinkAndSkipsUnreadable(t *testing.T) {
 	}
 }
 
+func TestFleetRepoDirs_PartitionsAndSorts(t *testing.T) {
+	parent := t.TempDir()
+	ordinary := []string{"zeta", "alpha", "plain-dir", "backup.bakery", "worktree-copy"}
+	filtered := []string{".hidden", ".hidden.bak", "worktree", "stale.bak"}
+	for _, d := range append(append([]string{}, ordinary...), filtered...) {
+		if err := os.MkdirAll(filepath.Join(parent, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// a plain file is not a dir and must be excluded
+	if err := os.WriteFile(filepath.Join(parent, "afile"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := FleetRepoDirs(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := append([]string(nil), ordinary...)
+	sort.Strings(want)
+	for i := range want {
+		want[i] = filepath.Join(parent, want[i])
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("FleetRepoDirs() = %v, want sorted ordinary siblings %v", got, want)
+	}
+}
+
+func TestFleetRepoDirs_GeneratedNamePartitionProperty(t *testing.T) {
+	parent := t.TempDir()
+	// Generate a deterministic partition containing ordinary names and near
+	// misses for every existing filter class. None of these directories is a
+	// Git repository; Git eligibility is deliberately downstream.
+	bases := []string{"alpha", "repo", "worktree", "notes", ".hidden", "archive"}
+	suffixes := []string{"", ".bak", ".bakery", "-copy", "-bak", "0"}
+	var names []string
+	for _, base := range bases {
+		for _, suffix := range suffixes {
+			name := base + suffix
+			if base == "worktree" && suffix != "" {
+				// Keep the exact worktree filter class while exercising its near
+				// misses through the other generated bases.
+				continue
+			}
+			names = append(names, name)
+			if err := os.Mkdir(filepath.Join(parent, name), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := os.WriteFile(filepath.Join(parent, "not-a-directory"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	want := make([]string, 0, len(names))
+	for _, name := range names {
+		if isFleetSibling(name) {
+			want = append(want, filepath.Join(parent, name))
+		}
+	}
+	sort.Strings(want)
+
+	got, err := FleetRepoDirs(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("FleetRepoDirs() = %v, want generated partition %v", got, want)
+	}
+}
+
 func TestSiblingRepoDirs_ReturnsAllDirs(t *testing.T) {
 	parent := t.TempDir()
 	for _, d := range []string{"metis", "nous", "metis.bak", "worktree"} {
@@ -226,7 +298,7 @@ func TestSiblingRepoDirs_ReturnsAllDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 	// SiblingRepoDirs applies NO filtering — all four dirs returned (the skip
-	// list lives in DiscoverByIssueRef so resolveRepoDir stays identical).
+	// list lives in FleetRepoDirs so resolveRepoDir stays identical).
 	if len(got) != 4 {
 		t.Fatalf("want 4 dirs (no filtering), got %d: %+v", len(got), got)
 	}

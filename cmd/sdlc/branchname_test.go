@@ -20,7 +20,7 @@ type captureRunner struct {
 	// branchExists drives `git show-ref --verify --quiet refs/heads/<name>`:
 	// nil error when true (branch present), error when false (#156).
 	branchExists bool
-	// worktreePorcelain is what `git worktree list --porcelain` returns (#156).
+	// worktreePorcelain is what `git worktree list --porcelain -z` returns (#156).
 	worktreePorcelain string
 	// gitCalls records every Git(...) invocation in order.
 	gitCalls [][]string
@@ -40,6 +40,20 @@ type gitInDirCall struct {
 type writeOp struct {
 	Path string
 	Data string
+}
+
+// worktreePorcelainZ encodes the NUL-delimited grammar returned by
+// `git worktree list --porcelain -z` for package-main caller fixtures.
+func worktreePorcelainZ(records ...[]string) string {
+	var b strings.Builder
+	for _, record := range records {
+		for _, field := range record {
+			b.WriteString(field)
+			b.WriteByte(0)
+		}
+		b.WriteByte(0)
+	}
+	return b.String()
 }
 
 func (c *captureRunner) Git(args ...string) ([]byte, error) {
