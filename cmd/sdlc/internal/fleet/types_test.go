@@ -103,7 +103,7 @@ func TestPolicyEnvelopesRejectDiagnosticsOutsideTheirClosedVariants(t *testing.T
 		}
 	}
 
-	resultCodes := []string{DiagnosticMissingPolicy, DiagnosticInvalidPolicy, DiagnosticOutsideDeclaredScope, DiagnosticPathOutsideRepo}
+	resultCodes := []string{DiagnosticMissingPolicy, DiagnosticInvalidPolicy, DiagnosticOutsideDeclaredScope}
 	for _, code := range resultCodes {
 		if _, err := json.Marshal(PolicyResult{Diagnostic: &PolicyDiagnostic{Code: code, Message: "refused"}}); err != nil {
 			t.Fatalf("PolicyResult rejected modeled code %q: %v", code, err)
@@ -129,6 +129,11 @@ func TestPolicyEnvelopesRejectDiagnosticsOutsideTheirClosedVariants(t *testing.T
 			name:  "result rejects unknown code",
 			value: PolicyResult{Diagnostic: &PolicyDiagnostic{Code: "invalid-polciy", Message: "refused"}},
 			raw:   `{"ok":false,"diagnostic":{"code":"invalid-polciy","message":"refused"}}`,
+		},
+		{
+			name:  "result rejects removed unreachable code",
+			value: PolicyResult{Diagnostic: &PolicyDiagnostic{Code: "path-outside-repo", Message: "refused"}},
+			raw:   `{"ok":false,"diagnostic":{"code":"path-outside-repo","message":"refused"}}`,
 		},
 	} {
 		t.Run(tt.name+" on marshal", func(t *testing.T) {

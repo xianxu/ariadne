@@ -258,6 +258,21 @@ values as evidence, compare them with the current query, and re-resolve stale
 live/unknown occupants before admission; the provider remains the authority
 (ARCH-DRY, ARCH-PURPOSE).
 
+### 2026-08-27 — every public refusal is reachable
+
+**Reason:** whole-issue review proved that `path-outside-repo` could be produced
+only by calling the pure resolver with inconsistent canonical inputs. The
+production `fleet policy --path` command derives repository context from the
+requested path itself, so an external path either selects its own repository or
+fails Git discovery before policy resolution. The Plan statement that
+prospective results may report `path-outside-repo` is superseded.
+
+**Delta:** the public result union is exactly `missing-policy`,
+`invalid-policy`, and `outside-declared-scope`, all exercised through the real
+CLI. Inconsistent pre-normalized resolver inputs fail closed as
+`invalid-policy`; no unreachable public variant or second repository-context
+flag exists (ARCH-PURPOSE, Simplicity First).
+
 ## Done when
 
 - One command enumerates every working tree across the fleet with measured git
@@ -527,3 +542,11 @@ writer-based rendering as INTEGRATION and locates policy envelopes in
 marshal/unmarshal tests close every capability/result code variant, and the
 README documents the inventory/policy command grammar plus typed nonzero
 refusals (ARCH-PURPOSE). Review findings: BR-1, BR-2, BR-3.
+
+Close review round 2 disposed BR-1 through BR-3 and raised BR-4: the fourth
+claimed result code, `path-outside-repo`, was unreachable from the production
+command. The public union now contains only the three variants already covered
+through built-process E2E tests; the pure resolver maps inconsistent canonical
+inputs to `invalid-policy`. The revision rejects the alternative of adding a
+second repo-context input solely to make an otherwise impossible variant
+reachable (ARCH-PURPOSE, Simplicity First).

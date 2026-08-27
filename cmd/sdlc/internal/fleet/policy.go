@@ -9,7 +9,7 @@ import (
 func ResolvePolicy(policy PolicyCapabilityValue, paths CanonicalPaths) PolicyResult {
 	rel, err := filepath.Rel(paths.WorktreeRoot, paths.Requested)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return policyResultFailure(DiagnosticPathOutsideRepo, paths.Requested, policy.PolicyVersion, "requested path is outside the repository worktree")
+		return policyResultFailure(DiagnosticInvalidPolicy, paths.Requested, policy.PolicyVersion, "normalized requested path is outside the normalized repository worktree")
 	}
 
 	key := ""

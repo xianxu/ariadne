@@ -1126,4 +1126,8 @@ prospective-path result could produce.
 **Rule:** For each public tagged envelope, enumerate its legal diagnostic codes
 at that envelope's validation boundary. Test both encoding and decoding against
 every legal member, an unknown typo, and every modeled code owned only by a
-sibling surface. A shared struct does not imply a shared union (`ARCH-PURPOSE`).
+sibling surface. Then reach every surviving variant through the production
+entry point; a pure-unit branch that no real caller can enter is not part of a
+truthful public algebra. Remove unreachable variants rather than adding inputs
+solely to manufacture them. A shared struct does not imply a shared union
+(`ARCH-PURPOSE`).

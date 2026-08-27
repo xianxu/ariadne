@@ -25,10 +25,9 @@ sdlc fleet policy --path /path/to/prospective/actor --json
 ```
 
 The policy query prints a typed diagnostic to stdout and exits nonzero when the
-repo declaration is missing or invalid, the requested path is outside the
-repo, or it is outside the policy's declared roots. It never infers policy from
-a repository name. Both commands are read-only; omit `--json` for their human
-rendering.
+repo declaration is missing or invalid, or the requested path is outside the
+policy's declared roots. It never infers policy from a repository name. Both
+commands are read-only; omit `--json` for their human rendering.
 
 ## Manual boundary review
 

@@ -472,3 +472,18 @@ also admit `outside-declared-scope` and `path-outside-repo`. Negative JSON tests
 reject unknown and wrong-surface codes on both marshal and unmarshal, and the
 README now documents both fleet commands and typed refusal behavior
 (ARCH-PURPOSE).
+
+### 2026-08-27 — require production reachability for result variants
+
+**Reason:** close review round 2 showed that validation closure alone was
+insufficient: `path-outside-repo` was accepted by the result envelope but could
+not be emitted by `fleet policy --path`, because the requested path establishes
+the containing repository before the resolver runs.
+
+**Delta:** the earlier four-code result list is superseded. The production
+result union is `missing-policy`, `invalid-policy`, and
+`outside-declared-scope`; built-process E2E coverage reaches all three.
+`ResolvePolicy` still fails closed when given inconsistent pre-normalized paths,
+but reports the reachable `invalid-policy` variant. Adding a separate repository
+context flag solely to expose the removed variant would add an unused authority
+and violate Simplicity First (ARCH-PURPOSE).

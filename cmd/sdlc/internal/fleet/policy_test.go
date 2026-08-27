@@ -54,11 +54,11 @@ func TestResolvePolicyKeyProperties(t *testing.T) {
 			wantCode: DiagnosticOutsideDeclaredScope,
 		},
 		{
-			name:     "outside repository fails closed",
+			name:     "inconsistent canonical paths fail as invalid normalized policy input",
 			policy:   policyValue("repo", nil, Capacity{Kind: "unbounded"}, ""),
 			worktree: repo,
 			paths:    []string{filepath.Join(string(filepath.Separator), "elsewhere")},
-			wantCode: DiagnosticPathOutsideRepo,
+			wantCode: DiagnosticInvalidPolicy,
 		},
 	}
 

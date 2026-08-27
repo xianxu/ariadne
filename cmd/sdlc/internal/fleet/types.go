@@ -16,7 +16,6 @@ const (
 	DiagnosticMissingPolicy        = "missing-policy"
 	DiagnosticInvalidPolicy        = "invalid-policy"
 	DiagnosticOutsideDeclaredScope = "outside-declared-scope"
-	DiagnosticPathOutsideRepo      = "path-outside-repo"
 )
 
 type Capacity struct {
@@ -549,7 +548,7 @@ func isCapabilityDiagnosticCode(code string) bool {
 }
 
 func isResultDiagnosticCode(code string) bool {
-	return isCapabilityDiagnosticCode(code) || code == DiagnosticOutsideDeclaredScope || code == DiagnosticPathOutsideRepo
+	return isCapabilityDiagnosticCode(code) || code == DiagnosticOutsideDeclaredScope
 }
 
 func validateCapacity(capacity Capacity, onCapacity string) error {
