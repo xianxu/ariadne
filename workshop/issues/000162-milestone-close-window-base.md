@@ -209,6 +209,21 @@ not interpolated executable text. Rooting every recipe with `-C R` makes the
 manifest independent of the reviewer's ambient directory while preserving the
 former exclusion pathspecs and their order.
 
+### 2026-08-26 — preserve issue-less manual milestone review
+
+**Reason:** `sdlc judge milestone-review` currently permits ad-hoc range review
+without `--issue`; requiring an issue would be an unrelated API break.
+
+**Decision:** the automatic close path always requires and names its issue file.
+The manual path has two variants: with `--issue N`, it likewise requires the
+issue file and names an optional canonical plan; without `--issue`, `IssueRef`
+renders as `<unspecified>` and both `IssueFile` and `PlanFile` are explicitly
+absent. The repository root, immutable range, exclusions, and inspection
+commands remain mandatory in both variants. Manual `--plans-dir` (defaulting via
+`WF_PLANS_DIR` / `workshop/plans`) selects plan discovery only when an issue is
+present. This preserves ad-hoc review while making the absence of requirements
+context visible to the reviewer rather than inventing a path.
+
 ## Done when
 
 - `milestone-close` on the first milestone of a fresh branch reviews only the
