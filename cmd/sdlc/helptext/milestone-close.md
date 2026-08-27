@@ -14,7 +14,7 @@ WHAT IT DOES
        auto-satisfied when the window has no code surface (#177)
 
   2. Auto-dispatches `sdlc judge milestone-review`:
-     - Diff window: the PREVIOUS review boundary..the reviewed commit — the prior
+     - Review window: the PREVIOUS review boundary..the reviewed commit — the prior
        milestone close's commit (the one carrying its Review-Verdict:
        trailer), or the branch start for the first milestone. Basing on
        the prior boundary (not the first `#<issue> <milestone>` commit)
@@ -22,7 +22,9 @@ WHAT IT DOES
        (side-quests, fixes) land in exactly one window instead of
        slipping the gap between two milestones (#58). Matches close's
        atlas check window exactly.
-     - Builds the milestone-review prompt with issue ref + base/head
+     - Builds the milestone-review prompt with issue/plan paths, immutable
+       base/head commits, and exact read-only Git inspection commands; the
+       unified patch stays in Git instead of entering the agent argv/prompt
      - Invokes the configured agent (claude by default)
      - Routes harness diagnostics/progress to terminal stderr; verdict parsing
        and the durable `-m<x>-review.md` consume only the semantic final response

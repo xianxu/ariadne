@@ -148,8 +148,10 @@ edits the record itself.
 
 Run an LLM-as-judge check against the current diff. Fresh-context
 subagent invocation — the anti-collusion property: the judge sees only
-the prompt + diff, never the doer's session state. The doer's incentive
-to declare success doesn't propagate.
+the constructed prompt, never the doer's session state. Diff-oriented
+categories receive the patch inline; milestone-review receives a compact,
+pinned repository-inspection manifest instead. The doer's incentive to declare
+success doesn't propagate.
 
 ### [merge](../cmd/sdlc/helptext/merge.md)
 
@@ -165,6 +167,15 @@ both branch topologies (#51), detected automatically:
 The longest + most safety-conscious checkpoint guard — every step has a
 refusal or confirmation, because the actions are irreversible.
 
+### [migrate](../cmd/sdlc/helptext/migrate.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Move a markdown artifact to a peer repo, rewriting repo-relative refs so
+they resolve identically from the destination (#179). Deterministic, no
+LLM — the fix for the silent trap where a moved file's bare `#NNN` refs
+re-resolve against the destination's issue numbering.
+
 ### [milestone-close](../cmd/sdlc/helptext/milestone-close.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
@@ -173,6 +184,14 @@ Close one milestone of an issue AND auto-dispatch the post-milestone
 fresh-context code review (AGENTS.md §3). The canonical closing path
 for milestone work — bundles the mechanical close + the mandatory
 review into one invocation so neither half is skipped.
+
+### [open](../cmd/sdlc/helptext/open.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Resolve a symbolic artifact reference and open the primary artifact in
+`$EDITOR`. Sugar over `sdlc resolve` — same read-only resolution, same grammar
+(see `sdlc resolve --help` for the authoritative ref grammar).
 
 ### [pr](../cmd/sdlc/helptext/pr.md)
 
@@ -190,11 +209,28 @@ branch with upstream tracking and links every touched issue file's
 "process manual" — the single document a human can read to see what the agentic
 process actually is, then navigate to each source to tune it (#153).
 
+### [project](../cmd/sdlc/helptext/project.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+`sdlc project` authors and inspects project records. A project is the lifecycle
+one level above an issue: it establishes a product baseline, coordinates a
+cross-repository breakdown, and derives progress from the referenced issues.
+
 ### [push](../cmd/sdlc/helptext/push.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
 Ship from `main` — the direct-on-main commit + push verb.
+
+### [resolve](../cmd/sdlc/helptext/resolve.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Resolve a symbolic artifact reference to its current file path(s) — a
+read-only "where does this ref live" surface. Maps `ariadne#11`, `#15 M4`,
+`pair#84` to the issue and its plan/review family, correct after the files
+archive (`issues/ → history/`) and across sibling repos.
 
 ### [root](../cmd/sdlc/helptext/root.md)
 
@@ -396,6 +432,14 @@ If you were dispatched as a subagent to execute a specific task, skip this skill
 
 ~~~
 # sdlc — SDLC checkpoint binary
+~~~
+
+### [xx-session-retro](../construct/local/session-retro/SKILL.md)
+
+**When:** Use when reviewing a development session or transcript for workflow friction, avoidable tool failures, SDLC problems, review loops, environment mismatches, or process improvements.
+
+~~~
+# Session Retro
 ~~~
 
 ### [xx-vocabulary](../construct/generated/vocabulary/SKILL.md)
