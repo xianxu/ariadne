@@ -8,6 +8,34 @@ import (
 	"testing"
 )
 
+func TestREADME_DocumentsManualMilestoneReview(t *testing.T) {
+	body, err := os.ReadFile(filepath.Join(repoRootForTest(t), "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	section := string(body)
+	const heading = "## Manual boundary review"
+	start := strings.Index(section, heading)
+	if start < 0 {
+		t.Fatal("README missing manual boundary review section")
+	}
+	section = section[start+len(heading):]
+	if end := strings.Index(section, "\n## "); end >= 0 {
+		section = section[:end]
+	}
+	for _, want := range []string{
+		"milestone-review --base <ref> --head <ref> --issue <n>",
+		"milestone-review --base <ref> --issue <n> --plans-dir <path>",
+		"$WF_PLANS_DIR",
+		"workshop/plans",
+		"omit `--head`",
+	} {
+		if !strings.Contains(section, want) {
+			t.Errorf("README manual boundary review section missing %q:\n%s", want, section)
+		}
+	}
+}
+
 func TestJudgeAgentDefault_DryRunUsesPairAgent(t *testing.T) {
 	t.Setenv("AGENT_CMD", "")
 	t.Setenv("PAIR_AGENT", "codex")

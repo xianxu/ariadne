@@ -429,3 +429,13 @@ record the empty-range mutant as the falsification check. Add README.md to the
 owned documentation consumers with committed-range, working-tree, and
 `--plans-dir` usage. This supersedes the prior revision's overclaim that
 execution alone completed BR-2 (ARCH-MOCK, ARCH-PURPOSE).
+
+### 2026-08-26 — make the README repair deletion-sensitive
+
+**Reason:** boundary-review round 3 accepted BR-2 but kept BR-3 open because the
+new README prose had no test that failed when it disappeared.
+
+**Delta:** add a repository-level, section-scoped README contract covering the
+committed-range command, omitted-head working-tree command, `--plans-dir`, and
+its environment/convention defaults. Deleting the section is the recorded red
+mutation; restoring it returns the focused test to green.

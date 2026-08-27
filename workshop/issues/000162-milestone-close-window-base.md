@@ -317,3 +317,7 @@ stale on 2026-08-26, so these v3.1 values are provisional.
   so empty-range mutants passed. Every recipe now asserts its own positive and
   negative semantics. BR-3 added the missing README entry for manual
   `milestone-review` and `--plans-dir`.
+- Boundary-review round 3 disposed BR-2 and required BR-3's documentation fix
+  to be executable under the gate's claimed-fix rule. A scoped README contract
+  now pins the committed-range form, omitted-head working-tree form,
+  `--plans-dir`, and both defaults; deleting the section makes it fail.

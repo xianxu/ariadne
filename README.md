@@ -12,6 +12,8 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+## Manual boundary review
+
 For an ad-hoc fresh-context boundary review, use a pinned committed range or
 omit `--head` to include committed-after-base plus staged and unstaged tracked
 changes:

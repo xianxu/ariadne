@@ -1096,3 +1096,8 @@ Apply those assertions to **each recipe**, not to the command set in aggregate.
 A loop that executes four commands but positively checks only two still allows
 the unchecked commands to become empty no-ops. Mutate each generated recipe to
 an empty range; its own assertions must fail.
+
+The same claimed-fix rule applies to user-facing documentation: if a boundary
+finding requires a README surface, add a section-scoped repository contract for
+the commands and semantics the finding names. Correct prose without a deletion-
+sensitive test is still an unguarded fix at a convergence gate.
