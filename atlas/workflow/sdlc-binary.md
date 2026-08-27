@@ -86,9 +86,10 @@ push/ref races still surface through the existing push/merge retry guidance.
 `close` and `milestone-close` are narrower: they lock the compute phase, release
 the lock while the external boundary review runs, then reacquire before
 finalization and refuse to write if the issue file or any prepared project-file
-edit changed while the lock was released, or if the commits that landed during the
-review carry code surface (#194) — a doc-only delta finalizes, since the reviewed
-code is unchanged. `change-code`, `merge`, and `push` may still hold the lock while
+edit changed while the lock was released, if the canonical durable plan changed
+presence or contents, or if the commits that landed during the review carry code
+surface (#194) — a doc-only delta finalizes, since the reviewed code is unchanged.
+`change-code`, `merge`, and `push` may still hold the lock while
 synchronous judges run. Their wait/timeout messages call this out as a
 long-running review/ship transaction; quick commands should wait or retry
 instead of deleting a live lock. Recovery is conservative but not wedging:
@@ -764,6 +765,23 @@ window) dispatch this same review — so the agent does **not** run a separate
 remains for ad-hoc/in-session reviews. The double-review #69 removed was the
 agent's superpowers pass *plus* the binary's auto-dispatch on the same diff.
 
+**Pinned review manifest (#162).** Boundary prompts no longer embed the unified
+patch. `ReviewWindowManifest` (`internal/judge/reviewwindow.go`) purely validates
+and renders the repository root, immutable base/head commits, issue/optional plan
+paths, exclusions, and stat/name-status/full/targeted Git argv. The thin
+`resolveBoundaryReviewManifest` IO seam (`cmd/sdlc/reviewwindow.go`) pins refs and
+validates paths through a stateful Git-runner fake plus live-repository
+conformance. Automatic close requires already-concrete anchors captured under
+the repo lock and keeps the historical `workshop/history` exclusion; manual
+`judge milestone-review` resolves supplied refs, respects its issue/history/plan
+directory flags, and keeps issue-less ad-hoc review valid. Omitting manual
+`--head` means base-vs-working-tree: committed-after-base plus staged/unstaged
+tracked changes are in scope, untracked files are not. Reviewers must run the
+manifest's read-only inspection recipes and return REWORK if the repository,
+objects, or commands are unavailable. This keeps agent argv bounded even for a
+multi-megabyte legitimate window while Git remains the patch source (ARCH-DRY,
+ARCH-PURE, ARCH-MOCK).
+
 **Repo orientation (#137).** The review prompt orients the fresh reviewer to the
 **actual repo under review**, derived from the live git context — not a hardcoded
 `ariadne`. `boundaryOrientation` (`cmd/sdlc/orientation.go`) computes the repo name
@@ -785,7 +803,10 @@ honest `status: working` issue), and `applyClose` fires only on a **finalizing**
 verdict via the shared finalization helper. The command path releases
 `.git/sdlc.lock` while the external review subprocess runs, then reacquires and
 checks that HEAD, the issue file, and any prepared project-file edit still match
-the reviewed snapshot before writing. `closeVerdictOutcome` derives from
+the reviewed snapshot before writing. The canonical durable plan candidate is in
+that same artifact snapshot even when absent, so creation, deletion, modification,
+or replacement during the unlocked review also refuses finalization.
+`closeVerdictOutcome` derives from
 `vocab.Verdict()` (#147): finalizing (SHIP/FIX-THEN-SHIP) → finalize; blocking
 (REWORK) → **not finalized**, issue left `working`, non-zero exit, "fix + re-run"
 (no `--no-reclose-guard` needed on the rerun since it never went `done`);
@@ -830,10 +851,12 @@ commits (ARCH-DRY). A milestone window bases on the **previous review boundary**
 `previousReviewBoundary` — not on the first `#N Mx` commit. This closes a gap
 where an inter-milestone `#N`-but-not-`Mx` commit (a `side-quest:`, a fix) landed
 between M(x-1)'s close and Mx's first commit would slip *both* windows and escape
-review. The first milestone (no prior boundary) falls back to the branch start
-(parent of the first `#N` commit); if a prior close's trailer was never pasted,
-the lookup finds nothing and falls back the same way — over-covering rather than
-under-covering, the safe direction.
+review. The first milestone (no prior boundary) uses the feature branch point,
+so an issue filed early cannot pull unrelated main history into M1. If a prior
+close's trailer was never pasted, the lookup likewise uses that branch point —
+over-covering prior branch work rather than under-covering. Only direct-on-main /
+no-divergence work falls back to the parent of the first `#N` implementation
+commit.
 
 The **whole-issue** close (the end-of-issue integration review) bases on the
 **branch point** — `gitx.MergeBaseWithMain()` = `merge-base(main, HEAD)` — so it

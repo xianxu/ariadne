@@ -12,6 +12,22 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+## Manual boundary review
+
+For an ad-hoc fresh-context boundary review, use a pinned committed range or
+omit `--head` to include committed-after-base plus staged and unstaged tracked
+changes:
+
+```sh
+sdlc judge milestone-review --base <ref> --head <ref> --issue <n>
+sdlc judge milestone-review --base <ref> --issue <n> --plans-dir <path>
+```
+
+`--plans-dir` selects the optional canonical durable plan named to the reviewer
+when `--issue` is present; it defaults to `$WF_PLANS_DIR` or
+`workshop/plans`. The review prompt carries pinned, read-only Git inspection
+recipes rather than embedding the patch.
+
 ## Project records
 
 Projects live in `workshop/projects/` and coordinate issue-backed work across

@@ -1,7 +1,9 @@
 Run an LLM-as-judge check against the current diff. Fresh-context
 subagent invocation — the anti-collusion property: the judge sees only
-the prompt + diff, never the doer's session state. The doer's incentive
-to declare success doesn't propagate.
+the constructed prompt, never the doer's session state. Diff-oriented
+categories receive the patch inline; milestone-review receives a compact,
+pinned repository-inspection manifest instead. The doer's incentive to declare
+success doesn't propagate.
 
 CATEGORIES
 
@@ -15,8 +17,9 @@ CATEGORIES
                    permission).
   lessons          Emit a reminder to capture patterns in
                    workshop/lessons.md. No agent invocation.
-  milestone-review Post-milestone code review per AGENTS.md §3. Takes
-                   --base and --head to bound the review window.
+  milestone-review Boundary code review per AGENTS.md §3. Resolves --base and
+                   optional --head to immutable commits, then supplies exact
+                   read-only Git inspection commands instead of patch bytes.
 
 USAGE
 
@@ -46,6 +49,15 @@ FLAGS
                         or "workshop/issues".
   --history-dir <path>  directory holding archived issues. Default:
                         $WF_HISTORY_DIR or "workshop/history".
+  --plans-dir <path>    directory holding optional durable plans for a manual
+                        milestone-review. Default: $WF_PLANS_DIR or
+                        "workshop/plans". Used only when --issue is present.
+  --issue <n>           optional issue identity for milestone-review. When set,
+                        the issue path must resolve and an optional canonical
+                        plan is named; when omitted, the prompt visibly says
+                        <unspecified> and performs an ad-hoc range review.
+  --milestone <Mx>      optional milestone label appended to --issue in the
+                        manual review prompt.
   --dry-run             print the prompt + would-be command line; do not
                         invoke the agent. Useful for verifying behavior
                         in restricted environments.

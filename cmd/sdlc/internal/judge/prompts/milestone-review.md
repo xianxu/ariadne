@@ -14,5 +14,5 @@ and not at a lower one. If a disposed finding is genuinely still wrong, dispose 
 
 {{BOUNDARY_CONTRACT}}
 
-Diff:
-{{DIFF}}
+Review window:
+{{REVIEW_WINDOW}}
