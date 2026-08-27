@@ -25,6 +25,8 @@ WHAT IT DOES
      - Builds the milestone-review prompt with issue/plan paths, immutable
        base/head commits, and exact read-only Git inspection commands; the
        unified patch stays in Git instead of entering the agent argv/prompt
+     - Snapshots every mutable prose artifact named to the unlocked reviewer;
+       issue/project/plan edits or plan presence changes refuse finalization
      - Invokes the configured agent (claude by default)
      - Routes harness diagnostics/progress to terminal stderr; verdict parsing
        and the durable `-m<x>-review.md` consume only the semantic final response

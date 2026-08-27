@@ -145,17 +145,25 @@ func resolveReviewIssuePath(root, issuesDir string, issueNum int) (string, error
 }
 
 func optionalReviewPlanPath(root, plansDir, issueFile string) string {
-	if plansDir == "" || issueFile == "" {
+	displayPath, statPath := reviewPlanPaths(root, plansDir, issueFile)
+	if displayPath == "" {
 		return ""
-	}
-	name := strings.TrimSuffix(filepath.Base(issueFile), filepath.Ext(issueFile)) + "-plan.md"
-	displayPath := filepath.Join(plansDir, name)
-	statPath := displayPath
-	if !filepath.IsAbs(statPath) {
-		statPath = filepath.Join(root, statPath)
 	}
 	if info, err := os.Stat(statPath); err != nil || info.IsDir() {
 		return ""
 	}
 	return displayPath
+}
+
+func reviewPlanPaths(root, plansDir, issueFile string) (displayPath, statPath string) {
+	if plansDir == "" || issueFile == "" {
+		return "", ""
+	}
+	name := strings.TrimSuffix(filepath.Base(issueFile), filepath.Ext(issueFile)) + "-plan.md"
+	displayPath = filepath.Join(plansDir, name)
+	statPath = displayPath
+	if !filepath.IsAbs(statPath) {
+		statPath = filepath.Join(root, statPath)
+	}
+	return displayPath, statPath
 }

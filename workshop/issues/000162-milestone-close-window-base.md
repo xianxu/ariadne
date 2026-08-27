@@ -321,3 +321,9 @@ stale on 2026-08-26, so these v3.1 values are provisional.
   to be executable under the gate's claimed-fix rule. A scoped README contract
   now pins the committed-range form, omitted-head working-tree form,
   `--plans-dir`, and both defaults; deleting the section makes it fail.
+- Boundary-review round 4 disposed BR-3 and found BR-4: the unlocked close
+  snapshot protected issue/project prose but not the newly named durable plan.
+  One shared artifact snapshot now protects issue, projects, and the canonical
+  plan candidate by presence and contents for both `close` and
+  `milestone-close`; interleaving tests cover plan modification, creation,
+  deletion, and atomic replacement (ARCH-PURPOSE).

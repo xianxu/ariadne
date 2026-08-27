@@ -86,9 +86,10 @@ push/ref races still surface through the existing push/merge retry guidance.
 `close` and `milestone-close` are narrower: they lock the compute phase, release
 the lock while the external boundary review runs, then reacquire before
 finalization and refuse to write if the issue file or any prepared project-file
-edit changed while the lock was released, or if the commits that landed during the
-review carry code surface (#194) — a doc-only delta finalizes, since the reviewed
-code is unchanged. `change-code`, `merge`, and `push` may still hold the lock while
+edit changed while the lock was released, if the canonical durable plan changed
+presence or contents, or if the commits that landed during the review carry code
+surface (#194) — a doc-only delta finalizes, since the reviewed code is unchanged.
+`change-code`, `merge`, and `push` may still hold the lock while
 synchronous judges run. Their wait/timeout messages call this out as a
 long-running review/ship transaction; quick commands should wait or retry
 instead of deleting a live lock. Recovery is conservative but not wedging:
@@ -802,7 +803,10 @@ honest `status: working` issue), and `applyClose` fires only on a **finalizing**
 verdict via the shared finalization helper. The command path releases
 `.git/sdlc.lock` while the external review subprocess runs, then reacquires and
 checks that HEAD, the issue file, and any prepared project-file edit still match
-the reviewed snapshot before writing. `closeVerdictOutcome` derives from
+the reviewed snapshot before writing. The canonical durable plan candidate is in
+that same artifact snapshot even when absent, so creation, deletion, modification,
+or replacement during the unlocked review also refuses finalization.
+`closeVerdictOutcome` derives from
 `vocab.Verdict()` (#147): finalizing (SHIP/FIX-THEN-SHIP) → finalize; blocking
 (REWORK) → **not finalized**, issue left `working`, non-zero exit, "fix + re-run"
 (no `--no-reclose-guard` needed on the rerun since it never went `done`);

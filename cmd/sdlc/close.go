@@ -1048,7 +1048,11 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, f)
 		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
-		snapshot = captureCloseReviewSnapshot(r, head, "")
+		captured, captureErr := captureCloseReviewSnapshot(r, head, "", f.plansDir())
+		if captureErr != nil {
+			return captureErr
+		}
+		snapshot = captured
 		prior = boundaryPriorFindings(stderr, boundaryReviewParams{
 			IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: "", PlansDir: f.plansDir(),
 		})
@@ -1259,19 +1263,53 @@ type closeReviewSnapshot struct {
 	// milestone distinguishes a milestone close from a whole-issue close, so a refusal
 	// names the right re-run verb via closeVerb (ARCH-DRY).
 	milestone string
-	issuePath string
-	issueText string
-	projects  []projectEdit
+	artifacts []closeReviewArtifact
 }
 
-func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone string) closeReviewSnapshot {
-	return closeReviewSnapshot{
+type closeReviewArtifact struct {
+	path    string
+	present bool
+	text    string
+}
+
+func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone, plansDir string) (closeReviewSnapshot, error) {
+	s := closeReviewSnapshot{
 		reviewed:  reviewedSHA,
 		milestone: milestone,
-		issuePath: r.issuePath,
-		issueText: r.issueText,
-		projects:  r.projectEdits,
 	}
+	if r.issuePath != "" {
+		s.artifacts = append(s.artifacts, closeReviewArtifact{path: r.issuePath, present: true, text: r.issueText})
+	}
+	for _, project := range r.projectEdits {
+		s.artifacts = append(s.artifacts, closeReviewArtifact{path: project.path, present: true, text: project.oldText})
+	}
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return closeReviewSnapshot{}, fmt.Errorf("resolve review repository root for snapshot: %w", err)
+	}
+	_, planPath := reviewPlanPaths(root, plansDir, r.issuePath)
+	if planPath != "" {
+		plan, err := captureCloseReviewArtifact(planPath)
+		if err != nil {
+			return closeReviewSnapshot{}, err
+		}
+		s.artifacts = append(s.artifacts, plan)
+	}
+	return s, nil
+}
+
+func captureCloseReviewArtifact(path string) (closeReviewArtifact, error) {
+	data, err := os.ReadFile(path)
+	if err == nil {
+		return closeReviewArtifact{path: path, present: true, text: string(data)}, nil
+	}
+	if os.IsNotExist(err) {
+		return closeReviewArtifact{path: path}, nil
+	}
+	if info, statErr := os.Stat(path); statErr == nil && info.IsDir() {
+		return closeReviewArtifact{path: path}, nil
+	}
+	return closeReviewArtifact{}, fmt.Errorf("read review artifact %s: %w", path, err)
 }
 
 // validate reports whether finalization may proceed. It returns a note the caller
@@ -1279,9 +1317,9 @@ func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone string) cl
 // decided rather than only that nothing blocked.
 //
 // #194: the HEAD question is now "does the delta touch code?", not "is HEAD identical?".
-// The issue-file and project-file checks stay STRICT and unchanged — the review READ
-// that prose, so a mid-review edit to it is a genuine invalidation. Only the HEAD check
-// was ever stricter than its own purpose.
+// Mutable artifact checks stay STRICT — the reviewer reads issue/project prose and the
+// optional canonical plan, so a mid-review content or presence change is a genuine
+// invalidation. Only the HEAD check was ever stricter than its own purpose.
 func (s closeReviewSnapshot) validate() (string, error) {
 	note := ""
 	if s.reviewed != "" {
@@ -1302,22 +1340,19 @@ func (s closeReviewSnapshot) validate() (string, error) {
 			return "", fmt.Errorf("%s", formatAnchorRefusal(d, outcome, closeVerb(s.milestone)))
 		}
 	}
-	if s.issuePath != "" {
-		data, err := os.ReadFile(s.issuePath)
+	for _, artifact := range s.artifacts {
+		current, err := captureCloseReviewArtifact(artifact.path)
 		if err != nil {
-			return "", fmt.Errorf("read %s: %w", s.issuePath, err)
+			return "", err
 		}
-		if string(data) != s.issueText {
-			return "", fmt.Errorf("%s changed", s.issuePath)
+		if current.present != artifact.present {
+			if current.present {
+				return "", fmt.Errorf("%s appeared", artifact.path)
+			}
+			return "", fmt.Errorf("%s disappeared", artifact.path)
 		}
-	}
-	for _, e := range s.projects {
-		data, err := os.ReadFile(e.path)
-		if err != nil {
-			return "", fmt.Errorf("read %s: %w", e.path, err)
-		}
-		if string(data) != e.oldText {
-			return "", fmt.Errorf("%s changed", e.path)
+		if current.present && current.text != artifact.text {
+			return "", fmt.Errorf("%s changed", artifact.path)
 		}
 	}
 	return note, nil

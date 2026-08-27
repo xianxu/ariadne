@@ -1101,3 +1101,17 @@ The same claimed-fix rule applies to user-facing documentation: if a boundary
 finding requires a README surface, add a section-scoped repository contract for
 the commands and semantics the finding names. Correct prose without a deletion-
 sensitive test is still an unguarded fix at a convergence gate.
+
+## An unlocked review snapshot must enumerate every mutable artifact exposed in its prompt
+
+**Pattern (#162 close review):** The close transaction snapshotted issue and
+project prose before releasing its lock, but a new manifest also named the
+canonical durable plan. The plan was omitted from the staleness snapshot, so it
+could change while the reviewer ran and stale evidence could still finalize.
+
+**Rule:** Whenever a review prompt gains a mutable file, update the unlocked
+transaction snapshot in the same change. Capture both presence and contents—an
+absent optional file is state too—and revalidate after reacquiring the lock.
+Exercise modification, creation, deletion, and replacement through every caller
+that unlocks around review; helper-only coverage does not prove wiring
+(`ARCH-PURPOSE`, `ARCH-DRY`).

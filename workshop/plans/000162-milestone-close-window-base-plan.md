@@ -439,3 +439,17 @@ new README prose had no test that failed when it disappeared.
 committed-range command, omitted-head working-tree command, `--plans-dir`, and
 its environment/convention defaults. Deleting the section is the recorded red
 mutation; restoring it returns the focused test to green.
+
+### 2026-08-26 — snapshot every mutable artifact named to the reviewer
+
+**Reason:** boundary-review round 4 proved that a durable plan could change
+during the unlocked review while `closeReviewSnapshot` guarded only issue and
+project prose, allowing stale review evidence to finalize.
+
+**Delta:** model issue, project, and canonical plan as one review-artifact
+snapshot with path, presence, and contents. Capture the canonical plan candidate
+under the lock even when absent, then revalidate it after reacquiring the lock;
+modification, creation, deletion, and atomic replacement all refuse. Exercise
+the complete mutation table through both `close` and `milestone-close`, proving
+the shared helper is wired to every automatic boundary consumer
+(`ARCH-PURPOSE`, `ARCH-DRY`).

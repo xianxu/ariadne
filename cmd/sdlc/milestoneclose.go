@@ -222,7 +222,11 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 			cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
 		}
 		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
-		snapshot = captureCloseReviewSnapshot(r, head, f.Milestone)
+		captured, captureErr := captureCloseReviewSnapshot(r, head, f.Milestone, resolvePlansDir(f.PlansDir))
+		if captureErr != nil {
+			return captureErr
+		}
+		snapshot = captured
 		prior = boundaryPriorFindings(stderr, boundaryReviewParams{
 			IssuesDir: f.IssuesDir, IssueNum: f.Issue, Milestone: f.Milestone, PlansDir: resolvePlansDir(f.PlansDir),
 		})
