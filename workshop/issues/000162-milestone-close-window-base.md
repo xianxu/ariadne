@@ -312,3 +312,8 @@ stale on 2026-08-26, so these v3.1 values are provisional.
   resolution; it now executes all four structured recipes against committed,
   staged, unstaged, untracked, and custom-directory fixture state (ARCH-MOCK,
   ARCH-PURPOSE).
+- Boundary-review round 2 disposed BR-1 but proved BR-2's first repair was
+  incomplete: `stat` and `targeted` were executed without positive assertions,
+  so empty-range mutants passed. Every recipe now asserts its own positive and
+  negative semantics. BR-3 added the missing README entry for manual
+  `milestone-review` and `--plans-dir`.

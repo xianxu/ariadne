@@ -226,11 +226,13 @@ func assertReviewCommands(t *testing.T, manifest judge.ReviewWindowManifest, wan
 				t.Errorf("%s recipe included %q:\n%s", command.Label, path, text)
 			}
 		}
-		if command.Label == "names" || command.Label == "full" {
-			for _, path := range want {
-				if !strings.Contains(text, path) {
-					t.Errorf("%s recipe omitted %q:\n%s", command.Label, path, text)
-				}
+		commandWant := want
+		if command.Label == "targeted" {
+			commandWant = []string{"tracked.txt"}
+		}
+		for _, path := range commandWant {
+			if !strings.Contains(text, path) {
+				t.Errorf("%s recipe omitted %q:\n%s", command.Label, path, text)
 			}
 		}
 	}

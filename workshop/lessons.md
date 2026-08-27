@@ -1091,3 +1091,8 @@ absolute or escaping paths. Conformance for generated command recipes must
 execute the structured argv against adversarial repository state and assert
 both inclusion and exclusion; resolving refs or comparing command text proves
 shape, not behavior (`ARCH-MOCK`, `ARCH-PURPOSE`).
+
+Apply those assertions to **each recipe**, not to the command set in aggregate.
+A loop that executes four commands but positively checks only two still allows
+the unchecked commands to become empty no-ops. Mutate each generated recipe to
+an empty range; its own assertions must fail.

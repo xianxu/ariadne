@@ -415,3 +415,17 @@ temporary-repository test now executes stat, name-status, full, and targeted
 argv across committed, staged, unstaged, untracked, and absolute custom tracker
 state, asserting both included work and excluded tracker content. The reopened
 coverage obligation is complete (ARCH-MOCK, ARCH-PURPOSE).
+
+### 2026-08-26 — require semantic evidence from every review recipe
+
+**Reason:** boundary-review round 2 mutated `stat` and `targeted` to empty
+base-to-base ranges and the first remediation stayed green. Merely executing all
+recipes did not prove each recipe's positive semantics. The same review found
+the new manual `--plans-dir` flag missing from README.md.
+
+**Delta:** require every stat, name-status, full, and targeted invocation to
+contain the path(s) its scope selects as well as excluding forbidden paths;
+record the empty-range mutant as the falsification check. Add README.md to the
+owned documentation consumers with committed-range, working-tree, and
+`--plans-dir` usage. This supersedes the prior revision's overclaim that
+execution alone completed BR-2 (ARCH-MOCK, ARCH-PURPOSE).
