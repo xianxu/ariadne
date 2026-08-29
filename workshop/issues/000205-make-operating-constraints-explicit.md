@@ -108,3 +108,7 @@ delivery through every derived consumer.
   when uncertainty is material, and define bounded behavior outside the envelope.
 - `ARCH-DRY` / `ARCH-PURPOSE`: the new lens belongs in the architecture registry
   so all planning and review consumers derive it from one source.
+- Fresh-eyes spec review: **Approved**, no blockers. Planning should enumerate
+  every current delivery seam for the `ARCH-PURPOSE` shadow-sweep and pin each
+  required semantic move with small contract assertions rather than brittle
+  whole-paragraph snapshots.
