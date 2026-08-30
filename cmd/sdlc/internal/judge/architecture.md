@@ -92,3 +92,25 @@ Principles"; this is its machine-delivered companion.
   configuration, or a missing live conformance check for behavior we depend on. A
   fake satisfies this only when production flow and test flow share the same
   boundary.
+
+## ARCH-CONSTRAINTS — Design to an explicit operating envelope
+
+- **principle:** Runtime behavior is part of the architecture. Before choosing a
+  mechanism, identify the small set of external constraints that can materially
+  shape it: latency, workload and growth, CPU, memory, disk/network IO,
+  concurrency, target environment and co-tenancy, and overload behavior. Make
+  consequential expectations explicit instead of leaving them as hidden
+  assumptions.
+- **at-plan:** Classify the workload and interaction path (for example keystroke,
+  UI response, startup/shutdown, online request, batch, or training/inference),
+  then give each relevant constraint a budget/range, basis (measured fact,
+  requirement, domain-informed assumption, or operator choice), and bounded
+  behavior when exceeded. Mark irrelevant categories `N/A`; do not fill a
+  ceremonial checklist or invent universal defaults. Make an educated initial
+  estimate when useful, but confirm material uncertainty with the operator.
+- **at-review:** Check that the implementation enforces the declared operating
+  envelope and that representative measurements or tests exercise the relevant
+  environment and workload. Flag blocking optional work on a critical UI path,
+  unbounded concurrency or fan-out, repeated expensive work that should be
+  cached or incremental, resource monopolization, unsupported performance
+  claims, and behavior that silently operates outside the stated bounds.

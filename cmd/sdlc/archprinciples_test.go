@@ -15,7 +15,7 @@ func TestRunArchPrinciples_RendersRegistry(t *testing.T) {
 		t.Fatalf("runArchPrinciples(at-plan): %v", err)
 	}
 	out := buf.String()
-	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "at-plan"} {
+	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS", "at-plan"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("at-plan output missing %q:\n%s", want, out)
 		}

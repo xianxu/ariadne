@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,10 +117,149 @@ func TestBuildPrompt_DRY(t *testing.T) {
 // #75: architecture.md is the single source — it carries both markers and both
 // lenses, and is embedded verbatim into every prompt that needs it.
 func TestArchitectureRegistry_Content(t *testing.T) {
-	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "at-plan", "at-review", "principle:"} {
+	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS", "at-plan", "at-review", "principle:"} {
 		if !strings.Contains(ArchitectureRegistry, want) {
 			t.Errorf("ArchitectureRegistry missing %q", want)
 		}
+	}
+}
+
+type architectureClauseContract struct {
+	label    string
+	required []string
+}
+
+var constraintsClauseContracts = []architectureClauseContract{
+	{
+		label: "principle",
+		required: []string{
+			"Runtime behavior is part of the architecture.",
+			"identify the small set of external constraints",
+			"latency, workload and growth, CPU, memory, disk/network IO, concurrency, target environment and co-tenancy, and overload behavior",
+			"Make consequential expectations explicit",
+		},
+	},
+	{
+		label: "at-plan",
+		required: []string{
+			"Classify the workload and interaction path",
+			"keystroke, UI response, startup/shutdown, online request, batch, or training/inference",
+			"budget/range, basis (measured fact, requirement, domain-informed assumption, or operator choice), and bounded behavior when exceeded",
+			"Mark irrelevant categories `N/A`",
+			"do not fill a ceremonial checklist or invent universal defaults",
+			"confirm material uncertainty with the operator",
+		},
+	},
+	{
+		label: "at-review",
+		required: []string{
+			"implementation enforces the declared operating envelope",
+			"representative measurements or tests exercise the relevant environment and workload",
+			"blocking optional work on a critical UI path",
+			"unbounded concurrency or fan-out",
+			"repeated expensive work that should be cached or incremental",
+			"resource monopolization",
+			"unsupported performance claims",
+			"silently operates outside the stated bounds",
+		},
+	},
+}
+
+func architectureEntry(registry, marker string) (string, error) {
+	heading := "## " + marker
+	if strings.Count(registry, heading) != 1 {
+		return "", errors.New("architecture marker heading must occur exactly once")
+	}
+	start := strings.Index(registry, heading)
+	entry := registry[start:]
+	if next := strings.Index(entry[len(heading):], "\n## ARCH-"); next >= 0 {
+		entry = entry[:len(heading)+next]
+	}
+	return entry, nil
+}
+
+func architectureClause(entry, label string) (string, error) {
+	prefix := "- **" + label + ":**"
+	if strings.Count(entry, prefix) != 1 {
+		return "", errors.New("architecture clause label must occur exactly once")
+	}
+	start := strings.Index(entry, prefix)
+	clause := entry[start:]
+	if next := strings.Index(clause[len(prefix):], "\n- **"); next >= 0 {
+		clause = clause[:len(prefix)+next]
+	}
+	return strings.Join(strings.Fields(clause), " "), nil
+}
+
+func constraintsContractViolations(registry string) []string {
+	entry, err := architectureEntry(registry, "ARCH-CONSTRAINTS")
+	if err != nil {
+		return []string{err.Error()}
+	}
+	var violations []string
+	for _, contract := range constraintsClauseContracts {
+		clause, err := architectureClause(entry, contract.label)
+		if err != nil {
+			violations = append(violations, contract.label+": "+err.Error())
+			continue
+		}
+		for _, required := range contract.required {
+			if !strings.Contains(clause, required) {
+				violations = append(violations, contract.label+": missing "+required)
+			}
+		}
+	}
+	return violations
+}
+
+func validConstraintsRegistryForTest() string {
+	var b strings.Builder
+	b.WriteString("## ARCH-CONSTRAINTS — fixture\n\n")
+	for _, contract := range constraintsClauseContracts {
+		fmt.Fprintf(&b, "- **%s:** %s\n", contract.label, strings.Join(contract.required, " "))
+	}
+	return b.String()
+}
+
+func TestArchitectureRegistry_ConstraintsContract(t *testing.T) {
+	if violations := constraintsContractViolations(ArchitectureRegistry); len(violations) > 0 {
+		t.Fatalf("ARCH-CONSTRAINTS contract violations:\n  %s", strings.Join(violations, "\n  "))
+	}
+}
+
+func TestArchitectureRegistry_ConstraintsContractMutants(t *testing.T) {
+	valid := validConstraintsRegistryForTest()
+	atPlanPredicate := constraintsClauseContracts[1].required[0]
+	mutants := map[string]string{
+		"deleted predicate": strings.Replace(valid, atPlanPredicate, "", 1),
+		"predicate moved to principle": strings.Replace(
+			strings.Replace(valid, atPlanPredicate, "", 1),
+			"- **principle:**", "- **principle:** "+atPlanPredicate, 1),
+		"predicate negated": strings.Replace(valid, atPlanPredicate, "Do not classify the workload and interaction path", 1),
+	}
+	for name, mutant := range mutants {
+		t.Run(name, func(t *testing.T) {
+			if violations := constraintsContractViolations(mutant); len(violations) == 0 {
+				t.Fatal("mutant unexpectedly satisfies ARCH-CONSTRAINTS contract")
+			}
+		})
+	}
+}
+
+func TestArchitectureRegistry_ConstraintsStructureFailsClosed(t *testing.T) {
+	valid := validConstraintsRegistryForTest()
+	mutants := map[string]string{
+		"missing entry":    strings.Replace(valid, "ARCH-CONSTRAINTS", "ARCH-OTHER", 1),
+		"duplicate entry":  valid + valid,
+		"missing clause":   strings.Replace(valid, "- **at-review:**", "- **review:**", 1),
+		"duplicate clause": valid + "- **at-plan:** duplicate\n",
+	}
+	for name, mutant := range mutants {
+		t.Run(name, func(t *testing.T) {
+			if violations := constraintsContractViolations(mutant); len(violations) == 0 {
+				t.Fatal("malformed registry unexpectedly satisfies ARCH-CONSTRAINTS contract")
+			}
+		})
 	}
 }
 
@@ -153,7 +293,7 @@ func TestArchitectureRegistry_EmbeddedInPrompts(t *testing.T) {
 // shared by the {{ARCH_STAR}} substitution and the AGENTS.md drift guard.
 func TestArchitectureMarkers(t *testing.T) {
 	markers := ArchitectureMarkers()
-	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK"}
+	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS"}
 	if len(markers) != len(want) {
 		t.Fatalf("ArchitectureMarkers() = %v, want %v", markers, want)
 	}
@@ -185,7 +325,7 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		"workshop/issues/000072-x.md", // {{ISSUE_FILE}}
 		"milestone M1 close",          // {{BOUNDARY}}
 		"downstream repo",             // {{REPO_NOTE}}
-		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
+		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK, ARCH-CONSTRAINTS", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
 		"Core concepts cross-check",
 		"```verdict",                               // {{VERDICT_BLOCK}} — the structured handoff (#147)
 		"verdict: <SHIP | FIX-THEN-SHIP | REWORK>", // tokens rendered from vocab.Verdict().Emitted()
