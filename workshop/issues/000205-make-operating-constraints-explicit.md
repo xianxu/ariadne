@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-08-29
 updated: 2026-08-29
-estimate_hours:
+estimate_hours: 1.73
 started: 2026-08-29T16:57:24-07:00
 ---
 
@@ -91,6 +91,25 @@ delivery through every derived consumer.
 - Automated tests fail if the new marker or its required semantics disappear
   from the registry or any derived delivery surface.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec            design=1.0  impl=0.08
+item: smaller-go-module     design=0.05 impl=0.14
+item: atlas-docs            design=0.05 impl=0.05
+item: milestone-review      design=0.05 impl=0.14
+design-buffer: 0.15
+total: 1.73
+```
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only. The calibration source is marked
+stale; values are provisional. The thorough approved plan earns the 15% design
+buffer, and v3.1 implementation values are already scaled to 40% of the v2/v2.1
+primitive table.
+
 ## Plan
 
 - [ ] Add the test-guarded `ARCH-CONSTRAINTS` registry entry and prove marker,
@@ -125,3 +144,6 @@ Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-p
   regex/first-occurrence marker extraction as heading parsing. Appended a plan
   revision with clause-scoped validation, deletion/migration/negation mutants,
   and the corrected extraction contract; no production code had been edited.
+- Plan-quality round 2: **CLEAN**; PQ-1 and PQ-2 disposed as addressed. Derived
+  a 1.73h Method A estimate from the stale v3.1 calibration: issue/spec,
+  test-guarded smaller Go extension, atlas maintenance, and one boundary review.
