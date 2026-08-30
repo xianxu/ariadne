@@ -758,7 +758,11 @@ delivers the `at-plan` lens to the main thread at design time — the forward
 counterpart to `change-code`'s plan-quality review (`claim → start-plan →
 change-code`). #71 adds `ARCH-SHIM`. #126 landed `ARCH-PURPOSE` (serve the issue's
 actual purpose; single-source ⇒ every consumer *derives* — the registry's 3rd
-marker, disambiguated from Simplicity-First/YAGNI). **#128** added
+marker, disambiguated from Simplicity-First/YAGNI). **#205** adds
+`ARCH-CONSTRAINTS`: classify the workload and interaction path, declare material
+runtime budgets/ranges with their evidence basis and exceeded behavior, then
+review representative measurements against that operating envelope. It supplies
+domain prompts rather than universal performance defaults. **#128** added
 **`sdlc arch-principles`** — a standalone command that prints the registry (the
 same `ArchitectureBlock` primitive start-plan calls), the *pull* path for non-gate
 work (autonomous fixes, quick edits, Q&A) that never hits start-plan. AGENTS.md's

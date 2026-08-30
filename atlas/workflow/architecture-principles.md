@@ -2,13 +2,15 @@
 
 The canonical `ARCH-*` registry lives in
 `cmd/sdlc/internal/judge/architecture.md`. It is embedded into plan-quality and
-boundary-review prompts, and `go run ./cmd/sdlc arch-principles` renders it for
-non-gate design work.
+boundary-review prompts, `sdlc start-plan` pushes it into planning sessions, and
+`go run ./cmd/sdlc arch-principles` renders it for non-gate design work.
 
 Key consumers:
 
 - `cmd/sdlc/internal/judge/architecture.go` extracts markers and renders the
   registry block.
+- `cmd/sdlc/startplan.go` and `cmd/sdlc/archprinciples.go` are the planning-time
+  push and standalone pull paths; both reuse `ArchitectureBlock`.
 - `cmd/sdlc/internal/judge/judge_test.go` pins marker extraction and prompt
   embedding.
 - `cmd/sdlc/internal/judge/testdata/golden/*.prompt` pins the generated prompt
@@ -35,3 +37,10 @@ honest against the real dependency. For owned libraries, services, and binaries,
 the storage/backend layer should also boot from portable file folders and/or
 database configuration without depending on production configuration or
 production databases.
+
+`ARCH-CONSTRAINTS` makes runtime behavior an explicit design input. Planning
+classifies the workload/interaction path and records each material parameter's
+budget or range, basis, and bounded behavior when exceeded; review checks the
+implementation and representative measurements against that operating envelope.
+Its domain prompts cover latency, workload growth, CPU/memory/IO, concurrency,
+environment/co-tenancy, and overload without imposing universal numeric defaults.
