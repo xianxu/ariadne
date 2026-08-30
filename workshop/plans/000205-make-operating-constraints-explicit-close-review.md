@@ -268,3 +268,76 @@ dispose:
     note: |
       This is the 3rd finding in family operating-envelope-semantic-completeness: all 18 predicates still validate when a modifier separates the negator from the required phrase, such as “Do not ever”; enforce canonical affirmative context rather than extending the immediate-prefix list.
 ```
+
+---
+
+## Re-review — 2026-08-29T18:59:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 205 — Make operating constraints explicit |
+| repo | ariadne |
+| issue file | workshop/issues/000205-make-operating-constraints-explicit.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 00fe01d88eb75f15be9a99b19096702b20d24967..4a753c6de28bf8158a43a4b44c8e1fdb5b652358 |
+| command | sdlc close --issue 205 |
+| reviewer | codex |
+| timestamp | 2026-08-29T18:59:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range fulfills issue #205: `ARCH-CONSTRAINTS` is defined once, reaches every enumerated consumer, and is guarded by semantic and delivery tests. BR-4 is addressed with verified red/green mutant evidence. No blocking findings remain.
+
+## Strengths
+
+- The registry entry covers the complete operating-envelope contract, including scale, basis, exceeded behavior, and review checks ([architecture.md](/Users/xianxu/workspace/ariadne/cmd/sdlc/internal/judge/architecture.md:96)).
+- Exact normalized affirmative clauses replace incomplete negator enumeration ([judge_test.go](/Users/xianxu/workspace/ariadne/cmd/sdlc/internal/judge/judge_test.go:127)).
+- Both CLI delivery seams assert the complete registry, not marker-only output ([archprinciples_test.go](/Users/xianxu/workspace/ariadne/cmd/sdlc/archprinciples_test.go:14), [startplan_test.go](/Users/xianxu/workspace/ariadne/cmd/sdlc/startplan_test.go:22)).
+- Atlas coverage documents the new principle and its delivery graph. No README change is required because no command, flag, configuration, or usage surface changed.
+
+## Critical findings
+
+None.
+
+## Important findings
+
+None.
+
+## Minor findings
+
+None.
+
+## Test coverage notes
+
+- Focused architecture, consumer, inventory, and mutant suites: pass.
+- BR-4 red-side verification: restoring the prior prefix detector caused all 18 separated-negation cases to fail.
+- `go vet -p 20 ./...`: pass.
+- Full suite excluding the independently verified pre-existing `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` failure: pass.
+- The unfiltered suite’s sole failure exists at the pinned base; this range does not modify that test.
+
+## Architectural notes
+
+- `ARCH-DRY`: Pass — one registry source; derived consumers and goldens contain no independent production definition.
+- `ARCH-PURE`: Pass — semantic validation and rendering remain pure; CLI IO seams stay thin.
+- `ARCH-PURPOSE`: Pass — the shadow-sweep covers both CLI paths, four architecture-aware prompts, and boundary marker expansion.
+- `ARCH-MOCK`: Pass — no external dependency or new IO behavior was introduced.
+- `ARCH-CONSTRAINTS`: Pass — the declarative change stays within its stated static-rendering and 20-worker test envelope.
+
+## Plan revision recommendations
+
+None; the final revision matches the code and generated artifacts.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Exact normalized affirmative clauses now guard all 18 predicates; reverting to the prior prefix detector makes every separated-negation regression fail.
+```

@@ -63,6 +63,15 @@ rounds:
           note: 'This is the 3rd finding in family operating-envelope-semantic-completeness: all 18 predicates still validate when a modifier separates the negator from the required phrase, such as “Do not ever”; enforce canonical affirmative context rather than extending the immediate-prefix list.'
           round: 3
       blocked: true
+    - "n": 4
+      timestamp: "2026-08-29T18:59:40-07:00"
+      agent: codex
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: Exact normalized affirmative clauses now guard all 18 predicates; reverting to the prior prefix detector makes every separated-negation regression fail.
+          round: 4
+      blocked: false
 ---
 
 # Gate ledger — ariadne#205 (boundary-review)
@@ -101,6 +110,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — addressed — The authoritative revision uses actual symbols and artifacts, distinguishes unchanged derived consumers, and its archive-safe mutant test fails when any recorded row is removed.
 - BR-4 — not-addressed — This is the 3rd finding in family operating-envelope-semantic-completeness: all 18 predicates still validate when a modifier separates the negator from the required phrase, such as “Do not ever”; enforce canonical affirmative context rather than extending the immediate-prefix list.
 
+## Round 4 — 2026-08-29T18:59:40-07:00 (codex) — passed
+
+### Disposed
+
+- BR-4 — addressed — Exact normalized affirmative clauses now guard all 18 predicates; reverting to the prior prefix detector makes every separated-negation regression fail.
+
 ## Open findings
 
-- **BR-4** [Important] `operating-envelope-semantic-completeness` The semantic contract accepts case-preserving negation of every required predicate
+(none — every finding has been disposed)

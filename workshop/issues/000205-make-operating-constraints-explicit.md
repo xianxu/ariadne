@@ -1,12 +1,13 @@
 ---
 id: 000205
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-29
 updated: 2026-08-29
 estimate_hours: 1.73
 started: 2026-08-29T16:57:24-07:00
+actual_hours: 0.44
 ---
 
 # Make operating constraints explicit
@@ -122,6 +123,7 @@ Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-p
 ## Log
 
 ### 2026-08-29
+- 2026-08-29: closed — Round-3 fix verified: exact normalized affirmative clauses reject deletion, migration, insertion, immediate negation, and separated/modifying negation across all 18 predicates; authoritative active/history inventory mutants pass; go test -p 20 ./... passes with only the proven pre-existing archived-#200 path test skipped; go vet -p 20 ./... and git diff --check pass.; review verdict: SHIP
 
 - User identified runtime operating constraints as a missing architecture axis
   after #156 exposed two concrete failures: optional session discovery blocked
