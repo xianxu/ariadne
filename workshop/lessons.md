@@ -110,7 +110,10 @@ guard from `cmd/datatype` to an end-to-end `cmd/weave` fixture, pinned “more t
 and asserted `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` all derive the policy.
 The follow-up FIX-THEN-SHIP review hardened it further with section scoping and
 typed manifest parsing after moved-marker and commented-export mutants exposed
-the raw-text false positives.
+the raw-text false positives. #205 repeated the consumer half: marker-only
+assertions stayed green when both CLI seams stopped delivering the registry body.
+The repair made each seam assert the complete registry and proved it with
+marker-only mutants.
 
 ## A changed surface has shadow docs and execution records, not just the main atlas page
 
@@ -1143,4 +1146,12 @@ treat that table as authoritative.
 table, append a complete replacement table, label it authoritative and name
 what it supersedes. Pin its high-risk rows with a repository test. Narrative
 delta alone is insufficient when the original contract is tabular
-(`ARCH-PURE`, `ARCH-PURPOSE`).
+(`ARCH-PURE`, `ARCH-PURPOSE`). Every entity name in the replacement must be a
+greppable symbol or exact artifact, and its status must describe the actual diff.
+Put unchanged consumers whose output changes only by derivation in a separate
+derived-consumer table; do not call them modified entities.
+
+**Origin extension:** #205 close review found conceptual aliases in the Core
+concepts table and unchanged render/CLI symbols labeled modified, even though the
+actual diff added a registry entry and test helpers, changed generated goldens,
+and left the delivery implementation untouched.

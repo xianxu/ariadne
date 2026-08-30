@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 func TestStartPlanCmd_Registered(t *testing.T) {
@@ -32,6 +33,9 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("start-plan output missing %q:\n%s", want, out)
 		}
+	}
+	if !strings.Contains(out, judge.ArchitectureRegistry) {
+		t.Errorf("start-plan must carry the complete architecture registry, not marker sentinels:\n%s", out)
 	}
 	// No --issue → generic label, still renders the principles.
 	var b2 strings.Builder

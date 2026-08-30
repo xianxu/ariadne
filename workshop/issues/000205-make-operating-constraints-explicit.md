@@ -160,3 +160,10 @@ Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-p
   still reads #200 from `workshop/plans/` after commit `dfeba9c` archived it to
   `workshop/history/plans/`. The same complete suite with only that test skipped
   passes; #205 does not absorb the unrelated archive-test fix.
+- Boundary review round 1: **REWORK** with BR-1 (explicit input scale omitted),
+  BR-2 (conceptual/unmodified Core concepts mislabeled), and BR-3 (CLI tests
+  allowed marker-only delivery). Fixed each class: restored and swept
+  `workload/input scale and growth`; appended authoritative greppable diff and
+  derived-consumer inventories; required the full registry at both CLI seams and
+  proved both guards with marker-only mutants. Added the two preventive rules to
+  `workshop/lessons.md`.

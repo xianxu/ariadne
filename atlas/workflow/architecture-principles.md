@@ -42,5 +42,5 @@ production databases.
 classifies the workload/interaction path and records each material parameter's
 budget or range, basis, and bounded behavior when exceeded; review checks the
 implementation and representative measurements against that operating envelope.
-Its domain prompts cover latency, workload growth, CPU/memory/IO, concurrency,
+Its domain prompts cover latency, workload/input scale and growth, CPU/memory/IO, concurrency,
 environment/co-tenancy, and overload without imposing universal numeric defaults.

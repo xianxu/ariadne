@@ -135,7 +135,7 @@ var constraintsClauseContracts = []architectureClauseContract{
 		required: []string{
 			"Runtime behavior is part of the architecture.",
 			"identify the small set of external constraints",
-			"latency, workload and growth, CPU, memory, disk/network IO, concurrency, target environment and co-tenancy, and overload behavior",
+			"latency, workload/input scale and growth, CPU, memory, disk/network IO, concurrency, target environment and co-tenancy, and overload behavior",
 			"Make consequential expectations explicit",
 		},
 	},

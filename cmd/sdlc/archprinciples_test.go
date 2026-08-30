@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 // TestRunArchPrinciples_RendersRegistry pins that the command DERIVES from the one
@@ -19,6 +21,9 @@ func TestRunArchPrinciples_RendersRegistry(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("at-plan output missing %q:\n%s", want, out)
 		}
+	}
+	if !strings.Contains(out, judge.ArchitectureRegistry) {
+		t.Errorf("at-plan output must carry the complete architecture registry, not marker sentinels:\n%s", out)
 	}
 }
 

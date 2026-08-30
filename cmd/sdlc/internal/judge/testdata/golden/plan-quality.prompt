@@ -179,7 +179,7 @@ Principles"; this is its machine-delivered companion.
 
 - **principle:** Runtime behavior is part of the architecture. Before choosing a
   mechanism, identify the small set of external constraints that can materially
-  shape it: latency, workload and growth, CPU, memory, disk/network IO,
+  shape it: latency, workload/input scale and growth, CPU, memory, disk/network IO,
   concurrency, target environment and co-tenancy, and overload behavior. Make
   consequential expectations explicit instead of leaving them as hidden
   assumptions.

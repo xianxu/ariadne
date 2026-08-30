@@ -373,3 +373,52 @@ on `main`, outside #205's files and purpose.
 - Verification substitution: rerun the complete suite with only that named
   baseline test excluded; all packages pass. #205 retains its non-goal against
   unrelated cleanup, so the archive-test repair remains separate work.
+
+### 2026-08-29T18:27:00-07:00 — boundary review round 1
+
+Reason: the whole-issue reviewer returned REWORK with `BR-1` semantic
+completeness, `BR-2` Core-concept inventory accuracy, and `BR-3` derived-consumer
+semantic coverage.
+
+This is the authoritative replacement for the original Core concepts and
+Integration points tables, which used conceptual aliases and described derived
+output changes as production-symbol modifications.
+
+#### Authoritative changed-entity inventory
+
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `ARCH-CONSTRAINTS` registry entry | PURE | `cmd/sdlc/internal/judge/architecture.md` | new |
+| `constraintsClauseContracts` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `architectureEntry` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `architectureClause` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `constraintsContractViolations` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `validConstraintsRegistryForTest` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `dry.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/dry.prompt` | modified |
+| `pure.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/pure.prompt` | modified |
+| `plan-quality.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/plan-quality.prompt` | modified |
+| `milestone-review.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/milestone-review.prompt` | modified |
+
+#### Derived consumers — unchanged implementation, changed output
+
+| Symbol | Lives in | Production status | Guard |
+|--------|----------|-------------------|-------|
+| `ArchitectureMarkers` | `cmd/sdlc/internal/judge/architecture.go` | unchanged; regex derives fifth marker | exact ordered marker test |
+| `ArchitectureBlock` | `cmd/sdlc/internal/judge/architecture.go` | unchanged; embeds expanded registry | registry/prompt embedding and golden tests |
+| `BuildPrompt` | `cmd/sdlc/internal/judge/prompts.go` | unchanged; derives four architecture-aware prompts | embedding sweep plus four goldens |
+| `CodeReviewBody` | `cmd/sdlc/internal/judge/review.go` | unchanged; derives complete marker enumeration | boundary-body exact marker-list test |
+| `runArchPrinciples` | `cmd/sdlc/archprinciples.go` | unchanged; derives CLI pull output | complete-registry CLI assertion plus marker-only mutant |
+| `runStartPlan` | `cmd/sdlc/startplan.go` | unchanged; derives planning push output | complete-registry CLI assertion plus marker-only mutant |
+
+Finding dispositions implemented:
+
+- **BR-1 / `operating-envelope-semantic-completeness`:** restored explicit
+  `workload/input scale and growth` in the principle and its clause-scoped
+  contract, then regenerated all four prompt goldens and swept the atlas phrase.
+- **BR-2 / `core-concept-inventory-accuracy`:** the authoritative tables above
+  use greppable symbols/exact artifacts and distinguish actual diff entities
+  from unchanged consumers whose outputs derive from the registry.
+- **BR-3 / `derived-consumer-semantic-coverage`:** both CLI tests now require the
+  complete `ArchitectureRegistry`. Temporarily replacing both delivery calls
+  with marker-only output made both tests fail; restoring `ArchitectureBlock`
+  made them green.
