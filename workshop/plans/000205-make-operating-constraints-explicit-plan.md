@@ -422,3 +422,53 @@ Finding dispositions implemented:
   complete `ArchitectureRegistry`. Temporarily replacing both delivery calls
   with marker-only output made both tests fail; restoring `ArchitectureBlock`
   made them green.
+
+### 2026-08-29T18:38:00-07:00 — authoritative Core concepts inventory contract
+
+Reason: boundary review round 2 found that the corrected inventory was accurate
+by inspection but lacked a regression guard, and that its semantic contract
+accepted case-preserving negations.
+
+Delta: this revision supersedes the round-1 replacement inventory. It records
+every greppable changed entity with its kind, exact path, and changed/unchanged
+status. `cmd/sdlc/constraints_plan_test.go` scopes this section and mutation-tests
+every exact row. The semantic validator now rejects a required predicate in an
+immediately negated context, with a table-driven mutant for all predicates.
+
+#### Changed entities
+
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `ARCH-CONSTRAINTS` registry entry | PURE | `cmd/sdlc/internal/judge/architecture.md` | new |
+| `constraintsClauseContracts` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `architectureEntry` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `architectureClause` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `constraintsContractViolations` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `predicateIsNegated` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `validConstraintsRegistryForTest` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `constraintsPlanInventoryRows` | PURE, test-only | `cmd/sdlc/constraints_plan_test.go` | new |
+| `constraintsPlanInventoryViolations` | PURE, test-only | `cmd/sdlc/constraints_plan_test.go` | new |
+| `dry.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/dry.prompt` | modified |
+| `pure.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/pure.prompt` | modified |
+| `plan-quality.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/plan-quality.prompt` | modified |
+| `milestone-review.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/milestone-review.prompt` | modified |
+
+#### Unchanged derived consumers
+
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `ArchitectureMarkers` | PURE | `cmd/sdlc/internal/judge/architecture.go` | unchanged; output derives fifth marker |
+| `ArchitectureBlock` | PURE | `cmd/sdlc/internal/judge/architecture.go` | unchanged; output embeds expanded registry |
+| `BuildPrompt` | PURE | `cmd/sdlc/internal/judge/prompts.go` | unchanged; output derives four architecture-aware prompts |
+| `CodeReviewBody` | PURE | `cmd/sdlc/internal/judge/review.go` | unchanged; output derives complete marker enumeration |
+| `runArchPrinciples` | INTEGRATION | `cmd/sdlc/archprinciples.go` | unchanged; output derives CLI pull |
+| `runStartPlan` | INTEGRATION | `cmd/sdlc/startplan.go` | unchanged; output derives planning push |
+
+Finding dispositions implemented:
+
+- **BR-2 / `core-concept-inventory-accuracy`:** the section above is executable
+  repository evidence: deleting or changing any name, kind, path, or status row
+  fails `TestConstraintsPlanCoreConceptInventoryMutants`.
+- **BR-4 / `operating-envelope-semantic-completeness`:** all 18 required
+  predicates are mutation-tested with case preserved and an immediate `Do not`
+  prefix; `predicateIsNegated` makes every mutant fail the contract.

@@ -26,6 +26,30 @@ rounds:
           family: derived-consumer-semantic-coverage
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-08-29T18:34:59-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Removing explicit input scale from the registry makes TestArchitectureRegistry_ConstraintsContract fail.
+          round: 2
+        - id: BR-2
+          disposition: not-addressed
+          note: The revised inventory is accurate, but no regression fails without it as required by the claimed-fix contract.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Marker-only replacements at both CLI delivery calls make their seam tests fail.
+          round: 2
+      findings:
+        - id: BR-4
+          severity: Important
+          title: The semantic contract accepts case-preserving negation of every required predicate
+          detail: 'cmd/sdlc/internal/judge/judge_test.go:132-163 validates 18 phrases by substring, while lines 230-239 mutate only one phrase and accidentally lowercase it. This is the 2nd finding in family operating-envelope-semantic-completeness: define the affirmative-semantics rule and sweep all 18 predicates rather than fixing only operator confirmation (ARCH-PURPOSE).'
+          family: operating-envelope-semantic-completeness
+          round: 2
+      blocked: true
 ---
 
 # Gate ledger — ariadne#205 (boundary-review)
@@ -44,8 +68,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Important] `derived-consumer-semantic-coverage` CLI tests permit marker-only delivery with the principle body missing
   cmd/sdlc/archprinciples_test.go:12-23 and cmd/sdlc/startplan_test.go:21-42 stayed green in a scratch mutation after ArchitectureBlock was replaced by marker-only text. Assert full registry or complete entry delivery at both seams to satisfy Done-when (ARCH-PURPOSE).
 
+## Round 2 — 2026-08-29T18:34:59-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Removing explicit input scale from the registry makes TestArchitectureRegistry_ConstraintsContract fail.
+- BR-2 — not-addressed — The revised inventory is accurate, but no regression fails without it as required by the claimed-fix contract.
+- BR-3 — addressed — Marker-only replacements at both CLI delivery calls make their seam tests fail.
+
+### Raised
+
+- **BR-4** [Important] `operating-envelope-semantic-completeness` The semantic contract accepts case-preserving negation of every required predicate
+  cmd/sdlc/internal/judge/judge_test.go:132-163 validates 18 phrases by substring, while lines 230-239 mutate only one phrase and accidentally lowercase it. This is the 2nd finding in family operating-envelope-semantic-completeness: define the affirmative-semantics rule and sweep all 18 predicates rather than fixing only operator confirmation (ARCH-PURPOSE).
+
 ## Open findings
 
-- **BR-1** [Critical] `operating-envelope-semantic-completeness` The registry omits the Spec's explicit input-scale constraint
 - **BR-2** [Critical] `core-concept-inventory-accuracy` The Core concepts table names conceptual or unmodified entities as modified code
-- **BR-3** [Important] `derived-consumer-semantic-coverage` CLI tests permit marker-only delivery with the principle body missing
+- **BR-4** [Important] `operating-envelope-semantic-completeness` The semantic contract accepts case-preserving negation of every required predicate

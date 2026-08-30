@@ -1155,3 +1155,23 @@ derived-consumer table; do not call them modified entities.
 concepts table and unchanged render/CLI symbols labeled modified, even though the
 actual diff added a registry entry and test helpers, changed generated goldens,
 and left the delivery implementation untouched.
+
+The replacement table itself is not verified merely because its rows look
+right. Scope the authoritative revision by heading and mutation-test every
+high-risk exact row so removing or changing a symbol, kind, path, or status
+fails. If the artifact is archived at issue completion, the repository test must
+resolve both its active and historical canonical locations; otherwise closing
+the issue destroys its own regression evidence.
+
+## Positive phrase membership does not prove affirmative semantics
+
+**Pattern (#205 close review):** A prose contract required 18 meaningful
+predicates by substring. Its single “negation” mutant changed the predicate's
+case, so the test failed for the incidental casing difference while a
+case-preserving `Do not <predicate>` remained green.
+
+**Rule:** When prose polarity matters, mutate every enumerated predicate without
+changing its case and require the validator to reject an immediate negative
+context. A representative mutant is insufficient for a repeated semantic
+contract, and a failing mutant must be inspected to prove it failed for the
+intended reason (`ARCH-PURPOSE`).

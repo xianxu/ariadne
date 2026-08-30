@@ -167,3 +167,9 @@ Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-p
   derived-consumer inventories; required the full registry at both CLI seams and
   proved both guards with marker-only mutants. Added the two preventive rules to
   `workshop/lessons.md`.
+- Boundary review round 2: **REWORK** kept BR-2 open because the corrected
+  inventory had no deletion-sensitive repository contract and raised BR-4
+  because substring assertions accepted a case-preserving `Do not` before every
+  required predicate. Added an archive-safe exact-row inventory contract and
+  swept all 18 predicates with negation mutants; both focused suites pass under
+  the 20-worker ceiling.

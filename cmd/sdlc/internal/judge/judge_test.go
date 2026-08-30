@@ -206,10 +206,29 @@ func constraintsContractViolations(registry string) []string {
 		for _, required := range contract.required {
 			if !strings.Contains(clause, required) {
 				violations = append(violations, contract.label+": missing "+required)
+			} else if predicateIsNegated(clause, required) {
+				violations = append(violations, contract.label+": negated "+required)
 			}
 		}
 	}
 	return violations
+}
+
+func predicateIsNegated(clause, predicate string) bool {
+	for offset := 0; ; {
+		relative := strings.Index(clause[offset:], predicate)
+		if relative < 0 {
+			return false
+		}
+		start := offset + relative
+		prefix := strings.ToLower(clause[:start])
+		for _, negation := range []string{"do not ", "don't ", "never ", "must not ", "should not ", "cannot ", "can't "} {
+			if strings.HasSuffix(prefix, negation) {
+				return true
+			}
+		}
+		offset = start + len(predicate)
+	}
 }
 
 func validConstraintsRegistryForTest() string {
@@ -243,6 +262,20 @@ func TestArchitectureRegistry_ConstraintsContractMutants(t *testing.T) {
 				t.Fatal("mutant unexpectedly satisfies ARCH-CONSTRAINTS contract")
 			}
 		})
+	}
+}
+
+func TestArchitectureRegistry_ConstraintsContractRejectsNegatedPredicates(t *testing.T) {
+	valid := validConstraintsRegistryForTest()
+	for _, contract := range constraintsClauseContracts {
+		for _, required := range contract.required {
+			t.Run(contract.label+"/"+required, func(t *testing.T) {
+				mutant := strings.Replace(valid, required, "Do not "+required, 1)
+				if violations := constraintsContractViolations(mutant); len(violations) == 0 {
+					t.Fatal("case-preserving negation unexpectedly satisfies ARCH-CONSTRAINTS contract")
+				}
+			})
+		}
 	}
 }
 
