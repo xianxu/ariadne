@@ -173,3 +173,8 @@ Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-p
   required predicate. Added an archive-safe exact-row inventory contract and
   swept all 18 predicates with negation mutants; both focused suites pass under
   the 20-worker ceiling.
+- Boundary review round 3: **REWORK** disposed BR-2 but showed BR-4 still accepted
+  modifiers between a negator and every required predicate. Replaced the prefix
+  vocabulary with one class-level invariant: exact normalized affirmative text
+  per lens. Immediate and separated negation sweeps now fail across all 18
+  predicates.

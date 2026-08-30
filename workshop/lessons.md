@@ -1175,3 +1175,10 @@ changing its case and require the validator to reject an immediate negative
 context. A representative mutant is insufficient for a repeated semantic
 contract, and a failing mutant must be inspected to prove it failed for the
 intended reason (`ARCH-PURPOSE`).
+
+**Origin extension:** Round 3 inserted a modifier—`Do not ever <predicate>`—and
+defeated the immediate-prefix vocabulary for all 18 predicates. Do not grow a
+negator list when the actual contract is canonical policy prose. Normalize and
+pin the complete affirmative clause; then deletions, insertions, modifiers, and
+polarity changes all fail through one invariant rather than an open-ended syntax
+enumeration.

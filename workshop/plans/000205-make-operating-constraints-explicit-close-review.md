@@ -189,3 +189,82 @@ findings:
     detail: |
       cmd/sdlc/internal/judge/judge_test.go:132-163 validates 18 phrases by substring, while lines 230-239 mutate only one phrase and accidentally lowercase it. This is the 2nd finding in family operating-envelope-semantic-completeness: define the affirmative-semantics rule and sweep all 18 predicates rather than fixing only operator confirmation (ARCH-PURPOSE).
 ```
+
+---
+
+## Re-review — 2026-08-29T18:46:59-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 205 — Make operating constraints explicit |
+| repo | ariadne |
+| issue file | workshop/issues/000205-make-operating-constraints-explicit.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 00fe01d88eb75f15be9a99b19096702b20d24967..a22d7e5773d31c614051f881ed3b9cfe494f193f |
+| command | sdlc close --issue 205 |
+| reviewer | codex |
+| timestamp | 2026-08-29T18:46:59-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The registry addition, consumer fan-out, atlas updates, and corrected Core concepts inventory are sound. BR-4 still blocks closure: the semantic guard rejects only immediately adjacent negators. An adversarial sweep inserting “Do not ever” before every required predicate passed validation for all 18, confirming that the implementation fixed one syntax rather than the affirmative-semantics class.
+
+1. Strengths
+
+- `ARCH-CONSTRAINTS` covers the Spec’s workload classification, scale/resource dimensions, basis, exceeded behavior, and review checks in `cmd/sdlc/internal/judge/architecture.md:95`.
+- All delivery surfaces derive from `ArchitectureBlock` or `ArchitectureMarkers`; no parallel production copy was introduced.
+- Both CLI seam tests now require the complete registry, preventing marker-only delivery.
+- BR-2’s revised inventory accurately distinguishes changed artifacts from unchanged derived consumers, with an archive-safe regression test.
+- Atlas coverage is complete. No README update is needed because no command, flag, configuration key, or invocation changed.
+
+2. Critical findings
+
+None.
+
+3. Important findings
+
+- **BR-4 remains not addressed — `operating-envelope-semantic-completeness` (`cmd/sdlc/internal/judge/judge_test.go:217-280`).** `predicateIsNegated` recognizes a negator only when it is the immediate suffix before the required phrase. Every mutation shaped as `Do not ever <required predicate>` passed `constraintsContractViolations`. **This is the 3rd finding in family `operating-envelope-semantic-completeness`.** Do not add another nearby negation token. State and enforce the class-level rule—for example, require each semantic predicate within a canonical affirmative clause whose surrounding text is constrained—and sweep all 18 predicates with separated/modifying negation variants.
+
+4. Minor findings
+
+None.
+
+5. Test coverage notes
+
+- Focused architecture, delivery, inventory, and mutation suite: pass.
+- `go vet -p 20 ./...`: pass.
+- Pinned-range `git diff --check`: pass.
+- Both `arch-principles` lens smokes report and render all five entries.
+- Adversarial separated-negation sweep: failed as expected, exposing BR-4 across all 18 predicates.
+- Full `go test -p 20 ./... -count=1`: one failure in `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`; the referenced #200 plan is already absent at the pinned base, confirming this is pre-existing.
+
+6. Architectural notes for upcoming work
+
+- `ARCH-DRY`: pass—one registry source feeds every production consumer.
+- `ARCH-PURE`: pass—new validation and extraction logic is deterministic and IO-free; repository IO remains in the integration test helper.
+- `ARCH-PURPOSE`: flag—BR-4 fixes an immediate-negation instance but does not enforce the committed affirmative-semantics class.
+- `ARCH-MOCK`: pass/not applicable—no external dependency was introduced.
+- `ARCH-CONSTRAINTS`: pass for the implementation’s own declared runtime and test-worker envelope.
+
+7. Plan revision recommendations
+
+Append a dated `## Revisions` entry recording that the “immediately negated context” implementation did not satisfy BR-4’s affirmative-semantics rule. Replace it with the class-level invariant and enumerate the separated/modifying negation mutations applied across all 18 predicates.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The authoritative revision uses actual symbols and artifacts, distinguishes unchanged derived consumers, and its archive-safe mutant test fails when any recorded row is removed.
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      This is the 3rd finding in family operating-envelope-semantic-completeness: all 18 predicates still validate when a modifier separates the negator from the required phrase, such as “Do not ever”; enforce canonical affirmative context rather than extending the immediate-prefix list.
+```

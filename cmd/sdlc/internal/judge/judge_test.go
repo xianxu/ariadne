@@ -125,13 +125,15 @@ func TestArchitectureRegistry_Content(t *testing.T) {
 }
 
 type architectureClauseContract struct {
-	label    string
-	required []string
+	label     string
+	canonical string
+	required  []string
 }
 
 var constraintsClauseContracts = []architectureClauseContract{
 	{
-		label: "principle",
+		label:     "principle",
+		canonical: "Runtime behavior is part of the architecture. Before choosing a mechanism, identify the small set of external constraints that can materially shape it: latency, workload/input scale and growth, CPU, memory, disk/network IO, concurrency, target environment and co-tenancy, and overload behavior. Make consequential expectations explicit instead of leaving them as hidden assumptions.",
 		required: []string{
 			"Runtime behavior is part of the architecture.",
 			"identify the small set of external constraints",
@@ -140,7 +142,8 @@ var constraintsClauseContracts = []architectureClauseContract{
 		},
 	},
 	{
-		label: "at-plan",
+		label:     "at-plan",
+		canonical: "Classify the workload and interaction path (for example keystroke, UI response, startup/shutdown, online request, batch, or training/inference), then give each relevant constraint a budget/range, basis (measured fact, requirement, domain-informed assumption, or operator choice), and bounded behavior when exceeded. Mark irrelevant categories `N/A`; do not fill a ceremonial checklist or invent universal defaults. Make an educated initial estimate when useful, but confirm material uncertainty with the operator.",
 		required: []string{
 			"Classify the workload and interaction path",
 			"keystroke, UI response, startup/shutdown, online request, batch, or training/inference",
@@ -151,7 +154,8 @@ var constraintsClauseContracts = []architectureClauseContract{
 		},
 	},
 	{
-		label: "at-review",
+		label:     "at-review",
+		canonical: "Check that the implementation enforces the declared operating envelope and that representative measurements or tests exercise the relevant environment and workload. Flag blocking optional work on a critical UI path, unbounded concurrency or fan-out, repeated expensive work that should be cached or incremental, resource monopolization, unsupported performance claims, and behavior that silently operates outside the stated bounds.",
 		required: []string{
 			"implementation enforces the declared operating envelope",
 			"representative measurements or tests exercise the relevant environment and workload",
@@ -203,39 +207,24 @@ func constraintsContractViolations(registry string) []string {
 			violations = append(violations, contract.label+": "+err.Error())
 			continue
 		}
+		expected := strings.Join(strings.Fields("- **"+contract.label+":** "+contract.canonical), " ")
+		if clause != expected {
+			violations = append(violations, contract.label+": clause is not canonical affirmative text")
+		}
 		for _, required := range contract.required {
 			if !strings.Contains(clause, required) {
 				violations = append(violations, contract.label+": missing "+required)
-			} else if predicateIsNegated(clause, required) {
-				violations = append(violations, contract.label+": negated "+required)
 			}
 		}
 	}
 	return violations
 }
 
-func predicateIsNegated(clause, predicate string) bool {
-	for offset := 0; ; {
-		relative := strings.Index(clause[offset:], predicate)
-		if relative < 0 {
-			return false
-		}
-		start := offset + relative
-		prefix := strings.ToLower(clause[:start])
-		for _, negation := range []string{"do not ", "don't ", "never ", "must not ", "should not ", "cannot ", "can't "} {
-			if strings.HasSuffix(prefix, negation) {
-				return true
-			}
-		}
-		offset = start + len(predicate)
-	}
-}
-
 func validConstraintsRegistryForTest() string {
 	var b strings.Builder
 	b.WriteString("## ARCH-CONSTRAINTS — fixture\n\n")
 	for _, contract := range constraintsClauseContracts {
-		fmt.Fprintf(&b, "- **%s:** %s\n", contract.label, strings.Join(contract.required, " "))
+		fmt.Fprintf(&b, "- **%s:** %s\n", contract.label, contract.canonical)
 	}
 	return b.String()
 }
@@ -273,6 +262,20 @@ func TestArchitectureRegistry_ConstraintsContractRejectsNegatedPredicates(t *tes
 				mutant := strings.Replace(valid, required, "Do not "+required, 1)
 				if violations := constraintsContractViolations(mutant); len(violations) == 0 {
 					t.Fatal("case-preserving negation unexpectedly satisfies ARCH-CONSTRAINTS contract")
+				}
+			})
+		}
+	}
+}
+
+func TestArchitectureRegistry_ConstraintsContractRejectsSeparatedNegatedPredicates(t *testing.T) {
+	valid := validConstraintsRegistryForTest()
+	for _, contract := range constraintsClauseContracts {
+		for _, required := range contract.required {
+			t.Run(contract.label+"/"+required, func(t *testing.T) {
+				mutant := strings.Replace(valid, required, "Do not ever "+required, 1)
+				if violations := constraintsContractViolations(mutant); len(violations) == 0 {
+					t.Fatal("semantically negated predicate unexpectedly satisfies ARCH-CONSTRAINTS contract")
 				}
 			})
 		}

@@ -9,11 +9,11 @@ import (
 
 var constraintsPlanInventoryRows = []string{
 	"| `ARCH-CONSTRAINTS` registry entry | PURE | `cmd/sdlc/internal/judge/architecture.md` | new |",
+	"| `architectureClauseContract` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |",
 	"| `constraintsClauseContracts` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |",
 	"| `architectureEntry` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |",
 	"| `architectureClause` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |",
 	"| `constraintsContractViolations` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |",
-	"| `predicateIsNegated` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |",
 	"| `validConstraintsRegistryForTest` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |",
 	"| `constraintsPlanInventoryRows` | PURE, test-only | `cmd/sdlc/constraints_plan_test.go` | new |",
 	"| `constraintsPlanInventoryViolations` | PURE, test-only | `cmd/sdlc/constraints_plan_test.go` | new |",
@@ -72,7 +72,7 @@ func readConstraintsPlan(t *testing.T) string {
 }
 
 func constraintsPlanInventoryViolations(body string) []string {
-	const heading = "### 2026-08-29T18:38:00-07:00 — authoritative Core concepts inventory contract"
+	const heading = "### 2026-08-29T18:48:30-07:00 — canonical affirmative-clause contract"
 	start := strings.Index(body, heading)
 	if start < 0 {
 		return []string{"missing authoritative inventory heading"}

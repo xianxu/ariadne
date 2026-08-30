@@ -50,6 +50,19 @@ rounds:
           family: operating-envelope-semantic-completeness
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-08-29T18:46:59-07:00"
+      agent: codex
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: The authoritative revision uses actual symbols and artifacts, distinguishes unchanged derived consumers, and its archive-safe mutant test fails when any recorded row is removed.
+          round: 3
+        - id: BR-4
+          disposition: not-addressed
+          note: 'This is the 3rd finding in family operating-envelope-semantic-completeness: all 18 predicates still validate when a modifier separates the negator from the required phrase, such as “Do not ever”; enforce canonical affirmative context rather than extending the immediate-prefix list.'
+          round: 3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#205 (boundary-review)
@@ -81,7 +94,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Important] `operating-envelope-semantic-completeness` The semantic contract accepts case-preserving negation of every required predicate
   cmd/sdlc/internal/judge/judge_test.go:132-163 validates 18 phrases by substring, while lines 230-239 mutate only one phrase and accidentally lowercase it. This is the 2nd finding in family operating-envelope-semantic-completeness: define the affirmative-semantics rule and sweep all 18 predicates rather than fixing only operator confirmation (ARCH-PURPOSE).
 
+## Round 3 — 2026-08-29T18:46:59-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-2 — addressed — The authoritative revision uses actual symbols and artifacts, distinguishes unchanged derived consumers, and its archive-safe mutant test fails when any recorded row is removed.
+- BR-4 — not-addressed — This is the 3rd finding in family operating-envelope-semantic-completeness: all 18 predicates still validate when a modifier separates the negator from the required phrase, such as “Do not ever”; enforce canonical affirmative context rather than extending the immediate-prefix list.
+
 ## Open findings
 
-- **BR-2** [Critical] `core-concept-inventory-accuracy` The Core concepts table names conceptual or unmodified entities as modified code
 - **BR-4** [Important] `operating-envelope-semantic-completeness` The semantic contract accepts case-preserving negation of every required predicate

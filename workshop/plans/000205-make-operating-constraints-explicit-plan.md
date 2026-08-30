@@ -472,3 +472,51 @@ Finding dispositions implemented:
 - **BR-4 / `operating-envelope-semantic-completeness`:** all 18 required
   predicates are mutation-tested with case preserved and an immediate `Do not`
   prefix; `predicateIsNegated` makes every mutant fail the contract.
+
+### 2026-08-29T18:48:30-07:00 — canonical affirmative-clause contract
+
+Reason: boundary review round 3 proved that immediate-negator detection still
+fixed syntax instances rather than the affirmative-semantics class: inserting
+`Do not ever` before any required predicate passed.
+
+Delta: this revision supersedes the 18:38 revision. Each lens now has one
+canonical normalized affirmative clause. The validator requires exact clause
+equality, so deletion, migration, insertion, negation, or intervening modifiers
+all fail by the same invariant; phrase enumeration remains only for precise
+diagnostics and the 18-predicate mutation sweep. The immediate-prefix negation
+helper is deleted. The inventory contract below is the final range inventory.
+
+#### Changed entities
+
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `ARCH-CONSTRAINTS` registry entry | PURE | `cmd/sdlc/internal/judge/architecture.md` | new |
+| `architectureClauseContract` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `constraintsClauseContracts` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `architectureEntry` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `architectureClause` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `constraintsContractViolations` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `validConstraintsRegistryForTest` | PURE, test-only | `cmd/sdlc/internal/judge/judge_test.go` | new |
+| `constraintsPlanInventoryRows` | PURE, test-only | `cmd/sdlc/constraints_plan_test.go` | new |
+| `constraintsPlanInventoryViolations` | PURE, test-only | `cmd/sdlc/constraints_plan_test.go` | new |
+| `dry.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/dry.prompt` | modified |
+| `pure.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/pure.prompt` | modified |
+| `plan-quality.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/plan-quality.prompt` | modified |
+| `milestone-review.prompt` | generated integration evidence | `cmd/sdlc/internal/judge/testdata/golden/milestone-review.prompt` | modified |
+
+#### Unchanged derived consumers
+
+| Name | Kind | Lives in | Status |
+|------|------|----------|--------|
+| `ArchitectureMarkers` | PURE | `cmd/sdlc/internal/judge/architecture.go` | unchanged; output derives fifth marker |
+| `ArchitectureBlock` | PURE | `cmd/sdlc/internal/judge/architecture.go` | unchanged; output embeds expanded registry |
+| `BuildPrompt` | PURE | `cmd/sdlc/internal/judge/prompts.go` | unchanged; output derives four architecture-aware prompts |
+| `CodeReviewBody` | PURE | `cmd/sdlc/internal/judge/review.go` | unchanged; output derives complete marker enumeration |
+| `runArchPrinciples` | INTEGRATION | `cmd/sdlc/archprinciples.go` | unchanged; output derives CLI pull |
+| `runStartPlan` | INTEGRATION | `cmd/sdlc/startplan.go` | unchanged; output derives planning push |
+
+Finding disposition implemented:
+
+- **BR-4 / `operating-envelope-semantic-completeness`:** both immediate `Do not`
+  and separated `Do not ever` variants are swept over all 18 predicates. Exact
+  canonical-clause equality rejects both through one class-level rule.
