@@ -120,3 +120,8 @@ Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-p
   after tightening the proposed regression to isolate the `ARCH-CONSTRAINTS`
   section and pin its complete semantic contract there. One atomic close boundary;
   one Go runner at a time with `-p 20`.
+- `sdlc change-code` plan-quality round 1 stopped on two Important findings:
+  semantic assertions were not lens-scoped, and the plan misstated the existing
+  regex/first-occurrence marker extraction as heading parsing. Appended a plan
+  revision with clause-scoped validation, deletion/migration/negation mutants,
+  and the corrected extraction contract; no production code had been edited.

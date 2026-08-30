@@ -293,3 +293,67 @@ sdlc close --issue 205 --verified 'ARCH-CONSTRAINTS registry contract, derived C
 ```
 
 Expected: the binary measures actual time and dispatches the mandatory fresh-context whole-issue review. Resolve any Critical/Important finding by class before accepting the boundary verdict; do not run a second manual review at this SDLC boundary.
+
+## Revisions
+
+### 2026-08-29T17:18:00-07:00 — plan-quality round 1
+
+Reason: `sdlc change-code` found that the original test design was procedural and
+could not prove which lens owned each requirement, and that the conceptual model
+incorrectly described marker extraction as heading-derived.
+
+This revision supersedes the affected Core concepts sentence and Task 1 Steps
+1–3; all other tasks remain unchanged.
+
+- **PQ-2 / existing-behavior-evidence:** `ArchitectureMarkers` does not parse
+  headings. `archMarkerRE` scans every `ARCH-*` occurrence in the complete
+  registry and the function returns unique markers in first-occurrence order
+  (`cmd/sdlc/internal/judge/architecture.go`). #205 does not change that
+  algorithm. The `ArchitectureMarkerSet` contract changes only because the new
+  heading is the first occurrence of `ARCH-CONSTRAINTS`; the exact ordered-output
+  test remains the guard.
+- **PQ-1 / semantic-contract-test-strategy:** replace the original enumerated
+  substring test with these named test-only pure helpers and targets:
+  - `architectureEntry(registry, marker)` isolates exactly one marker section,
+    failing on missing or duplicate headings and stopping at the next marker
+    heading.
+  - `architectureClause(entry, label)` isolates exactly one `principle`,
+    `at-plan`, or `at-review` bullet, failing on missing or duplicate labels.
+  - `constraintsContractViolations(registry)` applies exact affirmative
+    predicates to their owning clause: the principle owns runtime relevance and
+    parameter discovery; `at-plan` owns workload/interaction classification,
+    parameter + budget/range + basis + exceeded behavior, `N/A`, domain prompts,
+    and operator confirmation; `at-review` owns enforcement, representative
+    measurement, and the enumerated failure classes from the Spec.
+  - `TestArchitectureRegistry_ConstraintsContract` runs that validator against
+    `ArchitectureRegistry` and requires zero violations.
+  - `TestArchitectureRegistry_ConstraintsContractMutants` mutates a controlled
+    valid entry across the risky adversarial classes—predicate deletion,
+    migration to the wrong lens, and negation—and requires a violation for every
+    mutant. This mechanically proves that co-present words elsewhere in the
+    entry cannot satisfy a lens and that reversing a requirement cannot stay
+    green.
+
+The revised TDD sequence is:
+
+- [ ] Add the named test-only helpers and the real-registry plus mutant tests;
+  update exact marker expectations in `judge_test.go`, `archprinciples_test.go`,
+  and `startplan_test.go`.
+- [ ] Run the focused command from Task 1 Step 3 and verify RED specifically
+  because the new entry/marker and clause contracts are absent—not because the
+  test parser errors.
+- [ ] Add only the registry entry from Task 2 Step 1, rerun the same command,
+  and verify GREEN for the clause-scoped contract, mutants, marker order, both
+  CLI paths, prompt embedding, and boundary marker expansion.
+
+Risk strategy summary required by the plan gate:
+
+- `architectureEntry` / `architectureClause` over mutable prose → isolate by
+  exact structural headings and labels; malformed, duplicate, and moved sections
+  fail closed.
+- `constraintsContractViolations` over semantic prose → clause-scoped exact
+  affirmative predicates plus deletion/migration/negation mutants prevent
+  cross-lens and reversed-semantics false greens.
+- `ArchitectureMarkers` over repeated marker prose → retain its existing exact
+  ordered-output test, which pins whole-registry first-occurrence deduplication;
+  no parser change is in scope.
