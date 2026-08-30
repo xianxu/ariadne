@@ -93,8 +93,12 @@ delivery through every derived consumer.
 
 ## Plan
 
-- [ ] Write and approve the durable implementation plan after this spec clears
-  fresh-eyes review.
+- [ ] Add the test-guarded `ARCH-CONSTRAINTS` registry entry and prove marker,
+  CLI, and judge delivery derives from the single source.
+- [ ] Refresh the four architecture-aware prompt goldens, update architecture
+  maps, and verify the complete change under the operator's 20-worker ceiling.
+
+Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-plan.md`.
 
 ## Log
 
@@ -112,3 +116,7 @@ delivery through every derived consumer.
   every current delivery seam for the `ARCH-PURPOSE` shadow-sweep and pin each
   required semantic move with small contract assertions rather than brittle
   whole-paragraph snapshots.
+- Durable implementation plan written and fresh-eyes reviewed: **Approved**
+  after tightening the proposed regression to isolate the `ARCH-CONSTRAINTS`
+  section and pin its complete semantic contract there. One atomic close boundary;
+  one Go runner at a time with `-p 20`.
