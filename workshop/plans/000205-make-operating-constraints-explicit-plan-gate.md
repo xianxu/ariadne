@@ -33,6 +33,11 @@ rounds:
           note: The revision now states the actual whole-registry regex scan and first-occurrence deduplication contract without proposing an extraction-algorithm change.
           round: 2
       blocked: false
+    - "n": 3
+      timestamp: "2026-08-29T17:54:04-07:00"
+      agent: codex
+      blocked: false
+      protocol_error: no valid findings block
 content_hash: 2824aeda1417d046e438db605d3273d6387f8c628b09c41747b6c32630098700
 ---
 
@@ -56,6 +61,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — The revision replaces enumerated substring checks with lens-scoped helpers, affirmative predicates, and adversarial deletion, migration, and negation mutants.
 - PQ-2 — addressed — The revision now states the actual whole-registry regex scan and first-occurrence deduplication contract without proposing an extraction-algorithm change.
+
+## Round 3 — 2026-08-29T17:54:04-07:00 (codex) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
