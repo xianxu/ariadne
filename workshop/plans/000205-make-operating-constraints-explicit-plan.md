@@ -75,7 +75,7 @@ Non-goals:
 - Modify: `cmd/sdlc/archprinciples_test.go`
 - Modify: `cmd/sdlc/startplan_test.go`
 
-- [ ] **Step 1: Write the failing registry contract test**
+- [x] **Step 1: Write the failing registry contract test**
 
 Add a test-only section extractor and `TestArchitectureRegistry_ConstraintsContract` beside `TestArchitectureRegistry_Content`. Scope every assertion to the `ARCH-CONSTRAINTS` entry (from its heading to the next `## ARCH-` heading or EOF), so wording from another principle cannot mask a deletion. Assert small stable phrases for the complete required semantic contract, not the whole paragraph:
 
@@ -142,11 +142,11 @@ func TestArchitectureRegistry_ConstraintsContract(t *testing.T) {
 
 Also append `ARCH-CONSTRAINTS` to the existing exact expectations in `TestArchitectureRegistry_Content`, `TestArchitectureMarkers`, and `TestCodeReviewBody_Renders`. This pins the source, ordered marker extraction, and the complete boundary-review checklist.
 
-- [ ] **Step 2: Guard both CLI delivery paths**
+- [x] **Step 2: Guard both CLI delivery paths**
 
 Append `ARCH-CONSTRAINTS` to `TestRunArchPrinciples_RendersRegistry` and `TestRunStartPlan_RendersAtPlanLens`. The former pins the standalone pull path; the latter pins the planning-entry push path.
 
-- [ ] **Step 3: Run the focused tests and verify RED**
+- [x] **Step 3: Run the focused tests and verify RED**
 
 Run one test process with the operator's concurrency ceiling:
 
@@ -162,7 +162,7 @@ Expected: FAIL because `ARCH-CONSTRAINTS` and its semantic phrases are absent fr
 
 - Modify: `cmd/sdlc/internal/judge/architecture.md`
 
-- [ ] **Step 1: Add the concise registry entry**
+- [x] **Step 1: Add the concise registry entry**
 
 Append this entry after `ARCH-MOCK`, preserving the registry's `principle` / `at-plan` / `at-review` shape and the 350-word envelope:
 
@@ -190,13 +190,13 @@ Append this entry after `ARCH-MOCK`, preserving the registry's `principle` / `at
   claims, and behavior that silently operates outside the stated bounds.
 ```
 
-- [ ] **Step 2: Run the focused tests and verify GREEN**
+- [x] **Step 2: Run the focused tests and verify GREEN**
 
 Run the exact command from Task 1 Step 3.
 
 Expected: PASS. `ArchitectureMarkers` discovers the fifth heading, `ArchitectureBlock` reports five entries, both CLI paths render the body, and the boundary procedure expands the complete marker list.
 
-- [ ] **Step 3: Commit the tested registry contract**
+- [x] **Step 3: Commit the tested registry contract**
 
 ```bash
 git add cmd/sdlc/internal/judge/architecture.md cmd/sdlc/internal/judge/judge_test.go cmd/sdlc/archprinciples_test.go cmd/sdlc/startplan_test.go
@@ -215,7 +215,7 @@ git commit -m "architecture: #205 add explicit operating constraints"
 - Modify: `atlas/workflow/sdlc-binary.md`
 - Modify: `atlas/index.md`
 
-- [ ] **Step 1: Deliberately regenerate prompt goldens from the changed registry**
+- [x] **Step 1: Deliberately regenerate prompt goldens from the changed registry**
 
 ```bash
 go test -p 20 ./cmd/sdlc/internal/judge -run '^TestBuildPrompt_Golden$' -update-golden -count=1
@@ -223,11 +223,11 @@ go test -p 20 ./cmd/sdlc/internal/judge -run '^TestBuildPrompt_Golden$' -update-
 
 Expected: PASS. Review `git diff --name-only -- cmd/sdlc/internal/judge/testdata/golden`; exactly the four architecture-aware prompt files listed above change. Inspect their diffs to confirm the fifth entry and complete marker enumeration derive from the registry; do not hand-edit generated prompt bodies.
 
-- [ ] **Step 2: Update the architecture atlas**
+- [x] **Step 2: Update the architecture atlas**
 
 In `atlas/workflow/architecture-principles.md`, add a concise `ARCH-CONSTRAINTS` map and extend the key-consumer list to name `sdlc start-plan` as well as the pull command. In the `Architecture principles (#75)` section of `atlas/workflow/sdlc-binary.md`, record the fifth principle and its explicit operating-envelope purpose. Update the `atlas/index.md` Architecture Principles row so it no longer spotlights only `ARCH-MOCK`.
 
-- [ ] **Step 3: Run the package and golden verification**
+- [x] **Step 3: Run the package and golden verification**
 
 ```bash
 go test -p 20 ./cmd/sdlc/internal/judge ./cmd/sdlc -count=1
@@ -235,7 +235,7 @@ go test -p 20 ./cmd/sdlc/internal/judge ./cmd/sdlc -count=1
 
 Expected: PASS, including `TestBuildPrompt_Golden` without the update flag.
 
-- [ ] **Step 4: Commit derived evidence and maps**
+- [x] **Step 4: Commit derived evidence and maps**
 
 ```bash
 git add cmd/sdlc/internal/judge/testdata/golden atlas/workflow/architecture-principles.md atlas/workflow/sdlc-binary.md atlas/index.md
@@ -249,7 +249,7 @@ git commit -m "architecture: #205 map operating constraint delivery"
 - Modify: `workshop/issues/000205-make-operating-constraints-explicit.md`
 - Modify: `workshop/plans/000205-make-operating-constraints-explicit-plan.md`
 
-- [ ] **Step 1: Run the full Go test suite**
+- [x] **Step 1: Run the full Go test suite**
 
 ```bash
 go test -p 20 ./... -count=1
@@ -257,7 +257,7 @@ go test -p 20 ./... -count=1
 
 Expected: PASS with no more than 20 package workers and no concurrent Go test runner.
 
-- [ ] **Step 2: Run static verification**
+- [x] **Step 2: Run static verification**
 
 ```bash
 go vet -p 20 ./...
@@ -266,7 +266,7 @@ git diff --check
 
 Expected: both commands exit 0.
 
-- [ ] **Step 3: Smoke both operator-facing lenses**
+- [x] **Step 3: Smoke both operator-facing lenses**
 
 ```bash
 go run ./cmd/sdlc arch-principles
@@ -275,7 +275,7 @@ go run ./cmd/sdlc arch-principles --lens at-review
 
 Expected: both outputs name `ARCH-CONSTRAINTS`; the first foregrounds `at-plan`, the second `at-review`, and each header reports five entries.
 
-- [ ] **Step 4: Update durable execution state and commit**
+- [x] **Step 4: Update durable execution state and commit**
 
 Check every completed issue/plan checkbox and add a dated `## Log` entry with the registry, consumer sweep, golden, atlas, and verification evidence. If execution changes any approved plan detail, append a timestamped `## Revisions` section rather than rewriting the original plan claim.
 
@@ -284,7 +284,7 @@ git add workshop/issues/000205-make-operating-constraints-explicit.md workshop/p
 git commit -m "architecture: #205 record operating constraint verification"
 ```
 
-- [ ] **Step 5: Cross the single review boundary**
+- [x] **Step 5: Cross the single review boundary**
 
 Run:
 
@@ -336,13 +336,13 @@ This revision supersedes the affected Core concepts sentence and Task 1 Steps
 
 The revised TDD sequence is:
 
-- [ ] Add the named test-only helpers and the real-registry plus mutant tests;
+- [x] Add the named test-only helpers and the real-registry plus mutant tests;
   update exact marker expectations in `judge_test.go`, `archprinciples_test.go`,
   and `startplan_test.go`.
-- [ ] Run the focused command from Task 1 Step 3 and verify RED specifically
+- [x] Run the focused command from Task 1 Step 3 and verify RED specifically
   because the new entry/marker and clause contracts are absent—not because the
   test parser errors.
-- [ ] Add only the registry entry from Task 2 Step 1, rerun the same command,
+- [x] Add only the registry entry from Task 2 Step 1, rerun the same command,
   and verify GREEN for the clause-scoped contract, mutants, marker order, both
   CLI paths, prompt embedding, and boundary marker expansion.
 
@@ -357,3 +357,19 @@ Risk strategy summary required by the plan gate:
 - `ArchitectureMarkers` over repeated marker prose → retain its existing exact
   ordered-output test, which pins whole-registry first-occurrence deduplication;
   no parser change is in scope.
+
+### 2026-08-29T17:47:00-07:00 — baseline verification failure
+
+Reason: the required full suite exposed a deterministic failure already present
+on `main`, outside #205's files and purpose.
+
+- `go test -p 20 ./... -count=1` passes every package except
+  `cmd/sdlc.TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`.
+- Root cause: `fleet_plan_test.go` hard-codes
+  `workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md`; commit `dfeba9c`
+  archived that file unchanged to `workshop/history/plans/` but did not update
+  the repository-reading test. `git show main:` proves the stale test and absent
+  active path coexist on the branch point.
+- Verification substitution: rerun the complete suite with only that named
+  baseline test excluded; all packages pass. #205 retains its non-goal against
+  unrelated cleanup, so the archive-test repair remains separate work.

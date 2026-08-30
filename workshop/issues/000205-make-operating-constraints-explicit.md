@@ -112,9 +112,9 @@ primitive table.
 
 ## Plan
 
-- [ ] Add the test-guarded `ARCH-CONSTRAINTS` registry entry and prove marker,
+- [x] Add the test-guarded `ARCH-CONSTRAINTS` registry entry and prove marker,
   CLI, and judge delivery derives from the single source.
-- [ ] Refresh the four architecture-aware prompt goldens, update architecture
+- [x] Refresh the four architecture-aware prompt goldens, update architecture
   maps, and verify the complete change under the operator's 20-worker ceiling.
 
 Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-plan.md`.
@@ -147,3 +147,16 @@ Detailed execution: `workshop/plans/000205-make-operating-constraints-explicit-p
 - Plan-quality round 2: **CLEAN**; PQ-1 and PQ-2 disposed as addressed. Derived
   a 1.73h Method A estimate from the stale v3.1 calibration: issue/spec,
   test-guarded smaller Go extension, atlas maintenance, and one boundary review.
+- TDD evidence: focused contract/delivery suite failed with only the missing
+  principle and fifth marker, then passed after the 188-word registry entry.
+  Clause-scoped deletion/migration/negation mutants and malformed-structure
+  cases pass; CLI push/pull and boundary marker expansion name all five entries.
+- `ARCH-PURPOSE` shadow-sweep: deliberately regenerated exactly the four
+  architecture-aware prompt goldens (`dry`, `pure`, `plan-quality`, and
+  `milestone-review`) and updated both architecture atlas pages plus the index.
+- Verification: `go vet -p 20 ./...`, `git diff --check`, and both `sdlc
+  arch-principles` lens smokes pass. `go test -p 20 ./... -count=1` has exactly
+  one pre-existing main failure: `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`
+  still reads #200 from `workshop/plans/` after commit `dfeba9c` archived it to
+  `workshop/history/plans/`. The same complete suite with only that test skipped
+  passes; #205 does not absorb the unrelated archive-test fix.
