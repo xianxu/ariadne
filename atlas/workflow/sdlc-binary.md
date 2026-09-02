@@ -40,6 +40,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + the #124 instance-conformance gate (`--no-validate`) + cleanup + irreversible-action confirm (#51) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
+| `issue sync`      | (new #206)                  | Commit ONE issue's body (Spec/Plan/Log) under `#N: issue-sync: <what>`. **Does not push** — `--push` opts in. The planning-phase counterpart to `claim`, which publishes only the reservation |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -48,6 +49,48 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `project set-status` | (new #180 M3) | Enforce the project lifecycle and its ordered named guards from `project.cue`; unknown guards fail closed, evidence lands in Log, and `done` remains owned by `project close` |
 | `project status/retro` | (new #180 M4) | Derive progress, dependency frontier, remaining effort, and thread components from live issue records; append dated re-forecast checkpoints without overwriting the baseline |
 | `project close` | (new #180 M4) | Require the modeled executing→done (or executing/paused→dropped) edge and a retro, roll Phase-A vs issue actuals into the brain fog ledger unless explicitly bypassed, then archive through `ArchiveSubdir(..., ArchiveProjects)` |
+
+### Issue-file sync: durability vs publication (#206)
+
+One dispatch — `syncIssuesToMain` in `claim.go` — serves `claim`, `issue new`,
+`issue sync` and `change-code`. Its two arms are **not** "on main vs on a
+branch"; they are *commit here* vs *publish to origin/main from elsewhere*:
+
+| arm | what it does | reached when |
+|---|---|---|
+| `syncInPlace` | `add` + `commit` in THIS worktree on THIS branch, then `push origin main` unless `NoPush` | the caller isn't publishing, **or** this worktree is already on main |
+| `syncViaMainWorktree` | find the worktree on main, refuse if it has uncommitted issue changes, `pull --rebase`, conflict-detect, copy, commit + push there | publishing from a feature branch |
+
+Every step of the second arm exists to publish, so suppressing the push doesn't
+just skip its last line — it selects the other arm entirely. That is what makes
+a no-push sync cheap: local, offline-safe, no worktree hunt, and usable from an
+in-place feature branch where no worktree is on main at all.
+
+The publish choice is spelled `NoPush` on `claimFlags`, never `Push`: `issue
+new` builds that struct as a literal, so a positive field would zero-value to
+false there and silently kill the reservation broadcast (#82 M1). The commit
+subject is a parameter too (`""` = each arm's historical default), which is the
+only thing `issue sync` adds over the shared helper.
+
+**The sync subject is declared bookkeeping.** `#206: issue-sync: spec/plan`
+anchors `#N`, so without an entry in `gitx.bookkeepingVerbs` it would read as
+shipped implementation to `IsShippedWorkSubject` — and from there to drift
+detection (`state.go`), milestone review windows (`milestoneclose.go`) and
+active-time attribution. The hyphen in the `issue-sync` lead-in is load-bearing:
+whole-token matching keeps it from swallowing real work titled `#N: issue sync
+verb: …`.
+
+**Commit pathspecs (#206).** Every sdlc commit that follows a *narrowed* `git
+add` now carries the same paths as a commit pathspec (`--`, implying `--only`).
+A bare `git commit` records the whole index, so a peer agent's staged work was
+swept into a commit that misdescribed it — the repo transaction lock serializes
+sdlc verbs against each other, but nothing stops a peer running plain `git add`.
+Five sites: both sync arms, both `push.go` archive commits, and `merge.go`'s.
+`archiveCommitArgs` derives its path list *from* `archiveAddArgs` so the two
+cannot drift. Reachability differs by site — `syncViaMainWorktree`'s `pull
+--rebase` already refuses a dirty index, so its pathspec closes a pull→commit
+race rather than a live bug; `syncInPlace` and `push`'s archive have no such
+guard and are the deterministic regressions in `issuesync_test.go`.
 
 **Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
 *transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the

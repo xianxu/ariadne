@@ -7,6 +7,8 @@ SUBCOMMANDS
 
   new            Create a new issue from the canonical template (allocates the
                  next ID; `--from-github N` seeds it from a GitHub issue)
+  sync           Commit this issue's body (Spec/Plan/Log) under a message that
+                 names it; `--push` to also publish
   set-status     Flip an issue's status with transition guards
   list           List issues (ID, status, title), sorted by ID; --status filters
   show           Print an issue's frontmatter + section headers (no bodies)
@@ -54,6 +56,27 @@ STATUS
 Flip status with `sdlc issue set-status` (or `sdlc claim` to start work), never
 by hand-editing the frontmatter — the verbs carry the transition guards.
 (`done` closes via `sdlc close`.) The status set above is derived from the model.
+
+COMMITTING THE BODY (#206)
+
+`sdlc claim` and `sdlc issue new` publish the *reservation* — an ID and a name.
+That is the whole external contract: peers need to know an issue exists and is
+taken, not what is in it. Nothing commits the body that follows, so the entire
+planning phase — the longest phase, and the one that produces the design — sits
+in the working tree until an unrelated verb sweeps it up, and a compaction or a
+closed terminal loses it.
+
+`sdlc issue sync --issue N` is that missing half. Reach for it whenever the
+design has moved: after a brainstorm lands, after a decision you'd hate to
+re-derive, before a long-running tool call, before a context checkpoint.
+
+It does NOT push. Durability and publication are separable, and only durability
+is missing mid-planning: the default is a local commit in the current worktree,
+on the current branch, with no network — cheap enough to run often, and safe
+because a half-written Spec cannot escape. Publication stays with the verbs that
+already own an external boundary; `sdlc change-code` runs the same sync WITH the
+push once plan-quality has accepted the design, and `--push` is there for other
+milestone callers.
 
 For depth:
 

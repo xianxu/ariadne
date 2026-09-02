@@ -201,7 +201,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("git add archived paths: %v\n%s", gerr, out))
 		}
-		if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
+		if out, gerr := pushRunner.Git(archiveCommitArgs(archiveCommitMessage, moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("commit archive failed: %v\n%s", gerr, out))
 		}
 		if out, gerr := pushRunner.Git("push"); gerr != nil {
@@ -249,6 +249,24 @@ func archiveAddArgs(moves []preparedArchiveMove) []string {
 	}
 	return args
 }
+
+// archiveCommitArgs is archiveAddArgs' commit-side twin (#206): the SAME paths,
+// as a commit pathspec. A bare `git commit` after a precisely-narrowed `git add`
+// records the whole index, so a peer agent's staged work gets swept into a
+// commit that says it archived issues. Git treats a pathspec as implying
+// --only, which leaves the rest of the index alone.
+//
+// Derived from archiveAddArgs rather than rebuilt beside it, so the two lists
+// cannot drift — a commit pathspec wider than its add is the bug itself
+// (ARCH-DRY). Pure, like its twin: each caller feeds the result to its own
+// runner, in cwd (push) or another worktree (merge).
+func archiveCommitArgs(msg string, moves []preparedArchiveMove) []string {
+	args := []string{"commit", "-m", msg, "--"}
+	return append(args, archiveAddArgs(moves)[2:]...)
+}
+
+// archiveCommitMessage is the subject both archive call sites commit under.
+const archiveCommitMessage = "archive completed issues to history"
 
 // issueIDPrefix returns the leading 6-digit id of an issue/plan filename
 // (e.g. "000143" from "000143-x.md"), or "" when the name doesn't match the
@@ -360,14 +378,17 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 	}
 	if f.DryRun {
 		fmt.Fprintf(stdout, "Would: git %s\n", strings.Join(archiveAddArgs(moves), " "))
-		fmt.Fprintf(stdout, "Would: git commit -m %q\n", "archive completed issues to history")
+		// Quote the subject: it contains spaces, so a bare join would read as
+		// four more pathspec arguments.
+		fmt.Fprintf(stdout, "Would: git commit -m %q -- %s\n",
+			archiveCommitMessage, strings.Join(archiveAddArgs(moves)[2:], " "))
 		fmt.Fprintln(stdout, "Would: git push")
 		return true, nil
 	}
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
 	}
-	if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
+	if out, gerr := pushRunner.Git(archiveCommitArgs(archiveCommitMessage, moves)...); gerr != nil {
 		return false, fmt.Errorf("commit archive failed: %v\n%s", gerr, out)
 	}
 	if out, gerr := pushRunner.Git("push"); gerr != nil {

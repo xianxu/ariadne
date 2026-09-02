@@ -6,16 +6,23 @@
 // primitive: agents claim work by flipping status to `working` and
 // running `sdlc claim` to broadcast that claim to origin/main.
 //
-// Two synchronization paths:
+// Two synchronization paths. The discriminator is NOT "main vs feature branch"
+// (#206) — it is "commit here" vs "publish to origin/main from somewhere else":
 //
-//  1. On main:    add + commit + push directly.
-//  2. On a feature branch:
+//  1. syncInPlace: add + commit in THIS worktree, on THIS branch, then push
+//     origin main when publishing. Reached whenever the caller isn't
+//     publishing (NoPush) — offline-safe, no worktree hunt — or when this
+//     worktree is already on main, where "here" and "main" coincide.
+//  2. syncViaMainWorktree: the publish-from-a-feature-branch route.
 //     - locate the main worktree via `git worktree list --porcelain -z`
 //     - check main worktree has no uncommitted issue changes
 //     - pull --rebase origin main on the main worktree
 //     - detect conflicts (files changed on both branches since merge-base)
 //     - copy changed issue files from feature worktree → main worktree
 //     - commit + push on main worktree
+//
+// Every step of (2) exists to publish, which is why suppressing the push
+// doesn't just skip the last line — it selects the other arm entirely.
 //
 // The command supports --issue (filter the sync to one issue file),
 // --issues-dir (env override), and --dry-run.
@@ -41,6 +48,12 @@ type claimFlags struct {
 	IssuesDir string
 	DryRun    bool
 	NoStart   bool
+	// NoPush suppresses publication: commit in the current worktree and stop
+	// (#206). Spelled negatively on purpose — `issue new` builds this struct as
+	// a literal (issue.go), so a positive `Push` would zero-value to false
+	// there and silently kill the reservation broadcast #82 M1 added. The zero
+	// value is today's behavior for every existing caller.
+	NoPush bool
 }
 
 // NewClaimCmd returns the cobra command for `sdlc claim`.
@@ -80,25 +93,38 @@ func runClaim(stdout, stderr io.Writer, f *claimFlags) error {
 	}
 	// claim's whole job is the sync, so a failure is fatal (preserves the prior
 	// die()-on-error UX now that the sync helpers return errors instead).
-	if err := syncIssuesToMain(stdout, stderr, f, claimRunner); err != nil {
+	if err := syncIssuesToMain(stdout, stderr, f, claimRunner, ""); err != nil {
 		die(stderr, err.Error())
 	}
 	return nil
 }
 
-// syncIssuesToMain is the branch-aware sync dispatch shared by `sdlc claim` and
-// `sdlc issue new` (#82 M1): on main it commits + pushes the changed issue files
-// directly; on a feature branch it routes them to the main worktree. Extracted
-// from runClaim so issue creation can broadcast a freshly-scaffolded file to
-// origin/main through the exact same machinery (ARCH-DRY) — the `--issue` filter
-// on f narrows the sync to that one file. The runner is threaded (not hard-wired
-// to claimRunner) so callers and tests inject their own.
-func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
+// syncIssuesToMain is the one sync dispatch, shared by `sdlc claim`, `sdlc issue
+// new` (#82 M1), `sdlc issue sync` and `sdlc change-code` (#206). Extracted from
+// runClaim so every caller broadcasts through the exact same machinery
+// (ARCH-DRY) — the `--issue` filter on f narrows the sync to one file. The
+// runner is threaded (not hard-wired to claimRunner) so callers and tests inject
+// their own.
+//
+// msg is the commit subject; "" means "each arm's own default", which is how
+// existing callers keep their historical messages verbatim (the on-branch
+// default names the branch, which no caller could supply). `sdlc issue sync`
+// passes a subject naming the issue.
+//
+// The NoPush arm comes FIRST, before the branch test. A caller that isn't
+// publishing wants a durable local commit where the work is; the whole
+// main-worktree route below exists to publish, so running it with the push
+// removed would spend a worktree hunt and a network pull to land a commit on a
+// branch the caller isn't on.
+func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string) error {
+	if f.NoPush {
+		return syncInPlace(stdout, stderr, f, r, msg)
+	}
 	branch := gitx.Capture("branch", "--show-current")
 	if branch == "main" {
-		return syncOnMain(stdout, stderr, f, r)
+		return syncInPlace(stdout, stderr, f, r, msg)
 	}
-	return syncOnBranch(stdout, stderr, f, branch, r)
+	return syncViaMainWorktree(stdout, stderr, f, branch, r, msg)
 }
 
 // startOnClaim folds the "start work" status flip into `sdlc claim`: an
@@ -139,13 +165,20 @@ func startOnClaim(stdout, stderr io.Writer, f *claimFlags) error {
 	return nil
 }
 
-// ── on-main path ─────────────────────────────────────────────────────────────
+// ── commit-here path ─────────────────────────────────────────────────────────
 
-// syncOnMain returns an error rather than calling die() directly, so callers
-// decide the severity: `claim` dies on it (its whole job is the sync), while
-// `issue new` treats it as best-effort (the file is already written — a failed
-// push must not abort creation, e.g. offline or with no reachable origin).
-func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
+// syncInPlace stages + commits the changed issue files in the CURRENT worktree,
+// on the current branch, and pushes origin/main unless f.NoPush. Named for what
+// it does rather than where it runs (it was syncOnMain until #206): with NoPush
+// it is the durable local commit `sdlc issue sync` wants from any branch, and
+// with the push it is the on-main publish `claim` has always done.
+//
+// Returns an error rather than calling die() directly, so callers decide the
+// severity: `claim` dies on it (its whole job is the sync), while `issue new`
+// and `change-code` treat it as best-effort (the file is already written — a
+// failed push must not abort creation or block entering implementation, e.g.
+// offline or with no reachable origin).
+func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string) error {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
 		return err
@@ -154,7 +187,7 @@ func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 		cok(stderr, "No issue changes to sync.")
 		return nil
 	}
-	cinfo(stderr, "Syncing issue changes on main...")
+	cinfo(stderr, "Syncing issue changes...")
 	for _, c := range changed {
 		fmt.Fprintf(stderr, "  %s\n", c)
 	}
@@ -162,22 +195,27 @@ func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 		cinfo(stderr, "dry-run — no commit/push performed")
 		return nil
 	}
-	// Match the shell exactly: git add issues/ (when no --issue filter).
-	// With --issue, narrow to that issue's NNNNNN-*.md files.
-	addArgs := []string{"add", f.IssuesDir + "/"}
-	if f.Issue > 0 {
-		id := fmt.Sprintf("%06d", f.Issue)
-		matches, _ := filepath.Glob(filepath.Join(f.IssuesDir, id+"-*.md"))
-		if len(matches) == 0 {
-			return fmt.Errorf("--issue %d: no file matches %s/%s-*.md", f.Issue, f.IssuesDir, id)
-		}
-		addArgs = append([]string{"add"}, matches...)
+	pathspec, err := syncPathspec(f)
+	if err != nil {
+		return err
 	}
-	if out, err := r.Git(addArgs...); err != nil {
+	if out, err := r.Git(append([]string{"add", "--"}, pathspec...)...); err != nil {
 		return fmt.Errorf("git add: %v\n%s", err, out)
 	}
-	if out, err := r.Git("commit", "-m", "issue-sync: update issues"); err != nil {
+	// The commit carries the SAME pathspec as the add (#206). A bare `git
+	// commit` records the whole index, so anything a peer agent had staged in
+	// this checkout was swept into a commit that misdescribes it — the repo
+	// transaction lock serializes sdlc verbs against each other, but nothing
+	// stops a peer running plain `git add`. A pathspec implies --only, leaving
+	// the rest of the index untouched.
+	commitArgs := append([]string{"commit", "-m", syncMessage(msg, "issue-sync: update issues"), "--"}, pathspec...)
+	if out, err := r.Git(commitArgs...); err != nil {
 		return fmt.Errorf("commit failed: %v\n%s", err, out)
+	}
+	if f.NoPush {
+		cok(stderr, "Issue changes committed locally (not pushed).")
+		fmt.Fprintln(stdout, "synced")
+		return nil
 	}
 	if out, err := r.Git("push", "origin", "main"); err != nil {
 		return fmt.Errorf("push failed: %v\n%s", err, out)
@@ -187,11 +225,49 @@ func syncOnMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner) error {
 	return nil
 }
 
-// ── on-branch path ───────────────────────────────────────────────────────────
+// syncPathspec returns the paths a sync should stage AND commit: the whole
+// issues dir, or just the --issue file when the sync is filtered. One source for
+// both argv lists, so the add and the commit can't drift apart — a commit whose
+// pathspec is wider than its add is exactly the bug #206 fixes.
+//
+// The "pathspec matches nothing" error is unreachable in practice: callers run
+// changedIssueFiles first and return early when nothing changed.
+func syncPathspec(f *claimFlags) ([]string, error) {
+	if f.Issue <= 0 {
+		return []string{f.IssuesDir + "/"}, nil
+	}
+	id := fmt.Sprintf("%06d", f.Issue)
+	matches, _ := filepath.Glob(filepath.Join(f.IssuesDir, id+"-*.md"))
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("--issue %d: no file matches %s/%s-*.md", f.Issue, f.IssuesDir, id)
+	}
+	return matches, nil
+}
 
-// syncOnBranch mirrors syncOnMain's error contract: it returns errors instead
-// of calling die() so `claim` (fatal) and `issue new` (best-effort) can choose.
-func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitRunner) error {
+// syncMessage picks the commit subject: the caller's, or the arm's default when
+// the caller passed none. Keeps the message a parameter of the helper rather
+// than a branch inside it (#206) while letting each arm keep the exact wording
+// it shipped with — the on-branch default names the branch, which no caller is
+// in a position to supply.
+func syncMessage(msg, fallback string) string {
+	if msg == "" {
+		return fallback
+	}
+	return msg
+}
+
+// ── publish-from-a-branch path ───────────────────────────────────────────────
+
+// syncViaMainWorktree publishes the changed issue files to origin/main from a
+// feature branch, by routing them through the worktree that has main checked
+// out. Named for the route it takes (it was syncOnBranch until #206): every step
+// — the worktree hunt, the cleanliness refusal, the network rebase, the copy —
+// exists to publish, which is why a no-push caller takes syncInPlace instead.
+//
+// Mirrors syncInPlace's error contract: it returns errors instead of calling
+// die() so `claim` (fatal) and `issue new` / `change-code` (best-effort) can
+// choose.
+func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string, r gitRunner, msg string) error {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
 		return err
@@ -302,13 +378,19 @@ func syncOnBranch(stdout, stderr io.Writer, f *claimFlags, branch string, r gitR
 		fmt.Fprintf(stderr, "  %s\n", c)
 	}
 
-	// 7. Commit + push on main worktree.
+	// 7. Commit + push on main worktree. The pathspec is the set of files we
+	//    just copied across, and it goes on the COMMIT as well as the add
+	//    (#206) — the main worktree's index can hold a peer agent's staged work
+	//    that a bare commit would sweep, and the mainHasUncommittedIssueChanges
+	//    precheck above only looks at issue files.
 	cinfo(stderr, "Committing and pushing on main...")
-	if out, err := r.GitInDir(mainPath, "add", f.IssuesDir+"/"); err != nil {
+	addArgs := append([]string{"add", "--"}, changed...)
+	if out, err := r.GitInDir(mainPath, addArgs...); err != nil {
 		return fmt.Errorf("git -C %s add: %v\n%s", mainPath, err, out)
 	}
-	commitMsg := fmt.Sprintf("issue-sync: update issues from branch '%s'", branch)
-	if out, err := r.GitInDir(mainPath, "commit", "-m", commitMsg); err != nil {
+	commitMsg := syncMessage(msg, fmt.Sprintf("issue-sync: update issues from branch '%s'", branch))
+	commitArgs := append([]string{"commit", "-m", commitMsg, "--"}, changed...)
+	if out, err := r.GitInDir(mainPath, commitArgs...); err != nil {
 		return fmt.Errorf("commit failed: %v\n%s", err, out)
 	}
 	if out, err := r.GitInDir(mainPath, "push", "origin", "main"); err != nil {

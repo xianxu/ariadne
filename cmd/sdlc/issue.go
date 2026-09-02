@@ -3,8 +3,9 @@
 // *transitions* (ariadne#56).
 //
 // Subcommands: `new` (allocate ID + canonical template; `--from-github N`
-// seeds from GitHub), `set-status`, `list`, `show`. `fetch` is a hidden
-// deprecated alias for `new --from-github`; flat `set-status` likewise.
+// seeds from GitHub), `sync` (commit the body), `set-status`, `list`, `show`.
+// `fetch` is a hidden deprecated alias for `new --from-github`; flat
+// `set-status` likewise.
 package main
 
 import (
@@ -45,6 +46,7 @@ func NewIssueCmd() *cobra.Command {
 	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
 	cmd.AddCommand(setStatus)
 
+	cmd.AddCommand(newIssueSyncCmd())
 	cmd.AddCommand(newIssueListCmd())
 	cmd.AddCommand(newIssueShowCmd())
 	cmd.AddCommand(newIssueValidateCmd())
@@ -308,7 +310,9 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, NoStart: true}
 		// Route the sync's stdout to stderr: its machine "synced" marker must not
 		// pollute `issue new`'s stdout contract (the created path, printed below).
-		if serr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner); serr != nil {
+		// "" keeps issue new's historical subject ("issue-sync: update issues");
+		// naming the issue is `sdlc issue sync`'s job, not creation's.
+		if serr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, ""); serr != nil {
 			// Best-effort: the file is already written + reported above, so a sync
 			// failure (offline, no reachable origin, conflict) must not abort the
 			// create — just surface it. `claim` treats the same error as fatal.
@@ -318,6 +322,93 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 
 	fmt.Fprintln(stdout, dest)
 	return nil
+}
+
+// ── issue sync ───────────────────────────────────────────────────────────────
+
+// issueSyncFlags holds the parsed flags for `sdlc issue sync`.
+type issueSyncFlags struct {
+	Issue     int
+	IssuesDir string
+	Push      bool
+	DryRun    bool
+}
+
+// newIssueSyncCmd builds `sdlc issue sync` (#206) — the verb that commits an
+// issue's BODY. `claim` and `issue new` publish the reservation (an ID and a
+// name); nothing committed the Spec/Plan/Log that follows, so the whole planning
+// phase sat uncommitted until an unrelated verb happened to sweep it up, and a
+// compaction or a closed terminal lost it.
+//
+// It WRAPS rather than authors: agents edit markdown incrementally with their
+// own tools, so a verb taking body content as an argument would fight how the
+// work actually happens. Staging + message + lock is all it adds.
+func newIssueSyncCmd() *cobra.Command {
+	f := issueSyncFlags{}
+	cmd := markMutatingCommand(&cobra.Command{
+		Use:   "sync",
+		Short: "Commit an issue's body (spec/plan/log) so planning output is durable",
+		Long: `Commit workshop/issues/NNNNNN-*.md for one issue, under a message that
+names it — the planning-phase counterpart to ` + "`sdlc claim`" + `, which publishes
+only the reservation.
+
+  sdlc issue sync --issue 206           # commit here; nothing leaves the machine
+  sdlc issue sync --issue 206 --push    # ... and publish to origin/main
+
+DOES NOT PUSH BY DEFAULT. A mid-planning sync is a cheap, frequent, local act;
+publishing is an external contract that belongs at the boundaries already owning
+it (` + "`sdlc milestone-close`, `sdlc close`, `sdlc change-code`" + `), so the
+common case cannot accidentally publish a half-written Spec. The default commit
+lands in the CURRENT worktree on the CURRENT branch, needs no network, and works
+from an in-place feature branch. --push routes through the same branch-aware
+dispatch ` + "`sdlc claim`" + ` uses.
+
+Run it whenever the Spec, Plan or Log has moved — after a brainstorm lands,
+after a design decision, before a long-running tool call.`,
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runIssueSync(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+		},
+	})
+	cmd.Flags().IntVar(&f.Issue, "issue", 0, "workshop issue ID whose files to commit (required)")
+	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	cmd.Flags().BoolVar(&f.Push, "push", false, "also publish to origin/main (off by default — publishing belongs at the milestone verbs)")
+	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would happen; do not commit/push")
+	return cmd
+}
+
+func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
+	if f.Issue <= 0 {
+		die(stderr, "--issue N is required: `sdlc issue sync` commits ONE issue's files, and the commit message names it")
+	}
+	// Reuses claim's dispatch wholesale (ARCH-DRY): the only things this verb
+	// adds are the subject and the publish choice, both parameters of the shared
+	// helper rather than a second sync path.
+	syncFlags := &claimFlags{
+		Issue:     f.Issue,
+		IssuesDir: f.IssuesDir,
+		DryRun:    f.DryRun,
+		NoStart:   true,
+		NoPush:    !f.Push,
+	}
+	if err := syncIssuesToMain(stdout, stderr, syncFlags, claimRunner, issueSyncMessage(f.Issue, "spec/plan")); err != nil {
+		die(stderr, err.Error())
+	}
+	return nil
+}
+
+// issueSyncMessage is the subject an issue-body commit lands under: the tree's
+// `#N: <area>: <subject>` shape, so `git log --grep "^#206"` finds the planning
+// output alongside the implementation.
+//
+// The `issue-sync` area is load-bearing, not decorative. Anchoring #N would make
+// gitx.IsShippedWorkSubject read a tracker commit as shipped implementation —
+// feeding drift detection, milestone review windows and active-time attribution
+// — so `issue-sync` is a declared bookkeeping lead-in (gitx/window.go). Changing
+// this prefix without changing that list silently re-breaks all three.
+func issueSyncMessage(issue int, what string) string {
+	return fmt.Sprintf("#%d: issue-sync: %s", issue, what)
 }
 
 // ── issue list ───────────────────────────────────────────────────────────────
