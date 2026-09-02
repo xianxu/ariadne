@@ -1,11 +1,12 @@
 ---
 id: 000208
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours:
+started: 2026-09-02T15:19:59-07:00
 ---
 
 # ARCH-SECURE: a security lens in the principle registry
