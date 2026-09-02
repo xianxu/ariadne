@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
-estimate_hours:
+estimate_hours: 1.31
 started: 2026-09-02T11:36:01-07:00
 ---
 
@@ -165,7 +165,8 @@ the argv and pass even if those semantics were wrong (`ARCH-MOCK`).
   commit.
 - `syncViaMainWorktree` does too, proven on its own two-worktree fixture (bare
   origin + a main worktree + a feature worktree) — the arm has no coverage
-  today, and it is half of the class.
+  today. Its claim is narrower than the in-place arm's: see the Revisions
+  correction below.
 - Both archive commits — `push.go` (both call sites) and `merge.go` — commit
   with the same pathspec their `archiveAddArgs` staged, via a shared
   `archiveCommitArgs`. `merge`'s is a live gap, not a theoretical one.
@@ -186,27 +187,76 @@ the argv and pass even if those semantics were wrong (`ARCH-MOCK`).
   both route through `syncIssuesToMain`, and `commitUntrackedIssueFile` is
   gone.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: cross-cutting-refactor  design=0.10 impl=0.20
+item: smaller-go-module       design=0.05 impl=0.12
+item: smaller-go-module       design=0.05 impl=0.16
+item: smaller-go-module       design=0.00 impl=0.08
+item: smaller-go-module       design=0.05 impl=0.20
+item: atlas-docs              design=0.05 impl=0.05
+item: milestone-review        design=0.00 impl=0.15
+total: 1.31
+```
+
+What each item covers, in Plan order:
+
+1. `cross-cutting-refactor` — the pathspec sweep across all five commit sites
+   (`claim.go` ×2, `push.go` ×2, `merge.go`) plus the `syncInPlace` /
+   `syncViaMainWorktree` rename. Mechanical once the class is enumerated, which
+   the Revisions section already did.
+2. `smaller-go-module` — `sdlc issue sync`: cobra wiring, flags, `runIssueSync`,
+   helptext. Mirrors `issue new`/`issue validate`, so the existing verbs are the
+   spec.
+3. `smaller-go-module` — `NoPush` + the commit-message parameter threaded
+   through `syncIssuesToMain` and both arms, plus the `change-code` call site
+   replacing `commitUntrackedIssueFile`.
+4. `smaller-go-module` — `issue-sync` into `gitx.bookkeepingVerbs`, the stale
+   comment, and the `window_test.go` table row. Pure + table-tested.
+5. `smaller-go-module` — the test work that has no fixture today: the
+   two-worktree (bare origin + main + feature) harness for
+   `syncViaMainWorktree`, and the swept-index regressions on both arms.
+6. `atlas-docs` — `helptext/issue.md` and the atlas entry.
+7. `milestone-review` — one close-boundary review; this is single-pass work with
+   one boundary, so one review, not one per milestone.
+
+Design is `×0.2` spec-quality discounted throughout: the Spec resolves the
+dispatch shape, the flag polarity, the message text, the bookkeeping-verb
+decision and the fixture choice, so the remaining design is reading rather than
+deciding. Buffer is `+15%` on that basis (v3.1 step 4). Familiarity stays at the
+`1.0` default: the stack is familiar (Go + cobra, this repo), which is what Step
+5 multiplies. The two genuinely first-time-here pieces — `--only` pathspec
+semantics and the two-worktree fixture — are priced inside item 5's impl at the
+scaled ceiling rather than smeared across every item by a global multiplier.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
 ## Plan
 
-- [ ] Sweep the narrowed-add/bare-commit class in one pass: `syncOnMain` and
+- [x] Sweep the narrowed-add/bare-commit class in one pass: `syncOnMain` and
       `syncOnBranch` commit with the pathspec they staged, and
       `archiveCommitArgs(msg, moves)` joins `archiveAddArgs` so `push.go`'s two
       call sites and `merge.go`'s do the same. Regression test per sync arm
       (real repo; the branch arm gets its two-worktree fixture).
-- [ ] Thread a commit-message parameter through `syncIssuesToMain` /
+- [x] Thread a commit-message parameter through `syncIssuesToMain` /
       `syncOnMain` / `syncOnBranch`; existing callers pass the empty sentinel
       and keep today's per-path message verbatim.
-- [ ] Add `NoPush` to `claimFlags` (zero value = today's push) and rename the
+- [x] Add `NoPush` to `claimFlags` (zero value = today's push) and rename the
       arms to `syncInPlace` / `syncViaMainWorktree`, with the dispatch
       discriminating on no-push first. `claim` / `issue new` unchanged.
-- [ ] `issue-sync` joins `gitx.bookkeepingVerbs`; correct the stale "excluded
+- [x] `issue-sync` joins `gitx.bookkeepingVerbs`; correct the stale "excluded
       for free" comment; pin `#N: issue-sync: …` with a `window_test.go` row.
-- [ ] `sdlc issue sync --issue N [--push]` as a `markMutatingCommand` over that
+- [x] `sdlc issue sync --issue N [--push]` as a `markMutatingCommand` over that
       helper, registered in `TestRepoLockCommandMetadata`'s mutating list.
-- [ ] Call it from `change-code` with push on, *replacing*
+- [x] Call it from `change-code` with push on, *replacing*
       `commitUntrackedIssueFile` so the verb ends with exactly one issue-commit
       mechanism (ARCH-DRY); warn-and-continue on failure.
-- [ ] `sdlc issue --help` documents the verb and when to reach for it.
+- [x] `sdlc issue --help` documents the verb and when to reach for it.
 
 ## Revisions
 
@@ -240,6 +290,33 @@ is `change-code`'s private commit+push of the issue file, so keeping it would
 leave two implementations of one thing. The replacement also handles the
 tracked-but-modified issue file the old helper ignored.
 
+### 2026-09-02 — correction: the publish arm's sweep is a race, not a live bug
+
+Implementation disproved this section's own claim that `claim.go:311` carries
+"the identical defect". `syncViaMainWorktree` runs `git pull --rebase origin
+main` in the main worktree (step 4) *before* it copies and commits, and git
+refuses that outright when the index is dirty:
+
+    error: cannot pull with rebase: Your index contains uncommitted changes.
+
+So a peer's staged file makes the whole sync fail loudly, long before the bare
+commit could sweep it. Reproduced by hand against a real two-worktree repo,
+which is also how the first draft of the branch-arm regression test failed —
+the test could not construct the state it was asserting about.
+
+The pathspec on that arm stays. It is correct, it makes the two arms consistent,
+and it closes the pull→commit window where a peer *could* stage something. But
+it is defense-in-depth, not a live bug, and the tests say so: the deterministic
+swept-index regressions are on `syncInPlace` and on `push`'s archive commit
+(neither has a dirty-index guard), while the branch arm gets an end-to-end
+real-git test plus an argv assertion that it passes a pathspec at all. Proving
+git's `--only` semantics once against real git and then proving the wiring
+per-site is the honest split; asserting argv everywhere would prove nothing
+(`ARCH-MOCK`).
+
+Same lesson as PQ-5, one level down: check whether a guard already stands
+between the code and the failure before asserting the failure is reachable.
+
 ### 2026-09-02 — where the sync sits inside `change-code`
 
 After the whole gate sequence, at the point `commitUntrackedIssueFile`
@@ -255,6 +332,31 @@ what `sdlc issue sync` is for — the Spec says so.
 ## Log
 
 ### 2026-09-02
+
+**Gates.** plan-quality BLOCKED at round 1 with seven findings, all verified
+real against the code before acting on them; round 2 CLEAN. PQ-5 was the
+valuable one — the first Revisions draft excluded the archive commits on a
+rationale (`sdlc push` refuses on a dirty tree) that `push.go:109-119`
+contradicts, so the enumeration would have closed a live gap in `merge`.
+estimate-quality returned INFO at 1.31h.
+
+Two of its notes were folded in: items 2 and 3 swapped impl weights (the verb
+mirrors existing verbs; the param-threading carries three Plan rows), and the
+`familiarity: 1.0` rationale no longer argues against itself — the two novel
+pieces are priced inside item 5 rather than by a global multiplier. Three notes
+were read and left: `smaller-go-module` is the closest slug for a first-of-kind
+test harness with no test-fixture primitive in the vocabulary (flagged so the
+calibration row is not read as clean), the total assumes a clean close review,
+and the ledger's under-estimate cluster for multi-site + heavy-real-git-test
+work is a real risk the close will measure rather than something to pad now.
+
+**Coverage for the archive sites.** `archiveCommitArgs` is pure, so it is
+table-tested directly, and `push.go`'s in-place archive gets a real-repo
+regression. `merge.go:550`'s `GitInDir(mainPath, …)` variant is covered by that
+shared helper plus the `syncViaMainWorktree` two-worktree fixture exercising the
+same "commit in another worktree with a pathspec" shape, rather than a third
+bespoke harness.
+
 
 Found while auditing whether concurrent agents can safely update issue files —
 the question came from adopting an advisor/actor split where a brain session
