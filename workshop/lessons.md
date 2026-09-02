@@ -1209,3 +1209,29 @@ enumeration after checking a single member of it — five commit sites, three na
 modes, three worktree locations, two sync arms, one run of a verb that gets
 re-run. Enumerate the members in the plan and write the table before the fix, not
 after the reviewer names the member you skipped.
+
+## An anti-vacuity guard must not fire on the legitimate end state
+
+**Pattern (#208 close review, rounds 1–2):** A guard kept deferred principles out
+of the gate prompts by deriving the forbidden set from a file. A reviewer
+correctly asked for an anti-vacuity check — an empty set makes the guard pass
+while asserting nothing — so the fix asserted the file always holds at least one
+entry. That check then fired on the one state the whole design promised was free:
+activating the last deferred entry, which legitimately empties the file. The
+guard now broke the contract it existed to protect, and the fix for one property
+had silently inverted another.
+
+**Rule:** When adding "the thing I guard is still present" to a guard, name the
+state where it is legitimately absent and decide explicitly whether that state
+fails or is exempt. Usually there are two ways to reach empty — *retired on
+purpose* and *broken by accident* — and the check must tell them apart on
+evidence in the artifact itself (here: sections counted independently of markers,
+so "no sections, no markers" is retirement and "sections, no markers" is a
+heading that stopped parsing). Then put the state → action mapping in ONE place
+and have the prose point at it, or the next reader restates it slightly wrong.
+
+**Test-shape corollary:** the committed tree can usually exhibit only one of
+those states, so the classification has to be a pure function over content with a
+table test. Probing the other states by editing the artifact and reverting
+verifies behavior for the person doing it and ships no coverage — it is evidence
+for a reviewer, not a regression.

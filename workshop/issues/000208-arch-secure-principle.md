@@ -1,12 +1,13 @@
 ---
 id: 000208
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours: 1.13
 started: 2026-09-02T15:19:59-07:00
+actual_hours: 1.72
 ---
 
 # ARCH-SECURE: a security lens in the principle registry
@@ -195,8 +196,12 @@ prefix, so any grep by family matches both — rejected for that reason.
   `CodeReviewBody` and `ArchitectureRegistry`. Moving a section into
   `architecture.md` must therefore *empty* the forbidden set and leave the guard
   green — activation is the move and nothing else, exactly as the file claims.
-- That guard also asserts `architecture-deferred.md` parses **at least one**
-  marker, so renaming or deleting the file cannot make it vacuously pass.
+- The guard classifies WHY its forbidden set is empty rather than assuming:
+  sections but no parsed marker means the headings broke (fail); nothing at all
+  means every entry was activated (skip). Renaming or deleting the file is
+  already a build error via `//go:embed`. The `retired` state must **skip, never
+  fail** — failing it would red the suite on activation and break the bullet
+  above, which is the tension an earlier draft of this bullet got wrong.
 - Only ONE site hardcodes the marker set (`TestArchitectureMarkers`); the other
   three test sites derive theirs from `ArchitectureMarkers()`. Adding a seventh
   entry touches the registry, that one tripwire, and the goldens — nothing else.
@@ -339,6 +344,30 @@ deliberately removed.
 ## Log
 
 ### 2026-09-02
+- 2026-09-02: closed — Round-2 BR-9 fixed and bundled per #174. go test ./cmd/... ./pkg/... green except the pre-existing unrelated fleet_plan test (#210). TestDeferredFileIsGuarding deleted: it asserted the committed file is always `guard`, which would red the suite when the last deferred entry is activated — contradicting the activation contract — while its other branch duplicated the deferredBroken fatal. The verdict->action mapping is now single-sourced on deferredVerdict and the six describing sites point at it. Verified by probe against the real tree: moving ARCH-AUTHORITY into architecture.md leaves the deferred guard GREEN and fails exactly TestArchitectureMarkers (the deliberate hand-written tripwire) and TestBuildPrompt_Golden (re-capture) — the two the atlas documents as what activation touches. Breaking a deferred heading still goes red on the vacuity branch; leaking the marker into prompts/dry.md still goes red naming that prompt. Orphaned godoc comment folded; atlas page gained markersIn and the verdict table.; review verdict: FIX-THEN-SHIP
+
+**Close review round 2: BR-9.** My BR-1 fix contradicted the activation
+contract. `TestDeferredFileIsGuarding` asserted the committed file is always in
+the `guard` state — so activating the *last* deferred entry would red the suite,
+which is precisely the "activation is a pure move" promise the whole design
+exists to keep. Its other branch duplicated the `broken` fatal already in the
+guard. Fixing one property by breaking another, again.
+
+Deleted, and the verdict → action mapping now lives in exactly one place
+(`deferredVerdict`'s doc), with the six sites that described it pointing there
+instead of restating it. `retired` skips and never fails, and the reason is
+written where someone would otherwise "fix" it.
+
+Re-probed after the change: activating ARCH-AUTHORITY leaves the deferred guard
+green and fails exactly two tests — `TestArchitectureMarkers` (the deliberate
+tripwire) and `TestBuildPrompt_Golden` (re-capture) — which are the two the atlas
+already documents as what activation touches. That is the contract holding.
+
+Also: the doc comment orphaned by deleting `deferredMarkers` had fused onto
+`deferredState`, so godoc rendered the wrong doc for the type; folded into the
+real one. `atlas/workflow/architecture-principles.md` gained `markersIn` and the
+verdict table.
+
 
 **Close review round 1: FIX-THEN-SHIP**, three Important findings, all fixed
 before the close commit.

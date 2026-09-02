@@ -18,17 +18,15 @@ import (
 //go:embed architecture-deferred.md
 var deferredFS embed.FS
 
-// deferredMarkers returns the ARCH-* markers that are documented but must NOT be
-// gated — DERIVED by scanning architecture-deferred.md with the same regex the
-// registry uses, never hardcoded.
+// deferredState is what the guard needs to know about architecture-deferred.md:
+// which ARCH-* markers are documented-but-not-gated, and how many sections the
+// file has. The markers are DERIVED with the same scanner the registry uses
+// (markersIn), never hardcoded — that is what makes the deferred file's own
+// claim true: "move a section into architecture.md to activate it — that is the
+// whole activation step." A guard asserting the literal "ARCH-AUTHORITY" would
+// go RED on activation, so activating an entry would mean editing the guard too,
+// and the file's instruction would be a lie.
 //
-// Deriving is what makes the deferred file's own claim true: "move a section
-// into architecture.md to activate it — that is the whole activation step." A
-// guard asserting the literal "ARCH-AUTHORITY" would go RED on activation, so
-// activating an entry would mean editing the guard too, and the file's
-// instruction would be a lie. Because the set is derived, moving the section
-// empties it and the guard stays green with no other edit.
-// deferredState is what the guard needs to know about architecture-deferred.md.
 // Sections are counted independently of markers, and that separation is the
 // whole point — see deferredVerdict.
 type deferredState struct {
@@ -49,9 +47,26 @@ func parseDeferred(content string) deferredState {
 	return d
 }
 
-// deferredVerdict classifies the file. An empty marker set makes the disjointness
-// check below vacuously true, so "empty" has to be explained rather than waved
-// through — and there are two very different reasons for it.
+// deferredVerdict classifies the file, and is the SINGLE source of what each
+// state means. An empty marker set makes the disjointness check vacuously true,
+// so "empty" has to be explained rather than waved through — and there are two
+// very different reasons for it.
+//
+// The verdict → action mapping, enforced in exactly one place
+// (TestDeferredPrinciplesReachNoGate) and documented nowhere else:
+//
+//	guard   — entries present                  → ENFORCE disjointness
+//	broken  — sections but no markers parsed   → FAIL (the guard is disarmed)
+//	retired — no sections, no markers          → SKIP (every entry was activated)
+//
+// `retired` must SKIP and never fail. Failing it would mean that activating the
+// last deferred entry reds the suite — which is exactly the "activation is a
+// pure move" contract this whole design exists to keep. An earlier cut added a
+// separate test asserting the committed file is always `guard`; that duplicated
+// the `broken` failure and its only unique effect was to break the contract on
+// `retired`, so it is deliberately absent. The skip is visible in test output,
+// which is the right amount of noise for a state that should be rare and
+// intentional.
 type deferredVerdict string
 
 const (
@@ -105,14 +120,6 @@ func TestDeferredVerdict(t *testing.T) {
 				t.Errorf("Verdict() = %q, want %q", got, tc.want)
 			}
 		})
-	}
-}
-
-// TestDeferredFileIsGuarding pins that the COMMITTED file is in the enforcing
-// state — so the guard below is doing work today, not skipping.
-func TestDeferredFileIsGuarding(t *testing.T) {
-	if got := deferredFileState(t).Verdict(); got != deferredGuard {
-		t.Errorf("architecture-deferred.md is %q, want %q — the guard is not enforcing anything", got, deferredGuard)
 	}
 }
 

@@ -73,17 +73,31 @@ marker list (below).
 `TestDeferredPrinciplesReachNoGate` makes "documented but not gated" a checked
 property. Both of its halves are derived rather than listed:
 
-- the forbidden marker set, by scanning `architecture-deferred.md` with the same
-  `archMarkerRE` the registry uses — so activation *empties* the set and the
-  guard stays green with no edit, which is what makes the "just move it" claim
-  true;
+- the forbidden marker set, by scanning `architecture-deferred.md` with
+  `markersIn` — the *same* extraction `ArchitectureMarkers` uses, extracted for
+  this in #208 — so activation *empties* the set and the guard stays green with
+  no edit, which is what makes the "just move it" claim true. Two copies of that
+  scan is the one duplication a disjointness guard cannot afford;
 - the gate-facing text, by walking `promptFS` and rendering each prompt through
   `BuildPrompt`, plus both `ArchitectureBlock` lenses, `CodeReviewBody` and the
   raw registry — so a prompt added later is covered without anyone remembering.
 
-It separates "every entry was activated" (no sections, no markers — skips) from
-"the entries are still there but stopped parsing" (sections, no markers — fails),
-because an empty forbidden set otherwise makes the whole guard vacuous.
+An empty forbidden set would make the guard vacuous, so `deferredVerdict`
+classifies why it is empty. That type is the single source of the mapping; it is
+documented there and nowhere else, so this page describes it rather than
+restating the rule:
+
+| verdict | shape of the file | action |
+| --- | --- | --- |
+| `guard` | entries present | enforce disjointness |
+| `broken` | sections, but no marker parses | FAIL — the guard is disarmed |
+| `retired` | no sections, no markers | SKIP — every entry was activated |
+
+`retired` **skips and never fails**. Failing it would mean activating the last
+deferred entry reds the suite, which breaks the "activation is a pure move"
+contract this design exists to keep. The classification is pure
+(`parseDeferred`) and table-tested over synthetic content, because the committed
+tree can only ever exhibit one of the three.
 
 ## Adding an entry
 
