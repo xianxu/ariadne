@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
-estimate_hours: 0.93
+estimate_hours: 1.13
 started: 2026-09-02T15:19:59-07:00
 ---
 
@@ -220,7 +220,8 @@ item: smaller-go-module      design=0.05 impl=0.20
 item: cross-cutting-refactor design=0.05 impl=0.16
 item: atlas-docs             design=0.05 impl=0.06
 item: milestone-review       design=0.00 impl=0.20
-total: 0.93
+item: milestone-review       design=0.00 impl=0.20
+total: 1.13
 ```
 
 In Plan order:
@@ -247,34 +248,47 @@ derivation strategy — the remaining design is reading. Buffer `+15%` on that
 basis (v3.1 step 4). Familiarity `1.0`: Go, this package, embed + regex, all
 routine here.
 
-`milestone-review` is priced at the **scaled ceiling** (0.5 × 0.4) rather than
-mid-range, against ariadne#206's evidence from earlier today: that issue budgeted
-0.15 for one boundary and spent six review rounds, and the cost tracked the
-number of members in the class under review. This issue has a smaller class —
-one registry, one guard, five marker sites — but the same shape, so the ceiling
-is the honest read rather than the mid.
+**Review is priced as TWO rows at the scaled ceiling**, not one. The first cut
+put a single `milestone-review` at the ceiling and argued from ariadne#206 —
+which budgeted 0.15 for one boundary, spent six rework rounds, and closed 1.31
+against 4.43 actual. The estimate-quality judge pointed out the obvious flaw:
+moving 0.15 → 0.20 recovers 33% of a 340% miss, and the primitive is per-*chunk*,
+so the honest lever for "I expect N rounds" is N rows. Predicting multiple rounds
+in prose and then pricing one is the same error in a different place. Two rounds
+is the read here: the same shape as #206 over a smaller class (one registry, one
+guard, five marker sites, four goldens), and plan-quality already took two.
+
+**Convention this block assumes:** the actual will include pre-implementation
+design time. The claim landed at 15:19 but the window opens earlier, so issue
+authoring and both plan-quality rounds are inside it. No `issue-spec` row is
+budgeted against that, because the design was authored by another session before
+this one picked the issue up — so at close this will read under, for a reason
+that is not implementation sizing. (ariadne#205, which added ARCH-CONSTRAINTS,
+assumed the opposite: it carried `item: issue-spec design=1.0` and closed at 0.44
+because its window did *not* capture the spec.) Recorded so the ledger row is
+read correctly rather than treated as a sizing signal.
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
-- [ ] Add ARCH-SECURE to `architecture.md`; extend the marker list in
+- [x] Add ARCH-SECURE to `architecture.md`; extend the marker list in
       `archprinciples_test.go`; assert the rendered block counts 6 entries and
       carries the marker under both lenses.
-- [ ] Add `architecture-deferred.md` with ARCH-AUTHORITY.
-- [ ] Guard "documented but not gated" as a checked property: a test in package
+- [x] Add `architecture-deferred.md` with ARCH-AUTHORITY.
+- [x] Guard "documented but not gated" as a checked property: a test in package
       `judge` that DERIVES the set of gate-facing text — every `prompts/*.md`
       walked out of `promptFS` and rendered, plus `ArchitectureBlock` under both
       lenses, `CodeReviewBody`, and `ArchitectureRegistry` itself — and asserts
       none contains `ARCH-AUTHORITY`. Enumerating gate outputs by hand is the
       restatement that goes stale; a prompt added later must be covered without
       anyone remembering this issue.
-- [ ] Collapse the marker-restating sites: `TestArchitectureRegistry_Content`,
+- [x] Collapse the marker-restating sites: `TestArchitectureRegistry_Content`,
       the `{{ARCH_STAR}}` golden expectation, and `archprinciples_test.go` all
       derive from `ArchitectureMarkers()`; `TestArchitectureMarkers` stays the
       single hand-written tripwire. Regenerate the four goldens.
-- [ ] Atlas: `atlas/workflow/architecture-principles.md` gains ARCH-SECURE and a
+- [x] Atlas: `atlas/workflow/architecture-principles.md` gains ARCH-SECURE and a
       note on the deferred file + how to activate an entry (move the section);
       `atlas/index.md`'s hook stops enumerating a coverage list.
 
@@ -325,6 +339,28 @@ deliberately removed.
 ## Log
 
 ### 2026-09-02
+
+**Implementation.** The guard's activation property needed a second pass. The
+first cut asserted `architecture-deferred.md` parses ≥1 marker (PQ-2's
+anti-vacuity half) — and that made activating the LAST deferred entry fail,
+because "the set is empty" is indistinguishable from "the file broke". Probing
+it caught this: I moved ARCH-AUTHORITY into `architecture.md` and the guard went
+red, falsifying the very claim the deferred file makes about activation being
+just a move.
+
+The discriminator is section count, read independently of markers: sections but
+no markers = the entries are still there and stopped parsing (fail); no sections
+and no markers = everything activated (skip). Three probes now pin it — activate
+→ green, break a heading → red, leak `ARCH-AUTHORITY` into a prompt → red.
+
+Marker sites collapsed as planned: `TestArchitectureMarkers` keeps the one
+hand-written list, and its comment says why so nobody "fixes" it later.
+`TestArchitectureRegistry_Content` gained something real in exchange for its
+restated list — it now walks each declared marker's section and asserts all
+three lens bullets are present, which nothing checked before. Goldens re-captured
+via the blessed `-update-golden`; the diff is the new entry, the count 5 → 6, and
+the derived `{{ARCH_STAR}}`.
+
 
 - Opened from a parley.nvim session reviewing #205's aftermath. The measurement
   that prompted it: across 5 repos over 14 days, 4,775 ARCH citations landed in

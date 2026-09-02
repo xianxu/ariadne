@@ -17,7 +17,10 @@ func TestRunArchPrinciples_RendersRegistry(t *testing.T) {
 		t.Fatalf("runArchPrinciples(at-plan): %v", err)
 	}
 	out := buf.String()
-	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS", "at-plan"} {
+	// Markers DERIVED from the registry (#208) — a restated list here silently
+	// stopped covering each new entry, which is the opposite of "a tested
+	// consumer, not a restatement".
+	for _, want := range append(judge.ArchitectureMarkers(), "at-plan") {
 		if !strings.Contains(out, want) {
 			t.Errorf("at-plan output missing %q:\n%s", want, out)
 		}

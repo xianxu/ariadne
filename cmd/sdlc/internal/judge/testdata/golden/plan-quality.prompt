@@ -78,7 +78,7 @@ bullets.
 Then check the plan against our architecture (this is the highest-leverage place
 to catch architectural drift — the design is still changeable here):
 
-ARCHITECTURE PRINCIPLES — work through each of the 5 entries below explicitly, applying its `at-plan` lens; cite the marker (e.g. ARCH-DRY) in any finding.
+ARCHITECTURE PRINCIPLES — work through each of the 6 entries below explicitly, applying its `at-plan` lens; cite the marker (e.g. ARCH-DRY) in any finding.
 
 # Architecture principles (ARCH-*)
 
@@ -196,6 +196,34 @@ Principles"; this is its machine-delivered companion.
   unbounded concurrency or fan-out, repeated expensive work that should be
   cached or incremental, resource monopolization, unsupported performance
   claims, and behavior that silently operates outside the stated bounds.
+
+## ARCH-SECURE — Name what is trusted
+
+- **principle:** Every component has inputs it did not produce and secrets it
+  must not leak. Trust is a property of provenance, not of location: an input
+  crossing a process, session, or version boundary is untrusted even when this
+  same program wrote it, and a credential is a credential whether it reaches
+  disk, a log line, a subprocess argument, or a test fixture. Prefer making
+  invalid state unrepresentable — parse input into a typed value at the boundary
+  — over checking for bad values downstream, and prefer structural separation
+  (parameterised queries, argv arrays, escaped contexts) over sanitising strings.
+- **at-plan:** Name the boundaries this design crosses and what it assumes on
+  each side. For every persisted artifact or external response it reads, say what
+  happens when that input is truncated, hand-edited, or written by an older
+  version — and where it is turned into a typed value. For every credential it
+  touches, say where it is created, who can read it, and whether anything creates
+  it as a side effect of an unrelated action. Flag a design that widens blast
+  radius for convenience: a test that can reach real user or system state, a
+  component that mints a secret on a path whose purpose is something else, an
+  artifact trusted because this program produced it. Mark `N/A` when the work
+  touches neither untrusted input nor secrets; do not fill a ceremonial checklist.
+- **at-review:** Flag input from outside the process treated as well-formed
+  (persisted caches, external API bodies, files under a shared directory);
+  credentials reaching a log, an error message, an argument list, or a fixture;
+  tests able to write real user or system state; and secrets created as a side
+  effect of an unrelated call. Where the diff parses untrusted data, check the
+  failure path degrades visibly rather than crashing or substituting a fabricated
+  value that downstream code will read as evidence.
 
 
 ## Output
