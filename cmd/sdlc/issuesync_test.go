@@ -46,6 +46,11 @@ func syncRepo(t *testing.T) (string, string) {
 
 func writeSyncIssue(t *testing.T, repo, name, body string) string {
 	t.Helper()
+	// `git rm` of the last file in a directory removes the directory too, which
+	// the untracked-file fixture relies on doing.
+	if err := os.MkdirAll(filepath.Join(repo, syncIssuesDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	path := filepath.Join(repo, syncIssuesDir, name)
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
@@ -411,26 +416,110 @@ func TestArchiveCommit_LeavesForeignStagedFileAlone(t *testing.T) {
 
 // ── change-code's call ───────────────────────────────────────────────────────
 
-// TestChangeCodeSyncIssue_CommitsAndPushes: the milestone case. Planning ends on
-// main, plan-quality has accepted the design, so the issue file is committed AND
-// published before any code is written — and the branch about to be cut starts
-// from a tracked state, the property commitUntrackedIssueFile existed for.
-func TestChangeCodeSyncIssue_CommitsAndPushes(t *testing.T) {
-	repo, _ := syncRepo(t)
-	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Plan\n\nthe accepted design\n")
-
-	var stderr bytes.Buffer
-	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir}, issuePath206)
-
-	if got := headSubject(t, repo); got != issueSyncMessage(206, "spec/plan at change-code") {
-		t.Errorf("commit subject = %q, want the change-code sync message", got)
+// TestChangeCodeSyncIssue_ModeMatrix runs the full cross-product syncIssue
+// promises over, rather than the one cell a reviewer happened to probe.
+//
+// Both close-review rounds found the same defect: a swapped helper covering
+// fewer cells than the one it replaced. Round 1 was change-code's auto-detect
+// name mode; round 2 was the feature-worktree location, where routing through
+// the publish arm put a half-written Spec on origin/main and left the branch's
+// own copy dirty. Patching each cell as it is found is how a second round
+// happens, so the table is the test.
+//
+// The invariant every cell asserts: the issue file ends up COMMITTED IN THIS
+// WORKTREE, on the branch about to carry the work. Publishing is conditioned on
+// already being on main.
+func TestChangeCodeSyncIssue_ModeMatrix(t *testing.T) {
+	// location prepares a worktree to run in and returns (cwd, mainWorktree).
+	type location struct {
+		name      string
+		publishes bool
+		prepare   func(t *testing.T, repo string) string
 	}
-	local := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
-	if remote := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); remote != local {
-		t.Errorf("change-code's sync publishes; local %s, origin/main %s", local, remote)
+	locations := []location{
+		{"on main", true, func(t *testing.T, repo string) string { return repo }},
+		{"in-place feature branch", false, func(t *testing.T, repo string) string {
+			git(t, repo, "switch", "-q", "-c", "000206-issue-sync-verb")
+			return repo
+		}},
+		{"feature worktree", false, func(t *testing.T, repo string) string {
+			wt := filepath.Join(t.TempDir(), "feature")
+			git(t, repo, "worktree", "add", "-b", "000206-issue-sync-verb", wt)
+			return wt
+		}},
 	}
-	if status := git(t, repo, "status", "--porcelain", "--", syncIssuesDir); strings.TrimSpace(status) != "" {
-		t.Errorf("branch must start from a tracked issue file; status:\n%s", status)
+	// Each name mode differs only in what change-code knows when it calls
+	// syncIssue; syncIssue itself sees the resolved path, which is the point.
+	nameModes := []struct {
+		name  string
+		flags func(dir string) *changeCodeFlags
+	}{
+		{"--issue", func(string) *changeCodeFlags {
+			return &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir}
+		}},
+		{"--name", func(string) *changeCodeFlags {
+			return &changeCodeFlags{Name: "000206-issue-sync-verb", IssuesDir: syncIssuesDir}
+		}},
+		{"auto-detect", func(string) *changeCodeFlags {
+			return &changeCodeFlags{IssuesDir: syncIssuesDir}
+		}},
+	}
+	fileStates := []struct {
+		name  string
+		setup func(t *testing.T, dir string)
+	}{
+		{"tracked+edited", func(t *testing.T, dir string) {
+			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", "## Plan\n\nedited\n")
+		}},
+		{"untracked", func(t *testing.T, dir string) {
+			// syncRepo commits 000206, so the brand-new-file case is built by
+			// removing it from history and re-creating it. `git rm` (not
+			// --cached) is deliberate: the commit that records the removal is
+			// itself pathspec'd, and a partial commit takes the WORKING TREE
+			// content of the named path — leaving the file on disk would make
+			// that commit quietly re-add it.
+			git(t, dir, "rm", "-q", "--", issuePath206)
+			git(t, dir, "commit", "-q", "-m", "untrack the issue file", "--", issuePath206)
+			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", "## Plan\n\nbrand new\n")
+		}},
+	}
+
+	for _, loc := range locations {
+		for _, nm := range nameModes {
+			for _, fsx := range fileStates {
+				t.Run(loc.name+"/"+nm.name+"/"+fsx.name, func(t *testing.T) {
+					repo, _ := syncRepo(t)
+					dir := loc.prepare(t, repo)
+					chdirTo(t, dir)
+					fsx.setup(t, dir)
+					originBefore := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main"))
+
+					var stderr bytes.Buffer
+					syncIssue(&stderr, nm.flags(dir), issuePath206)
+
+					// The invariant: committed HERE, on the branch cut for the work.
+					if !strings.Contains(headFiles(t, dir), issuePath206) {
+						t.Errorf("issue file not committed in this worktree; stderr:\n%s", stderr.String())
+					}
+					if status := git(t, dir, "status", "--porcelain", "--", syncIssuesDir); strings.TrimSpace(status) != "" {
+						t.Errorf("issue file left dirty — the branch must start tracked; status:\n%s", status)
+					}
+					if got := headSubject(t, dir); got != issueSyncMessage(206, "spec/plan at change-code") {
+						t.Errorf("subject = %q, want the change-code sync message", got)
+					}
+
+					originAfter := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main"))
+					if loc.publishes && originAfter == originBefore {
+						t.Error("on main this is the milestone publish — origin/main should have moved")
+					}
+					if !loc.publishes && originAfter != originBefore {
+						t.Errorf("from a branch the body must NOT reach origin/main (%s → %s): "+
+							"publishing a half-written Spec is what `pr`/`merge`/`close` are for",
+							originBefore, originAfter)
+					}
+				})
+			}
+		}
 	}
 }
 
@@ -458,35 +547,8 @@ func TestChangeCodeSyncIssue_WarnsRatherThanDying(t *testing.T) {
 		t.Errorf("the warning must name the retry; stderr:\n%s", stderr.String())
 	}
 	// Durability still happened: only the push failed, so the commit is local.
-	if !strings.Contains(headFiles(t, repo), syncIssuesDir+"/000206-issue-sync-verb.md") {
+	if !strings.Contains(headFiles(t, repo), issuePath206) {
 		t.Error("the commit should still have landed locally before the push failed")
-	}
-}
-
-// TestChangeCodeSyncIssue_SyncsWithoutTheIssueFlag is the C1 regression from the
-// #206 close review. syncIssue used to gate on f.Issue > 0, but change-code has
-// THREE name-resolution modes and only one sets --issue: `--name` derives the
-// path from the branch name, and the third auto-detects the single untracked
-// issue file. Both were silently skipped — and in auto-detect mode with
-// --worktree=yes that left the created worktree with no issue file at all, since
-// `git worktree add` does not carry untracked files. Gate on the resolved path,
-// which every mode produces.
-func TestChangeCodeSyncIssue_SyncsWithoutTheIssueFlag(t *testing.T) {
-	repo, _ := syncRepo(t)
-	newIssue := writeSyncIssue(t, repo, "000300-brand-new.md", "## Spec\n\nauto-detected\n")
-
-	var stderr bytes.Buffer
-	// No Issue field — exactly what runChangeCode passes in auto-detect mode.
-	syncIssue(&stderr, &changeCodeFlags{IssuesDir: syncIssuesDir}, newIssue)
-
-	if !strings.Contains(headFiles(t, repo), syncIssuesDir+"/000300-brand-new.md") {
-		t.Error("the auto-detected issue file must be committed; the branch has to start tracked")
-	}
-	if got := headSubject(t, repo); got != issueSyncMessage(300, "spec/plan at change-code") {
-		t.Errorf("subject = %q; the id comes from the resolved path, not the flag", got)
-	}
-	if status := git(t, repo, "status", "--porcelain", "--", syncIssuesDir); strings.TrimSpace(status) != "" {
-		t.Errorf("issue file left dirty; status:\n%s", status)
 	}
 }
 
@@ -603,5 +665,27 @@ func TestMigrateCommit_LeavesForeignStagedFileAlone(t *testing.T) {
 	}
 	if status := git(t, repo, "status", "--porcelain"); !strings.Contains(status, "A  "+foreign) {
 		t.Errorf("foreign file should still be staged, status:\n%s", status)
+	}
+}
+
+// TestMigrateCommitArgs_HintAndCommandAreTheSameBuilder pins the ARCH-DRY point
+// of migrateCommitArgs: `migrate --no-commit` prints the command for the
+// operator to run, and that printed command must be the one migrate would have
+// run. Before #206 both were hand-written inline, four times, and the printed
+// pair could have lost its pathspec without a test noticing.
+func TestMigrateCommitArgs_HintAndCommandAreTheSameBuilder(t *testing.T) {
+	args := migrateCommitArgs("migrate: move a/b.md to peer", "a/b.md")
+	want := []string{"commit", "-q", "-m", "migrate: move a/b.md to peer", "--", "a/b.md"}
+	if strings.Join(args, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("migrateCommitArgs = %v, want %v", args, want)
+	}
+	// The hint renders the same argv, with only the subject quoted — so a reader
+	// can paste it, and a lost `--` would change both at once or neither.
+	hint := strings.Join(quoteMigrateMsg(args), " ")
+	if !strings.Contains(hint, `-m "migrate: move a/b.md to peer"`) {
+		t.Errorf("hint must quote the subject (it contains spaces): %s", hint)
+	}
+	if !strings.HasSuffix(hint, "-- a/b.md") {
+		t.Errorf("hint must carry the pathspec the executed commit carries: %s", hint)
 	}
 }

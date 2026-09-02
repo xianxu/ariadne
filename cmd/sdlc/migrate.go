@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -350,13 +351,13 @@ func runMigrate(o *migrateOpts) error {
 	srcMsg := "migrate: move " + relPath + " to " + destRepo
 	if o.noCommit {
 		cinfo(o.stderr, "--no-commit: both sides staged; commit with:")
-		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q -- %s\n", destTop, destMsg, destRel)
-		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q -- %s\n", srcRoot, srcMsg, relPath)
+		fmt.Fprintf(o.stderr, "    git -C %s %s\n", destTop, strings.Join(quoteMigrateMsg(migrateCommitArgs(destMsg, destRel)), " "))
+		fmt.Fprintf(o.stderr, "    git -C %s %s\n", srcRoot, strings.Join(quoteMigrateMsg(migrateCommitArgs(srcMsg, relPath)), " "))
 	} else {
-		if out, err := gitInDir(destTop, "commit", "-q", "-m", destMsg, "--", destRel); err != nil {
+		if out, err := gitInDir(destTop, migrateCommitArgs(destMsg, destRel)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", destRepo, err, out))
 		}
-		if out, err := gitInDir(srcRoot, "commit", "-q", "-m", srcMsg, "--", relPath); err != nil {
+		if out, err := gitInDir(srcRoot, migrateCommitArgs(srcMsg, relPath)...); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", srcRepo, err, out))
 		}
 		cok(o.stderr, fmt.Sprintf("moved %s → %s/%s (both sides committed, scoped)", relPath, destRepo, destRel))
@@ -423,6 +424,29 @@ func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel stri
 	for _, h := range hits {
 		fmt.Fprintf(stderr, "    %s\n", h)
 	}
+}
+
+// migrateCommitArgs builds the scoped commit argv for one side of a migrate.
+// The SAME builder feeds the executed commit and the --no-commit hint, so the
+// command printed for the operator can't lose the `--` the executed one has
+// (ARCH-DRY — the same reason archiveCommitArgs derives from archiveAddArgs).
+// Pure: argv only, no IO.
+func migrateCommitArgs(msg, path string) []string {
+	return []string{"commit", "-q", "-m", msg, "--", path}
+}
+
+// quoteMigrateMsg renders a migrateCommitArgs argv for display, quoting the
+// message so a subject with spaces doesn't read as more pathspec arguments.
+func quoteMigrateMsg(args []string) []string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		if i > 0 && args[i-1] == "-m" {
+			out[i] = strconv.Quote(a)
+			continue
+		}
+		out[i] = a
+	}
+	return out
 }
 
 // NewMigrateCmd returns the cobra command for `sdlc migrate` (#179).

@@ -316,7 +316,21 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 			// Best-effort: the file is already written + reported above, so a sync
 			// failure (offline, no reachable origin, conflict) must not abort the
 			// create — just surface it. `claim` treats the same error as fatal.
-			cwarn(stderr, fmt.Sprintf("issue created but auto-sync to main did not complete: %v", serr))
+			//
+			// But fall back to a LOCAL commit first (#206). Publication and
+			// durability are separable, and only publication failed here; leaving
+			// the new issue as an untracked working-tree file is the hole this
+			// issue exists to close. The common trigger is mundane: `issue new`
+			// from an in-place feature branch, where the publish route finds no
+			// worktree on `main` and there is nothing wrong at all. A no-op when
+			// the first attempt already committed and only the push failed.
+			syncFlags.NoPush = true
+			if lerr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, issueSyncMessage(id, "new issue")); lerr != nil {
+				cwarn(stderr, fmt.Sprintf("issue created but NOT committed: %v (sync to main also failed: %v)", lerr, serr))
+			} else {
+				cwarn(stderr, fmt.Sprintf("issue committed locally but not broadcast to main: %v\n"+
+					"      peers won't see the reservation yet — publish with `sdlc issue sync --issue %d --push`", serr, id))
+			}
 		}
 	}
 

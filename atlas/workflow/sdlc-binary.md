@@ -53,11 +53,28 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 ### Issue-file sync: durability vs publication (#206)
 
 One dispatch — `syncIssuesToMain` in `claim.go` — serves `claim`, `issue new`,
-`issue sync` and `change-code`. `change-code` derives the issue id from the RESOLVED issue path,
-not from `--issue`: `resolveBranchName` has three name-resolution modes and only
-one sets that flag, so gating on it skipped `--name` and auto-detect mode — and
-in auto-detect with `--worktree=yes` that left the new worktree with no issue
-file at all, since `git worktree add` does not carry untracked files.
+`issue sync` and `change-code`.
+
+**`change-code`'s invariant: the issue file ends up committed in THIS worktree,**
+on the branch about to carry the work — across `resolveBranchName`'s three name
+modes × {on main, in-place feature branch, feature worktree} × {untracked,
+tracked-and-edited}. Two consequences that each cost a review round to find:
+
+- The id comes from the RESOLVED issue path, not `--issue` — only one of the
+  three name modes sets that flag, and in auto-detect with `--worktree=yes`
+  gating on it left the new worktree holding no issue file at all, since `git
+  worktree add` does not carry untracked files.
+- Publishing is conditioned on **already being on main**, not on the caller's
+  intent. From a branch the publish route would copy the in-progress body into
+  the main worktree, commit it on main and push — a half-written Spec on
+  `origin/main`, the branch's copy left dirty, two network round-trips per
+  milestone re-run. `pr`/`merge`/`close` are what publish.
+
+`TestChangeCodeSyncIssue_ModeMatrix` runs the whole table. `issue new` follows
+the same durability-before-publication rule: when its reservation broadcast
+can't reach main (commonly: run from an in-place feature branch, where no
+worktree is on main), it falls back to a local commit rather than leaving the
+new issue untracked.
 
 Its two arms are **not** "on main vs on a
 branch"; they are *commit here* vs *publish to origin/main from elsewhere*:
@@ -104,6 +121,18 @@ such guard — migrate's cleanliness check (`status --porcelain -- relPath`) is
 scoped to the migrated file alone — and those three are the deterministic
 regressions in `issuesync_test.go`. `migrate --no-commit` prints the pathspec'd
 form in its hints too, so the operator isn't handed the defective command.
+
+**The class is guarded at the source, not per site.** `TestGitCommitsCarryTheirPathspec`
+(`commitpathspec_guard_test.go`) parses every non-test file in `cmd/sdlc` and
+fails on any git-commit argv built without a `--` separator, with a two-entry
+allowlist naming its reason. The real rule it encodes is *a commit must be as
+narrow as its add* — which is why `push.go`'s `commit -a` and
+`propagatebase.go`'s `add -A` pairing are exempt rather than special-cased. Two
+close-review rounds each found another instance of this bug; a behavioral test
+pins the site it drives, and nothing stopped the next site from being written.
+Note that a fix at a *call site* is only pinned by a test driving the production
+entry point — a real-git test that hand-builds the argv proves the helper and
+mocks the wiring.
 
 **New failure mode:** a pathspec'd commit is a *partial* commit, and git refuses
 one outright while `MERGE_HEAD` is set (`fatal: cannot do a partial commit during

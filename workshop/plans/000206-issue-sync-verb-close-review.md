@@ -190,3 +190,214 @@ findings:
     title: |
       no declared operating envelope for a verb designed to be run frequently (ARCH-CONSTRAINTS)
 ```
+
+---
+
+## Re-review — 2026-09-02T12:51:50-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 206 — sdlc: commit planning output via issue sync |
+| repo | ariadne |
+| issue file | workshop/issues/000206-issue-sync-verb.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 92bd1ad1ebdc6bca1b218b318e4740b6fab3d787..0807e3913ea17bbfc3cfc925577487bc5e95c451 |
+| command | sdlc close --issue 206 |
+| reviewer | claude |
+| timestamp | 2026-09-02T12:51:50-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+All four blocking round-1 findings are substantively fixed, and I verified each by reverting it in a scratch clone rather than trusting the commit message: BR-1's mode fix goes red without it (`TestChangeCodeSyncIssue_SyncsWithoutTheIssueFlag`), BR-6's dry-run threading goes red, BR-3's empty-moves refusal is directly asserted, and BR-4's `start-plan` delivery is real — I built the binary and saw the checkpoint line render. The narrowed-add/bare-commit class is now genuinely swept: I enumerated every `"commit"` argv in `cmd/sdlc` and all seven narrowed-add sites carry a pathspec, with the two remaining bare commits (`push.go:116` `commit -a`, `propagatebase.go:271` after `add -A`) correctly out of the class because their adds are whole-tree by design. What blocks a clean SHIP is not correctness but the two things the reverts exposed: five of the seven pathspec sites and the BR-4 delivery point are **unpinned** — I reverted each and the full suite stayed green — and `change-code`'s sync has one unenumerated mode (re-run from a feature worktree) where it publishes the WIP body to `origin/main` and leaves the branch's copy dirty, defeating the "branch starts from a tracked state" property its own comment claims.
+
+## 1. Strengths
+
+- **The dispatch reframing is the right abstraction.** `claim.go:119` discriminating on `NoPush` *before* the branch test, with the reasoning written down at `claim.go:106-118`, turns "main vs branch" into "commit here vs publish from elsewhere" — and that is what makes a no-push sync offline-safe and usable from an in-place branch. The `NoPush`-not-`Push` polarity argument (`claim.go:51-56`) is a real zero-value hazard correctly avoided.
+- **`archiveCommitArgs` derives from `archiveAddArgs` rather than restating it** (`push.go:273-279`) — a commit pathspec wider than its add *is* the bug, so deriving it is the structurally correct fix (ARCH-DRY), and the `archiveCommitMessage` const removes the three-way string duplication.
+- **Real-git fixtures, and the honest split about what a recorder may answer.** `issuesync_test.go:88-119` proves `--only` semantics against real git; `issuesync_test.go:160-206` uses an argv stub for exactly one question and says why. The Revisions entry retracting the "identical defect" claim on the publish arm, with the reproduced `cannot pull with rebase` error, is the kind of correction that makes the rest of the record trustworthy.
+- **The bookkeeping-verb coupling is caught and pinned.** `gitx/window.go:141` plus the three `window_test.go:211-218` rows, including the negative row proving the hyphen is load-bearing, closes a genuinely subtle path from a commit subject to drift detection and active-time attribution.
+- **`issueFilesForID`/`issueIDFromPath`** (`issuefiles.go:109`, `:117`) collapse the duplicated glob and parse the id convention once — BR-11 addressed cleanly, not papered over.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**I1 — this round's fixes are not pinned at their call sites (5 of 7 sites + the BR-4 delivery revert green).**
+
+> **This is the 3rd finding in family `class-fix-without-class-test`.** Earlier rounds fixed instances (BR-7, BR-8). Do NOT fix this instance — state the rule that covers all of them, and fix that.
+
+Measured in a scratch clone at `0807e39`, full package suite each time (only the pre-existing `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` failure, unrelated):
+
+| reverted | suite |
+|---|---|
+| `migrate.go:356` + `:359` pathspecs → bare commit | **green** |
+| `push.go:204` + `:404` → bare commit | **green** |
+| `merge.go:550` → bare commit | **green** |
+| `startplan.go:85` `syncPointer` call removed | **green** |
+
+The cause is uniform: `issuesync_test.go:593` hand-writes `r.Git("commit","-q","-m",…,"--",moved)` instead of calling `runMigrate`, and `issuesync_test.go:540-556` hand-wires `archiveCommitArgs` instead of driving `runPush`/`recoverInterruptedArchive`. Both run real git — and neither runs *our* code, so they are green in precisely the state the finding was about. That is ARCH-MOCK inverted: a real-git test that doesn't reach the production entry point is a mock of the wiring.
+
+**The rule:** a fix at a *call site* is pinned only by a test that drives the production entry point (`runMigrate`, `runPush`, `recoverInterruptedArchive`, `runMerge`, `runStartPlan`); helper-level and hand-rebuilt-argv tests pin the helper, never the wiring. **The enforcement that covers the class in one place** — and that no future site can silently escape — is a source-level guard test over `cmd/sdlc/*.go` asserting every `git commit` argv built after a narrowed add carries `--`, with an explicit two-entry allowlist for the deliberate whole-tree commits (`push.go:116`, `propagatebase.go:271`). That is the same shape as this tree's existing drift guards (`TestRepoLockCommandMetadata`, `TestForceAckMatchesGateCatalog`). Add `"sdlc issue sync"` to `TestRunStartPlan_RendersAtPlanLens`'s want list while you're there — that test's own comment says it exists so "dropping/reordering the line can't ship silently," and it just failed to do that.
+
+**I2 — `change-code`'s sync from a feature worktree publishes WIP to main and leaves the branch copy dirty.**
+
+> **This is the 2nd finding in family `helper-swap-drops-a-mode`.** Round 1 fixed one cell (auto-detect). Do NOT fix this instance — state the rule that covers all of them.
+
+Verified with a probe against a real two-worktree fixture: `syncIssue` on a feature worktree with a tracked-and-edited issue file takes `syncViaMainWorktree`, runs `pull --rebase origin main`, copies, commits `#206: issue-sync: spec/plan at change-code` on main and pushes — and leaves `M workshop/issues/000206-issue-sync-verb.md` on the branch. So in that mode: (a) the "branch starts from a tracked state" property asserted at `changecode.go:167-176` is *not* achieved, (b) `main` now carries a divergent commit of a file the branch will later commit its own version of, and (c) a milestone re-run gains two network round-trips. `commitUntrackedIssueFile` no-opped here. `--worktree=yes` is opt-in, not the default, which is why this is Important and not Critical.
+
+**The rule:** when a call site's helper is swapped, enumerate the full mode cross-product the OLD helper ran under and state the new behavior for each — here `resolveBranchName`'s 3 name modes × {on main, in-place feature branch, feature worktree} × {issue file untracked, tracked-and-edited}. Round 1 fixed one cell; this round's tests cover four; the feature-worktree cells are the ones whose behavior *changed* and none is covered. Write that table (as a test table, or in the Spec) rather than patching the cell I happened to probe.
+
+## 4. Minor findings
+
+- `syncPathspec` (`claim.go:235`) reads like a pure argv builder but calls `filepath.Glob` via `issueFilesForID` — it is a thin IO helper, not pure (ARCH-PURE); the doc comment should say so before someone table-tests it.
+- `migrate.go:352-359` restates the `commit -m <msg> -- <path>` shape four times inline (two commits + two `--no-commit` hints); a two-line helper mirroring `archiveCommitArgs` would keep the hint and the command from drifting.
+- `migrate_test.go:449`'s hint assertion checks only the `--no-commit:` lead-in, not the pathspec now printed — so the hint could lose its `--` without a test noticing.
+- Pre-existing, outside this window but red in the tree this boundary crosses: `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (`fleet_plan_test.go:14`) reads `workshop/plans/000200-…-plan.md`, archived to history by `dfeba9c` — an ancestor of the base. Worth its own issue.
+
+## 5. Test coverage notes
+
+`go build ./...`, `go vet ./cmd/sdlc/...` clean; `go test ./cmd/sdlc/...` green except the pre-existing `fleet_plan` failure above. The new suite's fixture design is good — real repos, a two-worktree harness that didn't exist before, and the one argv stub scoped and justified. The gap is entirely I1: the suite pins the *helpers* and the *sync arms* thoroughly and the *call sites* not at all. Directory-pathspec + untracked-file semantics (the `sdlc claim` path with no `--issue`) I verified by hand against real git — correct, but also unpinned.
+
+## 6. Architectural notes
+
+- **ARCH-DRY — pass.** One dispatch, four callers; commit args derived from add args; the id glob single-sourced.
+- **ARCH-PURE — pass, one note.** IO stays behind the injected `gitRunner`; `syncMessage`/`issueSyncMessage`/`archiveCommitArgs`/`issueIDFromPath`/`syncPointer` are genuinely pure. See the `syncPathspec` Minor.
+- **ARCH-PURPOSE — pass on the sweep, flag on the enforcement.** Shadow-sweep complete: all seven narrowed-add sites derive from a pathspec, the two survivors are deliberate. The BR-4 trigger is delivered at four points (`helptext/issue.md`, `helptext/start-plan.md`, `start-plan` runtime output, `AGENTS.base.md` §2/§14) and I confirmed the runtime one by running the binary; the generated `AGENTS.md`/`CLAUDE.md` are correctly gitignored, so their absence from the diff is right. What is under-delivered is that the class stays swept — I1.
+- **ARCH-MOCK — pass, with I1 as the caveat.** Real git everywhere; the recorder is confined to the one argv question. But two "real git" tests never reach production code, which is the same failure the principle guards against, one level up.
+- **ARCH-CONSTRAINTS — flag, already open as BR-12.** A verb explicitly designed to be run frequently mid-planning ships with no budget: the in-place arm is ~5 git subprocesses and no network, the publish arm adds two network round-trips, and that difference *is* the design argument — asserted in prose, never measured or bounded. Not re-raised as new; disposed `not-addressed` below.
+
+## 7. Plan revision recommendations
+
+- **`## Revisions` — the `change-code` sync's mode table.** The existing rework entry states the in-place-branch re-run case ("`syncViaMainWorktree` finds no main worktree and errors"). It does not state the feature-*worktree* re-run case, which succeeds, publishes, and leaves the branch dirty. Add the enumerated mode table from I2 and say which cells are intended.
+- **`## Done when` — the pinning criterion.** The current bullets say the sites "commit with a pathspec"; they were satisfied by helper-level tests. Restate as: *each call site is exercised through its production entry point by a test that goes red when the pathspec is removed*, plus the source-level guard from I1.
+- **`## Log`** — record that BR-12 (operating envelope) was not disposed in the rework round, so it isn't silently dropped at close.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Verified by revert: re-adding the f.Issue<=0 gate turns TestChangeCodeSyncIssue_SyncsWithoutTheIssueFlag red.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      migrate.go:356/:359 and both --no-commit hints now carry the pathspec; the fix itself is unpinned — see the new class finding.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      archiveCommitArgs errors on empty moves and TestArchiveCommitArgs_RefusesEmptyMoves asserts it directly.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Confirmed by running the built binary; start-plan prints the checkpoint line, and AGENTS.base.md 2/14 carry it. No test pins it — folded into the class finding.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The guard comment now names the only case the guard can catch (a --name branch at a non-NNNNNN- path), and TestChangeCodeSyncIssue_NonIssuePathIsANoop pins the behavior.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Verified by revert: unthreading DryRun turns TestChangeCodeSyncIssue_DryRunCommitsNothing red.
+  - id: BR-7
+    disposition: not-addressed
+    note: |
+      Still no regression at merge.go:550 — reverting it leaves the suite green; now part of the measured class finding rather than a standalone recorded choice.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      The in-place arm's --dry-run is now covered at both the verb and change-code, but syncViaMainWorktree's dry-run early return (newly reachable via `issue sync --push --dry-run`) still has none.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      The atlas sdlc-binary entry now records the partial-commit-during-merge failure mode explicitly.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      No durable plan; the Revisions entry records a considered refusal (the design lives in Spec + Revisions, which is what the plan-quality gate read). Minor, does not block.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      issueFilesForID single-sources the glob for resolveBranchName and syncPathspec; issueIDFromPath reuses issueIDPrefix.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      Not touched in the rework round and not mentioned in Revisions; still no envelope for a verb designed to run frequently.
+findings:
+  - id: new
+    severity: Important
+    family: class-fix-without-class-test
+    title: |
+      this round's call-site fixes revert green - 5 of 7 pathspec sites and the start-plan delivery have no pinning test
+    detail: |
+      Measured by revert in a scratch clone at 0807e39, full package suite each time: reverting
+      migrate.go:356/:359, push.go:204/:404, merge.go:550, or the syncPointer call at
+      startplan.go:85 leaves the suite green. Cause is uniform - issuesync_test.go:593 hand-writes
+      migrate's commit argv instead of calling runMigrate, and issuesync_test.go:540-556 hand-wires
+      archiveCommitArgs instead of driving runPush/recoverInterruptedArchive. Both run real git and
+      neither runs our code, so they pass in exactly the state the finding was about (ARCH-MOCK
+      inverted). This is the 3rd finding in the family, so do NOT patch the instances - the rule is
+      that a call-site fix is pinned only by a test driving the production entry point, and the
+      enforcement that covers the whole class is a source-level guard test over cmd/sdlc asserting
+      every git-commit argv built after a narrowed add carries a `--`, allowlisting the two
+      deliberate whole-tree commits (push.go:116 `commit -a`, propagatebase.go:271 after `add -A`).
+      Same shape as TestRepoLockCommandMetadata / TestForceAckMatchesGateCatalog. Also add
+      "sdlc issue sync" to TestRunStartPlan_RendersAtPlanLens's want list - that test exists so a
+      dropped pointer line cannot ship silently, and it just failed to do that.
+  - id: new
+    severity: Important
+    family: helper-swap-drops-a-mode
+    title: |
+      change-code's sync from a feature worktree publishes WIP to origin/main and leaves the branch copy dirty
+    detail: |
+      Probed against a real two-worktree fixture: syncIssue (changecode.go:213) on a feature
+      worktree with a tracked-and-edited issue file takes syncViaMainWorktree, pulls, copies,
+      commits "#206: issue-sync: spec/plan at change-code" on main, pushes - and leaves
+      "M workshop/issues/000206-issue-sync-verb.md" on the branch. The "branch starts from a
+      tracked state" property asserted at changecode.go:167-176 is not achieved in that mode, main
+      gains a divergent commit of a file the branch will later commit its own version of, and a
+      milestone re-run (#156 made worktree creation idempotent for exactly this) gains two network
+      round-trips. commitUntrackedIssueFile no-opped here. --worktree=yes is opt-in, hence Important
+      not Critical. This is the 2nd finding in the family, so do NOT patch this cell - write the
+      mode cross-product the old helper ran under (resolveBranchName's 3 name modes x {on main,
+      in-place branch, feature worktree} x {untracked, tracked-and-edited}) as a test table and
+      state the intended behavior for each. Round 1 fixed one cell; this round covers four; the
+      cells whose behavior actually changed are uncovered.
+  - id: new
+    severity: Minor
+    family: comment-narrower-than-code
+    title: |
+      syncPathspec is documented as an argv builder but does filesystem IO via filepath.Glob
+    detail: |
+      claim.go:235 reads as a pure pathspec constructor; issueFilesForID globs the working tree, so
+      it is a thin IO helper. Worth saying so before someone table-tests it as pure (ARCH-PURE).
+  - id: new
+    severity: Minor
+    family: narrowed-add-bare-commit
+    title: |
+      migrate.go restates the pathspec'd-commit shape four times inline and its hint assertion does not check the pathspec
+    detail: |
+      migrate.go:352-359 builds the same `commit -m <msg> -- <path>` shape for two commits and two
+      --no-commit hints; migrate_test.go:449 asserts only the "--no-commit: both sides staged"
+      lead-in, so the hint could lose its `--` unnoticed. A two-line helper mirroring
+      archiveCommitArgs would keep the printed command and the executed one from drifting.
+  - id: new
+    severity: Minor
+    family: stale-test-fixture-path
+    title: |
+      pre-existing red test in the tree this boundary crosses - fleet_plan_test.go reads an archived plan path
+    detail: |
+      TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (fleet_plan_test.go:14) opens
+      workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md, which dfeba9c archived to history.
+      dfeba9c is an ancestor of the review base, so this is not from #206 - but it means the suite is
+      red at the close boundary. Worth its own issue; the test should resolve the plan through the
+      archive-inclusive lookup rather than a hardcoded workshop/plans path.
+```

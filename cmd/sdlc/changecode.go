@@ -48,6 +48,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
@@ -191,25 +192,42 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	return nil
 }
 
-// syncIssue commits + publishes the issue file through the shared sync dispatch
-// (#206), so the design that just cleared plan-quality is durable before any
-// code is written.
+// syncIssue commits the issue file through the shared sync dispatch (#206), so
+// the design that just cleared plan-quality is durable before any code is
+// written.
 //
-// The id comes from the RESOLVED issue path, not from f.Issue. resolveBranchName
-// has three name-resolution modes and only one of them sets --issue: `--name`
-// derives the path from the branch name, and the third mode auto-detects the
-// single untracked issue file. Gating on the flag silently skipped both — and in
-// auto-detect mode with --worktree=yes that left the new worktree with no issue
-// file at all, since `git worktree add` does not carry untracked files. The path
-// is the thing every mode produces.
+// It replaced commitUntrackedIssueFile, and the two review rounds that followed
+// were both the same mistake: a swapped helper covering fewer cells than the one
+// it replaced. The invariant is therefore stated as a table, over the full
+// cross-product the old helper ran under —
+//
+//	                        │ file untracked        │ file tracked + edited
+//	────────────────────────┼───────────────────────┼──────────────────────────
+//	on main                 │ commit here + publish │ commit here + publish
+//	in-place feature branch │ commit on the branch  │ commit on the branch
+//	feature worktree        │ commit on the branch  │ commit on the branch
+//
+// — crossed with resolveBranchName's three name modes (--issue, --name,
+// auto-detect), which the id derivation below collapses: syncIssue reads the
+// RESOLVED issuePath, the one thing all three modes produce. Gating on f.Issue
+// instead skipped two of the three, and in auto-detect with --worktree=yes left
+// the new worktree holding no issue file at all, since `git worktree add` does
+// not carry untracked files. TestChangeCodeSyncIssue_ModeMatrix runs the table.
+//
+// The single property every cell satisfies: THE ISSUE FILE IS COMMITTED IN THIS
+// WORKTREE, on the branch about to carry the work. That is what "the branch
+// starts from a tracked state" means, and it is why publishing is conditioned on
+// already being on main rather than on the caller's intent. From a branch the
+// publish route would copy the in-progress body into the main worktree, commit
+// it on main and push — putting a half-written Spec on origin/main, leaving the
+// branch's own copy dirty, and adding two network round-trips to a milestone
+// re-run. main gets the body at `pr`/`merge`/`close`, which is where publishing
+// belongs.
 //
 // BEST-EFFORT, deliberately: change-code's job is to OPEN implementation, and a
 // tracker commit that could not land must not stand between the operator and
 // starting work. The helper this replaced already warned rather than died on a
-// failed push; extending that posture to the whole sync also keeps the one new
-// way change-code could fail — a re-run from an in-place feature branch, where
-// the publish route finds no worktree on main — from becoming fatal. The
-// warning names the retry.
+// failed push, and the warning names the retry.
 func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	// A --name branch can point at a file outside the NNNNNN- convention; there
 	// is no id to name in the commit subject, so there is nothing to sync.
@@ -217,15 +235,23 @@ func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	if id == 0 {
 		return
 	}
+	onMain := gitx.Capture("branch", "--show-current") == "main"
 	// DryRun is threaded even though runChangeCode returns before reaching here
 	// under --dry-run: a helper that commits must not depend on a caller's early
 	// return for its dry-run correctness.
-	syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, NoStart: true, DryRun: f.DryRun}
+	syncFlags := &claimFlags{
+		Issue: id, IssuesDir: f.IssuesDir, NoStart: true,
+		DryRun: f.DryRun, NoPush: !onMain,
+	}
 	msg := issueSyncMessage(id, "spec/plan at change-code")
 	if err := syncIssuesToMain(stderr, stderr, syncFlags, changeCodeRunner, msg); err != nil {
+		retry := fmt.Sprintf("sdlc issue sync --issue %d", id)
+		if onMain {
+			retry += " --push"
+		}
 		cwarn(stderr, fmt.Sprintf("issue file not synced: %v\n"+
 			"      the gates passed and the branch is being created anyway;\n"+
-			"      re-run `sdlc issue sync --issue %d --push` once the cause is cleared", err, id))
+			"      re-run `%s` once the cause is cleared", err, retry))
 	}
 }
 

@@ -230,6 +230,10 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 // both argv lists, so the add and the commit can't drift apart — a commit whose
 // pathspec is wider than its add is exactly the bug #206 fixes.
 //
+// NOT pure despite reading like an argv builder: the --issue branch globs the
+// working tree through issueFilesForID, so this is a thin IO helper and its
+// filtered path needs a real directory to test against (ARCH-PURE).
+//
 // The "pathspec matches nothing" error is unreachable in practice: callers run
 // changedIssueFiles first and return early when nothing changed.
 func syncPathspec(f *claimFlags) ([]string, error) {

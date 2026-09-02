@@ -173,9 +173,18 @@ the argv and pass even if those semantics were wrong (`ARCH-MOCK`).
   emitting the whole-index form.
 - `migrate.go`'s two commits (source + destination) carry a pathspec, and so do
   the `--no-commit` hints it prints. The source side is where nothing guards it.
-- `sdlc change-code` commits the issue file in **all three** of
-  `resolveBranchName`'s modes — `--issue`, `--name`, and auto-detect — not just
-  the one that sets the flag.
+- `sdlc change-code` commits the issue file **in the current worktree** across
+  the whole cross-product it runs under: `resolveBranchName`'s three name modes
+  × {on main, in-place feature branch, feature worktree} × {file untracked,
+  tracked-and-edited}. It publishes only when already on `main`; from a branch
+  the body must not reach `origin/main`. Run as a table, not as cells.
+- `sdlc issue new` leaves the new issue committed even when it cannot be
+  published — publication and durability are separable, and an untracked new
+  issue is the hole this issue exists to close.
+- A source-level guard fails the build when any `git commit` argv in
+  `cmd/sdlc` is built after a narrowed add without a `--` pathspec, with a
+  two-entry allowlist for the deliberate whole-tree commits. Call-site fixes are
+  pinned by tests that drive the production entry point, not hand-rebuilt argv.
 - `sdlc issue sync --issue N` commits that issue's files with a message naming
   the issue, from both `main` and a feature branch, and **does not push**: a
   test asserts the default leaves `origin/main` where it was, and that from a
@@ -267,6 +276,10 @@ scaled ceiling rather than smeared across every item by a global multiplier.
       from the resolved path; sweep `migrate.go`; make `archiveCommitArgs`
       refuse empty moves; deliver the mid-planning trigger through
       `start-plan`'s output + `AGENTS.base.md` §2/§14.
+- [x] Rework round 2 (BR-13, BR-14): a source-level pathspec guard over
+      `cmd/sdlc/*.go` that no future site can escape; `syncIssue` commits where
+      the branch is, proven by the full mode matrix; the same durability
+      fallback in `issue new`.
 
 ## Revisions
 
@@ -385,6 +398,64 @@ lived in this issue's `## Spec` + `## Revisions` — which is what the plan-qual
 gate actually read and blocked on twice. Back-filling `workshop/plans/` after the
 fact would produce a copy, not a record.
 
+### 2026-09-02 — rework round 2 (BR-13, BR-14): rules, not cells
+
+Both findings arrived with the same instruction — *this is the Nth finding in
+this family; do not fix the instance, state the rule* — and both were right that
+the previous round had patched cells.
+
+**BR-13 — the round-1 fixes were not actually pinned.** The reviewer reverted
+each one in a scratch clone and ran the suite: `migrate.go`'s two pathspecs,
+`push.go`'s two archive commits, `merge.go`'s, and the `start-plan` delivery
+line all came back **green**. The cause was uniform and worth naming: my tests
+hand-wrote the argv (`r.Git("commit", …, "--", moved)`) or hand-wired the helper
+instead of driving `runMigrate` / `runPush` / `runStartPlan`. Real git, real
+repos — and none of *our* code on the path. That is `ARCH-MOCK` inverted: a
+real-git test that never reaches the production entry point is a mock of the
+wiring.
+
+The rule, and the fix that covers the class in one place:
+`TestGitCommitsCarryTheirPathspec` parses `cmd/sdlc/*.go` and fails on any git
+commit argv built without a `--` separator, with a two-entry allowlist carrying
+its reason (`push.go:runPush`'s `commit -a`, `propagatebase.go:commitConsumption`
+paired with `add -A` — both legitimately whole-tree, which is the real rule: *a
+commit must be as narrow as its add*). Same shape as this tree's existing drift
+guards. Verified by reverting four sites at once: four failures. The eighth site
+someone writes next year fails immediately, without anyone remembering #206.
+`sdlc issue sync` also joins `TestRunStartPlan_RendersAtPlanLens`'s want list —
+a test whose own comment says it exists so a dropped line "can't ship silently",
+and which had just let one ship silently.
+
+**BR-14 — `change-code` from a feature worktree published WIP to main.** With
+push on and a branch checked out, `syncIssue` took the publish route: copied the
+in-progress body into the main worktree, committed it on `main`, pushed, and left
+the branch's own copy dirty. So the "branch starts from a tracked state" property
+was not achieved, `main` carried a divergent commit of a file the branch would
+later commit its own version of, and a milestone re-run gained two network
+round-trips.
+
+The rule the reviewer asked for is now stated as an invariant with a table under
+it: **the issue file ends up committed in THIS worktree, on the branch about to
+carry the work** — across three name modes × three locations × two file states.
+Publishing is conditioned on already being on `main`, not on the caller's intent;
+from a branch, `pr`/`merge`/`close` are what publish. `TestChangeCodeSyncIssue_ModeMatrix`
+runs all eighteen cells and goes red on the reverted fix.
+
+**In-class, found by dogfooding rather than review.** Filing #207 from this
+branch surfaced the same defect one verb over: `issue new`'s auto-sync could not
+reach a worktree on `main`, warned, and left the new issue **untracked** — the
+exact hole this issue exists to close, at its own front door. It now falls back
+to a local commit and says the broadcast is pending. Fixing only `change-code`
+would have been the cell again.
+
+Minors also taken: `syncPathspec`'s doc no longer implies purity (it globs
+through `issueFilesForID`); `migrateCommitArgs` single-sources the shape shared
+by migrate's two commits and its two `--no-commit` hints, so the printed command
+can't lose the `--` the executed one has. The pre-existing red
+`TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` is now **#207** —
+it reads an archived plan by hardcoded path, is unrelated to this work, and a
+permanently-red suite is what made the reviewer's revert measurements harder.
+
 ### 2026-09-02 — where the sync sits inside `change-code`
 
 After the whole gate sequence, at the point `commitUntrackedIssueFile`
@@ -422,6 +493,12 @@ work is a real risk the close will measure rather than something to pad now.
 Revisions entry. The reviewer reverted each claimed fix in a scratch copy to
 confirm the regressions actually go red — worth noting because that is the check
 that separates a pinned fix from a mirror of itself.
+
+**Close review round 2: FIX-THEN-SHIP,** with two Important findings both
+flagged as repeat families — the ledger's `family:` slug reporting, correctly,
+that I was fixing instances. Round 1's fixes were measured green-on-revert at 5
+of 7 sites. The response was the source-level guard rather than five more tests.
+Filed #207 for the pre-existing red fleet-plan test.
 
 **Coverage for the archive sites.** `archiveCommitArgs` is pure, so it is
 table-tested directly, and `push.go`'s in-place archive gets a real-repo
