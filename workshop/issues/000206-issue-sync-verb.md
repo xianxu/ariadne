@@ -1,11 +1,12 @@
 ---
 id: 000206
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours:
+started: 2026-09-02T11:36:01-07:00
 ---
 
 # sdlc: commit planning output via issue sync
