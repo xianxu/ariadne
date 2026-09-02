@@ -1,10 +1,10 @@
 ---
 id: 000199
-status: open
+status: punt
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-09-02
 estimate_hours:
 ---
 
@@ -93,3 +93,11 @@ should be adoptable by any ariadne-family binary, not special-cased to `sdlc`.
 Filed as an enabler for `pair#145` (couch) M3. Design settled in the pensive
 above: the deterministic query API is literally the CLI, filtered — no second
 surface, so no drift between what the local agent sees and what a peer sees.
+
+### 2026-09-02
+
+Punted. The only consumers were `pair#147` (cluster transport) and `pair#148`
+(brain advisor), both punted by the couch-lite rescope (`pair#170`). With couch
+narrowed to a single-host switcher, no actor asks another actor anything, so the
+exposure annotation has nothing to serve. The design stands if cross-actor
+queries return.
