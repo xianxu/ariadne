@@ -152,14 +152,42 @@ prefix, so any grep by family matches both — rejected for that reason.
 
 ## Plan
 
-- [ ] M1 — add ARCH-SECURE to `architecture.md`; extend the marker list in
+- [ ] Add ARCH-SECURE to `architecture.md`; extend the marker list in
       `archprinciples_test.go`; assert the rendered block counts 6 entries and
       carries the marker under both lenses.
-- [ ] M2 — add `architecture-deferred.md` with ARCH-AUTHORITY, plus a test
-      asserting the deferred marker reaches NO gate output (the guard that makes
-      "documented but not gated" a checked property rather than a convention).
-- [ ] M3 — atlas: `atlas/workflow/architecture-principles.md` gains ARCH-SECURE
-      and a note on the deferred file and how to activate an entry.
+- [ ] Add `architecture-deferred.md` with ARCH-AUTHORITY.
+- [ ] Guard "documented but not gated" as a checked property: a test in package
+      `judge` that DERIVES the set of gate-facing text — every `prompts/*.md`
+      walked out of `promptFS` and rendered, plus `ArchitectureBlock` under both
+      lenses, `CodeReviewBody`, and `ArchitectureRegistry` itself — and asserts
+      none contains `ARCH-AUTHORITY`. Enumerating gate outputs by hand is the
+      restatement that goes stale; a prompt added later must be covered without
+      anyone remembering this issue.
+- [ ] Atlas: `atlas/workflow/architecture-principles.md` gains ARCH-SECURE and a
+      note on the deferred file + how to activate an entry (move the section).
+
+## Revisions
+
+### 2026-09-02 — one review boundary, not three
+
+The Plan arrived tagged `M1`/`M2`/`M3`. In this workflow an `Mx` tag is a
+**review boundary**, not a task label (AGENTS.md §3): each one commits to its own
+`sdlc milestone-close` with a full fresh-context LLM review and a
+`Review-Verdict:` trailer. This is ~3 files and well under 100 lines of
+production code — a paste into a registry, one new markdown file, one test, one
+atlas edit — so three boundaries would buy three reviews of a change that has one
+coherent story, plus the redundant milestone-close/issue-close double-log §3
+warns about.
+
+Retagged as plain checkboxes: one close, one review. Fresh evidence for the
+sizing: ariadne#206 just spent **six** boundary review rounds on one close, and
+the cost tracked the number of members in the class under review, not the number
+of milestones. Splitting a small change into more boundaries multiplies the
+reviews without adding classes to check.
+
+The step list also gained a row: the deferred-marker guard was folded inside M2's
+one line, and it is the only part of this issue that is genuinely design rather
+than transcription — it deserves its own row and its own reasoning.
 
 ## Log
 
