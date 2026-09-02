@@ -400,7 +400,7 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 	wtRoot, _ := gitx.RepoTopLevel()
 	changed = filesDifferingFrom(mainPath, wtRoot, changed)
 	if len(changed) == 0 {
-		cinfo(stderr, "main worktree already carries this body — publishing only.")
+		cinfo(stderr, "main worktree already carries this body — nothing to copy; publishing only.")
 		if out, err := r.GitInDir(mainPath, "push", "origin", "main"); err != nil {
 			return fmt.Errorf("push failed: %v\n%s", err, out)
 		}
@@ -488,7 +488,7 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 		return fmt.Errorf("git -C %s diff --cached: %v\n%s", mainPath, err, staged)
 	}
 	if strings.TrimSpace(string(staged)) == "" {
-		cinfo(stderr, "main worktree already carries this body — publishing only.")
+		cinfo(stderr, "the copy staged nothing — main was already current; publishing only.")
 	} else {
 		commitMsg := syncMessage(msg, fmt.Sprintf("issue-sync: update issues from branch '%s'", branch))
 		commitArgs := append([]string{"commit", "-m", commitMsg, "--"}, changed...)

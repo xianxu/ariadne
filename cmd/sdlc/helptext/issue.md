@@ -72,11 +72,19 @@ re-derive, before a long-running tool call, before a context checkpoint.
 
 It does NOT push. Durability and publication are separable, and only durability
 is missing mid-planning: the default is a local commit in the current worktree,
-on the current branch, with no network — cheap enough to run often, and safe
-because a half-written Spec cannot escape. Publication stays with the verbs that
-already own an external boundary; `sdlc change-code` runs the same sync WITH the
-push once plan-quality has accepted the design, and `--push` is there for other
-milestone callers.
+on the current branch, performing **no network operation at all** — one `git
+add` and one `git commit` over this issue's files, sub-second, offline-safe.
+That is cheap enough to run on every design move, which is the point.
+
+The guarantee is about this VERB, not about the repository. A local commit is
+still a commit: a later `sdlc claim`, `sdlc issue new` or `sdlc push` on main
+publishes whatever main carries, this body included. "Not pushed" means "this
+command did not push", not "this content can never reach origin by any route".
+
+Publication stays with the verbs that already own an external boundary; `sdlc
+change-code` runs the same sync WITH the push once plan-quality has accepted the
+design, and `--push` is there for other milestone callers — including to finish
+a publish whose commit already landed.
 
 For depth:
 

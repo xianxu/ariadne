@@ -892,3 +892,172 @@ findings:
       only the rendering: changecode.go:165 prints "Would sync locally (not on main — publishing
       belongs to pr/merge/close) issue #206 under …". Move the parenthetical to its own line.
 ```
+
+---
+
+## Re-review — 2026-09-02T14:16:34-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 206 — sdlc: commit planning output via issue sync |
+| repo | ariadne |
+| issue file | workshop/issues/000206-issue-sync-verb.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 92bd1ad1ebdc6bca1b218b318e4740b6fab3d787..79aa975a9960b85f445adc4142d2d5d4045709d5 |
+| command | sdlc close --issue 206 |
+| reviewer | claude |
+| timestamp | 2026-09-02T14:16:34-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Round 5's fix is real and measured: I reproduced the BR-26 sequence on a live bare-origin + main-worktree + feature-worktree repo (`issue sync --push` twice from a branch → exit 0; `issue sync` then `claim` then `claim` → clean no-op, exit 0, matching base), and revert-verified it — deleting the `filesDifferingFrom` filter takes `TestPublishIsIdempotent/feature_worktree` red. The full `go test ./cmd/sdlc/...` run is green except the known pre-existing `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (already filed as #207). Nothing blocks the boundary. What remains: one Important test-hygiene defect I measured while doing the revert (a sync-test failure kills the whole package binary with no per-test attribution, and every test's own error branch is dead code), plus a repeat of the enumeration family — the byte-identical member of "publish twice" is covered, the *edited* member still dies on a false conflict — and BR-27's doc claim, which I re-measured as still false through a different mechanism.
+
+```findings
+dispose:
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      The two new workshop/plans/ files are gate ledgers (boundary-review + close-gate), not a durable plan; the recorded "M6 not taken" rationale stands, Minor, non-blocking.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      No operating envelope in the issue or atlas; the Spec's "no network, offline-safe, cheap" is the nearest thing to one.
+  - id: BR-26
+    disposition: addressed
+    note: |
+      Measured on a real bare-origin/two-worktree repo: both sequences now exit 0; revert of the filesDifferingFrom filter takes TestPublishIsIdempotent/feature_worktree red.
+  - id: BR-27
+    disposition: not-addressed
+    note: |
+      mainAheadOfOrigin is gone, but the claim is still false via git push semantics — measured below.
+  - id: BR-28
+    disposition: addressed
+    note: |
+      changeCodeSyncVerb/changeCodeSyncNote put the caveat on its own line (changecode.go:212-229, rendered at :165-173).
+findings:
+  - id: new
+    severity: Important
+    family: unreachable-test-failure-branch
+    title: |
+      every runIssueSync test has a dead error branch, and a failure kills the whole cmd/sdlc test binary with no attribution
+    detail: |
+      runIssueSync reports failure through die() -> exitWithCode -> os.Exit(1) (term.go:51-59), so
+      the `if err := runIssueSync(...); err != nil { t.Fatalf(...) }` shape at 13 call sites in
+      issuesync_test.go (:109, :153, :244, :266, :288, :608, :719, :732, :763, :804, :819, :892,
+      :920) can never be taken. Measured during the BR-26 revert check: with the filter removed,
+      TestPublishIsIdempotent/feature_worktree produced no `--- FAIL:` line at all — the process
+      exited mid-test and go test reported only a package-level FAIL, taking every later test in
+      the package with it. This directly degrades the revert-and-measure protocol all five rounds
+      of this gate relied on, and it is what the tree's own expectDie seam (die_test.go:33, used
+      correctly at issuesync_test.go:307) exists to prevent. Fix: route these through expectDie
+      and assert died == false, or have runIssueSync return the error and let the cobra RunE die.
+  - id: new
+    severity: Minor
+    family: class-fix-without-class-test
+    title: |
+      publish-twice is fixed only for a byte-identical body; an edited body still dies on a false conflict
+    detail: |
+      **This is the 6th finding in family `class-fix-without-class-test`.** Earlier rounds fixed
+      instances; do NOT fix this instance — state the rule.
+
+      Measured at HEAD on a real bare-origin + main + feature-worktree repo: `issue sync --issue N
+      --push` (body v2, publishes), edit to v3, `issue sync --issue N --push` again ->
+      "Conflict detected!" + exit 1, because main's copy of the file came from this very branch's
+      previous publish and the merge-base detector reads that as "both sides touched it". Also
+      measured against base 92bd1ad via the equivalent `claim` sequence: base fails identically,
+      so this is PRE-EXISTING, not a regression, and conflict detection is explicitly out of the
+      Spec's scope. What is in scope is the enumeration: round 5's fix and its two new tables
+      (TestPublishIsIdempotent, TestIssueSync_PublishMatrix over {on main, feature worktree} x
+      {dirty, already committed locally}) cover the destination-copy state {absent, identical} and
+      omit {older-because-this-branch-published-it}, which is the normal state for a verb whose
+      whole purpose is repeated checkpointing.
+
+      The rule, per the issue's own Log ("a property asserted over an enumeration after checking
+      one member"): a fix stated as "X is now handled" must be pinned by a table enumerating the
+      states X ranges over. Here that enumeration is the destination copy's relation to this
+      worktree's body. Sweeping the remaining member or recording it as out of scope (with the
+      base measurement) in a `## Revisions` entry both satisfy it; leaving it unstated does not.
+  - id: new
+    severity: Minor
+    family: undocumented-behavior-change
+    title: |
+      a no-push sync commit on main is published wholesale by the next verb that pushes main
+    detail: |
+      Re-measurement of BR-27 after round 5 removed mainAheadOfOrigin. On main: `sdlc issue sync
+      --issue 206` (local commit, nothing pushed), then `sdlc claim --issue 300` on an unrelated
+      dirty issue -> syncInPlace commits 300 and runs `git push origin main`, which publishes the
+      BRANCH, not the commit. `git show origin/main:workshop/issues/000206-*.md` then returns the
+      body the sync deliberately kept local. helptext/issue.md still says the default is "safe
+      because a half-written Spec cannot escape", and AGENTS.base.md §2 says "It does **not** push
+      — a local commit, no network"; both are true of the verb and false of the repository state
+      it leaves behind. Main is the dominant planning location (claim -> start-plan -> design ->
+      change-code all run pre-branch), so this is the common case, not an edge one. Per the
+      family's rule this belongs in the atlas's #206 behaviour-change enumeration
+      (atlas/workflow/sdlc-binary.md, the "Publication is the gap..." bullets) alongside the
+      MERGE_HEAD partial-commit note, not patched as one more sentence.
+  - id: new
+    severity: Minor
+    family: narrowed-add-bare-commit
+    title: |
+      "main worktree already carries this body — publishing only." is duplicated at two claim.go sites
+    detail: |
+      claim.go:397 (the pre-conflict-detection short-circuit) and claim.go:478 (the nothing-staged
+      branch after the copy) emit the same literal for two different states, so the message can't
+      tell the operator which path ran. Trivial, ARCH-DRY.
+```
+
+## Strengths
+
+1. **The round-5 fix is placed at the right seam.** Dropping byte-identical files *before* the conflict detector (`claim.go:385-405`) is genuinely "declining to invoke conflict detection" rather than implementing it — it stays inside the Spec's out-of-scope line, and the comment says exactly that. Replacing round 4's `mainAheadOfOrigin` inference with an explicit `PublishExisting` flag set by one caller (`issue.go:365`) is the correct correction: intent belongs in a flag, not in a heuristic over `origin/main..main`.
+2. **`TestGitCommitsCarryTheirPathspec` (`commitpathspec_guard_test.go:52`) is the right shape of answer.** The two-part exemption — an allowlist entry *and* a demonstrated `git add -A` in the same function — is what stops an entry widening to a sibling commit, and I confirmed it covers every production `git commit` in the tree: `grep '"commit"'` across `cmd/sdlc/internal/` and `pkg/` finds only `testfix.go`, so the non-recursive `ParseDir(".")` scope is complete today and the atlas describes it accurately.
+3. **The bookkeeping-verb coupling is pinned from both ends.** `gitx/window_test.go:211-217` pins `#206: issue-sync: spec/plan` as *not* shipped work and `#206: issue sync verb lands` as shipped, and `TestIssueSyncMessage_IsClassifiedAsBookkeeping` (`issuesync_test.go:324`) pins it from the sdlc side. The hyphen argument is correct and now load-bearing in a test.
+4. **`archiveCommitArgs` derives its paths from `archiveAddArgs(moves)[2:]`** (`push.go:270`) rather than rebuilding them — the two lists cannot drift, which is the actual invariant, and the empty-moves refusal covers the helper's own degenerate input.
+5. **Real-git fixtures throughout.** `syncRepo` builds a bare origin plus linked worktrees; `TestIssueSync_PublishMatrix` asserts published *content* out of `origin/main` rather than SHAs, which is exactly what catches a push that moved nothing.
+
+## Critical findings
+
+None.
+
+## Important findings
+
+See the `unreachable-test-failure-branch` finding above (`cmd/sdlc/issuesync_test.go`, 13 sites). Fix sketch: wrap each `runIssueSync` drive in `expectDie` and assert `died == false`, e.g.
+
+```go
+if _, died := expectDie(t, func() { _ = runIssueSync(&stdout, &stderr, f) }); died {
+    t.Fatalf("issue sync refused: stderr:\n%s", stderr.String())
+}
+```
+
+## Minor findings
+
+- `claim.go:397` / `claim.go:478` — same literal message for two different states.
+- `filesDifferingFrom(destRoot, srcRoot, …)` (`claim.go:507`) has no direct unit test; it is covered end-to-end and `bytes.Equal` makes an argument swap nearly harmless, so this is a note rather than a gap.
+- The `#206` gate ledgers (`workshop/plans/000206-*-close-gate.md`, `-close-review.md`, 145KB combined) now live beside durable plans in the same directory; nothing distinguishes them from a plan except the filename suffix. Worth a convention note if the directory keeps growing.
+
+## Test coverage notes
+
+- Full suite run: `go test ./cmd/sdlc/...` — one failure, `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (`fleet_plan_test.go:14`, reads an archived plan by hardcoded path), pre-existing and already filed as #207. Everything else green.
+- Revert measurement of the round-5 fix: removing `changed = filesDifferingFrom(...)` and its short-circuit from `syncViaMainWorktree` fails the package via `TestPublishIsIdempotent/feature_worktree`. The fix is pinned.
+- Coverage gap, per the family finding: no test publishes twice with a *changed* body. The nearest cell (`PublishMatrix/feature_worktree/already committed locally`) publishes once from a state main has never seen.
+
+## Architectural notes
+
+- **ARCH-DRY — pass** (one nit). `syncIssuesToMain` is genuinely the single dispatch for `claim`, `issue new`, `issue sync`, `change-code`; `commitUntrackedIssueFile` is deleted; `archiveCommitArgs`/`migrateCommitArgs`/`issueFilesForID` each single-source a shape that was previously restated. The only duplication left is the message literal noted above.
+- **ARCH-PURE — pass.** The diff is unusually honest here: `syncPathspec`'s doc retracts its own purity claim now that it globs through `issueFilesForID`, `filesDifferingFrom` says "pure-ish… reads only" and keeps the IO-ordering decision in the caller, and `changeCodeSyncVerb`/`changeCodeSyncNote` are pure with `syncIssuePublishes()` as the one-line git seam.
+- **ARCH-PURPOSE — flag.** Two instances, both above: the publish-state enumeration covered at one member (`class-fix-without-class-test`), and the doc claim that promises a safety property the code does not enforce (`undocumented-behavior-change`). The trigger-delivery half of the purpose *is* done — `syncPointer` is in `start-plan`'s output, pinned by `TestRunStartPlan_RendersAtPlanLens`, and I confirmed the weave-generated `AGENTS.md`/`CLAUDE.md`/`GEMINI.md` all derive the §2/§14 lines from `AGENTS.base.md`, so no consumer is a hand-maintained restatement.
+- **ARCH-MOCK — pass.** Production and test flow share the boundary: tests drive `runIssueSync`/`syncIssuesToMain`/`syncIssue` against `testfix.Repo` with a real bare origin and real linked worktrees. The surviving `claimRunnerStub` is confined to the branch-arm argv assertion and its rationale is recorded in the issue's Revisions.
+- **ARCH-CONSTRAINTS — flag** (BR-12, unchanged). The verb is designed to be run on every design move and no envelope is declared. The material facts are all stated qualitatively in the Spec ("no network", "offline-safe", "costs nothing"); turning those into a one-line envelope — local `git add`+`commit` over one file, sub-second, zero network on the default path, network only under `--push` — would cost a sentence and close it.
+
+## Plan revision recommendations
+
+Two `## Revisions` entries, both in `workshop/issues/000206-issue-sync-verb.md`:
+
+1. **"round 5's idempotence fix covers one member of the publish-state enumeration."** Name the enumeration explicitly (destination copy: absent / identical / older-because-this-branch-published-it / older-from-elsewhere / newer), state that round 5 fixed *identical*, record the measured false-conflict on *older-from-this-branch* along with the base-92bd1ad measurement showing it pre-dates #206, and say whether it is being swept or accepted as out-of-scope conflict-detection behavior.
+2. **"the no-push guarantee is about the verb, not the repository."** Correct `helptext/issue.md`'s "a half-written Spec cannot escape" and `AGENTS.base.md` §2 to the accurate claim — *this verb performs no network operation* — and add the consequence (a later `claim`/`issue new`/`push` on main publishes the whole branch) to the `#206` behavior-change enumeration in `atlas/workflow/sdlc-binary.md`, beside the MERGE_HEAD partial-commit note.

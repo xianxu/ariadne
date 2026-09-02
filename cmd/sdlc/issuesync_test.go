@@ -93,6 +93,23 @@ func headSubject(t *testing.T, dir string) string {
 	return strings.TrimSpace(git(t, dir, "log", "-1", "--format=%s"))
 }
 
+// syncOK drives `sdlc issue sync` and fails THIS test if the verb refuses.
+//
+// Every caller's natural `if err := runIssueSync(…); err != nil` branch is dead
+// code: the verb reports refusals through die(), which is os.Exit(1) in
+// production. A refusal therefore took the whole cmd/sdlc test binary down with
+// no attribution to the test that caused it — measured during a revert probe,
+// where the only signal was "exit status 1". expectDie swaps die for a
+// recoverable panic, which is the only way a refusal becomes a normal failure
+// naming its test and carrying the verb's message.
+func syncOK(t *testing.T, stdout, stderr *bytes.Buffer, f *issueSyncFlags) {
+	t.Helper()
+	msg, died := expectDie(t, func() { _ = runIssueSync(stdout, stderr, f) })
+	if died {
+		t.Fatalf("sdlc issue sync refused: %s\nstderr:\n%s", msg, stderr.String())
+	}
+}
+
 // ── the swept-index regression, per sync arm ─────────────────────────────────
 
 // TestSyncInPlace_LeavesForeignStagedFileAlone is #206's core regression. Before
@@ -106,9 +123,7 @@ func TestSyncInPlace_LeavesForeignStagedFileAlone(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}
-	if err := runIssueSync(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runIssueSync: %v (stderr: %s)", err, stderr.String())
-	}
+	syncOK(t, &stdout, &stderr, f)
 
 	committed := headFiles(t, repo)
 	if strings.Contains(committed, foreign) {
@@ -150,9 +165,7 @@ func TestSyncViaMainWorktree_CommitsOnlyTheCopiedIssueFiles(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}
-	if err := runIssueSync(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runIssueSync: %v (stderr: %s)", err, stderr.String())
-	}
+	syncOK(t, &stdout, &stderr, f)
 
 	committed := strings.Fields(headFiles(t, mainWT))
 	want := []string{syncIssuesDir + "/000206-issue-sync-verb.md"}
@@ -241,9 +254,7 @@ func TestIssueSync_DefaultDoesNotPush(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}
-	if err := runIssueSync(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runIssueSync: %v", err)
-	}
+	syncOK(t, &stdout, &stderr, f)
 
 	if after := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); after != before {
 		t.Errorf("default sync moved origin/main (%s → %s); it must not publish", before, after)
@@ -263,9 +274,7 @@ func TestIssueSync_PushPublishes(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}
-	if err := runIssueSync(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runIssueSync: %v", err)
-	}
+	syncOK(t, &stdout, &stderr, f)
 	local := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
 	if remote := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); remote != local {
 		t.Errorf("--push should leave origin/main at the sync commit; local %s remote %s", local, remote)
@@ -285,9 +294,7 @@ func TestIssueSync_FromFeatureBranchCommitsOnThatBranch(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}
-	if err := runIssueSync(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runIssueSync from a feature branch: %v (stderr: %s)", err, stderr.String())
-	}
+	syncOK(t, &stdout, &stderr, f)
 
 	if !strings.Contains(headFiles(t, repo), syncIssuesDir+"/000206-issue-sync-verb.md") {
 		t.Error("the commit should be on the feature branch's HEAD")
@@ -605,9 +612,7 @@ func TestIssueSync_DryRunCommitsNothing(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, DryRun: true}
-	if err := runIssueSync(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runIssueSync --dry-run: %v", err)
-	}
+	syncOK(t, &stdout, &stderr, f)
 	if after := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")); after != before {
 		t.Errorf("--dry-run committed (%s → %s)", before, after)
 	}
@@ -716,9 +721,7 @@ func TestIssueSync_PushPublishesAnAlreadyCommittedBody(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	local := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}
-	if err := runIssueSync(&stdout, &stderr, local); err != nil {
-		t.Fatalf("local sync: %v", err)
-	}
+	syncOK(t, &stdout, &stderr, local)
 	head := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
 	if origin := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); origin == head {
 		t.Fatal("fixture broken: the local sync should NOT have published")
@@ -729,9 +732,7 @@ func TestIssueSync_PushPublishesAnAlreadyCommittedBody(t *testing.T) {
 	stdout.Reset()
 	stderr.Reset()
 	publish := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}
-	if err := runIssueSync(&stdout, &stderr, publish); err != nil {
-		t.Fatalf("publish sync: %v (stderr: %s)", err, stderr.String())
-	}
+	syncOK(t, &stdout, &stderr, publish)
 	if origin := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); origin != head {
 		t.Errorf("--push did not publish the already-committed body: origin/main %s, main %s\nstderr:\n%s",
 			origin, head, stderr.String())
@@ -760,9 +761,7 @@ func TestChangeCodeSyncIssue_RetryAfterAFailedPushPublishes(t *testing.T) {
 	git(t, repo, "remote", "add", "origin", origin)
 
 	var stdout, stderr2 bytes.Buffer
-	if err := runIssueSync(&stdout, &stderr2, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}); err != nil {
-		t.Fatalf("advertised retry failed: %v (stderr: %s)", err, stderr2.String())
-	}
+	syncOK(t, &stdout, &stderr2, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true})
 	if got := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); got != head {
 		t.Errorf("the retry the warning names must publish: origin/main %s, main %s", got, head)
 	}
@@ -801,9 +800,7 @@ func TestIssueSync_PublishMatrix(t *testing.T) {
 		{"already committed locally", func(t *testing.T, dir string) {
 			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", body)
 			var o, e bytes.Buffer
-			if err := runIssueSync(&o, &e, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}); err != nil {
-				t.Fatalf("local pre-sync: %v (stderr: %s)", err, e.String())
-			}
+			syncOK(t, &o, &e, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
 		}},
 	}
 
@@ -816,12 +813,9 @@ func TestIssueSync_PublishMatrix(t *testing.T) {
 				bs.setup(t, dir)
 
 				var stdout, stderr bytes.Buffer
-				err := runIssueSync(&stdout, &stderr, &issueSyncFlags{
+				syncOK(t, &stdout, &stderr, &issueSyncFlags{
 					Issue: 206, IssuesDir: syncIssuesDir, Push: true,
 				})
-				if err != nil {
-					t.Fatalf("--push: %v (stderr: %s)", err, stderr.String())
-				}
 
 				// The published body must match what this worktree holds. Reading
 				// it out of origin is what catches a push that moved nothing —
@@ -889,9 +883,7 @@ func TestPublishIsIdempotent(t *testing.T) {
 			run := func(label string, f *issueSyncFlags) {
 				t.Helper()
 				var stdout, stderr bytes.Buffer
-				if err := runIssueSync(&stdout, &stderr, f); err != nil {
-					t.Fatalf("%s: %v\nstderr:\n%s", label, err, stderr.String())
-				}
+				syncOK(t, &stdout, &stderr, f)
 			}
 			// The documented workflow: checkpoint locally, then publish. Then
 			// publish again — an agent re-running a verb is the normal case, not
@@ -917,9 +909,7 @@ func TestClaimStaysIdempotentOffline(t *testing.T) {
 	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nkept local on purpose\n")
 
 	var stdout, stderr bytes.Buffer
-	if err := runIssueSync(&stdout, &stderr, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}); err != nil {
-		t.Fatalf("local sync: %v", err)
-	}
+	syncOK(t, &stdout, &stderr, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
 	localHead := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
 
 	// Origin is now unreachable: any network attempt fails loudly.
@@ -936,5 +926,40 @@ func TestClaimStaysIdempotentOffline(t *testing.T) {
 	}
 	if got := strings.TrimSpace(git(t, repo, "rev-parse", "main")); got != localHead {
 		t.Errorf("claim must not have moved main (%s → %s)", localHead, got)
+	}
+}
+
+// TestFilesDifferingFrom is the direct unit for the round-5 filter. It is
+// covered end to end by TestPublishIsIdempotent, but the argument order
+// (destRoot, srcRoot) is the kind of thing bytes.Equal makes symmetric and
+// therefore invisible — so the "missing at the destination" case, which is NOT
+// symmetric, is what this pins.
+func TestFilesDifferingFrom(t *testing.T) {
+	src, dest := t.TempDir(), t.TempDir()
+	write := func(root, name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(src, "same.md", "identical\n")
+	write(dest, "same.md", "identical\n")
+	write(src, "edited.md", "branch version\n")
+	write(dest, "edited.md", "main version\n")
+	write(src, "new.md", "only on the branch\n") // absent at the destination
+
+	got := filesDifferingFrom(dest, src, []string{"same.md", "edited.md", "new.md", "gone.md"})
+	want := map[string]bool{
+		"edited.md": true, // differs → must be routed
+		"new.md":    true, // missing at the destination → must be routed
+		"gone.md":   true, // unreadable source → routed, so the copy reports the real IO error
+	}
+	if len(got) != len(want) {
+		t.Fatalf("filesDifferingFrom = %v, want the three non-identical paths", got)
+	}
+	for _, p := range got {
+		if !want[p] {
+			t.Errorf("%q should not be routed — it is byte-identical at the destination", p)
+		}
 	}
 }

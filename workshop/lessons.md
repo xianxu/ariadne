@@ -1182,3 +1182,30 @@ negator list when the actual contract is canonical policy prose. Normalize and
 pin the complete affirmative clause; then deletions, insertions, modifiers, and
 polarity changes all fail through one invariant rather than an open-ended syntax
 enumeration.
+
+## A real-git test that hand-builds the argv proves the helper and mocks the wiring
+
+**Pattern (#206 close review, rounds 2–3):** A bug class was fixed at seven call
+sites and covered by tests using real repos, real git, real fixtures — no
+function-call mocks anywhere. The reviewer reverted the fixes anyway and measured
+the suite: five of the seven came back **green**. The tests ran
+`r.Git("commit", …, "--", path)` themselves instead of driving `runMigrate` /
+`runPush` / `runStartPlan`, so they exercised git and the helper and never
+touched the line that was reverted. Satisfying `ARCH-MOCK`'s letter — real
+dependency, real state — while inverting it: the *wiring* was the mock.
+
+**Rule:** A fix at a call site is pinned only by a test that enters through the
+production entry point. Before claiming a fix is covered, revert it and watch the
+suite go red; "the test passes and uses real git" is not evidence. Where the
+entry point cannot be driven in-process (a verb that `die()`s past the test seam,
+or one gated on an LLM judge), assert the wiring at the source instead — an AST
+guard that fails when the call disappears is weaker than driving the verb and
+strictly stronger than a call site nothing references. Say which one you have.
+
+**Corollary on class fixes:** the review cost of a multi-site class scales with
+the number of members, not the number of files. Six review rounds found five
+genuine defects on #206, every one of them a property asserted over an
+enumeration after checking a single member of it — five commit sites, three name
+modes, three worktree locations, two sync arms, one run of a verb that gets
+re-run. Enumerate the members in the plan and write the table before the fix, not
+after the reviewer names the member you skipped.

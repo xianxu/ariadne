@@ -173,11 +173,18 @@ entry point is not in-process drivable (`runChangeCode`, #191; `runPush` /
 source guard asserts the edge instead. Weaker than driving the verb, strictly
 stronger than a call site that can be deleted with the suite still green.
 
-**New failure mode:** a pathspec'd commit is a *partial* commit, and git refuses
-one outright while `MERGE_HEAD` is set (`fatal: cannot do a partial commit during
-a merge`). A sync or archive run mid-merge now fails loudly where the bare commit
-would have folded the merge in silently. That is the better behavior, but it is a
-behavior change: finish or abort the merge first.
+**Behavior changes worth knowing about**, both introduced here:
+
+- A pathspec'd commit is a *partial* commit, and git refuses one outright while
+  `MERGE_HEAD` is set (`fatal: cannot do a partial commit during a merge`). A
+  sync or archive run mid-merge now fails loudly where the bare commit would
+  have folded the merge in silently. Better behavior, but finish or abort the
+  merge first.
+- `issue sync`'s no-push default is a property of the **verb**, not of the
+  repository. The body is committed locally, and a later `claim` / `issue new` /
+  `push` on main publishes whatever main carries — this body included. "Not
+  pushed" means "this command performed no network operation", never "this
+  content cannot reach origin by another route".
 
 **Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
 *transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the

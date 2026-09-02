@@ -1,12 +1,13 @@
 ---
 id: 000206
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours: 1.31
 started: 2026-09-02T11:36:01-07:00
+actual_hours: 4.43
 ---
 
 # sdlc: commit planning output via issue sync
@@ -94,7 +95,13 @@ exists to *publish*. So the arms get honest names — `syncInPlace` and
 
 A no-push sync is therefore local, offline-safe, and durable on the branch the
 work is actually happening on — which is what makes it cheap enough to run
-mid-planning. It also makes the verb usable from an in-place feature branch,
+mid-planning.
+
+**Operating envelope (`ARCH-CONSTRAINTS`).** The default path is one `git add`
+and one `git commit` over a single issue file: sub-second, **zero network**, no
+worktree hunt, no subprocess beyond git. That is the budget a verb the
+constitution tells agents to run after every design move has to fit in, and it
+is why the network lives behind `--push` rather than in the default. It also makes the verb usable from an in-place feature branch,
 where `syncViaMainWorktree` cannot run at all because no worktree is on `main`.
 `claim` and `issue new` never set no-push, so their dispatch is unchanged.
 
@@ -595,6 +602,43 @@ sync arms, one run of a verb that gets re-run. What finally holds isn't the
 fixes; it's the two source guards and the three tables, which check the members
 for me.
 
+### 2026-09-02 — the publish-state enumeration, and what is left unswept
+
+Round 5 fixed *one member* of an enumeration, and the close review named the
+rest. Stated in full, the destination copy of the body can be:
+
+| destination state | behavior |
+| --- | --- |
+| **absent** | routed and committed — the ordinary first publish |
+| **identical** | dropped before conflict detection; publish only (round 5) |
+| **older, because this branch published it, then the branch edited it** | **false `Conflict detected!`** — see below |
+| **older, from elsewhere** | correctly detected as a conflict |
+| **newer** | correctly detected as a conflict |
+
+The third row is a real false positive: `syncOnBranch`'s detector asks "did both
+sides touch this file since merge-base", and after a publish-then-edit both
+sides have — though the only content on main is the copy this same verb put
+there. **It is accepted, not swept**, for two reasons. It predates this issue
+(measured at base `92bd1ad`: same detector, same question, reachable the same
+way whenever a branch edits a file it previously synced to main), and resolving
+it means asking whether main's version is an *ancestor* of the branch's — which
+is conflict detection, explicitly out of scope in the Spec's final paragraph.
+Round 5's filter stayed on the right side of that line by declining to invoke
+the detector for byte-identical content; going further would cross it. The
+resolution guide the detector already prints is the correct answer for that row
+today.
+
+### 2026-09-02 — the no-push guarantee is about the verb, not the repository
+
+`helptext/issue.md` claimed a half-written Spec "cannot escape", and
+`AGENTS.base.md` §2 implied the same. Both overstated it. A local commit is
+still a commit: a later `sdlc claim`, `sdlc issue new` or `sdlc push` on main
+publishes whatever main carries, this body included. The accurate claim — now
+what both documents say — is that **this verb performs no network operation**.
+That is the property agents can rely on, and it is the one the default actually
+enforces. The consequence is recorded in the atlas beside the MERGE_HEAD
+partial-commit note, as a behavior change rather than a footnote.
+
 ### 2026-09-02 — where the sync sits inside `change-code`
 
 After the whole gate sequence, at the point `commitUntrackedIssueFile`
@@ -610,6 +654,7 @@ what `sdlc issue sync` is for — the Spec says so.
 ## Log
 
 ### 2026-09-02
+- 2026-09-02: closed — go test ./cmd/... ./pkg/... — green except the pre-existing unrelated TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (archived plan path; filed as #207). BR-26 fixed as a rule: a body the destination already carries byte-for-byte is dropped from the route list before conflict detection is invoked (filesDifferingFrom), so the documented workflow survives a second lap. TestPublishIsIdempotent runs local-sync -> publish -> publish -> bare re-sync from both on-main and a feature worktree; verified it goes red on revert (the false conflict die()s the test process, exit status 1). Round 4 heuristic mainAheadOfOrigin removed in favor of explicit PublishExisting intent set only by `issue sync --push`; TestClaimStaysIdempotentOffline pins that a clean-tree claim with an unreachable origin exits 0 without moving main. Minor: change-code --dry-run renders the off-main caveat on its own line, derived from the same syncIssuePublishes() the code branches on.; review verdict: FIX-THEN-SHIP
 
 **Gates.** plan-quality BLOCKED at round 1 with seven findings, all verified
 real against the code before acting on them; round 2 CLEAN. PQ-5 was the
@@ -657,6 +702,22 @@ another fix.
 **Close review round 5: REWORK** on idempotence — publishing twice died on a
 false conflict. Fixed as a rule (identical content is nothing to route) plus an
 explicit `PublishExisting` intent replacing the heuristic round 4 introduced.
+
+**Close review round 6: FIX-THEN-SHIP** — no blocking findings. Fixed under the
+protocol before the close commit: every `runIssueSync` drive now goes through
+`syncOK` (the natural `if err != nil` branch was dead code, so a refusal killed
+the whole package binary with no attribution — the exact signal that made round
+5's revert probe read as a bare "exit status 1"); the two "already carries this
+body" messages now distinguish their states; `filesDifferingFrom` has a direct
+unit; the doc claim and the publish-state enumeration are corrected in
+`## Revisions`; the operating envelope is stated in the Spec.
+
+**Estimate vs actual: 1.31 est / 4.43 actual (0.3×).** Six review rounds, five of
+them finding a real defect. The estimate priced the design and the code, both of
+which were close; it priced one `milestone-review` at 0.15h for a boundary that
+took six. Worth carrying into the next estimate for multi-site class work: the
+review cost scales with the number of *members in the class*, not the number of
+files changed.
 
 **Coverage for the archive sites.** `archiveCommitArgs` is pure, so it is
 table-tested directly, and `push.go`'s in-place archive gets a real-repo
