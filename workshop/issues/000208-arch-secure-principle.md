@@ -43,6 +43,15 @@ which is deliberately NOT in scope here; see Spec.
 
 Add **one** gated principle, and write down a second **without** gating it.
 
+The split is the point. The implementation-level lens — untrusted input,
+credentials, blast radius — fires on defects this fleet actually produced, so it
+earns a slot in every gate prompt. The architecture-level one describes a
+property that needs an authority topology worth reasoning about, and gating it
+before that exists buys ceremony rather than design; it is written down where it
+can be activated by moving a section, and a test keeps it out of the prompts
+until someone does. Both texts are given below verbatim, because the registry is
+embedded whole-file and its prose *is* the deliverable.
+
 ### ARCH-SECURE (gated) — implementation level
 
 Goes in `cmd/sdlc/internal/judge/architecture.md`, so it is embedded into
@@ -121,6 +130,41 @@ decision that already has an owner and a plan. Activate this when a second
 instance of the pattern appears somewhere #129 does not cover.
 ```
 
+### The marker-enumeration class
+
+Adding a sixth entry is **not** a one-line paste. `ArchitectureMarkers()` is a
+genuine single source at runtime, but five sites restate its contents by hand:
+
+| site | on a 6th entry |
+| --- | --- |
+| `judge_test.go:120` `TestArchitectureMarkers` | hard-fails (`len != len` → `t.Fatalf`) |
+| `judge_test.go:332` `TestArchitectureRegistry_Content` | silently stops covering the new marker |
+| `judge_test.go:364` `{{ARCH_STAR}}` full-set literal | passes only if the entry is appended AFTER `ARCH-CONSTRAINTS` |
+| `cmd/sdlc/archprinciples_test.go:20` | silently stops covering the new marker |
+| four `testdata/golden/*.prompt` | byte-drift + "each of the 5 entries" → `-update-golden` |
+
+Patching five lists is the instance. The rule is: **exactly one site pins the
+marker set by hand — the tripwire that makes an accidental registry edit
+visible — and every other site derives from `ArchitectureMarkers()`.**
+`TestArchitectureMarkers` is that one site, because pinning the expected set is
+what it is *for*. The other three tests build their expectations from the
+function, so entry number seven touches the registry, the tripwire, and the
+goldens, and nothing else.
+
+The goldens legitimately carry registry bytes; regenerating them with
+`-update-golden` is the blessed path for a registry edit
+(`atlas/workflow/architecture-principles.md:16-20`), not a workaround.
+
+### Operating envelope (`ARCH-CONSTRAINTS`)
+
+The registry is embedded verbatim into four gate prompts plus `start-plan`
+output. A sixth entry costs roughly **+1.4 KB per dispatch** and one more
+mandatory item in the block header's "work through each of the N entries".
+That is accepted deliberately: the entry's clauses each trace to a defect this
+fleet actually shipped, and the alternative — a lens nobody is prompted with — is
+what the issue exists to end. The deferred file costs zero, which is the reason
+ARCH-AUTHORITY goes there rather than being trimmed into the registry.
+
 ### Why a separate file, not a status field
 
 `architecture.md` is embedded **whole-file** (`//go:embed`) and
@@ -145,10 +189,25 @@ prefix, so any grep by family matches both — rejected for that reason.
 - `sdlc start-plan` delivers it; the plan-quality and boundary-review prompts
   carry it (they embed the same registry, so this follows — assert it).
 - `architecture-deferred.md` exists with ARCH-AUTHORITY and is **not** reachable
-  from any prompt: a test asserts no gate output contains `ARCH-AUTHORITY`.
-- `cmd/sdlc/archprinciples_test.go` marker list includes ARCH-SECURE.
-- AGENTS.md's "Core Design Principles" narrative does not drift from the registry
-  (the existing drift guard covers this — confirm it sees the new marker).
+  from any prompt. The guard DERIVES both halves: the forbidden set by scanning
+  `architecture-deferred.md` with the existing `archMarkerRE`, and the gate-facing
+  text by walking `promptFS` plus `ArchitectureBlock` (both lenses),
+  `CodeReviewBody` and `ArchitectureRegistry`. Moving a section into
+  `architecture.md` must therefore *empty* the forbidden set and leave the guard
+  green — activation is the move and nothing else, exactly as the file claims.
+- That guard also asserts `architecture-deferred.md` parses **at least one**
+  marker, so renaming or deleting the file cannot make it vacuously pass.
+- Only ONE site hardcodes the marker set (`TestArchitectureMarkers`); the other
+  three test sites derive theirs from `ArchitectureMarkers()`. Adding a seventh
+  entry touches the registry, that one tripwire, and the goldens — nothing else.
+- The four `testdata/golden/*.prompt` files are regenerated and their entry count
+  reads 6.
+- AGENTS.md's "Core Design Principles" narrative is **marker-agnostic by design**
+  (#128 deliberately removed the per-marker enumeration from the constitution),
+  so `TestArchitecture_NarrativeRoutesToArchPrinciples` needs no change — asserted
+  by leaving it untouched and green, not by adding the restatement #128 deleted.
+- `atlas/index.md`'s Architecture Principles hook does not enumerate a coverage
+  list that goes stale on the next entry.
 
 ## Plan
 
@@ -163,8 +222,13 @@ prefix, so any grep by family matches both — rejected for that reason.
       none contains `ARCH-AUTHORITY`. Enumerating gate outputs by hand is the
       restatement that goes stale; a prompt added later must be covered without
       anyone remembering this issue.
+- [ ] Collapse the marker-restating sites: `TestArchitectureRegistry_Content`,
+      the `{{ARCH_STAR}}` golden expectation, and `archprinciples_test.go` all
+      derive from `ArchitectureMarkers()`; `TestArchitectureMarkers` stays the
+      single hand-written tripwire. Regenerate the four goldens.
 - [ ] Atlas: `atlas/workflow/architecture-principles.md` gains ARCH-SECURE and a
-      note on the deferred file + how to activate an entry (move the section).
+      note on the deferred file + how to activate an entry (move the section);
+      `atlas/index.md`'s hook stops enumerating a coverage list.
 
 ## Revisions
 
@@ -188,6 +252,27 @@ reviews without adding classes to check.
 The step list also gained a row: the deferred-marker guard was folded inside M2's
 one line, and it is the only part of this issue that is genuinely design rather
 than transcription — it deserves its own row and its own reasoning.
+
+### 2026-09-02 — "a simple paste" was wrong
+
+Plan-quality round 1 refuted the framing this issue was picked up under. Adding a
+sixth entry looked like one edit because `ArchitectureMarkers()` is a real
+single source *at runtime* — the block header count, `{{ARCH_STAR}}`,
+`start-plan`, and all four gate prompts genuinely derive. What does not derive is
+the **test** layer: five sites restate the marker set by hand, one of them a hard
+`t.Fatalf` on length, one of them order-sensitive in a way nothing states.
+
+The response is the rule rather than five patches: one hand-written tripwire,
+everything else derived. That is the same shape ariadne#206 converged on after
+six rounds, arrived at here in one — which is the gate working as intended.
+
+Two smaller corrections in the same round: the deferred-marker guard must derive
+its forbidden set from `architecture-deferred.md` (hardcoding `ARCH-AUTHORITY`
+would make the file's own "moving a section is the whole activation step" false
+— activation would red the guard), and the Done-when's claim about the AGENTS.md
+drift guard was backwards: that guard is marker-agnostic *by design* since #128,
+and "confirm it sees the new marker" invited re-adding the restatement #128
+deliberately removed.
 
 ## Log
 
