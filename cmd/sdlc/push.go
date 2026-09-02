@@ -201,7 +201,11 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("git add archived paths: %v\n%s", gerr, out))
 		}
-		if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
+		commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+		if cerr != nil {
+			die(stderr, cerr.Error())
+		}
+		if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
 			die(stderr, fmt.Sprintf("commit archive failed: %v\n%s", gerr, out))
 		}
 		if out, gerr := pushRunner.Git("push"); gerr != nil {
@@ -249,6 +253,33 @@ func archiveAddArgs(moves []preparedArchiveMove) []string {
 	}
 	return args
 }
+
+// archiveCommitArgs is archiveAddArgs' commit-side twin (#206): the SAME paths,
+// as a commit pathspec. A bare `git commit` after a precisely-narrowed `git add`
+// records the whole index, so a peer agent's staged work gets swept into a
+// commit that says it archived issues. Git treats a pathspec as implying
+// --only, which leaves the rest of the index alone.
+//
+// Derived from archiveAddArgs rather than rebuilt beside it, so the two lists
+// cannot drift — a commit pathspec wider than its add is the bug itself
+// (ARCH-DRY). Pure, like its twin: each caller feeds the result to its own
+// runner, in cwd (push) or another worktree (merge).
+//
+// Errors on an empty move list rather than returning `commit -m … --`, which
+// git reads as NO pathspec and happily commits the whole index — the exact
+// behavior this helper exists to prevent, from its degenerate input. Every
+// caller already guards on len(moves) > 0, so the error is unreachable; it is
+// here so the guard can never be dropped silently. Same posture as syncPathspec.
+func archiveCommitArgs(msg string, moves []preparedArchiveMove) ([]string, error) {
+	if len(moves) == 0 {
+		return nil, fmt.Errorf("archiveCommitArgs: no moves — an empty pathspec would commit the whole index")
+	}
+	args := []string{"commit", "-m", msg, "--"}
+	return append(args, archiveAddArgs(moves)[2:]...), nil
+}
+
+// archiveCommitMessage is the subject both archive call sites commit under.
+const archiveCommitMessage = "archive completed issues to history"
 
 // issueIDPrefix returns the leading 6-digit id of an issue/plan filename
 // (e.g. "000143" from "000143-x.md"), or "" when the name doesn't match the
@@ -360,14 +391,28 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 	}
 	if f.DryRun {
 		fmt.Fprintf(stdout, "Would: git %s\n", strings.Join(archiveAddArgs(moves), " "))
-		fmt.Fprintf(stdout, "Would: git commit -m %q\n", "archive completed issues to history")
+		// Route the hint through the same builder the real run uses, so the
+		// printed command can't lose the `--` the executed one carries (the
+		// consolidation migrate.go got a round earlier). The subject is quoted
+		// because it contains spaces and would otherwise read as more pathspec
+		// arguments.
+		hint, herr := archiveCommitArgs(archiveCommitMessage, moves)
+		if herr != nil {
+			return false, herr
+		}
+		fmt.Fprintf(stdout, "Would: git commit -m %q -- %s\n",
+			archiveCommitMessage, strings.Join(hint[4:], " "))
 		fmt.Fprintln(stdout, "Would: git push")
 		return true, nil
 	}
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
 	}
-	if out, gerr := pushRunner.Git("commit", "-m", "archive completed issues to history"); gerr != nil {
+	commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+	if cerr != nil {
+		return false, cerr
+	}
+	if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
 		return false, fmt.Errorf("commit archive failed: %v\n%s", gerr, out)
 	}
 	if out, gerr := pushRunner.Git("push"); gerr != nil {

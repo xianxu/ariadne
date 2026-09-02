@@ -194,6 +194,12 @@ func TestRunIssueNew_AutoSyncsToMainCleanTree(t *testing.T) {
 // still create + report the file and return nil — the sync is best-effort, not
 // a gate. A warning is surfaced. (Regression: an earlier cut had the sync die()
 // internally, which os.Exit'd the whole command on a failed push.)
+//
+// #206 sharpened the guarantee: publication and durability are separable, and
+// only publication failed here, so the file must still end up COMMITTED. An
+// untracked new issue is the hole #206 exists to close, and its commonest
+// trigger is mundane — `issue new` from an in-place feature branch, where the
+// publish route finds no worktree on main and nothing is actually wrong.
 func TestRunIssueNew_AutoSyncBestEffort(t *testing.T) {
 	dir := testfix.Repo(t)
 	issuesDir := filepath.Join(dir, "workshop", "issues")
@@ -225,8 +231,19 @@ func TestRunIssueNew_AutoSyncBestEffort(t *testing.T) {
 	if _, err := os.Stat(created); err != nil {
 		t.Errorf("file should exist despite sync failure: %v", err)
 	}
-	if !strings.Contains(stderr.String(), "auto-sync to main did not complete") {
+	if !strings.Contains(stderr.String(), "committed locally but not broadcast to main") {
 		t.Errorf("expected a best-effort sync warning on stderr; got:\n%s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "sdlc issue sync --issue 1 --push") {
+		t.Errorf("the warning must name how to publish once the cause is cleared; got:\n%s", stderr.String())
+	}
+	// The durability half must have happened even though the broadcast didn't.
+	head := git(t, dir, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+	if !strings.Contains(head, filepath.Base(created)) {
+		t.Errorf("a new issue must be committed even when it can't be published; HEAD files:\n%s", head)
+	}
+	if status := git(t, dir, "status", "--porcelain", "--", "workshop/issues"); strings.TrimSpace(status) != "" {
+		t.Errorf("new issue left uncommitted in the working tree; status:\n%s", status)
 	}
 }
 

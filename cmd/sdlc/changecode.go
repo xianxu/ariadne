@@ -48,6 +48,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
@@ -113,7 +114,7 @@ const sentinelBranchingStrategy = "ASK_BRANCHING_STRATEGY"
 
 func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags) error {
 	// 1. Resolve issue file path + branch name.
-	name, untrackedFile, issuePath, err := resolveChangeCodeName(f, changeCodeRunner)
+	name, issuePath, err := resolveChangeCodeName(f, changeCodeRunner)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -158,18 +159,33 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	//    run above, which are read-only).
 	if f.DryRun {
 		cinfo(stderr, "dry-run — branch creation skipped")
-		if untrackedFile != "" {
-			fmt.Fprintf(stdout, "Would commit + push: %s\n", untrackedFile)
+		if id := issueIDFromPath(issuePath); id > 0 {
+			// Derive the wording from the SAME test syncIssue branches on, not
+			// from a restatement of the outcome: from a branch it commits without
+			// publishing, so promising a push here would be a lie in two of the
+			// three locations.
+			publishes := syncIssuePublishes()
+			fmt.Fprintf(stdout, "Would %s issue #%d under %q\n",
+				changeCodeSyncVerb(publishes), id,
+				issueSyncMessage(id, "spec/plan at change-code"))
+			if note := changeCodeSyncNote(publishes); note != "" {
+				fmt.Fprintln(stdout, note)
+			}
 		}
 		fmt.Fprintf(stdout, "Would create branch %s (mode=%s)\n", name, wt)
 		return nil
 	}
 
-	// 7. Commit any untracked issue-file changes so the branch starts
-	//    clean (mirrors start.go's pre-#39 behavior).
-	if err := commitUntrackedIssueFile(stderr, untrackedFile, changeCodeRunner); err != nil {
-		die(stderr, err.Error())
-	}
+	// 7. Land the planning output: commit + publish the issue file so the
+	//    branch starts from a tracked state (#206). This is the milestone the
+	//    Spec/Plan should become external at — plan-quality has just accepted
+	//    the design — so it publishes, unlike the bare `sdlc issue sync`.
+	//
+	//    Replaces commitUntrackedIssueFile, which was change-code's own private
+	//    commit+push of the issue file: a second implementation of this, and one
+	//    that only ever handled the UNTRACKED case, leaving a tracked-but-edited
+	//    issue file dirty at branch creation.
+	syncIssue(stderr, f, issuePath)
 
 	// 8. Create branch.
 	switch wt {
@@ -183,6 +199,96 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		}
 	}
 	return nil
+}
+
+// syncIssuePublishes reports whether change-code's sync will publish: only from
+// main, where "commit here" and "publish to main" coincide. One source for the
+// decision and for the --dry-run line that describes it, so the two can't drift
+// (the dry-run text used to promise a push unconditionally).
+func syncIssuePublishes() bool {
+	return gitx.Capture("branch", "--show-current") == "main"
+}
+
+// changeCodeSyncVerb names what the sync will do, for human output. Kept to a
+// short verb phrase so it reads mid-sentence; the off-main caveat is a separate
+// line (changeCodeSyncNote) rather than a parenthetical wedged between the verb
+// and its object.
+func changeCodeSyncVerb(publishes bool) string {
+	if publishes {
+		return "sync + push"
+	}
+	return "sync locally"
+}
+
+// changeCodeSyncNote is the follow-up line for the off-main case, or "" on main.
+func changeCodeSyncNote(publishes bool) string {
+	if publishes {
+		return ""
+	}
+	return "    (not on main — publishing belongs to pr/merge/close)"
+}
+
+// syncIssue commits the issue file through the shared sync dispatch (#206), so
+// the design that just cleared plan-quality is durable before any code is
+// written.
+//
+// It replaced commitUntrackedIssueFile, and the two review rounds that followed
+// were both the same mistake: a swapped helper covering fewer cells than the one
+// it replaced. The invariant is therefore stated as a table, over the full
+// cross-product the old helper ran under —
+//
+//	                        │ file untracked        │ file tracked + edited
+//	────────────────────────┼───────────────────────┼──────────────────────────
+//	on main                 │ commit here + publish │ commit here + publish
+//	in-place feature branch │ commit on the branch  │ commit on the branch
+//	feature worktree        │ commit on the branch  │ commit on the branch
+//
+// — crossed with resolveBranchName's three name modes (--issue, --name,
+// auto-detect), which the id derivation below collapses: syncIssue reads the
+// RESOLVED issuePath, the one thing all three modes produce. Gating on f.Issue
+// instead skipped two of the three, and in auto-detect with --worktree=yes left
+// the new worktree holding no issue file at all, since `git worktree add` does
+// not carry untracked files. TestChangeCodeSyncIssue_ModeMatrix runs the table.
+//
+// The single property every cell satisfies: THE ISSUE FILE IS COMMITTED IN THIS
+// WORKTREE, on the branch about to carry the work. That is what "the branch
+// starts from a tracked state" means, and it is why publishing is conditioned on
+// already being on main rather than on the caller's intent. From a branch the
+// publish route would copy the in-progress body into the main worktree, commit
+// it on main and push — putting a half-written Spec on origin/main, leaving the
+// branch's own copy dirty, and adding two network round-trips to a milestone
+// re-run. main gets the body at `pr`/`merge`/`close`, which is where publishing
+// belongs.
+//
+// BEST-EFFORT, deliberately: change-code's job is to OPEN implementation, and a
+// tracker commit that could not land must not stand between the operator and
+// starting work. The helper this replaced already warned rather than died on a
+// failed push, and the warning names the retry.
+func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
+	// A --name branch can point at a file outside the NNNNNN- convention; there
+	// is no id to name in the commit subject, so there is nothing to sync.
+	id := issueIDFromPath(issuePath)
+	if id == 0 {
+		return
+	}
+	onMain := syncIssuePublishes()
+	// DryRun is threaded even though runChangeCode returns before reaching here
+	// under --dry-run: a helper that commits must not depend on a caller's early
+	// return for its dry-run correctness.
+	syncFlags := &claimFlags{
+		Issue: id, IssuesDir: f.IssuesDir, NoStart: true,
+		DryRun: f.DryRun, NoPush: !onMain,
+	}
+	msg := issueSyncMessage(id, "spec/plan at change-code")
+	if err := syncIssuesToMain(stderr, stderr, syncFlags, changeCodeRunner, msg); err != nil {
+		retry := fmt.Sprintf("sdlc issue sync --issue %d", id)
+		if onMain {
+			retry += " --push"
+		}
+		cwarn(stderr, fmt.Sprintf("issue file not synced: %v\n"+
+			"      the gates passed and the branch is being created anyway;\n"+
+			"      re-run `%s` once the cause is cleared", err, retry))
+	}
 }
 
 // ── the gate sequence ───────────────────────────────────────────────────────
@@ -343,32 +449,34 @@ func estimateReconRefusal(issueContent string, noRecon bool) *issue.StructuralFa
 	return &issue.StructuralFailure{Name: "estimate-recon", Message: strings.Join(msgs, "; ")}
 }
 
-// resolveChangeCodeName reuses start.go's name-resolution shape but
-// also returns the path to the resolved issue file so the gates can
-// read it. The untrackedFile return is non-empty when the issue file
-// is still untracked and needs to be committed before branch creation.
-func resolveChangeCodeName(f *changeCodeFlags, r gitRunner) (name, untrackedFile, issuePath string, err error) {
+// resolveChangeCodeName reuses start.go's name-resolution shape but also returns
+// the path to the resolved issue file so the gates can read it.
+//
+// resolveBranchName's untrackedFile is consumed here rather than returned: since
+// #206 nothing downstream needs "is it untracked?" — the sync stages tracked and
+// untracked issue files alike — but it is still the cheapest handle on the issue
+// path when the file is brand new and no glob has seen it yet.
+func resolveChangeCodeName(f *changeCodeFlags, r gitRunner) (name, issuePath string, err error) {
 	nf := &nameFlags{
 		Issue:     f.Issue,
 		Name:      f.Name,
 		IssuesDir: f.IssuesDir,
 	}
-	name, untrackedFile, err = resolveBranchName(nf, r)
+	name, untrackedFile, err := resolveBranchName(nf, r)
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 
 	// Locate the issue file. When --name was used (no --issue), we still
 	// need the issue file for gates; derive it from the name prefix.
 	if untrackedFile != "" {
-		issuePath = untrackedFile
-	} else {
-		issuePath, err = findIssueFileByName(f.IssuesDir, name)
-		if err != nil {
-			return "", "", "", err
-		}
+		return name, untrackedFile, nil
 	}
-	return name, untrackedFile, issuePath, nil
+	issuePath, err = findIssueFileByName(f.IssuesDir, name)
+	if err != nil {
+		return "", "", err
+	}
+	return name, issuePath, nil
 }
 
 // findIssueFileByName looks up the issue file for a resolved branch

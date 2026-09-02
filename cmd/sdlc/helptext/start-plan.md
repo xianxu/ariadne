@@ -27,7 +27,11 @@ OUTPUT
   shaped a decision. Then a durable-plan pointer — author the plan via the
   `superpowers-writing-plans` skill into `workshop/plans/NNNNNN-slug-plan.md`
   (version-controlled), not the harness builtin's ephemeral `~/.claude/plans/`
-  file (#72). Then a non-blocking `estimate_hours` note (#113, retimed by #187):
+  file (#72). Then the durability trigger (#206): `sdlc issue sync --issue N`
+  commits the issue body locally as the design lands — where planPointer says
+  WHERE to author, this says HOW OFTEN to save, because nothing else commits the
+  body until `change-code` and a compaction in between loses it. Then a
+  non-blocking `estimate_hours` note (#113, retimed by #187):
   do NOT derive the estimate here. `change-code` runs plan-quality FIRST and asks
   for the estimate only after the plan clears — costing a plan nobody has accepted
   just gets recomputed on the next revision. Closes with the non-blocking
@@ -41,3 +45,4 @@ RELATED
 
   sdlc change-code   the plan-quality gate that checks the plan against the same
                      principles (the backward review)
+  sdlc issue sync    checkpoint the design mid-planning (local commit, no push)

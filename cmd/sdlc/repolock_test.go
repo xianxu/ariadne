@@ -21,6 +21,7 @@ func TestRepoLockCommandMetadata(t *testing.T) {
 		{"change-code"},
 		{"close"},
 		{"issue", "new"},
+		{"issue", "sync"},
 		{"issue", "set-status"},
 		{"project", "close"},
 		{"set-status"},

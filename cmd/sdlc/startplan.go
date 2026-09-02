@@ -81,6 +81,16 @@ func runStartPlan(stdout io.Writer, issue int) {
 	fmt.Fprintln(stdout)
 	cinfo(stdout, planPointer(issue))
 
+	// #206: the DURABILITY half of "how to plan". The design that follows this
+	// line is the longest-lived output of the whole issue and nothing commits it
+	// until change-code — a compaction or a closed terminal in between loses it
+	// outright. `sdlc issue sync` is the checkpoint, and start-plan is the one
+	// moment the agent is guaranteed to be reading about planning, so this is
+	// where the trigger has to be delivered. Sits with planPointer: WHERE to
+	// author, then HOW OFTEN to save.
+	fmt.Fprintln(stdout)
+	cinfo(stdout, syncPointer(issue))
+
 	// #113: a non-blocking estimate nudge. The estimate gate moved
 	// claim → change-code, and start-plan is where it's naturally set (post-
 	// design, scope knowable). Remind the operator to set estimate_hours now so
@@ -191,6 +201,20 @@ func planPointer(issue int) string {
 	return fmt.Sprintf("Capture the plan via the superpowers-writing-plans skill →\n"+
 		"    workshop/plans/%s-plan.md (version-controlled). The builtin plan-mode\n"+
 		"    file (~/.claude/plans/…) is ephemeral — NOT the record.", slug)
+}
+
+// syncPointer renders the mid-planning durability trigger (#206). Pure — the
+// only input is the issue number — so the wording is table-testable without IO.
+// Continuation lines indent 4 to align under cinfo's `==> ` prefix.
+func syncPointer(issue int) string {
+	flag := "--issue N"
+	if issue > 0 {
+		flag = fmt.Sprintf("--issue %d", issue)
+	}
+	return fmt.Sprintf("Checkpoint the design as it lands: `sdlc issue sync %s`. It commits\n"+
+		"    the issue body locally (no push, no network) so a compaction or a closed\n"+
+		"    terminal can't lose it. Run it whenever the Spec/Plan/Log has moved —\n"+
+		"    `sdlc change-code` publishes at the end, but only what survived to it.", flag)
 }
 
 // estimateNudge renders the start-plan reminder about estimate_hours (#113, retimed by

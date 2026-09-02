@@ -55,13 +55,12 @@ func resolveBranchName(f *nameFlags, r gitRunner) (name, untrackedFile string, e
 	}
 
 	if f.Issue > 0 {
-		id := fmt.Sprintf("%06d", f.Issue)
-		matches, _ := filepath.Glob(filepath.Join(f.IssuesDir, id+"-*.md"))
+		matches := issueFilesForID(f.IssuesDir, f.Issue)
 		if len(matches) == 0 {
-			return "", "", fmt.Errorf("no issue file matches %s/%s-*.md", f.IssuesDir, id)
+			return "", "", fmt.Errorf("no issue file matches %s/%06d-*.md", f.IssuesDir, f.Issue)
 		}
 		if len(matches) > 1 {
-			return "", "", fmt.Errorf("multiple issue files match %s/%s-*.md: %v", f.IssuesDir, id, matches)
+			return "", "", fmt.Errorf("multiple issue files match %s/%06d-*.md: %v", f.IssuesDir, f.Issue, matches)
 		}
 		if info, err := os.Stat(matches[0]); err != nil || !info.Mode().IsRegular() {
 			return "", "", fmt.Errorf("issue file %s exists in glob but is not a readable regular file", matches[0])
@@ -108,27 +107,6 @@ func listUntrackedIssues(issuesDir string, r gitRunner) ([]string, error) {
 		}
 	}
 	return matches, nil
-}
-
-// commitUntrackedIssueFile commits + pushes one untracked file before
-// branch creation, so the new branch starts from a tracked state.
-// Push failures are warnings, not fatal — same posture as start.go's
-// pre-#39 behavior and the legacy Makefile target.
-func commitUntrackedIssueFile(stderr io.Writer, untrackedFile string, r gitRunner) error {
-	if untrackedFile == "" {
-		return nil
-	}
-	cinfo(stderr, fmt.Sprintf("Committing %s before branch creation...", untrackedFile))
-	if out, err := r.Git("add", untrackedFile); err != nil {
-		return fmt.Errorf("git add %s: %v\n%s", untrackedFile, err, out)
-	}
-	if out, err := r.Git("commit", "-m", "committing issue file before branch creation"); err != nil {
-		return fmt.Errorf("git commit: %v\n%s", err, out)
-	}
-	if out, err := r.Git("push"); err != nil {
-		cwarn(stderr, fmt.Sprintf("push failed, continuing with branch creation: %v\n%s", err, out))
-	}
-	return nil
 }
 
 // createWorktreeBranch places the branch <name> in a git worktree under

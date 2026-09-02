@@ -129,11 +129,19 @@ func MainRef() string {
 }
 
 // bookkeepingVerbs are subject lead-ins that *do* anchor #N but represent
-// workflow bookkeeping — filing, claiming, or closing an issue — not shipped
-// implementation. (issue-sync commits never anchor #N in their subject —
-// they read "issue-sync: update issues" — so they're excluded for free by the
-// subject anchor and need no entry here.)
-var bookkeepingVerbs = []string{"file issue", "ticket", "claim", "close"}
+// workflow bookkeeping — filing, claiming, syncing, or closing an issue — not
+// shipped implementation.
+//
+// `issue-sync` earned its entry in #206. Before that, sync commits read
+// "issue-sync: update issues", anchored no #N, and were excluded for free by
+// the subject anchor — which is what the comment here used to say. `sdlc issue
+// sync` names the issue it committed ("#206: issue-sync: spec/plan"), so the
+// free exclusion is gone and the classification has to be declared. The lead-in
+// is the hyphenated "issue-sync" rather than "issue" so the whole-token match
+// below cannot swallow real implementation work titled "#206: issue sync verb:
+// …" — isWordByte treats '-' as a word byte, so "issue" would not have matched
+// "issue-sync" anyway.
+var bookkeepingVerbs = []string{"file issue", "ticket", "claim", "close", "issue-sync"}
 
 // IsShippedWorkSubject reports whether a commit subject is *implementation*
 // work for issueNum: either `#N ...` or the documented `<area>: #N ...`

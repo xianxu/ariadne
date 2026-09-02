@@ -29,7 +29,11 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	// silently).
 	// "estimate-source" pins the #134 estimator-SOURCE push (estimate.SourceLine)
 	// is wired below the nudge — so it can't be silently dropped in a refactor.
-	for _, want := range []string{"#75", "ARCH-DRY", "ARCH-CONSTRAINTS", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-", "estimate-source", estimate.CurrentModel()} {
+	// "sdlc issue sync" pins the #206 mid-planning DURABILITY trigger. That verb's
+	// whole justification is checkpointing the design while it is being made, and
+	// start-plan's output is its only delivery point in the agent's attention path
+	// — a verb nobody is routed to is documentation, not a feature (ARCH-PURPOSE).
+	for _, want := range []string{"#75", "ARCH-DRY", "ARCH-CONSTRAINTS", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-", "sdlc issue sync --issue 75", "estimate-source", estimate.CurrentModel()} {
 		if !strings.Contains(out, want) {
 			t.Errorf("start-plan output missing %q:\n%s", want, out)
 		}

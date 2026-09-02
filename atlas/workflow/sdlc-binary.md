@@ -40,6 +40,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + the #124 instance-conformance gate (`--no-validate`) + cleanup + irreversible-action confirm (#51) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
+| `issue sync`      | (new #206)                  | Commit ONE issue's body (Spec/Plan/Log) under `#N: issue-sync: <what>`. **Does not push** — `--push` opts in. The planning-phase counterpart to `claim`, which publishes only the reservation. The mid-planning trigger is delivered by `start-plan`'s output + AGENTS.md §2/§14, not left in `--help` |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -48,6 +49,142 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `project set-status` | (new #180 M3) | Enforce the project lifecycle and its ordered named guards from `project.cue`; unknown guards fail closed, evidence lands in Log, and `done` remains owned by `project close` |
 | `project status/retro` | (new #180 M4) | Derive progress, dependency frontier, remaining effort, and thread components from live issue records; append dated re-forecast checkpoints without overwriting the baseline |
 | `project close` | (new #180 M4) | Require the modeled executing→done (or executing/paused→dropped) edge and a retro, roll Phase-A vs issue actuals into the brain fog ledger unless explicitly bypassed, then archive through `ArchiveSubdir(..., ArchiveProjects)` |
+
+### Issue-file sync: durability vs publication (#206)
+
+One dispatch — `syncIssuesToMain` in `claim.go` — serves `claim`, `issue new`,
+`issue sync` and `change-code`.
+
+**`change-code`'s invariant: the issue file ends up committed in THIS worktree,**
+on the branch about to carry the work — across `resolveBranchName`'s three name
+modes × {on main, in-place feature branch, feature worktree} × {untracked,
+tracked-and-edited}. Two consequences that each cost a review round to find:
+
+- The id comes from the RESOLVED issue path, not `--issue` — only one of the
+  three name modes sets that flag, and in auto-detect with `--worktree=yes`
+  gating on it left the new worktree holding no issue file at all, since `git
+  worktree add` does not carry untracked files.
+- Publishing is conditioned on **already being on main**, not on the caller's
+  intent. From a branch the publish route would copy the in-progress body into
+  the main worktree, commit it on main and push — a half-written Spec on
+  `origin/main`, the branch's copy left dirty, two network round-trips per
+  milestone re-run. `pr`/`merge`/`close` are what publish.
+
+`TestChangeCodeSyncIssue_ModeMatrix` runs the whole table.
+
+**Publication is the gap between `origin/main` and this worktree's body — never
+the gap between the working tree and HEAD.** Splitting durability from
+publication made "committed locally, not yet pushed" a state the code
+deliberately creates, and `changedIssueFiles` is empty in exactly that state, so
+both arms skip only the COMMIT when nothing is dirty. What that means differs by
+arm, and getting it wrong in either direction is silent:
+
+- The fall-through publish is opt-in: only `sdlc issue sync --push` sets
+  `PublishExisting`. For `claim` and `issue new`, "nothing dirty" stays the no-op
+  it has always been — `claim` die()s on a sync error and is re-run constantly,
+  so a clean-tree claim must not touch the network at all. (Inferring the intent
+  from `origin/main..main` instead turned every clean claim into a wholesale push
+  of local main, publishing bodies a no-push sync had deliberately kept local.)
+- `syncViaMainWorktree` re-seeds its file list from the ISSUE and routes the body
+  across as usual, committing only if the copy staged anything. Merely pushing
+  main from there publishes nothing — the body is on the *branch* — so it printed
+  success while `origin/main` never moved.
+- A body the main worktree already carries byte-for-byte is dropped from that
+  list *before* conflict detection runs. The detector asks "did both sides touch
+  this since merge-base", which is right for a dirty file and wrong for one an
+  earlier run of this same verb put on main: publish, publish again, and the
+  second run died on a false `Conflict detected!`. This is not conflict
+  detection (explicitly out of scope) — it is declining to invoke it when there
+  is no content difference to resolve.
+
+`TestIssueSync_PublishMatrix` covers {on main, feature worktree} × {body dirty,
+body already committed} and asserts the published content, not a SHA: comparing
+SHAs would not catch a push that moved nothing. `TestPublishIsIdempotent` runs
+the documented workflow twice from both locations, because an agent re-running a
+verb is the normal case. `issue new` follows
+the same durability-before-publication rule: when its reservation broadcast
+can't reach main (commonly: run from an in-place feature branch, where no
+worktree is on main), it falls back to a local commit rather than leaving the
+new issue untracked.
+
+Its two arms are **not** "on main vs on a
+branch"; they are *commit here* vs *publish to origin/main from elsewhere*:
+
+| arm | what it does | reached when |
+|---|---|---|
+| `syncInPlace` | `add` + `commit` in THIS worktree on THIS branch, then `push origin main` unless `NoPush` | the caller isn't publishing, **or** this worktree is already on main |
+| `syncViaMainWorktree` | find the worktree on main, refuse if it has uncommitted issue changes, `pull --rebase`, conflict-detect, copy, commit + push there | publishing from a feature branch |
+
+Every step of the second arm exists to publish, so suppressing the push doesn't
+just skip its last line — it selects the other arm entirely. That is what makes
+a no-push sync cheap: local, offline-safe, no worktree hunt, and usable from an
+in-place feature branch where no worktree is on main at all.
+
+The publish choice is spelled `NoPush` on `claimFlags`, never `Push`: `issue
+new` builds that struct as a literal, so a positive field would zero-value to
+false there and silently kill the reservation broadcast (#82 M1). The commit
+subject is a parameter too (`""` = each arm's historical default), which is the
+only thing `issue sync` adds over the shared helper.
+
+**The sync subject is declared bookkeeping.** `#206: issue-sync: spec/plan`
+anchors `#N`, so without an entry in `gitx.bookkeepingVerbs` it would read as
+shipped implementation to `IsShippedWorkSubject` — and from there to drift
+detection (`state.go`), milestone review windows (`milestoneclose.go`) and
+active-time attribution. The hyphen in the `issue-sync` lead-in is load-bearing:
+whole-token matching keeps it from swallowing real work titled `#N: issue sync
+verb: …`.
+
+**Commit pathspecs (#206).** Every sdlc commit that follows a *narrowed* `git
+add` now carries the same paths as a commit pathspec (`--`, implying `--only`).
+A bare `git commit` records the whole index, so a peer agent's staged work was
+swept into a commit that misdescribed it — the repo transaction lock serializes
+sdlc verbs against each other, but nothing stops a peer running plain `git add`.
+Seven sites: both sync arms, both `push.go` archive commits, `merge.go`'s, and
+`migrate.go`'s two (source + destination). `archiveCommitArgs` derives its path
+list *from* `archiveAddArgs` so the two cannot drift, and refuses an empty move
+list — `git commit -m … --` with no paths is read as NO pathspec and commits the
+whole index, which is the helper's own failure mode on its degenerate input.
+
+Reachability differs by site. `syncViaMainWorktree`'s `pull --rebase` already
+refuses a dirty index, so its pathspec closes a pull→commit race rather than a
+live bug. `syncInPlace`, `push`'s archive and `migrate`'s **source** side have no
+such guard — migrate's cleanliness check (`status --porcelain -- relPath`) is
+scoped to the migrated file alone — and those three are the deterministic
+regressions in `issuesync_test.go`. `migrate --no-commit` prints the pathspec'd
+form in its hints too, so the operator isn't handed the defective command.
+
+**The class is guarded at the source, not per site.** `TestGitCommitsCarryTheirPathspec`
+(`commitpathspec_guard_test.go`) parses every non-test file in `cmd/sdlc` and
+accepts a git-commit argv only when it carries a `--` pathspec, or carries `-a`,
+or sits in a function that stages `git add -A` *and* is allowlisted with its
+reason. The rule it encodes is *a commit must be as narrow as its add* —
+`push.go`'s `commit -a` and `propagatebase.go`'s `add -A` pairing are the two
+legitimate whole-tree cases, and requiring both halves is what stops an
+allowlist entry from widening to cover a sibling commit in the same function
+(the first cut keyed on the function alone and excused `push.go`'s archive
+commit on the strength of an unrelated `commit -a`).
+
+Its companion `TestVerbsWireTheirCommitHelpers` asserts the CALL SITES. Three
+close-review rounds converged on the rule behind both: *a fix at a call site is
+pinned only by a test entering through the production entry point* — a real-git
+test that hand-builds the argv proves the helper and mocks the wiring. Where the
+entry point is not in-process drivable (`runChangeCode`, #191; `runPush` /
+`runMerge` / `runMigrate` die through gates a unit test cannot satisfy), the
+source guard asserts the edge instead. Weaker than driving the verb, strictly
+stronger than a call site that can be deleted with the suite still green.
+
+**Behavior changes worth knowing about**, both introduced here:
+
+- A pathspec'd commit is a *partial* commit, and git refuses one outright while
+  `MERGE_HEAD` is set (`fatal: cannot do a partial commit during a merge`). A
+  sync or archive run mid-merge now fails loudly where the bare commit would
+  have folded the merge in silently. Better behavior, but finish or abort the
+  merge first.
+- `issue sync`'s no-push default is a property of the **verb**, not of the
+  repository. The body is committed locally, and a later `claim` / `issue new` /
+  `push` on main publishes whatever main carries — this body included. "Not
+  pushed" means "this command performed no network operation", never "this
+  content cannot reach origin by another route".
 
 **Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
 *transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the

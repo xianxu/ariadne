@@ -208,6 +208,14 @@ func TestIsShippedWorkSubject(t *testing.T) {
 		{"51", "docs: mention #51 in a note", false},                 // loose mention, not the subject's issue
 		{"51", "#510: a different issue entirely", false},            // #510 must not match #51
 		{"51", "issue-sync: update issues", false},                   // never anchors #N
+		// #206: `sdlc issue sync` names the issue it committed, so the sync
+		// subject DOES anchor #N now and the bookkeeping entry is what keeps a
+		// tracker commit out of the shipped-work window.
+		{"206", "#206: issue-sync: spec/plan", false},
+		{"206", "sdlc: #206 issue-sync: spec/plan", false}, // same, with an area prefix
+		// The hyphen is load-bearing: real implementation work whose subject
+		// merely starts with the word "issue" stays shipped work.
+		{"206", "#206: issue sync verb lands", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.subject, func(t *testing.T) {

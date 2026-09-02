@@ -93,7 +93,7 @@ func buildRoot() *cobra.Command {
 	add(NewClaimCmd(), "claim", "Start work: flip an open issue to working + broadcast the claim")
 	add(NewStartPlanCmd(), "start-plan", "Enter planning: deliver the architecture principles to design against (#75)")
 	add(NewChangeCodeCmd(), "change-code", "Enter implementation after the structural + plan-quality gates")
-	add(NewIssueCmd(), "issue", "Create + manage issues (new / set-status / list / show)")
+	add(NewIssueCmd(), "issue", "Create + manage issues (new / sync / set-status / list / show)")
 	add(NewProjectCmd(), "project", "Create + manage projects (new / list / show / set-status / validate)")
 	add(NewActualCmd(), "actual", "Compute an issue's focused dev-hours via active-time-v3 (#68)")
 	add(NewActiveTimeCmd(), "active-time", "Per-issue active-time attribution table (the v3 engine, standalone)")

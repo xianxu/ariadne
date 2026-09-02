@@ -26,8 +26,12 @@ func (s *claimRunnerStub) Git(args ...string) ([]byte, error) {
 	if len(args) == 0 {
 		return nil, nil
 	}
-	// Compose a key from arg[0..2] (most specific) and fall back.
-	for n := min(len(args), 3); n > 0; n-- {
+	// Compose a key from the longest prefix that has a response and fall back to
+	// shorter ones. The window is wider than the 3 args it started at because two
+	// distinct calls can share a 3-arg prefix and differ only in their pathspec
+	// (`diff --cached --name-only -- <dir>/` vs `-- <file>`), and a stub that
+	// can't tell them apart makes the code under test look like it did nothing.
+	for n := min(len(args), 8); n > 0; n-- {
 		key := strings.Join(args[:n], " ")
 		if v, ok := s.responses[key]; ok {
 			return v, nil
@@ -38,7 +42,7 @@ func (s *claimRunnerStub) Git(args ...string) ([]byte, error) {
 
 func (s *claimRunnerStub) GitInDir(dir string, args ...string) ([]byte, error) {
 	s.gitInDirCalls = append(s.gitInDirCalls, gitInDirCall{Dir: dir, Args: append([]string{}, args...)})
-	for n := min(len(args), 3); n > 0; n-- {
+	for n := min(len(args), 8); n > 0; n-- {
 		key := strings.Join(args[:n], " ")
 		if v, ok := s.gitInDirResponses[key]; ok {
 			return v, nil
