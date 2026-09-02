@@ -183,9 +183,23 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 	if err != nil {
 		return err
 	}
+	// Nothing in the working tree does NOT mean nothing to publish. Since #206
+	// split durability from publication, "committed locally, not yet pushed" is a
+	// state the code deliberately creates — a no-push sync, or a sync whose commit
+	// landed and whose push failed. changedIssueFiles is empty in exactly that
+	// state, so returning here would make `--push` a silent no-op and strand every
+	// warning that names it as the recovery. Skip the COMMIT, never the publish.
 	if len(changed) == 0 {
-		cok(stderr, "No issue changes to sync.")
-		return nil
+		if f.NoPush {
+			cok(stderr, "No issue changes to sync.")
+			return nil
+		}
+		if f.DryRun {
+			cinfo(stderr, "dry-run — no new issue changes; would publish existing commits")
+			return nil
+		}
+		cinfo(stderr, "No new issue changes — publishing existing commits...")
+		return pushMain(stdout, stderr, r)
 	}
 	cinfo(stderr, "Syncing issue changes...")
 	for _, c := range changed {
@@ -217,6 +231,13 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 		fmt.Fprintln(stdout, "synced")
 		return nil
 	}
+	return pushMain(stdout, stderr, r)
+}
+
+// pushMain publishes the current worktree's main to origin. One source for both
+// of syncInPlace's exits — the just-committed path and the nothing-new-to-commit
+// path — so `--push` cannot mean "publish" in one and "no-op" in the other.
+func pushMain(stdout, stderr io.Writer, r gitRunner) error {
 	if out, err := r.Git("push", "origin", "main"); err != nil {
 		return fmt.Errorf("push failed: %v\n%s", err, out)
 	}
@@ -234,8 +255,10 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 // working tree through issueFilesForID, so this is a thin IO helper and its
 // filtered path needs a real directory to test against (ARCH-PURE).
 //
-// The "pathspec matches nothing" error is unreachable in practice: callers run
-// changedIssueFiles first and return early when nothing changed.
+// The "no file matches" error stands on its own rather than behind a claim that
+// it is unreachable. An earlier version argued callers run changedIssueFiles
+// first — which does not cover a DELETED issue file, where changedIssueFiles is
+// non-empty (git reports the deletion) while the glob finds nothing.
 func syncPathspec(f *claimFlags) ([]string, error) {
 	if f.Issue <= 0 {
 		return []string{f.IssuesDir + "/"}, nil
@@ -275,8 +298,26 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 	if err != nil {
 		return err
 	}
+	// Same rule as syncInPlace (#206): nothing to COPY is not nothing to publish.
+	// This arm is only ever reached when publishing, and the body may already be
+	// committed — by a prior no-push sync, or by a run whose push failed after
+	// the commit landed. Push main from the main worktree rather than reporting
+	// success without publishing.
 	if len(changed) == 0 {
-		cok(stderr, "No issue changes to sync.")
+		mainPath, ferr := findMainWorktree(r)
+		if ferr != nil {
+			return ferr
+		}
+		if f.DryRun {
+			cinfo(stderr, "dry-run — no new issue changes; would publish existing commits on main")
+			return nil
+		}
+		cinfo(stderr, "No new issue changes — publishing existing commits on main...")
+		if out, perr := r.GitInDir(mainPath, "push", "origin", "main"); perr != nil {
+			return fmt.Errorf("push failed: %v\n%s", perr, out)
+		}
+		cok(stderr, "Issues synced to main and pushed to origin.")
+		fmt.Fprintln(stdout, "synced")
 		return nil
 	}
 	cinfo(stderr, fmt.Sprintf("Issue files changed on branch '%s':", branch))

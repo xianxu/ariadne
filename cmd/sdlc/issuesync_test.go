@@ -448,8 +448,12 @@ func TestChangeCodeSyncIssue_ModeMatrix(t *testing.T) {
 			return wt
 		}},
 	}
-	// Each name mode differs only in what change-code knows when it calls
-	// syncIssue; syncIssue itself sees the resolved path, which is the point.
+	// The three name modes feed syncIssue inputs it never reads — it consults
+	// neither f.Issue nor f.Name, only the resolved path — so 12 of the 18 cells
+	// duplicate 6. That IS what they buy: reverting to `id := f.Issue` reds
+	// exactly those 12, which is the BR-1 regression. Worth ~7s of suite time to
+	// pin "gate on the resolved path, not the flag" as a property of the table
+	// rather than a comment.
 	nameModes := []struct {
 		name  string
 		flags func(dir string) *changeCodeFlags
@@ -687,5 +691,73 @@ func TestMigrateCommitArgs_HintAndCommandAreTheSameBuilder(t *testing.T) {
 	}
 	if !strings.HasSuffix(hint, "-- a/b.md") {
 		t.Errorf("hint must carry the pathspec the executed commit carries: %s", hint)
+	}
+}
+
+// TestIssueSync_PushPublishesAnAlreadyCommittedBody is the C1 regression from
+// close-review round 3, and the sequence the whole design makes normal: sync
+// locally (no push), then publish.
+//
+// syncInPlace's "no working-tree changes" early return predates #206, when
+// committing and publishing were one act. Splitting them made "committed
+// locally, not yet pushed" a state the code deliberately creates — and in it
+// changedIssueFiles is empty, so `--push` short-circuited and reported success
+// in green while origin/main never moved. Both of the warnings this issue added
+// name that exact command as the recovery, so the no-op was load-bearing.
+func TestIssueSync_PushPublishesAnAlreadyCommittedBody(t *testing.T) {
+	repo, _ := syncRepo(t)
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nthe design\n")
+
+	var stdout, stderr bytes.Buffer
+	local := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}
+	if err := runIssueSync(&stdout, &stderr, local); err != nil {
+		t.Fatalf("local sync: %v", err)
+	}
+	head := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
+	if origin := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); origin == head {
+		t.Fatal("fixture broken: the local sync should NOT have published")
+	}
+
+	// Nothing has changed in the working tree now — the body is committed. This
+	// is precisely the state --push exists to finish.
+	stdout.Reset()
+	stderr.Reset()
+	publish := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}
+	if err := runIssueSync(&stdout, &stderr, publish); err != nil {
+		t.Fatalf("publish sync: %v (stderr: %s)", err, stderr.String())
+	}
+	if origin := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); origin != head {
+		t.Errorf("--push did not publish the already-committed body: origin/main %s, main %s\nstderr:\n%s",
+			origin, head, stderr.String())
+	}
+}
+
+// TestChangeCodeSyncIssue_RetryAfterAFailedPushPublishes walks the other
+// consumer's advertised recovery end to end: change-code's commit lands, its
+// push fails (no origin), the operator adds the remote and re-runs the command
+// the warning printed. If that command can't finish the publish, the warning is
+// a dead end.
+func TestChangeCodeSyncIssue_RetryAfterAFailedPushPublishes(t *testing.T) {
+	repo := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Plan\n\nthe accepted design\n")
+
+	var stderr bytes.Buffer
+	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir}, issuePath206)
+	if !strings.Contains(stderr.String(), "sdlc issue sync --issue 206 --push") {
+		t.Fatalf("expected the retry advice; stderr:\n%s", stderr.String())
+	}
+	head := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
+
+	// Clear the cause the warning told us to clear.
+	origin := filepath.Join(t.TempDir(), "origin.git")
+	git(t, "", "init", "--bare", "-b", "main", origin)
+	git(t, repo, "remote", "add", "origin", origin)
+
+	var stdout, stderr2 bytes.Buffer
+	if err := runIssueSync(&stdout, &stderr2, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}); err != nil {
+		t.Fatalf("advertised retry failed: %v (stderr: %s)", err, stderr2.String())
+	}
+	if got := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); got != head {
+		t.Errorf("the retry the warning names must publish: origin/main %s, main %s", got, head)
 	}
 }

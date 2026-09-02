@@ -221,6 +221,103 @@ rounds:
           family: stale-test-fixture-path
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-02T13:21:22-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: merge.go:550 is now caught by the source guard — verified by revert (guard fires, naming merge.go:runMerge).
+          round: 3
+        - id: BR-8
+          disposition: addressed
+          note: In-place arm covered by TestIssueSync_DryRunCommitsNothing + the change-code variant; syncViaMainWorktree's dry-run early return remains uncovered.
+          round: 3
+        - id: BR-10
+          disposition: not-addressed
+          note: Deliberately declined with a recorded rationale; the two new workshop/plans/ files are gate ledgers, not a durable plan. Minor, non-blocking; the rule belongs to ariadne#198.
+          round: 3
+        - id: BR-12
+          disposition: not-addressed
+          note: No envelope declared. The no-push default is the decision; it just is not stated as a budget. ariadne#205 owns the class.
+          round: 3
+        - id: BR-13
+          disposition: not-addressed
+          note: 6 of 7 now caught (revert-verified); push.go:204 still reverts the full suite green because the allowlist is keyed by function and runPush is exempt for its unrelated `commit -a`. Key the exemption to the exact argv literals, not the enclosing function.
+          round: 3
+        - id: BR-14
+          disposition: addressed
+          note: 'Revert-verified: reverting `NoPush: !onMain` reds 12 of the 18 matrix cells.'
+          round: 3
+        - id: BR-15
+          disposition: addressed
+          note: syncPathspec's doc now states it is a thin IO helper, not pure.
+          round: 3
+        - id: BR-16
+          disposition: addressed
+          note: migrateCommitArgs single-sources the shape; TestMigrateCommitArgs_HintAndCommandAreTheSameBuilder pins the hint's pathspec.
+          round: 3
+        - id: BR-17
+          disposition: addressed
+          note: Filed as ariadne#207. The suite is still red at this boundary (reproduced), so the close evidence should say so rather than claim a green suite.
+          round: 3
+      findings:
+        - id: BR-18
+          severity: Critical
+          title: '`sdlc issue sync --push` cannot publish an already-committed body, and both new warnings name it as the recovery step'
+          detail: |-
+            claim.go:186-189 returns `cok("No issue changes to sync.")` before the add/commit/push
+            whenever changedIssueFiles is empty. Since this issue split durability from publication,
+            "committed locally, push failed" is a state the code deliberately creates — and in it
+            --push short-circuits and never pushes, reporting success in green. Measured on a real
+            repo + bare origin: local sync, then Push:true → `[ok] No issue changes to sync.`,
+            origin/main unmoved at 3f20fb4 while local main is 4b2329f. changecode.go:250-254 and
+            issue.go:331-332 both instruct the operator to run exactly that command to finish the
+            failed publish; for `issue new` that is the #82 M1 reservation broadcast, left
+            unrecoverable by the named route. Fix: when !NoPush, fall through to the push (or gate on
+            `rev-list --count origin/main..main`) rather than returning on an empty working-tree diff.
+          family: early-return-skips-second-concern
+          round: 3
+        - id: BR-19
+          severity: Important
+          title: runChangeCode's syncIssue call site enters no test — deleting the line leaves the suite green
+          detail: |-
+            Measured: replacing `syncIssue(stderr, f, issuePath)` at changecode.go:179 with a no-op
+            leaves the full cmd/sdlc suite green apart from the known-unrelated fleet_plan failure.
+            Every TestChangeCodeSyncIssue_* test calls syncIssue directly with a literal path, so they
+            prove the helper and mock the wiring — BR-13's exact shape, on the Spec's third piece.
+            Structural cause is tracked as ariadne#191 (runChangeCode is not in-process drivable).
+            This is the 4th finding in family `class-fix-without-class-test`; do NOT pin this one site.
+            The rule: a call-site fix is pinned only by a test entering the production entry point, and
+            where that entry point is not drivable a source-level guard must assert the wiring. Enforce
+            it once — a wiring table in commitpathspec_guard_test.go's shape covering
+            runChangeCode→syncIssue, runPush/runMerge→archiveCommitArgs, runMigrate→migrateCommitArgs —
+            or land ariadne#191. Measured prevalence: 5 sites in round 2, plus push.go:204 and this one
+            still open in round 3.
+          family: class-fix-without-class-test
+          round: 3
+        - id: BR-20
+          severity: Minor
+          title: atlas says "Six sites" over an enumeration of seven
+          detail: |-
+            atlas/workflow/sdlc-binary.md:111 — "both sync arms, both push.go archive commits,
+            merge.go's, and migrate.go's two" is seven, and commitpathspec_guard_test.go's own comment
+            says seven. Derive the count from the list or drop it.
+          family: prose-count-restates-enumeration
+          round: 3
+        - id: BR-21
+          severity: Minor
+          title: syncPathspec's "unreachable" rationale does not hold for a deleted issue file
+          detail: |-
+            claim.go:237 argues the "pathspec matches nothing" error is unreachable because callers run
+            changedIssueFiles first — but a deleted issue file makes changedIssueFiles non-empty while
+            issueFilesForID's glob is empty, so the argument does not cover that state (the outcome is
+            still practically unreachable). This is the 3rd finding in family `comment-narrower-than-code`;
+            the rule is that a comment asserting unreachability must enumerate the states its guard
+            quantifies over — if that cannot be enforced, drop the claim and let the error stand alone.
+          family: comment-narrower-than-code
+          round: 3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#206 (boundary-review)
@@ -334,14 +431,64 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   red at the close boundary. Worth its own issue; the test should resolve the plan through the
   archive-inclusive lookup rather than a hardcoded workshop/plans path.
 
+## Round 3 — 2026-09-02T13:21:22-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-7 — addressed — merge.go:550 is now caught by the source guard — verified by revert (guard fires, naming merge.go:runMerge).
+- BR-8 — addressed — In-place arm covered by TestIssueSync_DryRunCommitsNothing + the change-code variant; syncViaMainWorktree's dry-run early return remains uncovered.
+- BR-10 — not-addressed — Deliberately declined with a recorded rationale; the two new workshop/plans/ files are gate ledgers, not a durable plan. Minor, non-blocking; the rule belongs to ariadne#198.
+- BR-12 — not-addressed — No envelope declared. The no-push default is the decision; it just is not stated as a budget. ariadne#205 owns the class.
+- BR-13 — not-addressed — 6 of 7 now caught (revert-verified); push.go:204 still reverts the full suite green because the allowlist is keyed by function and runPush is exempt for its unrelated `commit -a`. Key the exemption to the exact argv literals, not the enclosing function.
+- BR-14 — addressed — Revert-verified: reverting `NoPush: !onMain` reds 12 of the 18 matrix cells.
+- BR-15 — addressed — syncPathspec's doc now states it is a thin IO helper, not pure.
+- BR-16 — addressed — migrateCommitArgs single-sources the shape; TestMigrateCommitArgs_HintAndCommandAreTheSameBuilder pins the hint's pathspec.
+- BR-17 — addressed — Filed as ariadne#207. The suite is still red at this boundary (reproduced), so the close evidence should say so rather than claim a green suite.
+
+### Raised
+
+- **BR-18** [Critical] `early-return-skips-second-concern` `sdlc issue sync --push` cannot publish an already-committed body, and both new warnings name it as the recovery step
+  claim.go:186-189 returns `cok("No issue changes to sync.")` before the add/commit/push
+  whenever changedIssueFiles is empty. Since this issue split durability from publication,
+  "committed locally, push failed" is a state the code deliberately creates — and in it
+  --push short-circuits and never pushes, reporting success in green. Measured on a real
+  repo + bare origin: local sync, then Push:true → `[ok] No issue changes to sync.`,
+  origin/main unmoved at 3f20fb4 while local main is 4b2329f. changecode.go:250-254 and
+  issue.go:331-332 both instruct the operator to run exactly that command to finish the
+  failed publish; for `issue new` that is the #82 M1 reservation broadcast, left
+  unrecoverable by the named route. Fix: when !NoPush, fall through to the push (or gate on
+  `rev-list --count origin/main..main`) rather than returning on an empty working-tree diff.
+- **BR-19** [Important] `class-fix-without-class-test` runChangeCode's syncIssue call site enters no test — deleting the line leaves the suite green
+  Measured: replacing `syncIssue(stderr, f, issuePath)` at changecode.go:179 with a no-op
+  leaves the full cmd/sdlc suite green apart from the known-unrelated fleet_plan failure.
+  Every TestChangeCodeSyncIssue_* test calls syncIssue directly with a literal path, so they
+  prove the helper and mock the wiring — BR-13's exact shape, on the Spec's third piece.
+  Structural cause is tracked as ariadne#191 (runChangeCode is not in-process drivable).
+  This is the 4th finding in family `class-fix-without-class-test`; do NOT pin this one site.
+  The rule: a call-site fix is pinned only by a test entering the production entry point, and
+  where that entry point is not drivable a source-level guard must assert the wiring. Enforce
+  it once — a wiring table in commitpathspec_guard_test.go's shape covering
+  runChangeCode→syncIssue, runPush/runMerge→archiveCommitArgs, runMigrate→migrateCommitArgs —
+  or land ariadne#191. Measured prevalence: 5 sites in round 2, plus push.go:204 and this one
+  still open in round 3.
+- **BR-20** [Minor] `prose-count-restates-enumeration` atlas says "Six sites" over an enumeration of seven
+  atlas/workflow/sdlc-binary.md:111 — "both sync arms, both push.go archive commits,
+  merge.go's, and migrate.go's two" is seven, and commitpathspec_guard_test.go's own comment
+  says seven. Derive the count from the list or drop it.
+- **BR-21** [Minor] `comment-narrower-than-code` syncPathspec's "unreachable" rationale does not hold for a deleted issue file
+  claim.go:237 argues the "pathspec matches nothing" error is unreachable because callers run
+  changedIssueFiles first — but a deleted issue file makes changedIssueFiles non-empty while
+  issueFilesForID's glob is empty, so the argument does not cover that state (the outcome is
+  still practically unreachable). This is the 3rd finding in family `comment-narrower-than-code`;
+  the rule is that a comment asserting unreachability must enumerate the states its guard
+  quantifies over — if that cannot be enforced, drop the claim and let the error stand alone.
+
 ## Open findings
 
-- **BR-7** [Minor] `class-fix-without-class-test` merge.go:550's archive commit has no direct regression test (recorded choice, not an oversight)
-- **BR-8** [Minor] `class-fix-without-class-test` no coverage for `sdlc issue sync --dry-run` on either arm
 - **BR-10** [Minor] `durable-plan-artifact` no durable plan in workshop/plans/ for a 9-file, ~900-line change (AGENTS.md §1)
 - **BR-12** [Minor] `operating-envelope-undeclared` no declared operating envelope for a verb designed to be run frequently (ARCH-CONSTRAINTS)
 - **BR-13** [Important] `class-fix-without-class-test` this round's call-site fixes revert green - 5 of 7 pathspec sites and the start-plan delivery have no pinning test
-- **BR-14** [Important] `helper-swap-drops-a-mode` change-code's sync from a feature worktree publishes WIP to origin/main and leaves the branch copy dirty
-- **BR-15** [Minor] `comment-narrower-than-code` syncPathspec is documented as an argv builder but does filesystem IO via filepath.Glob
-- **BR-16** [Minor] `narrowed-add-bare-commit` migrate.go restates the pathspec'd-commit shape four times inline and its hint assertion does not check the pathspec
-- **BR-17** [Minor] `stale-test-fixture-path` pre-existing red test in the tree this boundary crosses - fleet_plan_test.go reads an archived plan path
+- **BR-18** [Critical] `early-return-skips-second-concern` `sdlc issue sync --push` cannot publish an already-committed body, and both new warnings name it as the recovery step
+- **BR-19** [Important] `class-fix-without-class-test` runChangeCode's syncIssue call site enters no test — deleting the line leaves the suite green
+- **BR-20** [Minor] `prose-count-restates-enumeration` atlas says "Six sites" over an enumeration of seven
+- **BR-21** [Minor] `comment-narrower-than-code` syncPathspec's "unreachable" rationale does not hold for a deleted issue file

@@ -182,14 +182,20 @@ the argv and pass even if those semantics were wrong (`ARCH-MOCK`).
   published — publication and durability are separable, and an untracked new
   issue is the hole this issue exists to close.
 - A source-level guard fails the build when any `git commit` argv in
-  `cmd/sdlc` is built after a narrowed add without a `--` pathspec, with a
-  two-entry allowlist for the deliberate whole-tree commits. Call-site fixes are
-  pinned by tests that drive the production entry point, not hand-rebuilt argv.
+  `cmd/sdlc` is narrower in its add than in its commit. An exemption requires
+  BOTH an allowlist entry with a reason AND a `git add -A` in the same function,
+  so it cannot widen to a sibling commit.
+- Every call site fixed here is pinned either by a test entering the production
+  entry point, or — where the entry point is not in-process drivable — by a
+  source-level wiring guard that fails when the call is deleted.
 - `sdlc issue sync --issue N` commits that issue's files with a message naming
   the issue, from both `main` and a feature branch, and **does not push**: a
   test asserts the default leaves `origin/main` where it was, and that from a
   feature branch the commit lands on **that branch**, in that worktree.
-- `sdlc issue sync --issue N --push` publishes.
+- `sdlc issue sync --issue N --push` publishes — **including a body that is
+  already committed**, which is the state a prior no-push sync (or a sync whose
+  push failed) leaves behind, and the state both warning messages tell the
+  operator to recover from.
 - `sdlc issue sync` takes the repo transaction lock (asserted the way the other
   mutating verbs' lock coverage is — `TestRepoLockCommandMetadata`).
 - `gitx.IsShippedWorkSubject` classifies the new subject as bookkeeping, pinned
@@ -280,6 +286,10 @@ scaled ceiling rather than smeared across every item by a global multiplier.
       `cmd/sdlc/*.go` that no future site can escape; `syncIssue` commits where
       the branch is, proven by the full mode matrix; the same durability
       fallback in `issue new`.
+- [x] Rework round 3 (BR-18, BR-19, BR-13 residual): publication no longer gated
+      on working-tree changes; the guard's exemption needs its `add -A`;
+      `TestVerbsWireTheirCommitHelpers` pins the call sites no behavioral test
+      can reach.
 
 ## Revisions
 
@@ -456,6 +466,57 @@ can't lose the `--` the executed one has. The pre-existing red
 it reads an archived plan by hardcoded path, is unrelated to this work, and a
 permanently-red suite is what made the reviewer's revert measurements harder.
 
+### 2026-09-02 — rework round 3 (BR-18, BR-19, BR-13 residual)
+
+**BR-18 (Critical) — `--push` could not publish an already-committed body, and
+both of this issue's own warnings named it as the recovery.** `syncInPlace`
+computed `changedIssueFiles` and returned `[ok] No issue changes to sync.`
+*before* the push. That early return was written when committing and publishing
+were one act. This issue split them — which makes "committed locally, not yet
+pushed" a state the code now deliberately creates, and `changedIssueFiles` is
+empty in exactly that state. So `--push` short-circuited, reported success in
+green, and left `origin/main` where it was. Both consumers hand the operator
+that command: `change-code`'s warning for the common on-main case where the
+commit landed and only the push failed, and `issue new`'s after the round-2
+fallback deliberately committed locally. The reservation broadcast was
+unrecoverable by the route its own message named.
+
+The fix is the rule, not the line: **nothing to commit is not nothing to
+publish.** Both arms now skip only the commit, never the publish. Two tests walk
+the sequences that would have caught it —
+`TestIssueSync_PushPublishesAnAlreadyCommittedBody` (sync local, then `--push`)
+and `TestChangeCodeSyncIssue_RetryAfterAFailedPushPublishes` (commit lands, push
+fails, clear the cause, run the command the warning printed).
+
+**BR-13 residual — the guard's exemption was keyed by function, so it excused a
+sibling.** `runPush` was allowlisted for its `commit -a`, which also excused the
+archive commit twelve lines away — the very site BR-13 had named. The exemption
+is now two-part: an argv is accepted if it carries `--`, or carries `-a` (which
+says whole-tree in the argv itself and needs no entry at all), or sits in a
+function that *demonstrably* stages `git add -A` **and** is allowlisted with its
+reason. Requiring both halves is what stops an entry from widening. The
+allowlist is down to one entry; reverting `push.go:204` now fails, as it should
+have.
+
+**BR-19 — the `runChangeCode → syncIssue` call site entered no test.** Deleting
+the line left the suite green: every `TestChangeCodeSyncIssue_*` calls the helper
+directly. Fourth finding in the same family, so the response is the rule rather
+than one more test: *a fix at a call site is pinned only by a test entering the
+production entry point; where the entry point is not in-process drivable, a
+source-level guard must assert the wiring.* `TestVerbsWireTheirCommitHelpers`
+asserts eight such edges (`runChangeCode→syncIssue`, `runPush`/`runMerge`/
+`recoverInterruptedArchive`→`archiveCommitArgs`, `runMigrate`→`migrateCommitArgs`,
+`runIssueNew`/`runIssueSync`→`syncIssuesToMain`, `runStartPlan`→`syncPointer`),
+each with the reason it matters, and errors on a stale edge. It is weaker than
+driving the verb — it proves the call exists, not that it runs — and that
+weakness is stated where it lives. Landing #191 would let these become real
+drives.
+
+Minors: the atlas said "six sites" over an enumeration of seven; `syncPathspec`'s
+"unreachable" claim rested on a reason that doesn't cover a *deleted* issue file
+(non-empty `changedIssueFiles`, empty glob), so the claim is gone and the error
+stands on its own; the mode matrix now says what its 12 duplicate cells buy.
+
 ### 2026-09-02 — where the sync sits inside `change-code`
 
 After the whole gate sequence, at the point `commitUntrackedIssueFile`
@@ -499,6 +560,14 @@ flagged as repeat families — the ledger's `family:` slug reporting, correctly,
 that I was fixing instances. Round 1's fixes were measured green-on-revert at 5
 of 7 sites. The response was the source-level guard rather than five more tests.
 Filed #207 for the pre-existing red fleet-plan test.
+
+**Close review round 3: REWORK,** on a Critical the diff introduced itself —
+`--push` unable to finish a publish, named as the recovery by two warnings this
+issue added. The pattern across all three rounds is one thing: I kept asserting
+properties over enumerations without checking every member (five sites, then
+three name modes, then three worktree locations, then "the guard covers the
+eighth site"). Each round the gate found the member I hadn't checked. The
+durable fix in each case was a rule the tree enforces, not another test.
 
 **Coverage for the archive sites.** `archiveCommitArgs` is pure, so it is
 table-tested directly, and `push.go`'s in-place archive gets a real-repo

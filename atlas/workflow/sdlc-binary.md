@@ -70,7 +70,15 @@ tracked-and-edited}. Two consequences that each cost a review round to find:
   `origin/main`, the branch's copy left dirty, two network round-trips per
   milestone re-run. `pr`/`merge`/`close` are what publish.
 
-`TestChangeCodeSyncIssue_ModeMatrix` runs the whole table. `issue new` follows
+`TestChangeCodeSyncIssue_ModeMatrix` runs the whole table.
+
+**Publishing is not gated on working-tree changes.** Splitting durability from
+publication made "committed locally, not yet pushed" a state the code
+deliberately creates, and `changedIssueFiles` is empty in exactly that state — so
+both sync arms skip only the COMMIT when nothing changed, never the publish.
+Otherwise `--push` is a silent no-op precisely when it is needed: finishing a
+sync whose commit landed and whose push failed, which is the recovery every
+warning in this area names. `issue new` follows
 the same durability-before-publication rule: when its reservation broadcast
 can't reach main (commonly: run from an in-place feature branch, where no
 worktree is on main), it falls back to a local commit rather than leaving the
@@ -108,7 +116,7 @@ add` now carries the same paths as a commit pathspec (`--`, implying `--only`).
 A bare `git commit` records the whole index, so a peer agent's staged work was
 swept into a commit that misdescribed it — the repo transaction lock serializes
 sdlc verbs against each other, but nothing stops a peer running plain `git add`.
-Six sites: both sync arms, both `push.go` archive commits, `merge.go`'s, and
+Seven sites: both sync arms, both `push.go` archive commits, `merge.go`'s, and
 `migrate.go`'s two (source + destination). `archiveCommitArgs` derives its path
 list *from* `archiveAddArgs` so the two cannot drift, and refuses an empty move
 list — `git commit -m … --` with no paths is read as NO pathspec and commits the
@@ -124,15 +132,23 @@ form in its hints too, so the operator isn't handed the defective command.
 
 **The class is guarded at the source, not per site.** `TestGitCommitsCarryTheirPathspec`
 (`commitpathspec_guard_test.go`) parses every non-test file in `cmd/sdlc` and
-fails on any git-commit argv built without a `--` separator, with a two-entry
-allowlist naming its reason. The real rule it encodes is *a commit must be as
-narrow as its add* — which is why `push.go`'s `commit -a` and
-`propagatebase.go`'s `add -A` pairing are exempt rather than special-cased. Two
-close-review rounds each found another instance of this bug; a behavioral test
-pins the site it drives, and nothing stopped the next site from being written.
-Note that a fix at a *call site* is only pinned by a test driving the production
-entry point — a real-git test that hand-builds the argv proves the helper and
-mocks the wiring.
+accepts a git-commit argv only when it carries a `--` pathspec, or carries `-a`,
+or sits in a function that stages `git add -A` *and* is allowlisted with its
+reason. The rule it encodes is *a commit must be as narrow as its add* —
+`push.go`'s `commit -a` and `propagatebase.go`'s `add -A` pairing are the two
+legitimate whole-tree cases, and requiring both halves is what stops an
+allowlist entry from widening to cover a sibling commit in the same function
+(the first cut keyed on the function alone and excused `push.go`'s archive
+commit on the strength of an unrelated `commit -a`).
+
+Its companion `TestVerbsWireTheirCommitHelpers` asserts the CALL SITES. Three
+close-review rounds converged on the rule behind both: *a fix at a call site is
+pinned only by a test entering through the production entry point* — a real-git
+test that hand-builds the argv proves the helper and mocks the wiring. Where the
+entry point is not in-process drivable (`runChangeCode`, #191; `runPush` /
+`runMerge` / `runMigrate` die through gates a unit test cannot satisfy), the
+source guard asserts the edge instead. Weaker than driving the verb, strictly
+stronger than a call site that can be deleted with the suite still green.
 
 **New failure mode:** a pathspec'd commit is a *partial* commit, and git refuses
 one outright while `MERGE_HEAD` is set (`fatal: cannot do a partial commit during
