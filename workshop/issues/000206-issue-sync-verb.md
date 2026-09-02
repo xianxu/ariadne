@@ -169,7 +169,13 @@ the argv and pass even if those semantics were wrong (`ARCH-MOCK`).
   correction below.
 - Both archive commits — `push.go` (both call sites) and `merge.go` — commit
   with the same pathspec their `archiveAddArgs` staged, via a shared
-  `archiveCommitArgs`. `merge`'s is a live gap, not a theoretical one.
+  `archiveCommitArgs`, which refuses an empty move list rather than silently
+  emitting the whole-index form.
+- `migrate.go`'s two commits (source + destination) carry a pathspec, and so do
+  the `--no-commit` hints it prints. The source side is where nothing guards it.
+- `sdlc change-code` commits the issue file in **all three** of
+  `resolveBranchName`'s modes — `--issue`, `--name`, and auto-detect — not just
+  the one that sets the flag.
 - `sdlc issue sync --issue N` commits that issue's files with a message naming
   the issue, from both `main` and a feature branch, and **does not push**: a
   test asserts the default leaves `origin/main` where it was, and that from a
@@ -257,6 +263,10 @@ scaled ceiling rather than smeared across every item by a global multiplier.
       `commitUntrackedIssueFile` so the verb ends with exactly one issue-commit
       mechanism (ARCH-DRY); warn-and-continue on failure.
 - [x] `sdlc issue --help` documents the verb and when to reach for it.
+- [x] Rework after the close review (BR-1..BR-4): derive change-code's issue id
+      from the resolved path; sweep `migrate.go`; make `archiveCommitArgs`
+      refuse empty moves; deliver the mid-planning trigger through
+      `start-plan`'s output + `AGENTS.base.md` §2/§14.
 
 ## Revisions
 
@@ -317,6 +327,64 @@ per-site is the honest split; asserting argv everywhere would prove nothing
 Same lesson as PQ-5, one level down: check whether a guard already stands
 between the code and the failure before asserting the failure is reachable.
 
+### 2026-09-02 — rework after the close review (BR-1..BR-4)
+
+The boundary review returned REWORK on four blocking findings, all verified
+against the code before acting.
+
+**BR-1 (Critical) — the replacement covered fewer modes than the thing it
+replaced.** `syncIssue` gated on `f.Issue > 0`, but `resolveBranchName` has
+*three* name-resolution modes and only one sets `--issue`: `--name` derives the
+path from the branch name, and the third auto-detects the single untracked issue
+file. `commitUntrackedIssueFile` fired in all of them. Worse, in auto-detect mode
+with `--worktree=yes` the created worktree ended up with **no issue file at all**
+— `git worktree add` does not carry untracked files — so every later verb that
+resolves the issue by file would fail there. Fixed by gating on the resolved
+`issuePath` (which every mode produces) and deriving the id from it via
+`issueIDFromPath`. The remaining early return is the genuine case: a `--name`
+branch pointing at a file outside the `NNNNNN-` convention.
+
+This is the second time in this issue that a "the class is swept" claim was
+wrong in the same direction — asserting a property without checking every member
+of the enumeration it quantifies over. Both were caught by a gate, not by me.
+
+**BR-2 — the class had a sixth member.** `migrate.go` stages one explicit path
+per side and then commits bare in both repos, and its source side has *no*
+whole-repo guard: step (1) checks `status --porcelain -- relPath`, the migrated
+file only. Its `--no-clean-check` bypass message even promises "staging is
+explicit-path", the exact property the bare commit removed, and the
+`--no-commit` hints handed the operator the defective form. All four fixed.
+
+**BR-3 — the guard helper's own degenerate input.** `archiveCommitArgs(msg, nil)`
+returned `commit -m msg --`, which git reads as no pathspec and commits the whole
+index — the failure the helper exists to prevent. It now errors, matching
+`syncPathspec`'s posture. Unreachable today (every caller guards `len(moves) >
+0`), which is why it needed pinning rather than trusting.
+
+**BR-4 — the trigger had no delivery point.** The verb's whole justification is
+durability *during* planning, but the only place saying "run this whenever the
+Spec/Plan/Log has moved" was `sdlc issue sync --help`, which an agent reaches
+only by already knowing to look. That is shipping the mechanism and calling the
+purpose done (`ARCH-PURPOSE`). Now delivered where the agent is already reading
+about planning: a `syncPointer` line in `sdlc start-plan`'s output, and
+`AGENTS.base.md` §2 (the `claim → start-plan → … → change-code` flow) and §14
+(the context-checkpoint rule, whose "update its durable state" is precisely the
+moment). `AGENTS.md`/`CLAUDE.md`/`GEMINI.md` are weave-generated entry files —
+the edit belongs in `AGENTS.base.md`, and this is a base-layer export, so it
+propagates to downstream repos on the next `sdlc propagate-base`.
+
+Minors: the guard comment now describes the case it actually catches (M1);
+`DryRun` is threaded into `syncIssue`'s `claimFlags` rather than relying on
+`runChangeCode` returning first (M2); `--dry-run` covered on both the verb and
+change-code (M4); the partial-commit-during-merge behavior change recorded in the
+atlas (M5); `issueFilesForID` now single-sources the "files for issue N" glob
+shared by `syncPathspec` and `resolveBranchName` (M7). M3 (no bespoke `merge.go`
+regression) stands as the recorded choice already logged. **M6 not taken:** the
+change is 9 files, over AGENTS.md §1's durable-plan threshold, but the design
+lived in this issue's `## Spec` + `## Revisions` — which is what the plan-quality
+gate actually read and blocked on twice. Back-filling `workshop/plans/` after the
+fact would produce a copy, not a record.
+
 ### 2026-09-02 — where the sync sits inside `change-code`
 
 After the whole gate sequence, at the point `commitUntrackedIssueFile`
@@ -349,6 +417,11 @@ test harness with no test-fixture primitive in the vocabulary (flagged so the
 calibration row is not read as clean), the total assumes a clean close review,
 and the ledger's under-estimate cluster for multi-site + heavy-real-git-test
 work is a real risk the close will measure rather than something to pad now.
+
+**Close review round 1: REWORK.** Four blocking findings, all real; see the
+Revisions entry. The reviewer reverted each claimed fix in a scratch copy to
+confirm the regressions actually go red — worth noting because that is the check
+that separates a pinned fix from a mirror of itself.
 
 **Coverage for the archive sites.** `archiveCommitArgs` is pure, so it is
 table-tested directly, and `push.go`'s in-place archive gets a real-repo

@@ -22,6 +22,9 @@ import (
 
 const syncIssuesDir = "workshop/issues"
 
+// issuePath206 is the file syncRepo seeds, as change-code would resolve it.
+const issuePath206 = syncIssuesDir + "/000206-issue-sync-verb.md"
+
 // syncRepo builds a repo on main with a bare origin, an issues dir, and one
 // committed issue file, then chdirs in. Returns (repo, origin).
 func syncRepo(t *testing.T) (string, string) {
@@ -331,7 +334,10 @@ func TestArchiveCommitArgs_MirrorsTheAdd(t *testing.T) {
 		{IssuePath: "workshop/issues/000206-a.md", HistoryPath: "workshop/history/000206-a.md"},
 		{IssuePath: "workshop/issues/000207-b.md", HistoryPath: "workshop/history/000207-b.md", SourceUntracked: true},
 	}
-	got := archiveCommitArgs("archive completed issues to history", moves)
+	got, err := archiveCommitArgs("archive completed issues to history", moves)
+	if err != nil {
+		t.Fatalf("archiveCommitArgs: %v", err)
+	}
 	want := []string{
 		"commit", "-m", "archive completed issues to history", "--",
 		"workshop/issues/000206-a.md", "workshop/history/000206-a.md",
@@ -383,7 +389,11 @@ func TestArchiveCommit_LeavesForeignStagedFileAlone(t *testing.T) {
 	if out, err := r.Git(archiveAddArgs(moves)...); err != nil {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
-	if out, err := r.Git(archiveCommitArgs(archiveCommitMessage, moves)...); err != nil {
+	commitArgs, err := archiveCommitArgs(archiveCommitMessage, moves)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := r.Git(commitArgs...); err != nil {
 		t.Fatalf("git commit: %v\n%s", err, out)
 	}
 
@@ -410,7 +420,7 @@ func TestChangeCodeSyncIssue_CommitsAndPushes(t *testing.T) {
 	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Plan\n\nthe accepted design\n")
 
 	var stderr bytes.Buffer
-	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir})
+	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir}, issuePath206)
 
 	if got := headSubject(t, repo); got != issueSyncMessage(206, "spec/plan at change-code") {
 		t.Errorf("commit subject = %q, want the change-code sync message", got)
@@ -439,7 +449,7 @@ func TestChangeCodeSyncIssue_WarnsRatherThanDying(t *testing.T) {
 	// NOTE: no `git remote add origin` — the push has nowhere to go.
 
 	var stderr bytes.Buffer
-	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir})
+	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir}, issuePath206)
 
 	if !strings.Contains(stderr.String(), "issue file not synced") {
 		t.Errorf("expected a warning naming the failure; stderr:\n%s", stderr.String())
@@ -453,17 +463,145 @@ func TestChangeCodeSyncIssue_WarnsRatherThanDying(t *testing.T) {
 	}
 }
 
-// TestChangeCodeSyncIssue_NoIssueIsANoop: `--name` mode has no issue ID to name
-// in the commit message, so there is nothing to sync.
-func TestChangeCodeSyncIssue_NoIssueIsANoop(t *testing.T) {
+// TestChangeCodeSyncIssue_SyncsWithoutTheIssueFlag is the C1 regression from the
+// #206 close review. syncIssue used to gate on f.Issue > 0, but change-code has
+// THREE name-resolution modes and only one sets --issue: `--name` derives the
+// path from the branch name, and the third auto-detects the single untracked
+// issue file. Both were silently skipped — and in auto-detect mode with
+// --worktree=yes that left the created worktree with no issue file at all, since
+// `git worktree add` does not carry untracked files. Gate on the resolved path,
+// which every mode produces.
+func TestChangeCodeSyncIssue_SyncsWithoutTheIssueFlag(t *testing.T) {
+	repo, _ := syncRepo(t)
+	newIssue := writeSyncIssue(t, repo, "000300-brand-new.md", "## Spec\n\nauto-detected\n")
+
+	var stderr bytes.Buffer
+	// No Issue field — exactly what runChangeCode passes in auto-detect mode.
+	syncIssue(&stderr, &changeCodeFlags{IssuesDir: syncIssuesDir}, newIssue)
+
+	if !strings.Contains(headFiles(t, repo), syncIssuesDir+"/000300-brand-new.md") {
+		t.Error("the auto-detected issue file must be committed; the branch has to start tracked")
+	}
+	if got := headSubject(t, repo); got != issueSyncMessage(300, "spec/plan at change-code") {
+		t.Errorf("subject = %q; the id comes from the resolved path, not the flag", got)
+	}
+	if status := git(t, repo, "status", "--porcelain", "--", syncIssuesDir); strings.TrimSpace(status) != "" {
+		t.Errorf("issue file left dirty; status:\n%s", status)
+	}
+}
+
+// TestChangeCodeSyncIssue_NonIssuePathIsANoop: a --name branch can point at a
+// file outside the NNNNNN- convention, so there is no id to name in the subject
+// and nothing to sync. This is the ONLY case the guard should catch.
+func TestChangeCodeSyncIssue_NonIssuePathIsANoop(t *testing.T) {
 	repo, _ := syncRepo(t)
 	before := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	notAnIssue := writeSyncIssue(t, repo, "freeform-branch.md", "no id here\n")
+
 	var stderr bytes.Buffer
-	syncIssue(&stderr, &changeCodeFlags{IssuesDir: syncIssuesDir})
+	syncIssue(&stderr, &changeCodeFlags{IssuesDir: syncIssuesDir}, notAnIssue)
+
 	if after := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")); after != before {
-		t.Errorf("--name mode should not commit (%s → %s)", before, after)
+		t.Errorf("an id-less path should not commit (%s → %s)", before, after)
 	}
 	if stderr.String() != "" {
-		t.Errorf("--name mode should be silent, got: %s", stderr.String())
+		t.Errorf("an id-less path should be silent, got: %s", stderr.String())
+	}
+}
+
+// TestChangeCodeSyncIssue_DryRunCommitsNothing pins M2: the helper threads
+// DryRun rather than relying on runChangeCode returning before it. A helper that
+// commits must not depend on a caller's early return for dry-run correctness.
+func TestChangeCodeSyncIssue_DryRunCommitsNothing(t *testing.T) {
+	repo, _ := syncRepo(t)
+	before := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Plan\n\nnot yet\n")
+
+	var stderr bytes.Buffer
+	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir, DryRun: true}, issuePath206)
+
+	if after := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")); after != before {
+		t.Errorf("--dry-run committed (%s → %s)", before, after)
+	}
+}
+
+// TestIssueSync_DryRunCommitsNothing is the same guarantee at the verb.
+func TestIssueSync_DryRunCommitsNothing(t *testing.T) {
+	repo, _ := syncRepo(t)
+	before := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nnot yet\n")
+
+	var stdout, stderr bytes.Buffer
+	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, DryRun: true}
+	if err := runIssueSync(&stdout, &stderr, f); err != nil {
+		t.Fatalf("runIssueSync --dry-run: %v", err)
+	}
+	if after := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")); after != before {
+		t.Errorf("--dry-run committed (%s → %s)", before, after)
+	}
+	if !strings.Contains(stderr.String(), "dry-run") {
+		t.Errorf("--dry-run should say so; stderr:\n%s", stderr.String())
+	}
+	if status := git(t, repo, "status", "--porcelain", "--", syncIssuesDir); strings.TrimSpace(status) == "" {
+		t.Error("--dry-run must leave the edit uncommitted in the working tree")
+	}
+}
+
+// TestArchiveCommitArgs_RefusesEmptyMoves pins the degenerate input. `git commit
+// -m x --` with nothing after the separator is NOT a scoped commit — git reads
+// it as no pathspec at all and records the whole index, which is precisely what
+// this helper exists to prevent. Every call site guards on len(moves) > 0, so
+// the error is unreachable today; it is here so the guard cannot be dropped
+// silently later.
+func TestArchiveCommitArgs_RefusesEmptyMoves(t *testing.T) {
+	got, err := archiveCommitArgs(archiveCommitMessage, nil)
+	if err == nil {
+		t.Fatalf("archiveCommitArgs(nil) = %v, want an error — an empty pathspec commits the whole index", got)
+	}
+	if got != nil {
+		t.Errorf("argv should be nil alongside the error, got %v", got)
+	}
+}
+
+// ── migrate: the sixth member of the class ───────────────────────────────────
+
+// TestMigrateCommit_LeavesForeignStagedFileAlone covers the source side, which
+// is where nothing guards it: migrate's step (1) cleanliness check is scoped to
+// the migrated path (`status --porcelain -- relPath`), so a peer's staged work
+// elsewhere in the source repo sails past it. Before the pathspec, that work was
+// swept into a commit reading "migrate: move X to Y".
+func TestMigrateCommit_LeavesForeignStagedFileAlone(t *testing.T) {
+	repo := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
+	moved := "docs/moved.md"
+	if err := os.MkdirAll(filepath.Join(repo, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, moved), []byte("body\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "-m", "seed")
+
+	// migrate's step (6) source side: remove the file, stage that one path.
+	if err := os.Remove(filepath.Join(repo, moved)); err != nil {
+		t.Fatal(err)
+	}
+	git(t, repo, "add", "--", moved)
+	foreign := stageForeignFile(t, repo, "peer-work.go")
+
+	r := execGitRunner{}
+	if out, err := r.Git("commit", "-q", "-m", "migrate: move "+moved+" to peer", "--", moved); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	committed := headFiles(t, repo)
+	if strings.Contains(committed, foreign) {
+		t.Errorf("foreign staged file swept into the migrate commit; files:\n%s", committed)
+	}
+	if !strings.Contains(committed, moved) {
+		t.Errorf("migrate commit should record the removal of %s; files:\n%s", moved, committed)
+	}
+	if status := git(t, repo, "status", "--porcelain"); !strings.Contains(status, "A  "+foreign) {
+		t.Errorf("foreign file should still be staged, status:\n%s", status)
 	}
 }

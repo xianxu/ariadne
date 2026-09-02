@@ -335,15 +335,28 @@ func runMigrate(o *migrateOpts) error {
 	}
 
 	// (7) scoped commits (or hand the staged state to the operator).
+	//
+	// Both commits carry the SAME pathspec their add staged (#206). Step (6)
+	// stages one explicit path per side, but a bare `git commit` records the
+	// whole index — so a peer agent's staged work was swept into a commit
+	// reading "migrate: move X to Y". The source side had no guard against this
+	// at all: step (1) checks `status --porcelain -- relPath`, i.e. only the
+	// migrated file. The destination side's guard is bypassable, and the very
+	// message the bypass prints ("staging is explicit-path") promised the
+	// property the bare commit removed. The printed --no-commit hints carry the
+	// pathspec too — handing the operator the defective form would just relocate
+	// the bug.
+	destMsg := "migrate: receive " + destRel + " from " + srcRepo
+	srcMsg := "migrate: move " + relPath + " to " + destRepo
 	if o.noCommit {
 		cinfo(o.stderr, "--no-commit: both sides staged; commit with:")
-		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q\n", destTop, "migrate: receive "+destRel+" from "+srcRepo)
-		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q\n", srcRoot, "migrate: move "+relPath+" to "+destRepo)
+		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q -- %s\n", destTop, destMsg, destRel)
+		fmt.Fprintf(o.stderr, "    git -C %s commit -m %q -- %s\n", srcRoot, srcMsg, relPath)
 	} else {
-		if out, err := gitInDir(destTop, "commit", "-q", "-m", "migrate: receive "+destRel+" from "+srcRepo); err != nil {
+		if out, err := gitInDir(destTop, "commit", "-q", "-m", destMsg, "--", destRel); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", destRepo, err, out))
 		}
-		if out, err := gitInDir(srcRoot, "commit", "-q", "-m", "migrate: move "+relPath+" to "+destRepo); err != nil {
+		if out, err := gitInDir(srcRoot, "commit", "-q", "-m", srcMsg, "--", relPath); err != nil {
 			die(o.stderr, fmt.Sprintf("commit in %s: %v — %s", srcRepo, err, out))
 		}
 		cok(o.stderr, fmt.Sprintf("moved %s → %s/%s (both sides committed, scoped)", relPath, destRepo, destRel))

@@ -547,7 +547,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		if out, gerr := mergeRunner.GitInDir(mainPath, archiveAddArgs(moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("git -C %s add: %v\n%s", mainPath, gerr, out))
 		}
-		if out, gerr := mergeRunner.GitInDir(mainPath, archiveCommitArgs(archiveCommitMessage, moves)...); gerr != nil {
+		commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+		if cerr != nil {
+			die(stderr, cerr.Error())
+		}
+		if out, gerr := mergeRunner.GitInDir(mainPath, commitArgs...); gerr != nil {
 			die(stderr, fmt.Sprintf("git -C %s commit: %v\n%s", mainPath, gerr, out))
 		}
 		if out, gerr := mergeRunner.GitInDir(mainPath, "push"); gerr != nil {

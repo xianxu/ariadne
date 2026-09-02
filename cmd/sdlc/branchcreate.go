@@ -55,13 +55,12 @@ func resolveBranchName(f *nameFlags, r gitRunner) (name, untrackedFile string, e
 	}
 
 	if f.Issue > 0 {
-		id := fmt.Sprintf("%06d", f.Issue)
-		matches, _ := filepath.Glob(filepath.Join(f.IssuesDir, id+"-*.md"))
+		matches := issueFilesForID(f.IssuesDir, f.Issue)
 		if len(matches) == 0 {
-			return "", "", fmt.Errorf("no issue file matches %s/%s-*.md", f.IssuesDir, id)
+			return "", "", fmt.Errorf("no issue file matches %s/%06d-*.md", f.IssuesDir, f.Issue)
 		}
 		if len(matches) > 1 {
-			return "", "", fmt.Errorf("multiple issue files match %s/%s-*.md: %v", f.IssuesDir, id, matches)
+			return "", "", fmt.Errorf("multiple issue files match %s/%06d-*.md: %v", f.IssuesDir, f.Issue, matches)
 		}
 		if info, err := os.Stat(matches[0]); err != nil || !info.Mode().IsRegular() {
 			return "", "", fmt.Errorf("issue file %s exists in glob but is not a readable regular file", matches[0])

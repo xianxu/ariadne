@@ -201,7 +201,11 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 			die(stderr, fmt.Sprintf("git add archived paths: %v\n%s", gerr, out))
 		}
-		if out, gerr := pushRunner.Git(archiveCommitArgs(archiveCommitMessage, moves)...); gerr != nil {
+		commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+		if cerr != nil {
+			die(stderr, cerr.Error())
+		}
+		if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
 			die(stderr, fmt.Sprintf("commit archive failed: %v\n%s", gerr, out))
 		}
 		if out, gerr := pushRunner.Git("push"); gerr != nil {
@@ -260,9 +264,18 @@ func archiveAddArgs(moves []preparedArchiveMove) []string {
 // cannot drift — a commit pathspec wider than its add is the bug itself
 // (ARCH-DRY). Pure, like its twin: each caller feeds the result to its own
 // runner, in cwd (push) or another worktree (merge).
-func archiveCommitArgs(msg string, moves []preparedArchiveMove) []string {
+//
+// Errors on an empty move list rather than returning `commit -m … --`, which
+// git reads as NO pathspec and happily commits the whole index — the exact
+// behavior this helper exists to prevent, from its degenerate input. Every
+// caller already guards on len(moves) > 0, so the error is unreachable; it is
+// here so the guard can never be dropped silently. Same posture as syncPathspec.
+func archiveCommitArgs(msg string, moves []preparedArchiveMove) ([]string, error) {
+	if len(moves) == 0 {
+		return nil, fmt.Errorf("archiveCommitArgs: no moves — an empty pathspec would commit the whole index")
+	}
 	args := []string{"commit", "-m", msg, "--"}
-	return append(args, archiveAddArgs(moves)[2:]...)
+	return append(args, archiveAddArgs(moves)[2:]...), nil
 }
 
 // archiveCommitMessage is the subject both archive call sites commit under.
@@ -388,7 +401,11 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
 	}
-	if out, gerr := pushRunner.Git(archiveCommitArgs(archiveCommitMessage, moves)...); gerr != nil {
+	commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
+	if cerr != nil {
+		return false, cerr
+	}
+	if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
 		return false, fmt.Errorf("commit archive failed: %v\n%s", gerr, out)
 	}
 	if out, gerr := pushRunner.Git("push"); gerr != nil {

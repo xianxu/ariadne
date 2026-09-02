@@ -236,10 +236,9 @@ func syncPathspec(f *claimFlags) ([]string, error) {
 	if f.Issue <= 0 {
 		return []string{f.IssuesDir + "/"}, nil
 	}
-	id := fmt.Sprintf("%06d", f.Issue)
-	matches, _ := filepath.Glob(filepath.Join(f.IssuesDir, id+"-*.md"))
+	matches := issueFilesForID(f.IssuesDir, f.Issue)
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("--issue %d: no file matches %s/%s-*.md", f.Issue, f.IssuesDir, id)
+		return nil, fmt.Errorf("--issue %d: no file matches %s/%06d-*.md", f.Issue, f.IssuesDir, f.Issue)
 	}
 	return matches, nil
 }

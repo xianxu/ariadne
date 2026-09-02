@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -96,4 +98,26 @@ func filterIssueFiles(refs []issueFileRef, keep func(issueFileRef) bool) []issue
 		}
 	}
 	return filtered
+}
+
+// issueFilesForID globs the NNNNNN-*.md files belonging to one issue id. The
+// single source for "which files are issue N's" as a PATH question — shared by
+// resolveBranchName (which file names the branch) and syncPathspec (which files
+// a sync stages and commits), so the two cannot disagree about what an --issue
+// filter means. changedIssueFiles answers a different question (which of the
+// already-changed paths belong to N) by prefix-matching that same convention.
+func issueFilesForID(issuesDir string, id int) []string {
+	matches, _ := filepath.Glob(filepath.Join(issuesDir, fmt.Sprintf("%06d", id)+"-*.md"))
+	return matches
+}
+
+// issueIDFromPath returns the issue id encoded in an issue file's name, or 0
+// when the name doesn't follow the NNNNNN- convention (a --name branch pointed
+// at a non-issue file). Reuses issueIDPrefix so the convention is parsed once.
+func issueIDFromPath(path string) int {
+	id, err := strconv.Atoi(issueIDPrefix(filepath.Base(path)))
+	if err != nil {
+		return 0
+	}
+	return id
 }

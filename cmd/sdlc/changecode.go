@@ -158,9 +158,9 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	//    run above, which are read-only).
 	if f.DryRun {
 		cinfo(stderr, "dry-run — branch creation skipped")
-		if f.Issue > 0 {
+		if id := issueIDFromPath(issuePath); id > 0 {
 			fmt.Fprintf(stdout, "Would sync + push issue #%d under %q\n",
-				f.Issue, issueSyncMessage(f.Issue, "spec/plan at change-code"))
+				id, issueSyncMessage(id, "spec/plan at change-code"))
 		}
 		fmt.Fprintf(stdout, "Would create branch %s (mode=%s)\n", name, wt)
 		return nil
@@ -175,7 +175,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	//    commit+push of the issue file: a second implementation of this, and one
 	//    that only ever handled the UNTRACKED case, leaving a tracked-but-edited
 	//    issue file dirty at branch creation.
-	syncIssue(stderr, f)
+	syncIssue(stderr, f, issuePath)
 
 	// 8. Create branch.
 	switch wt {
@@ -195,6 +195,14 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 // (#206), so the design that just cleared plan-quality is durable before any
 // code is written.
 //
+// The id comes from the RESOLVED issue path, not from f.Issue. resolveBranchName
+// has three name-resolution modes and only one of them sets --issue: `--name`
+// derives the path from the branch name, and the third mode auto-detects the
+// single untracked issue file. Gating on the flag silently skipped both — and in
+// auto-detect mode with --worktree=yes that left the new worktree with no issue
+// file at all, since `git worktree add` does not carry untracked files. The path
+// is the thing every mode produces.
+//
 // BEST-EFFORT, deliberately: change-code's job is to OPEN implementation, and a
 // tracker commit that could not land must not stand between the operator and
 // starting work. The helper this replaced already warned rather than died on a
@@ -202,16 +210,22 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 // way change-code could fail — a re-run from an in-place feature branch, where
 // the publish route finds no worktree on main — from becoming fatal. The
 // warning names the retry.
-func syncIssue(stderr io.Writer, f *changeCodeFlags) {
-	if f.Issue <= 0 {
-		return // --name mode: no issue ID to name in the commit message
+func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
+	// A --name branch can point at a file outside the NNNNNN- convention; there
+	// is no id to name in the commit subject, so there is nothing to sync.
+	id := issueIDFromPath(issuePath)
+	if id == 0 {
+		return
 	}
-	syncFlags := &claimFlags{Issue: f.Issue, IssuesDir: f.IssuesDir, NoStart: true}
-	msg := issueSyncMessage(f.Issue, "spec/plan at change-code")
+	// DryRun is threaded even though runChangeCode returns before reaching here
+	// under --dry-run: a helper that commits must not depend on a caller's early
+	// return for its dry-run correctness.
+	syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, NoStart: true, DryRun: f.DryRun}
+	msg := issueSyncMessage(id, "spec/plan at change-code")
 	if err := syncIssuesToMain(stderr, stderr, syncFlags, changeCodeRunner, msg); err != nil {
 		cwarn(stderr, fmt.Sprintf("issue file not synced: %v\n"+
 			"      the gates passed and the branch is being created anyway;\n"+
-			"      re-run `sdlc issue sync --issue %d --push` once the cause is cleared", err, f.Issue))
+			"      re-run `sdlc issue sync --issue %d --push` once the cause is cleared", err, id))
 	}
 }
 
