@@ -318,6 +318,94 @@ rounds:
           family: comment-narrower-than-code
           round: 3
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-02T13:39:24-07:00"
+      agent: claude
+      dispose:
+        - id: BR-10
+          disposition: not-addressed
+          note: No workshop/plans/000206-*-plan.md; the two new plans/ files are the gate ledger and the review transcript. The recorded "back-filling would produce a copy" rationale stands as an operator call; Minor, non-blocking.
+          round: 4
+        - id: BR-12
+          disposition: not-addressed
+          note: Still no declared envelope, and round 3 added an unconditional network push on the no-changes path without pricing it.
+          round: 4
+        - id: BR-13
+          disposition: addressed
+          note: 'Verified by revert: four pathspec sites reverted at once produce four failures (incl. push.go:204 inside runPush); deleting syncPointer reds TestRunStartPlan_RendersAtPlanLens and the wiring guard.'
+          round: 4
+        - id: BR-18
+          disposition: not-addressed
+          note: 'syncInPlace is fixed and pinned (both tests red on revert), but claim.go:302-320 pushes origin main without carrying the body: from a feature worktree, `sdlc issue sync --issue N --push` after a local sync prints `[ok] Issues synced to main and pushed to origin.` with origin/main unmoved (measured, incl. via `issue new`''s advertised recovery, where origin/main kept only README.md). Same finding, second arm; that branch has no test.'
+          round: 4
+        - id: BR-19
+          disposition: addressed
+          note: 'Measured: replacing syncIssue(stderr, f, issuePath) at changecode.go:179 with a no-op fails TestVerbsWireTheirCommitHelpers.'
+          round: 4
+        - id: BR-20
+          disposition: addressed
+          note: atlas/workflow/sdlc-binary.md now says "Seven sites" over a seven-member enumeration.
+          round: 4
+        - id: BR-21
+          disposition: addressed
+          note: syncPathspec's doc drops the unreachability claim and names the deleted-issue-file state that broke it.
+          round: 4
+      findings:
+        - id: BR-22
+          severity: Minor
+          title: recoverInterruptedArchive's dry-run hint hand-builds the commit argv instead of using archiveCommitArgs
+          detail: |-
+            push.go:394-397 prints `git commit -m %q -- <paths>` assembled inline, deriving only the
+            path list from archiveAddArgs. This is the 4th finding in family `narrowed-add-bare-commit`,
+            so do NOT patch the line: the rule round 2 already stated for migrate is that ONE builder
+            feeds both the executed commit and the command printed for the operator, so the hint cannot
+            lose what the executed form has. push.go is the unswept member of that enumeration
+            (migrate.go:426 migrateCommitArgs is the swept one). Measured prevalence: 2 hint sites in
+            the tree, 1 derived.
+          family: narrowed-add-bare-commit
+          round: 4
+        - id: BR-23
+          severity: Minor
+          title: the pathspec class guard's seam enumeration misses gitx.RunGit, so a commit through it escapes
+          detail: |-
+            commitpathspec_guard_test.go:157-172 accepts a git argv only from .Git / .GitInDir /
+            gitInDir / exec.Command("git", ...), while its own doc claims every `git commit` argv in
+            cmd/sdlc and "the eighth site someone writes next year fails immediately". gitx.RunGit is a
+            live seam at ~12 sites in this package (all reads today) and gitx.Capture at more; an inline
+            gitx.RunGit("commit", "-m", msg) passes the guard. This is the 5th finding in family
+            `class-fix-without-class-test`, so the fix is the rule, not the line: the guard's seam list
+            must cover every git-invoking helper the package actually has — add RunGit/Capture and state
+            that adding a new git seam requires adding it here, in the same shape as the stale-exemption
+            check the guard already performs on its allowlist.
+          family: class-fix-without-class-test
+          round: 4
+        - id: BR-24
+          severity: Minor
+          title: '`sdlc claim` with no issue changes now needs the network and dies offline, where it used to be a clean no-op'
+          detail: |-
+            Measured: on main, clean tree, unreachable origin, `sdlc claim --issue 206` now fails through
+            pushMain; at base 92bd1ad the same command printed `[ok] No issue changes to sync.` and exited
+            0. Deliberate consequence of "nothing to commit is not nothing to publish", but claim is the
+            one caller that die()s on the error. This is the 2nd finding in family
+            `undocumented-behavior-change`; the rule the first one (MERGE_HEAD partial commits) already
+            established is that a change which creates a NEW way an existing verb can fail gets recorded
+            in the atlas failure-mode list — apply it here, and decide explicitly whether an idempotent
+            offline claim should be fatal or a warning.
+          family: undocumented-behavior-change
+          round: 4
+        - id: BR-25
+          severity: Minor
+          title: change-code --dry-run promises "Would sync + push" from branches where it will not push
+          detail: |-
+            changecode.go:162-164 prints `Would sync + push issue #%d` unconditionally, while syncIssue
+            sets NoPush: !onMain, so from an in-place branch or a feature worktree the real run commits
+            locally and does not publish. This is the 4th finding in family `comment-narrower-than-code`;
+            the rule is that a statement about behavior must branch on the same state the code branches
+            on — here, derive the dry-run wording from the same `onMain` test syncIssue uses rather than
+            restating the outcome.
+          family: comment-narrower-than-code
+          round: 4
+      blocked: true
 ---
 
 # Gate ledger — ariadne#206 (boundary-review)
@@ -483,12 +571,61 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   the rule is that a comment asserting unreachability must enumerate the states its guard
   quantifies over — if that cannot be enforced, drop the claim and let the error stand alone.
 
+## Round 4 — 2026-09-02T13:39:24-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-10 — not-addressed — No workshop/plans/000206-*-plan.md; the two new plans/ files are the gate ledger and the review transcript. The recorded "back-filling would produce a copy" rationale stands as an operator call; Minor, non-blocking.
+- BR-12 — not-addressed — Still no declared envelope, and round 3 added an unconditional network push on the no-changes path without pricing it.
+- BR-13 — addressed — Verified by revert: four pathspec sites reverted at once produce four failures (incl. push.go:204 inside runPush); deleting syncPointer reds TestRunStartPlan_RendersAtPlanLens and the wiring guard.
+- BR-18 — not-addressed — syncInPlace is fixed and pinned (both tests red on revert), but claim.go:302-320 pushes origin main without carrying the body: from a feature worktree, `sdlc issue sync --issue N --push` after a local sync prints `[ok] Issues synced to main and pushed to origin.` with origin/main unmoved (measured, incl. via `issue new`'s advertised recovery, where origin/main kept only README.md). Same finding, second arm; that branch has no test.
+- BR-19 — addressed — Measured: replacing syncIssue(stderr, f, issuePath) at changecode.go:179 with a no-op fails TestVerbsWireTheirCommitHelpers.
+- BR-20 — addressed — atlas/workflow/sdlc-binary.md now says "Seven sites" over a seven-member enumeration.
+- BR-21 — addressed — syncPathspec's doc drops the unreachability claim and names the deleted-issue-file state that broke it.
+
+### Raised
+
+- **BR-22** [Minor] `narrowed-add-bare-commit` recoverInterruptedArchive's dry-run hint hand-builds the commit argv instead of using archiveCommitArgs
+  push.go:394-397 prints `git commit -m %q -- <paths>` assembled inline, deriving only the
+  path list from archiveAddArgs. This is the 4th finding in family `narrowed-add-bare-commit`,
+  so do NOT patch the line: the rule round 2 already stated for migrate is that ONE builder
+  feeds both the executed commit and the command printed for the operator, so the hint cannot
+  lose what the executed form has. push.go is the unswept member of that enumeration
+  (migrate.go:426 migrateCommitArgs is the swept one). Measured prevalence: 2 hint sites in
+  the tree, 1 derived.
+- **BR-23** [Minor] `class-fix-without-class-test` the pathspec class guard's seam enumeration misses gitx.RunGit, so a commit through it escapes
+  commitpathspec_guard_test.go:157-172 accepts a git argv only from .Git / .GitInDir /
+  gitInDir / exec.Command("git", ...), while its own doc claims every `git commit` argv in
+  cmd/sdlc and "the eighth site someone writes next year fails immediately". gitx.RunGit is a
+  live seam at ~12 sites in this package (all reads today) and gitx.Capture at more; an inline
+  gitx.RunGit("commit", "-m", msg) passes the guard. This is the 5th finding in family
+  `class-fix-without-class-test`, so the fix is the rule, not the line: the guard's seam list
+  must cover every git-invoking helper the package actually has — add RunGit/Capture and state
+  that adding a new git seam requires adding it here, in the same shape as the stale-exemption
+  check the guard already performs on its allowlist.
+- **BR-24** [Minor] `undocumented-behavior-change` `sdlc claim` with no issue changes now needs the network and dies offline, where it used to be a clean no-op
+  Measured: on main, clean tree, unreachable origin, `sdlc claim --issue 206` now fails through
+  pushMain; at base 92bd1ad the same command printed `[ok] No issue changes to sync.` and exited
+  0. Deliberate consequence of "nothing to commit is not nothing to publish", but claim is the
+  one caller that die()s on the error. This is the 2nd finding in family
+  `undocumented-behavior-change`; the rule the first one (MERGE_HEAD partial commits) already
+  established is that a change which creates a NEW way an existing verb can fail gets recorded
+  in the atlas failure-mode list — apply it here, and decide explicitly whether an idempotent
+  offline claim should be fatal or a warning.
+- **BR-25** [Minor] `comment-narrower-than-code` change-code --dry-run promises "Would sync + push" from branches where it will not push
+  changecode.go:162-164 prints `Would sync + push issue #%d` unconditionally, while syncIssue
+  sets NoPush: !onMain, so from an in-place branch or a feature worktree the real run commits
+  locally and does not publish. This is the 4th finding in family `comment-narrower-than-code`;
+  the rule is that a statement about behavior must branch on the same state the code branches
+  on — here, derive the dry-run wording from the same `onMain` test syncIssue uses rather than
+  restating the outcome.
+
 ## Open findings
 
 - **BR-10** [Minor] `durable-plan-artifact` no durable plan in workshop/plans/ for a 9-file, ~900-line change (AGENTS.md §1)
 - **BR-12** [Minor] `operating-envelope-undeclared` no declared operating envelope for a verb designed to be run frequently (ARCH-CONSTRAINTS)
-- **BR-13** [Important] `class-fix-without-class-test` this round's call-site fixes revert green - 5 of 7 pathspec sites and the start-plan delivery have no pinning test
 - **BR-18** [Critical] `early-return-skips-second-concern` `sdlc issue sync --push` cannot publish an already-committed body, and both new warnings name it as the recovery step
-- **BR-19** [Important] `class-fix-without-class-test` runChangeCode's syncIssue call site enters no test — deleting the line leaves the suite green
-- **BR-20** [Minor] `prose-count-restates-enumeration` atlas says "Six sites" over an enumeration of seven
-- **BR-21** [Minor] `comment-narrower-than-code` syncPathspec's "unreachable" rationale does not hold for a deleted issue file
+- **BR-22** [Minor] `narrowed-add-bare-commit` recoverInterruptedArchive's dry-run hint hand-builds the commit argv instead of using archiveCommitArgs
+- **BR-23** [Minor] `class-fix-without-class-test` the pathspec class guard's seam enumeration misses gitx.RunGit, so a commit through it escapes
+- **BR-24** [Minor] `undocumented-behavior-change` `sdlc claim` with no issue changes now needs the network and dies offline, where it used to be a clean no-op
+- **BR-25** [Minor] `comment-narrower-than-code` change-code --dry-run promises "Would sync + push" from branches where it will not push

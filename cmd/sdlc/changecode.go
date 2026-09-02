@@ -160,8 +160,13 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	if f.DryRun {
 		cinfo(stderr, "dry-run — branch creation skipped")
 		if id := issueIDFromPath(issuePath); id > 0 {
-			fmt.Fprintf(stdout, "Would sync + push issue #%d under %q\n",
-				id, issueSyncMessage(id, "spec/plan at change-code"))
+			// Derive the wording from the SAME test syncIssue branches on, not
+			// from a restatement of the outcome: from a branch it commits without
+			// publishing, so promising a push here would be a lie in two of the
+			// three locations.
+			fmt.Fprintf(stdout, "Would %s issue #%d under %q\n",
+				changeCodeSyncVerb(syncIssuePublishes()), id,
+				issueSyncMessage(id, "spec/plan at change-code"))
 		}
 		fmt.Fprintf(stdout, "Would create branch %s (mode=%s)\n", name, wt)
 		return nil
@@ -190,6 +195,22 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		}
 	}
 	return nil
+}
+
+// syncIssuePublishes reports whether change-code's sync will publish: only from
+// main, where "commit here" and "publish to main" coincide. One source for the
+// decision and for the --dry-run line that describes it, so the two can't drift
+// (the dry-run text used to promise a push unconditionally).
+func syncIssuePublishes() bool {
+	return gitx.Capture("branch", "--show-current") == "main"
+}
+
+// changeCodeSyncVerb names what the sync will do, for human output.
+func changeCodeSyncVerb(publishes bool) string {
+	if publishes {
+		return "sync + push"
+	}
+	return "sync locally (not on main — publishing belongs to pr/merge/close)"
 }
 
 // syncIssue commits the issue file through the shared sync dispatch (#206), so
@@ -235,7 +256,7 @@ func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	if id == 0 {
 		return
 	}
-	onMain := gitx.Capture("branch", "--show-current") == "main"
+	onMain := syncIssuePublishes()
 	// DryRun is threaded even though runChangeCode returns before reaching here
 	// under --dry-run: a helper that commits must not depend on a caller's early
 	// return for its dry-run correctness.

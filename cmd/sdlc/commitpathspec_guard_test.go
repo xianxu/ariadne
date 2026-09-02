@@ -154,7 +154,10 @@ func isGitArgvCall(e *ast.CallExpr) bool {
 		return fn.Name == "gitInDir"
 	case *ast.SelectorExpr:
 		switch fn.Sel.Name {
-		case "Git", "GitInDir":
+		case "Git", "GitInDir", "RunGit", "Capture":
+			// gitx.RunGit / gitx.Capture are the package's other live git seams
+			// (~12 read sites); an inline gitx.RunGit("commit", …) would
+			// otherwise escape this guard entirely.
 			return true
 		case "Command": // exec.Command("git", …)
 			lits := stringLiterals(e.Args)

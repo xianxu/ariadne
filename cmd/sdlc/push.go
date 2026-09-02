@@ -391,10 +391,17 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 	}
 	if f.DryRun {
 		fmt.Fprintf(stdout, "Would: git %s\n", strings.Join(archiveAddArgs(moves), " "))
-		// Quote the subject: it contains spaces, so a bare join would read as
-		// four more pathspec arguments.
+		// Route the hint through the same builder the real run uses, so the
+		// printed command can't lose the `--` the executed one carries (the
+		// consolidation migrate.go got a round earlier). The subject is quoted
+		// because it contains spaces and would otherwise read as more pathspec
+		// arguments.
+		hint, herr := archiveCommitArgs(archiveCommitMessage, moves)
+		if herr != nil {
+			return false, herr
+		}
 		fmt.Fprintf(stdout, "Would: git commit -m %q -- %s\n",
-			archiveCommitMessage, strings.Join(archiveAddArgs(moves)[2:], " "))
+			archiveCommitMessage, strings.Join(hint[4:], " "))
 		fmt.Fprintln(stdout, "Would: git push")
 		return true, nil
 	}

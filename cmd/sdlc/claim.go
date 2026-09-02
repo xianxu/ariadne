@@ -190,7 +190,12 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 	// state, so returning here would make `--push` a silent no-op and strand every
 	// warning that names it as the recovery. Skip the COMMIT, never the publish.
 	if len(changed) == 0 {
-		if f.NoPush {
+		if f.NoPush || !mainAheadOfOrigin(r) {
+			// Nothing to commit AND nothing unpublished: the pre-#206 no-op, kept
+			// deliberately. A clean, already-published tree must not reach for the
+			// network — `sdlc claim` is idempotent by design and die()s on a sync
+			// error, so an unconditional push here made an offline re-run fatal
+			// where it used to exit 0.
 			cok(stderr, "No issue changes to sync.")
 			return nil
 		}
@@ -232,6 +237,20 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 		return nil
 	}
 	return pushMain(stdout, stderr, r)
+}
+
+// mainAheadOfOrigin reports whether local main carries commits origin/main does
+// not — i.e. whether there is anything for a publish to publish. It answers TRUE
+// when it cannot tell (no origin/main ref yet, or git failed), so an unknown
+// state still attempts the push and surfaces the real error rather than silently
+// skipping it.
+func mainAheadOfOrigin(r gitRunner) bool {
+	out, err := r.Git("rev-list", "--count", "origin/main..main")
+	if err != nil {
+		return true
+	}
+	n := strings.TrimSpace(string(out))
+	return n != "" && n != "0"
 }
 
 // pushMain publishes the current worktree's main to origin. One source for both
@@ -299,26 +318,29 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 		return err
 	}
 	// Same rule as syncInPlace (#206): nothing to COPY is not nothing to publish.
-	// This arm is only ever reached when publishing, and the body may already be
-	// committed — by a prior no-push sync, or by a run whose push failed after
-	// the commit landed. Push main from the main worktree rather than reporting
-	// success without publishing.
+	// The body may already be committed here — by a prior no-push sync, or by a
+	// run whose push failed after the commit landed — and this arm's whole job is
+	// routing the body to main, so it re-seeds the file list from the ISSUE
+	// rather than from working-tree dirtiness and continues through the normal
+	// copy → commit → push flow below.
+	//
+	// A first attempt at this pushed `origin main` from the main worktree without
+	// carrying anything across, which is worse than the bug it fixed: main has no
+	// new commits (the body is on the BRANCH), so it printed success while
+	// origin/main never moved. Publication is the gap between origin/main and
+	// this worktree's body, never the gap between the working tree and HEAD.
 	if len(changed) == 0 {
-		mainPath, ferr := findMainWorktree(r)
-		if ferr != nil {
-			return ferr
-		}
-		if f.DryRun {
-			cinfo(stderr, "dry-run — no new issue changes; would publish existing commits on main")
+		if f.Issue <= 0 {
+			// No --issue and nothing dirty: there is no identifiable body to
+			// route. The pre-#206 no-op is the honest answer.
+			cok(stderr, "No issue changes to sync.")
 			return nil
 		}
-		cinfo(stderr, "No new issue changes — publishing existing commits on main...")
-		if out, perr := r.GitInDir(mainPath, "push", "origin", "main"); perr != nil {
-			return fmt.Errorf("push failed: %v\n%s", perr, out)
+		changed = issueFilesForID(f.IssuesDir, f.Issue)
+		if len(changed) == 0 {
+			cok(stderr, "No issue changes to sync.")
+			return nil
 		}
-		cok(stderr, "Issues synced to main and pushed to origin.")
-		fmt.Fprintln(stdout, "synced")
-		return nil
 	}
 	cinfo(stderr, fmt.Sprintf("Issue files changed on branch '%s':", branch))
 	for _, c := range changed {
@@ -432,10 +454,25 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 	if out, err := r.GitInDir(mainPath, addArgs...); err != nil {
 		return fmt.Errorf("git -C %s add: %v\n%s", mainPath, err, out)
 	}
-	commitMsg := syncMessage(msg, fmt.Sprintf("issue-sync: update issues from branch '%s'", branch))
-	commitArgs := append([]string{"commit", "-m", commitMsg, "--"}, changed...)
-	if out, err := r.GitInDir(mainPath, commitArgs...); err != nil {
-		return fmt.Errorf("commit failed: %v\n%s", err, out)
+	// Commit only if the copy actually changed something. Re-seeding `changed`
+	// from the issue means the files may be byte-identical to main's copy (a
+	// re-run, or a sync whose commit landed and whose push failed) — and `git
+	// commit` with a pathspec that stages nothing is an error, not a no-op. The
+	// push below still runs: publishing an already-committed body is the whole
+	// point of reaching here.
+	stagedArgs := append([]string{"diff", "--cached", "--name-only", "--"}, changed...)
+	staged, err := r.GitInDir(mainPath, stagedArgs...)
+	if err != nil {
+		return fmt.Errorf("git -C %s diff --cached: %v\n%s", mainPath, err, staged)
+	}
+	if strings.TrimSpace(string(staged)) == "" {
+		cinfo(stderr, "main worktree already carries this body — publishing only.")
+	} else {
+		commitMsg := syncMessage(msg, fmt.Sprintf("issue-sync: update issues from branch '%s'", branch))
+		commitArgs := append([]string{"commit", "-m", commitMsg, "--"}, changed...)
+		if out, err := r.GitInDir(mainPath, commitArgs...); err != nil {
+			return fmt.Errorf("commit failed: %v\n%s", err, out)
+		}
 	}
 	if out, err := r.GitInDir(mainPath, "push", "origin", "main"); err != nil {
 		return fmt.Errorf("push failed: %v\n%s", err, out)

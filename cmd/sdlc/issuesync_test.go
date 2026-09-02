@@ -193,7 +193,13 @@ func TestSyncViaMainWorktree_CommitCarriesPathspec(t *testing.T) {
 			"worktree list":         []byte(worktreePorcelainZ([]string{"worktree " + fakeMain, "HEAD abc", "branch refs/heads/main"})),
 			"merge-base":            []byte("abc123\n"),
 		},
-		gitInDirResponses: map[string][]byte{"branch --show-current": []byte("main\n")},
+		gitInDirResponses: map[string][]byte{
+			"branch --show-current": []byte("main\n"),
+			// The copy staged the file, so the commit runs. (The narrower
+			// `-- <issuesDir>/` key below is mainHasUncommittedIssueChanges'
+			// question, which must stay empty or the sync refuses.)
+			"diff --cached --name-only -- " + issueFile: []byte(issueFile + "\n"),
+		},
 	}
 	var stdout, stderr bytes.Buffer
 	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}
@@ -759,5 +765,95 @@ func TestChangeCodeSyncIssue_RetryAfterAFailedPushPublishes(t *testing.T) {
 	}
 	if got := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); got != head {
 		t.Errorf("the retry the warning names must publish: origin/main %s, main %s", got, head)
+	}
+}
+
+// TestIssueSync_PublishMatrix is the table round 3 should have written. Round 3
+// fixed "nothing to commit is not nothing to publish" on syncInPlace, measured
+// it there, and shipped the OTHER arm inverted: syncViaMainWorktree pushed main
+// without carrying the body across, so from a feature worktree `--push` printed
+// green success while origin/main never moved. Naming a class and sweeping one
+// of its two members is what a table prevents.
+//
+// The invariant, across every location × body state: after `--push`, the body
+// that is in THIS worktree is the body on origin/main.
+func TestIssueSync_PublishMatrix(t *testing.T) {
+	const body = "## Spec\n\nthe published design\n"
+
+	locations := []struct {
+		name    string
+		prepare func(t *testing.T, repo string) string
+	}{
+		{"on main", func(t *testing.T, repo string) string { return repo }},
+		{"feature worktree", func(t *testing.T, repo string) string {
+			wt := filepath.Join(t.TempDir(), "feature")
+			git(t, repo, "worktree", "add", "-b", "000206-issue-sync-verb", wt)
+			return wt
+		}},
+	}
+	bodyStates := []struct {
+		name  string
+		setup func(t *testing.T, dir string)
+	}{
+		{"dirty", func(t *testing.T, dir string) {
+			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", body)
+		}},
+		{"already committed locally", func(t *testing.T, dir string) {
+			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", body)
+			var o, e bytes.Buffer
+			if err := runIssueSync(&o, &e, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}); err != nil {
+				t.Fatalf("local pre-sync: %v (stderr: %s)", err, e.String())
+			}
+		}},
+	}
+
+	for _, loc := range locations {
+		for _, bs := range bodyStates {
+			t.Run(loc.name+"/"+bs.name, func(t *testing.T) {
+				repo, _ := syncRepo(t)
+				dir := loc.prepare(t, repo)
+				chdirTo(t, dir)
+				bs.setup(t, dir)
+
+				var stdout, stderr bytes.Buffer
+				err := runIssueSync(&stdout, &stderr, &issueSyncFlags{
+					Issue: 206, IssuesDir: syncIssuesDir, Push: true,
+				})
+				if err != nil {
+					t.Fatalf("--push: %v (stderr: %s)", err, stderr.String())
+				}
+
+				// The published body must match what this worktree holds. Reading
+				// it out of origin is what catches a push that moved nothing —
+				// comparing SHAs would not, since the two worktrees' mains differ
+				// legitimately in the branch case.
+				published := git(t, repo, "show", "origin/main:"+issuePath206)
+				if strings.TrimSpace(published) != strings.TrimSpace(body) {
+					t.Errorf("origin/main does not carry this worktree's body.\n got: %q\nwant: %q\nstderr:\n%s",
+						published, body, stderr.String())
+				}
+			})
+		}
+	}
+}
+
+// TestSyncInPlace_CleanAndPublishedDoesNotTouchTheNetwork pins the other half of
+// round 3's over-correction. `sdlc claim` is idempotent by design and die()s on
+// a sync error, so making the no-changes path push unconditionally turned an
+// offline re-run — previously `[ok] No issue changes to sync.`, exit 0 — into a
+// fatal error. Publication is the gap between origin/main and local main; when
+// that gap is empty there is nothing to publish and no reason to reach out.
+func TestSyncInPlace_CleanAndPublishedDoesNotTouchTheNetwork(t *testing.T) {
+	repo, _ := syncRepo(t)
+	// Point origin at a path that no longer exists: any network attempt fails.
+	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+
+	var stdout, stderr bytes.Buffer
+	// Publishing caller (NoPush unset), clean tree, main == origin/main.
+	if err := syncIssuesToMain(&stdout, &stderr, &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}, execGitRunner{}, ""); err != nil {
+		t.Fatalf("a clean, already-published tree must be a no-op, got: %v (stderr: %s)", err, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "No issue changes to sync") {
+		t.Errorf("expected the idempotent no-op; stderr:\n%s", stderr.String())
 	}
 }

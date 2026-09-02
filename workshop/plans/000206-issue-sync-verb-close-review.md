@@ -580,3 +580,155 @@ findings:
       the rule is that a comment asserting unreachability must enumerate the states its guard
       quantifies over — if that cannot be enforced, drop the claim and let the error stand alone.
 ```
+
+---
+
+## Re-review — 2026-09-02T13:39:24-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 206 — sdlc: commit planning output via issue sync |
+| repo | ariadne |
+| issue file | workshop/issues/000206-issue-sync-verb.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 92bd1ad1ebdc6bca1b218b318e4740b6fab3d787..7f2af02660a51ac2ce7c56a2ac16a6bfd52229bb |
+| command | sdlc close --issue 206 |
+| reviewer | claude |
+| timestamp | 2026-09-02T13:39:24-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Round 3's headline fix is real and well-pinned on the arm it was measured on — but the same finding's failure mode survives one arm over. `syncInPlace` now falls through to `pushMain` when the working tree is clean (both regressions go red when I revert it), the source-level class guard is genuinely load-bearing (reverting four pathspec sites at once produces four failures, including `push.go:204` inside `runPush`, the sibling the old function-keyed exemption excused), and the wiring guard reds when `syncIssue(stderr, f, issuePath)` is deleted. What blocks SHIP is `syncViaMainWorktree`'s new empty-changed branch: it pushes `origin main` from the main worktree without carrying the body across, so from a feature worktree `sdlc issue sync --issue N --push` after a local sync prints `[ok] Issues synced to main and pushed to origin.` and `synced` while `origin/main` never moves — measured end-to-end, including on `issue new`'s own advertised recovery, where the reservation broadcast is left unpublished by the exact command its warning names. That is BR-18's claim still true, so BR-18 is disposed `not-addressed` rather than re-raised.
+
+**1. Strengths**
+
+- `cmd/sdlc/commitpathspec_guard_test.go:56` — the two-part exemption (allowlist entry **and** a demonstrated `git add -A` in the same function) is the right rule, and it works: I reverted `claim.go:225`, `push.go:204`, `merge.go:550` and `migrate.go:435` simultaneously and got four distinct failures with actionable messages. The `-a`-in-argv case needing no entry at all is a nice reduction — the allowlist is down to one row.
+- `commitpathspec_guard_test.go:249` `TestVerbsWireTheirCommitHelpers` — measured: replacing `syncIssue(stderr, f, issuePath)` at `changecode.go:179` with a no-op fails the guard. The honest framing in its doc ("proves the call exists, not that it runs") is exactly right for a non-drivable entry point.
+- `claim.go:236` `pushMain` — extracting one publish exit for both of `syncInPlace`'s paths is what makes "`--push` cannot mean publish in one and no-op in the other" structural rather than a comment. Both new regressions (`issuesync_test.go:707`, `:740`) go red when the early return is restored.
+- `changecode.go:194-247` + `TestChangeCodeSyncIssue_ModeMatrix` — the invariant is stated as a property over the full cross-product rather than as the cells a reviewer probed, and the 12 duplicated cells earn their runtime (they pin "gate on the resolved path, not the flag").
+- `atlas/workflow/sdlc-binary.md:53-160` — unusually good: reachability differs per site and it says so, the partial-commit-during-merge failure mode is recorded, and the rule behind both guards is written down where the next person will find it.
+
+**2. Critical findings**
+
+- `cmd/sdlc/claim.go:302-320` — see BR-18 disposition below. Fix sketch: publication must be defined by the gap between `origin/main` and *this worktree's body*, not by working-tree dirtiness. In the empty-`changed` branch, resolve the issue files via `syncPathspec`, copy them into the main worktree, `git add -- <paths>`, commit only if anything staged, then push — or refuse loudly rather than printing `synced`.
+
+**3. Important findings**
+
+None new; BR-13 and BR-19 are both confirmed addressed by revert.
+
+**4. Minor findings**
+
+- `push.go:394-397` — `recoverInterruptedArchive`'s dry-run hint hand-builds `commit -m %q -- …` instead of routing through `archiveCommitArgs`; migrate's identical duplication was consolidated last round.
+- `commitpathspec_guard_test.go:157-172` — `isGitArgvCall` enumerates `.Git` / `.GitInDir` / `gitInDir` / `exec.Command("git", …)`; `gitx.RunGit` (live at ~12 read sites in this package) and `gitx.Capture` are not matched, so an inline `gitx.RunGit("commit", "-m", msg)` escapes the class guard.
+- `claim.go:196-208` — `sdlc claim` with no issue changes now requires the network; measured, an offline re-run dies where base `92bd1ad` printed `[ok] No issue changes to sync.` and exited 0.
+- `changecode.go:162-164` — `--dry-run` prints `Would sync + push issue #N` unconditionally, but `syncIssue` sets `NoPush: !onMain`, so from a branch it will not push.
+
+**5. Test coverage notes**
+
+The on-main half of BR-18 is pinned twice and both tests fail on revert. The `syncViaMainWorktree` empty-`changed` branch added in the same commit has **no test at all** — `TestSyncViaMainWorktree_*` both exercise the dirty path — which is why the arm shipped inverted. The publish matrix the Done-when implies is {on main, in-place branch, feature worktree} × {body dirty, body committed locally, commit landed + push failed}; only the top row and the middle column are covered today. Measured behavior of `--push` after a local sync: on main → publishes; in-place branch → loud error (`could not find a worktree on branch 'main'`); feature worktree → green success, `origin/main` unmoved.
+
+**6. Architectural notes**
+
+- **ARCH-DRY — pass with one nit.** One dispatch (`syncIssuesToMain`) for all four callers, `commitUntrackedIssueFile` gone (no live references), `archiveCommitArgs` derived from `archiveAddArgs`, `migrateCommitArgs` feeding both the executed commit and the hint, `issueFilesForID` single-sourcing the glob. The nit is `recoverInterruptedArchive`'s hand-built hint above.
+- **ARCH-PURE — pass.** `archiveCommitArgs` / `migrateCommitArgs` / `syncMessage` / `syncPointer` are pure and table-tested; `syncPathspec`'s doc now says plainly that it globs and is therefore not pure.
+- **ARCH-PURPOSE — flag.** Shadow-sweep of "publish an already-committed body": consumers are `claim`, `issue new`, `issue sync --push`, `change-code`. `change-code` never reaches the publish arm (`NoPush: !onMain`), so it derives correctly; the other three route through `syncViaMainWorktree`, where the property does not hold. The class was named correctly ("nothing to commit is not nothing to publish") and then swept in one of its two members.
+- **ARCH-MOCK — pass.** Real git via `testfix.Repo` for semantics, the recording runner used only for the one argv question it is entitled to answer (`issuesync_test.go:179`), with the split justified in prose.
+- **ARCH-CONSTRAINTS — flag (BR-12, still open).** No envelope is declared for a verb designed to be run on every design move, and round 3 added an unconditional network push to the no-changes path of `claim` / `issue new` / `issue sync --push` without pricing it — which is what makes the offline-claim regression above a surprise rather than a stated bound.
+
+**7. Plan revision recommendations**
+
+- `workshop/issues/000206-issue-sync-verb.md`, "rework round 3" entry: the claim *"Both arms now skip only the commit, never the publish"* is true of the control flow and false of the outcome — `syncViaMainWorktree` publishes `main` without the body it was asked to publish. Append a `## Revisions` entry correcting it and defining publish for that arm (copy-then-commit-if-changed, or refuse), and state the Done-when bullet as the matrix it actually quantifies over: three locations × three body states.
+
+```findings
+dispose:
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      No workshop/plans/000206-*-plan.md; the two new plans/ files are the gate ledger and the review transcript. The recorded "back-filling would produce a copy" rationale stands as an operator call; Minor, non-blocking.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      Still no declared envelope, and round 3 added an unconditional network push on the no-changes path without pricing it.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      Verified by revert: four pathspec sites reverted at once produce four failures (incl. push.go:204 inside runPush); deleting syncPointer reds TestRunStartPlan_RendersAtPlanLens and the wiring guard.
+  - id: BR-18
+    disposition: not-addressed
+    note: |
+      syncInPlace is fixed and pinned (both tests red on revert), but claim.go:302-320 pushes origin main without carrying the body: from a feature worktree, `sdlc issue sync --issue N --push` after a local sync prints `[ok] Issues synced to main and pushed to origin.` with origin/main unmoved (measured, incl. via `issue new`'s advertised recovery, where origin/main kept only README.md). Same finding, second arm; that branch has no test.
+  - id: BR-19
+    disposition: addressed
+    note: |
+      Measured: replacing syncIssue(stderr, f, issuePath) at changecode.go:179 with a no-op fails TestVerbsWireTheirCommitHelpers.
+  - id: BR-20
+    disposition: addressed
+    note: |
+      atlas/workflow/sdlc-binary.md now says "Seven sites" over a seven-member enumeration.
+  - id: BR-21
+    disposition: addressed
+    note: |
+      syncPathspec's doc drops the unreachability claim and names the deleted-issue-file state that broke it.
+findings:
+  - id: new
+    severity: Minor
+    family: narrowed-add-bare-commit
+    title: |
+      recoverInterruptedArchive's dry-run hint hand-builds the commit argv instead of using archiveCommitArgs
+    detail: |
+      push.go:394-397 prints `git commit -m %q -- <paths>` assembled inline, deriving only the
+      path list from archiveAddArgs. This is the 4th finding in family `narrowed-add-bare-commit`,
+      so do NOT patch the line: the rule round 2 already stated for migrate is that ONE builder
+      feeds both the executed commit and the command printed for the operator, so the hint cannot
+      lose what the executed form has. push.go is the unswept member of that enumeration
+      (migrate.go:426 migrateCommitArgs is the swept one). Measured prevalence: 2 hint sites in
+      the tree, 1 derived.
+  - id: new
+    severity: Minor
+    family: class-fix-without-class-test
+    title: |
+      the pathspec class guard's seam enumeration misses gitx.RunGit, so a commit through it escapes
+    detail: |
+      commitpathspec_guard_test.go:157-172 accepts a git argv only from .Git / .GitInDir /
+      gitInDir / exec.Command("git", ...), while its own doc claims every `git commit` argv in
+      cmd/sdlc and "the eighth site someone writes next year fails immediately". gitx.RunGit is a
+      live seam at ~12 sites in this package (all reads today) and gitx.Capture at more; an inline
+      gitx.RunGit("commit", "-m", msg) passes the guard. This is the 5th finding in family
+      `class-fix-without-class-test`, so the fix is the rule, not the line: the guard's seam list
+      must cover every git-invoking helper the package actually has — add RunGit/Capture and state
+      that adding a new git seam requires adding it here, in the same shape as the stale-exemption
+      check the guard already performs on its allowlist.
+  - id: new
+    severity: Minor
+    family: undocumented-behavior-change
+    title: |
+      `sdlc claim` with no issue changes now needs the network and dies offline, where it used to be a clean no-op
+    detail: |
+      Measured: on main, clean tree, unreachable origin, `sdlc claim --issue 206` now fails through
+      pushMain; at base 92bd1ad the same command printed `[ok] No issue changes to sync.` and exited
+      0. Deliberate consequence of "nothing to commit is not nothing to publish", but claim is the
+      one caller that die()s on the error. This is the 2nd finding in family
+      `undocumented-behavior-change`; the rule the first one (MERGE_HEAD partial commits) already
+      established is that a change which creates a NEW way an existing verb can fail gets recorded
+      in the atlas failure-mode list — apply it here, and decide explicitly whether an idempotent
+      offline claim should be fatal or a warning.
+  - id: new
+    severity: Minor
+    family: comment-narrower-than-code
+    title: |
+      change-code --dry-run promises "Would sync + push" from branches where it will not push
+    detail: |
+      changecode.go:162-164 prints `Would sync + push issue #%d` unconditionally, while syncIssue
+      sets NoPush: !onMain, so from an in-place branch or a feature worktree the real run commits
+      locally and does not publish. This is the 4th finding in family `comment-narrower-than-code`;
+      the rule is that a statement about behavior must branch on the same state the code branches
+      on — here, derive the dry-run wording from the same `onMain` test syncIssue uses rather than
+      restating the outcome.
+```

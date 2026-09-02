@@ -72,13 +72,24 @@ tracked-and-edited}. Two consequences that each cost a review round to find:
 
 `TestChangeCodeSyncIssue_ModeMatrix` runs the whole table.
 
-**Publishing is not gated on working-tree changes.** Splitting durability from
+**Publication is the gap between `origin/main` and this worktree's body — never
+the gap between the working tree and HEAD.** Splitting durability from
 publication made "committed locally, not yet pushed" a state the code
-deliberately creates, and `changedIssueFiles` is empty in exactly that state — so
-both sync arms skip only the COMMIT when nothing changed, never the publish.
-Otherwise `--push` is a silent no-op precisely when it is needed: finishing a
-sync whose commit landed and whose push failed, which is the recovery every
-warning in this area names. `issue new` follows
+deliberately creates, and `changedIssueFiles` is empty in exactly that state, so
+both arms skip only the COMMIT when nothing is dirty. What that means differs by
+arm, and getting it wrong in either direction is silent:
+
+- `syncInPlace` pushes local main — but only when local main is actually ahead of
+  `origin/main`. Pushing unconditionally made an offline `sdlc claim` on a clean
+  tree fatal, where it had always been an idempotent no-op.
+- `syncViaMainWorktree` re-seeds its file list from the ISSUE and routes the body
+  across as usual, committing only if the copy staged anything. Merely pushing
+  main from there publishes nothing — the body is on the *branch* — so it printed
+  success while `origin/main` never moved.
+
+`TestIssueSync_PublishMatrix` covers {on main, feature worktree} × {body dirty,
+body already committed} and asserts the published content, not a SHA: comparing
+SHAs would not catch a push that moved nothing. `issue new` follows
 the same durability-before-publication rule: when its reservation broadcast
 can't reach main (commonly: run from an in-place feature branch, where no
 worktree is on main), it falls back to a local commit rather than leaving the

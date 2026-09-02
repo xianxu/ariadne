@@ -290,6 +290,10 @@ scaled ceiling rather than smeared across every item by a global multiplier.
       on working-tree changes; the guard's exemption needs its `add -A`;
       `TestVerbsWireTheirCommitHelpers` pins the call sites no behavioral test
       can reach.
+- [x] Rework round 4 (BR-18 still true on the other arm): the publish arm routes
+      the body instead of pushing an unchanged main; `syncInPlace` publishes only
+      when main is ahead of origin; `TestIssueSync_PublishMatrix` covers the
+      table that would have caught both.
 
 ## Revisions
 
@@ -517,6 +521,42 @@ Minors: the atlas said "six sites" over an enumeration of seven; `syncPathspec`'
 (non-empty `changedIssueFiles`, empty glob), so the claim is gone and the error
 stands on its own; the mode matrix now says what its 12 duplicate cells buy.
 
+### 2026-09-02 — rework round 4: BR-18 was still true, one arm over
+
+Round 3 named the class correctly — *nothing to commit is not nothing to
+publish* — measured the fix on `syncInPlace`, and swept **one of the class's two
+members**. The other member shipped inverted, which is worse than the bug it
+replaced: `syncViaMainWorktree`'s new empty-changed branch pushed `origin main`
+from the main worktree *without carrying the body across*. Main has no new
+commits in that state — the body is on the **branch** — so the verb printed
+`[ok] Issues synced to main and pushed to origin.` and `synced` while
+`origin/main` never moved. A false success on `issue new`'s own advertised
+recovery path.
+
+The correction, and the sentence worth keeping: **publication is the gap between
+`origin/main` and this worktree's body, never the gap between the working tree
+and HEAD.** The publish arm now re-seeds its file list from the *issue* when
+nothing is dirty and routes the body through the normal copy → commit → push
+flow, committing only if the copy staged something (a pathspec'd commit that
+stages nothing is an error, not a no-op). `TestIssueSync_PublishMatrix` covers
+{on main, feature worktree} × {body dirty, body already committed} and asserts
+the published *content* — comparing SHAs would not catch a push that moved
+nothing, which is precisely how this survived a round.
+
+**Round 3's other over-correction:** making the no-changes path push
+unconditionally turned an offline `sdlc claim` on a clean tree from `[ok] No
+issue changes to sync.` (exit 0) into a fatal error — `claim` is the one caller
+that die()s on a sync error, and it is idempotent by design. `syncInPlace` now
+publishes only when local main is actually ahead of `origin/main`, so a clean,
+already-published tree never reaches for the network.
+
+Minors: `change-code --dry-run` said "Would sync + push" unconditionally while
+`syncIssue` publishes only from main — both now read the same
+`syncIssuePublishes()`; `recoverInterruptedArchive`'s dry-run hint routes through
+`archiveCommitArgs` like migrate's does; the class guard now also matches
+`gitx.RunGit`/`gitx.Capture`, the package's other live git seams, which an inline
+`gitx.RunGit("commit", …)` would have escaped entirely.
+
 ### 2026-09-02 — where the sync sits inside `change-code`
 
 After the whole gate sequence, at the point `commitUntrackedIssueFile`
@@ -568,6 +608,13 @@ properties over enumerations without checking every member (five sites, then
 three name modes, then three worktree locations, then "the guard covers the
 eighth site"). Each round the gate found the member I hadn't checked. The
 durable fix in each case was a rule the tree enforces, not another test.
+
+**Close review round 4: REWORK,** BR-18 disposed `not-addressed` rather than
+re-raised — the same claim was still true on the arm round 3 didn't measure. Four
+rounds, one pattern, now stated plainly: I keep asserting a property over an
+enumeration after checking one member of it. The gate has caught it every time,
+and the durable answer each round was a table or a source guard rather than
+another fix.
 
 **Coverage for the archive sites.** `archiveCommitArgs` is pure, so it is
 table-tested directly, and `push.go`'s in-place archive gets a real-repo
