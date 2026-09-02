@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
-estimate_hours:
+estimate_hours: 0.93
 started: 2026-09-02T15:19:59-07:00
 ---
 
@@ -208,6 +208,54 @@ prefix, so any grep by family matches both — rejected for that reason.
   by leaving it untouched and green, not by adding the restatement #128 deleted.
 - `atlas/index.md`'s Architecture Principles hook does not enumerate a coverage
   list that goes stale on the next entry.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: atlas-docs             design=0.05 impl=0.08
+item: smaller-go-module      design=0.05 impl=0.20
+item: cross-cutting-refactor design=0.05 impl=0.16
+item: atlas-docs             design=0.05 impl=0.06
+item: milestone-review       design=0.00 impl=0.20
+total: 0.93
+```
+
+In Plan order:
+
+1. `atlas-docs` — the two prose artifacts: ARCH-SECURE into `architecture.md`
+   and the new `architecture-deferred.md`. Both texts are written verbatim in
+   the Spec, so this is transcription, not authoring.
+2. `smaller-go-module` — the deferred-marker guard. The only genuine design
+   here: derive the forbidden set from `architecture-deferred.md` via
+   `archMarkerRE`, derive the gate-facing text by walking `promptFS` plus the
+   three render helpers, and assert the deferred file parses ≥1 marker so a
+   rename can't make it vacuously pass. Lives in package `judge` for access to
+   the unexported embed.
+3. `cross-cutting-refactor` — collapse four marker-restating test sites onto
+   `ArchitectureMarkers()`, keep `TestArchitectureMarkers` as the one tripwire,
+   regenerate four goldens with `-update-golden`.
+4. `atlas-docs` — the workflow page entry, the activation note, and
+   de-enumerating `atlas/index.md`'s hook.
+5. `milestone-review` — one close boundary (plain checkboxes, one review).
+
+Design is `×0.2` spec-quality discounted: the Spec carries both registry texts
+verbatim, names all five marker sites with file:line, and settles the guard's
+derivation strategy — the remaining design is reading. Buffer `+15%` on that
+basis (v3.1 step 4). Familiarity `1.0`: Go, this package, embed + regex, all
+routine here.
+
+`milestone-review` is priced at the **scaled ceiling** (0.5 × 0.4) rather than
+mid-range, against ariadne#206's evidence from earlier today: that issue budgeted
+0.15 for one boundary and spent six review rounds, and the cost tracked the
+number of members in the class under review. This issue has a smaller class —
+one registry, one guard, five marker sites — but the same shape, so the ceiling
+is the honest read rather than the mid.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
