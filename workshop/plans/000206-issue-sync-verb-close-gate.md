@@ -406,6 +406,84 @@ rounds:
           family: comment-narrower-than-code
           round: 4
       blocked: true
+    - "n": 5
+      timestamp: "2026-09-02T13:58:40-07:00"
+      agent: claude
+      dispose:
+        - id: BR-10
+          disposition: not-addressed
+          note: No plan artifact exists; the decline is recorded in Revisions ("M6 not taken") — a reasoned choice, repeat family, not worth re-litigating.
+          round: 5
+        - id: BR-12
+          disposition: not-addressed
+          note: No operating envelope appears anywhere in the issue or plans; repeat family, Minor, still open.
+          round: 5
+        - id: BR-18
+          disposition: addressed
+          note: 'Verified by revert on BOTH arms: syncInPlace and syncViaMainWorktree each go red at the tests that name them.'
+          round: 5
+        - id: BR-22
+          disposition: addressed
+          note: Paths now derive from archiveCommitArgs; residual is the hand-written `-m %q --` prefix and the magic hint[4:] slice vs migrate's whole-argv quoteMigrateMsg.
+          round: 5
+        - id: BR-23
+          disposition: addressed
+          note: Enumerated the package's git seams — Git/GitInDir/gitInDir/RunGit/Capture/exec.Command("git") — and isGitArgvCall now covers all six.
+          round: 5
+        - id: BR-24
+          disposition: addressed
+          note: Measured case fixed and pinned; residual by design — with no local origin/main ref mainAheadOfOrigin returns true and claim still dies where base exited 0.
+          round: 5
+        - id: BR-25
+          disposition: addressed
+          note: Dry-run wording now derives from syncIssuePublishes(), the same predicate syncIssue branches on; no test pins the wording.
+          round: 5
+      findings:
+        - id: BR-26
+          severity: Critical
+          title: round 4's re-seed makes the publish arm die on a false conflict, breaking `sdlc claim` and `issue sync --push` idempotence
+          detail: |-
+            Measured HEAD vs base on a real bare-origin + main-worktree + feature-worktree repo:
+            `sdlc issue sync --issue 206` (local) then `sdlc claim --issue 206` (publishes, exit 0)
+            then `sdlc claim --issue 206` again on a still-clean tree exits 1 with "Conflict detected!"
+            and a manual-merge guide; base 92bd1ad printed "[ok] No issue changes to sync." exit 0.
+            `sdlc issue sync --issue 206 --push` run twice from a feature worktree fails the same way,
+            contradicting the Done-when line that --push publishes an already-committed body.
+            Cause: claim.go:332-344 re-seeds `changed` from the issue, and claim.go:394-424 then asks
+            "changed on main since merge-base?" — always true after this branch's own earlier publish,
+            even though the file is byte-identical to main's copy. Step 7's "already carries this body"
+            branch (claim.go:468) can never be reached. Fix: after locating mainPath and pulling, filter
+            `changed` to files whose content differs from the main worktree's copy; if empty, skip
+            conflict/copy/commit and go straight to push-if-behind. Also add "already published from this
+            branch" as a third body state in TestIssueSync_PublishMatrix — the matrix's two states
+            ({dirty, committed locally}) are why this shipped.
+          family: widened-input-breaks-downstream-stage
+          round: 5
+        - id: BR-27
+          severity: Minor
+          title: '"a half-written Spec cannot escape" is true of the verb and false one verb later'
+          detail: |-
+            This is the 3rd finding in family `undocumented-behavior-change` — do not patch the one
+            sentence. The rule: this issue changes what several verbs do to origin, and each change
+            needs to land in ONE enumerated behavior-change list in the atlas rather than a per-round
+            sentence. Measured: after `sdlc issue sync --issue 206` on main (local commit, main ahead of
+            origin), a later clean-tree `sdlc claim --issue 206` takes the new mainAheadOfOrigin path and
+            pushes local main wholesale, publishing the body the sync deliberately kept local. Base
+            exited 0 without pushing. helptext/issue.md and AGENTS.base.md both assert the stronger
+            safety property.
+          family: undocumented-behavior-change
+          round: 5
+        - id: BR-28
+          severity: Minor
+          title: change-code --dry-run renders the off-main verb mid-sentence
+          detail: |-
+            This is the 5th finding in family `comment-narrower-than-code`, and the underlying rule was
+            already applied correctly here (the wording derives from syncIssuePublishes()), so this is
+            only the rendering: changecode.go:165 prints "Would sync locally (not on main — publishing
+            belongs to pr/merge/close) issue #206 under …". Move the parenthetical to its own line.
+          family: comment-narrower-than-code
+          round: 5
+      blocked: true
 ---
 
 # Gate ledger — ariadne#206 (boundary-review)
@@ -620,12 +698,54 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   on — here, derive the dry-run wording from the same `onMain` test syncIssue uses rather than
   restating the outcome.
 
+## Round 5 — 2026-09-02T13:58:40-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-10 — not-addressed — No plan artifact exists; the decline is recorded in Revisions ("M6 not taken") — a reasoned choice, repeat family, not worth re-litigating.
+- BR-12 — not-addressed — No operating envelope appears anywhere in the issue or plans; repeat family, Minor, still open.
+- BR-18 — addressed — Verified by revert on BOTH arms: syncInPlace and syncViaMainWorktree each go red at the tests that name them.
+- BR-22 — addressed — Paths now derive from archiveCommitArgs; residual is the hand-written `-m %q --` prefix and the magic hint[4:] slice vs migrate's whole-argv quoteMigrateMsg.
+- BR-23 — addressed — Enumerated the package's git seams — Git/GitInDir/gitInDir/RunGit/Capture/exec.Command("git") — and isGitArgvCall now covers all six.
+- BR-24 — addressed — Measured case fixed and pinned; residual by design — with no local origin/main ref mainAheadOfOrigin returns true and claim still dies where base exited 0.
+- BR-25 — addressed — Dry-run wording now derives from syncIssuePublishes(), the same predicate syncIssue branches on; no test pins the wording.
+
+### Raised
+
+- **BR-26** [Critical] `widened-input-breaks-downstream-stage` round 4's re-seed makes the publish arm die on a false conflict, breaking `sdlc claim` and `issue sync --push` idempotence
+  Measured HEAD vs base on a real bare-origin + main-worktree + feature-worktree repo:
+  `sdlc issue sync --issue 206` (local) then `sdlc claim --issue 206` (publishes, exit 0)
+  then `sdlc claim --issue 206` again on a still-clean tree exits 1 with "Conflict detected!"
+  and a manual-merge guide; base 92bd1ad printed "[ok] No issue changes to sync." exit 0.
+  `sdlc issue sync --issue 206 --push` run twice from a feature worktree fails the same way,
+  contradicting the Done-when line that --push publishes an already-committed body.
+  Cause: claim.go:332-344 re-seeds `changed` from the issue, and claim.go:394-424 then asks
+  "changed on main since merge-base?" — always true after this branch's own earlier publish,
+  even though the file is byte-identical to main's copy. Step 7's "already carries this body"
+  branch (claim.go:468) can never be reached. Fix: after locating mainPath and pulling, filter
+  `changed` to files whose content differs from the main worktree's copy; if empty, skip
+  conflict/copy/commit and go straight to push-if-behind. Also add "already published from this
+  branch" as a third body state in TestIssueSync_PublishMatrix — the matrix's two states
+  ({dirty, committed locally}) are why this shipped.
+- **BR-27** [Minor] `undocumented-behavior-change` "a half-written Spec cannot escape" is true of the verb and false one verb later
+  This is the 3rd finding in family `undocumented-behavior-change` — do not patch the one
+  sentence. The rule: this issue changes what several verbs do to origin, and each change
+  needs to land in ONE enumerated behavior-change list in the atlas rather than a per-round
+  sentence. Measured: after `sdlc issue sync --issue 206` on main (local commit, main ahead of
+  origin), a later clean-tree `sdlc claim --issue 206` takes the new mainAheadOfOrigin path and
+  pushes local main wholesale, publishing the body the sync deliberately kept local. Base
+  exited 0 without pushing. helptext/issue.md and AGENTS.base.md both assert the stronger
+  safety property.
+- **BR-28** [Minor] `comment-narrower-than-code` change-code --dry-run renders the off-main verb mid-sentence
+  This is the 5th finding in family `comment-narrower-than-code`, and the underlying rule was
+  already applied correctly here (the wording derives from syncIssuePublishes()), so this is
+  only the rendering: changecode.go:165 prints "Would sync locally (not on main — publishing
+  belongs to pr/merge/close) issue #206 under …". Move the parenthetical to its own line.
+
 ## Open findings
 
 - **BR-10** [Minor] `durable-plan-artifact` no durable plan in workshop/plans/ for a 9-file, ~900-line change (AGENTS.md §1)
 - **BR-12** [Minor] `operating-envelope-undeclared` no declared operating envelope for a verb designed to be run frequently (ARCH-CONSTRAINTS)
-- **BR-18** [Critical] `early-return-skips-second-concern` `sdlc issue sync --push` cannot publish an already-committed body, and both new warnings name it as the recovery step
-- **BR-22** [Minor] `narrowed-add-bare-commit` recoverInterruptedArchive's dry-run hint hand-builds the commit argv instead of using archiveCommitArgs
-- **BR-23** [Minor] `class-fix-without-class-test` the pathspec class guard's seam enumeration misses gitx.RunGit, so a commit through it escapes
-- **BR-24** [Minor] `undocumented-behavior-change` `sdlc claim` with no issue changes now needs the network and dies offline, where it used to be a clean no-op
-- **BR-25** [Minor] `comment-narrower-than-code` change-code --dry-run promises "Would sync + push" from branches where it will not push
+- **BR-26** [Critical] `widened-input-breaks-downstream-stage` round 4's re-seed makes the publish arm die on a false conflict, breaking `sdlc claim` and `issue sync --push` idempotence
+- **BR-27** [Minor] `undocumented-behavior-change` "a half-written Spec cannot escape" is true of the verb and false one verb later
+- **BR-28** [Minor] `comment-narrower-than-code` change-code --dry-run renders the off-main verb mid-sentence

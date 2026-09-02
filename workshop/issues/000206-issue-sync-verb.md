@@ -294,6 +294,11 @@ scaled ceiling rather than smeared across every item by a global multiplier.
       the body instead of pushing an unchanged main; `syncInPlace` publishes only
       when main is ahead of origin; `TestIssueSync_PublishMatrix` covers the
       table that would have caught both.
+- [x] Rework round 5 (BR-26): a body main already carries is dropped before
+      conflict detection, so publishing twice is a no-op instead of a false
+      conflict; the publish-existing intent is an explicit flag set only by
+      `issue sync --push`, replacing the heuristic that made every clean-tree
+      `claim` a wholesale push.
 
 ## Revisions
 
@@ -557,6 +562,39 @@ Minors: `change-code --dry-run` said "Would sync + push" unconditionally while
 `gitx.RunGit`/`gitx.Capture`, the package's other live git seams, which an inline
 `gitx.RunGit("commit", …)` would have escaped entirely.
 
+### 2026-09-02 — rework round 5 (BR-26): idempotence
+
+Round 4 was right about *what* to publish and fed it to the wrong question.
+Re-seeding the file list from the issue puts a file main legitimately carries
+(an earlier run of this verb put it there) in front of a conflict detector that
+asks "did both sides touch this since merge-base" — true, and not a conflict. So
+the workflow this issue's own docs recommend broke on its second lap:
+
+    sdlc issue sync --issue N        # local checkpoint
+    sdlc claim --issue N             # publishes
+    sdlc claim --issue N             # Conflict detected! + exit 1
+
+`sdlc claim` had been idempotent since it existed. The fix is one line of rule:
+**a body the destination already carries byte-for-byte is nothing to route**, so
+it is dropped from the list before the detector is ever asked. That stays inside
+the Spec's "conflict detection is out of scope" — it does not resolve conflicts,
+it declines to invent one.
+
+**And round 4's own over-correction, undone properly.** `mainAheadOfOrigin` was a
+heuristic standing in for an intent nobody had expressed: it made every
+clean-tree `sdlc claim` push local main wholesale, publishing bodies a no-push
+sync had deliberately kept local, and failing outright offline. Intent is now a
+flag — `PublishExisting`, set by `sdlc issue sync --push` and nothing else — so
+`claim` and `issue new` keep the no-op they have always had. Explicit intent
+beat the inference, and the inference had been mine twice in a row.
+
+**Five rounds, one pattern.** Every round found a real defect, and every defect
+was the same shape: a property asserted over an enumeration after checking one
+member of it — five commit sites, three name modes, three worktree locations, two
+sync arms, one run of a verb that gets re-run. What finally holds isn't the
+fixes; it's the two source guards and the three tables, which check the members
+for me.
+
 ### 2026-09-02 — where the sync sits inside `change-code`
 
 After the whole gate sequence, at the point `commitUntrackedIssueFile`
@@ -615,6 +653,10 @@ rounds, one pattern, now stated plainly: I keep asserting a property over an
 enumeration after checking one member of it. The gate has caught it every time,
 and the durable answer each round was a table or a source guard rather than
 another fix.
+
+**Close review round 5: REWORK** on idempotence — publishing twice died on a
+false conflict. Fixed as a rule (identical content is nothing to route) plus an
+explicit `PublishExisting` intent replacing the heuristic round 4 introduced.
 
 **Coverage for the archive sites.** `archiveCommitArgs` is pure, so it is
 table-tested directly, and `push.go`'s in-place archive gets a real-repo

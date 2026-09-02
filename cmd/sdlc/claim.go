@@ -29,6 +29,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -54,6 +55,17 @@ type claimFlags struct {
 	// there and silently kill the reservation broadcast #82 M1 added. The zero
 	// value is today's behavior for every existing caller.
 	NoPush bool
+	// PublishExisting asks for a publish even when nothing is dirty — the state
+	// a prior no-push sync leaves behind, and the one `sdlc issue sync --push`
+	// exists to finish. ONLY that verb sets it.
+	//
+	// Without it, "nothing to commit" stays the pre-#206 no-op for `claim` and
+	// `issue new`, which is what they have always done and what makes `claim`
+	// idempotent and usable offline. An earlier cut inferred this from
+	// `origin/main..main` instead, which quietly turned every clean-tree claim
+	// into a wholesale push of local main — publishing bodies a no-push sync had
+	// deliberately kept local.
+	PublishExisting bool
 }
 
 // NewClaimCmd returns the cobra command for `sdlc claim`.
@@ -190,12 +202,11 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 	// state, so returning here would make `--push` a silent no-op and strand every
 	// warning that names it as the recovery. Skip the COMMIT, never the publish.
 	if len(changed) == 0 {
-		if f.NoPush || !mainAheadOfOrigin(r) {
-			// Nothing to commit AND nothing unpublished: the pre-#206 no-op, kept
-			// deliberately. A clean, already-published tree must not reach for the
-			// network — `sdlc claim` is idempotent by design and die()s on a sync
-			// error, so an unconditional push here made an offline re-run fatal
-			// where it used to exit 0.
+		if !f.PublishExisting {
+			// The pre-#206 no-op, kept deliberately for every caller that did not
+			// ask to publish already-committed work. `sdlc claim` is idempotent by
+			// design and die()s on a sync error, so reaching for the network here
+			// makes an offline re-run fatal where it has always exited 0.
 			cok(stderr, "No issue changes to sync.")
 			return nil
 		}
@@ -237,20 +248,6 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 		return nil
 	}
 	return pushMain(stdout, stderr, r)
-}
-
-// mainAheadOfOrigin reports whether local main carries commits origin/main does
-// not — i.e. whether there is anything for a publish to publish. It answers TRUE
-// when it cannot tell (no origin/main ref yet, or git failed), so an unknown
-// state still attempts the push and surfaces the real error rather than silently
-// skipping it.
-func mainAheadOfOrigin(r gitRunner) bool {
-	out, err := r.Git("rev-list", "--count", "origin/main..main")
-	if err != nil {
-		return true
-	}
-	n := strings.TrimSpace(string(out))
-	return n != "" && n != "0"
 }
 
 // pushMain publishes the current worktree's main to origin. One source for both
@@ -330,9 +327,10 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 	// origin/main never moved. Publication is the gap between origin/main and
 	// this worktree's body, never the gap between the working tree and HEAD.
 	if len(changed) == 0 {
-		if f.Issue <= 0 {
-			// No --issue and nothing dirty: there is no identifiable body to
-			// route. The pre-#206 no-op is the honest answer.
+		if !f.PublishExisting || f.Issue <= 0 {
+			// Nobody asked to publish already-committed work, or there is no
+			// --issue naming an identifiable body to route. Either way the
+			// pre-#206 no-op is the honest answer.
 			cok(stderr, "No issue changes to sync.")
 			return nil
 		}
@@ -386,6 +384,31 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 		return fmt.Errorf("failed to pull main from origin: %v\n%s", err, out)
 	}
 
+	// 4.5 Drop files whose main-worktree copy is ALREADY byte-identical to this
+	//     one. Runs after the pull, so it compares against main's current state.
+	//
+	//     This is not conflict detection; it is declining to invoke it. The
+	//     detector below asks "did both sides touch this file since merge-base",
+	//     which is the right question for a genuinely-dirty file and the wrong
+	//     one for a body that main already carries because an earlier run of THIS
+	//     verb put it there. Without the filter, the recommended workflow — local
+	//     sync, publish, publish again — dies on a false `Conflict detected!`,
+	//     and `claim` stops being idempotent.
+	//
+	//     Nothing left to route means nothing to copy or commit; the publish
+	//     below still runs, which is the whole reason a caller reached this arm.
+	wtRoot, _ := gitx.RepoTopLevel()
+	changed = filesDifferingFrom(mainPath, wtRoot, changed)
+	if len(changed) == 0 {
+		cinfo(stderr, "main worktree already carries this body — publishing only.")
+		if out, err := r.GitInDir(mainPath, "push", "origin", "main"); err != nil {
+			return fmt.Errorf("push failed: %v\n%s", err, out)
+		}
+		cok(stderr, "Issues synced to main and pushed to origin.")
+		fmt.Fprintln(stdout, "synced")
+		return nil
+	}
+
 	// 5. Compute merge base and detect conflicts.
 	mergeBase := strings.TrimSpace(string(mustGitOutput(r, "merge-base", "main", "HEAD")))
 	if mergeBase == "" {
@@ -427,7 +450,6 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 
 	// 6. Copy changed files to main worktree.
 	cinfo(stderr, "Copying issue files to main worktree...")
-	wtRoot, _ := gitx.RepoTopLevel()
 	for _, c := range changed {
 		src := filepath.Join(wtRoot, c)
 		dest := filepath.Join(mainPath, c)
@@ -480,6 +502,30 @@ func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string,
 	cok(stderr, "Issues synced to main and pushed to origin.")
 	fmt.Fprintln(stdout, "synced")
 	return nil
+}
+
+// filesDifferingFrom returns the subset of paths whose content in srcRoot
+// differs from destRoot's copy — the files a publish actually has to move. A
+// missing destination counts as different (it needs the file); an unreadable
+// source counts as different too, so the copy step reports the real IO error
+// rather than this filter swallowing it.
+//
+// Pure-ish by design: reads only, no git, so the caller keeps the IO ordering
+// decision (it must run after the pull) and this stays trivially testable.
+func filesDifferingFrom(destRoot, srcRoot string, paths []string) []string {
+	var out []string
+	for _, p := range paths {
+		src, err := os.ReadFile(filepath.Join(srcRoot, p))
+		if err != nil {
+			out = append(out, p)
+			continue
+		}
+		dst, err := os.ReadFile(filepath.Join(destRoot, p))
+		if err != nil || !bytes.Equal(src, dst) {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

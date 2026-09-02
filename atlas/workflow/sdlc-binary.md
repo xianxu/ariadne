@@ -79,17 +79,29 @@ deliberately creates, and `changedIssueFiles` is empty in exactly that state, so
 both arms skip only the COMMIT when nothing is dirty. What that means differs by
 arm, and getting it wrong in either direction is silent:
 
-- `syncInPlace` pushes local main — but only when local main is actually ahead of
-  `origin/main`. Pushing unconditionally made an offline `sdlc claim` on a clean
-  tree fatal, where it had always been an idempotent no-op.
+- The fall-through publish is opt-in: only `sdlc issue sync --push` sets
+  `PublishExisting`. For `claim` and `issue new`, "nothing dirty" stays the no-op
+  it has always been — `claim` die()s on a sync error and is re-run constantly,
+  so a clean-tree claim must not touch the network at all. (Inferring the intent
+  from `origin/main..main` instead turned every clean claim into a wholesale push
+  of local main, publishing bodies a no-push sync had deliberately kept local.)
 - `syncViaMainWorktree` re-seeds its file list from the ISSUE and routes the body
   across as usual, committing only if the copy staged anything. Merely pushing
   main from there publishes nothing — the body is on the *branch* — so it printed
   success while `origin/main` never moved.
+- A body the main worktree already carries byte-for-byte is dropped from that
+  list *before* conflict detection runs. The detector asks "did both sides touch
+  this since merge-base", which is right for a dirty file and wrong for one an
+  earlier run of this same verb put on main: publish, publish again, and the
+  second run died on a false `Conflict detected!`. This is not conflict
+  detection (explicitly out of scope) — it is declining to invoke it when there
+  is no content difference to resolve.
 
 `TestIssueSync_PublishMatrix` covers {on main, feature worktree} × {body dirty,
 body already committed} and asserts the published content, not a SHA: comparing
-SHAs would not catch a push that moved nothing. `issue new` follows
+SHAs would not catch a push that moved nothing. `TestPublishIsIdempotent` runs
+the documented workflow twice from both locations, because an agent re-running a
+verb is the normal case. `issue new` follows
 the same durability-before-publication rule: when its reservation broadcast
 can't reach main (commonly: run from an in-place feature branch, where no
 worktree is on main), it falls back to a local commit rather than leaving the

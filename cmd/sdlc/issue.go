@@ -405,6 +405,10 @@ func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
 		DryRun:    f.DryRun,
 		NoStart:   true,
 		NoPush:    !f.Push,
+		// --push means "make origin/main carry this body", which includes the
+		// case where the body is already committed and only the publish is
+		// missing — the state the no-push default deliberately creates.
+		PublishExisting: f.Push,
 	}
 	if err := syncIssuesToMain(stdout, stderr, syncFlags, claimRunner, issueSyncMessage(f.Issue, "spec/plan")); err != nil {
 		die(stderr, err.Error())

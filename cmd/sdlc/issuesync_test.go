@@ -857,3 +857,84 @@ func TestSyncInPlace_CleanAndPublishedDoesNotTouchTheNetwork(t *testing.T) {
 		t.Errorf("expected the idempotent no-op; stderr:\n%s", stderr.String())
 	}
 }
+
+// TestPublishIsIdempotent walks the workflow this issue's own docs recommend,
+// twice, from both locations. Round 4 made the publish arm re-seed its file list
+// from the issue — correct about *what* to publish — and fed that file into a
+// conflict detector built for genuinely-dirty files. After the first publish,
+// main legitimately carries the body, so "changed on both sides since
+// merge-base" is true and the second run died with `Conflict detected!` and a
+// manual-merge guide. `sdlc claim` had been idempotent since it existed.
+//
+// The rule: a body main already carries byte-for-byte is nothing to route, so
+// the conflict detector is never asked about it.
+func TestPublishIsIdempotent(t *testing.T) {
+	for _, loc := range []struct {
+		name    string
+		prepare func(t *testing.T, repo string) string
+	}{
+		{"on main", func(t *testing.T, repo string) string { return repo }},
+		{"feature worktree", func(t *testing.T, repo string) string {
+			wt := filepath.Join(t.TempDir(), "feature")
+			git(t, repo, "worktree", "add", "-b", "000206-issue-sync-verb", wt)
+			return wt
+		}},
+	} {
+		t.Run(loc.name, func(t *testing.T) {
+			repo, _ := syncRepo(t)
+			dir := loc.prepare(t, repo)
+			chdirTo(t, dir)
+			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", "## Spec\n\nthe design\n")
+
+			run := func(label string, f *issueSyncFlags) {
+				t.Helper()
+				var stdout, stderr bytes.Buffer
+				if err := runIssueSync(&stdout, &stderr, f); err != nil {
+					t.Fatalf("%s: %v\nstderr:\n%s", label, err, stderr.String())
+				}
+			}
+			// The documented workflow: checkpoint locally, then publish. Then
+			// publish again — an agent re-running a verb is the normal case, not
+			// an edge one.
+			run("local sync", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
+			run("first publish", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true})
+			run("second publish", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true})
+			// And a third time with no --issue at all, which is how `sdlc claim`
+			// re-syncs: it must stay the clean no-op it has always been.
+			run("bare re-sync", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
+		})
+	}
+}
+
+// TestClaimStaysIdempotentOffline pins the other half. `sdlc claim` die()s on a
+// sync error and is re-run constantly, so a clean-tree claim must not reach for
+// the network at all. An earlier cut inferred "is there anything to publish"
+// from `origin/main..main`, which made every clean claim a wholesale push of
+// local main — publishing bodies a no-push sync had deliberately kept local, and
+// failing outright when offline. Only `issue sync --push` asks for that now.
+func TestClaimStaysIdempotentOffline(t *testing.T) {
+	repo, _ := syncRepo(t)
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nkept local on purpose\n")
+
+	var stdout, stderr bytes.Buffer
+	if err := runIssueSync(&stdout, &stderr, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}); err != nil {
+		t.Fatalf("local sync: %v", err)
+	}
+	localHead := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
+
+	// Origin is now unreachable: any network attempt fails loudly.
+	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+
+	stdout.Reset()
+	stderr.Reset()
+	// A publishing caller (claim's flag shape), clean tree, body committed locally.
+	if err := syncIssuesToMain(&stdout, &stderr, &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}, execGitRunner{}, ""); err != nil {
+		t.Fatalf("a clean-tree claim must be an offline no-op, got: %v\nstderr:\n%s", err, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "No issue changes to sync") {
+		t.Errorf("expected the idempotent no-op; stderr:\n%s", stderr.String())
+	}
+	if got := strings.TrimSpace(git(t, repo, "rev-parse", "main")); got != localHead {
+		t.Errorf("claim must not have moved main (%s → %s)", localHead, got)
+	}
+}

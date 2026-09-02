@@ -164,9 +164,13 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 			// from a restatement of the outcome: from a branch it commits without
 			// publishing, so promising a push here would be a lie in two of the
 			// three locations.
+			publishes := syncIssuePublishes()
 			fmt.Fprintf(stdout, "Would %s issue #%d under %q\n",
-				changeCodeSyncVerb(syncIssuePublishes()), id,
+				changeCodeSyncVerb(publishes), id,
 				issueSyncMessage(id, "spec/plan at change-code"))
+			if note := changeCodeSyncNote(publishes); note != "" {
+				fmt.Fprintln(stdout, note)
+			}
 		}
 		fmt.Fprintf(stdout, "Would create branch %s (mode=%s)\n", name, wt)
 		return nil
@@ -205,12 +209,23 @@ func syncIssuePublishes() bool {
 	return gitx.Capture("branch", "--show-current") == "main"
 }
 
-// changeCodeSyncVerb names what the sync will do, for human output.
+// changeCodeSyncVerb names what the sync will do, for human output. Kept to a
+// short verb phrase so it reads mid-sentence; the off-main caveat is a separate
+// line (changeCodeSyncNote) rather than a parenthetical wedged between the verb
+// and its object.
 func changeCodeSyncVerb(publishes bool) string {
 	if publishes {
 		return "sync + push"
 	}
-	return "sync locally (not on main — publishing belongs to pr/merge/close)"
+	return "sync locally"
+}
+
+// changeCodeSyncNote is the follow-up line for the off-main case, or "" on main.
+func changeCodeSyncNote(publishes bool) string {
+	if publishes {
+		return ""
+	}
+	return "    (not on main — publishing belongs to pr/merge/close)"
 }
 
 // syncIssue commits the issue file through the shared sync dispatch (#206), so
