@@ -18,14 +18,22 @@ commits an issue's body**, so the entire planning phase — `## Spec`, `## Plan`
 `## Log`, the longest phase of an issue and the one that produces the design —
 is a plain file write that nothing commits, pushes, or names.
 
-`sdlc claim` broadcasts the claim to `origin/main` so peer agents see the lock,
-and then the design that follows it stays uncommitted in the working tree until
-some unrelated verb happens to sweep it up. Three consequences:
+**The early push is by design, and is not what this issue changes.** `sdlc
+issue new` and `sdlc claim` publish the *reservation* — an ID and a name — which
+is the whole external contract: peers need to know the issue exists and is
+taken, not what is in it. Details stay private until a milestone. That is
+deliberate and stays.
 
-- A compaction, a crash, or a closed terminal loses the design.
-- `sdlc state` and peer agents see `status: working` over an empty `## Spec`.
+What is missing is the other half. The design that follows the claim stays
+**uncommitted** in the working tree until some unrelated verb happens to sweep
+it up, so:
+
+- A compaction, a crash, or a closed terminal loses the design outright.
 - When the edits are eventually swept, they land under
   `issue-sync: update issues` rather than a message naming what happened.
+
+Durability and publication are separable, and only durability is missing. A
+local commit costs nothing, publishes nothing, and is enough on a single host.
 
 **Separately, a real bug on the shared path.** `syncOnMain` narrows `git add`
 to a single issue when `--issue` is set (`cmd/sdlc/claim.go:167-176`) — both
@@ -54,11 +62,17 @@ implying `--only`, so the rest of the index is ignored. `changedIssueFiles`
 already returns early when nothing changed, so the "pathspec matches nothing"
 error is unreachable. This fixes every existing caller, not just the new verb.
 
-**2. `sdlc issue sync --issue N`.** Wrap, do not author: agents edit markdown
-incrementally with their own tools, so a verb that takes body content as an
-argument would fight how the work actually happens. The verb takes the repo
-transaction lock (`markMutatingCommand`), stages only that issue's files,
-commits with a pathspec and a message naming the issue, and pushes.
+**2. `sdlc issue sync --issue N` — commits, does not push.** Wrap, do not
+author: agents edit markdown incrementally with their own tools, so a verb that
+takes body content as an argument would fight how the work actually happens. The
+verb takes the repo transaction lock (`markMutatingCommand`), stages only that
+issue's files, and commits with a pathspec and a message naming the issue.
+
+**Publishing stays with the milestone verbs.** A mid-planning sync is a cheap,
+frequent, local act; pushing is an external contract and belongs at the
+boundaries that already own it. `--push` exists for callers that *are* at a
+milestone, and is off by default — so the common case cannot accidentally
+publish a half-written Spec.
 
 It is a **thin exposure of `syncIssuesToMain`** (`cmd/sdlc/claim.go:96`), which
 already exists, is already branch-aware, and already dispatches between
@@ -70,12 +84,13 @@ The commit message should name the issue the way the rest of the tree does:
 issues`. Message shape is the only thing the new verb adds over the existing
 helper, so keep it a parameter of the helper rather than a branch inside it.
 
-**3. `change-code` calls it.** `change-code` is already the gate that sits
-exactly where planning ends — it runs plan-quality and then asks for the
-estimate. Syncing the issue there means the design lands durably at the natural
-boundary with no new ritual, and the explicit verb from (2) is only needed for
-mid-planning checkpoints. One mechanism, two triggers, rather than a parallel
-auto-sync mechanism that could drift from the verb.
+**3. `change-code` calls it with `--push`.** `change-code` is already the gate
+that sits exactly where planning ends — it runs plan-quality and then asks for
+the estimate — which makes it precisely one of the milestones at which the
+details *should* become external. Syncing there means the design lands durably
+and is published at the natural boundary with no new ritual, while the bare verb
+from (2) covers mid-planning checkpoints. One mechanism, two triggers, rather
+than a parallel auto-sync that could drift from the verb.
 
 **Out of scope:** fetch before `NextID`, conflict detection, merge strategy,
 any locking of body edits.
@@ -85,11 +100,14 @@ any locking of body edits.
 - `syncOnMain` commits with a pathspec; a test stages an unrelated file, runs a
   sync, and asserts the unrelated file is still staged and absent from the
   commit.
-- `sdlc issue sync --issue N` commits and pushes that issue's files with a
-  message naming the issue, from both `main` and a feature branch.
+- `sdlc issue sync --issue N` commits that issue's files with a message naming
+  the issue, from both `main` and a feature branch, and **does not push**.
+- `sdlc issue sync --issue N --push` publishes; a test asserts the default does
+  not reach `origin`.
 - `sdlc issue sync` takes the repo transaction lock (asserted the way the other
   mutating verbs' lock coverage is).
-- `sdlc change-code` leaves the issue file committed and pushed on success.
+- `sdlc change-code` leaves the issue file committed and pushed on success
+  (the milestone case).
 - No second sync implementation exists: `sdlc issue sync` and `change-code`
   both route through `syncIssuesToMain`.
 
@@ -110,6 +128,17 @@ Found while auditing whether concurrent agents can safely update issue files —
 the question came from adopting an advisor/actor split where a brain session
 designs and a per-repo actor implements, so two agents touch one repo's
 `workshop/issues/` by arrangement rather than by accident.
+
+**Boundary condition, recorded not designed for.** "Publish the reservation,
+keep the details private until a milestone" is operator discipline, not an
+enforced property, and it works because one operator initiates every actor and
+therefore already knows what each stub is for. With more than one person it
+degrades: an empty stub on `origin` cannot tell a peer whether it is abandoned,
+actively being designed, or a placeholder, and two people can design the same
+issue in parallel without noticing. The fix at that point is a richer *stub*
+(intent line, owner, timestamp) rather than more locking — but building that now
+is the over-generality trap that cost `pair` its couch overrun, so it is written
+down and not built.
 
 The audit's other findings were deliberately dropped, recorded here so they are
 not rediscovered as gaps: `issue.NextID` scans local files with no fetch (moot
