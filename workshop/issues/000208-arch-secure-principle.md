@@ -340,6 +340,29 @@ deliberately removed.
 
 ### 2026-09-02
 
+**Close review round 1: FIX-THEN-SHIP**, three Important findings, all fixed
+before the close commit.
+
+- BR-1 — the vacuity classification had no test, and neither empty branch was
+  reachable in the committed tree. I had *probed* those states by mutating the
+  file and reverting, which verified the behavior but shipped no coverage: a
+  probe is evidence for a reviewer, not a regression. Split into a pure
+  `parseDeferred(content) → deferredState` with a three-way `Verdict()`, table
+  tested over synthetic content (marker present / heading stopped parsing /
+  section with no marker / all activated / empty file / marker in prose only),
+  plus `TestDeferredFileIsGuarding` pinning that the committed file is in the
+  *enforcing* state — otherwise the whole guard could sit skipped and green.
+- BR-2 — I had copy-pasted the scan-and-dedupe loop into `deferredMarkers`.
+  Two copies of the extraction rule computing the gated and not-gated sets is the
+  one duplication a disjointness guard cannot afford. Extracted `markersIn(text)`;
+  `ArchitectureMarkers()` is now `markersIn(ArchitectureRegistry)`.
+- BR-3 — `atlas/workflow/sdlc-binary.md` said "Adding an `ARCH-*` entry flows
+  into every consumer with no other edit", which is precisely the claim this
+  issue disproved, and it now contradicted the page this diff wrote. Corrected to
+  distinguish the runtime consumers (which do derive) from the test layer (which
+  did not, and now derives except for the one deliberate tripwire).
+
+
 **Implementation.** The guard's activation property needed a second pass. The
 first cut asserted `architecture-deferred.md` parses ≥1 marker (PQ-2's
 anti-vacuity half) — and that made activating the LAST deferred entry fail,

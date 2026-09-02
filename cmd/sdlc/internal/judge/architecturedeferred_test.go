@@ -28,29 +28,92 @@ var deferredFS embed.FS
 // activating an entry would mean editing the guard too, and the file's
 // instruction would be a lie. Because the set is derived, moving the section
 // empties it and the guard stays green with no other edit.
-func deferredMarkers(t *testing.T) (markers []string, sections int) {
+// deferredState is what the guard needs to know about architecture-deferred.md.
+// Sections are counted independently of markers, and that separation is the
+// whole point — see deferredVerdict.
+type deferredState struct {
+	Markers  []string
+	Sections int
+}
+
+// parseDeferred reads the file's shape. PURE (takes content, not a path) so the
+// three states below are table-testable without mutating the embedded file —
+// which matters because the committed tree can only ever exhibit ONE of them.
+func parseDeferred(content string) deferredState {
+	d := deferredState{Markers: markersIn(content)}
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			d.Sections++
+		}
+	}
+	return d
+}
+
+// deferredVerdict classifies the file. An empty marker set makes the disjointness
+// check below vacuously true, so "empty" has to be explained rather than waved
+// through — and there are two very different reasons for it.
+type deferredVerdict string
+
+const (
+	deferredGuard   deferredVerdict = "guard"   // entries present — enforce
+	deferredBroken  deferredVerdict = "broken"  // sections, no markers — headings stopped parsing
+	deferredRetired deferredVerdict = "retired" // nothing left — every entry was activated
+)
+
+func (d deferredState) Verdict() deferredVerdict {
+	switch {
+	case len(d.Markers) > 0:
+		return deferredGuard
+	case d.Sections > 0:
+		return deferredBroken
+	default:
+		return deferredRetired
+	}
+}
+
+func deferredFileState(t *testing.T) deferredState {
 	t.Helper()
 	b, err := deferredFS.ReadFile("architecture-deferred.md")
 	if err != nil {
 		t.Fatalf("read architecture-deferred.md: %v", err)
 	}
-	seen := map[string]bool{}
-	for _, m := range archMarkerRE.FindAllStringSubmatch(string(b), -1) {
-		if !seen[m[0]] {
-			seen[m[0]] = true
-			markers = append(markers, m[0])
-		}
+	return parseDeferred(string(b))
+}
+
+// TestDeferredVerdict covers all three classifications against synthetic content.
+// The committed tree exhibits only `guard`, so without this the other two
+// branches ship unexecuted — and they are the branches that decide whether an
+// empty forbidden set is a legitimate retirement or a silently disarmed guard.
+func TestDeferredVerdict(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		content string
+		want    deferredVerdict
+	}{
+		{"one entry", "# Deferred\n\n## ARCH-AUTHORITY — x\n\n- **principle:** y\n", deferredGuard},
+		{"several entries", "# D\n\n## ARCH-AUTHORITY — a\n\n## ARCH-LATER — b\n", deferredGuard},
+		{"heading stopped parsing", "# D\n\n## ARCH_AUTHORITY — underscore, not a marker\n", deferredBroken},
+		{"section with no marker at all", "# D\n\n## Some other heading\n\ntext\n", deferredBroken},
+		{"all activated — prose only", "# Deferred\n\nNothing is deferred right now.\n", deferredRetired},
+		{"empty file", "", deferredRetired},
+		// A marker mentioned in prose still counts: the guard's job is to keep the
+		// TOKEN out of gate text, so a token anywhere in this file is in scope.
+		{"marker in prose only", "# D\n\nARCH-AUTHORITY is deferred.\n", deferredGuard},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := parseDeferred(tc.content).Verdict(); got != tc.want {
+				t.Errorf("Verdict() = %q, want %q", got, tc.want)
+			}
+		})
 	}
-	// Sections are counted independently of markers, and that separation is the
-	// whole point: it tells "every entry has been activated" (no sections, no
-	// markers — legitimate) apart from "the entries are still here but their
-	// headings stopped parsing" (sections, no markers — broken guard).
-	for _, line := range strings.Split(string(b), "\n") {
-		if strings.HasPrefix(line, "## ") {
-			sections++
-		}
+}
+
+// TestDeferredFileIsGuarding pins that the COMMITTED file is in the enforcing
+// state — so the guard below is doing work today, not skipping.
+func TestDeferredFileIsGuarding(t *testing.T) {
+	if got := deferredFileState(t).Verdict(); got != deferredGuard {
+		t.Errorf("architecture-deferred.md is %q, want %q — the guard is not enforcing anything", got, deferredGuard)
 	}
-	return markers, sections
 }
 
 // TestDeferredPrinciplesReachNoGate is the guard that makes "documented but not
@@ -61,19 +124,19 @@ func deferredMarkers(t *testing.T) (markers []string, sections int) {
 // text is every prompt walked out of promptFS plus the three render helpers. A
 // prompt added next year is covered without anyone remembering this issue.
 func TestDeferredPrinciplesReachNoGate(t *testing.T) {
-	deferred, sections := deferredMarkers(t)
+	state := deferredFileState(t)
+	deferred := state.Markers
 
-	// A deferred file that parses no markers makes every assertion below
-	// vacuously true, so the empty case has to be classified rather than
-	// waved through. Renaming or deleting the file is already a BUILD error
-	// (//go:embed on a missing path), which leaves one real disarm vector: the
-	// entries are still in the file but their headings stopped parsing.
-	switch {
-	case len(deferred) == 0 && sections > 0:
+	// An empty marker set makes every assertion below vacuously true, so it is
+	// classified rather than waved through. Renaming or deleting the file is
+	// already a BUILD error (//go:embed on a missing path), which leaves one
+	// real disarm vector: the entries are still there but stopped parsing.
+	switch state.Verdict() {
+	case deferredBroken:
 		t.Fatalf("architecture-deferred.md has %d section(s) but parses no ARCH-* markers — "+
 			"the guard below would pass vacuously. A heading probably stopped matching "+
-			"%s; fix the heading, don't delete the check.", sections, archMarkerRE)
-	case len(deferred) == 0:
+			"%s; fix the heading, don't delete the check.", state.Sections, archMarkerRE)
+	case deferredRetired:
 		// Every entry has been activated. Nothing is deferred, so there is
 		// nothing to keep out of the gates — and activation stayed a pure MOVE,
 		// which is exactly what the deferred file promises. Retire this test

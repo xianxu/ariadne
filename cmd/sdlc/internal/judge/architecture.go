@@ -15,10 +15,19 @@ var archMarkerRE = regexp.MustCompile(`ARCH-([A-Z][A-Z-]*)`)
 // both the {{ARCH_STAR}} substitution in the code-review prompt and the
 // AGENTS.md narrative-drift test consume it, so adding ARCH-SHIM (#71) flows into
 // the review checklist and the drift guard with no other edits.
-func ArchitectureMarkers() []string {
+func ArchitectureMarkers() []string { return markersIn(ArchitectureRegistry) }
+
+// markersIn extracts ARCH-* markers from any text, in order, deduped. Pure.
+//
+// Split out of ArchitectureMarkers in #208 because the deferred-principle guard
+// needs the identical extraction over architecture-deferred.md: two copies of
+// "scan, dedupe, keep order" would let the gated and the not-gated sets be
+// computed by subtly different rules, which is the one thing that must not
+// happen when the whole guard is "these two sets are disjoint" (ARCH-DRY).
+func markersIn(text string) []string {
 	var markers []string
 	seen := map[string]bool{}
-	for _, m := range archMarkerRE.FindAllStringSubmatch(ArchitectureRegistry, -1) {
+	for _, m := range archMarkerRE.FindAllStringSubmatch(text, -1) {
 		full := m[0]
 		if seen[full] {
 			continue

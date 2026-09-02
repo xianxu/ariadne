@@ -889,8 +889,24 @@ file, embedded per fresh context). Today: the **plan-quality** judge renders the
 The **estimate-quality** judge (#117) is a change-code-time-only sibling of
 plan-quality — deliberately NOT in `AllCategories()` so it never enters push/merge
 bulk dispatch; it checks the `## Estimate` derivation was *applied*, not back-fit.
-Cite the marker (`ARCH-DRY`) in plans/Logs/findings. Adding an `ARCH-*` entry
-flows into every consumer with no other edit. **`sdlc start-plan`** (#75 M2)
+Cite the marker (`ARCH-DRY`) in plans/Logs/findings.
+
+**Adding an `ARCH-*` entry** flows into every RUNTIME consumer with no other edit
+— the block header's entry count, `{{ARCH_STAR}}`, every prompt, `start-plan`,
+`arch-principles` all derive from `ArchitectureMarkers()`. The *test* layer did
+not, until #208: five sites restated the marker set by hand, one hard-failing on
+length and one order-sensitive. Now exactly one does — `TestArchitectureMarkers`,
+kept by hand deliberately as the tripwire that makes an accidental registry edit
+visible — so an entry touches `architecture.md`, that list, and the goldens
+(`-update-golden`). See `atlas/workflow/architecture-principles.md`.
+
+**Deferred principles (#208).** `internal/judge/architecture-deferred.md` holds
+entries written down but deliberately NOT embedded, so they carry no gate cost.
+Activation is a pure MOVE into `architecture.md`;
+`TestDeferredPrinciplesReachNoGate` derives both the forbidden set (scanning the
+deferred file with the registry's own `markersIn`) and the gate-facing text
+(walking `promptFS` plus the render helpers), so the move empties the set and the
+guard stays green with no edit to it. **`sdlc start-plan`** (#75 M2)
 delivers the `at-plan` lens to the main thread at design time — the forward
 counterpart to `change-code`'s plan-quality review (`claim → start-plan →
 change-code`). #71 adds `ARCH-SHIM`. #126 landed `ARCH-PURPOSE` (serve the issue's
