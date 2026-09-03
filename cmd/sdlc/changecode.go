@@ -734,11 +734,15 @@ func planGateContent(issueContent string) string {
 	// returns only the body beneath the heading, so removing that alone would leave an
 	// orphan "## Estimate" behind — enough to change the hash and defeat the point.
 	// Done line-wise rather than by regex because Go's RE2 has no lookahead, so a pattern
-	// spanning to the next `## ` would consume that heading too.
+	// spanning to the next `## ` would consume that heading too. Since #211 M2 the line
+	// scan is FENCE-AWARE: a `## ` quoted inside a fenced block is content, so an issue
+	// that quotes markdown no longer starts or ends the Estimate region at an example.
+	lines := strings.Split(body, "\n")
+	inside := issue.FenceSpans(lines, issue.UnterminatedIsProse)
 	var kept []string
 	inEstimate := false
-	for _, line := range strings.Split(body, "\n") {
-		if strings.HasPrefix(line, "## ") {
+	for i, line := range lines {
+		if !inside[i] && strings.HasPrefix(line, "## ") {
 			inEstimate = strings.TrimSpace(strings.TrimPrefix(line, "## ")) == "Estimate"
 		}
 		if !inEstimate {

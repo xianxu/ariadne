@@ -56,7 +56,7 @@ func parseDocBody(fm, body string) *Doc {
 	}
 
 	var current string
-	scanMarkdownLines(d.lines, func(i int, line string) {
+	issue.ScanMarkdownLines(d.lines, projectFencePolicy, func(i int, line string) {
 		if strings.HasPrefix(line, "## ") {
 			if current != "" {
 				span := d.sections[current]
@@ -96,59 +96,17 @@ func parseDocBody(fm, body string) *Doc {
 	return d
 }
 
-// SectionLineBounds returns the half-open line range beneath the first real
-// level-two heading. Fenced examples are ignored. Pure.
+// projectFencePolicy pins the behavior project docs have always had: an
+// unterminated fence swallows the rest of the file. Stated rather than inherited
+// (#211) — `issue` deliberately makes the opposite call for section extraction,
+// where a stray fence hiding `## Plan` would disarm the close gates.
+const projectFencePolicy = issue.UnterminatedIsFenced
+
+// SectionLineBounds delegates to the shared implementation (#211), pinning this
+// package's inherited unterminated-fence policy. Kept as a wrapper so callers
+// here don't each have to name the policy.
 func SectionLineBounds(text, name string) (int, int, bool) {
-	lines := strings.Split(text, "\n")
-	start, end := -1, len(lines)
-	scanMarkdownLines(lines, func(i int, line string) {
-		if start >= 0 && strings.HasPrefix(line, "## ") {
-			if end == len(lines) {
-				end = i
-			}
-			return
-		}
-		if start < 0 && strings.HasPrefix(line, "## ") && strings.TrimSpace(strings.TrimPrefix(line, "## ")) == name {
-			start = i + 1
-		}
-	})
-	return start, end, start >= 0
-}
-
-func scanMarkdownLines(lines []string, visit func(int, string)) {
-	var fence byte
-	var fenceWidth int
-	for i, line := range lines {
-		if marker, width, rest, ok := fenceMarker(line); ok {
-			if fence == 0 {
-				fence, fenceWidth = marker, width
-			} else if marker == fence && width >= fenceWidth && strings.TrimSpace(rest) == "" {
-				fence, fenceWidth = 0, 0
-			}
-			continue
-		}
-		if fence == 0 {
-			visit(i, line)
-		}
-	}
-}
-
-// fenceMarker recognizes CommonMark-style backtick or tilde fences indented
-// by at most three spaces. The caller owns opener/closer state.
-func fenceMarker(line string) (byte, int, string, bool) {
-	trimmed := strings.TrimLeft(line, " ")
-	if len(line)-len(trimmed) > 3 || len(trimmed) < 3 {
-		return 0, 0, "", false
-	}
-	marker := trimmed[0]
-	if marker != '`' && marker != '~' {
-		return 0, 0, "", false
-	}
-	width := 0
-	for width < len(trimmed) && trimmed[width] == marker {
-		width++
-	}
-	return marker, width, trimmed[width:], width >= 3
+	return issue.SectionLineBounds(strings.Split(text, "\n"), name, projectFencePolicy)
 }
 
 // FM returns a trimmed frontmatter field value, or an empty string when absent.

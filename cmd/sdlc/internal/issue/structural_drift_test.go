@@ -20,7 +20,7 @@ func TestGatedSectionsSubsetOfModel(t *testing.T) {
 	for _, g := range gatedSections {
 		if !model[g] {
 			t.Errorf("structural gate targets %q, absent from issue.cue scaffold.sections %v — "+
-				"reconcile structural.go (and PlanSectionRE if it's Plan) or issue.cue", g, names)
+				"reconcile structural.go (and PlanSectionBody if it's Plan) or issue.cue", g, names)
 		}
 	}
 }

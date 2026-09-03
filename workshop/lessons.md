@@ -1235,3 +1235,62 @@ those states, so the classification has to be a pure function over content with 
 table test. Probing the other states by editing the artifact and reverting
 verifies behavior for the person doing it and ships no coverage — it is evidence
 for a reviewer, not a regression.
+
+## Reverting the helper is not reverting the routing
+
+**Pattern (#211 M2 review, BR-10 → BR-16):** A finding said four call sites were
+routed onto a filtered helper with no test pinning that choice. I fixed it, and
+verified by reverting the **helper** — deleting the filter inside it — which went
+red. I reported "revert-verified". The next review measured the thing the finding
+had actually named: reverting the four **call sites** back to the unfiltered
+helper left the entire suite green. The test called the helper directly and
+re-implemented the consumer's logic, so it pinned behaviour and mocked wiring.
+
+This is the same failure as the earlier lesson in this file, one level in — and I
+wrote that lesson the same day. Knowing the rule did not stop me applying it to
+the wrong subject, because *"I reverted something and it went red"* felt like
+evidence without checking that the something was the thing under discussion.
+
+**Rule:** before claiming revert-verification, state the finding's subject in
+one sentence and revert exactly that. Helper, call site, and wiring are three
+different subjects with three different reverts. A test that reaches the helper
+without entering the production entry point can never distinguish them, so where
+the entry point is not in-process drivable, pin the wiring at the source instead.
+
+**Corollary — a fixture that two filters both catch pins only their union.**
+When a fix installs more than one independent guard, revert each ALONE and watch
+a named test red; a fixture the first filter already rejects can leave the second
+provably dead. Measured twice in one issue: a quoted plan row in `## Problem`
+never exercised the fence filter, because the section scoping rejected it first.
+Likewise a contract deliberately looser than every current caller exercises needs
+a test supplying the caller it exists for — otherwise the looseness is documented
+and unverified.
+
+**Rule for the record itself:** a Log or `--verified` line asserting evidence
+names the command run and the observed result — `go test ./x -run Y` → `--- FAIL`
+— not the conclusion. "Revert-verified" is true only when the named test went RED
+with the production change undone; a build check is not a revert check. Three
+revert claims in one issue's Log, two unverifiable as written, is what makes this
+worth a rule rather than a correction.
+
+## Extracting a helper can shrink a derived guard's population
+
+**Pattern (#211 close review):** A guard derived its population from a property
+— "any function referencing a plan-counting regex is a plan-item reader and must
+read the filtered body". Fixing a separate finding, I extracted the regex into a
+pure helper. That silently removed the *caller* from the derived set, because the
+caller had stopped being a regex user. I then wrote an exemption for the helper
+justified by "its caller is itself checked by this guard", probed it, and found
+the caller fired nothing. The rationale was false and the coverage was gone.
+
+**Rule:** a derived guard keys on a property that refactoring relocates, so after
+any extraction, re-probe the guard by reverting the fix it protects — not by
+reading it. Where a derivation structurally cannot see a role (here: a caller
+that obtains the data and delegates the work), name that role in its own explicit
+edge list rather than assuming the derivation reaches it.
+
+**Second-order:** moving a test onto the production path is right; moving it onto
+the production *IO* is not. Pinning a pure decision by calling the function that
+shells out makes the test fail for reasons unrelated to the fact under test — in
+this case the issue's central regression failed outside a git worktree. Extract
+the pure decision and drive that.

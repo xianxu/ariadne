@@ -289,22 +289,31 @@ var logLineDateRE = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2}):`)
 //
 // If `## Log` is absent, we append a new section at the bottom of body.
 //
-// Anchor: the **last** `## Log` header, not the first. The real Log section is
-// conventionally the final `##` section, and a meta-issue (like #66 itself) can
-// quote `## Log` / `### <date>` inside a fenced code block in an earlier
-// section — first-match would then file the line into that prose. (Found by
-// dogfooding: closing #66 with the first-match version filed the close line
-// into its own Problem-section example.) All offsets below are taken relative
-// to that last header so both the day-header and fallback inserts target the
-// real section.
+// Anchor: the real `## Log` section, located by the fence-aware scanner (#211).
+// Both the heading AND the section's end are resolved that way, and both halves
+// matter: anchoring the heading alone still let the `### <date>` search run to
+// EOF, so a quoted day header in a LATER section would capture the insert.
+//
+// This replaced a last-match heuristic added by #66 — first-match had filed a
+// close line into #66's own fenced Problem-section example. Last-match fixed
+// that case and only that case: it breaks when a quoted `## Log` sits after the
+// real one. Both are the same defect FenceSpans now answers properly.
 func insertLogLine(body, logLine string) string {
-	logHeaderRE := regexp.MustCompile(`(?m)^## Log\s*$`)
-	all := logHeaderRE.FindAllStringIndex(body, -1)
-	if all == nil {
+	// #211 M2: located by the fence-aware section scanner. The last-match
+	// heuristic this replaces was added by #66 for exactly one reason — a
+	// first-match version filed the close line into #66's own fenced example —
+	// which is the same defect FenceSpans now solves properly. Last-match was
+	// also only accidentally right: it fails when a quoted `## Log` sits AFTER
+	// the real one, and 1 of 406 corpus files already has that shape.
+	logStart, ok := issue.SectionHeadingByteOffset(body, "Log", issue.UnterminatedIsProse)
+	if !ok {
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"
 	}
-	logStart := all[len(all)-1][0] // start of the LAST `## Log` header
-	section := body[logStart:]     // the real Log section + anything after it
+	// Bound the search to the real Log section. Taking body[logStart:] would let
+	// the `### <date>` lookup below run past the section's end into a LATER
+	// section's fenced example — the same class of bug one level down.
+	_, logEnd, _ := issue.SectionByteBounds(body, "Log", issue.UnterminatedIsProse)
+	section := body[logStart:logEnd]
 
 	// Prefer the matching `### <date>` day header within the real Log section.
 	// The match anchors on the date *prefix* and allows an optional ` — suffix`
@@ -316,19 +325,21 @@ func insertLogLine(body, logLine string) string {
 	// eaten the way `\s*$` would. The required `[ \t]` separator rejects
 	// `### <date>x` (a date can't prefix-match a longer token).
 	if m := logLineDateRE.FindStringSubmatch(logLine); m != nil {
-		dayRE := regexp.MustCompile(`(?m)^### ` + regexp.QuoteMeta(m[1]) + `([ \t].*)?$`)
-		if d := dayRE.FindStringIndex(section); d != nil {
-			pos := logStart + d[1] // end of the day-header line text (before its newline)
+		// Line-wise and fence-aware: bounding to the Log section is not enough,
+		// because the section can quote its OWN format (#211 M2 review BR-11).
+		dayRE := regexp.MustCompile(`^### ` + regexp.QuoteMeta(m[1]) + `([ \t].*)?$`)
+		if _, dEnd, found := issue.FindLineOutsideFences(section, dayRE); found {
+			pos := logStart + dEnd // end of the day-header line text (before its newline)
 			return body[:pos] + "\n" + logLine + body[pos:]
 		}
 	}
 	// Fallback: top of the real `## Log` section. Same shape as close-issue.py's
-	// regex, but run on `section` so it anchors to the last header; for the
-	// common single-`## Log` body this is byte-for-byte identical to the original.
+	// regex, but run on `section` so it anchors to the fence-aware header; for
+	// the common single-`## Log` body this is byte-for-byte identical.
 	insertRE := regexp.MustCompile(`(?m)(^## Log\s*\n)(\s*\n)?`)
 	loc := insertRE.FindStringSubmatchIndex(section)
 	if loc == nil {
-		// Header matched logHeaderRE but not insertRE — shouldn't happen
+		// The section was located but insertRE didn't match — shouldn't happen
 		// in practice (the patterns are equivalent up to trailing content),
 		// but fall through to append-mode rather than panic.
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"
@@ -551,17 +562,20 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	newFM, newBody := fm, body
 
 	if mode == "milestone" {
-		pat := regexp.MustCompile(`(?m)^(- )\[[ .]\]( ` + regexp.QuoteMeta(f.Milestone) + `\b)`)
-		n := len(pat.FindAllStringIndex(newBody, -1))
-		if n > 0 {
-			newBody = pat.ReplaceAllString(newBody, "${1}[x]${2}")
+		// Fence-aware and scoped to the real Plan section — see issue.TickMilestone,
+		// which owns the logic so it can be tested without restating it.
+		var n int
+		newBody, n = issue.TickMilestone(newBody, f.Milestone)
+		switch {
+		case n > 0:
 			applied = append(applied, fmt.Sprintf("ticked %s in %s ## Plan", f.Milestone, filepath.Base(issuePath)))
-		} else {
-			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
+		case !issue.HasSection(newBody, "Plan"):
+			cwarn(stderr, fmt.Sprintf("no `## Plan` section in %s — nothing to tick", filepath.Base(issuePath)))
+		default:
+			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s ## Plan (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
 		}
 	} else { // issue close
-		if m := issue.PlanSectionRE.FindStringSubmatchIndex(newBody); m != nil {
-			planBody := newBody[m[2]:m[3]]
+		if planBody, ok := issue.PlanItemsBody(newBody); ok {
 			unchecked := issue.PlanUncheckedRE.FindAllString(planBody, -1)
 			if len(unchecked) > 0 {
 				if !f.skip("plan") {
@@ -1698,6 +1712,27 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 	return midstream, trailing
 }
 
+// milestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
+// order, de-duplicated (a milestone may appear twice if the plan was revised).
+//
+// PURE, and split out for that reason (#211 close review): the enumeration is
+// what "a fenced heading no longer hides M2" is about, and folding it into
+// findMilestonesMissingVerdict meant testing it required `git log` — so the
+// issue's central regression failed outside a git worktree, on an error raised
+// after the fact under test was already decided. Same ARCH-PURE shape as
+// TickMilestone's extraction on the write side.
+func milestonesInPlanOrder(planBody string) []string {
+	var ordered []string
+	seen := map[string]bool{}
+	for _, mm := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
+		if tag := mm[1]; !seen[tag] {
+			seen[tag] = true
+			ordered = append(ordered, tag)
+		}
+	}
+	return ordered
+}
+
 // findMilestonesMissingVerdict enumerates milestones in the issue body's
 // `## Plan` section and returns them in plan order (ordered), plus the
 // tags of any whose close commit lacks a `Review-Verdict:` trailer
@@ -1715,27 +1750,15 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 // treated the same as one whose commit lacks the trailer — both are "no
 // review evidence."
 func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, missing []string, err error) {
-	m := issue.PlanSectionRE.FindStringSubmatchIndex(body)
-	if m == nil {
+	planBody, ok := issue.PlanItemsBody(body)
+	if !ok {
 		// No plan section → no milestones to check. Treat as "fine":
 		// the operator may be closing an issue that never had milestones.
 		return nil, nil, nil
 	}
-	planBody := body[m[2]:m[3]]
-	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
-	if len(matches) == 0 {
+	ordered = milestonesInPlanOrder(planBody)
+	if len(ordered) == 0 {
 		return nil, nil, nil
-	}
-	// Preserve plan order; de-duplicate (a milestone may appear in the
-	// plan more than once if revised).
-	seen := map[string]bool{}
-	for _, mm := range matches {
-		tag := mm[1]
-		if seen[tag] {
-			continue
-		}
-		seen[tag] = true
-		ordered = append(ordered, tag)
 	}
 	for _, tag := range ordered {
 		ok, err := milestoneHasVerdictCommit(issueStr, tag, issuePath)

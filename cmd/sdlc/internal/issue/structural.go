@@ -20,8 +20,8 @@ const (
 // gatedSections is the set of sections CheckSectionsPresence enforces.
 // INVARIANT (TestGatedSectionsSubsetOfModel): a subset of issue.cue
 // scaffold.sections — a gate must not require a section the creation template
-// never writes. (Note: checkPlan encodes "Plan" in PlanSectionRE, so a rename
-// there needs a matching regex edit — the test fires to remind you.)
+// never writes. (Note: checkPlan encodes "Plan" in PlanSectionBody, so a rename
+// there needs a matching edit — the test fires to remind you.)
 var gatedSections = []string{secSpec, secPlan, secDoneWhen}
 
 // StructuralFailure is one gate's verdict against an issue file's
@@ -157,14 +157,13 @@ func checkSpecWordCount(body string) *StructuralFailure {
 var nonEmptyPlanItemRE = regexp.MustCompile(`(?m)^- \[[ x.]\]\s+\S`)
 
 func checkPlan(body string) *StructuralFailure {
-	m := PlanSectionRE.FindStringSubmatchIndex(body)
-	if m == nil {
+	section, ok := PlanItemsBody(body)
+	if !ok {
 		return &StructuralFailure{
 			Name:    "plan-present",
 			Message: "no `## Plan` section found",
 		}
 	}
-	section := body[m[2]:m[3]]
 	if !nonEmptyPlanItemRE.MatchString(section) {
 		return &StructuralFailure{
 			Name:    "plan-present",
@@ -215,20 +214,23 @@ func checkEstimate(fm string) *StructuralFailure {
 	return nil
 }
 
-// stripCodeFences removes fenced code blocks (```…```) from a markdown
-// snippet so the Spec word count reflects prose, not embedded code.
-// Naive — doesn't handle nested fences or indented code — but good
-// enough for our gate purpose.
+// stripCodeFences removes fenced code blocks from a markdown snippet so the Spec
+// word count reflects prose, not embedded code.
+//
+// Since #211 M2 this is the shared scanner (StripFenced), not the naive
+// `(?s)```.*?``` ` regex it used to be — so it now handles tilde fences, the
+// closer-width rule, and indented fences, none of which the old one did. The
+// stale "naive — doesn't handle nested fences or indented code" caveat and the
+// blank line that detached this block from the function are gone with it.
 //
 // NOT built on SplitFences, deliberately: the two have different
-// unterminated-fence policies. Here an unterminated tail stays in the
-// output (counted as prose by the word-count gates — changing that would
-// silently shift gate behavior); SplitFences classifies it Fenced (a
-// rewriter must never touch the inside of a broken fence).
-var fencedCodeRE = regexp.MustCompile("(?s)```.*?```")
-
+// unterminated-fence policies. Here an unterminated tail stays in the output
+// (counted as prose by the word-count gates — changing that would silently shift
+// gate behavior); SplitFences classifies it Fenced (a rewriter must never touch
+// the inside of a broken fence). TestUnterminatedPolicies_DisagreeOnPurpose pins
+// that fork.
 func stripCodeFences(s string) string {
-	return fencedCodeRE.ReplaceAllString(s, " ")
+	return StripFenced(s)
 }
 
 // FenceSegment is one run of markdown text, classified by whether it lies
@@ -239,6 +241,20 @@ type FenceSegment struct {
 	Fenced bool
 }
 
+// NOT rebased onto FenceSpans (#211 M2), deliberately — the one place this issue
+// leaves two fence implementations standing, with the reason:
+//
+// SplitFences is CHARACTER-oriented, not line-oriented. Its contract includes
+// inline pairs mid-line (`a```one``` mid ```two```z` is two fenced segments with
+// prose between them, pinned by TestSplitFences) and byte-exact segment
+// boundaries that fall inside a line. FenceSpans classifies whole LINES, which
+// cannot express that without embedding a second scanner inside the first.
+//
+// It is also a different problem. This issue's class is "a heading-shaped line
+// inside a fence read as structure"; SplitFences never looks for headings — it
+// answers "may a rewriter edit these bytes". Merging them would change what
+// `migrate` rewrites across repos to serve a tidiness the class doesn't need.
+//
 // SplitFences segments a markdown snippet into prose and fenced runs for
 // rewriters that must skip code fences (#179 `sdlc migrate`). An
 // unterminated trailing fence is classified Fenced — the conservative
