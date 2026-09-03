@@ -117,9 +117,32 @@ func TestBuildPrompt_DRY(t *testing.T) {
 // #75: architecture.md is the single source — it carries both markers and both
 // lenses, and is embedded verbatim into every prompt that needs it.
 func TestArchitectureRegistry_Content(t *testing.T) {
-	for _, want := range []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS", "at-plan", "at-review", "principle:"} {
-		if !strings.Contains(ArchitectureRegistry, want) {
-			t.Errorf("ArchitectureRegistry missing %q", want)
+	// Markers are DERIVED (#208): restating them here bought nothing that
+	// TestArchitectureMarkers doesn't already pin, and silently stopped covering
+	// each new entry. What this test uniquely asserts is that every marker the
+	// registry declares also carries the shape a prompt consumer depends on.
+	want := append([]string{}, ArchitectureMarkers()...)
+	want = append(want, "at-plan", "at-review", "principle:")
+	for _, w := range want {
+		if !strings.Contains(ArchitectureRegistry, w) {
+			t.Errorf("ArchitectureRegistry missing %q", w)
+		}
+	}
+	// Every entry carries BOTH lenses, not just the two the block header names.
+	for _, m := range ArchitectureMarkers() {
+		i := strings.Index(ArchitectureRegistry, "## "+m)
+		if i < 0 {
+			t.Errorf("%s has no `## %s` section heading — ArchitectureMarkers found it in prose only", m, m)
+			continue
+		}
+		entry := ArchitectureRegistry[i:]
+		if j := strings.Index(entry[3:], "\n## "); j >= 0 {
+			entry = entry[:j+3]
+		}
+		for _, lens := range []string{"**principle:**", "**at-plan:**", "**at-review:**"} {
+			if !strings.Contains(entry, lens) {
+				t.Errorf("%s is missing %s — every gated entry must carry both lenses", m, lens)
+			}
 		}
 	}
 }
@@ -327,9 +350,17 @@ func TestArchitectureRegistry_EmbeddedInPrompts(t *testing.T) {
 
 // #69: ArchitectureMarkers is the single extraction site for ARCH-* names —
 // shared by the {{ARCH_STAR}} substitution and the AGENTS.md drift guard.
+//
+// This is the ONE site that writes the marker set by hand (#208), and it is
+// deliberate: it is the tripwire that makes an accidental registry edit — a
+// deleted entry, a renamed marker, a reordered file — visible as a failure
+// naming both sets. Every OTHER site derives from ArchitectureMarkers(), so
+// adding a seventh entry touches the registry, this list, and the goldens, and
+// nothing else. Do not "fix" this one by deriving it; a test that derives
+// everything asserts nothing.
 func TestArchitectureMarkers(t *testing.T) {
 	markers := ArchitectureMarkers()
-	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS"}
+	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS", "ARCH-SECURE"}
 	if len(markers) != len(want) {
 		t.Fatalf("ArchitectureMarkers() = %v, want %v", markers, want)
 	}
@@ -361,7 +392,7 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		"workshop/issues/000072-x.md", // {{ISSUE_FILE}}
 		"milestone M1 close",          // {{BOUNDARY}}
 		"downstream repo",             // {{REPO_NOTE}}
-		"ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK, ARCH-CONSTRAINTS", // {{ARCH_STAR}} enumerated from the registry (full set, not a substring — asserts the consumer derives the new marker)
+		strings.Join(ArchitectureMarkers(), ", "), // {{ARCH_STAR}} — DERIVED (#208). The literal was order-sensitive: it passed only while a new entry was appended AFTER ARCH-CONSTRAINTS.
 		"Core concepts cross-check",
 		"```verdict",                               // {{VERDICT_BLOCK}} — the structured handoff (#147)
 		"verdict: <SHIP | FIX-THEN-SHIP | REWORK>", // tokens rendered from vocab.Verdict().Emitted()
