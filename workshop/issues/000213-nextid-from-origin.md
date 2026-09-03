@@ -115,13 +115,41 @@ and any change to the repo transaction lock, which is working as designed.
 
 ## Plan
 
-- [ ] Extract the id-set union as a pure function; move the scan behind it.
-- [ ] `ls-tree` the trunk ref for the three issue directories; fetch first.
-- [ ] Offline fallback with the loud warning.
-- [ ] Duplicate-id refusal in the merge gate.
-- [ ] Bare-origin tests: branch-cut-before-push, two-on-one-branch, offline.
+- [x] Extract the id-set union as a pure function; move the scan behind it.
+- [x] `ls-tree` the trunk ref for the three issue directories; fetch first.
+- [x] Offline fallback with the loud warning.
+- [x] Duplicate-id refusal in the merge gate.
+- [x] Bare-origin tests: branch-cut-before-push, two-on-one-branch, offline.
 
 ## Log
+
+### 2026-09-03
+
+Implemented. `NextID` is now pure — it takes id sets — and the IO lives in
+`cmd/sdlc/issueids.go`: `ScanLocalIDs` for the checkout, `ls-tree` on
+`origin/main` for the published space, unioned.
+
+**Revert-verified**, which matters here because a mock cannot express this bug:
+restoring the local-only allocator makes
+`TestAllocateIssueID_BranchCutBeforePublish` fail with the defect in the message
+— "reallocated the published id 000002" — and takes
+`TestAllocateIssueID_ScansHistoryOnTheTrunk` with it. Every test runs a real repo
+against a real bare origin, with the branch cut *before* a second clone publishes
+the colliding id, so the branch's worktree genuinely never contains it.
+
+**A design flaw of mine that the tests caught.** The first cut ran `git` relative
+to the process cwd while the issue dirs are caller-supplied. With
+`--issues-dir` pointing elsewhere — or in any test using a temp dir — it would
+scan THIS repo's trunk for paths that mean something different there, reading a
+stranger's id space as if it were ours. `repoRelativeIDDirs` now refuses any dir
+outside the current repo and the caller falls back to the local scan with the
+warning. Found because two unrelated fetch tests started allocating `000214`:
+the real ariadne id space leaking into a temp-dir fixture.
+
+**Fleet damage measured before starting**, since allocation cannot repair what
+exists: ariadne #40, #96, #168, #212; parley.nvim #51, #66, #81, #90. `#40` and
+`#96` date from May–June 2026, so the merge gate is not optional cleanup — three
+of ariadne's four are already archived and beyond reach.
 
 ### 2026-09-02
 

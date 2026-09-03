@@ -23,34 +23,90 @@ var idPrefixRE = regexp.MustCompile(`^(\d{6})-`)
 // hyphenRunRE collapses runs of hyphens produced by slugification.
 var hyphenRunRE = regexp.MustCompile(`-+`)
 
-// NextID scans issuesDir + historyDir (flat legacy) + the archive's issues
-// subdir (#181 layout) for filenames starting with a 6-digit ID and returns
-// the next ID, zero-padded to 6 chars. Missing dirs are treated as empty (so
-// a fresh repo yields "000001"). The plans subdir is skipped — plan/review
-// files carry the same ids as their issues, so it can't hold a new max.
-func NextID(issuesDir, historyDir string) (string, error) {
-	archivedIssues := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)
+// IDDirs returns the three directories that hold id-prefixed issue filenames:
+// the live dir, the flat legacy history dir, and the #181 archive subdir. The
+// plans subdir is skipped — plan/review files carry their issue's id, so they
+// can never hold a new max.
+//
+// One source for "where do ids live", shared by the local scan and the
+// remote-ref scan, so the two cannot look in different places.
+func IDDirs(issuesDir, historyDir string) []string {
+	return []string{issuesDir, historyDir, vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)}
+}
+
+// IDFromFilename returns the 6-digit id a filename carries, or 0 when it
+// carries none. Pure; the single parser of the id prefix.
+func IDFromFilename(name string) int {
+	m := idPrefixRE.FindStringSubmatch(name)
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
+// NextID returns the id after the highest in any of the given sets, zero-padded
+// to 6 chars. No sets, or all empty, yields "000001".
+//
+// PURE (#213): it takes id sets rather than reading directories, because the
+// defect it exists to fix is that the LOCAL directory is the wrong source. A
+// branch cut before an issue landed on the trunk has a workshop/issues/ that
+// never contained it, so a local-only scan reallocates a published id — silently,
+// since the two files get different slugs and therefore never collide as paths.
+//
+// The caller unions the local scan with the trunk's ids. Union, not replacement:
+// unpushed issues on this branch are real and must still be excluded.
+func NextID(idSets ...[]int) string {
 	max := 0
-	for _, dir := range []string{issuesDir, historyDir, archivedIssues} {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return "", fmt.Errorf("read %s: %w", dir, err)
-		}
-		for _, e := range entries {
-			m := idPrefixRE.FindStringSubmatch(e.Name())
-			if m == nil {
-				continue
-			}
-			n, _ := strconv.Atoi(m[1])
+	for _, set := range idSets {
+		for _, n := range set {
 			if n > max {
 				max = n
 			}
 		}
 	}
-	return fmt.Sprintf("%06d", max+1), nil
+	return fmt.Sprintf("%06d", max+1)
+}
+
+// ScanLocalIDs reads the on-disk issue directories and returns every id found.
+// Missing dirs are treated as empty, so a fresh repo yields none. The thin IO
+// half of allocation; NextID does the deciding.
+func ScanLocalIDs(issuesDir, historyDir string) ([]int, error) {
+	var ids []int
+	for _, dir := range IDDirs(issuesDir, historyDir) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("read %s: %w", dir, err)
+		}
+		for _, e := range entries {
+			if n := IDFromFilename(e.Name()); n > 0 {
+				ids = append(ids, n)
+			}
+		}
+	}
+	return ids, nil
+}
+
+// IDsInTreeListing parses `git ls-tree --name-only <ref> <dir>/` output into ids.
+// Pure, so the remote-ref path is testable without a repo; the caller runs git.
+func IDsInTreeListing(out string) []int {
+	var ids []int
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if i := strings.LastIndex(line, "/"); i >= 0 {
+			line = line[i+1:]
+		}
+		if n := IDFromFilename(line); n > 0 {
+			ids = append(ids, n)
+		}
+	}
+	return ids
 }
 
 // Slugify lowercases a title, replaces every non-alphanumeric rune with a

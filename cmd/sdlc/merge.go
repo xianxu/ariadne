@@ -330,6 +330,18 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		cwarn(stderr, "⚠️  --no-validate: SKIPPING the instance-conformance gate (#124) — modeled frontmatter and issue sections NOT verified before main. Escape hatch: say why in your commit/log.")
 	}
 
+	// ── 4.6 Duplicate-id gate (#213) ────────────────────────────────────────
+	// The last point where an id collision is still repairable. Allocation now
+	// reads the trunk, but a branch created before that fix — or with a failed
+	// fetch behind it — can still carry a reused id, and nothing else would ever
+	// object: the two files have different slugs, so they are different paths and
+	// git merges both cleanly.
+	if !f.NoValidate {
+		if err := refuseDuplicateIssueIDs(stderr, f.IssuesDir, f.HistoryDir, mergeRunner); err != nil {
+			die(stderr, err.Error())
+		}
+	}
+
 	// ── 5. Pre-merge publish gate (#160) — deterministic, NO LLM ─────────────
 	// All LLM review is now close-time (the boundary review). The publish gate
 	// enforces the reviewed-HEAD-unchanged invariant: refuse unless HEAD is

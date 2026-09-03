@@ -258,7 +258,7 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		die(stderr, fmt.Sprintf("title %q produced an empty slug; pass --slug", title))
 	}
 
-	nextID, err := issue.NextID(f.IssuesDir, f.HistoryDir)
+	nextID, err := allocateIssueID(stderr, f.IssuesDir, f.HistoryDir, claimRunner)
 	if err != nil {
 		die(stderr, err.Error())
 	}
