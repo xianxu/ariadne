@@ -162,15 +162,49 @@ and any change to the repo transaction lock, which is working as designed.
 - [x] Offline fallback with the loud warning.
 - [x] Duplicate-id refusal in the merge gate.
 - [x] Bare-origin tests: branch-cut-before-push, two-on-one-branch, offline.
-- [ ] Within-ref duplicate scan (`DuplicateIDsInRef`), pure over an ls-tree
+- [x] Within-ref duplicate scan (`DuplicateIDsInRef`), pure over an ls-tree
       listing, so the eight existing collisions are detectable at all.
-- [ ] `scripts/merge-checks.d/40-duplicate-issue-id.sh` — CI enforcement under
+- [x] `scripts/merge-checks.d/40-duplicate-issue-id.sh` — CI enforcement under
       the existing runner contract; refuses ids the PR introduces, reports ones
       already on the base.
-- [ ] Test the CI check by running it against a real repo with a planted
+- [x] Test the CI check by running it against a real repo with a planted
       collision, not by reading the workflow file.
 
 ## Log
+
+### 2026-09-03 — CI enforcement
+
+The local gate was operator feedback, not enforcement — skipped by a GitHub-UI
+merge, a bare `gh pr merge`, `--no-validate`, or an actor who has not pulled the
+fix. `scripts/merge-checks.d/40-duplicate-issue-id.sh` now runs the same check
+server-side on every PR, and propagates to derivatives through the symlinked
+runner.
+
+The logic stayed in Go as `sdlc issue lint-ids` rather than being rewritten in
+bash: filename parsing, the three id-bearing directories, and the
+introduced-vs-pre-existing split are decided once, with tests. The script is a
+four-line adapter.
+
+**The within-ref scan is what makes the existing damage visible.** A
+branch-vs-trunk comparison structurally cannot see a collision already merged —
+both files are on the trunk, the two trees agree, nothing to report. Running
+`sdlc issue lint-ids` on ariadne today prints all four: #40, #96, #168, #212. It
+reports rather than refuses them; blocking every merge until they are renumbered
+would be worse than the bug.
+
+Verified by driving the real artifacts, not by reading them: the full
+`run-merge-checks.sh` exits 0 on a clean range and 1 on a planted collision,
+naming both paths, with both checks discovered.
+
+**Two mistakes of mine worth recording.** A probe that planted a collision used
+`git add -A` and then `git reset --hard`, which deleted the uncommitted
+`lint-ids` verb, `DuplicateIDsInRef`, and the check script — I had to rewrite all
+three. A destructive probe must stage only the file it plants. And the first cut
+of the script created its temp dir *before* testing whether there was anything to
+build, so a repo that cannot run the check died inside setup instead of taking
+its documented skip path; every skip condition is now evaluated before any side
+effect. The sandbox's restricted `mktemp` is what surfaced it — a real ordering
+bug, found by an environment constraint rather than by review.
 
 ### 2026-09-03
 

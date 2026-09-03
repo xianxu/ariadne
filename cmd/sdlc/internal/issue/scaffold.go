@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -107,6 +108,64 @@ func IDsInTreeListing(out string) []int {
 		}
 	}
 	return ids
+}
+
+// IDCollision is one id claimed by more than one file within a single tree.
+type IDCollision struct {
+	ID    int
+	Paths []string
+}
+
+// DuplicateIDsInRef finds ids claimed by two or more DIFFERENT paths in one
+// ls-tree listing, sorted by id.
+//
+// A different question from "does this branch reuse a trunk id", and the only one
+// that can see a collision already merged (#213): once both files are on the
+// trunk, a branch-vs-trunk comparison finds two agreeing trees and nothing to
+// report. This asks whether a single tree contradicts itself.
+//
+// Pure — takes the listing, so the git call stays in the caller's IO shell.
+func DuplicateIDsInRef(listing string) []IDCollision {
+	byID := map[int][]string{}
+	var order []int
+	for _, line := range strings.Split(listing, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		base := line
+		if i := strings.LastIndex(base, "/"); i >= 0 {
+			base = base[i+1:]
+		}
+		n := IDFromFilename(base)
+		if n == 0 {
+			continue
+		}
+		// The same path seen twice (overlapping dirs in the listing) is not a
+		// collision — only two DIFFERENT paths claiming one id are.
+		dup := false
+		for _, seen := range byID[n] {
+			if seen == line {
+				dup = true
+				break
+			}
+		}
+		if dup {
+			continue
+		}
+		if len(byID[n]) == 0 {
+			order = append(order, n)
+		}
+		byID[n] = append(byID[n], line)
+	}
+	var out []IDCollision
+	for _, id := range order {
+		if len(byID[id]) > 1 {
+			out = append(out, IDCollision{ID: id, Paths: byID[id]})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 // Slugify lowercases a title, replaces every non-alphanumeric rune with a

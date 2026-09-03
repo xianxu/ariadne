@@ -47,6 +47,7 @@ func NewIssueCmd() *cobra.Command {
 	cmd.AddCommand(setStatus)
 
 	cmd.AddCommand(newIssueSyncCmd())
+	cmd.AddCommand(newIssueLintIDsCmd())
 	cmd.AddCommand(newIssueListCmd())
 	cmd.AddCommand(newIssueShowCmd())
 	cmd.AddCommand(newIssueValidateCmd())
