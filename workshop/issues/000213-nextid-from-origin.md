@@ -1,11 +1,12 @@
 ---
 id: 000213
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-03
 estimate_hours:
+started: 2026-09-03T11:04:17-07:00
 ---
 
 # Allocate issue IDs against origin/main
