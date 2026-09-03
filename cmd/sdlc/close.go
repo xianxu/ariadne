@@ -339,7 +339,7 @@ func insertLogLine(body, logLine string) string {
 	insertRE := regexp.MustCompile(`(?m)(^## Log\s*\n)(\s*\n)?`)
 	loc := insertRE.FindStringSubmatchIndex(section)
 	if loc == nil {
-		// Header matched logHeaderRE but not insertRE — shouldn't happen
+		// The section was located but insertRE didn't match — shouldn't happen
 		// in practice (the patterns are equivalent up to trailing content),
 		// but fall through to append-mode rather than panic.
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"

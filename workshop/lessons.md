@@ -1235,3 +1235,31 @@ those states, so the classification has to be a pure function over content with 
 table test. Probing the other states by editing the artifact and reverting
 verifies behavior for the person doing it and ships no coverage — it is evidence
 for a reviewer, not a regression.
+
+## Reverting the helper is not reverting the routing
+
+**Pattern (#211 M2 review, BR-10 → BR-16):** A finding said four call sites were
+routed onto a filtered helper with no test pinning that choice. I fixed it, and
+verified by reverting the **helper** — deleting the filter inside it — which went
+red. I reported "revert-verified". The next review measured the thing the finding
+had actually named: reverting the four **call sites** back to the unfiltered
+helper left the entire suite green. The test called the helper directly and
+re-implemented the consumer's logic, so it pinned behaviour and mocked wiring.
+
+This is the same failure as the earlier lesson in this file, one level in — and I
+wrote that lesson the same day. Knowing the rule did not stop me applying it to
+the wrong subject, because *"I reverted something and it went red"* felt like
+evidence without checking that the something was the thing under discussion.
+
+**Rule:** before claiming revert-verification, state the finding's subject in
+one sentence and revert exactly that. Helper, call site, and wiring are three
+different subjects with three different reverts. A test that reaches the helper
+without entering the production entry point can never distinguish them, so where
+the entry point is not in-process drivable, pin the wiring at the source instead.
+
+**Rule for the record itself:** a Log or `--verified` line asserting evidence
+names the command run and the observed result — `go test ./x -run Y` → `--- FAIL`
+— not the conclusion. "Revert-verified" is true only when the named test went RED
+with the production change undone; a build check is not a revert check. Three
+revert claims in one issue's Log, two unverifiable as written, is what makes this
+worth a rule rather than a correction.

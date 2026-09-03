@@ -403,3 +403,192 @@ findings:
       close.go:572. atlas/workflow/issue-lifecycle.md:166-168 lists the fence-aware
       heading finders but omits PlanItemsBody, the single extraction point M2 introduced.
 ```
+
+---
+
+## Re-review — 2026-09-02T22:25:55-07:00 (unknown)
+
+| field | value |
+|-------|-------|
+| issue | 211 — SectionBody truncates at a fenced heading |
+| repo | ariadne |
+| issue file | workshop/issues/000211-sectionbody-truncates-at-a-fenced-heading.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 7752d83f9b0a1a91b8efa932bcf19cde9d2b97b5..468ab8cf469b557f1d3fc503a91a54857be64d22 |
+| command | sdlc milestone-close --issue 211 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-09-02T22:25:55-07:00 |
+| verdict | unknown |
+
+## Review
+
+Failed to authenticate: OAuth session expired and could not be refreshed
+
+---
+
+## Re-review — 2026-09-02T22:46:09-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 211 — SectionBody truncates at a fenced heading |
+| repo | ariadne |
+| issue file | workshop/issues/000211-sectionbody-truncates-at-a-fenced-heading.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 7752d83f9b0a1a91b8efa932bcf19cde9d2b97b5..468ab8cf469b557f1d3fc503a91a54857be64d22 |
+| command | sdlc milestone-close --issue 211 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-09-02T22:46:09-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Two of this window's three behavior changes are correct and one of them (`insertLogLine`'s day-header lookup + `logHasEntryToday`) is genuinely pinned — I reverted both and `TestWithinSectionMatchers_SkipFencesInsideTheSection` went red with the close line filed inside the quoted fence. But the round does not cross the boundary for three measured reasons. First, BR-11 named a four-member enumeration and the sweep covered two: `project/guards.go:17` `retroHeadingRE` and `project/retro.go:8` `retroDateRE` still scan `d.SectionBody("Log")` raw — the 4th consecutive round of `consumer-enumeration-incomplete`, and the atlas paragraph this diff *wrote* asserts the class-wide invariant those two break. Second, both new tests that stand in for a production path re-implement it instead of calling it: I reverted `close.go`'s milestone tick to the old whole-body `ReplaceAll` and `TestMilestoneTick_OnlyTicksTheRealPlan` still passed; I reverted `close.go:596`, `close.go:1750`, `sizing.go:63` and `structural.go:160` back to `PlanSectionBody` and the whole suite still passed — only `CountPlanItems` (1 of 5 readers) is actually pinned, against a test comment claiming all four are. Third, the M2 Log records "Both revert-verified with an explicit build check first" for BR-10 and BR-11; that is true for BR-11 and false for BR-10, and a gate that accepts a fabricated verification claim has no evidence property left.
+
+### 1. Strengths
+
+- **`FindLineOutsideFences` is the right abstraction at the right level** (`cmd/sdlc/internal/issue/fence.go:164`). Pure, no IO, offset-preserving, and it names the distinction that the whole family turns on — readers take `StripFenced`, splicers take offsets. The doc block states the rule rather than the symptom.
+- **The BR-11 fix is real and pinned.** Reverting `close.go:328-333` to `(?m)` + `FindStringIndex(section)` *and* `setstatus.go:311` to `strings.Contains(section, today)` reds `planfence_test.go:310` on both assertions, with the failure output showing the close line spliced inside the ```` ```markdown ```` block. This is the shape every other fix in this round should have.
+- **The tick's behavior change is correct and non-regressive.** I compared old-vs-new tick over all 209 issue files × M1–M5: 6 milestone cases with matches, 0 differing outputs, 0 files where the old path ticked but no `## Plan` section exists. The fix is latent-only on the corpus, as claimed.
+- **`PlanItemsBody` is now the single extraction point in fact, not just in prose** — `plan.go:26`, `structural.go:160`, `sizing.go:63`, `close.go:596`, `close.go:1750` all route through it, and the double-strip in `CountPlanItems` is gone. The *routing* half of BR-4 is complete.
+- **Honest self-correction in the commit body and in `close.go:564-570`** — naming your own earlier rationale as false, in the code, is the cheapest possible way to stop the next reader inheriting it.
+
+### 2. Critical findings
+
+None. No correctness bug ships in this diff; the blockers are enumeration, pinning and evidence.
+
+### 3. Important findings
+
+All are dispositions of open prior findings — see the `dispose:` block. Summarised:
+
+- `project/guards.go:17` + `project/retro.go:8` — 2 of BR-11's 4 enumerated members unswept.
+- `planfence_test.go:256` and `planfence_test.go:350` — tests assert against their own copy of the algorithm; measured green on production revert.
+- Log's "Both revert-verified" claim for BR-10 — measured false.
+
+### 4. Minor findings
+
+- `fence.go:156-157` — the doc says "byte range … of the first **line** matching re"; the code returns the **match** range (`off+loc[0]`, `off+loc[1]`). They coincide only because the sole caller anchors `^…$`. An unanchored regex hands a splicing caller a mid-line offset.
+- `close.go:308` / `close.go:315` — BR-14, unchanged.
+- `fence_test.go:228` — BR-8, `TrimSuffix` on both sides still weakens the byte-identity assertion.
+- `close.go:342` names `logHeaderRE`; `atlas:184` and issue `:289`/`:369` name `stripEstimateForHash`. Neither symbol exists.
+- `workshop/issues/000211-…:32` still reads `- [x] M2 — NOT done` under a table asserting truth = 2 open items (it is 1). `:37` and `:143` still cite `close.go:563`; the guard is at `close.go:596`.
+
+### 5. Test coverage notes
+
+- `go test ./cmd/sdlc/...` at HEAD: one failure, `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` — `workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md` was archived to `workshop/history/plans/`. I confirmed the path is absent at the base commit too, so it is pre-existing and outside this window, but the suite is red at this boundary and a bare "tests pass" claim in `--verified` would be false.
+- The gap that matters: **no test drives `computeClose` through the milestone tick.** `grep computeClose` over `*_test.go` returns only `closereview_test.go:419`'s comment. The tick is business logic living inside an IO-shell function, which is why the test copied it instead of calling it.
+- `TestPlanItemReadersAgree`'s fixture is right (a fenced `- [ ] M9` / `- [x] M8` pair) — only the routing is wrong. Pointing its three later assertions at `findMilestonesMissingVerdict` and the real unchecked guard, instead of at a `planBody` the test extracted, would make it the pin its own comment promises.
+
+### 6. Architectural notes
+
+- **ARCH-PURE — flag.** `close.go:571-587` is pure string logic (split → `FenceSpans` → per-line replace → rejoin) embedded in `computeClose`, which needs a git repo, a repo lock and flag state to run. Extracting it as `issue.TickPlanItem(body, milestone) (string, int)` makes it unit-testable, removes the test's duplicate, and closes BR-10/BR-12's pinning gap in one move. This is the single highest-leverage change for the re-run.
+- **ARCH-DRY — flag.** Three copies of the walk now exist: `close.go:574-586`, `planfence_test.go:275-288`, and (in spirit) `FindLineOutsideFences`/`StripFenced`. The consolidation is the extraction above.
+- **ARCH-PURPOSE — flag.** BR-11 named the enumeration explicitly and the diff swept half of it. The `family:` slug has now fired four times; the ledger is reporting that the enumeration exists on paper but was never executed.
+- **ARCH-MOCK — flag.** Production and test flow no longer share the boundary for the tick or for three of the five plan readers. Not an external-dependency issue, but the same failure mode the principle exists to prevent.
+- **ARCH-CONSTRAINTS — pass.** All new work is O(lines) over KB-scale issue files; `logHasEntryToday`'s extra `StripFenced` allocation is negligible. No unbounded fan-out, no blocking work on an interactive path.
+- **ARCH-SECURE — pass, with one note.** Issue bytes are untrusted input (hand-edited, older versions). Both new failure paths degrade visibly: `SectionByteBounds` → `ok=false` → tick warns and writes nothing; `FindLineOutsideFences` → `found=false` → falls back to top-of-Log. No fabricated values. The one latent hazard is BR-14's discarded `ok` (`body[logStart:0]` on a false negative), unreachable today because both calls share arguments.
+- **Docs gate:** atlas updated for the new surface (the two helpers and the write-side rule are both documented) — pass on presence, fail on accuracy (`stripEstimateForHash`, and the unqualified "everything" claim). No new user-facing flag, subcommand or config key, so README is correctly untouched.
+
+### 7. Plan revision recommendations
+
+The issue file is the plan of record (no `Core concepts` table, so that cross-check is N/A). It needs a `## Revisions` entry, or an equivalent in-place correction, covering:
+
+- The `## Problem` demonstration was corrupted at `:32` (`- [ ] M2` → `- [x] M2`) and the table at `:35-38` no longer matches it — restore the row or restate the truth column.
+- `close.go:563` → `close.go:596` at `:37` and `:143`.
+- `stripEstimateForHash` → `planGateContent` at `:289` and `:369`, and at `atlas/workflow/issue-lifecycle.md:184`.
+- The M2 Log's "Both revert-verified" sentence — BR-11 was, BR-10 was not; say what was actually measured.
+- The Done-when item at `:185` (`sdlc issue validate --all` before/after) is still unrecorded for the M2 window.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      All five readers route through PlanItemsBody and the tick is Plan-scoped; residual corrupted demo moved under BR-15.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      maxIndentAny is gone (grep: zero references), but the promised indent-axis pin still does not exist — TestSplitFences (structural_test.go:188) has no indented case and no side-by-side FenceSpans counterpart.
+  - id: BR-7
+    disposition: not-addressed
+    note: |
+      close.go:292/:331 fixed; close.go:342 still names logHeaderRE (absent from the tree), atlas:184 still names stripEstimateForHash (function is planGateContent, changecode.go), and atlas:181's "Everything that finds a heading is fence-aware" is still unqualified while issue.go:530 is deliberately not.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      fence_test.go:228 still TrimSuffix-es both sides; SectionByteBounds/SectionHeadingByteOffset are still exercised only by the four hand-written bodies, not the corpus walk.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      No M2 Log entry records re-running `sdlc issue validate --all`; the only record (issue :434, :448) is M1's.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      Measured by revert - reverting close.go:596, close.go:1750, sizing.go:63 and structural.go:160 to PlanSectionBody leaves the entire suite green. Only CountPlanItems (plan.go:26) reds, at (4,2) want (2,1). TestPlanItemReadersAgree extracts planBody itself and applies the regexes inline, so it pins 1 of 5 readers against a comment claiming 4.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      2 of the 4 enumerated members swept (close.go:328 dayRE, close.go:547 tick) plus logHasEntryToday; project/guards.go:17 retroHeadingRE and project/retro.go:8 retroDateRE still match against raw d.SectionBody("Log").
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      The close.go:564-588 fix is correct and corpus-verified non-regressive, but unpinned - reverting it to the whole-body ReplaceAll leaves TestMilestoneTick_OnlyTicksTheRealPlan PASSING, because the test re-implements the loop rather than calling computeClose.
+  - id: BR-13
+    disposition: not-addressed
+    note: |
+      Done-when's Revisions cross-reference and the SplitFences plan row are both corrected; close.go:342 (logHeaderRE), atlas:184 + issue :289/:369 (stripEstimateForHash) survive, and section.go:72-74 still says the tick writer "keeps PlanSectionBody ... rewrites a specific line it already matched" — the rationale close.go:568 declares false in the same commit, about code that no longer calls PlanSectionBody at all.
+  - id: BR-14
+    disposition: not-addressed
+    note: |
+      close.go:308 and close.go:315 still compute the Log bounds twice, second call discarding ok.
+  - id: BR-15
+    disposition: not-addressed
+    note: |
+      Atlas now lists PlanItemsBody (addressed), but issue :37 and :143 still cite close.go:563 (guard is at close.go:596) and :32 still carries the tick-corrupted `- [x] M2 — NOT done` under a table asserting 2 open items.
+findings:
+  - id: new
+    severity: Important
+    family: unrecorded-gate-measurement
+    title: |
+      The M2 Log records a revert-verification for BR-10 that I measured to be false
+    detail: |
+      This is the 2nd finding in family `unrecorded-gate-measurement`. Do not fix
+      the sentence - fix the rule. RULE: a Log line asserting evidence must name
+      the command run and the observed result, and a "revert-verified" claim is
+      only true when the named test went RED with the production change undone.
+      Measured: issue :332-341 says BR-10 and BR-11 were "Both revert-verified
+      with an explicit build check first". BR-11 is true (I reverted close.go's
+      dayRE and setstatus.go's StripFenced; planfence_test.go:310 reds on both
+      assertions). BR-10 is false (reverting close.go:596, close.go:1750,
+      sizing.go:63, structural.go:160 leaves every test green). Prevalence in
+      this issue: 2 of 3 revert claims in the M2 Log are unverifiable as written
+      - the third, "Revert-verified on the live instance" at :368, names no test.
+      A build check is not a revert check.
+  - id: new
+    severity: Important
+    family: doc-drifts-from-code
+    title: |
+      FindLineOutsideFences documents a line range and returns a match range, on a splice-offset API
+    detail: |
+      This is the 4th finding in family `doc-drifts-from-code`. Do not fix this
+      instance alone. RULE: every symbol name and every behavioral claim written
+      into a comment, the atlas or an issue must be greppable-true against the
+      tree at the commit that writes it; the enumeration is one grep per named
+      symbol plus one check per "everything/all X" claim. Prevalence at HEAD, all
+      four members verified by grep: fence.go:156 says "byte range of the first
+      LINE matching re" while :171 returns off+loc[0], off+loc[1] (the match);
+      close.go:342 names logHeaderRE, absent from the tree; atlas:184 and issue
+      :289/:369 name stripEstimateForHash, absent (it is planGateContent);
+      section.go:72-74 states a tick-writer rationale that close.go:568 calls
+      false in the same commit. The FindLineOutsideFences case is the only one
+      with a byte-corruption path: the sole caller anchors ^...$ so match == line
+      today, but close.go:333 splices at the returned offset, so an unanchored
+      regex from a future caller inserts mid-line into an issue file. Either
+      return the line bounds or say "match range" and rename the returns.
+```

@@ -281,3 +281,87 @@ func TestVerbsWireTheirCommitHelpers(t *testing.T) {
 		}
 	}
 }
+
+// planItemReader is one call site that COUNTS plan items and must therefore read
+// the fence-filtered body.
+type planItemReader struct{ file, fn, why string }
+
+// planItemReaders are the counting call sites. The helper they must call is
+// PlanItemsBody; PlanSectionBody returns the raw section, which since #211 M1
+// includes fenced examples — so a quoted `- [ ]` reads as open work.
+//
+// The invariant is AGREEMENT: #211's BR-4 was not "one site is wrong" but
+// "`sdlc state` and `sdlc close` report different things about the same Plan".
+var planItemReaders = []planItemReader{
+	{"close.go", "computeClose", "the plan-unchecked guard at issue close"},
+	{"close.go", "findMilestonesMissingVerdict", "the milestone review-evidence scan"},
+	{"sizing.go", "ComputeSizingFromContent", "`sdlc state`'s item/milestone counts"},
+	{"structural.go", "checkPlan", "the plan-present structural gate"},
+	{"plan.go", "CountPlanItems", "the shared counter behind `sdlc state`"},
+}
+
+// TestPlanItemReadersUsePlanItemsBody pins the ROUTING, which no behavioral test
+// in this tree can reach.
+//
+// #211's BR-10 found the gap and BR-16 found my false claim about having closed
+// it: I reverted the HELPER (removing the filter inside PlanItemsBody) and
+// watched a test go red, then reported that as evidence the routing was pinned.
+// It was not — reverting the four CALL SITES to PlanSectionBody left the whole
+// suite green, because TestPlanItemReadersAgree calls PlanItemsBody directly and
+// re-implements close's guard rather than driving it.
+//
+// That is the same rule #206 landed for the commit-pathspec class: a fix at a
+// call site is pinned only by a test entering the production entry point, and
+// where the entry point is not in-process drivable (computeClose die()s past the
+// test seam) a source-level guard must assert the wiring.
+func TestPlanItemReadersUsePlanItemsBody(t *testing.T) {
+	fset := token.NewFileSet()
+	seen := map[string]bool{}
+	for _, dir := range []string{".", "internal/issue"} {
+		pkgs, err := parser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
+			return !strings.HasSuffix(fi.Name(), "_test.go")
+		}, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", dir, err)
+		}
+		for _, pkg := range pkgs {
+			for path, file := range pkg.Files {
+				base := filepath.Base(path)
+				for _, decl := range file.Decls {
+					fn, ok := decl.(*ast.FuncDecl)
+					if !ok {
+						continue
+					}
+					key := base + ":" + fn.Name.Name
+					ast.Inspect(fn, func(n ast.Node) bool {
+						call, ok := n.(*ast.CallExpr)
+						if !ok {
+							return true
+						}
+						name := ""
+						switch f := call.Fun.(type) {
+						case *ast.Ident:
+							name = f.Name
+						case *ast.SelectorExpr:
+							name = f.Sel.Name
+						}
+						if name == "PlanItemsBody" {
+							seen[key] = true
+						}
+						return true
+					})
+				}
+			}
+		}
+	}
+	for _, r := range planItemReaders {
+		if !seen[r.file+":"+r.fn] {
+			t.Errorf("%s:%s no longer calls PlanItemsBody — %s.\n"+
+				"  PlanSectionBody returns the RAW section, so a `- [ ]` inside a quoted\n"+
+				"  example counts as open work and this reader silently disagrees with the\n"+
+				"  others about the same Plan (#211 BR-4). If this site legitimately needs\n"+
+				"  the unfiltered body, drop it from planItemReaders with the reason.",
+				r.file, r.fn, r.why)
+		}
+	}
+}

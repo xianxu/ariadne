@@ -286,7 +286,7 @@ refs". Tagged so the structure and the `## Estimate` agree.
       last-match heuristic from #66 is a second, weaker workaround for exactly
       what `FenceSpans` now solves, and which fails for a fenced `## Log` after
       the real one — 1 of 406 corpus files already has that shape); and
-      `changecode.go:741` `stripEstimateForHash`, whose own comment reasons about
+      `changecode.go:721` `planGateContent`, whose own comment reasons about
       RE2's lack of lookahead. (`issue.go:530`'s structure peek is cosmetic —
       listed, not fixed.)
 - [x] M2 — Filter the plan-item counters on `FenceSpans`: fenced `- [ ]` /
@@ -304,6 +304,49 @@ refs". Tagged so the structure and the `## Estimate` agree.
       architectural surface is the scanner and its policy, which landed here.)
 
 ## Log
+
+### 2026-09-02 — M2 review round 5: a false evidence claim of mine
+
+Round 4 returned `verdict: unknown` — the reviewer subprocess failed OAuth
+("session expired and could not be refreshed"), not a gate or code fault. The
+operator re-authenticated; round 5 ran properly and disposed 11 findings.
+
+**BR-16 caught me reporting evidence that was false.** The M2 Log said BR-10 and
+BR-11 were "both revert-verified". BR-11 was. BR-10 was not, and the reason is
+the exact trap `workshop/lessons.md` records from earlier today:
+
+- What I reverted: the **helper** — I removed the `StripFenced` call inside
+  `PlanItemsBody` and watched a test go red.
+- What BR-10 was about: the **routing** — four call sites choosing
+  `PlanItemsBody` over `PlanSectionBody`.
+
+Measured myself before accepting the finding: reverting all four call sites
+(`close.go` ×2, `sizing.go`, `structural.go`) and running `go test ./cmd/sdlc/...`
+leaves every test green except the pre-existing `fleet_plan` one.
+`TestPlanItemReadersAgree` calls `PlanItemsBody` directly and re-implements
+close's guard rather than driving it, so it pins the helper and mocks the wiring
+— which is what I wrote a lesson about six hours ago and then did.
+
+**The rule, and the fix:** where the entry point is not in-process drivable, a
+source-level guard asserts the wiring. `TestPlanItemReadersUsePlanItemsBody`
+does that, in the same shape as #206's `TestVerbsWireTheirCommitHelpers`.
+Revert-verified: routing `close.go`'s guard back to `PlanSectionBody` and running
+`go test ./cmd/sdlc/ -run TestPlanItemReadersUsePlanItemsBody` → 1 failure naming
+the file, the function, and why that reader must not read the raw section.
+
+**BR-17 — doc drift, all four members swept**, not just the one named:
+`FindLineOutsideFences` documented a line range and returned a match range (now
+returns the line range, which is the safe contract for a splice API — the sole
+caller anchors its pattern so the two coincide today, but an unanchored one
+would splice mid-line); `close.go` named a deleted `logHeaderRE`; the atlas and
+this issue named `stripEstimateForHash`, which does not exist (`planGateContent`);
+and `section.go` carried the tick-writer rationale `close.go` had already proven
+false.
+
+The rule BR-16 states is worth keeping: **a Log line asserting evidence must name
+the command run and the observed result**, and "revert-verified" is only true
+when the named test went RED with the production change undone. A build check is
+not a revert check. The BR-11 claim above is rewritten to that standard.
 
 ### 2026-09-02 — M2 review round 3, and a process error of mine
 
@@ -338,8 +381,13 @@ The findings it derived from reading the tree anyway are real:
   fence-aware section does not make the search fence-aware*, because a section
   can quote its own format. `FindLineOutsideFences` is the offset-returning
   answer for splicing callers (`insertLogLine`'s day-header lookup) and
-  `StripFenced` the reading one (`logHasEntryToday`). Both revert-verified with
-  an explicit build check first.
+  `StripFenced` the reading one (`logHasEntryToday`).
+
+  Revert-verified, naming the command and the result:
+  reverting `setstatus.go`'s `StripFenced` and `close.go`'s `dayRE` to a
+  fence-blind scan, then `go test ./cmd/sdlc/ -run TestWithinSectionMatchers`
+  → `--- FAIL` on both assertions. (An earlier draft of this line said "both
+  revert-verified" covering BR-10 too; that was false. See below.)
 
 ### 2026-09-02 — M2 review (5 findings, all fixed pre-commit)
 
@@ -366,7 +414,7 @@ The findings it derived from reading the tree anyway are real:
 
 Swept the heading-finding class the M1 review enumerated. `logHasEntryToday` and
 `insertLogLine` now locate the real `## Log` through the scanner, and
-`stripEstimateForHash`'s line scan is fence-aware. Revert-verified on the live
+`planGateContent`'s Estimate strip's line scan is fence-aware. Revert-verified on the live
 instance: restoring the old first-match lookup reds both assertions —
 today's real entry is not found, and a date existing only inside the quoted
 example matches.

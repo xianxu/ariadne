@@ -181,7 +181,7 @@ scoped to the Plan section and fence-filtered.
 **Everything that finds a heading is fence-aware**, which took three sweeps to
 finish: `SectionBody`, `PlanSectionBody`/`PlanItemsBody`, `logHasEntryToday`,
 `insertLogLine` (heading, section end, and the day-header search within it),
-`stripEstimateForHash`, the plan-item counters, and the milestone tick. `insertLogLine`'s previous
+`planGateContent`'s Estimate strip, the plan-item counters, and the milestone tick. `insertLogLine`'s previous
 *last-match* heuristic (#66) was a weaker workaround for this same defect — it
 was added because first-match filed a close line into #66's own quoted example,
 and it fails when a quoted `## Log` sits AFTER the real one. `logHasEntryToday`

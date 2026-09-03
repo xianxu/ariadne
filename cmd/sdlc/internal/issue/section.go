@@ -69,9 +69,11 @@ func PlanSectionBody(body string) (string, bool) { return SectionBody(body, "Pla
 // the same Plan (M2 review BR-4): the filter reached CountPlanItems and nothing
 // else. One extraction point, one answer.
 //
-// Readers use this; the milestone TICK writer keeps PlanSectionBody, because it
-// needs offsets into the real body and rewrites a specific line it already
-// matched.
+// Every reader that COUNTS items uses this. The milestone tick is a writer and
+// needs offsets into the real body, so it takes SectionByteBounds + FenceSpans
+// directly (close.go) rather than this — but it applies the same two filters.
+// An earlier version of this comment claimed the tick "rewrites a line it
+// already matched", which was false: it ran ReplaceAll over the whole document.
 func PlanItemsBody(body string) (string, bool) {
 	section, ok := PlanSectionBody(body)
 	if !ok {

@@ -153,8 +153,15 @@ func StripFenced(s string) string {
 	return strings.Join(kept, "\n")
 }
 
-// FindLineOutsideFences returns the byte range within s of the first line
+// FindLineOutsideFences returns the byte range within s of the first LINE
 // matching re that is NOT inside a fenced code block, and whether one was found.
+//
+// The range is the line's, not the match's, and that is a safety property rather
+// than a detail: the caller splices at the returned offset. With an anchored
+// pattern the two coincide, so today's sole caller cannot tell them apart — but
+// an unanchored one would return a mid-line offset and the splice would corrupt
+// the line. Returning line bounds makes the API's contract independent of a
+// property of the regex the caller passes in.
 //
 // Bounding a search to a fence-aware section does NOT make the search
 // fence-aware (#211 M2 review BR-11): a section can contain its own quoted
@@ -166,10 +173,8 @@ func FindLineOutsideFences(s string, re *regexp.Regexp) (start, end int, ok bool
 	inside := FenceSpans(lines, UnterminatedIsProse)
 	off := 0
 	for i, line := range lines {
-		if !inside[i] {
-			if loc := re.FindStringIndex(line); loc != nil {
-				return off + loc[0], off + loc[1], true
-			}
+		if !inside[i] && re.MatchString(line) {
+			return off, off + len(line), true
 		}
 		off += len(line) + 1
 	}

@@ -216,6 +216,102 @@ rounds:
           round: 4
       boundary: M2
       blocked: true
+    - "n": 5
+      timestamp: "2026-09-02T22:25:55-07:00"
+      agent: claude
+      boundary: M2
+      blocked: true
+      protocol_error: no valid findings block
+    - "n": 6
+      timestamp: "2026-09-02T22:46:09-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: All five readers route through PlanItemsBody and the tick is Plan-scoped; residual corrupted demo moved under BR-15.
+          round: 6
+        - id: BR-5
+          disposition: not-addressed
+          note: 'maxIndentAny is gone (grep: zero references), but the promised indent-axis pin still does not exist — TestSplitFences (structural_test.go:188) has no indented case and no side-by-side FenceSpans counterpart.'
+          round: 6
+        - id: BR-7
+          disposition: not-addressed
+          note: close.go:292/:331 fixed; close.go:342 still names logHeaderRE (absent from the tree), atlas:184 still names stripEstimateForHash (function is planGateContent, changecode.go), and atlas:181's "Everything that finds a heading is fence-aware" is still unqualified while issue.go:530 is deliberately not.
+          round: 6
+        - id: BR-8
+          disposition: not-addressed
+          note: fence_test.go:228 still TrimSuffix-es both sides; SectionByteBounds/SectionHeadingByteOffset are still exercised only by the four hand-written bodies, not the corpus walk.
+          round: 6
+        - id: BR-9
+          disposition: not-addressed
+          note: No M2 Log entry records re-running `sdlc issue validate --all`; the only record (issue :434, :448) is M1's.
+          round: 6
+        - id: BR-10
+          disposition: not-addressed
+          note: Measured by revert - reverting close.go:596, close.go:1750, sizing.go:63 and structural.go:160 to PlanSectionBody leaves the entire suite green. Only CountPlanItems (plan.go:26) reds, at (4,2) want (2,1). TestPlanItemReadersAgree extracts planBody itself and applies the regexes inline, so it pins 1 of 5 readers against a comment claiming 4.
+          round: 6
+        - id: BR-11
+          disposition: not-addressed
+          note: 2 of the 4 enumerated members swept (close.go:328 dayRE, close.go:547 tick) plus logHasEntryToday; project/guards.go:17 retroHeadingRE and project/retro.go:8 retroDateRE still match against raw d.SectionBody("Log").
+          round: 6
+        - id: BR-12
+          disposition: not-addressed
+          note: The close.go:564-588 fix is correct and corpus-verified non-regressive, but unpinned - reverting it to the whole-body ReplaceAll leaves TestMilestoneTick_OnlyTicksTheRealPlan PASSING, because the test re-implements the loop rather than calling computeClose.
+          round: 6
+        - id: BR-13
+          disposition: not-addressed
+          note: Done-when's Revisions cross-reference and the SplitFences plan row are both corrected; close.go:342 (logHeaderRE), atlas:184 + issue :289/:369 (stripEstimateForHash) survive, and section.go:72-74 still says the tick writer "keeps PlanSectionBody ... rewrites a specific line it already matched" — the rationale close.go:568 declares false in the same commit, about code that no longer calls PlanSectionBody at all.
+          round: 6
+        - id: BR-14
+          disposition: not-addressed
+          note: close.go:308 and close.go:315 still compute the Log bounds twice, second call discarding ok.
+          round: 6
+        - id: BR-15
+          disposition: not-addressed
+          note: Atlas now lists PlanItemsBody (addressed), but issue :37 and :143 still cite close.go:563 (guard is at close.go:596) and :32 still carries the tick-corrupted `- [x] M2 — NOT done` under a table asserting 2 open items.
+          round: 6
+      findings:
+        - id: BR-16
+          severity: Important
+          title: The M2 Log records a revert-verification for BR-10 that I measured to be false
+          detail: |-
+            This is the 2nd finding in family `unrecorded-gate-measurement`. Do not fix
+            the sentence - fix the rule. RULE: a Log line asserting evidence must name
+            the command run and the observed result, and a "revert-verified" claim is
+            only true when the named test went RED with the production change undone.
+            Measured: issue :332-341 says BR-10 and BR-11 were "Both revert-verified
+            with an explicit build check first". BR-11 is true (I reverted close.go's
+            dayRE and setstatus.go's StripFenced; planfence_test.go:310 reds on both
+            assertions). BR-10 is false (reverting close.go:596, close.go:1750,
+            sizing.go:63, structural.go:160 leaves every test green). Prevalence in
+            this issue: 2 of 3 revert claims in the M2 Log are unverifiable as written
+            - the third, "Revert-verified on the live instance" at :368, names no test.
+            A build check is not a revert check.
+          family: unrecorded-gate-measurement
+          round: 6
+        - id: BR-17
+          severity: Important
+          title: FindLineOutsideFences documents a line range and returns a match range, on a splice-offset API
+          detail: |-
+            This is the 4th finding in family `doc-drifts-from-code`. Do not fix this
+            instance alone. RULE: every symbol name and every behavioral claim written
+            into a comment, the atlas or an issue must be greppable-true against the
+            tree at the commit that writes it; the enumeration is one grep per named
+            symbol plus one check per "everything/all X" claim. Prevalence at HEAD, all
+            four members verified by grep: fence.go:156 says "byte range of the first
+            LINE matching re" while :171 returns off+loc[0], off+loc[1] (the match);
+            close.go:342 names logHeaderRE, absent from the tree; atlas:184 and issue
+            :289/:369 name stripEstimateForHash, absent (it is planGateContent);
+            section.go:72-74 states a tick-writer rationale that close.go:568 calls
+            false in the same commit. The FindLineOutsideFences case is the only one
+            with a byte-corruption path: the sole caller anchors ^...$ so match == line
+            today, but close.go:333 splices at the returned offset, so an unanchored
+            regex from a future caller inserts mid-line into an issue file. Either
+            return the line bounds or say "match range" and rename the returns.
+          family: doc-drifts-from-code
+          round: 6
+      boundary: M2
+      blocked: false
 ---
 
 # Gate ledger — ariadne#211 (boundary-review)
@@ -339,9 +435,60 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   close.go:572. atlas/workflow/issue-lifecycle.md:166-168 lists the fence-aware
   heading finders but omits PlanItemsBody, the single extraction point M2 introduced.
 
+## Round 5 — 2026-09-02T22:25:55-07:00 (claude) — BLOCKED
+
+**Protocol error:** no valid findings block — this round contributed no findings.
+
+## Round 6 — 2026-09-02T22:46:09-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — All five readers route through PlanItemsBody and the tick is Plan-scoped; residual corrupted demo moved under BR-15.
+- BR-5 — not-addressed — maxIndentAny is gone (grep: zero references), but the promised indent-axis pin still does not exist — TestSplitFences (structural_test.go:188) has no indented case and no side-by-side FenceSpans counterpart.
+- BR-7 — not-addressed — close.go:292/:331 fixed; close.go:342 still names logHeaderRE (absent from the tree), atlas:184 still names stripEstimateForHash (function is planGateContent, changecode.go), and atlas:181's "Everything that finds a heading is fence-aware" is still unqualified while issue.go:530 is deliberately not.
+- BR-8 — not-addressed — fence_test.go:228 still TrimSuffix-es both sides; SectionByteBounds/SectionHeadingByteOffset are still exercised only by the four hand-written bodies, not the corpus walk.
+- BR-9 — not-addressed — No M2 Log entry records re-running `sdlc issue validate --all`; the only record (issue :434, :448) is M1's.
+- BR-10 — not-addressed — Measured by revert - reverting close.go:596, close.go:1750, sizing.go:63 and structural.go:160 to PlanSectionBody leaves the entire suite green. Only CountPlanItems (plan.go:26) reds, at (4,2) want (2,1). TestPlanItemReadersAgree extracts planBody itself and applies the regexes inline, so it pins 1 of 5 readers against a comment claiming 4.
+- BR-11 — not-addressed — 2 of the 4 enumerated members swept (close.go:328 dayRE, close.go:547 tick) plus logHasEntryToday; project/guards.go:17 retroHeadingRE and project/retro.go:8 retroDateRE still match against raw d.SectionBody("Log").
+- BR-12 — not-addressed — The close.go:564-588 fix is correct and corpus-verified non-regressive, but unpinned - reverting it to the whole-body ReplaceAll leaves TestMilestoneTick_OnlyTicksTheRealPlan PASSING, because the test re-implements the loop rather than calling computeClose.
+- BR-13 — not-addressed — Done-when's Revisions cross-reference and the SplitFences plan row are both corrected; close.go:342 (logHeaderRE), atlas:184 + issue :289/:369 (stripEstimateForHash) survive, and section.go:72-74 still says the tick writer "keeps PlanSectionBody ... rewrites a specific line it already matched" — the rationale close.go:568 declares false in the same commit, about code that no longer calls PlanSectionBody at all.
+- BR-14 — not-addressed — close.go:308 and close.go:315 still compute the Log bounds twice, second call discarding ok.
+- BR-15 — not-addressed — Atlas now lists PlanItemsBody (addressed), but issue :37 and :143 still cite close.go:563 (guard is at close.go:596) and :32 still carries the tick-corrupted `- [x] M2 — NOT done` under a table asserting 2 open items.
+
+### Raised
+
+- **BR-16** [Important] `unrecorded-gate-measurement` The M2 Log records a revert-verification for BR-10 that I measured to be false
+  This is the 2nd finding in family `unrecorded-gate-measurement`. Do not fix
+  the sentence - fix the rule. RULE: a Log line asserting evidence must name
+  the command run and the observed result, and a "revert-verified" claim is
+  only true when the named test went RED with the production change undone.
+  Measured: issue :332-341 says BR-10 and BR-11 were "Both revert-verified
+  with an explicit build check first". BR-11 is true (I reverted close.go's
+  dayRE and setstatus.go's StripFenced; planfence_test.go:310 reds on both
+  assertions). BR-10 is false (reverting close.go:596, close.go:1750,
+  sizing.go:63, structural.go:160 leaves every test green). Prevalence in
+  this issue: 2 of 3 revert claims in the M2 Log are unverifiable as written
+  - the third, "Revert-verified on the live instance" at :368, names no test.
+  A build check is not a revert check.
+- **BR-17** [Important] `doc-drifts-from-code` FindLineOutsideFences documents a line range and returns a match range, on a splice-offset API
+  This is the 4th finding in family `doc-drifts-from-code`. Do not fix this
+  instance alone. RULE: every symbol name and every behavioral claim written
+  into a comment, the atlas or an issue must be greppable-true against the
+  tree at the commit that writes it; the enumeration is one grep per named
+  symbol plus one check per "everything/all X" claim. Prevalence at HEAD, all
+  four members verified by grep: fence.go:156 says "byte range of the first
+  LINE matching re" while :171 returns off+loc[0], off+loc[1] (the match);
+  close.go:342 names logHeaderRE, absent from the tree; atlas:184 and issue
+  :289/:369 name stripEstimateForHash, absent (it is planGateContent);
+  section.go:72-74 states a tick-writer rationale that close.go:568 calls
+  false in the same commit. The FindLineOutsideFences case is the only one
+  with a byte-corruption path: the sole caller anchors ^...$ so match == line
+  today, but close.go:333 splices at the returned offset, so an unanchored
+  regex from a future caller inserts mid-line into an issue file. Either
+  return the line bounds or say "match range" and rename the returns.
+
 ## Open findings
 
-- **BR-4** [Important] `consumer-enumeration-incomplete` The plan-item fence filter reached 1 of 5 read sites and 0 of 1 write sites, so `sdlc state` and `sdlc close` now disagree about the same Plan
 - **BR-5** [Important] `unwired-policy-parameter` The indent-policy parameter has zero call sites and its comment names a caller (SplitFences) that never invokes it; the plan row promising a test pinning the choice is unpinned
 - **BR-7** [Important] `doc-drifts-from-code` insertLogLine's doc block still specifies the last-match anchor that was just deleted, and three docs name a symbol that does not exist
 - **BR-8** [Minor] `test-asserts-weaker-than-contract` TestSectionByteBounds_MatchesSectionBody trims trailing newlines from both sides, so it does not pin the byte-identity section.go:87 claims
@@ -352,3 +499,5 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-13** [Important] `doc-drifts-from-code` Done-when cites a `## Revisions` section that does not exist, and a ticked plan row still claims SplitFences was rebuilt
 - **BR-14** [Minor] `redundant-recompute-drops-error` insertLogLine computes the Log section twice and discards the second ok, leaving a latent slice panic
 - **BR-15** [Minor] `doc-drifts-from-code` Stale line reference and a missing entry in the atlas's fence-aware inventory
+- **BR-16** [Important] `unrecorded-gate-measurement` The M2 Log records a revert-verification for BR-10 that I measured to be false
+- **BR-17** [Important] `doc-drifts-from-code` FindLineOutsideFences documents a line range and returns a match range, on a splice-offset API
