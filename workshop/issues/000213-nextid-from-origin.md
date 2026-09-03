@@ -174,16 +174,30 @@ and any change to the repo transaction lock, which is working as designed.
 
 ### 2026-09-03 — SESSION HANDOFF (read this first)
 
-**Where the work is: committed on `main`, NOT pushed.** Four commits:
+**Where the work is: PUBLISHED on `origin/main`.** Five commits, `8193cd8` →
+`2d5e136`:
 
 ```
+2d5e136  #213: session handoff
 d50a023  #213: within-ref id scan + CI enforcement
 2084d1e  #213: CI enforcement for reused issue ids
 6c2e535  #213: issue-sync: spec/plan
 b92e13f  #213: allocate issue ids against the trunk, and refuse reused ids at merge
 ```
 
-Working tree is clean. `origin/main` is at `8193cd8`, four behind.
+Working tree clean, nothing unpushed.
+
+**How it got published, because it was not a decision:** `sdlc issue sync
+--issue 213 --push` was run to publish the handoff. On a clean tree that verb
+takes the `PublishExisting` path added by #206 and pushes local `main` wholesale
+— which carried all four code commits with it. The handoff written moments
+earlier said "NOT pushed" and was wrong within a minute of being written; this
+paragraph is the correction.
+
+That is a real sharp edge in #206's design worth its own issue: `issue sync
+--push` is documented as publishing one issue's body, and it published four
+commits of source. It is doing what its code says (publication is the gap
+between `origin/main` and local main) but not what its name implies.
 
 **Workflow deviation, deliberate but unrecorded until now:** `sdlc change-code`
 was never run for this issue, so no feature branch exists and there are no gate
@@ -196,9 +210,12 @@ empty. Whoever picks this up decides between:
 - reset these four commits onto a branch and run the normal
   `change-code → close → pr → merge` arc.
 
-The second is the honest path if the estimate/review evidence is wanted; the
-first is faster and the code is already revert-verified. Not my call to make
-silently, which is why it is written down instead of done.
+Both of those are now moot for *publishing* — the code is already on
+`origin/main`. What remains open is whether this work gets the review evidence it
+skipped: an after-the-fact `sdlc close --issue 213` would run the boundary review
+against the published range and record an actual, or the issue can be closed with
+the gap acknowledged in `--verified`. Not my call to make silently, which is why
+it is written down instead of done.
 
 **All 8 plan rows are ticked and the suite is green** except the pre-existing,
 unrelated `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (that is
@@ -232,7 +249,8 @@ unrelated `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (that is
 
 ### Immediate next actions, in order
 
-1. Decide the publish path (see the deviation note above), then ship.
+1. Decide the review path — the code is published; the evidence is not
+   recorded. See the deviation note above.
 2. **Make the CI check a required status check** on `main` in GitHub branch
    protection. Without that it reports but does not block, and the whole point of
    this half was enforcement.
