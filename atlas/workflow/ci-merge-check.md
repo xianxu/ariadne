@@ -30,6 +30,20 @@ Phase E — showed the symlinked runner `exit 127`ing in CI.)
 
 ```
 scripts/merge-checks.d/10-foo.sh  <BASE_SHA>  <HEAD_SHA>     # exit 0 pass, non-0 fail
+
+**Checks in ariadne today:** `30-weave-drift.sh` (generated skills match a fresh
+`weave compile`) and `40-duplicate-issue-id.sh` (#213 — refuse a PR reusing an
+issue id). The latter is the enforcement half of #213: the gate inside `sdlc
+merge` is operator feedback, bypassable by a GitHub-UI merge, a bare `gh pr
+merge`, `--no-validate`, or an actor who has not pulled the fix.
+
+Its logic lives in `sdlc issue lint-ids`, not in the script (ARCH-DRY) — filename
+parsing, the three id-bearing directories, and the introduced-vs-pre-existing
+split are decided once in Go with tests. The script builds sdlc from the checkout
+under test rather than trusting a PATH binary, and evaluates **every skip
+condition before any side effect** (no `./cmd/sdlc`, no `go`, no writable temp
+dir), so a derivative that cannot run the check exits cleanly instead of dying in
+setup.
 ```
 
 Run in filename order; `README*`/`*.md` ignored; findings to stderr. The shim passes

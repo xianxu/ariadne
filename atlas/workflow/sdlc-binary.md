@@ -44,6 +44,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
+| `issue lint-ids`  | (new #213)                  | Refuse issue ids reused across a range, and report ids already duplicated within one tree. Read-only; the logic CI's `40-duplicate-issue-id.sh` shells to |
 | `issue validate`  | (new #124)                  | Validate issue file(s) against `#Issue` — frontmatter cue-vet (via `vocabulary validate-instance`) + section presence; multi-target (#133): `<file>...` / `--issue N[,N...]` / `--all` (mutually exclusive). The on-demand surface of the instance-conformance loop |
 | `project new/list/show/validate` | (new #180 M3) | Author and inspect project records. Scaffold sections/status and discovery derive from `#Project`; validation shells to the noun-generic vocabulary validator |
 | `project set-status` | (new #180 M3) | Enforce the project lifecycle and its ordered named guards from `project.cue`; unknown guards fail closed, evidence lands in Log, and `done` remains owned by `project close` |
@@ -185,6 +186,45 @@ stronger than a call site that can be deleted with the suite still green.
   `push` on main publishes whatever main carries — this body included. "Not
   pushed" means "this command performed no network operation", never "this
   content cannot reach origin by another route".
+
+### Issue-id allocation reads the trunk, not the checkout (#213)
+
+`issue.NextID` used to scan local directories only, so a branch cut before an
+issue landed on `main` had a `workshop/issues/` that never contained it — and
+`sdlc issue new` there reallocated a **published** id. Not a race: it reproduces
+days later, because the branch simply lacks the newer files. The repo transaction
+lock does not help and never could; the colliding allocations shared one
+`.git/sdlc.lock` and were serialized. A lock orders access to one view, it cannot
+reconcile two disjoint views.
+
+Nothing downstream caught it, because the two files get different slugs and are
+therefore different **paths** — git merges both cleanly. Eight collisions across
+two repos existed when this was written, the oldest from May 2026.
+
+    NextID(idSets...)          PURE — the decision, no IO
+    ScanLocalIDs(...)          this checkout
+    ls-tree origin/main        the published space
+                               → unioned, so unpushed local issues still count
+
+Offline falls back to the local scan but **loudly**: a silent fallback recreates
+the bug. `repoRelativeIDDirs` refuses issue dirs outside the current repo —
+without it a `--issues-dir` elsewhere would read *this* repo's trunk as its own
+id space.
+
+**Three layers, because the first two are not enforcement:**
+
+| layer | where | strength |
+| --- | --- | --- |
+| allocation | `issueids.go` | prevents new collisions on a fetched checkout |
+| local gate | `sdlc merge` step 4.6 | operator feedback — bypassed by a GitHub-UI merge, bare `gh pr merge`, `--no-validate`, or an unpulled actor |
+| CI check | `merge-checks.d/40-duplicate-issue-id.sh` | server-side, can be a required status check, propagates to derivatives |
+
+**A branch-vs-trunk comparison structurally cannot see a collision already
+merged** — both files are on the trunk, the trees agree, nothing is reported.
+`issue.DuplicateIDsInRef` asks the other question ("does one tree contradict
+itself") and is the only way the existing damage is visible. It REPORTS rather
+than refuses: those collisions predate the check, renumbering is operator work,
+and blocking every merge until it is done would be worse than the bug.
 
 **Flat verbs vs the `issue` group (#56).** The flat verbs guard workflow
 *transitions* (close, claim, change-code, pr, merge, …). `sdlc issue *` is the
