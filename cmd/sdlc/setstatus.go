@@ -23,7 +23,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -296,22 +295,19 @@ func checkTransitionGuards(current, next, fm, body string) error {
 // "### 2026-05-25", or simply containing today's date string after the
 // ## Log header line).
 //
-// We scan from the header to either the next ## or EOF. This is the
-// same posture as close-issue.py's insertLogLine — content-based, not
-// strictly schema-anchored.
+// Fence-aware since #211 M2. This used to take the FIRST `^## Log` and run to
+// the next `\n## `, both of which matched inside fenced code blocks — so on an
+// issue that quotes a log format (which issues here do; the deliverable is often
+// a markdown document) the guard read a quoted example instead of the real Log.
+// That was live: workshop/history/issues/000066-*.md has its first `## Log` at
+// line 22 inside a fence and the real one at line 68.
 func logHasEntryToday(body, today string) bool {
-	loc := logHeaderRE.FindStringIndex(body)
-	if loc == nil {
+	section, ok := issue.SectionBody(body, "Log")
+	if !ok {
 		return false
 	}
-	tail := body[loc[1]:]
-	if next := strings.Index(tail, "\n## "); next >= 0 {
-		tail = tail[:next]
-	}
-	return strings.Contains(tail, today)
+	return strings.Contains(section, today)
 }
-
-var logHeaderRE = regexp.MustCompile(`(?m)^## Log\s*$`)
 
 // isValidStatus returns whether s is a recognized status value (the set is the
 // vocabulary model's, not a local list — #122).

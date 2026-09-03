@@ -145,14 +145,32 @@ missed milestones, and `CountPlanItems` (behind `sdlc state`) under-reported.
 | --- | --- | --- |
 | `SectionBody`, plan extraction | `UnterminatedIsProse` | a stray opener must never hide `## Plan` from the gates |
 | `stripCodeFences` (word count) | `UnterminatedIsProse` | pre-existing, deliberate |
-| `SplitFences` (#179 `migrate`) | `UnterminatedIsFenced` | a rewriter must not edit inside a maybe-code tail |
+| `StripFenced` (plan counters) | `UnterminatedIsProse` | a quoted `- [ ]` is not open work |
 | `project` section scan | `UnterminatedIsFenced` | pre-existing behavior, unchanged |
+| `SplitFences` (#179 `migrate`) | `UnterminatedIsFenced` | **own scanner** — see below |
 
 Inheriting the fenced policy for `SectionBody` would be worse than the bug:
 instead of one truncated section, every heading after the stray fence vanishes.
 The price of the prose policy is over-segmentation — a `##` after an unterminated
 opener reads as a real heading — which is visible and recoverable, and pinned by
 its own test so it doesn't get "fixed".
+
+**One exception, deliberate.** `SplitFences` keeps its own scanner because it is
+CHARACTER-oriented, not line-oriented: its contract covers inline pairs mid-line
+(`` a```one``` mid ```two```z `` is two fenced segments with prose between) and
+byte-exact boundaries that fall inside a line, which line classification cannot
+express. It also answers a different question — "may a rewriter edit these bytes"
+rather than "where does this section end" — so merging them would change what
+`migrate` rewrites across repos to serve a tidiness this class doesn't need.
+
+**Everything that finds a heading is fence-aware**, which took a second sweep to
+finish: `SectionBody`, `PlanSectionBody`, `logHasEntryToday`, `insertLogLine`,
+`stripEstimateForHash`, and the plan-item counters. `insertLogLine`'s previous
+*last-match* heuristic (#66) was a weaker workaround for this same defect — it
+was added because first-match filed a close line into #66's own quoted example,
+and it fails when a quoted `## Log` sits AFTER the real one. `logHasEntryToday`
+was a live instance: it read the fenced `## Log` at line 22 of
+`workshop/history/issues/000066-*.md` instead of the real one at line 68.
 
 Guarded by a corpus property test over every `workshop/**/*.md` (2875 sections
 across 406 files at the time of writing): no heading outside a fence may become

@@ -1,12 +1,10 @@
-// fence.go — the fenced-code-block scanner SECTION EXTRACTION is built on (#211).
-//
-// M2 rebases stripCodeFences and SplitFences onto it; until then they remain on
-// their own logic in structural.go, so this is not yet the only scanner here.
+// fence.go — the fenced-code-block scanner for LINE-oriented markdown structure
+// in cmd/sdlc (#211): section extraction, heading location, prose word counts.
 //
 // Before this file the tree had three, and they disagreed:
 //
 //	issue.fencedCodeRE   (?s)```.*?```      backticks only, no width rule
-//	issue.SplitFences    strings.Index      backticks only, indent-blind
+//	issue.SplitFences    strings.Index      character-oriented (see below)
 //	project.scanMarkdownLines                backticks + tildes, width-matched
 //
 // …while SectionBody and PlanSectionRE used none of them and simply ended a
@@ -15,9 +13,15 @@
 // means pass (unchecked plan items, milestones lacking review evidence), the
 // truncation could pass an issue that should have been refused.
 //
-// This is project.scanMarkdownLines — the only CommonMark-correct one — moved
-// DOWN into `issue` (project imports issue, so it cannot go the other way) and
-// given the one thing it lacked: an explicit unterminated-fence policy.
+// SplitFences deliberately survives: it is CHARACTER-oriented (inline pairs
+// mid-line, byte-exact boundaries inside a line) and answers a different
+// question — "may a rewriter edit these bytes" rather than "where does this
+// section end". Its doc in structural.go carries the full reasoning.
+//
+// The other two collapse into this: project.scanMarkdownLines — the only
+// CommonMark-correct one — moved DOWN into `issue` (project imports issue, so it
+// cannot go the other way), given the one thing it lacked: an explicit
+// unterminated-fence policy.
 package issue
 
 import "strings"
@@ -29,11 +33,11 @@ import "strings"
 //	SectionBody, plan extraction  UnterminatedIsProse   a swallowed `## Plan`
 //	                                                    disarms the close gates
 //	stripCodeFences (word count)  UnterminatedIsProse   pre-existing, deliberate
-//	                                                    — M2 rebases it onto this
-//	SplitFences (#179 migrate)    UnterminatedIsFenced  a rewriter must not edit
-//	                                                    inside a maybe-code tail
-//	                                                    — M2 rebases it onto this
+//	StripFenced (plan counters)   UnterminatedIsProse   same reason
 //	project section scan          UnterminatedIsFenced  pre-existing behavior
+//
+// (SplitFences keeps its own character-oriented scanner and its own
+// UnterminatedIsFenced posture — see the file header.)
 //
 // Getting this wrong on SectionBody is worse than the bug it fixes: instead of
 // one truncated section, every heading after the stray fence disappears. The
@@ -58,11 +62,24 @@ const (
 // input is reached: the first pass records where fences open and close, the
 // second applies the policy to any run left open.
 func FenceSpans(lines []string, policy UnterminatedPolicy) []bool {
+	return fenceSpans(lines, policy, commonMarkMaxIndent)
+}
+
+// commonMarkMaxIndent is CommonMark's rule: a fence may be indented at most
+// three spaces. maxIndentAny disables the check for SplitFences, whose #179
+// contract predates this scanner and treats an indented ``` as a fence — see
+// its doc for why that behavior is preserved rather than corrected here.
+const (
+	commonMarkMaxIndent = 3
+	maxIndentAny        = 1 << 30
+)
+
+func fenceSpans(lines []string, policy UnterminatedPolicy, maxIndent int) []bool {
 	inside := make([]bool, len(lines))
 	var marker byte
 	var width, openedAt int
 	for i, line := range lines {
-		m, w, rest, ok := fenceMarker(line)
+		m, w, rest, ok := fenceMarkerIndent(line, maxIndent)
 		if !ok {
 			if marker != 0 {
 				inside[i] = true
@@ -108,8 +125,12 @@ func ScanMarkdownLines(lines []string, policy UnterminatedPolicy, visit func(int
 // follows it (the info string on an opener), and whether the line is a fence at
 // all. The caller owns opener/closer state.
 func fenceMarker(line string) (byte, int, string, bool) {
+	return fenceMarkerIndent(line, commonMarkMaxIndent)
+}
+
+func fenceMarkerIndent(line string, maxIndent int) (byte, int, string, bool) {
 	trimmed := strings.TrimLeft(line, " ")
-	if len(line)-len(trimmed) > 3 || len(trimmed) < 3 {
+	if len(line)-len(trimmed) > maxIndent || len(trimmed) < 3 {
 		return 0, 0, "", false
 	}
 	marker := trimmed[0]
@@ -121,4 +142,26 @@ func fenceMarker(line string) (byte, int, string, bool) {
 		width++
 	}
 	return marker, width, trimmed[width:], width >= 3
+}
+
+// StripFenced removes fenced blocks from a snippet, keeping the prose lines.
+//
+// The plan-item counters use it (#211 M2): now that fenced content survives into
+// the Plan body, a quoted `- [ ] …` or `- [x] Mx …` inside an example block
+// would otherwise be counted as real work. That fails safe — a spurious refusal
+// or a spurious demand for review evidence — but an issue quoting a plan format
+// is exactly the kind this repo writes, so it is worth being right.
+//
+// UnterminatedIsProse: a stray opener must not delete the rest of the section,
+// for the same reason SectionBody makes that call.
+func StripFenced(s string) string {
+	lines := strings.Split(s, "\n")
+	inside := FenceSpans(lines, UnterminatedIsProse)
+	kept := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if !inside[i] {
+			kept = append(kept, line)
+		}
+	}
+	return strings.Join(kept, "\n")
 }

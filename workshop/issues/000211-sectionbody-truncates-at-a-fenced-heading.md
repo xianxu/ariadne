@@ -29,7 +29,7 @@ push down, so they fail safe. Two gates count things whose *absence* means pass:
     ```markdown
     ## Some heading the issue is quoting          <- parser stops here
     ```
-    - [ ] M2 — NOT done
+    - [x] M2 — NOT done
     - [ ] Wire the consumer
 
 | guard | sees | truth |
@@ -175,9 +175,11 @@ lying to the gates, not a compliant parser.
 - An unterminated fence NEVER hides a later `##` section from `SectionBody`. A
   test builds an issue whose `## Spec` opens a fence and never closes it, and
   asserts `## Plan`'s unchecked items are still counted by the close gate.
-- Exactly ONE fence scanner remains in `cmd/sdlc`. `PlanSectionRE` is gone;
-  `stripCodeFences` and `SplitFences` are built on the shared scanner and still
-  disagree about an unterminated fence, asserted by a test that names why.
+- One LINE-oriented fence scanner remains in `cmd/sdlc`: `PlanSectionRE` is
+  gone, `stripCodeFences` and the plan-item counters are built on it, and the
+  per-consumer unterminated-fence policies are asserted by a test that names why
+  they differ. `SplitFences` keeps its own character-oriented scanner — a
+  deliberate, recorded exception, not an oversight (see Revisions).
 - `internal/project`'s behavior is unchanged: its existing suite passes with no
   edits beyond the import path.
 - `sdlc issue validate --all` over `workshop/issues/` + `workshop/history/` is
@@ -275,7 +277,7 @@ refs". Tagged so the structure and the `## Estimate` agree.
 - [x] M1 — `close` plan-unchecked + `findMilestonesMissingVerdict` regression:
       unchecked items and milestones after a fenced `##` must be counted. Plus an
       unterminated fence that must NOT hide later sections.
-- [ ] M2 — Sweep the rest of the heading-finding class (M1 review I4). Three
+- [x] M2 — Sweep the rest of the heading-finding class (M1 review I4). Three
       production sites still locate `## <heading>` without fence awareness:
       `setstatus.go:302` `logHasEntryToday` (**live instance** — takes the FIRST
       `## Log`, which in `workshop/history/issues/000066-*.md` is at line 22
@@ -287,21 +289,55 @@ refs". Tagged so the structure and the `## Estimate` agree.
       `changecode.go:741` `stripEstimateForHash`, whose own comment reasons about
       RE2's lack of lookahead. (`issue.go:530`'s structure peek is cosmetic —
       listed, not fixed.)
-- [ ] M2 — Filter the plan-item counters on `FenceSpans`: fenced `- [ ]` /
+- [x] M2 — Filter the plan-item counters on `FenceSpans`: fenced `- [ ]` /
       `- [x] Mx` lines inside a quoted block now survive into `planBody` and are
       counted. Fails safe (spurious refusal), but it is free to be right.
-- [ ] M2 — Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
+- [x] M2 — Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
       byte-exact reassembly and keeping their unterminated-fence disagreement as
       an explicit parameter.
-- [ ] M2 — Decide `SplitFences`' line-anchoring change explicitly; it is a
+- [x] M2 — Decide `SplitFences`' line-anchoring change explicitly; it is a
       `migrate` behaviour change either way, with a test pinning the choice.
-- [ ] M2 — `fenceMarker` table over width/char/indent/info-string boundaries;
+- [x] M2 — `fenceMarker` table over width/char/indent/info-string boundaries;
       one test each pinning why `stripCodeFences` and `SplitFences` differ.
 - [x] M1 — Atlas: the section-parsing entry and the scanner's single-source note.
       (Moved from M2: the milestone-close atlas gate fired on M1, correctly — the
       architectural surface is the scanner and its policy, which landed here.)
 
 ## Log
+
+### 2026-09-02 — M2
+
+Swept the heading-finding class the M1 review enumerated. `logHasEntryToday` and
+`insertLogLine` now locate the real `## Log` through the scanner, and
+`stripEstimateForHash`'s line scan is fence-aware. Revert-verified on the live
+instance: restoring the old first-match lookup reds both assertions —
+today's real entry is not found, and a date existing only inside the quoted
+example matches.
+
+`insertLogLine`'s **last-match heuristic from #66 is retired.** It existed
+because first-match filed a close line into #66's own quoted example — the same
+defect, worked around 145 issues earlier — and it was only accidentally right:
+it fails when a quoted `## Log` sits after the real one, which the new test
+covers directly.
+
+**`SplitFences` is NOT rebased, and that is the decision, not a shortfall.** The
+attempt was made and its contract test refused it: `TestSplitFences` pins
+`` a```one``` mid ```two```z `` as two fenced segments with prose between them —
+inline pairs, mid-line boundaries. That is CHARACTER-oriented segmentation, and a
+line classifier cannot express it without embedding a second scanner inside the
+first. It also answers a different question ("may a rewriter edit these bytes"
+vs "where does this section end"), so merging would change what `migrate`
+rewrites across repos for no benefit to this class. Reverted, with the reasoning
+recorded at the function and in the atlas, and the Done-when narrowed from "one
+scanner" to "one line-oriented scanner plus a recorded exception".
+
+An indent-policy parameter had been added to make that rebase behavior-preserving
+(`SplitFences` is indent-blind where CommonMark allows ≤3 spaces). It stays — it
+is what makes the axis explicit rather than accidental — but its only current use
+is documenting that the two differ.
+
+The plan-item counters now filter through `StripFenced`, so a `- [ ]` in a quoted
+example is not counted as open work.
 
 ### 2026-09-02 — M1 review (FIX-THEN-SHIP, no blocking findings)
 

@@ -224,10 +224,13 @@ func checkEstimate(fm string) *StructuralFailure {
 // output (counted as prose by the word-count gates — changing that would
 // silently shift gate behavior); SplitFences classifies it Fenced (a
 // rewriter must never touch the inside of a broken fence).
-var fencedCodeRE = regexp.MustCompile("(?s)```.*?```")
 
 func stripCodeFences(s string) string {
-	return fencedCodeRE.ReplaceAllString(s, " ")
+	// #211 M2: was its own `(?s)```.*?``` ` regex — backticks only, no width
+	// rule, no tildes. Now the shared scanner, which keeps this gate's
+	// deliberate UnterminatedIsProse call (an unclosed fence is prose, so the
+	// word count still sees the tail) while gaining tildes and the width rule.
+	return StripFenced(s)
 }
 
 // FenceSegment is one run of markdown text, classified by whether it lies
@@ -238,6 +241,20 @@ type FenceSegment struct {
 	Fenced bool
 }
 
+// NOT rebased onto FenceSpans (#211 M2), deliberately — the one place this issue
+// leaves two fence implementations standing, with the reason:
+//
+// SplitFences is CHARACTER-oriented, not line-oriented. Its contract includes
+// inline pairs mid-line (`a```one``` mid ```two```z` is two fenced segments with
+// prose between them, pinned by TestSplitFences) and byte-exact segment
+// boundaries that fall inside a line. FenceSpans classifies whole LINES, which
+// cannot express that without embedding a second scanner inside the first.
+//
+// It is also a different problem. This issue's class is "a heading-shaped line
+// inside a fence read as structure"; SplitFences never looks for headings — it
+// answers "may a rewriter edit these bytes". Merging them would change what
+// `migrate` rewrites across repos to serve a tidiness the class doesn't need.
+//
 // SplitFences segments a markdown snippet into prose and fenced runs for
 // rewriters that must skip code fences (#179 `sdlc migrate`). An
 // unterminated trailing fence is classified Fenced — the conservative

@@ -59,3 +59,53 @@ func SectionLineBounds(lines []string, heading string, policy UnterminatedPolicy
 // to slice body[m[2]:m[3]] and work on the resulting string — none needed the
 // byte offsets the old comment here claimed checkPlan required.
 func PlanSectionBody(body string) (string, bool) { return SectionBody(body, "Plan") }
+
+// SectionByteBounds is SectionLineBounds in byte offsets into body — the form a
+// caller needs when it splices rather than reads (close's log insert).
+//
+// Returns the half-open [start, end) of the section BODY, excluding the heading
+// line itself. Splitting and rejoining loses nothing here because both use "\n".
+func SectionByteBounds(body, heading string, policy UnterminatedPolicy) (start, end int, ok bool) {
+	lines := strings.Split(body, "\n")
+	first, last, found := SectionLineBounds(lines, heading, policy)
+	if !found {
+		return 0, 0, false
+	}
+	off := func(line int) int {
+		n := 0
+		for i := 0; i < line && i < len(lines); i++ {
+			n += len(lines[i]) + 1 // +1 for the newline split consumed
+		}
+		return n
+	}
+	start = off(first)
+	if start > len(body) {
+		start = len(body)
+	}
+	// off(last) points at the START of the next heading line, which is one byte
+	// past the separator strings.Join does NOT emit after the final body line —
+	// so drop it, keeping body[start:end] byte-identical to SectionBody's result.
+	end = off(last) - 1
+	if last >= len(lines) || end > len(body) {
+		end = len(body)
+	}
+	if end < start {
+		end = start
+	}
+	return start, end, true
+}
+
+// SectionHeadingByteOffset returns the byte offset of the `## <heading>` line
+// itself (not its body), for callers that rewrite from the header down.
+func SectionHeadingByteOffset(body, heading string, policy UnterminatedPolicy) (int, bool) {
+	start, _, ok := SectionByteBounds(body, heading, policy)
+	if !ok {
+		return 0, false
+	}
+	// The body starts one line after the heading; walk back over that line.
+	head := body[:start]
+	if i := strings.LastIndex(strings.TrimRight(head, "\n"), "\n"); i >= 0 {
+		return i + 1, true
+	}
+	return 0, true
+}

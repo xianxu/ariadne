@@ -298,13 +298,17 @@ var logLineDateRE = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2}):`)
 // to that last header so both the day-header and fallback inserts target the
 // real section.
 func insertLogLine(body, logLine string) string {
-	logHeaderRE := regexp.MustCompile(`(?m)^## Log\s*$`)
-	all := logHeaderRE.FindAllStringIndex(body, -1)
-	if all == nil {
+	// #211 M2: located by the fence-aware section scanner. The last-match
+	// heuristic this replaces was added by #66 for exactly one reason — a
+	// first-match version filed the close line into #66's own fenced example —
+	// which is the same defect FenceSpans now solves properly. Last-match was
+	// also only accidentally right: it fails when a quoted `## Log` sits AFTER
+	// the real one, and 1 of 406 corpus files already has that shape.
+	logStart, ok := issue.SectionHeadingByteOffset(body, "Log", issue.UnterminatedIsProse)
+	if !ok {
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"
 	}
-	logStart := all[len(all)-1][0] // start of the LAST `## Log` header
-	section := body[logStart:]     // the real Log section + anything after it
+	section := body[logStart:] // the real Log section + anything after it
 
 	// Prefer the matching `### <date>` day header within the real Log section.
 	// The match anchors on the date *prefix* and allows an optional ` — suffix`

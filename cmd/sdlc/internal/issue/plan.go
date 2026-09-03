@@ -27,6 +27,7 @@ func CountPlanItems(body string) (total, ticked int) {
 	if !ok {
 		return 0, 0
 	}
+	section = StripFenced(section)
 	for _, mm := range PlanItemRE.FindAllStringSubmatch(section, -1) {
 		total++
 		if mm[1] == "x" {

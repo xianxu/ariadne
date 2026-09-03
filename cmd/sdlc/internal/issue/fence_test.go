@@ -205,3 +205,69 @@ func workshopMarkdown(t *testing.T) []string {
 	}
 	return out
 }
+
+// TestSectionByteBounds_MatchesSectionBody pins the two extraction forms against
+// each other: the byte-offset form exists only so a splicing caller can avoid
+// re-implementing the search, so it must agree with the reading form exactly.
+func TestSectionByteBounds_MatchesSectionBody(t *testing.T) {
+	bodies := []string{
+		"# t\n\n## Log\n\n- a\n\n## Plan\n\n- [ ] x\n",
+		"# t\n\n## Problem\n\n```markdown\n## Log\nquoted\n```\n\n## Log\n\nreal\n",
+		"# t\n\n## Log\n\ntrailing section, no following heading\n",
+		"# t\n\n## Spec\n\n```\nunterminated\n\n## Log\n\nreached under prose policy\n",
+	}
+	for _, body := range bodies {
+		want, okWant := SectionBody(body, "Log")
+		start, end, okGot := SectionByteBounds(body, "Log", UnterminatedIsProse)
+		if okGot != okWant {
+			t.Fatalf("presence disagrees (byte %v vs body %v) for:\n%s", okGot, okWant, body)
+		}
+		if !okWant {
+			continue
+		}
+		if got := strings.TrimSuffix(body[start:end], "\n"); got != strings.TrimSuffix(want, "\n") {
+			t.Errorf("byte bounds %q != SectionBody %q\nfor:\n%s", got, want, body)
+		}
+	}
+}
+
+// TestUnterminatedPolicies_DisagreeOnPurpose pins the fork itself. These two
+// consumers reach OPPOSITE conclusions about the same input, and that is the
+// design — a test exists so a later reader "unifying" them has to argue with it.
+//
+//	stripCodeFences  a word-count gate: an unclosed fence is prose, so the gate
+//	                 still sees the tail and can refuse on real content.
+//	SplitFences      a file rewriter (#179 migrate): an unclosed tail stays
+//	                 fenced, because editing inside maybe-code is unrecoverable.
+func TestUnterminatedPolicies_DisagreeOnPurpose(t *testing.T) {
+	const in = "prose here\n```\nnever closed but still words\n"
+
+	if got := stripCodeFences(in); !strings.Contains(got, "never closed but still words") {
+		t.Errorf("stripCodeFences must treat an unclosed tail as PROSE so the word count sees it; got %q", got)
+	}
+	var fencedTail bool
+	for _, seg := range SplitFences(in) {
+		if seg.Fenced && strings.Contains(seg.Text, "never closed") {
+			fencedTail = true
+		}
+	}
+	if !fencedTail {
+		t.Error("SplitFences must treat an unclosed tail as FENCED so migrate won't rewrite inside it")
+	}
+}
+
+// TestStripFenced_HidesQuotedPlanItems covers the counter filter: a `- [ ]` in a
+// quoted example is not open work. Fails safe either way, but an issue quoting a
+// plan format is precisely the kind this repo writes.
+func TestStripFenced_HidesQuotedPlanItems(t *testing.T) {
+	in := "- [x] real\n```markdown\n- [ ] quoted example\n```\n- [ ] also real\n"
+	got := StripFenced(in)
+	if strings.Contains(got, "quoted example") {
+		t.Errorf("fenced plan item survived the strip:\n%s", got)
+	}
+	for _, want := range []string{"- [x] real", "- [ ] also real"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("real item %q was stripped:\n%s", want, got)
+		}
+	}
+}
