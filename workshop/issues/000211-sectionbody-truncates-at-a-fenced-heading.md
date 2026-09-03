@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
-estimate_hours: 1.55
+estimate_hours: 1.71
 started: 2026-09-02T18:20:40-07:00
 ---
 
@@ -193,73 +193,96 @@ lying to the gates, not a compliant parser.
 model: estimate-logic-v3.1
 familiarity: 1.0
 design-buffer: 0.15
+item: smaller-go-module      design=0.04 impl=0.14
+item: cross-cutting-refactor design=0.04 impl=0.20
 item: smaller-go-module      design=0.05 impl=0.20
-item: cross-cutting-refactor design=0.05 impl=0.20
-item: smaller-go-module      design=0.05 impl=0.20
-item: smaller-go-module      design=0.05 impl=0.20
-item: atlas-docs             design=0.05 impl=0.06
+item: greenfield-go-module   design=0.05 impl=0.28
+item: atlas-docs             design=0.02 impl=0.06
 item: milestone-review       design=0.00 impl=0.20
 item: milestone-review       design=0.00 impl=0.20
-total: 1.55
+item: milestone-review       design=0.00 impl=0.20
+total: 1.71
 ```
-
 In Plan order:
 
-1. `smaller-go-module` — move `scanMarkdownLines` + `fenceMarker` down into
-   `internal/issue` and give the scanner its explicit unterminated-fence policy.
-   Mirror-or-extend of working code, but the policy parameter is new.
-2. `cross-cutting-refactor` — rebuild `SectionBody` on it, delete
-   `PlanSectionRE`, route its six sites and two stale comments.
-3. `smaller-go-module` — rebuild `stripCodeFences` and `SplitFences`. **The
-   riskiest row**: byte-exact reassembly has to survive, the two consumers must
-   keep disagreeing about unterminated fences on purpose, and `SplitFences`'
-   line-anchoring change alters what `migrate` will rewrite.
-4. `smaller-go-module` — the tests: a corpus-seeded property test over all 406
-   `workshop/**/*.md`, per-function tables, and the `close` false-pass
-   regression. Priced as its own row rather than folded into the others because
-   the property test is new machinery, not a table.
-5. `atlas-docs` — the section-parsing entry and the scanner's single-source note.
-6. `milestone-review` ×2 — see below.
+1. `smaller-go-module` **at 0.14, not the ceiling** — moving
+   `scanMarkdownLines` + `fenceMarker` down is mirror-or-extend of working code;
+   only the policy parameter is new. An earlier cut put every code row at exactly
+   `0.5 × 0.40`, which erased the very risk difference the narrative claimed.
+2. `cross-cutting-refactor` at the ceiling — `SectionBody` rebuilt,
+   `PlanSectionRE` deleted, six sites and two stale comments rerouted.
+3. `smaller-go-module` at the ceiling — **the riskiest row**: byte-exact
+   reassembly must survive, the two consumers must keep disagreeing about
+   unterminated fences on purpose, and `SplitFences`' line-anchoring change
+   alters what `migrate` rewrites.
+4. `greenfield-go-module` — the corpus-seeded property test over all 406
+   `workshop/**/*.md` is **new machinery, not a table**, which is what that slug
+   is for; scaled band 0.12–0.32, priced near the top because the invariant
+   (no file loses a real section, visited+skipped reproduces the input) has to be
+   designed, not just asserted.
+5. `atlas-docs` — the section-parsing entry and the single-source note. Design
+   discounted like every other row this time.
+6. `milestone-review` ×3 — see below.
 
-Design is `×0.2` spec-quality discounted: the Spec names every consumer by
-file:line from a grep, tables the six divergence axes, and fixes each consumer's
-policy — the remaining design is reading. Buffer `+15%` (v3.1 step 4).
-Familiarity `1.0`: Go, this package, line scanning; nothing novel in the stack.
+Design is `×0.2` spec-quality discounted throughout: the Spec names every
+consumer by file:line from a grep, tables the six divergence axes, and fixes each
+consumer's unterminated-fence policy. Buffer `+15%` (v3.1 step 4). Familiarity
+`1.0`: Go, this package, line scanning.
 
-**Two `milestone-review` rows, both at the scaled ceiling**, following #208's
-correction: the lever for "I expect N rounds" is N rows, not one row inflated.
-Two is the read — plan-quality already took two rounds here, and the class has
-more members than #208's (six call sites, five fence forms, three scanners being
-collapsed, one behaviour change to a different verb). Today's ledger: #206 at
-0.3× priced one round for six; #208 at 0.7× priced two and took two.
+**Three `milestone-review` rows, and the Plan is tagged `M1`/`M2` to match.** The
+first cut priced two review rows against an untagged Plan, which is incoherent:
+in this workflow an `Mx` tag *is* the review boundary, and the primitive is "one
+milestone code review (one chunk)" — so rows must equal boundaries, not rounds.
+The scope genuinely has two: M1 is the scanner and section extraction (verifiable
+as "no section is lost"), M2 is the fence consumers (verifiable as "migrate still
+rewrites the same refs"). Different risk, different evidence, worth closing
+separately.
+
+The third row is an explicit **rework allowance**, not a fourth boundary. Both
+ledger rows to date under-ran on exactly this: #206 estimated 1.31 → actual 4.43
+(0.30) having priced one review for six rounds; #208 estimated 1.13 → actual 1.72
+(0.66) having priced two and taken two. Rework rounds are re-review of the same
+chunk, which the primitive does not name, so they are budgeted here rather than
+discovered at close.
+
+**Not applying the realized ratios directly.** Extrapolating #208's 0.66 onto
+this total gives ~2.3h and #206's gives ~5h, but those ratios largely encode
+estimation errors this block has now corrected — undifferentiated ceilings, a
+mirror-or-extend row priced as greenfield's neighbour, review rows that did not
+match the boundary structure. Multiplying by the ratio on top of fixing its
+causes double-counts. The rework row is the part of the miss that is
+*systematic*, so that part is budgeted; the rest is left to be measured.
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
-- [ ] Move `scanMarkdownLines` + `fenceMarker` from `internal/project/doc.go`
-      into `internal/issue`; `project` consumes it from there.
-- [ ] Rebuild `SectionBody` on the scanner; delete its regex terminator.
-- [ ] Delete `PlanSectionRE`; route its four consumers through
-      `SectionBody(body, "Plan")`.
-- [ ] Give the scanner an explicit unterminated-fence policy; `SectionBody` and
-      the plan extraction take `prose`, `project` and `SplitFences` keep `fenced`.
-- [ ] Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
-      byte-exact reassembly and deciding `SplitFences`' line-anchoring change
-      explicitly (it is a `migrate` behaviour change either way).
-- [ ] Tests, named per function with the adversarial strategy for each:
-      `fenceMarker` — table over width/char/indent/info-string boundaries;
-      `scanMarkdownLines` — **corpus-seeded property test** over all 406
-      `workshop/**/*.md`, asserting no file loses a real section and that
-      concatenating visited + skipped lines reproduces the input;
-      `SectionBody` — the five fence forms plus "closed fence, then a real
-      heading" plus an unterminated fence that must NOT hide later sections;
-      `stripCodeFences` / `SplitFences` — one test each pinning the
-      unterminated-fence disagreement and naming why they differ;
-      `close` plan-unchecked + `findMilestonesMissingVerdict` — the false pass.
-- [ ] Fold the corpus diff into that property test so the invariant is mechanical
-      rather than a one-off run; record any verdict change (predicted none).
+Two review boundaries, because they carry different risk and different evidence:
+M1 is verifiable as "no section is lost", M2 as "migrate still rewrites the same
+refs". Tagged so the structure and the `## Estimate` agree.
+
+- [ ] M1 — Move `scanMarkdownLines` + `fenceMarker` from
+      `internal/project/doc.go` into `internal/issue`; `project` consumes it from
+      there. Give the scanner an explicit unterminated-fence policy.
+- [ ] M1 — Rebuild `SectionBody` on the scanner with the `prose` policy; delete
+      its regex terminator.
+- [ ] M1 — Delete `PlanSectionRE`; route its six sites and two stale comments
+      through `SectionBody(body, "Plan")`.
+- [ ] M1 — Corpus-seeded property test over all 406 `workshop/**/*.md`: no file
+      loses a real section, and visited + skipped lines reproduce the input.
+      Fold the before/after verdict diff into it so the invariant is mechanical.
+- [ ] M1 — `close` plan-unchecked + `findMilestonesMissingVerdict` regression:
+      unchecked items and milestones after a fenced `##` must be counted. Plus an
+      unterminated fence that must NOT hide later sections.
+- [ ] M2 — Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
+      byte-exact reassembly and keeping their unterminated-fence disagreement as
+      an explicit parameter.
+- [ ] M2 — Decide `SplitFences`' line-anchoring change explicitly; it is a
+      `migrate` behaviour change either way, with a test pinning the choice.
+- [ ] M2 — `fenceMarker` table over width/char/indent/info-string boundaries;
+      one test each pinning why `stripCodeFences` and `SplitFences` differ.
+- [ ] M2 — Atlas: the section-parsing entry and the scanner's single-source note.
 
 ## Log
 
