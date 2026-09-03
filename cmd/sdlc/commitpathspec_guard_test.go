@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -242,7 +243,7 @@ func assertWiring(t *testing.T, edges []wiring) {
 	fset := token.NewFileSet()
 	// calls[file:func] = set of function names it calls.
 	calls := map[string]map[string]bool{}
-	for _, dir := range []string{".", "internal/issue"} {
+	for _, dir := range guardScanDirs {
 		pkgs, err := parser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
 			return !strings.HasSuffix(fi.Name(), "_test.go")
 		}, 0)
@@ -295,6 +296,12 @@ func assertWiring(t *testing.T, edges []wiring) {
 		}
 	}
 }
+
+// guardScanDirs are the packages the source-level guards parse. Hard-coded, and
+// TestGuardScopeCoversEveryPackage keeps the list honest by failing when a
+// package outside it references a plan-counting regex — a population defined by
+// a list is exactly what these guards exist to distrust.
+var guardScanDirs = []string{".", "internal/issue"}
 
 // planItemMatchers are the regexes that COUNT plan items. Any function using one
 // is by definition a plan-item reader and must take its body from
@@ -375,7 +382,7 @@ func TestPlanItemWritersUseTickMilestone(t *testing.T) {
 func TestPlanItemReadersUsePlanItemsBody(t *testing.T) {
 	fset := token.NewFileSet()
 	seen, counters := map[string]bool{}, map[string]string{}
-	for _, dir := range []string{".", "internal/issue"} {
+	for _, dir := range guardScanDirs {
 		pkgs, err := parser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
 			return !strings.HasSuffix(fi.Name(), "_test.go")
 		}, 0)
@@ -457,4 +464,48 @@ func qualifiedFile(dir, path string) string {
 		return base
 	}
 	return dir + "/" + base
+}
+
+// TestGuardScopeCoversEveryPackage pins the guards' own blind spot.
+//
+// The derived plan-item guards and assertWiring scan a hard-coded list of
+// directories ("." and "internal/issue"). A reader added in a THIRD package is
+// invisible to the derivation — it would reference a counting regex, never call
+// PlanItemsBody, and the guard would say nothing. That is the same failure the
+// guards exist to prevent, one level up: a population defined by a list rather
+// than by the tree.
+//
+// Fully deriving the scope would mean walking every package under cmd/sdlc on
+// every run. Instead this asserts the LIST is complete for the property that
+// matters: no package outside guardScanDirs references a plan-counting regex.
+// When one does, this fails and names it, and the fix is one entry.
+func TestGuardScopeCoversEveryPackage(t *testing.T) {
+	scanned := map[string]bool{}
+	for _, d := range guardScanDirs {
+		scanned[filepath.Clean(d)] = true
+	}
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		dir := filepath.Clean(filepath.Dir(path))
+		if scanned[dir] {
+			return nil
+		}
+		src, rerr := os.ReadFile(path)
+		if rerr != nil {
+			return nil
+		}
+		for _, m := range planItemMatchers {
+			if strings.Contains(string(src), m) {
+				t.Errorf("%s references %s but lives in %q, which the plan-item guards do not scan "+
+					"(guardScanDirs = %v).\n  Add %q to guardScanDirs, or the derivation is blind to "+
+					"every reader in that package.", path, m, dir, guardScanDirs, dir)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
 }

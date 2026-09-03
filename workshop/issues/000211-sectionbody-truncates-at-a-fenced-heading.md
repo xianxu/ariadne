@@ -1,12 +1,13 @@
 ---
 id: 000211
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-03
 estimate_hours: 1.71
 started: 2026-09-02T18:20:40-07:00
+actual_hours: 4.33
 ---
 
 # SectionBody truncates at a fenced heading
@@ -305,7 +306,40 @@ refs". Tagged so the structure and the `## Estimate` agree.
 
 ## Log
 
+### 2026-09-03 — close (FIX-THEN-SHIP), two final findings
+
+- **My round-8 extraction detached a doc block.** Inserting
+  `milestonesInPlanOrder` between `findMilestonesMissingVerdict`'s doc comment
+  and its `func` line left godoc attributing the wrong doc — the fourth time an
+  edit of mine created doc drift while fixing doc drift. Reattached.
+- **The guards had the blind spot they exist to prevent.** The derived plan-item
+  guards scan a hard-coded `{".", "internal/issue"}`, so a reader in a third
+  package would reference a counting regex, never call `PlanItemsBody`, and the
+  derivation would say nothing — a population defined by a list, which is exactly
+  what these guards distrust. `TestGuardScopeCoversEveryPackage` now fails when
+  any unscanned package references one, naming the file and the fix. Verified by
+  planting a probe package: `internal/probe/p.go references PlanUncheckedRE but
+  lives in "internal/probe", which the plan-item guards do not scan`.
+
+**Closing evidence for BR-7 / BR-11**, which the ledger carried as open across
+four rounds without disposing: both verified fixed in the tree — `StripFenced`
+at `setstatus.go:311` and `FindLineOutsideFences` at `close.go:331`, each
+revert-verified via `TestWithinSectionMatchers`; `grep -rn
+"logHeaderRE|stripEstimateForHash" cmd/ atlas/` → 0. The remaining mentions are
+in prose describing the fix, which necessarily names the old symbols. Closed
+with `--no-ledger` and that evidence rather than `--force`.
+
+**Est 1.71 / actual 4.33 (0.4×).** Eight review rounds. The estimate priced two
+`milestone-review` rows plus a rework allowance — three total — against eight,
+and the pattern is now consistent across three issues today: #206 0.3×, #208
+0.7×, #211 0.4×, where #208's accuracy came from being the only one whose class
+was small enough to review in two rounds. The lever isn't a bigger multiplier;
+it's that review cost scales with the number of *members in the class*, and this
+class had members at three levels (the section, the search within it, the write
+side) that only appeared as each earlier level was fixed.
+
 ### 2026-09-03 — close review round 8: converging, and one more of my own
+- 2026-09-03: closed — All findings resolved; --no-ledger because BR-7 and BR-11 are stale ledger entries verified fixed in the tree, not outstanding work. BR-11: logHasEntryToday uses issue.StripFenced (setstatus.go:311) and insertLogLine uses issue.FindLineOutsideFences (close.go:331); reverting either to a fence-blind scan -> `go test ./cmd/sdlc -run TestWithinSectionMatchers` --- FAIL. BR-7: no dead symbol remains in code or atlas (`grep -rn "logHeaderRE|stripEstimateForHash" cmd/ atlas/` -> 0); the three remaining mentions are in prose describing the fix — this issue Log and the auto-appended verification line — which necessarily name the old symbols. Round 8 reported 0 repeat families and 9 disposed, i.e. converging. `go test ./cmd/... ./pkg/...` -> green except the pre-existing unrelated fleet_plan test (#210). Every fix revert-verified as command -> observed result: old regex parser -> --- FAIL on plan-unchecked (0 of 2), milestone scan ([M1] not [M1 M2]), CountPlanItems (2 of 4), plus 7 fence cases; TickMilestone two filters isolated so each reverts red independently; whole-body ReplaceAll -> TestPlanItemWritersUseTickMilestone --- FAIL; FindLineOutsideFences match-range -> --- FAIL under an unanchored mid-line pattern; checkPlan routed back -> derived reader guard names it; findMilestonesMissingVerdict routed back -> planItemBodySources names it. Corpus property test: no real section lost across 2875 headings in 406 workshop markdown files; `sdlc issue validate --all` byte-identical before and after. SplitFences deliberately excluded, reasoning at the function, in the atlas, and in the Log. Five lessons.md rules added, three from my own false evidence claims the gate caught.; review verdict: FIX-THEN-SHIP
 
 Round 8: 0 repeat families, 9 disposed. Two new Minors, both real and both fixed:
 

@@ -1712,22 +1712,6 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 	return midstream, trailing
 }
 
-// findMilestonesMissingVerdict enumerates milestones in the issue body's
-// `## Plan` section and returns them in plan order (ordered), plus the
-// tags of any whose close commit lacks a `Review-Verdict:` trailer
-// (missing). The caller partitions missing against ordered to tell
-// midstream from trailing misses (#175, partitionMissingVerdicts).
-//
-// "Close commit" for milestone Mx = a commit whose subject opens with
-// `#<issue> Mx:` AND whose message body contains a `Review-Verdict:`
-// trailer line. The conjunctive `--all-match` over both --grep patterns
-// matches the task spec exactly.
-//
-// Returns (ordered, [], nil) when every milestone has evidence. Returns
-// (nil, nil, err) only on hard failures (issue body unparseable, git
-// unavailable). A milestone whose subject doesn't match any commit is
-// treated the same as one whose commit lacks the trailer — both are "no
-// review evidence."
 // milestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
 // order, de-duplicated (a milestone may appear twice if the plan was revised).
 //
@@ -1749,6 +1733,22 @@ func milestonesInPlanOrder(planBody string) []string {
 	return ordered
 }
 
+// findMilestonesMissingVerdict enumerates milestones in the issue body's
+// `## Plan` section and returns them in plan order (ordered), plus the
+// tags of any whose close commit lacks a `Review-Verdict:` trailer
+// (missing). The caller partitions missing against ordered to tell
+// midstream from trailing misses (#175, partitionMissingVerdicts).
+//
+// "Close commit" for milestone Mx = a commit whose subject opens with
+// `#<issue> Mx:` AND whose message body contains a `Review-Verdict:`
+// trailer line. The conjunctive `--all-match` over both --grep patterns
+// matches the task spec exactly.
+//
+// Returns (ordered, [], nil) when every milestone has evidence. Returns
+// (nil, nil, err) only on hard failures (issue body unparseable, git
+// unavailable). A milestone whose subject doesn't match any commit is
+// treated the same as one whose commit lacks the trailer — both are "no
+// review evidence."
 func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, missing []string, err error) {
 	planBody, ok := issue.PlanItemsBody(body)
 	if !ok {
