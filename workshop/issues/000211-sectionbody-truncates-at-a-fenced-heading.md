@@ -282,7 +282,9 @@ refs". Tagged so the structure and the `## Estimate` agree.
       `migrate` behaviour change either way, with a test pinning the choice.
 - [ ] M2 — `fenceMarker` table over width/char/indent/info-string boundaries;
       one test each pinning why `stripCodeFences` and `SplitFences` differ.
-- [ ] M2 — Atlas: the section-parsing entry and the scanner's single-source note.
+- [x] M1 — Atlas: the section-parsing entry and the scanner's single-source note.
+      (Moved from M2: the milestone-close atlas gate fired on M1, correctly — the
+      architectural surface is the scanner and its policy, which landed here.)
 
 ## Log
 
@@ -302,6 +304,11 @@ sees 0 of 2 open items, the milestone scan sees `[M1]` instead of `[M1 M2]`, and
 Corpus property test verified **2875 real sections across 406 workshop markdown
 files**, and `sdlc issue validate --all` is byte-identical before and after
 (16 conforming both ways). The prediction that no verdict would move held.
+
+The atlas row was planned under M2 and the M1 boundary gate refused without it —
+rightly, since the surface M2 adds is consumers of a scanner M1 introduced. Moved
+to M1 and written: `atlas/workflow/issue-lifecycle.md` gains the section-parsing
+entry, the RE2 argument, and the per-consumer policy table.
 
 One test expectation was wrong rather than the code: under `UnterminatedIsProse`
 a `##` following a stray opener IS read as a real heading, so text after it lands

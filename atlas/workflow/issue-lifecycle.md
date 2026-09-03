@@ -119,6 +119,45 @@ One paragraph: what was attempted, what landed, what got deferred.
 - (optional; recommended for multi-day issues) name + ~time + commit ref
 ```
 
+## Reading a section (`internal/issue/fence.go`, #211)
+
+Issue bodies are parsed by ONE fence-aware scanner. `FenceSpans` classifies each
+line as inside or outside a fenced code block; `ScanMarkdownLines` visits the
+prose lines; `SectionBody` finds `## <heading>` and runs to the next heading that
+is **not** inside a fence. `PlanSectionBody` is the Plan's named shortcut.
+
+**Why it can't be a regex.** Go's `regexp` is RE2 — no backreferences — so
+CommonMark's "a closing fence is the same character and at least as long as the
+opener" is inexpressible, and a four-backtick block containing a three-backtick
+line is parsed wrong. Measured: a fence-consuming regex handles 4 of 5 forms.
+
+**Why it matters.** This repo's deliverables are frequently markdown documents —
+registry entries, datatype templates, helptext, skills — so an issue specifying
+one quotes it, and the quoted headings are `##` because the target file's are.
+The prior `^## ` terminator ended the section at the quoted heading. For `## Plan`
+that was a false PASS, not a false refusal: the close gates count things whose
+*absence* means pass, so plan-unchecked saw 0 open items, the milestone scan
+missed milestones, and `CountPlanItems` (behind `sdlc state`) under-reported.
+
+**The unterminated-fence policy is a parameter, and the choice is load-bearing:**
+
+| consumer | policy | why |
+| --- | --- | --- |
+| `SectionBody`, plan extraction | `UnterminatedIsProse` | a stray opener must never hide `## Plan` from the gates |
+| `stripCodeFences` (word count) | `UnterminatedIsProse` | pre-existing, deliberate |
+| `SplitFences` (#179 `migrate`) | `UnterminatedIsFenced` | a rewriter must not edit inside a maybe-code tail |
+| `project` section scan | `UnterminatedIsFenced` | pre-existing behavior, unchanged |
+
+Inheriting the fenced policy for `SectionBody` would be worse than the bug:
+instead of one truncated section, every heading after the stray fence vanishes.
+The price of the prose policy is over-segmentation — a `##` after an unterminated
+opener reads as a real heading — which is visible and recoverable, and pinned by
+its own test so it doesn't get "fixed".
+
+Guarded by a corpus property test over every `workshop/**/*.md` (2875 sections
+across 406 files at the time of writing): no heading outside a fence may become
+unreachable through `SectionBody`.
+
 For frontmatter and section conventions see the **xx-issues skill**
 (`construct/local/issues/SKILL.md`). For the cross-artifact closing
 sweep (actual_hours, project-file update, atlas update, validation
