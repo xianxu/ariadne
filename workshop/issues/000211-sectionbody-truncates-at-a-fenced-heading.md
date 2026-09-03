@@ -67,7 +67,7 @@ datatype/helptext work that has been accelerating.
 the same character and *at least as long* as the opener, which is a matched
 delimiter and therefore not regular. A regex that consumes fenced blocks as units
 handles plain, tilde, unterminated and indented fences, and still gets a
-```` ```` ````-fence containing a ``` line wrong. Measured 4 of 5.
+a four-backtick fence containing a three-backtick line wrong. Measured 4 of 5.
 
 **The real shape is consolidation, not a new feature.** The tree already has
 three fence scanners and they disagree:
@@ -86,10 +86,72 @@ and becomes the single source.
 scanner moves DOWN into `issue`; `project` consumes it from the new home. Its
 existing tests pin that this is behaviour-preserving on the project side.
 
-**`PlanSectionRE` is deleted, not fixed.** All four consumers — `close.go:563`,
-`sizing.go:63`, `findMilestonesMissingVerdict`, `checkPlan` — take
-`FindStringSubmatchIndex` only to slice `body[m[2]:m[3]]` and work on the string.
-None needs byte offsets, so each becomes `SectionBody(body, "Plan")`.
+**The unterminated-fence policy is the dangerous part, and it is a PARAMETER.**
+`scanMarkdownLines` treats an unterminated fence as running to end-of-file, so
+every heading after it disappears. Adopting that for `SectionBody` would be
+strictly worse than the bug being fixed: instead of one section truncated, the
+whole remainder of the issue vanishes — including `## Plan`, which is what the
+close gates count. That is the same false pass, unbounded.
+
+This is not hypothetical. **This issue's own first rewrite created one**: a line
+of prose beginning with four backticks read as an opener, and under that policy
+`## Done when`, `## Plan` and `## Log` all became invisible. Measured across the
+209 issue files, an unterminated fence is the only case where the scanner's
+policy removes a *real* section — the other five affected files lose only headings
+that are genuinely quoted inside closed fences, which is correct.
+
+So the scanner exposes the policy and each consumer sets it:
+
+| consumer | unterminated fence ⇒ | why |
+| --- | --- | --- |
+| `SectionBody` / plan extraction | **prose** | a swallowed `## Plan` disarms the close gates; failing open on a malformed fence is worse than the truncation this issue fixes |
+| `stripCodeFences` (word count) | **prose** | today's behaviour, deliberate — see its comment |
+| `SplitFences` (#179 migrate) | **fenced** | today's behaviour, deliberate — a rewriter must not edit inside a possibly-code tail |
+| `project` section scan | **fenced** | today's behaviour; unchanged by the move |
+
+Implementation follows from that: fence spans are computed in one pass, and a
+fence with no closer is simply not a span under the `prose` setting.
+
+**Divergence axes (`SplitFences` is not just a policy change).** `SplitFences`
+finds fences with an unanchored, indent-blind `strings.Index("```")`, so it
+currently treats a **4-space-indented** triple backtick as a fence, while
+`fenceMarker` requires line-start with ≤3 spaces of indent — verified. Re-basing
+it flips those to prose and `migrate` would begin rewriting refs inside indented
+code blocks. It also guarantees byte-exact reassembly (`Concatenating the Text of
+every segment reproduces the input byte-for-byte`), which a line-visitor that
+drops fence lines cannot provide without deliberate reconstruction. Every axis is
+stated per consumer before any is changed:
+
+| axis | `SplitFences` today | `fenceMarker` |
+| --- | --- | --- |
+| line-anchored | no (substring) | yes |
+| indent | any | ≤3 spaces |
+| tilde fences | no | yes |
+| closer width rule | no | ≥ opener |
+| unterminated | fenced | caller's choice |
+| byte-exact reassembly | guaranteed | must be reconstructed |
+
+`SplitFences` keeps byte-exactness and gains the width/tilde rules; whether it
+adopts line-anchoring is a **behaviour change to `migrate` and is decided
+explicitly**, with a test either way.
+
+**`PlanSectionRE` is deleted, not fixed.** Enumerated by grep, not by memory —
+an earlier draft named four and missed two:
+
+| site | note |
+| --- | --- |
+| `close.go:563` | plan-unchecked guard |
+| `close.go:1718` | `findMilestonesMissingVerdict` |
+| `structural.go:160` | `checkPlan` |
+| `sizing.go:63` | plan/milestone counts |
+| `plan.go:30` | **`CountPlanItems`** — feeds `state.go:255`, same truncation bug |
+| `close_test.go:440` | stops compiling on deletion |
+
+Every production site takes `FindStringSubmatchIndex` only to slice
+`body[m[2]:m[3]]` and work on the string, so each becomes
+`SectionBody(body, "Plan")`. Two comments go stale with it and are part of the
+change: `section.go:10-11` ("checkPlan keeps its own PlanSectionRE: it needs byte
+offsets" — it does not) and `structural.go:23`.
 
 **Preserve the deliberate disagreement.** `stripCodeFences` and `SplitFences`
 differ on an unterminated fence on purpose — prose for the word-count gate,
@@ -110,6 +172,9 @@ lying to the gates, not a compliant parser.
 - `sdlc close` refuses an issue whose `## Plan` has unchecked items **after** a
   fenced `##`, and `findMilestonesMissingVerdict` sees milestones after one. A
   test drives both; this is the false pass the issue exists for.
+- An unterminated fence NEVER hides a later `##` section from `SectionBody`. A
+  test builds an issue whose `## Spec` opens a fence and never closes it, and
+  asserts `## Plan`'s unchecked items are still counted by the close gate.
 - Exactly ONE fence scanner remains in `cmd/sdlc`. `PlanSectionRE` is gone;
   `stripCodeFences` and `SplitFences` are built on the shared scanner and still
   disagree about an unterminated fence, asserted by a test that names why.
@@ -129,10 +194,23 @@ lying to the gates, not a compliant parser.
 - [ ] Rebuild `SectionBody` on the scanner; delete its regex terminator.
 - [ ] Delete `PlanSectionRE`; route its four consumers through
       `SectionBody(body, "Plan")`.
-- [ ] Rebuild `stripCodeFences` + `SplitFences` on the scanner, keeping their
-      unterminated-fence difference as an explicit parameter.
-- [ ] Table-test the fence forms; regression-test the `close` false pass.
-- [ ] Corpus verdict diff before/after; record the changed set (predicted empty).
+- [ ] Give the scanner an explicit unterminated-fence policy; `SectionBody` and
+      the plan extraction take `prose`, `project` and `SplitFences` keep `fenced`.
+- [ ] Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
+      byte-exact reassembly and deciding `SplitFences`' line-anchoring change
+      explicitly (it is a `migrate` behaviour change either way).
+- [ ] Tests, named per function with the adversarial strategy for each:
+      `fenceMarker` — table over width/char/indent/info-string boundaries;
+      `scanMarkdownLines` — **corpus-seeded property test** over all 406
+      `workshop/**/*.md`, asserting no file loses a real section and that
+      concatenating visited + skipped lines reproduces the input;
+      `SectionBody` — the five fence forms plus "closed fence, then a real
+      heading" plus an unterminated fence that must NOT hide later sections;
+      `stripCodeFences` / `SplitFences` — one test each pinning the
+      unterminated-fence disagreement and naming why they differ;
+      `close` plan-unchecked + `findMilestonesMissingVerdict` — the false pass.
+- [ ] Fold the corpus diff into that property test so the invariant is mechanical
+      rather than a one-off run; record any verdict change (predicted none).
 
 ## Log
 
@@ -143,6 +221,17 @@ the two registry entries it adds — the parser stopped at the first quoted
 `## ARCH-SECURE` and reported 35 words against a 600-word Spec. #208 was
 unblocked by adding a summary paragraph *before* the fence, which the Spec wanted
 anyway; the parser bug is untouched and lives here.
+
+Plan-quality round 1 caught the thing the investigation missed, and it was the
+same class as the bug: **the unterminated-fence policy.** My plan moved
+`scanMarkdownLines` down wholesale, inheriting "unterminated ⇒ runs to EOF" —
+which for section extraction deletes every heading after the fence, `## Plan`
+included. That is the false pass this issue exists to fix, made unbounded.
+
+The demonstration was this file. My own rewrite of the Problem section opened a
+four-backtick fence in prose and never closed it, so under the proposed scanner
+`## Done when`, `## Plan` and `## Log` all vanished from #211 itself. Fixed the
+prose, and made the policy an explicit per-consumer parameter.
 
 Investigated before planning rather than after. Three things the first draft of
 this issue got wrong or missed: it led with the false refusal when the false PASS
