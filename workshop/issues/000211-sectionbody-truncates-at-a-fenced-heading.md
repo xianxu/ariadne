@@ -179,7 +179,7 @@ lying to the gates, not a compliant parser.
   gone, `stripCodeFences` and the plan-item counters are built on it, and the
   per-consumer unterminated-fence policies are asserted by a test that names why
   they differ. `SplitFences` keeps its own character-oriented scanner — a
-  deliberate, recorded exception, not an oversight (see Revisions).
+  deliberate, recorded exception, not an oversight (see the M2 Log entry).
 - `internal/project`'s behavior is unchanged: its existing suite passes with no
   edits beyond the import path.
 - `sdlc issue validate --all` over `workshop/issues/` + `workshop/history/` is
@@ -292,11 +292,11 @@ refs". Tagged so the structure and the `## Estimate` agree.
 - [x] M2 — Filter the plan-item counters on `FenceSpans`: fenced `- [ ]` /
       `- [x] Mx` lines inside a quoted block now survive into `planBody` and are
       counted. Fails safe (spurious refusal), but it is free to be right.
-- [x] M2 — Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
-      byte-exact reassembly and keeping their unterminated-fence disagreement as
-      an explicit parameter.
-- [x] M2 — Decide `SplitFences`' line-anchoring change explicitly; it is a
-      `migrate` behaviour change either way, with a test pinning the choice.
+- [x] M2 — Rebuild `stripCodeFences` on the scanner. `SplitFences` was
+      attempted and DECLINED — its contract is character-oriented; see the Log.
+- [x] M2 — `SplitFences` decision recorded at the function, in the atlas, and
+      in the Log; `TestSplitFences` pins the character-oriented contract that
+      makes it a different abstraction.
 - [x] M2 — `fenceMarker` table over width/char/indent/info-string boundaries;
       one test each pinning why `stripCodeFences` and `SplitFences` differ.
 - [x] M1 — Atlas: the section-parsing entry and the scanner's single-source note.
@@ -304,6 +304,36 @@ refs". Tagged so the structure and the `## Estimate` agree.
       architectural surface is the scanner and its policy, which landed here.)
 
 ## Log
+
+### 2026-09-02 — M2 review round 3, and a process error of mine
+
+**I broke the FIX-THEN-SHIP protocol.** Round 2 returned FIX-THEN-SHIP, whose
+rule is: fix, bundle into ONE commit, and do NOT re-run `milestone-close` —
+"a second review of the same boundary is the #172 re-close loop". I fixed, made a
+*new* commit, and re-ran. The boundary anchor advanced to that commit, so round
+3's review window was `7752d83f..7752d83f` — **empty**. Three findings (BR-4,
+BR-5, BR-7) were re-raised as not-addressed because the reviewer could not see
+fixes that were already in the tree.
+
+The findings it derived from reading the tree anyway are real:
+
+- **BR-12** — the milestone TICK ran `ReplaceAll` over the whole body, so a
+  `- [ ] Mx` inside a quoted example anywhere in the issue was ticked. Worse, my
+  BR-4 note justified skipping the writer with "it rewrites a line it already
+  matched" — which is false; it rewrites every matching row in the document.
+  Fixed: scoped to the real Plan section and fence-filtered, with a test.
+- **BR-13** — a ticked plan row still claimed `SplitFences` was rebuilt, and the
+  Done-when pointed at a `## Revisions` section that does not exist on this
+  issue (the content is in `## Log`). Both corrected.
+
+**Left open, deliberately, for the next boundary:**
+
+- **BR-10** — BR-4's routing onto `PlanItemsBody` is pinned by no test; reverting
+  all four call sites leaves the suite green. The fix is real but unguarded.
+- **BR-11** — bounding a search to a fence-aware section does not make the search
+  fence-aware. Four within-section matchers still scan raw text, so a fenced
+  `### <date>` *inside* the real Log section would still capture the insert.
+  Same class, one level further in.
 
 ### 2026-09-02 — M2 review (5 findings, all fixed pre-commit)
 

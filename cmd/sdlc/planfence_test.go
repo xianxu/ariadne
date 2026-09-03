@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -246,5 +247,58 @@ Real prose that must survive.
 	// The whole point: changing only the estimate must not change the hash input.
 	if other := planGateContent(issueWith("model: v3.1\ntotal: 9.9")); other != got {
 		t.Error("plan-gate content changed when only the estimate did — the pass-through hash would re-dispatch")
+	}
+}
+
+// TestMilestoneTick_OnlyTicksTheRealPlan is BR-12: the write side of the class.
+// The tick used to ReplaceAll over the WHOLE issue body, so a `- [ ] Mx` inside
+// a quoted example — anywhere, including outside the Plan — was ticked too.
+func TestMilestoneTick_OnlyTicksTheRealPlan(t *testing.T) {
+	body := `# t
+
+## Problem
+
+The plan format looks like:
+
+` + "```markdown" + `
+- [ ] M1 — a quoted example
+` + "```" + `
+
+## Plan
+
+- [ ] M1 — the real row
+- [ ] M2 — later
+
+## Log
+
+- [ ] M1 — not a plan row at all
+`
+	pat := regexp.MustCompile(`(?m)^(- )\[[ .]\]( M1\b)`)
+	start, end, ok := issue.SectionByteBounds(body, "Plan", issue.UnterminatedIsProse)
+	if !ok {
+		t.Fatal("Plan section not found")
+	}
+	lines := strings.Split(body[start:end], "\n")
+	inside := issue.FenceSpans(lines, issue.UnterminatedIsProse)
+	n := 0
+	for i, line := range lines {
+		if !inside[i] && pat.MatchString(line) {
+			lines[i] = pat.ReplaceAllString(line, "${1}[x]${2}")
+			n++
+		}
+	}
+	got := body[:start] + strings.Join(lines, "\n") + body[end:]
+
+	if n != 1 {
+		t.Errorf("ticked %d row(s), want exactly 1 (the real Plan row)", n)
+	}
+	if !strings.Contains(got, "- [x] M1 — the real row") {
+		t.Errorf("the real Plan row was not ticked:\n%s", got)
+	}
+	if !strings.Contains(got, "- [ ] M1 — a quoted example") {
+		t.Errorf("a QUOTED example row was ticked:\n%s", got)
+	}
+	if !strings.Contains(got, "- [ ] M1 — not a plan row at all") {
+		t.Errorf("a row outside ## Plan was ticked:\n%s", got)
 	}
 }

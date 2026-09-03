@@ -96,6 +96,126 @@ rounds:
           round: 3
       boundary: M2
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-02T21:03:11-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: 'Revert-verified: restoring body[logStart:] reds TestInsertLogLine_IgnoresAQuotedDayHeaderLater.'
+          round: 4
+        - id: BR-4
+          disposition: not-addressed
+          note: Readers routed to PlanItemsBody, but the tick writer is unscoped, no test pins the routing, and issue line 32 is still ticked.
+          round: 4
+        - id: BR-5
+          disposition: not-addressed
+          note: Dead parameter and false comment removed; the indent-axis pin the finding asked for is still absent while the plan row claiming it stays ticked.
+          round: 4
+        - id: BR-6
+          disposition: addressed
+          note: 'Revert-verified: dropping the !inside[i] guard reds TestPlanGateContent_IgnoresAQuotedEstimateHeading.'
+          round: 4
+        - id: BR-7
+          disposition: not-addressed
+          note: close.go:292 and :331 fixed; close.go:340 still names logHeaderRE (dead), and stripEstimateForHash survives at atlas:168 plus issue lines 289 and 333.
+          round: 4
+        - id: BR-8
+          disposition: not-addressed
+          note: Test still TrimSuffixes both sides; byte-identity independently re-verified on 9 edge shapes including CRLF.
+          round: 4
+        - id: BR-9
+          disposition: not-addressed
+          note: M2 Log still records no validate run; I measured it — PlanItemsBody routing leaves `sdlc issue validate --all` byte-identical.
+          round: 4
+      findings:
+        - id: BR-10
+          severity: Important
+          title: BR-4's consumer routing is pinned by no test — reverting all four call sites leaves the suite green
+          detail: |-
+            2nd in family. RULE - a test standing in for a production path must call the same
+            extractor that path calls, and its fixture must contain the shape that extractor
+            exists to filter. Measured - close_test.go:240,257,440 and planfence_test.go:44,63
+            all call PlanSectionBody while close.go:572, close.go:1726, plan.go:26,
+            structural.go:160 and sizing.go:63 now call PlanItemsBody; close_test.go:238's
+            comment still claims it routes "through the production extractor". Reverting every
+            production routing to PlanSectionBody changes no test result. A correctly-written
+            pin (fixture with a fenced `- [ ] M9` row, read through PlanItemsBody) reds on
+            revert with CountPlanItems = (5,3) want (3,3) — I verified both directions in
+            scratch. ARCH-MOCK - production and test flow no longer share the boundary.
+          family: claimed-fix-unpinned-by-test
+          round: 4
+        - id: BR-11
+          severity: Important
+          title: Bounding a search to a fence-aware section does not make the search fence-aware — four within-section matchers remain unfiltered
+          detail: |-
+            3rd in family — do NOT fix these sites individually. RULE - any structural match
+            run INSIDE an extracted section must go over StripFenced(section) or a
+            FenceSpans-filtered line walk, not the raw section text. Measured members -
+            close.go:328 dayRE (a fenced `### <date>` inside the real Log section still
+            captures the close-line insert, which is BR-3's defect one level further down),
+            project/guards.go:17 retroHeadingRE (retro-recorded is a presence-means-pass guard,
+            so a quoted retro heading satisfies it), project/retro.go:8 retroDateRE, and
+            close.go:547 (see the sibling finding). Prevalence across all 409 workshop/**/*.md -
+            0 fenced day-headers in a Log section, 0 fenced retro headings; latent today,
+            exactly as the `## Plan` truncation was latent when this issue was filed. Write the
+            helper once and sweep the enumeration.
+          family: consumer-enumeration-incomplete
+          round: 4
+        - id: BR-12
+          severity: Important
+          title: The milestone tick rewrites every matching row in the whole body, and its "rewrites a line it already matched" rationale is false
+          detail: |-
+            close.go:547-552 does pat.ReplaceAllString(newBody, ...) with no Plan scoping and no
+            fence filter, so it rewrites ALL matches anywhere in the document — not one already
+            matched line. Verified - a body quoting `- [ ] M2` in a fenced Problem-section
+            example plus one real row ticks both (matches=2); a body whose ONLY `- [ ] M3` is
+            fenced still yields n>0, so close prints `ticked M3 in ... ## Plan` while the real
+            Plan is untouched. PlanItemsBody sees only the real row, so writer and readers now
+            disagree about the same Plan — the disagreement BR-4 was raised to end. Scope the
+            replace to SectionByteBounds(body, "Plan", ...) and skip FenceSpans-inside lines.
+          family: consumer-enumeration-incomplete
+          round: 4
+        - id: BR-13
+          severity: Important
+          title: Done-when cites a `## Revisions` section that does not exist, and a ticked plan row still claims SplitFences was rebuilt
+          detail: |-
+            2nd in family. RULE - when a decision reverses what an artifact says, delete or
+            rewrite the superseded text in the same commit; never layer a correction beneath it,
+            and never leave a cross-reference pointing at a section you did not write. Measured -
+            the issue file's headings are Problem, Spec, Done when, Estimate, Plan, Log, with no
+            `## Revisions`, yet Done-when line 190 says "a deliberate, recorded exception ... (see
+            Revisions)" and AGENTS.md section 1 requires appending one on mid-stream revision (the
+            Done-when was rewritten in place). Plan line 296 is ticked claiming "Rebuild
+            stripCodeFences + SplitFences on the scanner" while the Log explains SplitFences was
+            deliberately not rebuilt. Same rule covers BR-7's residue - close.go:340 names the
+            deleted logHeaderRE, and stripEstimateForHash (a symbol that exists nowhere) survives
+            at atlas/workflow/issue-lifecycle.md:168 and issue lines 289 and 333.
+          family: doc-drifts-from-code
+          round: 4
+        - id: BR-14
+          severity: Minor
+          title: insertLogLine computes the Log section twice and discards the second ok, leaving a latent slice panic
+          detail: |-
+            close.go:310 calls SectionHeadingByteOffset (which internally calls
+            SectionByteBounds), then close.go:317 calls SectionByteBounds again with `_` for ok.
+            The two agree today because the arguments are identical, so the panic is
+            unreachable — but body[logStart:0] is what a false ok would produce. Take
+            start/end/ok from one SectionByteBounds call and derive the heading offset from it.
+            ARCH-DRY, ARCH-SECURE.
+          family: redundant-recompute-drops-error
+          round: 4
+        - id: BR-15
+          severity: Minor
+          title: Stale line reference and a missing entry in the atlas's fence-aware inventory
+          detail: |-
+            workshop/issues/000211-...:37 cites close.go:563 for the plan-unchecked guard, now
+            close.go:572. atlas/workflow/issue-lifecycle.md:166-168 lists the fence-aware
+            heading finders but omits PlanItemsBody, the single extraction point M2 introduced.
+          family: doc-drifts-from-code
+          round: 4
+      boundary: M2
+      blocked: true
 ---
 
 # Gate ledger — ariadne#211 (boundary-review)
@@ -149,12 +269,86 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-9** [Minor] `unrecorded-gate-measurement` The M2 Log does not record re-running `sdlc issue validate --all` after the stripCodeFences rebase, a Done-when item
   The rebase from `(?s)```.*?``` ` to line-based StripFenced is the one change in this window that could move a gate verdict. It is safe — comparing old against new over every `## Spec` in the corpus, 1 file moves (000147-*.md, 246 to 247 words) and 0 cross the >=50 threshold — but the measurement is absent from the Log the Done-when asks for.
 
+## Round 4 — 2026-09-02T21:03:11-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-3 — addressed — Revert-verified: restoring body[logStart:] reds TestInsertLogLine_IgnoresAQuotedDayHeaderLater.
+- BR-4 — not-addressed — Readers routed to PlanItemsBody, but the tick writer is unscoped, no test pins the routing, and issue line 32 is still ticked.
+- BR-5 — not-addressed — Dead parameter and false comment removed; the indent-axis pin the finding asked for is still absent while the plan row claiming it stays ticked.
+- BR-6 — addressed — Revert-verified: dropping the !inside[i] guard reds TestPlanGateContent_IgnoresAQuotedEstimateHeading.
+- BR-7 — not-addressed — close.go:292 and :331 fixed; close.go:340 still names logHeaderRE (dead), and stripEstimateForHash survives at atlas:168 plus issue lines 289 and 333.
+- BR-8 — not-addressed — Test still TrimSuffixes both sides; byte-identity independently re-verified on 9 edge shapes including CRLF.
+- BR-9 — not-addressed — M2 Log still records no validate run; I measured it — PlanItemsBody routing leaves `sdlc issue validate --all` byte-identical.
+
+### Raised
+
+- **BR-10** [Important] `claimed-fix-unpinned-by-test` BR-4's consumer routing is pinned by no test — reverting all four call sites leaves the suite green
+  2nd in family. RULE - a test standing in for a production path must call the same
+  extractor that path calls, and its fixture must contain the shape that extractor
+  exists to filter. Measured - close_test.go:240,257,440 and planfence_test.go:44,63
+  all call PlanSectionBody while close.go:572, close.go:1726, plan.go:26,
+  structural.go:160 and sizing.go:63 now call PlanItemsBody; close_test.go:238's
+  comment still claims it routes "through the production extractor". Reverting every
+  production routing to PlanSectionBody changes no test result. A correctly-written
+  pin (fixture with a fenced `- [ ] M9` row, read through PlanItemsBody) reds on
+  revert with CountPlanItems = (5,3) want (3,3) — I verified both directions in
+  scratch. ARCH-MOCK - production and test flow no longer share the boundary.
+- **BR-11** [Important] `consumer-enumeration-incomplete` Bounding a search to a fence-aware section does not make the search fence-aware — four within-section matchers remain unfiltered
+  3rd in family — do NOT fix these sites individually. RULE - any structural match
+  run INSIDE an extracted section must go over StripFenced(section) or a
+  FenceSpans-filtered line walk, not the raw section text. Measured members -
+  close.go:328 dayRE (a fenced `### <date>` inside the real Log section still
+  captures the close-line insert, which is BR-3's defect one level further down),
+  project/guards.go:17 retroHeadingRE (retro-recorded is a presence-means-pass guard,
+  so a quoted retro heading satisfies it), project/retro.go:8 retroDateRE, and
+  close.go:547 (see the sibling finding). Prevalence across all 409 workshop/**/*.md -
+  0 fenced day-headers in a Log section, 0 fenced retro headings; latent today,
+  exactly as the `## Plan` truncation was latent when this issue was filed. Write the
+  helper once and sweep the enumeration.
+- **BR-12** [Important] `consumer-enumeration-incomplete` The milestone tick rewrites every matching row in the whole body, and its "rewrites a line it already matched" rationale is false
+  close.go:547-552 does pat.ReplaceAllString(newBody, ...) with no Plan scoping and no
+  fence filter, so it rewrites ALL matches anywhere in the document — not one already
+  matched line. Verified - a body quoting `- [ ] M2` in a fenced Problem-section
+  example plus one real row ticks both (matches=2); a body whose ONLY `- [ ] M3` is
+  fenced still yields n>0, so close prints `ticked M3 in ... ## Plan` while the real
+  Plan is untouched. PlanItemsBody sees only the real row, so writer and readers now
+  disagree about the same Plan — the disagreement BR-4 was raised to end. Scope the
+  replace to SectionByteBounds(body, "Plan", ...) and skip FenceSpans-inside lines.
+- **BR-13** [Important] `doc-drifts-from-code` Done-when cites a `## Revisions` section that does not exist, and a ticked plan row still claims SplitFences was rebuilt
+  2nd in family. RULE - when a decision reverses what an artifact says, delete or
+  rewrite the superseded text in the same commit; never layer a correction beneath it,
+  and never leave a cross-reference pointing at a section you did not write. Measured -
+  the issue file's headings are Problem, Spec, Done when, Estimate, Plan, Log, with no
+  `## Revisions`, yet Done-when line 190 says "a deliberate, recorded exception ... (see
+  Revisions)" and AGENTS.md section 1 requires appending one on mid-stream revision (the
+  Done-when was rewritten in place). Plan line 296 is ticked claiming "Rebuild
+  stripCodeFences + SplitFences on the scanner" while the Log explains SplitFences was
+  deliberately not rebuilt. Same rule covers BR-7's residue - close.go:340 names the
+  deleted logHeaderRE, and stripEstimateForHash (a symbol that exists nowhere) survives
+  at atlas/workflow/issue-lifecycle.md:168 and issue lines 289 and 333.
+- **BR-14** [Minor] `redundant-recompute-drops-error` insertLogLine computes the Log section twice and discards the second ok, leaving a latent slice panic
+  close.go:310 calls SectionHeadingByteOffset (which internally calls
+  SectionByteBounds), then close.go:317 calls SectionByteBounds again with `_` for ok.
+  The two agree today because the arguments are identical, so the panic is
+  unreachable — but body[logStart:0] is what a false ok would produce. Take
+  start/end/ok from one SectionByteBounds call and derive the heading offset from it.
+  ARCH-DRY, ARCH-SECURE.
+- **BR-15** [Minor] `doc-drifts-from-code` Stale line reference and a missing entry in the atlas's fence-aware inventory
+  workshop/issues/000211-...:37 cites close.go:563 for the plan-unchecked guard, now
+  close.go:572. atlas/workflow/issue-lifecycle.md:166-168 lists the fence-aware
+  heading finders but omits PlanItemsBody, the single extraction point M2 introduced.
+
 ## Open findings
 
-- **BR-3** [Critical] `unbounded-section-scan-window` insertLogLine locates the `## Log` heading fence-aware but scans for the day header to EOF, still filing the close line inside a quoted fence
 - **BR-4** [Important] `consumer-enumeration-incomplete` The plan-item fence filter reached 1 of 5 read sites and 0 of 1 write sites, so `sdlc state` and `sdlc close` now disagree about the same Plan
 - **BR-5** [Important] `unwired-policy-parameter` The indent-policy parameter has zero call sites and its comment names a caller (SplitFences) that never invokes it; the plan row promising a test pinning the choice is unpinned
-- **BR-6** [Important] `claimed-fix-unpinned-by-test` planGateContent's fence-awareness — one of the three swept sites — is covered by no test
 - **BR-7** [Important] `doc-drifts-from-code` insertLogLine's doc block still specifies the last-match anchor that was just deleted, and three docs name a symbol that does not exist
 - **BR-8** [Minor] `test-asserts-weaker-than-contract` TestSectionByteBounds_MatchesSectionBody trims trailing newlines from both sides, so it does not pin the byte-identity section.go:87 claims
 - **BR-9** [Minor] `unrecorded-gate-measurement` The M2 Log does not record re-running `sdlc issue validate --all` after the stripCodeFences rebase, a Done-when item
+- **BR-10** [Important] `claimed-fix-unpinned-by-test` BR-4's consumer routing is pinned by no test — reverting all four call sites leaves the suite green
+- **BR-11** [Important] `consumer-enumeration-incomplete` Bounding a search to a fence-aware section does not make the search fence-aware — four within-section matchers remain unfiltered
+- **BR-12** [Important] `consumer-enumeration-incomplete` The milestone tick rewrites every matching row in the whole body, and its "rewrites a line it already matched" rationale is false
+- **BR-13** [Important] `doc-drifts-from-code` Done-when cites a `## Revisions` section that does not exist, and a ticked plan row still claims SplitFences was rebuilt
+- **BR-14** [Minor] `redundant-recompute-drops-error` insertLogLine computes the Log section twice and discards the second ok, leaving a latent slice panic
+- **BR-15** [Minor] `doc-drifts-from-code` Stale line reference and a missing entry in the atlas's fence-aware inventory

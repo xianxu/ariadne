@@ -560,10 +560,32 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	newFM, newBody := fm, body
 
 	if mode == "milestone" {
+		// Scoped to the real Plan section and skipping fenced lines (#211 M2
+		// review BR-12). This used to ReplaceAll over the WHOLE body, so a
+		// `- [ ] M1` inside a quoted example anywhere in the issue was ticked —
+		// the write-side twin of the read-side bug this issue fixes. An earlier
+		// comment claimed the writer "rewrites a line it already matched"; it
+		// does not, it rewrites every matching row in the document.
 		pat := regexp.MustCompile(`(?m)^(- )\[[ .]\]( ` + regexp.QuoteMeta(f.Milestone) + `\b)`)
-		n := len(pat.FindAllStringIndex(newBody, -1))
+		n := 0
+		if start, end, ok := issue.SectionByteBounds(newBody, "Plan", issue.UnterminatedIsProse); ok {
+			planSrc := newBody[start:end]
+			lines := strings.Split(planSrc, "\n")
+			inside := issue.FenceSpans(lines, issue.UnterminatedIsProse)
+			for i, line := range lines {
+				if inside[i] {
+					continue
+				}
+				if pat.MatchString(line) {
+					lines[i] = pat.ReplaceAllString(line, "${1}[x]${2}")
+					n++
+				}
+			}
+			if n > 0 {
+				newBody = newBody[:start] + strings.Join(lines, "\n") + newBody[end:]
+			}
+		}
 		if n > 0 {
-			newBody = pat.ReplaceAllString(newBody, "${1}[x]${2}")
 			applied = append(applied, fmt.Sprintf("ticked %s in %s ## Plan", f.Milestone, filepath.Base(issuePath)))
 		} else {
 			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
