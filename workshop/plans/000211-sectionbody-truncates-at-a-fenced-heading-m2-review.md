@@ -592,3 +592,203 @@ findings:
       regex from a future caller inserts mid-line into an issue file. Either
       return the line bounds or say "match range" and rename the returns.
 ```
+
+---
+
+## Re-review — 2026-09-02T23:14:02-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 211 — SectionBody truncates at a fenced heading |
+| repo | ariadne |
+| issue file | workshop/issues/000211-sectionbody-truncates-at-a-fenced-heading.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 7752d83f9b0a1a91b8efa932bcf19cde9d2b97b5..488057c80961ddd84e45d547e42123a71c6aa1a1 |
+| command | sdlc milestone-close --issue 211 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-09-02T23:14:02-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+I've completed the inspection. Scratch verification used throwaway copies of HEAD in `$TMPDIR`; the working tree was not touched.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The code in this window is correct and two of its three headline fixes are genuinely revert-verified — I reproduced both claims exactly as the Log states them. What blocks a clean SHIP is that the third one isn't: `TestMilestoneTick_OnlyTicksTheRealPlan` is a verbatim copy of the production tick loop, so reverting `close.go`'s BR-12 fix all the way back to whole-body `ReplaceAll` leaves it **green** (I ran it; the full suite is green too, modulo six failures that reproduce identically on an unmodified scratch because there's no `.git` there). That is the same failure mode BR-16 named one round ago, shipped by the commit that closed BR-16 and wrote the lesson against it. Alongside it, BR-11's enumeration stopped at the two sites the finding named — `project/guards.go:48`, `project/retro.go:11` and a third member the finding didn't name (`structural.go:180`) still match inside fences — and BR-17's own stated enumeration ("one grep per named symbol **plus one check per 'everything/all X' claim**") was run for symbols only, leaving `atlas/workflow/issue-lifecycle.md:181` asserting something two live call sites contradict. Nothing here ships a defect today: all remaining members measure 0 occurrences across 410 `workshop/**/*.md`, exactly as the `## Plan` truncation was latent when this issue was filed.
+
+## 1. Strengths
+
+- **`commitpathspec_guard_test.go:317` is the right answer to BR-10 and it works.** Reverting only `close.go:596` to `PlanSectionBody` produces exactly one failure naming the file, the function and the reason — precisely the claim the Log makes. Reverting all five sites produces five. The AST-guard shape borrowed from `#206`'s `TestVerbsWireTheirCommitHelpers` is the correct tool for an entry point that `die()`s past the test seam.
+- **BR-11's swept half is real.** Reverting `setstatus.go:309` (`StripFenced`) and `close.go:329-334` (`dayRE` → `(?m)` + `FindStringIndex`) reds `TestWithinSectionMatchers_SkipFencesInsideTheSection` on both assertions, with the failure output showing the close line filed inside the quoted block. That Log claim is accurate to the standard BR-16 demanded.
+- **`FindLineOutsideFences` returning LINE bounds, not match bounds** (`fence.go:156-181`) is the right resolution of BR-17. It removes a byte-corruption path whose absence currently depends on a property of the caller's regex rather than on the API — ARCH-SECURE done properly (make invalid state unrepresentable at the boundary).
+- **Writer and readers now genuinely agree about the same Plan.** The tick at `close.go:573` takes `SectionByteBounds(…, "Plan", UnterminatedIsProse)` + `FenceSpans` — the same finder and the same policy `PlanItemsBody` reaches through `StripFenced` — and `TestSectionByteBounds_MatchesSectionBody` pins the two extraction forms against each other. That closes BR-12's actual concern.
+- **`lessons.md:1238-1265`** states a rule worth keeping and not already enforced in code: helper, call site and wiring are three different subjects with three different reverts.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**I1 — the milestone-tick fix is pinned by a copy of itself; the cause is that the logic lives in the IO shell.** `cmd/sdlc/planfence_test.go:276-290` is character-for-character the loop at `cmd/sdlc/close.go:571-589` (same `SectionByteBounds` call, same `FenceSpans`, same `ReplaceAllString`, same splice). Measured: with `close.go:572-589` restored to `n := len(pat.FindAllStringIndex(newBody, -1))` / `newBody = pat.ReplaceAllString(newBody, …)`, `go test ./cmd/sdlc/ -run 'TestMilestoneTick|TestPlanItemReaders|TestWithinSectionMatchers'` → **all PASS**, and the full package is green except six failures that fail identically on an unmodified scratch copy (`git rev-parse --show-toplevel: exit status 128`).
+
+*This is the 3rd finding in family `claimed-fix-unpinned-by-test`.* Don't fix this test. The rule: **a test may not contain a copy of the production algorithm — it calls the production symbol, or, where the entry point is not in-process drivable, a source-level guard pins the wiring.** The enumeration that rule implies, run over this file: `TestMilestoneTick_OnlyTicksTheRealPlan` (:276) re-implements the tick; `TestPlanItemReadersAgree` (:381,:385) re-implements close's unchecked guard and milestone scan — the defect BR-16 named, still there, now only compensated by the AST guard; `TestClosePlanGate_SeesItemsAfterAFencedHeading` (:46) and `TestMilestoneScan_SeesMilestonesAfterAFencedHeading` (:64) call `PlanSectionBody`, which no production reader calls, under names claiming to cover close's gates; and `close_test.go:154` already says outright that it "mirrors the regex in runClose's milestone path". `grep computeClose( *_test.go` returns nothing — the writer has never been driven end to end.
+
+*Fix sketch (ARCH-DRY + ARCH-PURE — the two are the same defect here):* the write-side filter is the third member of a shape `internal/issue` already owns twice (`StripFenced`, `FindLineOutsideFences`). Extract `ReplaceLinesOutsideFences(s string, re *regexp.Regexp, repl string) (string, int)` beside them, have `close.go` call it, have the test call it, and add `{"close.go", "computeClose", "the milestone tick writer"}` to a sibling of `planItemReaders` so reverting the *routing* reds the guard the same way it now does for the five readers.
+
+**I2 — the within-section sweep stopped at the sites the finding named** (BR-11, not-addressed). Full enumeration of every matcher run inside an extracted section, measured at HEAD:
+
+| site | status |
+| --- | --- |
+| `close.go:331` day-header lookup | ✅ `FindLineOutsideFences` |
+| `setstatus.go:309` `logHasEntryToday` | ✅ `StripFenced` |
+| `close.go:573` milestone tick | ✅ `FenceSpans` |
+| five `PlanItemsBody` readers | ✅ `StripFenced` |
+| `changecode.go:741` Estimate strip | ✅ `FenceSpans` |
+| `structural.go:145` / `sizing.go:69` word counts | ✅ `stripCodeFences` |
+| **`project/guards.go:48` `retroHeadingRE`** | ❌ raw section, presence-means-pass |
+| **`project/retro.go:11` `retroDateRE`** | ❌ raw section |
+| **`structural.go:180` `checkDoneWhen` `bulletRE`** | ❌ raw section, presence-means-pass — *not named by BR-11* |
+| `issue.go:530` structure peek | ❌ documented cosmetic (see I3) |
+
+Prevalence across 410 `workshop/**/*.md`: 0 fenced retro headings in a `## Log`, 0 `## Done when` sections with any fenced bullet, 0 where all bullets are fenced. Latent, not live — but `checkDoneWhen` is a gate guard in the same absence-means-pass class the issue exists for.
+
+**I3 — the atlas asserts "Everything", and two live call sites say otherwise** (BR-7 / BR-17, not-addressed). `atlas/workflow/issue-lifecycle.md:181` says "**Everything that finds a heading is fence-aware**". `cmd/sdlc/issue.go:530` finds `## ` headings with `strings.HasPrefix` and is not, and `project/guards.go:48` finds a `### ` heading and is not. The sentence was *edited* in this window ("second sweep" → "three sweeps", new names added) without running the "everything/all X" half of the enumeration BR-17's own rule specifies. Same rule, one more instance: `workshop/issues/000211-…:406` still asserts in the present tense that the tick writer "rewrites a line it already matched" — the claim `close.go:569` and `section.go:73` both declare false in this same commit. Delete the superseded sentence rather than layering a third correction beneath it.
+
+## 4. Minor findings
+
+- `planItemReaders` (`commitpathspec_guard_test.go:291-297`) is a hand-maintained restatement of the model — a new counter that reads `PlanSectionBody` is invisible to it. The self-maintaining form is the inverse guard: assert `PlanSectionBody` has exactly one production caller (`PlanItemsBody`). *5th in family `consumer-enumeration-incomplete`* — stated as the rule, not as "add another row".
+- The guard checks for the *presence* of a `PlanItemsBody` call, not the *absence* of `PlanSectionBody`; a function calling both passes.
+- `close.go:594` now warns `no '- [ ] Mx' in X.md (project-tracked issue?)` on the new "no `## Plan` section at all" branch, where the hint is wrong.
+- `insertLogLine` still computes the Log section twice and discards the second `ok` (`close.go:310` + `:317`) — BR-14, latent `body[logStart:0]`.
+- `TestSectionByteBounds_MatchesSectionBody:228` still `TrimSuffix`es both sides — BR-8.
+- Stale `close.go:563` references at issue `:37` **and** `:143`; the guard is at `close.go:596`.
+
+## 5. Test coverage notes
+
+`go test ./cmd/sdlc/...` at HEAD: one failure, `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (`fleet_plan_test.go:14`) — it opens `workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md`, archived to `history/` at `dfeba9c`. Pre-existing, unrelated to this window, and worth its own issue: a test that reads a mutable workshop path is the `mutable-corpus-as-test-oracle` family in a different disguise. Everything else passes. The gap this diff could ship is covered on the read side (revert-verified) and uncovered on the write side (I1).
+
+## 6. Architectural notes
+
+- **ARCH-DRY — flag.** `close.go:571-589` is the third copy of "split, `FenceSpans`, act on the not-inside lines"; `StripFenced` and `FindLineOutsideFences` are the first two, and the test is the fourth. One helper (I1).
+- **ARCH-PURE — flag.** The tick's decision logic sits inside `computeClose`, which `die()`s and does file IO, so it is unreachable from a test — which is *why* the test re-implemented it. Extracting it to `internal/issue` fixes the testability and the duplication in one move.
+- **ARCH-PURPOSE — flag.** The shadow-sweep passes on the plan-item axis (all five readers plus the writer derive from one extraction point; `grep` for `PlanItemRE|PlanUncheckedRE|milestonePlanRE|milestoneLabelRE|nonEmptyPlanItemRE` finds no sixth consumer). It fails on the within-section axis (I2) and on the doc axis (I3): both fixed the named instances and left enumerable siblings standing.
+- **ARCH-MOCK — pass.** No new external dependency. The AST guard reads the repo's own source via `parser.ParseDir` — an fs dependency inside a test, but of the same shape already accepted at `TestVerbsWireTheirCommitHelpers`, and production and test flow share the boundary.
+- **ARCH-CONSTRAINTS — pass.** Issue files are KB-scale; the tick and `FindLineOutsideFences` are single-pass O(lines). The new AST guard adds 0.02s.
+- **ARCH-SECURE — pass with one carry-over.** `FindLineOutsideFences` handles empty input and a missing match by returning `found=false`; the tick degrades to a warning when no Plan section exists. The one unchecked failure path is BR-14's discarded `ok`.
+
+## 7. Plan revision recommendations
+
+The issue file is the plan of record and has no `Core concepts` table, so that cross-check is N/A. The M2 Plan rows now match the code (`SplitFences` declined-and-recorded, `planGateContent` correctly named) — verified at `structural.go:244-256` and `changecode.go:721-746`. Two things the record still owes:
+
+1. Delete `workshop/issues/000211-…:406` ("The milestone-tick WRITER keeps the unfiltered body, deliberately — it rewrites a line it already matched"). It is the superseded text, still asserted in the present tense, with the correction layered two entries below it — the exact pattern BR-13's rule forbids.
+2. Record the `sdlc issue validate --all` re-run after the M2 `stripCodeFences` → `StripFenced` rebase (BR-9). The `## Done when` at `:185-190` commits to running it "before and after" and listing any changed verdict; the M1 entry records it, no M2 entry does. Bring the third revert claim at `:417` ("Revert-verified on the live instance") to the standard BR-16 set while you're there — it still names no command and no test.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      maxIndentAny is gone from the tree; fence_test.go:25-26 pins the 3-vs-4-space axis and TestSplitFences pins the character-oriented contract the rewritten Plan row now claims.
+  - id: BR-7
+    disposition: not-addressed
+    note: |
+      The last-match doc and every named symbol are fixed; atlas:181's unqualified "Everything that finds a heading is fence-aware" survives while issue.go:530 and project/guards.go:48 are not.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      fence_test.go:228 still TrimSuffixes both sides and the corpus walk still does not cover SectionByteBounds/SectionHeadingByteOffset.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      No post-M2 validate record; grep for "validate --all" in the issue returns only the Done-when and the two M1 entries.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Revert-verified by me — reverting close.go:596 alone reds TestPlanItemReadersUsePlanItemsBody with exactly 1 named failure; all five reds five. Residual stale comments at close_test.go:236/252 claiming production routing are folded into I1.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      close.go dayRE and logHasEntryToday swept and revert-verified; project/guards.go:17, project/retro.go:8 untouched, plus an unnamed member at structural.go:180 (checkDoneWhen bulletRE). 0 occurrences across 410 corpus files - latent.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      The code fix is correct and complete; the test pinning it is a verbatim copy of the production loop, so reverting close.go:572-589 to whole-body ReplaceAll leaves it and the suite green. See the new finding for the class.
+  - id: BR-13
+    disposition: not-addressed
+    note: |
+      Revisions cross-reference and the SplitFences plan row corrected, but issue :406 still asserts "it rewrites a line it already matched" - the superseded text this rule says to delete, with the correction layered beneath it.
+  - id: BR-14
+    disposition: not-addressed
+    note: |
+      close.go:310 and :317 still call the finder twice with `_` for the second ok.
+  - id: BR-15
+    disposition: not-addressed
+    note: |
+      Atlas inventory now lists PlanItemsBody; the stale close.go:563 reference survives at issue :37 and also at :143, now pointing 33 lines off.
+  - id: BR-16
+    disposition: addressed
+    note: |
+      Both rewritten claims check out - I reproduced the 1-failure BR-10 revert and the two-assertion BR-11 revert exactly as the Log states them. The third claim at :417 still names no command (folded into the plan-revision list).
+  - id: BR-17
+    disposition: not-addressed
+    note: |
+      All four named symbol members swept and FindLineOutsideFences now returns line bounds; the "one check per everything/all X claim" half of its own stated enumeration was not run - atlas:181 is the residue.
+findings:
+  - id: new
+    severity: Important
+    family: claimed-fix-unpinned-by-test
+    title: |
+      The milestone-tick fix is pinned by a verbatim copy of itself, because the logic lives inside the IO shell
+    detail: |
+      planfence_test.go:276-290 reproduces close.go:571-589 line for line, so it asserts
+      the author's algorithm rather than the shipped code. Measured - restoring
+      close.go:572-589 to `n := len(pat.FindAllStringIndex(newBody, -1))` plus
+      `newBody = pat.ReplaceAllString(newBody, "${1}[x]${2}")` leaves
+      TestMilestoneTick_OnlyTicksTheRealPlan PASS and the package green (the six
+      remaining failures reproduce identically on an unmodified scratch copy - no .git).
+      This is the 3rd finding in family claimed-fix-unpinned-by-test. Do NOT fix this
+      test alone. RULE - a test may not contain a copy of the production algorithm; it
+      calls the production symbol, or where the entry point is not in-process drivable a
+      source-level guard pins the wiring. Enumeration in this file - :276 re-implements
+      the tick, :381 and :385 re-implement close's unchecked guard and milestone scan,
+      :46 and :64 call PlanSectionBody which no production reader calls, and
+      close_test.go:154 already admits it "mirrors the regex in runClose's milestone
+      path". grep for computeClose( across *_test.go returns nothing. The structural fix
+      is one move - extract ReplaceLinesOutsideFences into internal/issue beside
+      StripFenced and FindLineOutsideFences (ARCH-DRY - it is the third copy of that
+      shape; ARCH-PURE - the decision logic does not belong in computeClose), route
+      close.go and the test through it, and add computeClose to a writer sibling of
+      planItemReaders so reverting the routing reds the guard.
+  - id: new
+    severity: Minor
+    family: consumer-enumeration-incomplete
+    title: |
+      planItemReaders is a hand-maintained restatement of the model; the inverse guard would derive it
+    detail: |
+      commitpathspec_guard_test.go:291-297 lists five readers by hand, so a sixth counter
+      added tomorrow against PlanSectionBody is invisible to it. This is the 5th finding
+      in family consumer-enumeration-incomplete - do not add rows. RULE - where a
+      single-source change has an enumerable consumer set, assert the property that
+      maintains itself - PlanSectionBody must have exactly one production caller
+      (PlanItemsBody). The enumeration is complete today, verified by grep over
+      PlanItemRE, PlanUncheckedRE, milestonePlanRE, milestoneLabelRE and
+      nonEmptyPlanItemRE; the guard is about drift. Separately the guard tests for the
+      presence of a PlanItemsBody call, not the absence of PlanSectionBody, so a function
+      calling both passes.
+  - id: new
+    severity: Minor
+    family: doc-drifts-from-code
+    title: |
+      The milestone-tick warning names a cause the new no-Plan-section branch does not have
+    detail: |
+      close.go:594 prints "no '- [ ] Mx' in X.md (project-tracked issue?)". Since the
+      scoping change, n also stays 0 when SectionByteBounds finds no Plan section at all,
+      where the project-tracked hint misdirects. Folds into the BR-17 sweep rather than
+      needing its own pass.
+```

@@ -131,3 +131,11 @@ func SectionHeadingByteOffset(body, heading string, policy UnterminatedPolicy) (
 	}
 	return 0, true
 }
+
+// HasSection reports whether body has a `## <heading>` outside any fence. Lets a
+// caller tell "no such section" from "section present but nothing matched"
+// instead of inferring a cause from a zero count (#211 M2 review).
+func HasSection(body, heading string) bool {
+	_, ok := SectionBody(body, heading)
+	return ok
+}

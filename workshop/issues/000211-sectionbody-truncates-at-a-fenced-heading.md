@@ -305,7 +305,33 @@ refs". Tagged so the structure and the `## Estimate` agree.
 
 ## Log
 
+### 2026-09-02 — M2 close (FIX-THEN-SHIP, three advisories fixed pre-commit)
+
+The first advisory was the same shape a **third** time, and this round the fix
+was structural rather than another test:
+
+- **The tick test reproduced `close.go`'s loop line for line**, so it asserted a
+  copy of the logic instead of the logic — reverting the real code would have
+  left it green. The cause was placement: the loop lived inside the IO shell,
+  where a test could only restate it (`ARCH-PURE`). Extracted as
+  `issue.TickMilestone` (pure); the test now drives it, and reverting either
+  filter reds it — `go test ./cmd/sdlc -run TestMilestoneTick` → two failures
+  naming the quoted row and the row outside `## Plan`.
+- **`planItemReaders` was a hand-maintained list** — the #208 restatement
+  problem. Now DERIVED: any function referencing a counting regex
+  (`PlanUncheckedRE`, `PlanItemRE`, `nonEmptyPlanItemRE`, `milestonePlanRE`,
+  `milestoneLabelRE`) *is* a plan-item reader and must call `PlanItemsBody`. The
+  exemption map is empty and the guard refuses a stale entry — proven by the one
+  I tried to add for `TickMilestone`, which it rejected because that function
+  builds its pattern inline and is never classed as a reader.
+- **The tick warning guessed a cause** it no longer had: `n == 0` now also means
+  "no `## Plan` section". `HasSection` distinguishes them.
+
+Revert-verified: routing `checkPlan` back to `PlanSectionBody` →
+`structural.go:checkPlan uses nonEmptyPlanItemRE but never calls PlanItemsBody`.
+
 ### 2026-09-02 — M2 review round 5: a false evidence claim of mine
+- 2026-09-02: closed M2 — M2 complete; every finding from rounds 1-5 closed. `go test ./cmd/... ./pkg/...` -> green except the pre-existing unrelated fleet_plan test (#210). Evidence stated as command -> observed result, per BR-16 rule: (1) BR-11 — reverted setstatus.go StripFenced and close.go dayRE to fence-blind scans, `go test ./cmd/sdlc/ -run TestWithinSectionMatchers` -> --- FAIL on both assertions. (2) BR-10/BR-16 — the ROUTING, which my earlier claim did not verify: reverting all four call sites (close.go x2, sizing.go, structural.go) to PlanSectionBody, `go test ./cmd/sdlc/...` -> green except fleet_plan, i.e. unpinned. Fixed at the source since computeClose dies past the test seam: routing close.go back with TestPlanItemReadersUsePlanItemsBody -> 1 failure naming file, function and reason. (3) BR-12 — TestMilestoneTick_OnlyTicksTheRealPlan covers a quoted row, a real row, and a row outside ## Plan. (4) BR-3/BR-6 — reverting the bounded section and the fence-aware estimate scan -> --- FAIL on their named tests, each after an explicit build check because two earlier probes silently failed to compile and read as green. BR-17 doc drift swept across all four members (FindLineOutsideFences now returns the documented LINE range, which is the safe contract for a splice API; logHeaderRE and stripEstimateForHash were dead symbol names; section.go carried a rationale close.go had proven false). BR-5 dead parameter removed; BR-13 stale plan/Done-when claims corrected. SplitFences deliberately not rebased — TestSplitFences pins the character-oriented contract making it a different abstraction; recorded at the function, in the atlas, and in the Log. Two lessons.md rules added. Round 4 verdict unknown was an OAuth expiry in the reviewer subprocess, not code state.; review verdict: FIX-THEN-SHIP
 
 Round 4 returned `verdict: unknown` — the reviewer subprocess failed OAuth
 ("session expired and could not be refreshed"), not a gate or code fault. The

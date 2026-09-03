@@ -312,6 +312,112 @@ rounds:
           round: 6
       boundary: M2
       blocked: false
+    - "n": 7
+      timestamp: "2026-09-02T23:14:02-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: maxIndentAny is gone from the tree; fence_test.go:25-26 pins the 3-vs-4-space axis and TestSplitFences pins the character-oriented contract the rewritten Plan row now claims.
+          round: 7
+        - id: BR-7
+          disposition: not-addressed
+          note: The last-match doc and every named symbol are fixed; atlas:181's unqualified "Everything that finds a heading is fence-aware" survives while issue.go:530 and project/guards.go:48 are not.
+          round: 7
+        - id: BR-8
+          disposition: not-addressed
+          note: fence_test.go:228 still TrimSuffixes both sides and the corpus walk still does not cover SectionByteBounds/SectionHeadingByteOffset.
+          round: 7
+        - id: BR-9
+          disposition: not-addressed
+          note: No post-M2 validate record; grep for "validate --all" in the issue returns only the Done-when and the two M1 entries.
+          round: 7
+        - id: BR-10
+          disposition: addressed
+          note: Revert-verified by me — reverting close.go:596 alone reds TestPlanItemReadersUsePlanItemsBody with exactly 1 named failure; all five reds five. Residual stale comments at close_test.go:236/252 claiming production routing are folded into I1.
+          round: 7
+        - id: BR-11
+          disposition: not-addressed
+          note: close.go dayRE and logHasEntryToday swept and revert-verified; project/guards.go:17, project/retro.go:8 untouched, plus an unnamed member at structural.go:180 (checkDoneWhen bulletRE). 0 occurrences across 410 corpus files - latent.
+          round: 7
+        - id: BR-12
+          disposition: not-addressed
+          note: The code fix is correct and complete; the test pinning it is a verbatim copy of the production loop, so reverting close.go:572-589 to whole-body ReplaceAll leaves it and the suite green. See the new finding for the class.
+          round: 7
+        - id: BR-13
+          disposition: not-addressed
+          note: Revisions cross-reference and the SplitFences plan row corrected, but issue :406 still asserts "it rewrites a line it already matched" - the superseded text this rule says to delete, with the correction layered beneath it.
+          round: 7
+        - id: BR-14
+          disposition: not-addressed
+          note: close.go:310 and :317 still call the finder twice with `_` for the second ok.
+          round: 7
+        - id: BR-15
+          disposition: not-addressed
+          note: Atlas inventory now lists PlanItemsBody; the stale close.go:563 reference survives at issue :37 and also at :143, now pointing 33 lines off.
+          round: 7
+        - id: BR-16
+          disposition: addressed
+          note: Both rewritten claims check out - I reproduced the 1-failure BR-10 revert and the two-assertion BR-11 revert exactly as the Log states them. The third claim at :417 still names no command (folded into the plan-revision list).
+          round: 7
+        - id: BR-17
+          disposition: not-addressed
+          note: All four named symbol members swept and FindLineOutsideFences now returns line bounds; the "one check per everything/all X claim" half of its own stated enumeration was not run - atlas:181 is the residue.
+          round: 7
+      findings:
+        - id: BR-18
+          severity: Important
+          title: The milestone-tick fix is pinned by a verbatim copy of itself, because the logic lives inside the IO shell
+          detail: |-
+            planfence_test.go:276-290 reproduces close.go:571-589 line for line, so it asserts
+            the author's algorithm rather than the shipped code. Measured - restoring
+            close.go:572-589 to `n := len(pat.FindAllStringIndex(newBody, -1))` plus
+            `newBody = pat.ReplaceAllString(newBody, "${1}[x]${2}")` leaves
+            TestMilestoneTick_OnlyTicksTheRealPlan PASS and the package green (the six
+            remaining failures reproduce identically on an unmodified scratch copy - no .git).
+            This is the 3rd finding in family claimed-fix-unpinned-by-test. Do NOT fix this
+            test alone. RULE - a test may not contain a copy of the production algorithm; it
+            calls the production symbol, or where the entry point is not in-process drivable a
+            source-level guard pins the wiring. Enumeration in this file - :276 re-implements
+            the tick, :381 and :385 re-implement close's unchecked guard and milestone scan,
+            :46 and :64 call PlanSectionBody which no production reader calls, and
+            close_test.go:154 already admits it "mirrors the regex in runClose's milestone
+            path". grep for computeClose( across *_test.go returns nothing. The structural fix
+            is one move - extract ReplaceLinesOutsideFences into internal/issue beside
+            StripFenced and FindLineOutsideFences (ARCH-DRY - it is the third copy of that
+            shape; ARCH-PURE - the decision logic does not belong in computeClose), route
+            close.go and the test through it, and add computeClose to a writer sibling of
+            planItemReaders so reverting the routing reds the guard.
+          family: claimed-fix-unpinned-by-test
+          round: 7
+        - id: BR-19
+          severity: Minor
+          title: planItemReaders is a hand-maintained restatement of the model; the inverse guard would derive it
+          detail: |-
+            commitpathspec_guard_test.go:291-297 lists five readers by hand, so a sixth counter
+            added tomorrow against PlanSectionBody is invisible to it. This is the 5th finding
+            in family consumer-enumeration-incomplete - do not add rows. RULE - where a
+            single-source change has an enumerable consumer set, assert the property that
+            maintains itself - PlanSectionBody must have exactly one production caller
+            (PlanItemsBody). The enumeration is complete today, verified by grep over
+            PlanItemRE, PlanUncheckedRE, milestonePlanRE, milestoneLabelRE and
+            nonEmptyPlanItemRE; the guard is about drift. Separately the guard tests for the
+            presence of a PlanItemsBody call, not the absence of PlanSectionBody, so a function
+            calling both passes.
+          family: consumer-enumeration-incomplete
+          round: 7
+        - id: BR-20
+          severity: Minor
+          title: The milestone-tick warning names a cause the new no-Plan-section branch does not have
+          detail: |-
+            close.go:594 prints "no '- [ ] Mx' in X.md (project-tracked issue?)". Since the
+            scoping change, n also stays 0 when SectionByteBounds finds no Plan section at all,
+            where the project-tracked hint misdirects. Folds into the BR-17 sweep rather than
+            needing its own pass.
+          family: doc-drifts-from-code
+          round: 7
+      boundary: M2
+      blocked: false
 ---
 
 # Gate ledger — ariadne#211 (boundary-review)
@@ -487,17 +593,73 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   regex from a future caller inserts mid-line into an issue file. Either
   return the line bounds or say "match range" and rename the returns.
 
+## Round 7 — 2026-09-02T23:14:02-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — maxIndentAny is gone from the tree; fence_test.go:25-26 pins the 3-vs-4-space axis and TestSplitFences pins the character-oriented contract the rewritten Plan row now claims.
+- BR-7 — not-addressed — The last-match doc and every named symbol are fixed; atlas:181's unqualified "Everything that finds a heading is fence-aware" survives while issue.go:530 and project/guards.go:48 are not.
+- BR-8 — not-addressed — fence_test.go:228 still TrimSuffixes both sides and the corpus walk still does not cover SectionByteBounds/SectionHeadingByteOffset.
+- BR-9 — not-addressed — No post-M2 validate record; grep for "validate --all" in the issue returns only the Done-when and the two M1 entries.
+- BR-10 — addressed — Revert-verified by me — reverting close.go:596 alone reds TestPlanItemReadersUsePlanItemsBody with exactly 1 named failure; all five reds five. Residual stale comments at close_test.go:236/252 claiming production routing are folded into I1.
+- BR-11 — not-addressed — close.go dayRE and logHasEntryToday swept and revert-verified; project/guards.go:17, project/retro.go:8 untouched, plus an unnamed member at structural.go:180 (checkDoneWhen bulletRE). 0 occurrences across 410 corpus files - latent.
+- BR-12 — not-addressed — The code fix is correct and complete; the test pinning it is a verbatim copy of the production loop, so reverting close.go:572-589 to whole-body ReplaceAll leaves it and the suite green. See the new finding for the class.
+- BR-13 — not-addressed — Revisions cross-reference and the SplitFences plan row corrected, but issue :406 still asserts "it rewrites a line it already matched" - the superseded text this rule says to delete, with the correction layered beneath it.
+- BR-14 — not-addressed — close.go:310 and :317 still call the finder twice with `_` for the second ok.
+- BR-15 — not-addressed — Atlas inventory now lists PlanItemsBody; the stale close.go:563 reference survives at issue :37 and also at :143, now pointing 33 lines off.
+- BR-16 — addressed — Both rewritten claims check out - I reproduced the 1-failure BR-10 revert and the two-assertion BR-11 revert exactly as the Log states them. The third claim at :417 still names no command (folded into the plan-revision list).
+- BR-17 — not-addressed — All four named symbol members swept and FindLineOutsideFences now returns line bounds; the "one check per everything/all X claim" half of its own stated enumeration was not run - atlas:181 is the residue.
+
+### Raised
+
+- **BR-18** [Important] `claimed-fix-unpinned-by-test` The milestone-tick fix is pinned by a verbatim copy of itself, because the logic lives inside the IO shell
+  planfence_test.go:276-290 reproduces close.go:571-589 line for line, so it asserts
+  the author's algorithm rather than the shipped code. Measured - restoring
+  close.go:572-589 to `n := len(pat.FindAllStringIndex(newBody, -1))` plus
+  `newBody = pat.ReplaceAllString(newBody, "${1}[x]${2}")` leaves
+  TestMilestoneTick_OnlyTicksTheRealPlan PASS and the package green (the six
+  remaining failures reproduce identically on an unmodified scratch copy - no .git).
+  This is the 3rd finding in family claimed-fix-unpinned-by-test. Do NOT fix this
+  test alone. RULE - a test may not contain a copy of the production algorithm; it
+  calls the production symbol, or where the entry point is not in-process drivable a
+  source-level guard pins the wiring. Enumeration in this file - :276 re-implements
+  the tick, :381 and :385 re-implement close's unchecked guard and milestone scan,
+  :46 and :64 call PlanSectionBody which no production reader calls, and
+  close_test.go:154 already admits it "mirrors the regex in runClose's milestone
+  path". grep for computeClose( across *_test.go returns nothing. The structural fix
+  is one move - extract ReplaceLinesOutsideFences into internal/issue beside
+  StripFenced and FindLineOutsideFences (ARCH-DRY - it is the third copy of that
+  shape; ARCH-PURE - the decision logic does not belong in computeClose), route
+  close.go and the test through it, and add computeClose to a writer sibling of
+  planItemReaders so reverting the routing reds the guard.
+- **BR-19** [Minor] `consumer-enumeration-incomplete` planItemReaders is a hand-maintained restatement of the model; the inverse guard would derive it
+  commitpathspec_guard_test.go:291-297 lists five readers by hand, so a sixth counter
+  added tomorrow against PlanSectionBody is invisible to it. This is the 5th finding
+  in family consumer-enumeration-incomplete - do not add rows. RULE - where a
+  single-source change has an enumerable consumer set, assert the property that
+  maintains itself - PlanSectionBody must have exactly one production caller
+  (PlanItemsBody). The enumeration is complete today, verified by grep over
+  PlanItemRE, PlanUncheckedRE, milestonePlanRE, milestoneLabelRE and
+  nonEmptyPlanItemRE; the guard is about drift. Separately the guard tests for the
+  presence of a PlanItemsBody call, not the absence of PlanSectionBody, so a function
+  calling both passes.
+- **BR-20** [Minor] `doc-drifts-from-code` The milestone-tick warning names a cause the new no-Plan-section branch does not have
+  close.go:594 prints "no '- [ ] Mx' in X.md (project-tracked issue?)". Since the
+  scoping change, n also stays 0 when SectionByteBounds finds no Plan section at all,
+  where the project-tracked hint misdirects. Folds into the BR-17 sweep rather than
+  needing its own pass.
+
 ## Open findings
 
-- **BR-5** [Important] `unwired-policy-parameter` The indent-policy parameter has zero call sites and its comment names a caller (SplitFences) that never invokes it; the plan row promising a test pinning the choice is unpinned
 - **BR-7** [Important] `doc-drifts-from-code` insertLogLine's doc block still specifies the last-match anchor that was just deleted, and three docs name a symbol that does not exist
 - **BR-8** [Minor] `test-asserts-weaker-than-contract` TestSectionByteBounds_MatchesSectionBody trims trailing newlines from both sides, so it does not pin the byte-identity section.go:87 claims
 - **BR-9** [Minor] `unrecorded-gate-measurement` The M2 Log does not record re-running `sdlc issue validate --all` after the stripCodeFences rebase, a Done-when item
-- **BR-10** [Important] `claimed-fix-unpinned-by-test` BR-4's consumer routing is pinned by no test — reverting all four call sites leaves the suite green
 - **BR-11** [Important] `consumer-enumeration-incomplete` Bounding a search to a fence-aware section does not make the search fence-aware — four within-section matchers remain unfiltered
 - **BR-12** [Important] `consumer-enumeration-incomplete` The milestone tick rewrites every matching row in the whole body, and its "rewrites a line it already matched" rationale is false
 - **BR-13** [Important] `doc-drifts-from-code` Done-when cites a `## Revisions` section that does not exist, and a ticked plan row still claims SplitFences was rebuilt
 - **BR-14** [Minor] `redundant-recompute-drops-error` insertLogLine computes the Log section twice and discards the second ok, leaving a latent slice panic
 - **BR-15** [Minor] `doc-drifts-from-code` Stale line reference and a missing entry in the atlas's fence-aware inventory
-- **BR-16** [Important] `unrecorded-gate-measurement` The M2 Log records a revert-verification for BR-10 that I measured to be false
 - **BR-17** [Important] `doc-drifts-from-code` FindLineOutsideFences documents a line range and returns a match range, on a splice-offset API
+- **BR-18** [Important] `claimed-fix-unpinned-by-test` The milestone-tick fix is pinned by a verbatim copy of itself, because the logic lives inside the IO shell
+- **BR-19** [Minor] `consumer-enumeration-incomplete` planItemReaders is a hand-maintained restatement of the model; the inverse guard would derive it
+- **BR-20** [Minor] `doc-drifts-from-code` The milestone-tick warning names a cause the new no-Plan-section branch does not have

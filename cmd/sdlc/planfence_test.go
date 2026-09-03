@@ -1,7 +1,6 @@
 package main
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 
@@ -253,6 +252,12 @@ Real prose that must survive.
 // TestMilestoneTick_OnlyTicksTheRealPlan is BR-12: the write side of the class.
 // The tick used to ReplaceAll over the WHOLE issue body, so a `- [ ] Mx` inside
 // a quoted example — anywhere, including outside the Plan — was ticked too.
+//
+// Drives issue.TickMilestone, the production function. An earlier version of
+// this test reproduced close.go's inline loop line for line, which asserted a
+// COPY of the logic rather than the logic (M2 review): reverting the real code
+// would have left it green. Extracting the function was the fix; this is what
+// the extraction bought.
 func TestMilestoneTick_OnlyTicksTheRealPlan(t *testing.T) {
 	body := `# t
 
@@ -273,22 +278,7 @@ The plan format looks like:
 
 - [ ] M1 — not a plan row at all
 `
-	pat := regexp.MustCompile(`(?m)^(- )\[[ .]\]( M1\b)`)
-	start, end, ok := issue.SectionByteBounds(body, "Plan", issue.UnterminatedIsProse)
-	if !ok {
-		t.Fatal("Plan section not found")
-	}
-	lines := strings.Split(body[start:end], "\n")
-	inside := issue.FenceSpans(lines, issue.UnterminatedIsProse)
-	n := 0
-	for i, line := range lines {
-		if !inside[i] && pat.MatchString(line) {
-			lines[i] = pat.ReplaceAllString(line, "${1}[x]${2}")
-			n++
-		}
-	}
-	got := body[:start] + strings.Join(lines, "\n") + body[end:]
-
+	got, n := issue.TickMilestone(body, "M1")
 	if n != 1 {
 		t.Errorf("ticked %d row(s), want exactly 1 (the real Plan row)", n)
 	}
@@ -300,6 +290,15 @@ The plan format looks like:
 	}
 	if !strings.Contains(got, "- [ ] M1 — not a plan row at all") {
 		t.Errorf("a row outside ## Plan was ticked:\n%s", got)
+	}
+
+	// n == 0 must not be read as a cause: no Plan section and no matching row
+	// are different situations, which is why close.go asks HasSection.
+	if _, n := issue.TickMilestone("# t\n\n## Log\n\n- [ ] M1 x\n", "M1"); n != 0 {
+		t.Errorf("ticked %d row(s) with no ## Plan section, want 0", n)
+	}
+	if issue.HasSection("# t\n\n## Log\n\nx\n", "Plan") {
+		t.Error("HasSection reported a ## Plan that does not exist")
 	}
 }
 

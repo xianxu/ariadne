@@ -282,23 +282,28 @@ func TestVerbsWireTheirCommitHelpers(t *testing.T) {
 	}
 }
 
-// planItemReader is one call site that COUNTS plan items and must therefore read
-// the fence-filtered body.
-type planItemReader struct{ file, fn, why string }
-
-// planItemReaders are the counting call sites. The helper they must call is
-// PlanItemsBody; PlanSectionBody returns the raw section, which since #211 M1
-// includes fenced examples — so a quoted `- [ ]` reads as open work.
+// planItemMatchers are the regexes that COUNT plan items. Any function using one
+// is by definition a plan-item reader and must take its body from
+// PlanItemsBody — the filtered section — or it silently disagrees with the
+// others about the same Plan (#211 BR-4).
 //
-// The invariant is AGREEMENT: #211's BR-4 was not "one site is wrong" but
-// "`sdlc state` and `sdlc close` report different things about the same Plan".
-var planItemReaders = []planItemReader{
-	{"close.go", "computeClose", "the plan-unchecked guard at issue close"},
-	{"close.go", "findMilestonesMissingVerdict", "the milestone review-evidence scan"},
-	{"sizing.go", "ComputeSizingFromContent", "`sdlc state`'s item/milestone counts"},
-	{"structural.go", "checkPlan", "the plan-present structural gate"},
-	{"plan.go", "CountPlanItems", "the shared counter behind `sdlc state`"},
+// Deriving the reader set from these, rather than listing readers by hand, is
+// the #208 rule: a hand-maintained restatement of the model stops covering the
+// sixth member the day someone adds it, and says nothing while it does.
+var planItemMatchers = []string{
+	"PlanUncheckedRE", "PlanItemRE", "nonEmptyPlanItemRE", "milestonePlanRE", "milestoneLabelRE",
 }
+
+// planItemReaderExemptions holds a function that uses one of the counting
+// regexes above but must NOT read the filtered body, with its reason.
+// Membership is the acknowledgment; the guard also refuses a STALE entry.
+//
+// Currently empty, and that is the derivation working. The obvious candidate —
+// TickMilestone, a writer that needs offsets into the real body — builds its
+// pattern inline rather than referencing a named matcher, so it is never
+// classed as a reader and needs no exemption. An entry added for it was
+// rejected by the stale check on exactly that ground.
+var planItemReaderExemptions = map[string]string{}
 
 // TestPlanItemReadersUsePlanItemsBody pins the ROUTING, which no behavioral test
 // in this tree can reach.
@@ -316,7 +321,7 @@ var planItemReaders = []planItemReader{
 // test seam) a source-level guard must assert the wiring.
 func TestPlanItemReadersUsePlanItemsBody(t *testing.T) {
 	fset := token.NewFileSet()
-	seen := map[string]bool{}
+	seen, counters := map[string]bool{}, map[string]string{}
 	for _, dir := range []string{".", "internal/issue"} {
 		pkgs, err := parser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
 			return !strings.HasSuffix(fi.Name(), "_test.go")
@@ -334,6 +339,15 @@ func TestPlanItemReadersUsePlanItemsBody(t *testing.T) {
 					}
 					key := base + ":" + fn.Name.Name
 					ast.Inspect(fn, func(n ast.Node) bool {
+						// A function referencing a counting regex IS a plan-item
+						// reader — derived, not listed.
+						if id, ok := n.(*ast.Ident); ok {
+							for _, m := range planItemMatchers {
+								if id.Name == m {
+									counters[key] = m
+								}
+							}
+						}
 						call, ok := n.(*ast.CallExpr)
 						if !ok {
 							return true
@@ -354,14 +368,28 @@ func TestPlanItemReadersUsePlanItemsBody(t *testing.T) {
 			}
 		}
 	}
-	for _, r := range planItemReaders {
-		if !seen[r.file+":"+r.fn] {
-			t.Errorf("%s:%s no longer calls PlanItemsBody — %s.\n"+
-				"  PlanSectionBody returns the RAW section, so a `- [ ]` inside a quoted\n"+
-				"  example counts as open work and this reader silently disagrees with the\n"+
-				"  others about the same Plan (#211 BR-4). If this site legitimately needs\n"+
-				"  the unfiltered body, drop it from planItemReaders with the reason.",
-				r.file, r.fn, r.why)
+	if len(counters) == 0 {
+		t.Fatal("no function references any plan-item counting regex — planItemMatchers is stale, " +
+			"so this guard covers nothing")
+	}
+	for key, matcher := range counters {
+		if seen[key] {
+			continue
+		}
+		if why, ok := planItemReaderExemptions[key]; ok {
+			t.Logf("%s: exempt — %s", key, why)
+			continue
+		}
+		t.Errorf("%s uses %s but never calls PlanItemsBody.\n"+
+			"  PlanSectionBody returns the RAW section, so a `- [ ]` inside a quoted\n"+
+			"  example counts as open work and this reader silently disagrees with the\n"+
+			"  others about the same Plan (#211 BR-4). If this site legitimately needs\n"+
+			"  the unfiltered body, add it to planItemReaderExemptions with the reason.",
+			key, matcher)
+	}
+	for key, why := range planItemReaderExemptions {
+		if _, ok := counters[key]; !ok {
+			t.Errorf("stale exemption %s (%s) — it no longer uses a counting regex; drop it", key, why)
 		}
 	}
 }
