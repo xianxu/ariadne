@@ -305,6 +305,27 @@ refs". Tagged so the structure and the `## Estimate` agree.
 
 ## Log
 
+### 2026-09-02 — M2 review (5 findings, all fixed pre-commit)
+
+- **BR-3 (Critical)** — the `insertLogLine` fix was half a fix. Anchoring the
+  `## Log` *heading* fence-aware still left the `### <date>` search running to
+  EOF, so a quoted day header in a LATER section captured the insert: the same
+  class one level down. Bounded to the section via `SectionByteBounds`.
+  My first regression test for it passed against the broken code — the quoted
+  header sat after the real one, so first-match found the right thing anyway.
+  Rewritten so the real section has no matching day header, which is the only
+  shape where the unbounded scan actually bites; now red on revert.
+- **BR-4** — the fenced-item filter reached `CountPlanItems` and nothing else, so
+  `sdlc state` and `sdlc close` disagreed about the same Plan. Filtering
+  per-consumer was the error; there is now one `PlanItemsBody` extraction point
+  that every counting reader uses. The milestone-tick WRITER keeps the unfiltered
+  body, deliberately — it rewrites a line it already matched.
+- **BR-5** — the indent parameter had zero callers after the `SplitFences`
+  revert, plus a comment naming a caller that never invoked it. Removed.
+- **BR-6/BR-7** — coverage and stale docs: `insertLogLine`'s doc block still
+  specified the last-match anchor it no longer uses, and `SplitFences`' comment
+  described the parameter above. Both rewritten to what the code does.
+
 ### 2026-09-02 — M2
 
 Swept the heading-finding class the M1 review enumerated. `logHasEntryToday` and
@@ -331,10 +352,12 @@ rewrites across repos for no benefit to this class. Reverted, with the reasoning
 recorded at the function and in the atlas, and the Done-when narrowed from "one
 scanner" to "one line-oriented scanner plus a recorded exception".
 
-An indent-policy parameter had been added to make that rebase behavior-preserving
-(`SplitFences` is indent-blind where CommonMark allows ≤3 spaces). It stays — it
-is what makes the axis explicit rather than accidental — but its only current use
-is documenting that the two differ.
+An indent-policy parameter had been added to make that rebase
+behavior-preserving (`SplitFences` is indent-blind where CommonMark allows ≤3
+spaces). With the rebase declined it had zero callers and a doc naming one that
+never invoked it, so it is **removed** — the M2 review was right that a parameter
+kept "to make the axis explicit" is just dead code with a false comment. The axis
+is documented in prose where the two implementations are compared.
 
 The plan-item counters now filter through `StripFenced`, so a `- [ ]` in a quoted
 example is not counted as open work.

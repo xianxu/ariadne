@@ -60,6 +60,26 @@ func SectionLineBounds(lines []string, heading string, policy UnterminatedPolicy
 // byte offsets the old comment here claimed checkPlan required.
 func PlanSectionBody(body string) (string, bool) { return SectionBody(body, "Plan") }
 
+// PlanItemsBody is the Plan section with fenced blocks removed — the body every
+// consumer that COUNTS plan items must read.
+//
+// Since #211 M1 fenced content survives into the Plan body, so a `- [ ]` or
+// `- [x] Mx` inside a quoted example is now visible to the item regexes. Filtering
+// per-consumer is how `sdlc state` and `sdlc close` ended up disagreeing about
+// the same Plan (M2 review BR-4): the filter reached CountPlanItems and nothing
+// else. One extraction point, one answer.
+//
+// Readers use this; the milestone TICK writer keeps PlanSectionBody, because it
+// needs offsets into the real body and rewrites a specific line it already
+// matched.
+func PlanItemsBody(body string) (string, bool) {
+	section, ok := PlanSectionBody(body)
+	if !ok {
+		return "", false
+	}
+	return StripFenced(section), true
+}
+
 // SectionByteBounds is SectionLineBounds in byte offsets into body — the form a
 // caller needs when it splices rather than reads (close's log insert).
 //

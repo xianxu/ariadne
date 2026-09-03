@@ -23,11 +23,10 @@ var PlanUncheckedRE = regexp.MustCompile(`(?m)^- \[[ .]\] .*$`)
 // CountPlanItems counts total and ticked plan items inside the `## Plan`
 // section of an issue body. Returns (0, 0) if no Plan section exists.
 func CountPlanItems(body string) (total, ticked int) {
-	section, ok := PlanSectionBody(body)
+	section, ok := PlanItemsBody(body)
 	if !ok {
 		return 0, 0
 	}
-	section = StripFenced(section)
 	for _, mm := range PlanItemRE.FindAllStringSubmatch(section, -1) {
 		total++
 		if mm[1] == "x" {

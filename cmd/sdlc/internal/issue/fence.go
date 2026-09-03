@@ -62,24 +62,11 @@ const (
 // input is reached: the first pass records where fences open and close, the
 // second applies the policy to any run left open.
 func FenceSpans(lines []string, policy UnterminatedPolicy) []bool {
-	return fenceSpans(lines, policy, commonMarkMaxIndent)
-}
-
-// commonMarkMaxIndent is CommonMark's rule: a fence may be indented at most
-// three spaces. maxIndentAny disables the check for SplitFences, whose #179
-// contract predates this scanner and treats an indented ``` as a fence — see
-// its doc for why that behavior is preserved rather than corrected here.
-const (
-	commonMarkMaxIndent = 3
-	maxIndentAny        = 1 << 30
-)
-
-func fenceSpans(lines []string, policy UnterminatedPolicy, maxIndent int) []bool {
 	inside := make([]bool, len(lines))
 	var marker byte
 	var width, openedAt int
 	for i, line := range lines {
-		m, w, rest, ok := fenceMarkerIndent(line, maxIndent)
+		m, w, rest, ok := fenceMarker(line)
 		if !ok {
 			if marker != 0 {
 				inside[i] = true
@@ -125,12 +112,9 @@ func ScanMarkdownLines(lines []string, policy UnterminatedPolicy, visit func(int
 // follows it (the info string on an opener), and whether the line is a fence at
 // all. The caller owns opener/closer state.
 func fenceMarker(line string) (byte, int, string, bool) {
-	return fenceMarkerIndent(line, commonMarkMaxIndent)
-}
-
-func fenceMarkerIndent(line string, maxIndent int) (byte, int, string, bool) {
 	trimmed := strings.TrimLeft(line, " ")
-	if len(line)-len(trimmed) > maxIndent || len(trimmed) < 3 {
+	// CommonMark: a fence may be indented at most three spaces.
+	if len(line)-len(trimmed) > 3 || len(trimmed) < 3 {
 		return 0, 0, "", false
 	}
 	marker := trimmed[0]

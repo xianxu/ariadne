@@ -157,7 +157,7 @@ func checkSpecWordCount(body string) *StructuralFailure {
 var nonEmptyPlanItemRE = regexp.MustCompile(`(?m)^- \[[ x.]\]\s+\S`)
 
 func checkPlan(body string) *StructuralFailure {
-	section, ok := PlanSectionBody(body)
+	section, ok := PlanItemsBody(body)
 	if !ok {
 		return &StructuralFailure{
 			Name:    "plan-present",

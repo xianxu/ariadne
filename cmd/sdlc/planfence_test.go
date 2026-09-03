@@ -152,3 +152,99 @@ func TestInsertLogLine_TargetsTheRealLogSection(t *testing.T) {
 		t.Error("line filed into a TRAILING quoted ## Log — last-match's failure mode")
 	}
 }
+
+// TestInsertLogLine_IgnoresAQuotedDayHeaderLater is BR-3 from the M2 review:
+// anchoring the `## Log` HEADING fence-aware was only half the fix. The
+// `### <date>` search still ran from that heading to EOF, so a quoted day header
+// in a LATER section captured the insert — the same class of bug one level down.
+//
+// The real Log section deliberately has NO day header for today, so an unbounded
+// search walks past it and finds the quoted one; a bounded search finds nothing
+// and falls back to the top of the real section, which is correct.
+func TestInsertLogLine_IgnoresAQuotedDayHeaderLater(t *testing.T) {
+	body := `# t
+
+## Log
+
+### 2026-01-01
+- an older entry
+
+## Side quests
+
+An example of the format:
+
+` + "```markdown" + `
+### 2026-09-02
+- a QUOTED entry
+` + "```" + `
+`
+	got := insertLogLine(body, "- 2026-09-02: closed")
+	if strings.Contains(got, "### 2026-09-02\n- 2026-09-02: closed") {
+		t.Errorf("close line filed under the QUOTED day header in a later section:\n%s", got)
+	}
+	// Asserted by ORDER rather than exact whitespace: insertLogLine's fallback
+	// emits an extra blank line after `## Log` by design (documented at the
+	// function), and pinning that here would couple this test to a quirk it is
+	// not about.
+	at := strings.Index(got, "- 2026-09-02: closed")
+	logAt, olderAt := strings.Index(got, "## Log"), strings.Index(got, "### 2026-01-01")
+	if at < 0 || at < logAt || at > olderAt {
+		t.Errorf("close line did not land at the top of the real Log section:\n%s", got)
+	}
+}
+
+// TestPlanGateContent_IgnoresAQuotedEstimateHeading is BR-6: the third swept
+// site had no coverage.
+//
+// planGateContent strips the `## Estimate` section so the plan-quality gate's
+// pass-through hash doesn't change when only the estimate does. Its line scan
+// used to treat a `## ` inside a fence as a real heading, so an issue quoting an
+// estimate block — which #211 and #208 both do — would start or stop stripping
+// at an example and hash a different document than intended, re-dispatching the
+// judge on an unchanged plan (or, worse, passing through a changed one).
+func TestPlanGateContent_IgnoresAQuotedEstimateHeading(t *testing.T) {
+	issueWith := func(estimate string) string {
+		return `---
+id: 000999
+estimate_hours: 1.0
+---
+
+# t
+
+## Spec
+
+Quoting the block this issue adds:
+
+` + "```markdown" + `
+## Estimate
+
+a quoted example
+` + "```" + `
+
+Real prose that must survive.
+
+## Estimate
+
+` + estimate + `
+
+## Plan
+
+- [x] a
+`
+	}
+	got := planGateContent(issueWith("model: v3.1\ntotal: 1.0"))
+
+	if !strings.Contains(got, "Real prose that must survive") {
+		t.Errorf("stripping started at the QUOTED ## Estimate and ate the Spec:\n%s", got)
+	}
+	if strings.Contains(got, "model: v3.1") {
+		t.Errorf("the real ## Estimate section was not stripped:\n%s", got)
+	}
+	if !strings.Contains(got, "- [x] a") {
+		t.Errorf("stripping ran past the real ## Estimate into ## Plan:\n%s", got)
+	}
+	// The whole point: changing only the estimate must not change the hash input.
+	if other := planGateContent(issueWith("model: v3.1\ntotal: 9.9")); other != got {
+		t.Error("plan-gate content changed when only the estimate did — the pass-through hash would re-dispatch")
+	}
+}

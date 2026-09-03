@@ -289,14 +289,15 @@ var logLineDateRE = regexp.MustCompile(`^- (\d{4}-\d{2}-\d{2}):`)
 //
 // If `## Log` is absent, we append a new section at the bottom of body.
 //
-// Anchor: the **last** `## Log` header, not the first. The real Log section is
-// conventionally the final `##` section, and a meta-issue (like #66 itself) can
-// quote `## Log` / `### <date>` inside a fenced code block in an earlier
-// section — first-match would then file the line into that prose. (Found by
-// dogfooding: closing #66 with the first-match version filed the close line
-// into its own Problem-section example.) All offsets below are taken relative
-// to that last header so both the day-header and fallback inserts target the
-// real section.
+// Anchor: the real `## Log` section, located by the fence-aware scanner (#211).
+// Both the heading AND the section's end are resolved that way, and both halves
+// matter: anchoring the heading alone still let the `### <date>` search run to
+// EOF, so a quoted day header in a LATER section would capture the insert.
+//
+// This replaced a last-match heuristic added by #66 — first-match had filed a
+// close line into #66's own fenced Problem-section example. Last-match fixed
+// that case and only that case: it breaks when a quoted `## Log` sits after the
+// real one. Both are the same defect FenceSpans now answers properly.
 func insertLogLine(body, logLine string) string {
 	// #211 M2: located by the fence-aware section scanner. The last-match
 	// heuristic this replaces was added by #66 for exactly one reason — a
@@ -308,7 +309,11 @@ func insertLogLine(body, logLine string) string {
 	if !ok {
 		return strings.TrimRight(body, "\n\r\t ") + "\n\n## Log\n\n" + logLine + "\n"
 	}
-	section := body[logStart:] // the real Log section + anything after it
+	// Bound the search to the real Log section. Taking body[logStart:] would let
+	// the `### <date>` lookup below run past the section's end into a LATER
+	// section's fenced example — the same class of bug one level down.
+	_, logEnd, _ := issue.SectionByteBounds(body, "Log", issue.UnterminatedIsProse)
+	section := body[logStart:logEnd]
 
 	// Prefer the matching `### <date>` day header within the real Log section.
 	// The match anchors on the date *prefix* and allows an optional ` — suffix`
@@ -327,8 +332,8 @@ func insertLogLine(body, logLine string) string {
 		}
 	}
 	// Fallback: top of the real `## Log` section. Same shape as close-issue.py's
-	// regex, but run on `section` so it anchors to the last header; for the
-	// common single-`## Log` body this is byte-for-byte identical to the original.
+	// regex, but run on `section` so it anchors to the fence-aware header; for
+	// the common single-`## Log` body this is byte-for-byte identical.
 	insertRE := regexp.MustCompile(`(?m)(^## Log\s*\n)(\s*\n)?`)
 	loc := insertRE.FindStringSubmatchIndex(section)
 	if loc == nil {
@@ -564,7 +569,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
 		}
 	} else { // issue close
-		if planBody, ok := issue.PlanSectionBody(newBody); ok {
+		if planBody, ok := issue.PlanItemsBody(newBody); ok {
 			unchecked := issue.PlanUncheckedRE.FindAllString(planBody, -1)
 			if len(unchecked) > 0 {
 				if !f.skip("plan") {
@@ -1718,7 +1723,7 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 // treated the same as one whose commit lacks the trailer — both are "no
 // review evidence."
 func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, missing []string, err error) {
-	planBody, ok := issue.PlanSectionBody(body)
+	planBody, ok := issue.PlanItemsBody(body)
 	if !ok {
 		// No plan section → no milestones to check. Treat as "fine":
 		// the operator may be closing an issue that never had milestones.
