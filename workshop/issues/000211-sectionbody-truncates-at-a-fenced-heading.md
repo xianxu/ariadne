@@ -305,6 +305,42 @@ refs". Tagged so the structure and the `## Estimate` agree.
 
 ## Log
 
+### 2026-09-02 — close review: the same rule, measured three more ways
+
+BR-21 is the fourth finding in `claimed-fix-unpinned-by-test`, and it caught a
+**second** false revert claim of mine — this one written in the entry directly
+below, hours after the first was corrected. The rule it states is now the
+operative one:
+
+> A fix is pinned only when reverting EXACTLY that fix — that filter, that call
+> site, that return value — reds a named test.
+
+Three corollaries, one per member, each measured before I accepted it:
+
+1. **A fixture both filters happen to catch pins only their union.**
+   `TickMilestone` installs two independent filters (section scoping, fence
+   skipping) and my fixture put the quoted row in `## Problem` — which the
+   scoping alone rejects. Verified: deleting `inside[i] ||` left
+   `TestMilestoneTick` PASS. The fixture now carries a quoted row *inside*
+   `## Plan` (only `FenceSpans` can reject it) and one in `## Log` (only
+   `SectionByteBounds` can); each revert now reds independently.
+2. **Where the wiring is not drivable, the guard needs a writer sibling.**
+   Reverting `close.go`'s tick to the old whole-body `ReplaceAll` left the suite
+   green, because the behavioural test drives `TickMilestone` directly.
+   `TestPlanItemWritersUseTickMilestone` closes it, sharing one `assertWiring`
+   with the reader and commit-pathspec guards rather than a third AST walk.
+3. **A contract looser than every caller exercises needs the caller it exists
+   for.** `FindLineOutsideFences` returns a line range, but its sole caller
+   anchors `^...$`, so reverting to the match range changed nothing observable.
+   The test now passes an unanchored pattern matching mid-line — the case the
+   contract is about, since the caller splices at the returned offset.
+
+Also fixed, same rule: this issue's own reason-to-exist regressions
+re-implemented close's guard and the milestone scan over the *unfiltered*
+section, so they never traversed the production path. The milestone one now
+drives `findMilestonesMissingVerdict` (which is in-process drivable); the
+plan-unchecked one reads `PlanItemsBody`, the extractor the routing guard pins.
+
 ### 2026-09-02 — M2 close (FIX-THEN-SHIP, three advisories fixed pre-commit)
 
 The first advisory was the same shape a **third** time, and this round the fix
@@ -314,9 +350,9 @@ was structural rather than another test:
   copy of the logic instead of the logic — reverting the real code would have
   left it green. The cause was placement: the loop lived inside the IO shell,
   where a test could only restate it (`ARCH-PURE`). Extracted as
-  `issue.TickMilestone` (pure); the test now drives it, and reverting either
-  filter reds it — `go test ./cmd/sdlc -run TestMilestoneTick` → two failures
-  naming the quoted row and the row outside `## Plan`.
+  `issue.TickMilestone` (pure); the test now drives it. **The "reverting either
+  filter reds it" claim first written here was false** — see the close-review
+  entry below.
 - **`planItemReaders` was a hand-maintained list** — the #208 restatement
   problem. Now DERIVED: any function referencing a counting regex
   (`PlanUncheckedRE`, `PlanItemRE`, `nonEmptyPlanItemRE`, `milestonePlanRE`,

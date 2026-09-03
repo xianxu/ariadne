@@ -214,22 +214,22 @@ func checkEstimate(fm string) *StructuralFailure {
 	return nil
 }
 
-// stripCodeFences removes fenced code blocks (```…```) from a markdown
-// snippet so the Spec word count reflects prose, not embedded code.
-// Naive — doesn't handle nested fences or indented code — but good
-// enough for our gate purpose.
+// stripCodeFences removes fenced code blocks from a markdown snippet so the Spec
+// word count reflects prose, not embedded code.
+//
+// Since #211 M2 this is the shared scanner (StripFenced), not the naive
+// `(?s)```.*?``` ` regex it used to be — so it now handles tilde fences, the
+// closer-width rule, and indented fences, none of which the old one did. The
+// stale "naive — doesn't handle nested fences or indented code" caveat and the
+// blank line that detached this block from the function are gone with it.
 //
 // NOT built on SplitFences, deliberately: the two have different
-// unterminated-fence policies. Here an unterminated tail stays in the
-// output (counted as prose by the word-count gates — changing that would
-// silently shift gate behavior); SplitFences classifies it Fenced (a
-// rewriter must never touch the inside of a broken fence).
-
+// unterminated-fence policies. Here an unterminated tail stays in the output
+// (counted as prose by the word-count gates — changing that would silently shift
+// gate behavior); SplitFences classifies it Fenced (a rewriter must never touch
+// the inside of a broken fence). TestUnterminatedPolicies_DisagreeOnPurpose pins
+// that fork.
 func stripCodeFences(s string) string {
-	// #211 M2: was its own `(?s)```.*?``` ` regex — backticks only, no width
-	// rule, no tildes. Now the shared scanner, which keeps this gate's
-	// deliberate UnterminatedIsProse call (an unclosed fence is prose, so the
-	// word count still sees the tail) while gaining tildes and the width rule.
 	return StripFenced(s)
 }
 

@@ -1257,6 +1257,15 @@ different subjects with three different reverts. A test that reaches the helper
 without entering the production entry point can never distinguish them, so where
 the entry point is not in-process drivable, pin the wiring at the source instead.
 
+**Corollary — a fixture that two filters both catch pins only their union.**
+When a fix installs more than one independent guard, revert each ALONE and watch
+a named test red; a fixture the first filter already rejects can leave the second
+provably dead. Measured twice in one issue: a quoted plan row in `## Problem`
+never exercised the fence filter, because the section scoping rejected it first.
+Likewise a contract deliberately looser than every current caller exercises needs
+a test supplying the caller it exists for — otherwise the looseness is documented
+and unverified.
+
 **Rule for the record itself:** a Log or `--verified` line asserting evidence
 names the command run and the observed result — `go test ./x -run Y` → `--- FAIL`
 — not the conclusion. "Revert-verified" is true only when the named test went RED

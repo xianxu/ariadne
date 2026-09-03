@@ -231,46 +231,56 @@ var commitWirings = []wiring{
 // none has gone stale. Deleting `syncIssue(stderr, f, issuePath)` from
 // runChangeCode used to leave the whole package green; it now fails here.
 func TestVerbsWireTheirCommitHelpers(t *testing.T) {
+	assertWiring(t, commitWirings)
+}
+
+// assertWiring checks each entry-point → helper edge by parsing the source. One
+// implementation for the commit-pathspec, plan-reader and plan-writer guards
+// (ARCH-DRY): three copies of an AST walk is how the third one drifts.
+func assertWiring(t *testing.T, edges []wiring) {
+	t.Helper()
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", func(fi fs.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
-	if err != nil {
-		t.Fatalf("parse cmd/sdlc: %v", err)
-	}
 	// calls[file:func] = set of function names it calls.
 	calls := map[string]map[string]bool{}
-	for _, pkg := range pkgs {
-		for path, file := range pkg.Files {
-			base := filepath.Base(path)
-			for _, decl := range file.Decls {
-				fn, ok := decl.(*ast.FuncDecl)
-				if !ok {
-					continue
-				}
-				key := base + ":" + fn.Name.Name
-				calls[key] = map[string]bool{}
-				ast.Inspect(fn, func(n ast.Node) bool {
-					call, ok := n.(*ast.CallExpr)
+	for _, dir := range []string{".", "internal/issue"} {
+		pkgs, err := parser.ParseDir(fset, dir, func(fi fs.FileInfo) bool {
+			return !strings.HasSuffix(fi.Name(), "_test.go")
+		}, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", dir, err)
+		}
+		for _, pkg := range pkgs {
+			for path, file := range pkg.Files {
+				base := filepath.Base(path)
+				for _, decl := range file.Decls {
+					fn, ok := decl.(*ast.FuncDecl)
 					if !ok {
+						continue
+					}
+					key := base + ":" + fn.Name.Name
+					calls[key] = map[string]bool{}
+					ast.Inspect(fn, func(n ast.Node) bool {
+						call, ok := n.(*ast.CallExpr)
+						if !ok {
+							return true
+						}
+						switch f := call.Fun.(type) {
+						case *ast.Ident:
+							calls[key][f.Name] = true
+						case *ast.SelectorExpr:
+							calls[key][f.Sel.Name] = true
+						}
 						return true
-					}
-					switch f := call.Fun.(type) {
-					case *ast.Ident:
-						calls[key][f.Name] = true
-					case *ast.SelectorExpr:
-						calls[key][f.Sel.Name] = true
-					}
-					return true
-				})
+					})
+				}
 			}
 		}
 	}
-	for _, w := range commitWirings {
+	for _, w := range edges {
 		key := w.file + ":" + w.entry
 		called, ok := calls[key]
 		if !ok {
-			t.Errorf("stale wiring: %s does not exist — update commitWirings", key)
+			t.Errorf("stale wiring: %s does not exist — update the edge list naming it", key)
 			continue
 		}
 		if !called[w.helper] {
@@ -304,6 +314,22 @@ var planItemMatchers = []string{
 // classed as a reader and needs no exemption. An entry added for it was
 // rejected by the stale check on exactly that ground.
 var planItemReaderExemptions = map[string]string{}
+
+// planItemWriters are the call sites that REWRITE plan rows. The reader guard
+// below has a writer sibling for the same reason it exists at all: reverting
+// close.go's tick to the old whole-body ReplaceAll left the suite green, because
+// the behavioural test drives issue.TickMilestone directly and never traverses
+// computeClose (close review BR-21(b)).
+var planItemWriters = []wiring{
+	{"close.go", "computeClose", "TickMilestone",
+		"the milestone tick must go through the scoped, fence-filtered writer — " +
+			"inline rewriting is what ticked quoted rows anywhere in the document"},
+}
+
+// TestPlanItemWritersUseTickMilestone is the writer half of the routing guard.
+func TestPlanItemWritersUseTickMilestone(t *testing.T) {
+	assertWiring(t, planItemWriters)
+}
 
 // TestPlanItemReadersUsePlanItemsBody pins the ROUTING, which no behavioral test
 // in this tree can reach.

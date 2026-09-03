@@ -418,6 +418,127 @@ rounds:
           round: 7
       boundary: M2
       blocked: false
+    - "n": 8
+      timestamp: "2026-09-02T23:36:46-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: not-addressed
+          note: close.go doc block, :331, and logHeaderRE all fixed and stripEstimateForHash is gone from the tree and atlas; atlas:181 "Everything that finds a heading is fence-aware" is still unqualified while issue.go:530 and project's three matchers are not.
+          round: 8
+        - id: BR-8
+          disposition: not-addressed
+          note: fence_test.go:228 still TrimSuffixes both sides; SectionByteBounds/SectionHeadingByteOffset are still absent from the corpus walk.
+          round: 8
+        - id: BR-9
+          disposition: not-addressed
+          note: 'Still unrecorded. I measured it: sdlc built at 318689b vs 94a4fcc produces byte-identical `issue validate --all` output, so the Log line is all that is missing.'
+          round: 8
+        - id: BR-11
+          disposition: not-addressed
+          note: '2 of 4 members swept (close.go dayRE, close.go tick). project/guards.go:48 and project/retro.go:11 remain, and I reproduced the false PASS: retro-recorded accepts a fenced retro heading and LatestRetroDate returns the quoted date. guards.go:30 ParsePhaseA is a 5th member the enumeration missed.'
+          round: 8
+        - id: BR-12
+          disposition: addressed
+          note: TickMilestone scopes to the real Plan and fence-filters; the scoping half reds on revert. The fence half is unpinned - folded into the new claimed-fix-unpinned-by-test finding.
+          round: 8
+        - id: BR-13
+          disposition: addressed
+          note: Done-when now cites the M2 Log entry, the SplitFences plan row is corrected, logHeaderRE and stripEstimateForHash are gone. The issue still carries no `## Revisions` section for the in-place Done-when rewrite - noted as a plan-revision recommendation, not re-raised.
+          round: 8
+        - id: BR-14
+          disposition: not-addressed
+          note: close.go:308 and :315 still resolve the Log section twice and the second discards ok.
+          round: 8
+        - id: BR-15
+          disposition: not-addressed
+          note: Atlas half fixed (PlanItemsBody is listed). Issue lines 37 and 143 still cite close.go:563; the guard is at close.go:578.
+          round: 8
+        - id: BR-17
+          disposition: addressed
+          note: All four doc-drift members swept and FindLineOutsideFences now returns the documented LINE range. The new contract is pinned by no test - reverting to the match range leaves the suite green; folded into the new finding rather than re-raised here.
+          round: 8
+        - id: BR-18
+          disposition: not-addressed
+          note: 'The extraction landed and the test drives issue.TickMilestone, but the wiring guard the finding asked for was not written: reverting close.go:567 to the whole-body ReplaceAll leaves the full suite green, and the reader guard cannot see it because TickMilestone builds its pattern inline.'
+          round: 8
+        - id: BR-19
+          disposition: addressed
+          note: planItemReaders is now derived from planItemMatchers and I verified it reds on all four call sites with named failures.
+          round: 8
+        - id: BR-20
+          disposition: addressed
+          note: close.go:571 now distinguishes "no `## Plan` section" from "no matching row" via issue.HasSection.
+          round: 8
+      findings:
+        - id: BR-21
+          severity: Important
+          title: Three fixes this round are pinned by no failing test, and the M2 Log asserts a revert-verification for one of them that I measured to be false
+          detail: |-
+            This is the 4th finding in family `claimed-fix-unpinned-by-test`. Earlier
+            rounds fixed instances. Do NOT fix these three sites one at a time - the
+            rule is what needs fixing.
+
+            RULE: a fix is pinned only when reverting EXACTLY that fix - that filter,
+            that call site, that return value - reds a named test. Three corollaries,
+            one per member measured below: (1) when a fix installs two independent
+            filters, the fixture must isolate each, because a fixture both filters
+            happen to catch pins only their union; (2) where the wiring is not
+            in-process drivable, a source-level guard must name it - the reader guard
+            is the working example and needs a writer sibling; (3) where a contract is
+            deliberately looser than every current caller exercises, the test must
+            supply the caller the contract exists for.
+
+            Measured at 94a4fcc in a scratch copy (baseline: 6 pre-existing failures
+            from the absent .git; each revert reproduced exactly those 6):
+            (a) Removing `inside[i] ||` from plan.go:72 leaves
+            `go test ./cmd/sdlc -run TestMilestoneTick` PASS. Removing the
+            SectionByteBounds scoping instead reds it (2 assertions). The M2 Log at
+            issue line 318 claims "reverting either filter reds it - two failures"; only
+            one does. Cause: planfence_test.go:268 puts the quoted `- [ ] M1` in
+            `## Problem`, not inside `## Plan`, so no fenced plan row inside a Plan
+            section exists anywhere in the suite.
+            (b) Reverting close.go:567 to the old whole-body
+            `pat.FindAllStringIndex` + `ReplaceAllString` leaves the full suite green.
+            (c) Reverting fence.go:177 to `off+loc[0], off+loc[1]` leaves the full
+            suite green - the line-vs-match contract BR-17 asked for is documented and
+            unverified, because the sole caller anchors `^...$`.
+
+            Also in scope of the same rule: planfence_test.go:45 and :63 -
+            the issue's reason-to-exist regressions - re-implement close's guard and the
+            milestone scan over the UNFILTERED `PlanSectionBody`, so they never traverse
+            the production path. `findMilestonesMissingVerdict` is in-process drivable
+            (close_test.go:512 drives it), so that one is nearly free to close.
+          family: claimed-fix-unpinned-by-test
+          round: 8
+        - id: BR-22
+          severity: Minor
+          title: stripCodeFences' doc block is detached by a blank line and describes the regex that was deleted
+          detail: |-
+            This is the 6th finding in family `doc-drifts-from-code`. Earlier rounds
+            fixed instances. Do NOT fix this instance alone - the rule (every symbol
+            name and behavioral claim in a comment, the atlas or an issue must be
+            greppable-true against the tree at the commit that writes it) is already
+            stated by BR-17; what is missing is its enumeration being run over the
+            files this window touched.
+
+            structural.go:217-226 is separated from `func stripCodeFences` at :228 by a
+            blank line at :227, so it is not the function's doc comment at all. Its
+            content is also false at HEAD: "Naive - doesn't handle nested fences or
+            indented code" and "NOT built on SplitFences, deliberately" describe the
+            deleted `fencedCodeRE`; the function now delegates to `StripFenced`, which
+            handles tildes, the closer-width rule and <=3-space indent. The
+            unterminated-policy half of the paragraph is still true and is
+            re-stated inside the function at :229-232, so the block is pure residue.
+
+            Prevalence in this window, by grep: structural.go:217 (this one),
+            atlas:181 "Everything that finds a heading is fence-aware" (BR-7 residue,
+            contradicted by issue.go:530 and project/guards.go), atlas:176-179 "Two
+            helpers close that level" (contradicted by the same), issue lines 37 and
+            143 citing close.go:563 for a guard now at :578 (BR-15 residue).
+          family: doc-drifts-from-code
+          round: 8
+      blocked: true
 ---
 
 # Gate ledger — ariadne#211 (boundary-review)
@@ -649,17 +770,91 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   where the project-tracked hint misdirects. Folds into the BR-17 sweep rather than
   needing its own pass.
 
+## Round 8 — 2026-09-02T23:36:46-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-7 — not-addressed — close.go doc block, :331, and logHeaderRE all fixed and stripEstimateForHash is gone from the tree and atlas; atlas:181 "Everything that finds a heading is fence-aware" is still unqualified while issue.go:530 and project's three matchers are not.
+- BR-8 — not-addressed — fence_test.go:228 still TrimSuffixes both sides; SectionByteBounds/SectionHeadingByteOffset are still absent from the corpus walk.
+- BR-9 — not-addressed — Still unrecorded. I measured it: sdlc built at 318689b vs 94a4fcc produces byte-identical `issue validate --all` output, so the Log line is all that is missing.
+- BR-11 — not-addressed — 2 of 4 members swept (close.go dayRE, close.go tick). project/guards.go:48 and project/retro.go:11 remain, and I reproduced the false PASS: retro-recorded accepts a fenced retro heading and LatestRetroDate returns the quoted date. guards.go:30 ParsePhaseA is a 5th member the enumeration missed.
+- BR-12 — addressed — TickMilestone scopes to the real Plan and fence-filters; the scoping half reds on revert. The fence half is unpinned - folded into the new claimed-fix-unpinned-by-test finding.
+- BR-13 — addressed — Done-when now cites the M2 Log entry, the SplitFences plan row is corrected, logHeaderRE and stripEstimateForHash are gone. The issue still carries no `## Revisions` section for the in-place Done-when rewrite - noted as a plan-revision recommendation, not re-raised.
+- BR-14 — not-addressed — close.go:308 and :315 still resolve the Log section twice and the second discards ok.
+- BR-15 — not-addressed — Atlas half fixed (PlanItemsBody is listed). Issue lines 37 and 143 still cite close.go:563; the guard is at close.go:578.
+- BR-17 — addressed — All four doc-drift members swept and FindLineOutsideFences now returns the documented LINE range. The new contract is pinned by no test - reverting to the match range leaves the suite green; folded into the new finding rather than re-raised here.
+- BR-18 — not-addressed — The extraction landed and the test drives issue.TickMilestone, but the wiring guard the finding asked for was not written: reverting close.go:567 to the whole-body ReplaceAll leaves the full suite green, and the reader guard cannot see it because TickMilestone builds its pattern inline.
+- BR-19 — addressed — planItemReaders is now derived from planItemMatchers and I verified it reds on all four call sites with named failures.
+- BR-20 — addressed — close.go:571 now distinguishes "no `## Plan` section" from "no matching row" via issue.HasSection.
+
+### Raised
+
+- **BR-21** [Important] `claimed-fix-unpinned-by-test` Three fixes this round are pinned by no failing test, and the M2 Log asserts a revert-verification for one of them that I measured to be false
+  This is the 4th finding in family `claimed-fix-unpinned-by-test`. Earlier
+  rounds fixed instances. Do NOT fix these three sites one at a time - the
+  rule is what needs fixing.
+  
+  RULE: a fix is pinned only when reverting EXACTLY that fix - that filter,
+  that call site, that return value - reds a named test. Three corollaries,
+  one per member measured below: (1) when a fix installs two independent
+  filters, the fixture must isolate each, because a fixture both filters
+  happen to catch pins only their union; (2) where the wiring is not
+  in-process drivable, a source-level guard must name it - the reader guard
+  is the working example and needs a writer sibling; (3) where a contract is
+  deliberately looser than every current caller exercises, the test must
+  supply the caller the contract exists for.
+  
+  Measured at 94a4fcc in a scratch copy (baseline: 6 pre-existing failures
+  from the absent .git; each revert reproduced exactly those 6):
+  (a) Removing `inside[i] ||` from plan.go:72 leaves
+  `go test ./cmd/sdlc -run TestMilestoneTick` PASS. Removing the
+  SectionByteBounds scoping instead reds it (2 assertions). The M2 Log at
+  issue line 318 claims "reverting either filter reds it - two failures"; only
+  one does. Cause: planfence_test.go:268 puts the quoted `- [ ] M1` in
+  `## Problem`, not inside `## Plan`, so no fenced plan row inside a Plan
+  section exists anywhere in the suite.
+  (b) Reverting close.go:567 to the old whole-body
+  `pat.FindAllStringIndex` + `ReplaceAllString` leaves the full suite green.
+  (c) Reverting fence.go:177 to `off+loc[0], off+loc[1]` leaves the full
+  suite green - the line-vs-match contract BR-17 asked for is documented and
+  unverified, because the sole caller anchors `^...$`.
+  
+  Also in scope of the same rule: planfence_test.go:45 and :63 -
+  the issue's reason-to-exist regressions - re-implement close's guard and the
+  milestone scan over the UNFILTERED `PlanSectionBody`, so they never traverse
+  the production path. `findMilestonesMissingVerdict` is in-process drivable
+  (close_test.go:512 drives it), so that one is nearly free to close.
+- **BR-22** [Minor] `doc-drifts-from-code` stripCodeFences' doc block is detached by a blank line and describes the regex that was deleted
+  This is the 6th finding in family `doc-drifts-from-code`. Earlier rounds
+  fixed instances. Do NOT fix this instance alone - the rule (every symbol
+  name and behavioral claim in a comment, the atlas or an issue must be
+  greppable-true against the tree at the commit that writes it) is already
+  stated by BR-17; what is missing is its enumeration being run over the
+  files this window touched.
+  
+  structural.go:217-226 is separated from `func stripCodeFences` at :228 by a
+  blank line at :227, so it is not the function's doc comment at all. Its
+  content is also false at HEAD: "Naive - doesn't handle nested fences or
+  indented code" and "NOT built on SplitFences, deliberately" describe the
+  deleted `fencedCodeRE`; the function now delegates to `StripFenced`, which
+  handles tildes, the closer-width rule and <=3-space indent. The
+  unterminated-policy half of the paragraph is still true and is
+  re-stated inside the function at :229-232, so the block is pure residue.
+  
+  Prevalence in this window, by grep: structural.go:217 (this one),
+  atlas:181 "Everything that finds a heading is fence-aware" (BR-7 residue,
+  contradicted by issue.go:530 and project/guards.go), atlas:176-179 "Two
+  helpers close that level" (contradicted by the same), issue lines 37 and
+  143 citing close.go:563 for a guard now at :578 (BR-15 residue).
+
 ## Open findings
 
 - **BR-7** [Important] `doc-drifts-from-code` insertLogLine's doc block still specifies the last-match anchor that was just deleted, and three docs name a symbol that does not exist
 - **BR-8** [Minor] `test-asserts-weaker-than-contract` TestSectionByteBounds_MatchesSectionBody trims trailing newlines from both sides, so it does not pin the byte-identity section.go:87 claims
 - **BR-9** [Minor] `unrecorded-gate-measurement` The M2 Log does not record re-running `sdlc issue validate --all` after the stripCodeFences rebase, a Done-when item
 - **BR-11** [Important] `consumer-enumeration-incomplete` Bounding a search to a fence-aware section does not make the search fence-aware — four within-section matchers remain unfiltered
-- **BR-12** [Important] `consumer-enumeration-incomplete` The milestone tick rewrites every matching row in the whole body, and its "rewrites a line it already matched" rationale is false
-- **BR-13** [Important] `doc-drifts-from-code` Done-when cites a `## Revisions` section that does not exist, and a ticked plan row still claims SplitFences was rebuilt
 - **BR-14** [Minor] `redundant-recompute-drops-error` insertLogLine computes the Log section twice and discards the second ok, leaving a latent slice panic
 - **BR-15** [Minor] `doc-drifts-from-code` Stale line reference and a missing entry in the atlas's fence-aware inventory
-- **BR-17** [Important] `doc-drifts-from-code` FindLineOutsideFences documents a line range and returns a match range, on a splice-offset API
 - **BR-18** [Important] `claimed-fix-unpinned-by-test` The milestone-tick fix is pinned by a verbatim copy of itself, because the logic lives inside the IO shell
-- **BR-19** [Minor] `consumer-enumeration-incomplete` planItemReaders is a hand-maintained restatement of the model; the inverse guard would derive it
-- **BR-20** [Minor] `doc-drifts-from-code` The milestone-tick warning names a cause the new no-Plan-section branch does not have
+- **BR-21** [Important] `claimed-fix-unpinned-by-test` Three fixes this round are pinned by no failing test, and the M2 Log asserts a revert-verification for one of them that I measured to be false
+- **BR-22** [Minor] `doc-drifts-from-code` stripCodeFences' doc block is detached by a blank line and describes the regex that was deleted

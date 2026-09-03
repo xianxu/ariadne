@@ -3,6 +3,7 @@ package issue
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -269,5 +270,34 @@ func TestStripFenced_HidesQuotedPlanItems(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("real item %q was stripped:\n%s", want, got)
 		}
+	}
+}
+
+// TestFindLineOutsideFences_ReturnsTheLineNotTheMatch supplies the caller the
+// contract exists FOR (close review BR-21(c)).
+//
+// The sole production caller anchors its pattern `^...$`, so match and line
+// coincide and reverting the implementation to return the match range left the
+// suite green — a documented contract nothing exercised. An unanchored pattern
+// is the case the contract is about: the caller splices at the returned offset,
+// so a mid-line match end would corrupt the line.
+func TestFindLineOutsideFences_ReturnsTheLineNotTheMatch(t *testing.T) {
+	const s = "intro\n### 2026-09-02 — session summary\ntail\n"
+	// Unanchored, and deliberately matching in the MIDDLE of the line.
+	start, end, ok := FindLineOutsideFences(s, regexp.MustCompile(`2026-09-02`))
+	if !ok {
+		t.Fatal("no match found")
+	}
+	if got := s[start:end]; got != "### 2026-09-02 — session summary" {
+		t.Errorf("returned %q, want the whole LINE — a splice at a mid-line offset corrupts it", got)
+	}
+	// And the fence rule still applies to an unanchored pattern.
+	const fenced = "intro\n```markdown\n### 2026-09-02 quoted\n```\n### 2026-09-02 real\n"
+	start, end, ok = FindLineOutsideFences(fenced, regexp.MustCompile(`2026-09-02`))
+	if !ok {
+		t.Fatal("no match found in the fenced fixture")
+	}
+	if got := fenced[start:end]; got != "### 2026-09-02 real" {
+		t.Errorf("returned %q, want the line outside the fence", got)
 	}
 }

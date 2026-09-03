@@ -42,7 +42,11 @@ status: working
 // count below a threshold); these two count things whose ABSENCE means pass, so
 // truncation flips them the dangerous way.
 func TestClosePlanGate_SeesItemsAfterAFencedHeading(t *testing.T) {
-	planBody, ok := issue.PlanSectionBody(planWithFencedHeading)
+	// PlanItemsBody is what computeClose reads (pinned by
+	// TestPlanItemReadersUsePlanItemsBody); computeClose itself die()s past the
+	// test seam, so this drives the shared extractor rather than restating it
+	// over the raw section as an earlier version did (close review BR-21).
+	planBody, ok := issue.PlanItemsBody(planWithFencedHeading)
 	if !ok {
 		t.Fatal("## Plan not found")
 	}
@@ -60,17 +64,18 @@ func TestClosePlanGate_SeesItemsAfterAFencedHeading(t *testing.T) {
 // the same body: a milestone hidden behind a quoted heading is never asked for
 // review evidence, so `sdlc close` finalizes without it.
 func TestMilestoneScan_SeesMilestonesAfterAFencedHeading(t *testing.T) {
-	planBody, ok := issue.PlanSectionBody(planWithFencedHeading)
-	if !ok {
-		t.Fatal("## Plan not found")
-	}
-	var got []string
-	for _, m := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
-		got = append(got, m[1])
+	// DRIVES findMilestonesMissingVerdict, the production function, rather than
+	// re-running its regex over a body this test extracted itself. The earlier
+	// version did the latter and so never traversed the path it named (close
+	// review BR-21): it would have stayed green with the production function
+	// routed back to the unfiltered section.
+	ordered, _, err := findMilestonesMissingVerdict(planWithFencedHeading, "999", "workshop/issues/000999-x.md")
+	if err != nil {
+		t.Fatalf("findMilestonesMissingVerdict: %v", err)
 	}
 	want := []string{"M1", "M2"}
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("findMilestonesMissingVerdict would see %v, want %v — M2's review evidence would never be demanded", got, want)
+	if strings.Join(ordered, ",") != strings.Join(want, ",") {
+		t.Errorf("sees %v, want %v — M2 is behind a fenced heading, so its review evidence would never be demanded", ordered, want)
 	}
 }
 
@@ -258,6 +263,13 @@ Real prose that must survive.
 // COPY of the logic rather than the logic (M2 review): reverting the real code
 // would have left it green. Extracting the function was the fix; this is what
 // the extraction bought.
+//
+// The fixture ISOLATES each of the two filters, because a fixture both happen to
+// catch pins only their union (close review BR-21). A quoted row in ## Problem
+// is caught by the section scoping alone, so the fence filter could be deleted
+// with this test still green — measured, and it was. There is now a quoted row
+// INSIDE ## Plan, which only FenceSpans can reject, and a row in ## Log, which
+// only SectionByteBounds can.
 func TestMilestoneTick_OnlyTicksTheRealPlan(t *testing.T) {
 	body := `# t
 
@@ -274,6 +286,12 @@ The plan format looks like:
 - [ ] M1 — the real row
 - [ ] M2 — later
 
+The rows this issue writes look like:
+
+` + "```markdown" + `
+- [ ] M1 — quoted INSIDE the Plan section
+` + "```" + `
+
 ## Log
 
 - [ ] M1 — not a plan row at all
@@ -286,7 +304,11 @@ The plan format looks like:
 		t.Errorf("the real Plan row was not ticked:\n%s", got)
 	}
 	if !strings.Contains(got, "- [ ] M1 — a quoted example") {
-		t.Errorf("a QUOTED example row was ticked:\n%s", got)
+		t.Errorf("a QUOTED example row in another section was ticked:\n%s", got)
+	}
+	// Isolates FenceSpans: inside ## Plan, so section scoping cannot reject it.
+	if !strings.Contains(got, "- [ ] M1 — quoted INSIDE the Plan section") {
+		t.Errorf("a fenced row INSIDE ## Plan was ticked — the fence filter is not doing anything:\n%s", got)
 	}
 	if !strings.Contains(got, "- [ ] M1 — not a plan row at all") {
 		t.Errorf("a row outside ## Plan was ticked:\n%s", got)
