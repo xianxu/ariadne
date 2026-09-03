@@ -1,11 +1,12 @@
 ---
 id: 000211
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours:
+started: 2026-09-02T18:20:40-07:00
 ---
 
 # SectionBody truncates at a fenced heading
