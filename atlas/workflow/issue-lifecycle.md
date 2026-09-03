@@ -163,9 +163,25 @@ express. It also answers a different question — "may a rewriter edit these byt
 rather than "where does this section end" — so merging them would change what
 `migrate` rewrites across repos to serve a tidiness this class doesn't need.
 
-**Everything that finds a heading is fence-aware**, which took a second sweep to
-finish: `SectionBody`, `PlanSectionBody`, `logHasEntryToday`, `insertLogLine`,
-`stripEstimateForHash`, and the plan-item counters. `insertLogLine`'s previous
+**Bounding a search to a fence-aware section does not make the SEARCH
+fence-aware.** A section can quote its own format — the real `## Log` of an issue
+about log formatting contains a `### <date>` example — so a matcher scanning that
+section's raw text still lands inside the quote even though the section boundary
+was right. Two helpers close that level:
+
+- `StripFenced(s)` for readers (`logHasEntryToday`, every plan-item counter via
+  `PlanItemsBody`);
+- `FindLineOutsideFences(s, re)` for callers that need a byte OFFSET to splice
+  (`insertLogLine`'s day-header lookup).
+
+The write side needs it too: the milestone tick used to `ReplaceAll` over the
+whole issue body, so a `- [ ] Mx` in any quoted example was ticked. It is now
+scoped to the Plan section and fence-filtered.
+
+**Everything that finds a heading is fence-aware**, which took three sweeps to
+finish: `SectionBody`, `PlanSectionBody`/`PlanItemsBody`, `logHasEntryToday`,
+`insertLogLine` (heading, section end, and the day-header search within it),
+`stripEstimateForHash`, the plan-item counters, and the milestone tick. `insertLogLine`'s previous
 *last-match* heuristic (#66) was a weaker workaround for this same defect — it
 was added because first-match filed a close line into #66's own quoted example,
 and it fails when a quoted `## Log` sits AFTER the real one. `logHasEntryToday`
