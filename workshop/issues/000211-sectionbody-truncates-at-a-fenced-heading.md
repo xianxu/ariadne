@@ -305,6 +305,49 @@ refs". Tagged so the structure and the `## Estimate` agree.
 
 ## Log
 
+### 2026-09-03 — close review round 8: converging, and one more of my own
+
+Round 8: 0 repeat families, 9 disposed. Two new Minors, both real and both fixed:
+
+- **A pure decision routed through IO.** Pinning the milestone scan on the
+  production path made it call `findMilestonesMissingVerdict`, which shells to
+  `git log` per milestone — so this issue's *central* regression failed outside a
+  git worktree, on an error raised after the fact under test was already decided.
+  Extracted `milestonesInPlanOrder` (pure); the test drives that. Same `ARCH-PURE`
+  shape as `TickMilestone`, and I had just made the opposite mistake fixing the
+  previous finding: moving a test onto the production path is right, moving it
+  onto the production *IO* is not.
+- **Guard keys were basename-scoped across two packages.** No collision today,
+  but `internal/issue` already has `plan.go`/`section.go`/`structural.go`, and a
+  future `close.go` there would have merged two functions' call sets and reported
+  an edge satisfied by the wrong one. Keys are directory-qualified now.
+
+**And the extraction quietly broke the guard I had just built.** Moving
+`milestonePlanRE` into the pure helper removed it from `findMilestonesMissingVerdict`,
+which dropped that caller from the derived reader set — the derivation finds
+*regex users*, and the caller had stopped being one. I wrote an exemption saying
+the helper was safe because "its caller is itself checked by this guard", then
+probed it: reverting that caller fired nothing. **The rationale was false**, the
+third such of mine this issue.
+
+Fixed by covering what the derivation structurally cannot: `planItemBodySources`
+names the callers that *obtain* a body and delegate the counting.
+Revert-verified — routing `findMilestonesMissingVerdict` back to
+`PlanSectionBody` → `close.go:findMilestonesMissingVerdict no longer calls
+PlanItemsBody`.
+
+Worth naming as a pattern: **extracting a helper can move a call site out of a
+derived guard's population.** The derivation keys on a property (references a
+counting regex) that refactoring relocates, so a refactor that looks purely
+structural can silently shrink what the guard covers.
+
+**BR-7 and BR-11 verified resolved in the tree**, not disposed by the ledger:
+`logHasEntryToday` uses `StripFenced` and `insertLogLine` uses
+`FindLineOutsideFences`, both revert-verified via
+`TestWithinSectionMatchers`; the only remaining `logHeaderRE` /
+`stripEstimateForHash` mentions are in prose *describing* the fix (this Log and
+the auto-appended verification line), which necessarily name the old symbols.
+
 ### 2026-09-02 — close review: the same rule, measured three more ways
 
 BR-21 is the fourth finding in `claimed-fix-unpinned-by-test`, and it caught a

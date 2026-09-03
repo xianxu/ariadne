@@ -64,15 +64,19 @@ func TestClosePlanGate_SeesItemsAfterAFencedHeading(t *testing.T) {
 // the same body: a milestone hidden behind a quoted heading is never asked for
 // review evidence, so `sdlc close` finalizes without it.
 func TestMilestoneScan_SeesMilestonesAfterAFencedHeading(t *testing.T) {
-	// DRIVES findMilestonesMissingVerdict, the production function, rather than
-	// re-running its regex over a body this test extracted itself. The earlier
-	// version did the latter and so never traversed the path it named (close
-	// review BR-21): it would have stayed green with the production function
-	// routed back to the unfiltered section.
-	ordered, _, err := findMilestonesMissingVerdict(planWithFencedHeading, "999", "workshop/issues/000999-x.md")
-	if err != nil {
-		t.Fatalf("findMilestonesMissingVerdict: %v", err)
+	// Drives the PRODUCTION enumeration — milestonesInPlanOrder, which
+	// findMilestonesMissingVerdict calls — rather than re-running its regex over
+	// a body this test extracted itself (close review BR-21).
+	//
+	// Deliberately not the git-touching wrapper: routing this assertion through
+	// findMilestonesMissingVerdict made it invoke `git log` per milestone, so the
+	// issue's central regression failed outside a git worktree on an error raised
+	// AFTER the fact under test was already decided. Pure decision, pure test.
+	planBody, ok := issue.PlanItemsBody(planWithFencedHeading)
+	if !ok {
+		t.Fatal("## Plan not found")
 	}
+	ordered := milestonesInPlanOrder(planBody)
 	want := []string{"M1", "M2"}
 	if strings.Join(ordered, ",") != strings.Join(want, ",") {
 		t.Errorf("sees %v, want %v — M2 is behind a fenced heading, so its review evidence would never be demanded", ordered, want)

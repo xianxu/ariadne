@@ -1728,6 +1728,27 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 // unavailable). A milestone whose subject doesn't match any commit is
 // treated the same as one whose commit lacks the trailer — both are "no
 // review evidence."
+// milestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
+// order, de-duplicated (a milestone may appear twice if the plan was revised).
+//
+// PURE, and split out for that reason (#211 close review): the enumeration is
+// what "a fenced heading no longer hides M2" is about, and folding it into
+// findMilestonesMissingVerdict meant testing it required `git log` — so the
+// issue's central regression failed outside a git worktree, on an error raised
+// after the fact under test was already decided. Same ARCH-PURE shape as
+// TickMilestone's extraction on the write side.
+func milestonesInPlanOrder(planBody string) []string {
+	var ordered []string
+	seen := map[string]bool{}
+	for _, mm := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
+		if tag := mm[1]; !seen[tag] {
+			seen[tag] = true
+			ordered = append(ordered, tag)
+		}
+	}
+	return ordered
+}
+
 func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, missing []string, err error) {
 	planBody, ok := issue.PlanItemsBody(body)
 	if !ok {
@@ -1735,20 +1756,9 @@ func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, mi
 		// the operator may be closing an issue that never had milestones.
 		return nil, nil, nil
 	}
-	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
-	if len(matches) == 0 {
+	ordered = milestonesInPlanOrder(planBody)
+	if len(ordered) == 0 {
 		return nil, nil, nil
-	}
-	// Preserve plan order; de-duplicate (a milestone may appear in the
-	// plan more than once if revised).
-	seen := map[string]bool{}
-	for _, mm := range matches {
-		tag := mm[1]
-		if seen[tag] {
-			continue
-		}
-		seen[tag] = true
-		ordered = append(ordered, tag)
 	}
 	for _, tag := range ordered {
 		ok, err := milestoneHasVerdictCommit(issueStr, tag, issuePath)

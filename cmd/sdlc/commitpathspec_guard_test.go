@@ -251,7 +251,11 @@ func assertWiring(t *testing.T, edges []wiring) {
 		}
 		for _, pkg := range pkgs {
 			for path, file := range pkg.Files {
-				base := filepath.Base(path)
+				// Directory-qualified: keying on the basename alone would merge
+				// two same-named functions in different packages into one call
+				// set, and the guard would report an edge satisfied by the wrong
+				// one. No basename collides today; this is why it can't start to.
+				base := qualifiedFile(dir, path)
 				for _, decl := range file.Decls {
 					fn, ok := decl.(*ast.FuncDecl)
 					if !ok {
@@ -308,12 +312,35 @@ var planItemMatchers = []string{
 // regexes above but must NOT read the filtered body, with its reason.
 // Membership is the acknowledgment; the guard also refuses a STALE entry.
 //
-// Currently empty, and that is the derivation working. The obvious candidate —
-// TickMilestone, a writer that needs offsets into the real body — builds its
-// pattern inline rather than referencing a named matcher, so it is never
-// classed as a reader and needs no exemption. An entry added for it was
-// rejected by the stale check on exactly that ground.
-var planItemReaderExemptions = map[string]string{}
+// TickMilestone, the obvious other candidate, needs no entry: it is a writer
+// that builds its pattern inline rather than referencing a named matcher, so the
+// derivation never classes it as a reader. An entry added for it was rejected by
+// the stale check on exactly that ground.
+var planItemReaderExemptions = map[string]string{
+	"close.go:milestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
+		"Exempt here and covered by planItemBodySources instead: extracting the regex into this " +
+		"helper moved milestonePlanRE out of its caller, which silently dropped that caller from " +
+		"this derivation — so the edge is named explicitly rather than assumed",
+}
+
+// planItemBodySources are the functions that OBTAIN a plan body to hand to a
+// pure helper. The derivation above finds regex users; it cannot find a caller
+// that fetches the body and delegates the counting, and extracting a helper is
+// exactly what turns the second kind into the first.
+//
+// Found by probing my own exemption (#211 close review): I wrote that
+// milestonesInPlanOrder was safe because "its caller is itself checked by this
+// guard", then reverted that caller and nothing fired. The rationale was false.
+var planItemBodySources = []wiring{
+	{"close.go", "findMilestonesMissingVerdict", "PlanItemsBody",
+		"obtains the plan body for milestonesInPlanOrder; the raw section would " +
+			"surface milestones quoted inside a fenced example and demand review evidence for them"},
+}
+
+// TestPlanItemBodySourcesUsePlanItemsBody covers the delegating callers.
+func TestPlanItemBodySourcesUsePlanItemsBody(t *testing.T) {
+	assertWiring(t, planItemBodySources)
+}
 
 // planItemWriters are the call sites that REWRITE plan rows. The reader guard
 // below has a writer sibling for the same reason it exists at all: reverting
@@ -357,7 +384,7 @@ func TestPlanItemReadersUsePlanItemsBody(t *testing.T) {
 		}
 		for _, pkg := range pkgs {
 			for path, file := range pkg.Files {
-				base := filepath.Base(path)
+				base := qualifiedFile(dir, path) // see assertWiring on why
 				for _, decl := range file.Decls {
 					fn, ok := decl.(*ast.FuncDecl)
 					if !ok {
@@ -418,4 +445,16 @@ func TestPlanItemReadersUsePlanItemsBody(t *testing.T) {
 			t.Errorf("stale exemption %s (%s) — it no longer uses a counting regex; drop it", key, why)
 		}
 	}
+}
+
+// qualifiedFile renders a parsed file's key as "<dir>/<base>" for a nested
+// package and plain "<base>" at the package root, so guards can name an edge as
+// "close.go:computeClose" or "internal/issue/plan.go:CountPlanItems" without two
+// packages' same-named files colliding.
+func qualifiedFile(dir, path string) string {
+	base := filepath.Base(path)
+	if dir == "." {
+		return base
+	}
+	return dir + "/" + base
 }

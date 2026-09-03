@@ -1272,3 +1272,25 @@ names the command run and the observed result — `go test ./x -run Y` → `--- 
 with the production change undone; a build check is not a revert check. Three
 revert claims in one issue's Log, two unverifiable as written, is what makes this
 worth a rule rather than a correction.
+
+## Extracting a helper can shrink a derived guard's population
+
+**Pattern (#211 close review):** A guard derived its population from a property
+— "any function referencing a plan-counting regex is a plan-item reader and must
+read the filtered body". Fixing a separate finding, I extracted the regex into a
+pure helper. That silently removed the *caller* from the derived set, because the
+caller had stopped being a regex user. I then wrote an exemption for the helper
+justified by "its caller is itself checked by this guard", probed it, and found
+the caller fired nothing. The rationale was false and the coverage was gone.
+
+**Rule:** a derived guard keys on a property that refactoring relocates, so after
+any extraction, re-probe the guard by reverting the fix it protects — not by
+reading it. Where a derivation structurally cannot see a role (here: a caller
+that obtains the data and delegates the work), name that role in its own explicit
+edge list rather than assuming the derivation reaches it.
+
+**Second-order:** moving a test onto the production path is right; moving it onto
+the production *IO* is not. Pinning a pure decision by calling the function that
+shells out makes the test fail for reasons unrelated to the fact under test — in
+this case the issue's central regression failed outside a git worktree. Extract
+the pure decision and drive that.

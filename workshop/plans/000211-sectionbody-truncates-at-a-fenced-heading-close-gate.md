@@ -539,6 +539,79 @@ rounds:
           family: doc-drifts-from-code
           round: 8
       blocked: true
+    - "n": 9
+      timestamp: "2026-09-02T23:55:37-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: not-addressed
+          note: Every named symbol and the close.go doc block are fixed; atlas:181's unqualified "Everything that finds a heading is fence-aware" survives while issue.go:530, project/guards.go:48, project/retro.go:11 and structural.go:180 are not.
+          round: 9
+        - id: BR-8
+          disposition: not-addressed
+          note: fence_test.go:228 still TrimSuffixes both sides, and SectionByteBounds/SectionHeadingByteOffset are still absent from the corpus walk.
+          round: 9
+        - id: BR-9
+          disposition: not-addressed
+          note: Still no post-M2 record; grep for "validate --all" in the issue returns only the Done-when and M1's two entries.
+          round: 9
+        - id: BR-11
+          disposition: not-addressed
+          note: 4th round open. project/guards.go:48 and project/retro.go:11 untouched by 657e374; I reproduced the false PASS (retro-recorded accepts a fenced retro heading, LatestRetroDate returns the quoted date), plus structural.go:180 bulletRE and guards.go:30 ParsePhaseA as members 5 and 6.
+          round: 9
+        - id: BR-14
+          disposition: not-addressed
+          note: close.go:308 and :315 still resolve the Log section twice, the second call discarding ok.
+          round: 9
+        - id: BR-15
+          disposition: not-addressed
+          note: Atlas half fixed (PlanItemsBody is listed). Issue :37 and :143 still cite close.go:563 (guard is at :578), and :32 still carries the tick-corrupted "- [x] M2 - NOT done" - it was "- [ ]" at 318689b and ebad613 flipped it, so the example now contradicts its own table.
+          round: 9
+        - id: BR-18
+          disposition: addressed
+          note: 'Revert-verified in a git-backed scratch clone: restoring close.go:568 to the whole-body FindAllStringIndex + ReplaceAllString reds TestPlanItemWritersUseTickMilestone with the rest of the package green; the tick test now drives issue.TickMilestone.'
+          round: 9
+        - id: BR-21
+          disposition: addressed
+          note: All three corollaries measured individually - deleting `inside[i] ||` reds TestMilestoneTick, replacing SectionByteBounds with whole-body offsets reds it separately, reverting close.go's routing reds the new writer guard, and reverting FindLineOutsideFences to the match range reds its new unanchored test.
+          round: 9
+        - id: BR-22
+          disposition: not-addressed
+          note: structural.go's block is attached and true, but the enumeration it asked for was not run - atlas:170 and :181 still overclaim, section.go:73 places the tick in close.go when it is in plan.go, and close_test.go:154 still says TestMilestoneTickRegex mirrors runClose's milestone path.
+          round: 9
+      findings:
+        - id: BR-23
+          severity: Minor
+          title: Pinning the milestone scan on the production path routed a pure assertion through `git log`, so the issue's central regression fails outside a git worktree
+          detail: |-
+            planfence_test.go:72 now calls findMilestonesMissingVerdict, which invokes
+            gitx.RunGit once per milestone. Measured: in a checkout of 657e374 with no
+            .git the test fails with "findMilestonesMissingVerdict: git log: exit
+            status 128", even though the fact under test - that a fenced heading no
+            longer hides M2 from the plan-order enumeration - is decided purely before
+            the first git call and then discarded on error. This is the same ARCH-PURE
+            shape TickMilestone's extraction fixed on the write side, left undone on
+            the read side. Extract issue.PlanMilestones(body) []string beside
+            TickMilestone, call it from findMilestonesMissingVerdict and from the test,
+            and let the existing assertWiring guard cover the routing.
+          family: pure-decision-tested-through-io
+          round: 9
+        - id: BR-24
+          severity: Minor
+          title: assertWiring and the reader guard key the call index on `basename:funcName` while parsing two packages, so a shared filename silently merges their call sets
+          detail: |-
+            commitpathspec_guard_test.go:255 and :368 build `calls[filepath.Base(path)
+            + ":" + fn.Name.Name]` across both "." and "internal/issue". No basename
+            collides today (verified by comm over both directories), but internal/issue
+            already has plan.go, section.go and structural.go, and cmd/sdlc has
+            close.go, issue.go and structural-adjacent files - one future close.go or
+            issue.go in internal/issue makes two different functions with the same name
+            share a key, and the guard would report a wiring edge satisfied by the
+            wrong package. This is the tree's safety net for every unpinnable call
+            site, so it should not be ambiguous: key on the directory-qualified path.
+          family: guard-key-not-scoped
+          round: 9
+      blocked: true
 ---
 
 # Gate ledger — ariadne#211 (boundary-review)
@@ -847,6 +920,44 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   helpers close that level" (contradicted by the same), issue lines 37 and
   143 citing close.go:563 for a guard now at :578 (BR-15 residue).
 
+## Round 9 — 2026-09-02T23:55:37-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-7 — not-addressed — Every named symbol and the close.go doc block are fixed; atlas:181's unqualified "Everything that finds a heading is fence-aware" survives while issue.go:530, project/guards.go:48, project/retro.go:11 and structural.go:180 are not.
+- BR-8 — not-addressed — fence_test.go:228 still TrimSuffixes both sides, and SectionByteBounds/SectionHeadingByteOffset are still absent from the corpus walk.
+- BR-9 — not-addressed — Still no post-M2 record; grep for "validate --all" in the issue returns only the Done-when and M1's two entries.
+- BR-11 — not-addressed — 4th round open. project/guards.go:48 and project/retro.go:11 untouched by 657e374; I reproduced the false PASS (retro-recorded accepts a fenced retro heading, LatestRetroDate returns the quoted date), plus structural.go:180 bulletRE and guards.go:30 ParsePhaseA as members 5 and 6.
+- BR-14 — not-addressed — close.go:308 and :315 still resolve the Log section twice, the second call discarding ok.
+- BR-15 — not-addressed — Atlas half fixed (PlanItemsBody is listed). Issue :37 and :143 still cite close.go:563 (guard is at :578), and :32 still carries the tick-corrupted "- [x] M2 - NOT done" - it was "- [ ]" at 318689b and ebad613 flipped it, so the example now contradicts its own table.
+- BR-18 — addressed — Revert-verified in a git-backed scratch clone: restoring close.go:568 to the whole-body FindAllStringIndex + ReplaceAllString reds TestPlanItemWritersUseTickMilestone with the rest of the package green; the tick test now drives issue.TickMilestone.
+- BR-21 — addressed — All three corollaries measured individually - deleting `inside[i] ||` reds TestMilestoneTick, replacing SectionByteBounds with whole-body offsets reds it separately, reverting close.go's routing reds the new writer guard, and reverting FindLineOutsideFences to the match range reds its new unanchored test.
+- BR-22 — not-addressed — structural.go's block is attached and true, but the enumeration it asked for was not run - atlas:170 and :181 still overclaim, section.go:73 places the tick in close.go when it is in plan.go, and close_test.go:154 still says TestMilestoneTickRegex mirrors runClose's milestone path.
+
+### Raised
+
+- **BR-23** [Minor] `pure-decision-tested-through-io` Pinning the milestone scan on the production path routed a pure assertion through `git log`, so the issue's central regression fails outside a git worktree
+  planfence_test.go:72 now calls findMilestonesMissingVerdict, which invokes
+  gitx.RunGit once per milestone. Measured: in a checkout of 657e374 with no
+  .git the test fails with "findMilestonesMissingVerdict: git log: exit
+  status 128", even though the fact under test - that a fenced heading no
+  longer hides M2 from the plan-order enumeration - is decided purely before
+  the first git call and then discarded on error. This is the same ARCH-PURE
+  shape TickMilestone's extraction fixed on the write side, left undone on
+  the read side. Extract issue.PlanMilestones(body) []string beside
+  TickMilestone, call it from findMilestonesMissingVerdict and from the test,
+  and let the existing assertWiring guard cover the routing.
+- **BR-24** [Minor] `guard-key-not-scoped` assertWiring and the reader guard key the call index on `basename:funcName` while parsing two packages, so a shared filename silently merges their call sets
+  commitpathspec_guard_test.go:255 and :368 build `calls[filepath.Base(path)
+  + ":" + fn.Name.Name]` across both "." and "internal/issue". No basename
+  collides today (verified by comm over both directories), but internal/issue
+  already has plan.go, section.go and structural.go, and cmd/sdlc has
+  close.go, issue.go and structural-adjacent files - one future close.go or
+  issue.go in internal/issue makes two different functions with the same name
+  share a key, and the guard would report a wiring edge satisfied by the
+  wrong package. This is the tree's safety net for every unpinnable call
+  site, so it should not be ambiguous: key on the directory-qualified path.
+
 ## Open findings
 
 - **BR-7** [Important] `doc-drifts-from-code` insertLogLine's doc block still specifies the last-match anchor that was just deleted, and three docs name a symbol that does not exist
@@ -855,6 +966,6 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-11** [Important] `consumer-enumeration-incomplete` Bounding a search to a fence-aware section does not make the search fence-aware — four within-section matchers remain unfiltered
 - **BR-14** [Minor] `redundant-recompute-drops-error` insertLogLine computes the Log section twice and discards the second ok, leaving a latent slice panic
 - **BR-15** [Minor] `doc-drifts-from-code` Stale line reference and a missing entry in the atlas's fence-aware inventory
-- **BR-18** [Important] `claimed-fix-unpinned-by-test` The milestone-tick fix is pinned by a verbatim copy of itself, because the logic lives inside the IO shell
-- **BR-21** [Important] `claimed-fix-unpinned-by-test` Three fixes this round are pinned by no failing test, and the M2 Log asserts a revert-verification for one of them that I measured to be false
 - **BR-22** [Minor] `doc-drifts-from-code` stripCodeFences' doc block is detached by a blank line and describes the regex that was deleted
+- **BR-23** [Minor] `pure-decision-tested-through-io` Pinning the milestone scan on the production path routed a pure assertion through `git log`, so the issue's central regression fails outside a git worktree
+- **BR-24** [Minor] `guard-key-not-scoped` assertWiring and the reader guard key the call index on `basename:funcName` while parsing two packages, so a shared filename silently merges their call sets
