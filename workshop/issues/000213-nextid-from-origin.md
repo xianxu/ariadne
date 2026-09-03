@@ -42,11 +42,31 @@ Both allocations ran in linked worktrees of the same repo, so they shared one
 `.git/sdlc.lock` and *were* serialized. They still collided. The lock prevents
 concurrent access to a shared view; it cannot reconcile two disjoint views.
 
-**And nothing detects it.** Before `#206`, an on-main sync pushed, so a stale id
-was caught by a rejected push. `#206`'s `syncInPlace` commits to the current
-branch without pushing — correct for durability, and it removes the accident
-that used to surface this. The collision now surfaces at merge, as two files
-claiming `id: 000171`, or not at all.
+**And nothing detects it, and never has.** Two colliding issues get different
+slugs, so `000212-fleet-policy-json.md` and `000212-issue-status-dup.md` are
+different *paths*. Git merges both cleanly. There is no point in the lifecycle at
+which anything objects — not the push, not the merge, not `issue validate`.
+
+An earlier draft of this section blamed `#206`'s `syncInPlace` for removing
+push-rejection detection. **Measured, that is wrong**, and the correction matters
+because it changes the age of the defect:
+
+| repo | colliding ids |
+| --- | --- |
+| ariadne | #40, #96, #168, #212 |
+| parley.nvim | #51, #66, #81, #90 |
+
+`ariadne#40`'s two files were created 2026-05-28 and 2026-05-27; `#96`'s on
+2026-06-14 — three months before `#206` landed (2026-09-02). Three of ariadne's
+four are already merged and archived. A rejected push only ever caught a
+*non-fast-forward race*, never an id collision, because the filenames differ.
+This has been silently corrupting the id space since May.
+
+**There is no double-locking anywhere.** `NextID` has one caller
+(`cmd/sdlc/issue.go:261`) and does a plain `os.ReadDir`; no code path re-checks
+the id at commit, push, or merge. The repo transaction lock is real but
+orthogonal — it serializes access to one checkout and cannot reconcile two
+disjoint views.
 
 ## Spec
 
