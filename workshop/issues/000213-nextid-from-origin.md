@@ -95,6 +95,37 @@ branches. Add a duplicate-id check to the merge gate: refuse a merge that would
 land an id already present on the trunk, naming both files. Cheap — the same
 `ls-tree` — and it is the last point where the collision is still repairable.
 
+### Enforcement must be in CI, not only in `sdlc merge`
+
+A gate inside `sdlc merge` is **operator feedback, not enforcement**. It is
+skipped by merging in the GitHub UI, by plain `gh pr merge`, by `--no-validate`,
+and by any actor on a machine that has not pulled this fix. For an id space
+shared across machines and repos that is not a guarantee.
+
+`.github/workflows/merge-check.yml` already runs on every PR to main, computes
+the merge-base range, and executes `scripts/merge-checks.d/*` through the
+symlinked `run-merge-checks.sh` runner. A check there runs server-side, can be a
+required status check, and **propagates to every derivative repo** — which
+matters because half the measured collisions are in `parley.nvim`, not here.
+
+So: `40-duplicate-issue-id.sh`, matching the existing check's contract
+(`<check> <base> <head>`, exit 0 = pass, findings to stderr). It compares the ids
+the PR range introduces against those on the base, and refuses a same-id
+different-path pair.
+
+### The gate must also see collisions already on the trunk
+
+Comparing `HEAD` against `origin/main` cannot find the eight that already exist:
+both sides are on the trunk, so the two trees agree and there is nothing to
+object to. `issueFilesByID` keeps the first path seen for a within-ref duplicate,
+which silently collapses exactly the state being hunted.
+
+A **within-ref** scan is a different question — "does this single tree contain
+two files claiming one id?" — and it is what surfaces the existing damage. It
+reports rather than refuses on the base side (the collisions predate the gate and
+blocking every merge until they are renumbered would be worse than the bug), and
+refuses when the PR *introduces* one.
+
 **Out of scope:** renumbering existing collisions (operator work, done by hand),
 and any change to the repo transaction lock, which is working as designed.
 
@@ -109,6 +140,17 @@ and any change to the repo transaction lock, which is working as designed.
   test asserts the warning is present, not just that creation worked.
 - `sdlc merge` refuses a branch introducing an id that already exists on the
   trunk, naming both paths.
+- `scripts/merge-checks.d/40-duplicate-issue-id.sh` performs the same refusal in
+  CI, so the guarantee survives a GitHub-UI merge, a bare `gh pr merge`,
+  `--no-validate`, and an actor who has not pulled this fix. Exercised against a
+  real repo, not only by reading the workflow.
+- The check is a plain script under the existing runner contract, so it
+  propagates to every derivative through the symlinked runner — `parley.nvim`
+  carries four of the eight known collisions.
+- A within-ref scan reports duplicate ids already present in a single tree, which
+  is the only way the eight existing collisions are visible at all. It REPORTS on
+  the base (they predate the gate; blocking every merge would be worse than the
+  bug) and REFUSES when the PR introduces one.
 - Tests run against a real throwaway repo with a local bare origin
   (`ARCH-MOCK`) — a function-call mock cannot express "a ref exists that the
   worktree does not contain", which is the entire bug.
@@ -120,6 +162,13 @@ and any change to the repo transaction lock, which is working as designed.
 - [x] Offline fallback with the loud warning.
 - [x] Duplicate-id refusal in the merge gate.
 - [x] Bare-origin tests: branch-cut-before-push, two-on-one-branch, offline.
+- [ ] Within-ref duplicate scan (`DuplicateIDsInRef`), pure over an ls-tree
+      listing, so the eight existing collisions are detectable at all.
+- [ ] `scripts/merge-checks.d/40-duplicate-issue-id.sh` — CI enforcement under
+      the existing runner contract; refuses ids the PR introduces, reports ones
+      already on the base.
+- [ ] Test the CI check by running it against a real repo with a planted
+      collision, not by reading the workflow file.
 
 ## Log
 
