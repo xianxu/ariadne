@@ -302,3 +302,100 @@ The plan format looks like:
 		t.Errorf("a row outside ## Plan was ticked:\n%s", got)
 	}
 }
+
+// TestWithinSectionMatchers_SkipFencesInsideTheSection is BR-11: bounding a
+// search to a fence-aware section does not make the SEARCH fence-aware. The Log
+// section here quotes its own format, so a matcher scanning the section's raw
+// text lands inside the example even though the section boundary was right.
+func TestWithinSectionMatchers_SkipFencesInsideTheSection(t *testing.T) {
+	body := `# t
+
+## Log
+
+The format we use, for reference:
+
+` + "```markdown" + `
+### 2026-09-02
+- a QUOTED entry inside the real Log section
+` + "```" + `
+
+### 2026-01-01
+- the only real day header
+`
+	// logHasEntryToday must not see a date that exists only in the quoted block.
+	if logHasEntryToday(body, "2026-09-02") {
+		t.Error("matched a date that appears ONLY inside a fence within the real Log section")
+	}
+	if !logHasEntryToday(body, "2026-01-01") {
+		t.Error("failed to see the real day header")
+	}
+
+	// insertLogLine must not file under the quoted day header either.
+	got := insertLogLine(body, "- 2026-09-02: closed")
+	if strings.Contains(got, "### 2026-09-02\n- 2026-09-02: closed") {
+		t.Errorf("close line filed under the QUOTED day header inside the section:\n%s", got)
+	}
+	if at, quoted := strings.Index(got, "- 2026-09-02: closed"), strings.Index(got, "a QUOTED entry"); at > quoted {
+		t.Errorf("close line landed after the quoted block instead of at the top of Log:\n%s", got)
+	}
+}
+
+// TestPlanItemReadersAgree is BR-10: the routing onto PlanItemsBody was pinned
+// by nothing, so reverting all four call sites left the suite green.
+//
+// The invariant is agreement. BR-4 was not "one site is wrong" but "`sdlc state`
+// and `sdlc close` report different things about the same Plan", so the test
+// asserts every reader sees the same item set — which fails if any one of them
+// is routed back to the unfiltered body.
+func TestPlanItemReadersAgree(t *testing.T) {
+	body := `---
+id: 000999
+---
+
+# t
+
+## Plan
+
+- [x] M1 — real, done
+- [ ] M2 — real, open
+
+An example of the format:
+
+` + "```markdown" + `
+- [ ] M9 — quoted, must be invisible
+- [x] M8 — quoted, must be invisible
+` + "```" + `
+
+## Log
+
+- [ ] not a plan row
+`
+	total, ticked := issue.CountPlanItems(body) // sdlc state
+	if total != 2 || ticked != 1 {
+		t.Errorf("CountPlanItems = (%d, %d), want (2, 1)", total, ticked)
+	}
+
+	planBody, ok := issue.PlanItemsBody(body) // close's guards
+	if !ok {
+		t.Fatal("Plan section not found")
+	}
+	if n := len(issue.PlanUncheckedRE.FindAllString(planBody, -1)); n != 1 {
+		t.Errorf("close's unchecked guard sees %d, want 1 — it disagrees with CountPlanItems", n)
+	}
+	var ms []string
+	for _, m := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
+		ms = append(ms, m[1])
+	}
+	if strings.Join(ms, ",") != "M1,M2" {
+		t.Errorf("milestone scan sees %v, want [M1 M2] — a quoted row would demand review evidence", ms)
+	}
+
+	// And the structural gate, which counts through the same body.
+	if fails := issue.CheckStructural(body); len(fails) > 0 {
+		for _, f := range fails {
+			if f.Name == "plan-present" {
+				t.Errorf("plan-present failed on a Plan with two real items: %s", f.Message)
+			}
+		}
+	}
+}

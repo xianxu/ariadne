@@ -326,14 +326,20 @@ The findings it derived from reading the tree anyway are real:
   Done-when pointed at a `## Revisions` section that does not exist on this
   issue (the content is in `## Log`). Both corrected.
 
-**Left open, deliberately, for the next boundary:**
+**Both then closed rather than deferred:**
 
-- **BR-10** — BR-4's routing onto `PlanItemsBody` is pinned by no test; reverting
-  all four call sites leaves the suite green. The fix is real but unguarded.
-- **BR-11** — bounding a search to a fence-aware section does not make the search
-  fence-aware. Four within-section matchers still scan raw text, so a fenced
-  `### <date>` *inside* the real Log section would still capture the insert.
-  Same class, one level further in.
+- **BR-10** — the routing onto `PlanItemsBody` was pinned by nothing. The
+  invariant is AGREEMENT, not correctness of one site: BR-4 was "`sdlc state` and
+  `sdlc close` report different things about the same Plan". So
+  `TestPlanItemReadersAgree` asserts every reader — `CountPlanItems`, close's
+  unchecked guard, the milestone scan, the structural gate — sees the same item
+  set, and fails if any one is routed back to the unfiltered body.
+- **BR-11** — the finding's own sentence is the rule: *bounding a search to a
+  fence-aware section does not make the search fence-aware*, because a section
+  can quote its own format. `FindLineOutsideFences` is the offset-returning
+  answer for splicing callers (`insertLogLine`'s day-header lookup) and
+  `StripFenced` the reading one (`logHasEntryToday`). Both revert-verified with
+  an explicit build check first.
 
 ### 2026-09-02 — M2 review (5 findings, all fixed pre-commit)
 

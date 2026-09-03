@@ -306,7 +306,9 @@ func logHasEntryToday(body, today string) bool {
 	if !ok {
 		return false
 	}
-	return strings.Contains(section, today)
+	// StripFenced because the real Log section can quote its own format — a
+	// bounded search is not a fence-aware one (#211 M2 review BR-11).
+	return strings.Contains(issue.StripFenced(section), today)
 }
 
 // isValidStatus returns whether s is a recognized status value (the set is the

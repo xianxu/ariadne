@@ -325,9 +325,11 @@ func insertLogLine(body, logLine string) string {
 	// eaten the way `\s*$` would. The required `[ \t]` separator rejects
 	// `### <date>x` (a date can't prefix-match a longer token).
 	if m := logLineDateRE.FindStringSubmatch(logLine); m != nil {
-		dayRE := regexp.MustCompile(`(?m)^### ` + regexp.QuoteMeta(m[1]) + `([ \t].*)?$`)
-		if d := dayRE.FindStringIndex(section); d != nil {
-			pos := logStart + d[1] // end of the day-header line text (before its newline)
+		// Line-wise and fence-aware: bounding to the Log section is not enough,
+		// because the section can quote its OWN format (#211 M2 review BR-11).
+		dayRE := regexp.MustCompile(`^### ` + regexp.QuoteMeta(m[1]) + `([ \t].*)?$`)
+		if _, dEnd, found := issue.FindLineOutsideFences(section, dayRE); found {
+			pos := logStart + dEnd // end of the day-header line text (before its newline)
 			return body[:pos] + "\n" + logLine + body[pos:]
 		}
 	}

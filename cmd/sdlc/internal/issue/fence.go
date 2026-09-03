@@ -24,7 +24,10 @@
 // unterminated-fence policy.
 package issue
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // UnterminatedPolicy decides what an opening fence with no closer means.
 //
@@ -148,4 +151,27 @@ func StripFenced(s string) string {
 		}
 	}
 	return strings.Join(kept, "\n")
+}
+
+// FindLineOutsideFences returns the byte range within s of the first line
+// matching re that is NOT inside a fenced code block, and whether one was found.
+//
+// Bounding a search to a fence-aware section does NOT make the search
+// fence-aware (#211 M2 review BR-11): a section can contain its own quoted
+// example, so a matcher scanning the section's raw text can still land inside
+// one. Callers that need an OFFSET (to splice) use this; callers that only read
+// use StripFenced.
+func FindLineOutsideFences(s string, re *regexp.Regexp) (start, end int, ok bool) {
+	lines := strings.Split(s, "\n")
+	inside := FenceSpans(lines, UnterminatedIsProse)
+	off := 0
+	for i, line := range lines {
+		if !inside[i] {
+			if loc := re.FindStringIndex(line); loc != nil {
+				return off + loc[0], off + loc[1], true
+			}
+		}
+		off += len(line) + 1
+	}
+	return 0, 0, false
 }
