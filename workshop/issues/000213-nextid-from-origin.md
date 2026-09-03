@@ -144,9 +144,15 @@ and any change to the repo transaction lock, which is working as designed.
   CI, so the guarantee survives a GitHub-UI merge, a bare `gh pr merge`,
   `--no-validate`, and an actor who has not pulled this fix. Exercised against a
   real repo, not only by reading the workflow.
-- The check is a plain script under the existing runner contract, so it
-  propagates to every derivative through the symlinked runner — `parley.nvim`
-  carries four of the eight known collisions.
+- The check reaches derivatives: the script is SYMLINKED in `base.manifest`
+  (a `scaffold` row gives each repo an empty `merge-checks.d`, so an
+  ariadne-local file would never travel), and it resolves sdlc through
+  `construct/dev-aliases.sh` + build-in-owner so a repo with no `cmd/sdlc` of
+  its own still runs it. Verified by running it in `parley.nvim`, which has no
+  `cmd/sdlc` and carries four of the eight collisions — it reports all four.
+- The check compares against the trunk TIP, not the merge-base the runner hands
+  it, because the merge-base predates the published colliding file by
+  construction and cannot see the collision at all.
 - A within-ref scan reports duplicate ids already present in a single tree, which
   is the only way the eight existing collisions are visible at all. It REPORTS on
   the base (they predate the gate; blocking every merge would be worse than the
@@ -171,6 +177,53 @@ and any change to the repo transaction lock, which is working as designed.
       collision, not by reading the workflow file.
 
 ## Log
+
+### 2026-09-03 — close review round 1: REWORK, 7 blocking
+
+The review this work skipped by going straight to main. It found two Criticals,
+both of which invalidated claims I had already made out loud.
+
+- **BR-1 — the CI check could not see the collision it was built for.** The
+  runner hands `merge-base(base, head)`; the collision's shape is *branch cut
+  first, id published after*, so the merge-base predates the published file and
+  the id looks new on both sides. Reproduced exactly: merge-base → `[ok] no
+  reused ids`, trunk tip → refuses naming both paths. The script now resolves
+  `origin/main` itself and uses the runner's base only as a fallback. **The
+  enforcement layer I described as working did not work.**
+- **BR-2 — detection depended on slug sort order.** `issueFilesByID` kept only
+  the first path per id, so when the head tree carried both files (a rebased PR)
+  `head[id]` equalled `base[id]` and nothing was reported. Now every path per id,
+  compared as sets through one shared `newPathsFor`.
+- **BR-3 — a symlinked repo root silently disabled every layer.** `EvalSymlinks`
+  fails on a not-yet-created `workshop/history`, and the fallback kept the
+  UNRESOLVED path — so on macOS (`/var` → `/private/var`) every dir looked
+  outside the repo and the lint skipped entirely. Found immediately when the
+  first BR-1 reproduction printed a skip instead of a verdict. Symlinks are now
+  resolved once on the cwd and joined.
+- **BR-4** — the merge gate read a stale `origin/main`; it fetches first now.
+- **BR-5** — the only script test asserted the SKIP path, so the check could have
+  been inert and still "covered". Replaced with the refusal path, plus the skip
+  as its own test.
+- **BR-6 — the check did not reach derivatives at all.** `base.manifest` had
+  `scaffold scripts/merge-checks.d` (an empty dir per repo), and the script
+  self-skipped without `./cmd/sdlc`, which is true of every derivative by
+  construction. Now symlinked, and resolving sdlc via `dev-aliases.sh`. Verified
+  by running it in `parley.nvim` — no `cmd/sdlc`, resolves to ariadne, reports
+  all four of its collisions.
+- **BR-7** — a per-directory `ls-tree` failure was swallowed, so a partial trunk
+  read allocated against half the id space and reported success. Now an error,
+  which routes to the loud offline warning.
+
+**A portability bug surfaced by the sandbox, not by review:** macOS `mktemp -d`
+with no template IGNORES `$TMPDIR` and uses a confstr path, so any environment
+restricting that path made the check skip silently while looking healthy. The
+script now passes an explicit `"${TMPDIR:-/tmp}/sdlc-idcheck.XXXXXX"` template.
+
+Three claims of mine were wrong before this round and are corrected in the atlas
+and Done-when: that the CI check propagated to derivatives, that it compared
+against the right baseline, and that the layers were independent (BR-3 meant one
+symlink resolution disabled all three).
+
 
 ### 2026-09-03 — SESSION HANDOFF (read this first)
 

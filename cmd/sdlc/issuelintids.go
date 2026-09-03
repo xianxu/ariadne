@@ -115,9 +115,10 @@ func introducedIDClashes(base, head, issuesDir, historyDir string, r gitRunner) 
 		return nil, err
 	}
 	var clashes []string
-	for id, path := range headByID {
-		if other, ok := baseByID[id]; ok && other != path {
-			clashes = append(clashes, fmt.Sprintf("  #%06d\n      introduced: %s\n      already at base: %s", id, path, other))
+	for id, paths := range headByID {
+		for _, path := range newPathsFor(id, paths, baseByID) {
+			clashes = append(clashes, fmt.Sprintf("  #%06d\n      introduced: %s\n      already at base: %s",
+				id, path, strings.Join(baseByID[id], ", ")))
 		}
 	}
 	sort.Strings(clashes)

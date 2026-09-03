@@ -217,7 +217,14 @@ id space.
 | --- | --- | --- |
 | allocation | `issueids.go` | prevents new collisions on a fetched checkout |
 | local gate | `sdlc merge` step 4.6 | operator feedback — bypassed by a GitHub-UI merge, bare `gh pr merge`, `--no-validate`, or an unpulled actor |
-| CI check | `merge-checks.d/40-duplicate-issue-id.sh` | server-side, can be a required status check, propagates to derivatives |
+| CI check | `merge-checks.d/40-duplicate-issue-id.sh` | server-side, can be a required status check; **symlinked** so it reaches derivatives, and resolves sdlc via `construct/dev-aliases.sh` so a repo without `cmd/sdlc` still runs it |
+
+The CI check resolves the **trunk tip itself** rather than using the base the
+runner hands it. That is not a detail: the runner contract supplies
+`merge-base(base, head)`, and this collision's defining shape is *branch cut
+first, colliding id published after* — so the merge-base predates the published
+file and the id looks new on both sides. Measured on the exact reproduction:
+merge-base reported "no reused ids"; the trunk tip refused.
 
 **A branch-vs-trunk comparison structurally cannot see a collision already
 merged** — both files are on the trunk, the trees agree, nothing is reported.

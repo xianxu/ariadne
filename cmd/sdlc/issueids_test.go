@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -303,36 +304,177 @@ func TestIntroducedIDClashes(t *testing.T) {
 	}
 }
 
-// TestMergeCheckScript_RefusesAPlantedCollision drives the CI ADAPTER, not just
-// the Go behind it. The script is what GitHub runs, and its own logic — the
-// no-tracker skip, the no-cmd/sdlc skip, the exit code — is untested otherwise.
-func TestMergeCheckScript_RefusesAPlantedCollision(t *testing.T) {
+// TestMergeCheckScript_RefusesGivenMergeBase is the CI adapter's refusal path
+// (#213 close review BR-5 — the previous test asserted only the SKIP path, so
+// the check could have been inert and still "covered").
+//
+// It also pins BR-1, the reason the check did not work at all: the runner
+// contract hands merge-base(base, head), and comparing against THAT cannot see
+// this collision — the branch was cut before the colliding id was published, so
+// the merge-base predates that file and the id looks new on both sides. The
+// script must resolve the trunk TIP itself. The fixture is built in that exact
+// order: cut, publish, collide.
+func TestMergeCheckScript_RefusesGivenMergeBase(t *testing.T) {
 	script, err := filepath.Abs(filepath.Join("..", "..", "scripts", "merge-checks.d", "40-duplicate-issue-id.sh"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(script); err != nil {
-		t.Skipf("check script not present: %v", err)
+	if _, serr := os.Stat(script); serr != nil {
+		t.Skipf("check script not present: %v", serr)
 	}
+	ariadne, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	origin := filepath.Join(t.TempDir(), "origin.git")
+	git(t, "", "init", "--bare", "-b", "main", origin)
 	repo := testfix.Repo(t, testfix.InitialCommit())
-	writeIssueAt(t, repo, idsDir, "000001-first.md")
+	writeIssueAt(t, repo, idsDir, "000001-seed.md")
 	git(t, repo, "add", "-A")
 	git(t, repo, "commit", "-m", "seed")
-	base := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
-	writeIssueAt(t, repo, idsDir, "000001-different-slug.md")
-	git(t, repo, "add", "-A")
-	git(t, repo, "commit", "-m", "reuse an id")
+	git(t, repo, "remote", "add", "origin", origin)
+	git(t, repo, "push", "-u", "origin", "main")
 
-	// No ./cmd/sdlc in this fixture, so the script takes its documented skip
-	// path. Asserting the SKIP is the point: a derivative repo consuming the
-	// symlinked runner must not fail the check merely for lacking the binary.
-	cmd := exec.Command("bash", script, base, "HEAD")
-	cmd.Dir = repo
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("script must exit 0 when it cannot build sdlc, got %v:\n%s", err, out)
+	git(t, repo, "switch", "-q", "-c", "feature") // cut BEFORE the publish
+	git(t, repo, "switch", "-q", "main")
+	writeIssueAt(t, repo, idsDir, "000500-theirs.md")
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "-m", "publish 500")
+	git(t, repo, "push", "-q", "origin", "main")
+
+	git(t, repo, "switch", "-q", "feature")
+	writeIssueAt(t, repo, idsDir, "000500-mine.md")
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "-m", "reuse 500")
+
+	// A derivative resolves sdlc through construct/dev-aliases.sh rather than
+	// owning cmd/sdlc — the shape BR-6 was about.
+	if mkErr := os.MkdirAll(filepath.Join(repo, "construct"), 0o755); mkErr != nil {
+		t.Fatal(mkErr)
 	}
-	if !strings.Contains(string(out), "skipping") {
+	resolver := "#!/usr/bin/env bash\n[ \"${1:-}\" = \"--list\" ] && printf 'sdlc\\t" + ariadne + "\\n'\n"
+	if wErr := os.WriteFile(filepath.Join(repo, "construct", "dev-aliases.sh"), []byte(resolver), 0o755); wErr != nil {
+		t.Fatal(wErr)
+	}
+
+	mergeBase := strings.TrimSpace(git(t, repo, "merge-base", "main", "HEAD"))
+	cmd := exec.Command("bash", script, mergeBase, "HEAD")
+	cmd.Dir = repo
+	// The script mktemp's a build dir; point it somewhere writable so a
+	// restricted default TMPDIR makes it SKIP rather than exercising the check.
+	cmd.Env = envWithTMPDIR(t)
+	out, runErr := cmd.CombinedOutput()
+
+	if runErr == nil {
+		t.Fatalf("check PASSED a reused id — comparing against merge-base cannot see this collision:\n%s", out)
+	}
+	for _, want := range []string{"000500", "000500-mine.md", "000500-theirs.md"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("refusal must name %q so the operator can repair it:\n%s", want, out)
+		}
+	}
+}
+
+// TestMergeCheckScript_SkipsWhenSdlcIsUnresolvable pins the other half: a repo
+// where sdlc cannot be located exits 0 with an ANNOUNCED skip, so a tracker-less
+// or unbootstrapped derivative is not failed for lacking the binary.
+func TestMergeCheckScript_SkipsWhenSdlcIsUnresolvable(t *testing.T) {
+	script, err := filepath.Abs(filepath.Join("..", "..", "scripts", "merge-checks.d", "40-duplicate-issue-id.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, serr := os.Stat(script); serr != nil {
+		t.Skipf("check script not present: %v", serr)
+	}
+	repo := testfix.Repo(t, testfix.InitialCommit())
+	writeIssueAt(t, repo, idsDir, "000001-seed.md")
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "-m", "seed")
+
+	cmd := exec.Command("bash", script, "", "HEAD")
+	cmd.Dir = repo
+	cmd.Env = envWithTMPDIR(t)
+	out, runErr := cmd.CombinedOutput()
+	if runErr != nil {
+		t.Errorf("must exit 0 when sdlc is unresolvable, got %v:\n%s", runErr, out)
+	}
+	if !strings.Contains(string(out), "SKIPPING") && !strings.Contains(string(out), "skipping") {
 		t.Errorf("the skip must be announced, not silent:\n%s", out)
 	}
+}
+
+// envWithTMPDIR REPLACES TMPDIR rather than appending a second one — the script
+// mktemp's a build dir, and appending left the restricted default in force, so
+// the check skipped and the test read as a pass against broken code.
+func envWithTMPDIR(t *testing.T) []string {
+	t.Helper()
+	dir := t.TempDir()
+	out := []string{"TMPDIR=" + dir, "TMP=" + dir, "TEMP=" + dir}
+	for _, kv := range os.Environ() {
+		switch {
+		case strings.HasPrefix(kv, "TMPDIR="), strings.HasPrefix(kv, "TMP="), strings.HasPrefix(kv, "TEMP="):
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
+}
+
+// TestIntroducedIDClashes_IndependentOfSlugSortOrder is BR-2: issueFilesByID
+// kept only the FIRST path per id, so when the head tree carried BOTH files —
+// a rebased PR, or any branch that pulled main after the trunk file landed —
+// head[id] could equal base[id] and nothing was reported.
+//
+// Detection depended on which slug `ls-tree` sorted first. Measured on the real
+// repo at the time: `000213-aaa-collision.md` was refused, while an otherwise
+// identical `000213-planted-collision.md` passed. Both orders are asserted here.
+func TestIntroducedIDClashes_IndependentOfSlugSortOrder(t *testing.T) {
+	for _, slug := range []string{"000001-aaa-sorts-first.md", "000001-zzz-sorts-last.md"} {
+		t.Run(slug, func(t *testing.T) {
+			repo, _ := idRepo(t) // trunk carries 000001-first.md
+			base := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+			git(t, repo, "switch", "-q", "-c", "feature")
+			// The head tree keeps the trunk's file AND adds a colliding one —
+			// the rebased-PR shape where the first-path-only map hid the clash.
+			writeIssueAt(t, repo, idsDir, slug)
+			git(t, repo, "add", "-A")
+			git(t, repo, "commit", "-m", "reuse an id")
+
+			clashes, err := introducedIDClashes(base, "HEAD", idsDir, histDir, execGitRunner{})
+			if err != nil {
+				t.Fatalf("introducedIDClashes: %v", err)
+			}
+			if len(clashes) != 1 {
+				t.Fatalf("found %d clashes, want 1 — detection must not depend on slug order: %v", len(clashes), clashes)
+			}
+			if !strings.Contains(clashes[0], slug) {
+				t.Errorf("clash must name the introduced file %q:\n%s", slug, clashes[0])
+			}
+		})
+	}
+}
+
+// TestPublishedIssueIDs_PartialReadIsAnError is BR-7: a per-directory ls-tree
+// failure used to be swallowed, so a partial trunk read was indistinguishable
+// from a complete one — and allocation would hand out a colliding id while
+// reporting success. Failing loudly routes it to the offline warning instead.
+func TestPublishedIssueIDs_PartialReadIsAnError(t *testing.T) {
+	repo, _ := idRepo(t)
+	_ = repo
+	// A ref that exists but whose ls-tree calls fail: point at a bogus ref via a
+	// runner that answers rev-parse but errors on ls-tree.
+	r := &lsTreeFailRunner{}
+	if _, err := publishedIssueIDs(idsDir, histDir, r); err == nil {
+		t.Error("a failed ls-tree must be an error — a partial trunk read allocates colliding ids silently")
+	}
+}
+
+type lsTreeFailRunner struct{ execGitRunner }
+
+func (l *lsTreeFailRunner) Git(args ...string) ([]byte, error) {
+	if len(args) > 0 && args[0] == "ls-tree" {
+		return []byte("boom"), fmt.Errorf("simulated ls-tree failure")
+	}
+	return l.execGitRunner.Git(args...)
 }

@@ -20,6 +20,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -85,15 +86,42 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 	}
 	var ids []int
 	for _, dir := range dirs {
-		// A directory absent from the ref is not an error: ls-tree prints
-		// nothing and the dir contributes no ids.
 		out, err := r.Git("ls-tree", "--name-only", trunkRef, dir+"/")
 		if err != nil {
-			continue
+			// A PARTIAL read is indistinguishable from a complete one once the
+			// ids are unioned, so it would allocate against half the trunk and
+			// report success (#213 close review BR-7). A directory genuinely
+			// absent from the ref is not an error — ls-tree exits 0 printing
+			// nothing — so reaching here means the read itself failed.
+			return nil, fmt.Errorf("ls-tree %s %s/: %v\n%s", trunkRef, dir, err, out)
 		}
 		ids = append(ids, issue.IDsInTreeListing(string(out))...)
 	}
 	return ids, nil
+}
+
+// newPathsFor returns the paths claiming id at head that the base does not have.
+// The shared comparison behind both gates, so they cannot disagree about what
+// "introduced" means.
+func newPathsFor(id int, headPaths []string, base map[int][]string) []string {
+	basePaths, ok := base[id]
+	if !ok {
+		return nil // the id is new; nothing to collide with
+	}
+	var out []string
+	for _, p := range headPaths {
+		known := false
+		for _, b := range basePaths {
+			if b == p {
+				known = true
+				break
+			}
+		}
+		if !known {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // repoRelativeIDDirs converts the id directories to paths inside the current git
@@ -104,15 +132,28 @@ func repoRelativeIDDirs(issuesDir, historyDir string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("not a git repo: %w", err)
 	}
-	top, _ = filepath.EvalSymlinks(top)
+	if resolved, rerr := filepath.EvalSymlinks(top); rerr == nil {
+		top = resolved
+	}
+	// Resolve symlinks ONCE, on the cwd, then join — never on the dir itself.
+	// EvalSymlinks fails on a path that does not exist yet, which is the normal
+	// state of workshop/history in a fresh repo; the first cut fell back to the
+	// UNRESOLVED absolute path there, so on macOS (/var → /private/var) it
+	// compared an unresolved dir against a resolved root, decided every dir was
+	// outside the repo, and silently skipped every layer of this issue's fix.
+	base, berr := os.Getwd()
+	if berr != nil {
+		return nil, berr
+	}
+	if resolved, rerr := filepath.EvalSymlinks(base); rerr == nil {
+		base = resolved
+	}
 	var out []string
 	for _, dir := range issue.IDDirs(issuesDir, historyDir) {
-		abs, err := filepath.Abs(dir)
-		if err != nil {
-			return nil, err
-		}
-		// EvalSymlinks only where the path exists; a not-yet-created dir is fine.
-		if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		abs := dir
+		if !filepath.IsAbs(abs) {
+			abs = filepath.Join(base, abs)
+		} else if resolved, rerr := filepath.EvalSymlinks(abs); rerr == nil {
 			abs = resolved
 		}
 		rel, err := filepath.Rel(top, abs)
@@ -136,6 +177,11 @@ func repoRelativeIDDirs(issuesDir, historyDir string) ([]string, error) {
 // path) is not mistaken for a collision — only a DIFFERENT file claiming a
 // live id is.
 func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r gitRunner) error {
+	// Refresh the trunk ref first (#213 close review BR-4). merge's own flow has
+	// not fetched at step 4.6, so a stale origin/main would miss exactly the
+	// collision that landed while this branch was open — the shape of the bug.
+	_, _ = r.Git("fetch", "--quiet", "origin", "main")
+
 	trunk, err := issueFilesByID(trunkRef, issuesDir, historyDir, r)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("duplicate-id gate skipped: %v", err))
@@ -147,9 +193,10 @@ func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r g
 		return nil
 	}
 	var clashes []string
-	for id, path := range local {
-		if other, ok := trunk[id]; ok && other != path {
-			clashes = append(clashes, fmt.Sprintf("  #%06d\n      this branch: %s\n      %s: %s", id, path, trunkRef, other))
+	for id, paths := range local {
+		for _, path := range newPathsFor(id, paths, trunk) {
+			clashes = append(clashes, fmt.Sprintf("  #%06d\n      this branch: %s\n      %s: %s",
+				id, path, trunkRef, strings.Join(trunk[id], ", ")))
 		}
 	}
 	if len(clashes) == 0 {
@@ -165,11 +212,16 @@ func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r g
 		len(clashes), trunkRef, strings.Join(clashes, "\n"))
 }
 
-// issueFilesByID maps each id in a ref's issue directories to its path. A
-// duplicate id WITHIN one ref keeps the first path seen; that state is what the
-// gate exists to stop reaching the trunk, and it is reported by whichever side
-// carries it.
-func issueFilesByID(ref, issuesDir, historyDir string, r gitRunner) (map[int]string, error) {
+// issueFilesByID maps each id in a ref's issue directories to EVERY path
+// claiming it.
+//
+// Every path, not the first (#213 close review BR-2). Collapsing to one made
+// detection depend on `ls-tree`'s sort order — i.e. on the slug: when the head
+// tree carries BOTH files (a rebased PR, or any branch that pulled main after
+// the trunk file landed), head[id] could equal base[id] and nothing was
+// reported. Measured on the real repo: `000213-aaa-collision.md` was refused
+// while `000213-planted-collision.md`, identical but sorting later, passed.
+func issueFilesByID(ref, issuesDir, historyDir string, r gitRunner) (map[int][]string, error) {
 	if out, err := r.Git("rev-parse", "--verify", "--quiet", ref); err != nil || strings.TrimSpace(string(out)) == "" {
 		return nil, fmt.Errorf("no %s ref", ref)
 	}
@@ -177,7 +229,7 @@ func issueFilesByID(ref, issuesDir, historyDir string, r gitRunner) (map[int]str
 	if derr != nil {
 		return nil, derr
 	}
-	byID := map[int]string{}
+	byID := map[int][]string{}
 	for _, dir := range dirs {
 		out, err := r.Git("ls-tree", "--name-only", ref, dir+"/")
 		if err != nil {
@@ -193,8 +245,15 @@ func issueFilesByID(ref, issuesDir, historyDir string, r gitRunner) (map[int]str
 				base = base[i+1:]
 			}
 			if n := issue.IDFromFilename(base); n > 0 {
-				if _, seen := byID[n]; !seen {
-					byID[n] = line
+				dup := false
+				for _, seen := range byID[n] {
+					if seen == line {
+						dup = true
+						break
+					}
+				}
+				if !dup {
+					byID[n] = append(byID[n], line)
 				}
 			}
 		}

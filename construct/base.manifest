@@ -128,6 +128,12 @@ symlink   scripts/docflow.sh
 seed      .github/workflows/merge-check.yml
 symlink   scripts/run-merge-checks.sh
 scaffold  scripts/merge-checks.d
+# The id-collision check itself is SYMLINKED, not scaffolded (#213): a scaffolded
+# dir gives each derivative an empty merge-checks.d, so an ariadne-local file
+# would never reach the repos that carry collisions — parley.nvim holds four of
+# the eight found. The script resolves sdlc through construct/dev-aliases.sh and
+# builds in the owner, so a derivative without its own cmd/sdlc still runs it.
+symlink   scripts/merge-checks.d/40-duplicate-issue-id.sh
 
 # ── Construct system ──────────────────────────────────────────────────────────
 # Retired by the weave cutover (#95): sync-local-skills.sh (now the `skill`
