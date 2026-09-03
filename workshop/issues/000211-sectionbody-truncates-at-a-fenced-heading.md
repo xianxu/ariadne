@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-02
-estimate_hours:
+estimate_hours: 1.55
 started: 2026-09-02T18:20:40-07:00
 ---
 
@@ -23,7 +23,56 @@ there.
 The word- and bullet-count checks are `≥ N` thresholds that truncation can only
 push down, so they fail safe. Two gates count things whose *absence* means pass:
 
-    ## Plan
+    ## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module      design=0.05 impl=0.20
+item: cross-cutting-refactor design=0.05 impl=0.20
+item: smaller-go-module      design=0.05 impl=0.20
+item: smaller-go-module      design=0.05 impl=0.20
+item: atlas-docs             design=0.05 impl=0.06
+item: milestone-review       design=0.00 impl=0.20
+item: milestone-review       design=0.00 impl=0.20
+total: 1.55
+```
+
+In Plan order:
+
+1. `smaller-go-module` — move `scanMarkdownLines` + `fenceMarker` down into
+   `internal/issue` and give the scanner its explicit unterminated-fence policy.
+   Mirror-or-extend of working code, but the policy parameter is new.
+2. `cross-cutting-refactor` — rebuild `SectionBody` on it, delete
+   `PlanSectionRE`, route its six sites and two stale comments.
+3. `smaller-go-module` — rebuild `stripCodeFences` and `SplitFences`. **The
+   riskiest row**: byte-exact reassembly has to survive, the two consumers must
+   keep disagreeing about unterminated fences on purpose, and `SplitFences`'
+   line-anchoring change alters what `migrate` will rewrite.
+4. `smaller-go-module` — the tests: a corpus-seeded property test over all 406
+   `workshop/**/*.md`, per-function tables, and the `close` false-pass
+   regression. Priced as its own row rather than folded into the others because
+   the property test is new machinery, not a table.
+5. `atlas-docs` — the section-parsing entry and the scanner's single-source note.
+6. `milestone-review` ×2 — see below.
+
+Design is `×0.2` spec-quality discounted: the Spec names every consumer by
+file:line from a grep, tables the six divergence axes, and fixes each consumer's
+policy — the remaining design is reading. Buffer `+15%` (v3.1 step 4).
+Familiarity `1.0`: Go, this package, line scanning; nothing novel in the stack.
+
+**Two `milestone-review` rows, both at the scaled ceiling**, following #208's
+correction: the lever for "I expect N rounds" is N rows, not one row inflated.
+Two is the read — plan-quality already took two rounds here, and the class has
+more members than #208's (six call sites, five fence forms, three scanners being
+collapsed, one behaviour change to a different verb). Today's ledger: #206 at
+0.3× priced one round for six; #208 at 0.7× priced two and took two.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
+## Plan
     - [x] M1 — done
     - [x] Add the scaffold. Example of what it emits:
     ```markdown
