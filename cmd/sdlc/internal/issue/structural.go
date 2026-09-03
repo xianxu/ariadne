@@ -21,7 +21,7 @@ const (
 // INVARIANT (TestGatedSectionsSubsetOfModel): a subset of issue.cue
 // scaffold.sections — a gate must not require a section the creation template
 // never writes. (Note: checkPlan encodes "Plan" in PlanSectionBody, so a rename
-// there needs a matching regex edit — the test fires to remind you.)
+// there needs a matching edit — the test fires to remind you.)
 var gatedSections = []string{secSpec, secPlan, secDoneWhen}
 
 // StructuralFailure is one gate's verdict against an issue file's

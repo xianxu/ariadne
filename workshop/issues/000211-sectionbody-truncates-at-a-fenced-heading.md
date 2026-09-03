@@ -275,6 +275,21 @@ refs". Tagged so the structure and the `## Estimate` agree.
 - [x] M1 — `close` plan-unchecked + `findMilestonesMissingVerdict` regression:
       unchecked items and milestones after a fenced `##` must be counted. Plus an
       unterminated fence that must NOT hide later sections.
+- [ ] M2 — Sweep the rest of the heading-finding class (M1 review I4). Three
+      production sites still locate `## <heading>` without fence awareness:
+      `setstatus.go:302` `logHasEntryToday` (**live instance** — takes the FIRST
+      `## Log`, which in `workshop/history/issues/000066-*.md` is at line 22
+      inside a fence while the real one is at line 68, so the reopen guard reads
+      the wrong region on a real file); `close.go:301` `insertLogLine` (whose
+      last-match heuristic from #66 is a second, weaker workaround for exactly
+      what `FenceSpans` now solves, and which fails for a fenced `## Log` after
+      the real one — 1 of 406 corpus files already has that shape); and
+      `changecode.go:741` `stripEstimateForHash`, whose own comment reasons about
+      RE2's lack of lookahead. (`issue.go:530`'s structure peek is cosmetic —
+      listed, not fixed.)
+- [ ] M2 — Filter the plan-item counters on `FenceSpans`: fenced `- [ ]` /
+      `- [x] Mx` lines inside a quoted block now survive into `planBody` and are
+      counted. Fails safe (spurious refusal), but it is free to be right.
 - [ ] M2 — Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
       byte-exact reassembly and keeping their unterminated-fence disagreement as
       an explicit parameter.
@@ -288,7 +303,40 @@ refs". Tagged so the structure and the `## Estimate` agree.
 
 ## Log
 
+### 2026-09-02 — M1 review (FIX-THEN-SHIP, no blocking findings)
+
+Fixed before the boundary commit:
+
+- **I5 (`ARCH-DRY`)** — the diff removed one duplicated section scanner and
+  introduced another: `SectionBody`'s loop and `project.SectionLineBounds` were
+  the same algorithm differing only in policy. Now one exported
+  `issue.SectionLineBounds(lines, heading, policy)`; `SectionBody` joins its
+  range and `project` wraps it with its own policy. Doing the exact thing this
+  issue argues against, one package over, is worth naming.
+- **I6** — `fence.go`'s header and the atlas policy table described M2's end
+  state as landed: `stripCodeFences` and `SplitFences` are still on their own
+  logic at this boundary. Both now say "M2 rebases it onto this", so a reader who
+  greps finds what is actually there.
+- Minors: `close_test.go`'s two inline copies of the deleted `PlanSectionRE`
+  routed through `PlanSectionBody` (they were pinning a shadow of removed code
+  and giving false coverage for the path this issue fixes); the stale "matching
+  regex edit" comment; `workshopMarkdown` now skips on an absent corpus instead
+  of swallowing the error and then fataling below 100 files.
+
+**Carried into M2 rather than fixed here (I4):** the class is "code that locates
+a `## <heading>` without fence awareness", and it has three more production
+members — one with a *live* instance on a real issue file, where
+`logHasEntryToday` reads a fenced `## Log` at line 22 instead of the real one at
+line 68. Enumerated in the Plan this round, which is what the review asked for;
+the sweep is M2-sized.
+
+Also noted: `close.go`'s `insertLogLine` carries a last-match heuristic added by
+#66 that is a second, weaker workaround for precisely the problem `FenceSpans`
+solves. That is the shape of a class fix arriving late — the workaround predates
+the scanner by 145 issues.
+
 ### 2026-09-02 — M1
+- 2026-09-02: closed M1 — M1 complete. go test ./cmd/... ./pkg/... green except the pre-existing unrelated fleet_plan test (#210). Revert-verified against the old regex parser: all three close-gate regressions go red with real numbers (plan-unchecked 0 of 2 open items; milestone scan [M1] not [M1 M2]; CountPlanItems 2 of 4) plus 7 cases in the fence suite. Corpus property test verified 2875 real sections across 406 workshop markdown files. `sdlc issue validate --all` byte-identical before and after (16 conforming both ways) — the predicted zero-verdict-change held. project/ suite passes unchanged after consuming the moved scanner at UnterminatedIsFenced. Atlas: issue-lifecycle.md gains the section-parsing entry with the RE2 argument and the per-consumer policy table (row moved from M2 — the boundary gate correctly identified M1 as where the surface landed). Actual 0.65h is the measured window value; the engine flags it cross-attributed across #115/#208/#211 with #211 at 27.7m/71%, so it is a conservative upper bound rather than a clean per-issue figure.; review verdict: FIX-THEN-SHIP
 
 Scanner moved down into `internal/issue` as `FenceSpans` / `ScanMarkdownLines`
 with the unterminated policy as a parameter; `project` consumes it at

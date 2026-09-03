@@ -19,24 +19,37 @@ import "strings"
 // the ones the gates read.
 func SectionBody(body, heading string) (string, bool) {
 	lines := strings.Split(body, "\n")
-	inside := FenceSpans(lines, UnterminatedIsProse)
-	start, end := -1, len(lines)
+	start, end, ok := SectionLineBounds(lines, heading, UnterminatedIsProse)
+	if !ok {
+		return "", false
+	}
+	return strings.Join(lines[start:end], "\n"), true
+}
+
+// SectionLineBounds returns the half-open line range beneath the first `##
+// <heading>` that is not inside a fenced code block, ending at the next such
+// heading or end-of-input.
+//
+// The single implementation of "find a section" (#211). An earlier cut of this
+// file had its own copy of the loop while `project` kept another — which is the
+// duplication this issue exists to remove, reintroduced one package over. The
+// policy is a parameter precisely so both callers can share the loop while
+// disagreeing about unterminated fences.
+func SectionLineBounds(lines []string, heading string, policy UnterminatedPolicy) (start, end int, ok bool) {
+	inside := FenceSpans(lines, policy)
+	start, end = -1, len(lines)
 	for i, line := range lines {
 		if inside[i] || !strings.HasPrefix(line, "## ") {
 			continue
 		}
 		if start >= 0 {
-			end = i
-			break
+			return start, i, true
 		}
 		if strings.TrimSpace(strings.TrimPrefix(line, "## ")) == heading {
 			start = i + 1
 		}
 	}
-	if start < 0 {
-		return "", false
-	}
-	return strings.Join(lines[start:end], "\n"), true
+	return start, end, start >= 0
 }
 
 // PlanSectionBody is SectionBody for the Plan, named because five call sites

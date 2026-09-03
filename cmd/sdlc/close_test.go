@@ -234,31 +234,31 @@ random spec stuff here.
 
 - [ ] this is in Log section, must not be counted
 `
-	planRE := regexp.MustCompile(`(?ms)^## Plan\s*\n(.*?)(?:^## |\z)`)
-	m := planRE.FindStringSubmatchIndex(body)
-	if m == nil {
+	// Routed through the production extractor (#211): an inline copy of the
+	// deleted PlanSectionRE would pin a shadow of removed code and give false
+	// coverage for the exact path this test exists to check.
+	planBody, ok := issue.PlanSectionBody(body)
+	if !ok {
 		t.Fatal("Plan section not found")
 	}
-	planBody := body[m[2]:m[3]]
-	uncheckedRE := regexp.MustCompile(`(?m)^- \[[ .]\] .*$`)
-	unchecked := uncheckedRE.FindAllString(planBody, -1)
+	unchecked := issue.PlanUncheckedRE.FindAllString(planBody, -1)
 	if len(unchecked) != 3 {
 		t.Errorf("unchecked count = %d, want 3; matches: %v", len(unchecked), unchecked)
 	}
 }
 
 // TestPlanUncheckedDetection_PlanIsLastSection — when Plan is the trailing
-// section (no following ##), the regex still captures the plan body via \z.
+// section (no following ##), extraction still runs to end-of-input.
 func TestPlanUncheckedDetection_PlanIsLastSection(t *testing.T) {
 	body := "## Plan\n\n- [ ] M1 do thing\n- [.] M2 wip\n"
-	planRE := regexp.MustCompile(`(?ms)^## Plan\s*\n(.*?)(?:^## |\z)`)
-	m := planRE.FindStringSubmatchIndex(body)
-	if m == nil {
+	// Routed through the production extractor (#211): an inline copy of the
+	// deleted PlanSectionRE would pin a shadow of removed code and give false
+	// coverage for the exact path this test exists to check.
+	planBody, ok := issue.PlanSectionBody(body)
+	if !ok {
 		t.Fatal("Plan section not found")
 	}
-	planBody := body[m[2]:m[3]]
-	uncheckedRE := regexp.MustCompile(`(?m)^- \[[ .]\] .*$`)
-	unchecked := uncheckedRE.FindAllString(planBody, -1)
+	unchecked := issue.PlanUncheckedRE.FindAllString(planBody, -1)
 	if len(unchecked) != 2 {
 		t.Errorf("unchecked count = %d, want 2; matches: %v", len(unchecked), unchecked)
 	}

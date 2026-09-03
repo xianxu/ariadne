@@ -1,4 +1,7 @@
-// fence.go — the ONE fenced-code-block scanner for cmd/sdlc (#211).
+// fence.go — the fenced-code-block scanner SECTION EXTRACTION is built on (#211).
+//
+// M2 rebases stripCodeFences and SplitFences onto it; until then they remain on
+// their own logic in structural.go, so this is not yet the only scanner here.
 //
 // Before this file the tree had three, and they disagreed:
 //
@@ -26,8 +29,10 @@ import "strings"
 //	SectionBody, plan extraction  UnterminatedIsProse   a swallowed `## Plan`
 //	                                                    disarms the close gates
 //	stripCodeFences (word count)  UnterminatedIsProse   pre-existing, deliberate
+//	                                                    — M2 rebases it onto this
 //	SplitFences (#179 migrate)    UnterminatedIsFenced  a rewriter must not edit
 //	                                                    inside a maybe-code tail
+//	                                                    — M2 rebases it onto this
 //	project section scan          UnterminatedIsFenced  pre-existing behavior
 //
 // Getting this wrong on SectionBody is worse than the bug it fixes: instead of

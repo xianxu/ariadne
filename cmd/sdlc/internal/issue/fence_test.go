@@ -155,8 +155,11 @@ func TestFenceSpans_ReproducesInput(t *testing.T) {
 // are SUPPOSED to disappear; those are the bug being fixed.
 func TestSectionBody_CorpusLosesNoRealSection(t *testing.T) {
 	files := workshopMarkdown(t)
+	if len(files) == 0 {
+		t.Skip("no workshop/ corpus here — a downstream repo consuming this package")
+	}
 	if len(files) < 100 {
-		t.Fatalf("only %d workshop markdown files found — the corpus seed is not wired", len(files))
+		t.Fatalf("only %d workshop markdown files found — the corpus seed is mis-wired", len(files))
 	}
 	checked := 0
 	for _, f := range files {
@@ -190,7 +193,7 @@ func workshopMarkdown(t *testing.T) []string {
 	var out []string
 	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // a missing workshop dir is a downstream repo, not a failure
+			return nil // absent corpus is handled by the Skip in the caller
 		}
 		if !info.IsDir() && strings.HasSuffix(p, ".md") {
 			out = append(out, p)
