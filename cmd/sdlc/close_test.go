@@ -437,11 +437,10 @@ func TestMilestonePlanRE_Enumerates(t *testing.T) {
 
 - 2026-05-26: closed
 `
-	planM := issue.PlanSectionRE.FindStringSubmatchIndex(body)
-	if planM == nil {
+	planBody, ok := issue.PlanSectionBody(body)
+	if !ok {
 		t.Fatal("plan section not found")
 	}
-	planBody := body[planM[2]:planM[3]]
 	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
 	got := make([]string, 0, len(matches))
 	for _, m := range matches {

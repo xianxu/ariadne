@@ -20,7 +20,7 @@ const (
 // gatedSections is the set of sections CheckSectionsPresence enforces.
 // INVARIANT (TestGatedSectionsSubsetOfModel): a subset of issue.cue
 // scaffold.sections — a gate must not require a section the creation template
-// never writes. (Note: checkPlan encodes "Plan" in PlanSectionRE, so a rename
+// never writes. (Note: checkPlan encodes "Plan" in PlanSectionBody, so a rename
 // there needs a matching regex edit — the test fires to remind you.)
 var gatedSections = []string{secSpec, secPlan, secDoneWhen}
 
@@ -157,14 +157,13 @@ func checkSpecWordCount(body string) *StructuralFailure {
 var nonEmptyPlanItemRE = regexp.MustCompile(`(?m)^- \[[ x.]\]\s+\S`)
 
 func checkPlan(body string) *StructuralFailure {
-	m := PlanSectionRE.FindStringSubmatchIndex(body)
-	if m == nil {
+	section, ok := PlanSectionBody(body)
+	if !ok {
 		return &StructuralFailure{
 			Name:    "plan-present",
 			Message: "no `## Plan` section found",
 		}
 	}
-	section := body[m[2]:m[3]]
 	if !nonEmptyPlanItemRE.MatchString(section) {
 		return &StructuralFailure{
 			Name:    "plan-present",

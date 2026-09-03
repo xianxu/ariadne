@@ -1,21 +1,48 @@
 package issue
 
-import "regexp"
+import "strings"
 
 // SectionBody returns the body of a top-level `## <heading>` section — the text
 // after `## <heading>` up to the next `## ` heading or end-of-text — and whether
-// the section exists. Consolidates the `^## <H>\s*\n(.*?)(?:^## |\z)` pattern that
-// the spec / done-when / estimate gates each used to spell out (#117 M2 review).
+// the section exists.
 //
-// checkPlan keeps its own PlanSectionRE: it needs byte offsets
-// (FindStringSubmatchIndex), not just the body. The regex is compiled per call —
-// section extraction runs a handful of times per command, and a package-level
-// cache would need a mutex for test parallelism; not worth it. Pure.
+// FENCE-AWARE (#211). A `## ` inside a fenced code block is content, not the
+// next section, so an issue that quotes markdown is read in full. That matters
+// here more than it looks: this repo's deliverables are frequently markdown
+// documents, so specifying one means quoting it, and the quoted headings are
+// `##` because the target file's are. The regex this replaced ended a section at
+// any `^## ` and silently truncated those issues — which for `## Plan` meant the
+// close gates counted zero unchecked items and missed milestones entirely.
+//
+// The unterminated-fence policy is UnterminatedIsProse: a stray opener must
+// never hide the rest of the document, because the sections it would hide are
+// the ones the gates read.
 func SectionBody(body, heading string) (string, bool) {
-	re := regexp.MustCompile(`(?ms)^## ` + regexp.QuoteMeta(heading) + `\s*\n(.*?)(?:^## |\z)`)
-	m := re.FindStringSubmatch(body)
-	if m == nil {
+	lines := strings.Split(body, "\n")
+	inside := FenceSpans(lines, UnterminatedIsProse)
+	start, end := -1, len(lines)
+	for i, line := range lines {
+		if inside[i] || !strings.HasPrefix(line, "## ") {
+			continue
+		}
+		if start >= 0 {
+			end = i
+			break
+		}
+		if strings.TrimSpace(strings.TrimPrefix(line, "## ")) == heading {
+			start = i + 1
+		}
+	}
+	if start < 0 {
 		return "", false
 	}
-	return m[1], true
+	return strings.Join(lines[start:end], "\n"), true
 }
+
+// PlanSectionBody is SectionBody for the Plan, named because five call sites
+// want exactly this and used to reach for a separate regex to get it.
+//
+// PlanSectionRE is gone (#211): every consumer took FindStringSubmatchIndex only
+// to slice body[m[2]:m[3]] and work on the resulting string — none needed the
+// byte offsets the old comment here claimed checkPlan required.
+func PlanSectionBody(body string) (string, bool) { return SectionBody(body, "Plan") }

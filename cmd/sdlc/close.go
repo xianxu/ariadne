@@ -560,8 +560,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			cwarn(stderr, fmt.Sprintf("no '- [ ] %s' in %s (project-tracked issue?)", f.Milestone, filepath.Base(issuePath)))
 		}
 	} else { // issue close
-		if m := issue.PlanSectionRE.FindStringSubmatchIndex(newBody); m != nil {
-			planBody := newBody[m[2]:m[3]]
+		if planBody, ok := issue.PlanSectionBody(newBody); ok {
 			unchecked := issue.PlanUncheckedRE.FindAllString(planBody, -1)
 			if len(unchecked) > 0 {
 				if !f.skip("plan") {
@@ -1715,13 +1714,12 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 // treated the same as one whose commit lacks the trailer — both are "no
 // review evidence."
 func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, missing []string, err error) {
-	m := issue.PlanSectionRE.FindStringSubmatchIndex(body)
-	if m == nil {
+	planBody, ok := issue.PlanSectionBody(body)
+	if !ok {
 		// No plan section → no milestones to check. Treat as "fine":
 		// the operator may be closing an issue that never had milestones.
 		return nil, nil, nil
 	}
-	planBody := body[m[2]:m[3]]
 	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
 	if len(matches) == 0 {
 		return nil, nil, nil

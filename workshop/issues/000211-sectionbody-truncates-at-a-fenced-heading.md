@@ -262,17 +262,17 @@ Two review boundaries, because they carry different risk and different evidence:
 M1 is verifiable as "no section is lost", M2 as "migrate still rewrites the same
 refs". Tagged so the structure and the `## Estimate` agree.
 
-- [ ] M1 — Move `scanMarkdownLines` + `fenceMarker` from
+- [x] M1 — Move `scanMarkdownLines` + `fenceMarker` from
       `internal/project/doc.go` into `internal/issue`; `project` consumes it from
       there. Give the scanner an explicit unterminated-fence policy.
-- [ ] M1 — Rebuild `SectionBody` on the scanner with the `prose` policy; delete
+- [x] M1 — Rebuild `SectionBody` on the scanner with the `prose` policy; delete
       its regex terminator.
-- [ ] M1 — Delete `PlanSectionRE`; route its six sites and two stale comments
+- [x] M1 — Delete `PlanSectionRE`; route its six sites and two stale comments
       through `SectionBody(body, "Plan")`.
-- [ ] M1 — Corpus-seeded property test over all 406 `workshop/**/*.md`: no file
+- [x] M1 — Corpus-seeded property test over all 406 `workshop/**/*.md`: no file
       loses a real section, and visited + skipped lines reproduce the input.
       Fold the before/after verdict diff into it so the invariant is mechanical.
-- [ ] M1 — `close` plan-unchecked + `findMilestonesMissingVerdict` regression:
+- [x] M1 — `close` plan-unchecked + `findMilestonesMissingVerdict` regression:
       unchecked items and milestones after a fenced `##` must be counted. Plus an
       unterminated fence that must NOT hide later sections.
 - [ ] M2 — Rebuild `stripCodeFences` + `SplitFences` on the scanner, preserving
@@ -285,6 +285,29 @@ refs". Tagged so the structure and the `## Estimate` agree.
 - [ ] M2 — Atlas: the section-parsing entry and the scanner's single-source note.
 
 ## Log
+
+### 2026-09-02 — M1
+
+Scanner moved down into `internal/issue` as `FenceSpans` / `ScanMarkdownLines`
+with the unterminated policy as a parameter; `project` consumes it at
+`UnterminatedIsFenced` and its suite passes with no other edit. `SectionBody`
+rebuilt on it at `UnterminatedIsProse`; `PlanSectionRE` deleted and all six sites
+plus both stale comments rerouted through `PlanSectionBody`.
+
+Revert-verified, which is the only evidence that counts here: restoring the old
+regex reds all three close-gate regressions with the real numbers — plan-unchecked
+sees 0 of 2 open items, the milestone scan sees `[M1]` instead of `[M1 M2]`, and
+`CountPlanItems` reports 2 of 4 — plus 7 cases in the fence suite.
+
+Corpus property test verified **2875 real sections across 406 workshop markdown
+files**, and `sdlc issue validate --all` is byte-identical before and after
+(16 conforming both ways). The prediction that no verdict would move held.
+
+One test expectation was wrong rather than the code: under `UnterminatedIsProse`
+a `##` following a stray opener IS read as a real heading, so text after it lands
+in that accidental section. That over-segmentation is the deliberate price —
+visible and recoverable, where under-segmenting hides `## Plan` from the gates —
+and it now has its own test saying so, so nobody "fixes" it later.
 
 ### 2026-09-02
 

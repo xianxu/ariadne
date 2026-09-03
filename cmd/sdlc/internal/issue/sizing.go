@@ -60,8 +60,7 @@ func ComputeSizingFromContent(text string) Sizing {
 		}
 	}
 
-	if m := PlanSectionRE.FindStringSubmatchIndex(body); m != nil {
-		section := body[m[2]:m[3]]
+	if section, ok := PlanSectionBody(body); ok {
 		s.PlanItems = len(PlanItemRE.FindAllStringIndex(section, -1))
 		s.Milestones = len(milestoneLabelRE.FindAllStringIndex(section, -1))
 	}
