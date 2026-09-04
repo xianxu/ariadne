@@ -178,16 +178,26 @@ func containsPath(paths []string, want string) bool {
 // introducedCollisions returns ids the MERGE RESULT would have claimed by more
 // than one path, excluding those the base already had claimed twice.
 //
-// Refuse what this range creates; report what it inherited — renumbering an
-// existing collision is operator work, and blocking every merge until it is done
-// is worse than the bug.
+// Refuse only what the RANGE contributes; report what it inherited — renumbering
+// an existing collision is operator work, and blocking every merge until it is
+// done is worse than the bug.
+//
+// "Inherited" means already doubled in EITHER tree the range did not author
+// (#213 close review BR-19). Testing only the merge-base blamed a PR for a
+// collision that landed on main after its branch was cut: base held one path,
+// the trunk held two, both survived into merged, and a PR that touched nothing
+// related was refused.
 func introducedCollisions(head, base, trunk map[int][]string) []int {
 	merged := mergedPathsFor(head, base, trunk)
 	var ids []int
 	for id, paths := range merged {
-		if len(paths) > 1 && len(base[id]) < 2 {
-			ids = append(ids, id)
+		if len(paths) < 2 {
+			continue
 		}
+		if len(base[id]) > 1 || len(trunk[id]) > 1 {
+			continue // already broken without this range's help
+		}
+		ids = append(ids, id)
 	}
 	sort.Ints(ids)
 	return ids

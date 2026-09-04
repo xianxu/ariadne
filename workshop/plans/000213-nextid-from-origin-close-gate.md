@@ -382,6 +382,138 @@ rounds:
           family: gate-predicate-ignores-range-delta
           round: 3
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-03T18:04:57-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: not-addressed
+          note: 'Unchanged, plus a 4th duplication: the clash-report Sprintf is byte-identical at issueids.go:275 and issuelintids.go:129.'
+          round: 4
+        - id: BR-9
+          disposition: not-addressed
+          note: Verified at HEAD — prose still sits between the opening fence at ci-merge-check.md:31 and its close at :47.
+          round: 4
+        - id: BR-10
+          disposition: not-addressed
+          note: helptext/issue.md:6-14 still lists new/sync/set-status/list/show only.
+          round: 4
+        - id: BR-11
+          disposition: not-addressed
+          note: merge.go still gates on !f.NoValidate; merge.md FLAGS (line 80) documents --no-judge but neither --no-validate nor an id-gate flag.
+          round: 4
+        - id: BR-12
+          disposition: not-addressed
+          note: issueids.go:85 fetch is still unbounded on the interactive `issue new` path.
+          round: 4
+        - id: BR-15
+          disposition: not-addressed
+          note: |-
+            The three named ls-tree sites now error, but the rule ("no code path reports a clean verdict
+            from an incomplete listing") is still violated at four places, two of which are NEW swallow
+            sites introduced by the round-2/3 work. Measured: issuelintids.go:122 drops terr entirely and
+            substitutes baseByID for the trunk — a real collision then returns zero clashes with no error
+            and no warning; issueids.go:268 drops berr and leaves base empty. runIssueLintIDs (:77, :91)
+            and refuseDuplicateIssueIDs (:256, :261) both turn a read failure into exit 0 / return nil.
+            Additionally the class fix is pinned at only 1 of 3 sites — issueFilesByID's and idListing's
+            error-returns can be deleted with the suite green.
+          round: 4
+        - id: BR-16
+          disposition: not-addressed
+          note: |-
+            The two Go fetch sites got the explicit refspec; the THIRD and only site BR-16 named —
+            scripts/merge-checks.d/40-duplicate-issue-id.sh:65 — is unchanged (`git fetch --quiet origin
+            main`). Premise re-measured: with a narrow remote.origin.fetch the plain form leaves
+            origin/main unresolvable, the explicit refspec resolves it. The degraded fallback (script
+            lines 67-69, 80-81) also still exits 0 with a blind model rather than a loud degraded state:
+            with base==trunk the predicate collapses to merged==head. The issue Log's claim that "both
+            fetch sites" were fixed needs correcting.
+          round: 4
+        - id: BR-17
+          disposition: not-addressed
+          note: |-
+            ci-merge-check.md:42-46 still says the script "builds sdlc from the checkout under test" and
+            lists "no ./cmd/sdlc" as a skip condition — both pre-BR-6 behaviour; dev-aliases owner
+            resolution is unmentioned. Two more doc homes to add to the enumeration: the delivery table
+            at :19 still says merge-checks.d is `scaffold` although base.manifest now symlinks the check,
+            and the three-tree merge model (BR-13/BR-18, the diff's subtlest logic) has no atlas home at
+            all — sdlc-binary.md documents the CI check but not the predicate. README confirmed N/A
+            (85 lines, lists project/fleet/judge verbs only).
+          round: 4
+        - id: BR-18
+          disposition: not-addressed
+          note: |-
+            Primary instance FIXED and revert-verified: reverting the symmetry in mergedPathsFor turns
+            TestMergedPathsFor_ModelsTheMergeResult/trunk_archived_it_while_the_PR_was_open red. But both
+            named sweep members remain and both reproduce. (1) refuseDuplicateIssueIDs: with a failed
+            merge-base ls-tree read, base collapses to {} and a routine `git mv` archive is refused —
+            "#000001 would be claimed by 2 files after merge" — with an EMPTY stderr, no warning at all;
+            the healthy-runner control passes on the same fixture. (2) runIssueLintIDs:80-82 still labels
+            a duplicate the range introduced "pre-existing duplicate id #000001" without consulting base.
+          round: 4
+      findings:
+        - id: BR-19
+          severity: Important
+          title: A collision living entirely on the trunk is charged to a PR that touched nothing
+          detail: |-
+            This is the 4th finding in family gate-predicate-ignores-range-delta. Earlier rounds fixed
+            instances. Do NOT fix this instance alone — the rule is that the gate refuses only what the
+            RANGE contributes, so the pre-existing exclusion must consider EVERY tree that already holds
+            two claimants, not just base. introducedCollisions (issueids.go:188) tests only
+            len(base[id]) < 2. When a collision lands on main after the branch was cut, base[id] is 1 but
+            trunk[id] is 2, both trunk paths survive into merged, and the range is blamed.
+            Measured against a real repo plus bare origin: a PR whose only change is an unrelated
+            000002-*.md is refused with "#000001 would be claimed by 2 files after merge", naming two
+            files neither of which the branch ever touched. The condition is reachable because the gate
+            is bypassable by design (GitHub-UI merge, bare gh pr merge, --no-validate, an unpulled actor)
+            and because the check REPORTS rather than refuses pre-existing duplicates.
+            Fix sketch: `&& len(trunk[id]) < 2`. Applied in a scratch copy — the probe passes and every
+            existing 213 test stays green, including "THE BUG: branch cut before the trunk published the
+            same id" and "both sides ADD a file for one id". The enumeration this class implies is
+            {base, trunk, head} x {already-duplicated, deletes, adds}; the tables at issueids_test.go:490
+            and :546 cover the head and deletion axes but no row varies trunk's duplicate count.
+          family: gate-predicate-ignores-range-delta
+          round: 4
+        - id: BR-20
+          severity: Minor
+          title: refuseDuplicateIssueIDs takes an injected gitRunner but reads its baseline via gitx.Capture
+          detail: |-
+            issueids.go:265 calls gitx.Capture("merge-base", trunkRef, "HEAD") directly while the rest of
+            the function goes through `r gitRunner`. gitx.Capture returns "" on error
+            (gitx/window.go:52-57), so a failed merge-base is indistinguishable from an empty one. This
+            is the reason BR-18's first sweep member cannot be pinned through the seam: a test cannot
+            make the baseline read fail. Route it through r and treat "" as an explicit degraded state.
+          family: io-escapes-injected-seam
+          round: 4
+        - id: BR-21
+          severity: Minor
+          title: base.manifest declares the symlink but no derivative carries the check yet
+          detail: |-
+            This is the 2nd finding in family enforcement-does-not-propagate. The rule that covers both:
+            a manifest row is a declaration, not propagation — a single-source change is not delivered
+            until every consumer derives from it (ARCH-PURPOSE). BR-6 fixed the delivery KIND
+            (scaffold to symlink); the propagation run has not happened.
+            Measured: ../parley.nvim/scripts/merge-checks.d/ contains only .gitkeep. parley.nvim holds
+            four of the eight collisions the issue was opened over, and Done-when claims "The check
+            reaches derivatives". The mechanism is sound — weave's scaffold is an idempotent MkdirAll
+            (plan/apply.go:150) so it will not clobber the symlink — so this is one `sdlc propagate-base`
+            run plus a Done-when split into "mechanism declared" (done) and "propagated" (open).
+          family: enforcement-does-not-propagate
+          round: 4
+        - id: BR-22
+          severity: Minor
+          title: No lessons.md entry for this issue's own round-3 lesson
+          detail: |-
+            This is the 4th finding in family docs-lag-new-surface, on the lessons axis rather than the
+            atlas axis. The rule: a review round that produces a non-code-enforceable insight records it
+            in workshop/lessons.md in the same commit that closes the finding. The +59 lines added in
+            this window are all 211's. The 213 round-3 insight — a test table encoding the defect as the
+            expected value, so the fixture asserted the bug and passed — is only in the issue Log. It is
+            not code-enforceable (no guard can tell a wrong expectation from a right one), which is
+            exactly the criterion for a lessons entry.
+          family: docs-lag-new-surface
+          round: 4
+      blocked: true
 ---
 
 # Gate ledger — ariadne#213 (boundary-review)
@@ -613,6 +745,89 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   DuplicateIDsInRef hit on head "pre-existing" without consulting base, so an id the range
   introduces is now reported as both pre-existing and introduced.
 
+## Round 4 — 2026-09-03T18:04:57-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-8 — not-addressed — Unchanged, plus a 4th duplication: the clash-report Sprintf is byte-identical at issueids.go:275 and issuelintids.go:129.
+- BR-9 — not-addressed — Verified at HEAD — prose still sits between the opening fence at ci-merge-check.md:31 and its close at :47.
+- BR-10 — not-addressed — helptext/issue.md:6-14 still lists new/sync/set-status/list/show only.
+- BR-11 — not-addressed — merge.go still gates on !f.NoValidate; merge.md FLAGS (line 80) documents --no-judge but neither --no-validate nor an id-gate flag.
+- BR-12 — not-addressed — issueids.go:85 fetch is still unbounded on the interactive `issue new` path.
+- BR-15 — not-addressed — The three named ls-tree sites now error, but the rule ("no code path reports a clean verdict
+from an incomplete listing") is still violated at four places, two of which are NEW swallow
+sites introduced by the round-2/3 work. Measured: issuelintids.go:122 drops terr entirely and
+substitutes baseByID for the trunk — a real collision then returns zero clashes with no error
+and no warning; issueids.go:268 drops berr and leaves base empty. runIssueLintIDs (:77, :91)
+and refuseDuplicateIssueIDs (:256, :261) both turn a read failure into exit 0 / return nil.
+Additionally the class fix is pinned at only 1 of 3 sites — issueFilesByID's and idListing's
+error-returns can be deleted with the suite green.
+- BR-16 — not-addressed — The two Go fetch sites got the explicit refspec; the THIRD and only site BR-16 named —
+scripts/merge-checks.d/40-duplicate-issue-id.sh:65 — is unchanged (`git fetch --quiet origin
+main`). Premise re-measured: with a narrow remote.origin.fetch the plain form leaves
+origin/main unresolvable, the explicit refspec resolves it. The degraded fallback (script
+lines 67-69, 80-81) also still exits 0 with a blind model rather than a loud degraded state:
+with base==trunk the predicate collapses to merged==head. The issue Log's claim that "both
+fetch sites" were fixed needs correcting.
+- BR-17 — not-addressed — ci-merge-check.md:42-46 still says the script "builds sdlc from the checkout under test" and
+lists "no ./cmd/sdlc" as a skip condition — both pre-BR-6 behaviour; dev-aliases owner
+resolution is unmentioned. Two more doc homes to add to the enumeration: the delivery table
+at :19 still says merge-checks.d is `scaffold` although base.manifest now symlinks the check,
+and the three-tree merge model (BR-13/BR-18, the diff's subtlest logic) has no atlas home at
+all — sdlc-binary.md documents the CI check but not the predicate. README confirmed N/A
+(85 lines, lists project/fleet/judge verbs only).
+- BR-18 — not-addressed — Primary instance FIXED and revert-verified: reverting the symmetry in mergedPathsFor turns
+TestMergedPathsFor_ModelsTheMergeResult/trunk_archived_it_while_the_PR_was_open red. But both
+named sweep members remain and both reproduce. (1) refuseDuplicateIssueIDs: with a failed
+merge-base ls-tree read, base collapses to {} and a routine `git mv` archive is refused —
+"#000001 would be claimed by 2 files after merge" — with an EMPTY stderr, no warning at all;
+the healthy-runner control passes on the same fixture. (2) runIssueLintIDs:80-82 still labels
+a duplicate the range introduced "pre-existing duplicate id #000001" without consulting base.
+
+### Raised
+
+- **BR-19** [Important] `gate-predicate-ignores-range-delta` A collision living entirely on the trunk is charged to a PR that touched nothing
+  This is the 4th finding in family gate-predicate-ignores-range-delta. Earlier rounds fixed
+  instances. Do NOT fix this instance alone — the rule is that the gate refuses only what the
+  RANGE contributes, so the pre-existing exclusion must consider EVERY tree that already holds
+  two claimants, not just base. introducedCollisions (issueids.go:188) tests only
+  len(base[id]) < 2. When a collision lands on main after the branch was cut, base[id] is 1 but
+  trunk[id] is 2, both trunk paths survive into merged, and the range is blamed.
+  Measured against a real repo plus bare origin: a PR whose only change is an unrelated
+  000002-*.md is refused with "#000001 would be claimed by 2 files after merge", naming two
+  files neither of which the branch ever touched. The condition is reachable because the gate
+  is bypassable by design (GitHub-UI merge, bare gh pr merge, --no-validate, an unpulled actor)
+  and because the check REPORTS rather than refuses pre-existing duplicates.
+  Fix sketch: `&& len(trunk[id]) < 2`. Applied in a scratch copy — the probe passes and every
+  existing 213 test stays green, including "THE BUG: branch cut before the trunk published the
+  same id" and "both sides ADD a file for one id". The enumeration this class implies is
+  {base, trunk, head} x {already-duplicated, deletes, adds}; the tables at issueids_test.go:490
+  and :546 cover the head and deletion axes but no row varies trunk's duplicate count.
+- **BR-20** [Minor] `io-escapes-injected-seam` refuseDuplicateIssueIDs takes an injected gitRunner but reads its baseline via gitx.Capture
+  issueids.go:265 calls gitx.Capture("merge-base", trunkRef, "HEAD") directly while the rest of
+  the function goes through `r gitRunner`. gitx.Capture returns "" on error
+  (gitx/window.go:52-57), so a failed merge-base is indistinguishable from an empty one. This
+  is the reason BR-18's first sweep member cannot be pinned through the seam: a test cannot
+  make the baseline read fail. Route it through r and treat "" as an explicit degraded state.
+- **BR-21** [Minor] `enforcement-does-not-propagate` base.manifest declares the symlink but no derivative carries the check yet
+  This is the 2nd finding in family enforcement-does-not-propagate. The rule that covers both:
+  a manifest row is a declaration, not propagation — a single-source change is not delivered
+  until every consumer derives from it (ARCH-PURPOSE). BR-6 fixed the delivery KIND
+  (scaffold to symlink); the propagation run has not happened.
+  Measured: ../parley.nvim/scripts/merge-checks.d/ contains only .gitkeep. parley.nvim holds
+  four of the eight collisions the issue was opened over, and Done-when claims "The check
+  reaches derivatives". The mechanism is sound — weave's scaffold is an idempotent MkdirAll
+  (plan/apply.go:150) so it will not clobber the symlink — so this is one `sdlc propagate-base`
+  run plus a Done-when split into "mechanism declared" (done) and "propagated" (open).
+- **BR-22** [Minor] `docs-lag-new-surface` No lessons.md entry for this issue's own round-3 lesson
+  This is the 4th finding in family docs-lag-new-surface, on the lessons axis rather than the
+  atlas axis. The rule: a review round that produces a non-code-enforceable insight records it
+  in workshop/lessons.md in the same commit that closes the finding. The +59 lines added in
+  this window are all 211's. The 213 round-3 insight — a test table encoding the defect as the
+  expected value, so the fixture asserted the bug and passed — is only in the issue Log. It is
+  not code-enforceable (no guard can tell a wrong expectation from a right one), which is
+  exactly the criterion for a lessons entry.
+
 ## Open findings
 
 - **BR-8** [Minor] `duplicated-listing-parser` Three near-identical ls-tree listing parsers and two identical rev-parse+ls-tree IO shells (ARCH-DRY)
@@ -624,3 +839,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-16** [Important] `gate-compares-wrong-baseline` git fetch origin main does not guarantee refs/remotes/origin/main, so CI can fall back to the merge-base baseline BR-1 proved blind
 - **BR-17** [Minor] `docs-lag-new-surface` atlas ci-merge-check.md still describes the pre-BR-6 skip conditions; three of five doc homes for this surface are wrong
 - **BR-18** [Critical] `gate-predicate-ignores-range-delta` mergedPathsFor honours deletions by head but not by the trunk, so every PR open across an issue archive on main is falsely refused
+- **BR-19** [Important] `gate-predicate-ignores-range-delta` A collision living entirely on the trunk is charged to a PR that touched nothing
+- **BR-20** [Minor] `io-escapes-injected-seam` refuseDuplicateIssueIDs takes an injected gitRunner but reads its baseline via gitx.Capture
+- **BR-21** [Minor] `enforcement-does-not-propagate` base.manifest declares the symlink but no derivative carries the check yet
+- **BR-22** [Minor] `docs-lag-new-surface` No lessons.md entry for this issue's own round-3 lesson

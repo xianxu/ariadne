@@ -673,3 +673,207 @@ findings:
       DuplicateIDsInRef hit on head "pre-existing" without consulting base, so an id the range
       introduces is now reported as both pre-existing and introduced.
 ```
+
+---
+
+## Re-review — 2026-09-03T18:04:57-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 213 — Allocate issue IDs against origin/main |
+| repo | ariadne |
+| issue file | workshop/issues/000213-nextid-from-origin.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9078f8d0529b0c9fd4312f435b10f731aa5d3dc2..0beea8fbfad2fff1d2e3703433a337627cdf9c39 |
+| command | sdlc close --issue 213 |
+| reviewer | claude |
+| timestamp | 2026-09-03T18:04:57-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The Critical that dominated round 3 is genuinely fixed and genuinely pinned: I reverted `mergedPathsFor`'s symmetry in a scratch copy and `TestMergedPathsFor_ModelsTheMergeResult/trunk_archived_it_while_the_PR_was_open` goes red with exactly the false refusal BR-18 described. The three-tree merge model is correct across every shape I could construct, and the test tables now encode the right answers. What blocks a clean SHIP is that the class-sweep instructions attached to three open findings were not carried out: BR-18 named two sibling sites to fix in the *same* round and both are still there (I reproduced both); BR-16's one-word fix landed in the two Go call sites but **not** in `40-duplicate-issue-id.sh`, which is the only site BR-16 actually named — and the issue Log states "both fetch sites use the explicit `+refs/heads/main:...` refspec", which is a false evidence claim about the site that matters. Beyond the open set I found one new measured member of `gate-predicate-ignores-range-delta`: a collision living entirely on the trunk, published after the branch was cut, refuses a PR that touched nothing. All five open Minors (BR-8/9/10/11/12) are untouched.
+
+## 1. Strengths
+
+- **`mergedPathsFor` is the right abstraction, and it is pure.** `cmd/sdlc/issueids.go:138` takes three maps and returns one; `introducedCollisions` is a thin filter over it. Both are unit-tested with no IO (`issueids_test.go:490`, `:546`). This is textbook ARCH-PURE and it is why the round-3 fix was a two-condition change rather than a rewrite.
+- **The revert-verification is real this time.** Restoring `if !containsPath(head[id], p)` alone produces `introducedCollisions = [7], want []` with the merged map printed in the failure. The fix is pinned by a test that fails without it — the ariadne#194 bar, met.
+- **`ARCH-MOCK` is honoured properly.** Every allocation test drives a real repo against a real bare origin, and `TestAllocateIssueID_BranchCutBeforePublish` builds the fixture in the load-bearing order (cut → publish from a *second clone* → allocate). A function-call mock cannot express "a ref exists that this worktree does not contain", and the header comment at `issueids_test.go:16` says exactly that.
+- **`TestIntroducedIDClashes_IndependentOfSlugSortOrder` asserts both orders** (`issueids_test.go:432`), which is the correct response to BR-2 — the previous test passed only because its slug happened to sort first.
+- **The BR-7 error-return decision is well-argued in-place.** The comment at `issueids.go:94-98` explains *why* an `ls-tree` failure differs from an absent directory (exit 0, empty output), which is the non-obvious fact a future reader needs.
+
+## 2. Critical findings
+
+None new. (BR-18 is disposed `not-addressed` for its unswept members, not for its primary instance.)
+
+## 3. Important findings
+
+**I1 — `introducedCollisions` excludes on `base` only, so a collision that lives entirely on the trunk is charged to an innocent PR.**
+`cmd/sdlc/issueids.go:188` — `if len(paths) > 1 && len(base[id]) < 2`. When a collision lands on `main` *after* a branch is cut, `base[id]` is 1 (or 0) but `trunk[id]` is 2, so both trunk paths survive into `merged` and the range is blamed. Measured against a real repo + bare origin: a PR whose only change is adding an unrelated `000002-*.md` is refused with `#000001 would be claimed by 2 files after merge`. Fix sketch: `&& len(trunk[id]) < 2`. I applied that one-liner in a scratch copy — the probe passes and every existing `#213` test stays green (`TestIntroduced*`, `TestMerged*`, `TestRefuseDuplicate*`, `TestMergeCheckScript*`, `TestAllocateIssueID*`, `TestDuplicateIDsInRef*`), including the two shapes that define the issue.
+
+**I2 — the derivative propagation run has not happened, so the enforcement half reaches no repo that carries collisions (ARCH-PURPOSE).**
+`construct/base.manifest:131` declares `symlink scripts/merge-checks.d/40-duplicate-issue-id.sh` and the mechanism is sound (weave's `scaffold` is an idempotent `MkdirAll`, `apply.go:150`, so it will not clobber the symlink). But `../parley.nvim/scripts/merge-checks.d/` contains only `.gitkeep`. The issue's Problem section opens with "half the measured collisions are in `parley.nvim`, not here", and Done-when claims "The check reaches derivatives". A manifest row is the source; a derivative that does not yet derive from it is a deferred consumer, not a finished one. One `sdlc propagate-base` run closes it — this is the thing that is the point, not a separable extension.
+
+## 4. Minor findings
+
+- **M1** — `refuseDuplicateIssueIDs` takes an injected `r gitRunner` and then calls `gitx.Capture("merge-base", …)` directly (`issueids.go:265`), so its baseline read escapes the seam. `Capture` also returns `""` on error (`gitx/window.go:52`), making failure indistinguishable from success. This is *why* the degraded path in BR-18's sweep member 1 cannot be pinned through the runner. Route it through `r`.
+- **M2** — `workshop/lessons.md` gained 59 lines, all of them #211's. #213's round-3 insight — "a table only pins what you believed when you wrote it"; the reviewer's own fixture asserted the defect as expected behaviour — has no lessons.md entry, and it is not code-enforceable, so AGENTS §4 applies.
+- **M3** — the clash-report `fmt.Sprintf("  #%06d would be claimed by %d files after merge:\n      %s", …)` is byte-identical at `issueids.go:275` and `issuelintids.go:129`. Same consolidation as BR-8 (ARCH-DRY).
+- **M4** — `sdlc merge` now fetches `origin/main` twice per invocation: `issueids.go:252` at step 4.6 and `merge.go:469` at the merged-check. Not hot-path, but it is a second network round-trip on an interactive verb.
+
+## 5. Test coverage notes
+
+- **The BR-15 class fix is unpinned at 2 of 3 sites.** `TestPublishedIssueIDs_PartialReadIsAnError` (`issueids_test.go:462`) covers `publishedIssueIDs`. `issueFilesByID`'s and `idListing`'s new `return …, fmt.Errorf(…)` have no test at all — `lsTreeFailRunner` is used once. Deleting either error-return leaves the suite green. This is the `fix-not-pinned-by-a-failing-test` family (2nd instance): the rule is that a class fix needs one test *per member*, not one test for the member that happened to be found first.
+- **No test exercises any degraded read path.** Both swallow sites (`issueids.go:268`, `issuelintids.go:122`) and both warn-and-exit-0 consumers are uncovered; I had to write throwaway probes to reach them. A single `refLsTreeFailRunner{badRef: …}` helper — the pattern I used — makes all four cheap to pin.
+- **No test exercises the narrow-refspec CI shape.** `TestMergeCheckScript_RefusesGivenMergeBase` passes because the fixture clone carries git's default `+refs/heads/*` refspec, so `git fetch origin main` incidentally populates `origin/main`. A fixture that sets `remote.origin.fetch` to the PR branch only would go red today; I confirmed the underlying git behaviour directly (plain form → `origin/main` unresolvable; explicit refspec → resolves).
+- Otherwise the pure surface is well covered: `NextID`, `IDsInTreeListing`, `DuplicateIDsInRef`, `mergedPathsFor`, `introducedCollisions` all have IO-free tables.
+- Suite state: `go test ./...` is green except `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`, which I confirmed is pre-existing and unrelated — the plan file was archived by `dfeba9c`, before this window's base.
+
+## 6. Architectural notes
+
+- **ARCH-DRY — flag.** BR-8 unaddressed, plus M3. Three parsers (`IDsInTreeListing`, `DuplicateIDsInRef`, `issueFilesByID`) all do split → trim → `LastIndex("/")` → `IDFromFilename`; three IO shells (`publishedIssueIDs`, `issueFilesByID`, `idListing`) all do rev-parse → `repoRelativeIDDirs` → per-dir ls-tree. One `PathsByIDInTreeListing` + one shared shell returning `(map[int][]string, error)` collapses all six and discharges BR-8, BR-15's remaining sites, and M3 together.
+- **ARCH-PURE — pass, with M1.** The decision layer is genuinely pure and directly tested. The single leak is `gitx.Capture` inside a runner-injected function.
+- **ARCH-PURPOSE — flag (I2).** The issue's stated purpose is enforcement across the fleet; the fleet does not yet carry the check. Also relevant to the sweep instructions: BR-15, BR-16 and BR-18 each explicitly named the class and the sibling sites, and each was answered at a subset. Four families now sit at 3–4 findings. Writing the enumeration down as a checklist in `## Plan` before the next round would break the pattern that reading the finding text apparently does not.
+- **ARCH-MOCK — pass.** Real git, real bare origin, production and test flow share the boundary. No live-conformance cadence is declared for `ls-tree`/`fetch` behaviour, but these are stable plumbing commands and the tests run the real binary, so I do not think one is owed here.
+- **ARCH-CONSTRAINTS — flag.** BR-12 unaddressed: `git fetch` on every `sdlc issue new` is unbounded, on an interactive verb. Add a `GIT_HTTP_LOW_SPEED_*` bound or a `--no-fetch` escape and state the budget.
+- **ARCH-SECURE — pass.** The check script executes `construct/dev-aliases.sh` from the repo under test and builds Go from the path it names, but the workflow is `pull_request` (fork code, read-only token, ephemeral runner), so this is the exposure CI already has. No credentials, no untrusted persisted format. One provenance note for future work: at the local `pre-push` call site the verdict depends on an out-of-tree sibling checkout's code, which is worth stating in the atlas when the propagation lands.
+
+## 7. Plan revision recommendations
+
+There is no `workshop/plans/000213-*-plan.md` (the Log records that `change-code` was skipped), so there is no Core-concepts table to cross-check and nothing to revise there. Two artifacts do need edits:
+
+- **`workshop/issues/000213-nextid-from-origin.md`, `## Log`, round-3 entry** — correct the sentence "**BR-16 re-raised but verified present** — both fetch sites use the explicit `+refs/heads/main:refs/remotes/origin/main` refspec." There are three fetch sites; the third (`scripts/merge-checks.d/40-duplicate-issue-id.sh:65`) still uses the plain form, and it is the CI site BR-16 named. Per this repo's own lesson ("a Log line asserting evidence names the command run and the observed result"), replace the claim with the measured state.
+- **`## Done when`** — "The check reaches derivatives … Verified by running it in `parley.nvim`" describes a manual run, not propagation. Either tick it only after `sdlc propagate-base`, or split it into "mechanism declared in `base.manifest`" (done) and "propagated to derivatives" (open, and already listed under Immediate next actions).
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      Unchanged, plus a 4th duplication: the clash-report Sprintf is byte-identical at issueids.go:275 and issuelintids.go:129.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      Verified at HEAD — prose still sits between the opening fence at ci-merge-check.md:31 and its close at :47.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      helptext/issue.md:6-14 still lists new/sync/set-status/list/show only.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      merge.go still gates on !f.NoValidate; merge.md FLAGS (line 80) documents --no-judge but neither --no-validate nor an id-gate flag.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      issueids.go:85 fetch is still unbounded on the interactive `issue new` path.
+  - id: BR-15
+    disposition: not-addressed
+    note: |
+      The three named ls-tree sites now error, but the rule ("no code path reports a clean verdict
+      from an incomplete listing") is still violated at four places, two of which are NEW swallow
+      sites introduced by the round-2/3 work. Measured: issuelintids.go:122 drops terr entirely and
+      substitutes baseByID for the trunk — a real collision then returns zero clashes with no error
+      and no warning; issueids.go:268 drops berr and leaves base empty. runIssueLintIDs (:77, :91)
+      and refuseDuplicateIssueIDs (:256, :261) both turn a read failure into exit 0 / return nil.
+      Additionally the class fix is pinned at only 1 of 3 sites — issueFilesByID's and idListing's
+      error-returns can be deleted with the suite green.
+  - id: BR-16
+    disposition: not-addressed
+    note: |
+      The two Go fetch sites got the explicit refspec; the THIRD and only site BR-16 named —
+      scripts/merge-checks.d/40-duplicate-issue-id.sh:65 — is unchanged (`git fetch --quiet origin
+      main`). Premise re-measured: with a narrow remote.origin.fetch the plain form leaves
+      origin/main unresolvable, the explicit refspec resolves it. The degraded fallback (script
+      lines 67-69, 80-81) also still exits 0 with a blind model rather than a loud degraded state:
+      with base==trunk the predicate collapses to merged==head. The issue Log's claim that "both
+      fetch sites" were fixed needs correcting.
+  - id: BR-17
+    disposition: not-addressed
+    note: |
+      ci-merge-check.md:42-46 still says the script "builds sdlc from the checkout under test" and
+      lists "no ./cmd/sdlc" as a skip condition — both pre-BR-6 behaviour; dev-aliases owner
+      resolution is unmentioned. Two more doc homes to add to the enumeration: the delivery table
+      at :19 still says merge-checks.d is `scaffold` although base.manifest now symlinks the check,
+      and the three-tree merge model (BR-13/BR-18, the diff's subtlest logic) has no atlas home at
+      all — sdlc-binary.md documents the CI check but not the predicate. README confirmed N/A
+      (85 lines, lists project/fleet/judge verbs only).
+  - id: BR-18
+    disposition: not-addressed
+    note: |
+      Primary instance FIXED and revert-verified: reverting the symmetry in mergedPathsFor turns
+      TestMergedPathsFor_ModelsTheMergeResult/trunk_archived_it_while_the_PR_was_open red. But both
+      named sweep members remain and both reproduce. (1) refuseDuplicateIssueIDs: with a failed
+      merge-base ls-tree read, base collapses to {} and a routine `git mv` archive is refused —
+      "#000001 would be claimed by 2 files after merge" — with an EMPTY stderr, no warning at all;
+      the healthy-runner control passes on the same fixture. (2) runIssueLintIDs:80-82 still labels
+      a duplicate the range introduced "pre-existing duplicate id #000001" without consulting base.
+findings:
+  - id: new
+    severity: Important
+    family: gate-predicate-ignores-range-delta
+    title: |
+      A collision living entirely on the trunk is charged to a PR that touched nothing
+    detail: |
+      This is the 4th finding in family gate-predicate-ignores-range-delta. Earlier rounds fixed
+      instances. Do NOT fix this instance alone — the rule is that the gate refuses only what the
+      RANGE contributes, so the pre-existing exclusion must consider EVERY tree that already holds
+      two claimants, not just base. introducedCollisions (issueids.go:188) tests only
+      len(base[id]) < 2. When a collision lands on main after the branch was cut, base[id] is 1 but
+      trunk[id] is 2, both trunk paths survive into merged, and the range is blamed.
+      Measured against a real repo plus bare origin: a PR whose only change is an unrelated
+      000002-*.md is refused with "#000001 would be claimed by 2 files after merge", naming two
+      files neither of which the branch ever touched. The condition is reachable because the gate
+      is bypassable by design (GitHub-UI merge, bare gh pr merge, --no-validate, an unpulled actor)
+      and because the check REPORTS rather than refuses pre-existing duplicates.
+      Fix sketch: `&& len(trunk[id]) < 2`. Applied in a scratch copy — the probe passes and every
+      existing 213 test stays green, including "THE BUG: branch cut before the trunk published the
+      same id" and "both sides ADD a file for one id". The enumeration this class implies is
+      {base, trunk, head} x {already-duplicated, deletes, adds}; the tables at issueids_test.go:490
+      and :546 cover the head and deletion axes but no row varies trunk's duplicate count.
+  - id: new
+    severity: Minor
+    family: io-escapes-injected-seam
+    title: |
+      refuseDuplicateIssueIDs takes an injected gitRunner but reads its baseline via gitx.Capture
+    detail: |
+      issueids.go:265 calls gitx.Capture("merge-base", trunkRef, "HEAD") directly while the rest of
+      the function goes through `r gitRunner`. gitx.Capture returns "" on error
+      (gitx/window.go:52-57), so a failed merge-base is indistinguishable from an empty one. This
+      is the reason BR-18's first sweep member cannot be pinned through the seam: a test cannot
+      make the baseline read fail. Route it through r and treat "" as an explicit degraded state.
+  - id: new
+    severity: Minor
+    family: enforcement-does-not-propagate
+    title: |
+      base.manifest declares the symlink but no derivative carries the check yet
+    detail: |
+      This is the 2nd finding in family enforcement-does-not-propagate. The rule that covers both:
+      a manifest row is a declaration, not propagation — a single-source change is not delivered
+      until every consumer derives from it (ARCH-PURPOSE). BR-6 fixed the delivery KIND
+      (scaffold to symlink); the propagation run has not happened.
+      Measured: ../parley.nvim/scripts/merge-checks.d/ contains only .gitkeep. parley.nvim holds
+      four of the eight collisions the issue was opened over, and Done-when claims "The check
+      reaches derivatives". The mechanism is sound — weave's scaffold is an idempotent MkdirAll
+      (plan/apply.go:150) so it will not clobber the symlink — so this is one `sdlc propagate-base`
+      run plus a Done-when split into "mechanism declared" (done) and "propagated" (open).
+  - id: new
+    severity: Minor
+    family: docs-lag-new-surface
+    title: |
+      No lessons.md entry for this issue's own round-3 lesson
+    detail: |
+      This is the 4th finding in family docs-lag-new-surface, on the lessons axis rather than the
+      atlas axis. The rule: a review round that produces a non-code-enforceable insight records it
+      in workshop/lessons.md in the same commit that closes the finding. The +59 lines added in
+      this window are all 211's. The 213 round-3 insight — a test table encoding the defect as the
+      expected value, so the fixture asserted the bug and passed — is only in the issue Log. It is
+      not code-enforceable (no guard can tell a wrong expectation from a right one), which is
+      exactly the criterion for a lessons entry.
+```

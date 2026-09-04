@@ -178,6 +178,27 @@ and any change to the repo transaction lock, which is working as designed.
 
 ## Log
 
+### 2026-09-03 — close round 4: FIX-THEN-SHIP, plus one more false refusal
+
+Verdict FIX-THEN-SHIP. BR-18 verified fixed in the reviewed range — the shape it
+named (branch edits an issue, main archives it) exits 0 through the script.
+
+**BR-19, fixed before closing rather than shipped as demoted.** A collision that
+landed on MAIN after a branch was cut left `base[id]` at one path and
+`trunk[id]` at two; both survived into `merged`, and a PR that touched nothing
+related was refused for it. The exclusion tested only the merge-base; it now
+excludes an id already doubled in **either** tree the range did not author.
+
+That is the fourth finding in `gate-predicate-ignores-range-delta`, and the
+through-line is worth stating: every one of them was a **false refusal**, not a
+missed collision. The gate's whole risk profile is on that side, because the
+detection question ("two live paths for one id") is easy and the attribution
+question ("did THIS range cause it") is where every mistake lives. Four rounds
+found: archive refused, PR-open-across-a-close refused, trunk-side collision
+charged to an innocent PR. A merge gate that cries wolf gets `--no-validate`'d
+into irrelevance, which would have been a worse outcome than the original bug.
+
+
 ### 2026-09-03 — close review round 3: my own test asserted the bug
 
 **BR-18 (Critical) — every PR open across a close on main was falsely refused.**
