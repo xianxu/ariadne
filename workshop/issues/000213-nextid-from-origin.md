@@ -516,6 +516,24 @@ exists: ariadne #40, #96, #168, #212; parley.nvim #51, #66, #81, #90. `#40` and
 `#96` date from May–June 2026, so the merge gate is not optional cleanup — three
 of ariadne's four are already archived and beyond reach.
 
+### 2026-09-03 — close round 5
+
+Two Criticals. `BR-18` (deletions counted from one side only) was already fixed
+in `0beea8f`; `BR-23` was real and was the sharpest finding of the four rounds:
+**the original bug arriving through its own fix.** `publishedIssueIDs` fetched
+with `_, _ =`, then `rev-parse --verify` *succeeded on the stale ref*, so the
+offline warning — which only fires when there is no ref at all — never ran.
+Absent-ref is the rare shape; any checkout that has ever fetched has a ref. The
+common offline shape is a ref that exists and is behind, and allocation read it
+silently and reported success. Reproduced in a fixture (stale `origin/main`,
+unreachable remote, id 2 published elsewhere): `NextID` handed out `000002`
+with a clean exit. Fetch failure is now captured and warned on; the regression
+test is red without the fix (verified by probe).
+
+Through-line across all five rounds: every finding on the merge gate was a
+**false refusal**, never a missed collision. Detecting a duplicate id is easy;
+attributing it ("did *this* range introduce it?") is where every defect lived.
+
 ### 2026-09-02
 
 Found while looking for a published `pair#171` that was invisible from a
