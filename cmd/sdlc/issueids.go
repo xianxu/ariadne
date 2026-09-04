@@ -47,7 +47,17 @@ func allocateIssueID(stderr io.Writer, issuesDir, historyDir string, r gitRunner
 	if err != nil {
 		return "", err
 	}
-	published, ferr := publishedIssueIDs(issuesDir, historyDir, r)
+	published, stale, ferr := publishedIssueIDs(issuesDir, historyDir, r)
+	if ferr == nil && stale != nil {
+		// The ref EXISTS but could not be refreshed, so it may be missing ids
+		// published since it was last fetched — and allocating from it silently
+		// is the original bug arriving through its own fix (#213 BR-23). The
+		// earlier warning only fired when the ref was absent entirely, which is
+		// the rarer case: a checkout that has ever fetched always has a ref.
+		cwarn(stderr, fmt.Sprintf("could not refresh %s (%v) — id allocated against a POSSIBLY STALE "+
+			"trunk, which may collide with an id published since the last fetch.\n"+
+			"      re-run with the network up, or verify the id before pushing", trunkRef, stale))
+	}
 	if ferr != nil {
 		cwarn(stderr, fmt.Sprintf("%s unreachable — id allocated from LOCAL files only, "+
 			"which may collide with an id already published: %v\n"+
@@ -65,7 +75,20 @@ func allocateIssueID(stderr io.Writer, issuesDir, historyDir string, r gitRunner
 // is best-effort — a repo with no origin still has a usable origin/main ref
 // sometimes, and a stale ref is strictly better than none — but a missing ref is
 // an error, so the caller warns rather than silently allocating locally.
-func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error) {
+// firstLine keeps a git failure to one line: fetch errors are several lines of
+// remote diagnostics, and a warning that scrolls reads as noise, not a warning.
+func firstLine(s string) string {
+	for _, ln := range strings.Split(s, "\n") {
+		if ln = strings.TrimSpace(ln); ln != "" {
+			return ln
+		}
+	}
+	return "no output"
+}
+
+// Returns (ids, staleErr, err). staleErr non-nil means the ref was READ but not
+// refreshed — the caller must say so out loud.
+func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error, error) {
 	// The ref and the directories must describe the SAME repo. git runs relative
 	// to the process cwd while the dirs are caller-supplied, so a --issues-dir
 	// pointing outside this repo would otherwise scan THIS repo's trunk for paths
@@ -74,7 +97,7 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 	// than allocating from it.
 	dirs, err := repoRelativeIDDirs(issuesDir, historyDir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Fetch INTO the remote-tracking ref explicitly. `git fetch origin main`
@@ -82,10 +105,13 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 	// CI checkout with no configured refspec it does not create it at all, so
 	// the read below would find no ref and fall back to a baseline BR-1 proved
 	// blind (#213 BR-16). Failure is still tolerated: a stale ref beats none.
-	_, _ = r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main")
+	var stale error
+	if out, ferr := r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main"); ferr != nil {
+		stale = fmt.Errorf("%v: %s", ferr, firstLine(string(out)))
+	}
 
 	if out, err := r.Git("rev-parse", "--verify", "--quiet", trunkRef); err != nil || strings.TrimSpace(string(out)) == "" {
-		return nil, fmt.Errorf("no %s ref", trunkRef)
+		return nil, stale, fmt.Errorf("no %s ref", trunkRef)
 	}
 	var ids []int
 	for _, dir := range dirs {
@@ -96,11 +122,11 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 			// report success (#213 close review BR-7). A directory genuinely
 			// absent from the ref is not an error — ls-tree exits 0 printing
 			// nothing — so reaching here means the read itself failed.
-			return nil, fmt.Errorf("ls-tree %s %s/: %v\n%s", trunkRef, dir, err, out)
+			return nil, stale, fmt.Errorf("ls-tree %s %s/: %v\n%s", trunkRef, dir, err, out)
 		}
 		ids = append(ids, issue.IDsInTreeListing(string(out))...)
 	}
-	return ids, nil
+	return ids, stale, nil
 }
 
 // mergedPathsFor computes the id→paths map the MERGE RESULT would have, from

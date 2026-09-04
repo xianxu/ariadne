@@ -465,7 +465,7 @@ func TestPublishedIssueIDs_PartialReadIsAnError(t *testing.T) {
 	// A ref that exists but whose ls-tree calls fail: point at a bogus ref via a
 	// runner that answers rev-parse but errors on ls-tree.
 	r := &lsTreeFailRunner{}
-	if _, err := publishedIssueIDs(idsDir, histDir, r); err == nil {
+	if _, _, err := publishedIssueIDs(idsDir, histDir, r); err == nil {
 		t.Error("a failed ls-tree must be an error — a partial trunk read allocates colliding ids silently")
 	}
 }
@@ -600,5 +600,39 @@ func TestMergedPathsFor_ModelsTheMergeResult(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestPublishedIssueIDs_StaleRefIsReportedStale is BR-23: the offline warning
+// only fired when origin/main was ABSENT, but the far more common offline shape
+// is a ref that exists and is stale — any checkout that has ever fetched has
+// one. Allocation then reads a trunk missing every id published since the last
+// successful fetch and says nothing, which is the original #213 bug arriving
+// through its own fix. A failed fetch must be surfaced, not swallowed.
+func TestPublishedIssueIDs_StaleRefIsReportedStale(t *testing.T) {
+	repo, origin := idRepo(t) // seeds + publishes 000001
+
+	// A second clone publishes id 2 to the shared origin; our repo never sees it.
+	other := filepath.Join(t.TempDir(), "other")
+	git(t, "", "clone", "--quiet", origin, other)
+	writeIssueAt(t, other, idsDir, "000002-theirs.md")
+	git(t, other, "add", "-A")
+	git(t, other, "commit", "-m", "publish 2")
+	git(t, other, "push", "origin", "main")
+
+	// Go offline: the remote is unreachable, but origin/main still resolves —
+	// to the tree from before id 2 landed.
+	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+
+	ids, stale, err := publishedIssueIDs(idsDir, histDir, execGitRunner{})
+	if err != nil {
+		t.Fatalf("a stale ref still reads: %v", err)
+	}
+	if stale == nil {
+		t.Fatal("a fetch that failed must be reported — allocating from a stale trunk silently is #213 itself")
+	}
+	if got := issue.NextID(ids); got != "000002" {
+		t.Fatalf("NextID from the stale trunk = %s, want 000002 (the id another repo already published) — "+
+			"this is the collision the warning exists to flag", got)
 	}
 }
