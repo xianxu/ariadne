@@ -33,7 +33,7 @@ func TestSlugify(t *testing.T) {
 	}
 }
 
-// These exercise the DIRECTORY SCAN (ScanLocalIDs) feeding the pure decision.
+// These exercise the DIRECTORY SCAN (LocalPathsByID) feeding the pure decision.
 // #213 split them: NextID no longer reads directories, because the local
 // directory is the wrong source of truth — its own table test lives beside the
 // trunk-consulting allocator in cmd/sdlc.
@@ -47,11 +47,11 @@ func TestNextID(t *testing.T) {
 	writeFiles(t, history, "000005-old.md", "000010-older.md")
 	writeFiles(t, issues, "000020-a.md", "000031-b.md", "not-an-issue.md")
 
-	ids, err := ScanLocalIDs(issues, history)
+	byID, _, err := LocalPathsByID(IDDirs(issues, history))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := NextID(ids)
+	got := NextID(IDsIn(byID))
 	if got != "000032" {
 		t.Errorf("NextID = %q, want 000032", got)
 	}
@@ -65,11 +65,11 @@ func TestNextID_HighestInHistory(t *testing.T) {
 	writeFiles(t, history, "000099-done.md") // archived closed issue
 	writeFiles(t, issues, "000050-active.md")
 
-	ids, err := ScanLocalIDs(issues, history)
+	byID, _, err := LocalPathsByID(IDDirs(issues, history))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := NextID(ids)
+	got := NextID(IDsIn(byID))
 	if got != "000100" {
 		t.Errorf("NextID = %q, want 000100", got)
 	}
@@ -77,11 +77,14 @@ func TestNextID_HighestInHistory(t *testing.T) {
 
 func TestNextID_MissingDirs(t *testing.T) {
 	dir := t.TempDir()
-	ids, err := ScanLocalIDs(filepath.Join(dir, "nope"), filepath.Join(dir, "nope2"))
+	byID, found, err := LocalPathsByID(IDDirs(filepath.Join(dir, "nope"), filepath.Join(dir, "nope2")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := NextID(ids)
+	if found != 0 {
+		t.Errorf("found = %d, want 0 — a scan that saw no directory must say so, not report an empty id space", found)
+	}
+	got := NextID(IDsIn(byID))
 	if got != "000001" {
 		t.Errorf("NextID = %q, want 000001 for empty dirs", got)
 	}
@@ -308,11 +311,11 @@ func TestNextID_SubfolderLayout(t *testing.T) {
 	mustMkdir(t, issues, history, sub)
 	writeFiles(t, issues, "000003-a.md")
 	writeFiles(t, sub, "000041-archived.md")
-	ids, err := ScanLocalIDs(issues, history)
+	byID, _, err := LocalPathsByID(IDDirs(issues, history))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := NextID(ids)
+	got := NextID(IDsIn(byID))
 	if got != "000042" {
 		t.Errorf("NextID = %q, want 000042 (max id in history/issues/)", got)
 	}

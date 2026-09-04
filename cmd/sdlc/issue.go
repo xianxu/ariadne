@@ -259,13 +259,31 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		die(stderr, fmt.Sprintf("title %q produced an empty slug; pass --slug", title))
 	}
 
+	// Resolve the issue directory ONCE, against the repo top level, and use the
+	// resolved location for every step below — allocation, the file write, and
+	// the sync pathspec (#213 BR-25). Left cwd-relative, `sdlc issue new` from a
+	// subdirectory allocated against an EMPTY id space (docs/sub/workshop/issues
+	// does not exist, so both ls-tree and ReadDir truthfully answered nothing),
+	// then wrote the file there and pushed it — where no gate looks, and where
+	// the natural repair manufactures exactly the collision this issue exists to
+	// prevent. Reading and writing must agree on where ids live.
+	writeDir, shownDir := f.IssuesDir, f.IssuesDir
+	if dirs, derr := resolveIDDirs(f.IssuesDir, f.HistoryDir); derr == nil {
+		writeDir, shownDir = dirs.Abs[0], dirs.Rel[0]
+	}
+	f.IssuesDir = writeDir
+
 	nextID, err := allocateIssueID(stderr, f.IssuesDir, f.HistoryDir, claimRunner)
 	if err != nil {
 		die(stderr, err.Error())
 	}
 
 	today := time.Now().Format("2006-01-02")
-	dest := filepath.Join(f.IssuesDir, fmt.Sprintf("%s-%s.md", nextID, slug))
+	name := fmt.Sprintf("%s-%s.md", nextID, slug)
+	dest := filepath.Join(writeDir, name)
+	// Reported repo-relative: that is what every gate, commit and human means by
+	// an issue path, and from the repo top it is byte-identical to the old output.
+	shown := filepath.ToSlash(filepath.Join(shownDir, name))
 	if _, err := os.Stat(dest); err == nil {
 		die(stderr, fmt.Sprintf("issue file already exists: %s", dest))
 	}
@@ -282,7 +300,7 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 
 	if f.DryRun {
 		cinfo(stderr, "dry-run — no files written")
-		fmt.Fprintf(stdout, "Would create: %s\n", dest)
+		fmt.Fprintf(stdout, "Would create: %s\n", shown)
 		fmt.Fprintln(stdout, "─── body ───")
 		fmt.Fprint(stdout, rendered)
 		return nil
@@ -295,7 +313,7 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		die(stderr, fmt.Sprintf("write %s: %v", dest, err))
 	}
 
-	created := fmt.Sprintf("Created %s", dest)
+	created := fmt.Sprintf("Created %s", shown)
 	if ghNum != "" {
 		created += fmt.Sprintf(" (GitHub #%s)", ghNum)
 	}
@@ -335,7 +353,7 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		}
 	}
 
-	fmt.Fprintln(stdout, dest)
+	fmt.Fprintln(stdout, shown)
 	return nil
 }
 

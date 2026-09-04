@@ -223,14 +223,14 @@ func TestNextID_IsPure(t *testing.T) {
 	}
 }
 
-// TestDuplicateIDsInRef_SeesCollisionsAlreadyMerged covers the question a
+// TestDuplicatesIn_SeesCollisionsAlreadyMerged covers the question a
 // branch-vs-trunk comparison structurally cannot answer.
 //
 // Once both colliding files are on the trunk the two trees AGREE, so
 // refuseDuplicateIssueIDs finds nothing — which is why the eight collisions
 // found in the wild were invisible to every gate. This asks whether one tree
 // contradicts itself.
-func TestDuplicateIDsInRef_SeesCollisionsAlreadyMerged(t *testing.T) {
+func TestDuplicatesIn_SeesCollisionsAlreadyMerged(t *testing.T) {
 	listing := strings.Join([]string{
 		"workshop/issues/000001-first.md",
 		"workshop/issues/000002-a.md",
@@ -239,7 +239,7 @@ func TestDuplicateIDsInRef_SeesCollisionsAlreadyMerged(t *testing.T) {
 		"workshop/issues/000003-live-reuse.md",
 		"workshop/issues/not-an-issue.md",
 	}, "\n")
-	got := issue.DuplicateIDsInRef(listing)
+	got := issue.DuplicatesIn(issue.PathsByID(listing))
 	if len(got) != 2 {
 		t.Fatalf("found %d collisions, want 2: %+v", len(got), got)
 	}
@@ -256,12 +256,12 @@ func TestDuplicateIDsInRef_SeesCollisionsAlreadyMerged(t *testing.T) {
 	}
 }
 
-// TestDuplicateIDsInRef_SamePathTwiceIsNotACollision: the listing concatenates
+// TestDuplicatesIn_SamePathTwiceIsNotACollision: the listing concatenates
 // three directories that can overlap, so the same path can appear twice. That is
 // one file, not two claimants — counting it would fail every clean repo.
-func TestDuplicateIDsInRef_SamePathTwiceIsNotACollision(t *testing.T) {
+func TestDuplicatesIn_SamePathTwiceIsNotACollision(t *testing.T) {
 	listing := "workshop/issues/000007-x.md\nworkshop/issues/000007-x.md\n"
-	if got := issue.DuplicateIDsInRef(listing); len(got) != 0 {
+	if got := issue.DuplicatesIn(issue.PathsByID(listing)); len(got) != 0 {
 		t.Errorf("same path twice reported as a collision: %+v", got)
 	}
 }
@@ -277,7 +277,7 @@ func TestIntroducedIDClashes(t *testing.T) {
 	git(t, repo, "add", "-A")
 	git(t, repo, "commit", "-m", "reuse an id")
 
-	clashes, err := introducedIDClashes(base, "HEAD", base, idsDir, histDir, execGitRunner{})
+	clashes, err := clashesFor(t, base, base)
 	if err != nil {
 		t.Fatalf("introducedIDClashes: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestIntroducedIDClashes(t *testing.T) {
 	writeIssueAt(t, repo, idsDir, "000002-genuinely-new.md")
 	git(t, repo, "add", "-A")
 	git(t, repo, "commit", "-m", "a new issue")
-	clean, err := introducedIDClashes(base, "HEAD", base, idsDir, histDir, execGitRunner{})
+	clean, err := clashesFor(t, base, base)
 	if err != nil {
 		t.Fatalf("introducedIDClashes (clean): %v", err)
 	}
@@ -441,7 +441,7 @@ func TestIntroducedIDClashes_IndependentOfSlugSortOrder(t *testing.T) {
 			git(t, repo, "add", "-A")
 			git(t, repo, "commit", "-m", "reuse an id")
 
-			clashes, err := introducedIDClashes(base, "HEAD", base, idsDir, histDir, execGitRunner{})
+			clashes, err := clashesFor(t, base, base)
 			if err != nil {
 				t.Fatalf("introducedIDClashes: %v", err)
 			}
@@ -465,7 +465,7 @@ func TestPublishedIssueIDs_PartialReadIsAnError(t *testing.T) {
 	// A ref that exists but whose ls-tree calls fail: point at a bogus ref via a
 	// runner that answers rev-parse but errors on ls-tree.
 	r := &lsTreeFailRunner{}
-	if _, _, err := publishedIssueIDs(idsDir, histDir, r); err == nil {
+	if _, _, err := publishedIDs(t, r); err == nil {
 		t.Error("a failed ls-tree must be an error — a partial trunk read allocates colliding ids silently")
 	}
 }
@@ -624,7 +624,7 @@ func TestPublishedIssueIDs_StaleRefIsReportedStale(t *testing.T) {
 	// to the tree from before id 2 landed.
 	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
 
-	ids, stale, err := publishedIssueIDs(idsDir, histDir, execGitRunner{})
+	ids, stale, err := publishedIDs(t, execGitRunner{})
 	if err != nil {
 		t.Fatalf("a stale ref still reads: %v", err)
 	}
@@ -634,5 +634,187 @@ func TestPublishedIssueIDs_StaleRefIsReportedStale(t *testing.T) {
 	if got := issue.NextID(ids); got != "000002" {
 		t.Fatalf("NextID from the stale trunk = %s, want 000002 (the id another repo already published) — "+
 			"this is the collision the warning exists to flag", got)
+	}
+}
+
+// clashesFor drives the lint decision exactly as runIssueLintIDs does — same
+// dir resolution, same head read — so the tests exercise the wiring rather than
+// a parallel assembly of the same parts.
+func clashesFor(t *testing.T, base, trunk string) ([]string, error) {
+	t.Helper()
+	dirs, err := resolveIDDirs(idsDir, histDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, err := refIDSpace("HEAD", dirs, execGitRunner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return introducedIDClashes(base, trunk, head, dirs, execGitRunner{})
+}
+
+// publishedIDs is the trunk read as allocation performs it, flattened to ids.
+func publishedIDs(t *testing.T, r gitRunner) ([]int, error, error) {
+	t.Helper()
+	dirs, err := resolveIDDirs(idsDir, histDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	byID, stale, rerr := publishedIDSpace(dirs, r)
+	return issue.IDsIn(byID), stale, rerr
+}
+
+// TestAllocateIssueID_FromASubdirectoryReadsTheRealIDSpace is BR-25, the fourth
+// and worst member of the silent-degradation family.
+//
+// The id directories were joined onto the process cwd, so from docs/sub/ they
+// resolved to docs/sub/workshop/issues — still INSIDE the repo, so the
+// containment guard passed — and both ls-tree and os.ReadDir then truthfully
+// answered "nothing" about a directory that does not exist. Allocation read an
+// empty published id space, handed out 000001, and every enforcement layer was
+// blind because each only looks at the canonical dirs from the top.
+//
+// "workshop/issues" names a place in the repository, not a place relative to
+// wherever the operator is standing.
+func TestAllocateIssueID_FromASubdirectoryReadsTheRealIDSpace(t *testing.T) {
+	repo, _ := idRepo(t) // publishes 000001
+	writeIssueAt(t, repo, idsDir, "000042-published.md")
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "-m", "publish 42")
+	git(t, repo, "push", "origin", "main")
+
+	sub := filepath.Join(repo, "docs", "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdirTo(t, sub)
+
+	var errb bytes.Buffer
+	got, err := allocateIssueID(&errb, idsDir, histDir, execGitRunner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "000043" {
+		t.Fatalf("from a subdirectory allocateIssueID = %s, want 000043 — it read an empty id space "+
+			"and would misfile a published id (stderr: %q)", got, errb.String())
+	}
+
+	dirs, err := resolveIDDirs(idsDir, histDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dirs.Rel[0] != "workshop/issues" {
+		t.Errorf("id dir from a subdirectory = %q, want workshop/issues — a cwd-relative dir names "+
+			"a location that does not exist and reads as an empty tree", dirs.Rel[0])
+	}
+}
+
+// TestAllocateIssueID_BlindReadIsAnnounced: an id space empty from every source
+// is legitimate in a fresh repo and catastrophic anywhere else, and the two are
+// indistinguishable from inside. Saying so is the difference between BR-25
+// being noticed in one run and surviving four review rounds.
+func TestAllocateIssueID_BlindReadIsAnnounced(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit())
+	chdirTo(t, repo)
+
+	var errb bytes.Buffer
+	got, err := allocateIssueID(&errb, idsDir, histDir, execGitRunner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "000001" {
+		t.Fatalf("allocateIssueID = %s, want 000001 in a repo with no issues", got)
+	}
+	if !strings.Contains(errb.String(), "EMPTY id space") {
+		t.Errorf("an id space read as empty from every source must be announced, got stderr: %q", errb.String())
+	}
+}
+
+// TestRefuseDuplicateIssueIDs_UnknownBaseSkipsRatherThanRefuses is BR-18's
+// first sweep member.
+//
+// The merge-base is what distinguishes a MOVE from a new claimant, so an
+// unresolvable one is a NON-ANSWER. Defaulting it to {} erased every deletion:
+// `sdlc merge` archives on every close, so an empty base made each archived
+// file look like a second live claimant and the gate refused nearly
+// everything — a false refusal delivered with a confident message.
+func TestRefuseDuplicateIssueIDs_UnknownBaseSkipsRatherThanRefuses(t *testing.T) {
+	repo, _ := idRepo(t)
+
+	// An orphan branch shares no history with the trunk, so there is no
+	// merge-base — and it carries its own copy of the issue file, which under
+	// the empty-base collapse reads as a second claimant.
+	git(t, repo, "checkout", "--quiet", "--orphan", "detached")
+	git(t, repo, "commit", "--quiet", "-m", "orphan root")
+
+	var errb bytes.Buffer
+	if err := refuseDuplicateIssueIDs(&errb, idsDir, histDir, execGitRunner{}); err != nil {
+		t.Fatalf("no merge-base must SKIP the gate, not refuse the merge: %v", err)
+	}
+	if !strings.Contains(errb.String(), "skipped") {
+		t.Errorf("a skipped gate must say so, got stderr: %q", errb.String())
+	}
+}
+
+// TestClassifyDuplicates_IntroducedIsNotCalledPreExisting is BR-18's second
+// sweep member: every within-ref duplicate was labelled "pre-existing" without
+// consulting the base, so a duplicate the range CREATED was reported as
+// inherited damage in the same run that refused it. "Pre-existing" is what
+// tells an operator to ignore a line.
+func TestClassifyDuplicates_IntroducedIsNotCalledPreExisting(t *testing.T) {
+	head := map[int][]string{
+		7: {"workshop/issues/000007-a.md", "workshop/issues/000007-b.md"}, // range added the second
+		9: {"workshop/issues/000009-x.md", "workshop/issues/000009-y.md"}, // already doubled at base
+	}
+	base := map[int][]string{
+		7: {"workshop/issues/000007-a.md"},
+		9: {"workshop/issues/000009-x.md", "workshop/issues/000009-y.md"},
+	}
+	got := map[int]string{}
+	for _, d := range classifyDuplicates(head, base, true) {
+		got[d.ID] = d.Label
+	}
+	if got[7] != "INTRODUCED duplicate id" {
+		t.Errorf("#7 labelled %q — the range added the second path, so it is not pre-existing", got[7])
+	}
+	if got[9] != "pre-existing duplicate id" {
+		t.Errorf("#9 labelled %q — both paths predate the range", got[9])
+	}
+	// With no range there is nothing to attribute to, so claim nothing.
+	for _, d := range classifyDuplicates(head, nil, false) {
+		if strings.Contains(d.Label, "pre-existing") || strings.Contains(d.Label, "INTRODUCED") {
+			t.Errorf("#%d labelled %q with no range given — attribution is unavailable", d.ID, d.Label)
+		}
+	}
+}
+
+// TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir is the other half of
+// BR-25: allocation and the file write have to agree on where ids live.
+//
+// Reading was only half the defect. `sdlc issue new` from docs/sub also WROTE
+// to docs/sub/workshop/issues/ and pushed it — a live issue in a directory no
+// gate looks at, whose natural repair (git mv into workshop/issues/)
+// manufactures exactly the collision this issue exists to prevent.
+func TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir(t *testing.T) {
+	repo, _ := idRepo(t)
+	sub := filepath.Join(repo, "docs", "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdirTo(t, sub)
+
+	var stdout, stderr bytes.Buffer
+	f := &issueNewFlags{IssuesDir: idsDir, HistoryDir: histDir}
+	if err := runIssueNew(&stdout, &stderr, f, []string{"Subdir Run"}); err != nil {
+		t.Fatalf("runIssueNew: %v (stderr: %s)", err, stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(repo, "workshop", "issues", "000002-subdir-run.md")); err != nil {
+		t.Errorf("issue not written to the repo's issue dir: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sub, "workshop", "issues")); err == nil {
+		t.Error("issue written under docs/sub/workshop/issues — a live issue where no gate looks")
+	}
+	if got := strings.TrimSpace(stdout.String()); got != "workshop/issues/000002-subdir-run.md" {
+		t.Errorf("stdout = %q, want the repo-relative path every gate and commit speaks", got)
 	}
 }

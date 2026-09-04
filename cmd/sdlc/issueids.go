@@ -20,7 +20,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -42,12 +41,32 @@ const trunkRef = "origin/main"
 // legitimate, so a failed fetch falls back to the local scan — but LOUDLY, with
 // the risk named, because a silent fallback recreates exactly the bug this
 // function exists to prevent.
+//
+// Every degraded read is announced, because the whole family of defects behind
+// this issue reduces to one rule: a read feeding the id space must be verified
+// FRESH, COMPLETE and ON-TARGET, or said out loud. A non-answer is not an empty
+// answer, and unioning zero ids in from a blind read is how each of them
+// silently handed out a published id.
 func allocateIssueID(stderr io.Writer, issuesDir, historyDir string, r gitRunner) (string, error) {
-	local, err := issue.ScanLocalIDs(issuesDir, historyDir)
+	dirs, err := resolveIDDirs(issuesDir, historyDir)
+	if err != nil {
+		// The dirs and the trunk must describe the same repo; without that the
+		// published read is meaningless. Fall back to a raw local scan, loudly.
+		cwarn(stderr, fmt.Sprintf("id directories unusable (%v) — id allocated from LOCAL files only", err))
+		byID, _, serr := issue.LocalPathsByID(issue.IDDirs(issuesDir, historyDir))
+		if serr != nil {
+			return "", serr
+		}
+		return issue.NextID(issue.IDsIn(byID)), nil
+	}
+
+	localByID, foundLocal, err := issue.LocalPathsByID(dirs.Abs)
 	if err != nil {
 		return "", err
 	}
-	published, stale, ferr := publishedIssueIDs(issuesDir, historyDir, r)
+	local := issue.IDsIn(localByID)
+
+	publishedByID, stale, ferr := publishedIDSpace(dirs, r)
 	if ferr == nil && stale != nil {
 		// The ref EXISTS but could not be refreshed, so it may be missing ids
 		// published since it was last fetched — and allocating from it silently
@@ -63,18 +82,31 @@ func allocateIssueID(stderr io.Writer, issuesDir, historyDir string, r gitRunner
 			"which may collide with an id already published: %v\n"+
 			"      if this branch predates issues on the trunk, verify the id before pushing",
 			trunkRef, ferr))
+		warnIfBlind(stderr, dirs, foundLocal, len(local) > 0)
 		return issue.NextID(local), nil
 	}
+	published := issue.IDsIn(publishedByID)
+	warnIfBlind(stderr, dirs, foundLocal, len(local)+len(published) > 0)
 	return issue.NextID(local, published), nil
 }
 
-// publishedIssueIDs reads the ids present in the trunk ref's issue directories.
+// warnIfBlind announces an id space that came back empty from every source.
 //
-// Reads the REF, not a checkout: `git ls-tree` needs no working tree and no
-// branch switch, and filenames carry the id so no blobs are fetched. The fetch
-// is best-effort — a repo with no origin still has a usable origin/main ref
-// sometimes, and a stale ref is strictly better than none — but a missing ref is
-// an error, so the caller warns rather than silently allocating locally.
+// Empty is a legitimate answer in a fresh repo and a catastrophic one anywhere
+// else — and the two are indistinguishable from inside (#213 BR-25). Saying so
+// costs a fresh repo one accurate line and gives a misconfigured one the signal
+// that used to be missing entirely: `sdlc issue new` run from a subdirectory
+// read an empty trunk, allocated 000001, misfiled the issue and pushed it, with
+// empty stderr.
+func warnIfBlind(stderr io.Writer, dirs idDirs, foundLocal int, sawAnyID bool) {
+	if sawAnyID || foundLocal > 0 {
+		return
+	}
+	cwarn(stderr, fmt.Sprintf("no issue files found in %s (relative to %s) — allocating from an EMPTY id space.\n"+
+		"      correct in a fresh repo; anywhere else the id directories are misconfigured",
+		strings.Join(dirs.Rel, ", "), dirs.Top))
+}
+
 // firstLine keeps a git failure to one line: fetch errors are several lines of
 // remote diagnostics, and a warning that scrolls reads as noise, not a warning.
 func firstLine(s string) string {
@@ -86,20 +118,15 @@ func firstLine(s string) string {
 	return "no output"
 }
 
-// Returns (ids, staleErr, err). staleErr non-nil means the ref was READ but not
-// refreshed — the caller must say so out loud.
-func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error, error) {
-	// The ref and the directories must describe the SAME repo. git runs relative
-	// to the process cwd while the dirs are caller-supplied, so a --issues-dir
-	// pointing outside this repo would otherwise scan THIS repo's trunk for paths
-	// that mean something else there — reading a stranger's id space as if it
-	// were ours. Refuse that (the caller warns and falls back to local) rather
-	// than allocating from it.
-	dirs, err := repoRelativeIDDirs(issuesDir, historyDir)
-	if err != nil {
-		return nil, nil, err
-	}
-
+// publishedIDSpace reads the trunk's id space, refreshing the ref first.
+//
+// Reads the REF, not a checkout: `git ls-tree` needs no working tree and no
+// branch switch, and filenames carry the id so no blobs are fetched.
+//
+// Returns (space, staleErr, err). staleErr non-nil means the ref was READ but
+// not refreshed — a stale trunk is strictly better than none, but the caller
+// must say so out loud rather than treat it as current.
+func publishedIDSpace(dirs idDirs, r gitRunner) (map[int][]string, error, error) {
 	// Fetch INTO the remote-tracking ref explicitly. `git fetch origin main`
 	// updates FETCH_HEAD and only incidentally refs/remotes/origin/main — in a
 	// CI checkout with no configured refspec it does not create it at all, so
@@ -109,24 +136,40 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error,
 	if out, ferr := r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main"); ferr != nil {
 		stale = fmt.Errorf("%v: %s", ferr, firstLine(string(out)))
 	}
+	space, err := refIDSpace(trunkRef, dirs, r)
+	return space, stale, err
+}
 
-	if out, err := r.Git("rev-parse", "--verify", "--quiet", trunkRef); err != nil || strings.TrimSpace(string(out)) == "" {
-		return nil, stale, fmt.Errorf("no %s ref", trunkRef)
+// refIDSpace reads one ref's id space: id → every path claiming it.
+//
+// THE reader (#213). Allocation, the merge gate and the lint verb each had
+// their own ls-tree loop, and each had its own idea of what a failed read
+// meant — which is why the same silent-degradation defect had to be found four
+// separate times. One reader, one failure policy.
+func refIDSpace(ref string, dirs idDirs, r gitRunner) (map[int][]string, error) {
+	if out, err := r.Git("rev-parse", "--verify", "--quiet", ref); err != nil || strings.TrimSpace(string(out)) == "" {
+		return nil, fmt.Errorf("no %s ref", ref)
 	}
-	var ids []int
-	for _, dir := range dirs {
-		out, err := r.Git("ls-tree", "--name-only", trunkRef, dir+"/")
+	byID := map[int][]string{}
+	for _, dir := range dirs.Rel {
+		out, err := r.Git("ls-tree", "--name-only", ref, dir+"/")
 		if err != nil {
 			// A PARTIAL read is indistinguishable from a complete one once the
-			// ids are unioned, so it would allocate against half the trunk and
-			// report success (#213 close review BR-7). A directory genuinely
-			// absent from the ref is not an error — ls-tree exits 0 printing
-			// nothing — so reaching here means the read itself failed.
-			return nil, stale, fmt.Errorf("ls-tree %s %s/: %v\n%s", trunkRef, dir, err, out)
+			// paths are merged, so it would answer from half the trunk and
+			// report success (#213 BR-7). A directory genuinely absent from the
+			// ref is not an error — ls-tree exits 0 printing nothing — so
+			// reaching here means the read itself failed.
+			return nil, fmt.Errorf("ls-tree %s %s/: %v\n%s", ref, dir, err, out)
 		}
-		ids = append(ids, issue.IDsInTreeListing(string(out))...)
+		for id, paths := range issue.PathsByID(string(out)) {
+			for _, p := range paths {
+				if !containsPath(byID[id], p) {
+					byID[id] = append(byID[id], p)
+				}
+			}
+		}
 	}
-	return ids, stale, nil
+	return byID, nil
 }
 
 // mergedPathsFor computes the id→paths map the MERGE RESULT would have, from
@@ -229,45 +272,79 @@ func introducedCollisions(head, base, trunk map[int][]string) []int {
 	return ids
 }
 
-// repoRelativeIDDirs converts the id directories to paths inside the current git
-// repo, refusing any that escape it. `git ls-tree` interprets a path against the
-// repo root, so an absolute or outside path would silently name the wrong thing.
-func repoRelativeIDDirs(issuesDir, historyDir string) ([]string, error) {
+// idDirs is where ids live, resolved ONCE for every consumer.
+//
+// Rel is what `git ls-tree` needs (repo-relative, slash-separated); Abs is what
+// the on-disk scan needs. Both come out of the same resolution, so the local
+// scan and the trunk read cannot look in different places — which they did.
+type idDirs struct {
+	Rel []string
+	Abs []string
+	Top string
+}
+
+// resolveIDDirs resolves the id directories against the REPO TOP LEVEL, not the
+// process cwd (#213 BR-25).
+//
+// "workshop/issues" names a place in the repository, not a place relative to
+// wherever the operator happens to be standing. Joined onto the cwd it yielded
+// docs/sub/workshop/issues from a subdirectory — still inside the repo, so the
+// containment guard below passed — and both ls-tree and os.ReadDir then
+// truthfully answered "nothing" about a directory that does not exist. The
+// result: `cd docs/sub && sdlc issue new` read an EMPTY published id space,
+// allocated 000001, wrote the file into the subdirectory and pushed it, with
+// empty stderr. All three enforcement layers were blind to it, because each
+// only ever looks at the canonical dirs from the top.
+//
+// An ABSOLUTE dir is still honoured — that is what --issues-dir is for — but
+// must resolve inside this repo: `git ls-tree` interprets a path against the
+// repo root, so an outside path would make us scan THIS repo's trunk for names
+// that mean something else there, reading a stranger's id space as if it were
+// ours.
+func resolveIDDirs(issuesDir, historyDir string) (idDirs, error) {
 	top, err := gitx.RepoTopLevel()
 	if err != nil {
-		return nil, fmt.Errorf("not a git repo: %w", err)
+		return idDirs{}, fmt.Errorf("not a git repo: %w", err)
 	}
-	if resolved, rerr := filepath.EvalSymlinks(top); rerr == nil {
-		top = resolved
-	}
-	// Resolve symlinks ONCE, on the cwd, then join — never on the dir itself.
+	// Resolve symlinks ONCE, on the root, then join — never on the dir itself.
 	// EvalSymlinks fails on a path that does not exist yet, which is the normal
 	// state of workshop/history in a fresh repo; the first cut fell back to the
 	// UNRESOLVED absolute path there, so on macOS (/var → /private/var) it
 	// compared an unresolved dir against a resolved root, decided every dir was
 	// outside the repo, and silently skipped every layer of this issue's fix.
-	base, berr := os.Getwd()
-	if berr != nil {
-		return nil, berr
+	if resolved, rerr := filepath.EvalSymlinks(top); rerr == nil {
+		top = resolved
 	}
-	if resolved, rerr := filepath.EvalSymlinks(base); rerr == nil {
-		base = resolved
-	}
-	var out []string
+	d := idDirs{Top: top}
 	for _, dir := range issue.IDDirs(issuesDir, historyDir) {
 		abs := dir
 		if !filepath.IsAbs(abs) {
-			abs = filepath.Join(base, abs)
+			abs = filepath.Join(top, abs)
 		} else if resolved, rerr := filepath.EvalSymlinks(abs); rerr == nil {
 			abs = resolved
 		}
-		rel, err := filepath.Rel(top, abs)
-		if err != nil || strings.HasPrefix(rel, "..") {
-			return nil, fmt.Errorf("%s is outside the current repo (%s) — refusing to read its trunk as ours", dir, top)
+		rel, rerr := filepath.Rel(top, abs)
+		if rerr != nil || strings.HasPrefix(rel, "..") {
+			return idDirs{}, fmt.Errorf("%s is outside the current repo (%s) — refusing to read its trunk as ours", dir, top)
 		}
-		out = append(out, filepath.ToSlash(rel))
+		d.Rel = append(d.Rel, filepath.ToSlash(rel))
+		d.Abs = append(d.Abs, abs)
 	}
-	return out, nil
+	return d, nil
+}
+
+// renderClashes formats the merge-result collisions a range introduces, one
+// report per id. Single renderer (#213 BR-23): the merge gate and the lint verb
+// had a copy each, and a third was on the way.
+func renderClashes(head, base, trunk map[int][]string) []string {
+	merged := mergedPathsFor(head, base, trunk)
+	var clashes []string
+	for _, id := range introducedCollisions(head, base, trunk) {
+		clashes = append(clashes, fmt.Sprintf("  #%06d would be claimed by %d files after merge:\n      %s",
+			id, len(merged[id]), strings.Join(merged[id], "\n      ")))
+	}
+	sort.Strings(clashes)
+	return clashes
 }
 
 // refuseDuplicateIssueIDs refuses a merge that would land an id already present
@@ -282,98 +359,52 @@ func repoRelativeIDDirs(issuesDir, historyDir string) ([]string, error) {
 // path) is not mistaken for a collision — only a DIFFERENT file claiming a
 // live id is.
 func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r gitRunner) error {
-	// Refresh the trunk ref first (#213 close review BR-4). merge's own flow has
-	// not fetched at step 4.6, so a stale origin/main would miss exactly the
-	// collision that landed while this branch was open — the shape of the bug.
+	dirs, err := resolveIDDirs(issuesDir, historyDir)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("duplicate-id gate skipped: %v", err))
+		return nil
+	}
+	// Refresh the trunk ref first (#213 BR-4). merge's own flow has not fetched
+	// at step 4.6, so a stale origin/main would miss exactly the collision that
+	// landed while this branch was open — the shape of the bug.
 	_, _ = r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main")
 
-	trunk, err := issueFilesByID(trunkRef, issuesDir, historyDir, r)
+	trunk, err := refIDSpace(trunkRef, dirs, r)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("duplicate-id gate skipped: %v", err))
 		return nil
 	}
-	local, err := issueFilesByID("HEAD", issuesDir, historyDir, r)
+	local, err := refIDSpace("HEAD", dirs, r)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("duplicate-id gate skipped: %v", err))
 		return nil
 	}
-	// The merge-base is what distinguishes a MOVE from a new claimant.
+	// The merge-base is what distinguishes a MOVE from a new claimant, so an
+	// unknown base is a NON-ANSWER, not an empty one (#213 BR-18). Defaulting it
+	// to {} erased every deletion: `sdlc merge` archives on every close, so an
+	// empty base made each archived file look like a second live claimant and
+	// the gate refused nearly everything — a false refusal with a confident
+	// message, which is worse than the collision it was hunting.
 	mergeBase := strings.TrimSpace(gitx.Capture("merge-base", trunkRef, "HEAD"))
-	base := map[int][]string{}
-	if mergeBase != "" {
-		if b, berr := issueFilesByID(mergeBase, issuesDir, historyDir, r); berr == nil {
-			base = b
-		}
+	if mergeBase == "" {
+		cwarn(stderr, fmt.Sprintf("duplicate-id gate skipped: no merge-base between %s and HEAD — "+
+			"without it an archive cannot be told from a new claimant", trunkRef))
+		return nil
 	}
-	merged := mergedPathsFor(local, base, trunk)
-	var clashes []string
-	for _, id := range introducedCollisions(local, base, trunk) {
-		clashes = append(clashes, fmt.Sprintf("  #%06d would be claimed by %d files after merge:\n      %s",
-			id, len(merged[id]), strings.Join(merged[id], "\n      ")))
+	base, berr := refIDSpace(mergeBase, dirs, r)
+	if berr != nil {
+		cwarn(stderr, fmt.Sprintf("duplicate-id gate skipped: reading merge-base %s: %v", mergeBase[:min(7, len(mergeBase))], berr))
+		return nil
 	}
+	clashes := renderClashes(local, base, trunk)
 	if len(clashes) == 0 {
 		cok(stderr, "duplicate-id gate: no reused issue ids")
 		return nil
 	}
-	sort.Strings(clashes)
 	return fmt.Errorf("this branch reuses %d issue id(s) already published on %s:\n%s\n"+
 		"  Two files with the same id but different slugs are different PATHS, so git\n"+
 		"  merges both and nothing downstream objects — rename this branch's file to a\n"+
 		"  fresh id (and its `id:` frontmatter) before merging.\n"+
 		"  Bypass with --no-validate only if you are deliberately landing the duplicate.",
 		len(clashes), trunkRef, strings.Join(clashes, "\n"))
-}
-
-// issueFilesByID maps each id in a ref's issue directories to EVERY path
-// claiming it.
-//
-// Every path, not the first (#213 close review BR-2). Collapsing to one made
-// detection depend on `ls-tree`'s sort order — i.e. on the slug: when the head
-// tree carries BOTH files (a rebased PR, or any branch that pulled main after
-// the trunk file landed), head[id] could equal base[id] and nothing was
-// reported. Measured on the real repo: `000213-aaa-collision.md` was refused
-// while `000213-planted-collision.md`, identical but sorting later, passed.
-func issueFilesByID(ref, issuesDir, historyDir string, r gitRunner) (map[int][]string, error) {
-	if out, err := r.Git("rev-parse", "--verify", "--quiet", ref); err != nil || strings.TrimSpace(string(out)) == "" {
-		return nil, fmt.Errorf("no %s ref", ref)
-	}
-	dirs, derr := repoRelativeIDDirs(issuesDir, historyDir)
-	if derr != nil {
-		return nil, derr
-	}
-	byID := map[int][]string{}
-	for _, dir := range dirs {
-		out, err := r.Git("ls-tree", "--name-only", ref, dir+"/")
-		if err != nil {
-			// Same rule as publishedIssueIDs (#213 BR-7/BR-15): a partial read
-			// is indistinguishable from a clean tree once parsed, so it would
-			// report "no collisions" having looked at half of them. ls-tree
-			// exits 0 printing nothing for a directory absent from the ref, so
-			// reaching here means the read itself failed.
-			return nil, fmt.Errorf("ls-tree %s %s/: %v\n%s", ref, dir, err, out)
-		}
-		for _, line := range strings.Split(string(out), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			base := line
-			if i := strings.LastIndex(base, "/"); i >= 0 {
-				base = base[i+1:]
-			}
-			if n := issue.IDFromFilename(base); n > 0 {
-				dup := false
-				for _, seen := range byID[n] {
-					if seen == line {
-						dup = true
-						break
-					}
-				}
-				if !dup {
-					byID[n] = append(byID[n], line)
-				}
-			}
-		}
-	}
-	return byID, nil
 }

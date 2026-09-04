@@ -20,7 +20,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -72,21 +71,33 @@ Read-only.`,
 func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 	r := claimRunner
 
-	listing, err := idListing(f.Head, f.IssuesDir, f.HistoryDir, r)
+	dirs, err := resolveIDDirs(f.IssuesDir, f.HistoryDir)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("id lint skipped: %v", err))
 		return nil
 	}
-	for _, c := range issue.DuplicateIDsInRef(listing) {
-		cwarn(stderr, fmt.Sprintf("pre-existing duplicate id #%06d: %s", c.ID, strings.Join(c.Paths, ", ")))
-	}
-
-	if f.Base == "" {
-		cok(stderr, "id lint: pre-existing duplicates reported above, if any (no range given)")
+	head, err := refIDSpace(f.Head, dirs, r)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("id lint skipped: %v", err))
 		return nil
 	}
 
-	clashes, err := introducedIDClashes(f.Base, f.Head, f.Trunk, f.IssuesDir, f.HistoryDir, r)
+	var baseSpace map[int][]string
+	if f.Base != "" {
+		if b, berr := refIDSpace(f.Base, dirs, r); berr == nil {
+			baseSpace = b
+		}
+	}
+	for _, d := range classifyDuplicates(head, baseSpace, f.Base != "") {
+		cwarn(stderr, fmt.Sprintf("%s #%06d: %s", d.Label, d.ID, strings.Join(d.Paths, ", ")))
+	}
+
+	if f.Base == "" {
+		cok(stderr, "id lint: duplicates within "+f.Head+" reported above, if any (no range given)")
+		return nil
+	}
+
+	clashes, err := introducedIDClashes(f.Base, f.Trunk, head, dirs, r)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("id lint skipped: %v", err))
 		return nil
@@ -104,57 +115,63 @@ func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 	return nil
 }
 
-// introducedIDClashes returns the rendered clash reports for ids present at head
-// under a different path than at base. Split from the command so the decision is
-// testable without driving cobra or exiting.
-func introducedIDClashes(base, head, trunk, issuesDir, historyDir string, r gitRunner) ([]string, error) {
-	headByID, err := issueFilesByID(head, issuesDir, historyDir, r)
-	if err != nil {
-		return nil, err
+// labeledDuplicate is a within-ref duplicate together with who owns it.
+type labeledDuplicate struct {
+	issue.IDCollision
+	Label string
+}
+
+// classifyDuplicates labels each duplicate WITHIN head by whether the range
+// inherited it or introduced it (#213 BR-18).
+//
+// Every one of them used to be labelled "pre-existing". So a range that added a
+// second file for a live id — the exact thing this verb refuses — was reported
+// as inherited damage in the same run that refused it, and the report
+// contradicted the exit code. Worse, "pre-existing" is what tells an operator to
+// ignore a line.
+//
+// With no range there is nothing to attribute to, and the honest label claims
+// nothing about origin. Pure, because it is a DECISION: the verb exits on the
+// refusal path, so a label reachable only through os.Exit is a label nothing can
+// test.
+func classifyDuplicates(head, base map[int][]string, hasRange bool) []labeledDuplicate {
+	var out []labeledDuplicate
+	for _, c := range issue.DuplicatesIn(head) {
+		label := "duplicate id"
+		switch {
+		case !hasRange:
+			// no range: attribution is unavailable, so claim none
+		case len(base[c.ID]) > 1:
+			label = "pre-existing duplicate id"
+		default:
+			label = "INTRODUCED duplicate id"
+		}
+		out = append(out, labeledDuplicate{IDCollision: c, Label: label})
 	}
-	baseByID, err := issueFilesByID(base, issuesDir, historyDir, r)
+	return out
+}
+
+// introducedIDClashes returns the rendered clash reports for the merge result of
+// this range. Split from the command so the decision is testable without driving
+// cobra or exiting.
+//
+// A trunk read that FAILS is an error, not a reason to substitute the base
+// (#213 BR-18): the two differ precisely when the trunk moved while the branch
+// was open, which is the case the gate exists for, so the silent substitution
+// answered the easy question and reported it as the hard one.
+func introducedIDClashes(base, trunk string, head map[int][]string, dirs idDirs, r gitRunner) ([]string, error) {
+	baseByID, err := refIDSpace(base, dirs, r)
 	if err != nil {
 		return nil, err
 	}
 	// Trunk defaults to base when not given (a plain two-ref comparison).
 	trunkByID := baseByID
 	if trunk != "" && trunk != base {
-		if t, terr := issueFilesByID(trunk, issuesDir, historyDir, r); terr == nil {
-			trunkByID = t
+		t, terr := refIDSpace(trunk, dirs, r)
+		if terr != nil {
+			return nil, terr
 		}
+		trunkByID = t
 	}
-	merged := mergedPathsFor(headByID, baseByID, trunkByID)
-	var clashes []string
-	for _, id := range introducedCollisions(headByID, baseByID, trunkByID) {
-		clashes = append(clashes, fmt.Sprintf("  #%06d would be claimed by %d files after merge:\n      %s",
-			id, len(merged[id]), strings.Join(merged[id], "\n      ")))
-	}
-	sort.Strings(clashes)
-	return clashes, nil
-}
-
-// idListing concatenates `git ls-tree` output for one ref's id-bearing
-// directories — the IO half of the within-ref scan.
-func idListing(ref, issuesDir, historyDir string, r gitRunner) (string, error) {
-	if out, err := r.Git("rev-parse", "--verify", "--quiet", ref); err != nil || strings.TrimSpace(string(out)) == "" {
-		return "", fmt.Errorf("no %s ref", ref)
-	}
-	dirs, err := repoRelativeIDDirs(issuesDir, historyDir)
-	if err != nil {
-		return "", err
-	}
-	var b strings.Builder
-	for _, dir := range dirs {
-		out, err := r.Git("ls-tree", "--name-only", ref, dir+"/")
-		if err != nil {
-			// Same rule as the other two read sites (#213 BR-7/BR-15): a partial
-			// listing parses as a clean tree, so it would report "no duplicates"
-			// having seen a fraction of them. ls-tree exits 0 printing nothing
-			// for a directory absent from the ref, so this is a real failure.
-			return "", fmt.Errorf("ls-tree %s %s/: %v\n%s", ref, dir, err, out)
-		}
-		b.Write(out)
-		b.WriteString("\n")
-	}
-	return b.String(), nil
+	return renderClashes(head, baseByID, trunkByID), nil
 }

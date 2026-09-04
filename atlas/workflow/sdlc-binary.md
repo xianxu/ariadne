@@ -201,15 +201,45 @@ Nothing downstream caught it, because the two files get different slugs and are
 therefore different **paths** — git merges both cleanly. Eight collisions across
 two repos existed when this was written, the oldest from May 2026.
 
-    NextID(idSets...)          PURE — the decision, no IO
-    ScanLocalIDs(...)          this checkout
-    ls-tree origin/main        the published space
-                               → unioned, so unpushed local issues still count
+    resolveIDDirs(...)         WHERE ids live — resolved once, Rel + Abs
+    issue.PathsByID(listing)   THE parser — id → every path claiming it
+    refIDSpace(ref, dirs, r)   THE reader — one ref's id space
+    LocalPathsByID(dirs.Abs)   this checkout, same shape
+    issue.NextID(idSets...)    PURE — the decision, no IO
+                               → local ∪ published, so unpushed issues count
+
+One parser and one reader, deliberately (#213 BR-23). There were three of each —
+one yielding ids for allocation, one yielding paths for the merge gate, one
+yielding duplicates for the lint verb — and each carried its own idea of what a
+failed read meant. That is why the *same* silent-degradation defect had to be
+found four separate times across four review rounds.
+
+**Every degraded read is announced**, which is the rule the whole defect family
+reduces to: a read feeding the id space must be verified **fresh, complete and
+on-target**, or said out loud. A non-answer is not an empty answer, and unioning
+zero ids in from a blind read is how each instance silently handed out a
+published id. The four:
+
+| | the blind read | announced as |
+| --- | --- | --- |
+| BR-7 | a per-directory `ls-tree` failed → half the trunk | hard error |
+| BR-15 | dirs outside the repo → a stranger's id space | refuse + local fallback |
+| BR-23 | fetch failed but the ref still resolved → stale trunk | `POSSIBLY STALE` warning |
+| BR-25 | dirs joined onto the **cwd** → a directory that does not exist | fixed at the root; empty-from-every-source still warns |
+
+BR-25 is the sharpest: `workshop/issues` names a place in the **repository**, not
+a place relative to wherever the operator is standing. Joined onto the cwd it
+yielded `docs/sub/workshop/issues` from a subdirectory — still inside the repo,
+so the containment guard passed — and both `ls-tree` and `os.ReadDir` truthfully
+answered "nothing". `sdlc issue new` then allocated `000001`, **wrote the file
+into the subdirectory**, and pushed it: a live issue where no gate looks, whose
+natural repair (`git mv` into `workshop/issues/`) manufactures exactly the
+collision this issue exists to prevent. Reading and writing now share the one
+resolution, so they cannot disagree about where ids live.
 
 Offline falls back to the local scan but **loudly**: a silent fallback recreates
-the bug. `repoRelativeIDDirs` refuses issue dirs outside the current repo —
-without it a `--issues-dir` elsewhere would read *this* repo's trunk as its own
-id space.
+the bug. `resolveIDDirs` refuses issue dirs outside the current repo — without it
+a `--issues-dir` elsewhere would read *this* repo's trunk as its own id space.
 
 **Three layers, because the first two are not enforcement:**
 
@@ -228,7 +258,7 @@ merge-base reported "no reused ids"; the trunk tip refused.
 
 **A branch-vs-trunk comparison structurally cannot see a collision already
 merged** — both files are on the trunk, the trees agree, nothing is reported.
-`issue.DuplicateIDsInRef` asks the other question ("does one tree contradict
+`issue.DuplicatesIn` asks the other question ("does one tree contradict
 itself") and is the only way the existing damage is visible. It REPORTS rather
 than refuses: those collisions predate the check, renumbering is operator work,
 and blocking every merge until it is done would be worse than the bug.

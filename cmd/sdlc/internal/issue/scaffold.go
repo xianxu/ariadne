@@ -10,6 +10,7 @@ package issue
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -69,44 +70,87 @@ func NextID(idSets ...[]int) string {
 	return fmt.Sprintf("%06d", max+1)
 }
 
-// ScanLocalIDs reads the on-disk issue directories and returns every id found.
-// Missing dirs are treated as empty, so a fresh repo yields none. The thin IO
-// half of allocation; NextID does the deciding.
-func ScanLocalIDs(issuesDir, historyDir string) ([]int, error) {
-	var ids []int
-	for _, dir := range IDDirs(issuesDir, historyDir) {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			if os.IsNotExist(err) {
+// LocalPathsByID reads id-bearing filenames from directories on disk into the
+// SAME id→paths shape a ref read produces, so "what this checkout claims" and
+// "what the trunk claims" are the same kind of answer and can be compared
+// without either side reparsing.
+//
+// It takes RESOLVED directories rather than deriving them (#213 BR-25): the
+// caller resolves once, against the repo top level, so the local scan and the
+// trunk read cannot look in different places.
+//
+// `found` counts the directories that actually existed. A scan that found NONE
+// is blind, not empty — the caller must say so rather than reporting an empty
+// id space as fact.
+func LocalPathsByID(dirs []string) (byID map[int][]string, found int, err error) {
+	byID = map[int][]string{}
+	for _, dir := range dirs {
+		entries, rerr := os.ReadDir(dir)
+		if rerr != nil {
+			if os.IsNotExist(rerr) {
 				continue
 			}
-			return nil, fmt.Errorf("read %s: %w", dir, err)
+			return nil, found, fmt.Errorf("read %s: %w", dir, rerr)
 		}
+		found++
 		for _, e := range entries {
 			if n := IDFromFilename(e.Name()); n > 0 {
-				ids = append(ids, n)
+				addPath(byID, n, filepath.Join(dir, e.Name()))
 			}
 		}
 	}
-	return ids, nil
+	return byID, found, nil
 }
 
-// IDsInTreeListing parses `git ls-tree --name-only <ref> <dir>/` output into ids.
-// Pure, so the remote-ref path is testable without a repo; the caller runs git.
-func IDsInTreeListing(out string) []int {
-	var ids []int
-	for _, line := range strings.Split(out, "\n") {
+// PathsByID parses `git ls-tree --name-only <ref> <dir>/` output into id →
+// every DISTINCT path claiming it.
+//
+// THE parser of an id listing (#213). There were three — one yielding ids for
+// allocation, one yielding paths for the merge gate, one yielding duplicates
+// for the lint verb — each with its own copy of "strip the directory, read the
+// prefix, skip a path already seen". Allocation, collision detection and the
+// merge predicate now all derive from this one map, so they cannot disagree
+// about what a listing says.
+//
+// Pure, so every ref-reading path is testable without a repo; the caller runs
+// git.
+func PathsByID(listing string) map[int][]string {
+	byID := map[int][]string{}
+	for _, line := range strings.Split(listing, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		if i := strings.LastIndex(line, "/"); i >= 0 {
-			line = line[i+1:]
+		name := line
+		if i := strings.LastIndex(name, "/"); i >= 0 {
+			name = name[i+1:]
 		}
-		if n := IDFromFilename(line); n > 0 {
-			ids = append(ids, n)
+		if n := IDFromFilename(name); n > 0 {
+			addPath(byID, n, line)
 		}
 	}
+	return byID
+}
+
+// addPath records a path under an id, ignoring one already seen. The same path
+// can arrive twice when the id directories overlap (workshop/history and its
+// issues/ subdir), and that is not two claimants.
+func addPath(byID map[int][]string, id int, path string) {
+	for _, seen := range byID[id] {
+		if seen == path {
+			return
+		}
+	}
+	byID[id] = append(byID[id], path)
+}
+
+// IDsIn returns every id in an id space, sorted.
+func IDsIn(byID map[int][]string) []int {
+	ids := make([]int, 0, len(byID))
+	for id := range byID {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
 	return ids
 }
 
@@ -116,55 +160,22 @@ type IDCollision struct {
 	Paths []string
 }
 
-// DuplicateIDsInRef finds ids claimed by two or more DIFFERENT paths in one
-// ls-tree listing, sorted by id.
+// DuplicatesIn finds ids claimed by two or more DIFFERENT paths within one id
+// space, sorted by id.
 //
-// A different question from "does this branch reuse a trunk id", and the only one
-// that can see a collision already merged (#213): once both files are on the
-// trunk, a branch-vs-trunk comparison finds two agreeing trees and nothing to
-// report. This asks whether a single tree contradicts itself.
-//
-// Pure — takes the listing, so the git call stays in the caller's IO shell.
-func DuplicateIDsInRef(listing string) []IDCollision {
-	byID := map[int][]string{}
-	var order []int
-	for _, line := range strings.Split(listing, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		base := line
-		if i := strings.LastIndex(base, "/"); i >= 0 {
-			base = base[i+1:]
-		}
-		n := IDFromFilename(base)
-		if n == 0 {
-			continue
-		}
-		// The same path seen twice (overlapping dirs in the listing) is not a
-		// collision — only two DIFFERENT paths claiming one id are.
-		dup := false
-		for _, seen := range byID[n] {
-			if seen == line {
-				dup = true
-				break
-			}
-		}
-		if dup {
-			continue
-		}
-		if len(byID[n]) == 0 {
-			order = append(order, n)
-		}
-		byID[n] = append(byID[n], line)
-	}
+// This is the only way an ALREADY-MERGED collision is visible at all: a
+// branch-vs-trunk comparison sees two trees that agree and finds nothing, so
+// the eight live collisions this issue was opened over were invisible to every
+// range-based check.
+func DuplicatesIn(byID map[int][]string) []IDCollision {
 	var out []IDCollision
-	for _, id := range order {
+	for _, id := range IDsIn(byID) {
 		if len(byID[id]) > 1 {
-			out = append(out, IDCollision{ID: id, Paths: byID[id]})
+			paths := append([]string{}, byID[id]...)
+			sort.Strings(paths)
+			out = append(out, IDCollision{ID: id, Paths: paths})
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
 

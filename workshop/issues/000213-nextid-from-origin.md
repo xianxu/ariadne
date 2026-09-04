@@ -534,6 +534,42 @@ Through-line across all five rounds: every finding on the merge gate was a
 **false refusal**, never a missed collision. Detecting a duplicate id is easy;
 attributing it ("did *this* range introduce it?") is where every defect lived.
 
+### 2026-09-03 — close round 6, and the shape of the whole issue
+
+Round 6 named the thing five rounds had been circling: **two defect families,
+each found one instance at a time.** So this round fixed the families.
+
+`silent-degradation-in-allocator` (BR-7, BR-15, BR-23, BR-25). The rule: a read
+feeding the id space must be verified **fresh, complete and on-target**, or
+announced as degraded — a non-answer is not an empty answer. Structurally there
+were **three parsers and three readers** (ids for allocation, paths for the merge
+gate, duplicates for the lint verb), each with its own idea of what a failed read
+meant, which is exactly why one defect had to be found four times. Collapsed to
+`issue.PathsByID` (the parser) and `refIDSpace` (the reader), with `resolveIDDirs`
+as the single answer to "where do ids live".
+
+BR-25 was the worst and had been invisible all along: the dirs were joined onto
+the **cwd**, so `cd docs/sub && sdlc issue new` resolved `docs/sub/workshop/issues`
+— inside the repo, so the containment guard passed — and both `ls-tree` and
+`os.ReadDir` truthfully answered nothing. It allocated `000001`, **wrote the file
+into the subdirectory**, and pushed it, with empty stderr. All three enforcement
+layers were blind because each only looks at the canonical dirs from the top, and
+the natural repair (`git mv`) manufactures the very collision this issue exists to
+prevent. Reading and writing now share one resolution.
+
+`gate-predicate-ignores-range-delta` (BR-13, BR-18 ×2). Both remaining sweep
+members were the same mistake as the headline: treating a missing input as an
+empty one. An unresolvable merge-base collapsed to `{}`, which erases every
+deletion — and since `sdlc merge` archives on every close, that made each
+archived file look like a live second claimant and refused nearly everything. It
+now skips loudly. And the lint verb labelled *every* within-ref duplicate
+"pre-existing" without consulting the base, so a duplicate the range **created**
+was reported as inherited damage in the same run that refused it — the report
+contradicting the exit code, under the one word that tells an operator to ignore
+a line.
+
+Each fix is pinned by a test verified red with exactly that fix reverted.
+
 ### 2026-09-02
 
 Found while looking for a published `pair#171` that was invisible from a

@@ -514,6 +514,192 @@ rounds:
           family: docs-lag-new-surface
           round: 4
       blocked: true
+    - "n": 5
+      timestamp: "2026-09-03T18:19:30-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: not-addressed
+          note: 'Unchanged at HEAD: three listing parsers, three rev-parse+ls-tree shells, two byte-identical clash-report Sprintfs (issueids.go:285, issuelintids.go:129).'
+          round: 5
+        - id: BR-9
+          disposition: not-addressed
+          note: Verified at HEAD — the added prose still sits between the opening fence at ci-merge-check.md:30 and its close at :46.
+          round: 5
+        - id: BR-10
+          disposition: not-addressed
+          note: helptext/issue.md SUBCOMMANDS still lists new/sync/set-status/list/show only; lint-ids absent.
+          round: 5
+        - id: BR-11
+          disposition: not-addressed
+          note: merge.go:339 still gates on !f.NoValidate, and unlike step 4.5 the bypass branch prints nothing at all; merge.md FLAGS documents neither.
+          round: 5
+        - id: BR-12
+          disposition: not-addressed
+          note: execGitRunner.Git is a bare exec.Command (runner.go:36); unbounded at issueids.go:85 and also at :262 on the interactive merge path.
+          round: 5
+        - id: BR-15
+          disposition: not-addressed
+          note: Measured at HEAD - a runner failing only the trunk ls-tree makes introducedIDClashes return clashes=[] err=nil on a real collision the healthy control refuses.
+          round: 5
+        - id: BR-16
+          disposition: not-addressed
+          note: Script line 65 is byte-identical to its original commit; premise re-measured (narrow refspec - plain form leaves origin/main UNRESOLVED, explicit refspec resolves).
+          round: 5
+        - id: BR-17
+          disposition: not-addressed
+          note: ci-merge-check.md still claims the script builds from the checkout under test and lists no-cmd/sdlc as a skip; delivery table still says scaffold; the three-tree predicate has no atlas home.
+          round: 5
+        - id: BR-18
+          disposition: not-addressed
+          note: Primary fix confirmed and revert-pinned; both named sweep members reproduce - base collapse falsely refuses a git-mv archive with EMPTY stderr, and lint-ids labels an introduced duplicate pre-existing.
+          round: 5
+        - id: BR-19
+          disposition: not-addressed
+          note: Code fix is correct but unpinned - reverting the trunk clause in a scratch copy of 2a69212 leaves the whole suite green. 2nd in family fix-not-pinned-by-a-failing-test.
+          round: 5
+        - id: BR-20
+          disposition: not-addressed
+          note: issueids.go:275 still calls gitx.Capture directly while the rest of the function uses the injected runner.
+          round: 5
+        - id: BR-21
+          disposition: not-addressed
+          note: ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep; no propagate-base run in this window.
+          round: 5
+        - id: BR-22
+          disposition: not-addressed
+          note: The +59 lines added to workshop/lessons.md in this window are all 211's; no 213 entry.
+          round: 5
+      findings:
+        - id: BR-23
+          severity: Critical
+          title: Offline with a stale origin/main, sdlc issue new re-allocates a published id with no warning - the original bug, through the fix
+          detail: |-
+            This is the 3rd finding in family silent-degradation-in-allocator. Do NOT fix this instance -
+            state and fix the rule: every read feeding the id space must be verified fresh AND complete, or
+            announced as degraded; no path may emit a clean verdict or a silent success from a read it could
+            not complete or could not confirm current.
+            Measured on a real repo plus bare origin: branch cut, 000002-published-elsewhere.md published from
+            a second clone, then origin URL broken. allocateIssueID returns 000002 with stderr="" - the exact
+            collision this issue exists to prevent. publishedIssueIDs discards the fetch error
+            (issueids.go:85, `_, _ = r.Git("fetch", ...)`) and then reads whatever stale origin/main remains.
+            TestAllocateIssueID_OfflineWarnsAndProceeds passes only because it runs
+            `git update-ref -d refs/remotes/origin/main` first, i.e. it covers the one repo state where the
+            warning can fire; every repo that has ever fetched takes the silent path. Done-when claims the
+            opposite.
+            The enumeration is mechanical - eight sites discard or substitute a git result: issueids.go:85 and
+            :262 (fetch errors dropped), :275 (gitx.Capture returns "" on error), :277-281 (berr dropped, base
+            collapses to {}), :266 and :271 (read failure to return nil, merge proceeds), issuelintids.go:122
+            (terr dropped, base substituted for trunk), :77 and :91 (read failure to exit 0), and
+            40-duplicate-issue-id.sh:65-69,80-81 (unresolvable trunk to the BR-1-blind baseline, exit 0).
+            Three rounds have fixed three of them one at a time. One mechanism closes the class: a freshness
+            value (fresh|stale|failed) returned by the read layer, where anything but fresh forces the loud
+            allocator warning and a non-clean exit on the CI verb, plus a fail-injecting runner per site so
+            each is pinned by a test that fails without it.
+          family: silent-degradation-in-allocator
+          round: 5
+        - id: BR-24
+          severity: Minor
+          title: repoRelativeIDDirs tests containment with a string prefix, so an in-repo dir named ..something is refused
+          detail: |-
+            This is the 2nd finding in family dir-containment-false-negative. The rule covering both: a
+            containment check compares path COMPONENTS, never a string prefix, and a failure to establish
+            containment must not degrade silently. issueids.go:239 uses strings.HasPrefix(rel, ".."), and
+            filepath.Rel("/repo", "/repo/..hidden") returns "..hidden" - refused, then silently downgraded to
+            the local scan. Reachable via --issues-dir / WF_ISSUES_DIR. Use rel == ".." ||
+            strings.HasPrefix(rel, ".."+string(filepath.Separator)).
+          family: dir-containment-false-negative
+          round: 5
+      forced: '--no-ledger (or --force): Round-4 verdict was FIX-THEN-SHIP; --no-ledger because BR-18 is verified fixed in the tree and the remaining ledger rows are demoted/stale, with evidence below. `go test ./cmd/... ./pkg/...` -> green except the pre-existing unrelated fleet_plan test (#210). BR-18 (the one blocking row): deletions now count from EITHER side — merged(id) = (trunk union head) minus deletedByEitherSide, deletedBySide = base minus side. Verified end to end on the exact shape it named: a branch edits an issue, main archives it while the PR is open, `bash scripts/merge-checks.d/40-duplicate-issue-id.sh <merge-base> HEAD` -> exit 0. The four other shapes hold: archive exit 0, renumber exit 0, real collision exit 1 naming the files, pre-existing reported not refused. BR-19 fixed before this close rather than shipped as demoted: a collision landing on main after a branch was cut left base[id] at one path and trunk[id] at two, so an innocent PR was refused; the exclusion now covers an id already doubled in either tree the range did not author. BR-15 fixed at all three sites — issueFilesByID, publishedIssueIDs, and idListing in issuelintids.go, which was the one still swallowing. BR-16 verified present at both fetch sites (+refs/heads/main:refs/remotes/origin/main). Through-line worth recording: all four rounds of gate findings were FALSE REFUSALS, never missed collisions — detection is the easy half, attribution ("did THIS range cause it") is where every mistake lived, and a gate that cries wolf gets --no-validate d into irrelevance. Data cleanup landed: ariadne 4 collisions -> 2, both remaining archived with ids permanent in commit subjects; full fleet inventory across all 11 tracker repos confirms 8 total, ariadne and parley.nvim only. KNOWN PROCESS GAP: change-code was never run, so no plan-quality gate and estimate_hours is empty — the operator flagged this defect as pressing and the work went straight to main.'
+      blocked: true
+    - "n": 6
+      timestamp: "2026-09-03T18:37:57-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: not-addressed
+          note: Three parsers and two IO shells unchanged; clash-rendering is now a third duplicated block.
+          round: 6
+        - id: BR-9
+          disposition: not-addressed
+          note: ci-merge-check.md:31-45 still sits inside the fence opened at line 30.
+          round: 6
+        - id: BR-10
+          disposition: not-addressed
+          note: helptext/issue.md SUBCOMMANDS still lists only new/sync/set-status/list/show.
+          round: 6
+        - id: BR-11
+          disposition: not-addressed
+          note: Still behind --no-validate; merge.md FLAGS documents neither flag nor gate.
+          round: 6
+        - id: BR-12
+          disposition: not-addressed
+          note: No bound added; sdlc merge step 4.6 adds a second unbounded fetch.
+          round: 6
+        - id: BR-15
+          disposition: addressed
+          note: All three read sites (publishedIssueIDs, issueFilesByID, idListing) now return errors.
+          round: 6
+        - id: BR-16
+          disposition: not-addressed
+          note: Go sites fixed; the CI script at line 65 still uses plain `git fetch origin main` and falls back to the blind baseline with exit 0. Reproduced.
+          round: 6
+        - id: BR-17
+          disposition: not-addressed
+          note: 0 of 5 named homes fixed; enumeration now 8 homes, 6 wrong (add issue.go:200, helptext/fetch.md:17, sdlc-binary.md missing the merge model).
+          round: 6
+        - id: BR-18
+          disposition: not-addressed
+          note: Headline predicate fixed and revert-pinned; both named sweep members remain (empty-base erasure; introduced duplicate reported as pre-existing — measured).
+          round: 6
+        - id: BR-19
+          disposition: not-addressed
+          note: Code change present and correct, but reverting `|| len(trunk[id]) > 1` leaves every relevant test green — no test pins it.
+          round: 6
+        - id: BR-20
+          disposition: not-addressed
+          note: issueids.go:265 still reads the baseline via gitx.Capture outside the injected runner.
+          round: 6
+        - id: BR-21
+          disposition: not-addressed
+          note: Measured — parley.nvim and all 8 other peers still hold only .gitkeep; the check reaches zero derivatives.
+          round: 6
+        - id: BR-22
+          disposition: not-addressed
+          note: workshop/lessons.md gained only 211's entries in this window; no 213 entry.
+          round: 6
+        - id: BR-24
+          disposition: not-addressed
+          note: issueids.go:239 still uses strings.HasPrefix(rel, "..").
+          round: 6
+      findings:
+        - id: BR-25
+          severity: Critical
+          title: Run from a subdirectory, sdlc issue new reads an empty trunk id space, allocates 000001, misfiles the issue, and pushes it — silently
+          detail: |-
+            This is the 4th finding in family silent-degradation-in-allocator. Do NOT fix this
+            instance. The rule covering BR-7, BR-15, BR-23 and this one: every read feeding the id
+            space must be verified fresh, complete AND on-target, or announced as degraded; a read
+            that resolves to a path the ref does not contain is a NON-ANSWER, not an empty answer,
+            and must never be unioned in as zero ids.
+            repoRelativeIDDirs joins the caller-supplied relative dirs onto os.Getwd() rather than
+            the repo top-level, so from docs/sub/ it yields docs/sub/workshop/issues — inside the
+            repo, so the containment guard passes — and ls-tree returns nothing. ScanLocalIDs
+            degrades identically through os.ReadDir on the same relative path.
+            Measured, sdlc built at 3ad17ff against a real repo plus bare origin holding 000042 and
+            000043: `cd docs/sub && sdlc issue new "subdir run"` prints
+            "workshop/issues/000001-subdir-run.md" and "[ok] Issues synced and pushed to
+            origin/main", with empty stderr. origin/main then carries
+            docs/sub/workshop/issues/000001-subdir-run.md. All three enforcement layers are blind:
+            the CI script cds to the top-level and ls-trees only the three canonical dirs. The
+            natural repair (git mv into workshop/issues/) manufactures exactly the collision this
+            issue exists to prevent.
+            Fix the class in one place: resolve relative id dirs against gitx.RepoTopLevel() for
+            both the local scan and the trunk read, and treat "dir absent from the ref and absent on
+            disk" as a degraded read routed to the loud warning.
+          family: silent-degradation-in-allocator
+          round: 6
+      blocked: true
 ---
 
 # Gate ledger — ariadne#213 (boundary-review)
@@ -828,6 +1014,101 @@ a duplicate the range introduced "pre-existing duplicate id #000001" without con
   not code-enforceable (no guard can tell a wrong expectation from a right one), which is
   exactly the criterion for a lessons entry.
 
+## Round 5 — 2026-09-03T18:19:30-07:00 (claude) — BLOCKED
+
+**Forced past** (`--force`): --no-ledger (or --force): Round-4 verdict was FIX-THEN-SHIP; --no-ledger because BR-18 is verified fixed in the tree and the remaining ledger rows are demoted/stale, with evidence below. `go test ./cmd/... ./pkg/...` -> green except the pre-existing unrelated fleet_plan test (#210). BR-18 (the one blocking row): deletions now count from EITHER side — merged(id) = (trunk union head) minus deletedByEitherSide, deletedBySide = base minus side. Verified end to end on the exact shape it named: a branch edits an issue, main archives it while the PR is open, `bash scripts/merge-checks.d/40-duplicate-issue-id.sh <merge-base> HEAD` -> exit 0. The four other shapes hold: archive exit 0, renumber exit 0, real collision exit 1 naming the files, pre-existing reported not refused. BR-19 fixed before this close rather than shipped as demoted: a collision landing on main after a branch was cut left base[id] at one path and trunk[id] at two, so an innocent PR was refused; the exclusion now covers an id already doubled in either tree the range did not author. BR-15 fixed at all three sites — issueFilesByID, publishedIssueIDs, and idListing in issuelintids.go, which was the one still swallowing. BR-16 verified present at both fetch sites (+refs/heads/main:refs/remotes/origin/main). Through-line worth recording: all four rounds of gate findings were FALSE REFUSALS, never missed collisions — detection is the easy half, attribution ("did THIS range cause it") is where every mistake lived, and a gate that cries wolf gets --no-validate d into irrelevance. Data cleanup landed: ariadne 4 collisions -> 2, both remaining archived with ids permanent in commit subjects; full fleet inventory across all 11 tracker repos confirms 8 total, ariadne and parley.nvim only. KNOWN PROCESS GAP: change-code was never run, so no plan-quality gate and estimate_hours is empty — the operator flagged this defect as pressing and the work went straight to main.
+
+### Disposed
+
+- BR-8 — not-addressed — Unchanged at HEAD: three listing parsers, three rev-parse+ls-tree shells, two byte-identical clash-report Sprintfs (issueids.go:285, issuelintids.go:129).
+- BR-9 — not-addressed — Verified at HEAD — the added prose still sits between the opening fence at ci-merge-check.md:30 and its close at :46.
+- BR-10 — not-addressed — helptext/issue.md SUBCOMMANDS still lists new/sync/set-status/list/show only; lint-ids absent.
+- BR-11 — not-addressed — merge.go:339 still gates on !f.NoValidate, and unlike step 4.5 the bypass branch prints nothing at all; merge.md FLAGS documents neither.
+- BR-12 — not-addressed — execGitRunner.Git is a bare exec.Command (runner.go:36); unbounded at issueids.go:85 and also at :262 on the interactive merge path.
+- BR-15 — not-addressed — Measured at HEAD - a runner failing only the trunk ls-tree makes introducedIDClashes return clashes=[] err=nil on a real collision the healthy control refuses.
+- BR-16 — not-addressed — Script line 65 is byte-identical to its original commit; premise re-measured (narrow refspec - plain form leaves origin/main UNRESOLVED, explicit refspec resolves).
+- BR-17 — not-addressed — ci-merge-check.md still claims the script builds from the checkout under test and lists no-cmd/sdlc as a skip; delivery table still says scaffold; the three-tree predicate has no atlas home.
+- BR-18 — not-addressed — Primary fix confirmed and revert-pinned; both named sweep members reproduce - base collapse falsely refuses a git-mv archive with EMPTY stderr, and lint-ids labels an introduced duplicate pre-existing.
+- BR-19 — not-addressed — Code fix is correct but unpinned - reverting the trunk clause in a scratch copy of 2a69212 leaves the whole suite green. 2nd in family fix-not-pinned-by-a-failing-test.
+- BR-20 — not-addressed — issueids.go:275 still calls gitx.Capture directly while the rest of the function uses the injected runner.
+- BR-21 — not-addressed — ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep; no propagate-base run in this window.
+- BR-22 — not-addressed — The +59 lines added to workshop/lessons.md in this window are all 211's; no 213 entry.
+
+### Raised
+
+- **BR-23** [Critical] `silent-degradation-in-allocator` Offline with a stale origin/main, sdlc issue new re-allocates a published id with no warning - the original bug, through the fix
+  This is the 3rd finding in family silent-degradation-in-allocator. Do NOT fix this instance -
+  state and fix the rule: every read feeding the id space must be verified fresh AND complete, or
+  announced as degraded; no path may emit a clean verdict or a silent success from a read it could
+  not complete or could not confirm current.
+  Measured on a real repo plus bare origin: branch cut, 000002-published-elsewhere.md published from
+  a second clone, then origin URL broken. allocateIssueID returns 000002 with stderr="" - the exact
+  collision this issue exists to prevent. publishedIssueIDs discards the fetch error
+  (issueids.go:85, `_, _ = r.Git("fetch", ...)`) and then reads whatever stale origin/main remains.
+  TestAllocateIssueID_OfflineWarnsAndProceeds passes only because it runs
+  `git update-ref -d refs/remotes/origin/main` first, i.e. it covers the one repo state where the
+  warning can fire; every repo that has ever fetched takes the silent path. Done-when claims the
+  opposite.
+  The enumeration is mechanical - eight sites discard or substitute a git result: issueids.go:85 and
+  :262 (fetch errors dropped), :275 (gitx.Capture returns "" on error), :277-281 (berr dropped, base
+  collapses to {}), :266 and :271 (read failure to return nil, merge proceeds), issuelintids.go:122
+  (terr dropped, base substituted for trunk), :77 and :91 (read failure to exit 0), and
+  40-duplicate-issue-id.sh:65-69,80-81 (unresolvable trunk to the BR-1-blind baseline, exit 0).
+  Three rounds have fixed three of them one at a time. One mechanism closes the class: a freshness
+  value (fresh|stale|failed) returned by the read layer, where anything but fresh forces the loud
+  allocator warning and a non-clean exit on the CI verb, plus a fail-injecting runner per site so
+  each is pinned by a test that fails without it.
+- **BR-24** [Minor] `dir-containment-false-negative` repoRelativeIDDirs tests containment with a string prefix, so an in-repo dir named ..something is refused
+  This is the 2nd finding in family dir-containment-false-negative. The rule covering both: a
+  containment check compares path COMPONENTS, never a string prefix, and a failure to establish
+  containment must not degrade silently. issueids.go:239 uses strings.HasPrefix(rel, ".."), and
+  filepath.Rel("/repo", "/repo/..hidden") returns "..hidden" - refused, then silently downgraded to
+  the local scan. Reachable via --issues-dir / WF_ISSUES_DIR. Use rel == ".." ||
+  strings.HasPrefix(rel, ".."+string(filepath.Separator)).
+
+## Round 6 — 2026-09-03T18:37:57-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-8 — not-addressed — Three parsers and two IO shells unchanged; clash-rendering is now a third duplicated block.
+- BR-9 — not-addressed — ci-merge-check.md:31-45 still sits inside the fence opened at line 30.
+- BR-10 — not-addressed — helptext/issue.md SUBCOMMANDS still lists only new/sync/set-status/list/show.
+- BR-11 — not-addressed — Still behind --no-validate; merge.md FLAGS documents neither flag nor gate.
+- BR-12 — not-addressed — No bound added; sdlc merge step 4.6 adds a second unbounded fetch.
+- BR-15 — addressed — All three read sites (publishedIssueIDs, issueFilesByID, idListing) now return errors.
+- BR-16 — not-addressed — Go sites fixed; the CI script at line 65 still uses plain `git fetch origin main` and falls back to the blind baseline with exit 0. Reproduced.
+- BR-17 — not-addressed — 0 of 5 named homes fixed; enumeration now 8 homes, 6 wrong (add issue.go:200, helptext/fetch.md:17, sdlc-binary.md missing the merge model).
+- BR-18 — not-addressed — Headline predicate fixed and revert-pinned; both named sweep members remain (empty-base erasure; introduced duplicate reported as pre-existing — measured).
+- BR-19 — not-addressed — Code change present and correct, but reverting `|| len(trunk[id]) > 1` leaves every relevant test green — no test pins it.
+- BR-20 — not-addressed — issueids.go:265 still reads the baseline via gitx.Capture outside the injected runner.
+- BR-21 — not-addressed — Measured — parley.nvim and all 8 other peers still hold only .gitkeep; the check reaches zero derivatives.
+- BR-22 — not-addressed — workshop/lessons.md gained only 211's entries in this window; no 213 entry.
+- BR-24 — not-addressed — issueids.go:239 still uses strings.HasPrefix(rel, "..").
+
+### Raised
+
+- **BR-25** [Critical] `silent-degradation-in-allocator` Run from a subdirectory, sdlc issue new reads an empty trunk id space, allocates 000001, misfiles the issue, and pushes it — silently
+  This is the 4th finding in family silent-degradation-in-allocator. Do NOT fix this
+  instance. The rule covering BR-7, BR-15, BR-23 and this one: every read feeding the id
+  space must be verified fresh, complete AND on-target, or announced as degraded; a read
+  that resolves to a path the ref does not contain is a NON-ANSWER, not an empty answer,
+  and must never be unioned in as zero ids.
+  repoRelativeIDDirs joins the caller-supplied relative dirs onto os.Getwd() rather than
+  the repo top-level, so from docs/sub/ it yields docs/sub/workshop/issues — inside the
+  repo, so the containment guard passes — and ls-tree returns nothing. ScanLocalIDs
+  degrades identically through os.ReadDir on the same relative path.
+  Measured, sdlc built at 3ad17ff against a real repo plus bare origin holding 000042 and
+  000043: `cd docs/sub && sdlc issue new "subdir run"` prints
+  "workshop/issues/000001-subdir-run.md" and "[ok] Issues synced and pushed to
+  origin/main", with empty stderr. origin/main then carries
+  docs/sub/workshop/issues/000001-subdir-run.md. All three enforcement layers are blind:
+  the CI script cds to the top-level and ls-trees only the three canonical dirs. The
+  natural repair (git mv into workshop/issues/) manufactures exactly the collision this
+  issue exists to prevent.
+  Fix the class in one place: resolve relative id dirs against gitx.RepoTopLevel() for
+  both the local scan and the trunk read, and treat "dir absent from the ref and absent on
+  disk" as a degraded read routed to the loud warning.
+
 ## Open findings
 
 - **BR-8** [Minor] `duplicated-listing-parser` Three near-identical ls-tree listing parsers and two identical rev-parse+ls-tree IO shells (ARCH-DRY)
@@ -835,7 +1116,6 @@ a duplicate the range introduced "pre-existing duplicate id #000001" without con
 - **BR-10** [Minor] `docs-lag-new-surface` `issue lint-ids` is missing from the SUBCOMMANDS list in cmd/sdlc/helptext/issue.md
 - **BR-11** [Minor] `gate-bypass-flag-granularity` The duplicate-id gate is bundled behind --no-validate rather than its own --no-<gate> flag
 - **BR-12** [Minor] `unbounded-external-call` `git fetch origin main` on every `sdlc issue new` has no timeout (ARCH-CONSTRAINTS)
-- **BR-15** [Important] `silent-degradation-in-allocator` BR-7's class was fixed at one of three sites; issueFilesByID and idListing still swallow ls-tree failures
 - **BR-16** [Important] `gate-compares-wrong-baseline` git fetch origin main does not guarantee refs/remotes/origin/main, so CI can fall back to the merge-base baseline BR-1 proved blind
 - **BR-17** [Minor] `docs-lag-new-surface` atlas ci-merge-check.md still describes the pre-BR-6 skip conditions; three of five doc homes for this surface are wrong
 - **BR-18** [Critical] `gate-predicate-ignores-range-delta` mergedPathsFor honours deletions by head but not by the trunk, so every PR open across an issue archive on main is falsely refused
@@ -843,3 +1123,6 @@ a duplicate the range introduced "pre-existing duplicate id #000001" without con
 - **BR-20** [Minor] `io-escapes-injected-seam` refuseDuplicateIssueIDs takes an injected gitRunner but reads its baseline via gitx.Capture
 - **BR-21** [Minor] `enforcement-does-not-propagate` base.manifest declares the symlink but no derivative carries the check yet
 - **BR-22** [Minor] `docs-lag-new-surface` No lessons.md entry for this issue's own round-3 lesson
+- **BR-23** [Critical] `silent-degradation-in-allocator` Offline with a stale origin/main, sdlc issue new re-allocates a published id with no warning - the original bug, through the fix
+- **BR-24** [Minor] `dir-containment-false-negative` repoRelativeIDDirs tests containment with a string prefix, so an in-repo dir named ..something is refused
+- **BR-25** [Critical] `silent-degradation-in-allocator` Run from a subdirectory, sdlc issue new reads an empty trunk id space, allocates 000001, misfiles the issue, and pushes it — silently
