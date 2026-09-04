@@ -570,6 +570,20 @@ a line.
 
 Each fix is pinned by a test verified red with exactly that fix reverted.
 
+### 2026-09-03 — close round 8
+
+Ledger clear: no open blocking findings after 8 rounds. Two new, both right:
+
+- **BR-28** — the CI check exited **0** when it could not *build* the checker,
+  which suppresses a real refusal. The two cases are decidable apart and the
+  script now decides them: *nothing to check* (no `workshop/issues`, no `origin`)
+  is an honest 0; *something to check and the checker could not be built or the
+  trunk could not be read* is 2. Same rule as the verb, one layer out.
+- **BR-29** — `lint-ids` read the base ref twice per invocation, once for the
+  duplicate labelling and once inside `introducedIDClashes`. Beyond the wasted
+  rev-parse and ls-tree, it admitted two reads of "the base" disagreeing within
+  one command. One ref's id space is read once per command and passed down.
+
 ### 2026-09-03 — close round 7 (FIX-THEN-SHIP), and the last of the class
 
 Verdict moved REWORK → FIX-THEN-SHIP. BR-23 stayed open for a good reason: the

@@ -27,38 +27,45 @@ head="${2:-HEAD}"
 
 cd "$(git rev-parse --show-toplevel)"
 
-# Every skip condition BEFORE any side effect, so a repo that cannot run this
-# exits cleanly rather than dying in setup.
+# Two kinds of "not running", and they are decidable apart (#213 BR-28):
+#
+#   exit 0  NOTHING TO CHECK — this repo has no issue tracker, or no published
+#           id space to check against. The check is inapplicable, and clean is
+#           the honest answer.
+#   exit 2  COULD NOT CHECK — there IS something to check and the checker could
+#           not be built or the trunk could not be read. Reporting 0 here
+#           suppresses a real refusal, which is the whole failure mode this
+#           issue exists to close: a green result from a check that never looked.
+#
+# Every gate is evaluated BEFORE any side effect, so a repo that cannot run this
+# decides cleanly rather than dying in setup.
+
+# ── nothing to check ────────────────────────────────────────────────────────
 [ -d workshop/issues ] || exit 0
-command -v go >/dev/null 2>&1 || {
-    echo "40-duplicate-issue-id: go unavailable — SKIPPING the id-collision check" >&2
+if ! git remote get-url origin >/dev/null 2>&1; then
+    echo "40-duplicate-issue-id: no origin remote — no published id space to check against, skipping" >&2
     exit 0
+fi
+
+# ── could not check ─────────────────────────────────────────────────────────
+cannot_check() {
+    echo "40-duplicate-issue-id: COULD NOT RUN — $1" >&2
+    echo "  exiting 2: this repo has issues to check, so clean would be a false pass (#213)." >&2
+    exit 2
 }
 
+command -v go >/dev/null 2>&1 || cannot_check "go unavailable, cannot build the checker"
+
 # Resolve sdlc the way the rest of the workflow does: build in its OWNER repo.
-# A derivative has no ./cmd/sdlc of its own — it consumes the base layer's —
-# so keying on a local ./cmd/sdlc made this check silently no-op in exactly the
-# repos that carry collisions (#213 close review BR-6).
+# A derivative has no ./cmd/sdlc of its own — it consumes the base layer's — so
+# keying on a local ./cmd/sdlc made this check silently no-op in exactly the
+# repos that carry collisions (#213 BR-6).
 owner=""
 if [ -x construct/dev-aliases.sh ]; then
     owner="$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$1=="sdlc"{print $2; exit}')"
 fi
 [ -n "$owner" ] || owner="$(pwd)"
-if [ ! -d "$owner/cmd/sdlc" ]; then
-    echo "40-duplicate-issue-id: cannot locate the sdlc module (owner='$owner') — SKIPPING" >&2
-    exit 0
-fi
-
-# Explicit template: macOS `mktemp -d` with no template IGNORES $TMPDIR and uses
-# a confstr path (/var/folders/...), so an environment that restricts that path
-# made this check silently skip even with a perfectly writable TMPDIR set.
-tmp="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-idcheck.XXXXXX")" || {
-    echo "40-duplicate-issue-id: no writable temp dir — skipping" >&2; exit 0; }
-trap 'rm -rf "$tmp"' EXIT
-if ! ( cd "$owner" && go build -o "$tmp/sdlc" ./cmd/sdlc ) 2>/dev/null; then
-    echo "40-duplicate-issue-id: sdlc build failed in $owner — SKIPPING" >&2
-    exit 0
-fi
+[ -d "$owner/cmd/sdlc" ] || cannot_check "cannot locate the sdlc module (owner='$owner')"
 
 # The published id space is the trunk TIP.
 #
@@ -66,24 +73,18 @@ fi
 # main` updates FETCH_HEAD and only INCIDENTALLY refs/remotes/origin/main — in a
 # CI checkout with no configured refspec it does not create it at all. The plain
 # form therefore left $trunk empty on exactly the runners this check exists for,
-# and the fallback below then compared against the merge-base baseline that BR-1
-# proved structurally blind to this collision.
-if ! git remote get-url origin >/dev/null 2>&1; then
-    echo "40-duplicate-issue-id: no origin remote — no published id space to check against, skipping" >&2
-    exit 0
-fi
+# and it then fell back to the merge-base baseline that BR-1 proved structurally
+# blind to this collision.
 git fetch --quiet origin '+refs/heads/main:refs/remotes/origin/main' 2>/dev/null || true
 trunk="$(git rev-parse --verify --quiet origin/main || true)"
-if [ -z "$trunk" ]; then
-    # An origin exists but its main is unreadable, so the published id space —
-    # the only place the colliding file lives — cannot be seen. Comparing
-    # against the range base instead would report a confident PASS from a
-    # baseline that cannot see this collision by construction. Exit 2: the
-    # check could not run, which is not the same answer as "clean".
-    echo "40-duplicate-issue-id: origin/main unreadable — the published id space cannot be seen." >&2
-    echo "  NOT reporting clean: the range base cannot see this collision by construction (#213)." >&2
-    exit 2
-fi
+[ -n "$trunk" ] || cannot_check "origin/main unreadable — the published id space cannot be seen"
+
+# Explicit template: macOS `mktemp -d` with no template IGNORES $TMPDIR and uses
+# a confstr path (/var/folders/...), so an environment that restricts that path
+# made this check silently skip even with a perfectly writable TMPDIR set.
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-idcheck.XXXXXX")" || cannot_check "no writable temp dir"
+trap 'rm -rf "$tmp"' EXIT
+( cd "$owner" && go build -o "$tmp/sdlc" ./cmd/sdlc ) 2>/dev/null || cannot_check "sdlc build failed in $owner"
 
 # BOTH refs matter, and for different reasons:
 #   --base  the merge-base the runner hands us — how a MOVE is recognised, so an

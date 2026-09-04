@@ -119,7 +119,7 @@ func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 		return nil
 	}
 
-	clashes, err := introducedIDClashes(f.Base, f.Trunk, head, dirs, r)
+	clashes, err := introducedIDClashes(baseSpace, f.Base, f.Trunk, head, dirs, r)
 	if err != nil {
 		return degraded(err)
 	}
@@ -180,11 +180,13 @@ func classifyDuplicates(head, base map[int][]string, hasRange bool) []labeledDup
 // (#213 BR-18): the two differ precisely when the trunk moved while the branch
 // was open, which is the case the gate exists for, so the silent substitution
 // answered the easy question and reported it as the hard one.
-func introducedIDClashes(base, trunk string, head map[int][]string, dirs idDirs, r gitRunner) ([]string, error) {
-	baseByID, err := refIDSpace(base, dirs, r)
-	if err != nil {
-		return nil, err
-	}
+//
+// Takes the base SPACE, not the base ref name (#213 BR-29): one ref's id space
+// is read once per command and passed down, never re-derived by a callee. The
+// caller already read it for the duplicate labelling, and re-deriving it cost a
+// second rev-parse plus one ls-tree per id directory — and, worse, admitted the
+// possibility of two reads of "the base" disagreeing within one invocation.
+func introducedIDClashes(baseByID map[int][]string, base, trunk string, head map[int][]string, dirs idDirs, r gitRunner) ([]string, error) {
 	// Trunk defaults to base when not given (a plain two-ref comparison).
 	trunkByID := baseByID
 	if trunk != "" && trunk != base {

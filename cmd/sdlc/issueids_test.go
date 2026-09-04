@@ -380,7 +380,41 @@ func TestMergeCheckScript_RefusesGivenMergeBase(t *testing.T) {
 // TestMergeCheckScript_SkipsWhenSdlcIsUnresolvable pins the other half: a repo
 // where sdlc cannot be located exits 0 with an ANNOUNCED skip, so a tracker-less
 // or unbootstrapped derivative is not failed for lacking the binary.
-func TestMergeCheckScript_SkipsWhenSdlcIsUnresolvable(t *testing.T) {
+func TestMergeCheckScript_UnbuildableCheckerDoesNotReportClean(t *testing.T) {
+	script, err := filepath.Abs(filepath.Join("..", "..", "scripts", "merge-checks.d", "40-duplicate-issue-id.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, serr := os.Stat(script); serr != nil {
+		t.Skipf("check script not present: %v", serr)
+	}
+	// A repo with issues AND an origin: there is something to check, and
+	// something to check it against. Only the checker is missing (no
+	// ./cmd/sdlc, no construct/dev-aliases.sh to point elsewhere).
+	repo, _ := idRepo(t)
+
+	cmd := exec.Command("bash", script, "", "HEAD")
+	cmd.Dir = repo
+	cmd.Env = envWithTMPDIR(t)
+	out, runErr := cmd.CombinedOutput()
+	if runErr == nil {
+		t.Fatalf("an unbuildable checker reported CLEAN, suppressing a real refusal:\n%s", out)
+	}
+	var ee *exec.ExitError
+	if errors.As(runErr, &ee) && ee.ExitCode() != 2 {
+		t.Errorf("exit %d, want 2 (could not check):\n%s", ee.ExitCode(), out)
+	}
+	if !strings.Contains(string(out), "COULD NOT RUN") {
+		t.Errorf("the refusal to answer must be announced:\n%s", out)
+	}
+}
+
+// TestMergeCheckScript_NothingToCheckExitsClean is BR-28's other half: "this
+// repo has nothing to check" and "this repo has something to check and the
+// checker could not be built" are decidable apart, and only the first is an
+// honest exit 0. A repo with no origin has no published id space to compare
+// against at all.
+func TestMergeCheckScript_NothingToCheckExitsClean(t *testing.T) {
 	script, err := filepath.Abs(filepath.Join("..", "..", "scripts", "merge-checks.d", "40-duplicate-issue-id.sh"))
 	if err != nil {
 		t.Fatal(err)
@@ -398,9 +432,9 @@ func TestMergeCheckScript_SkipsWhenSdlcIsUnresolvable(t *testing.T) {
 	cmd.Env = envWithTMPDIR(t)
 	out, runErr := cmd.CombinedOutput()
 	if runErr != nil {
-		t.Errorf("must exit 0 when sdlc is unresolvable, got %v:\n%s", runErr, out)
+		t.Errorf("no origin means no published id space to check against — that is a clean exit, got %v:\n%s", runErr, out)
 	}
-	if !strings.Contains(string(out), "SKIPPING") && !strings.Contains(string(out), "skipping") {
+	if !strings.Contains(strings.ToLower(string(out)), "skipping") {
 		t.Errorf("the skip must be announced, not silent:\n%s", out)
 	}
 }
@@ -651,7 +685,11 @@ func clashesFor(t *testing.T, base, trunk string) ([]string, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return introducedIDClashes(base, trunk, head, dirs, execGitRunner{})
+	baseSpace, err := refIDSpace(base, dirs, execGitRunner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return introducedIDClashes(baseSpace, base, trunk, head, dirs, execGitRunner{})
 }
 
 // publishedIDs is the trunk read as allocation performs it, flattened to ids.

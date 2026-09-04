@@ -79,3 +79,17 @@ Three distinct tiers, none an LLM at merge-time (#160):
 
 you-decide drops `merge-checks.d/10-review-gate.sh` (wraps its `review: passed`
 substrate gate) and points its `pre-push` hook at the runner. See you-decide#4 M3.
+
+### Two kinds of not-running, decided apart (#213 BR-28)
+
+`40-duplicate-issue-id.sh` distinguishes them, because collapsing them is how a
+check suppresses a real refusal:
+
+| | condition | exit |
+| --- | --- | --- |
+| **nothing to check** | no `workshop/issues/`, or no `origin` remote | 0 — the check is inapplicable and clean is honest |
+| **could not check** | no `go`, no `cmd/sdlc` to build, no writable temp dir, build failed, `origin/main` unreadable | 2 — there IS something to check, so clean would be a false pass |
+
+Both sets are evaluated before any side effect. The `sdlc issue lint-ids` it
+shells to uses the same three codes (0 clean, 1 introduced, 2 could-not-run), so
+the distinction survives to CI rather than being flattened at the boundary.

@@ -813,6 +813,107 @@ rounds:
           family: unseparated-argv-options
           round: 7
       blocked: true
+    - "n": 8
+      timestamp: "2026-09-03T19:35:19-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: not-addressed
+          note: Unchanged — fence opens at ci-merge-check.md:31 and closes at :47; the prose still renders as code.
+          round: 8
+        - id: BR-10
+          disposition: not-addressed
+          note: helptext/issue.md:6-14 still lists new/sync/set-status/list/show; lint-ids absent.
+          round: 8
+        - id: BR-11
+          disposition: not-addressed
+          note: merge.go:337 still keys on !f.NoValidate; helptext/merge.md FLAGS unchanged.
+          round: 8
+        - id: BR-12
+          disposition: not-addressed
+          note: No timeout, --git-timeout or --no-fetch on either fetch site.
+          round: 8
+        - id: BR-16
+          disposition: addressed
+          note: 'Measured: plain fetch leaves origin/main unresolvable with no configured refspec, explicit refspec resolves it; exit-2 backstop is revert-verified red.'
+          round: 8
+        - id: BR-17
+          disposition: not-addressed
+          note: sdlc-binary.md updated; ci-merge-check.md:19,44 still describe pre-BR-6 behavior, helptext untouched, and `issue new`'s cobra Long is a sixth stale home.
+          round: 8
+        - id: BR-19
+          disposition: not-addressed
+          note: Code fix is correct but unpinned — reverting it to len(base[id]) > 1 leaves the cmd/sdlc failure set byte-identical to baseline; the enumeration was not written.
+          round: 8
+        - id: BR-20
+          disposition: not-addressed
+          note: The "" degraded state is now handled and pinned, but issueids.go:397 still reads the baseline via gitx.Capture rather than r.
+          round: 8
+        - id: BR-21
+          disposition: not-addressed
+          note: ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep; propagation has not run.
+          round: 8
+        - id: BR-22
+          disposition: not-addressed
+          note: The +59 lines in workshop/lessons.md are all 211's; no 213 entry.
+          round: 8
+        - id: BR-23
+          disposition: addressed
+          note: All eight enumerated sites swept; lint-ids exit 2 and the script exit 2 both verified red on revert. The rule is violated at two NEW sites, raised separately.
+          round: 8
+        - id: BR-24
+          disposition: addressed
+          note: gitx.Escapes is component-wise, serves all four sites, and ..config is pinned.
+          round: 8
+        - id: BR-26
+          disposition: not-addressed
+          note: Part (1) fixed; part (2) measured still broken and now silently drops the reservation entirely — see the Critical finding.
+          round: 8
+        - id: BR-27
+          disposition: addressed
+          note: --end-of-options before refs and -- before pathspecs, verified accepted by git 2.50.1.
+          round: 8
+      findings:
+        - id: BR-28
+          severity: Important
+          title: The CI enforcement check exits 0 when it cannot build the checker, suppressing a real refusal
+          detail: |-
+            This is the 5th finding in family silent-degradation-in-allocator. Do NOT fix this
+            instance alone. The rule is already written in the atlas and in this commit's own
+            subject: a check that did not look must not report clean. What was never written is
+            the ENUMERATION over the shell layer — BR-23's list covered Go read sites plus two
+            script lines, and left the script's whole skip ladder untouched.
+            Measured on one repo state (base 000001-a.md, head adds 000001-b.md, real bare
+            origin): with cmd/sdlc broken the check prints "sdlc build failed in … — SKIPPING"
+            and exits 0; with the build repaired it prints "#000001 would be claimed by 2 files
+            after merge" and exits 1. Identical repo, opposite verdicts, decided by whether the
+            checker compiled.
+            Reachable in ariadne's own CI: merge-check.yml has no actions/setup-go step and
+            go.mod requires go 1.26.3, so a lagging runner image makes the required status check
+            green. In a derivative it is reachable when the peer-clone step fails, which is BR-6's
+            failure mode returning by a different door. 30-weave-drift.sh does not have this
+            pattern — it lets make fail.
+            The enumeration to sweep in the same round: 40-duplicate-issue-id.sh lines 33
+            (no go), 48 (owner unresolvable), 56 (no temp dir), 59 (build failed), plus the
+            run-merge-checks.sh collapse of exit 2 into exit 1. The distinction that makes each
+            decidable: "this repo has nothing to check" (no workshop/issues, no origin) is a
+            legitimate exit 0; "this repo has something to check and the checker could not be
+            built" is exit 2.
+          family: silent-degradation-in-allocator
+          round: 8
+        - id: BR-29
+          severity: Minor
+          title: '`sdlc issue lint-ids` reads the base ref twice per invocation'
+          detail: |-
+            This is the 2nd finding in family duplicated-listing-parser. The rule that covers
+            both: one ref's id space is read once per command and passed down, never re-derived
+            by a callee. runIssueLintIDs calls refIDSpace(f.Base, …) at issuelintids.go:107 for
+            classifyDuplicates, then introducedIDClashes calls refIDSpace(base, …) again at :184
+            — one extra rev-parse plus one ls-tree per id directory. Pass baseSpace into
+            introducedIDClashes rather than the ref name.
+          family: duplicated-listing-parser
+          round: 8
+      blocked: false
 ---
 
 # Gate ledger — ariadne#213 (boundary-review)
@@ -1282,19 +1383,68 @@ a duplicate the range introduced "pre-existing duplicate id #000001" without con
   (both are operator-supplied), but it is a one-token fix and the same argv shape recurs
   wherever a ref reaches git.
 
+## Round 8 — 2026-09-03T19:35:19-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — not-addressed — Unchanged — fence opens at ci-merge-check.md:31 and closes at :47; the prose still renders as code.
+- BR-10 — not-addressed — helptext/issue.md:6-14 still lists new/sync/set-status/list/show; lint-ids absent.
+- BR-11 — not-addressed — merge.go:337 still keys on !f.NoValidate; helptext/merge.md FLAGS unchanged.
+- BR-12 — not-addressed — No timeout, --git-timeout or --no-fetch on either fetch site.
+- BR-16 — addressed — Measured: plain fetch leaves origin/main unresolvable with no configured refspec, explicit refspec resolves it; exit-2 backstop is revert-verified red.
+- BR-17 — not-addressed — sdlc-binary.md updated; ci-merge-check.md:19,44 still describe pre-BR-6 behavior, helptext untouched, and `issue new`'s cobra Long is a sixth stale home.
+- BR-19 — not-addressed — Code fix is correct but unpinned — reverting it to len(base[id]) > 1 leaves the cmd/sdlc failure set byte-identical to baseline; the enumeration was not written.
+- BR-20 — not-addressed — The "" degraded state is now handled and pinned, but issueids.go:397 still reads the baseline via gitx.Capture rather than r.
+- BR-21 — not-addressed — ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep; propagation has not run.
+- BR-22 — not-addressed — The +59 lines in workshop/lessons.md are all 211's; no 213 entry.
+- BR-23 — addressed — All eight enumerated sites swept; lint-ids exit 2 and the script exit 2 both verified red on revert. The rule is violated at two NEW sites, raised separately.
+- BR-24 — addressed — gitx.Escapes is component-wise, serves all four sites, and ..config is pinned.
+- BR-26 — not-addressed — Part (1) fixed; part (2) measured still broken and now silently drops the reservation entirely — see the Critical finding.
+- BR-27 — addressed — --end-of-options before refs and -- before pathspecs, verified accepted by git 2.50.1.
+
+### Raised
+
+- **BR-28** [Important] `silent-degradation-in-allocator` The CI enforcement check exits 0 when it cannot build the checker, suppressing a real refusal
+  This is the 5th finding in family silent-degradation-in-allocator. Do NOT fix this
+  instance alone. The rule is already written in the atlas and in this commit's own
+  subject: a check that did not look must not report clean. What was never written is
+  the ENUMERATION over the shell layer — BR-23's list covered Go read sites plus two
+  script lines, and left the script's whole skip ladder untouched.
+  Measured on one repo state (base 000001-a.md, head adds 000001-b.md, real bare
+  origin): with cmd/sdlc broken the check prints "sdlc build failed in … — SKIPPING"
+  and exits 0; with the build repaired it prints "#000001 would be claimed by 2 files
+  after merge" and exits 1. Identical repo, opposite verdicts, decided by whether the
+  checker compiled.
+  Reachable in ariadne's own CI: merge-check.yml has no actions/setup-go step and
+  go.mod requires go 1.26.3, so a lagging runner image makes the required status check
+  green. In a derivative it is reachable when the peer-clone step fails, which is BR-6's
+  failure mode returning by a different door. 30-weave-drift.sh does not have this
+  pattern — it lets make fail.
+  The enumeration to sweep in the same round: 40-duplicate-issue-id.sh lines 33
+  (no go), 48 (owner unresolvable), 56 (no temp dir), 59 (build failed), plus the
+  run-merge-checks.sh collapse of exit 2 into exit 1. The distinction that makes each
+  decidable: "this repo has nothing to check" (no workshop/issues, no origin) is a
+  legitimate exit 0; "this repo has something to check and the checker could not be
+  built" is exit 2.
+- **BR-29** [Minor] `duplicated-listing-parser` `sdlc issue lint-ids` reads the base ref twice per invocation
+  This is the 2nd finding in family duplicated-listing-parser. The rule that covers
+  both: one ref's id space is read once per command and passed down, never re-derived
+  by a callee. runIssueLintIDs calls refIDSpace(f.Base, …) at issuelintids.go:107 for
+  classifyDuplicates, then introducedIDClashes calls refIDSpace(base, …) again at :184
+  — one extra rev-parse plus one ls-tree per id directory. Pass baseSpace into
+  introducedIDClashes rather than the ref name.
+
 ## Open findings
 
 - **BR-9** [Minor] `docs-lag-new-surface` atlas/workflow/ci-merge-check.md renders the new prose inside a fenced code block
 - **BR-10** [Minor] `docs-lag-new-surface` `issue lint-ids` is missing from the SUBCOMMANDS list in cmd/sdlc/helptext/issue.md
 - **BR-11** [Minor] `gate-bypass-flag-granularity` The duplicate-id gate is bundled behind --no-validate rather than its own --no-<gate> flag
 - **BR-12** [Minor] `unbounded-external-call` `git fetch origin main` on every `sdlc issue new` has no timeout (ARCH-CONSTRAINTS)
-- **BR-16** [Important] `gate-compares-wrong-baseline` git fetch origin main does not guarantee refs/remotes/origin/main, so CI can fall back to the merge-base baseline BR-1 proved blind
 - **BR-17** [Minor] `docs-lag-new-surface` atlas ci-merge-check.md still describes the pre-BR-6 skip conditions; three of five doc homes for this surface are wrong
 - **BR-19** [Important] `gate-predicate-ignores-range-delta` A collision living entirely on the trunk is charged to a PR that touched nothing
 - **BR-20** [Minor] `io-escapes-injected-seam` refuseDuplicateIssueIDs takes an injected gitRunner but reads its baseline via gitx.Capture
 - **BR-21** [Minor] `enforcement-does-not-propagate` base.manifest declares the symlink but no derivative carries the check yet
 - **BR-22** [Minor] `docs-lag-new-surface` No lessons.md entry for this issue's own round-3 lesson
-- **BR-23** [Critical] `silent-degradation-in-allocator` Offline with a stale origin/main, sdlc issue new re-allocates a published id with no warning - the original bug, through the fix
-- **BR-24** [Minor] `dir-containment-false-negative` repoRelativeIDDirs tests containment with a string prefix, so an in-repo dir named ..something is refused
 - **BR-26** [Important] `enforcement-does-not-propagate` runIssueNew's absolute IssuesDir does not reach the sync consumers — the main-worktree cleanliness precheck silently reports clean, and issue new from a subdirectory no longer publishes
-- **BR-27** [Minor] `unseparated-argv-options` Caller-supplied refs and directories are passed to git without an option separator
+- **BR-28** [Important] `silent-degradation-in-allocator` The CI enforcement check exits 0 when it cannot build the checker, suppressing a real refusal
+- **BR-29** [Minor] `duplicated-listing-parser` `sdlc issue lint-ids` reads the base ref twice per invocation
