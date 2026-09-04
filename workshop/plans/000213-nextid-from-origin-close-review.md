@@ -1643,3 +1643,166 @@ findings:
       — one extra rev-parse plus one ls-tree per id directory. Pass baseSpace into
       introducedIDClashes rather than the ref name.
 ```
+
+---
+
+## Re-review — 2026-09-03T19:50:33-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 213 — Allocate issue IDs against origin/main |
+| repo | ariadne |
+| issue file | workshop/issues/000213-nextid-from-origin.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9078f8d0529b0c9fd4312f435b10f731aa5d3dc2..be5c9548324e9c2f366783e623d611050427e953 |
+| command | sdlc close --issue 213 |
+| reviewer | claude |
+| timestamp | 2026-09-03T19:50:33-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Eight rounds have produced a genuinely strong core: one parser (`issue.PathsByID`), one reader (`refIDSpace`), one containment predicate (`gitx.InsideRoot`), a pure `NextID`, and a three-tree merge model that I re-verified end to end against a real repo with a bare origin. The headline guarantee works and the exit-code discipline (0 / 1 / 2) is now correct in both the verb and the CI adapter, pinned by three script tests. What blocks a clean SHIP is that two claims made in the Log are not true as written: **BR-26 is still live** — I measured `sdlc issue new` from a subdirectory printing two green `[ok]` lines and leaving the issue *untracked and unpublished*, which is the same "reservation invisible to peers" state #213 exists to close — and **BR-19's fix is unpinned**: reverting `|| len(trunk[id]) > 1` in a scratch copy leaves the entire id suite green. The remaining ten items are documentation and propagation debt, none of which changes behavior.
+
+## 1. Strengths
+
+- `cmd/sdlc/issueids.go:143-178` — `refIDSpace` as *the* reader, with `--end-of-options` before the ref and `--` before the pathspec, is the right structural answer to both the four-times-found silent-degradation defect and ARCH-SECURE. One failure policy, one place to change it.
+- `cmd/sdlc/issueids.go:212-241` — `mergedPathsFor` is a genuinely good abstraction: it converts a question three earlier definitions got wrong ("is this a collision?") into one a table can pin ("what does the merge result look like?"). The symmetric deletion rule is correct.
+- `cmd/sdlc/issueids_test.go:17-22` and throughout — every test drives a real repo against a real bare origin. This is exactly right for ARCH-MOCK: the bug is "a ref exists that this worktree does not contain", which no function-call double can express. Confirmed: 30+ tests, all real git.
+- `scripts/merge-checks.d/40-duplicate-issue-id.sh:43-55` — the *nothing to check* vs *could not check* split, with every gate evaluated before the first side effect. I ran all three arms; the semantics hold.
+- `cmd/sdlc/internal/gitx/inside.go` — collapsing four copies of `strings.HasPrefix(rel, "..")` into one component-wise predicate removes a pure false-positive generator and now also serves `migrate` and `reviewwindow`.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**BR-26 (re-raised, not-addressed) — `sdlc issue new` from a subdirectory reports success and publishes nothing.** `cmd/sdlc/issue.go:274-280` fixed the *escape* (only the write takes the absolute form) but the sync consumers still receive a cwd-relative `f.IssuesDir`, so from a subdirectory every git pathspec resolves against `docs/sub/` and matches nothing.
+
+Measured on a real repo with a bare origin, sdlc built at `be5c954`:
+
+```
+$ cd repo/docs/sub && sdlc issue new "Subdir Publish Probe"
+  [ok] Created workshop/issues/000002-subdir-publish-probe.md
+  [ok] No issue changes to sync.
+$ git ls-tree --name-only origin/main workshop/issues/
+workshop/issues/000001-one.md          # the new issue never left the machine
+$ git status --porcelain
+?? workshop/issues/000002-subdir-publish-probe.md
+```
+
+The file lands in the right place (BR-25's fix holds), but `changedIssueFiles` returns empty, `syncInPlace` takes the pre-#206 no-op, and the reservation is neither committed nor pushed — under a green `[ok]`. That is a *blind read reported as an empty result*, the rule the last two commits are named after, and it defeats #213's own purpose: an unpublished reservation is exactly what lets the next actor allocate the same id. `TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir` (`issueids_test.go:837`) asserts the write path and stdout, so the gap reads as covered.
+
+Fix sketch: pass `dirs.Rel[0]` into `syncFlags.IssuesDir` **and** run the sync from the repo top level (or route every sync git call through `-C <top>`); `syncPathspec`'s `issueFilesForID` glob needs the same anchor. Separately, `syncInPlace` reporting `[ok] No issue changes to sync.` for a file it can see on disk but not through its pathspec is worth an explicit degraded line.
+
+**BR-19 (re-raised, not-addressed) — the fix is correct but no test fails without it.** `cmd/sdlc/issueids.go:271` now reads `if len(base[id]) > 1 || len(trunk[id]) > 1`, and I confirmed the behavior end to end: an innocent PR against a trunk that already carries two claimants for `#000001` exits 0. But in a scratch copy at HEAD with the `|| len(trunk[id]) > 1` clause removed, `go test ./cmd/sdlc -run 'TestIntroduced|TestMerged|TestRefuseDuplicate|TestClassify|TestAllocate|TestLintIDs|TestDuplicates|TestNextID|TestMergeCheckScript'` is **`ok`**. The finding's own enumeration — `{base, trunk, head} × {already-duplicated, deletes, adds}` — still has no row varying trunk's duplicate count. One table row in `TestMergedPathsFor_ModelsTheMergeResult` closes it: `base: {1: {a}}, head: {1: {a}}, trunk: {1: {a, b}}, wantIDs: nil`.
+
+## 4. Minor findings
+
+- **BR-9 not-addressed** — `atlas/workflow/ci-merge-check.md:31-45` is still inside the fence opened at line 30; the whole "Checks in ariadne today" block renders as literal code.
+- **BR-17 not-addressed, and now self-contradictory** — the same fenced block still says the script keys on `./cmd/sdlc` (BR-6 changed that) and that a repo which cannot run it "exits cleanly" (BR-28 made that exit 2), directly contradicting the correct new table added 40 lines below it in the same file.
+- **BR-10 not-addressed** — `cmd/sdlc/helptext/issue.md:6-14` still omits `lint-ids` (and `validate`).
+- **BR-11 not-addressed** — `cmd/sdlc/merge.go:108`'s flag help still reads "skip the #124 instance-conformance gate" although `--no-validate` now also skips the duplicate-id gate; `helptext/merge.md` FLAGS documents neither.
+- **BR-12 not-addressed** — no timeout, no `--no-fetch`, no stated budget on the fetch in `publishedIDSpace`.
+- **BR-20 not-addressed (now cosmetic)** — `issueids.go:397` still reads the baseline via `gitx.Capture` rather than the injected `r`. The degraded case *is* handled and pinned now (`TestRefuseDuplicateIssueIDs_UnknownBaseSkipsRatherThanRefuses` drives a real orphan branch), so what remains is only the seam inconsistency.
+- **BR-21 not-addressed** — measured: `../parley.nvim/scripts/merge-checks.d/` still contains only `.gitkeep`. The manifest row is a declaration; the propagation run has not happened.
+- **BR-22 not-addressed** — all +59 lessons lines in this window are #211's.
+- **New:** `.github/workflows/merge-check.yml` has no `actions/setup-go` step. Since BR-28 a build failure is exit 2 → red, so the (intended-to-be-required) status check now depends on the runner image's Go plus an on-demand toolchain fetch for `go 1.26.3`.
+
+## 5. Test coverage notes
+
+- **What's excellent:** real-repo/bare-origin fixtures throughout; the three script arms (refusal, unbuildable checker, nothing-to-check, unreadable trunk) each drive `bash` against the real script; `envWithTMPDIR` *replaces* rather than appends TMPDIR, with the reason recorded — that's the class of detail that keeps a test from passing against broken code.
+- **The gap that matters:** two of the three assertions in `TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir` are about placement and one about stdout; none asserts the reservation reached `origin/main`. Add `git ls-tree --name-only origin/main workshop/issues/` to that test — it goes red today.
+- **Unpinned fix:** BR-19, per §3.
+- Suite status: `go test ./cmd/...` green except the known, unrelated `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (#210, missing archived plan path).
+
+## 6. Architectural notes
+
+- **ARCH-DRY — pass.** One parser, one reader, one renderer, one containment predicate; `introducedIDClashes` now takes the base *space* rather than re-deriving it (BR-29, addressed).
+- **ARCH-PURE — pass with one nit.** `NextID`, `PathsByID`, `mergedPathsFor`, `introducedCollisions`, `classifyDuplicates`, `milestonesInPlanOrder` are all pure and directly tested. The single escape is BR-20.
+- **ARCH-PURPOSE — flag (BR-26, BR-21).** Shadow-sweep of "where do ids live": `allocateIssueID` ✓, `refuseDuplicateIssueIDs` ✓, `runIssueLintIDs` ✓, `runIssueNew`'s write ✓, `runIssueNew`'s **sync ✗**. The atlas sentence "Reading and writing now share the one resolution, so they cannot disagree about where ids live" is not yet true of the publish path. Second deferred consumer: the CI check is symlinked in the manifest but has not reached any derivative.
+- **ARCH-MOCK — pass, and exemplary.** Production flow and test flow share the same boundary; the CI adapter is exercised as a real subprocess.
+- **ARCH-CONSTRAINTS — flag (BR-12).** An unbounded network fetch on an interactive verb, no budget stated.
+- **ARCH-SECURE — pass.** `--end-of-options` before caller-supplied refs, `--` before pathspecs; `resolveIDDirs` refuses dirs outside the repo; tests never touch real user state.
+- **For upcoming work:** the `docs-lag-new-surface` family (now 4 findings) is *code-enforceable* on its largest axis. `helptext/issue_sections_test.go:24` already derives its population from the vocabulary model; the same shape — walk the cobra command tree, assert each subcommand name appears in its helptext SUBCOMMANDS block — would have caught BR-10 mechanically and prevents the next one. That is the class fix; the three instances are cheap once it exists.
+
+## 7. Plan revision recommendations
+
+`workshop/issues/000213-nextid-from-origin.md` needs a `## Revisions` (or Log) entry covering:
+
+1. **Split the derivative Done-when.** "The check reaches derivatives … Verified by running it in `parley.nvim`" → *mechanism declared* (done: symlink row in `base.manifest`) vs *propagated* (open: `parley.nvim/scripts/merge-checks.d/` holds only `.gitkeep`).
+2. **Retract the round-7 BR-26 claim.** "Only the write takes the absolute form now" fixed the escape, not the guarantee; `issue new` from a subdirectory still does not publish. State the remaining consumer set and the anchor decision.
+3. **Correct the atlas.** `atlas/workflow/sdlc-binary.md` — "reading and writing now share the one resolution" holds for allocation + write, not for the sync. `atlas/workflow/ci-merge-check.md` — close the stray fence and delete the pre-BR-6/BR-28 prose it hides.
+4. **Record the BR-19 test debt** rather than the fix alone: the behavior is correct and measured, but the plan should not claim the merge predicate is pinned until a trunk-duplicate row exists.
+
+```findings
+dispose:
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      Measured at HEAD: ci-merge-check.md lines 31-45 still sit inside the fence opened at line 30.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      helptext/issue.md SUBCOMMANDS still lists new/sync/set-status/list/show only.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      merge.go:108's flag help still names only the #124 gate; helptext/merge.md FLAGS omits --no-validate entirely.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      No timeout, no --no-fetch escape, no stated budget on publishedIDSpace's fetch.
+  - id: BR-17
+    disposition: not-addressed
+    note: |
+      Still fenced, still claims ./cmd/sdlc keying and "exits cleanly", now contradicting the correct BR-28 table in the same file.
+  - id: BR-19
+    disposition: not-addressed
+    note: |
+      Behavior verified correct end-to-end, but removing the trunk clause in a scratch copy leaves the whole id suite green — unpinned.
+  - id: BR-20
+    disposition: not-addressed
+    note: |
+      The empty-merge-base degraded state is now handled and pinned; the gitx.Capture bypass of the injected runner remains.
+  - id: BR-21
+    disposition: not-addressed
+    note: |
+      Measured: ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep.
+  - id: BR-22
+    disposition: not-addressed
+    note: |
+      All 59 added lessons lines are #211's; 213's round-3 insight is still only in the issue Log.
+  - id: BR-26
+    disposition: not-addressed
+    note: |
+      Part 1 (cleanliness precheck) fixed and pinned; part 2 measured still broken — subdirectory issue new prints two green [ok] lines and publishes nothing.
+  - id: BR-28
+    disposition: addressed
+    note: |
+      Three script tests pin the arms; measured exit 2 on an unbuildable checker. run-merge-checks.sh still collapses 2 into 1, but never reports clean, so the rule holds.
+  - id: BR-29
+    disposition: addressed
+    note: |
+      introducedIDClashes now takes the base space; one base read per invocation.
+findings:
+  - id: new
+    severity: Minor
+    family: ci-env-unpinned
+    title: |
+      merge-check.yml builds sdlc with no actions/setup-go, and a build failure is now a red required check
+    detail: |
+      The workflow has no setup-go step and go.mod requires go 1.26.3 with no toolchain line, so
+      40-duplicate-issue-id.sh depends on the runner image's Go plus an on-demand toolchain download.
+      Before BR-28 that condition was a silent exit 0; now it is exit 2, so an environment that cannot
+      fetch the toolchain turns the intended required status check red on every PR. Add
+      actions/setup-go pinned to the go.mod version (and a module cache) so the check's blocking
+      behavior rests on a declared toolchain rather than an image default.
+```

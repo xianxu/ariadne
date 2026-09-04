@@ -1294,3 +1294,59 @@ the production *IO* is not. Pinning a pure decision by calling the function that
 shells out makes the test fail for reasons unrelated to the fact under test — in
 this case the issue's central regression failed outside a git worktree. Extract
 the pure decision and drive that.
+
+## A blind read is not an empty result (#213, nine close-review rounds)
+
+**Pattern:** One defect — "a read that could not see its subject reports an
+empty subject" — was found *six separate times* in one issue, at six sites, over
+five review rounds. `ls-tree` failing mid-scan. Directories resolved outside the
+repo. A fetch that failed while the stale ref still resolved. Directories joined
+onto the cwd so they named a path that does not exist. A `git diff` that errored.
+A merge-base that could not be resolved, defaulted to `{}`. Each read truthfully
+answered "nothing", each caller read that as "there is nothing", and each one
+produced a confident success message.
+
+**Why it kept recurring:** the id space was read through *three parsers and three
+readers* — one yielding ids, one yielding paths, one yielding duplicates — so
+each site carried its own failure policy and fixing one taught the others
+nothing. Six instances, one rule.
+
+**Rule:** every read feeding a decision must be verified **fresh, complete and
+on-target**, or announced as degraded. A non-answer and an empty answer are
+different values and must not share a representation. When you catch yourself
+writing `_, _ =`, `continue // mirror shell || true`, or `if err == nil { use it }`
+with no else, you are choosing to make them identical.
+
+**Corollary for checks — the sharpest form.** A check that could not run must
+never exit 0. `sdlc issue lint-ids` warned and exited 0 on any read failure, and
+it is what CI shells to: a *green required status check on a check that never
+looked*. Green is indistinguishable from "looked and found nothing", which was
+the very confusion under investigation. Give a checker three codes — clean /
+found / **could not check** — and keep the third distinct all the way out to CI.
+Then keep "nothing to check" (inapplicable: no tracker, no remote) decidable
+apart from "could not check", or the fix suppresses legitimate passes.
+
+**Corollary for paths:** a configured relative directory like `workshop/issues`
+names a place in the **repository**, not a place relative to the process cwd.
+Joined onto the cwd it stays *inside* the repo, so containment guards pass, and
+the read simply finds nothing. Resolve against the repo top level once, and let
+reading and writing share that one resolution — they disagreed here, and the
+result was a real issue file written where no gate looks.
+
+## Attribution is the hard half, not detection (#213)
+
+**Pattern:** across four rounds of findings on the merge gate, *every* defect was
+a **false refusal** — never a missed collision. Detecting "two files claim one
+id" is trivial. Deciding "did **this range** introduce it" is a three-way merge
+predicate, and every wrong version of it was confidently wrong: honouring only
+one side's deletions refused every PR open across an archive; an empty base
+erased all deletions and refused nearly everything; blaming the merge-base alone
+charged a PR for a collision that landed on main after its branch was cut.
+
+**Rule:** when a gate answers "did this change cause X", write the predicate as
+the merge result it is modelling — `merged = (trunk ∪ head) − deletedByEither` —
+and enumerate the cases as a matrix ({add, delete, rename} × {head, trunk} plus
+both-sides). A table with only one side's column is how a mirror-axis defect
+hides. **Watch for the test that asserts the bug:** one row here read "trunk
+archived it while the branch edited it in place" with the *refusal* as the
+expected value — the defect written down as the specification.

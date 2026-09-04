@@ -1,12 +1,13 @@
 ---
 id: 000213
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-03
 estimate_hours:
 started: 2026-09-03T11:04:17-07:00
+actual_hours: 7.34
 ---
 
 # Allocate issue IDs against origin/main
@@ -179,6 +180,7 @@ and any change to the repo transaction lock, which is working as designed.
 ## Log
 
 ### 2026-09-03 — close round 4: FIX-THEN-SHIP, plus one more false refusal
+- 2026-09-03: closed — Id allocation reads the fetched trunk through ONE parser (issue.PathsByID), ONE reader (refIDSpace), ONE dir resolution (resolveIDDirs) and ONE containment predicate (gitx.InsideRoot), shared by allocation, the merge gate, the lint verb, the file write, migrate and the review-window resolver. No read that failed is reported as an empty result: stale trunk warns in allocation and in the merge gate; lint-ids exits 2 (distinct from 1) so CI cannot go green on a check that never looked; the CI adapter fetches the explicit refspec and decides "nothing to check" (exit 0) apart from "could not check" (exit 2); claim errors rather than calling an unreadable worktree clean. Real-repo/real-bare-origin integration tests plus the real CI shell script: branch-cut-before-publish reallocation (the bug end to end), unpushed-local union, missing-ref and STALE-ref warnings, subdirectory allocation AND write location, blind-read announcement, unknown-merge-base skips rather than refuses, introduced-vs-pre-existing labelling, trunk history scan, merge-result modelling, archive/rename not collisions, slug-sort independence, component-wise containment, script refuses a real collision and exits 2 on both an unreadable trunk and an unbuildable checker while still exiting 0 with nothing to check. Every fix probe-verified: reverting exactly that fix turns exactly its test red, build-checked before each probe. Full suite green except the pre-existing #210 red (archived plan path, unrelated). Fleet: 11 tracker repos scanned, 8 collisions found, ariadne down to 2 after renumbering #212 to #214.; review verdict: FIX-THEN-SHIP
 
 Verdict FIX-THEN-SHIP. BR-18 verified fixed in the reviewed range — the shape it
 named (branch edits an issue, main archives it) exits 0 through the script.

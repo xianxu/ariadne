@@ -914,6 +914,72 @@ rounds:
           family: duplicated-listing-parser
           round: 8
       blocked: false
+    - "n": 9
+      timestamp: "2026-09-03T19:50:33-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: not-addressed
+          note: 'Measured at HEAD: ci-merge-check.md lines 31-45 still sit inside the fence opened at line 30.'
+          round: 9
+        - id: BR-10
+          disposition: not-addressed
+          note: helptext/issue.md SUBCOMMANDS still lists new/sync/set-status/list/show only.
+          round: 9
+        - id: BR-11
+          disposition: not-addressed
+          note: 'merge.go:108''s flag help still names only the #124 gate; helptext/merge.md FLAGS omits --no-validate entirely.'
+          round: 9
+        - id: BR-12
+          disposition: not-addressed
+          note: No timeout, no --no-fetch escape, no stated budget on publishedIDSpace's fetch.
+          round: 9
+        - id: BR-17
+          disposition: not-addressed
+          note: Still fenced, still claims ./cmd/sdlc keying and "exits cleanly", now contradicting the correct BR-28 table in the same file.
+          round: 9
+        - id: BR-19
+          disposition: not-addressed
+          note: Behavior verified correct end-to-end, but removing the trunk clause in a scratch copy leaves the whole id suite green — unpinned.
+          round: 9
+        - id: BR-20
+          disposition: not-addressed
+          note: The empty-merge-base degraded state is now handled and pinned; the gitx.Capture bypass of the injected runner remains.
+          round: 9
+        - id: BR-21
+          disposition: not-addressed
+          note: 'Measured: ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep.'
+          round: 9
+        - id: BR-22
+          disposition: not-addressed
+          note: 'All 59 added lessons lines are #211''s; 213''s round-3 insight is still only in the issue Log.'
+          round: 9
+        - id: BR-26
+          disposition: not-addressed
+          note: Part 1 (cleanliness precheck) fixed and pinned; part 2 measured still broken — subdirectory issue new prints two green [ok] lines and publishes nothing.
+          round: 9
+        - id: BR-28
+          disposition: addressed
+          note: Three script tests pin the arms; measured exit 2 on an unbuildable checker. run-merge-checks.sh still collapses 2 into 1, but never reports clean, so the rule holds.
+          round: 9
+        - id: BR-29
+          disposition: addressed
+          note: introducedIDClashes now takes the base space; one base read per invocation.
+          round: 9
+      findings:
+        - id: BR-30
+          severity: Minor
+          title: merge-check.yml builds sdlc with no actions/setup-go, and a build failure is now a red required check
+          detail: |-
+            The workflow has no setup-go step and go.mod requires go 1.26.3 with no toolchain line, so
+            40-duplicate-issue-id.sh depends on the runner image's Go plus an on-demand toolchain download.
+            Before BR-28 that condition was a silent exit 0; now it is exit 2, so an environment that cannot
+            fetch the toolchain turns the intended required status check red on every PR. Add
+            actions/setup-go pinned to the go.mod version (and a module cache) so the check's blocking
+            behavior rests on a declared toolchain rather than an image default.
+          family: ci-env-unpinned
+          round: 9
+      blocked: false
 ---
 
 # Gate ledger — ariadne#213 (boundary-review)
@@ -1434,6 +1500,33 @@ a duplicate the range introduced "pre-existing duplicate id #000001" without con
   — one extra rev-parse plus one ls-tree per id directory. Pass baseSpace into
   introducedIDClashes rather than the ref name.
 
+## Round 9 — 2026-09-03T19:50:33-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — not-addressed — Measured at HEAD: ci-merge-check.md lines 31-45 still sit inside the fence opened at line 30.
+- BR-10 — not-addressed — helptext/issue.md SUBCOMMANDS still lists new/sync/set-status/list/show only.
+- BR-11 — not-addressed — merge.go:108's flag help still names only the #124 gate; helptext/merge.md FLAGS omits --no-validate entirely.
+- BR-12 — not-addressed — No timeout, no --no-fetch escape, no stated budget on publishedIDSpace's fetch.
+- BR-17 — not-addressed — Still fenced, still claims ./cmd/sdlc keying and "exits cleanly", now contradicting the correct BR-28 table in the same file.
+- BR-19 — not-addressed — Behavior verified correct end-to-end, but removing the trunk clause in a scratch copy leaves the whole id suite green — unpinned.
+- BR-20 — not-addressed — The empty-merge-base degraded state is now handled and pinned; the gitx.Capture bypass of the injected runner remains.
+- BR-21 — not-addressed — Measured: ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep.
+- BR-22 — not-addressed — All 59 added lessons lines are #211's; 213's round-3 insight is still only in the issue Log.
+- BR-26 — not-addressed — Part 1 (cleanliness precheck) fixed and pinned; part 2 measured still broken — subdirectory issue new prints two green [ok] lines and publishes nothing.
+- BR-28 — addressed — Three script tests pin the arms; measured exit 2 on an unbuildable checker. run-merge-checks.sh still collapses 2 into 1, but never reports clean, so the rule holds.
+- BR-29 — addressed — introducedIDClashes now takes the base space; one base read per invocation.
+
+### Raised
+
+- **BR-30** [Minor] `ci-env-unpinned` merge-check.yml builds sdlc with no actions/setup-go, and a build failure is now a red required check
+  The workflow has no setup-go step and go.mod requires go 1.26.3 with no toolchain line, so
+  40-duplicate-issue-id.sh depends on the runner image's Go plus an on-demand toolchain download.
+  Before BR-28 that condition was a silent exit 0; now it is exit 2, so an environment that cannot
+  fetch the toolchain turns the intended required status check red on every PR. Add
+  actions/setup-go pinned to the go.mod version (and a module cache) so the check's blocking
+  behavior rests on a declared toolchain rather than an image default.
+
 ## Open findings
 
 - **BR-9** [Minor] `docs-lag-new-surface` atlas/workflow/ci-merge-check.md renders the new prose inside a fenced code block
@@ -1446,5 +1539,4 @@ a duplicate the range introduced "pre-existing duplicate id #000001" without con
 - **BR-21** [Minor] `enforcement-does-not-propagate` base.manifest declares the symlink but no derivative carries the check yet
 - **BR-22** [Minor] `docs-lag-new-surface` No lessons.md entry for this issue's own round-3 lesson
 - **BR-26** [Important] `enforcement-does-not-propagate` runIssueNew's absolute IssuesDir does not reach the sync consumers — the main-worktree cleanliness precheck silently reports clean, and issue new from a subdirectory no longer publishes
-- **BR-28** [Important] `silent-degradation-in-allocator` The CI enforcement check exits 0 when it cannot build the checker, suppressing a real refusal
-- **BR-29** [Minor] `duplicated-listing-parser` `sdlc issue lint-ids` reads the base ref twice per invocation
+- **BR-30** [Minor] `ci-env-unpinned` merge-check.yml builds sdlc with no actions/setup-go, and a build failure is now a red required check

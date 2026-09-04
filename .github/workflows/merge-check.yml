@@ -25,6 +25,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # full history so merge-base + the range resolve
+      # A DECLARED toolchain, not the runner image's default (#213 BR-30).
+      # 40-duplicate-issue-id.sh builds sdlc, and go.mod pins go 1.26.3 with no
+      # toolchain line — so without this the check depended on the image's Go
+      # plus an on-demand toolchain download. That used to be a silent exit 0;
+      # since BR-28 it is exit 2, which would turn the intended required status
+      # check red on every PR whenever the toolchain could not be fetched. A
+      # blocking check has to rest on a declared toolchain.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
       - name: Clone base-layer peers (resolve the symlinked runner)
         run: |
           set -euo pipefail
