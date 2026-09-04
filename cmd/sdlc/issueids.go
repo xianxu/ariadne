@@ -103,29 +103,82 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 	return ids, nil
 }
 
-// introducedCollisions returns ids the head tree claims from MORE THAN ONE path
-// that the base tree did not already claim twice.
+// mergedPathsFor computes the id→paths map the MERGE RESULT would have, from
+// the three trees a merge actually involves.
 //
-// The definition matters and the first cut got it wrong (#213 close review
-// BR-13/BR-14). A collision is not "head has a path base lacks" — that is what
-// every ARCHIVE looks like, since `sdlc merge` moves
-// workshop/issues/NNN-x.md → workshop/history/issues/NNN-x.md on every close.
-// Measured: the gate refused a routine archive, which would have broken nearly
-// every merge. A rename or renumber has the same shape.
+// This is the question a merge gate has to ask, and two earlier definitions got
+// it wrong (#213 close review BR-13, then its own fix):
 //
-// A collision is one TREE contradicting itself: two live paths claiming one id
-// at the same time. Diffing that property between base and head separates
-// "this range introduced it" (refuse — still cheap to rename) from
-// "it was already there" (report — renumbering is operator work, and blocking
-// every merge until it is done is worse than the bug).
-func introducedCollisions(head, base map[int][]string) []int {
-	var ids []int
-	for id, paths := range head {
-		if len(paths) < 2 {
-			continue // one claimant: an archive, a rename, or just normal
+//	"head has a path base lacks"     → every ARCHIVE looks like a collision.
+//	                                   `sdlc merge` archives on every close, so
+//	                                   this refused nearly every merge.
+//	"head contradicts itself"        → correct for one tree, but blind here: the
+//	                                   branch never contains the trunk's file,
+//	                                   so the collision only materialises WHEN
+//	                                   the trees combine.
+//
+// The merge result keeps everything on the trunk, adds what head added, and
+// honours what head deleted:
+//
+//	merged(id) = (trunk(id) ∪ head(id)) − deletedByHead(id)
+//	deletedByHead = base(id) − head(id)      base = merge-base
+//
+// which is why the runner's merge-base argument is still needed even though it
+// is the wrong thing to COMPARE against: it is how a deletion is recognised.
+// Archive → the old path is deleted, one path survives, pass. Renumber → same.
+// Two branches each adding a file for one id → two paths survive, refuse.
+func mergedPathsFor(head, base, trunk map[int][]string) map[int][]string {
+	merged := map[int][]string{}
+	ids := map[int]bool{}
+	for id := range head {
+		ids[id] = true
+	}
+	for id := range trunk {
+		ids[id] = true
+	}
+	for id := range ids {
+		deleted := map[string]bool{}
+		for _, p := range base[id] {
+			if !containsPath(head[id], p) {
+				deleted[p] = true
+			}
 		}
-		if len(base[id]) < 2 {
-			ids = append(ids, id) // base was clean here; this range broke it
+		var out []string
+		for _, p := range append(append([]string{}, trunk[id]...), head[id]...) {
+			if deleted[p] || containsPath(out, p) {
+				continue
+			}
+			out = append(out, p)
+		}
+		if len(out) > 0 {
+			sort.Strings(out)
+			merged[id] = out
+		}
+	}
+	return merged
+}
+
+func containsPath(paths []string, want string) bool {
+	for _, p := range paths {
+		if p == want {
+			return true
+		}
+	}
+	return false
+}
+
+// introducedCollisions returns ids the MERGE RESULT would have claimed by more
+// than one path, excluding those the base already had claimed twice.
+//
+// Refuse what this range creates; report what it inherited — renumbering an
+// existing collision is operator work, and blocking every merge until it is done
+// is worse than the bug.
+func introducedCollisions(head, base, trunk map[int][]string) []int {
+	merged := mergedPathsFor(head, base, trunk)
+	var ids []int
+	for id, paths := range merged {
+		if len(paths) > 1 && len(base[id]) < 2 {
+			ids = append(ids, id)
 		}
 	}
 	sort.Ints(ids)
@@ -200,10 +253,19 @@ func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r g
 		cwarn(stderr, fmt.Sprintf("duplicate-id gate skipped: %v", err))
 		return nil
 	}
+	// The merge-base is what distinguishes a MOVE from a new claimant.
+	mergeBase := strings.TrimSpace(gitx.Capture("merge-base", trunkRef, "HEAD"))
+	base := map[int][]string{}
+	if mergeBase != "" {
+		if b, berr := issueFilesByID(mergeBase, issuesDir, historyDir, r); berr == nil {
+			base = b
+		}
+	}
+	merged := mergedPathsFor(local, base, trunk)
 	var clashes []string
-	for _, id := range introducedCollisions(local, trunk) {
-		clashes = append(clashes, fmt.Sprintf("  #%06d claimed by %d files:\n      %s",
-			id, len(local[id]), strings.Join(local[id], "\n      ")))
+	for _, id := range introducedCollisions(local, base, trunk) {
+		clashes = append(clashes, fmt.Sprintf("  #%06d would be claimed by %d files after merge:\n      %s",
+			id, len(merged[id]), strings.Join(merged[id], "\n      ")))
 	}
 	if len(clashes) == 0 {
 		cok(stderr, "duplicate-id gate: no reused issue ids")

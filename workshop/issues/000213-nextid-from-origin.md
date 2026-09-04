@@ -178,6 +178,75 @@ and any change to the repo transaction lock, which is working as designed.
 
 ## Log
 
+### 2026-09-03 — close review round 2: another Critical, and the definition was wrong
+
+**BR-13 — the gate refused a routine archive.** `sdlc merge` moves
+`workshop/issues/NNN-x.md` → `workshop/history/issues/NNN-x.md` on every close.
+Same id, different path — which my definition of "collision" ("head has a path
+base lacks") called a violation. **This would have broken nearly every merge in
+the fleet**, and it surfaced only because the reviewer tried the operation rather
+than reading the code. Renames and renumbers have the identical shape, so the
+gate would also have blocked the very renumbering this issue's cleanup needed.
+
+The definition was the bug — and my first replacement was wrong too, in the
+opposite direction. Both of these ask about ONE tree:
+
+| definition | archive | the actual bug |
+| --- | --- | --- |
+| "head has a path base lacks" | **falsely refused** | caught |
+| "head contradicts itself" | passes | **blind** — the branch never contains the trunk's file |
+
+The second was caught by the BR-1 regression going green, which is the only
+reason it did not ship. A merge gate has to ask what the **merge result** looks
+like, and that needs all three trees:
+
+    merged(id)    = (trunk(id) ∪ head(id)) − deletedByHead(id)
+    deletedByHead = base(id) − head(id)        base = merge-base
+
+So the runner's merge-base is not useless after all — it is the wrong thing to
+COMPARE against (BR-1) but exactly how a move is recognised. Archive: the old
+path is deleted, one survivor, pass. Renumber: same. Branch adds a file for an id
+the trunk also carries: two survivors, refuse. Verified on all four shapes end to
+end through the script, and pinned by a table over the three trees.
+
+- **BR-15** — BR-7's class was fixed at one of three sites; `issueFilesByID` and
+  `idListing` still swallowed `ls-tree` failures, so a partial read could report
+  a clean tree having looked at a third of it. All three now error.
+- **BR-16** — `git fetch origin main` updates `FETCH_HEAD` and only incidentally
+  `refs/remotes/origin/main`; in a CI checkout with no configured refspec it does
+  not create it, so the check would fall back to the merge-base baseline BR-1
+  proved blind. Explicit refspec now.
+- **BR-3** re-raised but the fix was already in and verified live: the lint runs
+  clean in a `/var`-symlinked scratch repo.
+
+### 2026-09-03 — data cleanup (2 of 4 ariadne collisions cleared)
+
+Renumbering is **not** "just one issue file" in general — measured per collision:
+
+| id | status | plan artifacts | commits naming `#N` | action |
+| --- | --- | --- | --- | --- |
+| #212 | both open | 0 | 0 | **renumbered → #214** |
+| #168 | n/a | 2 | 0 | **not a collision** — see below |
+| #96 | one open, one done | 0 | 5, split across BOTH | left |
+| #40 | both done | 0 | 8 + a merged PR branch | left |
+
+`#168-session-retro-evaluation.md` has **no frontmatter at all**. It is a
+skill-evaluation record misfiled into `history/issues/` with an issue-shaped
+filename; every reference to it — the plan, the atlas — says `workshop/plans/`.
+Moved to `history/plans/`, where sibling artifacts sharing an issue's id belong
+and where `NextID` deliberately does not scan. The archived plan's own
+instructions were left as written; only the live atlas pointer was updated.
+
+`#40` and `#96` are deliberately left. Their ids are embedded permanently in
+commit subjects, and #96's five commits are genuinely split between the two
+issues. Renumbering the file would break the link to its own history — which
+active-time attribution, `sdlc resolve` and boundary-review windows all read from
+those subjects. That is the case report-don't-refuse exists for.
+
+ariadne is now at 2 collisions, both historical; parley.nvim's 4 are untouched
+and of the same archived kind.
+
+
 ### 2026-09-03 — close review round 1: REWORK, 7 blocking
 
 The review this work skipped by going straight to main. It found two Criticals,

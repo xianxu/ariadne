@@ -277,7 +277,7 @@ func TestIntroducedIDClashes(t *testing.T) {
 	git(t, repo, "add", "-A")
 	git(t, repo, "commit", "-m", "reuse an id")
 
-	clashes, err := introducedIDClashes(base, "HEAD", idsDir, histDir, execGitRunner{})
+	clashes, err := introducedIDClashes(base, "HEAD", base, idsDir, histDir, execGitRunner{})
 	if err != nil {
 		t.Fatalf("introducedIDClashes: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestIntroducedIDClashes(t *testing.T) {
 	writeIssueAt(t, repo, idsDir, "000002-genuinely-new.md")
 	git(t, repo, "add", "-A")
 	git(t, repo, "commit", "-m", "a new issue")
-	clean, err := introducedIDClashes(base, "HEAD", idsDir, histDir, execGitRunner{})
+	clean, err := introducedIDClashes(base, "HEAD", base, idsDir, histDir, execGitRunner{})
 	if err != nil {
 		t.Fatalf("introducedIDClashes (clean): %v", err)
 	}
@@ -441,7 +441,7 @@ func TestIntroducedIDClashes_IndependentOfSlugSortOrder(t *testing.T) {
 			git(t, repo, "add", "-A")
 			git(t, repo, "commit", "-m", "reuse an id")
 
-			clashes, err := introducedIDClashes(base, "HEAD", idsDir, histDir, execGitRunner{})
+			clashes, err := introducedIDClashes(base, "HEAD", base, idsDir, histDir, execGitRunner{})
 			if err != nil {
 				t.Fatalf("introducedIDClashes: %v", err)
 			}
@@ -477,4 +477,120 @@ func (l *lsTreeFailRunner) Git(args ...string) ([]byte, error) {
 		return []byte("boom"), fmt.Errorf("simulated ls-tree failure")
 	}
 	return l.execGitRunner.Git(args...)
+}
+
+// TestIntroducedCollisions_ArchiveAndRenameAreNotCollisions is BR-13, the
+// Critical the close review caught: the first definition of "collision" was
+// "head has a path base lacks", which is what EVERY archive looks like —
+// `sdlc merge` moves workshop/issues/NNN-x.md to history/issues/NNN-x.md on
+// every close. The gate refused a routine archive, which would have broken
+// nearly every merge in the fleet. Renames and renumbers have the same shape.
+//
+// A collision is one TREE contradicting itself: two live paths claiming one id.
+func TestIntroducedCollisions_ArchiveAndRenameAreNotCollisions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		base map[int][]string
+		head map[int][]string
+		want []int
+	}{
+		{"archive: issues/ -> history/issues/",
+			map[int][]string{1: {"workshop/issues/000001-a.md"}},
+			map[int][]string{1: {"workshop/history/issues/000001-a.md"}},
+			nil},
+		{"rename: slug changed",
+			map[int][]string{1: {"workshop/issues/000001-old-slug.md"}},
+			map[int][]string{1: {"workshop/issues/000001-new-slug.md"}},
+			nil},
+		{"renumber: id changed",
+			map[int][]string{1: {"workshop/issues/000001-a.md"}},
+			map[int][]string{9: {"workshop/issues/000009-a.md"}},
+			nil},
+		{"a genuinely new issue",
+			map[int][]string{1: {"workshop/issues/000001-a.md"}},
+			map[int][]string{1: {"workshop/issues/000001-a.md"}, 2: {"workshop/issues/000002-b.md"}},
+			nil},
+		{"COLLISION: two live paths for one id",
+			map[int][]string{1: {"workshop/issues/000001-a.md"}},
+			map[int][]string{1: {"workshop/issues/000001-a.md", "workshop/issues/000001-b.md"}},
+			[]int{1}},
+		{"pre-existing: base already had two, so not introduced",
+			map[int][]string{1: {"workshop/issues/000001-a.md", "workshop/issues/000001-b.md"}},
+			map[int][]string{1: {"workshop/issues/000001-a.md", "workshop/issues/000001-b.md"}},
+			nil},
+		{"pre-existing that GREW is still introduced-at-this-id? no — base was already dirty",
+			map[int][]string{1: {"a", "b"}},
+			map[int][]string{1: {"a", "b", "c"}},
+			nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := introducedCollisions(tc.head, tc.base, tc.base)
+			if len(got) != len(tc.want) {
+				t.Fatalf("introducedCollisions = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Fatalf("introducedCollisions = %v, want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
+// TestMergedPathsFor_ModelsTheMergeResult pins the three-tree model directly.
+// Two earlier definitions of "collision" were wrong in opposite directions —
+// one refused every archive, the next was blind to the collision it existed for
+// — because both asked about a single tree. A merge gate has to ask what the
+// MERGE RESULT looks like, which needs merge-base (to see deletions), head, and
+// the trunk tip (where the colliding file actually lives).
+func TestMergedPathsFor_ModelsTheMergeResult(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		base, head, trunk map[int][]string
+		wantIDs           []int // ids the merge result would have >1 path for
+	}{
+		{
+			name:  "archive: head moves the file, trunk still has the old path",
+			base:  map[int][]string{1: {"workshop/issues/000001-a.md"}},
+			head:  map[int][]string{1: {"workshop/history/issues/000001-a.md"}},
+			trunk: map[int][]string{1: {"workshop/issues/000001-a.md"}},
+			// the move deletes the old path — one survivor
+		},
+		{
+			name:  "renumber: id 1 vacated, id 9 created",
+			base:  map[int][]string{1: {"workshop/issues/000001-a.md"}},
+			head:  map[int][]string{9: {"workshop/issues/000009-a.md"}},
+			trunk: map[int][]string{1: {"workshop/issues/000001-a.md"}},
+		},
+		{
+			name:  "THE BUG: branch cut before the trunk published the same id",
+			base:  map[int][]string{},
+			head:  map[int][]string{500: {"workshop/issues/000500-mine.md"}},
+			trunk: map[int][]string{500: {"workshop/issues/000500-theirs.md"}},
+			// the branch never contains theirs — only the MERGE reveals it
+			wantIDs: []int{500},
+		},
+		{
+			name:  "trunk archived it while the branch edited it in place",
+			base:  map[int][]string{7: {"workshop/issues/000007-x.md"}},
+			head:  map[int][]string{7: {"workshop/issues/000007-x.md"}},
+			trunk: map[int][]string{7: {"workshop/history/issues/000007-x.md"}},
+			// head did not delete the live path and trunk added the archived one:
+			// both survive, which IS a real contradiction to surface
+			wantIDs: []int{7},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := introducedCollisions(tc.head, tc.base, tc.trunk)
+			if len(got) != len(tc.wantIDs) {
+				t.Fatalf("introducedCollisions = %v, want %v\n  merged = %v",
+					got, tc.wantIDs, mergedPathsFor(tc.head, tc.base, tc.trunk))
+			}
+			for i := range got {
+				if got[i] != tc.wantIDs[i] {
+					t.Fatalf("introducedCollisions = %v, want %v", got, tc.wantIDs)
+				}
+			}
+		})
+	}
 }

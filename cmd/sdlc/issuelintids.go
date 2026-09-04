@@ -31,6 +31,7 @@ import (
 type issueLintIDsFlags struct {
 	Base       string
 	Head       string
+	Trunk      string
 	IssuesDir  string
 	HistoryDir string
 }
@@ -62,6 +63,7 @@ Read-only.`,
 	}
 	cmd.Flags().StringVar(&f.Base, "base", "", "base ref of the range (omit to check --head alone)")
 	cmd.Flags().StringVar(&f.Head, "head", "HEAD", "head ref of the range")
+	cmd.Flags().StringVar(&f.Trunk, "trunk", "", "published ref the range will merge into (default: --base)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	return cmd
@@ -84,7 +86,7 @@ func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 		return nil
 	}
 
-	clashes, err := introducedIDClashes(f.Base, f.Head, f.IssuesDir, f.HistoryDir, r)
+	clashes, err := introducedIDClashes(f.Base, f.Head, f.Trunk, f.IssuesDir, f.HistoryDir, r)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("id lint skipped: %v", err))
 		return nil
@@ -105,7 +107,7 @@ func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 // introducedIDClashes returns the rendered clash reports for ids present at head
 // under a different path than at base. Split from the command so the decision is
 // testable without driving cobra or exiting.
-func introducedIDClashes(base, head, issuesDir, historyDir string, r gitRunner) ([]string, error) {
+func introducedIDClashes(base, head, trunk, issuesDir, historyDir string, r gitRunner) ([]string, error) {
 	headByID, err := issueFilesByID(head, issuesDir, historyDir, r)
 	if err != nil {
 		return nil, err
@@ -114,10 +116,18 @@ func introducedIDClashes(base, head, issuesDir, historyDir string, r gitRunner) 
 	if err != nil {
 		return nil, err
 	}
+	// Trunk defaults to base when not given (a plain two-ref comparison).
+	trunkByID := baseByID
+	if trunk != "" && trunk != base {
+		if t, terr := issueFilesByID(trunk, issuesDir, historyDir, r); terr == nil {
+			trunkByID = t
+		}
+	}
+	merged := mergedPathsFor(headByID, baseByID, trunkByID)
 	var clashes []string
-	for _, id := range introducedCollisions(headByID, baseByID) {
-		clashes = append(clashes, fmt.Sprintf("  #%06d claimed by %d files:\n      %s",
-			id, len(headByID[id]), strings.Join(headByID[id], "\n      ")))
+	for _, id := range introducedCollisions(headByID, baseByID, trunkByID) {
+		clashes = append(clashes, fmt.Sprintf("  #%06d would be claimed by %d files after merge:\n      %s",
+			id, len(merged[id]), strings.Join(merged[id], "\n      ")))
 	}
 	sort.Strings(clashes)
 	return clashes, nil

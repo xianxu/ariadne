@@ -63,14 +63,22 @@ fi
 # The published id space is the trunk TIP. Fetch so a CI checkout has the ref at
 # all; fall back to the runner's base only if it cannot be resolved.
 git fetch --quiet origin main 2>/dev/null || true
-base="$(git rev-parse --verify --quiet origin/main || true)"
-if [ -z "$base" ]; then
-    base="$fallback_base"
-    [ -n "$base" ] && echo "40-duplicate-issue-id: no origin/main — falling back to the range base $base" >&2
+trunk="$(git rev-parse --verify --quiet origin/main || true)"
+if [ -z "$trunk" ]; then
+    echo "40-duplicate-issue-id: no origin/main — comparing against the range base only" >&2
 fi
 
-if [ -n "$base" ]; then
-    "$tmp/sdlc" issue lint-ids --base "$base" --head "$head"
+# BOTH refs matter, and for different reasons:
+#   --base  the merge-base the runner hands us — how a MOVE is recognised, so an
+#           archive or renumber is not mistaken for a new claimant
+#   --trunk the published tip — what this branch will actually merge INTO, and
+#           the only place the colliding file exists
+if [ -n "$fallback_base" ] && [ -n "$trunk" ]; then
+    "$tmp/sdlc" issue lint-ids --base "$fallback_base" --trunk "$trunk" --head "$head"
+elif [ -n "$trunk" ]; then
+    "$tmp/sdlc" issue lint-ids --base "$trunk" --head "$head"
+elif [ -n "$fallback_base" ]; then
+    "$tmp/sdlc" issue lint-ids --base "$fallback_base" --head "$head"
 else
     "$tmp/sdlc" issue lint-ids --head "$head"
 fi
