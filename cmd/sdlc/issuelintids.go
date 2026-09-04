@@ -115,11 +115,9 @@ func introducedIDClashes(base, head, issuesDir, historyDir string, r gitRunner) 
 		return nil, err
 	}
 	var clashes []string
-	for id, paths := range headByID {
-		for _, path := range newPathsFor(id, paths, baseByID) {
-			clashes = append(clashes, fmt.Sprintf("  #%06d\n      introduced: %s\n      already at base: %s",
-				id, path, strings.Join(baseByID[id], ", ")))
-		}
+	for _, id := range introducedCollisions(headByID, baseByID) {
+		clashes = append(clashes, fmt.Sprintf("  #%06d claimed by %d files:\n      %s",
+			id, len(headByID[id]), strings.Join(headByID[id], "\n      ")))
 	}
 	sort.Strings(clashes)
 	return clashes, nil

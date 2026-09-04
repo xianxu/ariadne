@@ -24,7 +24,7 @@ parser, CLI, persistent report format, or SDLC gate.
   data. The skill presents findings first and requires operator approval before
   editing issues, lessons, instructions, or other durable artifacts.
 - **Behavioral evidence:**
-  `workshop/plans/000168-session-retro-evaluation.md` records immutable
+  `workshop/history/plans/000168-session-retro-evaluation.md` records immutable
   without/with-skill scenarios, independent scoring, and live source smokes.
 
 The atlas intentionally does not restate the step-by-step procedure; edit the

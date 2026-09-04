@@ -77,9 +77,12 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 		return nil, err
 	}
 
-	// Update the ref if we can; ignore failure and use whatever ref exists — a
-	// stale trunk is strictly better than none.
-	_, _ = r.Git("fetch", "--quiet", "origin", "main")
+	// Fetch INTO the remote-tracking ref explicitly. `git fetch origin main`
+	// updates FETCH_HEAD and only incidentally refs/remotes/origin/main — in a
+	// CI checkout with no configured refspec it does not create it at all, so
+	// the read below would find no ref and fall back to a baseline BR-1 proved
+	// blind (#213 BR-16). Failure is still tolerated: a stale ref beats none.
+	_, _ = r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main")
 
 	if out, err := r.Git("rev-parse", "--verify", "--quiet", trunkRef); err != nil || strings.TrimSpace(string(out)) == "" {
 		return nil, fmt.Errorf("no %s ref", trunkRef)
@@ -100,28 +103,33 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 	return ids, nil
 }
 
-// newPathsFor returns the paths claiming id at head that the base does not have.
-// The shared comparison behind both gates, so they cannot disagree about what
-// "introduced" means.
-func newPathsFor(id int, headPaths []string, base map[int][]string) []string {
-	basePaths, ok := base[id]
-	if !ok {
-		return nil // the id is new; nothing to collide with
-	}
-	var out []string
-	for _, p := range headPaths {
-		known := false
-		for _, b := range basePaths {
-			if b == p {
-				known = true
-				break
-			}
+// introducedCollisions returns ids the head tree claims from MORE THAN ONE path
+// that the base tree did not already claim twice.
+//
+// The definition matters and the first cut got it wrong (#213 close review
+// BR-13/BR-14). A collision is not "head has a path base lacks" — that is what
+// every ARCHIVE looks like, since `sdlc merge` moves
+// workshop/issues/NNN-x.md → workshop/history/issues/NNN-x.md on every close.
+// Measured: the gate refused a routine archive, which would have broken nearly
+// every merge. A rename or renumber has the same shape.
+//
+// A collision is one TREE contradicting itself: two live paths claiming one id
+// at the same time. Diffing that property between base and head separates
+// "this range introduced it" (refuse — still cheap to rename) from
+// "it was already there" (report — renumbering is operator work, and blocking
+// every merge until it is done is worse than the bug).
+func introducedCollisions(head, base map[int][]string) []int {
+	var ids []int
+	for id, paths := range head {
+		if len(paths) < 2 {
+			continue // one claimant: an archive, a rename, or just normal
 		}
-		if !known {
-			out = append(out, p)
+		if len(base[id]) < 2 {
+			ids = append(ids, id) // base was clean here; this range broke it
 		}
 	}
-	return out
+	sort.Ints(ids)
+	return ids
 }
 
 // repoRelativeIDDirs converts the id directories to paths inside the current git
@@ -180,7 +188,7 @@ func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r g
 	// Refresh the trunk ref first (#213 close review BR-4). merge's own flow has
 	// not fetched at step 4.6, so a stale origin/main would miss exactly the
 	// collision that landed while this branch was open — the shape of the bug.
-	_, _ = r.Git("fetch", "--quiet", "origin", "main")
+	_, _ = r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main")
 
 	trunk, err := issueFilesByID(trunkRef, issuesDir, historyDir, r)
 	if err != nil {
@@ -193,11 +201,9 @@ func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r g
 		return nil
 	}
 	var clashes []string
-	for id, paths := range local {
-		for _, path := range newPathsFor(id, paths, trunk) {
-			clashes = append(clashes, fmt.Sprintf("  #%06d\n      this branch: %s\n      %s: %s",
-				id, path, trunkRef, strings.Join(trunk[id], ", ")))
-		}
+	for _, id := range introducedCollisions(local, trunk) {
+		clashes = append(clashes, fmt.Sprintf("  #%06d claimed by %d files:\n      %s",
+			id, len(local[id]), strings.Join(local[id], "\n      ")))
 	}
 	if len(clashes) == 0 {
 		cok(stderr, "duplicate-id gate: no reused issue ids")
@@ -233,7 +239,12 @@ func issueFilesByID(ref, issuesDir, historyDir string, r gitRunner) (map[int][]s
 	for _, dir := range dirs {
 		out, err := r.Git("ls-tree", "--name-only", ref, dir+"/")
 		if err != nil {
-			continue
+			// Same rule as publishedIssueIDs (#213 BR-7/BR-15): a partial read
+			// is indistinguishable from a clean tree once parsed, so it would
+			// report "no collisions" having looked at half of them. ls-tree
+			// exits 0 printing nothing for a directory absent from the ref, so
+			// reaching here means the read itself failed.
+			return nil, fmt.Errorf("ls-tree %s %s/: %v\n%s", ref, dir, err, out)
 		}
 		for _, line := range strings.Split(string(out), "\n") {
 			line = strings.TrimSpace(line)

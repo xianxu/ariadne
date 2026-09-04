@@ -245,3 +245,241 @@ There is no `workshop/plans/000213-*-plan.md` and no Core-concepts table, so thi
 3. **Done-when "propagates to every derivative through the symlinked runner"** — false as built (`scaffold scripts/merge-checks.d`, plus the `./cmd/sdlc` self-skip). Either scope it to ariadne or make the propagation real and re-tick.
 4. **Plan row "Test the CI check by running it against a real repo with a planted collision"** — untick; the existing test asserts the skip path.
 5. Record the workflow deviation already documented in `## Log` (no `change-code`, no plan-quality gate, no estimate) as a Revisions entry so it is part of the record rather than only the narrative.
+
+---
+
+## Re-review — 2026-09-03T17:00:45-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 213 — Allocate issue IDs against origin/main |
+| repo | ariadne |
+| issue file | workshop/issues/000213-nextid-from-origin.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9078f8d0529b0c9fd4312f435b10f731aa5d3dc2..41339196eee82ac4a41a9e43bdf7695181f3ca49 |
+| command | sdlc close --issue 213 |
+| reviewer | claude |
+| timestamp | 2026-09-03T17:00:45-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The round-1 Criticals (BR-1, BR-2) are genuinely fixed and I confirmed each by reverting exactly that fix in a scratch clone and watching a named test go red — that is real, and the trunk-tip resolution plus the every-path map are the right shapes. What blocks SHIP is that the gate's *predicate* is still wrong in both directions, and neither direction is a subtlety: it decides "what did this range introduce" by set-differencing two trees' path lists, so (a) moving an issue file to `workshop/history/issues/` — this repo's own documented archive step — is refused as a reused id, and (b) a range that introduces two files claiming one brand-new id is reported as "pre-existing" and passed with the line "this range introduces no reused issue ids", which the Done-when explicitly promises to refuse. I verified (a) against a real merged PR of this repository: replaying `lint-ids` over PR #109's range refuses it and tells the operator to renumber `#000195`. With this check destined to become a required status check, that is a hard block on legitimate merges plus a false-pass on the case the issue's own residual note describes. Four of the twelve prior findings also remain open, one of them (BR-3) both unpinned and still live for absolute issue dirs.
+
+## 1. Strengths
+
+- **ARCH-MOCK is served properly.** `cmd/sdlc/issueids_test.go:16-21` states why, and every test drives a real repo against a real bare origin with the branch cut *before* the second clone publishes. The bug is "a ref exists that this worktree does not contain"; a function-call fake cannot express it, and the tests know that.
+- **BR-1's fix is real and pinned.** Reverting `scripts/merge-checks.d/40-duplicate-issue-id.sh:70-76` to `base="$fallback_base"` turns `TestMergeCheckScript_RefusesGivenMergeBase` red with the exact defect in the message (`[ok] id lint: this range introduces no reused issue ids`). The test fixture is built in the collision's defining order — cut, publish, collide — not a convenient one.
+- **BR-2's fix is real and pinned.** Reverting `issueFilesByID` to a first-path-only map turns the `000001-zzz-sorts-last.md` subtree of `TestIntroducedIDClashes_IndependentOfSlugSortOrder` red while the `aaa` subtree stays green — i.e. the test is genuinely measuring order-independence, not restating the fix.
+- **BR-6's propagation half is verified, not asserted.** `weave compile --dry-run` in `/Users/xianxu/workspace/parley.nvim` now emits `symlink scripts/merge-checks.d/40-duplicate-issue-id.sh -> …/ariadne/…` alongside `mkdir scripts/merge-checks.d`, so the symlink row does survive the scaffold row. The owner resolution via `construct/dev-aliases.sh` is exercised by a fixture that has no `cmd/sdlc` of its own.
+- **The atlas correction is honest.** `atlas/workflow/sdlc-binary.md:206-232` retracts the three claims round 1 falsified (propagates / right baseline / independent layers) rather than quietly restating them, and the three-layer table names the local gate as "operator feedback", not enforcement.
+
+## 2. Critical findings
+
+**C1 — A moved or renamed issue file is refused as a reused id (`cmd/sdlc/issueids.go:100-121`, `cmd/sdlc/issuelintids.go:110-127`).**
+
+`newPathsFor` treats any head path for an id that is not byte-identical to a base path as a second claimant. Archiving — `workshop/issues/NNNNNN-x.md` → `workshop/history/issues/NNNNNN-x.md`, the step AGENTS.md §1 mandates on done — changes the path while the id keeps one owner. Replayed against this repo's real PR #109 (`base=008f7e3^1`, `head=008f7e3^2`):
+
+```
+this range reuses 1 issue id(s) that already exist at 000f9a39…:
+  #000195
+      introduced: workshop/history/issues/000195-review-finding-families.md
+      already at base: workshop/issues/000195-review-finding-families.md
+  … Rename this range's file to a fresh id (and its `id:` frontmatter) before merging.
+```
+
+Exit 1. That PR merged cleanly in reality; with this check required it would be blocked, and the remedy it prints would corrupt the tracker. `sdlc merge` step 4.6 shares the predicate and `die`s the same way. Fix sketch below (shared with C2).
+
+**C2 — A within-ref duplicate the range itself introduces is reported as "pre-existing" and passed (`cmd/sdlc/issuelintids.go:77-82`).**
+
+`DuplicateIDsInRef` is run over the head listing and its results are unconditionally labelled pre-existing; `introducedIDClashes` never sees them because `base[id]` is empty, so `newPathsFor` returns `nil`. Measured on a fresh fixture where one branch adds `000500-agent-a.md` and `000500-agent-b.md` (neither on the trunk):
+
+```
+[!]  pre-existing duplicate id #000500: workshop/issues/000500-agent-a.md, workshop/issues/000500-agent-b.md
+[ok] id lint: this range introduces no reused issue ids
+EXIT=0
+```
+
+The summary line is false and the exit code is wrong. Done-when says "It REPORTS on the base … and REFUSES when the PR introduces one" — the split is computed by question-type, not by lineage, so the refusal half was never built.
+
+**Shared fix for C1 + C2** — decide "introduced" from the range's delta, not from two trees' path sets:
+
+- `introduced_cross` = head paths for an id absent from base, **minus** paths that appear as rename destinations in `git diff --name-status -M <base> <head> -- <id dirs>`;
+- `introduced_within` = ids with ≥2 distinct head paths where at least one path is absent at base;
+- refuse on either; report the rest.
+
+Checked against all four shapes: BR-1's cut-then-publish still refuses (head path is new and not a rename dest); the archive passes; the two-new-files case refuses; the eight already-merged collisions still only report. Both `refuseDuplicateIssueIDs` and `introducedIDClashes` should call one shared pure predicate over (base paths-by-id, head paths-by-id, rename map) so they cannot disagree — that also discharges BR-8.
+
+## 3. Important findings
+
+**I1 — BR-7's class was fixed at one of three sites (`cmd/sdlc/issueids.go:220`, `cmd/sdlc/issuelintids.go:143`).** *This is the 2nd finding in family `silent-degradation-in-allocator`.* Do not fix these two sites and stop. **Rule:** *a partial read of the id space must be an error at every site that performs one; no code path may report a clean verdict from an incomplete listing.* The enumeration is mechanical — three functions run per-directory `ls-tree` (`publishedIssueIDs`, `issueFilesByID`, `idListing`); round 1 fixed `publishedIssueIDs` only, and the other two still `continue` on error. In `issueFilesByID` a dropped directory removes ids from the **base** map, which reads as "this id is new" — a false negative in the enforcement gate itself. Compounding it, `runIssueLintIDs` converts every error into `return nil` (exit 0) at three places, so a broken read is a passing CI check. Fix the class: one shared IO shell that returns an error, and let the verb refuse-or-announce rather than pass.
+
+**I2 — `git fetch --quiet origin main` does not guarantee `refs/remotes/origin/main`, so the check can fall back to the baseline BR-1 proved blind (`scripts/merge-checks.d/40-duplicate-issue-id.sh:69-75`).** *This is the 4th finding in family `gate-compares-wrong-baseline`.* Earlier rounds fixed instances. **Rule:** *a gate must resolve its authoritative baseline explicitly and fail loudly when it cannot — never silently substitute a baseline that is structurally blind to the class the gate exists to catch.* Measured: with `remote.origin.fetch` set narrowly (as `actions/checkout` does for some PR configurations), `git fetch origin main` leaves `origin/main` unresolvable, while `git fetch origin '+refs/heads/main:refs/remotes/origin/main'` resolves it. When it fails the script falls back to `$fallback_base` = merge-base, which is exactly BR-1. I did not prove this fires under `fetch-depth: 0`; the one-word explicit-refspec fix removes the dependency on that assumption, and the fallback should be treated as a degraded state (loud, and arguably a non-zero "could not verify") rather than a pass.
+
+## 4. Minor findings
+
+- **M1 — Stale atlas prose about the check's skip conditions (`atlas/workflow/ci-merge-check.md:41-45`).** *This is the 3rd finding in family `docs-lag-new-surface`.* **Rule:** *a change to a user-facing surface updates that surface's three doc homes in the same commit — helptext (`cmd/sdlc/helptext/*.md`), the atlas entry, and README where the verb is listed — and corrects any prose that describes the old behavior.* The enumeration for #213 is: helptext `issue.md` SUBCOMMANDS (missing — BR-10), helptext `merge.md` FLAGS (the gate is undocumented — BR-11), `atlas/workflow/ci-merge-check.md` (broken fence — BR-9 — *and* still says the script keys on `./cmd/sdlc`, the exact thing BR-6 changed), `atlas/workflow/sdlc-binary.md` (done), README (N/A — `issue *` verbs are not listed there). Three of five homes are wrong; sweep the list, don't patch the one named here.
+- **M2 —** `sdlc merge` prints no warning when `--no-validate` skips the duplicate-id gate (`cmd/sdlc/merge.go:339`), unlike the #124 gate immediately above it — so the bypass is silent as well as bundled.
+- **M3 —** `refuseDuplicateIssueIDs` compares local `HEAD`, but merge is server-side; on a stale local checkout the gate blesses a tree that is not what merges.
+
+## 5. Test coverage notes
+
+- Full suite: green except the known, unrelated `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (#210, archived-plan path) — matches the Log's qualifier.
+- **BR-3's fix has no pin.** Reverting `repoRelativeIDDirs` to its pre-fix form (`git show d50a023`) leaves every #213 test green. The behavior change is real — I built both binaries and, under a symlinked repo root with `PWD` set to the link, the reverted one prints `id lint skipped: workshop/history is outside the current repo` while HEAD prints the verdict — but nothing in the suite would catch its removal. A test needs a fixture whose root is reached through a symlink *and* which lacks `workshop/history`.
+- **BR-4's fix has no pin.** The fetch at `issueids.go:172` is unconditional and reachable, but `TestRefuseDuplicateIssueIDs` pushes before branching, so `origin/main` is already current and the test passes with or without it. A recording `gitRunner` asserting `fetch` precedes `ls-tree` is a few lines.
+- Nothing pins the `base.manifest` symlink row; I verified it by hand with `weave compile --dry-run` in `parley.nvim`. A `weave` golden/completeness assertion on that row would make BR-6 self-defending.
+- C1 and C2 are both trivially testable at the `introducedIDClashes` level: one fixture that `git mv`s an issue into `workshop/history/issues/` and asserts zero clashes, one that adds two same-id files on the branch and asserts a refusal.
+
+## 6. Architectural notes
+
+- **ARCH-DRY — flag.** BR-8 stands unchanged: `IDsInTreeListing`, `DuplicateIDsInRef` and `issueFilesByID` each re-implement split → trim → `LastIndex("/")` → `IDFromFilename`, and `publishedIssueIDs`/`issueFilesByID`/`idListing` each re-implement rev-parse + `repoRelativeIDDirs` + per-directory `ls-tree`. The cost is no longer cosmetic: the three shells now have *divergent* error handling (one returns, two swallow), which is I1. One pure `PathsByIDInTreeListing` plus one IO shell collapses BR-8, I1 and the C1/C2 predicate together.
+- **ARCH-PURE — partial flag.** `NextID`, `IDsInTreeListing`, `DuplicateIDsInRef` and `newPathsFor` are properly pure. But the gate *predicate* — the thing that is wrong in C1 and C2 — is fused into `issueFilesByID`'s IO, so it can only be exercised by building a git repo. Extract the decision over (basePaths, headPaths, renames) and the two failures above become table tests.
+- **ARCH-PURPOSE — flag.** Shadow-sweep of the "one source, compiled to consumers" claim: the CI script genuinely derives from `sdlc issue lint-ids` (four-line adapter — good), but `sdlc merge`'s gate does **not** derive; it is a second implementation with its own message and its own scope, sharing only two helpers. That is why C2 exists in one and not the other. Separately, C2 and I1 are both "the instance was fixed, the class was not" — the Done-when's refusal half and BR-7's two sibling sites.
+- **ARCH-MOCK — pass.** Real repo + real bare origin throughout, and the script is driven end-to-end in a derivative-shaped fixture. The one unmodelled dependency is GitHub Actions' checkout refspec (I2) — worth a note in the issue rather than a fake.
+- **ARCH-CONSTRAINTS — flag.** BR-12 is untouched and `sdlc merge` now adds a second unbounded `git fetch` at step 4.6, so two interactive verbs can hang for the TCP connect timeout on a sleeping-VPN host. The CI check also pays a full `go build ./cmd/sdlc` per PR with no cache. None of these has a stated budget.
+- **ARCH-SECURE — pass, with one recorded assumption.** The check builds and executes Go from the PR checkout and resolves its owner path from a repo-controlled script, but it runs under `pull_request` (no secrets, read-only token), the same profile as the existing `30-weave-drift.sh`. Untrusted input is handled well: `ls-tree` output is parsed through `IDFromFilename`, which returns 0 rather than fabricating an id, and a hand-edited or truncated filename degrades to "not an issue file". No credential touches a log, argv, or fixture.
+
+## 7. Plan revision recommendations
+
+The issue's `## Plan` rows are all ticked but two of them do not deliver what `## Done when` states. Add a `## Revisions` entry recording:
+
+- **Done-when drift (C2):** "A within-ref scan … REFUSES when the PR introduces one" is not implemented — every within-ref duplicate at head is classified pre-existing and reported. Either implement the refusal or restate the Done-when.
+- **New Done-when clause (C1):** the gate must not treat an archive or slug rename of an id it already owns as a collision; name PR #109 as the measured regression case.
+- **Correct the round-1 Log entry for BR-3:** it reads as closed, but nothing pins it and the class survives for absolute `--issues-dir`/`WF_ISSUES_DIR` values under a symlinked root.
+- **Record the remaining doc debt (M1)** as an explicit enumeration rather than three separate open findings, so the next round can check it mechanically.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Revert-verified — reverting the script to base="$fallback_base" turns TestMergeCheckScript_RefusesGivenMergeBase red with "[ok] no reused ids".
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Revert-verified — first-path-only map turns the zzz-sorts-last subtest red while aaa stays green.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      Behavior change is real (measured both binaries under a symlinked root) but NO test pins it — reverting repoRelativeIDDirs to d50a023's form leaves every #213 test green — and the class survives for absolute dirs: --issues-dir under a symlinked path with workshop/history (or history/issues) absent still prints "outside the current repo" and disables all three layers.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Fetch added at issueids.go:172, unconditional and reachable; no test pins the ordering (TestRefuseDuplicateIssueIDs' origin is already current), noted in coverage.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      The refusal path is now the tested one and it genuinely goes red when the BR-1 fix is reverted; the skip path is a separate, correctly named test.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Verified by weave compile --dry-run in parley.nvim (emits the symlink row) plus a derivative-shaped fixture with no cmd/sdlc; atlas and Done-when corrected. Actual propagation to parley.nvim has not been run yet - operator action.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Fixed and pinned at publishedIssueIDs, but only there - see the new finding for the two sibling sites that still swallow.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      Three listing parsers and three rev-parse+ls-tree shells remain; PathsByIDInTreeListing was never written, and the shells' error handling has now diverged.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      atlas/workflow/ci-merge-check.md still opens a fence at line 31 and closes it at 47, so lines 33-46 render as code; that prose is now also stale.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/helptext/issue.md SUBCOMMANDS still lists new/sync/set-status/list/show only.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      Still gated on !f.NoValidate at merge.go:339, no --no-dupid, no FLAGS documentation, and no warning printed when the bypass fires.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      No timeout or --no-fetch escape; merge step 4.6 now adds a second unbounded fetch.
+findings:
+  - id: new
+    severity: Critical
+    family: gate-predicate-ignores-range-delta
+    title: |
+      Archiving or renaming an issue file is refused as a reused id by both the CI check and the merge gate
+    detail: |
+      newPathsFor keys on exact path equality, so moving workshop/issues/NNNNNN-x.md to
+      workshop/history/issues/NNNNNN-x.md - the archive step AGENTS.md section 1 mandates
+      on done - reads as a second file claiming a live id. Replayed against this repo's
+      real merged PR 109 (base 008f7e3^1, head 008f7e3^2): exit 1, "this range reuses 1
+      issue id(s)", naming 000195 and telling the operator to renumber it. sdlc merge step
+      4.6 shares the predicate and dies the same way. Fix: decide "introduced" from the
+      range delta - exclude paths that are rename destinations in
+      git diff --name-status -M base head over the id dirs - rather than from set-differencing
+      two trees' path lists. Verified the corrected predicate still refuses BR-1's
+      cut-then-publish shape and still only reports the eight already-merged collisions.
+  - id: new
+    severity: Important
+    family: gate-predicate-ignores-range-delta
+    title: |
+      A within-ref duplicate the range introduces is labelled pre-existing and passes, contradicting Done-when
+    detail: |
+      runIssueLintIDs runs DuplicateIDsInRef over the head listing and reports every result
+      as pre-existing; introducedIDClashes cannot see them because base[id] is empty. A
+      fixture whose branch adds 000500-agent-a.md and 000500-agent-b.md (neither on the
+      trunk) prints "pre-existing duplicate id 000500" followed by "id lint: this range
+      introduces no reused issue ids" and exits 0. Done-when states the scan "REFUSES when
+      the PR introduces one". Same root cause and same fix as the Critical above: an id is
+      introduced-within-ref when head holds two or more distinct paths for it and at least
+      one is absent at base.
+  - id: new
+    severity: Important
+    family: silent-degradation-in-allocator
+    title: |
+      BR-7's class was fixed at one of three sites; issueFilesByID and idListing still swallow ls-tree failures
+    detail: |
+      This is the 2nd finding in family silent-degradation-in-allocator. Do NOT fix these
+      two sites in isolation. The rule: a partial read of the id space must be an error at
+      EVERY site that performs one, and no code path may report a clean verdict from an
+      incomplete listing. The enumeration is mechanical - three functions run per-directory
+      ls-tree (publishedIssueIDs, issueFilesByID at issueids.go:220, idListing at
+      issuelintids.go:143); round 1 fixed the first only. A dropped directory in
+      issueFilesByID removes ids from the BASE map, which reads as "this id is new" - a
+      false negative inside the enforcement gate. runIssueLintIDs compounds it by turning
+      every error into return nil (exit 0) at three places. Fix the class with one shared
+      IO shell that returns an error (which also discharges BR-8).
+  - id: new
+    severity: Important
+    family: gate-compares-wrong-baseline
+    title: |
+      git fetch origin main does not guarantee refs/remotes/origin/main, so CI can fall back to the merge-base baseline BR-1 proved blind
+    detail: |
+      This is the 4th finding in family gate-compares-wrong-baseline. Earlier rounds fixed
+      instances. The rule that covers all of them: a gate must resolve its authoritative
+      baseline explicitly and fail loudly when it cannot, never silently substitute a
+      baseline that is structurally blind to the class it exists to catch. Measured - with
+      a narrow remote.origin.fetch, "git fetch origin main" leaves origin/main unresolvable
+      while "git fetch origin +refs/heads/main:refs/remotes/origin/main" resolves it. When
+      it fails, 40-duplicate-issue-id.sh falls back to $fallback_base, which is the
+      merge-base BR-1 showed cannot see the collision. I did not prove this fires under the
+      shim's fetch-depth 0; the explicit refspec removes the dependency on that assumption,
+      and the fallback should be a loud degraded state, not a pass.
+  - id: new
+    severity: Minor
+    family: docs-lag-new-surface
+    title: |
+      atlas ci-merge-check.md still describes the pre-BR-6 skip conditions; three of five doc homes for this surface are wrong
+    detail: |
+      This is the 3rd finding in family docs-lag-new-surface. Do NOT fix only this file.
+      The rule: a change to a user-facing surface updates that surface's doc homes in the
+      SAME commit - helptext, the atlas entry, and README where the verb is listed - and
+      corrects prose describing the old behavior. Measured enumeration for 213: helptext
+      issue.md SUBCOMMANDS missing lint-ids (BR-10); helptext merge.md FLAGS silent on the
+      gate (BR-11); ci-merge-check.md lines 41-45 both trapped in a code fence (BR-9) and
+      still claiming the script keys on ./cmd/sdlc, which is exactly what BR-6 changed;
+      sdlc-binary.md correct; README not applicable (issue verbs are not listed there).
+      Three of five homes wrong - sweep the list.
+```
