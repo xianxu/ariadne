@@ -570,6 +570,40 @@ a line.
 
 Each fix is pinned by a test verified red with exactly that fix reverted.
 
+### 2026-09-03 — close round 7 (FIX-THEN-SHIP), and the last of the class
+
+Verdict moved REWORK → FIX-THEN-SHIP. BR-23 stayed open for a good reason: the
+one-parser/one-reader collapse was the right structural answer, but the finding
+asked for the CLASS and four enumerated sites still swallowed a failed read.
+Fixed all four, plus a regression the previous round introduced:
+
+- **`sdlc merge`'s gate** fetched with `_, _ =`, so a stale trunk produced a
+  confident `[ok] no reused issue ids` over precisely the window the gate exists
+  for — a collision published after this branch's last fetch.
+- **`sdlc issue lint-ids`** warned and exited **0** on any read failure. This is
+  the verb CI shells to, so that was a GREEN required status check on a check
+  that never looked. Now exit 2, kept distinct from exit 1's "found a collision".
+- **The CI adapter** used plain `git fetch origin main`, which updates FETCH_HEAD
+  and only incidentally the remote-tracking ref — in a CI checkout, not at all.
+  So it had no trunk on exactly the runners it exists for and fell back to the
+  merge-base baseline BR-1 proved blind. Explicit refspec; exit 2 when the trunk
+  is unreadable; skip only when there is no origin at all.
+- **`claim`'s main-worktree precheck** swallowed a failed diff with
+  `continue // mirror shell || true`, reporting an unreadable worktree as CLEAN.
+- **BR-26**, mine from round 6: making `f.IssuesDir` absolute for the write also
+  fed it to the sync, whose git pathspecs are repo-root-relative — so `issue new`
+  from a subdirectory stopped publishing, breaking #82's guarantee on the very
+  path BR-25 had just made supported. Only the write takes the absolute form now.
+
+**BR-24** was the last duplication: `strings.HasPrefix(rel, "..")` in four
+places, where a component-wise test already existed in one of them. It rejects a
+legitimate `..config` directory and catches nothing the correct form misses —
+a pure false-positive generator, copied. Now `gitx.InsideRoot`/`gitx.Escapes`,
+one predicate for all four.
+
+Also ARCH-SECURE: `--end-of-options` before caller-supplied refs and `--` before
+pathspecs, so a value beginning with `-` is data rather than an option.
+
 ### 2026-09-02
 
 Found while looking for a published `pair#171` that was invisible from a

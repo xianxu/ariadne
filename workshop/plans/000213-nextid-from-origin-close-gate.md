@@ -700,6 +700,119 @@ rounds:
           family: silent-degradation-in-allocator
           round: 6
       blocked: true
+    - "n": 7
+      timestamp: "2026-09-03T19:06:36-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: One parser (issue.PathsByID), one reader (refIDSpace), one dir resolution (resolveIDDirs); grep confirms a single ls-tree call site and the old helpers are gone.
+          round: 7
+        - id: BR-9
+          disposition: not-addressed
+          note: atlas/workflow/ci-merge-check.md still opens a fence at line 31 and closes it at line 47, with the added prose at 34-46 inside it.
+          round: 7
+        - id: BR-10
+          disposition: not-addressed
+          note: cmd/sdlc/helptext/issue.md SUBCOMMANDS (lines 6-14) still lists new/sync/set-status/list/show only; lint-ids and validate absent.
+          round: 7
+        - id: BR-11
+          disposition: not-addressed
+          note: merge.go step 4.6 is still gated on f.NoValidate with no per-gate flag, and merge.md FLAGS documents neither --no-validate nor the id gate.
+          round: 7
+        - id: BR-12
+          disposition: not-addressed
+          note: No timeout, deadline or --no-fetch escape on any git fetch in the diff; no stated budget.
+          round: 7
+        - id: BR-16
+          disposition: not-addressed
+          note: The Go sites use the explicit refspec, but the finding named the SCRIPT — 40-duplicate-issue-id.sh:65 is still `git fetch --quiet origin main`, and the unresolvable-trunk path at 67-69/80-81 still degrades to the BR-1-blind merge-base baseline and exits 0 green.
+          round: 7
+        - id: BR-17
+          disposition: not-addressed
+          note: Three of five doc homes still wrong (BR-9, BR-10, BR-11), ci-merge-check.md:44 still says the script keys on ./cmd/sdlc when it keys on $owner/cmd/sdlc, and a fourth surfaced — the Delivery table at line 19 still calls merge-checks.d/* `scaffold`, contradicting base.manifest's new symlink row.
+          round: 7
+        - id: BR-18
+          disposition: addressed
+          note: 'Revert-verified three ways: asymmetric predicate reddens TestMergedPathsFor .../trunk_archived_it_while_the_PR_was_open; empty-base collapse reddens TestRefuseDuplicateIssueIDs_UnknownBaseSkipsRatherThanRefuses; blanket "pre-existing" reddens TestClassifyDuplicates_IntroducedIsNotCalledPreExisting.'
+          round: 7
+        - id: BR-19
+          disposition: not-addressed
+          note: The code fix (issueids.go:266 `|| len(trunk[id]) > 1`) is present and correct, but nothing pins it — reverting it and running the full `go test ./cmd/sdlc/` leaves the suite green except the pre-existing 210 failure. Per the claimed-fix rule, unpinned is not addressed; add a row to the issueids_test.go table varying trunk's duplicate count.
+          round: 7
+        - id: BR-20
+          disposition: not-addressed
+          note: issueids.go:388 still calls gitx.Capture directly (and :305 gitx.RepoTopLevel), so a failed merge-base read is still indistinguishable from an absent one and cannot be driven through the fake; the "treat empty as degraded" half is done and pinned.
+          round: 7
+        - id: BR-21
+          disposition: not-addressed
+          note: Measured this round — ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep. The manifest row is a declaration; the propagation run has not happened, and Done-when still claims it as verified.
+          round: 7
+        - id: BR-22
+          disposition: not-addressed
+          note: workshop/lessons.md gained 59 lines in this window, all 211's; no entry for the round-3 insight (a test table encoding the defect as its expected value).
+          round: 7
+        - id: BR-23
+          disposition: not-addressed
+          note: 'The named instance is fixed and revert-pinned, and the one-parser/one-reader collapse is the right structural answer — but the finding asked for the CLASS, and 4 of its 8 enumerated sites remain: issueids.go:370 (`_, _ =` on the merge gate''s fetch, so a stale trunk lets the gate pass with a confident [ok]); issuelintids.go:76/81/102 (read failure warns then exits 0, which is a GREEN required status check in CI); 40-duplicate-issue-id.sh:65-69,76-84 (see BR-16). No freshness value was introduced and the CI verb still has no non-clean exit for a degraded read.'
+          round: 7
+        - id: BR-24
+          disposition: not-addressed
+          note: issueids.go:327 is still strings.HasPrefix(rel, ".."). The repo already carries the correct component-wise form at reviewwindow.go:103, and migrate.go:236,282 carry the same defect — the class is enumerable and unswept.
+          round: 7
+        - id: BR-25
+          disposition: addressed
+          note: 'Revert-verified: replacing gitx.RepoTopLevel() with os.Getwd() reddens both TestAllocateIssueID_FromASubdirectoryReadsTheRealIDSpace (000001 vs 000043) and TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir.'
+          round: 7
+      findings:
+        - id: BR-26
+          severity: Important
+          title: runIssueNew's absolute IssuesDir does not reach the sync consumers — the main-worktree cleanliness precheck silently reports clean, and issue new from a subdirectory no longer publishes
+          detail: |-
+            This is the 3rd finding in family enforcement-does-not-propagate. Do NOT fix only the
+            site named — the rule is the ARCH-PURPOSE one the family already carries: a single
+            resolution is not delivered until EVERY consumer derives from it. BR-25 swept the read
+            (refIDSpace/LocalPathsByID) and the write (dest), but issue.go:275 sets
+            f.IssuesDir = dirs.Abs[0] and hands that to syncIssuesToMain, whose consumers were not
+            enumerated.
+            Measured, sdlc built at 3d27a19 against real repos with a bare origin.
+            (1) `git -C <main-wt> diff --name-only -- /abs/<feat-wt>/workshop/issues/` exits 128
+            with "is outside repository"; mainHasUncommittedIssueChanges swallows it via
+            `continue // mirror shell || true`, so mainDirty is empty. With the main worktree
+            holding an uncommitted edit to 000001-one.md, `sdlc issue new` on a feature branch never
+            prints "main worktree has uncommitted issue changes. Commit or stash them first" — the
+            guard is dead and the operator gets a raw `cannot pull with rebase` instead. That is the
+            silent-degradation rule again on a different read: a check that reports clean from a
+            read it could not perform.
+            (2) From docs/sub on a feature branch, changedIssueFiles returns
+            ../../workshop/issues/000002-….md (git prints ls-files paths relative to cwd) and step
+            6's filepath.Join(wtRoot, c) escapes the repo:
+            "read /private/tmp/claude-501/workshop/issues/000002-subdir-on-branch.md: no such file".
+            It falls back to a local commit, so origin/main never receives the reservation —
+            breaking 82's guarantee on exactly the subdirectory path BR-25 made supported.
+            TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir asserts where the file lands
+            but never that it reached origin.
+            The enumeration to sweep in the SAME round: syncPathspec, changedIssueFiles,
+            mainHasUncommittedIssueChanges, the step-5 `diff … -- IssuesDir+"/"`, the step-6 copy
+            loop, and the conflict guide's printed `git add <dir>/`. Fix sketch: pass the
+            repo-relative dir and run the sync from the repo top level; separately, make
+            mainHasUncommittedIssueChanges distinguish "clean" from "could not read".
+          family: enforcement-does-not-propagate
+          round: 7
+        - id: BR-27
+          severity: Minor
+          title: Caller-supplied refs and directories are passed to git without an option separator
+          detail: |-
+            issueids.go:150-155 runs `git rev-parse --verify --quiet <ref>` and
+            `git ls-tree --name-only <ref> <dir>/` with values that come from --base/--head/--trunk
+            and --issues-dir/WF_ISSUES_DIR. A value beginning with `-` is parsed as an option rather
+            than as data. ARCH-SECURE prefers structural separation over trusting the value: insert
+            `--end-of-options` before the ref and `--` before the pathspec. Low exploitability here
+            (both are operator-supplied), but it is a one-token fix and the same argv shape recurs
+            wherever a ref reaches git.
+          family: unseparated-argv-options
+          round: 7
+      blocked: true
 ---
 
 # Gate ledger — ariadne#213 (boundary-review)
@@ -1109,20 +1222,79 @@ a duplicate the range introduced "pre-existing duplicate id #000001" without con
   both the local scan and the trunk read, and treat "dir absent from the ref and absent on
   disk" as a degraded read routed to the loud warning.
 
+## Round 7 — 2026-09-03T19:06:36-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-8 — addressed — One parser (issue.PathsByID), one reader (refIDSpace), one dir resolution (resolveIDDirs); grep confirms a single ls-tree call site and the old helpers are gone.
+- BR-9 — not-addressed — atlas/workflow/ci-merge-check.md still opens a fence at line 31 and closes it at line 47, with the added prose at 34-46 inside it.
+- BR-10 — not-addressed — cmd/sdlc/helptext/issue.md SUBCOMMANDS (lines 6-14) still lists new/sync/set-status/list/show only; lint-ids and validate absent.
+- BR-11 — not-addressed — merge.go step 4.6 is still gated on f.NoValidate with no per-gate flag, and merge.md FLAGS documents neither --no-validate nor the id gate.
+- BR-12 — not-addressed — No timeout, deadline or --no-fetch escape on any git fetch in the diff; no stated budget.
+- BR-16 — not-addressed — The Go sites use the explicit refspec, but the finding named the SCRIPT — 40-duplicate-issue-id.sh:65 is still `git fetch --quiet origin main`, and the unresolvable-trunk path at 67-69/80-81 still degrades to the BR-1-blind merge-base baseline and exits 0 green.
+- BR-17 — not-addressed — Three of five doc homes still wrong (BR-9, BR-10, BR-11), ci-merge-check.md:44 still says the script keys on ./cmd/sdlc when it keys on $owner/cmd/sdlc, and a fourth surfaced — the Delivery table at line 19 still calls merge-checks.d/* `scaffold`, contradicting base.manifest's new symlink row.
+- BR-18 — addressed — Revert-verified three ways: asymmetric predicate reddens TestMergedPathsFor .../trunk_archived_it_while_the_PR_was_open; empty-base collapse reddens TestRefuseDuplicateIssueIDs_UnknownBaseSkipsRatherThanRefuses; blanket "pre-existing" reddens TestClassifyDuplicates_IntroducedIsNotCalledPreExisting.
+- BR-19 — not-addressed — The code fix (issueids.go:266 `|| len(trunk[id]) > 1`) is present and correct, but nothing pins it — reverting it and running the full `go test ./cmd/sdlc/` leaves the suite green except the pre-existing 210 failure. Per the claimed-fix rule, unpinned is not addressed; add a row to the issueids_test.go table varying trunk's duplicate count.
+- BR-20 — not-addressed — issueids.go:388 still calls gitx.Capture directly (and :305 gitx.RepoTopLevel), so a failed merge-base read is still indistinguishable from an absent one and cannot be driven through the fake; the "treat empty as degraded" half is done and pinned.
+- BR-21 — not-addressed — Measured this round — ../parley.nvim/scripts/merge-checks.d/ still contains only .gitkeep. The manifest row is a declaration; the propagation run has not happened, and Done-when still claims it as verified.
+- BR-22 — not-addressed — workshop/lessons.md gained 59 lines in this window, all 211's; no entry for the round-3 insight (a test table encoding the defect as its expected value).
+- BR-23 — not-addressed — The named instance is fixed and revert-pinned, and the one-parser/one-reader collapse is the right structural answer — but the finding asked for the CLASS, and 4 of its 8 enumerated sites remain: issueids.go:370 (`_, _ =` on the merge gate's fetch, so a stale trunk lets the gate pass with a confident [ok]); issuelintids.go:76/81/102 (read failure warns then exits 0, which is a GREEN required status check in CI); 40-duplicate-issue-id.sh:65-69,76-84 (see BR-16). No freshness value was introduced and the CI verb still has no non-clean exit for a degraded read.
+- BR-24 — not-addressed — issueids.go:327 is still strings.HasPrefix(rel, ".."). The repo already carries the correct component-wise form at reviewwindow.go:103, and migrate.go:236,282 carry the same defect — the class is enumerable and unswept.
+- BR-25 — addressed — Revert-verified: replacing gitx.RepoTopLevel() with os.Getwd() reddens both TestAllocateIssueID_FromASubdirectoryReadsTheRealIDSpace (000001 vs 000043) and TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir.
+
+### Raised
+
+- **BR-26** [Important] `enforcement-does-not-propagate` runIssueNew's absolute IssuesDir does not reach the sync consumers — the main-worktree cleanliness precheck silently reports clean, and issue new from a subdirectory no longer publishes
+  This is the 3rd finding in family enforcement-does-not-propagate. Do NOT fix only the
+  site named — the rule is the ARCH-PURPOSE one the family already carries: a single
+  resolution is not delivered until EVERY consumer derives from it. BR-25 swept the read
+  (refIDSpace/LocalPathsByID) and the write (dest), but issue.go:275 sets
+  f.IssuesDir = dirs.Abs[0] and hands that to syncIssuesToMain, whose consumers were not
+  enumerated.
+  Measured, sdlc built at 3d27a19 against real repos with a bare origin.
+  (1) `git -C <main-wt> diff --name-only -- /abs/<feat-wt>/workshop/issues/` exits 128
+  with "is outside repository"; mainHasUncommittedIssueChanges swallows it via
+  `continue // mirror shell || true`, so mainDirty is empty. With the main worktree
+  holding an uncommitted edit to 000001-one.md, `sdlc issue new` on a feature branch never
+  prints "main worktree has uncommitted issue changes. Commit or stash them first" — the
+  guard is dead and the operator gets a raw `cannot pull with rebase` instead. That is the
+  silent-degradation rule again on a different read: a check that reports clean from a
+  read it could not perform.
+  (2) From docs/sub on a feature branch, changedIssueFiles returns
+  ../../workshop/issues/000002-….md (git prints ls-files paths relative to cwd) and step
+  6's filepath.Join(wtRoot, c) escapes the repo:
+  "read /private/tmp/claude-501/workshop/issues/000002-subdir-on-branch.md: no such file".
+  It falls back to a local commit, so origin/main never receives the reservation —
+  breaking 82's guarantee on exactly the subdirectory path BR-25 made supported.
+  TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir asserts where the file lands
+  but never that it reached origin.
+  The enumeration to sweep in the SAME round: syncPathspec, changedIssueFiles,
+  mainHasUncommittedIssueChanges, the step-5 `diff … -- IssuesDir+"/"`, the step-6 copy
+  loop, and the conflict guide's printed `git add <dir>/`. Fix sketch: pass the
+  repo-relative dir and run the sync from the repo top level; separately, make
+  mainHasUncommittedIssueChanges distinguish "clean" from "could not read".
+- **BR-27** [Minor] `unseparated-argv-options` Caller-supplied refs and directories are passed to git without an option separator
+  issueids.go:150-155 runs `git rev-parse --verify --quiet <ref>` and
+  `git ls-tree --name-only <ref> <dir>/` with values that come from --base/--head/--trunk
+  and --issues-dir/WF_ISSUES_DIR. A value beginning with `-` is parsed as an option rather
+  than as data. ARCH-SECURE prefers structural separation over trusting the value: insert
+  `--end-of-options` before the ref and `--` before the pathspec. Low exploitability here
+  (both are operator-supplied), but it is a one-token fix and the same argv shape recurs
+  wherever a ref reaches git.
+
 ## Open findings
 
-- **BR-8** [Minor] `duplicated-listing-parser` Three near-identical ls-tree listing parsers and two identical rev-parse+ls-tree IO shells (ARCH-DRY)
 - **BR-9** [Minor] `docs-lag-new-surface` atlas/workflow/ci-merge-check.md renders the new prose inside a fenced code block
 - **BR-10** [Minor] `docs-lag-new-surface` `issue lint-ids` is missing from the SUBCOMMANDS list in cmd/sdlc/helptext/issue.md
 - **BR-11** [Minor] `gate-bypass-flag-granularity` The duplicate-id gate is bundled behind --no-validate rather than its own --no-<gate> flag
 - **BR-12** [Minor] `unbounded-external-call` `git fetch origin main` on every `sdlc issue new` has no timeout (ARCH-CONSTRAINTS)
 - **BR-16** [Important] `gate-compares-wrong-baseline` git fetch origin main does not guarantee refs/remotes/origin/main, so CI can fall back to the merge-base baseline BR-1 proved blind
 - **BR-17** [Minor] `docs-lag-new-surface` atlas ci-merge-check.md still describes the pre-BR-6 skip conditions; three of five doc homes for this surface are wrong
-- **BR-18** [Critical] `gate-predicate-ignores-range-delta` mergedPathsFor honours deletions by head but not by the trunk, so every PR open across an issue archive on main is falsely refused
 - **BR-19** [Important] `gate-predicate-ignores-range-delta` A collision living entirely on the trunk is charged to a PR that touched nothing
 - **BR-20** [Minor] `io-escapes-injected-seam` refuseDuplicateIssueIDs takes an injected gitRunner but reads its baseline via gitx.Capture
 - **BR-21** [Minor] `enforcement-does-not-propagate` base.manifest declares the symlink but no derivative carries the check yet
 - **BR-22** [Minor] `docs-lag-new-surface` No lessons.md entry for this issue's own round-3 lesson
 - **BR-23** [Critical] `silent-degradation-in-allocator` Offline with a stale origin/main, sdlc issue new re-allocates a published id with no warning - the original bug, through the fix
 - **BR-24** [Minor] `dir-containment-false-negative` repoRelativeIDDirs tests containment with a string prefix, so an in-repo dir named ..something is refused
-- **BR-25** [Critical] `silent-degradation-in-allocator` Run from a subdirectory, sdlc issue new reads an empty trunk id space, allocates 000001, misfiles the issue, and pushes it — silently
+- **BR-26** [Important] `enforcement-does-not-propagate` runIssueNew's absolute IssuesDir does not reach the sync consumers — the main-worktree cleanliness precheck silently reports clean, and issue new from a subdirectory no longer publishes
+- **BR-27** [Minor] `unseparated-argv-options` Caller-supplied refs and directories are passed to git without an option separator

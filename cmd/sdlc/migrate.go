@@ -232,8 +232,8 @@ func runMigrate(o *migrateOpts) error {
 	if resolved, rerr := filepath.EvalSymlinks(srcRoot); rerr == nil {
 		srcRoot = resolved
 	}
-	relPath, err := filepath.Rel(srcRoot, absFile)
-	if err != nil || strings.HasPrefix(relPath, "..") {
+	relPath, err := gitx.InsideRoot(srcRoot, absFile)
+	if err != nil {
 		die(o.stderr, fmt.Sprintf("%s is not inside the current repo (%s) — run migrate from the repo that owns the file (the lock and the source commit anchor there)", o.file, srcRepo))
 	}
 	relPath = filepath.ToSlash(relPath)
@@ -279,7 +279,7 @@ func runMigrate(o *migrateOpts) error {
 	// (../evil.md) would otherwise write a stray file OUTSIDE the dest repo
 	// before git add fails — breaking fail-closed. Mirror the source-side
 	// inside-repo check.
-	if rel, rerr := filepath.Rel(destTop, destFile); rerr != nil || strings.HasPrefix(rel, "..") {
+	if _, rerr := gitx.InsideRoot(destTop, destFile); rerr != nil {
 		die(o.stderr, fmt.Sprintf("--dest-path %s escapes the destination repo (%s) — pass a repo-root-relative path", o.destPath, destRepo))
 	}
 	if _, err := os.Stat(destFile); err == nil {

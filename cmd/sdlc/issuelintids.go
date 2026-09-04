@@ -53,6 +53,10 @@ this check exists rather than relying on a conflict.
   PRE-EXISTING  reported; renumbering is operator work, and blocking every
                 merge until it is done would be worse than the bug
 
+Exit codes: 0 clean, 1 collisions introduced, 2 THE CHECK COULD NOT RUN.
+A degraded read exits 2 rather than 0, so a required status check cannot go
+green on a check that never looked.
+
 Read-only.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
@@ -68,25 +72,43 @@ Read-only.`,
 	return cmd
 }
 
+// lintCouldNotRun is the exit code for a check that did not get to look (#213
+// BR-23).
+//
+// "Skipped" used to warn and exit 0 — and this verb is what CI shells to, so a
+// read failure was a GREEN required status check. Green is the one answer a
+// check that did not run must never give: it is indistinguishable from "looked
+// and found nothing", which is precisely the confusion this whole issue is
+// about. 2 rather than 1 keeps "could not check" separable from "found a
+// collision", so CI can treat them differently.
+const lintCouldNotRun = 2
+
 func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 	r := claimRunner
 
+	degraded := func(err error) error {
+		cwarn(stderr, fmt.Sprintf("id lint COULD NOT RUN: %v", err))
+		cwarn(stderr, "      exiting 2 — a check that did not look must not report clean")
+		exitWithCode(lintCouldNotRun)
+		return nil
+	}
+
 	dirs, err := resolveIDDirs(f.IssuesDir, f.HistoryDir)
 	if err != nil {
-		cwarn(stderr, fmt.Sprintf("id lint skipped: %v", err))
-		return nil
+		return degraded(err)
 	}
 	head, err := refIDSpace(f.Head, dirs, r)
 	if err != nil {
-		cwarn(stderr, fmt.Sprintf("id lint skipped: %v", err))
-		return nil
+		return degraded(err)
 	}
 
 	var baseSpace map[int][]string
 	if f.Base != "" {
-		if b, berr := refIDSpace(f.Base, dirs, r); berr == nil {
-			baseSpace = b
+		b, berr := refIDSpace(f.Base, dirs, r)
+		if berr != nil {
+			return degraded(berr)
 		}
+		baseSpace = b
 	}
 	for _, d := range classifyDuplicates(head, baseSpace, f.Base != "") {
 		cwarn(stderr, fmt.Sprintf("%s #%06d: %s", d.Label, d.ID, strings.Join(d.Paths, ", ")))
@@ -99,8 +121,7 @@ func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 
 	clashes, err := introducedIDClashes(f.Base, f.Trunk, head, dirs, r)
 	if err != nil {
-		cwarn(stderr, fmt.Sprintf("id lint skipped: %v", err))
-		return nil
+		return degraded(err)
 	}
 	if len(clashes) == 0 {
 		cok(stderr, "id lint: this range introduces no reused issue ids")

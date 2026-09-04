@@ -90,20 +90,13 @@ func repositoryRelativeReviewDir(root, configured, label string) (string, error)
 	if strings.TrimSpace(configured) == "" {
 		return "", fmt.Errorf("review %s directory is empty", label)
 	}
-	abs := filepath.Clean(configured)
-	if !filepath.IsAbs(abs) {
-		abs = filepath.Join(root, abs)
-	} else if resolved, err := filepath.EvalSymlinks(abs); err == nil {
-		abs = resolved
-	}
-	rel, err := filepath.Rel(root, abs)
-	if err != nil {
-		return "", fmt.Errorf("make review %s directory repository-relative: %w", label, err)
-	}
-	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	rel, err := gitx.InsideRoot(root, filepath.Clean(configured))
+	if err != nil || rel == "." {
+		// "." is this function's own extra rule, not a containment failure: a
+		// review directory that IS the repo root would sweep the whole tree.
 		return "", fmt.Errorf("review %s directory %q must be inside repository %q", label, configured, root)
 	}
-	return filepath.ToSlash(rel), nil
+	return rel, nil
 }
 
 func resolveBoundaryCommit(git boundaryGitRunner, label, ref string) (string, error) {

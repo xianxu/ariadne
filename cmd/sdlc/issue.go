@@ -267,11 +267,16 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 	// then wrote the file there and pushed it — where no gate looks, and where
 	// the natural repair manufactures exactly the collision this issue exists to
 	// prevent. Reading and writing must agree on where ids live.
+	// Only the WRITE takes the absolute form. f.IssuesDir stays as given, because
+	// it also feeds the sync (#213 BR-26), whose git pathspecs and worktree
+	// copies are interpreted against the repo root — an absolute path there made
+	// `issue new` from a subdirectory stop publishing to origin/main, breaking
+	// #82's guarantee on the very path BR-25 had just made supported.
+	// allocateIssueID resolves for itself, so it needs no help here.
 	writeDir, shownDir := f.IssuesDir, f.IssuesDir
 	if dirs, derr := resolveIDDirs(f.IssuesDir, f.HistoryDir); derr == nil {
 		writeDir, shownDir = dirs.Abs[0], dirs.Rel[0]
 	}
-	f.IssuesDir = writeDir
 
 	nextID, err := allocateIssueID(stderr, f.IssuesDir, f.HistoryDir, claimRunner)
 	if err != nil {
@@ -306,8 +311,8 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 		return nil
 	}
 
-	if err := os.MkdirAll(f.IssuesDir, 0o755); err != nil {
-		die(stderr, fmt.Sprintf("mkdir %s: %v", f.IssuesDir, err))
+	if err := os.MkdirAll(writeDir, 0o755); err != nil {
+		die(stderr, fmt.Sprintf("mkdir %s: %v", shownDir, err))
 	}
 	if err := os.WriteFile(dest, []byte(rendered), 0o644); err != nil {
 		die(stderr, fmt.Sprintf("write %s: %v", dest, err))

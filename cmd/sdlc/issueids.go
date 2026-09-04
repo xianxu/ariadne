@@ -147,12 +147,17 @@ func publishedIDSpace(dirs idDirs, r gitRunner) (map[int][]string, error, error)
 // meant — which is why the same silent-degradation defect had to be found four
 // separate times. One reader, one failure policy.
 func refIDSpace(ref string, dirs idDirs, r gitRunner) (map[int][]string, error) {
-	if out, err := r.Git("rev-parse", "--verify", "--quiet", ref); err != nil || strings.TrimSpace(string(out)) == "" {
+	// `--end-of-options` before the ref and `--` before the pathspec, because
+	// both are caller-supplied (--base/--head/--trunk, --issues-dir,
+	// WF_ISSUES_DIR) and a value starting with `-` would otherwise be parsed as
+	// an option rather than as data. ARCH-SECURE: separate structurally instead
+	// of trusting the value.
+	if out, err := r.Git("rev-parse", "--verify", "--quiet", "--end-of-options", ref); err != nil || strings.TrimSpace(string(out)) == "" {
 		return nil, fmt.Errorf("no %s ref", ref)
 	}
 	byID := map[int][]string{}
 	for _, dir := range dirs.Rel {
-		out, err := r.Git("ls-tree", "--name-only", ref, dir+"/")
+		out, err := r.Git("ls-tree", "--name-only", "--end-of-options", ref, "--", dir+"/")
 		if err != nil {
 			// A PARTIAL read is indistinguishable from a complete one once the
 			// paths are merged, so it would answer from half the trunk and
@@ -317,18 +322,12 @@ func resolveIDDirs(issuesDir, historyDir string) (idDirs, error) {
 	}
 	d := idDirs{Top: top}
 	for _, dir := range issue.IDDirs(issuesDir, historyDir) {
-		abs := dir
-		if !filepath.IsAbs(abs) {
-			abs = filepath.Join(top, abs)
-		} else if resolved, rerr := filepath.EvalSymlinks(abs); rerr == nil {
-			abs = resolved
-		}
-		rel, rerr := filepath.Rel(top, abs)
-		if rerr != nil || strings.HasPrefix(rel, "..") {
+		rel, rerr := gitx.InsideRoot(top, dir)
+		if rerr != nil {
 			return idDirs{}, fmt.Errorf("%s is outside the current repo (%s) — refusing to read its trunk as ours", dir, top)
 		}
-		d.Rel = append(d.Rel, filepath.ToSlash(rel))
-		d.Abs = append(d.Abs, abs)
+		d.Rel = append(d.Rel, rel)
+		d.Abs = append(d.Abs, filepath.Join(top, filepath.FromSlash(rel)))
 	}
 	return d, nil
 }
@@ -367,7 +366,17 @@ func refuseDuplicateIssueIDs(stderr io.Writer, issuesDir, historyDir string, r g
 	// Refresh the trunk ref first (#213 BR-4). merge's own flow has not fetched
 	// at step 4.6, so a stale origin/main would miss exactly the collision that
 	// landed while this branch was open — the shape of the bug.
-	_, _ = r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main")
+	//
+	// And SAY SO when the refresh fails (#213 BR-23). Discarding the result let
+	// a stale trunk produce a confident "[ok] duplicate-id gate: no reused issue
+	// ids" over the exact window the gate exists to cover: the collision landed
+	// on main after this branch's last fetch, so the gate looked straight past
+	// it and told the operator it had looked.
+	if out, ferr := r.Git("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main"); ferr != nil {
+		cwarn(stderr, fmt.Sprintf("could not refresh %s (%v) — the duplicate-id gate is checking a "+
+			"POSSIBLY STALE trunk and may miss a collision published since the last fetch",
+			trunkRef, fmt.Errorf("%v: %s", ferr, firstLine(string(out)))))
+	}
 
 	trunk, err := refIDSpace(trunkRef, dirs, r)
 	if err != nil {

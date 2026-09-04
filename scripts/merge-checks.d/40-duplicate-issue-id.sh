@@ -60,12 +60,29 @@ if ! ( cd "$owner" && go build -o "$tmp/sdlc" ./cmd/sdlc ) 2>/dev/null; then
     exit 0
 fi
 
-# The published id space is the trunk TIP. Fetch so a CI checkout has the ref at
-# all; fall back to the runner's base only if it cannot be resolved.
-git fetch --quiet origin main 2>/dev/null || true
+# The published id space is the trunk TIP.
+#
+# Fetch INTO the remote-tracking ref explicitly (#213 BR-16). `git fetch origin
+# main` updates FETCH_HEAD and only INCIDENTALLY refs/remotes/origin/main — in a
+# CI checkout with no configured refspec it does not create it at all. The plain
+# form therefore left $trunk empty on exactly the runners this check exists for,
+# and the fallback below then compared against the merge-base baseline that BR-1
+# proved structurally blind to this collision.
+if ! git remote get-url origin >/dev/null 2>&1; then
+    echo "40-duplicate-issue-id: no origin remote — no published id space to check against, skipping" >&2
+    exit 0
+fi
+git fetch --quiet origin '+refs/heads/main:refs/remotes/origin/main' 2>/dev/null || true
 trunk="$(git rev-parse --verify --quiet origin/main || true)"
 if [ -z "$trunk" ]; then
-    echo "40-duplicate-issue-id: no origin/main — comparing against the range base only" >&2
+    # An origin exists but its main is unreadable, so the published id space —
+    # the only place the colliding file lives — cannot be seen. Comparing
+    # against the range base instead would report a confident PASS from a
+    # baseline that cannot see this collision by construction. Exit 2: the
+    # check could not run, which is not the same answer as "clean".
+    echo "40-duplicate-issue-id: origin/main unreadable — the published id space cannot be seen." >&2
+    echo "  NOT reporting clean: the range base cannot see this collision by construction (#213)." >&2
+    exit 2
 fi
 
 # BOTH refs matter, and for different reasons:
@@ -73,12 +90,11 @@ fi
 #           archive or renumber is not mistaken for a new claimant
 #   --trunk the published tip — what this branch will actually merge INTO, and
 #           the only place the colliding file exists
-if [ -n "$fallback_base" ] && [ -n "$trunk" ]; then
+#
+# lint-ids exits 0 clean, 1 collisions introduced, 2 could-not-run; all three
+# propagate, so CI never sees green from a check that did not look.
+if [ -n "$fallback_base" ]; then
     "$tmp/sdlc" issue lint-ids --base "$fallback_base" --trunk "$trunk" --head "$head"
-elif [ -n "$trunk" ]; then
-    "$tmp/sdlc" issue lint-ids --base "$trunk" --head "$head"
-elif [ -n "$fallback_base" ]; then
-    "$tmp/sdlc" issue lint-ids --base "$fallback_base" --head "$head"
 else
-    "$tmp/sdlc" issue lint-ids --head "$head"
+    "$tmp/sdlc" issue lint-ids --base "$trunk" --head "$head"
 fi

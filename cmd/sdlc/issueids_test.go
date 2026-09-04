@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -816,5 +817,118 @@ func TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir(t *testing.T) {
 	}
 	if got := strings.TrimSpace(stdout.String()); got != "workshop/issues/000002-subdir-run.md" {
 		t.Errorf("stdout = %q, want the repo-relative path every gate and commit speaks", got)
+	}
+}
+
+// TestLintIDs_DegradedReadExitsNonZero is BR-23's sharpest remaining site: this
+// verb is what CI shells to, and every read failure warned and exited 0 — a
+// GREEN required status check on a check that never looked.
+//
+// Green is the one answer a check that did not run must never give: it is
+// indistinguishable from "looked and found nothing", which is the exact
+// confusion this whole issue is about. Exit 2 keeps "could not check"
+// separable from exit 1's "found a collision".
+func TestLintIDs_DegradedReadExitsNonZero(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "sdlc")
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Dir = "."
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build sdlc: %v\n%s", err, out)
+	}
+	repo, _ := idRepo(t)
+
+	// A base ref that does not exist: the range cannot be read, so the check
+	// cannot answer.
+	cmd := exec.Command(bin, "issue", "lint-ids", "--base", "no-such-ref", "--head", "HEAD")
+	cmd.Dir = repo
+	cmd.Env = envWithTMPDIR(t)
+	out, err := cmd.CombinedOutput()
+
+	code := 0
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		code = ee.ExitCode()
+	} else if err != nil {
+		t.Fatalf("run lint-ids: %v\n%s", err, out)
+	}
+	if code != lintCouldNotRun {
+		t.Errorf("exit code %d, want %d — a check that could not read must not report clean to CI.\n%s",
+			code, lintCouldNotRun, out)
+	}
+	if !strings.Contains(string(out), "COULD NOT RUN") {
+		t.Errorf("a degraded check must say so, got:\n%s", out)
+	}
+}
+
+// TestRefuseDuplicateIssueIDs_StaleTrunkIsAnnounced: the merge gate's fetch was
+// still `_, _ =`, so a stale trunk produced a confident "no reused issue ids"
+// over exactly the window the gate exists to cover — a collision published
+// after this branch's last fetch.
+func TestRefuseDuplicateIssueIDs_StaleTrunkIsAnnounced(t *testing.T) {
+	repo, _ := idRepo(t)
+	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+
+	var errb bytes.Buffer
+	if err := refuseDuplicateIssueIDs(&errb, idsDir, histDir, execGitRunner{}); err != nil {
+		t.Fatalf("an unreachable origin must not fail the gate: %v", err)
+	}
+	if !strings.Contains(errb.String(), "POSSIBLY STALE") {
+		t.Errorf("a gate checking an unrefreshed trunk must say so, got stderr: %q", errb.String())
+	}
+}
+
+// TestMainHasUncommittedIssueChanges_UnreadableIsNotClean: the diff failure was
+// swallowed with `continue // mirror shell || true`, so an unreadable main
+// worktree reported CLEAN and the caller committed over whatever was there.
+// Same rule, third subsystem: a blind read is not an empty result.
+func TestMainHasUncommittedIssueChanges_UnreadableIsNotClean(t *testing.T) {
+	got, err := mainHasUncommittedIssueChanges(filepath.Join(t.TempDir(), "not-a-repo"), idsDir, execGitRunner{})
+	if err == nil {
+		t.Errorf("a diff that could not run reported %v and no error — unreadable is not clean", got)
+	}
+}
+
+// TestMergeCheckScript_UnreadableTrunkDoesNotReportClean is BR-16: the script
+// fetched with the plain `git fetch origin main`, which updates FETCH_HEAD and
+// only incidentally refs/remotes/origin/main — in a CI checkout with no
+// configured refspec, not at all. $trunk came back empty on exactly the runners
+// this check exists for, and it then compared against the merge-base baseline
+// that BR-1 proved cannot see this collision by construction, and exited 0.
+func TestMergeCheckScript_UnreadableTrunkDoesNotReportClean(t *testing.T) {
+	script, err := filepath.Abs(filepath.Join("..", "..", "scripts", "merge-checks.d", "40-duplicate-issue-id.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, serr := os.Stat(script); serr != nil {
+		t.Skipf("check script not present: %v", serr)
+	}
+	ariadne, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo, _ := idRepo(t)
+	if mkErr := os.MkdirAll(filepath.Join(repo, "construct"), 0o755); mkErr != nil {
+		t.Fatal(mkErr)
+	}
+	resolver := "#!/usr/bin/env bash\n[ \"${1:-}\" = \"--list\" ] && printf 'sdlc\\t" + ariadne + "\\n'\n"
+	if wErr := os.WriteFile(filepath.Join(repo, "construct", "dev-aliases.sh"), []byte(resolver), 0o755); wErr != nil {
+		t.Fatal(wErr)
+	}
+	base := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+
+	// An origin that exists but cannot be read, and no local origin/main.
+	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	git(t, repo, "update-ref", "-d", "refs/remotes/origin/main")
+
+	cmd := exec.Command("bash", script, base, "HEAD")
+	cmd.Dir = repo
+	cmd.Env = envWithTMPDIR(t)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("an unreadable trunk reported CLEAN — the range base cannot see this collision:\n%s", out)
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) && ee.ExitCode() != 2 {
+		t.Errorf("exit %d, want 2 (could not run), distinct from 1 (found a collision):\n%s", ee.ExitCode(), out)
 	}
 }

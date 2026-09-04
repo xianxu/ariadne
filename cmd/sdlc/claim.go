@@ -611,7 +611,12 @@ func mainHasUncommittedIssueChanges(mainPath, issuesDir string, r gitRunner) ([]
 	} {
 		raw, err := r.GitInDir(mainPath, q...)
 		if err != nil {
-			continue // mirror shell `|| true`
+			// A failed diff is a NON-ANSWER, not a clean worktree (#213 BR-26).
+			// Swallowing it reported the main worktree clean without having
+			// looked, and the caller then committed over whatever was there —
+			// the same "blind read reported as an empty result" that every
+			// instance in this issue reduces to.
+			return nil, fmt.Errorf("read issue changes in %s: %v\n%s", mainPath, err, strings.TrimSpace(string(raw)))
 		}
 		for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
 			if line != "" {
