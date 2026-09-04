@@ -178,6 +178,39 @@ and any change to the repo transaction lock, which is working as designed.
 
 ## Log
 
+### 2026-09-03 — close review round 3: my own test asserted the bug
+
+**BR-18 (Critical) — every PR open across a close on main was falsely refused.**
+`mergedPathsFor` honoured deletions by HEAD but not by the TRUNK. So while a PR
+sat open and any issue got archived on main, the trunk carried
+`history/issues/NNN-x.md`, the merge-base still carried `issues/NNN-x.md`, and
+both survived the model — two claimants, refuse. That is not an edge case; it is
+most PRs, since `sdlc merge` archives on every close.
+
+**The damning part is that my own test encoded it as correct.** The round-2
+table had a case named "trunk archived it while the branch edited it in place"
+with `wantIDs: []int{7}` — I wrote the false refusal down as expected behaviour
+and it passed. A table only pins what you believed when you wrote it.
+
+Deletions now count from either side, symmetrically:
+
+    merged(id)    = (trunk(id) ∪ head(id)) − deletedByEitherSide(id)
+    deletedBySide = base(id) − side(id)
+
+Verified end to end on the shape itself: a branch edits an issue, main archives
+it, the check exits 0. Plus the four earlier shapes unchanged, and a new table
+row for "both sides ADD a file for one id" — neither deleted anything, so both
+are live claimants and it refuses.
+
+**BR-15 was fixed at two of three sites.** `issueFilesByID` and
+`publishedIssueIDs` errored on a failed `ls-tree`; `idListing` in
+`issuelintids.go` still swallowed. Third time this class needed sweeping in one
+issue, which is what "fix the class, not the site" is warning about.
+
+**BR-16 re-raised but verified present** — both fetch sites use the explicit
+`+refs/heads/main:refs/remotes/origin/main` refspec.
+
+
 ### 2026-09-03 — close review round 2: another Critical, and the definition was wrong
 
 **BR-13 — the gate refused a routine archive.** `sdlc merge` moves

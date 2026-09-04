@@ -483,3 +483,193 @@ findings:
       sdlc-binary.md correct; README not applicable (issue verbs are not listed there).
       Three of five homes wrong - sweep the list.
 ```
+
+---
+
+## Re-review — 2026-09-03T17:49:32-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 213 — Allocate issue IDs against origin/main |
+| repo | ariadne |
+| issue file | workshop/issues/000213-nextid-from-origin.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9078f8d0529b0c9fd4312f435b10f731aa5d3dc2..65aea14c2632156106f0662f6396cbd2af0e9c8c |
+| command | sdlc close --issue 213 |
+| reviewer | claude |
+| timestamp | 2026-09-03T17:49:32-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The three-tree merge model added in `65aea14` is the right idea and it does fix BR-13's named instance (replayed against the real merged PR #109: exit 0, no false refusal). But it was only made symmetric on the **head** side: `mergedPathsFor` subtracts paths head deleted relative to base and never subtracts paths the **trunk** deleted. Measured end to end through the CI adapter — a branch cut before another issue's close, with `main` archiving `workshop/issues/000007-x.md` → `workshop/history/issues/000007-x.md`, is refused with "#000007 would be claimed by 2 files after merge" while `git merge` produces exactly one file. Since `sdlc merge` archives on every close, this fails `sdlc merge` step 4.6 **and** the required-status CI check for essentially every PR that is open across any issue close on main — BR-13's failure mode re-armed on the mirror axis. That blocks. Alongside it, three of the four "addressed" claims in commit `65aea14`'s message do not hold at the site the finding named: `idListing` still swallows `ls-tree` failures (BR-15 claimed "all three now error"), the CI script still uses the bare `git fetch origin main` the commit says it replaced (BR-16), and none of the five doc homes moved (BR-9/10/11/17), including for the brand-new `--trunk` flag.
+
+## 1. Strengths
+
+- **`ARCH-MOCK` is genuinely satisfied.** Every allocation test drives a real repo against a real bare origin with the branch cut *before* a second clone publishes the colliding id (`cmd/sdlc/issueids_test.go:56`). A function-call fake cannot express "a ref exists that this worktree does not contain", and the tests say so out loud. `TestMergeCheckScript_RefusesGivenMergeBase` executes the actual shell adapter, so the CI layer is exercised, not read.
+- **`ARCH-PURE` on the decision layer.** `issue.NextID(idSets ...[]int)`, `IDsInTreeListing`, `DuplicateIDsInRef`, `mergedPathsFor` and `introducedCollisions` are all pure and table-tested with zero IO; the git calls sit in `issueids.go`'s shell behind an injected `gitRunner`. `TestNextID_IsPure` and `TestMergedPathsFor_ModelsTheMergeResult` run without a repo.
+- **BR-13's instance is properly pinned.** Reverting `mergedPathsFor` to "head has a path base lacks" turns the archive/rename/renumber rows of `TestIntroducedCollisions_ArchiveAndRenameAreNotCollisions` and `TestMergedPathsFor_ModelsTheMergeResult` red. Verified against the real repo too (base `008f7e3^1`, head `008f7e3^2` → exit 0).
+- **BR-14 is fixed and verified.** A branch adding `000500-agent-a.md` and `000500-agent-b.md`, neither at base, now exits 1 rather than passing with a "pre-existing" label.
+- **BR-3 is fixed and verified live.** Ran `sdlc issue lint-ids` in a fresh repo under `/tmp` (→ `/private/tmp`) with no `workshop/history/` at all: it reported the planted duplicate instead of printing "outside the current repo" and skipping.
+- **The DRY argument for keeping logic in Go** (`issuelintids.go:5`) is right and the script really is a thin adapter — filename parsing and directory selection are decided once.
+
+## 2. Critical findings
+
+**C1 — `mergedPathsFor` ignores deletions on the trunk side, so any PR open across an issue archive on `main` is falsely refused (`cmd/sdlc/issueids.go:130`, the loop at `:142`).**
+
+This is the **3rd finding in family `gate-predicate-ignores-range-delta`**. Rounds 1 and 2 each fixed the instance named. Per ARCH-PURPOSE, do not fix this instance — fix the class.
+
+*The rule:* the predicate models a three-way merge, so it must be **symmetric in `head` and `trunk`**. A path present at `base` and absent on *either* side was deleted by that side and cannot survive the merge. The formula in the doc comment at `:123` is half-written:
+
+```
+merged(id) = (trunk(id) ∪ head(id)) − (base(id) − head(id)) − (base(id) − trunk(id))
+                                       ^ implemented              ^ missing
+```
+
+*Measured failure* (`sdlc` built at `65aea14`, real repo + bare origin, branch cut before the archive):
+
+```
+main:    git mv workshop/issues/000007-x.md workshop/history/issues/000007-x.md
+feature: untouched, one unrelated commit
+$ sdlc issue lint-ids --base $(git merge-base origin/main HEAD) --trunk origin/main --head HEAD
+  #000007 would be claimed by 2 files after merge: ...            exit 1
+$ bash scripts/merge-checks.d/40-duplicate-issue-id.sh $MB HEAD   exit 1
+$ git merge origin/main   → workshop/history/issues/000007-x.md   (one file)
+```
+
+`refuseDuplicateIssueIDs` (`issueids.go:243`) shares the predicate and dies the same way, so both the local gate and the required-status CI check refuse a merge git performs cleanly.
+
+*The enumeration the class implies* — {add, delete, rename/move} × {head, trunk}, plus both-sides. The test table at `issueids_test.go:522` has rows only for the head column; write the trunk column and the fix follows. I verified the symmetric predicate against all ten shapes (head archives, **trunk archives**, head renames, **trunk renames**, head renumbers, cut-then-publish, second path added for a live id, pre-existing duplicate, two-files-one-id on a branch, both sides archive): 10/10 correct, including the two the current code gets wrong and every one it currently gets right.
+
+Two more members of the same class to sweep in the same round rather than the next:
+
+- `refuseDuplicateIssueIDs` (`issueids.go:255-261`): when `merge-base` returns empty or its `issueFilesByID` read fails, `base` stays `{}`, which erases *all* deletion information and turns every trunk∪head pair into a refusal — the same defect with no fixture behind it.
+- `runIssueLintIDs` (`issuelintids.go:79-82`) labels every `DuplicateIDsInRef` hit on `head` "pre-existing" without consulting `base`. It no longer *passes* one the range introduced (BR-14 is fixed by the other path), but the operator is now told the same id is both pre-existing and newly introduced. Same rule: a range verdict cannot be computed from one tree.
+
+## 3. Important findings
+
+All four are re-raised prior findings; see the `findings` block for dispositions. Summarised:
+
+- **BR-15 (`silent-degradation-in-allocator`, 3rd) — not addressed.** `idListing` at `cmd/sdlc/issuelintids.go:149-151` still does `if err != nil { continue }`, so a dropped directory makes `sdlc issue lint-ids` print `[ok]` having read a fraction of the id space. `65aea14`'s message claims "the ls-tree swallow class fixed at the two remaining sites"; one of the two was not touched. The `issueFilesByID` half *was* changed, but **no test pins it** — `lsTreeFailRunner` is used only by `TestPublishedIssueIDs_PartialReadIsAnError`, so reverting `issueids.go:303` to `continue` leaves the suite green. Per the claimed-fix rule that is `not-addressed` however plausible the diff reads.
+- **BR-16 (`gate-compares-wrong-baseline`, 4th) — not addressed at the site the finding named.** The explicit refspec landed in `issueids.go:83` and `:246` (Go), but `scripts/merge-checks.d/40-duplicate-issue-id.sh:65` still runs `git fetch --quiet origin main`. Re-measured on a `--single-branch` clone with a narrow `remote.origin.fetch`: plain form → `origin/main` unresolvable; explicit refspec → resolved. The degraded path then runs `lint-ids --base "$fallback_base"` and exits 0 — a green check computed from the merge-base BR-1 proved blind. `introducedIDClashes` (`issuelintids.go:120-124`) has the same shape in Go: a failed trunk read silently sets `trunkByID = baseByID`.
+- **BR-17 (`docs-lag-new-surface`, 3rd) — not addressed; now four of five homes wrong.** `atlas/workflow/ci-merge-check.md` is unchanged (still fenced, still says the script "builds sdlc from the checkout under test" and skips on "no `./cmd/sdlc`" — both describe the pre-BR-6 script). `helptext/issue.md` SUBCOMMANDS still omits `lint-ids`. `helptext/merge.md` FLAGS still silent on the gate. And `65aea14` added a **new user-facing flag `--trunk`** plus the merge-result semantics with no doc home at all: `atlas/workflow/sdlc-binary.md:187` still describes only "a branch-vs-trunk comparison".
+- **BR-11 (`gate-bypass-flag-granularity`, 1st) — not addressed.** `merge.go:336` still gates on `!f.NoValidate`, so bypassing #124's instance-conformance gate silently bypasses the id gate too, contrary to AGENTS.md §5's per-gate `--no-<gate>` convention.
+
+## 4. Minor findings
+
+- BR-8 (`duplicated-listing-parser`) still open: `IDsInTreeListing`, `DuplicateIDsInRef` and `issueFilesByID` each re-implement split → trim → `LastIndex("/")` → `IDFromFilename`; `publishedIssueIDs`/`issueFilesByID`/`idListing` each re-implement rev-parse + `repoRelativeIDDirs` + per-dir `ls-tree`. One `PathsByIDInTreeListing` + one IO shell returning an error discharges BR-8 and BR-15 together (`ARCH-DRY`).
+- BR-9: `atlas/workflow/ci-merge-check.md:30-46` — the new prose still renders as literal code inside the fence.
+- BR-12 (`unbounded-external-call`) still open, and now at two call sites (`issueids.go:83`, `:246`) rather than one.
+- `allocateIssueID` reports `repoRelativeIDDirs` failures as "`origin/main` unreachable" (`issueids.go:48`), which misattributes a path-containment refusal to the network.
+- `runIssueLintIDs`'s `stdout` parameter is unused; every line goes to stderr.
+- `ls-tree --name-only` output is parsed line-by-line; `-z` would remove the (currently theoretical) dependency on filenames without newlines.
+
+## 5. Test coverage notes
+
+The bar the checklist sets — "the kind of bug this diff could ship is covered" — is met for allocation and for the head-side merge shapes, and not met for the trunk side. `TestMergedPathsFor_ModelsTheMergeResult` (`issueids_test.go:522`) even *encodes* the defect: the row "trunk archived it while the branch edited it in place" asserts `wantIDs: []int{7}` with the comment "both survive, which IS a real contradiction to surface". Git disagrees — I ran the merge; one file survives. That row is the failing case written down as the expectation, which is exactly the "test written from the same mental model as the fix" the claimed-fixes rule warns about. Fix the predicate and that row flips to `nil`, plus a trunk-rename row.
+
+Two other gaps: no test pins `issueFilesByID`'s or `idListing`'s partial-read behavior (BR-15), and no test drives `refuseDuplicateIssueIDs`/the script with an empty or unresolvable merge-base. Suite state: `go test ./cmd/sdlc/...` is green except the known unrelated `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (#210, missing archived plan path).
+
+## 6. Architecture notes
+
+- **ARCH-DRY — flag.** BR-8, unchanged across three rounds. The consolidation also removes the duplication that produced BR-2 and BR-15.
+- **ARCH-PURE — pass.** The decision layer is pure and directly unit-tested; git lives behind `gitRunner`. `TestMergedPathsFor_ModelsTheMergeResult` runs with no repo at all.
+- **ARCH-PURPOSE — flag (C1, BR-15, BR-16, BR-17).** Four findings this round were answered at the single site each named while enumerable siblings of the same class stayed in the tree: head-side move but not trunk-side, two of three `ls-tree` sites, the Go fetch but not the script fetch, one doc home of five. The shadow-sweep for the id-space single source is otherwise good — allocation, the local gate and CI all derive from `sdlc issue lint-ids`, with no hand-maintained restatement.
+- **ARCH-MOCK — pass.** Real bare-origin fixtures throughout, and the shell adapter runs for real. The one absence is a live conformance check on the runner contract itself; the check runs in CI, which is adequate.
+- **ARCH-CONSTRAINTS — flag (BR-12).** Two unbounded `git fetch` calls, one of them on the interactive `sdlc issue new` path. The per-PR `go build ./cmd/sdlc` in the CI script is bounded and fine.
+- **ARCH-SECURE — pass with a note.** No credentials, no untrusted network bodies. `ls-tree` output is process-local and trusted; `repoRelativeIDDirs`'s containment check is the right instinct (it stops a `--issues-dir` elsewhere from reading this repo's trunk as its own id space). The degraded paths, however, substitute a *fabricated* baseline (`trunkByID = baseByID`, empty `base`) that downstream code reads as evidence and reports `[ok]` from — the at-review lens asks that parse failures degrade visibly, which they currently don't.
+
+## 7. Plan revision recommendations
+
+`workshop/issues/000213-nextid-from-origin.md` needs a `## Revisions` entry (or a round-3 Log section) recording:
+
+1. The round-2 Log's "All three now error" (BR-15) and "Explicit refspec now" (BR-16) are **incorrect as written** — `idListing` still swallows, and the script still uses the bare fetch form. State what was actually changed.
+2. The "Verified on all four shapes end to end" claim covers only the head-side shapes; the trunk-side archive and trunk-side rename were never tried, and both fail. Record the measured reproduction.
+3. Done-when needs a row for the merge-model invariant, phrased symmetrically: *"a file the trunk archived or renamed while a branch was open does not read as a collision"* — otherwise the next round can satisfy the existing wording without covering the class.
+4. `## Plan` currently shows all eight rows ticked while a Critical is open in the delivered predicate; add a row for the symmetric-merge sweep and the doc-home sweep rather than leaving the plan claiming completion.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Verified live — fresh repo under /tmp (→/private/tmp) with no workshop/history: lint reported the planted duplicate instead of skipping.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      The named instance is fixed (real PR 109 replay, base 008f7e3^1 / head 008f7e3^2 → exit 0), but the class is not swept — see the new Critical.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      Verified — a branch adding 000500-agent-a.md and 000500-agent-b.md now exits 1 rather than labelling them pre-existing and passing.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      Three listing parsers and three rev-parse+ls-tree IO shells still present, unchanged across all three rounds.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      atlas/workflow/ci-merge-check.md lines 30-46 unchanged; the prose still renders inside the code fence.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      helptext/issue.md SUBCOMMANDS still omits lint-ids, and now also the new --trunk flag added in 65aea14.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      merge.go:336 still gates on !f.NoValidate; merge.md FLAGS still documents neither gate.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      Still unbounded, and now at two call sites (issueids.go:83 and :246) rather than one.
+  - id: BR-15
+    disposition: not-addressed
+    note: |
+      idListing (issuelintids.go:149) still does `continue`; issueFilesByID's fix is pinned by no test — reverting issueids.go:303 to `continue` leaves the suite green.
+  - id: BR-16
+    disposition: not-addressed
+    note: |
+      The explicit refspec landed in Go only; scripts/merge-checks.d/40-duplicate-issue-id.sh:65 still runs `git fetch --quiet origin main`. Re-measured on a single-branch clone with a narrow refspec — plain form leaves origin/main unresolvable, explicit form resolves it. Sibling site — introducedIDClashes at issuelintids.go:120-124 silently substitutes baseByID when the trunk read fails.
+  - id: BR-17
+    disposition: not-addressed
+    note: |
+      No doc home moved this round, and 65aea14 added a new one — the --trunk flag and the merge-result model appear in no helptext or atlas entry. sdlc-binary.md:187 still describes only a branch-vs-trunk comparison; ci-merge-check.md still describes the pre-BR-6 skip conditions and build location.
+findings:
+  - id: new
+    severity: Critical
+    family: gate-predicate-ignores-range-delta
+    title: |
+      mergedPathsFor honours deletions by head but not by the trunk, so every PR open across an issue archive on main is falsely refused
+    detail: |
+      This is the 3rd finding in family gate-predicate-ignores-range-delta. Earlier rounds fixed
+      instances. Do NOT fix this instance — the rule is that the predicate models a three-way merge
+      and must be SYMMETRIC in head and trunk — a path at base and absent on EITHER side was deleted
+      by that side and cannot survive. cmd/sdlc/issueids.go:142 subtracts only base minus head. The
+      formula should read merged(id) = (trunk ∪ head) − (base − head) − (base − trunk).
+      Measured with sdlc built at 65aea14 against a real repo plus bare origin — branch cut, then
+      main runs `git mv workshop/issues/000007-x.md workshop/history/issues/000007-x.md` (what
+      `sdlc merge` does on EVERY close), branch untouched. `sdlc issue lint-ids --base $mergebase
+      --trunk origin/main --head HEAD` exits 1 with "#000007 would be claimed by 2 files after
+      merge"; the CI adapter 40-duplicate-issue-id.sh exits 1 on the same fixture; `git merge`
+      produces exactly one file. refuseDuplicateIssueIDs shares the predicate, so the local gate at
+      merge.go step 4.6 dies identically. This is BR-13's failure mode on the mirror axis and would
+      fail the required status check on nearly every concurrently-open PR in the fleet.
+      The enumeration the class implies is {add, delete, rename/move} x {head, trunk} plus
+      both-sides; the table at issueids_test.go:522 has only the head column, and its row "trunk
+      archived it while the branch edited it in place" asserts wantIDs [7] — the defect written down
+      as the expectation. I verified the symmetric predicate against all ten shapes (head archives,
+      trunk archives, head renames, trunk renames, head renumbers, cut-then-publish, second path for
+      a live id, pre-existing duplicate, two-files-one-id on a branch, both sides archive): 10/10,
+      including the two the current code fails and every one it currently passes.
+      Two more members to sweep in the SAME round — refuseDuplicateIssueIDs (issueids.go:255-261)
+      leaves base empty when merge-base is unresolvable or its read fails, which erases all deletion
+      information and refuses everything; and runIssueLintIDs (issuelintids.go:79-82) labels every
+      DuplicateIDsInRef hit on head "pre-existing" without consulting base, so an id the range
+      introduces is now reported as both pre-existing and introduced.
+```

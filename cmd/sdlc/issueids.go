@@ -120,13 +120,21 @@ func publishedIssueIDs(issuesDir, historyDir string, r gitRunner) ([]int, error)
 // The merge result keeps everything on the trunk, adds what head added, and
 // honours what head deleted:
 //
-//	merged(id) = (trunk(id) ∪ head(id)) − deletedByHead(id)
-//	deletedByHead = base(id) − head(id)      base = merge-base
+//	merged(id) = (trunk(id) ∪ head(id)) − deletedByEitherSide(id)
+//	deletedBySide = base(id) − side(id)      base = merge-base
 //
 // which is why the runner's merge-base argument is still needed even though it
 // is the wrong thing to COMPARE against: it is how a deletion is recognised.
-// Archive → the old path is deleted, one path survives, pass. Renumber → same.
-// Two branches each adding a file for one id → two paths survive, refuse.
+//
+// BOTH sides' deletions count, symmetrically (#213 close review BR-18). Honouring
+// only head's meant that while a PR was open, an issue archived on MAIN left the
+// trunk carrying history/NNN-x.md and the merge-base still carrying
+// issues/NNN-x.md — two survivors, falsely refused. That is not an edge case: it
+// is every PR open across any close, which is most of them.
+//
+// Archive by either side → the old path is deleted, one survivor, pass.
+// Renumber → same. Two sides each ADDING a file for one id → two survivors,
+// refuse: neither deleted anything, so both are live claimants.
 func mergedPathsFor(head, base, trunk map[int][]string) map[int][]string {
 	merged := map[int][]string{}
 	ids := map[int]bool{}
@@ -139,7 +147,7 @@ func mergedPathsFor(head, base, trunk map[int][]string) map[int][]string {
 	for id := range ids {
 		deleted := map[string]bool{}
 		for _, p := range base[id] {
-			if !containsPath(head[id], p) {
+			if !containsPath(head[id], p) || !containsPath(trunk[id], p) {
 				deleted[p] = true
 			}
 		}

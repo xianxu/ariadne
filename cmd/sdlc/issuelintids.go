@@ -147,7 +147,11 @@ func idListing(ref, issuesDir, historyDir string, r gitRunner) (string, error) {
 	for _, dir := range dirs {
 		out, err := r.Git("ls-tree", "--name-only", ref, dir+"/")
 		if err != nil {
-			continue
+			// Same rule as the other two read sites (#213 BR-7/BR-15): a partial
+			// listing parses as a clean tree, so it would report "no duplicates"
+			// having seen a fraction of them. ls-tree exits 0 printing nothing
+			// for a directory absent from the ref, so this is a real failure.
+			return "", fmt.Errorf("ls-tree %s %s/: %v\n%s", ref, dir, err, out)
 		}
 		b.Write(out)
 		b.WriteString("\n")

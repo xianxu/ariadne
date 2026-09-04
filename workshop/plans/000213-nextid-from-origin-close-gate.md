@@ -301,6 +301,87 @@ rounds:
           family: docs-lag-new-surface
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-03T17:49:32-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: 'Verified live — fresh repo under /tmp (→/private/tmp) with no workshop/history: lint reported the planted duplicate instead of skipping.'
+          round: 3
+        - id: BR-13
+          disposition: addressed
+          note: The named instance is fixed (real PR 109 replay, base 008f7e3^1 / head 008f7e3^2 → exit 0), but the class is not swept — see the new Critical.
+          round: 3
+        - id: BR-14
+          disposition: addressed
+          note: Verified — a branch adding 000500-agent-a.md and 000500-agent-b.md now exits 1 rather than labelling them pre-existing and passing.
+          round: 3
+        - id: BR-8
+          disposition: not-addressed
+          note: Three listing parsers and three rev-parse+ls-tree IO shells still present, unchanged across all three rounds.
+          round: 3
+        - id: BR-9
+          disposition: not-addressed
+          note: atlas/workflow/ci-merge-check.md lines 30-46 unchanged; the prose still renders inside the code fence.
+          round: 3
+        - id: BR-10
+          disposition: not-addressed
+          note: helptext/issue.md SUBCOMMANDS still omits lint-ids, and now also the new --trunk flag added in 65aea14.
+          round: 3
+        - id: BR-11
+          disposition: not-addressed
+          note: merge.go:336 still gates on !f.NoValidate; merge.md FLAGS still documents neither gate.
+          round: 3
+        - id: BR-12
+          disposition: not-addressed
+          note: Still unbounded, and now at two call sites (issueids.go:83 and :246) rather than one.
+          round: 3
+        - id: BR-15
+          disposition: not-addressed
+          note: idListing (issuelintids.go:149) still does `continue`; issueFilesByID's fix is pinned by no test — reverting issueids.go:303 to `continue` leaves the suite green.
+          round: 3
+        - id: BR-16
+          disposition: not-addressed
+          note: The explicit refspec landed in Go only; scripts/merge-checks.d/40-duplicate-issue-id.sh:65 still runs `git fetch --quiet origin main`. Re-measured on a single-branch clone with a narrow refspec — plain form leaves origin/main unresolvable, explicit form resolves it. Sibling site — introducedIDClashes at issuelintids.go:120-124 silently substitutes baseByID when the trunk read fails.
+          round: 3
+        - id: BR-17
+          disposition: not-addressed
+          note: No doc home moved this round, and 65aea14 added a new one — the --trunk flag and the merge-result model appear in no helptext or atlas entry. sdlc-binary.md:187 still describes only a branch-vs-trunk comparison; ci-merge-check.md still describes the pre-BR-6 skip conditions and build location.
+          round: 3
+      findings:
+        - id: BR-18
+          severity: Critical
+          title: mergedPathsFor honours deletions by head but not by the trunk, so every PR open across an issue archive on main is falsely refused
+          detail: |-
+            This is the 3rd finding in family gate-predicate-ignores-range-delta. Earlier rounds fixed
+            instances. Do NOT fix this instance — the rule is that the predicate models a three-way merge
+            and must be SYMMETRIC in head and trunk — a path at base and absent on EITHER side was deleted
+            by that side and cannot survive. cmd/sdlc/issueids.go:142 subtracts only base minus head. The
+            formula should read merged(id) = (trunk ∪ head) − (base − head) − (base − trunk).
+            Measured with sdlc built at 65aea14 against a real repo plus bare origin — branch cut, then
+            main runs `git mv workshop/issues/000007-x.md workshop/history/issues/000007-x.md` (what
+            `sdlc merge` does on EVERY close), branch untouched. `sdlc issue lint-ids --base $mergebase
+            --trunk origin/main --head HEAD` exits 1 with "#000007 would be claimed by 2 files after
+            merge"; the CI adapter 40-duplicate-issue-id.sh exits 1 on the same fixture; `git merge`
+            produces exactly one file. refuseDuplicateIssueIDs shares the predicate, so the local gate at
+            merge.go step 4.6 dies identically. This is BR-13's failure mode on the mirror axis and would
+            fail the required status check on nearly every concurrently-open PR in the fleet.
+            The enumeration the class implies is {add, delete, rename/move} x {head, trunk} plus
+            both-sides; the table at issueids_test.go:522 has only the head column, and its row "trunk
+            archived it while the branch edited it in place" asserts wantIDs [7] — the defect written down
+            as the expectation. I verified the symmetric predicate against all ten shapes (head archives,
+            trunk archives, head renames, trunk renames, head renumbers, cut-then-publish, second path for
+            a live id, pre-existing duplicate, two-files-one-id on a branch, both sides archive): 10/10,
+            including the two the current code fails and every one it currently passes.
+            Two more members to sweep in the SAME round — refuseDuplicateIssueIDs (issueids.go:255-261)
+            leaves base empty when merge-base is unresolvable or its read fails, which erases all deletion
+            information and refuses everything; and runIssueLintIDs (issuelintids.go:79-82) labels every
+            DuplicateIDsInRef hit on head "pre-existing" without consulting base, so an id the range
+            introduces is now reported as both pre-existing and introduced.
+          family: gate-predicate-ignores-range-delta
+          round: 3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#213 (boundary-review)
@@ -487,16 +568,59 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   sdlc-binary.md correct; README not applicable (issue verbs are not listed there).
   Three of five homes wrong - sweep the list.
 
+## Round 3 — 2026-09-03T17:49:32-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-3 — addressed — Verified live — fresh repo under /tmp (→/private/tmp) with no workshop/history: lint reported the planted duplicate instead of skipping.
+- BR-13 — addressed — The named instance is fixed (real PR 109 replay, base 008f7e3^1 / head 008f7e3^2 → exit 0), but the class is not swept — see the new Critical.
+- BR-14 — addressed — Verified — a branch adding 000500-agent-a.md and 000500-agent-b.md now exits 1 rather than labelling them pre-existing and passing.
+- BR-8 — not-addressed — Three listing parsers and three rev-parse+ls-tree IO shells still present, unchanged across all three rounds.
+- BR-9 — not-addressed — atlas/workflow/ci-merge-check.md lines 30-46 unchanged; the prose still renders inside the code fence.
+- BR-10 — not-addressed — helptext/issue.md SUBCOMMANDS still omits lint-ids, and now also the new --trunk flag added in 65aea14.
+- BR-11 — not-addressed — merge.go:336 still gates on !f.NoValidate; merge.md FLAGS still documents neither gate.
+- BR-12 — not-addressed — Still unbounded, and now at two call sites (issueids.go:83 and :246) rather than one.
+- BR-15 — not-addressed — idListing (issuelintids.go:149) still does `continue`; issueFilesByID's fix is pinned by no test — reverting issueids.go:303 to `continue` leaves the suite green.
+- BR-16 — not-addressed — The explicit refspec landed in Go only; scripts/merge-checks.d/40-duplicate-issue-id.sh:65 still runs `git fetch --quiet origin main`. Re-measured on a single-branch clone with a narrow refspec — plain form leaves origin/main unresolvable, explicit form resolves it. Sibling site — introducedIDClashes at issuelintids.go:120-124 silently substitutes baseByID when the trunk read fails.
+- BR-17 — not-addressed — No doc home moved this round, and 65aea14 added a new one — the --trunk flag and the merge-result model appear in no helptext or atlas entry. sdlc-binary.md:187 still describes only a branch-vs-trunk comparison; ci-merge-check.md still describes the pre-BR-6 skip conditions and build location.
+
+### Raised
+
+- **BR-18** [Critical] `gate-predicate-ignores-range-delta` mergedPathsFor honours deletions by head but not by the trunk, so every PR open across an issue archive on main is falsely refused
+  This is the 3rd finding in family gate-predicate-ignores-range-delta. Earlier rounds fixed
+  instances. Do NOT fix this instance — the rule is that the predicate models a three-way merge
+  and must be SYMMETRIC in head and trunk — a path at base and absent on EITHER side was deleted
+  by that side and cannot survive. cmd/sdlc/issueids.go:142 subtracts only base minus head. The
+  formula should read merged(id) = (trunk ∪ head) − (base − head) − (base − trunk).
+  Measured with sdlc built at 65aea14 against a real repo plus bare origin — branch cut, then
+  main runs `git mv workshop/issues/000007-x.md workshop/history/issues/000007-x.md` (what
+  `sdlc merge` does on EVERY close), branch untouched. `sdlc issue lint-ids --base $mergebase
+  --trunk origin/main --head HEAD` exits 1 with "#000007 would be claimed by 2 files after
+  merge"; the CI adapter 40-duplicate-issue-id.sh exits 1 on the same fixture; `git merge`
+  produces exactly one file. refuseDuplicateIssueIDs shares the predicate, so the local gate at
+  merge.go step 4.6 dies identically. This is BR-13's failure mode on the mirror axis and would
+  fail the required status check on nearly every concurrently-open PR in the fleet.
+  The enumeration the class implies is {add, delete, rename/move} x {head, trunk} plus
+  both-sides; the table at issueids_test.go:522 has only the head column, and its row "trunk
+  archived it while the branch edited it in place" asserts wantIDs [7] — the defect written down
+  as the expectation. I verified the symmetric predicate against all ten shapes (head archives,
+  trunk archives, head renames, trunk renames, head renumbers, cut-then-publish, second path for
+  a live id, pre-existing duplicate, two-files-one-id on a branch, both sides archive): 10/10,
+  including the two the current code fails and every one it currently passes.
+  Two more members to sweep in the SAME round — refuseDuplicateIssueIDs (issueids.go:255-261)
+  leaves base empty when merge-base is unresolvable or its read fails, which erases all deletion
+  information and refuses everything; and runIssueLintIDs (issuelintids.go:79-82) labels every
+  DuplicateIDsInRef hit on head "pre-existing" without consulting base, so an id the range
+  introduces is now reported as both pre-existing and introduced.
+
 ## Open findings
 
-- **BR-3** [Important] `dir-containment-false-negative` repoRelativeIDDirs rejects a not-yet-created id dir whenever the repo root is reached through a symlink, silently disabling every layer
 - **BR-8** [Minor] `duplicated-listing-parser` Three near-identical ls-tree listing parsers and two identical rev-parse+ls-tree IO shells (ARCH-DRY)
 - **BR-9** [Minor] `docs-lag-new-surface` atlas/workflow/ci-merge-check.md renders the new prose inside a fenced code block
 - **BR-10** [Minor] `docs-lag-new-surface` `issue lint-ids` is missing from the SUBCOMMANDS list in cmd/sdlc/helptext/issue.md
 - **BR-11** [Minor] `gate-bypass-flag-granularity` The duplicate-id gate is bundled behind --no-validate rather than its own --no-<gate> flag
 - **BR-12** [Minor] `unbounded-external-call` `git fetch origin main` on every `sdlc issue new` has no timeout (ARCH-CONSTRAINTS)
-- **BR-13** [Critical] `gate-predicate-ignores-range-delta` Archiving or renaming an issue file is refused as a reused id by both the CI check and the merge gate
-- **BR-14** [Important] `gate-predicate-ignores-range-delta` A within-ref duplicate the range introduces is labelled pre-existing and passes, contradicting Done-when
 - **BR-15** [Important] `silent-degradation-in-allocator` BR-7's class was fixed at one of three sites; issueFilesByID and idListing still swallow ls-tree failures
 - **BR-16** [Important] `gate-compares-wrong-baseline` git fetch origin main does not guarantee refs/remotes/origin/main, so CI can fall back to the merge-base baseline BR-1 proved blind
 - **BR-17** [Minor] `docs-lag-new-surface` atlas ci-merge-check.md still describes the pre-BR-6 skip conditions; three of five doc homes for this surface are wrong
+- **BR-18** [Critical] `gate-predicate-ignores-range-delta` mergedPathsFor honours deletions by head but not by the trunk, so every PR open across an issue archive on main is falsely refused

@@ -571,13 +571,21 @@ func TestMergedPathsFor_ModelsTheMergeResult(t *testing.T) {
 			wantIDs: []int{500},
 		},
 		{
-			name:  "trunk archived it while the branch edited it in place",
+			// BR-18, and this table asserted the WRONG answer first: I encoded
+			// the false refusal as expected behaviour. Honouring only head's
+			// deletions meant every PR open across a close on main was refused —
+			// most PRs. Deletions count from EITHER side.
+			name:  "trunk archived it while the PR was open",
 			base:  map[int][]string{7: {"workshop/issues/000007-x.md"}},
 			head:  map[int][]string{7: {"workshop/issues/000007-x.md"}},
 			trunk: map[int][]string{7: {"workshop/history/issues/000007-x.md"}},
-			// head did not delete the live path and trunk added the archived one:
-			// both survive, which IS a real contradiction to surface
-			wantIDs: []int{7},
+		},
+		{
+			name:    "both sides ADD a file for one id — neither deleted anything",
+			base:    map[int][]string{},
+			head:    map[int][]string{8: {"workshop/issues/000008-mine.md"}},
+			trunk:   map[int][]string{8: {"workshop/issues/000008-theirs.md"}},
+			wantIDs: []int{8},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
