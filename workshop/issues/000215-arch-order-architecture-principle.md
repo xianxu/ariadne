@@ -184,3 +184,86 @@ concurrent work. The chain, kept because the entry's *shape* is downstream of it
 Also considered and rejected: folding this into `ARCH-PURE` as an extra bullet.
 `ARCH-PURE`'s IO list is an enumeration of *members*; the gap here is a
 difference in *kind*, so it earns a sibling.
+
+## Revisions
+
+### 2026-09-04 — fresh-eyes review of the Spec
+
+Reason: spec review before implementation. Five wording deltas to the draft
+entry; two raised findings withdrawn. The Plan's wiring steps are unchanged.
+
+**Withdrawn — the entry is one principle, not two.** The review first read the
+draft as bundling illegal-state-modeling with ordering under one marker, and the
+`at-plan` `N/A` clause as mis-scoped to only the latter. It isn't: the principle
+bullet's own first sentence names "the legal states **and** the transitions
+between them," and those are two halves of one enumeration — a transition table
+cannot be written over a 2^N implicit state space, so the tagged enum is the
+*precondition* for the ordering work rather than a separate concern. The trigger
+is consistent across all three bullets (`at-review` clause 1 already reads
+"state whose transition set cannot be read off the code"), and the `N/A` clause
+is correctly scoped as written. Residue: see delta 2.
+
+**Withdrawn — no collision with the anti-state-machine stance.**
+`atlas/workflow/sdlc-binary.md:1251` ("Do not formalize the workflow into a state
+machine") was read as contradicting the principle's `(state, event) -> (state,
+effects)` instruction at `start-plan`. It does not. That sentence guards against
+prematurely modeling *the SDLC process* as an FSM — checkpoint gates over prose
+stages, kept deliberately flexible — and ARCH-ORDER's trigger ("a component holds
+state across events arriving from outside it") already scopes to components, not
+to the process the org runs. The `.git/sdlc.lock` release/reacquire-with-HEAD-
+recheck dance is a component and fires correctly; "formalize the SDLC" is not and
+does not. No disambiguating clause needed.
+
+**Deltas to apply:**
+
+1. **Distinguish ARCH-ORDER from ARCH-SECURE in the principle bullet.** The
+   Problem section's gap analysis rules out ARCH-PURE, ARCH-CONSTRAINTS and
+   ARCH-MOCK but never mentions ARCH-SECURE, which already carries "prefer
+   making invalid state unrepresentable — parse input into a typed value at the
+   boundary" (`architecture.md:125`). Both entries will use the word
+   "unrepresentable" and a reader needs to know which fires. Add one sentence:
+   ARCH-SECURE is a **single-shot parse by provenance at a boundary**;
+   ARCH-ORDER is the state **carried between events**. Temporal, not
+   provenance-based.
+
+2. **Scope the `2^N` sentence to event-bearing state.** "N boolean/nullable
+   fields declare 2^N states and usually mean about five, and the bugs live in
+   the difference" reads, lifted out of the bullet, as a general data-modeling
+   claim with no event trigger — and it is the sentence a reviewer will quote
+   when firing on a synchronous flag constellation the entry does not intend to
+   cover. Tie it to state held across events.
+
+   Accepted consequence: illegal-state modeling for state that is neither
+   event-driven nor a boundary parse has no home in the registry. Left as a
+   known gap (YAGNI) — coin an entry if it recurs.
+
+3. **Record the in-fleet origin in `## Log`.** The Problem section argues from
+   general agentic-coding failure, which is a claim about LLMs rather than about
+   this fleet — the shape `atlas/workflow/architecture-principles.md` explicitly
+   contrasts ARCH-SECURE's grounding against. The real origin is the **many
+   rounds worked through against couch's various models when starting up pair**,
+   and the distinct failure modes that surfaced there; that is what triggered the
+   brain discussion this issue's Log already records. Land the pointer now so the
+   pair-actor consult (post-draft, to add specifics) has an anchor rather than
+   reconstructing it.
+
+4. **Separate `at-review` clause 2 from ARCH-CONSTRAINTS.** "Concurrent work
+   whose extent is not lexically bounded" sits next to ARCH-CONSTRAINTS'
+   "unbounded concurrency or fan-out" and will be conflated. Half a sentence:
+   ARCH-ORDER is **lifetime/extent** (who is still running at return, who is
+   cancelled on failure), ARCH-CONSTRAINTS is **capacity** (how many at once).
+
+5. **Correct the Done-when consumer enumeration.** It names "plan-quality,
+   start-plan, and code-review." `judge_test.go:330` asserts four `BuildPrompt`
+   categories embed the registry — `PlanQuality`, `MilestoneReview`, `DRY`,
+   `PURE` — plus both `ArchitectureBlock` lenses (`start-plan`,
+   `arch-principles`) and `CodeReviewBody`. Everything derives from
+   `ArchitectureMarkers()`, so this is not a correctness risk; but an incomplete
+   consumer list is the wrong thing to ship in the registry that defines the
+   ARCH-PURPOSE shadow-sweep.
+
+**Confirmed unchanged:** the Plan's five steps. The wiring surface really is
+registry + the one hand-written marker list (`judge_test.go:363`) + goldens: the
+block header count is derived (`architecture.go:53`), `{{ARCH_STAR}}` is derived
+(`review.go:44`), and `TestDeferredPrinciplesReachNoGate` stays green because
+ARCH-AUTHORITY keeps the deferred file's verdict at `guard`.
