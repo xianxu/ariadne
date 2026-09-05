@@ -59,6 +59,16 @@ Consequence for the entry's shape: the at-plan lens must **not** spend the
 operator's attention on cells conventional UX already answers. It should point
 only at the events the caller cannot block, where the prior is genuinely diffuse.
 
+The argument above is about LLMs in general; the evidence is from this fleet. The
+origin is the many rounds worked through against couch's models when starting up
+pair, and `pair#182`/`#185` supply the cases: one feature designed correctly
+*because* it was treated as an ordering problem (couch's park-then-resume, four
+named outcomes each with its own recovery, no defects in that part), four defects
+that were ordering defects found late, and — on the reviewer, not the reviewed —
+`go test -race` recorded as close evidence from a single run of a test that fails
+3 in 10. Point 4 above is a transcript, not a theory. Detail and per-defect
+attribution: `## Revisions`, second round.
+
 ## Spec
 
 Add a seventh registry entry to `cmd/sdlc/internal/judge/architecture.md`. Named
@@ -68,7 +78,9 @@ narrow (durable state + events from outside), and the entry carries an explicit
 `N/A` clause, matching the gating idiom already set by `ARCH-CONSTRAINTS` and
 `ARCH-SECURE`.
 
-Draft entry text (final wording is the implementer's; the clauses are the spec):
+Entry text, post-revision — the eight deltas from `## Revisions` are folded in
+here, so THIS block is the current version and Revisions is the changelog. Final
+prose is the implementer's; the clauses are the spec.
 
 ```markdown
 ## ARCH-ORDER — Make the ordering explicit
@@ -79,31 +91,43 @@ Draft entry text (final wording is the implementer's; the clauses are the spec):
   `(state, event) -> (state, effects)` enumeration rather than a constellation
   of independent flags whose legal combinations are unwritten. Where ARCH-PURE
   separates logic from IO, this separates **legal** state from **representable**
-  state: N boolean/nullable fields declare 2^N states and usually mean about
-  five, and the bugs live in the difference. Concurrency does not need a new
-  effect abstraction — it needs the interleaving space written down where a
-  reader, a type checker, and a test generator can all see it.
+  state: N boolean/nullable fields carried across events declare 2^N states and
+  usually mean about five, and the bugs live in the difference. The lens is
+  *temporal*, not provenance-based — ARCH-SECURE makes invalid state
+  unrepresentable at a single-shot parse of input the component did not produce;
+  this makes it unrepresentable in the state a component carries **between
+  events**. Concurrency does not need a new effect abstraction — it needs the
+  interleaving space written down where a reader, a type checker, and a test
+  generator can all see it.
 - **at-plan:** For a component with durable state and external events, enumerate
   states x events -> (state, effects), including the interrupting ones. Do not
-  re-litigate what conventional UX already settles (block input, show a
-  spinner) — that policy is advisory and UI-local. Spend the enumeration on the
-  events the caller **cannot** block: process death mid-transition, connection
-  loss, session/tab close, retry of an already-applied step, a second actor on
-  the same state, completions arriving out of order. For each, say which of
-  cancel / queue / preempt / ignore applies and whether state rolls back. Name
-  the extent of any concurrent work — who is still running when this returns,
-  who is cancelled when this fails. Name where nondeterminism enters (clock,
-  scheduler, IO completion order, arrival order) and how a failing ordering is
-  reproduced. Mark `N/A` for pure transforms and request/response paths that
-  hold no state between events; do not fill a ceremonial checklist.
-- **at-review:** Flag state whose transition set cannot be read off the code —
-  boolean/nullable constellations with unwritten legal combinations, where
-  `isLoading && err != nil && data != nil` is reachable and undefined; name the
-  tagged enum they should collapse into. Flag concurrent work whose extent is
-  not lexically bounded (a spawned task outliving its scope, no cancellation
-  path). Flag an error or cancellation path that unwinds the sequencing but
-  drops the in-flight effect. Flag tests that can only observe one interleaving
-  — no seam to inject ordering, no way to reproduce a reported failure.
+  re-litigate what conventional UX already settles (block input, show a spinner)
+  — that policy is advisory and UI-local. Spend the enumeration on the events the
+  caller **cannot** block: process death mid-transition, connection loss,
+  session/tab close, retry of an already-applied step, a second actor on the same
+  state, completions arriving out of order. Target rather than sweep — name which
+  of those apply here and why the rest do not, and for each that applies say
+  which of cancel / queue / preempt / ignore governs it and whether state rolls
+  back. One sentence naming the event most likely to be mishandled beats six
+  cells filled in. Name the extent of any concurrent work — who is still running
+  when this returns, who is cancelled when this fails — where nondeterminism
+  enters (clock, scheduler, IO completion order, arrival order), and how a
+  failing ordering is reproduced. `N/A` is a claim that can be wrong: write it as
+  "holds no state between events because X", never as a bare marker — a bare one
+  is exactly what the author who cannot see the ordering will write.
+- **at-review:** Flag tests that can only observe one interleaving — no seam to
+  inject ordering, no way to reproduce a reported failure. A green run of such a
+  test is a sample of size one that reports no coverage, so it confirms whichever
+  ordering the author happened to get; this is the highest-leverage flag in the
+  entry, because it attacks the oracle rather than the code. Flag state whose
+  transition set cannot be read off the code — boolean/nullable constellations
+  with unwritten legal combinations, where `isLoading && err != nil && data !=
+  nil` is reachable and undefined; name the tagged enum they should collapse
+  into. Flag concurrent work whose **extent** is not lexically bounded: a spawned
+  task outliving its scope, no cancellation path. Extent is lifetime — who is
+  still running at return; ARCH-CONSTRAINTS' "unbounded concurrency" is capacity
+  — how many run at once. Flag an error or cancellation path that unwinds the
+  sequencing but drops the in-flight effect.
 ```
 
 Deliberately **not** in scope: prescribing an effect system. The discipline
@@ -122,29 +146,59 @@ Adoption is not the argument for that split, and this issue does not claim it is
 ## Done when
 
 - `sdlc arch-principles` renders seven entries, `ARCH-ORDER` among them, and its
-  header count reads 7.
-- `ARCH-ORDER` passes the same per-entry contract check the other markers
-  satisfy (`architectureEntry` + the `principle:` / `at-plan:` / `at-review:`
-  bullet contract in `judge_test.go`).
-- `TestArchitectureMarkers`' hand-written `want` list includes `ARCH-ORDER` in
-  registry order, and `TestDeferredPrinciplesReachNoGate` stays green.
-- The plan-quality, start-plan, and code-review prompts all carry the marker via
-  `{{ARCH_STAR}}` (derived — no new hardcoded list), with goldens re-captured.
-- `atlas/workflow/architecture-principles.md` documents the entry and the
-  `ARCH-PURE` boundary (different purity-breaker, sibling not bullet).
+  header count reads 7 — derived from `len(ArchitectureMarkers())`
+  (`architecture.go:57`), so no count is edited by hand.
+- `ARCH-ORDER` satisfies the generic per-entry contract:
+  `TestArchitectureRegistry_Content` (`judge_test.go:119`), which derives its
+  marker set from `ArchitectureMarkers()` and requires a `## ARCH-ORDER` heading
+  plus all three of `**principle:**` / `**at-plan:**` / `**at-review:**`. (NOT
+  `architectureEntry` — that helper has exactly one caller,
+  `constraintsContractViolations` at `judge_test.go:222`, and is
+  ARCH-CONSTRAINTS-specific machinery.)
+- The entry's prose introduces no `ARCH-<NAME>` token lacking its own `##`
+  heading. `markersIn` (`architecture.go:29`) scans the whole registry, so a bare
+  mention becomes a phantom marker and trips
+  `TestArchitectureRegistry_Content`'s "found it in prose only" branch. The
+  entry cites ARCH-PURE, ARCH-SECURE and ARCH-CONSTRAINTS (all headed, all safe);
+  the Spec's `ARCH-FSM` naming rationale stays in the issue and out of the entry.
+- `TestArchitectureMarkers`' hand-written `want` list (`judge_test.go:363`)
+  includes `ARCH-ORDER` last in registry order, and
+  `TestDeferredPrinciplesReachNoGate` stays green — ARCH-AUTHORITY keeps the
+  deferred file's verdict at `guard`.
+- Every registry consumer carries the marker with no new hardcoded list. The
+  mechanism is three paths, not one:
+  - four `BuildPrompt` categories via `{{ARCH_BLOCK}}` -> `ArchitectureBlock`
+    (`prompts.go:60`) — `PlanQuality`, `MilestoneReview`, `DRY`, `PURE`, pinned
+    at `judge_test.go:328`;
+  - `start-plan` and `arch-principles` via a direct `judge.ArchitectureBlock`
+    call (`startplan.go:75`);
+  - `code-review.md:112` via `{{ARCH_STAR}}` -> `ArchitectureMarkers()`
+    (`review.go:44`) — the one and only template using that token.
+- The four registry-bearing goldens are re-captured — `dry.prompt`,
+  `milestone-review.prompt`, `plan-quality.prompt`, `pure.prompt` — and their
+  diff inspected to contain only the ARCH-ORDER block plus the header count
+  `6` -> `7`.
+- `atlas/workflow/architecture-principles.md` documents the entry, the count, and
+  both boundaries: ARCH-PURE (different purity-breaker — sibling, not bullet) and
+  ARCH-SECURE (provenance vs. temporal).
 
 ## Plan
 
 - [ ] Add the `ARCH-ORDER` section to `cmd/sdlc/internal/judge/architecture.md`
-      after `ARCH-SECURE`; keep the `principle:`/`at-plan:`/`at-review:` bullet
-      contract.
+      after `ARCH-SECURE`, from the Spec's entry block verbatim — that block is
+      post-revision (all eight deltas folded in), so no replay of `## Revisions`
+      is needed. Keep the `principle:`/`at-plan:`/`at-review:` bullet contract.
+- [ ] Confirm the entry introduces no unheaded `ARCH-<NAME>` token (no
+      `ARCH-FSM`), so `markersIn` still finds exactly seven markers.
 - [ ] Add `ARCH-ORDER` to the hand-written `want` list in
-      `TestArchitectureMarkers` (the deliberate non-derived tripwire — see its
-      comment; do not "fix" it by deriving).
-- [ ] Re-capture goldens; confirm `{{ARCH_STAR}}` expansion carries the marker
-      into all three prompts with no other hardcoded list needing an edit.
+      `TestArchitectureMarkers` (`judge_test.go:363`) — the deliberate
+      non-derived tripwire; do not "fix" it by deriving.
+- [ ] Re-capture the four registry-bearing goldens (`-update-golden`) and READ
+      the diff: only the ARCH-ORDER block and the header count `6` -> `7` may
+      appear. `golden_test.go:35` forbids re-capture used to paper over drift, so
+      an unrelated prompt edit riding along is a stop, not a pass.
 - [ ] Update `atlas/workflow/architecture-principles.md`: the entry, the count,
-      and the ARCH-PURE/ARCH-ORDER boundary.
+      the ARCH-PURE boundary, and the new ARCH-SECURE boundary.
 - [ ] Verify: `sdlc arch-principles` shows 7; `go test ./cmd/sdlc/...` green.
 
 ## Log
