@@ -1,11 +1,12 @@
 ---
 id: 000215
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-04
 updated: 2026-09-04
 estimate_hours:
+started: 2026-09-04T21:49:32-07:00
 ---
 
 # ARCH-ORDER architecture principle
@@ -267,3 +268,89 @@ registry + the one hand-written marker list (`judge_test.go:363`) + goldens: the
 block header count is derived (`architecture.go:53`), `{{ARCH_STAR}}` is derived
 (`review.go:44`), and `TestDeferredPrinciplesReachNoGate` stays green because
 ARCH-AUTHORITY keeps the deferred file's verdict at `guard`.
+
+### 2026-09-04 — second fresh-eyes review, from a pair-actor session
+
+Reason: the operator asked for a read from the session that had just spent a day
+inside `pair#182`/`#185`, which is the in-fleet evidence delta 3 says this issue
+is missing. Verdict, deltas, and that evidence, in that order.
+
+**Verdict: the gap is real and the entry earns its place.** Verified the premises
+rather than reading them back: the registry does have six entries, and
+`architecture.md:125` does carry "prefer making invalid state unrepresentable"
+under ARCH-SECURE — so delta 1's collision is real, not hypothetical. The
+rejection of folding into `ARCH-PURE` holds for the stated reason: IO breaks
+purity by *doing* something, concurrency by making the order of what already
+happened unreadable from the text. Different tell, different lens. `ARCH-ORDER`
+over `ARCH-FSM` is right — naming the question is what stops it becoming state
+machine cargo cult.
+
+**The strongest passage is Problem points 3–4, and it is stronger than the issue
+claims for it.** "Conventional UX removes the *common* interleaving, making the
+residual bug rare rather than absent, and thereby destroys the smoke-test
+signal", together with "a human smoke test is a sampler over interleavings with
+sample size 1 and no coverage report", is the actual mechanism. The failure is
+not that agents write bad concurrent code — it is that the feedback loop confirms
+whichever policy got sampled.
+
+#### Three deltas
+
+1. **`at-plan` risks being the ceremony it warns against.** It says do not
+   re-litigate what conventional UX settles, then lists six unblockable events
+   and asks for a cancel/queue/preempt/ignore + rollback decision "for each". Six
+   cells per component is a checklist, and the `N/A` clause does not save it
+   because the sweep happens before the N/A judgment. The entry's own best
+   insight argues for targeting rather than sweeping: `await` made the modal case
+   free and pushed all residual entropy onto cancellation and error propagation.
+   Suggest asking which of the six actually applies here and why the rest do not
+   — one sentence naming the event most likely to be mishandled beats six cells
+   filled in.
+
+2. **The `N/A` clause has an inverted failure mode.** Matching
+   `ARCH-CONSTRAINTS`/`ARCH-SECURE` is right for consistency, but this
+   principle's own premise is that the failure is INVISIBLE to the author —
+   "there is no position in the token stream where 'and the user can cancel here'
+   is representable". The author who cannot see the ordering is exactly the
+   author who marks it `N/A`. Make `N/A` a claim that can be wrong: require
+   naming what makes the component stateless ("holds no state between events
+   because X"), not a bare marker.
+
+3. **`at-review` clause 4 is buried and should not be.** "Flag tests that can
+   only observe one interleaving" is the only clause attacking the ORACLE rather
+   than the code, and it is the highest-leverage one in the entry. It currently
+   sits last in a long bullet behind three clauses about code shape.
+
+#### In-fleet evidence for delta 3
+
+Delta 3 asks for the pair-actor consult to anchor the Problem section in this
+fleet rather than in a claim about LLMs. From `pair#182` (relaunch) and
+`pair#185` (status-row notices), 2026-09-04:
+
+- **Designed right BECAUSE it was treated as ordering.** couch's relaunch is
+  park-then-resume, and the whole design is the order of the checks: every
+  refusal that can be seen is raised before the destructive step. Its four
+  outcomes — `Relaunched` / `RefusedBeforePark` / `ParkIncomplete` /
+  `ParkedNotResumed` — each name their own recovery. That is
+  `(state, event) -> (state, effects)` with a rollback policy per cell, written
+  before the code, and it is the part of the feature that had no defects.
+- **Four defects that were ordering defects, all found late.** (a) A background
+  inventory refresh landing mid-operation judged that operation's own
+  confirmation stale — an unblockable event arriving mid-transition — and erased
+  the recovery message on the one outcome that needed it. (b) An exemption keyed
+  on thread address rather than the owning operation: wrong granularity for "who
+  owns this transition". (c) An expected-exit marker applied by SLOT rather than
+  by handle, so after a replace-in-place it marked the replacement and would have
+  swallowed that child's first real death. (d) `pair#168`: a trailing `launch`
+  ledger row with no `binding` shadows a good binding and strands a live session
+  — completion arriving out of order, plus process death mid-transition.
+- **The broken oracle, confirmed on the reviewer rather than the reviewed.** I
+  recorded "`go test -race` passes" as close evidence. It came from ONE run of a
+  test that fails 3 in 10. That is precisely "sample size 1, no coverage report,
+  biased toward passing", and a boundary reviewer caught it, not the test loop.
+  Point 4 of the Problem section is not a theory here; it is a transcript.
+
+Each of (a)–(d) would have been caught by the `at-plan` clause as drafted, and
+(d) by the `at-review` clause on completions arriving out of order. That is the
+argument for the entry that the Problem section is currently making from
+generalities about LLMs.
+
