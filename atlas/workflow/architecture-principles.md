@@ -57,6 +57,39 @@ and crash-bug markers respectively. Trust is treated as a property of
 *provenance*: an artifact this same program wrote is untrusted once it has
 crossed a process, session, or version boundary.
 
+`ARCH-ORDER` (#215) is the temporal lens: it fires on a component that carries
+state between externally-arriving events, and asks for the transition set to be
+written down rather than left to emerge from the code. The clauses live in the
+registry — what needs saying here is where the entry sits relative to two
+neighbours it is easy to confuse with, and where it came from.
+
+- **ARCH-PURE** is a *sibling, not a bullet under it.* `ARCH-PURE` names `clock`
+  in its IO list, but its lens is business logic vs. IO — "don't bury logic in
+  handlers." IO breaks purity by *doing* something; ordering breaks it by making
+  the order of what already happened unreadable from the text. Different
+  purity-breaker, different tell. Folding this in as an extra ARCH-PURE bullet
+  was rejected on that basis: that entry's IO list enumerates *members*, and this
+  is a difference in *kind*.
+- **ARCH-SECURE** also reaches for "invalid state unrepresentable," and the split
+  is **provenance vs. temporal**: ARCH-SECURE applies it at a single-shot parse
+  of input the component did not produce, ARCH-ORDER to state carried across
+  events. Illegal-state modeling that is neither — a flag constellation in
+  synchronous state with no external events — has no registry home on purpose
+  (YAGNI); coin an entry if it recurs.
+
+Two shaping choices to know before editing the entry, both deliberate and both
+easy to undo by accident: `at-plan` **targets rather than sweeps** (it rules
+conventional UX out of scope and asks which unblockable events apply here, not
+for a filled-in matrix), and `at-review` **leads with the oracle clause** rather
+than with a code-shape one. The entry itself carries the reasoning for both.
+
+Like `ARCH-SECURE`, its clauses are grounded in defects this fleet shipped rather
+than a generic checklist — `pair#182`/`#185`, where couch's park-then-resume was
+designed correctly *because* it was treated as an ordering problem (four named
+outcomes, each with its own recovery) while four separate defects there were
+ordering defects found late, and `go test -race` was recorded as close evidence
+from a single run of a test that fails 3 in 10.
+
 ## Deferred principles (documented, not gated)
 
 `cmd/sdlc/internal/judge/architecture-deferred.md` holds principles written down
@@ -107,6 +140,24 @@ tripwire that makes an accidental registry edit visible, so it is deliberate —
 do not "fix" it by deriving it, or the suite would assert nothing about the
 registry's contents. Every other site derives from `ArchitectureMarkers()`.
 
-So a new entry touches: `architecture.md`, that one list, and the goldens
-(`-update-golden`). Before #208 it silently touched five places, three of which
-would have kept passing while covering nothing.
+So a new entry touches FOUR things: `architecture.md`, that one list, the
+goldens (`-update-golden`), and a map-level paragraph on this page. Before #208
+it silently touched five places, three of which would have kept passing while
+covering nothing.
+
+The fourth is the one with no test behind it, so its shape is written here.
+**This page gets a MAP of the entry, never a copy of it:** the boundaries against
+neighbours it is confusable with, the shaping choices a future editor could undo
+by accident, and the in-fleet defects it was drawn from. Clause text stays in
+`architecture.md` alone — a paraphrase here is a second definition site that
+nothing pins, so rewording the registry strands it (ARCH-DRY; #215 BR-1 shipped
+six such spans before they were caught, and every paragraph since ARCH-MOCK has
+needed this rule without it being written down). Same route-don't-restate
+discipline `gatefindings.go` follows above.
+
+**And nothing hand-maintained restates a derived fact.** The entry count, the
+marker list, and `{{ARCH_STAR}}` all derive from `ArchitectureMarkers()` at
+runtime. They may appear as a *verification criterion* about a derived output
+("`sdlc arch-principles` reports 7"), never as a *deliverable* an artifact
+demands someone write ("document the count"). #215 BR-3/BR-4 shipped that demand
+in a Done-when bullet and again in a Plan step.
