@@ -112,3 +112,105 @@ findings:
       section rules out. The criterion is wrong, not the implementation — drop "the
       count" from the bullet via a Revisions entry.
 ```
+
+---
+
+## Re-review — 2026-09-04T22:28:48-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 215 — ARCH-ORDER architecture principle |
+| repo | ariadne |
+| issue file | workshop/issues/000215-arch-order-architecture-principle.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 03cd1d27f810fa73b519d1f0defc689b8582e0e6..d4136d1a451b41397464609c7bca8d3e108e44ee |
+| command | sdlc close --issue 215 |
+| reviewer | claude |
+| timestamp | 2026-09-04T22:28:48-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The seventh registry entry is correctly wired and I verified every mechanical claim independently rather than reading the Log back: `sdlc arch-principles` renders 7 with a derived header count, the ARCH-ORDER entry is byte-identical inside all four `{{ARCH_BLOCK}}` goldens, `--numstat` reconciles exactly (189/5 = 46×4 entry lines + 4 header counts + 1 `{{ARCH_STAR}}` line, with the 5 deletions their counterparts), the shadow sweep finds exactly one hand-written marker list (the documented `judge_test.go:363` tripwire) and it was updated last in registry order, and the only failing test is genuinely pre-existing (`workshop/plans/000200-…` is absent, tracked as ariadne#210). BR-1's fix is real and I measured it: a 12-word-window scan of the atlas paragraph against the registry entry now finds **0** shared spans, down from 26 overlapping windows (≈6 distinct spans) pre-fix — and no sibling paragraph in the atlas restates its entry either (ARCH-SECURE/PURPOSE 0 shared 8-grams, MOCK/CONSTRAINTS 1 each). Nothing blocks the boundary. Two Minor residues remain, both the same shape: the *instances* the prior round named were fixed, but each finding's class-level rule was left unwritten — one sibling site of BR-3 still stands, and BR-1's rule has no durable home outside a `## Revisions` section headed for `workshop/history/`.
+
+## 1. Strengths
+
+- **The single-source property holds end-to-end, and it is enforced rather than documented.** `ArchitectureBlock` derives the header count from `len(ArchitectureMarkers())` (`cmd/sdlc/internal/judge/architecture.go:57`), `{{ARCH_STAR}}` derives from the same call (`review.go:44`), and `TestArchitectureRegistry_Content` (`judge_test.go:119`) derives its per-entry contract from `ArchitectureMarkers()` — so ARCH-ORDER got the heading + three-lens check for free, with no test edited to admit it. This prompt you are reading carries ARCH-ORDER, which is production confirmation, not a golden.
+- **BR-1 was swept as a class, not patched at the cited span.** The finding's line cite had drifted and the fix says so; the implementor re-derived the overlap by measurement instead of trusting the cite, then rewrote the whole paragraph to map-level. I reproduced both numbers. The surviving 11-word overlap (`at a single-shot parse of input the component did not produce`) is the unavoidable descriptor of the *neighbour* entry in a boundary sentence — that is map content, not restatement.
+- **The golden re-capture respected `golden_test.go:35` instead of citing it.** Exactly four goldens moved; `estimate-quality.prompt`, `plan.prompt`, `specs.prompt` carry no registry and correctly did not. Only `milestone-review.prompt` gained a second changed line, and it is the `{{ARCH_STAR}}` list — the one template using that token.
+- **The pre-existing-failure claim is honest.** `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` fails on a hardcoded path to an archived plan; `workshop/issues/000210-fleet-plan-test-hardcoded-path.md` tracks it and the file is absent at base too. Everything else in `./cmd/sdlc/...` is green.
+- **`TestArchitectureMarkers` was updated the right way** — appended last, in registry order, with the "do not fix this by deriving it" comment intact (`judge_test.go:352-361`). The temptation to derive the one deliberate tripwire was resisted.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+None.
+
+## 4. Minor findings
+
+- `workshop/issues/000215-arch-order-architecture-principle.md:243` — the Plan step still lists "the count" as an atlas deliverable and is ticked `[x]`, though Done-when now says the opposite. **2nd finding in family `derived-fact-restated`** (details below).
+- `atlas/workflow/architecture-principles.md:143` — "Adding an entry" enumerates three touch points and omits the atlas paragraph, so BR-1's rule is nowhere a future entry-adder will read it. **2nd finding in family `atlas-restates-single-source`** (details below).
+
+## 5. Test coverage notes
+
+Appropriate for the boundary. The three properties that could regress are each pinned by a test that would go red without the change: the marker set and its order (`TestArchitectureMarkers`), the per-entry lens contract (`TestArchitectureRegistry_Content`, derived — it covers ARCH-ORDER without being edited), and the four prompt bodies (goldens). The one prose deliverable — the atlas paragraph — is deliberately unpinned, which is correct: `TestFixTheClassLine_RoutesToArchPrinciples` is the precedent that asserting *routing* and never *wording* is what stops a doc becoming a second copy. That is why finding 2 asks for the rule in the checklist rather than a test.
+
+## 6. Architectural notes for upcoming work
+
+Working the lenses explicitly against this diff:
+
+- **ARCH-DRY** — flagged (finding 2, class-level). The instance-level duplication is gone and measured gone. The residual is that the rule preventing recurrence lives only in an issue bound for `workshop/history/`, which AGENTS.md marks "don't read."
+- **ARCH-PURE** — pass. One test-literal edit; no logic touched. The registry is a compile-time embedded string; every consumer reads it through one pure extraction (`markersIn` → `ArchitectureMarkers`).
+- **ARCH-PURPOSE** — pass on the shadow sweep, flagged on the finding-class axis (findings 1 and 2). Enumerated every consumer: four `{{ARCH_BLOCK}}` templates, two `ArchitectureBlock` callers (`startplan.go`, `archprinciples.go`), one `{{ARCH_STAR}}` template, one hand-written list. All seven derive except the deliberate tripwire. No consumer left as a hand-maintained restatement. Both remaining findings are the same pattern the entry itself warns about: the named site fixed, the enumerable sibling left.
+- **ARCH-MOCK** — N/A. No external binary or service enters the diff; the goldens are the pinned-artifact seam for prompt generation and production/test flows share it.
+- **ARCH-CONSTRAINTS** — noted only, per BR-2's own scoping. ARCH-ORDER is 531 words against ARCH-PURPOSE's 371, adding ~3.3 KB to each of six registry-bearing prompt paths. The registry has no length norm while its cost multiplies across consumers; that is a registry-level question, not a defect here.
+- **ARCH-SECURE** — N/A: the diff touches no untrusted input and no credential. Markdown compiled into the binary at build time, read by tests as string constants.
+- **ARCH-ORDER** — N/A, written as the entry demands rather than as a bare marker: the registry holds no state between events because it is an embedded compile-time constant, and every test in the window is a deterministic string assertion with no scheduler, clock, or arrival order in play. Worth noting the one order-sensitive thing that *is* pinned: `TestArchitectureMarkers` asserts registry order positionally, and `judge_test.go:395` records that the `{{ARCH_STAR}}` literal used to be order-sensitive and passed only while entries were appended after ARCH-CONSTRAINTS — exactly the "legal vs. representable" bug the new entry describes, already caught once by #208.
+
+For the next entry: the two Minors below plus BR-2 converge on one gap — the registry has an enforced mechanism but an unwritten *authoring* contract (length norm, atlas-paragraph shape, what counts as derived). That is one small issue, and filing it would also give BR-2's stated "worth its own issue" an artifact.
+
+## 7. Plan revision recommendations
+
+One `## Revisions` entry, covering finding 1:
+
+> **BR-3 sibling site.** The Done-when bullet was corrected but Plan step 5 (`:243`) still enumerates "the count" as an atlas deliverable and is ticked `[x]`, asserting delivery of something Done-when now explicitly forbids. Corrected to `the entry, the two boundaries, and the shaping choices`. Rule, stated once so it covers the class: **a fact derived at runtime from the registry — the entry count, the marker list, `{{ARCH_STAR}}` — must never appear as a hand-maintained requirement in any artifact (Done-when, Plan step, atlas, README, helptext), only as a verification criterion about a derived output.** Enumeration swept for this issue: `grep -n "the count\|seven\|\b7\b"` over the issue file and the atlas returns one demand site (`:243`, now fixed); the remaining hits are verification assertions, which the rule permits.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Verified by measurement, not by the commit message: 12-word-window scan of the atlas paragraph against the registry entry finds 0 shared spans post-fix vs 26 overlapping windows pre-fix; no sibling atlas paragraph restates its entry either.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Recorded in Revisions with the measurement and the reason not to trim; the finding itself scoped this as a note for the next entry. No follow-up issue was filed for the stated "worth its own issue".
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Done-when bullet corrected as the finding asked. A sibling site in the same family remains at Plan step 5 and is raised below rather than re-raised here.
+findings:
+  - id: new
+    severity: Minor
+    family: derived-fact-restated
+    title: |
+      Plan step 5 still lists "the count" as an atlas deliverable and is ticked, contradicting the corrected Done-when
+    detail: |
+      This is the 2nd finding in family `derived-fact-restated`. BR-3 named the Done-when bullet and that bullet was fixed; the enumerable sibling at workshop/issues/000215-arch-order-architecture-principle.md:243 was not — "Update atlas...: the entry, the count, the ARCH-PURE boundary..." is still there and marked [x], asserting delivery of the hand-maintained restatement Done-when now forbids. Do not fix only this site: state the rule — a fact derived at runtime from the registry (entry count, marker list, ARCH_STAR) may appear as a verification criterion about a derived output, never as a hand-maintained requirement in any artifact — and sweep the enumeration. Measured prevalence for this issue: grep over the issue file and atlas returns exactly one demand site (:243); all other "seven"/"7" hits are verification assertions the rule permits. ARCH-PURPOSE.
+  - id: new
+    severity: Minor
+    family: atlas-restates-single-source
+    title: |
+      The map-don't-restate rule BR-1 established has no durable home; the atlas "Adding an entry" checklist still omits the atlas paragraph entirely
+    detail: |
+      This is the 2nd finding in family `atlas-restates-single-source`. BR-1's instances are genuinely gone (0 shared 12-word spans, and no sibling paragraph restates), so the sweep is clean — what is missing is the rule. atlas/workflow/architecture-principles.md:143 says "a new entry touches: architecture.md, that one list, and the goldens", omitting the map-level paragraph in that same file that every entry since ARCH-MOCK has in fact required. The rule is currently recorded only in this issue's ## Revisions, which archives to workshop/history/ that AGENTS.md marks "don't read", so the next entry-adder reads a three-item checklist and repeats BR-1. Fix the class: add the fourth touch point to :143 stating the shape — this file gets a MAP-level paragraph (boundaries against confusable neighbours, deliberate shaping choices, in-fleet origin) and never a restatement of the entry's clauses, the same route-don't-restate discipline gatefindings.go already follows at :24-30. Measured prevalence: 1 restatement in 1 entry-add under the unwritten rule; 0 remaining after this round's sweep. ARCH-DRY, ARCH-PURPOSE.
+```

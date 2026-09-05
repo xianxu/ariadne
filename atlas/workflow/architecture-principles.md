@@ -140,6 +140,24 @@ tripwire that makes an accidental registry edit visible, so it is deliberate —
 do not "fix" it by deriving it, or the suite would assert nothing about the
 registry's contents. Every other site derives from `ArchitectureMarkers()`.
 
-So a new entry touches: `architecture.md`, that one list, and the goldens
-(`-update-golden`). Before #208 it silently touched five places, three of which
-would have kept passing while covering nothing.
+So a new entry touches FOUR things: `architecture.md`, that one list, the
+goldens (`-update-golden`), and a map-level paragraph on this page. Before #208
+it silently touched five places, three of which would have kept passing while
+covering nothing.
+
+The fourth is the one with no test behind it, so its shape is written here.
+**This page gets a MAP of the entry, never a copy of it:** the boundaries against
+neighbours it is confusable with, the shaping choices a future editor could undo
+by accident, and the in-fleet defects it was drawn from. Clause text stays in
+`architecture.md` alone — a paraphrase here is a second definition site that
+nothing pins, so rewording the registry strands it (ARCH-DRY; #215 BR-1 shipped
+six such spans before they were caught, and every paragraph since ARCH-MOCK has
+needed this rule without it being written down). Same route-don't-restate
+discipline `gatefindings.go` follows above.
+
+**And nothing hand-maintained restates a derived fact.** The entry count, the
+marker list, and `{{ARCH_STAR}}` all derive from `ArchitectureMarkers()` at
+runtime. They may appear as a *verification criterion* about a derived output
+("`sdlc arch-principles` reports 7"), never as a *deliverable* an artifact
+demands someone write ("document the count"). #215 BR-3/BR-4 shipped that demand
+in a Done-when bullet and again in a Plan step.

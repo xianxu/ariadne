@@ -1,12 +1,13 @@
 ---
 id: 000215
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-04
 updated: 2026-09-04
 estimate_hours: 1.49
 started: 2026-09-04T21:49:32-07:00
+actual_hours: 0.61
 ---
 
 # ARCH-ORDER architecture principle
@@ -240,13 +241,15 @@ want to wordsmith. *Produced via
       the diff: only the ARCH-ORDER block and the header count `6` -> `7` may
       appear. `golden_test.go:35` forbids re-capture used to paper over drift, so
       an unrelated prompt edit riding along is a stop, not a pass.
-- [x] Update `atlas/workflow/architecture-principles.md`: the entry, the count,
-      the ARCH-PURE boundary, and the new ARCH-SECURE boundary.
+- [x] Update `atlas/workflow/architecture-principles.md`: a MAP-level paragraph
+      (boundaries, shaping choices, in-fleet origin) — never a restatement of the
+      entry's clauses, and never the entry count, which is derived.
 - [x] Verify: `sdlc arch-principles` shows 7; `go test ./cmd/sdlc/...` green.
 
 ## Log
 
 ### 2026-09-04 — implemented
+- 2026-09-04: closed — sdlc arch-principles renders 7 entries, header count derived and reads 7. All 7 markers headed; registry token set == headed set (no phantom; ARCH-FSM stayed in the issue). Golden re-capture touched exactly the 4 predicted files (dry/milestone-review/plan-quality/pure); diff reconciles line-for-line: 189 insertions = 184 entry lines (46x4) + 4 header counts 6->7 + 1 ARCH_STAR list gaining ARCH-ORDER, 5 deletions their counterparts — nothing unrelated rode along per golden_test.go:35. go test ./cmd/sdlc/internal/judge/ green incl. TestArchitectureMarkers, TestArchitectureRegistry_Content, TestDeferredPrinciplesReachNoGate. Atlas updated and, after BR-1, MAPS to the registry rather than restating it: 12-word-window scan of the entry against the atlas finds 0 shared spans (was 6). BR-3 taken (Done-when corrected: the count is derived, the atlas never carried it). BR-2 recorded as a registry-level length question, not trimmed — the review scopes it as a note for the next entry. Pre-existing unrelated failure TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (hardcoded path to an archived plan) confirmed identical with changes stashed; tracked as ariadne#210.; review verdict: FIX-THEN-SHIP
 
 `ARCH-ORDER` landed as the seventh registry entry
 (`cmd/sdlc/internal/judge/architecture.md:146`), taken verbatim from the
@@ -559,3 +562,42 @@ targeting and oracle-first clauses that two review rounds deliberately added. Th
 real observation is that the registry has no length norm while its cost is
 multiplied across six prompts; that is a registry-level question worth its own
 issue rather than a trim here.
+
+### 2026-09-04 — close-review round 2 (advisory, both taken)
+
+Round 2 disposed all three round-1 findings as addressed and raised two Minors,
+both of the "you fixed the instance, now write the rule" shape. Both taken, and
+both rules landed in `atlas/workflow/architecture-principles.md` "Adding an
+entry" — the checklist the next entry-adder actually reads — rather than only
+here, since this file archives to `workshop/history/`, which AGENTS.md marks
+"don't read."
+
+**BR-4 (`derived-fact-restated`, 2nd in family).** BR-3 fixed the Done-when
+bullet; the enumerable sibling at Plan step 5 still demanded "the count" from the
+atlas and was ticked `[x]`, asserting delivery of the very restatement Done-when
+now forbids. Site fixed, and the rule written down: **a fact derived at runtime
+from the registry — entry count, marker list, `{{ARCH_STAR}}` — may appear as a
+verification criterion about a derived output, never as a hand-maintained
+requirement in an artifact.** Prevalence re-measured after the fix: 0 demand
+sites; the remaining "7"/"seven" hits are verification assertions the rule
+permits.
+
+**BR-5 (`atlas-restates-single-source`, 2nd in family).** BR-1's instances were
+genuinely gone (0 shared 12-word spans), so the sweep was clean — what was
+missing was the rule. The atlas "Adding an entry" checklist listed three touch
+points (`architecture.md`, the hand-written list, the goldens) and omitted the
+map-level paragraph in that same file, which every entry since ARCH-MOCK has in
+fact required. A reader of that checklist would have repeated BR-1 exactly. Added
+as the fourth touch point, with its shape stated.
+
+**Calibration note for #127.** Closed at est 1.49 / actual 0.61 — 2.4× over. The
+first derivation (0.64) was nearly exact on the total while being wrong on its
+reasoning: it priced `issue-spec` against the claim rather than against the
+window `sdlc actual` computes. Correcting that boundary error moved
+`issue-spec design` 0.15 -> 0.8 and overshot, because the correction reasoned
+from ariadne#208's *under*-estimate (closed 1.72 against 1.13) and over-applied
+the lesson. The signal worth keeping: for a registry-content issue whose spec
+work is review rounds rather than authoring, `issue-spec design` near the table
+floor (~0.3–0.5) fits better than either 0.15 or 0.8, and one `milestone-review`
+row at 0.1 was right — the second close-review round cost minutes, not the
+near-ceiling 0.18 the correction assumed.
