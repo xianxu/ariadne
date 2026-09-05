@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-04
 updated: 2026-09-04
-estimate_hours: 0.64
+estimate_hours: 1.49
 started: 2026-09-04T21:49:32-07:00
 ---
 
@@ -187,47 +187,105 @@ Adoption is not the argument for that split, and this issue does not claim it is
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: issue-spec           design=0.15 impl=0.1
-item: smaller-go-module    design=0.05 impl=0.1
+item: issue-spec           design=0.8  impl=0.1
+item: smaller-go-module    design=0.05 impl=0.12
 item: atlas-docs           design=0.05 impl=0.05
-item: milestone-review     design=0.0  impl=0.1
+item: milestone-review     design=0.0  impl=0.18
 design-buffer: 0.15
-total: 0.64
+total: 1.49
 ```
 
-Σdesign 0.25 × 1.15 + Σimpl 0.35 × 1.0 = 0.64. `issue-spec` is the in-window
-spec work, not the original authoring: folding eight `## Revisions` deltas into
-the Spec and sweeping the stale existing-behavior claims out of Done-when/Plan
-across two plan-quality rounds. `smaller-go-module` is the registry entry plus
-the one hand-written `want` list plus the four golden re-captures;
-`atlas-docs` is `architecture-principles.md`; `milestone-review` is the one
-close-time boundary review (single-pass, no `Mx`). Design carries the ×0.2
-spec-quality discount throughout — the Spec holds the entry text verbatim and
-Done-when cites file:line for every consumer, so implementation is transcription
-rather than decision. *Produced via
+Σdesign 0.9 × 1.15 + Σimpl 0.45 × 1.0 = 1.49.
+
+`issue-spec` is priced **undiscounted** and against the window `sdlc actual`
+actually computes, which opens at `1a01f82` (the first `#215: issue-sync`), not
+at the claim. So it covers both `## Revisions` fresh-eyes rounds, the eight-delta
+fold, and the Done-when factual sweep. The ×0.2 spec-quality discount does not
+apply to the primitive whose deliverable *is* the spec — nothing pre-resolved
+that dialogue; it was the dialogue (precedent: ariadne#205 carried
+`issue-spec design=1.0` undiscounted). 0.8 rather than the 1.0+ of a
+from-scratch authoring, because the originating brainstorm predates the window's
+first commit even though that commit lands its output.
+
+The ×0.2 discount IS applied to the other three rows and is sound there: the
+Spec holds the entry text verbatim and Done-when cites file:line for every
+consumer, so implementation is transcription rather than decision.
+`smaller-go-module` is the registry entry, the one hand-written `want` list, and
+the four golden re-captures — `impl` above the floor because
+`golden_test.go:35` makes the diff read mandatory attention, not autonomous
+typing. `atlas-docs` is `architecture-principles.md` (two boundary paragraphs,
+undrafted). `milestone-review` is the one close-time boundary review
+(single-pass, no `Mx`), priced near the primitive ceiling: ariadne#208 — the same
+shape, one registry entry ago — priced two rows at ceiling and still closed 1.72
+against 1.13, and this deliverable is 40 lines of dense prose a reviewer will
+want to wordsmith. *Produced via
 `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
-- [ ] Add the `ARCH-ORDER` section to `cmd/sdlc/internal/judge/architecture.md`
+- [x] Add the `ARCH-ORDER` section to `cmd/sdlc/internal/judge/architecture.md`
       after `ARCH-SECURE`, from the Spec's entry block verbatim — that block is
       post-revision (all eight deltas folded in), so no replay of `## Revisions`
       is needed. Keep the `principle:`/`at-plan:`/`at-review:` bullet contract.
-- [ ] Confirm the entry introduces no unheaded `ARCH-<NAME>` token (no
+- [x] Confirm the entry introduces no unheaded `ARCH-<NAME>` token (no
       `ARCH-FSM`), so `markersIn` still finds exactly seven markers.
-- [ ] Add `ARCH-ORDER` to the hand-written `want` list in
+- [x] Add `ARCH-ORDER` to the hand-written `want` list in
       `TestArchitectureMarkers` (`judge_test.go:363`) — the deliberate
       non-derived tripwire; do not "fix" it by deriving.
-- [ ] Re-capture the four registry-bearing goldens (`-update-golden`) and READ
+- [x] Re-capture the four registry-bearing goldens (`-update-golden`) and READ
       the diff: only the ARCH-ORDER block and the header count `6` -> `7` may
       appear. `golden_test.go:35` forbids re-capture used to paper over drift, so
       an unrelated prompt edit riding along is a stop, not a pass.
-- [ ] Update `atlas/workflow/architecture-principles.md`: the entry, the count,
+- [x] Update `atlas/workflow/architecture-principles.md`: the entry, the count,
       the ARCH-PURE boundary, and the new ARCH-SECURE boundary.
-- [ ] Verify: `sdlc arch-principles` shows 7; `go test ./cmd/sdlc/...` green.
+- [x] Verify: `sdlc arch-principles` shows 7; `go test ./cmd/sdlc/...` green.
 
 ## Log
+
+### 2026-09-04 — implemented
+
+`ARCH-ORDER` landed as the seventh registry entry
+(`cmd/sdlc/internal/judge/architecture.md:146`), taken verbatim from the
+post-revision Spec block. Verification:
+
+- `sdlc arch-principles` renders 7 entries and its header count reads 7 (derived
+  from `len(ArchitectureMarkers())`, no hand-edited count anywhere).
+- All seven markers carry `##` headings and the token set in the registry is
+  exactly the headed set — no phantom marker, `ARCH-FSM` stayed in the issue.
+- Golden re-capture touched exactly the four predicted files
+  (`dry`/`milestone-review`/`plan-quality`/`pure`) and the diff reconciles to the
+  line: 189 insertions = 184 entry lines (46 x 4) + 4 header counts `6` -> `7` +
+  1 `{{ARCH_STAR}}` list gaining `ARCH-ORDER`; 5 deletions are their
+  counterparts. Nothing unrelated rode along, per `golden_test.go:35`.
+- `go test ./cmd/sdlc/internal/judge/` green, including
+  `TestArchitectureMarkers`, `TestArchitectureRegistry_Content`, and
+  `TestDeferredPrinciplesReachNoGate`.
+
+**Pre-existing failure, not from this window:**
+`TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` fails on a
+hardcoded path to `workshop/plans/000200-...-plan.md`, which was archived.
+Confirmed identical failure with this issue's changes stashed. Already tracked
+as ariadne#210 (`fleet-plan-test-hardcoded-path`); untouched here.
+
+**Gate history.** Plan-quality blocked at round 1 on two Importants and cleared
+at round 2 (PQ-1..PQ-4 all disposed `addressed`). Both Importants were real:
+PQ-1 caught that the eight `## Revisions` deltas had no landing place — the Spec
+still held the pre-delta draft, so an implementer could tick every box and ship
+the un-revised entry (ARCH-DRY: one current version, changelog separate). PQ-2
+caught a factual error that had survived the original spec *and* two fresh-eyes
+review rounds: `{{ARCH_STAR}}` is not the mechanism by which plan-quality and
+start-plan receive the registry — they use `{{ARCH_BLOCK}}` -> `ArchitectureBlock`
+(`prompts.go:60`) and a direct call (`startplan.go:75`); `{{ARCH_STAR}}` appears
+in exactly one template (`code-review.md:112`). The same sweep corrected
+`architectureEntry` (`judge_test.go:195`, one caller, ARCH-CONSTRAINTS-specific)
+to `TestArchitectureRegistry_Content` (`judge_test.go:119`) as the generic
+per-entry contract. That is ARCH-PURPOSE's instance-vs-class case landing inside
+the issue that adds a principle about legibility — the delta had *named* the
+incomplete list a round earlier and nobody swept the class.
+
+The estimate was corrected before implementation after the estimate-quality
+judge (INFO, non-blocking) identified a window-boundary error; see `## Revisions`.
 
 ### 2026-09-04
 
@@ -434,3 +492,25 @@ Each of (a)–(d) would have been caught by the `at-plan` clause as drafted, and
 argument for the entry that the Problem section is currently making from
 generalities about LLMs.
 
+### 2026-09-04 — estimate corrected before implementation
+
+Reason: the estimate-quality judge returned INFO (non-blocking) on the first
+`## Estimate` block, but its point 1 was a boundary error, not a sizing quibble,
+and a knowingly-wrong estimate pollutes velocity calibration.
+
+The first block priced `issue-spec` as "the in-window spec work, **not** the
+original authoring" and applied the ×0.2 spec-quality discount to it, for a total
+of 0.64h. Both were wrong. `sdlc actual --issue 215` opens the window at
+`1a01f82` (2026-09-04 17:09), not at the 21:49 claim, and already measured 0.61h
+with zero implementation done — so the row's stated scope was false for the
+window the tool computes. And the ×0.2 discount is circular on the one primitive
+whose deliverable is the spec itself: nothing pre-resolved that design, it *was*
+the design.
+
+Delta: `issue-spec` 0.15 -> 0.8 design (undiscounted, whole window);
+`milestone-review` impl 0.1 -> 0.18 (near ceiling, per the ariadne#208
+precedent that priced two rows at ceiling and still closed 1.72 against 1.13);
+`smaller-go-module` impl 0.1 -> 0.12 (the mandated golden-diff read is
+attention, not typing). Total 0.64 -> 1.49. The ×0.2 discount stands on the
+other three rows. Corrected before any code changed, so the revision is a fix to
+the derivation rather than a fit to a known outcome.

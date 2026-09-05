@@ -360,7 +360,7 @@ func TestArchitectureRegistry_EmbeddedInPrompts(t *testing.T) {
 // everything asserts nothing.
 func TestArchitectureMarkers(t *testing.T) {
 	markers := ArchitectureMarkers()
-	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS", "ARCH-SECURE"}
+	want := []string{"ARCH-DRY", "ARCH-PURE", "ARCH-PURPOSE", "ARCH-MOCK", "ARCH-CONSTRAINTS", "ARCH-SECURE", "ARCH-ORDER"}
 	if len(markers) != len(want) {
 		t.Fatalf("ArchitectureMarkers() = %v, want %v", markers, want)
 	}

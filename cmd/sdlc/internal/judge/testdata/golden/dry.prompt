@@ -1,7 +1,7 @@
 You are a code reviewer checking the diff for ARCH-DRY violations.
 The principle is authored once in the registry below (#75):
 
-ARCHITECTURE PRINCIPLES — work through each of the 6 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
+ARCHITECTURE PRINCIPLES — work through each of the 7 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
 
 # Architecture principles (ARCH-*)
 
@@ -147,6 +147,52 @@ Principles"; this is its machine-delivered companion.
   effect of an unrelated call. Where the diff parses untrusted data, check the
   failure path degrades visibly rather than crashing or substituting a fabricated
   value that downstream code will read as evidence.
+
+## ARCH-ORDER — Make the ordering explicit
+
+- **principle:** When a component holds state across events arriving from
+  outside it, the legal states and the transitions between them are part of the
+  design, not an emergent property of the code. Model it as an explicit
+  `(state, event) -> (state, effects)` enumeration rather than a constellation
+  of independent flags whose legal combinations are unwritten. Where ARCH-PURE
+  separates logic from IO, this separates **legal** state from **representable**
+  state: N boolean/nullable fields carried across events declare 2^N states and
+  usually mean about five, and the bugs live in the difference. The lens is
+  *temporal*, not provenance-based — ARCH-SECURE makes invalid state
+  unrepresentable at a single-shot parse of input the component did not produce;
+  this makes it unrepresentable in the state a component carries **between
+  events**. Concurrency does not need a new effect abstraction — it needs the
+  interleaving space written down where a reader, a type checker, and a test
+  generator can all see it.
+- **at-plan:** For a component with durable state and external events, enumerate
+  states x events -> (state, effects), including the interrupting ones. Do not
+  re-litigate what conventional UX already settles (block input, show a spinner)
+  — that policy is advisory and UI-local. Spend the enumeration on the events the
+  caller **cannot** block: process death mid-transition, connection loss,
+  session/tab close, retry of an already-applied step, a second actor on the same
+  state, completions arriving out of order. Target rather than sweep — name which
+  of those apply here and why the rest do not, and for each that applies say
+  which of cancel / queue / preempt / ignore governs it and whether state rolls
+  back. One sentence naming the event most likely to be mishandled beats six
+  cells filled in. Name the extent of any concurrent work — who is still running
+  when this returns, who is cancelled when this fails — where nondeterminism
+  enters (clock, scheduler, IO completion order, arrival order), and how a
+  failing ordering is reproduced. `N/A` is a claim that can be wrong: write it as
+  "holds no state between events because X", never as a bare marker — a bare one
+  is exactly what the author who cannot see the ordering will write.
+- **at-review:** Flag tests that can only observe one interleaving — no seam to
+  inject ordering, no way to reproduce a reported failure. A green run of such a
+  test is a sample of size one that reports no coverage, so it confirms whichever
+  ordering the author happened to get; this is the highest-leverage flag in the
+  entry, because it attacks the oracle rather than the code. Flag state whose
+  transition set cannot be read off the code — boolean/nullable constellations
+  with unwritten legal combinations, where `isLoading && err != nil && data !=
+  nil` is reachable and undefined; name the tagged enum they should collapse
+  into. Flag concurrent work whose **extent** is not lexically bounded: a spawned
+  task outliving its scope, no cancellation path. Extent is lifetime — who is
+  still running at return; ARCH-CONSTRAINTS' "unbounded concurrency" is capacity
+  — how many run at once. Flag an error or cancellation path that unwinds the
+  sequencing but drops the in-flight effect.
 
 
 Apply ARCH-DRY's at-review lens to the diff: duplicated logic, copy-pasted blocks,
