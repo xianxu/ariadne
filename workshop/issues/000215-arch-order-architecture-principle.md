@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-04
 updated: 2026-09-04
-estimate_hours:
+estimate_hours: 0.64
 started: 2026-09-04T21:49:32-07:00
 ---
 
@@ -181,6 +181,32 @@ Adoption is not the argument for that split, and this issue does not claim it is
 - `atlas/workflow/architecture-principles.md` documents the entry, the count, and
   both boundaries: ARCH-PURE (different purity-breaker — sibling, not bullet) and
   ARCH-SECURE (provenance vs. temporal).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec           design=0.15 impl=0.1
+item: smaller-go-module    design=0.05 impl=0.1
+item: atlas-docs           design=0.05 impl=0.05
+item: milestone-review     design=0.0  impl=0.1
+design-buffer: 0.15
+total: 0.64
+```
+
+Σdesign 0.25 × 1.15 + Σimpl 0.35 × 1.0 = 0.64. `issue-spec` is the in-window
+spec work, not the original authoring: folding eight `## Revisions` deltas into
+the Spec and sweeping the stale existing-behavior claims out of Done-when/Plan
+across two plan-quality rounds. `smaller-go-module` is the registry entry plus
+the one hand-written `want` list plus the four golden re-captures;
+`atlas-docs` is `architecture-principles.md`; `milestone-review` is the one
+close-time boundary review (single-pass, no `Mx`). Design carries the ×0.2
+spec-quality discount throughout — the Spec holds the entry text verbatim and
+Done-when cites file:line for every consumer, so implementation is transcription
+rather than decision. *Produced via
+`brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
