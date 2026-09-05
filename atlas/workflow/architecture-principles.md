@@ -57,43 +57,38 @@ and crash-bug markers respectively. Trust is treated as a property of
 *provenance*: an artifact this same program wrote is untrusted once it has
 crossed a process, session, or version boundary.
 
-`ARCH-ORDER` (#215) is the temporal lens: when a component holds state across
-events arriving from outside it, the legal states and the transitions between
-them are design, not an emergent property of the code. It sits beside two
-neighbours it is easy to confuse with:
+`ARCH-ORDER` (#215) is the temporal lens: it fires on a component that carries
+state between externally-arriving events, and asks for the transition set to be
+written down rather than left to emerge from the code. The clauses live in the
+registry — what needs saying here is where the entry sits relative to two
+neighbours it is easy to confuse with, and where it came from.
 
 - **ARCH-PURE** is a *sibling, not a bullet under it.* `ARCH-PURE` names `clock`
   in its IO list, but its lens is business logic vs. IO — "don't bury logic in
   handlers." IO breaks purity by *doing* something; ordering breaks it by making
   the order of what already happened unreadable from the text. Different
-  purity-breaker, different tell, so folding this in as an extra ARCH-PURE bullet
-  was rejected: that entry's IO list enumerates *members*, and this is a
-  difference in *kind*.
-- **ARCH-SECURE** also says "make invalid state unrepresentable," and the split
-  is **provenance vs. temporal**: ARCH-SECURE does it at a single-shot parse of
-  input the component did not produce; ARCH-ORDER does it in the state a
-  component carries *between* events. Illegal-state modeling that is neither —
-  a flag constellation in synchronous state with no external events — has no
-  registry home on purpose (YAGNI); coin an entry if it recurs.
+  purity-breaker, different tell. Folding this in as an extra ARCH-PURE bullet
+  was rejected on that basis: that entry's IO list enumerates *members*, and this
+  is a difference in *kind*.
+- **ARCH-SECURE** also reaches for "invalid state unrepresentable," and the split
+  is **provenance vs. temporal**: ARCH-SECURE applies it at a single-shot parse
+  of input the component did not produce, ARCH-ORDER to state carried across
+  events. Illegal-state modeling that is neither — a flag constellation in
+  synchronous state with no external events — has no registry home on purpose
+  (YAGNI); coin an entry if it recurs.
 
-Its `at-plan` lens deliberately *targets rather than sweeps*: it tells the
-planner not to re-litigate what conventional UX already settles (block input,
-show a spinner — advisory and UI-local) and to spend the enumeration on the
-events the caller cannot block, naming which apply and why the rest do not. `N/A`
-must be written as a falsifiable claim ("holds no state between events because
-X"), because this principle's own premise is that the failure is invisible to the
-author — a bare `N/A` is exactly what the author who cannot see the ordering will
-write. Its `at-review` lens leads with the **oracle** clause (tests that can
-observe only one interleaving) rather than a code-shape clause: a green run of
-such a test is a sample of size one that reports no coverage, so it confirms
-whichever ordering the author happened to get.
+Two shaping choices to know before editing the entry, both deliberate and both
+easy to undo by accident: `at-plan` **targets rather than sweeps** (it rules
+conventional UX out of scope and asks which unblockable events apply here, not
+for a filled-in matrix), and `at-review` **leads with the oracle clause** rather
+than with a code-shape one. The entry itself carries the reasoning for both.
 
 Like `ARCH-SECURE`, its clauses are grounded in defects this fleet shipped rather
 than a generic checklist — `pair#182`/`#185`, where couch's park-then-resume was
 designed correctly *because* it was treated as an ordering problem (four named
-outcomes, each with its own recovery) while four separate defects were ordering
-defects found late, and `go test -race` was recorded as close evidence from a
-single run of a test that fails 3 in 10.
+outcomes, each with its own recovery) while four separate defects there were
+ordering defects found late, and `go test -race` was recorded as close evidence
+from a single run of a test that fails 3 in 10.
 
 ## Deferred principles (documented, not gated)
 

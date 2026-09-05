@@ -178,9 +178,12 @@ Adoption is not the argument for that split, and this issue does not claim it is
   `milestone-review.prompt`, `plan-quality.prompt`, `pure.prompt` — and their
   diff inspected to contain only the ARCH-ORDER block plus the header count
   `6` -> `7`.
-- `atlas/workflow/architecture-principles.md` documents the entry, the count, and
-  both boundaries: ARCH-PURE (different purity-breaker — sibling, not bullet) and
-  ARCH-SECURE (provenance vs. temporal).
+- `atlas/workflow/architecture-principles.md` documents the entry and both
+  boundaries — ARCH-PURE (different purity-breaker — sibling, not bullet) and
+  ARCH-SECURE (provenance vs. temporal) — by MAPPING to the registry, not
+  restating its clause text. NOT the entry count: that is derived
+  (`len(ArchitectureMarkers())`, `architecture.go:57`) and the atlas has never
+  carried it.
 
 ## Estimate
 
@@ -514,3 +517,45 @@ precedent that priced two rows at ceiling and still closed 1.72 against 1.13);
 attention, not typing). Total 0.64 -> 1.49. The ×0.2 discount stands on the
 other three rows. Corrected before any code changed, so the revision is a fix to
 the derivation rather than a fit to a known outcome.
+
+### 2026-09-04 — close-review corrections
+
+Reason: close-gate boundary review, round 1 (verdict FIX-THEN-SHIP; BR-1
+Important, BR-2/BR-3 Minor).
+
+**BR-1 (Important, `atlas-restates-single-source`) — taken, swept as a class.**
+The shipped atlas paragraph copied ARCH-ORDER clause wording near-verbatim
+instead of mapping to it. Verified rather than assumed: the finding's line cite
+had drifted, but a normalized comparison found six distinct clause spans shared
+between `atlas/workflow/architecture-principles.md` and the registry entry —
+including the whole oracle sentence, the `N/A`-as-falsifiable-claim clause, and
+the principle opener. Nothing pinned the copy, so a later rewording of the
+registry would have stranded it silently. That is ARCH-DRY, and it contradicts
+the same atlas file's own route-don't-restate convention (`:24-27`), which every
+sibling paragraph follows.
+
+Swept the class, not the cited site: the entry paragraph is now map-level
+throughout, keeping only what is genuinely atlas-only content — the two boundary
+bullets (ARCH-PURE sibling-not-bullet, ARCH-SECURE provenance-vs-temporal), the
+two shaping choices a future editor could undo by accident (at-plan targets
+rather than sweeps; at-review leads with the oracle clause), and the
+`pair#182`/`#185` origin. Verified by a 12-word-window scan of the registry entry
+against the atlas: **0 shared spans**, down from six.
+
+**BR-3 (Minor, `derived-fact-restated`) — taken.** The Done-when bullet asked
+the atlas to document "the count." That was wrong in the criterion, not in the
+implementation: the count derives from `len(ArchitectureMarkers())`
+(`architecture.go:57`) and no "six"/"seven" has ever appeared in the atlas file —
+writing one in would create exactly the hand-maintained restatement its own
+"Adding an entry" section rules out. Bullet corrected in place (and it now also
+states the map-don't-restate requirement BR-1 exposed as unstated).
+
+**BR-2 (Minor, `registry-entry-length-unbudgeted`) — recorded, not acted on.**
+ARCH-ORDER is 531 words against ARCH-PURPOSE's 371 and ARCH-DRY's 92, and grew
+`architecture.md` from 9,510 to 12,868 bytes — roughly +3.3 KB on each of the six
+registry-bearing prompt paths. The review itself scopes this as "a note for the
+next entry, not a defect in this one," and shortening the entry would undo the
+targeting and oracle-first clauses that two review rounds deliberately added. The
+real observation is that the registry has no length norm while its cost is
+multiplied across six prompts; that is a registry-level question worth its own
+issue rather than a trim here.
