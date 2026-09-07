@@ -86,8 +86,30 @@ block, so the cells are written down rather than left to emerge:
 | `remove X`, peer already removed `X` | Converge. No-op, succeed. |
 | `add X`, peer already added `X` | Converge to one line; newer why-now wins; report which was kept. |
 | `move X --before Y`, peer deleted `Y` | **Refuse.** The anchor is gone; do not guess a position. |
-| Wholesale hand-edit of the file | No intent exists. Remote wins; report the drop. |
 | 3 rejections in a row | Refuse, surface the last rejection. |
+
+There is deliberately **no row for a hand-edit of the working-tree copy**. An
+earlier draft promised "remote wins; report the drop", which is undesignable:
+nothing in this architecture ever reads the working-tree copy, so there is no
+point at which a drop is detectable. The honest statement is that such an edit is
+simply never read — and if the operator commits and pushes it through git in the
+normal way, it *is* the trunk and there is no conflict at all. The datatype prose
+carries the warning; the verb makes no promise it cannot keep.
+
+**Reading is subject to the same offline policy the repo already settled.** Every
+operation begins with a fetch. A failed fetch is **not** a refusal: degrade to the
+stale `origin/main` tracking ref and announce it loudly, exactly as
+`issueids.go:40-49,126-145` does for id allocation (`ARCH-DRY` — one policy, not
+two). A repo with no `origin` remote at all reads the local ref and says so. A
+write, by contrast, cannot degrade: with no reachable origin the CAS push has
+nothing to compare against, so `add`/`remove`/`move` refuse and say why.
+
+**Input validation, before any git call.** A malformed ref is rejected. So is a
+why-now containing a newline or control character: a newline would silently become
+a second queue entry and break `Doc`'s round-trip invariant. An embedded ` — ` or
+`[...]` re-parses as a different why/tag split, so those are rejected too rather
+than escaped — the format's value is that a human reads it, and escaping would
+cost that.
 
 **A refusal is a handoff, not a dead end.** `sdlc`'s errors are next-action specs,
 so a failed replay prints the current remote queue *and* the intent that could not
@@ -201,8 +223,10 @@ disagreement, not a settled no.
 - The prose names the rot risk and points at the deferred close-gate removal, so
   a later reader finds a recorded decision rather than an apparent gap.
 - `construct/generated/datatype/SKILL.md` picks `queue` up **without a
-  hand-edit** — regeneration is the only step. A manual edit anywhere is a bug in
-  the single-sourcing, not a task here.
+  hand-edit** — regeneration is the only step. Verified by `grep queue` on the
+  generated file plus a clean `git diff` of `cmd/datatype/SKILL.md.tmpl` and
+  `construct/local/datatype/`. NOT by diffing `construct/generated/`, which is
+  gitignored (`.gitignore:30`) and would pass vacuously.
 
 **Verb**
 
@@ -219,6 +243,14 @@ disagreement, not a settled no.
 - `move --before Y` with `Y` deleted concurrently refuses, and the error prints
   the current remote queue plus the unapplied intent.
 - Bounded at 3 attempts; the last rejection is surfaced, not swallowed.
+- A failed fetch degrades a **read** to the stale tracking ref with a loud
+  warning, and refuses a **write**; a repo with no `origin` says so rather than
+  erroring obscurely.
+- `Doc` round-trips arbitrary bytes, proven by a fuzz target rather than by
+  chosen examples — it parses a human-editable file arriving from the trunk,
+  which is input this process did not produce (`ARCH-SECURE`).
+- A why-now carrying a newline, a control character, ` — `, or `[...]` is
+  rejected before any git call.
 - The published blob round-trips: checking out the pushed commit yields a file
   byte-identical to the intended content, with `.gitattributes` applied.
 - The temp index is removed on every exit path, including the error paths, and is
@@ -302,3 +334,44 @@ keeping:**
   That is why the residual cells need an **informative failure** rather than
   resolution logic — consistent with `sdlc --help`'s "its errors are next-action
   specs."
+
+### 2026-09-07 — plan-quality round 1: six findings, all taken
+
+One Critical, three Important, two Minor. Every one verified against the code
+before acting; all six were correct.
+
+**PQ-1 (Critical) — the seam the plan named cannot exist.** The plan had
+`gitx.NewTrunkFile(execGitRunner{}, ...)`, but `execGitRunner` is package `main`
+(`runner.go:31`) and `main` already imports `gitx` (`actual.go:26`) — an import
+cycle that would not compile. Separately, the plumbing needs `GIT_INDEX_FILE` on
+`update-index` and `write-tree`, and neither `gitRunner.Git/GitInDir`
+(`runner.go:36,40`) nor `gitx.run` (`window.go:32`) carries env; only `read-tree`
+has an `--index-output` escape, so env is unavoidable.
+
+Resolved *without* widening `gitRunner` — that interface is used across ~20 files
+and this needs nothing from those callers. `TrunkFile` lives in `gitx` and uses
+`gitx`'s own package-level `run` shim, plus a sibling `runEnv` shim for the three
+index calls. `gitx` is a leaf package, so there is no cycle; the existing shim
+pattern is reused rather than a second one invented (`ARCH-DRY`); and tests drive
+real git against a bare origin, which `ARCH-MOCK` requires here anyway. Swept the
+class: the verb consumes `TrunkFile` through an interface **declared in `main`**
+(consumer-side, Go idiom), not one exported from `gitx`.
+
+**PQ-3 (Important) — a Done-when clause promising something undesignable.** The
+interleaving table's "wholesale hand-edit / remote wins, report the drop" row had
+no task and no possible implementation site, because nothing here reads the
+working-tree copy. Row deleted and the reasoning recorded in the Spec, rather than
+inventing a worktree-comparison step to satisfy a row that should not have been
+written.
+
+**PQ-2 (Important) — no operating envelope on the per-invocation fetch.** Adopted
+`issueids.go`'s settled offline policy verbatim in shape: reads degrade loudly to
+the stale ref, writes refuse. Divergence would have meant two offline policies in
+one binary.
+
+**PQ-4 (Important)** — `Doc.Parse/Render` guarded by a fuzz target, not four
+handcrafted inputs. **PQ-5 (Minor)** — the generated-artifact check pointed at
+`construct/generated/`, which is gitignored and would pass vacuously; repointed at
+`cmd/datatype/SKILL.md.tmpl` and `construct/local/datatype/`. **PQ-6 (Minor)** —
+why-now is free text written straight into the line format; now validated before
+any git call.
