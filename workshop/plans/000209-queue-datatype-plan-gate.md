@@ -85,6 +85,72 @@ rounds:
           family: unvalidated-input-breaks-format
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-09-07T16:50:36-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: TrunkFile sited in gitx on its own run/runEnv shims; gitx imports only issueref, so no cycle; gitRunner left untouched.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Adopts issueids.go's offline policy in shape — read degrades loudly, write refuses; Task 5 covers no-origin.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Row deleted from the Spec with the undesignability recorded; Done-when no longer promises it.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: Task 8 Step 5 adds FuzzDocRoundTrip over arbitrary bytes with the malformed seeds.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: Verified .gitignore:30 via check-ignore; check repointed at cmd/datatype/ and construct/local/datatype/.
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          note: why-now validated before any git call; rejection rather than escaping, with the reason stated.
+          round: 2
+      blocked: false
+    - "n": 3
+      timestamp: "2026-09-07T16:55:01-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Cycle resolved by keeping TrunkFile in leaf package gitx with its own run/runEnv shims; verified main imports gitx at actual.go:26 and execGitRunner is package main at runner.go:34.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: Read degrades to the stale tracking ref, write refuses, no-origin says so; mirrors issueids.go:126-145 rather than inventing a second policy.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: The undesignable hand-edit row is deleted and the reasoning recorded in the Spec instead of a fabricated worktree-comparison task.
+          round: 3
+        - id: PQ-4
+          disposition: addressed
+          note: Task 8 Step 5 adds FuzzDocRoundTrip with an adversarial seed corpus and a named fuzztime run.
+          round: 3
+        - id: PQ-5
+          disposition: addressed
+          note: Repointed at cmd/datatype/SKILL.md.tmpl; confirmed /construct/generated/ is .gitignore:30 and .dynamic-skill is the only tracked file under construct/local/datatype/.
+          round: 3
+        - id: PQ-6
+          disposition: addressed
+          note: why-now newline/control-char/em-dash/bracket rejection is now a Done-when clause plus three Task 9 table rows, validated before any git call.
+          round: 3
+      findings:
+        - id: PQ-7
+          severity: Critical
+          title: gitx.run carries argv only — the plan's TrunkFile still needs Dir and stderr from it, and Task 1/2/4 would run git against the real ariadne repo
+          detail: 'This is the 3rd instance in family unverified-seam-capability; PQ-1 fixed the Env instance. Do not patch Task 1''s sample — state the rule in the plan (enumerate every exec.Cmd parameter the plumbing needs against the shim''s signature at file:line before naming it the seam) and sweep the whole enumeration this round. window.go:32-34 defines run as exec.Command(name, args...).Output(): no Dir, no Env, stderr dropped into ExitError.Stderr. The plan''s NewTrunkFile(repo, "origin", "main") never names -C or a Dir-carrying shim, and Task 1''s test does not chdir (contrast window_test.go:24,117 which use testfix.Chdir), so Read fetches from and Update pushes <commit>:main to the REAL ariadne origin, overwriting real workshop/queue.md on real main with fixture bytes. Separately, the "surface the last rejection" (Task 4), "warning text names the risk" (Task 5) and "print the trunk state and the intent" (Task 11) clauses need git''s stderr; the cited ARCH-DRY precedent issueids.go:126-145 gets it free via execGitRunner.Git''s CombinedOutput (runner.go:36-38), which .Output() does not provide. Measured prevalence: 3 of 6 enumerable exec.Cmd parameters (Env fixed, Dir open, stderr open). If the chosen fix is -C, also state that the GIT_INDEX_FILE path must be absolute, since it resolves against the process cwd rather than -C.'
+          family: unverified-seam-capability
+          round: 3
+      blocked: true
+content_hash: 17f2c457676bedd3e7dfe99b2d9bd14966c5957394b7f6b9546b85acacd52413
 ---
 
 # Gate ledger — ariadne#209 (plan-quality)
@@ -144,11 +210,33 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   call — say the same for WhyNow (reject control characters and newlines, or state
   the escaping).
 
+## Round 2 — 2026-09-07T16:50:36-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — TrunkFile sited in gitx on its own run/runEnv shims; gitx imports only issueref, so no cycle; gitRunner left untouched.
+- PQ-2 — addressed — Adopts issueids.go's offline policy in shape — read degrades loudly, write refuses; Task 5 covers no-origin.
+- PQ-3 — addressed — Row deleted from the Spec with the undesignability recorded; Done-when no longer promises it.
+- PQ-4 — addressed — Task 8 Step 5 adds FuzzDocRoundTrip over arbitrary bytes with the malformed seeds.
+- PQ-5 — addressed — Verified .gitignore:30 via check-ignore; check repointed at cmd/datatype/ and construct/local/datatype/.
+- PQ-6 — addressed — why-now validated before any git call; rejection rather than escaping, with the reason stated.
+
+## Round 3 — 2026-09-07T16:55:01-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- PQ-1 — addressed — Cycle resolved by keeping TrunkFile in leaf package gitx with its own run/runEnv shims; verified main imports gitx at actual.go:26 and execGitRunner is package main at runner.go:34.
+- PQ-2 — addressed — Read degrades to the stale tracking ref, write refuses, no-origin says so; mirrors issueids.go:126-145 rather than inventing a second policy.
+- PQ-3 — addressed — The undesignable hand-edit row is deleted and the reasoning recorded in the Spec instead of a fabricated worktree-comparison task.
+- PQ-4 — addressed — Task 8 Step 5 adds FuzzDocRoundTrip with an adversarial seed corpus and a named fuzztime run.
+- PQ-5 — addressed — Repointed at cmd/datatype/SKILL.md.tmpl; confirmed /construct/generated/ is .gitignore:30 and .dynamic-skill is the only tracked file under construct/local/datatype/.
+- PQ-6 — addressed — why-now newline/control-char/em-dash/bracket rejection is now a Done-when clause plus three Task 9 table rows, validated before any git call.
+
+### Raised
+
+- **PQ-7** [Critical] `unverified-seam-capability` gitx.run carries argv only — the plan's TrunkFile still needs Dir and stderr from it, and Task 1/2/4 would run git against the real ariadne repo
+  This is the 3rd instance in family unverified-seam-capability; PQ-1 fixed the Env instance. Do not patch Task 1's sample — state the rule in the plan (enumerate every exec.Cmd parameter the plumbing needs against the shim's signature at file:line before naming it the seam) and sweep the whole enumeration this round. window.go:32-34 defines run as exec.Command(name, args...).Output(): no Dir, no Env, stderr dropped into ExitError.Stderr. The plan's NewTrunkFile(repo, "origin", "main") never names -C or a Dir-carrying shim, and Task 1's test does not chdir (contrast window_test.go:24,117 which use testfix.Chdir), so Read fetches from and Update pushes <commit>:main to the REAL ariadne origin, overwriting real workshop/queue.md on real main with fixture bytes. Separately, the "surface the last rejection" (Task 4), "warning text names the risk" (Task 5) and "print the trunk state and the intent" (Task 11) clauses need git's stderr; the cited ARCH-DRY precedent issueids.go:126-145 gets it free via execGitRunner.Git's CombinedOutput (runner.go:36-38), which .Output() does not provide. Measured prevalence: 3 of 6 enumerable exec.Cmd parameters (Env fixed, Dir open, stderr open). If the chosen fix is -C, also state that the GIT_INDEX_FILE path must be absolute, since it resolves against the process cwd rather than -C.
+
 ## Open findings
 
-- **PQ-1** [Critical] `unverified-seam-capability` M1's plumbing cannot be built on the seam the plan names — import cycle, and no seam carries GIT_INDEX_FILE
-- **PQ-2** [Important] `undeclared-degraded-read-policy` No operating envelope for the fetch on every queue read — offline, no-origin, and latency are unstated
-- **PQ-3** [Important] `donewhen-clause-without-task` The wholesale-hand-edit interleaving row has no task, no test, and no implementation site
-- **PQ-4** [Important] `parser-lacks-mechanical-guard` Doc.Parse/Render is guarded by one handcrafted doc, not a mechanical round-trip guard
-- **PQ-5** [Minor] `vacuous-verification-step` Task 11's git diff --stat check on construct/generated/ is a no-op — that path is gitignored
-- **PQ-6** [Minor] `unvalidated-input-breaks-format` why-now is free text written straight into the line format with no validation
+- **PQ-7** [Critical] `unverified-seam-capability` gitx.run carries argv only — the plan's TrunkFile still needs Dir and stderr from it, and Task 1/2/4 would run git against the real ariadne repo

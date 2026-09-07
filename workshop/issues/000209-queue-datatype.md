@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-07
-estimate_hours:
+estimate_hours: 2.75
 started: 2026-09-07T16:11:22-07:00
 ---
 
@@ -261,6 +261,48 @@ disagreement, not a settled no.
 - `ariadne/workshop/queue.md` carries the real current ordering, written through
   the verb rather than by hand — the cheapest test of whether the shape is right.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec             design=0.8  impl=0.12
+item: greenfield-go-module   design=0.3  impl=0.24
+item: greenfield-go-module   design=0.2  impl=0.2
+item: smaller-go-module      design=0.05 impl=0.14
+item: atlas-docs             design=0.05 impl=0.08
+item: milestone-review       design=0.0  impl=0.18
+item: milestone-review       design=0.0  impl=0.18
+design-buffer: 0.15
+total: 2.75
+```
+
+Σdesign 1.4 × 1.15 + Σimpl 1.14 × 1.0 = 2.75.
+
+`issue-spec` is priced **undiscounted** and against the window `sdlc actual`
+computes (open at `e6d6629a`, already reading 0.90h): a four-exchange brainstorm
+that twice corrected the design, a full Spec rewrite widening the issue's scope,
+a 256-line durable plan, and one plan-quality round that landed six findings. The
+×0.2 spec-quality discount does not apply to the primitive whose deliverable *is*
+the spec — the lesson recorded on ariadne#215.
+
+The two `greenfield-go-module` rows are the new packages: `gitx.TrunkFile` (git
+plumbing, CAS retry, offline policy, signing/attributes round-trip — `impl` above
+mid because concurrency tests driving two publishers against a real bare origin
+are fiddly to get deterministic) and `internal/queue` (`Line`/`Doc`/`Intent` plus
+a fuzz target). `smaller-go-module` is the verb, which mirrors the established
+cobra + helptext pattern. `atlas-docs` covers `construct/datatype/queue.md` and
+the seed. Design on all four carries the ×0.2 discount — the plan gives the exact
+plumbing sequence, the exact test bodies, and file:line for every seam.
+
+**Two** `milestone-review` rows, not one: M1 and M2 each close separately, so each
+buys its own boundary review. Priced near the primitive ceiling, per ariadne#208
+(two rows at ceiling, still closed 1.72 against 1.13) and ariadne#215 (one row at
+0.1 against a review that then raised BR-1 and needed a second round).
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
+
 ## Plan
 
 Durable plan: `workshop/plans/000209-queue-datatype-plan.md` (authored via
@@ -269,10 +311,10 @@ per-task commands. This section carries the two review boundaries only.
 
 - [ ] M1 — `gitx.TrunkFile`: read + CAS-write one path on the trunk with no
       working tree, bounded retry that **re-runs the transform** on the moved
-      base, gitattributes/signing round-trip, temp-index hygiene. Tasks 1-5.
+      base, gitattributes/signing round-trip, offline degrade-read/refuse-write, temp-index hygiene. Tasks 1-6.
 - [ ] M2 — the queue: `Line`/`Doc`/`Intent` (pure, no git in their tests), the
       `sdlc queue` verb, refusal-as-handoff, `construct/datatype/queue.md`, and
-      ariadne's queue seeded **through the verb**. Tasks 6-12.
+      ariadne's queue seeded **through the verb**. Tasks 7-13.
 
 Two milestones because M1 is a reusable primitive that stands alone — it is what
 `ariadne#207` will consume — and M2 is the feature built on it. Each is worth its
