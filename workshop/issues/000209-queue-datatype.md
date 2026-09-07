@@ -1,11 +1,12 @@
 ---
 id: 000209
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-07
 estimate_hours:
+started: 2026-09-07T16:11:22-07:00
 ---
 
 # queue datatype for advisory work ordering
