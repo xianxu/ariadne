@@ -232,10 +232,19 @@ disagreement, not a settled no.
 ## Plan
 
 Durable plan: `workshop/plans/000209-queue-datatype-plan.md` (authored via
-`superpowers-writing-plans`). Milestones and checkable steps live there; this
-section carries the boundaries only.
+`superpowers-writing-plans`) — 12 tasks with TDD steps, exact paths, and the
+per-task commands. This section carries the two review boundaries only.
 
-- [ ] Plan authored and approved.
+- [ ] M1 — `gitx.TrunkFile`: read + CAS-write one path on the trunk with no
+      working tree, bounded retry that **re-runs the transform** on the moved
+      base, gitattributes/signing round-trip, temp-index hygiene. Tasks 1-5.
+- [ ] M2 — the queue: `Line`/`Doc`/`Intent` (pure, no git in their tests), the
+      `sdlc queue` verb, refusal-as-handoff, `construct/datatype/queue.md`, and
+      ariadne's queue seeded **through the verb**. Tasks 6-12.
+
+Two milestones because M1 is a reusable primitive that stands alone — it is what
+`ariadne#207` will consume — and M2 is the feature built on it. Each is worth its
+own boundary review; neither is a one-shot that a plain checkbox would cover.
 
 ## Log
 
