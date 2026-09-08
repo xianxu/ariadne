@@ -169,7 +169,11 @@ func FirstLine(s string) string {
 
 // readLocal reads the path from the local branch, for a repo with no remote.
 func (t *TrunkFile) readLocal(path string) ([]byte, error) {
-	if !t.exists(t.branch, path) {
+	present, err := t.pathPresent(t.branch, path)
+	if err != nil {
+		return nil, err
+	}
+	if !present {
 		return nil, nil
 	}
 	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.branch+":"+path)
@@ -182,26 +186,43 @@ func (t *TrunkFile) readLocal(path string) ([]byte, error) {
 // readRef reads the path from the tracking ref. A path absent from the trunk is
 // NOT an error — it reads as empty, so a first-ever write needs no special case.
 func (t *TrunkFile) readRef(path string) ([]byte, error) {
-	if !t.exists(t.trackingRef(), path) {
+	present, err := t.pathPresent(t.trackingRef(), path)
+	if err != nil {
+		return nil, err // could not tell — never fall through to "empty"
+	}
+	if !present {
 		return nil, nil // absent on the trunk reads as empty: a first write needs no special case
 	}
 	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.trackingRef()+":"+path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.trackingRef(), err, errOut)
 	}
+	_ = errOut
 	return out, nil
 }
 
-// exists reports whether <ref>:<path> is in the tree, via `cat-file -e`'s EXIT
-// CODE rather than by matching git's prose.
+// pathPresent answers whether <ref>:<path> is in the tree, in THREE states:
+// present, absent, or "could not tell".
 //
-// The first version of this matched phrases like "does not exist" — which works
-// until a git release rewords them, and worse, silently reclassifies a real
-// failure as "absent" and hands the caller an empty file. Existence has a machine
-// interface; use it (the same reason signs() asks for --type=bool below).
-func (t *TrunkFile) exists(ref, path string) bool {
-	_, _, err := runGitIn(t.dir, nil, "cat-file", "-e", ref+":"+path)
-	return err == nil
+// The two-state versions of this were both wrong, in the same way. Matching git's
+// prose ("does not exist") reclassifies a real failure as absent; so does
+// `cat-file -e`, whose exit is non-zero for a missing object AND for a broken or
+// unavailable one. Either way the caller receives an empty file, the transform
+// appends to nothing, and Update publishes a queue containing only the new
+// line — silently wiping the trunk and reporting success.
+//
+// `ls-tree` is the interface that actually separates them: exit 0 with empty
+// output means absent, exit 0 with output means present, and a non-zero exit is a
+// real failure that must PROPAGATE rather than being flattened into "absent". A
+// bool could not represent the difference, which is why this returns an error too
+// (ARCH-ORDER: the states a caller must distinguish are enumerated, not collapsed
+// into a value that makes the dangerous one unrepresentable).
+func (t *TrunkFile) pathPresent(ref, path string) (bool, error) {
+	out, errOut, err := runGitIn(t.dir, nil, "ls-tree", "--name-only", "--end-of-options", ref, "--", path)
+	if err != nil {
+		return false, fmt.Errorf("ls-tree %s -- %s: %v\n%s", ref, path, err, errOut)
+	}
+	return len(strings.TrimSpace(string(out))) > 0, nil
 }
 
 // tempIndexPath returns an ABSOLUTE path for GIT_INDEX_FILE, inside a private
@@ -250,32 +271,41 @@ const maxUpdateAttempts = 3
 // Nondeterminism enters at exactly one place — the order peers' pushes reach the
 // remote — and it is reproduced in tests by a real bare origin, not by timing.
 func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, error)) error {
+	// Hoisted: the repo's signing config cannot change mid-loop, and re-shelling
+	// `git config` per attempt is repeated expensive work (ARCH-CONSTRAINTS).
+	sign := t.signs()
+
 	var lastRejection []byte
 	for attempt := 1; attempt <= maxUpdateAttempts; attempt++ {
-		old, err := t.Read(path)
+		// Attempt 1 fetches here; every later attempt reuses the fetch the
+		// previous iteration already did to decide retryability, so a contended
+		// update costs one fetch per attempt rather than two.
+		if attempt == 1 {
+			if out, err := t.fetch(); err != nil {
+				return offlineError(t.remote, err, out)
+			}
+		}
+		base, err := t.resolve(t.trackingRef())
 		if err != nil {
-			// Includes the offline refusal: a CAS push has no base to compare
-			// against, so unlike a read this cannot degrade.
+			return err
+		}
+		old, err := t.readRef(path)
+		if err != nil {
 			return err
 		}
 		next, err := transform(old)
 		if err != nil {
 			return err // caller's error, surfaced unwrapped so errors.Is works
 		}
-		base, err := t.resolve(t.trackingRef())
-		if err != nil {
-			return err
-		}
-		out, err := t.commitAndPush(path, msg, next, base)
+		out, err := t.commitAndPush(path, msg, next, base, sign)
 		if err == nil {
 			return nil
 		}
 		// Retry only when the TRUNK ACTUALLY MOVED — observed by re-resolving the
-		// ref, not by matching git's rejection prose. The first version matched a
-		// bare "rejected", which git emits for refusals that retrying cannot fix
-		// (a hook decline, no push permission, a stale-info tag clobber); those
-		// burned the whole attempt budget and then reported a contention story
-		// that never happened.
+		// ref, not by matching git's rejection prose. A bare "rejected" match also
+		// catches refusals retrying cannot fix (a declined pre-receive hook, no
+		// push permission), which burned the whole budget and then reported a
+		// contention story that never happened.
 		if _, ferr := t.fetch(); ferr != nil {
 			return fmt.Errorf("publish %s: %v\n%s", path, err, out)
 		}
@@ -300,7 +330,7 @@ func (t *TrunkFile) resolve(ref string) (string, error) {
 
 // commitAndPush builds the tree in a temp index and pushes the new commit at the
 // branch. Returns git's combined output so the caller can classify the failure.
-func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string) ([]byte, error) {
+func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string, sign bool) ([]byte, error) {
 	idx, cleanupIdx, err := tempIndexPath()
 	defer cleanupIdx()
 	if err != nil {
@@ -337,7 +367,7 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string)
 	tree := strings.TrimSpace(string(out))
 
 	args := []string{"commit-tree", tree, "-p", base, "-m", msg}
-	if t.signs() {
+	if sign {
 		args = append([]string{"commit-tree", "-S"}, args[1:]...)
 	}
 	out, errOut, err = runGitIn(t.dir, nil, args...)

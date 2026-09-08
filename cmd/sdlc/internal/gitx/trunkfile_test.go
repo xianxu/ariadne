@@ -316,39 +316,6 @@ func TestTrunkFile_UpdateCreatesAbsentPath(t *testing.T) {
 	}
 }
 
-// BR-4: git stores commit.gpgsign verbatim, so a repo configured with `yes`
-// must still sign. This is the case a raw == "true" comparison silently fails.
-func TestTrunkFile_SigningHonorsNonCanonicalBool(t *testing.T) {
-	repo, _ := trunkFixture(t, "x\n")
-	testfix.Git(t, repo, "config", "commit.gpgsign", "yes")
-
-	var sawDashS bool
-	orig := runGitIn
-	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
-		if len(args) > 0 && args[0] == "commit-tree" {
-			var kept []string
-			for _, a := range args {
-				if a == "-S" {
-					sawDashS = true
-					continue
-				}
-				kept = append(kept, a)
-			}
-			args = kept
-		}
-		return orig(dir, env, args...)
-	}
-	defer func() { runGitIn = orig }()
-
-	tf, _ := NewTrunkFile(repo, "origin", "main")
-	if err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) { return append(o, 'y', '\n'), nil }); err != nil {
-		t.Fatal(err)
-	}
-	if !sawDashS {
-		t.Error(`commit.gpgsign="yes" must still sign — git stores the string verbatim, so --type=bool is required`)
-	}
-}
-
 // BR-2: a push refusal that retrying cannot fix must surface immediately rather
 // than burning the attempt budget and reporting contention that never happened.
 func TestTrunkFile_NonRetryablePushFailsFast(t *testing.T) {
@@ -422,46 +389,6 @@ func TestTrunkFile_RoundTripsUnderGitattributes(t *testing.T) {
 	}
 	if got := showTrunk(t, origin, "queue.md"); got != want {
 		t.Errorf("round-trip = %q, want %q (gitattributes not applied)", got, want)
-	}
-}
-
-// A signing repo must not silently produce unsigned commits through this path.
-// commit-tree does not consult commit.gpgsign on its own.
-func TestTrunkFile_SigningRepoGetsSignedCommit(t *testing.T) {
-	repo, _ := trunkFixture(t, "x\n")
-	testfix.Git(t, repo, "config", "commit.gpgsign", "true")
-
-	var sawDashS bool
-	orig := runGitIn
-	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
-		if len(args) > 1 && args[0] == "commit-tree" {
-			for _, a := range args {
-				if a == "-S" {
-					sawDashS = true
-				}
-			}
-			// Strip -S so the test does not need a real key in the environment.
-			var kept []string
-			for _, a := range args {
-				if a != "-S" {
-					kept = append(kept, a)
-				}
-			}
-			args = kept
-		}
-		return orig(dir, env, args...)
-	}
-	defer func() { runGitIn = orig }()
-
-	tf, err := NewTrunkFile(repo, "origin", "main")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) { return append(o, 'y', '\n'), nil }); err != nil {
-		t.Fatal(err)
-	}
-	if !sawDashS {
-		t.Error("commit.gpgsign=true must produce commit-tree -S")
 	}
 }
 
@@ -558,5 +485,124 @@ func TestTempIndexPath_NoUnclaimedNameWindow(t *testing.T) {
 	cleanup()
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Errorf("cleanup must remove the whole directory")
+	}
+}
+
+// commit-tree does not consult commit.gpgsign on its own, so this path must read
+// it — and git stores the value VERBATIM, so `yes`/`1`/`on` are all true and a
+// raw == "true" compare silently produces unsigned commits. Table includes the
+// negative cases, which nothing covered when this was two near-identical tests.
+func TestTrunkFile_SigningFollowsGitBoolSemantics(t *testing.T) {
+	for _, tc := range []struct {
+		cfg  string
+		want bool
+	}{
+		{"true", true}, {"yes", true}, {"1", true}, {"on", true},
+		{"false", false}, {"0", false}, {"off", false},
+	} {
+		t.Run(tc.cfg, func(t *testing.T) {
+			repo, _ := trunkFixture(t, "x\n")
+			testfix.Git(t, repo, "config", "commit.gpgsign", tc.cfg)
+
+			var sawDashS bool
+			orig := runGitIn
+			runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+				if len(args) > 0 && args[0] == "commit-tree" {
+					var kept []string
+					for _, a := range args {
+						if a == "-S" {
+							sawDashS = true
+							continue
+						}
+						kept = append(kept, a)
+					}
+					args = kept
+				}
+				return orig(dir, env, args...)
+			}
+			defer func() { runGitIn = orig }()
+
+			tf, _ := NewTrunkFile(repo, "origin", "main")
+			if err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+				return append(o, 'y', '\n'), nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if sawDashS != tc.want {
+				t.Errorf("commit.gpgsign=%q: signed=%v, want %v", tc.cfg, sawDashS, tc.want)
+			}
+		})
+	}
+}
+
+// THE regression test for the wipe.
+//
+// When the presence check cannot tell whether the path exists — a broken or
+// unavailable object, not an absent one — the read must FAIL. The two-state
+// versions returned "absent", so the transform received empty content, appended
+// to nothing, and Update published a file containing only the new line: the trunk
+// silently truncated, reported as success. Data loss with a green exit code.
+func TestTrunkFile_UnreadablePathRefusesRatherThanTruncating(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a\n- b\n- c\n")
+
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 0 && args[0] == "ls-tree" {
+			return nil, []byte("fatal: unable to read object"), errors.New("exit status 128")
+		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	called := false
+	err := tf.Update("queue.md", "queue: add d", func(old []byte) ([]byte, error) {
+		called = true
+		return append(append([]byte{}, old...), []byte("- d\n")...), nil
+	})
+
+	if err == nil {
+		t.Fatal("an unreadable path must refuse, not publish")
+	}
+	if called {
+		t.Error("the transform must not run on content we could not read — that is how the truncation got published")
+	}
+	if got := showTrunk(t, origin, "queue.md"); got != "- a\n- b\n- c\n" {
+		t.Errorf("trunk was modified despite an unreadable base: %q", got)
+	}
+}
+
+// A contended update must not fetch twice per attempt: the fetch that decides
+// retryability is the same one the next attempt needs for its base.
+func TestTrunkFile_OneFetchPerAttempt(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a\n")
+
+	fetches := 0
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 0 && args[0] == "fetch" {
+			fetches++
+		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	calls := 0
+	if err := tf.Update("queue.md", "m", func(old []byte) ([]byte, error) {
+		calls++
+		if calls == 1 {
+			pushPeerLine(t, origin, "- a\n- peer\n")
+		}
+		return append(append([]byte{}, old...), []byte("- mine\n")...), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("transform called %d times, want 2", calls)
+	}
+	// 2 attempts: one fetch to open, one after the rejection which the retry reuses.
+	if fetches > 2 {
+		t.Errorf("%d fetches for 2 attempts — the post-push fetch should serve as the retry's base", fetches)
 	}
 }

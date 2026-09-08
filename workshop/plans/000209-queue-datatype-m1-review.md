@@ -226,3 +226,228 @@ findings:
       implement, and TrunkFile's entry omits the exported ReadDegraded. Commit
       granularity also diverges (Tasks 2+4 merged, 3+5 merged).
 ```
+
+---
+
+## Re-review — 2026-09-07T17:36:16-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 209 — queue datatype for advisory work ordering |
+| repo | ariadne |
+| issue file | workshop/issues/000209-queue-datatype.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 00d7c75c5371bbb3e2f01f5e28780565c274f3a9..850eabd1c50b4dbbc07cd2c10ef64c04f464df93 |
+| command | sdlc milestone-close --issue 209 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-09-07T17:36:16-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+Round 1's five Important findings were genuinely worked, and I confirmed four of them by reverting the fix in a scratch worktree and watching the test go red (BR-1, BR-2, BR-4, and BR-5's new create-path test). The headline redesign — "observe git's state, don't parse its English" — is the right rule, and `Update`'s re-resolve-the-ref retry is strictly better evidence than the prose match it replaced. What blocks the boundary is that the rule was applied to two of the three classifiers and the third got a *different* conflating signal: `exists()` now decides "is this path on the trunk?" from `cat-file -e`'s exit code, which returns non-zero both for "absent from the tree" and for "the object is not available". I reproduced the consequence end-to-end against real git — `Read` returns `("", nil)` and `Update` publishes a commit that replaces `"important\ncontent\n"` with `"- mine\n"` on the trunk and reports success. That is silent destruction of published data from a primitive `ariadne#207` will point at issue files, and the function's own doc comment claims to prevent it. The same instance-not-class pattern shows up three more times in this round (two stale `combined output` comments in code, three in the plan), which is what the ARCH-PURPOSE lens is for. Package tests are green (`go test ./cmd/sdlc/internal/gitx/` ok, 7.7s); the only failure in `./cmd/sdlc/...` is `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`, which I confirmed fails identically at the base SHA.
+
+## 1. Strengths
+
+- **`trunkfile.go:269-286` — retryability is now an observation, not a reading of git's English.** Re-resolving the tracking ref after a failed push and retrying only if it actually moved is the correct shape, and `TestTrunkFile_NonRetryablePushFailsFast` (`trunkfile_test.go:354-383`) pins it: I restored the old `strings.Contains(out, "rejected")` classifier and the test went red with `transform called 3 times, want 1`. Confirmed-good ground.
+- **`trunkfile_test.go:253-290` — BR-1's vacuous guard is genuinely repaired.** The failure is now injected at `write-tree`, *inside* `commitAndPush`, so `GIT_INDEX_FILE` is really set, and `t.Fatal` on `seen == ""` makes the guard unable to vacate again. Verified by moving `cleanupIdx()` off the defer onto the success path: `temp index …/index survived a mid-sequence git failure`.
+- **`trunkfile.go:360-363` + `trunkfile_test.go:321-350` — `--type=bool` with a `yes`-configured repo.** Reverting to `--get` alone turns the test red. This is the right pin: it exercises git's normalization rather than restating the implementation.
+- **`trunkfile.go:207-232` — the temp index moved into a 0700 `MkdirTemp` directory, and `TestTempIndexPath_NoUnclaimedNameWindow` asserts the mode, the absoluteness, that the file does *not* pre-exist, and that cleanup removes the whole directory.** That structurally guarantees the "never `$GIT_DIR/index`" clause rather than testing around it (ARCH-SECURE).
+- **`atlas/workflow/sdlc-binary.md:646-687`** explains why `push <commit>:refs/heads/main` *is* the concurrency primitive and names the three load-bearing decisions; it matches the code I read.
+
+## 2. Critical findings
+
+**C-1 — `trunkfile.go:195-205`: `exists()` treats "object unavailable" as "path absent", so `Read` fabricates an empty file and `Update` wipes the trunk while reporting success.**
+
+> **This is the 3rd finding in family `git-output-string-matching`.** Earlier rounds fixed instances (`isNonFastForward`'s prose match, `isMissingPath`'s prose match). Do not fix this instance alone — the rule below is what needs fixing.
+
+`cat-file -e <ref>:<path>` exits non-zero for *both* "not in the tree" and "in the tree but the object cannot be produced". Reproduced with real git 2.50.1, two ways:
+
+```
+# normal clone, blob removed from .git/objects
+git cat-file -e main:queue.md   -> exit 1     (path IS in the tree)
+git ls-tree --name-only main -- queue.md -> exit 0, prints "queue.md"
+
+# partial clone (--filter=blob:none), promisor unreachable
+git cat-file -e origin/main:queue.md -> exit 128
+git ls-tree --name-only origin/main -- queue.md -> exit 0, prints "queue.md"
+```
+
+End-to-end through the real type (scratch test, origin reachable, one loose blob removed):
+
+```
+Read -> "", err=<nil>
+transform saw old=""
+TRUNK NOW = "- mine\n"        # was "important\ncontent\n"
+```
+
+`Update` returned `nil`. The doc comment at `trunkfile.go:198-201` states this is exactly what the change was meant to prevent — *"silently reclassifies a real failure as 'absent' and hands the caller an empty file"* — and it is still reachable, because the replacement signal conflates the same two outcomes the prose did.
+
+**The rule the family needs, stated once:** *a classifier in this file may only assert an outcome its signal actually distinguishes; where git offers no such signal, the ambiguous case must surface as an error, never as a value.* The enumeration that rule implies, swept in this round:
+
+| site | decision | signal today | verdict |
+|---|---|---|---|
+| `exists` (`:202`) | absent vs unavailable | `cat-file -e` exit code | **conflates** → use `ls-tree --name-only <ref> -- <path>` (non-zero = error, zero+empty = absent), or distinguish exit 1 from 128 |
+| `refExists` (`:143`) | ref present | `rev-parse --verify --quiet` | ok (called only with the tracking ref in a valid repo) |
+| `Update` post-push (`:279-285`) | retryable vs not | re-resolve the ref | ok in principle, scoped too widely — see M-1 |
+| `offlineError` (`:150`) | why the fetch failed | none | asserts a cause it never observed — BR-11, still open |
+| `signs` (`:361`) | config truthiness | `--type=bool` | ok |
+
+Fix sketch: make `readRef`/`readLocal` return `(nil, nil)` only on a *proven* absence and propagate an error otherwise, then pin it with a test that removes the loose blob and asserts `Read` errors rather than returning empty. A belt-and-braces guard in `Update` (refuse to publish content derived from an empty read when the path is present in the tree) is not a substitute for the classifier fix.
+
+## 3. Important findings
+
+None beyond C-1 and the prior-round dispositions below.
+
+## 4. Minor findings
+
+- `trunkfile.go:37` and `trunkfile.go:302` still say the shim returns "combined output", contradicting `trunkfile.go:39` four lines later and `commitAndPush`'s actual `errOut` return (family `stale-comment`, 2nd — see the rule in the findings block).
+- `workshop/plans/000209-queue-datatype-plan.md:86`, `:136`, `:207` still specify `CombinedOutput` after the Revisions entry corrected `:64` (family `plan-traceability`, 2nd).
+- `trunkfile_test.go:321-350` and `:430-466` are near-identical 25-line bodies differing only in the config value; one table over `{"true","yes","1","0","false"}` would also close the negative case, which nothing tests today (family `duplicated-helper`, 2nd).
+- The contended path now costs 6 fetches + 3 pushes, up from 3+3: the post-push `t.fetch()` at `:279` is discarded and immediately repeated by the next iteration's `Read` (`:255`).
+- `signs()` re-shells `git config` on every retry attempt; hoist it out of `commitAndPush`.
+
+## 5. Test coverage notes
+
+Sixteen tests, all against a real bare origin; the two `runGitIn` stubs are narrow (strip `-S`, force one push failure) and sit on top of the real fixture, so ARCH-MOCK holds. `TestFirstLine` is the right response to BR-10 — and eliminating the two prose classifiers outright was a better answer than table-testing them. Remaining gaps, in the order I'd close them: (1) the C-1 case — no test distinguishes "absent" from "unavailable", and the suite stays fully green with `refExists` hardwired to `true`, which is how I confirmed BR-3's byte assertion is still missing; (2) `TestTrunkFile_NoRemoteIsNamed` (`:509`) discards the returned bytes — `testfix.InitialCommit()` writes `README` = `"x\n"`, so `got` is assertable in one line; (3) the blob temp file (`writeTemp`) cleanup is correct but unpinned; (4) `Read`'s strict offline branch is exercised only transitively through `Update`'s refusal.
+
+## 6. Architectural notes for upcoming work
+
+**ARCH-DRY** — pass on the load-bearing call (one CAS/retry loop, `run` left alone, `firstLine` consolidated into `gitx.FirstLine` with a delegating alias so ~12 call sites read unchanged); flagged on the duplicated signing tests. **ARCH-PURE** — pass; `FirstLine` now has a direct table test and the impure classifiers correctly live as methods at the boundary. **ARCH-PURPOSE** — **flagged, and it is this round's theme.** Three of the round-1 fixes resolved the site the finding named while enumerable siblings survived: the `combined output` claim (grep finds 5, 2 were fixed), the plan's `CombinedOutput` restatement (4 sites, 1 fixed), and the classifier sweep (BR-3 asked for all three classifiers pinned; two were rewritten, one of them onto a signal that conflates the same two outcomes, and `offlineError` was untouched). The enumeration for each is a single `grep` — that is what "write the enumeration the class implies" means here. **ARCH-MOCK** — pass, exemplary. **ARCH-CONSTRAINTS** — flagged: still no context/timeout on `fetch`/`push`, and the round-1 fix doubled the fetch count on the contended path; M2 turns this into an interactive keystroke path, so decide there whether `sdlc queue` is where the binary's first `context.WithTimeout` lands. **ARCH-SECURE** — flagged via C-1 (a fabricated value that downstream code publishes as truth); the temp-index race is properly closed, and `path`/`msg` reach git as argv elements with no injection surface. **ARCH-ORDER** — pass, and still the strongest part of the diff: the transform is the seam through which a test chooses the interleaving, and retryability is now read off state rather than prose.
+
+For M2: `Read` returning `(nil, nil)` for an absent path is what C-1 exploits. If the fix distinguishes proven-absence from error, `Doc.Parse` will still receive `nil` on the genuine seed — keep `nil` in the fuzz corpus alongside `[]byte{}`.
+
+## 7. Plan revision recommendations
+
+1. **Purge the surviving `CombinedOutput` restatements** at `:86` (the TrunkFile `Seam:` bullet), `:136` (Task 1 Step 4) and `:207` (Task 4 Step 5). The 2026-09-07 Revisions entry corrected the audit's Resolution paragraph only; as written the plan still instructs a future reader to build the shim that shipped the CRLF-in-blob-hash bug.
+2. **Record the retryability redesign's actual scope.** The Revisions entry says `Update` "re-resolves the tracking ref after a failed push"; the code applies that classification to *any* `commitAndPush` failure — `read-tree`, `hash-object`, `update-index`, `write-tree`, `commit-tree` and the temp-file steps included. State it, or narrow the code to the push step.
+3. **Add the third classifier decision** once C-1 is fixed: Task 1 Step 5 still describes "a missing path is not an error: return `(nil, nil)`" without saying how absence is *established*, which is the whole of C-1.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Verified by reverting: moving cleanupIdx() off the defer turns the test red. Blob temp-file cleanup remains unpinned (correct code, no test) — noted in coverage, not re-raised.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Verified by restoring the prose match: TestTrunkFile_NonRetryablePushFailsFast goes red with "transform called 3 times, want 1".
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      Prose matching is gone, but the byte assertion the finding asked for is still absent: I hardwired refExists to true and the entire suite stayed green, so the fabricated-empty-value path remains unpinned. TestTrunkFile_NoRemoteIsNamed:509 still discards the bytes; testfix.InitialCommit writes README="x\n", so this is a one-line assert. The replacement signal's own conflation is raised separately as C-1.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Verified by reverting to `config --get`: TestTrunkFile_SigningHonorsNonCanonicalBool goes red.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      TestTrunkFile_UpdateCreatesAbsentPath covers the nested absent path and also asserts the sibling file survives read-tree.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      tempIndexPath() now takes no parameter.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      MkdirTemp 0700 + filepath.Join, pinned by TestTempIndexPath_NoUnclaimedNameWindow including the mode check.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      gitx.FirstLine exported with a table test; issueids.go's firstLine is a delegating alias.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      trunkfile_test.go:203-205 corrected. Two other sites carrying the same stale claim are raised as a family repeat, not as this finding.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Better than asked: isNonFastForward and isMissingPath were eliminated rather than table-tested, and FirstLine got TestFirstLine.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      trunkfile.go:150 unchanged. Extending the finding to its class: Update:288 also reports "the trunk moved under 3 attempts" for any commitAndPush failure (read-tree/hash-object/write-tree/commit-tree/temp-file) that coincides with a peer push. Rule: an error message may only name a cause the code observed.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      trunkfile.go:320-322 unchanged; no sentence saying .gitattributes is resolved from the checked-out tree rather than from the trunk being written.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      Revisions section added, Tasks 1-6b ticked, ReadDegraded added to the TrunkFile entry, seam Resolution corrected, commit-granularity divergence recorded. Three unnamed CombinedOutput restatements survive and are raised as a family repeat.
+findings:
+  - id: new
+    severity: Critical
+    family: git-output-string-matching
+    title: |
+      exists() reads "object unavailable" as "path absent", so Update silently wipes the trunk file and reports success
+    detail: |
+      3rd finding in this family — fix the RULE, not the instance. trunkfile.go:202
+      uses `cat-file -e <ref>:<path>`, whose non-zero exit means both "not in the
+      tree" and "object cannot be produced". Reproduced on git 2.50.1: with the
+      loose blob removed, `cat-file -e main:queue.md` exits 1 while `ls-tree
+      --name-only` exits 0 and prints the path; on a --filter=blob:none clone with
+      an unreachable promisor it exits 128 with the path still in the tree. Driven
+      end-to-end through the real type with origin reachable, Read returned
+      ("", nil) and Update published a commit replacing "important\ncontent\n"
+      with "- mine\n", returning nil. The doc comment at trunkfile.go:198-201
+      claims this exact failure is prevented. Rule for the whole family
+      a classifier may only assert an outcome its signal distinguishes; the
+      ambiguous case must surface as an error, never as a value. Enumeration
+      exists (conflates, fix with ls-tree or an exit-code split), refExists (ok),
+      Update's post-push check (ok but scoped to all of commitAndPush),
+      offlineError (asserts an unobserved cause, BR-11), signs (ok).
+  - id: new
+    severity: Minor
+    family: stale-comment
+    title: |
+      Two more "combined output" claims survive in trunkfile.go, one contradicting itself four lines later
+    detail: |
+      2nd finding in this family — state the rule rather than patching the site.
+      Rule when a decision is reversed, sweep every restatement of it; the
+      enumeration is a grep for the old term. `grep -n "combined\|Combined"` over
+      trunkfile.go returns :37 ("returning combined output", contradicted by :39)
+      and :302 ("Returns git's combined output", where commitAndPush actually
+      returns stderr only). Round 1 fixed the test-comment site; these two are the
+      same claim in the file a reader consults for the rationale.
+  - id: new
+    severity: Minor
+    family: plan-traceability
+    title: |
+      The plan still instructs CombinedOutput at three sites after the Revisions entry corrected one
+    detail: |
+      2nd finding in this family — same rule as above, same grep. Plan lines 86
+      (TrunkFile's `Seam:` bullet), 136 (Task 1 Step 4) and 207 (Task 4 Step 5)
+      still specify CombinedOutput; only line 64's Resolution paragraph was
+      corrected. As written the plan tells a future implementor to build the shim
+      whose CRLF warning landed inside a parsed blob hash.
+  - id: new
+    severity: Minor
+    family: duplicated-helper
+    title: |
+      TestTrunkFile_SigningHonorsNonCanonicalBool and TestTrunkFile_SigningRepoGetsSignedCommit are near-identical 25-line bodies
+    detail: |
+      2nd finding in this family — the rule is one definition per behavior,
+      including in tests. trunkfile_test.go:321-350 and :430-466 differ only in the
+      config value; both stub runGitIn, strip -S, and assert sawDashS. One table
+      over {"true","yes","1","0","false"} collapses them and would also cover the
+      negative case, which nothing tests today.
+  - id: new
+    severity: Minor
+    family: repeated-external-call
+    title: |
+      The contended Update path now costs 6 fetches instead of 3
+    detail: |
+      trunkfile.go:279 fetches to decide retryability, discards the result, and the
+      next iteration's Read (:255) immediately fetches again. Reuse the post-push
+      fetch for the retry's base read (ARCH-CONSTRAINTS repeated expensive work).
+      Also hoist signs() out of commitAndPush so it is not re-shelled per attempt.
+```
