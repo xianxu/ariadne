@@ -1,2 +1,3 @@
 - ariadne#210 — red in every test run right now; cheapest fix in the tree [sdlc]
 - ariadne#188 — supersede: #206/#207/#213 took every bullet but retry-with-re-allocation [sdlc]
+- pair#182 — pair-actor consult on ARCH-ORDER's at-review clauses, against the four real ordering defects [couch]
