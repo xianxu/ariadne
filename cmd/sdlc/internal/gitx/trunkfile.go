@@ -135,3 +135,129 @@ func tempIndexPath(dir string) (string, func(), error) {
 	}
 	return abs, func() { os.Remove(abs) }, nil
 }
+
+// maxUpdateAttempts bounds the CAS retry. Three is the same bound ariadne#207
+// specs; past it the contention is not transient and a caller looping forever is
+// worse than a refusal that names why.
+const maxUpdateAttempts = 3
+
+// Update applies `transform` to the file's trunk content and pushes the result,
+// retrying on a moved base.
+//
+// The retry RE-READS and RE-CALLS the transform rather than re-pushing the bytes
+// it built the first time. That is the entire concurrency contract: a transform
+// that replays an intent ("append this line") preserves whatever a peer landed in
+// the meantime, while one that sets content keeps last-writer-wins. The loop does
+// not know or care which — mergeability is the caller's property, expressed in
+// the transform (ARCH-ORDER: the interleaving policy is written down at the seam
+// where a reader can see it, not spread across call sites).
+//
+// Nondeterminism enters at exactly one place — the order peers' pushes reach the
+// remote — and it is reproduced in tests by a real bare origin, not by timing.
+func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, error)) error {
+	var lastRejection []byte
+	for attempt := 1; attempt <= maxUpdateAttempts; attempt++ {
+		old, err := t.Read(path)
+		if err != nil {
+			return err
+		}
+		next, err := transform(old)
+		if err != nil {
+			return err // caller's error, surfaced unwrapped so errors.Is works
+		}
+		out, err := t.commitAndPush(path, msg, next)
+		if err == nil {
+			return nil
+		}
+		if !isNonFastForward(out) {
+			return fmt.Errorf("publish %s: %v\n%s", path, err, out)
+		}
+		lastRejection = out
+	}
+	return fmt.Errorf("publish %s: the trunk moved under %d attempts; last rejection:\n%s",
+		path, maxUpdateAttempts, lastRejection)
+}
+
+// isNonFastForward reports whether git refused the push because the ref moved —
+// the CAS failure this type retries — as opposed to any other push failure,
+// which is not retryable and must surface immediately.
+func isNonFastForward(out []byte) bool {
+	s := string(out)
+	return strings.Contains(s, "non-fast-forward") ||
+		strings.Contains(s, "fetch first") ||
+		strings.Contains(s, "rejected")
+}
+
+// commitAndPush builds the tree in a temp index and pushes the new commit at the
+// branch. Returns git's combined output so the caller can classify the failure.
+func (t *TrunkFile) commitAndPush(path, msg string, content []byte) ([]byte, error) {
+	idx, cleanupIdx, err := tempIndexPath(t.dir)
+	defer cleanupIdx()
+	if err != nil {
+		return nil, err
+	}
+	env := []string{"GIT_INDEX_FILE=" + idx}
+
+	if out, err := runGitIn(t.dir, env, "read-tree", t.trackingRef()); err != nil {
+		return out, err
+	}
+
+	blobFile, cleanupBlob, err := writeTemp(content)
+	defer cleanupBlob()
+	if err != nil {
+		return nil, err
+	}
+	// --path (not bare hash-object) so .gitattributes filters and EOL
+	// normalization for THIS path apply. Without it the stored blob can differ
+	// from what a checkout of the resulting commit produces.
+	out, err := runGitIn(t.dir, env, "hash-object", "-w", "--path", path, blobFile)
+	if err != nil {
+		return out, err
+	}
+	blob := strings.TrimSpace(string(out))
+
+	if out, err := runGitIn(t.dir, env, "update-index", "--add",
+		"--cacheinfo", "100644,"+blob+","+path); err != nil {
+		return out, err
+	}
+	out, err = runGitIn(t.dir, env, "write-tree")
+	if err != nil {
+		return out, err
+	}
+	tree := strings.TrimSpace(string(out))
+
+	args := []string{"commit-tree", tree, "-p", t.trackingRef(), "-m", msg}
+	if t.signs() {
+		args = append([]string{"commit-tree", "-S"}, args[1:]...)
+	}
+	out, err = runGitIn(t.dir, nil, args...)
+	if err != nil {
+		return out, err
+	}
+	commit := strings.TrimSpace(string(out))
+
+	return runGitIn(t.dir, nil, "push", t.remote, commit+":refs/heads/"+t.branch)
+}
+
+// signs reports whether this repo signs commits. A signing repo that silently
+// produced unsigned commits through this path would be a regression, and
+// commit-tree does not read commit.gpgsign on its own.
+func (t *TrunkFile) signs() bool {
+	out, err := runGitIn(t.dir, nil, "config", "--get", "commit.gpgsign")
+	return err == nil && strings.TrimSpace(string(out)) == "true"
+}
+
+// writeTemp stages content for hash-object, which reads a file rather than stdin.
+func writeTemp(content []byte) (string, func(), error) {
+	f, err := os.CreateTemp("", "sdlc-trunk-blob-*")
+	if err != nil {
+		return "", func() {}, err
+	}
+	p := f.Name()
+	cleanup := func() { os.Remove(p) }
+	if _, err := f.Write(content); err != nil {
+		f.Close()
+		return "", cleanup, err
+	}
+	return p, cleanup, f.Close()
+}

@@ -1,6 +1,8 @@
 package gitx
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,4 +130,149 @@ func TestRunGitIn_CarriesDirEnvAndStderr(t *testing.T) {
 	if !strings.Contains(string(out), "definitely-absent") {
 		t.Errorf("stderr dropped — got %q, want git's own message", out)
 	}
+}
+
+// Update writes to the trunk from a checkout that is NOT on main, with no
+// worktree on main anywhere, and leaves the working tree untouched.
+func TestTrunkFile_UpdateWithNoMainWorktree(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a\n")
+	testfix.Git(t, repo, "checkout", "-q", "-b", "feature")
+
+	tf, err := NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tf.Update("queue.md", "queue: add b", func(old []byte) ([]byte, error) {
+		return append(append([]byte{}, old...), []byte("- b\n")...), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := showTrunk(t, origin, "queue.md"); got != "- a\n- b\n" {
+		t.Errorf("trunk = %q, want %q", got, "- a\n- b\n")
+	}
+	if dirty := testfix.Capture(t, repo, "status", "--porcelain"); dirty != "" {
+		t.Errorf("working tree touched: %q", dirty)
+	}
+	if br := strings.TrimSpace(testfix.Capture(t, repo, "branch", "--show-current")); br != "feature" {
+		t.Errorf("branch changed to %q", br)
+	}
+}
+
+// THE load-bearing test for M1.
+//
+// A peer lands a commit between our read and our push. The push is rejected
+// non-fast-forward, and recovery must RE-RUN THE TRANSFORM against the peer's
+// content — not re-push our own bytes, which would silently drop their line.
+// That distinction is the whole design (ARCH-ORDER), and only a real bare origin
+// can produce the rejection that exercises it (ARCH-MOCK).
+func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a\n")
+	tf, err := NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	calls := 0
+	err = tf.Update("queue.md", "queue: add mine", func(old []byte) ([]byte, error) {
+		calls++
+		if calls == 1 {
+			pushPeerLine(t, origin, "- a\n- peer\n") // peer wins the race
+		}
+		return append(append([]byte{}, old...), []byte("- mine\n")...), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := showTrunk(t, origin, "queue.md")
+	for _, want := range []string{"- peer\n", "- mine\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("trunk missing %q:\n%s", want, got)
+		}
+	}
+	if calls != 2 {
+		t.Errorf("transform called %d times, want 2 (re-run against the moved base)", calls)
+	}
+}
+
+// Exhaustion surfaces GIT'S OWN rejection text, reachable only because runGitIn
+// uses CombinedOutput. Asserting on a generic wrapper message would pass against
+// .Output() and prove nothing.
+func TestTrunkFile_RetryExhaustionSurfacesGitRejection(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a\n")
+	tf, err := NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	calls := 0
+	err = tf.Update("queue.md", "queue: doomed", func(old []byte) ([]byte, error) {
+		calls++
+		pushPeerLine(t, origin, fmt.Sprintf("- a\n- peer%d\n", calls)) // peer always wins
+		return append(append([]byte{}, old...), []byte("- mine\n")...), nil
+	})
+	if err == nil {
+		t.Fatal("expected refusal after the attempt budget")
+	}
+	if calls != 3 {
+		t.Errorf("transform called %d times, want 3 (the bound)", calls)
+	}
+	if !strings.Contains(err.Error(), "non-fast-forward") && !strings.Contains(err.Error(), "fetch first") {
+		t.Errorf("error must carry git's own rejection text, got: %v", err)
+	}
+}
+
+// A transform error aborts without touching the trunk, and the temp index is
+// gone. Cleanup on the ERROR path is the case a success-only defer misses.
+func TestTrunkFile_TransformErrorLeavesNoIndexAndNoCommit(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a\n")
+	tf, err := NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var seen string
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, error) {
+		for _, e := range env {
+			if strings.HasPrefix(e, "GIT_INDEX_FILE=") {
+				seen = strings.TrimPrefix(e, "GIT_INDEX_FILE=")
+			}
+		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	boom := errors.New("boom")
+	if err := tf.Update("queue.md", "m", func([]byte) ([]byte, error) { return nil, boom }); !errors.Is(err, boom) {
+		t.Fatalf("want the transform's error, got %v", err)
+	}
+	if got := showTrunk(t, origin, "queue.md"); got != "- a\n" {
+		t.Errorf("trunk changed on a failed transform: %q", got)
+	}
+	if seen != "" {
+		if _, err := os.Stat(seen); !os.IsNotExist(err) {
+			t.Errorf("temp index %s survived the error path", seen)
+		}
+		if !filepath.IsAbs(seen) {
+			t.Errorf("GIT_INDEX_FILE must be absolute, got %q", seen)
+		}
+	}
+}
+
+// pushPeerLine simulates another checkout landing a commit on the trunk.
+func pushPeerLine(t *testing.T, origin, content string) {
+	t.Helper()
+	peer := testfix.Repo(t)
+	testfix.Git(t, peer, "remote", "add", "origin", origin)
+	testfix.Git(t, peer, "fetch", "-q", "origin", "main")
+	testfix.Git(t, peer, "checkout", "-q", "-B", "main", "origin/main")
+	if err := os.WriteFile(filepath.Join(peer, "queue.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, peer, "add", "queue.md")
+	testfix.Git(t, peer, "commit", "-q", "-m", "peer")
+	testfix.Git(t, peer, "push", "-q", "origin", "main")
 }
