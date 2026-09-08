@@ -19,6 +19,7 @@
 package gitx
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -29,6 +30,12 @@ import (
 
 // runGitIn runs git in `dir` with `env` appended to the environment, returning
 // combined output. A package-level var so tests can drive failure paths.
+//
+// stdout and stderr are returned SEPARATELY, not combined. Combining them looked
+// fine until a repo with `*.md text eol=lf` made git print "CRLF will be replaced
+// by LF" on hash-object — which landed inside the parsed blob hash, and would
+// have landed inside file CONTENT on every read. A shim that returns a value and
+// a diagnostic in one buffer cannot be used safely by a caller that parses.
 //
 // It is a SIBLING of `run` (window.go), not a widening of it. The capability
 // audit for #209 enumerated every exec.Cmd parameter the plumbing needs against
@@ -43,13 +50,16 @@ import (
 // `run` is left alone deliberately: its existing callers were written against
 // .Output() semantics, and folding stderr into strings they parse would break
 // them silently.
-var runGitIn = func(dir string, env []string, args ...string) ([]byte, error) {
+var runGitIn = func(dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
 	}
-	return cmd.CombinedOutput()
+	var out, errBuf bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errBuf
+	err = cmd.Run()
+	return out.Bytes(), errBuf.Bytes(), err
 }
 
 // TrunkFile reads and CAS-writes one path on <remote>/<branch>.
@@ -84,24 +94,84 @@ func (t *TrunkFile) trackingRef() string {
 // `git fetch origin main`, which only guarantees FETCH_HEAD) is the same form
 // issueids.go uses.
 func (t *TrunkFile) fetch() ([]byte, error) {
-	return runGitIn(t.dir, nil, "fetch", "--quiet", t.remote,
+	_, errOut, err := runGitIn(t.dir, nil, "fetch", "--quiet", t.remote,
 		"+refs/heads/"+t.branch+":"+t.trackingRef())
+	return errOut, err
 }
 
-// Read returns the file's bytes on the trunk. A path absent from the trunk is
-// NOT an error — it reads as empty, so a first-ever write needs no special case.
+// Read returns the file's bytes on the trunk, requiring a reachable remote.
+// Callers that can tolerate staleness should use ReadDegraded.
 func (t *TrunkFile) Read(path string) ([]byte, error) {
-	if _, err := t.fetch(); err != nil {
-		// Offline is handled by the caller-facing ReadDegraded; a bare Read
-		// still tries the stale ref rather than failing outright.
-		_ = err
+	if out, err := t.fetch(); err != nil {
+		return nil, offlineError(t.remote, err, out)
 	}
-	out, err := runGitIn(t.dir, nil, "cat-file", "blob", t.trackingRef()+":"+path)
+	return t.readRef(path)
+}
+
+// ReadDegraded returns the file's bytes and a non-empty warning when the fetch
+// failed and the answer came from a stale tracking ref.
+//
+// The read/write asymmetry is deliberate and is the policy issueids.go:40-49
+// already settled for id allocation: creating or inspecting is not something to
+// refuse when the network is down, so degrade LOUDLY; but a CAS push has no base
+// to compare against, so a write must refuse. One offline policy in this binary,
+// not two (ARCH-DRY).
+func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
+	var warn string
+	if out, err := t.fetch(); err != nil {
+		warn = fmt.Sprintf(
+			"%s unreachable — %q read from the stale %s, which may be behind "+
+				"anything published since the last fetch (%s)",
+			t.remote, path, t.trackingRef(), firstLineOf(out))
+	}
+	b, err := t.readRef(path)
+	if err != nil && warn != "" {
+		// No tracking ref either: fall back to the local branch so a fresh
+		// clone-less repo still reads something, and say which.
+		if b2, err2 := t.readLocal(path); err2 == nil {
+			return b2, warn + "; used local " + t.branch, nil
+		}
+	}
+	return b, warn, err
+}
+
+// offlineError names the cause rather than surfacing raw git output, so the
+// refusal reads as a next-action spec.
+func offlineError(remote string, err error, out []byte) error {
+	return fmt.Errorf("%s unreachable (offline?): %v\n%s", remote, err, firstLineOf(out))
+}
+
+// firstLineOf keeps a git failure to one line; fetch errors run several lines of
+// transport noise that bury the cause.
+func firstLineOf(out []byte) string {
+	s := strings.TrimSpace(string(out))
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// readLocal reads the path from the local branch, for a repo with no remote.
+func (t *TrunkFile) readLocal(path string) ([]byte, error) {
+	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.branch+":"+path)
 	if err != nil {
-		if isMissingPath(out) {
+		if isMissingPath(errOut) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.trackingRef(), err, out)
+		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.branch, err, errOut)
+	}
+	return out, nil
+}
+
+// readRef reads the path from the tracking ref. A path absent from the trunk is
+// NOT an error — it reads as empty, so a first-ever write needs no special case.
+func (t *TrunkFile) readRef(path string) ([]byte, error) {
+	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.trackingRef()+":"+path)
+	if err != nil {
+		if isMissingPath(errOut) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.trackingRef(), err, errOut)
 	}
 	return out, nil
 }
@@ -159,6 +229,8 @@ func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, err
 	for attempt := 1; attempt <= maxUpdateAttempts; attempt++ {
 		old, err := t.Read(path)
 		if err != nil {
+			// Includes the offline refusal: a CAS push has no base to compare
+			// against, so unlike a read this cannot degrade.
 			return err
 		}
 		next, err := transform(old)
@@ -198,8 +270,8 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte) ([]byte, err
 	}
 	env := []string{"GIT_INDEX_FILE=" + idx}
 
-	if out, err := runGitIn(t.dir, env, "read-tree", t.trackingRef()); err != nil {
-		return out, err
+	if _, errOut, err := runGitIn(t.dir, env, "read-tree", t.trackingRef()); err != nil {
+		return errOut, err
 	}
 
 	blobFile, cleanupBlob, err := writeTemp(content)
@@ -210,19 +282,19 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte) ([]byte, err
 	// --path (not bare hash-object) so .gitattributes filters and EOL
 	// normalization for THIS path apply. Without it the stored blob can differ
 	// from what a checkout of the resulting commit produces.
-	out, err := runGitIn(t.dir, env, "hash-object", "-w", "--path", path, blobFile)
+	out, errOut, err := runGitIn(t.dir, env, "hash-object", "-w", "--path", path, blobFile)
 	if err != nil {
-		return out, err
+		return errOut, err
 	}
 	blob := strings.TrimSpace(string(out))
 
-	if out, err := runGitIn(t.dir, env, "update-index", "--add",
+	if _, errOut, err := runGitIn(t.dir, env, "update-index", "--add",
 		"--cacheinfo", "100644,"+blob+","+path); err != nil {
-		return out, err
+		return errOut, err
 	}
-	out, err = runGitIn(t.dir, env, "write-tree")
+	out, errOut, err = runGitIn(t.dir, env, "write-tree")
 	if err != nil {
-		return out, err
+		return errOut, err
 	}
 	tree := strings.TrimSpace(string(out))
 
@@ -230,20 +302,21 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte) ([]byte, err
 	if t.signs() {
 		args = append([]string{"commit-tree", "-S"}, args[1:]...)
 	}
-	out, err = runGitIn(t.dir, nil, args...)
+	out, errOut, err = runGitIn(t.dir, nil, args...)
 	if err != nil {
-		return out, err
+		return errOut, err
 	}
 	commit := strings.TrimSpace(string(out))
 
-	return runGitIn(t.dir, nil, "push", t.remote, commit+":refs/heads/"+t.branch)
+	_, errOut, err = runGitIn(t.dir, nil, "push", t.remote, commit+":refs/heads/"+t.branch)
+	return errOut, err
 }
 
 // signs reports whether this repo signs commits. A signing repo that silently
 // produced unsigned commits through this path would be a regression, and
 // commit-tree does not read commit.gpgsign on its own.
 func (t *TrunkFile) signs() bool {
-	out, err := runGitIn(t.dir, nil, "config", "--get", "commit.gpgsign")
+	out, _, err := runGitIn(t.dir, nil, "config", "--get", "commit.gpgsign")
 	return err == nil && strings.TrimSpace(string(out)) == "true"
 }
 
