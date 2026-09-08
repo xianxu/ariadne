@@ -44,6 +44,28 @@ permanently present, carries no ordering information, and trains the reader to
 stop reading the file. A project line that has survived several passes is a
 prompt to write the issue, not a fixture.
 
+## The line format
+
+One entry per line:
+
+```
+- ariadne#207 — after #206 merges, same dispatch [sdlc]
+- project:sdlc-fleet — the whole policy area is next [sdlc]
+```
+
+A ref, an em-dash surrounded by spaces, a few words of why-now, and an optional
+trailing `[tag]` for grouping. A `project:` prefix on the ref marks a project
+line; without it the entry is an issue line. The why-now carries no newline,
+control character, ` — ` or brackets — those are rejected rather than escaped,
+because the format's whole value is that a human reads it as a list, and an
+escape costs exactly that.
+
+A line that does not parse is **preserved verbatim, never discarded** — the file
+is co-authored by hand and by the verb, and silently losing an operator's line
+would be the worst failure this datatype could have. Such a line is not listed as
+an entry, and `sdlc queue` reports how many it found; a hand-edit that used a
+hyphen instead of an em-dash is the usual cause.
+
 ## It lives on the trunk
 
 One file per repo at `workshop/queue.md`, and **`origin/main` is the permanent
@@ -56,10 +78,11 @@ your branch has a copy, and that copy is whatever your branch last saw. That
 staleness is the exact thing the trunk-backed design exists to remove, and
 `cat`-ing the file quietly puts it back.
 
-The operational contract — the operations, the flags, the interleaving policy
-when two checkouts edit at once, and what happens offline — lives in `sdlc queue
---help`. It is not restated here; this page defines the noun, that page defines
-the verb.
+The *operational* contract — the flags, the interleaving policy when two
+checkouts edit at once, and what happens offline — lives in `sdlc queue --help`
+and is not restated here. The split is by kind, not by convenience: the format
+above is part of what a queue entry **is**, so it belongs to the noun; the
+operations are what the verb **does**.
 
 ## Distinct from sibling datatypes
 

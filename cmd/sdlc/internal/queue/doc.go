@@ -65,6 +65,17 @@ func (d *Doc) Entries() []Line {
 	return out
 }
 
+// LineEnding reports whether this document uses CRLF, so an appended line can
+// match rather than introducing mixed endings.
+func (d *Doc) LineEnding() bool {
+	for _, l := range d.lines {
+		if l.parsed {
+			return l.cr
+		}
+	}
+	return false
+}
+
 // UnrecognizedItems counts lines that LOOK like entries — they start with the
 // item marker — but did not parse. Plain prose is not counted: the file is meant
 // to carry prose, and warning about it would train the reader to ignore the

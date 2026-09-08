@@ -85,7 +85,36 @@ func (in Intent) Validate() error {
 	if err := ValidateWhyNow(in.WhyNow); err != nil {
 		return err
 	}
-	return ValidateTag(in.Tag)
+	if err := ValidateTag(in.Tag); err != nil {
+		return err
+	}
+
+	// ROUND-TRIP CHECK, not another forbidden-substring rule.
+	//
+	// Per-field validators can each pass while their combination renders a line
+	// that re-parses to a DIFFERENT record. The live case: a ref of
+	// "project:foo" clears ValidateRef, renders as "- project:foo — why", and
+	// reads back as Ref "foo" of kind project — so `remove project:foo` finds
+	// nothing and a re-add duplicates the entry instead of converging.
+	//
+	// Enumerating that as one more banned prefix would leave the next
+	// combination to be discovered the same way. Rendering the record and
+	// re-parsing it asks the actual question — does this survive a write and a
+	// read — and it is the same technique that made ParseLine's own round-trip
+	// invariant true by construction rather than by argument.
+	kind := in.Kind
+	if kind == KindUnspecified {
+		kind = KindIssue
+	}
+	want := Line{Ref: in.Ref, WhyNow: in.WhyNow, Tag: in.Tag, Kind: kind, parsed: true}
+	got, ok := ParseLine(want.String())
+	if !ok || got != want {
+		return fmt.Errorf(
+			"these values render a line that reads back as something else (%q -> ref %q); "+
+				"the entry could not be removed or updated afterwards",
+			want.String(), got.Ref)
+	}
+	return nil
 }
 
 // Apply produces the new document. Pure: no git, no clock, no IO.
@@ -120,7 +149,11 @@ func (in Intent) applyAdd(d *Doc) (*Doc, Applied, error) {
 	if err := in.Validate(); err != nil {
 		return nil, Applied{}, err
 	}
-	line := Line{Ref: in.Ref, WhyNow: in.WhyNow, Tag: in.Tag, Kind: in.Kind, parsed: true}
+	kind := in.Kind
+	if kind == KindUnspecified {
+		kind = KindIssue // an outright add defaults to a next action
+	}
+	line := Line{Ref: in.Ref, WhyNow: in.WhyNow, Tag: in.Tag, Kind: kind, parsed: true}
 
 	out := d.clone()
 	if i := out.indexOf(in.Ref); i >= 0 {
@@ -139,7 +172,10 @@ func (in Intent) applyAdd(d *Doc) (*Doc, Applied, error) {
 			merged.Tag = in.Tag
 			changed = append(changed, fmt.Sprintf("tag (was %q)", old.Tag))
 		}
-		if in.Kind != old.Kind {
+		// Only an EXPLICIT kind changes it. Unspecified means the caller said
+		// nothing, and silently flipping a peer's project line to an issue line
+		// on an edit that never mentioned kind is the bug this represents away.
+		if in.Kind != KindUnspecified && in.Kind != old.Kind {
 			merged.Kind = in.Kind
 			changed = append(changed, "kind")
 		}
@@ -150,6 +186,7 @@ func (in Intent) applyAdd(d *Doc) (*Doc, Applied, error) {
 		return out, Applied{Note: fmt.Sprintf("%s was already queued; updated %s",
 			in.Ref, strings.Join(changed, " and "))}, nil
 	}
+	line.cr = d.LineEnding() // match the document's endings; do not mix them
 	out.lines = append(out.lines, line)
 	out.trailingNewline = true
 	return out, Applied{}, nil

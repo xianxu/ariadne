@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -291,4 +292,57 @@ func TestQueueList_ReportsUnrecognizedItems(t *testing.T) {
 	if strings.Contains(w, "2 line") {
 		t.Error("prose must not be counted as an unrecognized entry")
 	}
+}
+
+// The spine guard on the write verbs is pinned here, because it is deliberately
+// absent from processmanual.WorkflowVerbs (queue's writes are not lifecycle
+// stages) and so no drift test enumerates it. Without this, removing the guard
+// would be silent.
+func TestQueueCmd_WriteVerbsAreSpineGuarded(t *testing.T) {
+	cmd := NewQueueCmd()
+	guarded := map[string]bool{"add": true, "remove": true, "move": true}
+	seen := map[string]bool{}
+	for _, sub := range cmd.Commands() {
+		name := strings.Fields(sub.Use)[0]
+		seen[name] = true
+		src := subcommandGuardSource(t, name)
+		if guarded[name] != strings.Contains(src, "guardSpineRepo") {
+			t.Errorf("%q: guardSpineRepo present=%v, want %v", name, !guarded[name], guarded[name])
+		}
+	}
+	for name := range guarded {
+		if !seen[name] {
+			t.Errorf("subcommand %q disappeared — the guard claim is now untested", name)
+		}
+	}
+	// The bare list must NOT be guarded: reads stay unguarded by construction.
+	if src := subcommandGuardSource(t, "queue-root"); strings.Contains(src, "guardSpineRepo") {
+		t.Error("the bare list must stay unguarded, matching the charter's read carve-out")
+	}
+}
+
+// subcommandGuardSource returns the RunE body for a queue subcommand, read from
+// source. Reading source is the honest way to assert "this call is present"
+// without a brain-repo fixture; the alternative — invoking the verb — would exit
+// the process via die().
+func subcommandGuardSource(t *testing.T, name string) string {
+	t.Helper()
+	b, err := os.ReadFile("queue.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	markers := map[string]string{
+		"add": "func newQueueAddCmd", "remove": "func newQueueRemoveCmd",
+		"move": "func newQueueMoveCmd", "queue-root": "func NewQueueCmd",
+	}
+	i := strings.Index(s, markers[name])
+	if i < 0 {
+		t.Fatalf("could not find %s in queue.go", markers[name])
+	}
+	rest := s[i:]
+	if j := strings.Index(rest[1:], "\nfunc "); j >= 0 {
+		rest = rest[:j]
+	}
+	return rest
 }

@@ -120,6 +120,15 @@ func NewTrunkFile(dir, remote, branch string) (*TrunkFile, error) {
 	return &TrunkFile{dir: dir, remote: remote, branch: branch}, nil
 }
 
+// localRef is the local BRANCH, fully qualified.
+//
+// Qualification is not cosmetic. An unqualified "main" resolves through git's
+// ref precedence, and with both refs/tags/main and refs/heads/main present
+// `rev-parse --verify main` and `cat-file blob main:path` both return the TAG —
+// so the offline fallback could serve a tag's bytes while announcing it had used
+// the local branch. The same reason trackingRef is spelled out in full.
+func (t *TrunkFile) localRef() string { return "refs/heads/" + t.branch }
+
 // trackingRef is the local remote-tracking ref this type treats as the base.
 func (t *TrunkFile) trackingRef() string {
 	return "refs/remotes/" + t.remote + "/" + t.branch
@@ -166,7 +175,7 @@ func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 	if warn != "" && !tracking {
 		// Never fetched (or no remote at all): fall back to the local branch so a
 		// repo that has never talked to an origin still reads something, and say so.
-		b, err := t.readFrom(t.branch, path)
+		b, err := t.readFrom(t.localRef(), path)
 		return b, warn + "; no " + t.trackingRef() + ", used local " + t.branch, err
 	}
 	b, err := t.readFrom(t.trackingRef(), path)

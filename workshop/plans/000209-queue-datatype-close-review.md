@@ -192,3 +192,173 @@ findings:
     detail: |
       queue.go:212 binds the warning to _ , so the handoff prints "the queue on the trunk right now" with no indication the read was degraded. Folded into the BR-11 enumeration above; noted here for the file:line.
 ```
+
+---
+
+## Re-review — 2026-09-07T19:16:10-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 209 — queue datatype for advisory work ordering |
+| repo | ariadne |
+| issue file | workshop/issues/000209-queue-datatype.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 00d7c75c5371bbb3e2f01f5e28780565c274f3a9..66065f6a7cd58a30f943011eca52c31bc2e6451d |
+| command | sdlc close --issue 209 |
+| reviewer | claude |
+| timestamp | 2026-09-07T19:16:10-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The fix round did real work and I verified it by mutation rather than by reading the commit message: `Intent.Validate` genuinely runs in the verb before `Update` (deleting it turns all six `…ValidationRefusesBeforeTouchingTheTrunk` sub-cases red), `ValidateTag` is pinned at two independent sites, converge now merges instead of replacing (a wholesale-replace mutation turns two tests red), the unparsed-line report exists, the `#207` note landed and is substantive, and the guard decision is recorded. Full suite is green except the pre-existing ariadne#210 failure, and the seed really is on `origin/main` — four entries, six `queue: …` commits, LF, em-dash, tags. What holds SHIP back is that two prior Importants were closed on a claim rather than a check — **BR-21 was dismissed as "stale" in the commit message and is live** (I reproduced tag-shadowing: with a tag named `main`, `rev-parse --verify main` and `cat-file blob main:q.md` return the *tag*, so `ReadDegraded`'s fallback at `trunkfile.go:169` serves the tag's bytes while warning "used local main"), and BR-25's `Kind` cell still flips a peer's project line to an issue line on a re-add that never mentioned `--project`. And the BR-23 enumeration was of *fields*, not of what makes a field safe: `sdlc queue add project:foo "why"` and `sdlc queue add a#1 "  padded  "` both pass `Validate` and publish lines that re-parse to a different record — the first duplicates on re-add and cannot be removed by the ref that was typed, the second is invisible to the listing and unremovable, both exit 0. All of it is cheap; none of it corrupts anything outside `workshop/queue.md`.
+
+## 1. Strengths
+
+- **`line.go:110-123`** — the parse self-check (`if l.String() != s { return unparsed, false }`) makes the round-trip invariant hold by construction. It is the best idea in the diff, and finding #1 below is simply "you built this at the read boundary and not at the write boundary."
+- **`queue.go:188-196` + `queue_test.go:186-215`** — BR-24's fix is real and the test is not vacuous. I removed the `Validate` call in a scratch copy and every sub-case failed with `Update ran 1 times`. The fake's `calls` counter is the seam that makes the claim observable.
+- **`intent.go:126-152`** — converge-by-merge with a note that enumerates what actually changed; a wholesale-replace mutation reddens both `TestQueueEdit_ConvergePreservesUnmentionedFields` and `…ConvergeMergeSemantics/omitting_the_tag_keeps_it`. The CRLF cell BR-25 named is genuinely fixed (verified: converging onto `\r\n` keeps `\r\n`).
+- **`cmd/sdlc/helptext/queue.md:17-30`** — the LINE FORMAT section is exactly what BR-26 asked for, including the em-dash-not-hyphen sentence and the "preserved but not listed" contract, and `runQueueList` now backs it with a real count.
+- **`workshop/issues/000207-sync-without-worktree.md`** (tail) — not a pointer but an argument: it names the seam, and it says plainly that #207's "both issue files land" Done-when is itself the bug for a colliding id. That is the note BR-28 wanted.
+- **`atlas/workflow/sdlc-binary.md:647-727`** — routes rather than restates, and explains *why* `push <commit>:main` beats a cleanliness check.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**A — a validated field can still render a line that re-parses to a different record (`line.go:197-208`, `intent.go:73-89`). 2nd in family `unvalidated-format-field`.**
+Do not patch these two inputs — state the rule. **RULE: a field validator that enumerates forbidden characters does not make the record round-trip; the write path must assert what the read path already asserts.** Two reproduced instances, both exit 0:
+- `Intent{Op: OpAdd, Ref: "project:foo", WhyNow: "why"}` → `Validate` returns nil → publishes `- project:foo — why` → re-reads as `{Ref: "foo", Kind: KindProject}`. `queue remove project:foo` then reports *"project:foo was not in the queue; nothing to remove"* and leaves it; a second `add project:foo` appends a duplicate instead of converging. `ValidateRef` rejects `[`, `]`, whitespace and ` — ` but not the `project:` prefix, which is structure in that position.
+- `Intent{Op: OpAdd, Ref: "a#1", WhyNow: "  padded  "}` → `Validate` returns nil → publishes `- a#1 —   padded  `, which `ParseLine`'s self-check rejects: `Entries()` is empty, `UnrecognizedItems()` is 1. The verb creates the very state BR-26's new warning attributes to *"a hand-edit that used a hyphen"*.
+
+Fix that covers both and any future field: in `applyAdd`, after building `line`, refuse unless `ParseLine(line.String())` returns an equal record — the same mechanical guarantee `line.go:110-123` already gives the read side (`ARCH-DRY`, `ARCH-SECURE`).
+
+**B — the spine-guard decision is recorded in prose but pinned by nothing, and the enumeration that pins every other guard now excludes it (`queue.go:85,112,134`, `repoguard.go:8-14`, `repoguard_test.go:17-25`). 2nd in family `unguarded-write-verb`.**
+Do not just add three assertions — state the rule. **RULE: a guard is only "wired" when it is in the enumeration the drift test walks; a guard reachable only by remembering to call it is a comment.** `repoguard.go:8-11` says the guard is wired into "exactly the lifecycle verbs … `processmanual.WorkflowVerbs`; the drift test enumerates it" — that sentence is now false, since `queue add/remove/move` call `guardSpineRepo` and are not in `WorkflowVerbs` (correctly so: adding them would distort the #172 friction instrument). Consequence: no test anywhere enters `NewQueueCmd`'s command tree at all — not the guard, not `--project`→`Kind`, not `--tag`, not the `--before`/`--after` mutual exclusion — so a refactor that drops the guard call ships silently, in the base-layer binary, to every downstream repo. Also `newQueueMoveCmd` runs its flag validation *before* the guard, contrary to the guard-first placement `repoguard.go:58-60` states. Fix: correct the "exactly" sentence to name the two sets, and add a brain-repo table test over the three write subcommands (plus one asserting the bare list is *not* guarded, which is the decision's other half).
+
+## 4. Minor findings
+
+- **5th in family `duplicated-helper`.** The item-marker predicate is written twice and the two disagree: `line.go:73` tests `CutPrefix(trimmed, "- ")` on the raw line, `doc.go:75` tests `HasPrefix(TrimSpace(l.raw), "- ")`. An ordinary indented prose list (`  - the top line is next`) is reported as 2 lines that "look like entries but do not parse" — reproduced — which is precisely the reader-training failure `doc.go:68-71` says it avoids. **RULE (already stated at `trunkfile.go:230-235`): two functions differing only in a parameter's value, or in which part of one answer they keep, are one function.** Extract `looksLikeItem(s string) bool` and have `ParseLine` and `UnrecognizedItems` both call it.
+- **New family `record-region-boundary`.** `intent.go:153` appends at the end of the *file*, not the end of the *record region*: adding to `"# Queue\n\n- a#1 — first\n\n<!-- keep this at the bottom -->\n"` lands the new entry below the trailing comment, while `move --after a#1` would land it above. Reproduced.
+- Appending to a CRLF document produces mixed endings (`- a#1 — one\r\n- b#2 — two\r\n- c#3 — three\n`) — the converge path carries `cr`, the append path does not. Folded into BR-25's note.
+- `queue.go:194`'s comment says "BEFORE any git call", but `guardSpineRepo` and `openTrunkStore` each run `git rev-parse --show-toplevel` first (two identical invocations per write). The property that matters — no fetch, no masked cause — does hold; the sentence overstates it.
+
+## 5. Test coverage notes
+
+- The pure core is genuinely IO-free and the fuzz target with a checked-in corpus entry is the right guard for a hand-editable file.
+- Three claimed fixes are mutation-verified above. One is not verifiable because it has no test at all: the spine guard (finding B).
+- The converge table (`intent_test.go:214-242`) covers `Tag` and "unchanged" but has no `Kind` row and no `cr` row — the two cells BR-25 explicitly enumerated. A `Kind` row is what would have caught the remaining half.
+- Still uncovered, unchanged from last round: no test drives `Intent.Apply` through a *real* non-fast-forward rejection. `fakeTrunk.Update` (`queue_test.go:53-69`) invokes `transform` exactly once and fires `peer` before it, so `TestQueueEdit_PeerEditSurvivesTheReplay` passes against an `Update` with no retry. The new `reached` field is incremented at two sites and read at none — the doc comment at `queue_test.go:36-38` credits it with making the claim testable, but the assertion is on `calls`.
+
+## 6. Architectural notes
+
+- **ARCH-DRY — flag.** BR-29's two split pairs are untouched (`pathPresent:219`/`modeOf:426`, `refPresent:178`/`resolve:356`, both halves run per `Update` attempt), and the diff added a third instance in the item predicate.
+- **ARCH-PURE — pass.** Validation moved out of the transform into the shell; the merge policy is pure, the CAS retry is at the seam, neither knows the other's rules.
+- **ARCH-PURPOSE — flag.** Shadow-sweep of "the line format": code (authoritative) ✓, `--help` (now derives) ✓, atlas (routes) ✓, `construct/datatype/queue.md` (still silent, and it is the artifact the Done-when names) ✗. And finding A is the same axis on findings: BR-23 asked for an enumeration and got one — of fields, not of what makes a field safe.
+- **ARCH-MOCK — flag.** `gitx` is exemplary (real bare origin throughout). The verb layer's double still cannot produce the rejection the design exists for.
+- **ARCH-CONSTRAINTS — pass.** Bound of 3, one fetch per attempt, `signs()` hoisted. Residue: `queueRefusal`'s extra full fetch, and no timeout (declared in the plan's audit table).
+- **ARCH-SECURE — flag** (finding A). Trunk content is treated as untrusted and fuzz-guarded on the read side; the write side has no symmetric parse-back check, so invalid state stays representable.
+- **ARCH-ORDER — flag.** The interleaving table is enumerated and each cell tested at the pure layer, but the converge cell still loses `Kind`, and `Kind`'s zero value is `KindIssue`, so "not mentioned" and "explicitly an issue line" are one state. Collapsing that (a `KindUnspecified` zero, or `c.Flags().Changed("project")`) is the fix for BR-25's residue.
+
+## 7. Plan revision recommendations
+
+Extend the "2026-09-07 — M2 as built" entry (it is honest about the red-green ticks; complete the sweep it began):
+
+1. Add a task row for `04804ff` (the real-git e2e) — real work, no plan row, called out last round and still absent.
+2. Core-concepts table: `queueCmd` → `NewQueueCmd` (lines 81, 87, 91), and add a row for `gitx.FirstLine`, newly exported in this window.
+3. Record that Task 12's Done-when clause "the prose states … the line format" is met in `helptext/queue.md` but **not** in `construct/datatype/queue.md`, and say which one is intended to carry it.
+4. Record the `project:` prefix as the project-line marker — a design decision made during implementation that appears in no plan or Spec text, and the one finding A turns on.
+5. Record that `queue add/remove/move` are `guardSpineRepo`'d while the bare list is not, since that is a lifecycle-surface change the plan never contemplated.
+
+```findings
+dispose:
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      trunkfile.go:191-193 and Update:317 are untouched by this round (trunkfile.go is not in 66065f6). queueRefusal now prints the staleness warning, which was BR-32's half, not this one.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      Untouched. trunkfile.go:383-385 still explains what --path buys with no sentence noting the attributes resolve from the working tree/index, not from the trunk being written.
+  - id: BR-21
+    disposition: not-addressed
+    note: |
+      The fix commit dismisses this as "stale" on the readFrom merge, but the finding's second half is live and reproduced. trunkfile.go:169 still passes the UNQUALIFIED t.branch; I confirmed against real git that with both refs/tags/main and refs/heads/main present, `rev-parse --verify main` and `cat-file blob main:q.md` return the TAG. So ReadDegraded's no-tracking-ref fallback can serve a tag's bytes while warning "used local main". One-line fix, unchanged: pass "refs/heads/" + t.branch.
+  - id: BR-23
+    disposition: addressed
+    note: |
+      ValidateTag exists and is pinned twice. Verified by mutation, not by the diff: short-circuiting ValidateTag to nil reddens TestIntent_Validate_CoversEveryInterpolatedField/tag and two sub-cases of TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk.
+  - id: BR-24
+    disposition: addressed
+    note: |
+      Verified by mutation: deleting the in.Validate() call from runQueueEdit reddens all six sub-cases with "Update ran 1 times". Residue, not re-raised: guardSpineRepo and openTrunkStore each run `git rev-parse --show-toplevel` before validation, so queue.go:194's "BEFORE any git call" is literally still false (and the two calls are redundant with each other).
+  - id: BR-25
+    disposition: not-addressed
+    note: |
+      Tag and cr are now carried (both mutation-verified), but the Kind cell the finding enumerated is not. Reproduced: `add sdlc-fleet "sharper reason"` onto "- project:sdlc-fleet — the whole area is next [sdlc]" yields "- sdlc-fleet — sharper reason [sdlc]" with the note "updated why-now ... and kind" — the peer's project marker is destroyed by an edit that never mentioned it, now announced rather than silent. Root cause is that KindIssue is Kind's zero value, so "not mentioned" is unrepresentable; fix with a KindUnspecified zero or c.Flags().Changed("project"). Second residue in the same rule: the APPEND branch (intent.go:153) does not carry the document's line ending, so adding to a CRLF file yields mixed endings.
+  - id: BR-26
+    disposition: not-addressed
+    note: |
+      The listing half is fully done and pinned (TestQueueList_ReportsUnrecognizedItems), and helptext/queue.md:17-30 now carries the grammar. The datatype-prose half is untouched — construct/datatype/queue.md is not in the fix commit and still says the operational contract "is not restated here", so the Done-when clause "the prose states ... the line format" remains unmet. One short section closes it.
+  - id: BR-27
+    disposition: addressed
+    note: |
+      guardSpineRepo is wired into all three write subcommands and the read/write asymmetry is argued in queue.go:22-34. The residue — no test pins it and repoguard.go's enumeration claim is now false — is raised separately as its own finding rather than re-raised here.
+  - id: BR-28
+    disposition: addressed
+    note: |
+      The #207 note landed on 000207-sync-without-worktree.md, names which file it chose, and carries the retry-semantics amendment. The plan gained an M2 Revisions entry that is unusually honest about the blanket-regex ticking. Residue carried into the plan-revision recommendations: 04804ff still has no task row.
+  - id: BR-29
+    disposition: not-addressed
+    note: |
+      Untouched — trunkfile.go is not in the fix commit. pathPresent:219/modeOf:426 and refPresent:178/resolve:356 both remain, and Update still runs both halves of both pairs per attempt.
+  - id: BR-30
+    disposition: not-addressed
+    note: |
+      Half addressed. TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk can now see a git call (it asserts f.calls == 0, mutation-verified). The replay half is unchanged: fakeTrunk.Update still calls transform exactly once and fires peer BEFORE it, so TestQueueEdit_PeerEditSurvivesTheReplay would pass against an Update with no retry, and queue_e2e_test.go still has no peer push. Also, the `reached` field added for this is incremented at two sites and read at none, while queue_test.go:36-38 credits it with making the claim testable.
+  - id: BR-31
+    disposition: not-addressed
+    note: |
+      Untouched. workshop/plans/000209-queue-datatype-plan.md still names queueCmd at lines 81, 87 and 91, and has no row for gitx.FirstLine.
+  - id: BR-32
+    disposition: addressed
+    note: |
+      queue.go:249-251 now prints "(this snapshot is itself stale: ...)". The redundant second full fetch on the error path remains and is folded into the BR-11 enumeration.
+findings:
+  - id: new
+    severity: Important
+    family: unvalidated-format-field
+    title: |
+      A field that passes Validate can still render a line that re-parses to a different record, producing entries that duplicate and cannot be removed
+    detail: |
+      This is the 2nd finding in family unvalidated-format-field. Do NOT patch these two inputs — state the rule. RULE a validator that enumerates forbidden characters does not make the record round-trip; the write path must assert what the read path already asserts. Two instances reproduced against the real code, both exit 0. (1) Intent{OpAdd, Ref "project:foo", WhyNow "why"} validates, publishes "- project:foo — why", and re-reads as {Ref "foo", Kind KindProject}; `queue remove project:foo` then reports "project:foo was not in the queue; nothing to remove" and leaves it, and a second identical add appends a duplicate instead of converging. ValidateRef rejects brackets, whitespace and the em-dash separator but not the project: prefix, which is structure in that position. (2) Intent{OpAdd, Ref "a#1", WhyNow "  padded  "} validates and publishes "- a#1 —   padded  ", which ParseLine's own self-check rejects — Entries() is empty and UnrecognizedItems() is 1, so the verb manufactures the state runQueueList blames on "a hand-edit that used a hyphen". Fix covering both and every future field - in applyAdd, after building the Line, refuse unless ParseLine(line.String()) yields an equal record, the same mechanical guarantee line.go:110-123 gives the read side (ARCH-DRY, ARCH-SECURE).
+  - id: new
+    severity: Important
+    family: unguarded-write-verb
+    title: |
+      The spine guard on the queue write verbs is pinned by no test, and repoguard.go's enumeration claim is now false
+    detail: |
+      This is the 2nd finding in family unguarded-write-verb. Do NOT just add three assertions — state the rule. RULE a guard is wired only when it is in the enumeration the drift test walks; a guard reachable solely by remembering to call it is a comment. repoguard.go:8-11 states the guard is wired into "exactly the lifecycle verbs (... processmanual.WorkflowVerbs; the drift test enumerates it)", which is now untrue - queue add/remove/move call guardSpineRepo and are outside WorkflowVerbs, correctly so since adding them there would distort the #172 friction instrument. Consequence - no test constructs NewQueueCmd's command tree at all, so nothing pins the guard, the --project to Kind wiring, --tag, or the --before/--after mutual exclusion, and a refactor dropping the guard ships silently from the base-layer binary to every downstream repo. Separately, newQueueMoveCmd runs flag validation before the guard, contrary to the guard-first placement repoguard.go:58-60 states. Fix - correct the "exactly" sentence to name both sets, and add a brain-repo table test over the three write subcommands plus one asserting the bare list is NOT guarded.
+  - id: new
+    severity: Minor
+    family: duplicated-helper
+    title: |
+      The item-marker predicate is written twice with different rules, so indented prose bullets are reported as unparsed entries
+    detail: |
+      This is the 5th finding in family duplicated-helper. Do NOT fix this instance — the rule is already stated at trunkfile.go:230-235 and just needs extending from functions to predicates - two implementations of one predicate are one function, and where they diverge one of them is a bug. line.go:73 tests CutPrefix(trimmed, "- ") on the raw line; doc.go:75 tests HasPrefix(TrimSpace(l.raw), "- "). Reproduced - a queue file whose prose header contains an ordinary indented list ("  - the top line is next") reports 2 lines that "look like entries but do not parse", which is exactly the reader-training failure doc.go:68-71 says the TrimSpace-free rule avoids. TestQueueList_ReportsUnrecognizedItems uses only unindented prose so it cannot see this. Extract looksLikeItem(s string) bool and call it from both.
+  - id: new
+    severity: Minor
+    family: record-region-boundary
+    title: |
+      add appends at the end of the FILE, so a new entry lands below a trailing comment block, and move --after disagrees with it
+    detail: |
+      intent.go:153 appends to d.lines unconditionally. Reproduced - adding b#2 to "# Queue\n\n- a#1 — first\n\n<!-- keep this at the bottom -->\n" renders the new entry BELOW the comment, while `move b#2 --after a#1` would place it above. RULE in a document that interleaves records with free text there is a record region, and an insert belongs at that region's edge, not the file's. The file has no prose today so nothing breaks yet, but Doc exists precisely to support hand-authored prose and the plan's Task 8 names a trailing comment block as a case. TestIntent_Apply_PreservesProse asserts the comment survives but not where the entry lands.
+```

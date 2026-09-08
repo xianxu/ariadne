@@ -16,6 +16,15 @@ import (
 type Kind int
 
 const (
+	// KindUnspecified is the ZERO VALUE and means "the caller did not say".
+	//
+	// It exists because KindIssue used to be the zero value, which made "not
+	// mentioned" indistinguishable from "explicitly an issue" — so a converging
+	// re-add that never mentioned kind destroyed a peer's project marker. That is
+	// the same illegal-state shape this issue hit three times already; the fix is
+	// to make the missing state representable rather than to remember not to hit
+	// it (ARCH-ORDER).
+	KindUnspecified Kind = iota
 	// KindIssue is a next action — something that can be started.
 	KindIssue Kind = iota
 	// KindProject is a declared intent to work in an area. Coarser, and it

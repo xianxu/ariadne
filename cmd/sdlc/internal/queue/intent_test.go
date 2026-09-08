@@ -266,3 +266,88 @@ func TestIntent_Validate_CoversEveryInterpolatedField(t *testing.T) {
 		})
 	}
 }
+
+// BR-33: per-field validators can each pass while their COMBINATION renders a
+// line that reads back as a different record — an entry that duplicates on
+// re-add and cannot be removed. Validate answers the real question by rendering
+// and re-parsing, so a case nobody enumerated is still caught.
+func TestIntent_Validate_RejectsRecordsThatDoNotSurviveARoundTrip(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   Intent
+	}{
+		{"issue ref carrying the project prefix", Intent{Op: OpAdd, Ref: "project:foo", WhyNow: "why"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.in.Validate(); err == nil {
+				// Demonstrate the damage the rejection prevents.
+				d, _, _ := tc.in.Apply(Parse(nil))
+				e := Parse(d.Render()).Entries()
+				t.Fatalf("accepted, and it round-trips to ref %q instead of %q", e[0].Ref, tc.in.Ref)
+			}
+		})
+	}
+}
+
+// The check is PRECISE, not a blanket ban on the prefix. `Ref: "project:foo"`
+// with `Kind: KindProject` renders "- project:project:foo — why" and reads back
+// unchanged: odd-looking, but consistent and removable, so it is not a defect and
+// is not rejected. Only the record that CHANGES under a round trip is — which is
+// the difference between asking the real question and banning a substring.
+func TestIntent_Validate_AllowsOddButConsistentRecords(t *testing.T) {
+	in := Intent{Op: OpAdd, Ref: "project:foo", WhyNow: "why", Kind: KindProject}
+	if err := in.Validate(); err != nil {
+		t.Fatalf("a consistent record must pass even if it renders oddly: %v", err)
+	}
+	d, _, err := in.Apply(Parse(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := Parse(d.Render()).Entries(); e[0].Ref != "project:foo" || e[0].Kind != KindProject {
+		t.Errorf("record changed: %+v", e)
+	}
+}
+
+// A legitimate project line still works.
+func TestIntent_Validate_AllowsHonestProjectLines(t *testing.T) {
+	in := Intent{Op: OpAdd, Ref: "sdlc-fleet", WhyNow: "area is next", Tag: "sdlc", Kind: KindProject}
+	if err := in.Validate(); err != nil {
+		t.Fatalf("a normal project line must pass: %v", err)
+	}
+	d, _, err := in.Apply(Parse(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := Parse(d.Render()).Entries()
+	if len(e) != 1 || e[0].Ref != "sdlc-fleet" || e[0].Kind != KindProject {
+		t.Errorf("round-trip changed the record: %+v", e)
+	}
+}
+
+// A converging re-add that never mentions kind must not destroy a peer's
+// project marker. KindUnspecified is what makes "not mentioned" representable.
+func TestIntent_Apply_ConvergeDoesNotFlipUnmentionedKind(t *testing.T) {
+	doc := "- project:sdlc-fleet — the whole area is next [sdlc]\n"
+	got, applied, err := Intent{Op: OpAdd, Ref: "sdlc-fleet", WhyNow: "sharper reason"}.Apply(Parse([]byte(doc)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(got.Render())
+	if !strings.Contains(s, "project:sdlc-fleet") {
+		t.Errorf("the peer's project marker was destroyed by an edit that never mentioned kind: %q", s)
+	}
+	if strings.Contains(applied.Note, "kind") {
+		t.Errorf("note claims a kind change that was never requested: %q", applied.Note)
+	}
+}
+
+// Appending to a CRLF document must not introduce mixed line endings.
+func TestIntent_Apply_AppendMatchesDocumentLineEnding(t *testing.T) {
+	got, _, err := Intent{Op: OpAdd, Ref: "b#2", WhyNow: "second"}.Apply(Parse([]byte("- a#1 — first\r\n")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(got.Render()); s != "- a#1 — first\r\n- b#2 — second\r\n" {
+		t.Errorf("mixed line endings: %q", s)
+	}
+}
