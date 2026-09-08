@@ -107,16 +107,10 @@ func warnIfBlind(stderr io.Writer, dirs idDirs, foundLocal int, sawAnyID bool) {
 		strings.Join(dirs.Rel, ", "), dirs.Top))
 }
 
-// firstLine keeps a git failure to one line: fetch errors are several lines of
-// remote diagnostics, and a warning that scrolls reads as noise, not a warning.
-func firstLine(s string) string {
-	for _, ln := range strings.Split(s, "\n") {
-		if ln = strings.TrimSpace(ln); ln != "" {
-			return ln
-		}
-	}
-	return "no output"
-}
+// firstLine delegates to gitx.FirstLine — one definition, homed where the
+// git-invocation vocabulary lives (#209 M1 review, ARCH-DRY). Kept as a
+// package-local alias so the ~dozen call sites here read unchanged.
+func firstLine(s string) string { return gitx.FirstLine(s) }
 
 // publishedIDSpace reads the trunk's id space, refreshing the ref first.
 //

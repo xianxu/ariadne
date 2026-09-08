@@ -1,6 +1,11 @@
 // trunkfile.go — read and compare-and-swap-write ONE path on a remote branch,
 // with no working tree (ariadne#209).
 //
+// "No working tree" is precise: no git CHECKOUT is read or written. Two private
+// temp files are used — one for the index, one to hand `hash-object` content,
+// since it reads a file rather than stdin — and neither is a working tree nor
+// lives inside the caller's repo.
+//
 // Why this exists: publishing a small file to the trunk from a feature branch
 // currently routes through whatever checkout has main out (`syncViaMainWorktree`,
 // claim.go), which can be dirty, mid-rebase, owned by another actor, or simply
@@ -122,42 +127,53 @@ func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 		warn = fmt.Sprintf(
 			"%s unreachable — %q read from the stale %s, which may be behind "+
 				"anything published since the last fetch (%s)",
-			t.remote, path, t.trackingRef(), firstLineOf(out))
+			t.remote, path, t.trackingRef(), FirstLine(string(out)))
+	}
+	if warn != "" && !t.refExists(t.trackingRef()) {
+		// Never fetched (or no remote at all): fall back to the local branch so a
+		// repo that has never talked to an origin still reads something, and say so.
+		b, err := t.readLocal(path)
+		return b, warn + "; no " + t.trackingRef() + ", used local " + t.branch, err
 	}
 	b, err := t.readRef(path)
-	if err != nil && warn != "" {
-		// No tracking ref either: fall back to the local branch so a fresh
-		// clone-less repo still reads something, and say which.
-		if b2, err2 := t.readLocal(path); err2 == nil {
-			return b2, warn + "; used local " + t.branch, nil
-		}
-	}
 	return b, warn, err
+}
+
+// refExists reports whether a ref resolves, by exit code.
+func (t *TrunkFile) refExists(ref string) bool {
+	_, _, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--quiet", ref)
+	return err == nil
 }
 
 // offlineError names the cause rather than surfacing raw git output, so the
 // refusal reads as a next-action spec.
 func offlineError(remote string, err error, out []byte) error {
-	return fmt.Errorf("%s unreachable (offline?): %v\n%s", remote, err, firstLineOf(out))
+	return fmt.Errorf("%s unreachable (offline?): %v\n%s", remote, err, FirstLine(string(out)))
 }
 
-// firstLineOf keeps a git failure to one line; fetch errors run several lines of
-// transport noise that bury the cause.
-func firstLineOf(out []byte) string {
-	s := strings.TrimSpace(string(out))
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
+// FirstLine keeps a git failure to one line: fetch errors are several lines of
+// remote diagnostics, and a warning that scrolls reads as noise, not a warning.
+//
+// Exported and homed here because cmd/sdlc had its own copy (issueids.go) and
+// gitx cannot import package main. gitx is where the git-invocation vocabulary
+// already lives, so the shared definition belongs on this side of the seam
+// (ARCH-DRY).
+func FirstLine(s string) string {
+	for _, ln := range strings.Split(s, "\n") {
+		if ln = strings.TrimSpace(ln); ln != "" {
+			return ln
+		}
 	}
-	return s
+	return "no output"
 }
 
 // readLocal reads the path from the local branch, for a repo with no remote.
 func (t *TrunkFile) readLocal(path string) ([]byte, error) {
+	if !t.exists(t.branch, path) {
+		return nil, nil
+	}
 	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.branch+":"+path)
 	if err != nil {
-		if isMissingPath(errOut) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.branch, err, errOut)
 	}
 	return out, nil
@@ -166,44 +182,53 @@ func (t *TrunkFile) readLocal(path string) ([]byte, error) {
 // readRef reads the path from the tracking ref. A path absent from the trunk is
 // NOT an error — it reads as empty, so a first-ever write needs no special case.
 func (t *TrunkFile) readRef(path string) ([]byte, error) {
+	if !t.exists(t.trackingRef(), path) {
+		return nil, nil // absent on the trunk reads as empty: a first write needs no special case
+	}
 	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.trackingRef()+":"+path)
 	if err != nil {
-		if isMissingPath(errOut) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.trackingRef(), err, errOut)
 	}
 	return out, nil
 }
 
-// isMissingPath distinguishes "the tree has no such path" from a real failure.
-// git phrases this several ways across versions, so match on the stable parts.
-func isMissingPath(out []byte) bool {
-	s := string(out)
-	return strings.Contains(s, "does not exist") ||
-		strings.Contains(s, "exists on disk, but not in") ||
-		strings.Contains(s, "Not a valid object name")
+// exists reports whether <ref>:<path> is in the tree, via `cat-file -e`'s EXIT
+// CODE rather than by matching git's prose.
+//
+// The first version of this matched phrases like "does not exist" — which works
+// until a git release rewords them, and worse, silently reclassifies a real
+// failure as "absent" and hands the caller an empty file. Existence has a machine
+// interface; use it (the same reason signs() asks for --type=bool below).
+func (t *TrunkFile) exists(ref, path string) bool {
+	_, _, err := runGitIn(t.dir, nil, "cat-file", "-e", ref+":"+path)
+	return err == nil
 }
 
-// tempIndexPath returns an ABSOLUTE path for GIT_INDEX_FILE.
+// tempIndexPath returns an ABSOLUTE path for GIT_INDEX_FILE, inside a private
+// temp DIRECTORY.
 //
 // Absolute matters: a relative value resolves against the child's working
 // directory, which is cmd.Dir here — so a relative path would silently land
 // inside the caller's repo. And it must never be $GIT_DIR/index, which would
 // corrupt whatever checkout shares the git dir.
-func tempIndexPath(dir string) (string, func(), error) {
-	f, err := os.CreateTemp("", "sdlc-trunk-index-*")
+//
+// The directory matters too. Creating a temp FILE and deleting it so git can
+// make its own leaves the name unclaimed in a world-writable /tmp between the
+// remove and git's create — anyone can plant a symlink there and redirect the
+// index write (ARCH-SECURE: this process does not own /tmp). A 0700 directory
+// created atomically by MkdirTemp has no such window, and the name inside it is
+// ours alone.
+func tempIndexPath() (string, func(), error) {
+	dir, err := os.MkdirTemp("", "sdlc-trunk-*")
 	if err != nil {
 		return "", func() {}, err
 	}
-	p := f.Name()
-	f.Close()
-	os.Remove(p) // git wants to create it itself
-	abs, err := filepath.Abs(p)
+	cleanup := func() { os.RemoveAll(dir) }
+	abs, err := filepath.Abs(filepath.Join(dir, "index"))
 	if err != nil {
-		return "", func() { os.Remove(p) }, err
+		return "", cleanup, err
 	}
-	return abs, func() { os.Remove(abs) }, nil
+	return abs, cleanup, nil
 }
 
 // maxUpdateAttempts bounds the CAS retry. Three is the same bound ariadne#207
@@ -237,11 +262,25 @@ func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, err
 		if err != nil {
 			return err // caller's error, surfaced unwrapped so errors.Is works
 		}
-		out, err := t.commitAndPush(path, msg, next)
+		base, err := t.resolve(t.trackingRef())
+		if err != nil {
+			return err
+		}
+		out, err := t.commitAndPush(path, msg, next, base)
 		if err == nil {
 			return nil
 		}
-		if !isNonFastForward(out) {
+		// Retry only when the TRUNK ACTUALLY MOVED — observed by re-resolving the
+		// ref, not by matching git's rejection prose. The first version matched a
+		// bare "rejected", which git emits for refusals that retrying cannot fix
+		// (a hook decline, no push permission, a stale-info tag clobber); those
+		// burned the whole attempt budget and then reported a contention story
+		// that never happened.
+		if _, ferr := t.fetch(); ferr != nil {
+			return fmt.Errorf("publish %s: %v\n%s", path, err, out)
+		}
+		now, rerr := t.resolve(t.trackingRef())
+		if rerr != nil || now == base {
 			return fmt.Errorf("publish %s: %v\n%s", path, err, out)
 		}
 		lastRejection = out
@@ -250,27 +289,26 @@ func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, err
 		path, maxUpdateAttempts, lastRejection)
 }
 
-// isNonFastForward reports whether git refused the push because the ref moved —
-// the CAS failure this type retries — as opposed to any other push failure,
-// which is not retryable and must surface immediately.
-func isNonFastForward(out []byte) bool {
-	s := string(out)
-	return strings.Contains(s, "non-fast-forward") ||
-		strings.Contains(s, "fetch first") ||
-		strings.Contains(s, "rejected")
+// resolve returns the SHA a ref points at.
+func (t *TrunkFile) resolve(ref string) (string, error) {
+	out, errOut, err := runGitIn(t.dir, nil, "rev-parse", "--verify", ref)
+	if err != nil {
+		return "", fmt.Errorf("resolve %s: %v\n%s", ref, err, errOut)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // commitAndPush builds the tree in a temp index and pushes the new commit at the
 // branch. Returns git's combined output so the caller can classify the failure.
-func (t *TrunkFile) commitAndPush(path, msg string, content []byte) ([]byte, error) {
-	idx, cleanupIdx, err := tempIndexPath(t.dir)
+func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string) ([]byte, error) {
+	idx, cleanupIdx, err := tempIndexPath()
 	defer cleanupIdx()
 	if err != nil {
 		return nil, err
 	}
 	env := []string{"GIT_INDEX_FILE=" + idx}
 
-	if _, errOut, err := runGitIn(t.dir, env, "read-tree", t.trackingRef()); err != nil {
+	if _, errOut, err := runGitIn(t.dir, env, "read-tree", base); err != nil {
 		return errOut, err
 	}
 
@@ -298,7 +336,7 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte) ([]byte, err
 	}
 	tree := strings.TrimSpace(string(out))
 
-	args := []string{"commit-tree", tree, "-p", t.trackingRef(), "-m", msg}
+	args := []string{"commit-tree", tree, "-p", base, "-m", msg}
 	if t.signs() {
 		args = append([]string{"commit-tree", "-S"}, args[1:]...)
 	}
@@ -315,12 +353,19 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte) ([]byte, err
 // signs reports whether this repo signs commits. A signing repo that silently
 // produced unsigned commits through this path would be a regression, and
 // commit-tree does not read commit.gpgsign on its own.
+//
+// --type=bool matters: git accepts 1/yes/on/true and stores the string VERBATIM,
+// so `--get` on a repo configured with `yes` returns "yes" and a naive == "true"
+// yields exactly the silent unsigned commit this function exists to prevent.
 func (t *TrunkFile) signs() bool {
-	out, _, err := runGitIn(t.dir, nil, "config", "--get", "commit.gpgsign")
+	out, _, err := runGitIn(t.dir, nil, "config", "--type=bool", "--get", "commit.gpgsign")
 	return err == nil && strings.TrimSpace(string(out)) == "true"
 }
 
-// writeTemp stages content for hash-object, which reads a file rather than stdin.
+// writeTemp stages content for hash-object, which reads a file rather than
+// stdin. Unlike the index path this file is created and kept by us, so
+// CreateTemp's atomic O_EXCL is sufficient — there is no delete-then-recreate
+// window for anyone to occupy.
 func writeTemp(content []byte) (string, func(), error) {
 	f, err := os.CreateTemp("", "sdlc-trunk-blob-*")
 	if err != nil {

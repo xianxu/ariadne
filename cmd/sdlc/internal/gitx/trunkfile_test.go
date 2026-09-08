@@ -201,8 +201,8 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 }
 
 // Exhaustion surfaces GIT'S OWN rejection text, reachable only because runGitIn
-// uses CombinedOutput. Asserting on a generic wrapper message would pass against
-// .Output() and prove nothing.
+// returns stderr separately. Asserting on a generic wrapper message would pass
+// against a shim that dropped stderr and prove nothing.
 func TestTrunkFile_RetryExhaustionSurfacesGitRejection(t *testing.T) {
 	repo, origin := trunkFixture(t, "- a\n")
 	tf, err := NewTrunkFile(repo, "origin", "main")
@@ -227,10 +227,31 @@ func TestTrunkFile_RetryExhaustionSurfacesGitRejection(t *testing.T) {
 	}
 }
 
-// A transform error aborts without touching the trunk, and the temp index is
-// gone. Cleanup on the ERROR path is the case a success-only defer misses.
-func TestTrunkFile_TransformErrorLeavesNoIndexAndNoCommit(t *testing.T) {
+// A transform error aborts without touching the trunk.
+func TestTrunkFile_TransformErrorLeavesTrunkUntouched(t *testing.T) {
 	repo, origin := trunkFixture(t, "- a\n")
+	tf, err := NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boom := errors.New("boom")
+	if err := tf.Update("queue.md", "m", func([]byte) ([]byte, error) { return nil, boom }); !errors.Is(err, boom) {
+		t.Fatalf("want the transform's error, got %v", err)
+	}
+	if got := showTrunk(t, origin, "queue.md"); got != "- a\n" {
+		t.Errorf("trunk changed on a failed transform: %q", got)
+	}
+}
+
+// The temp index is absolute and is removed even when a git step INSIDE
+// commitAndPush fails.
+//
+// The first version of this test aborted in the transform, which runs BEFORE any
+// index is created — so GIT_INDEX_FILE was never set, the captured path stayed
+// empty, and every assertion sat inside a branch that could not be taken. A
+// cleanup test has to fail somewhere cleanup is actually owed.
+func TestTrunkFile_TempIndexIsAbsoluteAndRemovedOnGitFailure(t *testing.T) {
+	repo, _ := trunkFixture(t, "- a\n")
 	tf, err := NewTrunkFile(repo, "origin", "main")
 	if err != nil {
 		t.Fatal(err)
@@ -244,24 +265,120 @@ func TestTrunkFile_TransformErrorLeavesNoIndexAndNoCommit(t *testing.T) {
 				seen = strings.TrimPrefix(e, "GIT_INDEX_FILE=")
 			}
 		}
+		if len(args) > 0 && args[0] == "write-tree" {
+			return nil, []byte("injected failure"), errors.New("write-tree failed")
+		}
 		return orig(dir, env, args...)
 	}
 	defer func() { runGitIn = orig }()
 
-	boom := errors.New("boom")
-	if err := tf.Update("queue.md", "m", func([]byte) ([]byte, error) { return nil, boom }); !errors.Is(err, boom) {
-		t.Fatalf("want the transform's error, got %v", err)
+	if err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+		return append(o, []byte("- b\n")...), nil
+	}); err == nil {
+		t.Fatal("expected the injected git failure to surface")
 	}
-	if got := showTrunk(t, origin, "queue.md"); got != "- a\n" {
-		t.Errorf("trunk changed on a failed transform: %q", got)
+
+	if seen == "" {
+		t.Fatal("GIT_INDEX_FILE was never set — the test would assert nothing")
 	}
-	if seen != "" {
-		if _, err := os.Stat(seen); !os.IsNotExist(err) {
-			t.Errorf("temp index %s survived the error path", seen)
+	if !filepath.IsAbs(seen) {
+		t.Errorf("GIT_INDEX_FILE must be absolute (it resolves against cmd.Dir otherwise), got %q", seen)
+	}
+	if _, err := os.Stat(seen); !os.IsNotExist(err) {
+		t.Errorf("temp index %s survived a mid-sequence git failure", seen)
+	}
+}
+
+// BR-5: the path M2's seed actually takes — Update on a file absent from the
+// trunk. Nothing else in this file exercises a first-ever write.
+func TestTrunkFile_UpdateCreatesAbsentPath(t *testing.T) {
+	repo, origin := trunkFixture(t, "seed\n")
+	tf, err := NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tf.Update("workshop/queue.md", "queue: create", func(old []byte) ([]byte, error) {
+		if len(old) != 0 {
+			t.Errorf("absent path must read as empty, got %q", old)
 		}
-		if !filepath.IsAbs(seen) {
-			t.Errorf("GIT_INDEX_FILE must be absolute, got %q", seen)
+		return []byte("- first\n"), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := showTrunk(t, origin, "workshop/queue.md"); got != "- first\n" {
+		t.Errorf("created file = %q, want %q", got, "- first\n")
+	}
+	// The pre-existing file must survive: read-tree seeds the index from the
+	// base tree, so a create must not blow away siblings.
+	if got := showTrunk(t, origin, "queue.md"); got != "seed\n" {
+		t.Errorf("sibling file lost on create: %q", got)
+	}
+}
+
+// BR-4: git stores commit.gpgsign verbatim, so a repo configured with `yes`
+// must still sign. This is the case a raw == "true" comparison silently fails.
+func TestTrunkFile_SigningHonorsNonCanonicalBool(t *testing.T) {
+	repo, _ := trunkFixture(t, "x\n")
+	testfix.Git(t, repo, "config", "commit.gpgsign", "yes")
+
+	var sawDashS bool
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 0 && args[0] == "commit-tree" {
+			var kept []string
+			for _, a := range args {
+				if a == "-S" {
+					sawDashS = true
+					continue
+				}
+				kept = append(kept, a)
+			}
+			args = kept
 		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	if err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) { return append(o, 'y', '\n'), nil }); err != nil {
+		t.Fatal(err)
+	}
+	if !sawDashS {
+		t.Error(`commit.gpgsign="yes" must still sign — git stores the string verbatim, so --type=bool is required`)
+	}
+}
+
+// BR-2: a push refusal that retrying cannot fix must surface immediately rather
+// than burning the attempt budget and reporting contention that never happened.
+func TestTrunkFile_NonRetryablePushFailsFast(t *testing.T) {
+	repo, _ := trunkFixture(t, "- a\n")
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+
+	calls := 0
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 0 && args[0] == "push" {
+			// git's wording for refusals retrying cannot fix; the trunk does NOT move.
+			return nil, []byte("! [remote rejected] main -> main (pre-receive hook declined)"),
+				errors.New("exit status 1")
+		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+		calls++
+		return append(o, 'z', '\n'), nil
+	})
+	if err == nil {
+		t.Fatal("expected the refusal to surface")
+	}
+	if calls != 1 {
+		t.Errorf("transform called %d times, want 1 — the trunk never moved, so this is not a CAS failure", calls)
+	}
+	if !strings.Contains(err.Error(), "hook declined") {
+		t.Errorf("must surface git's actual reason, got: %v", err)
 	}
 }
 
@@ -395,5 +512,51 @@ func TestTrunkFile_NoRemoteIsNamed(t *testing.T) {
 	}
 	if !strings.Contains(warn, "origin") {
 		t.Errorf("warning must name the missing remote, got %q", warn)
+	}
+}
+
+// FirstLine is pure, so it gets a unit test rather than being exercised only
+// through integration paths — the boundary the package claims should be visible
+// from outside (ARCH-PURE).
+func TestFirstLine(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"", "no output"},
+		{"   \n\n", "no output"},
+		{"only line", "only line"},
+		{"\n\n  real cause  \nnoise\nmore noise", "real cause"},
+		{"fatal: x\nhint: y", "fatal: x"},
+	} {
+		if got := FirstLine(tc.in); got != tc.want {
+			t.Errorf("FirstLine(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// The temp index lives in a private directory, not a deleted-then-recreated
+// path in shared /tmp — there must be no window in which the name is unclaimed
+// and a symlink could be planted to redirect the write (ARCH-SECURE).
+func TestTempIndexPath_NoUnclaimedNameWindow(t *testing.T) {
+	p, cleanup, err := tempIndexPath()
+	defer cleanup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsAbs(p) {
+		t.Errorf("index path must be absolute, got %q", p)
+	}
+	dir := filepath.Dir(p)
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("containing dir must exist so the name inside it is ours: %v", err)
+	}
+	if perm := fi.Mode().Perm(); perm&0o077 != 0 {
+		t.Errorf("containing dir mode = %o, want no group/other access", perm)
+	}
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Errorf("the index file itself must not pre-exist; git creates it")
+	}
+	cleanup()
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("cleanup must remove the whole directory")
 	}
 }

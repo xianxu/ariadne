@@ -52,12 +52,14 @@ whole surface, decided in one pass.
 | argv | yes | the plumbing commands | **yes** |
 | `Dir` | **yes** | must operate on a named repo. Without it `Read` fetches from, and `Update` pushes `<commit>:main` to, whatever repo the process cwd sits in — in a test, the real ariadne repo and its real origin | **no** |
 | `Env` | **yes** | `GIT_INDEX_FILE` for `update-index`/`write-tree`; only `read-tree` has `--index-output` | **no** |
-| stderr | **yes** | three clauses render git's own text — "surface the last rejection" (Task 4), "the warning names the risk" (Task 5), "print the trunk state and the intent" (Task 11). `.Output()` drops it except inside `ExitError.Stderr`; the cited ARCH-DRY precedent `issueids.go:126-145` gets it free because `execGitRunner.Git` is `CombinedOutput` (`runner.go:36-38`) | **no** |
+| stderr | **yes** | three clauses render git's own text — "surface the last rejection" (Task 4), "the warning names the risk" (Task 5), "print the trunk state and the intent" (Task 11). `.Output()` drops it except inside `ExitError.Stderr` | **no** |
+| stdout **separable from** stderr | **yes** | five call sites parse stdout as a value (`hash-object`, `write-tree`, `commit-tree`, `rev-parse`, `config`) and one returns file CONTENT. Combining them — the first implementation — folded git's "CRLF will be replaced by LF" warning into a parsed blob hash, and would have corrupted every read. **Added after implementation proved it; the audit's first pass asked for stderr but not for this.** | **n/a** |
 | `Stdin` | no | blobs are written by `hash-object -w --path <tmpfile>`, from a file, never piped | n/a |
 | context / timeout | no | `fetch` and `push` are network calls that can hang, but no git call in this binary takes a context today (`issueids.go`'s fetch included). Matching the existing convention rather than introducing a second one here; a hung fetch is the named residue, not an oversight | n/a |
 
-**Resolution:** add `gitx.runGitIn(dir string, env []string, args ...string) ([]byte, error)`
-— `CombinedOutput` with `cmd.Dir` and `cmd.Env` set. A **new** shim, not a widened
+**Resolution:** add
+`gitx.runGitIn(dir string, env []string, args ...string) (stdout, stderr []byte, err error)`
+— `cmd.Dir` and `cmd.Env` set, and the two streams returned **separately**. A **new** shim, not a widened
 `run`: `run`'s existing callers were written against `.Output()` semantics, and
 switching them to combined output would silently fold stderr into strings they
 parse.
@@ -78,7 +80,9 @@ Two consequences that must be written into the code, not just remembered:
 | `TrunkFile` | `cmd/sdlc/internal/gitx/trunkfile.go` | new | git plumbing on a remote ref |
 | `queueCmd` | `cmd/sdlc/queue.go` | new | cobra + stdout/stderr |
 
-- **TrunkFile** — reads and CAS-writes one path on a remote branch with **no working tree**. `Read(path) ([]byte, error)`; `Update(path, msg string, transform func([]byte) ([]byte, error)) error`. `Update` loops: fetch → read blob → `transform` → build tree in a temp index → `commit-tree` → `push <commit>:main`; on non-fast-forward, loop again (max 3), re-reading and **re-calling transform** each time.
+- **TrunkFile** — reads and CAS-writes one path on a remote branch with **no working tree**. `Read(path) ([]byte, error)` (requires a reachable remote);
+`ReadDegraded(path) ([]byte, string, error)` (returns a warning and the stale ref's content when offline);
+`Update(path, msg string, transform func([]byte) ([]byte, error)) error`. `Update` loops: fetch → read blob → `transform` → build tree in a temp index → `commit-tree` → `push <commit>:main`; on non-fast-forward, loop again (max 3), re-reading and **re-calling transform** each time.
   - **Seam:** `gitx.runGitIn(dir, env, args...)` — a new package-level var beside `run` (`window.go:32`), carrying `Dir`, `Env`, and combined output per the audit above. `run` is left alone; `gitRunner` is deliberately NOT widened, since nothing outside this file needs any of it.
   - **Injected into:** `queueCmd` consumes it through an interface **declared in package `main`** (consumer-side, Go idiom) so the verb is testable with a fake; `gitx` exports the concrete type. `Intent.Apply` is passed in as the transform and never sees git.
   - **Offline:** a failed fetch degrades a READ to the stale tracking ref with a loud warning and REFUSES a write — the policy `issueids.go:40-49,126-145` already settled (`ARCH-DRY`).
@@ -100,7 +104,7 @@ Two consequences that must be written into the code, not just remembered:
 - Create: `cmd/sdlc/internal/gitx/trunkfile.go`
 - Test: `cmd/sdlc/internal/gitx/trunkfile_test.go`
 
-- [ ] **Step 1: Write the containment guard test FIRST** — `NewTrunkFile("", ...)` returns an error. This is the test that makes "operates on the real repo by accident" impossible rather than merely unlikely, so it is written before the feature it guards.
+- [x] **Step 1: Write the containment guard test FIRST** — `NewTrunkFile("", ...)` returns an error. This is the test that makes "operates on the real repo by accident" impossible rather than merely unlikely, so it is written before the feature it guards.
 
 ```go
 func TestNewTrunkFile_RefusesEmptyDir(t *testing.T) {
@@ -110,7 +114,7 @@ func TestNewTrunkFile_RefusesEmptyDir(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write the failing read test** — a repo with a bare origin, a file committed and pushed to main, then `Read` returns its bytes from `origin/main` while the working tree is on a *different* branch with *different* content. Note it passes `repo` explicitly and does **not** `testfix.Chdir()`: the point is that `Dir` carries the scoping, so a cwd-dependent implementation fails this test rather than silently passing in CI and destroying a developer's checkout.
+- [x] **Step 2: Write the failing read test** — a repo with a bare origin, a file committed and pushed to main, then `Read` returns its bytes from `origin/main` while the working tree is on a *different* branch with *different* content. Note it passes `repo` explicitly and does **not** `testfix.Chdir()`: the point is that `Dir` carries the scoping, so a cwd-dependent implementation fails this test rather than silently passing in CI and destroying a developer's checkout.
 
 ```go
 func TestTrunkFile_ReadsFromTrunkNotWorktree(t *testing.T) {
@@ -127,25 +131,25 @@ func TestTrunkFile_ReadsFromTrunkNotWorktree(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run both, verify they fail** — `go test ./cmd/sdlc/internal/gitx/ -run TestTrunkFile -v`. Expected: FAIL, `undefined: NewTrunkFile`.
+- [x] **Step 3: Run both, verify they fail** — `go test ./cmd/sdlc/internal/gitx/ -run TestTrunkFile -v`. Expected: FAIL, `undefined: NewTrunkFile`.
 
-- [ ] **Step 4: Add `runGitIn`** per the seam audit — `CombinedOutput` with `cmd.Dir` and `cmd.Env`, a new package-level var beside `run`. One test asserting it passes `Dir` and `Env` through and returns stderr on failure.
+- [x] **Step 4: Add `runGitIn`** per the seam audit — `CombinedOutput` with `cmd.Dir` and `cmd.Env`, a new package-level var beside `run`. One test asserting it passes `Dir` and `Env` through and returns stderr on failure.
 
-- [ ] **Step 5: Implement `Read`** — refuse an empty dir; `fetch --quiet origin +refs/heads/main:refs/remotes/origin/main`, then `cat-file blob origin/main:<path>`, both through `runGitIn(dir, nil, ...)`. A missing path is not an error: return `(nil, nil)` so a first-ever write works. Reuse `issueids.go`'s explicit refspec form — `git fetch origin main` leaves `FETCH_HEAD` but does not always move the tracking ref.
+- [x] **Step 5: Implement `Read`** — refuse an empty dir; `fetch --quiet origin +refs/heads/main:refs/remotes/origin/main`, then `cat-file blob origin/main:<path>`, both through `runGitIn(dir, nil, ...)`. A missing path is not an error: return `(nil, nil)` so a first-ever write works. Reuse `issueids.go`'s explicit refspec form — `git fetch origin main` leaves `FETCH_HEAD` but does not always move the tracking ref.
 
-- [ ] **Step 6: Run, verify PASS.**
+- [x] **Step 6: Run, verify PASS.**
 
-- [ ] **Step 7: Commit** — `#209 M1: read one path from the trunk without a checkout`
+- [x] **Step 7: Commit** — `#209 M1: read one path from the trunk without a checkout`
 
 ### Task 2: `TrunkFile.Update` — happy path
 
 **Files:** Modify `trunkfile.go`; Test: `trunkfile_test.go`
 
-- [ ] **Step 1: Write the failing test** — `Update` on a repo with **no worktree on main anywhere** (checkout is on `feature`) appends a line; assert `git show origin/main:queue.md` in the *bare origin* contains it, and that the working tree is untouched (`git status --porcelain` empty).
+- [x] **Step 1: Write the failing test** — `Update` on a repo with **no worktree on main anywhere** (checkout is on `feature`) appends a line; assert `git show origin/main:queue.md` in the *bare origin* contains it, and that the working tree is untouched (`git status --porcelain` empty).
 
-- [ ] **Step 2: Run, verify it fails.**
+- [x] **Step 2: Run, verify it fails.**
 
-- [ ] **Step 3: Implement the plumbing sequence** through `runGitIn` (added in Task 1). In order, with a temp index:
+- [x] **Step 3: Implement the plumbing sequence** through `runGitIn` (added in Task 1). In order, with a temp index:
 
 ```go
 idx, _ := filepath.Abs(filepath.Join(tmp, "index")) // ABSOLUTE: resolves against cmd.Dir otherwise; NEVER $GIT_DIR/index
@@ -158,23 +162,23 @@ defer os.Remove(idx)                          // every exit path
 // git push origin <commit>:main
 ```
 
-- [ ] **Step 4: Run, verify PASS.**
+- [x] **Step 4: Run, verify PASS.**
 
-- [ ] **Step 5: Commit** — `#209 M1: CAS-write one path to the trunk with no working tree`
+- [x] **Step 5: Commit** — `#209 M1: CAS-write one path to the trunk with no working tree`
 
 ### Task 3: Round-trip fidelity
 
-- [ ] **Step 1: Write the failing test** — repo with `.gitattributes` marking `*.md` as `text eol=lf`; write CRLF content; assert the pushed blob checks out byte-identical to the intended content. Second case: a repo with `commit.gpgsign=true` produces a signed commit (skip via `t.Skip` if no signing key in the environment).
-- [ ] **Step 2: Run, verify it fails.**
-- [ ] **Step 3: Fix** — this is what `--path` buys; add `-S` when `git config --get commit.gpgsign` is true.
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Commit** — `#209 M1: apply gitattributes and signing to trunk writes`
+- [x] **Step 1: Write the failing test** — repo with `.gitattributes` marking `*.md` as `text eol=lf`; write CRLF content; assert the pushed blob checks out byte-identical to the intended content. Second case: a repo with `commit.gpgsign=true` produces a signed commit (skip via `t.Skip` if no signing key in the environment).
+- [x] **Step 2: Run, verify it fails.**
+- [x] **Step 3: Fix** — this is what `--path` buys; add `-S` when `git config --get commit.gpgsign` is true.
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Commit** — `#209 M1: apply gitattributes and signing to trunk writes`
 
 ### Task 4: Bounded retry, and the transform re-runs
 
 **This is the milestone's load-bearing test.**
 
-- [ ] **Step 1: Write the failing test** — two publishers against one bare origin. Publisher A reads, then B reads-and-pushes, then A pushes → A is rejected, retries, and **A's transform is called a second time with B's content**. Assert both A's and B's lines are present, and record the transform call count.
+- [x] **Step 1: Write the failing test** — two publishers against one bare origin. Publisher A reads, then B reads-and-pushes, then A pushes → A is rejected, retries, and **A's transform is called a second time with B's content**. Assert both A's and B's lines are present, and record the transform call count.
 
 ```go
 func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
@@ -197,36 +201,36 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run, verify it fails** — without the retry, the push errors out.
-- [ ] **Step 3: Implement the bounded loop** — max 3 attempts; on exhaustion return an error carrying the **last** rejection text, not a generic message.
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Add the exhaustion test** — a transform whose peer pushes on *every* call; assert exactly 3 attempts were made and that the error carries **git's own rejection text** (e.g. `non-fast-forward`), which is only reachable because `runGitIn` uses `CombinedOutput`. An assertion on a generic wrapper message would pass against `.Output()` and prove nothing.
-- [ ] **Step 6: Commit** — `#209 M1: bounded CAS retry that re-runs the transform on the new base`
+- [x] **Step 2: Run, verify it fails** — without the retry, the push errors out.
+- [x] **Step 3: Implement the bounded loop** — max 3 attempts; on exhaustion return an error carrying the **last** rejection text, not a generic message.
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Add the exhaustion test** — a transform whose peer pushes on *every* call; assert exactly 3 attempts were made and that the error carries **git's own rejection text** (e.g. `non-fast-forward`), which is only reachable because `runGitIn` uses `CombinedOutput`. An assertion on a generic wrapper message would pass against `.Output()` and prove nothing.
+- [x] **Step 6: Commit** — `#209 M1: bounded CAS retry that re-runs the transform on the new base`
 
 ### Task 5: Offline and no-origin policy
 
 **Files:** Modify `trunkfile.go`, `trunkfile_test.go`
 
-- [ ] **Step 1: Write the failing tests** — three cases against a fixture whose origin URL points at a nonexistent path: (a) `Read` succeeds from the stale tracking ref and the warning text names the risk; (b) `Update` refuses with a distinct error (a CAS push has nothing to compare against); (c) a repo with **no `origin` remote at all** reads the local ref and says so rather than erroring obscurely.
-- [ ] **Step 2: Run, verify they fail.**
-- [ ] **Step 3: Implement**, mirroring `issueids.go:40-49,126-145` in shape and in warning tone. Do not invent a second offline policy for the same binary (`ARCH-DRY`).
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Commit** — `#209 M1: degrade reads offline, refuse writes`
+- [x] **Step 1: Write the failing tests** — three cases against a fixture whose origin URL points at a nonexistent path: (a) `Read` succeeds from the stale tracking ref and the warning text names the risk; (b) `Update` refuses with a distinct error (a CAS push has nothing to compare against); (c) a repo with **no `origin` remote at all** reads the local ref and says so rather than erroring obscurely.
+- [x] **Step 2: Run, verify they fail.**
+- [x] **Step 3: Implement**, mirroring `issueids.go:40-49,126-145` in shape and in warning tone. Do not invent a second offline policy for the same binary (`ARCH-DRY`).
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Commit** — `#209 M1: degrade reads offline, refuse writes`
 
 ### Task 6: Temp-index hygiene
 
-- [ ] **Step 1: Write the failing test** — a transform that returns an error mid-`Update`; assert the temp index file no longer exists and `$GIT_DIR/index` is unmodified (compare mtime + the working tree stays clean).
-- [ ] **Step 2: Run, verify it fails** (if cleanup is only on the success path).
-- [ ] **Step 3: Fix with `defer`.**
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Commit** — `#209 M1: remove the temp index on every exit path`
+- [x] **Step 1: Write the failing test** — a transform that returns an error mid-`Update`; assert the temp index file no longer exists and `$GIT_DIR/index` is unmodified (compare mtime + the working tree stays clean).
+- [x] **Step 2: Run, verify it fails** (if cleanup is only on the success path).
+- [x] **Step 3: Fix with `defer`.**
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Commit** — `#209 M1: remove the temp index on every exit path`
 
 ### Task 6b: Atlas — the new primitive
 
-- [ ] **Step 1: Update `atlas/workflow/sdlc-binary.md`** with `gitx.TrunkFile`: what it owns (one path on the trunk, CAS-written, no working tree), the transform-function seam, and that `ariadne#207` is its second consumer. Add the row to `atlas/index.md` if a new file is created.
-- [ ] **Step 2: Commit** — `#209 M1: atlas — the trunk-file primitive`
+- [x] **Step 1: Update `atlas/workflow/sdlc-binary.md`** with `gitx.TrunkFile`: what it owns (one path on the trunk, CAS-written, no working tree), the transform-function seam, and that `ariadne#207` is its second consumer. Add the row to `atlas/index.md` if a new file is created.
+- [x] **Step 2: Commit** — `#209 M1: atlas — the trunk-file primitive`
 
-- [ ] **M1 — `sdlc milestone-close --issue 209 --milestone M1`**
+- [x] **M1 — `sdlc milestone-close --issue 209 --milestone M1`**
 
 ---
 
@@ -327,3 +331,36 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 - `sdlc queue` correct from: a feature branch, a detached HEAD, and a checkout with no worktree on main anywhere.
 - Every row of the Spec's interleaving table has a named test.
 - `construct/generated/datatype/SKILL.md` lists `queue` with no hand-edit.
+
+---
+
+## Revisions
+
+### 2026-09-07 — M1 as built
+
+Two changes the plan did not anticipate, both forced by the code rather than
+chosen, and both now reflected above rather than left as a changelog to replay:
+
+1. **`runGitIn` returns stdout and stderr separately.** The seam audit asked for
+   stderr and stopped there. Implementation proved that insufficient: with
+   `CombinedOutput`, a repo carrying `*.md text eol=lf` makes git print "CRLF will
+   be replaced by LF" on `hash-object`, and that warning landed inside the parsed
+   blob hash — and would have landed inside file content on every read. The
+   gitattributes round-trip test (Task 3) is what caught it. The audit table now
+   carries the row.
+
+2. **Retryability is observed, not parsed.** The plan implied matching git's
+   rejection text. The M1 review showed a bare `"rejected"` match also catches
+   refusals retrying cannot fix (a declined pre-receive hook, no push permission),
+   which burn the whole attempt budget and then report contention that never
+   happened. `Update` now re-resolves the tracking ref after a failed push and
+   retries only if the trunk actually moved. Same reasoning replaced
+   `isMissingPath`'s phrase matching with `cat-file -e`'s exit code, and a raw
+   `== "true"` config compare with `--type=bool` (git stores `commit.gpgsign`
+   verbatim, so a repo configured `yes` was silently getting unsigned commits).
+   One rule: **observe git's state, do not parse its English.**
+
+**Commit granularity diverged from the plan's one-task-one-commit shape:** Tasks
+2+4 landed together (the CAS write is not meaningfully testable without the retry
+that defines its contract) and Tasks 3+5 together. Recorded rather than tidied
+away.
