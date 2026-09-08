@@ -451,3 +451,173 @@ findings:
       fetch for the retry's base read (ARCH-CONSTRAINTS repeated expensive work).
       Also hoist signs() out of commitAndPush so it is not re-shelled per attempt.
 ```
+
+---
+
+## Re-review — 2026-09-07T17:51:06-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 209 — queue datatype for advisory work ordering |
+| repo | ariadne |
+| issue file | workshop/issues/000209-queue-datatype.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 00d7c75c5371bbb3e2f01f5e28780565c274f3a9..3664d5379dc271cf34abcf8c3d4db3a6d277ead3 |
+| command | sdlc milestone-close --issue 209 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-09-07T17:51:06-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The Critical from round 2 is genuinely dead. I reproduced it two ways against real git 2.50.1 — collapsing `pathPresent` back to two states turns `TestTrunkFile_UnreadablePathRefusesRatherThanTruncating` red, and an independent end-to-end scratch test with a *real* deleted loose blob (no stub anywhere) now yields `Read -> err`, transform never called, trunk byte-identical afterwards. `ls-tree` is the correct signal: I confirmed it exits 0 and prints the path where `cat-file -e` exits 1, and that its pathspec is not glob-expanded, so no false positives creep in. BR-17 and BR-18 are also real fixes with real pins (reverting `--type=bool` reddens three table rows; reverting the fetch hoist reddens `TestTrunkFile_OneFetchPerAttempt`). What keeps this off SHIP is that the round-2 commit worked exactly the three findings it named and left the other five untouched, and applying BR-14's rule in one direction introduced its mirror in the other: `readLocal` now treats a *legitimately absent* local branch as an unreadable one, so `ReadDegraded` in a fresh `git init` repo returns `fatal: Not a valid object name main` alongside a warning claiming it "used local main" — which is the Done-when clause "a repo with no `origin` says so rather than erroring obscurely" inverted. That plus BR-3's still-missing byte assertion (I hardwired `readLocal` to return nothing and the entire package suite stayed green) is one guard and one test. Package green (`go test ./cmd/sdlc/internal/gitx/` ok, 10.7s); the only `./cmd/sdlc/...` failure is `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`, whose hardcoded `workshop/plans/000200-…-plan.md` is simply not in the tree — pre-existing, ariadne#210.
+
+## 1. Strengths
+
+- **`trunkfile.go:204-224` — `pathPresent` returning `(bool, error)` is the right collapse, and it is verified against real git rather than against a mental model.** I removed a loose blob from a real repo: `git ls-tree --name-only main -- queue.md` exits 0 and prints the path while `git cat-file -e main:queue.md` exits 1. The three-state enumeration is exactly what the signal supports. Confirmed-good ground.
+- **The BR-14 regression test is not the only thing catching BR-14.** `trunkfile_test.go:545` stubs `ls-tree`, but I drove the real type against a genuinely corrupted object store with no stub at all and the refusal came from `cat-file blob`'s propagated error at `trunkfile.go:196-199`. Two independent paths close the wipe, which is stronger than the commit message claims.
+- **`trunkfile.go:495-541` — the signing table is a strict improvement over the two bodies it replaced.** It covers `off`/`false`/`0`, which nothing tested before, and reverting to `config --get` reddens `yes`, `1`, and `on` specifically. This is the correct disposition of the `duplicated-helper` escalation: one definition, and the collapse bought coverage rather than just brevity.
+- **`trunkfile.go:277-289` — resolving `base` *before* reading content, with the fetch hoisted to attempt 1.** The ordering now guarantees the base SHA and the blob come from the same ref state with no fetch between them, and the retry consumes the fetch it already paid for. `TestTrunkFile_OneFetchPerAttempt` pins the second half (reverting yields "3 fetches for 2 attempts").
+- **`cmd/sdlc/issueids.go:110-113` — `firstLine` as a one-line delegating alias to `gitx.FirstLine`.** One definition, ~12 call sites unchanged, and the pure function got `TestFirstLine`. The minimum-churn answer to ARCH-DRY.
+
+## 2. Critical findings
+
+None. BR-14 is closed and independently verified.
+
+## 3. Important findings
+
+**I-1 — `trunkfile.go:171-178`: `readLocal` treats a local branch that legitimately does not exist as an unreadable one, so `ReadDegraded` errors obscurely in a fresh repo — while its warning claims it read the local branch.**
+
+> **This is the 4th finding in family `git-output-string-matching`.** Do not fix this instance — the rule needs one more clause and a re-run of its enumeration.
+
+Reproduced twice (scratch tests against the real type, both fail today):
+
+```
+git init -b main <dir>        # no origin, no commits
+ReadDegraded("workshop/queue.md")
+  bytes = ""
+  warn  = "origin unreachable — … ; no refs/remotes/origin/main, used local main"
+  err   = ls-tree main -- workshop/queue.md: exit status 128
+          fatal: Not a valid object name main
+
+git init -b master <dir>      # no origin, local default branch is not `main`
+ReadDegraded("README")        # same error
+```
+
+Two things are wrong at once. The error violates the Done-when clause *"a repo with no `origin` remote at all reads the local ref and says so"* and its restatement *"says so rather than erroring obscurely"* — `fatal: Not a valid object name main` is the obscure error the clause names. And the warning returned alongside it asserts `used local main`, which did not happen (the BR-11 rule: a message may only name what the code observed). This is a **regression introduced by this window**: at `850eabd` `exists()` swallowed the error and the same call returned `(nil, warn, nil)`.
+
+**The rule the family needs, completed.** BR-14 stated half of it — *a classifier may only assert an outcome its signal distinguishes; the ambiguous case must surface as an error.* The missing half: *…and an **unambiguous benign** signal must not be swept into that error.* `pathPresent` maps every non-zero `ls-tree` exit onto "cannot tell", which is right for an unreadable tree and wrong for a ref that simply does not resolve — a state one of its two callers reaches by design. Re-running the enumeration under the completed rule:
+
+| call site | ref handed in | can it legitimately not exist? | verdict |
+|---|---|---|---|
+| `readRef` (`:189`) | tracking ref | no — `Read`/`Update` fetch first, `ReadDegraded` guards with `refExists` (`:132`) | ok |
+| `readLocal` (`:172`) | local `t.branch` | **yes** — no commits yet, or a differently-named default branch | **conflates** |
+
+Fix sketch: `readLocal` guards with the signal `ReadDegraded` already uses one line above — `if !t.refExists(t.branch) { return nil, nil }` — and `ReadDegraded` says "no local `main` either" instead of "used local main". Pin with `git init -b main` (no commits) asserting `ReadDegraded` returns no error.
+
+**I-2 — BR-3 is still not addressed: no assertion anywhere covers the bytes the no-remote path returns.** I hardwired `readLocal` to `return nil, nil` and ran the whole package: **green**. `TestTrunkFile_NoRemoteIsNamed` (`trunkfile_test.go:430-446`) discards the content with `_`, so the only Done-when clause about the no-origin read has no content coverage — which is also why I-1 shipped unnoticed. Worth recording that the *other* half of BR-3 did land structurally: hardwiring `refExists` to `true` now reddens that same test (`ls-tree refs/remotes/origin/main -- README: exit status 128`), because `pathPresent` propagates. `testfix.InitialCommit()` writes `README` = `"x\n"`, so this is one line. Disposed `not-addressed` rather than re-raised.
+
+## 4. Minor findings
+
+- `trunkfile.go:200` — `_ = errOut` is a no-op statement left behind by the C-1 edit (`errOut` is already consumed at `:198`). Family `dead-parameter`, 2nd; the enumeration is `grep -n '^\s*_ = '` over the package, which returns exactly this one site.
+- `trunkfile.go:37` and `:332` still claim "combined output" — BR-15, unchanged.
+- Plan `:86`, `:136`, `:207` still specify `CombinedOutput` — BR-16, unchanged. The same enumeration also turns up `gitx.FirstLine`, a newly exported symbol absent from the plan's Core-concepts surface.
+- `trunkfile.go:150` and `:127-130` label every fetch failure as unreachable/offline — BR-11, unchanged.
+- `trunkfile.go:350-352` still has no sentence saying `.gitattributes` resolves from the checked-out tree — BR-12, unchanged.
+- `commitAndPush` hardcodes mode `100644` (`:359`), so an existing `100755` or symlink entry at that path is silently demoted. Harmless for `queue.md`; worth a line before #207 points this at arbitrary files.
+
+## 5. Test coverage notes
+
+Nineteen tests, all against a real bare origin, all passing in 10.7s. The two `runGitIn` stubs (strip `-S`, fail `ls-tree`) sit on top of the real fixture rather than replacing it, so ARCH-MOCK holds. I verified four claimed fixes by reverting rather than reading: BR-14 (two states → `TestTrunkFile_UnreadablePathRefusesRatherThanTruncating` fails), BR-17 (`config --get` → three table rows fail), BR-18 fetch half (unconditional fetch → `TestTrunkFile_OneFetchPerAttempt` fails), and BR-3's `refExists` half (hardwired `true` → `TestTrunkFile_NoRemoteIsNamed` fails). Remaining gaps, in the order I'd close them: (1) the no-remote byte assertion and the empty-repo case (I-1/I-2, one test covers both); (2) the `signs()` hoist has no pin — acceptable, since a call-count assertion would restate the implementation and the change is behavior-neutral; (3) `writeTemp`'s blob cleanup is correct but unpinned; (4) `Read`'s strict offline branch is still only exercised transitively through `Update`'s refusal.
+
+## 6. Architectural notes for upcoming work
+
+**ARCH-DRY** — pass; `firstLine` consolidated, one CAS loop for both consumers, the signing tests collapsed. **ARCH-PURE** — pass; `FirstLine` has a direct table test, and the remaining classifiers are correctly methods at the IO boundary rather than pretend-pure helpers. **ARCH-PURPOSE** — flagged, same theme as round 2 but narrower: BR-14, BR-17 and BR-18 were worked; BR-3, BR-11, BR-12, BR-15 and BR-16 were not touched at all, and each is a `grep` away. Two of them (BR-15, BR-16) are literally the same string in two trees. **ARCH-MOCK** — pass, exemplary. **ARCH-CONSTRAINTS** — flagged, unchanged and now due: still no context/timeout on `fetch`/`push`, worst case 3 fetches + 3 pushes unbounded. At M2 this becomes an interactive path, so decide there whether `sdlc queue` is where the binary's first `context.WithTimeout` lands. **ARCH-SECURE** — pass on the wipe (the fabricated-value path is closed) and on the temp index (0700 `MkdirTemp`, no unclaimed-name window); `path` and `msg` reach git as argv elements. Note for M2: `fetch`/`push` carry no `--end-of-options`, so a `remote` or `branch` beginning with `-` would parse as an option — constants today, worth a constructor check if either ever becomes user input. **ARCH-ORDER** — pass, and still the strongest part of the diff; the transform is a seam through which a test picks the interleaving, and `pathPresent`'s three states are the entry's "collapse the boolean constellation into a tagged outcome" lens applied correctly.
+
+For M2: `ReadDegraded`'s outcome is discriminated by a *string* — fresh / stale / local-fallback are distinguishable only by grepping `warn`. For `sdlc queue`, printing the warning is sufficient, so this is not a defect; but #207 arriving as a second consumer is the moment to decide whether it wants a typed source discriminator instead. Also unchanged from round 2: `readRef` returns `(nil, nil)` for a genuinely absent path, so keep both `nil` and `[]byte{}` in `Doc.Parse`'s fuzz corpus.
+
+## 7. Plan revision recommendations
+
+1. **Purge the surviving `CombinedOutput` restatements** at `:86` (TrunkFile's `Seam:` bullet), `:136` (Task 1 Step 4) and `:207` (Task 4 Step 5) — carried from round 2, unchanged. As written the plan still instructs a future implementor to build the shim whose CRLF warning landed inside a parsed blob hash.
+2. **Add `gitx.FirstLine` to the Core-concepts surface.** It is a newly exported package symbol with a second consumer (`issueids.go`) and appears nowhere in the plan or its Revisions.
+3. **Record the retryability redesign's actual scope** — carried from round 2. The Revisions entry says `Update` re-resolves after "a failed push"; the code applies that classification to any `commitAndPush` failure, `read-tree`/`hash-object`/`update-index`/`write-tree`/`commit-tree` included.
+4. **New — record how absence is established, and where it is *not* an error.** Task 1 Step 5 still says only "a missing path is not an error: return `(nil, nil)`". Both the C-1 fix and I-1 turn on the distinction between "proven absent", "cannot tell", and "the ref itself does not resolve"; the plan should carry the completed rule so M2 and #207 inherit it.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      Classifier half landed and is now structurally pinned (hardwiring refExists to true reddens TestTrunkFile_NoRemoteIsNamed), but the byte assertion is still missing: hardwiring readLocal to return nil,nil leaves the whole package green. That gap is what let I-1 ship.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      trunkfile.go:150 and ReadDegraded:127-130 unchanged; Update:290 still reports "the trunk moved" for any commitAndPush failure coinciding with a peer push.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      trunkfile.go:350-352 unchanged; still no sentence saying .gitattributes resolves from the checked-out tree rather than from the trunk being written.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      Verified twice: collapsing pathPresent to two states reddens TestTrunkFile_UnreadablePathRefusesRatherThanTruncating, and a stub-free end-to-end against a real deleted loose blob gives Read->err, transform not called, trunk intact.
+  - id: BR-15
+    disposition: not-addressed
+    note: |
+      grep -n "combined\|Combined" trunkfile.go still returns :37 and :332, both unchanged.
+  - id: BR-16
+    disposition: not-addressed
+    note: |
+      Plan :86, :136, :207 unchanged. Same enumeration also shows gitx.FirstLine, a newly exported symbol, missing from the plan's Core-concepts surface.
+  - id: BR-17
+    disposition: addressed
+    note: |
+      One table over true/yes/1/on/false/0/off; reverting --type=bool reddens the yes, 1 and on rows. The negative cases are now covered, which the two old bodies never were.
+  - id: BR-18
+    disposition: addressed
+    note: |
+      Fetch half pinned — reverting the attempt==1 hoist reddens TestTrunkFile_OneFetchPerAttempt with "3 fetches for 2 attempts". The signs() hoist has no test; behavior-neutral, and a call-count assertion would only restate the implementation.
+findings:
+  - id: new
+    severity: Important
+    family: git-output-string-matching
+    title: |
+      readLocal treats a legitimately absent local branch as unreadable, so ReadDegraded errors obscurely in a fresh repo while warning that it used the local branch
+    detail: |
+      4th finding in this family — complete the RULE, do not patch the site.
+      BR-14 stated half of it (an ambiguous signal must error). The missing half
+      is that an unambiguous BENIGN signal must not be swept into that error.
+      pathPresent (trunkfile.go:220) maps every non-zero ls-tree exit onto
+      "cannot tell", which is right for an unreadable tree and wrong for a ref
+      that does not resolve — a state readLocal reaches by design. Reproduced
+      against the real type: `git init -b main` with no commits, and a repo whose
+      local default branch is `master`, both give
+      err="ls-tree main -- <path>: exit status 128 / fatal: Not a valid object
+      name main" WITH warn ending "used local main", asserting something that did
+      not happen. This is a regression introduced in this window; at 850eabd
+      exists() swallowed it and the call returned (nil, warn, nil). It violates
+      the Done-when clause "a repo with no origin remote at all reads the local
+      ref and says so … rather than erroring obscurely". Re-run enumeration under
+      the completed rule readRef's tracking ref cannot legitimately be absent
+      (fetch precedes it, ReadDegraded guards with refExists) so its failures are
+      genuine; readLocal's branch can, and must be guarded with the same
+      refExists signal used one line above at trunkfile.go:132.
+  - id: new
+    severity: Minor
+    family: dead-parameter
+    title: |
+      `_ = errOut` at trunkfile.go:200 is a no-op left behind by the three-states edit
+    detail: |
+      2nd finding in this family — state the rule rather than deleting the line.
+      Rule no statement or parameter may exist solely to reference something;
+      errOut is already consumed by the error branch at :198, so the assignment
+      does nothing and go vet will not catch it. The enumeration is
+      `grep -n '^\s*_ = ' cmd/sdlc/internal/gitx/`, which returns exactly this one
+      site — measured prevalence 1, so the sweep is cheap and complete.
+```

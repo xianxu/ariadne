@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -604,5 +605,113 @@ func TestTrunkFile_OneFetchPerAttempt(t *testing.T) {
 	// 2 attempts: one fetch to open, one after the rejection which the retry reuses.
 	if fetches > 2 {
 		t.Errorf("%d fetches for 2 attempts — the post-push fetch should serve as the retry's base", fetches)
+	}
+}
+
+// A fresh repo with no commits on the branch reads as EMPTY, not as an error.
+// This is the BR-19 case: ReadDegraded warned that it used the local branch while
+// simultaneously returning an obscure ls-tree failure for a repo that is simply new.
+func TestTrunkFile_FreshRepoReadsEmptyNotError(t *testing.T) {
+	dir := t.TempDir()
+	testfix.Git(t, "", "init", "-q", "-b", "main", dir)
+	testfix.Git(t, dir, "config", "user.email", "t@t")
+	testfix.Git(t, dir, "config", "user.name", "t")
+
+	tf, err := NewTrunkFile(dir, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, warn, err := tf.ReadDegraded("workshop/queue.md")
+	if err != nil {
+		t.Fatalf("a repo with no commits must read empty, not error: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %q, want empty", got)
+	}
+	if warn == "" {
+		t.Error("must still warn that the answer did not come from the trunk")
+	}
+}
+
+// The three-state rule applied to signing: a config read that fails for a reason
+// OTHER than "unset" must refuse, because returning false publishes an unsigned
+// commit in a repo that requires signing — the regression signs() exists to stop.
+func TestTrunkFile_UndeterminableSigningPolicyRefuses(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a\n")
+
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 1 && args[0] == "config" {
+			return nil, []byte("fatal: bad config line"), &exec.ExitError{ProcessState: failedState(t, 128)}
+		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	called := false
+	err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+		called = true
+		return append(o, 'z', '\n'), nil
+	})
+	if err == nil {
+		t.Fatal("an undeterminable signing policy must refuse, not silently publish unsigned")
+	}
+	if called {
+		t.Error("must refuse before running the transform")
+	}
+	if got := showTrunk(t, origin, "queue.md"); got != "- a\n" {
+		t.Errorf("trunk modified: %q", got)
+	}
+}
+
+// gitExitCode must not read a NON-exit failure (git missing, permission denied)
+// as an exit status — those must never classify as "absent".
+func TestGitExitCode_NonExitFailureIsNotAbsent(t *testing.T) {
+	if got := gitExitCode(errors.New("exec: \"git\": executable file not found")); got == gitAbsentExit {
+		t.Errorf("a non-exit failure must not classify as absent (got %d)", got)
+	}
+	if got := gitExitCode(nil); got == gitAbsentExit {
+		t.Errorf("nil must not classify as absent (got %d)", got)
+	}
+}
+
+// failedState produces a *os.ProcessState with the given exit code by running a
+// child that exits with it — there is no way to construct one directly.
+func failedState(t *testing.T, code int) *os.ProcessState {
+	t.Helper()
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("exit %d", code))
+	_ = cmd.Run()
+	return cmd.ProcessState
+}
+
+// refPresent must distinguish "the ref is absent" (exit 1) from "I could not
+// tell" (any other failure). The fresh-repo test above does NOT pin this: there
+// the ref really is absent, so a buggy collapse-to-absent agrees with correct
+// behavior and the test passes either way. Verified by mutation — collapsing the
+// error branch makes this fail and leaves the fresh-repo test green.
+func TestTrunkFile_RefPresentPropagatesNonAbsentFailure(t *testing.T) {
+	repo, _ := trunkFixture(t, "x\n")
+
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 0 && args[0] == "rev-parse" {
+			// exit 128: a real failure (corrupt repo, unreadable object store) —
+			// NOT git's exit 1 for "no such ref".
+			return nil, []byte("fatal: not a git repository"), &exec.ExitError{ProcessState: failedState(t, 128)}
+		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	if _, err := tf.refPresent("refs/heads/main"); err == nil {
+		t.Fatal("a non-absent rev-parse failure must propagate, not read as absent")
+	}
+
+	// And it must reach the caller: ReadDegraded cannot silently answer "empty"
+	// on a repo whose ref state it could not determine.
+	if _, _, err := tf.ReadDegraded("queue.md"); err == nil {
+		t.Error("ReadDegraded must surface an undeterminable ref state")
 	}
 }

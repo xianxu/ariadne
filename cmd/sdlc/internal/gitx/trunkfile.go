@@ -67,6 +67,36 @@ var runGitIn = func(dir string, env []string, args ...string) (stdout, stderr []
 	return out.Bytes(), errBuf.Bytes(), err
 }
 
+// A git query that can legitimately answer "absent" has THREE outcomes, and this
+// file classifies every one of them by exit code rather than collapsing the
+// nonzero cases into a benign default.
+//
+// The rule exists because the same defect was shipped three times here in
+// different disguises: matching "does not exist" in git's prose, then
+// `cat-file -e`'s bare nonzero, then `rev-parse`'s. Each turned "I could not
+// tell" into "it is not there", and downstream that becomes an empty file, a
+// skipped signature, or a silently truncated trunk. A bool cannot hold the
+// difference, so nothing in this file returns one for a question git can fail to
+// answer (ARCH-ORDER).
+//
+// git's convention on the queries used here: exit 1 means the thing is absent;
+// any other nonzero is a failure that must propagate. (`config --get` also uses 1
+// for a malformed key, which is safe to fold in only because every key this file
+// passes is a literal, so "malformed" would be our own bug, not a runtime state.)
+const gitAbsentExit = 1
+
+// gitExitCode returns the child's exit status, or -1 when the failure was not an
+// exit status at all — git missing from PATH, permission denied, a killed
+// process. Those must never read as "absent", and without this they would: an
+// ExitError type assertion that fails leaves a zero value.
+func gitExitCode(err error) int {
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode()
+	}
+	return -1
+}
+
 // TrunkFile reads and CAS-writes one path on <remote>/<branch>.
 type TrunkFile struct {
 	dir    string // repo to run git in — never empty, see NewTrunkFile
@@ -129,7 +159,11 @@ func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 				"anything published since the last fetch (%s)",
 			t.remote, path, t.trackingRef(), FirstLine(string(out)))
 	}
-	if warn != "" && !t.refExists(t.trackingRef()) {
+	tracking, terr := t.refPresent(t.trackingRef())
+	if terr != nil {
+		return nil, warn, terr
+	}
+	if warn != "" && !tracking {
 		// Never fetched (or no remote at all): fall back to the local branch so a
 		// repo that has never talked to an origin still reads something, and say so.
 		b, err := t.readLocal(path)
@@ -139,10 +173,17 @@ func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 	return b, warn, err
 }
 
-// refExists reports whether a ref resolves, by exit code.
-func (t *TrunkFile) refExists(ref string) bool {
-	_, _, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--quiet", ref)
-	return err == nil
+// refPresent reports whether a ref resolves, distinguishing absent from
+// could-not-tell per the rule above.
+func (t *TrunkFile) refPresent(ref string) (bool, error) {
+	_, errOut, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--quiet", ref)
+	if err == nil {
+		return true, nil
+	}
+	if gitExitCode(err) == gitAbsentExit {
+		return false, nil
+	}
+	return false, fmt.Errorf("rev-parse %s: %v\n%s", ref, err, errOut)
 }
 
 // offlineError names the cause rather than surfacing raw git output, so the
@@ -169,6 +210,17 @@ func FirstLine(s string) string {
 
 // readLocal reads the path from the local branch, for a repo with no remote.
 func (t *TrunkFile) readLocal(path string) ([]byte, error) {
+	// A repo that has never committed on this branch has nothing to read — that
+	// is a legitimate empty answer, not a failure. Without this, ls-tree errors on
+	// the missing ref and ReadDegraded reports an obscure git error while its
+	// warning cheerfully says it used the local branch.
+	branchPresent, err := t.refPresent(t.branch)
+	if err != nil {
+		return nil, err
+	}
+	if !branchPresent {
+		return nil, nil
+	}
 	present, err := t.pathPresent(t.branch, path)
 	if err != nil {
 		return nil, err
@@ -197,7 +249,6 @@ func (t *TrunkFile) readRef(path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.trackingRef(), err, errOut)
 	}
-	_ = errOut
 	return out, nil
 }
 
@@ -273,7 +324,10 @@ const maxUpdateAttempts = 3
 func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, error)) error {
 	// Hoisted: the repo's signing config cannot change mid-loop, and re-shelling
 	// `git config` per attempt is repeated expensive work (ARCH-CONSTRAINTS).
-	sign := t.signs()
+	sign, err := t.signs()
+	if err != nil {
+		return err
+	}
 
 	var lastRejection []byte
 	for attempt := 1; attempt <= maxUpdateAttempts; attempt++ {
@@ -387,9 +441,18 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string,
 // --type=bool matters: git accepts 1/yes/on/true and stores the string VERBATIM,
 // so `--get` on a repo configured with `yes` returns "yes" and a naive == "true"
 // yields exactly the silent unsigned commit this function exists to prevent.
-func (t *TrunkFile) signs() bool {
-	out, _, err := runGitIn(t.dir, nil, "config", "--type=bool", "--get", "commit.gpgsign")
-	return err == nil && strings.TrimSpace(string(out)) == "true"
+func (t *TrunkFile) signs() (bool, error) {
+	out, errOut, err := runGitIn(t.dir, nil, "config", "--type=bool", "--get", "commit.gpgsign")
+	if err == nil {
+		return strings.TrimSpace(string(out)) == "true", nil
+	}
+	if gitExitCode(err) == gitAbsentExit {
+		return false, nil // key simply not set — the common case
+	}
+	// Anything else means we could not determine the policy. Returning false here
+	// would publish an UNSIGNED commit in a repo that requires signing, which is
+	// the exact regression this function exists to prevent.
+	return false, fmt.Errorf("read commit.gpgsign: %v\n%s", err, errOut)
 }
 
 // writeTemp stages content for hash-object, which reads a file rather than
