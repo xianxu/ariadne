@@ -21,6 +21,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 
 | Verb              | Replaces (Make target)      | Defends |
 |-------------------|-----------------------------|---------|
+| `queue`           | (new #209)                  | Advisory work ordering on the trunk: what's next among the unblocked, and why |
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
 | `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources) |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
@@ -642,6 +643,44 @@ cmd/sdlc/
                        the legacy brain-residency lookup/detail-block helpers (#171
                        will lift residency)
 ```
+
+## Advisory work queue (`sdlc queue`, #209)
+
+The soft ordering layer: of the loose issues that could be started in any order,
+which one is next and why. One file per repo at `workshop/queue.md`, living on
+the **trunk** — every read and edit goes through `origin/main` via
+`gitx.TrunkFile`, so the queue reads identically from a feature branch, a
+detached HEAD, a second worktree, or another machine. Read it through the verb;
+the tracked working-tree copy is whatever your branch last saw, which is the
+staleness the design exists to remove.
+
+**The noun is defined in `construct/datatype/queue.md`** (advisory-never-binding,
+its boundary against `deps:`/`roadmap`/a project's `## Breakdown`, the issue-line
+vs project-line distinction and its rot failure mode). **The verb contract is in
+`sdlc queue --help`.** Neither restates the other — route, don't restate.
+
+Its shape is one idea: **operations are intents, not content.** `add` / `remove` /
+`move` each describe an edit rather than carrying a file, so `TrunkFile.Update`
+can replay them onto a base a peer just moved and both edits survive. Reorder
+looked like it had to be content ("here is the whole reordered file") until it
+was expressed as `move X before Y` — at which point it replays exactly like
+`add`, and the design has one rule with no exception. Where an intent cannot be
+replayed the verb **refuses and hands off**: it prints the trunk's current state
+next to the edit it could not apply, so the operator or an agent can re-derive
+it. `add`/`remove` converge (two agents wanting the same end state have agreed);
+`move` refuses when its subject or anchor is gone, because unlike a completed
+removal there is no defensible position left to land on.
+
+Layering (`ARCH-PURE`): `internal/queue` is the pure core — `Line`, `Doc`,
+`Intent.Apply` — whose tests use no git and no mocks, and whose round-trip
+invariant is fuzz-guarded because the file is hand-editable input this process
+did not produce. `cmd/sdlc/queue.go` is the IO shell. The merge policy lives in
+the pure core, the CAS retry lives in `TrunkFile`, and neither knows the other's
+rules.
+
+Deferred deliberately, recorded in the datatype so a later reader finds a
+decision rather than a gap: close-gate removal of queue lines (needs the
+`sdlc resolve` resolver, not grep), and cross-repo ordering.
 
 ## Trunk-backed files (`gitx.TrunkFile`, #209)
 

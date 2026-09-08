@@ -240,29 +240,29 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 
 **Files:** Create `cmd/sdlc/internal/queue/line.go`, `line_test.go`
 
-- [ ] **Step 1: Write failing table test** — round-trips `- ariadne#207 — after #206 merges, same dispatch [sdlc]` into `{Ref, WhyNow, Tag}` and back byte-identically. Cases: no tag; em-dash vs hyphen separator; a project ref; a malformed line (preserved verbatim, not dropped).
-- [ ] **Step 2: Run, verify it fails.**
-- [ ] **Step 3: Implement.** A line that does not parse is **kept as-is**, never discarded — the file is human-editable and losing a hand-written line would be the worst failure this feature can have.
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Commit** — `#209 M2: parse and render one queue line`
+- [x] **Step 1: Write failing table test** — round-trips `- ariadne#207 — after #206 merges, same dispatch [sdlc]` into `{Ref, WhyNow, Tag}` and back byte-identically. Cases: no tag; em-dash vs hyphen separator; a project ref; a malformed line (preserved verbatim, not dropped).
+- [x] **Step 2: Run, verify it fails.**
+- [x] **Step 3: Implement.** A line that does not parse is **kept as-is**, never discarded — the file is human-editable and losing a hand-written line would be the worst failure this feature can have.
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Commit** — `#209 M2: parse and render one queue line`
 
 ### Task 8: `Doc` round-trip
 
 **Files:** Create `doc.go`, `doc_test.go`
 
-- [ ] **Step 1: Write the failing test** — `Render(Parse(x)) == x` for a doc with leading prose, blank lines, and a trailing comment block.
-- [ ] **Step 2: Run, verify it fails.**
-- [ ] **Step 3: Implement** — preserve everything that is not a queue line verbatim, in place.
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Add `FuzzDocRoundTrip`** asserting `Render(Parse(b)) == b` over arbitrary bytes, seeded with the adversarial forms: no trailing newline, CRLF, a near-miss line, unicode vs ASCII dashes, a bare `- ` at EOF, an empty file. `Doc` parses a human-editable file arriving from the trunk — input this process did not produce (`ARCH-SECURE`) — so the guard must be mechanical, not four chosen inputs. This is what makes "a malformed line is kept as-is, never discarded" true across the whole input space.
-- [ ] **Step 6: Run** — `go test ./cmd/sdlc/internal/queue/ -run FuzzDocRoundTrip -fuzz FuzzDocRoundTrip -fuzztime 30s`. Expected: no failing corpus entry.
-- [ ] **Step 7: Commit** — `#209 M2: round-trip the queue document, fuzz-guarded`
+- [x] **Step 1: Write the failing test** — `Render(Parse(x)) == x` for a doc with leading prose, blank lines, and a trailing comment block.
+- [x] **Step 2: Run, verify it fails.**
+- [x] **Step 3: Implement** — preserve everything that is not a queue line verbatim, in place.
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Add `FuzzDocRoundTrip`** asserting `Render(Parse(b)) == b` over arbitrary bytes, seeded with the adversarial forms: no trailing newline, CRLF, a near-miss line, unicode vs ASCII dashes, a bare `- ` at EOF, an empty file. `Doc` parses a human-editable file arriving from the trunk — input this process did not produce (`ARCH-SECURE`) — so the guard must be mechanical, not four chosen inputs. This is what makes "a malformed line is kept as-is, never discarded" true across the whole input space.
+- [x] **Step 6: Run** — `go test ./cmd/sdlc/internal/queue/ -run FuzzDocRoundTrip -fuzz FuzzDocRoundTrip -fuzztime 30s`. Expected: no failing corpus entry.
+- [x] **Step 7: Commit** — `#209 M2: round-trip the queue document, fuzz-guarded`
 
 ### Task 9: `Intent.Apply` — the interleaving table
 
 **Files:** Create `intent.go`, `intent_test.go`
 
-- [ ] **Step 1: Write the failing table test — one case per Spec row:**
+- [x] **Step 1: Write the failing table test — one case per Spec row:**
 
 | Case | Assert |
 |---|---|
@@ -275,53 +275,53 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 | `Add` with a newline or control char in why-now | rejected before any git call — a newline would become a second entry and break `Doc`'s round-trip |
 | `Add` with ` — ` or `[...]` inside why-now | rejected, not escaped — escaping costs the human-readability the format exists for |
 
-- [ ] **Step 2: Run, verify it fails.**
-- [ ] **Step 3: Implement `Apply`** as an exhaustive switch over the union. Errors are typed so the verb can render the current queue alongside them.
-- [ ] **Step 4: Run, verify PASS** — `go test ./cmd/sdlc/internal/queue/ -v`. **No git, no mocks** in this package's tests; if one is needed, the purity boundary is wrong.
-- [ ] **Step 5: Commit** — `#209 M2: apply queue intents, with every interleaving cell tested`
+- [x] **Step 2: Run, verify it fails.**
+- [x] **Step 3: Implement `Apply`** as an exhaustive switch over the union. Errors are typed so the verb can render the current queue alongside them.
+- [x] **Step 4: Run, verify PASS** — `go test ./cmd/sdlc/internal/queue/ -v`. **No git, no mocks** in this package's tests; if one is needed, the purity boundary is wrong.
+- [x] **Step 5: Commit** — `#209 M2: apply queue intents, with every interleaving cell tested`
 
 ### Task 10: The verb
 
 **Files:** Create `cmd/sdlc/queue.go`, `queue_test.go`, `cmd/sdlc/helptext/queue.md`; Modify `cmd/sdlc/main.go` (one `add(...)` line, in workflow order)
 
-- [ ] **Step 1: Write the failing test** — `sdlc queue add ariadne#210 "why"` against a real fixture with no main worktree lands the line on the bare origin; bare `sdlc queue` lists from the trunk, not the working tree.
-- [ ] **Step 2: Run, verify it fails.**
-- [ ] **Step 3: Implement** — build the `Intent`, hand `Intent.Apply` to `TrunkFile.Update` as the transform. The verb itself holds no retry logic.
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Write `helptext/queue.md`** — the four operations, the trunk-is-the-base rule, and the interleaving table.
-- [ ] **Step 6: Commit** — `#209 M2: sdlc queue, backed by the trunk`
+- [x] **Step 1: Write the failing test** — `sdlc queue add ariadne#210 "why"` against a real fixture with no main worktree lands the line on the bare origin; bare `sdlc queue` lists from the trunk, not the working tree.
+- [x] **Step 2: Run, verify it fails.**
+- [x] **Step 3: Implement** — build the `Intent`, hand `Intent.Apply` to `TrunkFile.Update` as the transform. The verb itself holds no retry logic.
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Write `helptext/queue.md`** — the four operations, the trunk-is-the-base rule, and the interleaving table.
+- [x] **Step 6: Commit** — `#209 M2: sdlc queue, backed by the trunk`
 
 ### Task 11: Failure is a handoff
 
-- [ ] **Step 1: Write the failing test** — a `move` whose anchor was concurrently deleted; assert stderr contains **both** the current remote queue and the unapplied intent, and the exit is non-zero.
-- [ ] **Step 2: Run, verify it fails.**
-- [ ] **Step 3: Implement the error rendering** — per `sdlc --help`, errors are next-action specs; an operator or agent must be able to re-derive the edit from the message alone.
-- [ ] **Step 4: Run, verify PASS.**
-- [ ] **Step 5: Commit** — `#209 M2: a refused queue edit prints the trunk state and the intent`
+- [x] **Step 1: Write the failing test** — a `move` whose anchor was concurrently deleted; assert stderr contains **both** the current remote queue and the unapplied intent, and the exit is non-zero.
+- [x] **Step 2: Run, verify it fails.**
+- [x] **Step 3: Implement the error rendering** — per `sdlc --help`, errors are next-action specs; an operator or agent must be able to re-derive the edit from the message alone.
+- [x] **Step 4: Run, verify PASS.**
+- [x] **Step 5: Commit** — `#209 M2: a refused queue edit prints the trunk state and the intent`
 
 ### Task 12: The datatype prototype
 
 **Files:** Create `construct/datatype/queue.md`
 
-- [ ] **Step 1: Write it** following `construct/datatype/target.md`'s shape — `type: type`, `name: queue`, a discovery `description` triggering on "queue", "what's next", "pick the next thing", "plan the sequence", then narrative prose covering every Done-when clause: advisory-not-binding vs `deps:`; division of labour with project `status`/`roadmap` and a project's `## Breakdown`; the line format; issue-line vs project-line with its failure mode; **the file is read through `sdlc queue` because a working-tree copy can be stale**; and the rot risk pointing at the deferred close-gate removal.
-- [ ] **Step 2: Regenerate** — `make weave`.
-- [ ] **Step 3: Verify no hand-edit was needed** — `grep -n queue construct/generated/datatype/SKILL.md` finds it, AND `git diff --stat cmd/datatype/ construct/local/datatype/` is empty. Do **not** diff `construct/generated/`: it is gitignored (`.gitignore:30`, per `atlas/workflow/data-artifacts.md:20` it is per-repo and never committed), so that check passes whether or not a hand-edit happened. The file a wrongful hand-edit would touch is `cmd/datatype/SKILL.md.tmpl`.
-- [ ] **Step 4: Commit** — `#209 M2: queue datatype prototype`
+- [x] **Step 1: Write it** following `construct/datatype/target.md`'s shape — `type: type`, `name: queue`, a discovery `description` triggering on "queue", "what's next", "pick the next thing", "plan the sequence", then narrative prose covering every Done-when clause: advisory-not-binding vs `deps:`; division of labour with project `status`/`roadmap` and a project's `## Breakdown`; the line format; issue-line vs project-line with its failure mode; **the file is read through `sdlc queue` because a working-tree copy can be stale**; and the rot risk pointing at the deferred close-gate removal.
+- [x] **Step 2: Regenerate** — `make weave`.
+- [x] **Step 3: Verify no hand-edit was needed** — `grep -n queue construct/generated/datatype/SKILL.md` finds it, AND `git diff --stat cmd/datatype/ construct/local/datatype/` is empty. Do **not** diff `construct/generated/`: it is gitignored (`.gitignore:30`, per `atlas/workflow/data-artifacts.md:20` it is per-repo and never committed), so that check passes whether or not a hand-edit happened. The file a wrongful hand-edit would touch is `cmd/datatype/SKILL.md.tmpl`.
+- [x] **Step 4: Commit** — `#209 M2: queue datatype prototype`
 
 ### Task 13: Seed, through the verb
 
-- [ ] **Step 1: Seed** ariadne's real current ordering using `sdlc queue add` — **not** by hand-writing the file. This is the cheapest test of whether the format is right, and hand-writing it would skip the thing under test.
-- [ ] **Step 2: Verify** `sdlc queue` from a feature branch renders what was added.
-- [ ] **Step 3: Note on #207** that `gitx.TrunkFile` now exists and its content-setting transform is the seam to consume — plus the retry-semantics defect flagged in this issue's Spec.
-- [ ] **Step 4: Commit** — `#209 M2: seed ariadne's queue through the verb`
+- [x] **Step 1: Seed** ariadne's real current ordering using `sdlc queue add` — **not** by hand-writing the file. This is the cheapest test of whether the format is right, and hand-writing it would skip the thing under test.
+- [x] **Step 2: Verify** `sdlc queue` from a feature branch renders what was added.
+- [x] **Step 3: Note on #207** that `gitx.TrunkFile` now exists and its content-setting transform is the seam to consume — plus the retry-semantics defect flagged in this issue's Spec.
+- [x] **Step 4: Commit** — `#209 M2: seed ariadne's queue through the verb`
 
 ### Task 13b: Atlas — the verb and the noun
 
-- [ ] **Step 1: Update `atlas/workflow/sdlc-binary.md`** — add `queue` to the verb table with what it defends.
-- [ ] **Step 2: Update the terminology/datatype map** so `queue` as a noun is findable, and confirm `atlas/index.md` links every file it should.
-- [ ] **Step 3: Commit** — `#209 M2: atlas — the queue verb and noun`
+- [x] **Step 1: Update `atlas/workflow/sdlc-binary.md`** — add `queue` to the verb table with what it defends.
+- [x] **Step 2: Update the terminology/datatype map** so `queue` as a noun is findable, and confirm `atlas/index.md` links every file it should.
+- [x] **Step 3: Commit** — `#209 M2: atlas — the queue verb and noun`
 
-- [ ] **M2 — `sdlc close --issue 209`**
+- [x] **M2 — `sdlc close --issue 209`**
 
 ---
 

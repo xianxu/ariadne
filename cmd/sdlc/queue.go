@@ -223,5 +223,7 @@ func queueRefusal(stderr io.Writer, s trunkStore, in queue.Intent, cause error) 
 	case errors.Is(cause, queue.ErrSubjectMissing):
 		fmt.Fprintf(stderr, "  %s is no longer queued; it may already have been done.\n", in.Ref)
 	}
-	return fmt.Errorf("queue: %s refused", queueCommitMessage(in))
+	// queueCommitMessage already carries the "queue: " prefix; adding another
+	// produced "queue: queue: add X refused", which the seed run surfaced.
+	return fmt.Errorf("%s refused", queueCommitMessage(in))
 }

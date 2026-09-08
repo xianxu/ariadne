@@ -154,6 +154,11 @@ func TestQueueEdit_RefusalCarriesTrunkStateAndIntent(t *testing.T) {
 			t.Errorf("refusal missing %q:\n%s", want, s)
 		}
 	}
+	// The returned error must not double the "queue: " prefix — caught when the
+	// real seed run printed "queue: queue: add ariadne#207 refused".
+	if strings.Contains(err.Error(), "queue: queue:") {
+		t.Errorf("doubled prefix in %q", err.Error())
+	}
 	// And the trunk is untouched.
 	if got := string(f.content[queuePath]); got != "- a#1 — first\n- b#2 — second\n" {
 		t.Errorf("trunk modified by a refused edit: %q", got)

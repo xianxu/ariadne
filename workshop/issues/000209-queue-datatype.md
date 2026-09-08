@@ -330,7 +330,7 @@ per-task commands. This section carries the two review boundaries only.
 - [x] M1 — `gitx.TrunkFile`: read + CAS-write one path on the trunk with no
       working tree, bounded retry that **re-runs the transform** on the moved
       base, gitattributes/signing round-trip, offline degrade-read/refuse-write, temp-index hygiene. Tasks 1-6.
-- [ ] M2 — the queue: `Line`/`Doc`/`Intent` (pure, no git in their tests), the
+- [x] M2 — the queue: `Line`/`Doc`/`Intent` (pure, no git in their tests), the
       `sdlc queue` verb, refusal-as-handoff, `construct/datatype/queue.md`, and
       ariadne's queue seeded **through the verb**. Tasks 7-13.
 
