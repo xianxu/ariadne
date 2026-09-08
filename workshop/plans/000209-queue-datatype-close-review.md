@@ -543,3 +543,165 @@ findings:
       VALIDATION error, or drop the "defence in depth" claim for the arms that
       do not have it.
 ```
+
+---
+
+## Re-review — 2026-09-07T19:51:21-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 209 — queue datatype for advisory work ordering |
+| repo | ariadne |
+| issue file | workshop/issues/000209-queue-datatype.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 00d7c75c5371bbb3e2f01f5e28780565c274f3a9..7770416999cfc8e47343a24c29a0f5975aa0447d |
+| command | sdlc close --issue 209 |
+| reviewer | claude |
+| timestamp | 2026-09-07T19:51:21-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The shipping code is correct and, on the paths that matter, genuinely well tested: `gitx.TrunkFile` runs against a real bare origin with the peer's push injected at the transform seam, so the retry contract, the attempt bound, the non-retryable fast-fail and the fetch budget are all pinned by tests that fail when mutated (I verified four of this round's claims by reverting them in a scratch copy — BR-21, BR-25, BR-37 and the mode/signing guards all go red). The datatype, helptext and atlas are complete, and the seed really was written through the verb (`origin/main` carries four entries under `queue: add …` / `queue: move …` commits). What blocks a clean SHIP is not the code but its pinning: three of this round's fixes are held by a test that reads `queue.go` as *text* or by no test at all — I deleted the `guardSpineRepo` call from `sdlc queue add`, left a comment naming it, and the whole suite stayed green, while a 20-line behavioural test built from the seam this repo already has (`hermeticRepo` + `writeBrainMarker` + `expectDie`, used one file over in `repoguard_test.go`) went red immediately. That is the same defect class the last four rounds have been closing, and it is cheap to close for real. Everything else outstanding is Minor doc/plan hygiene.
+
+**1. Strengths**
+
+- `cmd/sdlc/internal/gitx/trunkfile_test.go:174,207,322,578` — the interleaving is injected *inside the transform*, so the peer's push lands at a chosen point against a real origin. This is the ARCH-MOCK/ARCH-ORDER shape done right: a function-call mock could not produce the non-fast-forward rejection, and the tests observe more than one ordering.
+- `cmd/sdlc/internal/queue/line.go:129` — the parse is accepted only if it renders back byte-identically. Making the round-trip true *by construction* rather than by five separate trim arguments is the elegant answer, and `FuzzDocRoundTrip` (with a persisted corpus entry) is the mechanical backstop the Spec asked for.
+- `cmd/sdlc/internal/queue/intent.go:98-122` — validation by render-and-re-parse instead of another banned substring, plus `TestIntent_Validate_AllowsOddButConsistentRecords` proving the check is *precise* rather than a blanket prefix ban. That test is the one that stops the rule from over-firing.
+- `cmd/sdlc/internal/gitx/trunkfile.go:346` — the no-op skip landed at the **primitive**, so `ariadne#207` inherits it; mutation-verified (removing it moves the trunk and `TestTrunkFile_UnchangedContentPushesNothing` fails).
+- `atlas/workflow/sdlc-binary.md:647` — "the noun is in `construct/datatype/queue.md`, the verb contract is in `sdlc queue --help`; neither restates the other." Routing instead of restating is the right instinct (see Minor 3 for where the diff doesn't follow it).
+- `workshop/plans/000209-queue-datatype-plan.md:368` — the Revisions entry admitting the M2 TDD checkboxes were ticked by a blanket regex without the red-green order being followed. Recording that rather than quietly re-ticking is worth more than the ticks were.
+
+**2. Critical findings**
+
+None.
+
+**3. Important findings**
+
+- **`cmd/sdlc/queue_test.go:299,326,351,386` — this round's fixes are pinned by source-text greps or by nothing.** *4th finding in family `vacuous-test-guard`.* Do not patch these three sites — the rule is: **a test must be able to distinguish the property present from the property absent; reading the implementation's own source text cannot, because a comment satisfies it, and no test at all cannot.** Enumeration over this round's fixes, each mutation-verified against the real tree:
+  1. `subcommandGuardSource` (`queue_test.go:326`) reads `queue.go` and greps. Replacing `guardSpineRepo(c.ErrOrStderr())` in `newQueueAddCmd` with `// guardSpineRepo runs first here` leaves `go test ./cmd/sdlc/` **green**; a behavioural probe over the three write subcommands failed on the same mutation. Its justifying comment ("invoking the verb would exit the process via `die()`") is false in this codebase — `die` is a package-level var and `expectDie` (`die_test.go:33`) exists for exactly this, which is how `repoguard_test.go:39` tests the sibling guard.
+  2. `doc.go:76` `looksLikeItem` — reintroducing the divergence (`HasPrefix(TrimSpace(raw), "- ")` in `UnrecognizedItems`) leaves every package green.
+  3. `intent.go:199-205` insert-after-last-entry — collapsing it back to `at := len(out.lines)` leaves every package green.
+  Fix as one: a `queue_guard_test.go` using `hermeticRepo`/`writeBrainMarker`/`expectDie` over `{add, remove, move}` plus a not-guarded case for the bare list (and, on the same command tree, `--project` → `KindProject` and the `--before/--after` exclusion, which today are only greps), and two six-line table cases in `internal/queue` for the indented-prose count and the trailing-comment insert position.
+
+- **BR-34 remains open on its core claim.** The `repoguard.go:8-17` enumeration sentence is now correct and `newQueueMoveCmd` puts the guard first — both real. But "the guard is pinned by no test" is still true under mutation (above), so a refactor dropping it still ships silently from the base-layer binary to every downstream repo.
+
+**4. Minor findings**
+
+- BR-11, BR-12, BR-29, BR-30, BR-31, BR-38 all verified unchanged this round — see the dispositions below for the file:line evidence.
+- The line format and the why-now validation rules are stated four times (`line.go:159-178`, `construct/datatype/queue.md:56-61`, `cmd/sdlc/helptext/queue.md` "LINE FORMAT", `queue.go:184-187`) with nothing tying them to the validators; `fleet_readme_test.go:10` is the in-repo precedent for the cheap doc-conformance test that would.
+- `queue_test.go:308` reports `present=%v` from `!guarded[name]`, i.e. from the expectation rather than the observation. Correct only by coincidence of the branch condition.
+
+**5. Test coverage notes**
+
+`go test ./cmd/sdlc/...` is green except the pre-existing `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (ariadne#210, unrelated). The real gap is not breadth but *pinning*: no test anywhere drives `Intent.Apply` through a genuine non-fast-forward rejection — `gitx`'s two-publisher tests use a raw append transform, `fakeTrunk.Update` calls the transform exactly once with `peer` firing *before* it, and `queue_e2e_test.go` has no peer push. `TestQueueEdit_PeerEditSurvivesTheReplay` therefore still passes against an `Update` with no retry at all, despite being named for "the property the whole design exists for" (BR-30).
+
+**6. Architectural notes**
+
+- **ARCH-DRY — flag** (BR-29): `pathPresent`/`modeOf` and `refPresent`/`resolve` are still one function each, split in two; `Update` runs all four per attempt. Pass elsewhere — `firstLine`→`gitx.FirstLine`, the `readFrom` collapse and `looksLikeItem` are all correct consolidations.
+- **ARCH-PURE — pass.** `internal/queue` has no git, no fs, no clock; `queue.go` is argument parsing and rendering only; the CAS lives behind `TrunkFile`.
+- **ARCH-PURPOSE — pass on the deliverable** (datatype + verb + a seed genuinely written through the verb onto `origin/main`), **flag on the method**: this round again fixed the sites the findings named without writing the enumeration that would sweep the class — see the Important finding.
+- **ARCH-MOCK — pass at `gitx`, flag at the verb.** Real bare origin throughout `trunkfile_test.go`; but `fakeTrunk` is a double that cannot reject, and the e2e (its only conformance path) has no peer, so the divergence is unobservable.
+- **ARCH-CONSTRAINTS — pass with residue.** `signs()` hoisted out of the loop, one fetch per attempt (pinned), bound of 3. Residue: two redundant git calls per attempt (BR-29) and no context/timeout on fetch/push — the latter is a declared, reasoned residue in the plan.
+- **ARCH-SECURE — pass.** Typed validation at the boundary before any git call, argv (never shell) interpolation, temp index inside a 0700 `MkdirTemp` dir with no unclaimed-name window, fuzz over the hand-editable input. Undocumented nuance: `hash-object --path` resolves `.gitattributes` from the working tree, not the trunk (BR-12).
+- **ARCH-ORDER — pass at the primitive, flag at the verb.** The interleaving table is enumerated in the Spec and each cell has a case; ordering is injectable at the transform seam. At the verb layer only one interleaving is observable (BR-30).
+- **Docs gate:** atlas is updated for both the primitive and the verb/noun, and `atlas/index.md` links it. README is deliberately *not* a verb catalog in this repo (`migrate` #179 and `issue sync` #206 are likewise absent), so no README finding.
+
+**7. Plan revision recommendations**
+
+- Core-concepts table: rename `queueCmd` → `NewQueueCmd` at lines 81, 87 and 91; add a row for `gitx.FirstLine` (newly exported into the package surface in this window) and for `cmd/sdlc/queue_e2e_test.go` (BR-31).
+- Add a `## Revisions` entry for the design changes forced by close-review rounds 3–7 — `KindUnspecified` as the zero value, converge-by-merge, `Update`'s no-op skip, insert-after-last-entry, one item-marker predicate. "M2 as built" predates all five, so the plan currently describes a design the code has moved past.
+
+```findings
+dispose:
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      trunkfile.go:200-202 and :166-170 unchanged; Update:326 still calls offlineError for a repo with no origin at all. Round 7 stated this exact rule and swept commit subjects, but not the family's oldest instance.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      grep for "attributes" in trunkfile.go returns exactly one line (:399); still no sentence on where .gitattributes resolves from.
+  - id: BR-21
+    disposition: addressed
+    note: |
+      readFrom carries the guard (:245-265), localRef is qualified (:130); mutation-verified — reverting localRef to t.branch turns TestTrunkFile_LocalFallbackPrefersTheBranchNotATag red.
+  - id: BR-25
+    disposition: addressed
+    note: |
+      Merge-not-replace pinned (dropping the KindUnspecified check reddens two tests); CRLF half pinned by TestIntent_Apply_AppendMatchesDocumentLineEnding. The CLI half is pinned only by a source grep — see the new finding.
+  - id: BR-29
+    disposition: not-addressed
+    note: |
+      pathPresent:228/modeOf:442 and refPresent:187/resolve:372 both remain; Update still runs all four per attempt.
+  - id: BR-30
+    disposition: not-addressed
+    note: |
+      Only the dead `reached` field was removed. fakeTrunk still calls the transform once with peer firing before it, and queue_e2e_test.go still has no peer push, so no test drives Intent.Apply through a real rejection.
+  - id: BR-31
+    disposition: not-addressed
+    note: |
+      Plan lines 81, 87 and 91 still say queueCmd; still no gitx.FirstLine row.
+  - id: BR-34
+    disposition: not-addressed
+    note: |
+      Enumeration sentence and guard-first ordering are fixed and real; the guard itself is still unpinned — deleting the call and leaving a comment naming it keeps the suite green.
+  - id: BR-35
+    disposition: addressed
+    note: |
+      One predicate now (doc.go:76), called from both sites; behaviour verified fixed. Unpinned by any test — folded into the new finding rather than re-raised.
+  - id: BR-36
+    disposition: addressed
+    note: |
+      intent.go:199-205 inserts after the last entry; behaviour verified fixed. Unpinned by any test — folded into the new finding.
+  - id: BR-37
+    disposition: addressed
+    note: |
+      trunkfile.go:346 skips the write at the primitive so #207 inherits it; mutation-verified — removing it moves the trunk and TestTrunkFile_UnchangedContentPushesNothing fails.
+  - id: BR-38
+    disposition: not-addressed
+    note: |
+      applyMove:232 and applyRemove:216 still never call Validate; intent_test.go:263's "Apply must refuse too" still passes on the move row via ErrSubjectMissing.
+findings:
+  - id: new
+    severity: Important
+    family: vacuous-test-guard
+    title: |
+      This round's fixes are pinned by tests that read source text, or by no test at all
+    detail: |
+      4th in family. Do NOT patch the three sites — state the rule: a test must be able to
+      distinguish the property present from absent, and a grep over the implementation's own
+      source cannot (a comment satisfies it). Enumeration, each mutation-verified against the
+      real tree: (1) queue_test.go:326 subcommandGuardSource — replacing the guardSpineRepo
+      call in newQueueAddCmd with a comment naming it leaves go test ./cmd/sdlc/ green, while
+      a behavioural probe over add/remove/move failed on the same mutation; the justifying
+      comment ("invoking the verb would exit via die()") is false, since expectDie
+      (die_test.go:33) exists and repoguard_test.go:39 uses it for the sibling guard.
+      (2) doc.go:76 looksLikeItem — reintroducing the divergence leaves every package green.
+      (3) intent.go:199-205 — collapsing the insert back to end-of-file leaves every package
+      green. One fix covers all three: a behavioural queue-guard test built from
+      hermeticRepo/writeBrainMarker/expectDie (which also pins --project -> KindProject and
+      the --before/--after exclusion, today only grepped), plus two table cases in
+      internal/queue for the indented-prose count and the insert position.
+  - id: new
+    severity: Minor
+    family: format-undocumented
+    title: |
+      The line format and its validation rules are stated four times with nothing tying them to the validators
+    detail: |
+      2nd in family. The rule, not the instance: the format has one authoritative statement and
+      every other surface routes to it or is checked against it. Today line.go:159-178 defines
+      it, and construct/datatype/queue.md:56-61, cmd/sdlc/helptext/queue.md ("LINE FORMAT") and
+      queue.go:184-187 each restate the em-dash separator and the newline/control/bracket bans
+      independently — so a change to ValidateWhyNow silently falsifies three documents. The
+      atlas entry already declares the routing discipline ("neither restates the other"), and
+      fleet_readme_test.go:10 is the in-repo precedent for the doc-conformance test that would
+      enforce it.
+```

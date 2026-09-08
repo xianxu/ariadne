@@ -77,8 +77,8 @@ Two consequences that must be written into the code, not just remembered:
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `TrunkFile` | `cmd/sdlc/internal/gitx/trunkfile.go` | new | git plumbing on a remote ref |
-| `queueCmd` | `cmd/sdlc/queue.go` | new | cobra + stdout/stderr |
+| `TrunkFile` (+ `FirstLine`, homed here in the M1 review) | `cmd/sdlc/internal/gitx/trunkfile.go` | new | git plumbing on a remote ref |
+| `queueCmd` (cobra tree + `trunkStore` seam) | `cmd/sdlc/queue.go` | new | cobra + stdout/stderr |
 
 - **TrunkFile** — reads and CAS-writes one path on a remote branch with **no working tree**. `Read(path) ([]byte, error)` (requires a reachable remote);
 `ReadDegraded(path) ([]byte, string, error)` (returns a warning and the stale ref's content when offline);
@@ -88,7 +88,7 @@ Two consequences that must be written into the code, not just remembered:
   - **Offline:** a failed fetch degrades a READ to the stale tracking ref with a loud warning and REFUSES a write — the policy `issueids.go:40-49,126-145` already settled (`ARCH-DRY`).
   - **Future extensions:** `ariadne#207` consumes this for issue files with a content-setting transform. Its retry semantics then follow from its transform, not from a second retry loop — which is why #207's own spec defect (a content-preserving retry that re-lands a colliding issue id) cannot be built on top of this.
 
-- **queueCmd** — the cobra verb: parse args into an `Intent`, call `TrunkFile`, render output and errors.
+- **queueCmd** — the cobra verb (the seam it consumes is the consumer-side `trunkStore` interface declared in `main`, not a gitx export): parse args into an `Intent`, call `TrunkFile`, render output and errors.
   - **Injected into:** nothing; it is the outermost shell.
   - **Future extensions:** `--repo` for a cross-repo queue (deferred in the Spec).
 
@@ -395,3 +395,21 @@ land" is the bug when two publishers collide on one id.
 **Commit granularity** diverged again as in M1: Tasks 7+8 landed together, and
 the seed (13) surfaced two defects that were fixed in the same window rather than
 in a separate commit.
+
+### 2026-09-07 — close-review residues (rounds 5-8)
+
+Recorded because the plan is the artifact a later reader trusts, and several of
+its rows described a design that the reviews changed:
+
+- The seam is a consumer-side `trunkStore` interface in `main`, not an export
+  from `gitx`. `FirstLine` moved into `gitx` in the M1 review (it had two
+  definitions), so that package gained a member the Core-concepts table did not
+  list.
+- Task 13's end-to-end coverage (`cmd/sdlc/queue_e2e_test.go`) has no plan row —
+  it was added mid-M2 once it became clear the unit tests exercised the verb's
+  logic but never the assembled path.
+- `.gitattributes` resolution is a BOUNDED claim, not a guarantee: `hash-object
+  --path` reads the working tree's attributes, not the trunk's. Correct whenever
+  the checkout and trunk agree about the path, which is always true for a branch
+  descended from the trunk; git offers no per-ref alternative for hash-object, so
+  it is stated rather than enforced.

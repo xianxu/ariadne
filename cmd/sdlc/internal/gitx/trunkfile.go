@@ -164,8 +164,8 @@ func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 	var warn string
 	if out, err := t.fetch(); err != nil {
 		warn = fmt.Sprintf(
-			"%s unreachable — %q read from the stale %s, which may be behind "+
-				"anything published since the last fetch (%s)",
+			"could not fetch from %s — %q read from the stale %s, which may be behind "+
+				"anything published since the last fetch (git says: %s)",
 			t.remote, path, t.trackingRef(), FirstLine(string(out)))
 	}
 	tracking, terr := t.refPresent(t.trackingRef())
@@ -185,20 +185,36 @@ func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 // refPresent reports whether a ref resolves, distinguishing absent from
 // could-not-tell per the rule above.
 func (t *TrunkFile) refPresent(ref string) (bool, error) {
-	_, errOut, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--quiet", ref)
-	if err == nil {
-		return true, nil
-	}
-	if gitExitCode(err) == gitAbsentExit {
-		return false, nil
-	}
-	return false, fmt.Errorf("rev-parse %s: %v\n%s", ref, err, errOut)
+	sha, err := t.resolveOpt(ref)
+	return sha != "", err
 }
 
-// offlineError names the cause rather than surfacing raw git output, so the
-// refusal reads as a next-action spec.
+// resolveOpt is the single rev-parse question: the SHA, or "" when the ref is
+// absent, or an error when git could not tell. refPresent and resolve were two
+// functions asking it separately, and Update ran both per attempt.
+func (t *TrunkFile) resolveOpt(ref string) (string, error) {
+	out, errOut, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--quiet", ref)
+	if err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+	if gitExitCode(err) == gitAbsentExit {
+		return "", nil
+	}
+	return "", fmt.Errorf("rev-parse %s: %v\n%s", ref, err, errOut)
+}
+
+// offlineError reports a failed fetch WITHOUT asserting why it failed.
+//
+// It used to say "unreachable (offline?)" for every failure, which is the same
+// rule BR-37 turned on commit subjects: a message may only name state the code
+// observed. A rejected credential, a missing remote, a bad refspec and a dead
+// network all land here, and telling an operator with a working connection that
+// their remote is unreachable sends them to debug the wrong thing. Git's own
+// first line is the observation; the offline case is offered as a possibility,
+// not a diagnosis.
 func offlineError(remote string, err error, out []byte) error {
-	return fmt.Errorf("%s unreachable (offline?): %v\n%s", remote, err, FirstLine(string(out)))
+	return fmt.Errorf("could not fetch from %s (offline, auth, or a bad ref — git says): %v\n%s",
+		remote, err, FirstLine(string(out)))
 }
 
 // FirstLine keeps a git failure to one line: fetch errors are several lines of
@@ -226,11 +242,26 @@ func FirstLine(s string) string {
 // how the trunk got silently truncated: the caller received an empty file, the
 // transform appended to nothing, and Update published only the new line.
 func (t *TrunkFile) pathPresent(ref, path string) (bool, error) {
-	out, errOut, err := runGitIn(t.dir, nil, "ls-tree", "--name-only", "--end-of-options", ref, "--", path)
+	_, present, err := t.entryOf(ref, path)
+	return present, err
+}
+
+// entryOf is the single ls-tree question — mode AND presence in one call.
+//
+// pathPresent and modeOf were two functions asking git the same thing with
+// different flags, and Update ran both per attempt. Two functions differing only
+// in which field of one answer they keep are one function (ARCH-DRY), and the
+// split also doubled the git calls on the hot path (ARCH-CONSTRAINTS).
+func (t *TrunkFile) entryOf(ref, path string) (mode string, present bool, err error) {
+	out, errOut, err := runGitIn(t.dir, nil, "ls-tree", "--end-of-options", ref, "--", path)
 	if err != nil {
-		return false, fmt.Errorf("ls-tree %s -- %s: %v\n%s", ref, path, err, errOut)
+		return "", false, fmt.Errorf("ls-tree %s -- %s: %v\n%s", ref, path, err, errOut)
 	}
-	return len(strings.TrimSpace(string(out))) > 0, nil
+	f := strings.Fields(strings.TrimSpace(string(out)))
+	if len(f) == 0 {
+		return "", false, nil
+	}
+	return f[0], true, nil
 }
 
 // readFrom reads <ref>:<path>, answering empty for a ref or path that is simply
@@ -370,11 +401,14 @@ func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, err
 
 // resolve returns the SHA a ref points at.
 func (t *TrunkFile) resolve(ref string) (string, error) {
-	out, errOut, err := runGitIn(t.dir, nil, "rev-parse", "--verify", ref)
+	sha, err := t.resolveOpt(ref)
 	if err != nil {
-		return "", fmt.Errorf("resolve %s: %v\n%s", ref, err, errOut)
+		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	if sha == "" {
+		return "", fmt.Errorf("resolve %s: no such ref", ref)
+	}
+	return sha, nil
 }
 
 // commitAndPush builds the tree in a temp index and pushes the new commit at the
@@ -399,6 +433,14 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string,
 	// --path (not bare hash-object) so .gitattributes filters and EOL
 	// normalization for THIS path apply. Without it the stored blob can differ
 	// from what a checkout of the resulting commit produces.
+	//
+	// BOUNDED CLAIM: git resolves those attributes from the WORKING TREE's
+	// .gitattributes, not from the ref being written. That is correct whenever the
+	// checkout and the trunk agree about the path — the overwhelmingly common
+	// case, and always true when the branch descends from the trunk. It is wrong
+	// only if the trunk's .gitattributes has diverged from this checkout's for
+	// this path, and git offers no "use attributes from ref X" for hash-object, so
+	// this is a stated limit rather than something the code enforces.
 	out, errOut, err := runGitIn(t.dir, env, "hash-object", "-w", "--path", path, blobFile)
 	if err != nil {
 		return errOut, err
@@ -440,14 +482,14 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string,
 // modeOf returns the path's mode in the base tree, defaulting to a regular file
 // when the path is new.
 func (t *TrunkFile) modeOf(ref, path string) (string, error) {
-	out, errOut, err := runGitIn(t.dir, nil, "ls-tree", "--end-of-options", ref, "--", path)
+	mode, present, err := t.entryOf(ref, path)
 	if err != nil {
-		return "", fmt.Errorf("ls-tree mode %s -- %s: %v\n%s", ref, path, err, errOut)
+		return "", err
 	}
-	if f := strings.Fields(strings.TrimSpace(string(out))); len(f) > 0 && len(f[0]) == 6 {
-		return f[0], nil
+	if !present || len(mode) != 6 {
+		return "100644", nil // new path
 	}
-	return "100644", nil // new path
+	return mode, nil
 }
 
 // signs reports whether this repo signs commits. A signing repo that silently

@@ -1,12 +1,13 @@
 ---
 id: 000209
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-07
 estimate_hours: 3.06
 started: 2026-09-07T16:11:22-07:00
+actual_hours: 4.49
 ---
 
 # queue datatype for advisory work ordering
@@ -341,6 +342,8 @@ own boundary review; neither is a one-shot that a plain checkbox would cover.
 ## Log
 
 
+
+- 2026-09-07: closed — Round-7 REWORK findings all fixed, all four mutation-verified. BR-37 fixed as a RULE not an instance (3rd in family error-misattribution): a message may only name state the code observed, and the most durable message here is a commit subject — a converged no-op was pushing an empty commit to origin/main claiming an edit it never made. TrunkFile.Update now skips the write on unchanged content (general; #207 inherits it), Applied carries Changed, and the verb reports "no change, nothing pushed". BR-25: my previous fix was at the type layer and unreachable — queue.go hardcoded KindIssue so KindUnspecified had zero production call sites and the repair was dead code; now driven by Flags().Changed("project") and pinned. BR-21: behaviour was correct but unpinned (mutating localRef back left gitx green); now tested against a repo carrying BOTH refs/tags/main and refs/heads/main, the case that actually proves it. BR-34: presence was pinned but ordering was not, and move validated flags before the guard so a brain repo got a flag complaint instead of the charter refusal; guard moved first and ordering asserted. Also swept three non-blocking residues: two disagreeing item-marker predicates (an indented prose list warned as two unrecognized entries), append landing below a trailing comment block, and a fake field written at two sites and read at none. Full suite green except pre-existing ariadne#210.; review verdict: FIX-THEN-SHIP
 - 2026-09-07: closed M1 — gitx.TrunkFile: 109 test cases green in cmd/sdlc/internal/gitx, all against a REAL bare origin (ARCH-MOCK). Round-3 findings BR-3/BR-19 were the same family third time, so the fix is the RULE not the site: a git query that can legitimately answer absent has three outcomes classified by exit code (1=absent, any other nonzero propagates), stated once at the top of the file, and nothing returns a bool for a question git can fail to answer. Swept the full enumeration — pathPresent, refPresent, signs, readLocal — not just the named symbol (isMissingPath was already gone; BR-3s title was stale, BR-19 was the live instance). signs() now REFUSES when it cannot determine policy, since returning false publishes an unsigned commit in a signing repo. gitExitCode refuses to read a non-exit failure (git missing, permission denied) as an exit status. THREE GUARDS VERIFIED BY MUTATION rather than assumed: collapsing pathPresent to two states fails UnreadablePathRefusesRatherThanTruncating; swallowing signs error fails UndeterminableSigningPolicyRefuses; collapsing refPresent fails RefPresentPropagatesNonAbsentFailure. That mutation pass caught a real gap — the fresh-repo test does NOT pin refPresents error/absent distinction because there the ref really is absent and a buggy collapse agrees; added a separating test. Concurrency unchanged and still green: transform re-runs exactly twice on a moved base with both lines landing, 3-attempt bound surfacing gits own text, declined-hook refusal failing after ONE attempt, one fetch per attempt. go test ./cmd/sdlc/... green except pre-existing ariadne#210. Atlas documents the primitive; plan Revisions record the design changes the code forced.; review verdict: FIX-THEN-SHIP
 ### 2026-09-02
 

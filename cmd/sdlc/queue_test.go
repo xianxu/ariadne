@@ -30,8 +30,8 @@ type fakeTrunk struct {
 	warn     string
 	readErr  error
 	writeErr error
-	// peer, when set, runs once before the first transform and simulates
-	// another checkout landing an edit.
+	// peer, when set, simulates another checkout landing an edit BETWEEN our read
+	// and our write — which is the only interleaving that forces a retry.
 	peer  func(f *fakeTrunk)
 	calls int
 }
@@ -55,16 +55,31 @@ func (f *fakeTrunk) Update(path, _ string, transform func([]byte) ([]byte, error
 	if f.writeErr != nil {
 		return f.writeErr
 	}
-	f.calls++
-	if f.calls == 1 && f.peer != nil {
-		f.peer(f)
+	// MODELS THE REAL RETRY. gitx.TrunkFile reads, transforms, then pushes as a
+	// compare-and-swap, and on rejection re-reads and re-runs the transform. A
+	// double that calls the transform exactly once cannot produce that, so a test
+	// named "the peer's edit survives the replay" would pass without any replay
+	// happening — the property would be asserted by the test's name only.
+	for attempt := 1; attempt <= 3; attempt++ {
+		base := append([]byte{}, f.content[path]...)
+		f.calls++
+		next, err := transform(base)
+		if err != nil {
+			return err
+		}
+		if f.calls == 1 && f.peer != nil {
+			f.peer(f) // lands AFTER our read: the CAS will reject
+		}
+		if !bytes.Equal(f.content[path], base) {
+			continue // the trunk moved under us — re-read and re-run
+		}
+		if bytes.Equal(base, next) {
+			return nil // unchanged: the real Update pushes nothing
+		}
+		f.content[path] = next
+		return nil
 	}
-	next, err := transform(f.content[path])
-	if err != nil {
-		return err
-	}
-	f.content[path] = next
-	return nil
+	return errors.New("trunk moved under 3 attempts")
 }
 
 func TestQueueList_ReadsTrunkAndSkipsProse(t *testing.T) {
@@ -133,6 +148,11 @@ func TestQueueEdit_PeerEditSurvivesTheReplay(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("trunk lost %q:\n%s", want, got)
 		}
+	}
+	// The replay must actually have happened. Without this the test passes on a
+	// double that never retried, which is what it was doing before.
+	if f.calls != 2 {
+		t.Errorf("transform ran %d times, want 2 — no replay occurred, so the property is untested", f.calls)
 	}
 }
 

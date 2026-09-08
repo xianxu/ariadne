@@ -688,6 +688,94 @@ rounds:
           family: vacuous-test-guard
           round: 7
       blocked: true
+    - "n": 8
+      timestamp: "2026-09-07T19:51:21-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: not-addressed
+          note: trunkfile.go:200-202 and :166-170 unchanged; Update:326 still calls offlineError for a repo with no origin at all. Round 7 stated this exact rule and swept commit subjects, but not the family's oldest instance.
+          round: 8
+        - id: BR-12
+          disposition: not-addressed
+          note: grep for "attributes" in trunkfile.go returns exactly one line (:399); still no sentence on where .gitattributes resolves from.
+          round: 8
+        - id: BR-21
+          disposition: addressed
+          note: readFrom carries the guard (:245-265), localRef is qualified (:130); mutation-verified — reverting localRef to t.branch turns TestTrunkFile_LocalFallbackPrefersTheBranchNotATag red.
+          round: 8
+        - id: BR-25
+          disposition: addressed
+          note: Merge-not-replace pinned (dropping the KindUnspecified check reddens two tests); CRLF half pinned by TestIntent_Apply_AppendMatchesDocumentLineEnding. The CLI half is pinned only by a source grep — see the new finding.
+          round: 8
+        - id: BR-29
+          disposition: not-addressed
+          note: pathPresent:228/modeOf:442 and refPresent:187/resolve:372 both remain; Update still runs all four per attempt.
+          round: 8
+        - id: BR-30
+          disposition: not-addressed
+          note: Only the dead `reached` field was removed. fakeTrunk still calls the transform once with peer firing before it, and queue_e2e_test.go still has no peer push, so no test drives Intent.Apply through a real rejection.
+          round: 8
+        - id: BR-31
+          disposition: not-addressed
+          note: Plan lines 81, 87 and 91 still say queueCmd; still no gitx.FirstLine row.
+          round: 8
+        - id: BR-34
+          disposition: not-addressed
+          note: Enumeration sentence and guard-first ordering are fixed and real; the guard itself is still unpinned — deleting the call and leaving a comment naming it keeps the suite green.
+          round: 8
+        - id: BR-35
+          disposition: addressed
+          note: One predicate now (doc.go:76), called from both sites; behaviour verified fixed. Unpinned by any test — folded into the new finding rather than re-raised.
+          round: 8
+        - id: BR-36
+          disposition: addressed
+          note: intent.go:199-205 inserts after the last entry; behaviour verified fixed. Unpinned by any test — folded into the new finding.
+          round: 8
+        - id: BR-37
+          disposition: addressed
+          note: 'trunkfile.go:346 skips the write at the primitive so #207 inherits it; mutation-verified — removing it moves the trunk and TestTrunkFile_UnchangedContentPushesNothing fails.'
+          round: 8
+        - id: BR-38
+          disposition: not-addressed
+          note: applyMove:232 and applyRemove:216 still never call Validate; intent_test.go:263's "Apply must refuse too" still passes on the move row via ErrSubjectMissing.
+          round: 8
+      findings:
+        - id: BR-39
+          severity: Important
+          title: This round's fixes are pinned by tests that read source text, or by no test at all
+          detail: |-
+            4th in family. Do NOT patch the three sites — state the rule: a test must be able to
+            distinguish the property present from absent, and a grep over the implementation's own
+            source cannot (a comment satisfies it). Enumeration, each mutation-verified against the
+            real tree: (1) queue_test.go:326 subcommandGuardSource — replacing the guardSpineRepo
+            call in newQueueAddCmd with a comment naming it leaves go test ./cmd/sdlc/ green, while
+            a behavioural probe over add/remove/move failed on the same mutation; the justifying
+            comment ("invoking the verb would exit via die()") is false, since expectDie
+            (die_test.go:33) exists and repoguard_test.go:39 uses it for the sibling guard.
+            (2) doc.go:76 looksLikeItem — reintroducing the divergence leaves every package green.
+            (3) intent.go:199-205 — collapsing the insert back to end-of-file leaves every package
+            green. One fix covers all three: a behavioural queue-guard test built from
+            hermeticRepo/writeBrainMarker/expectDie (which also pins --project -> KindProject and
+            the --before/--after exclusion, today only grepped), plus two table cases in
+            internal/queue for the indented-prose count and the insert position.
+          family: vacuous-test-guard
+          round: 8
+        - id: BR-40
+          severity: Minor
+          title: The line format and its validation rules are stated four times with nothing tying them to the validators
+          detail: |-
+            2nd in family. The rule, not the instance: the format has one authoritative statement and
+            every other surface routes to it or is checked against it. Today line.go:159-178 defines
+            it, and construct/datatype/queue.md:56-61, cmd/sdlc/helptext/queue.md ("LINE FORMAT") and
+            queue.go:184-187 each restate the em-dash separator and the newline/control/bracket bans
+            independently — so a change to ValidateWhyNow silently falsifies three documents. The
+            atlas entry already declares the routing discipline ("neither restates the other"), and
+            fleet_readme_test.go:10 is the in-repo precedent for the doc-conformance test that would
+            enforce it.
+          family: format-undocumented
+          round: 8
+      blocked: false
 ---
 
 # Gate ledger — ariadne#209 (boundary-review)
@@ -1035,17 +1123,58 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   VALIDATION error, or drop the "defence in depth" claim for the arms that
   do not have it.
 
+## Round 8 — 2026-09-07T19:51:21-07:00 (claude) — passed
+
+### Disposed
+
+- BR-11 — not-addressed — trunkfile.go:200-202 and :166-170 unchanged; Update:326 still calls offlineError for a repo with no origin at all. Round 7 stated this exact rule and swept commit subjects, but not the family's oldest instance.
+- BR-12 — not-addressed — grep for "attributes" in trunkfile.go returns exactly one line (:399); still no sentence on where .gitattributes resolves from.
+- BR-21 — addressed — readFrom carries the guard (:245-265), localRef is qualified (:130); mutation-verified — reverting localRef to t.branch turns TestTrunkFile_LocalFallbackPrefersTheBranchNotATag red.
+- BR-25 — addressed — Merge-not-replace pinned (dropping the KindUnspecified check reddens two tests); CRLF half pinned by TestIntent_Apply_AppendMatchesDocumentLineEnding. The CLI half is pinned only by a source grep — see the new finding.
+- BR-29 — not-addressed — pathPresent:228/modeOf:442 and refPresent:187/resolve:372 both remain; Update still runs all four per attempt.
+- BR-30 — not-addressed — Only the dead `reached` field was removed. fakeTrunk still calls the transform once with peer firing before it, and queue_e2e_test.go still has no peer push, so no test drives Intent.Apply through a real rejection.
+- BR-31 — not-addressed — Plan lines 81, 87 and 91 still say queueCmd; still no gitx.FirstLine row.
+- BR-34 — not-addressed — Enumeration sentence and guard-first ordering are fixed and real; the guard itself is still unpinned — deleting the call and leaving a comment naming it keeps the suite green.
+- BR-35 — addressed — One predicate now (doc.go:76), called from both sites; behaviour verified fixed. Unpinned by any test — folded into the new finding rather than re-raised.
+- BR-36 — addressed — intent.go:199-205 inserts after the last entry; behaviour verified fixed. Unpinned by any test — folded into the new finding.
+- BR-37 — addressed — trunkfile.go:346 skips the write at the primitive so #207 inherits it; mutation-verified — removing it moves the trunk and TestTrunkFile_UnchangedContentPushesNothing fails.
+- BR-38 — not-addressed — applyMove:232 and applyRemove:216 still never call Validate; intent_test.go:263's "Apply must refuse too" still passes on the move row via ErrSubjectMissing.
+
+### Raised
+
+- **BR-39** [Important] `vacuous-test-guard` This round's fixes are pinned by tests that read source text, or by no test at all
+  4th in family. Do NOT patch the three sites — state the rule: a test must be able to
+  distinguish the property present from absent, and a grep over the implementation's own
+  source cannot (a comment satisfies it). Enumeration, each mutation-verified against the
+  real tree: (1) queue_test.go:326 subcommandGuardSource — replacing the guardSpineRepo
+  call in newQueueAddCmd with a comment naming it leaves go test ./cmd/sdlc/ green, while
+  a behavioural probe over add/remove/move failed on the same mutation; the justifying
+  comment ("invoking the verb would exit via die()") is false, since expectDie
+  (die_test.go:33) exists and repoguard_test.go:39 uses it for the sibling guard.
+  (2) doc.go:76 looksLikeItem — reintroducing the divergence leaves every package green.
+  (3) intent.go:199-205 — collapsing the insert back to end-of-file leaves every package
+  green. One fix covers all three: a behavioural queue-guard test built from
+  hermeticRepo/writeBrainMarker/expectDie (which also pins --project -> KindProject and
+  the --before/--after exclusion, today only grepped), plus two table cases in
+  internal/queue for the indented-prose count and the insert position.
+- **BR-40** [Minor] `format-undocumented` The line format and its validation rules are stated four times with nothing tying them to the validators
+  2nd in family. The rule, not the instance: the format has one authoritative statement and
+  every other surface routes to it or is checked against it. Today line.go:159-178 defines
+  it, and construct/datatype/queue.md:56-61, cmd/sdlc/helptext/queue.md ("LINE FORMAT") and
+  queue.go:184-187 each restate the em-dash separator and the newline/control/bracket bans
+  independently — so a change to ValidateWhyNow silently falsifies three documents. The
+  atlas entry already declares the routing discipline ("neither restates the other"), and
+  fleet_readme_test.go:10 is the in-repo precedent for the doc-conformance test that would
+  enforce it.
+
 ## Open findings
 
 - **BR-11** [Minor] `error-misattribution` offlineError labels every fetch failure "unreachable (offline?)"
 - **BR-12** [Minor] `gitattributes-source` hash-object --path resolves .gitattributes from the working tree, not from the trunk being written
-- **BR-21** [Important] `duplicated-helper` readLocal and readRef are the same three-line body with a different ref, and the guard exists on only one of them
-- **BR-25** [Important] `unspecified-fields-not-preserved` Converge replaces the whole line, silently flipping kind and dropping the tag, while the note claims only the why-now moved
 - **BR-29** [Minor] `duplicated-helper` pathPresent/modeOf and refPresent/resolve are each one function split in two, and Update runs both halves of both pairs per attempt
 - **BR-30** [Minor] `vacuous-test-guard` fakeTrunk calls the transform exactly once and fires its peer before it, so two tests are named for properties the double cannot produce
 - **BR-31** [Minor] `plan-traceability` Core-concepts table names queueCmd where the symbol is NewQueueCmd, and gitx.FirstLine has no row
 - **BR-34** [Important] `unguarded-write-verb` The spine guard on the queue write verbs is pinned by no test, and repoguard.go's enumeration claim is now false
-- **BR-35** [Minor] `duplicated-helper` The item-marker predicate is written twice with different rules, so indented prose bullets are reported as unparsed entries
-- **BR-36** [Minor] `record-region-boundary` add appends at the end of the FILE, so a new entry lands below a trailing comment block, and move --after disagrees with it
-- **BR-37** [Important] `error-misattribution` A converged no-op still pushes an empty commit to origin/main whose subject claims the edit it did not make
 - **BR-38** [Minor] `vacuous-test-guard` The "Apply must refuse too (defence in depth)" rows pass for an unrelated reason on move and remove, because Apply validates only OpAdd
+- **BR-39** [Important] `vacuous-test-guard` This round's fixes are pinned by tests that read source text, or by no test at all
+- **BR-40** [Minor] `format-undocumented` The line format and its validation rules are stated four times with nothing tying them to the validators
