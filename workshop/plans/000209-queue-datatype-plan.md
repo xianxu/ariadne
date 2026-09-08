@@ -221,6 +221,11 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 - [ ] **Step 4: Run, verify PASS.**
 - [ ] **Step 5: Commit** — `#209 M1: remove the temp index on every exit path`
 
+### Task 6b: Atlas — the new primitive
+
+- [ ] **Step 1: Update `atlas/workflow/sdlc-binary.md`** with `gitx.TrunkFile`: what it owns (one path on the trunk, CAS-written, no working tree), the transform-function seam, and that `ariadne#207` is its second consumer. Add the row to `atlas/index.md` if a new file is created.
+- [ ] **Step 2: Commit** — `#209 M1: atlas — the trunk-file primitive`
+
 - [ ] **M1 — `sdlc milestone-close --issue 209 --milestone M1`**
 
 ---
@@ -305,6 +310,12 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 - [ ] **Step 2: Verify** `sdlc queue` from a feature branch renders what was added.
 - [ ] **Step 3: Note on #207** that `gitx.TrunkFile` now exists and its content-setting transform is the seam to consume — plus the retry-semantics defect flagged in this issue's Spec.
 - [ ] **Step 4: Commit** — `#209 M2: seed ariadne's queue through the verb`
+
+### Task 13b: Atlas — the verb and the noun
+
+- [ ] **Step 1: Update `atlas/workflow/sdlc-binary.md`** — add `queue` to the verb table with what it defends.
+- [ ] **Step 2: Update the terminology/datatype map** so `queue` as a noun is findable, and confirm `atlas/index.md` links every file it should.
+- [ ] **Step 3: Commit** — `#209 M2: atlas — the queue verb and noun`
 
 - [ ] **M2 — `sdlc close --issue 209`**
 

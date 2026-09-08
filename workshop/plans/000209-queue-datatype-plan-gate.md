@@ -150,7 +150,16 @@ rounds:
           family: unverified-seam-capability
           round: 3
       blocked: true
-content_hash: 17f2c457676bedd3e7dfe99b2d9bd14966c5957394b7f6b9546b85acacd52413
+    - "n": 4
+      timestamp: "2026-09-07T16:57:30-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-7
+          disposition: addressed
+          note: Rule stated and the whole exec.Cmd enumeration swept in one pass; runGitIn carries Dir+Env+CombinedOutput, GIT_INDEX_FILE is absolute, and an empty-dir guard test is written first.
+          round: 4
+      blocked: false
+content_hash: 322a373dd9c69f098fea245219c94167327c2c835aaff952e7040a7be633ec3b
 ---
 
 # Gate ledger — ariadne#209 (plan-quality)
@@ -237,6 +246,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-7** [Critical] `unverified-seam-capability` gitx.run carries argv only — the plan's TrunkFile still needs Dir and stderr from it, and Task 1/2/4 would run git against the real ariadne repo
   This is the 3rd instance in family unverified-seam-capability; PQ-1 fixed the Env instance. Do not patch Task 1's sample — state the rule in the plan (enumerate every exec.Cmd parameter the plumbing needs against the shim's signature at file:line before naming it the seam) and sweep the whole enumeration this round. window.go:32-34 defines run as exec.Command(name, args...).Output(): no Dir, no Env, stderr dropped into ExitError.Stderr. The plan's NewTrunkFile(repo, "origin", "main") never names -C or a Dir-carrying shim, and Task 1's test does not chdir (contrast window_test.go:24,117 which use testfix.Chdir), so Read fetches from and Update pushes <commit>:main to the REAL ariadne origin, overwriting real workshop/queue.md on real main with fixture bytes. Separately, the "surface the last rejection" (Task 4), "warning text names the risk" (Task 5) and "print the trunk state and the intent" (Task 11) clauses need git's stderr; the cited ARCH-DRY precedent issueids.go:126-145 gets it free via execGitRunner.Git's CombinedOutput (runner.go:36-38), which .Output() does not provide. Measured prevalence: 3 of 6 enumerable exec.Cmd parameters (Env fixed, Dir open, stderr open). If the chosen fix is -C, also state that the GIT_INDEX_FILE path must be absolute, since it resolves against the process cwd rather than -C.
 
+## Round 4 — 2026-09-07T16:57:30-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-7 — addressed — Rule stated and the whole exec.Cmd enumeration swept in one pass; runGitIn carries Dir+Env+CombinedOutput, GIT_INDEX_FILE is absolute, and an empty-dir guard test is written first.
+
 ## Open findings
 
-- **PQ-7** [Critical] `unverified-seam-capability` gitx.run carries argv only — the plan's TrunkFile still needs Dir and stderr from it, and Task 1/2/4 would run git against the real ariadne repo
+(none — every finding has been disposed)

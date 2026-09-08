@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-02
 updated: 2026-09-07
-estimate_hours: 2.75
+estimate_hours: 3.06
 started: 2026-09-07T16:11:22-07:00
 ---
 
@@ -270,14 +270,15 @@ item: issue-spec             design=0.8  impl=0.12
 item: greenfield-go-module   design=0.3  impl=0.24
 item: greenfield-go-module   design=0.2  impl=0.2
 item: smaller-go-module      design=0.05 impl=0.14
-item: atlas-docs             design=0.05 impl=0.08
+item: typed-data-prototype   design=0.15 impl=0.12
+item: atlas-docs             design=0.05 impl=0.1
 item: milestone-review       design=0.0  impl=0.18
 item: milestone-review       design=0.0  impl=0.18
 design-buffer: 0.15
-total: 2.75
+total: 3.06
 ```
 
-Σdesign 1.4 × 1.15 + Σimpl 1.14 × 1.0 = 2.75.
+Σdesign 1.55 × 1.15 + Σimpl 1.28 × 1.0 = 3.06.
 
 `issue-spec` is priced **undiscounted** and against the window `sdlc actual`
 computes (open at `e6d6629a`, already reading 0.90h): a four-exchange brainstorm
@@ -291,9 +292,26 @@ plumbing, CAS retry, offline policy, signing/attributes round-trip — `impl` ab
 mid because concurrency tests driving two publishers against a real bare origin
 are fiddly to get deterministic) and `internal/queue` (`Line`/`Doc`/`Intent` plus
 a fuzz target). `smaller-go-module` is the verb, which mirrors the established
-cobra + helptext pattern. `atlas-docs` covers `construct/datatype/queue.md` and
-the seed. Design on all four carries the ×0.2 discount — the plan gives the exact
+cobra + helptext pattern. `typed-data-prototype` is `construct/datatype/queue.md`
+itself — the issue's namesake deliverable, seven required prose clauses plus
+`make weave` plus a deliberately non-vacuous regeneration check; it was wrongly
+folded into `atlas-docs` in the first derivation when the model's table has a row
+for exactly it. `atlas-docs` is what remains: the `atlas/` updates at **both**
+milestone closes (a new primitive at M1, a new verb and a new noun at M2 —
+AGENTS.md §8, and `sdlc close`'s atlas gate auto-satisfies only on docs-only
+windows, which this is not), plus the seed and the `#207` note. Design on those
+four carries the ×0.2 discount — the plan gives the exact
 plumbing sequence, the exact test bodies, and file:line for every seam.
+
+**`familiarity` stays 1.0 deliberately.** The M1 plumbing is genuinely novel
+here — `commit-tree`, `hash-object`, `read-tree`, `update-index` and
+`GIT_INDEX_FILE` appear nowhere in the tree today, which is the shape v2 Step 5
+offers ×1.5 for. But `familiarity` multiplies *every* `impl` row, and only one row
+is novel: the verb mirrors an established pattern, the queue package is ordinary
+Go, and the reviews are process overhead. Applying it globally would inflate four
+rows to price one. The novelty premium is carried instead in that row's `impl`
+(0.24 against a 0.4×0.6 = 0.24 ceiling, i.e. at the top of the scaled band rather
+than its middle), which is the same money in the right place.
 
 **Two** `milestone-review` rows, not one: M1 and M2 each close separately, so each
 buys its own boundary review. Priced near the primitive ceiling, per ariadne#208
@@ -306,7 +324,7 @@ buys its own boundary review. Priced near the primitive ceiling, per ariadne#208
 ## Plan
 
 Durable plan: `workshop/plans/000209-queue-datatype-plan.md` (authored via
-`superpowers-writing-plans`) — 12 tasks with TDD steps, exact paths, and the
+`superpowers-writing-plans`) — 13 tasks with TDD steps, exact paths, and the
 per-task commands. This section carries the two review boundaries only.
 
 - [ ] M1 — `gitx.TrunkFile`: read + CAS-write one path on the trunk with no
@@ -417,3 +435,28 @@ handcrafted inputs. **PQ-5 (Minor)** — the generated-artifact check pointed at
 `cmd/datatype/SKILL.md.tmpl` and `construct/local/datatype/`. **PQ-6 (Minor)** —
 why-now is free text written straight into the line format; now validated before
 any git call.
+
+### 2026-09-07 — estimate corrected after estimate-quality (INFO)
+
+Two Important findings, both taken, before any code was written.
+
+**The atlas update was neither tasked nor priced.** `grep -n atlas` over the plan
+returned one hit, a citation inside a verification step — not a write. This issue
+adds a reusable primitive (`gitx.TrunkFile`), a verb (`sdlc queue`), and a noun
+(queue): exactly the "new surface/flow/terminology" AGENTS.md §8 requires at each
+milestone close, and the close gate's atlas guard auto-satisfies only on docs-only
+windows. Added as a step at **both** boundaries rather than one sweep at the end,
+per §8's per-milestone discipline.
+
+**The datatype prototype was slugged as docs maintenance.** The issue's namesake
+deliverable sat inside `atlas-docs`, sharing 0.08 impl with the seed, while the
+model's table carries `typed-data-prototype` for precisely it. Split out.
+
+Total 2.75 -> 3.06. Advisory findings 3-5 (familiarity, design budget already
+spent, no fan-out to compress 13 sequential TDD tasks) are recorded rather than
+priced: the familiarity answer is now stated in the prose above, and the other two
+are observations about this estimate's risk rather than errors in it. The judge's
+own check of the cited precedents is worth keeping: ariadne#208 closed 1.13/1.72
+(under-estimated) and ariadne#215 closed 1.49/0.61 (over-estimated), so the two
+point opposite ways in aggregate and only #215's *within-issue* lesson — a review
+row at 0.1 is too thin — carries here.
