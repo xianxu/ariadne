@@ -631,7 +631,8 @@ cmd/sdlc/
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
                        MainRef, CommitWindow, WorkingTransitionISO (#113 claim
                        anchor), DiscoverWindowIssues, RunGit,
-                       IsShippedWorkSubject/ShippedWorkOnMain — #76 ship probe)
+                       IsShippedWorkSubject/ShippedWorkOnMain — #76 ship probe;
+                       TrunkFile + the `runGitIn` shim — #209, see below)
     issue/             frontmatter parse/edit + plan-section regexes +
                        scaffold.go (NextID/Slugify/Render — #56)
     judge/             Category enum, prompt builder, classify, dispatch
@@ -641,6 +642,49 @@ cmd/sdlc/
                        the legacy brain-residency lookup/detail-block helpers (#171
                        will lift residency)
 ```
+
+## Trunk-backed files (`gitx.TrunkFile`, #209)
+
+Reads and compare-and-swap-writes **one path on a remote branch with no working
+tree**. Built for `sdlc queue`, whose file must read the same from every checkout;
+`ariadne#207` is its second consumer, for publishing issue files when no worktree
+has main out.
+
+The route it replaces (`syncViaMainWorktree`, `claim.go`) drives *someone else's
+checkout*: find the main worktree, refuse if it is dirty, `pull --rebase` it, copy
+the file in, commit, push. Every one of those guards exists to make a shared
+working directory safe, and each is a way to fail — main can be dirty, mid-rebase,
+another actor's tree, or not checked out at all. Here there is no working
+directory: fetch, build the tree in a temp index, `commit-tree`, and
+`push <commit>:refs/heads/main`. **That push IS the concurrency primitive** — a
+compare-and-swap against the remote, strictly stronger than a cleanliness check
+that can only observe local divergence.
+
+**The retry loop is generic; the transform decides mergeability.**
+`Update(path, msg, transform)` re-reads and **re-calls the transform** on a moved
+base rather than re-pushing the bytes it built. So a caller whose transform
+replays an intent ("append this line") preserves a peer's concurrent edit, while
+one that sets content keeps last-writer-wins — and the loop neither knows nor
+cares which. One primitive, per-caller semantics, which is what lets #207 consume
+it instead of growing a second retry loop (`ARCH-DRY`, `ARCH-ORDER`).
+
+Three things that are load-bearing rather than incidental:
+
+- **`NewTrunkFile` refuses an empty dir.** gitx's older `run` shim carries no
+  `Dir`, so a TrunkFile that forgot to pass one would fetch from and push to the
+  *real* origin during `go test`. The guard makes that unrepresentable.
+- **`runGitIn` returns stdout and stderr separately**, and is a sibling of `run`
+  rather than a widening of it. Combining them folded git's "CRLF will be replaced
+  by LF" warning into a parsed blob hash — and would have folded it into file
+  content on every read. `run`'s existing callers were written against `.Output()`
+  semantics and must not start receiving stderr.
+- **Offline is asymmetric**, matching the policy `issueids.go` already settled: a
+  read degrades to the stale tracking ref with a loud warning, a write refuses,
+  because a CAS push has no base to compare against.
+
+Tested against a real bare origin via `internal/testfix` (`ARCH-MOCK`) — a
+function-call mock cannot produce the non-fast-forward rejection that is the
+whole point.
 
 ## Drift checks (`sdlc state`)
 
