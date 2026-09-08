@@ -423,6 +423,96 @@ rounds:
           round: 4
       boundary: M1
       blocked: false
+    - "n": 5
+      timestamp: "2026-09-07T18:52:12-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: not-addressed
+          note: 'Unchanged at trunkfile.go:192 and :158, and the enumeration is now larger — M2 added two sites. (4) queue.go:212 prints "the queue on the trunk right now (N entries)" from a ReadDegraded whose warning it discards; reproduced offline, it printed "(0 entries)" for a trunk that has four, i.e. a fabricated state presented as observed. (5) Update:317 calls offlineError unconditionally, so a repo with NO origin gets "origin unreachable (offline?)" although ReadDegraded has a dedicated branch for exactly that case. (6) intent.go:96 reports "kept the newer why-now" for an edit that also dropped the tag and flipped the kind (see the new I-3). Same rule: a message may only name state the code observed.'
+          round: 5
+        - id: BR-12
+          disposition: not-addressed
+          note: Unchanged. trunkfile.go:383-385 still explains what --path buys with no sentence noting the attributes are resolved from the working tree/index, not from the trunk being written.
+          round: 5
+        - id: BR-15
+          disposition: addressed
+          note: 'Verified by grep: `grep -in "combined" trunkfile.go` now returns only :39 ("returned SEPARATELY, not combined"), and commitAndPush:365 reads "Returns git''s STDERR".'
+          round: 5
+        - id: BR-16
+          disposition: addressed
+          note: 'Verified by grep over the plan: no CombinedOutput at lines 86/136/207 or anywhere outside the Revisions entry describing the history. Residual plan-vs-code staleness (line 7''s "sibling runEnv" vs the delivered runGitIn; line 171''s t.Skip signing test vs the delivered -S interception; the Revisions entry''s "cat-file -e" vs the delivered ls-tree) is carried forward under the new plan-traceability finding rather than re-raised here.'
+          round: 5
+        - id: BR-21
+          disposition: not-addressed
+          note: 'The main defect IS fixed and properly pinned — readLocal/readRef collapsed into readFrom carrying the guard; verified by mutation (deleting the refPresent block turns both ReadFromRefusesUndeterminableRef and FreshRepoReadsEmptyNotError red). The only residue is the half the finding asked for and the diff did not do: trunkfile.go:169 still passes the UNQUALIFIED t.branch. Reproduced against the real type — a repo with a tag named "main" and no tracking ref returns the TAG''s bytes while warning "used local main". One-line fix: pass "refs/heads/" + t.branch.'
+          round: 5
+        - id: BR-22
+          disposition: addressed
+          note: 'modeOf + TestTrunkFile_PreservesFileMode. Verified by mutation, not by the diff: replacing the modeOf call with a hardcoded "100644" fails the test with "mode = [100644 ... run.sh], want 100755 preserved". The new-path 100644 case is covered in the same test. (Note M-1: the fix added a SECOND ls-tree rather than widening the one pathPresent already runs, which is what the finding sketched.)'
+          round: 5
+      findings:
+        - id: BR-23
+          severity: Important
+          title: --tag is the one user-supplied field that lands in the line format with no validator; a newline in it publishes a forged file with exit 0
+          detail: 'Reproduced against the real code path. Intent{Op: OpAdd, Ref: "b#2", WhyNow: "why", Tag: "x\n- forged#9 — injected [y"} returns nil and publishes three entries where one was intended, mangling the real entry to "- b#2 — why [x" and forging "- forged#9 — injected [y]". ValidateWhyNow exists to stop exactly this forge (line_test.go:96 demonstrates it) and ValidateRef covers the third field; Tag was simply not in the enumeration. RULE every user-supplied field that lands in the line format is validated by the same rule. Add ValidateTag (newline/control/sep/bracket, plus non-blank-after-trim, since a whitespace-only tag is silently absorbed into why-now) and call it from applyAdd beside the other two.'
+          family: unvalidated-format-field
+          round: 5
+        - id: BR-24
+          severity: Important
+          title: Validation runs inside the transform, so "rejected before any git call" is false and the offline error masks it
+          detail: 'Path is RunE -> openTrunkStore -> gitx.RepoTopLevel (git) -> Update -> signs (git config) -> fetch (network) -> transform -> ValidateRef. Reproduced with an unreachable origin: `queue add "bad ref" x` prints "origin unreachable (offline?)" and a fabricated "(0 entries)" listing; the operator never learns the ref was malformed. The Spec''s Done-when, the Spec''s "Input validation, before any git call" paragraph and the plan''s Task 9 table all promise the opposite. queue_test.go:168 claims to pin this but only asserts the fake''s content is unchanged, so it cannot observe a git call and passes today. Fix: an Intent.Validate() called in runQueueEdit before openTrunkStore, keeping the in-Apply calls as the belt, plus a call-counting seam in the test.'
+          family: validation-behind-io
+          round: 5
+        - id: BR-25
+          severity: Important
+          title: Converge replaces the whole line, silently flipping kind and dropping the tag, while the note claims only the why-now moved
+          detail: 'This is the 2nd finding in family unspecified-fields-not-preserved. Do NOT fix only this site — state the rule. RULE when replacing one field of an existing record, carry every field you were not asked to change, and a note may only claim the change it actually made. BR-22 stated it for git tree modes; the record here is {Ref, WhyNow, Tag, Kind, cr} and intent.go:90-98 rebuilds it from the Intent alone. Reproduced: `add sdlc-fleet "sharper reason"` onto "- project:sdlc-fleet — the whole area is next [sdlc]" yields "- sdlc-fleet — sharper reason" with the note "kept the newer why-now (was ...)" — project marker and tag gone, unmentioned. Second cell: converging onto a CRLF line yields "- a#1 — one prime\n- b#2 — two\r\n", mixing line endings. This is the interleaving table''s concurrent-add cell, so a peer''s --project/--tag vanishes on the path built to make peers survive; the table test asserts only refs plus a note substring and cannot catch it.'
+          family: unspecified-fields-not-preserved
+          round: 5
+        - id: BR-26
+          severity: Important
+          title: The line format is stated in no user-facing artifact, and a near-miss hand-edit disappears from the listing without a word
+          detail: 'The Done-when requires the datatype prose to state "the line format". construct/datatype/queue.md does not, and routes the operational contract to `sdlc queue --help`, which does not carry it either. The grammar — "- <ref> — <why> [tag]", the em-dash separator, the `project:` prefix that is the ONLY marker of a project line, the why-now restrictions — lives only in Go comments. That matters because the design explicitly invites hand-editing (line.go:45-48, the fuzz target, and the comment that an unparsed line is one `queue remove` cannot find). Compounding: runQueueList prints Entries() only, so a hand-edited "- a#1 - why" (ASCII hyphen) is silently absent from the listing while sitting in the file. Two cheap fixes: a "Line format" section in the datatype prose and the helptext, and an stderr line in runQueueList reporting len(lines)-len(entries) unparsed lines.'
+          family: format-undocumented
+          round: 5
+        - id: BR-27
+          severity: Important
+          title: A new trunk-writing verb shipped into the base-layer binary with no guardSpineRepo decision recorded either way
+          detail: repoguard.go:5-14 states the guard is wired into the lifecycle verbs and that reads stay unguarded by construction. `queue add/remove/move` are writes that push to origin/main, and they are unguarded — in a brain repo that is a CAS push at a gcrypt::ssh remote, and in a repo without workshop/issues/ it creates workshop/queue.md on main. This issue's own Spec calls the brain-queue question "an open disagreement, not a settled no", so shipping the unguarded path quietly settles it; ariadne is the base layer, so the verb reaches every downstream repo. migrate.go:460 is the established shape for the other answer — an explicit comment saying why the exemption holds. Either wire guardSpineRepo into the three mutating subcommands or record the exemption the way migrate does.
+          family: unguarded-write-verb
+          round: 5
+        - id: BR-28
+          severity: Important
+          title: 'Task 13 Step 3 is ticked but no note exists on either #207 file, and three more Chunk-2 rows claim artifacts the tree does not have'
+          detail: 'This is the 3rd finding in family plan-traceability. Do NOT fix only this site — state the rule. RULE a "- [x]" is a claim about the tree, not about intent; before a close, sweep every checked row in the closing chunk against the artifact it names. Enumeration over Chunk 2, 4 rows fail: (a) Task 13 Step 3 — grep -i "trunkfile|#209" over both workshop/issues/000207-*.md returns nothing, so #207 still has no record that gitx.TrunkFile exists nor of the retry-semantics defect the Spec promised to flag there (say which of the two #207 files gets it); (b) Task 11 Step 5''s commit does not exist, folded into c93be7c; (c) Task 13 Step 4''s commit does not exist — the seed landed as `queue: add ...` commits on origin/main; (d) 04804ff (the real-git e2e) is real work with no plan row. M1 recorded exactly this divergence in Revisions; M2''s chunk has no such entry.'
+          family: plan-traceability
+          round: 5
+        - id: BR-29
+          severity: Minor
+          title: pathPresent/modeOf and refPresent/resolve are each one function split in two, and Update runs both halves of both pairs per attempt
+          detail: 'This is the 4th finding in family duplicated-helper. Do NOT merge only these — state the rule, which the code already states at trunkfile.go:230-235: two functions differing only in a parameter''s value, or in which field of one result they keep, are one function. Enumeration over cmd/sdlc/internal/gitx/, 2 remaining sites. trunkfile.go:219 (pathPresent) and :426 (modeOf) run the same ls-tree on the same (ref, path), differing only by --name-only — and BR-22''s own fix sketch said to drop --name-only and take the mode from the call already on the wire, so the fix for BR-22 created this instance. trunkfile.go:178 (refPresent) and :356 (resolve) run the same rev-parse --verify, differing only by --quiet and return type; Update calls both on trackingRef each attempt. Collapse each pair to one call returning the richer result.'
+          family: duplicated-helper
+          round: 5
+        - id: BR-30
+          severity: Minor
+          title: fakeTrunk calls the transform exactly once and fires its peer before it, so two tests are named for properties the double cannot produce
+          detail: 'This is the 2nd finding in family vacuous-test-guard. State the rule rather than patching a site: a test may not be named for a property its double cannot produce. queue_test.go:37-51 — Update calls transform once and runs `peer` BEFORE it, so TestQueueEdit_PeerEditSurvivesTheReplay ("the property the whole design exists for") would pass against an Update with no retry at all, and TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk cannot see a git call. Consequence: no test anywhere drives Intent.Apply through a real non-fast-forward rejection — gitx''s two-publisher test uses a raw append transform and the e2e has no peer. Give fakeTrunk a rejection mode that re-invokes the transform, and add a peer push to queue_e2e_test.go.'
+          family: vacuous-test-guard
+          round: 5
+        - id: BR-31
+          severity: Minor
+          title: Core-concepts table names queueCmd where the symbol is NewQueueCmd, and gitx.FirstLine has no row
+          detail: Same family as above; listed separately only because it is a table edit rather than a checkbox. FirstLine was newly exported in this window (moved out of issueids.go) and is part of the package's surface.
+          family: plan-traceability
+          round: 5
+        - id: BR-32
+          severity: Minor
+          title: queueRefusal discards ReadDegraded's staleness warning and issues a second full fetch on the error path
+          detail: queue.go:212 binds the warning to _ , so the handoff prints "the queue on the trunk right now" with no indication the read was degraded. Folded into the BR-11 enumeration above; noted here for the file:line.
+          family: error-misattribution
+          round: 5
+      blocked: true
 ---
 
 # Gate ledger — ariadne#209 (boundary-review)
@@ -658,11 +748,52 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   M1's .md consumers, but ariadne#207 inherits this primitive and no test
   would notice.
 
+## Round 5 — 2026-09-07T18:52:12-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-11 — not-addressed — Unchanged at trunkfile.go:192 and :158, and the enumeration is now larger — M2 added two sites. (4) queue.go:212 prints "the queue on the trunk right now (N entries)" from a ReadDegraded whose warning it discards; reproduced offline, it printed "(0 entries)" for a trunk that has four, i.e. a fabricated state presented as observed. (5) Update:317 calls offlineError unconditionally, so a repo with NO origin gets "origin unreachable (offline?)" although ReadDegraded has a dedicated branch for exactly that case. (6) intent.go:96 reports "kept the newer why-now" for an edit that also dropped the tag and flipped the kind (see the new I-3). Same rule: a message may only name state the code observed.
+- BR-12 — not-addressed — Unchanged. trunkfile.go:383-385 still explains what --path buys with no sentence noting the attributes are resolved from the working tree/index, not from the trunk being written.
+- BR-15 — addressed — Verified by grep: `grep -in "combined" trunkfile.go` now returns only :39 ("returned SEPARATELY, not combined"), and commitAndPush:365 reads "Returns git's STDERR".
+- BR-16 — addressed — Verified by grep over the plan: no CombinedOutput at lines 86/136/207 or anywhere outside the Revisions entry describing the history. Residual plan-vs-code staleness (line 7's "sibling runEnv" vs the delivered runGitIn; line 171's t.Skip signing test vs the delivered -S interception; the Revisions entry's "cat-file -e" vs the delivered ls-tree) is carried forward under the new plan-traceability finding rather than re-raised here.
+- BR-21 — not-addressed — The main defect IS fixed and properly pinned — readLocal/readRef collapsed into readFrom carrying the guard; verified by mutation (deleting the refPresent block turns both ReadFromRefusesUndeterminableRef and FreshRepoReadsEmptyNotError red). The only residue is the half the finding asked for and the diff did not do: trunkfile.go:169 still passes the UNQUALIFIED t.branch. Reproduced against the real type — a repo with a tag named "main" and no tracking ref returns the TAG's bytes while warning "used local main". One-line fix: pass "refs/heads/" + t.branch.
+- BR-22 — addressed — modeOf + TestTrunkFile_PreservesFileMode. Verified by mutation, not by the diff: replacing the modeOf call with a hardcoded "100644" fails the test with "mode = [100644 ... run.sh], want 100755 preserved". The new-path 100644 case is covered in the same test. (Note M-1: the fix added a SECOND ls-tree rather than widening the one pathPresent already runs, which is what the finding sketched.)
+
+### Raised
+
+- **BR-23** [Important] `unvalidated-format-field` --tag is the one user-supplied field that lands in the line format with no validator; a newline in it publishes a forged file with exit 0
+  Reproduced against the real code path. Intent{Op: OpAdd, Ref: "b#2", WhyNow: "why", Tag: "x\n- forged#9 — injected [y"} returns nil and publishes three entries where one was intended, mangling the real entry to "- b#2 — why [x" and forging "- forged#9 — injected [y]". ValidateWhyNow exists to stop exactly this forge (line_test.go:96 demonstrates it) and ValidateRef covers the third field; Tag was simply not in the enumeration. RULE every user-supplied field that lands in the line format is validated by the same rule. Add ValidateTag (newline/control/sep/bracket, plus non-blank-after-trim, since a whitespace-only tag is silently absorbed into why-now) and call it from applyAdd beside the other two.
+- **BR-24** [Important] `validation-behind-io` Validation runs inside the transform, so "rejected before any git call" is false and the offline error masks it
+  Path is RunE -> openTrunkStore -> gitx.RepoTopLevel (git) -> Update -> signs (git config) -> fetch (network) -> transform -> ValidateRef. Reproduced with an unreachable origin: `queue add "bad ref" x` prints "origin unreachable (offline?)" and a fabricated "(0 entries)" listing; the operator never learns the ref was malformed. The Spec's Done-when, the Spec's "Input validation, before any git call" paragraph and the plan's Task 9 table all promise the opposite. queue_test.go:168 claims to pin this but only asserts the fake's content is unchanged, so it cannot observe a git call and passes today. Fix: an Intent.Validate() called in runQueueEdit before openTrunkStore, keeping the in-Apply calls as the belt, plus a call-counting seam in the test.
+- **BR-25** [Important] `unspecified-fields-not-preserved` Converge replaces the whole line, silently flipping kind and dropping the tag, while the note claims only the why-now moved
+  This is the 2nd finding in family unspecified-fields-not-preserved. Do NOT fix only this site — state the rule. RULE when replacing one field of an existing record, carry every field you were not asked to change, and a note may only claim the change it actually made. BR-22 stated it for git tree modes; the record here is {Ref, WhyNow, Tag, Kind, cr} and intent.go:90-98 rebuilds it from the Intent alone. Reproduced: `add sdlc-fleet "sharper reason"` onto "- project:sdlc-fleet — the whole area is next [sdlc]" yields "- sdlc-fleet — sharper reason" with the note "kept the newer why-now (was ...)" — project marker and tag gone, unmentioned. Second cell: converging onto a CRLF line yields "- a#1 — one prime\n- b#2 — two\r\n", mixing line endings. This is the interleaving table's concurrent-add cell, so a peer's --project/--tag vanishes on the path built to make peers survive; the table test asserts only refs plus a note substring and cannot catch it.
+- **BR-26** [Important] `format-undocumented` The line format is stated in no user-facing artifact, and a near-miss hand-edit disappears from the listing without a word
+  The Done-when requires the datatype prose to state "the line format". construct/datatype/queue.md does not, and routes the operational contract to `sdlc queue --help`, which does not carry it either. The grammar — "- <ref> — <why> [tag]", the em-dash separator, the `project:` prefix that is the ONLY marker of a project line, the why-now restrictions — lives only in Go comments. That matters because the design explicitly invites hand-editing (line.go:45-48, the fuzz target, and the comment that an unparsed line is one `queue remove` cannot find). Compounding: runQueueList prints Entries() only, so a hand-edited "- a#1 - why" (ASCII hyphen) is silently absent from the listing while sitting in the file. Two cheap fixes: a "Line format" section in the datatype prose and the helptext, and an stderr line in runQueueList reporting len(lines)-len(entries) unparsed lines.
+- **BR-27** [Important] `unguarded-write-verb` A new trunk-writing verb shipped into the base-layer binary with no guardSpineRepo decision recorded either way
+  repoguard.go:5-14 states the guard is wired into the lifecycle verbs and that reads stay unguarded by construction. `queue add/remove/move` are writes that push to origin/main, and they are unguarded — in a brain repo that is a CAS push at a gcrypt::ssh remote, and in a repo without workshop/issues/ it creates workshop/queue.md on main. This issue's own Spec calls the brain-queue question "an open disagreement, not a settled no", so shipping the unguarded path quietly settles it; ariadne is the base layer, so the verb reaches every downstream repo. migrate.go:460 is the established shape for the other answer — an explicit comment saying why the exemption holds. Either wire guardSpineRepo into the three mutating subcommands or record the exemption the way migrate does.
+- **BR-28** [Important] `plan-traceability` Task 13 Step 3 is ticked but no note exists on either #207 file, and three more Chunk-2 rows claim artifacts the tree does not have
+  This is the 3rd finding in family plan-traceability. Do NOT fix only this site — state the rule. RULE a "- [x]" is a claim about the tree, not about intent; before a close, sweep every checked row in the closing chunk against the artifact it names. Enumeration over Chunk 2, 4 rows fail: (a) Task 13 Step 3 — grep -i "trunkfile|#209" over both workshop/issues/000207-*.md returns nothing, so #207 still has no record that gitx.TrunkFile exists nor of the retry-semantics defect the Spec promised to flag there (say which of the two #207 files gets it); (b) Task 11 Step 5's commit does not exist, folded into c93be7c; (c) Task 13 Step 4's commit does not exist — the seed landed as `queue: add ...` commits on origin/main; (d) 04804ff (the real-git e2e) is real work with no plan row. M1 recorded exactly this divergence in Revisions; M2's chunk has no such entry.
+- **BR-29** [Minor] `duplicated-helper` pathPresent/modeOf and refPresent/resolve are each one function split in two, and Update runs both halves of both pairs per attempt
+  This is the 4th finding in family duplicated-helper. Do NOT merge only these — state the rule, which the code already states at trunkfile.go:230-235: two functions differing only in a parameter's value, or in which field of one result they keep, are one function. Enumeration over cmd/sdlc/internal/gitx/, 2 remaining sites. trunkfile.go:219 (pathPresent) and :426 (modeOf) run the same ls-tree on the same (ref, path), differing only by --name-only — and BR-22's own fix sketch said to drop --name-only and take the mode from the call already on the wire, so the fix for BR-22 created this instance. trunkfile.go:178 (refPresent) and :356 (resolve) run the same rev-parse --verify, differing only by --quiet and return type; Update calls both on trackingRef each attempt. Collapse each pair to one call returning the richer result.
+- **BR-30** [Minor] `vacuous-test-guard` fakeTrunk calls the transform exactly once and fires its peer before it, so two tests are named for properties the double cannot produce
+  This is the 2nd finding in family vacuous-test-guard. State the rule rather than patching a site: a test may not be named for a property its double cannot produce. queue_test.go:37-51 — Update calls transform once and runs `peer` BEFORE it, so TestQueueEdit_PeerEditSurvivesTheReplay ("the property the whole design exists for") would pass against an Update with no retry at all, and TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk cannot see a git call. Consequence: no test anywhere drives Intent.Apply through a real non-fast-forward rejection — gitx's two-publisher test uses a raw append transform and the e2e has no peer. Give fakeTrunk a rejection mode that re-invokes the transform, and add a peer push to queue_e2e_test.go.
+- **BR-31** [Minor] `plan-traceability` Core-concepts table names queueCmd where the symbol is NewQueueCmd, and gitx.FirstLine has no row
+  Same family as above; listed separately only because it is a table edit rather than a checkbox. FirstLine was newly exported in this window (moved out of issueids.go) and is part of the package's surface.
+- **BR-32** [Minor] `error-misattribution` queueRefusal discards ReadDegraded's staleness warning and issues a second full fetch on the error path
+  queue.go:212 binds the warning to _ , so the handoff prints "the queue on the trunk right now" with no indication the read was degraded. Folded into the BR-11 enumeration above; noted here for the file:line.
+
 ## Open findings
 
 - **BR-11** [Minor] `error-misattribution` offlineError labels every fetch failure "unreachable (offline?)"
 - **BR-12** [Minor] `gitattributes-source` hash-object --path resolves .gitattributes from the working tree, not from the trunk being written
-- **BR-15** [Minor] `stale-comment` Two more "combined output" claims survive in trunkfile.go, one contradicting itself four lines later
-- **BR-16** [Minor] `plan-traceability` The plan still instructs CombinedOutput at three sites after the Revisions entry corrected one
 - **BR-21** [Important] `duplicated-helper` readLocal and readRef are the same three-line body with a different ref, and the guard exists on only one of them
-- **BR-22** [Minor] `unspecified-fields-not-preserved` Update rebuilds the tree entry from scratch, so an executable path on the trunk comes back mode 100644
+- **BR-23** [Important] `unvalidated-format-field` --tag is the one user-supplied field that lands in the line format with no validator; a newline in it publishes a forged file with exit 0
+- **BR-24** [Important] `validation-behind-io` Validation runs inside the transform, so "rejected before any git call" is false and the offline error masks it
+- **BR-25** [Important] `unspecified-fields-not-preserved` Converge replaces the whole line, silently flipping kind and dropping the tag, while the note claims only the why-now moved
+- **BR-26** [Important] `format-undocumented` The line format is stated in no user-facing artifact, and a near-miss hand-edit disappears from the listing without a word
+- **BR-27** [Important] `unguarded-write-verb` A new trunk-writing verb shipped into the base-layer binary with no guardSpineRepo decision recorded either way
+- **BR-28** [Important] `plan-traceability` Task 13 Step 3 is ticked but no note exists on either #207 file, and three more Chunk-2 rows claim artifacts the tree does not have
+- **BR-29** [Minor] `duplicated-helper` pathPresent/modeOf and refPresent/resolve are each one function split in two, and Update runs both halves of both pairs per attempt
+- **BR-30** [Minor] `vacuous-test-guard` fakeTrunk calls the transform exactly once and fires its peer before it, so two tests are named for properties the double cannot produce
+- **BR-31** [Minor] `plan-traceability` Core-concepts table names queueCmd where the symbol is NewQueueCmd, and gitx.FirstLine has no row
+- **BR-32** [Minor] `error-misattribution` queueRefusal discards ReadDegraded's staleness warning and issues a second full fetch on the error path

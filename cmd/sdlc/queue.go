@@ -19,6 +19,19 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/queue"
 )
 
+// SPINE GUARD (#176), decided rather than defaulted.
+//
+// Every lifecycle verb calls guardSpineRepo, which refuses in a brain repo and in
+// a repo with no workshop/issues/. The write subcommands here ARE that class: they
+// commit and push to the trunk, and a queue of issue refs is meaningless where
+// there are no issues — while the brain charter excludes SDLC process artifacts
+// outright.
+//
+// The bare LIST is deliberately NOT guarded, matching the charter's own carve-out
+// that reads are unaffected. It is the same read/write asymmetry this feature
+// already applies offline: reading a queue that happens to exist costs nothing and
+// refusing it would only obstruct.
+//
 // queuePath is the one file per repo. Not configurable: a queue whose location
 // varies is a queue two checkouts can disagree about, which is the whole thing
 // this verb exists to prevent.
@@ -69,6 +82,7 @@ func newQueueAddCmd() *cobra.Command {
 		Args:          cobra.ExactArgs(2),
 		SilenceErrors: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			guardSpineRepo(c.ErrOrStderr()) // #176 — writes to the trunk
 			s, err := openTrunkStore()
 			if err != nil {
 				return err
@@ -95,6 +109,7 @@ func newQueueRemoveCmd() *cobra.Command {
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			guardSpineRepo(c.ErrOrStderr()) // #176 — writes to the trunk
 			s, err := openTrunkStore()
 			if err != nil {
 				return err
@@ -116,6 +131,7 @@ func newQueueMoveCmd() *cobra.Command {
 			if (before == "") == (after == "") {
 				return errors.New("move needs exactly one of --before or --after")
 			}
+			guardSpineRepo(c.ErrOrStderr()) // #176 — writes to the trunk
 			s, err := openTrunkStore()
 			if err != nil {
 				return err
@@ -142,13 +158,24 @@ func runQueueList(stdout, stderr io.Writer, s trunkStore) error {
 	if warn != "" {
 		cwarn(stderr, warn)
 	}
-	entries := queue.Parse(b).Entries()
+	doc := queue.Parse(b)
+	entries := doc.Entries()
 	if len(entries) == 0 {
 		cok(stderr, "The queue is empty.")
-		return nil
 	}
 	for _, l := range entries {
 		fmt.Fprintln(stdout, l.String())
+	}
+	// A hand-edit that near-misses the format (a hyphen where the separator is an
+	// em-dash, say) parses as prose and is preserved in the file — but it would
+	// then be absent from this listing with no signal, so the operator sees a
+	// queue that silently omits the line they just wrote. Preserving it is right;
+	// hiding it is not.
+	if n := doc.UnrecognizedItems(); n > 0 {
+		cwarn(stderr, fmt.Sprintf(
+			"%d line(s) look like entries but do not parse, so they are NOT listed above "+
+				"(they are preserved in the file). Format: `- <ref> — <why-now> [tag]`, "+
+				"with an em-dash separator.", n))
 	}
 	return nil
 }
@@ -159,6 +186,15 @@ func runQueueList(stdout, stderr io.Writer, s trunkStore) error {
 // concurrent edit survive: on a rejected push Update re-reads the trunk and
 // re-runs this closure against the base the peer just created.
 func runQueueEdit(stdout, stderr io.Writer, s trunkStore, in queue.Intent) error {
+	// BEFORE any git call. TrunkFile.Update fetches and reads the trunk before it
+	// invokes the transform, so validating only inside Intent.Apply meant a
+	// malformed ref cost a network round trip — and offline, the fetch failure
+	// masked the real cause with "origin unreachable". The claim is only true if
+	// something outside the transform makes it true.
+	if err := in.Validate(); err != nil {
+		return queueRefusal(stderr, s, in, err)
+	}
+
 	var applied queue.Applied
 	err := s.Update(queuePath, queueCommitMessage(in), func(old []byte) ([]byte, error) {
 		next, a, err := in.Apply(queue.Parse(old))
@@ -209,7 +245,10 @@ func queueRefusal(stderr io.Writer, s trunkStore, in queue.Intent, cause error) 
 	cwarn(stderr, "could not apply: "+queueCommitMessage(in))
 	fmt.Fprintf(stderr, "  %v\n\n", cause)
 
-	if b, _, rerr := s.ReadDegraded(queuePath); rerr == nil {
+	if b, warn, rerr := s.ReadDegraded(queuePath); rerr == nil {
+		if warn != "" {
+			fmt.Fprintf(stderr, "  (this snapshot is itself stale: %s)\n", warn)
+		}
 		entries := queue.Parse(b).Entries()
 		fmt.Fprintf(stderr, "  the queue on the trunk right now (%d entries):\n", len(entries))
 		for _, l := range entries {

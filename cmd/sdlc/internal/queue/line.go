@@ -168,6 +168,31 @@ func ValidateWhyNow(s string) error {
 	return nil
 }
 
+// ValidateTag rejects a tag that would break the format.
+//
+// Tag was the one user-supplied field with no validator, which is the whole
+// lesson here: Ref and WhyNow were guarded and Tag was not, because the guard was
+// written per-field as each was added rather than from an enumeration of the
+// fields the format interpolates. A newline in --tag published a forged entry and
+// exited 0.
+func ValidateTag(s string) error {
+	if s == "" {
+		return nil // absent is fine; the tag is optional
+	}
+	if strings.TrimSpace(s) != s || s == "" {
+		return fmt.Errorf("tag must not have surrounding whitespace")
+	}
+	for _, r := range s {
+		if r == '\n' || r == '\r' || r < 0x20 || r == 0x7f {
+			return fmt.Errorf("tag must not contain newlines or control characters")
+		}
+	}
+	if strings.ContainsAny(s, "[]") || strings.Contains(s, sep) {
+		return fmt.Errorf("tag %q contains a character the line format reserves", s)
+	}
+	return nil
+}
+
 // ValidateRef rejects a ref that would break the format.
 func ValidateRef(s string) error {
 	if strings.TrimSpace(s) == "" {

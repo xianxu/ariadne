@@ -44,11 +44,11 @@ func TestIntent_Apply_InterleavingTable(t *testing.T) {
 			wantNote: "nothing to remove",
 		},
 		{
-			name:     "add converges when a peer already added it; newer why-now wins",
+			name:     "add converges when a peer already added it; the note names what changed",
 			doc:      base,
 			in:       Intent{Op: OpAdd, Ref: "b#2", WhyNow: "sharper reason"},
 			wantRefs: []string{"a#1", "b#2", "c#3"},
-			wantNote: "kept the newer why-now",
+			wantNote: "updated why-now",
 		},
 		{
 			name:    "move refuses when a peer deleted the anchor",
@@ -207,4 +207,62 @@ func equal(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// Converge merges rather than replaces, and an add that changes NOTHING says so
+// rather than claiming an update it did not make.
+func TestIntent_Apply_ConvergeMergeSemantics(t *testing.T) {
+	doc := "- a#1 — original [sdlc]\n"
+	for _, tc := range []struct {
+		name     string
+		in       Intent
+		wantLine string
+		wantNote string
+	}{
+		{"omitting the tag keeps it", Intent{Op: OpAdd, Ref: "a#1", WhyNow: "newer"},
+			"- a#1 — newer [sdlc]\n", "updated why-now"},
+		{"an explicit tag replaces it", Intent{Op: OpAdd, Ref: "a#1", WhyNow: "newer", Tag: "couch"},
+			"- a#1 — newer [couch]\n", "and tag"},
+		{"identical add is reported as unchanged", Intent{Op: OpAdd, Ref: "a#1", WhyNow: "original", Tag: "sdlc"},
+			"- a#1 — original [sdlc]\n", "unchanged"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, applied, err := tc.in.Apply(Parse([]byte(doc)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s := string(got.Render()); s != tc.wantLine {
+				t.Errorf("line = %q, want %q", s, tc.wantLine)
+			}
+			if !strings.Contains(applied.Note, tc.wantNote) {
+				t.Errorf("note = %q, want it to mention %q", applied.Note, tc.wantNote)
+			}
+		})
+	}
+}
+
+// Every user-supplied field the line format interpolates is validated. The
+// enumeration is the point: Tag was the one missed when guards were added
+// per-field, and a newline in it published a forged entry with exit 0.
+func TestIntent_Validate_CoversEveryInterpolatedField(t *testing.T) {
+	forge := "x\n- forged#9 — injected"
+	for _, tc := range []struct {
+		name string
+		in   Intent
+	}{
+		{"ref", Intent{Op: OpAdd, Ref: "bad ref", WhyNow: "x"}},
+		{"why-now", Intent{Op: OpAdd, Ref: "a#1", WhyNow: forge}},
+		{"tag", Intent{Op: OpAdd, Ref: "a#1", WhyNow: "x", Tag: forge}},
+		{"move anchor", Intent{Op: OpMove, Ref: "a#1", Anchor: "bad anchor"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.in.Validate(); err == nil {
+				t.Fatalf("%s must be validated", tc.name)
+			}
+			// And the forged entry must not survive into a document either.
+			if _, _, err := tc.in.Apply(Parse(nil)); err == nil {
+				t.Errorf("Apply must refuse too (defence in depth)")
+			}
+		})
+	}
 }

@@ -3,6 +3,7 @@ package queue
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Op is the operation an Intent carries.
@@ -55,6 +56,38 @@ type Applied struct {
 	Note string
 }
 
+// Validate checks every user-supplied field this intent interpolates into the
+// line format. It is separate from Apply so the caller can run it BEFORE opening
+// a network connection.
+//
+// That separation is not cosmetic. Apply is handed to TrunkFile.Update as a
+// transform, and Update fetches and reads the trunk before it calls the
+// transform — so validation living only inside Apply meant a malformed ref cost a
+// fetch, and offline it produced an "origin unreachable" error that masked the
+// real cause entirely. The claim "rejected before any git call" is only true if
+// something outside the transform makes it true.
+//
+// The field list is an ENUMERATION, not a per-field habit: Ref, WhyNow and Tag
+// are exactly the values that reach Line.String, and Tag was missed when the
+// guards were added one at a time as each field appeared.
+func (in Intent) Validate() error {
+	if err := ValidateRef(in.Ref); err != nil {
+		return err
+	}
+	if in.Op == OpMove {
+		if err := ValidateRef(in.Anchor); err != nil {
+			return fmt.Errorf("anchor: %w", err)
+		}
+	}
+	if in.Op != OpAdd {
+		return nil // remove and move interpolate no prose
+	}
+	if err := ValidateWhyNow(in.WhyNow); err != nil {
+		return err
+	}
+	return ValidateTag(in.Tag)
+}
+
 // Apply produces the new document. Pure: no git, no clock, no IO.
 //
 // The switch is exhaustive over Op so a new operation is a compile-time
@@ -81,20 +114,41 @@ func (in Intent) Apply(d *Doc) (*Doc, Applied, error) {
 // note says so — a silent overwrite of someone's rationale would be worse than
 // either.
 func (in Intent) applyAdd(d *Doc) (*Doc, Applied, error) {
-	if err := ValidateRef(in.Ref); err != nil {
-		return nil, Applied{}, err
-	}
-	if err := ValidateWhyNow(in.WhyNow); err != nil {
+	// Defence in depth: the verb validates before any git call, and Apply
+	// validates again because it is a public entry point a future caller could
+	// reach without going through the verb.
+	if err := in.Validate(); err != nil {
 		return nil, Applied{}, err
 	}
 	line := Line{Ref: in.Ref, WhyNow: in.WhyNow, Tag: in.Tag, Kind: in.Kind, parsed: true}
 
 	out := d.clone()
 	if i := out.indexOf(in.Ref); i >= 0 {
-		prev := out.lines[i].WhyNow
-		out.lines[i] = line
-		return out, Applied{Note: fmt.Sprintf(
-			"%s was already queued; kept the newer why-now (was %q)", in.Ref, prev)}, nil
+		// Converge by MERGING, not replacing. A re-add that omits --tag means
+		// "I did not mention the tag", not "remove the tag"; wholesale
+		// replacement silently dropped it and could flip an issue line into a
+		// project line, while the note claimed only the why-now had moved.
+		old := out.lines[i]
+		merged := old
+		var changed []string
+		if in.WhyNow != old.WhyNow {
+			merged.WhyNow = in.WhyNow
+			changed = append(changed, fmt.Sprintf("why-now (was %q)", old.WhyNow))
+		}
+		if in.Tag != "" && in.Tag != old.Tag {
+			merged.Tag = in.Tag
+			changed = append(changed, fmt.Sprintf("tag (was %q)", old.Tag))
+		}
+		if in.Kind != old.Kind {
+			merged.Kind = in.Kind
+			changed = append(changed, "kind")
+		}
+		out.lines[i] = merged
+		if len(changed) == 0 {
+			return out, Applied{Note: in.Ref + " was already queued, unchanged"}, nil
+		}
+		return out, Applied{Note: fmt.Sprintf("%s was already queued; updated %s",
+			in.Ref, strings.Join(changed, " and "))}, nil
 	}
 	out.lines = append(out.lines, line)
 	out.trailingNewline = true

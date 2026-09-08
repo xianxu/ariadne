@@ -142,3 +142,39 @@ it checks out an entire repository to add one markdown file, needs
 cleanup-on-failure, and races `git worktree prune` — while still leaving the
 clean-main and conflict machinery in place. It solves the missing-worktree case
 and none of the others.
+
+### 2026-09-07 — the primitive now exists (ariadne#209)
+
+`gitx.TrunkFile` (`cmd/sdlc/internal/gitx/trunkfile.go`, shipped in #209 M1) is
+the out-of-tree publish path this issue specs, already built and tested:
+`fetch` → `read-tree` into a temp index → `hash-object -w --path` →
+`update-index` → `write-tree` → `commit-tree` → `push <commit>:refs/heads/main`
+as a compare-and-swap, with a bounded retry. Every plumbing detail this issue
+names is handled — `--path` for `.gitattributes`, `-S` under `commit.gpgsign`
+(read with `--type=bool`, because git stores the value verbatim and a repo
+configured `yes` was silently getting unsigned commits), an absolute
+`GIT_INDEX_FILE` in a `0700` temp dir, and file-mode preservation so an
+executable path does not come back `100644`.
+
+**Consume it rather than writing a second one** (`ARCH-DRY`). The seam is:
+
+    Update(path, msg string, transform func(old []byte) (new []byte, err error)) error
+
+**One correction to this issue's Spec, and it is the reason the seam is shaped
+that way.** The Spec says retry is "trivial and bounded… the input is *the
+current content of this one file*, not a diff, so on rejection: re-fetch,
+rebuild, re-push." A content-preserving retry re-pushes the same path with the
+same id — and since two files with different slugs at one id produce no textual
+conflict, the duplicate lands as a clean fast-forward. That is precisely the hole
+`ariadne#188` documents ("never rebase-and-retry holding the ID already
+chosen"); replacing `pull --rebase` with a CAS push moves the hole into the new
+mechanism rather than closing it.
+
+`TrunkFile` does not decide this: `Update` re-reads and **re-calls the
+transform** on a moved base, so mergeability is the caller's property. #209's
+queue passes an intent-replaying transform; this issue's transform would set
+content, which keeps last-writer-wins — correct for an issue body, wrong for a
+colliding id. So the Done-when clause *"a test drives two publishers against one
+bare origin and asserts **both issue files land**"* needs amending: for two
+publishers colliding on one id, both landing IS the bug. Assert that distinct ids
+land, and that a collision re-allocates (the one #188 bullet #213 did not take).

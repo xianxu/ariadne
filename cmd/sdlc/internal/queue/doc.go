@@ -65,6 +65,20 @@ func (d *Doc) Entries() []Line {
 	return out
 }
 
+// UnrecognizedItems counts lines that LOOK like entries — they start with the
+// item marker — but did not parse. Plain prose is not counted: the file is meant
+// to carry prose, and warning about it would train the reader to ignore the
+// warning.
+func (d *Doc) UnrecognizedItems() int {
+	n := 0
+	for _, l := range d.lines {
+		if !l.Parsed() && strings.HasPrefix(strings.TrimSpace(l.raw), "- ") {
+			n++
+		}
+	}
+	return n
+}
+
 // indexOf returns the position in d.lines of the entry with this ref, or -1.
 func (d *Doc) indexOf(ref string) int {
 	for i, l := range d.lines {

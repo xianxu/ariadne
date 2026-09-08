@@ -14,6 +14,21 @@ machine. Nothing holds a competing copy, so nothing merges.
   sdlc queue move <ref> --before <ref>        reorder
   sdlc queue move <ref> --after <ref>
 
+LINE FORMAT
+
+  - <ref> — <why-now> [tag]
+  - project:<ref> — <why-now> [tag]
+
+  The separator is an EM-DASH surrounded by spaces (` — `), not a hyphen. The
+  trailing `[tag]` is optional and must close the line. `<why-now>` may not
+  contain a newline, a control character, ` — `, or brackets — those are
+  rejected rather than escaped, because the format's value is that a human reads
+  it as a list.
+
+  A line that does not parse is PRESERVED in the file, never discarded — but it
+  is not listed as an entry, and `sdlc queue` says how many such lines it found.
+  A hand-edit that used a hyphen is the usual cause.
+
 ADVISORY, NEVER BINDING
 
   The queue indicates a section of work that will likely happen. It is not a

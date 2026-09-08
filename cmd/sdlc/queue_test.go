@@ -10,8 +10,20 @@ import (
 )
 
 // fakeTrunk is a stateful in-memory stand-in for the trunk. It is NOT a
-// function-call mock: it holds content across calls, so a transform that
-// replays sees what a peer wrote, which is the behavior these tests are about.
+// function-call mock: it holds content across calls, so a transform that replays
+// sees what a peer wrote, which is the behavior these tests are about.
+//
+// It also MODELS THE REAL ORDERING: gitx.TrunkFile.Update fetches and reads the
+// trunk BEFORE invoking the transform. The first version of this fake called the
+// transform immediately, and that gap let
+// TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk pass while asserting
+// something false — validation lived inside the transform, so a malformed ref
+// actually cost a fetch. `reached` records that the trunk was touched, which is
+// what makes the claim testable instead of assumed.
+//
+// The rule this cost us: a fake must reproduce the ORDERING its real counterpart
+// guarantees, or tests written against it assert the fake's behavior rather than
+// the system's.
 type fakeTrunk struct {
 	content  map[string][]byte
 	warn     string
@@ -21,6 +33,9 @@ type fakeTrunk struct {
 	// another checkout landing an edit.
 	peer  func(f *fakeTrunk)
 	calls int
+	// reached counts how many times the trunk was actually contacted — a stand-in
+	// for the real fetch. A validation refusal must leave this at zero.
+	reached int
 }
 
 func newFakeTrunk(seed string) *fakeTrunk {
@@ -28,6 +43,7 @@ func newFakeTrunk(seed string) *fakeTrunk {
 }
 
 func (f *fakeTrunk) ReadDegraded(path string) ([]byte, string, error) {
+	f.reached++
 	if f.readErr != nil {
 		return nil, f.warn, f.readErr
 	}
@@ -35,6 +51,8 @@ func (f *fakeTrunk) ReadDegraded(path string) ([]byte, string, error) {
 }
 
 func (f *fakeTrunk) Update(path, _ string, transform func([]byte) ([]byte, error)) error {
+	// Order matters: the real Update fetches and reads before the transform runs.
+	f.reached++
 	if f.writeErr != nil {
 		return f.writeErr
 	}
@@ -173,6 +191,9 @@ func TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk(t *testing.T) {
 		{"bad ref", queue.Intent{Op: queue.OpAdd, Ref: "bad ref", WhyNow: "x"}},
 		{"newline in why-now", queue.Intent{Op: queue.OpAdd, Ref: "a#1", WhyNow: "a\n- forged#1 — x"}},
 		{"bracket in why-now", queue.Intent{Op: queue.OpAdd, Ref: "a#1", WhyNow: "see [RFC]"}},
+		{"newline in tag", queue.Intent{Op: queue.OpAdd, Ref: "a#1", WhyNow: "x", Tag: "t\n- forged#2 — x"}},
+		{"bracket in tag", queue.Intent{Op: queue.OpAdd, Ref: "a#1", WhyNow: "x", Tag: "a]b"}},
+		{"bad anchor on move", queue.Intent{Op: queue.OpMove, Ref: "z#9", Anchor: "bad anchor"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFakeTrunk("- z#9 — untouched\n")
@@ -182,6 +203,12 @@ func TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk(t *testing.T) {
 			}
 			if got := string(f.content[queuePath]); got != "- z#9 — untouched\n" {
 				t.Errorf("trunk modified: %q", got)
+			}
+			// The point of the test: the trunk is not CONTACTED, not merely
+			// unmodified. The refusal path re-reads to render the handoff, so
+			// allow that one read and assert no Update-side contact preceded it.
+			if f.calls != 0 {
+				t.Errorf("Update ran %d times — validation must refuse before any git call", f.calls)
 			}
 		})
 	}
@@ -214,5 +241,54 @@ func TestQueueCommitMessage(t *testing.T) {
 		if got := queueCommitMessage(tc.in); got != tc.want {
 			t.Errorf("got %q, want %q", got, tc.want)
 		}
+	}
+}
+
+// Converge MERGES rather than replaces: a re-add that omits --tag means "I did
+// not mention the tag", not "remove it". Wholesale replacement silently dropped
+// the tag and could flip an issue line into a project line, while the note
+// claimed only the why-now had moved.
+func TestQueueEdit_ConvergePreservesUnmentionedFields(t *testing.T) {
+	f := newFakeTrunk("- a#1 — original [sdlc]\n")
+	var out, errOut bytes.Buffer
+	if err := runQueueEdit(&out, &errOut, f, queue.Intent{
+		Op: queue.OpAdd, Ref: "a#1", WhyNow: "sharper reason"}); err != nil {
+		t.Fatal(err)
+	}
+	got := string(f.content[queuePath])
+	if !strings.Contains(got, "[sdlc]") {
+		t.Errorf("the unmentioned tag was dropped: %q", got)
+	}
+	if !strings.Contains(got, "sharper reason") {
+		t.Errorf("the why-now did not update: %q", got)
+	}
+	if n := errOut.String(); !strings.Contains(n, "why-now") || strings.Contains(n, "tag") {
+		t.Errorf("the note must name exactly what changed, got: %s", n)
+	}
+}
+
+// A line that looks like an entry but does not parse is preserved in the file —
+// and must be REPORTED, not silently missing from the listing.
+func TestQueueList_ReportsUnrecognizedItems(t *testing.T) {
+	// A hyphen where the separator should be an em-dash: the classic hand-edit.
+	f := newFakeTrunk("- a#1 — fine\n- b#2 - hyphen not em-dash\nplain prose\n")
+	var out, errOut bytes.Buffer
+	if err := runQueueList(&out, &errOut, f); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "b#2") {
+		t.Error("an unparsed line must not be listed as an entry")
+	}
+	w := errOut.String()
+	if !strings.Contains(w, "1 line") {
+		t.Errorf("the unrecognized line must be reported, got: %s", w)
+	}
+	if !strings.Contains(w, "em-dash") {
+		t.Errorf("the warning must state the format so it is actionable, got: %s", w)
+	}
+	// Plain prose is NOT counted — warning about it would train the reader to
+	// ignore the warning.
+	if strings.Contains(w, "2 line") {
+		t.Error("prose must not be counted as an unrecognized entry")
 	}
 }

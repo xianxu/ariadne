@@ -364,3 +364,34 @@ chosen, and both now reflected above rather than left as a changelog to replay:
 2+4 landed together (the CAS write is not meaningfully testable without the retry
 that defines its contract) and Tasks 3+5 together. Recorded rather than tidied
 away.
+
+### 2026-09-07 — M2 as built, and an honest correction to the ticks
+
+**The red-green ordering steps were ticked without being followed.** M1 was
+genuine TDD — tests written, run, observed failing, then implemented. M2 was not:
+for Tasks 7-10 (`Line`, `Doc`, `Intent`, the verb) the implementation was written
+first and the tests immediately after. The plan's per-task "Write the failing
+test → Run, verify it fails → Implement" rows were then ticked by a blanket
+regex over the whole chunk rather than one at a time, which is how a claim
+nobody made ended up marked done.
+
+The outcomes those steps describe are real — every implementation exists, every
+test exists and passes, and the fuzz target and mutation checks did their job.
+What was not real is the ORDER. Recording it rather than quietly re-ticking,
+because "the plan says TDD and the boxes are ticked" is exactly the evidence a
+later reader would rely on.
+
+Cost of the deviation, concretely: writing tests after the implementation is how
+`TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk` came to assert something
+false. Written first, against the real seam's contract, the fake would have had to
+model fetch-before-transform to make it pass. Written second, against a fake that
+already existed, it passed by agreeing with the fake.
+
+**Task 13 Step 3 ("Note on #207") was ticked but never done.** Now written —
+`workshop/issues/000207-sync-without-worktree.md`, `## Log`, dated today: the
+seam to consume, and the amendment its Done-when needs, since "both issue files
+land" is the bug when two publishers collide on one id.
+
+**Commit granularity** diverged again as in M1: Tasks 7+8 landed together, and
+the seed (13) surfaced two defects that were fixed in the same window rather than
+in a separate commit.
