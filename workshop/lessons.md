@@ -2,6 +2,44 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A double that cannot produce the behavior makes the test assert the double
+
+**Pattern (#209, twice in one issue).** `gitx.TrunkFile.Update` fetches and reads
+the trunk *before* calling its transform, and retries by re-reading and
+re-calling it. The in-memory `fakeTrunk` did neither: it invoked the transform
+immediately, exactly once. Two tests were written against it and both passed
+while proving nothing.
+
+- `TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk` asserted a claim that
+  was **false** — validation lived inside the transform, so a malformed ref
+  really did cost a fetch, and offline the fetch failure masked the real cause.
+  It passed because the fake never fetched.
+- `TestQueueEdit_PeerEditSurvivesTheReplay` was named for the replay, but the
+  fake fired its peer *before* the single transform call. The transform simply
+  read content that already contained the peer's line. No replay happened; the
+  property was asserted by the test's name.
+
+Both were caught by the boundary review, not by the suite — a green run is
+exactly what this failure looks like.
+
+**Rule:** a test double must reproduce the **ordering and the retry structure**
+its real counterpart guarantees, not just its input/output shape. Before trusting
+a test written against a double, ask *what sequence of calls does the real thing
+make, and can this double produce it?* If it cannot, the test measures the
+double.
+
+Two cheap checks that would have caught both: assert the *number* of transform
+invocations (a replay test that does not require ≥2 is not a replay test), and
+mutate the production ordering to confirm the test fails. The second is what
+finally distinguished the real fixes from the cosmetic ones here.
+
+**Corollary — a fix must be reachable and pinned.** The same issue shipped
+`KindUnspecified` at the type layer while the CLI still hardcoded `KindIssue`, so
+the repair had zero production call sites; and corrected a ref-qualification bug
+with no test, so reverting it left the package green. "I edited the right file"
+is not the same as "the behavior is reachable and defended."
+
+
 ## A syntactic guard cannot back an absolute claim — bound the claim, not the mechanism
 
 **Pattern (#203, four boundary rounds of one family):** each round the guard was
