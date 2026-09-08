@@ -34,9 +34,6 @@ type fakeTrunk struct {
 	// another checkout landing an edit.
 	peer  func(f *fakeTrunk)
 	calls int
-	// reached counts how many times the trunk was actually contacted — a stand-in
-	// for the real fetch. A validation refusal must leave this at zero.
-	reached int
 }
 
 func newFakeTrunk(seed string) *fakeTrunk {
@@ -44,7 +41,6 @@ func newFakeTrunk(seed string) *fakeTrunk {
 }
 
 func (f *fakeTrunk) ReadDegraded(path string) ([]byte, string, error) {
-	f.reached++
 	if f.readErr != nil {
 		return nil, f.warn, f.readErr
 	}
@@ -52,8 +48,10 @@ func (f *fakeTrunk) ReadDegraded(path string) ([]byte, string, error) {
 }
 
 func (f *fakeTrunk) Update(path, _ string, transform func([]byte) ([]byte, error)) error {
-	// Order matters: the real Update fetches and reads before the transform runs.
-	f.reached++
+	// Order matters: the real Update fetches and reads before the transform runs,
+	// so `calls` is incremented BEFORE the transform — that is what lets
+	// TestQueueEdit_ValidationRefusesBeforeTouchingTheTrunk observe a refusal
+	// that never reached the trunk.
 	if f.writeErr != nil {
 		return f.writeErr
 	}
@@ -345,4 +343,52 @@ func subcommandGuardSource(t *testing.T, name string) string {
 		rest = rest[:j]
 	}
 	return rest
+}
+
+// The guard must run BEFORE flag validation, so a brain repo gets the charter
+// refusal rather than a complaint about flags on a command it may not run at
+// all. A source-grep test cannot observe ordering, so this asserts position.
+func TestQueueMove_GuardPrecedesFlagValidation(t *testing.T) {
+	src := subcommandGuardSource(t, "move")
+	g := strings.Index(src, "guardSpineRepo")
+	v := strings.Index(src, "move needs exactly one of")
+	if g < 0 || v < 0 {
+		t.Fatalf("expected both the guard and the flag check in newQueueMoveCmd (guard=%d check=%d)", g, v)
+	}
+	if g > v {
+		t.Error("guardSpineRepo must precede flag validation — otherwise a brain repo is told about flags, not about the charter")
+	}
+}
+
+// A converged no-op must report honestly and push nothing. The commit subject is
+// the most durable message this system emits, and "queue: add X" for an edit
+// that did not happen is a permanent false claim on the trunk.
+func TestQueueEdit_ConvergedNoOpReportsNoChange(t *testing.T) {
+	f := newFakeTrunk("- a#1 — original [sdlc]\n")
+	var out, errOut bytes.Buffer
+	if err := runQueueEdit(&out, &errOut, f, queue.Intent{
+		Op: queue.OpAdd, Ref: "a#1", WhyNow: "original", Tag: "sdlc"}); err != nil {
+		t.Fatal(err)
+	}
+	s := errOut.String()
+	if !strings.Contains(s, "no change") || !strings.Contains(s, "nothing pushed") {
+		t.Errorf("a no-op must say so, got: %s", s)
+	}
+	if strings.Contains(s, "[ok] queue: add a#1") {
+		t.Error("must not report an edit it did not make")
+	}
+}
+
+// --project must be distinguishable from "not mentioned" at the CLI layer. The
+// type-level KindUnspecified was unreachable while the command hardcoded
+// KindIssue, so the fix was dead code and a re-add still destroyed a peer's
+// project marker.
+func TestQueueAddCmd_UnmentionedProjectFlagIsUnspecified(t *testing.T) {
+	src := subcommandGuardSource(t, "add")
+	if !strings.Contains(src, "KindUnspecified") {
+		t.Error("add must start from KindUnspecified so an omitted --project means 'not mentioned'")
+	}
+	if !strings.Contains(src, `Changed("project")`) {
+		t.Error("add must consult Flags().Changed, not the bool's zero value")
+	}
 }

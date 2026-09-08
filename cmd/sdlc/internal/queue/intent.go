@@ -54,6 +54,12 @@ var (
 // converged no-op is a success worth announcing, not silence.
 type Applied struct {
 	Note string
+	// Changed reports whether the document actually differs. It exists because a
+	// message may only name state the code OBSERVED — and the most durable
+	// message this system emits is a commit subject on the trunk. A converged
+	// no-op that pushes "queue: add X" writes a permanent claim about an edit
+	// that never happened.
+	Changed bool
 }
 
 // Validate checks every user-supplied field this intent interpolates into the
@@ -183,13 +189,23 @@ func (in Intent) applyAdd(d *Doc) (*Doc, Applied, error) {
 		if len(changed) == 0 {
 			return out, Applied{Note: in.Ref + " was already queued, unchanged"}, nil
 		}
-		return out, Applied{Note: fmt.Sprintf("%s was already queued; updated %s",
+		return out, Applied{Changed: true, Note: fmt.Sprintf("%s was already queued; updated %s",
 			in.Ref, strings.Join(changed, " and "))}, nil
 	}
 	line.cr = d.LineEnding() // match the document's endings; do not mix them
-	out.lines = append(out.lines, line)
+	// Insert after the LAST entry rather than at end-of-file, so a new line does
+	// not land underneath a trailing comment or closing prose block — which reads
+	// as if it belonged to that block.
+	at := len(out.lines)
+	for i := len(out.lines) - 1; i >= 0; i-- {
+		if out.lines[i].Parsed() {
+			at = i + 1
+			break
+		}
+	}
+	out.lines = append(out.lines[:at], append([]Line{line}, out.lines[at:]...)...)
 	out.trailingNewline = true
-	return out, Applied{}, nil
+	return out, Applied{Changed: true}, nil
 }
 
 // applyRemove drops the ref, converging when it is already gone.
@@ -204,7 +220,7 @@ func (in Intent) applyRemove(d *Doc) (*Doc, Applied, error) {
 		return out, Applied{Note: fmt.Sprintf("%s was not in the queue; nothing to remove", in.Ref)}, nil
 	}
 	out.lines = append(out.lines[:i], out.lines[i+1:]...)
-	return out, Applied{}, nil
+	return out, Applied{Changed: true}, nil
 }
 
 // applyMove repositions the ref relative to an anchor.
@@ -237,7 +253,7 @@ func (in Intent) applyMove(d *Doc) (*Doc, Applied, error) {
 		at++
 	}
 	out.lines = append(out.lines[:at], append([]Line{line}, out.lines[at:]...)...)
-	return out, Applied{}, nil
+	return out, Applied{Changed: at != from}, nil
 }
 
 // clone copies the document so Apply never mutates its input — a transform that

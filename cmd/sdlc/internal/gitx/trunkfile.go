@@ -339,6 +339,13 @@ func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, err
 		if err != nil {
 			return err // caller's error, surfaced unwrapped so errors.Is works
 		}
+		// A transform that changed nothing must not produce a commit. The tree
+		// would be identical, so the push writes an EMPTY commit whose subject is
+		// a permanent claim about an edit that never happened — and a commit
+		// subject is the most durable message this system emits.
+		if bytes.Equal(old, next) {
+			return nil
+		}
 		out, err := t.commitAndPush(path, msg, next, base, sign)
 		if err == nil {
 			return nil

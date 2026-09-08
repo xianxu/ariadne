@@ -79,10 +79,10 @@ func (l Line) Parsed() bool { return l.parsed }
 func ParseLine(s string) (Line, bool) {
 	unparsed := Line{raw: s}
 	trimmed, cr := strings.CutSuffix(s, "\r")
-	body, isItem := strings.CutPrefix(trimmed, "- ")
-	if !isItem {
+	if !looksLikeItem(s) {
 		return unparsed, false
 	}
+	body := strings.TrimPrefix(trimmed, "- ")
 	ref, why, found := strings.Cut(body, sep)
 	if !found {
 		return unparsed, false

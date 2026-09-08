@@ -87,9 +87,16 @@ func newQueueAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			kind := queue.KindIssue
-			if project {
-				kind = queue.KindProject
+			// Unspecified unless the operator actually passed --project. Defaulting
+			// to KindIssue here made KindUnspecified unreachable from the CLI, so
+			// the type-level fix for "not mentioned" was dead code and a
+			// converging re-add still destroyed a peer's project marker.
+			kind := queue.KindUnspecified
+			if c.Flags().Changed("project") {
+				kind = queue.KindIssue
+				if project {
+					kind = queue.KindProject
+				}
 			}
 			return runQueueEdit(c.OutOrStdout(), c.ErrOrStderr(), s, queue.Intent{
 				Op: queue.OpAdd, Ref: args[0], WhyNow: args[1], Tag: tag, Kind: kind,
@@ -128,10 +135,12 @@ func newQueueMoveCmd() *cobra.Command {
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			guardSpineRepo(c.ErrOrStderr()) // #176 — writes to the trunk; BEFORE
+			// flag validation, so a brain repo gets the charter refusal rather
+			// than a flag complaint about a command it may not run at all.
 			if (before == "") == (after == "") {
 				return errors.New("move needs exactly one of --before or --after")
 			}
-			guardSpineRepo(c.ErrOrStderr()) // #176 — writes to the trunk
 			s, err := openTrunkStore()
 			if err != nil {
 				return err
@@ -209,6 +218,10 @@ func runQueueEdit(stdout, stderr io.Writer, s trunkStore, in queue.Intent) error
 	}
 	if applied.Note != "" {
 		cwarn(stderr, applied.Note)
+	}
+	if !applied.Changed {
+		cok(stderr, "no change — the trunk already said this; nothing pushed")
+		return nil
 	}
 	cok(stderr, queueCommitMessage(in))
 	return nil

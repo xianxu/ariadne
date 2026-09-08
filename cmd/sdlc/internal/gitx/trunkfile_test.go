@@ -770,3 +770,63 @@ func TestTrunkFile_ReadFromRefusesUndeterminableRef(t *testing.T) {
 		t.Error("the trunk read must propagate an undeterminable ref, same as the local read")
 	}
 }
+
+// BR-21's live half: the local fallback must use a FULLY QUALIFIED branch ref.
+// With both refs/tags/main and refs/heads/main present, an unqualified "main"
+// resolves through git's ref precedence to the TAG — so the fallback could serve
+// a tag's bytes while announcing it had used the local branch. Behaviour was
+// corrected without a test; mutating localRef back left the package green.
+func TestTrunkFile_LocalFallbackPrefersTheBranchNotATag(t *testing.T) {
+	dir := t.TempDir()
+	testfix.Git(t, "", "init", "-q", "-b", "main", dir)
+	testfix.Git(t, dir, "config", "user.email", "t@t")
+	testfix.Git(t, dir, "config", "user.name", "t")
+	if err := os.WriteFile(filepath.Join(dir, "q.md"), []byte("from the BRANCH\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, dir, "add", "q.md")
+	testfix.Git(t, dir, "commit", "-q", "-m", "branch content")
+
+	// A tag ALSO named main, carrying different content.
+	if err := os.WriteFile(filepath.Join(dir, "q.md"), []byte("from the TAG\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, dir, "add", "q.md")
+	testfix.Git(t, dir, "commit", "-q", "-m", "tag content")
+	testfix.Git(t, dir, "tag", "main")
+	testfix.Git(t, dir, "reset", "-q", "--hard", "HEAD~1")
+
+	tf, err := NewTrunkFile(dir, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, warn, err := tf.ReadDegraded("q.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "from the BRANCH\n" {
+		t.Errorf("served %q — the warning says 'used local main', so it must BE the branch", got)
+	}
+	if warn == "" {
+		t.Error("the fallback must still warn")
+	}
+}
+
+// A transform that changes nothing must not produce a commit: the tree is
+// identical, so the push would write an EMPTY commit whose subject is a
+// permanent claim about an edit that never happened.
+func TestTrunkFile_UnchangedContentPushesNothing(t *testing.T) {
+	repo, origin := trunkFixture(t, "- a#1 — first\n")
+	before := strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main"))
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	if err := tf.Update("queue.md", "queue: add a#1", func(old []byte) ([]byte, error) {
+		return old, nil // converged: nothing to do
+	}); err != nil {
+		t.Fatal(err)
+	}
+	after := strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main"))
+	if before != after {
+		t.Errorf("an unchanged transform moved the trunk %s -> %s", before, after)
+	}
+}

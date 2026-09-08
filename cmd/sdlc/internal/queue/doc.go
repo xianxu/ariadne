@@ -65,6 +65,18 @@ func (d *Doc) Entries() []Line {
 	return out
 }
 
+// looksLikeItem is the ONE item-marker predicate.
+//
+// It was written twice with different rules — ParseLine cut an unindented "- "
+// prefix while UnrecognizedItems trimmed leading space first — so an indented
+// prose list counted as two unrecognized entries and warned about text that was
+// never meant to be one. Two functions answering the same question must not
+// disagree about it (ARCH-DRY); the parser's rule is the one that decides,
+// because it is the rule that actually governs whether the line becomes an entry.
+func looksLikeItem(raw string) bool {
+	return strings.HasPrefix(strings.TrimSuffix(raw, "\r"), "- ")
+}
+
 // LineEnding reports whether this document uses CRLF, so an appended line can
 // match rather than introducing mixed endings.
 func (d *Doc) LineEnding() bool {
@@ -83,7 +95,7 @@ func (d *Doc) LineEnding() bool {
 func (d *Doc) UnrecognizedItems() int {
 	n := 0
 	for _, l := range d.lines {
-		if !l.Parsed() && strings.HasPrefix(strings.TrimSpace(l.raw), "- ") {
+		if !l.Parsed() && looksLikeItem(l.raw) {
 			n++
 		}
 	}

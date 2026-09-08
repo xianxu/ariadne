@@ -595,6 +595,99 @@ rounds:
           family: record-region-boundary
           round: 6
       blocked: true
+    - "n": 7
+      timestamp: "2026-09-07T19:32:13-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: not-addressed
+          note: All three sites reproduced unchanged against real git; trunkfile.go:200 and :166-169 untouched this round.
+          round: 7
+        - id: BR-12
+          disposition: not-addressed
+          note: trunkfile.go:392-394 untouched — still no sentence on where .gitattributes resolves from.
+          round: 7
+        - id: BR-21
+          disposition: not-addressed
+          note: Behaviour now correct (verified both directions), but mutating localRef back to the unqualified branch leaves the whole gitx package green — no test pins it.
+          round: 7
+        - id: BR-25
+          disposition: not-addressed
+          note: Fixed at the type layer and unreachable from the CLI — queue.go:90 hardcodes KindIssue, so KindUnspecified is produced at zero production call sites; reproduced against the built binary at exit 0.
+          round: 7
+        - id: BR-26
+          disposition: addressed
+          note: 'construct/datatype/queue.md now carries a "The line format" section stating the grammar, the project: prefix and the why-now restrictions; the listing half was already pinned.'
+          round: 7
+        - id: BR-29
+          disposition: not-addressed
+          note: trunkfile.go not in this round's commit for these sites — pathPresent/modeOf and refPresent/resolve both remain, and Update still runs all four per attempt.
+          round: 7
+        - id: BR-30
+          disposition: not-addressed
+          note: fakeTrunk still calls transform once with peer firing before it; queue_e2e_test.go still has no peer push; `reached` is still written at two sites and read at none.
+          round: 7
+        - id: BR-31
+          disposition: not-addressed
+          note: Plan lines 81/87/91 still say queueCmd; no gitx.FirstLine row; no row for the e2e (04804ff).
+          round: 7
+        - id: BR-33
+          disposition: addressed
+          note: Mutation-verified — disabling the round-trip check reddens TestIntent_Validate_RejectsRecordsThatDoNotSurviveARoundTrip; the padded-why-now instance is caught by the same mechanism without being enumerated.
+          round: 7
+        - id: BR-34
+          disposition: not-addressed
+          note: Claim corrected and presence pinned (mutation-verified), but the guard-first residue is live — newQueueMoveCmd still validates --before/--after before guardSpineRepo, and a source-grep test cannot observe ordering.
+          round: 7
+        - id: BR-35
+          disposition: not-addressed
+          note: Reproduced — an indented prose list yields unrecognized=2; line.go:82 and doc.go:86 still disagree on the item-marker predicate.
+          round: 7
+        - id: BR-36
+          disposition: not-addressed
+          note: Reproduced — a new entry renders below a trailing comment block; intent.go:190 still appends to the end of the file.
+          round: 7
+      findings:
+        - id: BR-37
+          severity: Important
+          title: A converged no-op still pushes an empty commit to origin/main whose subject claims the edit it did not make
+          detail: |-
+            This is the 3rd finding in family `error-misattribution`. Do NOT fix this
+            instance — state the rule and sweep it. RULE a message may only name state
+            the code observed, and a COMMIT SUBJECT is the most durable message this
+            code emits. Earlier rounds swept the rule over stderr only (offlineError,
+            ReadDegraded's warn, queueRefusal's snapshot, Applied.Note), so the commit
+            subject was never in the enumeration. Reproduced against a real bare
+            origin: `sdlc queue remove nonexistent#99` prints "nothing to remove" and
+            then publishes commit "queue: remove nonexistent#99" with an empty diff;
+            a re-add that changes nothing does the same. trunkfile.go:342 calls
+            commitAndPush unconditionally on whatever the transform returned. The
+            Spec's interleaving row says "Converge. No-op, succeed", and the storage
+            rationale is that `git log` records how priority actually moved. Fix at
+            the primitive so every consumer inherits it: in Update, return nil without
+            committing when the transform's output equals the base bytes (ARCH-DRY,
+            ARCH-CONSTRAINTS — it also stops write-amplifying shared main).
+          family: error-misattribution
+          round: 7
+        - id: BR-38
+          severity: Minor
+          title: The "Apply must refuse too (defence in depth)" rows pass for an unrelated reason on move and remove, because Apply validates only OpAdd
+          detail: |-
+            This is the 3rd finding in family `vacuous-test-guard`. Do NOT patch the
+            row — state the rule. RULE a test may not be named for a property its
+            fixture satisfies for an unrelated reason; the assertion must be able to
+            distinguish the property present from the property absent.
+            intent_test.go:256's "move anchor" case applies to Parse(nil), so it gets
+            ErrSubjectMissing — and a perfectly VALID move on the same empty doc
+            errors identically, so the assertion cannot tell a validated intent from
+            an unvalidated one. Verified: applyMove (intent.go:216) and applyRemove
+            (:200) never call Validate; only applyAdd (:149) does. Either extend
+            Validate's call to all three arms and assert the returned error is the
+            VALIDATION error, or drop the "defence in depth" claim for the arms that
+            do not have it.
+          family: vacuous-test-guard
+          round: 7
+      blocked: true
 ---
 
 # Gate ledger — ariadne#209 (boundary-review)
@@ -893,17 +986,66 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-36** [Minor] `record-region-boundary` add appends at the end of the FILE, so a new entry lands below a trailing comment block, and move --after disagrees with it
   intent.go:153 appends to d.lines unconditionally. Reproduced - adding b#2 to "# Queue\n\n- a#1 — first\n\n<!-- keep this at the bottom -->\n" renders the new entry BELOW the comment, while `move b#2 --after a#1` would place it above. RULE in a document that interleaves records with free text there is a record region, and an insert belongs at that region's edge, not the file's. The file has no prose today so nothing breaks yet, but Doc exists precisely to support hand-authored prose and the plan's Task 8 names a trailing comment block as a case. TestIntent_Apply_PreservesProse asserts the comment survives but not where the entry lands.
 
+## Round 7 — 2026-09-07T19:32:13-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-11 — not-addressed — All three sites reproduced unchanged against real git; trunkfile.go:200 and :166-169 untouched this round.
+- BR-12 — not-addressed — trunkfile.go:392-394 untouched — still no sentence on where .gitattributes resolves from.
+- BR-21 — not-addressed — Behaviour now correct (verified both directions), but mutating localRef back to the unqualified branch leaves the whole gitx package green — no test pins it.
+- BR-25 — not-addressed — Fixed at the type layer and unreachable from the CLI — queue.go:90 hardcodes KindIssue, so KindUnspecified is produced at zero production call sites; reproduced against the built binary at exit 0.
+- BR-26 — addressed — construct/datatype/queue.md now carries a "The line format" section stating the grammar, the project: prefix and the why-now restrictions; the listing half was already pinned.
+- BR-29 — not-addressed — trunkfile.go not in this round's commit for these sites — pathPresent/modeOf and refPresent/resolve both remain, and Update still runs all four per attempt.
+- BR-30 — not-addressed — fakeTrunk still calls transform once with peer firing before it; queue_e2e_test.go still has no peer push; `reached` is still written at two sites and read at none.
+- BR-31 — not-addressed — Plan lines 81/87/91 still say queueCmd; no gitx.FirstLine row; no row for the e2e (04804ff).
+- BR-33 — addressed — Mutation-verified — disabling the round-trip check reddens TestIntent_Validate_RejectsRecordsThatDoNotSurviveARoundTrip; the padded-why-now instance is caught by the same mechanism without being enumerated.
+- BR-34 — not-addressed — Claim corrected and presence pinned (mutation-verified), but the guard-first residue is live — newQueueMoveCmd still validates --before/--after before guardSpineRepo, and a source-grep test cannot observe ordering.
+- BR-35 — not-addressed — Reproduced — an indented prose list yields unrecognized=2; line.go:82 and doc.go:86 still disagree on the item-marker predicate.
+- BR-36 — not-addressed — Reproduced — a new entry renders below a trailing comment block; intent.go:190 still appends to the end of the file.
+
+### Raised
+
+- **BR-37** [Important] `error-misattribution` A converged no-op still pushes an empty commit to origin/main whose subject claims the edit it did not make
+  This is the 3rd finding in family `error-misattribution`. Do NOT fix this
+  instance — state the rule and sweep it. RULE a message may only name state
+  the code observed, and a COMMIT SUBJECT is the most durable message this
+  code emits. Earlier rounds swept the rule over stderr only (offlineError,
+  ReadDegraded's warn, queueRefusal's snapshot, Applied.Note), so the commit
+  subject was never in the enumeration. Reproduced against a real bare
+  origin: `sdlc queue remove nonexistent#99` prints "nothing to remove" and
+  then publishes commit "queue: remove nonexistent#99" with an empty diff;
+  a re-add that changes nothing does the same. trunkfile.go:342 calls
+  commitAndPush unconditionally on whatever the transform returned. The
+  Spec's interleaving row says "Converge. No-op, succeed", and the storage
+  rationale is that `git log` records how priority actually moved. Fix at
+  the primitive so every consumer inherits it: in Update, return nil without
+  committing when the transform's output equals the base bytes (ARCH-DRY,
+  ARCH-CONSTRAINTS — it also stops write-amplifying shared main).
+- **BR-38** [Minor] `vacuous-test-guard` The "Apply must refuse too (defence in depth)" rows pass for an unrelated reason on move and remove, because Apply validates only OpAdd
+  This is the 3rd finding in family `vacuous-test-guard`. Do NOT patch the
+  row — state the rule. RULE a test may not be named for a property its
+  fixture satisfies for an unrelated reason; the assertion must be able to
+  distinguish the property present from the property absent.
+  intent_test.go:256's "move anchor" case applies to Parse(nil), so it gets
+  ErrSubjectMissing — and a perfectly VALID move on the same empty doc
+  errors identically, so the assertion cannot tell a validated intent from
+  an unvalidated one. Verified: applyMove (intent.go:216) and applyRemove
+  (:200) never call Validate; only applyAdd (:149) does. Either extend
+  Validate's call to all three arms and assert the returned error is the
+  VALIDATION error, or drop the "defence in depth" claim for the arms that
+  do not have it.
+
 ## Open findings
 
 - **BR-11** [Minor] `error-misattribution` offlineError labels every fetch failure "unreachable (offline?)"
 - **BR-12** [Minor] `gitattributes-source` hash-object --path resolves .gitattributes from the working tree, not from the trunk being written
 - **BR-21** [Important] `duplicated-helper` readLocal and readRef are the same three-line body with a different ref, and the guard exists on only one of them
 - **BR-25** [Important] `unspecified-fields-not-preserved` Converge replaces the whole line, silently flipping kind and dropping the tag, while the note claims only the why-now moved
-- **BR-26** [Important] `format-undocumented` The line format is stated in no user-facing artifact, and a near-miss hand-edit disappears from the listing without a word
 - **BR-29** [Minor] `duplicated-helper` pathPresent/modeOf and refPresent/resolve are each one function split in two, and Update runs both halves of both pairs per attempt
 - **BR-30** [Minor] `vacuous-test-guard` fakeTrunk calls the transform exactly once and fires its peer before it, so two tests are named for properties the double cannot produce
 - **BR-31** [Minor] `plan-traceability` Core-concepts table names queueCmd where the symbol is NewQueueCmd, and gitx.FirstLine has no row
-- **BR-33** [Important] `unvalidated-format-field` A field that passes Validate can still render a line that re-parses to a different record, producing entries that duplicate and cannot be removed
 - **BR-34** [Important] `unguarded-write-verb` The spine guard on the queue write verbs is pinned by no test, and repoguard.go's enumeration claim is now false
 - **BR-35** [Minor] `duplicated-helper` The item-marker predicate is written twice with different rules, so indented prose bullets are reported as unparsed entries
 - **BR-36** [Minor] `record-region-boundary` add appends at the end of the FILE, so a new entry lands below a trailing comment block, and move --after disagrees with it
+- **BR-37** [Important] `error-misattribution` A converged no-op still pushes an empty commit to origin/main whose subject claims the edit it did not make
+- **BR-38** [Minor] `vacuous-test-guard` The "Apply must refuse too (defence in depth)" rows pass for an unrelated reason on move and remove, because Apply validates only OpAdd
