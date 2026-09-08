@@ -715,3 +715,58 @@ func TestTrunkFile_RefPresentPropagatesNonAbsentFailure(t *testing.T) {
 		t.Error("ReadDegraded must surface an undeterminable ref state")
 	}
 }
+
+// An executable file on the trunk must stay executable through an Update.
+// Rebuilding the index entry as a hardcoded 100644 silently drops the bit — fine
+// for a queue, wrong for a general primitive that ariadne#207 will point at
+// arbitrary paths.
+func TestTrunkFile_PreservesFileMode(t *testing.T) {
+	repo, origin := trunkFixture(t, "seed\n")
+	script := filepath.Join(repo, "run.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho a\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "run.sh")
+	testfix.Git(t, repo, "commit", "-q", "-m", "exe")
+	testfix.Git(t, repo, "push", "-q", "origin", "main")
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	if err := tf.Update("run.sh", "m", func(o []byte) ([]byte, error) {
+		return append(o, []byte("echo b\n")...), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := strings.Fields(testfix.Capture(t, origin, "ls-tree", "main", "--", "run.sh"))
+	if len(got) == 0 || got[0] != "100755" {
+		t.Errorf("mode = %v, want 100755 preserved", got)
+	}
+	// A NEW path still gets a regular-file mode.
+	if err := tf.Update("fresh.md", "m", func([]byte) ([]byte, error) { return []byte("x\n"), nil }); err != nil {
+		t.Fatal(err)
+	}
+	got = strings.Fields(testfix.Capture(t, origin, "ls-tree", "main", "--", "fresh.md"))
+	if len(got) == 0 || got[0] != "100644" {
+		t.Errorf("new path mode = %v, want 100644", got)
+	}
+}
+
+// The trunk read must also refuse an unresolvable ref, not just an unresolvable
+// path — the guard readRef lacked while readLocal had it, before they became one
+// function.
+func TestTrunkFile_ReadFromRefusesUndeterminableRef(t *testing.T) {
+	repo, _ := trunkFixture(t, "- a\n")
+	orig := runGitIn
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 0 && args[0] == "rev-parse" {
+			return nil, []byte("fatal: unable to read"), &exec.ExitError{ProcessState: failedState(t, 128)}
+		}
+		return orig(dir, env, args...)
+	}
+	defer func() { runGitIn = orig }()
+
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	if _, err := tf.readFrom(tf.trackingRef(), "queue.md"); err == nil {
+		t.Error("the trunk read must propagate an undeterminable ref, same as the local read")
+	}
+}

@@ -83,7 +83,7 @@ Two consequences that must be written into the code, not just remembered:
 - **TrunkFile** — reads and CAS-writes one path on a remote branch with **no working tree**. `Read(path) ([]byte, error)` (requires a reachable remote);
 `ReadDegraded(path) ([]byte, string, error)` (returns a warning and the stale ref's content when offline);
 `Update(path, msg string, transform func([]byte) ([]byte, error)) error`. `Update` loops: fetch → read blob → `transform` → build tree in a temp index → `commit-tree` → `push <commit>:main`; on non-fast-forward, loop again (max 3), re-reading and **re-calling transform** each time.
-  - **Seam:** `gitx.runGitIn(dir, env, args...)` — a new package-level var beside `run` (`window.go:32`), carrying `Dir`, `Env`, and combined output per the audit above. `run` is left alone; `gitRunner` is deliberately NOT widened, since nothing outside this file needs any of it.
+  - **Seam:** `gitx.runGitIn(dir, env, args...)` — a new package-level var beside `run` (`window.go:32`), carrying `Dir`, `Env`, and stdout/stderr returned **separately** per the audit above. `run` is left alone; `gitRunner` is deliberately NOT widened, since nothing outside this file needs any of it.
   - **Injected into:** `queueCmd` consumes it through an interface **declared in package `main`** (consumer-side, Go idiom) so the verb is testable with a fake; `gitx` exports the concrete type. `Intent.Apply` is passed in as the transform and never sees git.
   - **Offline:** a failed fetch degrades a READ to the stale tracking ref with a loud warning and REFUSES a write — the policy `issueids.go:40-49,126-145` already settled (`ARCH-DRY`).
   - **Future extensions:** `ariadne#207` consumes this for issue files with a content-setting transform. Its retry semantics then follow from its transform, not from a second retry loop — which is why #207's own spec defect (a content-preserving retry that re-lands a colliding issue id) cannot be built on top of this.
@@ -133,7 +133,7 @@ func TestTrunkFile_ReadsFromTrunkNotWorktree(t *testing.T) {
 
 - [x] **Step 3: Run both, verify they fail** — `go test ./cmd/sdlc/internal/gitx/ -run TestTrunkFile -v`. Expected: FAIL, `undefined: NewTrunkFile`.
 
-- [x] **Step 4: Add `runGitIn`** per the seam audit — `CombinedOutput` with `cmd.Dir` and `cmd.Env`, a new package-level var beside `run`. One test asserting it passes `Dir` and `Env` through and returns stderr on failure.
+- [x] **Step 4: Add `runGitIn`** per the seam audit — `cmd.Dir`, `cmd.Env`, and stdout/stderr returned separately, a new package-level var beside `run`. One test asserting it passes `Dir` and `Env` through, returns stderr on failure, and keeps stdout clean.
 
 - [x] **Step 5: Implement `Read`** — refuse an empty dir; `fetch --quiet origin +refs/heads/main:refs/remotes/origin/main`, then `cat-file blob origin/main:<path>`, both through `runGitIn(dir, nil, ...)`. A missing path is not an error: return `(nil, nil)` so a first-ever write works. Reuse `issueids.go`'s explicit refspec form — `git fetch origin main` leaves `FETCH_HEAD` but does not always move the tracking ref.
 
@@ -204,7 +204,7 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 - [x] **Step 2: Run, verify it fails** — without the retry, the push errors out.
 - [x] **Step 3: Implement the bounded loop** — max 3 attempts; on exhaustion return an error carrying the **last** rejection text, not a generic message.
 - [x] **Step 4: Run, verify PASS.**
-- [x] **Step 5: Add the exhaustion test** — a transform whose peer pushes on *every* call; assert exactly 3 attempts were made and that the error carries **git's own rejection text** (e.g. `non-fast-forward`), which is only reachable because `runGitIn` uses `CombinedOutput`. An assertion on a generic wrapper message would pass against `.Output()` and prove nothing.
+- [x] **Step 5: Add the exhaustion test** — a transform whose peer pushes on *every* call; assert exactly 3 attempts were made and that the error carries **git's own rejection text** (e.g. `non-fast-forward`), which is only reachable because `runGitIn` returns stderr separately. An assertion on a generic wrapper message would pass against a shim that dropped stderr and prove nothing.
 - [x] **Step 6: Commit** — `#209 M1: bounded CAS retry that re-runs the transform on the new base`
 
 ### Task 5: Offline and no-origin policy

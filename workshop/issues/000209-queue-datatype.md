@@ -327,7 +327,7 @@ Durable plan: `workshop/plans/000209-queue-datatype-plan.md` (authored via
 `superpowers-writing-plans`) — 13 tasks with TDD steps, exact paths, and the
 per-task commands. This section carries the two review boundaries only.
 
-- [ ] M1 — `gitx.TrunkFile`: read + CAS-write one path on the trunk with no
+- [x] M1 — `gitx.TrunkFile`: read + CAS-write one path on the trunk with no
       working tree, bounded retry that **re-runs the transform** on the moved
       base, gitattributes/signing round-trip, offline degrade-read/refuse-write, temp-index hygiene. Tasks 1-6.
 - [ ] M2 — the queue: `Line`/`Doc`/`Intent` (pure, no git in their tests), the
@@ -340,6 +340,8 @@ own boundary review; neither is a one-shot that a plain checkbox would cover.
 
 ## Log
 
+
+- 2026-09-07: closed M1 — gitx.TrunkFile: 109 test cases green in cmd/sdlc/internal/gitx, all against a REAL bare origin (ARCH-MOCK). Round-3 findings BR-3/BR-19 were the same family third time, so the fix is the RULE not the site: a git query that can legitimately answer absent has three outcomes classified by exit code (1=absent, any other nonzero propagates), stated once at the top of the file, and nothing returns a bool for a question git can fail to answer. Swept the full enumeration — pathPresent, refPresent, signs, readLocal — not just the named symbol (isMissingPath was already gone; BR-3s title was stale, BR-19 was the live instance). signs() now REFUSES when it cannot determine policy, since returning false publishes an unsigned commit in a signing repo. gitExitCode refuses to read a non-exit failure (git missing, permission denied) as an exit status. THREE GUARDS VERIFIED BY MUTATION rather than assumed: collapsing pathPresent to two states fails UnreadablePathRefusesRatherThanTruncating; swallowing signs error fails UndeterminableSigningPolicyRefuses; collapsing refPresent fails RefPresentPropagatesNonAbsentFailure. That mutation pass caught a real gap — the fresh-repo test does NOT pin refPresents error/absent distinction because there the ref really is absent and a buggy collapse agrees; added a separating test. Concurrency unchanged and still green: transform re-runs exactly twice on a moved base with both lines landing, 3-attempt bound surfacing gits own text, declined-hook refusal failing after ONE attempt, one fetch per attempt. go test ./cmd/sdlc/... green except pre-existing ariadne#210. Atlas documents the primitive; plan Revisions record the design changes the code forced.; review verdict: FIX-THEN-SHIP
 ### 2026-09-02
 
 Operator scoping: "it's just a datatype; how it's being used for now can be

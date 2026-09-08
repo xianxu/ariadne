@@ -348,6 +348,81 @@ rounds:
           round: 3
       boundary: M1
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-07T18:03:54-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: isMissingPath/isNonFastForward are gone from the tree (grep over cmd/ returns nothing); classification is now exit-code based via gitExitCode/gitAbsentExit and pinned by TestGitExitCode_NonExitFailureIsNotAbsent plus TestTrunkFile_RefPresentPropagatesNonAbsentFailure, which I mutation-verified goes red when the error branch is collapsed.
+          round: 4
+        - id: BR-11
+          disposition: not-addressed
+          note: 'Unchanged, and now upgraded from wording to ARCH-SECURE. RULE a message must describe the state the code observed, not the state it hoped for. Enumeration, 3 sites, all reproduced against the real type: (1) offlineError trunkfile.go:192 and (2) ReadDegraded''s warn trunkfile.go:158 both say "unreachable (offline?)" for a reachable remote missing the branch — measured "origin unreachable (offline?): fatal: couldn''t find remote ref refs/heads/main"; (3) trunkfile.go:170 appends "used local main" even when no local main exists, so a repo whose default branch is master yields bytes="" warn="…used local main" err=nil — a fabricated empty value carrying a claim that did not happen. Fix by branching on the observed signal already in hand (fetch''s exit/stderr class; the refPresent result readLocal computes).'
+          round: 4
+        - id: BR-12
+          disposition: not-addressed
+          note: Unchanged. trunkfile.go:404-406 still explains what --path buys with no sentence noting the attributes come from the working tree/index, not from the trunk being written.
+          round: 4
+        - id: BR-15
+          disposition: not-addressed
+          note: Unchanged. grep -n "combined\|Combined" trunkfile.go still returns :37 ("returning combined output", contradicted by :39) and :386 ("Returns git's combined output", where commitAndPush returns stderr only).
+          round: 4
+        - id: BR-16
+          disposition: not-addressed
+          note: Unchanged, and the enumeration is larger than the three lines named. Beyond plan lines 86, 136 and 207, the same rule catches line 7 ("a sibling runEnv"; the code adds one runGitIn and leaves run alone), the Revisions entry's own "replaced isMissingPath's phrase matching with cat-file -e's exit code" (cat-file -e was itself rejected as two-state; the code uses ls-tree), and line 171's checked-off promise of a real signed-commit test with t.Skip, which the delivered test does not do.
+          round: 4
+        - id: BR-19
+          disposition: addressed
+          note: 'Verified by mutation, not by the diff: deleting the refPresent(t.branch) guard at trunkfile.go:217-223 turns TestTrunkFile_FreshRepoReadsEmptyNotError red with "ls-tree main -- workshop/queue.md: exit status 128 / fatal: Not a valid object name main". The residual false "used local main" warning is folded into BR-11.'
+          round: 4
+        - id: BR-20
+          disposition: addressed
+          note: grep -n '^\s*_ = ' over cmd/sdlc/internal/gitx/ now returns only the test's idiomatic _ = cmd.Run(); the no-op assignment is gone.
+          round: 4
+      findings:
+        - id: BR-21
+          severity: Important
+          title: readLocal and readRef are the same three-line body with a different ref, and the guard exists on only one of them
+          detail: |-
+            This is the 3rd finding in family `duplicated-helper`. Earlier rounds fixed
+            instances (firstLineOf/firstLine, the two signing tests). Do NOT merge just
+            these two — state the rule. RULE two functions differing only in the value
+            of a parameter are one function; when they diverge, the divergence is a bug
+            in the one that lacks it, not a feature of the one that has it.
+            Enumeration by that rule over cmd/sdlc/internal/gitx/: 1 remaining site.
+            trunkfile.go:224-235 (readLocal) and :241-252 (readRef) both run
+            pathPresent(ref, path) then cat-file blob ref:path, differing only in
+            t.branch vs t.trackingRef() and in the error string. readLocal additionally
+            guards ref existence via refPresent; readRef does not — which is exactly the
+            BR-19 defect class, currently unreachable only because ReadDegraded and
+            Update happen to check the tracking ref before calling it. Collapse to
+            readAt(ref, path) carrying the guard, with readLocal/readRef as one-line
+            callers. Doing so also fixes a second thing for free: readLocal passes the
+            UNQUALIFIED branch name to refPresent, pathPresent and cat-file, so a tag
+            named `main` shadows refs/heads/main under rev-parse's DWIM order; readAt
+            should take a fully-qualified ref and readLocal should pass
+            "refs/heads/" + t.branch (ARCH-DRY).
+          family: duplicated-helper
+          round: 4
+        - id: BR-22
+          severity: Minor
+          title: Update rebuilds the tree entry from scratch, so an executable path on the trunk comes back mode 100644
+          detail: |-
+            trunkfile.go:413-414 hardcodes `--cacheinfo 100644,<blob>,<path>`. Verified
+            against the real type: a 100755 blob on the trunk is 100644 after an
+            Update that only changed content. RULE when replacing one field of an
+            existing record, carry the fields you were not asked to change. The mode is
+            already on the wire — pathPresent (trunkfile.go:272) runs ls-tree and
+            discards everything but the name; dropping --name-only there yields the
+            existing mode for free. Alternatively state "regular file, mode 100644" as
+            the type's contract in the doc comment and the atlas entry. Harmless for
+            M1's .md consumers, but ariadne#207 inherits this primitive and no test
+            would notice.
+          family: unspecified-fields-not-preserved
+          round: 4
+      boundary: M1
+      blocked: false
 ---
 
 # Gate ledger — ariadne#209 (boundary-review)
@@ -538,12 +613,56 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   `grep -n '^\s*_ = ' cmd/sdlc/internal/gitx/`, which returns exactly this one
   site — measured prevalence 1, so the sweep is cheap and complete.
 
+## Round 4 — 2026-09-07T18:03:54-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — addressed — isMissingPath/isNonFastForward are gone from the tree (grep over cmd/ returns nothing); classification is now exit-code based via gitExitCode/gitAbsentExit and pinned by TestGitExitCode_NonExitFailureIsNotAbsent plus TestTrunkFile_RefPresentPropagatesNonAbsentFailure, which I mutation-verified goes red when the error branch is collapsed.
+- BR-11 — not-addressed — Unchanged, and now upgraded from wording to ARCH-SECURE. RULE a message must describe the state the code observed, not the state it hoped for. Enumeration, 3 sites, all reproduced against the real type: (1) offlineError trunkfile.go:192 and (2) ReadDegraded's warn trunkfile.go:158 both say "unreachable (offline?)" for a reachable remote missing the branch — measured "origin unreachable (offline?): fatal: couldn't find remote ref refs/heads/main"; (3) trunkfile.go:170 appends "used local main" even when no local main exists, so a repo whose default branch is master yields bytes="" warn="…used local main" err=nil — a fabricated empty value carrying a claim that did not happen. Fix by branching on the observed signal already in hand (fetch's exit/stderr class; the refPresent result readLocal computes).
+- BR-12 — not-addressed — Unchanged. trunkfile.go:404-406 still explains what --path buys with no sentence noting the attributes come from the working tree/index, not from the trunk being written.
+- BR-15 — not-addressed — Unchanged. grep -n "combined\|Combined" trunkfile.go still returns :37 ("returning combined output", contradicted by :39) and :386 ("Returns git's combined output", where commitAndPush returns stderr only).
+- BR-16 — not-addressed — Unchanged, and the enumeration is larger than the three lines named. Beyond plan lines 86, 136 and 207, the same rule catches line 7 ("a sibling runEnv"; the code adds one runGitIn and leaves run alone), the Revisions entry's own "replaced isMissingPath's phrase matching with cat-file -e's exit code" (cat-file -e was itself rejected as two-state; the code uses ls-tree), and line 171's checked-off promise of a real signed-commit test with t.Skip, which the delivered test does not do.
+- BR-19 — addressed — Verified by mutation, not by the diff: deleting the refPresent(t.branch) guard at trunkfile.go:217-223 turns TestTrunkFile_FreshRepoReadsEmptyNotError red with "ls-tree main -- workshop/queue.md: exit status 128 / fatal: Not a valid object name main". The residual false "used local main" warning is folded into BR-11.
+- BR-20 — addressed — grep -n '^\s*_ = ' over cmd/sdlc/internal/gitx/ now returns only the test's idiomatic _ = cmd.Run(); the no-op assignment is gone.
+
+### Raised
+
+- **BR-21** [Important] `duplicated-helper` readLocal and readRef are the same three-line body with a different ref, and the guard exists on only one of them
+  This is the 3rd finding in family `duplicated-helper`. Earlier rounds fixed
+  instances (firstLineOf/firstLine, the two signing tests). Do NOT merge just
+  these two — state the rule. RULE two functions differing only in the value
+  of a parameter are one function; when they diverge, the divergence is a bug
+  in the one that lacks it, not a feature of the one that has it.
+  Enumeration by that rule over cmd/sdlc/internal/gitx/: 1 remaining site.
+  trunkfile.go:224-235 (readLocal) and :241-252 (readRef) both run
+  pathPresent(ref, path) then cat-file blob ref:path, differing only in
+  t.branch vs t.trackingRef() and in the error string. readLocal additionally
+  guards ref existence via refPresent; readRef does not — which is exactly the
+  BR-19 defect class, currently unreachable only because ReadDegraded and
+  Update happen to check the tracking ref before calling it. Collapse to
+  readAt(ref, path) carrying the guard, with readLocal/readRef as one-line
+  callers. Doing so also fixes a second thing for free: readLocal passes the
+  UNQUALIFIED branch name to refPresent, pathPresent and cat-file, so a tag
+  named `main` shadows refs/heads/main under rev-parse's DWIM order; readAt
+  should take a fully-qualified ref and readLocal should pass
+  "refs/heads/" + t.branch (ARCH-DRY).
+- **BR-22** [Minor] `unspecified-fields-not-preserved` Update rebuilds the tree entry from scratch, so an executable path on the trunk comes back mode 100644
+  trunkfile.go:413-414 hardcodes `--cacheinfo 100644,<blob>,<path>`. Verified
+  against the real type: a 100755 blob on the trunk is 100644 after an
+  Update that only changed content. RULE when replacing one field of an
+  existing record, carry the fields you were not asked to change. The mode is
+  already on the wire — pathPresent (trunkfile.go:272) runs ls-tree and
+  discards everything but the name; dropping --name-only there yields the
+  existing mode for free. Alternatively state "regular file, mode 100644" as
+  the type's contract in the doc comment and the atlas entry. Harmless for
+  M1's .md consumers, but ariadne#207 inherits this primitive and no test
+  would notice.
+
 ## Open findings
 
-- **BR-3** [Important] `git-output-string-matching` isMissingPath carries a phrase git no longer emits, and the no-remote fallback silently depends on it
 - **BR-11** [Minor] `error-misattribution` offlineError labels every fetch failure "unreachable (offline?)"
 - **BR-12** [Minor] `gitattributes-source` hash-object --path resolves .gitattributes from the working tree, not from the trunk being written
 - **BR-15** [Minor] `stale-comment` Two more "combined output" claims survive in trunkfile.go, one contradicting itself four lines later
 - **BR-16** [Minor] `plan-traceability` The plan still instructs CombinedOutput at three sites after the Revisions entry corrected one
-- **BR-19** [Important] `git-output-string-matching` readLocal treats a legitimately absent local branch as unreadable, so ReadDegraded errors obscurely in a fresh repo while warning that it used the local branch
-- **BR-20** [Minor] `dead-parameter` `_ = errOut` at trunkfile.go:200 is a no-op left behind by the three-states edit
+- **BR-21** [Important] `duplicated-helper` readLocal and readRef are the same three-line body with a different ref, and the guard exists on only one of them
+- **BR-22** [Minor] `unspecified-fields-not-preserved` Update rebuilds the tree entry from scratch, so an executable path on the trunk comes back mode 100644

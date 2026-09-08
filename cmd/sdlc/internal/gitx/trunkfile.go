@@ -34,7 +34,7 @@ import (
 )
 
 // runGitIn runs git in `dir` with `env` appended to the environment, returning
-// combined output. A package-level var so tests can drive failure paths.
+// stdout and stderr separately. A package-level var so tests can drive failure paths.
 //
 // stdout and stderr are returned SEPARATELY, not combined. Combining them looked
 // fine until a repo with `*.md text eol=lf` made git print "CRLF will be replaced
@@ -140,7 +140,7 @@ func (t *TrunkFile) Read(path string) ([]byte, error) {
 	if out, err := t.fetch(); err != nil {
 		return nil, offlineError(t.remote, err, out)
 	}
-	return t.readRef(path)
+	return t.readFrom(t.trackingRef(), path)
 }
 
 // ReadDegraded returns the file's bytes and a non-empty warning when the fetch
@@ -166,10 +166,10 @@ func (t *TrunkFile) ReadDegraded(path string) ([]byte, string, error) {
 	if warn != "" && !tracking {
 		// Never fetched (or no remote at all): fall back to the local branch so a
 		// repo that has never talked to an origin still reads something, and say so.
-		b, err := t.readLocal(path)
+		b, err := t.readFrom(t.branch, path)
 		return b, warn + "; no " + t.trackingRef() + ", used local " + t.branch, err
 	}
-	b, err := t.readRef(path)
+	b, err := t.readFrom(t.trackingRef(), path)
 	return b, warn, err
 }
 
@@ -208,72 +208,51 @@ func FirstLine(s string) string {
 	return "no output"
 }
 
-// readLocal reads the path from the local branch, for a repo with no remote.
-func (t *TrunkFile) readLocal(path string) ([]byte, error) {
-	// A repo that has never committed on this branch has nothing to read — that
-	// is a legitimate empty answer, not a failure. Without this, ls-tree errors on
-	// the missing ref and ReadDegraded reports an obscure git error while its
-	// warning cheerfully says it used the local branch.
-	branchPresent, err := t.refPresent(t.branch)
-	if err != nil {
-		return nil, err
-	}
-	if !branchPresent {
-		return nil, nil
-	}
-	present, err := t.pathPresent(t.branch, path)
-	if err != nil {
-		return nil, err
-	}
-	if !present {
-		return nil, nil
-	}
-	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.branch+":"+path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.branch, err, errOut)
-	}
-	return out, nil
-}
-
-// readRef reads the path from the tracking ref. A path absent from the trunk is
-// NOT an error — it reads as empty, so a first-ever write needs no special case.
-func (t *TrunkFile) readRef(path string) ([]byte, error) {
-	present, err := t.pathPresent(t.trackingRef(), path)
-	if err != nil {
-		return nil, err // could not tell — never fall through to "empty"
-	}
-	if !present {
-		return nil, nil // absent on the trunk reads as empty: a first write needs no special case
-	}
-	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", t.trackingRef()+":"+path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, t.trackingRef(), err, errOut)
-	}
-	return out, nil
-}
-
 // pathPresent answers whether <ref>:<path> is in the tree, in THREE states:
-// present, absent, or "could not tell".
+// present, absent, or "could not tell" — see the rule at the top of this file.
 //
-// The two-state versions of this were both wrong, in the same way. Matching git's
-// prose ("does not exist") reclassifies a real failure as absent; so does
-// `cat-file -e`, whose exit is non-zero for a missing object AND for a broken or
-// unavailable one. Either way the caller receives an empty file, the transform
-// appends to nothing, and Update publishes a queue containing only the new
-// line — silently wiping the trunk and reporting success.
-//
-// `ls-tree` is the interface that actually separates them: exit 0 with empty
-// output means absent, exit 0 with output means present, and a non-zero exit is a
-// real failure that must PROPAGATE rather than being flattened into "absent". A
-// bool could not represent the difference, which is why this returns an error too
-// (ARCH-ORDER: the states a caller must distinguish are enumerated, not collapsed
-// into a value that makes the dangerous one unrepresentable).
+// `ls-tree` is the interface that separates them: exit 0 with empty output means
+// absent, exit 0 with output means present, and a non-zero exit is a real failure
+// that must PROPAGATE rather than being flattened into "absent". Flattening it is
+// how the trunk got silently truncated: the caller received an empty file, the
+// transform appended to nothing, and Update published only the new line.
 func (t *TrunkFile) pathPresent(ref, path string) (bool, error) {
 	out, errOut, err := runGitIn(t.dir, nil, "ls-tree", "--name-only", "--end-of-options", ref, "--", path)
 	if err != nil {
 		return false, fmt.Errorf("ls-tree %s -- %s: %v\n%s", ref, path, err, errOut)
 	}
 	return len(strings.TrimSpace(string(out))) > 0, nil
+}
+
+// readFrom reads <ref>:<path>, answering empty for a ref or path that is simply
+// not there and propagating anything it could not determine.
+//
+// This was two functions — readRef and readLocal — differing only in which ref
+// they passed, and the ref-presence guard existed on just one of them. Two
+// functions differing only in a parameter's value are one function; when they
+// diverge, the divergence is a bug in the one that lacks it, not a feature of the
+// one that has it (ARCH-DRY). Here the missing guard was exactly that bug: the
+// trunk path had no protection against an unresolvable ref.
+func (t *TrunkFile) readFrom(ref, path string) ([]byte, error) {
+	refThere, err := t.refPresent(ref)
+	if err != nil {
+		return nil, err
+	}
+	if !refThere {
+		return nil, nil // no such ref yet — nothing published there
+	}
+	present, err := t.pathPresent(ref, path)
+	if err != nil {
+		return nil, err // could not tell — never fall through to "empty"
+	}
+	if !present {
+		return nil, nil // absent reads as empty: a first write needs no special case
+	}
+	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", ref+":"+path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, ref, err, errOut)
+	}
+	return out, nil
 }
 
 // tempIndexPath returns an ABSOLUTE path for GIT_INDEX_FILE, inside a private
@@ -343,7 +322,7 @@ func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, err
 		if err != nil {
 			return err
 		}
-		old, err := t.readRef(path)
+		old, err := t.readFrom(t.trackingRef(), path)
 		if err != nil {
 			return err
 		}
@@ -383,7 +362,7 @@ func (t *TrunkFile) resolve(ref string) (string, error) {
 }
 
 // commitAndPush builds the tree in a temp index and pushes the new commit at the
-// branch. Returns git's combined output so the caller can classify the failure.
+// branch. Returns git's STDERR so the caller can classify the failure.
 func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string, sign bool) ([]byte, error) {
 	idx, cleanupIdx, err := tempIndexPath()
 	defer cleanupIdx()
@@ -410,8 +389,16 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string,
 	}
 	blob := strings.TrimSpace(string(out))
 
+	// Preserve the path's existing mode. Rebuilding the entry as a hardcoded
+	// 100644 silently drops the executable bit from any file that had it — fine
+	// for a queue, wrong for a general primitive that ariadne#207 will point at
+	// arbitrary paths.
+	mode, err := t.modeOf(base, path)
+	if err != nil {
+		return nil, err
+	}
 	if _, errOut, err := runGitIn(t.dir, env, "update-index", "--add",
-		"--cacheinfo", "100644,"+blob+","+path); err != nil {
+		"--cacheinfo", mode+","+blob+","+path); err != nil {
 		return errOut, err
 	}
 	out, errOut, err = runGitIn(t.dir, env, "write-tree")
@@ -432,6 +419,19 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string,
 
 	_, errOut, err = runGitIn(t.dir, nil, "push", t.remote, commit+":refs/heads/"+t.branch)
 	return errOut, err
+}
+
+// modeOf returns the path's mode in the base tree, defaulting to a regular file
+// when the path is new.
+func (t *TrunkFile) modeOf(ref, path string) (string, error) {
+	out, errOut, err := runGitIn(t.dir, nil, "ls-tree", "--end-of-options", ref, "--", path)
+	if err != nil {
+		return "", fmt.Errorf("ls-tree mode %s -- %s: %v\n%s", ref, path, err, errOut)
+	}
+	if f := strings.Fields(strings.TrimSpace(string(out))); len(f) > 0 && len(f[0]) == 6 {
+		return f[0], nil
+	}
+	return "100644", nil // new path
 }
 
 // signs reports whether this repo signs commits. A signing repo that silently
