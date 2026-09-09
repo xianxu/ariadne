@@ -120,14 +120,19 @@ forbade fixing the very references this removal falsifies.
 deleted feature get re-anchored. A dead concept left in identifiers and comments
 is a trap for the next reader, and it is the class this issue is about.
 
-**The enumeration**, swept in one round rather than discovered later:
+**The enumeration**, swept in one round rather than discovered later. It is
+**hand-typed and therefore not authoritative** — the diff is. Two sites in
+`trunkfile_test.go` were re-anchored in the code before this table named them,
+which is exactly how a hand-maintained list drifts from what was done. Read it as
+the plan, and `git show` as the record (the "what a guard COMPUTES vs what it
+takes on faith" lesson, applied to a table instead of a scan):
 
 | Site | Disposition |
 |---|---|
 | `atlas/workflow/sdlc-binary.md` TrunkFile section | Re-anchor on ariadne#207 — it opens "Built for `sdlc queue`". |
 | `gitx/trunkfile.go` mode-preservation comment | Re-anchor. "Fine for a queue, wrong for a general primitive" loses its referent; the reason survives. |
-| `gitx/trunkfile_test.go` fixture path `queue.md` (36 sites) | Rename to a neutral fixture name. The filename is arbitrary to the test; leaving it names a feature that no longer exists. |
-| `gitx/trunkfile_test.go:15,:83` comments | Re-anchor to neutral phrasing. |
+| `gitx/trunkfile_test.go` fixture path + commit subjects | Rename `queue.md` -> `note.md` and `queue: …` -> `trunk: …`. The names are arbitrary to the tests; leaving them names a feature that no longer exists. No count is asserted — an earlier draft said "~20", then "36", and neither matched a countable set. |
+| `gitx/trunkfile_test.go` comments (fixture header, missing-path rationale, `PreservesFileMode`) | Re-anchor to neutral phrasing. |
 | `workshop/lessons.md` test-double entry | KEEP, plus one clause noting the cited `fakeTrunk` / `TestQueueEdit_*` were removed here. A lesson legitimately cites history, but a reader must not hunt for code that is gone. |
 | `workshop/issues/000207-...md:175` | Amend. It reasons from "#209's queue passes an intent-replaying transform" — an open issue citing a deleted consumer. The point (retry semantics belong to the caller's transform) survives the citation. |
 
@@ -151,7 +156,11 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
   "exactly the lifecycle verbs" reads true again.
 - `atlas/workflow/sdlc-binary.md` has no queue verb section and no queue row in
   the verb table; `atlas/index.md` no longer mentions it.
-- `workshop/queue.md` is gone from `origin/main`.
+- `workshop/queue.md` is **deleted on the branch** — `git ls-tree HEAD` finds it
+  absent, and the branch is a clean descendant of main with no competing commits
+  on that path, so the merge removes it from `origin/main`. The earlier wording
+  claimed it was already gone from the trunk, which is not satisfiable at this
+  boundary: the file is still at `a722b52` until #218 merges. Verify post-merge.
 - `gitx.TrunkFile`'s behavior and coverage are unchanged: no test is deleted from
   `trunkfile_test.go` and `go test ./cmd/sdlc/internal/gitx/` passes. (No test
   count is asserted — the previous draft claimed "37", which matches no countable
@@ -172,22 +181,29 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
     #218"), which explains why the primitive outlived its first consumer:
 
     ```
-    grep -rn "sdlc queue\|internal/queue\|NewQueueCmd\|datatype/queue\|helptext/queue" \
-      --include='*.go' --include='*.md' . \
-      | grep -v "^workshop/history/" \
-      | grep -v "^workshop/issues/00021[89]" \
-      | grep -v "^construct/generated/"
+    git grep -n -E 'sdlc queue|internal/queue|NewQueueCmd|datatype/queue|helptext/queue' \
+      -- '*.go' '*.md' \
+      ':!workshop/history' ':!workshop/issues/000218*' ':!workshop/issues/000219*'
     ```
+
+    **`git grep`, not `grep -rn`, and that is the point.** The first draft of
+    this clause used `grep -rn … .` and claimed one line, because it was measured
+    in a shell where `grep` is aliased to `ugrep`, which emits repo-relative
+    paths. Under a plain shell `grep -rn … .` prefixes every path with `./`, so
+    the `^workshop/…` exclusions match nothing and the same command returns 103
+    lines. A verification that depends on the operator's aliases is not a
+    verification — the close reviewer ran it as written and got 99. `git grep`
+    is deterministic: repo-relative paths everywhere, and gitignore-aware, so
+    `construct/generated/` needs no exclusion at all.
 
     A bare `grep -rn queue` is NOT the check — measured at 758 raw hits, ~350
     after excluding deleted paths, of which ~330 are `workshop/history` archives
     and the rest are unrelated BFS-variable senses (`bootstrap.sh`,
     `list-peers.sh`, `projectstatus.go`, `layergraph/walk.go`,
     `fleetpolicy_test.go`). A clause whose command cannot produce a checkable
-    result is not a verification. The three exclusions are principled, not
-    convenient: history legitimately describes a feature that existed, this
-    issue's own files describe the removal, and `construct/generated/` is
-    gitignored and regenerated.
+    result is not a verification. The exclusions are principled, not convenient:
+    history legitimately describes a feature that existed, and this issue's own
+    files describe the removal.
 
     Stating the expected residue rather than "nothing" is the same rule the
     round-3 advisory named: a clause whose command has known-benign hits must

@@ -6,9 +6,12 @@
 //     constitution's own canonical test) is a capture repo: its own merged
 //     AGENTS.md used to invite sdlc, so the binary owns the gate (#69 pattern —
 //     the charter must not live only in one agent's memory). A repo without
-//     workshop/issues isn't an SDLC repo at all. Wired into exactly the
-//     lifecycle verbs (claim, start-plan, change-code, milestone-close, close,
-//     merge, push — processmanual.WorkflowVerbs; the drift test enumerates it).
+//     workshop/issues isn't an SDLC repo at all. Wired into the lifecycle verbs:
+//     claim, start-plan, change-code, milestone-close, close, project close,
+//     merge, push (processmanual.WorkflowVerbs; the drift test enumerates it).
+//     `project close` was missing from this list before #218 — the enumeration is
+//     hand-written prose beside a derived set, so `grep -rn 'guardSpineRepo('` is
+//     the authority, not this comment.
 //     Reads (estimate-source, actual, state, process-manual, issue …) stay
 //     unguarded by construction — sdlc legitimately READS brain (calibration
 //     docs, ledger).
