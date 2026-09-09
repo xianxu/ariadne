@@ -449,8 +449,8 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string,
 
 	// Preserve the path's existing mode. Rebuilding the entry as a hardcoded
 	// 100644 silently drops the executable bit from any file that had it — which
-	// a general primitive cannot do, since ariadne#207 points this at arbitrary
-	// repo paths.
+	// a general primitive cannot do — ariadne#207 is specced to point this at
+	// arbitrary repo paths.
 	mode, err := t.modeOf(base, path)
 	if err != nil {
 		return nil, err

@@ -155,6 +155,74 @@ rounds:
           family: prose-enumeration-drift
           round: 3
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-09T13:13:24-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: 'Ran the documented `git grep` verbatim under bash: exactly one line, atlas/workflow/sdlc-binary.md:652.'
+          round: 4
+        - id: BR-7
+          disposition: not-addressed
+          note: Done-when :159-163 fixed; the Plan checkbox at :304 still claims removal from origin/main.
+          round: 4
+        - id: BR-8
+          disposition: not-addressed
+          note: atlas/workflow/sdlc-binary.md:649 unchanged; TrunkFile still has zero production callers at HEAD.
+          round: 4
+        - id: BR-9
+          disposition: not-addressed
+          note: List removed from :9-15, but :24 still reads "not 7 new per-verb flags" against 8 guarded verbs.
+          round: 4
+      findings:
+        - id: BR-10
+          severity: Important
+          title: The premature-claim enumeration is hand-typed; 5 live sites measured against the 3 it names, 2 of them introduced by this window
+          detail: |-
+            This is the 5th and 6th instance in family `boundary-claim-premature` (measured
+            prevalence on ariadne#218: 6 sites, 1 fixed, 5 live). The RULE was already stated
+            correctly by BR-8 and is not the problem; the ENUMERATION is, because it is
+            hand-typed — the same defect the Spec already confesses for the re-anchor table at
+            :124. Do not fix the five sites one by one. Derive them:
+            `git grep -n 'ariadne#207' -- '*.go' '*.md' ':!workshop/history' ':!workshop/plans/000218*'`
+            plus a pass over `workshop/issues/000207*` and
+            `grep -n 'origin/main' workshop/issues/000218-remove-queue-feature.md`, then disposition
+            the entire residue in a `## Revisions` entry. Live sites: trunkfile.go:452 and
+            trunkfile_test.go:721 (both REGRESSED in commit b5be04d from correct future tense
+            "ariadne#207 will point at" to false present tense "ariadne#207 points this at");
+            atlas/workflow/sdlc-binary.md:649; workshop/issues/000218-remove-queue-feature.md:304;
+            workshop/issues/000207-sync-without-worktree.md:178. Ground truth:
+            `git grep TrunkFile -- '*.go' | grep -v _test.go` is empty outside trunkfile.go itself.
+          family: boundary-claim-premature
+          round: 4
+        - id: BR-11
+          severity: Important
+          title: No lessons.md rule for the shell-dependent verification that cost three of four rounds
+          detail: |-
+            This is the 3rd finding in family `verification-not-executable`; BR-1 and BR-3 fixed
+            instances, so the deliverable here is the rule and its durable home. AGENTS.md
+            section 4 requires it and no gate enforces it. I checked lessons.md for
+            alias/ugrep/"git grep"/"runnable command" — nothing covers shell-dependence; the
+            nearest entry (:65, "what a guard COMPUTES vs takes on faith") covers derived-set
+            restatement instead. Proposed rule: a verification clause must be a command whose
+            output is identical under any operator's shell — no aliased binary, no shell-local
+            function. Prefer `git grep` over `grep -rn` for repo sweeps (deterministic
+            repo-relative paths, gitignore-aware), and record the measured output next to the
+            command so a reader can tell a passing check from an inert one.
+          family: verification-not-executable
+          round: 4
+        - id: BR-12
+          severity: Minor
+          title: The ariadne#207 amendment captured the following sentence into its parenthetical
+          detail: |-
+            workshop/issues/000207-sync-without-worktree.md:178-181. The inserted italic aside
+            ends `...the choice is the caller's.)* So the Done-when clause *"..."* needs amending:`
+            on one line, so the sentence that continued the paragraph above now reads as part of
+            the aside. Split after `caller's.)*`. Introduced by b5be04d.
+          family: prose-edit-orphans-sentence
+          round: 4
+      blocked: true
 ---
 
 # Gate ledger — ariadne#218 (boundary-review)
@@ -248,9 +316,54 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   comment already added the grep -rn 'guardSpineRepo(' pointer — delete the list and the count
   and keep only that.
 
+## Round 4 — 2026-09-09T13:13:24-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-3 — addressed — Ran the documented `git grep` verbatim under bash: exactly one line, atlas/workflow/sdlc-binary.md:652.
+- BR-7 — not-addressed — Done-when :159-163 fixed; the Plan checkbox at :304 still claims removal from origin/main.
+- BR-8 — not-addressed — atlas/workflow/sdlc-binary.md:649 unchanged; TrunkFile still has zero production callers at HEAD.
+- BR-9 — not-addressed — List removed from :9-15, but :24 still reads "not 7 new per-verb flags" against 8 guarded verbs.
+
+### Raised
+
+- **BR-10** [Important] `boundary-claim-premature` The premature-claim enumeration is hand-typed; 5 live sites measured against the 3 it names, 2 of them introduced by this window
+  This is the 5th and 6th instance in family `boundary-claim-premature` (measured
+  prevalence on ariadne#218: 6 sites, 1 fixed, 5 live). The RULE was already stated
+  correctly by BR-8 and is not the problem; the ENUMERATION is, because it is
+  hand-typed — the same defect the Spec already confesses for the re-anchor table at
+  :124. Do not fix the five sites one by one. Derive them:
+  `git grep -n 'ariadne#207' -- '*.go' '*.md' ':!workshop/history' ':!workshop/plans/000218*'`
+  plus a pass over `workshop/issues/000207*` and
+  `grep -n 'origin/main' workshop/issues/000218-remove-queue-feature.md`, then disposition
+  the entire residue in a `## Revisions` entry. Live sites: trunkfile.go:452 and
+  trunkfile_test.go:721 (both REGRESSED in commit b5be04d from correct future tense
+  "ariadne#207 will point at" to false present tense "ariadne#207 points this at");
+  atlas/workflow/sdlc-binary.md:649; workshop/issues/000218-remove-queue-feature.md:304;
+  workshop/issues/000207-sync-without-worktree.md:178. Ground truth:
+  `git grep TrunkFile -- '*.go' | grep -v _test.go` is empty outside trunkfile.go itself.
+- **BR-11** [Important] `verification-not-executable` No lessons.md rule for the shell-dependent verification that cost three of four rounds
+  This is the 3rd finding in family `verification-not-executable`; BR-1 and BR-3 fixed
+  instances, so the deliverable here is the rule and its durable home. AGENTS.md
+  section 4 requires it and no gate enforces it. I checked lessons.md for
+  alias/ugrep/"git grep"/"runnable command" — nothing covers shell-dependence; the
+  nearest entry (:65, "what a guard COMPUTES vs takes on faith") covers derived-set
+  restatement instead. Proposed rule: a verification clause must be a command whose
+  output is identical under any operator's shell — no aliased binary, no shell-local
+  function. Prefer `git grep` over `grep -rn` for repo sweeps (deterministic
+  repo-relative paths, gitignore-aware), and record the measured output next to the
+  command so a reader can tell a passing check from an inert one.
+- **BR-12** [Minor] `prose-edit-orphans-sentence` The ariadne#207 amendment captured the following sentence into its parenthetical
+  workshop/issues/000207-sync-without-worktree.md:178-181. The inserted italic aside
+  ends `...the choice is the caller's.)* So the Done-when clause *"..."* needs amending:`
+  on one line, so the sentence that continued the paragraph above now reads as part of
+  the aside. Split after `caller's.)*`. Introduced by b5be04d.
+
 ## Open findings
 
-- **BR-3** [Important] `verification-not-executable` Done-when identifier sweep is inert — returns 99 lines, not the claimed one
 - **BR-7** [Minor] `boundary-claim-premature` "workshop/queue.md is gone from origin/main" is ticked but only true post-merge
 - **BR-8** [Minor] `boundary-claim-premature` atlas says "Its consumer is ariadne#207" while TrunkFile has zero production callers at HEAD
 - **BR-9** [Minor] `prose-enumeration-drift` repoguard.go:23 still says "not 7 new per-verb flags" while :9-11 now lists 8 guarded verbs
+- **BR-10** [Important] `boundary-claim-premature` The premature-claim enumeration is hand-typed; 5 live sites measured against the 3 it names, 2 of them introduced by this window
+- **BR-11** [Important] `verification-not-executable` No lessons.md rule for the shell-dependent verification that cost three of four rounds
+- **BR-12** [Minor] `prose-edit-orphans-sentence` The ariadne#207 amendment captured the following sentence into its parenthetical

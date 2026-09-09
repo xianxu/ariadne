@@ -281,3 +281,147 @@ findings:
       comment already added the grep -rn 'guardSpineRepo(' pointer — delete the list and the count
       and keep only that.
 ```
+
+---
+
+## Re-review — 2026-09-09T13:13:24-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 218 — Remove the sdlc queue verb and workshop/queue.md |
+| repo | ariadne |
+| issue file | workshop/issues/000218-remove-queue-feature.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6828a2aa0d3d069347c55daa097d9c027d68af38..a9871748bbc951f002c5224c960df5835c3993ec |
+| command | sdlc close --issue 218 |
+| reviewer | claude |
+| timestamp | 2026-09-09T13:13:24-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The removal itself is complete and I verified it independently rather than from the commit messages: `go build ./...` clean, `go test ./cmd/sdlc/internal/... -count=1` fully green (gitx 16.2s), `sdlc --help` lists no `queue`, `datatype list` offers no `queue`, `construct/generated/datatype/SKILL.md` was regenerated (zero `queue` hits, mtime after the deletion) with the working tree clean, and no peer repo under `/Users/xianxu/workspace/` carries a dangling `construct/datatype/queue.md` or `workshop/queue.md`, so the base-layer deletion propagates without stranding a symlink. The "behavior and coverage unchanged" claim on `TrunkFile` holds under a real check — the `^func ` set in `trunkfile_test.go` is byte-identical across the window (31 funcs, 27 tests), only the fixture string changed — and the "coverage loss: none" assertion checks out: `project close` **is** in `GateCatalog` → `SpineVerbs` → `WorkflowVerbs`, so all 8 `guardSpineRepo` call sites are enumerated by `TestGuardSpineRepo_BrainRefusesAllLifecycleVerbs`, and the deleted `subcommandGuardSource` was hardcoded to read `queue.go` with queue-only markers. BR-3 is genuinely fixed — I ran the documented `git grep` verbatim and got exactly one line. What holds SHIP back is not code: **three of the four open findings were not acted on at all.** BR-7's second site and BR-8's site are untouched, BR-9's fix removed the list but left the count nine lines below in the same comment block — which now explicitly claims "No list or count appears here on purpose." And a derived sweep for BR-8's own class finds five live sites where the hand-typed enumeration named three, two of which this window *introduced* by regressing correct future tense to false present tense.
+
+## 1. Strengths
+
+- **`cmd/sdlc/internal/gitx/trunkfile_test.go`** — the rename is a verified no-op on behavior. I diffed the `^func ` set across `6828a2a..a987174`: identical, 31 functions. `queue.md` → `note.md` and `queue: …` → `trunk: …` throughout, including the peer-push helper (`:360`) and the sibling-survival assertion (`:315`). That is the right way to do a rename inside a removal.
+- **The `git grep` conversion of the Done-when sweep** (`:184-197`) is a real fix, not a re-word. Ran verbatim under bash: one line, `atlas/workflow/sdlc-binary.md:652`, exactly as claimed. Scoping the exclusions by issue **id** rather than path (`':!*000218*'`) is the correct generalization — I confirmed it tolerates `workshop/plans/000218-*-close-review.md`, which the close itself generates and which therefore cannot exist when the clause is tested beforehand.
+- **`cmd/sdlc/repoguard.go:9-15`** — replacing the verb list with `grep -rn "guardSpineRepo(" cmd/sdlc/*.go` as the authority plus the `WorkflowVerbs` derivation is the right structural fix (ARCH-DRY). I verified the derivation is sound: 8 call sites, 8 subtests, exact match.
+- **`workshop/lessons.md:36-38`** — correct disposition for a lesson whose example was deleted: keep the pattern, tell the reader the cited code is gone, say why the citation names the shape.
+- **`workshop/issues/000207-sync-without-worktree.md:177-180`** — amending an *open* peer issue that cited the deleted consumer, in the same round, is ARCH-PURPOSE class-not-instance discipline actually applied (see M-1 for a formatting artifact in the edit).
+
+## 2. Critical findings
+
+None. No correctness bug, no behavior drift, no silent error swallowing in the diff.
+
+## 3. Important findings
+
+**I-1 — the `boundary-claim-premature` enumeration is hand-typed and now measurably incomplete; two of its named sites were never fixed.** BR-8 stated the rule correctly and named three sites. Measured at HEAD: the Done-when clause (`:159-163`) is fixed; `workshop/issues/000218-remove-queue-feature.md:304` (`- [x] Remove workshop/queue.md from origin/main.`) and `atlas/workflow/sdlc-binary.md:649` ("Its consumer is `ariadne#207`") are untouched. Two further sites were **introduced by this window**, regressing tense in the direction the rule forbids — `cmd/sdlc/internal/gitx/trunkfile.go:452` and `trunkfile_test.go:721` both changed `"that ariadne#207 **will point** at arbitrary paths"` → `"ariadne#207 **points** this at arbitrary repo paths"`. A fifth is `workshop/issues/000207-sync-without-worktree.md:178` ("this issue is now its only one"). Ground truth: `git grep 'TrunkFile' -- '*.go' | grep -v _test.go` is empty outside `trunkfile.go` — zero production callers. See the "Plan revision recommendations" section for the runnable sweep this should be derived from instead.
+
+**I-2 — no `workshop/lessons.md` rule for the mistake that cost three of the four rounds** (AGENTS.md §4). The lesson is not code-enforced and no gate catches it: a verification recorded in an artifact ran green for the author only because `grep` was aliased to `ugrep` in that shell, and returned 99–103 lines for anyone else. `lessons.md` gained only a parenthetical about deleted code in this window; I checked for `alias`/`ugrep`/`git grep`/`runnable command` and there is no entry covering it. The existing "what a guard COMPUTES vs what it takes on faith" entry (`:65`) covers derived-set restatement but not shell-dependence. **This is the 3rd finding in family `verification-not-executable`** — earlier rounds fixed instances (BR-1, BR-3), so the deliverable here is the rule, and lessons.md is exactly where a cross-issue non-code-enforced rule belongs. Suggested: *a verification clause must be a command whose output is identical under any operator's shell — no aliased binary, no shell-local function; prefer `git grep` over `grep -rn` for repo sweeps (deterministic relative paths, gitignore-aware), and record the measured output alongside the command.*
+
+## 4. Minor findings
+
+- **M-1 — `workshop/issues/000207-sync-without-worktree.md:178-181`:** the inserted italic parenthetical captured the sentence that followed the insertion point. `…the choice is the caller's.)* So the Done-when clause *"…"* needs amending:` — "So the Done-when clause…" now reads as part of the aside instead of continuing the paragraph above it. Split the line after `caller's.)*`.
+- **M-2** — `atlas/workflow/sdlc-binary.md:635` still tags `TrunkFile` as `#209` in the file-tree listing, and `:646` heads the section `(gitx.TrunkFile, #209)`. Defensible as provenance rather than a consumer claim, so not folded into I-1 — but if the section is edited for I-1, consider whether `#209` should read `#209, removed #218`.
+
+## 5. Test coverage notes
+
+- The kind of bug this diff could ship — a dangling reference or a lost test — is covered by evidence I re-derived, not asserted: identical `^func` set in `trunkfile_test.go`, 8/8 guard subtests off `WorkflowVerbs()`, clean build with the registration removed, `datatype list` reflecting the deleted prototype.
+- No new tests are warranted. The one gap is unpinnable by a test and correctly handled as prose: `lessons.md:36-38` tells the reader the cited fixtures are gone.
+- Non-`.go`/`.md` surfaces were outside the documented sweep. I checked them separately (`*.sh`, `*.cue`, `*.tmpl`, `*.json`, `Makefile*`, `construct/base.manifest`): every hit is a generic BFS-queue variable in `bootstrap.sh` / `list-peers.sh` / `layergraph/walk.go` / `projectstatus.go`, plus one `fleet_policy_invalid_action.json` fixture using `"queue"` as an invalid `onCapacity` action. Clean.
+- `construct/base.manifest` correctly does not enumerate datatype prototypes (`:174-179` — per-layer ownership, DAG-merged union), so deleting `construct/datatype/queue.md` needs no manifest edit.
+
+## 6. Architectural notes
+
+- **ARCH-DRY — flag.** `cmd/sdlc/repoguard.go:24` still reads `(an env, not 7 new per-verb flags)` while the guarded set is 8. This is BR-9's exact site, disposed `not-addressed` below. The regression relative to round 3 is that `:12-15` now asserts *"No list or count appears here on purpose"* — a self-refuting comment is worse than a merely stale one, because it invites a reader to trust the block.
+- **ARCH-PURE — pass.** `internal/queue` (pure core) and `cmd/sdlc/queue.go` (IO shell) were removed together; nothing was left half-wired. `gitx.FirstLine` correctly survives with its live consumer (`issueids.go:113`, called at `:131` and `:372`) and its pure unit test.
+- **ARCH-PURPOSE — flag.** The shadow-sweep on the removal itself passes: every consumer (verb, package, helptext, datatype, seeded file, `main.go` registration, both atlas sites, `lessons.md`, open #207) derives from the deletion, with one deliberate documented residue. The flag is on the *finding-answering* axis: BR-8 named a class and an enumeration, and this round delivered neither the enumeration's remaining members nor a derivation for it (I-1).
+- **ARCH-MOCK — pass, net improvement.** `trunkfile_test.go` runs against a real throwaway repo + real bare origin through `internal/testfix` (`:16-18`); `runGitIn` is the injected seam for failure injection. Deleting `fakeTrunk` — a stateless double that `lessons.md:5-25` was written about — removes the codebase's worst instance of this anti-pattern.
+- **ARCH-CONSTRAINTS — pass.** The `go test ./cmd/sdlc/` envelope violation (`close_test.go:131` takes the production `.git/sdlc.lock`, so an in-transaction run waits `DefaultWaitTimeout` = 30min) is diagnosed rather than hand-waved, filed as ariadne#219 (issue file confirmed present, `status: open`), and the issue explicitly declines to carry a full-suite run as gate evidence with a stated substitute. Correct handling of a pre-existing constraint.
+- **ARCH-SECURE — pass.** `internal/queue`'s fuzz-guarded round-trip parser existed because the queue file was hand-editable input the process did not produce; removing the consumer removes the untrusted surface with it, and the fuzz corpus went with it rather than being orphaned. No credentials touched; no test reaches real user state (`trunkFixture` is `t.TempDir()`-scoped).
+- **ARCH-ORDER — pass.** The interleaving seam is intact and injectable: `pushPeerLine` fires *inside* the transform (`trunkfile_test.go:183`, `:594`) so a moved base is deterministically reproducible, `RetryExhaustionSurfacesGitRejection` pins the 3-attempt bound, `OneFetchPerAttempt` pins fetch cardinality, and `runGitIn` injection pins the non-retryable fast-fail. These are not sample-of-one tests.
+
+## 7. Plan revision recommendations
+
+The Spec's re-anchor enumeration (`:130-137`) already carries the right disclaimer ("hand-typed and therefore not authoritative"), and this round proves the disclaimer was accurate rather than defensive. Add a `## Revisions` entry that replaces the hand-typed premature-claim list with the derivation — this sweep is measured, not proposed:
+
+```
+git grep -n 'ariadne#207' -- '*.go' '*.md' ':!workshop/history' ':!workshop/plans/000218*'
+grep -n 'origin/main' workshop/issues/000218-remove-queue-feature.md
+```
+
+Residue at HEAD, fully dispositioned — sweep 1 returns 5 non-#218 lines: `trunkfile.go:22` ("what **lets** ariadne#207 consume this" — capability, KEEP), `trunkfile.go:325` ("the same bound ariadne#207 **specs**" — the spec exists, KEEP), `trunkfile.go:452` (FIX), `trunkfile_test.go:721` (FIX), `atlas/workflow/sdlc-binary.md:649` (FIX). Plus `workshop/issues/000207-sync-without-worktree.md:178` (FIX), which sweep 1 excludes and which a second pass over `000207*` catches. Sweep 2 returns 3 lines: `:71` (Spec, declarative of what to delete — KEEP), `:161` (corrected Done-when — KEEP), `:304` (FIX). The Revisions entry should record that the class measured **6** sites where round 3 named 3, and that two of the six were created by this window's own re-anchoring commit.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Ran the documented `git grep` verbatim under bash: exactly one line, atlas/workflow/sdlc-binary.md:652.
+  - id: BR-7
+    disposition: not-addressed
+    note: |
+      Done-when :159-163 fixed; the Plan checkbox at :304 still claims removal from origin/main.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      atlas/workflow/sdlc-binary.md:649 unchanged; TrunkFile still has zero production callers at HEAD.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      List removed from :9-15, but :24 still reads "not 7 new per-verb flags" against 8 guarded verbs.
+findings:
+  - id: new
+    severity: Important
+    family: boundary-claim-premature
+    title: |
+      The premature-claim enumeration is hand-typed; 5 live sites measured against the 3 it names, 2 of them introduced by this window
+    detail: |
+      This is the 5th and 6th instance in family `boundary-claim-premature` (measured
+      prevalence on ariadne#218: 6 sites, 1 fixed, 5 live). The RULE was already stated
+      correctly by BR-8 and is not the problem; the ENUMERATION is, because it is
+      hand-typed — the same defect the Spec already confesses for the re-anchor table at
+      :124. Do not fix the five sites one by one. Derive them:
+      `git grep -n 'ariadne#207' -- '*.go' '*.md' ':!workshop/history' ':!workshop/plans/000218*'`
+      plus a pass over `workshop/issues/000207*` and
+      `grep -n 'origin/main' workshop/issues/000218-remove-queue-feature.md`, then disposition
+      the entire residue in a `## Revisions` entry. Live sites: trunkfile.go:452 and
+      trunkfile_test.go:721 (both REGRESSED in commit b5be04d from correct future tense
+      "ariadne#207 will point at" to false present tense "ariadne#207 points this at");
+      atlas/workflow/sdlc-binary.md:649; workshop/issues/000218-remove-queue-feature.md:304;
+      workshop/issues/000207-sync-without-worktree.md:178. Ground truth:
+      `git grep TrunkFile -- '*.go' | grep -v _test.go` is empty outside trunkfile.go itself.
+  - id: new
+    severity: Important
+    family: verification-not-executable
+    title: |
+      No lessons.md rule for the shell-dependent verification that cost three of four rounds
+    detail: |
+      This is the 3rd finding in family `verification-not-executable`; BR-1 and BR-3 fixed
+      instances, so the deliverable here is the rule and its durable home. AGENTS.md
+      section 4 requires it and no gate enforces it. I checked lessons.md for
+      alias/ugrep/"git grep"/"runnable command" — nothing covers shell-dependence; the
+      nearest entry (:65, "what a guard COMPUTES vs takes on faith") covers derived-set
+      restatement instead. Proposed rule: a verification clause must be a command whose
+      output is identical under any operator's shell — no aliased binary, no shell-local
+      function. Prefer `git grep` over `grep -rn` for repo sweeps (deterministic
+      repo-relative paths, gitignore-aware), and record the measured output next to the
+      command so a reader can tell a passing check from an inert one.
+  - id: new
+    severity: Minor
+    family: prose-edit-orphans-sentence
+    title: |
+      The ariadne#207 amendment captured the following sentence into its parenthetical
+    detail: |
+      workshop/issues/000207-sync-without-worktree.md:178-181. The inserted italic aside
+      ends `...the choice is the caller's.)* So the Done-when clause *"..."* needs amending:`
+      on one line, so the sentence that continued the paragraph above now reads as part of
+      the aside. Split after `caller's.)*`. Introduced by b5be04d.
+```

@@ -646,8 +646,9 @@ cmd/sdlc/
 ## Trunk-backed files (`gitx.TrunkFile`, #209)
 
 Reads and compare-and-swap-writes **one path on a remote branch with no working
-tree**. Its consumer is `ariadne#207` — publishing issue files to the trunk when
-no worktree has main out.
+tree**. It has **no consumer in the tree today**: `ariadne#207` is specced to
+consume it, for publishing issue files to the trunk when no worktree has main
+out, and has not landed.
 
 It was built for `sdlc queue`, removed in #218; the primitive survives that
 removal because the two had opposite justifications. An issue id is a **shared

@@ -718,8 +718,8 @@ func TestTrunkFile_RefPresentPropagatesNonAbsentFailure(t *testing.T) {
 
 // An executable file on the trunk must stay executable through an Update.
 // Rebuilding the index entry as a hardcoded 100644 silently drops the bit, which
-// a general primitive cannot do — ariadne#207 points this at arbitrary repo
-// paths.
+// a general primitive cannot do — ariadne#207 is specced to point this at
+// arbitrary repo paths.
 func TestTrunkFile_PreservesFileMode(t *testing.T) {
 	repo, origin := trunkFixture(t, "seed\n")
 	script := filepath.Join(repo, "run.sh")

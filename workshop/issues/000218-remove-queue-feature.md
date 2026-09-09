@@ -301,7 +301,9 @@ row would be a coincidence of two errors, not accuracy.
       files); confirm `sdlc --help` no longer lists `queue`.
 - [x] Regenerate the datatype SKILL; confirm `queue` is gone from `datatype list`
       with no hand-edit to `cmd/datatype/` or `construct/local/datatype/`.
-- [x] Remove `workshop/queue.md` from origin/main.
+- [x] Delete `workshop/queue.md` on the branch (it leaves origin/main at merge,
+      not at this boundary — the same premature-claim defect BR-7 fixed in
+      Done-when and left here).
 - [x] Sweep the re-anchor enumeration in the Spec — all six sites, including
       `lessons.md` and the open ariadne#207 — not just the atlas one.
 - [x] Verify the producible-anywhere list (build, `./cmd/sdlc/internal/...`,
@@ -320,3 +322,32 @@ direction is a per-context scratchpad in pair's draft nvim pane, with an
 inspection-scoped **punch list** in brain as the durable artifact — terminating
 rather than eternal, which is what dissolves the rot problem #209 had to defer a
 close-gate sweep to fight.
+
+### 2026-09-09 — premature-claim sweep, derived rather than hand-typed
+
+BR-10 found my fix for BR-7 had the defect it was fixing: I hand-typed an
+enumeration of premature claims, and it was already wrong — 5 live sites against
+the 3 it named, 2 of them introduced by this window's own re-anchor edits.
+
+Derived instead of listed. The commands, and their residue at the time of writing:
+
+```
+git grep -n 'ariadne#207' -- '*.go' '*.md' ':!workshop/history' ':!*000218*' ':!*000219*'
+grep -n 'origin/main' workshop/issues/000218-remove-queue-feature.md
+```
+
+Dispositioned:
+
+- `atlas/workflow/sdlc-binary.md:649` — "Its consumer **is** ariadne#207" stated a
+  present fact about an unlanded issue. Now: no consumer in the tree today, #207
+  is specced to consume it.
+- `cmd/sdlc/internal/gitx/trunkfile.go:452` and `trunkfile_test.go:721` — "since
+  #207 **points** this at arbitrary paths". Both introduced by this window's
+  re-anchor, which is the tell: I was fixing stale prose and wrote premature
+  prose. Now "is specced to point".
+- `## Plan` — the `origin/main` tick, the same defect BR-7 corrected in Done-when
+  and left in the Plan.
+- `trunkfile.go:22` ("lets #207 consume this") and `:325` ("the same bound #207
+  specs") — NOT premature. The first is a capability claim about the seam, true
+  now; the second is a fact about #207's written spec, checkable now. Recorded so
+  the residue is dispositioned rather than silently skipped.
