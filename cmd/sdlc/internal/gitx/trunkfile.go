@@ -448,9 +448,9 @@ func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string,
 	blob := strings.TrimSpace(string(out))
 
 	// Preserve the path's existing mode. Rebuilding the entry as a hardcoded
-	// 100644 silently drops the executable bit from any file that had it — fine
-	// for a queue, wrong for a general primitive that ariadne#207 will point at
-	// arbitrary paths.
+	// 100644 silently drops the executable bit from any file that had it — which
+	// a general primitive cannot do — ariadne#207 is specced to point this at
+	// arbitrary repo paths.
 	mode, err := t.modeOf(base, path)
 	if err != nil {
 		return nil, err

@@ -6,24 +6,22 @@
 //     constitution's own canonical test) is a capture repo: its own merged
 //     AGENTS.md used to invite sdlc, so the binary owns the gate (#69 pattern —
 //     the charter must not live only in one agent's memory). A repo without
-//     workshop/issues isn't an SDLC repo at all. Wired into the lifecycle verbs
-//     (claim, start-plan, change-code, milestone-close, close, merge, push —
-//     processmanual.WorkflowVerbs; the drift test enumerates it), PLUS the
-//     trunk-WRITING subcommands of `queue` (#209: add/remove/move). Those are not
-//     lifecycle stages, so they are deliberately absent from WorkflowVerbs — the
-//     same shape as `migrate`'s documented absence — but they commit and push to
-//     the trunk, and a queue of issue refs is meaningless where there are no
-//     issues, while the brain charter excludes SDLC process artifacts outright.
-//     `queue`'s bare LIST is unguarded, with the reads below.
-//     Reads (estimate-source, actual, state, process-manual, issue, queue's
-//     list …) stay unguarded by construction — sdlc legitimately READS brain
-//     (calibration docs, ledger).
+//     workshop/issues isn't an SDLC repo at all. It is wired into the lifecycle
+//     verbs; `grep -rn "guardSpineRepo(" cmd/sdlc/*.go` is the authority, and
+//     processmanual.WorkflowVerbs is the derived set the drift test enumerates.
+//     No list or count appears here on purpose: the previous one named seven
+//     verbs and had been wrong since c5b2096 (#180 M4) added `project close`,
+//     and #218 "restored" it without noticing. A comment cannot hand-restate a
+//     derived set — or its cardinality — and stay true.
+//     Reads (estimate-source, actual, state, process-manual, issue …) stay
+//     unguarded by construction — sdlc legitimately READS brain (calibration
+//     docs, ledger).
 //
 //  2. guardIssueNotDone — issue state. `done` is terminal (issue.cue); working
 //     a done issue was un-gated until close-time (only the reclose guard fired,
 //     at the very end). start-plan/change-code now refuse up front.
 //
-// Escape hatch: WF_SPINE_GUARD=off (an env, not 7 new per-verb flags) — it
+// Escape hatch: WF_SPINE_GUARD=off (one env, not a per-verb flag each) — it
 // cwarn-ACKs so bypasses are greppable in transcripts. NOTE: the #172 friction
 // instrument derives exclusively from GateCatalog and has no row for this
 // family (that wiring needs an env-gate GateSig variant + a drift-guard

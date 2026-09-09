@@ -2,6 +2,53 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## Don't write a description where the referent is available
+
+**Pattern (#209 + #218, ~35 of ~60 review findings across 31 families).** The
+families looked unrelated — `unbacked-count-claim`, `prose-enumeration-drift`,
+`git-output-string-matching`, `error-misattribution`, `vacuous-test-guard`,
+`stale-anchor-sweep`, `verification-not-executable`, `boundary-claim-premature` —
+and each was patched at its named site, which is why the ledger printed "not
+converging" five times. They are one defect:
+
+| I wrote | Instead of |
+|---|---|
+| `"37 tests"`, `"36 sites"`, `"~20"` | counting them |
+| a 7-verb list in `repoguard.go` | `grep -rn 'guardSpineRepo('` — it had been wrong since `c5b2096` |
+| `strings.Contains(out, "does not exist")`, `cat-file -e` | `ls-tree`, which separates absent from unreadable |
+| `"unreachable (offline?)"` for every fetch failure | what git actually said |
+| `TestQueueEdit_PeerEditSurvivesTheReplay` | a double that could produce a replay |
+| a hand-typed table of edited sites | the diff |
+| `"queue: add X"` as a commit subject | checking whether anything changed |
+| a hand-typed list of premature claims | `git grep` — it was wrong on arrival, twice |
+
+A description is cheap to write, reads plausibly, and **is always true at the
+instant of writing**. That is why it is invisible to the author and obvious to a
+reviewer, who stands at a different instant.
+
+**Rule:** before writing any claim about the system, ask *if this were wrong,
+what would fail?* If the answer is "nothing — someone would have to notice," it
+is a description. Replace it with a derivation, a test, or an executed command,
+or state explicitly that it is hand-maintained and unverified.
+
+**Corollary — "I verified it" is a property of your context, not of the
+artifact.** The conclusion travels; the checking does not. A `grep -rn` sweep
+returned 1 line under an aliased `ugrep` and 103 under a plain shell, and the
+same clause then missed a file the close itself *generates*, so it could not be
+validated before the gate ran. So: a verification clause must be a command whose
+output is identical under any operator's shell — no aliased binary, no shell
+function. Prefer `git grep` for repo sweeps (deterministic repo-relative paths,
+gitignore-aware). Run it **verbatim, in a clean shell, at the state the reader
+will see** — not retyped into your own. Record the measured output beside it, and
+where the gate generates what the check must tolerate, scope the exclusion by
+issue id rather than by path.
+
+**Corollary — fixing prose is when premature prose gets written.** Two of the
+four `boundary-claim-premature` sites in #218 were introduced by the edit that
+was re-anchoring stale prose. Re-anchoring swaps one tense error for another
+unless the replacement is checked against what is true *now*.
+
+
 ## A double that cannot produce the behavior makes the test assert the double
 
 **Pattern (#209, twice in one issue).** `gitx.TrunkFile.Update` fetches and reads
@@ -32,6 +79,10 @@ Two cheap checks that would have caught both: assert the *number* of transform
 invocations (a replay test that does not require ≥2 is not a replay test), and
 mutate the production ordering to confirm the test fails. The second is what
 finally distinguished the real fixes from the cosmetic ones here.
+
+*(The cited `fakeTrunk` and `TestQueueEdit_*` were deleted with the queue verb in
+#218. The pattern is what generalizes, not the code — and a lesson whose example
+has been removed is exactly why the citation names the shape, not just the file.)*
 
 **Corollary — a fix must be reachable and pinned.** The same issue shipped
 `KindUnspecified` at the type layer while the CLI still hardcoded `KindIssue`, so

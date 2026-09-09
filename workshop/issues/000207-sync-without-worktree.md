@@ -171,10 +171,17 @@ chosen"); replacing `pull --rebase` with a CAS push moves the hole into the new
 mechanism rather than closing it.
 
 `TrunkFile` does not decide this: `Update` re-reads and **re-calls the
-transform** on a moved base, so mergeability is the caller's property. #209's
-queue passes an intent-replaying transform; this issue's transform would set
-content, which keeps last-writer-wins — correct for an issue body, wrong for a
-colliding id. So the Done-when clause *"a test drives two publishers against one
-bare origin and asserts **both issue files land**"* needs amending: for two
-publishers colliding on one id, both landing IS the bug. Assert that distinct ids
+transform** on a moved base, so mergeability is the caller's property. This
+issue's transform would set content, which keeps last-writer-wins — correct for
+an issue body, wrong for a colliding id.
+
+*(ariadne#218 removed the queue verb that was `TrunkFile`'s first consumer, so
+once this issue lands it will be the seam's only caller — today it has none.
+Nothing about the seam changed: the queue's intent-replaying transform was the
+worked example of a caller choosing merge semantics, and its removal does not
+alter that the choice is the caller's.)*
+
+So the Done-when clause *"a test drives two publishers against one bare origin
+and asserts **both issue files land**"* needs amending: for two publishers
+colliding on one id, both landing IS the bug. Assert that distinct ids
 land, and that a collision re-allocates (the one #188 bullet #213 did not take).
