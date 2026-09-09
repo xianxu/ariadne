@@ -60,7 +60,7 @@ which is a different judgement from "it is broken".
 ## Spec
 
 Remove the verb, its pure package, its helptext, its datatype prototype, and the
-seeded trunk file. Leave `gitx.TrunkFile` — see *Open decision*.
+seeded trunk file. `gitx.TrunkFile` stays, re-anchored on ariadne#207.
 
 **Delete:**
 
@@ -93,34 +93,41 @@ seeded trunk file. Leave `gitx.TrunkFile` — see *Open decision*.
 It is gitignored, so verify against `cmd/datatype/` and `construct/local/datatype/`
 staying clean rather than against a diff of the generated file.
 
-## Open decision — does `gitx.TrunkFile` stay?
+## `gitx.TrunkFile` stays — decided
 
-Removing the verb leaves it with **zero consumers**: ~450 lines of production and
-~700 of test, plus an atlas section, used by nothing.
+Removing the verb leaves it with zero consumers *today*, but ariadne#207 is next
+and consumes it directly, so it is not orphaned for long.
 
-- **Keep:** `ariadne#207` is a filed issue whose spec names this exact mechanism
-  (worktree-free publishing of issue files), and #209 amended its `## Log` to
-  point at the seam. That is a written consumer, not speculative generality.
-- **Remove:** dead code in a base-layer binary propagates to every ariadne-styled
-  repo. Git history makes it recoverable in minutes if #207 wants it, and #207
-  would then build it against its own needs rather than the queue's.
+The principle worth recording, because it is the exact inverse of the queue's:
+**an issue id is a shared namespace with concurrent writers.** Two agents on two
+branches both allocating one id collide, and ariadne#188 documents why repair is
+expensive rather than merely annoying — the id leaks into the branch name, commit
+subjects agents grep, `deps:` in sibling issues, and review sidecar filenames. A
+namespace with multiple writers has exactly one correct home, and it is the
+trunk. That is a correctness requirement.
 
-Awaiting the operator. If removal is chosen, also amend #207's `## Log` so it
-does not point at a seam that no longer exists — while keeping the correction it
-records, that a content-preserving retry re-lands a colliding id and its
-Done-when needs amending.
+The queue had no shared namespace. One operator's attention list, nothing to
+collide, nothing expensive to repair — its "consistent across checkouts"
+requirement was manufactured by the storage choice rather than demanded by the
+content. Same mechanism, opposite justification: `TrunkFile` was
+over-engineering for the queue and is load-bearing for issues.
+
+Consequence for this issue: `TrunkFile` and its tests are untouched. Its atlas
+section is **re-anchored**, not deleted — it currently opens "Built for
+`sdlc queue`", which stops being true here.
 
 ## Plan
 
-- [ ] Resolve the `gitx.TrunkFile` open decision with the operator.
+- [x] Resolve the `gitx.TrunkFile` open decision with the operator — it stays;
+      ariadne#207 consumes it next (see above).
 - [ ] Delete the verb, the pure package, the helptext, the datatype prototype.
 - [ ] Edit the four reference sites (`main.go`, `repoguard.go`, and the two atlas
       files); confirm `sdlc --help` no longer lists `queue`.
 - [ ] Regenerate the datatype SKILL; confirm `queue` is gone from `datatype list`
       with no hand-edit to `cmd/datatype/` or `construct/local/datatype/`.
 - [ ] Remove `workshop/queue.md` from origin/main.
-- [ ] If TrunkFile is removed: delete it, its tests, and its atlas section, and
-      amend ariadne#207's `## Log`.
+- [ ] Re-anchor TrunkFile's atlas section on ariadne#207 — it currently opens
+      "Built for `sdlc queue`", which this change falsifies.
 - [ ] Verify: `go test ./cmd/sdlc/...` green except the pre-existing ariadne#210
       failure; `sdlc queue` is gone; `datatype list` has no `queue`.
 
