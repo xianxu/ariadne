@@ -112,9 +112,31 @@ requirement was manufactured by the storage choice rather than demanded by the
 content. Same mechanism, opposite justification: `TrunkFile` was
 over-engineering for the queue and is load-bearing for issues.
 
-Consequence for this issue: `TrunkFile` and its tests are untouched. Its atlas
-section is **re-anchored**, not deleted — it currently opens "Built for
-`sdlc queue`", which stops being true here.
+Consequence for this issue: `TrunkFile`'s **behavior and test coverage** are
+untouched. That is the precise claim — an earlier draft said "unchanged", which
+forbade fixing the very references this removal falsifies.
+
+**The rule:** behavior and coverage unchanged; names and prose that cite a
+deleted feature get re-anchored. A dead concept left in identifiers and comments
+is a trap for the next reader, and it is the class this issue is about.
+
+**The enumeration**, swept in one round rather than discovered later:
+
+| Site | Disposition |
+|---|---|
+| `atlas/workflow/sdlc-binary.md` TrunkFile section | Re-anchor on ariadne#207 — it opens "Built for `sdlc queue`". |
+| `gitx/trunkfile.go` mode-preservation comment | Re-anchor. "Fine for a queue, wrong for a general primitive" loses its referent; the reason survives. |
+| `gitx/trunkfile_test.go` fixture path `queue.md` (~20 sites) | Rename to a neutral fixture name. The filename is arbitrary to the test; leaving it names a feature that no longer exists. |
+| `gitx/trunkfile_test.go:15,:83` comments | Re-anchor to neutral phrasing. |
+| `workshop/lessons.md` test-double entry | KEEP, plus one clause noting the cited `fakeTrunk` / `TestQueueEdit_*` were removed here. A lesson legitimately cites history, but a reader must not hunt for code that is gone. |
+| `workshop/issues/000207-...md:175` | Amend. It reasons from "#209's queue passes an intent-replaying transform" — an open issue citing a deleted consumer. The point (retry semantics belong to the caller's transform) survives the citation. |
+
+**Coverage loss from the deleted tests: none.** A green suite cannot show this,
+because a deleted test never fails, so it is asserted here instead.
+`TestQueueCmd_WriteVerbsAreSpineGuarded` and `subcommandGuardSource` are the
+tree's only source-inspecting guard-ordering tests, and they covered the queue
+subcommands alone; the surviving spine verbs are covered by `repoguard_test.go`
+off `processmanual.WorkflowVerbs()`, which never included queue.
 
 ## Done when
 
@@ -130,12 +152,27 @@ section is **re-anchored**, not deleted — it currently opens "Built for
 - `atlas/workflow/sdlc-binary.md` has no queue verb section and no queue row in
   the verb table; `atlas/index.md` no longer mentions it.
 - `workshop/queue.md` is gone from `origin/main`.
-- `gitx.TrunkFile` and its 37 tests are UNCHANGED, and its atlas section is
-  re-anchored on ariadne#207 rather than opening "Built for `sdlc queue`".
+- `gitx.TrunkFile`'s behavior and coverage are unchanged: no test is deleted from
+  `trunkfile_test.go` and `go test ./cmd/sdlc/internal/gitx/` passes. (No test
+  count is asserted — the previous draft claimed "37", which matches no countable
+  set and could not be checked.)
+- Every site in the re-anchor enumeration above is dispositioned, including the
+  two outside this repo's control-flow: `lessons.md` and the OPEN ariadne#207.
 - `gitx.FirstLine` still exists and `issueids.go` still consumes it.
 - The `lessons.md` entry on test doubles survives — it is a general lesson, not
   queue-specific.
-- `go test ./cmd/sdlc/...` green except the pre-existing ariadne#210 failure.
+- `go test ./cmd/sdlc/... -timeout 1800s` green except the pre-existing
+  ariadne#210 failure (`fleet_plan_test.go:14`, a hardcoded path to an archived
+  plan).
+
+  **The explicit timeout is required.** Measured here at 115s and 136s across two
+  clean runs, but the plan-quality reviewer reproduced a 602s overrun of `go
+  test`'s 600s default, with a goroutine parked in syscall for nine minutes —
+  i.e. a hung child process, not slowness. I could not reproduce that and will
+  not guess at it; it is pre-existing and untouched by this change, which only
+  DELETES tests and therefore strictly reduces runtime. Naming the timeout makes
+  the check produce a result in either environment instead of dying before it
+  reports. If the hang recurs it wants its own issue.
 
 ## Plan
 
@@ -147,10 +184,12 @@ section is **re-anchored**, not deleted — it currently opens "Built for
 - [ ] Regenerate the datatype SKILL; confirm `queue` is gone from `datatype list`
       with no hand-edit to `cmd/datatype/` or `construct/local/datatype/`.
 - [ ] Remove `workshop/queue.md` from origin/main.
-- [ ] Re-anchor TrunkFile's atlas section on ariadne#207 — it currently opens
-      "Built for `sdlc queue`", which this change falsifies.
-- [ ] Verify: `go test ./cmd/sdlc/...` green except the pre-existing ariadne#210
-      failure; `sdlc queue` is gone; `datatype list` has no `queue`.
+- [ ] Sweep the re-anchor enumeration in the Spec — all six sites, including
+      `lessons.md` and the open ariadne#207 — not just the atlas one.
+- [ ] Verify: `go test ./cmd/sdlc/... -timeout 1800s` green except the
+      pre-existing ariadne#210 failure; `sdlc queue` gone from `sdlc --help`;
+      `datatype list` has no `queue`; `grep -rn queue` over the surviving tree
+      returns only dispositioned sites.
 
 ## Log
 
