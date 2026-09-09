@@ -116,6 +116,27 @@ Consequence for this issue: `TrunkFile` and its tests are untouched. Its atlas
 section is **re-anchored**, not deleted — it currently opens "Built for
 `sdlc queue`", which stops being true here.
 
+## Done when
+
+- `sdlc queue` no longer exists: absent from `sdlc --help`, and
+  `cmd/sdlc/queue.go`, `queue_test.go`, `queue_e2e_test.go`,
+  `cmd/sdlc/internal/queue/` and `cmd/sdlc/helptext/queue.md` are gone.
+- `construct/datatype/queue.md` is gone and `datatype list` no longer offers
+  `queue` — verified after regeneration, with `cmd/datatype/` and
+  `construct/local/datatype/` clean. NOT verified by diffing
+  `construct/generated/`, which is gitignored and would pass vacuously.
+- `repoguard.go`'s spine-guard comment no longer claims a `queue` clause, so
+  "exactly the lifecycle verbs" reads true again.
+- `atlas/workflow/sdlc-binary.md` has no queue verb section and no queue row in
+  the verb table; `atlas/index.md` no longer mentions it.
+- `workshop/queue.md` is gone from `origin/main`.
+- `gitx.TrunkFile` and its 37 tests are UNCHANGED, and its atlas section is
+  re-anchored on ariadne#207 rather than opening "Built for `sdlc queue`".
+- `gitx.FirstLine` still exists and `issueids.go` still consumes it.
+- The `lessons.md` entry on test doubles survives — it is a general lesson, not
+  queue-specific.
+- `go test ./cmd/sdlc/...` green except the pre-existing ariadne#210 failure.
+
 ## Plan
 
 - [x] Resolve the `gitx.TrunkFile` open decision with the operator — it stays;
@@ -131,24 +152,7 @@ section is **re-anchored**, not deleted — it currently opens "Built for
 - [ ] Verify: `go test ./cmd/sdlc/...` green except the pre-existing ariadne#210
       failure; `sdlc queue` is gone; `datatype list` has no `queue`.
 
-## Log` to
-  point at the seam. That is a written consumer, not speculative generality.
-- **Remove:** dead code in a base-layer binary propagates to every ariadne-styled
-  repo. Git history makes it recoverable in minutes if #207 wants it, and #207
-  would then build it against its own needs rather than the queue's.
-
-Awaiting the operator. If removal is chosen, also amend #207's `## Log` so it
-does not point at a seam that no longer exists — while keeping the correction it
-records, that a content-preserving retry re-lands a colliding id and its
-Done-when needs amending.
-
-## Plan
-
-- [ ]
-
 ## Log
-
-### 2026-09-09
 
 ### 2026-09-09
 
