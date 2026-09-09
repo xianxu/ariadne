@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-09
 updated: 2026-09-09
-estimate_hours:
+estimate_hours: 1.55
 started: 2026-09-09T10:48:12-07:00
 ---
 
@@ -166,8 +166,30 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
   - `go test ./cmd/sdlc/internal/... -count=1` green — every package this change
     can affect, and none of them take the repo lock.
   - `sdlc --help` lists no `queue`; `datatype list` offers no `queue`.
-  - `grep -rn queue` over the surviving tree returns only sites dispositioned in
-    the re-anchor table.
+  - The identifier sweep returns **nothing**:
+
+    ```
+    grep -rn "sdlc queue\|internal/queue\|NewQueueCmd\|datatype/queue\|helptext/queue" \
+      --include='*.go' --include='*.md' . \
+      | grep -v "^workshop/history/" \
+      | grep -v "^workshop/issues/00021[89]" \
+      | grep -v "^construct/generated/"
+    ```
+
+    A bare `grep -rn queue` is NOT the check — measured at 758 raw hits, ~350
+    after excluding deleted paths, of which ~330 are `workshop/history` archives
+    and the rest are unrelated BFS-variable senses (`bootstrap.sh`,
+    `list-peers.sh`, `projectstatus.go`, `layergraph/walk.go`,
+    `fleetpolicy_test.go`). A clause whose command cannot produce a checkable
+    result is not a verification. The three exclusions are principled, not
+    convenient: history legitimately describes a feature that existed, this
+    issue's own files describe the removal, and `construct/generated/` is
+    gitignored and regenerated.
+
+    **This sweep is necessary, not sufficient.** It catches *identifier*
+    references only. Prose references — `lessons.md` citing deleted tests,
+    ariadne#207 citing "#209's queue" — match none of those tokens, and the
+    re-anchor table is the authority for them.
 - **From a plain shell, outside an sdlc transaction:**
   `go test ./cmd/sdlc/ -count=1` green except the pre-existing ariadne#210
   failure (`fleet_plan_test.go:14`, a hardcoded path to an archived plan).
@@ -185,6 +207,39 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
   to the queue, and this change only deletes tests, so it strictly reduces
   runtime. #218 therefore does not carry a full-suite run as gate evidence — the
   producible list above stands in its place until #219 lands.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec              design=0.8  impl=0.08
+item: cross-cutting-refactor  design=0.1  impl=0.14
+item: atlas-docs              design=0.05 impl=0.06
+item: milestone-review        design=0.0  impl=0.18
+design-buffer: 0.15
+total: 1.55
+```
+
+Σdesign 0.95 × 1.15 + Σimpl 0.46 × 1.0 = 1.55.
+
+`issue-spec` is priced undiscounted and against the window `sdlc actual`
+computes — open at `6060f035`, already reading 1.34h and attributed across #218
+and #219. It covers the Problem section's four-part diagnosis, three
+plan-quality rounds, and authoring ariadne#219 out of the third round's
+diagnosis. The ×0.2 discount does not apply to the primitive whose deliverable
+*is* the spec (the ariadne#215 lesson).
+
+`cross-cutting-refactor` is the deletion plus the six re-anchor sites — the
+right slug because the work is a multi-file sweep rather than a module, and its
+design carries the ×0.2 discount since the enumeration table pre-resolves every
+disposition. `atlas-docs` is the two atlas edits. One `milestone-review` row,
+priced near the primitive ceiling: single-pass with no `Mx`, but ariadne#209
+closed at eight review rounds on adjacent code, and a removal touching the base
+layer is not obviously cheaper to review than an addition.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
