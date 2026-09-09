@@ -21,7 +21,7 @@
 //     a done issue was un-gated until close-time (only the reclose guard fired,
 //     at the very end). start-plan/change-code now refuse up front.
 //
-// Escape hatch: WF_SPINE_GUARD=off (an env, not 7 new per-verb flags) — it
+// Escape hatch: WF_SPINE_GUARD=off (one env, not a per-verb flag each) — it
 // cwarn-ACKs so bypasses are greppable in transcripts. NOTE: the #172 friction
 // instrument derives exclusively from GateCatalog and has no row for this
 // family (that wiring needs an env-gate GateSig variant + a drift-guard

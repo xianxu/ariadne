@@ -425,3 +425,119 @@ findings:
       on one line, so the sentence that continued the paragraph above now reads as part of
       the aside. Split after `caller's.)*`. Introduced by b5be04d.
 ```
+
+---
+
+## Re-review — 2026-09-09T13:22:15-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 218 — Remove the sdlc queue verb and workshop/queue.md |
+| repo | ariadne |
+| issue file | workshop/issues/000218-remove-queue-feature.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 6828a2aa0d3d069347c55daa097d9c027d68af38..11749d5d36061d348750f4fef7363f1440e98d74 |
+| command | sdlc close --issue 218 |
+| reviewer | claude |
+| timestamp | 2026-09-09T13:22:15-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The removal itself is complete and verifiable: `go build ./...` clean, `go test ./cmd/sdlc/internal/... -count=1` green, `sdlc --help` and `datatype list` both free of `queue`, the documented identifier sweep run verbatim returns exactly the one deliberate atlas line, `git grep -i queue -- cmd/sdlc/internal/gitx/` is empty, and the working tree is clean (so the datatype regeneration touched nothing tracked). The Spec's two load-bearing assertions both check out independently: `TrunkFile` has zero production callers at HEAD (matching the corrected atlas prose), and the deleted `subcommandGuardSource` guard-ordering test covered queue subcommands *only* — guard-first placement for the eight real lifecycle verbs is behaviorally pinned by `repoguard_test.go:39` off `processmanual.WorkflowVerbs()`. What blocks SHIP is entirely prose residue from the prior round: three of six prior findings are still live, including one (BR-9) whose fix wrote the governing rule into the very comment block that still violates it four lines down, and one (BR-10) whose adopted derivation has a blind spot that drops a site the hand list had caught. All three are single-line edits.
+
+### 1. Strengths
+
+- **`cmd/sdlc/repoguard.go:9-15`** — the guard comment now points at `grep -rn "guardSpineRepo(" cmd/sdlc/*.go` plus `processmanual.WorkflowVerbs` as the derivation, and states *why* no list appears, naming the c5b2096 drift. That is the correct shape of fix for the family.
+- **`workshop/lessons.md:5-45`** — the "Don't write a description where the referent is available" synthesis is the real root cause, and the table mapping eight apparently-unrelated families onto one defect is the most useful artifact this issue produced. The `"I verified it" is a property of your context` corollary discharges BR-11 exactly.
+- **The `## Done when` sweep clause (`:183-197`)** is now genuinely executable and its stated residue is exact — I ran it verbatim in a plain shell and got one line, the one it names.
+- **`cmd/sdlc/internal/gitx/trunkfile_test.go`** — the `queue.md` → `note.md` / `queue:` → `trunk:` rename is complete and behavior-neutral: the diff removes no test function, touches no assertion, and `ARCH-MOCK`'s real-bare-origin fixture is unchanged. The gitx suite passes in 16.07s.
+- **The "coverage loss: none" claim is checkable and checks out.** At 6828a2a, all four `subcommandGuardSource` call sites were queue subcommands; nothing else in the tree used it.
+
+### 2. Critical findings
+
+None.
+
+### 3. Important findings
+
+**BR-10 — not-addressed.** `workshop/issues/000207-sync-without-worktree.md:178-179` still reads *"ariadne#218 removed the queue verb that was `TrunkFile`'s first consumer, so **this issue is now its only one**"* — one of the five live sites BR-10 measured, and it directly contradicts the atlas line corrected in the same commit (`atlas/workflow/sdlc-binary.md:648`, "no consumer in the tree today"). `git grep TrunkFile -- '*.go' | grep -v _test.go` outside `trunkfile.go` is empty, so #207 is not a consumer.
+
+The substantive part is *why* it survived: the derivation the `## Log` adopted (`git grep -n 'ariadne#207' …`) **structurally cannot reach a site that refers to #207 as "this issue"** — a file naming itself doesn't match its own id. The hand list BR-10 supplied caught it; the derivation that replaced the hand list dropped it. Fix the derivation, not the sentence: the enumeration for a removal is `git grep -n -i 'queue' -- workshop/issues/ ':!*000218*'` (returns exactly 000207:178-179 today) **∪** the `ariadne#207` sweep, and the `## Log` should record that a self-referential artifact is the known blind spot of an id-based grep.
+
+### 4. Minor findings
+
+- **BR-9 — not-addressed.** `cmd/sdlc/repoguard.go:24` still says `(an env, not 7 new per-verb flags)`. `grep -rn "guardSpineRepo(" cmd/sdlc/*.go` gives eight call sites (changecode, claim, close, merge, milestoneclose, projectclose, push, startplan), so the count is wrong — and it sits ten lines below the sentence this commit added: *"A comment cannot hand-restate a derived set — or its cardinality — and stay true."* The rule was written and its own file was not swept: instance, not class (`ARCH-PURPOSE`). Fix: `(an env, not one flag per guarded verb)`. While there, note the cited grep self-matches twice (the comment line at :10 and the func def at :65) — `git grep -n 'guardSpineRepo(cmd' -- 'cmd/sdlc/*.go'` returns only real call sites.
+- **BR-12 — not-addressed.** `workshop/issues/000207-sync-without-worktree.md:181` is byte-identical to when it was raised; the file has not been touched since b5be04d. Split the line after `caller's.)*`.
+- **NEW — `atlas/index.md:13`, 2nd in family `prose-edit-orphans-sentence`.** Deleting the trailing `— and \`queue\`, … #209` item took the em-dash that closed `migrate`'s gloss with it, leaving `…and the read-only \`resolve\`/\`open\` ref resolver #144, \`migrate\` — cross-repo artifact move with ref rewrite #179)` — a list whose last item trails after the conjunction, so `#144, \`migrate\`` can be misread as part of the resolver. Per the escalation rule I am not asking for this instance to be patched in isolation: the rule is *a prose deletion is checked by re-reading the enclosing sentence end-to-end, not the deleted span* — deletions that are locally clean orphan the conjunction, the closing dash, or the following clause. Measured prevalence on ariadne#218: 2 (this and BR-12), both introduced by b5be04d, both invisible in a diff hunk because the hunk only shows what left.
+- **NEW — `ARCH-DRY`, `cmd/sdlc/internal/gitx/trunkfile.go:450-452` and `trunkfile_test.go:719-721.`** The mode-preservation rationale is duplicated verbatim across the two files. It cost four identical edits in this one issue: both copies carried the stale "fine for a queue" phrasing, both were re-anchored in b5be04d, both regressed to the premature "#207 points this at", and both were re-fixed in 11749d5. The test comment should carry only what the test pins and defer the *why* (`// why: see TrunkFile.commitAndPush's mode-preservation comment`).
+
+### 5. Test coverage notes
+
+No behavior changed, so there is nothing new to pin, and the boundary correctly relies on the surviving suite rather than adding a test that asserts an absence. The two claims that a green suite *cannot* show were both stated in the Spec and both independently verified above (zero `TrunkFile` production callers; `subcommandGuardSource` was queue-only). I did **not** run `go test ./cmd/sdlc/` — this review runs inside the `sdlc close` transaction, which holds `.git/sdlc.lock`, and `close_test.go:131` would park on it for `DefaultWaitTimeout`. That is ariadne#219, correctly diagnosed as pre-existing; the producible-anywhere list stands in for it, and since this diff only deletes tests it strictly reduces runtime.
+
+### 6. Architectural notes
+
+`ARCH-PURE` pass — a pure package (`internal/queue`) and its IO shell are removed together, and `gitx` keeps its `runGitIn` injection seam. `ARCH-MOCK` pass — the fixture still drives a real bare origin with the real git binary; the rename touches names only. `ARCH-SECURE` pass — this removes the tree's only hand-editable trunk-resident input along with its fuzz corpus; nothing new parses untrusted data. `ARCH-CONSTRAINTS` pass — runtime strictly decreases, and the one envelope defect in view is filed as #219 rather than absorbed. `ARCH-ORDER` pass — the CAS interleaving coverage survives intact (`RetryReRunsTransformOnMovedBase`, `OneFetchPerAttempt`, `RetryExhaustionSurfacesGitRejection`, `NonRetryablePushFailsFast`), each forcing a specific ordering through the injectable seam. Worth carrying into #207: removing the queue removes the only *intent-replaying* caller, so "mergeability is the caller's property" is now exercised only by append transforms — #207 should restore a caller-side test that a colliding id re-allocates rather than fast-forwards, which is the amendment 000207:181 already calls for. `ARCH-DRY` and `ARCH-PURPOSE` flagged above.
+
+### 7. Plan revision recommendations
+
+- Append to the `## Log` derived-sweep entry: the `ariadne#207` grep's blind spot (a file that names itself "this issue"), the supplementary command `git grep -n -i 'queue' -- workshop/issues/ ':!*000218*'`, and the disposition of `000207-sync-without-worktree.md:178`.
+- Per AGENTS.md §1, mid-stream artifact revisions belong in a `## Revisions` section with timestamp + reason + delta; the last two rounds folded them into `## Log`. Not blocking, but the issue has now accumulated three rounds of revision history with no `## Revisions` heading.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Done-when :159-163 and Plan :304 both re-worded to branch-tense; verified git ls-tree a722b52 still has the file and merge-base(HEAD,origin/main)==a722b52.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      atlas :648-651 now "no consumer in the tree today"; confirmed zero non-test TrunkFile callers outside trunkfile.go.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      repoguard.go:24 still reads "not 7 new per-verb flags" while guardSpineRepo has 8 call sites — the same comment block that now forbids restating a derived set's cardinality.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      000207-sync-without-worktree.md:178 ("this issue is now its only one") is undispositioned; the adopted ariadne#207 grep cannot reach a file that names itself "this issue".
+  - id: BR-11
+    disposition: addressed
+    note: |
+      lessons.md:31-45 states the shell-independence rule, the git grep preference, and the record-the-output requirement.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      000207-sync-without-worktree.md:181 is unchanged since b5be04d; the sentence still starts on the aside's closing line.
+findings:
+  - id: new
+    severity: Minor
+    family: prose-edit-orphans-sentence
+    title: |
+      atlas/index.md:13 — removing the trailing queue item orphaned the conjunction and migrate's closing em-dash
+    detail: |
+      2nd in this family (with BR-12), both from b5be04d. Do not patch this
+      instance alone: the rule is that a prose deletion is verified by re-reading
+      the enclosing sentence end-to-end, not the deleted span, because a diff hunk
+      shows only what left. The list now reads "…and the read-only resolve/open ref
+      resolver #144, `migrate` — … #179)", so `migrate` trails after the
+      conjunction and can be misread as part of the resolver.
+  - id: new
+    severity: Minor
+    family: duplicated-rationale-comment
+    title: |
+      The mode-preservation rationale is duplicated verbatim in trunkfile.go:450-452 and trunkfile_test.go:719-721
+    detail: |
+      ARCH-DRY. One idea, two copies, four identical edits inside this single issue —
+      both carried the stale "fine for a queue" text, both were re-anchored in
+      b5be04d, both regressed to the premature "#207 points this at", and both were
+      re-fixed in 11749d5. The test comment should state what the test pins and
+      defer the why to the production comment it is testing.
+```

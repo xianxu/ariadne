@@ -1,12 +1,13 @@
 ---
 id: 000218
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-09
 updated: 2026-09-09
 estimate_hours: 2.75
 started: 2026-09-09T10:48:12-07:00
+actual_hours: 1.80
 ---
 
 # Remove the sdlc queue verb and workshop/queue.md
@@ -314,6 +315,7 @@ row would be a coincidence of two errors, not accuracy.
 ## Log
 
 ### 2026-09-09
+- 2026-09-09: closed — BR-10 and BR-11 fixed, and both were the same root cause the ledger had been naming for five rounds. BR-10: my fix for BR-7 committed the defect it was fixing — a hand-typed enumeration of premature claims, wrong on arrival (5 live sites against the 3 it named, 2 of them introduced by this windows own re-anchor edits). Derived it instead via git grep ariadne#207 plus a grep for origin/main claims, dispositioned every hit in a ## Revisions entry INCLUDING the two that are NOT premature (trunkfile.go:22 is a capability claim true now, :325 a fact about #207s written spec), so the residue is dispositioned rather than silently skipped. Four real sites fixed: atlas:649 present-tense "its consumer IS #207", trunkfile.go:452 and trunkfile_test.go:721 present-tense "#207 POINTS this at" (both introduced by the re-anchor edit — fixing stale prose is when premature prose gets written), and the ## Plan origin/main tick BR-7 corrected in Done-when and left in the Plan. BR-11: the durable rule now in lessons.md, and tallying both issues made it ONE rule rather than eleven — across ~60 findings in 31 families, ~35 are a description written where the referent was available: a count instead of counting, a comment list instead of the grep that derives it, gits prose instead of gits exit code, a message asserting a cause instead of reporting an observation, a test name instead of a double that can produce the property, a hand-typed table instead of the diff. Recorded with both corollaries: "I verified it" is a property of my context not the artifact (the conclusion travels, the checking does not — hence verbatim, clean shell, at the readers state, and scope exclusions by issue id where the gate generates what the check must tolerate), and re-anchoring stale prose is when premature prose gets written. Removal evidence re-verified at HEAD: go build clean, gitx green, documented sweep run verbatim under bash returns exactly its stated one line.; review verdict: FIX-THEN-SHIP
 
 Withdrawn after a design conversation that started from the operator's second
 thoughts on `workshop/queue.md` and ended somewhere more useful. The reasoning is
@@ -351,3 +353,31 @@ Dispositioned:
   specs") — NOT premature. The first is a capability claim about the seam, true
   now; the second is a fact about #207's written spec, checkable now. Recorded so
   the residue is dispositioned rather than silently skipped.
+
+### 2026-09-09 — the derivation's blind spot, and a rule for prose deletion
+
+Two more rounds, both instructive rather than merely tedious.
+
+**BR-10, round 5: the derived sweep had a blind spot for self-reference.** The
+command `git grep -n 'ariadne#207' … ':!*000218*'` cannot reach
+`workshop/issues/000207-...md:178`, because that file refers to itself as *"this
+issue"* and never spells its own number. Deriving beat hand-typing — it found
+four sites the hand list missed — but a derivation is only as complete as the
+token it keys on, and self-reference is invisible to a search for the name.
+Recorded because "derive it" is the rule this session landed on, and this is its
+first known failure mode: **when a derivation keys on an identifier, the artifact
+that owns that identifier is the one place it will not match.**
+
+**BR-12/BR-13: a prose deletion is verified by re-reading the enclosing sentence,
+not the deleted span.** A diff hunk shows only what left, so both defects were
+invisible in review of the change itself: the `#207` parenthetical had swallowed
+the sentence that followed it, and removing the trailing item from
+`atlas/index.md:13` orphaned the conjunction and left `migrate` dangling after
+the list's final comma. Both are the root-cause shape again — I verified the edit
+I made rather than the result it produced.
+
+**BR-9: a hand-restated count in a line I never touched.** `repoguard.go:23`
+said "not 7 new per-verb flags" while the guard covers eight verbs. It was wrong
+before #218 and stayed wrong through two rounds of fixing its immediate
+neighbours, because I was reading the diff rather than the file. Now phrased
+without a count at all.

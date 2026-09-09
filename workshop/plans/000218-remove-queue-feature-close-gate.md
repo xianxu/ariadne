@@ -223,6 +223,59 @@ rounds:
           family: prose-edit-orphans-sentence
           round: 4
       blocked: true
+    - "n": 5
+      timestamp: "2026-09-09T13:22:15-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Done-when :159-163 and Plan :304 both re-worded to branch-tense; verified git ls-tree a722b52 still has the file and merge-base(HEAD,origin/main)==a722b52.
+          round: 5
+        - id: BR-8
+          disposition: addressed
+          note: atlas :648-651 now "no consumer in the tree today"; confirmed zero non-test TrunkFile callers outside trunkfile.go.
+          round: 5
+        - id: BR-9
+          disposition: not-addressed
+          note: repoguard.go:24 still reads "not 7 new per-verb flags" while guardSpineRepo has 8 call sites — the same comment block that now forbids restating a derived set's cardinality.
+          round: 5
+        - id: BR-10
+          disposition: not-addressed
+          note: 000207-sync-without-worktree.md:178 ("this issue is now its only one") is undispositioned; the adopted ariadne#207 grep cannot reach a file that names itself "this issue".
+          round: 5
+        - id: BR-11
+          disposition: addressed
+          note: lessons.md:31-45 states the shell-independence rule, the git grep preference, and the record-the-output requirement.
+          round: 5
+        - id: BR-12
+          disposition: not-addressed
+          note: 000207-sync-without-worktree.md:181 is unchanged since b5be04d; the sentence still starts on the aside's closing line.
+          round: 5
+      findings:
+        - id: BR-13
+          severity: Minor
+          title: atlas/index.md:13 — removing the trailing queue item orphaned the conjunction and migrate's closing em-dash
+          detail: |-
+            2nd in this family (with BR-12), both from b5be04d. Do not patch this
+            instance alone: the rule is that a prose deletion is verified by re-reading
+            the enclosing sentence end-to-end, not the deleted span, because a diff hunk
+            shows only what left. The list now reads "…and the read-only resolve/open ref
+            resolver #144, `migrate` — … #179)", so `migrate` trails after the
+            conjunction and can be misread as part of the resolver.
+          family: prose-edit-orphans-sentence
+          round: 5
+        - id: BR-14
+          severity: Minor
+          title: The mode-preservation rationale is duplicated verbatim in trunkfile.go:450-452 and trunkfile_test.go:719-721
+          detail: |-
+            ARCH-DRY. One idea, two copies, four identical edits inside this single issue —
+            both carried the stale "fine for a queue" text, both were re-anchored in
+            b5be04d, both regressed to the premature "#207 points this at", and both were
+            re-fixed in 11749d5. The test comment should state what the test pins and
+            defer the why to the production comment it is testing.
+          family: duplicated-rationale-comment
+          round: 5
+      blocked: false
 ---
 
 # Gate ledger — ariadne#218 (boundary-review)
@@ -359,11 +412,37 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   on one line, so the sentence that continued the paragraph above now reads as part of
   the aside. Split after `caller's.)*`. Introduced by b5be04d.
 
+## Round 5 — 2026-09-09T13:22:15-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — Done-when :159-163 and Plan :304 both re-worded to branch-tense; verified git ls-tree a722b52 still has the file and merge-base(HEAD,origin/main)==a722b52.
+- BR-8 — addressed — atlas :648-651 now "no consumer in the tree today"; confirmed zero non-test TrunkFile callers outside trunkfile.go.
+- BR-9 — not-addressed — repoguard.go:24 still reads "not 7 new per-verb flags" while guardSpineRepo has 8 call sites — the same comment block that now forbids restating a derived set's cardinality.
+- BR-10 — not-addressed — 000207-sync-without-worktree.md:178 ("this issue is now its only one") is undispositioned; the adopted ariadne#207 grep cannot reach a file that names itself "this issue".
+- BR-11 — addressed — lessons.md:31-45 states the shell-independence rule, the git grep preference, and the record-the-output requirement.
+- BR-12 — not-addressed — 000207-sync-without-worktree.md:181 is unchanged since b5be04d; the sentence still starts on the aside's closing line.
+
+### Raised
+
+- **BR-13** [Minor] `prose-edit-orphans-sentence` atlas/index.md:13 — removing the trailing queue item orphaned the conjunction and migrate's closing em-dash
+  2nd in this family (with BR-12), both from b5be04d. Do not patch this
+  instance alone: the rule is that a prose deletion is verified by re-reading
+  the enclosing sentence end-to-end, not the deleted span, because a diff hunk
+  shows only what left. The list now reads "…and the read-only resolve/open ref
+  resolver #144, `migrate` — … #179)", so `migrate` trails after the
+  conjunction and can be misread as part of the resolver.
+- **BR-14** [Minor] `duplicated-rationale-comment` The mode-preservation rationale is duplicated verbatim in trunkfile.go:450-452 and trunkfile_test.go:719-721
+  ARCH-DRY. One idea, two copies, four identical edits inside this single issue —
+  both carried the stale "fine for a queue" text, both were re-anchored in
+  b5be04d, both regressed to the premature "#207 points this at", and both were
+  re-fixed in 11749d5. The test comment should state what the test pins and
+  defer the why to the production comment it is testing.
+
 ## Open findings
 
-- **BR-7** [Minor] `boundary-claim-premature` "workshop/queue.md is gone from origin/main" is ticked but only true post-merge
-- **BR-8** [Minor] `boundary-claim-premature` atlas says "Its consumer is ariadne#207" while TrunkFile has zero production callers at HEAD
 - **BR-9** [Minor] `prose-enumeration-drift` repoguard.go:23 still says "not 7 new per-verb flags" while :9-11 now lists 8 guarded verbs
 - **BR-10** [Important] `boundary-claim-premature` The premature-claim enumeration is hand-typed; 5 live sites measured against the 3 it names, 2 of them introduced by this window
-- **BR-11** [Important] `verification-not-executable` No lessons.md rule for the shell-dependent verification that cost three of four rounds
 - **BR-12** [Minor] `prose-edit-orphans-sentence` The ariadne#207 amendment captured the following sentence into its parenthetical
+- **BR-13** [Minor] `prose-edit-orphans-sentence` atlas/index.md:13 — removing the trailing queue item orphaned the conjunction and migrate's closing em-dash
+- **BR-14** [Minor] `duplicated-rationale-comment` The mode-preservation rationale is duplicated verbatim in trunkfile.go:450-452 and trunkfile_test.go:719-721
