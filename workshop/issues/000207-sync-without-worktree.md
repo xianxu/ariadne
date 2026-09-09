@@ -143,6 +143,46 @@ cleanup-on-failure, and races `git worktree prune` — while still leaving the
 clean-main and conflict machinery in place. It solves the missing-worktree case
 and none of the others.
 
+### 2026-09-06 — field evidence from pair (was pair#195)
+
+`pair#195` was filed against this same failure in the consumer repo before it
+was noticed that `sdlc` owns it (`cmd/sdlc/claim.go:601`). It is now closed as a
+duplicate of this issue; its evidence is grafted here because it is the
+strongest case either issue carries — this is no longer a hypothetical race.
+
+**Three ID collisions have actually occurred**, each costing a renumber plus
+reference-chasing:
+
+| ids | collided files | resolved |
+| --- | --- | --- |
+| `000172` | `clickable-status-bar` vs `parallelize-zellij-session-snapshot` | latter → `pair#191` |
+| `000173` | `wire-actor-description` vs `disposition-six-production-symbols` | latter → `pair#192` |
+| `000179` | `layout2-terminal-toggle` (open) vs `reattach-a-detached-thread` (**done, archived**) | former → `pair#194` |
+
+The third is the worst shape and worth designing against specifically: one side
+was already closed and archived, so `#179` named both a live issue and a shipped
+one, and `sdlc claim --issue 179` refused outright with "multiple issue files
+match" — the collision **blocked the issue from being worked at all**, and the
+archive meant the duplicate was invisible to anyone reading `workshop/issues/`.
+
+**Why this repo hits it structurally, not incidentally.** `sdlc change-code`
+branches **in place** by default rather than creating a worktree, so a repo
+being actively worked has no worktree on `main` — the reservation mechanism is
+unavailable exactly when the workflow's own default mode is in use.
+`git worktree list` in `pair` on 2026-09-06 confirms: the only checkout is on
+`000172-clickable-status-bar`.
+
+**Current exposure, measured 2026-09-06.** Every issue filed in `pair` across
+these sessions printed the warning and is unreserved right now: **`pair#185`
+through `pair#204`**, which includes nine filed in a single session that day
+(`#196`–`#204`). Any concurrent session allocating "the next free ID" collides
+with one of them and does not find out until someone runs `sdlc claim`.
+
+Note the asymmetry that makes this easy to miss: `ariadne`'s own issues
+(`#215`, `#216`, filed the same day) published to `origin/main` without
+complaint, because this checkout *is* on `main`. The failure is invisible from
+the repo that owns the code.
+
 ### 2026-09-07 — the primitive now exists (ariadne#209)
 
 `gitx.TrunkFile` (`cmd/sdlc/internal/gitx/trunkfile.go`, shipped in #209 M1) is
@@ -185,3 +225,31 @@ So the Done-when clause *"a test drives two publishers against one bare origin
 and asserts **both issue files land**"* needs amending: for two publishers
 colliding on one id, both landing IS the bug. Assert that distinct ids
 land, and that a collision re-allocates (the one #188 bullet #213 did not take).
+
+### 2026-09-09 — a duplicate #207 file, consolidated (and it proves the issue)
+
+The evidence above arrived as a SECOND FILE at this id —
+`000207-publish-issue-files-without-a-main-worktree.md`, written by another
+session (`a4a52c0`, 2026-09-06) that meant to append to this `## Log` and instead
+created a headerless fragment with no frontmatter. `sdlc claim --issue 207`
+refused today with "multiple issue files match", which is the exact failure mode
+the grafted evidence calls the worst shape: **the collision blocked the issue
+from being worked at all.**
+
+So this issue's own file collided, on the id of the issue that exists to stop
+collisions. Consolidated here; the orphan is deleted.
+
+Two things worth carrying into the fix:
+
+- **The #213 CI gate saw it and did not block.** `40-duplicate-issue-id.sh`
+  reports pre-existing within-ref duplicates and exits 0 by design — blocking
+  every merge until the backlog is renumbered would be worse than the bug. It
+  currently reports three: `#000040` (two archived), `#000096` (one live, one
+  archived — the worst shape), and this one. Working as specified; the residue is
+  that a report nobody reads is indistinguishable from silence, and I merged #218
+  straight past it by reading the summary line instead of the output.
+- **The two mechanisms key differently.** `sdlc claim` matched on FILENAME
+  (`000207-*`), which is why it caught this despite the fragment having no
+  frontmatter at all. A check keyed on frontmatter `id:` would have missed a file
+  that has none. Whatever #207 builds should reserve on the filename, since that
+  is what the tooling collides on.
