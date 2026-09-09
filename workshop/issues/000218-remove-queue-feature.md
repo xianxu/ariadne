@@ -161,18 +161,30 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
 - `gitx.FirstLine` still exists and `issueids.go` still consumes it.
 - The `lessons.md` entry on test doubles survives — it is a general lesson, not
   queue-specific.
-- `go test ./cmd/sdlc/... -timeout 1800s` green except the pre-existing
-  ariadne#210 failure (`fleet_plan_test.go:14`, a hardcoded path to an archived
-  plan).
+- **Producible anywhere** (these are the close-gate evidence):
+  - `go build ./...` clean.
+  - `go test ./cmd/sdlc/internal/... -count=1` green — every package this change
+    can affect, and none of them take the repo lock.
+  - `sdlc --help` lists no `queue`; `datatype list` offers no `queue`.
+  - `grep -rn queue` over the surviving tree returns only sites dispositioned in
+    the re-anchor table.
+- **From a plain shell, outside an sdlc transaction:**
+  `go test ./cmd/sdlc/ -count=1` green except the pre-existing ariadne#210
+  failure (`fleet_plan_test.go:14`, a hardcoded path to an archived plan).
 
-  **The explicit timeout is required.** Measured here at 115s and 136s across two
-  clean runs, but the plan-quality reviewer reproduced a 602s overrun of `go
-  test`'s 600s default, with a goroutine parked in syscall for nine minutes —
-  i.e. a hung child process, not slowness. I could not reproduce that and will
-  not guess at it; it is pre-existing and untouched by this change, which only
-  DELETES tests and therefore strictly reduces runtime. Naming the timeout makes
-  the check produce a result in either environment instead of dying before it
-  reports. If the hang recurs it wants its own issue.
+  The qualifier is not a hedge, it is the diagnosis. The plan-quality reviewer
+  saw this command blow `go test`'s 600s default with a goroutine parked in
+  syscall for nine minutes, while it passes here in 115-136s. The cause is
+  neither slowness nor a hung child: `close_test.go:131` executes a real
+  `NewCloseCmd()`, which takes the production `.git/sdlc.lock`, so a suite run
+  launched from INSIDE a transaction — which is exactly where the gates run it —
+  waits `DefaultWaitTimeout`, 30 minutes. `-timeout 1800s` cannot rescue it,
+  being the same 30 minutes.
+
+  That is **ariadne#219**, filed from this review. It is pre-existing, unrelated
+  to the queue, and this change only deletes tests, so it strictly reduces
+  runtime. #218 therefore does not carry a full-suite run as gate evidence — the
+  producible list above stands in its place until #219 lands.
 
 ## Plan
 
@@ -186,10 +198,10 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
 - [ ] Remove `workshop/queue.md` from origin/main.
 - [ ] Sweep the re-anchor enumeration in the Spec — all six sites, including
       `lessons.md` and the open ariadne#207 — not just the atlas one.
-- [ ] Verify: `go test ./cmd/sdlc/... -timeout 1800s` green except the
-      pre-existing ariadne#210 failure; `sdlc queue` gone from `sdlc --help`;
-      `datatype list` has no `queue`; `grep -rn queue` over the surviving tree
-      returns only dispositioned sites.
+- [ ] Verify the producible-anywhere list (build, `./cmd/sdlc/internal/...`,
+      `sdlc --help`, `datatype list`, the grep sweep), plus a plain-shell
+      `go test ./cmd/sdlc/` outside any transaction. Cause of the
+      inside-transaction failure is ariadne#219, not this change.
 
 ## Log
 
