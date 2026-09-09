@@ -166,7 +166,10 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
   - `go test ./cmd/sdlc/internal/... -count=1` green — every package this change
     can affect, and none of them take the repo lock.
   - `sdlc --help` lists no `queue`; `datatype list` offers no `queue`.
-  - The identifier sweep returns **nothing**:
+  - The identifier sweep returns **exactly one line** — the deliberate
+    historical note in the TrunkFile atlas section
+    (`atlas/workflow/sdlc-binary.md`, "It was built for `sdlc queue`, removed in
+    #218"), which explains why the primitive outlived its first consumer:
 
     ```
     grep -rn "sdlc queue\|internal/queue\|NewQueueCmd\|datatype/queue\|helptext/queue" \
@@ -185,6 +188,11 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
     convenient: history legitimately describes a feature that existed, this
     issue's own files describe the removal, and `construct/generated/` is
     gitignored and regenerated.
+
+    Stating the expected residue rather than "nothing" is the same rule the
+    round-3 advisory named: a clause whose command has known-benign hits must
+    carry the filter *or* the residue. Rephrasing the atlas prose to make the
+    sweep empty would have been contorting the artifact to fit the test.
 
     **This sweep is necessary, not sufficient.** It catches *identifier*
     references only. Prose references — `lessons.md` citing deleted tests,
@@ -265,15 +273,15 @@ row would be a coincidence of two errors, not accuracy.
 
 - [x] Resolve the `gitx.TrunkFile` open decision with the operator — it stays;
       ariadne#207 consumes it next (see above).
-- [ ] Delete the verb, the pure package, the helptext, the datatype prototype.
-- [ ] Edit the four reference sites (`main.go`, `repoguard.go`, and the two atlas
+- [x] Delete the verb, the pure package, the helptext, the datatype prototype.
+- [x] Edit the four reference sites (`main.go`, `repoguard.go`, and the two atlas
       files); confirm `sdlc --help` no longer lists `queue`.
-- [ ] Regenerate the datatype SKILL; confirm `queue` is gone from `datatype list`
+- [x] Regenerate the datatype SKILL; confirm `queue` is gone from `datatype list`
       with no hand-edit to `cmd/datatype/` or `construct/local/datatype/`.
-- [ ] Remove `workshop/queue.md` from origin/main.
-- [ ] Sweep the re-anchor enumeration in the Spec — all six sites, including
+- [x] Remove `workshop/queue.md` from origin/main.
+- [x] Sweep the re-anchor enumeration in the Spec — all six sites, including
       `lessons.md` and the open ariadne#207 — not just the atlas one.
-- [ ] Verify the producible-anywhere list (build, `./cmd/sdlc/internal/...`,
+- [x] Verify the producible-anywhere list (build, `./cmd/sdlc/internal/...`,
       `sdlc --help`, `datatype list`, the grep sweep), plus a plain-shell
       `go test ./cmd/sdlc/` outside any transaction. Cause of the
       inside-transaction failure is ariadne#219, not this change.

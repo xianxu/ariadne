@@ -33,6 +33,10 @@ invocations (a replay test that does not require ≥2 is not a replay test), and
 mutate the production ordering to confirm the test fails. The second is what
 finally distinguished the real fixes from the cosmetic ones here.
 
+*(The cited `fakeTrunk` and `TestQueueEdit_*` were deleted with the queue verb in
+#218. The pattern is what generalizes, not the code — and a lesson whose example
+has been removed is exactly why the citation names the shape, not just the file.)*
+
 **Corollary — a fix must be reachable and pinned.** The same issue shipped
 `KindUnspecified` at the type layer while the CLI still hardcoded `KindIssue`, so
 the repair had zero production call sites; and corrected a ref-qualification bug

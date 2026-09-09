@@ -12,7 +12,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
-// trunkFixture builds a repo with a local bare origin, seeds `queue.md` on main,
+// trunkFixture builds a repo with a local bare origin, seeds `note.md` on main,
 // and pushes. Returns (repo, origin).
 //
 // ARCH-MOCK: git is the external binary and a real throwaway repo with a real
@@ -25,10 +25,10 @@ func trunkFixture(t *testing.T, seed string) (string, string) {
 	origin := filepath.Join(t.TempDir(), "origin.git")
 	testfix.Git(t, "", "init", "--bare", "-q", "-b", "main", origin)
 	testfix.Git(t, repo, "remote", "add", "origin", origin)
-	if err := os.WriteFile(filepath.Join(repo, "queue.md"), []byte(seed), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "note.md"), []byte(seed), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	testfix.Git(t, repo, "add", "queue.md")
+	testfix.Git(t, repo, "add", "note.md")
 	testfix.Git(t, repo, "commit", "-q", "-m", "seed")
 	testfix.Git(t, repo, "push", "-q", "-u", "origin", "main")
 	return repo, origin
@@ -62,7 +62,7 @@ func TestNewTrunkFile_RefusesEmptyDir(t *testing.T) {
 func TestTrunkFile_ReadsFromTrunkNotWorktree(t *testing.T) {
 	repo, _ := trunkFixture(t, "from main\n")
 	testfix.Git(t, repo, "checkout", "-q", "-b", "feature")
-	if err := os.WriteFile(filepath.Join(repo, "queue.md"), []byte("from branch\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "note.md"), []byte("from branch\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -70,7 +70,7 @@ func TestTrunkFile_ReadsFromTrunkNotWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := tf.Read("queue.md")
+	got, err := tf.Read("note.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestTrunkFile_ReadsFromTrunkNotWorktree(t *testing.T) {
 }
 
 // A path absent from the trunk is not an error — it is an empty file. Without
-// this the first-ever write to a new queue would have to special-case a git
+// this the first-ever write to a new file would have to special-case a git
 // error string, which is the kind of thing that breaks on a git upgrade.
 func TestTrunkFile_ReadMissingPathIsEmptyNotError(t *testing.T) {
 	repo, _ := trunkFixture(t, "x\n")
@@ -146,14 +146,14 @@ func TestTrunkFile_UpdateWithNoMainWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = tf.Update("queue.md", "queue: add b", func(old []byte) ([]byte, error) {
+	err = tf.Update("note.md", "trunk: add b", func(old []byte) ([]byte, error) {
 		return append(append([]byte{}, old...), []byte("- b\n")...), nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if got := showTrunk(t, origin, "queue.md"); got != "- a\n- b\n" {
+	if got := showTrunk(t, origin, "note.md"); got != "- a\n- b\n" {
 		t.Errorf("trunk = %q, want %q", got, "- a\n- b\n")
 	}
 	if dirty := testfix.Capture(t, repo, "status", "--porcelain"); dirty != "" {
@@ -179,7 +179,7 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 	}
 
 	calls := 0
-	err = tf.Update("queue.md", "queue: add mine", func(old []byte) ([]byte, error) {
+	err = tf.Update("note.md", "trunk: add mine", func(old []byte) ([]byte, error) {
 		calls++
 		if calls == 1 {
 			pushPeerLine(t, origin, "- a\n- peer\n") // peer wins the race
@@ -190,7 +190,7 @@ func TestTrunkFile_RetryReRunsTransformOnMovedBase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := showTrunk(t, origin, "queue.md")
+	got := showTrunk(t, origin, "note.md")
 	for _, want := range []string{"- peer\n", "- mine\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("trunk missing %q:\n%s", want, got)
@@ -212,7 +212,7 @@ func TestTrunkFile_RetryExhaustionSurfacesGitRejection(t *testing.T) {
 	}
 
 	calls := 0
-	err = tf.Update("queue.md", "queue: doomed", func(old []byte) ([]byte, error) {
+	err = tf.Update("note.md", "trunk: doomed", func(old []byte) ([]byte, error) {
 		calls++
 		pushPeerLine(t, origin, fmt.Sprintf("- a\n- peer%d\n", calls)) // peer always wins
 		return append(append([]byte{}, old...), []byte("- mine\n")...), nil
@@ -236,10 +236,10 @@ func TestTrunkFile_TransformErrorLeavesTrunkUntouched(t *testing.T) {
 		t.Fatal(err)
 	}
 	boom := errors.New("boom")
-	if err := tf.Update("queue.md", "m", func([]byte) ([]byte, error) { return nil, boom }); !errors.Is(err, boom) {
+	if err := tf.Update("note.md", "m", func([]byte) ([]byte, error) { return nil, boom }); !errors.Is(err, boom) {
 		t.Fatalf("want the transform's error, got %v", err)
 	}
-	if got := showTrunk(t, origin, "queue.md"); got != "- a\n" {
+	if got := showTrunk(t, origin, "note.md"); got != "- a\n" {
 		t.Errorf("trunk changed on a failed transform: %q", got)
 	}
 }
@@ -273,7 +273,7 @@ func TestTrunkFile_TempIndexIsAbsoluteAndRemovedOnGitFailure(t *testing.T) {
 	}
 	defer func() { runGitIn = orig }()
 
-	if err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+	if err := tf.Update("note.md", "m", func(o []byte) ([]byte, error) {
 		return append(o, []byte("- b\n")...), nil
 	}); err == nil {
 		t.Fatal("expected the injected git failure to surface")
@@ -298,7 +298,7 @@ func TestTrunkFile_UpdateCreatesAbsentPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = tf.Update("workshop/queue.md", "queue: create", func(old []byte) ([]byte, error) {
+	err = tf.Update("workshop/note.md", "trunk: create", func(old []byte) ([]byte, error) {
 		if len(old) != 0 {
 			t.Errorf("absent path must read as empty, got %q", old)
 		}
@@ -307,12 +307,12 @@ func TestTrunkFile_UpdateCreatesAbsentPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := showTrunk(t, origin, "workshop/queue.md"); got != "- first\n" {
+	if got := showTrunk(t, origin, "workshop/note.md"); got != "- first\n" {
 		t.Errorf("created file = %q, want %q", got, "- first\n")
 	}
 	// The pre-existing file must survive: read-tree seeds the index from the
 	// base tree, so a create must not blow away siblings.
-	if got := showTrunk(t, origin, "queue.md"); got != "seed\n" {
+	if got := showTrunk(t, origin, "note.md"); got != "seed\n" {
 		t.Errorf("sibling file lost on create: %q", got)
 	}
 }
@@ -335,7 +335,7 @@ func TestTrunkFile_NonRetryablePushFailsFast(t *testing.T) {
 	}
 	defer func() { runGitIn = orig }()
 
-	err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+	err := tf.Update("note.md", "m", func(o []byte) ([]byte, error) {
 		calls++
 		return append(o, 'z', '\n'), nil
 	})
@@ -357,10 +357,10 @@ func pushPeerLine(t *testing.T, origin, content string) {
 	testfix.Git(t, peer, "remote", "add", "origin", origin)
 	testfix.Git(t, peer, "fetch", "-q", "origin", "main")
 	testfix.Git(t, peer, "checkout", "-q", "-B", "main", "origin/main")
-	if err := os.WriteFile(filepath.Join(peer, "queue.md"), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(peer, "note.md"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	testfix.Git(t, peer, "add", "queue.md")
+	testfix.Git(t, peer, "add", "note.md")
 	testfix.Git(t, peer, "commit", "-q", "-m", "peer")
 	testfix.Git(t, peer, "push", "-q", "origin", "main")
 }
@@ -383,12 +383,12 @@ func TestTrunkFile_RoundTripsUnderGitattributes(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "- a\n- b\n"
-	if err := tf.Update("queue.md", "m", func([]byte) ([]byte, error) {
+	if err := tf.Update("note.md", "m", func([]byte) ([]byte, error) {
 		return []byte("- a\r\n- b\r\n"), nil // CRLF in, LF expected out
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if got := showTrunk(t, origin, "queue.md"); got != want {
+	if got := showTrunk(t, origin, "note.md"); got != want {
 		t.Errorf("round-trip = %q, want %q (gitattributes not applied)", got, want)
 	}
 }
@@ -406,18 +406,18 @@ func TestTrunkFile_OfflineDegradesReadRefusesWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, warn, err := tf.ReadDegraded("queue.md")
+	got, warn, err := tf.ReadDegraded("note.md")
 	if err != nil {
 		t.Fatalf("offline read must degrade, not fail: %v", err)
 	}
 	if string(got) != "- stale\n" {
 		t.Errorf("degraded read = %q, want the stale ref's content", got)
 	}
-	if warn == "" || !strings.Contains(warn, "queue.md") {
+	if warn == "" || !strings.Contains(warn, "note.md") {
 		t.Errorf("degraded read must warn loudly and name the risk, got %q", warn)
 	}
 
-	err = tf.Update("queue.md", "m", func(o []byte) ([]byte, error) { return o, nil })
+	err = tf.Update("note.md", "m", func(o []byte) ([]byte, error) { return o, nil })
 	if err == nil {
 		t.Fatal("offline write must refuse — a CAS push has nothing to compare against")
 	}
@@ -524,7 +524,7 @@ func TestTrunkFile_SigningFollowsGitBoolSemantics(t *testing.T) {
 			defer func() { runGitIn = orig }()
 
 			tf, _ := NewTrunkFile(repo, "origin", "main")
-			if err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+			if err := tf.Update("note.md", "m", func(o []byte) ([]byte, error) {
 				return append(o, 'y', '\n'), nil
 			}); err != nil {
 				t.Fatal(err)
@@ -557,7 +557,7 @@ func TestTrunkFile_UnreadablePathRefusesRatherThanTruncating(t *testing.T) {
 
 	tf, _ := NewTrunkFile(repo, "origin", "main")
 	called := false
-	err := tf.Update("queue.md", "queue: add d", func(old []byte) ([]byte, error) {
+	err := tf.Update("note.md", "trunk: add d", func(old []byte) ([]byte, error) {
 		called = true
 		return append(append([]byte{}, old...), []byte("- d\n")...), nil
 	})
@@ -568,7 +568,7 @@ func TestTrunkFile_UnreadablePathRefusesRatherThanTruncating(t *testing.T) {
 	if called {
 		t.Error("the transform must not run on content we could not read — that is how the truncation got published")
 	}
-	if got := showTrunk(t, origin, "queue.md"); got != "- a\n- b\n- c\n" {
+	if got := showTrunk(t, origin, "note.md"); got != "- a\n- b\n- c\n" {
 		t.Errorf("trunk was modified despite an unreadable base: %q", got)
 	}
 }
@@ -590,7 +590,7 @@ func TestTrunkFile_OneFetchPerAttempt(t *testing.T) {
 
 	tf, _ := NewTrunkFile(repo, "origin", "main")
 	calls := 0
-	if err := tf.Update("queue.md", "m", func(old []byte) ([]byte, error) {
+	if err := tf.Update("note.md", "m", func(old []byte) ([]byte, error) {
 		calls++
 		if calls == 1 {
 			pushPeerLine(t, origin, "- a\n- peer\n")
@@ -621,7 +621,7 @@ func TestTrunkFile_FreshRepoReadsEmptyNotError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, warn, err := tf.ReadDegraded("workshop/queue.md")
+	got, warn, err := tf.ReadDegraded("workshop/note.md")
 	if err != nil {
 		t.Fatalf("a repo with no commits must read empty, not error: %v", err)
 	}
@@ -650,7 +650,7 @@ func TestTrunkFile_UndeterminableSigningPolicyRefuses(t *testing.T) {
 
 	tf, _ := NewTrunkFile(repo, "origin", "main")
 	called := false
-	err := tf.Update("queue.md", "m", func(o []byte) ([]byte, error) {
+	err := tf.Update("note.md", "m", func(o []byte) ([]byte, error) {
 		called = true
 		return append(o, 'z', '\n'), nil
 	})
@@ -660,7 +660,7 @@ func TestTrunkFile_UndeterminableSigningPolicyRefuses(t *testing.T) {
 	if called {
 		t.Error("must refuse before running the transform")
 	}
-	if got := showTrunk(t, origin, "queue.md"); got != "- a\n" {
+	if got := showTrunk(t, origin, "note.md"); got != "- a\n" {
 		t.Errorf("trunk modified: %q", got)
 	}
 }
@@ -711,15 +711,15 @@ func TestTrunkFile_RefPresentPropagatesNonAbsentFailure(t *testing.T) {
 
 	// And it must reach the caller: ReadDegraded cannot silently answer "empty"
 	// on a repo whose ref state it could not determine.
-	if _, _, err := tf.ReadDegraded("queue.md"); err == nil {
+	if _, _, err := tf.ReadDegraded("note.md"); err == nil {
 		t.Error("ReadDegraded must surface an undeterminable ref state")
 	}
 }
 
 // An executable file on the trunk must stay executable through an Update.
-// Rebuilding the index entry as a hardcoded 100644 silently drops the bit — fine
-// for a queue, wrong for a general primitive that ariadne#207 will point at
-// arbitrary paths.
+// Rebuilding the index entry as a hardcoded 100644 silently drops the bit, which
+// a general primitive cannot do — ariadne#207 points this at arbitrary repo
+// paths.
 func TestTrunkFile_PreservesFileMode(t *testing.T) {
 	repo, origin := trunkFixture(t, "seed\n")
 	script := filepath.Join(repo, "run.sh")
@@ -766,7 +766,7 @@ func TestTrunkFile_ReadFromRefusesUndeterminableRef(t *testing.T) {
 	defer func() { runGitIn = orig }()
 
 	tf, _ := NewTrunkFile(repo, "origin", "main")
-	if _, err := tf.readFrom(tf.trackingRef(), "queue.md"); err == nil {
+	if _, err := tf.readFrom(tf.trackingRef(), "note.md"); err == nil {
 		t.Error("the trunk read must propagate an undeterminable ref, same as the local read")
 	}
 }
@@ -820,7 +820,7 @@ func TestTrunkFile_UnchangedContentPushesNothing(t *testing.T) {
 	before := strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main"))
 
 	tf, _ := NewTrunkFile(repo, "origin", "main")
-	if err := tf.Update("queue.md", "queue: add a#1", func(old []byte) ([]byte, error) {
+	if err := tf.Update("note.md", "trunk: add a#1", func(old []byte) ([]byte, error) {
 		return old, nil // converged: nothing to do
 	}); err != nil {
 		t.Fatal(err)

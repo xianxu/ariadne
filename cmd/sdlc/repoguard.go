@@ -6,18 +6,12 @@
 //     constitution's own canonical test) is a capture repo: its own merged
 //     AGENTS.md used to invite sdlc, so the binary owns the gate (#69 pattern —
 //     the charter must not live only in one agent's memory). A repo without
-//     workshop/issues isn't an SDLC repo at all. Wired into the lifecycle verbs
-//     (claim, start-plan, change-code, milestone-close, close, merge, push —
-//     processmanual.WorkflowVerbs; the drift test enumerates it), PLUS the
-//     trunk-WRITING subcommands of `queue` (#209: add/remove/move). Those are not
-//     lifecycle stages, so they are deliberately absent from WorkflowVerbs — the
-//     same shape as `migrate`'s documented absence — but they commit and push to
-//     the trunk, and a queue of issue refs is meaningless where there are no
-//     issues, while the brain charter excludes SDLC process artifacts outright.
-//     `queue`'s bare LIST is unguarded, with the reads below.
-//     Reads (estimate-source, actual, state, process-manual, issue, queue's
-//     list …) stay unguarded by construction — sdlc legitimately READS brain
-//     (calibration docs, ledger).
+//     workshop/issues isn't an SDLC repo at all. Wired into exactly the
+//     lifecycle verbs (claim, start-plan, change-code, milestone-close, close,
+//     merge, push — processmanual.WorkflowVerbs; the drift test enumerates it).
+//     Reads (estimate-source, actual, state, process-manual, issue …) stay
+//     unguarded by construction — sdlc legitimately READS brain (calibration
+//     docs, ledger).
 //
 //  2. guardIssueNotDone — issue state. `done` is terminal (issue.cue); working
 //     a done issue was un-gated until close-time (only the reclose guard fired,
