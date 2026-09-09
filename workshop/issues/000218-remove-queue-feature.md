@@ -183,7 +183,7 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
     ```
     git grep -n -E 'sdlc queue|internal/queue|NewQueueCmd|datatype/queue|helptext/queue' \
       -- '*.go' '*.md' \
-      ':!workshop/history' ':!workshop/issues/000218*' ':!workshop/issues/000219*'
+      ':!workshop/history' ':!*000218*' ':!*000219*'
     ```
 
     **`git grep`, not `grep -rn`, and that is the point.** The first draft of
@@ -195,6 +195,13 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
     verification — the close reviewer ran it as written and got 99. `git grep`
     is deterministic: repo-relative paths everywhere, and gitignore-aware, so
     `construct/generated/` needs no exclusion at all.
+
+    **The exclusions are by issue ID, not by directory, and that matters.** An
+    earlier draft excluded `workshop/issues/000218*` and missed
+    `workshop/plans/000218-*-close-review.md` — which the close *generates*, so it
+    cannot exist when the command is tested beforehand. A check whose own gate
+    produces the artifacts it must tolerate can only be validated after the fact;
+    scoping by id rather than by path makes it stable across that.
 
     A bare `grep -rn queue` is NOT the check — measured at 758 raw hits, ~350
     after excluding deleted paths, of which ~330 are `workshop/history` archives

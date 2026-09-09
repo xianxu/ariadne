@@ -95,6 +95,66 @@ rounds:
           family: boundary-claim-premature
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-09T13:04:13-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Clause now uses git grep with principled exclusions and states the expected residue plus the raw-grep numbers.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Table demoted to non-authoritative and PreservesFileMode row added; I verified all six rows against the diff.
+          round: 3
+        - id: BR-3
+          disposition: not-addressed
+          note: Tool fixed (grep -rn to git grep) but not the exclusion set; measured 5 lines at HEAD, not 1.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: The PreservesFileMode row covers it; the code re-anchor is present at trunkfile_test.go:718-721.
+          round: 3
+        - id: BR-5
+          disposition: withdrawn
+          note: Retracted — grep -c -i queue on the pre-change trunkfile_test.go is exactly 36, so the count was checkable.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: All 8 guardSpineRepo call sites match WorkflowVerbs exactly; all 8 subtests run and pass.
+          round: 3
+        - id: BR-7
+          disposition: not-addressed
+          note: Done-when clause rewritten, but the Plan checkbox at :297 that BR-7 also named still claims origin/main.
+          round: 3
+      findings:
+        - id: BR-8
+          severity: Minor
+          title: atlas says "Its consumer is ariadne#207" while TrunkFile has zero production callers at HEAD
+          detail: |-
+            atlas/workflow/sdlc-binary.md:649. Verified: git grep 'TrunkFile' over non-test .go files
+            outside internal/gitx/trunkfile.go is empty — ~660 lines of production code with no caller.
+            2nd live instance in this family (with BR-7's Plan checkbox), so the deliverable is the rule:
+            no artifact may state in present or perfect tense what becomes true only after a step outside
+            this boundary (the merge, or a future issue's implementation); write the verifiable tense and
+            name the step. Measured enumeration for 218 is three sites — the Done-when clause (fixed round
+            3), the Plan checkbox at :297, and this atlas line. Sweep all three.
+          family: boundary-claim-premature
+          round: 3
+        - id: BR-9
+          severity: Minor
+          title: repoguard.go:23 still says "not 7 new per-verb flags" while :9-11 now lists 8 guarded verbs
+          detail: |-
+            The round-2 fix corrected the verb list one sentence above and left the cardinality below, in
+            the same comment block, in the commit whose stated purpose was making that block read true.
+            The 7 was already stale before 218 — project close gained the guard in c5b2096 (#180 M4). 2nd
+            in family, so the rule rather than the number: a comment must not hand-restate a derived set
+            or its cardinality; either point at the derivation or pin the prose with a drift test. The
+            comment already added the grep -rn 'guardSpineRepo(' pointer — delete the list and the count
+            and keep only that.
+          family: prose-enumeration-drift
+          round: 3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#218 (boundary-review)
@@ -157,12 +217,40 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   will remove it. The clause is not satisfiable at this boundary — re-word to
   "deleted on the branch; verify post-merge."
 
+## Round 3 — 2026-09-09T13:04:13-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Clause now uses git grep with principled exclusions and states the expected residue plus the raw-grep numbers.
+- BR-2 — addressed — Table demoted to non-authoritative and PreservesFileMode row added; I verified all six rows against the diff.
+- BR-3 — not-addressed — Tool fixed (grep -rn to git grep) but not the exclusion set; measured 5 lines at HEAD, not 1.
+- BR-4 — addressed — The PreservesFileMode row covers it; the code re-anchor is present at trunkfile_test.go:718-721.
+- BR-5 — withdrawn — Retracted — grep -c -i queue on the pre-change trunkfile_test.go is exactly 36, so the count was checkable.
+- BR-6 — addressed — All 8 guardSpineRepo call sites match WorkflowVerbs exactly; all 8 subtests run and pass.
+- BR-7 — not-addressed — Done-when clause rewritten, but the Plan checkbox at :297 that BR-7 also named still claims origin/main.
+
+### Raised
+
+- **BR-8** [Minor] `boundary-claim-premature` atlas says "Its consumer is ariadne#207" while TrunkFile has zero production callers at HEAD
+  atlas/workflow/sdlc-binary.md:649. Verified: git grep 'TrunkFile' over non-test .go files
+  outside internal/gitx/trunkfile.go is empty — ~660 lines of production code with no caller.
+  2nd live instance in this family (with BR-7's Plan checkbox), so the deliverable is the rule:
+  no artifact may state in present or perfect tense what becomes true only after a step outside
+  this boundary (the merge, or a future issue's implementation); write the verifiable tense and
+  name the step. Measured enumeration for 218 is three sites — the Done-when clause (fixed round
+  3), the Plan checkbox at :297, and this atlas line. Sweep all three.
+- **BR-9** [Minor] `prose-enumeration-drift` repoguard.go:23 still says "not 7 new per-verb flags" while :9-11 now lists 8 guarded verbs
+  The round-2 fix corrected the verb list one sentence above and left the cardinality below, in
+  the same comment block, in the commit whose stated purpose was making that block read true.
+  The 7 was already stale before 218 — project close gained the guard in c5b2096 (#180 M4). 2nd
+  in family, so the rule rather than the number: a comment must not hand-restate a derived set
+  or its cardinality; either point at the derivation or pin the prose with a drift test. The
+  comment already added the grep -rn 'guardSpineRepo(' pointer — delete the list and the count
+  and keep only that.
+
 ## Open findings
 
-- **BR-1** [Minor] `verification-not-executable` grep sweep clause has ~350 benign residue hits, so it cannot be checked as literally written
-- **BR-2** [Minor] `stale-anchor-sweep` Re-anchor table is hand-typed rather than derived, and drops trunkfile_test.go:721
 - **BR-3** [Important] `verification-not-executable` Done-when identifier sweep is inert — returns 99 lines, not the claimed one
-- **BR-4** [Minor] `stale-anchor-sweep` Re-anchor table omits trunkfile_test.go:719, which the code did re-anchor
-- **BR-5** [Minor] `unbacked-count-claim` "36 sites" matches no countable set in trunkfile_test.go
-- **BR-6** [Minor] `prose-enumeration-drift` repoguard.go's restored "exactly the lifecycle verbs" list omits `project close`
 - **BR-7** [Minor] `boundary-claim-premature` "workshop/queue.md is gone from origin/main" is ticked but only true post-merge
+- **BR-8** [Minor] `boundary-claim-premature` atlas says "Its consumer is ariadne#207" while TrunkFile has zero production callers at HEAD
+- **BR-9** [Minor] `prose-enumeration-drift` repoguard.go:23 still says "not 7 new per-verb flags" while :9-11 now lists 8 guarded verbs
