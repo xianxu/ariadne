@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-09
 updated: 2026-09-09
-estimate_hours: 1.55
+estimate_hours: 2.75
 started: 2026-09-09T10:48:12-07:00
 ---
 
@@ -126,7 +126,7 @@ is a trap for the next reader, and it is the class this issue is about.
 |---|---|
 | `atlas/workflow/sdlc-binary.md` TrunkFile section | Re-anchor on ariadne#207 — it opens "Built for `sdlc queue`". |
 | `gitx/trunkfile.go` mode-preservation comment | Re-anchor. "Fine for a queue, wrong for a general primitive" loses its referent; the reason survives. |
-| `gitx/trunkfile_test.go` fixture path `queue.md` (~20 sites) | Rename to a neutral fixture name. The filename is arbitrary to the test; leaving it names a feature that no longer exists. |
+| `gitx/trunkfile_test.go` fixture path `queue.md` (36 sites) | Rename to a neutral fixture name. The filename is arbitrary to the test; leaving it names a feature that no longer exists. |
 | `gitx/trunkfile_test.go:15,:83` comments | Re-anchor to neutral phrasing. |
 | `workshop/lessons.md` test-double entry | KEEP, plus one clause noting the cited `fakeTrunk` / `TestQueueEdit_*` were removed here. A lesson legitimately cites history, but a reader must not hunt for code that is gone. |
 | `workshop/issues/000207-...md:175` | Amend. It reasons from "#209's queue passes an intent-replaying transform" — an open issue citing a deleted consumer. The point (retry semantics belong to the caller's transform) survives the citation. |
@@ -213,30 +213,50 @@ off `processmanual.WorkflowVerbs()`, which never included queue.
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: issue-spec              design=0.8  impl=0.08
-item: cross-cutting-refactor  design=0.1  impl=0.14
+item: issue-spec              design=1.2  impl=0.08
+item: issue-spec              design=0.5  impl=0.06
+item: cross-cutting-refactor  design=0.1  impl=0.24
 item: atlas-docs              design=0.05 impl=0.06
 item: milestone-review        design=0.0  impl=0.18
 design-buffer: 0.15
-total: 1.55
+total: 2.75
 ```
 
-Σdesign 0.95 × 1.15 + Σimpl 0.46 × 1.0 = 1.55.
+Σdesign 1.85 × 1.15 + Σimpl 0.62 × 1.0 = 2.75. Revised up from 1.55 after
+estimate-quality; the first derivation was under-priced in four specific ways and
+the correction is recorded rather than quietly applied.
 
-`issue-spec` is priced undiscounted and against the window `sdlc actual`
-computes — open at `6060f035`, already reading 1.34h and attributed across #218
-and #219. It covers the Problem section's four-part diagnosis, three
-plan-quality rounds, and authoring ariadne#219 out of the third round's
-diagnosis. The ×0.2 discount does not apply to the primitive whose deliverable
-*is* the spec (the ariadne#215 lesson).
+**Two `issue-spec` rows, not one.** The first (1.2, near the 0.5-1.5 band top) is
+this issue: the Problem section's four-part diagnosis, the disposition table, the
+producible-evidence list, and **four** plan-quality rounds — not three, as an
+earlier draft said. The second (0.5, band floor) is authoring ariadne#219, which
+is its own spec deliverable and was previously folded into the first row for
+free. The judge's precedent is exact and worth recording: ariadne#209 used the
+identical `issue-spec design=0.8 impl=0.12` when its window read 0.90h and closed
+4.49 against 3.06. This window read 1.30h at the same point and the row was
+unchanged — the same under-pricing from a worse starting position.
 
-`cross-cutting-refactor` is the deletion plus the six re-anchor sites — the
-right slug because the work is a multi-file sweep rather than a module, and its
-design carries the ×0.2 discount since the enumeration table pre-resolves every
-disposition. `atlas-docs` is the two atlas edits. One `milestone-review` row,
-priced near the primitive ceiling: single-pass with no `Mx`, but ariadne#209
-closed at eight review rounds on adjacent code, and a removal touching the base
-layer is not obviously cheaper to review than an addition.
+**`cross-cutting-refactor impl` 0.14 -> 0.24.** The first value left verification
+wall-clock invisible, and under v3.1 elapsed time *is* the unit: `go build`, the
+internal-package suite, a plain-shell `go test ./cmd/sdlc/` measured at 115-136s,
+the datatype regeneration, and the sweep are 0.08-0.10h on a first pass and
+double if the close review forces a re-run. That has to coexist with deleting
+~1,000 lines across seven files, plus six re-anchor sites — including **36**
+`queue` occurrences in `trunkfile_test.go` (an earlier draft said "~20"), an edit
+to the OPEN ariadne#207, and a `lessons.md` amendment.
+
+**`design-buffer` stays 0.15.** v2.1 offers +30% absent a thorough plan doc, and
+`workshop/plans/` holds no durable `000218-*-plan.md` — only the gate sidecar. The
++15% is claimed on the other criterion: the Spec's disposition table and
+producible-evidence list are the plan, and for a deletion whose scope is an
+enumeration, a separate plan document would restate them rather than add anything.
+Worth naming as a judgement call — at +30% the total is 3.03.
+
+**Known tension, for the ledger.** The buffer exists to cover design not yet done,
+and here design is complete — four gate rounds closed it. Applying any buffer to
+finished design is conservative by construction, so this number should be read as
+an upper bound rather than a centre. Recording it because a ratio near 1.0 on this
+row would be a coincidence of two errors, not accuracy.
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
