@@ -5,7 +5,7 @@ deps: [ariadne#206]
 github_issue:
 created: 2026-09-02
 updated: 2026-09-09
-estimate_hours: 3.27
+estimate_hours: 3.64
 started: 2026-09-09T18:26:20-07:00
 ---
 
@@ -234,45 +234,56 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
 model: estimate-logic-v3.1
 familiarity: 1.0
 item: issue-spec              design=1.2  impl=0.1
-item: scope-pivot             design=0.5  impl=0.2
-item: smaller-go-module       design=0.05 impl=0.2
+item: scope-pivot             design=0.5  impl=0.1
+item: greenfield-go-module    design=0.1  impl=0.28
 item: smaller-go-module       design=0.05 impl=0.2
 item: cross-cutting-refactor  design=0.05 impl=0.14
-item: atlas-docs              design=0.05 impl=0.06
+item: atlas-docs              design=0.05 impl=0.1
 item: milestone-review        design=0.0  impl=0.18
-design-buffer: 0.15
-total: 3.27
+design-buffer: 0.30
+total: 3.64
 ```
 
-Σdesign 1.9 × 1.15 + Σimpl 1.08 × 1.0 = 3.27.
+Σdesign 1.95 × 1.30 + Σimpl 1.10 × 1.0 = 3.64. Revised from 3.27 after
+estimate-quality; four corrections, all in the same direction.
 
 Priced against the window `sdlc actual` computes, which opens at `e014809d`
-(2026-09-02) and currently attributes **2.12h to #207** with no code written.
-That is the number the ledger will compare against, so the design rows have to
-cover it rather than the impression of "I just started".
+(2026-09-02) and attributes **2.12h to #207** with no code written — the number
+the ledger will compare against.
 
-`issue-spec` (1.2, undiscounted — the ariadne#215 lesson) is the original
-authoring plus the grafted field evidence from `pair#195`. **`scope-pivot`
-(0.5)** is today's redesign, and it is a genuine pivot rather than refinement:
-two Criticals reversed the re-allocation model (it would have renumbered every
-existing issue on every sync), and PQ-8 replaced a `map[string][]byte` parameter
-with a per-attempt `prepare` because the original could not put the collision
-decision inside the CAS loop. Folding that into `issue-spec` would price a
-redesign as spec-writing, which is the mistake ariadne#218 was called on.
+**`design-buffer` 0.15 -> 0.30, by the book.** v2.1 grants +15% for a thorough
+plan doc and there is none: `workshop/plans/000207-*-plan-gate.md` is a
+plan-quality findings sidecar, not a design plan, and a later reader could
+conflate them on filename. The anti-double-count escape hatch does not apply
+either — the ×0.2 discount covers 4 of 7 rows but only 0.2 of the 1.9 design
+subtotal, so there is almost nothing to prevent double-counting of.
 
-Two `smaller-go-module` rows: `TrunkFile.UpdateMany` + `TrunkWrite` (extending a
-type that exists), and the collision decision + wiring the two arms. Design
-carries the ×0.2 discount on both — the Spec now gives the signature, the
-contract points, and the five-step re-allocate procedure. `impl` sits at the
-scaled ceiling (0.5 × 0.4) because the tests are real-git and the load-bearing
-one seeds a peer *inside* the retry window, which is fiddly to make
-deterministic. `cross-cutting-refactor` is deleting `syncViaMainWorktree`,
-`mainHasUncommittedIssueChanges` and the merge-base conflict detection with a
-shadow sweep.
+**`UpdateMany` is `greenfield-go-module`, not `smaller-go-module`.** The previous
+block kept `familiarity: 1.0` and borrowed ariadne#209's argument for it — that
+the novelty premium rides inside a row's `impl`. That only works when the row has
+band left, and both rows were already at the scaled ceiling (0.2 = 0.5 × 0.4),
+so there was nowhere for it to go. Reclassifying is the honest fix: `TrunkWrite`
+plus a per-attempt `prepare` with delete support and a whole-set early return is
+a new concern, not a mirror-or-extend, and its band (0.3-0.8 -> 0.12-0.32 scaled)
+has room at 0.28. A global ×1.5 would have inflated the four rows that are not
+novel.
 
-`design-buffer` 0.15 on the thorough-Spec criterion — there is no durable
-`workshop/plans/000207-*.md`, and as with ariadne#218 the Spec's contract block,
-disposition table and five-step procedure are the plan. At +30% the total is 3.65.
+**`scope-pivot impl` 0.2 -> 0.1.** The table's pivot `impl` prices reworking
+artifacts already built; this pivot landed pre-implementation and the
+spec-rewriting labour is already carried by `issue-spec impl=0.1`. That was
+~0.1h of double-count, in the one direction the rest of the block was under.
+
+**`atlas-docs impl` 0.06 -> 0.1** to cover Plan step 6, closing ariadne#188 as
+superseded — a real deliverable that no row named.
+
+`issue-spec` (1.2, undiscounted per the ariadne#215 lesson) is the original
+authoring plus the grafted `pair#195` field evidence. `scope-pivot` (0.5 design)
+is today's redesign, kept separate because two Criticals reversed the
+re-allocation model and PQ-8 replaced a parameter that could not put the
+collision decision inside the CAS loop — that is a pivot, not spec-writing, and
+folding it into `issue-spec` is what ariadne#218 was called on. `impl` on the
+code rows sits high because the tests are real-git and the load-bearing one seeds
+a peer *inside* the retry window.
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.*
