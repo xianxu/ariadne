@@ -60,17 +60,49 @@ replaces, which can only see *local* divergence.
 and the merge-base conflict detection exist only because the current route edits
 a shared checkout.
 
-### One commit, N files — `TrunkFile` needs a multi-path write
+### One commit, N files — and paths derived PER ATTEMPT
 
 `syncViaMainWorktree` copies **every changed issue file** and commits them
 together. `TrunkFile.Update` writes one path per commit, so a naive replacement
-turns one commit into N and loses atomicity — a partial publish becomes
-reachable where it currently is not.
+turns one commit into N and makes a partial publish reachable where it is not
+today.
 
-Add `UpdateMany(files map[string][]byte, msg string, transform …)`. The temp-index
-build already supports it: `hash-object` + `update-index` per file, then one
-`write-tree`, one `commit-tree`, one CAS push. This is a small extension to a
-primitive that was built for one path because its first consumer had one.
+The signature is where the correctness lives, so it is written out rather than
+elided:
+
+```go
+// UpdateMany publishes N files in ONE commit, DERIVING them on every attempt.
+//
+// prepare runs after each fetch and before the tree is built, and returns the
+// complete set of paths to write. Paths are derived per attempt rather than
+// passed in as a map, and that is the whole point: a caller whose path depends
+// on trunk state — an issue id — must re-decide it against the base the CAS
+// will actually race. A fixed map makes the retry re-push the same colliding
+// id and land the duplicate as a clean fast-forward, which is ariadne#188's
+// hole reappearing one layer up.
+func (t *TrunkFile) UpdateMany(
+    msg string,
+    prepare func(trunk *TrunkView) (map[string][]byte, error),
+) error
+```
+
+`TrunkView` gives read access to the just-fetched tracking ref — enough for
+`refIDSpace` to run against the base this attempt will race.
+
+Two contract points the single-path version settles differently, and which must
+be decided rather than inherited:
+
+- **`prepare` returns content; it does not receive old bytes.** `Update`'s
+  `transform(old []byte)` is meaningful for one path. For N, "the old bytes" has
+  no single referent, and issue publication does not transform prior content —
+  it writes the local file. Callers needing the base read it through `TrunkView`.
+- **The unchanged-content early return is WHOLE-SET, not per-file.** `Update`
+  skips the commit when `bytes.Equal(old, next)`; here it skips when every
+  prepared file already matches the trunk byte-for-byte. That preserves
+  `filesDifferingFrom`'s idempotence (`claim.go:398`) — "main already carries
+  this body, publish only" must stay a no-op commit-wise, and a per-file rule
+  would emit a commit whenever any one file differed.
+
 
 ### Re-allocation belongs to `issue new` ONLY
 
@@ -87,10 +119,32 @@ sibling issues, and review sidecar filenames. So:
 
 | Caller | On finding a *different slug* at this id on the trunk |
 |---|---|
-| `issue new` (first publication, nothing references it yet) | **Re-allocate**: pick the next free id, rewrite the filename AND the `id:` frontmatter, retry. Bounded; announce the new id loudly. |
+| `issue new` (first publication, nothing references it yet) | **Re-allocate** — see the step below. |
 | `issue sync` / `claim` (republication) | **Refuse loudly.** The id has leaked; renumbering here is worse than the collision. Name both paths and point at a repair. |
 
 Same path, same slug, is never a collision — that is our own prior publication.
+
+**The re-allocate step, specified.** It is the riskiest thing this issue does, so
+it is not left as "rename + retry":
+
+1. Pick the next free id from `refIDSpace` over the base this attempt races —
+   not from a value computed before the loop.
+2. Rewrite **both** the filename and the `id:` frontmatter field. Either alone
+   leaves an artifact whose name and body disagree, which every downstream
+   consumer resolves differently (`sdlc claim` matches the filename;
+   `vocabulary validate-instance` reads the frontmatter).
+3. Rename the LOCAL file too, so the working tree matches what was published.
+   The file is untracked at `issue new` time, so this is `os.Rename`, not
+   `git mv` — and that is worth asserting, because a tracked file would need
+   staging and the two paths are easy to conflate.
+4. Announce the new id **loudly** on stderr, naming the old id, the new one, and
+   the colliding path. An operator who typed `issue new` and got a different
+   number than the tool first reported must be told why.
+5. Bounded at 3 attempts; on exhaustion refuse and name every colliding path
+   seen, rather than reporting a generic contention error.
+
+Nothing else is rewritten, because nothing else can reference the id yet — that
+is exactly why this arm is safe here and refused for `sync`/`claim`.
 
 **Consume `refIDSpace`, do not reimplement it.** `issueids.go:143` is already the
 single-source trunk id-space reader, extracted in ariadne#213 because "the same
@@ -118,11 +172,14 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
 - **N changed issue files land in ONE commit**, as they do today. A test asserts
   the commit count, not just the file contents; per-file commits would pass a
   contents-only assertion.
-- **`issue new` re-allocates on collision.** Two publishers race on one id with
-  different slugs; the loser lands at the *next* id, with filename AND `id:`
-  frontmatter rewritten, and both files exist under **distinct** ids. The
-  original wording — "asserts both issue files land" — is the bug for a
-  collision, and passes on the defect it should catch.
+- **`issue new` re-allocates on a collision that appears MID-RETRY**, not only
+  on one visible before the first attempt. The test seeds the peer inside the
+  retry window and asserts `prepare` ran twice; a test that seeds it beforehand
+  passes even when the decision sits outside the loop, which is the defect a
+  fixed path map would ship. Both files end up under **distinct** ids, with
+  filename and `id:` frontmatter rewritten together.
+  (The original Done-when said "asserts both issue files land" — for a collision
+  that is the bug, so it passed on exactly what it should have caught.)
 - **`sync`/`claim` REFUSE on collision** rather than renumbering, and the refusal
   names both paths. A test asserts a republication of an already-published issue
   does *not* renumber — the regression the first draft of this Spec would have
@@ -149,10 +206,19 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
 
 ## Plan
 
-- [ ] Write the two collision tests FIRST — they are the assertions the first
-      draft of this Spec got backwards, and both pass on their own defect:
-      (a) `issue new` racing on one id lands **distinct** ids;
-      (b) `issue sync` of an already-published issue does **not** renumber.
+- [ ] Write the three collision tests FIRST. Each is an assertion an earlier
+      draft got backwards, and (b) is the one that decides whether the design is
+      correct at all:
+      **(a)** collision seeded BEFORE the first `prepare` — re-allocates on
+      attempt 1. The easy path; passes even if the decision sits outside the
+      retry loop, so it proves little on its own.
+      **(b)** collision seeded DURING THE RETRY WINDOW — `prepare` pushes a peer
+      file at our id on its *first* invocation, so attempt 1's push is rejected,
+      `UpdateMany` re-fetches, and `prepare` runs again against a base that now
+      holds the collision. Assert distinct ids land AND that `prepare` ran
+      twice. **This fails if the collision decision is not inside the loop**, and
+      it is the case a fixed `files` map re-pushes as a clean fast-forward.
+      **(c)** `issue sync` of an already-published issue does **not** renumber.
 - [ ] `TrunkFile.UpdateMany` — N blobs into one temp index, one `write-tree`,
       one `commit-tree`, one CAS push. Test asserts the commit count.
 - [ ] Collision decision as a pure function over `refIDSpace`'s map: given
@@ -355,3 +421,39 @@ mind (`issue new`) and not against the seam's actual callers, then specced a
 helper without checking whether the single source already existed. The
 Done-when now asserts the *regression* too — that a republication does not
 renumber — because that is the failure my own first draft would have shipped.
+
+### 2026-09-09 — plan-quality round 2: the ellipsis was hiding the design
+
+**PQ-8.** I wrote `UpdateMany(files map[string][]byte, msg string, transform …)`
+with a literal ellipsis — at exactly the parameter that decides whether the CAS
+retry re-lands a collision. Three things were hiding in it, and the third is
+fatal:
+
+- `files`-as-content contradicts a transform that receives old bytes
+  (`trunkfile.go:369`); for N paths "the old bytes" has no referent.
+- The unchanged-content early return (`trunkfile.go:377`) is per-file or
+  whole-set, and that choice decides whether `filesDifferingFrom`'s idempotence
+  survives (`claim.go:398`).
+- **Nothing said the collision decision runs inside the retry loop.** With a
+  fixed `files` map it cannot: a peer landing mid-window causes rejection ->
+  retry -> re-push of the same id -> duplicate as a clean fast-forward.
+  ariadne#188's hole, one layer up, in the issue that exists to close it.
+
+Resolved by deriving paths **per attempt**: `prepare(trunk *TrunkView)` runs
+after each fetch and returns the whole set, so a caller whose path depends on
+trunk state re-decides it against the base the CAS will actually race.
+
+**And my own step-1 test would have passed on that defect.** "Two publishers race
+on one id" seeds the collision before the first check, so `prepare` sees it
+immediately and re-allocates — without the retry ever running. The test now
+seeds the peer *inside* the retry window and asserts `prepare` ran twice. That is
+the third time this session a guard would have passed on the thing it was written
+to catch, and the second where the reviewer found it rather than the suite.
+
+**PQ-4.** "Re-allocate + rename + retry, bounded" is now five numbered steps,
+because it is the riskiest operation here: id re-picked from the *current* base,
+filename and `id:` frontmatter rewritten together (either alone leaves name and
+body disagreeing, and downstream consumers resolve each differently), the local
+file renamed with `os.Rename` since it is untracked at this point, a loud
+announcement naming old id / new id / colliding path, and on exhaustion a refusal
+naming every collision seen.
