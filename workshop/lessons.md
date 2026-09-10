@@ -2,6 +2,34 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A search that keys on content cannot see the content that describes it
+
+**Pattern (#218 BR-10, and three self-inflicted splices in #207/#218).** Two
+shapes of the same blind spot, both found the hard way in one session:
+
+- `git grep -n 'ariadne#207' -- ':!*000207*'` was the *derived* sweep that
+  replaced a hand-typed list — and it could not reach
+  `workshop/issues/000207-*.md`, because that file calls itself *"this issue"*
+  and never spells its own number.
+- Editing a markdown issue with `s[s.index("## Plan"):s.index("## Log")]` cut at
+  the wrong place three times, because the prose being inserted *mentioned*
+  `` `## Log` `` at a line start. Once it silently deleted a whole `## Done when`
+  section; once it stranded half a Spec after the Plan.
+
+**Rule:** when a search or splice keys on a token, ask which artifact *contains
+that token as content* rather than as structure — that is the one place it will
+be wrong. For document edits, anchor on line numbers or rewrite the whole file;
+never on a marker the document can also discuss. For derived sweeps, remember
+that the artifact owning an identifier is invisible to a search for it, and
+check it by hand.
+
+The deeper version of this is already in *"Don't write a description where the
+referent is available"*: deriving beats hand-typing, and this is the residue that
+survives the switch, not a reason to switch back. The hand list missed four sites
+the derivation found; the derivation missed one the hand list would have had.
+Both, and say which is which.
+
+
 ## Don't write a description where the referent is available
 
 **Pattern (#209 + #218, ~35 of ~60 review findings across 31 families).** The
