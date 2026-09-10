@@ -1,11 +1,12 @@
 ---
 id: 000207
-status: open
+status: working
 deps: [ariadne#206]
 github_issue:
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-09
 estimate_hours:
+started: 2026-09-09T18:26:20-07:00
 ---
 
 # Publish issue files without a main worktree
