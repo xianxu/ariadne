@@ -42,54 +42,67 @@ without fetching first, so an ID allocated by `issue.NextID` from a stale local
 
 **Build the commit in the object database and push it. Never touch a checkout.**
 
-Publishing one small markdown file needs no working directory at all:
+**The plumbing already exists — consume it, do not rebuild it.** `gitx.TrunkFile`
+(ariadne#209 M1) is exactly this: `fetch` -> `read-tree` into a temp index ->
+`hash-object -w --path` -> `update-index` -> `write-tree` -> `commit-tree` ->
+`push <commit>:refs/heads/main` as a compare-and-swap, with a bounded retry, and
+37 tests against a real bare origin. Every "detail that will bite" this issue
+originally enumerated is handled there, two of them better than specced: the mode
+is **preserved from the base tree** rather than hardcoded `100644`, and signing
+reads `--type=bool` because git stores `commit.gpgsign` verbatim, so a repo
+configured `yes` was silently getting unsigned commits.
 
+`push <commit>:main` is the concurrency primitive: if `origin/main` moved since
+the fetch, the push is rejected non-fast-forward. That is stronger than the check
+it replaces, which can only see *local* divergence.
+
+**This deletes machinery rather than adding a fallback.** The clean-main check and
+the merge-base conflict detection exist only because the current route edits a
+shared checkout.
+
+### The retry must RE-ALLOCATE, not re-push — this is the correction
+
+An earlier draft of this Spec said retry was trivial: *"the input is the current
+content of this one file, not a diff, so on rejection: re-fetch, rebuild,
+re-push."* **That is wrong, and wrong in the specific way ariadne#188 documents.**
+
+A content-preserving retry re-pushes the same path with the same id. Two files
+with different slugs at one id produce **no textual conflict**, so the duplicate
+lands as a clean fast-forward. Replacing `pull --rebase` with a CAS push moves
+#188's hole into a new mechanism rather than closing it.
+
+`TrunkFile` does not decide this. `Update` re-reads the trunk and **re-calls the
+transform** on a moved base, so mergeability is the caller's property. The
+transform here must therefore consult the trunk's *id space*, not just this
+file's bytes:
+
+```go
+// Runs AFTER Update's fetch, so the ls-tree sees current trunk state; on a CAS
+// rejection Update re-fetches and re-runs this, so the check re-evaluates.
+transform := func(old []byte) ([]byte, error) {
+    if takenOnTrunk(id) {          // ls-tree over the issue dirs, any slug
+        return nil, ErrIDTaken     // aborts Update; caller re-allocates
+    }
+    return content, nil
+}
 ```
-git fetch origin main
-GIT_INDEX_FILE=$tmp git read-tree FETCH_HEAD
-blob=$(git hash-object -w --path <relpath> <file>)
-GIT_INDEX_FILE=$tmp git update-index --add --cacheinfo 100644,$blob,<relpath>
-tree=$(GIT_INDEX_FILE=$tmp git write-tree)
-commit=$(git commit-tree $tree -p FETCH_HEAD -m "<subject>")
-git push origin $commit:main
-```
 
-To be clear about what this is and is not: **it is not remote-side.** Only
-`fetch` and `push` touch the network; `origin/main` is a local remote-tracking
-ref and every object step reads and writes the local object database. What it
-avoids is a *working tree*, which is the thing that can be dirty, absent, or
-owned by another actor.
+A transform error propagates immediately rather than retrying, so the caller
+owns the re-allocation loop: allocate -> Update -> on `ErrIDTaken`, re-allocate,
+rename, retry (bounded). **Allocate + commit + push is one retryable unit** —
+ariadne#188's single surviving bullet, and the reason this issue can supersede it.
 
-**This deletes machinery rather than adding a fallback.** The clean-main check
-and the merge-base conflict detection exist only because the current route
-edits a shared checkout. Here, `push $commit:main` is a compare-and-swap: if
-`origin/main` moved since the fetch, the push is rejected non-fast-forward.
-That is the correct concurrency primitive and it is stronger than the check it
-replaces, which can only see *local* divergence.
+**Reserve on the FILENAME, not on frontmatter `id:`.** Measured 2026-09-09 while
+claiming this very issue: a second file at `000207-*` existed with **no
+frontmatter at all** (a grafted `## Log` fragment from another session).
+`sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
+check would have missed it entirely. The id space the tooling actually collides
+on is the filename prefix.
 
-**Retry is trivial and bounded.** The input is "the current content of this one
-file", not a diff, so on rejection: re-fetch, rebuild, re-push. Bound it (3
-attempts) and surface the last rejection.
-
-**Scope: replace `syncViaMainWorktree` only.** Leave `syncInPlace` alone. When
-the caller is already on main, "here" and "main" coincide and an ordinary
-add/commit/push is both simpler and correct — and building out-of-tree there
-would leave the caller's own branch behind the commit they just pushed, which
-is friction for no gain. (`syncInPlace`'s missing fetch is a separate one-line
-fix, not this issue.)
-
-**Details that will bite if unnamed:**
-
-- `hash-object -w --path <relpath>` (not bare `hash-object`) so any
-  `.gitattributes` filter or EOL normalization for that path is applied — a
-  blob written without them produces a commit whose checkout differs from the
-  file.
-- File mode is `100644`; issue files are never executable.
-- If the repo signs commits, `commit-tree` needs `-S`; a signing repo that
-  silently produces unsigned commits is a regression.
-- The temp index must be a real temp file, removed on every exit path, and must
-  never be `$GIT_DIR/index` — writing that would corrupt whatever checkout
-  shares the git dir.
+**Scope: replace `syncViaMainWorktree` only.** Leave `syncInPlace` alone — when
+the caller is already on main, "here" and "main" coincide, and building
+out-of-tree there would leave the caller's own branch behind the commit they just
+pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
 
 ## Done when
 
@@ -97,11 +110,81 @@ fix, not this issue.)
   **no worktree on main anywhere** in the repo.
 - They publish while another worktree on main is dirty, mid-rebase, or owned by
   another actor, without reading or writing that worktree.
-- A push rejected by a concurrent publisher retries and succeeds; a test drives
-  two publishers against one bare origin and asserts both issue files land.
+- **A collision RE-ALLOCATES.** Two publishers race against one bare origin on
+  the same id with different slugs; the loser lands at the *next* id and both
+  files exist under **distinct** ids. The earlier wording — "asserts both issue
+  files land" — is the bug for a collision, since two files landing at one id is
+  precisely the defect; it passes on the thing it should catch.
+- A push rejected by a concurrent publisher on an *unrelated* path retries and
+  succeeds without re-allocating — the two cases are distinguished, not
+  conflated.
+- The reservation is keyed on the filename prefix, proven by a fixture whose
+  colliding file has **no frontmatter**.
 - `syncViaMainWorktree` and its clean-main and merge-base conflict checks are
   deleted, not left as a second path (`ARCH-DRY`) — a shadow sweep confirms no
   caller reaches them.
+- `gitx.TrunkFile` is consumed, not reimplemented: no second copy of the
+  plumbing, and its existing tests still pass unchanged (`ARCH-DRY`).
+- ariadne#188 closes as superseded — its one surviving bullet
+  (allocate+commit+push as a retryable unit that re-allocates) ships here.
+- Tests run against a real throwaway repo with a local bare `origin`
+  (`ARCH-MOCK`: git is the external binary, and a temp repo is its portable
+  stateful fake — a function-call mock cannot exercise a non-fast-forward
+  rejection).
+- The published blob round-trips: checking out the pushed commit yields a file
+  byte-identical to the local one, with attributes applied.
+
+## Plan
+
+- [ ] Write the collision test FIRST: two publishers, one bare origin, same id,
+      different slugs -> distinct ids land. This is the assertion the old
+      Done-when got backwards, and the shape that passes on its own defect, so it
+      is written before the code it guards.
+- [ ] `takenOnTrunk(id)` — `ls-tree` over the issue + history dirs on the
+      tracking ref, matching the FILENAME prefix, any slug. Pure decision split
+      from the git call (`ARCH-PURE`); a fixture case with no frontmatter.
+- [ ] The publish path: allocate -> `TrunkFile.Update` with the id-checking
+      transform -> on `ErrIDTaken`, re-allocate + rename + retry, bounded.
+- [ ] Repoint the publish-from-elsewhere arm; delete `syncViaMainWorktree`,
+      `mainHasUncommittedIssueChanges`, and the merge-base conflict detection.
+      Shadow-sweep for callers.
+- [ ] Verify no worktree on main is required, and that another worktree on main
+      being dirty or mid-rebase is neither read nor written.
+- [ ] Close ariadne#188 as superseded, recording which bullet shipped here.
+
+## Log` fragment from another session).
+`sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
+check would have missed it entirely. The id space the tooling actually collides
+on is the filename prefix.
+
+**Scope: replace `syncViaMainWorktree` only.** Leave `syncInPlace` alone — when
+the caller is already on main, "here" and "main" coincide, and building
+out-of-tree there would leave the caller's own branch behind the commit they just
+pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
+
+## Done when
+
+- `sdlc issue new` and `sdlc issue sync` publish from a feature branch with
+  **no worktree on main anywhere** in the repo.
+- They publish while another worktree on main is dirty, mid-rebase, or owned by
+  another actor, without reading or writing that worktree.
+- **A collision RE-ALLOCATES.** Two publishers race against one bare origin on
+  the same id with different slugs; the loser lands at the *next* id and both
+  files exist under **distinct** ids. The earlier wording — "asserts both issue
+  files land" — is the bug for a collision, since two files landing at one id is
+  precisely the defect; it passes on the thing it should catch.
+- A push rejected by a concurrent publisher on an *unrelated* path retries and
+  succeeds without re-allocating — the two cases are distinguished, not
+  conflated.
+- The reservation is keyed on the filename prefix, proven by a fixture whose
+  colliding file has **no frontmatter**.
+- `syncViaMainWorktree` and its clean-main and merge-base conflict checks are
+  deleted, not left as a second path (`ARCH-DRY`) — a shadow sweep confirms no
+  caller reaches them.
+- `gitx.TrunkFile` is consumed, not reimplemented: no second copy of the
+  plumbing, and its existing tests still pass unchanged (`ARCH-DRY`).
+- ariadne#188 closes as superseded — its one surviving bullet
+  (allocate+commit+push as a retryable unit that re-allocates) ships here.
 - Tests run against a real throwaway repo with a local bare `origin`
   (`ARCH-MOCK`: git is the external binary, and a temp repo is its portable
   stateful fake — a function-call mock cannot exercise a non-fast-forward
@@ -254,3 +337,31 @@ Two things worth carrying into the fix:
   frontmatter at all. A check keyed on frontmatter `id:` would have missed a file
   that has none. Whatever #207 builds should reserve on the filename, since that
   is what the tooling collides on.
+
+### 2026-09-09 — Spec revised before implementation
+
+Three changes, none of them cosmetic.
+
+**The plumbing block was replaced by "consume `gitx.TrunkFile`".** It shipped in
+ariadne#209 M1 with 37 tests against a real bare origin, and handles two details
+better than this Spec had specced: file mode preserved from the base tree rather
+than hardcoded `100644`, and signing read via `--type=bool` because git stores
+`commit.gpgsign` verbatim.
+
+**The retry semantics were wrong and are now the Spec's centrepiece.** "Re-fetch,
+rebuild, re-push" re-lands a colliding id as a clean fast-forward, which is
+ariadne#188's hole relocated into a new mechanism. The transform must consult the
+trunk's id space and abort with `ErrIDTaken` so the caller re-allocates. That
+makes allocate+commit+push one retryable unit — #188's single surviving bullet —
+so this issue can supersede it.
+
+**The Done-when asserted the defect.** "A test drives two publishers and asserts
+**both issue files land**" passes when two files land at one id, which is exactly
+the bug. Now: distinct ids, with the unrelated-path retry distinguished from the
+collision retry rather than conflated. That assertion is Plan step 1 because it is
+the shape that passes on its own defect.
+
+Also folded in: reserve on the **filename prefix**, not frontmatter `id:` —
+measured while claiming this issue, when a colliding `000207-*` file with no
+frontmatter at all blocked `sdlc claim`. A frontmatter-keyed check would have
+missed it.
