@@ -42,134 +42,126 @@ without fetching first, so an ID allocated by `issue.NextID` from a stale local
 
 **Build the commit in the object database and push it. Never touch a checkout.**
 
-**The plumbing already exists — consume it, do not rebuild it.** `gitx.TrunkFile`
-(ariadne#209 M1) is exactly this: `fetch` -> `read-tree` into a temp index ->
-`hash-object -w --path` -> `update-index` -> `write-tree` -> `commit-tree` ->
-`push <commit>:refs/heads/main` as a compare-and-swap, with a bounded retry, and
-37 tests against a real bare origin. Every "detail that will bite" this issue
-originally enumerated is handled there, two of them better than specced: the mode
-is **preserved from the base tree** rather than hardcoded `100644`, and signing
-reads `--type=bool` because git stores `commit.gpgsign` verbatim, so a repo
-configured `yes` was silently getting unsigned commits.
+**The plumbing already exists — consume it.** `gitx.TrunkFile` (ariadne#209 M1)
+is exactly this sequence, with a bounded CAS retry and 37 tests against a real
+bare origin. It handles two details better than this Spec originally specced:
+mode is **preserved from the base tree** rather than hardcoded `100644`, and
+signing reads `--type=bool`, because git stores `commit.gpgsign` verbatim and a
+repo configured `yes` was silently getting unsigned commits.
 
 `push <commit>:main` is the concurrency primitive: if `origin/main` moved since
-the fetch, the push is rejected non-fast-forward. That is stronger than the check
-it replaces, which can only see *local* divergence.
+the fetch, the push is rejected non-fast-forward. Stronger than the check it
+replaces, which can only see *local* divergence.
 
-**This deletes machinery rather than adding a fallback.** The clean-main check and
-the merge-base conflict detection exist only because the current route edits a
-shared checkout.
+**This deletes machinery rather than adding a fallback.** The clean-main check
+and the merge-base conflict detection exist only because the current route edits
+a shared checkout.
 
-### The retry must RE-ALLOCATE, not re-push — this is the correction
+### One commit, N files — `TrunkFile` needs a multi-path write
 
-An earlier draft of this Spec said retry was trivial: *"the input is the current
-content of this one file, not a diff, so on rejection: re-fetch, rebuild,
-re-push."* **That is wrong, and wrong in the specific way ariadne#188 documents.**
+`syncViaMainWorktree` copies **every changed issue file** and commits them
+together. `TrunkFile.Update` writes one path per commit, so a naive replacement
+turns one commit into N and loses atomicity — a partial publish becomes
+reachable where it currently is not.
 
-A content-preserving retry re-pushes the same path with the same id. Two files
-with different slugs at one id produce **no textual conflict**, so the duplicate
-lands as a clean fast-forward. Replacing `pull --rebase` with a CAS push moves
-#188's hole into a new mechanism rather than closing it.
+Add `UpdateMany(files map[string][]byte, msg string, transform …)`. The temp-index
+build already supports it: `hash-object` + `update-index` per file, then one
+`write-tree`, one `commit-tree`, one CAS push. This is a small extension to a
+primitive that was built for one path because its first consumer had one.
 
-`TrunkFile` does not decide this. `Update` re-reads the trunk and **re-calls the
-transform** on a moved base, so mergeability is the caller's property. The
-transform here must therefore consult the trunk's *id space*, not just this
-file's bytes:
+### Re-allocation belongs to `issue new` ONLY
 
-```go
-// Runs AFTER Update's fetch, so the ls-tree sees current trunk state; on a CAS
-// rejection Update re-fetches and re-runs this, so the check re-evaluates.
-transform := func(old []byte) ([]byte, error) {
-    if takenOnTrunk(id) {          // ls-tree over the issue dirs, any slug
-        return nil, ErrIDTaken     // aborts Update; caller re-allocates
-    }
-    return content, nil
-}
-```
+An earlier draft of this revision said the transform should check "is this id
+taken on the trunk, any slug" and re-allocate. **That is wrong and would renumber
+every existing issue**, because `syncIssuesToMain` serves republication too:
+`sdlc issue sync` and `sdlc claim` push an issue whose id is *already* on the
+trunk — its own. Any "id is taken" check fires on every one of them.
 
-A transform error propagates immediately rather than retrying, so the caller
-owns the re-allocation loop: allocate -> Update -> on `ErrIDTaken`, re-allocate,
-rename, retry (bounded). **Allocate + commit + push is one retryable unit** —
-ariadne#188's single surviving bullet, and the reason this issue can supersede it.
+The asymmetry is not incidental, it is ariadne#188's whole point. Renumbering is
+safe **only before anything references the id**. By `claim` time it has leaked
+into the branch name, and after that into commit subjects agents grep, `deps:` in
+sibling issues, and review sidecar filenames. So:
 
-**Reserve on the FILENAME, not on frontmatter `id:`.** Measured 2026-09-09 while
-claiming this very issue: a second file at `000207-*` existed with **no
-frontmatter at all** — a grafted log fragment from another session.
-`sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
-check would have missed it entirely. The id space the tooling actually collides
-on is the filename prefix.
+| Caller | On finding a *different slug* at this id on the trunk |
+|---|---|
+| `issue new` (first publication, nothing references it yet) | **Re-allocate**: pick the next free id, rewrite the filename AND the `id:` frontmatter, retry. Bounded; announce the new id loudly. |
+| `issue sync` / `claim` (republication) | **Refuse loudly.** The id has leaked; renumbering here is worse than the collision. Name both paths and point at a repair. |
 
-**Scope: replace `syncViaMainWorktree` only.** Leave `syncInPlace` alone — when
-the caller is already on main, "here" and "main" coincide, and building
-out-of-tree there would leave the caller's own branch behind the commit they just
-pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
+Same path, same slug, is never a collision — that is our own prior publication.
 
-frontmatter at all** — a grafted log fragment from another session.
-`sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
-check would have missed it entirely. The id space the tooling actually collides
-on is the filename prefix.
+**Consume `refIDSpace`, do not reimplement it.** `issueids.go:143` is already the
+single-source trunk id-space reader, extracted in ariadne#213 because "the same
+silent-degradation defect had to be found four separate times. One reader, one
+failure policy." A `takenOnTrunk` helper would be the fifth (`ARCH-DRY`).
+
+**Reserve on the FILENAME prefix, not frontmatter `id:`.** Measured 2026-09-09
+while claiming this issue: a second file at `000207-*` existed with no
+frontmatter at all — a grafted log fragment from another session — and `sdlc
+claim` still refused, because it matches on filename. A frontmatter-keyed check
+would have missed it. `refIDSpace` already keys on filename.
 
 **Scope: replace `syncViaMainWorktree` only.** Leave `syncInPlace` alone — when
 the caller is already on main, "here" and "main" coincide, and building
 out-of-tree there would leave the caller's own branch behind the commit they just
-pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
+pushed. (`syncInPlace`'s missing fetch stays a separate fix; the Problem section
+above is corrected to say so rather than claiming it is fixed incidentally.)
+
 
 ## Done when
 
-- `sdlc issue new` and `sdlc issue sync` publish from a feature branch with
-  **no worktree on main anywhere** in the repo.
-- They publish while another worktree on main is dirty, mid-rebase, or owned by
-  another actor, without reading or writing that worktree.
-- **A collision RE-ALLOCATES.** Two publishers race against one bare origin on
-  the same id with different slugs; the loser lands at the *next* id and both
-  files exist under **distinct** ids. The earlier wording — "asserts both issue
-  files land" — is the bug for a collision, since two files landing at one id is
-  precisely the defect; it passes on the thing it should catch.
-- A push rejected by a concurrent publisher on an *unrelated* path retries and
-  succeeds without re-allocating — the two cases are distinguished, not
-  conflated.
+- `sdlc issue new` and `sdlc issue sync` publish from a feature branch with **no
+  worktree on main anywhere**, and while another worktree on main is dirty or
+  mid-rebase — without reading or writing that worktree.
+- **N changed issue files land in ONE commit**, as they do today. A test asserts
+  the commit count, not just the file contents; per-file commits would pass a
+  contents-only assertion.
+- **`issue new` re-allocates on collision.** Two publishers race on one id with
+  different slugs; the loser lands at the *next* id, with filename AND `id:`
+  frontmatter rewritten, and both files exist under **distinct** ids. The
+  original wording — "asserts both issue files land" — is the bug for a
+  collision, and passes on the defect it should catch.
+- **`sync`/`claim` REFUSE on collision** rather than renumbering, and the refusal
+  names both paths. A test asserts a republication of an already-published issue
+  does *not* renumber — the regression the first draft of this Spec would have
+  shipped.
+- A push rejected on an *unrelated* path retries and succeeds without
+  re-allocating; the two cases are distinguished, not conflated.
 - The reservation is keyed on the filename prefix, proven by a fixture whose
   colliding file has **no frontmatter**.
-- `syncViaMainWorktree` and its clean-main and merge-base conflict checks are
-  deleted, not left as a second path (`ARCH-DRY`) — a shadow sweep confirms no
-  caller reaches them.
-- `gitx.TrunkFile` is consumed, not reimplemented: no second copy of the
-  plumbing, and its existing tests still pass unchanged (`ARCH-DRY`).
+- `refIDSpace` is the only trunk id-space reader; no second implementation
+  (`ARCH-DRY`), confirmed by a shadow sweep.
+- `gitx.TrunkFile` is consumed, not reimplemented, and its existing tests pass
+  unchanged.
+- `syncViaMainWorktree`, `mainHasUncommittedIssueChanges` and the merge-base
+  conflict detection are deleted, not left as a second path; a shadow sweep
+  confirms no caller reaches them.
 - ariadne#188 closes as superseded — its one surviving bullet
   (allocate+commit+push as a retryable unit that re-allocates) ships here.
 - Tests run against a real throwaway repo with a local bare `origin`
-  (`ARCH-MOCK`: git is the external binary, and a temp repo is its portable
-  stateful fake — a function-call mock cannot exercise a non-fast-forward
-  rejection).
+  (`ARCH-MOCK`); a function-call mock cannot produce a non-fast-forward
+  rejection.
 - The published blob round-trips: checking out the pushed commit yields a file
   byte-identical to the local one, with attributes applied.
 
+
 ## Plan
 
-- [ ] Write the collision test FIRST: two publishers, one bare origin, same id,
-      different slugs -> distinct ids land. This is the assertion the old
-      Done-when got backwards, and the shape that passes on its own defect, so it
-      is written before the code it guards.
-- [ ] `takenOnTrunk(id)` — `ls-tree` over the issue + history dirs on the
-      tracking ref, matching the FILENAME prefix, any slug. Pure decision split
-      from the git call (`ARCH-PURE`); a fixture case with no frontmatter.
-- [ ] The publish path: allocate -> `TrunkFile.Update` with the id-checking
-      transform -> on `ErrIDTaken`, re-allocate + rename + retry, bounded.
+- [ ] Write the two collision tests FIRST — they are the assertions the first
+      draft of this Spec got backwards, and both pass on their own defect:
+      (a) `issue new` racing on one id lands **distinct** ids;
+      (b) `issue sync` of an already-published issue does **not** renumber.
+- [ ] `TrunkFile.UpdateMany` — N blobs into one temp index, one `write-tree`,
+      one `commit-tree`, one CAS push. Test asserts the commit count.
+- [ ] Collision decision as a pure function over `refIDSpace`'s map: given
+      (id, my path, trunk id-space) -> publish | re-allocate | refuse. No git in
+      its tests (`ARCH-PURE`); a case with a no-frontmatter colliding file.
+- [ ] Wire `issue new` to the re-allocate arm (rename + `id:` rewrite + loud
+      announcement) and `sync`/`claim` to the refuse arm.
 - [ ] Repoint the publish-from-elsewhere arm; delete `syncViaMainWorktree`,
       `mainHasUncommittedIssueChanges`, and the merge-base conflict detection.
       Shadow-sweep for callers.
-- [ ] Verify no worktree on main is required, and that another worktree on main
-      being dirty or mid-rebase is neither read nor written.
 - [ ] Close ariadne#188 as superseded, recording which bullet shipped here.
 
-`sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
-check would have missed it entirely. The id space the tooling actually collides
-on is the filename prefix.
-
-**Scope: replace `syncViaMainWorktree` only.** Leave `syncInPlace` alone — when
-the caller is already on main, "here" and "main" coincide, and building
-out-of-tree there would leave the caller's own branch behind the commit they just
-pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
 
 ## Log
 
@@ -332,3 +324,31 @@ Also folded in: reserve on the **filename prefix**, not frontmatter `id:` —
 measured while claiming this issue, when a colliding `000207-*` file with no
 frontmatter at all blocked `sdlc claim`. A frontmatter-keyed check would have
 missed it.
+
+### 2026-09-09 — plan-quality round 1: two Criticals in my own revision
+
+The Spec revision I wrote hours earlier was wrong in three structural ways, all
+caught before code.
+
+**PQ-1 (Critical): the re-allocation check would have renumbered every existing
+issue.** I specced "if the id is taken on the trunk, any slug, re-allocate" —
+forgetting that `syncIssuesToMain` serves republication as well as creation.
+`sdlc issue sync` and `sdlc claim` push an issue whose id is already on the
+trunk (its own), so the check fires on every one of them. Re-allocation is only
+safe before anything references the id; by `claim` time it has leaked into the
+branch name. Split by caller: `issue new` re-allocates, `sync`/`claim` refuse.
+
+**PQ-2 (Critical): `TrunkFile.Update` writes one path per commit; the arm it
+replaces publishes N files in one.** A naive swap turns one commit into N and
+makes a partial publish reachable. Needs `UpdateMany` — a small extension, since
+the temp-index build already supports N blobs before one `write-tree`.
+
+**PQ-3: I was about to write a fifth trunk id-space reader.** `refIDSpace`
+(`issueids.go:143`) exists precisely because "the same silent-degradation defect
+had to be found four separate times. One reader, one failure policy." Consume it.
+
+All three share a shape worth naming: I designed against the consumer I had in
+mind (`issue new`) and not against the seam's actual callers, then specced a
+helper without checking whether the single source already existed. The
+Done-when now asserts the *regression* too — that a republication does not
+renumber — because that is the failure my own first draft would have shipped.
