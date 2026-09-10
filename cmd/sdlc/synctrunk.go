@@ -39,28 +39,40 @@ type trunkPublisher interface {
 // new base, and the check re-evaluates. Hoisting it out would let the retry
 // re-push a colliding id as a clean fast-forward — ariadne#188's hole.
 func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) error {
+	rc, err := syncViaTrunkWithRealloc(stdout, stderr, f, r, msg, pub)
+	if rc != nil {
+		if cerr := rc.finish(); cerr != nil {
+			cwarn(stderr, cerr.Error())
+		}
+	}
+	return err
+}
+
+// syncViaTrunkWithRealloc returns the id change, if any, so the caller can clean
+// up the superseded local files AFTER the push has succeeded.
+func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) (*reallocation, error) {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Same rule as the arm this replaces: nothing to COPY is not nothing to
 	// publish. A body already committed here still needs routing to the trunk.
 	if len(changed) == 0 {
 		if !f.PublishExisting || f.Issue <= 0 {
 			cok(stderr, "No issue changes to sync.")
-			return nil
+			return nil, nil
 		}
 		changed = issueFilesForID(f.IssuesDir, f.Issue)
 		if len(changed) == 0 {
 			cok(stderr, "No issue changes to sync.")
-			return nil
+			return nil, nil
 		}
 	}
 	sort.Strings(changed)
 
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cinfo(stderr, "Publishing issue changes to the trunk:")
 	for _, c := range changed {
@@ -68,15 +80,16 @@ func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg stri
 	}
 	if f.DryRun {
 		cinfo(stderr, "dry-run — skipping publish")
-		return nil
+		return nil, nil
 	}
 
 	dirs, err := resolveIDDirs(f.IssuesDir, "workshop/history")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return pub.UpdateMany(msg, func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
+	var rc *reallocation
+	err = pub.UpdateMany(msg, func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		set := gitx.TrunkWrite{Write: map[string][]byte{}}
 		space, err := refIDSpace(v.Ref(), dirs, r)
 		if err != nil {
@@ -101,16 +114,45 @@ func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg stri
 			// `000207-*` file with NO frontmatter still blocked `sdlc claim`, and a
 			// frontmatter-keyed check would have missed it. Reused rather than
 			// rewritten — the convention is parsed in one place (ARCH-DRY).
-			if id := issueIDFromPath(rel); id > 0 {
-				verdict, foreign := decideCollision(id, rel, space, false)
-				if verdict != verdictPublish {
-					return set, collisionRefusal(id, rel, foreign)
-				}
+			id := issueIDFromPath(rel)
+			if id <= 0 {
+				set.Write[rel] = data
+				continue
 			}
-			set.Write[rel] = data
+			switch verdict, foreign := decideCollision(id, rel, space, f.FirstPublication); verdict {
+			case verdictRefuse:
+				return set, collisionRefusal(id, rel, foreign)
+			case verdictReallocate:
+				// Re-derived on EVERY attempt from this attempt's base, so a peer
+				// landing mid-window produces a different id rather than a re-push
+				// of the colliding one.
+				newID := nextFreeID(id+1, space)
+				newRel, newData, rerr := rewriteIdentity(rel, data, newID)
+				if rerr != nil {
+					return set, rerr
+				}
+				// Written BEFORE the push, so a crash never leaves the trunk ahead
+				// of the working tree. finish() removes the old path and any
+				// orphans from rejected attempts once the push has landed.
+				if werr := os.WriteFile(filepath.Join(root, newRel), newData, 0o644); werr != nil {
+					return set, fmt.Errorf("write %s: %v", newRel, werr)
+				}
+				if rc == nil {
+					rc = &reallocation{OldID: id, OldPath: filepath.Join(root, rel)}
+				}
+				rc.NewID, rc.NewPath, rc.Foreign = newID, filepath.Join(root, newRel), foreign
+				rc.written = append(rc.written, filepath.Join(root, newRel))
+				cwarn(stderr, fmt.Sprintf(
+					"id %06d was taken on the trunk by %s — this issue is now %06d (%s)",
+					id, strings.Join(foreign, ", "), newID, newRel))
+				set.Write[newRel] = newData
+			default:
+				set.Write[rel] = data
+			}
 		}
 		return set, nil
 	})
+	return rc, err
 }
 
 // collisionRefusal is a next-action spec, not a generic contention error: it

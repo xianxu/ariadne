@@ -21,10 +21,16 @@ type fakePublisher struct {
 	runs  int
 	rerun int // re-invoke prepare this many extra times, as a rejection would
 	err   error
+	// beforePrepare runs ahead of each prepare call, so a test can move the trunk
+	// between attempts — the only way to model a peer landing mid-retry.
+	beforePrepare func()
 }
 
 func (f *fakePublisher) UpdateMany(_ string, prepare func(*gitx.TrunkView) (gitx.TrunkWrite, error)) error {
 	for i := 0; i <= f.rerun; i++ {
+		if f.beforePrepare != nil {
+			f.beforePrepare()
+		}
 		f.runs++
 		set, err := prepare(f.view)
 		if err != nil {
@@ -202,5 +208,104 @@ func TestSyncViaTrunk_RefusesWhenTrunkHasForeignSlugAtOurID(t *testing.T) {
 		if _, ok := set.Write[mine]; ok {
 			t.Error("a refused publication must not stage the colliding file")
 		}
+	}
+}
+
+// THE test for the re-allocate arm: the collision must be handled when it
+// appears INSIDE the retry window, not only when it is visible up front.
+//
+// The fake re-invokes prepare as a CAS rejection does, and the id space grows
+// between attempts — modelling a peer landing at our id after we read and before
+// we pushed. If the re-allocation were computed once outside the loop, attempt 2
+// would re-push the colliding id and land the duplicate as a clean fast-forward,
+// which is ariadne#188's hole.
+func TestSyncViaTrunk_ReallocatesOnMidRetryCollision(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mine := "workshop/issues/000700-mine.md"
+	if err := os.WriteFile(filepath.Join(repo, mine),
+		[]byte("---\nid: 000700\nstatus: open\n---\n\n# Mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// A peer lands 000700-theirs.md on the trunk between attempt 1 and attempt 2.
+	attempt := 0
+	pub := &fakePublisher{rerun: 1, view: viewFor(t, repo), beforePrepare: func() {
+		attempt++
+		if attempt == 2 {
+			p := filepath.Join(repo, "workshop/issues/000700-theirs.md")
+			if err := os.WriteFile(p, []byte("---\nid: 000700\n---\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			// Stage ONLY the peer's file: an `add -A` would sweep up ours too,
+			// putting our path on the trunk and making this correctly a refusal
+			// rather than the re-allocation the test is about.
+			testfix.Git(t, repo, "add", "workshop/issues/000700-theirs.md")
+			testfix.Git(t, repo, "commit", "-q", "-m", "peer lands at our id")
+		}
+	}}
+
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	if rc == nil {
+		t.Fatal("a mid-retry collision must produce a re-allocation; nil means the decision ran outside the loop")
+	}
+	if rc.OldID != 700 || rc.NewID != 701 {
+		t.Errorf("re-allocated %d -> %d, want 700 -> 701", rc.OldID, rc.NewID)
+	}
+	// The final set must carry the NEW path, never the colliding one.
+	last := pub.sets[len(pub.sets)-1]
+	if _, ok := last.Write[mine]; ok {
+		t.Error("the colliding path was still published — the retry re-pushed the same id")
+	}
+	if body, ok := last.Write["workshop/issues/000701-mine.md"]; !ok {
+		t.Errorf("re-derived path missing from the published set: %+v", last.Write)
+	} else if !strings.Contains(string(body), "id: 000701") {
+		t.Errorf("frontmatter not moved with the filename:\n%s", body)
+	}
+	if !strings.Contains(errOut.String(), "now 000701") {
+		t.Errorf("the id change must be announced loudly:\n%s", errOut.String())
+	}
+}
+
+// A republication never re-allocates, whatever the trunk holds. This is the
+// regression the first draft of #207's Spec would have shipped.
+func TestSyncViaTrunk_RepublicationNeverReallocates(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The trunk already carries OUR file at this id — the ordinary sync case.
+	mine := "workshop/issues/000800-mine.md"
+	if err := os.WriteFile(filepath.Join(repo, mine),
+		[]byte("---\nid: 000800\n---\n\n# v1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "published")
+	if err := os.WriteFile(filepath.Join(repo, mine),
+		[]byte("---\nid: 000800\n---\n\n# v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pub := &fakePublisher{view: viewFor(t, repo)}
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues"} // FirstPublication false
+	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	if err != nil {
+		t.Fatalf("republishing our own body must succeed: %v\n%s", err, errOut.String())
+	}
+	if rc != nil {
+		t.Fatalf("a republication renumbered the issue %d -> %d — the defect this design exists to prevent",
+			rc.OldID, rc.NewID)
+	}
+	if _, ok := pub.sets[0].Write[mine]; !ok {
+		t.Errorf("the body was not published under its own id: %+v", pub.sets[0].Write)
 	}
 }

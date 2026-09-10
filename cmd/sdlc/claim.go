@@ -49,6 +49,14 @@ type claimFlags struct {
 	IssuesDir string
 	DryRun    bool
 	NoStart   bool
+	// FirstPublication says this id has never been on the trunk, so re-allocating
+	// it is cheap. Only `issue new` sets it. Renumbering is safe ONLY before
+	// anything references the id; by claim time it is in the branch name, and
+	// after that in commit subjects, deps: and sidecar filenames (ariadne#188).
+	// The caller declares this rather than the publisher inferring it, because
+	// the inference is exactly what an earlier draft of #207 got wrong — it would
+	// have renumbered every existing issue on every sync.
+	FirstPublication bool
 	// NoPush suppresses publication: commit in the current worktree and stop
 	// (#206). Spelled negatively on purpose — `issue new` builds this struct as
 	// a literal (issue.go), so a positive `Push` would zero-value to false
@@ -136,7 +144,20 @@ func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg 
 	if branch == "main" {
 		return syncInPlace(stdout, stderr, f, r, msg)
 	}
-	return syncViaMainWorktree(stdout, stderr, f, branch, r, msg)
+	// #207: publish straight to the trunk. The route this replaced drove whatever
+	// checkout had main out, which is unavailable exactly in the workflow's
+	// default mode — change-code branches in place, so an actively-worked repo
+	// has no worktree on main.
+	_ = branch
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return err
+	}
+	tf, err := gitx.NewTrunkFile(root, "origin", "main")
+	if err != nil {
+		return err
+	}
+	return syncViaTrunk(stdout, stderr, f, r, msg, tf)
 }
 
 // startOnClaim folds the "start work" status flip into `sdlc claim`: an
