@@ -80,11 +80,25 @@ elided:
 // will actually race. A fixed map makes the retry re-push the same colliding
 // id and land the duplicate as a clean fast-forward, which is ariadne#188's
 // hole reappearing one layer up.
+type TrunkWrite struct {
+    Write  map[string][]byte // paths to create or replace
+    Delete []string          // paths to REMOVE from the trunk
+}
+
 func (t *TrunkFile) UpdateMany(
     msg string,
-    prepare func(trunk *TrunkView) (map[string][]byte, error),
+    prepare func(trunk *TrunkView) (TrunkWrite, error),
 ) error
 ```
+
+**Deletion is a separate field, not an absent key.** A bare
+`map[string][]byte` cannot express "remove this path" — the path is simply
+missing, which is indistinguishable from "unchanged". Today's arm fails LOUDLY on
+a deleted issue file (`os.ReadFile` at `claim.go:459`); the whole-set early
+return would instead report success while the file stayed on the trunk. That is a
+silent-success regression, and it is the same shape this fleet has now shipped
+several times: a state that matters was not representable, so it collapsed into
+the benign one.
 
 `TrunkView` gives read access to the just-fetched tracking ref — enough for
 `refIDSpace` to run against the base this attempt will race.
@@ -96,9 +110,9 @@ be decided rather than inherited:
   `transform(old []byte)` is meaningful for one path. For N, "the old bytes" has
   no single referent, and issue publication does not transform prior content —
   it writes the local file. Callers needing the base read it through `TrunkView`.
-- **The unchanged-content early return is WHOLE-SET, not per-file.** `Update`
-  skips the commit when `bytes.Equal(old, next)`; here it skips when every
-  prepared file already matches the trunk byte-for-byte. That preserves
+- **The unchanged-content early return is WHOLE-SET, not per-file** — and it
+  must account for `Delete`: skip the commit only when every `Write` already
+  matches the trunk byte-for-byte AND every `Delete` path is already absent. That preserves
   `filesDifferingFrom`'s idempotence (`claim.go:398`) — "main already carries
   this body, publish only" must stay a no-op commit-wise, and a per-file rule
   would emit a commit whenever any one file differed.
@@ -133,10 +147,14 @@ it is not left as "rename + retry":
    leaves an artifact whose name and body disagree, which every downstream
    consumer resolves differently (`sdlc claim` matches the filename;
    `vocabulary validate-instance` reads the frontmatter).
-3. Rename the LOCAL file too, so the working tree matches what was published.
-   The file is untracked at `issue new` time, so this is `os.Rename`, not
-   `git mv` — and that is worth asserting, because a tracked file would need
-   staging and the two paths are easy to conflate.
+3. Bring the LOCAL file to the new path, ordered so a crash cannot strand the
+   trunk: **write the new local path BEFORE the push, remove the old one only
+   after the push succeeds.** The reverse order — push, then rename — leaves a
+   window where the trunk holds the new id while the local file still carries the
+   old one, and since `NextID` scans local files too, the next run would allocate
+   around a name nothing published. With this order a crash leaves one harmless
+   untracked duplicate and a consistent trunk. The file is untracked at
+   `issue new` time, so this is `os.Rename`/`os.Remove`, not `git mv`.
 4. Announce the new id **loudly** on stderr, naming the old id, the new one, and
    the colliding path. An operator who typed `issue new` and got a different
    number than the tool first reported must be told why.
@@ -188,6 +206,12 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
   re-allocating; the two cases are distinguished, not conflated.
 - The reservation is keyed on the filename prefix, proven by a fixture whose
   colliding file has **no frontmatter**.
+- **A deleted issue file is removed from the trunk**, and a test asserts it —
+  today's arm fails loudly on the missing source, so silently reporting success
+  would be a regression the suite must catch, not a behaviour change.
+- The re-allocate ordering is asserted: a failure injected between the local
+  write and the push leaves the trunk unchanged and the working tree recoverable,
+  never the trunk ahead of the local name.
 - `refIDSpace` is the only trunk id-space reader; no second implementation
   (`ARCH-DRY`), confirmed by a shadow sweep.
 - `gitx.TrunkFile` is consumed, not reimplemented, and its existing tests pass
@@ -219,8 +243,10 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
       twice. **This fails if the collision decision is not inside the loop**, and
       it is the case a fixed `files` map re-pushes as a clean fast-forward.
       **(c)** `issue sync` of an already-published issue does **not** renumber.
-- [ ] `TrunkFile.UpdateMany` — N blobs into one temp index, one `write-tree`,
-      one `commit-tree`, one CAS push. Test asserts the commit count.
+- [ ] `TrunkFile.UpdateMany` — `TrunkWrite{Write, Delete}` into one temp index,
+      one `write-tree`, one `commit-tree`, one CAS push. Tests assert the commit
+      count, that a `Delete` path leaves the trunk, and that the whole-set early
+      return fires only when writes match AND deletes are already absent.
 - [ ] Collision decision as a pure function over `refIDSpace`'s map: given
       (id, my path, trunk id-space) -> publish | re-allocate | refuse. No git in
       its tests (`ARCH-PURE`); a case with a no-frontmatter colliding file.
@@ -457,3 +483,26 @@ body disagreeing, and downstream consumers resolve each differently), the local
 file renamed with `os.Rename` since it is untracked at this point, a loud
 announcement naming old id / new id / colliding path, and on exhaustion a refusal
 naming every collision seen.
+
+### 2026-09-09 — plan-quality round 3: cleared, with two residues taken
+
+**PQ-5 (advisory, taken now rather than at close).** The Plan said nothing about
+a DELETED issue file. `prepare` returning `map[string][]byte` cannot express
+removal — an absent key is indistinguishable from unchanged — so the whole-set
+early return would have reported success while the file stayed on the trunk.
+Today's arm fails loudly (`os.ReadFile`, `claim.go:459`), so that is a
+silent-success regression, not a behaviour change. `TrunkWrite{Write, Delete}`
+makes removal representable; the early return now accounts for both halves.
+
+Third time this fleet has shipped the same shape — a state that mattered was not
+representable, so it collapsed into the benign one — after `cat-file -e`
+conflating absent with unreadable, and `KindIssue` as the zero value hiding "not
+mentioned".
+
+**PQ-4 residual.** Step 3 implied the local rename happened after the push,
+leaving an unnamed crash window: trunk holds the new id, local file keeps the
+old, and since `NextID` scans local files the next run allocates around a name
+nothing published. Reordered — write the new local path before the push, remove
+the old only after it succeeds — so a crash leaves one harmless untracked
+duplicate and a consistent trunk. Asserted in Done-when rather than left as
+prose.
