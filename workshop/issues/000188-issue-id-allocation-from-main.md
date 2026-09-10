@@ -198,3 +198,43 @@ expensive to *repair* later.
   (`change-code`, `milestone-close`), or make the branch's copy authoritative and
   publish at merge — but pick one, because "publish at claim and never again" is
   the worst of both.
+
+### 2026-09-09 — superseded; every bullet has shipped
+
+Closing as superseded rather than done: this issue's Spec was carved up across
+four later issues, none of which referenced it, and the last bullet shipped in
+ariadne#207 today.
+
+| This issue's Spec bullet | Where it shipped |
+|---|---|
+| Allocate from the remote (`fetch` + `ls-tree origin/main`) | **#213** — `refIDSpace`, and a UNION with the local scan rather than a replacement, because unpushed local issues are real |
+| Offline fallback, loud warning | **#213** (`issueids.go:41,77`) |
+| Post-publish exactly-once assertion | **#213**, in a better form: the merge gate plus CI `40-duplicate-issue-id.sh`, which survives a GitHub-UI merge and propagates to derivative repos |
+| On a duplicate, refuse loudly and do not auto-renumber | **#213** |
+| No timestamp tiebreak — the incumbent on `origin/main` wins | Honoured throughout; the CAS push settles it with no clocks |
+| Reach main without a checkout of it (the "endgame") | **#207** — `gitx.TrunkFile` + `syncViaTrunk`; `syncViaMainWorktree`, `mainHasUncommittedIssueChanges` and the merge-base conflict detection are deleted |
+| One-shot vs continuous sync (`## Log`, 2026-07-29) | **#206** — `sdlc issue sync` |
+| **Allocate + commit + push as ONE retryable unit, re-allocating on rejection** | **#207** — the last bullet, and the reason this issue could not close earlier |
+
+**That last bullet is the one that mattered, and #207 nearly shipped without
+it.** Its own Spec said retry was trivial — "re-fetch, rebuild, re-push" — which
+is precisely the failure this issue documents: two files with different slugs at
+one id produce no textual conflict, so a content-preserving retry lands the
+duplicate as a clean fast-forward. Replacing `pull --rebase` with a CAS push
+moves the hole into a new mechanism rather than closing it. #207's plan-quality
+review caught it, and the fix is that `UpdateMany` re-derives paths per attempt
+so the collision decision sits inside the retry loop.
+
+**The follow-up this issue named is still unfiled.** `sdlc issue renumber <id>`,
+which would move an issue AND rewrite the branch name, commit-message
+references, `deps:`/project refs and sidecar filenames. #207 re-allocates only at
+first publication, where nothing references the id yet — deliberately, since
+that is the cheap case. Repair after the fact remains manual, and #213's CI check
+still reports two pre-existing collisions (`#000040`, `#000096`) that nobody can
+fix without it.
+
+**Field evidence, for whoever files that follow-up:** three collisions actually
+occurred in `pair` (`#172`, `#173`, `#179`), and the `#179` shape is the worst —
+one side was already archived, so `sdlc claim` refused outright and the duplicate
+was invisible to anyone reading `workshop/issues/`. This repo then reproduced it
+on `#207` itself, three days before the fix landed.
