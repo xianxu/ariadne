@@ -94,7 +94,17 @@ ariadne#188's single surviving bullet, and the reason this issue can supersede i
 
 **Reserve on the FILENAME, not on frontmatter `id:`.** Measured 2026-09-09 while
 claiming this very issue: a second file at `000207-*` existed with **no
-frontmatter at all** (a grafted `## Log` fragment from another session).
+frontmatter at all** — a grafted log fragment from another session.
+`sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
+check would have missed it entirely. The id space the tooling actually collides
+on is the filename prefix.
+
+**Scope: replace `syncViaMainWorktree` only.** Leave `syncInPlace` alone — when
+the caller is already on main, "here" and "main" coincide, and building
+out-of-tree there would leave the caller's own branch behind the commit they just
+pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
+
+frontmatter at all** — a grafted log fragment from another session.
 `sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
 check would have missed it entirely. The id space the tooling actually collides
 on is the filename prefix.
@@ -152,7 +162,6 @@ pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
       being dirty or mid-rebase is neither read nor written.
 - [ ] Close ariadne#188 as superseded, recording which bullet shipped here.
 
-## Log` fragment from another session).
 `sdlc claim` still refused, because it matches on filename; a frontmatter-keyed
 check would have missed it entirely. The id space the tooling actually collides
 on is the filename prefix.
@@ -161,48 +170,6 @@ on is the filename prefix.
 the caller is already on main, "here" and "main" coincide, and building
 out-of-tree there would leave the caller's own branch behind the commit they just
 pushed. (`syncInPlace`'s missing fetch stays a separate fix.)
-
-## Done when
-
-- `sdlc issue new` and `sdlc issue sync` publish from a feature branch with
-  **no worktree on main anywhere** in the repo.
-- They publish while another worktree on main is dirty, mid-rebase, or owned by
-  another actor, without reading or writing that worktree.
-- **A collision RE-ALLOCATES.** Two publishers race against one bare origin on
-  the same id with different slugs; the loser lands at the *next* id and both
-  files exist under **distinct** ids. The earlier wording — "asserts both issue
-  files land" — is the bug for a collision, since two files landing at one id is
-  precisely the defect; it passes on the thing it should catch.
-- A push rejected by a concurrent publisher on an *unrelated* path retries and
-  succeeds without re-allocating — the two cases are distinguished, not
-  conflated.
-- The reservation is keyed on the filename prefix, proven by a fixture whose
-  colliding file has **no frontmatter**.
-- `syncViaMainWorktree` and its clean-main and merge-base conflict checks are
-  deleted, not left as a second path (`ARCH-DRY`) — a shadow sweep confirms no
-  caller reaches them.
-- `gitx.TrunkFile` is consumed, not reimplemented: no second copy of the
-  plumbing, and its existing tests still pass unchanged (`ARCH-DRY`).
-- ariadne#188 closes as superseded — its one surviving bullet
-  (allocate+commit+push as a retryable unit that re-allocates) ships here.
-- Tests run against a real throwaway repo with a local bare `origin`
-  (`ARCH-MOCK`: git is the external binary, and a temp repo is its portable
-  stateful fake — a function-call mock cannot exercise a non-fast-forward
-  rejection).
-- The published blob round-trips: checking out the pushed commit yields a file
-  byte-identical to the local one, with attributes applied.
-
-## Plan
-
-- [ ] Out-of-tree publish helper behind the existing `gitRunner` seam; pure
-      decision logic (paths, subject, retry policy) separated from the git
-      calls (`ARCH-PURE`).
-- [ ] Bounded retry on non-fast-forward, with the rejection surfaced.
-- [ ] Repoint the publish-from-elsewhere arm at it; delete
-      `syncViaMainWorktree`, `mainHasUncommittedIssueChanges`, and the
-      merge-base conflict detection.
-- [ ] Two-publisher concurrency test against a bare origin.
-- [ ] Round-trip test for attributes/EOL and for a signing repo.
 
 ## Log
 
