@@ -5,7 +5,7 @@ deps: [ariadne#206]
 github_issue:
 created: 2026-09-02
 updated: 2026-09-09
-estimate_hours:
+estimate_hours: 3.27
 started: 2026-09-09T18:26:20-07:00
 ---
 
@@ -226,6 +226,56 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
   rejection.
 - The published blob round-trips: checking out the pushed commit yields a file
   byte-identical to the local one, with attributes applied.
+
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec              design=1.2  impl=0.1
+item: scope-pivot             design=0.5  impl=0.2
+item: smaller-go-module       design=0.05 impl=0.2
+item: smaller-go-module       design=0.05 impl=0.2
+item: cross-cutting-refactor  design=0.05 impl=0.14
+item: atlas-docs              design=0.05 impl=0.06
+item: milestone-review        design=0.0  impl=0.18
+design-buffer: 0.15
+total: 3.27
+```
+
+Σdesign 1.9 × 1.15 + Σimpl 1.08 × 1.0 = 3.27.
+
+Priced against the window `sdlc actual` computes, which opens at `e014809d`
+(2026-09-02) and currently attributes **2.12h to #207** with no code written.
+That is the number the ledger will compare against, so the design rows have to
+cover it rather than the impression of "I just started".
+
+`issue-spec` (1.2, undiscounted — the ariadne#215 lesson) is the original
+authoring plus the grafted field evidence from `pair#195`. **`scope-pivot`
+(0.5)** is today's redesign, and it is a genuine pivot rather than refinement:
+two Criticals reversed the re-allocation model (it would have renumbered every
+existing issue on every sync), and PQ-8 replaced a `map[string][]byte` parameter
+with a per-attempt `prepare` because the original could not put the collision
+decision inside the CAS loop. Folding that into `issue-spec` would price a
+redesign as spec-writing, which is the mistake ariadne#218 was called on.
+
+Two `smaller-go-module` rows: `TrunkFile.UpdateMany` + `TrunkWrite` (extending a
+type that exists), and the collision decision + wiring the two arms. Design
+carries the ×0.2 discount on both — the Spec now gives the signature, the
+contract points, and the five-step re-allocate procedure. `impl` sits at the
+scaled ceiling (0.5 × 0.4) because the tests are real-git and the load-bearing
+one seeds a peer *inside* the retry window, which is fiddly to make
+deterministic. `cross-cutting-refactor` is deleting `syncViaMainWorktree`,
+`mainHasUncommittedIssueChanges` and the merge-base conflict detection with a
+shadow sweep.
+
+`design-buffer` 0.15 on the thorough-Spec criterion — there is no durable
+`workshop/plans/000207-*.md`, and as with ariadne#218 the Spec's contract block,
+disposition table and five-step procedure are the plan. At +30% the total is 3.65.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.*
 
 
 ## Plan
