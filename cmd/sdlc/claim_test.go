@@ -127,25 +127,6 @@ func TestFindMainWorktree_NoMain(t *testing.T) {
 	}
 }
 
-func TestMainHasUncommittedIssueChanges_Union(t *testing.T) {
-	r := &claimRunnerStub{
-		gitInDirResponses: map[string][]byte{
-			"diff --name-only":          []byte("workshop/issues/000001-a.md\n"),
-			"diff --cached --name-only": []byte("workshop/issues/000002-b.md\n"),
-		},
-	}
-	got, err := mainHasUncommittedIssueChanges("/main", "workshop/issues", r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("got %v, want 2 entries", got)
-	}
-	if got[0] != "workshop/issues/000001-a.md" || got[1] != "workshop/issues/000002-b.md" {
-		t.Errorf("entries unexpected: %v", got)
-	}
-}
-
 // ── startOnClaim: the folded-in open→working start flip ──────────────────────
 
 // writeIssue is a small fixture helper for the start-flip tests.
@@ -230,18 +211,5 @@ func TestStartOnClaim_DryRunDoesNotWrite(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "would flip") {
 		t.Errorf("dry-run stderr missing notice: %q", stderr.String())
-	}
-}
-
-func TestMainHasUncommittedIssueChanges_None(t *testing.T) {
-	r := &claimRunnerStub{
-		gitInDirResponses: map[string][]byte{}, // empty stdout for both queries
-	}
-	got, err := mainHasUncommittedIssueChanges("/main", "workshop/issues", r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Errorf("expected empty, got %v", got)
 	}
 }

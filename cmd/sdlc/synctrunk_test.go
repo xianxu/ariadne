@@ -309,3 +309,42 @@ func TestSyncViaTrunk_RepublicationNeverReallocates(t *testing.T) {
 		t.Errorf("the body was not published under its own id: %+v", pub.sets[0].Write)
 	}
 }
+
+// Only the changed ISSUE files are published — an unrelated dirty file in the
+// working tree is not swept in.
+//
+// Inherited from TestSyncViaMainWorktree_CommitsOnlyTheCopiedIssueFiles, which
+// is deleted with the arm it covered. Its other half — "an untracked peer file
+// in the MAIN worktree is left alone" — does not migrate, because it is now
+// structurally impossible rather than merely asserted: this arm never opens a
+// worktree at all.
+func TestSyncViaTrunk_PublishesOnlyChangedIssueFiles(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	issue := "workshop/issues/000900-x.md"
+	if err := os.WriteFile(filepath.Join(repo, issue), []byte("---\nid: 000900\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Unrelated dirty work sitting beside it.
+	if err := os.WriteFile(filepath.Join(repo, "peer-work.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pub := &fakePublisher{view: viewFor(t, repo)}
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues"}
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	set := pub.sets[0]
+	if _, ok := set.Write[issue]; !ok {
+		t.Errorf("the changed issue file was not published: %+v", set.Write)
+	}
+	for p := range set.Write {
+		if !strings.HasPrefix(p, "workshop/issues/") {
+			t.Errorf("published a non-issue path: %s", p)
+		}
+	}
+}

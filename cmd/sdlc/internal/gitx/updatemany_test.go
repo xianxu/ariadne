@@ -68,7 +68,9 @@ func TestUpdateMany_DeleteRemovesFromTrunk(t *testing.T) {
 // The unchanged-content early return is WHOLE-SET, and must account for Delete:
 // skip only when every Write already matches AND every Delete is already absent.
 // A per-file rule would emit a commit whenever any one file differed, breaking
-// filesDifferingFrom's idempotence (claim.go:398).
+// the caller's "main already carries this body, publish only" idempotence.
+// (That check lived in filesDifferingFrom, deleted with the worktree arm in #207;
+// the invariant moved here.)
 func TestUpdateMany_WholeSetEarlyReturn(t *testing.T) {
 	repo, origin := trunkFixture(t, "seed\n")
 	tf, _ := NewTrunkFile(repo, "origin", "main")

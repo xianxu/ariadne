@@ -7,9 +7,9 @@
 // lives inside the caller's repo.
 //
 // Why this exists: publishing a small file to the trunk from a feature branch
-// currently routes through whatever checkout has main out (`syncViaMainWorktree`,
-// claim.go), which can be dirty, mid-rebase, owned by another actor, or simply
-// absent. Every guard on that route exists to make a SHARED WORKING DIRECTORY
+// used to route through whatever checkout had main out (`syncViaMainWorktree`,
+// deleted in ariadne#207), which could be dirty, mid-rebase, owned by another
+// actor, or simply absent. Every guard on that route exists to make a SHARED WORKING DIRECTORY
 // safe. Here there is no working directory: fetch, build the tree in a temp
 // index, commit-tree, and push the commit at the ref. `push <commit>:main` IS the
 // concurrency primitive — a compare-and-swap that a local cleanliness check

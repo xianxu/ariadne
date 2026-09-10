@@ -915,17 +915,6 @@ func TestRefuseDuplicateIssueIDs_StaleTrunkIsAnnounced(t *testing.T) {
 	}
 }
 
-// TestMainHasUncommittedIssueChanges_UnreadableIsNotClean: the diff failure was
-// swallowed with `continue // mirror shell || true`, so an unreadable main
-// worktree reported CLEAN and the caller committed over whatever was there.
-// Same rule, third subsystem: a blind read is not an empty result.
-func TestMainHasUncommittedIssueChanges_UnreadableIsNotClean(t *testing.T) {
-	got, err := mainHasUncommittedIssueChanges(filepath.Join(t.TempDir(), "not-a-repo"), idsDir, execGitRunner{})
-	if err == nil {
-		t.Errorf("a diff that could not run reported %v and no error — unreadable is not clean", got)
-	}
-}
-
 // TestMergeCheckScript_UnreadableTrunkDoesNotReportClean is BR-16: the script
 // fetched with the plain `git fetch origin main`, which updates FETCH_HEAD and
 // only incidentally refs/remotes/origin/main — in a CI checkout with no

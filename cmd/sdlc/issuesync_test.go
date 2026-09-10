@@ -138,110 +138,6 @@ func TestSyncInPlace_LeavesForeignStagedFileAlone(t *testing.T) {
 	}
 }
 
-// TestSyncViaMainWorktree_CommitsOnlyTheCopiedIssueFiles is the publish arm's
-// first coverage, and it pins a narrower claim than the in-place arm's.
-//
-// The swept-index bug is NOT deterministically reachable here: step 4 runs `git
-// pull --rebase origin main` in the main worktree, and git refuses that outright
-// when the index is dirty, so a peer's staged file makes the whole sync fail
-// loudly long before the commit. (An earlier draft of this issue asserted the
-// arm carried "the identical defect" — it does not, and the fix here is
-// defense-in-depth closing the pull→commit race rather than a live bug.)
-//
-// So this proves what IS reachable: the arm works end to end, the commit in the
-// OTHER worktree records exactly the copied issue files under the caller's
-// subject, and an untracked peer file sitting in the main worktree is left
-// alone. TestSyncViaMainWorktree_CommitCarriesPathspec covers the wiring.
-func TestSyncViaMainWorktree_CommitsOnlyTheCopiedIssueFiles(t *testing.T) {
-	mainWT, _ := syncRepo(t)
-	feature := filepath.Join(t.TempDir(), "feature")
-	git(t, mainWT, "worktree", "add", "-b", "000206-issue-sync-verb", feature)
-	chdirTo(t, feature)
-
-	writeSyncIssue(t, feature, "000206-issue-sync-verb.md", "## Spec\n\nedited on the branch\n")
-	if err := os.WriteFile(filepath.Join(mainWT, "peer-work.go"), []byte("peer wip\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}
-	syncOK(t, &stdout, &stderr, f)
-
-	committed := strings.Fields(headFiles(t, mainWT))
-	want := []string{syncIssuesDir + "/000206-issue-sync-verb.md"}
-	if len(committed) != 1 || committed[0] != want[0] {
-		t.Errorf("main-worktree commit files = %v, want exactly %v", committed, want)
-	}
-	if got := headSubject(t, mainWT); got != issueSyncMessage(206, "spec/plan") {
-		t.Errorf("main-worktree commit subject = %q, want the issue-naming message", got)
-	}
-	if status := git(t, mainWT, "status", "--porcelain"); !strings.Contains(status, "?? peer-work.go") {
-		t.Errorf("untracked peer file should be untouched in the main worktree, status:\n%s", status)
-	}
-	local := strings.TrimSpace(git(t, mainWT, "rev-parse", "main"))
-	if remote := strings.TrimSpace(git(t, mainWT, "rev-parse", "origin/main")); remote != local {
-		t.Errorf("publish arm should push; local main %s, origin/main %s", local, remote)
-	}
-}
-
-// TestSyncViaMainWorktree_CommitCarriesPathspec is the wiring half. The
-// SEMANTICS of a pathspec'd commit are proven once against real git by
-// TestSyncInPlace_LeavesForeignStagedFileAlone; what is left to prove for this
-// arm is that it passes one at all, which is an argv question — and the only
-// question a recording runner is entitled to answer.
-func TestSyncViaMainWorktree_CommitCarriesPathspec(t *testing.T) {
-	const issueFile = "workshop/issues/000206-issue-sync-verb.md"
-	// The copy step (step 6) touches the real filesystem rather than the runner,
-	// so the source repo and the stand-in main worktree are real directories
-	// even though every git call is stubbed.
-	repo := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
-	if err := os.MkdirAll(filepath.Join(repo, syncIssuesDir), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nx\n")
-	fakeMain := t.TempDir()
-	r := &claimRunnerStub{
-		responses: map[string][]byte{
-			"diff --name-only HEAD": []byte(issueFile + "\n"),
-			"worktree list":         []byte(worktreePorcelainZ([]string{"worktree " + fakeMain, "HEAD abc", "branch refs/heads/main"})),
-			"merge-base":            []byte("abc123\n"),
-		},
-		gitInDirResponses: map[string][]byte{
-			"branch --show-current": []byte("main\n"),
-			// The copy staged the file, so the commit runs. (The narrower
-			// `-- <issuesDir>/` key below is mainHasUncommittedIssueChanges'
-			// question, which must stay empty or the sync refuses.)
-			"diff --cached --name-only -- " + issueFile: []byte(issueFile + "\n"),
-		},
-	}
-	var stdout, stderr bytes.Buffer
-	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}
-	if err := syncViaMainWorktree(&stdout, &stderr, f, "000206-issue-sync-verb", r, "#206: issue-sync: spec/plan"); err != nil {
-		t.Fatalf("syncViaMainWorktree: %v (stderr: %s)", err, stderr.String())
-	}
-	var commit []string
-	for _, c := range r.gitInDirCalls {
-		if len(c.Args) > 0 && c.Args[0] == "commit" {
-			commit = c.Args
-		}
-	}
-	if commit == nil {
-		t.Fatalf("no commit issued; calls: %v", r.gitInDirCalls)
-	}
-	sep := -1
-	for i, a := range commit {
-		if a == "--" {
-			sep = i
-		}
-	}
-	if sep < 0 {
-		t.Fatalf("commit has no `--` pathspec separator: %v — a bare commit records the whole index", commit)
-	}
-	if got := commit[sep+1:]; len(got) != 1 || got[0] != issueFile {
-		t.Errorf("commit pathspec = %v, want [%s] (the same paths the add staged)", got, issueFile)
-	}
-}
-
 // ── the verb's publish contract ──────────────────────────────────────────────
 
 // TestIssueSync_DefaultDoesNotPush pins the design decision the verb exists to
@@ -929,37 +825,39 @@ func TestClaimStaysIdempotentOffline(t *testing.T) {
 	}
 }
 
-// TestFilesDifferingFrom is the direct unit for the round-5 filter. It is
-// covered end to end by TestPublishIsIdempotent, but the argument order
-// (destRoot, srcRoot) is the kind of thing bytes.Equal makes symmetric and
-// therefore invisible — so the "missing at the destination" case, which is NOT
-// symmetric, is what this pins.
-func TestFilesDifferingFrom(t *testing.T) {
-	src, dest := t.TempDir(), t.TempDir()
-	write := func(root, name, body string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	write(src, "same.md", "identical\n")
-	write(dest, "same.md", "identical\n")
-	write(src, "edited.md", "branch version\n")
-	write(dest, "edited.md", "main version\n")
-	write(src, "new.md", "only on the branch\n") // absent at the destination
+// End-to-end over REAL git: syncIssuesToMain from a feature branch with NO
+// worktree on main anywhere lands the body on the bare origin.
+//
+// Every syncViaTrunk unit test uses a fake publisher, which proves the arm's
+// logic but not its wiring to a real UpdateMany and a real push. This closes
+// that gap, and it is the condition #207 exists for: change-code branches in
+// place, so an actively-worked repo has no worktree on main and the route this
+// replaced was unavailable exactly in the workflow's default mode.
+func TestSyncIssuesToMain_PublishesFromBranchWithNoMainWorktree(t *testing.T) {
+	repo, origin := syncRepo(t)
+	git(t, repo, "checkout", "-b", "000206-issue-sync-verb")
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nedited on the branch\n")
 
-	got := filesDifferingFrom(dest, src, []string{"same.md", "edited.md", "new.md", "gone.md"})
-	want := map[string]bool{
-		"edited.md": true, // differs → must be routed
-		"new.md":    true, // missing at the destination → must be routed
-		"gone.md":   true, // unreadable source → routed, so the copy reports the real IO error
+	// No worktree is on main: this checkout is the only one, and it is on a branch.
+	if out := strings.TrimSpace(git(t, repo, "worktree", "list")); strings.Count(out, "\n") != 0 {
+		t.Fatalf("fixture must have exactly one worktree:\n%s", out)
 	}
-	if len(got) != len(want) {
-		t.Fatalf("filesDifferingFrom = %v, want the three non-identical paths", got)
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#206: issue-sync: spec/plan"); err != nil {
+		t.Fatalf("publish from a branch with no main worktree: %v\n%s", err, stderr.String())
 	}
-	for _, p := range got {
-		if !want[p] {
-			t.Errorf("%q should not be routed — it is byte-identical at the destination", p)
-		}
+
+	onTrunk := git(t, origin, "show", "main:"+syncIssuesDir+"/000206-issue-sync-verb.md")
+	if !strings.Contains(onTrunk, "edited on the branch") {
+		t.Errorf("the branch's body did not reach origin/main:\n%s", onTrunk)
+	}
+	if subj := strings.TrimSpace(git(t, origin, "log", "-1", "--format=%s", "main")); subj != "#206: issue-sync: spec/plan" {
+		t.Errorf("commit subject = %q, want the caller's message", subj)
+	}
+	// The working tree is untouched: no checkout was involved at all.
+	if br := strings.TrimSpace(git(t, repo, "branch", "--show-current")); br != "000206-issue-sync-verb" {
+		t.Errorf("branch changed to %q", br)
 	}
 }
