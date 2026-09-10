@@ -34,9 +34,12 @@ directory* safe, and each is a way to fail: main can be dirty, main can be
 mid-rebase, main can be another actor's active tree, or main can simply not be
 checked out anywhere.
 
-Adjacent, and fixed incidentally by the same change: `syncInPlace` pushes
-without fetching first, so an ID allocated by `issue.NextID` from a stale local
-`main` is only discovered when the push is rejected.
+Adjacent but **NOT** fixed here: `syncInPlace` pushes without fetching first, so
+an id allocated from a stale local `main` is only discovered when the push is
+rejected. An earlier draft claimed this change fixed it incidentally; it does
+not, because the Scope below deliberately leaves `syncInPlace` alone. It stays a
+separate one-line fix, and saying otherwise would have let it fall through the
+gap between two sections of one issue.
 
 ## Spec
 
