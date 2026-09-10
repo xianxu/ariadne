@@ -86,14 +86,12 @@ arm, and getting it wrong in either direction is silent:
   so a clean-tree claim must not touch the network at all. (Inferring the intent
   from `origin/main..main` instead turned every clean claim into a wholesale push
   of local main, publishing bodies a no-push sync had deliberately kept local.)
-- `syncViaMainWorktree` re-seeds its file list from the ISSUE and routes the body
-  across as usual, committing only if the copy staged anything. Merely pushing
-  main from there publishes nothing — the body is on the *branch* — so it printed
-  success while `origin/main` never moved.
-- A body the main worktree already carries byte-for-byte is dropped from that
-  list *before* conflict detection runs. The detector asks "did both sides touch
-  this since merge-base", which is right for a dirty file and wrong for one an
-  earlier run of this same verb put on main: publish, publish again, and the
+- `syncViaTrunk` re-seeds its file list from the ISSUE and publishes it, so
+  "nothing to copy" never means "nothing to publish" — the body may already be
+  committed here and still absent from the trunk.
+- A body the trunk already carries byte-for-byte produces no commit at all:
+  `UpdateMany`'s early return is **whole-set** — every write matches AND every
+  delete is already absent. That preserves the idempotence the old arm got from
   second run died on a false `Conflict detected!`. This is not conflict
   detection (explicitly out of scope) — it is declining to invoke it when there
   is no content difference to resolve.
@@ -114,7 +112,7 @@ branch"; they are *commit here* vs *publish to origin/main from elsewhere*:
 | arm | what it does | reached when |
 |---|---|---|
 | `syncInPlace` | `add` + `commit` in THIS worktree on THIS branch, then `push origin main` unless `NoPush` | the caller isn't publishing, **or** this worktree is already on main |
-| `syncViaMainWorktree` | find the worktree on main, refuse if it has uncommitted issue changes, `pull --rebase`, conflict-detect, copy, commit + push there | publishing from a feature branch |
+| `syncViaTrunk` (#207) | build the commit in the object database and CAS-push it at `origin/main` — no checkout involved | publishing from anywhere that isn't main |
 
 Every step of the second arm exists to publish, so suppressing the push doesn't
 just skip its last line — it selects the other arm entirely. That is what makes
@@ -146,9 +144,9 @@ list *from* `archiveAddArgs` so the two cannot drift, and refuses an empty move
 list — `git commit -m … --` with no paths is read as NO pathspec and commits the
 whole index, which is the helper's own failure mode on its degenerate input.
 
-Reachability differs by site. `syncViaMainWorktree`'s `pull --rebase` already
-refuses a dirty index, so its pathspec closes a pull→commit race rather than a
-live bug. `syncInPlace`, `push`'s archive and `migrate`'s **source** side have no
+Reachability differs by site. The publish arm no longer builds a commit from an
+index at all (#207 — it writes a tree directly), so the swept-index family cannot
+reach it. `syncInPlace`, `push`'s archive and `migrate`'s **source** side have no
 such guard — migrate's cleanliness check (`status --porcelain -- relPath`) is
 scoped to the migrated file alone — and those three are the deterministic
 regressions in `issuesync_test.go`. `migrate --no-commit` prints the pathspec'd
@@ -643,55 +641,63 @@ cmd/sdlc/
                        will lift residency)
 ```
 
-## Trunk-backed files (`gitx.TrunkFile`, #209)
+## Publishing to the trunk (`gitx.TrunkFile`, #209 + #207)
 
-Reads and compare-and-swap-writes **one path on a remote branch with no working
-tree**. It has **no consumer in the tree today**: `ariadne#207` is specced to
-consume it, for publishing issue files to the trunk when no worktree has main
-out, and has not landed.
+Reads and compare-and-swap-writes paths on a remote branch with **no working
+tree**. Its consumer is `syncViaTrunk` — the publish arm for `sdlc issue new`,
+`issue sync` and `claim`.
 
-It was built for `sdlc queue`, removed in #218; the primitive survives that
-removal because the two had opposite justifications. An issue id is a **shared
-namespace with concurrent writers**, so the trunk is the only correct home and
-`ariadne#188` documents why a collision is expensive to repair. The queue had no
-shared namespace, so its need for trunk-consistency was manufactured by the
-storage choice rather than demanded by the content.
+The route it replaced drove *someone else's checkout*: find the worktree on main,
+refuse if it is dirty, `pull --rebase` it, detect both-sides changes, copy,
+commit, push. Every guard there existed to make a shared working directory safe,
+and each was a way to fail — main can be dirty, mid-rebase, another actor's tree,
+or absent. **Absent is the common case**, because `change-code` branches in
+place: an actively-worked repo has no worktree on main, so the reservation
+mechanism was unavailable exactly in the workflow's default mode. Measured in
+`pair` on 2026-09-06: twenty consecutive issues filed unreserved, and three real
+id collisions that each cost a renumber.
 
-The route it replaces (`syncViaMainWorktree`, `claim.go`) drives *someone else's
-checkout*: find the main worktree, refuse if it is dirty, `pull --rebase` it, copy
-the file in, commit, push. Every one of those guards exists to make a shared
-working directory safe, and each is a way to fail — main can be dirty, mid-rebase,
-another actor's tree, or not checked out at all. Here there is no working
-directory: fetch, build the tree in a temp index, `commit-tree`, and
-`push <commit>:refs/heads/main`. **That push IS the concurrency primitive** — a
-compare-and-swap against the remote, strictly stronger than a cleanliness check
-that can only observe local divergence.
+`push <commit>:main` is the concurrency primitive — a compare-and-swap that sees
+the remote, where the cleanliness check it replaced could only see local
+divergence.
 
-**The retry loop is generic; the transform decides mergeability.**
-`Update(path, msg, transform)` re-reads and **re-calls the transform** on a moved
-base rather than re-pushing the bytes it built. So a caller whose transform
-replays an intent ("append this line") preserves a peer's concurrent edit, while
-one that sets content keeps last-writer-wins — and the loop neither knows nor
-cares which. One primitive, per-caller semantics, which is what lets #207 consume
-it instead of growing a second retry loop (`ARCH-DRY`, `ARCH-ORDER`).
+**`UpdateMany` derives its paths per attempt.** `prepare(*TrunkView)` runs after
+each fetch and returns the whole change set, so a caller whose path depends on
+trunk state — an issue id — re-decides it against the base the CAS will actually
+race. A fixed path map would make the retry re-push a colliding id and land the
+duplicate as a clean fast-forward, which is `ariadne#188`'s hole one layer up.
+`TrunkWrite` carries `Delete` as its own field for the same reason a bool could
+not carry three states: an absent key cannot mean "remove this".
 
-Three things that are load-bearing rather than incidental:
+**Collision policy splits by caller, and that split is the design.** Renumbering
+is safe only *before* anything references the id; by claim time it has leaked
+into the branch name, and after that into commit subjects agents grep, `deps:` in
+sibling issues, and review sidecar filenames.
+
+| caller | a different slug holds our id |
+|---|---|
+| `issue new` (`FirstPublication`) | **re-allocate** — next free id, filename AND `id:` frontmatter rewritten together, announced loudly |
+| `issue sync` / `claim` | **refuse**, naming both paths |
+
+`FirstPublication` is DECLARED by the caller, never inferred. An earlier draft of
+#207 inferred "the id is taken, so re-allocate" and would have renumbered every
+existing issue on every sync, because republication pushes an id already on the
+trunk — its own.
+
+Three properties that are load-bearing rather than incidental:
 
 - **`NewTrunkFile` refuses an empty dir.** gitx's older `run` shim carries no
-  `Dir`, so a TrunkFile that forgot to pass one would fetch from and push to the
-  *real* origin during `go test`. The guard makes that unrepresentable.
-- **`runGitIn` returns stdout and stderr separately**, and is a sibling of `run`
-  rather than a widening of it. Combining them folded git's "CRLF will be replaced
-  by LF" warning into a parsed blob hash — and would have folded it into file
-  content on every read. `run`'s existing callers were written against `.Output()`
-  semantics and must not start receiving stderr.
-- **Offline is asymmetric**, matching the policy `issueids.go` already settled: a
-  read degrades to the stale tracking ref with a loud warning, a write refuses,
-  because a CAS push has no base to compare against.
+  `Dir`, so a forgotten one would push to the *real* origin during `go test`.
+- **`runGitIn` returns stdout and stderr separately.** Combining them folded a
+  git warning into a parsed blob hash, and would have folded it into file content
+  on every read.
+- **Offline is asymmetric**: a read degrades to the stale tracking ref with a loud
+  warning, a write refuses, because a CAS push has no base to compare against.
 
 Tested against a real bare origin via `internal/testfix` (`ARCH-MOCK`) — a
 function-call mock cannot produce the non-fast-forward rejection that is the
-whole point.
+whole point — including an end-to-end from a feature branch with no worktree on
+main anywhere.
 
 ## Drift checks (`sdlc state`)
 

@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // trunkPublisher is the seam, declared in the consumer (Go idiom) so the verb's
@@ -40,12 +41,26 @@ type trunkPublisher interface {
 // re-push a colliding id as a clean fast-forward — ariadne#188's hole.
 func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) error {
 	rc, err := syncViaTrunkWithRealloc(stdout, stderr, f, r, msg, pub)
+	if err != nil {
+		// NEVER clean up after a failed publish. finish() removes the ORIGINAL
+		// local file, so running it here would delete the operator's issue while
+		// nothing reached the trunk — the Spec's ordering inverted, and data loss.
+		// Candidate paths a rejected attempt wrote are left in place; they are
+		// visible, and the next run reconciles them.
+		return err
+	}
 	if rc != nil {
+		cwarn(stderr, fmt.Sprintf("issue %06d was re-allocated to %06d — local file is now %s",
+			rc.OldID, rc.NewID, filepath.Base(rc.NewPath)))
 		if cerr := rc.finish(); cerr != nil {
 			cwarn(stderr, cerr.Error())
 		}
 	}
-	return err
+	// BR-5: the `synced` marker is the machine-readable contract callers parse;
+	// the arm this replaced emitted it and dropping it would break them silently.
+	cok(stderr, "Issue changes published to the trunk.")
+	fmt.Fprintln(stdout, "synced")
+	return nil
 }
 
 // syncViaTrunkWithRealloc returns the id change, if any, so the caller can clean
@@ -90,6 +105,10 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 
 	var rc *reallocation
 	err = pub.UpdateMany(msg, func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
+		// Reset per attempt: a re-allocation decided on a base that has since
+		// moved is stale, and carrying it forward would report an id change the
+		// final push never made.
+		rc = nil
 		set := gitx.TrunkWrite{Write: map[string][]byte{}}
 		space, err := refIDSpace(v.Ref(), dirs, r)
 		if err != nil {
@@ -126,7 +145,12 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 				// Re-derived on EVERY attempt from this attempt's base, so a peer
 				// landing mid-window produces a different id rather than a re-push
 				// of the colliding one.
-				newID := nextFreeID(id+1, space)
+				// UNION the trunk's id space with the local scan before picking.
+				// The trunk alone is not the id space: unpublished local issues
+				// are real, and re-allocating onto one would mint exactly the
+				// duplicate this arm exists to prevent. Same union ariadne#213
+				// established for allocation (`issue.NextID(local, published)`).
+				newID := nextFreeID(id+1, unionIDSpace(space, dirs))
 				newRel, newData, rerr := rewriteIdentity(rel, data, newID)
 				if rerr != nil {
 					return set, rerr
@@ -153,6 +177,31 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 		return set, nil
 	})
 	return rc, err
+}
+
+// unionIDSpace merges the trunk's id space with the local working tree's.
+//
+// refIDSpace answers "what is published"; a re-allocation also has to avoid what
+// is merely WRITTEN here but not yet pushed. ariadne#213 settled this for
+// allocation and the same reasoning applies to re-allocation: an unpushed local
+// issue is a real reservation, and stepping onto it mints the collision.
+//
+// A failed local scan is not fatal — the trunk half still constrains the choice,
+// and refusing to re-allocate because the filesystem hiccuped would be worse than
+// a slightly-too-low id that the CAS will reject anyway.
+func unionIDSpace(trunk map[int][]string, dirs idDirs) map[int][]string {
+	out := make(map[int][]string, len(trunk))
+	for id, paths := range trunk {
+		out[id] = paths
+	}
+	localByID, _, err := issue.LocalPathsByID(dirs.Abs)
+	if err != nil {
+		return out
+	}
+	for id, paths := range localByID {
+		out[id] = append(out[id], paths...)
+	}
+	return out
 }
 
 // collisionRefusal is a next-action spec, not a generic contention error: it

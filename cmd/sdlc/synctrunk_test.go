@@ -348,3 +348,122 @@ func TestSyncViaTrunk_PublishesOnlyChangedIssueFiles(t *testing.T) {
 		}
 	}
 }
+
+// A FAILED publish must not clean up. finish() removes the ORIGINAL local file,
+// so running it on the error path deletes the operator's issue while nothing
+// reached the trunk — the Spec's ordering inverted, and data loss.
+func TestSyncViaTrunk_FailedPublishKeepsTheOriginalFile(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mine := filepath.Join(repo, "workshop/issues/001000-mine.md")
+	if err := os.WriteFile(mine, []byte("---\nid: 001000\n---\n\n# body\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pub := &fakePublisher{view: viewFor(t, repo), err: errors.New("push rejected")}
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err == nil {
+		t.Fatal("expected the publish failure to surface")
+	}
+	if _, err := os.Stat(mine); err != nil {
+		t.Errorf("the original issue file was deleted after a FAILED publish: %v", err)
+	}
+}
+
+// Re-allocation must avoid ids held by UNPUBLISHED LOCAL files, not just the
+// trunk. The trunk alone is not the id space — ariadne#213 settled that for
+// allocation, and stepping onto a local reservation mints exactly the duplicate
+// this arm prevents.
+func TestSyncViaTrunk_ReallocationSkipsLocalUnpublishedIDs(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The TRUNK holds a foreign slug at 001100, forcing a re-allocation.
+	if err := os.WriteFile(filepath.Join(issues, "001100-theirs.md"), []byte("---\nid: 001100\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk")
+
+	// 001101 exists LOCALLY and is unpublished — the next free id must skip it.
+	if err := os.WriteFile(filepath.Join(issues, "001101-local-unpublished.md"), []byte("---\nid: 001101\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mine := "workshop/issues/001100-mine.md"
+	if err := os.WriteFile(filepath.Join(repo, mine), []byte("---\nid: 001100\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pub := &fakePublisher{view: viewFor(t, repo)}
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	if rc == nil {
+		t.Fatal("expected a re-allocation")
+	}
+	if rc.NewID == 1101 {
+		t.Fatal("re-allocated onto 001101, which a local unpublished file already holds — the duplicate this prevents")
+	}
+	if rc.NewID != 1102 {
+		t.Errorf("re-allocated to %d, want 1102 (next free past both the trunk and local)", rc.NewID)
+	}
+}
+
+// rc must be reset per attempt. If attempt 1 re-allocates and attempt 2 does
+// NOT — the collision cleared on the new base — a carried-over rc reports an id
+// change the final push never made, and finish() then deletes the original file
+// that WAS just published under its own name. Same data-loss family as
+// FailedPublishKeepsTheOriginalFile, reached by a different route.
+func TestSyncViaTrunk_StaleReallocationIsNotCarriedAcrossAttempts(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	theirs := filepath.Join(issues, "001200-theirs.md")
+	if err := os.WriteFile(theirs, []byte("---\nid: 001200\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "peer holds our id")
+
+	mine := "workshop/issues/001200-mine.md"
+	if err := os.WriteFile(filepath.Join(repo, mine), []byte("---\nid: 001200\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	attempt := 0
+	pub := &fakePublisher{rerun: 1, view: viewFor(t, repo), beforePrepare: func() {
+		attempt++
+		if attempt == 2 {
+			// The peer withdrew: on THIS base our id is free again.
+			testfix.Git(t, repo, "rm", "-q", "workshop/issues/001200-theirs.md")
+			testfix.Git(t, repo, "commit", "-q", "-m", "peer withdrew")
+		}
+	}}
+
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	if rc != nil {
+		t.Fatalf("attempt 2 found no collision, so no re-allocation happened — "+
+			"a carried-over rc (%06d -> %06d) would report an id change the push never made, "+
+			"and finish() would delete the file just published under its own name",
+			rc.OldID, rc.NewID)
+	}
+	last := pub.sets[len(pub.sets)-1]
+	if _, ok := last.Write[mine]; !ok {
+		t.Errorf("the final attempt must publish the ORIGINAL path: %+v", last.Write)
+	}
+}
