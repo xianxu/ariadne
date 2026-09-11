@@ -199,9 +199,9 @@ func TestRunIssueNew_AutoSyncsToMainCleanTree(t *testing.T) {
 //
 // #206 sharpened the guarantee: publication and durability are separable, and
 // only publication failed here, so the file must still end up COMMITTED. An
-// untracked new issue is the hole #206 exists to close, and its commonest
-// trigger is mundane — `issue new` from an in-place feature branch, where the
-// publish route finds no worktree on main and nothing is actually wrong.
+// untracked new issue is the hole #206 exists to close. Its commonest trigger
+// used to be an in-place feature branch with no worktree on main; since #207 the
+// trunk route needs no checkout, so it is an unreachable origin instead.
 func TestRunIssueNew_AutoSyncBestEffort(t *testing.T) {
 	dir := testfix.Repo(t)
 	issuesDir := filepath.Join(dir, "workshop", "issues")
@@ -423,6 +423,11 @@ func TestCommandTree_AliasShape(t *testing.T) {
 func reallocFixture(t *testing.T, pubErr error) (repo, issues, history string) {
 	t.Helper()
 	repo = testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	// Resolved: t.TempDir() hands back /tmp/... while git reports
+	// /private/tmp/..., and the id-directory containment guard compares the two.
+	if resolved, err := filepath.EvalSymlinks(repo); err == nil {
+		repo = resolved
+	}
 	issues = filepath.Join(repo, "workshop", "issues")
 	history = filepath.Join(repo, "workshop", "history")
 	for _, d := range []string{issues, history} {

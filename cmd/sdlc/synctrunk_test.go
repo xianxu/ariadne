@@ -697,3 +697,43 @@ func TestSyncViaTrunk_TwoReallocationsInOnePublish(t *testing.T) {
 		t.Errorf("published %d files, want 2: %+v", len(published), published)
 	}
 }
+
+// BR-2: a retry must not treat its OWN rejected candidate as a taken id. The
+// candidate is on disk, so the local scan counted it and the retry walked
+// forward — 000700 to 000702 with 000701 free — and the orphaned 000701 then
+// reserved an id nothing had published.
+func TestSyncViaTrunk_RetryReusesItsOwnCandidateID(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(issues, "000700-theirs.md"), []byte("---\nid: 000700\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk holds 000700")
+	if err := os.WriteFile(filepath.Join(issues, "000700-mine.md"), []byte("---\nid: 000700\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pub := &fakePublisher{rerun: 1, view: viewFor(t, repo)} // one rejection, one retry
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	if len(f.Reallocations) != 1 {
+		t.Fatalf("got %d re-allocations, want 1", len(f.Reallocations))
+	}
+	if got := f.Reallocations[0].NewID; got != 701 {
+		t.Errorf("re-allocated to %06d, want 000701 — the retry counted its own candidate as taken", got)
+	}
+	// And no orphan from the first attempt survives.
+	if _, err := os.Stat(filepath.Join(issues, "000702-mine.md")); !os.IsNotExist(err) {
+		t.Errorf("an orphan candidate survived: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(issues, "000700-mine.md")); !os.IsNotExist(err) {
+		t.Error("the superseded original survived a successful publish")
+	}
+}

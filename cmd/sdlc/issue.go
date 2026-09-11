@@ -269,10 +269,9 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 	// the natural repair manufactures exactly the collision this issue exists to
 	// prevent. Reading and writing must agree on where ids live.
 	// Only the WRITE takes the absolute form. f.IssuesDir stays as given, because
-	// it also feeds the sync (#213 BR-26), whose git pathspecs and worktree
-	// copies are interpreted against the repo root — an absolute path there made
-	// `issue new` from a subdirectory stop publishing to origin/main, breaking
-	// #82's guarantee on the very path BR-25 had just made supported.
+	// it also feeds the sync (#213 BR-26). Since #207 BR-16 the sync pins its own
+	// git calls to the repo root, so neither form is silently blind from a
+	// subdirectory — which is what broke #82's guarantee here before.
 	// allocateIssueID resolves for itself, so it needs no help here.
 	writeDir, shownDir := f.IssuesDir, f.IssuesDir
 	if dirs, derr := resolveIDDirs(f.IssuesDir, f.HistoryDir); derr == nil {
@@ -355,10 +354,10 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 			// But fall back to a LOCAL commit first (#206). Publication and
 			// durability are separable, and only publication failed here; leaving
 			// the new issue as an untracked working-tree file is the hole this
-			// issue exists to close. The common trigger is mundane: `issue new`
-			// from an in-place feature branch, where the publish route finds no
-			// worktree on `main` and there is nothing wrong at all. A no-op when
-			// the first attempt already committed and only the push failed.
+			// issue exists to close. Since #207 the common trigger is a genuinely
+			// unreachable origin rather than a missing worktree on main — the
+			// trunk route needs no checkout. A no-op when the first attempt
+			// already committed and only the push failed.
 			syncFlags.NoPush = true
 			if lerr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, issueSyncMessage(id, "new issue")); lerr != nil {
 				cwarn(stderr, fmt.Sprintf("issue created but NOT committed: %v (sync to main also failed: %v)", lerr, serr))

@@ -209,3 +209,178 @@ findings:
     title: |
       decideCollision ignores two files in the same publish set sharing one id
 ```
+
+---
+
+## Re-review — 2026-09-11T11:46:11-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 207 — Publish issue files without a main worktree |
+| repo | ariadne |
+| issue file | workshop/issues/000207-sync-without-worktree.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ff1b52b6311ce92bd014c626f1b089fc01aa7860..d64e6c352470ed219d1404d2c6bf6cd88439ebaf |
+| command | sdlc close --issue 207 |
+| reviewer | claude |
+| timestamp | 2026-09-11T11:46:11-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: medium
+```
+
+Build and vet are clean on a scratch copy of HEAD. The targeted suites (`cmd/sdlc`, `internal/gitx`) pass once `TestRunIssueNew_FromGitHubFillsProblem` is skipped. That test calls `die()` when there is no GitHub remote, which exits the test binary, so any run that includes it stops early with a bare `FAIL`. The two full-suite failures come from files missing in the scratch copy, not from this window. I reverted 16 claimed fixes one at a time: 10 turned a test red, 5 left the suite green, and one mutation did not compile. BR-1 and BR-3 are fixed and pinned. Three things stop a clean SHIP. BR-2's fix has no test that fails without it, and a retry still steps over its own earlier candidate: I reproduced 700→702 with 701 free. Both doc sites BR-7 named are unchanged. And there is a new instance of a family that has come up before: from any subdirectory, `issue new`, `claim` and `issue sync` publish nothing and print `[ok] No issue changes to sync.` That is the exact failure in #207's Problem section, reproduced with the HEAD binary. None of this needs a redesign, but BR-2 stays open as Critical in the ledger until a test pins it.
+
+## 1. Strengths
+- **Per-attempt and cross-attempt state are now separate.** `publishResult` resets `reallocs` on each attempt and keeps `candidates` and `collisions` across attempts, and the field comments say why (`synctrunk.go:49-62`). This is the right shape for ARCH-ORDER.
+- **The `newTrunkPublisher` seam (`synctrunk.go:40`) gives `runIssueNew` real end-to-end coverage.** Reverting BR-1 or BR-13 turns a test red.
+- **`Update` is now a thin adapter over `UpdateMany` (`trunkfile.go:337-349`).** There is one CAS loop, and `trunkfile_test.go` is unchanged and green, so its retry-policy tests now cover the live path.
+- **The real-git tests are strong:**
+  - a `pre-receive` hook confirms the local write happens before the push;
+  - a dirty, mid-rebase main worktree is left untouched;
+  - a fresh clone's file is byte-identical under `.gitattributes`;
+  - non-ASCII names are covered through both `diff` and `ls-files`.
+- **`decideCollision` stays pure, with three named outcomes.** BR-15's refusal of two files sharing one id is pinned.
+
+## 2. Critical
+**BR-2 is not addressed** (`synctrunk.go:188`, `:196`, `:314`).
+- **The fix has no test.** Adding `res.candidates = nil` next to the per-attempt `reallocs` reset leaves every targeted test green. Every multi-attempt test either has no collision on attempt 1, or calls `syncViaTrunkWithRealloc`, which never runs `finish()` (`StaleReallocationIsNotCarriedAcrossAttempts`). The code does currently remove the stale candidate; I confirmed that with my own test, but nothing in the suite guards it.
+- **The retry still re-allocates over its own candidate.** With the collision present on both attempts, attempt 1 writes `000701-mine.md`. `unionIDSpace`'s local scan then counts that file as a reservation, so attempt 2 publishes 702 while 701 is free on the trunk.
+- *Fix:* leave `res.candidates` out of the local union. Then add a `syncViaTrunk` test with a `fakePublisher{rerun: 1}` and the collision on both attempts, asserting `NewID == 701` and that exactly one local file survives. That test goes red under either regression.
+
+## 3. Important
+- **New, family `cwd-relative-git-read`: publishing from a subdirectory silently does nothing.** Reproduced with the HEAD binary from `docs/sub` on a feature branch against a bare origin: exit 0, `No issue changes to sync.`, the file left untracked, and origin unchanged. It also reproduces at base on main, so it predates this issue.
+  - Cause: `execGitRunner.Git` runs in the process cwd (`runner.go:36`). The pathspecs in `changedIssueFiles` (`claim.go:348-351`) and `issueFilesForID`'s glob therefore resolve against the cwd, and `ls-files` returns cwd-relative paths that `prepare` then joins onto the repo root.
+  - `issue.go:270-273` claims the opposite, that the sync's pathspecs are read against the repo root.
+  - The family-repeat rule is in the findings block below.
+- **BR-7 is not addressed.**
+  - Both sites it named are unchanged: `changecode.go:257-260` still describes copying into the main worktree, and the broken sentence at `sdlc-binary.md:94-97` is still broken.
+  - Stale siblings nobody swept: `issue.go:270-273`, `issue.go:354-357`, `sdlc-binary.md:104-108` and `issue_test.go:202-204` all still describe the "no worktree on main" trigger or worktree copies.
+
+## 4. Minor
+- **BR-11:** the fix is correct (`updatemany.go:88` passes the base SHA), but pointing the view back at the tracking ref leaves every test green.
+- **BR-14:** removing the frontmatter scoping (`reallocate.go:62`) leaves every test green. The frontmatter `id:` always matches first; the untested case is a frontmatter block with no `id:` plus a prose `id:` line.
+- **BR-9's fallback guard (`synctrunk.go:211-219`) is never exercised.** Disabling it leaves everything green. The quoting bug itself is pinned by the `-z` tests.
+- **BR-4:** resetting `collisions` on each attempt leaves everything green, because the exhaustion test runs a single attempt.
+- **The lost-update docs don't name the follow-up.** `issue-sync.md:56` cites "(ariadne#207 BR-5)" and `claim.md` names nothing, while the Done-when says ariadne#222 carries the design.
+- **BR-6 residual:** `nextFreeID` (first free id above ours) is still a second allocation rule beside `issue.NextID` (highest + 1). It can reuse a gap; this is rarely reachable.
+- `appendUnique` duplicates what `slices.Contains` already does.
+
+## 5. Test coverage notes
+| Mutation (fix reverted) | Result |
+|---|---|
+| BR-1 path printed on stdout, BR-3 single-record, BR-6 swallowed scan, BR-9 `ls-files -z`, BR-10 cleanup on failure, BR-12 `--full-tree`, BR-13 advice, BR-13 error wrapping, BR-15 two files at one id, BR-4 exhaustion message | caught |
+| BR-2 candidates reset per attempt, BR-9 not-exist guard, BR-11 tracking-ref name, BR-14 frontmatter scope, BR-4 collisions reset per attempt | **survived** |
+
+Re-allocation across a real retry still has no real-git test; only the fake covers it. Every test runs from the repo root, which is how the subdirectory gap went unnoticed.
+
+## 6. Architecture
+| Marker | Verdict | Notes |
+|---|---|---|
+| ARCH-DRY | pass, with a note | BR-8 is fixed and `refIDSpace` is consumed. `nextFreeID` vs `NextID` remains. |
+| ARCH-PURE | flag (note) | The `prepare` closure still mixes pure decisions with `os.WriteFile` and result-state changes, and BR-2's residue lives there. A pure `planPublish(...) → (TrunkWrite, []reallocation)` would make it unit-testable. |
+| ARCH-PURPOSE | flag | Three fixes covered the named instance rather than the class: the cwd class, the stale-docs class, and BR-2 (orphans fixed, but its own candidates still count as reservations). |
+| ARCH-MOCK | pass | The real bare-origin tests are good. The fake shares the seam but does not model the CAS. |
+| ARCH-CONSTRAINTS | pass | Retries are bounded at 3, and git calls grow linearly with the number of files. |
+| ARCH-SECURE | pass, with a note | Arguments go as argv arrays, with `--end-of-options` and `-z`. The not-exist guard exists but is never exercised. |
+| ARCH-ORDER | flag | The cross-attempt fields are exactly the ones no test observes across attempts. `beforePrepare` could inject the ordering, but no test uses it with a persistent collision. |
+
+Architectural note for later: `changedIssueFiles` scans only `IssuesDir`, so an uncommitted move out of it (a hand-made archive, say) publishes a bare Delete. The trunk would then hold that id in neither directory.
+
+## 7. Plan revision recommendations
+1. Spec lines 59-61 still say the merge-base check existed "only because the current route edits a shared checkout". Add a Revisions entry: it also caught concurrent edits to the same issue, that guarantee is gone, and ariadne#222 tracks it.
+2. The Log's "Twelve mutations run, twelve caught" and the BR-2 narrative need correcting: the candidate persistence is not pinned, and the 700→702 skip remains.
+3. The Done-when about `--full-tree` holds only for id-space reads. Either widen it to "publishing from a subdirectory lands the file", or mark it undelivered.
+4. Spec step 1: state that the local id-space union excludes this publish's own candidates.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Reverting the stdout path fix fails TestRunIssueNew_PrintsThePathItActuallyPublished.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      Resetting res.candidates per attempt leaves every test green (no test runs finish() after a two-attempt re-allocation), and the retry still re-allocates over its own candidate: reproduced 700 to 702 with 701 free, because unionIDSpace counts it.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Collapsing reallocs to a single record fails TestSyncViaTrunk_TwoReallocationsInOnePublish.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The exhaustion message is pinned and the unrelated-retry test exists; accumulating collisions across attempts is unpinned (resetting them per attempt leaves the suite green).
+  - id: BR-5
+    disposition: addressed
+    note: |
+      claim.md and issue-sync.md state last-writer-wins and #222 exists; neither doc names #222, and the Spec premise is uncorrected.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      The swallowed local scan is pinned by RefusesWhenTheLocalIDScanFails; nextFreeID (first free id above ours) still diverges from NextID (highest + 1), with low reachability.
+  - id: BR-7
+    disposition: not-addressed
+    note: |
+      changecode.go:257-260 and the broken sentence at sdlc-binary.md:94-97 are unchanged; unswept siblings at issue.go:270-273, issue.go:354-357, sdlc-binary.md:104-108 and issue_test.go:202-204.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Update is an adapter over UpdateMany, commitAndPush is gone, and trunkfile_test.go is unchanged and green.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      -z on all three queries is pinned by real-git and stub tests; the not-on-disk-and-not-tracked guard (synctrunk.go:211-219) is never exercised.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Calling finish() on the failure path fails both the fake and the real-git test.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      The code pins the base SHA, but pointing the view back at trackingRef() leaves every test green; no test moves the ref inside prepare.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      Removing --full-tree fails TestRefIDSpace_IsNotBlindFromASubdirectory; the same family recurs elsewhere as a new finding.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      Both the advice branch and the errIDTaken wrapping are caught when reverted.
+  - id: BR-14
+    disposition: not-addressed
+    note: |
+      Removing the frontmatter scoping leaves every test green; add a frontmatter block without id: plus a prose id: line, which must refuse.
+  - id: BR-15
+    disposition: addressed
+    note: |
+      Disabling the same-id check fails TestSyncViaTrunk_RefusesTwoFilesClaimingOneID.
+findings:
+  - id: new
+    severity: Important
+    family: cwd-relative-git-read
+    title: |
+      issue new, claim and issue sync publish nothing from a subdirectory and report ok
+    detail: |
+      This is the 2nd finding in family cwd-relative-git-read. Reproduced with the HEAD
+      binary from docs/sub on a feature branch against a bare origin: "[ok] No issue
+      changes to sync.", exit 0, the file left untracked, and origin unchanged. The id is
+      never reserved, which is the failure in #207's own Problem. Also reproduced at base
+      on main, so both arms had it. execGitRunner.Git runs in the process cwd
+      (runner.go:36). The changedIssueFiles pathspecs and the issueFilesForID glob resolve
+      against the cwd, and ls-files returns cwd-relative paths that prepare then joins
+      onto the repo root. issue.go:270-273 asserts the opposite.
+      RULE: every git call on the issue-sync and id path runs with its working directory
+      pinned to the repo top level. Build the gitRunner rooted there, the way
+      NewTrunkFile refuses an empty dir, and join every path that reaches os.* onto that
+      same root. A per-call --full-tree is an instance of the rule, not the rule.
+      Measured prevalence: 2 sites patched one at a time (refIDSpace, pathTrackedAtHEAD);
+      at least 5 unpatched on the same path (three changedIssueFiles queries at
+      claim.go:348-351, the issueFilesForID glob, the syncPathspec add/commit). Pin it
+      with a test that publishes with cwd set to a subdirectory.
+```

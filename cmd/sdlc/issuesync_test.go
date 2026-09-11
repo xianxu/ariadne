@@ -1111,3 +1111,49 @@ func TestRefIDSpace_IsNotBlindFromASubdirectory(t *testing.T) {
 		t.Error("the id space is blind from a subdirectory — every collision guard reading it sees a free id")
 	}
 }
+
+// BR-16: run from a SUBDIRECTORY. git resolves a pathspec against the process
+// cwd, so every query matched nothing, the arm reported "No issue changes to
+// sync." and exited 0 — the id never reserved, which is the exact failure this
+// issue exists to fix. Reproduced by the reviewer with the HEAD binary.
+func TestSyncIssuesToMain_PublishesFromASubdirectory(t *testing.T) {
+	repo, origin := syncRepo(t)
+	git(t, repo, "checkout", "-q", "-b", "feature")
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nedited from a subdirectory\n")
+	sub := filepath.Join(repo, "docs", "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cwd, _ := os.Getwd()
+	if err := os.Chdir(sub); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#206: from a subdir"); err != nil {
+		t.Fatalf("%v\n%s", err, stderr.String())
+	}
+	if strings.Contains(stderr.String(), "No issue changes to sync") {
+		t.Errorf("the sync went blind from a subdirectory:\n%s", stderr.String())
+	}
+	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/000206-issue-sync-verb.md"); !strings.Contains(on, "edited from a subdirectory") {
+		t.Errorf("nothing reached the trunk:\n%s", on)
+	}
+
+	// And the PublishExisting path, which reaches the file through a glob rather
+	// than through git — the same cwd-relative trap, a different mechanism.
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\ncommitted then republished\n")
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "-q", "-m", "local commit")
+	stdout.Reset()
+	stderr.Reset()
+	pf := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true, PublishExisting: true}
+	if err := syncIssuesToMain(&stdout, &stderr, pf, execGitRunner{}, "#206: republish"); err != nil {
+		t.Fatalf("republish from a subdirectory: %v\n%s", err, stderr.String())
+	}
+	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/000206-issue-sync-verb.md"); !strings.Contains(on, "committed then republished") {
+		t.Errorf("the committed body never reached the trunk from a subdirectory:\n%s", on)
+	}
+}

@@ -254,10 +254,11 @@ func changeCodeSyncNote(publishes bool) string {
 // WORKTREE, on the branch about to carry the work. That is what "the branch
 // starts from a tracked state" means, and it is why publishing is conditioned on
 // already being on main rather than on the caller's intent. From a branch the
-// publish route would copy the in-progress body into the main worktree, commit
-// it on main and push — putting a half-written Spec on origin/main, leaving the
-// branch's own copy dirty, and adding two network round-trips to a milestone
-// re-run. main gets the body at `pr`/`merge`/`close`, which is where publishing
+// publish route would put the in-progress body on origin/main — a half-written
+// Spec published, and a network round-trip added to every milestone re-run.
+// (The mechanism changed in #207: the trunk route builds the commit out-of-tree
+// instead of driving the main worktree. The decision rests on WHAT would be
+// published, so it is unchanged.) main gets the body at `pr`/`merge`/`close`, which is where publishing
 // belongs.
 //
 // BEST-EFFORT, deliberately: change-code's job is to OPEN implementation, and a

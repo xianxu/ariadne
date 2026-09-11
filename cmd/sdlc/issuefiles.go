@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -106,9 +108,49 @@ func filterIssueFiles(refs []issueFileRef, keep func(issueFileRef) bool) []issue
 // a sync stages and commits), so the two cannot disagree about what an --issue
 // filter means. changedIssueFiles answers a different question (which of the
 // already-changed paths belong to N) by prefix-matching that same convention.
+// repoRel makes p relative to root, tolerating SYMLINKED paths. macOS /tmp is a
+// symlink to /private/tmp, and a repo under one resolves differently depending
+// on which side computed the path: filepath.Rel then yields a `../../..` escape
+// that git rejects as "outside repository". Any repo reached through a symlink
+// hits this, not just a test fixture.
+func repoRel(root, p string) (string, bool) {
+	rr, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		rr = root
+	}
+	pp, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		pp = p
+	}
+	rel, err := filepath.Rel(rr, pp)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
+}
+
 func issueFilesForID(issuesDir string, id int) []string {
-	matches, _ := filepath.Glob(filepath.Join(issuesDir, fmt.Sprintf("%06d", id)+"-*.md"))
-	return matches
+	// Root-anchored, and returns REPO-RELATIVE paths. A bare Glob resolves
+	// against the process cwd, so from a subdirectory this found nothing and the
+	// publisher had nothing to route (#207 BR-16).
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return nil
+	}
+	dir := issuesDir
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(root, dir)
+	}
+	matches, _ := filepath.Glob(filepath.Join(dir, fmt.Sprintf("%06d", id)+"-*.md"))
+	out := make([]string, 0, len(matches))
+	for _, m := range matches {
+		if rel, ok := repoRel(root, m); ok {
+			out = append(out, rel)
+			continue
+		}
+		out = append(out, m)
+	}
+	return out
 }
 
 // issueIDFromPath returns the issue id encoded in an issue file's name, or 0

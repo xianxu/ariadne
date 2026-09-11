@@ -197,6 +197,31 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 		if err != nil {
 			return set, err
 		}
+		// Drop OUR OWN candidates from rejected attempts. They are on disk, so the
+		// local scan counts them as taken and the retry walks the id forward —
+		// 000700 to 000702 with 000701 free. Nothing published them, so they are
+		// not reservations (#207 BR-2).
+		for _, c := range res.candidates {
+			rel, ok := repoRel(root, c)
+			if !ok {
+				continue
+			}
+			id := issueIDFromPath(rel)
+			if id <= 0 {
+				continue
+			}
+			var kept []string
+			for _, held := range free[id] {
+				if held != rel && held != c {
+					kept = append(kept, held)
+				}
+			}
+			if len(kept) == 0 {
+				delete(free, id)
+			} else {
+				free[id] = kept
+			}
+		}
 		claimed := map[int]string{}
 		for _, rel := range changed {
 			data, rerr := os.ReadFile(filepath.Join(root, rel))
@@ -273,7 +298,11 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 
 // pathTrackedAtHEAD reports whether git has this path at HEAD.
 func pathTrackedAtHEAD(r gitRunner, rel string) (bool, error) {
-	out, err := r.Git("ls-tree", "--full-tree", "--name-only", "--end-of-options", "HEAD", "--", rel)
+	root, rerr := gitx.RepoTopLevel()
+	if rerr != nil {
+		return false, rerr
+	}
+	out, err := r.GitInDir(root, "ls-tree", "--full-tree", "--name-only", "--end-of-options", "HEAD", "--", rel)
 	if err != nil {
 		return false, fmt.Errorf("ls-tree HEAD -- %s: %v\n%s", rel, err, out)
 	}

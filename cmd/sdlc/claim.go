@@ -345,6 +345,16 @@ func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
 	// exist on disk: the read failed as not-exist, the publisher classified it
 	// as a DELETION, and the arm reported success having published nothing
 	// (#207 BR-9).
+	// Pinned to the repo ROOT. execGitRunner.Git runs in the process cwd
+	// (runner.go), and a pathspec — like the ls-tree pathspec in #207 BR-12 —
+	// resolves against it: from any subdirectory these queries matched NOTHING,
+	// so `issue new`, `claim` and `issue sync` reported "no issue changes" and
+	// exited 0 having published nothing (#207 BR-16). ls-files also returns
+	// cwd-relative paths, which the publisher then joined onto the root.
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return nil, err
+	}
 	queries := [][]string{
 		{"diff", "--name-only", "-z", "HEAD", "--", f.IssuesDir + "/"},
 		{"diff", "--cached", "--name-only", "-z", "--", f.IssuesDir + "/"},
@@ -353,7 +363,7 @@ func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
 	seen := map[string]struct{}{}
 	var out []string
 	for _, q := range queries {
-		raw, err := r.Git(q...)
+		raw, err := r.GitInDir(root, q...)
 		if err != nil {
 			// Mirror the shell `|| true` swallow: empty result, no error.
 			continue

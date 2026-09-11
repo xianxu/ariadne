@@ -48,7 +48,10 @@ func (s *claimRunnerStub) GitInDir(dir string, args ...string) ([]byte, error) {
 			return v, nil
 		}
 	}
-	return nil, nil
+	// Fall back to the plain Git responses: real GitInDir(dir, args) IS Git(args)
+	// run in dir, so a stub that answers one and not the other models a git that
+	// does not exist (#207 BR-16 moved the sync onto GitInDir).
+	return s.Git(args...)
 }
 
 func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {

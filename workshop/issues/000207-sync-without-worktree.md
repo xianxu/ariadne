@@ -212,6 +212,11 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
 - The trunk id space is read with `--full-tree`, so the collision guard is not
   blind when run from a subdirectory.
 - Two files in ONE publish claiming one id are refused, naming both.
+- **Publishing works from a SUBDIRECTORY**, through both the git-query path and
+  the `PublishExisting` glob path — git resolves a pathspec against the process
+  cwd, and a glob likewise.
+- A retry does not treat its OWN rejected candidate as a taken id, so a
+  re-allocation does not walk forward on every attempt.
 - TWO re-allocations in one publish each land at a distinct id, with both
   originals removed and neither published file deleted.
 - A FAILED publish keeps every original and removes the candidates it wrote; the
@@ -675,3 +680,39 @@ mutation was aimed at a line the test could not observe.
 newly built binary from this feature branch, with no worktree on main — it landed
 on `origin/main` under the default subject, which is BR-1's fix working in
 production rather than in a fixture.
+
+### 2026-09-11 — close review round 2: FIX-THEN-SHIP, three blockers
+
+**BR-16 is the one that matters, and it is my own failure to sweep a class.**
+Round 1's BR-12 said `ls-tree` resolves its pathspec against the process cwd; I
+fixed `refIDSpace` and stopped. The same trap sat in `changedIssueFiles`'
+pathspecs and `issueFilesForID`'s glob, so from any subdirectory `issue new`,
+`claim` and `issue sync` published **nothing** and exited 0 — the id never
+reserved, which is verbatim this issue's own Problem statement. The reviewer
+reproduced it with the HEAD binary from `docs/sub`. Both paths are now pinned to
+the repo root, and both mutations are caught. This is exactly what the ledger
+means by "fix rules, not instances", and it took a second finding to land.
+
+**BR-2 was still open for two distinct reasons.** My candidates-persist fix had
+no test that ran `finish()` after a TWO-attempt re-allocation, so resetting
+candidates would have left the suite green — the guard existed but nothing held
+it. And underneath sat a real bug the reviewer reproduced: the retry counted its
+OWN rejected candidate as a taken id and walked 000700 to 000702 with 000701
+free, leaving an orphan reserving an id nothing published. Candidates are now
+excluded from the id space they helped create, with both mutations caught.
+
+**BR-7**: six further stale sites, including a sentence my own earlier edit had
+truncated mid-clause in the atlas. Swept by derivation rather than by hand, and
+the sweep separated the genuinely-live references — `merge` and the archive
+still use `findMainWorktree` — from the ones describing a route that no longer
+exists.
+
+**Found while fixing, not reported**: `filepath.Rel` mixed a symlink-resolved
+root with an unresolved path, yielding `../../..` escapes that git rejects as
+"outside repository". Any repo reached through a symlink hits it — macOS `/tmp`,
+a symlinked home — not just a fixture. `repoRel` resolves both sides.
+
+**Reverted as out of scope**: `branchcreate.go` carries the same cwd-relative
+shape, but its tests are stub-only with no repo, and pinning a root there needs
+one injected through a different call chain. Left as a named sibling rather than
+half-changed.

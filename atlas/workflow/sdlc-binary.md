@@ -93,10 +93,11 @@ arm, and getting it wrong in either direction is silent:
   committed here and still absent from the trunk.
 - A body the trunk already carries byte-for-byte produces no commit at all:
   `UpdateMany`'s early return is **whole-set** — every write matches AND every
-  delete is already absent. That preserves the idempotence the old arm got from
-  second run died on a false `Conflict detected!`. This is not conflict
-  detection (explicitly out of scope) — it is declining to invoke it when there
-  is no content difference to resolve.
+  delete is already absent. That preserves the idempotence the old arm got by
+  dropping byte-identical files before its conflict detector ran — without which
+  the documented publish-then-publish-again workflow died on a false `Conflict
+  detected!`. This is not conflict detection (explicitly out of scope) — it is
+  declining to invoke it when there is no content difference to resolve.
 
 `TestIssueSync_PublishMatrix` covers {on main, feature worktree} × {body dirty,
 body already committed} and asserts the published content, not a SHA: comparing
@@ -104,9 +105,9 @@ SHAs would not catch a push that moved nothing. `TestPublishIsIdempotent` runs
 the documented workflow twice from both locations, because an agent re-running a
 verb is the normal case. `issue new` follows
 the same durability-before-publication rule: when its reservation broadcast
-can't reach main (commonly: run from an in-place feature branch, where no
-worktree is on main), it falls back to a local commit rather than leaving the
-new issue untracked.
+cannot reach the trunk (an unreachable origin, or a push the trunk refuses —
+since #207 there is no worktree to be missing), it falls back to a local commit
+rather than leaving the new issue untracked.
 
 Its two arms are **not** "on main vs on a
 branch"; they are *commit here* vs *publish to origin/main from elsewhere*:
