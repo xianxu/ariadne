@@ -41,14 +41,8 @@ type TrunkView struct {
 // the read at all.
 func (t *TrunkFile) ViewOf(ref string) *TrunkView { return &TrunkView{tf: t, ref: ref} }
 
-// TrackingRef is the remote-tracking ref this file treats as the trunk.
-func (t *TrunkFile) TrackingRef() string { return t.trackingRef() }
-
 // Exists reports whether a path is present on this attempt's base.
 func (v *TrunkView) Exists(path string) (bool, error) { return v.tf.pathPresent(v.ref, path) }
-
-// Read returns a path's bytes on this attempt's base; absent reads as empty.
-func (v *TrunkView) Read(path string) ([]byte, error) { return v.tf.readFrom(v.ref, path) }
 
 // Ref is the ref this attempt races, for callers that need to run their own
 // query against it (refIDSpace, say) rather than one path at a time.

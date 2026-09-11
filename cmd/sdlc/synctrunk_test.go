@@ -18,7 +18,6 @@ import (
 type fakePublisher struct {
 	sets  []gitx.TrunkWrite
 	view  *gitx.TrunkView
-	runs  int
 	rerun int // re-invoke prepare this many extra times, as a rejection would
 	err   error
 	// beforePrepare runs ahead of each prepare call, so a test can move the trunk
@@ -31,7 +30,6 @@ func (f *fakePublisher) UpdateMany(_ string, prepare func(*gitx.TrunkView) (gitx
 		if f.beforePrepare != nil {
 			f.beforePrepare()
 		}
-		f.runs++
 		set, err := prepare(f.view)
 		if err != nil {
 			return err
@@ -105,27 +103,6 @@ func TestSyncViaTrunk_RepublishRefusesOnForeignSlug(t *testing.T) {
 				t.Errorf("refusal missing %q:\n%s", want, err)
 			}
 		}
-	}
-}
-
-// The collision check must run on EVERY attempt, not once. A publisher that
-// re-invokes prepare (as a CAS rejection does) must see the check re-evaluated.
-func TestSyncViaTrunk_CheckRunsOnEveryAttempt(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(repo, "workshop/issues/000400-x.md"), []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	pub := &fakePublisher{rerun: 1, view: viewFor(t, repo)} // one rejection, one retry
-	var out, errOut bytes.Buffer
-	f := &claimFlags{IssuesDir: "workshop/issues"}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
-		t.Fatalf("%v\n%s", err, errOut.String())
-	}
-	if pub.runs != 2 {
-		t.Errorf("prepare ran %d times, want 2 — the check must re-evaluate on the retry", pub.runs)
 	}
 }
 
@@ -249,7 +226,7 @@ func TestSyncViaTrunk_ReallocatesOnMidRetryCollision(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
@@ -297,7 +274,7 @@ func TestSyncViaTrunk_RepublicationNeverReallocates(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues"} // FirstPublication false
-	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
 	if err != nil {
 		t.Fatalf("republishing our own body must succeed: %v\n%s", err, errOut.String())
 	}
@@ -402,7 +379,7 @@ func TestSyncViaTrunk_ReallocationSkipsLocalUnpublishedIDs(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
@@ -452,7 +429,7 @@ func TestSyncViaTrunk_StaleReallocationIsNotCarriedAcrossAttempts(t *testing.T) 
 
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	rc, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
@@ -465,5 +442,38 @@ func TestSyncViaTrunk_StaleReallocationIsNotCarriedAcrossAttempts(t *testing.T) 
 	last := pub.sets[len(pub.sets)-1]
 	if _, ok := last.Write[mine]; !ok {
 		t.Errorf("the final attempt must publish the ORIGINAL path: %+v", last.Write)
+	}
+}
+
+// BR-5: `synced` is emitted only when the trunk actually carries the change.
+// The first fix printed it on every nil return — including dry-run and the
+// "No issue changes to sync" exit — which named a publication that never
+// happened. Callers parse this marker; a false one is worse than a missing one.
+func TestSyncViaTrunk_SyncedMarkerOnlyWhenTheTrunkCarriesTheChange(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	run := func(f *claimFlags) string {
+		t.Helper()
+		pub := &fakePublisher{view: viewFor(t, repo)}
+		var out, errOut bytes.Buffer
+		if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+			t.Fatalf("%v\n%s", err, errOut.String())
+		}
+		return out.String()
+	}
+
+	if got := run(&claimFlags{IssuesDir: "workshop/issues"}); strings.Contains(got, "synced") {
+		t.Errorf("no changes, but `synced` was emitted: %q", got)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "workshop/issues/001300-x.md"), []byte("---\nid: 001300\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := run(&claimFlags{IssuesDir: "workshop/issues", DryRun: true}); strings.Contains(got, "synced") {
+		t.Errorf("dry-run, but `synced` was emitted: %q", got)
+	}
+	if got := run(&claimFlags{IssuesDir: "workshop/issues"}); !strings.Contains(got, "synced") {
+		t.Errorf("a real publish must emit `synced`, got %q", got)
 	}
 }

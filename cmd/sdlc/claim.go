@@ -13,13 +13,10 @@
 //     origin main when publishing. Reached whenever the caller isn't
 //     publishing (NoPush) — offline-safe, no worktree hunt — or when this
 //     worktree is already on main, where "here" and "main" coincide.
-//  2. syncViaTrunk (synctrunk.go): the publish-from-anywhere route (#207).
-//     - locate the main worktree via `git worktree list --porcelain -z`
-//     - check main worktree has no uncommitted issue changes
-//     - pull --rebase origin main on the main worktree
-//     - detect conflicts (files changed on both branches since merge-base)
-//     - copy changed issue files from feature worktree → main worktree
-//     - commit + push on main worktree
+//  2. syncViaTrunk (synctrunk.go): publish from anywhere else (#207). Builds
+//     the commit in the object database and CAS-pushes it at origin/main; no
+//     checkout is read or written, so it works from an in-place feature branch
+//     with no worktree on main — which is change-code's default.
 //
 // Every step of (2) exists to publish, which is why suppressing the push
 // doesn't just skip the last line — it selects the other arm entirely.
@@ -146,7 +143,6 @@ func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg 
 	// checkout had main out, which is unavailable exactly in the workflow's
 	// default mode — change-code branches in place, so an actively-worked repo
 	// has no worktree on main.
-	_ = branch
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err
@@ -257,7 +253,7 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 	// transaction lock serializes sdlc verbs against each other, but nothing
 	// stops a peer running plain `git add`. A pathspec implies --only, leaving
 	// the rest of the index untouched.
-	commitArgs := append([]string{"commit", "-m", syncMessage(msg, "issue-sync: update issues"), "--"}, pathspec...)
+	commitArgs := append([]string{"commit", "-m", syncMessage(msg, defaultSyncSubject), "--"}, pathspec...)
 	if out, err := r.Git(commitArgs...); err != nil {
 		return fmt.Errorf("commit failed: %v\n%s", err, out)
 	}
@@ -310,6 +306,12 @@ func syncPathspec(f *claimFlags) ([]string, error) {
 // than a branch inside it (#206) while letting each arm keep the exact wording
 // it shipped with — the on-branch default names the branch, which no caller is
 // in a position to supply.
+// defaultSyncSubject is the commit subject when a caller passes "" — "each
+// arm's own default" in the msg contract. ONE constant for both arms: the
+// in-place arm held it as a literal and the trunk arm had none, which is how
+// the trunk arm came to publish an EMPTY subject (#207 BR-1).
+const defaultSyncSubject = "issue-sync: update issues"
+
 func syncMessage(msg, fallback string) string {
 	if msg == "" {
 		return fallback

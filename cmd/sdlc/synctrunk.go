@@ -40,7 +40,7 @@ type trunkPublisher interface {
 // new base, and the check re-evaluates. Hoisting it out would let the retry
 // re-push a colliding id as a clean fast-forward — ariadne#188's hole.
 func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) error {
-	rc, err := syncViaTrunkWithRealloc(stdout, stderr, f, r, msg, pub)
+	rc, onTrunk, err := syncViaTrunkWithRealloc(stdout, stderr, f, r, msg, pub)
 	if err != nil {
 		// NEVER clean up after a failed publish. finish() removes the ORIGINAL
 		// local file, so running it here would delete the operator's issue while
@@ -56,38 +56,45 @@ func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg stri
 			cwarn(stderr, cerr.Error())
 		}
 	}
-	// BR-5: the `synced` marker is the machine-readable contract callers parse;
-	// the arm this replaced emitted it and dropping it would break them silently.
-	cok(stderr, "Issue changes published to the trunk.")
-	fmt.Fprintln(stdout, "synced")
+	// `synced` is the machine-readable contract callers parse, and the in-place
+	// arm emits it only after a real commit or push (claim.go). It is printed
+	// here only when UpdateMany returned nil — at which point the trunk carries
+	// exactly this content, whether we pushed it or it already matched. The
+	// no-change and dry-run exits return onTrunk=false and stay silent: a marker
+	// on those would name a publication that never happened.
+	if onTrunk {
+		cok(stderr, "Issue changes are on the trunk.")
+		fmt.Fprintln(stdout, "synced")
+	}
 	return nil
 }
 
 // syncViaTrunkWithRealloc returns the id change, if any, so the caller can clean
-// up the superseded local files AFTER the push has succeeded.
-func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) (*reallocation, error) {
+// up the superseded local files AFTER the push has succeeded, and whether the
+// trunk now carries this content (false on the no-change and dry-run exits).
+func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) (*reallocation, bool, error) {
 	changed, err := changedIssueFiles(f, r)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	// Same rule as the arm this replaces: nothing to COPY is not nothing to
 	// publish. A body already committed here still needs routing to the trunk.
 	if len(changed) == 0 {
 		if !f.PublishExisting || f.Issue <= 0 {
 			cok(stderr, "No issue changes to sync.")
-			return nil, nil
+			return nil, false, nil
 		}
 		changed = issueFilesForID(f.IssuesDir, f.Issue)
 		if len(changed) == 0 {
 			cok(stderr, "No issue changes to sync.")
-			return nil, nil
+			return nil, false, nil
 		}
 	}
 	sort.Strings(changed)
 
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	cinfo(stderr, "Publishing issue changes to the trunk:")
 	for _, c := range changed {
@@ -95,16 +102,21 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 	}
 	if f.DryRun {
 		cinfo(stderr, "dry-run — skipping publish")
-		return nil, nil
+		return nil, false, nil
 	}
 
 	dirs, err := resolveIDDirs(f.IssuesDir, "workshop/history")
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	var rc *reallocation
-	err = pub.UpdateMany(msg, func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
+	// BR-1: "" means "each arm's own default" (claim.go), and `issue new` and
+	// `claim` both pass it. syncInPlace applies the default through syncMessage;
+	// passing "" straight to commit-tree instead published an EMPTY subject on the
+	// trunk from every feature branch — which, since change-code branches in
+	// place, is the common case. One default, shared by both arms.
+	err = pub.UpdateMany(syncMessage(msg, defaultSyncSubject), func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		// Reset per attempt: a re-allocation decided on a base that has since
 		// moved is stale, and carrying it forward would report an id change the
 		// final push never made.
@@ -176,7 +188,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 		}
 		return set, nil
 	})
-	return rc, err
+	return rc, err == nil, err
 }
 
 // unionIDSpace merges the trunk's id space with the local working tree's.

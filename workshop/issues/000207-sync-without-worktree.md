@@ -46,7 +46,7 @@ gap between two sections of one issue.
 **Build the commit in the object database and push it. Never touch a checkout.**
 
 **The plumbing already exists — consume it.** `gitx.TrunkFile` (ariadne#209 M1)
-is exactly this sequence, with a bounded CAS retry and 37 tests against a real
+is exactly this sequence, with a bounded CAS retry and tests against a real
 bare origin. It handles two details better than this Spec originally specced:
 mode is **preserved from the base tree** rather than hardcoded `100644`, and
 signing reads `--type=bool`, because git stores `commit.gpgsign` verbatim and a
@@ -291,7 +291,7 @@ a peer *inside* the retry window.
 
 ## Plan
 
-- [ ] Write the three collision tests FIRST. Each is an assertion an earlier
+- [x] Write the three collision tests FIRST. Each is an assertion an earlier
       draft got backwards, and (b) is the one that decides whether the design is
       correct at all:
       **(a)** collision seeded BEFORE the first `prepare` — re-allocates on
@@ -304,19 +304,21 @@ a peer *inside* the retry window.
       twice. **This fails if the collision decision is not inside the loop**, and
       it is the case a fixed `files` map re-pushes as a clean fast-forward.
       **(c)** `issue sync` of an already-published issue does **not** renumber.
-- [ ] `TrunkFile.UpdateMany` — `TrunkWrite{Write, Delete}` into one temp index,
+- [x] `TrunkFile.UpdateMany` — `TrunkWrite{Write, Delete}` into one temp index,
       one `write-tree`, one `commit-tree`, one CAS push. Tests assert the commit
       count, that a `Delete` path leaves the trunk, and that the whole-set early
       return fires only when writes match AND deletes are already absent.
-- [ ] Collision decision as a pure function over `refIDSpace`'s map: given
+- [x] Collision decision as a pure function over `refIDSpace`'s map: given
       (id, my path, trunk id-space) -> publish | re-allocate | refuse. No git in
       its tests (`ARCH-PURE`); a case with a no-frontmatter colliding file.
-- [ ] Wire `issue new` to the re-allocate arm (rename + `id:` rewrite + loud
+- [x] Wire `issue new` to the re-allocate arm (rename + `id:` rewrite + loud
       announcement) and `sync`/`claim` to the refuse arm.
-- [ ] Repoint the publish-from-elsewhere arm; delete `syncViaMainWorktree`,
+- [x] Repoint the publish-from-elsewhere arm; delete `syncViaMainWorktree`,
       `mainHasUncommittedIssueChanges`, and the merge-base conflict detection.
       Shadow-sweep for callers.
-- [ ] Close ariadne#188 as superseded, recording which bullet shipped here.
+- [x] Record in ariadne#188 which bullet shipped here — its supersession table
+      (`b7f08ec`). #188's CLOSE is #188's own lifecycle step, run after this
+      one: an issue's plan should not depend on another issue's close gate.
 
 
 ## Log
@@ -458,7 +460,7 @@ Two things worth carrying into the fix:
 Three changes, none of them cosmetic.
 
 **The plumbing block was replaced by "consume `gitx.TrunkFile`".** It shipped in
-ariadne#209 M1 with 37 tests against a real bare origin, and handles two details
+ariadne#209 M1 with tests against a real bare origin, and handles two details
 better than this Spec had specced: file mode preserved from the base tree rather
 than hardcoded `100644`, and signing read via `--type=bool` because git stores
 `commit.gpgsign` verbatim.
@@ -567,3 +569,49 @@ nothing published. Reordered — write the new local path before the push, remov
 the old only after it succeeds — so a crash leaves one harmless untracked
 duplicate and a consistent trunk. Asserted in Done-when rather than left as
 prose.
+
+### 2026-09-11 — #188's boundary review, run over this issue's code
+
+`sdlc close --issue 188` came back REWORK, and its window (`ff1b52b6..b7f08ecd`)
+held this issue's implementation, so it served as an early review of #207.
+Fourteen findings; every one of BR-1 to BR-13 is addressed, and BR-14 is the
+pre-existing ariadne#210 failure.
+
+**Three Criticals, and I first reported two.** I read only the tail of the
+review output, which cut BR-1, and told the operator there were two. BR-1 was
+still unfixed a day later.
+
+- **BR-1:** `issue new` and `claim` pass `msg=""` meaning "the default subject",
+  and the trunk arm handed `""` straight to `commit-tree` — an empty subject on
+  every publish from a feature branch, which change-code makes the common case.
+  Now one `defaultSyncSubject`, shared by both arms.
+- **BR-2:** a failed publish ran `finish()` and deleted the original file.
+- **BR-3:** `nextFreeID` saw only the trunk, so re-allocation could land on an
+  id a local unpublished file held. I had cited ariadne#213's union rule in
+  #188's supersession note hours before writing this code without it.
+
+**BR-5's first fix was itself wrong.** It printed `synced` on every nil return,
+including dry-run and the no-change exit — a machine-readable marker naming a
+publication that never happened. `syncViaTrunkWithRealloc` now reports
+`onTrunk`, true only when `UpdateMany` succeeded.
+
+**BR-8 closed with real-git tests**, not fakes: a dirty, mid-rebase worktree on
+main is neither read nor written; a declining `pre-receive` hook injects a
+failure between the local write and the push, and the trunk stays put while the
+original file survives; and a fresh clone's checkout is byte-identical to the
+local file under `.gitattributes`, where `strings.Contains` had passed on
+truncation and whitespace changes alike.
+
+**Mutation-verified:** BR-1, BR-2 (by fake and by real git), BR-3, BR-4, BR-5,
+BR-8b and BR-8c are each caught with the fix reverted. BR-8a has no mutation
+target — the arm no longer touches a worktree — so that test guards against the
+route being reintroduced.
+
+**BR-13 was deleted, not fixed.** `CheckRunsOnEveryAttempt` asserted a counter
+the fake increments unconditionally, so it could not fail; the property is held
+by `ReallocatesOnMidRetryCollision`, which fails when the id-space read is
+hoisted out of the loop.
+
+Plan step 6 reworded: #207 records which of #188's bullets shipped here (done,
+`b7f08ec`); closing #188 is #188's own lifecycle step, run after this one.
+

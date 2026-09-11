@@ -3,6 +3,7 @@ package gitx
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -163,18 +164,10 @@ func TestUpdateMany_PathsAreDerivedPerAttempt(t *testing.T) {
 
 func commitCount(t *testing.T, origin string) int {
 	t.Helper()
-	return len(strings.Fields(testfix.Capture(t, origin, "rev-list", "--count", "main")))*0 +
-		atoi(t, strings.TrimSpace(testfix.Capture(t, origin, "rev-list", "--count", "main")))
-}
-
-func atoi(t *testing.T, s string) int {
-	t.Helper()
-	n := 0
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			t.Fatalf("rev-list --count returned %q", s)
-		}
-		n = n*10 + int(r-'0')
+	out := strings.TrimSpace(testfix.Capture(t, origin, "rev-list", "--count", "main"))
+	n, err := strconv.Atoi(out)
+	if err != nil {
+		t.Fatalf("rev-list --count returned %q: %v", out, err)
 	}
 	return n
 }

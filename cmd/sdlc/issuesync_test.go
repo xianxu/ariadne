@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -859,5 +860,159 @@ func TestSyncIssuesToMain_PublishesFromBranchWithNoMainWorktree(t *testing.T) {
 	// The working tree is untouched: no checkout was involved at all.
 	if br := strings.TrimSpace(git(t, repo, "branch", "--show-current")); br != "000206-issue-sync-verb" {
 		t.Errorf("branch changed to %q", br)
+	}
+}
+
+// BR-1: `issue new` and `claim` pass msg="" meaning "the default subject". The
+// trunk arm handed "" straight to commit-tree and published an EMPTY subject
+// from every feature branch — the common case, since change-code branches in
+// place. Asserted on the bare origin's actual commit, not on a fake's argument.
+func TestSyncIssuesToMain_TrunkArmDefaultsAnEmptySubject(t *testing.T) {
+	repo, origin := syncRepo(t)
+	git(t, repo, "checkout", "-q", "-b", "000206-issue-sync-verb")
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nedited on the branch\n")
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, ""); err != nil {
+		t.Fatalf("%v\n%s", err, stderr.String())
+	}
+	if subj := git(t, origin, "log", "-1", "--format=%s", "main"); subj != defaultSyncSubject {
+		t.Errorf("trunk commit subject = %q, want %q", subj, defaultSyncSubject)
+	}
+}
+
+// BR-8(a): publishing must neither read nor write a worktree on main, even one
+// that is DIRTY and MID-REBASE — the two states the deleted arm refused on. The
+// earlier end-to-end covered only the absent-worktree half of this clause.
+func TestSyncIssuesToMain_LeavesADirtyMidRebaseMainWorktreeUntouched(t *testing.T) {
+	repo, origin := syncRepo(t)
+
+	// "other" carries a conflicting f.txt, committed before main gets its own.
+	git(t, repo, "checkout", "-q", "-b", "other")
+	if err := os.WriteFile(filepath.Join(repo, "f.txt"), []byte("other side\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, repo, "add", "f.txt")
+	git(t, repo, "commit", "-q", "-m", "other side")
+	// This checkout moves to the feature branch, freeing main for a second worktree.
+	git(t, repo, "checkout", "-q", "-b", "000206-issue-sync-verb", "main")
+
+	mainWT := filepath.Join(t.TempDir(), "mainwt")
+	git(t, repo, "worktree", "add", "-q", mainWT, "main")
+	if err := os.WriteFile(filepath.Join(mainWT, "f.txt"), []byte("main side\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, mainWT, "add", "f.txt")
+	git(t, mainWT, "commit", "-q", "-m", "main side")
+	// Mid-rebase: replaying main onto other conflicts on f.txt and stops.
+	if out, err := exec.Command("git", "-C", mainWT, "rebase", "other").CombinedOutput(); err == nil {
+		t.Fatalf("fixture: the rebase must stop on its conflict:\n%s", out)
+	}
+	// Dirty: an uncommitted ISSUE edit — exactly what mainHasUncommittedIssueChanges refused on.
+	wtIssue := filepath.Join(mainWT, syncIssuesDir, "000206-issue-sync-verb.md")
+	if err := os.WriteFile(wtIssue, []byte("main-wt local edit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	statusBefore := git(t, mainWT, "status", "--porcelain")
+	if !strings.Contains(git(t, mainWT, "status"), "rebase in progress") {
+		t.Fatal("fixture: main worktree must be mid-rebase")
+	}
+
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nedited on the branch\n")
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#206: issue-sync: spec/plan"); err != nil {
+		t.Fatalf("publish beside a dirty, mid-rebase main worktree: %v\n%s", err, stderr.String())
+	}
+
+	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/000206-issue-sync-verb.md"); !strings.Contains(on, "edited on the branch") {
+		t.Errorf("the branch's body did not reach origin/main:\n%s", on)
+	}
+	if after := git(t, mainWT, "status", "--porcelain"); after != statusBefore {
+		t.Errorf("the main worktree was touched:\nbefore:\n%s\nafter:\n%s", statusBefore, after)
+	}
+	if b, err := os.ReadFile(wtIssue); err != nil || string(b) != "main-wt local edit\n" {
+		t.Errorf("the main worktree's uncommitted issue edit changed: %q, %v", b, err)
+	}
+	if !strings.Contains(git(t, mainWT, "status"), "rebase in progress") {
+		t.Error("the main worktree is no longer mid-rebase")
+	}
+}
+
+// BR-8(b): a failure injected BETWEEN the local write and the push. A declining
+// pre-receive hook on the real bare origin puts it exactly there: the fetch
+// succeeds, prepare re-allocates and writes the new local path, then the push is
+// refused. The trunk must stay where it was, the ORIGINAL file must survive, and
+// the local name may run AHEAD of the trunk but never the reverse.
+func TestSyncIssuesToMain_PushRejectedAfterLocalWriteLeavesTrunkBehindLocal(t *testing.T) {
+	repo, origin := syncRepo(t) // the trunk already holds 000206-issue-sync-verb.md
+	git(t, repo, "checkout", "-q", "-b", "feature")
+	// A NEW issue at an id a different slug already holds: re-allocation.
+	mine := writeSyncIssue(t, repo, "000206-mine.md", "---\nid: 000206\nstatus: open\n---\n\n# mine\n")
+	hook := filepath.Join(origin, "hooks", "pre-receive")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho 'declined by test' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	before := git(t, origin, "rev-parse", "main")
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true, FirstPublication: true}
+	err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "")
+	if err == nil {
+		t.Fatal("a declined push must surface as an error")
+	}
+	if !strings.Contains(err.Error(), "declined by test") {
+		t.Errorf("the error must carry git's own reason, got: %v", err)
+	}
+	if after := git(t, origin, "rev-parse", "main"); after != before {
+		t.Errorf("the trunk moved on a refused push: %s -> %s", before, after)
+	}
+	if _, serr := os.Stat(mine); serr != nil {
+		t.Errorf("the ORIGINAL file was removed after a failed publish: %v", serr)
+	}
+	candidate := filepath.Join(repo, syncIssuesDir, "000207-mine.md")
+	if _, serr := os.Stat(candidate); serr != nil {
+		t.Errorf("the re-allocated local path must be written BEFORE the push: %v", serr)
+	}
+	if out, _ := exec.Command("git", "-C", origin, "ls-tree", "--name-only", "main", "--",
+		syncIssuesDir+"/000207-mine.md").Output(); strings.TrimSpace(string(out)) != "" {
+		t.Error("the trunk carries the new name while the push was refused — trunk ahead of local")
+	}
+	if strings.Contains(stdout.String(), "synced") {
+		t.Error("`synced` emitted for a refused publish")
+	}
+}
+
+// BR-8(c): checking out the pushed commit yields a file BYTE-IDENTICAL to the
+// local one, with .gitattributes applied. Previously asserted only through
+// strings.Contains, which passes on truncation, re-encoding, and added or
+// dropped trailing whitespace alike.
+func TestSyncIssuesToMain_PublishedBlobRoundTripsByteIdentical(t *testing.T) {
+	repo, origin := syncRepo(t)
+	if err := os.WriteFile(filepath.Join(repo, ".gitattributes"), []byte("*.md text eol=lf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, repo, "add", ".gitattributes")
+	git(t, repo, "commit", "-q", "-m", "attrs")
+	git(t, repo, "push", "-q", "origin", "main")
+	git(t, repo, "checkout", "-q", "-b", "000206-issue-sync-verb")
+
+	body := []byte("---\nid: 000206\n---\n\n# \u00dcn\u00efcode \u2014 em dash\n\ttabbed  \ntrailing   \nno final newline")
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", string(body))
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#206: round-trip"); err != nil {
+		t.Fatalf("%v\n%s", err, stderr.String())
+	}
+	clone := filepath.Join(t.TempDir(), "clone")
+	git(t, "", "clone", "-q", origin, clone)
+	got, err := os.ReadFile(filepath.Join(clone, syncIssuesDir, "000206-issue-sync-verb.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, body) {
+		t.Errorf("the checked-out blob differs from the local file:\n got %q\nwant %q", got, body)
 	}
 }
