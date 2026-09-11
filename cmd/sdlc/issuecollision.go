@@ -9,7 +9,10 @@
 // `sdlc issue sync`. Three outcomes need three names.
 package main
 
-import "sort"
+import (
+	"path/filepath"
+	"sort"
+)
 
 type collisionVerdict int
 
@@ -45,11 +48,20 @@ func (v collisionVerdict) String() string {
 // that into commit subjects agents grep, `deps:` in sibling issues, and review
 // sidecar filenames (ariadne#188). So `issue new` re-allocates and `issue
 // sync`/`claim` refuse, and the caller says which it is.
-func decideCollision(id int, myPath string, space map[int][]string, firstPublication bool) (collisionVerdict, []string) {
+func decideCollision(id int, myPath string, space map[int][]string, pending map[string]bool, firstPublication bool) (collisionVerdict, []string) {
 	var foreign []string
 	mineOnTrunk := false
 	for _, p := range space[id] {
-		if p == myPath {
+		// This publish REMOVES it. A slug rename is one atomic commit carrying
+		// Delete(old) and Write(new); reading the raw trunk made that refuse
+		// forever, since the old name is always still there when we look
+		// (#207 BR-19).
+		if pending[p] {
+			continue
+		}
+		// Same file NAME in a different directory is the same issue moving —
+		// archiving to history, or being restored from it — not a collision.
+		if filepath.Base(p) == filepath.Base(myPath) {
 			mineOnTrunk = true
 			continue
 		}

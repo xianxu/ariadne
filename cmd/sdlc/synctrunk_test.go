@@ -95,7 +95,7 @@ func TestSyncViaTrunk_DeletedFileBecomesDelete(t *testing.T) {
 // already in the branch name, commit subjects, deps: and sidecars (#188).
 func TestSyncViaTrunk_RepublishRefusesOnForeignSlug(t *testing.T) {
 	if got, foreign := decideCollision(207, "workshop/issues/000207-mine.md",
-		map[int][]string{207: {"workshop/issues/000207-theirs.md"}}, false); got != verdictRefuse {
+		map[int][]string{207: {"workshop/issues/000207-theirs.md"}}, nil, false); got != verdictRefuse {
 		t.Fatalf("verdict = %v, want refuse", got)
 	} else {
 		err := collisionRefusal(207, "workshop/issues/000207-mine.md", foreign)
@@ -813,5 +813,48 @@ func TestSyncViaTrunk_HonoursTheConfiguredHistoryDir(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "000701-shipped.md") {
 		t.Errorf("the refusal must name the archived path: %v", err)
+	}
+}
+
+// A slug rename must publish, not refuse. It is ONE atomic commit carrying
+// Delete(old) and Write(new), so the old name sitting on the trunk is not a
+// second claimant — it is the thing this publish removes.
+//
+// Reading the raw trunk made this refuse PERMANENTLY: the only way to clear the
+// old name is the very publish being refused (#207 BR-19). The guard therefore
+// has to see this publish's own set, which is why deletes are classified in a
+// pass of their own before any decision is taken.
+func TestSyncViaTrunk_SlugRenameIsNotACollision(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := "workshop/issues/000700-old-slug.md"
+	if err := os.WriteFile(filepath.Join(repo, old), []byte("---\nid: 000700\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "seed")
+
+	// The trunk (HEAD, here) still carries the OLD name — it always will, until
+	// this publish lands.
+	newName := "workshop/issues/000700-new-slug.md"
+	testfix.Git(t, repo, "mv", old, newName)
+
+	pub := &fakePublisher{view: viewFor(t, repo)}
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", Issue: 700}
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
+		t.Fatalf("a rename refused: %v\n%s", err, errOut.String())
+	}
+	if len(pub.sets) != 1 {
+		t.Fatalf("prepare produced %d sets, want 1", len(pub.sets))
+	}
+	set := pub.sets[0]
+	if _, ok := set.Write[newName]; !ok {
+		t.Errorf("new name missing from Write: %+v", set.Write)
+	}
+	if len(set.Delete) != 1 || set.Delete[0] != old {
+		t.Errorf("Delete = %v, want [%s] — the rename is atomic or it is a duplicate", set.Delete, old)
 	}
 }

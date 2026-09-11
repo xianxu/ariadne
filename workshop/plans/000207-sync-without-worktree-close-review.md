@@ -565,3 +565,201 @@ findings:
       (main-worktree, worktree hunt, precheck, merge-base), plus helpers left with no callers, and records
       that list in the Log. Prevalence: 2 prose sites, 1 dead helper, 1 empty header.
 ```
+
+---
+
+## Re-review — 2026-09-11T12:52:26-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 207 — Publish issue files without a main worktree |
+| repo | ariadne |
+| issue file | workshop/issues/000207-sync-without-worktree.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ff1b52b6311ce92bd014c626f1b089fc01aa7860..168c36aaa8ed176e203eeb57ae5834b85bf2d1d8 |
+| command | sdlc close --issue 207 |
+| reviewer | claude |
+| timestamp | 2026-09-11T12:52:26-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The four prior-round fixes I could reach are real, not paper: I rebuilt the HEAD binary and reproduced `issue new` / `claim` / `issue sync` (both arms) publishing correctly from `docs/sub` against a bare origin, and `WF_HISTORY_DIR=archive` now both blocks re-allocation onto an archived id and refuses a republication beside one — and four independent mutations (unanchor `locateIssueFile`, unpin `changedIssueFiles`, unanchor `issueFilesForID`, hardcode `workshop/history`) each turn a test red, so BR-16 and BR-17 are pinned rather than asserted. What keeps this off SHIP is one Important finding and one prior finding that does not survive its own mutation check: the collision guard decides against the raw trunk read alone, so a same-id slug rename (`git mv 000700-old.md 000700-new.md`) is refused even though the same atomic publish already carries `Delete(old)`, and restoring an archived issue is refused with "already published under a different name" printing two *identical* filenames plus advice that cannot clear it — both reproduced with the HEAD binary. BR-14's guard is correct in code but its test passes with the fix reverted, so it is unpinned. The suite is otherwise green; the one failing test (`TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`) is pre-existing — the plan it reads was archived by `dfeba9c`, which predates this window's base.
+
+## 1. Strengths
+
+- `cmd/sdlc/synctrunk_test.go:200` — `ReallocatesOnMidRetryCollision` seeds the peer **inside** the retry window via `beforePrepare` and asserts the final set carries the re-derived path. This is the assertion that actually distinguishes "decision inside the CAS loop" from "decision hoisted out", and it is the one the Spec was rewritten around.
+- `cmd/sdlc/issuesync_test.go:952` — the `pre-receive` hook writes a witness file only if the candidate exists at push time. That converts an ordering claim ("local write precedes the push") into an observable, and it also asserts the trunk did not move, the original survived, the candidate was removed, and `synced` was not printed. Four distinct failure modes, one fixture.
+- `cmd/sdlc/claim.go:221-240` — `syncPaths{Root, Dirs}` resolved once at the dispatch and threaded is the correct answer to BR-16/BR-17, not a third patch. The deliberate exception (`locateIssueFile` anchoring internally, `setstatus.go:119`) is recorded in the code rather than hidden.
+- `cmd/sdlc/internal/gitx/updatemany.go:24-31` — `TrunkWrite.Delete` as its own field makes removal representable instead of collapsing into "unchanged"; `setMatchesTrunk` then correctly gates the whole-set early return on both halves.
+- `cmd/sdlc/internal/gitx/trunkfile.go:337` — collapsing `Update` into a `UpdateMany` adapter removed the duplicate retry loop and `commitAndPush` entirely; `refIDSpace` (`issueids.go:158`) remains the only trunk id-space reader, confirmed by sweeping every `ls-tree` call site in `cmd/`.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**The collision guard decides against the trunk snapshot alone — not against the id space this publish will leave behind** (`cmd/sdlc/synctrunk.go:248`, `cmd/sdlc/issuecollision.go:56`). **This is the 4th finding in family `free-id-space-incomplete`.** Earlier rounds fixed instances (BR-3 local unpublished ids, BR-15 two files in one set, BR-17 the configured history dir). Do not fix these two instances — fix the rule.
+
+Reproduced with the HEAD binary:
+
+```
+git mv workshop/issues/000700-old-slug.md workshop/issues/000700-new-slug.md
+sdlc claim --issue 700
+  ==> Publishing issue changes to the trunk:
+      workshop/issues/000700-new-slug.md
+      workshop/issues/000700-old-slug.md          <- the Delete is IN the set
+  Error: issue id 000700 is already published under a different name: ...
+         Rename one side by hand and re-run
+```
+
+and, restoring an archived issue (`workshop/history/000700-seven.md` → `workshop/issues/000700-seven.md`):
+
+```
+  Error: issue id 000700 is already published under a different name:
+        ours:  workshop/issues/000700-seven.md
+        trunk: workshop/history/000700-seven.md   <- same name, different dir
+```
+
+Both are permanent for `claim` and `issue sync --push`: re-running produces the identical refusal, and the advice names an action the operator has already taken. The publish is atomic, so applying the rename would leave exactly one path at id 700.
+
+**RULE:** `decideCollision` must be given the id space **as this publish will leave it** — `trunk ∪ local`, plus this set's `Write`, minus this set's `Delete` — with our own artifact recognised by `(id, slug)` rather than by exact path, so a file moved between the issues dir and the history dir is not read as a foreign claimant. Compute it once, in one place, and pass it in; `space` as a raw `refIDSpace` result is the shared defect behind all four findings. The cheapest structural form is a pure `planPublish(changed, contents, idSpace, firstPublication) -> (TrunkWrite, []reallocation, error)` extracted out of the 90-line `prepare` closure (ARCH-PURE) — the delete/rename/realloc interaction is exactly the combination a table-driven pure test enumerates and the current IO-bound closure cannot. Measured prevalence: 4 instances of one rule, 3 already fixed individually.
+
+## 4. Minor findings
+
+- **`resolveBranchName` is now half-anchored** (`cmd/sdlc/branchcreate.go:58-64` vs `:100`): the `--issue` glob was root-anchored this round while its sibling `listUntrackedIssues` still runs `r.Git("ls-files" … issuesDir+"/")` in the process cwd. **4th finding in family `cwd-relative-git-read`** — do not patch the site. Rule (unchanged from BR-16/BR-17): each verb resolves root+dirs once at its own dispatch and threads them; no call site re-resolves or names a literal. Unswept siblings measured: `listUntrackedIssues` (branchcreate.go:100), `findIssueFileByName` (changecode.go:485,489), `scanIssueFiles`' diff pathspec and glob (issuefiles.go:35-42), `milestoneclose.go:682`'s literal `"workshop/history"`. `change-code` from a subdirectory fails either way, so nothing regressed — but the mixed state is what the rule exists to prevent.
+- **`sdlc claim --help` gives two different flag lists.** `--history-dir` was registered (claim.go:100) but not added to the hand-written FLAGS block in `cmd/sdlc/helptext/claim.md`; cobra's auto "Flags:" section below it does list it. **3rd finding in family `stale-user-facing-docs`** — rule: the FLAGS block is a hand-maintained restatement of the cobra flag set (ARCH-PURPOSE: a restatement that doesn't derive is a deferred consumer). Either derive it or add a test asserting every registered flag name appears in its helptext.
+- **`repoRel` duplicates `gitx.InsideRoot`** (issuefiles.go:103 vs internal/gitx/inside.go:31) — same job, and the copy's containment test (`strings.HasPrefix(rel, "..")`) is weaker than `gitx.Escapes`. **2nd finding in family `parallel-implementation`** — rule: extend the existing helper (teach `InsideRoot` to resolve the root too) rather than adding a second one beside it.
+- **Two doc comments were detached from their functions** by insertions in this window: `syncInPlace`'s comment now documents `type syncPaths` (claim.go:210-225), and `issueFilesForID`'s now documents `repoRel` (issuefiles.go:103-111). Both functions are left undocumented.
+- `os.WriteFile(abs, newData, 0o644)` (synctrunk.go:261) drops the original file's mode on a re-allocation, where `commitSetAndPush` is careful to preserve it from the base tree.
+- `setMatchesTrunk` → `readFrom` → `refPresent` re-runs `rev-parse` on the same immutable base SHA once per path, and `commitSetAndPush` adds an `ls-tree` per path for the mode — ~6 git processes per file per attempt (ARCH-CONSTRAINTS: repeated work that can be hoisted). Fine at N=1–3; worth hoisting if a no-`--issue` `claim` ever carries a large changed set.
+- `var _ = errors.Is` (synctrunk_test.go:132) is a leftover no-op.
+- The `hash-object --path` "BOUNDED CLAIM" comment about `.gitattributes` resolving from the working tree was deleted with `commitAndPush` and not carried into `commitSetAndPush`; the limitation still applies.
+
+## 5. Test coverage notes
+
+- Mutation-verified this round: unanchoring `locateIssueFile`, `changedIssueFiles`, and `issueFilesForID`, and replacing `f.historyDir()` with the literal, each turn a named test red. BR-16 and BR-17 are genuinely pinned.
+- **BR-14 is not pinned.** `TestRewriteIdentity_LeavesAProseIDLineAlone` (reallocate_test.go:112) passes with the whole `frontmatterSpan` restriction removed, because its fixture has a frontmatter `id:` and the regex's first match is that line either way. The fixture that separates them: frontmatter present but **without** an `id:` line, plus `id: 000999` in the body — fixed code refuses, unfixed code silently rewrites prose and renames.
+- **BR-11 is unpinned too**, but has no cheap mutation target: replacing the resolved base SHA with `t.trackingRef()` leaves both packages green, and only a concurrent fetch between `resolve` and `prepare` can distinguish them. The property is readable off the type (`base` is a SHA from `resolve`), so it cannot silently do nothing — noted rather than re-raised.
+- The rename and archive-restore paths in the Important finding have no test at any layer; add them to `issuecollision_test.go` as pure cases once the decision takes the post-publish id space.
+- The suite is red at HEAD on `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` for a pre-existing reason (ariadne#210). Any `--verified` evidence should say so explicitly rather than quoting a green run.
+
+## 6. Architectural notes
+
+- **ARCH-DRY** — flag (Minor): `repoRel` vs `gitx.InsideRoot`. Otherwise strong: one id-space reader, one `defaultSyncSubject`, one retry loop.
+- **ARCH-PURE** — flag (folded into the Important finding): `decideCollision`/`nextFreeID`/`rewriteIdentity` are properly pure and IO-free in tests, but the `prepare` closure (synctrunk.go:180-280) mixes file reads, git queries, candidate writes and the publish-set decision in one body. The uncaught rename/delete interaction lives exactly there.
+- **ARCH-PURPOSE** — pass on the headline purpose (publishing needs no worktree; verified end-to-end), flag on the shadow sweep: the `--history-dir` helptext restatement doesn't derive, and the cwd-relative class is swept on the sync/id path but half-swept in `branchcreate.go`.
+- **ARCH-MOCK** — pass. Real bare origins via `testfix`, a declining `pre-receive` hook for the ordering property, and a `fakePublisher` that models the retry rather than a stateless call recorder. `ViewOf` exists precisely so consumer tests can drive a real read.
+- **ARCH-CONSTRAINTS** — pass with a note: attempts bounded at 3, candidates bounded by the changed set, no unbounded fan-out; the per-file git-process count is the only repeated-work item.
+- **ARCH-SECURE** — pass. `--end-of-options` and `--` separate caller-supplied refs and pathspecs structurally; `-z` on every query removed the quoted-path misread; an unexplained not-exist errors instead of being published as a deletion; `resolveIDDirs` refuses dirs outside the repo. Minor: candidate files are written 0644 regardless of the original's mode.
+- **ARCH-ORDER** — pass. `publishResult`'s per-attempt vs across-attempt split is written down at the field level and both halves are covered (stale-realloc-not-carried, candidate-reused-on-retry). Note for later: it is still four independent fields whose legal combinations are implied rather than enumerated; if a fifth arrives, collapse to a tagged state.
+
+## 7. Plan revision recommendations
+
+- **Done-when, "ariadne#188 closes as superseded"** — not satisfied at this boundary, and deliberately so: Plan step 6 was reworded to "record which bullet shipped here (`b7f08ec`)", leaving #188's close to #188's own lifecycle. Revise the Done-when line to match the Plan, or it will read as an unmet exit criterion at close.
+- **Spec, "Same path, same slug, is never a collision"** — the code implements same *path*; the archive-restore reproduction shows same *slug* at a different path is treated as foreign. Decide which the Spec means and say so, then make the code match.
+- **Spec, the `issue sync`/`claim` refusal row** — add the carve-out the Important finding asks for: a foreign trunk path that this same publish deletes (a slug rename) is not a collision, and the refusal text must not tell an operator to do the thing they just did.
+- **Done-when** — add the two cases now missing: a same-id slug rename publishes as one atomic delete+write, and restoring an archived issue republishes rather than refusing.
+
+```findings
+dispose:
+  - id: BR-11
+    disposition: addressed
+    note: |
+      updatemany.go passes the resolved base SHA into TrunkView; no test pins it (the mutation to trackingRef leaves both packages green) because only a concurrent fetch can distinguish them.
+  - id: BR-14
+    disposition: not-addressed
+    note: |
+      Code is correct but unpinned — TestRewriteIdentity_LeavesAProseIDLineAlone still passes with frontmatterSpan removed; needs a fixture whose frontmatter has no id: line while the body does.
+  - id: BR-16
+    disposition: addressed
+    note: |
+      Reproduced fixed from docs/sub with the HEAD binary for issue new, claim and issue sync (both arms); three mutations each turn a named test red.
+  - id: BR-17
+    disposition: addressed
+    note: |
+      WF_HISTORY_DIR=archive verified end-to-end: allocation skips the archived id and republication beside it refuses naming the archived path; the literal-dir mutation is caught.
+  - id: BR-18
+    disposition: addressed
+    note: |
+      mustGitOutput, the empty header and both prose sites are gone; residual "no worktree hunt" phrasing in claim.go:14 and sdlc-binary.md:122 no longer distinguishes the arms but is cosmetic.
+findings:
+  - id: new
+    severity: Important
+    family: free-id-space-incomplete
+    title: |
+      the collision guard reads the raw trunk, ignoring this publish's own deletes and same-slug moves, so a slug rename and an archive-restore are refused permanently
+    detail: |
+      This is the 4th finding in family free-id-space-incomplete. Earlier rounds fixed instances
+      (BR-3 local unpublished ids, BR-15 two files in one set, BR-17 the configured history dir).
+      Do NOT fix these two instances. Reproduced with the HEAD binary against a bare origin:
+      `git mv 000700-old-slug.md 000700-new-slug.md` then `claim --issue 700` prints both paths in
+      the publish set and still refuses, although the set carries Delete(old) and the commit is
+      atomic; and restoring workshop/history/000700-seven.md to workshop/issues/ refuses with
+      "already published under a different name" while printing two identical filenames. Both are
+      permanent for claim and `issue sync --push`, and the advice ("Rename one side by hand and
+      re-run") names an action already taken. RULE: decideCollision must receive the id space as
+      this publish will LEAVE it — trunk union local, plus this set's Write, minus this set's
+      Delete — with our own artifact keyed on (id, slug) rather than exact path, computed once and
+      passed in. Extracting a pure planPublish(changed, contents, idSpace, firstPublication) out of
+      the prepare closure (synctrunk.go:180-280) is what makes the delete/rename/realloc combinations
+      testable at all (ARCH-PURE). Measured prevalence: 4 instances of one rule, 3 fixed individually.
+  - id: new
+    severity: Minor
+    family: cwd-relative-git-read
+    title: |
+      resolveBranchName is half-anchored — the --issue glob moved to the repo root while its sibling ls-files still runs in the process cwd
+    detail: |
+      This is the 4th finding in family cwd-relative-git-read. Do NOT patch the site. branchcreate.go:58-64
+      now root-anchors issueFilesForID while listUntrackedIssues (branchcreate.go:100) still passes a
+      relative pathspec to r.Git in the cwd, so one function answers from two different trees. RULE
+      (unchanged from BR-16/BR-17): each verb resolves root + configured dirs ONCE at its own dispatch
+      and threads them; no call site re-resolves or names a literal. Unswept siblings measured:
+      listUntrackedIssues, findIssueFileByName (changecode.go:485,489), scanIssueFiles' diff pathspec
+      and glob (issuefiles.go:35-42), and milestoneclose.go:682's literal "workshop/history".
+      change-code is broken from a subdirectory before and after, so nothing regressed — the mixed
+      state is the finding.
+  - id: new
+    severity: Minor
+    family: stale-user-facing-docs
+    title: |
+      claim --help prints two different flag lists — the hand-written FLAGS block omits the new --history-dir that cobra's auto section shows
+    detail: |
+      This is the 3rd finding in family stale-user-facing-docs. Do NOT just add the line. --history-dir
+      was registered on claim (claim.go:100) in this window; cmd/sdlc/helptext/claim.md's FLAGS block
+      was not updated, and `sdlc claim --help` therefore lists the flag once and omits it once. RULE:
+      the FLAGS block is a hand-maintained restatement of the cobra flag set, i.e. a consumer that does
+      not derive (ARCH-PURPOSE) — either render it from the flag set or add a test asserting every
+      registered flag name appears in that verb's helptext. Prevalence: 1 flag today across 30 helptext
+      files, none of which is checked against its command.
+  - id: new
+    severity: Minor
+    family: parallel-implementation
+    title: |
+      repoRel duplicates gitx.InsideRoot with a weaker containment test
+    detail: |
+      This is the 2nd finding in family parallel-implementation. issuefiles.go:103 adds a second
+      "make p relative to the repo root" helper beside internal/gitx/inside.go:31, differing only in
+      resolving symlinks on the root as well and in returning bool instead of error — and its escape
+      check (strings.HasPrefix(rel, "..")) is weaker than gitx.Escapes. RULE: when an existing helper
+      is nearly right, extend it (teach InsideRoot to resolve the root) rather than adding a sibling;
+      two helpers answering one question drift, and the divergence is a bug in whichever lacks the guard.
+  - id: new
+    severity: Minor
+    family: doc-comment-anchoring
+    title: |
+      two doc comments were detached from their functions by insertions in this window
+    detail: |
+      claim.go:210-225 — syncInPlace's doc comment now documents `type syncPaths`, and syncInPlace
+      (claim.go:251) has none; issuefiles.go:103-111 — issueFilesForID's comment now documents
+      repoRel, and issueFilesForID (issuefiles.go:113) has none. Both read as documented while godoc
+      attaches the prose to the wrong symbol. Insert new declarations after the documented function,
+      not between the comment and its subject.
+```

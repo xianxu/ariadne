@@ -73,6 +73,9 @@ FLAGS
                         (also auto-flips it open → working)
   --no-start            do not auto-flip an open --issue to working
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
+  --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
+                        (the id space is issues + history, so the collision
+                        guard reads both)
   --dry-run             print what would happen; do not commit/push
 
 EXIT CODES

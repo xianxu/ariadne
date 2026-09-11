@@ -59,9 +59,11 @@ func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 		responses: map[string][]byte{
 			// NUL-delimited, because the queries pass -z: a stub that answers in
 			// git's newline form models a command the code no longer runs (#207 BR-9).
-			"diff --name-only -z HEAD":     []byte("workshop/issues/000002-b.md\x00workshop/issues/000001-a.md\x00"),
-			"diff --cached --name-only -z": []byte("workshop/issues/000001-a.md\x00"),
-			"ls-files -z --others":         []byte("workshop/issues/000003-c.md\x00"),
+			// --no-renames for the same reason: rename detection reports a `git mv`
+			// as the new path alone, hiding the delete half (#207 BR-19).
+			"diff --name-only --no-renames -z HEAD":     []byte("workshop/issues/000002-b.md\x00workshop/issues/000001-a.md\x00"),
+			"diff --cached --name-only --no-renames -z": []byte("workshop/issues/000001-a.md\x00"),
+			"ls-files -z --others":                      []byte("workshop/issues/000003-c.md\x00"),
 		},
 	}
 	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues"}, r, syncPaths{Root: "."})
@@ -86,7 +88,7 @@ func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 func TestChangedIssueFiles_FilterByIssue(t *testing.T) {
 	r := &claimRunnerStub{
 		responses: map[string][]byte{
-			"diff --name-only -z HEAD": []byte("workshop/issues/000001-a.md\x00workshop/issues/000031-target.md\x00"),
+			"diff --name-only --no-renames -z HEAD": []byte("workshop/issues/000001-a.md\x00workshop/issues/000031-target.md\x00"),
 		},
 	}
 	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues", Issue: 31}, r, syncPaths{Root: "."})

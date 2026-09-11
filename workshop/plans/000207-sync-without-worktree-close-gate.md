@@ -267,6 +267,103 @@ rounds:
           family: stale-user-facing-docs
           round: 3
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-11T12:52:26-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: addressed
+          note: updatemany.go passes the resolved base SHA into TrunkView; no test pins it (the mutation to trackingRef leaves both packages green) because only a concurrent fetch can distinguish them.
+          round: 4
+        - id: BR-14
+          disposition: not-addressed
+          note: 'Code is correct but unpinned — TestRewriteIdentity_LeavesAProseIDLineAlone still passes with frontmatterSpan removed; needs a fixture whose frontmatter has no id: line while the body does.'
+          round: 4
+        - id: BR-16
+          disposition: addressed
+          note: Reproduced fixed from docs/sub with the HEAD binary for issue new, claim and issue sync (both arms); three mutations each turn a named test red.
+          round: 4
+        - id: BR-17
+          disposition: addressed
+          note: 'WF_HISTORY_DIR=archive verified end-to-end: allocation skips the archived id and republication beside it refuses naming the archived path; the literal-dir mutation is caught.'
+          round: 4
+        - id: BR-18
+          disposition: addressed
+          note: mustGitOutput, the empty header and both prose sites are gone; residual "no worktree hunt" phrasing in claim.go:14 and sdlc-binary.md:122 no longer distinguishes the arms but is cosmetic.
+          round: 4
+      findings:
+        - id: BR-19
+          severity: Important
+          title: the collision guard reads the raw trunk, ignoring this publish's own deletes and same-slug moves, so a slug rename and an archive-restore are refused permanently
+          detail: |-
+            This is the 4th finding in family free-id-space-incomplete. Earlier rounds fixed instances
+            (BR-3 local unpublished ids, BR-15 two files in one set, BR-17 the configured history dir).
+            Do NOT fix these two instances. Reproduced with the HEAD binary against a bare origin:
+            `git mv 000700-old-slug.md 000700-new-slug.md` then `claim --issue 700` prints both paths in
+            the publish set and still refuses, although the set carries Delete(old) and the commit is
+            atomic; and restoring workshop/history/000700-seven.md to workshop/issues/ refuses with
+            "already published under a different name" while printing two identical filenames. Both are
+            permanent for claim and `issue sync --push`, and the advice ("Rename one side by hand and
+            re-run") names an action already taken. RULE: decideCollision must receive the id space as
+            this publish will LEAVE it — trunk union local, plus this set's Write, minus this set's
+            Delete — with our own artifact keyed on (id, slug) rather than exact path, computed once and
+            passed in. Extracting a pure planPublish(changed, contents, idSpace, firstPublication) out of
+            the prepare closure (synctrunk.go:180-280) is what makes the delete/rename/realloc combinations
+            testable at all (ARCH-PURE). Measured prevalence: 4 instances of one rule, 3 fixed individually.
+          family: free-id-space-incomplete
+          round: 4
+        - id: BR-20
+          severity: Minor
+          title: resolveBranchName is half-anchored — the --issue glob moved to the repo root while its sibling ls-files still runs in the process cwd
+          detail: |-
+            This is the 4th finding in family cwd-relative-git-read. Do NOT patch the site. branchcreate.go:58-64
+            now root-anchors issueFilesForID while listUntrackedIssues (branchcreate.go:100) still passes a
+            relative pathspec to r.Git in the cwd, so one function answers from two different trees. RULE
+            (unchanged from BR-16/BR-17): each verb resolves root + configured dirs ONCE at its own dispatch
+            and threads them; no call site re-resolves or names a literal. Unswept siblings measured:
+            listUntrackedIssues, findIssueFileByName (changecode.go:485,489), scanIssueFiles' diff pathspec
+            and glob (issuefiles.go:35-42), and milestoneclose.go:682's literal "workshop/history".
+            change-code is broken from a subdirectory before and after, so nothing regressed — the mixed
+            state is the finding.
+          family: cwd-relative-git-read
+          round: 4
+        - id: BR-21
+          severity: Minor
+          title: claim --help prints two different flag lists — the hand-written FLAGS block omits the new --history-dir that cobra's auto section shows
+          detail: |-
+            This is the 3rd finding in family stale-user-facing-docs. Do NOT just add the line. --history-dir
+            was registered on claim (claim.go:100) in this window; cmd/sdlc/helptext/claim.md's FLAGS block
+            was not updated, and `sdlc claim --help` therefore lists the flag once and omits it once. RULE:
+            the FLAGS block is a hand-maintained restatement of the cobra flag set, i.e. a consumer that does
+            not derive (ARCH-PURPOSE) — either render it from the flag set or add a test asserting every
+            registered flag name appears in that verb's helptext. Prevalence: 1 flag today across 30 helptext
+            files, none of which is checked against its command.
+          family: stale-user-facing-docs
+          round: 4
+        - id: BR-22
+          severity: Minor
+          title: repoRel duplicates gitx.InsideRoot with a weaker containment test
+          detail: |-
+            This is the 2nd finding in family parallel-implementation. issuefiles.go:103 adds a second
+            "make p relative to the repo root" helper beside internal/gitx/inside.go:31, differing only in
+            resolving symlinks on the root as well and in returning bool instead of error — and its escape
+            check (strings.HasPrefix(rel, "..")) is weaker than gitx.Escapes. RULE: when an existing helper
+            is nearly right, extend it (teach InsideRoot to resolve the root) rather than adding a sibling;
+            two helpers answering one question drift, and the divergence is a bug in whichever lacks the guard.
+          family: parallel-implementation
+          round: 4
+        - id: BR-23
+          severity: Minor
+          title: two doc comments were detached from their functions by insertions in this window
+          detail: |-
+            claim.go:210-225 — syncInPlace's doc comment now documents `type syncPaths`, and syncInPlace
+            (claim.go:251) has none; issuefiles.go:103-111 — issueFilesForID's comment now documents
+            repoRel, and issueFilesForID (issuefiles.go:113) has none. Both read as documented while godoc
+            attaches the prose to the wrong symbol. Insert new declarations after the documented function,
+            not between the comment and its subject.
+          family: doc-comment-anchoring
+          round: 4
+      blocked: false
 ---
 
 # Gate ledger — ariadne#207 (boundary-review)
@@ -395,10 +492,70 @@ returns repo-relative paths, so an absolute --issues-dir from a subdirectory fai
   (main-worktree, worktree hunt, precheck, merge-base), plus helpers left with no callers, and records
   that list in the Log. Prevalence: 2 prose sites, 1 dead helper, 1 empty header.
 
+## Round 4 — 2026-09-11T12:52:26-07:00 (claude) — passed
+
+### Disposed
+
+- BR-11 — addressed — updatemany.go passes the resolved base SHA into TrunkView; no test pins it (the mutation to trackingRef leaves both packages green) because only a concurrent fetch can distinguish them.
+- BR-14 — not-addressed — Code is correct but unpinned — TestRewriteIdentity_LeavesAProseIDLineAlone still passes with frontmatterSpan removed; needs a fixture whose frontmatter has no id: line while the body does.
+- BR-16 — addressed — Reproduced fixed from docs/sub with the HEAD binary for issue new, claim and issue sync (both arms); three mutations each turn a named test red.
+- BR-17 — addressed — WF_HISTORY_DIR=archive verified end-to-end: allocation skips the archived id and republication beside it refuses naming the archived path; the literal-dir mutation is caught.
+- BR-18 — addressed — mustGitOutput, the empty header and both prose sites are gone; residual "no worktree hunt" phrasing in claim.go:14 and sdlc-binary.md:122 no longer distinguishes the arms but is cosmetic.
+
+### Raised
+
+- **BR-19** [Important] `free-id-space-incomplete` the collision guard reads the raw trunk, ignoring this publish's own deletes and same-slug moves, so a slug rename and an archive-restore are refused permanently
+  This is the 4th finding in family free-id-space-incomplete. Earlier rounds fixed instances
+  (BR-3 local unpublished ids, BR-15 two files in one set, BR-17 the configured history dir).
+  Do NOT fix these two instances. Reproduced with the HEAD binary against a bare origin:
+  `git mv 000700-old-slug.md 000700-new-slug.md` then `claim --issue 700` prints both paths in
+  the publish set and still refuses, although the set carries Delete(old) and the commit is
+  atomic; and restoring workshop/history/000700-seven.md to workshop/issues/ refuses with
+  "already published under a different name" while printing two identical filenames. Both are
+  permanent for claim and `issue sync --push`, and the advice ("Rename one side by hand and
+  re-run") names an action already taken. RULE: decideCollision must receive the id space as
+  this publish will LEAVE it — trunk union local, plus this set's Write, minus this set's
+  Delete — with our own artifact keyed on (id, slug) rather than exact path, computed once and
+  passed in. Extracting a pure planPublish(changed, contents, idSpace, firstPublication) out of
+  the prepare closure (synctrunk.go:180-280) is what makes the delete/rename/realloc combinations
+  testable at all (ARCH-PURE). Measured prevalence: 4 instances of one rule, 3 fixed individually.
+- **BR-20** [Minor] `cwd-relative-git-read` resolveBranchName is half-anchored — the --issue glob moved to the repo root while its sibling ls-files still runs in the process cwd
+  This is the 4th finding in family cwd-relative-git-read. Do NOT patch the site. branchcreate.go:58-64
+  now root-anchors issueFilesForID while listUntrackedIssues (branchcreate.go:100) still passes a
+  relative pathspec to r.Git in the cwd, so one function answers from two different trees. RULE
+  (unchanged from BR-16/BR-17): each verb resolves root + configured dirs ONCE at its own dispatch
+  and threads them; no call site re-resolves or names a literal. Unswept siblings measured:
+  listUntrackedIssues, findIssueFileByName (changecode.go:485,489), scanIssueFiles' diff pathspec
+  and glob (issuefiles.go:35-42), and milestoneclose.go:682's literal "workshop/history".
+  change-code is broken from a subdirectory before and after, so nothing regressed — the mixed
+  state is the finding.
+- **BR-21** [Minor] `stale-user-facing-docs` claim --help prints two different flag lists — the hand-written FLAGS block omits the new --history-dir that cobra's auto section shows
+  This is the 3rd finding in family stale-user-facing-docs. Do NOT just add the line. --history-dir
+  was registered on claim (claim.go:100) in this window; cmd/sdlc/helptext/claim.md's FLAGS block
+  was not updated, and `sdlc claim --help` therefore lists the flag once and omits it once. RULE:
+  the FLAGS block is a hand-maintained restatement of the cobra flag set, i.e. a consumer that does
+  not derive (ARCH-PURPOSE) — either render it from the flag set or add a test asserting every
+  registered flag name appears in that verb's helptext. Prevalence: 1 flag today across 30 helptext
+  files, none of which is checked against its command.
+- **BR-22** [Minor] `parallel-implementation` repoRel duplicates gitx.InsideRoot with a weaker containment test
+  This is the 2nd finding in family parallel-implementation. issuefiles.go:103 adds a second
+  "make p relative to the repo root" helper beside internal/gitx/inside.go:31, differing only in
+  resolving symlinks on the root as well and in returning bool instead of error — and its escape
+  check (strings.HasPrefix(rel, "..")) is weaker than gitx.Escapes. RULE: when an existing helper
+  is nearly right, extend it (teach InsideRoot to resolve the root) rather than adding a sibling;
+  two helpers answering one question drift, and the divergence is a bug in whichever lacks the guard.
+- **BR-23** [Minor] `doc-comment-anchoring` two doc comments were detached from their functions by insertions in this window
+  claim.go:210-225 — syncInPlace's doc comment now documents `type syncPaths`, and syncInPlace
+  (claim.go:251) has none; issuefiles.go:103-111 — issueFilesForID's comment now documents
+  repoRel, and issueFilesForID (issuefiles.go:113) has none. Both read as documented while godoc
+  attaches the prose to the wrong symbol. Insert new declarations after the documented function,
+  not between the comment and its subject.
+
 ## Open findings
 
-- **BR-11** [Minor] `snapshot-not-pinned` TrunkView.Ref returns the mutable tracking-ref name rather than the resolved base SHA
 - **BR-14** [Minor] `identity-rewrite-scope` idFrontmatterRE matches any line-start id:, not only the frontmatter block
-- **BR-16** [Important] `cwd-relative-git-read` issue new, claim and issue sync publish nothing from a subdirectory and report ok
-- **BR-17** [Important] `free-id-space-incomplete` trunk arm hardcodes workshop/history and ignores WF_HISTORY_DIR, so the collision guard cannot see archived ids
-- **BR-18** [Minor] `stale-user-facing-docs` leftovers from the deleted worktree route survived the sweep: two prose sites, a dead helper, an empty header
+- **BR-19** [Important] `free-id-space-incomplete` the collision guard reads the raw trunk, ignoring this publish's own deletes and same-slug moves, so a slug rename and an archive-restore are refused permanently
+- **BR-20** [Minor] `cwd-relative-git-read` resolveBranchName is half-anchored — the --issue glob moved to the repo root while its sibling ls-files still runs in the process cwd
+- **BR-21** [Minor] `stale-user-facing-docs` claim --help prints two different flag lists — the hand-written FLAGS block omits the new --history-dir that cobra's auto section shows
+- **BR-22** [Minor] `parallel-implementation` repoRel duplicates gitx.InsideRoot with a weaker containment test
+- **BR-23** [Minor] `doc-comment-anchoring` two doc comments were detached from their functions by insertions in this window

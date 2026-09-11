@@ -122,3 +122,21 @@ func TestRewriteIdentity_LeavesAProseIDLineAlone(t *testing.T) {
 		t.Errorf("a prose id line was rewritten:\n%s", out)
 	}
 }
+
+// Frontmatter without an `id:` line, body WITH one: the identity is absent, so
+// re-allocation must refuse rather than rewrite a body line.
+//
+// The prose test above cannot show this — the frontmatter id is the first match
+// either way, so it passes with the span check removed. Only a file whose ONLY
+// `id:` line is in the body distinguishes "search the frontmatter" from "search
+// the document" (#207 BR-14).
+func TestRewriteIdentity_RefusesWhenOnlyTheBodyHasAnIDLine(t *testing.T) {
+	content := []byte("---\nstatus: open\n---\n\n# Title\n\nid: 000999\n")
+	_, out, err := rewriteIdentity("workshop/issues/000207-x.md", content, 208)
+	if err == nil {
+		t.Fatalf("rewrote a body id line as if it were the identity:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), "no `id:` line") {
+		t.Errorf("refusal should name the missing frontmatter id, got: %v", err)
+	}
+}

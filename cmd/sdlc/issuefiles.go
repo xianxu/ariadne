@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -107,27 +106,6 @@ func filterIssueFiles(refs []issueFileRef, keep func(issueFileRef) bool) []issue
 // a sync stages and commits), so the two cannot disagree about what an --issue
 // filter means. changedIssueFiles answers a different question (which of the
 // already-changed paths belong to N) by prefix-matching that same convention.
-// repoRel makes p relative to root, tolerating SYMLINKED paths. macOS /tmp is a
-// symlink to /private/tmp, and a repo under one resolves differently depending
-// on which side computed the path: filepath.Rel then yields a `../../..` escape
-// that git rejects as "outside repository". Any repo reached through a symlink
-// hits this, not just a test fixture.
-func repoRel(root, p string) (string, bool) {
-	rr, err := filepath.EvalSymlinks(root)
-	if err != nil {
-		rr = root
-	}
-	pp, err := filepath.EvalSymlinks(p)
-	if err != nil {
-		pp = p
-	}
-	rel, err := filepath.Rel(rr, pp)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return "", false
-	}
-	return filepath.ToSlash(rel), true
-}
-
 func issueFilesForID(root, issuesDir string, id int) []string {
 	// Root-anchored, returning ABSOLUTE paths. A bare Glob resolves against the
 	// process cwd, so this found nothing from a subdirectory (#207 BR-16). Paths

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -14,6 +15,7 @@ func TestDecideCollision(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		space     map[int][]string
+		pending   map[string]bool
 		firstPub  bool
 		want      collisionVerdict
 		wantPaths []string
@@ -69,9 +71,28 @@ func TestDecideCollision(t *testing.T) {
 			want:      verdictReallocate,
 			wantPaths: []string{"workshop/history/issues/000207-done-long-ago.md"},
 		},
+		{
+			// A slug rename is ONE atomic commit: Delete(old) + Write(new).
+			// Reading the raw trunk saw the old name still sitting there and
+			// refused — permanently, since the only way to clear it is the very
+			// publish being refused (#207 BR-19).
+			name:     "the old name this publish deletes is not a collision",
+			space:    map[int][]string{207: {"workshop/issues/000207-old-slug.md"}},
+			pending:  map[string]bool{"workshop/issues/000207-old-slug.md": true},
+			firstPub: false,
+			want:     verdictPublish,
+		},
+		{
+			// Restoring an archived issue: same file NAME, different directory.
+			// It is the same issue moving back, not a second claimant.
+			name:     "our own file in history — an archive restore, not a collision",
+			space:    map[int][]string{207: {"workshop/history/issues/" + filepath.Base(mine)}},
+			firstPub: false,
+			want:     verdictPublish,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, paths := decideCollision(207, mine, tc.space, tc.firstPub)
+			got, paths := decideCollision(207, mine, tc.space, tc.pending, tc.firstPub)
 			if got != tc.want {
 				t.Errorf("verdict = %v, want %v", got, tc.want)
 			}
@@ -103,7 +124,7 @@ func TestDecideCollision_KeysOnFilenameNotFrontmatter(t *testing.T) {
 	const mine = "workshop/issues/000207-sync-without-worktree.md"
 	// refIDSpace builds this from `ls-tree --name-only`, so contents never enter.
 	space := map[int][]string{207: {"workshop/issues/000207-publish-issue-files.md"}}
-	if got, _ := decideCollision(207, mine, space, true); got != verdictReallocate {
+	if got, _ := decideCollision(207, mine, space, nil, true); got != verdictReallocate {
 		t.Errorf("verdict = %v, want re-allocate — the id space is keyed on filename", got)
 	}
 }

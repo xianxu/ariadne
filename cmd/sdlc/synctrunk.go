@@ -162,7 +162,10 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 		changed = issueFilesForID(paths.Root, f.IssuesDir, f.Issue)
 		// The publisher speaks repo-relative; issueFilesForID returns absolute.
 		for i, c := range changed {
-			if rel, ok := repoRel(paths.Root, c); ok {
+			// gitx.InsideRoot, not a local helper: it already resolves symlinks and
+			// REFUSES a path that escapes the root, which a bare Rel does not
+			// (#207 BR-22).
+			if rel, rerr := gitx.InsideRoot(paths.Root, c); rerr == nil {
 				changed[i] = rel
 			}
 		}
@@ -202,8 +205,8 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 		// 000700 to 000702 with 000701 free. Nothing published them, so they are
 		// not reservations (#207 BR-2).
 		for _, c := range res.candidates {
-			rel, ok := repoRel(root, c)
-			if !ok {
+			rel, rerr := gitx.InsideRoot(root, c)
+			if rerr != nil {
 				continue
 			}
 			id := issueIDFromPath(rel)
@@ -222,7 +225,15 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 				free[id] = kept
 			}
 		}
-		claimed := map[int]string{}
+		// PASS 1 — classify. Deletes are collected BEFORE any decision, because
+		// the collision guard has to see this publish's own removals: a slug
+		// rename carries Delete(old) and Write(new) in ONE commit (#207 BR-19).
+		type pending struct {
+			rel  string
+			data []byte
+		}
+		var writes []pending
+		deleting := map[string]bool{}
 		for _, rel := range changed {
 			data, rerr := os.ReadFile(filepath.Join(root, rel))
 			if rerr != nil {
@@ -243,8 +254,16 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 							"refusing to guess that it was deleted", rel)
 				}
 				set.Delete = append(set.Delete, rel)
+				deleting[rel] = true
 				continue
 			}
+			writes = append(writes, pending{rel, data})
+		}
+
+		// PASS 2 — decide.
+		claimed := map[int]string{}
+		for _, w := range writes {
+			rel, data := w.rel, w.data
 			id := issueIDFromPath(rel)
 			if id <= 0 {
 				set.Write[rel] = data
@@ -256,7 +275,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 				return set, fmt.Errorf(
 					"two files in this publish claim id %06d: %s and %s — rename one first", id, prev, rel)
 			}
-			switch verdict, foreign := decideCollision(id, rel, space, f.FirstPublication); verdict {
+			switch verdict, foreign := decideCollision(id, rel, space, deleting, f.FirstPublication); verdict {
 			case verdictRefuse:
 				return set, collisionRefusal(id, rel, foreign)
 			case verdictReallocate:

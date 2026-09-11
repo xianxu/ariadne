@@ -205,19 +205,6 @@ func startOnClaim(stdout, stderr io.Writer, f *claimFlags) error {
 	return nil
 }
 
-// ── commit-here path ─────────────────────────────────────────────────────────
-
-// syncInPlace stages + commits the changed issue files in the CURRENT worktree,
-// on the current branch, and pushes origin/main unless f.NoPush. Named for what
-// it does rather than where it runs (it was syncOnMain until #206): with NoPush
-// it is the durable local commit `sdlc issue sync` wants from any branch, and
-// with the push it is the on-main publish `claim` has always done.
-//
-// Returns an error rather than calling die() directly, so callers decide the
-// severity: `claim` dies on it (its whole job is the sync), while `issue new`
-// and `change-code` treat it as best-effort (the file is already written — a
-// failed push must not abort creation or block entering implementation, e.g.
-// offline or with no reachable origin).
 // syncPaths is the ONE resolution of where this repo keeps ids and where its
 // git calls must run. Threaded rather than re-derived: execGitRunner.Git runs in
 // the PROCESS cwd, so an unpinned call from a subdirectory reads a different
@@ -248,6 +235,19 @@ func (f *claimFlags) historyDir() string {
 	return envOr("WF_HISTORY_DIR", "workshop/history")
 }
 
+// ── commit-here path ─────────────────────────────────────────────────────────
+
+// syncInPlace stages + commits the changed issue files in the CURRENT worktree,
+// on the current branch, and pushes origin/main unless f.NoPush. Named for what
+// it does rather than where it runs (it was syncOnMain until #206): with NoPush
+// it is the durable local commit `sdlc issue sync` wants from any branch, and
+// with the push it is the on-main publish `claim` has always done.
+//
+// Returns an error rather than calling die() directly, so callers decide the
+// severity: `claim` dies on it (its whole job is the sync), while `issue new`
+// and `change-code` treat it as best-effort (the file is already written — a
+// failed push must not abort creation or block entering implementation, e.g.
+// offline or with no reachable origin).
 func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, paths syncPaths) error {
 	changed, err := changedIssueFiles(f, r, paths)
 	if err != nil {
@@ -388,9 +388,14 @@ func changedIssueFiles(f *claimFlags, r gitRunner, paths syncPaths) ([]string, e
 	// so `issue new`, `claim` and `issue sync` reported "no issue changes" and
 	// exited 0 having published nothing (#207 BR-16). ls-files also returns
 	// cwd-relative paths, which the publisher then joined onto the root.
+	// --no-renames on every diff. Rename detection answers "what CHANGED",
+	// which is the wrong question here — a `git mv` was reported as the new
+	// path alone, so the publish carried Write(new) with no Delete(old) and
+	// left the old name published forever, a real duplicate id on the trunk.
+	// We need the PATHS, not git's account of the edit (#207 BR-19).
 	queries := [][]string{
-		{"diff", "--name-only", "-z", "HEAD", "--", f.IssuesDir + "/"},
-		{"diff", "--cached", "--name-only", "-z", "--", f.IssuesDir + "/"},
+		{"diff", "--name-only", "--no-renames", "-z", "HEAD", "--", f.IssuesDir + "/"},
+		{"diff", "--cached", "--name-only", "--no-renames", "-z", "--", f.IssuesDir + "/"},
 		{"ls-files", "-z", "--others", "--exclude-standard", "--", f.IssuesDir + "/"},
 	}
 	seen := map[string]struct{}{}

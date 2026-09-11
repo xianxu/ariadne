@@ -71,6 +71,22 @@ will see** — not retyped into your own. Record the measured output beside it, 
 where the gate generates what the check must tolerate, scope the exclusion by
 issue id rather than by path.
 
+**Corollary — git's porcelain answers a *human's* question; ask it for the
+facts.** Its defaults are summaries tuned for a reader, and each one drops
+something a program needs. Measured on #207, three times, each a silent
+data-loss bug:
+
+| Default | What it hides | Flag |
+|---|---|---|
+| rename detection in `diff --name-only` | a `git mv` reports the NEW path only — the delete half never enters the publish set, so the old name stays on the trunk as a duplicate id | `--no-renames` |
+| path quoting | `"…/000300-caf\303\251.md"` doesn't exist on disk; the read failed as not-exist and the path was published as a DELETION | `-z` |
+| pathspecs resolved against cwd | from a subdirectory the query matched nothing and the verb exited 0 having published nothing | `--full-tree`, and run in the root |
+
+**Rule:** for any git command whose output a program parses, name the flags that
+turn off interpretation — and write a fixture that exercises the shape the
+default would collapse (a rename, a non-ASCII path, a subdirectory cwd). The
+default is invisible precisely because the common case passes.
+
 **Corollary — fixing prose is when premature prose gets written.** Two of the
 four `boundary-claim-premature` sites in #218 were introduced by the edit that
 was re-anchoring stale prose. Re-anchoring swaps one tense error for another

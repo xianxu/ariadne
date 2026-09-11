@@ -1,12 +1,13 @@
 ---
 id: 000207
-status: working
+status: codecomplete
 deps: [ariadne#206]
 github_issue:
 created: 2026-09-02
-updated: 2026-09-09
+updated: 2026-09-11
 estimate_hours: 3.64
 started: 2026-09-09T18:26:20-07:00
+actual_hours: 13.09
 ---
 
 # Publish issue files without a main worktree
@@ -598,6 +599,7 @@ duplicate and a consistent trunk. Asserted in Done-when rather than left as
 prose.
 
 ### 2026-09-11 — #188's boundary review, run over this issue's code
+- 2026-09-11: closed — Round-3 blockers addressed by implementing the RULE the reviewer supplied rather than patching further sites. BR-16 (third round): resolve the configured directories ONCE at the dispatch and thread them — syncPaths{Root, Dirs} now runs through both arms and every id consumer on this path, so no call site re-resolves or names a literal. That closed the three sites I had patched plus the three the reviewer found (syncInPlace add/commit, startOnClaim via locateIssueFile) AND the two regressions my own patch had introduced (issueFilesForID returning repo-relative paths broke an absolute --issues-dir from a subdirectory; it is back to absolute output so no caller changes shape). locateIssueFile anchors internally as a recorded exception, since set-status chain is outside this issue. Covered by TestSyncIssuesToMain_PublishesFromASubdirectory (query path AND the PublishExisting glob path), TestSyncIssuesToMain_NoPushCommitsFromASubdirectory (the in-place arm, deliberately WITHOUT --issue because with it the pathspec is absolute and the cwd cannot matter), TestSyncIssuesToMain_AbsoluteIssuesDirFromASubdirectory (the regression guard) and TestLocateIssueFile_FromASubdirectory. BR-17: claimFlags now carries HistoryDir, threaded from issue new and registered as --history-dir on claim, so the collision guard sees archived ids under WF_HISTORY_DIR — TestSyncViaTrunk_HonoursTheConfiguredHistoryDir asserts re-allocation SKIPS an archived id (000700 to 000702, not 000701) and that a republication beside an archived file at the same id refuses naming it. BR-18: two prose sites, an empty section header, and mustGitOutput whose only caller was the deleted merge-base check. MUTATIONS: seven run this round, all caught — in-place add and commit back on the cwd, the glob un-anchored, locateIssueFile un-anchored, the history-dir literal, and the configured value ignored. One needed the TEST corrected first: "add back on the cwd" was not caught while the test passed --issue, because that pathspec is absolute; only the no---issue shape can observe it. Full suite green except the pre-existing ariadne#210. Earlier rounds evidence stands: real-git coverage for no worktree on main, a dirty mid-rebase worktree untouched, a pre-receive hook witnessing the local write before declining, a byte-identical round trip through a fresh clone, non-ASCII filenames through both query paths, and ariadne#222 filed by this branch binary onto the real origin.; review verdict: FIX-THEN-SHIP
 
 `sdlc close --issue 188` came back REWORK, and its window (`ff1b52b6..b7f08ecd`)
 held this issue's implementation, so it served as an early review of #207.
@@ -755,3 +757,46 @@ matter, and my test passed `--issue`. Only the no-`--issue` shape — pathspec =
 the relative issues dir — can observe it. That is the third time this session a
 mutation was aimed where the test could not see it, and the second where the
 fix was to change the TEST rather than the mutation.
+
+### 2026-09-11 — close review round 4: the advisories, and a rename that could not be published
+
+Verdict FIX-THEN-SHIP: six advisories, fixed before the close commit rather than
+deferred.
+
+**BR-19 was not the two instances it named.** The finding said the collision
+guard reads the raw trunk and so refuses a slug rename permanently — the old
+name is always still there when we look, and the only thing that would clear it
+is the very publish being refused. That is true, and the fix is that the guard
+must see this publish's OWN set: deletes are now classified in a pass of their
+own, before any decision is taken, and `decideCollision` skips trunk paths this
+publish removes and treats a same-basename-different-directory hit as ours (the
+archive-restore shape).
+
+Underneath it sat a bigger bug the finding did not reach. `changedIssueFiles`
+ran `git diff --name-only` **with rename detection on**, so a `git mv` was
+reported as the new path ALONE. The delete half never entered the publish set at
+all: the guard could not have seen it, and had the refusal been lifted without
+this, the rename would have published `Write(new)` and left the old name on the
+trunk — a real duplicate id, silently. `--no-renames` on both diff queries.
+Rename detection answers "what changed"; this code needs the paths.
+
+Same family as BR-9 (`-z`) and BR-12 (`--full-tree`): three times now, git's
+convenient summary of a change stood in for the facts the code needed.
+
+**BR-14** — code correct but unpinned. The existing prose test passed with
+`frontmatterSpan` removed, because the frontmatter id is the first match either
+way. Only a file whose ONLY `id:` line is in the BODY separates "search the
+frontmatter" from "search the document"; that fixture now refuses, and the
+mutation is caught.
+
+**BR-20** — `resolveBranchName` anchored its `--issue` glob and left its
+`ls-files` scan on the process cwd. Half-anchored is its own bug. Fixing it
+surfaced that `captureRunner.GitInDir` returned a bare `nil`: the double
+answered `Git` and not `GitInDir`, so when the call moved the filter tests went
+on passing while asserting over an empty list. Both methods now share one
+`respond`.
+
+**BR-21** `--history-dir` in the helptext FLAGS block. **BR-22** `repoRel` was a
+second `filepath.Rel` wrapper next to `gitx.InsideRoot`; deleted. **BR-23** a
+declaration I had inserted between `syncInPlace`'s doc comment and `syncInPlace`
+— moved below.
