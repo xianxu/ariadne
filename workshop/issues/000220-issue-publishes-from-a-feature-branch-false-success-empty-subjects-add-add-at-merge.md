@@ -109,9 +109,12 @@ the story, and the two always share ancestry.**
    - The branch's own issue changed on the trunk since the branch point: refuse
      as a lock violation.
    - GitHub's opaque "not mergeable" becomes a named local refusal with the fix.
-5. **Fix regardless of the design:** trunk commits always carry a subject that
-   names the issue ids and the verb (reuse `syncMessage`), and `sdlc pr` exits 0
-   with the existing PR's URL when one is open.
+5. **Split out (ariadne#221).** The three defects that stand on their own —
+   empty commit subjects, a no-op reported as a publish, and `sdlc pr` failing
+   on an existing PR — moved to #221 so they can land without this issue's
+   design decision. Defect (2)'s `HEAD`-relative change detection stays here:
+   publishing a branch-committed file to the trunk is precisely the dual-write
+   that rule 2 exists to make safe.
 
 **Rejected alternatives:**
 
@@ -127,9 +130,8 @@ the story, and the two always share ancestry.**
 tree**, for velocity — the fleet runs what is being developed, on purpose. The
 cost is the one this issue documents: an in-flight ariadne branch is live for
 every repo on the machine, so a defect in an unmerged trunk path reaches other
-repos' `main` before it is reviewed. That raises the value of (5), the fixes
-that stand on their own: they should land in #207 before it merges rather than
-wait for this issue's design.
+repos' `main` before it is reviewed. That raises the value of the standalone
+fixes, now ariadne#221: they should not wait on this issue's design.
 
 ## Done when
 
@@ -137,18 +139,16 @@ wait for this issue's design.
   feature branch → fill → commit/sync → PR merge. After every publish,
   `git merge-tree --write-tree origin/main HEAD` is conflict-free under
   `workshop/issues/`.
-- A publish that writes nothing reports a no-op, and no trunk commit has an
-  empty subject.
+- (Moved to ariadne#221: no-op reporting and non-empty trunk commit subjects.)
 - `sdlc merge` refuses before calling GitHub when an issue file would conflict,
   naming the file and the fix.
-- `sdlc pr` with an open PR exits 0 and prints that PR.
 - Whichever design the operator picks is recorded in the Spec, with the other
   options' rejection reasons kept.
 
 ## Plan
 
 - [ ] Operator decides the Spec: the fold-back design, or an alternative.
-- [ ] Small fixes, independent of the design: trunk-path message fallback, a truthful no-op, `pr` idempotence. Candidates to fold into #207 before it merges.
+- [ ] (Moved to ariadne#221: message fallback, truthful no-op, `pr` idempotence.)
 - [ ] Decide what to publish against the trunk, not `HEAD`.
 - [ ] Merge-base-parented publish commit, landed as a CAS merge on main and folded back into the branch.
 - [ ] Pre-merge issue-file divergence gate in `sdlc merge`.
@@ -166,3 +166,7 @@ defect (1) or a wholesale push of local `main`'s 8 unpushed commits.
 
 Operator decision: keep the working-tree build (velocity over isolation); the
 open question in the Spec is closed accordingly.
+
+Operator declined folding the standalone fixes into #207 (2026-09-11): too much
+disruption mid-implementation. They are ariadne#221 instead; this issue keeps
+the structural half.
