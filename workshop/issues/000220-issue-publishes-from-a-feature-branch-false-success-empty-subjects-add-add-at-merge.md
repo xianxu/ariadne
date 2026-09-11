@@ -123,9 +123,13 @@ the story, and the two always share ancestry.**
 - **A custom git merge driver for issue files.** GitHub's server-side merge,
   which `sdlc merge` relies on, ignores it.
 
-**Open question for the operator:** should the `sdlc` function build from a
-pinned ref (`origin/main`, or a clean dedicated worktree) rather than whatever
-branch ariadne's checkout is on?
+**Decided (operator, 2026-09-11): `sdlc` keeps building from ariadne's working
+tree**, for velocity — the fleet runs what is being developed, on purpose. The
+cost is the one this issue documents: an in-flight ariadne branch is live for
+every repo on the machine, so a defect in an unmerged trunk path reaches other
+repos' `main` before it is reviewed. That raises the value of (5), the fixes
+that stand on their own: they should land in #207 before it merges rather than
+wait for this issue's design.
 
 ## Done when
 
@@ -159,3 +163,6 @@ Filed from parley.nvim#227's wrap-up. Evidence was confirmed against parley's
 (`sdlc issue new --dry-run` for the id, then a fast-forward push from a detached
 `origin/main` worktree): every `sdlc` publish route available here was either
 defect (1) or a wholesale push of local `main`'s 8 unpushed commits.
+
+Operator decision: keep the working-tree build (velocity over isolation); the
+open question in the Spec is closed accordingly.
