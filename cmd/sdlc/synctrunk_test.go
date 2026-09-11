@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -226,13 +227,15 @@ func TestSyncViaTrunk_ReallocatesOnMidRetryCollision(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
-	if err != nil {
+	// Through the WRAPPER, so this also covers what the operator and `issue new`
+	// actually receive: the announcement, f.Reallocations, and finish().
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
-	if rc == nil {
-		t.Fatal("a mid-retry collision must produce a re-allocation; nil means the decision ran outside the loop")
+	if len(f.Reallocations) == 0 {
+		t.Fatal("a mid-retry collision must produce a re-allocation; none means the decision ran outside the loop")
 	}
+	rc := f.Reallocations[0]
 	if rc.OldID != 700 || rc.NewID != 701 {
 		t.Errorf("re-allocated %d -> %d, want 700 -> 701", rc.OldID, rc.NewID)
 	}
@@ -246,8 +249,15 @@ func TestSyncViaTrunk_ReallocatesOnMidRetryCollision(t *testing.T) {
 	} else if !strings.Contains(string(body), "id: 000701") {
 		t.Errorf("frontmatter not moved with the filename:\n%s", body)
 	}
-	if !strings.Contains(errOut.String(), "now 000701") {
+	if !strings.Contains(errOut.String(), "000701") {
 		t.Errorf("the id change must be announced loudly:\n%s", errOut.String())
+	}
+	// finish(): the original is gone and the published name is what remains.
+	if _, err := os.Stat(filepath.Join(repo, mine)); !os.IsNotExist(err) {
+		t.Errorf("the superseded original survived a successful publish: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(repo, "workshop/issues/000701-mine.md")); err != nil {
+		t.Errorf("the published path is missing locally: %v", err)
 	}
 }
 
@@ -274,7 +284,8 @@ func TestSyncViaTrunk_RepublicationNeverReallocates(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues"} // FirstPublication false
-	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	rc := firstRealloc(res)
 	if err != nil {
 		t.Fatalf("republishing our own body must succeed: %v\n%s", err, errOut.String())
 	}
@@ -326,15 +337,23 @@ func TestSyncViaTrunk_PublishesOnlyChangedIssueFiles(t *testing.T) {
 	}
 }
 
-// A FAILED publish must not clean up. finish() removes the ORIGINAL local file,
-// so running it on the error path deletes the operator's issue while nothing
-// reached the trunk — the Spec's ordering inverted, and data loss.
-func TestSyncViaTrunk_FailedPublishKeepsTheOriginalFile(t *testing.T) {
+// A FAILED publish must not clean up the ORIGINAL, and must remove the
+// candidate it wrote. The first version of this test never triggered a
+// re-allocation at all, so `rc` was nil, finish() was never reached, and it
+// stayed green with the fix reverted (#207 BR-10) — a guard that could not fail.
+func TestSyncViaTrunk_FailedPublishKeepsOriginalAndDropsCandidate(t *testing.T) {
 	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	mine := filepath.Join(repo, "workshop/issues/001000-mine.md")
+	// The trunk holds a foreign slug at our id, so publishing re-allocates.
+	if err := os.WriteFile(filepath.Join(issues, "001000-theirs.md"), []byte("---\nid: 001000\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk holds our id")
+	mine := filepath.Join(issues, "001000-mine.md")
 	if err := os.WriteFile(mine, []byte("---\nid: 001000\n---\n\n# body\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +365,10 @@ func TestSyncViaTrunk_FailedPublishKeepsTheOriginalFile(t *testing.T) {
 		t.Fatal("expected the publish failure to surface")
 	}
 	if _, err := os.Stat(mine); err != nil {
-		t.Errorf("the original issue file was deleted after a FAILED publish: %v", err)
+		t.Errorf("the ORIGINAL was deleted after a failed publish: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(issues, "001001-mine.md")); !os.IsNotExist(err) {
+		t.Errorf("the candidate an unpublished attempt wrote must be removed, got %v", err)
 	}
 }
 
@@ -379,7 +401,8 @@ func TestSyncViaTrunk_ReallocationSkipsLocalUnpublishedIDs(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	rc := firstRealloc(res)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
@@ -429,7 +452,8 @@ func TestSyncViaTrunk_StaleReallocationIsNotCarriedAcrossAttempts(t *testing.T) 
 
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	rc, _, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	rc := firstRealloc(res)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
@@ -475,5 +499,201 @@ func TestSyncViaTrunk_SyncedMarkerOnlyWhenTheTrunkCarriesTheChange(t *testing.T)
 	}
 	if got := run(&claimFlags{IssuesDir: "workshop/issues"}); !strings.Contains(got, "synced") {
 		t.Errorf("a real publish must emit `synced`, got %q", got)
+	}
+}
+
+// firstRealloc is the single id change these tests expect, or nil.
+func firstRealloc(res *publishResult) *reallocation {
+	if len(res.reallocs) == 0 {
+		return nil
+	}
+	return res.reallocs[0]
+}
+
+// BR-15: two files in ONE publish claiming the same id. The trunk cannot
+// arbitrate that — it would simply see one path win — so the publish refuses
+// and names both.
+func TestSyncViaTrunk_RefusesTwoFilesClaimingOneID(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, slug := range []string{"001400-one.md", "001400-two.md"} {
+		if err := os.WriteFile(filepath.Join(repo, "workshop/issues", slug), []byte("---\nid: 001400\n---\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pub := &fakePublisher{view: viewFor(t, repo)}
+	var out, errOut bytes.Buffer
+	err := syncViaTrunk(&out, &errOut, &claimFlags{IssuesDir: "workshop/issues"}, execGitRunner{}, "msg", pub)
+	if err == nil {
+		t.Fatal("two files at one id must refuse")
+	}
+	for _, want := range []string{"001400", "001400-one.md", "001400-two.md"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal missing %q: %v", want, err)
+		}
+	}
+}
+
+// BR-4: a peer landing on an UNRELATED id forces a retry, and that retry must
+// publish our path unchanged — a rejection is not by itself a collision.
+func TestSyncViaTrunk_UnrelatedPeerRetryDoesNotReallocate(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mine := "workshop/issues/001500-mine.md"
+	if err := os.WriteFile(filepath.Join(repo, mine), []byte("---\nid: 001500\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	attempt := 0
+	pub := &fakePublisher{rerun: 1, view: viewFor(t, repo), beforePrepare: func() {
+		attempt++
+		if attempt == 2 {
+			if err := os.WriteFile(filepath.Join(issues, "001999-peer.md"), []byte("---\nid: 001999\n---\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			testfix.Git(t, repo, "add", "workshop/issues/001999-peer.md")
+			testfix.Git(t, repo, "commit", "-q", "-m", "unrelated peer issue")
+		}
+	}}
+	var out, errOut bytes.Buffer
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}, execGitRunner{}, "msg", pub)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	if len(res.reallocs) != 0 {
+		t.Errorf("an unrelated peer must not trigger a re-allocation: %+v", res.reallocs[0])
+	}
+	if _, ok := pub.sets[len(pub.sets)-1].Write[mine]; !ok {
+		t.Errorf("our own path must publish unchanged: %+v", pub.sets[len(pub.sets)-1].Write)
+	}
+}
+
+// BR-6: a failed LOCAL id scan must refuse. The first version swallowed it,
+// reasoning that "the CAS will reject anyway" — false, because the CAS compares
+// refs and knows nothing about an id sitting unpublished in the working tree.
+// Re-allocating on a half-read id space mints the collision it exists to avoid.
+func TestSyncViaTrunk_RefusesWhenTheLocalIDScanFails(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	history := filepath.Join(repo, "workshop", "history")
+	for _, d := range []string{issues, history} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(issues, "001600-theirs.md"), []byte("---\nid: 001600\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk holds our id")
+	if err := os.WriteFile(filepath.Join(issues, "001600-mine.md"), []byte("---\nid: 001600\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(history, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(history, 0o755)
+
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", &fakePublisher{view: viewFor(t, repo)})
+	if err == nil {
+		t.Fatal("a failed local id scan must refuse, not re-allocate against a half-read id space")
+	}
+	if !strings.Contains(err.Error(), "scan local issue ids") {
+		t.Errorf("the refusal must name the cause: %v", err)
+	}
+}
+
+// BR-4 / Spec step 5: on exhaustion, name every collision seen — not just the
+// last rejection — and say the id is held, so the operator knows this is
+// contention over an ID rather than generic push contention.
+func TestSyncViaTrunk_ExhaustionNamesEveryCollisionSeen(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(issues, "001700-theirs.md"), []byte("---\nid: 001700\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk holds our id")
+	if err := os.WriteFile(filepath.Join(issues, "001700-mine.md"), []byte("---\nid: 001700\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	pub := &fakePublisher{
+		view: viewFor(t, repo),
+		err:  fmt.Errorf("%w after 3 attempts; last rejection:\n non-fast-forward", gitx.ErrTrunkMoved),
+	}
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	if err == nil {
+		t.Fatal("expected the exhaustion to surface")
+	}
+	for _, want := range []string{"ids contended by", "001700-theirs.md", "001700 is held by", "non-fast-forward"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("exhaustion message missing %q: %v", want, err)
+		}
+	}
+}
+
+// BR-3: TWO re-allocations in one publish. The single-struct version paired the
+// first file's OldPath with the last file's NewPath, so finish() deleted a file
+// that had just been published and left the other original behind.
+func TestSyncViaTrunk_TwoReallocationsInOnePublish(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"001800-theirs.md", "001801-theirs.md"} {
+		if err := os.WriteFile(filepath.Join(issues, n), []byte("---\nid: "+n[:6]+"\n---\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk holds both ids")
+	mine := map[string]string{"001800-mine.md": "001800", "001801-mine.md": "001801"}
+	for n, id := range mine {
+		if err := os.WriteFile(filepath.Join(issues, n), []byte("---\nid: "+id+"\n---\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	pub := &fakePublisher{view: viewFor(t, repo)}
+	var out, errOut bytes.Buffer
+	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	if len(f.Reallocations) != 2 {
+		t.Fatalf("got %d re-allocations, want 2", len(f.Reallocations))
+	}
+	seen := map[int]bool{}
+	for _, rc := range f.Reallocations {
+		if seen[rc.NewID] {
+			t.Errorf("two files were sent to the same new id %06d", rc.NewID)
+		}
+		seen[rc.NewID] = true
+		if _, err := os.Stat(rc.NewPath); err != nil {
+			t.Errorf("published path missing locally: %v", err)
+		}
+		if _, err := os.Stat(rc.OldPath); !os.IsNotExist(err) {
+			t.Errorf("superseded original %s survived: %v", filepath.Base(rc.OldPath), err)
+		}
+	}
+	published := pub.sets[len(pub.sets)-1].Write
+	if len(published) != 2 {
+		t.Errorf("published %d files, want 2: %+v", len(published), published)
 	}
 }

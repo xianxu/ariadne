@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"os"
 	"path/filepath"
 	"strings"
@@ -410,5 +412,86 @@ func TestCommandTree_AliasShape(t *testing.T) {
 		if !c.Hidden || c.Deprecated == "" {
 			t.Errorf("flat %q should be hidden + deprecated: hidden=%v deprecated=%q", name, c.Hidden, c.Deprecated)
 		}
+	}
+}
+
+// reallocFixture builds a repo whose TRUNK holds 000001 under a different slug
+// while the working tree does not, so allocation picks 000001 and the publish
+// has to step aside. The publisher is swapped for a fake reading that trunk —
+// without the seam, runIssueNew constructs its publisher inline and this path
+// has no end-to-end coverage at all.
+func reallocFixture(t *testing.T, pubErr error) (repo, issues, history string) {
+	t.Helper()
+	repo = testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues = filepath.Join(repo, "workshop", "issues")
+	history = filepath.Join(repo, "workshop", "history")
+	for _, d := range []string{issues, history} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(issues, "000001-theirs.md"), []byte("---\nid: 000001\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk holds 000001")
+	testfix.Git(t, repo, "branch", "fake-trunk")
+	testfix.Git(t, repo, "rm", "-q", "--", "workshop/issues/000001-theirs.md")
+	testfix.Git(t, repo, "commit", "-q", "-m", "not in the working tree")
+	// Off main: the dispatch routes main to the in-place arm, so the trunk arm —
+	// the whole point of this fixture — would never run.
+	testfix.Git(t, repo, "checkout", "-q", "-b", "feature")
+
+	tf, err := gitx.NewTrunkFile(repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub := &fakePublisher{view: tf.ViewOf("fake-trunk"), err: pubErr}
+	prev := newTrunkPublisher
+	newTrunkPublisher = func(string) (trunkPublisher, error) { return pub, nil }
+	t.Cleanup(func() { newTrunkPublisher = prev })
+	return repo, issues, history
+}
+
+// BR-1: stdout is `issue new`'s CREATED PATH contract. When the publisher
+// re-allocates, the planned file is removed by finish() — printing it hands the
+// caller a path that does not exist.
+func TestRunIssueNew_PrintsThePathItActuallyPublished(t *testing.T) {
+	_, issues, history := reallocFixture(t, nil)
+
+	var stdout, stderr bytes.Buffer
+	f := &issueNewFlags{IssuesDir: issues, HistoryDir: history}
+	if err := runIssueNew(&stdout, &stderr, f, []string{"Taken Id"}); err != nil {
+		t.Fatalf("runIssueNew: %v\n%s", err, stderr.String())
+	}
+	printed := strings.TrimSpace(stdout.String())
+	if !strings.HasSuffix(printed, "000002-taken-id.md") {
+		t.Errorf("stdout = %q, want the re-allocated name", printed)
+	}
+	if _, err := os.Stat(printed); err != nil {
+		t.Errorf("stdout names a file that does not exist: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "filed as 000002") {
+		t.Errorf("the id change must be announced:\n%s", stderr.String())
+	}
+}
+
+// BR-13: when the publish FAILS on a taken id, the fallback advice must not
+// point at `issue sync --push` — that verb refuses for the same reason, because
+// a published id is never renumbered (ariadne#188).
+func TestRunIssueNew_FailedPublishOfATakenIDAdvisesSomethingThatWorks(t *testing.T) {
+	_, issues, history := reallocFixture(t, errors.New("push rejected"))
+
+	var stdout, stderr bytes.Buffer
+	f := &issueNewFlags{IssuesDir: issues, HistoryDir: history}
+	if err := runIssueNew(&stdout, &stderr, f, []string{"Taken Id"}); err != nil {
+		t.Fatalf("a publish failure must not abort the create: %v", err)
+	}
+	s := stderr.String()
+	if !strings.Contains(s, "will refuse for the same reason") {
+		t.Errorf("advice does not mention that issue sync cannot fix this:\n%s", s)
+	}
+	if strings.Contains(s, "peers won't see the reservation yet — publish with") {
+		t.Errorf("gave the generic advice, which sends the operator at a verb that refuses:\n%s", s)
 	}
 }

@@ -206,6 +206,22 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
   re-allocating; the two cases are distinguished, not conflated.
 - The reservation is keyed on the filename prefix, proven by a fixture whose
   colliding file has **no frontmatter**.
+- A **non-ASCII filename** publishes, through both the `diff` and the `ls-files`
+  query — git quotes such paths by default, and the quoted form does not exist
+  on disk.
+- The trunk id space is read with `--full-tree`, so the collision guard is not
+  blind when run from a subdirectory.
+- Two files in ONE publish claiming one id are refused, naming both.
+- TWO re-allocations in one publish each land at a distinct id, with both
+  originals removed and neither published file deleted.
+- A FAILED publish keeps every original and removes the candidates it wrote; the
+  write-before-push ordering is witnessed by a `pre-receive` hook that checks for
+  the candidate while the push is in flight.
+- `sdlc issue new` prints the path it ACTUALLY published, and its recovery advice
+  after a taken-id failure does not point at a verb that refuses.
+- The lost-update behaviour this replaces is **documented, not hidden**:
+  `claim --help` and `atlas/workflow/issue-sync.md` both state it, and
+  ariadne#222 carries the design.
 - **A deleted issue file is removed from the trunk**, and a test asserts it —
   today's arm fails loudly on the missing source, so silently reporting success
   would be a regression the suite must catch, not a behaviour change.
@@ -615,3 +631,47 @@ hoisted out of the loop.
 Plan step 6 reworded: #207 records which of #188's bullets shipped here (done,
 `b7f08ec`); closing #188 is #188's own lifecycle step, run after this one.
 
+### 2026-09-11 — close review round 1: REWORK, 15 findings
+
+Two Criticals and seven Importants, several of them produced by the PREVIOUS
+round's fixes — the same compounding #209 showed.
+
+- **BR-2 came from my BR-4 fix.** Resetting `rc` per attempt also dropped the
+  record of files earlier attempts had written, so a rejected attempt's candidate
+  survived as an orphan reserving an id nothing published. Split into
+  `publishResult`: decisions reset per attempt, candidates persist across them.
+- **BR-3**: one `rc` could not hold two re-allocations in one publish, so
+  `finish()` paired the first file's original with the last file's new path and
+  deleted a file that had just been published. Now a list.
+- **BR-1 (Critical)**: `issue new` prints the created path on stdout as a
+  machine contract, and after a re-allocation that file is the one `finish()`
+  removed. It now prints what it published — and `runIssueNew` gained a
+  publisher seam, because the path had no end-to-end test at all without one.
+- **BR-9**: git QUOTES non-ASCII paths, the quoted form does not exist on disk,
+  the read failed as not-exist, and the publisher classified it as a DELETION —
+  then reported success having published nothing. Every query now uses `-z`, and
+  an unexplained not-exist is an error rather than an assumed deletion.
+- **BR-12** was pre-existing and wider than this issue: `ls-tree` resolves its
+  pathspec against the CWD, so `refIDSpace` returned an EMPTY id space from any
+  subdirectory — ariadne#213's allocation was blind the same way. `--full-tree`.
+- **BR-6**: `unionIDSpace` swallowed a failed local scan reasoning that "the CAS
+  will reject anyway". False — the CAS compares refs and knows nothing about an
+  unpublished local id.
+- **BR-8**: `Update` and `UpdateMany` carried duplicate retry loops; `Update` is
+  now a thin adapter, which also removed `commitAndPush` entirely.
+- **BR-5** is a real semantic loss, not a slip: same-issue concurrent edits are
+  last-writer-wins now that the merge-base check is gone. The reviewer's remedy —
+  document it and file a follow-up — is what shipped: `claim --help` and the
+  atlas both state it, and **ariadne#222** carries the design, including why a
+  naive merge-base check would refuse every ordinary republish.
+
+**Twelve mutations run, twelve caught.** One took two tries: dropping `-z` from
+the `diff` query was NOT caught, because the test's accented file was untracked
+and so arrived via `ls-files`. The test now covers a committed-and-modified file
+AND an untracked one, and both mutations are caught. Second time this session a
+mutation was aimed at a line the test could not observe.
+
+**Dogfooded for real**: this round's follow-up (ariadne#222) was filed with the
+newly built binary from this feature branch, with no worktree on main — it landed
+on `origin/main` under the default subject, which is BR-1's fix working in
+production rather than in a fixture.

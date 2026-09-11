@@ -54,9 +54,11 @@ func (s *claimRunnerStub) GitInDir(dir string, args ...string) ([]byte, error) {
 func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 	r := &claimRunnerStub{
 		responses: map[string][]byte{
-			"diff --name-only HEAD":     []byte("workshop/issues/000002-b.md\nworkshop/issues/000001-a.md\n"),
-			"diff --cached --name-only": []byte("workshop/issues/000001-a.md\n"),
-			"ls-files --others":         []byte("workshop/issues/000003-c.md\n"),
+			// NUL-delimited, because the queries pass -z: a stub that answers in
+			// git's newline form models a command the code no longer runs (#207 BR-9).
+			"diff --name-only -z HEAD":     []byte("workshop/issues/000002-b.md\x00workshop/issues/000001-a.md\x00"),
+			"diff --cached --name-only -z": []byte("workshop/issues/000001-a.md\x00"),
+			"ls-files -z --others":         []byte("workshop/issues/000003-c.md\x00"),
 		},
 	}
 	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues"}, r)
@@ -81,7 +83,7 @@ func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 func TestChangedIssueFiles_FilterByIssue(t *testing.T) {
 	r := &claimRunnerStub{
 		responses: map[string][]byte{
-			"diff --name-only HEAD": []byte("workshop/issues/000001-a.md\nworkshop/issues/000031-target.md\n"),
+			"diff --name-only -z HEAD": []byte("workshop/issues/000001-a.md\x00workshop/issues/000031-target.md\x00"),
 		},
 	}
 	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues", Issue: 31}, r)

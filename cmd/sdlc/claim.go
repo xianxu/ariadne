@@ -52,6 +52,10 @@ type claimFlags struct {
 	// the inference is exactly what an earlier draft of #207 got wrong — it would
 	// have renumbered every existing issue on every sync.
 	FirstPublication bool
+	// Reallocations is an OUTPUT field: the publisher records any id changes it
+	// made, so `issue new` prints the path it actually published rather than the
+	// one it planned (#207 BR-1).
+	Reallocations []*reallocation
 	// NoPush suppresses publication: commit in the current worktree and stop
 	// (#206). Spelled negatively on purpose — `issue new` builds this struct as
 	// a literal (issue.go), so a positive `Push` would zero-value to false
@@ -147,11 +151,11 @@ func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg 
 	if err != nil {
 		return err
 	}
-	tf, err := gitx.NewTrunkFile(root, "origin", "main")
+	pub, err := newTrunkPublisher(root)
 	if err != nil {
 		return err
 	}
-	return syncViaTrunk(stdout, stderr, f, r, msg, tf)
+	return syncViaTrunk(stdout, stderr, f, r, msg, pub)
 }
 
 // startOnClaim folds the "start work" status flip into `sdlc claim`: an
@@ -336,10 +340,15 @@ func syncMessage(msg, fallback string) string {
 // "diff HEAD" (which already covers cached) plus "diff --cached" separately
 // (redundant but preserved for parity); de-dup happens at the sort step.
 func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
+	// -z on every query. Without it git QUOTES any path outside ASCII
+	// (`"workshop/issues/000300-caf\303\251.md"`), and the quoted form does not
+	// exist on disk: the read failed as not-exist, the publisher classified it
+	// as a DELETION, and the arm reported success having published nothing
+	// (#207 BR-9).
 	queries := [][]string{
-		{"diff", "--name-only", "HEAD", "--", f.IssuesDir + "/"},
-		{"diff", "--cached", "--name-only", "--", f.IssuesDir + "/"},
-		{"ls-files", "--others", "--exclude-standard", "--", f.IssuesDir + "/"},
+		{"diff", "--name-only", "-z", "HEAD", "--", f.IssuesDir + "/"},
+		{"diff", "--cached", "--name-only", "-z", "--", f.IssuesDir + "/"},
+		{"ls-files", "-z", "--others", "--exclude-standard", "--", f.IssuesDir + "/"},
 	}
 	seen := map[string]struct{}{}
 	var out []string
@@ -349,7 +358,7 @@ func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
 			// Mirror the shell `|| true` swallow: empty result, no error.
 			continue
 		}
-		for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		for _, line := range strings.Split(string(raw), "\x00") {
 			if line == "" {
 				continue
 			}

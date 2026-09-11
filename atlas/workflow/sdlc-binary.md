@@ -66,10 +66,12 @@ tracked-and-edited}. Two consequences that each cost a review round to find:
   gating on it left the new worktree holding no issue file at all, since `git
   worktree add` does not carry untracked files.
 - Publishing is conditioned on **already being on main**, not on the caller's
-  intent. From a branch the publish route would copy the in-progress body into
-  the main worktree, commit it on main and push — a half-written Spec on
-  `origin/main`, the branch's copy left dirty, two network round-trips per
-  milestone re-run. `pr`/`merge`/`close` are what publish.
+  intent. From a branch the publish route would put the in-progress body on
+  `origin/main` — a half-written Spec published, and a network round-trip per
+  milestone re-run. `pr`/`merge`/`close` are what publish. (The mechanism moved
+  in #207 — the trunk route builds the commit out-of-tree rather than driving
+  the main worktree — but the decision is unchanged and rests on WHAT gets
+  published, not on how.)
 
 `TestChangeCodeSyncIssue_ModeMatrix` runs the whole table.
 

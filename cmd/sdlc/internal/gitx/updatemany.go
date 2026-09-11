@@ -8,10 +8,15 @@ package gitx
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 )
+
+// ErrTrunkMoved reports that the CAS lost its attempt budget: the trunk moved
+// under every attempt. Callers wrap it with what they saw contending.
+var ErrTrunkMoved = errors.New("the trunk moved under the publish")
 
 // TrunkWrite is the set of changes one commit applies.
 //
@@ -40,6 +45,9 @@ type TrunkView struct {
 // that reads the base panics — which would push consumers toward not testing
 // the read at all.
 func (t *TrunkFile) ViewOf(ref string) *TrunkView { return &TrunkView{tf: t, ref: ref} }
+
+// Read returns a path's bytes on this attempt's base; absent reads as empty.
+func (v *TrunkView) Read(path string) ([]byte, error) { return v.tf.readFrom(v.ref, path) }
 
 // Exists reports whether a path is present on this attempt's base.
 func (v *TrunkView) Exists(path string) (bool, error) { return v.tf.pathPresent(v.ref, path) }
@@ -74,11 +82,14 @@ func (t *TrunkFile) UpdateMany(msg string, prepare func(*TrunkView) (TrunkWrite,
 			return err
 		}
 
-		set, err := prepare(&TrunkView{tf: t, ref: t.trackingRef()})
+		// Pinned to the resolved base SHA, not the tracking-ref NAME: the ref can
+		// move under a concurrent fetch, and prepare's decisions must describe the
+		// exact tree this attempt's commit is built on.
+		set, err := prepare(&TrunkView{tf: t, ref: base})
 		if err != nil {
 			return err // caller's error, surfaced unwrapped so errors.Is works
 		}
-		noop, err := t.setMatchesTrunk(set)
+		noop, err := t.setMatchesTrunk(set, base)
 		if err != nil {
 			return err
 		}
@@ -103,14 +114,14 @@ func (t *TrunkFile) UpdateMany(msg string, prepare func(*TrunkView) (TrunkWrite,
 		}
 		lastRejection = out
 	}
-	return fmt.Errorf("publish set: the trunk moved under %d attempts; last rejection:\n%s",
-		maxUpdateAttempts, lastRejection)
+	return fmt.Errorf("%w after %d attempts; last rejection:\n%s",
+		ErrTrunkMoved, maxUpdateAttempts, lastRejection)
 }
 
 // setMatchesTrunk reports whether applying this set would change nothing.
-func (t *TrunkFile) setMatchesTrunk(set TrunkWrite) (bool, error) {
+func (t *TrunkFile) setMatchesTrunk(set TrunkWrite, base string) (bool, error) {
 	for path, want := range set.Write {
-		got, err := t.readFrom(t.trackingRef(), path)
+		got, err := t.readFrom(base, path)
 		if err != nil {
 			return false, err
 		}
@@ -119,7 +130,7 @@ func (t *TrunkFile) setMatchesTrunk(set TrunkWrite) (bool, error) {
 		}
 	}
 	for _, path := range set.Delete {
-		present, err := t.pathPresent(t.trackingRef(), path)
+		present, err := t.pathPresent(base, path)
 		if err != nil {
 			return false, err
 		}

@@ -60,6 +60,13 @@ because the id is already published and therefore referenced by the
 branch name, commit subjects, `deps:` and review sidecars (#188).
 Only `issue new` re-allocates, where nothing references the id yet.
 
+Two agents editing the SAME issue file is last-writer-wins. The route this
+replaced refused when a file changed on both sides since the merge base; the
+object-database route has no working tree to diff and no honest equivalent
+(trunk commits never reach your branch, so a merge-base check would refuse
+ordinary republishes). A stale double-claim therefore overwrites silently —
+a known gap, not an oversight.
+
 FLAGS
 
   --issue <n>           sync only this issue's NNNNNN-*.md file

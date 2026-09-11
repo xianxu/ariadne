@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -940,18 +941,23 @@ func TestSyncIssuesToMain_LeavesADirtyMidRebaseMainWorktreeUntouched(t *testing.
 	}
 }
 
-// BR-8(b): a failure injected BETWEEN the local write and the push. A declining
-// pre-receive hook on the real bare origin puts it exactly there: the fetch
-// succeeds, prepare re-allocates and writes the new local path, then the push is
-// refused. The trunk must stay where it was, the ORIGINAL file must survive, and
-// the local name may run AHEAD of the trunk but never the reverse.
+// BR-8(b): a failure injected BETWEEN the local write and the push.
+//
+// The declining pre-receive hook sits exactly there, and it also WITNESSES the
+// ordering: it runs while the push is in flight and records whether the
+// re-allocated local file already existed. That is the only way to observe
+// "written before the push" from outside, because a failed publish now removes
+// its candidates (#207 BR-2) — asserting the candidate afterwards would assert
+// the opposite of the contract.
 func TestSyncIssuesToMain_PushRejectedAfterLocalWriteLeavesTrunkBehindLocal(t *testing.T) {
 	repo, origin := syncRepo(t) // the trunk already holds 000206-issue-sync-verb.md
 	git(t, repo, "checkout", "-q", "-b", "feature")
-	// A NEW issue at an id a different slug already holds: re-allocation.
 	mine := writeSyncIssue(t, repo, "000206-mine.md", "---\nid: 000206\nstatus: open\n---\n\n# mine\n")
-	hook := filepath.Join(origin, "hooks", "pre-receive")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho 'declined by test' >&2\nexit 1\n"), 0o755); err != nil {
+
+	candidate := filepath.Join(repo, syncIssuesDir, "000207-mine.md")
+	witness := filepath.Join(t.TempDir(), "candidate-existed")
+	hook := fmt.Sprintf("#!/bin/sh\nif [ -f %q ]; then echo yes > %q; fi\necho 'declined by test' >&2\nexit 1\n", candidate, witness)
+	if err := os.WriteFile(filepath.Join(origin, "hooks", "pre-receive"), []byte(hook), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	before := git(t, origin, "rev-parse", "main")
@@ -965,15 +971,17 @@ func TestSyncIssuesToMain_PushRejectedAfterLocalWriteLeavesTrunkBehindLocal(t *t
 	if !strings.Contains(err.Error(), "declined by test") {
 		t.Errorf("the error must carry git's own reason, got: %v", err)
 	}
+	if _, serr := os.Stat(witness); serr != nil {
+		t.Errorf("the re-allocated file did not exist when the push ran — local write must precede the push: %v", serr)
+	}
 	if after := git(t, origin, "rev-parse", "main"); after != before {
 		t.Errorf("the trunk moved on a refused push: %s -> %s", before, after)
 	}
 	if _, serr := os.Stat(mine); serr != nil {
 		t.Errorf("the ORIGINAL file was removed after a failed publish: %v", serr)
 	}
-	candidate := filepath.Join(repo, syncIssuesDir, "000207-mine.md")
-	if _, serr := os.Stat(candidate); serr != nil {
-		t.Errorf("the re-allocated local path must be written BEFORE the push: %v", serr)
+	if _, serr := os.Stat(candidate); !os.IsNotExist(serr) {
+		t.Errorf("an unpublished candidate must not be left behind: %v", serr)
 	}
 	if out, _ := exec.Command("git", "-C", origin, "ls-tree", "--name-only", "main", "--",
 		syncIssuesDir+"/000207-mine.md").Output(); strings.TrimSpace(string(out)) != "" {
@@ -1014,5 +1022,92 @@ func TestSyncIssuesToMain_PublishedBlobRoundTripsByteIdentical(t *testing.T) {
 	}
 	if !bytes.Equal(got, body) {
 		t.Errorf("the checked-out blob differs from the local file:\n got %q\nwant %q", got, body)
+	}
+}
+
+// BR-9: a non-ASCII filename. git QUOTES such paths in its default output, and
+// the quoted form does not exist on disk — the read failed as not-exist, the
+// publisher called it a deletion, and the arm reported success having published
+// nothing. Reproduced by the reviewer with exactly this filename.
+func TestSyncIssuesToMain_PublishesANonASCIIFilename(t *testing.T) {
+	repo, origin := syncRepo(t)
+	git(t, repo, "checkout", "-q", "-b", "feature")
+	name := "000300-café.md"
+	// Committed first, then modified, so the path arrives through `diff` rather
+	// than `ls-files` — both queries quote, and a mutation that drops -z from
+	// only one is invisible to a test that exercises only the other.
+	writeSyncIssue(t, repo, name, "---\nid: 000300\n---\n\n# accented\n")
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "-q", "-m", "accented issue")
+	writeSyncIssue(t, repo, name, "---\nid: 000300\n---\n\n# accented\n\nedited\n")
+	// A second accented file left UNTRACKED, so `ls-files` carries this one while
+	// `diff` carries the first.
+	untracked := "000301-résumé.md"
+	writeSyncIssue(t, repo, untracked, "---\nid: 000301\n---\n\n# untracked accent\n")
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{IssuesDir: syncIssuesDir, NoStart: true, FirstPublication: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#300: accented"); err != nil {
+		t.Fatalf("%v\n%s", err, stderr.String())
+	}
+	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/"+name); !strings.Contains(on, "edited") {
+		t.Errorf("the file never reached the trunk:\n%s", on)
+	}
+	// -z here too: a plain ls-tree quotes the very path under test, so asserting
+	// on its output would reproduce the bug inside the assertion.
+	listing := git(t, origin, "ls-tree", "--name-only", "-z", "main", "--", syncIssuesDir+"/")
+	found := false
+	for _, p := range strings.Split(listing, "\x00") {
+		if p == syncIssuesDir+"/"+name {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("trunk listing lacks %q:\n%q", name, listing)
+	}
+	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/"+untracked); !strings.Contains(on, "untracked accent") {
+		t.Errorf("the untracked accented file never reached the trunk:\n%s", on)
+	}
+}
+
+// BR-12: `ls-tree` resolves its pathspec against the process CWD, so the id
+// space read came back EMPTY from any subdirectory and the collision guard saw a
+// free id space. Pre-existing — it made ariadne#213's allocation blind the same
+// way — and invisible from the repo root, which is where every other test runs.
+func TestRefIDSpace_IsNotBlindFromASubdirectory(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "workshop/issues/000042-x.md"), []byte("---\nid: 000042\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "seed")
+
+	dirs, err := resolveIDDirs("workshop/issues", "workshop/history")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromRoot, err := refIDSpace("HEAD", dirs, execGitRunner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fromRoot[42]) == 0 {
+		t.Fatal("fixture: the id must be visible from the repo root")
+	}
+
+	sub := filepath.Join(repo, "workshop", "issues")
+	cwd, _ := os.Getwd()
+	if err := os.Chdir(sub); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+	fromSub, err := refIDSpace("HEAD", dirs, execGitRunner{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fromSub[42]) == 0 {
+		t.Error("the id space is blind from a subdirectory — every collision guard reading it sees a free id")
 	}
 }

@@ -8,29 +8,42 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
-// reallocation records an id change so the caller can announce it and clean up.
+// reallocation records one id change, so the caller can announce it and clean
+// up afterwards. DATA ONLY: the local-file bookkeeping lives on publishResult,
+// which is the thing that spans retry attempts (#207 BR-2, BR-3).
 type reallocation struct {
 	OldID, NewID     int
 	OldPath, NewPath string
 	Foreign          []string // the trunk paths that forced the move
-	// written are every local path this attempt-loop created, in order. Retries
-	// can produce several; all but NewPath are orphans to remove.
-	written []string
 }
 
-// idFrontmatterRE matches the `id:` line in an issue's frontmatter.
+// idFrontmatterRE matches the `id:` line INSIDE the frontmatter block.
 //
-// Anchored to the line start and to the first six-digit run, so a bare "id:"
-// appearing later in prose is not rewritten. The frontmatter block is the first
-// thing in the file, so the first match is the right one.
+// Anchored to a line start, and applied only to the leading `---` block: a
+// document that merely mentions `id: 000207` in prose has no identity to move,
+// and rewriting that line would edit the body while leaving the real identity
+// untouched (#207 BR-14).
 var idFrontmatterRE = regexp.MustCompile(`(?m)^id: *(\d{6})\s*$`)
+
+// frontmatterSpan returns the byte range of the leading `---` block.
+func frontmatterSpan(content []byte) (int, int, bool) {
+	const open = "---\n"
+	if !bytes.HasPrefix(content, []byte(open)) {
+		return 0, 0, false
+	}
+	rest := content[len(open):]
+	i := bytes.Index(rest, []byte("\n---"))
+	if i < 0 {
+		return 0, 0, false
+	}
+	return len(open), len(open) + i + 1, true
+}
 
 // rewriteIdentity produces the file's content and path under a new id.
 //
@@ -46,44 +59,23 @@ func rewriteIdentity(oldPath string, content []byte, newID int) (string, []byte,
 	}
 	newPath := filepath.Join(filepath.Dir(oldPath), fmt.Sprintf("%06d", newID)+base[6:])
 
-	loc := idFrontmatterRE.FindSubmatchIndex(content)
+	lo, hi, ok := frontmatterSpan(content)
+	var loc []int
+	if ok {
+		if m := idFrontmatterRE.FindSubmatchIndex(content[lo:hi]); m != nil {
+			loc = []int{m[0] + lo, m[1] + lo, m[2] + lo, m[3] + lo}
+		}
+	}
 	if loc == nil {
 		// A file with no `id:` line — the grafted-fragment shape measured on
 		// 2026-09-09. Renaming it alone would be a half-rewrite, so refuse rather
 		// than produce an artifact whose name and body disagree.
 		return "", nil, fmt.Errorf(
-			"re-allocate: %s has no `id:` frontmatter line; renaming alone would leave "+
-				"its name and body disagreeing — fix the file by hand", oldPath)
+			"re-allocate: %s has no `id:` line in a leading frontmatter block; renaming "+
+				"alone would leave its name and body disagreeing — fix the file by hand", oldPath)
 	}
 	out := append([]byte{}, content[:loc[2]]...)
 	out = append(out, []byte(fmt.Sprintf("%06d", newID))...)
 	out = append(out, content[loc[3]:]...)
 	return filepath.ToSlash(newPath), out, nil
-}
-
-// finish removes the old file and any orphans left by earlier attempts.
-//
-// Ordering: the new path is written BEFORE the push (so a crash never leaves the
-// trunk ahead of the working tree), and the old one is removed only after the
-// push succeeds. Retries can write several candidate paths; every one except the
-// published NewPath is an orphan.
-func (rc *reallocation) finish() error {
-	var errs []string
-	for _, p := range rc.written {
-		if p == rc.NewPath {
-			continue
-		}
-		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
-			errs = append(errs, err.Error())
-		}
-	}
-	if rc.OldPath != rc.NewPath {
-		if err := os.Remove(rc.OldPath); err != nil && !os.IsNotExist(err) {
-			errs = append(errs, err.Error())
-		}
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("re-allocate cleanup: %s", strings.Join(errs, "; "))
-	}
-	return nil
 }
