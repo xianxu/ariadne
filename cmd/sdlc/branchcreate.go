@@ -55,7 +55,13 @@ func resolveBranchName(f *nameFlags, r gitRunner) (name, untrackedFile string, e
 	}
 
 	if f.Issue > 0 {
-		matches := issueFilesForID(f.IssuesDir, f.Issue)
+		// Root-anchored like every other id read (#207 BR-16): resolved at this
+		// verb's own dispatch rather than globbed against the process cwd.
+		root, rerr := gitx.RepoTopLevel()
+		if rerr != nil {
+			return "", "", rerr
+		}
+		matches := issueFilesForID(root, f.IssuesDir, f.Issue)
 		if len(matches) == 0 {
 			return "", "", fmt.Errorf("no issue file matches %s/%06d-*.md", f.IssuesDir, f.Issue)
 		}

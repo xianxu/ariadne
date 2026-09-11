@@ -384,3 +384,184 @@ findings:
       claim.go:348-351, the issueFilesForID glob, the syncPathspec add/commit). Pin it
       with a test that publishes with cwd set to a subdirectory.
 ```
+
+---
+
+## Re-review — 2026-09-11T12:20:19-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 207 — Publish issue files without a main worktree |
+| repo | ariadne |
+| issue file | workshop/issues/000207-sync-without-worktree.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ff1b52b6311ce92bd014c626f1b089fc01aa7860..1649ab12df12d0ba555679832d08e51bbb2b72ff |
+| command | sdlc close --issue 207 |
+| reviewer | claude |
+| timestamp | 2026-09-11T12:20:19-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The core of #207 holds up. Issue files publish from a feature branch with no worktree on main, the collision decision runs inside the per-attempt `prepare`, and `issue new` re-allocates correctly from a subdirectory (reproduced with the HEAD binary). BR-2 is fixed: I reverted each half in a scratch clone at HEAD and a test went red every time.
+
+Two things block a clean SHIP:
+- **BR-16, the cwd-relative family:** round 2 again patched individual call sites rather than the rule, and the site-level fix broke two paths that work at base. I checked this against a base-built binary and with a test.
+- **A new Important:** the trunk arm hardcodes `workshop/history`, so under `WF_HISTORY_DIR` the collision guard cannot see archived ids.
+
+BR-11 and BR-14 are correct in the code, but no test fails without them. Build and `go vet` are clean. The `cmd/sdlc` and `gitx` suites are green except for three failures that are not from this window:
+- `TestProjectCloseRejectsDuplicateLogicalMVPScopeRefs` is also red at base.
+- `TestFleetPlanHas…` and `TestProcessManualCmd_WiredInRoot` fail the same way on an unmutated clone, because files that are not in git are missing there.
+
+`TestRunIssueNew_FromGitHubFillsProblem` was skipped, as in round 2.
+
+## 1. Strengths
+- **BR-2 is fixed at the root.** `publishResult` keeps per-attempt `reallocs` separate from the cross-attempt `candidates`/`collisions` (`synctrunk.go:49-62`). The retry also excludes its own earlier candidates from the id space (`synctrunk.go:200-224`). All three reverts were caught (table in §5).
+- **The subdirectory test uses real git** (`issuesync_test.go:1119`). It runs `syncIssuesToMain` against a bare origin through both the git-query path and the `PublishExisting` glob path. Reverting either site turns it red.
+- **`claimRunnerStub.GitInDir` now falls back to `Git`** (`claim_test.go:51-54`). The stub now behaves like real git instead of answering one call and not the other.
+- **BR-7's named sites and their siblings are all rewritten.** The sentence at `sdlc-binary.md:94-100` is repaired, and `changecode.go:257-262` now bases the decision on what would be published.
+
+## 2. Critical
+None.
+
+## 3. Important
+
+**I1 — BR-16 is not addressed. The rule was not applied, and the site-level fix broke two working paths.**
+
+Reproduced from `docs/sub` against a bare origin:
+
+| scenario | base | HEAD |
+|---|---|---|
+| `issue sync --issue 1` (no push), relative dir | `[ok] No issue changes`, exit 0 (silent no-op) | `git add` exit 128 |
+| same, **absolute** `--issues-dir` | committed, exit 0 | `git add` exit 128 (**regression**) |
+| `claim --issue 1 --no-start`, on main | not run | `git add` exit 128 |
+| `claim --issue 1` (start flip), feature branch | code unchanged | `no issue file matches` (`setstatus.go:118`) |
+| `resolveBranchName`, absolute dir (test) | `000005-x` | `exists in glob but is not a readable regular file` (**regression**) |
+| `issue new`, feature branch | not run | publishes correctly |
+
+Why each row fails:
+- **In-place arm:** `syncInPlace` still runs `git add` and `git commit` in the process cwd (`claim.go:251`, `:261`). BR-16 named this site explicitly.
+- **The two regressions:** `issueFilesForID` changed what it returns, from paths in the form the caller gave to repo-relative paths. Its two consumers were not updated: `syncPathspec` feeds the result to a cwd-relative `git add`, and `resolveBranchName` calls `os.Stat` on it (`branchcreate.go:65`).
+- **Swallowed error:** `issueFilesForID` also turns a `RepoTopLevel` error into "no match" (`issuefiles.go:136-139`).
+- **The shape of the class:** the repo root is now computed separately at five sites on one publish path.
+
+The fix is the rule, not more sites:
+- Resolve the id directories once, at the dispatch. `resolveIDDirs` already returns the typed value (`idDirs{Top, Rel, Abs}`).
+- Nothing below `runClaim` or `syncIssuesToMain` should accept a raw `IssuesDir` string or run git without `Dir = Top`.
+- Wrap the runner so its `Git` calls `GitInDir(Top, …)`.
+- Pass `idDirs` to `changedIssueFiles`, `syncPathspec`, `issueFilesForID` and `locateIssueFile`.
+- Pin it by extending the subdirectory test to: no-push `issue sync`, `claim` on main, `claim --issue N` with the start flip, and an absolute `--issues-dir`.
+
+**I2 (new) — the trunk arm ignores the configured history directory.** This is the 3rd finding in family `free-id-space-incomplete`.
+- **Cause:** `synctrunk.go:182` passes the literal `"workshop/history"`, and `claimFlags` has no `HistoryDir`. Meanwhile `issue new` allocates with `f.HistoryDir` (`issue.go:281`), and `merge` archives into `WF_HISTORY_DIR`.
+- **Verified with `WF_HISTORY_DIR=archive`:**
+  - Re-allocation moved 700 to 701 while `archive/000701-shipped.md` was already on the trunk.
+  - A republication beside `archive/000700-shipped.md` was published with no refusal.
+- **Impact:** this is pair#179's worst case (a live issue and an archived one sharing an id). The Done-when "sync/claim refuse on collision" does not hold under a supported configuration.
+- **The rule:** every consumer of the id space derives from one resolution of the configured directories. The same resolve-once change as I1 carries both fixes.
+
+## 4. Minor
+- **Leftovers from the deleted worktree route** (new, 2nd finding in `stale-user-facing-docs`):
+  - `sdlc-binary.md:233` describes `claim`'s main-worktree precheck as if it still exists.
+  - `claim.go:133-137` refers to a "main-worktree route", "worktree hunt" and "network pull".
+  - `claim.go:326` is an empty section header.
+  - `mustGitOutput` (`claim.go:419`) has no callers; its only caller at base was the deleted merge-base check.
+- **BR-11:** the code is correct, but pointing the view back at the tracking ref (m6) leaves both suites green.
+- **BR-14:** the code is correct, but removing the frontmatter scoping (m7) leaves everything green. `TestRewriteIdentity_LeavesAProseIDLineAlone` puts the frontmatter `id:` first, so an unscoped regex passes it too. The missing fixture is a frontmatter block with no `id:` followed by a prose `id: 000999` line, which must refuse.
+- `issue-sync.md:56` and `claim.md:63-68` still don't point at ariadne#222.
+- `changecode.go:261` is an unwrapped comment line of about 110 columns.
+
+## 5. Test coverage notes
+
+| mutation (fix reverted) | result |
+|---|---|
+| m1: drop the own-candidate exclusion (`synctrunk.go:204`) | caught by `RetryReusesItsOwnCandidateID` |
+| m2: reset candidates on each attempt (`:188`) | caught by the same test |
+| m3: `finish()` stops removing rejected candidates (`:78`) | caught by `FinishRemovesOldAndOrphans` |
+| m4: `changedIssueFiles` back to the cwd (`claim.go:366`) | caught by `PublishesFromASubdirectory` |
+| m5: the `issueFilesForID` glob back to the cwd (`issuefiles.go:142`) | caught by the same test |
+| m6: TrunkView uses the tracking-ref name (`updatemany.go:88`) | **survived** (BR-11) |
+| m7: `idFrontmatterRE` unscoped (`reallocate.go:62`) | **survived** (BR-14) |
+| m8: `pathTrackedAtHEAD` back to the cwd (`synctrunk.go:305`) | survived, harmlessly: `--full-tree` already anchors this `ls-tree` to the repo root |
+
+Every subdirectory test exercises the trunk arm. None covers the in-place arm, the start flip, or an absolute dir, which is exactly where I1 lives. No test sets `WF_HISTORY_DIR`.
+
+## 6. Architecture
+
+| marker | verdict | notes |
+|---|---|---|
+| ARCH-DRY | flag (minor) | The repo root is resolved at `claim.go:150` and `:354`, `synctrunk.go:170` and `:301`, and `issuefiles.go:136`. `repoRel` (`issuefiles.go:116`) re-implements `gitx.InsideRoot` (`inside.go:31`) with a different symlink policy. The fixture now resolves symlinks itself (`issue_test.go:426-430`), which suggests the two policies should be one. |
+| ARCH-PURE | pass, with a note | Unchanged from round 2: `prepare` mixes the decision with `os.WriteFile` and changes to the result. A pure `planPublish(...)` would let the BR-2 exclusion be tested without git. |
+| ARCH-PURPOSE | flag | I1: this is the third round of site fixes in `cwd-relative-git-read`, and this round's fix broke two working paths. I2: the issue's central guarantee, the collision guard, does not cover the configured archive. |
+| ARCH-MOCK | pass | Tests run against a real bare origin, and the subdirectory test uses real git. |
+| ARCH-CONSTRAINTS | pass | Retries are bounded at 3. About six `rev-parse` subprocesses per publish is off the hot path. |
+| ARCH-SECURE | flag | The raw `IssuesDir` string travels below the verb boundary untyped. Its consumers read it against three different bases: the cwd, git's root, and the symlink-resolved root. `idDirs` is the typed value this principle asks for; it exists but isn't passed down. This is the shared cause of I1 and I2. |
+| ARCH-ORDER | pass, with a note | Per-attempt and cross-attempt state are now explicit. BR-11 has no test that could catch it, because no test moves the ref inside `prepare` and `fakePublisher` does not model the compare-and-swap. |
+
+## 7. Plan revision recommendations
+1. **Done-when "Publishing works from a SUBDIRECTORY":** this holds for the trunk arm only. It fails for `claim` and `issue sync --push` on main. Either deliver it and pin it, or mark it partial.
+2. **Round-2 Log entry:** add that the in-place arm and the start flip are still cwd-relative, and that absolute `--issues-dir` regressed in `issue sync` and in `change-code` branch naming.
+3. **Spec, re-allocate step 1:** say that the id space covers the configured issues and history dirs, or record the current literal as a known limit.
+4. **BR-7's "Swept by derivation":** name the list of terms searched. Two prose sites and a dead helper escaped it.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      m1 and m2 caught by RetryReusesItsOwnCandidateID, m3 by FinishRemovesOldAndOrphans; the 700 to 702 walk is gone.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Every named site and every round-2 sibling rewritten and read-verified; the remaining leftovers are raised as a new Minor.
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      Code pins the base SHA, but m6 (view back on trackingRef()) leaves both suites green; no test moves the ref inside prepare.
+  - id: BR-14
+    disposition: not-addressed
+    note: |
+      m7 (scoping removed) is green; LeavesAProseIDLineAlone puts the frontmatter id first, so it cannot tell. Needs frontmatter-without-id plus a prose id line, which must refuse.
+  - id: BR-16
+    disposition: not-addressed
+    note: |
+      Three more sites patched, not the rule. syncInPlace add/commit (claim.go:251,261) still run in the cwd:
+      no-push issue sync and claim on main exit 128 from a subdirectory (HEAD binary). startOnClaim via
+      locateIssueFile (setstatus.go:118) makes claim --issue N die. Regressions vs base: issueFilesForID now
+      returns repo-relative paths, so an absolute --issues-dir from a subdirectory fails in issue sync
+      (base committed) and in resolveBranchName (base named the branch). Root resolved at 5 sites; idDirs not threaded.
+findings:
+  - id: new
+    severity: Important
+    family: free-id-space-incomplete
+    title: |
+      trunk arm hardcodes workshop/history and ignores WF_HISTORY_DIR, so the collision guard cannot see archived ids
+    detail: |
+      This is the 3rd finding in family free-id-space-incomplete. synctrunk.go:182 passes a literal, and
+      claimFlags has no HistoryDir, so claim, issue sync and issue new's sync (issue.go:334) cannot pass on
+      the dir that allocateIssueID (issue.go:281) and merge honour. Verified with WF_HISTORY_DIR=archive:
+      re-allocation went 700 to 701 onto archive/000701-shipped.md, and a republication beside
+      archive/000700-shipped.md published with no refusal. RULE: every id-space consumer derives from ONE
+      resolution of the configured dirs, resolveIDDirs(IssuesDir, HistoryDir) at the dispatch, passed down
+      as idDirs; no call site names a directory literal. Prevalence: 1 literal, 3 verbs that cannot pass it
+      on. The same resolve-once fix covers BR-16.
+  - id: new
+    severity: Minor
+    family: stale-user-facing-docs
+    title: |
+      leftovers from the deleted worktree route survived the sweep: two prose sites, a dead helper, an empty header
+    detail: |
+      This is the 2nd finding in family stale-user-facing-docs. sdlc-binary.md:233 describes claim's
+      main-worktree precheck as if it still exists; claim.go:133-137 refers to a main-worktree route,
+      worktree hunt and network pull; claim.go:326 is an empty section header; mustGitOutput (claim.go:419)
+      has no callers, since its only caller at base was the deleted merge-base check. RULE: a deletion
+      sweep searches for the deleted symbols AND the words used to describe them in every spelling
+      (main-worktree, worktree hunt, precheck, merge-base), plus helpers left with no callers, and records
+      that list in the Log. Prevalence: 2 prose sites, 1 dead helper, 1 empty header.
+```

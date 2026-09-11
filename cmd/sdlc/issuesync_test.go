@@ -1157,3 +1157,95 @@ func TestSyncIssuesToMain_PublishesFromASubdirectory(t *testing.T) {
 		t.Errorf("the committed body never reached the trunk from a subdirectory:\n%s", on)
 	}
 }
+
+// BR-16, the in-place arm: a NO-PUSH sync from a subdirectory. `git add` and
+// `git commit` also resolve their pathspec against the process cwd, so this
+// exited 128 from anywhere but the root — a different arm, the same trap.
+func TestSyncIssuesToMain_NoPushCommitsFromASubdirectory(t *testing.T) {
+	repo, _ := syncRepo(t)
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\ncommitted from a subdirectory\n")
+	sub := filepath.Join(repo, "docs", "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cwd, _ := os.Getwd()
+	if err := os.Chdir(sub); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+
+	var stdout, stderr bytes.Buffer
+	// NO --issue: the pathspec is then the RELATIVE issues dir rather than the
+	// absolute file paths --issue produces, which is the only shape that can see
+	// the cwd. A test that passes --issue cannot catch this.
+	f := &claimFlags{IssuesDir: syncIssuesDir, NoStart: true, NoPush: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#206: local commit"); err != nil {
+		t.Fatalf("%v\n%s", err, stderr.String())
+	}
+	if dirty := strings.TrimSpace(git(t, repo, "status", "--porcelain", "--", syncIssuesDir)); dirty != "" {
+		t.Errorf("the body was not committed: %q", dirty)
+	}
+	if subj := git(t, repo, "log", "-1", "--format=%s"); subj != "#206: local commit" {
+		t.Errorf("commit subject = %q", subj)
+	}
+}
+
+// An ABSOLUTE --issues-dir from a subdirectory. An earlier cut of the BR-16 fix
+// made issueFilesForID return repo-relative paths, which broke exactly this —
+// the regression is worth a guard, not just a note.
+func TestSyncIssuesToMain_AbsoluteIssuesDirFromASubdirectory(t *testing.T) {
+	repo, origin := syncRepo(t)
+	if resolved, err := filepath.EvalSymlinks(repo); err == nil {
+		repo = resolved
+	}
+	git(t, repo, "checkout", "-q", "-b", "feature")
+	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nabsolute issues dir\n")
+	sub := filepath.Join(repo, "docs", "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cwd, _ := os.Getwd()
+	if err := os.Chdir(sub); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+
+	var stdout, stderr bytes.Buffer
+	f := &claimFlags{Issue: 206, IssuesDir: filepath.Join(repo, syncIssuesDir), NoStart: true}
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#206: abs dir"); err != nil {
+		t.Fatalf("%v\n%s", err, stderr.String())
+	}
+	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/000206-issue-sync-verb.md"); !strings.Contains(on, "absolute issues dir") {
+		t.Errorf("nothing reached the trunk:\n%s", on)
+	}
+}
+
+// BR-16: `claim --issue N` resolves its file through locateIssueFile, which
+// globbed against the process cwd and so died from any subdirectory.
+func TestLocateIssueFile_FromASubdirectory(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	if err := os.MkdirAll(issues, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(issues, "000042-x.md"), []byte("---\nid: 000042\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(repo, "docs", "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cwd, _ := os.Getwd()
+	if err := os.Chdir(sub); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+
+	got, err := locateIssueFile("workshop/issues", 42)
+	if err != nil {
+		t.Fatalf("locateIssueFile from a subdirectory: %v", err)
+	}
+	if !strings.HasSuffix(got, "000042-x.md") {
+		t.Errorf("got %q", got)
+	}
+}

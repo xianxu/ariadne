@@ -230,8 +230,9 @@ published id. The four:
 
 The same rule reaches the sites that only *report*: `sdlc merge`'s gate warns
 when it could not refresh the trunk (it used to pass with a confident `[ok]`
-over exactly the window it exists to cover), `claim`'s main-worktree precheck
-errors instead of calling an unreadable worktree clean, and — the sharpest —
+over exactly the window it exists to cover), `claim`'s publish path
+errors instead of reporting success over a read it could not make (its
+main-worktree precheck is gone with the route — #207), and — the sharpest —
 `sdlc issue lint-ids` **exits 2 on a degraded read**. That verb is what CI shells
 to, and every read failure used to warn and exit 0: a GREEN required status
 check on a check that never looked. Green is the one answer a check that did not

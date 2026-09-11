@@ -209,6 +209,64 @@ rounds:
           family: cwd-relative-git-read
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-11T12:20:19-07:00"
+      agent: claude
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: m1 and m2 caught by RetryReusesItsOwnCandidateID, m3 by FinishRemovesOldAndOrphans; the 700 to 702 walk is gone.
+          round: 3
+        - id: BR-7
+          disposition: addressed
+          note: Every named site and every round-2 sibling rewritten and read-verified; the remaining leftovers are raised as a new Minor.
+          round: 3
+        - id: BR-11
+          disposition: not-addressed
+          note: Code pins the base SHA, but m6 (view back on trackingRef()) leaves both suites green; no test moves the ref inside prepare.
+          round: 3
+        - id: BR-14
+          disposition: not-addressed
+          note: m7 (scoping removed) is green; LeavesAProseIDLineAlone puts the frontmatter id first, so it cannot tell. Needs frontmatter-without-id plus a prose id line, which must refuse.
+          round: 3
+        - id: BR-16
+          disposition: not-addressed
+          note: |-
+            Three more sites patched, not the rule. syncInPlace add/commit (claim.go:251,261) still run in the cwd:
+            no-push issue sync and claim on main exit 128 from a subdirectory (HEAD binary). startOnClaim via
+            locateIssueFile (setstatus.go:118) makes claim --issue N die. Regressions vs base: issueFilesForID now
+            returns repo-relative paths, so an absolute --issues-dir from a subdirectory fails in issue sync
+            (base committed) and in resolveBranchName (base named the branch). Root resolved at 5 sites; idDirs not threaded.
+          round: 3
+      findings:
+        - id: BR-17
+          severity: Important
+          title: trunk arm hardcodes workshop/history and ignores WF_HISTORY_DIR, so the collision guard cannot see archived ids
+          detail: |-
+            This is the 3rd finding in family free-id-space-incomplete. synctrunk.go:182 passes a literal, and
+            claimFlags has no HistoryDir, so claim, issue sync and issue new's sync (issue.go:334) cannot pass on
+            the dir that allocateIssueID (issue.go:281) and merge honour. Verified with WF_HISTORY_DIR=archive:
+            re-allocation went 700 to 701 onto archive/000701-shipped.md, and a republication beside
+            archive/000700-shipped.md published with no refusal. RULE: every id-space consumer derives from ONE
+            resolution of the configured dirs, resolveIDDirs(IssuesDir, HistoryDir) at the dispatch, passed down
+            as idDirs; no call site names a directory literal. Prevalence: 1 literal, 3 verbs that cannot pass it
+            on. The same resolve-once fix covers BR-16.
+          family: free-id-space-incomplete
+          round: 3
+        - id: BR-18
+          severity: Minor
+          title: 'leftovers from the deleted worktree route survived the sweep: two prose sites, a dead helper, an empty header'
+          detail: |-
+            This is the 2nd finding in family stale-user-facing-docs. sdlc-binary.md:233 describes claim's
+            main-worktree precheck as if it still exists; claim.go:133-137 refers to a main-worktree route,
+            worktree hunt and network pull; claim.go:326 is an empty section header; mustGitOutput (claim.go:419)
+            has no callers, since its only caller at base was the deleted merge-base check. RULE: a deletion
+            sweep searches for the deleted symbols AND the words used to describe them in every spelling
+            (main-worktree, worktree hunt, precheck, merge-base), plus helpers left with no callers, and records
+            that list in the Log. Prevalence: 2 prose sites, 1 dead helper, 1 empty header.
+          family: stale-user-facing-docs
+          round: 3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#207 (boundary-review)
@@ -303,10 +361,44 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   claim.go:348-351, the issueFilesForID glob, the syncPathspec add/commit). Pin it
   with a test that publishes with cwd set to a subdirectory.
 
+## Round 3 — 2026-09-11T12:20:19-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-2 — addressed — m1 and m2 caught by RetryReusesItsOwnCandidateID, m3 by FinishRemovesOldAndOrphans; the 700 to 702 walk is gone.
+- BR-7 — addressed — Every named site and every round-2 sibling rewritten and read-verified; the remaining leftovers are raised as a new Minor.
+- BR-11 — not-addressed — Code pins the base SHA, but m6 (view back on trackingRef()) leaves both suites green; no test moves the ref inside prepare.
+- BR-14 — not-addressed — m7 (scoping removed) is green; LeavesAProseIDLineAlone puts the frontmatter id first, so it cannot tell. Needs frontmatter-without-id plus a prose id line, which must refuse.
+- BR-16 — not-addressed — Three more sites patched, not the rule. syncInPlace add/commit (claim.go:251,261) still run in the cwd:
+no-push issue sync and claim on main exit 128 from a subdirectory (HEAD binary). startOnClaim via
+locateIssueFile (setstatus.go:118) makes claim --issue N die. Regressions vs base: issueFilesForID now
+returns repo-relative paths, so an absolute --issues-dir from a subdirectory fails in issue sync
+(base committed) and in resolveBranchName (base named the branch). Root resolved at 5 sites; idDirs not threaded.
+
+### Raised
+
+- **BR-17** [Important] `free-id-space-incomplete` trunk arm hardcodes workshop/history and ignores WF_HISTORY_DIR, so the collision guard cannot see archived ids
+  This is the 3rd finding in family free-id-space-incomplete. synctrunk.go:182 passes a literal, and
+  claimFlags has no HistoryDir, so claim, issue sync and issue new's sync (issue.go:334) cannot pass on
+  the dir that allocateIssueID (issue.go:281) and merge honour. Verified with WF_HISTORY_DIR=archive:
+  re-allocation went 700 to 701 onto archive/000701-shipped.md, and a republication beside
+  archive/000700-shipped.md published with no refusal. RULE: every id-space consumer derives from ONE
+  resolution of the configured dirs, resolveIDDirs(IssuesDir, HistoryDir) at the dispatch, passed down
+  as idDirs; no call site names a directory literal. Prevalence: 1 literal, 3 verbs that cannot pass it
+  on. The same resolve-once fix covers BR-16.
+- **BR-18** [Minor] `stale-user-facing-docs` leftovers from the deleted worktree route survived the sweep: two prose sites, a dead helper, an empty header
+  This is the 2nd finding in family stale-user-facing-docs. sdlc-binary.md:233 describes claim's
+  main-worktree precheck as if it still exists; claim.go:133-137 refers to a main-worktree route,
+  worktree hunt and network pull; claim.go:326 is an empty section header; mustGitOutput (claim.go:419)
+  has no callers, since its only caller at base was the deleted merge-base check. RULE: a deletion
+  sweep searches for the deleted symbols AND the words used to describe them in every spelling
+  (main-worktree, worktree hunt, precheck, merge-base), plus helpers left with no callers, and records
+  that list in the Log. Prevalence: 2 prose sites, 1 dead helper, 1 empty header.
+
 ## Open findings
 
-- **BR-2** [Critical] `realloc-ordering-contract` per-attempt rc reset forgets earlier candidates: orphan duplicate survives, retry re-reallocates
-- **BR-7** [Important] `stale-user-facing-docs` atlas/workflow/issue-sync.md still documents the deleted worktree route (BR-7 claimed addressed)
 - **BR-11** [Minor] `snapshot-not-pinned` TrunkView.Ref returns the mutable tracking-ref name rather than the resolved base SHA
 - **BR-14** [Minor] `identity-rewrite-scope` idFrontmatterRE matches any line-start id:, not only the frontmatter block
 - **BR-16** [Important] `cwd-relative-git-read` issue new, claim and issue sync publish nothing from a subdirectory and report ok
+- **BR-17** [Important] `free-id-space-incomplete` trunk arm hardcodes workshop/history and ignores WF_HISTORY_DIR, so the collision guard cannot see archived ids
+- **BR-18** [Minor] `stale-user-facing-docs` leftovers from the deleted worktree route survived the sweep: two prose sites, a dead helper, an empty header

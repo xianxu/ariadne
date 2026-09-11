@@ -103,8 +103,8 @@ func (res *publishResult) discardCandidates(stderr io.Writer) {
 }
 
 // syncViaTrunk publishes the changed issue files in ONE commit on the trunk.
-func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) error {
-	res, err := syncViaTrunkWithRealloc(stdout, stderr, f, r, msg, pub)
+func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher, paths syncPaths) error {
+	res, err := syncViaTrunkWithRealloc(stdout, stderr, f, r, msg, pub, paths)
 	if err != nil {
 		res.discardCandidates(stderr)
 		if len(res.reallocs) > 0 {
@@ -146,9 +146,9 @@ func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg stri
 // and our push moves the ref, the push is rejected, prepare re-runs against the
 // new base, and the check re-evaluates. Hoisting it out would let the retry
 // re-push a colliding id as a clean fast-forward — ariadne#188's hole.
-func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher) (*publishResult, error) {
+func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher, paths syncPaths) (*publishResult, error) {
 	res := &publishResult{}
-	changed, err := changedIssueFiles(f, r)
+	changed, err := changedIssueFiles(f, r, paths)
 	if err != nil {
 		return res, err
 	}
@@ -159,7 +159,13 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 			cok(stderr, "No issue changes to sync.")
 			return res, nil
 		}
-		changed = issueFilesForID(f.IssuesDir, f.Issue)
+		changed = issueFilesForID(paths.Root, f.IssuesDir, f.Issue)
+		// The publisher speaks repo-relative; issueFilesForID returns absolute.
+		for i, c := range changed {
+			if rel, ok := repoRel(paths.Root, c); ok {
+				changed[i] = rel
+			}
+		}
 		if len(changed) == 0 {
 			cok(stderr, "No issue changes to sync.")
 			return res, nil
@@ -167,10 +173,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 	}
 	sort.Strings(changed)
 
-	root, err := gitx.RepoTopLevel()
-	if err != nil {
-		return res, err
-	}
+	root := paths.Root
 	cinfo(stderr, "Publishing issue changes to the trunk:")
 	for _, c := range changed {
 		fmt.Fprintf(stderr, "  %s\n", c)
@@ -179,10 +182,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 		cinfo(stderr, "dry-run — skipping publish")
 		return res, nil
 	}
-	dirs, err := resolveIDDirs(f.IssuesDir, "workshop/history")
-	if err != nil {
-		return res, err
-	}
+	dirs := paths.Dirs
 
 	err = pub.UpdateMany(syncMessage(msg, defaultSyncSubject), func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		res.reallocs = nil // per-attempt decision; candidates persist
@@ -233,7 +233,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 				// tracked and now gone. An unexplained not-exist — a mis-parsed
 				// path, say — must fail rather than publish a removal nobody
 				// asked for (#207 BR-9).
-				tracked, terr := pathTrackedAtHEAD(r, rel)
+				tracked, terr := pathTrackedAtHEAD(r, root, rel)
 				if terr != nil {
 					return set, terr
 				}
@@ -297,11 +297,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 }
 
 // pathTrackedAtHEAD reports whether git has this path at HEAD.
-func pathTrackedAtHEAD(r gitRunner, rel string) (bool, error) {
-	root, rerr := gitx.RepoTopLevel()
-	if rerr != nil {
-		return false, rerr
-	}
+func pathTrackedAtHEAD(r gitRunner, root, rel string) (bool, error) {
 	out, err := r.GitInDir(root, "ls-tree", "--full-tree", "--name-only", "--end-of-options", "HEAD", "--", rel)
 	if err != nil {
 		return false, fmt.Errorf("ls-tree HEAD -- %s: %v\n%s", rel, err, out)

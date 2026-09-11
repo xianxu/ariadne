@@ -64,7 +64,7 @@ func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 			"ls-files -z --others":         []byte("workshop/issues/000003-c.md\x00"),
 		},
 	}
-	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues"}, r)
+	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues"}, r, syncPaths{Root: "."})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestChangedIssueFiles_FilterByIssue(t *testing.T) {
 			"diff --name-only -z HEAD": []byte("workshop/issues/000001-a.md\x00workshop/issues/000031-target.md\x00"),
 		},
 	}
-	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues", Issue: 31}, r)
+	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues", Issue: 31}, r, syncPaths{Root: "."})
 	if err != nil {
 		t.Fatal(err)
 	}

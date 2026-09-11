@@ -20,6 +20,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"io"
 	"os"
 	"path/filepath"
@@ -115,7 +116,17 @@ func locateIssueFile(issuesDir string, issueID int) (string, error) {
 		return "", fmt.Errorf("--issue is required and must be positive (got %d)", issueID)
 	}
 	id := fmt.Sprintf("%06d", issueID)
-	matches, err := filepath.Glob(filepath.Join(issuesDir, id+"-*.md"))
+	// Root-anchored: a relative issuesDir globbed against the process cwd, so
+	// `claim --issue N` died from any subdirectory (#207 BR-16). Resolved here
+	// rather than threaded, because set-status's call chain is outside this
+	// issue's scope — the one deliberate exception to resolve-at-dispatch.
+	dir := issuesDir
+	if !filepath.IsAbs(dir) {
+		if root, rerr := gitx.RepoTopLevel(); rerr == nil {
+			dir = filepath.Join(root, dir)
+		}
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, id+"-*.md"))
 	if err != nil {
 		return "", fmt.Errorf("glob: %v", err)
 	}

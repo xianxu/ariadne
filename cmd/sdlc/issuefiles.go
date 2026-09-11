@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"os"
 	"path/filepath"
 	"sort"
@@ -129,28 +128,18 @@ func repoRel(root, p string) (string, bool) {
 	return filepath.ToSlash(rel), true
 }
 
-func issueFilesForID(issuesDir string, id int) []string {
-	// Root-anchored, and returns REPO-RELATIVE paths. A bare Glob resolves
-	// against the process cwd, so from a subdirectory this found nothing and the
-	// publisher had nothing to route (#207 BR-16).
-	root, err := gitx.RepoTopLevel()
-	if err != nil {
-		return nil
-	}
+func issueFilesForID(root, issuesDir string, id int) []string {
+	// Root-anchored, returning ABSOLUTE paths. A bare Glob resolves against the
+	// process cwd, so this found nothing from a subdirectory (#207 BR-16). Paths
+	// stay absolute because callers use them both as git pathspecs and as file
+	// paths; returning repo-relative ones broke an absolute --issues-dir from a
+	// subdirectory, a regression an earlier cut of this fix shipped.
 	dir := issuesDir
 	if !filepath.IsAbs(dir) {
 		dir = filepath.Join(root, dir)
 	}
 	matches, _ := filepath.Glob(filepath.Join(dir, fmt.Sprintf("%06d", id)+"-*.md"))
-	out := make([]string, 0, len(matches))
-	for _, m := range matches {
-		if rel, ok := repoRel(root, m); ok {
-			out = append(out, rel)
-			continue
-		}
-		out = append(out, m)
-	}
-	return out
+	return matches
 }
 
 // issueIDFromPath returns the issue id encoded in an issue file's name, or 0

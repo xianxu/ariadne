@@ -75,7 +75,7 @@ func TestSyncViaTrunk_DeletedFileBecomesDelete(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues"}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
 	if len(pub.sets) != 1 {
@@ -124,7 +124,7 @@ func TestSyncViaTrunk_PublishExistingWithNoDirtyFiles(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", Issue: 500, PublishExisting: true}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
 	if len(pub.sets) != 1 || len(pub.sets[0].Write) != 1 {
@@ -172,7 +172,7 @@ func TestSyncViaTrunk_RefusesWhenTrunkHasForeignSlugAtOurID(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues"}
-	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t))
 	if err == nil {
 		t.Fatal("publishing a foreign slug at a published id must refuse")
 	}
@@ -229,7 +229,7 @@ func TestSyncViaTrunk_ReallocatesOnMidRetryCollision(t *testing.T) {
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
 	// Through the WRAPPER, so this also covers what the operator and `issue new`
 	// actually receive: the announcement, f.Reallocations, and finish().
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
 	if len(f.Reallocations) == 0 {
@@ -284,7 +284,7 @@ func TestSyncViaTrunk_RepublicationNeverReallocates(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues"} // FirstPublication false
-	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t))
 	rc := firstRealloc(res)
 	if err != nil {
 		t.Fatalf("republishing our own body must succeed: %v\n%s", err, errOut.String())
@@ -323,7 +323,7 @@ func TestSyncViaTrunk_PublishesOnlyChangedIssueFiles(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues"}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
 	set := pub.sets[0]
@@ -361,7 +361,7 @@ func TestSyncViaTrunk_FailedPublishKeepsOriginalAndDropsCandidate(t *testing.T) 
 	pub := &fakePublisher{view: viewFor(t, repo), err: errors.New("push rejected")}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err == nil {
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err == nil {
 		t.Fatal("expected the publish failure to surface")
 	}
 	if _, err := os.Stat(mine); err != nil {
@@ -401,7 +401,7 @@ func TestSyncViaTrunk_ReallocationSkipsLocalUnpublishedIDs(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t))
 	rc := firstRealloc(res)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
@@ -452,7 +452,7 @@ func TestSyncViaTrunk_StaleReallocationIsNotCarriedAcrossAttempts(t *testing.T) 
 
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t))
 	rc := firstRealloc(res)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
@@ -482,7 +482,7 @@ func TestSyncViaTrunk_SyncedMarkerOnlyWhenTheTrunkCarriesTheChange(t *testing.T)
 		t.Helper()
 		pub := &fakePublisher{view: viewFor(t, repo)}
 		var out, errOut bytes.Buffer
-		if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+		if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
 			t.Fatalf("%v\n%s", err, errOut.String())
 		}
 		return out.String()
@@ -525,7 +525,7 @@ func TestSyncViaTrunk_RefusesTwoFilesClaimingOneID(t *testing.T) {
 	}
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
-	err := syncViaTrunk(&out, &errOut, &claimFlags{IssuesDir: "workshop/issues"}, execGitRunner{}, "msg", pub)
+	err := syncViaTrunk(&out, &errOut, &claimFlags{IssuesDir: "workshop/issues"}, execGitRunner{}, "msg", pub, testPaths(t))
 	if err == nil {
 		t.Fatal("two files at one id must refuse")
 	}
@@ -560,7 +560,7 @@ func TestSyncViaTrunk_UnrelatedPeerRetryDoesNotReallocate(t *testing.T) {
 		}
 	}}
 	var out, errOut bytes.Buffer
-	res, err := syncViaTrunkWithRealloc(&out, &errOut, &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}, execGitRunner{}, "msg", pub)
+	res, err := syncViaTrunkWithRealloc(&out, &errOut, &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}, execGitRunner{}, "msg", pub, testPaths(t))
 	if err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
@@ -603,7 +603,7 @@ func TestSyncViaTrunk_RefusesWhenTheLocalIDScanFails(t *testing.T) {
 
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", &fakePublisher{view: viewFor(t, repo)})
+	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", &fakePublisher{view: viewFor(t, repo)}, testPaths(t))
 	if err == nil {
 		t.Fatal("a failed local id scan must refuse, not re-allocate against a half-read id space")
 	}
@@ -636,7 +636,7 @@ func TestSyncViaTrunk_ExhaustionNamesEveryCollisionSeen(t *testing.T) {
 	}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub)
+	err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t))
 	if err == nil {
 		t.Fatal("expected the exhaustion to surface")
 	}
@@ -673,7 +673,7 @@ func TestSyncViaTrunk_TwoReallocationsInOnePublish(t *testing.T) {
 	pub := &fakePublisher{view: viewFor(t, repo)}
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
 	if len(f.Reallocations) != 2 {
@@ -720,7 +720,7 @@ func TestSyncViaTrunk_RetryReusesItsOwnCandidateID(t *testing.T) {
 	pub := &fakePublisher{rerun: 1, view: viewFor(t, repo)} // one rejection, one retry
 	var out, errOut bytes.Buffer
 	f := &claimFlags{IssuesDir: "workshop/issues", FirstPublication: true}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub); err != nil {
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
 		t.Fatalf("%v\n%s", err, errOut.String())
 	}
 	if len(f.Reallocations) != 1 {
@@ -735,5 +735,83 @@ func TestSyncViaTrunk_RetryReusesItsOwnCandidateID(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(issues, "000700-mine.md")); !os.IsNotExist(err) {
 		t.Error("the superseded original survived a successful publish")
+	}
+}
+
+// testPaths resolves the same way the production dispatch does, from the test's
+// chdir'd repo — so a test cannot accidentally exercise a resolution the real
+// code never performs.
+func testPaths(t *testing.T) syncPaths {
+	t.Helper()
+	p, err := resolveSyncPaths(&claimFlags{IssuesDir: "workshop/issues"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// testPathsFor resolves for a specific flag set — the configured issues AND
+// history directories, which is what BR-17 was about.
+func testPathsFor(t *testing.T, f *claimFlags) syncPaths {
+	t.Helper()
+	p, err := resolveSyncPaths(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// BR-17: the id space is issues + history, and the history dir is CONFIGURABLE.
+// The trunk arm named a literal "workshop/history", so under WF_HISTORY_DIR it
+// could not see archived ids: re-allocation landed on one, and a republication
+// beside an archived file of the same id published without refusing.
+func TestSyncViaTrunk_HonoursTheConfiguredHistoryDir(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	issues := filepath.Join(repo, "workshop", "issues")
+	archive := filepath.Join(repo, "archive")
+	for _, d := range []string{issues, archive} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The trunk holds our id under a foreign slug, and the ARCHIVE holds the next
+	// id up — so a re-allocation that cannot see the archive lands on top of it.
+	if err := os.WriteFile(filepath.Join(issues, "000700-theirs.md"), []byte("---\nid: 000700\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(archive, "000701-shipped.md"), []byte("---\nid: 000701\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, repo, "add", "-A")
+	testfix.Git(t, repo, "commit", "-q", "-m", "trunk + archive")
+	if err := os.WriteFile(filepath.Join(issues, "000700-mine.md"), []byte("---\nid: 000700\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	f := &claimFlags{IssuesDir: "workshop/issues", HistoryDir: "archive", FirstPublication: true}
+	var out, errOut bytes.Buffer
+	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", &fakePublisher{view: viewFor(t, repo)}, testPathsFor(t, f)); err != nil {
+		t.Fatalf("%v\n%s", err, errOut.String())
+	}
+	if len(f.Reallocations) != 1 {
+		t.Fatalf("got %d re-allocations, want 1", len(f.Reallocations))
+	}
+	if got := f.Reallocations[0].NewID; got != 702 {
+		t.Errorf("re-allocated to %06d, want 000702 — 000701 is taken in the configured history dir", got)
+	}
+
+	// And a REPUBLICATION beside an archived file at our id must refuse.
+	if err := os.WriteFile(filepath.Join(issues, "000701-mine.md"), []byte("---\nid: 000701\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rf := &claimFlags{Issue: 701, IssuesDir: "workshop/issues", HistoryDir: "archive"}
+	out.Reset()
+	errOut.Reset()
+	err := syncViaTrunk(&out, &errOut, rf, execGitRunner{}, "msg", &fakePublisher{view: viewFor(t, repo)}, testPathsFor(t, rf))
+	if err == nil {
+		t.Fatal("a republication beside an archived file at the same id must refuse")
+	}
+	if !strings.Contains(err.Error(), "000701-shipped.md") {
+		t.Errorf("the refusal must name the archived path: %v", err)
 	}
 }

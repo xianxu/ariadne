@@ -217,6 +217,12 @@ above is corrected to say so rather than claiming it is fixed incidentally.)
   cwd, and a glob likewise.
 - A retry does not treat its OWN rejected candidate as a taken id, so a
   re-allocation does not walk forward on every attempt.
+- **Both arms** work from a subdirectory: the trunk arm, and the in-place arm's
+  `add`/`commit` — including the no-`--issue` shape, whose pathspec is the
+  relative issues dir and so is the only one the cwd can affect.
+- The **configured** history dir is honoured (`WF_HISTORY_DIR`, `--history-dir`):
+  re-allocation skips ids held by archived files, and a republication beside an
+  archived file at the same id refuses, naming it.
 - TWO re-allocations in one publish each land at a distinct id, with both
   originals removed and neither published file deleted.
 - A FAILED publish keeps every original and removes the candidates it wrote; the
@@ -716,3 +722,36 @@ a symlinked home — not just a fixture. `repoRel` resolves both sides.
 shape, but its tests are stub-only with no repo, and pinning a root there needs
 one injected through a different call chain. Left as a named sibling rather than
 half-changed.
+
+### 2026-09-11 — close review round 3: the rule, threaded instead of patched
+
+**BR-16, third round.** I had patched three sites; the reviewer named three more
+(`syncInPlace`'s `add`/`commit`, and `startOnClaim` via `locateIssueFile`) plus
+**two regressions my own patch introduced** — `issueFilesForID` returning
+repo-relative paths broke an absolute `--issues-dir` from a subdirectory, and
+likewise `resolveBranchName`. The rule they supplied is the fix: resolve the
+configured directories ONCE at the dispatch and thread them, so no call site
+re-resolves or names a literal. That is now `syncPaths{Root, Dirs}`, threaded
+into both arms and every id consumer on this path, with `issueFilesForID` back
+to absolute output so no caller changes shape. One deliberate exception,
+recorded rather than hidden: `locateIssueFile` anchors internally, because
+set-status's call chain is outside this issue and threading it there is a
+different change.
+
+**BR-17** is the same class seen from the other side: the trunk arm named a
+literal `workshop/history`, so under `WF_HISTORY_DIR` the collision guard could
+not see archived ids — re-allocation landed **on** an archived id, and a
+republication beside an archived file of the same id published with no refusal.
+`claimFlags` now carries `HistoryDir`, threaded from `issue new` and registered
+as `--history-dir` on `claim`. The reviewer predicted the resolve-once fix would
+cover both, and it did.
+
+**BR-18**: two prose sites, an empty section header, and `mustGitOutput` — a
+helper whose only caller had been the deleted merge-base check.
+
+**Mutation note.** "In-place `add` back on the cwd" was NOT caught at first:
+with `--issue` the pathspec is a list of absolute file paths, so the cwd cannot
+matter, and my test passed `--issue`. Only the no-`--issue` shape — pathspec =
+the relative issues dir — can observe it. That is the third time this session a
+mutation was aimed where the test could not see it, and the second where the
+fix was to change the TEST rather than the mutation.
