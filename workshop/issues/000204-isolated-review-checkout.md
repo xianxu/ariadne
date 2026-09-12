@@ -73,3 +73,23 @@ are outside the reviewer's writable boundary.
 
 - Filed from the pair#146 review audit. Deliberately deferred until #201 makes
   persisted review artifacts semantic rather than raw process transcripts.
+
+### 2026-09-12 — field evidence from parley.nvim#237 (four M1 rounds)
+
+The invariant this issue defends broke twice in one boundary, and the
+voluntary containment practice left its own debris:
+
+- **Round 1 destroyed operator work.** The claude reviewer ran
+  `git checkout <head> -- .` in the source checkout ("where I meant `git
+  diff`", in its own words). That reverted the operator's uncommitted edit to
+  an unrelated file and restored a file the operator had deleted. The edit
+  survived only in a Time Machine local snapshot, which takes root to mount.
+- **Round 3 wrote into the source checkout.** Its sandbox refused `mktemp`, so
+  `sed` edits meant for a scratch copy landed in two tracked Lua files; the
+  reviewer reversed them by hand.
+- **Rounds 3 and 4 contained themselves voluntarily** (`git archive` into
+  `/private/tmp/claude-501/parley-scratch-237*`), and left at least five
+  orphaned plenary nvims with fixture children there. That is the missing
+  "owned, discoverable cleanup path" this Spec asks for.
+- Workaround on the parley side meanwhile: snapshot the operator's WIP with
+  `git stash create` before each dispatch (parley `workshop/lessons.md`).
