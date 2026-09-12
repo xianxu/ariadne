@@ -66,7 +66,25 @@ publish-then-edit-then-publish loop, or it will be disabled within a day.
 
 ## Plan
 
-- [ ]
+The Spec is three sketches, not a design, so these are the steps that pick one —
+not an implementation of a choice nobody has made yet.
+
+- [ ] Write the false-positive budget FIRST: a test that publishes, edits
+      locally, and publishes again from one branch several times over, asserting
+      no refusal. Every candidate guard has to pass it, and a guard that fires on
+      this loop gets disabled within a day.
+- [ ] Choose among publish-provenance / blob-in-our-history / three-content
+      divergence against that test AND the `issue new` case — content published
+      straight from the working tree, never committed locally — which is the case
+      that eliminates blob-in-our-history if it cannot be answered.
+- [ ] Build the chosen guard INSIDE the CAS window (`UpdateMany`'s prepare), so
+      it re-evaluates per attempt rather than once against a base that a peer can
+      move underneath it.
+- [ ] Two bases publishing the same issue file: the second is refused and names
+      both versions. Mutation-verify by removing the guard.
+- [ ] Drop the last-writer-wins caveat from `cmd/sdlc/helptext/claim.md` and
+      `atlas/workflow/issue-sync.md` — ariadne#207 added it, and it stays true
+      until this lands.
 
 ## Log
 
