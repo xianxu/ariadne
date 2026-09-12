@@ -16,22 +16,44 @@ sdlc claim --issue <N>
 
 Stages changed and untracked files in `workshop/issues/` (or just the selected issue with `--issue`), commits, and pushes to origin.
 
-### On a feature branch (worktree)
+### Anywhere else — a feature branch, a worktree, a detached HEAD
 
-1. Identifies changed + untracked files in `workshop/issues/` on the feature branch
-2. Finds the main worktree and verifies it's on `main`
-3. Pulls latest main from origin (`git pull --rebase`)
-4. Computes the merge base and checks for conflicts (files changed on both sides)
-5. **No conflicts**: copies files to main worktree, commits, pushes
-6. **Conflicts detected**: stops and prints step-by-step resolution instructions
+Publishes straight to the trunk; **no checkout is read or written** (#207).
 
-## Conflict detection
+1. Identifies changed, staged, untracked and deleted files in `workshop/issues/`
+   (or just the selected issue with `--issue`), reading NUL-delimited paths so a
+   non-ASCII filename is never mistaken for a missing one
+2. Fetches `origin/main` and builds a tree in a temp index on top of it
+3. `commit-tree`, then pushes `<commit>:refs/heads/main` as a compare-and-swap
+4. On rejection: re-reads the trunk, re-derives the whole change set, retries
+   (bounded). Deriving per attempt is what stops a retry from re-publishing an
+   id a peer took in the meantime
 
-A conflict is when the same issue file was modified on both:
-- The feature branch (since it diverged from main)
-- Main itself (since the merge base)
+This needs no worktree on `main`, which matters because `change-code` branches
+**in place**: an actively-worked repo usually has none, and the previous route —
+find the main worktree, refuse if dirty, `pull --rebase` it, copy files across,
+commit and push there — was unavailable in exactly that case.
 
-When this happens, the script stops and tells the user exactly which files conflict and how to resolve them manually in the main worktree.
+## Concurrency, and one guarantee that was LOST
+
+The push is a compare-and-swap, so a peer landing between the read and the push
+is detected by git rather than guessed at, and the retry rebuilds against what
+they wrote. Two agents editing **different** issues therefore both land.
+
+An **id collision** — a different slug already holding this issue's id — is
+never auto-merged: `claim` and `issue sync` refuse and name both paths, because
+a published id is already referenced by the branch name, commit subjects,
+`deps:` and review sidecars (ariadne#188). Only `issue new` re-allocates, where
+nothing references the id yet.
+
+**Two agents editing the SAME issue file is now last-writer-wins.** The route
+this replaced computed a merge base and refused when a file had changed on both
+sides; the object-database route has no working tree to diff against, and the
+naive replacement is worse than nothing — trunk commits are built outside the
+branch, so a three-way check against the merge base would refuse every ordinary
+republish. Stated here rather than left for someone to discover: a stale
+double-claim silently overwrites the other agent's edit. Tracked as a
+lost-update follow-up (ariadne#207 BR-5).
 
 ## Why
 
@@ -39,11 +61,12 @@ Issue state changes (status, assignment) need to be visible on main immediately,
 
 ## `issue new` auto-syncs (#82 M1)
 
-`sdlc issue new` also broadcasts the freshly-scaffolded file to origin/main, through the **same** branch-aware sync as `claim` (the shared `syncIssuesToMain` dispatch in `claim.go`, filtered to the new issue's `--issue`). Filing an issue therefore lands it on main as tracker state — not untracked working-tree residue that every symlinked derivative reads and that dirty-tree gates trip over. The filtered add (per #80) stages only the new file, so unrelated untracked WIP is left alone. On `main` the working tree is left clean; on a feature branch the file routes to the main worktree (any local copy left behind is non-blocking — see [base-layer.md](base-layer.md), #82 M2).
+`sdlc issue new` also broadcasts the freshly-scaffolded file to origin/main, through the **same** branch-aware sync as `claim` (the shared `syncIssuesToMain` dispatch in `claim.go`, filtered to the new issue's `--issue`). Filing an issue therefore lands it on main as tracker state — not untracked working-tree residue that every symlinked derivative reads and that dirty-tree gates trip over. The filtered add (per #80) stages only the new file, so unrelated untracked WIP is left alone. On `main` the working tree is left clean; anywhere else the file is published straight to the trunk, and the local copy stays put. If the id was taken on the trunk, `issue new` re-allocates and prints the id it actually published.
 
 ## Implementation
 
-- Binary: `cmd/sdlc/claim.go` (`syncIssuesToMain` — shared by `claim` + `issue new`)
+- Binary: `cmd/sdlc/claim.go` (`syncIssuesToMain` — shared by `claim` + `issue new`);
+  the publish arm is `cmd/sdlc/synctrunk.go` over `gitx.TrunkFile.UpdateMany`
 - Compatibility wrapper: `make issue-sync` in `Makefile.workflow`; when
   `bin/sdlc` is absent it builds Ariadne's `cmd/sdlc` source to a temporary
   binary, then runs that binary from the consumer repository cwd.

@@ -151,7 +151,11 @@ func refIDSpace(ref string, dirs idDirs, r gitRunner) (map[int][]string, error) 
 	}
 	byID := map[int][]string{}
 	for _, dir := range dirs.Rel {
-		out, err := r.Git("ls-tree", "--name-only", "--end-of-options", ref, "--", dir+"/")
+		// --full-tree: without it ls-tree resolves the pathspec against the
+		// process CWD, so every id read from a SUBDIRECTORY came back empty and
+		// the caller saw a free id space (#207 BR-12). Pre-existing, and it made
+		// ariadne#213's allocation blind the same way.
+		out, err := r.Git("ls-tree", "--full-tree", "--name-only", "--end-of-options", ref, "--", dir+"/")
 		if err != nil {
 			// A PARTIAL read is indistinguishable from a complete one once the
 			// paths are merged, so it would answer from half the trunk and

@@ -2,6 +2,34 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A search that keys on content cannot see the content that describes it
+
+**Pattern (#218 BR-10, and three self-inflicted splices in #207/#218).** Two
+shapes of the same blind spot, both found the hard way in one session:
+
+- `git grep -n 'ariadne#207' -- ':!*000207*'` was the *derived* sweep that
+  replaced a hand-typed list — and it could not reach
+  `workshop/issues/000207-*.md`, because that file calls itself *"this issue"*
+  and never spells its own number.
+- Editing a markdown issue with `s[s.index("## Plan"):s.index("## Log")]` cut at
+  the wrong place three times, because the prose being inserted *mentioned*
+  `` `## Log` `` at a line start. Once it silently deleted a whole `## Done when`
+  section; once it stranded half a Spec after the Plan.
+
+**Rule:** when a search or splice keys on a token, ask which artifact *contains
+that token as content* rather than as structure — that is the one place it will
+be wrong. For document edits, anchor on line numbers or rewrite the whole file;
+never on a marker the document can also discuss. For derived sweeps, remember
+that the artifact owning an identifier is invisible to a search for it, and
+check it by hand.
+
+The deeper version of this is already in *"Don't write a description where the
+referent is available"*: deriving beats hand-typing, and this is the residue that
+survives the switch, not a reason to switch back. The hand list missed four sites
+the derivation found; the derivation missed one the hand list would have had.
+Both, and say which is which.
+
+
 ## Don't write a description where the referent is available
 
 **Pattern (#209 + #218, ~35 of ~60 review findings across 31 families).** The
@@ -42,6 +70,22 @@ gitignore-aware). Run it **verbatim, in a clean shell, at the state the reader
 will see** — not retyped into your own. Record the measured output beside it, and
 where the gate generates what the check must tolerate, scope the exclusion by
 issue id rather than by path.
+
+**Corollary — git's porcelain answers a *human's* question; ask it for the
+facts.** Its defaults are summaries tuned for a reader, and each one drops
+something a program needs. Measured on #207, three times, each a silent
+data-loss bug:
+
+| Default | What it hides | Flag |
+|---|---|---|
+| rename detection in `diff --name-only` | a `git mv` reports the NEW path only — the delete half never enters the publish set, so the old name stays on the trunk as a duplicate id | `--no-renames` |
+| path quoting | `"…/000300-caf\303\251.md"` doesn't exist on disk; the read failed as not-exist and the path was published as a DELETION | `-z` |
+| pathspecs resolved against cwd | from a subdirectory the query matched nothing and the verb exited 0 having published nothing | `--full-tree`, and run in the root |
+
+**Rule:** for any git command whose output a program parses, name the flags that
+turn off interpretation — and write a fixture that exercises the shape the
+default would collapse (a rename, a non-ASCII path, a subdirectory cwd). The
+default is invisible precisely because the common case passes.
 
 **Corollary — fixing prose is when premature prose gets written.** Two of the
 four `boundary-claim-premature` sites in #218 were introduced by the edit that

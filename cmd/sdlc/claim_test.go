@@ -48,18 +48,25 @@ func (s *claimRunnerStub) GitInDir(dir string, args ...string) ([]byte, error) {
 			return v, nil
 		}
 	}
-	return nil, nil
+	// Fall back to the plain Git responses: real GitInDir(dir, args) IS Git(args)
+	// run in dir, so a stub that answers one and not the other models a git that
+	// does not exist (#207 BR-16 moved the sync onto GitInDir).
+	return s.Git(args...)
 }
 
 func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 	r := &claimRunnerStub{
 		responses: map[string][]byte{
-			"diff --name-only HEAD":     []byte("workshop/issues/000002-b.md\nworkshop/issues/000001-a.md\n"),
-			"diff --cached --name-only": []byte("workshop/issues/000001-a.md\n"),
-			"ls-files --others":         []byte("workshop/issues/000003-c.md\n"),
+			// NUL-delimited, because the queries pass -z: a stub that answers in
+			// git's newline form models a command the code no longer runs (#207 BR-9).
+			// --no-renames for the same reason: rename detection reports a `git mv`
+			// as the new path alone, hiding the delete half (#207 BR-19).
+			"diff --name-only --no-renames -z HEAD":     []byte("workshop/issues/000002-b.md\x00workshop/issues/000001-a.md\x00"),
+			"diff --cached --name-only --no-renames -z": []byte("workshop/issues/000001-a.md\x00"),
+			"ls-files -z --others":                      []byte("workshop/issues/000003-c.md\x00"),
 		},
 	}
-	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues"}, r)
+	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues"}, r, syncPaths{Root: "."})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,10 +88,10 @@ func TestChangedIssueFiles_DedupesAndSorts(t *testing.T) {
 func TestChangedIssueFiles_FilterByIssue(t *testing.T) {
 	r := &claimRunnerStub{
 		responses: map[string][]byte{
-			"diff --name-only HEAD": []byte("workshop/issues/000001-a.md\nworkshop/issues/000031-target.md\n"),
+			"diff --name-only --no-renames -z HEAD": []byte("workshop/issues/000001-a.md\x00workshop/issues/000031-target.md\x00"),
 		},
 	}
-	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues", Issue: 31}, r)
+	got, err := changedIssueFiles(&claimFlags{IssuesDir: "workshop/issues", Issue: 31}, r, syncPaths{Root: "."})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,25 +131,6 @@ func TestFindMainWorktree_NoMain(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "main") {
 		t.Errorf("error message should mention main: %q", err.Error())
-	}
-}
-
-func TestMainHasUncommittedIssueChanges_Union(t *testing.T) {
-	r := &claimRunnerStub{
-		gitInDirResponses: map[string][]byte{
-			"diff --name-only":          []byte("workshop/issues/000001-a.md\n"),
-			"diff --cached --name-only": []byte("workshop/issues/000002-b.md\n"),
-		},
-	}
-	got, err := mainHasUncommittedIssueChanges("/main", "workshop/issues", r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("got %v, want 2 entries", got)
-	}
-	if got[0] != "workshop/issues/000001-a.md" || got[1] != "workshop/issues/000002-b.md" {
-		t.Errorf("entries unexpected: %v", got)
 	}
 }
 
@@ -230,18 +218,5 @@ func TestStartOnClaim_DryRunDoesNotWrite(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "would flip") {
 		t.Errorf("dry-run stderr missing notice: %q", stderr.String())
-	}
-}
-
-func TestMainHasUncommittedIssueChanges_None(t *testing.T) {
-	r := &claimRunnerStub{
-		gitInDirResponses: map[string][]byte{}, // empty stdout for both queries
-	}
-	got, err := mainHasUncommittedIssueChanges("/main", "workshop/issues", r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Errorf("expected empty, got %v", got)
 	}
 }

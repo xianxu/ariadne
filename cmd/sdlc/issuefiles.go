@@ -106,8 +106,17 @@ func filterIssueFiles(refs []issueFileRef, keep func(issueFileRef) bool) []issue
 // a sync stages and commits), so the two cannot disagree about what an --issue
 // filter means. changedIssueFiles answers a different question (which of the
 // already-changed paths belong to N) by prefix-matching that same convention.
-func issueFilesForID(issuesDir string, id int) []string {
-	matches, _ := filepath.Glob(filepath.Join(issuesDir, fmt.Sprintf("%06d", id)+"-*.md"))
+func issueFilesForID(root, issuesDir string, id int) []string {
+	// Root-anchored, returning ABSOLUTE paths. A bare Glob resolves against the
+	// process cwd, so this found nothing from a subdirectory (#207 BR-16). Paths
+	// stay absolute because callers use them both as git pathspecs and as file
+	// paths; returning repo-relative ones broke an absolute --issues-dir from a
+	// subdirectory, a regression an earlier cut of this fix shipped.
+	dir := issuesDir
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(root, dir)
+	}
+	matches, _ := filepath.Glob(filepath.Join(dir, fmt.Sprintf("%06d", id)+"-*.md"))
 	return matches
 }
 

@@ -13,13 +13,10 @@
 //     origin main when publishing. Reached whenever the caller isn't
 //     publishing (NoPush) — offline-safe, no worktree hunt — or when this
 //     worktree is already on main, where "here" and "main" coincide.
-//  2. syncViaMainWorktree: the publish-from-a-feature-branch route.
-//     - locate the main worktree via `git worktree list --porcelain -z`
-//     - check main worktree has no uncommitted issue changes
-//     - pull --rebase origin main on the main worktree
-//     - detect conflicts (files changed on both branches since merge-base)
-//     - copy changed issue files from feature worktree → main worktree
-//     - commit + push on main worktree
+//  2. syncViaTrunk (synctrunk.go): publish from anywhere else (#207). Builds
+//     the commit in the object database and CAS-pushes it at origin/main; no
+//     checkout is read or written, so it works from an in-place feature branch
+//     with no worktree on main — which is change-code's default.
 //
 // Every step of (2) exists to publish, which is why suppressing the push
 // doesn't just skip the last line — it selects the other arm entirely.
@@ -29,10 +26,8 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -49,6 +44,23 @@ type claimFlags struct {
 	IssuesDir string
 	DryRun    bool
 	NoStart   bool
+	// FirstPublication says this id has never been on the trunk, so re-allocating
+	// it is cheap. Only `issue new` sets it. Renumbering is safe ONLY before
+	// anything references the id; by claim time it is in the branch name, and
+	// after that in commit subjects, deps: and sidecar filenames (ariadne#188).
+	// The caller declares this rather than the publisher inferring it, because
+	// the inference is exactly what an earlier draft of #207 got wrong — it would
+	// have renumbered every existing issue on every sync.
+	FirstPublication bool
+	// HistoryDir is the archived-issue directory. Carried here because the id
+	// space is issues + history: the trunk arm named a LITERAL "workshop/history"
+	// and so could not see archived ids under WF_HISTORY_DIR, re-allocating onto
+	// one and publishing beside another without refusing (#207 BR-17).
+	HistoryDir string
+	// Reallocations is an OUTPUT field: the publisher records any id changes it
+	// made, so `issue new` prints the path it actually published rather than the
+	// one it planned (#207 BR-1).
+	Reallocations []*reallocation
 	// NoPush suppresses publication: commit in the current worktree and stop
 	// (#206). Spelled negatively on purpose — `issue new` builds this struct as
 	// a literal (issue.go), so a positive `Push` would zero-value to false
@@ -85,6 +97,7 @@ func NewClaimCmd() *cobra.Command {
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "sync only this issue's file (default: all changed issue files)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would happen; do not commit/push")
+	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	cmd.Flags().BoolVar(&f.NoStart, "no-start", false, "do not auto-flip an open --issue to working before syncing")
 	return cmd
 }
@@ -124,19 +137,34 @@ func runClaim(stdout, stderr io.Writer, f *claimFlags) error {
 // passes a subject naming the issue.
 //
 // The NoPush arm comes FIRST, before the branch test. A caller that isn't
-// publishing wants a durable local commit where the work is; the whole
-// main-worktree route below exists to publish, so running it with the push
-// removed would spend a worktree hunt and a network pull to land a commit on a
-// branch the caller isn't on.
+// publishing wants a durable local commit where the work is, and the trunk arm
+// below exists to publish — running it with the push removed would fetch and
+// build a commit nobody asked to send.
 func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string) error {
+	// Resolved ONCE, here, and threaded into both arms. Every id-space consumer
+	// takes these; no call site below re-resolves or names a directory literal.
+	// Patching individual sites is what produced BR-12, BR-16 and BR-17 — three
+	// findings of one shape, each fixed only where it was reported (#207 BR-16).
+	paths, err := resolveSyncPaths(f)
+	if err != nil {
+		return err
+	}
 	if f.NoPush {
-		return syncInPlace(stdout, stderr, f, r, msg)
+		return syncInPlace(stdout, stderr, f, r, msg, paths)
 	}
 	branch := gitx.Capture("branch", "--show-current")
 	if branch == "main" {
-		return syncInPlace(stdout, stderr, f, r, msg)
+		return syncInPlace(stdout, stderr, f, r, msg, paths)
 	}
-	return syncViaMainWorktree(stdout, stderr, f, branch, r, msg)
+	// #207: publish straight to the trunk. The route this replaced drove whatever
+	// checkout had main out, which is unavailable exactly in the workflow's
+	// default mode — change-code branches in place, so an actively-worked repo
+	// has no worktree on main.
+	pub, err := newTrunkPublisher(paths.Root)
+	if err != nil {
+		return err
+	}
+	return syncViaTrunk(stdout, stderr, f, r, msg, pub, paths)
 }
 
 // startOnClaim folds the "start work" status flip into `sdlc claim`: an
@@ -177,6 +205,36 @@ func startOnClaim(stdout, stderr io.Writer, f *claimFlags) error {
 	return nil
 }
 
+// syncPaths is the ONE resolution of where this repo keeps ids and where its
+// git calls must run. Threaded rather than re-derived: execGitRunner.Git runs in
+// the PROCESS cwd, so an unpinned call from a subdirectory reads a different
+// tree than the caller meant — silently, and reporting success (#207 BR-16).
+type syncPaths struct {
+	Root string
+	Dirs idDirs
+}
+
+func resolveSyncPaths(f *claimFlags) (syncPaths, error) {
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return syncPaths{}, err
+	}
+	dirs, err := resolveIDDirs(f.IssuesDir, f.historyDir())
+	if err != nil {
+		return syncPaths{}, err
+	}
+	return syncPaths{Root: root, Dirs: dirs}, nil
+}
+
+// historyDir honours the configured value, falling back to the same env/default
+// pair every other verb uses rather than to a literal.
+func (f *claimFlags) historyDir() string {
+	if f.HistoryDir != "" {
+		return f.HistoryDir
+	}
+	return envOr("WF_HISTORY_DIR", "workshop/history")
+}
+
 // ── commit-here path ─────────────────────────────────────────────────────────
 
 // syncInPlace stages + commits the changed issue files in the CURRENT worktree,
@@ -190,8 +248,8 @@ func startOnClaim(stdout, stderr io.Writer, f *claimFlags) error {
 // and `change-code` treat it as best-effort (the file is already written — a
 // failed push must not abort creation or block entering implementation, e.g.
 // offline or with no reachable origin).
-func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string) error {
-	changed, err := changedIssueFiles(f, r)
+func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, paths syncPaths) error {
+	changed, err := changedIssueFiles(f, r, paths)
 	if err != nil {
 		return err
 	}
@@ -215,7 +273,7 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 			return nil
 		}
 		cinfo(stderr, "No new issue changes — publishing existing commits...")
-		return pushMain(stdout, stderr, r)
+		return pushMain(stdout, stderr, r, paths.Root)
 	}
 	cinfo(stderr, "Syncing issue changes...")
 	for _, c := range changed {
@@ -225,11 +283,11 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 		cinfo(stderr, "dry-run — no commit/push performed")
 		return nil
 	}
-	pathspec, err := syncPathspec(f)
+	pathspec, err := syncPathspec(f, paths)
 	if err != nil {
 		return err
 	}
-	if out, err := r.Git(append([]string{"add", "--"}, pathspec...)...); err != nil {
+	if out, err := r.GitInDir(paths.Root, append([]string{"add", "--"}, pathspec...)...); err != nil {
 		return fmt.Errorf("git add: %v\n%s", err, out)
 	}
 	// The commit carries the SAME pathspec as the add (#206). A bare `git
@@ -238,8 +296,8 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 	// transaction lock serializes sdlc verbs against each other, but nothing
 	// stops a peer running plain `git add`. A pathspec implies --only, leaving
 	// the rest of the index untouched.
-	commitArgs := append([]string{"commit", "-m", syncMessage(msg, "issue-sync: update issues"), "--"}, pathspec...)
-	if out, err := r.Git(commitArgs...); err != nil {
+	commitArgs := append([]string{"commit", "-m", syncMessage(msg, defaultSyncSubject), "--"}, pathspec...)
+	if out, err := r.GitInDir(paths.Root, commitArgs...); err != nil {
 		return fmt.Errorf("commit failed: %v\n%s", err, out)
 	}
 	if f.NoPush {
@@ -247,14 +305,14 @@ func syncInPlace(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg strin
 		fmt.Fprintln(stdout, "synced")
 		return nil
 	}
-	return pushMain(stdout, stderr, r)
+	return pushMain(stdout, stderr, r, paths.Root)
 }
 
 // pushMain publishes the current worktree's main to origin. One source for both
 // of syncInPlace's exits — the just-committed path and the nothing-new-to-commit
 // path — so `--push` cannot mean "publish" in one and "no-op" in the other.
-func pushMain(stdout, stderr io.Writer, r gitRunner) error {
-	if out, err := r.Git("push", "origin", "main"); err != nil {
+func pushMain(stdout, stderr io.Writer, r gitRunner, root string) error {
+	if out, err := r.GitInDir(root, "push", "origin", "main"); err != nil {
 		return fmt.Errorf("push failed: %v\n%s", err, out)
 	}
 	cok(stderr, "Issues synced and pushed to origin/main.")
@@ -275,11 +333,11 @@ func pushMain(stdout, stderr io.Writer, r gitRunner) error {
 // it is unreachable. An earlier version argued callers run changedIssueFiles
 // first — which does not cover a DELETED issue file, where changedIssueFiles is
 // non-empty (git reports the deletion) while the glob finds nothing.
-func syncPathspec(f *claimFlags) ([]string, error) {
+func syncPathspec(f *claimFlags, paths syncPaths) ([]string, error) {
 	if f.Issue <= 0 {
 		return []string{f.IssuesDir + "/"}, nil
 	}
-	matches := issueFilesForID(f.IssuesDir, f.Issue)
+	matches := issueFilesForID(paths.Root, f.IssuesDir, f.Issue)
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("--issue %d: no file matches %s/%06d-*.md", f.Issue, f.IssuesDir, f.Issue)
 	}
@@ -291,241 +349,17 @@ func syncPathspec(f *claimFlags) ([]string, error) {
 // than a branch inside it (#206) while letting each arm keep the exact wording
 // it shipped with — the on-branch default names the branch, which no caller is
 // in a position to supply.
+// defaultSyncSubject is the commit subject when a caller passes "" — "each
+// arm's own default" in the msg contract. ONE constant for both arms: the
+// in-place arm held it as a literal and the trunk arm had none, which is how
+// the trunk arm came to publish an EMPTY subject (#207 BR-1).
+const defaultSyncSubject = "issue-sync: update issues"
+
 func syncMessage(msg, fallback string) string {
 	if msg == "" {
 		return fallback
 	}
 	return msg
-}
-
-// ── publish-from-a-branch path ───────────────────────────────────────────────
-
-// syncViaMainWorktree publishes the changed issue files to origin/main from a
-// feature branch, by routing them through the worktree that has main checked
-// out. Named for the route it takes (it was syncOnBranch until #206): every step
-// — the worktree hunt, the cleanliness refusal, the network rebase, the copy —
-// exists to publish, which is why a no-push caller takes syncInPlace instead.
-//
-// Mirrors syncInPlace's error contract: it returns errors instead of calling
-// die() so `claim` (fatal) and `issue new` / `change-code` (best-effort) can
-// choose.
-func syncViaMainWorktree(stdout, stderr io.Writer, f *claimFlags, branch string, r gitRunner, msg string) error {
-	changed, err := changedIssueFiles(f, r)
-	if err != nil {
-		return err
-	}
-	// Same rule as syncInPlace (#206): nothing to COPY is not nothing to publish.
-	// The body may already be committed here — by a prior no-push sync, or by a
-	// run whose push failed after the commit landed — and this arm's whole job is
-	// routing the body to main, so it re-seeds the file list from the ISSUE
-	// rather than from working-tree dirtiness and continues through the normal
-	// copy → commit → push flow below.
-	//
-	// A first attempt at this pushed `origin main` from the main worktree without
-	// carrying anything across, which is worse than the bug it fixed: main has no
-	// new commits (the body is on the BRANCH), so it printed success while
-	// origin/main never moved. Publication is the gap between origin/main and
-	// this worktree's body, never the gap between the working tree and HEAD.
-	if len(changed) == 0 {
-		if !f.PublishExisting || f.Issue <= 0 {
-			// Nobody asked to publish already-committed work, or there is no
-			// --issue naming an identifiable body to route. Either way the
-			// pre-#206 no-op is the honest answer.
-			cok(stderr, "No issue changes to sync.")
-			return nil
-		}
-		changed = issueFilesForID(f.IssuesDir, f.Issue)
-		if len(changed) == 0 {
-			cok(stderr, "No issue changes to sync.")
-			return nil
-		}
-	}
-	cinfo(stderr, fmt.Sprintf("Issue files changed on branch '%s':", branch))
-	for _, c := range changed {
-		fmt.Fprintf(stderr, "  %s\n", c)
-	}
-
-	// 1. Find the main worktree.
-	mainPath, err := findMainWorktree(r)
-	if err != nil {
-		return err
-	}
-
-	// 2. Verify main worktree is on main.
-	mainBranchOut, err := r.GitInDir(mainPath, "branch", "--show-current")
-	if err != nil {
-		return fmt.Errorf("git -C %s branch --show-current: %v\n%s", mainPath, err, mainBranchOut)
-	}
-	mainBranch := strings.TrimSpace(string(mainBranchOut))
-	if mainBranch != "main" {
-		return fmt.Errorf("expected main worktree to be on 'main', but it's on '%s'", mainBranch)
-	}
-
-	// 3. Check main worktree has no uncommitted issue changes.
-	mainDirty, err := mainHasUncommittedIssueChanges(mainPath, f.IssuesDir, r)
-	if err != nil {
-		return err
-	}
-	if len(mainDirty) > 0 {
-		return fmt.Errorf("main worktree has uncommitted issue changes. Commit or stash them first:\n  %s",
-			strings.Join(mainDirty, "\n  "))
-	}
-
-	cok(stderr, fmt.Sprintf("Main worktree found at: %s", mainPath))
-
-	if f.DryRun {
-		cinfo(stderr, "dry-run — skipping pull/copy/commit/push")
-		return nil
-	}
-
-	// 4. Pull --rebase origin main on main worktree.
-	cinfo(stderr, "Pulling latest main from origin...")
-	if out, err := r.GitInDir(mainPath, "pull", "--rebase", "origin", "main"); err != nil {
-		return fmt.Errorf("failed to pull main from origin: %v\n%s", err, out)
-	}
-
-	// 4.5 Drop files whose main-worktree copy is ALREADY byte-identical to this
-	//     one. Runs after the pull, so it compares against main's current state.
-	//
-	//     This is not conflict detection; it is declining to invoke it. The
-	//     detector below asks "did both sides touch this file since merge-base",
-	//     which is the right question for a genuinely-dirty file and the wrong
-	//     one for a body that main already carries because an earlier run of THIS
-	//     verb put it there. Without the filter, the recommended workflow — local
-	//     sync, publish, publish again — dies on a false `Conflict detected!`,
-	//     and `claim` stops being idempotent.
-	//
-	//     Nothing left to route means nothing to copy or commit; the publish
-	//     below still runs, which is the whole reason a caller reached this arm.
-	wtRoot, _ := gitx.RepoTopLevel()
-	changed = filesDifferingFrom(mainPath, wtRoot, changed)
-	if len(changed) == 0 {
-		cinfo(stderr, "main worktree already carries this body — nothing to copy; publishing only.")
-		if out, err := r.GitInDir(mainPath, "push", "origin", "main"); err != nil {
-			return fmt.Errorf("push failed: %v\n%s", err, out)
-		}
-		cok(stderr, "Issues synced to main and pushed to origin.")
-		fmt.Fprintln(stdout, "synced")
-		return nil
-	}
-
-	// 5. Compute merge base and detect conflicts.
-	mergeBase := strings.TrimSpace(string(mustGitOutput(r, "merge-base", "main", "HEAD")))
-	if mergeBase == "" {
-		return fmt.Errorf("cannot find merge base between main and HEAD")
-	}
-	mainChangedOut, _ := r.Git("diff", "--name-only", mergeBase, "main", "--", f.IssuesDir+"/")
-	mainChanged := map[string]bool{}
-	for _, line := range strings.Split(strings.TrimSpace(string(mainChangedOut)), "\n") {
-		if line != "" {
-			mainChanged[line] = true
-		}
-	}
-	var conflicts []string
-	for _, c := range changed {
-		if mainChanged[c] {
-			conflicts = append(conflicts, c)
-		}
-	}
-	if len(conflicts) > 0 {
-		// Print the multi-line resolution guide here (it's specific to this
-		// state), then return a short sentinel — the caller decides fatal vs warn.
-		fmt.Fprintf(stderr, "%sConflict detected!%s\n", ansiRed, ansiReset)
-		fmt.Fprintln(stderr, "These issue files were changed on both your branch and main:")
-		for _, c := range conflicts {
-			fmt.Fprintf(stderr, "  %s\n", c)
-		}
-		fmt.Fprintf(stderr, "\nTo resolve:\n")
-		fmt.Fprintf(stderr, "  1. cd %s\n", mainPath)
-		fmt.Fprintf(stderr, "  2. For each file above, open it and manually merge your changes.\n")
-		wtRoot, _ := gitx.RepoTopLevel()
-		fmt.Fprintf(stderr, "     Your branch versions are at: %s\n", wtRoot)
-		fmt.Fprintf(stderr, "  3. git add %s/\n", f.IssuesDir)
-		fmt.Fprintf(stderr, "  4. git commit -m \"issue-sync: resolve conflicts\"\n")
-		fmt.Fprintf(stderr, "  5. git push origin main\n")
-		return fmt.Errorf("issue-sync conflict on %d file(s) — resolve as shown above", len(conflicts))
-	}
-
-	cok(stderr, "No conflicts detected.")
-
-	// 6. Copy changed files to main worktree.
-	cinfo(stderr, "Copying issue files to main worktree...")
-	for _, c := range changed {
-		src := filepath.Join(wtRoot, c)
-		dest := filepath.Join(mainPath, c)
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return fmt.Errorf("mkdir %s: %v", filepath.Dir(dest), err)
-		}
-		data, err := os.ReadFile(src)
-		if err != nil {
-			return fmt.Errorf("read %s: %v", src, err)
-		}
-		if err := os.WriteFile(dest, data, 0o644); err != nil {
-			return fmt.Errorf("write %s: %v", dest, err)
-		}
-		fmt.Fprintf(stderr, "  %s\n", c)
-	}
-
-	// 7. Commit + push on main worktree. The pathspec is the set of files we
-	//    just copied across, and it goes on the COMMIT as well as the add
-	//    (#206) — the main worktree's index can hold a peer agent's staged work
-	//    that a bare commit would sweep, and the mainHasUncommittedIssueChanges
-	//    precheck above only looks at issue files.
-	cinfo(stderr, "Committing and pushing on main...")
-	addArgs := append([]string{"add", "--"}, changed...)
-	if out, err := r.GitInDir(mainPath, addArgs...); err != nil {
-		return fmt.Errorf("git -C %s add: %v\n%s", mainPath, err, out)
-	}
-	// Commit only if the copy actually changed something. Re-seeding `changed`
-	// from the issue means the files may be byte-identical to main's copy (a
-	// re-run, or a sync whose commit landed and whose push failed) — and `git
-	// commit` with a pathspec that stages nothing is an error, not a no-op. The
-	// push below still runs: publishing an already-committed body is the whole
-	// point of reaching here.
-	stagedArgs := append([]string{"diff", "--cached", "--name-only", "--"}, changed...)
-	staged, err := r.GitInDir(mainPath, stagedArgs...)
-	if err != nil {
-		return fmt.Errorf("git -C %s diff --cached: %v\n%s", mainPath, err, staged)
-	}
-	if strings.TrimSpace(string(staged)) == "" {
-		cinfo(stderr, "the copy staged nothing — main was already current; publishing only.")
-	} else {
-		commitMsg := syncMessage(msg, fmt.Sprintf("issue-sync: update issues from branch '%s'", branch))
-		commitArgs := append([]string{"commit", "-m", commitMsg, "--"}, changed...)
-		if out, err := r.GitInDir(mainPath, commitArgs...); err != nil {
-			return fmt.Errorf("commit failed: %v\n%s", err, out)
-		}
-	}
-	if out, err := r.GitInDir(mainPath, "push", "origin", "main"); err != nil {
-		return fmt.Errorf("push failed: %v\n%s", err, out)
-	}
-	cok(stderr, "Issues synced to main and pushed to origin.")
-	fmt.Fprintln(stdout, "synced")
-	return nil
-}
-
-// filesDifferingFrom returns the subset of paths whose content in srcRoot
-// differs from destRoot's copy — the files a publish actually has to move. A
-// missing destination counts as different (it needs the file); an unreadable
-// source counts as different too, so the copy step reports the real IO error
-// rather than this filter swallowing it.
-//
-// Pure-ish by design: reads only, no git, so the caller keeps the IO ordering
-// decision (it must run after the pull) and this stays trivially testable.
-func filesDifferingFrom(destRoot, srcRoot string, paths []string) []string {
-	var out []string
-	for _, p := range paths {
-		src, err := os.ReadFile(filepath.Join(srcRoot, p))
-		if err != nil {
-			out = append(out, p)
-			continue
-		}
-		dst, err := os.ReadFile(filepath.Join(destRoot, p))
-		if err != nil || !bytes.Equal(src, dst) {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -542,21 +376,37 @@ func filesDifferingFrom(destRoot, srcRoot string, paths []string) []string {
 // The changed-file union includes
 // "diff HEAD" (which already covers cached) plus "diff --cached" separately
 // (redundant but preserved for parity); de-dup happens at the sort step.
-func changedIssueFiles(f *claimFlags, r gitRunner) ([]string, error) {
+func changedIssueFiles(f *claimFlags, r gitRunner, paths syncPaths) ([]string, error) {
+	// -z on every query. Without it git QUOTES any path outside ASCII
+	// (`"workshop/issues/000300-caf\303\251.md"`), and the quoted form does not
+	// exist on disk: the read failed as not-exist, the publisher classified it
+	// as a DELETION, and the arm reported success having published nothing
+	// (#207 BR-9).
+	// Pinned to the repo ROOT. execGitRunner.Git runs in the process cwd
+	// (runner.go), and a pathspec — like the ls-tree pathspec in #207 BR-12 —
+	// resolves against it: from any subdirectory these queries matched NOTHING,
+	// so `issue new`, `claim` and `issue sync` reported "no issue changes" and
+	// exited 0 having published nothing (#207 BR-16). ls-files also returns
+	// cwd-relative paths, which the publisher then joined onto the root.
+	// --no-renames on every diff. Rename detection answers "what CHANGED",
+	// which is the wrong question here — a `git mv` was reported as the new
+	// path alone, so the publish carried Write(new) with no Delete(old) and
+	// left the old name published forever, a real duplicate id on the trunk.
+	// We need the PATHS, not git's account of the edit (#207 BR-19).
 	queries := [][]string{
-		{"diff", "--name-only", "HEAD", "--", f.IssuesDir + "/"},
-		{"diff", "--cached", "--name-only", "--", f.IssuesDir + "/"},
-		{"ls-files", "--others", "--exclude-standard", "--", f.IssuesDir + "/"},
+		{"diff", "--name-only", "--no-renames", "-z", "HEAD", "--", f.IssuesDir + "/"},
+		{"diff", "--cached", "--name-only", "--no-renames", "-z", "--", f.IssuesDir + "/"},
+		{"ls-files", "-z", "--others", "--exclude-standard", "--", f.IssuesDir + "/"},
 	}
 	seen := map[string]struct{}{}
 	var out []string
 	for _, q := range queries {
-		raw, err := r.Git(q...)
+		raw, err := r.GitInDir(paths.Root, q...)
 		if err != nil {
 			// Mirror the shell `|| true` swallow: empty result, no error.
 			continue
 		}
-		for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		for _, line := range strings.Split(string(raw), "\x00") {
 			if line == "" {
 				continue
 			}
@@ -599,43 +449,4 @@ func findMainWorktree(r gitRunner) (string, error) {
 		return mainPath, nil
 	}
 	return "", fmt.Errorf("could not find a worktree on branch 'main'. Is main checked out somewhere?")
-}
-
-// mainHasUncommittedIssueChanges returns the list of issue files in the
-// main worktree that have uncommitted changes (working + staged).
-func mainHasUncommittedIssueChanges(mainPath, issuesDir string, r gitRunner) ([]string, error) {
-	dirty := map[string]struct{}{}
-	for _, q := range [][]string{
-		{"diff", "--name-only", "--", issuesDir + "/"},
-		{"diff", "--cached", "--name-only", "--", issuesDir + "/"},
-	} {
-		raw, err := r.GitInDir(mainPath, q...)
-		if err != nil {
-			// A failed diff is a NON-ANSWER, not a clean worktree (#213 BR-26).
-			// Swallowing it reported the main worktree clean without having
-			// looked, and the caller then committed over whatever was there —
-			// the same "blind read reported as an empty result" that every
-			// instance in this issue reduces to.
-			return nil, fmt.Errorf("read issue changes in %s: %v\n%s", mainPath, err, strings.TrimSpace(string(raw)))
-		}
-		for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
-			if line != "" {
-				dirty[line] = struct{}{}
-			}
-		}
-	}
-	var out []string
-	for k := range dirty {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-// mustGitOutput is a thin shim that returns r.Git's stdout but discards
-// errors (the shell uses `|| die` for these — we let the empty result
-// trigger our own die() upstream).
-func mustGitOutput(r gitRunner, args ...string) []byte {
-	out, _ := r.Git(args...)
-	return out
 }

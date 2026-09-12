@@ -58,6 +58,16 @@ func worktreePorcelainZ(records ...[]string) string {
 
 func (c *captureRunner) Git(args ...string) ([]byte, error) {
 	c.gitCalls = append(c.gitCalls, append([]string{}, args...))
+	return c.respond(args)
+}
+
+// respond is shared by Git and GitInDir. Keeping the canned answers in ONE
+// place is not tidiness: GitInDir used to return a bare nil, so when
+// listUntrackedIssues moved to the root-anchored call (#207 BR-20) the double
+// silently stopped answering and the filter tests asserted over an empty list.
+// A double that answers only some of its seam's methods is a double that can
+// stop observing without failing.
+func (c *captureRunner) respond(args []string) ([]byte, error) {
 	switch {
 	case len(args) >= 1 && args[0] == "ls-files":
 		return []byte(c.untrackedOutput), nil
@@ -76,7 +86,7 @@ func (c *captureRunner) Git(args ...string) ([]byte, error) {
 
 func (c *captureRunner) GitInDir(dir string, args ...string) ([]byte, error) {
 	c.gitInDirCalls = append(c.gitInDirCalls, gitInDirCall{Dir: dir, Args: append([]string{}, args...)})
-	return nil, nil
+	return c.respond(args)
 }
 
 func (c *captureRunner) MkdirAll(path string) error {
@@ -253,9 +263,15 @@ func TestListUntrackedIssues_FilterShape(t *testing.T) {
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%q", c.in), func(t *testing.T) {
 			r := &captureRunner{untrackedOutput: c.in}
-			got, err := listUntrackedIssues("issues", r)
+			got, err := listUntrackedIssues("/repo/root", "issues", r)
 			if err != nil {
 				t.Fatal(err)
+			}
+			// Root-anchored, not cwd-relative: half of resolveBranchName was
+			// anchored and this scan was not, so it read whatever directory the
+			// process happened to sit in (#207 BR-20).
+			if len(r.gitInDirCalls) != 1 || r.gitInDirCalls[0].Dir != "/repo/root" {
+				t.Fatalf("ls-files must run in the repo root, got %+v", r.gitInDirCalls)
 			}
 			if len(got) != len(c.want) {
 				t.Fatalf("got %v, want %v", got, c.want)

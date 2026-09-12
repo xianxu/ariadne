@@ -7,9 +7,9 @@
 // lives inside the caller's repo.
 //
 // Why this exists: publishing a small file to the trunk from a feature branch
-// currently routes through whatever checkout has main out (`syncViaMainWorktree`,
-// claim.go), which can be dirty, mid-rebase, owned by another actor, or simply
-// absent. Every guard on that route exists to make a SHARED WORKING DIRECTORY
+// used to route through whatever checkout had main out (`syncViaMainWorktree`,
+// deleted in ariadne#207), which could be dirty, mid-rebase, owned by another
+// actor, or simply absent. Every guard on that route exists to make a SHARED WORKING DIRECTORY
 // safe. Here there is no working directory: fetch, build the tree in a temp
 // index, commit-tree, and push the commit at the ref. `push <commit>:main` IS the
 // concurrency primitive — a compare-and-swap that a local cleanliness check
@@ -327,76 +327,25 @@ func tempIndexPath() (string, func(), error) {
 // worse than a refusal that names why.
 const maxUpdateAttempts = 3
 
-// Update applies `transform` to the file's trunk content and pushes the result,
-// retrying on a moved base.
+// Update applies `transform` to one path's trunk content and publishes it.
 //
-// The retry RE-READS and RE-CALLS the transform rather than re-pushing the bytes
-// it built the first time. That is the entire concurrency contract: a transform
-// that replays an intent ("append this line") preserves whatever a peer landed in
-// the meantime, while one that sets content keeps last-writer-wins. The loop does
-// not know or care which — mergeability is the caller's property, expressed in
-// the transform (ARCH-ORDER: the interleaving policy is written down at the seam
-// where a reader can see it, not spread across call sites).
-//
-// Nondeterminism enters at exactly one place — the order peers' pushes reach the
-// remote — and it is reproduced in tests by a real bare origin, not by timing.
+// A thin adapter over UpdateMany (#207 BR-8). The two carried duplicate retry
+// loops and near-identical commit builders — the drift risk ARCH-DRY names, and
+// a sharp one here, because the CAS semantics must be identical and two copies
+// cannot be relied on to stay that way. Everything this used to document about
+// re-running the transform on a moved base is UpdateMany's behaviour now.
 func (t *TrunkFile) Update(path, msg string, transform func([]byte) ([]byte, error)) error {
-	// Hoisted: the repo's signing config cannot change mid-loop, and re-shelling
-	// `git config` per attempt is repeated expensive work (ARCH-CONSTRAINTS).
-	sign, err := t.signs()
-	if err != nil {
-		return err
-	}
-
-	var lastRejection []byte
-	for attempt := 1; attempt <= maxUpdateAttempts; attempt++ {
-		// Attempt 1 fetches here; every later attempt reuses the fetch the
-		// previous iteration already did to decide retryability, so a contended
-		// update costs one fetch per attempt rather than two.
-		if attempt == 1 {
-			if out, err := t.fetch(); err != nil {
-				return offlineError(t.remote, err, out)
-			}
-		}
-		base, err := t.resolve(t.trackingRef())
+	return t.UpdateMany(msg, func(v *TrunkView) (TrunkWrite, error) {
+		old, err := v.Read(path)
 		if err != nil {
-			return err
-		}
-		old, err := t.readFrom(t.trackingRef(), path)
-		if err != nil {
-			return err
+			return TrunkWrite{}, err
 		}
 		next, err := transform(old)
 		if err != nil {
-			return err // caller's error, surfaced unwrapped so errors.Is works
+			return TrunkWrite{}, err
 		}
-		// A transform that changed nothing must not produce a commit. The tree
-		// would be identical, so the push writes an EMPTY commit whose subject is
-		// a permanent claim about an edit that never happened — and a commit
-		// subject is the most durable message this system emits.
-		if bytes.Equal(old, next) {
-			return nil
-		}
-		out, err := t.commitAndPush(path, msg, next, base, sign)
-		if err == nil {
-			return nil
-		}
-		// Retry only when the TRUNK ACTUALLY MOVED — observed by re-resolving the
-		// ref, not by matching git's rejection prose. A bare "rejected" match also
-		// catches refusals retrying cannot fix (a declined pre-receive hook, no
-		// push permission), which burned the whole budget and then reported a
-		// contention story that never happened.
-		if _, ferr := t.fetch(); ferr != nil {
-			return fmt.Errorf("publish %s: %v\n%s", path, err, out)
-		}
-		now, rerr := t.resolve(t.trackingRef())
-		if rerr != nil || now == base {
-			return fmt.Errorf("publish %s: %v\n%s", path, err, out)
-		}
-		lastRejection = out
-	}
-	return fmt.Errorf("publish %s: the trunk moved under %d attempts; last rejection:\n%s",
-		path, maxUpdateAttempts, lastRejection)
+		return TrunkWrite{Write: map[string][]byte{path: next}}, nil
+	})
 }
 
 // resolve returns the SHA a ref points at.
@@ -409,74 +358,6 @@ func (t *TrunkFile) resolve(ref string) (string, error) {
 		return "", fmt.Errorf("resolve %s: no such ref", ref)
 	}
 	return sha, nil
-}
-
-// commitAndPush builds the tree in a temp index and pushes the new commit at the
-// branch. Returns git's STDERR so the caller can classify the failure.
-func (t *TrunkFile) commitAndPush(path, msg string, content []byte, base string, sign bool) ([]byte, error) {
-	idx, cleanupIdx, err := tempIndexPath()
-	defer cleanupIdx()
-	if err != nil {
-		return nil, err
-	}
-	env := []string{"GIT_INDEX_FILE=" + idx}
-
-	if _, errOut, err := runGitIn(t.dir, env, "read-tree", base); err != nil {
-		return errOut, err
-	}
-
-	blobFile, cleanupBlob, err := writeTemp(content)
-	defer cleanupBlob()
-	if err != nil {
-		return nil, err
-	}
-	// --path (not bare hash-object) so .gitattributes filters and EOL
-	// normalization for THIS path apply. Without it the stored blob can differ
-	// from what a checkout of the resulting commit produces.
-	//
-	// BOUNDED CLAIM: git resolves those attributes from the WORKING TREE's
-	// .gitattributes, not from the ref being written. That is correct whenever the
-	// checkout and the trunk agree about the path — the overwhelmingly common
-	// case, and always true when the branch descends from the trunk. It is wrong
-	// only if the trunk's .gitattributes has diverged from this checkout's for
-	// this path, and git offers no "use attributes from ref X" for hash-object, so
-	// this is a stated limit rather than something the code enforces.
-	out, errOut, err := runGitIn(t.dir, env, "hash-object", "-w", "--path", path, blobFile)
-	if err != nil {
-		return errOut, err
-	}
-	blob := strings.TrimSpace(string(out))
-
-	// Preserve the path's existing mode. Rebuilding the entry as a hardcoded
-	// 100644 silently drops the executable bit from any file that had it — which
-	// a general primitive cannot do — ariadne#207 is specced to point this at
-	// arbitrary repo paths.
-	mode, err := t.modeOf(base, path)
-	if err != nil {
-		return nil, err
-	}
-	if _, errOut, err := runGitIn(t.dir, env, "update-index", "--add",
-		"--cacheinfo", mode+","+blob+","+path); err != nil {
-		return errOut, err
-	}
-	out, errOut, err = runGitIn(t.dir, env, "write-tree")
-	if err != nil {
-		return errOut, err
-	}
-	tree := strings.TrimSpace(string(out))
-
-	args := []string{"commit-tree", tree, "-p", base, "-m", msg}
-	if sign {
-		args = append([]string{"commit-tree", "-S"}, args[1:]...)
-	}
-	out, errOut, err = runGitIn(t.dir, nil, args...)
-	if err != nil {
-		return errOut, err
-	}
-	commit := strings.TrimSpace(string(out))
-
-	_, errOut, err = runGitIn(t.dir, nil, "push", t.remote, commit+":refs/heads/"+t.branch)
-	return errOut, err
 }
 
 // modeOf returns the path's mode in the base tree, defaulting to a regular file

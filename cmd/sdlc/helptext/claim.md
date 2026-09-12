@@ -29,15 +29,16 @@ TWO PATHS
     commit -m "issue-sync: update issues"
     push origin main
 
-  ON A FEATURE BRANCH (or worktree)
-    1. find the main worktree via `git worktree list --porcelain -z`
-    2. verify it's on `main`, has no uncommitted issue changes
-    3. pull --rebase origin main on the main worktree
-    4. detect conflicts (files changed on both branches since
-       merge-base) — if any, refuse and print resolution steps
-    5. copy each changed issue file from this worktree → main worktree
-    6. commit + push on the main worktree
-       (commit: "issue-sync: update issues from branch '<branch>'")
+  ANYWHERE ELSE (a feature branch, a worktree, a detached HEAD)
+    Publishes straight to the trunk — NO checkout is involved (#207).
+    1. fetch origin/main
+    2. build the tree in a temp index and commit-tree on it
+    3. push <commit>:refs/heads/main as a compare-and-swap;
+       on rejection re-read the trunk and rebuild, bounded at 3
+
+    This needs no worktree on main, which matters because `change-code`
+    branches IN PLACE by default: an actively-worked repo usually has
+    none, and the old route was unavailable exactly then.
 
 WHY THIS POSTURE
 
@@ -48,11 +49,23 @@ waiting for the feature branch to merge. Same shape as the
 
 CONFLICT BEHAVIOR
 
-If the same issue file was modified on both your branch and main since
-your last merge-base, `sdlc claim` refuses and prints a resolution
-recipe (manual merge in the main worktree, then commit+push there). It
-does NOT attempt to auto-merge — the file is operator-readable and
-auto-merging issue prose has burned us before.
+The push is a compare-and-swap, so a peer landing between the read and
+the push is detected by git rather than guessed at. The retry re-reads
+the trunk and rebuilds, which is why a concurrent edit to a DIFFERENT
+issue costs nothing.
+
+An id collision — a different slug already holding this issue's id — is
+not auto-merged. `claim` and `issue sync` REFUSE and name both paths,
+because the id is already published and therefore referenced by the
+branch name, commit subjects, `deps:` and review sidecars (#188).
+Only `issue new` re-allocates, where nothing references the id yet.
+
+Two agents editing the SAME issue file is last-writer-wins. The route this
+replaced refused when a file changed on both sides since the merge base; the
+object-database route has no working tree to diff and no honest equivalent
+(trunk commits never reach your branch, so a merge-base check would refuse
+ordinary republishes). A stale double-claim therefore overwrites silently —
+a known gap, not an oversight.
 
 FLAGS
 
@@ -60,12 +73,15 @@ FLAGS
                         (also auto-flips it open → working)
   --no-start            do not auto-flip an open --issue to working
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
+  --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
+                        (the id space is issues + history, so the collision
+                        guard reads both)
   --dry-run             print what would happen; do not commit/push
 
 EXIT CODES
 
   0   synced (or no changes, or dry-run)
-  1   missing main worktree, dirty main, conflicts, git error
+  1   offline, id collision on a published id, git error
 
 EXAMPLES
 

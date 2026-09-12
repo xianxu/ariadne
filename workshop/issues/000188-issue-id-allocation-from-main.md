@@ -1,11 +1,12 @@
 ---
 id: 000188
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-09-11
 estimate_hours:
+actual_hours: 1.46
 ---
 
 # allocate issue IDs from origin/main with retry-on-reject
@@ -154,7 +155,11 @@ expensive to *repair* later.
 
 ## Plan
 
-- [ ]
+No plan of its own. The endgame this issue specified was designed and built as
+**#206** (continuous issue-body sync) and **#207** (publish to the trunk with no
+worktree, allocate + collide + re-allocate inside one CAS window). This issue is
+the requirement; those two are the implementation, and it closes against their
+tests rather than carrying a duplicate plan.
 
 ## Log
 
@@ -198,3 +203,82 @@ expensive to *repair* later.
   (`change-code`, `milestone-close`), or make the branch's copy authoritative and
   publish at merge — but pick one, because "publish at claim and never again" is
   the worst of both.
+
+### 2026-09-09 — superseded; every bullet has shipped
+
+Closing as superseded rather than done: this issue's Spec was carved up across
+four later issues, none of which referenced it, and the last bullet shipped in
+ariadne#207 today.
+
+| This issue's Spec bullet | Where it shipped |
+|---|---|
+| Allocate from the remote (`fetch` + `ls-tree origin/main`) | **#213** — `refIDSpace`, and a UNION with the local scan rather than a replacement, because unpushed local issues are real |
+| Offline fallback, loud warning | **#213** (`issueids.go:41,77`) |
+| Post-publish exactly-once assertion | **#213**, in a better form: the merge gate plus CI `40-duplicate-issue-id.sh`, which survives a GitHub-UI merge and propagates to derivative repos |
+| On a duplicate, refuse loudly and do not auto-renumber | **#213** |
+| No timestamp tiebreak — the incumbent on `origin/main` wins | Honoured throughout; the CAS push settles it with no clocks |
+| Reach main without a checkout of it (the "endgame") | **#207** — `gitx.TrunkFile` + `syncViaTrunk`; `syncViaMainWorktree`, `mainHasUncommittedIssueChanges` and the merge-base conflict detection are deleted |
+| One-shot vs continuous sync (`## Log`, 2026-07-29) | **#206** — `sdlc issue sync` |
+| **Allocate + commit + push as ONE retryable unit, re-allocating on rejection** | **#207** — the last bullet, and the reason this issue could not close earlier |
+
+**That last bullet is the one that mattered, and #207 nearly shipped without
+it.** Its own Spec said retry was trivial — "re-fetch, rebuild, re-push" — which
+is precisely the failure this issue documents: two files with different slugs at
+one id produce no textual conflict, so a content-preserving retry lands the
+duplicate as a clean fast-forward. Replacing `pull --rebase` with a CAS push
+moves the hole into a new mechanism rather than closing it. #207's plan-quality
+review caught it, and the fix is that `UpdateMany` re-derives paths per attempt
+so the collision decision sits inside the retry loop.
+
+**The follow-up this issue named is still unfiled.** `sdlc issue renumber <id>`,
+which would move an issue AND rewrite the branch name, commit-message
+references, `deps:`/project refs and sidecar filenames. #207 re-allocates only at
+first publication, where nothing references the id yet — deliberately, since
+that is the cheap case. Repair after the fact remains manual, and #213's CI check
+still reports two pre-existing collisions (`#000040`, `#000096`) that nobody can
+fix without it.
+
+**Field evidence, for whoever files that follow-up:** three collisions actually
+occurred in `pair` (`#172`, `#173`, `#179`), and the `#179` shape is the worst —
+one side was already archived, so `sdlc claim` refused outright and the duplicate
+was invisible to anyone reading `workshop/issues/`. This repo then reproduced it
+on `#207` itself, three days before the fix landed.
+
+### 2026-09-11 — closed against #206 + #207
+- 2026-09-11: closed — every Done-when row maps to a named passing test (table in ## Log); delivered by #206+#207; review verdict: not-run
+
+Every `## Done when` row, mapped to the test that holds it. Names, not
+adjectives: each one fails if the behaviour goes away.
+
+| Done when | Held by |
+|---|---|
+| next id derived from `origin/main`, remote wins over the working tree | `TestAllocateIssueID_ScansHistoryOnTheTrunk` — the trunk carries `000050`, the local history dir is deleted, allocation returns `000051` |
+| peer lands a different slug at our id between fetch and push → **our** file re-allocates | `TestSyncViaTrunk_ReallocatesOnMidRetryCollision` — seeds the collision DURING the retry window, which is the only placement that can catch the rebase-papers-over-it hole |
+| allocation correct from a checkout with no main worktree | `TestSyncIssuesToMain_LeavesADirtyMidRebaseMainWorktreeUntouched`, `TestRunIssueNew_AutoSyncsToMainCleanTree` |
+| an injected duplicate makes the command refuse and name both paths | `TestSyncViaTrunk_RefusesWhenTrunkHasForeignSlugAtOurID` (wiring), `TestSyncViaTrunk_RepublishRefusesOnForeignSlug` (the message), `TestRefuseDuplicateIssueIDs_StaleTrunkIsAnnounced` (merge gate) |
+| offline creation still works and warns | `TestRunIssueNew_AutoSyncBestEffort`; `gitx` degrades the READ and refuses the WRITE (a CAS push has nothing to compare against) |
+| sync from an in-place feature branch with no pre-existing main worktree, leaving none behind | the trunk arm creates no worktree at all — `commit-tree` + `push <sha>:refs/heads/main` |
+| **endgame**: sync succeeds while the main checkout carries unrelated uncommitted issue edits | `TestSyncIssuesToMain_LeavesADirtyMidRebaseMainWorktreeUntouched` — main is dirty AND mid-rebase, the publish lands, and the worktree's `status --porcelain` is byte-identical afterwards. `mainHasUncommittedIssueChanges` is deleted, not bypassed |
+
+**The one place the implementation departs from this Spec, deliberately.** The
+Spec asks for two things that turn out to conflict: "offline ids are provisional,
+corrected on the next successful publish" and "on a duplicate found: refuse
+loudly, do not auto-renumber." #207 resolved it toward refusal, and made the
+hinge explicit: `firstPublication` is **declared by the caller**, and only `issue
+new` declares it. Before anything references an id, stepping aside is free;
+afterwards the id is in the branch name, commit subjects, `deps:` and sidecar
+filenames — the four sites this issue's own Problem section enumerates. So an
+offline-created id that turns out to collide is refused with both paths named,
+not silently renumbered. Auto-correction would have to renumber behind an agent
+that had already branched, which is the repair this issue argued is more
+expensive than the collision.
+
+The `sdlc issue renumber <id>` follow-up named in the 2026-07-28 log is still
+unfiled — it remains the honest home for repair.
+
+**On the 1.46h.** Measured, not typed — but from the mention fallback, with no
+issue commit boundary to anchor it, which is why the calibration ledger marks the
+row untrusted. It is the design and discussion time this issue accrued in its own
+right; the implementation hours belong to #206 and #207 (13.09h on #207 alone)
+and are recorded there. `estimate_hours` was never derived, so there is no ratio
+to read.

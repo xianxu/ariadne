@@ -49,13 +49,20 @@ func resolveBranchName(f *nameFlags, r gitRunner) (name, untrackedFile string, e
 		return f.Name, "", nil
 	}
 
-	untracked, err := listUntrackedIssues(f.IssuesDir, r)
+	// Resolved once for BOTH reads below. Anchoring only the --issue glob left
+	// this ls-files running in the process cwd — half-anchored is its own bug
+	// (#207 BR-20).
+	root, rootErr := gitx.RepoTopLevel()
+	if rootErr != nil {
+		return "", "", rootErr
+	}
+	untracked, err := listUntrackedIssues(root, f.IssuesDir, r)
 	if err != nil {
 		return "", "", err
 	}
 
 	if f.Issue > 0 {
-		matches := issueFilesForID(f.IssuesDir, f.Issue)
+		matches := issueFilesForID(root, f.IssuesDir, f.Issue)
 		if len(matches) == 0 {
 			return "", "", fmt.Errorf("no issue file matches %s/%06d-*.md", f.IssuesDir, f.Issue)
 		}
@@ -90,8 +97,8 @@ func resolveBranchName(f *nameFlags, r gitRunner) (name, untrackedFile string, e
 // as untracked by `git ls-files --others --exclude-standard`. Filters
 // to the issuesDir prefix + 6-digit prefix shape. Empty slice + nil
 // error if none.
-func listUntrackedIssues(issuesDir string, r gitRunner) ([]string, error) {
-	out, err := r.Git("ls-files", "--others", "--exclude-standard", "--", issuesDir+"/")
+func listUntrackedIssues(root, issuesDir string, r gitRunner) ([]string, error) {
+	out, err := r.GitInDir(root, "ls-files", "--others", "--exclude-standard", "--", issuesDir+"/")
 	if err != nil {
 		return nil, fmt.Errorf("git ls-files: %v\n%s", err, out)
 	}

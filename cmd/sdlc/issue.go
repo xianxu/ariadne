@@ -9,6 +9,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -268,10 +269,9 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 	// the natural repair manufactures exactly the collision this issue exists to
 	// prevent. Reading and writing must agree on where ids live.
 	// Only the WRITE takes the absolute form. f.IssuesDir stays as given, because
-	// it also feeds the sync (#213 BR-26), whose git pathspecs and worktree
-	// copies are interpreted against the repo root — an absolute path there made
-	// `issue new` from a subdirectory stop publishing to origin/main, breaking
-	// #82's guarantee on the very path BR-25 had just made supported.
+	// it also feeds the sync (#213 BR-26). Since #207 BR-16 the sync pins its own
+	// git calls to the repo root, so neither form is silently blind from a
+	// subdirectory — which is what broke #82's guarantee here before.
 	// allocateIssueID resolves for itself, so it needs no help here.
 	writeDir, shownDir := f.IssuesDir, f.IssuesDir
 	if dirs, derr := resolveIDDirs(f.IssuesDir, f.HistoryDir); derr == nil {
@@ -331,12 +331,22 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 	// (rides #80's filtered add — unrelated untracked files stay put). nextID is
 	// a zero-padded string ("000083"); claimFlags.Issue is an int.
 	if id, perr := strconv.Atoi(nextID); perr == nil {
-		syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, NoStart: true}
+		syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, HistoryDir: f.HistoryDir, NoStart: true, FirstPublication: true}
 		// Route the sync's stdout to stderr: its machine "synced" marker must not
 		// pollute `issue new`'s stdout contract (the created path, printed below).
 		// "" keeps issue new's historical subject ("issue-sync: update issues");
 		// naming the issue is `sdlc issue sync`'s job, not creation's.
-		if serr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, ""); serr != nil {
+		serr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, "")
+		if serr == nil && len(syncFlags.Reallocations) > 0 {
+			// The publisher re-allocated, so the file named above is gone: stdout
+			// is the CREATED PATH contract, and printing a path finish() deleted
+			// hands callers a name that does not exist (#207 BR-1).
+			rc := syncFlags.Reallocations[0]
+			shown = filepath.Join(filepath.Dir(shown), filepath.Base(rc.NewPath))
+			cok(stderr, fmt.Sprintf("id %06d was taken on the trunk — filed as %06d instead: %s",
+				rc.OldID, rc.NewID, shown))
+		}
+		if serr != nil {
 			// Best-effort: the file is already written + reported above, so a sync
 			// failure (offline, no reachable origin, conflict) must not abort the
 			// create — just surface it. `claim` treats the same error as fatal.
@@ -344,13 +354,18 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 			// But fall back to a LOCAL commit first (#206). Publication and
 			// durability are separable, and only publication failed here; leaving
 			// the new issue as an untracked working-tree file is the hole this
-			// issue exists to close. The common trigger is mundane: `issue new`
-			// from an in-place feature branch, where the publish route finds no
-			// worktree on `main` and there is nothing wrong at all. A no-op when
-			// the first attempt already committed and only the push failed.
+			// issue exists to close. Since #207 the common trigger is a genuinely
+			// unreachable origin rather than a missing worktree on main — the
+			// trunk route needs no checkout. A no-op when the first attempt
+			// already committed and only the push failed.
 			syncFlags.NoPush = true
 			if lerr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, issueSyncMessage(id, "new issue")); lerr != nil {
 				cwarn(stderr, fmt.Sprintf("issue created but NOT committed: %v (sync to main also failed: %v)", lerr, serr))
+			} else if errors.Is(serr, errIDTaken) {
+				cwarn(stderr, fmt.Sprintf("issue committed locally but NOT broadcast: %v\n"+
+					"      `sdlc issue sync --push` will refuse for the same reason — an id already on the\n"+
+					"      trunk is never renumbered (ariadne#188). Delete this file and re-run `sdlc issue\n"+
+					"      new`, or rename it AND its `id:` frontmatter to a free id.", serr))
 			} else {
 				cwarn(stderr, fmt.Sprintf("issue committed locally but not broadcast to main: %v\n"+
 					"      peers won't see the reservation yet — publish with `sdlc issue sync --issue %d --push`", serr, id))
