@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-13
 updated: 2026-09-13
-estimate_hours:
+estimate_hours: 1.03
 started: 2026-09-13T12:29:20-07:00
 ---
 
@@ -72,3 +72,24 @@ dependency. No implementation or estimate yet; plan approval comes first.
 Reason: the generic merge-check workflow is also upstream-seeded. Delta: add
 runner discovery and a repo-owned setup hook to the portable-maintainer boundary
 so the consumer does not fork a workflow that weave would overwrite.
+
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. Calibration flagged stale by estimate-source,
+so provisional. Existing OSFS and Make infrastructure eliminate library discovery.
+Thorough plan discounts design by 0.2; implementation uses v3.1's 0.4 scaling.
+Smaller Go extension (0.2/0.5), two cross-cutting surfaces (each 0.3/0.5),
+docs (0.1/0.1), and one review (0.1/0.4), before those multipliers.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.04 impl=0.20
+item: cross-cutting-refactor design=0.06 impl=0.20
+item: cross-cutting-refactor design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.04
+item: milestone-review design=0.02 impl=0.16
+design-buffer: 0.15
+total: 1.03
+```
