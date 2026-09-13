@@ -84,3 +84,10 @@ setup documentation. Delta: workflow/helper wildcard discovery is explicitly
 INTEGRATION (not pure); inspected every concept row for the same mistake.
 README now covers seeded ownership, product overrides, bootstrap, and CI hook
 ordering/failure behavior alongside both atlas pages. No runtime changes.
+
+### 2026-09-13 — documentation-only verification boundary
+
+Reason: round 2 requests runtime regressions for prose-only corrections while
+confirming their correctness. Delta: use pinned-diff review for those corrections
+and retain behavioral tests for executable contracts; no wording-presence tests
+are added. The issue Log records the session instruction and evidence.

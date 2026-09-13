@@ -121,3 +121,19 @@ Review returned REWORK: BR-1 incorrectly classified filesystem wildcard discover
 as pure; BR-2 lacked README guidance for the new consumer setup surface. Corrected
 the classification across the plan and added README ownership/bootstrap/hook
 instructions. No runtime defect identified; code evidence remains unchanged.
+
+### 2026-09-13 — documentation-only disposition evidence
+
+Boundary round 2 explicitly confirms both original defects are corrected and
+finds no runtime correctness defect. Its remaining objection is that deleting
+README or restoring the plan's old label would leave runtime tests green.
+That is expected: these two changes document already-tested behavior and do not
+change executable semantics. A string-presence assertion would test the wording
+against itself, not bootstrap safety. Session developer instructions explicitly
+forbid tests for reversible low-impact changes or tests mirroring implementation.
+Accordingly no vacuous prose test is added. BR-1 is addressed by the corrected
+integration classification and revision; BR-2 by README's public usage section.
+The fresh reviewer independently verified both corrections at pinned 5cb5857c.
+Existing meaningful filesystem, Make and CI tests remain the behavior evidence.
+Removed the touched README line's inherited trailing whitespace; verified with
+`git diff --check HEAD` and `git diff --check fa8746e` after this edit.

@@ -77,3 +77,79 @@ findings:
     detail: |
       The workflow introduces executable scripts/ci-setup.sh at line 56, but README.md is unchanged in the review range. Document seed ownership, Makefile.local, bootstrap, and the hook's execution order and failure behavior.
 ```
+
+---
+
+## Re-review — 2026-09-13T12:45:10-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 225 — Publish a portable root Makefile as a safe seed |
+| repo | ariadne |
+| issue file | workshop/issues/000225-portable-root-makefile-seed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fa8746eb8127d18e1329cc8465c4504c5adc209c..5cb5857c37c7738addca5e5a38de5068eb231be7 |
+| command | sdlc close --issue 225 |
+| reviewer | codex |
+| timestamp | 2026-09-13T12:45:10-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: medium
+```
+
+The implementation matches the intended portable seed design, and both prior documentation defects are corrected in the pinned HEAD. However, neither correction has the regression test required by this review’s explicit disposition rule, so both remain `not-addressed`. No new runtime correctness defect was identified. Integration suites were inspected but not executed because they require filesystem writes unavailable in this review environment.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      The plan now correctly classifies workflow discovery as integration and includes a revision. No regression test pins that classification; reverting the documentation correction leaves the existing runtime tests unchanged. The required failing-without-fix evidence is missing.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      README now documents seed ownership, Makefile.local, bootstrap, and CI hook ordering and failure behavior. Neither portable test reads README, so removing this documentation leaves those tests unchanged. The required failing-without-fix evidence is missing.
+```
+
+1. **Strengths**
+
+   - [apply.go:209](/Users/xianxu/workspace/ariadne/cmd/weave/internal/plan/apply.go:209) reads seed bytes before unlinking and shares a fail-closed destination inspection helper with composed writes.
+   - [apply_test.go:578](/Users/xianxu/workspace/ariadne/cmd/weave/internal/plan/apply_test.go:578) covers matching, differing, dangling, and missing-source states, plus operation failures and retry convergence.
+   - Bootstrap uses sequential recursive Make phases; the fixture checks ordering under `-j4` and prevents post-weave work after weave failure.
+   - CI tests execute the workflow’s actual shell blocks and exercise consumer-runner precedence, fallback, and hook failures.
+
+2. **Critical findings**
+
+   BR-1 remains open solely under the mandated regression-evidence rule. Its original classification contradiction is corrected. Add a durable contract check that rejects the former PURE classification, and demonstrate that reverting the correction fails it.
+
+3. **Important findings**
+
+   BR-2 remains open solely under the same rule. Add a documentation contract check covering the required consumer instructions, with removal of the README addition producing failure. These are dispositions of existing findings, not new family instances.
+
+4. **Minor findings**
+
+   None raised.
+
+5. **Test coverage notes**
+
+   Pinned stat and name-status inspections succeeded; checkout HEAD matches the requested SHA. Shell syntax checks and `make -s help` passed. `git diff --check` reported trailing whitespace at README.md:7. Runtime integration and revert tests were not run in the read-only sandbox; implementor-reported passes were not treated as fresh verification.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared symlink guard and upstream-owned templates.
+   - **ARCH-PURE — pass in code:** filesystem behavior stays behind integration seams; BR-1’s remaining gap is regression evidence.
+   - **ARCH-PURPOSE — pass:** covers standalone targets, migration, bootstrap, and retained consumer CI setup.
+   - **ARCH-MOCK — pass by inspection:** stateful scratch fixtures and real weave conformance are present.
+   - **ARCH-CONSTRAINTS — pass:** bounded batch setup within the declared environment.
+   - **ARCH-SECURE — pass:** source-first reads and destination-link removal protect ancestor files under the stated single-writer contract.
+   - **ARCH-ORDER — pass:** explicit bootstrap phases and materialization retry tests.
+   - **ARCH-FUNERAL — pass:** fixed output slots and fixture cleanup introduce no growing artifact family.
+
+7. **Plan revision recommendations**
+
+   Append a `## Revisions` entry identifying the BR-1/BR-2 regression checks and their mutation evidence once implemented. No runtime redesign is needed.
