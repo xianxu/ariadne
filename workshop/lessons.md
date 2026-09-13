@@ -1483,3 +1483,13 @@ both-sides). A table with only one side's column is how a mirror-axis defect
 hides. **Watch for the test that asserts the bug:** one row here read "trunk
 archived it while the branch edited it in place" with the *refusal* as the
 expected value — the defect written down as the specification.
+
+## Bootstrap must restore its own missing helpers (#225)
+
+An optional workflow include makes product targets reachable but cannot build
+weave if the owner locator is itself an absent helper link. Resolve pre-weave
+helpers from the loaded upstream workflow and test the actual first bootstrap
+with no local links. Mark prerequisite-only command targets phony: real Make
+otherwise applies its implicit `.sh` rule and creates a stray executable even
+though every explicit prerequisite passed. Keep the real entrypoint in fixtures
+so that behavior remains covered.

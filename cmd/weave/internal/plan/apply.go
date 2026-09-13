@@ -199,6 +199,9 @@ func applyTouch(fs weavefs.FS, path string) error {
 // mode is read from disk in this IO seam, never carried in the pure Action
 // (ARCH-PURE). Non-exec source → the WriteFile 0o644 default stands.
 //
+// A destination symlink is removed before comparing bytes or syncing mode,
+// including matching and dangling links. Source read failure leaves it intact.
+//
 // We sync the executable bits even on a content-identical dst (a file seeded by
 // an older mode-blind weave is +x-less; a re-weave should converge its mode too,
 // like create_seed's `cp -p` would). The cmp -s content no-op still skips the
@@ -207,6 +210,9 @@ func applySeed(fs weavefs.FS, src, dst string) error {
 	data, err := fs.ReadFile(src)
 	if err != nil {
 		return nil // source missing/unreadable → warn-equivalent non-fatal skip
+	}
+	if err := removeDestinationSymlink(fs, dst); err != nil {
+		return err
 	}
 	// Content already current → idempotent no-op on the bytes (cmp -s), but still
 	// fall through to the mode sync below so a stale-mode dst converges.
@@ -249,10 +255,8 @@ func applyWriteFile(fs weavefs.FS, path, content string) error {
 	if err := ensureParent(fs, path); err != nil {
 		return err
 	}
-	if fi, lerr := fs.Lstat(path); lerr == nil && fi.Mode()&os.ModeSymlink != 0 {
-		if err := fs.Remove(path); err != nil {
-			return fmt.Errorf("apply writefile: remove stale symlink %s: %w", path, err)
-		}
+	if err := removeDestinationSymlink(fs, path); err != nil {
+		return err
 	}
 	if err := fs.WriteFile(path, []byte(content)); err != nil {
 		return fmt.Errorf("apply writefile: %s: %w", path, err)
@@ -264,6 +268,25 @@ func applyWriteFile(fs weavefs.FS, path, content string) error {
 func ensureParent(fs weavefs.FS, path string) error {
 	if err := fs.MkdirAll(filepath.Dir(path)); err != nil {
 		return fmt.Errorf("ensure parent of %s: %w", path, err)
+	}
+	return nil
+}
+
+// removeDestinationSymlink makes fixed output slots safe for regular-file
+// materialization. Unknown destination state fails closed; absence is safe.
+// Callers read seed source bytes before invoking this destructive step.
+func removeDestinationSymlink(fs weavefs.FS, path string) error {
+	fi, err := fs.Lstat(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("materialize: inspect %s: %w", path, err)
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		if err := fs.Remove(path); err != nil {
+			return fmt.Errorf("materialize: remove stale symlink %s: %w", path, err)
+		}
 	}
 	return nil
 }

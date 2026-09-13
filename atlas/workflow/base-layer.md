@@ -35,7 +35,7 @@ Defined in `construct/base.manifest` (in ariadne):
   last
 - **Skills**: per-harness skill dirs — `.claude/skills/xx-*` (claude) + `.agents/skills/xx-*` (codex/gemini), each carrying the local (`xx-*`) + adapted (`superpowers-*`) skills — weave lowers these per layer (#107 Option B; see [harness-integration.md](harness-integration.md)); derivatives pick up ariadne's local + adapted skills through the weave LAYER WALK, each `<skill-dir>/<name>` pointing straight at ariadne's source dir (NO whole-dir `construct/adapted` symlink — #104 M3 dropped those; see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
 - **Makefile system**:
-  - `Makefile` — generic root template (REPO_NAME, workflow + local include, help chain). Identical across consumers; per-repo concerns belong in `Makefile.local`.
+  - `Makefile` — upstream-owned real-file seed (REPO_NAME, optional workflow + local include, available help targets). Product targets work in a standalone checkout. The workflow resolves locally or from sibling ariadne after bootstrap; per-repo concerns belong in `Makefile.local`. Seeds replace prior destination links before writing or chmod, preserving ancestor bytes and permissions.
   - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`.
   - `scripts/` — issue-sync, pre-merge-checks, close-issue.py, lib.sh
 - **Construct system**: `construct/scripts/` — skill tooling; `construct/datatype/` — datatype prototypes, **per-layer-owned (NOT symlinked)**: each layer owns its own dir and the `datatype` binary reads the DAG-merged union across the layer graph (#115 retired the `symlink construct/datatype` manifest row). (`construct/local/` + `construct/adapted/` are ariadne's OWN skill dirs, read by derivatives through the weave layer walk — NOT installed by symlink since #104 M3.)
@@ -190,3 +190,19 @@ make sandbox        # build (if needed) + connect
 make sandbox-clean  # re-sync config, reconnect with fresh shell
 make sandbox-nuke   # destroy everything including bootstrap cache
 ```
+
+## Standalone product checkouts (#225)
+
+`./bootstrap.sh` clones the peer chain before handing off to `make bootstrap`.
+The workflow resolves the pre-weave owner locator and peer-bootstrap helper
+from its own source when consumer helper links are absent. Its private
+`wf-bootstrap` prerequisite orders peer setup, weave, tools, then installation
+and data dependencies, including under parallel Make. The public bootstrap
+remains prerequisite-only so local extensions compose. A failed phase stops
+later phases. `bootstrap` is phony, preventing Make's implicit `.sh` rule from
+creating an unintended executable beside bootstrap.sh.
+
+`construct/scripts/test/portable-makefile.test.sh` exercises real Make with a
+stateful scratch tool backend and real weave convergence for the changed
+manifest surface. No live consumer refresh is required for this test. The Go
+apply tests separately prove source/ancestor preservation and failure retry.

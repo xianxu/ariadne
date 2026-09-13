@@ -53,9 +53,9 @@ Fresh clones also lack ignored Makefile.workflow, so bootstrap's handoff to
 
 ## Plan
 
-- [ ] Design safe seed materialization and portable generic Makefile behavior.
-- [ ] Add regressions, implement the seed migration and bootstrap path.
-- [ ] Validate representative consumers and close with measured evidence.
+- [x] Design safe seed materialization and portable generic Makefile behavior.
+- [x] Add regressions, implement the seed migration and bootstrap path.
+- [x] Validate representative consumers; submit measured evidence to close review.
 
 ## Log
 
@@ -64,6 +64,27 @@ Fresh clones also lack ignored Makefile.workflow, so bootstrap's handoff to
 Discovered during fresh-eyes review of parley.nvim#208's deployment plan.
 This is a prerequisite for its maintainer-link cleanup, not a runtime package
 dependency. No implementation or estimate yet; plan approval comes first.
+
+### 2026-09-13 — implementation and verification
+
+User approved the prerequisite as part of parley.nvim#208. Plan-quality accepted
+round 2; estimate-quality informative pass, change-code created this branch.
+Seed and Make/CI regressions were observed failing before implementation.
+Safe materialization now shares the fail-closed destination-link guard.
+
+`go test ./cmd/weave/... -count=1` passed. Portable Make fixture runs the real
+Make recipes with persisted tool state and actual weave twice; portable CI
+fixture executes actual workflow run blocks with the real generic check runner.
+Both passed. ensure-go (3), bootstrap-transitive (12), peer-update (6) passed.
+`git diff --check` clean. No live peer weave or propagation performed.
+
+A separate actual bootstrap probe used an archived upstream plus current edits
+in `/tmp/ariadne225-live.w94sow`: real `./bootstrap.sh` built tools, materialized
+99 consumer actions, installed PATH only in isolated HOME, passed product target,
+and repeated real weave with a regular root matching upstream. Initial probe
+surfaced the implicit `.sh` bootstrap recipe; added failing regression and phony
+classification, then reran successfully without the stray file. ARCH-ORDER and
+ARCH-PURPOSE shaped the ordered bootstrap and missing-helper conformance.
 
 ## Revisions
 

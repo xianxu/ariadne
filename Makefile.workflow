@@ -5,15 +5,28 @@
 # their own entries to MAKEFILE_LIST. Consumers symlink this file from ariadne;
 # the Go source lives here while commands must still run in the consumer cwd.
 WF_WORKFLOW_SOURCE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+# Before first weave, helper links may be absent. Resolve the bootstrap-critical
+# tools from this loaded overlay's owner while retaining the consumer cwd.
+wf-helper = $(firstword $(wildcard $(1) $(WF_WORKFLOW_SOURCE_DIR)$(1)))
+WF_HELP_TARGETS := help-workflow
 
 # Include openshell targets if available
--include .openshell/Makefile
+ifneq ($(wildcard .openshell/Makefile),)
+include .openshell/Makefile
+WF_HELP_TARGETS += help-sandbox
+endif
 
 # Include tart targets if available (macOS VM testing — Apple Silicon)
--include .tart/Makefile
+ifneq ($(wildcard .tart/Makefile),)
+include .tart/Makefile
+WF_HELP_TARGETS += help-tart
+endif
 
 # Include colima targets if available (clean Linux VM testing — Apple Silicon)
--include .colima/Makefile
+ifneq ($(wildcard .colima/Makefile),)
+include .colima/Makefile
+WF_HELP_TARGETS += help-colima
+endif
 # Override WF_ISSUES_DIR / WF_HISTORY_DIR before the include if your
 # issues and history live somewhere other than issues/ and history/.
 
@@ -161,10 +174,10 @@ close-issue:
 #
 # First-time bootstrap of a fresh-clone derivative whose upstreams aren't
 # yet checked out beside it: run `./bootstrap.sh` (a real committed file, not
-# a symlink — see #42). It reads the real construct/go.mod, clones the upstream
-# peer(s) as siblings, then hands off to `make bootstrap`. Without it you hit
-# the chicken-and-egg where every make target is unreachable (Makefile itself
-# is a dangling symlink into the not-yet-cloned upstream).
+# a symlink — see #42). It reads construct/deps and root go.mod, clones the
+# upstream peer chain, then hands off to `make bootstrap`. The seeded root
+# Makefile keeps product targets usable without peers; maintainer workflow
+# targets become available through its sibling-overlay fallback after cloning.
 #
 # Equivalent manual path if `./bootstrap.sh` is absent: clone the upstream as
 # a sibling yourself (or run `../<upstream>/construct/setup.sh`), then
@@ -173,7 +186,7 @@ close-issue:
 
 # weave now builds + invokes the weave binary (cmd/weave), the intent-compiler
 # that replaced construct/setup.sh (#95). weave-build resolves weave's owner by
-# LOCATION (construct/dev-aliases.sh --list) and builds the binary in-owner at
+# LOCATION (construct/dev-aliases.sh --list (with owner fallback)) and builds the binary in-owner at
 # $$owner/bin/weave — the same build-in-owner pattern sdlc-build uses, so a
 # derivative needs no go.mod replace. This target then resolves the SAME owner
 # and runs the OWNER's binary ($$owner/bin/weave) — NOT a local bin/weave, which
@@ -197,9 +210,9 @@ close-issue:
 # exposes ariadne's bin/datatype, then weave (cwd=derivative) execs ariadne's marker
 # which writes the DERIVATIVE's construct/generated (leaf-rooted output).
 weave: weave-build datatype-build vocabulary-build ensure-cue
-	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
-	dtowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
-	vcowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
+	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
+	dtowner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	vcowner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
 	if [ -n "$$owner" ] && [ -x "$$owner/bin/weave" ]; then \
 		PATH="$$dtowner/bin:$$vcowner/bin:$$PATH" "$$owner/bin/weave" compile; \
 	else \
@@ -222,7 +235,7 @@ weave: weave-build datatype-build vocabulary-build ensure-cue
 # after `make weave`; depends on datatype-build so the binary is on disk.
 weave-drift-check: datatype-build
 	@echo "==> weave drift check (dynamic-skill render must be deterministic)"
-	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
 	bin="$$owner/bin/datatype"; \
 	if [ ! -x "$$bin" ]; then echo "Error: datatype binary not built at $$bin" >&2; exit 1; fi; \
 	d1="$$(mktemp -d)"; d2="$$(mktemp -d)"; \
@@ -236,8 +249,8 @@ weave-drift-check: datatype-build
 	@echo "    OK — dynamic-skill render is byte-stable across runs."
 
 bootstrap-peers:
-	@if [ -x construct/scripts/bootstrap-peers.sh ]; then \
-		bash construct/scripts/bootstrap-peers.sh; \
+	@if [ -x "$(call wf-helper,construct/scripts/bootstrap-peers.sh)" ]; then \
+		bash "$(call wf-helper,construct/scripts/bootstrap-peers.sh)"; \
 	fi
 
 # Clone + symlink DATA DEPENDENCIES (content peers, not substrate). Reads
@@ -305,12 +318,17 @@ ensure-uv:
 # Prereq-only definition — no recipe. Derivatives can `bootstrap: <my-prereq>`
 # additively without colliding. Make composes the prereq list; if any
 # derivative defines its own recipe for `bootstrap` (e.g. nous's existing
-# GPG/install setup), that recipe is what runs after all prereqs. The ensure-*
-# targets are listed first so toolchains are provisioned before the cascade in
-# serial make; under `make -j` ordering isn't positional, but the go-build
-# targets (sdlc-build, build) depend on ensure-go, so the actual compiles still
-# wait for it (#61).
-bootstrap: ensure-go ensure-cue ensure-uv bootstrap-peers weave tools sdlc-install data-deps
+# GPG/install setup), that recipe runs after the inherited composition.
+# A separate composition prerequisite preserves consumer bootstrap extensions.
+# Recursive phases enforce ordering even under make -j: weave creates the local
+# helper links used by tools/install/data. A failed phase prevents later phases.
+.PHONY: bootstrap bootstrap-peers data-deps wf-bootstrap
+bootstrap: wf-bootstrap
+wf-bootstrap:
+	@$(MAKE) --no-print-directory ensure-go ensure-cue ensure-uv bootstrap-peers
+	@$(MAKE) --no-print-directory weave
+	@$(MAKE) --no-print-directory tools
+	@$(MAKE) --no-print-directory sdlc-install data-deps
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge
@@ -807,7 +825,7 @@ sdlc-build: ensure-go
 	@# own bin/sdlc. Under `make bootstrap`, `bootstrap-peers` (clones ancestors) and
 	@# `weave` (materializes the construct/dev-aliases.sh symlink) both precede
 	@# `tools`, so the resolver and the owner are present by the time this runs.
-	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="sdlc"{print $$2}')"; \
+	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="sdlc"{print $$2}')"; \
 	if [ -z "$$owner" ]; then \
 	    echo "Error: sdlc owner not found beside this repo." >&2; \
 	    echo "  Run 'make bootstrap-peers' (clone ancestors) + 'make weave' first." >&2; \
@@ -830,7 +848,7 @@ sdlc-build: ensure-go
 # dev-aliases.sh symlink are present by the time this runs.
 weave-build: ensure-go
 	@echo "==> building weave (build-in-owner)"
-	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
+	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
 	if [ -z "$$owner" ]; then \
 	    echo "Error: weave owner not found beside this repo." >&2; \
 	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
@@ -850,7 +868,7 @@ weave-build: ensure-go
 # bin/datatype, unchanged.
 datatype-build: ensure-go
 	@echo "==> building datatype (build-in-owner)"
-	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
 	if [ -z "$$owner" ]; then \
 	    echo "Error: datatype owner not found beside this repo." >&2; \
 	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
@@ -867,7 +885,7 @@ datatype-build: ensure-go
 # bin/vocabulary, unchanged.
 vocabulary-build: ensure-go
 	@echo "==> building vocabulary (build-in-owner)"
-	@owner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
+	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
 	if [ -z "$$owner" ]; then \
 	    echo "Error: vocabulary owner not found beside this repo." >&2; \
 	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
@@ -890,7 +908,7 @@ vocabulary-build: ensure-go
 # `vocabulary check --output construct/generated/vocabulary`.
 vocab-embed: vocabulary-build ensure-cue
 	@echo "==> regenerating pkg/vocab embed inputs (go generate)"
-	@vcowner="$$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
+	@vcowner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
 	PATH="$$vcowner/bin:$$PATH" go generate ./pkg/vocab/...
 	@git diff --exit-code -- pkg/vocab \
 	  || { echo "Error: pkg/vocab embed inputs are STALE vs construct/vocabulary/*.cue — run 'make vocab-embed' and commit (#122)." >&2; exit 1; }

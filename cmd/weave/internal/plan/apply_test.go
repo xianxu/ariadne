@@ -572,3 +572,151 @@ func TestApplySymlinkReplacesExistingRegularFile(t *testing.T) {
 		t.Fatalf("relinked content = %q, want UP", got)
 	}
 }
+
+// Seed destinations belong to the consumer even when the previous generation
+// linked them into an ancestor. Assert both bytes and mode on that old target.
+func TestApplySeedDestinationStates(t *testing.T) {
+	for _, state := range []string{"matching", "different", "dangling", "missing-source"} {
+		t.Run(state, func(t *testing.T) {
+			root := t.TempDir()
+			src := filepath.Join(root, "source")
+			victim := filepath.Join(root, "ancestor")
+			dst := filepath.Join(root, "destination")
+			source := []byte("upstream\n")
+			old := []byte("old ancestor\n")
+			if state == "matching" {
+				old = source
+			}
+			if state != "missing-source" {
+				if err := os.WriteFile(src, source, 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if state != "dangling" {
+				if err := os.WriteFile(victim, old, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.Symlink(victim, dst); err != nil {
+				t.Fatal(err)
+			}
+			if err := applySeed(weavefs.OSFS{}, src, dst); err != nil {
+				t.Fatal(err)
+			}
+			fi, err := os.Lstat(dst)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if state == "missing-source" {
+				if fi.Mode()&os.ModeSymlink == 0 {
+					t.Fatal("missing source changed link")
+				}
+			} else {
+				if !fi.Mode().IsRegular() {
+					t.Fatal("seed remained a symlink")
+				}
+				got, _ := os.ReadFile(dst)
+				if string(got) != string(source) || fi.Mode().Perm() != 0755 {
+					t.Fatalf("materialized %q mode %v", got, fi.Mode())
+				}
+				if err := applySeed(weavefs.OSFS{}, src, dst); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if state == "dangling" {
+				if _, err := os.Stat(victim); !os.IsNotExist(err) {
+					t.Fatalf("dangling target created: %v", err)
+				}
+			} else {
+				got, err := os.ReadFile(victim)
+				if err != nil {
+					t.Fatal(err)
+				}
+				fi, err := os.Stat(victim)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(got) != string(old) || fi.Mode().Perm() != 0600 {
+					t.Fatalf("ancestor changed: %q mode %v", got, fi.Mode())
+				}
+			}
+		})
+	}
+}
+
+type materializationFaultFS struct {
+	weavefs.OSFS
+	operation, destination string
+}
+
+func (f materializationFaultFS) Lstat(p string) (os.FileInfo, error) {
+	if f.operation == "lstat" && p == f.destination {
+		return nil, os.ErrPermission
+	}
+	return f.OSFS.Lstat(p)
+}
+func (f materializationFaultFS) Remove(p string) error {
+	if f.operation == "remove" {
+		return os.ErrPermission
+	}
+	return f.OSFS.Remove(p)
+}
+func (f materializationFaultFS) WriteFile(p string, b []byte) error {
+	if f.operation == "write" {
+		return os.ErrPermission
+	}
+	return f.OSFS.WriteFile(p, b)
+}
+func (f materializationFaultFS) Chmod(p string, m os.FileMode) error {
+	if f.operation == "chmod" {
+		return os.ErrPermission
+	}
+	return f.OSFS.Chmod(p, m)
+}
+func TestMaterializationFailures(t *testing.T) {
+	for _, kind := range []string{"seed", "writefile"} {
+		for _, operation := range []string{"lstat", "remove", "write", "chmod"} {
+			if kind == "writefile" && operation == "chmod" {
+				continue
+			}
+			t.Run(kind+"/"+operation, func(t *testing.T) {
+				root := t.TempDir()
+				src := filepath.Join(root, "source")
+				dst := filepath.Join(root, "destination")
+				victim := filepath.Join(root, "ancestor")
+				for _, p := range []string{src, victim} {
+					if err := os.WriteFile(p, []byte("same"), 0700); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := os.Chmod(victim, 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(victim, dst); err != nil {
+					t.Fatal(err)
+				}
+				invoke := func(fs weavefs.FS) error {
+					if kind == "seed" {
+						return applySeed(fs, src, dst)
+					}
+					return applyWriteFile(fs, dst, "same")
+				}
+				if err := invoke(materializationFaultFS{operation: operation, destination: dst}); err == nil {
+					t.Fatal("materialization failure hidden")
+				}
+				got, _ := os.ReadFile(victim)
+				fi, _ := os.Stat(victim)
+				if string(got) != "same" || fi.Mode().Perm() != 0600 {
+					t.Fatal("fault changed ancestor")
+				}
+				if err := invoke(weavefs.OSFS{}); err != nil {
+					t.Fatal(err)
+				}
+				fi, err := os.Lstat(dst)
+				if err != nil || !fi.Mode().IsRegular() {
+					t.Fatalf("retry did not converge: %v %v", fi, err)
+				}
+			})
+		}
+	}
+}
